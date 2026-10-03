@@ -42,7 +42,10 @@ class Note;
 class NoteRow;
 class ParamCollection;
 class ParamManagerForTimeline;
-class ParamNode;
+namespace deluge::project {
+struct ParamNode;
+}
+using deluge::project::ParamNode;
 class PatchCableSet;
 class Sound;
 class SoundDrum;

@@ -721,7 +721,7 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 	// calls below
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		kind = modelStackWithParam->paramCollection->getParamKind();
-		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
+		isBipolar = deluge::modulation::params::isParamBipolar(kind, modelStackWithParam->paramId);
 	}
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {

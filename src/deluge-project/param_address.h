@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "modulation/params/param.h" // deluge::modulation::params::Kind
+#include "engine-api/types/param_kind.h"
 #include <compare>
 #include <cstdint>
 #include <optional>
@@ -53,7 +53,7 @@ struct OwnerId {
 /// slice widens `param_id` to the collection's own key (cc; encoded from/dest).
 struct ParamAddress {
 	OwnerId owner{};
-	deluge::modulation::params::Kind kind{deluge::modulation::params::Kind::NONE};
+	deluge::engine::ParamKind kind{deluge::engine::ParamKind::NONE};
 	int32_t param_id{0};
 	// For INSTRUMENT/DRUM owners, which clip's override this lane belongs to (nullopt = the owner's shared
 	// default). Mirrors ParamBackup's (ModControllable, Clip) key. Unused for SONG/CLIP owners.

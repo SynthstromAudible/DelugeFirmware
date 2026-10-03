@@ -24,6 +24,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/patch_cable_words.h"
 #include "modulation/patch/patch_cable.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
@@ -107,11 +108,11 @@ deluge::project::DocAutoParam* PatchCableSet::docForParam(int32_t c) {
 deluge::project::DocPatchCable& PatchCableSet::findOrCreateDomCable(PatchSource from, ParamDescriptor dest,
                                                                     Polarity polarity) {
 	for (deluge::project::DocPatchCable& entry : *domCablesRef_) {
-		if (entry.from == from && entry.destination == dest) {
+		if (deluge::bridge::source_of(entry) == from && deluge::bridge::destination_of(entry) == dest) {
 			return entry;
 		}
 	}
-	domCablesRef_->push_back(deluge::project::DocPatchCable{from, dest, polarity, {}});
+	domCablesRef_->push_back(deluge::bridge::doc_cable(from, dest, polarity, {}));
 	return domCablesRef_->back();
 }
 
@@ -120,7 +121,7 @@ deluge::project::DocAutoParam* PatchCableSet::findDomCableAmount(PatchSource fro
 		return nullptr;
 	}
 	for (deluge::project::DocPatchCable& entry : *domCablesRef_) {
-		if (entry.from == from && entry.destination == dest) {
+		if (deluge::bridge::source_of(entry) == from && deluge::bridge::destination_of(entry) == dest) {
 			return &entry.amount;
 		}
 	}

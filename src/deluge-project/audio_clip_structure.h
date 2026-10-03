@@ -17,8 +17,8 @@
 
 #pragma once
 
+#include "deluge-project/containers.h"
 #include "deluge-project/doc_audio_clip.h"
-#include "util/containers.h" // deluge::fast_map
 #include <cstdint>
 
 namespace deluge::project {
@@ -28,7 +28,7 @@ namespace deluge::project {
 /// with InstrumentClip; DocAudioClip is AudioClip-only). Because it is keyed by the serial id — not a `Clip*` or
 /// array index — it is unaffected by clip reorders.
 struct AudioClipStructure {
-	deluge::fast_map<uint32_t, DocAudioClip> by_id;
+	model_map<uint32_t, DocAudioClip> by_id;
 
 	/// The clip's DocAudioClip, or nullptr if this clip has no tree-resident record.
 	DocAudioClip* find(uint32_t id) {

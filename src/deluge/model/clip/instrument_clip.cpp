@@ -4797,7 +4797,7 @@ doNormal: // Wrap it back to the start.
 		if (effectiveLength == distanceToNextNote) {
 			param->deleteAutomation(nullptr, modelStackWithAutoParam, false);
 
-			Error error = mpeParams->docForParam(m)->nodes.insertAt(0).error_or(Error::NONE);
+			Error error = deluge::error_of(mpeParams->docForParam(m)->nodes.insertAt(0));
 			if (error == Error::NONE) {
 				ParamNode* firstNode = &mpeParams->docForParam(m)->nodes[0];
 				firstNode->pos = quantizedPos;

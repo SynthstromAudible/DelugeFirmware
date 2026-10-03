@@ -17,9 +17,9 @@
 
 #pragma once
 
+#include "deluge-project/containers.h"
 #include "deluge-project/param_address.h"    // OwnerId
 #include "deluge-project/param_automation.h" // DocParamManager
-#include "util/containers.h"                 // deluge::fast_map
 #include <compare>
 #include <cstdint>
 #include <optional>
@@ -45,7 +45,7 @@ struct BackedParamKey {
 /// interpolation cursors. Keyed by stable serial ids, so it is unaffected by clip reorders and by
 /// `stealParamCollectionsFrom` moving the engine cursor-holder. A component of `deluge::project::Song`.
 struct BackedParams {
-	deluge::fast_map<BackedParamKey, DocParamManager> by_owner;
+	model_map<BackedParamKey, DocParamManager> by_owner;
 
 	/// The store for exactly (owner, clip_id), or nullptr if none is tree-resident.
 	DocParamManager* find(const OwnerId& owner, std::optional<uint32_t> clipSerial) {

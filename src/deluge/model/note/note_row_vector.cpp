@@ -33,8 +33,7 @@ void NoteRowVector::deleteNoteRowAtIndex(int32_t startIndex, int32_t numToDelete
 void NoteRowVector::swapRows(int32_t a, int32_t b) {
 	// One section for the whole swap: each row's move-assign is its own section, but between them one row would be
 	// in both places and the other in neither.
-	AudioExcludedSection section;
-	noteEdit();
+	deluge::project::EditGuard guard;
 	std::swap((*this)[a], (*this)[b]);
 }
 

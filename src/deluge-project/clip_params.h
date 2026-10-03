@@ -17,8 +17,8 @@
 
 #pragma once
 
+#include "deluge-project/containers.h"
 #include "deluge-project/param_automation.h" // DocParamManager
-#include "util/containers.h"                 // deluge::fast_map
 #include <cstdint>
 
 namespace deluge::project {
@@ -30,7 +30,7 @@ namespace deluge::project {
 /// `stealParamCollectionsFrom`/`ParamBackup` moving the engine cursor-holder (the nodes stay here, resolved by
 /// id). A component of `deluge::project::Song`.
 struct ClipParams {
-	deluge::fast_map<uint32_t, DocParamManager> by_id;
+	model_map<uint32_t, DocParamManager> by_id;
 
 	/// The clip's DocParamManager, or nullptr if this clip has no tree-resident store.
 	DocParamManager* find(uint32_t id) {

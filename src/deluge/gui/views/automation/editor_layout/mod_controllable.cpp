@@ -361,9 +361,9 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 			    lastSelectedParamID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
 		}
 		else {
-			parameterName.append(
-			    getParamDisplayName(lastSelectedParamKind, lastSelectedParamID,
-			                        (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
+			parameterName.append(deluge::modulation::params::getParamDisplayName(
+			    lastSelectedParamKind, lastSelectedParamID,
+			    (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
 		}
 	}
 	else {
@@ -952,7 +952,7 @@ void AutomationEditorLayoutModControllable::setAutomationKnobIndicatorLevels(Mod
                                                                              int32_t knobPosLeft,
                                                                              int32_t knobPosRight) {
 	params::Kind kind = modelStack->paramCollection->getParamKind();
-	bool isBipolar = isParamBipolar(kind, modelStack->paramId);
+	bool isBipolar = deluge::modulation::params::isParamBipolar(kind, modelStack->paramId);
 
 	// if you're dealing with a patch cable which has a -128 to +128 range
 	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators

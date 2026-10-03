@@ -1382,7 +1382,7 @@ basicTrim: {
 
 addNewNodeAt0IfNecessary:
 			if (needNewNodeAt0) {
-				Error error = nodesRef.insertAt(0).error_or(Error::NONE);
+				Error error = deluge::error_of(nodesRef.insertAt(0));
 				if (error == Error::NONE) { // Should be fine cos we just deleted some, so some free RAM
 					ParamNode* newNode = &nodesRef[0];
 					newNode->pos = 0;
@@ -1403,7 +1403,7 @@ addNewNodeAt0IfNecessary:
 			}
 			else {
 				ParamNodeVector newNodes;
-				Error error = newNodes.insertAt(0, newNumNodes).error_or(Error::NONE);
+				Error error = deluge::error_of(newNodes.insertAt(0, newNumNodes));
 				if (error != Error::NONE) {
 					goto basicTrim;
 				}
@@ -1556,7 +1556,7 @@ Error AutoParam::readFromFile(deluge::project::DocAutoParam& doc, Deserializer& 
 				if (pos == readAutomationUpToPos) {
 					ParamNode* firstNode = doc.nodes.tryGet(0);
 					if (!firstNode || firstNode->pos) {
-						Error error = doc.nodes.insertAt(0).error_or(Error::NONE);
+						Error error = deluge::error_of(doc.nodes.insertAt(0));
 						if (error != Error::NONE) {
 							return error;
 						}
@@ -1676,7 +1676,7 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 
 			if (resetNode == nullptr || resetNode->pos != resetPos) {
 				bool previousNodeInterpolated = resetNode != nullptr ? resetNode->interpolated : true;
-				auto error = nodesRef.insertAt(resetI).error_or(Error::NONE);
+				auto error = deluge::error_of(nodesRef.insertAt(resetI));
 				if (error != Error::NONE) {
 					return;
 				}
@@ -1707,7 +1707,7 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 			ParamNode* resetNode = nodesRef.tryGet(resetI);
 
 			if (!resetNode || resetNode->pos != resetPos) {
-				auto error = nodesRef.insertAt(resetI).error_or(Error::NONE);
+				auto error = deluge::error_of(nodesRef.insertAt(resetI));
 				if (error != Error::NONE) {
 					return;
 				}

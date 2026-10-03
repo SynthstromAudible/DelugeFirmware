@@ -16,6 +16,7 @@
  */
 
 #include "model/project_bridge/param_projection.h"
+#include "model/project_bridge/patch_cable_words.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -178,12 +179,8 @@ std::vector<DocPatchCable> toDocPatchCables(PatchCableSet& pcs) {
 		// tree entry when bound, where the read seeds current_value and runtime edits land — else the inline
 		// amount_). Reading cable.param.currentValue (the engine cursor) would make the engine the scalar's source.
 		deluge::project::DocAutoParam* d = pcs.docForParam(i);
-		out.push_back(DocPatchCable{
-		    .from = cable.from,
-		    .destination = cable.destinationParamDescriptor,
-		    .polarity = cable.polarity,
-		    .amount = toDocAutoParam(d->current_value, d->nodes),
-		});
+		out.push_back(doc_cable(cable.from, cable.destinationParamDescriptor, cable.polarity,
+		                        toDocAutoParam(d->current_value, d->nodes)));
 	}
 	return out;
 }
@@ -221,9 +218,9 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 		pcs->numPatchCables = count;
 		for (int32_t i = 0; i < count; i++) {
 			const DocPatchCable& dc = doc.patch_cables[i];
-			pcs->patchCables[i].from = dc.from;
-			pcs->patchCables[i].destinationParamDescriptor = dc.destination;
-			pcs->patchCables[i].polarity = dc.polarity;
+			pcs->patchCables[i].from = source_of(dc);
+			pcs->patchCables[i].destinationParamDescriptor = destination_of(dc);
+			pcs->patchCables[i].polarity = polarity_of(dc);
 			// M2-F: project the value into the RT cursor and the nodes into the cable's own store.
 			fromDocAutoParam(dc.amount, pcs->patchCables[i].param.currentValue, pcs->patchCables[i].amount_.nodes);
 		}

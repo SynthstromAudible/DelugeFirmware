@@ -41,7 +41,10 @@ class ParamManagerForTimeline;
 class Action;
 class ParamCollection;
 class CopiedNoteRow;
-class ParamNode;
+namespace deluge::project {
+struct ParamNode;
+}
+using deluge::project::ParamNode;
 class ModelStackWithTimelineCounter;
 class ModelStackWithNoteRow;
 

@@ -43,7 +43,7 @@ Error SetEuclideanEvents::apply(Context& /*ctx*/) {
 	// ActionLogger will be "stealing" the old data.
 	NoteVector newNotes;
 	if (newNumNotes_) {
-		Error error = newNotes.insertAt(0, newNumNotes_).error_or(Error::NONE); // Pre-allocate, so no errors later
+		Error error = deluge::error_of(newNotes.insertAt(0, newNumNotes_)); // Pre-allocate, so no errors later
 		if (error != Error::NONE) {
 			return error;
 		}

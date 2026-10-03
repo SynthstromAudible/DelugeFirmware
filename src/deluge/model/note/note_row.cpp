@@ -148,7 +148,7 @@ Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 			// Move the owned notes out, then rebuild them reversed into a fresh buffer.
 			NoteVector oldNotes = std::move(notes);
 			notes.clear();
-			error = notes.insertAt(0, numNotes).error_or(Error::NONE);
+			error = deluge::error_of(notes.insertAt(0, numNotes));
 			if (error == Error::NONE) {
 
 				InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -583,7 +583,7 @@ Error NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, 
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = std::ssize(notes) + numScreensToAddNoteOn;
-	Error error = newNotes.insertAt(0, newNotesInitialSize).error_or(Error::NONE);
+	Error error = deluge::error_of(newNotes.insertAt(0, newNotesInitialSize));
 	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
@@ -792,7 +792,7 @@ int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, i
 		length = 1; // Special case where note added at the end of linear record must temporarily be allowed to eat into
 		            // note at position 0
 	}
-	Error error = notes.insertAt(i).error_or(Error::NONE);
+	Error error = deluge::error_of(notes.insertAt(i));
 	if (error != Error::NONE) {
 		return 0;
 	}
@@ -852,7 +852,7 @@ int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32
 		// Ok, there was no Note there, so let's make one
 	}
 
-	Error error = notes.insertAt(i).error_or(Error::NONE);
+	Error error = deluge::error_of(notes.insertAt(i));
 	if (error != Error::NONE) {
 		return 0;
 	}
@@ -896,7 +896,7 @@ Error NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNot
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = std::ssize(notes);
-	Error error = newNotes.insertAt(0, newNotesInitialSize).error_or(Error::NONE);
+	Error error = deluge::error_of(newNotes.insertAt(0, newNotesInitialSize));
 	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
@@ -1201,7 +1201,7 @@ Error NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWid
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = numSourceNotes + (newNumNotes - 1) * numScreens;
-	Error error = newNotes.insertAt(0, newNotesInitialSize).error_or(Error::NONE);
+	Error error = deluge::error_of(newNotes.insertAt(0, newNotesInitialSize));
 	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
@@ -1400,7 +1400,7 @@ Error NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = numSourceNotes;
-	Error error = newNotes.insertAt(0, newNotesInitialSize).error_or(Error::NONE);
+	Error error = deluge::error_of(newNotes.insertAt(0, newNotesInitialSize));
 	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
@@ -2770,7 +2770,7 @@ basicTrim:
 			else {
 
 				NoteVector newNotes;
-				Error error = newNotes.insertAt(0, newNumNotes).error_or(Error::NONE);
+				Error error = deluge::error_of(newNotes.insertAt(0, newNumNotes));
 				if (error != Error::NONE) {
 					goto basicTrim;
 				}
@@ -2872,7 +2872,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		// This is crude and lazy, but the amount of elements I'll create is rounded way up, and we'll delete
 		// any extras, below.
 		int32_t maxNewNumNotes = numNotesBefore * numRepeatsRoundedUp;
-		Error error = notes.insertAt(numNotesBefore, maxNewNumNotes - numNotesBefore).error_or(Error::NONE);
+		Error error = deluge::error_of(notes.insertAt(numNotesBefore, maxNewNumNotes - numNotesBefore));
 		if (error != Error::NONE) {
 			return false;
 		}
@@ -4330,7 +4330,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 	int32_t insertIndex = std::ssize(notes);
 
 	// Pre-emptively insert space for all the notes.
-	Error error = notes.insertAt(insertIndex, numToInsert).error_or(Error::NONE);
+	Error error = deluge::error_of(notes.insertAt(insertIndex, numToInsert));
 	if (error != Error::NONE) {
 		return error;
 	}

@@ -19,7 +19,10 @@
 
 #include <cstdint>
 
-class ParamNode;
+namespace deluge::project {
+struct ParamNode;
+}
+using deluge::project::ParamNode;
 
 /// Copied automation nodes. Nodes here are on their own timeline with the length determined by "width" and node
 /// positions relative to node 0 starting at time 0.

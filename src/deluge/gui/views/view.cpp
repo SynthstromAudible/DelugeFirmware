@@ -1025,8 +1025,9 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 		}
 		else {
 			strncpy(parameterName,
-			        getParamDisplayName(kind, modelStackWithParam->paramId,
-			                            (ModControllableAudio*)activeModControllableModelStack.modControllable),
+			        deluge::modulation::params::getParamDisplayName(
+			            kind, modelStackWithParam->paramId,
+			            (ModControllableAudio*)activeModControllableModelStack.modControllable),
 			        29);
 		}
 	}
@@ -1049,7 +1050,7 @@ void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStack
 	    modelStackWithParam->paramCollection->shouldParamIndicateMiddleValue(modelStackWithParam);
 
 	if (newKnobPos == 0 && shouldParamIndicateMiddleValue) {
-		bool isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
+		bool isBipolar = deluge::modulation::params::isParamBipolar(kind, modelStackWithParam->paramId);
 
 		indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar);
 
@@ -1125,7 +1126,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			}
 		}
 		else {
-			const char* name = getParamDisplayName(
+			const char* name = deluge::modulation::params::getParamDisplayName(
 			    kind, paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable);
 			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
 				parameter_name.append(name);
@@ -1137,8 +1138,8 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	// display stutter quantization instead of knob position
 	// int32_t quantization_level = 0;
 	int32_t current_display_value = 0;
-	if (isParamQuantizedStutter(kind, paramID,
-	                            (ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+	if (deluge::modulation::params::isParamQuantizedStutter(
+	        kind, paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 	    && !isUIModeActive(UI_MODE_STUTTERING)) {
 		if (newKnobPos < -39) { // 4ths stutter: no leds turned on
 			current_display_value = 4;
@@ -1162,7 +1163,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		}
 	}
 	// if turning arpeggiator rhythm mod encoder
-	else if (isParamArpRhythm(kind, paramID)) {
+	else if (deluge::modulation::params::isParamArpRhythm(kind, paramID)) {
 		current_display_value = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
 		char name[12];
 		// Index: Name
@@ -1295,7 +1296,8 @@ int32_t View::calculateKnobPosForDisplay(params::Kind kind, int32_t paramID, int
 	valueForDisplayFloat = (knobPosFloat / maxKnobPosFloat) * maxMenuValueFloat;
 
 	// check if parameter is pan or pitch, in which case, further adjust range from 0 - 50 to -25 to +25
-	if (isParamPan(kind, paramID) || isParamPitch(kind, paramID)) {
+	if (deluge::modulation::params::isParamPan(kind, paramID)
+	    || deluge::modulation::params::isParamPitch(kind, paramID)) {
 		valueForDisplayFloat = valueForDisplayFloat - maxMenuRelativeValueFloat;
 	}
 
@@ -1395,7 +1397,7 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 		ParamCollection* paramCollection = modelStackWithParam->paramCollection;
 		params::Kind kind = paramCollection->getParamKind();
-		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
+		isBipolar = deluge::modulation::params::isParamBipolar(kind, modelStackWithParam->paramId);
 		knobPos = paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 		int32_t lowerLimit;
 
@@ -1406,8 +1408,8 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 			lowerLimit = std::min(-64_i32, knobPos);
 		}
 		knobPos = std::clamp(knobPos, lowerLimit, 64_i32);
-		if (isParamQuantizedStutter(kind, modelStackWithParam->paramId,
-		                            (ModControllableAudio*)modelStackWithParam->modControllable)
+		if (deluge::modulation::params::isParamQuantizedStutter(
+		        kind, modelStackWithParam->paramId, (ModControllableAudio*)modelStackWithParam->modControllable)
 		    && !isUIModeActive(UI_MODE_STUTTERING)) {
 			if (knobPos < -39) { // 4ths stutter: no leds turned on
 				knobPos = -64;

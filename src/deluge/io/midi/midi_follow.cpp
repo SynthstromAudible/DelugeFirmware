@@ -655,7 +655,7 @@ void MidiFollow::displayParamControlError(int32_t soundParamId, int32_t globalPa
 	if (paramID != PARAM_ID_NONE) {
 		etl::string<40> popupMsg;
 
-		const char* name = getParamDisplayName(paramKind, paramID);
+		const char* name = deluge::modulation::params::getParamDisplayName(paramKind, paramID);
 		if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
 			popupMsg.append("Can't control: \n");
 			popupMsg.append(name);

@@ -1139,7 +1139,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 					// automation on
 					clipInstanceI++;
 
-					Error error = output->clipInstances.insertAt(clipInstanceI).error_or(Error::NONE);
+					Error error = deluge::error_of(output->clipInstances.insertAt(clipInstanceI));
 					if (error != Error::NONE) {
 						return false;
 					}

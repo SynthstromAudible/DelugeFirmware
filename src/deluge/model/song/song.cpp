@@ -4572,7 +4572,7 @@ Error Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 
 		if (isClipActive(clip)) {
 			int32_t clipInstanceI = std::ssize(clip->output->clipInstances);
-			Error error = clip->output->clipInstances.insertAt(clipInstanceI).error_or(Error::NONE);
+			Error error = deluge::error_of(clip->output->clipInstances.insertAt(clipInstanceI));
 			if (error != Error::NONE) {
 				return error;
 			}

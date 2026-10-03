@@ -17,8 +17,8 @@
 
 #pragma once
 
+#include "deluge-project/containers.h"
 #include "deluge-project/doc_output.h"
-#include "util/containers.h" // deluge::fast_map
 #include <cstdint>
 
 namespace deluge::project {
@@ -28,7 +28,7 @@ namespace deluge::project {
 /// `Output*` or list position — it is unaffected by output reorders. A component of `deluge::project::Song` (a single
 /// instance keyed by serial id; every output gets its id via `assignMissingIds`).
 struct OutputStructure {
-	deluge::fast_map<uint32_t, DocOutput> by_id;
+	model_map<uint32_t, DocOutput> by_id;
 
 	/// The output's DocOutput, or nullptr if this output has no tree-resident record.
 	DocOutput* find(uint32_t id) {

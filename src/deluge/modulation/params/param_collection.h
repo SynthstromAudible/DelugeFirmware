@@ -25,7 +25,10 @@ class Sound;
 class InstrumentClip;
 class Action;
 struct AutoParamState;
-class ParamNode;
+namespace deluge::project {
+struct ParamNode;
+}
+using deluge::project::ParamNode;
 class AutoParam;
 class CopiedParamAutomation;
 class TimelineCounter;

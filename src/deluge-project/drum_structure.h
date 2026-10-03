@@ -17,8 +17,8 @@
 
 #pragma once
 
+#include "deluge-project/containers.h"
 #include "deluge-project/doc_drum.h"
-#include "util/containers.h" // deluge::fast_map
 #include <cstdint>
 
 namespace deluge::project {
@@ -29,7 +29,7 @@ namespace deluge::project {
 /// instance keyed by serial id; unlike clips there is no session/serial twin, since every drum gets its id via
 /// `assignMissingIds`).
 struct DrumStructure {
-	deluge::fast_map<uint32_t, DocDrum> by_id;
+	model_map<uint32_t, DocDrum> by_id;
 
 	/// The drum's DocDrum, or nullptr if this drum has no tree-resident record.
 	DocDrum* find(uint32_t id) {

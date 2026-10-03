@@ -119,7 +119,7 @@ void setNodeIn(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value, b
 }
 
 bool cableMatches(const deluge::project::DocPatchCable& a, const deluge::project::DocPatchCable& b) {
-	return a.from == b.from && a.destination.data == b.destination.data && a.polarity == b.polarity
+	return a.from == b.from && a.destination == b.destination && a.polarity == b.polarity
 	       && a.amount.current_value == b.amount.current_value && a.amount.nodes.size() == b.amount.nodes.size();
 }
 

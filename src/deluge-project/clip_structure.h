@@ -17,8 +17,8 @@
 
 #pragma once
 
+#include "deluge-project/containers.h"
 #include "deluge-project/doc_clip.h"
-#include "util/containers.h" // deluge::fast_map
 #include <cstdint>
 
 namespace deluge::project {
@@ -28,7 +28,7 @@ namespace deluge::project {
 /// `Clip*` or array index — it is unaffected by clip reorders. A component of `deluge::project::Song` (one instance
 /// keyed by serial id, a transient twin keyed by session id for not-yet-saved clips).
 struct ClipStructure {
-	deluge::fast_map<uint32_t, DocClip> by_id;
+	model_map<uint32_t, DocClip> by_id;
 
 	/// The clip's DocClip, or nullptr if this clip has no tree-resident record.
 	DocClip* find(uint32_t id) {

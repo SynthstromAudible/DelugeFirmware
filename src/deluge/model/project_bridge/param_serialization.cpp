@@ -16,6 +16,7 @@
  */
 
 #include "model/project_bridge/param_serialization.h"
+#include "model/project_bridge/patch_cable_words.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
@@ -351,14 +352,14 @@ void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& 
 	for (const DocPatchCable& cable : cables) {
 		// Depth-controlling (range) cables aren't written at top level; they're nested below the cable
 		// whose depth they control.
-		if (!cable.destination.isJustAParam()) {
+		if (!destination_of(cable).isJustAParam()) {
 			continue;
 		}
 		out.writeOpeningTagBeginning("patchCable", true);
-		out.writeAttribute("source", sourceToString(cable.from));
+		out.writeAttribute("source", sourceToString(source_of(cable)));
 		out.writeAttribute("destination", params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
-		                                                           cable.destination.getJustTheParam()));
-		out.writeAttribute("polarity", polarityToString(cable.polarity).data());
+		                                                           destination_of(cable).getJustTheParam()));
+		out.writeAttribute("polarity", polarityToString(polarity_of(cable)).data());
 		out.insertCommaIfNeeded();
 		out.write("\n");
 		out.printIndents();
@@ -370,19 +371,19 @@ void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& 
 		// Find the cable(s) whose destination is this cable's param-with-this-source — they control its
 		// depth. NB: like the engine, the nested cable writes the OUTER cable's polarity (a quirk
 		// preserved for byte-identity).
-		ParamDescriptor controllerDescriptor = cable.destination;
-		controllerDescriptor.addSource(cable.from);
+		ParamDescriptor controllerDescriptor = destination_of(cable);
+		controllerDescriptor.addSource(source_of(cable));
 		bool anyDepthControllingCablesFound = false;
 		for (const DocPatchCable& d : cables) {
-			if (d.destination == controllerDescriptor) {
+			if (destination_of(d) == controllerDescriptor) {
 				if (!anyDepthControllingCablesFound) {
 					anyDepthControllingCablesFound = true;
 					out.writeOpeningTagEnd();
 					out.writeArrayStart("depthControlledBy");
 				}
 				out.writeOpeningTagBeginning("patchCable", true);
-				out.writeAttribute("source", sourceToString(d.from));
-				out.writeAttribute("polarity", polarityToString(cable.polarity).data());
+				out.writeAttribute("source", sourceToString(source_of(d)));
+				out.writeAttribute("polarity", polarityToString(polarity_of(cable)).data());
 				out.insertCommaIfNeeded();
 				out.write("\n");
 				out.printIndents();
@@ -521,13 +522,9 @@ void deserializePatchCables(std::vector<DocPatchCable>& out, Deserializer& in, i
 				for (const RangeCable& rc : rangeCables) {
 					ParamDescriptor rangeDestination = destination;
 					rangeDestination.addSource(source);
-					out.push_back(DocPatchCable{.from = rc.from,
-					                            .destination = rangeDestination,
-					                            .polarity = rc.polarity,
-					                            .amount = rc.amount});
+					out.push_back(doc_cable(rc.from, rangeDestination, rc.polarity, rc.amount));
 				}
-				out.push_back(
-				    DocPatchCable{.from = source, .destination = destination, .polarity = polarity, .amount = amount});
+				out.push_back(doc_cable(source, destination, polarity, amount));
 			}
 		}
 		in.exitTag(nullptr, true);

@@ -31,14 +31,14 @@ DocAutoParam* slotInManager(DocParamManager* mgr, const ParamAddress& address) {
 	}
 	std::optional<DocParamSet>* set = nullptr;
 	switch (address.kind) {
-	case deluge::modulation::params::Kind::UNPATCHED_SOUND:
-	case deluge::modulation::params::Kind::UNPATCHED_GLOBAL:
+	case deluge::engine::ParamKind::UNPATCHED_SOUND:
+	case deluge::engine::ParamKind::UNPATCHED_GLOBAL:
 		set = &mgr->unpatched;
 		break;
-	case deluge::modulation::params::Kind::PATCHED:
+	case deluge::engine::ParamKind::PATCHED:
 		set = &mgr->patched;
 		break;
-	case deluge::modulation::params::Kind::EXPRESSION:
+	case deluge::engine::ParamKind::EXPRESSION:
 		set = &mgr->expression;
 		break;
 	default:
@@ -52,16 +52,14 @@ DocAutoParam* slotInManager(DocParamManager* mgr, const ParamAddress& address) {
 
 /// Resolve a patch-cable amount lane within a tree-resident manager by IDENTITY (S4b). The address's param_id is
 /// the packed (destination + source) word `PatchCableSet::getParamId` produces, so recompute that word from each
-/// stored cable's (destination, from) — via the same `ParamDescriptor::addSource` the engine uses — and match.
+/// stored cable's (destination, from) with patch_cable_param_id() and match.
 /// Identity, not index: the engine reorders cables at runtime (setupPatching), so only (from, dest) is stable.
 DocAutoParam* patchCableInManager(DocParamManager* mgr, int32_t paramId) {
 	if (mgr == nullptr) {
 		return nullptr;
 	}
 	for (DocPatchCable& cable : mgr->patch_cables) {
-		ParamDescriptor packed = cable.destination;
-		packed.addSource(cable.from);
-		if (static_cast<int32_t>(packed.data) == paramId) {
+		if (static_cast<int32_t>(patch_cable_param_id(cable.destination, cable.from)) == paramId) {
 			return &cable.amount;
 		}
 	}
@@ -100,7 +98,7 @@ DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 		// A clip's node storage is tree-resident by its durable id (clip_params). A MIDI_OUT clip's CC automation
 		// (S4c) resolves by cc within the same per-clip store; the audio-clip ParamSet resolves by index.
 		DocParamManager* mgr = clip_params.find(address.owner.id);
-		if (address.kind == deluge::modulation::params::Kind::MIDI) {
+		if (address.kind == deluge::engine::ParamKind::MIDI) {
 			return midiParamInManager(mgr, address.param_id);
 		}
 		return slotInManager(mgr, address);
@@ -111,7 +109,7 @@ DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 		// cables (S4b) resolve by cable identity within the manager; the ParamSets resolve by index. nullptr when
 		// the owner/lane isn't tree-resident → engine fallback.
 		DocParamManager* mgr = backed_params.find(address.owner, address.clip_id);
-		if (address.kind == deluge::modulation::params::Kind::PATCH_CABLE) {
+		if (address.kind == deluge::engine::ParamKind::PATCH_CABLE) {
 			return patchCableInManager(mgr, address.param_id);
 		}
 		return slotInManager(mgr, address);

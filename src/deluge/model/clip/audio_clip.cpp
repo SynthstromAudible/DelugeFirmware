@@ -939,7 +939,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 
 		clipInstanceI++;
 
-		error = output->clipInstances.insertAt(clipInstanceI).error_or(Error::NONE); // Shouldn't be able to fail...
+		error = deluge::error_of(output->clipInstances.insertAt(clipInstanceI)); // Shouldn't be able to fail...
 		if (error != Error::NONE) {
 			return;
 		}

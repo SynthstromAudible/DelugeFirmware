@@ -17,14 +17,11 @@
 
 #pragma once
 
-#include "modulation/params/param.h" // deluge::modulation::params::Kind
-#include "modulation/params/param_node.h"
-#include "modulation/params/param_node_vector.h"
+#include "deluge-project/param_node.h"
+#include "engine-api/types/param_kind.h"
 #include <cstdint>
 #include <optional>
 #include <vector>
-
-enum class Polarity : uint8_t; // opaque-enum decl (fixed underlying type ⇒ usable by value); from patch_cable.h
 
 namespace deluge::project {
 
@@ -78,20 +75,33 @@ inline void fromDocAutoParam(const DocAutoParam& doc, int32_t& current_value, Pa
 /// expression). `params` is dense, indexed by param id within the collection (`params[p]` is the doc
 /// form of the live `ParamSet::params[p]`), so its size is the collection's parameter count.
 struct DocParamSet {
-	deluge::modulation::params::Kind kind{deluge::modulation::params::Kind::NONE};
+	deluge::engine::ParamKind kind{deluge::engine::ParamKind::NONE};
 	std::vector<DocAutoParam> params;
 };
 
 /// Value-typed document form of one patch cable: a mod-matrix connection from a source to a destination
-/// parameter, with an automatable amount. `destination` is the `ParamDescriptor` copied verbatim — it
-/// encodes the target param and (for range cables) the cable-controlling-cable nesting, which the
-/// projection need not interpret. The amount is stored in the patch-cable range [-2^30, 2^30).
+/// parameter, with an automatable amount. Its words are the Deluge engine's, stored raw: `from` is a `PatchSource`,
+/// `destination` a `ParamDescriptor`'s data (the target param and, for range cables, the cable-controlling-cable
+/// nesting) and `polarity` a `Polarity`. The amount is stored in the patch-cable range [-2^30, 2^30).
 struct DocPatchCable {
-	PatchSource from{};
-	ParamDescriptor destination{};
-	Polarity polarity{};
+	uint8_t from{};
+	uint32_t destination{};
+	uint8_t polarity{};
 	DocAutoParam amount;
 };
+
+/// @brief The parameter id of a patch cable's amount: its destination descriptor with its source added in the first
+/// free source slot, the layout of the engine's `ParamDescriptor::addSource`.
+[[nodiscard]] constexpr uint32_t patch_cable_param_id(uint32_t destination, uint8_t source) noexcept {
+	const uint32_t s = source;
+	if ((destination & 0x0000FF00u) == 0x0000FF00u) {
+		return (destination & 0xFFFF00FFu) | (s << 8);
+	}
+	if ((destination & 0x00FF0000u) == 0x00FF0000u) {
+		return (destination & 0xFF00FFFFu) | (s << 16);
+	}
+	return (destination & 0x00FFFFFFu) | (s << 24);
+}
 
 /// Value-typed document form of one MIDI-CC automation lane: the CC number that identifies it (the ordered
 /// MIDIParamVector keys by cc) plus its automatable value. Keyed by identity (cc), like patch cables by

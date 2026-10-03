@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "engine-api/types/param_kind.h"
 #include "modulation/params/param_descriptor.h"
 #include "util/misc.h"
 #include <algorithm>
@@ -39,24 +40,8 @@
 class ModControllableAudio;
 
 namespace deluge::modulation::params {
-enum class Kind : int32_t {
-	NONE,
-
-	/// Voice-local parameters which can be modulated via the mod matrix
-	PATCHED,
-	/// Parameters which apply to the internal sound engine specifically
-	UNPATCHED_SOUND,
-	/// Parameters which can not be modulated and apply to the whole Output
-	UNPATCHED_GLOBAL,
-	/// Unused
-	STATIC,
-	/// Internal representation for MIDI CCs
-	MIDI,
-	/// Modulates the strength of the modulation between a mod source and another param
-	PATCH_CABLE,
-	/// Parameter connected to an MPE expression axis
-	EXPRESSION,
-};
+/// Which parameter collection a parameter id belongs to (the host–engine contract's word).
+using Kind = deluge::engine::ParamKind;
 
 /// Integer type used for all Param enumerations.
 ///

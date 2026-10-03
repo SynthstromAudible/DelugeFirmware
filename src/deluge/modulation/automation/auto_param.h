@@ -29,7 +29,10 @@
 // auto_param.cpp. This keeps AutoParam (and the synth core, which reaches it via ParamSet) off model/ and
 // storage/.
 class InstrumentClip;
-class ParamNode;
+namespace deluge::project {
+struct ParamNode;
+}
+using deluge::project::ParamNode;
 class Action;
 class Serializer;
 class Deserializer;
