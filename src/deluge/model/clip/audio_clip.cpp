@@ -1119,13 +1119,13 @@ VoicePriority AudioClip::voicePriority() const {
 	if (docAudioClip_ == nullptr) {
 		FREEZE_WITH_ERROR("AC4P");
 	}
-	return static_cast<VoicePriority>(docAudioClip_->voice_priority);
+	return docAudioClip_->voice_priority;
 }
 void AudioClip::setVoicePriority(VoicePriority value) {
 	if (docAudioClip_ == nullptr) {
 		FREEZE_WITH_ERROR("AC4P");
 	}
-	docAudioClip_->voice_priority = static_cast<uint8_t>(value);
+	docAudioClip_->voice_priority = value;
 }
 
 // M3 owner-4: SampleControls descriptor fields are DOM-owned with `sampleControls` kept as a derived render cache.
@@ -1134,7 +1134,7 @@ void AudioClip::setInterpolationMode(InterpolationMode mode) {
 	if (docAudioClip_ == nullptr) {
 		FREEZE_WITH_ERROR("AC4S");
 	}
-	docAudioClip_->interpolation_mode = static_cast<uint8_t>(mode);
+	docAudioClip_->interpolation_mode = mode;
 	sampleControls.interpolationMode = mode;
 }
 void AudioClip::setPitchAndSpeedIndependent(bool independent) {
@@ -1226,7 +1226,7 @@ void AudioClip::deriveEngineFromDoc() {
 	sampleHolder.endPos = d.end_pos;
 	sampleHolder.transpose = d.transpose;
 	sampleHolder.cents = d.cents;
-	sampleControls.interpolationMode = static_cast<InterpolationMode>(d.interpolation_mode);
+	sampleControls.interpolationMode = d.interpolation_mode;
 	sampleControls.pitchAndSpeedAreIndependent = d.pitch_and_speed_independent;
 	sampleControls.reversed = d.reversed;
 	// attack + voice_priority are DOM-owned (retired native fields) — read directly via attack()/voicePriority(),
@@ -1249,7 +1249,7 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 	// ever false (Voice/Sound/arp toggle it for sound sources, never clips), so this equals the old
 	// isCurrentlyReversed().
 	writer.writeAttribute("pitchSpeedIndependent", docAudioClip_->pitch_and_speed_independent);
-	if (static_cast<InterpolationMode>(docAudioClip_->interpolation_mode) == InterpolationMode::LINEAR) {
+	if (docAudioClip_->interpolation_mode == InterpolationMode::LINEAR) {
 		writer.writeAttribute("linearInterpolation", 1);
 	}
 	if (docAudioClip_->reversed) {
@@ -1346,7 +1346,7 @@ someError:
 
 		else if (!strcmp(tagName, "linearInterpolation")) {
 			if (reader.readTagOrAttributeValueInt()) {
-				docAudioClip_->interpolation_mode = util::to_underlying(InterpolationMode::LINEAR);
+				docAudioClip_->interpolation_mode = InterpolationMode::LINEAR;
 			}
 		}
 
@@ -1355,7 +1355,7 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "priority")) {
-			docAudioClip_->voice_priority = reader.readTagOrAttributeValueInt();
+			docAudioClip_->voice_priority = static_cast<VoicePriority>(reader.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "reversed")) {

@@ -57,6 +57,7 @@ target_link_libraries(deluge_app PUBLIC
     deluge_foundation
     deluge_midi
     deluge_project   # the project model (deluge::project::Song)
+    deluge_engine_types # the host–engine contract's data-only types
 )
 
 target_compile_definitions(deluge_app PUBLIC

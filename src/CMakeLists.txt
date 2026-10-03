@@ -1,5 +1,6 @@
 cmake_path(SET SHARED_INCLUDE ${CMAKE_CURRENT_LIST_DIR})
 
+add_subdirectory(engine-api/types) # deluge_engine_types: the host–engine contract's data-only types
 add_subdirectory(foundation) # bottom of the stack; the layers below link it
 add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + tests)
 add_subdirectory(deluge-project) # deluge_project: the project model (deluge::project::Song)

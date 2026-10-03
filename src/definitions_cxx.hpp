@@ -18,6 +18,8 @@
 #pragma once
 #include "board_layout.hpp" // board pad/indicator/numeric dimensions (HAL-free, shared with the BSP)
 #include "definitions.h"
+#include "engine-api/types/interpolation_mode.h"
+#include "engine-api/types/voice_priority.h"
 #include "sequence/iterance.h"
 #include "util/misc.h"
 
@@ -278,11 +280,7 @@ constexpr int32_t kMaxNumPatchCables = (kNumUnsignedIntegersToRepPatchCables * 3
 // The envelope stage enum now lives inside the Envelope class (Envelope::Stage), as it is owned by
 // that component; see modulation/envelope.h.
 
-enum class VoicePriority : uint8_t {
-	LOW,
-	MEDIUM,
-	HIGH,
-};
+using deluge::engine::VoicePriority;
 
 constexpr size_t kNumVoicePriorities = util::to_underlying(VoicePriority::HIGH) + 1;
 
@@ -810,10 +808,7 @@ enum class MarkerType {
 };
 constexpr int32_t kNumMarkerTypes = util::to_underlying(MarkerType::END) + 1;
 
-enum class InterpolationMode {
-	LINEAR,
-	SMOOTH,
-};
+using deluge::engine::InterpolationMode;
 constexpr int32_t kNumInterpolationModes = 2;
 
 constexpr int32_t kCacheByteDepth = 3;

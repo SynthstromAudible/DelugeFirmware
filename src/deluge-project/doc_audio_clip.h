@@ -17,6 +17,9 @@
 
 #pragma once
 
+#include "engine-api/types/interpolation_mode.h"
+#include "engine-api/types/voice_priority.h"
+
 #include <cstdint>
 #include <string>
 
@@ -27,7 +30,7 @@ namespace deluge::project {
 /// never a pointer. Enums stored as underlying values. Rebuilt from the engine AudioClip at load + save.
 /// Member initializers hold the AudioClip's construction defaults (owner-4 is model-first: the ctor derives the
 /// engine cache from a freshly-created record, so these values are the single source of the descriptor defaults).
-/// interpolation_mode=SMOOTH(1) + pitch_and_speed_independent=true + attack=INT_MIN + voice_priority=MEDIUM(1) +
+/// interpolation_mode=SMOOTH + pitch_and_speed_independent=true + attack=INT_MIN + voice_priority=MEDIUM +
 /// overdubs_should_clone=true mirror the old scattered AudioClip ctor assignments.
 struct DocAudioClip {
 	std::string file_path;
@@ -35,11 +38,11 @@ struct DocAudioClip {
 	uint64_t end_pos{0};
 	int16_t transpose{0};
 	int8_t cents{0};
-	uint8_t interpolation_mode{1}; ///< SampleControls::interpolationMode underlying (SMOOTH)
+	engine::InterpolationMode interpolation_mode{engine::InterpolationMode::SMOOTH};
 	bool pitch_and_speed_independent{true};
 	bool reversed{false};
 	int32_t attack{-2147483648};
-	uint8_t voice_priority{1}; ///< VoicePriority underlying (MEDIUM)
+	engine::VoicePriority voice_priority{engine::VoicePriority::MEDIUM};
 	bool overdubs_should_clone{true};
 };
 

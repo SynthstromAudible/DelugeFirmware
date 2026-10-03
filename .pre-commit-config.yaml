@@ -83,6 +83,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/deluge/synth/|scripts/(check_synth_boundary\.py|synth_boundary_allowlist\.txt))
+      - id: engine-types-boundary
+        name: engine-api types boundary
+        description: src/engine-api/types may include only the standard library and itself
+        entry: python3 scripts/check_engine_types_boundary.py
+        language: system
+        pass_filenames: false
+        files: ^(src/engine-api/types/|scripts/check_engine_types_boundary\.py)
 # - repo: local
 
 #   hooks:

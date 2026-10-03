@@ -35,5 +35,6 @@ set_target_properties(deluge_project
 )
 
 target_link_libraries(deluge_project PRIVATE etl::etl)
+target_link_libraries(deluge_project PUBLIC deluge_engine_types)
 
 target_compile_options(deluge_project PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})

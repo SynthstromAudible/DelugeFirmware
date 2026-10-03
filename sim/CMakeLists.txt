@@ -236,6 +236,7 @@ target_include_directories(NE10 PRIVATE ${REPO_ROOT}/src ${REPO_ROOT}/include)
 # The portable libraries (each subdir is platform-agnostic). Out-of-tree, so give
 # each an explicit binary dir.
 add_subdirectory(${REPO_ROOT}/lib            ${CMAKE_BINARY_DIR}/_lib)        # argon, etl
+add_subdirectory(${REPO_ROOT}/src/engine-api/types ${CMAKE_BINARY_DIR}/engine-types) # deluge_engine_types
 add_subdirectory(${REPO_ROOT}/src/foundation ${CMAKE_BINARY_DIR}/foundation) # deluge_foundation
 add_subdirectory(${REPO_ROOT}/src/deluge-project ${CMAKE_BINARY_DIR}/deluge-project) # deluge_project (model)
 add_subdirectory(${REPO_ROOT}/src/midi       ${CMAKE_BINARY_DIR}/midi)       # deluge_midi
