@@ -1150,8 +1150,8 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 				bool sectionUsed[kMaxNumSections];
 				memset(sectionUsed, 0, sizeof(sectionUsed));
 
-				for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
-					Clip* thisClip = currentSong->project.clips.session_clips[c];
+				for (int32_t c = 0; c < std::ssize(currentSong->live.clips.session_clips); c++) {
+					Clip* thisClip = currentSong->live.clips.session_clips[c];
 
 					if (thisClip->section() < kMaxNumSections) {
 						sectionUsed[thisClip->section()] = true;
@@ -1457,7 +1457,7 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset) {
 ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 
 	if (direction == 1) {
-		if (currentSong->persistentView.songViewYScroll >= std::ssize(currentSong->project.clips.session_clips) - 1) {
+		if (currentSong->persistentView.songViewYScroll >= std::ssize(currentSong->live.clips.session_clips) - 1) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -1481,7 +1481,7 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 		int32_t oldIndex = selectedClipYDisplay + currentSong->persistentView.songViewYScroll;
 
 		if (direction == 1) {
-			if (oldIndex >= std::ssize(currentSong->project.clips.session_clips) - 1) {
+			if (oldIndex >= std::ssize(currentSong->live.clips.session_clips) - 1) {
 				return ActionResult::DEALT_WITH;
 			}
 		}
@@ -1494,7 +1494,7 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 		actionLogger.deleteAllLogs();
 
 		int32_t newIndex = oldIndex + direction;
-		currentSong->project.clips.session_clips.swapClips(newIndex, oldIndex);
+		currentSong->live.clips.session_clips.swapClips(newIndex, oldIndex);
 	}
 
 	currentSong->persistentView.songViewYScroll += direction;
@@ -1720,7 +1720,7 @@ void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yD
 	lastTypeCreated = clip->output->type;
 	createClip = true;
 
-	int32_t numClips = std::ssize(currentSong->project.clips.session_clips);
+	int32_t numClips = std::ssize(currentSong->live.clips.session_clips);
 	if (clipIndex < 0) {
 		clipIndex = 0;
 	}
@@ -1807,16 +1807,15 @@ bool SessionView::insertAndResyncNewClip(Clip* newClip, int32_t yDisplay) {
 	int32_t index = yDisplay + currentSong->persistentView.songViewYScroll;
 	if (index <= 0) {
 		index = 0;
-		newClip->setSection(currentSong->project.clips.session_clips[0]->section());
+		newClip->setSection(currentSong->live.clips.session_clips[0]->section());
 		currentSong->persistentView.songViewYScroll++;
 	}
-	else if (index >= std::ssize(currentSong->project.clips.session_clips)) {
-		index = std::ssize(currentSong->project.clips.session_clips);
+	else if (index >= std::ssize(currentSong->live.clips.session_clips)) {
+		index = std::ssize(currentSong->live.clips.session_clips);
 		newClip->setSection(
-		    currentSong->project.clips.session_clips[std::ssize(currentSong->project.clips.session_clips) - 1]
-		        ->section());
+		    currentSong->live.clips.session_clips[std::ssize(currentSong->live.clips.session_clips) - 1]->section());
 	}
-	if (!currentSong->project.clips.session_clips.insertClipAt(newClip, index)) {
+	if (!currentSong->live.clips.session_clips.insertClipAt(newClip, index)) {
 		return false;
 	}
 
@@ -1855,7 +1854,7 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 		return;
 	}
 
-	int32_t clipIndex = currentSong->project.clips.session_clips.getIndexForClip(clip);
+	int32_t clipIndex = currentSong->live.clips.session_clips.getIndexForClip(clip);
 	Clip* newClip = currentSong->replaceInstrumentClipWithAudioClip(clip, clipIndex);
 
 	if (!newClip) {
@@ -1881,10 +1880,10 @@ void SessionView::removeClip(Clip* clip) {
 		return;
 	}
 
-	int32_t clipIndex = currentSong->project.clips.session_clips.getIndexForClip(clip);
+	int32_t clipIndex = currentSong->live.clips.session_clips.getIndexForClip(clip);
 
 	// If last session Clip left, just don't allow. Easiest
-	if (std::ssize(currentSong->project.clips.session_clips) == 1) {
+	if (std::ssize(currentSong->live.clips.session_clips) == 1) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_REMOVE_FINAL_CLIP));
 		return;
 	}
@@ -1921,11 +1920,11 @@ Clip* SessionView::getClipOnScreen(int32_t yDisplay) {
 
 	int32_t index = yDisplay + currentSong->persistentView.songViewYScroll;
 
-	if (index < 0 || index >= std::ssize(currentSong->project.clips.session_clips)) {
+	if (index < 0 || index >= std::ssize(currentSong->live.clips.session_clips)) {
 		return nullptr;
 	}
 
-	return currentSong->project.clips.session_clips[index];
+	return currentSong->live.clips.session_clips[index];
 }
 
 void SessionView::redrawClipsOnScreen(bool doRender) {
@@ -2091,7 +2090,7 @@ void SessionView::cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo) {
 		return;
 	}
 
-	bool enoughSpace = currentSong->project.clips.session_clips.reserveExtra(1).has_value();
+	bool enoughSpace = currentSong->live.clips.session_clips.reserveExtra(1).has_value();
 	if (!enoughSpace) {
 ramError:
 		display->displayError(Error::INSUFFICIENT_RAM);
@@ -2122,11 +2121,11 @@ ramError:
 	if (newIndex < 0) {
 		newIndex = 0;
 	}
-	else if (newIndex > std::ssize(currentSong->project.clips.session_clips)) {
-		newIndex = std::ssize(currentSong->project.clips.session_clips);
+	else if (newIndex > std::ssize(currentSong->live.clips.session_clips)) {
+		newIndex = std::ssize(currentSong->live.clips.session_clips);
 	}
 
-	(void)currentSong->project.clips.session_clips.insertClipAt(
+	(void)currentSong->live.clips.session_clips.insertClipAt(
 	    newClip,
 	    newIndex); // Can't fail - we ensured enough space in advance
 
@@ -2445,7 +2444,7 @@ bool SessionView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll
 }
 
 int32_t SessionView::getClipPlaceOnScreen(Clip* clip) {
-	return currentSong->project.clips.session_clips.getIndexForClip(clip) - currentSong->persistentView.songViewYScroll;
+	return currentSong->live.clips.session_clips.getIndexForClip(clip) - currentSong->persistentView.songViewYScroll;
 }
 
 uint32_t SessionView::getMaxLength() {
@@ -2519,8 +2518,8 @@ void SessionView::flashPlayRoutine() {
 	}
 	case SessionLayoutType::SessionLayoutTypeGrid: {
 		bool renderFlashing = false;
-		for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->project.clips.session_clips); ++idxClip) {
-			Clip* clip = currentSong->project.clips.session_clips[idxClip];
+		for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->live.clips.session_clips); ++idxClip) {
+			Clip* clip = currentSong->live.clips.session_clips[idxClip];
 			if (clip->armState != ArmState::OFF) {
 				renderFlashing = true;
 				break;
@@ -2959,10 +2958,10 @@ void SessionView::clipNeedsReRendering(Clip* clip) {
 	int32_t topIndex = bottomIndex + kDisplayHeight;
 
 	bottomIndex = std::max(bottomIndex, 0_i32);
-	topIndex = std::min<int32_t>(topIndex, std::ssize(currentSong->project.clips.session_clips));
+	topIndex = std::min<int32_t>(topIndex, std::ssize(currentSong->live.clips.session_clips));
 
 	for (int32_t c = bottomIndex; c < topIndex; c++) {
-		Clip* thisClip = currentSong->project.clips.session_clips[c];
+		Clip* thisClip = currentSong->live.clips.session_clips[c];
 		if (thisClip == clip) {
 			int32_t yDisplay = c - currentSong->persistentView.songViewYScroll;
 			requestRendering(this, (1 << yDisplay), 0);
@@ -2981,10 +2980,10 @@ void SessionView::sampleNeedsReRendering(Sample* sample) {
 	int32_t topIndex = bottomIndex + kDisplayHeight;
 
 	bottomIndex = std::max(bottomIndex, 0_i32);
-	topIndex = std::min<int32_t>(topIndex, std::ssize(currentSong->project.clips.session_clips));
+	topIndex = std::min<int32_t>(topIndex, std::ssize(currentSong->live.clips.session_clips));
 
 	for (int32_t c = bottomIndex; c < topIndex; c++) {
-		Clip* thisClip = currentSong->project.clips.session_clips[c];
+		Clip* thisClip = currentSong->live.clips.session_clips[c];
 		if (thisClip->type == ClipType::AUDIO && ((AudioClip*)thisClip)->sampleHolder.audioFile == sample) {
 			int32_t yDisplay = c - currentSong->persistentView.songViewYScroll;
 			requestRendering(this, (1 << yDisplay), 0);
@@ -3103,7 +3102,7 @@ void SessionView::renderLayoutChange(bool displayPopup) {
 		}
 		selectedClipYDisplay = 255;
 		currentSong->persistentView.songViewYScroll =
-		    (std::ssize(currentSong->project.clips.session_clips) - kDisplayHeight);
+		    (std::ssize(currentSong->live.clips.session_clips) - kDisplayHeight);
 	}
 	else if (currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		if (displayPopup) {
@@ -3264,8 +3263,8 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 
 	PadLEDs::renderingLock = true;
 
-	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->project.clips.session_clips); ++idxClip) {
-		Clip* clip = currentSong->project.clips.session_clips[idxClip];
+	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->live.clips.session_clips); ++idxClip) {
+		Clip* clip = currentSong->live.clips.session_clips[idxClip];
 		auto trackIndex = gridTrackIndexFromTrack(clip->output, trackCount);
 		if (trackIndex < 0) {
 			D_PRINTLN("Global output list mismatch");
@@ -3416,8 +3415,8 @@ Clip* SessionView::gridCloneClip(Clip* sourceClip) {
 
 Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 	Clip* sourceClip = nullptr;
-	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->project.clips.session_clips); ++idxClip) {
-		Clip* clip = currentSong->project.clips.session_clips[idxClip];
+	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->live.clips.session_clips); ++idxClip) {
+		Clip* clip = currentSong->live.clips.session_clips[idxClip];
 		if (clip->output == targetOutput) {
 			sourceClip = clip;
 			break;
@@ -3591,8 +3590,8 @@ void SessionView::setupNewClip(Clip* newClip) {
 		if (currentSong->defaultAudioClipOverdubOutputCloning == -1) {
 			currentSong->defaultAudioClipOverdubOutputCloning = 1;
 			// For each Clip in session
-			for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
-				Clip* clip = currentSong->project.clips.session_clips[c];
+			for (int32_t c = 0; c < std::ssize(currentSong->live.clips.session_clips); c++) {
+				Clip* clip = currentSong->live.clips.session_clips[c];
 
 				if (clip->type == ClipType::AUDIO && clip->armedForRecording) {
 					currentSong->defaultAudioClipOverdubOutputCloning = ((AudioClip*)clip)->overdubsShouldCloneOutput;
@@ -3697,7 +3696,7 @@ Clip* SessionView::gridPlaceNewClip(Clip* newClip, uint32_t targetSection, Outpu
 		((InstrumentClip*)newClip)->onKeyboardScreen = false;
 	}
 
-	if (!currentSong->project.clips.session_clips.insertClipAt(newClip, 0)) {
+	if (!currentSong->live.clips.session_clips.insertClipAt(newClip, 0)) {
 		newClip->~Clip();
 		delugeDealloc(newClip);
 		display->displayError(Error::INSUFFICIENT_RAM);
@@ -3712,8 +3711,7 @@ Clip* SessionView::gridPlaceNewClip(Clip* newClip, uint32_t targetSection, Outpu
 			// Create a new track for the clip
 			if (targetOutput == nullptr) {
 				if (!createNewTrackForInstrumentClip(sourceClip->output->type, newInstrumentClip, false, acquired)) {
-					currentSong->project.clips.session_clips.erase(currentSong->project.clips.session_clips.begin()
-					                                               + 0);
+					currentSong->live.clips.session_clips.erase(currentSong->live.clips.session_clips.begin() + 0);
 					newClip->~Clip();
 					delugeDealloc(newClip);
 					return nullptr;
@@ -3983,8 +3981,8 @@ void SessionView::gridStartSection(uint32_t section, bool instant) {
 		currentSong->turnSoloingIntoJustPlaying(currentSong->project.arrangement.sections[section].num_repetitions
 		                                        > -1);
 
-		for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->project.clips.session_clips); ++idxClip) {
-			Clip* clip = currentSong->project.clips.session_clips[idxClip];
+		for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->live.clips.session_clips); ++idxClip) {
+			Clip* clip = currentSong->live.clips.session_clips[idxClip];
 
 			if ((clip->section() == section && !clip->activeIfNoSolo)
 			    || (clip->section() != section && clip->activeIfNoSolo)) {
@@ -4333,9 +4331,8 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 				auto maxTrack = gridTrackCount();
 				Output* track = gridTrackFromX(x, maxTrack);
 				if (track != nullptr) {
-					for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->project.clips.session_clips);
-					     ++idxClip) {
-						Clip* sessionClip = currentSong->project.clips.session_clips[idxClip];
+					for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->live.clips.session_clips); ++idxClip) {
+						Clip* sessionClip = currentSong->live.clips.session_clips[idxClip];
 						if (sessionClip->output == track) {
 							if (sessionClip->activeIfNoSolo) {
 								gridToggleClipPlay(sessionClip, Buttons::isShiftButtonPressed());
@@ -4797,8 +4794,8 @@ const size_t SessionView::gridTrackCount() const {
 
 uint32_t SessionView::gridClipCountForTrack(Output* track) {
 	uint32_t count = 0;
-	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->project.clips.session_clips); ++idxClip) {
-		Clip* clip = currentSong->project.clips.session_clips[idxClip];
+	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->live.clips.session_clips); ++idxClip) {
+		Clip* clip = currentSong->live.clips.session_clips[idxClip];
 		if (clip->output == track) {
 			++count;
 		}
@@ -4903,8 +4900,8 @@ Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
 		return nullptr;
 	}
 
-	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->project.clips.session_clips); ++idxClip) {
-		Clip* clip = currentSong->project.clips.session_clips[idxClip];
+	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->live.clips.session_clips); ++idxClip) {
+		Clip* clip = currentSong->live.clips.session_clips[idxClip];
 		if (clip->output == track && clip->section() == section) {
 			return clip;
 		}
@@ -4926,8 +4923,8 @@ int32_t SessionView::gridClipIndexFromCoords(uint32_t x, uint32_t y) {
 		return -1;
 	}
 
-	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->project.clips.session_clips); ++idxClip) {
-		Clip* clip = currentSong->project.clips.session_clips[idxClip];
+	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->live.clips.session_clips); ++idxClip) {
+		Clip* clip = currentSong->live.clips.session_clips[idxClip];
 		if (clip->output == track && clip->section() == section) {
 			return idxClip;
 		}

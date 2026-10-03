@@ -1264,8 +1264,8 @@ TierMark markAcquireTier() {
 
 std::vector<Clip*> sessionClipList() {
 	std::vector<Clip*> clips;
-	for (int32_t i = 0; i < std::ssize(currentSong->project.clips.session_clips); i++) {
-		clips.push_back(currentSong->project.clips.session_clips[i]);
+	for (int32_t i = 0; i < std::ssize(currentSong->live.clips.session_clips); i++) {
+		clips.push_back(currentSong->live.clips.session_clips[i]);
 	}
 	return clips;
 }
@@ -1370,7 +1370,7 @@ void prepareAcquire() {
 
 /// The first Rows-layout pad with no clip on it.
 int32_t emptyRow() {
-	return static_cast<int32_t>(std::ssize(currentSong->project.clips.session_clips));
+	return static_cast<int32_t>(std::ssize(currentSong->live.clips.session_clips));
 }
 
 /// The browser's list, by name: what a slot scan must leave exactly as it found it.
@@ -1552,9 +1552,8 @@ bool actAcquire() {
 	}
 	case Leg::AqChangeStall: {
 		using namespace deluge::hid::button;
-		g_aqClip = (std::ssize(currentSong->project.clips.session_clips) > 0)
-		               ? currentSong->project.clips.session_clips[0]
-		               : nullptr;
+		g_aqClip = (std::ssize(currentSong->live.clips.session_clips) > 0) ? currentSong->live.clips.session_clips[0]
+		                                                                   : nullptr;
 		if (!focusClip(g_aqClip) || g_aqClip->output->type != OutputType::SYNTH) {
 			return fail(leg, "the song has no synth clip to change to a kit");
 		}
@@ -1572,9 +1571,8 @@ bool actAcquire() {
 		// The blank song's default synth, placed in a folder no other leg asks for, and turned with every directory
 		// open held past the browser's bound. A folder of its own because answers are keyed by path: SYNTHS would
 		// have this navigate collect AqSlotStall's held open when that hold ended, inside this leg's bound.
-		g_aqClip = (std::ssize(currentSong->project.clips.session_clips) > 0)
-		               ? currentSong->project.clips.session_clips[0]
-		               : nullptr;
+		g_aqClip = (std::ssize(currentSong->live.clips.session_clips) > 0) ? currentSong->live.clips.session_clips[0]
+		                                                                   : nullptr;
 		if (!focusClip(g_aqClip)) {
 			return fail(leg, "the song has no session clip to navigate");
 		}
@@ -1590,9 +1588,8 @@ bool actAcquire() {
 	case Leg::AqSlotStall: {
 		// The blank-song legs have just run: the song's first session clip is its default synth's. Made g_aqClip so
 		// checkAcquireAct's `output`/`name` read this clip.
-		g_aqClip = (std::ssize(currentSong->project.clips.session_clips) > 0)
-		               ? currentSong->project.clips.session_clips[0]
-		               : nullptr;
+		g_aqClip = (std::ssize(currentSong->live.clips.session_clips) > 0) ? currentSong->live.clips.session_clips[0]
+		                                                                   : nullptr;
 		if (!focusClip(g_aqClip)) {
 			return fail(leg, "the song has no session clip to press Shift+SYNTH on");
 		}
@@ -2171,10 +2168,10 @@ void runWalkMachineTick() {
 
 /// The clip a blank song starts with: its first session clip. Null while a clear is between songs.
 InstrumentClip* blankClip() {
-	if (currentSong == nullptr || currentSong->project.clips.session_clips.empty()) {
+	if (currentSong == nullptr || currentSong->live.clips.session_clips.empty()) {
 		return nullptr;
 	}
-	return static_cast<InstrumentClip*>(currentSong->project.clips.session_clips[0]);
+	return static_cast<InstrumentClip*>(currentSong->live.clips.session_clips[0]);
 }
 
 /// The Instrument that clip plays.

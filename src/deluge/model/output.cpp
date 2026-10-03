@@ -492,7 +492,7 @@ getOut:
 
 Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
-	if (!song->project.clips.arrangement_only_clips.reserveExtra(1)) {
+	if (!song->live.clips.arrangement_only_clips.reserveExtra(1)) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
@@ -521,7 +521,7 @@ Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 	newClip->setSection(255);
 	newClip->setLoopLength(kMaxSequenceLength);
 
-	(void)song->project.clips.arrangement_only_clips.insertClipAt(newClip, 0); // Will succeed - we checked above
+	(void)song->live.clips.arrangement_only_clips.insertClipAt(newClip, 0); // Will succeed - we checked above
 
 	// Set the ClipInstance's length to just 1, which kinda is how long it logically "is" at this point in time before
 	// recording has started. This leaves space directly after it, which the user might choose to suddenly to create
@@ -530,7 +530,7 @@ Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
 	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 	if (action) {
-		action->recordClipExistenceChange(song, &song->project.clips.arrangement_only_clips, newClip,
+		action->recordClipExistenceChange(song, &song->live.clips.arrangement_only_clips, newClip,
 		                                  ExistenceChangeType::CREATE);
 		action->recordClipInstanceExistenceChange(this, clipInstance, ExistenceChangeType::CREATE);
 	}

@@ -85,7 +85,7 @@ static int32_t sweepDoc(Song* song) {
 			swept++;
 		}
 	};
-	for (ClipArray* arr : {&song->project.clips.session_clips, &song->project.clips.arrangement_only_clips}) {
+	for (ClipArray* arr : {&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips}) {
 		for (int32_t i = 0; i < std::ssize(*arr); i++) {
 			Clip* clip = (*arr)[i];
 			if (clip->output == nullptr || !clip->paramManager.containsAnyMainParamCollections()) {
@@ -155,7 +155,7 @@ static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 
 // Find the first InstrumentClip that has a note row containing at least one note.
 static InstrumentClip* findClipWithNotes(Song* song, int32_t* rowWithNotes) {
-	auto& clips = song->project.clips.session_clips;
+	auto& clips = song->live.clips.session_clips;
 	for (size_t i = 0; i < clips.size(); i++) {
 		if (clips[i]->type != ClipType::INSTRUMENT) {
 			continue;
@@ -209,7 +209,7 @@ int clip_clone_roundtrip_main(int argc, char** argv, Io driverIo) {
 	{
 		AudioClip* srcAudio = nullptr;
 		int32_t audioClipsSeen = 0;
-		for (ClipArray* arr : {&song->project.clips.session_clips, &song->project.clips.arrangement_only_clips}) {
+		for (ClipArray* arr : {&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips}) {
 			for (int32_t i = 0; i < std::ssize(*arr); i++) {
 				Clip* c = (*arr)[i];
 				if (c->type == ClipType::AUDIO && c->paramManager.containsAnyMainParamCollections()) {
@@ -249,7 +249,7 @@ int clip_clone_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// cloned SoundDrum row's manager are DOM-bound with a live borrow (InstrumentClip::clone binds them).
 	{
 		InstrumentClip* srcKit = nullptr;
-		for (ClipArray* arr : {&song->project.clips.session_clips, &song->project.clips.arrangement_only_clips}) {
+		for (ClipArray* arr : {&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips}) {
 			for (int32_t i = 0; i < std::ssize(*arr) && srcKit == nullptr; i++) {
 				Clip* c = (*arr)[i];
 				if (c->type == ClipType::INSTRUMENT && c->output != nullptr && c->output->type == OutputType::KIT) {

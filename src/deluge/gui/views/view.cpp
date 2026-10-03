@@ -3053,8 +3053,8 @@ void View::activateMacro(uint32_t y) {
 
 Clip* View::findNextClipForOutput(Output* output) {
 	int last_active = -1;
-	for (int i = 0; i < std::ssize(currentSong->project.clips.session_clips); i++) {
-		Clip* clip = currentSong->project.clips.session_clips[i];
+	for (int i = 0; i < std::ssize(currentSong->live.clips.session_clips); i++) {
+		Clip* clip = currentSong->live.clips.session_clips[i];
 		if (clip->output == output) {
 			if (last_active == -1) {
 				if (clip->activeIfNoSolo) {
@@ -3068,12 +3068,12 @@ Clip* View::findNextClipForOutput(Output* output) {
 	}
 
 	if (last_active == -1) {
-		last_active = std::ssize(currentSong->project.clips.session_clips);
+		last_active = std::ssize(currentSong->live.clips.session_clips);
 	}
 
 	// might need to cycle around to find the next clip
 	for (int i = 0; i < last_active; i++) {
-		Clip* clip = currentSong->project.clips.session_clips[i];
+		Clip* clip = currentSong->live.clips.session_clips[i];
 		if (clip->output == output) {
 			return clip;
 		}

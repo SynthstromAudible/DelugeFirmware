@@ -428,8 +428,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 			                                   set->getParamKind(), 0, clip->id()};
 			instIdOk += (song->project.resolveParam(addr) == set->docForParam(0)) ? 1 : 0;
 		};
-		std::array<ClipArray*, 2> clipArrays{&song->project.clips.session_clips,
-		                                     &song->project.clips.arrangement_only_clips};
+		std::array<ClipArray*, 2> clipArrays{&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips};
 		for (ClipArray* arr : clipArrays) {
 			for (int32_t c = 0; c < std::ssize(*arr); c++) {
 				Clip* clip = (*arr)[c];
@@ -652,8 +651,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// require that they name the same clip and output after the reload.
 	std::optional<uint32_t> macroClipId;
 	std::optional<uint32_t> macroOutputId;
-	if (!song->project.clips.session_clips.empty()) {
-		Clip* target = song->project.clips.session_clips[song->project.clips.session_clips.size() - 1];
+	if (!song->live.clips.session_clips.empty()) {
+		Clip* target = song->live.clips.session_clips[song->live.clips.session_clips.size() - 1];
 		auto& m = song->project.arrangement.session_macros[6];
 		m.kind = deluge::project::SessionMacroKind::CLIP_LAUNCH;
 		m.clip_id = target->id();
@@ -705,8 +704,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// (The corpus files carry no ids on first load, so this only fires post-save — proving the tree path is live.)
 	{
 		int32_t audioClips = 0, treeResident = 0;
-		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
-		                               &reloaded->project.clips.arrangement_only_clips};
+		std::array<ClipArray*, 2> arrs{&reloaded->live.clips.session_clips,
+		                               &reloaded->live.clips.arrangement_only_clips};
 		for (ClipArray* arr : arrs) {
 			for (int32_t c = 0; c < std::ssize(*arr); c++) {
 				Clip* clip = (*arr)[c];
@@ -736,8 +735,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// instrument-shared relocation is live (again only post-save, once ids exist).
 	{
 		int32_t sharedClips = 0, treeResident = 0;
-		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
-		                               &reloaded->project.clips.arrangement_only_clips};
+		std::array<ClipArray*, 2> arrs{&reloaded->live.clips.session_clips,
+		                               &reloaded->live.clips.arrangement_only_clips};
 		for (ClipArray* arr : arrs) {
 			for (int32_t c = 0; c < std::ssize(*arr); c++) {
 				Clip* clip = (*arr)[c];
@@ -771,8 +770,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// pair (each kit clip's NoteRow has its own manager).
 	{
 		int32_t drumRows = 0, treeResident = 0;
-		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
-		                               &reloaded->project.clips.arrangement_only_clips};
+		std::array<ClipArray*, 2> arrs{&reloaded->live.clips.session_clips,
+		                               &reloaded->live.clips.arrangement_only_clips};
 		for (ClipArray* arr : arrs) {
 			for (int32_t c = 0; c < std::ssize(*arr); c++) {
 				Clip* clip = (*arr)[c];
@@ -814,8 +813,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// both owner tiers; 0/0 on a song with no MPE data is a pass (nothing to relocate).
 	{
 		int32_t mpeSets = 0, treeResident = 0;
-		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
-		                               &reloaded->project.clips.arrangement_only_clips};
+		std::array<ClipArray*, 2> arrs{&reloaded->live.clips.session_clips,
+		                               &reloaded->live.clips.arrangement_only_clips};
 		auto checkExpression = [&](ParamManager& pm, const deluge::project::OwnerId& owner,
 		                           std::optional<uint32_t> clipId) {
 			ExpressionParamSet* expression = pm.getExpressionParamSet();
@@ -868,8 +867,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// engine uses and assert doc() == docForParam for a param of each kit clip-level manager and each SoundDrum row.
 	{
 		int32_t checked = 0;
-		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
-		                               &reloaded->project.clips.arrangement_only_clips};
+		std::array<ClipArray*, 2> arrs{&reloaded->live.clips.session_clips,
+		                               &reloaded->live.clips.arrangement_only_clips};
 		for (ClipArray* arr : arrs) {
 			for (int32_t c = 0; c < std::ssize(*arr); c++) {
 				Clip* clip = (*arr)[c];
@@ -922,8 +921,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	{
 		int32_t cableSets = 0, treeResident = 0, addrChecks = 0;
 		bool misOwned = false;
-		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
-		                               &reloaded->project.clips.arrangement_only_clips};
+		std::array<ClipArray*, 2> arrs{&reloaded->live.clips.session_clips,
+		                               &reloaded->live.clips.arrangement_only_clips};
 		auto checkCables = [&](ParamManagerForTimeline& pm, const deluge::project::OwnerId& owner,
 		                       std::optional<uint32_t> clipId) {
 			PatchCableSet* pcs = pm.getPatchCableSet();
@@ -992,8 +991,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// path (docForParam) returns. Catches a mis-keyed cc that save (never via doc()) would silently miss.
 	{
 		int32_t midiSets = 0, treeResident = 0, addrChecks = 0;
-		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
-		                               &reloaded->project.clips.arrangement_only_clips};
+		std::array<ClipArray*, 2> arrs{&reloaded->live.clips.session_clips,
+		                               &reloaded->live.clips.arrangement_only_clips};
 		for (ClipArray* arr : arrs) {
 			for (int32_t c = 0; c < std::ssize(*arr); c++) {
 				Clip* clip = (*arr)[c];
@@ -1069,8 +1068,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 			return false;
 		};
 
-		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
-		                               &reloaded->project.clips.arrangement_only_clips};
+		std::array<ClipArray*, 2> arrs{&reloaded->live.clips.session_clips,
+		                               &reloaded->live.clips.arrangement_only_clips};
 		for (ClipArray* arr : arrs) {
 			for (int32_t c = 0; c < std::ssize(*arr); c++) {
 				Clip* clip = (*arr)[c];
@@ -1112,8 +1111,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 				if (!id.has_value()) {
 					return nullptr;
 				}
-				std::array<ClipArray*, 2> a{&reloaded2->project.clips.session_clips,
-				                            &reloaded2->project.clips.arrangement_only_clips};
+				std::array<ClipArray*, 2> a{&reloaded2->live.clips.session_clips,
+				                            &reloaded2->live.clips.arrangement_only_clips};
 				for (ClipArray* arr : a) {
 					for (int32_t c = 0; c < std::ssize(*arr); c++) {
 						if ((*arr)[c]->id() == id) {
@@ -1149,8 +1148,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// Representative check: plant a node in a bound MIDI CC's tree, call stripAutomation(), and require the TREE
 	// lane is cleared. Pre-fix stripAutomation cleared the inline nodes_ and left the tree untouched.
 	{
-		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
-		                               &reloaded->project.clips.arrangement_only_clips};
+		std::array<ClipArray*, 2> arrs{&reloaded->live.clips.session_clips,
+		                               &reloaded->live.clips.arrangement_only_clips};
 		for (ClipArray* arr : arrs) {
 			for (int32_t c = 0; c < std::ssize(*arr); c++) {
 				Clip* clip = (*arr)[c];

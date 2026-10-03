@@ -183,7 +183,7 @@ int64_t leasesOn(const std::string& path) {
 
 /// The clip view in front of the song's first clip, with the clip's synth set back to an oscillator.
 bool frontClip(const char* marker) {
-	g_clip = currentSong->project.clips.session_clips.empty() ? nullptr : currentSong->project.clips.session_clips[0];
+	g_clip = currentSong->live.clips.session_clips.empty() ? nullptr : currentSong->live.clips.session_clips[0];
 	if (g_clip == nullptr || g_clip->output == nullptr || g_clip->output->type != OutputType::SYNTH) {
 		fail(marker, "the song has no synth clip to record into");
 		return false;

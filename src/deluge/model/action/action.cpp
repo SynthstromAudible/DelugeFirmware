@@ -348,8 +348,8 @@ void Action::updateYScrollClipViewAfter(InstrumentClip* clip) {
 	}
 
 	if (numClipStates
-	    != std::ssize(currentSong->project.clips.session_clips)
-	           + std::ssize(currentSong->project.clips.arrangement_only_clips)) {
+	    != std::ssize(currentSong->live.clips.session_clips)
+	           + std::ssize(currentSong->live.clips.arrangement_only_clips)) {
 		numClipStates = 0;
 		delugeDealloc(clipStates);
 		clipStates = nullptr;

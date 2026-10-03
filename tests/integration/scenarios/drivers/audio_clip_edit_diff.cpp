@@ -100,7 +100,7 @@ static void dumpClip(const char* label, int32_t idx, const AudioClip* c) {
 
 // Dump every audio clip in the song's session list, in order, under `label`.
 static void dumpAllAudioClips(const char* label, Song* song) {
-	ClipArray& arr = song->project.clips.session_clips;
+	ClipArray& arr = song->live.clips.session_clips;
 	for (int32_t i = 0; i < std::ssize(arr); i++) {
 		if (arr[i]->type == ClipType::AUDIO) {
 			dumpClip(label, i, static_cast<AudioClip*>(arr[i]));
@@ -113,7 +113,7 @@ static void dumpAllAudioClips(const char* label, Song* song) {
 // derive-at-load seeding of sampleHolder / sampleControls from the Doc is correct. Reported to stderr so the
 // stdout baseline is unaffected. Returns false on any mismatch.
 static bool checkDocMatchesEngine(Song* song) {
-	ClipArray& arr = song->project.clips.session_clips;
+	ClipArray& arr = song->live.clips.session_clips;
 	bool ok = true;
 	for (int32_t i = 0; i < std::ssize(arr); i++) {
 		if (arr[i]->type != ClipType::AUDIO) {
@@ -206,7 +206,7 @@ int audio_clip_edit_diff_main(int argc, char** argv, Io driverIo) {
 	// Target the first audio clip for the scripted edits.
 	AudioClip* clip = nullptr;
 	{
-		ClipArray& arr = song->project.clips.session_clips;
+		ClipArray& arr = song->live.clips.session_clips;
 		for (int32_t i = 0; i < std::ssize(arr) && clip == nullptr; i++) {
 			if (arr[i]->type == ClipType::AUDIO) {
 				clip = static_cast<AudioClip*>(arr[i]);

@@ -117,10 +117,10 @@ int32_t g_runsBefore = 0;
 
 /// The clip a song starts with: its first session clip. Null while a clear is between songs.
 InstrumentClip* firstClip() {
-	if (currentSong == nullptr || currentSong->project.clips.session_clips.empty()) {
+	if (currentSong == nullptr || currentSong->live.clips.session_clips.empty()) {
 		return nullptr;
 	}
-	return static_cast<InstrumentClip*>(currentSong->project.clips.session_clips[0]);
+	return static_cast<InstrumentClip*>(currentSong->live.clips.session_clips[0]);
 }
 
 /// The Instrument that clip plays.
@@ -265,7 +265,7 @@ void checkSong() {
 	Instrument* instrument = firstInstrument();
 	const std::string name = (instrument != nullptr) ? instrument->name : "";
 	const int32_t clips =
-	    (currentSong != nullptr) ? static_cast<int32_t>(currentSong->project.clips.session_clips.size()) : 0;
+	    (currentSong != nullptr) ? static_cast<int32_t>(currentSong->live.clips.session_clips.size()) : 0;
 	const int32_t runs = LoadInstrumentPresetUI::presetAcquisitionsRun() - g_runsBefore;
 	printf("CS-SONG clips=%d name=%s bound=%d acquisitions=%d ticks=%d\n", clips, name.c_str(), clipBound() ? 1 : 0,
 	       runs, g_ticks);

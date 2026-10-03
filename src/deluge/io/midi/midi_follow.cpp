@@ -721,8 +721,8 @@ void MidiFollow::forgetClipsNotOfCurrentSong() {
 		}
 		const bool ofCurrentSong =
 		    currentSong != nullptr
-		    && (std::ranges::contains(currentSong->project.clips.session_clips, stored)
-		        || std::ranges::contains(currentSong->project.clips.arrangement_only_clips, stored));
+		    && (std::ranges::contains(currentSong->live.clips.session_clips, stored)
+		        || std::ranges::contains(currentSong->live.clips.arrangement_only_clips, stored));
 		if (!ofCurrentSong) {
 			stored = nullptr;
 		}

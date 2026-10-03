@@ -345,9 +345,9 @@ void stepLoading() {
 }
 
 void stepFixture() {
-	g_clip = currentSong->project.clips.session_clips.empty()
+	g_clip = currentSong->live.clips.session_clips.empty()
 	             ? nullptr
-	             : static_cast<InstrumentClip*>(currentSong->project.clips.session_clips[0]);
+	             : static_cast<InstrumentClip*>(currentSong->live.clips.session_clips[0]);
 	bool written = true;
 	for (int32_t i = 0; written && i < kPresets; i++) {
 		written = deluge::harness::writeSampleSynthPreset(kPresetPaths[i], kSamplePaths[i]);

@@ -19,13 +19,12 @@
 
 #include "model/clip/clip_array.h"
 
-namespace deluge::project {
+namespace deluge::bridge {
 
-/// A song's clips: the session grid and the arrangement-only clips. A component of
-/// deluge::project::Song.
+/// A song's clips: the session grid and the arrangement-only clips.
 struct Clips {
 	ClipArray session_clips;
 	ClipArray arrangement_only_clips;
 };
 
-} // namespace deluge::project
+} // namespace deluge::bridge

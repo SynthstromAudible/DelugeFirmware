@@ -53,15 +53,15 @@ void ClipIteratorBase::next() {
 }
 
 AllClips AllClips::everywhere(Song* song) {
-	return AllClips(&song->project.clips.session_clips, &song->project.clips.arrangement_only_clips);
+	return AllClips(&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips);
 }
 
 AllClips AllClips::inSession(Song* song) {
-	return AllClips(&song->project.clips.session_clips, nullptr);
+	return AllClips(&song->live.clips.session_clips, nullptr);
 }
 
 AllClips AllClips::inArrangementOnly(Song* song) {
-	return AllClips(&song->project.clips.arrangement_only_clips, nullptr);
+	return AllClips(&song->live.clips.arrangement_only_clips, nullptr);
 }
 
 ClipIterator<Clip> AllClips::begin() {
@@ -75,7 +75,7 @@ ClipIterator<Clip> AllClips::end() {
 }
 
 InstrumentClips InstrumentClips::everywhere(Song* song) {
-	return InstrumentClips(&song->project.clips.session_clips, &song->project.clips.arrangement_only_clips);
+	return InstrumentClips(&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips);
 }
 
 ClipIterator<InstrumentClip> InstrumentClips::begin() {
@@ -88,7 +88,7 @@ ClipIterator<InstrumentClip> InstrumentClips::end() {
 }
 
 AudioClips AudioClips::everywhere(Song* song) {
-	return AudioClips(&song->project.clips.session_clips, &song->project.clips.arrangement_only_clips);
+	return AudioClips(&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips);
 }
 
 ClipIterator<AudioClip> AudioClips::begin() {

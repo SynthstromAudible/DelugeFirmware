@@ -194,7 +194,7 @@ void letGoOfClip(Clip* clip) {
 			currentSong->project.transport.sync_scaling_clip = nullptr;
 		}
 		for (ClipArray* array :
-		     {&currentSong->project.clips.session_clips, &currentSong->project.clips.arrangement_only_clips}) {
+		     {&currentSong->live.clips.session_clips, &currentSong->live.clips.arrangement_only_clips}) {
 			for (Clip* other : *array) {
 				if (other->beingRecordedFromClip == clip) {
 					other->beingRecordedFromClip = nullptr;

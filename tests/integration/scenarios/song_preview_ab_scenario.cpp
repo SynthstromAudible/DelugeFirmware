@@ -2357,11 +2357,11 @@ void runAcquireTick() {
 		// padAction() -- the riskiest of these gestures, since createNewTrackForInstrumentClip()'s
 		// bool answer feeds three different abandon paths. Those are synchronous; what defers is the
 		// gesture ABOVE them, so this drives the gesture.
-		g_acqNewTrackClipsBefore = std::ssize(currentSong->project.clips.session_clips);
+		g_acqNewTrackClipsBefore = std::ssize(currentSong->live.clips.session_clips);
 		g_acqViewBefore = acqDispatches();
 		BrowserListingAbProbe::pressEmptyPad(kAcqNewTrackX, kAcqNewTrackY);
 		// Nothing may have been created yet: the op is only ENQUEUED here.
-		if (std::ssize(currentSong->project.clips.session_clips) != g_acqNewTrackClipsBefore) {
+		if (std::ssize(currentSong->live.clips.session_clips) != g_acqNewTrackClipsBefore) {
 			printf("SP-ACQUIRE FAIL the empty-pad gesture created a clip synchronously; it reads the card\n");
 			g_failures++;
 		}
@@ -2371,7 +2371,7 @@ void runAcquireTick() {
 	case AcquireStep::SessionNewTrackCheck: {
 		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
 		const int32_t added =
-		    static_cast<int32_t>(std::ssize(currentSong->project.clips.session_clips)) - g_acqNewTrackClipsBefore;
+		    static_cast<int32_t>(std::ssize(currentSong->live.clips.session_clips)) - g_acqNewTrackClipsBefore;
 		printf("SP-ACQUIRE session-newtrack dispatches=%d clipsAdded=%d uiMode=%d\n", dispatched, added,
 		       static_cast<int>(currentUIMode));
 		if (dispatched != 1) {
@@ -2388,7 +2388,7 @@ void runAcquireTick() {
 		}
 		else {
 			Clip* created =
-			    currentSong->project.clips.session_clips[std::ssize(currentSong->project.clips.session_clips) - 1];
+			    currentSong->live.clips.session_clips[std::ssize(currentSong->live.clips.session_clips) - 1];
 			g_acqNewTrackClip = created;
 			const std::string name = acquiredName(created->output);
 			printf("SP-ACQUIRE session-newtrack name=%s\n", name.c_str());
@@ -2468,10 +2468,10 @@ void runAcquireTick() {
 		// exitTrackCreation() returns -- so with the acquisition deferred, an ENTER gesture reads "pad
 		// released" and transitions INTO the clip instead of holding it, unless the caller's tail guards
 		// against it. The check below asserts the held outcome the synchronous version produced.
-		g_acqNewTrackClipsBefore = std::ssize(currentSong->project.clips.session_clips);
+		g_acqNewTrackClipsBefore = std::ssize(currentSong->live.clips.session_clips);
 		g_acqViewBefore = acqDispatches();
 		BrowserListingAbProbe::beginGridNewTrackEnter(kAcqEnterX, kAcqEnterY);
-		if (std::ssize(currentSong->project.clips.session_clips) != g_acqNewTrackClipsBefore) {
+		if (std::ssize(currentSong->live.clips.session_clips) != g_acqNewTrackClipsBefore) {
 			printf("SP-ACQUIRE FAIL the grid ENTER gesture created a clip synchronously; it reads the card\n");
 			g_failures++;
 		}
@@ -2483,7 +2483,7 @@ void runAcquireTick() {
 	case AcquireStep::SessionNewTrackEnterCheck: {
 		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
 		const int32_t added =
-		    static_cast<int32_t>(std::ssize(currentSong->project.clips.session_clips)) - g_acqNewTrackClipsBefore;
+		    static_cast<int32_t>(std::ssize(currentSong->live.clips.session_clips)) - g_acqNewTrackClipsBefore;
 		printf("SP-ACQUIRE session-newtrack-enter dispatches=%d clipsAdded=%d uiMode=%d\n", dispatched, added,
 		       static_cast<int>(currentUIMode));
 		if (dispatched != 1) {

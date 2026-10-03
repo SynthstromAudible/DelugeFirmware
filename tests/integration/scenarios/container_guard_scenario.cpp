@@ -507,14 +507,14 @@ void editLeg() {
 		break;
 	case Leg::ClipDel: {
 		g_step = "removeSessionClip";
-		const int32_t index = currentSong->project.clips.session_clips.getIndexForClip(g_clip);
+		const int32_t index = currentSong->live.clips.session_clips.getIndexForClip(g_clip);
 		currentSong->removeSessionClip(g_clip, index);
 		g_clip = nullptr;
 		break;
 	}
 	case Leg::ClipDup: {
 		g_step = "cloneClip";
-		const int32_t index = currentSong->project.clips.session_clips.getIndexForClip(g_clip);
+		const int32_t index = currentSong->live.clips.session_clips.getIndexForClip(g_clip);
 		const int32_t y = index - currentSong->persistentView.songViewYScroll;
 		sessionView.cloneClip(static_cast<uint8_t>(y), static_cast<uint8_t>(y + 1));
 		break;
@@ -599,8 +599,8 @@ void editLeg() {
 	case Leg::ClipMove: {
 		g_step = "swapClips";
 		// The session view's clip drag: the clip swaps places with the one above it.
-		const int32_t index = currentSong->project.clips.session_clips.getIndexForClip(g_clip);
-		currentSong->project.clips.session_clips.swapClips(index, index - 1);
+		const int32_t index = currentSong->live.clips.session_clips.getIndexForClip(g_clip);
+		currentSong->live.clips.session_clips.swapClips(index, index - 1);
 		break;
 	}
 	case Leg::OutputMove:
@@ -896,8 +896,7 @@ void deluge_scenario_container_guard_begin(void) {
 	// Every leg's gesture is made from the session view (the clip view the harness boots into dereferences
 	// getCurrentInstrumentClip() unconditionally).
 	changeRootUI(&sessionView);
-	g_home =
-	    currentSong->project.clips.session_clips.size() > 0 ? currentSong->project.clips.session_clips[0] : nullptr;
+	g_home = currentSong->live.clips.session_clips.size() > 0 ? currentSong->live.clips.session_clips[0] : nullptr;
 	if (g_home == nullptr) {
 		fail("the boot song has no clip");
 		g_stage = Stage::Summary;

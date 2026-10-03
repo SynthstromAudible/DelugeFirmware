@@ -466,7 +466,7 @@ void testScalarFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 } // namespace
 
 // Song construction; the Context members are stored, and the pilot dereferences currentSong via the
-// engine mutation path (ActionLogger snapshots off currentSong->project.clips).
+// engine mutation path (ActionLogger snapshots off currentSong->live.clips).
 
 int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	io = driverIo;
@@ -483,7 +483,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	// the pilot exercises behaves as it does on-device.
 	auto* audioClip = new AudioClip(*song);
 	audioClip->setLoopLength(128); // give the region-edit timeline counter a loop length (getLoopLength())
-	(void)song->project.clips.session_clips.insertClipAt(audioClip, 0);
+	(void)song->live.clips.session_clips.insertClipAt(audioClip, 0);
 
 	deluge::edits::Context ctx{*song, song->project};
 	testDispatcher(ctx);

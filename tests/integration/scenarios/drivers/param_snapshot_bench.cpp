@@ -74,7 +74,7 @@ int param_snapshot_bench_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 	auto* audioClip = new AudioClip(*song);
 	audioClip->setLoopLength(128);
-	(void)song->project.clips.session_clips.insertClipAt(audioClip, 0);
+	(void)song->live.clips.session_clips.insertClipAt(audioClip, 0);
 
 	// A resolvable param lane: relocate the engine set into the model tree (as on-device), so applyPatch's
 	// resolveParam and projectFromStoreAfterRead operate on the SAME DocParamSet.

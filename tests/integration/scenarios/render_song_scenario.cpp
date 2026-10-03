@@ -172,8 +172,8 @@ void stepLoading() {
 	// The session clips set to play, and the notes they hold: a song whose clips hold nothing plays silence.
 	int32_t playingClips = 0;
 	int32_t notes = 0;
-	for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
-		Clip* clip = currentSong->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(currentSong->live.clips.session_clips); c++) {
+		Clip* clip = currentSong->live.clips.session_clips[c];
 		if (!clip->activeIfNoSolo) {
 			continue;
 		}

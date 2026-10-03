@@ -610,8 +610,8 @@ void checkSong() {
 			}
 		}
 	}
-	for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
-		Clip* clip = currentSong->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(currentSong->live.clips.session_clips); c++) {
+		Clip* clip = currentSong->live.clips.session_clips[c];
 		if (clip->type != ClipType::AUDIO) {
 			continue;
 		}
@@ -736,7 +736,7 @@ void forEachSongHolder(Song& song, Visit visit) {
 			}
 		}
 	}
-	for (Clip* clip : song.project.clips.session_clips) {
+	for (Clip* clip : song.live.clips.session_clips) {
 		if (clip->type == ClipType::AUDIO) {
 			visit(&static_cast<AudioClip*>(clip)->sampleHolder);
 		}
@@ -833,11 +833,11 @@ bool buildCrucialSong() {
 	audioClipB->syncSampleRecordFromEngine(); // the save writes the clip's record, not the holder
 
 	int32_t playing = 0;
-	for (Clip* clip : currentSong->project.clips.session_clips) {
+	for (Clip* clip : currentSong->live.clips.session_clips) {
 		playing += currentSong->isClipActive(clip) ? 1 : 0;
 	}
 	printf("SLT-CRUCIAL setup clips=%d playing=%d kitDrums=%d synthB=%d audioB=%d audioBActiveOnTrack=%d\n",
-	       static_cast<int>(currentSong->project.clips.session_clips.size()), playing, drums,
+	       static_cast<int>(currentSong->live.clips.session_clips.size()), playing, drums,
 	       synthBHolder->audioFile != nullptr ? 1 : 0, audioClipB->sampleHolder.audioFile != nullptr ? 1 : 0,
 	       audioClipB->isActiveOnOutput() ? 1 : 0);
 	return true;

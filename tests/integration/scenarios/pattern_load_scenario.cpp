@@ -323,9 +323,8 @@ void report() {
 void runTick() {
 	switch (g_stage) {
 	case Stage::Setup: {
-		Clip* first = (std::ssize(currentSong->project.clips.session_clips) > 0)
-		                  ? currentSong->project.clips.session_clips[0]
-		                  : nullptr;
+		Clip* first = (std::ssize(currentSong->live.clips.session_clips) > 0) ? currentSong->live.clips.session_clips[0]
+		                                                                      : nullptr;
 		if (first == nullptr || first->type != ClipType::INSTRUMENT || first->output == nullptr
 		    || first->output->type != OutputType::SYNTH) {
 			fail("the boot song has no synth clip");

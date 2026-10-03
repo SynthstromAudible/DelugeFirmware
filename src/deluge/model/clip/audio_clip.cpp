@@ -904,7 +904,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		D_PRINTLN("");
 		D_PRINTLN("AudioClip::posReachedEnd, at pos:  %d", playbackHandler.getActualArrangementRecordPos());
 
-		if (!modelStack->song->project.clips.arrangement_only_clips.reserveExtra(1)) {
+		if (!modelStack->song->live.clips.arrangement_only_clips.reserveExtra(1)) {
 			return;
 		}
 		if (!output->clipInstances.reserveExtra(1)) {
@@ -934,8 +934,8 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 
 		newClip->setSection(255);
 
-		(void)modelStack->song->project.clips.arrangement_only_clips.insertClipAt(newClip,
-		                                                                          0); // Can't fail - checked above
+		(void)modelStack->song->live.clips.arrangement_only_clips.insertClipAt(newClip,
+		                                                                       0); // Can't fail - checked above
 
 		clipInstanceI++;
 

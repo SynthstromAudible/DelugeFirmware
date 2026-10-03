@@ -526,12 +526,12 @@ int32_t StemExport::disarmAllClipsForStemExport() {
 
 	// when we trigger stem export, we don't know how many clips there are yet
 	// so get the number and store it so we only need to ping getNumElements once
-	int32_t totalNumClips = std::ssize(currentSong->project.clips.session_clips);
+	int32_t totalNumClips = std::ssize(currentSong->live.clips.session_clips);
 
 	if (totalNumClips != 0) {
 		// iterate through all clips to disable all the recording relevant flags
 		for (int32_t idxClip = 0; idxClip < totalNumClips; ++idxClip) {
-			Clip* clip = currentSong->project.clips.session_clips[idxClip];
+			Clip* clip = currentSong->live.clips.session_clips[idxClip];
 			if (clip != nullptr) {
 				/* export clip stem if all these conditions are met:
 				    1) the clip is not empty (it has notes in it)
@@ -561,7 +561,7 @@ void StemExport::restoreAllClipMutes(int32_t totalNumClips) {
 	if (totalNumClips != 0) {
 		// iterate through all clips to restore previous mute states
 		for (int32_t idxClip = 0; idxClip < totalNumClips; ++idxClip) {
-			Clip* clip = currentSong->project.clips.session_clips[idxClip];
+			Clip* clip = currentSong->live.clips.session_clips[idxClip];
 			if (clip != nullptr) {
 				clip->activeIfNoSolo = clip->activeIfNoSoloBeforeStemExport;
 			}
@@ -713,7 +713,7 @@ void StemExport::restoreElements(int32_t total) {
 bool StemExport::fetchElement(int32_t index, StemElement& element) {
 	switch (currentStemExportType) {
 	case StemExportType::CLIP: {
-		Clip* clip = currentSong->project.clips.session_clips[index];
+		Clip* clip = currentSong->live.clips.session_clips[index];
 		if (clip == nullptr) {
 			return false;
 		}

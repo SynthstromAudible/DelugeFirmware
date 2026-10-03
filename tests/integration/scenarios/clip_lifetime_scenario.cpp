@@ -436,8 +436,8 @@ Clip* cloneIntoSession(Clip* source) {
 		return nullptr;
 	}
 	Clip* clone = static_cast<Clip*>(ms->getTimelineCounter());
-	if (!currentSong->project.clips.session_clips.insertClipAt(
-	        clone, static_cast<int32_t>(currentSong->project.clips.session_clips.size()))) {
+	if (!currentSong->live.clips.session_clips.insertClipAt(
+	        clone, static_cast<int32_t>(currentSong->live.clips.session_clips.size()))) {
 		fail("no room for a cloned clip");
 		return nullptr;
 	}
@@ -479,7 +479,7 @@ bool buildBurstSong(InstrumentClip* first) {
 	}
 	const auto sounds = AudioEngine::sounds.walk([](const auto& all) { return static_cast<int32_t>(all.size()); });
 	printf("CL-BURST outputs=%d clips=%d sounds=%d\n", outputs,
-	       static_cast<int32_t>(currentSong->project.clips.session_clips.size()), sounds);
+	       static_cast<int32_t>(currentSong->live.clips.session_clips.size()), sounds);
 	fflush(stdout);
 	return true;
 }
@@ -598,9 +598,9 @@ bool setupLeg() {
 		ClipInstance& instance = output->clipInstances[i];
 		instance.length = clip->loopLength();
 		instance.clip = clip;
-		currentSong->removeSessionClip(clip, currentSong->project.clips.session_clips.getIndexForClip(clip));
+		currentSong->removeSessionClip(clip, currentSong->live.clips.session_clips.getIndexForClip(clip));
 		if (!clip->isArrangementOnlyClip()
-		    || currentSong->project.clips.arrangement_only_clips.getIndexForClip(clip) < 0) {
+		    || currentSong->live.clips.arrangement_only_clips.getIndexForClip(clip) < 0) {
 			return fail("the clip did not become arrangement-only");
 		}
 		// The user entered the clip from the arranger and came back out: it is still the current clip and the view's.
@@ -802,7 +802,7 @@ void deleteLeg() {
 		// SessionView::removeClip() refuses the sync-scaling clip; removeSessionClip() itself does not.
 		clip->stopAllNotesPlaying(currentSong);
 		g_step = "removeSessionClip";
-		currentSong->removeSessionClip(clip, currentSong->project.clips.session_clips.getIndexForClip(clip));
+		currentSong->removeSessionClip(clip, currentSong->live.clips.session_clips.getIndexForClip(clip));
 		break;
 	case Leg::SaveKit: {
 		// The kit's render kills the voices of a drum its clip has no row for, so the note held since the setup is
@@ -874,13 +874,13 @@ void printDangling() {
 	const void* clip = g_victim;
 	bool recordSource = false;
 	for (ClipArray const* array :
-	     {&currentSong->project.clips.session_clips, &currentSong->project.clips.arrangement_only_clips}) {
+	     {&currentSong->live.clips.session_clips, &currentSong->live.clips.arrangement_only_clips}) {
 		for (Clip const* other : *array) {
 			recordSource = recordSource || other->beingRecordedFromClip == clip;
 		}
 	}
-	const bool inSong = currentSong->project.clips.session_clips.getIndexForClip(g_victim) >= 0
-	                    || currentSong->project.clips.arrangement_only_clips.getIndexForClip(g_victim) >= 0;
+	const bool inSong = currentSong->live.clips.session_clips.getIndexForClip(g_victim) >= 0
+	                    || currentSong->live.clips.arrangement_only_clips.getIndexForClip(g_victim) >= 0;
 	printf("CL-DANGLING leg=%s current=%d sync=%d view=%d recordSource=%d inSong=%d\n", legName(g_leg),
 	       currentSong->getCurrentClip() == clip ? 1 : 0,
 	       currentSong->project.transport.sync_scaling_clip == clip ? 1 : 0,
@@ -902,8 +902,8 @@ void cleanUpSongLeg() {
 		(void)deluge::io::unlink(kSongPath);
 	}
 	changeRootUI(&sessionView);
-	g_home = (currentSong != nullptr && !currentSong->project.clips.session_clips.empty())
-	             ? currentSong->project.clips.session_clips[0]
+	g_home = (currentSong != nullptr && !currentSong->live.clips.session_clips.empty())
+	             ? currentSong->live.clips.session_clips[0]
 	             : nullptr;
 	if (g_home == nullptr) {
 		fail("the new song has no clip");
@@ -949,7 +949,7 @@ void cleanUpLeg() {
 
 /// Whether the arranger holds the victim again: in arrangementOnlyClips, with an instance on its output.
 bool victimRestoredToArranger() {
-	if (currentSong->project.clips.arrangement_only_clips.getIndexForClip(g_victim) < 0) {
+	if (currentSong->live.clips.arrangement_only_clips.getIndexForClip(g_victim) < 0) {
 		return false;
 	}
 	for (ClipInstance const& instance : g_victim->output->clipInstances) {
@@ -1208,7 +1208,7 @@ void runTick() {
 		}
 		else {
 			printf("CL-CLEARED leg=%s clips=%d steps=%d\n", legName(g_leg),
-			       currentSong != nullptr ? static_cast<int32_t>(currentSong->project.clips.session_clips.size()) : -1,
+			       currentSong != nullptr ? static_cast<int32_t>(currentSong->live.clips.session_clips.size()) : -1,
 			       g_awaitSteps);
 		}
 		fflush(stdout);
@@ -1383,8 +1383,7 @@ void deluge_scenario_clip_lifetime_begin(void) {
 	// Every leg's gesture is made from the session view. The root UI has to be it: the clip view the harness boots
 	// into dereferences getCurrentInstrumentClip() unconditionally, and a leg moves the current clip away from it.
 	changeRootUI(&sessionView);
-	g_home =
-	    currentSong->project.clips.session_clips.size() > 0 ? currentSong->project.clips.session_clips[0] : nullptr;
+	g_home = currentSong->live.clips.session_clips.size() > 0 ? currentSong->live.clips.session_clips[0] : nullptr;
 	if (g_home == nullptr) {
 		fail("the boot song has no clip");
 		g_stage = Stage::Summary;

@@ -245,8 +245,8 @@ bool deserializeMacros(Arrangement& arrangement, Deserializer& reader, ::Song& s
 				else if (!strcmp(tagName, "clip")) {
 					// Legacy pre-id format: a positional index into the session clips.
 					int32_t index = reader.readTagOrAttributeValueInt();
-					if (index >= 0 && index < std::ssize(song.project.clips.session_clips)) {
-						m.clip_id = song.project.clips.session_clips[index]->id();
+					if (index >= 0 && index < std::ssize(song.live.clips.session_clips)) {
+						m.clip_id = song.live.clips.session_clips[index]->id();
 					}
 				}
 				else if (!strcmp(tagName, "outputId")) {

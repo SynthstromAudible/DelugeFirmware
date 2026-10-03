@@ -122,7 +122,7 @@ bool renderStillReferences(Clip* clip) {
 		return true;
 	}
 	for (ClipArray const* array :
-	     {&currentSong->project.clips.session_clips, &currentSong->project.clips.arrangement_only_clips}) {
+	     {&currentSong->live.clips.session_clips, &currentSong->live.clips.arrangement_only_clips}) {
 		for (Clip const* other : *array) {
 			if (other != clip && other->beingRecordedFromClip == clip) {
 				return true;
@@ -485,8 +485,8 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 			*newOutputCreated = cloneOutput(modelStack);
 
 			if (action != nullptr) {
-				action->recordClipExistenceChange(modelStack->song, &modelStack->song->project.clips.session_clips,
-				                                  this, ExistenceChangeType::CREATE);
+				action->recordClipExistenceChange(modelStack->song, &modelStack->song->live.clips.session_clips, this,
+				                                  ExistenceChangeType::CREATE);
 
 				if (*newOutputCreated) {
 					void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceOutputExistence));
@@ -1108,7 +1108,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 		else {
 
-			if (!modelStack->song->project.clips.arrangement_only_clips.reserveExtra(1)) {
+			if (!modelStack->song->live.clips.arrangement_only_clips.reserveExtra(1)) {
 				return false;
 			}
 
@@ -1169,7 +1169,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			}
 
 			// Add to Song
-			(void)modelStack->song->project.clips.arrangement_only_clips.insertClipAt(newClip, 0); // Can't fail
+			(void)modelStack->song->live.clips.arrangement_only_clips.insertClipAt(newClip, 0); // Can't fail
 
 			expectNoFurtherTicks(modelStack->song, false); // Don't sound
 

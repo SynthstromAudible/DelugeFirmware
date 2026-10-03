@@ -86,9 +86,8 @@ void stepLoading() {
 		}
 		return;
 	}
-	const Output* output = currentSong->project.clips.session_clips.empty()
-	                           ? nullptr
-	                           : currentSong->project.clips.session_clips[0]->output;
+	const Output* output =
+	    currentSong->live.clips.session_clips.empty() ? nullptr : currentSong->live.clips.session_clips[0]->output;
 	// completeBlankPreset() clears blankPresetInstrument when it swaps the preset in, and leaves it set when the card
 	// had nothing to swap in.
 	const bool swapped = currentSong->blankPresetInstrument == nullptr;

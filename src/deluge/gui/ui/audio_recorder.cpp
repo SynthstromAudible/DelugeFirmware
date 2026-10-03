@@ -232,8 +232,8 @@ bool AudioRecorder::targetStillHeld() const {
 		return false;
 	}
 	// Addresses only until each is found among the song's own: the clip, then its output.
-	if (currentSong->project.clips.session_clips.getIndexForClip(t.clip) < 0
-	    && currentSong->project.clips.arrangement_only_clips.getIndexForClip(t.clip) < 0) {
+	if (currentSong->live.clips.session_clips.getIndexForClip(t.clip) < 0
+	    && currentSong->live.clips.arrangement_only_clips.getIndexForClip(t.clip) < 0) {
 		return false;
 	}
 	if (t.clip->output != t.output) {

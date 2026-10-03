@@ -36,7 +36,7 @@ bool View::activeModControllableNamesSong(Song* song) const {
 	if (counter == song || stack.modControllable == &song->project.global_fx.global_effectable) {
 		return true;
 	}
-	for (ClipArray const* array : {&song->project.clips.session_clips, &song->project.clips.arrangement_only_clips}) {
+	for (ClipArray const* array : {&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips}) {
 		for (Clip const* clip : *array) {
 			if (counter == clip) {
 				return true;

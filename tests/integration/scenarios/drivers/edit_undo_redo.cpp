@@ -252,8 +252,8 @@ bool clipIsAddressable(InstrumentClip* ic) {
 
 // M2b: first MELODIC (synth/MIDI) InstrumentClip note-row with a note.
 void noteTarget(Song* song) {
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips); c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips); c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
 		    || cl->output->type == OutputType::AUDIO) {
 			continue;
@@ -275,8 +275,8 @@ void noteTarget(Song* song) {
 
 // M2c: first KIT InstrumentClip SOUND-drum note-row with a note (row keyed by drum id).
 void kitNoteTarget(Song* song) {
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips); c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips); c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type != OutputType::KIT) {
 			continue;
 		}
@@ -303,8 +303,8 @@ void kitNoteTarget(Song* song) {
 void lengthTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
 	NoteRow* noteRow = nullptr;
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
 		    || cl->output->type == OutputType::AUDIO) {
 			continue;
@@ -357,8 +357,8 @@ void shiftTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
 	NoteRow* noteRow = nullptr;
 	int32_t rowIndex = -1;
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
 		    || cl->output->type == OutputType::AUDIO) {
 			continue;
@@ -409,8 +409,8 @@ void euclideanTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
 	NoteRow* noteRow = nullptr;
 	int32_t rowIndex = -1;
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
 		    || cl->output->type == OutputType::AUDIO) {
 			continue;
@@ -479,8 +479,8 @@ void repeatTarget(Song* song) {
 	int32_t rowIndex = -1;
 	int32_t editPos = 0;
 	int32_t squareWidth = 0;
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
 		    || cl->output->type == OutputType::AUDIO) {
 			continue;
@@ -552,8 +552,8 @@ void nudgeTarget(Song* song) {
 	NoteRow* noteRow = nullptr;
 	int32_t rowIndex = -1;
 	int32_t notePos = -1;
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
 		    || cl->output->type == OutputType::AUDIO) {
 			continue;
@@ -618,8 +618,8 @@ void nudgeTarget(Song* song) {
 void clipShiftTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
 	NoteRow* noteRow = nullptr;
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
 		    || cl->output->type == OutputType::AUDIO) {
 			continue;
@@ -675,8 +675,8 @@ int32_t totalNotes(InstrumentClip* ic) {
 // M2d: clear a whole clip via ClearClip, undo/redo (note count 0 after clear, restored after undo).
 void clipClearTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
 		    || cl->output->type == OutputType::AUDIO) {
 			continue;
@@ -718,8 +718,8 @@ void clipClearTarget(Song* song) {
 // M2d: double a clip's length (duplicating content) via MultiplyClip, undo/redo.
 void clipMultiplyTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
 		    || cl->output->type == OutputType::AUDIO) {
 			continue;
@@ -785,8 +785,8 @@ void swingTarget(Song* song) {
 // call site's action-management would), undo/redo.
 void clipLengthTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
 		    || cl->output->type == OutputType::AUDIO) {
 			continue;
@@ -863,8 +863,8 @@ void clipLengthTarget(Song* song) {
 // under test don't need the real audio file open.
 void audioClipMarkerTarget(Song* song) {
 	AudioClip* clip = nullptr;
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type != ClipType::AUDIO || cl->output == nullptr || cl->output->type != OutputType::AUDIO) {
 			continue;
 		}
@@ -972,8 +972,8 @@ void audioClipMarkerTarget(Song* song) {
 // docAudioClip_), this fails.
 void audioClipSetSampleTarget(Song* song) {
 	AudioClip* clip = nullptr;
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type != ClipType::AUDIO || cl->output == nullptr || cl->output->type != OutputType::AUDIO) {
 			continue;
 		}
@@ -1050,8 +1050,8 @@ void pasteTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
 	NoteRow* noteRow = nullptr;
 	int32_t rowIndex = -1;
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
 		    || cl->output->type == OutputType::AUDIO) {
 			continue;
@@ -1127,8 +1127,8 @@ int32_t drumCount(Kit* kit) {
 // M2e: add a GATE drum + row via AddKitRow (apply-only — non-undoable by design).
 void kitAddTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type == ClipType::INSTRUMENT && cl->output != nullptr && cl->output->type == OutputType::KIT
 		    && !((InstrumentClip*)cl)->noteRows.empty()) {
 			clip = (InstrumentClip*)cl;
@@ -1164,8 +1164,8 @@ void kitAddTarget(Song* song) {
 void kitRemoveTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
 	SoundDrum* drum = nullptr;
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type != OutputType::KIT) {
 			continue;
 		}
@@ -1236,8 +1236,8 @@ void arrangementTarget(Song* song) {
 
 // Find the first addressable session instrument clip (any output type). Returns nullptr if none.
 InstrumentClip* firstAddressableClip(Song* song) {
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips); c++) {
-		Clip* cl = song->project.clips.session_clips[c];
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips); c++) {
+		Clip* cl = song->live.clips.session_clips[c];
 		if (cl->type == ClipType::INSTRUMENT && cl->output != nullptr && cl->output->type != OutputType::AUDIO
 		    && deluge::edits::clipAddressFor(*cl).has_value()) {
 			return (InstrumentClip*)cl;
@@ -1303,8 +1303,8 @@ void universalIdsTarget(Song* song) {
 			}
 		}
 	};
-	checkArray(song->project.clips.session_clips);
-	checkArray(song->project.clips.arrangement_only_clips);
+	checkArray(song->live.clips.session_clips);
+	checkArray(song->live.clips.arrangement_only_clips);
 	check(clips > 0, "universal-ids: song has clips");
 	check(addressable == clips, "universal-ids: EVERY clip is id-addressable");
 	check(bound == clips, "universal-ids: EVERY clip is bound to a DocClip (load flip is total)");
@@ -1390,8 +1390,8 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 	// resolves to a live instrument address (still nothing to assert then; song-global is the guaranteed coverage).
 	{
 		InstrumentClip* instClip = nullptr;
-		for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips); c++) {
-			Clip* clip = song->project.clips.session_clips[c];
+		for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips); c++) {
+			Clip* clip = song->live.clips.session_clips[c];
 			if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
 			    && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT)) {
 				instClip = (InstrumentClip*)clip;
