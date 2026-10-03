@@ -1205,7 +1205,7 @@ void kitRemoveTarget(Song* song) {
 void arrangementTarget(Song* song) {
 	Output* output = nullptr;
 	ClipInstance* inst = nullptr;
-	for (Output* o = song->project.media.first_output; o != nullptr; o = o->next) {
+	for (Output* o = song->live.media.first_output; o != nullptr; o = o->next) {
 		if (std::ssize(o->clipInstances) > 0) {
 			output = o;
 			inst = &o->clipInstances[0];

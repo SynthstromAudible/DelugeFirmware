@@ -17,16 +17,13 @@
 
 #pragma once
 
-// Heavyweight model types referenced only by pointer here — forward declarations suffice, so the
-// project library does not pull in the output/instrument headers.
 class Output;
 class Instrument;
 class MIDIInstrument;
 
-namespace deluge::project {
+namespace deluge::bridge {
 
 /// A song's outputs (the head of the intrusive output list) plus the hibernating-instrument pools.
-/// A component of deluge::project::Song.
 struct MediaPool {
 	Output* first_output{nullptr};
 	/// All Instruments here have inValidState set to false when added to this list.
@@ -34,4 +31,4 @@ struct MediaPool {
 	MIDIInstrument* hibernating_midi_instrument{nullptr};
 };
 
-} // namespace deluge::project
+} // namespace deluge::bridge

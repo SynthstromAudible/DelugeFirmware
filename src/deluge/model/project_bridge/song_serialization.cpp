@@ -257,7 +257,7 @@ bool deserializeMacros(Arrangement& arrangement, Deserializer& reader, ::Song& s
 				else if (!strcmp(tagName, "output")) {
 					// Legacy pre-id format: a positional index into the output list.
 					int32_t index = reader.readTagOrAttributeValueInt();
-					Output* thisOutput = song.project.media.first_output;
+					Output* thisOutput = song.live.media.first_output;
 					for (; thisOutput != nullptr; thisOutput = thisOutput->next) {
 						if (index == 0) {
 							break;

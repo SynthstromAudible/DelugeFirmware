@@ -48,7 +48,7 @@ Output* getRecordableOutputInSong(AudioOutput* audioOutput, Output* selectedOutp
 		return nullptr;
 	}
 
-	for (Output* output = currentSong->project.media.first_output; output; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output; output = output->next) {
 		if (output == selectedOutput) {
 			return selectedOutput;
 		}
@@ -59,7 +59,7 @@ Output* getRecordableOutputInSong(AudioOutput* audioOutput, Output* selectedOutp
 
 // Used when entering Track mode without a valid previous source.
 Output* getFirstRecordableOutput(AudioOutput* audioOutput) {
-	for (Output* output = currentSong->project.media.first_output; output; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output; output = output->next) {
 		if (audioOutput->canRecordFrom(output)) {
 			return output;
 		}

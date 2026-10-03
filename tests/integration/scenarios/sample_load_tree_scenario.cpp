@@ -357,7 +357,7 @@ SoundDrum* addSampleDrum(Kit& kit, Clip* clip, const char* name, const char* sam
 /// clip. Every holder is loaded, so a collect-media save copies every file.
 bool buildSong() {
 	SoundInstrument* synth = nullptr;
-	for (Output* output = currentSong->project.media.first_output; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		if (output->type == OutputType::SYNTH) {
 			synth = static_cast<SoundInstrument*>(output);
 			break;
@@ -411,7 +411,7 @@ bool buildSong() {
 /// card, so the song load can only find them among the collected copies. The audio clip's file stays resident and
 /// is claimed by the load's memory-only pass.
 void releaseSongFiles() {
-	for (Output* output = currentSong->project.media.first_output; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		if (output->type == OutputType::SYNTH) {
 			auto* synth = static_cast<SoundInstrument*>(output);
 			for (int32_t s = 0; s < kNumSources; s++) {
@@ -584,7 +584,7 @@ void checkSong() {
 	bool sawSynth = false;
 	bool sawKit = false;
 	bool sawClip = false;
-	for (Output* output = currentSong->project.media.first_output; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		if (output->type == OutputType::SYNTH) {
 			auto* synth = static_cast<SoundInstrument*>(output);
 			if (synth->sources[0].oscType != OscType::SAMPLE) {
@@ -715,7 +715,7 @@ bool g_crucialSnapshotTaken = false;
 /// Visit every sample holder of @p song: each synth's source ranges, each kit's sound drums, each session audio clip.
 template <typename Visit>
 void forEachSongHolder(Song& song, Visit visit) {
-	for (Output* output = song.project.media.first_output; output != nullptr; output = output->next) {
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
 		if (output->type == OutputType::SYNTH) {
 			auto* synth = static_cast<SoundInstrument*>(output);
 			for (int32_t s = 0; s < kNumSources; s++) {

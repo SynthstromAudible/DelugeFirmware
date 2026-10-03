@@ -3001,7 +3001,7 @@ void PlaybackHandler::noteMessageReceived(MIDICable& cable, bool on, int32_t cha
 	                               modelStack);
 
 	// Go through all Instruments...
-	for (Output* thisOutput = currentSong->project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = currentSong->live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 
 		// Only send if not muted - but let note-offs through always, for safety
 		if (!on || currentSong->isOutputActiveInArrangement(thisOutput)) {
@@ -3103,7 +3103,7 @@ void PlaybackHandler::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8
 	midiFollow.pitchBendReceived(cable, channel, data1, data2, doingMidiThru, modelStack);
 
 	// Go through all Outputs...
-	for (Output* thisOutput = currentSong->project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = currentSong->live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 		    modelStack->addTimelineCounter(thisOutput->getActiveClip());
@@ -3171,7 +3171,7 @@ void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t 
 	}
 
 	// Go through all Outputs...
-	for (Output* thisOutput = currentSong->project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = currentSong->live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 
 		// If it has an activeClip... (Hmm, interesting, we don't allow MIDI control of params when no activeClip?
 		// Yeah this checks out, as the various offerReceivedCCToLearnedParams()'s require a timelineCounter, but
@@ -3211,7 +3211,7 @@ void PlaybackHandler::aftertouchReceived(MIDICable& cable, int32_t channel, int3
 	midiFollow.aftertouchReceived(cable, channel, value, noteCode, doingMidiThru, modelStack);
 
 	// Go through all Instruments...
-	for (Output* thisOutput = currentSong->project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = currentSong->live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 		    modelStack->addTimelineCounter(thisOutput->getActiveClip());

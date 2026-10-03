@@ -26,7 +26,6 @@
 #include "deluge-project/drum_structure.h"
 #include "deluge-project/global_effects.h"
 #include "deluge-project/groove.h"
-#include "deluge-project/media_pool.h"
 #include "deluge-project/metadata.h"
 #include "deluge-project/output_structure.h"
 #include "deluge-project/param_address.h"
@@ -85,7 +84,6 @@ public:
 	Arrangement arrangement;
 
 	// Runtime-reference tier — live engine objects, intrusive links, hot-path DSP state.
-	MediaPool media;
 	GlobalEffects global_fx;
 	ClipParams clip_params;     // per-clip automation stores, keyed by Clip::id (id-addressable node storage)
 	BackedParams backed_params; // instrument-shared automation, keyed by (owner, clip) — persistent form of ParamBackup

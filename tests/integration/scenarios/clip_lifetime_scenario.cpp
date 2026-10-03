@@ -474,7 +474,7 @@ bool buildBurstSong(InstrumentClip* first) {
 		}
 	}
 	int32_t outputs = 0;
-	for (Output* output = currentSong->project.media.first_output; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		outputs++;
 	}
 	const auto sounds = AudioEngine::sounds.walk([](const auto& all) { return static_cast<int32_t>(all.size()); });

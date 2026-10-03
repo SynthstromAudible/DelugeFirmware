@@ -650,7 +650,7 @@ bool openBrowserOnKitDrum(const char* leg) {
 
 /// The boot song's synth clip current, its first oscillator set to @p osc, and the browser opened on it.
 bool openBrowserOnSynth(const char* leg, OscType osc) {
-	for (Output* output = currentSong->project.media.first_output; output != nullptr && g_synth == nullptr;
+	for (Output* output = currentSong->live.media.first_output; output != nullptr && g_synth == nullptr;
 	     output = output->next) {
 		if (output->type == OutputType::SYNTH) {
 			g_synth = static_cast<SoundInstrument*>(output);

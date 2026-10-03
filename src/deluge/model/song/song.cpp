@@ -204,9 +204,9 @@ Song::Song() {
 	anyClipsSoloing = false;
 	anyOutputsSoloingInArrangement = false;
 
-	project.media.first_output = nullptr;
-	project.media.first_hibernating_instrument = nullptr;
-	project.media.hibernating_midi_instrument = nullptr;
+	live.media.first_output = nullptr;
+	live.media.first_hibernating_instrument = nullptr;
+	live.media.hibernating_midi_instrument = nullptr;
 
 	persistentView.lastClipInstanceEnteredStartPos = -1;
 	persistentView.arrangerAutoScrollModeActive = false;
@@ -282,8 +282,8 @@ int32_t Song::retiredPendingAtLastConstruction() {
 }
 
 Song::~Song() {
-	if (currentSong == this || anySoundRegistered(project.media.first_output)
-	    || anySoundRegistered(project.media.first_hibernating_instrument)) {
+	if (currentSong == this || anySoundRegistered(live.media.first_output)
+	    || anySoundRegistered(live.media.first_hibernating_instrument)) {
 		g_songsDestroyedWhileReachable.fetch_add(1, std::memory_order_relaxed);
 	}
 
@@ -312,8 +312,8 @@ Song::~Song() {
 	// Free all ParamManagers which are backed up
 	deleteAllBackedUpParamManagers();
 
-	deleteAllOutputs(&project.media.first_output);
-	deleteAllOutputs((Output**)&project.media.first_hibernating_instrument);
+	deleteAllOutputs(&live.media.first_output);
+	deleteAllOutputs((Output**)&live.media.first_hibernating_instrument);
 
 	deleteHibernatingMIDIInstrument();
 }
@@ -1208,7 +1208,7 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeClosingTag("songParams");
 
 	writer.writeArrayStart("instruments");
-	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		thisOutput->writeToFile(nullptr, this);
 	}
 	writer.writeArrayEnding("instruments");
@@ -1267,7 +1267,7 @@ void Song::assignMissingIds() {
 	// Give every song-member output/drum a durable id if it lacks one (a runtime owner never saved/loaded). Loaded
 	// owners already have file ids -> no-op. Clips always have an id from their ctor. This guarantees param addressing
 	// (OwnerId) can always resolve by durable id -- the durable-id program's replacement for transient session ids.
-	for (Output* o = project.media.first_output; o != nullptr; o = o->next) {
+	for (Output* o = live.media.first_output; o != nullptr; o = o->next) {
 		if (!o->id()) {
 			o->setId(generateNewOutputId());
 		}
@@ -1746,7 +1746,7 @@ unknownTag:
 
 			else if (!strcmp(tagName, "instruments")) {
 				reader.match('[');
-				Output** lastPointer = &project.media.first_output;
+				Output** lastPointer = &live.media.first_output;
 				while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 
 					void* memory;
@@ -2099,7 +2099,7 @@ loadOutput:
 
 	// Match all ClipInstances up with their Clip. And while we're at it, check if any Outputs are soloing in
 	// arranger
-	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->soloingInArrangementMode) {
 			anyOutputsSoloingInArrangement = true;
 		}
@@ -2485,7 +2485,7 @@ void Song::loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadC
 }
 
 void Song::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
-	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		(void)thisOutput->walkSampleDemands(visitor); // An abort stops only that output's walk.
 	}
 
@@ -2508,7 +2508,7 @@ void Song::walkCrucialSampleDemands(deluge::storage::SampleLoadVisitor& visitor)
 	// TODO: This searches just as much as loadAllSamples, why does this not need to call into the
 	// audio engine? Is the searching actually ok, and only the loadSample() counts should be considered
 	// for calling into the audio engine?
-	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->getActiveClip() && isClipActive(thisOutput->getActiveClip())) {
 			(void)thisOutput->walkCrucialSampleDemands(visitor);
 		}
@@ -2554,11 +2554,11 @@ void Song::deleteSoundsWhichWontSound() {
 		}
 	}
 
-	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		thisOutput->clipInstances.clear();
 	}
 
-	deleteAllOutputs((Output**)&project.media.first_hibernating_instrument);
+	deleteAllOutputs((Output**)&live.media.first_hibernating_instrument);
 	deleteHibernatingMIDIInstrument();
 
 	// Can't delete the ones with no Clips, cos these might be needed by their ModControllables
@@ -2581,7 +2581,7 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	AudioEngine::logAction("Start output render");
-	for (Output* output = project.media.first_output; output; output = output->next) {
+	for (Output* output = live.media.first_output; output; output = output->next) {
 		if (!output->inValidState) {
 			continue;
 		}
@@ -2697,7 +2697,7 @@ bool Song::hasAnySwing() {
 
 void Song::resyncLFOs() {
 
-	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->getActiveClip()) {
 			thisOutput->resyncLFOs();
 		}
@@ -3295,7 +3295,7 @@ int32_t Song::getMaxMIDIChannelSuffix(int32_t channel) {
 
 	int32_t maxSuffix = -2;
 
-	for (Output* output = project.media.first_output; output; output = output->next) {
+	for (Output* output = live.media.first_output; output; output = output->next) {
 		if (output->type == OutputType::MIDI_OUT) {
 			MIDIInstrument* instrument = (MIDIInstrument*)output;
 			if (instrument->getChannel() == channel) {
@@ -3394,14 +3394,14 @@ void Song::addOutput(Output* output, bool atStart) {
 		{
 			AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
 			noteOutputListEdit(this);
-			output->next = project.media.first_output;
-			project.media.first_output = output;
+			output->next = live.media.first_output;
+			live.media.first_output = output;
 		}
 
 		persistentView.arrangementYScroll++;
 	}
 	else {
-		Output** prevPointer = &project.media.first_output;
+		Output** prevPointer = &live.media.first_output;
 		while (*prevPointer) {
 			prevPointer = &(*prevPointer)->next;
 		}
@@ -3453,7 +3453,7 @@ int32_t Song::removeOutputFromMainList(
 	// Remove the Output from the main list
 	Output** prevPointer;
 	int32_t outputIndex = 0;
-	for (prevPointer = &project.media.first_output; *prevPointer != output; prevPointer = &(*prevPointer)->next) {
+	for (prevPointer = &live.media.first_output; *prevPointer != output; prevPointer = &(*prevPointer)->next) {
 		if (*prevPointer == nullptr) {
 			return -1; // Shouldn't be necessary, but better to safeguard
 		}
@@ -3505,7 +3505,7 @@ allDone:
 // Instrument, because neither will be in the master list when they happen
 void Song::moveOutput(Output* output, int32_t direction) {
 	if (direction >= 0) {
-		Output** prevPointer = &project.media.first_output;
+		Output** prevPointer = &live.media.first_output;
 		while (*prevPointer != output) {
 			prevPointer = &((*prevPointer)->next);
 		}
@@ -3517,7 +3517,7 @@ void Song::moveOutput(Output* output, int32_t direction) {
 		higher->next = output;
 	}
 	else {
-		Output** prevPointer = &project.media.first_output;
+		Output** prevPointer = &live.media.first_output;
 		while ((*prevPointer)->next != output) {
 			prevPointer = &((*prevPointer)->next);
 		}
@@ -3531,7 +3531,7 @@ void Song::moveOutput(Output* output, int32_t direction) {
 }
 
 void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool keepNoteRowsWithMIDIInput) {
-	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput == newOutput) {
 			display->cancelPopup();
 			FREEZE_WITH_ERROR("i009");
@@ -3549,7 +3549,7 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 
 	// Remove the oldInstrument from the list of Instruments
 	Output** prevPointer;
-	for (prevPointer = &project.media.first_output; *prevPointer != oldOutput; prevPointer = &(*prevPointer)->next) {}
+	for (prevPointer = &live.media.first_output; *prevPointer != oldOutput; prevPointer = &(*prevPointer)->next) {}
 	{
 		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
 		noteOutputListEdit(this);
@@ -3721,7 +3721,7 @@ deleteIt:
 // AudioOutputs can be recording from it (a cloned overdub copies the pointer without taking over the monitoring), and
 // each of those would be left pointing at freed memory.
 void Song::clearRecordingFromReferencesTo(Output* output) {
-	for (Output* other = project.media.first_output; other; other = other->next) {
+	for (Output* other = live.media.first_output; other; other = other->next) {
 		if (other != output && other->getOutputRecordingFrom() == output) {
 			other->clearRecordingFrom();
 		}
@@ -3778,8 +3778,8 @@ void Song::addInstrumentToHibernationList(Instrument* instrument) {
 	{
 		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
 		noteOutputListEdit(this);
-		instrument->next = project.media.first_hibernating_instrument;
-		project.media.first_hibernating_instrument = instrument;
+		instrument->next = live.media.first_hibernating_instrument;
+		live.media.first_hibernating_instrument = instrument;
 	}
 	instrument->setActiveClip(nullptr); // Just be sure!
 	instrument->inValidState = false;
@@ -3789,7 +3789,7 @@ void Song::removeInstrumentFromHibernationList(Instrument* instrument) {
 
 	// Remove the Instrument from the list of Instruments of this type
 	Instrument** prevPointer;
-	for (prevPointer = &project.media.first_hibernating_instrument; *prevPointer != instrument;
+	for (prevPointer = &live.media.first_hibernating_instrument; *prevPointer != instrument;
 	     prevPointer = (Instrument**)&(*prevPointer)->next) {
 		if (*prevPointer == nullptr) {
 			return; // Shouldn't be necessary, but better to safeguard
@@ -3817,7 +3817,7 @@ void Song::deleteOrHibernateOutputIfNoClips(Output* output) {
 void Song::deleteHibernatingInstrumentWithSlot(OutputType outputType, char const* name) {
 
 	// Remove the Instrument from the list of Instruments of this type
-	Instrument** prevPointer = &project.media.first_hibernating_instrument;
+	Instrument** prevPointer = &live.media.first_hibernating_instrument;
 	while (true) {
 		Instrument* instrument = *prevPointer;
 
@@ -3845,7 +3845,7 @@ void Song::deleteHibernatingInstrumentWithSlot(OutputType outputType, char const
 }
 
 void Song::markAllInstrumentsAsEdited() {
-	for (Output* output = project.media.first_output; output; output = output->next) {
+	for (Output* output = live.media.first_output; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
 			continue;
 		}
@@ -3859,7 +3859,7 @@ void Song::markAllInstrumentsAsEdited() {
 // used with the renameOutputUI class to check if you're trying to rename an output to the same
 // name as another output
 AudioOutput* Song::getAudioOutputFromName(std::string_view name) {
-	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->type == OutputType::AUDIO) {
 			if (deluge::string::caselessEquals(thisOutput->name.c_str(), name)) {
 				return (AudioOutput*)thisOutput;
@@ -3875,7 +3875,7 @@ Instrument* Song::getInstrumentFromPresetSlot(OutputType outputType, int32_t cha
                                               bool searchNonHibernating) {
 
 	if (searchNonHibernating) {
-		for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+		for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 			bool match = thisOutput->matchesPreset(outputType, channel, channelSuffix, name, dirPath);
 			if (match) {
 				return (Instrument*)thisOutput;
@@ -3884,8 +3884,7 @@ Instrument* Song::getInstrumentFromPresetSlot(OutputType outputType, int32_t cha
 	}
 
 	if (searchHibernating) {
-		for (Output* thisOutput = project.media.first_hibernating_instrument; thisOutput;
-		     thisOutput = thisOutput->next) {
+		for (Output* thisOutput = live.media.first_hibernating_instrument; thisOutput; thisOutput = thisOutput->next) {
 			bool match = thisOutput->matchesPreset(outputType, channel, channelSuffix, name, dirPath);
 			if (match) {
 				return (Instrument*)thisOutput;
@@ -3898,7 +3897,7 @@ Instrument* Song::getInstrumentFromPresetSlot(OutputType outputType, int32_t cha
 
 int32_t Song::getOutputIndex(Output* output) {
 	int32_t count = 0;
-	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput == output) {
 			return count;
 		}
@@ -3909,14 +3908,14 @@ int32_t Song::getOutputIndex(Output* output) {
 }
 
 Output* Song::getOutputFromIndex(int32_t index) {
-	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		if (!index) {
 			return thisOutput;
 		}
 		index--;
 	}
 
-	return project.media.first_output; // fail
+	return live.media.first_output; // fail
 }
 
 void Song::syncSerialIdCountersFromLoaded() {
@@ -3925,7 +3924,7 @@ void Song::syncSerialIdCountersFromLoaded() {
 			counter = *id + 1;
 		}
 	};
-	for (Output* output = project.media.first_output; output != nullptr; output = output->next) {
+	for (Output* output = live.media.first_output; output != nullptr; output = output->next) {
 		advancePast(outputIdCounter_, output->id());
 	}
 	for (Clip* clip : live.clips.session_clips) {
@@ -3934,7 +3933,7 @@ void Song::syncSerialIdCountersFromLoaded() {
 	for (Clip* clip : live.clips.arrangement_only_clips) {
 		advancePast(clipIdCounter_, clip->id());
 	}
-	for (Output* output = project.media.first_output; output != nullptr; output = output->next) {
+	for (Output* output = live.media.first_output; output != nullptr; output = output->next) {
 		if (output->type == OutputType::KIT) {
 			for (Drum* drum = ((Kit*)output)->firstDrum; drum != nullptr; drum = drum->next) {
 				advancePast(drumIdCounter_, drum->id());
@@ -3958,7 +3957,7 @@ Clip* Song::clipForId(uint32_t id) {
 }
 
 Output* Song::outputForId(uint32_t id) {
-	for (Output* output = project.media.first_output; output != nullptr; output = output->next) {
+	for (Output* output = live.media.first_output; output != nullptr; output = output->next) {
 		if (output->id() == id) {
 			return output;
 		}
@@ -3967,7 +3966,7 @@ Output* Song::outputForId(uint32_t id) {
 }
 
 Drum* Song::drumForId(uint32_t id) {
-	for (Output* output = project.media.first_output; output != nullptr; output = output->next) {
+	for (Output* output = live.media.first_output; output != nullptr; output = output->next) {
 		if (output->type != OutputType::KIT) {
 			continue;
 		}
@@ -3982,7 +3981,7 @@ Drum* Song::drumForId(uint32_t id) {
 
 int32_t Song::getNumOutputs() {
 	int32_t count = 0;
-	for (Output* output = project.media.first_output; output; output = output->next) {
+	for (Output* output = live.media.first_output; output; output = output->next) {
 		count++;
 	}
 	return count;
@@ -3990,7 +3989,7 @@ int32_t Song::getNumOutputs() {
 
 void Song::reassessWhetherAnyOutputsSoloingInArrangement() {
 	anyOutputsSoloingInArrangement = false;
-	for (Output* output = project.media.first_output; output; output = output->next) {
+	for (Output* output = live.media.first_output; output; output = output->next) {
 		if (output->soloingInArrangementMode) {
 			anyOutputsSoloingInArrangement = true;
 			return;
@@ -4229,7 +4228,7 @@ bool Song::isClipActive(Clip const* clip) const {
 }
 
 void Song::sendAllMIDIPGMs() {
-	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		thisOutput->sendMIDIPGM();
 	}
 }
@@ -4248,7 +4247,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 
 		// We still want as many Outputs as possible to have activeClips, even if those Clips are not "active".
 		// First, try arranger-only Clips.
-		for (Output* output = project.media.first_output; output; output = output->next) {
+		for (Output* output = live.media.first_output; output; output = output->next) {
 
 			// Don't do any additional searching of session Clips, cos it'd be really inefficient searching all
 			// session Clips for each Output
@@ -4296,7 +4295,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 
 		// We still want as many Outputs as possible to have activeClips, even if those Clips are not "active".
 		// First, try arranger-only Clips
-		for (Output* output = project.media.first_output; output; output = output->next) {
+		for (Output* output = live.media.first_output; output; output = output->next) {
 
 			// Don't do any additional searching of session Clips, cos it'd be really inefficient searching all
 			// session Clips for each Instrument
@@ -4334,7 +4333,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 
 	// Now, we want to ensure (in case of bad song file data) that any Output that doesn't have an activeClip (aka
 	// doesn't have ANY Clip) definitely does have a backedUpParamManager. Only for audio Instruments
-	for (Output* output = project.media.first_output; output;) {
+	for (Output* output = live.media.first_output; output;) {
 
 		Output* nextOutput = output->next;
 
@@ -4463,21 +4462,21 @@ bool Song::isOutputActiveInArrangement(Output* output) {
 void Song::setHibernatingMIDIInstrument(MIDIInstrument* newInstrument) {
 	deleteHibernatingMIDIInstrument();
 
-	project.media.hibernating_midi_instrument = newInstrument;
+	live.media.hibernating_midi_instrument = newInstrument;
 }
 
 void Song::deleteHibernatingMIDIInstrument() {
-	if (project.media.hibernating_midi_instrument) {
-		void* toDealloc = dynamic_cast<void*>(project.media.hibernating_midi_instrument);
-		project.media.hibernating_midi_instrument->~MIDIInstrument();
+	if (live.media.hibernating_midi_instrument) {
+		void* toDealloc = dynamic_cast<void*>(live.media.hibernating_midi_instrument);
+		live.media.hibernating_midi_instrument->~MIDIInstrument();
 		delugeDealloc(toDealloc);
-		project.media.hibernating_midi_instrument = nullptr;
+		live.media.hibernating_midi_instrument = nullptr;
 	}
 }
 
 MIDIInstrument* Song::grabHibernatingMIDIInstrument(int32_t channel, int32_t channelSuffix) {
-	MIDIInstrument* toReturn = project.media.hibernating_midi_instrument;
-	project.media.hibernating_midi_instrument = nullptr;
+	MIDIInstrument* toReturn = live.media.hibernating_midi_instrument;
+	live.media.hibernating_midi_instrument = nullptr;
 	if (toReturn) {
 		toReturn->setActiveClip(nullptr, PgmChangeSend::NEVER); // Not really necessary?
 		toReturn->inValidState = false;
@@ -4508,7 +4507,7 @@ void Song::stopAllAuditioning() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
-	for (Output* output = project.media.first_output; output; output = output->next) {
+	for (Output* output = live.media.first_output; output; output = output->next) {
 		output->stopAnyAuditioning(modelStack);
 	}
 }
@@ -4519,7 +4518,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 #if ALPHA_OR_BETA_VERSION
 
 	// Non-hibernating Instruments
-	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->type != OutputType::SYNTH && thisOutput->type != OutputType::KIT) {
 			continue;
 		}
@@ -4538,7 +4537,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 	}
 
 	// And hibernating Instruments
-	for (Instrument* thisInstrument = project.media.first_hibernating_instrument; thisInstrument;
+	for (Instrument* thisInstrument = live.media.first_hibernating_instrument; thisInstrument;
 	     thisInstrument = (Instrument*)thisInstrument->next) {
 		if (thisInstrument->type != OutputType::SYNTH && thisInstrument->type != OutputType::KIT) {
 			continue;
@@ -4649,7 +4648,7 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 	ModelStackWithThreeMainThings* modelStack = setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	paramManager.trimToLength(pos, modelStack, action, false);
 
-	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		int32_t i = thisOutput->clipInstances.firstAtOrAfter(pos);
 
 		// We go through deleting the ClipInstances one by one. This is actually quite inefficient, but complicated
@@ -4722,7 +4721,7 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 }
 
 bool Song::arrangementHasAnyClipInstances() {
-	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		if (!thisOutput->clipInstances.empty()) {
 			return true;
 		}
@@ -5083,7 +5082,7 @@ void Song::setupClipIndexesForSaving() {
 }
 
 AudioOutput* Song::getFirstAudioOutput() {
-	for (Output* output = project.media.first_output; output; output = output->next) {
+	for (Output* output = live.media.first_output; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
 			return (AudioOutput*)output;
 		}
@@ -5097,7 +5096,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	int32_t highestNumber = 0;
 
 	// Find highest number existent so far
-	for (Output* output = project.media.first_output; output; output = output->next) {
+	for (Output* output = live.media.first_output; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
 			char const* nameChars = output->name.c_str();
 			if (memcasecmp(nameChars, "AUDIO", 5)) {
@@ -5143,7 +5142,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	if (defaultAudioOutputInputChannel == AudioInputChannel::UNSET) {
 
 		defaultAudioOutputInputChannel = AudioInputChannel::LEFT;
-		for (Output* output = project.media.first_output; output; output = output->next) {
+		for (Output* output = live.media.first_output; output; output = output->next) {
 			if (output->type == OutputType::AUDIO) {
 				defaultAudioOutputInputChannel = ((AudioOutput*)output)->inputChannel;
 				break;
@@ -5176,7 +5175,7 @@ Output* Song::getNextAudioOutput(int32_t offset, Output* oldOutput, Availability
 		while (true) {
 			newOutput = newOutput->next;
 			if (!newOutput) {
-				newOutput = project.media.first_output;
+				newOutput = live.media.first_output;
 			}
 			if (newOutput == oldOutput) {
 				break;
@@ -5197,7 +5196,7 @@ Output* Song::getNextAudioOutput(int32_t offset, Output* oldOutput, Availability
 		while (true) {
 			investigatingOutput = investigatingOutput->next;
 			if (!investigatingOutput) {
-				investigatingOutput = project.media.first_output;
+				investigatingOutput = live.media.first_output;
 			}
 			if (investigatingOutput == oldOutput) {
 				break;
@@ -5224,7 +5223,7 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 	oldOutput->stopAnyAuditioning(modelStack);
 
 	Output** prevPointer;
-	for (prevPointer = &project.media.first_output; *prevPointer != oldOutput; prevPointer = &(*prevPointer)->next) {}
+	for (prevPointer = &live.media.first_output; *prevPointer != oldOutput; prevPointer = &(*prevPointer)->next) {}
 	{
 		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
 		noteOutputListEdit(this);
@@ -5568,7 +5567,7 @@ bool Song::hasAnyPendingNextOverdubs() {
 
 int32_t Song::countAudioVoices() const {
 	int32_t i = 0;
-	for (Output* output = project.media.first_output; output; output = output->next) {
+	for (Output* output = live.media.first_output; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
 			// this checks whether the audio output is skipping rendering
 			// to be rendering, the audio output must have:
@@ -5590,7 +5589,7 @@ void Song::cullAudioClipVoice() {
 	AudioClip* bestClip = nullptr;
 	uint64_t lowestImmunity = 0xFFFFFFFFFFFFFFFF;
 
-	for (Output* output = project.media.first_output; output; output = output->next) {
+	for (Output* output = live.media.first_output; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
 			if (output->getActiveClip()) {
 				AudioClip* clip = (AudioClip*)output->getActiveClip();
@@ -5791,13 +5790,13 @@ TimelineCounter* Song::getTimelineCounterToRecordTo() {
 }
 
 void Song::setDefaultVelocityForAllInstruments(uint8_t newDefaultVelocity) {
-	for (Output* output = project.media.first_output; output; output = output->next) {
+	for (Output* output = live.media.first_output; output; output = output->next) {
 		if (output->type != OutputType::AUDIO) {
 			((Instrument*)output)->setDefaultVelocity(newDefaultVelocity);
 		}
 	}
 
-	for (Instrument* instrument = project.media.first_hibernating_instrument; instrument;
+	for (Instrument* instrument = live.media.first_hibernating_instrument; instrument;
 	     instrument = (Instrument*)instrument->next) {
 		instrument->setDefaultVelocity(newDefaultVelocity);
 	}
@@ -5867,7 +5866,7 @@ void Song::midiCableBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDICable
                                                int32_t whichBendRange, int32_t bendSemitones) {
 
 	// Go through all Instruments...
-	for (Output* thisOutput = currentSong->project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = currentSong->live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		thisOutput->offerBendRangeUpdate(modelStack, cable, channelOrZone, whichBendRange, bendSemitones);
 	}
 }
@@ -5877,11 +5876,11 @@ Error Song::addInstrumentsToFileItems(deluge::gui::browser::FileListing& into, O
 	Output* thisOutput;
 	if (false) {
 doHibernatingInstruments:
-		thisOutput = project.media.first_hibernating_instrument;
+		thisOutput = live.media.first_hibernating_instrument;
 		doingHibernatingOnes = true;
 	}
 	else {
-		thisOutput = project.media.first_output;
+		thisOutput = live.media.first_output;
 		doingHibernatingOnes = false;
 	}
 

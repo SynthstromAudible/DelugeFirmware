@@ -529,8 +529,8 @@ void LoadInstrumentPresetUI::deliverAcquisition(const deluge::storage::PresetReq
                                                 const deluge::storage::AcquireResult& acquired) {
 	runAcquisitionFollowUp(request, acquired);
 	if (acquired.loadedFromFile && acquired.instrument != nullptr
-	    && !isInstrumentInList(acquired.instrument, currentSong->project.media.first_output)
-	    && !isInstrumentInList(acquired.instrument, currentSong->project.media.first_hibernating_instrument)) {
+	    && !isInstrumentInList(acquired.instrument, currentSong->live.media.first_output)
+	    && !isInstrumentInList(acquired.instrument, currentSong->live.media.first_hibernating_instrument)) {
 		currentSong->deleteOutput(acquired.instrument); // parsed for this gesture, never taken into the song
 	}
 }
@@ -1001,7 +1001,7 @@ bool LoadInstrumentPresetUI::isInstrumentInList(Instrument* searchInstrument, Ou
 
 // See the header doc for why this exists: a currency check, not a lifetime one.
 bool LoadInstrumentPresetUI::isRequestInstrumentStillLive(Instrument* instrument) {
-	return isInstrumentInList(instrument, currentSong->project.media.first_output);
+	return isInstrumentInList(instrument, currentSong->live.media.first_output);
 }
 
 // Returns whether it was in fact an unused one that it was able to return
@@ -1127,7 +1127,7 @@ LoadInstrumentPresetUI::decideLoad(const deluge::gui::InstrumentLoadRequest& req
 	// If we found an already existing Instrument object...
 	if (!request.clone && target.existingInstrument != nullptr) {
 		const bool wasHibernating =
-		    isInstrumentInList(target.existingInstrument, currentSong->project.media.first_hibernating_instrument);
+		    isInstrumentInList(target.existingInstrument, currentSong->live.media.first_hibernating_instrument);
 
 		if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
 			if (!wasHibernating) {
@@ -1209,8 +1209,8 @@ Error LoadInstrumentPresetUI::swapInstrument(const deluge::gui::InstrumentLoadRe
 	}
 
 	// Check if old Instrument has been deleted, in which case need to update the appropriate FileItem.
-	if (!isInstrumentInList(instrumentToReplace, currentSong->project.media.first_output)
-	    && !isInstrumentInList(instrumentToReplace, currentSong->project.media.first_hibernating_instrument)) {
+	if (!isInstrumentInList(instrumentToReplace, currentSong->live.media.first_output)
+	    && !isInstrumentInList(instrumentToReplace, currentSong->live.media.first_hibernating_instrument)) {
 		for (int32_t f = listing.size() - 1; f >= 0; f--) {
 			FileItem* fileItem = &listing.item(f);
 			if (fileItem->instrument == instrumentToReplace) {

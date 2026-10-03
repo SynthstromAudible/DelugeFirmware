@@ -455,7 +455,7 @@ AudioFileHolder* firstHolder(Source& source) {
 
 int32_t countOutputs() {
 	int32_t outputs = 0;
-	for (Output* output = currentSong->project.media.first_output; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		outputs++;
 	}
 	return outputs;
@@ -724,7 +724,7 @@ void prepareLeg() {
 			// The new-kit-track gesture, which loads kBaseKitPreset.
 			g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 1, kBaseKitPreset);
 		}
-		for (Output* output = currentSong->project.media.first_output; output != nullptr && g_synth == nullptr;
+		for (Output* output = currentSong->live.media.first_output; output != nullptr && g_synth == nullptr;
 		     output = output->next) {
 			if (output->type == OutputType::SYNTH) {
 				g_synth = static_cast<SoundInstrument*>(output);
@@ -746,10 +746,10 @@ bool actsWithoutSettling() {
 /// Every instrument in the song, active or hibernating, named @p name.
 int32_t instrumentsNamed(const char* name) {
 	int32_t found = 0;
-	for (Output* output = currentSong->project.media.first_output; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		found += (output->name == name) ? 1 : 0;
 	}
-	for (Output* output = currentSong->project.media.first_hibernating_instrument; output != nullptr;
+	for (Output* output = currentSong->live.media.first_hibernating_instrument; output != nullptr;
 	     output = output->next) {
 		found += (output->name == name) ? 1 : 0;
 	}
@@ -758,8 +758,8 @@ int32_t instrumentsNamed(const char* name) {
 
 /// Whether @p owner is the song's: one of its outputs, active or hibernating, or a drum of one of its kits.
 bool ownedBySong(const ModControllableAudio* owner) {
-	for (Output* list : {currentSong->project.media.first_output,
-	                     static_cast<Output*>(currentSong->project.media.first_hibernating_instrument)}) {
+	for (Output* list : {currentSong->live.media.first_output,
+	                     static_cast<Output*>(currentSong->live.media.first_hibernating_instrument)}) {
 		for (Output* output = list; output != nullptr; output = output->next) {
 			if (static_cast<ModControllableAudio*>(output->toModControllable()) == owner) {
 				return true;
@@ -1299,7 +1299,7 @@ void checkListingEdgeTrim() {
 	deluge::gui::browser::FileListing listing;
 	listing.beginRead("PLEDGE", "", deluge::gui::browser::CatalogSearch::Right, FILE_ITEMS_MAX_NUM_ELEMENTS, {});
 	// Any Instrument will do: the filter reads only whether the pointer is set, and the in-song flag.
-	auto* inSong = static_cast<Instrument*>(currentSong->project.media.first_output);
+	auto* inSong = static_cast<Instrument*>(currentSong->live.media.first_output);
 	for (int32_t i = 0; i < FILE_ITEMS_MAX_NUM_ELEMENTS + 5; i++) {
 		FileItem* item = listing.newItem();
 		if (item == nullptr) {
@@ -1324,7 +1324,7 @@ void checkListingEdgeTrim() {
 
 void prepareAcquire() {
 	g_aqAct = 0;
-	if (g_leg == Leg::AqNew && currentSong->project.media.first_output != nullptr) {
+	if (g_leg == Leg::AqNew && currentSong->live.media.first_output != nullptr) {
 		checkListingEdgeTrim();
 	}
 	if (g_leg == Leg::AqSlotStall || g_leg == Leg::AqNavStall || g_leg == Leg::AqChangeStall) {

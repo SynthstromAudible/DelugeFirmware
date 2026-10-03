@@ -122,7 +122,7 @@ private:
 
 		// Only outputs still in the main song list are selectable; hibernated instruments should not display here.
 		int32_t index = 0;
-		for (Output* candidate = currentSong->project.media.first_output; candidate; candidate = candidate->next) {
+		for (Output* candidate = currentSong->live.media.first_output; candidate; candidate = candidate->next) {
 			if (candidate == output) {
 				return index;
 			}

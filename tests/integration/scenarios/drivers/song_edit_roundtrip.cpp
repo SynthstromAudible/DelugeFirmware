@@ -79,7 +79,7 @@ bool sameTuning(PhaseIncrementFineTuner a, PhaseIncrementFineTuner b) {
 template <typename F>
 void forEachBoundSound(Song& song, F&& f) {
 	for (Output* first :
-	     {song.project.media.first_output, static_cast<Output*>(song.project.media.first_hibernating_instrument)}) {
+	     {song.live.media.first_output, static_cast<Output*>(song.live.media.first_hibernating_instrument)}) {
 		for (Output* o = first; o != nullptr; o = o->next) {
 			if (o->type == OutputType::SYNTH) {
 				Sound* sound = static_cast<SoundInstrument*>(o);
@@ -658,7 +658,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		m.clip_id = target->id();
 		macroClipId = target->id();
 	}
-	if (Output* target = song->project.media.first_output; target != nullptr && target->id().has_value()) {
+	if (Output* target = song->live.media.first_output; target != nullptr && target->id().has_value()) {
 		auto& m = song->project.arrangement.session_macros[7];
 		m.kind = deluge::project::SessionMacroKind::OUTPUT_CYCLE;
 		m.output_id = target->id();

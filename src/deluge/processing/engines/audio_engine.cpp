@@ -220,7 +220,7 @@ void letGoOfSong(Song* song) {
 		anyMarked = true;
 	};
 	for (Output* first :
-	     {song->project.media.first_output, static_cast<Output*>(song->project.media.first_hibernating_instrument)}) {
+	     {song->live.media.first_output, static_cast<Output*>(song->live.media.first_hibernating_instrument)}) {
 		for (Output* output = first; output != nullptr; output = output->next) {
 			if (output->type == OutputType::SYNTH) {
 				mark(*static_cast<SoundInstrument*>(output));
@@ -528,7 +528,7 @@ void killAllVoices(bool deletingSong) {
 	// But if there's no currentSong, that's fine - it's already been deleted, and this has already been called for it
 	// before then.
 	if (currentSong != nullptr) {
-		for (Output* output = currentSong->project.media.first_output; output != nullptr; output = output->next) {
+		for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 			if (output->type == OutputType::AUDIO) {
 				static_cast<AudioOutput*>(output)->cutAllSound();
 			}
@@ -1771,7 +1771,7 @@ void updateReverbParams() {
 		int32_t highestReverbAmountFound =
 		    currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
 
-		for (Output* thisOutput = currentSong->project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
+		for (Output* thisOutput = currentSong->live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 			thisOutput->getThingWithMostReverb(&soundWithMostReverb, &paramManagerWithMostReverb,
 			                                   &globalEffectableWithMostReverb, &highestReverbAmountFound);
 		}
@@ -2228,7 +2228,7 @@ void retire(Song* song) {
 	handOver(RetireRequest{.song = song}, song, [](void* p) {
 		auto* s = static_cast<Song*>(p);
 		for (Output* first :
-		     {s->project.media.first_output, static_cast<Output*>(s->project.media.first_hibernating_instrument)}) {
+		     {s->live.media.first_output, static_cast<Output*>(s->live.media.first_hibernating_instrument)}) {
 			for (Output* output = first; output != nullptr; output = output->next) {
 				checkLetGoBeforeDestroy(output, nullptr);
 			}

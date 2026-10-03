@@ -93,7 +93,7 @@ void floodIfAsked() {
 
 /// [interaction] Host only: whether any output of @p song is auditioning.
 bool anyAuditioning(Song* song) {
-	for (Output* output = song->project.media.first_output; output != nullptr; output = output->next) {
+	for (Output* output = song->live.media.first_output; output != nullptr; output = output->next) {
 		const bool instrument = output->type == OutputType::SYNTH || output->type == OutputType::KIT
 		                        || output->type == OutputType::MIDI_OUT || output->type == OutputType::CV;
 		if (instrument && static_cast<Instrument*>(output)->isAnyAuditioningHappening()) {

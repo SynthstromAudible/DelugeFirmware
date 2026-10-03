@@ -44,8 +44,8 @@ bool View::activeModControllableNamesSong(Song* song) const {
 		}
 	}
 	if (stack.modControllable != nullptr) {
-		for (Output* first : {song->project.media.first_output,
-		                      static_cast<Output*>(song->project.media.first_hibernating_instrument)}) {
+		for (Output* first :
+		     {song->live.media.first_output, static_cast<Output*>(song->live.media.first_hibernating_instrument)}) {
 			for (Output* output = first; output != nullptr; output = output->next) {
 				if (stack.modControllable == output->toModControllable()) {
 					return true;

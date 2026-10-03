@@ -94,12 +94,12 @@ std::atomic<int32_t> g_clipsDestroyedWhileReferenced{0};
 /// Whether @p output is in @p song's main or hibernating list. Compares pointers only, so an output already freed is
 /// never dereferenced.
 bool outputIsInSong(Song const& song, Output const* output) {
-	for (Output const* o = song.project.media.first_output; o != nullptr; o = o->next) {
+	for (Output const* o = song.live.media.first_output; o != nullptr; o = o->next) {
 		if (o == output) {
 			return true;
 		}
 	}
-	for (Output const* o = song.project.media.first_hibernating_instrument; o != nullptr; o = o->next) {
+	for (Output const* o = song.live.media.first_hibernating_instrument; o != nullptr; o = o->next) {
 		if (o == output) {
 			return true;
 		}

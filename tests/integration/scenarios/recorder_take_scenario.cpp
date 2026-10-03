@@ -543,7 +543,7 @@ void stepReplacedRun() {
 
 /// Whether @p output is on the song's hibernation list: alive, and out of the song.
 bool hibernating(const Output* output) {
-	for (Output* o = currentSong->project.media.first_hibernating_instrument; o != nullptr; o = o->next) {
+	for (Output* o = currentSong->live.media.first_hibernating_instrument; o != nullptr; o = o->next) {
 		if (o == output) {
 			return true;
 		}

@@ -240,7 +240,7 @@ bool AudioRecorder::targetStillHeld() const {
 		return false;
 	}
 	bool outputInSong = false;
-	for (Output* output = currentSong->project.media.first_output; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		if (output == t.output) {
 			outputInSong = true;
 			break;
