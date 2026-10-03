@@ -33,7 +33,7 @@ CVInstrument::CVInstrument() : NonAudioInstrument(OutputType::CV) {
 void CVInstrument::seedDocOutputIdentity() {
 	NonAudioInstrument::seedDocOutputIdentity();
 	if (docOutput_ != nullptr) {
-		docOutput_->cv2_source = static_cast<uint8_t>(getCV2Mode());
+		docOutput_->cv2_source = getCV2Mode();
 	}
 }
 
@@ -49,7 +49,7 @@ void CVInstrument::setChannel(int channel) {
 		setMode(static_cast<CVInstrumentMode>(0));
 	}
 	if (docOutput_ != nullptr) {
-		docOutput_->cv2_source = static_cast<uint8_t>(getCV2Mode());
+		docOutput_->cv2_source = getCV2Mode();
 	}
 }
 
@@ -61,7 +61,7 @@ void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int3
 	arpNote->outputMemberChannel[noteIndex] = channel;
 
 	cvEngine.sendNote(true, channel, noteCodePostArp);
-	if (cvmode[1] == CVMode::velocity) {
+	if (cvmode[1] == CVMode::VELOCITY) {
 		cvEngine.sendVoltageOut(1, arpNote->velocity << 8);
 	}
 }
@@ -128,8 +128,7 @@ bool CVInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutput
 	writeMelodicInstrumentAttributesToFile(writer, clipForSavingOutputOnly, song);
 	// DO3: read the DOM identity record's cv2_source when bound (rebuild-at-save); fall back to the native field
 	// when unbound.
-	writer.writeAttribute("cv2Source", docOutput_ != nullptr ? static_cast<int32_t>(docOutput_->cv2_source)
-	                                                         : static_cast<int32_t>(cvmode[1]));
+	writer.writeAttribute("cv2Source", std::to_underlying(docOutput_ != nullptr ? docOutput_->cv2_source : cvmode[1]));
 	if (clipForSavingOutputOnly || !midiInput.containsSomething()) {
 		return false; // If we don't need to write a "device" tag, opt not to end the opening tag
 	}
@@ -193,27 +192,27 @@ void CVInstrument::sendMonophonicExpressionEvent(int32_t dimension) {
 	int32_t new_value = add_saturate(lastCombinedPolyExpression[dimension], lastMonoExpression[dimension]) >> 16;
 	switch (cvmode[1]) {
 
-	case CVMode::off:
+	case CVMode::OFF:
 		break;
-	case CVMode::pitch:
+	case CVMode::PITCH:
 		break;
-	case CVMode::mod:
+	case CVMode::MOD:
 		if (dimension == Expression::Y_SLIDE_TIMBRE) {
 			cvEngine.sendVoltageOut(1, std::max<int32_t>(new_value, 0));
 		}
 		break;
-	case CVMode::aftertouch:
+	case CVMode::AFTERTOUCH:
 		if (dimension == Expression::Z_PRESSURE) {
 			cvEngine.sendVoltageOut(1, new_value);
 		}
 		break;
-	case CVMode::velocity:
+	case CVMode::VELOCITY:
 		break;
 	}
 }
 void CVInstrument::setCV2Mode(CVMode mode) {
 	cvmode[1] = mode;
 	if (docOutput_ != nullptr) {
-		docOutput_->cv2_source = static_cast<uint8_t>(mode);
+		docOutput_->cv2_source = mode;
 	}
 }

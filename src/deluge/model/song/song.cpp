@@ -1297,7 +1297,7 @@ void Song::adoptDrum(Drum* drum) {
 		drum->setId(generateNewDrumId());
 	}
 	deluge::project::DocDrum& d = project.drum_structure.getOrCreate(*drum->id());
-	d.drum_type = static_cast<uint8_t>(drum->type);
+	d.drum_type = drum->type;
 	// M3 owner-3: the DocDrum is the authoritative store for name/channel/note. Bind it (below) BEFORE the drum's tags
 	// are read (Kit::readDrumFromFile adopts first), so the name/channel/note tag reads write straight in — no engine
 	// seed. DocDrum's member initializers supply the MIDI/Sound defaults (channel 0, note 0); a GateDrum's ctor default

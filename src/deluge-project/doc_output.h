@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "deluge-project/cv_mode.h"
 #include "deluge-project/doc_sound.h"
 #include <cstdint>
 #include <optional>
@@ -44,7 +45,7 @@ struct DocOutput {
 	bool collapse_aftertouch{false};         ///< MIDIInstrument
 	bool collapse_mpe{true};                 ///< MIDIInstrument
 	uint8_t output_mpe_y{0};                 ///< MIDIInstrument (CCNumber underlying)
-	uint8_t cv2_source{0};                   ///< CVInstrument (CVMode underlying)
+	CVMode cv2_source{CVMode::OFF};          ///< CVInstrument
 	/// Present only for SoundInstruments (OutputType::SYNTH); nullopt otherwise. Owns the nested Sound record 1:1.
 	std::optional<DocSound> sound;
 };

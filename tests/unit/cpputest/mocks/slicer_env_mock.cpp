@@ -331,7 +331,7 @@ DELUGE_STUB_FN(stub_uiCtor, "_ZN2UIC2Ev")
 DELUGE_STUB_RET(stub_kitGetDrumFromIndex, "_ZN3Kit16getDrumFromIndexEi", Drum*, reinterpret_cast<Drum*>(g_drum.get()))
 DELUGE_STUB_FN(stub_kitResetDrumTempValues, "_ZN3Kit19resetDrumTempValuesEv")
 DELUGE_STUB_FN(stub_kitAddDrum, "_ZN3Kit7addDrumEP4DrumP4Song")
-DELUGE_STUB_FN(stub_drumCtor, "_ZN4DrumC2E8DrumType")
+DELUGE_STUB_FN(stub_drumCtor, "_ZN4DrumC2EN6deluge7project8DrumTypeE")
 DELUGE_STUB_FN(stub_paramBackupBackUp,
                "_ZN6deluge7project11ParamBackup6backUpEP20ModControllableAudioP4ClipP23ParamManagerForTimelineb")
 DELUGE_STUB_FN(stub_drumSetNameCString, "_ZN4Drum7setNameEPKc")

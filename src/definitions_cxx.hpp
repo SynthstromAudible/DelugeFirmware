@@ -18,6 +18,7 @@
 #pragma once
 #include "board_layout.hpp" // board pad/indicator/numeric dimensions (HAL-free, shared with the BSP)
 #include "definitions.h"
+#include "deluge-project/drum_type.h"
 #include "deluge-project/launch_style.h"
 #include "deluge-project/sequence_direction.h"
 #include "engine-api/types/interpolation_mode.h"
@@ -789,11 +790,7 @@ enum class InstrumentRemoval {
 	DELETE,
 };
 
-enum class DrumType {
-	SOUND,
-	MIDI,
-	GATE,
-};
+using deluge::project::DrumType;
 
 enum class PgmChangeSend {
 	NEVER,

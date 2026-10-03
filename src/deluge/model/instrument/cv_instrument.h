@@ -17,13 +17,14 @@
 
 #pragma once
 
+#include "deluge-project/cv_mode.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/non_audio_instrument.h"
 
 class ParamManagerForTimeline;
 class ModelStackWithThreeMainThings;
 class ModelStackWithSoundFlags;
-enum class CVMode : uint8_t { off, pitch, mod, aftertouch, velocity };
+using deluge::project::CVMode;
 enum class GateMode : uint8_t { off, gate, trigger };
 enum CVInstrumentMode { one, two, both };
 constexpr int32_t kNumCVInstrumentChannels = both + 1;
@@ -91,18 +92,18 @@ private:
 		switch (channel) {
 		case CVInstrumentMode::one: {
 			gateMode[0] = GateMode::gate;
-			cvmode[0] = CVMode::pitch;
+			cvmode[0] = CVMode::PITCH;
 		}
 		case CVInstrumentMode::two: {
 			gateMode[1] = GateMode::gate;
-			cvmode[1] = CVMode::pitch;
+			cvmode[1] = CVMode::PITCH;
 		}
 		case CVInstrumentMode::both: {
 			gateMode[0] = GateMode::gate;
 			gateMode[1] = GateMode::trigger;
-			cvmode[0] = CVMode::pitch;
-			if (cvmode[1] == CVMode::off) {
-				cvmode[1] = CVMode::aftertouch;
+			cvmode[0] = CVMode::PITCH;
+			if (cvmode[1] == CVMode::OFF) {
+				cvmode[1] = CVMode::AFTERTOUCH;
 			}
 		}
 		}
@@ -110,11 +111,11 @@ private:
 	void clearModes() {
 		gateMode[0] = GateMode::off;
 		gateMode[1] = GateMode::off;
-		cvmode[0] = CVMode::off;
-		cvmode[1] = CVMode::off;
+		cvmode[0] = CVMode::OFF;
+		cvmode[1] = CVMode::OFF;
 	}
 
 	GateMode gateMode[2]{GateMode::off, GateMode::off};
-	CVMode cvmode[2]{CVMode::off, CVMode::off};
+	CVMode cvmode[2]{CVMode::OFF, CVMode::OFF};
 	void sendMonophonicExpressionEvent(int32_t dimension);
 };
