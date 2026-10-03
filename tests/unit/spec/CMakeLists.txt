@@ -5,9 +5,6 @@ add_library(deluge_spec STATIC
 # Audio-file header parser + its dependency-free byte/format helpers (file-loading regression net).
 ../../../src/deluge/storage/audio/audio_file_format.cpp
 ../../../src/deluge/storage/build_value.cpp
-../../../src/deluge/storage/parse_json.cpp
-../../../src/deluge/storage/parse_xml.cpp
-../../../src/deluge/storage/value.cpp
 ../../../src/deluge/storage/value_tree_deserializer.cpp
 ../../../src/deluge/util/audio_format_helpers.cpp
 ../../../src/deluge/util/semver.cpp
@@ -26,7 +23,7 @@ add_library(deluge_spec STATIC
 # specs have no BSP, and single-threaded drivers have nothing to mask.
 ../../support/mocks/mock_critical_section.cpp
 )
-target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi)
+target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_serialization)
 
 # audio_file_format.cpp's header parse IS the Rust decoder (crates/deluge_audio_format, reached through
 # include/libdeluge/audio_format.h), so these specs need its C ABI on the link line. `deluge_rust_rs` is

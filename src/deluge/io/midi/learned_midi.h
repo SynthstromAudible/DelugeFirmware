@@ -26,8 +26,11 @@
 #define MIDI_MESSAGE_CC 2
 
 class MIDICable;
-namespace deluge::storage {
+namespace deluge::serialization {
 class Value;
+}
+namespace deluge::storage {
+using deluge::serialization::Value;
 }
 enum class MIDIMatchType { NO_MATCH, CHANNEL, MPE_MEMBER, MPE_MASTER };
 class LearnedMIDI {

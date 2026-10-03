@@ -39,6 +39,7 @@ CPP_TARGETS = [
     "deluge_dsp_fixed",
     "deluge_dsp_float",
     "deluge_foundation",
+    "deluge_serialization",
     "deluge_project",
     "deluge_midi",
 ]

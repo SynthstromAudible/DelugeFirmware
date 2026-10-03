@@ -17,6 +17,7 @@ add_link_options(${CPU_OPTIONS})
 include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/specs.cmake)
 
 enable_testing()
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../serialization serialization)
 add_subdirectory(spec)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../engine-api engine-api)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../model model)

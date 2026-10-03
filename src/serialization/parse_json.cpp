@@ -1,10 +1,10 @@
-#include "storage/parse_json.h"
+#include "serialization/parse_json.h"
 
 #include <cctype>
 #include <charconv>
 #include <cstdint>
 
-namespace deluge::storage {
+namespace deluge::serialization {
 
 namespace {
 
@@ -346,4 +346,4 @@ std::optional<Value> parseJson(std::string_view json) {
 	return parser.parseDocument();
 }
 
-} // namespace deluge::storage
+} // namespace deluge::serialization

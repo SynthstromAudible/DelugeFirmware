@@ -1,10 +1,10 @@
-#include "storage/parse_xml.h"
-#include "storage/value.h"
+#include "serialization/parse_xml.h"
+#include "serialization/value.h"
 #include <cppspec.hpp>
 
 // clang-format off
-describe parse_xml("deluge::storage::parseXml", ${
-	using deluge::storage::parseXml;
+describe parse_xml("deluge::serialization::parseXml", ${
+	using deluge::serialization::parseXml;
 	it("maps attributes to ordered scalar entries", _{
 		auto v = parseXml(R"(<clip section="0" length="384"/>)");
 		expect(v.has_value()).to_be_true();

@@ -1,10 +1,10 @@
-#include "storage/parse_xml.h"
+#include "serialization/parse_xml.h"
 
 #include <array>
 #include <cctype>
 #include <utility>
 
-namespace deluge::storage {
+namespace deluge::serialization {
 
 namespace {
 
@@ -295,4 +295,4 @@ std::optional<Value> parseXml(std::string_view xml) {
 	return parser.parseDocument();
 }
 
-} // namespace deluge::storage
+} // namespace deluge::serialization

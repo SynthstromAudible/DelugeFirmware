@@ -57,8 +57,11 @@ class CopiedNoteRow;
 class Sound;
 class TimelineView;
 
-namespace deluge::storage {
+namespace deluge::serialization {
 class Value;
+}
+namespace deluge::storage {
+using deluge::serialization::Value;
 }
 
 class ModelStackWithTimelineCounter;

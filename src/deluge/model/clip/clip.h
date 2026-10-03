@@ -45,8 +45,11 @@ class ModelStackWithTimelineCounter;
 class Serializer;
 class Deserializer;
 
-namespace deluge::storage {
+namespace deluge::serialization {
 class Value;
+}
+namespace deluge::storage {
+using deluge::serialization::Value;
 }
 
 class Clip : public TimelineCounter {

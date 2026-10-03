@@ -1,10 +1,10 @@
-#include "storage/parse_json.h"
-#include "storage/value.h"
+#include "serialization/parse_json.h"
+#include "serialization/value.h"
 #include <cppspec.hpp>
 
 // clang-format off
-describe parse_json("deluge::storage::parseJson", ${
-	using deluge::storage::parseJson;
+describe parse_json("deluge::serialization::parseJson", ${
+	using deluge::serialization::parseJson;
 	it("parses an object with ordered scalar members", _{
 		// Keys are given in a NON-alphabetical order so this case actually
 		// disambiguates insertion order from a sorted map.

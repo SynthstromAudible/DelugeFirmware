@@ -1,9 +1,9 @@
-#include "storage/value.h"
+#include "serialization/value.h"
 #include <cppspec.hpp>
 
 // clang-format off
-describe value("deluge::storage::Value", ${
-	using deluge::storage::Value;
+describe value("deluge::serialization::Value", ${
+	using deluge::serialization::Value;
 	it("scalar holds its string", _{
 		Value v = Value::makeScalar("42");
 		expect(v.isScalar()).to_be_true();
