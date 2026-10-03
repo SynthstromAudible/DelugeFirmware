@@ -1784,7 +1784,10 @@ loadOutput:
 							delugeDealloc(memory);
 							return error;
 						}
-						((Instrument*)newOutput)->mightExistOnCard = true;
+						// An audio track reaches here too (loadOutput), and is not an Instrument.
+						if (newOutput->type != OutputType::AUDIO) {
+							static_cast<Instrument*>(newOutput)->mightExistOnCard = true;
+						}
 						{
 							AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
 							noteOutputListEdit(this);
