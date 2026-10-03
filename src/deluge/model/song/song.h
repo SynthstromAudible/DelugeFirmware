@@ -439,6 +439,7 @@ public:
 	// Tempo automation
 	void clearTempoAutomation();
 	void updateBPMFromAutomation();
+	void setTempoAutomationUntilNextNode(int32_t pos, float tempoBPM, bool shouldLogAction);
 
 	float calculateBPM() {
 		float timePerTimerTick = getTimePerTimerTickFloat();
