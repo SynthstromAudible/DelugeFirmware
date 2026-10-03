@@ -60,6 +60,75 @@ Io io{};
 
 namespace params = deluge::modulation::params;
 
+/// Each bound Sound of @p song: a synth instrument's, or a kit's sound drum's, live or hibernating.
+template <typename F>
+void forEachBoundSound(Song& song, F&& f) {
+	for (Output* first :
+	     {song.project.media.first_output, static_cast<Output*>(song.project.media.first_hibernating_instrument)}) {
+		for (Output* o = first; o != nullptr; o = o->next) {
+			if (o->type == OutputType::SYNTH) {
+				Sound* sound = static_cast<SoundInstrument*>(o);
+				if (sound->docSound_ != nullptr) {
+					f(*sound);
+				}
+			}
+			else if (o->type == OutputType::KIT) {
+				for (Drum* d = static_cast<Kit*>(o)->firstDrum; d != nullptr; d = d->next) {
+					if (d->type == DrumType::SOUND) {
+						Sound* sound = static_cast<SoundDrum*>(d);
+						if (sound->docSound_ != nullptr) {
+							f(*sound);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/// M4b: every bound Sound's snapshot must equal the projection of its DocSound record, and each snapshot setter must
+/// write the record and reproject. @return the number of mismatches, each printed under @p label.
+int32_t checkSoundSnapshots(Song& song, const char* label) {
+	int32_t sounds = 0, bad = 0;
+	Sound* probe = nullptr;
+	forEachBoundSound(song, [&](Sound& sound) {
+		const deluge::project::DocSound& d = *sound.docSound_;
+		sounds++;
+		probe = (probe != nullptr) ? probe : &sound;
+		if (sound.getTranspose() != d.transpose) {
+			std::fprintf(io.err, "M4b FAIL %s: transpose snapshot=%d record=%d\n", label, sound.getTranspose(),
+			             d.transpose);
+			bad++;
+		}
+		if (sound.getSynthMode() != static_cast<SynthMode>(d.synth_mode)) {
+			std::fprintf(io.err, "M4b FAIL %s: synthMode snapshot=%d record=%d\n", label,
+			             static_cast<int>(sound.getSynthMode()), d.synth_mode);
+			bad++;
+		}
+	});
+	if (probe != nullptr) {
+		Sound& sound = *probe;
+		const deluge::project::DocSound& d = *sound.docSound_;
+		const int16_t transpose = sound.getTranspose();
+		sound.setTranspose(static_cast<int16_t>(transpose + 7));
+		if (sound.getTranspose() != transpose + 7 || d.transpose != transpose + 7) {
+			std::fprintf(io.err, "M4b FAIL %s: setTranspose did not write the record and reproject\n", label);
+			bad++;
+		}
+		sound.setTranspose(transpose);
+		const SynthMode mode = sound.getSynthMode();
+		const SynthMode other = (mode == SynthMode::FM) ? SynthMode::RINGMOD : SynthMode::FM;
+		sound.assignSynthMode(other);
+		if (sound.getSynthMode() != other || static_cast<SynthMode>(d.synth_mode) != other) {
+			std::fprintf(io.err, "M4b FAIL %s: assignSynthMode did not write the record and reproject\n", label);
+			bad++;
+		}
+		sound.assignSynthMode(mode);
+	}
+	std::fprintf(io.err, "M4b snapshot coherence %s: %d bound sounds, %d mismatches\n", label, sounds, bad);
+	return bad;
+}
+
 // load(xml) -> fully-loaded Song (currentSong set, view cleared), or nullptr on load error (code in *loadErr).
 // `xml` must be writable (the reader null-terminates tokens in place) and outlive all uses of the Song.
 static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
@@ -130,6 +199,9 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	if (!song) {
 		std::fprintf(io.err, "LOADFAIL original -> Error %d\n", (int)e1);
 		return 1;
+	}
+	if (checkSoundSnapshots(*song, "load") != 0) {
+		return 3;
 	}
 
 	// Phase C gate: every loaded AudioClip's unpatched set must be BOUND to a DOM store (bindDomStore ran in
@@ -428,6 +500,9 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	if (!reloaded) {
 		std::fprintf(io.err, "LOADFAIL gen1 -> Error %d\n", (int)e2);
 		return 1;
+	}
+	if (checkSoundSnapshots(*reloaded, "reload") != 0) {
+		return 3;
 	}
 
 	// M2-G S2b: the save (gen1) assigns ids, so on reload every audio clip's unpatched params must be
