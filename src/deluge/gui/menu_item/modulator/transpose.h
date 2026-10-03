@@ -35,7 +35,7 @@ public:
 	void readCurrentValue() override {
 		this->setValue(
 		    computeCurrentValueForTranspose(soundEditor.currentSound->snapshot().modulatorTranspose[source_id_],
-		                                    soundEditor.currentSound->modulatorCents[source_id_]));
+		                                    soundEditor.currentSound->snapshot().modulatorCents[source_id_]));
 	}
 
 	bool usesAffectEntire() override { return true; }

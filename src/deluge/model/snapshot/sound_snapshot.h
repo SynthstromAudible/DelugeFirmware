@@ -42,6 +42,9 @@ struct SoundSnapshot {
 	VoicePriority voicePriority{VoicePriority::MEDIUM}; ///< DocSound::voice_priority; ranks voices for stealing
 	bool modulator1ToModulator0{false};                 ///< DocSound::modulator1_to_modulator0 (FM routing)
 	std::array<int16_t, kNumModulators> modulatorTranspose{0, -12}; ///< DocSound::modulator_transpose, semitones
+	std::array<int8_t, kNumModulators> modulatorCents{};            ///< DocSound::modulator_cents
+	/// derived from modulatorCents: each FM modulator's fine detune
+	std::array<PhaseIncrementFineTuner, kNumModulators> modulatorTransposers{};
 	/// DocSound::osc_retrigger_phase; a phase as a fraction of 2^32, 0xFFFFFFFF = free-running (no retrigger)
 	std::array<uint32_t, kNumSources> oscRetriggerPhase{0xFFFFFFFF, 0xFFFFFFFF};
 	/// DocSound::modulator_retrigger_phase; same encoding as oscRetriggerPhase

@@ -167,10 +167,6 @@ public:
 	uint8_t outputMidiChannel = MIDI_CHANNEL_NONE;
 	uint8_t outputMidiNoteForDrum = MIDI_NOTE_NONE;
 
-	int8_t modulatorCents[kNumModulators] = {0, 0};
-
-	PhaseIncrementFineTuner modulatorTransposers[kNumModulators];
-
 	PhaseIncrementFineTuner unisonDetuners[kMaxNumVoicesUnison];
 	int32_t unisonPan[kMaxNumVoicesUnison]{};
 
@@ -202,6 +198,9 @@ public:
 	// Store a modulator's transpose without setModulatorTranspose()'s phase-increment recalculation — for the load
 	// path.
 	void assignModulatorTranspose(int32_t m, int16_t value);
+	// Store a modulator's cents without setModulatorCents()'s tuner and phase-increment recalculation — for the load
+	// path.
+	void assignModulatorCents(int32_t m, int8_t value);
 	// LFO config (lfoConfig[] kept as hot render cache; record authoritative). Sync writes both fields together to
 	// match the menu gesture (one sync value → type+level).
 	void setLfoWaveType(int32_t lfoId, LFOType value);

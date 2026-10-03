@@ -573,7 +573,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 			}
 
 			// Cents
-			phaseIncrement = sound.modulatorTransposers[m].detune(phaseIncrement);
+			phaseIncrement = sound.snapshot().modulatorTransposers[m].detune(phaseIncrement);
 			phaseIncrement = sound.snapshot().fineTuner.detune(phaseIncrement); // master transpose
 
 			// If only one unison

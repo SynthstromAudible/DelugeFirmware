@@ -132,6 +132,8 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 			expect(snap.lfoConfig[l].syncLevel == static_cast<SyncLevel>(d.lfo_sync_level[l]), "lfoConfig.syncLevel");
 		}
 		for (int32_t i = 0; i < 2; i++) {
+			expect(snap.modulatorCents[i] == d.modulator_cents[i], "modulatorCents");
+			expect(sameTuning(snap.modulatorTransposers[i], centsTuner(d.modulator_cents[i])), "modulatorTransposers");
 			expect(snap.modulatorTranspose[i] == d.modulator_transpose[i], "modulatorTranspose");
 			expect(snap.oscRetriggerPhase[i] == d.osc_retrigger_phase[i], "oscRetriggerPhase");
 			expect(snap.modulatorRetriggerPhase[i] == d.modulator_retrigger_phase[i], "modulatorRetriggerPhase");
@@ -214,6 +216,12 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 		              && sameTuning(sound.snapshot().fineTuner, centsTuner(otherCents)),
 		          "set_cents");
 		sound.set_cents(before.cents);
+		const int8_t otherModCents = static_cast<int8_t>(before.modulatorCents[1] == 30 ? -30 : 30);
+		sound.setModulatorCents(1, otherModCents, nullptr);
+		roundTrip(sound.snapshot().modulatorCents[1] == otherModCents && d.modulator_cents[1] == otherModCents
+		              && sameTuning(sound.snapshot().modulatorTransposers[1], centsTuner(otherModCents)),
+		          "setModulatorCents");
+		sound.setModulatorCents(1, before.modulatorCents[1], nullptr);
 	}
 	std::fprintf(io.err, "M4b snapshot coherence %s: %d bound sounds, %d mismatches\n", label, sounds, bad);
 	return bad;

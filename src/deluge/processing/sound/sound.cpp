@@ -632,7 +632,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				reader.exitTag("transpose");
 			}
 			else if (!strcmp(tagName, "cents")) {
-				modulatorCents[0] = reader.readTagOrAttributeValueInt();
+				assignModulatorCents(0, static_cast<int8_t>(reader.readTagOrAttributeValueInt()));
 				reader.exitTag("cents");
 			}
 			else if (!strcmp(tagName, "retrigPhase")) {
@@ -661,7 +661,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				reader.exitTag("transpose");
 			}
 			else if (!strcmp(tagName, "cents")) {
-				modulatorCents[1] = reader.readTagOrAttributeValueInt();
+				assignModulatorCents(1, static_cast<int8_t>(reader.readTagOrAttributeValueInt()));
 				reader.exitTag("cents");
 			}
 			else if (!strcmp(tagName, "retrigPhase")) {
@@ -3365,16 +3365,13 @@ void Sound::setModulatorTranspose(int32_t m, int32_t value, ModelStackWithSoundF
 }
 
 void Sound::setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack) {
-	modulatorCents[m] = value;
-	if (docSound_ != nullptr) {
-		docSound_->modulator_cents[m] = value;
-	}
+	assignModulatorCents(m, static_cast<int8_t>(value));
 	recalculateModulatorTransposer(m, modelStack);
 }
 
 // Can handle NULL modelStack, which you'd only want to do if no Voices active
 void Sound::recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack) {
-	modulatorTransposers[m].setup((int32_t)modulatorCents[m] * 42949672);
+	snapshot_.modulatorTransposers[m].setup((int32_t)snapshot_.modulatorCents[m] * 42949672);
 	recalculateAllVoicePhaseIncrements(modelStack); // Can handle NULL
 }
 
@@ -4104,7 +4101,7 @@ void Sound::seedDocSoundScalars() {
 	d.modulator1_to_modulator0 = snapshot_.modulator1ToModulator0;
 	for (int32_t i = 0; i < 2; i++) {
 		d.modulator_transpose[i] = snapshot_.modulatorTranspose[i];
-		d.modulator_cents[i] = modulatorCents[i];
+		d.modulator_cents[i] = snapshot_.modulatorCents[i];
 		d.osc_retrigger_phase[i] = snapshot_.oscRetriggerPhase[i];
 		d.modulator_retrigger_phase[i] = snapshot_.modulatorRetriggerPhase[i];
 	}
@@ -4129,6 +4126,8 @@ void Sound::projectSnapshot() {
 	snapshot_.voicePriority = static_cast<VoicePriority>(docSound_->voice_priority);
 	snapshot_.modulator1ToModulator0 = docSound_->modulator1_to_modulator0;
 	for (int32_t i = 0; i < kNumModulators; i++) {
+		snapshot_.modulatorCents[i] = docSound_->modulator_cents[i];
+		snapshot_.modulatorTransposers[i].setup((int32_t)snapshot_.modulatorCents[i] * 42949672);
 		snapshot_.modulatorTranspose[i] = docSound_->modulator_transpose[i];
 		snapshot_.modulatorRetriggerPhase[i] = docSound_->modulator_retrigger_phase[i];
 	}
@@ -4266,6 +4265,15 @@ void Sound::setModulatorRetriggerPhase(int32_t m, uint32_t value) {
 		snapshot_.modulatorRetriggerPhase[m] = value;
 	}
 }
+void Sound::assignModulatorCents(int32_t m, int8_t value) {
+	if (docSound_ != nullptr) {
+		docSound_->modulator_cents[m] = value;
+		snapshot_.modulatorCents[m] = docSound_->modulator_cents[m];
+	}
+	else {
+		snapshot_.modulatorCents[m] = value;
+	}
+}
 void Sound::assignModulatorTranspose(int32_t m, int16_t value) {
 	if (docSound_ != nullptr) {
 		docSound_->modulator_transpose[m] = value;
@@ -4388,7 +4396,8 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.writeOpeningTagBeginning("modulator1");
 		writer.writeAttribute("transpose", docSound_ != nullptr ? docSound_->modulator_transpose[0]
 		                                                        : snapshot_.modulatorTranspose[0]);
-		writer.writeAttribute("cents", docSound_ != nullptr ? docSound_->modulator_cents[0] : modulatorCents[0]);
+		writer.writeAttribute("cents",
+		                      docSound_ != nullptr ? docSound_->modulator_cents[0] : snapshot_.modulatorCents[0]);
 		writer.writeAttribute("retrigPhase", docSound_ != nullptr ? docSound_->modulator_retrigger_phase[0]
 		                                                          : snapshot_.modulatorRetriggerPhase[0]);
 		writer.closeTag();
@@ -4396,7 +4405,8 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.writeOpeningTagBeginning("modulator2");
 		writer.writeAttribute("transpose", docSound_ != nullptr ? docSound_->modulator_transpose[1]
 		                                                        : snapshot_.modulatorTranspose[1]);
-		writer.writeAttribute("cents", docSound_ != nullptr ? docSound_->modulator_cents[1] : modulatorCents[1]);
+		writer.writeAttribute("cents",
+		                      docSound_ != nullptr ? docSound_->modulator_cents[1] : snapshot_.modulatorCents[1]);
 		writer.writeAttribute("retrigPhase", docSound_ != nullptr ? docSound_->modulator_retrigger_phase[1]
 		                                                          : snapshot_.modulatorRetriggerPhase[1]);
 		writer.writeAttribute("toModulator1", docSound_ != nullptr ? docSound_->modulator1_to_modulator0
