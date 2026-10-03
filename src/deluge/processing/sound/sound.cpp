@@ -128,8 +128,6 @@ Sound::Sound() : patcher(kPatcherConfigForSound, params.sourceValues, params.par
 	// audio-engine overhaul introduces, and that work is expected to delete this reserve.
 	voices_.reserve(AudioEngine::VoicePool::get().capacity());
 
-	oscRetriggerPhase.fill(0xFFFFFFFF);
-
 	modFXType_ = ModFXType::NONE;
 
 	lpfMode = FilterMode::TRANSISTOR_24DB; // Good for samples, I think
@@ -572,8 +570,8 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 
 				sources[0].transpose += presetNote - 60;
 				sources[1].transpose += presetNote - 60;
-				modulatorTranspose[0] += presetNote - 60;
-				modulatorTranspose[1] += presetNote - 60;
+				assignModulatorTranspose(0, static_cast<int16_t>(snapshot_.modulatorTranspose[0] + presetNote - 60));
+				assignModulatorTranspose(1, static_cast<int16_t>(snapshot_.modulatorTranspose[1] + presetNote - 60));
 				reader.exitTag("note");
 			}
 			else {
@@ -629,7 +627,8 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				reader.exitTag("volume");
 			}
 			else if (!strcmp(tagName, "transpose")) {
-				modulatorTranspose[0] += reader.readTagOrAttributeValueInt();
+				assignModulatorTranspose(
+				    0, static_cast<int16_t>(snapshot_.modulatorTranspose[0] + reader.readTagOrAttributeValueInt()));
 				reader.exitTag("transpose");
 			}
 			else if (!strcmp(tagName, "cents")) {
@@ -637,7 +636,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				reader.exitTag("cents");
 			}
 			else if (!strcmp(tagName, "retrigPhase")) {
-				modulatorRetriggerPhase[0] = reader.readTagOrAttributeValueInt();
+				setModulatorRetriggerPhase(0, reader.readTagOrAttributeValueInt());
 				reader.exitTag("retrigPhase");
 			}
 			else {
@@ -657,7 +656,8 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				reader.exitTag("volume");
 			}
 			else if (!strcmp(tagName, "transpose")) {
-				modulatorTranspose[1] += reader.readTagOrAttributeValueInt();
+				assignModulatorTranspose(
+				    1, static_cast<int16_t>(snapshot_.modulatorTranspose[1] + reader.readTagOrAttributeValueInt()));
 				reader.exitTag("transpose");
 			}
 			else if (!strcmp(tagName, "cents")) {
@@ -665,14 +665,11 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				reader.exitTag("cents");
 			}
 			else if (!strcmp(tagName, "retrigPhase")) {
-				modulatorRetriggerPhase[1] = reader.readTagOrAttributeValueInt();
+				setModulatorRetriggerPhase(1, reader.readTagOrAttributeValueInt());
 				reader.exitTag("retrigPhase");
 			}
 			else if (!strcmp(tagName, "toModulator1")) {
-				modulator1ToModulator0 = reader.readTagOrAttributeValueInt();
-				if (modulator1ToModulator0 != 0) {
-					modulator1ToModulator0 = 1;
-				}
+				setModulator1ToModulator0(reader.readTagOrAttributeValueInt() != 0);
 				reader.exitTag("toModulator1");
 			}
 			else {
@@ -710,10 +707,10 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		int32_t value = reader.readTagOrAttributeValueInt();
 		if (!value) {
 			for (int32_t s = 0; s < kNumSources; s++) {
-				oscRetriggerPhase[s] = 0xFFFFFFFF;
+				setOscRetriggerPhase(s, 0xFFFFFFFF);
 			}
 			for (int32_t m = 0; m < kNumModulators; m++) {
-				modulatorRetriggerPhase[m] = 0xFFFFFFFF;
+				setModulatorRetriggerPhase(m, 0xFFFFFFFF);
 			}
 		}
 		reader.exitTag("oscillatorReset");
@@ -1376,7 +1373,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 	}
 
 	else if (!strcmp(tagName, "voicePriority")) {
-		voicePriority = static_cast<VoicePriority>(reader.readTagOrAttributeValueInt());
+		setVoicePriority(static_cast<VoicePriority>(reader.readTagOrAttributeValueInt()));
 		reader.exitTag("voicePriority");
 	}
 
@@ -2292,7 +2289,7 @@ bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
 }
 
 bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager) {
-	if (!oscillatorSync) {
+	if (!snapshot_.oscillatorSync) {
 		return false;
 	}
 	if (getSynthMode() == SynthMode::FM) {
@@ -2303,7 +2300,7 @@ bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManag
 }
 
 bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
-	if (!oscillatorSync) {
+	if (!snapshot_.oscillatorSync) {
 		return false;
 	}
 	if (getSynthMode() == SynthMode::FM) {
@@ -2752,7 +2749,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .numUnison = numUnison,
 		    .unisonStereoSpread = unisonStereoSpread,
 		    .unisonPan = std::to_array(unisonPan),
-		    .oscRetriggerPhase = oscRetriggerPhase,
+		    .oscRetriggerPhase = snapshot_.oscRetriggerPhase,
 		    .oscType = oscTypes,
 		    .repeatMode = repeatModes,
 		    .interpolationMode = interpolationModes,
@@ -2767,7 +2764,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		        paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL],
 		    .bendRanges = {bendRangesSrc[BEND_RANGE_MAIN], bendRangesSrc[BEND_RANGE_FINGER_LEVEL]},
 		    .portamento = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO),
-		    .modulator1ToModulator0 = modulator1ToModulator0,
+		    .modulator1ToModulator0 = snapshot_.modulator1ToModulator0,
 		    .sourceActiveCurrently = sourceActiveCurrentlys,
 		};
 
@@ -3349,10 +3346,7 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 }
 
 void Sound::setModulatorTranspose(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack) {
-	modulatorTranspose[m] = value;
-	if (docSound_ != nullptr) {
-		docSound_->modulator_transpose[m] = value;
-	}
+	assignModulatorTranspose(m, value);
 	recalculateAllVoicePhaseIncrements(modelStack);
 }
 
@@ -3512,9 +3506,13 @@ void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* pa
 Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* modelStack,
                           int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings) {
 
-	modulatorTranspose[1] = 0;
-	oscRetriggerPhase.fill(0);
-	modulatorRetriggerPhase.fill(0);
+	assignModulatorTranspose(1, 0);
+	for (int32_t s = 0; s < kNumSources; s++) {
+		setOscRetriggerPhase(s, 0);
+	}
+	for (int32_t m = 0; m < kNumModulators; m++) {
+		setModulatorRetriggerPhase(m, 0);
+	}
 
 	char const* tagName;
 
@@ -3665,7 +3663,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 		}
 		else if (!strcmp(tagName, "oscillatorSync")) {
 			int32_t value = reader.readTagOrAttributeValueInt();
-			oscillatorSync = (value != 0);
+			setOscillatorSync(value != 0);
 			reader.exitTag("oscillatorSync");
 		}
 		else if (!strcmp(tagName, "reversed")) {
@@ -3708,7 +3706,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			reader.exitTag("linearInterpolation");
 		}
 		else if (!strcmp(tagName, "retrigPhase")) {
-			oscRetriggerPhase[s] = reader.readTagOrAttributeValueInt();
+			setOscRetriggerPhase(s, reader.readTagOrAttributeValueInt());
 			reader.exitTag("retrigPhase");
 		}
 		else if (!strcmp(tagName, "fileName")) {
@@ -3980,12 +3978,13 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 	else {
 		writer.writeAttribute("transpose", dsrc != nullptr ? dsrc->transpose : source->transpose);
 		writer.writeAttribute("cents", dsrc != nullptr ? dsrc->cents : source->cents);
-		bool oscSync = docSound_ != nullptr ? docSound_->oscillator_sync : oscillatorSync; // M3 owner-5: read record
+		bool oscSync =
+		    docSound_ != nullptr ? docSound_->oscillator_sync : snapshot_.oscillatorSync; // M3 owner-5: read record
 		if (s == 1 && oscSync) {
 			writer.writeAttribute("oscillatorSync", oscSync);
 		}
-		writer.writeAttribute("retrigPhase",
-		                      docSound_ != nullptr ? docSound_->osc_retrigger_phase[s] : oscRetriggerPhase[s]);
+		writer.writeAttribute("retrigPhase", docSound_ != nullptr ? docSound_->osc_retrigger_phase[s]
+		                                                          : snapshot_.oscRetriggerPhase[s]);
 
 		// Sub-option for (multi)wavetable
 		if (source->oscType == OscType::WAVETABLE && getSynthMode() != SynthMode::FM) {
@@ -4073,12 +4072,12 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 // necessary for SoundDrums).
 void Sound::seedDocSoundScalars() {
 	deluge::project::DocSound& d = *docSound_;
-	d.voice_priority = static_cast<uint8_t>(voicePriority);
+	d.voice_priority = static_cast<uint8_t>(snapshot_.voicePriority);
 	d.max_voice_count = maxVoiceCount;
 	d.side_chain_send_level = sideChainSendLevel;
 	d.output_midi_channel = outputMidiChannel;
 	d.output_midi_note_for_drum = outputMidiNoteForDrum;
-	d.oscillator_sync = oscillatorSync;
+	d.oscillator_sync = snapshot_.oscillatorSync;
 	// Slice C top-level scalars (native fields kept as hot caches; record is authoritative for save). SoundDrums bind
 	// before parse, so this re-seed at doneReadingFromFile is what captures their loaded values into the record.
 	d.polyphonic = static_cast<uint8_t>(polyphonic);
@@ -4087,12 +4086,12 @@ void Sound::seedDocSoundScalars() {
 	d.num_unison = numUnison;
 	d.unison_detune = unisonDetune;
 	d.unison_stereo_spread = unisonStereoSpread;
-	d.modulator1_to_modulator0 = modulator1ToModulator0;
+	d.modulator1_to_modulator0 = snapshot_.modulator1ToModulator0;
 	for (int32_t i = 0; i < 2; i++) {
-		d.modulator_transpose[i] = modulatorTranspose[i];
+		d.modulator_transpose[i] = snapshot_.modulatorTranspose[i];
 		d.modulator_cents[i] = modulatorCents[i];
-		d.osc_retrigger_phase[i] = oscRetriggerPhase[i];
-		d.modulator_retrigger_phase[i] = modulatorRetriggerPhase[i];
+		d.osc_retrigger_phase[i] = snapshot_.oscRetriggerPhase[i];
+		d.modulator_retrigger_phase[i] = snapshot_.modulatorRetriggerPhase[i];
 	}
 	for (int32_t i = 0; i < LFO_COUNT; i++) {
 		d.lfo_wave_type[i] = static_cast<uint8_t>(lfoConfig[i].waveType);
@@ -4109,6 +4108,16 @@ void Sound::projectSnapshot() {
 	}
 	snapshot_.transpose = docSound_->transpose;
 	snapshot_.synthMode = static_cast<SynthMode>(docSound_->synth_mode);
+	snapshot_.oscillatorSync = docSound_->oscillator_sync;
+	snapshot_.voicePriority = static_cast<VoicePriority>(docSound_->voice_priority);
+	snapshot_.modulator1ToModulator0 = docSound_->modulator1_to_modulator0;
+	for (int32_t i = 0; i < kNumModulators; i++) {
+		snapshot_.modulatorTranspose[i] = docSound_->modulator_transpose[i];
+		snapshot_.modulatorRetriggerPhase[i] = docSound_->modulator_retrigger_phase[i];
+	}
+	for (int32_t s = 0; s < kNumSources; s++) {
+		snapshot_.oscRetriggerPhase[s] = docSound_->osc_retrigger_phase[s];
+	}
 }
 
 void Sound::seedModKnobsRecord() {
@@ -4140,9 +4149,12 @@ void Sound::bindDocSound(deluge::project::DocSound* d) {
 // / note-on / MIDI-send read the cache; save reads the record. Guard on docSound_ so pre-bind writes (load, preview)
 // land in the cache and get picked up by the bind-time seed.
 void Sound::setVoicePriority(VoicePriority value) {
-	voicePriority = value;
 	if (docSound_ != nullptr) {
 		docSound_->voice_priority = static_cast<uint8_t>(value);
+		snapshot_.voicePriority = static_cast<VoicePriority>(docSound_->voice_priority);
+	}
+	else {
+		snapshot_.voicePriority = value;
 	}
 }
 void Sound::setMaxVoiceCount(uint8_t value) {
@@ -4170,9 +4182,12 @@ void Sound::setOutputMidiNoteForDrum(uint8_t value) {
 	}
 }
 void Sound::setOscillatorSync(bool value) {
-	oscillatorSync = value;
 	if (docSound_ != nullptr) {
 		docSound_->oscillator_sync = value;
+		snapshot_.oscillatorSync = docSound_->oscillator_sync;
+	}
+	else {
+		snapshot_.oscillatorSync = value;
 	}
 }
 void Sound::setPolyphonic(PolyphonyMode value) {
@@ -4203,21 +4218,39 @@ void Sound::setTranspose(int16_t value) {
 	}
 }
 void Sound::setModulator1ToModulator0(bool value) {
-	modulator1ToModulator0 = value;
 	if (docSound_ != nullptr) {
 		docSound_->modulator1_to_modulator0 = value;
+		snapshot_.modulator1ToModulator0 = docSound_->modulator1_to_modulator0;
+	}
+	else {
+		snapshot_.modulator1ToModulator0 = value;
 	}
 }
 void Sound::setOscRetriggerPhase(int32_t s, uint32_t value) {
-	oscRetriggerPhase[s] = value;
 	if (docSound_ != nullptr) {
 		docSound_->osc_retrigger_phase[s] = value;
+		snapshot_.oscRetriggerPhase[s] = docSound_->osc_retrigger_phase[s];
+	}
+	else {
+		snapshot_.oscRetriggerPhase[s] = value;
 	}
 }
 void Sound::setModulatorRetriggerPhase(int32_t m, uint32_t value) {
-	modulatorRetriggerPhase[m] = value;
 	if (docSound_ != nullptr) {
 		docSound_->modulator_retrigger_phase[m] = value;
+		snapshot_.modulatorRetriggerPhase[m] = docSound_->modulator_retrigger_phase[m];
+	}
+	else {
+		snapshot_.modulatorRetriggerPhase[m] = value;
+	}
+}
+void Sound::assignModulatorTranspose(int32_t m, int16_t value) {
+	if (docSound_ != nullptr) {
+		docSound_->modulator_transpose[m] = value;
+		snapshot_.modulatorTranspose[m] = docSound_->modulator_transpose[m];
+	}
+	else {
+		snapshot_.modulatorTranspose[m] = value;
 	}
 }
 void Sound::setLfoWaveType(int32_t lfoId, LFOType value) {
@@ -4248,7 +4281,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	writer.writeAttribute("polyphonic", polyphonyModeToString(savedPolyphonic));
 	writer.writeAttribute("voicePriority", util::to_underlying(docSound_ != nullptr ? static_cast<VoicePriority>(
 	                                                                                      docSound_->voice_priority)
-	                                                                                : voicePriority));
+	                                                                                : snapshot_.voicePriority));
 
 	// Send level (M3 owner-5: read the authoritative record; cache fallback only for an unbound Sound)
 	int32_t sideChainSend = docSound_ != nullptr ? docSound_->side_chain_send_level : sideChainSendLevel;
@@ -4320,21 +4353,21 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	if (savedSynthMode == SynthMode::FM) {
 
 		writer.writeOpeningTagBeginning("modulator1");
-		writer.writeAttribute("transpose",
-		                      docSound_ != nullptr ? docSound_->modulator_transpose[0] : modulatorTranspose[0]);
+		writer.writeAttribute("transpose", docSound_ != nullptr ? docSound_->modulator_transpose[0]
+		                                                        : snapshot_.modulatorTranspose[0]);
 		writer.writeAttribute("cents", docSound_ != nullptr ? docSound_->modulator_cents[0] : modulatorCents[0]);
 		writer.writeAttribute("retrigPhase", docSound_ != nullptr ? docSound_->modulator_retrigger_phase[0]
-		                                                          : modulatorRetriggerPhase[0]);
+		                                                          : snapshot_.modulatorRetriggerPhase[0]);
 		writer.closeTag();
 
 		writer.writeOpeningTagBeginning("modulator2");
-		writer.writeAttribute("transpose",
-		                      docSound_ != nullptr ? docSound_->modulator_transpose[1] : modulatorTranspose[1]);
+		writer.writeAttribute("transpose", docSound_ != nullptr ? docSound_->modulator_transpose[1]
+		                                                        : snapshot_.modulatorTranspose[1]);
 		writer.writeAttribute("cents", docSound_ != nullptr ? docSound_->modulator_cents[1] : modulatorCents[1]);
 		writer.writeAttribute("retrigPhase", docSound_ != nullptr ? docSound_->modulator_retrigger_phase[1]
-		                                                          : modulatorRetriggerPhase[1]);
-		writer.writeAttribute("toModulator1",
-		                      docSound_ != nullptr ? docSound_->modulator1_to_modulator0 : modulator1ToModulator0);
+		                                                          : snapshot_.modulatorRetriggerPhase[1]);
+		writer.writeAttribute("toModulator1", docSound_ != nullptr ? docSound_->modulator1_to_modulator0
+		                                                           : snapshot_.modulator1ToModulator0);
 		writer.closeTag();
 	}
 
@@ -4399,8 +4432,8 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 	}
 
 	if (getSynthMode() == SynthMode::FM) {
-		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)modulatorTranspose[0]);
-		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)modulatorTranspose[1]);
+		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)snapshot_.modulatorTranspose[0]);
+		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)snapshot_.modulatorTranspose[1]);
 	}
 
 	if (maxRawOscTranspose == -32768) {
@@ -4426,8 +4459,8 @@ int16_t Sound::getMinOscTranspose() {
 	}
 
 	if (getSynthMode() == SynthMode::FM) {
-		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)modulatorTranspose[0]);
-		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)modulatorTranspose[1]);
+		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)snapshot_.modulatorTranspose[0]);
+		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)snapshot_.modulatorTranspose[1]);
 	}
 
 	if (minRawOscTranspose == 32767) {

@@ -33,8 +33,9 @@ public:
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForTranspose(soundEditor.currentSound->modulatorTranspose[source_id_],
-		                                               soundEditor.currentSound->modulatorCents[source_id_]));
+		this->setValue(
+		    computeCurrentValueForTranspose(soundEditor.currentSound->snapshot().modulatorTranspose[source_id_],
+		                                    soundEditor.currentSound->modulatorCents[source_id_]));
 	}
 
 	bool usesAffectEntire() override { return true; }

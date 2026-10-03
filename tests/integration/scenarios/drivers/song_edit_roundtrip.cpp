@@ -100,6 +100,21 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 			             d.transpose);
 			bad++;
 		}
+		const deluge::snapshot::SoundSnapshot& snap = sound.snapshot();
+		auto expect = [&](bool ok, const char* field) {
+			if (!ok) {
+				std::fprintf(io.err, "M4b FAIL %s: %s snapshot != record\n", label, field);
+				bad++;
+			}
+		};
+		expect(snap.oscillatorSync == d.oscillator_sync, "oscillatorSync");
+		expect(snap.voicePriority == static_cast<VoicePriority>(d.voice_priority), "voicePriority");
+		expect(snap.modulator1ToModulator0 == d.modulator1_to_modulator0, "modulator1ToModulator0");
+		for (int32_t i = 0; i < 2; i++) {
+			expect(snap.modulatorTranspose[i] == d.modulator_transpose[i], "modulatorTranspose");
+			expect(snap.oscRetriggerPhase[i] == d.osc_retrigger_phase[i], "oscRetriggerPhase");
+			expect(snap.modulatorRetriggerPhase[i] == d.modulator_retrigger_phase[i], "modulatorRetriggerPhase");
+		}
 		if (sound.getSynthMode() != static_cast<SynthMode>(d.synth_mode)) {
 			std::fprintf(io.err, "M4b FAIL %s: synthMode snapshot=%d record=%d\n", label,
 			             static_cast<int>(sound.getSynthMode()), d.synth_mode);
@@ -124,6 +139,39 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 			bad++;
 		}
 		sound.assignSynthMode(mode);
+		auto roundTrip = [&](bool ok, const char* setter) {
+			if (!ok) {
+				std::fprintf(io.err, "M4b FAIL %s: %s did not write the record and reproject\n", label, setter);
+				bad++;
+			}
+		};
+		const deluge::snapshot::SoundSnapshot before = sound.snapshot();
+		sound.setOscillatorSync(!before.oscillatorSync);
+		roundTrip(sound.snapshot().oscillatorSync == d.oscillator_sync && d.oscillator_sync != before.oscillatorSync,
+		          "setOscillatorSync");
+		sound.setOscillatorSync(before.oscillatorSync);
+		const VoicePriority otherPriority =
+		    before.voicePriority == VoicePriority::HIGH ? VoicePriority::LOW : VoicePriority::HIGH;
+		sound.setVoicePriority(otherPriority);
+		roundTrip(sound.snapshot().voicePriority == otherPriority
+		              && static_cast<VoicePriority>(d.voice_priority) == otherPriority,
+		          "setVoicePriority");
+		sound.setVoicePriority(before.voicePriority);
+		sound.setModulator1ToModulator0(!before.modulator1ToModulator0);
+		roundTrip(sound.snapshot().modulator1ToModulator0 == d.modulator1_to_modulator0
+		              && d.modulator1_to_modulator0 != before.modulator1ToModulator0,
+		          "setModulator1ToModulator0");
+		sound.setModulator1ToModulator0(before.modulator1ToModulator0);
+		sound.setOscRetriggerPhase(1, before.oscRetriggerPhase[1] + 5);
+		roundTrip(sound.snapshot().oscRetriggerPhase[1] == d.osc_retrigger_phase[1]
+		              && d.osc_retrigger_phase[1] == before.oscRetriggerPhase[1] + 5,
+		          "setOscRetriggerPhase");
+		sound.setOscRetriggerPhase(1, before.oscRetriggerPhase[1]);
+		sound.setModulatorRetriggerPhase(1, before.modulatorRetriggerPhase[1] + 5);
+		roundTrip(sound.snapshot().modulatorRetriggerPhase[1] == d.modulator_retrigger_phase[1]
+		              && d.modulator_retrigger_phase[1] == before.modulatorRetriggerPhase[1] + 5,
+		          "setModulatorRetriggerPhase");
+		sound.setModulatorRetriggerPhase(1, before.modulatorRetriggerPhase[1]);
 	}
 	std::fprintf(io.err, "M4b snapshot coherence %s: %d bound sounds, %d mismatches\n", label, sounds, bad);
 	return bad;

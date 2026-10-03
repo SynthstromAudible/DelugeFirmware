@@ -28,7 +28,7 @@ namespace deluge::gui::menu_item::modulator {
 class Destination final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->modulator1ToModulator0); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->snapshot().modulator1ToModulator0); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();

@@ -119,6 +119,7 @@ public:
 	deluge::snapshot::SoundSnapshot snapshot_{};
 	// Re-derive snapshot_ from docSound_ (no-op when unbound). Additive per-slice as fields move onto the snapshot.
 	void projectSnapshot();
+	[[nodiscard]] const deluge::snapshot::SoundSnapshot& snapshot() const { return snapshot_; }
 	// Copy the 16 mod-knob ParamDescriptors engine->record. modKnobs is mutated in-place (setToHaveParamOnly etc.) at
 	// several gestures rather than through one setter, so instead of funnelling each write we re-seed the whole block
 	// after any mutation (bind, doneReadingFromFile, learnKnob, setSynthMode, modEncoderButtonAction, sample
@@ -169,7 +170,6 @@ public:
 	uint8_t outputMidiChannel = MIDI_CHANNEL_NONE;
 	uint8_t outputMidiNoteForDrum = MIDI_NOTE_NONE;
 
-	int16_t modulatorTranspose[kNumModulators] = {0, -12};
 	int8_t modulatorCents[kNumModulators] = {0, 0};
 
 	PhaseIncrementFineTuner modulatorTransposers[kNumModulators];
@@ -177,18 +177,13 @@ public:
 	PhaseIncrementFineTuner unisonDetuners[kMaxNumVoicesUnison];
 	int32_t unisonPan[kMaxNumVoicesUnison]{};
 
-	bool modulator1ToModulator0 = false;
-
 	int32_t volumeNeutralValueForUnison{0};
 
 	int32_t lastNoteCode = std::numeric_limits<int32_t>::min();
 
-	bool oscillatorSync = false;
-
 	// M3 owner-5: voice priority is DOM-owned (`docSound_->voice_priority`). It is read per render block in
 	// Voice::getPriorityRating(), so this field is kept as a hot derived cache — the record is authoritative (seeded at
 	// bind, written via setVoicePriority, read at save); render keeps reading this field directly.
-	VoicePriority voicePriority = VoicePriority::MEDIUM;
 	void setVoicePriority(VoicePriority value);
 
 	// M3 owner-5: setters for the DOM-owned scalar batch (records in DocSound; native fields kept as caches, seeded at
@@ -207,6 +202,9 @@ public:
 	void setModulator1ToModulator0(bool value);
 	void setOscRetriggerPhase(int32_t s, uint32_t value);
 	void setModulatorRetriggerPhase(int32_t m, uint32_t value);
+	// Store a modulator's transpose without setModulatorTranspose()'s phase-increment recalculation — for the load
+	// path.
+	void assignModulatorTranspose(int32_t m, int16_t value);
 	// LFO config (lfoConfig[] kept as hot render cache; record authoritative). Sync writes both fields together to
 	// match the menu gesture (one sync value → type+level).
 	void setLfoWaveType(int32_t lfoId, LFOType value);
@@ -220,9 +218,6 @@ public:
 	// 0 for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the
 	// "polyphonic" bit, and we don't want it to get referred to twice. These get manually refreshed in setActiveClip().
 	std::array<int32_t, kNumExpressionDimensions> monophonicExpressionValues{};
-
-	std::array<uint32_t, kNumSources> oscRetriggerPhase{}; // 4294967295 means "off"
-	std::array<uint32_t, kNumModulators> modulatorRetriggerPhase{};
 
 	uint32_t timeStartedSkippingRenderingModFX{0};
 	uint32_t timeStartedSkippingRenderingLFO{0};

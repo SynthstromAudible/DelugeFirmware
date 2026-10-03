@@ -325,9 +325,9 @@ activenessDetermined:
 			// Check that we already marked this unison-part-source as active. Among other things, this ensures that if
 			// the osc is set to SAMPLE, there actually is a sample loaded.
 			if (unisonParts[u].sources[s].active) {
-				bool success =
-				    unisonParts[u].sources[s].noteOn(this, source, &guides[s], samplesLate, sound.oscRetriggerPhase[s],
-				                                     resetEnvelopes, sound.getSynthMode(), velocity);
+				bool success = unisonParts[u].sources[s].noteOn(this, source, &guides[s], samplesLate,
+				                                                sound.snapshot().oscRetriggerPhase[s], resetEnvelopes,
+				                                                sound.getSynthMode(), velocity);
 				if (!success) [[unlikely]] {
 					return false; // This shouldn't really ever happen I don't think really...
 				}
@@ -339,8 +339,8 @@ activenessDetermined:
 		uint32_t initialPhase = getOscInitialPhaseForZero(OscType::SINE);
 		for (int32_t u = 0; u < sound.numUnison; u++) {
 			for (int32_t m = 0; m < kNumModulators; m++) {
-				if (sound.modulatorRetriggerPhase[m] != 0xFFFFFFFF) {
-					fmEngine.modulatorPhase[u][m] = initialPhase + sound.modulatorRetriggerPhase[m];
+				if (sound.snapshot().modulatorRetriggerPhase[m] != 0xFFFFFFFF) {
+					fmEngine.modulatorPhase[u][m] = initialPhase + sound.snapshot().modulatorRetriggerPhase[m];
 				}
 				if (resetEnvelopes) {
 					fmEngine.modulatorFeedback[u][m] = 0;
@@ -551,7 +551,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 				continue; // Only if modulator active
 			}
 
-			int32_t transposedNoteCode = noteCodeWithMasterTranspose + sound.modulatorTranspose[m];
+			int32_t transposedNoteCode = noteCodeWithMasterTranspose + sound.snapshot().modulatorTranspose[m];
 			int32_t noteWithinOctave = (transposedNoteCode + 120 - 4) % 12;
 			int32_t octave = (transposedNoteCode + 120 - 4) / 12;
 			int32_t shiftRightAmount = 20 - octave;
@@ -1675,7 +1675,7 @@ static_assert(kNumVoicePriorities < 4, "Too many priority options");
 uint32_t Voice::getPriorityRating() const {
 	return
 	    // Bits 30-31 - manual priority setting
-	    ((uint32_t)(3 - util::to_underlying(sound.voicePriority)) << 30)
+	    ((uint32_t)(3 - util::to_underlying(sound.snapshot().voicePriority)) << 30)
 
 	    // Bits 27-29 - how many voices that Sound has
 	    // - that one really does need to go above state, otherwise "once" samples can still cut out synth drones.

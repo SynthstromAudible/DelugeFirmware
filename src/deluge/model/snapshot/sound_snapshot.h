@@ -17,8 +17,9 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp" // SynthMode
+#include "definitions_cxx.hpp" // SynthMode, VoicePriority, kNumSources, kNumModulators
 
+#include <array>
 #include <cstdint>
 
 namespace deluge::snapshot {
@@ -33,6 +34,14 @@ namespace deluge::snapshot {
 struct SoundSnapshot {
 	int16_t transpose{0}; ///< master semitone transpose (DocSound::transpose); read per-voice-start (Voice::render)
 	SynthMode synthMode{SynthMode::SUBTRACTIVE}; ///< DocSound::synth_mode; selects the subtractive/ring-mod/FM render
+	bool oscillatorSync{false};                  ///< DocSound::oscillator_sync
+	VoicePriority voicePriority{VoicePriority::MEDIUM}; ///< DocSound::voice_priority; ranks voices for stealing
+	bool modulator1ToModulator0{false};                 ///< DocSound::modulator1_to_modulator0 (FM routing)
+	std::array<int16_t, kNumModulators> modulatorTranspose{0, -12}; ///< DocSound::modulator_transpose, semitones
+	/// DocSound::osc_retrigger_phase; a phase as a fraction of 2^32, 0xFFFFFFFF = free-running (no retrigger)
+	std::array<uint32_t, kNumSources> oscRetriggerPhase{0xFFFFFFFF, 0xFFFFFFFF};
+	/// DocSound::modulator_retrigger_phase; same encoding as oscRetriggerPhase
+	std::array<uint32_t, kNumModulators> modulatorRetriggerPhase{};
 };
 
 } // namespace deluge::snapshot

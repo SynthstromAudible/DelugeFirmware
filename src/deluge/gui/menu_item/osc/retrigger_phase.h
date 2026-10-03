@@ -136,7 +136,8 @@ private:
 	// pointer escapes the seam.
 	[[nodiscard]] uint32_t getCurrentPhase() const {
 		Sound* sound = soundEditor.currentSound;
-		return for_modulator_ ? sound->modulatorRetriggerPhase[source_id_] : sound->oscRetriggerPhase[source_id_];
+		return for_modulator_ ? sound->snapshot().modulatorRetriggerPhase[source_id_]
+		                      : sound->snapshot().oscRetriggerPhase[source_id_];
 	}
 	void setCurrentPhase(uint32_t value) const {
 		Sound* sound = soundEditor.currentSound;
