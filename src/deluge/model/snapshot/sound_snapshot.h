@@ -36,7 +36,15 @@ namespace deluge::snapshot {
 struct SoundSnapshot {
 	int16_t transpose{0}; ///< master semitone transpose (DocSound::transpose); read per-voice-start (Voice::render)
 	int8_t cents{0};      ///< master fine tune (DocSound::cents), cents
-	PhaseIncrementFineTuner fineTuner;           ///< derived from cents: the master transpose's fine detune
+	PhaseIncrementFineTuner fineTuner; ///< derived from cents: the master transpose's fine detune
+	uint8_t numUnison{1};              ///< DocSound::num_unison
+	int8_t unisonDetune{8};            ///< DocSound::unison_detune, cents across the spread
+	uint8_t unisonStereoSpread{0};     ///< DocSound::unison_stereo_spread
+	/// Derived from numUnison and unisonDetune: each unison part's detune. Written only when numUnison != 1; the
+	/// render reads parts below numUnison.
+	std::array<PhaseIncrementFineTuner, kMaxNumVoicesUnison> unisonDetuners{};
+	/// Derived from numUnison and unisonStereoSpread: each unison part's pan offset, under the same rule.
+	std::array<int32_t, kMaxNumVoicesUnison> unisonPan{};
 	SynthMode synthMode{SynthMode::SUBTRACTIVE}; ///< DocSound::synth_mode; selects the subtractive/ring-mod/FM render
 	bool oscillatorSync{false};                  ///< DocSound::oscillator_sync
 	VoicePriority voicePriority{VoicePriority::MEDIUM}; ///< DocSound::voice_priority; ranks voices for stealing

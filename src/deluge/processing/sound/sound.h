@@ -159,16 +159,9 @@ public:
 
 	// M4b: `transpose` retired into the SoundSnapshot read-view (see snapshot_ / getTranspose()).
 
-	uint8_t numUnison = 1;
-	int8_t unisonDetune = 8;
-	uint8_t unisonStereoSpread = 0;
-
 	// For sending MIDI notes for SoundDrums
 	uint8_t outputMidiChannel = MIDI_CHANNEL_NONE;
 	uint8_t outputMidiNoteForDrum = MIDI_NOTE_NONE;
-
-	PhaseIncrementFineTuner unisonDetuners[kMaxNumVoicesUnison];
-	int32_t unisonPan[kMaxNumVoicesUnison]{};
 
 	int32_t volumeNeutralValueForUnison{0};
 
@@ -201,6 +194,11 @@ public:
 	// Store a modulator's cents without setModulatorCents()'s tuner and phase-increment recalculation — for the load
 	// path.
 	void assignModulatorCents(int32_t m, int8_t value);
+	// Store the unison settings without recomputing the unison tables — for the load path and default setup;
+	// doneReadingFromFile() and projectSnapshot() compute the tables.
+	void assignNumUnison(uint8_t value);
+	void assignUnisonDetune(int8_t value);
+	void assignUnisonStereoSpread(uint8_t value);
 	// LFO config (lfoConfig[] kept as hot render cache; record authoritative). Sync writes both fields together to
 	// match the menu gesture (one sync value → type+level).
 	void setLfoWaveType(int32_t lfoId, LFOType value);
@@ -410,6 +408,7 @@ private:
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
 	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);
 	void setupUnisonStereoSpread();
+	void computeUnisonDetuners();
 	void calculateEffectiveVolume();
 	void ensureKnobReferencesCorrectVolume(Knob& knob);
 	Error readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,

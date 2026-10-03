@@ -111,7 +111,7 @@ void Voice::setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingS
 
 void Voice::unassignStuff(bool deletingSong) {
 	for (int32_t s = 0; s < kNumSources; s++) {
-		for (int32_t u = 0; u < this->sound.numUnison; u++) {
+		for (int32_t u = 0; u < this->sound.snapshot().numUnison; u++) {
 			unisonParts[u].sources[s].unassign(deletingSong);
 		}
 	}
@@ -286,7 +286,7 @@ gotInactive:
 		}
 
 activenessDetermined:
-		for (int32_t u = 0; u < sound.numUnison; u++) {
+		for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 			unisonParts[u].sources[s].active = sourceEverActive;
 		}
 	}
@@ -322,7 +322,7 @@ activenessDetermined:
 			// if (source->repeatMode == SampleRepeatMode::STRETCH) samplesLateHere = 0;
 		}
 
-		for (int32_t u = 0; u < sound.numUnison; u++) {
+		for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 
 			// Check that we already marked this unison-part-source as active. Among other things, this ensures that if
 			// the osc is set to SAMPLE, there actually is a sample loaded.
@@ -339,7 +339,7 @@ activenessDetermined:
 
 	if (sound.getSynthMode() == SynthMode::FM) {
 		uint32_t initialPhase = getOscInitialPhaseForZero(OscType::SINE);
-		for (int32_t u = 0; u < sound.numUnison; u++) {
+		for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 			for (int32_t m = 0; m < kNumModulators; m++) {
 				if (sound.snapshot().modulatorRetriggerPhase[m] != 0xFFFFFFFF) {
 					fmEngine.modulatorPhase[u][m] = initialPhase + sound.snapshot().modulatorRetriggerPhase[m];
@@ -419,7 +419,7 @@ void Voice::setupPorta(const Sound& sound) {
 }
 
 void Voice::randomizeOscPhases(const Sound& sound) {
-	for (int32_t u = 0; u < sound.numUnison; u++) {
+	for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			unisonParts[u].sources[s].oscPos = getNoise();
 			// TODO: we should do sample play pos, too
@@ -445,7 +445,7 @@ void Voice::calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack) {
 		if (!modelStack->checkSourceEverActive(s)) { // Sets all unison parts inactive by default
 
 makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
-			for (int32_t u = 0; u < sound.numUnison; u++) {
+			for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 				unisonParts[u].sources[s].active = false;
 			}
 			continue;
@@ -532,14 +532,15 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 		phaseIncrement = sound.snapshot().fineTuner.detune(phaseIncrement); // master transpose
 
 		// If only one unison
-		if (sound.numUnison == 1) {
+		if (sound.snapshot().numUnison == 1) {
 			unisonParts[0].sources[s].phaseIncrementStoredValue = phaseIncrement;
 		}
 
 		// Or if multiple unison
 		else {
-			for (int32_t u = 0; u < sound.numUnison; u++) {
-				unisonParts[u].sources[s].phaseIncrementStoredValue = sound.unisonDetuners[u].detune(phaseIncrement);
+			for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
+				unisonParts[u].sources[s].phaseIncrementStoredValue =
+				    sound.snapshot().unisonDetuners[u].detune(phaseIncrement);
 			}
 		}
 	}
@@ -566,7 +567,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
 			else {
 				// Frequency too high to render! (Higher than 22.05kHz)
-				for (int32_t u = 0; u < sound.numUnison; u++) {
+				for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 					fmEngine.modulatorPhaseIncrement[u][m] = 0xFFFFFFFF; // Means "inactive"
 				}
 				continue;
@@ -577,14 +578,14 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 			phaseIncrement = sound.snapshot().fineTuner.detune(phaseIncrement); // master transpose
 
 			// If only one unison
-			if (sound.numUnison == 1) {
+			if (sound.snapshot().numUnison == 1) {
 				fmEngine.modulatorPhaseIncrement[0][m] = phaseIncrement;
 			}
 
 			// Or if multiple unison
 			else {
-				for (int32_t u = 0; u < sound.numUnison; u++) {
-					fmEngine.modulatorPhaseIncrement[u][m] = sound.unisonDetuners[u].detune(phaseIncrement);
+				for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
+					fmEngine.modulatorPhaseIncrement[u][m] = sound.snapshot().unisonDetuners[u].detune(phaseIncrement);
 				}
 			}
 		}
@@ -629,7 +630,7 @@ void Voice::noteOff(ParamManagerForTimeline* paramManager, bool noteTailsAllowed
 	if (sound.getSynthMode() != SynthMode::FM) {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			if (sound.sources[s].oscType == OscType::SAMPLE && guides[s].loopEndPlaybackAtByte) {
-				for (int32_t u = 0; u < sound.numUnison; u++) {
+				for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 					if (unisonParts[u].sources[s].active) {
 
 						bool success = unisonParts[u].sources[s].sampleVoiceAdapter.noteOffAtLoopEnd(this, &guides[s]);
@@ -641,7 +642,7 @@ void Voice::noteOff(ParamManagerForTimeline* paramManager, bool noteTailsAllowed
 				}
 			}
 			else if (sound.sources[s].oscType == OscType::DX7) {
-				for (int u = 0; u < sound.numUnison; u++) {
+				for (int u = 0; u < sound.snapshot().numUnison; u++) {
 					unisonParts[u].sources[s].dx7Source.keyup();
 				}
 			}
@@ -681,7 +682,7 @@ bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, M
 
 	bool anyStillActive = false;
 
-	for (int32_t u = 0; u < sound.numUnison; u++) {
+	for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 		VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
 		if (voiceUnisonPartSource->active) {
@@ -709,7 +710,7 @@ bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, M
 			return false;
 		}
 		else {
-			for (int32_t u = 0; u < sound.numUnison; u++) {
+			for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 				VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 				if (voiceUnisonPartSource->active) {
 					return true;

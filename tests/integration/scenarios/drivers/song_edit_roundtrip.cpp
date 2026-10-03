@@ -124,6 +124,18 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 		expect(snap.oscillatorSync == d.oscillator_sync, "oscillatorSync");
 		expect(snap.voicePriority == static_cast<VoicePriority>(d.voice_priority), "voicePriority");
 		expect(snap.modulator1ToModulator0 == d.modulator1_to_modulator0, "modulator1ToModulator0");
+		expect(snap.numUnison == d.num_unison, "numUnison");
+		expect(snap.unisonDetune == d.unison_detune, "unisonDetune");
+		expect(snap.unisonStereoSpread == d.unison_stereo_spread, "unisonStereoSpread");
+		{
+			// The unison tables are derived; the live ones must match a fresh projection from the record.
+			const deluge::snapshot::SoundSnapshot live = snap;
+			sound.projectSnapshot();
+			for (int32_t u = 0; u < live.numUnison && live.numUnison != 1; u++) {
+				expect(sameTuning(live.unisonDetuners[u], sound.snapshot().unisonDetuners[u]), "unisonDetuners");
+				expect(live.unisonPan[u] == sound.snapshot().unisonPan[u], "unisonPan");
+			}
+		}
 		expect(snap.cents == d.cents, "cents");
 		expect(sameTuning(snap.fineTuner, centsTuner(d.cents)), "fineTuner");
 		for (int32_t l = 0; l < LFO_COUNT; l++) {
@@ -222,6 +234,26 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 		              && sameTuning(sound.snapshot().modulatorTransposers[1], centsTuner(otherModCents)),
 		          "setModulatorCents");
 		sound.setModulatorCents(1, before.modulatorCents[1], nullptr);
+		const uint8_t otherUnison = before.numUnison == 4 ? 3 : 4;
+		sound.setNumUnison(otherUnison, nullptr);
+		sound.setUnisonDetune(before.unisonDetune == 20 ? 30 : 20, nullptr);
+		sound.setUnisonStereoSpread(before.unisonStereoSpread == 10 ? 15 : 10);
+		{
+			const deluge::snapshot::SoundSnapshot edited = sound.snapshot();
+			roundTrip(edited.numUnison == otherUnison && d.num_unison == otherUnison
+			              && edited.unisonDetune == d.unison_detune
+			              && edited.unisonStereoSpread == d.unison_stereo_spread,
+			          "setNumUnison/setUnisonDetune/setUnisonStereoSpread");
+			sound.projectSnapshot();
+			for (int32_t u = 0; u < otherUnison; u++) {
+				roundTrip(sameTuning(edited.unisonDetuners[u], sound.snapshot().unisonDetuners[u])
+				              && edited.unisonPan[u] == sound.snapshot().unisonPan[u],
+				          "unison tables after an edit");
+			}
+		}
+		sound.setUnisonStereoSpread(before.unisonStereoSpread);
+		sound.setUnisonDetune(before.unisonDetune, nullptr);
+		sound.setNumUnison(before.numUnison, nullptr);
 	}
 	std::fprintf(io.err, "M4b snapshot coherence %s: %d bound sounds, %d mismatches\n", label, sounds, bad);
 	return bad;

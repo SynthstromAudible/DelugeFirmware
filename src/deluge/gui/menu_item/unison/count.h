@@ -31,7 +31,7 @@ class Count : public Integer {
 public:
 	using Integer::Integer;
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->numUnison); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->snapshot().numUnison); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();

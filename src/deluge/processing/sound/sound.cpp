@@ -344,8 +344,8 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 	sources[0].oscType = OscType::SAW;
 	sources[1].transpose = -12;
 
-	numUnison = 4;
-	unisonDetune = 10;
+	assignNumUnison(4);
+	assignUnisonDetune(10);
 
 	setTranspose(-12); // M4b: unbound at this setup point → writes the snapshot
 
@@ -721,17 +721,18 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "num")) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
-				numUnison = std::max((int32_t)0, std::min((int32_t)kMaxNumVoicesUnison, contents));
+				assignNumUnison(
+				    static_cast<uint8_t>(std::max((int32_t)0, std::min((int32_t)kMaxNumVoicesUnison, contents))));
 				reader.exitTag("num");
 			}
 			else if (!strcmp(tagName, "detune")) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
-				unisonDetune = std::clamp(contents, 0_i32, kMaxUnisonDetune);
+				assignUnisonDetune(static_cast<int8_t>(std::clamp(contents, 0_i32, kMaxUnisonDetune)));
 				reader.exitTag("detune");
 			}
 			else if (!strcmp(tagName, "spread")) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
-				unisonStereoSpread = std::clamp(contents, 0_i32, kMaxUnisonStereoSpread);
+				assignUnisonStereoSpread(static_cast<uint8_t>(std::clamp(contents, 0_i32, kMaxUnisonStereoSpread)));
 				reader.exitTag("spread");
 			}
 			else {
@@ -2754,9 +2755,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .clippingAmount = clippingAmount,
 		    .doingOscSync = renderingOscillatorSyncCurrently(paramManager),
 		    .engineRenderingInStereo = AudioEngine::renderInStereo,
-		    .numUnison = numUnison,
-		    .unisonStereoSpread = unisonStereoSpread,
-		    .unisonPan = std::to_array(unisonPan),
+		    .numUnison = snapshot_.numUnison,
+		    .unisonStereoSpread = snapshot_.unisonStereoSpread,
+		    .unisonPan = snapshot_.unisonPan,
 		    .oscRetriggerPhase = snapshot_.oscRetriggerPhase,
 		    .oscType = oscTypes,
 		    .repeatMode = repeatModes,
@@ -3263,45 +3264,49 @@ void Sound::voiceUnassigned(ModelStackWithSoundFlags* modelStack) {
 
 // modelStack may be NULL if no voices currently active
 void Sound::setupUnisonDetuners(ModelStackWithSoundFlags* modelStack) {
-	if (numUnison != 1) {
-		int32_t detuneScaled = (int32_t)unisonDetune * 42949672;
-		int32_t lowestVoice = -(detuneScaled >> 1);
-		int32_t voiceSpacing = detuneScaled / (numUnison - 1);
-
-		for (int32_t u = 0; u < numUnison; u++) {
-
-			// Middle unison part gets no detune
-			if ((numUnison & 1) && u == ((numUnison - 1) >> 1)) {
-				unisonDetuners[u].setNoDetune();
-			}
-			else {
-				unisonDetuners[u].setup(lowestVoice + voiceSpacing * u);
-			}
-		}
-	}
+	computeUnisonDetuners();
 	recalculateAllVoicePhaseIncrements(modelStack); // Can handle NULL
 }
 
-void Sound::setupUnisonStereoSpread() {
-	if (numUnison != 1) {
-		int32_t spreadScaled = (int32_t)unisonStereoSpread * 42949672;
-		int32_t lowestVoice = -(spreadScaled >> 1);
-		int32_t voiceSpacing = spreadScaled / (numUnison - 1);
+void Sound::computeUnisonDetuners() {
+	if (snapshot_.numUnison != 1) {
+		int32_t detuneScaled = (int32_t)snapshot_.unisonDetune * 42949672;
+		int32_t lowestVoice = -(detuneScaled >> 1);
+		int32_t voiceSpacing = detuneScaled / (snapshot_.numUnison - 1);
 
-		for (int32_t u = 0; u < numUnison; u++) {
+		for (int32_t u = 0; u < snapshot_.numUnison; u++) {
+
+			// Middle unison part gets no detune
+			if ((snapshot_.numUnison & 1) && u == ((snapshot_.numUnison - 1) >> 1)) {
+				snapshot_.unisonDetuners[u].setNoDetune();
+			}
+			else {
+				snapshot_.unisonDetuners[u].setup(lowestVoice + voiceSpacing * u);
+			}
+		}
+	}
+}
+
+void Sound::setupUnisonStereoSpread() {
+	if (snapshot_.numUnison != 1) {
+		int32_t spreadScaled = (int32_t)snapshot_.unisonStereoSpread * 42949672;
+		int32_t lowestVoice = -(spreadScaled >> 1);
+		int32_t voiceSpacing = spreadScaled / (snapshot_.numUnison - 1);
+
+		for (int32_t u = 0; u < snapshot_.numUnison; u++) {
 			// alternate the voices like -2 +1 0 -1 +2 for more balanced
 			// interaction with detune
-			bool isOdd = std::min(u, numUnison - 1 - u) & 1;
+			bool isOdd = std::min(u, snapshot_.numUnison - 1 - u) & 1;
 			int32_t sign = isOdd ? -1 : 1;
 
-			unisonPan[u] = sign * (lowestVoice + voiceSpacing * u);
+			snapshot_.unisonPan[u] = sign * (lowestVoice + voiceSpacing * u);
 		}
 	}
 }
 
 void Sound::calculateEffectiveVolume() {
 	// volumeNeutralValueForUnison = (float)getParamNeutralValue(params::LOCAL_VOLUME) / sqrt(numUnison);
-	volumeNeutralValueForUnison = (float)134217728 / sqrtf(numUnison);
+	volumeNeutralValueForUnison = (float)134217728 / sqrtf(snapshot_.numUnison);
 }
 
 // May change mod knob functions. You must update mod knob levels after calling this
@@ -3390,12 +3395,9 @@ void Sound::recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelSt
 
 void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 	AudioExcludedSection section; // the render walks and edits this Sound's voices
-	int32_t oldNum = numUnison;
+	int32_t oldNum = snapshot_.numUnison;
 
-	numUnison = newNum;
-	if (docSound_ != nullptr) {
-		docSound_->num_unison = newNum;
-	}
+	assignNumUnison(static_cast<uint8_t>(newNum));
 	setupUnisonDetuners(modelStack); // Can handle NULL. Also calls recalculateAllVoicePhaseIncrements()
 	setupUnisonStereoSpread();
 	calculateEffectiveVolume();
@@ -3450,18 +3452,12 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 }
 
 void Sound::setUnisonDetune(int32_t newAmount, ModelStackWithSoundFlags* modelStack) {
-	unisonDetune = newAmount;
-	if (docSound_ != nullptr) {
-		docSound_->unison_detune = newAmount;
-	}
+	assignUnisonDetune(static_cast<int8_t>(newAmount));
 	setupUnisonDetuners(modelStack); // Can handle NULL
 }
 
 void Sound::setUnisonStereoSpread(int32_t newAmount) {
-	unisonStereoSpread = newAmount;
-	if (docSound_ != nullptr) {
-		docSound_->unison_stereo_spread = newAmount;
-	}
+	assignUnisonStereoSpread(static_cast<uint8_t>(newAmount));
 	setupUnisonStereoSpread();
 }
 
@@ -4095,9 +4091,9 @@ void Sound::seedDocSoundScalars() {
 	d.synth_mode = static_cast<uint8_t>(snapshot_.synthMode);
 	d.transpose = snapshot_.transpose;
 	d.cents = snapshot_.cents; // M4b: transpose lives on the snapshot; the record seeds from it (bind-time)
-	d.num_unison = numUnison;
-	d.unison_detune = unisonDetune;
-	d.unison_stereo_spread = unisonStereoSpread;
+	d.num_unison = snapshot_.numUnison;
+	d.unison_detune = snapshot_.unisonDetune;
+	d.unison_stereo_spread = snapshot_.unisonStereoSpread;
 	d.modulator1_to_modulator0 = snapshot_.modulator1ToModulator0;
 	for (int32_t i = 0; i < 2; i++) {
 		d.modulator_transpose[i] = snapshot_.modulatorTranspose[i];
@@ -4121,6 +4117,11 @@ void Sound::projectSnapshot() {
 	snapshot_.transpose = docSound_->transpose;
 	snapshot_.cents = docSound_->cents;
 	recalculateFineTuner();
+	snapshot_.numUnison = docSound_->num_unison;
+	snapshot_.unisonDetune = docSound_->unison_detune;
+	snapshot_.unisonStereoSpread = docSound_->unison_stereo_spread;
+	computeUnisonDetuners();
+	setupUnisonStereoSpread();
 	snapshot_.synthMode = static_cast<SynthMode>(docSound_->synth_mode);
 	snapshot_.oscillatorSync = docSound_->oscillator_sync;
 	snapshot_.voicePriority = static_cast<VoicePriority>(docSound_->voice_priority);
@@ -4263,6 +4264,33 @@ void Sound::setModulatorRetriggerPhase(int32_t m, uint32_t value) {
 	}
 	else {
 		snapshot_.modulatorRetriggerPhase[m] = value;
+	}
+}
+void Sound::assignNumUnison(uint8_t value) {
+	if (docSound_ != nullptr) {
+		docSound_->num_unison = value;
+		snapshot_.numUnison = docSound_->num_unison;
+	}
+	else {
+		snapshot_.numUnison = value;
+	}
+}
+void Sound::assignUnisonDetune(int8_t value) {
+	if (docSound_ != nullptr) {
+		docSound_->unison_detune = value;
+		snapshot_.unisonDetune = docSound_->unison_detune;
+	}
+	else {
+		snapshot_.unisonDetune = value;
+	}
+}
+void Sound::assignUnisonStereoSpread(uint8_t value) {
+	if (docSound_ != nullptr) {
+		docSound_->unison_stereo_spread = value;
+		snapshot_.unisonStereoSpread = docSound_->unison_stereo_spread;
+	}
+	else {
+		snapshot_.unisonStereoSpread = value;
 	}
 }
 void Sound::assignModulatorCents(int32_t m, int8_t value) {
@@ -4415,10 +4443,11 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	}
 
 	writer.writeOpeningTagBeginning("unison");
-	writer.writeAttribute("num", docSound_ != nullptr ? docSound_->num_unison : numUnison, false);
-	writer.writeAttribute("detune", docSound_ != nullptr ? docSound_->unison_detune : unisonDetune, false);
+	writer.writeAttribute("num", docSound_ != nullptr ? docSound_->num_unison : snapshot_.numUnison, false);
+	writer.writeAttribute("detune", docSound_ != nullptr ? docSound_->unison_detune : snapshot_.unisonDetune, false);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeAttribute("spread", docSound_ != nullptr ? docSound_->unison_stereo_spread : unisonStereoSpread, false);
+	writer.writeAttribute("spread",
+	                      docSound_ != nullptr ? docSound_->unison_stereo_spread : snapshot_.unisonStereoSpread, false);
 	writer.closeTag();
 
 	if (paramManager) {
@@ -4999,7 +5028,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 		return true;
 	}
 
-	if (unisonStereoSpread && numUnison > 1) {
+	if (snapshot_.unisonStereoSpread && snapshot_.numUnison > 1) {
 		return true;
 	}
 
