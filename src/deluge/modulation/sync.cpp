@@ -30,11 +30,11 @@ int32_t clampSwingIntervalSyncLevel(int32_t value) {
 	}
 }
 
-enum SyncType syncValueToSyncType(int32_t value) {
-	if (value < SYNC_TYPE_TRIPLET) {
+SyncType syncValueToSyncType(int32_t value) {
+	if (value < std::to_underlying(SYNC_TYPE_TRIPLET)) {
 		return SYNC_TYPE_EVEN;
 	}
-	else if (value < SYNC_TYPE_DOTTED) {
+	else if (value < std::to_underlying(SYNC_TYPE_DOTTED)) {
 		return SYNC_TYPE_TRIPLET;
 	}
 	else {
@@ -42,24 +42,24 @@ enum SyncType syncValueToSyncType(int32_t value) {
 	}
 }
 
-enum SyncLevel syncValueToSyncLevel(int32_t option) {
-	if (option < SYNC_TYPE_TRIPLET) {
-		return static_cast<enum SyncLevel>(option);
+SyncLevel syncValueToSyncLevel(int32_t option) {
+	if (option < std::to_underlying(SYNC_TYPE_TRIPLET)) {
+		return static_cast<SyncLevel>(option);
 	}
-	else if (option < SYNC_TYPE_DOTTED) {
-		return static_cast<enum SyncLevel>(option - SYNC_TYPE_TRIPLET + 1);
+	else if (option < std::to_underlying(SYNC_TYPE_DOTTED)) {
+		return static_cast<SyncLevel>(option - std::to_underlying(SYNC_TYPE_TRIPLET) + 1);
 	}
 	else {
-		return static_cast<enum SyncLevel>(option - SYNC_TYPE_DOTTED + 1);
+		return static_cast<SyncLevel>(option - std::to_underlying(SYNC_TYPE_DOTTED) + 1);
 	}
 }
 
 void syncValueToString(uint32_t value, etl::istring& buffer, int32_t tickMagnitude) {
 	char const* typeStr = nullptr;
-	enum SyncType type { syncValueToSyncType(value) };
-	enum SyncLevel level { syncValueToSyncLevel(value) };
+	SyncType type{syncValueToSyncType(value)};
+	SyncLevel level{syncValueToSyncLevel(value)};
 
-	uint32_t shift = SYNC_LEVEL_256TH - level;
+	uint32_t shift = deluge::engine::index_of(SYNC_LEVEL_256TH) - deluge::engine::index_of(level);
 	uint32_t noteLength = uint32_t{3} << shift;
 
 	switch (type) {
@@ -78,8 +78,9 @@ void syncValueToString(uint32_t value, etl::istring& buffer, int32_t tickMagnitu
 
 	getNoteLengthNameFromMagnitude(buffer, getNoteMagnitudeFfromNoteLength(noteLength, tickMagnitude), typeStr, false);
 	if (typeStr != nullptr) {
-		int32_t magnitudeLevelBars = SYNC_LEVEL_8TH - tickMagnitude;
-		if ((type == SYNC_TYPE_TRIPLET || type == SYNC_TYPE_DOTTED) && level <= magnitudeLevelBars) {
+		int32_t magnitudeLevelBars = deluge::engine::index_of(SYNC_LEVEL_8TH) - tickMagnitude;
+		if ((type == SYNC_TYPE_TRIPLET || type == SYNC_TYPE_DOTTED)
+		    && deluge::engine::index_of(level) <= magnitudeLevelBars) {
 			// On OLED, getNoteLengthNameForMagniture() handles adding this for the non-bar levels. On 7seg, always
 			// append it
 			buffer.append(typeStr);
@@ -88,7 +89,7 @@ void syncValueToString(uint32_t value, etl::istring& buffer, int32_t tickMagnitu
 }
 
 void syncValueToStringForHorzMenuLabel(SyncType type, SyncLevel level, etl::istring& buffer, int32_t tickMagnitude) {
-	uint32_t shift = SYNC_LEVEL_256TH - level;
+	uint32_t shift = deluge::engine::index_of(SYNC_LEVEL_256TH) - deluge::engine::index_of(level);
 	uint32_t noteLength = uint32_t{3} << shift;
 
 	getNoteLengthNameFromMagnitude(buffer, getNoteMagnitudeFfromNoteLength(noteLength, tickMagnitude), nullptr, false);

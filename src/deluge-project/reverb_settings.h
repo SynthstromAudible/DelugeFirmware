@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "modulation/sync.h"
+#include "engine-api/types/sync.h"
 #include <cstdint>
 
 namespace deluge::project {
@@ -36,7 +36,7 @@ struct ReverbSettings {
 	int32_t sidechain_shape{0};
 	int32_t sidechain_attack{0};
 	int32_t sidechain_release{0};
-	SyncLevel sidechain_sync{};
+	engine::SyncLevel sidechain_sync{};
 };
 
 } // namespace deluge::project

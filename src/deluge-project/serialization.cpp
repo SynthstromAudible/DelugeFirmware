@@ -41,7 +41,7 @@ Error loadSong(::Song& song, Deserializer& in) {
 
 void serialize(const Groove& groove, Serializer& out, ::Song* song) {
 	out.writeAttribute("swingAmount", groove.swing_amount);
-	out.writeAbsoluteSyncLevelToFile(song, "swingInterval", (SyncLevel)groove.swing_interval, true);
+	out.writeAbsoluteSyncLevelToFile(song, "swingInterval", groove.swing_interval, true);
 }
 
 bool deserialize(Groove& groove, Deserializer& in, char const* tagName) {
@@ -56,8 +56,8 @@ bool deserialize(Groove& groove, Deserializer& in, char const* tagName) {
 		// swingInterval, unlike other "sync" type params, we read as just its plain int32_t value, and only shift it by
 		// insideWorldTickMagnitude after reading the whole song (the two attributes can be stored in either order, so
 		// we won't know both until the end; also pre-V3.1.0-alpha stored all "sync" values as plain ints).
-		groove.swing_interval = in.readTagOrAttributeValueInt();
-		groove.swing_interval = std::min(groove.swing_interval, (uint8_t)9);
+		groove.swing_interval = engine::sync_level_from_index(
+		    static_cast<uint8_t>(in.readTagOrAttributeValueInt())); // wraps, as it always has
 		in.exitTag("swingInterval");
 		return true;
 	}

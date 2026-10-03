@@ -196,7 +196,7 @@ Song::Song() {
 
 	project.groove.swing_amount = 0;
 
-	project.groove.swing_interval = FlashStorage::defaultSwingInterval;
+	project.groove.swing_interval = static_cast<SyncLevel>(FlashStorage::defaultSwingInterval);
 
 	persistentView.songViewYScroll = 1 - kDisplayHeight;
 	persistentView.arrangementYScroll = -kDisplayHeight;
@@ -1914,9 +1914,11 @@ loadOutput:
 		// Basically, like all other "sync" type parameters, the file value and internal value are different for
 		// swingInterval. But unlike other ones, which get converted as we go, we do this one at the end once we
 		// know we have enough info to do the conversion
-		project.groove.swing_interval = convertSyncLevelFromFileValueToInternalValue(project.groove.swing_interval);
+		project.groove.swing_interval = static_cast<SyncLevel>(
+		    convertSyncLevelFromFileValueToInternalValue(deluge::engine::index_of(project.groove.swing_interval)));
 	}
-	project.groove.swing_interval = std::min(project.groove.swing_interval, (uint8_t)9);
+	project.groove.swing_interval =
+	    static_cast<SyncLevel>(std::min(deluge::engine::index_of(project.groove.swing_interval), 9_i32));
 
 	setTimePerTimerTick(newTimePerTimerTick);
 
@@ -1965,7 +1967,7 @@ loadOutput:
 			if (song_firmware_version < FirmwareVersion::official({1, 5, 0, "pretest"})
 			    && thisClip->output->type == OutputType::SYNTH) {
 				if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
-				    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
+				    && ((InstrumentClip*)thisClip)->arpSettings.syncLevel == SYNC_LEVEL_NONE) {
 					ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
 					thisParamManager->getPatchedParamSet()->params[params::GLOBAL_ARP_RATE].shiftValues(
 					    *thisParamManager->getPatchedParamSet()->docForParam(params::GLOBAL_ARP_RATE),
@@ -5677,11 +5679,11 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 
 void Song::changeSwingInterval(int32_t newValue) {
 
-	project.groove.swing_interval = newValue;
+	project.groove.swing_interval = static_cast<SyncLevel>(newValue);
 
 	if (playbackHandler.isInternalClockActive()) {
 
-		int32_t leftShift = 10 - project.groove.swing_interval;
+		int32_t leftShift = 10 - deluge::engine::index_of(project.groove.swing_interval);
 		leftShift = std::max(leftShift, 0_i32);
 		uint32_t doubleSwingInterval = 3 << (leftShift);
 

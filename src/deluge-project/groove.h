@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "engine-api/types/sync.h"
+
 #include <cstdint>
 
 namespace deluge::project {
@@ -24,8 +26,10 @@ namespace deluge::project {
 /// Groove / swing settings of a song. A component of deluge::project::Song.
 /// (Grouped struct for now; methods/value-semantics polish comes later, inside the library.)
 struct Groove {
-	int8_t swing_amount{0};    ///< -49..49; 0 = no swing
-	uint8_t swing_interval{0}; ///< sync level the swing is applied at (set from defaults by the controller)
+	int8_t swing_amount{0}; ///< -49..49; 0 = no swing
+	/// The sync level the swing is applied at (set from defaults by the controller). Between parsing and the end of a
+	/// song load it holds the file value, which the song converts once the tick magnitude is known.
+	engine::SyncLevel swing_interval{engine::SyncLevel::NONE};
 
 	/// Whether any swing is applied.
 	[[nodiscard]] bool hasSwing() const { return swing_amount != 0; }

@@ -104,7 +104,7 @@ int32_t SideChain::getActualAttackRate() {
 		alteredAttack = attack;
 	}
 	else {
-		int32_t rshiftAmount = (9 - syncLevel) - 2;
+		int32_t rshiftAmount = (9 - deluge::engine::index_of(syncLevel)) - 2;
 		alteredAttack = multiply_32x32_rshift32(attack << 11, playbackHandler.getTimePerInternalTickInverse());
 
 		if (rshiftAmount >= 0) {
@@ -123,8 +123,8 @@ int32_t SideChain::getActualReleaseRate() {
 		alteredRelease = release;
 	}
 	else {
-		alteredRelease =
-		    multiply_32x32_rshift32(release << 13, playbackHandler.getTimePerInternalTickInverse()) >> (9 - syncLevel);
+		alteredRelease = multiply_32x32_rshift32(release << 13, playbackHandler.getTimePerInternalTickInverse())
+		                 >> (9 - deluge::engine::index_of(syncLevel));
 	}
 	return alteredRelease;
 }

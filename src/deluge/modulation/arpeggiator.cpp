@@ -181,7 +181,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 			playedFirstArpeggiatedNoteYet = false;
 			gateCurrentlyActive = false;
 
-			if (!(playbackHandler.isEitherClockActive()) || !settings->syncLevel) {
+			if (!(playbackHandler.isEitherClockActive()) || settings->syncLevel == SYNC_LEVEL_NONE) {
 				switchNoteOn(settings, instruction, false);
 			}
 		}
@@ -338,7 +338,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 			playedFirstArpeggiatedNoteYet = false;
 			gateCurrentlyActive = false;
 
-			if (!(playbackHandler.isEitherClockActive()) || !settings->syncLevel) {
+			if (!(playbackHandler.isEitherClockActive()) || settings->syncLevel == SYNC_LEVEL_NONE) {
 				switchNoteOn(settings, instruction, false);
 			}
 		}
@@ -567,16 +567,16 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	isRatcheting = isPlayRatchetForCurrentStep
 	               && settings->ratchetAmount > 0
 	               // For the highest sync we can't divide the time any more, so not possible to ratchet
-	               && !(settings->syncType == SYNC_TYPE_EVEN && settings->syncLevel == SyncLevel::SYNC_LEVEL_256TH);
+	               && !(settings->syncType == SYNC_TYPE_EVEN && settings->syncLevel == SYNC_LEVEL_256TH);
 	if (isRatcheting) {
 		ratchetNotesMultiplier = getRandomWeighted2BitsAmount(settings->ratchetAmount);
 		ratchetNotesCount = 1 << ratchetNotesMultiplier;
-		if (settings->syncLevel == SyncLevel::SYNC_LEVEL_128TH) {
+		if (settings->syncLevel == SYNC_LEVEL_128TH) {
 			// If the sync level is 128th, we can't have a ratchet of more than 2 notes, so we set it to the minimum
 			ratchetNotesMultiplier = 1;
 			ratchetNotesCount = 2;
 		}
-		else if (settings->syncLevel == SyncLevel::SYNC_LEVEL_64TH) {
+		else if (settings->syncLevel == SYNC_LEVEL_64TH) {
 			// If the sync level is 64th, the maximum ratchet can be of 4 notes (8 not allowed)
 			ratchetNotesMultiplier = std::max(2_u32, ratchetNotesMultiplier);
 			ratchetNotesCount = std::max(4_u32, ratchetNotesCount);
@@ -1507,7 +1507,7 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction
 	}
 	uint32_t maxGateForRatchet = maxGate >> ratchetNotesMultiplier;
 
-	bool syncedNow = (settings->syncLevel && (playbackHandler.isEitherClockActive()));
+	bool syncedNow = (settings->syncLevel != SYNC_LEVEL_NONE && (playbackHandler.isEitherClockActive()));
 
 	// If gatePos is far enough along that we at least want to switch off any note...
 	if (gatePos >= ratchetNotesIndex * maxGateForRatchet + gateThresholdSmall) {
@@ -1545,10 +1545,10 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 		return 0;
 	}
 	// Make sure we actually intended to sync
-	if (settings->mode == ArpMode::OFF || (settings->syncLevel == 0u)) {
+	if (settings->mode == ArpMode::OFF || (settings->syncLevel == SYNC_LEVEL_NONE)) {
 		return 2147483647;
 	}
-	uint32_t ticksPerPeriod = 3 << (9 - settings->syncLevel);
+	uint32_t ticksPerPeriod = 3 << (9 - deluge::engine::index_of(settings->syncLevel));
 	if (settings->syncType == SYNC_TYPE_EVEN) {} // Do nothing
 	else if (settings->syncType == SYNC_TYPE_TRIPLET) {
 		ticksPerPeriod = ticksPerPeriod * 2 / 3;
@@ -1579,11 +1579,11 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 
 uint32_t ArpeggiatorSettings::getPhaseIncrement(int32_t arpRate) {
 	uint32_t phaseIncrement;
-	if (syncLevel == 0) {
+	if (syncLevel == SYNC_LEVEL_NONE) {
 		phaseIncrement = arpRate >> 5;
 	}
 	else {
-		int32_t rightShiftAmount = 9 - syncLevel; // Will be max 0
+		int32_t rightShiftAmount = 9 - deluge::engine::index_of(syncLevel); // Will be max 0
 		phaseIncrement =
 		    playbackHandler
 		        .getTimePerInternalTickInverse(); // multiply_32x32_rshift32(playbackHandler.getTimePerInternalTickInverse(),
@@ -1838,7 +1838,7 @@ void ArpeggiatorSettings::writeCommonParamsToFile(Serializer& writer, Song* song
 		writer.writeAbsoluteSyncLevelToFile(songToConvertSyncLevel, "syncLevel", syncLevel, true);
 	}
 	else {
-		writer.writeAttribute("syncLevel", syncLevel, true);
+		writer.writeAttribute("syncLevel", deluge::engine::index_of(syncLevel), true);
 	}
 	writer.writeAttribute("numOctaves", numOctaves);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent
@@ -1847,7 +1847,7 @@ void ArpeggiatorSettings::writeCommonParamsToFile(Serializer& writer, Song* song
 		writer.writeSyncTypeToFile(songToConvertSyncLevel, "syncType", syncType, true);
 	}
 	else {
-		writer.writeAttribute("syncType", syncType);
+		writer.writeAttribute("syncType", std::to_underlying(syncType));
 	}
 	writer.writeAttribute("arpMode", (char*)arpModeToString(mode));
 	writer.writeAttribute("chordType", chordTypeIndex);

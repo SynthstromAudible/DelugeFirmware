@@ -1399,14 +1399,19 @@ char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
 
 void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	setDelaySyncLevel((SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1)); // cycle from 1 to 9 (omit 0)
+	setDelaySyncLevel(deluge::engine::sync_level_from_index(deluge::engine::index_of(delay.syncLevel)
+	                                                            % deluge::engine::index_of(SYNC_LEVEL_256TH)
+	                                                        + 1)); // cycle from 1 to 9 (omit 0)
 }
 
 void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	setDelaySyncLevel((SyncLevel)(delay.syncLevel % SyncLevel::SYNC_LEVEL_256TH)); // cycle from 1 to 9 (omit 0)
+	setDelaySyncLevel(deluge::engine::sync_level_from_index(
+	    deluge::engine::index_of(delay.syncLevel)
+	    % deluge::engine::index_of(SYNC_LEVEL_256TH))); // cycle from 1 to 9 (omit 0)
 	etl::string<kShortStringBufferSize> buffer;
-	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
+	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (deluge::engine::index_of(SYNC_LEVEL_256TH)
+	                                                       - deluge::engine::index_of(delay.syncLevel)));
 	strncpy(displayName, buffer.data(), 29);
 }
 

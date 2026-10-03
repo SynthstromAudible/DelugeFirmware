@@ -100,13 +100,13 @@ void Delay::setupWorkingState(Delay::State& workingState, uint32_t timePerIntern
 
 	if (mightDoDelay) {
 
-		if (syncLevel != 0) {
+		if (syncLevel != SYNC_LEVEL_NONE) {
 
 			workingState.userDelayRate =
 			    multiply_32x32_rshift32_rounded(workingState.userDelayRate, timePerInternalTickInverse);
 
 			// Limit to the biggest number we can store...
-			int32_t limit = 2147483647 >> (syncLevel + 5);
+			int32_t limit = 2147483647 >> (deluge::engine::index_of(syncLevel) + 5);
 			workingState.userDelayRate = std::min(workingState.userDelayRate, limit);
 			if (syncType == SYNC_TYPE_EVEN) {} // Do nothing
 			else if (syncType == SYNC_TYPE_TRIPLET) {
@@ -115,7 +115,7 @@ void Delay::setupWorkingState(Delay::State& workingState, uint32_t timePerIntern
 			else if (syncType == SYNC_TYPE_DOTTED) {
 				workingState.userDelayRate = workingState.userDelayRate * 2 / 3;
 			}
-			workingState.userDelayRate <<= (syncLevel + 5);
+			workingState.userDelayRate <<= (deluge::engine::index_of(syncLevel) + 5);
 		}
 	}
 

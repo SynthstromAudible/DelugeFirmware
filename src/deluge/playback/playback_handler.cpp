@@ -725,7 +725,7 @@ void PlaybackHandler::actionTimerTick() {
 void PlaybackHandler::actionTimerTickPart2() {
 
 	// Schedule next timer tick. Normal case is two swing intervals away.
-	int32_t leftShift = 10 - currentSong->project.groove.swing_interval;
+	int32_t leftShift = 10 - deluge::engine::index_of(currentSong->project.groove.swing_interval);
 	leftShift = std::max(leftShift, 0_i32);
 	uint32_t timeTilNextTimerTick = 3 << (leftShift); // That's doubleSwingInterval
 
@@ -1119,7 +1119,7 @@ void PlaybackHandler::scheduleSwungTickFromInternalClock() {
 		uint32_t swungTicksIntoTimerBit = nextSwungTick - lastTimerTickActioned;
 
 		if (currentSong->hasAnySwing()) {
-			int32_t leftShift = 9 - currentSong->project.groove.swing_interval;
+			int32_t leftShift = 9 - deluge::engine::index_of(currentSong->project.groove.swing_interval);
 			leftShift = std::max(leftShift, 0_i32);
 			uint32_t swingInterval = 3 << (leftShift);
 
@@ -1169,7 +1169,7 @@ int32_t PlaybackHandler::getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRema
 			*timeRemainder = 0; // To be improved
 		}
 
-		int32_t leftShift = 9 - currentSong->project.groove.swing_interval;
+		int32_t leftShift = 9 - deluge::engine::index_of(currentSong->project.groove.swing_interval);
 		leftShift = std::max(leftShift, 0_i32);
 		uint32_t swingInterval = 3 << (leftShift);
 
@@ -1247,7 +1247,7 @@ int64_t PlaybackHandler::getActualSwungTickCount(uint32_t* timeRemainder) {
 		// Yes swing
 		else {
 
-			int32_t leftShift = 9 - currentSong->project.groove.swing_interval;
+			int32_t leftShift = 9 - deluge::engine::index_of(currentSong->project.groove.swing_interval);
 			leftShift = std::max(leftShift, 0_i32);
 			uint32_t swingInterval = 3 << (leftShift);
 			uint32_t doubleSwingInterval = swingInterval << 1;
@@ -1789,7 +1789,7 @@ void PlaybackHandler::scheduleSwungTickFromExternalClock() {
 	}
 	else {
 
-		int32_t leftShift = 10 - currentSong->project.groove.swing_interval;
+		int32_t leftShift = 10 - deluge::engine::index_of(currentSong->project.groove.swing_interval);
 		leftShift = std::max(leftShift, 0_i32);
 		uint32_t doubleSwingInterval = 3 << (leftShift);
 
@@ -2132,7 +2132,8 @@ void PlaybackHandler::commandDisplaySwingInterval() {
 		deluge::string::appendInt(text, currentSong->project.groove.swing_amount + 50);
 	}
 	text.append("\n");
-	syncValueToString(currentSong->project.groove.swing_interval, text, currentSong->getInputTickMagnitude());
+	syncValueToString(deluge::engine::index_of(currentSong->project.groove.swing_interval), text,
+	                  currentSong->getInputTickMagnitude());
 	display->popupTextTemporary(text.c_str(), PopupType::SWING);
 }
 
@@ -2151,12 +2152,14 @@ void PlaybackHandler::commandDisplaySwingAmount() {
 		deluge::string::appendInt(text, currentSong->project.groove.swing_amount + 50);
 	}
 	text.append("\n");
-	syncValueToString(currentSong->project.groove.swing_interval, text, currentSong->getInputTickMagnitude());
+	syncValueToString(deluge::engine::index_of(currentSong->project.groove.swing_interval), text,
+	                  currentSong->getInputTickMagnitude());
 	display->popupTextTemporary(text.c_str(), PopupType::SWING);
 }
 
 void PlaybackHandler::commandEditSwingInterval(int8_t offset) {
-	currentSong->changeSwingInterval(wrapSwingIntervalSyncLevel(currentSong->project.groove.swing_interval + offset));
+	currentSong->changeSwingInterval(
+	    wrapSwingIntervalSyncLevel(deluge::engine::index_of(currentSong->project.groove.swing_interval) + offset));
 	commandDisplaySwingInterval();
 }
 

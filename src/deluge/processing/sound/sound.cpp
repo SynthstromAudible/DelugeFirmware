@@ -2975,7 +2975,8 @@ uint32_t Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::par
 
 uint32_t Sound::getSyncedLFOPhaseIncrement(const LFOConfig& config) {
 	uint32_t phaseIncrement =
-	    (playbackHandler.getTimePerInternalTickInverse()) >> (SYNC_LEVEL_256TH - config.syncLevel);
+	    (playbackHandler.getTimePerInternalTickInverse())
+	    >> (deluge::engine::index_of(SYNC_LEVEL_256TH) - deluge::engine::index_of(config.syncLevel));
 	switch (config.syncType) {
 	case SYNC_TYPE_EVEN:
 		// Nothing to do
@@ -3009,7 +3010,9 @@ void Sound::resyncGlobalLFOs() {
 
 		// If we're right at the first tick, no need to do anything else!
 		if (lastInternalTickDone || timeSinceLastTick) {
-			uint32_t numInternalTicksPerPeriod = 3 << (SYNC_LEVEL_256TH - snapshot_.lfoConfig[LFO1_ID].syncLevel);
+			uint32_t numInternalTicksPerPeriod =
+			    3 << (deluge::engine::index_of(SYNC_LEVEL_256TH)
+			          - deluge::engine::index_of(snapshot_.lfoConfig[LFO1_ID].syncLevel));
 			switch (snapshot_.lfoConfig[LFO1_ID].syncType) {
 			case SYNC_TYPE_EVEN:
 				// Nothing to do
@@ -3046,7 +3049,9 @@ void Sound::resyncGlobalLFOs() {
 
 		// If we're right at the first tick, no need to do anything else!
 		if (lastInternalTickDone || timeSinceLastTick) {
-			uint32_t numInternalTicksPerPeriod = 3 << (SYNC_LEVEL_256TH - snapshot_.lfoConfig[LFO3_ID].syncLevel);
+			uint32_t numInternalTicksPerPeriod =
+			    3 << (deluge::engine::index_of(SYNC_LEVEL_256TH)
+			          - deluge::engine::index_of(snapshot_.lfoConfig[LFO3_ID].syncLevel));
 			switch (snapshot_.lfoConfig[LFO3_ID].syncType) {
 			case SYNC_TYPE_EVEN:
 				// Nothing to do
