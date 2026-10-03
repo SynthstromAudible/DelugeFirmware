@@ -191,6 +191,9 @@ extern bool micPluggedIn;
 extern bool lineInPluggedIn;
 extern bool renderInStereo;
 extern uint32_t audioSampleTimer;
+// Latches true once enough samples have elapsed since power-on for the codec ADC to settle. Until then, input
+// monitoring (Looper/Sampler) is suppressed so the codec's power-on transient isn't passed through to the output.
+extern bool inputMonitoringWarmedUp;
 extern bool mustUpdateReverbParamsBeforeNextRender;
 extern bool bypassCulling;
 extern uint32_t i2sTXBufferPos;
