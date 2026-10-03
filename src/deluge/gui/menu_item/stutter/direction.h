@@ -112,7 +112,7 @@ private:
 		mc->setStutterPingPong(value == FORWARD_PING_PONG || value == REVERSED_PING_PONG);
 
 		if (mc->stutterConfig.useSongStutter) {
-			const auto& songStutter = currentSong->project.global_fx.global_effectable.stutterConfig;
+			const auto& songStutter = currentSong->live.global_effectable.stutterConfig;
 			mc->setStutterQuantized(songStutter.quantized);
 			mc->setStutterReversed(songStutter.reversed);
 			mc->setStutterPingPong(songStutter.pingPong);

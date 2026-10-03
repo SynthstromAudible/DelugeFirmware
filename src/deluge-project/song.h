@@ -24,39 +24,26 @@
 #include "deluge-project/clip_params.h"
 #include "deluge-project/clip_structure.h"
 #include "deluge-project/drum_structure.h"
-#include "deluge-project/global_effects.h"
 #include "deluge-project/groove.h"
 #include "deluge-project/metadata.h"
 #include "deluge-project/output_structure.h"
 #include "deluge-project/param_address.h"
+#include "deluge-project/param_automation.h"
 #include "deluge-project/reverb_settings.h"
 #include "deluge-project/scale_settings.h"
 #include "deluge-project/transport.h"
 
 namespace deluge::project {
 
-/// The project model: the song's persistent musical state, extracted out of the legacy `::Song`
-/// god-object (docs/dev/project_model_extraction.md). `::Song` remains the controller and owns one
-/// of these as `project`; access is `currentSong->project.<component>.<field>`.
-///
-/// REPRESENTATION (important): this is still the *runtime* model, not yet a pure document model. Its
-/// components fall into two tiers, and the boundary between them is the seam a future authoritative
-/// document model ("Level 3", docs/dev/project_model_extraction.md) would split out:
-///
-///   - **Document / value tier** — value-typed, serializable description, no engine dependency.
-///     These are already document-shaped (this is what the idiomatic-refinement pass produced).
-///
-///   - **Runtime-reference tier** — live, polymorphic, pool-allocated engine objects and the
-///     intrusive links the audio thread walks every render block (`media.first_output->next`);
-///     `clips` is an ordered list of non-owning `Clip*`; `global_fx` holds live DSP
-///     state. None of these is serializable *as data* — they are the running engine.
-///
+/// The project model: a song's persistent musical state as host data. The engine `::Song` holds one as `project`,
+/// beside the live engine objects (clips, outputs, the master effect chain) it still holds itself (`::Song::live`);
+/// access is `currentSong->project.<component>.<field>`.
 class Song {
 public:
 	Song();
 
 	/// Id-addressable DOM param resolution: map a stable `ParamAddress` to the live `DocAutoParam` in the tree
-	/// (song-global → `global_fx.params`; clips → the per-clip store by id, added in a later slice). Returns
+	/// (song-global → `master_params`; clips → the per-clip store by id, added in a later slice). Returns
 	/// nullptr when the address names an owner/lane not (yet) tree-resident, so callers fall back to the engine
 	/// resolution path. This is the seam that lets param ops resolve by id rather than a threaded ModelStack.
 	DocAutoParam* resolveParam(const ParamAddress& address);
@@ -75,7 +62,6 @@ public:
 	DocAudioClip& getOrCreateDocAudioClip(const ClipAddress& address);
 	void removeDocAudioClip(const ClipAddress& address);
 
-	// Document / value tier — value-typed, serializable.
 	Metadata metadata;
 	Groove groove;
 	Transport transport;
@@ -83,8 +69,9 @@ public:
 	ReverbSettings reverb;
 	Arrangement arrangement;
 
-	// Runtime-reference tier — live engine objects, intrusive links, hot-path DSP state.
-	GlobalEffects global_fx;
+	/// The song-global effect chain's params: the authority for their values and automation, projected into the
+	/// engine's master chain. Only `.unpatched` is used (song-global params are unpatched-only).
+	DocParamManager master_params;
 	ClipParams clip_params;     // per-clip automation stores, keyed by Clip::id (id-addressable node storage)
 	BackedParams backed_params; // instrument-shared automation, keyed by (owner, clip) — persistent form of ParamBackup
 	ClipStructure clip_structure; // M3 owner-1: per-clip structural records (loop_length…), keyed by Clip::id

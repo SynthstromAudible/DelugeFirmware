@@ -732,7 +732,7 @@ void editLeg() {
 		g_step = "render";
 		// The song master's chorus sets its buffer up inside the render. Make that allocation fail once: the block must
 		// pass the signal through, and the next block's retry must bring the effect back.
-		auto& fx = currentSong->project.global_fx.global_effectable;
+		auto& fx = currentSong->live.global_effectable;
 		currentSong->paramManager.getUnpatchedParamSet()
 		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
 		    .setCurrentValueBasicForSetup(0);

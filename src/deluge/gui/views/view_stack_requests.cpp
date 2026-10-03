@@ -33,7 +33,7 @@
 bool View::activeModControllableNamesSong(Song* song) const {
 	ModelStackWithThreeMainThings const& stack = activeModControllableModelStack;
 	TimelineCounter const* counter = stack.getTimelineCounterAllowNull();
-	if (counter == song || stack.modControllable == &song->project.global_fx.global_effectable) {
+	if (counter == song || stack.modControllable == &song->live.global_effectable) {
 		return true;
 	}
 	for (ClipArray const* array : {&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips}) {

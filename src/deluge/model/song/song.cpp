@@ -226,7 +226,7 @@ Song::Song() {
 	model = deluge::dsp::Reverb::Model::MUTABLE;
 
 	// setup base compressor gain to match 1.0
-	project.global_fx.global_effectable.compressor.setBaseGain(0.85);
+	live.global_effectable.compressor.setBaseGain(0.85);
 
 	// initialize automation arranger view variables
 	lastSelectedParamID = params::kNoParamID;
@@ -1118,7 +1118,7 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 
 	writer.writeAttribute("affectEntire", persistentView.affectEntire);
-	writer.writeAttribute("activeModFunction", project.global_fx.global_effectable.modKnobMode);
+	writer.writeAttribute("activeModFunction", live.global_effectable.modKnobMode);
 
 	if (lastSelectedParamID != params::kNoParamID) {
 		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
@@ -1128,7 +1128,7 @@ weAreInArrangementEditorOrInClipInstance:
 		writer.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 
-	project.global_fx.global_effectable.writeAttributesToFile(writer, false);
+	live.global_effectable.writeAttributesToFile(writer, false);
 
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	writer.writeAttribute("songGridScrollX", persistentView.songGridScrollX);
@@ -1181,23 +1181,22 @@ weAreInArrangementEditorOrInClipInstance:
 
 	writer.writeClosingTag("reverb");
 
-	project.global_fx.global_effectable.writeTagsToFile(writer, NULL, false);
+	live.global_effectable.writeTagsToFile(writer, NULL, false);
 
-	int32_t* valuesForOverride =
-	    runtimeView.paramsInAutomationMode ? project.global_fx.unautomated_param_values.data() : nullptr;
+	int32_t* valuesForOverride = runtimeView.paramsInAutomationMode ? live.unautomated_param_values.data() : nullptr;
 
 	// Flip Phase 2: serialize the song-global param block DIRECTLY from the DOM store — the singleton
-	// project.global_fx.params.unpatched — fully decoupling this block's save from the engine paramManager.
+	// project.master_params.unpatched — fully decoupling this block's save from the engine paramManager.
 	// Byte-identical: the store holds the authoritative nodes (the engine set borrows them via docForParam) and,
 	// since flip Phase 1, its current_value tracks user edits (and load seeds it from the file). valuesForOverride
 	// still applies (writeDocAutoParam checks the store's nodes for automated-ness). A never-loaded song whose
 	// store is still empty falls back to projecting the engine (first-save).
 	writer.writeOpeningTagBeginning("songParams");
-	if (project.global_fx.params.unpatched) {
-		deluge::bridge::serializeGlobalEffectableParamAttributes(*project.global_fx.params.unpatched, writer, true,
+	if (project.master_params.unpatched) {
+		deluge::bridge::serializeGlobalEffectableParamAttributes(*project.master_params.unpatched, writer, true,
 		                                                         valuesForOverride);
 		writer.writeOpeningTagEnd();
-		deluge::bridge::serializeGlobalEffectableParamTags(*project.global_fx.params.unpatched, writer, true,
+		deluge::bridge::serializeGlobalEffectableParamTags(*project.master_params.unpatched, writer, true,
 		                                                   valuesForOverride);
 	}
 	else {
@@ -1624,9 +1623,9 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "activeModFunction")) {
-				project.global_fx.global_effectable.modKnobMode = reader.readTagOrAttributeValueInt();
-				project.global_fx.global_effectable.modKnobMode =
-				    std::min(project.global_fx.global_effectable.modKnobMode, (uint8_t)(kNumModButtons - 1));
+				live.global_effectable.modKnobMode = reader.readTagOrAttributeValueInt();
+				live.global_effectable.modKnobMode =
+				    std::min(live.global_effectable.modKnobMode, (uint8_t)(kNumModButtons - 1));
 				reader.exitTag("activeModFunction");
 			}
 
@@ -1665,27 +1664,27 @@ unknownTag:
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "attack")) {
 						q31_t masterCompressorAttack = reader.readTagOrAttributeValueInt();
-						project.global_fx.global_effectable.compressor.setAttack(masterCompressorAttack);
+						live.global_effectable.compressor.setAttack(masterCompressorAttack);
 						reader.exitTag("attack");
 					}
 					else if (!strcmp(tagName, "release")) {
 						q31_t masterCompressorRelease = reader.readTagOrAttributeValueInt();
-						project.global_fx.global_effectable.compressor.setRelease(masterCompressorRelease);
+						live.global_effectable.compressor.setRelease(masterCompressorRelease);
 						reader.exitTag("release");
 					}
 					else if (!strcmp(tagName, "thresh")) {
 						q31_t masterCompressorThresh = reader.readTagOrAttributeValueInt();
-						project.global_fx.global_effectable.compressor.setThreshold(masterCompressorThresh);
+						live.global_effectable.compressor.setThreshold(masterCompressorThresh);
 						reader.exitTag("thresh");
 					}
 					else if (!strcmp(tagName, "ratio")) {
 						q31_t masterCompressorRatio = reader.readTagOrAttributeValueInt();
-						project.global_fx.global_effectable.compressor.setRatio(masterCompressorRatio);
+						live.global_effectable.compressor.setRatio(masterCompressorRatio);
 						reader.exitTag("ratio");
 					}
 					else if (!strcmp(tagName, "compHPF")) {
 						q31_t masterCompressorSidechain = reader.readTagOrAttributeValueInt();
-						project.global_fx.global_effectable.compressor.setSidechain(masterCompressorSidechain);
+						live.global_effectable.compressor.setSidechain(masterCompressorSidechain);
 						reader.exitTag("compHPF");
 					}
 					else {
@@ -1857,8 +1856,8 @@ loadOutput:
 				// self-copy).
 				UnpatchedParamSet* songUnpatched = paramManager.getUnpatchedParamSet();
 				songUnpatched->bindDomStore(); // ensure a store exists (init normally created it) before relocating
-				project.global_fx.params.unpatched = std::move(*songUnpatched->domStore());
-				deluge::project::DocParamSet& songStore = *project.global_fx.params.unpatched;
+				project.master_params.unpatched = std::move(*songUnpatched->domStore());
+				deluge::project::DocParamSet& songStore = *project.master_params.unpatched;
 				songUnpatched->bindDomStoreExternal(&songStore);
 				char const* paramTag;
 				while (*(paramTag = reader.readNextTagOrAttributeName())) {
@@ -1892,8 +1891,8 @@ loadOutput:
 			}
 
 			else {
-				Error result = project.global_fx.global_effectable.readTagFromFile(reader, tagName, &paramManager,
-				                                                                   2147483647, nullptr, this);
+				Error result =
+				    live.global_effectable.readTagFromFile(reader, tagName, &paramManager, 2147483647, nullptr, this);
 				if (result == Error::NONE) {}
 				else if (result != Error::RESULT_TAG_UNUSED) {
 					return result;
@@ -2219,7 +2218,7 @@ skipInstance:
 	if (song_firmware_version < FirmwareVersion::official({1, 2, 0})) {
 
 		deleteAllBackedUpParamManagers(); // Before V1.2, lots of extras of these could be created during loading
-		project.global_fx.global_effectable.compensateVolumeForResonance(&paramManager);
+		live.global_effectable.compensateVolumeForResonance(&paramManager);
 	}
 
 	if (live.sync_scaling_clip) {
@@ -2241,16 +2240,16 @@ skipInstance:
 	AudioEngine::logAction("aaa4.3");
 
 	// Phase B (DOM single-store): the DOM is the sole owner of the song-global unpatched automation node storage
-	// (project.global_fx.params.unpatched); the engine set owner-resolves to it, so every edit + undo operates on
+	// (project.master_params.unpatched); the engine set owner-resolves to it, so every edit + undo operates on
 	// DOM-owned data and save reads it directly. The <songParams> read path above already created + bound the
 	// store; this handles the file-had-no-<songParams> case (seed from the engine defaults, then bind). M2-F: no
 	// moveNodesInto — the engine holds no ownDoc_ node data to move; reads/edits land in the store directly.
 	{
 		UnpatchedParamSet* unpatchedEngine = paramManager.getUnpatchedParamSet();
-		if (!project.global_fx.params.unpatched) {
-			project.global_fx.params.unpatched = deluge::bridge::toDocParamSet(*unpatchedEngine);
+		if (!project.master_params.unpatched) {
+			project.master_params.unpatched = deluge::bridge::toDocParamSet(*unpatchedEngine);
 		}
-		deluge::project::DocParamSet& store = *project.global_fx.params.unpatched;
+		deluge::project::DocParamSet& store = *project.master_params.unpatched;
 #if ALPHA_OR_BETA_VERSION
 		if (static_cast<int32_t>(store.params.size()) != unpatchedEngine->getNumParams()) {
 			FREEZE_WITH_ERROR("E4B0"); // DOM/engine song-global param-count mismatch
@@ -2614,7 +2613,7 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	}
 	AudioEngine::logAction("done recorders");
 
-	Delay::State delayWorkingState = project.global_fx.global_effectable.createDelayWorkingState(paramManager);
+	Delay::State delayWorkingState = live.global_effectable.createDelayWorkingState(paramManager);
 
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	int32_t reverbSendAmount =
@@ -2624,11 +2623,11 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 
 	// don't bother checking if sound is coming in - its just to save resources and if nothing is being rendered we
 	// don't need to
-	project.global_fx.global_effectable.processFXForGlobalEffectable(outputBuffer, &volumePostFX, &paramManager,
-	                                                                 delayWorkingState, true, reverbSendAmount >> 3);
+	live.global_effectable.processFXForGlobalEffectable(outputBuffer, &volumePostFX, &paramManager, delayWorkingState,
+	                                                    true, reverbSendAmount >> 3);
 
-	project.global_fx.global_effectable.processReverbSendAndVolume(outputBuffer, reverbBuffer, volumePostFX,
-	                                                               postReverbVolume, reverbSendAmount >> 1);
+	live.global_effectable.processReverbSendAndVolume(outputBuffer, reverbBuffer, volumePostFX, postReverbVolume,
+	                                                  reverbSendAmount >> 1);
 	AudioEngine::logAction("done global effectables");
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
@@ -4743,7 +4742,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 
 		// Back up the unautomated values
 		for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
-			project.global_fx.unautomated_param_values[p] = unpatchedParams->params[p].getCurrentValue();
+			live.unautomated_param_values[p] = unpatchedParams->params[p].getCurrentValue();
 		}
 	}
 
@@ -4753,7 +4752,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 		// Restore the unautomated values, where automation is present
 		for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
 			if (unpatchedParams->params[p].isAutomated(*unpatchedParams->docForParam(p))) {
-				unpatchedParams->params[p].currentValue = project.global_fx.unautomated_param_values[p];
+				unpatchedParams->params[p].currentValue = live.unautomated_param_values[p];
 			}
 		}
 	}
@@ -5746,7 +5745,7 @@ int32_t Song::getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* 
 void Song::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
 	if (persistentView.affectEntire) {
 		modelStack->setTimelineCounter(this);
-		modelStack->addOtherTwoThingsButNoNoteRow(&project.global_fx.global_effectable, &paramManager);
+		modelStack->addOtherTwoThingsButNoNoteRow(&live.global_effectable, &paramManager);
 	}
 	else {
 		modelStack->setTimelineCounter(nullptr);
@@ -5990,8 +5989,7 @@ void Song::displayMasterTransposeInterval() {
 }
 
 ModelStackWithThreeMainThings* Song::setupModelStackWithSongAsTimelineCounter(void* memory) {
-	return setupModelStackWithThreeMainThingsButNoNoteRow(memory, this, &project.global_fx.global_effectable, this,
-	                                                      &paramManager);
+	return setupModelStackWithThreeMainThingsButNoNoteRow(memory, this, &live.global_effectable, this, &paramManager);
 }
 
 ModelStackWithTimelineCounter* Song::setupModelStackWithCurrentClip(void* memory) {
@@ -5999,8 +5997,7 @@ ModelStackWithTimelineCounter* Song::setupModelStackWithCurrentClip(void* memory
 }
 
 ModelStackWithThreeMainThings* Song::addToModelStack(ModelStack* modelStack) {
-	return modelStack->addTimelineCounter(this)->addOtherTwoThingsButNoNoteRow(&project.global_fx.global_effectable,
-	                                                                           &paramManager);
+	return modelStack->addTimelineCounter(this)->addOtherTwoThingsButNoNoteRow(&live.global_effectable, &paramManager);
 }
 
 ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID) {

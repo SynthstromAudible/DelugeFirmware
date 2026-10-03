@@ -85,12 +85,12 @@ DocAutoParam* midiParamInManager(DocParamManager* mgr, int32_t cc) {
 DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 	switch (address.owner.kind) {
 	case OwnerId::Kind::SONG: {
-		// Song-global params are unpatched-only; their live authority is global_fx.params.unpatched. (The kind is
+		// Song-global params are unpatched-only; their live authority is master_params.unpatched. (The kind is
 		// carried for future collections but is unambiguous here — the caller only builds a SONG address for the
 		// song's unpatched set.)
-		if (global_fx.params.unpatched && address.param_id >= 0
-		    && address.param_id < static_cast<int32_t>(global_fx.params.unpatched->params.size())) {
-			return &global_fx.params.unpatched->params[address.param_id];
+		if (master_params.unpatched && address.param_id >= 0
+		    && address.param_id < static_cast<int32_t>(master_params.unpatched->params.size())) {
+			return &master_params.unpatched->params[address.param_id];
 		}
 		return nullptr;
 	}

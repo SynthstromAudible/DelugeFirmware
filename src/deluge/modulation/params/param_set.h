@@ -54,7 +54,7 @@ protected:
 	std::unique_ptr<deluge::project::DocParamSet> domStore_;
 
 	/// M2-E: non-owning pointer to the ACTIVE DOM store this set resolves params against — either `domStore_.get()`
-	/// (clip/drum: this set owns it) or an externally-owned store (song-global: `project.global_fx.params.unpatched`,
+	/// (clip/drum: this set owns it) or an externally-owned store (song-global: `project.master_params.unpatched`,
 	/// owned by the DOM project at a stable address). The owner-resolution path (`docForParam`) reads this, so both
 	/// binding regimes resolve identically without the AutoParam holding a pointer. nullptr = unbound.
 	deluge::project::DocParamSet* domStoreRef_ = nullptr;

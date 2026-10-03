@@ -615,11 +615,11 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	}
 
 	// The store is populated by the <songParams> read; seed it from the engine if the song had none.
-	if (!song->project.global_fx.params.unpatched) {
-		song->project.global_fx.params.unpatched =
+	if (!song->project.master_params.unpatched) {
+		song->project.master_params.unpatched =
 		    deluge::bridge::toDocParamSet(*song->paramManager.getUnpatchedParamSet());
 	}
-	deluge::project::DocParamSet& store = *song->project.global_fx.params.unpatched;
+	deluge::project::DocParamSet& store = *song->project.master_params.unpatched;
 	if (pVal >= (int32_t)store.params.size() || pAuto >= (int32_t)store.params.size()) {
 		std::fprintf(io.err, "STORE TOO SMALL (%zu params)\n", store.params.size());
 		return 3;
@@ -629,7 +629,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	deluge::project::setNodeAtPos(store.params[pAuto], 0, 111, true);
 	deluge::project::setNodeAtPos(store.params[pAuto], 48, -222, false);
 	// Reproject the store into the engine (+ refresh automation summary flags) so save serializes the edits.
-	deluge::bridge::fromDocParamManager(song->project.global_fx.params, song->paramManager);
+	deluge::bridge::fromDocParamManager(song->project.master_params, song->paramManager);
 
 	// The edits must be visible in the engine immediately.
 	AutoParam& engVal = song->paramManager.getUnpatchedParamSet()->params[pVal];
@@ -642,7 +642,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	}
 
 	// Flip Phase 2 guard: DIVERGE the engine scalar from the store scalar for pVal, so that persistence PROVES the
-	// song-global save read the STORE (project.global_fx.params.unpatched, holding kSentinel) — NOT the engine
+	// song-global save read the STORE (project.master_params.unpatched, holding kSentinel) — NOT the engine
 	// cursor. If save still projected the engine, the file would carry this distinct value and the reload assert
 	// below (reloaded store == engine == kSentinel) would fail.
 	engVal.currentValue = 0x0BADF00D;
@@ -1181,11 +1181,11 @@ opsChecked:;
 	}
 
 	// 5. Both edits must have persisted into the reloaded DOM store (the authority) and the reloaded engine.
-	if (!reloaded->project.global_fx.params.unpatched) {
+	if (!reloaded->project.master_params.unpatched) {
 		std::fprintf(io.err, "reloaded store EMPTY\n");
 		return 3;
 	}
-	deluge::project::DocParamSet& rstore = *reloaded->project.global_fx.params.unpatched;
+	deluge::project::DocParamSet& rstore = *reloaded->project.master_params.unpatched;
 	int32_t storeVal = rstore.params[pVal].current_value;
 	int32_t engineVal = reloaded->paramManager.getUnpatchedParamSet()->params[pVal].currentValue;
 

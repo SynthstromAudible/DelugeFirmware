@@ -30,7 +30,7 @@ namespace deluge::project {
 /// ModelStack's param-resolution role.
 struct OwnerId {
 	enum class Kind : uint8_t {
-		SONG,       // song-global params (the GlobalEffects tier)
+		SONG,       // song-global params (the master effect chain's)
 		CLIP,       // a clip's own params, identified by its Clip::id (audio clips; S2b)
 		INSTRUMENT, // an instrument-shared owner (SoundInstrument / Kit), identified by its Output::id
 		DRUM,       // a per-drum owner (SoundDrum), identified by its Drum::id
