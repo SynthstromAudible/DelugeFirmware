@@ -86,7 +86,7 @@ bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOn
 		if (!name.isEmpty()) {
 			writer.writeAttribute("presetName", name.get());
 		}
-		else if (type == OutputType::CV) {
+		if (type == OutputType::CV) {
 			char const* slotXMLTag = getSlotXMLTag();
 
 			writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->getChannel());
