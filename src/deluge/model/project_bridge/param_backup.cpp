@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "deluge-project/param_backup.h"
+#include "model/project_bridge/param_backup.h"
 #include "util/exceptions.h"
 #include <utility>
 
-namespace deluge::project {
+namespace deluge::bridge {
 
 ParamManager* ParamBackup::getForExactClip(ModControllableAudio* modControllable, Clip* clip, ParamManager* stealInto) {
 	auto itCorrectClip = map.find({modControllable, clip});
@@ -97,4 +97,4 @@ void ParamBackup::deleteForModControllable(ModControllableAudio* modControllable
 	}
 }
 
-} // namespace deluge::project
+} // namespace deluge::bridge

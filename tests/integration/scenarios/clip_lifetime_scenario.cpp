@@ -18,7 +18,6 @@
 #include "scenarios/clip_lifetime_scenario.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/serialization.h"
 #include "extern.h"
 #include "gui/context_menu/clear_song.h"
 #include "gui/ui/browser/browser.h"
@@ -45,6 +44,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -293,8 +293,8 @@ InstrumentClip* makeSynthClip() {
 	}
 	auto* synth = static_cast<SoundInstrument*>(instrument);
 	synth->setupAsBlankSynth(&paramManager, false);
-	currentSong->project.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
-	                                         &paramManager, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
+	                                      &paramManager, true);
 
 	deluge::storage::AcquireResult acquired;
 	acquired.instrument = synth;
@@ -340,7 +340,7 @@ SoundDrum* makeDrum(Kit* kit) {
 	Sound::initParams(&paramManager);
 	kit->addDrum(drum);
 	drum->setupAsBlankSynth(&paramManager);
-	currentSong->project.param_backup.backUp(drum, nullptr, &paramManager, true);
+	currentSong->live.param_backup.backUp(drum, nullptr, &paramManager, true);
 	return drum;
 }
 
@@ -354,8 +354,8 @@ InstrumentClip* makeKitClip() {
 		return nullptr;
 	}
 	auto* kit = static_cast<Kit*>(instrument);
-	currentSong->project.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
-	                                         &kitParams, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
+	                                      &kitParams, true);
 	SoundDrum* drum = makeDrum(kit);
 	if (drum == nullptr) {
 		return nullptr;
@@ -389,7 +389,7 @@ bool soundDrum(SoundDrum* drum, InstrumentClip* clip, ParamManager* paramManager
 
 /// SAVEKIT's drum's ParamManager: it has no note row, so the one backed up in the song.
 ParamManager* orphanParamManager() {
-	return currentSong->project.param_backup.getPreferablyWithClip(g_drum, nullptr);
+	return currentSong->live.param_backup.getPreferablyWithClip(g_drum, nullptr);
 }
 
 /// Write the current song to kSongPath through the song save's own serialiser: Song::writeToFile() over a file the
@@ -403,7 +403,7 @@ bool writeFixtureSong() {
 	if (error != Error::NONE) {
 		return fail("the fixture song could not be created");
 	}
-	deluge::project::saveSong(*currentSong, GetSerializer());
+	deluge::bridge::saveSong(*currentSong, GetSerializer());
 	error = GetSerializer().closeFileAfterWriting(kSongPath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", nullptr);
 	if (error != Error::NONE) {
 		return fail("the fixture song could not be closed");
@@ -419,7 +419,7 @@ int32_t serializeSong() {
 	auto& writer = static_cast<FileWriter&>(smSerializer);
 	writer.setMemoryBased();
 	g_step = "writeToFile";
-	deluge::project::saveSong(*currentSong, GetSerializer());
+	deluge::bridge::saveSong(*currentSong, GetSerializer());
 	const int32_t written = writer.bytesWritten();
 	writer.clearMemoryBased();
 	GetSerializer().reset();

@@ -17,9 +17,9 @@
 //   - View selection cleared before save (writeToFile serialises UI state).
 // See the design doc for the full list.
 
-#include "deluge-project/serialization.h"
 #include "memory/general_memory_allocator.h"
 #include "model/global_effectable/global_effectable.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
@@ -67,7 +67,7 @@ long load_then_save(char* xml, size_t xmlLen, char* out, uint32_t outCap, Error*
 		activeReader = &adapter;
 		e = openTreeFile(adapter, "song");
 		if (e == Error::NONE) {
-			e = deluge::project::loadSong(*song, adapter);
+			e = deluge::bridge::loadSong(*song, adapter);
 		}
 		activeReader = &smDeserializer;
 	}
@@ -84,7 +84,7 @@ long load_then_save(char* xml, size_t xmlLen, char* out, uint32_t outCap, Error*
 	song->setCurrentClip(nullptr);
 
 	deluge::scenarios::driver::beginCapture(smSerializer);
-	deluge::project::saveSong(*song, smSerializer);
+	deluge::bridge::saveSong(*song, smSerializer);
 	return deluge::scenarios::driver::endCapture(smSerializer, out, outCap);
 }
 

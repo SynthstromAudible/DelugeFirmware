@@ -41,6 +41,8 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/param_projection.h"
+#include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
 #include "modulation/knob.h"
 #include "modulation/params/param_set.h"
@@ -706,14 +708,14 @@ void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamM
                                                       bool writeAutomation, int32_t* valuesForOverride) {
 	// Serialize from the value DOM (deluge::project). Byte-identical to the former hand-written sequence
 	// (param_automation.cpp, verified in the param-projection driver), the first production use of the param DOM.
-	deluge::project::DocParamSet unpatched = deluge::project::toDocParamSet(*paramManager->getUnpatchedParamSet());
-	deluge::project::serializeModControllableParamAttributes(unpatched, writer, writeAutomation, valuesForOverride);
+	deluge::project::DocParamSet unpatched = deluge::bridge::toDocParamSet(*paramManager->getUnpatchedParamSet());
+	deluge::bridge::serializeModControllableParamAttributes(unpatched, writer, writeAutomation, valuesForOverride);
 }
 
 void ModControllableAudio::writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
                                                 int32_t* valuesForOverride) {
-	deluge::project::DocParamSet unpatched = deluge::project::toDocParamSet(*paramManager->getUnpatchedParamSet());
-	deluge::project::serializeModControllableParamTags(unpatched, writer, writeAutomation, valuesForOverride);
+	deluge::project::DocParamSet unpatched = deluge::bridge::toDocParamSet(*paramManager->getUnpatchedParamSet());
+	deluge::bridge::serializeModControllableParamTags(unpatched, writer, writeAutomation, valuesForOverride);
 }
 
 bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const* tagName,
@@ -723,8 +725,8 @@ bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const
 	// and the param-projection driver.
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
-	return deluge::project::readModControllableParamTag(reader, tagName, *unpatchedParams, *unpatchedParamsSummary,
-	                                                    readAutomationUpToPos);
+	return deluge::bridge::readModControllableParamTag(reader, tagName, *unpatchedParams, *unpatchedParamsSummary,
+	                                                   readAutomationUpToPos);
 }
 
 // paramManager is optional
@@ -1055,7 +1057,7 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 			paramManager = &modelStack->getTimelineCounter()->paramManager;
 		}
 		else {
-			paramManager = modelStack->song->project.param_backup.getPreferablyWithClip(
+			paramManager = modelStack->song->live.param_backup.getPreferablyWithClip(
 			    this,
 			    nullptr); // Could be NULL if a NonAudioInstrument - those don't back up any paramManagers (when they
 			              // even have them).

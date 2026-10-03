@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_drum.h"
 #include "deluge-project/doc_output.h"
-#include "deluge-project/serialization.h"
 #include "dsp/reverb/reverb.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
@@ -54,6 +53,7 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/sample/sample_recorder.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
@@ -321,6 +321,8 @@ Song::~Song() {
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
 #include "libdeluge/system.h"
+#include "model/project_bridge/param_projection.h"
+#include "model/project_bridge/param_serialization.h"
 #include "util/structural_edit_probe.h"
 extern gui::menu_item::IntegerRange defaultTempoMenu;
 extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
@@ -414,17 +416,17 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 }
 
 void Song::deleteAllBackedUpParamManagers() {
-	while (!project.param_backup.map.empty()) {
+	while (!live.param_backup.map.empty()) {
 		AudioEngine::routineWithClusterLoading();
-		project.param_backup.map.erase(project.param_backup.map.begin());
+		live.param_backup.map.erase(live.param_backup.map.begin());
 	}
 }
 
 void Song::deleteAllBackedUpParamManagersWithClips() {
-	for (auto it = project.param_backup.map.begin(); it != project.param_backup.map.end();) {
+	for (auto it = live.param_backup.map.begin(); it != live.param_backup.map.end();) {
 		if (it->first.second != nullptr) {
 			AudioEngine::routineWithClusterLoading();
-			it = project.param_backup.map.erase(it);
+			it = live.param_backup.map.erase(it);
 		}
 		else {
 			++it;
@@ -1107,9 +1109,9 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("yScrollArrangementView", persistentView.arrangementYScroll);
 	writer.writeAttribute("xScrollArrangementView", persistentView.xScroll[NAVIGATION_ARRANGEMENT]);
 	writer.writeAttribute("xZoomArrangementView", persistentView.xZoom[NAVIGATION_ARRANGEMENT]);
-	deluge::project::serialize(project.transport, writer);
-	deluge::project::serializeScaleKey(project.scale, writer);
-	deluge::project::serialize(project.groove, writer, this);
+	deluge::bridge::serialize(project.transport, writer);
+	deluge::bridge::serializeScaleKey(project.scale, writer);
+	deluge::bridge::serialize(project.groove, writer, this);
 
 	if (persistentView.tripletsOn) {
 		writer.writeAttribute("tripletsLevel", persistentView.tripletsLevel);
@@ -1136,7 +1138,7 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeOpeningTagEnd();
 	// Attributes end
 
-	deluge::project::serializeScaleNotes(project.scale, writer);
+	deluge::bridge::serializeScaleNotes(project.scale, writer);
 
 	writer.writeOpeningTagBeginning("reverb");
 	// The whole reverb block is DOM-authoritative: project.reverb (and the algorithm Song::model) is
@@ -1192,11 +1194,11 @@ weAreInArrangementEditorOrInClipInstance:
 	// store is still empty falls back to projecting the engine (first-save).
 	writer.writeOpeningTagBeginning("songParams");
 	if (project.global_fx.params.unpatched) {
-		deluge::project::serializeGlobalEffectableParamAttributes(*project.global_fx.params.unpatched, writer, true,
-		                                                          valuesForOverride);
+		deluge::bridge::serializeGlobalEffectableParamAttributes(*project.global_fx.params.unpatched, writer, true,
+		                                                         valuesForOverride);
 		writer.writeOpeningTagEnd();
-		deluge::project::serializeGlobalEffectableParamTags(*project.global_fx.params.unpatched, writer, true,
-		                                                    valuesForOverride);
+		deluge::bridge::serializeGlobalEffectableParamTags(*project.global_fx.params.unpatched, writer, true,
+		                                                   valuesForOverride);
 	}
 	else {
 		GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true, valuesForOverride);
@@ -1210,7 +1212,7 @@ weAreInArrangementEditorOrInClipInstance:
 		thisOutput->writeToFile(nullptr, this);
 	}
 	writer.writeArrayEnding("instruments");
-	deluge::project::serializeSections(project.arrangement, writer);
+	deluge::bridge::serializeSections(project.arrangement, writer);
 
 	writer.writeArrayStart("sessionClips");
 	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
@@ -1256,7 +1258,7 @@ weAreInArrangementEditorOrInClipInstance:
 		writer.writeArrayEnding("chordMem");
 	}
 
-	deluge::project::serializeMacros(project.arrangement, writer);
+	deluge::bridge::serializeMacros(project.arrangement, writer);
 
 	writer.writeClosingTag("song", true, true);
 }
@@ -1609,11 +1611,11 @@ unknownTag:
 				reader.exitTag("arrangementAutoScrollOn");
 			}
 
-			else if (deluge::project::deserialize(project.transport, reader, newTimePerTimerTick, tagName)) {}
+			else if (deluge::bridge::deserialize(project.transport, reader, newTimePerTimerTick, tagName)) {}
 
-			else if (deluge::project::deserializeScale(project.scale, reader, tagName)) {}
+			else if (deluge::bridge::deserializeScale(project.scale, reader, tagName)) {}
 
-			else if (deluge::project::deserialize(project.groove, reader, tagName)) {}
+			else if (deluge::bridge::deserialize(project.groove, reader, tagName)) {}
 
 			else if (!strcmp(tagName, "tripletsLevel")) {
 				persistentView.tripletsLevel = reader.readTagOrAttributeValueInt();
@@ -1738,9 +1740,9 @@ unknownTag:
 				reader.exitTag("chordMem");
 			}
 
-			else if (deluge::project::deserializeMacros(project.arrangement, reader, *this, tagName)) {}
+			else if (deluge::bridge::deserializeMacros(project.arrangement, reader, *this, tagName)) {}
 
-			else if (deluge::project::deserializeSections(project.arrangement, reader, tagName)) {}
+			else if (deluge::bridge::deserializeSections(project.arrangement, reader, tagName)) {}
 
 			else if (!strcmp(tagName, "instruments")) {
 				reader.match('[');
@@ -1860,7 +1862,7 @@ loadOutput:
 				songUnpatched->bindDomStoreExternal(&songStore);
 				char const* paramTag;
 				while (*(paramTag = reader.readNextTagOrAttributeName())) {
-					if (deluge::project::readGlobalEffectableParamTagToDoc(reader, paramTag, songStore, 2147483647)) {}
+					if (deluge::bridge::readGlobalEffectableParamTagToDoc(reader, paramTag, songStore, 2147483647)) {}
 					else {
 						reader.exitTag(paramTag);
 					}
@@ -2035,7 +2037,7 @@ loadOutput:
 						// cable store (keyed (from, dest), NOT index — cables reorder at runtime). Seed from the
 						// loaded inline stores, then bind so save + edits share the persistent store.
 						if (PatchCableSet* pcs = thisClip->paramManager.getPatchCableSet()) {
-							mgr.patch_cables = deluge::project::toDocPatchCables(*pcs);
+							mgr.patch_cables = deluge::bridge::toDocPatchCables(*pcs);
 							pcs->bindDomCablesExternal(&mgr.patch_cables);
 						}
 					}
@@ -2074,7 +2076,7 @@ loadOutput:
 							}
 							// S4b: per-drum patch-cable amount-automation → same (drum, clip) key, identity-keyed.
 							if (PatchCableSet* dpcs = nr.paramManager.getPatchCableSet()) {
-								dmgr.patch_cables = deluge::project::toDocPatchCables(*dpcs);
+								dmgr.patch_cables = deluge::bridge::toDocPatchCables(*dpcs);
 								dpcs->bindDomCablesExternal(&dmgr.patch_cables);
 							}
 						}
@@ -2103,7 +2105,7 @@ loadOutput:
 		}
 
 		if (thisOutput->clipInstances.empty()
-		    && project.param_backup.getPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr
+		    && live.param_backup.getPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr
 		    && thisOutput->type == OutputType::AUDIO) {
 			// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
 			// things will go wrong later.
@@ -2112,8 +2114,8 @@ loadOutput:
 			paramManager.setupUnpatched();
 			GlobalEffectable::initParams(&paramManager);
 
-			this->project.param_backup.backUp((ModControllableAudio*)thisOutput->toModControllable(), nullptr,
-			                                  &paramManager);
+			this->live.param_backup.backUp((ModControllableAudio*)thisOutput->toModControllable(), nullptr,
+			                               &paramManager);
 		}
 
 		for (int32_t i = 0; i < std::ssize(thisOutput->clipInstances); i++) {
@@ -2248,7 +2250,7 @@ skipInstance:
 	{
 		UnpatchedParamSet* unpatchedEngine = paramManager.getUnpatchedParamSet();
 		if (!project.global_fx.params.unpatched) {
-			project.global_fx.params.unpatched = deluge::project::toDocParamSet(*unpatchedEngine);
+			project.global_fx.params.unpatched = deluge::bridge::toDocParamSet(*unpatchedEngine);
 		}
 		deluge::project::DocParamSet& store = *project.global_fx.params.unpatched;
 #if ALPHA_OR_BETA_VERSION
@@ -2302,7 +2304,7 @@ skipInstance:
 						// Clips always have a durable id (ctor-minted), so relocate keyed by it.
 						if (std::optional<uint32_t> id = thisClip->id()) {
 							deluge::project::DocParamManager& mgr = project.clip_params.getOrCreate(*id);
-							mgr.midi_params = deluge::project::toDocMidiParams(*midi);
+							mgr.midi_params = deluge::bridge::toDocMidiParams(*midi);
 							midi->bindDomMidiExternal(&mgr.midi_params);
 						}
 					}
@@ -4023,7 +4025,7 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 
 	AudioEngine::logAction("Song::deleteBackedUpParamManagersForClip");
 
-	for (auto it = project.param_backup.map.begin(); it != project.param_backup.map.end();) {
+	for (auto it = live.param_backup.map.begin(); it != live.param_backup.map.end();) {
 		if (it->first.second != clip) {
 			++it;
 			continue;
@@ -4032,21 +4034,21 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 		AudioEngine::routineWithClusterLoading();
 		ModControllableAudio* modControllable = it->first.first;
 
-		auto itNull = project.param_backup.map.find({modControllable, static_cast<Clip*>(nullptr)});
+		auto itNull = live.param_backup.map.find({modControllable, static_cast<Clip*>(nullptr)});
 
 		// If a no-Clip backup already exists for this ModControllable, replace its contents with this one's
-		if (itNull != project.param_backup.map.end()) {
+		if (itNull != live.param_backup.map.end()) {
 			itNull->second.destructAndForgetParamCollections();
 			itNull->second.stealParamCollectionsFrom(&it->second);
-			it = project.param_backup.map.erase(it);
+			it = live.param_backup.map.erase(it);
 		}
 
 		// Otherwise, just re-key this entry to the null Clip. extract() re-links the node without moving the
 		// ParamManager, and the re-inserted entry sorts before the current position, so it won't be revisited.
 		else {
-			auto node = project.param_backup.map.extract(it++);
+			auto node = live.param_backup.map.extract(it++);
 			node.key().second = nullptr;
-			project.param_backup.map.insert(std::move(node));
+			live.param_backup.map.insert(std::move(node));
 		}
 	}
 }
@@ -4352,8 +4354,8 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 		// Ok, back to the main task - if there's no activeClip...
 		else {
 			if (output->type == OutputType::SYNTH || output->type == OutputType::KIT) {
-				if (!project.param_backup.getPreferablyWithClip((ModControllableAudio*)output->toModControllable(),
-				                                                nullptr)) {
+				if (!live.param_backup.getPreferablyWithClip((ModControllableAudio*)output->toModControllable(),
+				                                             nullptr)) {
 #if ALPHA_OR_BETA_VERSION
 					display->displayPopup("E044");
 #endif
@@ -4374,8 +4376,8 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
-					if (!project.param_backup.getPreferablyWithClip(soundDrum,
-					                                                NULL)) { // If no backedUpParamManager...
+					if (!live.param_backup.getPreferablyWithClip(soundDrum,
+					                                             NULL)) { // If no backedUpParamManager...
 						if (!findParamManagerForDrum(kit,
 						                             soundDrum)) { // If no ParamManager with a NoteRow somewhere...
 							FREEZE_WITH_ERROR("E102");
@@ -4530,8 +4532,8 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 		if (getClipWithOutput(thisOutput)) {}
 
 		else {
-			if (!project.param_backup.getPreferablyWithClip((ModControllableAudio*)thisOutput->toModControllable(),
-			                                                nullptr)) {
+			if (!live.param_backup.getPreferablyWithClip((ModControllableAudio*)thisOutput->toModControllable(),
+			                                             nullptr)) {
 				FREEZE_WITH_ERROR(errorMessageNormal);
 			}
 		}
@@ -4553,8 +4555,8 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 		}
 
 		else {
-			if (!project.param_backup.getPreferablyWithClip((ModControllableAudio*)thisInstrument->toModControllable(),
-			                                                nullptr)) {
+			if (!live.param_backup.getPreferablyWithClip((ModControllableAudio*)thisInstrument->toModControllable(),
+			                                             nullptr)) {
 				FREEZE_WITH_ERROR(errorMessageHibernating);
 			}
 		}
@@ -5155,7 +5157,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 
 	GlobalEffectableForClip::initParamsForAudioClip(&newParamManager);
 
-	project.param_backup.backUp((ModControllableAudio*)newOutput->toModControllable(), nullptr, &newParamManager, true);
+	live.param_backup.backUp((ModControllableAudio*)newOutput->toModControllable(), nullptr, &newParamManager, true);
 
 	if (replaceOutput) {
 		replaceOutputLowLevel(newOutput, replaceOutput);

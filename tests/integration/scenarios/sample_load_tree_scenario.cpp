@@ -349,7 +349,7 @@ SoundDrum* addSampleDrum(Kit& kit, Clip* clip, const char* name, const char* sam
 	}
 	// A bound source saves its ranges from its record: reseed it, as the sample browser's claim does.
 	drum->sources[0].seedDocRanges();
-	currentSong->project.param_backup.backUp(drum, clip, &paramManager, true);
+	currentSong->live.param_backup.backUp(drum, clip, &paramManager, true);
 	return drum;
 }
 
@@ -461,8 +461,8 @@ bool writeKitPreset(const char* path, std::initializer_list<std::pair<const char
 		return fail("no kit for a preset");
 	}
 	auto* kit = static_cast<Kit*>(kitBase);
-	currentSong->project.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
-	                                         &kitParams, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
+	                                      &kitParams, true);
 	for (const auto& [name, sample] : drums) {
 		if (addSampleDrum(*kit, nullptr, name, sample, /*load=*/false) == nullptr) {
 			return false;
@@ -487,8 +487,8 @@ bool writePresets() {
 		return fail("the preset synth has no sample range");
 	}
 	holder->filePath = kSynthPresetSample;
-	currentSong->project.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
-	                                         &synthParams, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
+	                                      &synthParams, true);
 	if (!writeInstrumentDocument(*synth, kSynthPresetPath, "\n</sound>\n")) {
 		return false;
 	}

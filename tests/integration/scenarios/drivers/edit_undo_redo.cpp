@@ -15,7 +15,6 @@
 #include "deluge-project/doc_audio_clip.h"
 #include "deluge-project/param_address.h"
 #include "deluge-project/param_automation.h"
-#include "deluge-project/serialization.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
 #include "model/action/action.h"
@@ -61,6 +60,7 @@
 #include "model/note/note.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -121,7 +121,7 @@ Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 		activeReader = &adapter; // in-memory: gates the AudioEngine render off during load (as the stream path did)
 		e = openTreeFile(adapter, "song");
 		if (e == Error::NONE) {
-			e = deluge::project::loadSong(*song, adapter);
+			e = deluge::bridge::loadSong(*song, adapter);
 		}
 		activeReader = &smDeserializer;
 	}
@@ -856,7 +856,7 @@ void clipLengthTarget(Song* song) {
 //
 // "Loaded sample" here means the clip's DocAudioClip/sampleHolder descriptor references a sample file (filePath
 // set, so startPos/endPos are real parsed values, not just-constructed zeros) -- NOT that the underlying WAV was
-// actually opened. This harness's load_song() (deluge::project::loadSong) never calls Song::loadAllSamples(), so
+// actually opened. This harness's load_song() (deluge::bridge::loadSong) never calls Song::loadAllSamples(), so
 // sampleHolder.audioFile is nullptr for every AudioClip here even in songs with real samples; gating on audioFile
 // would make this target unreachable across the whole corpus. sampleHolder.startPos/endPos ARE populated straight
 // from the XML's startSamplePos/endSamplePos via deriveEngineFromDoc() regardless, so the marker-revert mechanics

@@ -244,8 +244,8 @@ gotError:
 	if (shouldReplaceWholeInstrument) {
 		// newInstrument->loadAllSamples(true); // There'll be no samples cos it's new and blank
 		//  This is how we feed a ParamManager into the replaceInstrument() function
-		currentSong->project.param_backup.backUp((ModControllableAudio*)newInstrument->toModControllable(), nullptr,
-		                                         &newParamManager, true);
+		currentSong->live.param_backup.backUp((ModControllableAudio*)newInstrument->toModControllable(), nullptr,
+		                                      &newParamManager, true);
 		currentSong->replaceInstrument((Instrument*)clip->output, newInstrument, false);
 	}
 

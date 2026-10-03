@@ -31,7 +31,6 @@
 #include "deluge-project/metadata.h"
 #include "deluge-project/output_structure.h"
 #include "deluge-project/param_address.h"
-#include "deluge-project/param_backup.h"
 #include "deluge-project/reverb_settings.h"
 #include "deluge-project/scale_settings.h"
 #include "deluge-project/transport.h"
@@ -51,7 +50,7 @@ namespace deluge::project {
 ///
 ///   - **Runtime-reference tier** — live, polymorphic, pool-allocated engine objects and the
 ///     intrusive links the audio thread walks every render block (`media.first_output->next`);
-///     `clips` is an ordered list of non-owning `Clip*`; `global_fx`/`param_backup` hold live DSP
+///     `clips` is an ordered list of non-owning `Clip*`; `global_fx` holds live DSP
 ///     state. None of these is serializable *as data* — they are the running engine.
 ///
 /// The split is not perfectly clean: some value-tier data still embeds raw runtime pointers
@@ -95,7 +94,6 @@ public:
 	GlobalEffects global_fx;
 	ClipParams clip_params;     // per-clip automation stores, keyed by Clip::id (id-addressable node storage)
 	BackedParams backed_params; // instrument-shared automation, keyed by (owner, clip) — persistent form of ParamBackup
-	ParamBackup param_backup;
 	ClipStructure clip_structure; // M3 owner-1: per-clip structural records (loop_length…), keyed by Clip::id
 	DrumStructure drum_structure; // M3 owner-3: per-drum structural records (channel/note…), keyed by Drum::id
 	AudioClipStructure audio_clip_structure; // M3 owner-4: per-AudioClip descriptor records, keyed by Clip::id

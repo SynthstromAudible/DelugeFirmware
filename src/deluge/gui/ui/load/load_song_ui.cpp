@@ -18,7 +18,6 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "board_config.h" // PLACE_SDRAM_BSS
 #include "definitions_cxx.hpp"
-#include "deluge-project/serialization.h"
 #include "deluge_resource.h" // deluge_resource_loader_has_lowest
 #include "extern.h"
 #include "gui/colour/colour.h"
@@ -37,6 +36,7 @@
 #include "libdeluge/file_prefix.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -757,7 +757,7 @@ gotErrorAfterCreatingSong:
 	// are, after failing on one of those, it'd try to load something else and that would fail.
 	{
 		deluge::storage::ActiveReaderScope reading(songDocument_.reader());
-		error = deluge::project::loadSong(*preLoadedSong, songDocument_.reader());
+		error = deluge::bridge::loadSong(*preLoadedSong, songDocument_.reader());
 	}
 	// The tree is only needed during the read.
 	songDocument_.release();

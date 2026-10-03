@@ -333,7 +333,7 @@ DELUGE_STUB_FN(stub_kitResetDrumTempValues, "_ZN3Kit19resetDrumTempValuesEv")
 DELUGE_STUB_FN(stub_kitAddDrum, "_ZN3Kit7addDrumEP4DrumP4Song")
 DELUGE_STUB_FN(stub_drumCtor, "_ZN4DrumC2EN6deluge7project8DrumTypeE")
 DELUGE_STUB_FN(stub_paramBackupBackUp,
-               "_ZN6deluge7project11ParamBackup6backUpEP20ModControllableAudioP4ClipP23ParamManagerForTimelineb")
+               "_ZN6deluge6bridge11ParamBackup6backUpEP20ModControllableAudioP4ClipP23ParamManagerForTimelineb")
 DELUGE_STUB_FN(stub_drumSetNameCString, "_ZN4Drum7setNameEPKc")
 DELUGE_STUB_FN(stub_drumSetNameString, "_ZN4Drum7setNameEONSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE")
 DELUGE_STUB_RET(stub_paramSetDocForParam, "_ZN8ParamSet11docForParamEi", deluge::project::DocAutoParam*, nullptr)

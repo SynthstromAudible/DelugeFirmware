@@ -58,7 +58,7 @@ bool SoundInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOut
 		// If no activeClip, that means no Clip has this Output, so there should be a backedUpParamManager that we
 		// should use
 		if (!activeClip) {
-			paramManager = song->project.param_backup.getPreferablyWithClip(this, NULL);
+			paramManager = song->live.param_backup.getPreferablyWithClip(this, NULL);
 		}
 		else {
 			paramManager = nullptr;
@@ -229,8 +229,7 @@ void SoundInstrument::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 		ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(modelStackWithThreeMainThings);
 	}
 	else {
-		paramManager =
-		    (ParamManagerForTimeline*)modelStack->song->project.param_backup.getPreferablyWithClip(this, NULL);
+		paramManager = (ParamManagerForTimeline*)modelStack->song->live.param_backup.getPreferablyWithClip(this, NULL);
 		ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(paramManager);
 	}
 
@@ -278,7 +277,7 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	setupPatching(modelStackWithTimelineCounter);
 
 	ParamManager* paramManager =
-	    modelStackWithTimelineCounter->song->project.param_backup.getPreferablyWithClip(this, NULL);
+	    modelStackWithTimelineCounter->song->live.param_backup.getPreferablyWithClip(this, NULL);
 	if (!paramManager) {
 		FREEZE_WITH_ERROR("E173");
 	}
@@ -302,7 +301,7 @@ void SoundInstrument::setupPatchingForAllParamManagers(Song* song) {
 }
 
 void SoundInstrument::deleteBackedUpParamManagers(Song* song) {
-	song->project.param_backup.deleteForModControllable(this);
+	song->live.param_backup.deleteForModControllable(this);
 	// M2-G S4.5b: also retire this instrument's tree-resident automation stores (keyed by Output::id), so
 	// the persistent tree stays a faithful mirror of live owners. Safe here: deleteForModControllable above
 	// destroyed every parked ParamManager, and the instrument's clips are gone by the time an Output is deleted,

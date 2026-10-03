@@ -1259,7 +1259,7 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 
 	// these have to get cleared, otherwise we keep creating drums that aren't attached to note rows
 	if (soundDrumToReplace != nullptr) {
-		currentSong->project.param_backup.deleteForModControllable(soundDrumToReplace);
+		currentSong->live.param_backup.deleteForModControllable(soundDrumToReplace);
 		soundDrumToReplace->wontBeRenderedForAWhile();
 		// Out of the kit for good: the render's let-go of the drum must not write back into the kit's
 		// renderingDrums, which may be freed by then (SoundDrum::setSkippingRendering skips a null kit).
@@ -1273,7 +1273,7 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 	soundDrumToReplace->path = request.target.dirPath.c_str();
 	Error error = Error::NONE;
 	ParamManager* paramManager =
-	    currentSong->project.param_backup.getPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
+	    currentSong->live.param_backup.getPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
 	if (paramManager) {
 		kitToLoadFor->addDrum(soundDrumToReplace);
 		// The name lives in the DocDrum addDrum just bound. It is the real on-card name (display-agnostic), taken from

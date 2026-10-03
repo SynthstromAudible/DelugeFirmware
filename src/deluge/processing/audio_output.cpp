@@ -312,7 +312,7 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 	// If no activeClip, that means no Clip has this Instrument, so there should be a backedUpParamManager that we
 	// should use / save
 	if (!activeClip) {
-		paramManager = song->project.param_backup.getPreferablyWithClip(this, NULL);
+		paramManager = song->live.param_backup.getPreferablyWithClip(this, NULL);
 	}
 
 	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, true);
@@ -366,14 +366,14 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 	}
 
 	if (paramManager.containsAnyMainParamCollections()) {
-		song->project.param_backup.backUp(this, NULL, &paramManager);
+		song->live.param_backup.backUp(this, NULL, &paramManager);
 	}
 
 	return Error::NONE;
 }
 
 void AudioOutput::deleteBackedUpParamManagers(Song* song) {
-	song->project.param_backup.deleteForModControllable(this);
+	song->live.param_backup.deleteForModControllable(this);
 }
 
 Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) {

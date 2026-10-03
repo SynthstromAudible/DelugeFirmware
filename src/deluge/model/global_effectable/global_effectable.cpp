@@ -27,6 +27,8 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/mod_controllable/ModFXProcessor.h"
+#include "model/project_bridge/param_projection.h"
+#include "model/project_bridge/param_serialization.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
@@ -797,15 +799,15 @@ void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManag
 	// (verified in the param-projection driver). serializeGlobalEffectableParamAttributes emits the global flat
 	// attrs around the shared ModControllableAudio attrs and the community attrs.
 	deluge::project::DocParamSet unpatched =
-	    deluge::project::toDocParamSetFromStore(*paramManager->getUnpatchedParamSet());
-	deluge::project::serializeGlobalEffectableParamAttributes(unpatched, writer, writeAutomation, valuesForOverride);
+	    deluge::bridge::toDocParamSetFromStore(*paramManager->getUnpatchedParamSet());
+	deluge::bridge::serializeGlobalEffectableParamAttributes(unpatched, writer, writeAutomation, valuesForOverride);
 }
 
 void GlobalEffectable::writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
                                             int32_t* valuesForOverride) {
 	deluge::project::DocParamSet unpatched =
-	    deluge::project::toDocParamSetFromStore(*paramManager->getUnpatchedParamSet());
-	deluge::project::serializeGlobalEffectableParamTags(unpatched, writer, writeAutomation, valuesForOverride);
+	    deluge::bridge::toDocParamSetFromStore(*paramManager->getUnpatchedParamSet());
+	deluge::bridge::serializeGlobalEffectableParamTags(unpatched, writer, writeAutomation, valuesForOverride);
 }
 
 void GlobalEffectable::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
@@ -833,7 +835,7 @@ void GlobalEffectable::readParamsFromFileDomFirst(Deserializer& reader, ParamMan
 	deluge::project::DocParamSet* store = unpatched->domStore();
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (deluge::project::readGlobalEffectableParamTagToDoc(reader, tagName, *store, readAutomationUpToPos)) {}
+		if (deluge::bridge::readGlobalEffectableParamTagToDoc(reader, tagName, *store, readAutomationUpToPos)) {}
 		else {
 			reader.exitTag(tagName);
 		}
@@ -848,8 +850,8 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 	// dispatch collapses to one call; verified by the golden round-trip and the param-projection driver.
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
-	return deluge::project::readGlobalEffectableParamTag(reader, tagName, *unpatchedParams, *unpatchedParamsSummary,
-	                                                     readAutomationUpToPos);
+	return deluge::bridge::readGlobalEffectableParamTag(reader, tagName, *unpatchedParams, *unpatchedParamsSummary,
+	                                                    readAutomationUpToPos);
 }
 
 // paramManager is optional

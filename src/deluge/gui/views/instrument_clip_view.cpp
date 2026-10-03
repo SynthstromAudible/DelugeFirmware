@@ -5336,7 +5336,7 @@ doDisplayError:
 	SoundDrum* newDrum = new (memory) SoundDrum();
 	newDrum->setupAsSample(&paramManager);
 
-	modelStack->song->project.param_backup.backUp(newDrum, modelStack->song->getCurrentClip(), &paramManager, true);
+	modelStack->song->live.param_backup.backUp(newDrum, modelStack->song->getCurrentClip(), &paramManager, true);
 
 	newDrum->nameIsDiscardable = true;
 

@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "deluge-project/serialization.h"
+#include "model/project_bridge/song_serialization.h"
 #include "deluge-project/arrangement.h"
 #include "deluge-project/groove.h"
 #include "deluge-project/scale_settings.h"
@@ -27,7 +27,9 @@
 #include <algorithm>
 #include <cstring>
 
-namespace deluge::project {
+namespace deluge::bridge {
+
+using namespace deluge::project;
 
 void saveSong(::Song& song, Serializer& out) {
 	song.writeToFile(out);
@@ -373,4 +375,4 @@ bool deserializeScale(ScaleSettings& scale, Deserializer& in, char const* tagNam
 	return false;
 }
 
-} // namespace deluge::project
+} // namespace deluge::bridge

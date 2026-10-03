@@ -654,8 +654,8 @@ Error Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) 
 
 	ModControllable* modControllable = output->toModControllable();
 
-	bool success = modelStack->song->project.param_backup.getPreferablyWithClip((ModControllableAudio*)modControllable,
-	                                                                            this, &paramManager);
+	bool success = modelStack->song->live.param_backup.getPreferablyWithClip((ModControllableAudio*)modControllable,
+	                                                                         this, &paramManager);
 
 	if (!success) {
 		if (ALPHA_OR_BETA_VERSION) {
@@ -975,8 +975,7 @@ Error Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip*
 
 			// Let's first just see if there already was a *perfect* backed-up one for this *exact* Clip, that we could
 			// just have. If so, great, we're done.
-			if (song->project.param_backup.getForExactClip((ModControllableAudio*)modControllable, this,
-			                                               &paramManager)) {
+			if (song->live.param_backup.getForExactClip((ModControllableAudio*)modControllable, this, &paramManager)) {
 trimFoundParamManager:
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -996,8 +995,8 @@ trimFoundParamManager:
 		// If there wasn't one...
 		if (!paramManager.containsAnyMainParamCollections()) {
 
-			bool success = song->project.param_backup.getPreferablyWithClip((ModControllableAudio*)modControllable,
-			                                                                this, &paramManager);
+			bool success = song->live.param_backup.getPreferablyWithClip((ModControllableAudio*)modControllable, this,
+			                                                             &paramManager);
 
 			if (success) {
 				goto trimFoundParamManager;

@@ -37,6 +37,8 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_projection.h"
+#include "model/project_bridge/param_serialization.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_low_level_reader.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -3112,9 +3114,9 @@ bool Sound::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t
 void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {
 
 	// We gotta do this for any backedUpParamManagers too!
-	for (auto it = song->project.param_backup.map.lower_bound(
+	for (auto it = song->live.param_backup.map.lower_bound(
 	         {static_cast<ModControllableAudio*>(this), static_cast<Clip*>(nullptr)});
-	     it != song->project.param_backup.map.end() && it->first.first == this; ++it) {
+	     it != song->live.param_backup.map.end() && it->first.first == this; ++it) {
 		Clip* clip = it->first.second;
 		if (clip) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -3503,7 +3505,7 @@ void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* pa
 			paramManager->getPatchCableSet()->readPatchCablesFromFile(reader, readAutomationUpToPos);
 			reader.exitTag("patchCables");
 		}
-		else if (deluge::project::readSoundParamTagToDoc(reader, tagName, *pStore, *uStore, readAutomationUpToPos)) {}
+		else if (deluge::bridge::readSoundParamTagToDoc(reader, tagName, *pStore, *uStore, readAutomationUpToPos)) {}
 		else {
 			reader.exitTag(tagName);
 		}
@@ -3558,8 +3560,8 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 		possiblySetupDefaultExpressionPatching(&paramManager);
 
 		// And, we file it with the Song
-		modelStack->song->project.param_backup.backUp(this, (Clip*)modelStack->getTimelineCounterAllowNull(),
-		                                              &paramManager, true);
+		modelStack->song->live.param_backup.backUp(this, (Clip*)modelStack->getTimelineCounterAllowNull(),
+		                                           &paramManager, true);
 	}
 
 	doneReadingFromFile();
@@ -4076,8 +4078,8 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	// (verified in the param-projection driver). serializeSoundParams emits the patched + unpatched flat attrs,
 	// the shared ModControllableAudio block, the mid-block writeOpeningTagEnd, the <envelope*> groups, the
 	// <patchCables> block and the shared tags.
-	deluge::project::DocParamManager doc = deluge::project::toDocParamManagerFromStore(*paramManager);
-	deluge::project::serializeSoundParams(*doc.patched, *doc.unpatched, doc.patch_cables, writer, writeAutomation);
+	deluge::project::DocParamManager doc = deluge::bridge::toDocParamManagerFromStore(*paramManager);
+	deluge::bridge::serializeSoundParams(*doc.patched, *doc.unpatched, doc.patch_cables, writer, writeAutomation);
 }
 
 // M3 owner-5: copy the DOM-owned scalars engine->record (the load-bridge). Assumes docSound_ is bound. Run from

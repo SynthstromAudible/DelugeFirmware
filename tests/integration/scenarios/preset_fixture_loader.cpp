@@ -101,8 +101,8 @@ bool writeSampleSynthPreset(const char* path, const char* samplePath) {
 		return false;
 	}
 	holder->filePath = samplePath;
-	currentSong->project.param_backup.backUp(static_cast<ModControllableAudio*>(instrument->toModControllable()),
-	                                         nullptr, &paramManager, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(instrument->toModControllable()), nullptr,
+	                                      &paramManager, true);
 	if (StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false)
 	    != Error::NONE) {
 		return false;

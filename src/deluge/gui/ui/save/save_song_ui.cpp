@@ -16,7 +16,6 @@
  */
 #include "gui/ui/save/save_song_ui.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/serialization.h"
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/audio_recorder.h"
@@ -27,6 +26,7 @@
 #include "io/file.hpp"
 #include "libdeluge/file_bytes.h"
 #include "libdeluge/file_io.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -1085,7 +1085,7 @@ bool SaveSongUI::serializeSongToBuffer() {
 	// setMemoryBased() survives that internal reset(): reset() clears the buffer position, the byte
 	// count and the failure flag, and nothing else.
 	writer.setMemoryBased();
-	deluge::project::saveSong(*currentSong, GetSerializer());
+	deluge::bridge::saveSong(*currentSong, GetSerializer());
 
 	const int32_t written = writer.bytesWritten();
 	if (written <= 0) {

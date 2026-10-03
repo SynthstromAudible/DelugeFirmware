@@ -25,15 +25,14 @@ class Clip;
 class ModControllableAudio;
 class ParamManagerForTimeline;
 
-namespace deluge::project {
+namespace deluge::bridge {
 
 /// Parked ParamManagers, keyed by (ModControllableAudio, Clip). When a Clip or ModControllable is not
 /// currently holding its ParamManager live, the manager is stashed here so its automation/state
-/// survives. A component of deluge::project::Song.
+/// survives. An engine runtime cache, held by the engine Song (`::Song::live`).
 ///
-/// The bulk-delete operations that need to cooperatively yield to the audio engine
-/// (`deleteBackedUpParamManagersForClip` and the two `deleteAll…`) stay on the ::Song controller —
-/// that AudioEngine coupling is deliberately kept out of this library.
+/// The bulk-delete operations that cooperatively yield to the audio engine (`deleteBackedUpParamManagersForClip` and
+/// the two `deleteAll…`) are on the ::Song controller.
 struct ParamBackup {
 	deluge::fast_map<std::pair<ModControllableAudio*, Clip*>, ParamManager> map;
 
@@ -54,4 +53,4 @@ struct ParamBackup {
 	void deleteForModControllable(ModControllableAudio* modControllable);
 };
 
-} // namespace deluge::project
+} // namespace deluge::bridge

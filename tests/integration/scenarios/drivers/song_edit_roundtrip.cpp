@@ -18,7 +18,6 @@
 
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h"
-#include "deluge-project/serialization.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
@@ -28,6 +27,7 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/midi/midi_param.h"
@@ -45,6 +45,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "model/project_bridge/param_projection.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
 #include "storage/parse_xml.h"
@@ -306,7 +307,7 @@ static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 		activeReader = &adapter;
 		e = openTreeFile(adapter, "song");
 		if (e == Error::NONE) {
-			e = deluge::project::loadSong(*song, adapter);
+			e = deluge::bridge::loadSong(*song, adapter);
 		}
 		activeReader = &smDeserializer;
 	}
@@ -617,7 +618,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// The store is populated by the <songParams> read; seed it from the engine if the song had none.
 	if (!song->project.global_fx.params.unpatched) {
 		song->project.global_fx.params.unpatched =
-		    deluge::project::toDocParamSet(*song->paramManager.getUnpatchedParamSet());
+		    deluge::bridge::toDocParamSet(*song->paramManager.getUnpatchedParamSet());
 	}
 	deluge::project::DocParamSet& store = *song->project.global_fx.params.unpatched;
 	if (pVal >= (int32_t)store.params.size() || pAuto >= (int32_t)store.params.size()) {
@@ -629,7 +630,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	deluge::project::setNodeAtPos(store.params[pAuto], 0, 111, true);
 	deluge::project::setNodeAtPos(store.params[pAuto], 48, -222, false);
 	// Reproject the store into the engine (+ refresh automation summary flags) so save serializes the edits.
-	deluge::project::fromDocParamManager(song->project.global_fx.params, song->paramManager);
+	deluge::bridge::fromDocParamManager(song->project.global_fx.params, song->paramManager);
 
 	// The edits must be visible in the engine immediately.
 	AutoParam& engVal = song->paramManager.getUnpatchedParamSet()->params[pVal];
@@ -649,7 +650,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 
 	// 3. Save.
 	deluge::scenarios::driver::beginCapture(smSerializer);
-	deluge::project::saveSong(*song, smSerializer);
+	deluge::bridge::saveSong(*song, smSerializer);
 	long n1 = deluge::scenarios::driver::endCapture(smSerializer, gen1, kCap);
 
 	// 4. Reload the saved bytes.
@@ -1063,7 +1064,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 
 		if (plantedCable || plantedMidi) {
 			deluge::scenarios::driver::beginCapture(smSerializer);
-			deluge::project::saveSong(*reloaded, smSerializer);
+			deluge::bridge::saveSong(*reloaded, smSerializer);
 			long n2 = deluge::scenarios::driver::endCapture(smSerializer, gen2, kCap);
 			std::memcpy(gen2copy, gen2, n2);
 			Error e3;

@@ -211,7 +211,7 @@ bool ownedBySong(const ModControllableAudio* owner) {
 /// without being deleted leaves behind.
 int32_t orphanedParamManagers() {
 	int32_t orphans = 0;
-	for (const auto& [key, paramManager] : currentSong->project.param_backup.map) {
+	for (const auto& [key, paramManager] : currentSong->live.param_backup.map) {
 		orphans += ownedBySong(key.first) ? 0 : 1;
 	}
 	return orphans;

@@ -257,8 +257,8 @@ InstrumentClip* makeSynthClip() {
 	}
 	auto* synth = static_cast<SoundInstrument*>(instrument);
 	synth->setupAsBlankSynth(&paramManager, false);
-	currentSong->project.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
-	                                         &paramManager, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
+	                                      &paramManager, true);
 	deluge::storage::AcquireResult acquired;
 	acquired.instrument = synth;
 	acquired.loadedFromFile = true;
@@ -287,7 +287,7 @@ SoundDrum* makeDrum(Kit* kit) {
 	Sound::initParams(&paramManager);
 	kit->addDrum(drum);
 	drum->setupAsBlankSynth(&paramManager);
-	currentSong->project.param_backup.backUp(drum, nullptr, &paramManager, true);
+	currentSong->live.param_backup.backUp(drum, nullptr, &paramManager, true);
 	return drum;
 }
 
@@ -300,8 +300,8 @@ InstrumentClip* makeKitClip() {
 		return nullptr;
 	}
 	auto* kit = static_cast<Kit*>(instrument);
-	currentSong->project.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
-	                                         &kitParams, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
+	                                      &kitParams, true);
 	if (makeDrum(kit) == nullptr) {
 		return nullptr;
 	}
@@ -568,8 +568,8 @@ void editLeg() {
 		}
 		auto* synth = static_cast<SoundInstrument*>(fresh);
 		synth->setupAsBlankSynth(&paramManager, false);
-		currentSong->project.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()),
-		                                         nullptr, &paramManager, true);
+		currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
+		                                      &paramManager, true);
 		currentSong->replaceInstrument(static_cast<Instrument*>(g_clip->output), fresh);
 		break;
 	}

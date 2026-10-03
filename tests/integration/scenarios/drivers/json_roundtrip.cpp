@@ -16,9 +16,9 @@
 // wrote -- i.e. the JSON read path is faithful to the JSON write path. Exit: 0 = settled JSON round
 // trip; 1 = load error; 2 = usage/IO; 3 = JSON fixed-point mismatch.
 
-#include "deluge-project/serialization.h"
 #include "memory/general_memory_allocator.h"
 #include "model/global_effectable/global_effectable.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "scenarios/drivers/tree_load.h"
 #include "storage/parse_json.h"
@@ -71,7 +71,7 @@ static Song* freshSong() {
 static long saveJson(Song* song, char* out, uint32_t outCap) {
 	song->setCurrentClip(nullptr); // drop transient view state, as song_roundtrip does
 	deluge::scenarios::driver::beginCapture(smJsonSerializer);
-	deluge::project::saveSong(*song, smJsonSerializer);
+	deluge::bridge::saveSong(*song, smJsonSerializer);
 	return deluge::scenarios::driver::endCapture(smJsonSerializer, out, outCap);
 }
 
@@ -87,7 +87,7 @@ static Song* loadFromXml(char* xml, size_t xmlLen, Error* loadErr) {
 		activeReader = &adapter;
 		e = openTreeFile(adapter, "song");
 		if (e == Error::NONE) {
-			e = deluge::project::loadSong(*song, adapter);
+			e = deluge::bridge::loadSong(*song, adapter);
 		}
 		activeReader = &smDeserializer;
 	}
@@ -110,7 +110,7 @@ static Song* loadFromJson(char* json, size_t jsonLen, Error* loadErr) {
 		activeReader = &adapter;
 		e = openTreeFileJson(adapter, "song");
 		if (e == Error::NONE) {
-			e = deluge::project::loadSong(*song, adapter);
+			e = deluge::bridge::loadSong(*song, adapter);
 		}
 		activeReader = &smDeserializer;
 	}

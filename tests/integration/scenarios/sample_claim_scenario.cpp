@@ -489,7 +489,7 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	holder->filePath = samplePath;
 	// A bound source saves its ranges from its record: reseed it, as the sample browser's claim does.
 	drum->sources[0].seedDocRanges();
-	currentSong->project.param_backup.backUp(drum, nullptr, &paramManager, true);
+	currentSong->live.param_backup.backUp(drum, nullptr, &paramManager, true);
 	return drum;
 }
 
@@ -507,8 +507,8 @@ bool writeKitPreset(const char* path, const KitPresetDrum* drums, int32_t count)
 		return fail("kit", "no kit for the preset");
 	}
 	auto* kit = static_cast<Kit*>(kitBase);
-	currentSong->project.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
-	                                         &kitParams, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
+	                                      &kitParams, true);
 	for (int32_t i = 0; i < count; i++) {
 		if (addSampleDrum(*kit, drums[i].name, drums[i].samplePath) == nullptr) {
 			return false;
@@ -533,8 +533,8 @@ bool writeSynthPreset(const char* path) {
 		return fail("import-multi", "no synth for the preset");
 	}
 	static_cast<SoundInstrument*>(instrument)->setupAsBlankSynth(&paramManager, false);
-	currentSong->project.param_backup.backUp(static_cast<ModControllableAudio*>(instrument->toModControllable()),
-	                                         nullptr, &paramManager, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(instrument->toModControllable()), nullptr,
+	                                      &paramManager, true);
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
 		return fail("import-multi", "the synth preset file could not be created");

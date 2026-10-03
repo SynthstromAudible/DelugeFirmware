@@ -36,9 +36,9 @@
 // the Action subsystem's headless behaviour must be verified first.
 
 #include "deluge-project/param_automation.h"
-#include "deluge-project/serialization.h"
 #include "memory/general_memory_allocator.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
@@ -91,7 +91,7 @@ static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 		activeReader = &adapter; // in-memory: gates the AudioEngine render off during load (as the stream path did)
 		e = openTreeFile(adapter, "song");
 		if (e == Error::NONE) {
-			e = deluge::project::loadSong(*song, adapter);
+			e = deluge::bridge::loadSong(*song, adapter);
 		}
 		activeReader = &smDeserializer;
 	}
@@ -125,7 +125,7 @@ static void dumpAfterSaveReload(Song* song) {
 	const uint32_t cap = 16u * 1024 * 1024;
 	char* buf = (char*)malloc(cap);
 	deluge::scenarios::driver::beginCapture(smSerializer);
-	deluge::project::saveSong(*song, smSerializer);
+	deluge::bridge::saveSong(*song, smSerializer);
 	long n = deluge::scenarios::driver::endCapture(smSerializer, buf, cap);
 
 	char* copy = (char*)malloc(n + 1);

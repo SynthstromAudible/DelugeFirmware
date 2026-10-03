@@ -506,7 +506,7 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	holder->filePath = samplePath;
 	// A bound source saves its ranges from its record: reseed it, as the sample browser's claim does.
 	drum->sources[0].seedDocRanges();
-	currentSong->project.param_backup.backUp(drum, nullptr, &paramManager, true);
+	currentSong->live.param_backup.backUp(drum, nullptr, &paramManager, true);
 	return drum;
 }
 
@@ -518,8 +518,8 @@ bool writeKitPreset(const char* path, const char* const* names, const char* cons
 		return fail(legName(g_leg), "no kit for a preset");
 	}
 	auto* kit = static_cast<Kit*>(kitBase);
-	currentSong->project.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
-	                                         &kitParams, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
+	                                      &kitParams, true);
 	for (int32_t i = 0; i < count; i++) {
 		if (addSampleDrum(*kit, names[i], samples[i]) == nullptr) {
 			return false;
@@ -781,7 +781,7 @@ bool ownedBySong(const ModControllableAudio* owner) {
 /// without being deleted leaves behind.
 int32_t orphanedParamManagers() {
 	int32_t orphans = 0;
-	for (const auto& [key, paramManager] : currentSong->project.param_backup.map) {
+	for (const auto& [key, paramManager] : currentSong->live.param_backup.map) {
 		orphans += ownedBySong(key.first) ? 0 : 1;
 	}
 	return orphans;

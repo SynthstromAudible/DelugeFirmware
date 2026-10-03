@@ -20,7 +20,6 @@
 #include <cstdio>
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/serialization.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
 #include "hid/display/display.h"
@@ -30,6 +29,7 @@
 #include "io/midi/midi_follow.h"
 #include "io/stall_bound.h"
 #include "libdeluge/file_bytes.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/sample/recorder_write_policy.h" // kMaxUnproductiveUs
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -292,14 +292,14 @@ void issueCanaryWrite() {
 
 /// Serialise the template song into the active writer's memory buffer.
 ///
-/// Same staging SaveSongUI uses (`setMemoryBased()` then `deluge::project::saveSong()`): the document is built in
+/// Same staging SaveSongUI uses (`setMemoryBased()` then `deluge::bridge::saveSong()`): the document is built in
 /// RAM so the card only ever sees one whole-file write, which is what lets that write go through the
 /// byte channel instead of a blocking open-write-close.
 bool stageTemplateDocument(const uint8_t** outBytes, uint32_t* outLen) {
 	currentSong->project.metadata.name = "DEFAULT";
 	FileWriter& writer = static_cast<FileWriter&>(smSerializer);
 	writer.setMemoryBased();
-	deluge::project::saveSong(*currentSong, GetSerializer());
+	deluge::bridge::saveSong(*currentSong, GetSerializer());
 	const int32_t written = writer.bytesWritten();
 	if (written <= 0) {
 		return false; // An empty document is a failed write, not a small one.

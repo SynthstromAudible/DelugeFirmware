@@ -7,6 +7,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/param_projection.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_collection.h"
@@ -170,14 +171,14 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 	if (address->kind == deluge::modulation::params::Kind::PATCH_CABLE) {
 		auto* pcs = static_cast<PatchCableSet*>(pc);
 		if (pcs->domCables() == nullptr) {
-			mgr->patch_cables = deluge::project::toDocPatchCables(*pcs);
+			mgr->patch_cables = deluge::bridge::toDocPatchCables(*pcs);
 			pcs->bindDomCablesExternal(&mgr->patch_cables);
 		}
 	}
 	else if (address->kind == deluge::modulation::params::Kind::MIDI) {
 		auto* midi = static_cast<MIDIParamCollection*>(pc);
 		if (midi->domMidi() == nullptr) {
-			mgr->midi_params = deluge::project::toDocMidiParams(*midi);
+			mgr->midi_params = deluge::bridge::toDocMidiParams(*midi);
 			midi->bindDomMidiExternal(&mgr->midi_params);
 		}
 	}

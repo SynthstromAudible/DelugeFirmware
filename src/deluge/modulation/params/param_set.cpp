@@ -28,6 +28,8 @@
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/param_projection.h"
+#include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
@@ -797,9 +799,9 @@ char const* expressionParamNames[] = {"pitchBend", "yExpression", "pressure"};
 bool ExpressionParamSet::writeToFile(Serializer& writer, bool mustWriteOpeningTagEndFirst) {
 	// Serialize from the value DOM (deluge::project) — byte-identical to the former hand-written sequence
 	// (verified in the param-projection driver).
-	deluge::project::DocParamSet doc = deluge::project::toDocParamSetFromStore(*this);
-	return deluge::project::serializeExpressionParams(doc, writer, mustWriteOpeningTagEndFirst,
-	                                                  /*writeAutomation=*/true);
+	deluge::project::DocParamSet doc = deluge::bridge::toDocParamSetFromStore(*this);
+	return deluge::bridge::serializeExpressionParams(doc, writer, mustWriteOpeningTagEndFirst,
+	                                                 /*writeAutomation=*/true);
 }
 
 void ExpressionParamSet::readFromFile(Deserializer& reader, ParamCollectionSummary* summary,
@@ -813,7 +815,7 @@ void ExpressionParamSet::readFromFile(Deserializer& reader, ParamCollectionSumma
 	char const* tagName;
 	reader.match('{'); // descend into <expressionData> (needed for JSON; a no-op in XML)
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (deluge::project::readExpressionParamTagToDoc(reader, tagName, *store, readAutomationUpToPos)) {}
+		if (deluge::bridge::readExpressionParamTagToDoc(reader, tagName, *store, readAutomationUpToPos)) {}
 		else {
 			reader.exitTag();
 		}

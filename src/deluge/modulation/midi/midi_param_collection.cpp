@@ -26,6 +26,8 @@
 #include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_projection.h"
+#include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "processing/engines/audio_engine.h"
@@ -407,7 +409,7 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
 	// Serialize from the value DOM (deluge::project) — byte-identical to the former hand-written sequence
 	// (verified in the param-projection driver). toDocMidiParams reads each CC's live nodes via docForParam (the bound
 	// tree entry when bound), so this is the last owner block to move fully onto the DOM serializers.
-	deluge::project::serializeMidiParams(deluge::project::toDocMidiParams(*this), writer, true);
+	deluge::bridge::serializeMidiParams(deluge::bridge::toDocMidiParams(*this), writer, true);
 }
 
 /*

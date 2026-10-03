@@ -978,14 +978,14 @@ void AudioClip::detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOu
 	// Normal case, where we're leaving ParamManager behind with old Output
 	if (!shouldTakeParamManagerWith) {
 doNormal:
-		song->project.param_backup.backUp((ModControllableAudio*)output->toModControllable(), this, &paramManager);
+		song->live.param_backup.backUp((ModControllableAudio*)output->toModControllable(), this, &paramManager);
 	}
 
 	// Or, special case where we're keeping the ParamManager
 	else {
 
 		// If our ParamManager was the only one that the old Output had, we have to clone it
-		if (!song->project.param_backup.getPreferablyWithClip((ModControllableAudio*)output->toModControllable(), this)
+		if (!song->live.param_backup.getPreferablyWithClip((ModControllableAudio*)output->toModControllable(), this)
 		    && !song->getClipWithOutput(output, false, this)) {
 
 			ParamManagerForTimeline newParamManager;
@@ -994,8 +994,8 @@ doNormal:
 				goto doNormal; // If out of RAM, leave ParamManager behind
 			}
 
-			song->project.param_backup.backUp((ModControllableAudio*)output->toModControllable(), nullptr,
-			                                  &newParamManager);
+			song->live.param_backup.backUp((ModControllableAudio*)output->toModControllable(), nullptr,
+			                               &newParamManager);
 			// Obscure bug fixed, Oct 2022. Previously, we filed it away under not just the ModControllable, but also
 			// this Clip. Perhaps that's still theoretically what we'd like to do? But, it caused an E170 because when
 			// we do a song swap and call Song::deleteSoundsWhichWontSound(), that calls

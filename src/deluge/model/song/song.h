@@ -27,6 +27,7 @@
 #include "model/global_effectable/global_effectable_for_song.h"
 #include "model/instrument/instrument.h"
 #include "model/output.h"
+#include "model/project_bridge/song_live.h"
 #include "model/scale/musical_key.h"
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
@@ -201,9 +202,8 @@ public:
 	// (docs/dev/project_model_extraction.md); ::Song is the controller that owns it. Empty for now.
 	// (Named `project` rather than `model` — `model` is already the reverb-model enum member.)
 	deluge::project::Song project;
-
-	// Backed-up ParamManagers, keyed by (ModControllable, Clip). For a given ModControllable, the entry with a
-	// null Clip (if any) sorts first. Node-based so ParamManagers never move in memory.
+	/// The parts of the song the engine still holds as live objects.
+	SongLive live;
 
 	// View/UI state that IS serialized to the song file (scroll/zoom/layout/triplets/etc.).
 	PersistentViewState persistentView;

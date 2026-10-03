@@ -15,7 +15,6 @@
 // Exit: 0 = all good, 1 = load error, 2 = usage/IO, 3 = no suitable clip in this song (skip), 4 = assertion failed.
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/serialization.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -25,6 +24,7 @@
 #include "model/model_stack.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound_drum.h"
@@ -140,7 +140,7 @@ static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 		activeReader = &adapter;
 		e = openTreeFile(adapter, "song");
 		if (e == Error::NONE) {
-			e = deluge::project::loadSong(*song, adapter);
+			e = deluge::bridge::loadSong(*song, adapter);
 		}
 		activeReader = &smDeserializer;
 	}

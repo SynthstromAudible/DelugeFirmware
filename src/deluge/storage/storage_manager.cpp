@@ -330,8 +330,8 @@ deleteInstrumentAndGetOut:
 	}
 
 	// Check that a ParamManager was actually loaded for the Instrument, cos if not, that'd spell havoc
-	if (!song->project.param_backup.getPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
-	                                                      nullptr)) {
+	if (!song->live.param_backup.getPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
+	                                                   nullptr)) {
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
 		// paramManager to be created when we read the Kit just now. So, just make one.
@@ -344,7 +344,7 @@ deleteInstrumentAndGetOut:
 
 			GlobalEffectableForClip::initParams(&paramManager);
 			((Kit*)newInstrument)->compensateInstrumentVolumeForResonance(&paramManager, song); // Necessary?
-			song->project.param_backup.backUp(((Kit*)newInstrument), clip, &paramManager, true);
+			song->live.param_backup.backUp(((Kit*)newInstrument), clip, &paramManager, true);
 		}
 		else if (outputType == OutputType::MIDI_OUT) {
 			// midi instruments make the param manager later
@@ -365,7 +365,7 @@ paramManagersMissing:
 				SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
 				// If no backedUpParamManager...
-				if (!currentSong->project.param_backup.getPreferablyWithClip(soundDrum, NULL)) {
+				if (!currentSong->live.param_backup.getPreferablyWithClip(soundDrum, NULL)) {
 					goto paramManagersMissing;
 				}
 			}
@@ -465,7 +465,7 @@ Error StorageManager::parseSynthDrumDocument(deluge::storage::TreeDocument& docu
 	}
 	// these have to get cleared, otherwise we keep creating drums that aren't attached to note rows
 	if (*getInstrument) {
-		song->project.param_backup.deleteForModControllable(*getInstrument);
+		song->live.param_backup.deleteForModControllable(*getInstrument);
 		(*getInstrument)->wontBeRenderedForAWhile();
 		void* toDealloc = static_cast<void*>(*getInstrument);
 		(*getInstrument)->~SoundDrum();

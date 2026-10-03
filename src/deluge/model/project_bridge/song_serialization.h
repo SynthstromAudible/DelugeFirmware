@@ -24,11 +24,18 @@ class Serializer;
 class Deserializer;
 
 namespace deluge::project {
-
 struct Groove;
 struct Arrangement;
 struct Transport;
 struct ScaleSettings;
+} // namespace deluge::project
+
+namespace deluge::bridge {
+
+using deluge::project::Arrangement;
+using deluge::project::Groove;
+using deluge::project::ScaleSettings;
+using deluge::project::Transport;
 
 /// The single boundary through which a whole song is (de)serialized — the seam the project-model
 /// document model (DOM) is being built behind (docs/dev/project_model_level3.md). Today it delegates
@@ -75,4 +82,4 @@ void serializeScaleKey(const ScaleSettings& scale, Serializer& out);   ///< root
 void serializeScaleNotes(const ScaleSettings& scale, Serializer& out); ///< modeNotes + scales (element phase)
 bool deserializeScale(ScaleSettings& scale, Deserializer& in, char const* tagName);
 
-} // namespace deluge::project
+} // namespace deluge::bridge

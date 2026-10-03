@@ -1,0 +1,184 @@
+/*
+ * Copyright © 2024 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "deluge-project/param_automation.h"
+
+#include <cstdint>
+#include <span>
+#include <vector>
+
+class ParamSet;
+class ParamCollectionSummary;
+class Serializer;
+class Deserializer;
+
+namespace deluge::bridge {
+
+using deluge::project::DocAutoParam;
+using deluge::project::DocMidiParam;
+using deluge::project::DocParamSet;
+using deluge::project::DocPatchCable;
+
+// --- Generic serialization of the document model (param/automation DOM Phase 4) ---
+// Emits the legacy song file format from the value DOM, replacing the engine's scattered
+// self-serialization. This is the first contained piece (the <patchCables> block); it reproduces
+// PatchCableSet::writePatchCablesToFile byte-for-byte and is verified against it, but is not yet wired
+// into the song save path.
+
+/// Write one AutoParam's value (+ automation when `writeAutomation`) as the legacy `0x…` hex blob — the
+/// document-side equivalent of `AutoParam::writeToFile`. The caller emits the surrounding tag/quotes.
+/// `valueForOverride` mirrors the engine arg: when non-null and the param is automated, that value is
+/// written in place of `current_value` (the Song-level "params in automation mode" override); the
+/// automation nodes are always written as-is.
+void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutomation,
+                       const int32_t* valueForOverride = nullptr);
+
+/// Write one of a collection's params as a named attribute (`name="0x…"`), byte-identical to
+/// `ParamSet::writeParamAsAttribute`. This is the building block the owner param blocks
+/// (GlobalEffectable / ModControllableAudio / Sound / clips) are composed of. When `valuesForOverride` is
+/// non-null its `[p]` entry is the override value (see `writeDocAutoParam`).
+void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, int32_t p, Serializer& out,
+                              bool writeAutomation, bool onlyIfContainsSomething = false,
+                              const int32_t* valuesForOverride = nullptr);
+
+/// One entry of an owner's param block: a file tag/attribute name and the param id it maps to within
+/// the collection. Owner blocks are expressed as compact arrays of these driving the generic helpers.
+struct DocParamAttr {
+	const char* name;
+	int32_t param_id;
+};
+
+/// Write a nested group of params (e.g. `<equalizer>` / `<lpf>`) from a collection — byte-identical to
+/// the engine's inline `writeOpeningTagBeginning(group) + writeParamAsAttribute(tag, id)… + closeTag()`.
+void writeDocParamGroup(Serializer& out, const char* groupName, std::span<const DocParamAttr> params,
+                        const DocParamSet& doc, bool writeAutomation, const int32_t* valuesForOverride = nullptr);
+
+/// Serialize the ModControllableAudio shared param block from the unpatched collection, byte-identical
+/// to `ModControllableAudio::writeParamAttributesToFile` (flat attrs) and `writeParamTagsToFile`
+/// (the `<equalizer>` group). The two halves are emitted at different points in the owner's tag, so they
+/// are separate (the value-override path is not yet supported).
+void serializeModControllableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
+                                             const int32_t* valuesForOverride = nullptr);
+void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
+                                       const int32_t* valuesForOverride = nullptr);
+
+/// Serialize the GlobalEffectable param block from the unpatched collection, byte-identical to
+/// `GlobalEffectable::writeParamAttributesToFile` (its flat global attrs — reverb/volume/pan, the
+/// conditional pitchAdjust + sidechain volume, modFX… — wrapped around the shared ModControllableAudio
+/// attrs, then lpfMorph/hpfMorph/tempo/arpeggiatorRate) and `writeParamTagsToFile` (the `<delay>` /
+/// `<lpf>` / `<hpf>` groups, then the shared ModControllableAudio tags). The value-override path is not
+/// yet supported.
+void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
+                                              const int32_t* valuesForOverride = nullptr);
+void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
+                                        const int32_t* valuesForOverride = nullptr);
+
+/// Serialize the ExpressionParamSet (MPE) block from the expression collection, byte-identical to
+/// `ExpressionParamSet::writeToFile`: the `<expressionData>` group holding pitchBend / yExpression /
+/// pressure, emitted only when at least one dimension contains something (and each dimension only when
+/// it does). `mustWriteOpeningTagEndFirst` mirrors the engine arg — close the parent's opening tag
+/// before the first child. Returns whether anything was written.
+bool serializeExpressionParams(const DocParamSet& expression, Serializer& out, bool mustWriteOpeningTagEndFirst,
+                               bool writeAutomation);
+
+/// Serialize the Sound param block from a sound's collections, byte-identical to
+/// `Sound::writeParamsToFile`: the flat patched + unpatched attrs (osc / filter / LFO / FM / envelope-less
+/// flat params, the conditional pitchAdjust family) wrapping the shared ModControllableAudio attrs, then —
+/// after the parent's opening tag is closed — the four `<envelope*>` groups, the `<patchCables>` block, and
+/// the shared ModControllableAudio tags. Reads both `patched` and `unpatched` collections plus the patch
+/// cables; emits `writeOpeningTagEnd` between the attrs and the child tags exactly where the engine does.
+void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched,
+                          const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation);
+
+/// Write the `<patchCables>` block from the document's patch cables, byte-identical to
+/// `PatchCableSet::writePatchCablesToFile` (including the depth-controlling / range-cable nesting).
+void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation);
+
+/// Write the `<midiParams>` block from the document's MIDI-CC params, byte-identical to
+/// `MIDIParamCollection::writeToFile`: one `<param>` per CC holding a `<cc>` tag (the number, or "none" for
+/// CC_NUMBER_NONE) and a `<value>` leaf (`writeDocAutoParam`). Nothing is emitted when there are no params.
+void serializeMidiParams(const std::vector<DocMidiParam>& midiParams, Serializer& out, bool writeAutomation);
+
+/// Read one AutoParam from the legacy hex blob into the document form — the read counterpart of
+/// `writeDocAutoParam`. Reuses the engine's `AutoParam::readFromFile` (so the leaf hex parsing and its
+/// back-compat are not reimplemented), then projects the result.
+DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos);
+
+/// Read a `<patchCables>` block (current format) into the document's patch cables — the inverse of
+/// `serializePatchCables`. Parses the structure directly (resolving range/depth-controlling cables back
+/// to flat cables) and reads amounts via `readDocAutoParam`. Pre-V3.2 patch-cable quirks
+/// (`rangeAdjustable` / placeholder-range resolution) are intentionally not carried over.
+void deserializePatchCables(std::vector<DocPatchCable>& out, Deserializer& in, int32_t readAutomationUpToPos);
+
+// --- DOM-native read of the owner param blocks (param/automation DOM Phase 5b) ---
+// The read counterpart of the Phase 5a serializers. Each `read*ParamTag` is the table-driven DOM reader
+// for one owner's param block: if `tagName` is a current-format param tag, it reads the leaf via
+// `readDocAutoParam` into the live collection (and marks the summary's automation flag, matching
+// `ParamSet::readParam`) and returns true; otherwise it returns false so the engine's remaining
+// (legacy-only) dispatch can handle it. Reads land directly in the live manager (the authoritative DOM
+// home is Phase 5c). Driven by the same `DocParamAttr` tables the serializers use.
+
+/// Read one ModControllableAudio shared-block tag (the `<equalizer>` group + the flat MCA attrs).
+bool readModControllableParamTag(Deserializer& in, char const* tagName, ParamSet& unpatched,
+                                 ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos);
+
+/// Read one GlobalEffectable param-block tag: the `<delay>`/`<lpf>`/`<hpf>` groups + the GE flat attrs,
+/// then the shared MCA block. The `<lpf>`/`<hpf>` read groups also accept the legacy nested `morph`
+/// member (which the writer emits as a flat `lpfMorph`/`hpfMorph` attr).
+bool readGlobalEffectableParamTag(Deserializer& in, char const* tagName, ParamSet& unpatched,
+                                  ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos);
+
+/// Read one Sound param-block tag: the two unpatched flat attrs (portamento / compressorShape), the
+/// patched flat attrs (osc / filter / LFO / FM / pitchAdjust family / community attrs), the four
+/// `<envelope*>` groups, then the shared MCA block. The `<patchCables>` tag is NOT handled here — the
+/// caller keeps the engine's reader for it (it carries pre-V3.2 cable back-compat the DOM reader drops).
+bool readSoundParamTag(Deserializer& in, char const* tagName, ParamSet& patched, ParamCollectionSummary& patchedSummary,
+                       ParamSet& unpatched, ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos);
+
+/// Read one ExpressionParamSet (MPE) tag (pitchBend / yExpression / pressure) into the live expression
+/// collection. The legacy `channelPressure` alias is NOT handled here — the caller keeps it as a tail.
+bool readExpressionParamTag(Deserializer& in, char const* tagName, ParamSet& expression,
+                            ParamCollectionSummary& summary, int32_t readAutomationUpToPos);
+
+// DOM-target variants (Phase 5c / DOM-live-authoritative): identical dispatch, but each leaf lands in a
+// `DocParamSet` (the persistent DOM store) instead of a live engine `ParamSet`. `doc.params` must be
+// pre-sized to the collection's param count; the engine is then reprojected from the store via
+// `fromDocParamSet`. These share the same `DocParamAttr` tables as the engine-target readers above.
+
+/// Read one ModControllableAudio shared-block tag into `doc` (the `<equalizer>` group + the flat MCA attrs).
+bool readModControllableParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
+                                      int32_t readAutomationUpToPos);
+
+/// Read one GlobalEffectable param-block tag into `doc`: the `<delay>`/`<lpf>`/`<hpf>` groups + GE flat
+/// attrs (incl. the legacy nested `morph` members) + the shared MCA block.
+bool readGlobalEffectableParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
+                                       int32_t readAutomationUpToPos);
+
+/// Read one ExpressionParamSet (MPE) tag (pitchBend / yExpression / pressure) into `doc`, incl. the legacy
+/// `channelPressure` alias (pressure / dimension 2) that the engine reader keeps as a caller tail.
+bool readExpressionParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
+                                 int32_t readAutomationUpToPos);
+
+/// Read one Sound param-block tag into the two DOM stores: unpatched flat attrs + the shared MCA block land in
+/// `unpatched`; patched flat attrs + the `<envelope1..4>` groups land in `patched`. `<patchCables>` is NOT handled
+/// here — the caller keeps the engine reader for it (pre-V3.2 cable back-compat the DOM reader drops).
+bool readSoundParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& patched, DocParamSet& unpatched,
+                            int32_t readAutomationUpToPos);
+
+} // namespace deluge::bridge
