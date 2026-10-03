@@ -1981,6 +1981,7 @@ loadOutput:
 	// Give every no-id output/drum a durable id BEFORE the relocation, so the relocation (and the loop-length
 	// load-binding pass below) resolve by an id that already exists. Loaded owners keep their file ids (no-op).
 	assignMissingIds();
+	deluge::bridge::resolveLegacyMacroOutputs(project.arrangement, *this);
 
 	// Phase C (DOM single-store): borrow-point each AudioClip's unpatched automation node storage at a
 	// DOM-owned DocParamSet anchored on the ParamSet (Model A), mirroring the song-global borrow below. Every

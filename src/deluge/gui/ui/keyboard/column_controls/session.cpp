@@ -63,7 +63,7 @@ bool SessionColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 
 	case SessionMacroKind::OUTPUT_CYCLE:
 		if (Output* output = getCurrentOutput()) {
-			m.output_id = output->id();
+			m.output_id = currentSong->outputIdFor(*output);
 		}
 		break;
 

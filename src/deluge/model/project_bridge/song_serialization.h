@@ -66,6 +66,9 @@ bool deserializeSections(Arrangement& arrangement, Deserializer& in, char const*
 /// attributes from pre-id files).
 void serializeMacros(const Arrangement& arrangement, Serializer& out);
 bool deserializeMacros(Arrangement& arrangement, Deserializer& in, ::Song& song, char const* tagName);
+/// Give the output-cycle macros of a song from before outputs had ids the ids of the outputs they name by position;
+/// run once the load has given every output an id.
+void resolveLegacyMacroOutputs(Arrangement& arrangement, ::Song& song);
 
 /// Transport (tempo + tick magnitude). The tempo is stored across two 32-bit halves (`timePerTimerTick`
 /// high, `timerTickFraction` low) that the legacy read accumulates into a local applied post-read via

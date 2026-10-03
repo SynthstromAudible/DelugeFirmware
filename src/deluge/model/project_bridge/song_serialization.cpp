@@ -27,6 +27,7 @@
 #include "storage/storage_manager.h" // Serializer / Deserializer
 #include <algorithm>
 #include <cstring>
+#include <utility>
 
 namespace deluge::bridge {
 
@@ -213,6 +214,14 @@ void serializeMacros(const Arrangement& arrangement, Serializer& writer) {
 	writer.writeArrayEnding("sessionMacros");
 }
 
+void resolveLegacyMacroOutputs(Arrangement& arrangement, ::Song& song) {
+	for (size_t y = 0; y < song.live.legacy_macro_outputs.size(); y++) {
+		if (Output* output = std::exchange(song.live.legacy_macro_outputs[y], nullptr)) {
+			arrangement.session_macros[y].output_id = song.outputIdFor(*output);
+		}
+	}
+}
+
 bool deserializeMacros(Arrangement& arrangement, Deserializer& reader, ::Song& song, char const* tagName) {
 	if (strcmp(tagName, "sessionMacros") != 0) {
 		return false;
@@ -268,9 +277,8 @@ bool deserializeMacros(Arrangement& arrangement, Deserializer& reader, ::Song& s
 						}
 						index--;
 					}
-					if (thisOutput != nullptr) {
-						m.output_id = thisOutput->id();
-					}
+					// Such a file gives its outputs no ids until the load mints them: hold the output until then.
+					song.live.legacy_macro_outputs[y] = thisOutput;
 				}
 				else if (!strcmp(tagName, "section")) {
 					m.section = reader.readTagOrAttributeValueInt();
@@ -278,7 +286,8 @@ bool deserializeMacros(Arrangement& arrangement, Deserializer& reader, ::Song& s
 			}
 
 			if ((m.kind == SessionMacroKind::CLIP_LAUNCH && !m.clip_id)
-			    || (m.kind == SessionMacroKind::OUTPUT_CYCLE && !m.output_id)) {
+			    || (m.kind == SessionMacroKind::OUTPUT_CYCLE && !m.output_id
+			        && song.live.legacy_macro_outputs[y] == nullptr)) {
 				m.kind = SessionMacroKind::NO_MACRO;
 			}
 		}

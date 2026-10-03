@@ -4538,7 +4538,7 @@ ActionResult SessionView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on,
 			gridFirstPressedY = y;
 			macro.kind = SessionMacroKind::CLIP_LAUNCH;
 			macro.clip_id = clip->id();
-			macro.output_id = clip->output->id();
+			macro.output_id = currentSong->outputIdFor(*clip->output);
 			macro.section = clip->section();
 		}
 		else {

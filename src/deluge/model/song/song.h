@@ -334,6 +334,14 @@ public:
 	// session macros) can resolve by id instead of position.
 	uint32_t generateNewClipId() { return clipIdCounter_++; }
 	uint32_t generateNewOutputId() { return outputIdCounter_++; }
+	/// The durable id of @p output, a member of this song, minting one first if it has none yet (an output made
+	/// since the load gets one only when something needs to name it).
+	uint32_t outputIdFor(Output& output) {
+		if (!output.id()) {
+			output.setId(generateNewOutputId());
+		}
+		return *output.id();
+	}
 	uint32_t generateNewDrumId() { return drumIdCounter_++; }
 	/// Advance the counters past every id seen in the just-loaded song, so newly created objects can't
 	/// collide with restored ids. Called once after a load completes.

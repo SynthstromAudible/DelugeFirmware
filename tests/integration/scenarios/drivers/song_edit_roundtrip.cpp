@@ -36,6 +36,7 @@
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
@@ -53,6 +54,8 @@
 #include "storage/parse_xml.h"
 #include "storage/value_tree_deserializer.h"
 #include <optional>
+#include <regex>
+#include <string>
 #include <string_view>
 
 namespace {
@@ -667,6 +670,16 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		macroOutputId = target->id();
 	}
 
+	// An output-cycle macro aimed at an output made after the load (so without an id until something mints one) must
+	// still name it after the save and reload. Assigned the way the session view assigns one.
+	std::string freshOutputName;
+	if (AudioOutput* fresh = song->createNewAudioOutput()) {
+		freshOutputName = fresh->name.c_str();
+		auto& m = song->project.arrangement.session_macros[5];
+		m.kind = deluge::project::SessionMacroKind::OUTPUT_CYCLE;
+		m.output_id = song->outputIdFor(*fresh);
+	}
+
 	// A section's launch command is data naming its device; it must survive the save and reload, and match incoming
 	// MIDI as it did: the same channel and note, from the named device when inputs are told apart by device.
 	const deluge::project::MidiCommand sectionCommand{
@@ -726,6 +739,51 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 			std::fprintf(io.err, "MACRO FAIL: the output-cycle macro lost its output %u\n", *macroOutputId);
 			return 3;
 		}
+	}
+
+	if (!freshOutputName.empty()) {
+		const auto& m = reloaded->project.arrangement.session_macros[5];
+		Output* target = m.output_id ? reloaded->outputForId(*m.output_id) : nullptr;
+		if (m.kind != deluge::project::SessionMacroKind::OUTPUT_CYCLE || target == nullptr
+		    || freshOutputName != target->name.c_str()) {
+			std::fprintf(io.err, "MACRO FAIL: the output-cycle macro on a new output (%s) was lost\n",
+			             freshOutputName.c_str());
+			return 3;
+		}
+	}
+
+	// A song from before outputs had ids names a macro's output by its position and gives its outputs no ids: the
+	// macro must still name the output at that position after the load. Made from this save by taking the ids off
+	// the outputs and naming macro 7's output by position.
+	if (macroOutputId) {
+		std::string legacy(gen1, n1);
+		const std::string byId = "outputId=\"" + std::to_string(*macroOutputId) + "\"";
+		const size_t macroAt = legacy.find(byId);
+		const size_t instrumentsAt = legacy.find("<instruments>");
+		const size_t instrumentsEnd = legacy.find("</instruments>");
+		if (macroAt == std::string::npos || instrumentsAt == std::string::npos || instrumentsEnd == std::string::npos) {
+			std::fprintf(io.err, "MACRO FAIL: could not make the legacy file\n");
+			return 3;
+		}
+		legacy.replace(macroAt, byId.size(), "output=\"0\"");
+		std::string instruments = legacy.substr(instrumentsAt, instrumentsEnd - instrumentsAt);
+		instruments = std::regex_replace(instruments, std::regex("(<[A-Za-z]+\\s+)id=\"[0-9]+\"\\s*"), "$1");
+		legacy.replace(instrumentsAt, instrumentsEnd - instrumentsAt, instruments);
+		std::memcpy(gen2copy, legacy.data(), legacy.size());
+		Error legacyError;
+		Song* legacySong = load_song(gen2copy, legacy.size(), &legacyError);
+		if (!legacySong) {
+			std::fprintf(io.err, "MACRO FAIL: the legacy file did not load (Error %d)\n", (int)legacyError);
+			return 3;
+		}
+		const auto& m = legacySong->project.arrangement.session_macros[7];
+		Output* first = legacySong->live.media.first_output;
+		if (m.kind != deluge::project::SessionMacroKind::OUTPUT_CYCLE || first == nullptr || !m.output_id
+		    || m.output_id != first->id()) {
+			std::fprintf(io.err, "MACRO FAIL: a legacy song's output-cycle macro lost its output\n");
+			return 3;
+		}
+		currentSong = reloaded;
 	}
 
 	// M2-G S2b: the save (gen1) assigns ids, so on reload every audio clip's unpatched params must be

@@ -7,6 +7,8 @@
 #include "modulation/params/param.h"
 
 #include <array>
+
+class Output;
 #include <cstdint>
 
 /// @brief The parts of a song the engine holds as live objects, beside its model (`::Song::project`), until later
@@ -21,6 +23,9 @@ struct SongLive {
 	/// Snapshot of the global unpatched param values, captured while a param is held in automation mode so the live
 	/// (overridden) value can be restored afterwards.
 	std::array<int32_t, deluge::modulation::params::kMaxNumUnpatchedParams> unautomated_param_values{};
+	/// While a song from before outputs had ids loads: the output each output-cycle macro names by position, held
+	/// until the load has given it an id (resolveLegacyMacroOutputs()).
+	std::array<Output*, 8> legacy_macro_outputs{};
 	/// Parked ParamManagers, keyed by (ModControllableAudio, Clip); for a given ModControllableAudio the null-Clip
 	/// entry sorts first. Node-based, so a ParamManager never moves in memory.
 	deluge::bridge::ParamBackup param_backup;
