@@ -1556,7 +1556,7 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 	}
 	else {
 		if (view.midiLearnFlashOn
-		    && currentSong->project.arrangement.sections[clip->section()].launch_midi_command.containsSomething()) {
+		    && currentSong->project.arrangement.sections[clip->section()].launch_midi_command.contains_something()) {
 			thisColour = colours::midi_command;
 		}
 
@@ -1564,9 +1564,7 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 			thisColour = defaultClipSectionColours[clip->section()];
 
 			// If user assigning MIDI controls and has this section selected, flash to half brightness
-			if (view.midiLearnFlashOn && currentSong
-			    && view.learnedThing
-			           == &currentSong->project.arrangement.sections[clip->section()].launch_midi_command) {
+			if (view.midiLearnFlashOn && currentSong && view.isLearningSection(clip->section())) {
 				thisColour = thisColour.dim();
 			}
 		}
@@ -3006,10 +3004,8 @@ void SessionView::midiLearnFlash() {
 
 			if (clip->muteMIDICommand.containsSomething()
 			    || (view.thingPressedForMidiLearn == MidiLearn::CLIP && &clip->muteMIDICommand == view.learnedThing)
-			    || currentSong->project.arrangement.sections[clip->section()].launch_midi_command.containsSomething()
-			    || (view.thingPressedForMidiLearn == MidiLearn::SECTION
-			        && view.learnedThing
-			               == &currentSong->project.arrangement.sections[clip->section()].launch_midi_command)) {
+			    || currentSong->project.arrangement.sections[clip->section()].launch_midi_command.contains_something()
+			    || view.isLearningSection(clip->section())) {
 				sideRowsToRender |= (1 << yDisplay);
 			}
 
@@ -3180,15 +3176,13 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 
 			if (view.midiLearnFlashOn && gridModeActive == SessionGridModeLaunch) {
 				// MIDI colour if necessary
-				if (currentSong->project.arrangement.sections[section].launch_midi_command.containsSomething()) {
+				if (currentSong->project.arrangement.sections[section].launch_midi_command.contains_something()) {
 					ptrSectionColour = colours::midi_command;
 				}
 
 				else {
 					// If user assigning MIDI controls and has this section selected, flash to half brightness
-					if (currentSong
-					    && view.learnedThing
-					           == &currentSong->project.arrangement.sections[section].launch_midi_command) {
+					if (currentSong && view.isLearningSection(section)) {
 						ptrSectionColour = ptrSectionColour.dim();
 					}
 				}

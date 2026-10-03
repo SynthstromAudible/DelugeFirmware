@@ -72,6 +72,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/midi_command.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
@@ -494,14 +495,23 @@ void View::sectionMidiLearnPadPressed(bool on, uint8_t section) {
 	if (on) {
 		endMidiLearnPressSession(MidiLearn::SECTION);
 		deleteMidiCommandOnRelease = true;
-		learnedThing = &currentSong->project.arrangement.sections[section].launch_midi_command;
+		sectionPressedForMidiLearn = section;
+		sectionLearnScratch =
+		    deluge::bridge::learned_of(currentSong->project.arrangement.sections[section].launch_midi_command);
+		learnedThing = &sectionLearnScratch;
 	}
 	else if (thingPressedForMidiLearn == MidiLearn::SECTION) {
 		if (deleteMidiCommandOnRelease) {
 			learnedThing->clear();
+			commitSectionMidiLearn();
 		}
 		endMidiLearnPressSession();
 	}
+}
+
+void View::commitSectionMidiLearn() {
+	currentSong->project.arrangement.sections[sectionPressedForMidiLearn].launch_midi_command =
+	    deluge::bridge::command_of(sectionLearnScratch);
 }
 
 void View::clipStatusMidiLearnPadPressed(bool on, Clip* whichClip) {
@@ -647,6 +657,9 @@ recordDetailsOfLearnedThing:
 			learnedThing->cable = &cable;
 			learnedThing->channelOrZone = channelOrZone;
 			learnedThing->noteOrCC = note;
+			if (thingPressedForMidiLearn == MidiLearn::SECTION) {
+				commitSectionMidiLearn();
+			}
 			break;
 
 		case MidiLearn::INSTRUMENT_INPUT:

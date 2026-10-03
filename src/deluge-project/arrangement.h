@@ -17,18 +17,19 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"    // kMaxNumSections
-#include "io/midi/learned_midi.h" // LearnedMIDI (held by value in Section)
+#include "deluge-project/midi_command.h"
 #include <array>
 #include <cstdint>
 #include <optional>
 
 namespace deluge::project {
 
+/// The number of launchable sections a song has.
+inline constexpr int32_t kMaxNumSections = 24;
+
 /// A launchable song section: how many times it repeats and an optional MIDI-learned launch command.
-class Section {
-public:
-	LearnedMIDI launch_midi_command;
+struct Section {
+	MidiCommand launch_midi_command;
 	int16_t num_repetitions{0};
 };
 

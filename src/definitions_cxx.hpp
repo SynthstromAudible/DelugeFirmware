@@ -18,6 +18,7 @@
 #pragma once
 #include "board_layout.hpp" // board pad/indicator/numeric dimensions (HAL-free, shared with the BSP)
 #include "definitions.h"
+#include "deluge-project/arrangement.h"
 #include "deluge-project/drum_type.h"
 #include "deluge-project/launch_style.h"
 #include "deluge-project/sequence_direction.h"
@@ -437,7 +438,7 @@ constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 
 
 constexpr int32_t kMaxGoldKnobIndicatorLEDValue = kMaxKnobPos / 4;
 
-constexpr int32_t kMaxNumSections = 24;
+using deluge::project::kMaxNumSections;
 
 constexpr int32_t kNumPhysicalModKnobs = 2;
 

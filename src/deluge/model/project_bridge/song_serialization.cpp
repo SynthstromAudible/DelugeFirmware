@@ -22,6 +22,7 @@
 #include "deluge-project/transport.h"
 #include "io/midi/midi_device.h"         // MIDICable::writeReferenceToFile
 #include "io/midi/midi_device_manager.h" // MIDIDeviceManager::readDeviceReferenceFromFile
+#include "model/project_bridge/midi_command.h"
 #include "model/song/song.h"
 #include "storage/storage_manager.h" // Serializer / Deserializer
 #include <algorithm>
@@ -71,23 +72,22 @@ bool deserialize(Groove& groove, Deserializer& in, char const* tagName) {
 void serializeSections(const Arrangement& arrangement, Serializer& writer) {
 	writer.writeArrayStart("sections");
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
-		if (true || arrangement.sections[s].launch_midi_command.containsSomething()
+		if (true || arrangement.sections[s].launch_midi_command.contains_something()
 		    || arrangement.sections[s].num_repetitions) {
 			writer.writeOpeningTagBeginning("section", true);
 			writer.writeAttribute("id", s, false);
 			if (true || arrangement.sections[s].num_repetitions) {
 				writer.writeAttribute("numRepeats", arrangement.sections[s].num_repetitions, false);
 			}
-			if (arrangement.sections[s].launch_midi_command.containsSomething()) {
+			if (arrangement.sections[s].launch_midi_command.contains_something()) {
 				// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI
 				// class now uses.
-				writer.writeAttribute("midiCommandChannel", arrangement.sections[s].launch_midi_command.channelOrZone,
-				                      false);
-				writer.writeAttribute("midiCommandNote", arrangement.sections[s].launch_midi_command.noteOrCC, false);
-				if (arrangement.sections[s].launch_midi_command.cable) {
+				const MidiCommand& command = arrangement.sections[s].launch_midi_command;
+				writer.writeAttribute("midiCommandChannel", command.channel_or_zone, false);
+				writer.writeAttribute("midiCommandNote", command.note_or_cc, false);
+				if (command.device) {
 					writer.writeOpeningTagEnd();
-					arrangement.sections[s].launch_midi_command.cable->writeReferenceToFile(writer,
-					                                                                        "midiCommandDevice");
+					write_reference(writer, "midiCommandDevice", *command.device);
 					writer.writeClosingTag("section", true, true);
 					continue; // We now don't need to close the tag.
 				}
@@ -146,9 +146,13 @@ bool deserializeSections(Arrangement& arrangement, Deserializer& reader, char co
 				// channel may be a plain channel (0-15), an MPE zone (16-17), or CC-encoded
 				// (channel + IS_A_CC) — see LearnedMIDI::channelOrZone.
 				if (channel < IS_A_PC && note < 128) {
-					arrangement.sections[id].launch_midi_command.cable = cable;
-					arrangement.sections[id].launch_midi_command.channelOrZone = channel;
-					arrangement.sections[id].launch_midi_command.noteOrCC = note;
+					MidiCommand& command = arrangement.sections[id].launch_midi_command;
+					command.channel_or_zone = channel;
+					command.note_or_cc = note;
+					command.device.reset();
+					if (cable != nullptr) {
+						command.device = reference_of(*cable);
+					}
 				}
 				arrangement.sections[id].num_repetitions = numRepeats;
 			}

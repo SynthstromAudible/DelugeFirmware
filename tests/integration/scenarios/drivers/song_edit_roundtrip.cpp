@@ -18,6 +18,7 @@
 
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h"
+#include "io/midi/midi_device_manager.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
@@ -27,6 +28,7 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/midi_command.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -665,6 +667,14 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		macroOutputId = target->id();
 	}
 
+	// A section's launch command is data naming its device; it must survive the save and reload, and match incoming
+	// MIDI as it did: the same channel and note, from the named device when inputs are told apart by device.
+	const deluge::project::MidiCommand sectionCommand{
+	    .channel_or_zone = 2,
+	    .note_or_cc = 60,
+	    .device = deluge::bridge::reference_of(MIDIDeviceManager::dinMIDIPorts)};
+	song->project.arrangement.sections[3].launch_midi_command = sectionCommand;
+
 	// 3. Save.
 	deluge::scenarios::driver::beginCapture(smSerializer);
 	deluge::bridge::saveSong(*song, smSerializer);
@@ -682,6 +692,25 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		return 3;
 	}
 
+	{
+		const auto& command = reloaded->project.arrangement.sections[3].launch_midi_command;
+		const bool wasDifferentiating = MIDIDeviceManager::differentiatingInputsByDevice;
+		MIDIDeviceManager::differentiatingInputsByDevice = true;
+		const bool fromDevice = deluge::bridge::matches(command, MIDIDeviceManager::dinMIDIPorts, 2, 60);
+		const bool otherChannel = deluge::bridge::matches(command, MIDIDeviceManager::dinMIDIPorts, 3, 60);
+		const bool otherDevice = deluge::bridge::matches(command, MIDIDeviceManager::upstreamUSBMIDICable1, 2, 60);
+		MIDIDeviceManager::differentiatingInputsByDevice = false;
+		const bool otherDeviceAnyInput =
+		    deluge::bridge::matches(command, MIDIDeviceManager::upstreamUSBMIDICable1, 2, 60);
+		MIDIDeviceManager::differentiatingInputsByDevice = wasDifferentiating;
+		if (command != sectionCommand || !fromDevice || otherChannel || otherDevice || !otherDeviceAnyInput) {
+			std::fprintf(io.err,
+			             "SECTION FAIL: launch command same=%d fromDevice=%d otherChannel=%d otherDevice=%d "
+			             "otherDeviceAnyInput=%d\n",
+			             command == sectionCommand, fromDevice, otherChannel, otherDevice, otherDeviceAnyInput);
+			return 3;
+		}
+	}
 	if (macroClipId) {
 		const auto& m = reloaded->project.arrangement.session_macros[6];
 		if (m.kind != deluge::project::SessionMacroKind::CLIP_LAUNCH || m.clip_id != macroClipId
