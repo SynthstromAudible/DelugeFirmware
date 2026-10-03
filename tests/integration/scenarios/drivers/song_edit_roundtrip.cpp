@@ -114,7 +114,8 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 			             d.transpose);
 			bad++;
 		}
-		const deluge::snapshot::SoundSnapshot& snap = sound.snapshot();
+		// A copy: the unison-table check below reprojects, and every field must be compared as loaded.
+		const deluge::snapshot::SoundSnapshot snap = sound.snapshot();
 		auto expect = [&](bool ok, const char* field) {
 			if (!ok) {
 				std::fprintf(io.err, "M4b FAIL %s: %s snapshot != record\n", label, field);
@@ -137,12 +138,11 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 		expect(snap.unisonDetune == d.unison_detune, "unisonDetune");
 		expect(snap.unisonStereoSpread == d.unison_stereo_spread, "unisonStereoSpread");
 		{
-			// The unison tables are derived; the live ones must match a fresh projection from the record.
-			const deluge::snapshot::SoundSnapshot live = snap;
+			// The unison tables are derived; the loaded ones must match a fresh projection from the record.
 			sound.projectSnapshot();
-			for (int32_t u = 0; u < live.numUnison && live.numUnison != 1; u++) {
-				expect(sameTuning(live.unisonDetuners[u], sound.snapshot().unisonDetuners[u]), "unisonDetuners");
-				expect(live.unisonPan[u] == sound.snapshot().unisonPan[u], "unisonPan");
+			for (int32_t u = 0; u < snap.numUnison && snap.numUnison != 1; u++) {
+				expect(sameTuning(snap.unisonDetuners[u], sound.snapshot().unisonDetuners[u]), "unisonDetuners");
+				expect(snap.unisonPan[u] == sound.snapshot().unisonPan[u], "unisonPan");
 			}
 		}
 		expect(snap.cents == d.cents, "cents");
