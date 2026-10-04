@@ -103,12 +103,22 @@ void CVEngine::updateGateOutputs() {
 	// note or gate on the cv channel - if there's a cv out pending we send the gate after it finishes. This avoids a
 	// situation where the cv is delayed for an oled refresh and the gate gets sent first, causing an audible pitch
 	// correction
-	if (!cvOutPending && gateOutputPending) {
-		for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
-			physicallySwitchGate(g);
+	if (gateOutputPending) {
+		if (cvOutPending) {
+			gateDueAwaitingCV = true;
 		}
-		gateOutputPending = false;
+		else {
+			switchPendingNoteGates();
+		}
 	}
+}
+
+void CVEngine::switchPendingNoteGates() {
+	for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
+		physicallySwitchGate(g);
+	}
+	gateOutputPending = false;
+	gateDueAwaitingCV = false;
 }
 
 // These next two functions get called for run but not clock
@@ -352,7 +362,12 @@ bool CVEngine::isTriggerClockOutputEnabled() {
 }
 void CVEngine::cvOutUpdated() {
 	cvOutPending = false;
-	updateGateOutputs();
+	// Only release gates whose scheduled time has already passed. Releasing every pending gate here would send them
+	// up to a whole audio buffer early whenever the CV word finished before the MIDI/gate timer fired (e.g. when an
+	// OLED refresh delayed the CV), and would also flush pending clock pulses early.
+	if (gateDueAwaitingCV) {
+		switchPendingNoteGates();
+	}
 }
 
 extern "C" {
