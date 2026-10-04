@@ -976,6 +976,22 @@ tier = "pr"
 runtime = "~1s"
 
 [[harness]]
+name = "param-table-check"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "unit"
+status = "gate"
+gates = "the engines' param tables agree with the runtime: every row of the Deluge instrument's table and of the provisional global-effectable table has the runtime's file name, scope and bipolarity for its runtime index, the boundary map gives that index the row's id, and every runtime param has a row"
+scenario = "param_table_check"
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+runtime = "~1s"
+
+[[harness]]
 name = "param-clone"
 path = "."
 level = "integration"
