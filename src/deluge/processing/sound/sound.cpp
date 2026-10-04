@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
 #include "dsp/dx/engine.h"
+#include "engines/deluge/codec.h"
 #include "engines/deluge/sound_state.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
@@ -3899,186 +3900,6 @@ justExitTag:
 }
 #pragma GCC diagnostic pop
 
-void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName) {
-
-	Source* source = &sources[s];
-	// M3 owner-5 slice G: read the authoritative SourceState record when bound (cache fallback only for an unbound
-	// Sound).
-	deluge::instrument::SourceState* dsrc = state_ != nullptr ? &state_->sources[s] : nullptr;
-
-	writer.writeOpeningTagBeginning(tagName);
-
-	if (getSynthMode() != SynthMode::FM) {
-		writer.writeAttribute(
-		    "type", oscTypeToString(dsrc != nullptr ? static_cast<OscType>(dsrc->osc_type) : source->oscType));
-	}
-
-	// If (multi)sample...
-	if (source->oscType == OscType::SAMPLE
-	    && getSynthMode() != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
-		writer.writeAttribute("loopMode",
-		                      util::to_underlying(dsrc != nullptr ? dsrc->repeat_mode : source->repeatMode));
-		writer.writeAttribute("reversed", dsrc != nullptr ? dsrc->reversed : source->sampleControls.reversed);
-		writer.writeAttribute("timeStretchEnable", dsrc != nullptr
-		                                               ? dsrc->pitch_and_speed_independent
-		                                               : source->sampleControls.pitchAndSpeedAreIndependent);
-		writer.writeAttribute("timeStretchAmount",
-		                      dsrc != nullptr ? dsrc->time_stretch_amount : source->timeStretchAmount);
-		InterpolationMode savedInterp = dsrc != nullptr ? static_cast<InterpolationMode>(dsrc->interpolation_mode)
-		                                                : source->sampleControls.interpolationMode;
-		if (savedInterp == InterpolationMode::LINEAR) {
-			writer.writeAttribute("linearInterpolation", 1);
-		}
-
-		// M3 owner-5 slice G3: emit ranges from the authoritative SourceState record when bound (cache fallback only
-		// for an unbound Sound). The RangeState fields are kept in lockstep with the engine ranges by seedDocRanges, so
-		// the record list and the engine list are the same length and index-aligned.
-		int32_t numRanges = dsrc != nullptr ? std::ssize(dsrc->ranges) : std::ssize(source->ranges);
-
-		if (numRanges > 1) {
-			writer.writeOpeningTagEnd();
-			writer.writeArrayStart("sampleRanges");
-		}
-
-		for (int32_t e = 0; e < numRanges; e++) {
-			deluge::instrument::RangeState const* dr = dsrc != nullptr ? &dsrc->ranges[e] : nullptr;
-			MultisampleRange* range = dr != nullptr ? nullptr : (MultisampleRange*)source->ranges.getElement(e);
-
-			if (numRanges > 1) {
-				writer.writeOpeningTagBeginning("sampleRange", true);
-
-				if (e != numRanges - 1) {
-					writer.writeAttribute("rangeTopNote", dr != nullptr ? dr->top_note : range->topNote);
-				}
-			}
-
-			writer.writeAttribute("fileName", dr != nullptr ? dr->file_path.c_str()
-			                                  : range->sampleHolder.audioFile
-			                                      ? range->sampleHolder.audioFile->filePath.c_str()
-			                                      : range->sampleHolder.filePath.c_str());
-			int16_t rTranspose = dr != nullptr ? dr->transpose : range->sampleHolder.transpose;
-			if (rTranspose) {
-				writer.writeAttribute("transpose", rTranspose);
-			}
-			int8_t rCents = dr != nullptr ? dr->cents : range->sampleHolder.cents;
-			if (rCents) {
-				writer.writeAttribute("cents", rCents);
-			}
-
-			writer.writeOpeningTagEnd();
-
-			writer.writeOpeningTagBeginning("zone");
-			writer.writeAttribute("startSamplePos", dr != nullptr ? dr->start_pos : range->sampleHolder.startPos);
-			writer.writeAttribute("endSamplePos", dr != nullptr ? dr->end_pos : range->sampleHolder.endPos);
-			uint32_t rLoopStart = dr != nullptr ? dr->loop_start_pos : range->sampleHolder.loopStartPos;
-			if (rLoopStart) {
-				writer.writeAttribute("startLoopPos", rLoopStart);
-			}
-			uint32_t rLoopEnd = dr != nullptr ? dr->loop_end_pos : range->sampleHolder.loopEndPos;
-			if (rLoopEnd) {
-				writer.writeAttribute("endLoopPos", rLoopEnd);
-			}
-			writer.closeTag();
-
-			if (numRanges > 1) {
-				writer.writeClosingTag("sampleRange", true, true);
-			}
-		}
-
-		if (numRanges > 1) {
-			writer.writeArrayEnding("sampleRanges");
-		}
-		else if (numRanges == 0) {
-			writer.writeOpeningTagEnd();
-		}
-
-		writer.writeClosingTag(tagName);
-	}
-
-	// Otherwise, if we're *not* a (multi)sample, here's the other option, which includes (multi)wavetable
-	else {
-		writer.writeAttribute("transpose", dsrc != nullptr ? dsrc->transpose : source->transpose);
-		writer.writeAttribute("cents", dsrc != nullptr ? dsrc->cents : source->cents);
-		bool oscSync =
-		    state_ != nullptr ? state_->oscillator_sync : snapshot_.oscillatorSync; // M3 owner-5: read record
-		if (s == 1 && oscSync) {
-			writer.writeAttribute("oscillatorSync", oscSync);
-		}
-		writer.writeAttribute("retrigPhase",
-		                      state_ != nullptr ? state_->osc_retrigger_phase[s] : snapshot_.oscRetriggerPhase[s]);
-
-		// Sub-option for (multi)wavetable
-		if (source->oscType == OscType::WAVETABLE && getSynthMode() != SynthMode::FM) {
-
-			// M3 owner-5 slice G3: emit wavetable ranges from the authoritative SourceState record when bound (cache
-			// fallback only for an unbound Sound). Wavetable ranges carry just top_note + file_path (no zone).
-			int32_t numRanges = dsrc != nullptr ? std::ssize(dsrc->ranges) : std::ssize(source->ranges);
-
-			if (numRanges > 1) {
-				writer.writeOpeningTagEnd();
-				writer.writeArrayStart("wavetableRanges");
-			}
-
-			for (int32_t e = 0; e < numRanges; e++) {
-				deluge::instrument::RangeState const* dr = dsrc != nullptr ? &dsrc->ranges[e] : nullptr;
-				MultisampleRange* range = dr != nullptr ? nullptr : (MultisampleRange*)source->ranges.getElement(e);
-
-				if (numRanges > 1) {
-					writer.writeOpeningTagBeginning("wavetableRange", true);
-
-					if (e != numRanges - 1) {
-						writer.writeAttribute("rangeTopNote", dr != nullptr ? dr->top_note : range->topNote);
-					}
-				}
-
-				writer.writeAttribute("fileName", dr != nullptr ? dr->file_path.c_str()
-				                                  : range->sampleHolder.audioFile
-				                                      ? range->sampleHolder.audioFile->filePath.c_str()
-				                                      : range->sampleHolder.filePath.c_str());
-
-				if (numRanges > 1) {
-					writer.closeTag(true);
-				}
-			}
-
-			if (numRanges > 1) {
-				writer.writeArrayEnding("wavetableRanges");
-				writer.writeClosingTag(tagName);
-			}
-			else {
-				goto justCloseTag;
-			}
-		}
-		else if (source->oscType == OscType::DX7
-		         && getSynthMode()
-		                != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
-			if (source->dxPatch) {
-				DxPatch* patch = source->dxPatch;
-				// M3 owner-5: read the authoritative record when bound (cache fallback only for an unbound Sound).
-				deluge::instrument::DxPatchState* dp =
-				    (dsrc != nullptr && dsrc->dx_patch.has_value()) ? &*dsrc->dx_patch : nullptr;
-				writer.writeAttributeHexBytes("dx7patch", dp != nullptr ? dp->params.data() : patch->params, 156);
-
-				uint8_t engineMode = dp != nullptr ? dp->engine_mode : patch->engineMode;
-				if (engineMode != 0) {
-					writer.writeAttribute("dx7enginemode", engineMode);
-				}
-
-				// real extension:
-				int32_t randomDetune = dp != nullptr ? dp->random_detune : patch->random_detune;
-				if (randomDetune != 0) {
-					writer.writeAttribute("dx7randomdetune", randomDetune);
-				}
-			}
-			goto justCloseTag;
-		}
-		else {
-justCloseTag:
-			writer.closeTag();
-		}
-	}
-}
-
 void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
 	// Serialize from the value DOM (deluge::project) — byte-identical to the former hand-written sequence
 	// (verified in the param-projection driver). serializeSoundParams emits the patched + unpatched flat attrs,
@@ -4378,115 +4199,26 @@ void Sound::setLfoSync(int32_t lfoId, SyncType syncType, SyncLevel syncLevel) {
 
 void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager,
                         ArpeggiatorSettings* arpSettings, const char* pathAttribute) {
-	// M3 owner-5 save-flip: the DOM-owned scalars read the authoritative record (falling back to the engine cache only
-	// for an unbound Sound — e.g. the audio preview — which has no record and isn't part of a saved song anyway). The
-	// FM gate below reads savedSynthMode too, so the whole modulator block projects from the model.
-	PolyphonyMode savedPolyphonic = state_ != nullptr ? static_cast<PolyphonyMode>(state_->polyphonic) : polyphonic;
-	SynthMode savedSynthMode = state_ != nullptr ? static_cast<SynthMode>(state_->synth_mode) : getSynthMode();
-	int16_t savedTranspose = state_ != nullptr ? state_->transpose : snapshot_.transpose;
-
-	writer.writeAttribute("polyphonic", polyphonyModeToString(savedPolyphonic));
-	writer.writeAttribute("voicePriority",
-	                      util::to_underlying(state_ != nullptr ? static_cast<VoicePriority>(state_->voice_priority)
-	                                                            : snapshot_.voicePriority));
-
-	// Send level (M3 owner-5: read the authoritative record; cache fallback only for an unbound Sound)
-	int32_t sideChainSend = state_ != nullptr ? state_->side_chain_send_level : sideChainSendLevel;
-	if (sideChainSend != 0) {
-		writer.writeAttribute("sideChainSend", sideChainSend);
+	// The instrument writes its own settings; the effects', the params, the arpeggiator and the mod knobs sit between
+	// its pieces in the file.
+	std::optional<deluge::instrument::SoundState> unbound;
+	if (state_ == nullptr) {
+		unbound = seededState(); // a sound under preview or audition saves what its runtime fields hold
 	}
+	const deluge::instrument::SoundState& state = state_ != nullptr ? *state_ : *unbound;
+	const deluge::instrument::SoundPieces pieces =
+	    deluge::instrument::encode_pieces(state, {.input_tick_magnitude = currentSong->getInputTickMagnitude()});
 
-	writer.writeAttribute("mode", (char*)synthModeToString(savedSynthMode));
-
-	if (savedTranspose != 0) {
-		writer.writeAttribute("transpose", savedTranspose);
-	}
-	const int8_t savedCents = state_ != nullptr ? state_->cents : snapshot_.cents;
-	if (savedCents != 0) {
-		writer.writeAttribute("cents", savedCents);
-	}
-
+	writer.writeValue(pieces.head);
 	ModControllableAudio::writeAttributesToFile(writer);
-
 	// Community Firmware parameters (always write them after the official ones)
 	if (pathAttribute) {
 		writer.writeAttribute("path", pathAttribute);
 	}
-	writer.writeAttribute("maxVoices", state_ != nullptr ? state_->max_voice_count : maxVoiceCount);
-
+	writer.writeValue(pieces.max_voices);
 	writer.writeOpeningTagEnd();
 
-	writeSourceToFile(writer, 0, "osc1");
-	writeSourceToFile(writer, 1, "osc2");
-
-	// LFOs (M3 owner-5: read the authoritative record; cache fallback only for an unbound Sound)
-	auto lfoWave = [&](int32_t id) {
-		return state_ != nullptr ? static_cast<LFOType>(state_->lfo_wave_type[id]) : snapshot_.lfoConfig[id].waveType;
-	};
-	auto lfoSyncLevel = [&](int32_t id) {
-		return state_ != nullptr ? static_cast<SyncLevel>(state_->lfo_sync_level[id])
-		                         : snapshot_.lfoConfig[id].syncLevel;
-	};
-	auto lfoSyncType = [&](int32_t id) {
-		return state_ != nullptr ? static_cast<SyncType>(state_->lfo_sync_type[id]) : snapshot_.lfoConfig[id].syncType;
-	};
-
-	writer.writeOpeningTagBeginning("lfo1");
-	writer.writeAttribute("type", lfoTypeToString(lfoWave(LFO1_ID)), false);
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoSyncLevel(LFO1_ID), false);
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(currentSong, "syncType", lfoSyncType(LFO1_ID), false);
-	writer.closeTag();
-
-	writer.writeOpeningTagBeginning("lfo2");
-	writer.writeAttribute("type", lfoTypeToString(lfoWave(LFO2_ID)), false);
-	// Community Firmware parameters
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoSyncLevel(LFO2_ID), false);
-	writer.writeSyncTypeToFile(currentSong, "syncType", lfoSyncType(LFO2_ID), false);
-	writer.closeTag();
-
-	writer.writeOpeningTagBeginning("lfo3");
-	writer.writeAttribute("type", lfoTypeToString(lfoWave(LFO3_ID)), false);
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoSyncLevel(LFO3_ID), false);
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(currentSong, "syncType", lfoSyncType(LFO3_ID), false);
-	writer.closeTag();
-
-	writer.writeOpeningTagBeginning("lfo4");
-	writer.writeAttribute("type", lfoTypeToString(lfoWave(LFO4_ID)), false);
-	// Community Firmware parameters
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoSyncLevel(LFO4_ID), false);
-	writer.writeSyncTypeToFile(currentSong, "syncType", lfoSyncType(LFO4_ID), false);
-	writer.closeTag();
-
-	if (savedSynthMode == SynthMode::FM) {
-
-		writer.writeOpeningTagBeginning("modulator1");
-		writer.writeAttribute("transpose",
-		                      state_ != nullptr ? state_->modulator_transpose[0] : snapshot_.modulatorTranspose[0]);
-		writer.writeAttribute("cents", state_ != nullptr ? state_->modulator_cents[0] : snapshot_.modulatorCents[0]);
-		writer.writeAttribute("retrigPhase", state_ != nullptr ? state_->modulator_retrigger_phase[0]
-		                                                       : snapshot_.modulatorRetriggerPhase[0]);
-		writer.closeTag();
-
-		writer.writeOpeningTagBeginning("modulator2");
-		writer.writeAttribute("transpose",
-		                      state_ != nullptr ? state_->modulator_transpose[1] : snapshot_.modulatorTranspose[1]);
-		writer.writeAttribute("cents", state_ != nullptr ? state_->modulator_cents[1] : snapshot_.modulatorCents[1]);
-		writer.writeAttribute("retrigPhase", state_ != nullptr ? state_->modulator_retrigger_phase[1]
-		                                                       : snapshot_.modulatorRetriggerPhase[1]);
-		writer.writeAttribute("toModulator1",
-		                      state_ != nullptr ? state_->modulator1_to_modulator0 : snapshot_.modulator1ToModulator0);
-		writer.closeTag();
-	}
-
-	writer.writeOpeningTagBeginning("unison");
-	writer.writeAttribute("num", state_ != nullptr ? state_->num_unison : snapshot_.numUnison, false);
-	writer.writeAttribute("detune", state_ != nullptr ? state_->unison_detune : snapshot_.unisonDetune, false);
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeAttribute("spread", state_ != nullptr ? state_->unison_stereo_spread : snapshot_.unisonStereoSpread,
-	                      false);
-	writer.closeTag();
+	writer.writeValue(pieces.body);
 
 	if (paramManager) {
 		writer.writeOpeningTagBeginning("defaultParams");
@@ -4521,11 +4253,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	}
 	writer.writeArrayEnding("modKnobs");
 
-	// Output MIDI note for Drums
-	writer.writeOpeningTagBeginning("midiOutput");
-	writer.writeAttribute("channel", state_ != nullptr ? state_->output_midi_channel : outputMidiChannel);
-	writer.writeAttribute("noteForDrum", state_ != nullptr ? state_->output_midi_note_for_drum : outputMidiNoteForDrum);
-	writer.closeTag();
+	writer.writeValue(pieces.midi_output);
 
 	ModControllableAudio::writeTagsToFile(writer);
 }

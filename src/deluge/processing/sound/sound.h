@@ -430,7 +430,6 @@ private:
 	Error readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                             int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 
-	void writeSourceToFile(Serializer& writer, int32_t s, char const* tagName);
 	Error readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerForTimeline* paramManager,
 	                         int32_t readAutomationUpToPos);
 	void stopSkippingRendering(ArpeggiatorSettings* arpSettings);
