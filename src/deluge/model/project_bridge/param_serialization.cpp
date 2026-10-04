@@ -363,8 +363,7 @@ void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& 
 		out.write("\"");
 
 		// Find the cable(s) whose destination is this cable's param-with-this-source — they control its
-		// depth. NB: like the engine, the nested cable writes the OUTER cable's polarity (a quirk
-		// preserved for byte-identity).
+		// depth. Each writes its own polarity.
 		ParamDescriptor controllerDescriptor = destination_of(cable);
 		controllerDescriptor.addSource(source_of(cable));
 		bool anyDepthControllingCablesFound = false;
@@ -377,7 +376,7 @@ void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& 
 				}
 				out.writeOpeningTagBeginning("patchCable", true);
 				out.writeAttribute("source", sourceToString(source_of(d)));
-				out.writeAttribute("polarity", polarityToString(polarity_of(cable)).data());
+				out.writeAttribute("polarity", polarityToString(polarity_of(d)).data());
 				out.insertCommaIfNeeded();
 				out.write("\n");
 				out.printIndents();

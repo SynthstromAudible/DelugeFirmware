@@ -924,7 +924,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		// range cable 2: LFO_LOCAL_2 controls the depth of cable 0 (param 7 + source ENVELOPE_0)
 		pcs->patchCables[2].from = PatchSource::LFO_LOCAL_2;
 		pcs->patchCables[2].destinationParamDescriptor.setToHaveParamAndSource(7, PatchSource::ENVELOPE_0);
-		pcs->patchCables[2].polarity = Polarity::BIPOLAR;
+		pcs->patchCables[2].polarity = Polarity::UNIPOLAR; // not the outer cable's: a range cable has its own
 		pcs->patchCables[2].param.currentValue = 12345;
 		pcs->docForParam(2)->current_value = 12345;
 
@@ -945,6 +945,11 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(engineLen == domLen, "patch-cable serialize length matches engine");
 		check(engineLen == domLen && std::memcmp(engineBuf, domBuf, engineLen) == 0,
 		      "patch-cable serialize byte-identical to engine");
+		domBuf[domLen] = '\0';
+		const char* nested = std::strstr(domBuf, "depthControlledBy");
+		const char* nestedPolarity = nested ? std::strstr(nested, "polarity=\"") : nullptr;
+		check(nestedPolarity != nullptr && std::strncmp(nestedPolarity, "polarity=\"unipolar\"", 19) == 0,
+		      "a depth-controlling cable keeps its own polarity");
 
 		// And the DOM serialize -> deserialize round-trip recovers the same cables (as a set; the
 		// engine/DOM read orders range cables before the cable they control).
