@@ -7,8 +7,8 @@
  },
  "RS_STREAM": {
   "frames": 384000,
-  "peak": 142067968,
+  "peak": 142074112,
   "rms_db": -31.24,
-  "sha256": "0b8279f4f0847a043d25bf27a5fdd9f02acf156a4d306a013e55b7cc7bacb674"
+  "sha256": "56c9a9e7333d6a81544204c03d64ef8e9977c76cd125f67a86dd4d065b514492"
  }
 }

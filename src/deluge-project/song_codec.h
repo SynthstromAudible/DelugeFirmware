@@ -38,8 +38,7 @@ namespace deluge::project {
 [[nodiscard]] std::expected<void, LoadError> decode(const serialization::Value& song, Transport& transport);
 
 /// @brief The swing: `swingAmount` (−49..49) and `swingInterval`, a sync level stored relative to
-/// @p input_tick_magnitude. A file that stores sync levels relative but gives no interval still has the record's
-/// interval converted, as the song reader always has.
+/// @p input_tick_magnitude.
 [[nodiscard]] serialization::Value encode(const Groove& groove, int32_t input_tick_magnitude);
 [[nodiscard]] std::expected<void, LoadError> decode(const serialization::Value& song, Groove& groove,
                                                     const DecodeContext& context);

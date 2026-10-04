@@ -87,17 +87,13 @@ std::expected<void, LoadError> decode(const Value& song, Groove& groove, const D
 		// Narrowed to the field first, then clamped, as the song reader always has.
 		groove.swing_amount = std::clamp(static_cast<int8_t>(*amount), int8_t{-49}, int8_t{49});
 	}
-	// The interval a relative file holds is converted from the file's tick magnitude. A relative file without one
-	// converts the interval the record already holds, as the song reader always has (it converted at the end of the
-	// read, whatever the file held).
-	int32_t level = engine::index_of(groove.swing_interval);
 	if (auto interval = int_of(song.find("swingInterval"))) {
-		level = static_cast<uint8_t>(*interval); // wraps, as the streaming reader always has
+		int32_t level = static_cast<uint8_t>(*interval); // wraps, as the streaming reader always has
+		if (context.swing_interval_is_relative) {
+			level = sync_level_from_file(level, context.input_tick_magnitude);
+		}
+		groove.swing_interval = engine::sync_level_from_index(static_cast<uint8_t>(std::min(level, int32_t{9})));
 	}
-	if (context.swing_interval_is_relative) {
-		level = sync_level_from_file(level, context.input_tick_magnitude);
-	}
-	groove.swing_interval = engine::sync_level_from_index(static_cast<uint8_t>(std::min(level, int32_t{9})));
 	return {};
 }
 
