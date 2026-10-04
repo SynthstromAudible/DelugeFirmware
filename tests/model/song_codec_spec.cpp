@@ -56,6 +56,17 @@ describe song_codec("the song-level records", ${
 		});
 	});
 
+	it("converts the swing interval it holds when a relative file gives none, as the song reader always has", _ {
+		both_shapes(R"(<song/>)", R"({"song": {}})", [&](const Value& song) {
+			Groove g{.swing_amount = 0, .swing_interval = deluge::engine::sync_level_from_index(6)};
+			(void)decode(song, g, {.input_tick_magnitude = 3, .swing_interval_is_relative = true});
+			expect(deluge::engine::index_of(g.swing_interval)).to_equal(4);
+			Groove old{.swing_amount = 0, .swing_interval = deluge::engine::sync_level_from_index(6)};
+			(void)decode(song, old, {.input_tick_magnitude = 3, .swing_interval_is_relative = false});
+			expect(deluge::engine::index_of(old.swing_interval)).to_equal(6);
+		});
+	});
+
 	it("clamps the swing amount after narrowing it, as the reader does", _ {
 		both_shapes(R"(<song swingAmount="80"/>)", R"({"song": {"swingAmount": 80}})", [&](const Value& song) {
 			Groove g;
