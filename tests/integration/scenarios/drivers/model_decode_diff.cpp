@@ -29,6 +29,7 @@
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "scenarios/drivers/tree_load.h"
+#include "serialization/tree.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
 
@@ -175,6 +176,37 @@ int compare_store(const char* what, const Store& engine, const Map& decoded) {
 	return 0;
 }
 
+/// 0 when every synth track's and sound kit row's slot in @p project equals the one decoded from the file, else 3 after
+/// printing which and where.
+int compare_slots(const char* label, const deluge::project::Song& project, const SongDocument& d) {
+	auto check = [&](const char* what, uint32_t id, const auto* record, const auto& decoded) -> int {
+		const bool same = record != nullptr && record->instrument == decoded.instrument;
+		if (same) {
+			return 0;
+		}
+		std::string where = "a slot is missing";
+		if (record != nullptr && record->instrument && decoded.instrument) {
+			where =
+			    "at " + deluge::serialization::first_difference(decoded.instrument->state, record->instrument->state);
+		}
+		std::fprintf(io.err, "DECODE DIFF: %s slot of %s %u differs (%s)\n", label, what, id, where.c_str());
+		return 3;
+	};
+	for (const auto& [id, decoded] : d.outputs) {
+		auto it = project.output_structure.by_id.find(id);
+		if (int r = check("output", id, it == project.output_structure.by_id.end() ? nullptr : &it->second, decoded)) {
+			return r;
+		}
+	}
+	for (const auto& [id, decoded] : d.drums) {
+		auto it = project.drum_structure.by_id.find(id);
+		if (int r = check("drum", id, it == project.drum_structure.by_id.end() ? nullptr : &it->second, decoded)) {
+			return r;
+		}
+	}
+	return 0;
+}
+
 int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 	io = driverIo;
 	if (argc < 2) {
@@ -269,6 +301,13 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 	}
 	if (int r = compare_store("drum", m.drum_structure.by_id, d.drums)) {
 		return r;
+	}
+	// The slots: the song that wrote the file holds what it wrote (refreshed at save); the song read from it holds what
+	// it read (filled at load); both are the file's elements without the model's keys.
+	for (const auto& [label, project] : {std::pair{"saved", &song->project}, std::pair{"loaded", &engine->project}}) {
+		if (int r = compare_slots(label, *project, d)) {
+			return r;
+		}
 	}
 	return 0;
 }

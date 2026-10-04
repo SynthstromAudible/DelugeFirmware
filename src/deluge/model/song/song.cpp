@@ -56,6 +56,7 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/sample/sample_recorder.h"
 #include "model/scale/preset_scales.h"
@@ -1299,7 +1300,9 @@ void Song::adoptDrum(Drum* drum) {
 	// A sound drum binds its own state now that it is part of the song. The double static_cast lands on the Sound base
 	// subobject of the SoundDrum.
 	if (drum->type == DrumType::SOUND) {
-		static_cast<Sound*>(static_cast<SoundDrum*>(drum))->bindState();
+		Sound* sound = static_cast<Sound*>(static_cast<SoundDrum*>(drum));
+		sound->bindState();
+		deluge::bridge::fillSlot(*sound, d.instrument.emplace(), true); // a drum read from a file refills it once read
 	}
 }
 
@@ -1335,7 +1338,9 @@ void Song::adoptOutput(Output* output) {
 	// A synth track's sound binds its own state now that it is part of the song. The double static_cast lands on the
 	// Sound base subobject.
 	if (output->type == OutputType::SYNTH) {
-		static_cast<Sound*>(static_cast<SoundInstrument*>(output))->bindState();
+		Sound* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(output));
+		sound->bindState();
+		deluge::bridge::fillSlot(*sound, d.instrument.emplace(), false);
 	}
 }
 

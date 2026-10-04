@@ -23,6 +23,7 @@ RUNNERS = {
     "model_decode_diff": "model_decode_diff_run",
     "param_record_diff": "param_record_run",
     "preset_roundtrip": "presets_run",
+    "serializer_check": "serializer_check_run",
     "song_edit_roundtrip": "song_edit_roundtrip_run",
     "song_roundtrip": "songs_run",
 }

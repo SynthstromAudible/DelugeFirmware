@@ -87,6 +87,16 @@ public:
 	/// still drives the rest. Read-only; does not advance the cursor.
 	[[nodiscard]] const Value* currentValue() const { return pending_; }
 
+	/// The element whose entries the reader is reading: the Map just named and not yet entered (as a reader is
+	/// handed an element: its tag read, its contents next), else the innermost element it has entered. Null when
+	/// there is none.
+	[[nodiscard]] const Value* currentElement() const {
+		if (pending_ != nullptr && pending_->isMap()) {
+			return pending_;
+		}
+		return (!stack_.empty() && stack_.back().node->isMap()) ? stack_.back().node : nullptr;
+	}
+
 	/// The whole document this reader reads: a song's version, in old files, sits beside the song rather than in it.
 	[[nodiscard]] const Value& root() const { return *root_; }
 

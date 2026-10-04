@@ -31,6 +31,7 @@
 #include "modulation/sidechain/sidechain.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
+#include "serialization/value.h"
 #include "synth/lfo.h"
 #include "synth/param_plane.h"
 #include "synth/patcher.h"
@@ -54,6 +55,8 @@ class ModelStackWithSoundFlags;
 class ModelStackWithModControllable;
 
 #include "engines/deluge/sound_state.h"
+#include <optional>
+#include <utility>
 
 #define PARAM_LPF_OFF (-1)
 
@@ -108,6 +111,11 @@ public:
 	void bindState();
 	/// The bound state, or null while unbound.
 	[[nodiscard]] const deluge::instrument::SoundState* boundState() const { return state_; }
+	/// The element this sound was last read from, handed over once (to fill its instrument slot); empty if it was not
+	/// read from a document tree.
+	[[nodiscard]] std::optional<deluge::serialization::Value> takeLoadedElement() {
+		return std::exchange(loadedElement_, std::nullopt);
+	}
 	// Copy the DOM-owned scalars engine->record. Assumes state_ is bound. Used as the load-bridge from bindState
 	// AND re-run at doneReadingFromFile — a SoundDrum's adoptDrum binds the record BEFORE its fields are parsed, so the
 	// bind-time seed is stale for drums and must be refreshed once parsing has finished.
@@ -404,6 +412,8 @@ public:
 private:
 	/// The Deluge instrument's settings for this sound, owned here and bound on adoption (bindState).
 	deluge::instrument::SoundState ownedState_;
+	/// The element this sound was last read from (see takeLoadedElement).
+	std::optional<deluge::serialization::Value> loadedElement_;
 	/// @brief Count one destruction that found live voices (see soundsDestroyedWithLiveVoices()).
 	static void noteDestroyedWithLiveVoices();
 

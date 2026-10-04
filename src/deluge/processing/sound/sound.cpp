@@ -59,6 +59,7 @@
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "storage/value_tree_deserializer.h"
 #include "synth/envelope.h"
 #include "synth/patcher.h"
 #include "util/comparison.h"
@@ -3520,6 +3521,11 @@ void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* pa
 // separate from Clips and won't store any arp stuff
 Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* modelStack,
                           int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings) {
+	if (deluge::storage::ValueTreeDeserializer* tree = reader.asTreeReader()) {
+		if (const deluge::serialization::Value* element = tree->currentElement()) {
+			loadedElement_ = *element;
+		}
+	}
 
 	assignModulatorTranspose(1, 0);
 	for (int32_t s = 0; s < kNumSources; s++) {

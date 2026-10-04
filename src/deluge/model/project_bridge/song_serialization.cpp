@@ -27,6 +27,7 @@
 #include "io/midi/midi_device.h" // MIDICable::writeReferenceToFile
 #include "io/midi/midi_device_manager.h"
 #include "model/project_bridge/midi_command.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "storage/storage_manager.h" // Serializer / Deserializer
 #include "storage/value_tree_deserializer.h"
@@ -43,8 +44,11 @@ namespace deluge::bridge {
 using namespace deluge::project;
 
 void saveSong(::Song& song, Serializer& out) {
-	ActiveWriterScope scope(out); // the song's nested writers (outputs, drums) write through `out` too
-	song.writeToFile(out);
+	{
+		ActiveWriterScope scope(out); // the song's nested writers (outputs, drums) write through `out` too
+		song.writeToFile(out);
+	}
+	refreshSlots(song); // each slot now holds what this save wrote for it
 }
 
 namespace {
