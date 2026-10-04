@@ -40,6 +40,8 @@ static_assert(global_effectable::kFirstId == params::UNPATCHED_START);
 static_assert(global_effectable::param::kTempo.value == params::UNPATCHED_START + params::UNPATCHED_TEMPO);
 static_assert(global_effectable::kParamBlock.count == params::UNPATCHED_GLOBAL_MAX_NUM);
 static_assert(instrument::kParamBlocks.size() <= deluge::project::kEngineParamBlocks);
+// An unpatched set not yet named (kind NONE) is numbered and stored the same whichever kind it becomes.
+static_assert(instrument::kUnpatchedFirstId == global_effectable::kFirstId);
 
 deluge::engine::ParamId paramIdOf(params::Kind kind, int32_t index) {
 	const auto at = static_cast<uint8_t>(index);
@@ -55,6 +57,34 @@ deluge::engine::ParamId paramIdOf(params::Kind kind, int32_t index) {
 		return global_effectable::param_id(at);
 	default:
 		return deluge::engine::ParamId{static_cast<uint32_t>(index)};
+	}
+}
+
+std::optional<int32_t> runtimeIndexOf(params::Kind kind, deluge::engine::ParamId id) {
+	switch (kind) {
+	case params::Kind::PATCHED:
+	case params::Kind::UNPATCHED_SOUND: {
+		std::optional<instrument::RuntimeSlot> slot = instrument::runtime_slot(id);
+		const auto set =
+		    kind == params::Kind::PATCHED ? instrument::RuntimeSet::PATCHED : instrument::RuntimeSet::UNPATCHED;
+		if (!slot || slot->set != set) {
+			return std::nullopt;
+		}
+		return slot->index;
+	}
+	case params::Kind::NONE:
+		// An unpatched set its owner's init has not named yet may be either kind's; both number from the same first id.
+		if (std::optional<int32_t> index = runtimeIndexOf(params::Kind::UNPATCHED_SOUND, id)) {
+			return index;
+		}
+		return runtimeIndexOf(params::Kind::UNPATCHED_GLOBAL, id);
+	case params::Kind::UNPATCHED_GLOBAL:
+		if (std::optional<uint8_t> index = global_effectable::runtime_index(id)) {
+			return *index;
+		}
+		return std::nullopt;
+	default:
+		return static_cast<int32_t>(id.value);
 	}
 }
 

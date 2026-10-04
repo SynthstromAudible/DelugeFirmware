@@ -535,8 +535,8 @@ namespace {
 // with the write side; the net effect on currentValue + nodes is identical to a direct readParam.
 void readLiveParam(Deserializer& in, ParamSet& set, ParamCollectionSummary& summary, ParamId id,
                    int32_t readAutomationUpToPos) {
-	// The live set holds the param at its runtime index: its id less the set's first id.
-	const int32_t p = static_cast<int32_t>(id.value - firstParamId(set.getParamKind()).value);
+	// The live set holds the param at its runtime index, through its engine's map.
+	const int32_t p = *runtimeIndexOf(set.getParamKind(), id);
 	DocAutoParam doc = readDocAutoParam(in, readAutomationUpToPos);
 	// M2-F: land the value in the RT cursor and the nodes in the set's owner-resolved DOM store (not ownDoc_).
 	fromDocAutoParam(doc, set.params[p].currentValue, set.docForParam(p)->nodes);

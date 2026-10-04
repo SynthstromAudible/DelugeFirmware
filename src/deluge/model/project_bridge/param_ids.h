@@ -34,6 +34,10 @@ namespace deluge::bridge {
 /// unpatched.
 [[nodiscard]] deluge::engine::ParamId paramIdOf(deluge::modulation::params::Kind kind, int32_t index);
 
+/// @brief Where a @p kind collection keeps the param @p id: its runtime index, through the same engine map as
+/// paramIdOf; for a host space's param, the id itself. nullopt when the collection's engine has no such param.
+[[nodiscard]] std::optional<int32_t> runtimeIndexOf(deluge::modulation::params::Kind kind, deluge::engine::ParamId id);
+
 /// @brief The id of a @p kind collection's first param: the id its store's first lane has.
 [[nodiscard]] deluge::engine::ParamId firstParamId(deluge::modulation::params::Kind kind);
 

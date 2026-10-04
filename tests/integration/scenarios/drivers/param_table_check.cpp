@@ -72,6 +72,9 @@ struct Checker {
 		if (deluge::bridge::paramIdOf(kind, index) != info.id) {
 			fail(table, info, "the boundary map gives the runtime index another id");
 		}
+		if (deluge::bridge::runtimeIndexOf(kind, info.id) != index) {
+			fail(table, info, "the boundary map gives the id another runtime index");
+		}
 	}
 };
 
