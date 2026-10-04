@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cppspec.hpp>
+#include <limits>
 #include <string_view>
 
 using namespace deluge::instrument;
@@ -162,6 +163,14 @@ describe params("the Deluge instrument's param table", ${
 		for (const auto& row : kParams) {
 			expect(kParamBlocks[0].contains(row.id) || kParamBlocks[1].contains(row.id)).to_equal(true);
 		}
+	});
+
+	it("starts a new instance with its params' defaults", _ {
+		expect(deluge::engine::find_param(kParams, param::kOscAVolume)->default_value)
+		    .to_equal(std::numeric_limits<int32_t>::max());
+		expect(deluge::engine::find_param(kParams, param::kPortamento)->default_value)
+		    .to_equal(std::numeric_limits<int32_t>::min());
+		expect(deluge::engine::find_param(kParams, param::kPan)->default_value).to_equal(0);
 	});
 
 	it("has one row per name", _ {

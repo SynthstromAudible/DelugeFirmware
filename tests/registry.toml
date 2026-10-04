@@ -982,7 +982,7 @@ level = "integration"
 runner = "scenario"
 kind = "unit"
 status = "gate"
-gates = "the engines' param tables agree with the runtime: every row of the Deluge instrument's table and of the provisional global-effectable table has the runtime's file name, scope and bipolarity for its runtime index, the boundary map gives that index the row's id, and every runtime param has a row"
+gates = "the engines' param tables agree with the runtime: every row of the Deluge instrument's table and of the provisional global-effectable table has the runtime's file name, scope, bipolarity and default (what the engine's own init gives a fresh instance) for its runtime index, the boundary map gives that index the row's id, and every runtime param has a row"
 scenario = "param_table_check"
 markers = ["DRV-EXIT"]
 result = "DRV-EXIT code=0"

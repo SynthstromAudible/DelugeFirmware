@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cppspec.hpp>
+#include <limits>
 #include <string_view>
 
 using namespace deluge::global_effectable;
@@ -93,6 +94,13 @@ describe params("the provisional global-effectable param table", ${
 			expect(row.bipolar).to_equal(row.id.value == 121 || row.id.value == 131);
 			expect(row.scope == ParamScope::PER_SOUND).to_equal(true);
 		}
+	});
+
+	it("starts a new instance with its params' defaults", _ {
+		expect(deluge::engine::find_param(kParams, param::kModFXRate)->default_value).to_equal(-536870912);
+		expect(deluge::engine::find_param(kParams, param::kArpGate)->default_value)
+		    .to_equal(std::numeric_limits<int32_t>::max());
+		expect(deluge::engine::find_param(kParams, param::kPan)->default_value).to_equal(0);
 	});
 
 	it("has one row per name", _ {

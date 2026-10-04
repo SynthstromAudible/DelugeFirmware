@@ -16,13 +16,18 @@
  */
 
 // param_table_check — the engines' param tables agree with the runtime: every row's file name is the runtime's
-// name for its runtime index, every runtime param has a row, and each row's scope and bipolarity are the runtime's.
+// name for its runtime index, every runtime param has a row, and each row's scope, bipolarity and default are the
+// runtime's (a default is what the engine's own init gives a fresh instance).
 // Exit: 0 agree; 3 a row disagrees (each printed).
 
 #include "engines/deluge/params.h"
 #include "engines/global_effectable/params.h"
+#include "model/global_effectable/global_effectable.h"
 #include "model/project_bridge/param_ids.h"
 #include "modulation/params/param.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
+#include "processing/sound/sound.h"
 #include "scenarios/drivers/driver.h"
 
 #include <cstdio>
@@ -70,6 +75,38 @@ struct Checker {
 	}
 };
 
+/// Each row's default against the value @p init gives a fresh manager's param.
+void checkDefaults(Checker& check) {
+	ParamManagerForTimeline sound;
+	sound.setupWithPatching();
+	Sound::initParams(&sound);
+	for (const ParamInfo& info : deluge::instrument::kParams) {
+		auto slot = *deluge::instrument::runtime_slot(info.id);
+		ParamSet* set = slot.set == deluge::instrument::RuntimeSet::PATCHED
+		                    ? static_cast<ParamSet*>(sound.getPatchedParamSet())
+		                    : static_cast<ParamSet*>(sound.getUnpatchedParamSet());
+		int32_t value = set->docForParam(slot.index)->current_value;
+		if (value != info.default_value) {
+			std::fprintf(check.io.err, "default instrument %u %.*s: table %d, runtime %d\n", info.id.value,
+			             static_cast<int>(info.file_name.size()), info.file_name.data(), info.default_value, value);
+			++check.disagreements;
+		}
+	}
+	ParamManagerForTimeline global;
+	global.setupUnpatched();
+	GlobalEffectable::initParams(&global);
+	for (const ParamInfo& info : deluge::global_effectable::kParams) {
+		int32_t value = global.getUnpatchedParamSet()
+		                    ->docForParam(*deluge::global_effectable::runtime_index(info.id))
+		                    ->current_value;
+		if (value != info.default_value) {
+			std::fprintf(check.io.err, "default global-effectable %u %.*s: table %d, runtime %d\n", info.id.value,
+			             static_cast<int>(info.file_name.size()), info.file_name.data(), info.default_value, value);
+			++check.disagreements;
+		}
+	}
+}
+
 int param_table_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	Checker check{io};
 	using namespace deluge::instrument;
@@ -96,6 +133,7 @@ int param_table_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	cover("instrument", kParams, params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SOUND_MAX_NUM);
 	cover("global-effectable", deluge::global_effectable::kParams, params::Kind::UNPATCHED_GLOBAL,
 	      params::UNPATCHED_GLOBAL_MAX_NUM);
+	checkDefaults(check);
 	std::fprintf(io.out, "%d disagreement(s)\n", check.disagreements);
 	return check.disagreements == 0 ? 0 : 3;
 }
