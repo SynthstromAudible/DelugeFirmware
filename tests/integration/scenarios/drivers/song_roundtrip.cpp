@@ -23,7 +23,6 @@
 #include "model/song/song.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
-#include "storage/parse_xml.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
 
@@ -41,7 +40,8 @@ using deluge::scenarios::driver::Io;
 // load(xml) -> save into `out`. Returns serialized length, or -1 on load error
 // (code in *loadErr). `xml` must be writable (the reader null-terminates tokens
 // in place).
-long load_then_save(char* xml, size_t xmlLen, char* out, uint32_t outCap, Error* loadErr) {
+long load_then_save(char* xml, size_t xmlLen, deluge::storage::DocumentFormat format, char* out, uint32_t outCap,
+                    Error* loadErr) {
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
@@ -56,16 +56,16 @@ long load_then_save(char* xml, size_t xmlLen, char* out, uint32_t outCap, Error*
 	// then replay it to the existing readFromFile through ValueTreeDeserializer instead of streaming
 	// the bytes. Must be bit-identical to the streaming load (the golden baselines are stream-made).
 	std::optional<deluge::storage::Value> tree =
-	    deluge::storage::parseXml(std::string_view(reinterpret_cast<const char*>(xml), static_cast<size_t>(xmlLen)));
+	    parseDocument(std::string_view(reinterpret_cast<const char*>(xml), static_cast<size_t>(xmlLen)), format);
 	Error e = Error::FILE_CORRUPTED;
 	if (tree) {
-		deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
+		deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(format));
 		// Point the active-reader gate at the adapter: its shouldCallRoutines()==false gates the
 		// AudioEngine render off during load (the in-memory tree never yields), exactly as the streaming
 		// XMLDeserializer's callRoutines==false did. (Interior read sites like MIDIInstrument modKnobs now
 		// take the reader param, so activeDeserializer itself need not point here.)
 		activeReader = &adapter;
-		e = openTreeFile(adapter, "song");
+		e = openTreeFile(adapter, "song", format);
 		if (e == Error::NONE) {
 			e = deluge::bridge::loadSong(*song, adapter);
 		}
@@ -83,9 +83,7 @@ long load_then_save(char* xml, size_t xmlLen, char* out, uint32_t outCap, Error*
 	// form that still round-trips to a fixed point.
 	song->setCurrentClip(nullptr);
 
-	deluge::scenarios::driver::beginCapture(smSerializer);
-	deluge::bridge::saveSong(*song, smSerializer);
-	return deluge::scenarios::driver::endCapture(smSerializer, out, outCap);
+	return deluge::scenarios::driver::saveSongCapture(*song, out, outCap);
 }
 
 int song_roundtrip_main(int argc, char** argv, Io io) {
@@ -115,14 +113,14 @@ int song_roundtrip_main(int argc, char** argv, Io io) {
 	std::fclose(f);
 
 	Error e1, e2;
-	long n1 = load_then_save(orig, fileLen, gen1, kCap, &e1);
+	long n1 = load_then_save(orig, fileLen, deluge::storage::formatOfPath(songPath), gen1, kCap, &e1);
 	if (n1 < 0) {
 		std::fprintf(io.err, "LOADFAIL original -> Error %d\n", (int)e1);
 		return 1;
 	}
 
 	std::memcpy(gen1copy, gen1, n1);
-	long n2 = load_then_save(gen1copy, n1, gen2, kCap, &e2);
+	long n2 = load_then_save(gen1copy, n1, deluge::storage::kSongSaveFormat, gen2, kCap, &e2);
 	if (n2 < 0) {
 		std::fprintf(io.err, "LOADFAIL gen1 -> Error %d\n", (int)e2);
 		return 1;

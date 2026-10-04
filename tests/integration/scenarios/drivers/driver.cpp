@@ -18,6 +18,7 @@
 #include "scenarios/drivers/driver.h"
 
 #include "model/edits/param_address_for.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -216,6 +217,13 @@ long endCapture(FileWriter& writer, char* buf, uint32_t cap) {
 	}
 	writer.clearMemoryBased();
 	return result;
+}
+
+long saveSongCapture(Song& song, char* buf, uint32_t cap) {
+	FileWriter& writer = fileWriterFor(deluge::storage::kSongSaveFormat);
+	beginCapture(writer);
+	deluge::bridge::saveSong(song, serializerFor(deluge::storage::kSongSaveFormat));
+	return endCapture(writer, buf, cap);
 }
 
 } // namespace deluge::scenarios::driver

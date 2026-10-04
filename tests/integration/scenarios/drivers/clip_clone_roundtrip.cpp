@@ -36,7 +36,6 @@
 
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
-#include "storage/parse_xml.h"
 #include "storage/value_tree_deserializer.h"
 #include <optional>
 #include <string_view>
@@ -124,7 +123,7 @@ static int32_t sweepDoc(Song* song) {
 }
 
 // load(xml) -> fully-loaded Song (currentSong set), or nullptr on load error. Mirrors song_edit_roundtrip.cpp.
-static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
+static Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat format, Error* loadErr) {
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
@@ -133,12 +132,12 @@ static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 	// Through the Value tree, as a song load is: parse the whole XML, then replay it. The tree reader's
 	// shouldCallRoutines() is false, which gates the AudioEngine yields off for the load.
 	std::optional<deluge::storage::Value> tree =
-	    deluge::storage::parseXml(std::string_view(reinterpret_cast<const char*>(xml), xmlLen));
+	    parseDocument(std::string_view(reinterpret_cast<const char*>(xml), xmlLen), format);
 	Error e = Error::FILE_CORRUPTED;
 	if (tree) {
-		deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
+		deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(format));
 		activeReader = &adapter;
-		e = openTreeFile(adapter, "song");
+		e = openTreeFile(adapter, "song", format);
 		if (e == Error::NONE) {
 			e = deluge::bridge::loadSong(*song, adapter);
 		}
@@ -191,7 +190,7 @@ int clip_clone_roundtrip_main(int argc, char** argv, Io driverIo) {
 	std::fclose(f);
 
 	Error e1;
-	Song* song = load_song(orig, fileLen, &e1);
+	Song* song = load_song(orig, fileLen, deluge::storage::formatOfPath(argv[1]), &e1);
 	if (!song) {
 		std::fprintf(io.err, "LOADFAIL -> Error %d\n", (int)e1);
 		return 1;

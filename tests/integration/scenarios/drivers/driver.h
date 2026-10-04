@@ -21,6 +21,7 @@
 #include <cstdio>
 
 class FileWriter;
+class Song;
 
 /// @file
 /// @brief Host drivers: whole-program checks run as stepped scenarios on the booted app.
@@ -63,6 +64,10 @@ void beginCapture(FileWriter& writer);
 /// @brief Copy what @p writer wrote since beginCapture() to @p buf, and hand the writer back to file writing.
 /// @return The number of bytes written, or -1 when they do not fit in @p cap.
 long endCapture(FileWriter& writer, char* buf, uint32_t cap);
+
+/// @brief Save @p song into @p buf in the format songs are saved in (deluge::storage::kSongSaveFormat).
+/// @return The number of bytes written, or -1 when they do not fit in @p cap.
+long saveSongCapture(Song& song, char* buf, uint32_t cap);
 
 } // namespace deluge::scenarios::driver
 

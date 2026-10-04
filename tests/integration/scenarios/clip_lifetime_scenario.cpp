@@ -97,7 +97,9 @@ constexpr int32_t kAppendY = 1000;
 /// The song SONGLOAD and SONGSWAP load: the song current at the leg's setup, written through the song save's own
 /// serialiser (Song::writeToFile()) -- a fixture is never hand-written XML.
 constexpr const char* kSongDir = "SONGS";
-constexpr const char* kSongPath = "SONGS/CLLOAD.XML";
+/// The fixture song's path, in the format songs are saved in.
+const std::string kSongPath =
+    std::string{"SONGS/CLLOAD"} + deluge::storage::extensionOf(deluge::storage::kSongSaveFormat);
 /// Stamped over the old song's swing after the fixture is written, so the loaded song can be told from the old one by
 /// value: the new Song may land at the address the old one freed.
 constexpr int8_t kSwingDecoy = 5;
@@ -396,15 +398,22 @@ ParamManager* orphanParamManager() {
 /// storage manager created, as the preset fixtures elsewhere are written.
 bool writeFixtureSong() {
 	(void)deluge::io::mkdir(kSongDir);
-	(void)deluge::io::unlink(kSongPath);
+	(void)deluge::io::unlink(kSongPath.c_str());
 	g_fixtureSwing = currentSong->project.groove.swing_amount;
-	Error error =
-	    StorageManager::createXMLFile(kSongPath, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
+	Serializer& serializer = serializerFor(deluge::storage::kSongSaveFormat);
+	Error error = serializer.format() == deluge::storage::DocumentFormat::JSON
+	                  ? StorageManager::createJsonFile(kSongPath.c_str(), smJsonSerializer, /*mayOverwrite=*/true,
+	                                                   /*displayErrors=*/false)
+	                  : StorageManager::createXMLFile(kSongPath.c_str(), smSerializer, /*mayOverwrite=*/true,
+	                                                  /*displayErrors=*/false);
 	if (error != Error::NONE) {
 		return fail("the fixture song could not be created");
 	}
-	deluge::bridge::saveSong(*currentSong, GetSerializer());
-	error = GetSerializer().closeFileAfterWriting(kSongPath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", nullptr);
+	deluge::bridge::saveSong(*currentSong, serializer);
+	const char* head = serializer.format() == deluge::storage::DocumentFormat::JSON
+	                       ? "{\"song\": {"
+	                       : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+	error = serializer.closeFileAfterWriting(kSongPath.c_str(), head, nullptr);
 	if (error != Error::NONE) {
 		return fail("the fixture song could not be closed");
 	}
@@ -416,13 +425,13 @@ bool writeFixtureSong() {
 /// SAVEKIT's save: the song save's serialisation, into memory as SaveSongUI::serializeSongToBuffer() does it. Saving
 /// a song (not a kit) is what reaches Kit::writeDataToFile()'s destroy of a drum no note row has. Returns the bytes.
 int32_t serializeSong() {
-	auto& writer = static_cast<FileWriter&>(smSerializer);
+	FileWriter& writer = fileWriterFor(deluge::storage::kSongSaveFormat);
 	writer.setMemoryBased();
 	g_step = "writeToFile";
-	deluge::bridge::saveSong(*currentSong, GetSerializer());
+	deluge::bridge::saveSong(*currentSong, serializerFor(deluge::storage::kSongSaveFormat));
 	const int32_t written = writer.bytesWritten();
 	writer.clearMemoryBased();
-	GetSerializer().reset();
+	serializerFor(deluge::storage::kSongSaveFormat).reset();
 	return written;
 }
 
@@ -830,7 +839,7 @@ void deleteLeg() {
 		// The load browser on the fixture song, as song_load_channel_scenario.cpp opens it. The load itself begins
 		// once its listing has landed (Stage::Listing).
 		g_step = "openLoadSongUI";
-		currentSong->setSongFullPath(kSongPath);
+		currentSong->setSongFullPath(kSongPath.c_str());
 		(void)openUI(&loadSongUI);
 		break;
 	case Leg::Epoch0:
@@ -898,7 +907,7 @@ void cleanUpSongLeg() {
 	}
 	if (isLoadLeg(g_leg)) {
 		// The image is this run's own, but a later load leg writes the same path.
-		(void)deluge::io::unlink(kSongPath);
+		(void)deluge::io::unlink(kSongPath.c_str());
 	}
 	changeRootUI(&sessionView);
 	g_home = (currentSong != nullptr && !currentSong->live.clips.session_clips.empty())

@@ -59,7 +59,8 @@ SKIP_RC = 77  # autotools convention; matched by CTest SKIP_RETURN_CODE
 
 def run_driver(cmd_prefix, binary, song, timeout):
     """Run the driver -> (returncode, gen1_sha256_or_None, summary_tail)."""
-    with tempfile.NamedTemporaryFile(suffix=".XML", delete=False) as tf:
+    # The save is only hashed, so its name says nothing of the format songs are saved in.
+    with tempfile.NamedTemporaryFile(suffix=".gen1", delete=False) as tf:
         out_path = tf.name
     try:
         r = driver.run(binary, "song_roundtrip", [song, out_path], timeout, cmd_prefix)

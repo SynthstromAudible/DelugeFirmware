@@ -71,7 +71,6 @@
 #include "processing/sound/sound_drum.h"
 #include "scenarios/drivers/tree_load.h"
 #include "sequence/iterance.h"
-#include "storage/parse_xml.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
 
@@ -105,7 +104,7 @@ void check(bool ok, const char* what) {
 }
 
 // Same native load as param_record_diff. `xml` must be writable and outlive all uses.
-Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
+Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat format, Error* loadErr) {
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
@@ -114,12 +113,12 @@ Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 	// Load via the record-first Value tree (deserializer step 2b): parse the whole XML to a Value, then
 	// replay it to readFromFile through ValueTreeDeserializer -- bit-identical to the streaming load.
 	std::optional<deluge::storage::Value> tree =
-	    deluge::storage::parseXml(std::string_view(reinterpret_cast<const char*>(xml), static_cast<size_t>(xmlLen)));
+	    parseDocument(std::string_view(reinterpret_cast<const char*>(xml), static_cast<size_t>(xmlLen)), format);
 	Error e = Error::FILE_CORRUPTED;
 	if (tree) {
-		deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
+		deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(format));
 		activeReader = &adapter; // in-memory: gates the AudioEngine render off during load (as the stream path did)
-		e = openTreeFile(adapter, "song");
+		e = openTreeFile(adapter, "song", format);
 		if (e == Error::NONE) {
 			e = deluge::bridge::loadSong(*song, adapter);
 		}
@@ -1355,7 +1354,7 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 	std::fclose(f);
 
 	Error loadErr = Error::NONE;
-	Song* song = load_song(xml, sz, &loadErr);
+	Song* song = load_song(xml, sz, deluge::storage::formatOfPath(argv[1]), &loadErr);
 	if (!song) {
 		std::fprintf(io.err, "load error %d\n", (int)loadErr);
 		return 1;

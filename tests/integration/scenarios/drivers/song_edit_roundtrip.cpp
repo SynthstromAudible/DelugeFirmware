@@ -52,8 +52,8 @@
 #include "model/project_bridge/param_projection.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
-#include "storage/parse_xml.h"
 #include "storage/value_tree_deserializer.h"
+#include <cctype>
 #include <optional>
 #include <regex>
 #include <string>
@@ -62,6 +62,140 @@
 namespace {
 
 using deluge::scenarios::driver::Io;
+
+/// Text edits on a saved song, in the syntax of the format songs are saved in: an XML attribute `name="value"` or a
+/// JSON member `"name": value`.
+class SavedSong {
+public:
+	explicit SavedSong(const char* text, long length) : text_(text, length) {}
+
+	[[nodiscard]] const std::string& text() const { return text_; }
+
+	/// The attribute or member @p name with @p value, as this format writes it.
+	[[nodiscard]] static std::string member(const std::string& name, const std::string& value) {
+		return json() ? "\"" + name + "\": " + value : name + "=\"" + value + "\"";
+	}
+
+	/// Whether the song holds the attribute or member @p name.
+	[[nodiscard]] bool holds(const std::string& name) const { return find(name).first != std::string::npos; }
+
+	/// Takes the attribute or member @p name out; false when the song holds none.
+	bool erase(const std::string& name) {
+		auto [at, end] = find(name);
+		if (at == std::string::npos) {
+			return false;
+		}
+		if (json()) {
+			if (end < text_.size() && text_[end] == ',') {
+				end++;
+			}
+			else {
+				at = text_.rfind(',', at);
+			}
+		}
+		text_.erase(at, end - at);
+		return true;
+	}
+
+	/// Gives the attribute or member @p name the value @p value; false when the song holds none.
+	bool replace(const std::string& name, const std::string& value) {
+		const auto [at, end] = find(name);
+		if (at == std::string::npos) {
+			return false;
+		}
+		text_.replace(at, end - at, member(name, value));
+		return true;
+	}
+
+	/// Replaces the first attribute or member written as @p from (a whole one: `"id": 1` is not the start of
+	/// `"id": 15`) with @p to; false when the song holds none.
+	bool replaceMember(const std::string& from, const std::string& to) {
+		for (size_t at = text_.find(from); at != std::string::npos; at = text_.find(from, at + 1)) {
+			const size_t end = at + from.size();
+			if (end < text_.size() && std::isalnum(static_cast<unsigned char>(text_[end]))) {
+				continue;
+			}
+			text_.replace(at, from.size(), to);
+			return true;
+		}
+		return false;
+	}
+
+	/// Moves the attribute or member @p name to the front of the song's own; false when the song holds none.
+	bool moveToFront(const std::string& name) {
+		const auto [at, end] = find(name);
+		const size_t songAt = text_.find(json() ? "\"song\": {" : "<song");
+		if (at == std::string::npos || songAt == std::string::npos) {
+			return false;
+		}
+		const std::string moved = text_.substr(at, end - at);
+		erase(name);
+		text_.insert(songAt + (json() ? std::strlen("\"song\": {") : std::strlen("<song")),
+		             json() ? moved + "," : " " + moved);
+		return true;
+	}
+
+	/// Takes away every output's own id (the id each output names first), as a song from before outputs had ids.
+	bool dropOutputIds() {
+		const size_t open = text_.find(json() ? "\"instruments\": [" : "<instruments>");
+		const size_t close = json() ? closingBracketAfter(open) : text_.find("</instruments>");
+		if (open == std::string::npos || close == std::string::npos) {
+			return false;
+		}
+		const std::regex firstId = json() ? std::regex(R"re((\{"[A-Za-z]+": \{\s*)"id": [0-9]+,\s*)re")
+		                                  : std::regex("(<[A-Za-z]+\\s+)id=\"[0-9]+\"\\s*");
+		text_.replace(open, close - open, std::regex_replace(text_.substr(open, close - open), firstId, "$1"));
+		return true;
+	}
+
+private:
+	[[nodiscard]] static bool json() {
+		return deluge::storage::kSongSaveFormat == deluge::storage::DocumentFormat::JSON;
+	}
+
+	/// Where the attribute or member @p name starts and ends, or npos.
+	[[nodiscard]] std::pair<size_t, size_t> find(const std::string& name) const {
+		const std::string key = json() ? "\"" + name + "\": " : name + "=\"";
+		const size_t at = text_.find(key);
+		if (at == std::string::npos) {
+			return {std::string::npos, std::string::npos};
+		}
+		const size_t end = json() ? text_.find_first_of(",\n}", at + key.size()) : text_.find('"', at + key.size()) + 1;
+		return {at, end};
+	}
+
+	/// The position of the `]` closing the JSON array whose name starts at @p from, or npos.
+	[[nodiscard]] size_t closingBracketAfter(size_t from) const {
+		if (from == std::string::npos) {
+			return std::string::npos;
+		}
+		int32_t depth = 0;
+		bool inString = false;
+		for (size_t i = text_.find('[', from); i < text_.size(); i++) {
+			const char c = text_[i];
+			if (inString) {
+				if (c == '\\') {
+					i++;
+				}
+				else if (c == '"') {
+					inString = false;
+				}
+			}
+			else if (c == '"') {
+				inString = true;
+			}
+			else if (c == '[') {
+				depth++;
+			}
+			else if (c == ']' && --depth == 0) {
+				return i;
+			}
+		}
+		return std::string::npos;
+	}
+
+	std::string text_;
+};
 
 /// Where this driver's prints go: what its process wrote to stdout and stderr.
 Io io{};
@@ -297,7 +431,7 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 
 // load(xml) -> fully-loaded Song (currentSong set, view cleared), or nullptr on load error (code in *loadErr).
 // `xml` must be writable (the reader null-terminates tokens in place) and outlive all uses of the Song.
-static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
+static Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat format, Error* loadErr) {
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
@@ -306,12 +440,12 @@ static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 	// Through the Value tree, as a song load is: parse the whole XML, then replay it. The tree reader's
 	// shouldCallRoutines() is false, which gates the AudioEngine yields off for the load.
 	std::optional<deluge::storage::Value> tree =
-	    deluge::storage::parseXml(std::string_view(reinterpret_cast<const char*>(xml), xmlLen));
+	    parseDocument(std::string_view(reinterpret_cast<const char*>(xml), xmlLen), format);
 	Error e = Error::FILE_CORRUPTED;
 	if (tree) {
-		deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
+		deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(format));
 		activeReader = &adapter;
-		e = openTreeFile(adapter, "song");
+		e = openTreeFile(adapter, "song", format);
 		if (e == Error::NONE) {
 			e = deluge::bridge::loadSong(*song, adapter);
 		}
@@ -361,7 +495,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 
 	// 1+2. Load, then DOM-first edit the song-global param.
 	Error e1;
-	Song* song = load_song(orig, fileLen, &e1);
+	Song* song = load_song(orig, fileLen, deluge::storage::formatOfPath(argv[1]), &e1);
 	if (!song) {
 		std::fprintf(io.err, "LOADFAIL original -> Error %d\n", (int)e1);
 		return 1;
@@ -690,14 +824,12 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	song->project.arrangement.sections[3].launch_midi_command = sectionCommand;
 
 	// 3. Save.
-	deluge::scenarios::driver::beginCapture(smSerializer);
-	deluge::bridge::saveSong(*song, smSerializer);
-	long n1 = deluge::scenarios::driver::endCapture(smSerializer, gen1, kCap);
+	long n1 = deluge::scenarios::driver::saveSongCapture(*song, gen1, kCap);
 
 	// 4. Reload the saved bytes.
 	std::memcpy(gen1copy, gen1, n1);
 	Error e2;
-	Song* reloaded = load_song(gen1copy, n1, &e2);
+	Song* reloaded = load_song(gen1copy, n1, deluge::storage::kSongSaveFormat, &e2);
 	if (!reloaded) {
 		std::fprintf(io.err, "LOADFAIL gen1 -> Error %d\n", (int)e2);
 		return 1;
@@ -728,21 +860,16 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// The swing interval is stored relative to the input tick magnitude, whichever of the two the file holds first: a
 	// copy of the save with swingInterval moved to the front of the song's attributes reloads to the same groove.
 	{
-		std::string reordered(gen1, n1);
-		const size_t at = reordered.find("swingInterval=\"");
-		const size_t songAt = reordered.find("<song");
-		if (at == std::string::npos || songAt == std::string::npos) {
+		SavedSong reordered(gen1, n1);
+		if (!reordered.moveToFront("swingInterval")) {
 			std::fprintf(io.err, "GROOVE FAIL: the save holds no swingInterval\n");
 			return 3;
 		}
-		const size_t end = reordered.find('"', at + std::strlen("swingInterval=\"")) + 1;
-		const std::string attribute = reordered.substr(at, end - at);
-		reordered.erase(at, end - at);
-		reordered.insert(songAt + std::strlen("<song"), " " + attribute);
-		std::memcpy(gen2copy, reordered.data(), reordered.size());
+		std::memcpy(gen2copy, reordered.text().data(), reordered.text().size());
 		Error reorderedError;
 		const deluge::project::Groove expected = reloaded->project.groove;
-		Song* reorderedSong = load_song(gen2copy, reordered.size(), &reorderedError);
+		Song* reorderedSong =
+		    load_song(gen2copy, reordered.text().size(), deluge::storage::kSongSaveFormat, &reorderedError);
 		if (!reorderedSong || !(reorderedSong->project.groove == expected)) {
 			std::fprintf(io.err, "GROOVE FAIL: swingInterval ahead of inputTickMagnitude reads differently\n");
 			return 3;
@@ -753,21 +880,15 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// A song file without inputTickMagnitude stores its sync values relative to the magnitude the new song starts
 	// with: a copy of the save without it and with swingInterval="7" reads the swing relative to that magnitude.
 	{
-		std::string noMagnitude(gen1, n1);
-		const size_t at = noMagnitude.find("inputTickMagnitude=\"");
-		const size_t swingAt = noMagnitude.find("swingInterval=\"");
-		if (at == std::string::npos || swingAt == std::string::npos) {
+		SavedSong noMagnitude(gen1, n1);
+		if (!noMagnitude.replace("swingInterval", "7") || !noMagnitude.erase("inputTickMagnitude")) {
 			std::fprintf(io.err, "GROOVE FAIL: the save holds no inputTickMagnitude or swingInterval\n");
 			return 3;
 		}
-		const size_t swingEnd = noMagnitude.find('"', swingAt + std::strlen("swingInterval=\""));
-		noMagnitude.replace(swingAt, swingEnd + 1 - swingAt, "swingInterval=\"7\"");
-		const size_t at2 = noMagnitude.find("inputTickMagnitude=\"");
-		const size_t end = noMagnitude.find('"', at2 + std::strlen("inputTickMagnitude=\"")) + 1;
-		noMagnitude.erase(at2, end - at2);
-		std::memcpy(gen2copy, noMagnitude.data(), noMagnitude.size());
+		std::memcpy(gen2copy, noMagnitude.text().data(), noMagnitude.text().size());
 		Error noMagnitudeError;
-		Song* song2 = load_song(gen2copy, noMagnitude.size(), &noMagnitudeError);
+		Song* song2 =
+		    load_song(gen2copy, noMagnitude.text().size(), deluge::storage::kSongSaveFormat, &noMagnitudeError);
 		if (!song2) {
 			std::fprintf(io.err, "GROOVE FAIL: the save without inputTickMagnitude does not load\n");
 			return 3;
@@ -815,22 +936,16 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// macro must still name the output at that position after the load. Made from this save by taking the ids off
 	// the outputs and naming macro 7's output by position.
 	if (macroOutputId) {
-		std::string legacy(gen1, n1);
-		const std::string byId = "outputId=\"" + std::to_string(*macroOutputId) + "\"";
-		const size_t macroAt = legacy.find(byId);
-		const size_t instrumentsAt = legacy.find("<instruments>");
-		const size_t instrumentsEnd = legacy.find("</instruments>");
-		if (macroAt == std::string::npos || instrumentsAt == std::string::npos || instrumentsEnd == std::string::npos) {
+		SavedSong legacy(gen1, n1);
+		if (!legacy.replaceMember(SavedSong::member("outputId", std::to_string(*macroOutputId)),
+		                          SavedSong::member("output", "0"))
+		    || !legacy.dropOutputIds()) {
 			std::fprintf(io.err, "MACRO FAIL: could not make the legacy file\n");
 			return 3;
 		}
-		legacy.replace(macroAt, byId.size(), "output=\"0\"");
-		std::string instruments = legacy.substr(instrumentsAt, instrumentsEnd - instrumentsAt);
-		instruments = std::regex_replace(instruments, std::regex("(<[A-Za-z]+\\s+)id=\"[0-9]+\"\\s*"), "$1");
-		legacy.replace(instrumentsAt, instrumentsEnd - instrumentsAt, instruments);
-		std::memcpy(gen2copy, legacy.data(), legacy.size());
+		std::memcpy(gen2copy, legacy.text().data(), legacy.text().size());
 		Error legacyError;
-		Song* legacySong = load_song(gen2copy, legacy.size(), &legacyError);
+		Song* legacySong = load_song(gen2copy, legacy.text().size(), deluge::storage::kSongSaveFormat, &legacyError);
 		if (!legacySong) {
 			std::fprintf(io.err, "MACRO FAIL: the legacy file did not load (Error %d)\n", (int)legacyError);
 			return 3;
@@ -1243,12 +1358,10 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		}
 
 		if (plantedCable || plantedMidi) {
-			deluge::scenarios::driver::beginCapture(smSerializer);
-			deluge::bridge::saveSong(*reloaded, smSerializer);
-			long n2 = deluge::scenarios::driver::endCapture(smSerializer, gen2, kCap);
+			long n2 = deluge::scenarios::driver::saveSongCapture(*reloaded, gen2, kCap);
 			std::memcpy(gen2copy, gen2, n2);
 			Error e3;
-			Song* reloaded2 = load_song(gen2copy, n2, &e3);
+			Song* reloaded2 = load_song(gen2copy, n2, deluge::storage::kSongSaveFormat, &e3);
 			if (reloaded2 == nullptr) {
 				std::fprintf(io.err, "S6-fix: LOADFAIL gen2 -> Error %d\n", (int)e3);
 				return 1;

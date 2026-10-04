@@ -46,7 +46,6 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "scenarios/drivers/tree_load.h"
-#include "storage/parse_xml.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
 
@@ -75,7 +74,7 @@ namespace params = deluge::modulation::params;
 
 // Same native load as song_edit_roundtrip: build a Song, deserialize, set currentSong. `xml` must be writable
 // (the reader null-terminates in place) and outlive all uses.
-static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
+static Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat format, Error* loadErr) {
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
@@ -84,12 +83,12 @@ static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 	// Load via the record-first Value tree (deserializer step 2b): parse the whole XML to a Value, then
 	// replay it to readFromFile through ValueTreeDeserializer -- bit-identical to the streaming load.
 	std::optional<deluge::storage::Value> tree =
-	    deluge::storage::parseXml(std::string_view(reinterpret_cast<const char*>(xml), static_cast<size_t>(xmlLen)));
+	    parseDocument(std::string_view(reinterpret_cast<const char*>(xml), static_cast<size_t>(xmlLen)), format);
 	Error e = Error::FILE_CORRUPTED;
 	if (tree) {
-		deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
+		deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(format));
 		activeReader = &adapter; // in-memory: gates the AudioEngine render off during load (as the stream path did)
-		e = openTreeFile(adapter, "song");
+		e = openTreeFile(adapter, "song", format);
 		if (e == Error::NONE) {
 			e = deluge::bridge::loadSong(*song, adapter);
 		}
@@ -124,16 +123,14 @@ static void dumpParam(const char* label, ModelStackWithAutoParam* msap) {
 static void dumpAfterSaveReload(Song* song) {
 	const uint32_t cap = 16u * 1024 * 1024;
 	char* buf = (char*)malloc(cap);
-	deluge::scenarios::driver::beginCapture(smSerializer);
-	deluge::bridge::saveSong(*song, smSerializer);
-	long n = deluge::scenarios::driver::endCapture(smSerializer, buf, cap);
+	long n = deluge::scenarios::driver::saveSongCapture(*song, buf, cap);
 
 	char* copy = (char*)malloc(n + 1);
 	memcpy(copy, buf, n);
 	copy[n] = 0;
 
 	Error e = Error::NONE;
-	Song* reloaded = load_song(copy, n, &e);
+	Song* reloaded = load_song(copy, n, deluge::storage::kSongSaveFormat, &e);
 	if (!reloaded) {
 		std::fprintf(io.out, "after-reload LOAD-FAILED err=%d\n", (int)e);
 		free(buf);
@@ -175,7 +172,7 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	fclose(f);
 
 	Error loadErr = Error::NONE;
-	Song* song = load_song(xml, sz, &loadErr);
+	Song* song = load_song(xml, sz, deluge::storage::formatOfPath(argv[1]), &loadErr);
 	if (!song) {
 		std::fprintf(io.err, "load error %d\n", (int)loadErr);
 		return 1;

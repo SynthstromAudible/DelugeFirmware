@@ -29,8 +29,6 @@
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "scenarios/drivers/tree_load.h"
-#include "serialization/parse_xml.h"
-#include "storage/parse_xml.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
 
@@ -52,17 +50,17 @@ using deluge::scenarios::driver::Io;
 
 Io io;
 
-Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
+Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat format, Error* loadErr) {
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
 	GlobalEffectable::initParams(&song->paramManager);
-	std::optional<deluge::storage::Value> tree = deluge::storage::parseXml(std::string_view(xml, xmlLen));
+	std::optional<deluge::storage::Value> tree = parseDocument(std::string_view(xml, xmlLen), format);
 	Error e = Error::FILE_CORRUPTED;
 	if (tree) {
-		deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
+		deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(format));
 		activeReader = &adapter;
-		e = openTreeFile(adapter, "song");
+		e = openTreeFile(adapter, "song", format);
 		if (e == Error::NONE) {
 			e = deluge::bridge::loadSong(*song, adapter);
 		}
@@ -193,19 +191,17 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 	std::fclose(f);
 
 	Error e;
-	Song* song = load_song(orig, fileLen, &e);
+	Song* song = load_song(orig, fileLen, deluge::storage::formatOfPath(argv[1]), &e);
 	if (!song) {
 		std::fprintf(io.err, "LOADFAIL -> Error %d\n", static_cast<int>(e));
 		return 1;
 	}
-	deluge::scenarios::driver::beginCapture(smSerializer);
-	deluge::bridge::saveSong(*song, smSerializer);
-	const long n1 = deluge::scenarios::driver::endCapture(smSerializer, gen1, kCap);
+	const long n1 = deluge::scenarios::driver::saveSongCapture(*song, gen1, kCap);
 
 	std::optional<deluge::serialization::Value> tree =
-	    deluge::serialization::parseXml(std::string_view(gen1, static_cast<size_t>(n1)));
+	    parseDocument(std::string_view(gen1, static_cast<size_t>(n1)), deluge::storage::kSongSaveFormat);
 	std::memcpy(gen1copy, gen1, n1);
-	Song* engine = load_song(gen1copy, n1, &e);
+	Song* engine = load_song(gen1copy, n1, deluge::storage::kSongSaveFormat, &e);
 	if (!engine || !tree) {
 		std::fprintf(io.err, "LOADFAIL gen1 -> Error %d\n", static_cast<int>(e));
 		return 3;
