@@ -82,7 +82,7 @@ void XMLSerializer::writeTag(char const* tag, char const* contents, bool box, bo
 	write("<");
 	write(tag);
 	write(">");
-	write(contents);
+	writeEscaped(contents);
 	write("</");
 	write(tag);
 	write(">\n");
@@ -140,8 +140,37 @@ void XMLSerializer::writeAttribute(char const* name, char const* value, bool onN
 
 	write(name);
 	write("=\"");
-	write(value);
+	writeEscaped(value);
 	write("\"");
+}
+
+void XMLSerializer::writeEscaped(char const* text) {
+	// Only what would end the value early is escaped: a quote, and a '<'. Everything else, a bare '&' included, goes
+	// out as it is, which every reader of these files (this firmware's and older) reads back unchanged.
+	char chunk[64];
+	size_t used = 0;
+	const auto flush = [&] {
+		chunk[used] = 0;
+		write(chunk);
+		used = 0;
+	};
+	for (char const* c = text; *c != 0; c++) {
+		char const* escape = *c == '"' ? "&quot;" : *c == '<' ? "&lt;" : nullptr;
+		if (escape == nullptr) {
+			chunk[used++] = *c;
+			if (used == sizeof chunk - 1) {
+				flush();
+			}
+			continue;
+		}
+		if (used > 0) {
+			flush();
+		}
+		write(escape);
+	}
+	if (used > 0) {
+		flush();
+	}
 }
 
 void XMLSerializer::writeTagNameAndSeperator(char const* tag) {

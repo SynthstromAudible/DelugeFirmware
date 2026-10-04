@@ -213,6 +213,8 @@ public:
 	void writeArrayEnding(char const* tag, bool shouldPrintIndents = true, bool box = true) override;
 	void insertCommaIfNeeded() override {}
 	void printIndents() override;
+	/// Write @p text as an attribute value or element text, escaping `"` and `<`.
+	void writeEscaped(char const* text);
 	void write(char const* output) override;
 	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                            char const* endString = nullptr) override;
