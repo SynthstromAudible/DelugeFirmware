@@ -26,6 +26,12 @@
 
 namespace deluge::instrument {
 
+/// @brief The most unison voices, the widest unison detune (cents) and the widest stereo spread a sound takes; a file's
+/// values are clamped to them.
+inline constexpr int32_t kMaxUnisonVoices = 8;
+inline constexpr int32_t kMaxUnisonDetune = 50;
+inline constexpr int32_t kMaxUnisonSpread = 50;
+
 /// @brief The instrument's entries of a sound element, split where other owners' entries sit between them in a file:
 /// the effects' attributes and a preset's path come between head and max_voices; params, the arpeggiator and the mod
 /// knobs between body and midi_output; the effects' elements after midi_output.
@@ -46,5 +52,20 @@ struct SoundPieces {
 
 /// @brief Whether @p key, at the top of a sound element, is one the instrument writes.
 [[nodiscard]] bool is_state_key(std::string_view key);
+
+/// @brief Read a whole sound element into @p state, which holds the state of the sound being read into (a new sound's,
+/// for a file). Each entry is applied in the element's order as the sound's reader has always applied it, older
+/// formats included; anything the element lacks keeps its value. Params, patch cables, mod knobs and the effects are
+/// not the instrument's to read here.
+/// @return Nothing, or why the element cannot be read (two ranges of a source with the same top note).
+[[nodiscard]] std::expected<void, engine::StateError> decode(const serialization::Value& element, SoundState& state,
+                                                             const engine::CodecContext& context);
+
+/// @brief The state a new synth starts with, before anything is read into it: what a file's reading starts from.
+[[nodiscard]] SoundState new_synth_state();
+
+/// @brief Every field of @p state the codec reads and writes, by name, ranges' millisecond zones included; mod knobs
+/// and the effects are left out. For comparing two states and for recording what a reader produced.
+[[nodiscard]] serialization::Value dump_state(const SoundState& state);
 
 } // namespace deluge::instrument

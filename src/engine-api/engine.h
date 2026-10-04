@@ -48,7 +48,8 @@ struct CodecContext {
 
 /// @brief Why an engine could not read its state.
 enum class StateError : uint8_t {
-	NOT_A_MAP, ///< the state's node is not a Map
+	NOT_A_MAP,       ///< the state's node is not a Map
+	DUPLICATE_RANGE, ///< two key-split ranges of one source cover up to the same note
 };
 
 /// @brief An engine whose state the host stores as a Value: a descriptor, a state type, and a codec that writes the

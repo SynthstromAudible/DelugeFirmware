@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sound ringMod="1" mode="fm" polyphonic="poly">
+	<osc1 type="square" transpose="0" cents="0" />
+	<defaultParams volume="0x50000000" />
+</sound>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sound polyphonic="2" mode="subtractive">
+	<lfo1 type="sah" syncLevel="3" />
+	<unison num="20" detune="70" spread="-3" />
+	<defaultParams volume="0x50000000" />
+</sound>

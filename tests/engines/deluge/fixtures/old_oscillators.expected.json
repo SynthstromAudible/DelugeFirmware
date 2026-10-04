@@ -1,0 +1,76 @@
+{
+	"polyphonic": "poly",
+	"voicePriority": 1,
+	"mode": "subtractive",
+	"maxVoices": 8,
+	"osc1": {
+		"type": "saw",
+		"transpose": 4,
+		"cents": 0,
+		"retrigPhase": 0
+	},
+	"osc2": {
+		"type": "square",
+		"transpose": 7,
+		"cents": 5,
+		"retrigPhase": 0
+	},
+	"lfo1": {
+		"type": "triangle",
+		"syncLevel": 0,
+		"syncType": 0
+	},
+	"lfo2": {
+		"type": "triangle",
+		"syncLevel": 0,
+		"syncType": 0
+	},
+	"lfo3": {
+		"type": "triangle",
+		"syncLevel": 0,
+		"syncType": 0
+	},
+	"lfo4": {
+		"type": "triangle",
+		"syncLevel": 0,
+		"syncType": 0
+	},
+	"unison": {
+		"num": 1,
+		"detune": 8,
+		"spread": 0
+	},
+	"midiOutput": {
+		"channel": 255,
+		"noteForDrum": 255
+	},
+	"voicePriorityIndex": 1,
+	"oscillatorSync": 0,
+	"syncTypes": "0,0,0,0",
+	"modulatorTranspose": "4,4",
+	"modulatorCents": "0,0",
+	"modulatorPhases": "0,0",
+	"toModulator1": 0,
+	"source1": {
+		"oscType": "saw",
+		"transpose": 4,
+		"cents": 0,
+		"repeatMode": 0,
+		"timeStretchAmount": 0,
+		"interpolation": 1,
+		"pitchAndSpeedIndependent": 0,
+		"reversed": 0,
+		"ranges": []
+	},
+	"source2": {
+		"oscType": "square",
+		"transpose": 7,
+		"cents": 5,
+		"repeatMode": 0,
+		"timeStretchAmount": 0,
+		"interpolation": 1,
+		"pitchAndSpeedIndependent": 0,
+		"reversed": 0,
+		"ranges": []
+	}
+}

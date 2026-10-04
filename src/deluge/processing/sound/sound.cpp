@@ -3988,6 +3988,10 @@ void Sound::seedModKnobsRecord() {
 	}
 }
 
+static_assert(deluge::instrument::kMaxUnisonVoices == kMaxNumVoicesUnison
+              && deluge::instrument::kMaxUnisonDetune == kMaxUnisonDetune
+              && deluge::instrument::kMaxUnisonSpread == kMaxUnisonStereoSpread);
+
 deluge::instrument::SoundState Sound::seededState() {
 	deluge::instrument::SoundState seeded;
 	// The seeds write wherever the state pointers point: aim them at `seeded` for the duration.

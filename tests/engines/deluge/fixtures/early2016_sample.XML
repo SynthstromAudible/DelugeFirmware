@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sound mode="subtractive" fileName="SAMPLES/A.WAV" continuous="2" reversed="1" polyphonic="poly">
+	<zone startSeconds="1" startMilliseconds="250" endSeconds="2" endMilliseconds="5" />
+</sound>

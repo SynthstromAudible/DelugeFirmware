@@ -17,6 +17,7 @@
 
 #include "dx7note.h"
 #include "engine.h"
+#include "engines/deluge/dx7_init_voice.h"
 #include "math_lut.h"
 #include "util/functions.h"
 #include <algorithm>
@@ -39,14 +40,6 @@ static const uint32_t ampmodsenstab[] = {0, 4342338, 7171437, 16777216};
 
 static const uint8_t pitchmodsenstab[] = {0, 10, 20, 33, 55, 92, 153, 255};
 
-static const uint8_t init_voice[] = {
-    99, 99, 99, 99, 99, 99, 99, 00, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  7,  99, 99, 99, 99, 99,
-    99, 99, 00, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  7,  99, 99, 99, 99, 99, 99, 99, 00, 0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  7,  99, 99, 99, 99, 99, 99, 99, 00, 0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  1,  0,  7,  99, 99, 99, 99, 99, 99, 99, 00, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,
-    7,  99, 99, 99, 99, 99, 99, 99, 00, 0,  0,  0,  0,  0,  0,  0,  0,  99, 0,  1,  0,  7,  99, 99, 99, 99,
-    50, 50, 50, 50, 0,  0,  1,  35, 0,  0,  0,  1,  0,  3,  24, 73, 78, 73, 84, 32, 86, 79, 73, 67, 69, 63};
-
 static int dxNoteToFreq(int note) {
 	const int base = 50857777; // (1 << 24) * (log(440) / log(2) - 69/12)
 	const int step = (1 << 24) / 12;
@@ -54,7 +47,7 @@ static int dxNoteToFreq(int note) {
 }
 
 DxPatch::DxPatch() {
-	memcpy(params, init_voice, sizeof params);
+	memcpy(params, deluge::instrument::kDx7InitVoice.data(), sizeof params);
 	// amp_mod = 0;
 	// pitch_mod = 0;
 	eg_mod = 127;

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sound mode="fm" oscillatorReset="0" polyphonic="poly">
+	<modulator1 transpose="5" cents="3" />
+	<defaultParams volume="0x50000000" />
+</sound>

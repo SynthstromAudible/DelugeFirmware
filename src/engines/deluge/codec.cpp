@@ -17,6 +17,9 @@
 
 #include "engines/deluge/codec.h"
 
+#include "engines/deluge/dx7_init_voice.h"
+#include "serialization/tree.h"
+
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -239,6 +242,487 @@ Value encode(const SoundState& state, const engine::CodecContext& context) {
 
 bool is_state_key(std::string_view key) {
 	return std::ranges::find(kStateKeys, key) != kStateKeys.end();
+}
+
+namespace {
+
+/// A range's top note when the file names none: it covers every note above the range before it.
+constexpr int16_t kOpenTopNote = 32767;
+
+int32_t intOf(const Value& value) {
+	return serialization::int_of(&value).value_or(0);
+}
+
+std::string_view textOf(const Value& value) {
+	return value.isScalar() ? std::string_view(value.str()) : std::string_view{};
+}
+
+/// What the reader knows of a source beyond its state: whether its ranges are wavetable ranges.
+struct SourceReading {
+	bool wavetableRanges{false};
+};
+
+/// A source's ranges become @p wavetable ranges, keeping only their top notes, and there is at least one, as switching
+/// a source to a sample or wavetable oscillator does when its ranges were the other kind.
+void changeRangeKind(SourceState& src, SourceReading& reading, bool wavetable) {
+	if (reading.wavetableRanges == wavetable) {
+		return;
+	}
+	reading.wavetableRanges = wavetable;
+	for (RangeState& range : src.ranges) {
+		range = RangeState{.top_note = range.top_note};
+	}
+	if (src.ranges.empty()) {
+		src.ranges.push_back(RangeState{.top_note = kOpenTopNote});
+	}
+}
+
+RangeState& firstRange(SourceState& src) {
+	if (src.ranges.empty()) {
+		src.ranges.push_back(RangeState{.top_note = kOpenTopNote});
+	}
+	return src.ranges.front();
+}
+
+DxPatchState& dxPatch(SourceState& src) {
+	if (!src.dx_patch) {
+		src.dx_patch.emplace(DxPatchState{.params = kDx7InitVoice});
+	}
+	return *src.dx_patch;
+}
+
+void setOscType(SourceState& src, SourceReading& reading, OscType type) {
+	if (type == OscType::SAMPLE) {
+		changeRangeKind(src, reading, false);
+	}
+	else if (type == OscType::WAVETABLE) {
+		changeRangeKind(src, reading, true);
+	}
+	src.osc_type = type;
+	if (type == OscType::DX7) {
+		(void)dxPatch(src);
+	}
+}
+
+SampleRepeatMode repeatModeOf(const Value& value) {
+	const int32_t mode = std::clamp(intOf(value), 0, static_cast<int32_t>(SampleRepeatMode::STRETCH));
+	return static_cast<SampleRepeatMode>(mode);
+}
+
+/// A zone in seconds and milliseconds (early-2016) or in samples, into @p range.
+void readZone(const Value& zone, RangeState& range, bool resetPositions) {
+	if (resetPositions) {
+		range.start_msec = 0;
+		range.end_msec = 0;
+		range.start_pos = 0;
+		range.end_pos = 0;
+	}
+	if (!zone.isMap()) {
+		return;
+	}
+	for (const auto& [key, value] : zone.entries()) {
+		if (key == "startSeconds") {
+			range.start_msec += intOf(value) * 1000;
+		}
+		else if (key == "startMilliseconds") {
+			range.start_msec += intOf(value);
+		}
+		else if (key == "endSeconds") {
+			range.end_msec += intOf(value) * 1000;
+		}
+		else if (key == "endMilliseconds") {
+			range.end_msec += intOf(value);
+		}
+		else if (key == "startSamplePos") {
+			range.start_pos =
+			    static_cast<uint64_t>(static_cast<int64_t>(intOf(value))); // a 32-bit file value, sign-extended
+		}
+		else if (key == "endSamplePos") {
+			range.end_pos = static_cast<uint64_t>(static_cast<int64_t>(intOf(value)));
+		}
+		else if (key == "startLoopPos") {
+			range.loop_start_pos = static_cast<uint32_t>(intOf(value));
+		}
+		else if (key == "endLoopPos") {
+			range.loop_end_pos = static_cast<uint32_t>(intOf(value));
+		}
+	}
+}
+
+std::expected<void, engine::StateError> readRanges(const Value& list, SourceState& src) {
+	const bool wavetable = src.osc_type == OscType::WAVETABLE;
+	for (const serialization::NamedChild& child : serialization::children(list)) {
+		if ((child.name != "sampleRange" && child.name != "wavetableRange") || !child.node->isMap()) {
+			continue;
+		}
+		RangeState range{.top_note = kOpenTopNote};
+		for (const auto& [key, value] : child.node->entries()) {
+			if (key == "fileName") {
+				range.file_path = std::string(textOf(value));
+			}
+			else if (key == "rangeTopNote") {
+				range.top_note = static_cast<int16_t>(intOf(value));
+			}
+			else if (!wavetable && key == "zone") {
+				readZone(value, range, false);
+			}
+			else if (!wavetable && key == "transpose") {
+				range.transpose = static_cast<int16_t>(intOf(value));
+			}
+			else if (!wavetable && key == "cents") {
+				range.cents = static_cast<int8_t>(intOf(value));
+			}
+		}
+		auto at = std::ranges::lower_bound(src.ranges, range.top_note, {}, &RangeState::top_note);
+		if (at != src.ranges.end() && at->top_note == range.top_note) {
+			return std::unexpected(engine::StateError::DUPLICATE_RANGE);
+		}
+		src.ranges.insert(at, std::move(range));
+	}
+	return {};
+}
+
+std::expected<void, engine::StateError> readSource(const Value& osc, SoundState& state, size_t s,
+                                                   SourceReading& reading) {
+	SourceState& src = state.sources[s];
+	if (!osc.isMap()) {
+		return {};
+	}
+	for (const auto& [key, value] : osc.entries()) {
+		if (key == "type") {
+			setOscType(src, reading, parse_osc_type(textOf(value)));
+		}
+		else if (key == "transpose") {
+			src.transpose = static_cast<int16_t>(intOf(value));
+		}
+		else if (key == "cents") {
+			src.cents = static_cast<int8_t>(intOf(value));
+		}
+		else if (key == "loopMode") {
+			src.repeat_mode = repeatModeOf(value);
+		}
+		else if (key == "oscillatorSync") {
+			state.oscillator_sync = intOf(value) != 0;
+		}
+		else if (key == "reversed") {
+			src.reversed = intOf(value) != 0;
+		}
+		else if (key == "dx7patch") {
+			DxPatchState& patch = dxPatch(src);
+			const std::string_view hexText = textOf(value);
+			for (size_t b = 0; b < patch.params.size() && 2 * b + 1 < hexText.size(); b++) {
+				auto nibble = [](char c) -> int {
+					return c >= '0' && c <= '9' ? c - '0' : c >= 'A' && c <= 'F' ? c - 'A' + 10 : c - 'a' + 10;
+				};
+				patch.params[b] = static_cast<uint8_t>((nibble(hexText[2 * b]) << 4) | nibble(hexText[2 * b + 1]));
+			}
+		}
+		else if (key == "dx7randomdetune") {
+			dxPatch(src).random_detune = intOf(value);
+		}
+		else if (key == "dx7enginemode") {
+			dxPatch(src).engine_mode = static_cast<uint8_t>(intOf(value));
+		}
+		else if (key == "timeStretchEnable") {
+			src.pitch_and_speed_independent = intOf(value) != 0;
+		}
+		else if (key == "timeStretchAmount") {
+			src.time_stretch_amount = static_cast<int8_t>(intOf(value));
+		}
+		else if (key == "linearInterpolation") {
+			if (intOf(value) != 0) {
+				src.interpolation_mode = engine::InterpolationMode::LINEAR;
+			}
+		}
+		else if (key == "retrigPhase") {
+			state.osc_retrigger_phase[s] = static_cast<uint32_t>(intOf(value));
+		}
+		else if (key == "fileName") {
+			firstRange(src).file_path = std::string(textOf(value));
+		}
+		else if (key == "zone") {
+			readZone(value, firstRange(src), true);
+		}
+		else if (key == "sampleRanges" || key == "wavetableRanges") {
+			if (auto read = readRanges(value, src); !read) {
+				return read;
+			}
+		}
+	}
+	return {};
+}
+
+void readModulator(const Value& modulator, SoundState& state, size_t m) {
+	if (!modulator.isMap()) {
+		return;
+	}
+	for (const auto& [key, value] : modulator.entries()) {
+		if (key == "transpose") {
+			state.modulator_transpose[m] = static_cast<int16_t>(state.modulator_transpose[m] + intOf(value));
+		}
+		else if (key == "cents") {
+			state.modulator_cents[m] = static_cast<int8_t>(intOf(value));
+		}
+		else if (key == "retrigPhase") {
+			state.modulator_retrigger_phase[m] = static_cast<uint32_t>(intOf(value));
+		}
+		else if (m == 1 && key == "toModulator1") {
+			state.modulator1_to_modulator0 = intOf(value) != 0;
+		}
+	}
+}
+
+void readLfo(const Value& lfo, SoundState& state, size_t l, const engine::CodecContext& context) {
+	state.lfo_sync_type[l] = engine::SyncType::EVEN;
+	state.lfo_sync_level[l] = engine::SyncLevel::NONE;
+	if (!lfo.isMap()) {
+		return;
+	}
+	for (const auto& [key, value] : lfo.entries()) {
+		if (key == "type") {
+			state.lfo_wave_type[l] = parse_lfo_type(textOf(value));
+		}
+		else if (key == "syncType") {
+			state.lfo_sync_type[l] = static_cast<engine::SyncType>(intOf(value));
+		}
+		else if (key == "syncLevel") {
+			state.lfo_sync_level[l] = static_cast<engine::SyncLevel>(
+			    engine::sync_level_from_file(intOf(value), context.input_tick_magnitude));
+		}
+	}
+}
+
+/// The pre-mid-2016 oscillator elements: `oscillatorA` / `oscillatorB`.
+void readOldOscillator(const Value& osc, SoundState& state, size_t s) {
+	if (!osc.isMap()) {
+		return;
+	}
+	for (const auto& [key, value] : osc.entries()) {
+		if (key == "type") {
+			state.sources[s].osc_type = parse_osc_type(textOf(value));
+		}
+		else if (s == 0 && key == "note") {
+			const int32_t offset = std::clamp(intOf(value), 1, 127) - 60;
+			for (size_t i = 0; i < 2; i++) {
+				state.sources[i].transpose = static_cast<int16_t>(state.sources[i].transpose + offset);
+				state.modulator_transpose[i] = static_cast<int16_t>(state.modulator_transpose[i] + offset);
+			}
+		}
+		else if (s == 1 && key == "transpose") {
+			state.sources[1].transpose = static_cast<int16_t>(state.sources[1].transpose + intOf(value));
+		}
+		else if (s == 1 && key == "cents") {
+			state.sources[1].cents = static_cast<int8_t>(intOf(value));
+		}
+	}
+}
+
+Value dumpRange(const RangeState& range) {
+	auto map = Value::makeMap();
+	map.set("topNote", number(range.top_note));
+	map.set("filePath", text(range.file_path));
+	map.set("startPos", Value::makeNumber(static_cast<int64_t>(range.start_pos)));
+	map.set("endPos", Value::makeNumber(static_cast<int64_t>(range.end_pos)));
+	map.set("loopStartPos", Value::makeNumber(range.loop_start_pos));
+	map.set("loopEndPos", Value::makeNumber(range.loop_end_pos));
+	map.set("transpose", number(range.transpose));
+	map.set("cents", number(range.cents));
+	map.set("startMsec", number(range.start_msec));
+	map.set("endMsec", number(range.end_msec));
+	return map;
+}
+
+} // namespace
+
+std::expected<void, engine::StateError> decode(const Value& element, SoundState& state,
+                                               const engine::CodecContext& context) {
+	if (!element.isMap()) {
+		return std::unexpected(engine::StateError::NOT_A_MAP);
+	}
+	// What reading a sound always starts with, whatever the file holds.
+	state.modulator_transpose[1] = 0;
+	state.osc_retrigger_phase = {};
+	state.modulator_retrigger_phase = {};
+	std::array<SourceReading, 2> reading{};
+
+	for (const auto& [key, value] : element.entries()) {
+		if (key == "osc1" || key == "osc2") {
+			if (auto read = readSource(value, state, key == "osc1" ? 0 : 1, reading[key == "osc1" ? 0 : 1]); !read) {
+				return read;
+			}
+		}
+		else if (key == "mode") {
+			if (state.synth_mode != SynthMode::RINGMOD) {
+				state.synth_mode = parse_synth_mode(textOf(value));
+			}
+		}
+		else if (key == "ringMod") {
+			if (intOf(value) == 1) {
+				state.synth_mode = SynthMode::RINGMOD;
+			}
+		}
+		else if (key == "oscillatorA" || key == "oscillatorB") {
+			readOldOscillator(value, state, key == "oscillatorA" ? 0 : 1);
+		}
+		else if (key == "modulator1" || key == "modulator2") {
+			readModulator(value, state, key == "modulator1" ? 0 : 1);
+		}
+		else if (key == "transpose") {
+			state.transpose = static_cast<int16_t>(intOf(value));
+		}
+		else if (key == "cents") {
+			state.cents = static_cast<int8_t>(intOf(value));
+		}
+		else if (key == "oscillatorReset") {
+			if (intOf(value) == 0) {
+				state.osc_retrigger_phase = {0xFFFFFFFF, 0xFFFFFFFF};
+				state.modulator_retrigger_phase = {0xFFFFFFFF, 0xFFFFFFFF};
+			}
+		}
+		else if (key == "unison") {
+			if (value.isMap()) {
+				for (const auto& [unisonKey, unisonValue] : value.entries()) {
+					if (unisonKey == "num") {
+						state.num_unison = static_cast<uint8_t>(std::clamp(intOf(unisonValue), 0, kMaxUnisonVoices));
+					}
+					else if (unisonKey == "detune") {
+						state.unison_detune = static_cast<int8_t>(std::clamp(intOf(unisonValue), 0, kMaxUnisonDetune));
+					}
+					else if (unisonKey == "spread") {
+						state.unison_stereo_spread =
+						    static_cast<uint8_t>(std::clamp(intOf(unisonValue), 0, kMaxUnisonSpread));
+					}
+				}
+			}
+		}
+		else if (key == "fileName") { // early-2016: the sound's one sample
+			firstRange(state.sources[0]).file_path = std::string(textOf(value));
+			state.sources[0].osc_type = OscType::SAMPLE;
+		}
+		else if (key == "continuous") {
+			state.sources[0].repeat_mode = repeatModeOf(value);
+		}
+		else if (key == "reversed") {
+			state.sources[0].reversed = intOf(value) != 0;
+		}
+		else if (key == "zone") {
+			readZone(value, firstRange(state.sources[0]), true);
+		}
+		else if (key.size() == 4 && key.starts_with("lfo") && key[3] >= '1' && key[3] <= '4') {
+			readLfo(value, state, static_cast<size_t>(key[3] - '1'), context);
+		}
+		else if (key == "sideChainSend") {
+			state.side_chain_send_level = intOf(value);
+		}
+		else if (key == "polyphonic") {
+			state.polyphonic = parse_polyphony_mode(textOf(value));
+		}
+		else if (key == "maxVoices") {
+			state.max_voice_count = static_cast<uint8_t>(intOf(value));
+		}
+		else if (key == "voicePriority") {
+			state.voice_priority = static_cast<engine::VoicePriority>(intOf(value));
+		}
+		else if (key == "midiOutput") {
+			if (value.isMap()) {
+				for (const auto& [midiKey, midiValue] : value.entries()) {
+					if (midiKey == "channel") {
+						state.output_midi_channel = static_cast<uint8_t>(intOf(midiValue));
+					}
+					else if (midiKey == "noteForDrum") {
+						state.output_midi_note_for_drum = static_cast<uint8_t>(intOf(midiValue));
+					}
+				}
+			}
+		}
+	}
+	// What finishing a read does to each source: FM plays sines, ring modulation takes nothing past a wavetable, and a
+	// sample source's own transpose and cents move into each of its ranges.
+	for (SourceState& src : state.sources) {
+		if (state.synth_mode == SynthMode::FM) {
+			src.osc_type = OscType::SINE;
+		}
+		else if (state.synth_mode == SynthMode::RINGMOD) {
+			src.osc_type = std::min(src.osc_type, OscType::WAVETABLE);
+		}
+		if (state.synth_mode != SynthMode::FM && src.osc_type == OscType::SAMPLE) {
+			for (RangeState& range : src.ranges) {
+				range.transpose = static_cast<int16_t>(range.transpose + src.transpose);
+				range.cents = static_cast<int8_t>(range.cents + src.cents);
+			}
+			src.transpose = 0;
+			src.cents = 0;
+		}
+	}
+	// A range holds a zone and tuning only in a sample source.
+	for (SourceState& src : state.sources) {
+		if (src.osc_type != OscType::SAMPLE) {
+			for (RangeState& range : src.ranges) {
+				range = RangeState{.top_note = range.top_note, .file_path = std::move(range.file_path)};
+			}
+		}
+	}
+	return {};
+}
+
+SoundState new_synth_state() {
+	SoundState state{
+	    .max_voice_count = 8,
+	    .output_midi_channel = 255,
+	    .output_midi_note_for_drum = 255,
+	    .polyphonic = PolyphonyMode::POLY,
+	    .num_unison = 1,
+	    .unison_detune = 8,
+	    .modulator_transpose = {0, -12},
+	    .osc_retrigger_phase = {0xFFFFFFFF, 0xFFFFFFFF},
+	    .lfo_wave_type = {LFOType::TRIANGLE, LFOType::TRIANGLE, LFOType::TRIANGLE, LFOType::TRIANGLE},
+	};
+	for (SourceState& src : state.sources) {
+		src.osc_type = OscType::SQUARE;
+		src.interpolation_mode = engine::InterpolationMode::SMOOTH;
+	}
+	return state;
+}
+
+Value dump_state(const SoundState& state) {
+	Value map = encode(state, {.input_tick_magnitude = 1});
+	map.set("voicePriorityIndex", number(std::to_underlying(state.voice_priority)));
+	map.set("oscillatorSync", number(state.oscillator_sync ? 1 : 0));
+	map.set("syncTypes", text(std::to_string(std::to_underlying(state.lfo_sync_type[0])) + ","
+	                          + std::to_string(std::to_underlying(state.lfo_sync_type[1])) + ","
+	                          + std::to_string(std::to_underlying(state.lfo_sync_type[2])) + ","
+	                          + std::to_string(std::to_underlying(state.lfo_sync_type[3]))));
+	map.set("modulatorTranspose",
+	        text(std::to_string(state.modulator_transpose[0]) + "," + std::to_string(state.modulator_transpose[1])));
+	map.set("modulatorCents",
+	        text(std::to_string(state.modulator_cents[0]) + "," + std::to_string(state.modulator_cents[1])));
+	map.set("modulatorPhases", text(std::to_string(state.modulator_retrigger_phase[0]) + ","
+	                                + std::to_string(state.modulator_retrigger_phase[1])));
+	map.set("toModulator1", number(state.modulator1_to_modulator0 ? 1 : 0));
+	for (size_t s = 0; s < state.sources.size(); s++) {
+		const SourceState& src = state.sources[s];
+		auto source = Value::makeMap();
+		source.set("oscType", text(to_string(src.osc_type)));
+		source.set("transpose", number(src.transpose));
+		source.set("cents", number(src.cents));
+		source.set("repeatMode", number(std::to_underlying(src.repeat_mode)));
+		source.set("timeStretchAmount", number(src.time_stretch_amount));
+		source.set("interpolation", number(std::to_underlying(src.interpolation_mode)));
+		source.set("pitchAndSpeedIndependent", number(src.pitch_and_speed_independent ? 1 : 0));
+		source.set("reversed", number(src.reversed ? 1 : 0));
+		if (src.dx_patch) {
+			source.set("dx7patch", text(hex(src.dx_patch->params)));
+			source.set("dx7engineMode", number(src.dx_patch->engine_mode));
+			source.set("dx7randomDetune", number(src.dx_patch->random_detune));
+		}
+		auto ranges = Value::makeArray();
+		for (const RangeState& range : src.ranges) {
+			ranges.append(dumpRange(range));
+		}
+		source.set("ranges", std::move(ranges));
+		map.set("source" + std::to_string(s + 1), std::move(source));
+	}
+	return map;
 }
 
 } // namespace deluge::instrument
