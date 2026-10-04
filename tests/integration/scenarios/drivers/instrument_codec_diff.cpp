@@ -23,6 +23,8 @@
 //   instrument_codec_decode  every sound's element as read (its slot, or a preset's element) decodes, into a new
 //                            sound's state, to the state the app's reader left; INSTRUMENT_DUMP_STATE=<path> writes
 //                            the first sound's state as the reader left it (dump_state, JSON) to <path>
+//   instrument_state_roundtrip  every sound's element as the app writes it, decoded into a new sound's state and
+//                            encoded again, is the same tree (cut to the instrument's keys)
 //
 // Exit: 0 agree; 1 load failure; 2 usage/IO; 3 a sound differs (its name and the first differing path are printed).
 
@@ -252,10 +254,42 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 	return 0;
 }
 
+int roundtrip(std::vector<SoundEntry>& sounds, int32_t magnitude) {
+	Instrument* freshSynth = StorageManager::createNewInstrument(OutputType::SYNTH);
+	Drum* freshDrum = StorageManager::createNewDrum(DrumType::SOUND);
+	if (freshSynth == nullptr || freshDrum == nullptr) {
+		std::fprintf(io.err, "cannot make a new sound\n");
+		return 2;
+	}
+	const deluge::instrument::SoundState newSynth =
+	    static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->seededState();
+	const deluge::instrument::SoundState newDrum =
+	    static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->seededState();
+	const deluge::engine::CodecContext context{.input_tick_magnitude = magnitude};
+	for (SoundEntry& entry : sounds) {
+		deluge::instrument::SoundState state = entry.drum ? newDrum : newSynth;
+		if (auto result = deluge::instrument::decode(entry.element, state, context); !result) {
+			std::fprintf(io.err, "CODEC DIFF: %s: the written element does not decode\n", entry.name.c_str());
+			return 3;
+		}
+		const Value again = deluge::instrument::encode(state, context);
+		const Value written = stateKeysOf(entry.element);
+		if (std::string d = deluge::serialization::first_difference(written, again); !d.empty()) {
+			std::fprintf(io.err,
+			             "CODEC DIFF: %s: decode then encode changes the element at %s (written %s, again %s)\n",
+			             entry.name.c_str(), d.c_str(), valueAt(written, d).c_str(), valueAt(again, d).c_str());
+			return 3;
+		}
+	}
+	std::fprintf(io.err, "state round-trips for %zu sounds\n", sounds.size());
+	return 0;
+}
+
 /// What a scenario checks of the sounds it loads.
 enum class Check : uint8_t {
 	ENCODE,
 	DECODE,
+	ROUNDTRIP,
 };
 
 int run(Check check, int argc, char** argv, Io driverIo) {
@@ -333,6 +367,8 @@ int run(Check check, int argc, char** argv, Io driverIo) {
 		return encodeDiff(sounds, song->getInputTickMagnitude());
 	case Check::DECODE:
 		return decodeDiff(sounds, song->getInputTickMagnitude());
+	case Check::ROUNDTRIP:
+		return roundtrip(sounds, song->getInputTickMagnitude());
 	}
 	return 2;
 }
@@ -345,7 +381,12 @@ int instrument_codec_decode_main(int argc, char** argv, Io driverIo) {
 	return run(Check::DECODE, argc, argv, driverIo);
 }
 
+int instrument_state_roundtrip_main(int argc, char** argv, Io driverIo) {
+	return run(Check::ROUNDTRIP, argc, argv, driverIo);
+}
+
 } // namespace
 
 DELUGE_DRIVER_SCENARIO(instrument_codec_encode, instrument_codec_encode_main)
 DELUGE_DRIVER_SCENARIO(instrument_codec_decode, instrument_codec_decode_main)
+DELUGE_DRIVER_SCENARIO(instrument_state_roundtrip, instrument_state_roundtrip_main)

@@ -1112,6 +1112,21 @@ tier = "nightly"
 runtime = "~20s"
 
 [[harness]]
+name = "instrument-state-roundtrip"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the Deluge instrument's state round-trips through its codec: for every sound of every corpus song and every synth and kit preset beside the corpus, the element the app writes, decoded into a new sound's state and encoded again, is the same tree (cut to the instrument's keys)"
+scenario = "instrument_state_roundtrip"
+check = "tests/integration/checks/host_driver.py"
+builds = ["golden-vt-render"]
+requires = ["song-xml-corpus"]
+tier = "nightly"
+runtime = "~20s"
+
+[[harness]]
 name = "json-roundtrip"
 path = "."
 level = "integration"

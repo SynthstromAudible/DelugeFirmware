@@ -21,6 +21,7 @@ RUNNERS = {
     "edit_undo_redo": "edit_undo_redo_run",
     "instrument_codec_decode": "instrument_codec_decode_run",
     "instrument_codec_encode": "instrument_codec_run",
+    "instrument_state_roundtrip": "instrument_state_roundtrip_run",
     "json_roundtrip": "json_roundtrip_run",
     "model_decode_diff": "model_decode_diff_run",
     "param_record_diff": "param_record_run",

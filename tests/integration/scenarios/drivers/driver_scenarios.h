@@ -30,6 +30,7 @@
 /// | edit_undo_redo       | reified Edits applied, undone and redone over a loaded song, self-checking |
 /// | instrument_codec_decode | the Deluge instrument's decode against the state the app's reader leaves     |
 /// | instrument_codec_encode | the Deluge instrument's encode against the elements the app writes          |
+/// | instrument_state_roundtrip | a sound's written element decodes and encodes back to itself            |
 /// | json_roundtrip       | XML -> JSON -> JSON fixed point                                            |
 /// | model_decode_diff    | the model's decode of a saved song against the records the engine leaves   |
 /// | param_clone          | ParamCollection clone deep independence, self-checking                     |
@@ -56,6 +57,7 @@ DELUGE_DRIVER_SCENARIO_DECLARE(edit_substrate)
 DELUGE_DRIVER_SCENARIO_DECLARE(edit_undo_redo)
 DELUGE_DRIVER_SCENARIO_DECLARE(instrument_codec_decode)
 DELUGE_DRIVER_SCENARIO_DECLARE(instrument_codec_encode)
+DELUGE_DRIVER_SCENARIO_DECLARE(instrument_state_roundtrip)
 DELUGE_DRIVER_SCENARIO_DECLARE(json_roundtrip)
 DELUGE_DRIVER_SCENARIO_DECLARE(model_decode_diff)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_clone)
