@@ -35,6 +35,7 @@
 #include <cstring>
 #include <vector>
 
+#include "engines/global_effectable/params.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "scenarios/drivers/driver.h"
@@ -1012,7 +1013,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			int32_t el = smSerializer.bytesWritten();
 			smSerializer.setMemoryBuffer(attrDom, sizeof(attrDom));
 			smSerializer.reset();
-			deluge::bridge::writeDocParamAsAttribute(doc, cs.name, cs.p, smSerializer, true, cs.onlyIf);
+			deluge::bridge::writeDocParamAsAttribute(doc, cs.name, deluge::bridge::paramIdOf(unp->getParamKind(), cs.p),
+			                                         smSerializer, true, cs.onlyIf);
 			int32_t dl = smSerializer.bytesWritten();
 			check(el == dl && std::memcmp(attrEngine, attrDom, el) == 0, "writeParamAsAttribute byte-identical");
 		}
@@ -1212,7 +1214,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		smSerializer.reset();
 		smSerializer.writeOpeningTagBeginning("params");
 		smSerializer.writeOpeningTagEnd();
-		const deluge::bridge::DocParamAttr lpfMorphMember[] = {{"morph", params::UNPATCHED_LPF_MORPH}};
+		const deluge::bridge::DocParamAttr lpfMorphMember[] = {{"morph", deluge::global_effectable::param::kLpfMorph}};
 		deluge::bridge::writeDocParamGroup(smSerializer, "lpf", lpfMorphMember, morphDoc, true);
 		smSerializer.writeClosingTag("params");
 		int32_t legacyLen = smSerializer.bytesWritten();
@@ -1467,6 +1469,12 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		int32_t domAttrLen = smSerializer.bytesWritten();
 		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
 		      "GlobalEffectable override attributes byte-identical");
+		// Both writers go through the same serializer, so byte equality cannot see an override taken from the wrong
+		// slot: the volume attribute must carry its own override (-123456 = 0xFFFE1DC0), which sits at the set's
+		// position 39, not at its id.
+		domBuf[domAttrLen] = '\0';
+		check(std::strstr(domBuf, "volume=\"0xFFFE1DC0") != nullptr,
+		      "GlobalEffectable override: volume takes its own override value");
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();

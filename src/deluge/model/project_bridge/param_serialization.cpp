@@ -16,6 +16,10 @@
  */
 
 #include "model/project_bridge/param_serialization.h"
+
+#include "engines/deluge/params.h"
+#include "engines/global_effectable/params.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_collection.h"
@@ -28,6 +32,10 @@
 #include <cstdint>
 
 namespace deluge::bridge {
+
+using deluge::engine::ParamId;
+namespace ip = deluge::instrument::param;
+namespace gp = deluge::global_effectable::param;
 
 using namespace deluge::project;
 
@@ -58,9 +66,10 @@ void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutom
 	}
 }
 
-void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, int32_t p, Serializer& out,
+void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, ParamId id, Serializer& out,
                               bool writeAutomation, bool onlyIfContainsSomething, const int32_t* valuesForOverride) {
 	// Byte-for-byte reproduction of ParamSet::writeParamAsAttribute.
+	const size_t p = *doc.indexOf(id); // the override arrays are indexed by position in the set
 	const DocAutoParam& param = doc.params[p];
 	// containsSomething(neutral=0): automated, or currentValue != 0 (as an unsigned compare).
 	if (onlyIfContainsSomething && param.nodes.empty() && static_cast<uint32_t>(param.current_value) == 0u) {
@@ -83,37 +92,27 @@ namespace {
 // The first six ModControllableAudio attrs honour the value-override array; the engine passes
 // valuesForOverride only to these (mod_controllable_audio.cpp).
 constexpr DocParamAttr kModControllableOverrideAttrs[] = {
-    {"stutterRate", params::UNPATCHED_STUTTER_RATE},
-    {"sampleRateReduction", params::UNPATCHED_SAMPLE_RATE_REDUCTION},
-    {"bitCrush", params::UNPATCHED_BITCRUSHING},
-    {"modFXOffset", params::UNPATCHED_MOD_FX_OFFSET},
-    {"modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK},
-    {"compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD},
+    {"stutterRate", ip::kStutterRate},     {"sampleRateReduction", ip::kSampleRateReduction},
+    {"bitCrush", ip::kBitcrushAmount},     {"modFXOffset", ip::kModFXOffset},
+    {"modFXFeedback", ip::kModFXFeedback}, {"compressorThreshold", ip::kCompressorThreshold},
 };
 // The remaining ModControllableAudio attrs (arp / probability / spread) are written without override —
 // the engine omits valuesForOverride for these.
 constexpr DocParamAttr kModControllableArpAttrs[] = {
-    {"arpeggiatorGate", params::UNPATCHED_ARP_GATE},
-    {"noteProbability", params::UNPATCHED_NOTE_PROBABILITY},
-    {"bassProbability", params::UNPATCHED_ARP_BASS_PROBABILITY},
-    {"swapProbability", params::UNPATCHED_ARP_SWAP_PROBABILITY},
-    {"glideProbability", params::UNPATCHED_ARP_GLIDE_PROBABILITY},
-    {"reverseProbability", params::UNPATCHED_REVERSE_PROBABILITY},
-    {"chordProbability", params::UNPATCHED_ARP_CHORD_PROBABILITY},
-    {"ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY},
-    {"ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT},
-    {"sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH},
-    {"chordPolyphony", params::UNPATCHED_ARP_CHORD_POLYPHONY},
-    {"rhythm", params::UNPATCHED_ARP_RHYTHM},
-    {"spreadVelocity", params::UNPATCHED_SPREAD_VELOCITY},
-    {"spreadGate", params::UNPATCHED_ARP_SPREAD_GATE},
-    {"spreadOctave", params::UNPATCHED_ARP_SPREAD_OCTAVE},
+    {"arpeggiatorGate", ip::kArpGate},           {"noteProbability", ip::kNoteProbability},
+    {"bassProbability", ip::kBassProbability},   {"swapProbability", ip::kSwapProbability},
+    {"glideProbability", ip::kGlideProbability}, {"reverseProbability", ip::kReverseProbability},
+    {"chordProbability", ip::kChordProbability}, {"ratchetProbability", ip::kRatchetProbability},
+    {"ratchetAmount", ip::kRatchetAmount},       {"sequenceLength", ip::kSequenceLength},
+    {"chordPolyphony", ip::kChordPolyphony},     {"rhythm", ip::kRhythm},
+    {"spreadVelocity", ip::kSpreadVelocity},     {"spreadGate", ip::kSpreadGate},
+    {"spreadOctave", ip::kSpreadOctave},
 };
 constexpr DocParamAttr kEqualizerGroup[] = {
-    {"bass", params::UNPATCHED_BASS},
-    {"treble", params::UNPATCHED_TREBLE},
-    {"bassFrequency", params::UNPATCHED_BASS_FREQ},
-    {"trebleFrequency", params::UNPATCHED_TREBLE_FREQ},
+    {"bass", ip::kBass},
+    {"treble", ip::kTreble},
+    {"bassFrequency", ip::kBassFreq},
+    {"trebleFrequency", ip::kTrebleFreq},
 };
 } // namespace
 
@@ -121,7 +120,7 @@ void writeDocParamGroup(Serializer& out, const char* groupName, std::span<const 
                         const DocParamSet& doc, bool writeAutomation, const int32_t* valuesForOverride) {
 	out.writeOpeningTagBeginning(groupName);
 	for (const DocParamAttr& a : params_) {
-		writeDocParamAsAttribute(doc, a.name, a.param_id, out, writeAutomation, false, valuesForOverride);
+		writeDocParamAsAttribute(doc, a.name, a.id, out, writeAutomation, false, valuesForOverride);
 	}
 	out.closeTag();
 }
@@ -129,11 +128,11 @@ void writeDocParamGroup(Serializer& out, const char* groupName, std::span<const 
 void serializeModControllableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
                                              const int32_t* valuesForOverride) {
 	for (const DocParamAttr& a : kModControllableOverrideAttrs) {
-		writeDocParamAsAttribute(unpatched, a.name, a.param_id, out, writeAutomation, false, valuesForOverride);
+		writeDocParamAsAttribute(unpatched, a.name, a.id, out, writeAutomation, false, valuesForOverride);
 	}
 	// The arp/probability/spread attrs are always written without the override (engine parity).
 	for (const DocParamAttr& a : kModControllableArpAttrs) {
-		writeDocParamAsAttribute(unpatched, a.name, a.param_id, out, writeAutomation);
+		writeDocParamAsAttribute(unpatched, a.name, a.id, out, writeAutomation);
 	}
 }
 
@@ -150,16 +149,16 @@ bool docContainsSomething(const DocAutoParam& param, uint32_t neutral) {
 }
 // The GlobalEffectable <delay> / <lpf> / <hpf> nested groups (global_effectable.cpp), in file order.
 constexpr DocParamAttr kGlobalDelayGroup[] = {
-    {"rate", params::UNPATCHED_DELAY_RATE},
-    {"feedback", params::UNPATCHED_DELAY_AMOUNT},
+    {"rate", gp::kDelayRate},
+    {"feedback", gp::kDelayFeedback},
 };
 constexpr DocParamAttr kGlobalLpfGroup[] = {
-    {"frequency", params::UNPATCHED_LPF_FREQ},
-    {"resonance", params::UNPATCHED_LPF_RES},
+    {"frequency", gp::kLpfFrequency},
+    {"resonance", gp::kLpfResonance},
 };
 constexpr DocParamAttr kGlobalHpfGroup[] = {
-    {"frequency", params::UNPATCHED_HPF_FREQ},
-    {"resonance", params::UNPATCHED_HPF_RES},
+    {"frequency", gp::kHpfFrequency},
+    {"resonance", gp::kHpfResonance},
 };
 } // namespace
 
@@ -168,33 +167,30 @@ void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Seri
 	// Byte-for-byte reproduction of GlobalEffectable::writeParamAttributesToFile. The flat global attrs
 	// wrap the shared ModControllableAudio attrs; pitchAdjust and sidechainCompressorVolume are written
 	// only when they contain something (with their own neutral values), the rest unconditionally.
-	writeDocParamAsAttribute(unpatched, "reverbAmount", params::UNPATCHED_REVERB_SEND_AMOUNT, out, writeAutomation,
-	                         false, ovr);
-	writeDocParamAsAttribute(unpatched, "volume", params::UNPATCHED_VOLUME, out, writeAutomation, false, ovr);
-	writeDocParamAsAttribute(unpatched, "pan", params::UNPATCHED_PAN, out, writeAutomation, false, ovr);
+	writeDocParamAsAttribute(unpatched, "reverbAmount", gp::kReverbAmount, out, writeAutomation, false, ovr);
+	writeDocParamAsAttribute(unpatched, "volume", gp::kVolume, out, writeAutomation, false, ovr);
+	writeDocParamAsAttribute(unpatched, "pan", gp::kPan, out, writeAutomation, false, ovr);
 
-	if (docContainsSomething(unpatched.params[params::UNPATCHED_PITCH_ADJUST], 0)) {
-		writeDocParamAsAttribute(unpatched, "pitchAdjust", params::UNPATCHED_PITCH_ADJUST, out, writeAutomation, false,
-		                         ovr);
+	if (docContainsSomething(*unpatched.find(gp::kPitchAdjust), 0)) {
+		writeDocParamAsAttribute(unpatched, "pitchAdjust", gp::kPitchAdjust, out, writeAutomation, false, ovr);
 	}
-	if (docContainsSomething(unpatched.params[params::UNPATCHED_SIDECHAIN_VOLUME], 0x80000000u)) {
-		writeDocParamAsAttribute(unpatched, "sidechainCompressorVolume", params::UNPATCHED_SIDECHAIN_VOLUME, out,
+	if (docContainsSomething(*unpatched.find(gp::kSidechainCompressorVolume), 0x80000000u)) {
+		writeDocParamAsAttribute(unpatched, "sidechainCompressorVolume", gp::kSidechainCompressorVolume, out,
 		                         writeAutomation, false, ovr);
 	}
 
-	writeDocParamAsAttribute(unpatched, "sidechainCompressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, out,
-	                         writeAutomation, false, ovr);
-	writeDocParamAsAttribute(unpatched, "modFXDepth", params::UNPATCHED_MOD_FX_DEPTH, out, writeAutomation, false, ovr);
-	writeDocParamAsAttribute(unpatched, "modFXRate", params::UNPATCHED_MOD_FX_RATE, out, writeAutomation, false, ovr);
+	writeDocParamAsAttribute(unpatched, "sidechainCompressorShape", ip::kCompressorShape, out, writeAutomation, false,
+	                         ovr);
+	writeDocParamAsAttribute(unpatched, "modFXDepth", gp::kModFXDepth, out, writeAutomation, false, ovr);
+	writeDocParamAsAttribute(unpatched, "modFXRate", gp::kModFXRate, out, writeAutomation, false, ovr);
 
 	serializeModControllableParamAttributes(unpatched, out, writeAutomation, ovr);
 
 	// Community Firmware parameters (always written after the official ones, just before the parent closes).
-	writeDocParamAsAttribute(unpatched, "lpfMorph", params::UNPATCHED_LPF_MORPH, out, writeAutomation, false, ovr);
-	writeDocParamAsAttribute(unpatched, "hpfMorph", params::UNPATCHED_HPF_MORPH, out, writeAutomation, false, ovr);
-	writeDocParamAsAttribute(unpatched, "tempo", params::UNPATCHED_TEMPO, out, writeAutomation, false, ovr);
-	writeDocParamAsAttribute(unpatched, "arpeggiatorRate", params::UNPATCHED_ARP_RATE, out, writeAutomation, false,
-	                         ovr);
+	writeDocParamAsAttribute(unpatched, "lpfMorph", gp::kLpfMorph, out, writeAutomation, false, ovr);
+	writeDocParamAsAttribute(unpatched, "hpfMorph", gp::kHpfMorph, out, writeAutomation, false, ovr);
+	writeDocParamAsAttribute(unpatched, "tempo", gp::kTempo, out, writeAutomation, false, ovr);
+	writeDocParamAsAttribute(unpatched, "arpeggiatorRate", gp::kArpRate, out, writeAutomation, false, ovr);
 }
 
 void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
@@ -210,9 +206,9 @@ void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer
 namespace {
 // The ExpressionParamSet (MPE) dimensions, by index, matching expressionParamNames[] in param_set.cpp.
 constexpr DocParamAttr kExpressionParams[] = {
-    {"pitchBend", 0},
-    {"yExpression", 1},
-    {"pressure", 2},
+    {"pitchBend", ParamId{0}},
+    {"yExpression", ParamId{1}},
+    {"pressure", ParamId{2}},
 };
 } // namespace
 
@@ -221,7 +217,7 @@ bool serializeExpressionParams(const DocParamSet& expression, Serializer& out, b
 	// Byte-for-byte reproduction of ExpressionParamSet::writeToFile.
 	bool writtenAnyYet = false;
 	for (const DocParamAttr& a : kExpressionParams) {
-		if (docContainsSomething(expression.params[a.param_id], 0)) {
+		if (docContainsSomething(*expression.find(a.id), 0)) {
 			if (!writtenAnyYet) {
 				writtenAnyYet = true;
 				if (mustWriteOpeningTagEndFirst) {
@@ -229,7 +225,7 @@ bool serializeExpressionParams(const DocParamSet& expression, Serializer& out, b
 				}
 				out.writeOpeningTagBeginning("expressionData");
 			}
-			writeDocParamAsAttribute(expression, a.name, a.param_id, out, writeAutomation);
+			writeDocParamAsAttribute(expression, a.name, a.id, out, writeAutomation);
 		}
 	}
 	if (writtenAnyYet) {
@@ -242,28 +238,28 @@ namespace {
 // Sound's four <envelope*> nested groups (sound.cpp), each {attack, decay, sustain, release} from the
 // patched collection.
 constexpr DocParamAttr kEnvelope1[] = {
-    {"attack", params::LOCAL_ENV_0_ATTACK},
-    {"decay", params::LOCAL_ENV_0_DECAY},
-    {"sustain", params::LOCAL_ENV_0_SUSTAIN},
-    {"release", params::LOCAL_ENV_0_RELEASE},
+    {"attack", ip::kEnv1Attack},
+    {"decay", ip::kEnv1Decay},
+    {"sustain", ip::kEnv1Sustain},
+    {"release", ip::kEnv1Release},
 };
 constexpr DocParamAttr kEnvelope2[] = {
-    {"attack", params::LOCAL_ENV_1_ATTACK},
-    {"decay", params::LOCAL_ENV_1_DECAY},
-    {"sustain", params::LOCAL_ENV_1_SUSTAIN},
-    {"release", params::LOCAL_ENV_1_RELEASE},
+    {"attack", ip::kEnv2Attack},
+    {"decay", ip::kEnv2Decay},
+    {"sustain", ip::kEnv2Sustain},
+    {"release", ip::kEnv2Release},
 };
 constexpr DocParamAttr kEnvelope3[] = {
-    {"attack", params::LOCAL_ENV_2_ATTACK},
-    {"decay", params::LOCAL_ENV_2_DECAY},
-    {"sustain", params::LOCAL_ENV_2_SUSTAIN},
-    {"release", params::LOCAL_ENV_2_RELEASE},
+    {"attack", ip::kEnv3Attack},
+    {"decay", ip::kEnv3Decay},
+    {"sustain", ip::kEnv3Sustain},
+    {"release", ip::kEnv3Release},
 };
 constexpr DocParamAttr kEnvelope4[] = {
-    {"attack", params::LOCAL_ENV_3_ATTACK},
-    {"decay", params::LOCAL_ENV_3_DECAY},
-    {"sustain", params::LOCAL_ENV_3_SUSTAIN},
-    {"release", params::LOCAL_ENV_3_RELEASE},
+    {"attack", ip::kEnv4Attack},
+    {"decay", ip::kEnv4Decay},
+    {"sustain", ip::kEnv4Sustain},
+    {"release", ip::kEnv4Release},
 };
 } // namespace
 
@@ -272,63 +268,61 @@ void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatch
 	// Byte-for-byte reproduction of Sound::writeParamsToFile. Two unpatched flat attrs lead, then the
 	// patched flat attrs; the pitchAdjust family is onlyIfContainsSomething; the shared ModControllableAudio
 	// attrs sit before the community attrs (lpfMorph/hpfMorph/waveFold).
-	writeDocParamAsAttribute(unpatched, "portamento", params::UNPATCHED_PORTAMENTO, out, writeAutomation);
-	writeDocParamAsAttribute(unpatched, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, out, writeAutomation);
+	writeDocParamAsAttribute(unpatched, "portamento", ip::kPortamento, out, writeAutomation);
+	writeDocParamAsAttribute(unpatched, "compressorShape", ip::kCompressorShape, out, writeAutomation);
 
-	writeDocParamAsAttribute(patched, "oscAVolume", params::LOCAL_OSC_A_VOLUME, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "oscAWavetablePosition", params::LOCAL_OSC_A_WAVE_INDEX, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "oscBVolume", params::LOCAL_OSC_B_VOLUME, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "oscBPulseWidth", params::LOCAL_OSC_B_PHASE_WIDTH, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "oscBWavetablePosition", params::LOCAL_OSC_B_WAVE_INDEX, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "noiseVolume", params::LOCAL_NOISE_VOLUME, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "oscAVolume", ip::kOscAVolume, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "oscAPulseWidth", ip::kOscAPhaseWidth, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "oscAWavetablePosition", ip::kOscAWavetablePosition, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "oscBVolume", ip::kOscBVolume, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "oscBPulseWidth", ip::kOscBPhaseWidth, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "oscBWavetablePosition", ip::kOscBWavetablePosition, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "noiseVolume", ip::kNoiseVolume, out, writeAutomation);
 
-	writeDocParamAsAttribute(patched, "volume", params::GLOBAL_VOLUME_POST_FX, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "pan", params::LOCAL_PAN, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "volume", ip::kVolumePostFX, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "pan", ip::kPan, out, writeAutomation);
 
-	writeDocParamAsAttribute(patched, "lpfFrequency", params::LOCAL_LPF_FREQ, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "lpfResonance", params::LOCAL_LPF_RESONANCE, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "lpfFrequency", ip::kLpfFrequency, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "lpfResonance", ip::kLpfResonance, out, writeAutomation);
 
-	writeDocParamAsAttribute(patched, "hpfFrequency", params::LOCAL_HPF_FREQ, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "hpfResonance", params::LOCAL_HPF_RESONANCE, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "hpfFrequency", ip::kHpfFrequency, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "hpfResonance", ip::kHpfResonance, out, writeAutomation);
 
-	writeDocParamAsAttribute(patched, "lfo1Rate", params::GLOBAL_LFO_FREQ_1, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "lfo2Rate", params::LOCAL_LFO_LOCAL_FREQ_1, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "lfo3Rate", params::GLOBAL_LFO_FREQ_2, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "lfo4Rate", params::LOCAL_LFO_LOCAL_FREQ_2, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "lfo1Rate", ip::kLfo1Rate, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "lfo2Rate", ip::kLfo2Rate, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "lfo3Rate", ip::kLfo3Rate, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "lfo4Rate", ip::kLfo4Rate, out, writeAutomation);
 
-	writeDocParamAsAttribute(patched, "modulator1Amount", params::LOCAL_MODULATOR_0_VOLUME, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "modulator1Feedback", params::LOCAL_MODULATOR_0_FEEDBACK, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "modulator2Amount", params::LOCAL_MODULATOR_1_VOLUME, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "modulator2Feedback", params::LOCAL_MODULATOR_1_FEEDBACK, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "modulator1Amount", ip::kModulator1Volume, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "modulator1Feedback", ip::kModulator1Feedback, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "modulator2Amount", ip::kModulator2Volume, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "modulator2Feedback", ip::kModulator2Feedback, out, writeAutomation);
 
-	writeDocParamAsAttribute(patched, "carrier1Feedback", params::LOCAL_CARRIER_0_FEEDBACK, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "carrier2Feedback", params::LOCAL_CARRIER_1_FEEDBACK, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "carrier1Feedback", ip::kCarrier1Feedback, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "carrier2Feedback", ip::kCarrier2Feedback, out, writeAutomation);
 
-	writeDocParamAsAttribute(patched, "pitchAdjust", params::LOCAL_PITCH_ADJUST, out, writeAutomation, true);
-	writeDocParamAsAttribute(patched, "oscAPitchAdjust", params::LOCAL_OSC_A_PITCH_ADJUST, out, writeAutomation, true);
-	writeDocParamAsAttribute(patched, "oscBPitchAdjust", params::LOCAL_OSC_B_PITCH_ADJUST, out, writeAutomation, true);
-	writeDocParamAsAttribute(patched, "mod1PitchAdjust", params::LOCAL_MODULATOR_0_PITCH_ADJUST, out, writeAutomation,
-	                         true);
-	writeDocParamAsAttribute(patched, "mod2PitchAdjust", params::LOCAL_MODULATOR_1_PITCH_ADJUST, out, writeAutomation,
-	                         true);
+	writeDocParamAsAttribute(patched, "pitchAdjust", ip::kPitch, out, writeAutomation, true);
+	writeDocParamAsAttribute(patched, "oscAPitchAdjust", ip::kOscAPitch, out, writeAutomation, true);
+	writeDocParamAsAttribute(patched, "oscBPitchAdjust", ip::kOscBPitch, out, writeAutomation, true);
+	writeDocParamAsAttribute(patched, "mod1PitchAdjust", ip::kModulator1Pitch, out, writeAutomation, true);
+	writeDocParamAsAttribute(patched, "mod2PitchAdjust", ip::kModulator2Pitch, out, writeAutomation, true);
 
-	writeDocParamAsAttribute(patched, "modFXRate", params::GLOBAL_MOD_FX_RATE, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "modFXDepth", params::GLOBAL_MOD_FX_DEPTH, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "modFXRate", ip::kModFXRate, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "modFXDepth", ip::kModFXDepth, out, writeAutomation);
 
-	writeDocParamAsAttribute(patched, "delayRate", params::GLOBAL_DELAY_RATE, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "delayFeedback", params::GLOBAL_DELAY_FEEDBACK, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "delayRate", ip::kDelayRate, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "delayFeedback", ip::kDelayFeedback, out, writeAutomation);
 
-	writeDocParamAsAttribute(patched, "reverbAmount", params::GLOBAL_REVERB_AMOUNT, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "reverbAmount", ip::kReverbAmount, out, writeAutomation);
 
-	writeDocParamAsAttribute(patched, "arpeggiatorRate", params::GLOBAL_ARP_RATE, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "arpeggiatorRate", ip::kArpRate, out, writeAutomation);
 
 	serializeModControllableParamAttributes(unpatched, out, writeAutomation);
 
 	// Community Firmware parameters (always written after the official ones, just before the parent closes).
-	writeDocParamAsAttribute(patched, "lpfMorph", params::LOCAL_LPF_MORPH, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "hpfMorph", params::LOCAL_HPF_MORPH, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "waveFold", params::LOCAL_FOLD, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "lpfMorph", ip::kLpfMorph, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "hpfMorph", ip::kHpfMorph, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "waveFold", ip::kWaveFold, out, writeAutomation);
 
 	out.writeOpeningTagEnd();
 
@@ -539,8 +533,10 @@ namespace {
 // Read one leaf into a live param + mark its automation flag (matching ParamSet::readParam). The leaf
 // goes through the DOM (readDocAutoParam → fromDocAutoParam) so the file format + back-compat are shared
 // with the write side; the net effect on currentValue + nodes is identical to a direct readParam.
-void readLiveParam(Deserializer& in, ParamSet& set, ParamCollectionSummary& summary, int32_t p,
+void readLiveParam(Deserializer& in, ParamSet& set, ParamCollectionSummary& summary, ParamId id,
                    int32_t readAutomationUpToPos) {
+	// The live set holds the param at its runtime index: its id less the set's first id.
+	const int32_t p = static_cast<int32_t>(id.value - firstParamId(set.getParamKind()).value);
 	DocAutoParam doc = readDocAutoParam(in, readAutomationUpToPos);
 	// M2-F: land the value in the RT cursor and the nodes in the set's owner-resolved DOM store (not ownDoc_).
 	fromDocAutoParam(doc, set.params[p].currentValue, set.docForParam(p)->nodes);
@@ -554,7 +550,7 @@ bool readLiveParamFromTable(Deserializer& in, char const* tagName, std::span<con
                             ParamCollectionSummary& summary, int32_t readAutomationUpToPos) {
 	for (const DocParamAttr& a : table) {
 		if (!strcmp(tagName, a.name)) {
-			readLiveParam(in, set, summary, a.param_id, readAutomationUpToPos);
+			readLiveParam(in, set, summary, a.id, readAutomationUpToPos);
 			in.exitTag(a.name);
 			return true;
 		}
@@ -597,29 +593,29 @@ namespace {
 // All GlobalEffectable flat attr names (read lookup — order-independent). The writer emits some of these
 // conditionally (pitchAdjust / sidechainCompressorVolume), but on read every present tag is read.
 constexpr DocParamAttr kGlobalEffectableFlatAttrs[] = {
-    {"reverbAmount", params::UNPATCHED_REVERB_SEND_AMOUNT},
-    {"volume", params::UNPATCHED_VOLUME},
-    {"pan", params::UNPATCHED_PAN},
-    {"pitchAdjust", params::UNPATCHED_PITCH_ADJUST},
-    {"sidechainCompressorVolume", params::UNPATCHED_SIDECHAIN_VOLUME},
-    {"sidechainCompressorShape", params::UNPATCHED_SIDECHAIN_SHAPE},
-    {"modFXDepth", params::UNPATCHED_MOD_FX_DEPTH},
-    {"modFXRate", params::UNPATCHED_MOD_FX_RATE},
-    {"lpfMorph", params::UNPATCHED_LPF_MORPH},
-    {"hpfMorph", params::UNPATCHED_HPF_MORPH},
-    {"tempo", params::UNPATCHED_TEMPO},
-    {"arpeggiatorRate", params::UNPATCHED_ARP_RATE},
+    {"reverbAmount", gp::kReverbAmount},
+    {"volume", gp::kVolume},
+    {"pan", gp::kPan},
+    {"pitchAdjust", gp::kPitchAdjust},
+    {"sidechainCompressorVolume", gp::kSidechainCompressorVolume},
+    {"sidechainCompressorShape", ip::kCompressorShape},
+    {"modFXDepth", gp::kModFXDepth},
+    {"modFXRate", gp::kModFXRate},
+    {"lpfMorph", gp::kLpfMorph},
+    {"hpfMorph", gp::kHpfMorph},
+    {"tempo", gp::kTempo},
+    {"arpeggiatorRate", gp::kArpRate},
 };
 // Read-side <lpf>/<hpf> groups: same as the write groups plus the legacy nested `morph` member.
 constexpr DocParamAttr kGlobalLpfReadGroup[] = {
-    {"frequency", params::UNPATCHED_LPF_FREQ},
-    {"resonance", params::UNPATCHED_LPF_RES},
-    {"morph", params::UNPATCHED_LPF_MORPH},
+    {"frequency", gp::kLpfFrequency},
+    {"resonance", gp::kLpfResonance},
+    {"morph", gp::kLpfMorph},
 };
 constexpr DocParamAttr kGlobalHpfReadGroup[] = {
-    {"frequency", params::UNPATCHED_HPF_FREQ},
-    {"resonance", params::UNPATCHED_HPF_RES},
-    {"morph", params::UNPATCHED_HPF_MORPH},
+    {"frequency", gp::kHpfFrequency},
+    {"resonance", gp::kHpfResonance},
+    {"morph", gp::kHpfMorph},
 };
 } // namespace
 
@@ -637,17 +633,17 @@ bool readGlobalEffectableParamTag(Deserializer& in, char const* tagName, ParamSe
 }
 
 namespace {
-// DOM-target leaf/table/group helpers — mirror readLiveParam* but land the DocAutoParam in `doc.params[p]`
-// (the persistent DOM store) instead of a live engine param. `doc.params` must be pre-sized.
-void readDocParamLeaf(Deserializer& in, DocParamSet& doc, int32_t p, int32_t readAutomationUpToPos) {
-	doc.params[p] = readDocAutoParam(in, readAutomationUpToPos);
+// DOM-target leaf/table/group helpers — mirror readLiveParam* but land the DocAutoParam in the store's lane for its
+// id (the persistent DOM store) instead of a live engine param. `doc.params` must be pre-sized.
+void readDocParamLeaf(Deserializer& in, DocParamSet& doc, ParamId id, int32_t readAutomationUpToPos) {
+	*doc.find(id) = readDocAutoParam(in, readAutomationUpToPos);
 }
 
 bool readDocParamFromTable(Deserializer& in, char const* tagName, std::span<const DocParamAttr> table, DocParamSet& doc,
                            int32_t readAutomationUpToPos) {
 	for (const DocParamAttr& a : table) {
 		if (!strcmp(tagName, a.name)) {
-			readDocParamLeaf(in, doc, a.param_id, readAutomationUpToPos);
+			readDocParamLeaf(in, doc, a.id, readAutomationUpToPos);
 			in.exitTag(a.name);
 			return true;
 		}
@@ -690,48 +686,48 @@ bool readGlobalEffectableParamTagToDoc(Deserializer& in, char const* tagName, Do
 namespace {
 // Sound's two unpatched flat attrs (read lookup).
 constexpr DocParamAttr kSoundUnpatchedAttrs[] = {
-    {"portamento", params::UNPATCHED_PORTAMENTO},
-    {"compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE},
+    {"portamento", ip::kPortamento},
+    {"compressorShape", ip::kCompressorShape},
 };
 // Sound's patched flat attrs (read lookup; order-independent), matching Sound::writeParamsToFile.
 constexpr DocParamAttr kSoundPatchedAttrs[] = {
-    {"oscAVolume", params::LOCAL_OSC_A_VOLUME},
-    {"oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH},
-    {"oscAWavetablePosition", params::LOCAL_OSC_A_WAVE_INDEX},
-    {"oscBVolume", params::LOCAL_OSC_B_VOLUME},
-    {"oscBPulseWidth", params::LOCAL_OSC_B_PHASE_WIDTH},
-    {"oscBWavetablePosition", params::LOCAL_OSC_B_WAVE_INDEX},
-    {"noiseVolume", params::LOCAL_NOISE_VOLUME},
-    {"volume", params::GLOBAL_VOLUME_POST_FX},
-    {"pan", params::LOCAL_PAN},
-    {"lpfFrequency", params::LOCAL_LPF_FREQ},
-    {"lpfResonance", params::LOCAL_LPF_RESONANCE},
-    {"hpfFrequency", params::LOCAL_HPF_FREQ},
-    {"hpfResonance", params::LOCAL_HPF_RESONANCE},
-    {"lfo1Rate", params::GLOBAL_LFO_FREQ_1},
-    {"lfo2Rate", params::LOCAL_LFO_LOCAL_FREQ_1},
-    {"lfo3Rate", params::GLOBAL_LFO_FREQ_2},
-    {"lfo4Rate", params::LOCAL_LFO_LOCAL_FREQ_2},
-    {"modulator1Amount", params::LOCAL_MODULATOR_0_VOLUME},
-    {"modulator1Feedback", params::LOCAL_MODULATOR_0_FEEDBACK},
-    {"modulator2Amount", params::LOCAL_MODULATOR_1_VOLUME},
-    {"modulator2Feedback", params::LOCAL_MODULATOR_1_FEEDBACK},
-    {"carrier1Feedback", params::LOCAL_CARRIER_0_FEEDBACK},
-    {"carrier2Feedback", params::LOCAL_CARRIER_1_FEEDBACK},
-    {"pitchAdjust", params::LOCAL_PITCH_ADJUST},
-    {"oscAPitchAdjust", params::LOCAL_OSC_A_PITCH_ADJUST},
-    {"oscBPitchAdjust", params::LOCAL_OSC_B_PITCH_ADJUST},
-    {"mod1PitchAdjust", params::LOCAL_MODULATOR_0_PITCH_ADJUST},
-    {"mod2PitchAdjust", params::LOCAL_MODULATOR_1_PITCH_ADJUST},
-    {"modFXRate", params::GLOBAL_MOD_FX_RATE},
-    {"modFXDepth", params::GLOBAL_MOD_FX_DEPTH},
-    {"delayRate", params::GLOBAL_DELAY_RATE},
-    {"delayFeedback", params::GLOBAL_DELAY_FEEDBACK},
-    {"reverbAmount", params::GLOBAL_REVERB_AMOUNT},
-    {"arpeggiatorRate", params::GLOBAL_ARP_RATE},
-    {"lpfMorph", params::LOCAL_LPF_MORPH},
-    {"hpfMorph", params::LOCAL_HPF_MORPH},
-    {"waveFold", params::LOCAL_FOLD},
+    {"oscAVolume", ip::kOscAVolume},
+    {"oscAPulseWidth", ip::kOscAPhaseWidth},
+    {"oscAWavetablePosition", ip::kOscAWavetablePosition},
+    {"oscBVolume", ip::kOscBVolume},
+    {"oscBPulseWidth", ip::kOscBPhaseWidth},
+    {"oscBWavetablePosition", ip::kOscBWavetablePosition},
+    {"noiseVolume", ip::kNoiseVolume},
+    {"volume", ip::kVolumePostFX},
+    {"pan", ip::kPan},
+    {"lpfFrequency", ip::kLpfFrequency},
+    {"lpfResonance", ip::kLpfResonance},
+    {"hpfFrequency", ip::kHpfFrequency},
+    {"hpfResonance", ip::kHpfResonance},
+    {"lfo1Rate", ip::kLfo1Rate},
+    {"lfo2Rate", ip::kLfo2Rate},
+    {"lfo3Rate", ip::kLfo3Rate},
+    {"lfo4Rate", ip::kLfo4Rate},
+    {"modulator1Amount", ip::kModulator1Volume},
+    {"modulator1Feedback", ip::kModulator1Feedback},
+    {"modulator2Amount", ip::kModulator2Volume},
+    {"modulator2Feedback", ip::kModulator2Feedback},
+    {"carrier1Feedback", ip::kCarrier1Feedback},
+    {"carrier2Feedback", ip::kCarrier2Feedback},
+    {"pitchAdjust", ip::kPitch},
+    {"oscAPitchAdjust", ip::kOscAPitch},
+    {"oscBPitchAdjust", ip::kOscBPitch},
+    {"mod1PitchAdjust", ip::kModulator1Pitch},
+    {"mod2PitchAdjust", ip::kModulator2Pitch},
+    {"modFXRate", ip::kModFXRate},
+    {"modFXDepth", ip::kModFXDepth},
+    {"delayRate", ip::kDelayRate},
+    {"delayFeedback", ip::kDelayFeedback},
+    {"reverbAmount", ip::kReverbAmount},
+    {"arpeggiatorRate", ip::kArpRate},
+    {"lpfMorph", ip::kLpfMorph},
+    {"hpfMorph", ip::kHpfMorph},
+    {"waveFold", ip::kWaveFold},
 };
 } // namespace
 
@@ -770,7 +766,7 @@ bool readExpressionParamTagToDoc(Deserializer& in, char const* tagName, DocParam
 	}
 	// Legacy alias: early-alpha files stored pressure (dimension 2) as <channelPressure>.
 	if (!strcmp(tagName, "channelPressure")) {
-		readDocParamLeaf(in, doc, 2, readAutomationUpToPos);
+		readDocParamLeaf(in, doc, ParamId{2}, readAutomationUpToPos);
 		in.exitTag(tagName);
 		return true;
 	}

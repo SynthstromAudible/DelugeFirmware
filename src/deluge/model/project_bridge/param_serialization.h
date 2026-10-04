@@ -53,15 +53,16 @@ void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutom
 /// `ParamSet::writeParamAsAttribute`. This is the building block the owner param blocks
 /// (GlobalEffectable / ModControllableAudio / Sound / clips) are composed of. When `valuesForOverride` is
 /// non-null its `[p]` entry is the override value (see `writeDocAutoParam`).
-void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, int32_t p, Serializer& out,
+void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, deluge::engine::ParamId id, Serializer& out,
                               bool writeAutomation, bool onlyIfContainsSomething = false,
                               const int32_t* valuesForOverride = nullptr);
 
-/// One entry of an owner's param block: a file tag/attribute name and the param id it maps to within
-/// the collection. Owner blocks are expressed as compact arrays of these driving the generic helpers.
+/// One entry of an owner's param block: a file tag/attribute name and the id of the param it holds (its engine's id;
+/// for the expression block, the dimension). Owner blocks are expressed as compact arrays of these driving the
+/// generic helpers.
 struct DocParamAttr {
 	const char* name;
-	int32_t param_id;
+	deluge::engine::ParamId id;
 };
 
 /// Write a nested group of params (e.g. `<equalizer>` / `<lpf>`) from a collection — byte-identical to
