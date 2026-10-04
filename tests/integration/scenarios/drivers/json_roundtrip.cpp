@@ -26,6 +26,7 @@
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
 
+#include "serialization/write_json.h"
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -166,6 +167,19 @@ int json_roundtrip_main(int argc, char** argv, Io driverIo) {
 		if (df) {
 			std::fwrite(jsonA, 1, nA, df);
 			std::fclose(df);
+		}
+	}
+
+	// The Value JSON writer reproduces every tree today's JSON save produces: parse jsonA, write it back with
+	// write_json, parse that, and require the same tree (scalar kinds included). JSON today's save writes but cannot
+	// be parsed is reported by the load below.
+	if (std::optional<deluge::serialization::Value> today =
+	        deluge::serialization::parseJson(std::string_view(jsonA, static_cast<size_t>(nA)))) {
+		std::optional<deluge::serialization::Value> rewritten =
+		    deluge::serialization::parseJson(deluge::serialization::write_json(*today));
+		if (!rewritten || !(*rewritten == *today)) {
+			std::fprintf(io.err, "WRITER MISMATCH: write_json does not reproduce today's JSON tree\n");
+			return 3;
 		}
 	}
 
