@@ -17,9 +17,9 @@
 
 #include "processing/sound/sound.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_sound.h"
 #include "deluge-project/param_automation.h"
 #include "dsp/dx/engine.h"
+#include "engines/deluge/sound_state.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/sound_editor.h"
@@ -3231,9 +3231,9 @@ void Sound::doneReadingFromFile() {
 
 	// M3 owner-5: parsing is complete, so refresh the DOM-owned scalars from the now-final engine fields. This is the
 	// load-bridge for a SoundDrum, whose adoptDrum bound the record with default values BEFORE its fields were parsed.
-	// A SoundInstrument/fresh Sound isn't bound yet here (docSound_ == nullptr) — bindDocSound seeds it later,
+	// A SoundInstrument/fresh Sound isn't bound yet here (state_ == nullptr) — bindState seeds it later,
 	// post-parse.
-	if (docSound_ != nullptr) {
+	if (state_ != nullptr) {
 		seedDocSoundScalars();
 		seedModKnobsRecord();
 		seedDocModControllable();
@@ -3249,9 +3249,9 @@ void Sound::doneReadingFromFile() {
 
 // Set cents for master transpose
 void Sound::set_cents(int8_t new_cents) {
-	if (docSound_ != nullptr) {
-		docSound_->cents = new_cents;
-		snapshot_.cents = docSound_->cents;
+	if (state_ != nullptr) {
+		state_->cents = new_cents;
+		snapshot_.cents = state_->cents;
 	}
 	else {
 		snapshot_.cents = new_cents;
@@ -3896,9 +3896,9 @@ justExitTag:
 void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName) {
 
 	Source* source = &sources[s];
-	// M3 owner-5 slice G: read the authoritative DocSource record when bound (cache fallback only for an unbound
+	// M3 owner-5 slice G: read the authoritative SourceState record when bound (cache fallback only for an unbound
 	// Sound).
-	deluge::project::DocSource* dsrc = docSound_ != nullptr ? &docSound_->sources[s] : nullptr;
+	deluge::instrument::SourceState* dsrc = state_ != nullptr ? &state_->sources[s] : nullptr;
 
 	writer.writeOpeningTagBeginning(tagName);
 
@@ -3911,7 +3911,7 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 	if (source->oscType == OscType::SAMPLE
 	    && getSynthMode() != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
 		writer.writeAttribute("loopMode",
-		                      dsrc != nullptr ? dsrc->repeat_mode : util::to_underlying(source->repeatMode));
+		                      util::to_underlying(dsrc != nullptr ? dsrc->repeat_mode : source->repeatMode));
 		writer.writeAttribute("reversed", dsrc != nullptr ? dsrc->reversed : source->sampleControls.reversed);
 		writer.writeAttribute("timeStretchEnable", dsrc != nullptr
 		                                               ? dsrc->pitch_and_speed_independent
@@ -3924,9 +3924,9 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			writer.writeAttribute("linearInterpolation", 1);
 		}
 
-		// M3 owner-5 slice G3: emit ranges from the authoritative DocSource record when bound (cache fallback only for
-		// an unbound Sound). The DocRange fields are kept in lockstep with the engine ranges by seedDocRanges, so the
-		// record list and the engine list are the same length and index-aligned.
+		// M3 owner-5 slice G3: emit ranges from the authoritative SourceState record when bound (cache fallback only
+		// for an unbound Sound). The RangeState fields are kept in lockstep with the engine ranges by seedDocRanges, so
+		// the record list and the engine list are the same length and index-aligned.
 		int32_t numRanges = dsrc != nullptr ? std::ssize(dsrc->ranges) : std::ssize(source->ranges);
 
 		if (numRanges > 1) {
@@ -3935,7 +3935,7 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 		}
 
 		for (int32_t e = 0; e < numRanges; e++) {
-			deluge::project::DocRange const* dr = dsrc != nullptr ? &dsrc->ranges[e] : nullptr;
+			deluge::instrument::RangeState const* dr = dsrc != nullptr ? &dsrc->ranges[e] : nullptr;
 			MultisampleRange* range = dr != nullptr ? nullptr : (MultisampleRange*)source->ranges.getElement(e);
 
 			if (numRanges > 1) {
@@ -3994,17 +3994,17 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 		writer.writeAttribute("transpose", dsrc != nullptr ? dsrc->transpose : source->transpose);
 		writer.writeAttribute("cents", dsrc != nullptr ? dsrc->cents : source->cents);
 		bool oscSync =
-		    docSound_ != nullptr ? docSound_->oscillator_sync : snapshot_.oscillatorSync; // M3 owner-5: read record
+		    state_ != nullptr ? state_->oscillator_sync : snapshot_.oscillatorSync; // M3 owner-5: read record
 		if (s == 1 && oscSync) {
 			writer.writeAttribute("oscillatorSync", oscSync);
 		}
-		writer.writeAttribute("retrigPhase", docSound_ != nullptr ? docSound_->osc_retrigger_phase[s]
-		                                                          : snapshot_.oscRetriggerPhase[s]);
+		writer.writeAttribute("retrigPhase",
+		                      state_ != nullptr ? state_->osc_retrigger_phase[s] : snapshot_.oscRetriggerPhase[s]);
 
 		// Sub-option for (multi)wavetable
 		if (source->oscType == OscType::WAVETABLE && getSynthMode() != SynthMode::FM) {
 
-			// M3 owner-5 slice G3: emit wavetable ranges from the authoritative DocSource record when bound (cache
+			// M3 owner-5 slice G3: emit wavetable ranges from the authoritative SourceState record when bound (cache
 			// fallback only for an unbound Sound). Wavetable ranges carry just top_note + file_path (no zone).
 			int32_t numRanges = dsrc != nullptr ? std::ssize(dsrc->ranges) : std::ssize(source->ranges);
 
@@ -4014,7 +4014,7 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			}
 
 			for (int32_t e = 0; e < numRanges; e++) {
-				deluge::project::DocRange const* dr = dsrc != nullptr ? &dsrc->ranges[e] : nullptr;
+				deluge::instrument::RangeState const* dr = dsrc != nullptr ? &dsrc->ranges[e] : nullptr;
 				MultisampleRange* range = dr != nullptr ? nullptr : (MultisampleRange*)source->ranges.getElement(e);
 
 				if (numRanges > 1) {
@@ -4049,9 +4049,9 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			if (source->dxPatch) {
 				DxPatch* patch = source->dxPatch;
 				// M3 owner-5: read the authoritative record when bound (cache fallback only for an unbound Sound).
-				deluge::project::DocDxPatch* dp =
+				deluge::instrument::DxPatchState* dp =
 				    (dsrc != nullptr && dsrc->dx_patch.has_value()) ? &*dsrc->dx_patch : nullptr;
-				writer.writeAttributeHexBytes("dx7patch", dp != nullptr ? dp->params : patch->params, 156);
+				writer.writeAttributeHexBytes("dx7patch", dp != nullptr ? dp->params.data() : patch->params, 156);
 
 				uint8_t engineMode = dp != nullptr ? dp->engine_mode : patch->engineMode;
 				if (engineMode != 0) {
@@ -4082,12 +4082,12 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	deluge::bridge::serializeSoundParams(*doc.patched, *doc.unpatched, doc.patch_cables, writer, writeAutomation);
 }
 
-// M3 owner-5: copy the DOM-owned scalars engine->record (the load-bridge). Assumes docSound_ is bound. Run from
-// bindDocSound and re-run at doneReadingFromFile (see those for the bind-vs-parse ordering that makes the re-run
+// M3 owner-5: copy the DOM-owned scalars engine->record (the load-bridge). Assumes state_ is bound. Run from
+// bindState and re-run at doneReadingFromFile (see those for the bind-vs-parse ordering that makes the re-run
 // necessary for SoundDrums).
 void Sound::seedDocSoundScalars() {
-	deluge::project::DocSound& d = *docSound_;
-	d.voice_priority = static_cast<uint8_t>(snapshot_.voicePriority);
+	deluge::instrument::SoundState& d = *state_;
+	d.voice_priority = snapshot_.voicePriority;
 	d.max_voice_count = maxVoiceCount;
 	d.side_chain_send_level = sideChainSendLevel;
 	d.output_midi_channel = outputMidiChannel;
@@ -4095,8 +4095,8 @@ void Sound::seedDocSoundScalars() {
 	d.oscillator_sync = snapshot_.oscillatorSync;
 	// Slice C top-level scalars (native fields kept as hot caches; record is authoritative for save). SoundDrums bind
 	// before parse, so this re-seed at doneReadingFromFile is what captures their loaded values into the record.
-	d.polyphonic = static_cast<uint8_t>(polyphonic);
-	d.synth_mode = static_cast<uint8_t>(snapshot_.synthMode);
+	d.polyphonic = polyphonic;
+	d.synth_mode = snapshot_.synthMode;
 	d.transpose = snapshot_.transpose;
 	d.cents = snapshot_.cents; // M4b: transpose lives on the snapshot; the record seeds from it (bind-time)
 	d.num_unison = snapshot_.numUnison;
@@ -4110,59 +4110,60 @@ void Sound::seedDocSoundScalars() {
 		d.modulator_retrigger_phase[i] = snapshot_.modulatorRetriggerPhase[i];
 	}
 	for (int32_t i = 0; i < LFO_COUNT; i++) {
-		d.lfo_wave_type[i] = static_cast<uint8_t>(snapshot_.lfoConfig[i].waveType);
-		d.lfo_sync_type[i] = static_cast<uint8_t>(snapshot_.lfoConfig[i].syncType);
-		d.lfo_sync_level[i] = static_cast<uint8_t>(snapshot_.lfoConfig[i].syncLevel);
+		d.lfo_wave_type[i] = snapshot_.lfoConfig[i].waveType;
+		d.lfo_sync_type[i] = snapshot_.lfoConfig[i].syncType;
+		d.lfo_sync_level[i] = snapshot_.lfoConfig[i].syncLevel;
 	}
 }
 
 void Sound::projectSnapshot() {
-	// M4b: re-derive the engine's hot-field read-view from the authoritative DocSound. No-op when unbound (preview /
+	// M4b: re-derive the engine's hot-field read-view from the authoritative SoundState. No-op when unbound (preview /
 	// GlobalEffectable) — those sounds write snapshot_ directly and have no record to project from. Grows per slice.
-	if (docSound_ == nullptr) {
+	if (state_ == nullptr) {
 		return;
 	}
-	snapshot_.transpose = docSound_->transpose;
-	snapshot_.cents = docSound_->cents;
+	snapshot_.transpose = state_->transpose;
+	snapshot_.cents = state_->cents;
 	recalculateFineTuner();
-	snapshot_.numUnison = docSound_->num_unison;
-	snapshot_.unisonDetune = docSound_->unison_detune;
-	snapshot_.unisonStereoSpread = docSound_->unison_stereo_spread;
+	snapshot_.numUnison = state_->num_unison;
+	snapshot_.unisonDetune = state_->unison_detune;
+	snapshot_.unisonStereoSpread = state_->unison_stereo_spread;
 	computeUnisonDetuners();
 	setupUnisonStereoSpread();
-	snapshot_.synthMode = static_cast<SynthMode>(docSound_->synth_mode);
-	snapshot_.oscillatorSync = docSound_->oscillator_sync;
-	snapshot_.voicePriority = static_cast<VoicePriority>(docSound_->voice_priority);
-	snapshot_.modulator1ToModulator0 = docSound_->modulator1_to_modulator0;
+	snapshot_.synthMode = static_cast<SynthMode>(state_->synth_mode);
+	snapshot_.oscillatorSync = state_->oscillator_sync;
+	snapshot_.voicePriority = static_cast<VoicePriority>(state_->voice_priority);
+	snapshot_.modulator1ToModulator0 = state_->modulator1_to_modulator0;
 	for (int32_t i = 0; i < kNumModulators; i++) {
-		snapshot_.modulatorCents[i] = docSound_->modulator_cents[i];
+		snapshot_.modulatorCents[i] = state_->modulator_cents[i];
 		snapshot_.modulatorTransposers[i].setup((int32_t)snapshot_.modulatorCents[i] * 42949672);
-		snapshot_.modulatorTranspose[i] = docSound_->modulator_transpose[i];
-		snapshot_.modulatorRetriggerPhase[i] = docSound_->modulator_retrigger_phase[i];
+		snapshot_.modulatorTranspose[i] = state_->modulator_transpose[i];
+		snapshot_.modulatorRetriggerPhase[i] = state_->modulator_retrigger_phase[i];
 	}
 	for (int32_t s = 0; s < kNumSources; s++) {
-		snapshot_.oscRetriggerPhase[s] = docSound_->osc_retrigger_phase[s];
+		snapshot_.oscRetriggerPhase[s] = state_->osc_retrigger_phase[s];
 	}
 	for (int32_t l = 0; l < LFO_COUNT; l++) {
-		snapshot_.lfoConfig[l].waveType = static_cast<LFOType>(docSound_->lfo_wave_type[l]);
-		snapshot_.lfoConfig[l].syncType = static_cast<SyncType>(docSound_->lfo_sync_type[l]);
-		snapshot_.lfoConfig[l].syncLevel = static_cast<SyncLevel>(docSound_->lfo_sync_level[l]);
+		snapshot_.lfoConfig[l].waveType = static_cast<LFOType>(state_->lfo_wave_type[l]);
+		snapshot_.lfoConfig[l].syncType = static_cast<SyncType>(state_->lfo_sync_type[l]);
+		snapshot_.lfoConfig[l].syncLevel = static_cast<SyncLevel>(state_->lfo_sync_level[l]);
 	}
 }
 
 void Sound::seedModKnobsRecord() {
-	if (docSound_ == nullptr) {
+	if (state_ == nullptr) {
 		return;
 	}
 	for (int32_t k = 0; k < kNumModButtons; k++) {
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
-			docSound_->mod_knob_param_descriptor[k][w] = modKnobs[k][w].paramDescriptor.data;
+			state_->mod_knob_param_descriptor[k][w] = modKnobs[k][w].paramDescriptor.data;
 		}
 	}
 }
 
-void Sound::bindDocSound(deluge::project::DocSound* d) {
-	docSound_ = d;
+void Sound::bindState() {
+	state_ = &ownedState_;
+	deluge::instrument::SoundState* d = state_;
 	// Seed the DOM-owned scalars from the engine caches. Correct for a SoundInstrument (bound at assignMissingIds,
 	// after its fields are parsed) and for a freshly-created Sound. A SoundDrum is bound BEFORE parse (adoptDrum runs
 	// first), so this seed is stale for drums — doneReadingFromFile re-runs it once parsing is done.
@@ -4171,17 +4172,17 @@ void Sound::bindDocSound(deluge::project::DocSound* d) {
 	projectSnapshot(); // M4b: derive the render read-view from the now-seeded record
 	bindDocModControllable(&d->mod_controllable);
 	for (int32_t s = 0; s < kNumSources; s++) {
-		sources[s].bindDocSource(&d->sources[s]);
+		sources[s].bindState(&d->sources[s]);
 	}
 }
 
 // M3 owner-5: DOM-owned scalars — each setter writes the authoritative record (when bound) AND the native cache. Render
-// / note-on / MIDI-send read the cache; save reads the record. Guard on docSound_ so pre-bind writes (load, preview)
+// / note-on / MIDI-send read the cache; save reads the record. Guard on state_ so pre-bind writes (load, preview)
 // land in the cache and get picked up by the bind-time seed.
 void Sound::setVoicePriority(VoicePriority value) {
-	if (docSound_ != nullptr) {
-		docSound_->voice_priority = static_cast<uint8_t>(value);
-		snapshot_.voicePriority = static_cast<VoicePriority>(docSound_->voice_priority);
+	if (state_ != nullptr) {
+		state_->voice_priority = value;
+		snapshot_.voicePriority = static_cast<VoicePriority>(state_->voice_priority);
 	}
 	else {
 		snapshot_.voicePriority = value;
@@ -4189,32 +4190,32 @@ void Sound::setVoicePriority(VoicePriority value) {
 }
 void Sound::setMaxVoiceCount(uint8_t value) {
 	maxVoiceCount = value;
-	if (docSound_ != nullptr) {
-		docSound_->max_voice_count = value;
+	if (state_ != nullptr) {
+		state_->max_voice_count = value;
 	}
 }
 void Sound::setSideChainSendLevel(int32_t value) {
 	sideChainSendLevel = value;
-	if (docSound_ != nullptr) {
-		docSound_->side_chain_send_level = value;
+	if (state_ != nullptr) {
+		state_->side_chain_send_level = value;
 	}
 }
 void Sound::setOutputMidiChannel(uint8_t value) {
 	outputMidiChannel = value;
-	if (docSound_ != nullptr) {
-		docSound_->output_midi_channel = value;
+	if (state_ != nullptr) {
+		state_->output_midi_channel = value;
 	}
 }
 void Sound::setOutputMidiNoteForDrum(uint8_t value) {
 	outputMidiNoteForDrum = value;
-	if (docSound_ != nullptr) {
-		docSound_->output_midi_note_for_drum = value;
+	if (state_ != nullptr) {
+		state_->output_midi_note_for_drum = value;
 	}
 }
 void Sound::setOscillatorSync(bool value) {
-	if (docSound_ != nullptr) {
-		docSound_->oscillator_sync = value;
-		snapshot_.oscillatorSync = docSound_->oscillator_sync;
+	if (state_ != nullptr) {
+		state_->oscillator_sync = value;
+		snapshot_.oscillatorSync = state_->oscillator_sync;
 	}
 	else {
 		snapshot_.oscillatorSync = value;
@@ -4222,14 +4223,14 @@ void Sound::setOscillatorSync(bool value) {
 }
 void Sound::setPolyphonic(PolyphonyMode value) {
 	polyphonic = value;
-	if (docSound_ != nullptr) {
-		docSound_->polyphonic = static_cast<uint8_t>(value);
+	if (state_ != nullptr) {
+		state_->polyphonic = value;
 	}
 }
 void Sound::assignSynthMode(SynthMode value) {
-	if (docSound_ != nullptr) {
-		docSound_->synth_mode = static_cast<uint8_t>(value);
-		snapshot_.synthMode = static_cast<SynthMode>(docSound_->synth_mode);
+	if (state_ != nullptr) {
+		state_->synth_mode = value;
+		snapshot_.synthMode = static_cast<SynthMode>(state_->synth_mode);
 	}
 	else {
 		snapshot_.synthMode = value;
@@ -4239,101 +4240,101 @@ void Sound::assignSynthMode(SynthMode value) {
 void Sound::setTranspose(int16_t value) {
 	// M4b: bound → write the authoritative record then reproject the read-view (a derivation, not a dual-write);
 	// unbound (preview / GlobalEffectable) → write the snapshot directly (no record).
-	if (docSound_ != nullptr) {
-		docSound_->transpose = value;
-		snapshot_.transpose = docSound_->transpose;
+	if (state_ != nullptr) {
+		state_->transpose = value;
+		snapshot_.transpose = state_->transpose;
 	}
 	else {
 		snapshot_.transpose = value;
 	}
 }
 void Sound::setModulator1ToModulator0(bool value) {
-	if (docSound_ != nullptr) {
-		docSound_->modulator1_to_modulator0 = value;
-		snapshot_.modulator1ToModulator0 = docSound_->modulator1_to_modulator0;
+	if (state_ != nullptr) {
+		state_->modulator1_to_modulator0 = value;
+		snapshot_.modulator1ToModulator0 = state_->modulator1_to_modulator0;
 	}
 	else {
 		snapshot_.modulator1ToModulator0 = value;
 	}
 }
 void Sound::setOscRetriggerPhase(int32_t s, uint32_t value) {
-	if (docSound_ != nullptr) {
-		docSound_->osc_retrigger_phase[s] = value;
-		snapshot_.oscRetriggerPhase[s] = docSound_->osc_retrigger_phase[s];
+	if (state_ != nullptr) {
+		state_->osc_retrigger_phase[s] = value;
+		snapshot_.oscRetriggerPhase[s] = state_->osc_retrigger_phase[s];
 	}
 	else {
 		snapshot_.oscRetriggerPhase[s] = value;
 	}
 }
 void Sound::setModulatorRetriggerPhase(int32_t m, uint32_t value) {
-	if (docSound_ != nullptr) {
-		docSound_->modulator_retrigger_phase[m] = value;
-		snapshot_.modulatorRetriggerPhase[m] = docSound_->modulator_retrigger_phase[m];
+	if (state_ != nullptr) {
+		state_->modulator_retrigger_phase[m] = value;
+		snapshot_.modulatorRetriggerPhase[m] = state_->modulator_retrigger_phase[m];
 	}
 	else {
 		snapshot_.modulatorRetriggerPhase[m] = value;
 	}
 }
 void Sound::assignNumUnison(uint8_t value) {
-	if (docSound_ != nullptr) {
-		docSound_->num_unison = value;
-		snapshot_.numUnison = docSound_->num_unison;
+	if (state_ != nullptr) {
+		state_->num_unison = value;
+		snapshot_.numUnison = state_->num_unison;
 	}
 	else {
 		snapshot_.numUnison = value;
 	}
 }
 void Sound::assignUnisonDetune(int8_t value) {
-	if (docSound_ != nullptr) {
-		docSound_->unison_detune = value;
-		snapshot_.unisonDetune = docSound_->unison_detune;
+	if (state_ != nullptr) {
+		state_->unison_detune = value;
+		snapshot_.unisonDetune = state_->unison_detune;
 	}
 	else {
 		snapshot_.unisonDetune = value;
 	}
 }
 void Sound::assignUnisonStereoSpread(uint8_t value) {
-	if (docSound_ != nullptr) {
-		docSound_->unison_stereo_spread = value;
-		snapshot_.unisonStereoSpread = docSound_->unison_stereo_spread;
+	if (state_ != nullptr) {
+		state_->unison_stereo_spread = value;
+		snapshot_.unisonStereoSpread = state_->unison_stereo_spread;
 	}
 	else {
 		snapshot_.unisonStereoSpread = value;
 	}
 }
 void Sound::assignModulatorCents(int32_t m, int8_t value) {
-	if (docSound_ != nullptr) {
-		docSound_->modulator_cents[m] = value;
-		snapshot_.modulatorCents[m] = docSound_->modulator_cents[m];
+	if (state_ != nullptr) {
+		state_->modulator_cents[m] = value;
+		snapshot_.modulatorCents[m] = state_->modulator_cents[m];
 	}
 	else {
 		snapshot_.modulatorCents[m] = value;
 	}
 }
 void Sound::assignModulatorTranspose(int32_t m, int16_t value) {
-	if (docSound_ != nullptr) {
-		docSound_->modulator_transpose[m] = value;
-		snapshot_.modulatorTranspose[m] = docSound_->modulator_transpose[m];
+	if (state_ != nullptr) {
+		state_->modulator_transpose[m] = value;
+		snapshot_.modulatorTranspose[m] = state_->modulator_transpose[m];
 	}
 	else {
 		snapshot_.modulatorTranspose[m] = value;
 	}
 }
 void Sound::setLfoWaveType(int32_t lfoId, LFOType value) {
-	if (docSound_ != nullptr) {
-		docSound_->lfo_wave_type[lfoId] = static_cast<uint8_t>(value);
-		snapshot_.lfoConfig[lfoId].waveType = static_cast<LFOType>(docSound_->lfo_wave_type[lfoId]);
+	if (state_ != nullptr) {
+		state_->lfo_wave_type[lfoId] = value;
+		snapshot_.lfoConfig[lfoId].waveType = static_cast<LFOType>(state_->lfo_wave_type[lfoId]);
 	}
 	else {
 		snapshot_.lfoConfig[lfoId].waveType = value;
 	}
 }
 void Sound::setLfoSync(int32_t lfoId, SyncType syncType, SyncLevel syncLevel) {
-	if (docSound_ != nullptr) {
-		docSound_->lfo_sync_type[lfoId] = static_cast<uint8_t>(syncType);
-		docSound_->lfo_sync_level[lfoId] = static_cast<uint8_t>(syncLevel);
-		snapshot_.lfoConfig[lfoId].syncType = static_cast<SyncType>(docSound_->lfo_sync_type[lfoId]);
-		snapshot_.lfoConfig[lfoId].syncLevel = static_cast<SyncLevel>(docSound_->lfo_sync_level[lfoId]);
+	if (state_ != nullptr) {
+		state_->lfo_sync_type[lfoId] = syncType;
+		state_->lfo_sync_level[lfoId] = syncLevel;
+		snapshot_.lfoConfig[lfoId].syncType = static_cast<SyncType>(state_->lfo_sync_type[lfoId]);
+		snapshot_.lfoConfig[lfoId].syncLevel = static_cast<SyncLevel>(state_->lfo_sync_level[lfoId]);
 	}
 	else {
 		snapshot_.lfoConfig[lfoId].syncType = syncType;
@@ -4346,18 +4347,17 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	// M3 owner-5 save-flip: the DOM-owned scalars read the authoritative record (falling back to the engine cache only
 	// for an unbound Sound — e.g. the audio preview — which has no record and isn't part of a saved song anyway). The
 	// FM gate below reads savedSynthMode too, so the whole modulator block projects from the model.
-	PolyphonyMode savedPolyphonic =
-	    docSound_ != nullptr ? static_cast<PolyphonyMode>(docSound_->polyphonic) : polyphonic;
-	SynthMode savedSynthMode = docSound_ != nullptr ? static_cast<SynthMode>(docSound_->synth_mode) : getSynthMode();
-	int16_t savedTranspose = docSound_ != nullptr ? docSound_->transpose : snapshot_.transpose;
+	PolyphonyMode savedPolyphonic = state_ != nullptr ? static_cast<PolyphonyMode>(state_->polyphonic) : polyphonic;
+	SynthMode savedSynthMode = state_ != nullptr ? static_cast<SynthMode>(state_->synth_mode) : getSynthMode();
+	int16_t savedTranspose = state_ != nullptr ? state_->transpose : snapshot_.transpose;
 
 	writer.writeAttribute("polyphonic", polyphonyModeToString(savedPolyphonic));
-	writer.writeAttribute("voicePriority", util::to_underlying(docSound_ != nullptr ? static_cast<VoicePriority>(
-	                                                                                      docSound_->voice_priority)
-	                                                                                : snapshot_.voicePriority));
+	writer.writeAttribute("voicePriority",
+	                      util::to_underlying(state_ != nullptr ? static_cast<VoicePriority>(state_->voice_priority)
+	                                                            : snapshot_.voicePriority));
 
 	// Send level (M3 owner-5: read the authoritative record; cache fallback only for an unbound Sound)
-	int32_t sideChainSend = docSound_ != nullptr ? docSound_->side_chain_send_level : sideChainSendLevel;
+	int32_t sideChainSend = state_ != nullptr ? state_->side_chain_send_level : sideChainSendLevel;
 	if (sideChainSend != 0) {
 		writer.writeAttribute("sideChainSend", sideChainSend);
 	}
@@ -4367,7 +4367,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	if (savedTranspose != 0) {
 		writer.writeAttribute("transpose", savedTranspose);
 	}
-	const int8_t savedCents = docSound_ != nullptr ? docSound_->cents : snapshot_.cents;
+	const int8_t savedCents = state_ != nullptr ? state_->cents : snapshot_.cents;
 	if (savedCents != 0) {
 		writer.writeAttribute("cents", savedCents);
 	}
@@ -4378,7 +4378,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	if (pathAttribute) {
 		writer.writeAttribute("path", pathAttribute);
 	}
-	writer.writeAttribute("maxVoices", docSound_ != nullptr ? docSound_->max_voice_count : maxVoiceCount);
+	writer.writeAttribute("maxVoices", state_ != nullptr ? state_->max_voice_count : maxVoiceCount);
 
 	writer.writeOpeningTagEnd();
 
@@ -4387,16 +4387,14 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	// LFOs (M3 owner-5: read the authoritative record; cache fallback only for an unbound Sound)
 	auto lfoWave = [&](int32_t id) {
-		return docSound_ != nullptr ? static_cast<LFOType>(docSound_->lfo_wave_type[id])
-		                            : snapshot_.lfoConfig[id].waveType;
+		return state_ != nullptr ? static_cast<LFOType>(state_->lfo_wave_type[id]) : snapshot_.lfoConfig[id].waveType;
 	};
 	auto lfoSyncLevel = [&](int32_t id) {
-		return docSound_ != nullptr ? static_cast<SyncLevel>(docSound_->lfo_sync_level[id])
-		                            : snapshot_.lfoConfig[id].syncLevel;
+		return state_ != nullptr ? static_cast<SyncLevel>(state_->lfo_sync_level[id])
+		                         : snapshot_.lfoConfig[id].syncLevel;
 	};
 	auto lfoSyncType = [&](int32_t id) {
-		return docSound_ != nullptr ? static_cast<SyncType>(docSound_->lfo_sync_type[id])
-		                            : snapshot_.lfoConfig[id].syncType;
+		return state_ != nullptr ? static_cast<SyncType>(state_->lfo_sync_type[id]) : snapshot_.lfoConfig[id].syncType;
 	};
 
 	writer.writeOpeningTagBeginning("lfo1");
@@ -4430,32 +4428,30 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	if (savedSynthMode == SynthMode::FM) {
 
 		writer.writeOpeningTagBeginning("modulator1");
-		writer.writeAttribute("transpose", docSound_ != nullptr ? docSound_->modulator_transpose[0]
-		                                                        : snapshot_.modulatorTranspose[0]);
-		writer.writeAttribute("cents",
-		                      docSound_ != nullptr ? docSound_->modulator_cents[0] : snapshot_.modulatorCents[0]);
-		writer.writeAttribute("retrigPhase", docSound_ != nullptr ? docSound_->modulator_retrigger_phase[0]
-		                                                          : snapshot_.modulatorRetriggerPhase[0]);
+		writer.writeAttribute("transpose",
+		                      state_ != nullptr ? state_->modulator_transpose[0] : snapshot_.modulatorTranspose[0]);
+		writer.writeAttribute("cents", state_ != nullptr ? state_->modulator_cents[0] : snapshot_.modulatorCents[0]);
+		writer.writeAttribute("retrigPhase", state_ != nullptr ? state_->modulator_retrigger_phase[0]
+		                                                       : snapshot_.modulatorRetriggerPhase[0]);
 		writer.closeTag();
 
 		writer.writeOpeningTagBeginning("modulator2");
-		writer.writeAttribute("transpose", docSound_ != nullptr ? docSound_->modulator_transpose[1]
-		                                                        : snapshot_.modulatorTranspose[1]);
-		writer.writeAttribute("cents",
-		                      docSound_ != nullptr ? docSound_->modulator_cents[1] : snapshot_.modulatorCents[1]);
-		writer.writeAttribute("retrigPhase", docSound_ != nullptr ? docSound_->modulator_retrigger_phase[1]
-		                                                          : snapshot_.modulatorRetriggerPhase[1]);
-		writer.writeAttribute("toModulator1", docSound_ != nullptr ? docSound_->modulator1_to_modulator0
-		                                                           : snapshot_.modulator1ToModulator0);
+		writer.writeAttribute("transpose",
+		                      state_ != nullptr ? state_->modulator_transpose[1] : snapshot_.modulatorTranspose[1]);
+		writer.writeAttribute("cents", state_ != nullptr ? state_->modulator_cents[1] : snapshot_.modulatorCents[1]);
+		writer.writeAttribute("retrigPhase", state_ != nullptr ? state_->modulator_retrigger_phase[1]
+		                                                       : snapshot_.modulatorRetriggerPhase[1]);
+		writer.writeAttribute("toModulator1",
+		                      state_ != nullptr ? state_->modulator1_to_modulator0 : snapshot_.modulator1ToModulator0);
 		writer.closeTag();
 	}
 
 	writer.writeOpeningTagBeginning("unison");
-	writer.writeAttribute("num", docSound_ != nullptr ? docSound_->num_unison : snapshot_.numUnison, false);
-	writer.writeAttribute("detune", docSound_ != nullptr ? docSound_->unison_detune : snapshot_.unisonDetune, false);
+	writer.writeAttribute("num", state_ != nullptr ? state_->num_unison : snapshot_.numUnison, false);
+	writer.writeAttribute("detune", state_ != nullptr ? state_->unison_detune : snapshot_.unisonDetune, false);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeAttribute("spread",
-	                      docSound_ != nullptr ? docSound_->unison_stereo_spread : snapshot_.unisonStereoSpread, false);
+	writer.writeAttribute("spread", state_ != nullptr ? state_->unison_stereo_spread : snapshot_.unisonStereoSpread,
+	                      false);
 	writer.closeTag();
 
 	if (paramManager) {
@@ -4475,8 +4471,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	for (int32_t k = 0; k < kNumModButtons; k++) {
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
 			ParamDescriptor pd;
-			pd.data =
-			    docSound_ != nullptr ? docSound_->mod_knob_param_descriptor[k][w] : modKnobs[k][w].paramDescriptor.data;
+			pd.data = state_ != nullptr ? state_->mod_knob_param_descriptor[k][w] : modKnobs[k][w].paramDescriptor.data;
 			writer.writeOpeningTagBeginning("modKnob", true);
 			writer.writeAttribute("controlsParam",
 			                      params::paramNameForFile(params::Kind::UNPATCHED_SOUND, pd.getJustTheParam()), false);
@@ -4494,9 +4489,8 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	// Output MIDI note for Drums
 	writer.writeOpeningTagBeginning("midiOutput");
-	writer.writeAttribute("channel", docSound_ != nullptr ? docSound_->output_midi_channel : outputMidiChannel);
-	writer.writeAttribute("noteForDrum",
-	                      docSound_ != nullptr ? docSound_->output_midi_note_for_drum : outputMidiNoteForDrum);
+	writer.writeAttribute("channel", state_ != nullptr ? state_->output_midi_channel : outputMidiChannel);
+	writer.writeAttribute("noteForDrum", state_ != nullptr ? state_->output_midi_note_for_drum : outputMidiNoteForDrum);
 	writer.closeTag();
 
 	ModControllableAudio::writeTagsToFile(writer);

@@ -29,27 +29,25 @@ class WaveTable;
 class SampleHolder;
 class DxPatch;
 
-namespace deluge::project {
-struct DocSource;
-}
+#include "engines/deluge/sound_state.h"
 
 class Source {
 public:
 	Source();
 	~Source();
 
-	// M3 owner-5 slice G: non-owning pointer into the owning Sound's DocSound (docSound_->sources[s]). A Source is
+	// M3 owner-5 slice G: non-owning pointer into the owning Sound's SoundState (state_->sources[s]). A Source is
 	// never copied by value (it lives as a fixed member of its Sound), so this pointer has no clone hazard; the Sound
-	// binds it at bindDocSound and re-seeds it at doneReadingFromFile. Save reads the record via the Sound's docSound_.
-	deluge::project::DocSource* docSource_{nullptr};
-	void bindDocSource(deluge::project::DocSource* d);
+	// binds it at bindState and re-seeds it at doneReadingFromFile. Save reads the record via the Sound's state_.
+	deluge::instrument::SourceState* state_{nullptr};
+	void bindState(deluge::instrument::SourceState* d);
 	void seedDocSourceScalars();
 	// The DX7 patch is mutated in-place (per-param edits, engine mode, cartridge load) rather than through one setter,
-	// so like modKnobs it re-seeds the whole optional<DocDxPatch> record after any mutation (bind, doneReadingFromFile,
-	// the dx/ menus, setOscType→ensureDxPatch). Copies the 156 params + engineMode + random_detune, or clears it when
-	// the engine patch is absent (non-DX7 osc).
+	// so like modKnobs it re-seeds the whole optional<DxPatchState> record after any mutation (bind,
+	// doneReadingFromFile, the dx/ menus, setOscType→ensureDxPatch). Copies the 156 params + engineMode +
+	// random_detune, or clears it when the engine patch is absent (non-DX7 osc).
 	void seedDocDxPatch();
-	// ranges (owner-5, no undo): whole-list reseed of the DocRange list after any range mutation (zone edit,
+	// ranges (owner-5, no undo): whole-list reseed of the RangeState list after any range mutation (zone edit,
 	// add/remove, sample-set, reverse). The engine sampleHolder/ranges stay the working structure; this mirrors them
 	// into the record.
 	void seedDocRanges();
@@ -78,8 +76,8 @@ public:
 	static bool renderInStereo(OscType oscType, uint8_t unisonStereoSpread, uint8_t numUnison,
 	                           SampleHolder* sampleHolder);
 	void setCents(int32_t newCents);
-	// M3 owner-5 slice G: setters that write the DocSource record (when bound) alongside the native cache. Every menu /
-	// runtime write site funnels through these; save reads the record.
+	// M3 owner-5 slice G: setters that write the SourceState record (when bound) alongside the native cache. Every menu
+	// / runtime write site funnels through these; save reads the record.
 	void setTranspose(int16_t newTranspose);
 	void setRepeatMode(SampleRepeatMode newMode);
 	void setTimeStretchAmount(int8_t newAmount);

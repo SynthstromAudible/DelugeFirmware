@@ -17,8 +17,8 @@
 
 #include "processing/source.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_source.h"
 #include "dsp/dx/engine.h"
+#include "engines/deluge/sound_state.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "memory/memory_allocator_interface.h"
@@ -58,8 +58,8 @@ Source::~Source() {
 	}
 }
 
-void Source::bindDocSource(deluge::project::DocSource* d) {
-	docSource_ = d;
+void Source::bindState(deluge::instrument::SourceState* d) {
+	state_ = d;
 	seedDocSourceScalars();
 	seedDocDxPatch();
 	seedDocRanges();
@@ -69,48 +69,48 @@ void Source::bindDocSource(deluge::project::DocSource* d) {
 // SoundDrum binds before its fields are parsed, so the bind-time seed is stale for drums). dxPatch + ranges are later
 // slices — not seeded here.
 void Source::seedDocSourceScalars() {
-	if (docSource_ == nullptr) {
+	if (state_ == nullptr) {
 		return;
 	}
-	deluge::project::DocSource& d = *docSource_;
-	d.osc_type = static_cast<uint8_t>(oscType);
+	deluge::instrument::SourceState& d = *state_;
+	d.osc_type = oscType;
 	d.transpose = transpose;
 	d.cents = cents;
-	d.repeat_mode = static_cast<uint8_t>(repeatMode);
+	d.repeat_mode = repeatMode;
 	d.time_stretch_amount = timeStretchAmount;
-	d.interpolation_mode = static_cast<uint8_t>(sampleControls.interpolationMode);
+	d.interpolation_mode = sampleControls.interpolationMode;
 	d.pitch_and_speed_independent = sampleControls.pitchAndSpeedAreIndependent;
 	d.reversed = sampleControls.reversed;
 }
 
 void Source::seedDocDxPatch() {
-	if (docSource_ == nullptr) {
+	if (state_ == nullptr) {
 		return;
 	}
 	if (dxPatch != nullptr) {
-		deluge::project::DocDxPatch p;
+		deluge::instrument::DxPatchState p;
 		for (int32_t b = 0; b < 156; b++) {
 			p.params[b] = dxPatch->params[b];
 		}
 		p.engine_mode = dxPatch->engineMode;
 		p.random_detune = dxPatch->random_detune;
-		docSource_->dx_patch = p;
+		state_->dx_patch = p;
 	}
 	else {
-		docSource_->dx_patch.reset();
+		state_->dx_patch.reset();
 	}
 }
 
 void Source::seedDocRanges() {
-	if (docSource_ == nullptr) {
+	if (state_ == nullptr) {
 		return;
 	}
-	docSource_->ranges.clear();
+	state_->ranges.clear();
 	int32_t numRanges = std::ssize(ranges);
-	docSource_->ranges.reserve(numRanges);
+	state_->ranges.reserve(numRanges);
 	for (int32_t e = 0; e < numRanges; e++) {
 		MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
-		deluge::project::DocRange dr;
+		deluge::instrument::RangeState dr;
 		dr.top_note = range->topNote;
 		dr.file_path =
 		    range->sampleHolder.audioFile ? range->sampleHolder.audioFile->filePath : range->sampleHolder.filePath;
@@ -122,42 +122,42 @@ void Source::seedDocRanges() {
 			dr.transpose = range->sampleHolder.transpose;
 			dr.cents = range->sampleHolder.cents;
 		}
-		docSource_->ranges.push_back(std::move(dr));
+		state_->ranges.push_back(std::move(dr));
 	}
 }
 
 void Source::setTranspose(int16_t newTranspose) {
 	transpose = newTranspose;
-	if (docSource_ != nullptr) {
-		docSource_->transpose = newTranspose;
+	if (state_ != nullptr) {
+		state_->transpose = newTranspose;
 	}
 }
 
 void Source::setRepeatMode(SampleRepeatMode newMode) {
 	repeatMode = newMode;
-	if (docSource_ != nullptr) {
-		docSource_->repeat_mode = static_cast<uint8_t>(newMode);
+	if (state_ != nullptr) {
+		state_->repeat_mode = newMode;
 	}
 }
 
 void Source::setTimeStretchAmount(int8_t newAmount) {
 	timeStretchAmount = newAmount;
-	if (docSource_ != nullptr) {
-		docSource_->time_stretch_amount = newAmount;
+	if (state_ != nullptr) {
+		state_->time_stretch_amount = newAmount;
 	}
 }
 
 void Source::setInterpolationMode(InterpolationMode newMode) {
 	sampleControls.interpolationMode = newMode;
-	if (docSource_ != nullptr) {
-		docSource_->interpolation_mode = static_cast<uint8_t>(newMode);
+	if (state_ != nullptr) {
+		state_->interpolation_mode = newMode;
 	}
 }
 
 void Source::setPitchAndSpeedIndependent(bool independent) {
 	sampleControls.pitchAndSpeedAreIndependent = independent;
-	if (docSource_ != nullptr) {
-		docSource_->pitch_and_speed_independent = independent;
+	if (state_ != nullptr) {
+		state_->pitch_and_speed_independent = independent;
 	}
 }
 
@@ -172,8 +172,8 @@ int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeS
 
 void Source::setCents(int32_t newCents) {
 	cents = newCents;
-	if (docSource_ != nullptr) {
-		docSource_->cents = newCents;
+	if (state_ != nullptr) {
+		state_->cents = newCents;
 	}
 	recalculateFineTuner();
 }
@@ -224,8 +224,8 @@ deluge::storage::Walk Source::walkSampleDemands(deluge::storage::SampleLoadVisit
 // Only to be called if already determined that oscType == OscType::SAMPLE
 void Source::setReversed(bool newReversed) {
 	sampleControls.reversed = newReversed;
-	if (docSource_ != nullptr) {
-		docSource_->reversed = newReversed;
+	if (state_ != nullptr) {
+		state_->reversed = newReversed;
 	}
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		MultiRange* range = (MultisampleRange*)ranges.getElement(e);
@@ -387,8 +387,8 @@ doChangeType:
 	}
 
 	oscType = newType;
-	if (docSource_ != nullptr) {
-		docSource_->osc_type = static_cast<uint8_t>(newType);
+	if (state_ != nullptr) {
+		state_->osc_type = newType;
 	}
 	if (oscType == OscType::DX7) {
 		ensureDxPatch();

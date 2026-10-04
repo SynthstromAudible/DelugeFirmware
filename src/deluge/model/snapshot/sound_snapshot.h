@@ -27,37 +27,37 @@
 namespace deluge::snapshot {
 
 /// The engine's derived read-view of a Sound's HOT render fields (project-model migration M4b). The `deluge::project`
-/// DOM model (`DocSound`) is the authoritative source for save AND load; this snapshot is PROJECTED from it
+/// DOM model (`SoundState`) is the authoritative source for save AND load; this snapshot is PROJECTED from it
 /// (`Sound::projectSnapshot()`) at the bind / doneReadingFromFile hooks and after each edit, and the per-render /
 /// per-voice audio path reads it — the north-star's "engine plays derived Snapshots" made real for Sound. The model
 /// never references this type (net dependency: engine→model). It gathers what were scattered native cache fields on
 /// `Sound` into one cohesive read-view; the fields grow slice-by-slice as M4b flips them. Unbound sounds (preview /
-/// GlobalEffectable, with no DocSound) write the snapshot directly and never save.
+/// GlobalEffectable, with no SoundState) write the snapshot directly and never save.
 struct SoundSnapshot {
-	int16_t transpose{0}; ///< master semitone transpose (DocSound::transpose); read per-voice-start (Voice::render)
-	int8_t cents{0};      ///< master fine tune (DocSound::cents), cents
+	int16_t transpose{0}; ///< master semitone transpose (SoundState::transpose); read per-voice-start (Voice::render)
+	int8_t cents{0};      ///< master fine tune (SoundState::cents), cents
 	PhaseIncrementFineTuner fineTuner; ///< derived from cents: the master transpose's fine detune
-	uint8_t numUnison{1};              ///< DocSound::num_unison
-	int8_t unisonDetune{8};            ///< DocSound::unison_detune, cents across the spread
-	uint8_t unisonStereoSpread{0};     ///< DocSound::unison_stereo_spread
+	uint8_t numUnison{1};              ///< SoundState::num_unison
+	int8_t unisonDetune{8};            ///< SoundState::unison_detune, cents across the spread
+	uint8_t unisonStereoSpread{0};     ///< SoundState::unison_stereo_spread
 	/// Derived from numUnison and unisonDetune: each unison part's detune. Written only when numUnison != 1; the
 	/// render reads parts below numUnison.
 	std::array<PhaseIncrementFineTuner, kMaxNumVoicesUnison> unisonDetuners{};
 	/// Derived from numUnison and unisonStereoSpread: each unison part's pan offset, under the same rule.
 	std::array<int32_t, kMaxNumVoicesUnison> unisonPan{};
-	SynthMode synthMode{SynthMode::SUBTRACTIVE}; ///< DocSound::synth_mode; selects the subtractive/ring-mod/FM render
-	bool oscillatorSync{false};                  ///< DocSound::oscillator_sync
-	VoicePriority voicePriority{VoicePriority::MEDIUM}; ///< DocSound::voice_priority; ranks voices for stealing
-	bool modulator1ToModulator0{false};                 ///< DocSound::modulator1_to_modulator0 (FM routing)
-	std::array<int16_t, kNumModulators> modulatorTranspose{0, -12}; ///< DocSound::modulator_transpose, semitones
-	std::array<int8_t, kNumModulators> modulatorCents{};            ///< DocSound::modulator_cents
+	SynthMode synthMode{SynthMode::SUBTRACTIVE}; ///< SoundState::synth_mode; selects the subtractive/ring-mod/FM render
+	bool oscillatorSync{false};                  ///< SoundState::oscillator_sync
+	VoicePriority voicePriority{VoicePriority::MEDIUM}; ///< SoundState::voice_priority; ranks voices for stealing
+	bool modulator1ToModulator0{false};                 ///< SoundState::modulator1_to_modulator0 (FM routing)
+	std::array<int16_t, kNumModulators> modulatorTranspose{0, -12}; ///< SoundState::modulator_transpose, semitones
+	std::array<int8_t, kNumModulators> modulatorCents{};            ///< SoundState::modulator_cents
 	/// derived from modulatorCents: each FM modulator's fine detune
 	std::array<PhaseIncrementFineTuner, kNumModulators> modulatorTransposers{};
-	/// DocSound::osc_retrigger_phase; a phase as a fraction of 2^32, 0xFFFFFFFF = free-running (no retrigger)
+	/// SoundState::osc_retrigger_phase; a phase as a fraction of 2^32, 0xFFFFFFFF = free-running (no retrigger)
 	std::array<uint32_t, kNumSources> oscRetriggerPhase{0xFFFFFFFF, 0xFFFFFFFF};
-	/// DocSound::modulator_retrigger_phase; same encoding as oscRetriggerPhase
+	/// SoundState::modulator_retrigger_phase; same encoding as oscRetriggerPhase
 	std::array<uint32_t, kNumModulators> modulatorRetriggerPhase{};
-	/// DocSound::lfo_wave_type / lfo_sync_type / lfo_sync_level per LFO. The LFO phase state stays on the engine.
+	/// SoundState::lfo_wave_type / lfo_sync_type / lfo_sync_level per LFO. The LFO phase state stays on the engine.
 	std::array<LFOConfig, LFO_COUNT> lfoConfig{};
 };
 

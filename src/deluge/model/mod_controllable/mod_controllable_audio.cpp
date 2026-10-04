@@ -18,11 +18,11 @@
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "ModFXProcessor.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_mod_controllable.h"
 #include "deluge-project/param_automation.h"
 #include "deluge/dsp/granular/GranularProcessor.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "dsp/stereo_sample.h"
+#include "engines/deluge/sound_state.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
@@ -458,7 +458,7 @@ void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
 	}
 }
 
-void ModControllableAudio::bindDocModControllable(deluge::project::DocModControllable* d) {
+void ModControllableAudio::bindDocModControllable(deluge::instrument::DocModControllable* d) {
 	docModControllable_ = d;
 	seedDocModControllable();
 	projectModControllableSnapshot();
@@ -468,7 +468,7 @@ void ModControllableAudio::projectModControllableSnapshot() {
 	if (docModControllable_ == nullptr) {
 		return;
 	}
-	const deluge::project::DocModControllable& d = *docModControllable_;
+	const deluge::instrument::DocModControllable& d = *docModControllable_;
 	modControllableSnapshot_.clippingAmount = d.clipping_amount;
 	modControllableSnapshot_.lpfMode = static_cast<FilterMode>(d.lpf_mode);
 	modControllableSnapshot_.hpfMode = static_cast<FilterMode>(d.hpf_mode);
@@ -593,7 +593,7 @@ void ModControllableAudio::seedDocModControllable() {
 	if (docModControllable_ == nullptr) {
 		return;
 	}
-	deluge::project::DocModControllable& d = *docModControllable_;
+	deluge::instrument::DocModControllable& d = *docModControllable_;
 	d.clipping_amount = modControllableSnapshot_.clippingAmount;
 	d.lpf_mode = static_cast<uint8_t>(modControllableSnapshot_.lpfMode);
 	d.hpf_mode = static_cast<uint8_t>(modControllableSnapshot_.hpfMode);

@@ -34,9 +34,7 @@
 #include "modulation/sidechain/sidechain.h"
 #include "synth/lfo.h"
 
-namespace deluge::project {
-struct DocModControllable;
-}
+#include "engines/deluge/sound_state.h"
 
 class Clip;
 class Knob;
@@ -62,12 +60,12 @@ public:
 	void writeTagsToFile(Serializer& writer);
 
 	/// M3 owner-5 slice F: non-owning pointer to this base's DocModControllable record. Bound by the owner when it
-	/// binds its own Doc (Sound points it at docSound_->mod_controllable). Stays null for owners without a record yet
+	/// binds its own Doc (Sound points it at state_->mod_controllable). Stays null for owners without a record yet
 	/// (GlobalEffectable), whose save keeps reading the native fields — so the flip is transparent for them.
-	deluge::project::DocModControllable* docModControllable_{nullptr};
-	void bindDocModControllable(deluge::project::DocModControllable* d);
+	deluge::instrument::DocModControllable* docModControllable_{nullptr};
+	void bindDocModControllable(deluge::instrument::DocModControllable* d);
 	/// Copy the non-param structural fields native->record (guarded on docModControllable_). The load-bridge: run at
-	/// bind and re-run once parsing is done (the owner's doneReadingFromFile), mirroring the DocSound scalar seed.
+	/// bind and re-run once parsing is done (the owner's doneReadingFromFile), mirroring the SoundState scalar seed.
 	void seedDocModControllable();
 	/// The derived read-view of the effect configuration; the render reads it. Always present: an unbound owner writes
 	/// it directly.

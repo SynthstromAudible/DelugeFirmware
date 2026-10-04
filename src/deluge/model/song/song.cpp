@@ -93,6 +93,7 @@
 #include <iterator>
 #include <new>
 #include <stdint.h>
+#include <type_traits>
 
 extern "C" {}
 
@@ -1295,12 +1296,10 @@ void Song::adoptDrum(Drum* drum) {
 		d.channel = 2;
 	}
 	drum->bindDocDrum(&d);
-	// M3 owner-5 slice B: a SoundDrum owns a Sound 1:1 — nest its DocSound in this DocDrum and bind the engine
-	// Sound's docSound_. The double static_cast lands on the correct Sound base subobject of the SoundDrum.
+	// A sound drum binds its own state now that it is part of the song. The double static_cast lands on the Sound base
+	// subobject of the SoundDrum.
 	if (drum->type == DrumType::SOUND) {
-		d.sound.emplace();
-		Sound* sound = static_cast<Sound*>(static_cast<SoundDrum*>(drum));
-		sound->bindDocSound(&*d.sound);
+		static_cast<Sound*>(static_cast<SoundDrum*>(drum))->bindState();
 	}
 }
 
@@ -1317,6 +1316,10 @@ void Song::removeDocDrum(Drum* drum) {
 // if it lacks one, mirroring assignMissingIds's own mint via generateNewOutputId), seed the record from the engine
 // output via seedDocOutputIdentity(), and point docOutput_ at it. Idempotent: an output already bound returns
 // immediately, so the assignMissingIds call site composes without double-binding or double-minting.
+// A sound's bound state points at its own member, so a copy would point at the original's.
+static_assert(!std::is_copy_constructible_v<SoundInstrument> && !std::is_copy_assignable_v<SoundInstrument>);
+static_assert(!std::is_copy_constructible_v<SoundDrum> && !std::is_copy_assignable_v<SoundDrum>);
+
 void Song::adoptOutput(Output* output) {
 	if (output->docOutput_ != nullptr) {
 		return;
@@ -1329,12 +1332,10 @@ void Song::adoptOutput(Output* output) {
 	// DO4: all 15 Output-hierarchy identity fields are DOM-owned now, seeded here so the record is correct at save
 	// for a freshly-loaded, never-edited output.
 	output->seedDocOutputIdentity();
-	// M3 owner-5 slice B: a SoundInstrument (SYNTH output) owns a Sound 1:1 — nest its DocSound in this DocOutput and
-	// bind the engine Sound's docSound_. The double static_cast lands on the correct Sound base subobject.
+	// A synth track's sound binds its own state now that it is part of the song. The double static_cast lands on the
+	// Sound base subobject.
 	if (output->type == OutputType::SYNTH) {
-		d.sound.emplace();
-		Sound* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(output));
-		sound->bindDocSound(&*d.sound);
+		static_cast<Sound*>(static_cast<SoundInstrument*>(output))->bindState();
 	}
 }
 

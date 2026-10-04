@@ -53,9 +53,7 @@ class ModelStackWithThreeMainThings;
 class ModelStackWithSoundFlags;
 class ModelStackWithModControllable;
 
-namespace deluge::project {
-struct DocSound;
-}
+#include "engines/deluge/sound_state.h"
 
 #define PARAM_LPF_OFF (-1)
 
@@ -102,22 +100,24 @@ public:
 	///        destroyed when the song is.
 	bool letGoWithSong = false;
 
-	// M3 owner-5: non-owning pointer into the parent's std::optional<DocSound> (in DocOutput for a SoundInstrument,
-	// DocDrum for a SoundDrum). Bound from Song::adoptOutput/adoptDrum.
-	deluge::project::DocSound* docSound_{nullptr};
-	// Bind the record and seed the DOM-owned (already-inverted) fields from the engine — the load-bridge, since the
-	// engine field was parsed before docSound_ existed. Non-inline: needs the complete DocSound type.
-	void bindDocSound(deluge::project::DocSound* d);
-	// Copy the DOM-owned scalars engine->record. Assumes docSound_ is bound. Used as the load-bridge from bindDocSound
+	/// The Deluge instrument's settings for this sound, once bound: &ownedState_ from Song::adoptOutput / adoptDrum on,
+	/// null before (a sound under preview or audition writes its runtime fields and snapshot directly).
+	deluge::instrument::SoundState* state_{nullptr};
+	/// Bind this sound's own state and seed it from the runtime fields, which the reader filled before the state was
+	/// bound.
+	void bindState();
+	/// The bound state, or null while unbound.
+	[[nodiscard]] const deluge::instrument::SoundState* boundState() const { return state_; }
+	// Copy the DOM-owned scalars engine->record. Assumes state_ is bound. Used as the load-bridge from bindState
 	// AND re-run at doneReadingFromFile — a SoundDrum's adoptDrum binds the record BEFORE its fields are parsed, so the
 	// bind-time seed is stale for drums and must be refreshed once parsing has finished.
 	void seedDocSoundScalars();
 
-	// M4b: the engine's derived read-view of the hot Sound render fields, PROJECTED from docSound_ by
+	// M4b: the engine's derived read-view of the hot Sound render fields, PROJECTED from state_ by
 	// projectSnapshot() at bind / doneReadingFromFile / after edits; the render reads it (getTranspose() etc.).
-	// Always present — unbound sounds (no docSound_) write it directly, so the render never needs a null-fallback.
+	// Always present — unbound sounds (no state_) write it directly, so the render never needs a null-fallback.
 	deluge::snapshot::SoundSnapshot snapshot_{};
-	// Re-derive snapshot_ from docSound_ (no-op when unbound). Additive per-slice as fields move onto the snapshot.
+	// Re-derive snapshot_ from state_ (no-op when unbound). Additive per-slice as fields move onto the snapshot.
 	void projectSnapshot();
 	[[nodiscard]] const deluge::snapshot::SoundSnapshot& snapshot() const { return snapshot_; }
 	// Copy the 16 mod-knob ParamDescriptors engine->record. modKnobs is mutated in-place (setToHaveParamOnly etc.) at
@@ -167,13 +167,13 @@ public:
 
 	int32_t lastNoteCode = std::numeric_limits<int32_t>::min();
 
-	// M3 owner-5: voice priority is DOM-owned (`docSound_->voice_priority`). It is read per render block in
+	// M3 owner-5: voice priority is DOM-owned (`state_->voice_priority`). It is read per render block in
 	// Voice::getPriorityRating(), so this field is kept as a hot derived cache — the record is authoritative (seeded at
 	// bind, written via setVoicePriority, read at save); render keeps reading this field directly.
 	void setVoicePriority(VoicePriority value);
 
-	// M3 owner-5: setters for the DOM-owned scalar batch (records in DocSound; native fields kept as caches, seeded at
-	// bind, so this recipe is uniform whether the field is hot like oscillatorSync or cold). Each writes the record
+	// M3 owner-5: setters for the DOM-owned scalar batch (records in SoundState; native fields kept as caches, seeded
+	// at bind, so this recipe is uniform whether the field is hot like oscillatorSync or cold). Each writes the record
 	// (when bound) AND the cache; every runtime write site funnels through these, save reads the record.
 	void setMaxVoiceCount(uint8_t value);
 	void setSideChainSendLevel(int32_t value);
@@ -402,6 +402,8 @@ public:
 	virtual const char* getName() { return nullptr; }
 
 private:
+	/// The Deluge instrument's settings for this sound, owned here and bound on adoption (bindState).
+	deluge::instrument::SoundState ownedState_;
 	/// @brief Count one destruction that found live voices (see soundsDestroyedWithLiveVoices()).
 	static void noteDestroyedWithLiveVoices();
 

@@ -223,7 +223,7 @@ void forEachBoundSound(Song& song, F&& f) {
 		for (Output* o = first; o != nullptr; o = o->next) {
 			if (o->type == OutputType::SYNTH) {
 				Sound* sound = static_cast<SoundInstrument*>(o);
-				if (sound->docSound_ != nullptr) {
+				if (sound->state_ != nullptr) {
 					f(*sound);
 				}
 			}
@@ -231,7 +231,7 @@ void forEachBoundSound(Song& song, F&& f) {
 				for (Drum* d = static_cast<Kit*>(o)->firstDrum; d != nullptr; d = d->next) {
 					if (d->type == DrumType::SOUND) {
 						Sound* sound = static_cast<SoundDrum*>(d);
-						if (sound->docSound_ != nullptr) {
+						if (sound->state_ != nullptr) {
 							f(*sound);
 						}
 					}
@@ -241,13 +241,13 @@ void forEachBoundSound(Song& song, F&& f) {
 	}
 }
 
-/// M4b: every bound Sound's snapshot must equal the projection of its DocSound record, and each snapshot setter must
+/// M4b: every bound Sound's snapshot must equal the projection of its SoundState record, and each snapshot setter must
 /// write the record and reproject. @return the number of mismatches, each printed under @p label.
 int32_t checkSoundSnapshots(Song& song, const char* label) {
 	int32_t sounds = 0, bad = 0;
 	Sound* probe = nullptr;
 	forEachBoundSound(song, [&](Sound& sound) {
-		const deluge::project::DocSound& d = *sound.docSound_;
+		const deluge::instrument::SoundState& d = *sound.state_;
 		sounds++;
 		probe = (probe != nullptr) ? probe : &sound;
 		if (sound.getTranspose() != d.transpose) {
@@ -267,7 +267,7 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 		expect(snap.voicePriority == static_cast<VoicePriority>(d.voice_priority), "voicePriority");
 		expect(snap.modulator1ToModulator0 == d.modulator1_to_modulator0, "modulator1ToModulator0");
 		if (sound.docModControllable_ != nullptr) {
-			const deluge::project::DocModControllable& m = *sound.docModControllable_;
+			const deluge::instrument::DocModControllable& m = *sound.docModControllable_;
 			const deluge::snapshot::ModControllableSnapshot& ms = sound.modControllableSnapshot();
 			expect(ms.clippingAmount == m.clipping_amount, "clippingAmount");
 			expect(ms.lpfMode == static_cast<FilterMode>(m.lpf_mode), "lpfMode");
@@ -308,7 +308,7 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 	});
 	if (probe != nullptr) {
 		Sound& sound = *probe;
-		const deluge::project::DocSound& d = *sound.docSound_;
+		const deluge::instrument::SoundState& d = *sound.state_;
 		const int16_t transpose = sound.getTranspose();
 		sound.setTranspose(static_cast<int16_t>(transpose + 7));
 		if (sound.getTranspose() != transpose + 7 || d.transpose != transpose + 7) {
@@ -405,7 +405,7 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 		sound.setUnisonDetune(before.unisonDetune, nullptr);
 		sound.setNumUnison(before.numUnison, nullptr);
 		if (sound.docModControllable_ != nullptr) {
-			const deluge::project::DocModControllable& m = *sound.docModControllable_;
+			const deluge::instrument::DocModControllable& m = *sound.docModControllable_;
 			const deluge::snapshot::ModControllableSnapshot mBefore = sound.modControllableSnapshot();
 			sound.setClippingAmount(static_cast<uint8_t>(mBefore.clippingAmount == 3 ? 4 : 3));
 			sound.setLpfMode(mBefore.lpfMode == FilterMode::SVF_BAND ? FilterMode::SVF_NOTCH : FilterMode::SVF_BAND);
