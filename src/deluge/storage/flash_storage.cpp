@@ -838,10 +838,10 @@ void writeSettings() {
 	std::span<uint8_t> buffer{(uint8_t*)miscStringBuffer, kFilenameBufferSize};
 	std::fill(buffer.begin(), buffer.end(), 0);
 
-	buffer[FIRMWARE_TYPE] = util::to_underlying(FirmwareVersion::current().type());
-	buffer[VERSION_MAJOR] = FirmwareVersion::current().version().major;
-	buffer[VERSION_MINOR] = FirmwareVersion::current().version().minor;
-	buffer[VERSION_PATCH] = FirmwareVersion::current().version().patch;
+	buffer[FIRMWARE_TYPE] = util::to_underlying(current_firmware_version().type());
+	buffer[VERSION_MAJOR] = current_firmware_version().version().major;
+	buffer[VERSION_MINOR] = current_firmware_version().version().minor;
+	buffer[VERSION_PATCH] = current_firmware_version().version().patch;
 
 	buffer[12] = cvEngine.cvChannels[0].voltsPerOctave;
 	buffer[13] = cvEngine.cvChannels[1].voltsPerOctave;

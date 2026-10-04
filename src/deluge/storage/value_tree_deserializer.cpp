@@ -312,7 +312,7 @@ Error ValueTreeDeserializer::tryReadingFirmwareTagFromFile(char const* tagName, 
 	// If this tag doesn't exist, it's from old firmware so is ok
 	else if (!strcmp(tagName, "earliestCompatibleFirmware")) {
 		auto earliestFirmware = FirmwareVersion::parse(readTagOrAttributeValue());
-		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {
+		if (earliestFirmware > current_firmware_version() && !ignoreIncorrectFirmware) {
 			// (XMLDeserializer closeWriter()s here; the adapter has no writer -- only the Error matters.)
 			return Error::FILE_FIRMWARE_VERSION_TOO_NEW;
 		}

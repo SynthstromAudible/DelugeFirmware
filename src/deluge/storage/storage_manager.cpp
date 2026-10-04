@@ -58,7 +58,7 @@ extern "C" {
 #include <libdeluge/scheduler.h>
 }
 
-FirmwareVersion song_firmware_version = FirmwareVersion::current();
+FirmwareVersion song_firmware_version = current_firmware_version();
 PLACE_SDRAM_BSS XMLSerializer smSerializer;
 PLACE_SDRAM_BSS XMLDeserializer smDeserializer;
 PLACE_SDRAM_BSS JsonSerializer smJsonSerializer;

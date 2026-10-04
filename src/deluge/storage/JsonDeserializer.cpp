@@ -578,7 +578,7 @@ Error JsonDeserializer::tryReadingFirmwareTagFromFile(char const* tagName, bool 
 	else if (!strcmp(tagName, "earliestCompatibleFirmware")) {
 		char const* firmware_version_string = readTagOrAttributeValue();
 		auto earliestFirmware = FirmwareVersion::parse(firmware_version_string);
-		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {
+		if (earliestFirmware > current_firmware_version() && !ignoreIncorrectFirmware) {
 			closeWriter();
 			return Error::FILE_FIRMWARE_VERSION_TOO_NEW;
 		}

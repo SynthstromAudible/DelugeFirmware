@@ -1,5 +1,4 @@
-#include "semver.h"
-#include "try.h"
+#include "serialization/semver.h"
 #include <charconv>
 #include <expected>
 
@@ -23,7 +22,11 @@ std::strong_ordering SemVer::operator<=>(const SemVer& other) const {
 }
 
 std::expected<SemVer, SemVer::Parser::Error> SemVer::Parser::parse() {
-	SemVer semver = D_TRY(parseVersionCore());
+	auto core = parseVersionCore();
+	if (!core) {
+		return std::unexpected(core.error());
+	}
+	SemVer semver = *core;
 
 	// Version Core alone is valid
 	if (index_ == input_.size()) {
@@ -54,11 +57,27 @@ std::expected<SemVer, SemVer::Parser::Error> SemVer::Parser::parse() {
 // Version Core
 std::expected<SemVer, SemVer::Parser::Error> SemVer::Parser::parseVersionCore() {
 	SemVer semver{};
-	semver.major = D_TRY(parseNumericIdentifier());
-	D_TRY(expect('.'));
-	semver.minor = D_TRY(parseNumericIdentifier());
-	D_TRY(expect('.'));
-	semver.patch = D_TRY(parseNumericIdentifier());
+	auto major = parseNumericIdentifier();
+	if (!major) {
+		return std::unexpected(major.error());
+	}
+	semver.major = *major;
+	if (auto dot = expect('.'); !dot) {
+		return std::unexpected(dot.error());
+	}
+	auto minor = parseNumericIdentifier();
+	if (!minor) {
+		return std::unexpected(minor.error());
+	}
+	semver.minor = *minor;
+	if (auto dot = expect('.'); !dot) {
+		return std::unexpected(dot.error());
+	}
+	auto patch = parseNumericIdentifier();
+	if (!patch) {
+		return std::unexpected(patch.error());
+	}
+	semver.patch = *patch;
 	return semver;
 }
 

@@ -70,8 +70,8 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../../src/deluge/storage/JsonDeserializer.cpp
         ../../../src/deluge/io/file.cpp
         ../../../src/deluge/util/c_string.cpp
-        ../../../src/deluge/util/firmware_version.cpp
-        ../../../src/deluge/util/semver.cpp
+        ../../../src/serialization/firmware_version.cpp
+        ../../../src/serialization/semver.cpp
         ../io/mock_file_io.cpp
         # For the slicer audition specs: the REAL UI translation unit, so the specs drive the
         # shipped preview()/graphicsRoutine() instead of a restatement of them. Its world is

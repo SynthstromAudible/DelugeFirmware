@@ -7,7 +7,6 @@ add_library(deluge_spec STATIC
 ../../../src/deluge/storage/build_value.cpp
 ../../../src/deluge/storage/value_tree_deserializer.cpp
 ../../../src/deluge/util/audio_format_helpers.cpp
-../../../src/deluge/util/semver.cpp
 ../../../src/deluge/util/string.cpp
 # intToString/floatToString moved out of util/cfunctions.c into the dep-free
 # foundation library; cfunctions.c now only holds the clock-coupled delays.

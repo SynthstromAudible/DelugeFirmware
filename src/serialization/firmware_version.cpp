@@ -1,5 +1,4 @@
-#include "util/firmware_version.h"
-#include "util/try.h"
+#include "serialization/firmware_version.h"
 #include <cctype>
 #include <string_view>
 

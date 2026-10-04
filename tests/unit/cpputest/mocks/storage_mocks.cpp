@@ -97,7 +97,7 @@ extern "C" void freezeWithError(char const* error) {
 // The deserializer objects the firmware places in SDRAM from storage_manager.cpp, which the host tests
 // cannot link (it builds Songs, Kits, Sounds and Drums). Plain host storage instead; the objects are
 // the production ones.
-FirmwareVersion song_firmware_version = FirmwareVersion::current();
+FirmwareVersion song_firmware_version = current_firmware_version();
 XMLDeserializer smDeserializer;
 JsonDeserializer smJsonDeserializer;
 FileDeserializer* activeDeserializer = &smDeserializer;
