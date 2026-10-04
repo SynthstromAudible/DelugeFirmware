@@ -517,8 +517,21 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 // paramManager only required for old old song files, or for presets (because you'd be wanting to extract the
 // defaultParams into it). arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all
 // separate from Clips and won't store any arp stuff.
+namespace {
+/// The sound element's tags the Deluge instrument decodes entirely (readFromFile), which this reader skips. Tags that
+/// also hold params (osc1/osc2, lfo1–lfo4, modulator1/2, the old oscillatorA/B and fileName) are read here for those.
+constexpr std::array<std::string_view, 14> kInstrumentOnlyTags{
+    "mode", "transpose", "cents",         "oscillatorReset", "unison",    "continuous",    "reversed",
+    "zone", "ringMod",   "sideChainSend", "polyphonic",      "maxVoices", "voicePriority", "midiOutput"};
+} // namespace
+
 Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
                                     int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) {
+
+	if (std::ranges::find(kInstrumentOnlyTags, std::string_view{tagName}) != kInstrumentOnlyTags.end()) {
+		reader.exitTag(tagName);
+		return Error::NONE;
+	}
 
 	if (!strcmp(tagName, "osc1")) {
 		reader.match('{');
@@ -538,26 +551,12 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		reader.exitTag("osc2", true);
 	}
 
-	else if (!strcmp(tagName, "mode")) {
-		char const* contents = reader.readTagOrAttributeValue();
-		if (getSynthMode() != SynthMode::RINGMOD) { // Compatibility with old XML files
-			assignSynthMode(stringToSynthMode(contents));
-		}
-		// Uart::print("synth mode set to: ");
-		// Uart::println(synthMode);
-		reader.exitTag("mode");
-	}
-
 	// Backwards-compatible reading of old-style oscs, from pre-mid-2016 files
 	else if (!strcmp(tagName, "oscillatorA")) {
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 
-			if (!strcmp(tagName, "type")) {
-				sources[0].oscType = stringToOscType(reader.readTagOrAttributeValue());
-				reader.exitTag("type");
-			}
-			else if (!strcmp(tagName, "volume")) {
+			if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_VOLUME,
 				                         readAutomationUpToPos);
@@ -569,15 +568,6 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				                         readAutomationUpToPos);
 				reader.exitTag("phaseWidth");
 			}
-			else if (!strcmp(tagName, "note")) {
-				int32_t presetNote = std::clamp<int32_t>(reader.readTagOrAttributeValueInt(), 1, 127);
-
-				sources[0].transpose += presetNote - 60;
-				sources[1].transpose += presetNote - 60;
-				assignModulatorTranspose(0, static_cast<int16_t>(snapshot_.modulatorTranspose[0] + presetNote - 60));
-				assignModulatorTranspose(1, static_cast<int16_t>(snapshot_.modulatorTranspose[1] + presetNote - 60));
-				reader.exitTag("note");
-			}
 			else {
 				reader.exitTag(tagName);
 			}
@@ -588,11 +578,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 	else if (!strcmp(tagName, "oscillatorB")) {
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "type")) {
-				sources[1].oscType = stringToOscType(reader.readTagOrAttributeValue());
-				reader.exitTag("type");
-			}
-			else if (!strcmp(tagName, "volume")) {
+			if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_VOLUME,
 				                         readAutomationUpToPos);
@@ -605,14 +591,6 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				// setParamPresetValue(params::LOCAL_OSC_B_PHASE_WIDTH, stringToInt(reader.readTagContents()) <<
 				// 1); // Special case - pw values are stored at half size in file
 				reader.exitTag("phaseWidth");
-			}
-			else if (!strcmp(tagName, "transpose")) {
-				sources[1].transpose += reader.readTagOrAttributeValueInt();
-				reader.exitTag("transpose");
-			}
-			else if (!strcmp(tagName, "cents")) {
-				sources[1].cents = reader.readTagOrAttributeValueInt();
-				reader.exitTag("cents");
 			}
 			else {
 				reader.exitTag(tagName);
@@ -630,19 +608,6 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				                         readAutomationUpToPos);
 				reader.exitTag("volume");
 			}
-			else if (!strcmp(tagName, "transpose")) {
-				assignModulatorTranspose(
-				    0, static_cast<int16_t>(snapshot_.modulatorTranspose[0] + reader.readTagOrAttributeValueInt()));
-				reader.exitTag("transpose");
-			}
-			else if (!strcmp(tagName, "cents")) {
-				assignModulatorCents(0, static_cast<int8_t>(reader.readTagOrAttributeValueInt()));
-				reader.exitTag("cents");
-			}
-			else if (!strcmp(tagName, "retrigPhase")) {
-				setModulatorRetriggerPhase(0, reader.readTagOrAttributeValueInt());
-				reader.exitTag("retrigPhase");
-			}
 			else {
 				reader.exitTag(tagName);
 			}
@@ -659,37 +624,11 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				                         readAutomationUpToPos);
 				reader.exitTag("volume");
 			}
-			else if (!strcmp(tagName, "transpose")) {
-				assignModulatorTranspose(
-				    1, static_cast<int16_t>(snapshot_.modulatorTranspose[1] + reader.readTagOrAttributeValueInt()));
-				reader.exitTag("transpose");
-			}
-			else if (!strcmp(tagName, "cents")) {
-				assignModulatorCents(1, static_cast<int8_t>(reader.readTagOrAttributeValueInt()));
-				reader.exitTag("cents");
-			}
-			else if (!strcmp(tagName, "retrigPhase")) {
-				setModulatorRetriggerPhase(1, reader.readTagOrAttributeValueInt());
-				reader.exitTag("retrigPhase");
-			}
-			else if (!strcmp(tagName, "toModulator1")) {
-				setModulator1ToModulator0(reader.readTagOrAttributeValueInt() != 0);
-				reader.exitTag("toModulator1");
-			}
 			else {
 				reader.exitTag(tagName);
 			}
 		}
 		reader.exitTag("modulator2", true);
-	}
-
-	else if (!strcmp(tagName, "transpose")) {
-		setTranspose(reader.readTagOrAttributeValueInt()); // M4b: routes to record (bound drum) or snapshot (unbound)
-		reader.exitTag("transpose");
-	}
-	else if (!strcmp(tagName, "cents")) {
-		set_cents(static_cast<int8_t>(reader.readTagOrAttributeValueInt()));
-		reader.exitTag("cents");
 	}
 
 	else if (!strcmp(tagName, "noiseVolume")) {
@@ -704,46 +643,6 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
 		reader.exitTag("portamento");
-	}
-
-	// For backwards compatibility. If off, switch off for all operators
-	else if (!strcmp(tagName, "oscillatorReset")) {
-		int32_t value = reader.readTagOrAttributeValueInt();
-		if (!value) {
-			for (int32_t s = 0; s < kNumSources; s++) {
-				setOscRetriggerPhase(s, 0xFFFFFFFF);
-			}
-			for (int32_t m = 0; m < kNumModulators; m++) {
-				setModulatorRetriggerPhase(m, 0xFFFFFFFF);
-			}
-		}
-		reader.exitTag("oscillatorReset");
-	}
-
-	else if (!strcmp(tagName, "unison")) {
-		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "num")) {
-				int32_t contents = reader.readTagOrAttributeValueInt();
-				assignNumUnison(
-				    static_cast<uint8_t>(std::max((int32_t)0, std::min((int32_t)kMaxNumVoicesUnison, contents))));
-				reader.exitTag("num");
-			}
-			else if (!strcmp(tagName, "detune")) {
-				int32_t contents = reader.readTagOrAttributeValueInt();
-				assignUnisonDetune(static_cast<int8_t>(std::clamp(contents, 0_i32, kMaxUnisonDetune)));
-				reader.exitTag("detune");
-			}
-			else if (!strcmp(tagName, "spread")) {
-				int32_t contents = reader.readTagOrAttributeValueInt();
-				assignUnisonStereoSpread(static_cast<uint8_t>(std::clamp(contents, 0_i32, kMaxUnisonStereoSpread)));
-				reader.exitTag("spread");
-			}
-			else {
-				reader.exitTag(tagName);
-			}
-		}
-		reader.exitTag("unison", true);
 	}
 
 	else if (!strcmp(tagName, "oscAPitchAdjust")) {
@@ -776,13 +675,6 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 	else if (!strcmp(tagName, "fileName")) {
 		ENSURE_PARAM_MANAGER_EXISTS
 
-		MultisampleRange* range = (MultisampleRange*)sources[0].getOrCreateFirstRange();
-		if (!range) {
-			return Error::INSUFFICIENT_RAM;
-		}
-
-		range->getAudioFileHolder()->filePath = reader.readTagOrAttributeValue();
-		sources[0].oscType = OscType::SAMPLE;
 		paramManager->getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
 		    *paramManager->getPatchedParamSet()->docForParam(params::LOCAL_ENV_0_ATTACK),
 		    getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 0));
@@ -803,64 +695,6 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		    getParamFromUserValue(params::LOCAL_OSC_B_VOLUME, 0));
 
 		reader.exitTag("fileName");
-	}
-
-	else if (!strcmp(tagName, "cents")) {
-		int8_t newCents = reader.readTagOrAttributeValueInt();
-		// We don't need to call the setTranspose method here, because this will get called soon anyway, once the sample
-		// rate is known
-		sources[0].cents = (std::max((int8_t)-50, std::min((int8_t)50, newCents)));
-		reader.exitTag("cents");
-	}
-	else if (!strcmp(tagName, "continuous")) {
-		sources[0].repeatMode = static_cast<SampleRepeatMode>(reader.readTagOrAttributeValueInt());
-		sources[0].repeatMode = std::min(sources[0].repeatMode, static_cast<SampleRepeatMode>(kNumRepeatModes - 1));
-		reader.exitTag("continuous");
-	}
-	else if (!strcmp(tagName, "reversed")) {
-		sources[0].sampleControls.reversed = reader.readTagOrAttributeValueInt();
-		reader.exitTag("reversed");
-	}
-	else if (!strcmp(tagName, "zone")) {
-		reader.match('{');
-		MultisampleRange* range = (MultisampleRange*)sources[0].getOrCreateFirstRange();
-		if (!range) {
-			return Error::INSUFFICIENT_RAM;
-		}
-
-		range->sampleHolder.startMSec = 0;
-		range->sampleHolder.endMSec = 0;
-		range->sampleHolder.startPos = 0;
-		range->sampleHolder.endPos = 0;
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			// Because this is for old, early-2016 format, there'll only be seconds and milliseconds in here, not
-			// samples
-			if (!strcmp(tagName, "startSeconds")) {
-				range->sampleHolder.startMSec += reader.readTagOrAttributeValueInt() * 1000;
-				reader.exitTag("startSeconds");
-			}
-			else if (!strcmp(tagName, "startMilliseconds")) {
-				range->sampleHolder.startMSec += reader.readTagOrAttributeValueInt();
-				reader.exitTag("startMilliseconds");
-			}
-			else if (!strcmp(tagName, "endSeconds")) {
-				range->sampleHolder.endMSec += reader.readTagOrAttributeValueInt() * 1000;
-				reader.exitTag("endSeconds");
-			}
-			else if (!strcmp(tagName, "endMilliseconds")) {
-				range->sampleHolder.endMSec += reader.readTagOrAttributeValueInt();
-				reader.exitTag("endMilliseconds");
-			}
-		}
-		reader.exitTag("zone", true);
-	}
-
-	else if (!strcmp(tagName, "ringMod")) {
-		int32_t contents = reader.readTagOrAttributeValueInt();
-		if (contents == 1) {
-			assignSynthMode(SynthMode::RINGMOD);
-		}
-		reader.exitTag("ringMod");
 	}
 
 	else if (!strcmp(tagName, "modKnobs")) {
@@ -1009,144 +843,67 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 	}
 
 	else if (!strcmp(tagName, "lfo1")) {
-		// Set default values in case they are not configured.
-		setLfoSync(LFO1_ID, SYNC_TYPE_EVEN, SYNC_LEVEL_NONE);
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "type")) {
-				setLfoWaveType(LFO1_ID, stringToLFOType(reader.readTagOrAttributeValue()));
-				reader.exitTag("type");
-			}
-			else if (!strcmp(tagName, "rate")) {
+			if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ_1,
 				                         readAutomationUpToPos);
 				reader.exitTag("rate");
-			}
-			else if (!strcmp(tagName, "syncType")) {
-				setLfoSync(LFO1_ID, (SyncType)reader.readTagOrAttributeValueInt(),
-				           snapshot_.lfoConfig[LFO1_ID].syncLevel);
-				reader.exitTag("syncType");
-			}
-			else if (!strcmp(tagName, "syncLevel")) {
-				setLfoSync(
-				    LFO1_ID, snapshot_.lfoConfig[LFO1_ID].syncType,
-				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt()));
-				reader.exitTag("syncLevel");
 			}
 			else {
 				reader.exitTag(tagName);
 			}
 		}
 		reader.exitTag("lfo1", true);
-		resyncGlobalLFOs();
 	}
 
 	else if (!strcmp(tagName, "lfo2")) {
-		// Set default values in case they are not configured.
-		setLfoSync(LFO2_ID, SYNC_TYPE_EVEN, SYNC_LEVEL_NONE);
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "type")) {
-				setLfoWaveType(LFO2_ID, stringToLFOType(reader.readTagOrAttributeValue()));
-				reader.exitTag("type");
-			}
-			else if (!strcmp(tagName, "rate")) {
+			if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LFO_LOCAL_FREQ_1,
 				                         readAutomationUpToPos);
 				reader.exitTag("rate");
-			}
-			else if (!strcmp(tagName, "syncType")) {
-				setLfoSync(LFO2_ID, (SyncType)reader.readTagOrAttributeValueInt(),
-				           snapshot_.lfoConfig[LFO2_ID].syncLevel);
-				reader.exitTag("syncType");
-			}
-			else if (!strcmp(tagName, "syncLevel")) {
-				setLfoSync(
-				    LFO2_ID, snapshot_.lfoConfig[LFO2_ID].syncType,
-				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt()));
-				reader.exitTag("syncLevel");
 			}
 			else {
 				reader.exitTag(tagName);
 			}
 		}
 		reader.exitTag("lfo2", true);
-		// No resync for LFO2
 	}
 
 	else if (!strcmp(tagName, "lfo3")) {
-		// Set default values in case they are not configured.
-		setLfoSync(LFO3_ID, SYNC_TYPE_EVEN, SYNC_LEVEL_NONE);
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "type")) {
-				setLfoWaveType(LFO3_ID, stringToLFOType(reader.readTagOrAttributeValue()));
-				reader.exitTag("type");
-			}
-			else if (!strcmp(tagName, "rate")) {
+			if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ_2,
 				                         readAutomationUpToPos);
 				reader.exitTag("rate");
-			}
-			else if (!strcmp(tagName, "syncType")) {
-				setLfoSync(LFO3_ID, (SyncType)reader.readTagOrAttributeValueInt(),
-				           snapshot_.lfoConfig[LFO3_ID].syncLevel);
-				reader.exitTag("syncType");
-			}
-			else if (!strcmp(tagName, "syncLevel")) {
-				setLfoSync(
-				    LFO3_ID, snapshot_.lfoConfig[LFO3_ID].syncType,
-				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt()));
-				reader.exitTag("syncLevel");
 			}
 			else {
 				reader.exitTag(tagName);
 			}
 		}
 		reader.exitTag("lfo3", true);
-		resyncGlobalLFOs();
 	}
 
 	else if (!strcmp(tagName, "lfo4")) {
-		// Set default values in case they are not configured.
-		setLfoSync(LFO4_ID, SYNC_TYPE_EVEN, SYNC_LEVEL_NONE);
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "type")) {
-				setLfoWaveType(LFO4_ID, stringToLFOType(reader.readTagOrAttributeValue()));
-				reader.exitTag("type");
-			}
-			else if (!strcmp(tagName, "rate")) {
+			if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LFO_LOCAL_FREQ_2,
 				                         readAutomationUpToPos);
 				reader.exitTag("rate");
-			}
-			else if (!strcmp(tagName, "syncType")) {
-				setLfoSync(LFO4_ID, (SyncType)reader.readTagOrAttributeValueInt(),
-				           snapshot_.lfoConfig[LFO4_ID].syncLevel);
-				reader.exitTag("syncType");
-			}
-			else if (!strcmp(tagName, "syncLevel")) {
-				setLfoSync(
-				    LFO4_ID, snapshot_.lfoConfig[LFO4_ID].syncType,
-				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt()));
-				reader.exitTag("syncLevel");
 			}
 			else {
 				reader.exitTag(tagName);
 			}
 		}
 		reader.exitTag("lfo4", true);
-		// No resync for LFO4
-	}
-
-	else if (!strcmp(tagName, "sideChainSend")) {
-		sideChainSendLevel = reader.readTagOrAttributeValueInt();
-		reader.exitTag("sideChainSend");
 	}
 
 	else if (!strcmp(tagName, "lpf")) {
@@ -1371,21 +1128,6 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		reader.exitTag("envelope3", true);
 	}
 
-	else if (!strcmp(tagName, "polyphonic")) {
-		polyphonic = stringToPolyphonyMode(reader.readTagOrAttributeValue());
-		reader.exitTag("polyphonic");
-	}
-
-	else if (!strcmp(tagName, "maxVoices")) {
-		maxVoiceCount = reader.readTagOrAttributeValueInt();
-		reader.exitTag("maxVoices");
-	}
-
-	else if (!strcmp(tagName, "voicePriority")) {
-		setVoicePriority(static_cast<VoicePriority>(reader.readTagOrAttributeValueInt()));
-		reader.exitTag("voicePriority");
-	}
-
 	else if (!strcmp(tagName, "reverbAmount")) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_REVERB_AMOUNT, readAutomationUpToPos);
@@ -1401,23 +1143,6 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		ENSURE_PARAM_MANAGER_EXISTS
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_FOLD, readAutomationUpToPos);
 		reader.exitTag("waveFold");
-	}
-	else if (!strcmp(tagName, "midiOutput")) {
-		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "channel")) {
-				outputMidiChannel = reader.readTagOrAttributeValueInt();
-				reader.exitTag("channel");
-			}
-			else if (!strcmp(tagName, "noteForDrum")) {
-				outputMidiNoteForDrum = reader.readTagOrAttributeValueInt();
-				reader.exitTag("noteForDrum");
-			}
-			else {
-				reader.exitTag(tagName);
-			}
-		}
-		reader.exitTag("midiOutput", true);
 	}
 
 	else {
@@ -3522,18 +3247,17 @@ void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* pa
 // separate from Clips and won't store any arp stuff
 Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* modelStack,
                           int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings) {
-	if (deluge::storage::ValueTreeDeserializer* tree = reader.asTreeReader()) {
-		if (const deluge::serialization::Value* element = tree->currentElement()) {
-			loadedElement_ = *element;
-		}
+	// The sound's settings are the Deluge instrument's: decoded from the element, onto the state this sound starts
+	// from, and applied once the reader below has read the params, the effects and the rest.
+	const deluge::serialization::Value* element = deluge::storage::treeReaderOf(reader).currentElement();
+	if (element == nullptr) {
+		return Error::FILE_CORRUPTED;
 	}
-
-	assignModulatorTranspose(1, 0);
-	for (int32_t s = 0; s < kNumSources; s++) {
-		setOscRetriggerPhase(s, 0);
-	}
-	for (int32_t m = 0; m < kNumModulators; m++) {
-		setModulatorRetriggerPhase(m, 0);
+	loadedElement_ = *element;
+	deluge::instrument::SoundState decoded = seededState();
+	if (!deluge::instrument::decode(*element, decoded,
+	                                {.input_tick_magnitude = modelStack->song->getInputTickMagnitude()})) {
+		return Error::FILE_CORRUPTED;
 	}
 
 	char const* tagName;
@@ -3550,6 +3274,10 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 		else {
 			reader.exitTag(tagName);
 		}
+	}
+
+	if (Error error = applyState(decoded); error != Error::NONE) {
+		return error;
 	}
 
 	// old FM patches can have a filter mode saved in them even though it wouldn't have rendered at the time
@@ -3649,16 +3377,10 @@ void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelSta
  */
 Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerForTimeline* paramManager,
                                 int32_t readAutomationUpToPos) {
-
-	Source* source = &sources[s];
-
+	// A source's settings are the instrument's, decoded from the element (readFromFile); its params are read here.
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "type")) {
-			source->setOscType(stringToOscType(reader.readTagOrAttributeValue()));
-			reader.exitTag("type");
-		}
-		else if (!strcmp(tagName, "phaseWidth")) {
+		if (!strcmp(tagName, "phaseWidth")) {
 			ENSURE_PARAM_MANAGER_EXISTS
 			patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_PHASE_WIDTH + s,
 			                         readAutomationUpToPos);
@@ -3670,232 +3392,10 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			                         readAutomationUpToPos);
 			reader.exitTag("volume");
 		}
-		else if (!strcmp(tagName, "transpose")) {
-			source->transpose = reader.readTagOrAttributeValueInt();
-			reader.exitTag("transpose");
-		}
-		else if (!strcmp(tagName, "cents")) {
-			source->cents = reader.readTagOrAttributeValueInt();
-			reader.exitTag("cents");
-		}
-		else if (!strcmp(tagName, "loopMode")) {
-			source->repeatMode = static_cast<SampleRepeatMode>(reader.readTagOrAttributeValueInt());
-			source->repeatMode = std::min(source->repeatMode, static_cast<SampleRepeatMode>(kNumRepeatModes - 1));
-			reader.exitTag("loopMode");
-		}
-		else if (!strcmp(tagName, "oscillatorSync")) {
-			int32_t value = reader.readTagOrAttributeValueInt();
-			setOscillatorSync(value != 0);
-			reader.exitTag("oscillatorSync");
-		}
-		else if (!strcmp(tagName, "reversed")) {
-			source->sampleControls.reversed = reader.readTagOrAttributeValueInt();
-			reader.exitTag("reversed");
-		}
-		else if (!strcmp(tagName, "dx7patch")) {
-			DxPatch* patch = source->ensureDxPatch();
-			int len = reader.readTagOrAttributeValueHexBytes(patch->params, 156);
-			reader.exitTag("dx7patch");
-		}
-		else if (!strcmp(tagName, "dx7randomdetune")) {
-			DxPatch* patch = source->ensureDxPatch();
-			patch->random_detune = reader.readTagOrAttributeValueInt();
-			reader.exitTag("dx7randomdetune");
-		}
-		else if (!strcmp(tagName, "dx7enginemode")) {
-			DxPatch* patch = source->ensureDxPatch();
-			patch->setEngineMode(reader.readTagOrAttributeValueInt());
-			reader.exitTag("dx7enginemode");
-		}
-		/*
-		else if (!strcmp(tagName, "sampleSync")) {
-		    source->sampleSync = stringToBool(reader.readTagContents());
-		    reader.exitTag("sampleSync");
-		}
-		*/
-		else if (!strcmp(tagName, "timeStretchEnable")) {
-			source->sampleControls.pitchAndSpeedAreIndependent = reader.readTagOrAttributeValueInt();
-			reader.exitTag("timeStretchEnable");
-		}
-		else if (!strcmp(tagName, "timeStretchAmount")) {
-			source->timeStretchAmount = reader.readTagOrAttributeValueInt();
-			reader.exitTag("timeStretchAmount");
-		}
-		else if (!strcmp(tagName, "linearInterpolation")) {
-			if (reader.readTagOrAttributeValueInt()) {
-				source->sampleControls.interpolationMode = InterpolationMode::LINEAR;
-			}
-			reader.exitTag("linearInterpolation");
-		}
-		else if (!strcmp(tagName, "retrigPhase")) {
-			setOscRetriggerPhase(s, reader.readTagOrAttributeValueInt());
-			reader.exitTag("retrigPhase");
-		}
-		else if (!strcmp(tagName, "fileName")) {
-
-			MultiRange* range = source->getOrCreateFirstRange();
-			if (!range) {
-				return Error::INSUFFICIENT_RAM;
-			}
-
-			reader.readTagOrAttributeValueString(range->getAudioFileHolder()->filePath);
-
-			reader.exitTag("fileName");
-		}
-		else if (!strcmp(tagName, "zone")) {
-
-			MultisampleRange* range = (MultisampleRange*)source->getOrCreateFirstRange();
-			if (!range) {
-				return Error::INSUFFICIENT_RAM;
-			}
-
-			range->sampleHolder.startMSec = 0;
-			range->sampleHolder.endMSec = 0;
-			range->sampleHolder.startPos = 0;
-			range->sampleHolder.endPos = 0;
-			reader.match('{');
-
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
-				if (!strcmp(tagName, "startSeconds")) {
-					range->sampleHolder.startMSec += reader.readTagOrAttributeValueInt() * 1000;
-					reader.exitTag("startSeconds");
-				}
-				else if (!strcmp(tagName, "startMilliseconds")) {
-					range->sampleHolder.startMSec += reader.readTagOrAttributeValueInt();
-					reader.exitTag("startMilliseconds");
-				}
-				else if (!strcmp(tagName, "endSeconds")) {
-					range->sampleHolder.endMSec += reader.readTagOrAttributeValueInt() * 1000;
-					reader.exitTag("endSeconds");
-				}
-				else if (!strcmp(tagName, "endMilliseconds")) {
-					range->sampleHolder.endMSec += reader.readTagOrAttributeValueInt();
-					reader.exitTag("endMilliseconds");
-				}
-
-				else if (!strcmp(tagName, "startSamplePos")) {
-					range->sampleHolder.startPos = reader.readTagOrAttributeValueInt();
-					reader.exitTag("startSamplePos");
-				}
-				else if (!strcmp(tagName, "endSamplePos")) {
-					range->sampleHolder.endPos = reader.readTagOrAttributeValueInt();
-					reader.exitTag("endSamplePos");
-				}
-
-				else if (!strcmp(tagName, "startLoopPos")) {
-					range->sampleHolder.loopStartPos = reader.readTagOrAttributeValueInt();
-					reader.exitTag("startLoopPos");
-				}
-				else if (!strcmp(tagName, "endLoopPos")) {
-					range->sampleHolder.loopEndPos = reader.readTagOrAttributeValueInt();
-					reader.exitTag("endLoopPos");
-				}
-
-				else {
-					reader.exitTag(tagName);
-				}
-			}
-			reader.exitTag("zone", true);
-		}
-		else if (!strcmp(tagName, "sampleRanges") || !strcmp(tagName, "wavetableRanges")) {
-			reader.match('[');
-			while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
-
-				if (!strcmp(tagName, "sampleRange") || !strcmp(tagName, "wavetableRange")) {
-					// is a sampleRange or wavetableRange
-
-					MultiRangeArray::RangeVariant tempVariant =
-					    (source->oscType == OscType::WAVETABLE)
-					        ? MultiRangeArray::RangeVariant(std::in_place_type<MultiWaveTableRange>)
-					        : MultiRangeArray::RangeVariant(std::in_place_type<MultisampleRange>);
-					MultiRange* tempRange = MultiRangeArray::variantToRange(tempVariant);
-
-					AudioFileHolder* holder = tempRange->getAudioFileHolder();
-					reader.match('{');
-					while (*(tagName = reader.readNextTagOrAttributeName())) {
-
-						if (!strcmp(tagName, "fileName")) {
-							reader.readTagOrAttributeValueString(holder->filePath);
-							reader.exitTag("fileName");
-						}
-						else if (!strcmp(tagName, "rangeTopNote")) {
-							tempRange->topNote = reader.readTagOrAttributeValueInt();
-							reader.exitTag("rangeTopNote");
-						}
-						else if (source->oscType != OscType::WAVETABLE) {
-							if (!strcmp(tagName, "zone")) {
-								reader.match('{');
-								while (*(tagName = reader.readNextTagOrAttributeName())) {
-									if (!strcmp(tagName, "startSamplePos")) {
-										((SampleHolder*)holder)->startPos = reader.readTagOrAttributeValueInt();
-										reader.exitTag("startSamplePos");
-									}
-									else if (!strcmp(tagName, "endSamplePos")) {
-										((SampleHolder*)holder)->endPos = reader.readTagOrAttributeValueInt();
-										reader.exitTag("endSamplePos");
-									}
-
-									else if (!strcmp(tagName, "startLoopPos")) {
-										((SampleHolderForVoice*)holder)->loopStartPos =
-										    reader.readTagOrAttributeValueInt();
-										reader.exitTag("startLoopPos");
-									}
-									else if (!strcmp(tagName, "endLoopPos")) {
-										((SampleHolderForVoice*)holder)->loopEndPos =
-										    reader.readTagOrAttributeValueInt();
-										reader.exitTag("endLoopPos");
-									}
-									else {
-										reader.exitTag(tagName);
-									}
-								}
-								reader.exitTag("zone", true);
-							}
-							else if (!strcmp(tagName, "transpose")) {
-								((SampleHolderForVoice*)holder)->transpose = reader.readTagOrAttributeValueInt();
-								reader.exitTag("transpose");
-							}
-							else if (!strcmp(tagName, "cents")) {
-								((SampleHolderForVoice*)holder)->cents = reader.readTagOrAttributeValueInt();
-								reader.exitTag("cents");
-							}
-							else {
-								goto justExitTag;
-							}
-						}
-						else {
-justExitTag:
-							reader.exitTag(tagName);
-						}
-					}
-
-					int32_t i = source->ranges.firstAtOrAfter(tempRange->topNote);
-
-					// Ensure no duplicate topNote.
-					if (i < std::ssize(source->ranges) && source->ranges.getElement(i)->topNote == tempRange->topNote) {
-						return Error::FILE_CORRUPTED;
-					}
-
-					Error error = source->ranges.insertVariant(i, std::move(tempVariant));
-					if (error != Error::NONE) {
-						return error;
-					}
-					reader.match('}');          // exit value object
-					reader.exitTag(NULL, true); // exit box.
-				}
-				else {
-					reader.exitTag();
-				}
-			}
-
-			reader.exitTag();
-			reader.match(']');
-		}
 		else {
 			reader.exitTag();
 		}
 	}
-
 	return Error::NONE;
 }
 #pragma GCC diagnostic pop
@@ -3991,6 +3491,86 @@ void Sound::seedModKnobsRecord() {
 static_assert(deluge::instrument::kMaxUnisonVoices == kMaxNumVoicesUnison
               && deluge::instrument::kMaxUnisonDetune == kMaxUnisonDetune
               && deluge::instrument::kMaxUnisonSpread == kMaxUnisonStereoSpread);
+
+Error Sound::applyState(const deluge::instrument::SoundState& state) {
+	polyphonic = state.polyphonic;
+	maxVoiceCount = state.max_voice_count;
+	sideChainSendLevel = state.side_chain_send_level;
+	outputMidiChannel = state.output_midi_channel;
+	outputMidiNoteForDrum = state.output_midi_note_for_drum;
+	setVoicePriority(state.voice_priority);
+	assignSynthMode(state.synth_mode);
+	setTranspose(state.transpose);
+	set_cents(state.cents);
+	assignNumUnison(state.num_unison);
+	assignUnisonDetune(state.unison_detune);
+	assignUnisonStereoSpread(state.unison_stereo_spread);
+	setOscillatorSync(state.oscillator_sync);
+	setModulator1ToModulator0(state.modulator1_to_modulator0);
+	for (int32_t m = 0; m < kNumModulators; m++) {
+		assignModulatorTranspose(m, state.modulator_transpose[m]);
+		assignModulatorCents(m, state.modulator_cents[m]);
+		setModulatorRetriggerPhase(m, state.modulator_retrigger_phase[m]);
+	}
+	for (int32_t l = 0; l < LFO_COUNT; l++) {
+		setLfoWaveType(l, state.lfo_wave_type[l]);
+		setLfoSync(l, state.lfo_sync_type[l], state.lfo_sync_level[l]);
+	}
+	resyncGlobalLFOs();
+
+	for (int32_t s = 0; s < kNumSources; s++) {
+		const deluge::instrument::SourceState& from = state.sources[s];
+		Source& source = sources[s];
+		setOscRetriggerPhase(s, state.osc_retrigger_phase[s]);
+		source.setOscType(from.osc_type);
+		source.transpose = from.transpose;
+		source.cents = from.cents;
+		source.repeatMode = from.repeat_mode;
+		source.timeStretchAmount = from.time_stretch_amount;
+		source.sampleControls.interpolationMode = from.interpolation_mode;
+		source.sampleControls.pitchAndSpeedAreIndependent = from.pitch_and_speed_independent;
+		source.sampleControls.reversed = from.reversed;
+		if (from.dx_patch) {
+			DxPatch* patch = source.ensureDxPatch();
+			std::ranges::copy(from.dx_patch->params, patch->params);
+			// A file names an engine only when it is not "auto" (0), and only then is the engine chosen again: an auto
+			// patch keeps the engine its new patch was given, as reading a patch has always left it.
+			if (from.dx_patch->engine_mode != 0) {
+				patch->setEngineMode(from.dx_patch->engine_mode);
+			}
+			patch->random_detune = from.dx_patch->random_detune;
+		}
+
+		// The ranges, of the kind the oscillator type plays.
+		const bool wavetable = from.osc_type == OscType::WAVETABLE;
+		source.ranges.clear();
+		(void)source.ranges.changeType(wavetable ? sizeof(MultiWaveTableRange) : sizeof(MultisampleRange));
+		for (const deluge::instrument::RangeState& range : from.ranges) {
+			MultiRangeArray::RangeVariant variant =
+			    wavetable ? MultiRangeArray::RangeVariant(std::in_place_type<MultiWaveTableRange>)
+			              : MultiRangeArray::RangeVariant(std::in_place_type<MultisampleRange>);
+			MultiRange* built = MultiRangeArray::variantToRange(variant);
+			built->topNote = range.top_note;
+			built->getAudioFileHolder()->filePath = range.file_path;
+			if (!wavetable) {
+				auto* holder = static_cast<SampleHolderForVoice*>(built->getAudioFileHolder());
+				holder->startPos = range.start_pos;
+				holder->endPos = range.end_pos;
+				holder->loopStartPos = range.loop_start_pos;
+				holder->loopEndPos = range.loop_end_pos;
+				holder->transpose = range.transpose;
+				holder->cents = range.cents;
+				holder->startMSec = static_cast<uint32_t>(range.start_msec);
+				holder->endMSec = static_cast<uint32_t>(range.end_msec);
+			}
+			if (Error error = source.ranges.insertVariant(std::ssize(source.ranges), std::move(variant));
+			    error != Error::NONE) {
+				return error;
+			}
+		}
+	}
+	return Error::NONE;
+}
 
 deluge::instrument::SoundState Sound::seededState() {
 	deluge::instrument::SoundState seeded;

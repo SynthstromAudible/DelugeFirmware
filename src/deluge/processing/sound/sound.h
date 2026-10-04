@@ -111,6 +111,9 @@ public:
 	void bindState();
 	/// The bound state, or null while unbound.
 	[[nodiscard]] const deluge::instrument::SoundState* boundState() const { return state_; }
+	/// Set this sound's runtime fields from @p state (the reader's work for the instrument's own settings).
+	/// @return INSUFFICIENT_RAM if a key-split range cannot be had.
+	Error applyState(const deluge::instrument::SoundState& state);
 	/// The state binding would seed from this sound's runtime fields now (bound or not), through the same seeds.
 	[[nodiscard]] deluge::instrument::SoundState seededState();
 	/// The element this sound was last read from, handed over once (to fill its instrument slot); empty if it was not
