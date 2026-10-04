@@ -37,52 +37,33 @@ using deluge::project::Groove;
 using deluge::project::ScaleSettings;
 using deluge::project::Transport;
 
-/// The single boundary through which a whole song is (de)serialized — the seam the project-model
-/// document model (DOM) is being built behind (docs/dev/project_model_level3.md). Today it delegates
-/// to the legacy per-class self-serialization (`Song::writeToFile`/`readFromFile`); it is the
-/// insertion point where DOM-based (and later Rust) serialization will replace that body, leaving the
-/// save/load orchestration and the golden round-trip harness unchanged.
-///
-/// The caller chooses the concrete format stream (XML/JSON) and passes it in; the seam itself touches
-/// no serialization globals.
-void saveSong(::Song& song, Serializer& out);   ///< writes the <song>…</song> body via `out`
-Error loadSong(::Song& song, Deserializer& in); ///< reads the song body from `in`
+/// @brief Write the song body (`<song>…</song>`) through @p out; the model's parts are written by the writers below at
+/// their place among the engine's.
+void saveSong(::Song& song, Serializer& out);
 
-/// Per-component DOM (de)serialization, being migrated out of Song::writeToFile/readFromFile one
-/// component at a time. `serialize` writes the component's tags (in their existing file order, called
-/// from the point in the song body where they belong); `deserialize` consumes one of the component's
-/// tags from the read dispatch, returning true if it handled `tagName`.
+/// @brief Read a song from @p in, which must read a document tree (every song is opened as one): decode the model's
+/// song-level records and arrangement from the tree, read the engine's parts through @p in, then resolve what the
+/// model names by id or by position against the engine's clips, outputs and MIDI devices.
+Error loadSong(::Song& song, Deserializer& in);
+
+/// @brief Whether @p tagName is one of the song's tags the model decodes, which the engine's reader skips.
+[[nodiscard]] bool isDecodedSongTag(char const* tagName);
+
+/// @brief The swing (`swingAmount`, `swingInterval`), the interval written relative to the song's tick magnitude.
 void serialize(const Groove& groove, Serializer& out, ::Song* song);
-bool deserialize(Groove& groove, Deserializer& in, char const* tagName);
 
-/// Arrangement is two independent file blocks at separate positions (`<sections>` and
-/// `<sessionMacros>`), so it has a write helper per block; the read side dispatches by tag.
+/// @brief The `sections` block: every section, its repeats and its MIDI launch command.
 void serializeSections(const Arrangement& arrangement, Serializer& out);
-bool deserializeSections(Arrangement& arrangement, Deserializer& in, char const* tagName);
 
-/// Session macros reference a clip/output by its stable serial id (Clip/Output::id, resolved via
-/// Song::clipForId/outputForId) rather than by list position, so a macro survives clip/output
-/// reordering. `song` is needed to resolve ids (and to read the legacy positional `clip`/`output`
-/// attributes from pre-id files).
+/// @brief The `sessionMacros` block, up to the last macro that does something; clips and outputs by id.
 void serializeMacros(const Arrangement& arrangement, Serializer& out);
-bool deserializeMacros(Arrangement& arrangement, Deserializer& in, ::Song& song, char const* tagName);
-/// Give the output-cycle macros of a song from before outputs had ids the ids of the outputs they name by position;
-/// run once the load has given every output an id.
-void resolveLegacyMacroOutputs(Arrangement& arrangement, ::Song& song);
 
-/// Transport (tempo + tick magnitude). The tempo is stored across two 32-bit halves (`timePerTimerTick`
-/// high, `timerTickFraction` low) that the legacy read accumulates into a local applied post-read via
-/// `Song::setTimePerTimerTick` (which needs the pre-load value for its tick-timing adjustment), so the
-/// deserialize accumulates into that local by reference rather than writing `samples_per_timer_tick_big`
-/// directly. `inputTickMagnitude` is the derived `getInputTickMagnitude()` (two transport fields).
+/// @brief The tempo, as the tick length's high and low halves, and the input tick magnitude.
 void serialize(const Transport& transport, Serializer& out);
-bool deserialize(Transport& transport, Deserializer& in, uint64_t& timePerTimerTick, char const* tagName);
 
-/// Scale/key. Like Arrangement it spans the attribute phase (`rootNote`) and the element phase (the
-/// `<modeNotes>` array + the `<scales>` block holding `userScale`/`disabledPresetScales`), so it has a
-/// write helper per phase; the read side dispatches all three tags.
-void serializeScaleKey(const ScaleSettings& scale, Serializer& out);   ///< rootNote (attribute phase)
-void serializeScaleNotes(const ScaleSettings& scale, Serializer& out); ///< modeNotes + scales (element phase)
-bool deserializeScale(ScaleSettings& scale, Deserializer& in, char const* tagName);
+/// @brief The key's root note (written among the song's attributes).
+void serializeScaleKey(const ScaleSettings& scale, Serializer& out);
+/// @brief The key's mode notes and the `scales` block (written among the song's elements).
+void serializeScaleNotes(const ScaleSettings& scale, Serializer& out);
 
 } // namespace deluge::bridge

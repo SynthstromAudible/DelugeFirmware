@@ -1361,7 +1361,7 @@ void Song::removeDocOutput(Output* output) {
 	}
 }
 
-Error Song::readFromFile(Deserializer& reader) {
+Error Song::readFromFile(Deserializer& reader, uint64_t timePerTimerTick) {
 	D_PRINTLN("DEBUG: readFromFile");
 
 	outputClipInstanceListIsCurrentlyInvalid = true;
@@ -1370,15 +1370,6 @@ Error Song::readFromFile(Deserializer& reader) {
 	D_PRINTLN("loading song!!!!!!!!!!!!!!");
 
 	char const* tagName;
-
-	for (int32_t s = 0; s < kMaxNumSections; s++) {
-		project.arrangement.sections[s].num_repetitions = 0;
-	}
-	for (int32_t y = 0; y < 8; y++) {
-		project.arrangement.session_macros[y].kind = SessionMacroKind::NO_MACRO;
-	}
-
-	uint64_t newTimePerTimerTick = (uint64_t)1 << 32; // TODO: make better!
 
 	// reverb mode is freeverb for songs that predate having multiple options. New songs will set it to mutable anyway
 	// so this is only used as a fallback
@@ -1393,72 +1384,12 @@ Error Song::readFromFile(Deserializer& reader) {
 		// "reve" -> reverb
 		case 0x65766572:
 			if (!strcmp(tagName, "reverb")) {
+				// The reverb send settings are the model's (decoded by loadSong); the algorithm is the engine's.
 				reader.match('{');
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "model")) {
 						model = static_cast<deluge::dsp::Reverb::Model>(reader.readTagOrAttributeValueInt());
 						reader.exitTag("model");
-					}
-					else if (!strcmp(tagName, "roomSize")) {
-						project.reverb.room_size = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
-						reader.exitTag("roomSize");
-					}
-					else if (!strcmp(tagName, "dampening")) {
-						project.reverb.damping = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
-						reader.exitTag("dampening");
-					}
-					else if (!strcmp(tagName, "width")) {
-						int32_t widthInt = reader.readTagOrAttributeValueInt();
-						if (widthInt == -2147483648) {
-							widthInt = 2147483647; // Was being saved incorrectly in V2.1.0-beta1 and alphas, so we fix
-							                       // it on read here!
-						}
-						project.reverb.width = (float)widthInt / 2147483648u;
-						reader.exitTag("width");
-					}
-					else if (!strcmp(tagName, "hpf")) {
-						project.reverb.hpf = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
-						reader.exitTag("hpf");
-					}
-					else if (!strcmp(tagName, "lpf")) {
-						project.reverb.lpf = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
-						reader.exitTag("lpf");
-					}
-					else if (!strcmp(tagName, "pan")) {
-						project.reverb.pan = reader.readTagOrAttributeValueInt();
-						reader.exitTag("pan");
-					}
-					else if (!strcmp(tagName, "compressor")) {
-						reader.match('{');
-						while (*(tagName = reader.readNextTagOrAttributeName())) {
-							if (!strcmp(tagName, "attack")) {
-								project.reverb.sidechain_attack = reader.readTagOrAttributeValueInt();
-								reader.exitTag("attack");
-							}
-							else if (!strcmp(tagName, "release")) {
-								project.reverb.sidechain_release = reader.readTagOrAttributeValueInt();
-								reader.exitTag("release");
-							}
-							else if (!strcmp(tagName, "volume")) {
-								project.reverb.sidechain_volume = reader.readTagOrAttributeValueInt();
-								reader.exitTag("volume");
-							}
-							else if (!strcmp(tagName, "shape")) {
-								project.reverb.sidechain_shape = reader.readTagOrAttributeValueInt();
-								reader.exitTag("shape");
-							}
-							else if (!strcmp(tagName, "syncLevel")) {
-								project.reverb.sidechain_sync = (SyncLevel)convertSyncLevelFromFileValueToInternalValue(
-								    reader.readTagOrAttributeValueInt());
-								project.reverb.sidechain_sync =
-								    (SyncLevel)std::min((uint8_t)project.reverb.sidechain_sync, (uint8_t)9);
-								reader.exitTag("syncLevel");
-							}
-							else {
-								reader.exitTag(tagName);
-							}
-						}
-						reader.exitTag("compressor", true);
 					}
 					else {
 						reader.exitTag(tagName);
@@ -1611,11 +1542,9 @@ unknownTag:
 				reader.exitTag("arrangementAutoScrollOn");
 			}
 
-			else if (deluge::bridge::deserialize(project.transport, reader, newTimePerTimerTick, tagName)) {}
-
-			else if (deluge::bridge::deserializeScale(project.scale, reader, tagName)) {}
-
-			else if (deluge::bridge::deserialize(project.groove, reader, tagName)) {}
+			else if (deluge::bridge::isDecodedSongTag(tagName)) {
+				reader.exitTag(tagName); // the model's: loadSong decoded it
+			}
 
 			else if (!strcmp(tagName, "tripletsLevel")) {
 				persistentView.tripletsLevel = reader.readTagOrAttributeValueInt();
@@ -1739,10 +1668,6 @@ unknownTag:
 				reader.match(']');
 				reader.exitTag("chordMem");
 			}
-
-			else if (deluge::bridge::deserializeMacros(project.arrangement, reader, *this, tagName)) {}
-
-			else if (deluge::bridge::deserializeSections(project.arrangement, reader, tagName)) {}
 
 			else if (!strcmp(tagName, "instruments")) {
 				reader.match('[');
@@ -1912,17 +1837,7 @@ loadOutput:
 		}
 	}
 
-	if (song_firmware_version >= FirmwareVersion::official({3, 1, 0, "alpha2"})) {
-		// Basically, like all other "sync" type parameters, the file value and internal value are different for
-		// swingInterval. But unlike other ones, which get converted as we go, we do this one at the end once we
-		// know we have enough info to do the conversion
-		project.groove.swing_interval = static_cast<SyncLevel>(
-		    convertSyncLevelFromFileValueToInternalValue(deluge::engine::index_of(project.groove.swing_interval)));
-	}
-	project.groove.swing_interval =
-	    static_cast<SyncLevel>(std::min(deluge::engine::index_of(project.groove.swing_interval), 9_i32));
-
-	setTimePerTimerTick(newTimePerTimerTick);
+	setTimePerTimerTick(timePerTimerTick);
 
 	// make sure the bpm param matches the ticks in case something went wrong? ref issue 2455, possible cause is invalid
 	// tempo param
@@ -1982,7 +1897,6 @@ loadOutput:
 	// Give every no-id output/drum a durable id BEFORE the relocation, so the relocation (and the loop-length
 	// load-binding pass below) resolve by an id that already exists. Loaded owners keep their file ids (no-op).
 	assignMissingIds();
-	deluge::bridge::resolveLegacyMacroOutputs(project.arrangement, *this);
 
 	// Phase C (DOM single-store): borrow-point each AudioClip's unpatched automation node storage at a
 	// DOM-owned DocParamSet anchored on the ParamSet (Model A), mirroring the song-global borrow below. Every

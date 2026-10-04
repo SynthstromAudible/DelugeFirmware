@@ -17,16 +17,25 @@
 
 #include "model/project_bridge/song_serialization.h"
 #include "deluge-project/arrangement.h"
+#include "deluge-project/arrangement_codec.h"
+#include "deluge-project/codec.h"
 #include "deluge-project/groove.h"
 #include "deluge-project/scale_settings.h"
+#include "deluge-project/song_codec.h"
 #include "deluge-project/transport.h"
-#include "io/midi/midi_device.h"         // MIDICable::writeReferenceToFile
-#include "io/midi/midi_device_manager.h" // MIDIDeviceManager::readDeviceReferenceFromFile
+#include "io/midi/cable_types/usb_hosted.h"
+#include "io/midi/midi_device.h" // MIDICable::writeReferenceToFile
+#include "io/midi/midi_device_manager.h"
 #include "model/project_bridge/midi_command.h"
 #include "model/song/song.h"
 #include "storage/storage_manager.h" // Serializer / Deserializer
+#include "storage/value_tree_deserializer.h"
 #include <algorithm>
+#include <array>
 #include <cstring>
+#include <optional>
+#include <string>
+#include <string_view>
 #include <utility>
 
 namespace deluge::bridge {
@@ -37,8 +46,107 @@ void saveSong(::Song& song, Serializer& out) {
 	song.writeToFile(out);
 }
 
+namespace {
+
+/// The song's tags the model decodes; Song::readFromFile skips them.
+constexpr std::array<std::string_view, 10> kDecodedSongTags{
+    "timePerTimerTick", "timerTickFraction", "inputTickMagnitude", "swingAmount",
+    "swingInterval",    "rootNote",          "modeNotes",          "scales",
+    "sections",         "sessionMacros",
+};
+
+/// Points the session macros at the clips and outputs the song holds, as reading them always has: an id the song does
+/// not hold names nothing, a position names the session clip or output at that position, and a macro left naming
+/// nothing it needs does nothing.
+void resolveMacros(Arrangement& arrangement, const LegacyMacroTargets& legacy, ::Song& song) {
+	for (size_t y = 0; y < arrangement.session_macros.size(); y++) {
+		SessionMacro& m = arrangement.session_macros[y];
+		if (m.clip_id && song.clipForId(*m.clip_id) == nullptr) {
+			m.clip_id.reset();
+		}
+		if (m.output_id && song.outputForId(*m.output_id) == nullptr) {
+			m.output_id.reset();
+		}
+		if (auto index = legacy.clip_index[y]) {
+			if (*index >= 0 && *index < std::ssize(song.live.clips.session_clips)) {
+				m.clip_id = song.live.clips.session_clips[*index]->id();
+			}
+		}
+		if (auto index = legacy.output_index[y]) {
+			Output* output = song.live.media.first_output;
+			for (int32_t i = *index; output != nullptr && i > 0; i--) {
+				output = output->next;
+			}
+			if (output != nullptr && *index >= 0) {
+				m.output_id = song.outputIdFor(*output);
+			}
+		}
+		if ((m.kind == SessionMacroKind::CLIP_LAUNCH && !m.clip_id)
+		    || (m.kind == SessionMacroKind::OUTPUT_CYCLE && !m.output_id)) {
+			m.kind = SessionMacroKind::NO_MACRO;
+		}
+	}
+}
+
+/// Makes the device list know every hosted device a section's launch command names, and records the reference as the
+/// list then holds it, as reading a device reference always has.
+void registerSectionDevices(Arrangement& arrangement) {
+	for (Section& section : arrangement.sections) {
+		std::optional<MidiDeviceRef>& device = section.launch_midi_command.device;
+		if (!device || device->port != MidiDeviceRef::Port::HOSTED) {
+			continue;
+		}
+		std::string name = device->name;
+		if (MIDICable* cable = MIDIDeviceManager::getOrCreateHostedMIDIDeviceFromDetails(&name, device->vendor_id,
+		                                                                                 device->product_id)) {
+			device = reference_of(*cable);
+		}
+		else {
+			device.reset();
+		}
+	}
+}
+
+} // namespace
+
+bool isDecodedSongTag(char const* tagName) {
+	return std::ranges::find(kDecodedSongTags, std::string_view{tagName}) != kDecodedSongTags.end();
+}
+
 Error loadSong(::Song& song, Deserializer& in) {
-	return song.readFromFile(in);
+	const deluge::storage::ValueTreeDeserializer& tree = deluge::storage::treeReaderOf(in);
+	const deluge::serialization::Value* songNode = tree.currentValue();
+	if (songNode == nullptr || !songNode->isMap()) {
+		return Error::FILE_CORRUPTED;
+	}
+	const DecodeContext context = decode_context(tree.root(), *songNode);
+
+	// The tempo starts from the default tick length when the file gives none.
+	Transport transport = song.project.transport;
+	transport.samples_per_timer_tick_big = uint64_t{1} << 32;
+	(void)decode(*songNode, transport);
+	song.project.transport.inside_world_tick_magnitude = transport.inside_world_tick_magnitude;
+	(void)decode(*songNode, song.project.groove, context);
+	(void)decode(*songNode, song.project.scale);
+	if (const deluge::serialization::Value* reverb = songNode->find("reverb")) {
+		(void)decode(*reverb, song.project.reverb, context);
+	}
+	for (Section& section : song.project.arrangement.sections) {
+		section.num_repetitions = 0;
+	}
+	for (SessionMacro& macro : song.project.arrangement.session_macros) {
+		macro.kind = SessionMacroKind::NO_MACRO;
+	}
+	LegacyMacroTargets legacy;
+	(void)decode(*songNode, song.project.arrangement, &legacy);
+	registerSectionDevices(song.project.arrangement);
+
+	const Error error = song.readFromFile(in, transport.samples_per_timer_tick_big);
+	if (error != Error::NONE) {
+		return error;
+	}
+	resolveMacros(song.project.arrangement, legacy, song);
+	return Error::NONE;
 }
 
 // --- Groove ---
@@ -46,26 +154,6 @@ Error loadSong(::Song& song, Deserializer& in) {
 void serialize(const Groove& groove, Serializer& out, ::Song* song) {
 	out.writeAttribute("swingAmount", groove.swing_amount);
 	out.writeAbsoluteSyncLevelToFile(song, "swingInterval", groove.swing_interval, true);
-}
-
-bool deserialize(Groove& groove, Deserializer& in, char const* tagName) {
-	if (!strcmp(tagName, "swingAmount")) {
-		groove.swing_amount = in.readTagOrAttributeValueInt();
-		groove.swing_amount = std::min(groove.swing_amount, (int8_t)49);
-		groove.swing_amount = std::max(groove.swing_amount, (int8_t)-49);
-		in.exitTag("swingAmount");
-		return true;
-	}
-	if (!strcmp(tagName, "swingInterval")) {
-		// swingInterval, unlike other "sync" type params, we read as just its plain int32_t value, and only shift it by
-		// insideWorldTickMagnitude after reading the whole song (the two attributes can be stored in either order, so
-		// we won't know both until the end; also pre-V3.1.0-alpha stored all "sync" values as plain ints).
-		groove.swing_interval = engine::sync_level_from_index(
-		    static_cast<uint8_t>(in.readTagOrAttributeValueInt())); // wraps, as it always has
-		in.exitTag("swingInterval");
-		return true;
-	}
-	return false;
 }
 
 // --- Arrangement: sections ---
@@ -97,76 +185,6 @@ void serializeSections(const Arrangement& arrangement, Serializer& writer) {
 		}
 	}
 	writer.writeArrayEnding("sections");
-}
-
-bool deserializeSections(Arrangement& arrangement, Deserializer& reader, char const* tagName) {
-	if (strcmp(tagName, "sections") != 0) {
-		return false;
-	}
-	// Read in all the sections
-	reader.match('[');
-	while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "section")) {
-
-			uint8_t id = 255;
-			MIDICable* cable = nullptr;
-			uint8_t channel = 255;
-			uint8_t note = 255;
-			int16_t numRepeats = 0;
-			reader.match('{');
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
-				if (!strcmp(tagName, "id")) {
-					id = reader.readTagOrAttributeValueInt();
-				}
-
-				else if (!strcmp(tagName, "numRepeats")) {
-					numRepeats = reader.readTagOrAttributeValueInt();
-					if (numRepeats < -2 || numRepeats > 9999) {
-						numRepeats = 0;
-					}
-				}
-
-				// Annoyingly, I used one-off tag names here, rather than it conforming to what the
-				// LearnedMIDI class now uses.
-				else if (!strcmp(tagName, "midiCommandDevice")) {
-					cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
-				}
-
-				else if (!strcmp(tagName, "midiCommandChannel")) {
-					channel = reader.readTagOrAttributeValueInt();
-				}
-
-				else if (!strcmp(tagName, "midiCommandNote")) {
-					note = reader.readTagOrAttributeValueInt();
-				}
-
-				reader.exitTag(tagName); // exit undefined tag.
-			}
-
-			if (id < kMaxNumSections) {
-				// channel may be a plain channel (0-15), an MPE zone (16-17), or CC-encoded
-				// (channel + IS_A_CC) — see LearnedMIDI::channelOrZone.
-				if (channel < IS_A_PC && note < 128) {
-					MidiCommand& command = arrangement.sections[id].launch_midi_command;
-					command.channel_or_zone = channel;
-					command.note_or_cc = note;
-					command.device.reset();
-					if (cable != nullptr) {
-						command.device = reference_of(*cable);
-					}
-				}
-				arrangement.sections[id].num_repetitions = numRepeats;
-			}
-			reader.match('}');               // leave values object
-			reader.exitTag("section", true); // leave box.
-		}
-		else {
-			reader.exitTag(tagName);
-		}
-	}
-	reader.exitTag("sections");
-	reader.match(']');
-	return true;
 }
 
 // --- Arrangement: session macros ---
@@ -214,94 +232,6 @@ void serializeMacros(const Arrangement& arrangement, Serializer& writer) {
 	writer.writeArrayEnding("sessionMacros");
 }
 
-void resolveLegacyMacroOutputs(Arrangement& arrangement, ::Song& song) {
-	for (size_t y = 0; y < song.live.legacy_macro_outputs.size(); y++) {
-		if (Output* output = std::exchange(song.live.legacy_macro_outputs[y], nullptr)) {
-			arrangement.session_macros[y].output_id = song.outputIdFor(*output);
-		}
-	}
-}
-
-bool deserializeMacros(Arrangement& arrangement, Deserializer& reader, ::Song& song, char const* tagName) {
-	if (strcmp(tagName, "sessionMacros") != 0) {
-		return false;
-	}
-	int32_t slotIndex = 0;
-	reader.match('[');
-	while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "macro")) {
-			int32_t y = slotIndex++;
-			if (y >= std::ssize(arrangement.session_macros)) {
-				reader.exitTag("macro", true);
-				continue;
-			}
-			auto& m = arrangement.session_macros[y];
-			reader.match('{'); // enter value object
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
-				if (!strcmp(tagName, "kind")) {
-					const char* kind = reader.readTagOrAttributeValue();
-					if (!strcmp(kind, "clip_launch")) {
-						m.kind = SessionMacroKind::CLIP_LAUNCH;
-					}
-					else if (!strcmp(kind, "output_cycle")) {
-						m.kind = SessionMacroKind::OUTPUT_CYCLE;
-					}
-					else if (!strcmp(kind, "section")) {
-						m.kind = SessionMacroKind::SECTION;
-					}
-				}
-				else if (!strcmp(tagName, "clipId")) {
-					if (Clip* clip = song.clipForId(reader.readTagOrAttributeValueInt())) {
-						m.clip_id = clip->id();
-					}
-				}
-				else if (!strcmp(tagName, "clip")) {
-					// Legacy pre-id format: a positional index into the session clips.
-					int32_t index = reader.readTagOrAttributeValueInt();
-					if (index >= 0 && index < std::ssize(song.live.clips.session_clips)) {
-						m.clip_id = song.live.clips.session_clips[index]->id();
-					}
-				}
-				else if (!strcmp(tagName, "outputId")) {
-					if (Output* output = song.outputForId(reader.readTagOrAttributeValueInt())) {
-						m.output_id = output->id();
-					}
-				}
-				else if (!strcmp(tagName, "output")) {
-					// Legacy pre-id format: a positional index into the output list.
-					int32_t index = reader.readTagOrAttributeValueInt();
-					Output* thisOutput = song.live.media.first_output;
-					for (; thisOutput != nullptr; thisOutput = thisOutput->next) {
-						if (index == 0) {
-							break;
-						}
-						index--;
-					}
-					// Such a file gives its outputs no ids until the load mints them: hold the output until then.
-					song.live.legacy_macro_outputs[y] = thisOutput;
-				}
-				else if (!strcmp(tagName, "section")) {
-					m.section = reader.readTagOrAttributeValueInt();
-				}
-			}
-
-			if ((m.kind == SessionMacroKind::CLIP_LAUNCH && !m.clip_id)
-			    || (m.kind == SessionMacroKind::OUTPUT_CYCLE && !m.output_id
-			        && song.live.legacy_macro_outputs[y] == nullptr)) {
-				m.kind = SessionMacroKind::NO_MACRO;
-			}
-		}
-		else {
-			reader.exitTag();
-		}
-		reader.match('}'); // end value object
-		reader.match('}'); // end box
-	}
-	reader.match(']'); // end array
-	reader.exitTag("sessionMacros");
-	return true;
-}
-
 // --- Transport ---
 
 void serialize(const Transport& transport, Serializer& out) {
@@ -311,29 +241,6 @@ void serialize(const Transport& transport, Serializer& out) {
 	// sync-scaling offset that is kept out of the displayed BPM.
 	out.writeAttribute("inputTickMagnitude",
 	                   transport.inside_world_tick_magnitude + transport.inside_world_tick_magnitude_offset_from_bpm);
-}
-
-bool deserialize(Transport& transport, Deserializer& in, uint64_t& timePerTimerTick, char const* tagName) {
-	// The tempo is two 32-bit halves accumulated into `timePerTimerTick`, applied post-read by the
-	// caller via Song::setTimePerTimerTick (see serialization.h).
-	if (!strcmp(tagName, "timePerTimerTick")) {
-		timePerTimerTick =
-		    (timePerTimerTick & (uint64_t)0xFFFFFFFF) | ((uint64_t)in.readTagOrAttributeValueInt() << 32);
-		in.exitTag("timePerTimerTick");
-		return true;
-	}
-	if (!strcmp(tagName, "timerTickFraction")) {
-		timePerTimerTick =
-		    (timePerTimerTick & ((uint64_t)0xFFFFFFFF << 32)) | (uint64_t)(uint32_t)in.readTagOrAttributeValueInt();
-		in.exitTag("timerTickFraction");
-		return true;
-	}
-	if (!strcmp(tagName, "inputTickMagnitude")) {
-		transport.inside_world_tick_magnitude = in.readTagOrAttributeValueInt();
-		in.exitTag("inputTickMagnitude");
-		return true;
-	}
-	return false;
 }
 
 // --- Scale / key ---
@@ -353,45 +260,6 @@ void serializeScaleNotes(const ScaleSettings& scale, Serializer& out) {
 	out.writeTag("userScale", scale.user_scale_notes.toBits());
 	out.writeTag("disabledPresetScales", scale.disabled_preset_scales.to_ulong());
 	out.writeClosingTag("scales");
-}
-
-bool deserializeScale(ScaleSettings& scale, Deserializer& in, char const* tagName) {
-	if (!strcmp(tagName, "rootNote")) {
-		scale.key.rootNote = in.readTagOrAttributeValueInt();
-		in.exitTag("rootNote");
-		return true;
-	}
-	if (!strcmp(tagName, "modeNotes")) {
-		scale.key.modeNotes.clear();
-		in.match('[');
-		while (in.match('{') && *(tagName = in.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "modeNote")) {
-				scale.key.modeNotes.addUntrusted(in.readTagOrAttributeValueInt());
-				in.exitTag("modeNote", true);
-			}
-			else {
-				in.exitTag(tagName);
-			}
-		}
-		in.exitTag("modeNotes");
-		in.match(']');
-		return true;
-	}
-	if (!strcmp(tagName, "scales")) {
-		in.match('{');
-		while (*(tagName = in.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "userScale")) {
-				scale.user_scale_notes = NoteSet(in.readTagOrAttributeValueInt());
-			}
-			else if (!strcmp(tagName, "disabledPresetScales")) {
-				scale.disabled_preset_scales = std::bitset<NUM_PRESET_SCALES>(in.readTagOrAttributeValueInt());
-			}
-			in.exitTag(tagName);
-		}
-		in.exitTag("scales", true);
-		return true;
-	}
-	return false;
 }
 
 } // namespace deluge::bridge

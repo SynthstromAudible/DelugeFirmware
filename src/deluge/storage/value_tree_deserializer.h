@@ -87,6 +87,9 @@ public:
 	/// still drives the rest. Read-only; does not advance the cursor.
 	[[nodiscard]] const Value* currentValue() const { return pending_; }
 
+	/// The whole document this reader reads: a song's version, in old files, sits beside the song rather than in it.
+	[[nodiscard]] const Value& root() const { return *root_; }
+
 	/// Run `body` against a specific child object node, then restore the cursor exactly. `body` drives the
 	/// ordinary streaming interface (readNextTagOrAttributeName / match / exitTag) over `childObject`'s
 	/// children -- exactly as a mid-stream readFromFile would -- letting a tree-native loader delegate a

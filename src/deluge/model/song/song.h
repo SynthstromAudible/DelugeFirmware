@@ -244,7 +244,9 @@ public:
 	void setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
 	void doubleClipLength(InstrumentClip* clip, Action* action = nullptr);
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = nullptr);
-	Error readFromFile(Deserializer& reader);
+	/// Read the engine's part of a song document; the model's parts are decoded before (bridge::loadSong).
+	/// @param timePerTimerTick The tempo the model decoded, applied once the song is read.
+	Error readFromFile(Deserializer& reader, uint64_t timePerTimerTick);
 
 	/// M3: mint a transient session id for every clip / output / drum that lacks a durable id, so every entity
 	/// is id-addressable. Called at load before the param relocation; idempotent (skips entities that already have an

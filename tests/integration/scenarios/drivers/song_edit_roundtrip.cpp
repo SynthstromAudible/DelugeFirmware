@@ -724,6 +724,31 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 			return 3;
 		}
 	}
+	// The swing interval is stored relative to the input tick magnitude, whichever of the two the file holds first: a
+	// copy of the save with swingInterval moved to the front of the song's attributes reloads to the same groove.
+	{
+		std::string reordered(gen1, n1);
+		const size_t at = reordered.find("swingInterval=\"");
+		const size_t songAt = reordered.find("<song");
+		if (at == std::string::npos || songAt == std::string::npos) {
+			std::fprintf(io.err, "GROOVE FAIL: the save holds no swingInterval\n");
+			return 3;
+		}
+		const size_t end = reordered.find('"', at + std::strlen("swingInterval=\"")) + 1;
+		const std::string attribute = reordered.substr(at, end - at);
+		reordered.erase(at, end - at);
+		reordered.insert(songAt + std::strlen("<song"), " " + attribute);
+		std::memcpy(gen2copy, reordered.data(), reordered.size());
+		Error reorderedError;
+		const deluge::project::Groove expected = reloaded->project.groove;
+		Song* reorderedSong = load_song(gen2copy, reordered.size(), &reorderedError);
+		if (!reorderedSong || !(reorderedSong->project.groove == expected)) {
+			std::fprintf(io.err, "GROOVE FAIL: swingInterval ahead of inputTickMagnitude reads differently\n");
+			return 3;
+		}
+		currentSong = reloaded;
+	}
+
 	if (macroClipId) {
 		const auto& m = reloaded->project.arrangement.session_macros[6];
 		if (m.kind != deluge::project::SessionMacroKind::CLIP_LAUNCH || m.clip_id != macroClipId
