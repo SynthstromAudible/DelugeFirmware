@@ -3,9 +3,10 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""The model names no engine's state: no file under src/deluge-project may name a sound record or one of the Deluge
-instrument's words. A song holds an engine slot, which the model stores without understanding; the words belong to the
-engine (src/engines/deluge).
+"""The model names no engine's state: no file under src/deluge-project may name a sound record, one of the Deluge
+instrument's words or one of the runtime's param collections. A song holds an engine slot, which the model stores
+without understanding, and addresses params by their engine's id; the words belong to the engine (src/engines/deluge)
+and the runtime.
 
 Usage:
     scripts/check_model_words.py               # check src/deluge-project, exit 1 on a match
@@ -33,6 +34,13 @@ ENGINE_WORDS = (
     "LFOType",
     "PolyphonyMode",
     "SampleRepeatMode",
+    # The runtime's param collections: the model addresses params by their engine's id.
+    "ParamKind",
+    "PATCHED",
+    "UNPATCHED_SOUND",
+    "UNPATCHED_GLOBAL",
+    "patched",
+    "unpatched",
 )
 PATTERN = re.compile(r"\b(" + "|".join(ENGINE_WORDS) + r")\b")
 SUFFIXES = {".h", ".hpp", ".cpp", ".c", ".cc", ".inc"}
