@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/sample/sample_controls.h"
 #include "storage/multi_range/multi_range_array.h"
+#include "storage/multi_range/multisample_range.h"
 #include "util/phase_increment_fine_tuner.h"
 
 class Sound;
@@ -67,6 +68,16 @@ public:
 	bool hasAnyLoopEndPoint();
 	OscType getOscType();
 	void setOscType(OscType newType);
+
+	/// True when `ranges` holds MultisampleRange elements, so casting one is valid.
+	///
+	/// This, not oscType, is the condition that makes the cast safe. setOscType() only re-types the
+	/// array when moving to or from SAMPLE/WAVETABLE, so an oscillator switched from WAVETABLE to a
+	/// basic wave still holds MultiWaveTableRange elements, and one switched from SAMPLE still holds
+	/// MultisampleRange ones. Anything reading round-robin fields off a range must check this first:
+	/// those fields overlap the wavetable holder, so reading them from the wrong element type gives
+	/// garbage, and writing them corrupts it.
+	[[nodiscard]] bool hasMultisampleRanges() const { return ranges.elementSize == sizeof(MultisampleRange); }
 
 	DxPatch* ensureDxPatch();
 

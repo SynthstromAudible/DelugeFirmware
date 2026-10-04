@@ -35,6 +35,7 @@ class NumericLayerScrollingText;
 class Source;
 class Sample;
 class MenuItem;
+class AudioFileHolder;
 
 namespace deluge::gui::menu_item {
 class HorizontalMenu;
@@ -64,6 +65,7 @@ public:
 	void exitAndNeverDeleteDrum();
 
 	String lastFilePathLoaded;
+	uint8_t targetRoundRobinSlot{0};
 
 	// menus to open when a sample file is selected
 	deluge::gui::menu_item::HorizontalMenu* parentMenuHeadingTo{nullptr};
@@ -84,6 +86,7 @@ private:
 	void displayCurrentFilename();
 	void previewIfPossible(int32_t movementDirection = 1);
 	void audioFileIsNowSet();
+	AudioFileHolder* getCurrentInstrumentTargetHolder(bool createIfNeeded = true);
 	bool canImportWholeKit();
 	bool loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
 	                            bool* getDoingSingleCycle = nullptr, int32_t* getNumCharsInPrefix = nullptr);

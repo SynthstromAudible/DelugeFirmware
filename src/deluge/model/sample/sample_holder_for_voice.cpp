@@ -30,6 +30,7 @@ SampleHolderForVoice::SampleHolderForVoice() {
 
 	transpose = 0;
 	cents = 0;
+	volume = kVariantVolumeUnity;
 
 	loopLocked = false;
 
