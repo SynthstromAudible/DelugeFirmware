@@ -16,6 +16,7 @@
 //
 // Exit: 0 = edit persisted; 1 = load error; 2 = usage/IO; 3 = edit not applied / not persisted.
 
+#include "deluge-project/codec.h"
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h"
 #include "io/midi/midi_device_manager.h"
@@ -744,6 +745,39 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		Song* reorderedSong = load_song(gen2copy, reordered.size(), &reorderedError);
 		if (!reorderedSong || !(reorderedSong->project.groove == expected)) {
 			std::fprintf(io.err, "GROOVE FAIL: swingInterval ahead of inputTickMagnitude reads differently\n");
+			return 3;
+		}
+		currentSong = reloaded;
+	}
+
+	// A song file without inputTickMagnitude stores its sync values relative to the magnitude the new song starts
+	// with: a copy of the save without it and with swingInterval="7" reads the swing relative to that magnitude.
+	{
+		std::string noMagnitude(gen1, n1);
+		const size_t at = noMagnitude.find("inputTickMagnitude=\"");
+		const size_t swingAt = noMagnitude.find("swingInterval=\"");
+		if (at == std::string::npos || swingAt == std::string::npos) {
+			std::fprintf(io.err, "GROOVE FAIL: the save holds no inputTickMagnitude or swingInterval\n");
+			return 3;
+		}
+		const size_t swingEnd = noMagnitude.find('"', swingAt + std::strlen("swingInterval=\""));
+		noMagnitude.replace(swingAt, swingEnd + 1 - swingAt, "swingInterval=\"7\"");
+		const size_t at2 = noMagnitude.find("inputTickMagnitude=\"");
+		const size_t end = noMagnitude.find('"', at2 + std::strlen("inputTickMagnitude=\"")) + 1;
+		noMagnitude.erase(at2, end - at2);
+		std::memcpy(gen2copy, noMagnitude.data(), noMagnitude.size());
+		Error noMagnitudeError;
+		Song* song2 = load_song(gen2copy, noMagnitude.size(), &noMagnitudeError);
+		if (!song2) {
+			std::fprintf(io.err, "GROOVE FAIL: the save without inputTickMagnitude does not load\n");
+			return 3;
+		}
+		const int32_t magnitude = song2->getInputTickMagnitude();
+		const int32_t expected = std::min(deluge::project::sync_level_from_file(7, magnitude), int32_t{9});
+		if (deluge::engine::index_of(song2->project.groove.swing_interval) != expected) {
+			std::fprintf(io.err,
+			             "GROOVE FAIL: without inputTickMagnitude, swingInterval 7 read as %d, not %d (magnitude %d)\n",
+			             deluge::engine::index_of(song2->project.groove.swing_interval), expected, magnitude);
 			return 3;
 		}
 		currentSong = reloaded;

@@ -119,13 +119,15 @@ Error loadSong(::Song& song, Deserializer& in) {
 	if (songNode == nullptr || !songNode->isMap()) {
 		return Error::FILE_CORRUPTED;
 	}
-	const DecodeContext context = decode_context(tree.root(), *songNode);
+	DecodeContext context = decode_context(tree.root(), *songNode);
 
 	// The tempo starts from the default tick length when the file gives none.
 	Transport transport = song.project.transport;
 	transport.samples_per_timer_tick_big = uint64_t{1} << 32;
 	(void)decode(*songNode, transport);
 	song.project.transport.inside_world_tick_magnitude = transport.inside_world_tick_magnitude;
+	// The song's sync values are relative to its own magnitude: the file's, or the new song's when the file gives none.
+	context.input_tick_magnitude = song.getInputTickMagnitude();
 	(void)decode(*songNode, song.project.groove, context);
 	(void)decode(*songNode, song.project.scale);
 	if (const deluge::serialization::Value* reverb = songNode->find("reverb")) {
