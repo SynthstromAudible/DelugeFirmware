@@ -204,6 +204,8 @@ fn link_closure(build_dir: &Path, archive: &Path) {
         let p = build_dir.join(dir).join(lib);
         assert!(p.is_file(), "missing host library {}", p.display());
         println!("cargo:rustc-link-arg={}", p.display());
+        // A change confined to one of these libraries must relink: cargo tracks only what it is told to.
+        println!("cargo:rerun-if-changed={}", p.display());
     }
     println!("cargo:rustc-link-arg=-Wl,--end-group");
 }
