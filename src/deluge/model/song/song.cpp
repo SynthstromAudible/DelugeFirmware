@@ -2448,6 +2448,8 @@ void Song::deleteSoundsWhichWontSound() {
 
 		AudioEngine::routineWithClusterLoading();
 		if (!clip->isActiveOnOutput() && clip != view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			// Arranger ClipInstances may still reference this Clip - remove them so they don't dangle (E455)
+			clip->output->deleteAnyInstancesOfClip(clip);
 			it.deleteClip(InstrumentRemoval::NONE);
 		}
 		else {
@@ -2464,6 +2466,7 @@ void Song::deleteSoundsWhichWontSound() {
 
 		AudioEngine::routineWithClusterLoading();
 		if (clip->deleteSoundsWhichWontSound(this)) {
+			clip->output->deleteAnyInstancesOfClip(clip);
 			it.deleteClip(InstrumentRemoval::DELETE);
 		}
 		else {
