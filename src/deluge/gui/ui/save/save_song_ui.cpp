@@ -973,13 +973,21 @@ void SaveSongUI::runDocFinishPhase() {
 	// `anyErrorMovingTempFiles_` is not surfaced as a popup; nothing displays it, as upstream.
 	// The name and folder the save was STARTED with, not whatever the browser holds now: the save spans
 	// many ticks, and reading the live values would record something typed while it ran.
-	currentSong->project.metadata.name = existsRequest_.enteredText;
-	currentSong->project.metadata.dir_path = existsRequest_.dirPath;
-	currentSong->project.metadata.file_extension = deluge::storage::extensionOf(deluge::storage::kSongSaveFormat);
+	deluge::project::Metadata& metadata = currentSong->project.metadata;
+	// A song opened from NAME.XML and saved under its own name now lives in NAME.json; the XML beside it is the
+	// older state, so "last opened" moves to the copy.
+	const bool upgradedInPlace =
+	    deluge::string::caselessEquals(metadata.name, existsRequest_.enteredText)
+	    && deluge::string::caselessEquals(metadata.dir_path, existsRequest_.dirPath)
+	    && metadata.file_extension != deluge::storage::extensionOf(deluge::storage::kSongSaveFormat);
+	metadata.name = existsRequest_.enteredText;
+	metadata.dir_path = existsRequest_.dirPath;
+	metadata.file_extension = deluge::storage::extensionOf(deluge::storage::kSongSaveFormat);
 
 	// Both of these choose their own arm: they use the byte channel when it is running and write
 	// inline only before boot finishes, so calling them from here does not block this tier.
-	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED) {
+	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED
+	    || (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED && upgradedInPlace)) {
 		runtimeFeatureSettings.writeSettingsToFile();
 	}
 	// While we're at it, save MIDI devices if there's anything new to save.
