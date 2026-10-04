@@ -4,5 +4,8 @@
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/deluge-project ${CMAKE_CURRENT_BINARY_DIR}/model-lib)
 deluge_specs_driver(model_specs
   SOURCES ${CMAKE_CURRENT_LIST_DIR}/model_hooks_for_tests.cpp ${CMAKE_CURRENT_LIST_DIR}/../support/mocks/mock_panic.cpp
+          ${CMAKE_CURRENT_LIST_DIR}/equality/equality.cpp
   LIBRARIES deluge_project
   INCLUDES ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../support/mocks)
+target_compile_definitions(model_specs PRIVATE DELUGE_SYNTHETIC_DIR="${CMAKE_CURRENT_LIST_DIR}/../golden/synthetic")
+add_subdirectory(equality)

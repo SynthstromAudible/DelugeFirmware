@@ -1039,6 +1039,19 @@ tier = "nightly"
 runtime = "~10s"
 
 [[harness]]
+name = "model-equality-corpus"
+path = "."
+level = "unit"
+runner = "script"
+kind = "property"
+status = "gate"
+gates = "every corpus song's model records survive a JSON round trip unchanged, proven by a driver built from the model and serialization libraries only (the committed synthetic songs run in the unit trees)"
+run = ["tests/model/equality/run_corpus.sh"]
+requires = ["song-corpus"]
+tier = "nightly"
+runtime = "~2s"
+
+[[harness]]
 name = "json-roundtrip"
 path = "."
 level = "integration"
