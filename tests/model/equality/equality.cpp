@@ -19,6 +19,7 @@
 
 #include "serialization/parse_json.h"
 #include "serialization/parse_xml.h"
+#include "serialization/tree.h"
 #include "serialization/write_json.h"
 
 #include <format>
@@ -131,6 +132,18 @@ std::expected<void, std::string> compare_songs(std::string_view a, bool aIsJson,
 	}
 	if (!(*songA == *songB)) {
 		return std::unexpected("the " + difference(*songA, *songB) + " differs");
+	}
+	return {};
+}
+
+std::expected<void, std::string> compare_trees(std::string_view a, bool aIsJson, std::string_view b, bool bIsJson) {
+	auto treeA = aIsJson ? serialization::parseJson(a) : serialization::parseXml(a);
+	auto treeB = bIsJson ? serialization::parseJson(b) : serialization::parseXml(b);
+	if (!treeA || !treeB) {
+		return std::unexpected(!treeA ? "the first does not parse" : "the second does not parse");
+	}
+	if (std::string d = serialization::first_difference(*treeA, *treeB); !d.empty()) {
+		return std::unexpected("they differ at " + d);
 	}
 	return {};
 }

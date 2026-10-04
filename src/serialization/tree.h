@@ -2,6 +2,7 @@
 
 #include "serialization/value.h"
 
+#include <algorithm>
 #include <charconv>
 #include <cstdint>
 #include <optional>
@@ -91,6 +92,45 @@ struct NamedChild {
 		return std::nullopt;
 	}
 	return value;
+}
+
+/// @brief The slash-separated path of the first entry where @p a and @p b differ (keys, their order, array lengths,
+/// scalar text), or empty when they are the same tree. Scalar kinds are ignored: every scalar an XML file holds is
+/// text. "/" means the roots themselves differ.
+[[nodiscard]] inline std::string first_difference(const Value& a, const Value& b, const std::string& prefix = {}) {
+	if (a.type() != b.type()) {
+		return prefix.empty() ? "/" : prefix;
+	}
+	if (a.isScalar()) {
+		return a.str() == b.str() ? std::string{} : (prefix.empty() ? "/" : prefix);
+	}
+	if (a.isArray()) {
+		const size_t n = std::max(a.items().size(), b.items().size());
+		for (size_t i = 0; i < n; i++) {
+			const std::string path = prefix + "/" + std::to_string(i);
+			if (i >= a.items().size() || i >= b.items().size()) {
+				return path;
+			}
+			if (std::string d = first_difference(a.items()[i], b.items()[i], path); !d.empty()) {
+				return d;
+			}
+		}
+		return {};
+	}
+	const auto& ea = a.entries();
+	const auto& eb = b.entries();
+	const size_t n = std::max(ea.size(), eb.size());
+	for (size_t i = 0; i < n; i++) {
+		const std::string& key = i < ea.size() ? ea[i].first : eb[i].first;
+		const std::string path = prefix.empty() ? key : prefix + "/" + key;
+		if (i >= ea.size() || i >= eb.size() || ea[i].first != eb[i].first) {
+			return path;
+		}
+		if (std::string d = first_difference(ea[i].second, eb[i].second, path); !d.empty()) {
+			return d;
+		}
+	}
+	return {};
 }
 
 } // namespace deluge::serialization

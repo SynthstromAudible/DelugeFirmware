@@ -45,4 +45,9 @@ struct EqualityFaults {
 [[nodiscard]] std::expected<void, std::string> compare_songs(std::string_view a, bool aIsJson, std::string_view b,
                                                              bool bIsJson);
 
+/// @brief Whether two documents hold the same tree (keys, order, scalar text); whitespace and layout are ignored.
+/// @return Nothing, or the path of the first entry that differs.
+[[nodiscard]] std::expected<void, std::string> compare_trees(std::string_view a, bool aIsJson, std::string_view b,
+                                                             bool bIsJson);
+
 } // namespace deluge::project

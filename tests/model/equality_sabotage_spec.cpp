@@ -63,6 +63,18 @@ describe equality_sabotage("the model-equality gate", ${
 		auto result = compare_songs(fixture(), false, json, true);
 		expect(!result && result.error().find("groove") != std::string::npos).to_equal(true);
 	});
+
+	it("finds two documents with the same tree the same, whatever their whitespace", _ {
+		auto result = compare_trees(R"(<sound a="1"><osc1 type="sine"/></sound>)", false,
+		                            "<sound\n  a=\"1\">\n<osc1\n type=\"sine\"></osc1></sound>", false);
+		expect(result.has_value()).to_equal(true);
+	});
+
+	it("names the first path where two trees differ", _ {
+		auto result = compare_trees(R"(<sound a="1"><osc1 type="sine"/></sound>)", false,
+		                            R"(<sound a="1"><osc1 type="saw"/></sound>)", false);
+		expect(!result && result.error().find("sound/osc1/type") != std::string::npos).to_equal(true);
+	});
 });
 
 CPPSPEC_SPEC(equality_sabotage)

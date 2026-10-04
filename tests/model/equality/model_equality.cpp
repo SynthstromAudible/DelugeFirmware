@@ -21,6 +21,9 @@
 //
 // model_equality --compare <A> <B> — whether two saves hold the same song (each read by its extension): exits 0 when
 // they do, 1 naming the first record that differs.
+//
+// model_equality --compare-trees <A> <B> — whether two documents hold the same tree, whatever their whitespace: exits
+// 0 when they do, 1 naming the first path that differs.
 
 #include "equality/equality.h"
 
@@ -63,6 +66,17 @@ int main(int argc, char** argv) {
 		const fs::path a = argv[2];
 		const fs::path b = argv[3];
 		auto result = deluge::project::compare_songs(read(a), is_json(a), read(b), is_json(b));
+		if (!result) {
+			std::printf("DIFFER  %s %s: %s\n", a.c_str(), b.c_str(), result.error().c_str());
+			return 1;
+		}
+		std::printf("SAME    %s %s\n", a.c_str(), b.c_str());
+		return 0;
+	}
+	if (argc == 4 && std::string_view{argv[1]} == "--compare-trees") {
+		const fs::path a = argv[2];
+		const fs::path b = argv[3];
+		auto result = deluge::project::compare_trees(read(a), is_json(a), read(b), is_json(b));
 		if (!result) {
 			std::printf("DIFFER  %s %s: %s\n", a.c_str(), b.c_str(), result.error().c_str());
 			return 1;

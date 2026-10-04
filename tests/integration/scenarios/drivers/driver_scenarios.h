@@ -34,6 +34,7 @@
 /// | param_projection     | DocAutoParam <-> AutoParam projection, self-checking                       |
 /// | param_record_diff    | live automation recording, printed for a baseline diff                     |
 /// | param_snapshot_bench | ParamSnapshot::applyPatch against a full rebuild, timed                    |
+/// | preset_roundtrip     | preset load -> save -> reload -> save fixed point                          |
 /// | song_edit_roundtrip  | a DOM-first song-param edit persisting through save and reload             |
 /// | song_roundtrip       | load -> save -> reload -> save fixed point                                 |
 /// | xml_replay_diff      | ValueTreeDeserializer's XML replay against XMLDeserializer, token for token |
@@ -56,6 +57,7 @@ DELUGE_DRIVER_SCENARIO_DECLARE(param_clone)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_projection)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_record_diff)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_snapshot_bench)
+DELUGE_DRIVER_SCENARIO_DECLARE(preset_roundtrip)
 DELUGE_DRIVER_SCENARIO_DECLARE(song_edit_roundtrip)
 DELUGE_DRIVER_SCENARIO_DECLARE(song_roundtrip)
 DELUGE_DRIVER_SCENARIO_DECLARE(xml_replay_diff)

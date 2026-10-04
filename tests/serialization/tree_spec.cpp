@@ -48,6 +48,20 @@ describe tree("reading a document tree", ${
 		expect(*text_of(doc->find("t"))).to_equal(std::string("12"));
 		expect(text_of(nullptr) == nullptr).to_equal(true);
 	});
+
+	it("finds two trees the same whatever their whitespace, and names the first path that differs", _ {
+		auto a = parseXml(R"(<sound a="1"><osc1 type="sine"/></sound>)");
+		auto b = parseXml("<sound\n  a=\"1\">\n<osc1\n type=\"sine\"></osc1></sound>");
+		auto c = parseXml(R"(<sound a="1"><osc1 type="saw"/></sound>)");
+		expect(first_difference(*a, *b)).to_equal(std::string{});
+		expect(first_difference(*a, *c)).to_equal(std::string("sound/osc1/type"));
+	});
+
+	it("reads a JSON number and the same XML text as the same", _ {
+		auto xml = parseXml(R"(<sound transpose="12"/>)");
+		auto json = parseJson(R"({"sound": {"transpose": 12}})");
+		expect(first_difference(*xml, *json)).to_equal(std::string{});
+	});
 });
 
 CPPSPEC_SPEC(tree)
