@@ -4459,9 +4459,9 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	writer.closeTag();
 
 	if (paramManager) {
-		writer.writeOpeningTagBeginning("defaultParams", true);
+		writer.writeOpeningTagBeginning("defaultParams");
 		Sound::writeParamsToFile(writer, paramManager, false);
-		writer.writeClosingTag("defaultParams", true, true);
+		writer.writeClosingTag("defaultParams");
 	}
 
 	if (arpSettings != nullptr) {

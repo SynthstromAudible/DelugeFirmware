@@ -170,11 +170,15 @@ int json_roundtrip_main(int argc, char** argv, Io driverIo) {
 		}
 	}
 
-	// The Value JSON writer reproduces every tree today's JSON save produces: parse jsonA, write it back with
-	// write_json, parse that, and require the same tree (scalar kinds included). JSON today's save writes but cannot
-	// be parsed is reported by the load below.
-	if (std::optional<deluge::serialization::Value> today =
-	        deluge::serialization::parseJson(std::string_view(jsonA, static_cast<size_t>(nA)))) {
+	// The JSON save must be valid JSON. Then the Value JSON writer must reproduce its tree: parse jsonA, write it back
+	// with write_json, parse that, and require the same tree (scalar kinds included).
+	std::optional<deluge::serialization::Value> today =
+	    deluge::serialization::parseJson(std::string_view(jsonA, static_cast<size_t>(nA)));
+	if (!today) {
+		std::fprintf(io.err, "INVALID JSON: the song's JSON save does not parse\n");
+		return 3;
+	}
+	{
 		std::optional<deluge::serialization::Value> rewritten =
 		    deluge::serialization::parseJson(deluge::serialization::write_json(*today));
 		if (!rewritten || !(*rewritten == *today)) {
