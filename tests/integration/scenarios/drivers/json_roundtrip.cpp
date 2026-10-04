@@ -16,7 +16,6 @@
 // wrote -- i.e. the JSON read path is faithful to the JSON write path. Exit: 0 = settled JSON round
 // trip; 1 = load error; 2 = usage/IO; 3 = JSON fixed-point mismatch.
 
-#include "deluge-project/document.h"
 #include "memory/general_memory_allocator.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/output.h"
@@ -33,7 +32,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <expected>
 #include <optional>
 #include <string_view>
 
@@ -77,14 +75,6 @@ static long saveJson(Song* song, char* out, uint32_t outCap) {
 	deluge::scenarios::driver::beginCapture(smJsonSerializer);
 	deluge::bridge::saveSong(*song, smJsonSerializer);
 	return deluge::scenarios::driver::endCapture(smJsonSerializer, out, outCap);
-}
-
-// Save `song` to `out` as XML. Returns the serialized length.
-static long saveXml(Song* song, char* out, uint32_t outCap) {
-	song->setCurrentClip(nullptr);
-	deluge::scenarios::driver::beginCapture(smSerializer);
-	deluge::bridge::saveSong(*song, smSerializer);
-	return deluge::scenarios::driver::endCapture(smSerializer, out, outCap);
 }
 
 // Load a song from XML bytes via the Value tree (parseXml -> ValueTreeDeserializer{Xml}). `xml` must be
@@ -189,41 +179,6 @@ int json_roundtrip_main(int argc, char** argv, Io driverIo) {
 	if (!today) {
 		std::fprintf(io.err, "INVALID JSON: the song's JSON save does not parse\n");
 		return 3;
-	}
-	// The XML and the JSON save of one song hold the same model, record for record.
-	{
-		char* xmlSave = static_cast<char*>(std::malloc(kCap));
-		const long nX = saveXml(song1, xmlSave, kCap);
-		std::optional<deluge::serialization::Value> xmlTree =
-		    deluge::serialization::parseXml(std::string_view(xmlSave, static_cast<size_t>(nX)));
-		auto fromXml = xmlTree ? deluge::project::decode_song(*xmlTree)
-		                       : std::expected<deluge::project::SongDocument, deluge::project::LoadError>{
-		                             std::unexpected(deluge::project::LoadError::MISSING_SONG)};
-		auto fromJson = deluge::project::decode_song(*today);
-		std::free(xmlSave);
-		if (!fromXml || !fromJson || !(*fromXml == *fromJson)) {
-			const char* what = !xmlTree   ? "(the XML save does not parse)"
-			                   : !fromXml ? "(the XML save does not decode)"
-			                              : "(the JSON save does not decode)";
-			if (fromXml && fromJson) {
-				const auto& x = *fromXml;
-				const auto& j = *fromJson;
-				what = !(x.transport == j.transport)                                     ? "transport"
-				       : !(x.groove == j.groove)                                         ? "groove"
-				       : !(x.scale == j.scale)                                           ? "scale"
-				       : !(x.reverb == j.reverb)                                         ? "reverb"
-				       : !(x.arrangement.sections == j.arrangement.sections)             ? "sections"
-				       : !(x.arrangement.session_macros == j.arrangement.session_macros) ? "session macros"
-				       : !(x.clip_order == j.clip_order)                                 ? "clip order"
-				       : !(x.output_order == j.output_order)                             ? "output order"
-				       : !(x.clips == j.clips)                                           ? "clips"
-				       : !(x.audio_clips == j.audio_clips)                               ? "audio clips"
-				       : !(x.outputs == j.outputs)                                       ? "outputs"
-				                                                                         : "drums";
-			}
-			std::fprintf(io.err, "FORMAT MISMATCH: the XML and the JSON save decode to different %s\n", what);
-			return 3;
-		}
 	}
 	{
 		std::optional<deluge::serialization::Value> rewritten =

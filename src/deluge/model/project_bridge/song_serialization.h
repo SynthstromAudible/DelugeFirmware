@@ -23,22 +23,10 @@ class Song;
 class Serializer;
 class Deserializer;
 
-namespace deluge::project {
-struct Groove;
-struct Arrangement;
-struct Transport;
-struct ScaleSettings;
-} // namespace deluge::project
-
 namespace deluge::bridge {
 
-using deluge::project::Arrangement;
-using deluge::project::Groove;
-using deluge::project::ScaleSettings;
-using deluge::project::Transport;
-
-/// @brief Write the song body (`<song>…</song>`) through @p out; the model's parts are written by the writers below at
-/// their place among the engine's.
+/// @brief Write the song through @p out, a JSON writer (a song is never written as XML); the model's parts are written
+/// as their codecs encode them, at their place among the engine's.
 void saveSong(::Song& song, Serializer& out);
 
 /// @brief Read a song from @p in, which must read a document tree (every song is opened as one): decode the model's
@@ -48,22 +36,5 @@ Error loadSong(::Song& song, Deserializer& in);
 
 /// @brief Whether @p tagName is one of the song's tags the model decodes, which the engine's reader skips.
 [[nodiscard]] bool isDecodedSongTag(char const* tagName);
-
-/// @brief The swing (`swingAmount`, `swingInterval`), the interval written relative to the song's tick magnitude.
-void serialize(const Groove& groove, Serializer& out, ::Song* song);
-
-/// @brief The `sections` block: every section, its repeats and its MIDI launch command.
-void serializeSections(const Arrangement& arrangement, Serializer& out);
-
-/// @brief The `sessionMacros` block, up to the last macro that does something; clips and outputs by id.
-void serializeMacros(const Arrangement& arrangement, Serializer& out);
-
-/// @brief The tempo, as the tick length's high and low halves, and the input tick magnitude.
-void serialize(const Transport& transport, Serializer& out);
-
-/// @brief The key's root note (written among the song's attributes).
-void serializeScaleKey(const ScaleSettings& scale, Serializer& out);
-/// @brief The key's mode notes and the `scales` block (written among the song's elements).
-void serializeScaleNotes(const ScaleSettings& scale, Serializer& out);
 
 } // namespace deluge::bridge

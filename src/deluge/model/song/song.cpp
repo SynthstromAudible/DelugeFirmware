@@ -1063,11 +1063,13 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 
 void Song::writeToFile(Serializer& writer) {
 
+	// The model's parts are written only as their codecs encode them, which only a JSON writer takes.
+	if (writer.format() != deluge::storage::DocumentFormat::JSON) {
+		FREEZE_WITH_ERROR("SW01");
+		return;
+	}
 	setupClipIndexesForSaving();
 	writer.reset();
-	if (writer.format() == deluge::storage::DocumentFormat::XML) {
-		writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-	}
 	writer.writeOpeningTagBeginning("song", true, false);
 
 	writer.writeFirmwareVersion();
@@ -1113,17 +1115,8 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("yScrollArrangementView", persistentView.arrangementYScroll);
 	writer.writeAttribute("xScrollArrangementView", persistentView.xScroll[NAVIGATION_ARRANGEMENT]);
 	writer.writeAttribute("xZoomArrangementView", persistentView.xZoom[NAVIGATION_ARRANGEMENT]);
-	// A JSON song takes the model's records as its codecs encode them; XML streams them, as old firmware reads them.
-	const bool json = writer.format() == deluge::storage::DocumentFormat::JSON;
-	if (json) {
-		writer.writeValue(deluge::project::encode(project.transport));
-		writer.writeValue(deluge::project::encode(project.groove, getInputTickMagnitude()));
-	}
-	else {
-		deluge::bridge::serialize(project.transport, writer);
-		deluge::bridge::serializeScaleKey(project.scale, writer);
-		deluge::bridge::serialize(project.groove, writer, this);
-	}
+	writer.writeValue(deluge::project::encode(project.transport));
+	writer.writeValue(deluge::project::encode(project.groove, getInputTickMagnitude()));
 
 	if (persistentView.tripletsOn) {
 		writer.writeAttribute("tripletsLevel", persistentView.tripletsLevel);
@@ -1150,65 +1143,19 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeOpeningTagEnd();
 	// Attributes end
 
-	if (json) {
-		writer.writeValue(deluge::project::encode(project.scale));
-		// The reverb's algorithm is the engine's; it rides in the model's reverb record ahead of the compressor.
-		const deluge::serialization::Value reverb = deluge::project::encode(project.reverb, getInputTickMagnitude());
-		auto withModel = deluge::serialization::Value::makeMap();
-		for (const auto& [name, value] : reverb.entries()) {
-			if (name == "compressor") {
-				withModel.set("model", deluge::serialization::Value::makeNumber(util::to_underlying(model)));
-			}
-			withModel.set(name, value);
+	writer.writeValue(deluge::project::encode(project.scale));
+	// The reverb's algorithm is the engine's; it rides in the model's reverb record ahead of the compressor.
+	const deluge::serialization::Value reverb = deluge::project::encode(project.reverb, getInputTickMagnitude());
+	auto withModel = deluge::serialization::Value::makeMap();
+	for (const auto& [name, value] : reverb.entries()) {
+		if (name == "compressor") {
+			withModel.set("model", deluge::serialization::Value::makeNumber(util::to_underlying(model)));
 		}
-		auto members = deluge::serialization::Value::makeMap();
-		members.set("reverb", std::move(withModel));
-		writer.writeValue(members);
+		withModel.set(name, value);
 	}
-	else {
-		deluge::bridge::serializeScaleNotes(project.scale, writer);
-
-		writer.writeOpeningTagBeginning("reverb");
-		// The whole reverb block is DOM-authoritative: project.reverb (and the algorithm Song::model) is
-		// the source of truth and AudioEngine::reverb / reverbSidechain* is a cache projected from it
-		// (getReverbParamsFromSong). Save reads the document, not the engine.
-		uint32_t roomSize = project.reverb.room_size * (uint32_t)2147483648u;
-		uint32_t damping = project.reverb.damping * (uint32_t)2147483648u;
-		uint32_t width = project.reverb.width * (uint32_t)2147483648u;
-		uint32_t hpf = project.reverb.hpf * (uint32_t)2147483648u;
-		uint32_t lpf = project.reverb.lpf * (uint32_t)2147483648u;
-
-		roomSize = std::min(roomSize, (uint32_t)2147483647);
-		damping = std::min(damping, (uint32_t)2147483647);
-		width = std::min(width, (uint32_t)2147483647);
-		hpf = std::min(hpf, (uint32_t)2147483647);
-		lpf = std::min(lpf, (uint32_t)2147483647);
-
-		writer.writeAttribute("roomSize", roomSize);
-		writer.writeAttribute("dampening", damping);
-		writer.writeAttribute("width", width);
-		writer.writeAttribute("hpf", hpf);
-		writer.writeAttribute("lpf", lpf);
-		writer.writeAttribute("pan", project.reverb.pan);
-		writer.writeAttribute("model", util::to_underlying(model));
-		writer.writeOpeningTagEnd();
-
-		// The reverb sidechain/compressor reads from the DOM too. AudioEngine::reverbSidechain is a shared
-		// SideChain object (the same gui/menu_item/sidechain/* menus also drive per-sound sidechains); for
-		// the reverb instance those menus mirror edits into project.reverb.sidechain_*. syncLevel is stored
-		// as the file value (convertSyncLevelFromInternalValueToFileValue), mirroring the load conversion —
-		// the legacy save wrote the raw internal value, which only round-tripped at tick magnitude 1.
-		writer.writeOpeningTagBeginning("compressor");
-		writer.writeAttribute("attack", project.reverb.sidechain_attack);
-		writer.writeAttribute("release", project.reverb.sidechain_release);
-		writer.writeAttribute("volume", project.reverb.sidechain_volume);
-		writer.writeAttribute("shape", project.reverb.sidechain_shape);
-		writer.writeAttribute("syncLevel",
-		                      convertSyncLevelFromInternalValueToFileValue((int32_t)project.reverb.sidechain_sync));
-		writer.closeTag();
-
-		writer.writeClosingTag("reverb");
-	}
+	auto members = deluge::serialization::Value::makeMap();
+	members.set("reverb", std::move(withModel));
+	writer.writeValue(members);
 
 	live.global_effectable.writeTagsToFile(writer, NULL, false);
 
@@ -1240,13 +1187,10 @@ weAreInArrangementEditorOrInClipInstance:
 		thisOutput->writeToFile(nullptr, this);
 	}
 	writer.writeArrayEnding("instruments");
-	if (json) {
+	{
 		auto members = deluge::serialization::Value::makeMap();
 		members.set("sections", deluge::project::encode_sections(project.arrangement));
 		writer.writeValue(members);
-	}
-	else {
-		deluge::bridge::serializeSections(project.arrangement, writer);
 	}
 
 	writer.writeArrayStart("sessionClips");
@@ -1293,16 +1237,13 @@ weAreInArrangementEditorOrInClipInstance:
 		writer.writeArrayEnding("chordMem");
 	}
 
-	if (json) {
+	{
 		deluge::serialization::Value macros = deluge::project::encode_macros(project.arrangement);
 		if (!macros.items().empty()) {
 			auto members = deluge::serialization::Value::makeMap();
 			members.set("sessionMacros", std::move(macros));
 			writer.writeValue(members);
 		}
-	}
-	else {
-		deluge::bridge::serializeMacros(project.arrangement, writer);
 	}
 
 	writer.writeClosingTag("song", true, true);
