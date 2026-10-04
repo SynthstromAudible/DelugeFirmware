@@ -37,6 +37,8 @@ struct ParamNode {
 	///
 	/// When false, the value should change only when this node is actually reached.
 	bool interpolated{false};
+
+	bool operator==(const ParamNode&) const = default;
 };
 
 /// @brief A parameter's automation: its points in ascending position.

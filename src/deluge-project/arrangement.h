@@ -31,6 +31,8 @@ inline constexpr int32_t kMaxNumSections = 24;
 struct Section {
 	MidiCommand launch_midi_command;
 	int16_t num_repetitions{0};
+
+	bool operator==(const Section&) const = default;
 };
 
 /// What one of the assignable session macros does when triggered.
@@ -49,6 +51,8 @@ struct SessionMacro {
 	std::optional<uint32_t> clip_id;
 	std::optional<uint32_t> output_id;
 	uint8_t section{0};
+
+	bool operator==(const SessionMacro&) const = default;
 };
 
 /// Song arrangement structure: the launch sections and the eight assignable session macros.
@@ -56,6 +60,8 @@ struct SessionMacro {
 struct Arrangement {
 	std::array<Section, kMaxNumSections> sections{};
 	std::array<SessionMacro, 8> session_macros{};
+
+	bool operator==(const Arrangement&) const = default;
 };
 
 } // namespace deluge::project

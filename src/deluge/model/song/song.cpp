@@ -17,6 +17,7 @@
 
 #include "model/song/song.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/codec.h"
 #include "deluge-project/doc_drum.h"
 #include "deluge-project/doc_output.h"
 #include "dsp/reverb/reverb.hpp"
@@ -5802,35 +5803,11 @@ void Song::setDefaultVelocityForAllInstruments(uint8_t newDefaultVelocity) {
 }
 
 int32_t Song::convertSyncLevelFromFileValueToInternalValue(int32_t fileValue) {
-
-	// The file value is relative to insideWorldTickMagnitude etc, though if insideWorldTickMagnitude is 1 (which
-	// used to be the default), it comes out as the same value anyway (kind of a side point)
-
-	if (fileValue == 0) {
-		return 0; // 0 means "off"
-	}
-	int32_t internalValue = fileValue + 1 - (getInputTickMagnitude());
-	if (internalValue < 1) {
-		internalValue = 1;
-	}
-	else if (internalValue > 9) {
-		internalValue = 9;
-	}
-
-	return internalValue;
+	return deluge::project::sync_level_from_file(fileValue, getInputTickMagnitude());
 }
 
 int32_t Song::convertSyncLevelFromInternalValueToFileValue(int32_t internalValue) {
-
-	if (internalValue == 0) {
-		return 0; // 0 means "off"
-	}
-	int32_t fileValue = internalValue - 1 + (getInputTickMagnitude());
-	if (fileValue < 1) {
-		fileValue = 1;
-	}
-
-	return fileValue;
+	return deluge::project::sync_level_to_file(internalValue, getInputTickMagnitude());
 }
 
 std::string Song::getSongFullPath() {

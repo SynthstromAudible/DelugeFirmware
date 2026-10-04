@@ -45,6 +45,13 @@ struct DocNoteRow {
 	/// after (transient scratch — must not permanently double note RAM). Contiguous vector (no stable-address
 	/// requirement — nothing holds a pointer into it, unlike the note-row pool).
 	std::vector<DocNote> notes;
+
+	/// Equal when the persistent fields are; drum_id is a shadow and notes are save-time scratch.
+	bool operator==(const DocNoteRow& other) const {
+		return y == other.y && loop_length_if_independent == other.loop_length_if_independent
+		       && colour_offset == other.colour_offset && sequence_direction == other.sequence_direction
+		       && muted == other.muted;
+	}
 };
 
 } // namespace deluge::project

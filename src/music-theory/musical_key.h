@@ -38,6 +38,8 @@ public:
 	// TODO: make these private later, and maybe rename modeNotes
 	NoteSet modeNotes;
 	int16_t rootNote{};
+
+	bool operator==(const MusicalKey&) const = default;
 };
 
 } // namespace deluge::music

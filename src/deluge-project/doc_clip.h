@@ -42,6 +42,8 @@ struct DocClip {
 	/// addresses (each engine NoteRow holds a raw pointer into this pool). Order within the list is irrelevant —
 	/// note-row order is a function of `y`, reproduced at save from the engine's y-ordered noteRows.
 	std::list<DocNoteRow> note_rows;
+
+	bool operator==(const DocClip&) const = default;
 };
 
 } // namespace deluge::project

@@ -48,6 +48,19 @@ struct DocOutput {
 	CVMode cv2_source{CVMode::OFF};          ///< CVInstrument
 	/// Present only for SoundInstruments (OutputType::SYNTH); nullopt otherwise. Owns the nested Sound record 1:1.
 	std::optional<DocSound> sound;
+
+	/// Equal when the identity fields are; the sound record is the Deluge instrument's, compared there.
+	bool operator==(const DocOutput& other) const {
+		return name == other.name && colour == other.colour && mod_knob_mode == other.mod_knob_mode
+		       && muted_in_arrangement == other.muted_in_arrangement
+		       && soloing_in_arrangement == other.soloing_in_arrangement
+		       && armed_for_recording == other.armed_for_recording && dir_path == other.dir_path
+		       && default_velocity == other.default_velocity && channel == other.channel
+		       && channel_suffix == other.channel_suffix
+		       && device_definition_file_name == other.device_definition_file_name
+		       && collapse_aftertouch == other.collapse_aftertouch && collapse_mpe == other.collapse_mpe
+		       && output_mpe_y == other.output_mpe_y && cv2_source == other.cv2_source;
+	}
 };
 
 } // namespace deluge::project

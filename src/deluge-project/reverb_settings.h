@@ -37,6 +37,8 @@ struct ReverbSettings {
 	int32_t sidechain_attack{0};
 	int32_t sidechain_release{0};
 	engine::SyncLevel sidechain_sync{};
+
+	bool operator==(const ReverbSettings&) const = default;
 };
 
 } // namespace deluge::project

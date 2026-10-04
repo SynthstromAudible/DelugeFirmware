@@ -37,6 +37,11 @@ struct DocDrum {
 	std::string name;
 	/// Present only for SoundDrums (DrumType::SOUND); nullopt otherwise. Owns the nested Sound record 1:1.
 	std::optional<DocSound> sound;
+
+	/// Equal when the identity fields are; the sound record is the Deluge instrument's, compared there.
+	bool operator==(const DocDrum& other) const {
+		return drum_type == other.drum_type && channel == other.channel && note == other.note && name == other.name;
+	}
 };
 
 } // namespace deluge::project

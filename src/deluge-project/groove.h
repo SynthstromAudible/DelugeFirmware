@@ -33,6 +33,8 @@ struct Groove {
 
 	/// Whether any swing is applied.
 	[[nodiscard]] bool hasSwing() const { return swing_amount != 0; }
+
+	bool operator==(const Groove&) const = default;
 };
 
 } // namespace deluge::project

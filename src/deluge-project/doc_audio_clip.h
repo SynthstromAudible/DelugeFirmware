@@ -44,6 +44,8 @@ struct DocAudioClip {
 	int32_t attack{-2147483648};
 	engine::VoicePriority voice_priority{engine::VoicePriority::MEDIUM};
 	bool overdubs_should_clone{true};
+
+	bool operator==(const DocAudioClip&) const = default;
 };
 
 } // namespace deluge::project

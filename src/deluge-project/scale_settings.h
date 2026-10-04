@@ -38,6 +38,12 @@ struct ScaleSettings {
 
 	/// Whether a user scale is currently defined.
 	[[nodiscard]] bool hasUserScale() const { return !user_scale_notes.isEmpty(); }
+
+	/// Equal when the persistent fields are; the mapper's transition state is runtime.
+	bool operator==(const ScaleSettings& other) const {
+		return key == other.key && disabled_preset_scales == other.disabled_preset_scales
+		       && user_scale_notes == other.user_scale_notes;
+	}
 };
 
 } // namespace deluge::project

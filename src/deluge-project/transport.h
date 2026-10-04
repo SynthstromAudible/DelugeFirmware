@@ -32,6 +32,13 @@ struct Transport {
 	int32_t inside_world_tick_magnitude{0};
 	/// Sync-scaling offset to inside_world_tick_magnitude, kept out of the displayed BPM.
 	int32_t inside_world_tick_magnitude_offset_from_bpm{0};
+
+	/// Equal when the persistent fields are; the reciprocal is derived from the tick length.
+	bool operator==(const Transport& other) const {
+		return samples_per_timer_tick_big == other.samples_per_timer_tick_big
+		       && inside_world_tick_magnitude == other.inside_world_tick_magnitude
+		       && inside_world_tick_magnitude_offset_from_bpm == other.inside_world_tick_magnitude_offset_from_bpm;
+	}
 };
 
 } // namespace deluge::project
