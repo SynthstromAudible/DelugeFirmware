@@ -617,15 +617,28 @@ fn write_test_wav(path: &std::path::Path, channels: u16, bits: u16, data_bytes: 
         .unwrap_or_else(|e| panic!("writing the A/B fixture WAV {}: {e}", path.display()));
 }
 
+/// An empty directory to stage a scenario's card tree in, named for this process so that runs of the same scenario at
+/// once never share one.
+fn staging_dir(name: &str) -> std::path::PathBuf {
+    let root = std::env::temp_dir().join(format!("{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    root
+}
+
+/// Installs the tree staged at `root` as the card, then removes it: the card holds a copy.
+fn install_staged(root: &std::path::Path) {
+    memory_card::install(Some(root));
+    let _ = std::fs::remove_dir_all(root);
+}
+
 /// Stages the song-save scenario's card: an empty `SONGS` directory.
 ///
 /// The fixture that matters is the song, which the scenario inflates in memory until its document
 /// outgrows the staging buffer.
 fn fill_song_save_card() {
-    let root = std::env::temp_dir().join("deluge-song-save-card");
-    let _ = std::fs::remove_dir_all(&root);
+    let root = staging_dir("deluge-song-save-card");
     std::fs::create_dir_all(root.join("SONGS")).expect("creating the fixture SONGS directory");
-    memory_card::install(Some(&root));
+    install_staged(&root);
 }
 
 /// Stages the sample-collect scenario's card: small WAVs with different lengths and fills, so a
@@ -638,8 +651,7 @@ fn fill_song_save_card() {
 /// (`.` < `0` < `_`), so the rename must move the recording across it: rewriting the path without
 /// removing and reinserting the entry leaves the vector out of order at that index.
 fn fill_sample_collect_card() {
-    let root = std::env::temp_dir().join("deluge-sample-collect-card");
-    let _ = std::fs::remove_dir_all(&root);
+    let root = staging_dir("deluge-sample-collect-card");
     let samples = root.join("SAMPLES");
     let recordings = samples.join("RECORD");
     std::fs::create_dir_all(&recordings).expect("creating the sample-collect fixture directories");
@@ -648,7 +660,7 @@ fn fill_sample_collect_card() {
     write_test_wav(&samples.join("COLL2.WAV"), 2, 16, 1024, 0x42);
     write_test_wav(&recordings.join("REC12345.WAV"), 1, 16, 768, 0x43);
     write_test_wav(&recordings.join("REC123450.WAV"), 1, 16, 640, 0x44);
-    memory_card::install(Some(&root));
+    install_staged(&root);
 }
 
 /// Stages the card-reinsert scenario's card: three samples, one per fate the reinsert walk
@@ -658,8 +670,7 @@ fn fill_sample_collect_card() {
 /// be marked unloadable. The other two stay on the card; their fates depend on whether a project
 /// still holds them.
 fn fill_card_reinsert_card() {
-    let root = std::env::temp_dir().join("deluge-card-reinsert-card");
-    let _ = std::fs::remove_dir_all(&root);
+    let root = staging_dir("deluge-card-reinsert-card");
     let samples = root.join("SAMPLES");
     for dir in [&samples, &root.join("SONGS")] {
         std::fs::create_dir_all(dir).expect("creating the card-reinsert fixture directories");
@@ -667,7 +678,7 @@ fn fill_card_reinsert_card() {
     write_test_wav(&samples.join("CRSURV.WAV"), 1, 16, 4096, 0x71);
     write_test_wav(&samples.join("CRLOST.WAV"), 1, 16, 3072, 0x72);
     write_test_wav(&samples.join("CREVICT.WAV"), 1, 16, 2048, 0x73);
-    memory_card::install(Some(&root));
+    install_staged(&root);
 }
 
 /// Stages the sample-load tree scenario's card.
@@ -683,8 +694,7 @@ fn fill_card_reinsert_card() {
 ///   crucial-only load's song (a second kit's three drums, a second synth, a second audio clip),
 ///   collected and removed the same way.
 fn fill_sample_load_tree_card() {
-    let root = std::env::temp_dir().join("deluge-sample-load-tree-card");
-    let _ = std::fs::remove_dir_all(&root);
+    let root = staging_dir("deluge-sample-load-tree-card");
     let samples = root.join("SAMPLES");
     let synth_folder = root.join("SYNTHS").join("SLTPSYN");
     let kit_folder = root.join("KITS").join("SLTPKIT");
@@ -703,7 +713,7 @@ fn fill_sample_load_tree_card() {
     write_test_wav(&synth_folder.join("SLTPSYN.WAV"), 1, 16, 2048, 0x55);
     write_test_wav(&kit_folder.join("SLTPKA.WAV"), 1, 16, 2048, 0x56);
     write_test_wav(&kit_folder.join("SLTPKB.WAV"), 1, 16, 2048, 0x57);
-    memory_card::install(Some(&root));
+    install_staged(&root);
 }
 
 /// Stages the audio-load A/B scenario's card. Every file is load-bearing:
@@ -741,8 +751,7 @@ fn fill_sample_load_tree_card() {
 /// The staging tree is deleted once the card holds it: a full `/tmp` can wedge an unrelated stem
 /// export.
 fn fill_audio_load_ab_card() {
-    let root = std::env::temp_dir().join("deluge-audio-load-ab-card");
-    let _ = std::fs::remove_dir_all(&root);
+    let root = staging_dir("deluge-audio-load-ab-card");
     let samples = root.join("SAMPLES");
     let alt = samples.join("ALT");
     let kit = samples.join("KIT");
@@ -797,9 +806,7 @@ fn fill_audio_load_ab_card() {
     std::fs::write(samples.join("EMPTY.WAV"), Vec::<u8>::new())
         .expect("writing the A/B fixture's zero-length file");
 
-    memory_card::install(Some(&root));
-    // The card holds the tree now; don't leave it in /tmp.
-    let _ = std::fs::remove_dir_all(&root);
+    install_staged(&root);
 }
 
 // The song-preview A/B fixture
@@ -869,8 +876,7 @@ fn uniform_preview_song(value: u8) -> String {
 ///
 /// Panics if a file cannot be written, or if a named corpus stages no song.
 fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
-    let root = std::env::temp_dir().join("deluge-song-preview-ab-card");
-    let _ = std::fs::remove_dir_all(&root);
+    let root = staging_dir("deluge-song-preview-ab-card");
     let songs = root.join("SONGS");
     let corpus_dir = songs.join("CORPUS");
     std::fs::create_dir_all(&corpus_dir)
@@ -986,9 +992,7 @@ fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
         "golden_vt_render: song-preview fixture staged {copied} corpus song(s) (corpus named: {corpus_was_named})"
     );
 
-    memory_card::install(Some(&root));
-    // The card holds the tree now.
-    let _ = std::fs::remove_dir_all(&root);
+    install_staged(&root);
 }
 
 /// The most corpus songs the fixture stages; must equal `kMaxCorpusCases` in
@@ -1084,8 +1088,7 @@ fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f
 /// - `SAMPLES/IMM/IMM_A2.WAV`, `IMM_A3.WAV` and `IMM_A4.WAV`: the multisample folder import's
 ///   folder, one-second sines at 110, 220 and 440 Hz.
 fn fill_sample_claim_card() {
-    let root = std::env::temp_dir().join("deluge-sample-claim-card");
-    let _ = std::fs::remove_dir_all(&root);
+    let root = staging_dir("deluge-sample-claim-card");
     let samples = root.join("SAMPLES");
     let randomize = samples.join("RD");
     let randomize_gate = samples.join("RDG");
@@ -1155,17 +1158,16 @@ fn fill_sample_claim_card() {
     write_sine_wav(&import_stall.join("IMS_A.WAV"), 1, 44_100, 110.0);
     write_sine_wav(&import_stall.join("IMS_B.WAV"), 1, 44_100, 220.0);
     write_sine_wav(&import_stall.join("IMS_C.WAV"), 1, 44_100, 440.0);
-    memory_card::install(Some(&root));
+    install_staged(&root);
 }
 
 /// Stages `load_policy`'s card: the one sample its `LP-DEFAULT` loads ask for.
 fn fill_load_policy_card() {
-    let root = std::env::temp_dir().join("deluge-load-policy-card");
-    let _ = std::fs::remove_dir_all(&root);
+    let root = staging_dir("deluge-load-policy-card");
     let samples = root.join("SAMPLES");
     std::fs::create_dir_all(&samples).expect("load_policy card: creating SAMPLES");
     write_test_wav(&samples.join("DEFAULT.WAV"), 1, 16, 2000, 0x42);
-    memory_card::install(Some(&root));
+    install_staged(&root);
 }
 
 /// Stages the preset-load scenario's card.
@@ -1182,8 +1184,7 @@ fn fill_load_policy_card() {
 ///   kits and light kit; `SAMPLES/AQH/AQHA..AQHC.WAV` their heavy kit; `SAMPLES/AQS/PLSTB.WAV` the
 ///   acquisition stall leg's held sample.
 fn fill_preset_load_card() {
-    let root = std::env::temp_dir().join("deluge-preset-load-card");
-    let _ = std::fs::remove_dir_all(&root);
+    let root = staging_dir("deluge-preset-load-card");
     let samples = root.join("SAMPLES").join("PL");
     let heavy = root.join("SAMPLES").join("PLH");
     let lite = root.join("SAMPLES").join("PLL");
@@ -1243,14 +1244,13 @@ fn fill_preset_load_card() {
     write_test_wav(&aq_heavy.join("AQHB.WAV"), 1, 16, 8192, 0xA7);
     write_test_wav(&aq_heavy.join("AQHC.WAV"), 1, 16, 8192, 0xA8);
     write_sine_wav(&aq_stall.join("PLSTB.WAV"), 1, 22_050, 990.0);
-    memory_card::install(Some(&root));
+    install_staged(&root);
 }
 
 /// Stages the load-cancel scenario's card: the samples its six synth presets name, in `SAMPLES/LC/`, and an empty
 /// `SYNTHS/` the scenario writes the presets into through the firmware's serialisers.
 fn fill_load_cancel_card() {
-    let root = std::env::temp_dir().join("deluge-load-cancel-card");
-    let _ = std::fs::remove_dir_all(&root);
+    let root = staging_dir("deluge-load-cancel-card");
     let samples = root.join("SAMPLES").join("LC");
     for dir in [&samples, &root.join("SYNTHS")] {
         std::fs::create_dir_all(dir).expect("creating the load-cancel fixture directories");
@@ -1261,14 +1261,13 @@ fn fill_load_cancel_card() {
     write_sine_wav(&samples.join("LCD.WAV"), 1, 22_050, 660.0);
     write_sine_wav(&samples.join("LCE.WAV"), 1, 22_050, 770.0);
     write_sine_wav(&samples.join("LCF.WAV"), 1, 22_050, 880.0);
-    memory_card::install(Some(&root));
+    install_staged(&root);
 }
 
 /// Stages the `clear_song_undo` scenario's card: the samples its preset and audio clip use, and the
 /// empty folders the scenario writes into through the firmware.
 fn fill_clear_song_undo_card() {
-    let root = std::env::temp_dir().join("deluge-clear-song-undo-card");
-    let _ = std::fs::remove_dir_all(&root);
+    let root = staging_dir("deluge-clear-song-undo-card");
     let samples = root.join("SAMPLES").join("CS");
     for dir in [
         &samples,
@@ -1284,14 +1283,13 @@ fn fill_clear_song_undo_card() {
     write_sine_wav(&samples.join("CSUNA.WAV"), 1, 22_050, 330.0);
     write_sine_wav(&samples.join("CSUNB.WAV"), 1, 22_050, 550.0);
     write_sine_wav(&samples.join("CSGONE.WAV"), 1, 22_050, 660.0);
-    memory_card::install(Some(&root));
+    install_staged(&root);
 }
 
 /// Stages the song-load channel scenario's card: folders to save into, and the one sample its song
 /// carries. The gate saves and loads a song it writes itself, so it needs no golden fixture.
 fn fill_song_load_channel_card() {
-    let root = std::env::temp_dir().join("deluge-song-load-channel-card");
-    let _ = std::fs::remove_dir_all(&root);
+    let root = staging_dir("deluge-song-load-channel-card");
     let samples = root.join("SAMPLES").join("SL");
     for dir in [
         &samples,
@@ -1302,7 +1300,7 @@ fn fill_song_load_channel_card() {
         std::fs::create_dir_all(dir).expect("creating the song-load-channel fixture directories");
     }
     write_sine_wav(&samples.join("SLSONG.WAV"), 1, 22_050, 440.0);
-    memory_card::install(Some(&root));
+    install_staged(&root);
 }
 
 /// Set by [`pender`]; the driver loop in `main` polls again while it is set.

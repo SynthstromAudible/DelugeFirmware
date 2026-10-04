@@ -515,6 +515,12 @@ def main(argv: list[str] | None = None) -> int:
     root = Path(util.get_git_root()).absolute()
     entries = _load(root)
 
+    # The corpus sweeps run songs in parallel (tests/golden/driver.py); share the CPUs among the tests run at once.
+    at_once = args.jobs or ((os.cpu_count() or 1) if args.capture else 1)
+    os.environ.setdefault(
+        "GOLDEN_SWEEP_JOBS", str(max(1, (os.cpu_count() or 1) // max(1, at_once)))
+    )
+
     if args.clean:
         return cmd_clean(root)
     if args.doctor:

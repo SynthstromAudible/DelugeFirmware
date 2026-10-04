@@ -101,6 +101,7 @@ def main(argv=None):
         "--update", action="store_true", help="discover+re-baseline (walks the corpus)"
     )
     ap.add_argument("--timeout", type=int, default=60)
+    ap.add_argument("--jobs", type=int, default=driver.default_jobs())
     args = ap.parse_args(argv)
 
     if not os.path.exists(args.binary):
@@ -128,13 +129,17 @@ def main(argv=None):
         songs += [(SYNTHETIC_PREFIX, s) for s in find_songs(SYNTHETIC)]
         out = {}
         n_settled = n_skip = 0
-        for song in songs:
+        paths = [song[1] if isinstance(song, tuple) else song for song in songs]
+        results = driver.map_ordered(
+            lambda path: run_driver(pre, args.binary, path, args.timeout),
+            paths,
+            args.jobs,
+        )
+        for song, (rc, digest, tail) in zip(songs, results):
             if isinstance(song, tuple):  # (prefix, path) -> synthetic, keyed from HERE
                 rel = os.path.relpath(song[1], HERE)
-                song = song[1]
             else:
                 rel = os.path.relpath(song, args.corpus)
-            rc, digest, tail = run_driver(pre, args.binary, song, args.timeout)
             if rc == EXIT_SETTLED:
                 out[rel] = digest
                 n_settled += 1
@@ -155,6 +160,7 @@ def main(argv=None):
         return 0
     items = [(rel, h) for rel, h in sorted(fixtures.items()) if args.filter in rel]
     n_ok = n_regress = n_absent = 0
+    present = []
     for rel, want in items:
         # Synthetic fixtures are committed under tests/golden/synthetic/ (resolved from HERE);
         # everything else is a BYO corpus song resolved against --corpus.
@@ -162,10 +168,16 @@ def main(argv=None):
             song = os.path.join(HERE, rel)
         else:
             song = os.path.join(args.corpus, rel)
-        if not os.path.isfile(song):
+        if os.path.isfile(song):
+            present.append((rel, want, song))
+        else:
             n_absent += 1
-            continue
-        rc, digest, tail = run_driver(pre, args.binary, song, args.timeout)
+    results = driver.map_ordered(
+        lambda item: run_driver(pre, args.binary, item[2], args.timeout),
+        present,
+        args.jobs,
+    )
+    for (rel, want, _), (rc, digest, tail) in zip(present, results):
         if rc == EXIT_SETTLED and digest == want:
             n_ok += 1
         else:

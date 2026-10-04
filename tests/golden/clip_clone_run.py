@@ -30,6 +30,7 @@ def main(argv=None):
     ap.add_argument("--wrapper", default="")
     ap.add_argument("--corpus", default=driver.default_corpus() or "")
     ap.add_argument("--timeout", type=int, default=120)
+    ap.add_argument("--jobs", type=int, default=driver.default_jobs())
     args = ap.parse_args(argv)
     if not os.path.isdir(args.corpus):
         print("SKIP: no song corpus (DELUGE_SONG_CORPUS)")
@@ -37,16 +38,17 @@ def main(argv=None):
 
     songs = driver.find_songs(args.corpus)
     cloned = skip_noclip = skip_load = regressions = 0
-    for song in songs:
-        # Direct, so a LOADED printed before a crash is still seen.
-        r = driver.run(
-            args.binary,
-            "clip_clone_roundtrip",
-            [song],
-            args.timeout,
-            args.wrapper,
-            direct=True,
-        )
+    # Direct, so a LOADED printed before a crash is still seen.
+    results = driver.run_all(
+        args.binary,
+        "clip_clone_roundtrip",
+        [[song] for song in songs],
+        args.timeout,
+        args.wrapper,
+        args.jobs,
+        direct=True,
+    )
+    for song, r in zip(songs, results):
         loaded = (
             "LOADED" in r.stdout
         )  # printed after a successful load, before any clone

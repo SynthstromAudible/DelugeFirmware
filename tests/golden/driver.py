@@ -8,8 +8,12 @@ stdout and stderr the driver's process used to have, which is what the runners i
 
 A run that ends with no DRV-EXIT line -- the harness aborted, froze or timed out -- comes back with a negative
 returncode and the harness's own stderr.
+
+Runs share nothing (each boots its own app on its own in-memory card, and the drivers read songs from the host), so
+the sweeps run them `--jobs` at a time with `run_all()`.
 """
 
+import concurrent.futures
 import os
 import re
 import shlex
@@ -107,6 +111,45 @@ def run(
         return Result(int(found[-1]), read(out_path), read(err_path))
 
 
+def default_jobs() -> int:
+    """How many runs a sweep makes at once: GOLDEN_SWEEP_JOBS (./dbt test sets it to share the CPUs among the tests it
+    runs at once), else one per CPU."""
+    try:
+        return max(1, int(os.environ["GOLDEN_SWEEP_JOBS"]))
+    except (KeyError, ValueError):
+        return os.cpu_count() or 1
+
+
+def map_ordered(fn, items: list, jobs: int = 1):
+    """`fn(item)` for each item, `jobs` at a time; yields the results in the order of `items`. The first call goes
+    alone, so anything a run sets up once for all the others (the fixture tree the card is filled from) is in place
+    before they start."""
+    if not items:
+        return
+    yield fn(items[0])
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
+        futures = [pool.submit(fn, item) for item in items[1:]]
+        for future in futures:
+            yield future.result()
+
+
+def run_all(
+    binary,
+    scenario: str,
+    arg_lists: list[list[str]],
+    timeout: float | None = None,
+    wrapper: str | list[str] = "",
+    jobs: int = 1,
+    direct: bool = False,
+):
+    """`run()` for each argument list, `jobs` at a time (map_ordered); yields the results in order."""
+    return map_ordered(
+        lambda args: run(binary, scenario, args, timeout, wrapper, direct),
+        arg_lists,
+        jobs,
+    )
+
+
 def find_songs(corpus: str, name_filter: str = "") -> list[str]:
     """Every .XML under `corpus` whose file name holds `name_filter`, sorted."""
     songs = []
@@ -135,6 +178,7 @@ def baseline_diff(
     ap.add_argument("--wrapper", default="")
     ap.add_argument("--corpus", default=default_corpus() or "")
     ap.add_argument("--timeout", type=int, default=120)
+    ap.add_argument("--jobs", type=int, default=default_jobs())
     args = ap.parse_args(argv)
 
     def strip_comments(text):
@@ -154,15 +198,25 @@ def baseline_diff(
         return 77
 
     ok = regress = absent = 0
+    present = []
     for name in baselines:
         song = os.path.join(args.corpus, name + ".XML")
-        if not os.path.isfile(song):
+        if os.path.isfile(song):
+            present.append((name, song))
+        else:
             print(f"ABSENT  {name} (fixture not in corpus)")
             absent += 1
-            continue
+    results = run_all(
+        args.binary,
+        scenario,
+        [[song] for _, song in present],
+        args.timeout,
+        args.wrapper,
+        args.jobs,
+    )
+    for (name, _), got in zip(present, results):
         with open(os.path.join(baseline_dir, name + ".txt")) as fh:
             expected = fh.read().strip()
-        got = run(args.binary, scenario, [song], args.timeout, args.wrapper)
         actual = strip_comments(got.stdout)
         if actual == expected and (got.returncode == 0 or not require_exit_0):
             print(f"OK      {name}")
@@ -192,6 +246,7 @@ def self_checking_sweep(scenario: str, argv=None, description: str = "") -> int:
     ap.add_argument("--corpus", default=default_corpus() or "")
     ap.add_argument("--filter", default="")
     ap.add_argument("--timeout", type=int, default=120)
+    ap.add_argument("--jobs", type=int, default=default_jobs())
     args = ap.parse_args(argv)
 
     if not os.path.isdir(args.corpus):
@@ -203,9 +258,16 @@ def self_checking_sweep(scenario: str, argv=None, description: str = "") -> int:
         return 77
 
     ok = fail = 0
-    for song in songs:
+    results = run_all(
+        args.binary,
+        scenario,
+        [[song] for song in songs],
+        args.timeout,
+        args.wrapper,
+        args.jobs,
+    )
+    for song, r in zip(songs, results):
         rel = os.path.relpath(song, args.corpus)
-        r = run(args.binary, scenario, [song], args.timeout, args.wrapper)
         if r.returncode == 0:
             print(f"OK      {rel}")
             ok += 1
