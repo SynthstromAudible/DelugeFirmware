@@ -106,6 +106,15 @@ class LibraryBoundaryTest(unittest.TestCase):
             1,
         )
 
+    def test_the_engine_api_may_use_the_document_tree_but_not_the_model(self):
+        engine_api = LIBRARIES["engine-api"]
+        self.assertEqual(
+            self.check('#include "serialization/value.h"\n', library=engine_api), []
+        )
+        self.assertEqual(
+            len(self.check('#include "deluge-project/song.h"\n', library=engine_api)), 1
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -239,6 +239,7 @@ add_subdirectory(${REPO_ROOT}/lib            ${CMAKE_BINARY_DIR}/_lib)        # 
 add_subdirectory(${REPO_ROOT}/src/engine-api/types ${CMAKE_BINARY_DIR}/engine-types) # deluge_engine_types
 add_subdirectory(${REPO_ROOT}/src/foundation ${CMAKE_BINARY_DIR}/foundation) # deluge_foundation
 add_subdirectory(${REPO_ROOT}/src/serialization ${CMAKE_BINARY_DIR}/serialization) # deluge_serialization
+add_subdirectory(${REPO_ROOT}/src/engine-api ${CMAKE_BINARY_DIR}/engine-api) # deluge_engine_api
 add_subdirectory(${REPO_ROOT}/src/music-theory ${CMAKE_BINARY_DIR}/music-theory) # deluge_music_theory
 add_subdirectory(${REPO_ROOT}/src/deluge-project ${CMAKE_BINARY_DIR}/deluge-project) # deluge_project (model)
 add_subdirectory(${REPO_ROOT}/src/midi       ${CMAKE_BINARY_DIR}/midi)       # deluge_midi

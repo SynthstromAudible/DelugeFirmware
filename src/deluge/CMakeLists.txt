@@ -58,6 +58,7 @@ target_link_libraries(deluge_app PUBLIC
     deluge_midi
     deluge_project   # the project model (deluge::project::Song)
     deluge_engine_types # the host–engine contract's data-only types
+    deluge_engine_api # the host–engine contract's interface
     deluge_serialization # the document tree and its XML and JSON parsers
     deluge_music_theory # note sets, scales, keys and scale mapping
 )

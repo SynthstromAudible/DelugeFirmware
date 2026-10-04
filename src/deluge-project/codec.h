@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "engine-api/types/sync.h"
 #include "serialization/firmware_version.h"
 #include "serialization/tree.h"
 #include "serialization/value.h"
@@ -39,24 +40,8 @@ struct DecodeContext {
 	bool swing_interval_is_relative{true};
 };
 
-/// @brief A sync level as a file stores it, from the internal value (1–9, 0 = off), relative to
-/// @p input_tick_magnitude; never below 1 unless off.
-[[nodiscard]] constexpr int32_t sync_level_to_file(int32_t internal, int32_t input_tick_magnitude) {
-	if (internal == 0) {
-		return 0;
-	}
-	const int32_t file = internal - 1 + input_tick_magnitude;
-	return file < 1 ? 1 : file;
-}
-
-/// @brief The internal sync level (1–9, 0 = off) from the value a file stores relative to @p input_tick_magnitude.
-[[nodiscard]] constexpr int32_t sync_level_from_file(int32_t file, int32_t input_tick_magnitude) {
-	if (file == 0) {
-		return 0;
-	}
-	const int32_t internal = file + 1 - input_tick_magnitude;
-	return internal < 1 ? 1 : (internal > 9 ? 9 : internal);
-}
+using deluge::engine::sync_level_from_file;
+using deluge::engine::sync_level_to_file;
 
 /// @brief The context for decoding @p song from the document @p root. The firmware version is the song's
 /// `firmwareVersion` attribute or, in old files, the root's `firmwareVersion` sibling of the song; a song with

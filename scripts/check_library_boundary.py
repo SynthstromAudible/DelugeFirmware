@@ -169,6 +169,11 @@ class Library:
 
 LIBRARIES: dict[str, Library] = {
     "engine-types": Library(REPO / "src" / "engine-api" / "types", "engine-api/types/"),
+    "engine-api": Library(
+        REPO / "src" / "engine-api",
+        "engine-api/",
+        ("serialization/", "foundation/panic.h"),
+    ),
     "serialization": Library(
         REPO / "src" / "serialization", "serialization/", ("foundation/panic.h",)
     ),
