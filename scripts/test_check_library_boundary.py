@@ -127,6 +127,18 @@ class LibraryBoundaryTest(unittest.TestCase):
             1,
         )
 
+    def test_the_global_effectable_table_may_use_only_the_engine_types(self):
+        table = LIBRARIES["global-effectable"]
+        self.assertEqual(
+            self.check('#include "engine-api/types/param.h"\n', library=table), []
+        )
+        self.assertEqual(
+            len(self.check('#include "engine-api/engine.h"\n', library=table)), 1
+        )
+        self.assertEqual(
+            len(self.check('#include "engines/deluge/params.h"\n', library=table)), 1
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
