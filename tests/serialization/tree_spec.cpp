@@ -19,6 +19,17 @@ describe tree("reading a document tree", ${
 		expect(*int_of(elements_named(js, "section")[1]->find("id"))).to_equal(1);
 	});
 
+	it("lists differently named children in order, in either shape", _ {
+		auto xml = parseXml(R"(<song><instruments><sound id="1"/><kit id="2"/><sound id="3"/></instruments></song>)");
+		auto json = parseJson(R"({"song": {"instruments": [{"sound": {"id": 1}}, {"kit": {"id": 2}}, {"sound": {"id": 3}}]}})");
+		for (const auto* doc : {&*xml, &*json}) {
+			auto list = children(*doc->find("song")->find("instruments"));
+			expect(list.size()).to_equal(3u);
+			expect(std::string(list[1].name)).to_equal(std::string("kit"));
+			expect(*int_of(list[2].node->find("id"))).to_equal(3);
+		}
+	});
+
 	it("finds nothing in a scalar or a missing container", _ {
 		auto scalar = Value::makeScalar("x");
 		expect(elements_named(scalar, "section").empty()).to_equal(true);

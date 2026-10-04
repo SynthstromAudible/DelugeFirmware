@@ -36,6 +36,31 @@ namespace deluge::serialization {
 	return found;
 }
 
+/// @brief One child of a list whose children have different names, with its name.
+struct NamedChild {
+	std::string_view name;
+	const Value* node;
+};
+
+/// @brief Every child of @p container with its name, in order, from either array encoding (see elements_named): the
+/// lists whose elements are of several kinds, such as a song's outputs (`sound`, `kit`, `midi`…) or clips.
+[[nodiscard]] inline std::vector<NamedChild> children(const Value& container) {
+	std::vector<NamedChild> found;
+	if (container.isMap()) {
+		for (const auto& [key, child] : container.entries()) {
+			found.push_back({key, &child});
+		}
+	}
+	else if (container.isArray()) {
+		for (const Value& item : container.items()) {
+			if (item.isMap() && !item.entries().empty()) {
+				found.push_back({item.entries().front().first, &item.entries().front().second});
+			}
+		}
+	}
+	return found;
+}
+
 /// @brief A scalar's text, or nullptr if @p node is missing or not a scalar.
 [[nodiscard]] inline const std::string* text_of(const Value* node) {
 	return (node != nullptr && node->isScalar()) ? &node->str() : nullptr;
