@@ -4167,6 +4167,34 @@ void Sound::seedModKnobsRecord() {
 	}
 }
 
+deluge::instrument::SoundState Sound::seededState() {
+	deluge::instrument::SoundState seeded;
+	// The seeds write wherever the state pointers point: aim them at `seeded` for the duration.
+	deluge::instrument::SoundState* const bound = state_;
+	deluge::instrument::DocModControllable* const boundEffects = docModControllable_;
+	std::array<deluge::instrument::SourceState*, kNumSources> boundSources{};
+	state_ = &seeded;
+	docModControllable_ = &seeded.mod_controllable;
+	for (int32_t s = 0; s < kNumSources; s++) {
+		boundSources[s] = sources[s].state_;
+		sources[s].state_ = &seeded.sources[s];
+	}
+	seedDocSoundScalars();
+	seedModKnobsRecord();
+	seedDocModControllable();
+	for (int32_t s = 0; s < kNumSources; s++) {
+		sources[s].seedDocSourceScalars();
+		sources[s].seedDocDxPatch();
+		sources[s].seedDocRanges();
+	}
+	state_ = bound;
+	docModControllable_ = boundEffects;
+	for (int32_t s = 0; s < kNumSources; s++) {
+		sources[s].state_ = boundSources[s];
+	}
+	return seeded;
+}
+
 void Sound::bindState() {
 	state_ = &ownedState_;
 	deluge::instrument::SoundState* d = state_;

@@ -186,7 +186,7 @@ fn emit_staleness_hash(app_objs_dir: &Path, objs: &[PathBuf], out_dir: &Path) {
 /// call each other. The host tree's layout differs from the device tree's: NE10 sits at the root
 /// and the DSP libraries under `app/`.
 fn link_closure(build_dir: &Path, archive: &Path) {
-    const DEPS: [(&str, &str); 10] = [
+    const DEPS: [(&str, &str); 11] = [
         (".", "libNE10.a"),
         ("printf", "libeyalroz_printf.a"),
         ("app/dsp", "libdeluge_dsp.a"),
@@ -196,6 +196,7 @@ fn link_closure(build_dir: &Path, archive: &Path) {
         ("serialization", "libdeluge_serialization.a"),
         ("music-theory", "libdeluge_music_theory.a"),
         ("deluge-project", "libdeluge_project.a"),
+        ("engines-deluge", "libdeluge_instrument.a"),
         ("midi", "libdeluge_midi.a"),
     ];
     println!("cargo:rustc-link-arg=-Wl,--start-group");

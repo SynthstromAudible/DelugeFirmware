@@ -28,6 +28,7 @@
 /// | clip_clone_roundtrip | InstrumentClip::clone() on a loaded song, checked deep-independent         |
 /// | edit_substrate       | the Edit dispatcher and the SetParamValue pilot, self-checking             |
 /// | edit_undo_redo       | reified Edits applied, undone and redone over a loaded song, self-checking |
+/// | instrument_codec_encode | the Deluge instrument's encode against the elements the app writes          |
 /// | json_roundtrip       | XML -> JSON -> JSON fixed point                                            |
 /// | model_decode_diff    | the model's decode of a saved song against the records the engine leaves   |
 /// | param_clone          | ParamCollection clone deep independence, self-checking                     |
@@ -52,6 +53,7 @@ DELUGE_DRIVER_SCENARIO_DECLARE(audio_clip_edit_diff)
 DELUGE_DRIVER_SCENARIO_DECLARE(clip_clone_roundtrip)
 DELUGE_DRIVER_SCENARIO_DECLARE(edit_substrate)
 DELUGE_DRIVER_SCENARIO_DECLARE(edit_undo_redo)
+DELUGE_DRIVER_SCENARIO_DECLARE(instrument_codec_encode)
 DELUGE_DRIVER_SCENARIO_DECLARE(json_roundtrip)
 DELUGE_DRIVER_SCENARIO_DECLARE(model_decode_diff)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_clone)

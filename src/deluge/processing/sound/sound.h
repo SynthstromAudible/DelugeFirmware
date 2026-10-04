@@ -111,6 +111,8 @@ public:
 	void bindState();
 	/// The bound state, or null while unbound.
 	[[nodiscard]] const deluge::instrument::SoundState* boundState() const { return state_; }
+	/// The state binding would seed from this sound's runtime fields now (bound or not), through the same seeds.
+	[[nodiscard]] deluge::instrument::SoundState seededState();
 	/// The element this sound was last read from, handed over once (to fill its instrument slot); empty if it was not
 	/// read from a document tree.
 	[[nodiscard]] std::optional<deluge::serialization::Value> takeLoadedElement() {
