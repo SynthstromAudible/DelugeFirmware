@@ -91,6 +91,15 @@ describe structure_codec("the structure records", ${
 		});
 	});
 
+	it("starts a new output from its type defaults, so a MIDI output that never set its MPE Y CC sends CC 74", _ {
+		both_shapes(R"(<song channel="3"/>)", R"({"song": {"channel": 3}})", [&](const Value& out) {
+			DocOutput read = new_output("midi");
+			(void)decode_identity(out, "midi", read);
+			expect(static_cast<int>(read.output_mpe_y)).to_equal(74);
+			expect(read.collapse_mpe).to_equal(true);
+		});
+	});
+
 	it("round-trips the identity of every drum type", _ {
 		for (auto [element, record] :
 		     {std::pair{"sound", DocDrum{.drum_type = DrumType::SOUND, .name = "KICK"}},

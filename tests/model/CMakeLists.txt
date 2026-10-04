@@ -7,5 +7,5 @@ deluge_specs_driver(model_specs
           ${CMAKE_CURRENT_LIST_DIR}/equality/equality.cpp
   LIBRARIES deluge_project
   INCLUDES ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../support/mocks)
-target_compile_definitions(model_specs PRIVATE DELUGE_SYNTHETIC_DIR="${CMAKE_CURRENT_LIST_DIR}/../golden/synthetic")
+target_compile_definitions(model_specs PRIVATE DELUGE_MODEL_RECORDS="${CMAKE_CURRENT_LIST_DIR}/equality/model_records.XML")
 add_subdirectory(equality)

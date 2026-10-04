@@ -57,6 +57,13 @@ inline constexpr int32_t kMidiChannelUpperZone = 17;
 [[nodiscard]] serialization::Value encode(const DocAudioClip& clip);
 [[nodiscard]] std::expected<void, LoadError> decode(const serialization::Value& clipElement, DocAudioClip& clip);
 
+/// The CC a MIDI output sends MPE Y on until the user picks another (CC 74, MPE's timbre controller).
+inline constexpr uint8_t kMidiOutputMpeYDefault = 74;
+
+/// @brief A new output record of the type @p element names, holding the values the engine gives that type before
+/// reading a file: what a key the file lacks stays as.
+[[nodiscard]] DocOutput new_output(std::string_view element);
+
 /// @brief An output's identity within its @p element (`sound`, `kit`, `audioTrack`, `midi`, `midiChannel`,
 /// `mpeZone` or `cvChannel`): arrangement state, colour, name, folder, velocity and the type's own channel words.
 /// A default velocity of 0 or 128 and above keeps the record's value.

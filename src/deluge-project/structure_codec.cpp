@@ -187,6 +187,14 @@ std::expected<void, LoadError> decode(const Value& clipElement, DocAudioClip& cl
 	return {};
 }
 
+DocOutput new_output(std::string_view element) {
+	DocOutput output;
+	if (is_midi_element(element)) {
+		output.output_mpe_y = kMidiOutputMpeYDefault;
+	}
+	return output;
+}
+
 Value encode_identity(const DocOutput& output, std::string_view element) {
 	auto map = Value::makeMap();
 	if (output.muted_in_arrangement) {

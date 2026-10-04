@@ -8,7 +8,7 @@ using namespace deluge::project;
 
 namespace {
 std::string fixture() {
-	std::ifstream in(DELUGE_SYNTHETIC_DIR "/model_records.XML");
+	std::ifstream in(DELUGE_MODEL_RECORDS);
 	std::stringstream text;
 	text << in.rdbuf();
 	return text.str();
@@ -17,7 +17,7 @@ std::string fixture() {
 
 // clang-format off
 describe equality_sabotage("the model-equality gate", ${
-	it("passes the synthetic song", _ {
+	it("passes the song holding every record", _ {
 		auto result = check_equality(fixture(), false);
 		expect(result.has_value()).to_equal(true);
 	});

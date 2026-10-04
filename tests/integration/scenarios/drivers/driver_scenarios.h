@@ -29,6 +29,7 @@
 /// | edit_substrate       | the Edit dispatcher and the SetParamValue pilot, self-checking             |
 /// | edit_undo_redo       | reified Edits applied, undone and redone over a loaded song, self-checking |
 /// | json_roundtrip       | XML -> JSON -> JSON fixed point                                            |
+/// | model_decode_diff    | the model's decode of a saved song against the records the engine leaves   |
 /// | param_clone          | ParamCollection clone deep independence, self-checking                     |
 /// | param_projection     | DocAutoParam <-> AutoParam projection, self-checking                       |
 /// | param_record_diff    | live automation recording, printed for a baseline diff                     |
@@ -50,6 +51,7 @@ DELUGE_DRIVER_SCENARIO_DECLARE(clip_clone_roundtrip)
 DELUGE_DRIVER_SCENARIO_DECLARE(edit_substrate)
 DELUGE_DRIVER_SCENARIO_DECLARE(edit_undo_redo)
 DELUGE_DRIVER_SCENARIO_DECLARE(json_roundtrip)
+DELUGE_DRIVER_SCENARIO_DECLARE(model_decode_diff)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_clone)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_projection)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_record_diff)

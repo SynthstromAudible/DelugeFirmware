@@ -154,7 +154,8 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root) {
 			continue;
 		}
 		SongDocument::OutputEntry entry{.id = outputIds.id_of(*output.node), .element = std::string(output.name)};
-		(void)decode_identity(*output.node, output.name, document.outputs[entry.id]);
+		DocOutput& record = document.outputs[entry.id] = new_output(output.name);
+		(void)decode_identity(*output.node, output.name, record);
 		if (const Value* sources = output.node->find("soundSources")) {
 			for (const NamedChild& drum : children(*sources)) {
 				if (!is_drum_element(drum.name) || !drum.node->isMap()) {

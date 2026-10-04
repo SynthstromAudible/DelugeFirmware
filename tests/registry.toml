@@ -1067,6 +1067,21 @@ tier = "nightly"
 runtime = "~10s"
 
 [[harness]]
+name = "model-decode-diff"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "decode reads a saved song's model records exactly as the engine loader does: every synthetic song (and every corpus song when there is a corpus) is loaded, saved, and the saved bytes both loaded by the engine and decoded by the model alone; the song-level records, the arrangement and every clip, audio clip, output and drum record must be equal"
+scenario = "model_decode_diff"
+check = "tests/integration/checks/host_driver.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+runtime = "~10s"
+
+[[harness]]
 name = "song-edit-roundtrip"
 path = "."
 level = "integration"

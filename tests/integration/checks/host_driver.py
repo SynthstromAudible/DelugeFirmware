@@ -20,6 +20,7 @@ RUNNERS = {
     "clip_clone_roundtrip": "clip_clone_run",
     "edit_undo_redo": "edit_undo_redo_run",
     "json_roundtrip": "json_roundtrip_run",
+    "model_decode_diff": "model_decode_diff_run",
     "param_record_diff": "param_record_run",
     "song_edit_roundtrip": "song_edit_roundtrip_run",
     "song_roundtrip": "songs_run",
