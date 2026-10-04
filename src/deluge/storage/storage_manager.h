@@ -226,8 +226,15 @@ public:
 	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                            char const* endString = nullptr) override;
 	void reset() override;
+	/// @brief Write @p members at the current element: each scalar as an attribute (the element's opening tag must
+	/// still be open), each Map as a child element and each Array as a list of its boxed elements (after
+	/// writeOpeningTagEnd()). Every scalar comes before every child; a scalar after a child freezes "SV02".
+	void writeValue(const deluge::serialization::Value& members) override;
 
 private:
+	/// Write @p value, a Map or an Array, as the element or list @p name.
+	void writeElement(char const* name, const deluge::serialization::Value& value);
+
 	uint8_t indentAmount{};
 };
 

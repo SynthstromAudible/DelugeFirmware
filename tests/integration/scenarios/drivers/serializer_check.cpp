@@ -16,7 +16,8 @@
  */
 
 // serializer_check <song.XML> — the serializers agree. For every output of the song, what ValueSerializer builds equals
-// the tree the JSON writer's text parses to; and a fixed set of writes does too. Exit: 0 agree; 1 load failure; 2
+// the tree the JSON writer's text parses to; and a fixed set of writes does too. The XML writer writes a Value as the
+// attributes and elements the streaming calls would. Exit: 0 agree; 1 load failure; 2
 // usage/IO; 3 they differ (the output and the first differing path are printed).
 
 #include "memory/general_memory_allocator.h"
@@ -26,6 +27,7 @@
 #include "model/song/song.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
+#include "serialization/parse_xml.h"
 #include "serialization/tree.h"
 #include "storage/storage_manager.h"
 #include "storage/value_serializer.h"
@@ -99,6 +101,55 @@ int agree(const char* what, ValueSerializer::Writes writes, Write write) {
 	return 0;
 }
 
+/// 0 when the XML writer writes a Value as the attributes and elements the streaming calls would, else 3.
+int xmlWritesValues() {
+	auto osc = Value::makeMap();
+	osc.set("type", Value::makeScalar("sine"));
+	auto zone = Value::makeMap();
+	zone.set("startSamplePos", Value::makeNumber(0));
+	auto range = Value::makeMap();
+	range.set("fileName", Value::makeScalar("A.WAV"));
+	range.set("zone", std::move(zone));
+	auto boxed = Value::makeMap();
+	boxed.set("sampleRange", std::move(range));
+	auto ranges = Value::makeArray();
+	ranges.append(std::move(boxed));
+	auto body = Value::makeMap();
+	body.set("osc1", std::move(osc));
+	body.set("sampleRanges", std::move(ranges));
+	auto head = Value::makeMap();
+	head.set("mode", Value::makeScalar("fm"));
+	head.set("name", Value::makeScalar(R"(say "hi" <now>)"));
+
+	XMLSerializer xml;
+	xml.setMemoryBased();
+	xml.reset();
+	{
+		ActiveWriterScope scope(xml);
+		xml.writeOpeningTagBeginning("sound");
+		xml.writeValue(head);
+		xml.writeOpeningTagEnd();
+		xml.writeValue(body);
+		xml.writeClosingTag("sound");
+	}
+	auto written =
+	    deluge::serialization::parseXml(std::string_view(xml.getBufferPtr(), static_cast<size_t>(xml.bytesWritten())));
+	auto expected =
+	    deluge::serialization::parseXml(R"(<sound mode="fm" name="say &quot;hi&quot; &lt;now>">)"
+	                                    R"(<osc1 type="sine"/><sampleRanges><sampleRange fileName="A.WAV">)"
+	                                    R"(<zone startSamplePos="0"/></sampleRange></sampleRanges></sound>)");
+	if (!written || !expected) {
+		std::fprintf(io.err, "SERIALIZER DIFF: XML writeValue: %s does not parse\n",
+		             !written ? "what it wrote" : "the expected document");
+		return 3;
+	}
+	if (std::string d = deluge::serialization::first_difference(*written, *expected); !d.empty()) {
+		std::fprintf(io.err, "SERIALIZER DIFF: XML writeValue: they differ at %s\n", d.c_str());
+		return 3;
+	}
+	return 0;
+}
+
 int serializer_check_main(int argc, char** argv, Io driverIo) {
 	io = driverIo;
 	if (argc < 2) {
@@ -122,6 +173,10 @@ int serializer_check_main(int argc, char** argv, Io driverIo) {
 		    w.writeArrayEnding("ranges");
 		    w.writeClosingTag("sound");
 	    })) {
+		return r;
+	}
+
+	if (int r = xmlWritesValues()) {
 		return r;
 	}
 

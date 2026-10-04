@@ -33,6 +33,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "serialization/value.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 #include "util/firmware_version.h"
@@ -54,6 +55,56 @@ void Serializer::writeAbsoluteSyncLevelToFile(Song* song, char const* name, Sync
 
 void Serializer::writeValue(const deluge::serialization::Value& /*members*/) {
 	FREEZE_WITH_ERROR("SV01");
+}
+
+void XMLSerializer::writeValue(const deluge::serialization::Value& members) {
+	bool sawChild = false;
+	for (const auto& [name, value] : members.entries()) {
+		if (value.isScalar()) {
+			if (sawChild) {
+				FREEZE_WITH_ERROR("SV02");
+				return;
+			}
+			writeAttribute(name.c_str(), value.str().c_str());
+			continue;
+		}
+		sawChild = true;
+		writeElement(name.c_str(), value);
+	}
+}
+
+void XMLSerializer::writeElement(char const* name, const deluge::serialization::Value& value) {
+	if (value.isArray()) {
+		writeArrayStart(name);
+		for (const auto& item : value.items()) {
+			for (const auto& [itemName, itemValue] : item.entries()) {
+				writeElement(itemName.c_str(), itemValue);
+			}
+		}
+		writeArrayEnding(name);
+		return;
+	}
+	writeOpeningTagBeginning(name);
+	bool hasChildren = false;
+	for (const auto& [key, member] : value.entries()) {
+		if (member.isScalar()) {
+			writeAttribute(key.c_str(), member.str().c_str());
+		}
+		else {
+			hasChildren = true;
+		}
+	}
+	if (!hasChildren) {
+		closeTag();
+		return;
+	}
+	writeOpeningTagEnd();
+	for (const auto& [key, member] : value.entries()) {
+		if (!member.isScalar()) {
+			writeElement(key.c_str(), member);
+		}
+	}
+	writeClosingTag(name);
 }
 
 void Serializer::writeFirmwareVersion() {
