@@ -20,9 +20,11 @@
 #include "deluge-project/arrangement.h"
 #include "deluge-project/launch_style.h"
 #include "deluge-project/sequence_direction.h"
+#include "engine-api/types/engine_id.h"
 #include "serialization/tree.h"
 
 #include <algorithm>
+#include <array>
 #include <string>
 
 namespace deluge::project {
@@ -335,6 +337,39 @@ std::expected<void, LoadError> decode_identity(const Value& outputElement, std::
 		}
 	}
 	return {};
+}
+
+namespace {
+
+/// The keys of a synth track's element the model reads (decode_song's id, decode_identity's for a `sound`).
+constexpr std::array<std::string_view, 9> kSoundOutputKeys{
+    "id",     "isMutedInArrangement", "isSoloingInArrangement", "isArmedForRecording", "activeModFunction",
+    "colour", "presetName",           "presetFolder",           "defaultVelocity"};
+/// The keys of a sound kit row's element the model reads (decode_song's id, decode_identity's name).
+constexpr std::array<std::string_view, 2> kSoundDrumKeys{"id", "name"};
+
+template <size_t N>
+InstrumentSlot slot_without(const Value& element, const std::array<std::string_view, N>& ownKeys) {
+	InstrumentSlot slot{.engine = std::string(deluge::engine::kDelugeInstrument.name)};
+	if (!element.isMap()) {
+		return slot;
+	}
+	for (const auto& [key, value] : element.entries()) {
+		if (std::ranges::find(ownKeys, key) == ownKeys.end()) {
+			slot.state.set(key, value);
+		}
+	}
+	return slot;
+}
+
+} // namespace
+
+InstrumentSlot slot_of_output(const Value& element) {
+	return slot_without(element, kSoundOutputKeys);
+}
+
+InstrumentSlot slot_of_drum(const Value& element) {
+	return slot_without(element, kSoundDrumKeys);
 }
 
 std::string_view drum_element(DrumType type) {

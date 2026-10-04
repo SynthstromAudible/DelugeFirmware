@@ -1,7 +1,10 @@
 #include "codec_support.h"
 #include "deluge-project/structure_codec.h"
+#include "serialization/parse_xml.h"
 
 #include <cppspec.hpp>
+#include <string>
+#include <vector>
 
 using namespace deluge::project;
 using deluge::project::test::both_shapes;
@@ -109,6 +112,26 @@ describe structure_codec("the structure records", ${
 			(void)decode_identity(encode_identity(record), element, back);
 			expect(back == record).to_equal(true);
 		}
+	});
+
+	it("keeps everything in a synth track's element the model does not own, in order, as the track's instrument", _ {
+		auto doc = deluge::serialization::parseXml(R"(<sound id="3" presetName="Bass" colour="5" polyphonic="poly")"
+		                                           R"( mode="fm"><osc1 type="sine"/><unison num="1"/></sound>)");
+		InstrumentSlot slot = slot_of_output(*doc->find("sound"));
+		expect(slot.engine).to_equal(std::string("deluge.instrument"));
+		std::vector<std::string> keys;
+		for (const auto& [key, value] : slot.state.entries()) {
+			keys.push_back(key);
+		}
+		expect(keys).to_equal(std::vector<std::string>{"polyphonic", "mode", "osc1", "unison"});
+	});
+
+	it("keeps a sound drum's sound, without its id and name", _ {
+		auto doc = deluge::serialization::parseXml(
+		    R"(<sound id="9" name="KICK" mode="subtractive"><osc1 type="sample"/></sound>)");
+		InstrumentSlot slot = slot_of_drum(*doc->find("sound"));
+		expect(slot.state.find("name") == nullptr && slot.state.find("id") == nullptr).to_equal(true);
+		expect(slot.state.find("osc1") != nullptr).to_equal(true);
 	});
 });
 

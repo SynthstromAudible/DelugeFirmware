@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/drum_type.h"
+#include "deluge-project/instrument_slot.h"
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -34,9 +35,13 @@ struct DocDrum {
 	uint8_t channel{0};
 	uint8_t note{0};
 	std::string name;
-	/// Equal when the identity fields are.
+	/// The instrument a sound kit row plays; absent for every other kind.
+	std::optional<InstrumentSlot> instrument;
+
+	/// Equal when the identity fields and the instrument are.
 	bool operator==(const DocDrum& other) const {
-		return drum_type == other.drum_type && channel == other.channel && note == other.note && name == other.name;
+		return drum_type == other.drum_type && channel == other.channel && note == other.note && name == other.name
+		       && instrument == other.instrument;
 	}
 };
 

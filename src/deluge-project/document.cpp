@@ -156,13 +156,20 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root) {
 		SongDocument::OutputEntry entry{.id = outputIds.id_of(*output.node), .element = std::string(output.name)};
 		DocOutput& record = document.outputs[entry.id] = new_output(output.name);
 		(void)decode_identity(*output.node, output.name, record);
+		if (output.name == "sound") {
+			record.instrument = slot_of_output(*output.node);
+		}
 		if (const Value* sources = output.node->find("soundSources")) {
 			for (const NamedChild& drum : children(*sources)) {
 				if (!is_drum_element(drum.name) || !drum.node->isMap()) {
 					continue;
 				}
 				const uint32_t id = drumIds.id_of(*drum.node);
-				(void)decode_identity(*drum.node, drum.name, document.drums[id]);
+				DocDrum& drumRecord = document.drums[id];
+				(void)decode_identity(*drum.node, drum.name, drumRecord);
+				if (drumRecord.drum_type == DrumType::SOUND) {
+					drumRecord.instrument = slot_of_drum(*drum.node);
+				}
 				entry.drums.push_back({.id = id, .element = std::string(drum_element(document.drums[id].drum_type))});
 			}
 		}
@@ -247,13 +254,21 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version) {
 	for (const SongDocument::OutputEntry& entry : song.output_order) {
 		auto element = Value::makeMap();
 		element.set("id", Value::makeNumber(entry.id));
-		append_entries(element, encode_identity(song.outputs.at(entry.id), entry.element));
+		const DocOutput& output = song.outputs.at(entry.id);
+		append_entries(element, encode_identity(output, entry.element));
+		if (output.instrument) {
+			append_entries(element, output.instrument->state);
+		}
 		if (!entry.drums.empty()) {
 			auto sources = Value::makeArray();
 			for (const SongDocument::DrumEntry& drum : entry.drums) {
 				auto drumElement = Value::makeMap();
 				drumElement.set("id", Value::makeNumber(drum.id));
-				append_entries(drumElement, encode_identity(song.drums.at(drum.id)));
+				const DocDrum& drumRecord = song.drums.at(drum.id);
+				append_entries(drumElement, encode_identity(drumRecord));
+				if (drumRecord.instrument) {
+					append_entries(drumElement, drumRecord.instrument->state);
+				}
 				sources.append(boxed(drum.element, std::move(drumElement)));
 			}
 			element.set("soundSources", std::move(sources));

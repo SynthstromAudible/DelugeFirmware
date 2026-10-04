@@ -75,6 +75,34 @@ describe equality_sabotage("the model-equality gate", ${
 		                            R"(<sound a="1"><osc1 type="saw"/></sound>)", false);
 		expect(!result && result.error().find("sound/osc1/type") != std::string::npos).to_equal(true);
 	});
+
+	it("fails, naming the output, when a synth track's sound changes", _ {
+		EqualityFaults faults;
+		faults.on_decoded = [](SongDocument& document) {
+			for (auto& [id, output] : document.outputs) {
+				if (output.instrument) {
+					output.instrument->state.set("mode", deluge::serialization::Value::makeScalar("fm"));
+					return;
+				}
+			}
+		};
+		auto result = check_equality(fixture(), false, faults);
+		expect(!result && result.error().find("output") != std::string::npos).to_equal(true);
+	});
+
+	it("fails, naming the drum, when a sound kit row's sound changes", _ {
+		EqualityFaults faults;
+		faults.on_decoded = [](SongDocument& document) {
+			for (auto& [id, drum] : document.drums) {
+				if (drum.instrument) {
+					drum.instrument->state.set("mode", deluge::serialization::Value::makeScalar("fm"));
+					return;
+				}
+			}
+		};
+		auto result = check_equality(fixture(), false, faults);
+		expect(!result && result.error().find("drum") != std::string::npos).to_equal(true);
+	});
 });
 
 CPPSPEC_SPEC(equality_sabotage)

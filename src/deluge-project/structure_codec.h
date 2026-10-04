@@ -23,6 +23,7 @@
 #include "deluge-project/doc_drum.h"
 #include "deluge-project/doc_note_row.h"
 #include "deluge-project/doc_output.h"
+#include "deluge-project/instrument_slot.h"
 #include "serialization/value.h"
 
 #include <cstdint>
@@ -76,6 +77,13 @@ inline constexpr uint8_t kMidiOutputMpeYDefault = 74;
 [[nodiscard]] serialization::Value encode_identity(const DocDrum& drum);
 [[nodiscard]] std::expected<void, LoadError> decode_identity(const serialization::Value& drumElement,
                                                              std::string_view element, DocDrum& drum);
+
+/// @brief The instrument of a synth track's `sound` element: the element's entries the model does not own (its id and
+/// identity keys), in order, for the Deluge instrument.
+[[nodiscard]] InstrumentSlot slot_of_output(const serialization::Value& element);
+
+/// @brief The instrument of a sound kit row's element: its entries other than its id and name, in order.
+[[nodiscard]] InstrumentSlot slot_of_drum(const serialization::Value& element);
 
 /// @brief The element a drum of @p type is written as.
 [[nodiscard]] std::string_view drum_element(DrumType type);

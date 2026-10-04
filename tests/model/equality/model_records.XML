@@ -209,6 +209,10 @@
 			<soundSources>
 				<midiOutput name="M1" id="7" channel="3" note="36" />
 				<gateOutput name="G1" id="8" channel="1" />
+				<sound name="S1" id="9" polyphonic="poly" mode="subtractive">
+					<osc1 type="sine" transpose="0" cents="0" retrigPhase="-1" />
+					<unison num="1" detune="8" spread="0" />
+				</sound>
 			</soundSources>
 		</kit>
 		<audioTrack

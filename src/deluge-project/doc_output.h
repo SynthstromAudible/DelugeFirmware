@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/cv_mode.h"
+#include "deluge-project/instrument_slot.h"
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -45,7 +46,10 @@ struct DocOutput {
 	bool collapse_mpe{true};                 ///< MIDIInstrument
 	uint8_t output_mpe_y{0};                 ///< MIDIInstrument (CCNumber underlying)
 	CVMode cv2_source{CVMode::OFF};          ///< CVInstrument
-	/// Equal when the identity fields are.
+	/// The instrument a synth track (a `sound` element) plays; absent for every other kind.
+	std::optional<InstrumentSlot> instrument;
+
+	/// Equal when the identity fields and the instrument are.
 	bool operator==(const DocOutput& other) const {
 		return name == other.name && colour == other.colour && mod_knob_mode == other.mod_knob_mode
 		       && muted_in_arrangement == other.muted_in_arrangement
@@ -55,7 +59,8 @@ struct DocOutput {
 		       && channel_suffix == other.channel_suffix
 		       && device_definition_file_name == other.device_definition_file_name
 		       && collapse_aftertouch == other.collapse_aftertouch && collapse_mpe == other.collapse_mpe
-		       && output_mpe_y == other.output_mpe_y && cv2_source == other.cv2_source;
+		       && output_mpe_y == other.output_mpe_y && cv2_source == other.cv2_source
+		       && instrument == other.instrument;
 	}
 };
 

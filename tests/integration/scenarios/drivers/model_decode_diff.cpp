@@ -155,7 +155,14 @@ int compare_store(const char* what, const Store& engine, const Map& decoded) {
 			std::fprintf(io.err, "DECODE DIFF: %s %u is not in the decoded song\n", what, id);
 			return 3;
 		}
-		if (!(it->second == record)) {
+		// The slots are compared on their own, after the identity records (compare_slots).
+		auto withoutSlot = [](auto r) {
+			if constexpr (requires { r.instrument.reset(); }) {
+				r.instrument.reset();
+			}
+			return r;
+		};
+		if (!(withoutSlot(it->second) == withoutSlot(record))) {
 			std::fprintf(io.err, "DECODE DIFF: %s %u differs:%s\n", what, id, what_differs(record, it->second).c_str());
 			return 3;
 		}
