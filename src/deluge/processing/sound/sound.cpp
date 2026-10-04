@@ -3412,8 +3412,7 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 // M3 owner-5: copy the DOM-owned scalars engine->record (the load-bridge). Assumes state_ is bound. Run from
 // bindState and re-run at doneReadingFromFile (see those for the bind-vs-parse ordering that makes the re-run
 // necessary for SoundDrums).
-void Sound::seedDocSoundScalars() {
-	deluge::instrument::SoundState& d = *state_;
+void Sound::seedScalarsInto(deluge::instrument::SoundState& d) const {
 	d.voice_priority = snapshot_.voicePriority;
 	d.max_voice_count = maxVoiceCount;
 	d.side_chain_send_level = sideChainSendLevel;
@@ -3440,6 +3439,12 @@ void Sound::seedDocSoundScalars() {
 		d.lfo_wave_type[i] = snapshot_.lfoConfig[i].waveType;
 		d.lfo_sync_type[i] = snapshot_.lfoConfig[i].syncType;
 		d.lfo_sync_level[i] = snapshot_.lfoConfig[i].syncLevel;
+	}
+}
+
+void Sound::seedDocSoundScalars() {
+	if (state_ != nullptr) {
+		seedScalarsInto(*state_);
 	}
 }
 
@@ -3477,14 +3482,17 @@ void Sound::projectSnapshot() {
 	}
 }
 
-void Sound::seedModKnobsRecord() {
-	if (state_ == nullptr) {
-		return;
-	}
+void Sound::seedModKnobsInto(deluge::instrument::SoundState& d) const {
 	for (int32_t k = 0; k < kNumModButtons; k++) {
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
-			state_->mod_knob_param_descriptor[k][w] = modKnobs[k][w].paramDescriptor.data;
+			d.mod_knob_param_descriptor[k][w] = modKnobs[k][w].paramDescriptor.data;
 		}
+	}
+}
+
+void Sound::seedModKnobsRecord() {
+	if (state_ != nullptr) {
+		seedModKnobsInto(*state_);
 	}
 }
 
@@ -3572,30 +3580,15 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	return Error::NONE;
 }
 
-deluge::instrument::SoundState Sound::seededState() {
+deluge::instrument::SoundState Sound::seededState() const {
 	deluge::instrument::SoundState seeded;
-	// The seeds write wherever the state pointers point: aim them at `seeded` for the duration.
-	deluge::instrument::SoundState* const bound = state_;
-	deluge::instrument::DocModControllable* const boundEffects = docModControllable_;
-	std::array<deluge::instrument::SourceState*, kNumSources> boundSources{};
-	state_ = &seeded;
-	docModControllable_ = &seeded.mod_controllable;
+	seedScalarsInto(seeded);
+	seedModKnobsInto(seeded);
+	seedEffectsInto(seeded.mod_controllable);
 	for (int32_t s = 0; s < kNumSources; s++) {
-		boundSources[s] = sources[s].state_;
-		sources[s].state_ = &seeded.sources[s];
-	}
-	seedDocSoundScalars();
-	seedModKnobsRecord();
-	seedDocModControllable();
-	for (int32_t s = 0; s < kNumSources; s++) {
-		sources[s].seedDocSourceScalars();
-		sources[s].seedDocDxPatch();
-		sources[s].seedDocRanges();
-	}
-	state_ = bound;
-	docModControllable_ = boundEffects;
-	for (int32_t s = 0; s < kNumSources; s++) {
-		sources[s].state_ = boundSources[s];
+		sources[s].seedScalarsInto(seeded.sources[s]);
+		sources[s].seedDxPatchInto(seeded.sources[s]);
+		sources[s].seedRangesInto(seeded.sources[s]);
 	}
 	return seeded;
 }

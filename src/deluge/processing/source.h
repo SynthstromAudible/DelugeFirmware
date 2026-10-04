@@ -42,15 +42,21 @@ public:
 	deluge::instrument::SourceState* state_{nullptr};
 	void bindState(deluge::instrument::SourceState* d);
 	void seedDocSourceScalars();
+	/// The scalars seedDocSourceScalars copies, into @p d.
+	void seedScalarsInto(deluge::instrument::SourceState& d) const;
 	// The DX7 patch is mutated in-place (per-param edits, engine mode, cartridge load) rather than through one setter,
 	// so like modKnobs it re-seeds the whole optional<DxPatchState> record after any mutation (bind,
 	// doneReadingFromFile, the dx/ menus, setOscType→ensureDxPatch). Copies the 156 params + engineMode +
 	// random_detune, or clears it when the engine patch is absent (non-DX7 osc).
 	void seedDocDxPatch();
+	/// The DX7 patch seedDocDxPatch copies, into @p d.
+	void seedDxPatchInto(deluge::instrument::SourceState& d) const;
 	// ranges (owner-5, no undo): whole-list reseed of the RangeState list after any range mutation (zone edit,
 	// add/remove, sample-set, reverse). The engine sampleHolder/ranges stay the working structure; this mirrors them
 	// into the record.
 	void seedDocRanges();
+	/// The ranges seedDocRanges copies, into @p d.
+	void seedRangesInto(deluge::instrument::SourceState& d) const;
 
 	SampleControls sampleControls;
 

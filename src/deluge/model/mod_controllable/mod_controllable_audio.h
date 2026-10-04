@@ -67,6 +67,8 @@ public:
 	/// Copy the non-param structural fields native->record (guarded on docModControllable_). The load-bridge: run at
 	/// bind and re-run once parsing is done (the owner's doneReadingFromFile), mirroring the SoundState scalar seed.
 	void seedDocModControllable();
+	/// The settings seedDocModControllable copies, into @p d.
+	void seedEffectsInto(deluge::instrument::DocModControllable& d) const;
 	/// The derived read-view of the effect configuration; the render reads it. Always present: an unbound owner writes
 	/// it directly.
 	deluge::snapshot::ModControllableSnapshot modControllableSnapshot_{};

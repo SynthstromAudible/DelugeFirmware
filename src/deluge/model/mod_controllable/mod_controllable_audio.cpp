@@ -589,11 +589,7 @@ void ModControllableAudio::setSidechainSyncLevel(SyncLevel value) {
 	}
 }
 
-void ModControllableAudio::seedDocModControllable() {
-	if (docModControllable_ == nullptr) {
-		return;
-	}
-	deluge::instrument::DocModControllable& d = *docModControllable_;
+void ModControllableAudio::seedEffectsInto(deluge::instrument::DocModControllable& d) const {
 	d.clipping_amount = modControllableSnapshot_.clippingAmount;
 	d.lpf_mode = static_cast<uint8_t>(modControllableSnapshot_.lpfMode);
 	d.hpf_mode = static_cast<uint8_t>(modControllableSnapshot_.hpfMode);
@@ -616,6 +612,12 @@ void ModControllableAudio::seedDocModControllable() {
 	d.stutter.quantized = stutterConfig.quantized;
 	d.stutter.reversed = stutterConfig.reversed;
 	d.stutter.ping_pong = stutterConfig.pingPong;
+}
+
+void ModControllableAudio::seedDocModControllable() {
+	if (docModControllable_ != nullptr) {
+		seedEffectsInto(*docModControllable_);
+	}
 }
 
 void ModControllableAudio::writeTagsToFile(Serializer& writer) {

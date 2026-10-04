@@ -115,7 +115,7 @@ public:
 	/// @return INSUFFICIENT_RAM if a key-split range cannot be had.
 	Error applyState(const deluge::instrument::SoundState& state);
 	/// The state binding would seed from this sound's runtime fields now (bound or not), through the same seeds.
-	[[nodiscard]] deluge::instrument::SoundState seededState();
+	[[nodiscard]] deluge::instrument::SoundState seededState() const;
 	/// The element this sound was last read from, handed over once (to fill its instrument slot); empty if it was not
 	/// read from a document tree.
 	[[nodiscard]] std::optional<deluge::serialization::Value> takeLoadedElement() {
@@ -125,6 +125,8 @@ public:
 	// AND re-run at doneReadingFromFile — a SoundDrum's adoptDrum binds the record BEFORE its fields are parsed, so the
 	// bind-time seed is stale for drums and must be refreshed once parsing has finished.
 	void seedDocSoundScalars();
+	/// The scalars seedDocSoundScalars copies, into @p d.
+	void seedScalarsInto(deluge::instrument::SoundState& d) const;
 
 	// M4b: the engine's derived read-view of the hot Sound render fields, PROJECTED from state_ by
 	// projectSnapshot() at bind / doneReadingFromFile / after edits; the render reads it (getTranspose() etc.).
@@ -139,6 +141,8 @@ public:
 	// auto-assign). The native ModKnob array stays the working structure; the record mirrors it and is what save reads.
 	// Public so the external sample-load auto-assign can re-seed.
 	void seedModKnobsRecord();
+	/// The mod knobs seedModKnobsRecord copies, into @p d.
+	void seedModKnobsInto(deluge::instrument::SoundState& d) const;
 
 	Patcher patcher;
 

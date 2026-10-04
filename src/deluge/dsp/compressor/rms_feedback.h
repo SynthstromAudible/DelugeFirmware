@@ -127,7 +127,7 @@ public:
 	}
 
 	/// Get the current sidechain cutoff frequency as a full-scale (0 to 2^31) integer
-	q31_t getSidechain() { return sideChainKnobPos; }
+	[[nodiscard]] q31_t getSidechain() const { return sideChainKnobPos; }
 
 	/// Get the current sidechain cutoff frequency in hertz.
 	[[nodiscard]] inline constexpr float getSidechainForDisplay() const { return fc_hz; }
@@ -147,7 +147,7 @@ public:
 	}
 
 	/// returns blend in q31
-	constexpr q31_t getBlend() { return wet; }
+	[[nodiscard]] constexpr q31_t getBlend() const { return wet; }
 	/// returns blend as an integer percentage
 	constexpr int32_t getBlendForDisplay() { return wet > (127 << 24) ? 100 : 100 * (wet >> 24) >> 7; }
 

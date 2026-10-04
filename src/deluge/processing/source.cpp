@@ -68,11 +68,7 @@ void Source::bindState(deluge::instrument::SourceState* d) {
 // Copy the DOM-owned scalars native->record (guarded). Load-bridge: run at bind and re-run at doneReadingFromFile (a
 // SoundDrum binds before its fields are parsed, so the bind-time seed is stale for drums). dxPatch + ranges are later
 // slices — not seeded here.
-void Source::seedDocSourceScalars() {
-	if (state_ == nullptr) {
-		return;
-	}
-	deluge::instrument::SourceState& d = *state_;
+void Source::seedScalarsInto(deluge::instrument::SourceState& d) const {
 	d.osc_type = oscType;
 	d.transpose = transpose;
 	d.cents = cents;
@@ -83,10 +79,13 @@ void Source::seedDocSourceScalars() {
 	d.reversed = sampleControls.reversed;
 }
 
-void Source::seedDocDxPatch() {
-	if (state_ == nullptr) {
-		return;
+void Source::seedDocSourceScalars() {
+	if (state_ != nullptr) {
+		seedScalarsInto(*state_);
 	}
+}
+
+void Source::seedDxPatchInto(deluge::instrument::SourceState& d) const {
 	if (dxPatch != nullptr) {
 		deluge::instrument::DxPatchState p;
 		for (int32_t b = 0; b < 156; b++) {
@@ -94,22 +93,25 @@ void Source::seedDocDxPatch() {
 		}
 		p.engine_mode = dxPatch->engineMode;
 		p.random_detune = dxPatch->random_detune;
-		state_->dx_patch = p;
+		d.dx_patch = p;
 	}
 	else {
-		state_->dx_patch.reset();
+		d.dx_patch.reset();
 	}
 }
 
-void Source::seedDocRanges() {
-	if (state_ == nullptr) {
-		return;
+void Source::seedDocDxPatch() {
+	if (state_ != nullptr) {
+		seedDxPatchInto(*state_);
 	}
-	state_->ranges.clear();
+}
+
+void Source::seedRangesInto(deluge::instrument::SourceState& d) const {
+	d.ranges.clear();
 	int32_t numRanges = std::ssize(ranges);
-	state_->ranges.reserve(numRanges);
+	d.ranges.reserve(numRanges);
 	for (int32_t e = 0; e < numRanges; e++) {
-		MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
+		const auto* range = static_cast<const MultisampleRange*>(ranges.getElement(e));
 		deluge::instrument::RangeState dr;
 		dr.top_note = range->topNote;
 		dr.file_path =
@@ -124,7 +126,13 @@ void Source::seedDocRanges() {
 			dr.start_msec = static_cast<int32_t>(range->sampleHolder.startMSec);
 			dr.end_msec = static_cast<int32_t>(range->sampleHolder.endMSec);
 		}
-		state_->ranges.push_back(std::move(dr));
+		d.ranges.push_back(std::move(dr));
+	}
+}
+
+void Source::seedDocRanges() {
+	if (state_ != nullptr) {
+		seedRangesInto(*state_);
 	}
 }
 
