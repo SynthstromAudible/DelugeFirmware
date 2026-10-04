@@ -18,6 +18,7 @@
 
 #include "memory/general_memory_allocator.h"
 #include "model/global_effectable/global_effectable.h"
+#include "model/output.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "scenarios/drivers/tree_load.h"
@@ -161,6 +162,12 @@ int json_roundtrip_main(int argc, char** argv, Io driverIo) {
 		std::fprintf(io.err, "LOADFAIL xml -> Error %d\n", (int)e);
 		return 1;
 	}
+	// A name holding characters JSON must escape (a quote, a backslash, a tab) must save as valid JSON and come back
+	// unchanged.
+	constexpr std::string_view kEscapedName = "ESC \"Q\" \\ T\tEND";
+	if (song1->live.media.first_output != nullptr) {
+		song1->live.media.first_output->setName(kEscapedName);
+	}
 	long nA = saveJson(song1, jsonA, kCap);
 	if (const char* dump = getenv("JSON_DUMP")) { // debug aid: write the intermediate JSON for inspection
 		FILE* df = std::fopen(dump, "wb");
@@ -193,6 +200,11 @@ int json_roundtrip_main(int argc, char** argv, Io driverIo) {
 	if (!song2) {
 		std::fprintf(io.err, "LOADFAIL json -> Error %d\n", (int)e);
 		return 1;
+	}
+	if (song2->live.media.first_output != nullptr && song2->live.media.first_output->name != kEscapedName) {
+		std::fprintf(io.err, "ESCAPE MISMATCH: an escaped output name came back as \"%s\"\n",
+		             song2->live.media.first_output->name.c_str());
+		return 3;
 	}
 	long nB = saveJson(song2, jsonB, kCap);
 	if (const char* dump = getenv("JSON_DUMP2")) {

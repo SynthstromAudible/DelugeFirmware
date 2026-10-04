@@ -315,6 +315,8 @@ public:
 	void writeArrayEnding(char const* tag, bool shouldPrintIndents = true, bool box = false) override;
 	void printIndents() override;
 	void insertCommaIfNeeded() override;
+	/// Write @p text as the inside of a JSON string, escaping `"`, `\\` and control characters.
+	void writeEscaped(char const* text);
 	void write(char const* output) override;
 	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                            char const* endString = nullptr) override;

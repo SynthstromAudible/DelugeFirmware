@@ -78,11 +78,14 @@ void JsonSerializer::writeTag(char const* tag, char const* contents, bool box, b
 	write("\"");
 	write(tag);
 	write("\": ");
-	if (quote)
+	if (quote) {
 		write("\"");
-	write(contents);
-	if (quote)
+		writeEscaped(contents);
 		write("\"");
+	}
+	else {
+		write(contents);
+	}
 	if (box)
 		write("}");
 	firstItemHasBeenWritten = true;
@@ -159,9 +162,67 @@ void JsonSerializer::writeAttribute(char const* name, char const* value, bool on
 	write("\"");
 	write(name);
 	write("\": \"");
-	write(value);
+	writeEscaped(value);
 	write("\"");
 	firstItemHasBeenWritten = true;
+}
+
+void JsonSerializer::writeEscaped(char const* text) {
+	// Characters a JSON string holds as they are go out in chunks; the rest are escaped.
+	char chunk[64];
+	size_t used = 0;
+	const auto flush = [&] {
+		chunk[used] = 0;
+		write(chunk);
+		used = 0;
+	};
+	for (char const* c = text; *c != 0; c++) {
+		const auto byte = static_cast<unsigned char>(*c);
+		char const* escape = nullptr;
+		char unicode[7];
+		switch (byte) {
+		case '"':
+			escape = "\\\"";
+			break;
+		case '\\':
+			escape = "\\\\";
+			break;
+		case '\n':
+			escape = "\\n";
+			break;
+		case '\r':
+			escape = "\\r";
+			break;
+		case '\t':
+			escape = "\\t";
+			break;
+		default:
+			if (byte < 0x20) {
+				unicode[0] = '\\';
+				unicode[1] = 'u';
+				unicode[2] = '0';
+				unicode[3] = '0';
+				unicode[4] = "0123456789abcdef"[byte >> 4];
+				unicode[5] = "0123456789abcdef"[byte & 15];
+				unicode[6] = 0;
+				escape = unicode;
+			}
+		}
+		if (escape == nullptr) {
+			chunk[used++] = *c;
+			if (used == sizeof chunk - 1) {
+				flush();
+			}
+			continue;
+		}
+		if (used > 0) {
+			flush();
+		}
+		write(escape);
+	}
+	if (used > 0) {
+		flush();
+	}
 }
 
 void JsonSerializer::writeTagNameAndSeperator(char const* tag) {
