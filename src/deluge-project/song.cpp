@@ -22,54 +22,26 @@ namespace deluge::project {
 Song::Song() = default;
 
 namespace {
-/// Resolve one param slot within a tree-resident DocParamManager: the address's params::Kind selects the
-/// collection, param_id indexes it. nullptr if the manager/collection/index isn't tree-resident. Patch cables /
-/// MIDI resolve in a later slice.
-DocAutoParam* slotInManager(DocParamManager* mgr, const ParamAddress& address) {
-	if (mgr == nullptr) {
-		return nullptr;
-	}
-	std::optional<DocParamSet>* set = nullptr;
-	switch (address.kind) {
-	case deluge::engine::ParamKind::UNPATCHED_SOUND:
-	case deluge::engine::ParamKind::UNPATCHED_GLOBAL:
-		set = &mgr->unpatched;
-		break;
-	case deluge::engine::ParamKind::PATCHED:
-		set = &mgr->patched;
-		break;
-	case deluge::engine::ParamKind::EXPRESSION:
-		set = &mgr->expression;
-		break;
-	default:
-		return nullptr; // PATCH_CABLE / MIDI / etc. — not tree-resident yet
-	}
-	if (set->has_value() && address.param_id >= 0 && address.param_id < static_cast<int32_t>((*set)->params.size())) {
-		return &(*set)->params[address.param_id];
-	}
-	return nullptr;
-}
-
-/// Resolve a patch-cable amount lane within a tree-resident manager by IDENTITY (S4b). The address's param_id is
+/// Resolve a patch-cable amount lane within a tree-resident manager by IDENTITY (S4b). The address's id is
 /// the packed (destination + source) word `PatchCableSet::getParamId` produces, so recompute that word from each
 /// stored cable's (destination, from) with patch_cable_param_id() and match.
 /// Identity, not index: the engine reorders cables at runtime (setupPatching), so only (from, dest) is stable.
-DocAutoParam* patchCableInManager(DocParamManager* mgr, int32_t paramId) {
+DocAutoParam* patchCableInManager(DocParamManager* mgr, uint32_t paramId) {
 	if (mgr == nullptr) {
 		return nullptr;
 	}
 	for (DocPatchCable& cable : mgr->patch_cables) {
-		if (static_cast<int32_t>(patch_cable_param_id(cable.destination, cable.from)) == paramId) {
+		if (patch_cable_param_id(cable.destination, cable.from) == paramId) {
 			return &cable.amount;
 		}
 	}
 	return nullptr;
 }
 
-/// Resolve a MIDI-CC lane within a tree-resident manager by IDENTITY (S4c). The address's param_id is the CC
+/// Resolve a MIDI-CC lane within a tree-resident manager by IDENTITY (S4c). The address's id is the CC
 /// number (the MIDIParamVector keys by cc); scan the manager's per-clip CC store for it. Identity, not index: a
 /// newly-learned CC reorders the engine vector, so only cc is stable.
-DocAutoParam* midiParamInManager(DocParamManager* mgr, int32_t cc) {
+DocAutoParam* midiParamInManager(DocParamManager* mgr, uint32_t cc) {
 	if (mgr == nullptr) {
 		return nullptr;
 	}
@@ -80,40 +52,36 @@ DocAutoParam* midiParamInManager(DocParamManager* mgr, int32_t cc) {
 	}
 	return nullptr;
 }
+
+/// Resolve @p address's lane within a tree-resident manager: engine params and expression by id, a MIDI CC by its
+/// number, a cable by its packed word. nullptr when the manager or lane is not tree-resident.
+DocAutoParam* laneInManager(DocParamManager* mgr, const ParamAddress& address) {
+	if (mgr == nullptr) {
+		return nullptr;
+	}
+	switch (address.space) {
+	case ParamSpace::ENGINE:
+		return mgr->findEngineParam(address.id);
+	case ParamSpace::EXPRESSION:
+		return mgr->expression ? mgr->expression->find(address.id) : nullptr;
+	case ParamSpace::MIDI_CC:
+		return midiParamInManager(mgr, address.id.value);
+	case ParamSpace::PATCH_CABLE:
+		return patchCableInManager(mgr, address.id.value);
+	}
+	return nullptr;
+}
 } // namespace
 
 DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 	switch (address.owner.kind) {
-	case OwnerId::Kind::SONG: {
-		// Song-global params are unpatched-only; their live authority is master_params.unpatched. (The kind is
-		// carried for future collections but is unambiguous here — the caller only builds a SONG address for the
-		// song's unpatched set.)
-		if (master_params.unpatched && address.param_id >= 0
-		    && address.param_id < static_cast<int32_t>(master_params.unpatched->params.size())) {
-			return &master_params.unpatched->params[address.param_id];
-		}
-		return nullptr;
-	}
-	case OwnerId::Kind::CLIP: {
-		// A clip's node storage is tree-resident by its durable id (clip_params). A MIDI_OUT clip's CC automation
-		// (S4c) resolves by cc within the same per-clip store; the audio-clip ParamSet resolves by index.
-		DocParamManager* mgr = clip_params.find(address.owner.id);
-		if (address.kind == deluge::engine::ParamKind::MIDI) {
-			return midiParamInManager(mgr, address.param_id);
-		}
-		return slotInManager(mgr, address);
-	}
+	case OwnerId::Kind::SONG:
+		return laneInManager(&master_params, address);
+	case OwnerId::Kind::CLIP:
+		return laneInManager(clip_params.find(address.owner.id), address);
 	case OwnerId::Kind::INSTRUMENT:
-	case OwnerId::Kind::DRUM: {
-		// Instrument-shared / per-drum params, keyed by (owner, clip) — the persistent form of ParamBackup. Patch
-		// cables (S4b) resolve by cable identity within the manager; the ParamSets resolve by index. nullptr when
-		// the owner/lane isn't tree-resident → engine fallback.
-		DocParamManager* mgr = backed_params.find(address.owner, address.clip_id);
-		if (address.kind == deluge::engine::ParamKind::PATCH_CABLE) {
-			return patchCableInManager(mgr, address.param_id);
-		}
-		return slotInManager(mgr, address);
-	}
+	case OwnerId::Kind::DRUM:
+		return laneInManager(backed_params.find(address.owner, address.clip_id), address);
 	}
 	return nullptr;
 }

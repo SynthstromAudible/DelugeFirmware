@@ -28,6 +28,7 @@
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
@@ -98,7 +99,7 @@ deluge::project::DocAutoParam* ParamSet::docForParam(int32_t p) {
 	// access binds it. Owner-resolution is then uniform and `AutoParam::ownDoc_` is unused by ParamSets.
 	if (domStoreRef_ == nullptr) {
 		domStore_ = std::make_unique<deluge::project::DocParamSet>();
-		domStore_->kind = getParamKind();
+		domStore_->first = deluge::bridge::firstParamId(getParamKind());
 		domStore_->params.resize(numParams_);
 		domStoreRef_ = domStore_.get();
 	}

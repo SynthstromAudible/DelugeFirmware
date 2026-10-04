@@ -39,12 +39,16 @@ static_assert(instrument::kParamBlocks[1].count == params::UNPATCHED_SOUND_MAX_N
 static_assert(global_effectable::kFirstId == params::UNPATCHED_START);
 static_assert(global_effectable::param::kTempo.value == params::UNPATCHED_START + params::UNPATCHED_TEMPO);
 static_assert(global_effectable::kParamBlock.count == params::UNPATCHED_GLOBAL_MAX_NUM);
+static_assert(instrument::kParamBlocks.size() <= deluge::project::kEngineParamBlocks);
 
 deluge::engine::ParamId paramIdOf(params::Kind kind, int32_t index) {
 	const auto at = static_cast<uint8_t>(index);
 	switch (kind) {
 	case params::Kind::PATCHED:
 		return instrument::param_id({instrument::RuntimeSet::PATCHED, at});
+	// An unpatched set reports NONE until its owner's init names it; a sound's and a global effectable's unpatched
+	// params share their numbering, so it is numbered as unpatched either way.
+	case params::Kind::NONE:
 	case params::Kind::UNPATCHED_SOUND:
 		return instrument::param_id({instrument::RuntimeSet::UNPATCHED, at});
 	case params::Kind::UNPATCHED_GLOBAL:
@@ -56,6 +60,44 @@ deluge::engine::ParamId paramIdOf(params::Kind kind, int32_t index) {
 
 deluge::engine::ParamId firstParamId(params::Kind kind) {
 	return paramIdOf(kind, 0);
+}
+
+deluge::project::ParamSpace spaceOf(params::Kind kind) {
+	switch (kind) {
+	case params::Kind::EXPRESSION:
+		return deluge::project::ParamSpace::EXPRESSION;
+	case params::Kind::MIDI:
+		return deluge::project::ParamSpace::MIDI_CC;
+	case params::Kind::PATCH_CABLE:
+		return deluge::project::ParamSpace::PATCH_CABLE;
+	default:
+		return deluge::project::ParamSpace::ENGINE;
+	}
+}
+
+std::optional<deluge::project::DocParamSet>* storeFor(deluge::project::DocParamManager& doc, params::Kind kind) {
+	switch (kind) {
+	case params::Kind::PATCHED:
+		return &doc.engine_params[0];
+	case params::Kind::NONE: // an unpatched set its owner's init has not named yet
+	case params::Kind::UNPATCHED_SOUND:
+	case params::Kind::UNPATCHED_GLOBAL:
+		return &doc.engine_params[1];
+	case params::Kind::EXPRESSION:
+		return &doc.expression;
+	default:
+		return nullptr;
+	}
+}
+
+const std::optional<deluge::project::DocParamSet>* storeFor(const deluge::project::DocParamManager& doc,
+                                                            params::Kind kind) {
+	return storeFor(const_cast<deluge::project::DocParamManager&>(doc), kind);
+}
+
+deluge::project::ParamAddress addressOf(deluge::project::OwnerId owner, params::Kind kind, int32_t index,
+                                        std::optional<uint32_t> clip_id) {
+	return {owner, spaceOf(kind), paramIdOf(kind, index), clip_id};
 }
 
 } // namespace deluge::bridge

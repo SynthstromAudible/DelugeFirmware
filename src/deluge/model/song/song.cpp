@@ -327,6 +327,7 @@ Song::~Song() {
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
 #include "libdeluge/system.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "util/structural_edit_probe.h"
@@ -339,8 +340,9 @@ namespace {
 // the engine set to the tree copy. initParams + the DOM-first read already put the authoritative scalar + nodes in
 // the own store, so this MOVES them into the tree with NO engine->store copy — unlike toDocParamSet, which reads
 // the engine cursor for current_value. Behaviour/golden-neutral (engine == store), but honours the single-store
-// policy (the engine is never the source of the persisted scalar).
-void relocateParamStoreToTree(ParamSet* set, std::optional<deluge::project::DocParamSet>& dest) {
+// policy (the engine is never the source of the persisted scalar). The set's kind picks its store in `mgr`.
+void relocateParamStoreToTree(ParamSet* set, deluge::project::DocParamManager& mgr) {
+	std::optional<deluge::project::DocParamSet>& dest = *deluge::bridge::storeFor(mgr, set->getParamKind());
 	set->bindDomStore(); // ensure the own store exists (the read normally created it) before relocating
 	dest = std::move(*set->domStore());
 	set->bindDomStoreExternal(&*dest);
@@ -1164,18 +1166,17 @@ weAreInArrangementEditorOrInClipInstance:
 	int32_t* valuesForOverride = runtimeView.paramsInAutomationMode ? live.unautomated_param_values.data() : nullptr;
 
 	// Flip Phase 2: serialize the song-global param block DIRECTLY from the DOM store — the singleton
-	// project.master_params.unpatched — fully decoupling this block's save from the engine paramManager.
+	// project.master_params' global-effectable block — fully decoupling this block's save from the engine paramManager.
 	// Byte-identical: the store holds the authoritative nodes (the engine set borrows them via docForParam) and,
 	// since flip Phase 1, its current_value tracks user edits (and load seeds it from the file). valuesForOverride
 	// still applies (writeDocAutoParam checks the store's nodes for automated-ness). A never-loaded song whose
 	// store is still empty falls back to projecting the engine (first-save).
 	writer.writeOpeningTagBeginning("songParams");
-	if (project.master_params.unpatched) {
-		deluge::bridge::serializeGlobalEffectableParamAttributes(*project.master_params.unpatched, writer, true,
-		                                                         valuesForOverride);
+	if (const std::optional<deluge::project::DocParamSet>& songStore =
+	        *deluge::bridge::storeFor(project.master_params, params::Kind::UNPATCHED_GLOBAL)) {
+		deluge::bridge::serializeGlobalEffectableParamAttributes(*songStore, writer, true, valuesForOverride);
 		writer.writeOpeningTagEnd();
-		deluge::bridge::serializeGlobalEffectableParamTags(*project.master_params.unpatched, writer, true,
-		                                                   valuesForOverride);
+		deluge::bridge::serializeGlobalEffectableParamTags(*songStore, writer, true, valuesForOverride);
 	}
 	else {
 		GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true, valuesForOverride);
@@ -1774,8 +1775,10 @@ loadOutput:
 				// self-copy).
 				UnpatchedParamSet* songUnpatched = paramManager.getUnpatchedParamSet();
 				songUnpatched->bindDomStore(); // ensure a store exists (init normally created it) before relocating
-				project.master_params.unpatched = std::move(*songUnpatched->domStore());
-				deluge::project::DocParamSet& songStore = *project.master_params.unpatched;
+				std::optional<deluge::project::DocParamSet>& songSlot =
+				    *deluge::bridge::storeFor(project.master_params, params::Kind::UNPATCHED_GLOBAL);
+				songSlot = std::move(*songUnpatched->domStore());
+				deluge::project::DocParamSet& songStore = *songSlot;
 				songUnpatched->bindDomStoreExternal(&songStore);
 				char const* paramTag;
 				while (*(paramTag = reader.readNextTagOrAttributeName())) {
@@ -1907,7 +1910,7 @@ loadOutput:
 				// Clips always have a durable id (ctor-minted), so relocate keyed by it.
 				if (std::optional<uint32_t> id = thisClip->id()) {
 					deluge::project::DocParamManager& mgr = project.clip_params.getOrCreate(*id);
-					relocateParamStoreToTree(unpatched, mgr.unpatched);
+					relocateParamStoreToTree(unpatched, mgr);
 				}
 			}
 			// M2-G S3c/S3d: relocate instrument-shared clip-level automation into the persistent tree, keyed by
@@ -1935,10 +1938,10 @@ loadOutput:
 				if (relocate) {
 					deluge::project::DocParamManager& mgr = project.backed_params.getOrCreate(instrOwner, clipKey);
 					UnpatchedParamSet* unpatched = thisClip->paramManager.getUnpatchedParamSet();
-					relocateParamStoreToTree(unpatched, mgr.unpatched);
+					relocateParamStoreToTree(unpatched, mgr);
 					if (thisClip->output->type == OutputType::SYNTH) {
 						if (PatchedParamSet* patched = thisClip->paramManager.getPatchedParamSet()) {
-							relocateParamStoreToTree(patched, mgr.patched);
+							relocateParamStoreToTree(patched, mgr);
 						}
 						// M2-G S4b: relocate the synth's patch-cable amount-automation into the tree's identity-keyed
 						// cable store (keyed (from, dest), NOT index — cables reorder at runtime). Seed from the
@@ -1952,7 +1955,7 @@ loadOutput:
 					// (instrument, clip) key. ExpressionParamSet is a ParamSet, so it binds exactly like the main
 					// sets; getExpressionParamSet() is null when the manager holds no MPE collection.
 					if (ExpressionParamSet* expression = thisClip->paramManager.getExpressionParamSet()) {
-						relocateParamStoreToTree(expression, mgr.expression);
+						relocateParamStoreToTree(expression, mgr);
 					}
 					// M2-G S3e: per-drum (NoteRow) automation for a kit clip → keyed (drum(drum id), clip).
 					// Each SoundDrum NoteRow holds its own manager (independent automation per (drum, clip) pair),
@@ -1973,13 +1976,13 @@ loadOutput:
 							deluge::project::DocParamManager& dmgr =
 							    project.backed_params.getOrCreate(drumOwner, clipKey);
 							UnpatchedParamSet* du = nr.paramManager.getUnpatchedParamSet();
-							relocateParamStoreToTree(du, dmgr.unpatched);
+							relocateParamStoreToTree(du, dmgr);
 							if (PatchedParamSet* dp = nr.paramManager.getPatchedParamSet()) {
-								relocateParamStoreToTree(dp, dmgr.patched);
+								relocateParamStoreToTree(dp, dmgr);
 							}
 							// S4a: per-drum expression (MPE) automation → same (drum, clip) key.
 							if (ExpressionParamSet* de = nr.paramManager.getExpressionParamSet()) {
-								relocateParamStoreToTree(de, dmgr.expression);
+								relocateParamStoreToTree(de, dmgr);
 							}
 							// S4b: per-drum patch-cable amount-automation → same (drum, clip) key, identity-keyed.
 							if (PatchCableSet* dpcs = nr.paramManager.getPatchCableSet()) {
@@ -2148,16 +2151,18 @@ skipInstance:
 	AudioEngine::logAction("aaa4.3");
 
 	// Phase B (DOM single-store): the DOM is the sole owner of the song-global unpatched automation node storage
-	// (project.master_params.unpatched); the engine set owner-resolves to it, so every edit + undo operates on
-	// DOM-owned data and save reads it directly. The <songParams> read path above already created + bound the
-	// store; this handles the file-had-no-<songParams> case (seed from the engine defaults, then bind). M2-F: no
+	// (project.master_params' global-effectable block); the engine set owner-resolves to it, so every edit + undo
+	// operates on DOM-owned data and save reads it directly. The <songParams> read path above already created + bound
+	// the store; this handles the file-had-no-<songParams> case (seed from the engine defaults, then bind). M2-F: no
 	// moveNodesInto — the engine holds no ownDoc_ node data to move; reads/edits land in the store directly.
 	{
 		UnpatchedParamSet* unpatchedEngine = paramManager.getUnpatchedParamSet();
-		if (!project.master_params.unpatched) {
-			project.master_params.unpatched = deluge::bridge::toDocParamSet(*unpatchedEngine);
+		std::optional<deluge::project::DocParamSet>& songSlot =
+		    *deluge::bridge::storeFor(project.master_params, params::Kind::UNPATCHED_GLOBAL);
+		if (!songSlot) {
+			songSlot = deluge::bridge::toDocParamSet(*unpatchedEngine);
 		}
-		deluge::project::DocParamSet& store = *project.master_params.unpatched;
+		deluge::project::DocParamSet& store = *songSlot;
 #if ALPHA_OR_BETA_VERSION
 		if (static_cast<int32_t>(store.params.size()) != unpatchedEngine->getNumParams()) {
 			FREEZE_WITH_ERROR("E4B0"); // DOM/engine song-global param-count mismatch

@@ -16,6 +16,7 @@
  */
 
 #include "model/project_bridge/param_projection.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/midi/midi_param.h"
@@ -40,7 +41,7 @@ DocParamSet toDocParamSet(ParamSet& paramSet) {
 	// store's authoritative scalar instead. (This engine-cursor form still backs the projection unit tests, which
 	// prove the DOM serializer matches the engine serializer for a given cursor value.)
 	DocParamSet doc;
-	doc.kind = paramSet.getParamKind();
+	doc.first = firstParamId(paramSet.getParamKind());
 	int32_t numParams = paramSet.getNumParams();
 	doc.params.reserve(numParams);
 	for (int32_t p = 0; p < numParams; p++) {
@@ -54,7 +55,7 @@ DocParamSet toDocParamSetFromStore(ParamSet& paramSet) {
 	// record. Every persistent value-setter (initParams, the DOM-first reads, edits, the setupAs*/initAmount preset
 	// builders) writes docForParam->current_value, so the store holds the value to persist with NO engine read.
 	DocParamSet doc;
-	doc.kind = paramSet.getParamKind();
+	doc.first = firstParamId(paramSet.getParamKind());
 	int32_t numParams = paramSet.getNumParams();
 	doc.params.reserve(numParams);
 	for (int32_t p = 0; p < numParams; p++) {
@@ -105,11 +106,11 @@ DocParamManager toDocParamManager(ParamManager& paramManager) {
 	// Fixed slot layout: [0] unpatched (or MIDI, deferred), [1] patched, [2] patch cables (deferred),
 	// expression at expressionParamSetOffset.
 	if (ParamCollection* c = paramManager.summaries[0].paramCollection; isUnpatchedSetSlot(c)) {
-		doc.unpatched = toDocParamSet(*static_cast<ParamSet*>(c));
+		*storeFor(doc, c->getParamKind()) = toDocParamSet(*static_cast<ParamSet*>(c));
 	}
 	if (ParamCollection* c = paramManager.summaries[1].paramCollection;
 	    c != nullptr && c->getParamKind() == Kind::PATCHED) {
-		doc.patched = toDocParamSet(*static_cast<ParamSet*>(c));
+		*storeFor(doc, Kind::PATCHED) = toDocParamSet(*static_cast<ParamSet*>(c));
 	}
 	if (paramManager.getExpressionParamSetOffset() != 0) {
 		if (ExpressionParamSet* e = paramManager.getExpressionParamSet(); e != nullptr) {
@@ -130,11 +131,11 @@ DocParamManager toDocParamManagerFromStore(ParamManager& paramManager) {
 	// Sound save path so the persisted values come from the authoritative store, never the engine cursor.
 	DocParamManager doc;
 	if (ParamCollection* c = paramManager.summaries[0].paramCollection; isUnpatchedSetSlot(c)) {
-		doc.unpatched = toDocParamSetFromStore(*static_cast<ParamSet*>(c));
+		*storeFor(doc, c->getParamKind()) = toDocParamSetFromStore(*static_cast<ParamSet*>(c));
 	}
 	if (ParamCollection* c = paramManager.summaries[1].paramCollection;
 	    c != nullptr && c->getParamKind() == Kind::PATCHED) {
-		doc.patched = toDocParamSetFromStore(*static_cast<ParamSet*>(c));
+		*storeFor(doc, Kind::PATCHED) = toDocParamSetFromStore(*static_cast<ParamSet*>(c));
 	}
 	if (paramManager.getExpressionParamSetOffset() != 0) {
 		if (ExpressionParamSet* e = paramManager.getExpressionParamSet(); e != nullptr) {
@@ -186,18 +187,18 @@ std::vector<DocPatchCable> toDocPatchCables(PatchCableSet& pcs) {
 }
 
 void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager) {
-	if (doc.unpatched) {
-		if (ParamCollection* c = paramManager.summaries[0].paramCollection; isUnpatchedSetSlot(c)) {
+	if (ParamCollection* c = paramManager.summaries[0].paramCollection; isUnpatchedSetSlot(c)) {
+		if (const std::optional<DocParamSet>& unpatched = *storeFor(doc, c->getParamKind())) {
 			ParamSet& set = *static_cast<ParamSet*>(c);
-			fromDocParamSet(*doc.unpatched, set);
+			fromDocParamSet(*unpatched, set);
 			refreshAutomationFlags(set, paramManager.summaries[0]);
 		}
 	}
-	if (doc.patched) {
+	if (const std::optional<DocParamSet>& patched = *storeFor(doc, Kind::PATCHED)) {
 		if (ParamCollection* c = paramManager.summaries[1].paramCollection;
 		    c != nullptr && c->getParamKind() == Kind::PATCHED) {
 			ParamSet& set = *static_cast<ParamSet*>(c);
-			fromDocParamSet(*doc.patched, set);
+			fromDocParamSet(*patched, set);
 			refreshAutomationFlags(set, paramManager.summaries[1]);
 		}
 	}
@@ -228,10 +229,11 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 }
 
 bool setUnpatchedValueDomFirst(DocParamManager& store, int32_t p, int32_t value, AutoParam& engineParam) {
-	if (!store.unpatched || p < 0 || p >= static_cast<int32_t>(store.unpatched->params.size())) {
+	std::optional<DocParamSet>& unpatched = *storeFor(store, Kind::UNPATCHED_GLOBAL);
+	if (!unpatched || p < 0 || p >= static_cast<int32_t>(unpatched->params.size())) {
 		return false;
 	}
-	store.unpatched->params[p].current_value = value; // authoritative write
+	unpatched->params[p].current_value = value; // authoritative write (params[p] is the runtime's index p)
 	// M2-F: only the value changed (not nodes, which the engine owner-resolves from this same store); sync the
 	// engine's RT cursor. No projection into AutoParam storage (there is none).
 	engineParam.currentValue = value;

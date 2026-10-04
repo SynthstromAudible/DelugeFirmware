@@ -38,6 +38,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "model/sample/sample.h"
@@ -3406,7 +3407,9 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	// the shared ModControllableAudio block, the mid-block writeOpeningTagEnd, the <envelope*> groups, the
 	// <patchCables> block and the shared tags.
 	deluge::project::DocParamManager doc = deluge::bridge::toDocParamManagerFromStore(*paramManager);
-	deluge::bridge::serializeSoundParams(*doc.patched, *doc.unpatched, doc.patch_cables, writer, writeAutomation);
+	deluge::bridge::serializeSoundParams(**deluge::bridge::storeFor(doc, params::Kind::PATCHED),
+	                                     **deluge::bridge::storeFor(doc, params::Kind::UNPATCHED_SOUND),
+	                                     doc.patch_cables, writer, writeAutomation);
 }
 
 // M3 owner-5: copy the DOM-owned scalars engine->record (the load-bridge). Assumes state_ is bound. Run from

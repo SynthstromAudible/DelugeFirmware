@@ -69,8 +69,8 @@ public:
 	ReverbSettings reverb;
 	Arrangement arrangement;
 
-	/// The song-global effect chain's params: the authority for their values and automation, projected into the
-	/// engine's master chain. Only `.unpatched` is used (song-global params are unpatched-only).
+	/// The song's own effect params (the global-effectable table's ids): the authority for their values and
+	/// automation, projected into the engine's master chain.
 	DocParamManager master_params;
 	ClipParams clip_params;     // per-clip automation stores, keyed by Clip::id (id-addressable node storage)
 	BackedParams backed_params; // instrument-shared automation, keyed by (owner, clip) — persistent form of ParamBackup

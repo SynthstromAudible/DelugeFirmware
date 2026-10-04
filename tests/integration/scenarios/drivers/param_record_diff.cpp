@@ -56,6 +56,7 @@
 #include <optional>
 #include <string_view>
 
+#include "model/project_bridge/param_ids.h"
 #include "scenarios/drivers/driver.h"
 
 // A live scheduler global (playback_handler.cpp). When true, PlaybackHandler::expectEvent() no-ops instead of
@@ -202,8 +203,8 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	// (Song::resolveParam by ParamAddress), not the engine fallback. resolveParam must return the SAME lane doc()
 	// returns, and it must be non-null (i.e. the addressed path is actually live, not silently falling back).
 	{
-		deluge::project::ParamAddress addr{deluge::project::OwnerId::song(), msap->paramCollection->getParamKind(),
-		                                   params::UNPATCHED_VOLUME};
+		deluge::project::ParamAddress addr = deluge::bridge::addressOf(
+		    deluge::project::OwnerId::song(), msap->paramCollection->getParamKind(), params::UNPATCHED_VOLUME);
 		deluge::project::DocAutoParam* viaAddress = song->project.resolveParam(addr);
 		if (viaAddress == nullptr || viaAddress != msap->doc()) {
 			std::fprintf(io.err, "S1 FAIL: song-global not id-addressed (resolveParam=%p doc=%p)\n", (void*)viaAddress,

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engine-api/types/param_kind.h"
+#include "engine-api/types/param.h"
 #include <compare>
 #include <cstdint>
 #include <optional>
@@ -48,15 +48,18 @@ struct OwnerId {
 	auto operator<=>(const OwnerId&) const = default;
 };
 
-/// Names one automation lane: which owner, which param collection, which param within it. `Song::resolveParam`
-/// maps this to the live `DocAutoParam` in the persistent tree. For MIDI-CC / patch-cable collections a later
-/// slice widens `param_id` to the collection's own key (cc; encoded from/dest).
+/// @brief Which numbering a param address's id is in: its owner's engine's param table, or one of the host's own
+/// spaces (an MPE expression dimension, a MIDI CC number, a patch cable's packed source-and-destination word).
+enum class ParamSpace : uint8_t { ENGINE, EXPRESSION, MIDI_CC, PATCH_CABLE };
+
+/// Names one automation lane: which owner, which space, which param in it. `Song::resolveParam` maps this to the live
+/// `DocAutoParam` in the persistent tree. An engine param's id is its engine's (the owner's slot names the engine).
 struct ParamAddress {
 	OwnerId owner{};
-	deluge::engine::ParamKind kind{deluge::engine::ParamKind::NONE};
-	int32_t param_id{0};
+	ParamSpace space{ParamSpace::ENGINE};
+	deluge::engine::ParamId id{};
 	// For INSTRUMENT/DRUM owners, which clip's override this lane belongs to (nullopt = the owner's shared
-	// default). Mirrors ParamBackup's (ModControllable, Clip) key. Unused for SONG/CLIP owners.
+	// default). Unused for SONG/CLIP owners.
 	std::optional<uint32_t> clip_id{};
 };
 

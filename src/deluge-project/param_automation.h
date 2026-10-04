@@ -18,7 +18,9 @@
 #pragma once
 
 #include "deluge-project/param_node.h"
-#include "engine-api/types/param_kind.h"
+#include "engine-api/types/param.h"
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -71,12 +73,28 @@ inline void fromDocAutoParam(const DocAutoParam& doc, int32_t& current_value, Pa
 	}
 }
 
-/// Value-typed document form of one `ParamSet` — a parameter collection (patched / unpatched /
-/// expression). `params` is dense, indexed by param id within the collection (`params[p]` is the doc
-/// form of the live `ParamSet::params[p]`), so its size is the collection's parameter count.
+/// Value-typed document form of one param collection: lanes for a dense run of ids, `params[i]` holding the param
+/// with id `first + i`.
 struct DocParamSet {
-	deluge::engine::ParamKind kind{deluge::engine::ParamKind::NONE};
+	deluge::engine::ParamId first{};
 	std::vector<DocAutoParam> params;
+
+	/// The lane for @p id, or nullptr when this set does not hold it.
+	[[nodiscard]] DocAutoParam* find(deluge::engine::ParamId id) {
+		auto i = indexOf(id);
+		return i ? &params[*i] : nullptr;
+	}
+	[[nodiscard]] const DocAutoParam* find(deluge::engine::ParamId id) const {
+		auto i = indexOf(id);
+		return i ? &params[*i] : nullptr;
+	}
+	/// Where @p id's lane is in `params`, or nullopt when this set does not hold it.
+	[[nodiscard]] std::optional<size_t> indexOf(deluge::engine::ParamId id) const {
+		if (id.value < first.value || id.value - first.value >= params.size()) {
+			return std::nullopt;
+		}
+		return static_cast<size_t>(id.value - first.value);
+	}
 };
 
 /// Value-typed document form of one patch cable: a mod-matrix connection from a source to a destination
@@ -111,16 +129,29 @@ struct DocMidiParam {
 	DocAutoParam param;
 };
 
-/// Value-typed document form of a `ParamManager`'s collections. Each ParamSet is present only when the
-/// live manager holds it (a sound has patched + unpatched + patch cables; a global-effectable / audio
-/// clip has only unpatched; expression/MPE is optional). `midi_params` is populated only for MIDI_OUT
-/// clip managers (a per-clip CC-automation store — MIDI has no instrument-shared default).
+/// How many runs of ids an engine's params are stored in.
+inline constexpr std::size_t kEngineParamBlocks = 2;
+
+/// Value-typed document form of a `ParamManager`'s collections. An engine's params are held in the runs of ids its
+/// table declares, each present only when the live owner holds it; `expression` (MPE), `patch_cables` and
+/// `midi_params` (a MIDI_OUT clip's CC automation) are the host's own spaces.
 struct DocParamManager {
-	std::optional<DocParamSet> unpatched;
-	std::optional<DocParamSet> patched;
+	std::array<std::optional<DocParamSet>, kEngineParamBlocks> engine_params;
 	std::optional<DocParamSet> expression;
 	std::vector<DocPatchCable> patch_cables;
 	std::vector<DocMidiParam> midi_params;
+
+	/// The lane of the engine param @p id, or nullptr when no block holds it.
+	[[nodiscard]] DocAutoParam* findEngineParam(deluge::engine::ParamId id) {
+		for (std::optional<DocParamSet>& block : engine_params) {
+			if (block) {
+				if (DocAutoParam* lane = block->find(id)) {
+					return lane;
+				}
+			}
+		}
+		return nullptr;
+	}
 };
 
 } // namespace deluge::project

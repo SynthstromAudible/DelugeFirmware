@@ -7,6 +7,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -106,7 +107,7 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 		FREEZE_WITH_ERROR("DkND");
 	}
 #endif
-	return deluge::project::ParamAddress{owner, modelStack.kind, modelStack.paramId, clipSerial};
+	return deluge::bridge::addressOf(owner, modelStack.kind, modelStack.paramId, clipSerial);
 }
 
 namespace {
@@ -168,14 +169,14 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 	// slot / seed of the same (owner, clip) DocParamManager). Guarded by the slot being empty (a fresh owner just
 	// created by getOrCreate) so an already-relocated collection is never double-moved.
 	ParamCollection* pc = modelStack.paramCollection;
-	if (address->kind == deluge::modulation::params::Kind::PATCH_CABLE) {
+	if (address->space == deluge::project::ParamSpace::PATCH_CABLE) {
 		auto* pcs = static_cast<PatchCableSet*>(pc);
 		if (pcs->domCables() == nullptr) {
 			mgr->patch_cables = deluge::bridge::toDocPatchCables(*pcs);
 			pcs->bindDomCablesExternal(&mgr->patch_cables);
 		}
 	}
-	else if (address->kind == deluge::modulation::params::Kind::MIDI) {
+	else if (address->space == deluge::project::ParamSpace::MIDI_CC) {
 		auto* midi = static_cast<MIDIParamCollection*>(pc);
 		if (midi->domMidi() == nullptr) {
 			mgr->midi_params = deluge::bridge::toDocMidiParams(*midi);
@@ -184,10 +185,7 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 	}
 	else {
 		auto* set = static_cast<ParamSet*>(pc);
-		std::optional<deluge::project::DocParamSet>& slot =
-		    (address->kind == deluge::modulation::params::Kind::PATCHED)      ? mgr->patched
-		    : (address->kind == deluge::modulation::params::Kind::EXPRESSION) ? mgr->expression
-		                                                                      : mgr->unpatched;
+		std::optional<deluge::project::DocParamSet>& slot = *deluge::bridge::storeFor(*mgr, set->getParamKind());
 		if (!slot.has_value()) {
 			set->bindDomStore();                // ensure an own store exists (idempotent if already inline)
 			slot = std::move(*set->domStore()); // move the engine set's own store into the tree slot

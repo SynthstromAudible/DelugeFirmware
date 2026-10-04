@@ -35,12 +35,16 @@
 #include <cstring>
 
 #include "scenarios/drivers/driver.h"
+#include "scenarios/drivers/param_stores.h"
 #include "scenarios/drivers/tree_load.h"
 #include "storage/value_tree_deserializer.h"
 #include <optional>
 #include <string_view>
 
 namespace {
+
+using deluge::scenarios::driver::patchedStore;
+using deluge::scenarios::driver::unpatchedStore;
 
 using deluge::scenarios::driver::Io;
 
@@ -313,12 +317,12 @@ int clip_clone_roundtrip_main(int argc, char** argv, Io driverIo) {
 						check(cid != 0, "kit clone: the runtime clip carries a durable id");
 						deluge::project::OwnerId owner = deluge::project::OwnerId::instrument(*kClone->output->id());
 						deluge::project::DocParamManager* mgr = song->project.backed_params.find(owner, cid);
-						check(mgr != nullptr && mgr->unpatched.has_value(),
+						check(mgr != nullptr && unpatchedStore(*mgr).has_value(),
 						      "kit clone: doc() relocated clip-level FX into the tree (not the fallback)");
-						if (mgr != nullptr && mgr->unpatched.has_value()) {
-							check(fx->domStore() == &mgr->unpatched.value(),
+						if (mgr != nullptr && unpatchedStore(*mgr).has_value()) {
+							check(fx->domStore() == &unpatchedStore(*mgr).value(),
 							      "kit clone: engine FX set rebound at the tree slot");
-							check(resolved == &mgr->unpatched->params[0],
+							check(resolved == &unpatchedStore(*mgr)->params[0],
 							      "kit clone: doc() id-resolves the relocated store");
 						}
 						std::fprintf(io.err, "kit clone: runtime relocation OK (clip id=%u)\n", cid);

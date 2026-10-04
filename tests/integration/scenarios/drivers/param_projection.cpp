@@ -38,8 +38,12 @@
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "scenarios/drivers/driver.h"
+#include "scenarios/drivers/param_stores.h"
 
 namespace {
+
+using deluge::scenarios::driver::patchedStore;
+using deluge::scenarios::driver::unpatchedStore;
 
 using deluge::scenarios::driver::Io;
 
@@ -832,8 +836,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		setNodeIn(*pcs->docForParam(0), 0, -536870912, true); // M2-F: cable nodes live in the cable's own store
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
-		check(doc.patched.has_value(), "pm patched present");
-		check(doc.unpatched.has_value(), "pm unpatched present");
+		check(patchedStore(doc).has_value(), "pm patched present");
+		check(unpatchedStore(doc).has_value(), "pm unpatched present");
 		check(doc.patch_cables.size() == 1, "pm patch cable present");
 
 		ParamManagerForTimeline pm2;
@@ -1036,7 +1040,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		int32_t engAttrLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializeModControllableParamAttributes(*doc.unpatched, smSerializer, true);
+		deluge::bridge::serializeModControllableParamAttributes(*unpatchedStore(doc), smSerializer, true);
 		int32_t domAttrLen = smSerializer.bytesWritten();
 		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
 		      "ModControllableAudio attributes byte-identical");
@@ -1047,7 +1051,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		int32_t engTagLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializeModControllableParamTags(*doc.unpatched, smSerializer, true);
+		deluge::bridge::serializeModControllableParamTags(*unpatchedStore(doc), smSerializer, true);
 		int32_t domTagLen = smSerializer.bytesWritten();
 		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0,
 		      "ModControllableAudio tags byte-identical");
@@ -1133,7 +1137,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		int32_t engAttrLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializeGlobalEffectableParamAttributes(*doc.unpatched, smSerializer, true);
+		deluge::bridge::serializeGlobalEffectableParamAttributes(*unpatchedStore(doc), smSerializer, true);
 		int32_t domAttrLen = smSerializer.bytesWritten();
 		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
 		      "GlobalEffectable attributes byte-identical");
@@ -1144,7 +1148,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		int32_t engTagLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializeGlobalEffectableParamTags(*doc.unpatched, smSerializer, true);
+		deluge::bridge::serializeGlobalEffectableParamTags(*unpatchedStore(doc), smSerializer, true);
 		int32_t domTagLen = smSerializer.bytesWritten();
 		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0,
 		      "GlobalEffectable tags byte-identical");
@@ -1349,7 +1353,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		pcs->docForParam(0)->current_value = 268435456;
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
-		check(doc.patched.has_value() && doc.unpatched.has_value(), "sound collections present");
+		check(patchedStore(doc).has_value() && unpatchedStore(doc).has_value(), "sound collections present");
 
 		SoundDrum drum;
 
@@ -1362,7 +1366,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		int32_t engLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializeSoundParams(*doc.patched, *doc.unpatched, doc.patch_cables, smSerializer, true);
+		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), doc.patch_cables, smSerializer,
+		                                     true);
 		int32_t domLen = smSerializer.bytesWritten();
 		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "Sound params byte-identical");
 	}
@@ -1389,7 +1394,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		smSerializer.setMemoryBuffer(rtBuf, sizeof(rtBuf));
 		smSerializer.reset();
 		smSerializer.writeOpeningTagBeginning("soundParams");
-		deluge::bridge::serializeSoundParams(*doc.patched, *doc.unpatched, {}, smSerializer, true);
+		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), {}, smSerializer, true);
 		smSerializer.writeClosingTag("soundParams", true);
 		int32_t rtLen = smSerializer.bytesWritten();
 		rtBuf[rtLen] = '\0';
@@ -1440,9 +1445,9 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		authorStoreFromEngine(pm); // the flipped GlobalEffectable::writeParamAttributesToFile reads the store
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
-		check(doc.unpatched.has_value(), "override unpatched present");
+		check(unpatchedStore(doc).has_value(), "override unpatched present");
 
-		std::vector<int32_t> ovr(doc.unpatched->params.size(), 0);
+		std::vector<int32_t> ovr(unpatchedStore(doc)->params.size(), 0);
 		ovr[params::UNPATCHED_VOLUME] = -123456; // distinct from currentValue (0) so the path is observable
 		ovr[params::UNPATCHED_PAN] = 999;        // would differ, but PAN isn't automated ⇒ must be ignored
 		ovr[params::UNPATCHED_BASS] = -77;
@@ -1458,7 +1463,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		int32_t engAttrLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializeGlobalEffectableParamAttributes(*doc.unpatched, smSerializer, true, ovr.data());
+		deluge::bridge::serializeGlobalEffectableParamAttributes(*unpatchedStore(doc), smSerializer, true, ovr.data());
 		int32_t domAttrLen = smSerializer.bytesWritten();
 		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
 		      "GlobalEffectable override attributes byte-identical");
@@ -1469,7 +1474,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		int32_t engTagLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializeGlobalEffectableParamTags(*doc.unpatched, smSerializer, true, ovr.data());
+		deluge::bridge::serializeGlobalEffectableParamTags(*unpatchedStore(doc), smSerializer, true, ovr.data());
 		int32_t domTagLen = smSerializer.bytesWritten();
 		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0,
 		      "GlobalEffectable override tags byte-identical");
@@ -1559,12 +1564,12 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	// into the engine runtime param, so both hold the new value; out-of-range is a safe no-op.
 	{
 		deluge::project::DocParamManager store;
-		store.unpatched.emplace();
-		store.unpatched->params.resize(10);
+		unpatchedStore(store).emplace();
+		unpatchedStore(store)->params.resize(10);
 		AutoParam eng;
 		bool ok = deluge::bridge::setUnpatchedValueDomFirst(store, 3, 42424, eng);
 		check(ok, "setUnpatchedValueDomFirst: applied");
-		check(store.unpatched->params[3].current_value == 42424, "setUnpatchedValueDomFirst: store lane written");
+		check(unpatchedStore(store)->params[3].current_value == 42424, "setUnpatchedValueDomFirst: store lane written");
 		check(eng.getCurrentValue() == 42424, "setUnpatchedValueDomFirst: engine reprojected from store");
 		check(!deluge::bridge::setUnpatchedValueDomFirst(store, 99, 1, eng),
 		      "setUnpatchedValueDomFirst: out-of-range is a no-op");

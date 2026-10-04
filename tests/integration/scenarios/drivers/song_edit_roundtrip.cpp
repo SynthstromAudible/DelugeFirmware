@@ -49,8 +49,10 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
 #include "scenarios/drivers/driver.h"
+#include "scenarios/drivers/param_stores.h"
 #include "scenarios/drivers/tree_load.h"
 #include "storage/value_tree_deserializer.h"
 #include <cctype>
@@ -60,6 +62,9 @@
 #include <string_view>
 
 namespace {
+
+using deluge::scenarios::driver::patchedStore;
+using deluge::scenarios::driver::unpatchedStore;
 
 using deluge::scenarios::driver::Io;
 
@@ -564,8 +569,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 				return; // an output not yet given its id has no address to resolve
 			}
 			instIdSeen++;
-			deluge::project::ParamAddress addr{deluge::project::OwnerId::instrument(*clip->output->id()),
-			                                   set->getParamKind(), 0, clip->id()};
+			deluge::project::ParamAddress addr = deluge::bridge::addressOf(
+			    deluge::project::OwnerId::instrument(*clip->output->id()), set->getParamKind(), 0, clip->id());
 			instIdOk += (song->project.resolveParam(addr) == set->docForParam(0)) ? 1 : 0;
 		};
 		std::array<ClipArray*, 2> clipArrays{&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips};
@@ -583,8 +588,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 					// S5-b.1: an audio clip must be id-addressed — resolveParam(clip id) must return the SAME
 					// store lane as docForParam, proving doc() id-resolves it (not the fallback).
 					audioIdSeen++;
-					deluge::project::ParamAddress addr{deluge::project::OwnerId::clip(clip->id()), u->getParamKind(), 0,
-					                                   std::nullopt};
+					deluge::project::ParamAddress addr = deluge::bridge::addressOf(
+					    deluge::project::OwnerId::clip(clip->id()), u->getParamKind(), 0, std::nullopt);
 					audioIdOk += (song->project.resolveParam(addr) == u->docForParam(0)) ? 1 : 0;
 				}
 				else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
@@ -617,8 +622,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 							if (nr.drum->id()) {
 								drumIdSeen++;
 								ParamSet* du = nr.paramManager.getUnpatchedParamSet();
-								deluge::project::ParamAddress addr{deluge::project::OwnerId::drum(*nr.drum->id()),
-								                                   du->getParamKind(), 0, clip->id()};
+								deluge::project::ParamAddress addr = deluge::bridge::addressOf(
+								    deluge::project::OwnerId::drum(*nr.drum->id()), du->getParamKind(), 0, clip->id());
 								drumIdOk += (song->project.resolveParam(addr) == du->docForParam(0)) ? 1 : 0;
 							}
 							if (nr.paramManager.getPatchCableSet()->numPatchCables > 0) {
@@ -635,8 +640,9 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 					if (midi != nullptr) {
 						for (int32_t i = 0; i < std::ssize(midi->params); i++) {
 							midiIdSeen++;
-							deluge::project::ParamAddress addr{deluge::project::OwnerId::clip(clip->id()),
-							                                   params::Kind::MIDI, midi->params[i].cc, std::nullopt};
+							deluge::project::ParamAddress addr =
+							    deluge::bridge::addressOf(deluge::project::OwnerId::clip(clip->id()),
+							                              params::Kind::MIDI, midi->params[i].cc, std::nullopt);
 							midiIdOk += (song->project.resolveParam(addr) == midi->docForParam(i)) ? 1 : 0;
 						}
 					}
@@ -755,11 +761,11 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	}
 
 	// The store is populated by the <songParams> read; seed it from the engine if the song had none.
-	if (!song->project.master_params.unpatched) {
-		song->project.master_params.unpatched =
+	if (!unpatchedStore(song->project.master_params)) {
+		unpatchedStore(song->project.master_params) =
 		    deluge::bridge::toDocParamSet(*song->paramManager.getUnpatchedParamSet());
 	}
-	deluge::project::DocParamSet& store = *song->project.master_params.unpatched;
+	deluge::project::DocParamSet& store = *unpatchedStore(song->project.master_params);
 	if (pVal >= (int32_t)store.params.size() || pAuto >= (int32_t)store.params.size()) {
 		std::fprintf(io.err, "STORE TOO SMALL (%zu params)\n", store.params.size());
 		return 3;
@@ -782,7 +788,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	}
 
 	// Flip Phase 2 guard: DIVERGE the engine scalar from the store scalar for pVal, so that persistence PROVES the
-	// song-global save read the STORE (project.master_params.unpatched, holding kSentinel) — NOT the engine
+	// song-global save read the STORE (the song's global-effectable block, holding kSentinel) — NOT the engine
 	// cursor. If save still projected the engine, the file would carry this distinct value and the reload assert
 	// below (reloaded store == engine == kSentinel) would fail.
 	engVal.currentValue = 0x0BADF00D;
@@ -976,8 +982,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 				audioClips++;
 				if (std::optional<uint32_t> id = clip->id()) {
 					deluge::project::DocParamManager* mgr = reloaded->project.clip_params.find(*id);
-					if (mgr != nullptr && mgr->unpatched
-					    && clip->paramManager.getUnpatchedParamSet()->domStore() == &*mgr->unpatched) {
+					if (mgr != nullptr && unpatchedStore(*mgr)
+					    && clip->paramManager.getUnpatchedParamSet()->domStore() == &*unpatchedStore(*mgr)) {
 						treeResident++;
 					}
 				}
@@ -1012,8 +1018,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 				if (clipId.has_value() && outId.has_value()) {
 					deluge::project::DocParamManager* mgr =
 					    reloaded->project.backed_params.find(deluge::project::OwnerId::instrument(*outId), *clipId);
-					if (mgr != nullptr && mgr->unpatched
-					    && clip->paramManager.getUnpatchedParamSet()->domStore() == &*mgr->unpatched) {
+					if (mgr != nullptr && unpatchedStore(*mgr)
+					    && clip->paramManager.getUnpatchedParamSet()->domStore() == &*unpatchedStore(*mgr)) {
 						treeResident++;
 					}
 				}
@@ -1053,8 +1059,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 					if (clipId.has_value() && drumId.has_value()) {
 						deluge::project::DocParamManager* mgr =
 						    reloaded->project.backed_params.find(deluge::project::OwnerId::drum(*drumId), *clipId);
-						if (mgr != nullptr && mgr->unpatched
-						    && nr.paramManager.getUnpatchedParamSet()->domStore() == &*mgr->unpatched) {
+						if (mgr != nullptr && unpatchedStore(*mgr)
+						    && nr.paramManager.getUnpatchedParamSet()->domStore() == &*unpatchedStore(*mgr)) {
 							treeResident++;
 						}
 					}
@@ -1198,8 +1204,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 			for (int32_t c = 0; c < pcs->numPatchCables; c++) {
 				int32_t packedId =
 				    PatchCableSet::getParamId(pcs->patchCables[c].destinationParamDescriptor, pcs->patchCables[c].from);
-				deluge::project::ParamAddress addr{owner, deluge::modulation::params::Kind::PATCH_CABLE, packedId,
-				                                   clipId};
+				deluge::project::ParamAddress addr =
+				    deluge::bridge::addressOf(owner, deluge::modulation::params::Kind::PATCH_CABLE, packedId, clipId);
 				if (reloaded->project.resolveParam(addr) != pcs->docForParam(c)) {
 					misOwned = true;
 					return;
@@ -1274,8 +1280,9 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 				}
 				for (int32_t i = 0; i < std::ssize(midi->params); i++) {
 					int32_t cc = midi->params[i].cc;
-					deluge::project::ParamAddress addr{deluge::project::OwnerId::clip(*clipId),
-					                                   deluge::modulation::params::Kind::MIDI, cc, std::nullopt};
+					deluge::project::ParamAddress addr =
+					    deluge::bridge::addressOf(deluge::project::OwnerId::clip(*clipId),
+					                              deluge::modulation::params::Kind::MIDI, cc, std::nullopt);
 					if (reloaded->project.resolveParam(addr) != midi->docForParam(i)) {
 						std::fprintf(io.err, "S4c FAIL: MIDI doc() != bound store (mis-keyed cc)\n");
 						return 3;
@@ -1440,11 +1447,11 @@ opsChecked:;
 	}
 
 	// 5. Both edits must have persisted into the reloaded DOM store (the authority) and the reloaded engine.
-	if (!reloaded->project.master_params.unpatched) {
+	if (!unpatchedStore(reloaded->project.master_params)) {
 		std::fprintf(io.err, "reloaded store EMPTY\n");
 		return 3;
 	}
-	deluge::project::DocParamSet& rstore = *reloaded->project.master_params.unpatched;
+	deluge::project::DocParamSet& rstore = *unpatchedStore(reloaded->project.master_params);
 	int32_t storeVal = rstore.params[pVal].current_value;
 	int32_t engineVal = reloaded->paramManager.getUnpatchedParamSet()->params[pVal].currentValue;
 
