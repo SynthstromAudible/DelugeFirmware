@@ -324,6 +324,12 @@ int clip_clone_roundtrip_main(int argc, char** argv, Io driverIo) {
 							      "kit clone: engine FX set rebound at the tree slot");
 							check(resolved == &unpatchedStore(*mgr)->params[0],
 							      "kit clone: doc() id-resolves the relocated store");
+							// doc() falls back to the set's own store, which is this same lane once bound, so resolve
+							// through the model by address: the lane must be found by its id, not by the fallback.
+							std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*msap);
+							check(address.has_value()
+							          && song->project.resolveParam(*address) == &unpatchedStore(*mgr)->params[0],
+							      "kit clone: the model resolves the relocated lane by its id");
 						}
 						std::fprintf(io.err, "kit clone: runtime relocation OK (clip id=%u)\n", cid);
 					}
