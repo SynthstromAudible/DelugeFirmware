@@ -40,5 +40,6 @@ public:
 protected:
 	// void displayText(bool blinkImmediately) final;
 	void enterKeyPress() final;
+	bool showsTextCursorOn7Seg() const override { return true; }
 	static bool currentFolderIsEmpty;
 };
