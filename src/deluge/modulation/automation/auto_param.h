@@ -131,10 +131,10 @@ public:
 	int32_t currentValue;
 
 	// interpolation to calculate current value
-	bool hasInterpolationIncrement();
+	bool hasInterpolationIncrement(bool use_float_interpolation);
 	void resetInterpolationIncrement();
-	// Which of these is in use depends on ParamCollection::shouldInterpolateWithFloat(), so callers that act on the
-	// increment have to say which. Either way, an all-zero bit pattern means "not interpolating".
+	// Which of these is in use depends on ParamCollection::shouldInterpolateWithFloat(), so anything reading the
+	// increment has to be told which by the ParamCollection that owns this AutoParam.
 	union {
 		int32_t valueIncrementPerHalfTick;
 		float value_increment_per_half_tick_float;

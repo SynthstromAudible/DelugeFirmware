@@ -103,7 +103,7 @@ void ParamSet::paramHasNoAutomationNow(ModelStackWithParamCollection const* mode
 	}
 
 inline void ParamSet::checkWhetherParamHasInterpolationNow(ModelStackWithParamCollection const* modelStack, int32_t p) {
-	if (params[p].hasInterpolationIncrement()) {
+	if (params[p].hasInterpolationIncrement(shouldInterpolateWithFloat(modelStack->addParamId(p)))) {
 		modelStack->summary->whichParamsAreInterpolating[p >> 5] |= ((uint32_t)1 << (p & 31));
 	}
 }

@@ -775,8 +775,10 @@ getOut:
 
 /// identifies if a parameter is currently interpolating
 /// the value increment is used to increment / decrement the parameters current value
-bool AutoParam::hasInterpolationIncrement() {
-	// Works for either type of increment, since we never store a float increment of -0.0f
+bool AutoParam::hasInterpolationIncrement(bool use_float_interpolation) {
+	if (use_float_interpolation) [[unlikely]] {
+		return value_increment_per_half_tick_float != 0.0f;
+	}
 	return valueIncrementPerHalfTick != 0;
 }
 
@@ -789,9 +791,6 @@ void AutoParam::resetInterpolationIncrement() {
 
 /// reverse the interpolation increment in case we're now interpolating backwards to the previous node
 void AutoParam::reverseInterpolationIncrement(bool use_float_interpolation) {
-	if (!hasInterpolationIncrement()) {
-		return; // Negating a float 0 would give -0.0f, which hasInterpolationIncrement() would see as non-zero
-	}
 	if (use_float_interpolation) [[unlikely]] {
 		value_increment_per_half_tick_float = -value_increment_per_half_tick_float;
 	}
@@ -948,7 +947,7 @@ static int32_t saturatingIncrement(int32_t incrementPerHalfTick, int64_t halfTic
 
 bool AutoParam::tickSamples(int32_t numSamples, bool use_float_interpolation) {
 	// if we don't have any interpolation to apply, return false
-	if (!hasInterpolationIncrement()) {
+	if (!hasInterpolationIncrement(use_float_interpolation)) {
 		return false;
 	}
 
@@ -974,7 +973,7 @@ bool AutoParam::tickSamples(int32_t numSamples, bool use_float_interpolation) {
 
 bool AutoParam::tickTicks(int32_t numTicks, bool use_float_interpolation) {
 	// if we don't have any interpolation to apply, return false
-	if (!hasInterpolationIncrement()) {
+	if (!hasInterpolationIncrement(use_float_interpolation)) {
 		return false;
 	}
 

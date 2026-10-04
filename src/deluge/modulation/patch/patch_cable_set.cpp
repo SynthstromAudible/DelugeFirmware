@@ -335,7 +335,9 @@ goAgainWithoutIncrement:
 		if (patchCables[c].param.isAutomated()) {
 			flagCable(modelStack->summary->whichParamsAreAutomated, c);
 
-			if (patchCables[c].param.hasInterpolationIncrement()) {
+			int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
+			if (patchCables[c].param.hasInterpolationIncrement(
+			        shouldInterpolateWithFloat(modelStack->addParamId(paramId)))) {
 				flagCable(modelStack->summary->whichParamsAreInterpolating, c);
 			}
 		}
@@ -672,7 +674,7 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 	param->trimToLength(newLength, action, modelStackWithAutoParam);
 
-	if (!param->hasInterpolationIncrement()) {
+	if (!param->hasInterpolationIncrement(shouldInterpolateWithFloat(modelStackWithAutoParam))) {
 		unflagCable(modelStack->summary->whichParamsAreInterpolating, c);
 
 		bool stillAutomated = param->isAutomated();
@@ -738,7 +740,7 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 		int32_t ticksTilNextEventThisCable = param->processCurrentPos(modelStackWithAutoParam, reversed, didPingpong);
 		ticksTilNextEvent = std::min(ticksTilNextEvent, ticksTilNextEventThisCable);
 
-		if (param->hasInterpolationIncrement()) {
+		if (param->hasInterpolationIncrement(shouldInterpolateWithFloat(modelStackWithAutoParam))) {
 			flagCable(modelStack->summary->whichParamsAreInterpolating, c);
 		}
 		FOR_EACH_PARAM_END
@@ -1141,7 +1143,7 @@ void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset,
 
 	param->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action, modelStackWithParam);
 
-	if (!param->hasInterpolationIncrement()) {
+	if (!param->hasInterpolationIncrement(shouldInterpolateWithFloat(modelStackWithParam))) {
 		unflagCable(modelStack->summary->whichParamsAreInterpolating, c);
 
 		bool stillAutomated = param->isAutomated();
