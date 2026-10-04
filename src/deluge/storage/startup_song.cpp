@@ -297,9 +297,9 @@ void issueCanaryWrite() {
 /// byte channel instead of a blocking open-write-close.
 bool stageTemplateDocument(const uint8_t** outBytes, uint32_t* outLen) {
 	currentSong->project.metadata.name = "DEFAULT";
-	FileWriter& writer = static_cast<FileWriter&>(smSerializer);
+	FileWriter& writer = fileWriterFor(deluge::storage::kSongSaveFormat);
 	writer.setMemoryBased();
-	deluge::bridge::saveSong(*currentSong, GetSerializer());
+	deluge::bridge::saveSong(*currentSong, serializerFor(deluge::storage::kSongSaveFormat));
 	const int32_t written = writer.bytesWritten();
 	if (written <= 0) {
 		return false; // An empty document is a failed write, not a small one.

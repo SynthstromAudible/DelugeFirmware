@@ -43,6 +43,7 @@ namespace deluge::bridge {
 using namespace deluge::project;
 
 void saveSong(::Song& song, Serializer& out) {
+	ActiveWriterScope scope(out); // the song's nested writers (outputs, drums) write through `out` too
 	song.writeToFile(out);
 }
 

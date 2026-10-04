@@ -66,18 +66,34 @@ PLACE_SDRAM_BSS JsonDeserializer smJsonDeserializer;
 FileDeserializer* activeDeserializer = &smDeserializer;
 Deserializer* activeReader = &smDeserializer;
 
-// Master switch for the serialization format: GetSerializer() (and thus every write site that grabs it
-// -- Output/Sound/MIDI/etc.) plus the file-creation and prologue paths all key off this. Runtime-mutable
-// (was const false) so JSON output can be selected; defaults to false, so firmware still saves XML.
-bool writeJsonFlag = false;
+namespace {
+Serializer* activeWriter = &smSerializer;
+} // namespace
 
 Serializer& GetSerializer() {
-	if (writeJsonFlag) {
+	return *activeWriter;
+}
+
+Serializer& serializerFor(deluge::storage::DocumentFormat format) {
+	if (format == deluge::storage::DocumentFormat::JSON) {
 		return smJsonSerializer;
 	}
-	else {
-		return smSerializer;
+	return smSerializer;
+}
+
+FileWriter& fileWriterFor(deluge::storage::DocumentFormat format) {
+	if (format == deluge::storage::DocumentFormat::JSON) {
+		return smJsonSerializer;
 	}
+	return smSerializer;
+}
+
+ActiveWriterScope::ActiveWriterScope(Serializer& writer) : previous_(activeWriter) {
+	activeWriter = &writer;
+}
+
+ActiveWriterScope::~ActiveWriterScope() {
+	activeWriter = previous_;
 }
 
 extern void initialiseConditions();
@@ -184,9 +200,7 @@ Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer,
 	}
 	writer.file = std::move(created.value());
 	writer.reset();
-	if (!writeJsonFlag) {
-		writer.write(kXmlDocumentHead);
-	}
+	writer.write(kXmlDocumentHead);
 	return Error::NONE;
 }
 

@@ -28,6 +28,9 @@ enum class DocumentFormat : uint8_t {
 	JSON,
 };
 
+/// @brief The format songs are saved in.
+inline constexpr DocumentFormat kSongSaveFormat = DocumentFormat::XML;
+
 /// @brief The format of the document at @p path: JSON when its extension is `json`, in any case; XML otherwise.
 [[nodiscard]] constexpr DocumentFormat formatOfPath(std::string_view path) {
 	const size_t dot = path.rfind('.');

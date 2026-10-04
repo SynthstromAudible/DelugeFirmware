@@ -150,11 +150,6 @@ int json_roundtrip_main(int argc, char** argv, Io driverIo) {
 	orig[fileLen] = 0;
 	std::fclose(f);
 
-	// Select JSON output. GetSerializer() (used by every deep write site: Output/Sound/MIDI/etc.) and the
-	// prologue/file-creation paths all key off this global, so it -- not the serializer argument -- is what
-	// makes the whole save emit JSON. Reads go through the Value tree and ignore it.
-	writeJsonFlag = true;
-
 	// (1) XML -> Song, (2) Song -> JSON (jsonA)
 	Error e;
 	Song* song1 = loadFromXml(orig, fileLen, &e);

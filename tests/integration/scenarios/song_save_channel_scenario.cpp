@@ -290,7 +290,7 @@ void runTick() {
 		for (int32_t t = 0; t < 16; t++) {
 			std::string temp = "SONGS/TEMP";
 			temp.append(deluge::string::fromInt(t, 4));
-			temp.append(writeJsonFlag ? ".Json" : ".XML");
+			temp.append(deluge::storage::extensionOf(deluge::storage::kSongSaveFormat));
 			(void)deluge::io::unlink(temp);
 		}
 		inflateSong();

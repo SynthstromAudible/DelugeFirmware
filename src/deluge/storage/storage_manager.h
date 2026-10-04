@@ -22,6 +22,7 @@
 #include "io/file.hpp"
 #include "io/stall_bound.h"
 #include "modulation/sync.h"
+#include "storage/document_format.h"
 #include "util/firmware_version.h"
 
 #include <cstdint>
@@ -173,6 +174,8 @@ public:
 	                                    char const* endString = nullptr) = 0;
 
 	virtual void reset() = 0;
+	/// @brief The format this serializer writes.
+	[[nodiscard]] virtual deluge::storage::DocumentFormat format() const = 0;
 	void writeFirmwareVersion();
 
 	void writeEarliestCompatibleFirmwareVersion(char const* versionString) {
@@ -190,6 +193,9 @@ class XMLSerializer : public Serializer, public FileWriter {
 public:
 	XMLSerializer();
 	~XMLSerializer() override = default;
+	[[nodiscard]] deluge::storage::DocumentFormat format() const override {
+		return deluge::storage::DocumentFormat::XML;
+	}
 
 	void writeAttribute(char const* name, int32_t number, bool onNewLine = true) override;
 	void writeAttribute(char const* name, char const* value, bool onNewLine = true) override;
@@ -283,6 +289,9 @@ class JsonSerializer : public Serializer, public FileWriter {
 public:
 	JsonSerializer();
 	~JsonSerializer() override = default;
+	[[nodiscard]] deluge::storage::DocumentFormat format() const override {
+		return deluge::storage::DocumentFormat::JSON;
+	}
 
 	// A text-content leaf as a JSON string ("tag": "…") rather than an object box, so the auto-param
 	// <value> hex round-trips (the reader reads it char-at-a-time as a scalar). See Serializer base.
@@ -387,7 +396,25 @@ extern XMLSerializer smSerializer;
 extern XMLDeserializer smDeserializer;
 extern JsonSerializer smJsonSerializer;
 extern JsonDeserializer smJsonDeserializer;
+/// @brief The serializer the document being written goes through: the writer of the innermost ActiveWriterScope, else
+/// the XML serializer. Writers nested inside a document (an output's, a drum's) take theirs from here.
 extern Serializer& GetSerializer();
+/// @brief The shared serializer for @p format.
+Serializer& serializerFor(deluge::storage::DocumentFormat format);
+/// @brief The shared serializer for @p format, as the FileWriter that holds its memory-based surface.
+FileWriter& fileWriterFor(deluge::storage::DocumentFormat format);
+
+/// @brief Makes @p writer the one GetSerializer() returns while a document is written through it; scopes nest.
+class ActiveWriterScope {
+public:
+	explicit ActiveWriterScope(Serializer& writer);
+	~ActiveWriterScope();
+	ActiveWriterScope(const ActiveWriterScope&) = delete;
+	ActiveWriterScope& operator=(const ActiveWriterScope&) = delete;
+
+private:
+	Serializer* previous_;
+};
 extern FileDeserializer* activeDeserializer;
 // The reader readFromFile is currently consuming: a streaming reader, or a TreeDocument's tree reader for the
 // span of its parse (deluge::storage::ActiveReaderScope). The audio-yield gate consults this to decide whether
@@ -686,7 +713,6 @@ Error checkSpaceOnCard();
 } // namespace StorageManager
 
 extern FirmwareVersion song_firmware_version;
-extern bool writeJsonFlag; // serialization format master switch; runtime-mutable, defaults false (XML)
 
 inline bool isCardReady() {
 	return Error::NONE == StorageManager::initSD();

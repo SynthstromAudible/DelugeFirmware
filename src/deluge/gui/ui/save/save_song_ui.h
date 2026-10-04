@@ -196,11 +196,8 @@ private:
 	/// @brief Everything the save does after its samples are in place.
 	bool finishSaveAfterCollection();
 
-	/// @brief The serialiser this build writes documents through.
-	///
-	/// `writeJsonFlag` is a build constant, but both branches exist because both serialisers do.
-	/// Returns the FileWriter base, which is where the memory-based surface lives -- `GetSerializer()`
-	/// returns the `Serializer` base and cannot reach it.
+	/// @brief The serialiser songs are saved through (kSongSaveFormat), as the FileWriter base, which is where the
+	/// memory-based surface lives.
 	static FileWriter& activeSongWriter();
 
 	/// @brief Build the whole song document into the shared serialiser's memory buffer.

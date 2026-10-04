@@ -83,12 +83,7 @@ std::string SlotBrowser::getCurrentFilePath() {
 
 	// enteredText is the real on-card name now, so it needs no reassembling.
 	path.append(enteredText);
-	if (writeJsonFlag) {
-		path.append(".Json");
-	}
-	else {
-		path.append(".XML");
-	}
+	path.append(".XML");
 
 	return path;
 }

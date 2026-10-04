@@ -1062,7 +1062,7 @@ void Song::writeToFile(Serializer& writer) {
 
 	setupClipIndexesForSaving();
 	writer.reset();
-	if (!writeJsonFlag) {
+	if (writer.format() == deluge::storage::DocumentFormat::XML) {
 		writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 	}
 	writer.writeOpeningTagBeginning("song", true, false);

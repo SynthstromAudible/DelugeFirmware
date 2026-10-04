@@ -76,14 +76,8 @@ doReturnFalse:
 	std::string searchFilename;
 	searchFilename = currentSong->project.metadata.name;
 	if (!searchFilename.empty()) {
-		if (writeJsonFlag) {
-			searchFilename.append(".Json");
-			error = Error::NONE;
-		}
-		else {
-			searchFilename.append(".XML");
-			error = Error::NONE;
-		}
+		searchFilename.append(deluge::storage::extensionOf(deluge::storage::kSongSaveFormat));
+		error = Error::NONE;
 		if (error != Error::NONE) {
 			display->displayError(error);
 			goto doReturnFalse;
@@ -742,7 +736,7 @@ void SaveSongUI::runTempNamePhase() {
 
 	docWritePath_ = "SONGS/TEMP";
 	docWritePath_.append(deluge::string::fromInt(docTempNumber_, 4));
-	docWritePath_.append(writeJsonFlag ? ".Json" : ".XML");
+	docWritePath_.append(deluge::storage::extensionOf(deluge::storage::kSongSaveFormat));
 
 	if (docInline()) {
 		(void)runOneDocStep();
@@ -1063,15 +1057,13 @@ deluge::storage::ReadBackExpectation SaveSongUI::songReadBackExpectation() const
 	// JSON has no closing string to compare: JsonSerializer::closeFileAfterWriting passed NULL for it.
 	return {.staged = stagedDocument_,
 	        .length = stagedLength_,
-	        .head = writeJsonFlag ? kSongHeadJson : kSongHeadXml,
-	        .tail = writeJsonFlag ? nullptr : kSongTailXml};
+	        .head = deluge::storage::kSongSaveFormat == deluge::storage::DocumentFormat::JSON ? kSongHeadJson
+	                                                                                          : kSongHeadXml,
+	        .tail = deluge::storage::kSongSaveFormat == deluge::storage::DocumentFormat::JSON ? nullptr : kSongTailXml};
 }
 
 FileWriter& SaveSongUI::activeSongWriter() {
-	if (writeJsonFlag) {
-		return static_cast<FileWriter&>(smJsonSerializer);
-	}
-	return static_cast<FileWriter&>(smSerializer);
+	return fileWriterFor(deluge::storage::kSongSaveFormat);
 }
 
 bool SaveSongUI::serializeSongToBuffer() {
@@ -1085,7 +1077,7 @@ bool SaveSongUI::serializeSongToBuffer() {
 	// setMemoryBased() survives that internal reset(): reset() clears the buffer position, the byte
 	// count and the failure flag, and nothing else.
 	writer.setMemoryBased();
-	deluge::bridge::saveSong(*currentSong, GetSerializer());
+	deluge::bridge::saveSong(*currentSong, serializerFor(deluge::storage::kSongSaveFormat));
 
 	const int32_t written = writer.bytesWritten();
 	if (written <= 0) {
@@ -1102,10 +1094,9 @@ void SaveSongUI::releaseSongWriter() {
 	stagedDocument_ = nullptr;
 	stagedLength_ = 0;
 	// The two halves come from different bases: XMLSerializer inherits Serializer AND FileWriter, and
-	// the memory-based surface is on the FileWriter side while reset() is virtual on the Serializer
-	// side. GetSerializer() reaches only the latter, which is why activeSongWriter() exists at all.
+	// the memory-based surface is on the FileWriter side while reset() is virtual on the Serializer side.
 	activeSongWriter().clearMemoryBased();
-	GetSerializer().reset();
+	serializerFor(deluge::storage::kSongSaveFormat).reset();
 }
 
 bool SaveSongUI::finishSaveAfterCollection() {
