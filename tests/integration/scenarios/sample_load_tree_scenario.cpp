@@ -102,7 +102,9 @@ namespace {
 
 constexpr const char* kSongDir = "SONGS";
 constexpr const char* kSongName = "SLTSONG1";
-constexpr const char* kSongPath = "SONGS/SLTSONG1.XML";
+const std::string kSongPathString =
+    std::string{"SONGS/SLTSONG1"} + std::string{deluge::storage::extensionOf(deluge::storage::kSongSaveFormat)};
+const char* const kSongPath = kSongPathString.c_str();
 /// Where a collect-media save puts the song's samples, under their flattened names.
 constexpr const char* kSongFolder = "SONGS/SLTSONG1";
 
@@ -133,7 +135,9 @@ constexpr const char* kKitPresetResolvedB = "KITS/SLTPKIT/SLTPKB.WAV";
 // three drums cover the kit filter, a second synth whose clip is not playing, and a second audio clip that is not
 // playing but is still its track's active clip.
 constexpr const char* kCrucialSongName = "SLTSONG2";
-constexpr const char* kCrucialSongPath = "SONGS/SLTSONG2.XML";
+const std::string kCrucialSongPathString =
+    std::string{"SONGS/SLTSONG2"} + std::string{deluge::storage::extensionOf(deluge::storage::kSongSaveFormat)};
+const char* const kCrucialSongPath = kCrucialSongPathString.c_str();
 constexpr const char* kCrucialSongFolder = "SONGS/SLTSONG2";
 /// The kit preset the new-kit-track gesture picks up for the second kit: it sorts before every other kit preset.
 constexpr const char* kCrucialKitPath = "KITS/SLTCKIT.XML";

@@ -49,8 +49,8 @@ namespace deluge::storage {
 
 namespace {
 
-/// The template song, and the fallback when the recorded startup song has gone.
-constexpr const char* kDefaultSongFullPath = "SONGS/DEFAULT.XML";
+/// Where a missing template song is created.
+constexpr const char* kNewTemplatePath = kTemplatePaths[0];
 
 /// How long the machine's attempts may go unproductive, with the channel finishing nothing, before it stops asking
 /// the channel, in microseconds.
@@ -124,6 +124,8 @@ uint32_t g_templateLength = 0;
 std::string g_canaryPath;
 /// The song this attempt means to load. Reassigned when the fallback template is used.
 std::string g_songPath;
+/// Which of kTemplatePaths the template checks are asking about.
+size_t g_templateProbe = 0;
 /// Whether the current phase has issued its request yet.
 bool g_requested = false;
 /// How long the attempts at the current request have produced no answer while the channel finished nothing. See
@@ -253,6 +255,26 @@ std::optional<StartupPresence> collectExists(const char* path) {
 	return startup_action(g_inlinePresence);
 }
 
+/// Asks whether the template is there, at each of kTemplatePaths in turn until one is or none is left.
+/// @return The answer for kTemplatePaths[g_templateProbe], or nothing while it is still being asked.
+std::optional<StartupPresence> probeTemplate() {
+	if (!g_requested) {
+		issueExists(kTemplatePaths[g_templateProbe]);
+		return std::nullopt;
+	}
+	auto answer = collectExists(kTemplatePaths[g_templateProbe]);
+	if (!answer.has_value()) {
+		return std::nullopt;
+	}
+	const TemplateProbe probe = nextTemplateProbe(g_templateProbe, *answer);
+	if (probe.askAgain) {
+		g_templateProbe = probe.index;
+		enter(g_phase); // the same phase, asking about the next path
+		return std::nullopt;
+	}
+	return answer;
+}
+
 /// Issue the canary write on whichever arm is in force. A zero-byte file: only its EXISTENCE means
 /// anything.
 void issueCanaryWrite() {
@@ -325,7 +347,7 @@ void issueTemplateWrite() {
 		// Write-from, not the copying write: a song document runs to some 11 KB, and the copying write
 		// refuses anything past DELUGE_FILE_BYTES_MAX_BYTES (8192) -- it would answer Failed forever.
 		// This is the operation SaveSongUI puts a song document on, for the same reason.
-		if (deluge_file_bytes_request_write_from(kDefaultSongFullPath, bytes, len, /*may_overwrite=*/false)) {
+		if (deluge_file_bytes_request_write_from(kNewTemplatePath, bytes, len, /*may_overwrite=*/false)) {
 			g_requested = true;
 		}
 		else {
@@ -339,7 +361,7 @@ void issueTemplateWrite() {
 	if (!deluge::storage::bytes::runDuringBoot(
 	        [](void*) {
 		        deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
-		        auto file = deluge::io::File::open(kDefaultSongFullPath, DELUGE_FILE_WRITE_CREATE);
+		        auto file = deluge::io::File::open(kNewTemplatePath, DELUGE_FILE_WRITE_CREATE);
 		        if (file.has_value()) {
 			        const auto put = file->write(std::span<const std::byte>(
 			            reinterpret_cast<const std::byte*>(g_templateBytes), g_templateLength));
@@ -362,7 +384,7 @@ void issueTemplateWrite() {
 std::optional<bool> collectTemplateWrite() {
 	if (viaChannel()) {
 		uint32_t written = 0;
-		switch (deluge_file_bytes_collect_write_from(kDefaultSongFullPath, &written, nullptr)) {
+		switch (deluge_file_bytes_collect_write_from(kNewTemplatePath, &written, nullptr)) {
 		case DELUGE_CHANNEL_PENDING:
 			// Waited out, and not counted against the bound: the write is copying from the staged template and
 			// cannot be cancelled, so falling back would re-serialise into its buffer and write the file twice.
@@ -500,7 +522,7 @@ void armStartupSong() {
 	}
 
 	const char* filename =
-	    startupSongMode == StartupSongMode::TEMPLATE ? kDefaultSongFullPath : runtimeFeatureSettings.getStartupSong();
+	    startupSongMode == StartupSongMode::TEMPLATE ? kNewTemplatePath : runtimeFeatureSettings.getStartupSong();
 	// The messages we show to the user are mostly plain language, but for non-user facing errors we
 	// use codes. All messages are < 20 chars.
 	if (strlen(filename) + 1 > 2048) {
@@ -517,6 +539,7 @@ void armStartupSong() {
 		g_canaryPath.append(replaced);
 	}
 	g_songPath = filename;
+	g_templateProbe = 0;
 	g_usingTemplate = (startupSongMode == StartupSongMode::TEMPLATE);
 	enter(StartupPhase::CheckCanary);
 }
@@ -565,13 +588,12 @@ void advanceStartup() {
 	}
 
 	case StartupPhase::CheckTemplate: {
-		if (!g_requested) {
-			issueExists(kDefaultSongFullPath);
-			return;
-		}
-		auto answer = collectExists(kDefaultSongFullPath);
+		auto answer = probeTemplate();
 		if (!answer.has_value()) {
 			return;
+		}
+		if (*answer == StartupPresence::Confirmed) {
+			g_songPath = kTemplatePaths[g_templateProbe];
 		}
 		if (*answer == StartupPresence::Missing) {
 			display->consoleText("Creating template");
@@ -654,18 +676,14 @@ void advanceStartup() {
 	}
 
 	case StartupPhase::CheckFallbackTemplate: {
-		if (!g_requested) {
-			issueExists(kDefaultSongFullPath);
-			return;
-		}
-		auto answer = collectExists(kDefaultSongFullPath);
+		auto answer = probeTemplate();
 		if (!answer.has_value()) {
 			return;
 		}
 		if (*answer == StartupPresence::Confirmed) {
 			// user didn't ask for the template, but if it exists let's use it instead
 			display->consoleText("Using template");
-			g_songPath = kDefaultSongFullPath;
+			g_songPath = kTemplatePaths[g_templateProbe];
 		}
 		auto step = nextStartupPhase(StartupPhase::CheckFallbackTemplate, *answer, g_usingTemplate);
 		g_usingTemplate = step.usingTemplate;

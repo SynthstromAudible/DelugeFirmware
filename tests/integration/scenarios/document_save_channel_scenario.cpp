@@ -115,7 +115,12 @@ namespace {
 constexpr const char* kSaveName = "DSTEST01";
 constexpr const char* kKitRowName = "DSKITROW";
 constexpr const char* kSongGuardName = "DSSONG01";
-constexpr const char* kSongGuardPath = "SONGS/DSSONG01.XML";
+const std::string kSongGuardPathString =
+    std::string{"SONGS/DSSONG01"} + std::string{deluge::storage::extensionOf(deluge::storage::kSongSaveFormat)};
+const char* const kSongGuardPath = kSongGuardPathString.c_str();
+/// How a whole song document begins, in the format songs are saved in.
+constexpr std::string_view kSongHead =
+    deluge::storage::kSongSaveFormat == deluge::storage::DocumentFormat::JSON ? "{\"song\"" : "<?xml";
 constexpr const char* kSongGuardPresetName = "DSGUARD1";
 constexpr const char* kSongGuardPresetPath = "SYNTHS/DSGUARD1.XML";
 /// Byte-channel latency while the song save runs, so its collection and document machines span
@@ -684,8 +689,8 @@ void runTick() {
 	}
 	case Stage::SongGuardCheck: {
 		std::vector<uint8_t> song;
-		const bool songSaved =
-		    readWholeFile(kSongGuardPath, song) && song.size() > 64 && std::memcmp(song.data(), "<?xml", 5) == 0;
+		const bool songSaved = readWholeFile(kSongGuardPath, song) && song.size() > 64
+		                       && std::memcmp(song.data(), kSongHead.data(), kSongHead.size()) == 0;
 		std::vector<uint8_t> preset;
 		const bool presetWritten =
 		    readWholeFile(kSongGuardPresetPath, preset) || SaveUI::stagedSavesCompleted() != g_completedBeforeSongGuard;

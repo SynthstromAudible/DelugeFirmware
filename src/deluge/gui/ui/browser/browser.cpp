@@ -1499,6 +1499,7 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 
 	bool isFolder = false;
 	bool isSelectedIndex = true;
+	bool upgraded = false;
 	char const* displayName;
 	int32_t o;
 	// Use the display contract for browser/menu rows instead of assuming the OLED character-grid height.
@@ -1527,6 +1528,9 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 				isFolder = thisFile->isFolder;
 				displayName = thisFile->filename.c_str();
 				isSelectedIndex = (i == fileIndexSelected);
+				upgraded = deluge::storage::isUpgradedCopy(
+				    static_cast<size_t>(listing.size()), static_cast<size_t>(i),
+				    [this](size_t k) { return std::string_view{listing.item(k).filename}; });
 			}
 drawAFile:
 			// Draw graphic
@@ -1559,6 +1563,15 @@ searchForChar:
 			else {
 				canvas.drawString(std::string_view{displayName, static_cast<size_t>(displayStringLength)}, textStartX,
 				                  yPixel, kTextSpacingX, kTextSpacingY);
+			}
+
+			// The upgraded copy of a song is told from the XML save it sits beside, whose name it shares.
+			if (upgraded) {
+				constexpr int32_t kUpgradedIconWidth = 5;
+				const int32_t afterName = textStartX + std::min(displayStringLength, maxChars) * kTextSpacingX + 1;
+				canvas.drawGraphicMultiLine(deluge::hid::display::OLED::upgradedIcon,
+				                            std::min(afterName, OLED_MAIN_WIDTH_PIXELS - kUpgradedIconWidth), yPixel,
+				                            kUpgradedIconWidth);
 			}
 
 			yPixel += kTextSpacingY;

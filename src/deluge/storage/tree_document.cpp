@@ -37,6 +37,10 @@ Error TreeDocument::open(std::span<const uint8_t> bytes, bool isJson, char const
 		return Error::FILE_CORRUPTED;
 	}
 	reader_.emplace(*tree_, isJson ? SourceFormat::Json : SourceFormat::Xml);
+	if (isJson && !reader_->match('{')) { // a JSON document is one object, whose members are read from inside it
+		release();
+		return Error::FILE_CORRUPTED;
+	}
 
 	char const* tagName;
 	while (*(tagName = reader_->readNextTagOrAttributeName())) {

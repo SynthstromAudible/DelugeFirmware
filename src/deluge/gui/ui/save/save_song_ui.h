@@ -39,6 +39,9 @@ class SaveSongUI final : public SaveUI {
 public:
 	SaveSongUI();
 	bool opened() override;
+	/// @brief The file a save under the entered name writes: songs save in kSongSaveFormat, whatever the selected
+	/// file was saved in.
+	[[nodiscard]] std::string getSaveFilePath() override;
 	void focusRegained() override;
 	// void selectEncoderAction(int8_t offset);
 	/// @brief Start a song save: check the target name on a later tick, then plan and collect.

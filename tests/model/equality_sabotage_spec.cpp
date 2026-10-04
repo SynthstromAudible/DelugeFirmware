@@ -1,4 +1,6 @@
 #include "equality/equality.h"
+#include "serialization/parse_xml.h"
+#include "serialization/write_json.h"
 
 #include <cppspec.hpp>
 #include <fstream>
@@ -45,6 +47,21 @@ describe equality_sabotage("the model-equality gate", ${
 		auto result = check_equality(fixture(), false, faults);
 		expect(result.has_value()).to_equal(false);
 		expect(result.error().find("groove") != std::string::npos).to_equal(true);
+	});
+
+	it("finds an XML song and its JSON save the same song", _ {
+		const std::string json = deluge::serialization::write_json(
+		    encode_song(*decode_song(*deluge::serialization::parseXml(fixture())), "c1.0.0"));
+		auto result = compare_songs(fixture(), false, json, true);
+		expect(result.has_value()).to_equal(true);
+	});
+
+	it("names the record when two saves are different songs", _ {
+		auto changed = decode_song(*deluge::serialization::parseXml(fixture()));
+		changed->groove.swing_amount += 1;
+		const std::string json = deluge::serialization::write_json(encode_song(*changed, "c1.0.0"));
+		auto result = compare_songs(fixture(), false, json, true);
+		expect(!result && result.error().find("groove") != std::string::npos).to_equal(true);
 	});
 });
 

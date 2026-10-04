@@ -39,4 +39,10 @@ struct EqualityFaults {
 [[nodiscard]] std::expected<void, std::string> check_equality(std::string_view songText, bool isJson,
                                                               const EqualityFaults& faults = {});
 
+/// @brief Whether two saves of a song hold the same song: parse each (@p aIsJson, @p bIsJson say how), decode the
+/// model's parts and require them equal.
+/// @return Nothing, or what differed, naming the first record that did.
+[[nodiscard]] std::expected<void, std::string> compare_songs(std::string_view a, bool aIsJson, std::string_view b,
+                                                             bool bIsJson);
+
 } // namespace deluge::project

@@ -94,4 +94,11 @@ StartupStep nextStartupPhase(StartupPhase current, StartupPresence answer, bool 
 	return {StartupPhase::Done, usingTemplate};
 }
 
+TemplateProbe nextTemplateProbe(size_t index, StartupPresence answer) {
+	if (answer == StartupPresence::Missing && index + 1 < kTemplatePaths.size()) {
+		return {true, index + 1};
+	}
+	return {false, index};
+}
+
 } // namespace deluge::storage

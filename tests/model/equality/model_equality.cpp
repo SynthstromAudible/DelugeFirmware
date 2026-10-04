@@ -18,6 +18,9 @@
 // model_equality <song or directory>... — the model-equality gate over songs on disk, built from the model and
 // serialization libraries only. Prints one line per song; exits 0 when every song survives the JSON round trip (files
 // that are not songs are skipped), 1 when one does not, 77 when there are no songs.
+//
+// model_equality --compare <A> <B> — whether two saves hold the same song (each read by its extension): exits 0 when
+// they do, 1 naming the first record that differs.
 
 #include "equality/equality.h"
 
@@ -27,6 +30,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -39,9 +43,33 @@ bool is_song(const fs::path& path) {
 	return extension == ".xml" || extension == ".json";
 }
 
+bool is_json(const fs::path& path) {
+	std::string extension = path.extension().string();
+	std::ranges::transform(extension, extension.begin(), [](unsigned char c) { return std::tolower(c); });
+	return extension == ".json";
+}
+
+std::string read(const fs::path& path) {
+	std::ifstream in(path, std::ios::binary);
+	std::stringstream text;
+	text << in.rdbuf();
+	return text.str();
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
+	if (argc == 4 && std::string_view{argv[1]} == "--compare") {
+		const fs::path a = argv[2];
+		const fs::path b = argv[3];
+		auto result = deluge::project::compare_songs(read(a), is_json(a), read(b), is_json(b));
+		if (!result) {
+			std::printf("DIFFER  %s %s: %s\n", a.c_str(), b.c_str(), result.error().c_str());
+			return 1;
+		}
+		std::printf("SAME    %s %s\n", a.c_str(), b.c_str());
+		return 0;
+	}
 	std::vector<fs::path> songs;
 	for (int i = 1; i < argc; i++) {
 		const fs::path root = argv[i];
@@ -65,11 +93,7 @@ int main(int argc, char** argv) {
 	int failed = 0;
 	int skipped = 0;
 	for (const fs::path& song : songs) {
-		std::ifstream in(song, std::ios::binary);
-		std::stringstream text;
-		text << in.rdbuf();
-		const bool isJson = song.extension() == ".Json" || song.extension() == ".json";
-		auto result = deluge::project::check_equality(text.str(), isJson);
+		auto result = deluge::project::check_equality(read(song), is_json(song));
 		if (result) {
 			passed++;
 			std::printf("OK      %s\n", song.c_str());

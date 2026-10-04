@@ -57,8 +57,9 @@ EXIT_SETTLED, EXIT_LOADFAIL, EXIT_USAGE, EXIT_MISMATCH = 0, 1, 2, 3
 SKIP_RC = 77  # autotools convention; matched by CTest SKIP_RETURN_CODE
 
 
-def run_driver(cmd_prefix, binary, song, timeout):
-    """Run the driver -> (returncode, gen1_sha256_or_None, summary_tail)."""
+def run_driver(cmd_prefix, binary, song, timeout, dump_stem=None):
+    """Run the driver -> (returncode, gen1_sha256_or_None, summary_tail). With dump_stem, a settled gen1 is also kept
+    at dump_stem plus the extension of the format it was saved in."""
     # The save is only hashed, so its name says nothing of the format songs are saved in.
     with tempfile.NamedTemporaryFile(suffix=".gen1", delete=False) as tf:
         out_path = tf.name
@@ -68,7 +69,12 @@ def run_driver(cmd_prefix, binary, song, timeout):
         digest = None
         if r.returncode == EXIT_SETTLED:
             with open(out_path, "rb") as fh:
-                digest = hashlib.sha256(fh.read()).hexdigest()
+                saved = fh.read()
+            digest = hashlib.sha256(saved).hexdigest()
+            if dump_stem:
+                extension = ".json" if saved.lstrip().startswith(b"{") else ".XML"
+                with open(dump_stem + extension, "wb") as fh:
+                    fh.write(saved)
         return r.returncode, digest, tail
     finally:
         os.unlink(out_path)
@@ -100,6 +106,9 @@ def main(argv=None):
     )
     ap.add_argument(
         "--update", action="store_true", help="discover+re-baseline (walks the corpus)"
+    )
+    ap.add_argument(
+        "--dump", default="", help="(check) keep each settled gen1 in this directory"
     )
     ap.add_argument("--timeout", type=int, default=60)
     ap.add_argument("--jobs", type=int, default=driver.default_jobs())
@@ -173,8 +182,18 @@ def main(argv=None):
             present.append((rel, want, song))
         else:
             n_absent += 1
+    if args.dump:
+        os.makedirs(args.dump, exist_ok=True)
+
+    def dump_stem(rel):
+        if not args.dump:
+            return None
+        return os.path.join(args.dump, os.path.splitext(rel)[0].replace("/", "__"))
+
     results = driver.map_ordered(
-        lambda item: run_driver(pre, args.binary, item[2], args.timeout),
+        lambda item: run_driver(
+            pre, args.binary, item[2], args.timeout, dump_stem(item[0])
+        ),
         present,
         args.jobs,
     )

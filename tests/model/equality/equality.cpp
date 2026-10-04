@@ -118,4 +118,21 @@ std::expected<void, std::string> check_equality(std::string_view songText, bool 
 	return {};
 }
 
+std::expected<void, std::string> compare_songs(std::string_view a, bool aIsJson, std::string_view b, bool bIsJson) {
+	auto parsedA = aIsJson ? serialization::parseJson(a) : serialization::parseXml(a);
+	auto parsedB = bIsJson ? serialization::parseJson(b) : serialization::parseXml(b);
+	if (!parsedA || !parsedB) {
+		return std::unexpected(!parsedA ? "the first does not parse" : "the second does not parse");
+	}
+	auto songA = decode_song(*parsedA);
+	auto songB = decode_song(*parsedB);
+	if (!songA || !songB) {
+		return std::unexpected(!songA ? "the first has no song" : "the second has no song");
+	}
+	if (!(*songA == *songB)) {
+		return std::unexpected("the " + difference(*songA, *songB) + " differs");
+	}
+	return {};
+}
+
 } // namespace deluge::project

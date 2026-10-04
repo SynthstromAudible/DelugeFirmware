@@ -242,6 +242,7 @@ Song::Song() {
 	masterTransposeInterval = 0;
 
 	project.metadata.dir_path = "SONGS";
+	project.metadata.file_extension = deluge::storage::extensionOf(deluge::storage::kSongSaveFormat);
 
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
@@ -5773,7 +5774,7 @@ std::string Song::getSongFullPath() {
 	fullPath.append(project.metadata.dir_path);
 	fullPath.append("/");
 	fullPath.append(project.metadata.name);
-	fullPath.append(".XML");
+	fullPath.append(project.metadata.file_extension);
 	return fullPath;
 }
 
@@ -5792,6 +5793,12 @@ void Song::setSongFullPath(const char* fullPath) {
 	}
 	else {
 		project.metadata.name = fullPath;
+	}
+	// The name is the file's without its extension, which the song keeps apart.
+	const size_t dot = project.metadata.name.rfind('.');
+	if (dot != std::string::npos) {
+		project.metadata.file_extension = project.metadata.name.substr(dot);
+		project.metadata.name.resize(dot);
 	}
 }
 #pragma GCC diagnostic pop

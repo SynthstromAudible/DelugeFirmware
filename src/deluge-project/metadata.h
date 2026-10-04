@@ -36,6 +36,9 @@ constexpr int8_t kNoSubSlot = -1;
 struct Metadata {
 	std::string name;
 	std::string dir_path;
+	/// The extension of the file the song was loaded from or last saved as (".json", or ".XML" for a song saved before
+	/// songs saved as JSON); the host gives a new song the extension it saves songs with.
+	std::string file_extension;
 	uint16_t slot{kNoSlot};
 	int8_t sub_slot{kNoSubSlot};
 };

@@ -19,6 +19,8 @@
 
 #include "storage/existence_policy.h"
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 
 namespace deluge::storage {
@@ -31,8 +33,8 @@ namespace deluge::storage {
 enum class StartupPhase : uint8_t {
 	Idle,                  ///< Not armed. The conditional task moves it to `CheckCanary`.
 	CheckCanary,           ///< Is a canary from a previous boot still there?
-	CheckTemplate,         ///< Template mode only: does `SONGS/DEFAULT.XML` exist?
-	WriteTemplate,         ///< Template mode only: CREATE `SONGS/DEFAULT.XML`, and wait for it to land.
+	CheckTemplate,         ///< Template mode only: does a template (kTemplatePaths) exist?
+	WriteTemplate,         ///< Template mode only: CREATE `SONGS/DEFAULT.json`, and wait for it to land.
 	WriteCanary,           ///< Create the canary, and WAIT for it to land.
 	CheckSong,             ///< Is the song we mean to load actually there?
 	CheckFallbackTemplate, ///< The song is gone: is the template there instead?
@@ -63,5 +65,22 @@ struct StartupStep {
 ///
 /// @note Every `Unusable` answer routes to `Done` or `UnlinkCanary` — never to a phase that writes.
 StartupStep nextStartupPhase(StartupPhase current, StartupPresence answer, bool usingTemplate);
+
+/// @brief The template song's paths, in the order they are looked for: as songs are saved, then as songs were saved
+/// before they saved as JSON. A missing template is created at the first.
+inline constexpr std::array<const char*, 2> kTemplatePaths{"SONGS/DEFAULT.json", "SONGS/DEFAULT.XML"};
+
+/// @brief One step of looking for the template.
+struct TemplateProbe {
+	bool askAgain; ///< Whether to ask about kTemplatePaths[index] before answering.
+	size_t index;  ///< The path asked about next, or the one the answer is about.
+};
+
+/// @brief Decide whether to look for the template at its next path. PURE.
+///
+/// @param index  Which of kTemplatePaths was asked about.
+/// @param answer What the card answered for it.
+/// @return Ask again at the next path when this one is known absent and another remains; otherwise the answer stands.
+TemplateProbe nextTemplateProbe(size_t index, StartupPresence answer);
 
 } // namespace deluge::storage

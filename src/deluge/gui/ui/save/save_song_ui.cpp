@@ -76,7 +76,7 @@ doReturnFalse:
 	std::string searchFilename;
 	searchFilename = currentSong->project.metadata.name;
 	if (!searchFilename.empty()) {
-		searchFilename.append(deluge::storage::extensionOf(deluge::storage::kSongSaveFormat));
+		searchFilename.append(currentSong->project.metadata.file_extension);
 		error = Error::NONE;
 		if (error != Error::NONE) {
 			display->displayError(error);
@@ -274,6 +274,14 @@ bool SaveSongUI::beginUnstagedSave(const deluge::storage::SaveRequest& request) 
 	collectPhase_ = CollectPhase::EXISTS;
 	deluge::runtime::appLoop.request(saveJob);
 	return true;
+}
+
+std::string SaveSongUI::getSaveFilePath() {
+	std::string path = currentDir;
+	path.append("/");
+	path.append(enteredText);
+	path.append(deluge::storage::extensionOf(deluge::storage::kSongSaveFormat));
+	return path;
 }
 
 void SaveSongUI::runExistsPhase() {
@@ -967,6 +975,7 @@ void SaveSongUI::runDocFinishPhase() {
 	// many ticks, and reading the live values would record something typed while it ran.
 	currentSong->project.metadata.name = existsRequest_.enteredText;
 	currentSong->project.metadata.dir_path = existsRequest_.dirPath;
+	currentSong->project.metadata.file_extension = deluge::storage::extensionOf(deluge::storage::kSongSaveFormat);
 
 	// Both of these choose their own arm: they use the byte channel when it is running and write
 	// inline only before boot finishes, so calling them from here does not block this tier.

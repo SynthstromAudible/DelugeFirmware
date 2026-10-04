@@ -165,8 +165,8 @@ bool LoadSongUI::opened() {
 	std::string searchFilename;
 	searchFilename = currentSong->project.metadata.name;
 
-	if (!searchFilename.empty() && !searchFilename.contains(".XML")) {
-		searchFilename.append(".XML");
+	if (!searchFilename.empty()) {
+		searchFilename.append(currentSong->project.metadata.file_extension);
 	}
 
 	// The listing happens async: dispatch it and return optimistically. Failure goes through the
@@ -778,6 +778,9 @@ gotErrorAfterCreatingSong:
 	const std::string_view leaf = (lastSlash == std::string_view::npos) ? stagedPath : stagedPath.substr(lastSlash + 1);
 	const auto lastDot = leaf.rfind('.');
 	std::string currentFilenameWithoutExtension{(lastDot == std::string_view::npos) ? leaf : leaf.substr(0, lastDot)};
+	if (lastDot != std::string_view::npos) {
+		preLoadedSong->project.metadata.file_extension = leaf.substr(lastDot);
+	}
 
 	sampleLoadContext_ =
 	    deluge::storage::AudioLoadContext::forSong(listing.dir().c_str(), currentFilenameWithoutExtension.c_str());

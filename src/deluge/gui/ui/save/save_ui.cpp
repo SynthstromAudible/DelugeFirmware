@@ -95,11 +95,15 @@ void SaveUI::enterKeyPress() {
 		    .consumer = deluge::storage::SaveConsumer::EnterKey,
 		    .mayOverwrite = false,
 		    .collectingSamples = collectingSamplesForDispatch(),
-		    .filePath = getCurrentFilePath(),
+		    .filePath = getSaveFilePath(),
 		    .enteredText = enteredText,
 		    .dirPath = currentDir,
 		});
 	}
+}
+
+std::string SaveUI::getSaveFilePath() {
+	return currentDir + "/" + enteredText + ".XML";
 }
 
 bool SaveUI::anySaveInFlight() {

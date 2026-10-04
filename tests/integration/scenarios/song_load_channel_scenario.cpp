@@ -96,7 +96,10 @@ namespace {
 
 constexpr const char* kSaveDir = "SONGS";
 constexpr const char* kSaveName = "SLTEST01";
-constexpr const char* kSavePath = "SONGS/SLTEST01.XML";
+/// Where the setup's save lands: songs save in kSongSaveFormat.
+const std::string kSavePathString =
+    std::string{"SONGS/SLTEST01"} + std::string{deluge::storage::extensionOf(deluge::storage::kSongSaveFormat)};
+const char* const kSavePath = kSavePathString.c_str();
 /// The one sample the gate's song carries. Without it the load's sample passes walk a song that demands nothing,
 /// and every leg about them would pass by having nothing asked of it (measured: the boot song is one instrument
 /// clip and no audio clips at all).

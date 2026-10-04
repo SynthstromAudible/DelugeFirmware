@@ -81,7 +81,13 @@ std::string SlotBrowser::getCurrentFilePath() {
 
 	path.append("/");
 
-	// enteredText is the real on-card name now, so it needs no reassembling.
+	// The selected file, extension and all, while it is the one named: a folder can hold NAME.XML and NAME.json.
+	const FileItem* item = getCurrentFileItem();
+	if (item != nullptr && !item->isFolder && item->filenameIncludesExtension
+	    && item->getFilenameWithoutExtension() == enteredText) {
+		path.append(item->filename);
+		return path;
+	}
 	path.append(enteredText);
 	path.append(".XML");
 

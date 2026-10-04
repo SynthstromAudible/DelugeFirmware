@@ -4,7 +4,11 @@
 
 #include "cppspec.hpp"
 
+#include <string>
+
+using deluge::storage::kTemplatePaths;
 using deluge::storage::nextStartupPhase;
+using deluge::storage::nextTemplateProbe;
 using deluge::storage::StartupPhase;
 using deluge::storage::StartupPresence;
 
@@ -117,6 +121,30 @@ describe startup_phase("every 'could not tell' answer leaves the card alone", $ 
 		    .to_equal(true);
 		expect(nextStartupPhase(StartupPhase::CheckSong, StartupPresence::Confirmed, false).usingTemplate)
 		    .to_equal(false);
+	});
+
+	// The template is saved as songs are; a card from before songs saved as JSON still has its template as XML.
+	it("takes the JSON template when it is there", _ {
+		auto probe = nextTemplateProbe(0, StartupPresence::Confirmed);
+		expect(probe.askAgain).to_equal(false);
+		expect(std::string(kTemplatePaths[probe.index])).to_equal(std::string("SONGS/DEFAULT.json"));
+	});
+
+	it("looks for the XML template when there is no JSON one", _ {
+		auto probe = nextTemplateProbe(0, StartupPresence::Missing);
+		expect(probe.askAgain).to_equal(true);
+		expect(std::string(kTemplatePaths[probe.index])).to_equal(std::string("SONGS/DEFAULT.XML"));
+	});
+
+	it("answers missing when neither template is there", _ {
+		auto probe = nextTemplateProbe(1, StartupPresence::Missing);
+		expect(probe.askAgain).to_equal(false);
+	});
+
+	it("looks no further when the card could not tell", _ {
+		auto probe = nextTemplateProbe(0, StartupPresence::Unusable);
+		expect(probe.askAgain).to_equal(false);
+		expect(probe.index).to_equal(size_t{0});
 	});
 });
 // clang-format on
