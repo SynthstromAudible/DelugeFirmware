@@ -357,8 +357,8 @@ DELUGE_STUB_RET(stub_stringFromInt, "_ZN6deluge6string7fromIntB5cxx11Eij", std::
 DELUGE_STUB_FN(stub_soundEditorCutSound, "_ZN11SoundEditor8cutSoundEv")
 DELUGE_STUB_RET(stub_soundEditorGetCurrentAudioFileHolder, "_ZN11SoundEditor25getCurrentAudioFileHolderEv",
                 AudioFileHolder*, &g_range.get()->sampleHolder)
-DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN6Source10setOscTypeE7OscType")
-DELUGE_STUB_FN(stub_sourceSetRepeatMode, "_ZN6Source13setRepeatModeE16SampleRepeatMode")
+DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN6Source10setOscTypeEN6deluge10instrument7OscTypeE")
+DELUGE_STUB_FN(stub_sourceSetRepeatMode, "_ZN6Source13setRepeatModeEN6deluge10instrument16SampleRepeatModeE")
 DELUGE_STUB_FN(stub_sourceSetReversed, "_ZN6Source11setReversedEb")
 // Re-seeds the source's DOM range records from its engine ranges; the mock source has no DOM to seed.
 DELUGE_STUB_FN(stub_sourceSeedDocRanges, "_ZN6Source13seedDocRangesEv")

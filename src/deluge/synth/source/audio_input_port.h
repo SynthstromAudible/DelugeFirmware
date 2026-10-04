@@ -18,7 +18,8 @@
 
 #include <cstdint>
 
-enum class OscType : uint8_t; // opaque (definitions_cxx.hpp); only INPUT_L/INPUT_R/INPUT_STEREO reach the port
+#include "engines/deluge/words.h"
+using deluge::instrument::OscType; // only INPUT_L/INPUT_R/INPUT_STEREO reach the port
 
 namespace deluge::synth {
 

@@ -408,201 +408,35 @@ void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, i
 }
 
 char const* oscTypeToString(OscType oscType) {
-	switch (oscType) {
-	case OscType::SQUARE:
-		return "square";
-
-	case OscType::SAW:
-		return "saw";
-
-	case OscType::ANALOG_SAW_2:
-		return "analogSaw";
-
-	case OscType::ANALOG_SQUARE:
-		return "analogSquare";
-
-	case OscType::SINE:
-		return "sine";
-
-	case OscType::TRIANGLE:
-		return "triangle";
-
-	case OscType::SAMPLE:
-		return "sample";
-
-	case OscType::WAVETABLE:
-		return "wavetable";
-
-	case OscType::INPUT_L:
-		return "inLeft";
-
-	case OscType::INPUT_R:
-		return "inRight";
-
-	case OscType::INPUT_STEREO:
-		return "inStereo";
-
-	case OscType::DX7:
-		return "dx7";
-
-	default:
-		__builtin_unreachable();
-	}
+	return deluge::instrument::to_string(oscType).data();
 }
 
 OscType stringToOscType(char const* string) {
-
-	if (!strcmp(string, "square")) {
-		return OscType::SQUARE;
-	}
-	else if (!strcmp(string, "analogSquare")) {
-		return OscType::ANALOG_SQUARE;
-	}
-	else if (!strcmp(string, "analogSaw")) {
-		return OscType::ANALOG_SAW_2;
-	}
-	else if (!strcmp(string, "saw")) {
-		return OscType::SAW;
-	}
-	else if (!strcmp(string, "sine")) {
-		return OscType::SINE;
-	}
-	else if (!strcmp(string, "sample")) {
-		return OscType::SAMPLE;
-	}
-	else if (!strcmp(string, "wavetable")) {
-		return OscType::WAVETABLE;
-	}
-	else if (!strcmp(string, "inLeft")) {
-		return OscType::INPUT_L;
-	}
-	else if (!strcmp(string, "inRight")) {
-		return OscType::INPUT_R;
-	}
-	else if (!strcmp(string, "inStereo")) {
-		return OscType::INPUT_STEREO;
-	}
-	else if (!strcmp(string, "dx7")) {
-		return OscType::DX7;
-	}
-	else {
-		return OscType::TRIANGLE;
-	}
+	return deluge::instrument::parse_osc_type(string);
 }
 
 char const* lfoTypeToString(LFOType oscType) {
-	switch (oscType) {
-	case LFOType::SQUARE:
-		return "square";
-
-	case LFOType::SAW:
-		return "saw";
-
-	case LFOType::SINE:
-		return "sine";
-
-	case LFOType::SAMPLE_AND_HOLD:
-		return "sah";
-
-	case LFOType::RANDOM_WALK:
-		return "rwalk";
-	case LFOType::WARBLER:
-		return "warbler";
-	default:
-		return "triangle";
-	}
+	return deluge::instrument::to_string(oscType).data();
 }
 
 LFOType stringToLFOType(char const* string) {
-	if (!strcmp(string, "square")) {
-		return LFOType::SQUARE;
-	}
-	else if (!strcmp(string, "saw")) {
-		return LFOType::SAW;
-	}
-	else if (!strcmp(string, "sine")) {
-		return LFOType::SINE;
-	}
-	else if (!strcmp(string, "sah")) {
-		return LFOType::SAMPLE_AND_HOLD;
-	}
-	else if (!strcmp(string, "warbler")) {
-		return LFOType::WARBLER;
-	}
-	else if (!strcmp(string, "rwalk")) {
-		return LFOType::RANDOM_WALK;
-	}
-	else {
-		return LFOType::TRIANGLE;
-	}
+	return deluge::instrument::parse_lfo_type(string);
 }
 
 char const* synthModeToString(SynthMode synthMode) {
-	switch (synthMode) {
-	case SynthMode::FM:
-		return "fm";
-
-	case SynthMode::RINGMOD:
-		return "ringmod";
-
-	default:
-		return "subtractive";
-	}
+	return deluge::instrument::to_string(synthMode).data();
 }
 
 SynthMode stringToSynthMode(char const* string) {
-	if (!strcmp(string, "fm")) {
-		return SynthMode::FM;
-	}
-	else if (!strcmp(string, "ringmod")) {
-		return SynthMode::RINGMOD;
-	}
-	else {
-		return SynthMode::SUBTRACTIVE;
-	}
+	return deluge::instrument::parse_synth_mode(string);
 }
 
 char const* polyphonyModeToString(PolyphonyMode synthMode) {
-	switch (synthMode) {
-	case PolyphonyMode::MONO:
-		return "mono";
-
-	case PolyphonyMode::AUTO:
-		return "auto";
-
-	case PolyphonyMode::LEGATO:
-		return "legato";
-
-	case PolyphonyMode::CHOKE:
-		return "choke";
-
-	default: // case PolyphonyMode::POLY:
-		return "poly";
-	}
+	return deluge::instrument::to_string(synthMode).data();
 }
 
 PolyphonyMode stringToPolyphonyMode(char const* string) {
-	if (!strcmp(string, "mono")) {
-		return PolyphonyMode::MONO;
-	}
-	else if (!strcmp(string, "auto")) {
-		return PolyphonyMode::AUTO;
-	}
-	else if (!strcmp(string, "0")) {
-		return PolyphonyMode::AUTO; // Old firmware, pre June 2017
-	}
-	else if (!strcmp(string, "legato")) {
-		return PolyphonyMode::LEGATO;
-	}
-	else if (!strcmp(string, "choke")) {
-		return PolyphonyMode::CHOKE;
-	}
-	else if (!strcmp(string, "2")) {
-		return PolyphonyMode::CHOKE; // Old firmware, pre June 2017
-	}
-	else {
-		return PolyphonyMode::POLY;
-	}
+	return deluge::instrument::parse_polyphony_mode(string);
 }
 
 char const* fxTypeToString(ModFXType fxType) {

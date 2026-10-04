@@ -115,6 +115,18 @@ class LibraryBoundaryTest(unittest.TestCase):
             len(self.check('#include "deluge-project/song.h"\n', library=engine_api)), 1
         )
 
+    def test_the_instrument_may_use_the_engine_api_but_not_the_app(self):
+        instrument = LIBRARIES["instrument"]
+        self.assertEqual(
+            self.check('#include "engine-api/engine.h"\n', library=instrument), []
+        )
+        self.assertEqual(
+            len(
+                self.check('#include "processing/sound/sound.h"\n', library=instrument)
+            ),
+            1,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

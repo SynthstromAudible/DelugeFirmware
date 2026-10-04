@@ -24,6 +24,7 @@
 #include "deluge-project/sequence_direction.h"
 #include "engine-api/types/interpolation_mode.h"
 #include "engine-api/types/voice_priority.h"
+#include "engines/deluge/words.h"
 #include "sequence/iterance.h"
 #include "util/misc.h"
 
@@ -348,20 +349,7 @@ enum class PerformanceEditingMode : uint8_t {
 	PARAM,
 };
 
-enum class OscType : uint8_t {
-	SINE,
-	TRIANGLE,
-	SQUARE,
-	ANALOG_SQUARE,
-	SAW,
-	ANALOG_SAW_2,
-	WAVETABLE,
-	SAMPLE,
-	DX7,
-	INPUT_L,
-	INPUT_R,
-	INPUT_STEREO,
-};
+using deluge::instrument::OscType;
 
 constexpr OscType kLastRingmoddableOscType = OscType::WAVETABLE;
 constexpr int32_t kNumOscTypesRingModdable = util::to_underlying(kLastRingmoddableOscType) + 1;
@@ -387,15 +375,7 @@ enum LFO_ID {
 	LFO_COUNT = 4,
 };
 
-enum class LFOType : uint8_t {
-	SINE,
-	TRIANGLE,
-	SQUARE,
-	SAW,
-	SAMPLE_AND_HOLD,
-	RANDOM_WALK,
-	WARBLER,
-};
+using deluge::instrument::LFOType;
 
 constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::WARBLER) + 1;
 
@@ -411,11 +391,7 @@ enum class ModFXType : uint8_t {
 };
 constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
 
-enum class SynthMode : uint8_t {
-	SUBTRACTIVE,
-	FM,
-	RINGMOD,
-};
+using deluge::instrument::SynthMode;
 constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
 
 constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
@@ -426,13 +402,7 @@ enum WavFormat : uint8_t {
 	WAV_FORMAT_FLOAT = 3,
 };
 
-enum class PolyphonyMode : uint8_t {
-	AUTO,
-	POLY,
-	MONO,
-	LEGATO,
-	CHOKE,
-};
+using deluge::instrument::PolyphonyMode;
 
 constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 1;
 
@@ -508,12 +478,7 @@ enum class Error {
 	LISTING_DEFERRED,
 };
 
-enum class SampleRepeatMode {
-	CUT,
-	ONCE,
-	LOOP,
-	STRETCH,
-};
+using deluge::instrument::SampleRepeatMode;
 constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
 
 enum class FilterType {

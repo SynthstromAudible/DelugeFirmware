@@ -21,6 +21,7 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../serialization serialization)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../music-theory music-theory)
 add_subdirectory(spec)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../engine-api engine-api)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../engines engines)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../model model)
 
 # dsp-next specs on real ARM NEON (run via qemu). DSP_SPEC_ARM tells the shared
