@@ -45,6 +45,9 @@ struct MidiDeviceRef {
 struct MidiCommand {
 	/// The value of channel_or_zone and note_or_cc when nothing is learned.
 	static constexpr uint8_t kNone = 255;
+	/// The first channel_or_zone encoding a program change (channels 0–17 are notes, 18–35 CCs); a launch command
+	/// cannot be one.
+	static constexpr uint8_t kFirstProgramChange = 36;
 
 	/// A MIDI channel 0–15, an MPE zone (16 lower, 17 upper), a CC-encoded channel, or kNone.
 	uint8_t channel_or_zone{kNone};
