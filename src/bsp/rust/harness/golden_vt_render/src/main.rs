@@ -1339,6 +1339,15 @@ fn main() {
             scenario.as_str()
         }
     );
+    // A name the table does not hold is a mistake (a scenario not registered in scenario_table.cpp,
+    // or a typo), not a request for the stem export, which would run for minutes and report nothing
+    // about the scenario.
+    if !scenario.is_empty() && !recorder_mode && stepped.is_none() {
+        eprintln!(
+            "golden_vt_render: no scenario named '{scenario}' (tests/integration/scenarios/scenario_table.cpp)"
+        );
+        std::process::exit(2);
+    }
 
     // The card must be chosen here, before any task is spawned (see the module doc).
     let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
