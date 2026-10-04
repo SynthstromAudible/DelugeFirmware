@@ -292,7 +292,7 @@ private:
 		for (std::string_view keyword : {kTrue, kFalse, kNull}) {
 			if (text_.substr(pos_, keyword.size()) == keyword) {
 				pos_ += keyword.size();
-				return Value::makeScalar(std::string(keyword));
+				return Value::makeScalar(std::string(keyword), ScalarKind::LITERAL);
 			}
 		}
 		return parseNumber();
@@ -335,7 +335,7 @@ private:
 				++pos_;
 			}
 		}
-		return Value::makeScalar(std::string(text_.substr(start, pos_ - start)));
+		return Value::makeScalar(std::string(text_.substr(start, pos_ - start)), ScalarKind::NUMBER);
 	}
 };
 

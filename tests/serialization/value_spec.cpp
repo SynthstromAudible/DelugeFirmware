@@ -28,6 +28,22 @@ describe value("deluge::serialization::Value", ${
 		expect(a.items().size()).to_equal(std::size_t{2});
 		expect(a.items()[1].str()).to_equal(std::string("b"));
 	});
+	it("compares structure, order, text and kind", _{
+		using deluge::serialization::ScalarKind;
+		Value a = Value::makeMap();
+		a.set("x", Value::makeNumber(96));
+		a.set("y", Value::makeScalar("96"));
+		Value b = Value::makeMap();
+		b.set("x", Value::makeNumber(96));
+		b.set("y", Value::makeScalar("96"));
+		expect(a == b).to_be_true();
+		expect(a.find("x")->scalarKind() == ScalarKind::NUMBER).to_be_true();
+		expect(*a.find("x") == *a.find("y")).to_be_false();   // number 96 is not text "96"
+		Value c = Value::makeMap();
+		c.set("y", Value::makeScalar("96"));
+		c.set("x", Value::makeNumber(96));
+		expect(a == c).to_be_false();                            // order matters
+	});
 });
 // clang-format on
 
