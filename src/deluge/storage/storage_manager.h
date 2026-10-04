@@ -32,6 +32,10 @@
 
 extern void deleteOldSongBeforeLoadingNew();
 
+namespace deluge::serialization {
+class Value;
+}
+
 class Instrument;
 class PlaybackMode;
 class ParamManagerForTimeline;
@@ -174,6 +178,9 @@ public:
 	                                    char const* endString = nullptr) = 0;
 
 	virtual void reset() = 0;
+	/// @brief Writes each entry of the Map @p members as a member of the object being written.
+	/// @details Only a JSON writer takes a Value; an XML document is written by the streaming calls.
+	virtual void writeValue(const deluge::serialization::Value& members);
 	/// @brief The format this serializer writes.
 	[[nodiscard]] virtual deluge::storage::DocumentFormat format() const = 0;
 	void writeFirmwareVersion();
@@ -332,9 +339,13 @@ public:
 	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                            char const* endString = nullptr) override;
 	void reset() override;
+	void writeValue(const deluge::serialization::Value& members) override;
 	// Begin Json-only API
 
 private:
+	/// Writes @p value as the member @p name, or as an array item when @p name is null.
+	void writeMember(char const* name, const deluge::serialization::Value& value);
+
 	uint8_t indentAmount{};
 	bool firstItemHasBeenWritten = false;
 };

@@ -52,6 +52,10 @@ void Serializer::writeAbsoluteSyncLevelToFile(Song* song, char const* name, Sync
 	               onNewLine);
 }
 
+void Serializer::writeValue(const deluge::serialization::Value& /*members*/) {
+	FREEZE_WITH_ERROR("SV01");
+}
+
 void Serializer::writeFirmwareVersion() {
 	writeAttribute("firmwareVersion", kFirmwareVersionStringShort);
 }

@@ -33,6 +33,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "serialization/value.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 #include "util/firmware_version.h"
@@ -223,6 +224,47 @@ void JsonSerializer::writeEscaped(char const* text) {
 	if (used > 0) {
 		flush();
 	}
+}
+
+void JsonSerializer::writeValue(const deluge::serialization::Value& members) {
+	for (const auto& [name, value] : members.entries()) {
+		writeMember(name.c_str(), value);
+	}
+}
+
+void JsonSerializer::writeMember(char const* name, const deluge::serialization::Value& value) {
+	using deluge::serialization::ScalarKind;
+	if (value.isMap()) {
+		writeOpeningTagBeginning(name);
+		writeValue(value);
+		writeClosingTag(name);
+		return;
+	}
+	if (value.isArray()) {
+		writeArrayStart(name);
+		for (const auto& item : value.items()) {
+			writeMember(nullptr, item);
+		}
+		writeArrayEnding(name);
+		return;
+	}
+	insertCommaIfNeeded();
+	write("\n");
+	printIndents();
+	if (name != nullptr) {
+		write("\"");
+		write(name);
+		write("\": ");
+	}
+	if (value.scalarKind() == ScalarKind::TEXT) {
+		write("\"");
+		writeEscaped(value.str().c_str());
+		write("\"");
+	}
+	else {
+		write(value.str().c_str());
+	}
+	firstItemHasBeenWritten = true;
 }
 
 void JsonSerializer::writeTagNameAndSeperator(char const* tag) {
