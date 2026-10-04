@@ -36,6 +36,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -1071,45 +1072,81 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 		return Error::FILE_NOT_SAVED;
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack =
-	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
-	// make sure the drum isn't currently in use
-	noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
-	kitToLoadFor->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)soundDrumToReplace);
-	kitToLoadFor->removeDrum(soundDrumToReplace);
-
-	// swaps out the drum pointed to by soundDrumToReplace
-	Error error = StorageManager::loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
+	SoundDrum* oldDrum = soundDrumToReplace;
+	SoundDrum* newDrum = nullptr;
+	Error error = StorageManager::loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &newDrum,
 	                                              &currentFileItem->filePointer, &enteredText, &currentDir);
 	if (error != Error::NONE) {
 		return error;
 	}
-	// kitToLoadFor->addDrum(soundDrumToReplace);
+
+	// The old drum stays in the kit, and alive, until every NoteRow has been moved off it - loading samples can run
+	// the audio routine, and NoteRows in any Clip of this Kit may still be played or rendered in the meantime.
 	display->displayLoadingAnimationText("Loading", false, true);
-	soundDrumToReplace->loadAllSamples(true);
+	newDrum->loadAllSamples(true);
 
-	soundDrumToReplace->drumName = enteredText.get();
-	soundDrumToReplace->path.set(&currentDir);
-	// Steal the ParamManager that loading backed up, so its (now empty) backup entry is removed from the Song
-	ParamManager paramManager;
-	if (currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor,
-	                                                           &paramManager)) {
-		kitToLoadFor->addDrum(soundDrumToReplace);
-		// don't back up the param manager since we can't use the backup anyway
-		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor,
-		                 &paramManager, false);
+	newDrum->drumName = enteredText.get();
+	newDrum->path.set(&currentDir);
+	// Steal the ParamManager that loading backed up, so its (now empty) backup entry is removed from the Song. Take it
+	// out of the backups first - setDrum() backs up the old ParamManager, which can move the backups around
+	ParamManagerForTimeline paramManager;
+	if (!currentSong->getBackedUpParamManagerPreferablyWithClip(newDrum, instrumentClipToLoadFor, &paramManager)) {
+		currentSong->deleteBackedUpParamManagersForModControllable(newDrum);
+		void* toDealloc = dynamic_cast<void*>(newDrum);
+		newDrum->~SoundDrum();
+		delugeDealloc(toDealloc);
+		display->removeLoadingAnimation();
+		return Error::FILE_CORRUPTED;
+	}
 
-		kitToLoadFor->selectedDrum = soundDrumToReplace;
-		kitToLoadFor->beenEdited();
+	kitToLoadFor->addDrum(newDrum);
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack =
+	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
+	noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
+	// Back up the old ParamManager so it's freed along with the old drum below, rather than leaked
+	noteRow->setDrum(newDrum, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor, &paramManager, true);
+
+	// The same Drum is shared by NoteRows in every Clip of this Kit - move all of them onto the new drum, otherwise
+	// they'd be left pointing at the old one once it's deleted. They clone their ParamManager from the row above.
+	for (InstrumentClip* clip : InstrumentClips::everywhere(currentSong)) {
+		if (oldDrum == nullptr || clip->output != kitToLoadFor) {
+			continue;
+		}
+		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
+			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
+			if (thisNoteRow->drum != oldDrum) {
+				continue;
+			}
+			char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithNoteRow* otherModelStackWithNoteRow =
+			    setupModelStackWithTimelineCounter(otherModelStackMemory, currentSong, clip)
+			        ->addNoteRow(clip->getNoteRowId(thisNoteRow, i), thisNoteRow);
+			thisNoteRow->stopCurrentlyPlayingNote(otherModelStackWithNoteRow);
+			thisNoteRow->setDrum(newDrum, kitToLoadFor, otherModelStackWithNoteRow, instrumentClipToLoadFor, nullptr,
+			                     true);
+		}
 	}
-	else {
-		error = Error::FILE_CORRUPTED;
+
+	// Nothing references the old drum now, so it can go
+	if (oldDrum != nullptr) {
+		oldDrum->wontBeRenderedForAWhile();
+		kitToLoadFor->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)oldDrum);
+		kitToLoadFor->removeDrum(oldDrum);
+		currentSong->deleteBackedUpParamManagersForModControllable(oldDrum);
+		void* toDealloc = dynamic_cast<void*>(oldDrum);
+		oldDrum->~SoundDrum();
+		delugeDealloc(toDealloc);
 	}
+
+	soundDrumToReplace = newDrum;
+	kitToLoadFor->selectedDrum = newDrum;
+	kitToLoadFor->beenEdited();
 
 	display->removeLoadingAnimation();
-	return error;
+	return Error::NONE;
 }
 // Previously called "exitAndResetInstrumentToInitial()". Does just that.
 void LoadInstrumentPresetUI::exitAction() {
