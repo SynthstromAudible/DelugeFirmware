@@ -1073,6 +1073,15 @@ void routine() {
 		if (!sdRoutineLock) {
 			auto timeNow = getSystemTime();
 			while (getSystemTime() < timeNow + 32 / 44100.) {
+				// Don't render ahead of sample loading. We can't load clusters from in here - audioRoutineLocked
+				// makes loadAnyEnqueuedClusters() a no-op - so hand back to the scheduler's cluster loading task.
+				// Rendering offline runs much faster than real time, so without this, time-stretch hops keep
+				// failing to start on unloaded clusters and synced samples play back unstretched (issue #4912).
+				// If the card's gone, nothing will drain the queue, so carry on rather than stall forever.
+				if (!audioFileManager.loadingQueue.empty() && audioFileManager.canLoadClusters()) {
+					break;
+				}
+
 				size_t numSamples = 32;
 				tickSongFinalizeWindows(numSamples);
 
@@ -1108,8 +1117,6 @@ void routine() {
 						}
 					}
 				}
-
-				audioFileManager.loadAnyEnqueuedClusters(128, false);
 			}
 		}
 	}
