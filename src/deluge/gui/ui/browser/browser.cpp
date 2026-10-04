@@ -128,7 +128,7 @@ bool Browser::listingRestored_;
 // 7SEG ONLY
 int8_t Browser::numberEditPos;
 
-char const* allowedFileExtensionsXML[] = {"XML", "Json", NULL};
+char const* allowedFileExtensionsXML[] = {"XML", "json", NULL};
 
 Browser::Browser() {
 	fileIcon = deluge::hid::display::OLED::songIcon;

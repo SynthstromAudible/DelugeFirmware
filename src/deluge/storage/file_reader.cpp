@@ -31,6 +31,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
+#include "storage/document_format.h"
 #include "storage/storage_manager.h"
 #include "util/boot.h"
 
@@ -414,7 +415,7 @@ int32_t StorageManager::stagingChannelServedOps() {
 }
 
 bool StorageManager::documentIsJson(char const* path) {
-	return strstr(path, ".Json") != nullptr;
+	return deluge::storage::formatOfPath(path) == deluge::storage::DocumentFormat::JSON;
 }
 
 Error StorageManager::openDocumentSynchronously(char const* path, char const* firstTagName, char const* altTagName) {

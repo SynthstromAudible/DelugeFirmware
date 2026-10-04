@@ -30,10 +30,10 @@ constexpr size_t kMaxSlotDigits = 3;
 constexpr int32_t kMaxNumericSuffix = 9999;
 
 bool exists(FileListView const& files, std::string const& nameWithoutExtension) {
-	// The browser lists both extensions (allowedFileExtensionsXML), and saving picks between them via writeJsonFlag, so
-	// a name is taken if *either* form is on the card. Probing only .XML would hand back a name that already exists.
+	// The browser lists both extensions (allowedFileExtensionsXML) and songs save as either, so a name is taken if
+	// *either* form is on the card. Probing only .XML would hand back a name that already exists.
 	return files.contains((nameWithoutExtension + ".XML").c_str())
-	       || files.contains((nameWithoutExtension + ".Json").c_str());
+	       || files.contains((nameWithoutExtension + ".json").c_str());
 }
 
 char upper(char c) {
