@@ -41,6 +41,11 @@ bool SaveUI::opened() {
 		return false;
 	}
 
+	// qwertyVisible is shared by every browser and starts out true, and nothing here resets it (qwertyAlwaysVisible is
+	// true for save UIs). Left alone, 7SEG would open in the text view ("SONG...") until a browser that does reset it,
+	// like song load, had been visited, and in the slot view ever after. Always start in the slot view.
+	qwertyVisible = false;
+
 	PadLEDs::clearSideBar();
 	return true;
 }
