@@ -85,6 +85,8 @@ constexpr int32_t kMaxVoicesOff = 127;
 		.path = "osc" #n "/dx7randomdetune", .kind = STRUCTURED                                                        \
 	}
 
+// An LFO's syncLevel is the level itself (1–9, 0 = off), whatever the song's tick magnitude; a file, and so a slot,
+// writes it relative to that magnitude.
 #define LFO_ROWS(n)                                                                                                    \
 	SettingInfo{.path = "lfo" #n "/type", .kind = CHOICE, .choices = kLfoTypes},                                       \
 	    SettingInfo{.path = "lfo" #n "/syncLevel", .min = 0, .max = engine::kMaxSyncLevel}, SettingInfo {              \

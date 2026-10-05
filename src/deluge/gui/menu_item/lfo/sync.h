@@ -60,15 +60,13 @@ public:
 	}
 
 private:
-	/// Set @p sound's LFO to the menu's @p option (a sync type and level together) as two setting Edits, the level in
-	/// the file's form, relative to the song's tick magnitude.
+	/// Set @p sound's LFO to the menu's @p option (a sync type and level together) as two setting Edits.
 	void setSync(Sound& sound, int32_t option) const {
 		const std::string prefix = "lfo" + std::to_string(lfoId_ + 1) + "/";
 		settingFor(sound, prefix + "syncType",
 		           serialization::Value::makeNumber(std::to_underlying(syncValueToSyncType(option))));
 		settingFor(sound, prefix + "syncLevel",
-		           serialization::Value::makeNumber(deluge::engine::sync_level_to_file(
-		               deluge::engine::index_of(syncValueToSyncLevel(option)), currentSong->getInputTickMagnitude())));
+		           serialization::Value::makeNumber(deluge::engine::index_of(syncValueToSyncLevel(option))));
 	}
 
 	uint8_t lfoId_;

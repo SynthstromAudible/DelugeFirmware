@@ -222,9 +222,13 @@ bool isSamplePlayback(std::string_view path) {
 	return false;
 }
 
-/// Whether @p sound's source that @p path names (`oscN/…`) plays samples.
+/// Whether @p sound's source that @p path names (`oscN/…`) takes the sample-playback setting: a sample source of a
+/// non-FM sound, or for interpolation a live-input one too.
 bool playsSamples(Sound& sound, std::string_view path) {
-	return sound.getSynthMode() != SynthMode::FM && sound.sources[path[3] - '1'].oscType == OscType::SAMPLE;
+	const OscType type = sound.sources[path[3] - '1'].oscType;
+	const bool input = type == OscType::INPUT_L || type == OscType::INPUT_R || type == OscType::INPUT_STEREO;
+	return sound.getSynthMode() != SynthMode::FM
+	       && (type == OscType::SAMPLE || (input && path.ends_with("/linearInterpolation")));
 }
 
 /// The node at @p path (slash-separated) in @p tree, or nullptr.
@@ -291,11 +295,23 @@ std::vector<Value> legalValues(const deluge::engine::SettingInfo& row, const std
 	return values;
 }
 
-/// Whether the song's tick magnitude holds the file sync level @p value exactly.
-bool representable(const Value& value, Song& song) {
-	const int32_t file = deluge::serialization::int_of(&value).value_or(0);
-	const int32_t magnitude = song.getInputTickMagnitude();
-	return deluge::engine::sync_level_to_file(deluge::engine::sync_level_from_file(file, magnitude), magnitude) == file;
+/// @p value as the slot holds it: an LFO's sync level relative to the song's tick magnitude, as a file writes it;
+/// everything else as the Edit takes it.
+Value slotForm(std::string_view path, const Value& value, Song& song) {
+	if (!path.ends_with("/syncLevel")) {
+		return value;
+	}
+	const int32_t level = deluge::serialization::int_of(&value).value_or(0);
+	return Value::makeNumber(deluge::engine::sync_level_to_file(level, song.getInputTickMagnitude()));
+}
+
+/// The slot's @p held value as an Edit takes it: the inverse of slotForm.
+Value editForm(std::string_view path, const Value& held, Song& song) {
+	if (!path.ends_with("/syncLevel")) {
+		return held;
+	}
+	const int32_t file = deluge::serialization::int_of(&held).value_or(0);
+	return Value::makeNumber(deluge::engine::sync_level_from_file(file, song.getInputTickMagnitude()));
 }
 
 /// Empty when @p sound's slot agrees with its state after setting @p path to @p value, else which check fails.
@@ -308,7 +324,7 @@ std::string_view coherence(Sound& sound, Song& song, std::string_view path, cons
 	const Value encoded =
 	    deluge::instrument::encode(*sound.boundState(), {.input_tick_magnitude = song.getInputTickMagnitude()});
 	const std::string* held = deluge::serialization::text_of(leafAt(slot->state, path));
-	if (leafAt(encoded, path) != nullptr && (held == nullptr || *held != value.str())) {
+	if (leafAt(encoded, path) != nullptr && (held == nullptr || *held != slotForm(path, value, song).str())) {
 		return "value";
 	}
 	if (std::string d = stateDifference(slot->state, encoded); !d.empty()) {
@@ -343,19 +359,12 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 			}
 			continue;
 		}
-		const Value* now = leafAt(song.project.resolveSlot(*address)->state, path);
-		const std::optional<Value> old = now != nullptr ? std::optional<Value>{*now} : std::nullopt;
-		for (const Value& value : legalValues(*row, deluge::serialization::text_of(now))) {
+		const Value* held = leafAt(song.project.resolveSlot(*address)->state, path);
+		const std::optional<Value> old =
+		    held != nullptr ? std::optional<Value>{editForm(path, *held, song)} : std::nullopt;
+		for (const Value& value : legalValues(*row, old ? &old->str() : nullptr)) {
 			const Value slotBefore = song.project.resolveSlot(*address)->state;
 			deluge::edits::SetEngineSetting edit{*address, std::string(path), value};
-			if (path.ends_with("/syncLevel") && !representable(value, song)) {
-				if (deluge::edits::apply(ctx, edit) == Error::NONE) {
-					std::fprintf(io.err, "%s %.*s=%s: a level the song cannot hold was taken\n", name,
-					             static_cast<int>(path.size()), path.data(), value.str().c_str());
-					return 3;
-				}
-				continue;
-			}
 			std::string_view failed =
 			    deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : coherence(sound, song, path, value);
 			if (failed.empty() && old && deluge::instrument::check_setting(path, *old)) {

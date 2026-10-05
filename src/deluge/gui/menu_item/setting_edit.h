@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "io/debug/log.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/project_bridge/setting_apply.h"
@@ -40,11 +41,16 @@ inline std::string oscSettingPath(int32_t source, std::string_view name) {
 inline void settingFor(::Sound& sound, std::string_view path, deluge::serialization::Value value) {
 	if (const std::optional<deluge::project::SlotAddress> slot = deluge::bridge::slotAddressOf(sound)) {
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
-		deluge::edits::SetEngineSetting edit{*slot, std::string(path), std::move(value)};
-		(void)deluge::edits::apply(ctx, edit);
+		deluge::edits::SetEngineSetting edit{*slot, std::string(path), value};
+		if (deluge::edits::apply(ctx, edit) != Error::NONE) {
+			// A menu offers only what the setting takes; a refusal here is a menu and schema out of step.
+			D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
+		}
 		return;
 	}
-	(void)deluge::bridge::applySetting(sound, path, value, *currentSong);
+	if (deluge::bridge::applySetting(sound, path, value, *currentSong) != Error::NONE) {
+		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
+	}
 }
 
 } // namespace deluge::gui::menu_item

@@ -66,14 +66,18 @@ void changeOscType(::Sound& sound, int32_t s, OscType type, ::Song& song) {
 	}
 }
 
-/// Apply an `oscN/` path: false when the path has no setter here, or names sample playback on a source that plays no
-/// samples.
+/// Apply an `oscN/` path: false when the path has no setter here, or names sample playback on a source that does not
+/// use it (interpolation: a sample or live-input source; the rest: a sample source).
 bool applyOscillatorSetting(::Sound& sound, int32_t s, std::string_view rest, const std::string& text, int32_t number,
                             ::Song& song) {
 	if (isSamplePlayback(rest)) {
 		Source& source = sound.sources[s];
-		if (sound.getSynthMode() == SynthMode::FM || source.oscType != OscType::SAMPLE) {
-			return false; // only a sample source plays samples, and only its file holds these
+		const bool input = source.oscType == OscType::INPUT_L || source.oscType == OscType::INPUT_R
+		                   || source.oscType == OscType::INPUT_STEREO;
+		// Only a sample source plays samples; live input is interpolated too.
+		if (sound.getSynthMode() == SynthMode::FM
+		    || !(source.oscType == OscType::SAMPLE || (input && rest == "linearInterpolation"))) {
+			return false;
 		}
 		if (rest == "loopMode") {
 			// Stretching to note length needs pitch and speed independent; leaving it gives the independence up.
@@ -134,7 +138,7 @@ int32_t lfoOf(std::string_view path, std::string_view& rest) {
 }
 
 /// Apply an `lfoN/` path as the LFO menus do, resyncing the song-wide LFOs and, for sync, re-patching: false when the
-/// path has no setter here, or a sync level the song's tick magnitude cannot hold.
+/// path has no setter here.
 bool applyLfoSetting(::Sound& sound, int32_t l, std::string_view rest, const std::string& text, int32_t number,
                      ::Song& song) {
 	const LFOConfig& now = sound.snapshot().lfoConfig[l];
@@ -146,14 +150,7 @@ bool applyLfoSetting(::Sound& sound, int32_t l, std::string_view rest, const std
 		sound.setupPatchingForAllParamManagers(&song);
 	}
 	else if (rest == "syncLevel") {
-		// A file's level is relative to the song's tick magnitude; one this song cannot hold exactly is refused, not
-		// clamped to another.
-		const int32_t magnitude = song.getInputTickMagnitude();
-		const int32_t level = deluge::engine::sync_level_from_file(number, magnitude);
-		if (deluge::engine::sync_level_to_file(level, magnitude) != number) {
-			return false;
-		}
-		sound.setLfoSync(l, now.syncType, static_cast<SyncLevel>(level));
+		sound.setLfoSync(l, now.syncType, static_cast<SyncLevel>(number));
 		sound.setupPatchingForAllParamManagers(&song);
 	}
 	else {

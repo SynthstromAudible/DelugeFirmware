@@ -510,6 +510,36 @@ void testSetEngineSetting(deluge::edits::Context& ctx) {
 	check(deluge::serialization::first_difference(ctx.model.resolveSlot(*slot)->state, before).empty(),
 	      "setting: a refused Edit leaves the slot");
 	check(sound.snapshot().voicePriority == VoicePriority::HIGH, "setting: a refused Edit leaves the sound");
+
+	// An LFO's sync level is the level itself, whatever the song's tick magnitude: every level the sync menu offers
+	// is taken and lands as chosen.
+	auto& transport = ctx.model.transport;
+	const int32_t oldMagnitude = transport.inside_world_tick_magnitude;
+	const int32_t oldOffset = transport.inside_world_tick_magnitude_offset_from_bpm;
+	transport.inside_world_tick_magnitude_offset_from_bpm = 0;
+	for (int32_t magnitude = 0; magnitude <= 3; magnitude++) {
+		transport.inside_world_tick_magnitude = magnitude;
+		for (int32_t level = 0; level <= 9; level++) {
+			deluge::edits::SetEngineSetting sync{*slot, "lfo1/syncLevel", Value::makeNumber(level)};
+			const bool taken = deluge::edits::apply(ctx, sync) == Error::NONE;
+			const bool landed = static_cast<int32_t>(sound.snapshot().lfoConfig[0].syncLevel) == level;
+			if (!taken || !landed) {
+				std::fprintf(io.err, "setting: lfo1/syncLevel=%d at magnitude %d %s\n", level, magnitude,
+				             taken ? "landed elsewhere" : "refused");
+				check(false, "setting: every LFO sync level is taken as chosen");
+			}
+		}
+	}
+	transport.inside_world_tick_magnitude = oldMagnitude;
+	transport.inside_world_tick_magnitude_offset_from_bpm = oldOffset;
+
+	// A live-input oscillator interpolates too: the interpolation menu offers it there.
+	deluge::edits::SetEngineSetting input{*slot, "osc1/type", Value::makeScalar("inStereo")};
+	check(deluge::edits::apply(ctx, input) == Error::NONE, "setting: an oscillator becomes live input");
+	deluge::edits::SetEngineSetting linear{*slot, "osc1/linearInterpolation", Value::makeNumber(1)};
+	check(deluge::edits::apply(ctx, linear) == Error::NONE
+	          && sound.sources[0].sampleControls.interpolationMode == InterpolationMode::LINEAR,
+	      "setting: a live-input oscillator takes linear interpolation");
 }
 
 int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
