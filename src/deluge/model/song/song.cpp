@@ -1284,7 +1284,9 @@ void Song::adoptDrum(Drum* drum) {
 	if (drum->docDrum_ != nullptr) {
 		return;
 	}
-	if (!drum->id().has_value()) {
+	// Outside this song's own read, an id another drum's record already holds (a preset that carries drum ids) is not
+	// this drum's: it gets one of its own, so two drums never share a record. The song's read keeps its file's ids.
+	if (!drum->id().has_value() || (!readingFromFile_ && project.drum_structure.find(*drum->id()) != nullptr)) {
 		drum->setId(generateNewDrumId());
 	}
 	deluge::project::DocDrum& d = project.drum_structure.getOrCreate(*drum->id());
@@ -1304,6 +1306,11 @@ void Song::adoptDrum(Drum* drum) {
 		Sound* sound = static_cast<Sound*>(static_cast<SoundDrum*>(drum));
 		sound->bindState();
 		deluge::bridge::fillSlot(*sound, d.instrument.emplace(), true); // a drum read from a file refills it once read
+		if (!readingFromFile_) {
+			// A drum added to a running song (a preset loaded into a kit row) had its samples loaded first: its slot
+			// takes what the runtime now holds.
+			deluge::bridge::syncSlotState(*sound, *d.instrument, *this);
+		}
 	}
 }
 
@@ -1311,7 +1318,9 @@ void Song::adoptDrum(Drum* drum) {
 // (mirroring removeDocClip): during whole-song teardown currentSong is nulled first and the whole project — the
 // drum_structure with it — is destroyed wholesale, so no per-drum removal is needed then.
 void Song::removeDocDrum(Drum* drum) {
-	if (drum->id()) {
+	// Only the drum's own record: a drum of another song (the outgoing one, torn down after a swap while this song is
+	// current) may share its id.
+	if (drum->id() && project.drum_structure.find(*drum->id()) == drum->docDrum_) {
 		project.drum_structure.remove(*drum->id());
 	}
 }
@@ -1343,13 +1352,17 @@ void Song::adoptOutput(Output* output) {
 		sound->bindState();
 		deluge::bridge::fillSlot(*sound, d.instrument.emplace(), false);
 	}
+	// A preset's samples load before it is added, and a kit's drums were bound while it was read: the record and the
+	// slot take what the runtime now holds.
+	deluge::bridge::recordLoadedOutput(*output, *this);
 }
 
 // M3 owner-5: drop an output's identity record on genuine destruction. Callers guard on currentSong && docOutput_
 // (mirroring removeDocDrum): during whole-song teardown currentSong is nulled first and the whole project — the
 // output_structure with it — is destroyed wholesale, so no per-output removal is needed then.
 void Song::removeDocOutput(Output* output) {
-	if (output->id()) {
+	// Only the output's own record: an output of another song may share its id.
+	if (output->id() && project.output_structure.find(*output->id()) == output->docOutput_) {
 		project.output_structure.remove(*output->id());
 	}
 }

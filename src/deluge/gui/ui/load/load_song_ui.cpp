@@ -36,6 +36,7 @@
 #include "libdeluge/file_prefix.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -815,6 +816,7 @@ void LoadSongUI::tickEssential() {
 		DELUGE_LOAD_TRACE("crucial end");
 	}
 	essentialLoad_.reset();
+	deluge::bridge::recordLoadedSounds(*preLoadedSong);
 
 	// The new song's essential clusters still have to finish arriving before the swap. Park here and let
 	// loadRoutine() watch for it: the fill task that does the arriving only runs once we return to the run loop.
@@ -918,6 +920,7 @@ void LoadSongUI::tickFinish() {
 		return; // still walking
 	}
 	AudioEngine::logAction("done loading new song");
+	deluge::bridge::recordLoadedSounds(*currentSong);
 	currentSong->markAllInstrumentsAsEdited();
 
 	sampleLoadContext_ = {};

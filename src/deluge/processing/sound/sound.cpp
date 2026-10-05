@@ -2963,17 +2963,22 @@ void Sound::doneReadingFromFile() {
 	// load-bridge for a SoundDrum, whose adoptDrum bound the record with default values BEFORE its fields were parsed.
 	// A SoundInstrument/fresh Sound isn't bound yet here (state_ == nullptr) — bindState seeds it later,
 	// post-parse.
-	if (state_ != nullptr) {
-		seedDocSoundScalars();
-		seedModKnobsRecord();
-		seedDocModControllable();
-		projectModControllableSnapshot();
-		projectSnapshot(); // M4b: refresh the render read-view from the now-final record (SoundDrum load-bridge)
-		for (int32_t s = 0; s < kNumSources; s++) {
-			sources[s].seedDocSourceScalars();
-			sources[s].seedDocDxPatch();
-			sources[s].seedDocRanges();
-		}
+	reseedRecord();
+}
+
+void Sound::reseedRecord() {
+	if (state_ == nullptr) {
+		return;
+	}
+	seedDocSoundScalars();
+	seedModKnobsRecord();
+	seedDocModControllable();
+	projectModControllableSnapshot();
+	projectSnapshot();
+	for (int32_t s = 0; s < kNumSources; s++) {
+		sources[s].seedDocSourceScalars();
+		sources[s].seedDocDxPatch();
+		sources[s].seedDocRanges();
 	}
 }
 

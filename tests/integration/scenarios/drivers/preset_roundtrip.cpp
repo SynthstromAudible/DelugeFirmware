@@ -125,6 +125,9 @@ int preset_roundtrip_main(int argc, char** argv, Io driverIo) {
 		std::fprintf(io.err, "LOADFAIL original -> Error %d\n", static_cast<int>(e1));
 		return 1;
 	}
+	// A drum's id is its song's serial: the second generation is read into a song of its own, as the first was, so the
+	// ids it mints are the first's.
+	currentSong = freshSong();
 	const long n2 = loadThenSave(std::string_view{gen1, static_cast<size_t>(n1)}, type, true, gen2, kCap, &e2);
 	if (n2 < 0) {
 		std::fprintf(io.err, "LOADFAIL gen1 -> Error %d\n", static_cast<int>(e2));

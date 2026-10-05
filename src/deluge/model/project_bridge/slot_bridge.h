@@ -21,6 +21,7 @@
 
 #include <optional>
 
+class Output;
 class Song;
 class Sound;
 
@@ -45,5 +46,16 @@ void refreshSlots(::Song& song);
 /// @brief Make @p slot (@p sound's, as the model resolves it) hold the sound's state: the instrument's entries replaced
 /// by the state's encoding, every other entry kept. Nothing for a sound that is not bound.
 void syncSlotState(const ::Sound& sound, deluge::project::InstrumentSlot& slot, const ::Song& song);
+
+/// @brief @p sound re-read into its record from the runtime and its slot refreshed, when it is bound in @p song.
+void recordLoadedSound(::Sound& sound, ::Song& song);
+
+/// @brief Every bound sound of @p output (a synth's, or a kit's sound drums) re-read into its record from the runtime
+/// and its slot refreshed: what loading made of it (an end clamped to a sample's length, millisecond zones in samples,
+/// a path found in another folder) becomes what the record and slot say.
+void recordLoadedOutput(::Output& output, ::Song& song);
+
+/// @brief recordLoadedOutput for every output and hibernating instrument of @p song, once a load's samples are in.
+void recordLoadedSounds(::Song& song);
 
 } // namespace deluge::bridge

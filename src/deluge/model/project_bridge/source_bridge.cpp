@@ -34,6 +34,7 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 	::Source& source = sound.sources[s];
 	const std::vector<deluge::instrument::RangeState> now = rangesOf(source);
 	if (now == ranges) {
+		source.seedDocRanges(); // a gesture changed the runtime itself and records the result
 		return Error::NONE;
 	}
 	if (now.size() != ranges.size()) {

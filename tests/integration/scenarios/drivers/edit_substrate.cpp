@@ -32,11 +32,14 @@
 #include <cstring>
 
 #include "deluge-project/instrument_slot.h"
+#include "model/drum/drum.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/edits/set_source_ranges.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/slot_coherence.h"
@@ -582,6 +585,13 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	check(holder->startPos == 100 && holder->endPos == 900 && holder->transpose == 5, "ranges: the runtime takes it");
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: the sound stays coherent");
 
+	// A gesture that changed the runtime itself records the result: the Edit carries the runtime's own list.
+	holder->endPos = 800;
+	deluge::edits::SetSourceRanges record{*slot, 0, deluge::bridge::rangesOf(sound.sources[0])};
+	check(deluge::edits::apply(ctx, record) == Error::NONE, "ranges: the runtime's own list is taken");
+	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: recording a gesture's result reseeds");
+	ranges = deluge::bridge::rangesOf(sound.sources[0]);
+
 	const Value before = ctx.model.resolveSlot(*slot)->state;
 	auto withFile = ranges;
 	withFile[0].file_path = "SAMPLES/OTHER.WAV";
@@ -593,6 +603,63 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	check(deluge::edits::apply(ctx, reshape) != Error::NONE, "ranges: another length is refused");
 	check(deluge::serialization::first_difference(ctx.model.resolveSlot(*slot)->state, before).empty(),
 	      "ranges: a refusal leaves the slot");
+}
+
+// A new drum's id is one no drum record of the song holds: a drum whose id the counter has not passed (a hibernating
+// kit's, one bound outside the load) keeps its record to itself.
+void testDrumIdsAreUnique(deluge::edits::Context& ctx) {
+	const uint32_t next = ctx.song.generateNewDrumId();
+	ctx.model.drum_structure.getOrCreate(next + 1);
+	const uint32_t minted = ctx.song.generateNewDrumId();
+	check(minted != next + 1, "drum ids: a new id is not one a record already holds");
+	check(ctx.model.drum_structure.find(minted) == nullptr, "drum ids: the new id has no record yet");
+	ctx.model.drum_structure.remove(next + 1);
+
+	const uint32_t nextOutput = ctx.song.generateNewOutputId();
+	ctx.model.output_structure.getOrCreate(nextOutput + 1);
+	const uint32_t mintedOutput = ctx.song.generateNewOutputId();
+	check(mintedOutput != nextOutput + 1, "output ids: a new id is not one a record already holds");
+	ctx.model.output_structure.remove(nextOutput + 1);
+}
+
+// Removing a drum or an output from a song drops its record only when the record is its own: an object of another
+// song (the outgoing one, torn down after a swap) that shares an id leaves this song's record alone.
+void testRemovalDropsOnlyOwnRecords(deluge::edits::Context& ctx) {
+	const uint32_t id = ctx.song.generateNewDrumId();
+	deluge::project::DocDrum& ours = ctx.model.drum_structure.getOrCreate(id);
+	deluge::project::DocDrum theirs;
+	Drum* stranger = StorageManager::createNewDrum(DrumType::SOUND);
+	stranger->setId(id);
+	stranger->bindDocDrum(&theirs);
+	ctx.song.removeDocDrum(stranger);
+	check(ctx.model.drum_structure.find(id) == &ours, "removal: another song's drum leaves this song's record");
+	stranger->bindDocDrum(nullptr);
+	ctx.model.drum_structure.remove(id);
+	AudioEngine::retire(static_cast<SoundDrum*>(stranger));
+
+	// A drum adopted into a running song with an id another drum's record already holds (a preset that carries ids)
+	// gets an id of its own, so the two never share a record.
+	Drum* first = StorageManager::createNewDrum(DrumType::SOUND);
+	Drum* second = StorageManager::createNewDrum(DrumType::SOUND);
+	const uint32_t shared = ctx.song.generateNewDrumId();
+	first->setId(shared);
+	second->setId(shared);
+	ctx.song.adoptDrum(first);
+	ctx.song.adoptDrum(second);
+	check(second->docDrum_ != first->docDrum_, "adoption: a taken id is not shared");
+	check(second->id() != first->id(), "adoption: the second drum gets an id of its own");
+
+	ParamManagerForTimeline paramManager;
+	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
+	const uint32_t outputId = ctx.song.generateNewOutputId();
+	deluge::project::DocOutput& ourOutput = ctx.model.output_structure.getOrCreate(outputId);
+	deluge::project::DocOutput theirOutput;
+	synth->setId(outputId);
+	synth->bindDocOutput(&theirOutput);
+	ctx.song.removeDocOutput(synth);
+	check(ctx.model.output_structure.find(outputId) == &ourOutput,
+	      "removal: another song's output leaves this song's record");
+	ctx.model.output_structure.remove(outputId);
 }
 
 int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
@@ -624,6 +691,8 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testRegionFlipViaApply(ctx, song, audioClip);
 	testSetEngineSetting(ctx);
 	testSetSourceRanges(ctx);
+	testDrumIdsAreUnique(ctx);
+	testRemovalDropsOnlyOwnRecords(ctx);
 
 	if (failures == 0) {
 		std::fprintf(io.out, "edit_substrate: OK\n");

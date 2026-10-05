@@ -16,6 +16,7 @@
  */
 
 #include "scenarios/preset_load_scenario.h"
+#include "scenarios/slot_coherence.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clear_song.h"
@@ -954,6 +955,8 @@ void checkMidiDefinition() {
 }
 
 void checkLeg() {
+	// What loading made of each sound is what its record and slot say.
+	g_failures += deluge::harness::expectSongCoherent(*currentSong, "preset");
 	if (g_leg == Leg::MidiDef) {
 		// Nothing of the preset kind is read: a definition carries no samples.
 		checkMidiDefinition();

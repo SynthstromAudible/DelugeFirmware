@@ -16,6 +16,7 @@
  */
 
 #include "scenarios/sample_load_tree_scenario.h"
+#include "scenarios/slot_coherence.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
@@ -380,6 +381,9 @@ bool buildSong() {
 	sampleHolder->filePath = kSynthSample;
 	waveTableHolder->filePath = kWaveTable;
 	(void)synth->loadAllAudioFiles(true);
+	// The synth's sample ends where a file from older firmware puts an unset end: loading the song clamps it to the
+	// sample's length, and the record and slot must say so.
+	static_cast<SampleHolder*>(sampleHolder)->endPos = 9999999;
 	// The song's synth is bound to its slot, so its sources save their ranges from their records: reseed them, as the
 	// sample browser's claim does.
 	synth->sources[0].seedDocRanges();
@@ -589,6 +593,8 @@ std::string collected(const char* samplePath) {
 }
 
 void checkSong() {
+	// What loading made of each sound (a clamped end, a path found elsewhere) is what its record and slot say.
+	g_failures += deluge::harness::expectSongCoherent(*currentSong, "song");
 	bool sawSynth = false;
 	bool sawKit = false;
 	bool sawClip = false;
@@ -876,6 +882,8 @@ void renderWhileArmed() {
 }
 
 void checkCrucialLoad() {
+	// What loading made of each sound (a clamped end, a path found elsewhere) is what its record and slot say.
+	g_failures += deluge::harness::expectSongCoherent(*currentSong, "crucial");
 	printf("SLT-CRUCIAL-SUMMARY clockAtLoad=%d swapAfterTicks=%d renderedBlocks=%d routines=%d snapshot=%d\n",
 	       g_crucialClockAtLoad ? 1 : 0, g_crucialSwapTick, g_crucialRendered, g_crucialRoutines,
 	       g_crucialSnapshotTaken ? 1 : 0);
@@ -1769,6 +1777,8 @@ void checkOrphan() {
 }
 
 void checkAsyncLeg() {
+	// What loading made of each sound (a clamped end, a path found elsewhere) is what its record and slot say.
+	g_failures += deluge::harness::expectSongCoherent(*currentSong, "async");
 	using deluge::storage::AsyncSampleLoad;
 	const char* leg = asyncLegName(g_asyncLeg);
 	if (!g_asyncLoad.has_value() && g_asyncLeg != AsyncLeg::Kit) {

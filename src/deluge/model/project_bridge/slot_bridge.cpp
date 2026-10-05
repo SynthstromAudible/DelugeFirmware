@@ -165,4 +165,38 @@ void syncSlotState(const ::Sound& sound, deluge::project::InstrumentSlot& slot, 
 	}
 }
 
+void recordLoadedSound(::Sound& sound, ::Song& song) {
+	const std::optional<deluge::project::SlotAddress> address = slotAddressOf(sound);
+	deluge::project::InstrumentSlot* slot = address ? song.project.resolveSlot(*address) : nullptr;
+	if (slot == nullptr) {
+		return;
+	}
+	sound.reseedRecord();
+	syncSlotState(sound, *slot, song);
+}
+
+void recordLoadedOutput(::Output& output, ::Song& song) {
+	auto record = [&](::Sound& sound) { recordLoadedSound(sound, song); };
+	if (output.type == OutputType::SYNTH) {
+		record(*static_cast<SoundInstrument*>(&output));
+	}
+	else if (output.type == OutputType::KIT) {
+		for (Drum* drum = static_cast<Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
+			if (drum->type == DrumType::SOUND) {
+				record(*static_cast<SoundDrum*>(drum));
+			}
+		}
+	}
+}
+
+void recordLoadedSounds(::Song& song) {
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		recordLoadedOutput(*output, song);
+	}
+	for (Output* sleeping = song.live.media.first_hibernating_instrument; sleeping != nullptr;
+	     sleeping = sleeping->next) {
+		recordLoadedOutput(*sleeping, song);
+	}
+}
+
 } // namespace deluge::bridge

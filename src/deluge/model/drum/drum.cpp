@@ -16,6 +16,9 @@
  */
 
 #include "model/drum/drum.h"
+#include "model/project_bridge/slot_bridge.h"
+#include "model/song/song.h"
+#include "processing/sound/sound_drum.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_drum.h" // complete DocDrum type — the authoritative store for the drum name
@@ -106,8 +109,12 @@ bool Drum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {
 	}
 	else if (!strcmp(tagName, "id")) {
 		// Stable per-song serial identity (see Drum::id). Song::syncSerialIdCountersFromLoaded advances the
-		// drum id counter past all loaded ids after the load completes.
-		setId(reader.readTagOrAttributeValueInt());
+		// drum id counter past all loaded ids after the load completes. A drum already bound took its id when it was
+		// adopted (from this tag, or a fresh one where this tag's id was another drum's), so the tag leaves it.
+		const int32_t id = reader.readTagOrAttributeValueInt();
+		if (docDrum_ == nullptr) {
+			setId(id);
+		}
 		reader.exitTag("id");
 	}
 	else {
@@ -181,4 +188,7 @@ justSend:
 void Drum::loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
 	deluge::storage::BlockingSampleLoad load{mayActuallyReadFiles, context};
 	(void)walkSampleDemands(load);
+	if (type == DrumType::SOUND && docDrum_ != nullptr && currentSong != nullptr) {
+		deluge::bridge::recordLoadedSound(*static_cast<SoundDrum*>(this), *currentSong); // what the load made of it
+	}
 }

@@ -335,7 +335,14 @@ public:
 	// transient positional index, the id survives reorders and reloads, so DOM references (e.g.
 	// session macros) can resolve by id instead of position.
 	uint32_t generateNewClipId() { return clipIdCounter_++; }
-	uint32_t generateNewOutputId() { return outputIdCounter_++; }
+	/// A new output id: past every id the counter has seen, and one no output record of the song holds (a hibernating
+	/// instrument's id is not walked when the counter catches up after a load).
+	uint32_t generateNewOutputId() {
+		while (project.output_structure.find(outputIdCounter_) != nullptr) {
+			outputIdCounter_++;
+		}
+		return outputIdCounter_++;
+	}
 	/// The durable id of @p output, a member of this song, minting one first if it has none yet (an output made
 	/// since the load gets one only when something needs to name it).
 	uint32_t outputIdFor(Output& output) {
@@ -344,7 +351,14 @@ public:
 		}
 		return *output.id();
 	}
-	uint32_t generateNewDrumId() { return drumIdCounter_++; }
+	/// A new drum id: past every id the counter has seen, and one no drum record of the song holds, so a new drum never
+	/// shares a record with a drum the counter has not passed (a hibernating kit's).
+	uint32_t generateNewDrumId() {
+		while (project.drum_structure.find(drumIdCounter_) != nullptr) {
+			drumIdCounter_++;
+		}
+		return drumIdCounter_++;
+	}
 	/// Advance the counters past every id seen in the just-loaded song, so newly created objects can't
 	/// collide with restored ids. Called once after a load completes.
 	void syncSerialIdCountersFromLoaded();

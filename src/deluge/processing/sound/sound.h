@@ -337,6 +337,10 @@ public:
 	void fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack);
 	void recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* paramManager);
 	void doneReadingFromFile();
+	/// @brief Re-read the record from the runtime, every field a bound sound's record holds, as binding seeds it; then
+	/// reproject the snapshot. Nothing when unbound. For what a load makes of a sound after binding (an end clamped to
+	/// its sample's length, a path found in another folder).
+	void reseedRecord();
 	virtual void setupPatchingForAllParamManagers(Song* song) {}
 	void compensateVolumeForResonance(ModelStackWithThreeMainThings* modelStack);
 	// void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
