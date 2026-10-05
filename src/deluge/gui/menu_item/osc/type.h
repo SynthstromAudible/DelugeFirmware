@@ -16,8 +16,10 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "engines/deluge/words.h"
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
@@ -47,32 +49,12 @@ public:
 		setValue(rawVal);
 	}
 	void writeCurrentValue() override {
-		OscType oldValue = soundEditor.currentSound->sources[sourceId_].oscType;
 		auto newValue = getValue<OscType>();
 		if (!mayUseDx() && static_cast<int32_t>(newValue) >= static_cast<int32_t>(OscType::DX7)) {
 			newValue = static_cast<OscType>(static_cast<int32_t>(newValue) + 1);
 		}
-
-		const auto needs_unassignment = {
-		    OscType::INPUT_L,
-		    OscType::INPUT_R,
-		    OscType::INPUT_STEREO,
-		    OscType::SAMPLE,
-		    OscType::DX7,
-
-		    // Haven't actually really determined if this needs to be here - maybe not?
-		    OscType::WAVETABLE,
-		};
-
-		if (util::one_of(oldValue, needs_unassignment) || util::one_of(newValue, needs_unassignment)) {
-			soundEditor.currentSound->killAllVoices();
-		}
-
-		soundEditor.currentSound->sources[sourceId_].setOscType(newValue);
-
-		if (oldValue == OscType::SQUARE || newValue == OscType::SQUARE) {
-			soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
-		}
+		settingFor(*soundEditor.currentSound, "osc" + std::to_string(sourceId_ + 1) + "/type",
+		           serialization::Value::makeScalar(std::string(deluge::instrument::to_string(newValue))));
 	}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }

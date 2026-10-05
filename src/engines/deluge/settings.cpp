@@ -54,7 +54,10 @@ constexpr std::array<std::string_view, 3> kSyncTypes{"0", "10", "19"};
 
 constexpr int32_t kTransposeRange = 96; ///< semitones either way: the transpose menus' ±9600 cents
 constexpr int32_t kCentsRange = 50;
-constexpr int32_t kRetrigMax = 360; ///< degrees; −1 is free-running
+/// A retrigger phase as a file writes it: the 32-bit phase (a fraction of 2^32) as a signed integer, −1 (0xFFFFFFFF)
+/// free-running. The menu's degrees are 11930464 apart.
+constexpr int32_t kPhaseMin = std::numeric_limits<int32_t>::min();
+constexpr int32_t kPhaseMax = std::numeric_limits<int32_t>::max();
 /// The voice limit the max-voices menu's "off" writes: 1–16 are limits, this one is none in practice.
 constexpr int32_t kMaxVoicesOff = 127;
 // An LFO's sync level is the file's number, which is relative to the song's input tick magnitude; its range is the
@@ -64,7 +67,7 @@ constexpr int32_t kMaxVoicesOff = 127;
 	SettingInfo{.path = "osc" #n "/type", .kind = CHOICE, .choices = kOscTypes},                                       \
 	    SettingInfo{.path = "osc" #n "/transpose", .min = -kTransposeRange, .max = kTransposeRange},                   \
 	    SettingInfo{.path = "osc" #n "/cents", .min = -kCentsRange, .max = kCentsRange},                               \
-	    SettingInfo{.path = "osc" #n "/retrigPhase", .min = -1, .max = kRetrigMax},                                    \
+	    SettingInfo{.path = "osc" #n "/retrigPhase", .min = kPhaseMin, .max = kPhaseMax},                              \
 	    SettingInfo{.path = "osc" #n "/loopMode", .min = 0, .max = 3},                                                 \
 	    SettingInfo{.path = "osc" #n "/reversed", .kind = BOOL},                                                       \
 	    SettingInfo{.path = "osc" #n "/timeStretchEnable", .kind = BOOL},                                              \
@@ -88,7 +91,7 @@ constexpr int32_t kMaxVoicesOff = 127;
 #define MODULATOR_ROWS(n)                                                                                              \
 	SettingInfo{.path = "modulator" #n "/transpose", .min = -kTransposeRange, .max = kTransposeRange},                 \
 	    SettingInfo{.path = "modulator" #n "/cents", .min = -kCentsRange, .max = kCentsRange}, SettingInfo {           \
-		.path = "modulator" #n "/retrigPhase", .min = -1, .max = kRetrigMax                                            \
+		.path = "modulator" #n "/retrigPhase", .min = kPhaseMin, .max = kPhaseMax                                      \
 	}
 
 constexpr std::array kRows{

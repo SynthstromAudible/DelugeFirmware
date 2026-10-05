@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/source/transpose.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
@@ -82,8 +83,8 @@ public:
 						source.seedDocRanges();
 					}
 					else {
-						source.setTranspose(transpose);
-						source.setCents(cents);
+						settingFor(*soundDrum, oscPath("transpose"), serialization::Value::makeNumber(transpose));
+						settingFor(*soundDrum, oscPath("cents"), serialization::Value::makeNumber(cents));
 					}
 
 					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
@@ -110,8 +111,9 @@ public:
 				source.seedDocRanges();
 			}
 			else {
-				source.setTranspose(transpose);
-				source.setCents(cents);
+				settingFor(*soundEditor.currentSound, oscPath("transpose"),
+				           serialization::Value::makeNumber(transpose));
+				settingFor(*soundEditor.currentSound, oscPath("cents"), serialization::Value::makeNumber(cents));
 			}
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -119,6 +121,11 @@ public:
 
 			soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 		}
+	}
+
+	/// This menu's oscillator's setting @p name, as a settings path.
+	[[nodiscard]] std::string oscPath(std::string_view name) const {
+		return "osc" + std::to_string(source_id_ + 1) + "/" + std::string(name);
 	}
 
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t,

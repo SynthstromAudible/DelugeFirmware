@@ -154,8 +154,11 @@ int expectBound(Output& output, const char* how) {
 }
 
 /// The setting paths an Edit maps so far.
-constexpr std::array<std::string_view, 7> kEditedPaths{
-    "polyphonic", "voicePriority", "maxVoices", "mode", "transpose", "cents", "sideChainSend",
+constexpr std::array<std::string_view, 16> kEditedPaths{
+    "polyphonic",     "voicePriority", "maxVoices",        "mode",
+    "transpose",      "cents",         "sideChainSend",    "osc1/type",
+    "osc1/transpose", "osc1/cents",    "osc1/retrigPhase", "osc2/type",
+    "osc2/transpose", "osc2/cents",    "osc2/retrigPhase", "osc2/oscillatorSync",
 };
 
 /// The node at @p path (slash-separated) in @p tree, or nullptr.
@@ -260,6 +263,7 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 		const Value* now = leafAt(song.project.resolveSlot(*address)->state, path);
 		const std::optional<Value> old = now != nullptr ? std::optional<Value>{*now} : std::nullopt;
 		for (const Value& value : legalValues(*row, deluge::serialization::text_of(now))) {
+			const Value slotBefore = song.project.resolveSlot(*address)->state;
 			deluge::edits::SetEngineSetting edit{*address, std::string(path), value};
 			std::string_view failed =
 			    deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : coherence(sound, song, path, value);
@@ -267,6 +271,19 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 				deluge::edits::SetEngineSetting restore{*address, std::string(path), *old};
 				failed = deluge::edits::apply(ctx, restore) != Error::NONE ? "restore refused"
 				                                                           : coherence(sound, song, path, *old);
+				// A subtractive sound's oscillator set to another type and back is the oscillator it was, ranges
+				// included — except between sample and wavetable, whose ranges are of different kinds: the runtime
+				// keeps only each range's top note across that change, as the menu always has.
+				const bool rangeKindChanges = (old->str() == "sample" && value.str() == "wavetable")
+				                              || (old->str() == "wavetable" && value.str() == "sample");
+				if (failed.empty() && path.ends_with("/type") && sound.getSynthMode() == SynthMode::SUBTRACTIVE
+				    && !rangeKindChanges) {
+					const Value& now = song.project.resolveSlot(*address)->state;
+					if (std::string d = deluge::serialization::first_difference(now, slotBefore); !d.empty()) {
+						std::fprintf(io.err, "type round trip differs at %s\n", d.c_str());
+						failed = "type round trip";
+					}
+				}
 			}
 			if (!failed.empty()) {
 				std::fprintf(io.err, "%s %.*s=%s: %.*s\n", name, static_cast<int>(path.size()), path.data(),

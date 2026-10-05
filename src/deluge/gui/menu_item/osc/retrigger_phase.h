@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -145,7 +146,8 @@ private:
 			sound->setModulatorRetriggerPhase(source_id_, value);
 		}
 		else {
-			sound->setOscRetriggerPhase(source_id_, value);
+			const std::string path = "osc" + std::to_string(source_id_ + 1) + "/retrigPhase";
+			settingFor(*sound, path, serialization::Value::makeNumber(static_cast<int32_t>(value)));
 		}
 	}
 };

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
@@ -43,14 +44,15 @@ public:
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
 					if (soundDrum->getSynthMode() != SynthMode::FM && soundDrum->sources[0].oscType != OscType::SAMPLE
 					    && soundDrum->sources[1].oscType != OscType::SAMPLE) {
-						soundDrum->setOscillatorSync(current_value);
+						settingFor(*soundDrum, "osc2/oscillatorSync", serialization::Value::makeNumber(current_value));
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->setOscillatorSync(current_value);
+			settingFor(*soundEditor.currentSound, "osc2/oscillatorSync",
+			           serialization::Value::makeNumber(current_value));
 		}
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
