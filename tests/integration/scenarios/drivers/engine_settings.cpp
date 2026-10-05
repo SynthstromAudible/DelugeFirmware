@@ -154,12 +154,50 @@ int expectBound(Output& output, const char* how) {
 }
 
 /// The setting paths an Edit maps so far.
-constexpr std::array<std::string_view, 16> kEditedPaths{
-    "polyphonic",     "voicePriority", "maxVoices",        "mode",
-    "transpose",      "cents",         "sideChainSend",    "osc1/type",
-    "osc1/transpose", "osc1/cents",    "osc1/retrigPhase", "osc2/type",
-    "osc2/transpose", "osc2/cents",    "osc2/retrigPhase", "osc2/oscillatorSync",
+constexpr std::array<std::string_view, 26> kEditedPaths{
+    "polyphonic",
+    "voicePriority",
+    "maxVoices",
+    "mode",
+    "transpose",
+    "cents",
+    "sideChainSend",
+    "osc1/type",
+    "osc1/transpose",
+    "osc1/cents",
+    "osc1/retrigPhase",
+    "osc1/loopMode",
+    "osc1/reversed",
+    "osc1/timeStretchEnable",
+    "osc1/timeStretchAmount",
+    "osc1/linearInterpolation",
+    "osc2/type",
+    "osc2/transpose",
+    "osc2/cents",
+    "osc2/retrigPhase",
+    "osc2/loopMode",
+    "osc2/reversed",
+    "osc2/timeStretchEnable",
+    "osc2/timeStretchAmount",
+    "osc2/linearInterpolation",
+    "osc2/oscillatorSync",
 };
+
+/// Whether @p path is a sample-playback setting, which only a sample source of a non-FM sound takes.
+bool isSamplePlayback(std::string_view path) {
+	for (std::string_view name :
+	     {"/loopMode", "/reversed", "/timeStretchEnable", "/timeStretchAmount", "/linearInterpolation"}) {
+		if (path.ends_with(name)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/// Whether @p sound's source that @p path names (`oscN/…`) plays samples.
+bool playsSamples(Sound& sound, std::string_view path) {
+	return sound.getSynthMode() != SynthMode::FM && sound.sources[path[3] - '1'].oscType == OscType::SAMPLE;
+}
 
 /// The node at @p path (slash-separated) in @p tree, or nullptr.
 const Value* leafAt(const Value& tree, std::string_view path) {
@@ -260,6 +298,15 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 	deluge::edits::Context ctx{song, song.project};
 	for (std::string_view path : kEditedPaths) {
 		const deluge::engine::SettingInfo* row = deluge::engine::find_setting(deluge::instrument::kSettings, path);
+		if (isSamplePlayback(path) && !playsSamples(sound, path)) {
+			deluge::edits::SetEngineSetting refused{*address, std::string(path), Value::makeNumber(row->min)};
+			if (deluge::edits::apply(ctx, refused) == Error::NONE) {
+				std::fprintf(io.err, "%s %.*s: taken by a source that plays no samples\n", name,
+				             static_cast<int>(path.size()), path.data());
+				return 3;
+			}
+			continue;
+		}
 		const Value* now = leafAt(song.project.resolveSlot(*address)->state, path);
 		const std::optional<Value> old = now != nullptr ? std::optional<Value>{*now} : std::nullopt;
 		for (const Value& value : legalValues(*row, deluge::serialization::text_of(now))) {

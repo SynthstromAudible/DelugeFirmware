@@ -19,6 +19,7 @@
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/sample/utils.h"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
@@ -56,47 +57,26 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					Source* source = &soundDrum->sources[source_id_];
-
-					// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
-					if (current_value == SampleRepeatMode::STRETCH) {
-						soundDrum->killAllVoices();
-						source->setPitchAndSpeedIndependent(true);
-					}
-					else if (source->repeatMode == SampleRepeatMode::STRETCH) {
-						soundDrum->killAllVoices();
-						source->setPitchAndSpeedIndependent(false);
-					}
 
 					if (current_value == SampleRepeatMode::ONCE) {
 						// Send note-off for kit arpeggiator to avoid stuck notes
 						sendNoteOffForKitArpeggiator(kit);
 					}
 
-					source->setRepeatMode(current_value);
+					settingFor(*soundDrum, oscSettingPath(source_id_, "loopMode"),
+					           serialization::Value::makeNumber(std::to_underlying(current_value)));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			Source& source = soundEditor.currentSound->sources[source_id_];
-
-			// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
-			if (current_value == SampleRepeatMode::STRETCH) {
-				soundEditor.currentSound->killAllVoices();
-				source.setPitchAndSpeedIndependent(true);
-			}
-			else if (source.repeatMode == SampleRepeatMode::STRETCH) {
-				soundEditor.currentSound->killAllVoices();
-				source.setPitchAndSpeedIndependent(false);
-			}
-
 			if (kit != nullptr && current_value == SampleRepeatMode::ONCE) {
 				// Send note-off for kit arpeggiator to avoid stuck notes
 				sendNoteOffForKitArpeggiator(kit);
 			}
 
-			source.setRepeatMode(current_value);
+			settingFor(*soundEditor.currentSound, oscSettingPath(source_id_, "loopMode"),
+			           serialization::Value::makeNumber(std::to_underlying(current_value)));
 		}
 
 		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just

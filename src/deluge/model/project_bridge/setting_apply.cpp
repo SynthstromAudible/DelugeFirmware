@@ -37,6 +37,12 @@ int32_t oscillatorOf(std::string_view path, std::string_view& rest) {
 	return -1;
 }
 
+/// Whether @p rest (a path after its `oscN/`) is a sample-playback setting.
+bool isSamplePlayback(std::string_view rest) {
+	return rest == "loopMode" || rest == "reversed" || rest == "timeStretchEnable" || rest == "timeStretchAmount"
+	       || rest == "linearInterpolation";
+}
+
 /// Change source @p s of @p sound to @p type as the oscillator type menu does: voices stop when either type plays
 /// audio files, input or a DX7 patch, and the params are re-patched when square comes or goes (its pulse width).
 void changeOscType(::Sound& sound, int32_t s, OscType type, ::Song& song) {
@@ -53,9 +59,43 @@ void changeOscType(::Sound& sound, int32_t s, OscType type, ::Song& song) {
 	}
 }
 
-/// Apply an `oscN/` path: false when the path has no setter here.
+/// Apply an `oscN/` path: false when the path has no setter here, or names sample playback on a source that plays no
+/// samples.
 bool applyOscillatorSetting(::Sound& sound, int32_t s, std::string_view rest, const std::string& text, int32_t number,
                             ::Song& song) {
+	if (isSamplePlayback(rest)) {
+		Source& source = sound.sources[s];
+		if (sound.getSynthMode() == SynthMode::FM || source.oscType != OscType::SAMPLE) {
+			return false; // only a sample source plays samples, and only its file holds these
+		}
+		if (rest == "loopMode") {
+			// Stretching to note length needs pitch and speed independent; leaving it gives the independence up.
+			const auto mode = static_cast<SampleRepeatMode>(number);
+			if (mode == SampleRepeatMode::STRETCH) {
+				sound.killAllVoices();
+				source.setPitchAndSpeedIndependent(true);
+			}
+			else if (source.repeatMode == SampleRepeatMode::STRETCH) {
+				sound.killAllVoices();
+				source.setPitchAndSpeedIndependent(false);
+			}
+			source.setRepeatMode(mode);
+		}
+		else if (rest == "reversed") {
+			sound.killAllVoices(); // a voice playing forwards cannot turn round
+			source.setReversed(number != 0);
+		}
+		else if (rest == "timeStretchEnable") {
+			source.setPitchAndSpeedIndependent(number != 0);
+		}
+		else if (rest == "timeStretchAmount") {
+			source.setTimeStretchAmount(static_cast<int8_t>(number));
+		}
+		else {
+			source.setInterpolationMode(number != 0 ? InterpolationMode::LINEAR : InterpolationMode::SMOOTH);
+		}
+		return true;
+	}
 	if (rest == "type") {
 		changeOscType(sound, s, deluge::instrument::parse_osc_type(text), song);
 	}

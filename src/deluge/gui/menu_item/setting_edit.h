@@ -29,6 +29,11 @@
 
 namespace deluge::gui::menu_item {
 
+/// @brief The settings path of oscillator @p source's (0 or 1) setting @p name: `oscN/name`.
+inline std::string oscSettingPath(int32_t source, std::string_view name) {
+	return "osc" + std::to_string(source + 1) + "/" + std::string(name);
+}
+
 /// @brief A sound editor menu's change of @p sound's setting at @p path to @p value (its file form): an Edit on the
 /// sound's slot when the sound is bound in the current song, so the slot keeps holding its state; the runtime's setter
 /// alone for a sound with no slot.

@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -51,15 +52,15 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					Source* source = &soundDrum->sources[source_id_];
-					source->setTimeStretchAmount(getValue());
+					settingFor(*soundDrum, oscSettingPath(source_id_, "timeStretchAmount"),
+					           serialization::Value::makeNumber(getValue()));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			Source& source = soundEditor.currentSound->sources[source_id_];
-			source.setTimeStretchAmount(getValue());
+			settingFor(*soundEditor.currentSound, oscSettingPath(source_id_, "timeStretchAmount"),
+			           serialization::Value::makeNumber(getValue()));
 		}
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return -48; }
