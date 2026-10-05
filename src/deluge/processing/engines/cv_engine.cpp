@@ -188,8 +188,8 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 
 		int32_t voltage;
 
-		// If it's not a gate-only note-on...
-		if (note != ALL_NOTES_OFF) {
+		// If it's not a gate-only note-on (and there's a physical CV output for this channel)...
+		if (note != ALL_NOTES_OFF && channel < NUM_PHYSICAL_CV_CHANNELS) {
 
 			// Calculate the voltage
 			voltage = calculateVoltage(note, channel);
@@ -203,7 +203,7 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 			switchGateOn(channel);
 		}
 
-		if (channel < NUM_PHYSICAL_CV_CHANNELS) {
+		if (note != ALL_NOTES_OFF && channel < NUM_PHYSICAL_CV_CHANNELS) {
 			cvChannels[channel].noteCurrentlyPlaying = note;
 		}
 	}

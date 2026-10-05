@@ -124,10 +124,10 @@ int32_t GateDrum::getNumChannels() {
 
 void GateDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
 	NonAudioDrum::noteOnPostArp(noteCodePostArp, arpNote, noteIndex);
-	cvEngine.sendNote(true, channel, kNoteForDrum);
+	cvEngine.sendNote(true, channel, ALL_NOTES_OFF); // Gate only - a gate drum doesn't drive a CV output
 }
 
 void GateDrum::noteOffPostArp(int32_t noteCodePostArp) {
 	NonAudioDrum::noteOffPostArp(noteCodePostArp);
-	cvEngine.sendNote(false, channel, kNoteForDrum);
+	cvEngine.sendNote(false, channel, ALL_NOTES_OFF);
 }
