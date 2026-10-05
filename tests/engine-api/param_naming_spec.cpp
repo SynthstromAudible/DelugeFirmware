@@ -2,8 +2,16 @@
 
 #include <array>
 #include <cppspec.hpp>
+#include <ostream>
 
 using namespace deluge::engine;
+
+namespace deluge::engine {
+/// Failures print a ref by its names.
+std::ostream& operator<<(std::ostream& os, const ParamRef& ref) {
+	return os << '{' << ref.param << ", " << ref.source << ", " << ref.second_source << '}';
+}
+} // namespace deluge::engine
 
 namespace {
 std::optional<ParamId> noId(const ParamRef&) {
@@ -31,8 +39,9 @@ describe param_naming("how an engine names its params in files", ${
 	});
 
 	it("compares refs by their names", _ {
-		expect(ParamRef{"pitch", "lfo1"} == ParamRef{"pitch", "lfo1"}).to_be_true();
-		expect(ParamRef{"pitch", "lfo1"} == ParamRef{"pitch"}).to_be_false();
+		const ParamRef a{"pitch", "lfo1"};
+		expect(a).to_equal(ParamRef{"pitch", "lfo1"});
+		expect(a).not_().to_equal(ParamRef{"pitch"});
 	});
 });
 
