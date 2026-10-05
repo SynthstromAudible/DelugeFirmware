@@ -6,8 +6,9 @@
 """No sound-editor menu sets a scalar setting of a sound except through its Edit: no file under
 src/deluge/gui/menu_item may call one of the setters a setting Edit runs. The menu calls settingFor(), which applies a
 SetEngineSetting to the sound's slot, so the slot keeps holding the sound's state. A call on an audio clip (which is no
-instrument slot) or on a sample range's holder (a range's own tuning, which the ranges' Edit owns) is allowed by its
-receiver's name.
+instrument slot; a receiver named `clip` only in the audio clip's own menus) or on a sample range's holder (a range's
+own tuning, which the ranges' Edit owns) is allowed by its receiver's name. Gestures outside the menus (sample claim,
+the slicer, folder import, the recorder) are not checked here.
 
 Usage:
     scripts/check_setting_menus.py               # check src/deluge/gui/menu_item, exit 1 on a call
@@ -54,7 +55,10 @@ SETTERS = (
     "setOutputMidiNoteForDrum",
 )
 #: Receivers that are not a sound: an audio clip, and a sample range's holder.
-ALLOWED_RECEIVERS = {"audioClip", "clip", "getCurrentAudioClip", "sampleHolder"}
+ALLOWED_RECEIVERS = {"audioClip", "getCurrentAudioClip", "sampleHolder"}
+#: A receiver allowed only in the audio clip's own menus, where `clip` is an AudioClip.
+AUDIO_CLIP_RECEIVERS = {"clip"}
+AUDIO_CLIP_MENUS = "audio_clip"
 
 CALL = re.compile(r"(?:->|\.)\s*(" + "|".join(SETTERS) + r")\s*\(")
 #: The receiver's last name before the call: `a->b.name`, `name()`, `name[i]`.
@@ -72,7 +76,10 @@ def calls(root: Path) -> list[str]:
             for match in CALL.finditer(line):
                 receiver = RECEIVER.search(line[: match.start()])
                 name = receiver.group(1) if receiver else "?"
-                if name not in ALLOWED_RECEIVERS:
+                audio_clip_menu = AUDIO_CLIP_MENUS in path.relative_to(root).parts
+                if name not in ALLOWED_RECEIVERS and not (
+                    audio_clip_menu and name in AUDIO_CLIP_RECEIVERS
+                ):
                     found.append(f"{path}:{number}: {name} {match.group(1)}")
     return found
 
