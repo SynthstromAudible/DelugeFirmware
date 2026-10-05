@@ -16,6 +16,7 @@
  */
 
 #include "scenarios/recorder_take_scenario.h"
+#include "scenarios/slot_coherence.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
@@ -384,6 +385,8 @@ void stepMidiEnding() {
 	else if (frames == 0 || sample->filePath.rfind("SAMPLES/RECORD/", 0) != 0) {
 		fail("RT-ATTACH", "the attached sample is empty or not a recording");
 	}
+	// The take is the source's sample now, in its record and slot as well as at runtime.
+	g_failures += deluge::harness::expectSongCoherent(*currentSong, "take");
 	if (playbackHandler.isEitherClockActive()) {
 		playbackHandler.endPlayback();
 	}
