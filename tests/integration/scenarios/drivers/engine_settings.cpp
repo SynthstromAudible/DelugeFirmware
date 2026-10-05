@@ -717,6 +717,72 @@ int hibernationLeg(Song& song) {
 	return settingsOf(*synth, song);
 }
 
+/// @p bytes (a song's XML) with the first kit's first two sound drums given one id, as a save made while two drums
+/// shared a record writes them; empty when the song has no such kit.
+std::string withSharedDrumId(std::string_view bytes) {
+	const size_t kit = bytes.find("<kit");
+	const size_t sources = kit == std::string_view::npos ? kit : bytes.find("<soundSources", kit);
+	if (sources == std::string_view::npos) {
+		return {};
+	}
+	std::string out(bytes);
+	size_t at = sources + 1;
+	for (int32_t drum = 0; drum < 2; drum++) {
+		size_t tag = out.find("<sound", at);
+		while (tag != std::string::npos && out.compare(tag, 13, "<soundSources") == 0) {
+			tag = out.find("<sound", tag + 1);
+		}
+		if (tag == std::string::npos) {
+			return {};
+		}
+		const size_t end = out.find('>', tag);
+		const size_t id = out.find(" id=\"", tag);
+		if (id != std::string::npos && id < end) {
+			const size_t value = id + 5;
+			out.replace(value, out.find('"', value) - value, "424242");
+		}
+		else {
+			out.insert(tag + 6, " id=\"424242\"");
+		}
+		at = out.find('>', tag) + 1;
+	}
+	return out;
+}
+
+/// The duplicate-id leg: the song read again with two of a kit's drums sharing an id; every sound drum must have a
+/// record of its own. 0 when they do (or the song has no kit of two sound drums), else 3 after printing.
+int sharedDrumIdLeg(std::string_view bytes, deluge::storage::DocumentFormat format) {
+	if (format != deluge::storage::DocumentFormat::XML) {
+		return 0;
+	}
+	const std::string shared = withSharedDrumId(bytes);
+	if (shared.empty()) {
+		return 0;
+	}
+	Song* song = loadSong(shared, format);
+	if (song == nullptr) {
+		std::fprintf(io.err, "LOADFAIL shared-id song\n");
+		return 1;
+	}
+	for (Output* output = song->live.media.first_output; output != nullptr; output = output->next) {
+		if (output->type != OutputType::KIT) {
+			continue;
+		}
+		std::vector<const void*> records;
+		for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
+			if (drum->type != DrumType::SOUND || drum->docDrum_ == nullptr) {
+				continue;
+			}
+			if (std::ranges::find(records, static_cast<const void*>(drum->docDrum_)) != records.end()) {
+				std::fprintf(io.err, "SHARED drum record in kit %s\n", output->name.c_str());
+				return 3;
+			}
+			records.push_back(drum->docDrum_);
+		}
+	}
+	return 0;
+}
+
 int engine_settings_main(int argc, char** argv, Io driverIo) {
 	io = driverIo;
 	if (argc < 3) {
@@ -766,6 +832,10 @@ int engine_settings_main(int argc, char** argv, Io driverIo) {
 			return r;
 		}
 		if (int r = hibernationLeg(*song)) {
+			return r;
+		}
+		// Last: it reads the song again, and the copy becomes the current song.
+		if (int r = sharedDrumIdLeg(bytes, deluge::storage::formatOfPath(argv[1]))) {
 			return r;
 		}
 		std::fprintf(io.err, "every sound of the song is bound and its settings are coherent\n");

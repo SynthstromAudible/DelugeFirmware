@@ -23,6 +23,8 @@
 #include "processing/source.h"
 #include "storage/multi_range/multisample_range.h"
 
+#include <vector>
+
 namespace deluge::bridge {
 
 std::vector<deluge::instrument::RangeState> rangesOf(const ::Source& source) {
@@ -46,6 +48,7 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 			return Error::UNSPECIFIED;
 		}
 	}
+	std::vector<SampleHolderForVoice*> moved; // claimed once the render is free again
 	{
 		AudioExcludedSection section; // the render reads these ranges' zones and tuning
 		for (size_t i = 0; i < ranges.size(); i++) {
@@ -65,9 +68,13 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 			holder.transpose = ranges[i].transpose;
 			holder.setCents(ranges[i].cents);
 			if (zoneMoved && holder.audioFile != nullptr) {
-				holder.claimClusterReasons(source.sampleControls.isCurrentlyReversed(), CLUSTER_ENQUEUE);
+				moved.push_back(&holder);
 			}
 		}
+	}
+	// A claim reaches the sample reserve, which must not run while the render is excluded.
+	for (SampleHolderForVoice* holder : moved) {
+		holder->claimClusterReasons(source.sampleControls.isCurrentlyReversed(), CLUSTER_ENQUEUE);
 	}
 	source.seedDocRanges();
 	return Error::NONE;

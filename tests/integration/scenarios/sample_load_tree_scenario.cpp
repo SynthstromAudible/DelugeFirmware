@@ -16,6 +16,10 @@
  */
 
 #include "scenarios/sample_load_tree_scenario.h"
+#include "extern.h"
+#include "model/edits/set_source_ranges.h"
+#include "model/project_bridge/slot_bridge.h"
+#include "model/project_bridge/source_bridge.h"
 #include "scenarios/slot_coherence.h"
 
 #include "definitions_cxx.hpp"
@@ -590,6 +594,45 @@ void reportHolder(const char* load, const char* owner, AudioFileHolder* holder, 
 
 std::string collected(const char* samplePath) {
 	return std::string(kSongFolder) + "/" + (samplePath + std::strlen("SAMPLES/"));
+}
+
+/// A zone moved under a sounding note: the song's synth sounds a note through its clip, its first range's start moves
+/// through an Edit, and the note keeps sounding with the sound coherent.
+void checkLiveZoneMove() {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
+		auto* clip = static_cast<InstrumentClip*>(output->getActiveClip());
+		if (output->type != OutputType::SYNTH || clip == nullptr) {
+			continue;
+		}
+		auto* synth = static_cast<SoundInstrument*>(output);
+		const auto address = deluge::bridge::slotAddressOf(*synth);
+		if (!address || synth->sources[0].oscType != OscType::SAMPLE || synth->sources[0].ranges.empty()) {
+			continue;
+		}
+		char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* ms =
+		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, clip, &clip->paramManager);
+		synth->Sound::noteOn(ms, &synth->arpeggiator, 60, zeroMPEValues);
+		const size_t sounding = synth->numActiveVoices();
+		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(synth->sources[0]);
+		if (ranges[0].start_pos + 1000 < ranges[0].end_pos) {
+			ranges[0].start_pos += 1000;
+		}
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		deluge::edits::SetSourceRanges edit{*address, 0, ranges};
+		const bool applied = deluge::edits::apply(ctx, edit) == Error::NONE;
+		const bool kept = synth->numActiveVoices() == sounding;
+		printf("SLT-LIVE-ZONE sounding=%zu applied=%d kept=%d\n", sounding, applied ? 1 : 0, kept ? 1 : 0);
+		if (sounding == 0 || !applied || !kept) {
+			printf("SLT-LIVE-ZONE FAIL a zone moved under a sounding note must keep it sounding\n");
+			g_failures++;
+		}
+		g_failures += deluge::harness::expectSongCoherent(*currentSong, "live-zone");
+		synth->killAllVoices();
+		return;
+	}
+	printf("SLT-LIVE-ZONE FAIL the song has no sample synth with a clip\n");
+	g_failures++;
 }
 
 void checkSong() {
@@ -1992,6 +2035,7 @@ void runTick() {
 		break;
 	case Stage::SongCheck:
 		checkSong();
+		checkLiveZoneMove();
 		g_stage = Stage::Presets;
 		break;
 	case Stage::Presets:

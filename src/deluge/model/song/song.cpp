@@ -1286,9 +1286,16 @@ void Song::adoptDrum(Drum* drum) {
 		return;
 	}
 	// Outside this song's own read, an id another drum's record already holds (a preset that carries drum ids) is not
-	// this drum's: it gets one of its own, so two drums never share a record. The song's read keeps its file's ids.
-	if (!drum->id().has_value() || (!readingFromFile_ && project.drum_structure.find(*drum->id()) != nullptr)) {
+	// this drum's: it gets one of its own, so two drums never share a record. The song's read keeps its file's ids,
+	// except a second drum the file names with one id (a song saved while two drums shared a record).
+	const bool takenInRead =
+	    readingFromFile_ && drum->id() && std::ranges::find(drumIdsRead_, *drum->id()) != drumIdsRead_.end();
+	if (!drum->id().has_value() || takenInRead
+	    || (!readingFromFile_ && project.drum_structure.find(*drum->id()) != nullptr)) {
 		drum->setId(generateNewDrumId());
+	}
+	if (readingFromFile_) {
+		drumIdsRead_.push_back(*drum->id());
 	}
 	deluge::project::DocDrum& d = project.drum_structure.getOrCreate(*drum->id());
 	d.drum_type = drum->type;
@@ -1391,6 +1398,7 @@ Error Song::readFromFile(Deserializer& reader, uint64_t timePerTimerTick) {
 		explicit ReadingFromFile(bool& flag) : reading(flag) { reading = true; }
 		~ReadingFromFile() { reading = false; }
 	} readingFromFile{readingFromFile_};
+	drumIdsRead_.clear();
 
 	outputClipInstanceListIsCurrentlyInvalid = true;
 
