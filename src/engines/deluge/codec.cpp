@@ -477,6 +477,7 @@ std::expected<void, engine::StateError> readSource(const Value& osc, SoundState&
 			readZone(value, firstRange(src), true);
 		}
 		else if (key == "sampleRanges" || key == "wavetableRanges") {
+			src.ranges.clear(); // the list is every range the source has, the one switching its type made included
 			if (auto read = readRanges(value, src); !read) {
 				return read;
 			}

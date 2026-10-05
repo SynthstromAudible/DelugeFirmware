@@ -55,6 +55,16 @@ describe codec_decode("the Deluge instrument reads every format a sound was save
 	it("reads the old polyphony numbers and clamps unison", _ {
 		expect(differenceFor("polyphony_numbers")).to_equal(std::string{});
 	});
+	it("reads back a wavetable split into ranges", _ {
+		SoundState written = new_synth_state();
+		written.modulator_transpose[1] = 0; // a subtractive sound's file holds no modulators; a read starts them at 0
+		written.sources[0].osc_type = OscType::WAVETABLE;
+		written.sources[0].ranges = {RangeState{.top_note = 48, .file_path = "WAVETABLES/A.WAV"},
+		                             RangeState{.top_note = 32767, .file_path = "WAVETABLES/B.WAV"}};
+		SoundState read = new_synth_state();
+		(void)decode(encode(written, kNewSong), read, kNewSong);
+		expect(deluge::serialization::first_difference(dump_state(read), dump_state(written))).to_equal(std::string{});
+	});
 	it("refuses two ranges with the same top note", _ {
 		auto doc = deluge::serialization::parseXml(read("duplicate_range.XML"));
 		SoundState state = new_synth_state();
