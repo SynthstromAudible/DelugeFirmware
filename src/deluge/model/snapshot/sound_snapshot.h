@@ -59,6 +59,8 @@ struct SoundSnapshot {
 	std::array<uint32_t, kNumModulators> modulatorRetriggerPhase{};
 	/// SoundState::lfo_wave_type / lfo_sync_type / lfo_sync_level per LFO. The LFO phase state stays on the engine.
 	std::array<LFOConfig, LFO_COUNT> lfoConfig{};
+
+	bool operator==(const SoundSnapshot&) const = default;
 };
 
 } // namespace deluge::snapshot

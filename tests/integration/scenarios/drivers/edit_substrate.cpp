@@ -474,9 +474,10 @@ void testScalarFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 // Song construction; the Context members are stored, and the pilot dereferences currentSong via the
 // engine mutation path (ActionLogger snapshots off currentSong->live.clips).
 
-// A synth added to the song is bound to its slot; a setting Edit names the slot. No setting path is mapped yet, so the
-// Edit is refused and the slot stays as it was.
+// A synth added to the song is bound to its slot; a setting Edit names the slot. A mapped path's Edit changes the sound
+// and its slot together; an unmapped path and a value out of range are refused and leave the slot.
 void testSetEngineSetting(deluge::edits::Context& ctx) {
+	using deluge::serialization::Value;
 	ParamManagerForTimeline paramManager;
 	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
 	check(synth != nullptr, "setting: a new synth");
@@ -491,13 +492,21 @@ void testSetEngineSetting(deluge::edits::Context& ctx) {
 		return;
 	}
 	check(deluge::bridge::soundAt(ctx.song, *slot) == &sound, "setting: the slot address names the synth");
-	const deluge::serialization::Value before = ctx.model.resolveSlot(*slot)->state;
-	deluge::edits::SetEngineSetting edit{*slot, "unison/num", deluge::serialization::Value::makeNumber(3)};
-	check(deluge::edits::apply(ctx, edit) != Error::NONE, "setting: an unmapped path is refused");
+
+	deluge::edits::SetEngineSetting edit{*slot, "voicePriority", Value::makeNumber(2)};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "setting: a mapped path is applied");
+	check(sound.snapshot().voicePriority == VoicePriority::HIGH, "setting: the sound takes the value");
+	const std::string* held = deluge::serialization::text_of(ctx.model.resolveSlot(*slot)->state.find("voicePriority"));
+	check(held != nullptr && *held == "2", "setting: the slot holds the value");
+
+	const Value before = ctx.model.resolveSlot(*slot)->state;
+	deluge::edits::SetEngineSetting unmapped{*slot, "unison/num", Value::makeNumber(3)};
+	check(deluge::edits::apply(ctx, unmapped) != Error::NONE, "setting: an unmapped path is refused");
+	deluge::edits::SetEngineSetting outOfRange{*slot, "voicePriority", Value::makeNumber(9)};
+	check(deluge::edits::apply(ctx, outOfRange) != Error::NONE, "setting: a value out of range is refused");
 	check(deluge::serialization::first_difference(ctx.model.resolveSlot(*slot)->state, before).empty(),
 	      "setting: a refused Edit leaves the slot");
-	deluge::edits::SetEngineSetting outOfRange{*slot, "unison/num", deluge::serialization::Value::makeNumber(9)};
-	check(deluge::edits::apply(ctx, outOfRange) != Error::NONE, "setting: a value out of range is refused");
+	check(sound.snapshot().voicePriority == VoicePriority::HIGH, "setting: a refused Edit leaves the sound");
 }
 
 int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {

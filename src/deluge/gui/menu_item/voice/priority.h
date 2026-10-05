@@ -17,6 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/audio_clip.h"
 #include "model/drum/drum.h"
@@ -42,7 +43,7 @@ inline void setCurrentVoicePriority(VoicePriority value) {
 		audioClip->setVoicePriority(value);
 		return;
 	}
-	soundEditor.currentSound->setVoicePriority(value); // owner-5: DOM-owned (record + hot cache)
+	settingFor(*soundEditor.currentSound, "voicePriority", serialization::Value::makeNumber(std::to_underlying(value)));
 }
 
 class Priority final : public Selection {
@@ -61,7 +62,8 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->setVoicePriority(current_value);
+					settingFor(*soundDrum, "voicePriority",
+					           serialization::Value::makeNumber(std::to_underlying(current_value)));
 				}
 			}
 		}

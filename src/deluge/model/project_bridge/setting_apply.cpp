@@ -18,16 +18,31 @@
 #include "model/project_bridge/setting_apply.h"
 
 #include "engines/deluge/settings.h"
+#include "engines/deluge/words.h"
 #include "processing/sound/sound.h"
+#include "serialization/tree.h"
 
 namespace deluge::bridge {
 
-Error applySetting(::Sound& /*sound*/, std::string_view path, const deluge::serialization::Value& value,
-                   ::Song& /*song*/) {
+Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& /*song*/) {
 	if (!deluge::instrument::check_setting(path, value)) {
 		return Error::UNSPECIFIED;
 	}
-	return Error::UNSPECIFIED; // no path has a setter here yet
+	const std::string& text = *deluge::serialization::text_of(&value);
+	const int32_t number = deluge::serialization::int_of(&value).value_or(0);
+	if (path == "polyphonic") {
+		sound.setPolyphonic(deluge::instrument::parse_polyphony_mode(text));
+	}
+	else if (path == "voicePriority") {
+		sound.setVoicePriority(static_cast<VoicePriority>(number));
+	}
+	else if (path == "maxVoices") {
+		sound.setMaxVoiceCount(static_cast<uint8_t>(number));
+	}
+	else {
+		return Error::UNSPECIFIED; // the path has no setter here
+	}
+	return Error::NONE;
 }
 
 } // namespace deluge::bridge

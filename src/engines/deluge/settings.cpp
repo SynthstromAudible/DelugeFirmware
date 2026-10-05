@@ -55,6 +55,8 @@ constexpr std::array<std::string_view, 3> kSyncTypes{"0", "10", "19"};
 constexpr int32_t kTransposeRange = 96; ///< semitones either way: the transpose menus' ±9600 cents
 constexpr int32_t kCentsRange = 50;
 constexpr int32_t kRetrigMax = 360; ///< degrees; −1 is free-running
+/// The voice limit the max-voices menu's "off" writes: 1–16 are limits, this one is none in practice.
+constexpr int32_t kMaxVoicesOff = 127;
 // An LFO's sync level is the file's number, which is relative to the song's input tick magnitude; its range is the
 // internal one's, the numbers a song at the default magnitude writes.
 
@@ -96,7 +98,7 @@ constexpr std::array kRows{
     SettingInfo{.path = "mode", .kind = CHOICE, .choices = kSynthModes},
     SettingInfo{.path = "transpose", .min = -kTransposeRange, .max = kTransposeRange},
     SettingInfo{.path = "cents", .min = -kCentsRange, .max = kCentsRange},
-    SettingInfo{.path = "maxVoices", .min = 0, .max = 16},
+    SettingInfo{.path = "maxVoices", .min = 1, .max = kMaxVoicesOff},
     OSC_ROWS(1),
     OSC_ROWS(2),
     SettingInfo{.path = "osc2/oscillatorSync", .kind = BOOL},

@@ -17,14 +17,24 @@
 
 // engine_settings <song|preset> <SONG|SYNTH|KIT> — a sound's settings through its slot. Every output's and sound
 // drum's sound in a loaded song or preset is bound to its slot; so is a synth added to a running song and one that
-// replaces another. Exit: 0 every check holds; 1 the file does not load; 2 usage/IO; 3 a check fails (printed).
+// replaces another. Every legal value of every setting path an Edit maps is set on every bound sound through
+// SetEngineSetting: after each, the slot holds the value, the slot's instrument entries are the encoding of the
+// sound's state (equation 1), and the sound's snapshot is the one its state projects (equation 2); then the old value
+// is restored. A kit's affect-entire leg sets one path on all its sound drums at once. Exit: 0 every check holds; 1 the
+// file does not load; 2 usage/IO; 3 a check fails (printed).
 
+#include "deluge-project/instrument_slot.h"
+#include "engines/deluge/codec.h"
+#include "engines/deluge/settings.h"
 #include "memory/general_memory_allocator.h"
 #include "model/drum/drum.h"
+#include "model/edits/edit.h"
+#include "model/edits/set_engine_setting.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
@@ -32,18 +42,24 @@
 #include "processing/sound/sound_instrument.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
+#include "serialization/tree.h"
 #include "storage/document_format.h"
 #include "storage/storage_manager.h"
 #include "storage/tree_document.h"
 #include "storage/value_tree_deserializer.h"
 
+#include <array>
+#include <charconv>
 #include <cstdio>
 #include <functional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace {
+
+using deluge::serialization::Value;
 
 using deluge::scenarios::driver::Io;
 
@@ -136,6 +152,176 @@ int expectBound(Output& output, const char* how) {
 	return code;
 }
 
+/// The setting paths an Edit maps so far.
+constexpr std::array<std::string_view, 3> kEditedPaths{"polyphonic", "voicePriority", "maxVoices"};
+
+/// The node at @p path (slash-separated) in @p tree, or nullptr.
+const Value* leafAt(const Value& tree, std::string_view path) {
+	const Value* at = &tree;
+	while (at != nullptr && !path.empty()) {
+		const size_t slash = path.find('/');
+		at = at->isMap() ? at->find(path.substr(0, slash)) : nullptr;
+		path = slash == std::string_view::npos ? std::string_view{} : path.substr(slash + 1);
+	}
+	return at;
+}
+
+/// The first instrument entry where @p slot and @p encoded differ, by key: one holds a key the other lacks, or the two
+/// values differ. Empty when they agree. Order is not compared: a slot keeps a file's order, and appends what the file
+/// lacked.
+std::string stateDifference(const Value& slot, const Value& encoded) {
+	for (const auto& [key, value] : encoded.entries()) {
+		const Value* held = slot.find(key);
+		if (held == nullptr) {
+			return key + " (missing)";
+		}
+		if (std::string d = deluge::serialization::first_difference(*held, value, key); !d.empty()) {
+			return d;
+		}
+	}
+	for (const auto& [key, value] : slot.entries()) {
+		if (deluge::instrument::is_state_key(key) && encoded.find(key) == nullptr) {
+			return key + " (not encoded)";
+		}
+	}
+	return {};
+}
+
+/// The legal values of @p row worth setting, given the slot's @p current text: an integer row's ends and the value
+/// after the current one, a choice row's every name, a bool's both.
+std::vector<Value> legalValues(const deluge::engine::SettingInfo& row, const std::string* current) {
+	using Kind = deluge::engine::SettingKind;
+	std::vector<Value> values;
+	switch (row.kind) {
+	case Kind::INTEGER: {
+		values.push_back(Value::makeNumber(row.min));
+		values.push_back(Value::makeNumber(row.max));
+		int64_t now = 0;
+		if (current != nullptr
+		    && std::from_chars(current->data(), current->data() + current->size(), now).ec == std::errc{}
+		    && now + 1 >= row.min && now + 1 <= row.max) {
+			values.push_back(Value::makeNumber(now + 1));
+		}
+		break;
+	}
+	case Kind::CHOICE:
+		for (std::string_view name : row.choices) {
+			values.push_back(Value::makeScalar(std::string(name)));
+		}
+		break;
+	case Kind::BOOL:
+		values.push_back(Value::makeNumber(0));
+		values.push_back(Value::makeNumber(1));
+		break;
+	case Kind::STRUCTURED:
+		break;
+	}
+	return values;
+}
+
+/// Empty when @p sound's slot agrees with its state after setting @p path to @p value, else which check fails.
+std::string_view coherence(Sound& sound, Song& song, std::string_view path, const Value& value) {
+	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
+	deluge::project::InstrumentSlot* slot = address ? song.project.resolveSlot(*address) : nullptr;
+	if (slot == nullptr) {
+		return "no slot";
+	}
+	const Value encoded =
+	    deluge::instrument::encode(*sound.boundState(), {.input_tick_magnitude = song.getInputTickMagnitude()});
+	const std::string* held = deluge::serialization::text_of(leafAt(slot->state, path));
+	if (leafAt(encoded, path) != nullptr && (held == nullptr || *held != value.str())) {
+		return "value";
+	}
+	if (std::string d = stateDifference(slot->state, encoded); !d.empty()) {
+		std::fprintf(io.err, "equation 1 at %s\n", d.c_str());
+		return "equation 1";
+	}
+	const deluge::snapshot::SoundSnapshot before = sound.snapshot();
+	sound.projectSnapshot();
+	if (!(sound.snapshot() == before)) {
+		return "equation 2";
+	}
+	return {};
+}
+
+/// 0 when every legal value of every edited path, set on @p sound through SetEngineSetting and then undone, leaves its
+/// slot coherent; else 3 after printing the first that does not.
+int settingLegs(Sound& sound, Song& song, const char* name) {
+	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
+	if (!address) {
+		return 0;
+	}
+	deluge::edits::Context ctx{song, song.project};
+	for (std::string_view path : kEditedPaths) {
+		const deluge::engine::SettingInfo* row = deluge::engine::find_setting(deluge::instrument::kSettings, path);
+		const Value* now = leafAt(song.project.resolveSlot(*address)->state, path);
+		const std::optional<Value> old = now != nullptr ? std::optional<Value>{*now} : std::nullopt;
+		for (const Value& value : legalValues(*row, deluge::serialization::text_of(now))) {
+			deluge::edits::SetEngineSetting edit{*address, std::string(path), value};
+			std::string_view failed =
+			    deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : coherence(sound, song, path, value);
+			if (failed.empty() && old && deluge::instrument::check_setting(path, *old)) {
+				deluge::edits::SetEngineSetting restore{*address, std::string(path), *old};
+				failed = deluge::edits::apply(ctx, restore) != Error::NONE ? "restore refused"
+				                                                           : coherence(sound, song, path, *old);
+			}
+			if (!failed.empty()) {
+				std::fprintf(io.err, "%s %.*s=%s: %.*s\n", name, static_cast<int>(path.size()), path.data(),
+				             value.str().c_str(), static_cast<int>(failed.size()), failed.data());
+				return 3;
+			}
+		}
+	}
+	return 0;
+}
+
+/// The affect-entire leg: @p path set to @p value on every sound drum of @p kit, one Edit each, then every drum's slot
+/// checked. 0 when each holds, else 3 after printing the first that does not.
+int affectEntireLeg(Kit& kit, Song& song, std::string_view path, const Value& value) {
+	deluge::edits::Context ctx{song, song.project};
+	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
+		if (drum->type != DrumType::SOUND) {
+			continue;
+		}
+		if (const auto address = deluge::bridge::slotAddressOf(*static_cast<SoundDrum*>(drum))) {
+			deluge::edits::SetEngineSetting edit{*address, std::string(path), value};
+			if (deluge::edits::apply(ctx, edit) != Error::NONE) {
+				std::fprintf(io.err, "kit %s affect-entire %.*s: refused\n", kit.name.c_str(),
+				             static_cast<int>(path.size()), path.data());
+				return 3;
+			}
+		}
+	}
+	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
+		if (drum->type != DrumType::SOUND || !deluge::bridge::slotAddressOf(*static_cast<SoundDrum*>(drum))) {
+			continue;
+		}
+		const std::string_view failed = coherence(*static_cast<SoundDrum*>(drum), song, path, value);
+		if (!failed.empty()) {
+			std::fprintf(io.err, "kit %s affect-entire %.*s=%s: %.*s\n", kit.name.c_str(),
+			             static_cast<int>(path.size()), path.data(), value.str().c_str(),
+			             static_cast<int>(failed.size()), failed.data());
+			return 3;
+		}
+	}
+	return 0;
+}
+
+/// Every setting leg on every sound of @p output, and the affect-entire leg on a kit.
+int settingsOf(Output& output, Song& song) {
+	int code = 0;
+	forEachSound(output, [&](Sound& sound, const char* kind) {
+		if (code == 0) {
+			std::string name = std::string(kind) + " of " + output.name.c_str();
+			code = settingLegs(sound, song, name.c_str());
+		}
+	});
+	if (code == 0 && output.type == OutputType::KIT) {
+		code = affectEntireLeg(static_cast<Kit&>(output), song, "polyphonic", Value::makeScalar("mono"));
+	}
+	return code;
+}
+
 int engine_settings_main(int argc, char** argv, Io driverIo) {
 	io = driverIo;
 	if (argc < 3) {
@@ -165,14 +351,20 @@ int engine_settings_main(int argc, char** argv, Io driverIo) {
 			if (int r = expectBound(*output, "loaded song")) {
 				return r;
 			}
+			if (int r = settingsOf(*output, *song)) {
+				return r;
+			}
 		}
 		for (Instrument* sleeping = song->live.media.first_hibernating_instrument; sleeping != nullptr;
 		     sleeping = static_cast<Instrument*>(sleeping->next)) {
 			if (int r = expectBound(*sleeping, "hibernating")) {
 				return r;
 			}
+			if (int r = settingsOf(*sleeping, *song)) {
+				return r;
+			}
 		}
-		std::fprintf(io.err, "every sound of the song is bound\n");
+		std::fprintf(io.err, "every sound of the song is bound and its settings are coherent\n");
 		return 0;
 	}
 
@@ -196,7 +388,10 @@ int engine_settings_main(int argc, char** argv, Io driverIo) {
 	if (int r = expectBound(*second, "replacing another")) {
 		return r;
 	}
-	std::fprintf(io.err, "added and replacing sounds are bound\n");
+	if (int r = settingsOf(*second, *currentSong)) {
+		return r;
+	}
+	std::fprintf(io.err, "added and replacing sounds are bound and their settings are coherent\n");
 	return 0;
 }
 

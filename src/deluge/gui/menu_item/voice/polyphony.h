@@ -17,7 +17,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "engines/deluge/words.h"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -28,6 +30,12 @@
 #include <hid/display/oled.h>
 
 namespace deluge::gui::menu_item::voice {
+
+/// The file form of @p mode: the name a sound's file writes for it.
+inline serialization::Value polyphonyValue(PolyphonyMode mode) {
+	return serialization::Value::makeScalar(std::string(deluge::instrument::to_string(mode)));
+}
+
 class VoiceCount : public IntegerWithOff {
 public:
 	using IntegerWithOff::IntegerWithOff;
@@ -53,14 +61,14 @@ public:
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
 					if (soundDrum->polyphonic == PolyphonyMode::POLY) {
-						soundDrum->setMaxVoiceCount(current_value);
+						settingFor(*soundDrum, "maxVoices", serialization::Value::makeNumber(current_value));
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->setMaxVoiceCount(current_value);
+			settingFor(*soundEditor.currentSound, "maxVoices", serialization::Value::makeNumber(current_value));
 		}
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
@@ -112,13 +120,13 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->setPolyphonic(current_value);
+					settingFor(*soundDrum, "polyphonic", polyphonyValue(current_value));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->setPolyphonic(current_value);
+			settingFor(*soundEditor.currentSound, "polyphonic", polyphonyValue(current_value));
 		}
 	}
 

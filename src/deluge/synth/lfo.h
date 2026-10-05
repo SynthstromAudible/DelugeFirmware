@@ -36,6 +36,8 @@ public:
 	LFOType waveType;
 	SyncType syncType;
 	SyncLevel syncLevel;
+
+	bool operator==(const LFOConfig&) const = default;
 };
 
 /// The individual LFO waveform generators.
