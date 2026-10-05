@@ -47,6 +47,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
+#include "scenarios/slot_coherence.h"
 #include "serialization/tree.h"
 #include "storage/document_format.h"
 #include "storage/storage_manager.h"
@@ -242,27 +243,6 @@ const Value* leafAt(const Value& tree, std::string_view path) {
 	return at;
 }
 
-/// The first instrument entry where @p slot and @p encoded differ, by key: one holds a key the other lacks, or the two
-/// values differ. Empty when they agree. Order is not compared: a slot keeps a file's order, and appends what the file
-/// lacked.
-std::string stateDifference(const Value& slot, const Value& encoded) {
-	for (const auto& [key, value] : encoded.entries()) {
-		const Value* held = slot.find(key);
-		if (held == nullptr) {
-			return key + " (missing)";
-		}
-		if (std::string d = deluge::serialization::first_difference(*held, value, key); !d.empty()) {
-			return d;
-		}
-	}
-	for (const auto& [key, value] : slot.entries()) {
-		if (deluge::instrument::is_state_key(key) && encoded.find(key) == nullptr) {
-			return key + " (not encoded)";
-		}
-	}
-	return {};
-}
-
 /// The legal values of @p row worth setting, given the slot's @p current text: an integer row's ends and the value
 /// after the current one, a choice row's every name, a bool's both.
 std::vector<Value> legalValues(const deluge::engine::SettingInfo& row, const std::string* current) {
@@ -327,14 +307,9 @@ std::string_view coherence(Sound& sound, Song& song, std::string_view path, cons
 	if (leafAt(encoded, path) != nullptr && (held == nullptr || *held != slotForm(path, value, song).str())) {
 		return "value";
 	}
-	if (std::string d = stateDifference(slot->state, encoded); !d.empty()) {
-		std::fprintf(io.err, "equation 1 at %s\n", d.c_str());
-		return "equation 1";
-	}
-	const deluge::snapshot::SoundSnapshot before = sound.snapshot();
-	sound.projectSnapshot();
-	if (!(sound.snapshot() == before)) {
-		return "equation 2";
+	if (const std::string what = deluge::harness::soundIncoherence(sound, song); !what.empty()) {
+		std::fprintf(io.err, "%s\n", what.c_str());
+		return what.starts_with("runtime") ? "equation 0" : what.starts_with("slot") ? "equation 1" : "equation 2";
 	}
 	return {};
 }
