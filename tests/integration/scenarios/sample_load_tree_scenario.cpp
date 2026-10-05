@@ -380,6 +380,10 @@ bool buildSong() {
 	sampleHolder->filePath = kSynthSample;
 	waveTableHolder->filePath = kWaveTable;
 	(void)synth->loadAllAudioFiles(true);
+	// The song's synth is bound to its slot, so its sources save their ranges from their records: reseed them, as the
+	// sample browser's claim does.
+	synth->sources[0].seedDocRanges();
+	synth->sources[1].seedDocRanges();
 
 	// The new-kit-track gesture, which loads kSongKitPath.
 	Clip* kitClipBase = deluge::harness::createNewInstrumentClip(OutputType::KIT, 1, kSongKitPath);
