@@ -33,6 +33,7 @@
 #include "model/drum/drum.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_engine_setting.h"
+#include "model/edits/set_source_ranges.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
@@ -40,6 +41,7 @@
 #include "model/output.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/song_serialization.h"
+#include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound.h"
@@ -545,6 +547,59 @@ int liveUnisonLeg(Song& song) {
 	return 0;
 }
 
+/// The live-range leg: a note sounds on the first synth of @p song with a clip and a source with ranges, and a range
+/// of that source changes in place through an Edit; the voice keeps sounding and the sound stays coherent. 0 when each
+/// holds (or no such synth sounds), else 3 after printing the first that does not.
+int liveRangeLeg(Song& song) {
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		auto* clip = static_cast<InstrumentClip*>(output->getActiveClip());
+		if (output->type != OutputType::SYNTH || clip == nullptr) {
+			continue;
+		}
+		auto* synth = static_cast<SoundInstrument*>(output);
+		const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(*synth);
+		int32_t s = 0;
+		while (s < kNumSources && synth->sources[s].ranges.empty()) {
+			s++;
+		}
+		if (!address || s == kNumSources) {
+			continue;
+		}
+		char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* ms =
+		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, synth, clip, &clip->paramManager);
+		synth->Sound::noteOn(ms, &synth->arpeggiator, 60, zeroMPEValues);
+		const size_t sounding = synth->numActiveVoices();
+		if (sounding == 0) {
+			continue;
+		}
+		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(synth->sources[s]);
+		if (synth->sources[s].oscType == OscType::SAMPLE) {
+			ranges.back().transpose = static_cast<int16_t>(ranges.back().transpose == 0 ? 1 : 0);
+		}
+		else {
+			ranges.back().top_note = static_cast<int16_t>(ranges.back().top_note - 1);
+		}
+		deluge::edits::Context ctx{song, song.project};
+		deluge::edits::SetSourceRanges edit{*address, static_cast<uint8_t>(s), ranges};
+		std::string failed = deluge::edits::apply(ctx, edit) != Error::NONE
+		                         ? "refused"
+		                         : deluge::harness::soundIncoherence(*synth, song);
+		if (failed.empty() && synth->numActiveVoices() != sounding) {
+			failed = "the sounding note stopped";
+		}
+		synth->killAllVoices();
+		if (!failed.empty()) {
+			std::fprintf(io.err, "synth %s live osc%d ranges: %s\n", synth->name.c_str(), static_cast<int>(s + 1),
+			             failed.c_str());
+			return 3;
+		}
+		std::fprintf(io.err, "live ranges: %zu voices of %s kept\n", sounding, synth->name.c_str());
+		return 0;
+	}
+	return 0;
+}
+
 /// The hibernation leg, for a song with no hibernating sound: a synth added to it and hibernated (as replacing an
 /// edited instrument hibernates it) keeps its slot, and its settings' Edits reach it there. 0 when each holds, else 3
 /// after printing the first that does not.
@@ -621,6 +676,9 @@ int engine_settings_main(int argc, char** argv, Io driverIo) {
 			}
 		}
 		if (int r = liveUnisonLeg(*song)) {
+			return r;
+		}
+		if (int r = liveRangeLeg(*song)) {
 			return r;
 		}
 		if (int r = hibernationLeg(*song)) {

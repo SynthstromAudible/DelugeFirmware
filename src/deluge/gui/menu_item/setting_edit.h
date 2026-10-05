@@ -19,9 +19,12 @@
 #include "io/debug/log.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_engine_setting.h"
+#include "model/edits/set_source_ranges.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
+#include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
+#include "processing/sound/sound.h"
 #include "serialization/value.h"
 
 #include <optional>
@@ -51,6 +54,27 @@ inline void settingFor(::Sound& sound, std::string_view path, deluge::serializat
 	if (deluge::bridge::applySetting(sound, path, value, *currentSong) != Error::NONE) {
 		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
 	}
+}
+
+/// @brief A gesture's change of source @p s of @p sound to @p ranges: an Edit on the sound's slot when it is bound,
+/// the in-place change alone for a sound with no slot.
+inline void rangesFor(::Sound& sound, int32_t s, std::vector<deluge::instrument::RangeState> ranges) {
+	if (const std::optional<deluge::project::SlotAddress> slot = deluge::bridge::slotAddressOf(sound)) {
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		deluge::edits::SetSourceRanges edit{*slot, static_cast<uint8_t>(s), std::move(ranges)};
+		if (deluge::edits::apply(ctx, edit) != Error::NONE) {
+			D_PRINTLN("ranges refused: osc%d", static_cast<int>(s + 1));
+		}
+		return;
+	}
+	if (deluge::bridge::applyRanges(sound, s, ranges) != Error::NONE) {
+		D_PRINTLN("ranges refused: osc%d", static_cast<int>(s + 1));
+	}
+}
+
+/// @brief Record source @p s's ranges as a gesture left them, after it loaded files or reshaped the list itself.
+inline void recordRanges(::Sound& sound, int32_t s) {
+	rangesFor(sound, s, deluge::bridge::rangesOf(sound.sources[s]));
 }
 
 } // namespace deluge::gui::menu_item

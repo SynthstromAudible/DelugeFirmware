@@ -33,10 +33,15 @@
 
 #include "deluge-project/instrument_slot.h"
 #include "model/edits/set_engine_setting.h"
+#include "model/edits/set_source_ranges.h"
+#include "model/model_stack.h"
 #include "model/project_bridge/slot_bridge.h"
+#include "model/project_bridge/source_bridge.h"
 #include "processing/sound/sound_instrument.h"
 #include "scenarios/drivers/driver.h"
+#include "scenarios/slot_coherence.h"
 #include "serialization/tree.h"
+#include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 
 namespace {
@@ -542,6 +547,54 @@ void testSetEngineSetting(deluge::edits::Context& ctx) {
 	      "setting: a live-input oscillator takes linear interpolation");
 }
 
+// A source's ranges change in place through an Edit; a list that would assign a file or reshape the list is refused
+// and changes nothing.
+void testSetSourceRanges(deluge::edits::Context& ctx) {
+	using deluge::serialization::Value;
+	ParamManagerForTimeline paramManager;
+	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
+	check(synth != nullptr, "ranges: a new synth");
+	if (synth == nullptr) {
+		return;
+	}
+	ctx.song.addOutput(synth);
+	Sound& sound = *static_cast<SoundInstrument*>(synth);
+	const auto slot = deluge::bridge::slotAddressOf(sound);
+	check(slot.has_value(), "ranges: the synth has a slot");
+	if (!slot) {
+		return;
+	}
+	deluge::edits::SetEngineSetting sample{*slot, "osc1/type", Value::makeScalar("sample")};
+	check(deluge::edits::apply(ctx, sample) == Error::NONE, "ranges: osc1 plays samples");
+	sound.sources[0].getOrCreateFirstRange();
+	std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(sound.sources[0]);
+	check(ranges.size() == 1, "ranges: one range");
+	if (ranges.size() != 1) {
+		return;
+	}
+
+	ranges[0].start_pos = 100;
+	ranges[0].end_pos = 900;
+	ranges[0].transpose = 5;
+	deluge::edits::SetSourceRanges zone{*slot, 0, ranges};
+	check(deluge::edits::apply(ctx, zone) == Error::NONE, "ranges: an in-place zone is applied");
+	auto* holder = &static_cast<MultisampleRange*>(sound.sources[0].ranges.getElement(0))->sampleHolder;
+	check(holder->startPos == 100 && holder->endPos == 900 && holder->transpose == 5, "ranges: the runtime takes it");
+	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: the sound stays coherent");
+
+	const Value before = ctx.model.resolveSlot(*slot)->state;
+	auto withFile = ranges;
+	withFile[0].file_path = "SAMPLES/OTHER.WAV";
+	deluge::edits::SetSourceRanges file{*slot, 0, withFile};
+	check(deluge::edits::apply(ctx, file) != Error::NONE, "ranges: assigning a file is refused");
+	auto longer = ranges;
+	longer.insert(longer.begin(), deluge::instrument::RangeState{.top_note = 40});
+	deluge::edits::SetSourceRanges reshape{*slot, 0, longer};
+	check(deluge::edits::apply(ctx, reshape) != Error::NONE, "ranges: another length is refused");
+	check(deluge::serialization::first_difference(ctx.model.resolveSlot(*slot)->state, before).empty(),
+	      "ranges: a refusal leaves the slot");
+}
+
 int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	io = driverIo;
 
@@ -570,6 +623,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testScalarFlipViaApply(ctx, song, audioClip);
 	testRegionFlipViaApply(ctx, song, audioClip);
 	testSetEngineSetting(ctx);
+	testSetSourceRanges(ctx);
 
 	if (failures == 0) {
 		std::fprintf(io.out, "edit_substrate: OK\n");
