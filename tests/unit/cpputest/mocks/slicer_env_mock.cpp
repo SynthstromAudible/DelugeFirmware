@@ -22,8 +22,13 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "model/clip/clip.h"
+#include "model/edits/set_engine_setting.h"
+#include "model/edits/set_source_ranges.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/setting_apply.h"
+#include "model/project_bridge/slot_bridge.h"
+#include "model/project_bridge/source_bridge.h"
 #include "model/sample/sample.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
@@ -414,3 +419,36 @@ int32_t ParamCollection::knobPosToParamValue(int32_t knobPos, ModelStackWithAuto
 }
 void ParamCollection::notifyPingpongOccurred(ModelStackWithParamCollection* modelStack) {
 }
+
+// The setting and range Edits the slicer issues through settingFor()/recordRanges(). A sound here has no slot, so the
+// helpers apply directly, and the applies do nothing: the slicer's state is the mocks', and nothing reads a record.
+namespace deluge::bridge {
+std::optional<deluge::project::SlotAddress> slotAddressOf(::Sound& /*sound*/) {
+	return std::nullopt;
+}
+::Sound* soundAt(::Song& /*song*/, deluge::project::SlotAddress /*address*/) {
+	return nullptr;
+}
+std::vector<deluge::instrument::RangeState> rangesOf(const ::Source& /*source*/) {
+	return {};
+}
+Error applyRanges(::Sound& /*sound*/, int32_t /*s*/, const std::vector<deluge::instrument::RangeState>& /*ranges*/) {
+	return Error::NONE;
+}
+Error applySetting(::Sound& /*sound*/, std::string_view /*path*/, const deluge::serialization::Value& /*value*/,
+                   ::Song& /*song*/) {
+	return Error::NONE;
+}
+} // namespace deluge::bridge
+
+namespace deluge::edits {
+Error apply(Context& /*ctx*/, Edit& /*edit*/) {
+	return Error::NONE;
+}
+Error SetEngineSetting::apply(Context& /*ctx*/) {
+	return Error::NONE;
+}
+Error SetSourceRanges::apply(Context& /*ctx*/) {
+	return Error::NONE;
+}
+} // namespace deluge::edits

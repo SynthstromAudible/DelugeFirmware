@@ -16,6 +16,7 @@
  */
 
 #include "gui/views/randomize_drums.h"
+#include "gui/menu_item/setting_edit.h"
 
 #include "libdeluge/clock.h" // deluge_clock_now
 #include "libdeluge/file_directory.h"
@@ -76,6 +77,10 @@ void RandomizeDrums::cancelWalk() {
 		return;
 	}
 	load_.cancel();
+	if (phase_ == Phase::AwaitLoad && rowDrum_ != nullptr) {
+		// The row was pointed at a file whose load is now dropped: its record says what it holds.
+		deluge::gui::menu_item::recordRanges(*rowDrum_, 0);
+	}
 	// An OPEN is outstanding exactly when this row's collect has not answered yet.
 	if (phase_ == Phase::AwaitScan && !scanCollected_) {
 		// The open is still out: nothing may unbind the row's holder until it reports, and the handle
@@ -276,6 +281,8 @@ bool RandomizeDrums::stepAwaitLoad() {
 	if (!outcome.has_value()) {
 		return false; // still loading
 	}
+	// The row was pointed at the file: its record and slot say what it holds now, landed or not.
+	deluge::gui::menu_item::recordRanges(*rowDrum_, 0);
 	if (outcome->result == Result::Failed) {
 		if (outcome->reason == Reason::Stalled) {
 			giveUps_++;

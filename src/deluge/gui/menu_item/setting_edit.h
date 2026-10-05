@@ -33,6 +33,16 @@
 
 namespace deluge::gui::menu_item {
 
+/// @brief @p sound's slot when it is bound in the current song, so an Edit on that slot reaches it; nullopt for a
+/// sound with no slot or one outside the song (a preview, a preset's sound still being built).
+inline std::optional<deluge::project::SlotAddress> songSlotOf(::Sound& sound) {
+	const std::optional<deluge::project::SlotAddress> slot = deluge::bridge::slotAddressOf(sound);
+	if (slot && deluge::bridge::soundAt(*currentSong, *slot) == &sound) {
+		return slot;
+	}
+	return std::nullopt;
+}
+
 /// @brief The settings path of oscillator @p source's (0 or 1) setting @p name: `oscN/name`.
 inline std::string oscSettingPath(int32_t source, std::string_view name) {
 	return "osc" + std::to_string(source + 1) + "/" + std::string(name);
@@ -40,9 +50,9 @@ inline std::string oscSettingPath(int32_t source, std::string_view name) {
 
 /// @brief A sound editor menu's change of @p sound's setting at @p path to @p value (its file form): an Edit on the
 /// sound's slot when the sound is bound in the current song, so the slot keeps holding its state; the runtime's setter
-/// alone for a sound with no slot.
+/// alone for a sound with no slot in it.
 inline void settingFor(::Sound& sound, std::string_view path, deluge::serialization::Value value) {
-	if (const std::optional<deluge::project::SlotAddress> slot = deluge::bridge::slotAddressOf(sound)) {
+	if (const std::optional<deluge::project::SlotAddress> slot = songSlotOf(sound)) {
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
 		deluge::edits::SetEngineSetting edit{*slot, std::string(path), value};
 		if (deluge::edits::apply(ctx, edit) != Error::NONE) {
@@ -59,7 +69,7 @@ inline void settingFor(::Sound& sound, std::string_view path, deluge::serializat
 /// @brief A gesture's change of source @p s of @p sound to @p ranges: an Edit on the sound's slot when it is bound,
 /// the in-place change alone for a sound with no slot.
 inline void rangesFor(::Sound& sound, int32_t s, std::vector<deluge::instrument::RangeState> ranges) {
-	if (const std::optional<deluge::project::SlotAddress> slot = deluge::bridge::slotAddressOf(sound)) {
+	if (const std::optional<deluge::project::SlotAddress> slot = songSlotOf(sound)) {
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
 		deluge::edits::SetSourceRanges edit{*slot, static_cast<uint8_t>(s), std::move(ranges)};
 		if (deluge::edits::apply(ctx, edit) != Error::NONE) {

@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/browser/folder_import.h"
+#include "gui/menu_item/setting_edit.h"
 
 #include "libdeluge/clock.h" // deluge_clock_now
 
@@ -59,6 +60,13 @@ namespace deluge::gui {
 FolderImport folderImport{};
 
 namespace {
+
+/// Set the sound editor's current source's repeat mode through its setting Edit.
+void setImportRepeatMode(SampleRepeatMode mode) {
+	deluge::gui::menu_item::settingFor(
+	    *soundEditor.currentSound, deluge::gui::menu_item::oscSettingPath(soundEditor.currentSourceIndex, "loopMode"),
+	    deluge::serialization::Value::makeNumber(std::to_underlying(mode)));
+}
 
 #define NOTE_CHECK_ERROR_MARGIN 0.75
 
@@ -682,6 +690,7 @@ bool FolderImport::finishMulti() {
 				thisSample->removeReason("E393"); // Remove that temporary reason we added above
 			}
 			display->displayError(Error::INSUFFICIENT_RAM);
+			deluge::gui::menu_item::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
 			return false;
 		}
 	}
@@ -751,7 +760,9 @@ skipOctaveCorrection:
 
 	if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
 		soundEditor.currentSound->killAllVoices();
-		soundEditor.currentSource->setOscType(OscType::SAMPLE);
+		deluge::gui::menu_item::settingFor(
+		    *soundEditor.currentSound, deluge::gui::menu_item::oscSettingPath(soundEditor.currentSourceIndex, "type"),
+		    deluge::serialization::Value::makeScalar("sample"));
 	}
 
 	D_PRINTLN("creating ranges");
@@ -826,14 +837,14 @@ skipOctaveCorrection:
 	if (!numSamples) {
 		display->displayPopup(
 		    deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT));
+		deluge::gui::menu_item::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
 		return false;
 	}
 
 	D_PRINTLN("distinct ranges: %d", numSamples);
 
-	// M3 owner-5: the multisample-import builder above rebuilt the whole range collection (topNote/file/transpose
-	// per range) — reflect into the record.
-	soundEditor.currentSource->seedDocRanges();
+	// The builder above rebuilt the whole range collection: record it.
+	deluge::gui::menu_item::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
 
 	delugeDealloc(sortArea);
 
@@ -847,17 +858,17 @@ skipOctaveCorrection:
 		// If this led to an actual loop end pos, with more waveform after it, and the sample's not too long, we can do
 		// a ONCE
 		if (numWithResultingLoopEndPoints * 2 >= numSamples && averageMSec < 2002) {
-			soundEditor.currentSource->setRepeatMode(SampleRepeatMode::ONCE);
+			setImportRepeatMode(SampleRepeatMode::ONCE);
 		}
 		else {
-			soundEditor.currentSource->setRepeatMode(SampleRepeatMode::LOOP);
+			setImportRepeatMode(SampleRepeatMode::LOOP);
 		}
 	}
 
 	// Or if no loop points set...
 	else {
 		// If 2 seconds or less, set play mode to ONCE. Otherwise, cut
-		soundEditor.currentSource->setRepeatMode((averageMSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT);
+		setImportRepeatMode((averageMSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT);
 	}
 
 	soundEditor.setCurrentMultiRange(numSamples >> 1);
@@ -904,7 +915,10 @@ getOut:
 				// Ensure osc type is "sample". For the later drums, calling setupAsSample() does this same thing
 				if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
 					soundEditor.currentSound->killAllVoices();
-					soundEditor.currentSource->setOscType(OscType::SAMPLE);
+					deluge::gui::menu_item::settingFor(
+					    *soundEditor.currentSound,
+					    deluge::gui::menu_item::oscSettingPath(soundEditor.currentSourceIndex, "type"),
+					    deluge::serialization::Value::makeScalar("sample"));
 				}
 
 				ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
@@ -949,8 +963,9 @@ getOut:
 
 				Sound::initParams(&paramManager);
 
-				kit->addDrum(drum);
+				// The drum is a sample drum before addDrum binds it, so its record starts as one.
 				drum->setupAsSample(&paramManager);
+				kit->addDrum(drum);
 				drum->nameIsDiscardable = true;
 				currentSong->live.param_backup.backUp(drum, getCurrentClip(), &paramManager, true);
 			}
@@ -960,7 +975,7 @@ getOut:
 			holder->filePath = thisSample->filePath;
 			holder->setAudioFile(thisSample, source->sampleControls.isCurrentlyReversed(), true);
 
-			source->seedDocRanges(); // M3 owner-5: reflect the imported sample range into the DOM record
+			deluge::gui::menu_item::recordRanges(*drum, 0);
 
 			sampleBrowser.autoDetectSideChainSending(drum, source, thisSample->filePath.c_str());
 
@@ -987,8 +1002,10 @@ getOut:
 			}
 skipNameStuff:
 
-			source->repeatMode =
-			    (thisSample->getLengthInMSec() < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
+			deluge::gui::menu_item::settingFor(
+			    *drum, "osc1/loopMode",
+			    deluge::serialization::Value::makeNumber(std::to_underlying(
+			        (thisSample->getLengthInMSec() < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT)));
 
 #if ALPHA_OR_BETA_VERSION
 			if (!thisSample->isProjectReferenced()) {

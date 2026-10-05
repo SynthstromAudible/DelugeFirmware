@@ -21,6 +21,7 @@
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
 #include "gui/menu_item/file_selector.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -60,6 +61,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 #include "scenarios/preset_fixture_loader.h"
+#include "scenarios/slot_coherence.h"
 #include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
@@ -487,8 +489,8 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 		return nullptr;
 	}
 	holder->filePath = samplePath;
-	// A bound source saves its ranges from its record: reseed it, as the sample browser's claim does.
-	drum->sources[0].seedDocRanges();
+	// The fixture stands in for a claim, and records the drum's ranges as a claim does.
+	deluge::gui::menu_item::recordRanges(*drum, 0);
 	currentSong->live.param_backup.backUp(drum, nullptr, &paramManager, true);
 	return drum;
 }
@@ -819,6 +821,7 @@ void prepareLeg() {
 			}
 			holder->setAudioFile(nullptr);
 			holder->filePath = kRandomizeFirstSample;
+			deluge::gui::menu_item::recordRanges(*drum, 0);
 			drum->setName(kRandomizeDrums[0].name);
 		});
 		break;
@@ -832,6 +835,7 @@ void prepareLeg() {
 			}
 			holder->setAudioFile(nullptr);
 			holder->filePath = kRandomizeGateSample;
+			deluge::gui::menu_item::recordRanges(*drum, 0);
 		});
 		break;
 	case Leg::RandomizeStall:
@@ -867,6 +871,10 @@ void prepareLeg() {
 			after->filePath = kRandomizeStallKept;
 			const Error afterError =
 			    after->loadFile(/*reversed=*/false, /*manuallySelected=*/true, /*mayActuallyReadFile=*/true);
+			// The fixture stands in for three claims, and records each row's ranges as a claim does.
+			for (Drum* row : {first, second, third}) {
+				deluge::gui::menu_item::recordRanges(*static_cast<SoundDrum*>(row), 0);
+			}
 			afterRow->setMuted(false);
 			printf("SC-PROBE leg=randomize-stall prepared keptBound=%d error=%d afterBound=%d afterError=%d\n",
 			       kept->audioFile != nullptr ? 1 : 0, static_cast<int>(error), after->audioFile != nullptr ? 1 : 0,
@@ -2041,6 +2049,8 @@ void tickRandomizeCancel() {
 }
 
 void nextLeg() {
+	// Whatever the leg did to a sound, its record, slot and snapshot say what it now plays.
+	g_failures += deluge::harness::expectSongCoherent(*currentSong, legName(g_leg));
 	g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
 	g_step = Step::Prepare;
 	g_waitTicks = 0;

@@ -22,6 +22,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/multi_range.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
@@ -79,6 +80,25 @@ AudioFileHolder* prepareHolder(const std::string& path) {
 
 void closeGate() {
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+}
+
+/// Set the sound editor's current source's oscillator type through its setting Edit.
+void setClaimOscType(OscType type) {
+	deluge::gui::menu_item::settingFor(
+	    *soundEditor.currentSound, deluge::gui::menu_item::oscSettingPath(soundEditor.currentSourceIndex, "type"),
+	    deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(type))));
+}
+
+/// Set the sound editor's current source's repeat mode through its setting Edit.
+void setClaimRepeatMode(SampleRepeatMode mode) {
+	deluge::gui::menu_item::settingFor(
+	    *soundEditor.currentSound, deluge::gui::menu_item::oscSettingPath(soundEditor.currentSourceIndex, "loopMode"),
+	    deluge::serialization::Value::makeNumber(std::to_underlying(mode)));
+}
+
+/// Record the sound editor's current source's ranges as the claim left them.
+void recordClaimRanges() {
+	deluge::gui::menu_item::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
 }
 
 void openGate() {
@@ -245,7 +265,7 @@ bool SampleClaim::stepPrepareSample() {
 		reversed = getCurrentAudioClip()->sampleControls.isCurrentlyReversed();
 	}
 	else {
-		soundEditor.currentSource->setOscType(OscType::SAMPLE);
+		setClaimOscType(OscType::SAMPLE);
 		reversed = soundEditor.currentSource->sampleControls.isCurrentlyReversed();
 	}
 	AudioFileHolder* holder = prepareHolder(current_.path);
@@ -292,8 +312,8 @@ bool SampleClaim::stepDecideSample() {
 
 		// M3 owner-4: the load derived filePath/startPos/endPos onto the sampleHolder cache but never touched the
 		// clip's record. Reflect the resolved window into the record now, so save (which reads the record) persists
-		// the loaded sample rather than the stale/empty record. The owner-4 twin of the ranges seedDocRanges() reseed
-		// on the instrument path below.
+		// the loaded sample rather than the stale/empty record. The owner-4 twin of the ranges recorded through their
+		// Edit on the instrument path below.
 		clip->syncSampleRecordFromEngine();
 
 		// If there's a pre-margin, we want to set an attack-time
@@ -329,9 +349,7 @@ bool SampleClaim::stepDecideSample() {
 		return true;
 	}
 
-	// M3 owner-5: the range sample-file set path — reflect the newly-claimed file onto the current range into the
-	// record.
-	soundEditor.currentSource->seedDocRanges();
+	recordClaimRanges();
 
 	Sample* sample = (Sample*)claimHolder()->audioFile;
 
@@ -357,7 +375,7 @@ bool SampleClaim::stepDecideSample() {
 		}
 
 		// Otherwise, set play mode to LOOP, and we'll just do single-cycle as a sample. (This is now pretty rare.)
-		soundEditor.currentSource->setRepeatMode(SampleRepeatMode::LOOP);
+		setClaimRepeatMode(SampleRepeatMode::LOOP);
 		doingSingleCycle_ = true;
 	}
 
@@ -372,15 +390,15 @@ bool SampleClaim::stepDecideSample() {
 			// If this led to an actual loop end pos, with more waveform after it, and the sample's not too long, we can
 			// do a ONCE.
 			if (((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.loopEndPos && mSec < 2002) {
-				soundEditor.currentSource->setRepeatMode(SampleRepeatMode::ONCE);
+				setClaimRepeatMode(SampleRepeatMode::ONCE);
 			}
 			else {
-				soundEditor.currentSource->setRepeatMode(SampleRepeatMode::LOOP);
+				setClaimRepeatMode(SampleRepeatMode::LOOP);
 			}
 		}
 		else {
 			// If 2 seconds or less, set play mode to ONCE. Otherwise, CUT.
-			soundEditor.currentSource->setRepeatMode((mSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT);
+			setClaimRepeatMode((mSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT);
 		}
 	}
 
@@ -417,8 +435,7 @@ bool SampleClaim::stepDecideSample() {
 		// https://forums.synthstrom.com/discussion/4814/v4-0-1-after-loading-a-non-c-sample-into-synth-reloading-the-sample-as-basic-doesnt-reset-pitch
 		((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose = 0;
 		((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.setCents(0);
-		// M3 owner-5: the pitch reset above changed the current range's transpose/cents — reflect into the record.
-		soundEditor.currentSource->seedDocRanges();
+		recordClaimRanges();
 	}
 
 	removeWaveTableKnobs();
@@ -429,7 +446,7 @@ bool SampleClaim::stepDecideSample() {
 bool SampleClaim::stepPrepareWavetable() {
 	numTypesTried_++;
 	oldOscType_ = soundEditor.currentSource->getOscType();
-	soundEditor.currentSource->setOscType(OscType::WAVETABLE);
+	setClaimOscType(OscType::WAVETABLE);
 	waveTableHolder_ = prepareHolder(current_.path);
 	// A wavetable still loads synchronously. Blocking on the storage tier is permitted here, and song load's
 	// AsyncSampleLoad makes this same lookup on this tier.
@@ -464,8 +481,7 @@ bool SampleClaim::stepDecideWavetable() {
 	if (waveTableFile_ != nullptr) {
 		waveTableHolder_->setAudioFile(waveTableFile_, soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
 		                               /*manuallySelected=*/true, CLUSTER_ENQUEUE);
-		// M3 owner-5: the range sample-file set path — reflect the newly-claimed wavetable into the record.
-		soundEditor.currentSource->seedDocRanges();
+		recordClaimRanges();
 	}
 
 	// if oscillator wasn't already a wavetable, update custom knob assignments, otherwise leave as is
@@ -521,9 +537,7 @@ bool SampleClaim::stepAwaitPitch() {
 	if (midiNote != MIDI_NOTE_ERROR && midiNote != MIDI_NOTE_UNSET) {
 		bool shouldMinimizeOctaves = (std::ssize(soundEditor.currentSource->ranges) == 1);
 		range->sampleHolder.setTransposeAccordingToSamplePitch(shouldMinimizeOctaves);
-		// M3 owner-5: the pitch detection above changed the current range's transpose/cents — reflect into the
-		// record.
-		soundEditor.currentSource->seedDocRanges();
+		recordClaimRanges();
 	}
 
 	removeWaveTableKnobs();
@@ -570,6 +584,11 @@ bool SampleClaim::stepFinish() {
 }
 
 void SampleClaim::end(bool success, Error error) {
+	// Whether it landed or not, the holder was pointed at a file: the record and the slot say what the source holds
+	// now.
+	if (current_.path.size() != 0 && !claimingAudioClip() && soundEditor.currentSound != nullptr) {
+		recordClaimRanges();
+	}
 	if (!success) {
 		if (animationShown_) {
 			display->removeLoadingAnimation();
