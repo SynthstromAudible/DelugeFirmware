@@ -137,8 +137,6 @@ struct SoundState {
 	std::array<LFOType, 4> lfo_wave_type{};
 	std::array<engine::SyncType, 4> lfo_sync_type{};
 	std::array<engine::SyncLevel, 4> lfo_sync_level{};
-	/// Mod-knob assignments [8 buttons][2 knobs], each a raw param descriptor; they become host mappings by param id.
-	std::array<std::array<uint32_t, 2>, 8> mod_knob_param_descriptor{};
 	DocModControllable mod_controllable;
 	std::array<SourceState, 2> sources;
 	bool operator==(const SoundState&) const = default;

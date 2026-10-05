@@ -177,21 +177,24 @@ void forEachOutput(::Song& song, Visit visit) {
 
 } // namespace
 
-std::optional<deluge::project::ControlsAddress> controlsAddressOf(::ModControllableAudio& owner, ::Song& song) {
+std::optional<deluge::project::ControlsAddress> controlsAddressOf(::ModControllable& owner, ::Song& song) {
 	using Kind = deluge::project::ControlsAddress::Kind;
-	if (&owner == &song.live.global_effectable) {
+	if (&owner == static_cast<::ModControllable*>(&song.live.global_effectable)) {
 		return deluge::project::ControlsAddress{Kind::SONG, 0};
 	}
 	std::optional<deluge::project::ControlsAddress> found;
 	forEachOutput(song, [&](Output& output) {
 		bool isSound = false;
-		if (ownControlsOf(output, &isSound) == &owner && output.docOutput_ != nullptr && output.id()) {
+		::ModControllableAudio* own = ownControlsOf(output, &isSound);
+		if (own != nullptr && static_cast<::ModControllable*>(own) == &owner && output.docOutput_ != nullptr
+		    && output.id()) {
 			found = deluge::project::ControlsAddress{Kind::OUTPUT, *output.id()};
 			return true;
 		}
 		if (output.type == OutputType::KIT) {
 			for (Drum* drum = static_cast<Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
-				if (drum->type == DrumType::SOUND && static_cast<SoundDrum*>(drum) == &owner) {
+				if (drum->type == DrumType::SOUND
+				    && static_cast<::ModControllable*>(static_cast<SoundDrum*>(drum)) == &owner) {
 					found = controlsAddressOf(*static_cast<SoundDrum*>(drum));
 					return true;
 				}

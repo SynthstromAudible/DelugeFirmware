@@ -135,14 +135,6 @@ public:
 	// Re-derive snapshot_ from state_ (no-op when unbound). Additive per-slice as fields move onto the snapshot.
 	void projectSnapshot();
 	[[nodiscard]] const deluge::snapshot::SoundSnapshot& snapshot() const { return snapshot_; }
-	// Copy the 16 mod-knob ParamDescriptors engine->record. modKnobs is mutated in-place (setToHaveParamOnly etc.) at
-	// several gestures rather than through one setter, so instead of funnelling each write we re-seed the whole block
-	// after any mutation (bind, doneReadingFromFile, learnKnob, setSynthMode, modEncoderButtonAction, sample
-	// auto-assign). The native ModKnob array stays the working structure; the record mirrors it and is what save reads.
-	// Public so the external sample-load auto-assign can re-seed.
-	void seedModKnobsRecord();
-	/// The mod knobs seedModKnobsRecord copies, into @p d.
-	void seedModKnobsInto(deluge::instrument::SoundState& d) const;
 
 	Patcher patcher;
 

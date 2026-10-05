@@ -33,6 +33,7 @@
 
 #include "deluge-project/instrument_slot.h"
 #include "dsp/dx/dx7note.h"
+#include "gui/menu_item/setting_edit.h"
 #include "model/drum/drum.h"
 #include "model/edits/set_controls.h"
 #include "model/edits/set_dx_patch.h"
@@ -774,6 +775,36 @@ void testSetControls(deluge::edits::Context& ctx) {
 	      "controls: the learned knob keeps its takeover state");
 }
 
+// The knob gestures record their owner's mappings: a mod knob learned in the sound editor, and a gold knob pressed to
+// cycle LPF, HPF and EQ, each leave the sound's controls record what its knobs are.
+void testKnobGesturesRecord(deluge::edits::Context& ctx) {
+	namespace params = deluge::modulation::params;
+	ParamManagerForTimeline paramManager;
+	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
+	ctx.song.addOutput(synth);
+	Sound& sound = *static_cast<SoundInstrument*>(synth);
+	const auto address = deluge::bridge::controlsAddressOf(sound);
+	check(address.has_value(), "knob gestures: the synth has controls");
+	if (!address) {
+		return;
+	}
+
+	ParamDescriptor drive;
+	drive.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
+	check(sound.learnKnob(nullptr, drive, 1, 3, 16, &ctx.song), "knob gestures: a mod knob is learned");
+	deluge::gui::menu_item::recordControlsOf(sound);
+	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "knob gestures: a learn is recorded");
+
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* ms =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, &ctx.song, &sound, nullptr, &paramManager);
+	for (int32_t press = 0; press < 3; press++) {
+		(void)sound.modEncoderButtonAction(1, true, ms);
+		deluge::gui::menu_item::recordControlsOf(sound);
+		check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "knob gestures: a knob cycle is recorded");
+	}
+}
+
 int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	io = driverIo;
 
@@ -808,6 +839,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testSetDxPatch(ctx);
 	testKnobTargets(ctx);
 	testSetControls(ctx);
+	testKnobGesturesRecord(ctx);
 
 	if (failures == 0) {
 		std::fprintf(io.out, "edit_substrate: OK\n");

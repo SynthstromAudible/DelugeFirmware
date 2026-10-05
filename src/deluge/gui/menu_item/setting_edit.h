@@ -107,18 +107,22 @@ inline void dxPatchFor(::Sound& sound, int32_t s, const deluge::instrument::DxPa
 }
 
 /// @brief Record @p owner's knobs as a gesture left them (a learn, an unlearn, a knob cycled to its next param): an
-/// Edit on its controller mappings when it is one of the current song's owners; nothing for one outside it.
-inline void recordControlsOf(::ModControllableAudio& owner) {
+/// Edit on its controller mappings when it is one of the current song's owners; nothing for one outside it (a MIDI or
+/// CV track's, which has no knob mappings).
+inline void recordControlsOf(::ModControllable& owner) {
 	const std::optional<deluge::project::ControlsAddress> address =
 	    deluge::bridge::controlsAddressOf(owner, *currentSong);
 	if (!address) {
 		return;
 	}
 	bool isSound = false;
-	(void)deluge::bridge::controlsOwnerAt(*currentSong, *address, &isSound);
+	::ModControllableAudio* audio = deluge::bridge::controlsOwnerAt(*currentSong, *address, &isSound);
+	if (audio == nullptr) {
+		return;
+	}
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
-	deluge::edits::SetControls edit{*address, isSound ? deluge::bridge::controlsOf(static_cast<::Sound&>(owner))
-	                                                  : deluge::bridge::learnedControlsOf(owner)};
+	deluge::edits::SetControls edit{*address, isSound ? deluge::bridge::controlsOf(static_cast<::Sound&>(*audio))
+	                                                  : deluge::bridge::learnedControlsOf(*audio)};
 	if (deluge::edits::apply(ctx, edit) != Error::NONE) {
 		D_PRINTLN("controls refused");
 	}

@@ -25,6 +25,7 @@
 #include <optional>
 #include <vector>
 
+class ModControllable;
 class ModControllableAudio;
 class Sound;
 class Song;
@@ -57,8 +58,7 @@ void refreshControls(::Song& song);
 
 /// @brief Whose controls @p owner's are in @p song: a synth's sound, a kit's or an audio track's own, a kit row's
 /// sound, or the song's; nullopt when it is none of @p song's.
-[[nodiscard]] std::optional<deluge::project::ControlsAddress> controlsAddressOf(::ModControllableAudio& owner,
-                                                                                ::Song& song);
+[[nodiscard]] std::optional<deluge::project::ControlsAddress> controlsAddressOf(::ModControllable& owner, ::Song& song);
 
 /// @brief The runtime owner of @p address's controls in @p song (outputs and hibernating instruments), with whether it
 /// is a sound (which has mod knobs), or nullptr.

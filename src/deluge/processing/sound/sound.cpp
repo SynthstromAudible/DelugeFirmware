@@ -2830,7 +2830,6 @@ bool Sound::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t
 			ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(song);
 		}
 
-		seedModKnobsRecord(); // M3 owner-5: reflect the reassignment into the DOM record
 		return true;
 	}
 
@@ -2971,7 +2970,6 @@ void Sound::reseedRecord() {
 		return;
 	}
 	seedDocSoundScalars();
-	seedModKnobsRecord();
 	seedDocModControllable();
 	projectModControllableSnapshot();
 	projectSnapshot();
@@ -3103,8 +3101,6 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 	// in Sound::maySourcePatchToParam, the filter mode is checked to determine if patch cables are allowed
 	// Setup patching after changing filter mode above to ensure PatchCableAcceptance is correctly determined
 	setupPatchingForAllParamManagers(song);
-
-	seedModKnobsRecord(); // M3 owner-5: the FM switch above may have reassigned mod knobs — reflect into the DOM record
 }
 
 void Sound::setModulatorTranspose(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack) {
@@ -3493,20 +3489,6 @@ void Sound::projectSnapshot() {
 	}
 }
 
-void Sound::seedModKnobsInto(deluge::instrument::SoundState& d) const {
-	for (int32_t k = 0; k < kNumModButtons; k++) {
-		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
-			d.mod_knob_param_descriptor[k][w] = modKnobs[k][w].paramDescriptor.data;
-		}
-	}
-}
-
-void Sound::seedModKnobsRecord() {
-	if (state_ != nullptr) {
-		seedModKnobsInto(*state_);
-	}
-}
-
 static_assert(deluge::instrument::kMaxUnisonVoices == kMaxNumVoicesUnison
               && deluge::instrument::kMaxUnisonDetune == kMaxUnisonDetune
               && deluge::instrument::kMaxUnisonSpread == kMaxUnisonStereoSpread);
@@ -3594,7 +3576,6 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 deluge::instrument::SoundState Sound::seededState() const {
 	deluge::instrument::SoundState seeded;
 	seedScalarsInto(seeded);
-	seedModKnobsInto(seeded);
 	seedEffectsInto(seeded.mod_controllable);
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sources[s].seedScalarsInto(seeded.sources[s]);
@@ -3611,7 +3592,6 @@ void Sound::bindState() {
 	// after its fields are parsed) and for a freshly-created Sound. A SoundDrum is bound BEFORE parse (adoptDrum runs
 	// first), so this seed is stale for drums — doneReadingFromFile re-runs it once parsing is done.
 	seedDocSoundScalars();
-	seedModKnobsRecord();
 	projectSnapshot(); // M4b: derive the render read-view from the now-seeded record
 	bindDocModControllable(&d->mod_controllable);
 	for (int32_t s = 0; s < kNumSources; s++) {
@@ -3825,7 +3805,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	for (int32_t k = 0; k < kNumModButtons; k++) {
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
 			ParamDescriptor pd;
-			pd.data = state_ != nullptr ? state_->mod_knob_param_descriptor[k][w] : modKnobs[k][w].paramDescriptor.data;
+			pd.data = modKnobs[k][w].paramDescriptor.data; // the controller mappings' runtime copy
 			writer.writeOpeningTagBeginning("modKnob", true);
 			writer.writeAttribute("controlsParam",
 			                      params::paramNameForFile(params::Kind::UNPATCHED_SOUND, pd.getJustTheParam()), false);
@@ -4032,10 +4012,8 @@ ModelStackWithAutoParam* Sound::getParamFromModEncoderDeeper(int32_t whichModEnc
 
 bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
 	bool result = modEncoderButtonActionImpl(whichModEncoder, on, modelStack);
-	// M3 owner-5: the impl may reassign mod knobs in-place (LPF/HPF/EQ cycling) or re-derive sidechain.syncLevel via
-	// any of its early-return branches — re-seed both records once here so they stay in sync without threading a reseed
-	// through each branch.
-	seedModKnobsRecord();
+	// The impl may re-derive sidechain.syncLevel in any of its early-return branches: re-seed the effects' record once
+	// here. A knob it cycled is recorded by its caller, through the knobs' Edit.
 	seedDocModControllable();
 	return result;
 }

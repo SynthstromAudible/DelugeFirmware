@@ -25,6 +25,7 @@
 #include "gui/context_menu/clip_settings/clip_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -1363,6 +1364,8 @@ void View::modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder,
 
 	bool anyEditingDone =
 	    activeModControllableModelStack.modControllable->modEncoderButtonAction(whichModEncoder, on, modelStack);
+	// A press may cycle a knob to its next param (LPF, HPF, EQ): its owner's mappings are the record's.
+	deluge::gui::menu_item::recordControlsOf(*activeModControllableModelStack.modControllable);
 	if (anyEditingDone) {
 		instrumentBeenEdited();
 	}
