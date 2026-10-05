@@ -121,12 +121,6 @@ void serializeMidiParams(const std::vector<DocMidiParam>& midiParams, Serializer
 /// back-compat are not reimplemented), then projects the result.
 DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos);
 
-/// Read a `<patchCables>` block (current format) into the document's patch cables — the inverse of
-/// `serializePatchCables`. Parses the structure directly (resolving range/depth-controlling cables back
-/// to flat cables) and reads amounts via `readDocAutoParam`. Pre-V3.2 patch-cable quirks
-/// (`rangeAdjustable` / placeholder-range resolution) are intentionally not carried over.
-void deserializePatchCables(std::vector<DocPatchCable>& out, Deserializer& in, int32_t readAutomationUpToPos);
-
 // --- DOM-native read of the owner param blocks (param/automation DOM Phase 5b) ---
 // The read counterpart of the Phase 5a serializers. Each `read*ParamTag` is the table-driven DOM reader
 // for one owner's param block: if `tagName` is a current-format param tag, it reads the leaf via

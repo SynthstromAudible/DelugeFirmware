@@ -38,6 +38,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/cable_bridge.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
@@ -759,7 +760,8 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 
 	else if (!strcmp(tagName, "patchCables")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		paramManager->getPatchCableSet()->readPatchCablesFromFile(reader, readAutomationUpToPos);
+		deluge::bridge::loadCables(*paramManager->getPatchCableSet(),
+		                           *deluge::storage::treeReaderOf(reader).currentValue(), readAutomationUpToPos);
 		reader.exitTag("patchCables");
 	}
 
@@ -3216,8 +3218,8 @@ void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* pa
                                int32_t readAutomationUpToPos) {
 	// Option I (read-authority): read the sound param block DOM-first into BOTH the patched and unpatched DOM
 	// stores (initParams wrote each default straight into them via docForParam), then project each engine RT cursor
-	// from its store — the DOM holds the authoritative current_value, not just the nodes. <patchCables> keeps the
-	// engine reader (pre-V3.2 back-compat the DOM reader drops); it writes the cable inline store directly.
+	// from its store — the DOM holds the authoritative current_value, not just the nodes. <patchCables> is the Deluge
+	// instrument's to decode (older formats included); the bridge fills the cable set from it.
 	UnpatchedParamSet* unpatched = paramManager->getUnpatchedParamSet();
 	PatchedParamSet* patched = paramManager->getPatchedParamSet();
 	ParamCollectionSummary* unpatchedSummary = paramManager->getUnpatchedParamSetSummary();
@@ -3230,7 +3232,8 @@ void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* pa
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "patchCables")) {
-			paramManager->getPatchCableSet()->readPatchCablesFromFile(reader, readAutomationUpToPos);
+			deluge::bridge::loadCables(*paramManager->getPatchCableSet(),
+			                           *deluge::storage::treeReaderOf(reader).currentValue(), readAutomationUpToPos);
 			reader.exitTag("patchCables");
 		}
 		else if (deluge::bridge::readSoundParamTagToDoc(reader, tagName, *pStore, *uStore, readAutomationUpToPos)) {}

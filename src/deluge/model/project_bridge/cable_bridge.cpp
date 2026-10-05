@@ -17,7 +17,12 @@
 
 #include "model/project_bridge/cable_bridge.h"
 
+#include "engines/deluge/cable_codec.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_serialization.h"
+#include "modulation/automation/auto_param.h"
+#include "modulation/params/param_descriptor.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "storage/value_tree_deserializer.h"
 
 namespace deluge::bridge {
@@ -35,6 +40,26 @@ deluge::project::DocAutoParam amountOf(const deluge::serialization::Value& leaf,
 bool containsSomething(const deluge::serialization::Value& leaf, int32_t readAutomationUpToPos) {
 	const deluge::project::DocAutoParam amount = amountOf(leaf, readAutomationUpToPos);
 	return !amount.nodes.empty() || amount.current_value != 0;
+}
+
+void loadCables(PatchCableSet& set, const deluge::serialization::Value& patchCables, int32_t readAutomationUpToPos) {
+	const std::vector<deluge::instrument::CableState> cables = deluge::instrument::decode_cables(
+	    patchCables, [readAutomationUpToPos](const deluge::serialization::Value& leaf) {
+		    return containsSomething(leaf, readAutomationUpToPos);
+	    });
+	set.numPatchCables = static_cast<uint8_t>(cables.size());
+	for (size_t i = 0; i < cables.size(); ++i) {
+		const deluge::instrument::CableState& state = cables[i];
+		PatchCable& cable = set.patchCables[i];
+		cable.from = static_cast<PatchSource>(state.source);
+		cable.destinationParamDescriptor =
+		    ParamDescriptor(static_cast<int32_t>(cableWordOf(state.depth()))).getDestination();
+		cable.polarity = static_cast<Polarity>(state.polarity);
+		deluge::project::DocAutoParam amount = amountOf(*state.amount, readAutomationUpToPos);
+		cable.param = AutoParam();
+		cable.param.currentValue = amount.current_value;
+		cable.amount_ = std::move(amount);
+	}
 }
 
 } // namespace deluge::bridge

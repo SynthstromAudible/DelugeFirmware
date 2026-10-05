@@ -29,6 +29,7 @@
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound_drum.h"
+#include "storage/parse_xml.h"
 #include "storage/storage_manager.h"
 #include <cstdint>
 #include <cstdio>
@@ -36,6 +37,7 @@
 #include <vector>
 
 #include "engines/global_effectable/params.h"
+#include "model/project_bridge/cable_bridge.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "scenarios/drivers/driver.h"
@@ -964,16 +966,17 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		int32_t rtLen = smSerializer.bytesWritten();
 		rtBuf[rtLen] = '\0';
 
-		std::vector<deluge::project::DocPatchCable> recovered;
-		XMLDeserializer reader(reinterpret_cast<uint8_t*>(rtBuf), rtLen);
-		reader.openXMLFile("song");
-		const char* tag;
-		while (*(tag = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tag, "patchCables")) {
-				deluge::bridge::deserializePatchCables(recovered, reader, 2147483647);
-			}
-			reader.exitTag();
+		// Read back as the app loads cables: the Deluge instrument's decoder, then the bridge.
+		std::optional<deluge::serialization::Value> tree = deluge::storage::parseXml(std::string_view(rtBuf, rtLen));
+		check(tree && tree->find("song") && tree->find("song")->find("patchCables"), "patch-cable round-trip parses");
+		ParamManagerForTimeline readBack;
+		check(readBack.setupWithPatching() == Error::NONE, "pc-rt setup");
+		if (tree && tree->find("song") && tree->find("song")->find("patchCables")) {
+			deluge::bridge::loadCables(*readBack.getPatchCableSet(), *tree->find("song")->find("patchCables"),
+			                           2147483647);
 		}
+		std::vector<deluge::project::DocPatchCable> recovered =
+		    deluge::bridge::toDocPatchCables(*readBack.getPatchCableSet());
 
 		check(recovered.size() == original.size(), "patch-cable round-trip count");
 		for (const auto& oc : original) {

@@ -22,6 +22,8 @@
 
 #include <cstdint>
 
+class PatchCableSet;
+
 namespace deluge::bridge {
 
 /// @brief An automation leaf (a cable's `amount`) read as `AutoParam::readFromFile` reads it: the `0x…` value and
@@ -34,5 +36,9 @@ namespace deluge::bridge {
 /// given.
 [[nodiscard]] bool containsSomething(const deluge::serialization::Value& leaf,
                                      int32_t readAutomationUpToPos = 2147483647);
+
+/// @brief Fill @p set with the cables of a `patchCables` node, as the Deluge instrument decodes them: each cable's
+/// source, destination, polarity and depth (value, and automation up to @p readAutomationUpToPos).
+void loadCables(PatchCableSet& set, const deluge::serialization::Value& patchCables, int32_t readAutomationUpToPos);
 
 } // namespace deluge::bridge

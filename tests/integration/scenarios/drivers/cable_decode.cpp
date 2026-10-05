@@ -15,12 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// cable_decode <file> <SONG|SYNTH|KIT> — every patchCables element of the file, read by the app's reader into a
-// cable set, holds the cables, depths, polarities and amounts the Deluge instrument's decoder gives. One line per cable
-// is printed (path, depth id, polarity, value, node count) for the runner to fingerprint. Exit: 0 agree; 1 the file
-// does not parse; 2 usage/IO; 3 a cable differs (printed).
+// cable_decode <file> <SONG|SYNTH|KIT> — every patchCables element of the file, loaded as the app loads it (the Deluge
+// instrument's decoder, then the bridge) into a cable set. One line per cable is printed (path, depth id, polarity,
+// value, node count); the runner compares each file's lines with the fingerprint recorded from the reader the app used
+// before. Exit: 0 loaded; 1 the file does not parse; 2 usage/IO.
 
-#include "engines/deluge/cable_codec.h"
 #include "model/project_bridge/cable_bridge.h"
 #include "model/project_bridge/param_ids.h"
 #include "modulation/params/param_manager.h"
@@ -61,30 +60,6 @@ void collect(const Value& node, const std::string& path, std::vector<std::pair<s
 	}
 }
 
-/// The cables of @p patchCables as the app's reader leaves them in a cable set, reading a tree parsed from a
-/// document of @p format as the app reads it.
-void readLikeTheApp(const Value& patchCables, deluge::storage::SourceFormat format, PatchCableSet& set) {
-	Value holder = Value::makeMap();
-	holder.set("patchCables", patchCables);
-	deluge::storage::ValueTreeDeserializer reader(holder, format);
-	reader.match('{'); // enter the holder, as a JSON document's root is entered
-	reader.readNextTagOrAttributeName();
-	set.readPatchCablesFromFile(reader, kAllAutomation);
-}
-
-bool sameNodes(const deluge::project::DocAutoParam& a, const deluge::project::DocAutoParam& b) {
-	if (a.current_value != b.current_value || a.nodes.size() != b.nodes.size()) {
-		return false;
-	}
-	for (int32_t i = 0; i < static_cast<int32_t>(a.nodes.size()); ++i) {
-		if (a.nodes[i].pos != b.nodes[i].pos || a.nodes[i].value != b.nodes[i].value
-		    || a.nodes[i].interpolated != b.nodes[i].interpolated) {
-			return false;
-		}
-	}
-	return true;
-}
-
 int cable_decode_main(int argc, char** argv, Io io) {
 	if (argc < 3) {
 		std::fprintf(io.err, "usage: %s <file> <SONG|SYNTH|KIT>\n", argv[0]);
@@ -113,41 +88,18 @@ int cable_decode_main(int argc, char** argv, Io io) {
 		ParamManagerForTimeline manager;
 		manager.setupWithPatching();
 		PatchCableSet& set = *manager.getPatchCableSet();
-		readLikeTheApp(*node, sourceFormatOf(format), set);
-		std::vector<deluge::instrument::CableState> decoded = deluge::instrument::decode_cables(
-		    *node, [](const Value& leaf) { return deluge::bridge::containsSomething(leaf, kAllAutomation); });
-		if (static_cast<size_t>(set.numPatchCables) != decoded.size()) {
-			std::fprintf(io.err, "CABLE DIFF %s: the app keeps %d cables, the decoder %zu\n", path.c_str(),
-			             set.numPatchCables, decoded.size());
-			return 3;
-		}
-		for (size_t i = 0; i < decoded.size(); ++i) {
+		deluge::bridge::loadCables(set, *node, kAllAutomation);
+		for (int32_t i = 0; i < set.numPatchCables; ++i) {
 			const PatchCable& cable = set.patchCables[i];
 			ParamDescriptor withSource = cable.destinationParamDescriptor;
 			withSource.addSource(cable.from);
-			const uint32_t appDepth = deluge::bridge::cableDepthIdOf(withSource.data).value;
-			const uint32_t ourDepth = decoded[i].depth().value;
-			const deluge::project::DocAutoParam ourAmount =
-			    deluge::bridge::amountOf(*decoded[i].amount, kAllAutomation);
-			const deluge::project::DocAutoParam& appAmount = *set.docForParam(static_cast<int32_t>(i));
-			if (appDepth != ourDepth) {
-				std::fprintf(io.err, "CABLE DIFF %s cable %zu: depth %08x, decoder %08x\n", path.c_str(), i, appDepth,
-				             ourDepth);
-				return 3;
-			}
-			if (static_cast<int>(cable.polarity) != static_cast<int>(decoded[i].polarity)) {
-				std::fprintf(io.err, "CABLE DIFF %s cable %zu: polarity\n", path.c_str(), i);
-				return 3;
-			}
-			if (!sameNodes(appAmount, ourAmount)) {
-				std::fprintf(io.err, "CABLE DIFF %s cable %zu: amount\n", path.c_str(), i);
-				return 3;
-			}
-			std::fprintf(io.out, "%s %08x %d %d %d\n", path.c_str(), ourDepth, static_cast<int>(cable.polarity),
-			             appAmount.current_value, static_cast<int>(appAmount.nodes.size()));
+			const deluge::project::DocAutoParam& amount = *set.docForParam(i);
+			std::fprintf(io.out, "%s %08x %d %d %d\n", path.c_str(),
+			             deluge::bridge::cableDepthIdOf(withSource.data).value, static_cast<int>(cable.polarity),
+			             amount.current_value, static_cast<int>(amount.nodes.size()));
 		}
 	}
-	std::fprintf(io.err, "%zu patchCables elements agree\n", found.size());
+	std::fprintf(io.err, "%zu patchCables elements loaded\n", found.size());
 	return 0;
 }
 
