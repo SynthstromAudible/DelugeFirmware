@@ -1,6 +1,7 @@
 #include "CppUTest/TestHarness.h"
 #include "CppUTestExt/MockSupport.h"
 #include "definitions_cxx.hpp"
+#include "memory/general_memory_allocator.h"
 #include "memory/memory_region.h"
 #include "model/sample/sample.h"
 #include "storage/cluster/cluster.h"
@@ -31,6 +32,19 @@ public:
 	StealableQueue getAppropriateQueue() { return StealableQueue{0}; }
 	int32_t testIndex;
 };
+
+// A stealable allocation gets a SPACE_HEADER_STEALABLE header, and the allocator later calls Stealable's virtuals on
+// whatever lives there. Allocating a non-Stealable that way crashed stem export (#4959), so it must not compile.
+class NotStealable {
+public:
+	int32_t notAVtablePointer;
+};
+
+template <typename T>
+concept CanAllocStealable = requires(GeneralMemoryAllocator& gma) { gma.allocStealable<T>(); };
+
+static_assert(CanAllocStealable<StealableTest>);
+static_assert(!CanAllocStealable<NotStealable>);
 
 bool testReadingMemory(void* address, uint32_t size) {
 	uint8_t* __restrict__ readPos = (uint8_t*)address;
