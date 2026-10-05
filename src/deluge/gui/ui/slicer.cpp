@@ -447,6 +447,9 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 		// landed must never sound after the finger has lifted. `aReleaseBeforeTheLoadLandsNeverSoundsItsNoteOn` pins
 		// it.
 		auditionLoad_.cancel();
+		// A press may have pointed the row at the slicer's file for a load this release drops: its record and slot say
+		// what it holds.
+		deluge::gui::menu_item::recordRanges(*static_cast<SoundDrum*>(getCurrentKit()->firstDrum), 0);
 		soundAudition(target);
 		return;
 	}

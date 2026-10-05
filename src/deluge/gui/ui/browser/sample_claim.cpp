@@ -149,6 +149,10 @@ void SampleClaim::cancelAutoLoad() {
 void SampleClaim::cancel() {
 	cancels_++;
 	load_.cancel();
+	// A claim cancelled mid-load has pointed the holder at its file: the record and the slot say what the source holds.
+	if (phase_ != Phase::Idle && !claimingAudioClip() && soundEditor.currentSound != nullptr) {
+		recordClaimRanges();
+	}
 	pitchScan_.cancel(); // a detection is dropped, never drained: nothing reads the sample after this
 	pitchWanted_ = false;
 	if (animationShown_) {

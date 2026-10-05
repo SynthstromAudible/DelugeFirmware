@@ -254,6 +254,7 @@ enum class Leg : uint8_t {
 	Gate,
 	Supersede,
 	SupersedeLoading,
+	CancelLoading,
 	Pitch,
 	Kit,
 	AudioClip,
@@ -352,6 +353,8 @@ const char* legName(Leg leg) {
 		return "supersede";
 	case Leg::SupersedeLoading:
 		return "supersede-loading";
+	case Leg::CancelLoading:
+		return "cancel-loading";
 	case Leg::Kit:
 		return "kit";
 	case Leg::AudioClip:
@@ -990,6 +993,9 @@ bool openLeg() {
 	case Leg::SupersedeLoading:
 		armPitchLeg(kPitchHoldMs);
 		return openBrowserOnSynth("supersede-loading", OscType::SAMPLE);
+	case Leg::CancelLoading:
+		deluge_audio_load_set_latency_ms(kGateHoldMs);
+		return openBrowserOnSynth("cancel-loading", OscType::SAMPLE);
 	case Leg::Pitch:
 		armPitchLeg(kPitchHoldMs);
 		return openBrowserOnSynth("pitch", OscType::SAMPLE);
@@ -1080,6 +1086,8 @@ const char* legFile() {
 		return kSupersedeFirstLanded;
 	case Leg::SupersedeLoading:
 		return kSupersedeFirstLoading;
+	case Leg::CancelLoading:
+		return kStallSample; // not in memory yet: the stall leg is the first to ask for it
 	case Leg::Pitch:
 		return kPitchSample;
 	case Leg::PitchStall:
@@ -1118,6 +1126,12 @@ bool isRandomize() {
 	return g_leg == Leg::RandomizeOne || g_leg == Leg::RandomizeAll || g_leg == Leg::RandomizeGate
 	       || g_leg == Leg::RandomizeStall || g_leg == Leg::RandomizeCancelScan;
 }
+
+/// What the cancel-loading leg saw: whether the exit was pressed, whether the claim was still loading then, and the
+/// ticks before it.
+bool g_cancelLoadingFired = false;
+bool g_cancelLoadingInFlight = false;
+int32_t g_cancelLoadingTicks = 0;
 
 /// Whether the current leg is one of the two supersede legs.
 bool isSupersede() {
@@ -1288,6 +1302,15 @@ void actLeg() {
 		sampleBrowser.previewFile(legFile(), 0);
 		return;
 	}
+	if (g_leg == Leg::CancelLoading) {
+		// An auto-load claim of a file not in memory, held by the loader: the browser's exit cancels it mid-load.
+		g_cancelLoadingFired = false;
+		g_cancelLoadingInFlight = false;
+		g_cancelLoadingTicks = 0;
+		deluge::gui::sampleClaim.request(
+		    {.path = legFile(), .loadWithoutExiting = true, .origin = deluge::gui::ClaimOrigin::AutoLoad});
+		return;
+	}
 	if (g_leg == Leg::Gate) {
 		const auto selected = [] {
 			const FileItem* item = sampleBrowser.getCurrentFileItem();
@@ -1354,6 +1377,15 @@ void actLeg() {
 		slicer.currentSlice = 0;
 		printf("SC-SETUP leg=slice-manual slicerOpened=%d slicerOnTop=%d manual=%d\n", opened ? 1 : 0,
 		       getCurrentUI() == &slicer ? 1 : 0, slicer.slicerMode == SLICER_MODE_MANUAL ? 1 : 0);
+		// A slice auditioned and released before its load lands: the row named the slicer's file for the audition,
+		// and its record and slot say what it holds once the release drops the load.
+		const int32_t failuresBefore = g_failures;
+		deluge_audio_load_set_latency_ms(kGateHoldMs);
+		slicer.preview(0, -1, 0, 1);
+		slicer.preview(0, -1, 0, 0);
+		deluge_audio_load_set_latency_ms(0);
+		g_failures += deluge::harness::expectSongCoherent(*currentSong, "slice-audition-release");
+		printf("SC-PROBE leg=slice-manual auditionReleased coherent=%d\n", g_failures == failuresBefore ? 1 : 0);
 		(void)slicer.buttonAction(SELECT_ENC, true);
 		// The live points change before the slice runs, as an encoder turn or a pad press can while its load is out:
 		// the drums must still be painted from the points as they were when Select was pressed.
@@ -1376,6 +1408,9 @@ void actLeg() {
 
 /// Whether the leg's claim or slice has ended: a claim that succeeds closes the browser, and a slice closes the slicer.
 bool legEnded() {
+	if (g_leg == Leg::CancelLoading) {
+		return g_cancelLoadingFired && !deluge::gui::sampleClaim.inFlight();
+	}
 	if (g_leg == Leg::ImportGate) {
 		return g_imGateTried && currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	}
@@ -1475,6 +1510,15 @@ void checkLeg() {
 		}
 		break;
 	}
+	case Leg::CancelLoading:
+		deluge_audio_load_set_latency_ms(0);
+		printf("SC-CANCEL-LOADING inFlightWhenCancelled=%d ticks=%d\n", g_cancelLoadingInFlight ? 1 : 0, g_waitTicks);
+		if (!g_cancelLoadingInFlight) {
+			printf("SC-CANCEL-LOADING FAIL the auto-load claim had ended before the browser's exit could cancel it\n");
+			g_failures++;
+		}
+		sampleBrowser.exitAndNeverDeleteDrum();
+		break;
 	case Leg::Supersede:
 	case Leg::SupersedeLoading: {
 		deluge_audio_load_set_latency_ms(0);
@@ -2007,6 +2051,16 @@ void tickSupersede() {
 	}
 }
 
+/// One tick of the cancel-loading leg: a few ticks into the held load, the browser's exit cancels the auto-load claim.
+void tickCancelLoading() {
+	if (g_cancelLoadingFired || ++g_cancelLoadingTicks < 3) {
+		return;
+	}
+	g_cancelLoadingInFlight = deluge::gui::sampleClaim.inFlight();
+	sampleBrowser.cancelPreview();
+	g_cancelLoadingFired = true;
+}
+
 /// One tick of the cancel leg.
 ///
 /// A round lets the row's open reach the held directory channel, cancels the walk through the real user action --
@@ -2167,6 +2221,9 @@ void runTick() {
 	case Step::Wait:
 		if (isSupersede()) {
 			tickSupersede();
+		}
+		if (g_leg == Leg::CancelLoading) {
+			tickCancelLoading();
 		}
 		if (g_leg == Leg::ImportGate) {
 			tickImportGate();
