@@ -142,13 +142,9 @@ private:
 	}
 	void setCurrentPhase(uint32_t value) const {
 		Sound* sound = soundEditor.currentSound;
-		if (for_modulator_) {
-			sound->setModulatorRetriggerPhase(source_id_, value);
-		}
-		else {
-			const std::string path = "osc" + std::to_string(source_id_ + 1) + "/retrigPhase";
-			settingFor(*sound, path, serialization::Value::makeNumber(static_cast<int32_t>(value)));
-		}
+		const std::string path =
+		    std::string(for_modulator_ ? "modulator" : "osc") + std::to_string(source_id_ + 1) + "/retrigPhase";
+		settingFor(*sound, path, serialization::Value::makeNumber(static_cast<int32_t>(value)));
 	}
 };
 } // namespace deluge::gui::menu_item::osc

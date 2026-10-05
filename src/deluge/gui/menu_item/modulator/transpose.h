@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/source/transpose.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -54,29 +55,29 @@ public:
 
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
 					if (soundDrum->getSynthMode() == SynthMode::FM) {
-						char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
-						ModelStackWithSoundFlags* modelStackForSoundDrum =
-						    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
-
-						soundDrum->setModulatorTranspose(source_id_, transpose, modelStackForSoundDrum);
-						soundDrum->setModulatorCents(source_id_, cents, modelStackForSoundDrum);
+						settingFor(*soundDrum, modulatorPath("transpose"), serialization::Value::makeNumber(transpose));
+						settingFor(*soundDrum, modulatorPath("cents"), serialization::Value::makeNumber(cents));
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
-
-			soundEditor.currentSound->setModulatorTranspose(source_id_, transpose, modelStack);
-			soundEditor.currentSound->setModulatorCents(source_id_, cents, modelStack);
+			settingFor(*soundEditor.currentSound, modulatorPath("transpose"),
+			           serialization::Value::makeNumber(transpose));
+			settingFor(*soundEditor.currentSound, modulatorPath("cents"), serialization::Value::makeNumber(cents));
 		}
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return (sound->getSynthMode() == SynthMode::FM);
+	}
+
+private:
+	/// This menu's modulator's setting @p name, as a settings path.
+	[[nodiscard]] std::string modulatorPath(std::string_view name) const {
+		return "modulator" + std::to_string(source_id_ + 1) + "/" + std::string(name);
 	}
 };
 

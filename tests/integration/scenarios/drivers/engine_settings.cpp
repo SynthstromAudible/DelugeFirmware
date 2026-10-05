@@ -158,7 +158,7 @@ int expectBound(Output& output, const char* how) {
 }
 
 /// The setting paths an Edit maps so far.
-constexpr std::array<std::string_view, 41> kEditedPaths{
+constexpr std::array<std::string_view, 50> kEditedPaths{
     "polyphonic",
     "voicePriority",
     "maxVoices",
@@ -200,6 +200,15 @@ constexpr std::array<std::string_view, 41> kEditedPaths{
     "unison/num",
     "unison/detune",
     "unison/spread",
+    "modulator1/transpose",
+    "modulator1/cents",
+    "modulator1/retrigPhase",
+    "modulator2/transpose",
+    "modulator2/cents",
+    "modulator2/retrigPhase",
+    "modulator2/toModulator1",
+    "midiOutput/channel",
+    "midiOutput/noteForDrum",
 };
 
 /// Whether @p path is a sample-playback setting, which only a sample source of a non-FM sound takes.
@@ -324,10 +333,11 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 	deluge::edits::Context ctx{song, song.project};
 	for (std::string_view path : kEditedPaths) {
 		const deluge::engine::SettingInfo* row = deluge::engine::find_setting(deluge::instrument::kSettings, path);
-		if (isSamplePlayback(path) && !playsSamples(sound, path)) {
+		if ((isSamplePlayback(path) && !playsSamples(sound, path))
+		    || (path.starts_with("modulator") && sound.getSynthMode() != SynthMode::FM)) {
 			deluge::edits::SetEngineSetting refused{*address, std::string(path), Value::makeNumber(row->min)};
 			if (deluge::edits::apply(ctx, refused) == Error::NONE) {
-				std::fprintf(io.err, "%s %.*s: taken by a source that plays no samples\n", name,
+				std::fprintf(io.err, "%s %.*s: taken by a sound or source that does not use it\n", name,
 				             static_cast<int>(path.size()), path.data());
 				return 3;
 			}

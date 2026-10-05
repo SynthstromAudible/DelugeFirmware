@@ -214,6 +214,37 @@ bool applyUnisonSetting(::Sound& sound, std::string_view rest, int32_t number, :
 	return true;
 }
 
+/// Apply a `modulatorN/` path (N = @p m + 1) as the FM modulator menus do, re-tuning the live voices: false when the
+/// path has no setter here, the sound is not FM (only FM writes its modulators), or it has live voices and no params.
+bool applyModulatorSetting(::Sound& sound, int32_t m, std::string_view rest, int32_t number, ::Song& song) {
+	if (sound.getSynthMode() != SynthMode::FM) {
+		return false;
+	}
+	if (rest == "retrigPhase") {
+		sound.setModulatorRetriggerPhase(m, static_cast<uint32_t>(number));
+		return true;
+	}
+	if (rest == "toModulator1" && m == 1) {
+		sound.setModulator1ToModulator0(number != 0);
+		return true;
+	}
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithSoundFlags* modelStack = modelStackFor(memory, sound, song);
+	if (modelStack == nullptr && sound.numActiveVoices() != 0) {
+		return false;
+	}
+	if (rest == "transpose") {
+		sound.setModulatorTranspose(m, number, modelStack);
+	}
+	else if (rest == "cents") {
+		sound.setModulatorCents(m, number, modelStack);
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
 } // namespace
 
 Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song) {
@@ -228,6 +259,10 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 	}
 	if (const int32_t l = lfoOf(path, rest); l >= 0) {
 		return applyLfoSetting(sound, l, rest, text, number, song) ? Error::NONE : Error::UNSPECIFIED;
+	}
+	if (path.size() > 11 && path.starts_with("modulator") && (path[9] == '1' || path[9] == '2') && path[10] == '/') {
+		return applyModulatorSetting(sound, path[9] - '1', path.substr(11), number, song) ? Error::NONE
+		                                                                                  : Error::UNSPECIFIED;
 	}
 	if (path.starts_with("unison/")) {
 		return applyUnisonSetting(sound, path.substr(7), number, song) ? Error::NONE : Error::UNSPECIFIED;
@@ -252,6 +287,12 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 	}
 	else if (path == "sideChainSend") {
 		sound.setSideChainSendLevel(number);
+	}
+	else if (path == "midiOutput/channel") {
+		sound.setOutputMidiChannel(static_cast<uint8_t>(number));
+	}
+	else if (path == "midiOutput/noteForDrum") {
+		sound.setOutputMidiNoteForDrum(static_cast<uint8_t>(number));
 	}
 	else {
 		return Error::UNSPECIFIED; // the path has no setter here

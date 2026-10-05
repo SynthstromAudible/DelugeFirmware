@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -44,14 +45,16 @@ public:
 
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
 					if (soundDrum->getSynthMode() == SynthMode::FM) {
-						soundDrum->setModulator1ToModulator0(current_value);
+						settingFor(*soundDrum, "modulator2/toModulator1",
+						           serialization::Value::makeNumber(current_value));
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->setModulator1ToModulator0(current_value);
+			settingFor(*soundEditor.currentSound, "modulator2/toModulator1",
+			           serialization::Value::makeNumber(current_value));
 		}
 	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

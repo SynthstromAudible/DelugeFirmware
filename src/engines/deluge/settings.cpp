@@ -51,6 +51,9 @@ constexpr auto kOscTypes = names_of<OscType, 12>();
 constexpr auto kLfoTypes = names_of<LFOType, 7>();
 /// A synced rate's type, as its stored number (even, triplet, dotted).
 constexpr std::array<std::string_view, 3> kSyncTypes{"0", "10", "19"};
+/// A sound's MIDI output channel as a file writes it: 0–15, or 255 for none. Nothing between is a channel.
+constexpr std::array<std::string_view, 17> kMidiChannels{"0", "1",  "2",  "3",  "4",  "5",  "6",  "7",  "8",
+                                                         "9", "10", "11", "12", "13", "14", "15", "255"};
 
 constexpr int32_t kTransposeRange = 96; ///< semitones either way: the transpose menus' ±9600 cents
 constexpr int32_t kCentsRange = 50;
@@ -115,7 +118,7 @@ constexpr std::array kRows{
     SettingInfo{.path = "unison/num", .min = 1, .max = kMaxUnisonVoices},
     SettingInfo{.path = "unison/detune", .min = 0, .max = kMaxUnisonDetune},
     SettingInfo{.path = "unison/spread", .min = 0, .max = kMaxUnisonSpread},
-    SettingInfo{.path = "midiOutput/channel", .min = 0, .max = 16},
+    SettingInfo{.path = "midiOutput/channel", .kind = CHOICE, .choices = kMidiChannels},
     SettingInfo{.path = "midiOutput/noteForDrum", .min = 0, .max = 127},
 };
 
