@@ -25,6 +25,7 @@
 /// | scenario             | driver                                                                    |
 /// | -------------------- | ------------------------------------------------------------------------- |
 /// | audio_clip_edit_diff | an AudioClip descriptor edit + save/reload, printed for a baseline diff    |
+/// | cable_decode         | the Deluge instrument's cable decoder against the app's reader, per element  |
 /// | clip_clone_roundtrip | InstrumentClip::clone() on a loaded song, checked deep-independent         |
 /// | edit_substrate       | the Edit dispatcher and the SetParamValue pilot, self-checking             |
 /// | edit_undo_redo       | reified Edits applied, undone and redone over a loaded song, self-checking |
@@ -53,6 +54,7 @@
 
 extern "C" {
 DELUGE_DRIVER_SCENARIO_DECLARE(audio_clip_edit_diff)
+DELUGE_DRIVER_SCENARIO_DECLARE(cable_decode)
 DELUGE_DRIVER_SCENARIO_DECLARE(clip_clone_roundtrip)
 DELUGE_DRIVER_SCENARIO_DECLARE(edit_substrate)
 DELUGE_DRIVER_SCENARIO_DECLARE(edit_undo_redo)

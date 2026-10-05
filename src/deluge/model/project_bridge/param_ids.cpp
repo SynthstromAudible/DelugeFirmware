@@ -17,8 +17,16 @@
 
 #include "model/project_bridge/param_ids.h"
 
+#include "definitions_cxx.hpp"
+#include "modulation/patch/patch_cable.h"
+
+#include "engines/deluge/cables.h"
 #include "engines/deluge/params.h"
 #include "engines/global_effectable/params.h"
+
+#include <algorithm>
+#include <array>
+#include <optional>
 
 namespace deluge::bridge {
 
@@ -42,6 +50,49 @@ static_assert(global_effectable::kParamBlock.count == params::UNPATCHED_GLOBAL_M
 static_assert(instrument::kParamBlocks.size() <= deluge::project::kEngineParamBlocks);
 // An unpatched set not yet named (kind NONE) is numbered and stored the same whichever kind it becomes.
 static_assert(instrument::kUnpatchedFirstId == global_effectable::kFirstId);
+
+// The instrument numbers its cable sources as the runtime does.
+static_assert(static_cast<int>(instrument::PatchSource::LFO_GLOBAL_1) == static_cast<int>(::PatchSource::LFO_GLOBAL_1));
+static_assert(static_cast<int>(instrument::PatchSource::LFO_GLOBAL_2) == static_cast<int>(::PatchSource::LFO_GLOBAL_2));
+static_assert(static_cast<int>(instrument::PatchSource::SIDECHAIN) == static_cast<int>(::PatchSource::SIDECHAIN));
+static_assert(static_cast<int>(instrument::PatchSource::ENVELOPE_0) == static_cast<int>(::PatchSource::ENVELOPE_0));
+static_assert(static_cast<int>(instrument::PatchSource::ENVELOPE_3) == static_cast<int>(::PatchSource::ENVELOPE_3));
+static_assert(static_cast<int>(instrument::PatchSource::LFO_LOCAL_1) == static_cast<int>(::PatchSource::LFO_LOCAL_1));
+static_assert(static_cast<int>(instrument::PatchSource::LFO_LOCAL_2) == static_cast<int>(::PatchSource::LFO_LOCAL_2));
+static_assert(static_cast<int>(instrument::PatchSource::X) == static_cast<int>(::PatchSource::X));
+static_assert(static_cast<int>(instrument::PatchSource::Y) == static_cast<int>(::PatchSource::Y));
+static_assert(static_cast<int>(instrument::PatchSource::AFTERTOUCH) == static_cast<int>(::PatchSource::AFTERTOUCH));
+static_assert(static_cast<int>(instrument::PatchSource::VELOCITY) == static_cast<int>(::PatchSource::VELOCITY));
+static_assert(static_cast<int>(instrument::PatchSource::NOTE) == static_cast<int>(::PatchSource::NOTE));
+static_assert(static_cast<int>(instrument::PatchSource::RANDOM) == static_cast<int>(::PatchSource::RANDOM));
+static_assert(static_cast<int>(instrument::PatchSource::NONE) == static_cast<int>(::PatchSource::NONE));
+static_assert(static_cast<int>(instrument::Polarity::UNIPOLAR) == static_cast<int>(::Polarity::UNIPOLAR));
+static_assert(static_cast<int>(instrument::Polarity::BIPOLAR) == static_cast<int>(::Polarity::BIPOLAR));
+
+deluge::engine::ParamId cableDepthIdOf(uint32_t word) {
+	deluge::engine::ParamId id{word & 0xFFu};
+	for (uint32_t shift = 8; shift <= 24; shift += 8) {
+		const uint32_t source = (word >> shift) & 0xFFu;
+		if (source == 0xFFu) {
+			break;
+		}
+		id = instrument::cable_depth_id(static_cast<instrument::PatchSource>(source), id).value_or(id);
+	}
+	return id;
+}
+
+uint32_t cableWordOf(deluge::engine::ParamId depth) {
+	std::array<uint32_t, 3> sources{0xFFu, 0xFFu, 0xFFu};
+	size_t n = 0;
+	deluge::engine::ParamId at = depth;
+	while (std::optional<instrument::CableRoute> route = instrument::cable_route(at)) {
+		sources[n++] = static_cast<uint32_t>(route->source);
+		at = route->destination;
+	}
+	// The route unwinds from the outermost source in; the word holds the innermost at bits 8-15.
+	std::reverse(sources.begin(), sources.begin() + static_cast<std::ptrdiff_t>(n));
+	return (at.value & 0xFFu) | sources[0] << 8 | sources[1] << 16 | sources[2] << 24;
+}
 
 deluge::engine::ParamId paramIdOf(params::Kind kind, int32_t index) {
 	const auto at = static_cast<uint8_t>(index);

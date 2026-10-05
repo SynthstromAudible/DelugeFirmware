@@ -20,6 +20,7 @@
 // runtime's (a default is what the engine's own init gives a fresh instance).
 // Exit: 0 agree; 3 a row disagrees (each printed).
 
+#include "engines/deluge/cables.h"
 #include "engines/deluge/params.h"
 #include "engines/global_effectable/params.h"
 #include "model/global_effectable/global_effectable.h"
@@ -29,6 +30,7 @@
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound.h"
 #include "scenarios/drivers/driver.h"
+#include "util/functions.h"
 
 #include <cstdio>
 #include <span>
@@ -77,6 +79,35 @@ struct Checker {
 		}
 	}
 };
+
+/// The instrument's cable words against the runtime's: each source's name, and every packed cable word the runtime
+/// can form (a param with one, two or three sources) round-tripping through its depth id.
+void checkCables(Checker& check) {
+	for (uint8_t s = 0; s <= static_cast<uint8_t>(PatchSource::NONE); ++s) {
+		std::string_view ours = deluge::instrument::to_string(static_cast<deluge::instrument::PatchSource>(s));
+		std::string_view runtime = sourceToString(static_cast<PatchSource>(s));
+		if (ours != runtime) {
+			std::fprintf(check.io.err, "cable source %u: instrument %.*s, runtime %.*s\n", s,
+			             static_cast<int>(ours.size()), ours.data(), static_cast<int>(runtime.size()), runtime.data());
+			++check.disagreements;
+		}
+	}
+	auto roundTrips = [&](uint32_t word) {
+		if (deluge::bridge::cableWordOf(deluge::bridge::cableDepthIdOf(word)) != word) {
+			std::fprintf(check.io.err, "cable word %08x does not round-trip\n", word);
+			++check.disagreements;
+		}
+	};
+	for (uint32_t p = 0; p < 256; ++p) {
+		for (uint32_t s1 = 0; s1 <= 15; ++s1) {
+			roundTrips(p | s1 << 8 | 0xFFFF0000u);
+			for (uint32_t s2 = 0; s2 <= 15; ++s2) {
+				roundTrips(p | s1 << 8 | s2 << 16 | 0xFF000000u);
+			}
+			roundTrips(p | s1 << 8 | s1 << 16 | (15 - s1) << 24);
+		}
+	}
+}
 
 /// Each row's default against the value @p init gives a fresh manager's param.
 void checkDefaults(Checker& check) {
@@ -136,6 +167,7 @@ int param_table_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	cover("instrument", kParams, params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SOUND_MAX_NUM);
 	cover("global-effectable", deluge::global_effectable::kParams, params::Kind::UNPATCHED_GLOBAL,
 	      params::UNPATCHED_GLOBAL_MAX_NUM);
+	checkCables(check);
 	checkDefaults(check);
 	std::fprintf(io.out, "%d disagreement(s)\n", check.disagreements);
 	return check.disagreements == 0 ? 0 : 3;

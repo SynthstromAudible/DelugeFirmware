@@ -41,6 +41,13 @@ namespace deluge::bridge {
 /// @brief The id of a @p kind collection's first param: the id its store's first lane has.
 [[nodiscard]] deluge::engine::ParamId firstParamId(deluge::modulation::params::Kind kind);
 
+/// @brief The depth id of the runtime's packed cable word @p word: a cable's destination descriptor with its source
+/// added (the param in bits 0-7, the sources from the param outward in bits 8-15, 16-23 and 24-31, 0xFF when absent).
+[[nodiscard]] deluge::engine::ParamId cableDepthIdOf(uint32_t word);
+
+/// @brief The runtime's packed cable word of the depth id @p depth; the inverse of cableDepthIdOf.
+[[nodiscard]] uint32_t cableWordOf(deluge::engine::ParamId depth);
+
 /// @brief The address space a @p kind collection's ids are in: an engine's table for a sound's or a global
 /// effectable's params, else the host's own (expression, MIDI CC, patch cable).
 [[nodiscard]] deluge::project::ParamSpace spaceOf(deluge::modulation::params::Kind kind);

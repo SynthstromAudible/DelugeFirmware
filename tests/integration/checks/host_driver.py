@@ -17,6 +17,7 @@ import sys
 # Scenario -> the tests/golden runner that checks it.
 RUNNERS = {
     "audio_clip_edit_diff": "audio_clip_edit_run",
+    "cable_decode": "cable_decode_run",
     "clip_clone_roundtrip": "clip_clone_run",
     "edit_undo_redo": "edit_undo_redo_run",
     "instrument_codec_decode": "instrument_codec_decode_run",
