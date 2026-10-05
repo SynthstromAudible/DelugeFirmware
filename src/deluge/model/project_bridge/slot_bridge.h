@@ -42,8 +42,8 @@ void refreshSlots(::Song& song);
 /// sound drums, or nullptr.
 [[nodiscard]] ::Sound* soundAt(::Song& song, deluge::project::SlotAddress address);
 
-/// @brief Make @p sound's slot hold its state: the instrument's entries replaced by the state's encoding, every other
-/// entry kept. Nothing for a sound that is not bound.
-void syncSlotState(::Sound& sound, ::Song& song);
+/// @brief Make @p slot (@p sound's, as the model resolves it) hold the sound's state: the instrument's entries replaced
+/// by the state's encoding, every other entry kept. Nothing for a sound that is not bound.
+void syncSlotState(const ::Sound& sound, deluge::project::InstrumentSlot& slot, const ::Song& song);
 
 } // namespace deluge::bridge

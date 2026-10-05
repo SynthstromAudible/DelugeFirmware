@@ -158,10 +158,10 @@ std::optional<deluge::project::SlotAddress> slotAddressOf(::Sound& sound) {
 	return nullptr;
 }
 
-void syncSlotState(::Sound& sound, ::Song& song) {
-	if (deluge::project::InstrumentSlot* slot = slotOf(sound)) {
-		slot->state = deluge::instrument::with_state(slot->state, *sound.boundState(),
-		                                             {.input_tick_magnitude = song.getInputTickMagnitude()});
+void syncSlotState(const ::Sound& sound, deluge::project::InstrumentSlot& slot, const ::Song& song) {
+	if (sound.boundState() != nullptr) {
+		slot.state = deluge::instrument::with_state(slot.state, *sound.boundState(),
+		                                            {.input_tick_magnitude = song.getInputTickMagnitude()});
 	}
 }
 

@@ -7,14 +7,15 @@
 namespace deluge::edits {
 
 Error SetEngineSetting::apply(Context& ctx) {
+	deluge::project::InstrumentSlot* slot = ctx.model.resolveSlot(slot_);
 	::Sound* sound = deluge::bridge::soundAt(ctx.song, slot_);
-	if (sound == nullptr) {
+	if (slot == nullptr || sound == nullptr) {
 		return Error::UNSPECIFIED;
 	}
 	if (Error error = deluge::bridge::applySetting(*sound, path_, value_, ctx.song); error != Error::NONE) {
 		return error;
 	}
-	deluge::bridge::syncSlotState(*sound, ctx.song);
+	deluge::bridge::syncSlotState(*sound, *slot, ctx.song);
 	return Error::NONE;
 }
 

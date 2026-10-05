@@ -8,9 +8,9 @@
 
 namespace deluge::edits {
 
-/// Set one setting of a sound's instrument (a path of its settings schema) to a value. apply() finds the sound whose
-/// slot @c slot names, runs the runtime's own setter for the path, then makes the slot hold the sound's state again.
-/// Settings record no undo.
+/// Set one setting of a sound's instrument (a path of its settings schema) to a value. apply() resolves the slot @c
+/// slot names in the model and the sound playing it, runs the runtime's own setter for the path, then makes the slot
+/// hold the sound's state again. Settings record no undo.
 class SetEngineSetting final : public Edit {
 public:
 	SetEngineSetting(deluge::project::SlotAddress slot, std::string path, deluge::serialization::Value value)
