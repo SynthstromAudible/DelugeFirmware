@@ -308,22 +308,22 @@ bool SampleClaim::stepLoadSample() {
 
 bool SampleClaim::stepDecideSample() {
 	if (claimingAudioClip()) {
-		AudioClip* clip = getCurrentAudioClip();
+		AudioClip* audioClip = getCurrentAudioClip();
 
 		// M3 owner-4: the load derived filePath/startPos/endPos onto the sampleHolder cache but never touched the
 		// clip's record. Reflect the resolved window into the record now, so save (which reads the record) persists
 		// the loaded sample rather than the stale/empty record. The owner-4 twin of the ranges recorded through their
 		// Edit on the instrument path below.
-		clip->syncSampleRecordFromEngine();
+		audioClip->syncSampleRecordFromEngine();
 
 		// If there's a pre-margin, we want to set an attack-time
-		if (clip->sampleHolder.startPos) {
-			clip->setAttack(kAudioClipDefaultAttackIfPreMargin);
+		if (audioClip->sampleHolder.startPos) {
+			audioClip->setAttack(kAudioClipDefaultAttackIfPreMargin);
 		}
 
 		// load sample with time stretching
-		uint64_t lengthInSamplesAt44 = (uint64_t)clip->sampleHolder.getDurationInSamples(true) * kSampleRate
-		                               / ((Sample*)clip->sampleHolder.audioFile)->sampleRate;
+		uint64_t lengthInSamplesAt44 = (uint64_t)audioClip->sampleHolder.getDurationInSamples(true) * kSampleRate
+		                               / ((Sample*)audioClip->sampleHolder.audioFile)->sampleRate;
 		uint32_t sampleLengthInTicks =
 		    (lengthInSamplesAt44 << 32) / currentSong->project.transport.samples_per_timer_tick_big;
 
@@ -332,18 +332,18 @@ bool SampleClaim::stepDecideSample() {
 			newLength <<= 1;
 		}
 
-		int32_t oldLength = clip->loopLength();
+		int32_t oldLength = audioClip->loopLength();
 
-		clip->setLoopLength(newLength);
-		clip->originalLength = newLength;
+		audioClip->setLoopLength(newLength);
+		audioClip->originalLength = newLength;
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		clip->lengthChanged(modelStack, oldLength);
+		audioClip->lengthChanged(modelStack, oldLength);
 
-		clip->setSampleTranspose(0); // M3 owner-4: transpose/cents are DOM-owned — funnel through the setters
-		clip->setSampleCents(0);
-		clip->setReversed(false); // M3 owner-4: reversed is DOM-owned — funnel through the setter (record + cache)
-		clip->sampleControls.invertReversed = false;
+		audioClip->setSampleTranspose(0); // M3 owner-4: transpose/cents are DOM-owned — funnel through the setters
+		audioClip->setSampleCents(0);
+		audioClip->setReversed(false); // M3 owner-4: reversed is DOM-owned — funnel through the setter (record + cache)
+		audioClip->sampleControls.invertReversed = false;
 
 		phase_ = Phase::Finish;
 		return true;

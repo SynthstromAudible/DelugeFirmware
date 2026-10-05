@@ -3,15 +3,16 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""No sound-editor menu sets a scalar setting of a sound except through its Edit: no file under
-src/deluge/gui/menu_item may call one of the setters a setting Edit runs. The menu calls settingFor(), which applies a
-SetEngineSetting to the sound's slot, so the slot keeps holding the sound's state. A call on an audio clip (which is no
-instrument slot; a receiver named `clip` only in the audio clip's own menus) or on a sample range's holder (a range's
-own tuning, which the ranges' Edit owns) is allowed by its receiver's name. Gestures outside the menus (sample claim,
-the slicer, folder import, the recorder) are not checked here.
+"""No gesture sets a bound sound's instrument state except through its Edit: no file under src/deluge/gui may call
+one of the setters a setting Edit runs or a reseed of the record, or write a source's repeat mode or oscillator type.
+A gesture calls settingFor(), rangesFor()/recordRanges(), dxPatchFor() or recordControlsOf(), which apply the Edit
+to the sound's slot or its controller mappings, so the model keeps holding the sound's state. A call on an audio clip
+(which is no instrument slot; a receiver named `clip` only in the audio clip's own menus) or on a sample range's
+holder is allowed by its receiver's name. The sample browser's preview sound, outside the song, is set up by the
+runtime and calls no setter.
 
 Usage:
-    scripts/check_setting_menus.py               # check src/deluge/gui/menu_item, exit 1 on a call
+    scripts/check_setting_menus.py               # check src/deluge/gui, exit 1 on a call
     scripts/check_setting_menus.py --root DIR    # check DIR
 """
 
@@ -65,13 +66,15 @@ AUDIO_CLIP_RECEIVERS = {"clip"}
 AUDIO_CLIP_MENUS = "audio_clip"
 
 CALL = re.compile(r"(?:->|\.)\s*(" + "|".join(SETTERS) + r")\s*\(")
+#: Direct writes of a source's fields the settings own.
+RAW_WRITE = re.compile(r"(?:->|\.)\s*(repeatMode|oscType)\s*=(?!=)")
 #: The receiver's last name before the call: `a->b.name`, `name()`, `name[i]`.
 RECEIVER = re.compile(r"([A-Za-z_]\w*)\s*(?:\(\s*\))?\s*(?:\[[^\]]*\])?\s*$")
 SUFFIXES = {".h", ".hpp", ".cpp"}
 
 
-#: Gesture files outside the menus checked the same way: the waveform marker editor edits a range's zone.
-ALSO = (REPO / "src" / "deluge" / "gui" / "ui" / "sample_marker_editor.cpp",)
+#: Files outside the root checked the same way: none, now that the root is the whole UI.
+ALSO: tuple[Path, ...] = ()
 
 
 def calls(root: Path, also: tuple[Path, ...] = ()) -> list[str]:
@@ -81,7 +84,7 @@ def calls(root: Path, also: tuple[Path, ...] = ()) -> list[str]:
         if path.suffix not in SUFFIXES or not path.is_file():
             continue
         for number, line in enumerate(path.read_text(errors="replace").splitlines(), 1):
-            for match in CALL.finditer(line):
+            for match in [*CALL.finditer(line), *RAW_WRITE.finditer(line)]:
                 receiver = RECEIVER.search(line[: match.start()])
                 name = receiver.group(1) if receiver else "?"
                 audio_clip_menu = (
@@ -97,9 +100,7 @@ def calls(root: Path, also: tuple[Path, ...] = ()) -> list[str]:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--root", type=Path, default=REPO / "src" / "deluge" / "gui" / "menu_item"
-    )
+    parser.add_argument("--root", type=Path, default=REPO / "src" / "deluge" / "gui")
     parser.add_argument("--also", type=Path, nargs="*", default=list(ALSO))
     args = parser.parse_args(argv)
     found = calls(args.root, tuple(args.also))
@@ -107,10 +108,10 @@ def main(argv=None) -> int:
         print(line)
     if found:
         print(
-            f"FAIL: a menu sets a sound's setting without its Edit ({len(found)} place(s))"
+            f"FAIL: a gesture sets a sound's instrument state without its Edit ({len(found)} place(s))"
         )
         return 1
-    print("OK: every sound-editor menu sets a sound's settings through their Edit")
+    print("OK: every gesture sets a sound's instrument state through its Edit")
     return 0
 
 
