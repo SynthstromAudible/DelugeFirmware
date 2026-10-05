@@ -53,6 +53,13 @@ struct SoundPieces {
 /// @brief Whether @p key, at the top of a sound element, is one the instrument writes.
 [[nodiscard]] bool is_state_key(std::string_view key);
 
+/// @brief @p element (a sound's slot) with the Deluge instrument's entries replaced by @p state's encoding: each such
+/// entry takes the encoding's value at its old position, one the encoding no longer writes is dropped, and one the
+/// encoding writes that the element lacked is appended in the encoding's order. Every other entry (params, effects,
+/// cables…) is kept, in order.
+[[nodiscard]] serialization::Value with_state(const serialization::Value& element, const SoundState& state,
+                                              const engine::CodecContext& context);
+
 /// @brief Read a whole sound element into @p state, which holds the state of the sound being read into (a new sound's,
 /// for a file). Each entry is applied in the element's order as the sound's reader has always applied it, older
 /// formats included; anything the element lacks keeps its value. Params, patch cables, mod knobs and the effects are

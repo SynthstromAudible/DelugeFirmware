@@ -244,6 +244,31 @@ bool is_state_key(std::string_view key) {
 	return std::ranges::find(kStateKeys, key) != kStateKeys.end();
 }
 
+serialization::Value with_state(const serialization::Value& element, const SoundState& state,
+                                const engine::CodecContext& context) {
+	const serialization::Value encoded = encode(state, context);
+	serialization::Value out = serialization::Value::makeMap();
+	std::vector<std::string_view> placed;
+	if (element.isMap()) {
+		for (const auto& [key, value] : element.entries()) {
+			if (!is_state_key(key)) {
+				out.set(key, value);
+				continue;
+			}
+			if (const serialization::Value* now = encoded.find(key)) {
+				out.set(key, *now);
+				placed.push_back(key);
+			}
+		}
+	}
+	for (const auto& [key, value] : encoded.entries()) {
+		if (std::ranges::find(placed, std::string_view(key)) == placed.end()) {
+			out.set(key, value);
+		}
+	}
+	return out;
+}
+
 namespace {
 
 /// A range's top note when the file names none: it covers every note above the range before it.
