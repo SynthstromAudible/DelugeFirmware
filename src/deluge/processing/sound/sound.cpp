@@ -3411,8 +3411,8 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	// <patchCables> block and the shared tags.
 	deluge::project::DocParamManager doc = deluge::bridge::toDocParamManagerFromStore(*paramManager);
 	deluge::bridge::serializeSoundParams(**deluge::bridge::storeFor(doc, params::Kind::PATCHED),
-	                                     **deluge::bridge::storeFor(doc, params::Kind::UNPATCHED_SOUND),
-	                                     doc.patch_cables, writer, writeAutomation);
+	                                     **deluge::bridge::storeFor(doc, params::Kind::UNPATCHED_SOUND), doc.cables,
+	                                     writer, writeAutomation);
 }
 
 // M3 owner-5: copy the DOM-owned scalars engine->record (the load-bridge). Assumes state_ is bound. Run from

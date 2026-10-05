@@ -31,9 +31,9 @@ class Deserializer;
 namespace deluge::bridge {
 
 using deluge::project::DocAutoParam;
+using deluge::project::DocCable;
 using deluge::project::DocMidiParam;
 using deluge::project::DocParamSet;
-using deluge::project::DocPatchCable;
 
 // --- Generic serialization of the document model (param/automation DOM Phase 4) ---
 // Emits the legacy song file format from the value DOM, replacing the engine's scattered
@@ -104,12 +104,12 @@ bool serializeExpressionParams(const DocParamSet& expression, Serializer& out, b
 /// after the parent's opening tag is closed — the four `<envelope*>` groups, the `<patchCables>` block, and
 /// the shared ModControllableAudio tags. Reads both `patched` and `unpatched` collections plus the patch
 /// cables; emits `writeOpeningTagEnd` between the attrs and the child tags exactly where the engine does.
-void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched,
-                          const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation);
+void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched, const std::vector<DocCable>& cables,
+                          Serializer& out, bool writeAutomation);
 
 /// Write the `<patchCables>` block from the document's patch cables, byte-identical to
 /// `PatchCableSet::writePatchCablesToFile` (including the depth-controlling / range-cable nesting).
-void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation);
+void serializePatchCables(const std::vector<DocCable>& cables, Serializer& out, bool writeAutomation);
 
 /// Write the `<midiParams>` block from the document's MIDI-CC params, byte-identical to
 /// `MIDIParamCollection::writeToFile`: one `<param>` per CC holding a `<cc>` tag (the number, or "none" for

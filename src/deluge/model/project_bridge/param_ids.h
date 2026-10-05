@@ -29,9 +29,9 @@ namespace deluge::bridge {
 
 /// @brief The id the runtime's param at @p index of a @p kind collection has. Engine params go through their
 /// engine's map (the Deluge instrument's for a sound's patched and unpatched params, the provisional
-/// global-effectable table's for a global effectable's); a host space's param (MPE expression, a MIDI CC, a patch
-/// cable) keeps its index as its id. An unpatched set not yet named by its owner's init (kind NONE) is numbered as
-/// unpatched.
+/// global-effectable table's for a global effectable's, the instrument's depth ids for a patch cable, whose index is
+/// the runtime's packed cable word); a host space's param (MPE expression, a MIDI CC) keeps its index as its id. An
+/// unpatched set not yet named by its owner's init (kind NONE) is numbered as unpatched.
 [[nodiscard]] deluge::engine::ParamId paramIdOf(deluge::modulation::params::Kind kind, int32_t index);
 
 /// @brief Where a @p kind collection keeps the param @p id: its runtime index, through the same engine map as
@@ -49,7 +49,7 @@ namespace deluge::bridge {
 [[nodiscard]] uint32_t cableWordOf(deluge::engine::ParamId depth);
 
 /// @brief The address space a @p kind collection's ids are in: an engine's table for a sound's or a global
-/// effectable's params, else the host's own (expression, MIDI CC, patch cable).
+/// effectable's params and a patch cable's depth, else the host's own (expression, MIDI CC).
 [[nodiscard]] deluge::project::ParamSpace spaceOf(deluge::modulation::params::Kind kind);
 
 /// @brief The model store a runtime @p kind collection binds to, or nullptr when it has none (a MIDI CC collection,

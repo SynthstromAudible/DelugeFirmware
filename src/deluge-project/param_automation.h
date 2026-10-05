@@ -97,29 +97,14 @@ struct DocParamSet {
 	}
 };
 
-/// Value-typed document form of one patch cable: a mod-matrix connection from a source to a destination
-/// parameter, with an automatable amount. Its words are the Deluge engine's, stored raw: `from` is a `PatchSource`,
-/// `destination` a `ParamDescriptor`'s data (the target param and, for range cables, the cable-controlling-cable
-/// nesting) and `polarity` a `Polarity`. The amount is stored in the patch-cable range [-2^30, 2^30).
-struct DocPatchCable {
-	uint8_t from{};
-	uint32_t destination{};
+/// Value-typed document form of one patch cable: the engine's routing, named by the id of the cable's depth (the
+/// engine derives it from the cable's source and destination), with its polarity (the engine's word, stored raw) and
+/// the depth's value and automation. Depths are stored in the patch-cable range [-2^30, 2^30).
+struct DocCable {
+	deluge::engine::ParamId depth{};
 	uint8_t polarity{};
 	DocAutoParam amount;
 };
-
-/// @brief The parameter id of a patch cable's amount: its destination descriptor with its source added in the first
-/// free source slot, the layout of the engine's `ParamDescriptor::addSource`.
-[[nodiscard]] constexpr uint32_t patch_cable_param_id(uint32_t destination, uint8_t source) noexcept {
-	const uint32_t s = source;
-	if ((destination & 0x0000FF00u) == 0x0000FF00u) {
-		return (destination & 0xFFFF00FFu) | (s << 8);
-	}
-	if ((destination & 0x00FF0000u) == 0x00FF0000u) {
-		return (destination & 0xFF00FFFFu) | (s << 16);
-	}
-	return (destination & 0x00FFFFFFu) | (s << 24);
-}
 
 /// Value-typed document form of one MIDI-CC automation lane: the CC number that identifies it (the ordered
 /// MIDIParamVector keys by cc) plus its automatable value. Keyed by identity (cc), like patch cables by
@@ -133,21 +118,26 @@ struct DocMidiParam {
 inline constexpr std::size_t kEngineParamBlocks = 2;
 
 /// Value-typed document form of a `ParamManager`'s collections. An engine's params are held in the runs of ids its
-/// table declares, each present only when the live owner holds it; `expression` (MPE), `patch_cables` and
-/// `midi_params` (a MIDI_OUT clip's CC automation) are the host's own spaces.
+/// table declares, each present only when the live owner holds it, and the engine's cables, each with its depth;
+/// `expression` (MPE) and `midi_params` (a MIDI_OUT clip's CC automation) are the host's own spaces.
 struct DocParamManager {
 	std::array<std::optional<DocParamSet>, kEngineParamBlocks> engine_params;
 	std::optional<DocParamSet> expression;
-	std::vector<DocPatchCable> patch_cables;
+	std::vector<DocCable> cables;
 	std::vector<DocMidiParam> midi_params;
 
-	/// The lane of the engine param @p id, or nullptr when no block holds it.
+	/// The lane of the engine param @p id (a param in a block, or a cable's depth), or nullptr when none holds it.
 	[[nodiscard]] DocAutoParam* findEngineParam(deluge::engine::ParamId id) {
 		for (std::optional<DocParamSet>& block : engine_params) {
 			if (block) {
 				if (DocAutoParam* lane = block->find(id)) {
 					return lane;
 				}
+			}
+		}
+		for (DocCable& cable : cables) {
+			if (cable.depth == id) {
+				return &cable.amount;
 			}
 		}
 		return nullptr;

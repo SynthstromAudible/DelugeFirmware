@@ -106,6 +106,8 @@ deluge::engine::ParamId paramIdOf(params::Kind kind, int32_t index) {
 		return instrument::param_id({instrument::RuntimeSet::UNPATCHED, at});
 	case params::Kind::UNPATCHED_GLOBAL:
 		return global_effectable::param_id(at);
+	case params::Kind::PATCH_CABLE: // the index is the runtime's packed cable word
+		return cableDepthIdOf(static_cast<uint32_t>(index));
 	default:
 		return deluge::engine::ParamId{static_cast<uint32_t>(index)};
 	}
@@ -134,6 +136,8 @@ std::optional<int32_t> runtimeIndexOf(params::Kind kind, deluge::engine::ParamId
 			return *index;
 		}
 		return std::nullopt;
+	case params::Kind::PATCH_CABLE:
+		return static_cast<int32_t>(cableWordOf(id));
 	default:
 		return static_cast<int32_t>(id.value);
 	}
@@ -149,8 +153,6 @@ deluge::project::ParamSpace spaceOf(params::Kind kind) {
 		return deluge::project::ParamSpace::EXPRESSION;
 	case params::Kind::MIDI:
 		return deluge::project::ParamSpace::MIDI_CC;
-	case params::Kind::PATCH_CABLE:
-		return deluge::project::ParamSpace::PATCH_CABLE;
 	default:
 		return deluge::project::ParamSpace::ENGINE;
 	}

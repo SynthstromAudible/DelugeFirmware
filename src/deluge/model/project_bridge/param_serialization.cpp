@@ -263,8 +263,8 @@ constexpr DocParamAttr kEnvelope4[] = {
 };
 } // namespace
 
-void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched,
-                          const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation) {
+void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched, const std::vector<DocCable>& cables,
+                          Serializer& out, bool writeAutomation) {
 	// Byte-for-byte reproduction of Sound::writeParamsToFile. Two unpatched flat attrs lead, then the
 	// patched flat attrs; the pitchAdjust family is onlyIfContainsSomething; the shared ModControllableAudio
 	// attrs sit before the community attrs (lpfMorph/hpfMorph/waveFold).
@@ -336,14 +336,14 @@ void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatch
 	serializeModControllableParamTags(unpatched, out, writeAutomation);
 }
 
-void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation) {
+void serializePatchCables(const std::vector<DocCable>& cables, Serializer& out, bool writeAutomation) {
 	// Byte-for-byte reproduction of PatchCableSet::writePatchCablesToFile. The early-out matches the
 	// engine's `if (!numPatchCables) return;`.
 	if (cables.empty()) {
 		return;
 	}
 	out.writeArrayStart("patchCables");
-	for (const DocPatchCable& cable : cables) {
+	for (const DocCable& cable : cables) {
 		// Depth-controlling (range) cables aren't written at top level; they're nested below the cable
 		// whose depth they control.
 		if (!destination_of(cable).isJustAParam()) {
@@ -367,7 +367,7 @@ void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& 
 		ParamDescriptor controllerDescriptor = destination_of(cable);
 		controllerDescriptor.addSource(source_of(cable));
 		bool anyDepthControllingCablesFound = false;
-		for (const DocPatchCable& d : cables) {
+		for (const DocCable& d : cables) {
 			if (destination_of(d) == controllerDescriptor) {
 				if (!anyDepthControllingCablesFound) {
 					anyDepthControllingCablesFound = true;

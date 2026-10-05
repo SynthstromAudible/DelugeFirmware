@@ -125,9 +125,9 @@ void setNodeIn(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value, b
 	}
 }
 
-bool cableMatches(const deluge::project::DocPatchCable& a, const deluge::project::DocPatchCable& b) {
-	return a.from == b.from && a.destination == b.destination && a.polarity == b.polarity
-	       && a.amount.current_value == b.amount.current_value && a.amount.nodes.size() == b.amount.nodes.size();
+bool cableMatches(const deluge::project::DocCable& a, const deluge::project::DocCable& b) {
+	return a.depth == b.depth && a.polarity == b.polarity && a.amount.current_value == b.amount.current_value
+	       && a.amount.nodes.size() == b.amount.nodes.size();
 }
 
 // M2-F5: an engine op mutates a DocAutoParam (the standalone oracle param's local store); diff it against the DOM
@@ -841,7 +841,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
 		check(patchedStore(doc).has_value(), "pm patched present");
 		check(unpatchedStore(doc).has_value(), "pm unpatched present");
-		check(doc.patch_cables.size() == 1, "pm patch cable present");
+		check(doc.cables.size() == 1, "pm patch cable present");
 
 		ParamManagerForTimeline pm2;
 		check(pm2.setupWithPatching() == Error::NONE, "pm2 setupWithPatching");
@@ -941,7 +941,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		deluge::project::DocParamManager docpm = deluge::bridge::toDocParamManager(pm);
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializePatchCables(docpm.patch_cables, smSerializer, true);
+		deluge::bridge::serializePatchCables(docpm.cables, smSerializer, true);
 		int32_t domLen = smSerializer.bytesWritten();
 
 		check(engineLen == domLen, "patch-cable serialize length matches engine");
@@ -955,7 +955,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		// And the DOM serialize -> deserialize round-trip recovers the same cables (as a set; the
 		// engine/DOM read orders range cables before the cable they control).
-		const std::vector<deluge::project::DocPatchCable>& original = docpm.patch_cables;
+		const std::vector<deluge::project::DocCable>& original = docpm.cables;
 		static char rtBuf[16384];
 		smSerializer.setMemoryBuffer(rtBuf, sizeof(rtBuf));
 		smSerializer.reset();
@@ -975,8 +975,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			deluge::bridge::loadCables(*readBack.getPatchCableSet(), *tree->find("song")->find("patchCables"),
 			                           2147483647);
 		}
-		std::vector<deluge::project::DocPatchCable> recovered =
-		    deluge::bridge::toDocPatchCables(*readBack.getPatchCableSet());
+		std::vector<deluge::project::DocCable> recovered = deluge::bridge::toDocCables(*readBack.getPatchCableSet());
 
 		check(recovered.size() == original.size(), "patch-cable round-trip count");
 		for (const auto& oc : original) {
@@ -1376,8 +1375,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		int32_t engLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), doc.patch_cables, smSerializer,
-		                                     true);
+		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), doc.cables, smSerializer, true);
 		int32_t domLen = smSerializer.bytesWritten();
 		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "Sound params byte-identical");
 	}

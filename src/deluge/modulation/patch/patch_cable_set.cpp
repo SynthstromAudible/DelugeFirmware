@@ -95,9 +95,9 @@ deluge::project::DocParamSet* PatchCableSet::domStore() {
 
 deluge::project::DocAutoParam* PatchCableSet::docForParam(int32_t c) {
 	// S4b: when bound to the owner's project-tree cable store, resolve this cable's amount-nodes from the tree
-	// entry matching its (from, destination) identity — so save + runtime edits share the persistent store (the
-	// inline `amount_` is then unused). Unbound (M2-F): the cable owns its store inline and rides with it through
-	// the reorder/removal memcpy.
+	// entry with its depth id (derived from its source and destination) — so save + runtime edits share the persistent
+	// store (the inline `amount_` is then unused). Unbound (M2-F): the cable owns its store inline and rides with it
+	// through the reorder/removal memcpy.
 	if (domCablesRef_ != nullptr) {
 		PatchCable& cable = patchCables[c];
 		return &findOrCreateDomCable(cable.from, cable.destinationParamDescriptor, cable.polarity).amount;
@@ -105,10 +105,11 @@ deluge::project::DocAutoParam* PatchCableSet::docForParam(int32_t c) {
 	return &patchCables[c].amount_;
 }
 
-deluge::project::DocPatchCable& PatchCableSet::findOrCreateDomCable(PatchSource from, ParamDescriptor dest,
-                                                                    Polarity polarity) {
-	for (deluge::project::DocPatchCable& entry : *domCablesRef_) {
-		if (deluge::bridge::source_of(entry) == from && deluge::bridge::destination_of(entry) == dest) {
+deluge::project::DocCable& PatchCableSet::findOrCreateDomCable(PatchSource from, ParamDescriptor dest,
+                                                               Polarity polarity) {
+	const deluge::engine::ParamId depth = deluge::bridge::cable_depth(from, dest);
+	for (deluge::project::DocCable& entry : *domCablesRef_) {
+		if (entry.depth == depth) {
 			return entry;
 		}
 	}
@@ -120,8 +121,9 @@ deluge::project::DocAutoParam* PatchCableSet::findDomCableAmount(PatchSource fro
 	if (domCablesRef_ == nullptr) {
 		return nullptr;
 	}
-	for (deluge::project::DocPatchCable& entry : *domCablesRef_) {
-		if (deluge::bridge::source_of(entry) == from && deluge::bridge::destination_of(entry) == dest) {
+	const deluge::engine::ParamId depth = deluge::bridge::cable_depth(from, dest);
+	for (deluge::project::DocCable& entry : *domCablesRef_) {
+		if (entry.depth == depth) {
 			return &entry.amount;
 		}
 	}

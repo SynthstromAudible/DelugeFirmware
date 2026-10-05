@@ -58,18 +58,26 @@ describe param_store("the model's param stores, addressed by id", ${
 		expect(song.resolveParam(otherClip)).to_be_null();
 	});
 
-	it("resolves the host spaces: expression, a MIDI CC and a cable", _ {
+	it("resolves the host spaces: expression and a MIDI CC", _ {
 		Song song;
 		DocParamManager& clip = song.clip_params.getOrCreate(5);
 		clip.expression = block(0, 3);
 		clip.midi_params.push_back(DocMidiParam{.cc = 74});
-		DocParamManager& synth = song.backed_params.getOrCreate(OwnerId::instrument(9), std::nullopt);
-		synth.patch_cables.push_back(DocPatchCable{.from = 4, .destination = 0xFFFFFF02u});
 		expect(song.resolveParam({OwnerId::clip(5), ParamSpace::EXPRESSION, ParamId{2}})).to_equal(&clip.expression->params[2]);
 		expect(song.resolveParam({OwnerId::clip(5), ParamSpace::MIDI_CC, ParamId{74}})).to_equal(&clip.midi_params[0].param);
-		ParamAddress cable{OwnerId::instrument(9), ParamSpace::PATCH_CABLE,
-		                   ParamId{patch_cable_param_id(0xFFFFFF02u, 4)}};
-		expect(song.resolveParam(cable)).to_equal(&synth.patch_cables[0].amount);
+	});
+
+	it("resolves a cable's depth as an engine param, per clip", _ {
+		Song song;
+		// velocity (12) -> volume (2): the instrument's depth id 0x4000'0d02
+		constexpr ParamId depth{0x4000'0d02u};
+		DocParamManager& shared = song.backed_params.getOrCreate(OwnerId::instrument(9), std::nullopt);
+		shared.cables.push_back(DocCable{.depth = depth, .polarity = 1});
+		DocParamManager& clip = song.backed_params.getOrCreate(OwnerId::instrument(9), 3);
+		clip.cables.push_back(DocCable{.depth = depth});
+		expect(song.resolveParam({OwnerId::instrument(9), ParamSpace::ENGINE, depth})).to_equal(&shared.cables[0].amount);
+		expect(song.resolveParam({OwnerId::instrument(9), ParamSpace::ENGINE, depth, 3})).to_equal(&clip.cables[0].amount);
+		expect(song.resolveParam({OwnerId::instrument(9), ParamSpace::ENGINE, ParamId{0x4000'0e02u}})).to_be_null();
 	});
 });
 

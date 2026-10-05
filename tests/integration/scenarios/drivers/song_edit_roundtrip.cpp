@@ -1181,7 +1181,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	}
 
 	// M2-G S4b: every reloaded synth/drum manager's patch cables must be (a) tree-resident — the engine cable set
-	// bound to the owner's project-tree `patch_cables` — and (b) id-addressable: the address doc() builds for each
+	// bound to the owner's project-tree `cables` — and (b) id-addressable: the address doc() builds for each
 	// cable (owner + PATCH_CABLE + the packed (dest,source) paramId) must resolve to the SAME DocAutoParam the
 	// engine bound-store path (docForParam) returns. Identity-matched, so this catches a mis-encoded/mis-owned
 	// cable that save (which never resolves via doc()) would silently miss.
@@ -1198,7 +1198,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 			}
 			cableSets++;
 			deluge::project::DocParamManager* mgr = reloaded->project.backed_params.find(owner, clipId);
-			if (mgr != nullptr && pcs->domCables() == &mgr->patch_cables) {
+			if (mgr != nullptr && pcs->domCables() == &mgr->cables) {
 				treeResident++;
 			}
 			for (int32_t c = 0; c < pcs->numPatchCables; c++) {

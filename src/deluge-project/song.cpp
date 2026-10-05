@@ -22,22 +22,6 @@ namespace deluge::project {
 Song::Song() = default;
 
 namespace {
-/// Resolve a patch-cable amount lane within a tree-resident manager by IDENTITY (S4b). The address's id is
-/// the packed (destination + source) word `PatchCableSet::getParamId` produces, so recompute that word from each
-/// stored cable's (destination, from) with patch_cable_param_id() and match.
-/// Identity, not index: the engine reorders cables at runtime (setupPatching), so only (from, dest) is stable.
-DocAutoParam* patchCableInManager(DocParamManager* mgr, uint32_t paramId) {
-	if (mgr == nullptr) {
-		return nullptr;
-	}
-	for (DocPatchCable& cable : mgr->patch_cables) {
-		if (patch_cable_param_id(cable.destination, cable.from) == paramId) {
-			return &cable.amount;
-		}
-	}
-	return nullptr;
-}
-
 /// Resolve a MIDI-CC lane within a tree-resident manager by IDENTITY (S4c). The address's id is the CC
 /// number (the MIDIParamVector keys by cc); scan the manager's per-clip CC store for it. Identity, not index: a
 /// newly-learned CC reorders the engine vector, so only cc is stable.
@@ -53,8 +37,8 @@ DocAutoParam* midiParamInManager(DocParamManager* mgr, uint32_t cc) {
 	return nullptr;
 }
 
-/// Resolve @p address's lane within a tree-resident manager: engine params and expression by id, a MIDI CC by its
-/// number, a cable by its packed word. nullptr when the manager or lane is not tree-resident.
+/// Resolve @p address's lane within a tree-resident manager: engine params (cable depths included) and expression by
+/// id, a MIDI CC by its number. nullptr when the manager or lane is not tree-resident.
 DocAutoParam* laneInManager(DocParamManager* mgr, const ParamAddress& address) {
 	if (mgr == nullptr) {
 		return nullptr;
@@ -66,8 +50,6 @@ DocAutoParam* laneInManager(DocParamManager* mgr, const ParamAddress& address) {
 		return mgr->expression ? mgr->expression->find(address.id) : nullptr;
 	case ParamSpace::MIDI_CC:
 		return midiParamInManager(mgr, address.id.value);
-	case ParamSpace::PATCH_CABLE:
-		return patchCableInManager(mgr, address.id.value);
 	}
 	return nullptr;
 }

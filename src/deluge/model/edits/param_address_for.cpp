@@ -169,11 +169,11 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 	// slot / seed of the same (owner, clip) DocParamManager). Guarded by the slot being empty (a fresh owner just
 	// created by getOrCreate) so an already-relocated collection is never double-moved.
 	ParamCollection* pc = modelStack.paramCollection;
-	if (address->space == deluge::project::ParamSpace::PATCH_CABLE) {
+	if (modelStack.kind == deluge::modulation::params::Kind::PATCH_CABLE) {
 		auto* pcs = static_cast<PatchCableSet*>(pc);
 		if (pcs->domCables() == nullptr) {
-			mgr->patch_cables = deluge::bridge::toDocPatchCables(*pcs);
-			pcs->bindDomCablesExternal(&mgr->patch_cables);
+			mgr->cables = deluge::bridge::toDocCables(*pcs);
+			pcs->bindDomCablesExternal(&mgr->cables);
 		}
 	}
 	else if (address->space == deluge::project::ParamSpace::MIDI_CC) {

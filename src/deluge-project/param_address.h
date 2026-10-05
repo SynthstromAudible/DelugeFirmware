@@ -49,8 +49,8 @@ struct OwnerId {
 };
 
 /// @brief Which numbering a param address's id is in: its owner's engine's param table, or one of the host's own
-/// spaces (an MPE expression dimension, a MIDI CC number, a patch cable's packed source-and-destination word).
-enum class ParamSpace : uint8_t { ENGINE, EXPRESSION, MIDI_CC, PATCH_CABLE };
+/// spaces (an MPE expression dimension, a MIDI CC number). A patch cable's depth is an engine param.
+enum class ParamSpace : uint8_t { ENGINE, EXPRESSION, MIDI_CC };
 
 /// Names one automation lane: which owner, which space, which param in it. `Song::resolveParam` maps this to the live
 /// `DocAutoParam` in the persistent tree. An engine param's id is its engine's (the owner's slot names the engine).

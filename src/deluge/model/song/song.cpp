@@ -1947,8 +1947,8 @@ loadOutput:
 						// cable store (keyed (from, dest), NOT index — cables reorder at runtime). Seed from the
 						// loaded inline stores, then bind so save + edits share the persistent store.
 						if (PatchCableSet* pcs = thisClip->paramManager.getPatchCableSet()) {
-							mgr.patch_cables = deluge::bridge::toDocPatchCables(*pcs);
-							pcs->bindDomCablesExternal(&mgr.patch_cables);
+							mgr.cables = deluge::bridge::toDocCables(*pcs);
+							pcs->bindDomCablesExternal(&mgr.cables);
 						}
 					}
 					// M2-G S4a: relocate this manager's expression (MPE) automation into the tree at the same
@@ -1986,8 +1986,8 @@ loadOutput:
 							}
 							// S4b: per-drum patch-cable amount-automation → same (drum, clip) key, identity-keyed.
 							if (PatchCableSet* dpcs = nr.paramManager.getPatchCableSet()) {
-								dmgr.patch_cables = deluge::bridge::toDocPatchCables(*dpcs);
-								dpcs->bindDomCablesExternal(&dmgr.patch_cables);
+								dmgr.cables = deluge::bridge::toDocCables(*dpcs);
+								dpcs->bindDomCablesExternal(&dmgr.cables);
 							}
 						}
 					}

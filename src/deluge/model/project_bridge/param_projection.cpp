@@ -120,14 +120,14 @@ DocParamManager toDocParamManager(ParamManager& paramManager) {
 	// Slot [2]: patch cables.
 	if (ParamCollection* c = paramManager.summaries[2].paramCollection;
 	    c != nullptr && c->getParamKind() == Kind::PATCH_CABLE) {
-		doc.patch_cables = toDocPatchCables(*static_cast<PatchCableSet*>(c));
+		doc.cables = toDocCables(*static_cast<PatchCableSet*>(c));
 	}
 	return doc;
 }
 
 DocParamManager toDocParamManagerFromStore(ParamManager& paramManager) {
 	// Option I save-flip variant: patched/unpatched/expression scalars from the DOM store (toDocParamSetFromStore);
-	// patch cables already source their scalar+nodes from the store (toDocPatchCables via docForParam). Used by the
+	// patch cables already source their scalar+nodes from the store (toDocCables via docForParam). Used by the
 	// Sound save path so the persisted values come from the authoritative store, never the engine cursor.
 	DocParamManager doc;
 	if (ParamCollection* c = paramManager.summaries[0].paramCollection; isUnpatchedSetSlot(c)) {
@@ -144,7 +144,7 @@ DocParamManager toDocParamManagerFromStore(ParamManager& paramManager) {
 	}
 	if (ParamCollection* c = paramManager.summaries[2].paramCollection;
 	    c != nullptr && c->getParamKind() == Kind::PATCH_CABLE) {
-		doc.patch_cables = toDocPatchCables(*static_cast<PatchCableSet*>(c));
+		doc.cables = toDocCables(*static_cast<PatchCableSet*>(c));
 	}
 	return doc;
 }
@@ -168,11 +168,11 @@ std::vector<DocMidiParam> toDocMidiParams(MIDIParamCollection& midi) {
 	return out;
 }
 
-std::vector<DocPatchCable> toDocPatchCables(PatchCableSet& pcs) {
+std::vector<DocCable> toDocCables(PatchCableSet& pcs) {
 	// Copy each cable's saved fields verbatim (the ParamDescriptor encodes the destination + any range-cable
 	// nesting); rangeAdjustmentPointer is runtime and rebuilt on projection. Nodes come from the cable's current
 	// store — its inline amount_ pre-bind (seed time), which is exactly what the persistent store should hold.
-	std::vector<DocPatchCable> out;
+	std::vector<DocCable> out;
 	out.reserve(pcs.numPatchCables);
 	for (int32_t i = 0; i < pcs.numPatchCables; i++) {
 		PatchCable& cable = pcs.patchCables[i];
@@ -215,10 +215,10 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 	if (ParamCollection* c = paramManager.summaries[2].paramCollection;
 	    c != nullptr && c->getParamKind() == Kind::PATCH_CABLE) {
 		PatchCableSet* pcs = static_cast<PatchCableSet*>(c);
-		int32_t count = std::min(static_cast<int32_t>(doc.patch_cables.size()), int32_t{kMaxNumPatchCables});
+		int32_t count = std::min(static_cast<int32_t>(doc.cables.size()), int32_t{kMaxNumPatchCables});
 		pcs->numPatchCables = count;
 		for (int32_t i = 0; i < count; i++) {
-			const DocPatchCable& dc = doc.patch_cables[i];
+			const DocCable& dc = doc.cables[i];
 			pcs->patchCables[i].from = source_of(dc);
 			pcs->patchCables[i].destinationParamDescriptor = destination_of(dc);
 			pcs->patchCables[i].polarity = polarity_of(dc);

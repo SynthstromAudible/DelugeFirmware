@@ -72,7 +72,7 @@ public:
 	int32_t const* rangeAdjustmentPointer = nullptr;
 
 	/// M2-F: the cable's automation node storage, owned inline by the cable (its lifecycle is the cable's — a
-	/// cable's automation dies with the cable, matching the DOM's own `DocPatchCable{…, amount}` bundling). The
+	/// cable's automation dies with the cable, matching the DOM's own `DocCable{…, amount}` bundling). The
 	/// `param` above is now just the RT interpolation cursor; owner-resolution (PatchCableSet::docForParam →
 	/// `&amount_`) hands ops this store. Rides with the cable through the array's memcpy swaps/removal.
 	deluge::project::DocAutoParam amount_{};

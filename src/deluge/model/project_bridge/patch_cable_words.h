@@ -17,51 +17,46 @@
 
 #pragma once
 
-// A model patch cable stores the Deluge engine's words raw; these read and write them as the engine's types.
+// A model patch cable is named by its depth's id and stores its polarity raw; these read and write them as the
+// runtime's words (its source, its destination descriptor, its polarity).
 
 #include "deluge-project/param_automation.h"
+#include "model/project_bridge/param_ids.h"
 #include "modulation/params/param_descriptor.h"
 #include "modulation/patch/patch_cable.h"
 #include "util/misc.h"
 
 namespace deluge::bridge {
 
-[[nodiscard]] constexpr PatchSource source_of(const deluge::project::DocPatchCable& cable) noexcept {
-	return static_cast<PatchSource>(cable.from);
+/// @brief The runtime's packed word of the cable from @p from to @p destination (its destination with its source).
+[[nodiscard]] inline uint32_t cable_word(PatchSource from, ParamDescriptor destination) noexcept {
+	destination.addSource(from);
+	return destination.data;
 }
 
-[[nodiscard]] constexpr ParamDescriptor destination_of(const deluge::project::DocPatchCable& cable) noexcept {
-	ParamDescriptor destination;
-	destination.data = cable.destination;
-	return destination;
+/// @brief The depth id of the cable from @p from to @p destination.
+[[nodiscard]] inline deluge::engine::ParamId cable_depth(PatchSource from, ParamDescriptor destination) {
+	return cableDepthIdOf(cable_word(from, destination));
 }
 
-[[nodiscard]] constexpr Polarity polarity_of(const deluge::project::DocPatchCable& cable) noexcept {
+[[nodiscard]] inline PatchSource source_of(const deluge::project::DocCable& cable) {
+	return ParamDescriptor(static_cast<int32_t>(cableWordOf(cable.depth))).getBottomLevelSource();
+}
+
+[[nodiscard]] inline ParamDescriptor destination_of(const deluge::project::DocCable& cable) {
+	return ParamDescriptor(static_cast<int32_t>(cableWordOf(cable.depth))).getDestination();
+}
+
+[[nodiscard]] constexpr Polarity polarity_of(const deluge::project::DocCable& cable) noexcept {
 	return static_cast<Polarity>(cable.polarity);
 }
 
-/// @brief A model patch cable from the engine's words and its amount.
-[[nodiscard]] inline deluge::project::DocPatchCable doc_cable(PatchSource from, ParamDescriptor destination,
-                                                              Polarity polarity, deluge::project::DocAutoParam amount) {
-	return {.from = util::to_underlying(from),
-	        .destination = destination.data,
+/// @brief A model patch cable from the runtime's words and its amount.
+[[nodiscard]] inline deluge::project::DocCable doc_cable(PatchSource from, ParamDescriptor destination,
+                                                         Polarity polarity, deluge::project::DocAutoParam amount) {
+	return {.depth = cable_depth(from, destination),
 	        .polarity = util::to_underlying(polarity),
 	        .amount = std::move(amount)};
 }
-
-namespace detail {
-constexpr uint32_t engine_cable_param_id(uint32_t destination, uint8_t source) {
-	ParamDescriptor descriptor;
-	descriptor.data = destination;
-	descriptor.addSource(static_cast<PatchSource>(source));
-	return descriptor.data;
-}
-} // namespace detail
-
-// The model resolves a cable's amount lane by the id the engine gives it; the two packings must agree.
-static_assert(deluge::project::patch_cable_param_id(0xFFFFFF05u, 3) == detail::engine_cable_param_id(0xFFFFFF05u, 3));
-static_assert(deluge::project::patch_cable_param_id(0xFFFF0705u, 9) == detail::engine_cable_param_id(0xFFFF0705u, 9));
-static_assert(deluge::project::patch_cable_param_id(0xFF080705u, 2) == detail::engine_cable_param_id(0xFF080705u, 2));
-static_assert(deluge::project::patch_cable_param_id(0x01080705u, 4) == detail::engine_cable_param_id(0x01080705u, 4));
 
 } // namespace deluge::bridge
