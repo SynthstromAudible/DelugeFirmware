@@ -432,6 +432,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
   - `SHIFT` to toggle the deluge's :key[shift] button. It can also be used to toggle sticky shift.
     - Shift down: Note On or CC Value > 0
     - Shift up: Note Off or CC Value = 0
+- Fixed command for toggling Clip launch status so that it respects the Deluge's `SHIFT` status. If `SHIFT` is active, either by physically pressing it on the Deluge or by sending the `SHIFT` global midi command, then sending the Clip launch status command will toggle the Clip status immediately instead of arming it. Matching the behaviour on the Deluge and with MIDI Follow.
 
 #### <ins>Follow</ins>
 
