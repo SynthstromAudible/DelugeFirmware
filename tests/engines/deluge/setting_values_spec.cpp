@@ -83,9 +83,9 @@ describe setting_values("a sound's settings in an Edit's form", ${
 
 	it("takes an unset drum note, which answers nothing", _ {
 		expect(answer(new_synth_state(), "midiOutput/noteForDrum")).to_equal(std::string("none"));
-		expect(takes_setting(new_synth_state(), "midiOutput/noteForDrum")).to_equal(true);
-		expect(takes_setting(fmState(), "osc1/type")).to_equal(false);
-		expect(takes_setting(new_synth_state(), "osc1/sampleRanges")).to_equal(false);
+		expect(takes_setting(new_synth_state(), "midiOutput/noteForDrum")).to_be_true();
+		expect(takes_setting(fmState(), "osc1/type")).to_be_false();
+		expect(takes_setting(new_synth_state(), "osc1/sampleRanges")).to_be_false();
 	});
 
 	it("gives an LFO's sync level as the level itself", _ {

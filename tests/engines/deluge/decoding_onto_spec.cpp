@@ -144,6 +144,17 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 		expect(decoded->sources[0].ranges).to_equal(written.sources[0].ranges);
 	});
 
+	it("keeps an LFO's sync level the file could not say when only its other settings change", _ {
+		SoundState state = sampled();
+		state.lfo_sync_level[0] = static_cast<deluge::engine::SyncLevel>(1);
+		SoundState written = state;
+		written.lfo_wave_type[0] = LFOType::SAW;
+		constexpr deluge::engine::CodecContext kSlow{.input_tick_magnitude = 0};
+		const auto decoded = decode_onto(encode(written, kSlow), state, kSlow);
+		expect(decoded->lfo_wave_type[0]).to_equal(LFOType::SAW);
+		expect(static_cast<int32_t>(decoded->lfo_sync_level[0])).to_equal(1);
+	});
+
 	it("keeps the effects, which are not the instrument's", _ {
 		SoundState state = sampled();
 		state.mod_controllable.lpf_mode = 3;

@@ -853,6 +853,25 @@ std::expected<SoundState, engine::StateError> decode_onto(const Value& element, 
 				sourceKept[key == "osc1" ? 0 : 1] = true;
 			}
 		}
+		else if (key.starts_with("lfo") && held != nullptr && written != nullptr) {
+			// One leaf of an LFO changing leaves its others as they are: a sync level the magnitude cannot write
+			// is not re-read because the LFO's type moved.
+			const size_t l = static_cast<size_t>(key[3] - '1');
+			const auto same = [&](std::string_view leaf) {
+				const serialization::Value* a = held->find(leaf);
+				const serialization::Value* b = written->find(leaf);
+				return a != nullptr && b != nullptr && serialization::first_difference(*a, *b).empty();
+			};
+			if (same("type")) {
+				decoded.lfo_wave_type[l] = current.lfo_wave_type[l];
+			}
+			if (same("syncType")) {
+				decoded.lfo_sync_type[l] = current.lfo_sync_type[l];
+			}
+			if (same("syncLevel")) {
+				decoded.lfo_sync_level[l] = current.lfo_sync_level[l];
+			}
+		}
 	}
 	// A changed oscillator whose ranges are the current ones as its new type writes them carries them over whole,
 	// unless they became the other kind (sample to wavetable, or back), which keeps only their top notes.
