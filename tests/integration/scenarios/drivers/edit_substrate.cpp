@@ -34,6 +34,7 @@
 #include "deluge-project/instrument_slot.h"
 #include "dsp/dx/dx7note.h"
 #include "gui/menu_item/setting_edit.h"
+#include "io/midi/cable_types/usb_hosted.h"
 #include "model/drum/drum.h"
 #include "model/edits/set_controls.h"
 #include "model/edits/set_dx_patch.h"
@@ -43,6 +44,7 @@
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
+#include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -773,6 +775,18 @@ void testSetControls(deluge::edits::Context& ctx) {
 	check(sound.midi_knobs.size() == 1 && sound.midi_knobs[0].previousPositionSaved
 	          && sound.midi_knobs[0].previousPosition == 77,
 	      "controls: the learned knob keeps its takeover state");
+
+	// A learned knob tied to a device keeps that very device through a record of its owner's knobs (a gold knob
+	// pressed): one the name lookup would not find again (a second controller of the same name) included.
+	static MIDICableUSBHosted twin;
+	twin.name = "Twin";
+	if (sound.midi_knobs.size() == 1) {
+		sound.midi_knobs[0].midiInput.cable = &twin;
+		deluge::edits::SetControls again{address, deluge::bridge::controlsOf(sound)};
+		check(deluge::edits::apply(ctx, again) == Error::NONE, "controls: the owner's own knobs are recorded");
+		check(sound.midi_knobs.size() == 1 && sound.midi_knobs[0].midiInput.cable == &twin,
+		      "controls: a learned knob keeps its device through a record of its owner's knobs");
+	}
 }
 
 // The knob gestures record their owner's mappings: a mod knob learned in the sound editor, and a gold knob pressed to
@@ -803,6 +817,80 @@ void testKnobGesturesRecord(deluge::edits::Context& ctx) {
 		deluge::gui::menu_item::recordControlsOf(sound);
 		check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "knob gestures: a knob cycle is recorded");
 	}
+}
+
+// A preset change hands the old instrument's learned knobs to the new one: both owners' controls records follow.
+void testPresetChangeHandsOverKnobs(deluge::edits::Context& ctx) {
+	namespace params = deluge::modulation::params;
+	ParamManagerForTimeline oldParams;
+	Instrument* oldSynth = StorageManager::createNewInstrument(OutputType::SYNTH, &oldParams);
+	// Their params go to the song's backups, as an instrument with no clip keeps them.
+	ctx.song.live.param_backup.backUp(static_cast<ModControllableAudio*>(oldSynth->toModControllable()), nullptr,
+	                                  &oldParams, true);
+	ctx.song.addOutput(oldSynth);
+	Sound& oldSound = *static_cast<SoundInstrument*>(oldSynth);
+	const auto oldAddress = deluge::bridge::controlsAddressOf(oldSound);
+	if (!oldAddress) {
+		check(false, "handover: the old synth has controls");
+		return;
+	}
+	std::vector<deluge::project::ControllerMapping> controls = deluge::bridge::controlsOf(oldSound);
+	deluge::project::MidiCommand cc;
+	cc.channel_or_zone = 0;
+	cc.note_or_cc = 71;
+	ParamDescriptor resonance;
+	resonance.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
+	controls.push_back({deluge::project::MidiInputControl{cc, false},
+	                    deluge::bridge::knobTargetOf(resonance, params::Kind::UNPATCHED_SOUND)});
+	deluge::edits::SetControls learn{*oldAddress, controls};
+	check(deluge::edits::apply(ctx, learn) == Error::NONE, "handover: the old synth learns a knob");
+
+	ParamManagerForTimeline newParams;
+	Instrument* newSynth = StorageManager::createNewInstrument(OutputType::SYNTH, &newParams);
+	ctx.song.live.param_backup.backUp(static_cast<ModControllableAudio*>(newSynth->toModControllable()), nullptr,
+	                                  &newParams, true);
+	oldSynth->editedByUser = true; // so it hibernates, keeping its record
+	ctx.song.replaceInstrument(oldSynth, newSynth);
+	check(ctx.song.live.media.first_hibernating_instrument == oldSynth, "handover: the old synth hibernates");
+	check(static_cast<SoundInstrument*>(newSynth)->midi_knobs.size() == 1, "handover: the new synth has the knob");
+	check(deluge::harness::soundIncoherence(*static_cast<SoundInstrument*>(newSynth), ctx.song).empty(),
+	      "handover: the new synth's record holds the knob");
+	if (oldSynth->docOutput_ != nullptr) {
+		check(deluge::harness::soundIncoherence(oldSound, ctx.song).empty(),
+		      "handover: the old synth's record no longer holds it");
+	}
+}
+
+// An audio track cloned from another takes its learned knobs; recording the clone's controls makes its record hold
+// them.
+void testClonedAudioTrackRecordsKnobs(deluge::edits::Context& ctx) {
+	namespace params = deluge::modulation::params;
+	AudioOutput* source = ctx.song.createNewAudioOutput();
+	AudioOutput* clone = ctx.song.createNewAudioOutput();
+	if (source == nullptr || clone == nullptr) {
+		check(false, "clone: two audio tracks");
+		return;
+	}
+	const auto address = deluge::bridge::controlsAddressOf(*source, ctx.song);
+	check(address.has_value(), "clone: the source track has controls");
+	if (!address) {
+		return;
+	}
+	deluge::project::MidiCommand cc;
+	cc.channel_or_zone = 0;
+	cc.note_or_cc = 72;
+	ParamDescriptor volume;
+	volume.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_VOLUME);
+	deluge::edits::SetControls learn{*address,
+	                                 {{deluge::project::MidiInputControl{cc, false},
+	                                   deluge::bridge::knobTargetOf(volume, params::Kind::UNPATCHED_GLOBAL)}}};
+	check(deluge::edits::apply(ctx, learn) == Error::NONE, "clone: the source track learns a knob");
+	clone->cloneFrom(source);
+	check(deluge::harness::expectSongCoherent(ctx.song, "clone-before") != 0,
+	      "clone: a cloned track's record lags until recorded");
+	deluge::bridge::recordOutputControls(*clone, ctx.song);
+	check(deluge::harness::expectSongCoherent(ctx.song, "clone") == 0,
+	      "clone: the cloned track's record holds the knob");
 }
 
 int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
@@ -840,6 +928,8 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testKnobTargets(ctx);
 	testSetControls(ctx);
 	testKnobGesturesRecord(ctx);
+	testPresetChangeHandsOverKnobs(ctx);
+	testClonedAudioTrackRecordsKnobs(ctx);
 
 	if (failures == 0) {
 		std::fprintf(io.out, "edit_substrate: OK\n");

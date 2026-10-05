@@ -246,21 +246,38 @@ void applyControls(::ModControllableAudio& owner, bool isSound, const std::vecto
 			continue;
 		}
 		const auto& input = std::get<MidiInputControl>(mapping.control);
+		const ParamDescriptor target = descriptorOf(mapping.target, unpatchedKind);
+		// A knob the list leaves as it is stays whole: its device (which a name lookup could not tell from another of
+		// the same name) and its takeover state with it.
+		const auto kept = std::ranges::find_if(owner.midi_knobs, [&](const MIDIKnob& old) {
+			return command_of(old.midiInput) == input.input && old.relative == input.relative
+			       && old.paramDescriptor == target;
+		});
+		if (kept != owner.midi_knobs.end()) {
+			learned.push_back(*kept);
+			continue;
+		}
 		MIDIKnob made;
 		made.midiInput = learned_of(input.input);
 		made.relative = input.relative;
-		made.paramDescriptor = descriptorOf(mapping.target, unpatchedKind);
-		for (const MIDIKnob& old : owner.midi_knobs) {
-			if (command_of(old.midiInput) == input.input && old.relative == input.relative
-			    && old.paramDescriptor == made.paramDescriptor) {
-				made.previousPositionSaved = old.previousPositionSaved;
-				made.previousPosition = old.previousPosition;
-				break;
-			}
-		}
+		made.paramDescriptor = target;
 		learned.push_back(made);
 	}
 	owner.midi_knobs = std::move(learned);
+}
+
+void recordOutputControls(::Output& output, ::Song& song) {
+	if (output.docOutput_ == nullptr || !output.id()) {
+		return;
+	}
+	bool isSound = false;
+	::ModControllableAudio* own = ownControlsOf(output, &isSound);
+	std::vector<ControllerMapping>* record =
+	    song.project.resolveControls({deluge::project::ControlsAddress::Kind::OUTPUT, *output.id()});
+	if (own == nullptr || record == nullptr) {
+		return;
+	}
+	*record = isSound ? controlsOf(static_cast<::Sound&>(*own)) : learnedControlsOf(*own);
 }
 
 deluge::project::CodecEngines codecEngines() {

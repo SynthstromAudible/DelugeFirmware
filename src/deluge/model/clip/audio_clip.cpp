@@ -29,6 +29,7 @@
 #include "model/consequence/consequence_output_existence.h"
 #include "model/edits/clip_address_for.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
@@ -328,6 +329,7 @@ bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
 	}
 
 	newOutput->cloneFrom((AudioOutput*)output);
+	deluge::bridge::recordOutputControls(*newOutput, *modelStack->song); // the learned knobs it cloned
 
 	newOutput->wasCreatedForAutoOverdub = true;
 	changeOutput(modelStack, newOutput);

@@ -3536,6 +3536,9 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 					new_mca.midi_knobs.clear();
 					std::swap(new_mca.midi_knobs, old_mca->midi_knobs);
 					old_mca->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
+					// Both owners' controls records follow the knobs they now have.
+					deluge::bridge::recordOutputControls(*oldOutput, *this);
+					deluge::bridge::recordOutputControls(*newOutput, *this);
 				}
 			}
 		}

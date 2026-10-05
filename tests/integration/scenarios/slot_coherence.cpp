@@ -75,6 +75,37 @@ void forEachSound(Output& output, const std::function<void(Sound&, const std::st
 	}
 }
 
+/// The kits', audio tracks' and the song's own learned knobs checked against their controls records; each break
+/// printed. How many broke.
+int32_t ownControlsIncoherent(::Song& song, const char* leg) {
+	int32_t failures = 0;
+	auto check = [&](::ModControllableAudio& owner, const std::string& name) {
+		const std::optional<deluge::project::ControlsAddress> address = deluge::bridge::controlsAddressOf(owner, song);
+		const std::vector<deluge::project::ControllerMapping>* record =
+		    address ? song.project.resolveControls(*address) : nullptr;
+		if (record != nullptr && *record != deluge::bridge::learnedControlsOf(owner)) {
+			std::printf("SLOT-COHERENT FAIL leg=%s %s: controls\n", leg, name.c_str());
+			failures++;
+		}
+	};
+	auto visit = [&](Output& output) {
+		if (output.type == OutputType::KIT || output.type == OutputType::AUDIO) {
+			if (auto* own = static_cast<::ModControllableAudio*>(output.toModControllable())) {
+				check(*own, "output " + output.name);
+			}
+		}
+	};
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		visit(*output);
+	}
+	for (Output* sleeping = song.live.media.first_hibernating_instrument; sleeping != nullptr;
+	     sleeping = sleeping->next) {
+		visit(*sleeping);
+	}
+	check(song.live.global_effectable, "song");
+	return failures;
+}
+
 } // namespace
 
 std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks checks) {
@@ -133,6 +164,9 @@ int32_t expectSongCoherent(::Song& song, const char* leg, CoherenceChecks checks
 	for (Output* sleeping = song.live.media.first_hibernating_instrument; sleeping != nullptr;
 	     sleeping = sleeping->next) {
 		forEachSound(*sleeping, check);
+	}
+	if (checks.controls) {
+		failures += ownControlsIncoherent(song, leg);
 	}
 	return failures;
 }

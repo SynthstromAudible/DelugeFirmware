@@ -26,6 +26,7 @@
 #include <vector>
 
 class ModControllable;
+class Output;
 class ModControllableAudio;
 class Sound;
 class Song;
@@ -66,10 +67,15 @@ void refreshControls(::Song& song);
                                                       bool* isSound);
 
 /// @brief Make @p owner's knobs what @p controls say: a sound's mod knobs, and its (or a global effectable's) learned
-/// MIDI knobs, in the list's order. A learned knob whose input, relativity and target are unchanged keeps its takeover
-/// state.
+/// MIDI knobs, in the list's order. A learned knob whose input, relativity and target are unchanged is kept whole: its
+/// device and its takeover state with it.
 void applyControls(::ModControllableAudio& owner, bool isSound,
                    const std::vector<deluge::project::ControllerMapping>& controls);
+
+/// @brief Set @p output's own controls record (a synth's sound's knobs, a kit's or an audio track's learned knobs) from
+/// its runtime knobs, when it is bound in @p song: after a runtime step that moved knobs between owners (a preset
+/// change handing its learned knobs over, an audio track cloned from another).
+void recordOutputControls(::Output& output, ::Song& song);
 
 /// @brief The engines the app's model codecs name params through.
 [[nodiscard]] deluge::project::CodecEngines codecEngines();
