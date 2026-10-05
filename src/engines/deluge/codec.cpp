@@ -840,6 +840,7 @@ std::expected<SoundState, engine::StateError> decode_onto(const Value& element, 
 	// An entry the element holds as the current state writes it is the current state's, whatever a file read of it
 	// would make: a legacy zone, a sync level the tick magnitude cannot write. Only a changed entry is read.
 	const serialization::Value mine = encode(current, context);
+	std::array<bool, 2> sourceKept{}; // an unchanged oscillator entry keeps its whole source, ranges included
 	for (std::string_view key : kStateKeys) {
 		const serialization::Value* held = element.find(key);
 		const serialization::Value* written = mine.find(key);
@@ -848,6 +849,9 @@ std::expected<SoundState, engine::StateError> decode_onto(const Value& element, 
 		    || (held != nullptr && written != nullptr && serialization::first_difference(*held, *written).empty());
 		if (unchanged) {
 			keepEntry(key, decoded, current);
+			if (key == "osc1" || key == "osc2") {
+				sourceKept[key == "osc1" ? 0 : 1] = true;
+			}
 		}
 	}
 	// A changed oscillator whose ranges are the current ones as its new type writes them carries them over whole,
@@ -858,7 +862,7 @@ std::expected<SoundState, engine::StateError> decode_onto(const Value& element, 
 		const std::string_view key = s == 0 ? "osc1" : "osc2";
 		const bool ranged = type == OscType::SAMPLE || type == OscType::WAVETABLE;
 		const bool otherKind = (was == OscType::SAMPLE || was == OscType::WAVETABLE) && was != type;
-		if (decoded.synth_mode == SynthMode::FM || !ranged || otherKind) {
+		if (sourceKept[s] || decoded.synth_mode == SynthMode::FM || !ranged || otherKind) {
 			continue;
 		}
 		SoundState carried = current;
