@@ -1,0 +1,120 @@
+#include "engines/deluge/codec.h"
+#include "serialization/tree.h"
+
+#include <cppspec.hpp>
+#include <ostream>
+
+using namespace deluge::instrument;
+using deluge::serialization::Value;
+
+namespace deluge::instrument {
+/// A state, printed as its dump, so a failing comparison shows it.
+std::ostream& operator<<(std::ostream& out, const SoundState& state) {
+	return out << deluge::serialization::first_difference(dump_state(state), Value::makeMap());
+}
+} // namespace deluge::instrument
+
+namespace {
+
+constexpr deluge::engine::CodecContext kContext{.input_tick_magnitude = 1};
+
+/// A subtractive sound whose first source plays two sample ranges and whose second is a saw with a stale range.
+SoundState sampled() {
+	SoundState state = new_synth_state();
+	SourceState& sample = state.sources[0];
+	sample.osc_type = OscType::SAMPLE;
+	sample.repeat_mode = SampleRepeatMode::LOOP;
+	sample.reversed = true;
+	sample.ranges = {RangeState{.top_note = 60, .file_path = "SAMPLES/LOW.WAV", .start_pos = 10, .end_pos = 900},
+	                 RangeState{.top_note = 32767, .file_path = "SAMPLES/HIGH.WAV", .start_pos = 0, .end_pos = 700}};
+	state.osc_retrigger_phase[0] = 12345;
+	SourceState& saw = state.sources[1];
+	saw.osc_type = OscType::SAW;
+	saw.ranges = {RangeState{.top_note = 32767, .file_path = "SAMPLES/OLD.WAV"}};
+	return state;
+}
+
+} // namespace
+
+// clang-format off
+describe decoding_onto("a slot decoded onto a sound's current state", ${
+	it("reads back a subtractive sound's state as it is", _ {
+		const SoundState state = sampled();
+		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
+		expect(decoded.has_value()).to_be_true();
+		expect(*decoded).to_equal(state);
+	});
+
+	it("keeps an FM sound's oscillator types, samples and DX patch, which no file holds", _ {
+		SoundState state = sampled();
+		state.synth_mode = SynthMode::FM;
+		state.sources[1].osc_type = OscType::DX7;
+		state.sources[1].dx_patch = DxPatchState{.params = {}, .engine_mode = 1, .random_detune = 3};
+		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
+		expect(decoded.has_value()).to_be_true();
+		expect(*decoded).to_equal(state);
+	});
+
+	it("keeps a non-FM sound's modulators", _ {
+		SoundState state = sampled();
+		state.modulator_transpose = {5, -7};
+		state.modulator1_to_modulator0 = true;
+		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
+		expect(decoded->modulator_transpose[0]).to_equal(int16_t{5});
+		expect(decoded->modulator_transpose[1]).to_equal(int16_t{-7});
+		expect(decoded->modulator1_to_modulator0).to_be_true();
+	});
+
+	it("keeps a ring-mod sound's sample oscillator, which only reading a file clamps", _ {
+		SoundState state = sampled();
+		state.synth_mode = SynthMode::RINGMOD;
+		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
+		expect(decoded->sources[0].osc_type).to_equal(OscType::SAMPLE);
+		SoundState fresh = new_synth_state();
+		expect(decode(encode(state, kContext), fresh, kContext).has_value()).to_be_true();
+		expect(fresh.sources[0].osc_type).to_equal(OscType::WAVETABLE);
+	});
+
+	it("takes every value the element holds", _ {
+		SoundState state = sampled();
+		SoundState written = state;
+		written.voice_priority = deluge::engine::VoicePriority::HIGH;
+		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
+		expect(decoded->voice_priority).to_equal(deluge::engine::VoicePriority::HIGH);
+	});
+
+	it("keeps a sample source's own transpose and cents, which a file holds only as its ranges'", _ {
+		SoundState state = sampled();
+		state.sources[0].transpose = 7;
+		state.sources[0].cents = -12;
+		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
+		expect(*decoded).to_equal(state);
+	});
+
+	it("keeps what an unchanged entry says, even where the file could not say it (a legacy zone, a sync level)", _ {
+		SoundState state = sampled();
+		state.sources[0].ranges[0].start_msec = 40;
+		state.lfo_sync_level[0] = static_cast<deluge::engine::SyncLevel>(1);
+		constexpr deluge::engine::CodecContext kSlow{.input_tick_magnitude = 0};
+		const auto decoded = decode_onto(encode(state, kSlow), state, kSlow);
+		expect(*decoded).to_equal(state);
+	});
+
+	it("reads a changed entry as a file holds it", _ {
+		SoundState state = sampled();
+		SoundState written = state;
+		written.lfo_sync_level[0] = static_cast<deluge::engine::SyncLevel>(1);
+		constexpr deluge::engine::CodecContext kSlow{.input_tick_magnitude = 0};
+		const auto decoded = decode_onto(encode(written, kSlow), state, kSlow);
+		expect(static_cast<int32_t>(decoded->lfo_sync_level[0])).to_equal(2); // where magnitude 0's file keeps WHOLE
+	});
+
+	it("keeps the effects, which are not the instrument's", _ {
+		SoundState state = sampled();
+		state.mod_controllable.lpf_mode = 3;
+		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
+		expect(decoded->mod_controllable.lpf_mode).to_equal(uint8_t{3});
+	});
+});
+
+CPPSPEC_SPEC(decoding_onto)

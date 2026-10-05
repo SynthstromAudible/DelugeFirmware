@@ -568,8 +568,11 @@ Value dumpRange(const RangeState& range) {
 
 } // namespace
 
-std::expected<void, engine::StateError> decode(const Value& element, SoundState& state,
-                                               const engine::CodecContext& context) {
+namespace {
+
+/// Read @p element into @p state; @p fileRead says it is a file's read, whose own normalisations it applies.
+std::expected<void, engine::StateError> decodeImpl(const Value& element, SoundState& state,
+                                                   const engine::CodecContext& context, bool fileRead) {
 	if (!element.isMap()) {
 		return std::unexpected(engine::StateError::NOT_A_MAP);
 	}
@@ -676,7 +679,7 @@ std::expected<void, engine::StateError> decode(const Value& element, SoundState&
 		if (state.synth_mode == SynthMode::FM) {
 			src.osc_type = OscType::SINE;
 		}
-		else if (state.synth_mode == SynthMode::RINGMOD) {
+		else if (state.synth_mode == SynthMode::RINGMOD && fileRead) {
 			src.osc_type = std::min(src.osc_type, OscType::WAVETABLE);
 		}
 		if (state.synth_mode != SynthMode::FM && src.osc_type == OscType::SAMPLE) {
@@ -697,6 +700,140 @@ std::expected<void, engine::StateError> decode(const Value& element, SoundState&
 		}
 	}
 	return {};
+}
+
+/// The part of @p state the entry @p key of a sound element writes, copied from @p from.
+void keepEntry(std::string_view key, SoundState& state, const SoundState& from) {
+	if (key == "polyphonic") {
+		state.polyphonic = from.polyphonic;
+	}
+	else if (key == "voicePriority") {
+		state.voice_priority = from.voice_priority;
+	}
+	else if (key == "sideChainSend") {
+		state.side_chain_send_level = from.side_chain_send_level;
+	}
+	else if (key == "mode") {
+		state.synth_mode = from.synth_mode;
+	}
+	else if (key == "transpose") {
+		state.transpose = from.transpose;
+	}
+	else if (key == "cents") {
+		state.cents = from.cents;
+	}
+	else if (key == "maxVoices") {
+		state.max_voice_count = from.max_voice_count;
+	}
+	else if (key == "osc1" || key == "osc2") {
+		const size_t s = key == "osc1" ? 0 : 1;
+		state.sources[s] = from.sources[s];
+		state.osc_retrigger_phase[s] = from.osc_retrigger_phase[s];
+		if (s == 1) {
+			state.oscillator_sync = from.oscillator_sync;
+		}
+	}
+	else if (key.starts_with("lfo")) {
+		const size_t l = static_cast<size_t>(key[3] - '1');
+		state.lfo_wave_type[l] = from.lfo_wave_type[l];
+		state.lfo_sync_type[l] = from.lfo_sync_type[l];
+		state.lfo_sync_level[l] = from.lfo_sync_level[l];
+	}
+	else if (key == "modulator1" || key == "modulator2") {
+		const size_t m = key == "modulator1" ? 0 : 1;
+		state.modulator_transpose[m] = from.modulator_transpose[m];
+		state.modulator_cents[m] = from.modulator_cents[m];
+		state.modulator_retrigger_phase[m] = from.modulator_retrigger_phase[m];
+		if (m == 1) {
+			state.modulator1_to_modulator0 = from.modulator1_to_modulator0;
+		}
+	}
+	else if (key == "unison") {
+		state.num_unison = from.num_unison;
+		state.unison_detune = from.unison_detune;
+		state.unison_stereo_spread = from.unison_stereo_spread;
+	}
+	else if (key == "midiOutput") {
+		state.output_midi_channel = from.output_midi_channel;
+		state.output_midi_note_for_drum = from.output_midi_note_for_drum;
+	}
+}
+
+} // namespace
+
+std::expected<void, engine::StateError> decode(const Value& element, SoundState& state,
+                                               const engine::CodecContext& context) {
+	return decodeImpl(element, state, context, /*fileRead=*/true);
+}
+
+void keep_unwritten(SoundState& state, const SoundState& from) {
+	state.mod_controllable = from.mod_controllable; // the effects', not the instrument's
+	const bool fm = state.synth_mode == SynthMode::FM;
+	if (!fm) {
+		state.modulator_transpose = from.modulator_transpose;
+		state.modulator_cents = from.modulator_cents;
+		state.modulator_retrigger_phase = from.modulator_retrigger_phase;
+		state.modulator1_to_modulator0 = from.modulator1_to_modulator0;
+	}
+	for (size_t s = 0; s < state.sources.size(); s++) {
+		SourceState& src = state.sources[s];
+		const SourceState& old = from.sources[s];
+		const auto keepPlayback = [&] {
+			src.repeat_mode = old.repeat_mode;
+			src.reversed = old.reversed;
+			src.pitch_and_speed_independent = old.pitch_and_speed_independent;
+			src.time_stretch_amount = old.time_stretch_amount;
+			src.interpolation_mode = old.interpolation_mode;
+		};
+		if (fm) {
+			src.osc_type = old.osc_type;
+			keepPlayback();
+			src.ranges = old.ranges;
+			src.dx_patch = old.dx_patch;
+			continue;
+		}
+		if (src.osc_type == OscType::SAMPLE) {
+			// A sample source's own tuning: the file holds its ranges', and reading folds the source's into them.
+			src.transpose = old.transpose;
+			src.cents = old.cents;
+			state.osc_retrigger_phase[s] = from.osc_retrigger_phase[s];
+			if (s == 1) {
+				state.oscillator_sync = from.oscillator_sync;
+			}
+			src.dx_patch = old.dx_patch;
+			continue;
+		}
+		keepPlayback();
+		if (src.osc_type != OscType::WAVETABLE) {
+			src.ranges = old.ranges;
+		}
+		if (src.osc_type != OscType::DX7) {
+			src.dx_patch = old.dx_patch;
+		}
+	}
+}
+
+std::expected<SoundState, engine::StateError> decode_onto(const Value& element, const SoundState& current,
+                                                          const engine::CodecContext& context) {
+	SoundState decoded = new_synth_state();
+	if (auto read = decodeImpl(element, decoded, context, /*fileRead=*/false); !read) {
+		return std::unexpected(read.error());
+	}
+	keep_unwritten(decoded, current);
+	// An entry the element holds as the current state writes it is the current state's, whatever a file read of it
+	// would make: a legacy zone, a sync level the tick magnitude cannot write. Only a changed entry is read.
+	const serialization::Value mine = encode(current, context);
+	for (std::string_view key : kStateKeys) {
+		const serialization::Value* held = element.find(key);
+		const serialization::Value* written = mine.find(key);
+		const bool unchanged =
+		    (held == nullptr && written == nullptr)
+		    || (held != nullptr && written != nullptr && serialization::first_difference(*held, *written).empty());
+		if (unchanged) {
+			keepEntry(key, decoded, current);
+		}
+	}
+	return decoded;
 }
 
 SoundState new_synth_state() {

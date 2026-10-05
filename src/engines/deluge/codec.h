@@ -69,6 +69,20 @@ struct SoundPieces {
 [[nodiscard]] std::expected<void, engine::StateError> decode(const serialization::Value& element, SoundState& state,
                                                              const engine::CodecContext& context);
 
+/// @brief The fields of @p from that @p state's encoding does not write, copied into @p state: an FM sound's sources'
+/// types, sample playback, ranges and DX patches; a non-FM sound's modulators; a sample source's own transpose and
+/// cents and its retrigger phase (and for source 2 the oscillator sync); a non-sample source's sample playback, its
+/// ranges unless it is a wavetable, and its DX patch unless it is a DX7; and the effects, which are not the
+/// instrument's.
+void keep_unwritten(SoundState& state, const SoundState& from);
+
+/// @brief @p element (a sound's slot) decoded onto @p current: a fresh read of it, as a file is read but without the
+/// ring-mod clamp only a file read applies, with every field the encoding does not write kept from @p current, and
+/// every entry the element holds exactly as @p current encodes kept from @p current too. An entry the element changes
+/// is read as a file holds it; what did not change, and what no file can hold, keeps its value.
+[[nodiscard]] std::expected<SoundState, engine::StateError>
+decode_onto(const serialization::Value& element, const SoundState& current, const engine::CodecContext& context);
+
 /// @brief The state a new synth starts with, before anything is read into it: what a file's reading starts from.
 [[nodiscard]] SoundState new_synth_state();
 

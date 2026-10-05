@@ -31,6 +31,7 @@ struct CoherenceChecks {
 	bool slot = true;     ///< the slot's instrument entries == encode(record), by key
 	bool snapshot = true; ///< the snapshot == projectSnapshot() of the record
 	bool controls = true; ///< the owner's controls record == the runtime's knobs
+	bool decode = true;   ///< the slot decoded onto the record == the record (the flip would change nothing)
 };
 
 /// @brief The first equation @p sound breaks, as "<check> at <where>", or empty. An unbound sound breaks none.

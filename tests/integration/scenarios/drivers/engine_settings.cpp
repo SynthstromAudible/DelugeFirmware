@@ -311,7 +311,16 @@ std::string_view coherence(Sound& sound, Song& song, std::string_view path, cons
 	}
 	if (const std::string what = deluge::harness::soundIncoherence(sound, song); !what.empty()) {
 		std::fprintf(io.err, "%s\n", what.c_str());
-		return what.starts_with("runtime") ? "equation 0" : what.starts_with("slot") ? "equation 1" : "equation 2";
+		if (what.starts_with("runtime")) {
+			return "equation 0";
+		}
+		if (what.starts_with("slot")) {
+			return "equation 1";
+		}
+		if (what.starts_with("decode")) {
+			return "equation 4";
+		}
+		return what.starts_with("controls") ? "controls" : "equation 2";
 	}
 	return {};
 }

@@ -140,6 +140,22 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 			return "controls";
 		}
 	}
+	if (checks.decode) {
+		const deluge::project::InstrumentSlot* slot = song.project.resolveSlot(*address);
+		if (slot == nullptr) {
+			return "decode: slot missing";
+		}
+		const auto decoded = deluge::instrument::decode_onto(slot->state, record,
+		                                                     {.input_tick_magnitude = song.getInputTickMagnitude()});
+		if (!decoded) {
+			return "decode refused";
+		}
+		if (!(*decoded == record)) {
+			return "decode at "
+			       + deluge::serialization::first_difference(deluge::instrument::dump_state(*decoded),
+			                                                 deluge::instrument::dump_state(record));
+		}
+	}
 	if (checks.snapshot) {
 		const deluge::snapshot::SoundSnapshot before = sound.snapshot();
 		sound.projectSnapshot();
