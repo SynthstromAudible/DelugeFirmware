@@ -3005,7 +3005,7 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_
 				}
 
 				// Beware - calling this might insert or delete a Clip!
-				session.toggleClipStatus(clip, &c, false, kMIDIKeyInputLatency);
+				session.toggleClipStatus(clip, &c, Buttons::isShiftButtonPressed(), kMIDIKeyInputLatency);
 
 				// use root UI in case this is called from performance view
 				sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
