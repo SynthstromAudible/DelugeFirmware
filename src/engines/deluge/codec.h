@@ -23,6 +23,7 @@
 
 #include <expected>
 #include <string_view>
+#include <vector>
 
 namespace deluge::instrument {
 
@@ -76,10 +77,23 @@ struct SoundPieces {
 /// instrument's.
 void keep_unwritten(SoundState& state, const SoundState& from);
 
-/// @brief @p element (a sound's slot) decoded onto @p current: a fresh read of it, as a file is read but without the
-/// ring-mod clamp only a file read applies, with every field the encoding does not write kept from @p current, and
-/// every entry the element holds exactly as @p current encodes kept from @p current too. An entry the element changes
-/// is read as a file holds it; what did not change, and what no file can hold, keeps its value.
+/// @brief What a sound's slot says once it is changed: the state it decodes to, and its instrument entries the change
+/// touched, in file order.
+struct SlotChange {
+	SoundState state;
+	std::vector<std::string_view> changed;
+};
+
+/// @brief @p element (a sound's changed slot) decoded onto @p current, whose slot was @p previous: a fresh read of it,
+/// as a file is read but without the ring-mod clamp only a file read applies, with every field the encoding does not
+/// write kept from @p current, and every entry the element holds as @p previous did kept from @p current too. An entry
+/// the change touches is read as a file holds it; what it did not touch, and what no file can hold, keeps its value.
+[[nodiscard]] std::expected<SlotChange, engine::StateError> decode_change(const serialization::Value& element,
+                                                                          const serialization::Value& previous,
+                                                                          const SoundState& current,
+                                                                          const engine::CodecContext& context);
+
+/// @brief decode_change of @p element onto @p current, whose slot is taken to be what @p current encodes to.
 [[nodiscard]] std::expected<SoundState, engine::StateError>
 decode_onto(const serialization::Value& element, const SoundState& current, const engine::CodecContext& context);
 

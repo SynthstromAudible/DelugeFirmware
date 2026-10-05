@@ -36,6 +36,7 @@
 #include "storage/storage_manager.h"
 #include "storage/value_serializer.h"
 
+#include <algorithm>
 #include <optional>
 #include <string>
 
@@ -204,10 +205,12 @@ deluge::serialization::Value withLeaf(const deluge::serialization::Value& tree, 
 }
 
 Error applyDifference(::Sound& sound, const deluge::instrument::SoundState& old,
-                      const deluge::instrument::SoundState& next, ::Song& song) {
+                      const deluge::instrument::SoundState& next, std::span<const std::string_view> changed,
+                      ::Song& song) {
 	for (const deluge::engine::SettingInfo& row : deluge::instrument::kSettings) {
-		if (row.kind == deluge::engine::SettingKind::STRUCTURED) {
-			continue;
+		const std::string_view entry = row.path.substr(0, row.path.find('/'));
+		if (row.kind == deluge::engine::SettingKind::STRUCTURED || std::ranges::find(changed, entry) == changed.end()) {
+			continue; // an entry the change did not touch holds what the sound holds
 		}
 		const std::optional<deluge::serialization::Value> before = deluge::instrument::setting_value(old, row.path);
 		const std::optional<deluge::serialization::Value> after = deluge::instrument::setting_value(next, row.path);
@@ -242,11 +245,11 @@ Error commitSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, const de
 	}
 	const deluge::instrument::SoundState before = *sound.boundState();
 	const auto decoded =
-	    deluge::instrument::decode_onto(element, before, {.input_tick_magnitude = slot.tick_magnitude});
-	Error error = decoded ? applyDifference(sound, before, *decoded, song) : Error::UNSPECIFIED;
+	    deluge::instrument::decode_change(element, slot.state, before, {.input_tick_magnitude = slot.tick_magnitude});
+	Error error = decoded ? applyDifference(sound, before, decoded->state, decoded->changed, song) : Error::UNSPECIFIED;
 	if (error == Error::NONE) {
 		// The effects' settings are not the slot's to say, and a gesture may move them (FM turns the filters off).
-		deluge::instrument::SoundState reached = *decoded;
+		deluge::instrument::SoundState reached = decoded->state;
 		reached.mod_controllable = sound.boundState()->mod_controllable;
 		if (!(*sound.boundState() == reached)) {
 			error = Error::UNSPECIFIED; // the runtime did not reach what the slot says

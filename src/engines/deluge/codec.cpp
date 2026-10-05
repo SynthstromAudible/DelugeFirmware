@@ -830,23 +830,27 @@ void keep_unwritten(SoundState& state, const SoundState& from) {
 	}
 }
 
-std::expected<SoundState, engine::StateError> decode_onto(const Value& element, const SoundState& current,
-                                                          const engine::CodecContext& context) {
-	SoundState decoded = new_synth_state();
+std::expected<SlotChange, engine::StateError> decode_change(const Value& element, const Value& previous,
+                                                            const SoundState& current,
+                                                            const engine::CodecContext& context) {
+	SlotChange change{.state = new_synth_state()};
+	SoundState& decoded = change.state;
 	if (auto read = decodeImpl(element, decoded, context, /*fileRead=*/false); !read) {
 		return std::unexpected(read.error());
 	}
 	keep_unwritten(decoded, current);
-	// An entry the element holds as the current state writes it is the current state's, whatever a file read of it
-	// would make: a legacy zone, a sync level the tick magnitude cannot write. Only a changed entry is read.
-	const serialization::Value mine = encode(current, context);
+	// An entry the element holds as the previous slot did is the current state's, whatever a file read of it would
+	// make: a legacy zone, a sync level the tick magnitude cannot write. Only a changed entry is read.
 	std::array<bool, 2> sourceKept{}; // an unchanged oscillator entry keeps its whole source, ranges included
 	for (std::string_view key : kStateKeys) {
 		const serialization::Value* held = element.find(key);
-		const serialization::Value* written = mine.find(key);
+		const serialization::Value* written = previous.find(key);
 		const bool unchanged =
 		    (held == nullptr && written == nullptr)
 		    || (held != nullptr && written != nullptr && serialization::first_difference(*held, *written).empty());
+		if (!unchanged) {
+			change.changed.push_back(key);
+		}
 		if (unchanged) {
 			keepEntry(key, decoded, current);
 			if (key == "osc1" || key == "osc2") {
@@ -891,7 +895,14 @@ std::expected<SoundState, engine::StateError> decode_onto(const Value& element, 
 			decoded.sources[s].ranges = current.sources[s].ranges;
 		}
 	}
-	return decoded;
+	return change;
+}
+
+std::expected<SoundState, engine::StateError> decode_onto(const Value& element, const SoundState& current,
+                                                          const engine::CodecContext& context) {
+	return decode_change(element, encode(current, context), current, context).transform([](SlotChange&& change) {
+		return std::move(change.state);
+	});
 }
 
 SoundState new_synth_state() {

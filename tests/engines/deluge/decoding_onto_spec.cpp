@@ -3,6 +3,8 @@
 
 #include <cppspec.hpp>
 #include <ostream>
+#include <string_view>
+#include <vector>
 
 using namespace deluge::instrument;
 using deluge::serialization::Value;
@@ -160,6 +162,17 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 		state.mod_controllable.lpf_mode = 3;
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
 		expect(decoded->mod_controllable.lpf_mode).to_equal(uint8_t{3});
+	});
+
+	it("tells which entries a change to the slot touches, and reads them as decoding onto the state does", _ {
+		SoundState state = sampled();
+		SoundState written = state;
+		written.lfo_wave_type[1] = LFOType::SAW;
+		written.voice_priority = deluge::engine::VoicePriority::HIGH;
+		const Value element = encode(written, kContext);
+		const auto change = decode_change(element, encode(state, kContext), state, kContext);
+		expect(change->changed).to_equal(std::vector<std::string_view>{"voicePriority", "lfo2"});
+		expect(change->state).to_equal(*decode_onto(element, state, kContext));
 	});
 });
 
