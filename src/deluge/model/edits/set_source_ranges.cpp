@@ -19,7 +19,10 @@ Error SetSourceRanges::apply(Context& ctx) {
 	const deluge::serialization::Value element =
 	    deluge::instrument::with_state(slot->state, changed, {.input_tick_magnitude = slot->tick_magnitude});
 	Error error = deluge::bridge::commitSlot(*sound, *slot, element, ctx.song);
-	if (error == Error::NONE && sound->boundState()->sources[source_].ranges != ranges_) {
+	if (sound->boundState()->sources[source_].ranges == ranges_) {
+		return Error::NONE; // what else of the slot the sound refused is not this Edit's, and the slot now says it
+	}
+	if (error == Error::NONE) {
 		// The slot cannot hold this source's ranges (an FM sound's, a source that plays no files): the runtime holds
 		// them.
 		error = deluge::bridge::applyRanges(*sound, source_, ranges_);

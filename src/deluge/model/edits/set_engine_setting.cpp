@@ -42,17 +42,18 @@ Error SetEngineSetting::apply(Context& ctx) {
 		return Error::UNSPECIFIED;
 	}
 	Error error = deluge::bridge::commitSlot(*sound, *slot, elementFor(*sound, *slot, path_, *value), ctx.song);
+	const std::optional<deluge::serialization::Value> landed =
+	    deluge::instrument::setting_value(*sound->boundState(), path_);
+	if (landed && landed->str() == value->str()) {
+		return Error::NONE; // what else of the slot the sound refused is not this Edit's, and the slot now says it
+	}
 	if (error != Error::NONE) {
 		return error;
 	}
-	const std::optional<deluge::serialization::Value> landed =
-	    deluge::instrument::setting_value(*sound->boundState(), path_);
-	if (!landed || landed->str() != value->str()) {
-		// The slot cannot hold this value (a live input's interpolation, a sync level the magnitude cannot write):
-		// the runtime holds it, as within a session it always has, until a save and reload.
-		error = deluge::bridge::applySetting(*sound, path_, *value, ctx.song);
-		deluge::bridge::syncSlotState(*sound, *slot, ctx.song);
-	}
+	// The slot cannot hold this value (a live input's interpolation, a sync level the magnitude cannot write): the
+	// runtime holds it, as within a session it always has, until a save and reload.
+	error = deluge::bridge::applySetting(*sound, path_, *value, ctx.song);
+	deluge::bridge::syncSlotState(*sound, *slot, ctx.song);
 	return error;
 }
 

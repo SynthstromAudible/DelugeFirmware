@@ -605,6 +605,7 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	deluge::edits::SetSourceRanges file{*slot, 0, withFile};
 	check(deluge::edits::apply(ctx, file) != Error::NONE, "ranges: assigning a file is refused");
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: a refused list leaves it coherent");
+
 	check(static_cast<MultisampleRange*>(sound.sources[0].ranges.getElement(0))->sampleHolder.filePath
 	          != "SAMPLES/OTHER.WAV",
 	      "ranges: a refused list leaves the runtime's file");
@@ -614,6 +615,15 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	check(deluge::edits::apply(ctx, reshape) != Error::NONE, "ranges: another length is refused");
 	check(deluge::serialization::first_difference(ctx.model.resolveSlot(*slot)->state, before).empty(),
 	      "ranges: a refusal leaves the slot");
+
+	// A slot that says something the sound cannot take (another file) beside a setting: the setting is taken, the rest
+	// is refused, and the sound and its slot agree afterwards.
+	deluge::project::InstrumentSlot& held = *ctx.model.resolveSlot(*slot);
+	held.state = deluge::bridge::withLeaf(held.state, "osc1/fileName", Value::makeScalar("SAMPLES/OTHER.WAV"));
+	deluge::edits::SetEngineSetting priority{*slot, "voicePriority", Value::makeNumber(0)};
+	check(deluge::edits::apply(ctx, priority) == Error::NONE && sound.snapshot().voicePriority == VoicePriority::LOW,
+	      "ranges: a setting beside what the sound cannot take is taken");
+	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: and the sound stays coherent");
 
 	// A malformed legacy file can leave two ranges on one top note: a change to one of them still takes, judged only
 	// where it changes.
