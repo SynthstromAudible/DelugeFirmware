@@ -19,10 +19,14 @@
 
 #include "deluge-project/structure_codec.h"
 #include "engine-api/types/engine_id.h"
+#include "engines/deluge/codec.h"
 #include "model/drum/drum.h"
+#include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
 #include "serialization/tree.h"
 #include "storage/storage_manager.h"
 #include "storage/value_serializer.h"
@@ -88,6 +92,76 @@ void refreshSlots(::Song& song) {
 				record->instrument = deluge::project::slot_of_drum(*drum.node);
 			}
 		}
+	}
+}
+
+namespace {
+
+/// The record slot of @p sound, when it is bound.
+deluge::project::InstrumentSlot* slotOf(::Sound& sound) {
+	if (sound.boundState() == nullptr) {
+		return nullptr;
+	}
+	std::optional<deluge::project::InstrumentSlot>* slot = nullptr;
+	if (sound.isDrum()) {
+		auto& drum = static_cast<SoundDrum&>(sound);
+		slot = drum.docDrum_ != nullptr ? &drum.docDrum_->instrument : nullptr;
+	}
+	else {
+		auto& synth = static_cast<SoundInstrument&>(sound);
+		slot = synth.docOutput_ != nullptr ? &synth.docOutput_->instrument : nullptr;
+	}
+	return slot != nullptr && slot->has_value() ? &**slot : nullptr;
+}
+
+/// The sound of @p output whose slot @p address names, or nullptr.
+::Sound* soundIn(Output& output, deluge::project::SlotAddress address) {
+	using Kind = deluge::project::SlotAddress::Kind;
+	if (output.type == OutputType::SYNTH && address.kind == Kind::OUTPUT && output.id() == address.id) {
+		return static_cast<SoundInstrument*>(&output);
+	}
+	if (output.type == OutputType::KIT && address.kind == Kind::DRUM) {
+		for (Drum* drum = static_cast<Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
+			if (drum->type == DrumType::SOUND && drum->id() == address.id) {
+				return static_cast<SoundDrum*>(drum);
+			}
+		}
+	}
+	return nullptr;
+}
+
+} // namespace
+
+std::optional<deluge::project::SlotAddress> slotAddressOf(::Sound& sound) {
+	if (slotOf(sound) == nullptr) {
+		return std::nullopt;
+	}
+	using Kind = deluge::project::SlotAddress::Kind;
+	if (sound.isDrum()) {
+		return deluge::project::SlotAddress{Kind::DRUM, *static_cast<SoundDrum&>(sound).id()};
+	}
+	return deluge::project::SlotAddress{Kind::OUTPUT, *static_cast<SoundInstrument&>(sound).id()};
+}
+
+::Sound* soundAt(::Song& song, deluge::project::SlotAddress address) {
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		if (::Sound* sound = soundIn(*output, address)) {
+			return sound;
+		}
+	}
+	for (Instrument* sleeping = song.live.media.first_hibernating_instrument; sleeping != nullptr;
+	     sleeping = static_cast<Instrument*>(sleeping->next)) {
+		if (::Sound* sound = soundIn(*sleeping, address)) {
+			return sound;
+		}
+	}
+	return nullptr;
+}
+
+void syncSlotState(::Sound& sound, ::Song& song) {
+	if (deluge::project::InstrumentSlot* slot = slotOf(sound)) {
+		slot->state = deluge::instrument::with_state(slot->state, *sound.boundState(),
+		                                             {.input_tick_magnitude = song.getInputTickMagnitude()});
 	}
 }
 

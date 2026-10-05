@@ -31,7 +31,13 @@
 #include "modulation/params/param_set.h"
 #include <cstring>
 
+#include "deluge-project/instrument_slot.h"
+#include "model/edits/set_engine_setting.h"
+#include "model/project_bridge/slot_bridge.h"
+#include "processing/sound/sound_instrument.h"
 #include "scenarios/drivers/driver.h"
+#include "serialization/tree.h"
+#include "storage/storage_manager.h"
 
 namespace {
 
@@ -468,6 +474,32 @@ void testScalarFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 // Song construction; the Context members are stored, and the pilot dereferences currentSong via the
 // engine mutation path (ActionLogger snapshots off currentSong->live.clips).
 
+// A synth added to the song is bound to its slot; a setting Edit names the slot. No setting path is mapped yet, so the
+// Edit is refused and the slot stays as it was.
+void testSetEngineSetting(deluge::edits::Context& ctx) {
+	ParamManagerForTimeline paramManager;
+	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
+	check(synth != nullptr, "setting: a new synth");
+	if (synth == nullptr) {
+		return;
+	}
+	ctx.song.addOutput(synth);
+	Sound& sound = *static_cast<SoundInstrument*>(synth);
+	const std::optional<deluge::project::SlotAddress> slot = deluge::bridge::slotAddressOf(sound);
+	check(slot.has_value(), "setting: the added synth has a slot address");
+	if (!slot) {
+		return;
+	}
+	check(deluge::bridge::soundAt(ctx.song, *slot) == &sound, "setting: the slot address names the synth");
+	const deluge::serialization::Value before = ctx.model.resolveSlot(*slot)->state;
+	deluge::edits::SetEngineSetting edit{*slot, "unison/num", deluge::serialization::Value::makeNumber(3)};
+	check(deluge::edits::apply(ctx, edit) != Error::NONE, "setting: an unmapped path is refused");
+	check(deluge::serialization::first_difference(ctx.model.resolveSlot(*slot)->state, before).empty(),
+	      "setting: a refused Edit leaves the slot");
+	deluge::edits::SetEngineSetting outOfRange{*slot, "unison/num", deluge::serialization::Value::makeNumber(9)};
+	check(deluge::edits::apply(ctx, outOfRange) != Error::NONE, "setting: a value out of range is refused");
+}
+
 int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	io = driverIo;
 
@@ -495,6 +527,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testParamSnapshotEquivalence(ctx, song, audioClip);
 	testScalarFlipViaApply(ctx, song, audioClip);
 	testRegionFlipViaApply(ctx, song, audioClip);
+	testSetEngineSetting(ctx);
 
 	if (failures == 0) {
 		std::fprintf(io.out, "edit_substrate: OK\n");

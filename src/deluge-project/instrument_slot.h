@@ -19,6 +19,7 @@
 
 #include "serialization/value.h"
 
+#include <cstdint>
 #include <string>
 
 namespace deluge::project {
@@ -29,6 +30,14 @@ struct InstrumentSlot {
 	std::string engine;                                           ///< the engine's id, e.g. "deluge.instrument"
 	serialization::Value state = serialization::Value::makeMap(); ///< the element's other entries, in order
 	bool operator==(const InstrumentSlot&) const = default;
+};
+
+/// @brief Which slot a setting names: a synth track's, by its output's id, or a sound kit row's, by its drum's id.
+struct SlotAddress {
+	enum class Kind : uint8_t { OUTPUT, DRUM };
+	Kind kind{Kind::OUTPUT};
+	uint32_t id{0};
+	bool operator==(const SlotAddress&) const = default;
 };
 
 } // namespace deluge::project

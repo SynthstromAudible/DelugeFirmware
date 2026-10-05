@@ -68,6 +68,19 @@ DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 	return nullptr;
 }
 
+InstrumentSlot* Song::resolveSlot(SlotAddress address) {
+	std::optional<InstrumentSlot>* slot = nullptr;
+	if (address.kind == SlotAddress::Kind::OUTPUT) {
+		if (DocOutput* output = output_structure.find(address.id)) {
+			slot = &output->instrument;
+		}
+	}
+	else if (DocDrum* drum = drum_structure.find(address.id)) {
+		slot = &drum->instrument;
+	}
+	return slot != nullptr && slot->has_value() ? &**slot : nullptr;
+}
+
 // M3 owner-1 (clip structure): a clip's structural record is tree-resident by its durable id (clip_structure),
 // always set at construction (durable-id Phase 0), so there is no transient session-keyed store.
 DocClip* Song::resolveClip(const ClipAddress& address) {

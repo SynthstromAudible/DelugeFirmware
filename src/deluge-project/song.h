@@ -26,6 +26,7 @@
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/drum_structure.h"
 #include "deluge-project/groove.h"
+#include "deluge-project/instrument_slot.h"
 #include "deluge-project/metadata.h"
 #include "deluge-project/output_structure.h"
 #include "deluge-project/param_address.h"
@@ -48,6 +49,10 @@ public:
 	/// nullptr when the address names an owner/lane not (yet) tree-resident, so callers fall back to the engine
 	/// resolution path. This is the seam that lets param ops resolve by id rather than a threaded ModelStack.
 	DocAutoParam* resolveParam(const ParamAddress& address);
+
+	/// The slot @p address names (a synth track's or a sound kit row's instrument), or nullptr when its owner has no
+	/// record or no slot.
+	InstrumentSlot* resolveSlot(SlotAddress address);
 
 	/// M3 owner-1 (clip structure): resolve a clip's DOM-owned structural record (find; nullptr if not tree-resident),
 	/// or getOrCreate it (bound as the clip's authoritative `docClip_` in the Clip ctor). Mirrors resolveParam's CLIP
