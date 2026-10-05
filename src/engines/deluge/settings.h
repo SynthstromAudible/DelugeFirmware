@@ -35,6 +35,11 @@ extern const std::span<const engine::SettingInfo> kSettings;
 /// or 1 for a bool. False for a structured row or a path the schema does not hold.
 [[nodiscard]] bool check_setting(std::string_view path, const serialization::Value& value);
 
+/// @brief @p value as a file writes it at @p path (an integer without sign or leading zeros), or nothing where
+/// check_setting refuses it.
+[[nodiscard]] std::optional<serialization::Value> canonical_setting(std::string_view path,
+                                                                    const serialization::Value& value);
+
 /// @brief Path @p path's value in @p state in an Edit's form (an LFO's sync level as the level itself), or nothing
 /// where the path does not apply to the state: sample playback off a sample source (interpolation off a sample or
 /// live-input one) or in FM; an oscillator's type in FM; an oscillator's own transpose and cents on a sample source

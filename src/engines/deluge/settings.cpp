@@ -330,6 +330,16 @@ Answer anyValue(const SoundState& state, std::string_view path) {
 
 } // namespace
 
+std::optional<serialization::Value> canonical_setting(std::string_view path, const serialization::Value& value) {
+	if (!check_setting(path, value)) {
+		return std::nullopt;
+	}
+	if (engine::find_setting(kSettings, path)->kind == INTEGER) {
+		return serialization::Value::makeNumber(*whole_number(*serialization::text_of(&value)));
+	}
+	return value;
+}
+
 std::optional<serialization::Value> setting_value(const SoundState& state, std::string_view path) {
 	Answer value = anyValue(state, path);
 	if (value && path == "midiOutput/noteForDrum" && value->str() == "255") {

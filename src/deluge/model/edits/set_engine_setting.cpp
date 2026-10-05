@@ -36,21 +36,21 @@ deluge::serialization::Value elementFor(const ::Sound& sound, const deluge::proj
 Error SetEngineSetting::apply(Context& ctx) {
 	deluge::project::InstrumentSlot* slot = ctx.model.resolveSlot(slot_);
 	::Sound* sound = deluge::bridge::soundAt(ctx.song, slot_);
-	if (slot == nullptr || sound == nullptr || sound->boundState() == nullptr
-	    || !deluge::instrument::check_setting(path_, value_)
+	const std::optional<deluge::serialization::Value> value = deluge::instrument::canonical_setting(path_, value_);
+	if (slot == nullptr || sound == nullptr || sound->boundState() == nullptr || !value
 	    || !deluge::instrument::takes_setting(*sound->boundState(), path_)) {
 		return Error::UNSPECIFIED;
 	}
-	Error error = deluge::bridge::commitSlot(*sound, *slot, elementFor(*sound, *slot, path_, value_), ctx.song);
+	Error error = deluge::bridge::commitSlot(*sound, *slot, elementFor(*sound, *slot, path_, *value), ctx.song);
 	if (error != Error::NONE) {
 		return error;
 	}
 	const std::optional<deluge::serialization::Value> landed =
 	    deluge::instrument::setting_value(*sound->boundState(), path_);
-	if (!landed || landed->str() != value_.str()) {
+	if (!landed || landed->str() != value->str()) {
 		// The slot cannot hold this value (a live input's interpolation, a sync level the magnitude cannot write):
 		// the runtime holds it, as within a session it always has, until a save and reload.
-		error = deluge::bridge::applySetting(*sound, path_, value_, ctx.song);
+		error = deluge::bridge::applySetting(*sound, path_, *value, ctx.song);
 		deluge::bridge::syncSlotState(*sound, *slot, ctx.song);
 	}
 	return error;

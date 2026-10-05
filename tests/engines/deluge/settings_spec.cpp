@@ -154,6 +154,12 @@ describe settings("the Deluge instrument's settings schema", ${
 		expect(check_setting("no/such/path", Value::makeNumber(0))).to_be_false();
 		expect(check_setting("unison/num", Value::makeScalar("three"))).to_be_false();
 	});
+
+	it("writes an integer the way a file does, however it was given", _ {
+		expect(canonical_setting("voicePriority", Value::makeScalar("02"))->str()).to_equal(std::string("2"));
+		expect(canonical_setting("polyphonic", Value::makeScalar("mono"))->str()).to_equal(std::string("mono"));
+		expect(canonical_setting("voicePriority", Value::makeScalar("9"))).not_().to_have_value();
+	});
 });
 
 CPPSPEC_SPEC(settings)
