@@ -399,13 +399,23 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 	return 0;
 }
 
+/// Whether @p a and @p b are the same oscillator in what no FM file holds: its type, ranges, DX patch and playback.
+bool sameHiddenSource(const deluge::instrument::SourceState& a, const deluge::instrument::SourceState& b) {
+	return a.osc_type == b.osc_type && a.ranges == b.ranges && a.dx_patch == b.dx_patch
+	       && a.repeat_mode == b.repeat_mode && a.reversed == b.reversed
+	       && a.pitch_and_speed_independent == b.pitch_and_speed_independent
+	       && a.time_stretch_amount == b.time_stretch_amount && a.interpolation_mode == b.interpolation_mode;
+}
+
 /// The mode pair: @p sound set to subtractive, FM, then subtractive again, its slot coherent after each, holding the
-/// modulators only while FM; then its old mode back. 0 when each holds, else 3 after printing the first that does not.
+/// modulators only while FM, and its oscillators afterwards what they were (the types, samples and DX patches no FM
+/// file holds); then its old mode back. 0 when each holds, else 3 after printing the first that does not.
 int modePairLeg(Sound& sound, Song& song, const char* name) {
 	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
-	if (!address) {
+	if (!address || sound.boundState() == nullptr) {
 		return 0;
 	}
+	const deluge::instrument::SoundState before = *sound.boundState();
 	deluge::edits::Context ctx{song, song.project};
 	const Value old = *leafAt(song.project.resolveSlot(*address)->state, "mode");
 	for (std::string_view mode : {"subtractive", "fm", "subtractive"}) {
@@ -422,6 +432,62 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 			             static_cast<int>(failed.size()), failed.data());
 			return 3;
 		}
+		if (mode != "fm") {
+			continue;
+		}
+		// While FM, each oscillator's own tuning moves and comes back: its entry changes, and what no FM file holds of
+		// it must outlast that.
+		for (std::string path : {"osc1/transpose", "osc2/transpose"}) {
+			const int32_t was = static_cast<int32_t>(sound.boundState()->sources[path[3] - '1'].transpose);
+			for (int32_t to : {was < 96 ? was + 1 : was - 1, was}) {
+				deluge::edits::SetEngineSetting tune{*address, path, Value::makeNumber(to)};
+				if (deluge::edits::apply(ctx, tune) != Error::NONE) {
+					std::fprintf(io.err, "%s mode pair: %s=%d refused while FM\n", name, path.c_str(), to);
+					return 3;
+				}
+			}
+		}
+	}
+	for (size_t s = 0; s < before.sources.size(); s++) {
+		if (!sameHiddenSource(sound.boundState()->sources[s], before.sources[s])) {
+			std::fprintf(io.err, "%s mode pair: osc%zu is not the oscillator it was\n", name, s + 1);
+			return 3;
+		}
+	}
+	deluge::edits::SetEngineSetting restore{*address, "mode", old};
+	return deluge::edits::apply(ctx, restore) == Error::NONE ? 0 : 3;
+}
+
+/// The ring-mod leg: a sound outside FM whose first oscillator plays samples is set to ring mod, which only reading a
+/// file clamps to a wavetable, and that oscillator reversed and back; it still plays its samples. Then its old mode
+/// back. 0 when each holds (or the sound has no such oscillator), else 3 after printing the first that does not.
+int ringModLeg(Sound& sound, Song& song, const char* name) {
+	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
+	if (!address || sound.boundState() == nullptr || sound.getSynthMode() == SynthMode::FM
+	    || sound.sources[0].oscType != OscType::SAMPLE) {
+		return 0;
+	}
+	const std::vector<deluge::instrument::RangeState> ranges = sound.boundState()->sources[0].ranges;
+	deluge::edits::Context ctx{song, song.project};
+	const Value old = *leafAt(song.project.resolveSlot(*address)->state, "mode");
+	deluge::edits::SetEngineSetting ringMod{*address, "mode", Value::makeScalar("ringmod")};
+	std::string_view failed = deluge::edits::apply(ctx, ringMod) != Error::NONE
+	                              ? "refused"
+	                              : coherence(sound, song, "mode", Value::makeScalar("ringmod"));
+	const int32_t reversed = sound.boundState()->sources[0].reversed ? 1 : 0;
+	for (int32_t to : {1 - reversed, reversed}) {
+		deluge::edits::SetEngineSetting flip{*address, "osc1/reversed", Value::makeNumber(to)};
+		if (failed.empty() && deluge::edits::apply(ctx, flip) != Error::NONE) {
+			failed = "osc1/reversed refused";
+		}
+	}
+	if (failed.empty()
+	    && (sound.sources[0].oscType != OscType::SAMPLE || sound.boundState()->sources[0].ranges != ranges)) {
+		failed = "osc1 no longer plays its samples";
+	}
+	if (!failed.empty()) {
+		std::fprintf(io.err, "%s ring mod: %.*s\n", name, static_cast<int>(failed.size()), failed.data());
+		return 3;
 	}
 	deluge::edits::SetEngineSetting restore{*address, "mode", old};
 	return deluge::edits::apply(ctx, restore) == Error::NONE ? 0 : 3;
@@ -561,6 +627,9 @@ int settingsOf(Output& output, Song& song) {
 			}
 			if (code == 0) {
 				code = modePairLeg(sound, song, name.c_str());
+			}
+			if (code == 0) {
+				code = ringModLeg(sound, song, name.c_str());
 			}
 		}
 	});
