@@ -1294,6 +1294,18 @@ tier = "manual"
 runtime = "~2s"
 
 [[harness]]
+name = "setting-menus"
+path = "scripts"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "no sound-editor menu calls a setter a setting Edit runs (setTranspose, setOscType, setLfoSync…) on a sound: each goes through settingFor(), so the sound's slot keeps holding its state; audio-clip and sample-range receivers are allowed by name"
+run = ["python3", "check_setting_menus.py"]
+tier = "pr"
+runtime = "~1s"
+
+[[harness]]
 name = "library-boundary-selftest"
 path = "scripts"
 level = "unit"

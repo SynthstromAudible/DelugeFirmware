@@ -97,6 +97,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/deluge-project/|scripts/check_model_words\.py)
+      - id: setting-menus
+        name: no menu sets a sound's setting without its Edit
+        description: no sound-editor menu calls a setter a setting Edit runs; it calls settingFor()
+        entry: python3 scripts/check_setting_menus.py
+        language: system
+        pass_filenames: false
+        files: ^(src/deluge/gui/menu_item/|scripts/check_setting_menus\.py)
 # - repo: local
 
 #   hooks:
