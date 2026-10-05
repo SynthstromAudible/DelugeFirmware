@@ -37,6 +37,7 @@
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
+#include "modulation/params/param_manager.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -153,7 +154,9 @@ int expectBound(Output& output, const char* how) {
 }
 
 /// The setting paths an Edit maps so far.
-constexpr std::array<std::string_view, 3> kEditedPaths{"polyphonic", "voicePriority", "maxVoices"};
+constexpr std::array<std::string_view, 7> kEditedPaths{
+    "polyphonic", "voicePriority", "maxVoices", "mode", "transpose", "cents", "sideChainSend",
+};
 
 /// The node at @p path (slash-separated) in @p tree, or nullptr.
 const Value* leafAt(const Value& tree, std::string_view path) {
@@ -275,6 +278,34 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 	return 0;
 }
 
+/// The mode pair: @p sound set to subtractive, FM, then subtractive again, its slot coherent after each, holding the
+/// modulators only while FM; then its old mode back. 0 when each holds, else 3 after printing the first that does not.
+int modePairLeg(Sound& sound, Song& song, const char* name) {
+	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
+	if (!address) {
+		return 0;
+	}
+	deluge::edits::Context ctx{song, song.project};
+	const Value old = *leafAt(song.project.resolveSlot(*address)->state, "mode");
+	for (std::string_view mode : {"subtractive", "fm", "subtractive"}) {
+		const Value value = Value::makeScalar(std::string(mode));
+		deluge::edits::SetEngineSetting edit{*address, "mode", value};
+		std::string_view failed =
+		    deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : coherence(sound, song, "mode", value);
+		const bool modulators = song.project.resolveSlot(*address)->state.find("modulator1") != nullptr;
+		if (failed.empty() && modulators != (mode == "fm")) {
+			failed = modulators ? "modulators kept" : "no modulators";
+		}
+		if (!failed.empty()) {
+			std::fprintf(io.err, "%s mode pair %.*s: %.*s\n", name, static_cast<int>(mode.size()), mode.data(),
+			             static_cast<int>(failed.size()), failed.data());
+			return 3;
+		}
+	}
+	deluge::edits::SetEngineSetting restore{*address, "mode", old};
+	return deluge::edits::apply(ctx, restore) == Error::NONE ? 0 : 3;
+}
+
 /// The affect-entire leg: @p path set to @p value on every sound drum of @p kit, one Edit each, then every drum's slot
 /// checked. 0 when each holds, else 3 after printing the first that does not.
 int affectEntireLeg(Kit& kit, Song& song, std::string_view path, const Value& value) {
@@ -314,12 +345,48 @@ int settingsOf(Output& output, Song& song) {
 		if (code == 0) {
 			std::string name = std::string(kind) + " of " + output.name.c_str();
 			code = settingLegs(sound, song, name.c_str());
+			if (code == 0) {
+				code = modePairLeg(sound, song, name.c_str());
+			}
 		}
 	});
 	if (code == 0 && output.type == OutputType::KIT) {
 		code = affectEntireLeg(static_cast<Kit&>(output), song, "polyphonic", Value::makeScalar("mono"));
 	}
 	return code;
+}
+
+/// The hibernation leg, for a song with no hibernating sound: a synth added to it and hibernated (as replacing an
+/// edited instrument hibernates it) keeps its slot, and its settings' Edits reach it there. 0 when each holds, else 3
+/// after printing the first that does not.
+int hibernationLeg(Song& song) {
+	for (Instrument* sleeping = song.live.media.first_hibernating_instrument; sleeping != nullptr;
+	     sleeping = static_cast<Instrument*>(sleeping->next)) {
+		if (sleeping->type == OutputType::SYNTH || sleeping->type == OutputType::KIT) {
+			return 0; // the song's own hibernating sound had every leg
+		}
+	}
+	ParamManagerForTimeline paramManager;
+	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
+	if (synth == nullptr) {
+		std::fprintf(io.err, "hibernation: no new synth\n");
+		return 3;
+	}
+	// Its params go to the song's backups, as an instrument with no clip keeps them; a setting's side effects reach
+	// them.
+	song.live.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
+	                              &paramManager, true);
+	song.addOutput(synth);
+	synth->editedByUser = true;
+	song.deleteOrHibernateOutput(synth);
+	if (song.live.media.first_hibernating_instrument != synth) {
+		std::fprintf(io.err, "hibernation: the synth did not hibernate\n");
+		return 3;
+	}
+	if (int r = expectBound(*synth, "hibernated")) {
+		return r;
+	}
+	return settingsOf(*synth, song);
 }
 
 int engine_settings_main(int argc, char** argv, Io driverIo) {
@@ -363,6 +430,9 @@ int engine_settings_main(int argc, char** argv, Io driverIo) {
 			if (int r = settingsOf(*sleeping, *song)) {
 				return r;
 			}
+		}
+		if (int r = hibernationLeg(*song)) {
+			return r;
 		}
 		std::fprintf(io.err, "every sound of the song is bound and its settings are coherent\n");
 		return 0;

@@ -24,7 +24,7 @@
 
 namespace deluge::bridge {
 
-Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& /*song*/) {
+Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song) {
 	if (!deluge::instrument::check_setting(path, value)) {
 		return Error::UNSPECIFIED;
 	}
@@ -38,6 +38,18 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 	}
 	else if (path == "maxVoices") {
 		sound.setMaxVoiceCount(static_cast<uint8_t>(number));
+	}
+	else if (path == "mode") {
+		sound.setSynthMode(deluge::instrument::parse_synth_mode(text), &song);
+	}
+	else if (path == "transpose") {
+		sound.setTranspose(static_cast<int16_t>(number));
+	}
+	else if (path == "cents") {
+		sound.set_cents(static_cast<int8_t>(number));
+	}
+	else if (path == "sideChainSend") {
+		sound.setSideChainSendLevel(number);
 	}
 	else {
 		return Error::UNSPECIFIED; // the path has no setter here

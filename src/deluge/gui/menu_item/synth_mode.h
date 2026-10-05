@@ -16,7 +16,9 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "engines/deluge/words.h"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
 #include "model/instrument/kit.h"
@@ -25,6 +27,11 @@
 #include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item {
+
+/// The file form of @p mode: the name a sound's file writes for it.
+inline serialization::Value synthModeValue(::SynthMode mode) {
+	return serialization::Value::makeScalar(std::string(deluge::instrument::to_string(mode)));
+}
 class SynthModeSelection final : public Selection {
 public:
 	using Selection::Selection;
@@ -45,14 +52,14 @@ public:
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
 					if (soundDrum->sources[0].oscType <= kLastRingmoddableOscType
 					    && soundDrum->sources[1].oscType <= kLastRingmoddableOscType) {
-						soundDrum->setSynthMode(current_value, currentSong);
+						settingFor(*soundDrum, "mode", synthModeValue(current_value));
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->setSynthMode(current_value, currentSong);
+			settingFor(*soundEditor.currentSound, "mode", synthModeValue(current_value));
 		}
 		view.setKnobIndicatorLevels();
 	}

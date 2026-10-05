@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/transpose.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
@@ -50,8 +51,8 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
-					soundDrum->setTranspose(transpose);
-					soundDrum->set_cents(cents);
+					settingFor(*soundDrum, "transpose", serialization::Value::makeNumber(transpose));
+					settingFor(*soundDrum, "cents", serialization::Value::makeNumber(cents));
 
 					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 					ModelStackWithSoundFlags* modelStackForSoundDrum =
@@ -62,8 +63,8 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->setTranspose(transpose);
-			soundEditor.currentSound->set_cents(cents);
+			settingFor(*soundEditor.currentSound, "transpose", serialization::Value::makeNumber(transpose));
+			settingFor(*soundEditor.currentSound, "cents", serialization::Value::makeNumber(cents));
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
