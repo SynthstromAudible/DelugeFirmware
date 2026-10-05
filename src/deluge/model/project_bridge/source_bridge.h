@@ -37,7 +37,7 @@ namespace deluge::bridge {
 /// loaded files or reshaped the list itself records its result this way. Kills no voices: a zone moves under a
 /// sounding note, as the marker editor has always moved it.
 /// @return Error::UNSPECIFIED when the list has another length or another file in any range (assigning a file is its
-/// gesture's own load), or its top notes do not rise.
+/// gesture's own load), or a top note it moves does not rise between its neighbours.
 Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrument::RangeState>& ranges);
 
 /// @brief Source @p source's DX7 patch as the record holds it, or nullopt when it has none.

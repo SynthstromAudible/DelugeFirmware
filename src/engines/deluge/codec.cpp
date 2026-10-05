@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <iterator>
 #include <span>
 #include <string>
 #include <utility>
@@ -287,9 +288,11 @@ std::string_view textOf(const Value& value) {
 	return value.isScalar() ? std::string_view(value.str()) : std::string_view{};
 }
 
-/// What the reader knows of a source beyond its state: whether its ranges are wavetable ranges.
+/// What the reader knows of a source beyond its state: whether its ranges are wavetable ranges, and whether two of them
+/// on one top note are refused (a file's) or kept in order (a slot's, whose runtime holds them).
 struct SourceReading {
 	bool wavetableRanges{false};
+	bool refuseDuplicates{true};
 };
 
 /// A source's ranges become @p wavetable ranges, keeping only their top notes, and there is at least one, as switching
@@ -379,7 +382,7 @@ void readZone(const Value& zone, RangeState& range, bool resetPositions) {
 	}
 }
 
-std::expected<void, engine::StateError> readRanges(const Value& list, SourceState& src) {
+std::expected<void, engine::StateError> readRanges(const Value& list, SourceState& src, bool refuseDuplicates) {
 	const bool wavetable = src.osc_type == OscType::WAVETABLE;
 	for (const serialization::NamedChild& child : serialization::children(list)) {
 		if ((child.name != "sampleRange" && child.name != "wavetableRange") || !child.node->isMap()) {
@@ -403,8 +406,8 @@ std::expected<void, engine::StateError> readRanges(const Value& list, SourceStat
 				range.cents = static_cast<int8_t>(intOf(value));
 			}
 		}
-		auto at = std::ranges::lower_bound(src.ranges, range.top_note, {}, &RangeState::top_note);
-		if (at != src.ranges.end() && at->top_note == range.top_note) {
+		auto at = std::ranges::upper_bound(src.ranges, range.top_note, {}, &RangeState::top_note);
+		if (refuseDuplicates && at != src.ranges.begin() && std::prev(at)->top_note == range.top_note) {
 			return std::unexpected(engine::StateError::DUPLICATE_RANGE);
 		}
 		src.ranges.insert(at, std::move(range));
@@ -475,7 +478,7 @@ std::expected<void, engine::StateError> readSource(const Value& osc, SoundState&
 		}
 		else if (key == "sampleRanges" || key == "wavetableRanges") {
 			src.ranges.clear(); // the list is every range the source has, the one switching its type made included
-			if (auto read = readRanges(value, src); !read) {
+			if (auto read = readRanges(value, src, reading.refuseDuplicates); !read) {
 				return read;
 			}
 		}
@@ -577,7 +580,8 @@ std::expected<void, engine::StateError> decodeImpl(const Value& element, SoundSt
 	state.modulator_transpose[1] = 0;
 	state.osc_retrigger_phase = {};
 	state.modulator_retrigger_phase = {};
-	std::array<SourceReading, 2> reading{};
+	std::array<SourceReading, 2> reading{SourceReading{.refuseDuplicates = fileRead},
+	                                     SourceReading{.refuseDuplicates = fileRead}};
 
 	for (const auto& [key, value] : element.entries()) {
 		if (key == "osc1" || key == "osc2") {

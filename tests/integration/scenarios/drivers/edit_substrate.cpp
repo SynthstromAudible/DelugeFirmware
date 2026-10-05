@@ -614,6 +614,26 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	check(deluge::edits::apply(ctx, reshape) != Error::NONE, "ranges: another length is refused");
 	check(deluge::serialization::first_difference(ctx.model.resolveSlot(*slot)->state, before).empty(),
 	      "ranges: a refusal leaves the slot");
+
+	// A malformed legacy file can leave two ranges on one top note: a change to one of them still takes, judged only
+	// where it changes.
+	for (int32_t i : {0, 1}) {
+		MultiRange* range = sound.sources[0].ranges.insertMultiRange(i);
+		check(range != nullptr, "ranges: a range inserted");
+		if (range == nullptr) {
+			return;
+		}
+		range->topNote = 60;
+	}
+	sound.sources[0].seedDocRanges();
+	deluge::bridge::syncSlotState(sound, *ctx.model.resolveSlot(*slot), ctx.song);
+	ranges = deluge::bridge::rangesOf(sound.sources[0]);
+	ranges[2].end_pos = 700;
+	deluge::edits::SetSourceRanges legacy{*slot, 0, ranges};
+	check(deluge::edits::apply(ctx, legacy) == Error::NONE, "ranges: a change beside a duplicate top note is taken");
+	ranges[0].top_note = 70;
+	deluge::edits::SetSourceRanges outOfOrder{*slot, 0, ranges};
+	check(deluge::edits::apply(ctx, outOfOrder) != Error::NONE, "ranges: a changed top note out of order is refused");
 }
 
 // A new drum's id is one no drum record of the song holds: a drum whose id the counter has not passed (a hibernating

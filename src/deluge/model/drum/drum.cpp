@@ -16,9 +16,6 @@
  */
 
 #include "model/drum/drum.h"
-#include "model/project_bridge/slot_bridge.h"
-#include "model/song/song.h"
-#include "processing/sound/sound_drum.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_drum.h" // complete DocDrum type — the authoritative store for the drum name
@@ -31,7 +28,6 @@
 #include "model/note/note_row.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
-#include "storage/audio/blocking_sample_load.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
@@ -183,12 +179,4 @@ justSend:
 	}
 
 	expressionValueChangesMustBeDoneSmoothly = false;
-}
-
-void Drum::loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
-	deluge::storage::BlockingSampleLoad load{mayActuallyReadFiles, context};
-	(void)walkSampleDemands(load);
-	if (type == DrumType::SOUND && docDrum_ != nullptr && currentSong != nullptr) {
-		deluge::bridge::recordLoadedSound(*static_cast<SoundDrum*>(this), *currentSong); // what the load made of it
-	}
 }

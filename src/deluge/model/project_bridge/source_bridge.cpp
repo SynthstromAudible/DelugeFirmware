@@ -44,7 +44,14 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 		return Error::UNSPECIFIED;
 	}
 	for (size_t i = 0; i < ranges.size(); i++) {
-		if (ranges[i].file_path != now[i].file_path || (i > 0 && ranges[i].top_note <= ranges[i - 1].top_note)) {
+		if (ranges[i].file_path != now[i].file_path) {
+			return Error::UNSPECIFIED;
+		}
+		// Order is judged only where the list changes: two ranges a malformed file left on one top note stand.
+		const bool moved = ranges[i].top_note != now[i].top_note;
+		if (moved
+		    && ((i > 0 && ranges[i].top_note <= ranges[i - 1].top_note)
+		        || (i + 1 < ranges.size() && ranges[i + 1].top_note <= ranges[i].top_note))) {
 			return Error::UNSPECIFIED;
 		}
 	}

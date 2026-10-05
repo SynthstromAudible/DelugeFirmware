@@ -28,6 +28,7 @@
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -260,7 +261,10 @@ void recordLoadedSound(::Sound& sound, ::Song& song) {
 	if (slot == nullptr) {
 		return;
 	}
-	sound.reseedRecord();
+	{
+		AudioExcludedSection section; // the reseed reprojects the snapshot the render reads
+		sound.reseedRecord();
+	}
 	syncSlotState(sound, *slot, song);
 	if (const std::optional<deluge::project::ControlsAddress> owner = controlsAddressOf(sound)) {
 		if (std::vector<deluge::project::ControllerMapping>* controls = song.project.resolveControls(*owner)) {

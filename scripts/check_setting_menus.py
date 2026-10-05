@@ -11,6 +11,10 @@ to the sound's slot or its controller mappings, so the model keeps holding the s
 holder is allowed by its receiver's name. The sample browser's preview sound, outside the song, is set up by the
 runtime and calls no setter.
 
+Two gestures write the runtime themselves and record what they wrote, checked file by file: a file that writes a mod
+knob (a `modKnobs[...]` descriptor, or learnKnob()/unlearnKnobs() on what is not a menu item) also calls
+recordControlsOf(), and a file that writes a sample holder's file or zone also calls recordRanges() or rangesFor().
+
 Usage:
     scripts/check_setting_menus.py               # check src/deluge/gui, exit 1 on a call
     scripts/check_setting_menus.py --root DIR    # check DIR
@@ -73,6 +77,25 @@ RECEIVER = re.compile(r"([A-Za-z_]\w*)\s*(?:\(\s*\))?\s*(?:\[[^\]]*\])?\s*$")
 SUFFIXES = {".h", ".hpp", ".cpp"}
 
 
+#: The last name before a call or field, past any `()`, `[i]`, `*` or closing parenthesis: `(*item_)->x` names item_.
+LAST_NAME = re.compile(r"([A-Za-z_]\w*)[\s()\[\]*\w]*$")
+#: A mod knob written: its descriptor set, or a knob learned or unlearned.
+KNOB_WRITE = re.compile(
+    r"modKnobs\s*\[[^\]]*\]\s*\[[^\]]*\]\s*\.\s*paramDescriptor\s*\.\s*set\w*\s*\("
+)
+KNOB_LEARN = re.compile(r"(?:->|\.)\s*(learnKnob|unlearnKnobs)\s*\(")
+#: Receivers of learnKnob() that are menu items, which hand the knob to the sound and record it themselves.
+MENU_ITEM_RECEIVERS = {"current_item_", "getCurrentMenuItem"}
+#: A sample holder's file or zone written; the holder is a receiver whose name ends in "holder", any case.
+HOLDER_WRITE = re.compile(
+    r"(?:->|\.)\s*(filePath|startPos|endPos|loopStartPos|loopEndPos)\s*=(?!=)"
+)
+#: What makes a file's writes recorded, by kind.
+RECORDERS = {
+    "a mod knob": ("recordControlsOf(",),
+    "a sample holder's file or zone": ("recordRanges(", "rangesFor("),
+}
+
 #: Files outside the root checked the same way: none, now that the root is the whole UI.
 ALSO: tuple[Path, ...] = ()
 
@@ -98,12 +121,48 @@ def calls(root: Path, also: tuple[Path, ...] = ()) -> list[str]:
     return found
 
 
+def unrecorded(root: Path) -> list[str]:
+    """Every `<file>: writes <what> but never records it` under root: a knob or holder write without its recorder."""
+    found = []
+    for path in sorted(root.rglob("*")):
+        if path.suffix not in SUFFIXES or not path.is_file():
+            continue
+        text = path.read_text(errors="replace")
+        audio_clip_menu = AUDIO_CLIP_MENUS in path.relative_to(root).parts
+        writes = set()
+        for line in text.splitlines():
+            if KNOB_WRITE.search(line):
+                writes.add("a mod knob")
+            for match in KNOB_LEARN.finditer(line):
+                receiver = LAST_NAME.search(line[: match.start()])
+                if receiver is None or receiver.group(1) not in MENU_ITEM_RECEIVERS:
+                    writes.add("a mod knob")
+            for match in HOLDER_WRITE.finditer(line):
+                before = line[: match.start()]
+                receiver = LAST_NAME.search(before)
+                if receiver is None or not receiver.group(1).lower().rstrip(
+                    "_"
+                ).endswith("holder"):
+                    continue
+                if (
+                    "audioClip" in before
+                    or "AudioClip" in before
+                    or (audio_clip_menu and "clip" in before)
+                ):
+                    continue
+                writes.add("a sample holder's file or zone")
+        for what in sorted(writes):
+            if not any(recorder in text for recorder in RECORDERS[what]):
+                found.append(f"{path}: writes {what} but never records it")
+    return found
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=REPO / "src" / "deluge" / "gui")
     parser.add_argument("--also", type=Path, nargs="*", default=list(ALSO))
     args = parser.parse_args(argv)
-    found = calls(args.root, tuple(args.also))
+    found = calls(args.root, tuple(args.also)) + unrecorded(args.root)
     for line in found:
         print(line)
     if found:
