@@ -1356,6 +1356,12 @@ void Song::removeDocOutput(Output* output) {
 
 Error Song::readFromFile(Deserializer& reader, uint64_t timePerTimerTick) {
 	D_PRINTLN("DEBUG: readFromFile");
+	// Outputs added while the file is read are adopted once ids are known (assignMissingIds), not as they are added.
+	struct ReadingFromFile {
+		bool& reading;
+		explicit ReadingFromFile(bool& flag) : reading(flag) { reading = true; }
+		~ReadingFromFile() { reading = false; }
+	} readingFromFile{readingFromFile_};
 
 	outputClipInstanceListIsCurrentlyInvalid = true;
 
@@ -3330,6 +3336,11 @@ void Song::addOutput(Output* output, bool atStart) {
 	if (this == currentSong) {
 		output->resyncLFOs();
 	}
+
+	// An output added to a running song joins the model now: its record and, for a synth, its sound's slot.
+	if (!readingFromFile_) {
+		adoptOutput(output);
+	}
 }
 
 // Make sure you first free all the Instrument's voices before calling this!
@@ -3593,6 +3604,10 @@ traverseClips:
 		((AudioOutput*)outputRecordingOldOutput)->setOutputRecordingFrom(newOutput);
 	}
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	// The replacing instrument joins the model as an added one does.
+	if (!readingFromFile_) {
+		adoptOutput(newOutput);
+	}
 }
 
 // NOTE: for Instruments not currently in any list

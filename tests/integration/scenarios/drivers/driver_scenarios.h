@@ -29,6 +29,7 @@
 /// | clip_clone_roundtrip | InstrumentClip::clone() on a loaded song, checked deep-independent         |
 /// | edit_substrate       | the Edit dispatcher and the SetParamValue pilot, self-checking             |
 /// | edit_undo_redo       | reified Edits applied, undone and redone over a loaded song, self-checking |
+/// | engine_settings      | a sound's settings through its slot: binding, every setting Edit, both equations |
 /// | instrument_codec_decode | the Deluge instrument's decode against the state the app's reader leaves     |
 /// | instrument_codec_encode | the Deluge instrument's encode against the elements the app writes          |
 /// | instrument_state_roundtrip | a sound's written element decodes and encodes back to itself            |
@@ -58,6 +59,7 @@ DELUGE_DRIVER_SCENARIO_DECLARE(cable_decode)
 DELUGE_DRIVER_SCENARIO_DECLARE(clip_clone_roundtrip)
 DELUGE_DRIVER_SCENARIO_DECLARE(edit_substrate)
 DELUGE_DRIVER_SCENARIO_DECLARE(edit_undo_redo)
+DELUGE_DRIVER_SCENARIO_DECLARE(engine_settings)
 DELUGE_DRIVER_SCENARIO_DECLARE(instrument_codec_decode)
 DELUGE_DRIVER_SCENARIO_DECLARE(instrument_codec_encode)
 DELUGE_DRIVER_SCENARIO_DECLARE(instrument_state_roundtrip)

@@ -1113,6 +1113,21 @@ tier = "nightly"
 runtime = "~20s"
 
 [[harness]]
+name = "engine-settings"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a sound's settings go through its slot: every sound of every corpus song, of every synth and kit preset beside the corpus and of the community presets is bound to its slot, as is a synth added to a running song or replacing another; every setting the sound editor changes is an Edit, after which the slot's instrument entries equal the state's encoding and the snapshot equals its projection of the state"
+scenario = "engine_settings"
+check = "tests/integration/checks/host_driver.py"
+builds = ["golden-vt-render"]
+requires = ["song-xml-corpus"]
+tier = "nightly"
+runtime = "~30s"
+
+[[harness]]
 name = "instrument-codec-decode"
 path = "."
 level = "integration"

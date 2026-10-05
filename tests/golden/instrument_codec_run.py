@@ -15,9 +15,9 @@ import driver
 from presets_run import find_presets
 
 
-def sweep(scenario: str, argv=None, description: str = "") -> int:
-    """Run @scenario over every corpus song (SONG) and every preset (SYNTH, KIT): 0 when all pass, 1 on a failure, 77
-    with nothing to check. A file that does not load is skipped."""
+def sweep(scenario: str, argv=None, description: str = "", extra_jobs=()) -> int:
+    """Run @scenario over every corpus song (SONG), every preset (SYNTH, KIT) and @extra_jobs ((path, kind) pairs): 0
+    when all pass, 1 on a failure, 77 with nothing to check. A file that does not load is skipped."""
     ap = argparse.ArgumentParser(description=description)
     ap.add_argument("--binary", default=str(driver.default_binary()))
     ap.add_argument("--wrapper", default="")
@@ -35,6 +35,7 @@ def sweep(scenario: str, argv=None, description: str = "") -> int:
     jobs += [
         (path, kind) for key, path, kind in find_presets(root) if args.filter in key
     ]
+    jobs += [job for job in extra_jobs if args.filter in job[0]]
     if not jobs:
         print("nothing to check")
         return 77

@@ -498,6 +498,8 @@ private:
 	// unassigned state is std::nullopt (Clip/Output::id), not a reserved id value.
 	uint32_t clipIdCounter_{1};
 	uint32_t outputIdCounter_{1};
+	/// While a file is read: outputs added then are adopted once ids are known, not as they are added.
+	bool readingFromFile_{false};
 	uint32_t drumIdCounter_{1};
 };
 
