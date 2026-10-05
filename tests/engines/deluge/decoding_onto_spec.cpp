@@ -12,6 +12,12 @@ namespace deluge::instrument {
 std::ostream& operator<<(std::ostream& out, const SoundState& state) {
 	return out << deluge::serialization::first_difference(dump_state(state), Value::makeMap());
 }
+
+/// A range, printed as its fields, so a failing comparison of range lists shows it.
+std::ostream& operator<<(std::ostream& out, const RangeState& range) {
+	return out << "{top " << range.top_note << " " << range.file_path << " " << range.start_pos << "-" << range.end_pos
+	           << " msec " << range.start_msec << "-" << range.end_msec << "}";
+}
 } // namespace deluge::instrument
 
 namespace {
@@ -107,6 +113,35 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 		constexpr deluge::engine::CodecContext kSlow{.input_tick_magnitude = 0};
 		const auto decoded = decode_onto(encode(written, kSlow), state, kSlow);
 		expect(static_cast<int32_t>(decoded->lfo_sync_level[0])).to_equal(2); // where magnitude 0's file keeps WHOLE
+	});
+
+	it("keeps the ranges a changed oscillator type carries over, legacy zone and all", _ {
+		SoundState state = sampled();
+		state.sources[1].ranges = {RangeState{.top_note = 32767, .file_path = "SAMPLES/OLD.WAV", .end_pos = 500,
+		                                      .start_msec = 40, .end_msec = 900}};
+		SoundState written = state;
+		written.sources[1].osc_type = OscType::SAMPLE;
+		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
+		expect(decoded->sources[1].ranges).to_equal(state.sources[1].ranges);
+	});
+
+	it("reads the ranges a changed oscillator type reshapes", _ {
+		SoundState state = sampled();
+		SoundState written = state;
+		written.sources[0].osc_type = OscType::WAVETABLE;
+		written.sources[0].ranges = {RangeState{.top_note = 60}, RangeState{.top_note = 32767}};
+		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
+		expect(decoded->sources[0].ranges).to_equal(written.sources[0].ranges);
+	});
+
+	it("carries no sample range's zone into a wavetable, even one with no file", _ {
+		SoundState state = sampled();
+		state.sources[0].ranges = {RangeState{.top_note = 32767, .end_pos = 9999999}};
+		SoundState written = state;
+		written.sources[0].osc_type = OscType::WAVETABLE;
+		written.sources[0].ranges = {RangeState{.top_note = 32767}};
+		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
+		expect(decoded->sources[0].ranges).to_equal(written.sources[0].ranges);
 	});
 
 	it("keeps the effects, which are not the instrument's", _ {

@@ -17,9 +17,13 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp" // Error
 #include "deluge-project/instrument_slot.h"
+#include "engines/deluge/sound_state.h"
 
 #include <optional>
+#include <string>
+#include <string_view>
 
 class Output;
 class Song;
@@ -47,6 +51,23 @@ void refreshSlots(::Song& song);
 /// @brief Make @p slot (@p sound's, as the model resolves it) hold the sound's state: the instrument's entries replaced
 /// by the state's encoding, every other entry kept. Nothing for a sound that is not bound.
 void syncSlotState(const ::Sound& sound, deluge::project::InstrumentSlot& slot, const ::Song& song);
+
+/// @brief @p tree with the leaf at @p path (slash-separated) set to @p leaf, maps along the way made as needed, every
+/// other entry kept in order.
+[[nodiscard]] deluge::serialization::Value withLeaf(const deluge::serialization::Value& tree, std::string_view path,
+                                                    deluge::serialization::Value leaf);
+
+/// @brief Take @p sound's runtime from @p old to @p next: each settings row whose value differs, in the table's order,
+/// through applySetting; then each source's DX patch and ranges where they differ.
+Error applyDifference(::Sound& sound, const deluge::instrument::SoundState& old,
+                      const deluge::instrument::SoundState& next, ::Song& song);
+
+/// @brief Make @p element @p sound's slot state: decode it onto the sound's state at the slot's magnitude, take the
+/// runtime there by difference, and refresh the slot from the state reached.
+/// @return Error::UNSPECIFIED when the element does not decode, an apply is refused, or the runtime did not reach the
+/// decoded state; the slot is refreshed either way.
+Error commitSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, const deluge::serialization::Value& element,
+                 ::Song& song);
 
 /// @brief @p sound re-read into its record from the runtime, its slot refreshed and its controls record set from its
 /// knobs, when it is bound in @p song.

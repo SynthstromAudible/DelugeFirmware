@@ -55,7 +55,8 @@ public:
 	// add/remove, sample-set, reverse). The engine sampleHolder/ranges stay the working structure; this mirrors them
 	// into the record.
 	void seedDocRanges();
-	/// The ranges seedDocRanges copies, into @p d.
+	/// The ranges seedDocRanges copies, into @p d: each one's top note and file, and while they are sample ranges
+	/// (whatever the type now) their zones and tuning, which a type change and back keeps.
 	void seedRangesInto(deluge::instrument::SourceState& d) const;
 
 	SampleControls sampleControls;

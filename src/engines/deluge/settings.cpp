@@ -27,6 +27,7 @@
 #include <charconv>
 #include <limits>
 #include <string>
+#include <utility>
 
 namespace deluge::instrument {
 
@@ -138,9 +139,208 @@ std::optional<int64_t> whole_number(std::string_view text) {
 	return n;
 }
 
+using Answer = std::optional<serialization::Value>;
+
+Answer number(int64_t n) {
+	return serialization::Value::makeNumber(n);
+}
+
+Answer flag(bool on) {
+	return number(on ? 1 : 0);
+}
+
+Answer word(std::string_view text) {
+	return serialization::Value::makeScalar(std::string(text));
+}
+
+/// A retrigger phase as a file writes it: the 32-bit phase as a signed integer.
+Answer phase(uint32_t value) {
+	return number(static_cast<int32_t>(value));
+}
+
+/// The digit after a family's prefix as an index from 0, or nothing when @p path has no `<digit>/` there.
+std::optional<size_t> indexAfter(std::string_view path, size_t at, char last) {
+	if (path.size() <= at + 1 || path[at] < '1' || path[at] > last || path[at + 1] != '/') {
+		return std::nullopt;
+	}
+	return static_cast<size_t>(path[at] - '1');
+}
+
+Answer topLevelValue(const SoundState& state, std::string_view path) {
+	if (path == "polyphonic") {
+		return word(to_string(state.polyphonic));
+	}
+	if (path == "voicePriority") {
+		return number(std::to_underlying(state.voice_priority));
+	}
+	if (path == "sideChainSend") {
+		return number(state.side_chain_send_level);
+	}
+	if (path == "mode") {
+		return word(to_string(state.synth_mode));
+	}
+	if (path == "transpose") {
+		return number(state.transpose);
+	}
+	if (path == "cents") {
+		return number(state.cents);
+	}
+	if (path == "maxVoices") {
+		return number(state.max_voice_count);
+	}
+	return std::nullopt;
+}
+
+Answer oscillatorValue(const SoundState& state, std::string_view path) {
+	const std::optional<size_t> s = indexAfter(path, 3, '2');
+	if (!s) {
+		return std::nullopt;
+	}
+	const SourceState& src = state.sources[*s];
+	const std::string_view rest = path.substr(5);
+	const bool fm = state.synth_mode == SynthMode::FM;
+	const bool sample = src.osc_type == OscType::SAMPLE;
+	const bool input =
+	    src.osc_type == OscType::INPUT_L || src.osc_type == OscType::INPUT_R || src.osc_type == OscType::INPUT_STEREO;
+	if (rest == "linearInterpolation") {
+		return !fm && (sample || input) ? flag(src.interpolation_mode == engine::InterpolationMode::LINEAR)
+		                                : std::nullopt;
+	}
+	if (rest == "loopMode" || rest == "reversed" || rest == "timeStretchEnable" || rest == "timeStretchAmount") {
+		if (fm || !sample) {
+			return std::nullopt;
+		}
+		return rest == "loopMode"            ? number(std::to_underlying(src.repeat_mode))
+		       : rest == "reversed"          ? flag(src.reversed)
+		       : rest == "timeStretchEnable" ? flag(src.pitch_and_speed_independent)
+		                                     : number(src.time_stretch_amount);
+	}
+	if (rest == "type") {
+		return fm ? std::nullopt : word(to_string(src.osc_type));
+	}
+	if (rest == "transpose" || rest == "cents") {
+		if (!fm && sample) {
+			return std::nullopt; // a sample source's tuning is its ranges'
+		}
+		return rest == "transpose" ? number(src.transpose) : number(src.cents);
+	}
+	if (rest == "retrigPhase") {
+		return phase(state.osc_retrigger_phase[*s]);
+	}
+	if (rest == "oscillatorSync" && *s == 1) {
+		return flag(state.oscillator_sync);
+	}
+	return std::nullopt;
+}
+
+Answer lfoValue(const SoundState& state, std::string_view path) {
+	const std::optional<size_t> l = indexAfter(path, 3, '4');
+	if (!l) {
+		return std::nullopt;
+	}
+	const std::string_view rest = path.substr(5);
+	if (rest == "type") {
+		return word(to_string(state.lfo_wave_type[*l]));
+	}
+	if (rest == "syncLevel") {
+		return number(engine::index_of(state.lfo_sync_level[*l]));
+	}
+	if (rest == "syncType") {
+		return number(std::to_underlying(state.lfo_sync_type[*l]));
+	}
+	return std::nullopt;
+}
+
+Answer modulatorValue(const SoundState& state, std::string_view path) {
+	const std::optional<size_t> m = indexAfter(path, 9, '2');
+	if (!m || state.synth_mode != SynthMode::FM) {
+		return std::nullopt; // only FM writes its modulators
+	}
+	const std::string_view rest = path.substr(11);
+	if (rest == "transpose") {
+		return number(state.modulator_transpose[*m]);
+	}
+	if (rest == "cents") {
+		return number(state.modulator_cents[*m]);
+	}
+	if (rest == "retrigPhase") {
+		return phase(state.modulator_retrigger_phase[*m]);
+	}
+	if (rest == "toModulator1" && *m == 1) {
+		return flag(state.modulator1_to_modulator0);
+	}
+	return std::nullopt;
+}
+
+Answer unisonValue(const SoundState& state, std::string_view path) {
+	const std::string_view rest = path.substr(7);
+	if (rest == "num") {
+		return number(state.num_unison);
+	}
+	if (rest == "detune") {
+		return number(state.unison_detune);
+	}
+	if (rest == "spread") {
+		return number(state.unison_stereo_spread);
+	}
+	return std::nullopt;
+}
+
+Answer midiOutputValue(const SoundState& state, std::string_view path) {
+	const std::string_view rest = path.substr(11);
+	if (rest == "channel") {
+		return number(state.output_midi_channel);
+	}
+	if (rest == "noteForDrum") {
+		return number(state.output_midi_note_for_drum);
+	}
+	return std::nullopt;
+}
+
+/// Each family of setting paths, by its prefix, and how a state answers one; the empty prefix takes the rest.
+struct Family {
+	std::string_view prefix;
+	Answer (*value)(const SoundState&, std::string_view);
+};
+constexpr std::array kFamilies{
+    Family{"osc", oscillatorValue},         Family{"lfo", lfoValue},
+    Family{"modulator", modulatorValue},    Family{"unison/", unisonValue},
+    Family{"midiOutput/", midiOutputValue}, Family{"", topLevelValue},
+};
+
 } // namespace
 
 const std::span<const engine::SettingInfo> kSettings{kRows};
+
+namespace {
+
+/// @p path's value in @p state, an unset one included, or nothing where the path does not apply.
+Answer anyValue(const SoundState& state, std::string_view path) {
+	const SettingInfo* row = engine::find_setting(kSettings, path);
+	if (row == nullptr || row->kind == STRUCTURED) {
+		return std::nullopt;
+	}
+	for (const Family& family : kFamilies) {
+		if (path.starts_with(family.prefix)) {
+			return family.value(state, path);
+		}
+	}
+	return std::nullopt;
+}
+
+} // namespace
+
+std::optional<serialization::Value> setting_value(const SoundState& state, std::string_view path) {
+	Answer value = anyValue(state, path);
+	if (value && path == "midiOutput/noteForDrum" && value->str() == "255") {
+		return std::nullopt; // unset: the menu shows its default there and writes only a note
+	}
+	return value;
+}
+
+bool takes_setting(const SoundState& state, std::string_view path) {
+	return anyValue(state, path).has_value();
+}
 
 bool check_setting(std::string_view path, const serialization::Value& value) {
 	const SettingInfo* row = engine::find_setting(kSettings, path);

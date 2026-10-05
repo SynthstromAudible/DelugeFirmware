@@ -116,7 +116,7 @@ void Source::seedRangesInto(deluge::instrument::SourceState& d) const {
 		dr.top_note = range->topNote;
 		dr.file_path =
 		    range->sampleHolder.audioFile ? range->sampleHolder.audioFile->filePath : range->sampleHolder.filePath;
-		if (oscType == OscType::SAMPLE) {
+		if (ranges.currentElementSize() == sizeof(MultisampleRange)) {
 			dr.start_pos = range->sampleHolder.startPos;
 			dr.end_pos = range->sampleHolder.endPos;
 			dr.loop_start_pos = range->sampleHolder.loopStartPos;

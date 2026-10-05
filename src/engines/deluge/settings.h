@@ -18,8 +18,10 @@
 #pragma once
 
 #include "engine-api/types/setting.h"
+#include "engines/deluge/sound_state.h"
 #include "serialization/value.h"
 
+#include <optional>
 #include <span>
 #include <string_view>
 
@@ -32,5 +34,15 @@ extern const std::span<const engine::SettingInfo> kSettings;
 /// @brief Whether @p value is one @p path's row allows: a non-structured row's choice, an integer in its range, or 0
 /// or 1 for a bool. False for a structured row or a path the schema does not hold.
 [[nodiscard]] bool check_setting(std::string_view path, const serialization::Value& value);
+
+/// @brief Path @p path's value in @p state in an Edit's form (an LFO's sync level as the level itself), or nothing
+/// where the path does not apply to the state: sample playback off a sample source (interpolation off a sample or
+/// live-input one) or in FM; an oscillator's type in FM; an oscillator's own transpose and cents on a sample source
+/// outside FM; modulators outside FM; a structured path or one the schema does not hold; an unset drum note.
+[[nodiscard]] std::optional<serialization::Value> setting_value(const SoundState& state, std::string_view path);
+
+/// @brief Whether a sound in @p state takes a setting at @p path at all: where setting_value answers, or where the
+/// value is unset (a sound drum's MIDI note before one is chosen).
+[[nodiscard]] bool takes_setting(const SoundState& state, std::string_view path);
 
 } // namespace deluge::instrument

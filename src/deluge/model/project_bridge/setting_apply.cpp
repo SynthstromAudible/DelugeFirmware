@@ -19,6 +19,7 @@
 #include "model/project_bridge/controls_bridge.h"
 
 #include "engine-api/types/sync.h"
+#include "engines/deluge/dx7_init_voice.h"
 #include "engines/deluge/settings.h"
 #include "engines/deluge/words.h"
 #include "model/clip/instrument_clip.h"
@@ -30,6 +31,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 #include "serialization/tree.h"
+#include "storage/multi_range/multi_wave_table_range.h"
 #include "util/comparison.h"
 
 namespace deluge::bridge {
@@ -309,6 +311,47 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 		return Error::UNSPECIFIED; // the path has no setter here
 	}
 	return Error::NONE;
+}
+
+std::optional<deluge::instrument::SoundState> stateWithSetting(const ::Sound& sound, std::string_view path,
+                                                               const deluge::serialization::Value& value) {
+	std::string_view rest;
+	const int32_t s = oscillatorOf(path, rest);
+	if (s < 0 || sound.boundState() == nullptr || (rest != "type" && rest != "loopMode")) {
+		return std::nullopt;
+	}
+	deluge::instrument::SoundState state = *sound.boundState();
+	deluge::instrument::SourceState& source = state.sources[s];
+	if (rest == "loopMode") {
+		const auto mode = static_cast<SampleRepeatMode>(deluge::serialization::int_of(&value).value_or(0));
+		if (mode == SampleRepeatMode::STRETCH) {
+			source.pitch_and_speed_independent = true;
+		}
+		else if (source.repeat_mode == SampleRepeatMode::STRETCH) {
+			source.pitch_and_speed_independent = false;
+		}
+		source.repeat_mode = mode;
+		return state;
+	}
+	const OscType type = deluge::instrument::parse_osc_type(value.str());
+	source.osc_type = type;
+	// The runtime's ranges are of one kind whatever the type in between; changing kind keeps only top notes.
+	const bool wavetableKind = sound.sources[s].ranges.currentElementSize() == sizeof(MultiWaveTableRange);
+	if ((type == OscType::SAMPLE || type == OscType::WAVETABLE) && wavetableKind != (type == OscType::WAVETABLE)) {
+		for (deluge::instrument::RangeState& range : source.ranges) {
+			range = deluge::instrument::RangeState{.top_note = range.top_note};
+		}
+		if (source.ranges.empty()) {
+			source.ranges.push_back(deluge::instrument::RangeState{.top_note = deluge::instrument::kOpenTopNote});
+		}
+	}
+	else {
+		sound.sources[s].seedRangesInto(source); // the runtime's ranges, as the record holds them
+	}
+	if (type == OscType::DX7 && !source.dx_patch) {
+		source.dx_patch.emplace(deluge::instrument::DxPatchState{.params = deluge::instrument::kDx7InitVoice});
+	}
+	return state;
 }
 
 } // namespace deluge::bridge

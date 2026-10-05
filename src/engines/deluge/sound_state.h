@@ -30,6 +30,10 @@
 
 namespace deluge::instrument {
 
+/// @brief The top note of a source's last range, when a file names none: it covers every note above the range before
+/// it.
+inline constexpr int16_t kOpenTopNote = 32767;
+
 /// @brief One sample or wavetable key-split range of a source, ordered by `top_note` (the highest MIDI note it covers).
 /// A wavetable range uses only `top_note` and `file_path`.
 struct RangeState {

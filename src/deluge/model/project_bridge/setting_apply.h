@@ -18,8 +18,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // Error
+#include "engines/deluge/sound_state.h"
 #include "serialization/value.h"
 
+#include <optional>
 #include <string_view>
 
 class Song;
@@ -31,5 +33,12 @@ namespace deluge::bridge {
 /// sound editor's menu for it does, side effects included: the runtime's own setter for the path.
 /// @return Error::UNSPECIFIED when the schema does not allow @p value at @p path, or the path has no setter here.
 Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song);
+
+/// @brief The state @p sound reaches when its setting at @p path becomes @p value, where the setting's menu reshapes
+/// more than the one value: an oscillator's type (its ranges keep only their top notes when they become the other
+/// kind, sample or wavetable, and there is at least one; a DX7 has a patch) and its loop mode (stretching to note
+/// length makes pitch and speed independent, and leaving it gives that up). Nothing for any other setting.
+[[nodiscard]] std::optional<deluge::instrument::SoundState>
+stateWithSetting(const ::Sound& sound, std::string_view path, const deluge::serialization::Value& value);
 
 } // namespace deluge::bridge

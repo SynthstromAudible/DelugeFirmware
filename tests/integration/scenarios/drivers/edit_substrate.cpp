@@ -604,6 +604,10 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	withFile[0].file_path = "SAMPLES/OTHER.WAV";
 	deluge::edits::SetSourceRanges file{*slot, 0, withFile};
 	check(deluge::edits::apply(ctx, file) != Error::NONE, "ranges: assigning a file is refused");
+	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: a refused list leaves it coherent");
+	check(static_cast<MultisampleRange*>(sound.sources[0].ranges.getElement(0))->sampleHolder.filePath
+	          != "SAMPLES/OTHER.WAV",
+	      "ranges: a refused list leaves the runtime's file");
 	auto longer = ranges;
 	longer.insert(longer.begin(), deluge::instrument::RangeState{.top_note = 40});
 	deluge::edits::SetSourceRanges reshape{*slot, 0, longer};

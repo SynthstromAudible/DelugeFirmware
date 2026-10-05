@@ -1,22 +1,31 @@
 #include "model/edits/set_dx_patch.h"
 
+#include "engines/deluge/codec.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
+#include "processing/sound/sound.h"
 
 namespace deluge::edits {
 
 Error SetDxPatch::apply(Context& ctx) {
 	deluge::project::InstrumentSlot* slot = ctx.model.resolveSlot(slot_);
 	::Sound* sound = deluge::bridge::soundAt(ctx.song, slot_);
-	if (slot == nullptr || sound == nullptr || source_ >= kNumSources) {
+	if (slot == nullptr || sound == nullptr || sound->boundState() == nullptr || source_ >= kNumSources
+	    || sound->sources[source_].oscType != OscType::DX7) {
 		return Error::UNSPECIFIED;
 	}
-	if (Error error = deluge::bridge::applyDxPatch(*sound, source_, patch_); error != Error::NONE) {
-		return error;
+	deluge::instrument::SoundState changed = *sound->boundState();
+	changed.sources[source_].dx_patch = patch_;
+	const deluge::serialization::Value element =
+	    deluge::instrument::with_state(slot->state, changed, {.input_tick_magnitude = slot->tick_magnitude});
+	Error error = deluge::bridge::commitSlot(*sound, *slot, element, ctx.song);
+	if (error == Error::NONE && sound->boundState()->sources[source_].dx_patch != patch_) {
+		// The slot cannot hold an FM sound's patch: the runtime holds it.
+		error = deluge::bridge::applyDxPatch(*sound, source_, patch_);
+		deluge::bridge::syncSlotState(*sound, *slot, ctx.song);
 	}
-	deluge::bridge::syncSlotState(*sound, *slot, ctx.song);
-	return Error::NONE;
+	return error;
 }
 
 } // namespace deluge::edits

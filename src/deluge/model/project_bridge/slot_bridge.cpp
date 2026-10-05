@@ -17,10 +17,13 @@
 
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/setting_apply.h"
+#include "model/project_bridge/source_bridge.h"
 
 #include "deluge-project/structure_codec.h"
 #include "engine-api/types/engine_id.h"
 #include "engines/deluge/codec.h"
+#include "engines/deluge/settings.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
@@ -168,6 +171,87 @@ void syncSlotState(const ::Sound& sound, deluge::project::InstrumentSlot& slot, 
 		                                            {.input_tick_magnitude = song.getInputTickMagnitude()});
 		slot.tick_magnitude = song.getInputTickMagnitude();
 	}
+}
+
+deluge::serialization::Value withLeaf(const deluge::serialization::Value& tree, std::string_view path,
+                                      deluge::serialization::Value leaf) {
+	const size_t slash = path.find('/');
+	const std::string_view key = path.substr(0, slash);
+	const deluge::serialization::Value* held = tree.isMap() ? tree.find(key) : nullptr;
+	deluge::serialization::Value value =
+	    slash == std::string_view::npos ? std::move(leaf)
+	                                    : withLeaf(held != nullptr ? *held : deluge::serialization::Value::makeMap(),
+	                                               path.substr(slash + 1), std::move(leaf));
+	deluge::serialization::Value out = deluge::serialization::Value::makeMap();
+	bool placed = false;
+	if (tree.isMap()) {
+		for (const auto& [name, entry] : tree.entries()) {
+			if (name == key) {
+				out.set(name, std::move(value));
+				placed = true;
+			}
+			else {
+				out.set(name, entry);
+			}
+		}
+	}
+	if (!placed) {
+		out.set(std::string(key), std::move(value));
+	}
+	return out;
+}
+
+Error applyDifference(::Sound& sound, const deluge::instrument::SoundState& old,
+                      const deluge::instrument::SoundState& next, ::Song& song) {
+	for (const deluge::engine::SettingInfo& row : deluge::instrument::kSettings) {
+		if (row.kind == deluge::engine::SettingKind::STRUCTURED) {
+			continue;
+		}
+		const std::optional<deluge::serialization::Value> before = deluge::instrument::setting_value(old, row.path);
+		const std::optional<deluge::serialization::Value> after = deluge::instrument::setting_value(next, row.path);
+		if (after && (!before || before->str() != after->str())) {
+			if (Error error = applySetting(sound, row.path, *after, song); error != Error::NONE) {
+				return error;
+			}
+		}
+	}
+	for (int32_t s = 0; s < kNumSources; s++) {
+		// After the settings, an oscillator type among them.
+		const deluge::instrument::SourceState& now = sound.boundState()->sources[s];
+		const deluge::instrument::SourceState& wanted = next.sources[s];
+		if (wanted.dx_patch && now.dx_patch != wanted.dx_patch && sound.sources[s].oscType == OscType::DX7) {
+			if (Error error = applyDxPatch(sound, s, *wanted.dx_patch); error != Error::NONE) {
+				return error;
+			}
+		}
+		if (now.ranges != wanted.ranges) {
+			if (Error error = applyRanges(sound, s, wanted.ranges); error != Error::NONE) {
+				return error;
+			}
+		}
+	}
+	return Error::NONE;
+}
+
+Error commitSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, const deluge::serialization::Value& element,
+                 ::Song& song) {
+	if (sound.boundState() == nullptr) {
+		return Error::UNSPECIFIED;
+	}
+	const deluge::instrument::SoundState before = *sound.boundState();
+	const auto decoded =
+	    deluge::instrument::decode_onto(element, before, {.input_tick_magnitude = slot.tick_magnitude});
+	Error error = decoded ? applyDifference(sound, before, *decoded, song) : Error::UNSPECIFIED;
+	if (error == Error::NONE) {
+		// The effects' settings are not the slot's to say, and a gesture may move them (FM turns the filters off).
+		deluge::instrument::SoundState reached = *decoded;
+		reached.mod_controllable = sound.boundState()->mod_controllable;
+		if (!(*sound.boundState() == reached)) {
+			error = Error::UNSPECIFIED; // the runtime did not reach what the slot says
+		}
+	}
+	syncSlotState(sound, slot, song); // the slot says what the sound holds, either way
+	return error;
 }
 
 void recordLoadedSound(::Sound& sound, ::Song& song) {

@@ -279,9 +279,6 @@ serialization::Value with_state(const serialization::Value& element, const Sound
 
 namespace {
 
-/// A range's top note when the file names none: it covers every note above the range before it.
-constexpr int16_t kOpenTopNote = 32767;
-
 int32_t intOf(const Value& value) {
 	return serialization::int_of(&value).value_or(0);
 }
@@ -702,6 +699,22 @@ std::expected<void, engine::StateError> decodeImpl(const Value& element, SoundSt
 	return {};
 }
 
+/// The entries of an oscillator's element that hold its ranges.
+constexpr std::array<std::string_view, 4> kRangeKeys{"fileName", "zone", "sampleRanges", "wavetableRanges"};
+
+/// Whether oscillator elements @p a and @p b hold the same ranges.
+bool sameRanges(const Value* a, const Value* b) {
+	for (std::string_view key : kRangeKeys) {
+		const Value* inA = a != nullptr ? a->find(key) : nullptr;
+		const Value* inB = b != nullptr ? b->find(key) : nullptr;
+		if ((inA == nullptr) != (inB == nullptr)
+		    || (inA != nullptr && !serialization::first_difference(*inA, *inB).empty())) {
+			return false;
+		}
+	}
+	return true;
+}
+
 /// The part of @p state the entry @p key of a sound element writes, copied from @p from.
 void keepEntry(std::string_view key, SoundState& state, const SoundState& from) {
 	if (key == "polyphonic") {
@@ -831,6 +844,24 @@ std::expected<SoundState, engine::StateError> decode_onto(const Value& element, 
 		    || (held != nullptr && written != nullptr && serialization::first_difference(*held, *written).empty());
 		if (unchanged) {
 			keepEntry(key, decoded, current);
+		}
+	}
+	// A changed oscillator whose ranges are the current ones as its new type writes them carries them over whole,
+	// unless they became the other kind (sample to wavetable, or back), which keeps only their top notes.
+	for (size_t s = 0; s < decoded.sources.size(); s++) {
+		const OscType type = decoded.sources[s].osc_type;
+		const OscType was = current.sources[s].osc_type;
+		const std::string_view key = s == 0 ? "osc1" : "osc2";
+		const bool ranged = type == OscType::SAMPLE || type == OscType::WAVETABLE;
+		const bool otherKind = (was == OscType::SAMPLE || was == OscType::WAVETABLE) && was != type;
+		if (decoded.synth_mode == SynthMode::FM || !ranged || otherKind) {
+			continue;
+		}
+		SoundState carried = current;
+		carried.synth_mode = decoded.synth_mode;
+		carried.sources[s].osc_type = type;
+		if (sameRanges(element.find(key), encode(carried, context).find(key))) {
+			decoded.sources[s].ranges = current.sources[s].ranges;
 		}
 	}
 	return decoded;

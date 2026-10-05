@@ -326,11 +326,14 @@ std::string_view coherence(Sound& sound, Song& song, std::string_view path, cons
 }
 
 /// Whether @p sound takes a setting at @p path at all: sample playback only on a source that uses it; an oscillator's
-/// own transpose and cents only on a source that plays no samples (a sample source's tuning is its ranges'); modulators
-/// only on an FM sound; everything else always.
+/// own transpose and cents only on a source that plays no samples (a sample source's tuning is its ranges'); an
+/// oscillator's type and modulators each only where an FM file holds them; everything else always.
 bool takes(Sound& sound, std::string_view path) {
 	if (isSamplePlayback(path)) {
 		return playsSamples(sound, path);
+	}
+	if (path.starts_with("osc") && path.ends_with("/type")) {
+		return sound.getSynthMode() != SynthMode::FM;
 	}
 	if (path.starts_with("osc") && (path.ends_with("/transpose") || path.ends_with("/cents"))) {
 		return sound.getSynthMode() == SynthMode::FM || sound.sources[path[3] - '1'].oscType != OscType::SAMPLE;
