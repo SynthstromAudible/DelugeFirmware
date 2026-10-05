@@ -22,6 +22,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_descriptor.h"
 
+#include <optional>
 #include <vector>
 
 class ModControllableAudio;
@@ -45,6 +46,30 @@ namespace deluge::bridge {
 /// @brief Set every output's, sound kit row's and the song's controls in the song's model from the runtime's knobs.
 /// Run once a song is loaded and after each save, as the slots are filled and refreshed.
 void refreshControls(::Song& song);
+
+/// @brief The runtime descriptor of a knob's target: the inverse of knobTargetOf (@p unpatchedKind numbers an unpatched
+/// param, as there).
+[[nodiscard]] ParamDescriptor descriptorOf(deluge::engine::ParamId target,
+                                           deluge::modulation::params::Kind unpatchedKind);
+
+/// @brief Whose controls @p sound's are: its synth track's or its kit row's; nullopt when it is not bound.
+[[nodiscard]] std::optional<deluge::project::ControlsAddress> controlsAddressOf(::Sound& sound);
+
+/// @brief Whose controls @p owner's are in @p song: a synth's sound, a kit's or an audio track's own, a kit row's
+/// sound, or the song's; nullopt when it is none of @p song's.
+[[nodiscard]] std::optional<deluge::project::ControlsAddress> controlsAddressOf(::ModControllableAudio& owner,
+                                                                                ::Song& song);
+
+/// @brief The runtime owner of @p address's controls in @p song (outputs and hibernating instruments), with whether it
+/// is a sound (which has mod knobs), or nullptr.
+[[nodiscard]] ::ModControllableAudio* controlsOwnerAt(::Song& song, deluge::project::ControlsAddress address,
+                                                      bool* isSound);
+
+/// @brief Make @p owner's knobs what @p controls say: a sound's mod knobs, and its (or a global effectable's) learned
+/// MIDI knobs, in the list's order. A learned knob whose input, relativity and target are unchanged keeps its takeover
+/// state.
+void applyControls(::ModControllableAudio& owner, bool isSound,
+                   const std::vector<deluge::project::ControllerMapping>& controls);
 
 /// @brief The engines the app's model codecs name params through.
 [[nodiscard]] deluge::project::CodecEngines codecEngines();

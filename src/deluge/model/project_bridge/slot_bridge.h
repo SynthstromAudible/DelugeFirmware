@@ -47,7 +47,8 @@ void refreshSlots(::Song& song);
 /// by the state's encoding, every other entry kept. Nothing for a sound that is not bound.
 void syncSlotState(const ::Sound& sound, deluge::project::InstrumentSlot& slot, const ::Song& song);
 
-/// @brief @p sound re-read into its record from the runtime and its slot refreshed, when it is bound in @p song.
+/// @brief @p sound re-read into its record from the runtime, its slot refreshed and its controls record set from its
+/// knobs, when it is bound in @p song.
 void recordLoadedSound(::Sound& sound, ::Song& song);
 
 /// @brief Every bound sound of @p output (a synth's, or a kit's sound drums) re-read into its record from the runtime

@@ -499,8 +499,7 @@ bool SampleClaim::stepDecideWavetable() {
 			soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_OSC_B_WAVE_INDEX);
 		}
 		getCurrentOutput()->setModKnobMode(7);
-		// M3 owner-5: reflect the auto-assigned wavetable mod knobs into the DOM record
-		soundEditor.currentSound->seedModKnobsRecord();
+		deluge::gui::menu_item::recordControlsOf(*soundEditor.currentSound); // the wavetable knobs it assigned
 	}
 	view.setKnobIndicatorLevels(); // Visually update.
 	view.setModLedStates();
@@ -632,8 +631,8 @@ void SampleClaim::removeWaveTableKnobs() {
 		getCurrentOutput()->setModKnobMode(1);
 		view.setKnobIndicatorLevels(); // Visually update.
 		view.setModLedStates();
-		// M3 owner-5: reflect the removed wavetable mod knobs into the DOM record
-		soundEditor.currentSound->seedModKnobsRecord();
+		// The knobs it put back are its record's.
+		deluge::gui::menu_item::recordControlsOf(*soundEditor.currentSound);
 	}
 }
 

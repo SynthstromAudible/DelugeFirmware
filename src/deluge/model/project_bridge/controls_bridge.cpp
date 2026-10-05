@@ -17,6 +17,7 @@
 
 #include "model/project_bridge/controls_bridge.h"
 
+#include "engines/deluge/cables.h"
 #include "engines/deluge/naming.h"
 #include "engines/global_effectable/naming.h"
 #include "model/drum/drum.h"
@@ -109,6 +110,154 @@ void refreshControls(::Song& song) {
 		}
 	}
 	song.project.controls = learnedControlsOf(song.live.global_effectable);
+}
+
+ParamDescriptor descriptorOf(deluge::engine::ParamId target, params::Kind unpatchedKind) {
+	ParamDescriptor descriptor;
+	if ((target.value & deluge::instrument::kCableDepthFlag) != 0) { // a cable's depth
+		descriptor.data = cableWordOf(target);
+	}
+	else if (const std::optional<int32_t> patched = runtimeIndexOf(params::Kind::PATCHED, target)) {
+		descriptor.setToHaveParamOnly(*patched);
+	}
+	else if (const std::optional<int32_t> unpatched = runtimeIndexOf(unpatchedKind, target)) {
+		descriptor.setToHaveParamOnly(params::UNPATCHED_START + *unpatched);
+	}
+	else {
+		descriptor.setToNull();
+	}
+	return descriptor;
+}
+
+std::optional<deluge::project::ControlsAddress> controlsAddressOf(::Sound& sound) {
+	using Kind = deluge::project::ControlsAddress::Kind;
+	if (sound.isDrum()) {
+		auto& drum = static_cast<SoundDrum&>(sound);
+		return drum.docDrum_ != nullptr && drum.id()
+		           ? std::optional{deluge::project::ControlsAddress{Kind::DRUM, *drum.id()}}
+		           : std::nullopt;
+	}
+	auto& synth = static_cast<SoundInstrument&>(sound);
+	return synth.docOutput_ != nullptr && synth.id()
+	           ? std::optional{deluge::project::ControlsAddress{Kind::OUTPUT, *synth.id()}}
+	           : std::nullopt;
+}
+
+namespace {
+
+/// The owner of @p output's own controls and whether it is a sound: a synth's sound, a kit's or an audio track's.
+::ModControllableAudio* ownControlsOf(Output& output, bool* isSound) {
+	*isSound = output.type == OutputType::SYNTH;
+	switch (output.type) {
+	case OutputType::SYNTH:
+		return static_cast<SoundInstrument*>(&output);
+	case OutputType::KIT:
+		return static_cast<Kit*>(&output);
+	case OutputType::AUDIO:
+		return static_cast<AudioOutput*>(&output);
+	default:
+		return nullptr;
+	}
+}
+
+/// Call @p visit with every output and hibernating instrument of @p song until it answers true.
+template <typename Visit>
+void forEachOutput(::Song& song, Visit visit) {
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		if (visit(*output)) {
+			return;
+		}
+	}
+	for (Output* output = song.live.media.first_hibernating_instrument; output != nullptr; output = output->next) {
+		if (visit(*output)) {
+			return;
+		}
+	}
+}
+
+} // namespace
+
+std::optional<deluge::project::ControlsAddress> controlsAddressOf(::ModControllableAudio& owner, ::Song& song) {
+	using Kind = deluge::project::ControlsAddress::Kind;
+	if (&owner == &song.live.global_effectable) {
+		return deluge::project::ControlsAddress{Kind::SONG, 0};
+	}
+	std::optional<deluge::project::ControlsAddress> found;
+	forEachOutput(song, [&](Output& output) {
+		bool isSound = false;
+		if (ownControlsOf(output, &isSound) == &owner && output.docOutput_ != nullptr && output.id()) {
+			found = deluge::project::ControlsAddress{Kind::OUTPUT, *output.id()};
+			return true;
+		}
+		if (output.type == OutputType::KIT) {
+			for (Drum* drum = static_cast<Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
+				if (drum->type == DrumType::SOUND && static_cast<SoundDrum*>(drum) == &owner) {
+					found = controlsAddressOf(*static_cast<SoundDrum*>(drum));
+					return true;
+				}
+			}
+		}
+		return false;
+	});
+	return found;
+}
+
+::ModControllableAudio* controlsOwnerAt(::Song& song, deluge::project::ControlsAddress address, bool* isSound) {
+	using Kind = deluge::project::ControlsAddress::Kind;
+	*isSound = false;
+	if (address.kind == Kind::SONG) {
+		return &song.live.global_effectable;
+	}
+	::ModControllableAudio* owner = nullptr;
+	forEachOutput(song, [&](Output& output) {
+		if (address.kind == Kind::OUTPUT) {
+			if (output.id() == address.id) {
+				owner = ownControlsOf(output, isSound);
+				return true;
+			}
+			return false;
+		}
+		if (output.type == OutputType::KIT) {
+			for (Drum* drum = static_cast<Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
+				if (drum->type == DrumType::SOUND && drum->id() == address.id) {
+					owner = static_cast<SoundDrum*>(drum);
+					*isSound = true;
+					return true;
+				}
+			}
+		}
+		return false;
+	});
+	return owner;
+}
+
+void applyControls(::ModControllableAudio& owner, bool isSound, const std::vector<ControllerMapping>& controls) {
+	const params::Kind unpatchedKind = isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL;
+	deluge::fast_vector<MIDIKnob> learned;
+	for (const ControllerMapping& mapping : controls) {
+		if (const auto* knob = std::get_if<ModKnobControl>(&mapping.control)) {
+			if (isSound && knob->button < kNumModButtons && knob->knob < kNumPhysicalModKnobs) {
+				static_cast<::Sound&>(owner).modKnobs[knob->button][knob->knob].paramDescriptor =
+				    descriptorOf(mapping.target, unpatchedKind);
+			}
+			continue;
+		}
+		const auto& input = std::get<MidiInputControl>(mapping.control);
+		MIDIKnob made;
+		made.midiInput = learned_of(input.input);
+		made.relative = input.relative;
+		made.paramDescriptor = descriptorOf(mapping.target, unpatchedKind);
+		for (const MIDIKnob& old : owner.midi_knobs) {
+			if (command_of(old.midiInput) == input.input && old.relative == input.relative
+			    && old.paramDescriptor == made.paramDescriptor) {
+				made.previousPositionSaved = old.previousPositionSaved;
+				made.previousPosition = old.previousPosition;
+				break;
+			}
+		}
+		learned.push_back(made);
+	}
+	owner.midi_knobs = std::move(learned);
 }
 
 deluge::project::CodecEngines codecEngines() {

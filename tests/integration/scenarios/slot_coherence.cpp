@@ -23,6 +23,7 @@
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
@@ -98,6 +99,14 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		    deluge::instrument::encode(record, {.input_tick_magnitude = song.getInputTickMagnitude()});
 		if (std::string d = stateDifference(slot->state, encoded); !d.empty()) {
 			return "slot at " + d;
+		}
+	}
+	if (checks.controls) {
+		const std::optional<deluge::project::ControlsAddress> owner = deluge::bridge::controlsAddressOf(sound);
+		const std::vector<deluge::project::ControllerMapping>* controls =
+		    owner ? song.project.resolveControls(*owner) : nullptr;
+		if (controls == nullptr || *controls != deluge::bridge::controlsOf(sound)) {
+			return "controls";
 		}
 	}
 	if (checks.snapshot) {

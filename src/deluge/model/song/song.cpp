@@ -56,6 +56,7 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/sample/sample_recorder.h"
@@ -1311,6 +1312,7 @@ void Song::adoptDrum(Drum* drum) {
 			// takes what the runtime now holds.
 			deluge::bridge::syncSlotState(*sound, *d.instrument, *this);
 		}
+		d.controls = deluge::bridge::controlsOf(*sound); // its knobs are its record's from now on
 	}
 }
 
@@ -1355,6 +1357,20 @@ void Song::adoptOutput(Output* output) {
 	// A preset's samples load before it is added, and a kit's drums were bound while it was read: the record and the
 	// slot take what the runtime now holds.
 	deluge::bridge::recordLoadedOutput(*output, *this);
+	// The output's knobs are its record's from now on.
+	switch (output->type) {
+	case OutputType::SYNTH:
+		d.controls = deluge::bridge::controlsOf(*static_cast<SoundInstrument*>(output));
+		break;
+	case OutputType::KIT:
+	case OutputType::AUDIO:
+		if (auto* own = static_cast<ModControllableAudio*>(output->toModControllable())) {
+			d.controls = deluge::bridge::learnedControlsOf(*own);
+		}
+		break;
+	default:
+		break;
+	}
 }
 
 // M3 owner-5: drop an output's identity record on genuine destruction. Callers guard on currentSong && docOutput_

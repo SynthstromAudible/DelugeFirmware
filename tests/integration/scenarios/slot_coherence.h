@@ -27,10 +27,10 @@ namespace deluge::harness {
 
 /// Which equations a coherence check holds a sound to.
 struct CoherenceChecks {
-	bool runtime = true;   ///< the runtime's state == the record (dump_state of seededState() vs the bound state)
-	bool slot = true;      ///< the slot's instrument entries == encode(record), by key
-	bool snapshot = true;  ///< the snapshot == projectSnapshot() of the record
-	bool controls = false; ///< the owner's controls record == the runtime's knobs
+	bool runtime = true;  ///< the runtime's state == the record (dump_state of seededState() vs the bound state)
+	bool slot = true;     ///< the slot's instrument entries == encode(record), by key
+	bool snapshot = true; ///< the snapshot == projectSnapshot() of the record
+	bool controls = true; ///< the owner's controls record == the runtime's knobs
 };
 
 /// @brief The first equation @p sound breaks, as "<check> at <where>", or empty. An unbound sound breaks none.

@@ -49,6 +49,15 @@ struct ControllerMapping {
 	[[nodiscard]] bool operator==(const ControllerMapping&) const = default;
 };
 
+/// @brief Whose controls a mapping list is: an output's (a synth's sound, a kit's or an audio track's own learned
+/// knobs), a sound kit row's, or the song's.
+struct ControlsAddress {
+	enum class Kind : uint8_t { OUTPUT, DRUM, SONG };
+	Kind kind{Kind::SONG};
+	uint32_t id{0}; ///< the output's or the drum's id; unused for the song
+	bool operator==(const ControlsAddress&) const = default;
+};
+
 /// @brief The engines whose params the codecs may meet, with how each names them.
 struct CodecEngines {
 	std::span<const deluge::engine::ParamNaming> namings;

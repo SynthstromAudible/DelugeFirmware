@@ -53,6 +53,9 @@ public:
 	/// The slot @p address names (a synth track's or a sound kit row's instrument), or nullptr when its owner has no
 	/// record or no slot.
 	InstrumentSlot* resolveSlot(SlotAddress address);
+	/// @brief The controller mappings @p address names: an output's, a kit row's or the song's own, or nullptr for an
+	/// output or a drum this song has no record of.
+	std::vector<ControllerMapping>* resolveControls(ControlsAddress address);
 
 	/// M3 owner-1 (clip structure): resolve a clip's DOM-owned structural record (find; nullptr if not tree-resident),
 	/// or getOrCreate it (bound as the clip's authoritative `docClip_` in the Clip ctor). Mirrors resolveParam's CLIP

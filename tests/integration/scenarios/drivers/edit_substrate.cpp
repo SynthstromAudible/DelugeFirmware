@@ -34,10 +34,12 @@
 #include "deluge-project/instrument_slot.h"
 #include "dsp/dx/dx7note.h"
 #include "model/drum/drum.h"
+#include "model/edits/set_controls.h"
 #include "model/edits/set_dx_patch.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/edits/set_source_ranges.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
 #include "processing/engines/audio_engine.h"
@@ -697,6 +699,81 @@ void testSetDxPatch(deluge::edits::Context& ctx) {
 	check(deluge::edits::apply(ctx, refused) != Error::NONE, "dx: a saw oscillator refuses a patch");
 }
 
+// A knob's runtime descriptor and its mapping's target name the same param, both ways.
+void testKnobTargets(deluge::edits::Context& /*ctx*/) {
+	ParamManagerForTimeline paramManager;
+	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
+	Sound& sound = *static_cast<SoundInstrument*>(synth);
+	namespace params = deluge::modulation::params;
+	for (int32_t button = 0; button < kNumModButtons; button++) {
+		for (int32_t knob = 0; knob < kNumPhysicalModKnobs; knob++) {
+			const ParamDescriptor d = sound.modKnobs[button][knob].paramDescriptor;
+			check(deluge::bridge::descriptorOf(deluge::bridge::knobTargetOf(d, params::Kind::UNPATCHED_SOUND),
+			                                   params::Kind::UNPATCHED_SOUND)
+			          == d,
+			      "knobs: a default knob's target leads back to its descriptor");
+		}
+	}
+	ParamDescriptor cable;
+	cable.setToHaveParamAndSource(params::LOCAL_LPF_FREQ, PatchSource::LFO_LOCAL_1);
+	check(deluge::bridge::descriptorOf(deluge::bridge::knobTargetOf(cable, params::Kind::UNPATCHED_SOUND),
+	                                   params::Kind::UNPATCHED_SOUND)
+	          == cable,
+	      "knobs: a cable depth's target leads back to its descriptor");
+}
+
+// A sound's knobs change through an Edit on its controller mappings: the runtime's mod knobs and learned MIDI knobs
+// follow the record, and a learned knob keeps its takeover state through an edit of another knob.
+void testSetControls(deluge::edits::Context& ctx) {
+	namespace params = deluge::modulation::params;
+	using deluge::project::ControllerMapping;
+	ParamManagerForTimeline paramManager;
+	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
+	ctx.song.addOutput(synth);
+	Sound& sound = *static_cast<SoundInstrument*>(synth);
+	const deluge::project::ControlsAddress address =
+	    deluge::bridge::controlsAddressOf(sound).value_or(deluge::project::ControlsAddress{});
+	std::vector<ControllerMapping>* record = ctx.model.resolveControls(address);
+	check(record != nullptr && *record == deluge::bridge::controlsOf(sound),
+	      "controls: an added synth's record holds its knobs");
+	if (record == nullptr) {
+		return;
+	}
+
+	ParamDescriptor resonance;
+	resonance.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
+	std::vector<ControllerMapping> controls = *record;
+	for (ControllerMapping& mapping : controls) {
+		if (const auto* knob = std::get_if<deluge::project::ModKnobControl>(&mapping.control);
+		    knob != nullptr && knob->button == 2 && knob->knob == 1) {
+			mapping.target = deluge::bridge::knobTargetOf(resonance, params::Kind::UNPATCHED_SOUND);
+		}
+	}
+	deluge::project::MidiCommand cc;
+	cc.channel_or_zone = 0;
+	cc.note_or_cc = 74;
+	controls.push_back({deluge::project::MidiInputControl{cc, false},
+	                    deluge::bridge::knobTargetOf(resonance, params::Kind::UNPATCHED_SOUND)});
+	deluge::edits::SetControls edit{address, controls};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "controls: a mapping list is applied");
+	check(sound.modKnobs[2][1].paramDescriptor == resonance, "controls: the runtime's mod knob follows");
+	check(sound.midi_knobs.size() == 1, "controls: the learned knob is made");
+	check(*ctx.model.resolveControls(address) == controls, "controls: the record holds the list");
+
+	if (sound.midi_knobs.size() == 1) {
+		sound.midi_knobs[0].previousPositionSaved = true;
+		sound.midi_knobs[0].previousPosition = 77;
+	}
+	ParamDescriptor cutoff;
+	cutoff.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
+	controls[2 * 2 + 1].target = deluge::bridge::knobTargetOf(cutoff, params::Kind::UNPATCHED_SOUND);
+	deluge::edits::SetControls other{address, controls};
+	check(deluge::edits::apply(ctx, other) == Error::NONE, "controls: another knob's edit is applied");
+	check(sound.midi_knobs.size() == 1 && sound.midi_knobs[0].previousPositionSaved
+	          && sound.midi_knobs[0].previousPosition == 77,
+	      "controls: the learned knob keeps its takeover state");
+}
+
 int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	io = driverIo;
 
@@ -729,6 +806,8 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testDrumIdsAreUnique(ctx);
 	testRemovalDropsOnlyOwnRecords(ctx);
 	testSetDxPatch(ctx);
+	testKnobTargets(ctx);
+	testSetControls(ctx);
 
 	if (failures == 0) {
 		std::fprintf(io.out, "edit_substrate: OK\n");

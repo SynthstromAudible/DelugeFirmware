@@ -18,9 +18,11 @@
 
 #include "io/debug/log.h"
 #include "model/edits/edit.h"
+#include "model/edits/set_controls.h"
 #include "model/edits/set_dx_patch.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/edits/set_source_ranges.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
@@ -101,6 +103,24 @@ inline void dxPatchFor(::Sound& sound, int32_t s, const deluge::instrument::DxPa
 	}
 	if (deluge::bridge::applyDxPatch(sound, s, patch) != Error::NONE) {
 		D_PRINTLN("dx patch refused: osc%d", static_cast<int>(s + 1));
+	}
+}
+
+/// @brief Record @p owner's knobs as a gesture left them (a learn, an unlearn, a knob cycled to its next param): an
+/// Edit on its controller mappings when it is one of the current song's owners; nothing for one outside it.
+inline void recordControlsOf(::ModControllableAudio& owner) {
+	const std::optional<deluge::project::ControlsAddress> address =
+	    deluge::bridge::controlsAddressOf(owner, *currentSong);
+	if (!address) {
+		return;
+	}
+	bool isSound = false;
+	(void)deluge::bridge::controlsOwnerAt(*currentSong, *address, &isSound);
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetControls edit{*address, isSound ? deluge::bridge::controlsOf(static_cast<::Sound&>(owner))
+	                                                  : deluge::bridge::learnedControlsOf(owner)};
+	if (deluge::edits::apply(ctx, edit) != Error::NONE) {
+		D_PRINTLN("controls refused");
 	}
 }
 

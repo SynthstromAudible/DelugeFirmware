@@ -16,6 +16,7 @@
  */
 
 #include "model/project_bridge/slot_bridge.h"
+#include "model/project_bridge/controls_bridge.h"
 
 #include "deluge-project/structure_codec.h"
 #include "engine-api/types/engine_id.h"
@@ -173,6 +174,11 @@ void recordLoadedSound(::Sound& sound, ::Song& song) {
 	}
 	sound.reseedRecord();
 	syncSlotState(sound, *slot, song);
+	if (const std::optional<deluge::project::ControlsAddress> owner = controlsAddressOf(sound)) {
+		if (std::vector<deluge::project::ControllerMapping>* controls = song.project.resolveControls(*owner)) {
+			*controls = controlsOf(sound); // the knobs the load read
+		}
+	}
 }
 
 void recordLoadedOutput(::Output& output, ::Song& song) {
