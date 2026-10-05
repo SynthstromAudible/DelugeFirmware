@@ -423,31 +423,58 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 	return deluge::edits::apply(ctx, restore) == Error::NONE ? 0 : 3;
 }
 
-/// The affect-entire leg: @p path set to @p value on every sound drum of @p kit, one Edit each, then every drum's slot
-/// checked. 0 when each holds, else 3 after printing the first that does not.
+/// Whether @p sound takes a setting at @p path at all: sample playback only on a source that uses it, modulators only
+/// on an FM sound; everything else always.
+bool takes(Sound& sound, std::string_view path) {
+	if (isSamplePlayback(path)) {
+		return playsSamples(sound, path);
+	}
+	if (path.starts_with("modulator")) {
+		return sound.getSynthMode() == SynthMode::FM;
+	}
+	return true;
+}
+
+/// The affect-entire leg: @p path set to @p value on every sound drum of @p kit, one Edit each, as the menus do with
+/// affect-entire held. A drum that takes the setting holds it coherently afterwards; one that does not refuses it and
+/// keeps its slot. 0 when each holds, else 3 after printing the first that does not.
 int affectEntireLeg(Kit& kit, Song& song, std::string_view path, const Value& value) {
 	deluge::edits::Context ctx{song, song.project};
+	std::vector<SoundDrum*> taking;
 	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
-		if (drum->type != DrumType::SOUND) {
+		auto* soundDrum = drum->type == DrumType::SOUND ? static_cast<SoundDrum*>(drum) : nullptr;
+		const auto address = soundDrum != nullptr ? deluge::bridge::slotAddressOf(*soundDrum) : std::nullopt;
+		if (!address) {
 			continue;
 		}
-		if (const auto address = deluge::bridge::slotAddressOf(*static_cast<SoundDrum*>(drum))) {
-			deluge::edits::SetEngineSetting edit{*address, std::string(path), value};
-			if (deluge::edits::apply(ctx, edit) != Error::NONE) {
-				std::fprintf(io.err, "kit %s affect-entire %.*s: refused\n", kit.name.c_str(),
-				             static_cast<int>(path.size()), path.data());
-				return 3;
-			}
+		const bool shouldTake = takes(*soundDrum, path);
+		const Value before = song.project.resolveSlot(*address)->state;
+		deluge::edits::SetEngineSetting edit{*address, std::string(path), value};
+		const bool took = deluge::edits::apply(ctx, edit) == Error::NONE;
+		std::string_view failed;
+		if (took != shouldTake) {
+			failed = took ? "taken by a drum that does not use it" : "refused";
+		}
+		else if (!took
+		         && !deluge::serialization::first_difference(song.project.resolveSlot(*address)->state, before)
+		                 .empty()) {
+			failed = "a refusal changed the slot";
+		}
+		if (!failed.empty()) {
+			std::fprintf(io.err, "kit %s affect-entire %.*s=%s on %s: %.*s\n", kit.name.c_str(),
+			             static_cast<int>(path.size()), path.data(), value.str().c_str(), soundDrum->name().c_str(),
+			             static_cast<int>(failed.size()), failed.data());
+			return 3;
+		}
+		if (took) {
+			taking.push_back(soundDrum);
 		}
 	}
-	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
-		if (drum->type != DrumType::SOUND || !deluge::bridge::slotAddressOf(*static_cast<SoundDrum*>(drum))) {
-			continue;
-		}
-		const std::string_view failed = coherence(*static_cast<SoundDrum*>(drum), song, path, value);
+	for (SoundDrum* drum : taking) {
+		const std::string_view failed = coherence(*drum, song, path, value);
 		if (!failed.empty()) {
-			std::fprintf(io.err, "kit %s affect-entire %.*s=%s: %.*s\n", kit.name.c_str(),
-			             static_cast<int>(path.size()), path.data(), value.str().c_str(),
+			std::fprintf(io.err, "kit %s affect-entire %.*s=%s on %s: %.*s\n", kit.name.c_str(),
+			             static_cast<int>(path.size()), path.data(), value.str().c_str(), drum->name().c_str(),
 			             static_cast<int>(failed.size()), failed.data());
 			return 3;
 		}
@@ -468,7 +495,32 @@ int settingsOf(Output& output, Song& song) {
 		}
 	});
 	if (code == 0 && output.type == OutputType::KIT) {
-		code = affectEntireLeg(static_cast<Kit&>(output), song, "polyphonic", Value::makeScalar("mono"));
+		// A kit of sample drums is made mixed: its first sound drum's oscillator becomes a saw, which plays no samples.
+		for (Drum* drum = static_cast<Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
+			if (drum->type != DrumType::SOUND) {
+				continue;
+			}
+			if (const auto address = deluge::bridge::slotAddressOf(*static_cast<SoundDrum*>(drum))) {
+				deluge::edits::Context ctx{song, song.project};
+				deluge::edits::SetEngineSetting saw{*address, "osc1/type", Value::makeScalar("saw")};
+				(void)deluge::edits::apply(ctx, saw);
+			}
+			break;
+		}
+		// Plain, with side effects (voices re-tuned, the FM switch), and refused by the drums that do not use it.
+		const std::array<std::pair<std::string_view, Value>, 6> legs{{
+		    {"polyphonic", Value::makeScalar("mono")},
+		    {"osc1/reversed", Value::makeNumber(1)},
+		    {"unison/num", Value::makeNumber(4)},
+		    {"osc1/transpose", Value::makeNumber(7)},
+		    {"mode", Value::makeScalar("fm")},
+		    {"modulator1/transpose", Value::makeNumber(5)},
+		}};
+		for (const auto& [path, value] : legs) {
+			if (code == 0) {
+				code = affectEntireLeg(static_cast<Kit&>(output), song, path, value);
+			}
+		}
 	}
 	return code;
 }
