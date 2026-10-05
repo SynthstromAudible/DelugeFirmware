@@ -20,6 +20,7 @@
 #include "deluge-project/arrangement.h"
 #include "deluge-project/arrangement_codec.h"
 #include "deluge-project/codec.h"
+#include "deluge-project/controller_mapping.h"
 #include "deluge-project/doc_audio_clip.h"
 #include "deluge-project/doc_clip.h"
 #include "deluge-project/doc_drum.h"
@@ -76,6 +77,8 @@ struct SongDocument {
 	std::map<uint32_t, DocAudioClip> audio_clips;
 	std::map<uint32_t, DocOutput> outputs;
 	std::map<uint32_t, DocDrum> drums;
+	/// The song's own learned MIDI knobs, on its effects.
+	std::vector<ControllerMapping> controls;
 	/// The entry of the clip with @p id, or nullptr.
 	[[nodiscard]] const ClipEntry* clip_entry(uint32_t id) const;
 
@@ -86,10 +89,15 @@ struct SongDocument {
 /// file from before ids) get the next id after the largest of their kind in the document, in document order; a
 /// session macro naming its clip or output by position names the one at that position (a session clip, an output in
 /// the order of `instruments`), or nothing if there is none.
-[[nodiscard]] std::expected<SongDocument, LoadError> decode_song(const serialization::Value& root);
+/// Controls are named through @p engines: a sound's and a sound kit row's by the Deluge instrument, a kit's, an audio
+/// track's and the song's by the provisional global-effectable table; with no naming for an engine, its owners have
+/// no controls.
+[[nodiscard]] std::expected<SongDocument, LoadError> decode_song(const serialization::Value& root,
+                                                                 const CodecEngines& engines);
 
 /// @brief The document `{"song": {…}}` holding @p song's model parts in the JSON shape, recorded as written by
 /// @p firmware_version (which tells a reader how the sync values are stored).
-[[nodiscard]] serialization::Value encode_song(const SongDocument& song, std::string_view firmware_version);
+[[nodiscard]] serialization::Value encode_song(const SongDocument& song, std::string_view firmware_version,
+                                               const CodecEngines& engines);
 
 } // namespace deluge::project

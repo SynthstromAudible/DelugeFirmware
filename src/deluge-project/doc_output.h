@@ -17,11 +17,13 @@
 
 #pragma once
 
+#include "deluge-project/controller_mapping.h"
 #include "deluge-project/cv_mode.h"
 #include "deluge-project/instrument_slot.h"
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace deluge::project {
 
@@ -48,8 +50,11 @@ struct DocOutput {
 	CVMode cv2_source{CVMode::OFF};          ///< CVInstrument
 	/// The instrument a synth track (a `sound` element) plays; absent for every other kind.
 	std::optional<InstrumentSlot> instrument;
+	/// The output's knobs: a synth track's mod knobs and learned MIDI knobs, a kit's or an audio track's learned MIDI
+	/// knobs, each pointed at a param of its engine.
+	std::vector<ControllerMapping> controls;
 
-	/// Equal when the identity fields and the instrument are.
+	/// Equal when the identity fields, the instrument and the controls are.
 	bool operator==(const DocOutput& other) const {
 		return name == other.name && colour == other.colour && mod_knob_mode == other.mod_knob_mode
 		       && muted_in_arrangement == other.muted_in_arrangement
@@ -59,8 +64,8 @@ struct DocOutput {
 		       && channel_suffix == other.channel_suffix
 		       && device_definition_file_name == other.device_definition_file_name
 		       && collapse_aftertouch == other.collapse_aftertouch && collapse_mpe == other.collapse_mpe
-		       && output_mpe_y == other.output_mpe_y && cv2_source == other.cv2_source
-		       && instrument == other.instrument;
+		       && output_mpe_y == other.output_mpe_y && cv2_source == other.cv2_source && instrument == other.instrument
+		       && controls == other.controls;
 	}
 };
 

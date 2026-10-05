@@ -16,6 +16,7 @@
  */
 
 #include "equality/equality.h"
+#include "controls_test_engines.h"
 
 #include "serialization/parse_json.h"
 #include "serialization/parse_xml.h"
@@ -90,11 +91,11 @@ std::expected<void, std::string> check_equality(std::string_view songText, bool 
 	if (!parsed) {
 		return std::unexpected("does not parse");
 	}
-	auto a = decode_song(*parsed);
+	auto a = decode_song(*parsed, deluge::project::test::test_engines());
 	if (!a) {
 		return std::unexpected("has no song");
 	}
-	serialization::Value encoded = encode_song(*a, kWriter);
+	serialization::Value encoded = encode_song(*a, kWriter, deluge::project::test::test_engines());
 	if (faults.on_encoded) {
 		faults.on_encoded(encoded);
 	}
@@ -103,7 +104,7 @@ std::expected<void, std::string> check_equality(std::string_view songText, bool 
 	if (!reparsed) {
 		return std::unexpected("its JSON does not parse");
 	}
-	auto b = decode_song(*reparsed);
+	auto b = decode_song(*reparsed, deluge::project::test::test_engines());
 	if (!b) {
 		return std::unexpected("its JSON has no song");
 	}
@@ -113,7 +114,8 @@ std::expected<void, std::string> check_equality(std::string_view songText, bool 
 	if (!(*b == *a)) {
 		return std::unexpected("the " + difference(*a, *b) + " changed in the JSON round trip");
 	}
-	if (serialization::write_json(encode_song(*b, kWriter)) != serialization::write_json(encode_song(*a, kWriter))) {
+	if (serialization::write_json(encode_song(*b, kWriter, deluge::project::test::test_engines()))
+	    != serialization::write_json(encode_song(*a, kWriter, deluge::project::test::test_engines()))) {
 		return std::unexpected("a second write differs");
 	}
 	return {};
@@ -125,8 +127,8 @@ std::expected<void, std::string> compare_songs(std::string_view a, bool aIsJson,
 	if (!parsedA || !parsedB) {
 		return std::unexpected(!parsedA ? "the first does not parse" : "the second does not parse");
 	}
-	auto songA = decode_song(*parsedA);
-	auto songB = decode_song(*parsedB);
+	auto songA = decode_song(*parsedA, deluge::project::test::test_engines());
+	auto songB = decode_song(*parsedB, deluge::project::test::test_engines());
 	if (!songA || !songB) {
 		return std::unexpected(!songA ? "the first has no song" : "the second has no song");
 	}

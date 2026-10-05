@@ -1,3 +1,5 @@
+#include "controls_test_engines.h"
+#include "engines/deluge/params.h"
 #include "equality/equality.h"
 #include "serialization/parse_xml.h"
 #include "serialization/write_json.h"
@@ -14,6 +16,32 @@ std::string fixture() {
 	std::stringstream text;
 	text << in.rdbuf();
 	return text.str();
+}
+} // namespace
+
+namespace {
+/// @p node with the first entry named @p key below it left out (@p dropped says whether one was).
+deluge::serialization::Value without_first(const deluge::serialization::Value& node, std::string_view key,
+                                           bool& dropped) {
+	if (node.isMap()) {
+		auto map = deluge::serialization::Value::makeMap();
+		for (const auto& [name, value] : node.entries()) {
+			if (!dropped && name == key) {
+				dropped = true;
+				continue;
+			}
+			map.set(name, without_first(value, key, dropped));
+		}
+		return map;
+	}
+	if (node.isArray()) {
+		auto array = deluge::serialization::Value::makeArray();
+		for (const deluge::serialization::Value& item : node.items()) {
+			array.append(without_first(item, key, dropped));
+		}
+		return array;
+	}
+	return node;
 }
 } // namespace
 
@@ -51,15 +79,15 @@ describe equality_sabotage("the model-equality gate", ${
 
 	it("finds an XML song and its JSON save the same song", _ {
 		const std::string json = deluge::serialization::write_json(
-		    encode_song(*decode_song(*deluge::serialization::parseXml(fixture())), "c1.0.0"));
+		    encode_song(*decode_song(*deluge::serialization::parseXml(fixture()), deluge::project::test::test_engines()), "c1.0.0", deluge::project::test::test_engines()));
 		auto result = compare_songs(fixture(), false, json, true);
 		expect(result).to_have_value();
 	});
 
 	it("names the record when two saves are different songs", _ {
-		auto changed = decode_song(*deluge::serialization::parseXml(fixture()));
+		auto changed = decode_song(*deluge::serialization::parseXml(fixture()), deluge::project::test::test_engines());
 		changed->groove.swing_amount += 1;
-		const std::string json = deluge::serialization::write_json(encode_song(*changed, "c1.0.0"));
+		const std::string json = deluge::serialization::write_json(encode_song(*changed, "c1.0.0", deluge::project::test::test_engines()));
 		auto result = compare_songs(fixture(), false, json, true);
 		expect(result).to_have_error();
 		expect(result.error_or("")).to_partially_match("groove");
@@ -87,6 +115,36 @@ describe equality_sabotage("the model-equality gate", ${
 					return;
 				}
 			}
+		};
+		auto result = check_equality(fixture(), false, faults);
+		expect(result).to_have_error();
+		expect(result.error_or("")).to_partially_match("output");
+	});
+
+	it("fails, naming the output, when a mod knob is pointed elsewhere", _ {
+		EqualityFaults faults;
+		faults.on_decoded = [](SongDocument& document) {
+			for (auto& [id, output] : document.outputs) {
+				for (ControllerMapping& mapping : output.controls) {
+					if (std::holds_alternative<ModKnobControl>(mapping.control)) {
+						mapping.target = mapping.target == deluge::instrument::param::kPan
+						                     ? deluge::instrument::param::kVolumePostFX
+						                     : deluge::instrument::param::kPan;
+						return;
+					}
+				}
+			}
+		};
+		auto result = check_equality(fixture(), false, faults);
+		expect(result).to_have_error();
+		expect(result.error_or("")).to_partially_match("output");
+	});
+
+	it("fails, naming the output, when a learned MIDI knob is lost", _ {
+		EqualityFaults faults;
+		faults.on_encoded = [](deluge::serialization::Value& document) {
+			bool dropped = false;
+			document = without_first(document, "midiKnobs", dropped);
 		};
 		auto result = check_equality(fixture(), false, faults);
 		expect(result).to_have_error();

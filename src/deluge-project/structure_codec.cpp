@@ -341,12 +341,14 @@ std::expected<void, LoadError> decode_identity(const Value& outputElement, std::
 
 namespace {
 
-/// The keys of a synth track's element the model reads (decode_song's id, decode_identity's for a `sound`).
-constexpr std::array<std::string_view, 9> kSoundOutputKeys{
-    "id",     "isMutedInArrangement", "isSoloingInArrangement", "isArmedForRecording", "activeModFunction",
-    "colour", "presetName",           "presetFolder",           "defaultVelocity"};
-/// The keys of a sound kit row's element the model reads (decode_song's id, decode_identity's name).
-constexpr std::array<std::string_view, 2> kSoundDrumKeys{"id", "name"};
+/// The keys of a synth track's element the model reads (decode_song's id, decode_identity's for a `sound`, its
+/// controls).
+constexpr std::array<std::string_view, 11> kSoundOutputKeys{
+    "id",       "isMutedInArrangement", "isSoloingInArrangement", "isArmedForRecording", "activeModFunction",
+    "colour",   "presetName",           "presetFolder",           "defaultVelocity",     "modKnobs",
+    "midiKnobs"};
+/// The keys of a sound kit row's element the model reads (decode_song's id, decode_identity's name, its controls).
+constexpr std::array<std::string_view, 4> kSoundDrumKeys{"id", "name", "modKnobs", "midiKnobs"};
 
 template <size_t N>
 InstrumentSlot slot_without(const Value& element, const std::array<std::string_view, N>& ownKeys) {

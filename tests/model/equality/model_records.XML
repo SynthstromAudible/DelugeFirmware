@@ -206,6 +206,11 @@
 			defaultVelocity="100"
 			activeModFunction="1"
 			colour="4">
+			<midiKnobs>
+				<midiKnob channel="2" ccNumber="74" relative="0" controlsParam="lpfFrequency">
+					<device port="din" />
+				</midiKnob>
+			</midiKnobs>
 			<soundSources>
 				<midiOutput name="M1" id="7" channel="3" note="36" />
 				<gateOutput name="G1" id="8" channel="1" />

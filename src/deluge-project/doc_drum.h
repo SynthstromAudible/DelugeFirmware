@@ -17,11 +17,13 @@
 
 #pragma once
 
+#include "deluge-project/controller_mapping.h"
 #include "deluge-project/drum_type.h"
 #include "deluge-project/instrument_slot.h"
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace deluge::project {
 
@@ -37,11 +39,13 @@ struct DocDrum {
 	std::string name;
 	/// The instrument a sound kit row plays; absent for every other kind.
 	std::optional<InstrumentSlot> instrument;
+	/// A sound kit row's mod knobs and learned MIDI knobs, each pointed at a param of its instrument.
+	std::vector<ControllerMapping> controls;
 
-	/// Equal when the identity fields and the instrument are.
+	/// Equal when the identity fields, the instrument and the controls are.
 	bool operator==(const DocDrum& other) const {
 		return drum_type == other.drum_type && channel == other.channel && note == other.note && name == other.name
-		       && instrument == other.instrument;
+		       && instrument == other.instrument && controls == other.controls;
 	}
 };
 

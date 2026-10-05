@@ -33,6 +33,7 @@
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
 
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -42,6 +43,8 @@
 #include <string>
 #include <string_view>
 
+#include "engines/deluge/naming.h"
+#include "engines/global_effectable/naming.h"
 #include "scenarios/drivers/driver.h"
 
 namespace {
@@ -245,7 +248,9 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 		std::fprintf(io.err, "LOADFAIL gen1 -> Error %d\n", static_cast<int>(e));
 		return 3;
 	}
-	auto decoded = deluge::project::decode_song(*tree);
+	static const std::array<deluge::engine::ParamNaming, 2> namings{deluge::instrument::kNaming,
+	                                                                deluge::global_effectable::kNaming};
+	auto decoded = deluge::project::decode_song(*tree, deluge::project::CodecEngines{.namings = namings});
 	if (!decoded) {
 		return differs("the saved song does not decode");
 	}
