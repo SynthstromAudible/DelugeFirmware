@@ -348,6 +348,17 @@ std::optional<serialization::Value> setting_value(const SoundState& state, std::
 	return value;
 }
 
+bool allows_setting(const SoundState& state, std::string_view path, const serialization::Value& value) {
+	const auto ringable = [](OscType type) { return type <= OscType::WAVETABLE; };
+	if (path == "mode" && parse_synth_mode(value.str()) == SynthMode::RINGMOD) {
+		return std::ranges::all_of(state.sources, ringable, &SourceState::osc_type);
+	}
+	if (state.synth_mode == SynthMode::RINGMOD && path.starts_with("osc") && path.ends_with("/type")) {
+		return ringable(parse_osc_type(value.str()));
+	}
+	return true;
+}
+
 bool takes_setting(const SoundState& state, std::string_view path) {
 	return anyValue(state, path).has_value();
 }

@@ -38,7 +38,8 @@ Error SetEngineSetting::apply(Context& ctx) {
 	::Sound* sound = deluge::bridge::soundAt(ctx.song, slot_);
 	const std::optional<deluge::serialization::Value> value = deluge::instrument::canonical_setting(path_, value_);
 	if (slot == nullptr || sound == nullptr || sound->boundState() == nullptr || !value
-	    || !deluge::instrument::takes_setting(*sound->boundState(), path_)) {
+	    || !deluge::instrument::takes_setting(*sound->boundState(), path_)
+	    || !deluge::instrument::allows_setting(*sound->boundState(), path_, *value)) {
 		return Error::UNSPECIFIED;
 	}
 	Error error = deluge::bridge::commitSlot(*sound, *slot, elementFor(*sound, *slot, path_, *value), ctx.song);

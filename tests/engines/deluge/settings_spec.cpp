@@ -160,6 +160,16 @@ describe settings("the Deluge instrument's settings schema", ${
 		expect(canonical_setting("polyphonic", Value::makeScalar("mono"))->str()).to_equal(std::string("mono"));
 		expect(canonical_setting("voicePriority", Value::makeScalar("9"))).not_().to_have_value();
 	});
+
+	it("keeps ring mod to the oscillators it can ring", _ {
+		expect(allows_setting(sampleState(), "mode", Value::makeScalar("ringmod"))).to_be_false();
+		expect(allows_setting(new_synth_state(), "mode", Value::makeScalar("ringmod"))).to_be_true();
+		SoundState ringing = new_synth_state();
+		ringing.synth_mode = SynthMode::RINGMOD;
+		expect(allows_setting(ringing, "osc1/type", Value::makeScalar("sample"))).to_be_false();
+		expect(allows_setting(ringing, "osc1/type", Value::makeScalar("wavetable"))).to_be_true();
+		expect(allows_setting(sampleState(), "mode", Value::makeScalar("fm"))).to_be_true();
+	});
 });
 
 CPPSPEC_SPEC(settings)

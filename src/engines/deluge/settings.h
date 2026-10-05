@@ -46,6 +46,11 @@ extern const std::span<const engine::SettingInfo> kSettings;
 /// outside FM; modulators outside FM; a structured path or one the schema does not hold; an unset drum note.
 [[nodiscard]] std::optional<serialization::Value> setting_value(const SoundState& state, std::string_view path);
 
+/// @brief Whether a sound in @p state may take @p value at @p path, beyond what the schema allows: ring mod rings only
+/// the oscillators up to a wavetable, so it is not chosen while either oscillator is past one, nor such an oscillator
+/// while it is chosen.
+[[nodiscard]] bool allows_setting(const SoundState& state, std::string_view path, const serialization::Value& value);
+
 /// @brief Whether a sound in @p state takes a setting at @p path at all: where setting_value answers, or where the
 /// value is unset (a sound drum's MIDI note before one is chosen).
 [[nodiscard]] bool takes_setting(const SoundState& state, std::string_view path);

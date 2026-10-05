@@ -369,6 +369,17 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 		for (const Value& value : legalValues(*row, old ? &old->str() : nullptr)) {
 			const Value slotBefore = song.project.resolveSlot(*address)->state;
 			deluge::edits::SetEngineSetting edit{*address, std::string(path), value};
+			if (!deluge::instrument::allows_setting(*sound.boundState(), path, value)) {
+				// Ring mod and an oscillator it cannot ring: refused, the slot as it was.
+				if (deluge::edits::apply(ctx, edit) == Error::NONE
+				    || !deluge::serialization::first_difference(song.project.resolveSlot(*address)->state, slotBefore)
+				            .empty()) {
+					std::fprintf(io.err, "%s %.*s=%s: taken where ring mod does not allow it\n", name,
+					             static_cast<int>(path.size()), path.data(), value.str().c_str());
+					return 3;
+				}
+				continue;
+			}
 			std::string_view failed =
 			    deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : coherence(sound, song, path, value);
 			if (failed.empty() && old && deluge::instrument::check_setting(path, *old)) {
@@ -458,9 +469,9 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 	return deluge::edits::apply(ctx, restore) == Error::NONE ? 0 : 3;
 }
 
-/// The ring-mod leg: a sound outside FM whose first oscillator plays samples is set to ring mod, which only reading a
-/// file clamps to a wavetable, and that oscillator reversed and back; it still plays its samples. Then its old mode
-/// back. 0 when each holds (or the sound has no such oscillator), else 3 after printing the first that does not.
+/// The ring-mod leg: a sound outside FM whose first oscillator plays samples is refused ring mod, which rings only
+/// oscillators up to a wavetable, and keeps its samples and its slot. 0 when each holds (or the sound has no such
+/// oscillator), else 3 after printing the first that does not.
 int ringModLeg(Sound& sound, Song& song, const char* name) {
 	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
 	if (!address || sound.boundState() == nullptr || sound.getSynthMode() == SynthMode::FM
@@ -468,29 +479,24 @@ int ringModLeg(Sound& sound, Song& song, const char* name) {
 		return 0;
 	}
 	const std::vector<deluge::instrument::RangeState> ranges = sound.boundState()->sources[0].ranges;
+	const Value slotBefore = song.project.resolveSlot(*address)->state;
 	deluge::edits::Context ctx{song, song.project};
-	const Value old = *leafAt(song.project.resolveSlot(*address)->state, "mode");
 	deluge::edits::SetEngineSetting ringMod{*address, "mode", Value::makeScalar("ringmod")};
-	std::string_view failed = deluge::edits::apply(ctx, ringMod) != Error::NONE
-	                              ? "refused"
-	                              : coherence(sound, song, "mode", Value::makeScalar("ringmod"));
-	const int32_t reversed = sound.boundState()->sources[0].reversed ? 1 : 0;
-	for (int32_t to : {1 - reversed, reversed}) {
-		deluge::edits::SetEngineSetting flip{*address, "osc1/reversed", Value::makeNumber(to)};
-		if (failed.empty() && deluge::edits::apply(ctx, flip) != Error::NONE) {
-			failed = "osc1/reversed refused";
-		}
+	std::string_view failed;
+	if (deluge::edits::apply(ctx, ringMod) == Error::NONE) {
+		failed = "taken";
 	}
-	if (failed.empty()
-	    && (sound.sources[0].oscType != OscType::SAMPLE || sound.boundState()->sources[0].ranges != ranges)) {
-		failed = "osc1 no longer plays its samples";
+	else if (sound.getSynthMode() == SynthMode::RINGMOD || sound.sources[0].oscType != OscType::SAMPLE
+	         || sound.boundState()->sources[0].ranges != ranges
+	         || !deluge::serialization::first_difference(song.project.resolveSlot(*address)->state, slotBefore)
+	                 .empty()) {
+		failed = "the refusal changed the sound";
 	}
 	if (!failed.empty()) {
 		std::fprintf(io.err, "%s ring mod: %.*s\n", name, static_cast<int>(failed.size()), failed.data());
 		return 3;
 	}
-	deluge::edits::SetEngineSetting restore{*address, "mode", old};
-	return deluge::edits::apply(ctx, restore) == Error::NONE ? 0 : 3;
+	return 0;
 }
 
 /// @p ranges with each range's tuning nudged and its zone's start moved on by one sample where the zone has room: an
