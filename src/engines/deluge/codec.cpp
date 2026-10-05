@@ -39,6 +39,11 @@ constexpr std::array<std::string_view, 17> kStateKeys{
     "maxVoices",  "osc1",          "osc2",          "lfo1",   "lfo2",      "lfo3",
     "lfo4",       "modulator1",    "modulator2",    "unison", "midiOutput"};
 
+/// The top-level keys of older files decode still reads and encode never writes: the oscillators by their old names,
+/// ring mod as a flag, the retrigger switch, and an early sound's one sample.
+constexpr std::array<std::string_view, 8> kOldStateKeys{"oscillatorA", "oscillatorB", "ringMod",  "oscillatorReset",
+                                                        "fileName",    "continuous",  "reversed", "zone"};
+
 /// A number as a file holds it: a 32-bit signed integer, whatever the field's own type.
 Value number(int64_t value) {
 	return Value::makeNumber(static_cast<int32_t>(value));
@@ -251,6 +256,9 @@ serialization::Value with_state(const serialization::Value& element, const Sound
 	std::vector<std::string_view> placed;
 	if (element.isMap()) {
 		for (const auto& [key, value] : element.entries()) {
+			if (std::ranges::find(kOldStateKeys, key) != kOldStateKeys.end()) {
+				continue; // the encoding says it now, and the old form read after it would undo it
+			}
 			if (!is_state_key(key)) {
 				out.set(key, value);
 				continue;

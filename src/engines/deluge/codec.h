@@ -55,8 +55,9 @@ struct SoundPieces {
 
 /// @brief @p element (a sound's slot) with the Deluge instrument's entries replaced by @p state's encoding: each such
 /// entry takes the encoding's value at its old position, one the encoding no longer writes is dropped, and one the
-/// encoding writes that the element lacked is appended in the encoding's order. Every other entry (params, effects,
-/// cables…) is kept, in order.
+/// encoding writes that the element lacked is appended in the encoding's order. An older file's instrument entries
+/// (oscillatorA, ringMod, a top-level fileName…) are dropped: the encoding holds what they said. Every other entry
+/// (params, effects, cables…) is kept, in order.
 [[nodiscard]] serialization::Value with_state(const serialization::Value& element, const SoundState& state,
                                               const engine::CodecContext& context);
 
