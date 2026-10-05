@@ -32,7 +32,9 @@
 #include <cstring>
 
 #include "deluge-project/instrument_slot.h"
+#include "dsp/dx/dx7note.h"
 #include "model/drum/drum.h"
+#include "model/edits/set_dx_patch.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/edits/set_source_ranges.h"
 #include "model/model_stack.h"
@@ -662,6 +664,39 @@ void testRemovalDropsOnlyOwnRecords(deluge::edits::Context& ctx) {
 	ctx.model.output_structure.remove(outputId);
 }
 
+// A DX7 source's patch changes through an Edit, its slot following; a source that is not a DX7 oscillator refuses one.
+void testSetDxPatch(deluge::edits::Context& ctx) {
+	using deluge::serialization::Value;
+	ParamManagerForTimeline paramManager;
+	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
+	ctx.song.addOutput(synth);
+	Sound& sound = *static_cast<SoundInstrument*>(synth);
+	const auto slot = deluge::bridge::slotAddressOf(sound);
+	check(slot.has_value(), "dx: the synth has a slot");
+	if (!slot) {
+		return;
+	}
+	deluge::edits::SetEngineSetting dx7{*slot, "osc1/type", Value::makeScalar("dx7")};
+	check(deluge::edits::apply(ctx, dx7) == Error::NONE, "dx: osc1 is a DX7");
+	std::optional<deluge::instrument::DxPatchState> patch = deluge::bridge::dxPatchOf(sound.sources[0]);
+	check(patch.has_value(), "dx: the DX7 source has a patch");
+	if (!patch) {
+		return;
+	}
+	patch->params[3] = static_cast<uint8_t>(patch->params[3] == 7 ? 8 : 7);
+	patch->random_detune = 5;
+	deluge::edits::SetDxPatch edit{*slot, 0, *patch};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "dx: a patch is applied");
+	check(sound.sources[0].dxPatch->params[3] == patch->params[3] && sound.sources[0].dxPatch->random_detune == 5,
+	      "dx: the runtime takes it");
+	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "dx: the sound stays coherent");
+
+	deluge::edits::SetEngineSetting saw{*slot, "osc2/type", Value::makeScalar("saw")};
+	(void)deluge::edits::apply(ctx, saw);
+	deluge::edits::SetDxPatch refused{*slot, 1, *patch};
+	check(deluge::edits::apply(ctx, refused) != Error::NONE, "dx: a saw oscillator refuses a patch");
+}
+
 int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	io = driverIo;
 
@@ -693,6 +728,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testSetSourceRanges(ctx);
 	testDrumIdsAreUnique(ctx);
 	testRemovalDropsOnlyOwnRecords(ctx);
+	testSetDxPatch(ctx);
 
 	if (failures == 0) {
 		std::fprintf(io.out, "edit_substrate: OK\n");

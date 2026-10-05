@@ -18,6 +18,7 @@
 #include "dx.h"
 #include "dsp/dx/dx7note.h"
 #include "gui/menu_item/dx/param.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
@@ -97,8 +98,13 @@ void DXColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCo
 		menu_item::dxParam.openForOpOrGlobal(op);
 	}
 	else if (op < 6) {
-		bool val = patch->opSwitch(op);
-		patch->setOpSwitch(op, !val);
+		// The column's patch is the current synth's first source's (getCurrentDxPatch).
+		auto* sound = static_cast<SoundInstrument*>(getCurrentInstrument());
+		if (std::optional<deluge::instrument::DxPatchState> changed = deluge::bridge::dxPatchOf(sound->sources[0])) {
+			changed->params[155] ^=
+			    static_cast<uint8_t>(1 << op); // the op switches, as DxPatch::setOpSwitch packs them
+			deluge::gui::menu_item::dxPatchFor(*sound, 0, *changed);
+		}
 	}
 };
 } // namespace deluge::gui::ui::keyboard::controls

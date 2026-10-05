@@ -17,6 +17,7 @@
 
 #include "param.h"
 #include "dsp/dx/dx7note.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
@@ -52,16 +53,19 @@ int DxParam::getValue() {
 }
 
 void DxParam::setValue(int val) {
+	// NOTE: we don't use currentSource as currently only OSC1 can be DX7
+	std::optional<deluge::instrument::DxPatchState> changed =
+	    deluge::bridge::dxPatchOf(soundEditor.currentSound->sources[0]);
+	if (!changed) {
+		return;
+	}
 	if (param >= 0 && param <= MAX_PARAM_IDX) {
-		patch->params[param] = val;
+		changed->params[param] = static_cast<uint8_t>(val);
 	}
 	else if (param == -1) {
-		patch->random_detune = val;
+		changed->random_detune = val;
 	}
-
-	// NOTE: we don't use currentSource as currently only OSC1 can be DX7
-	soundEditor.currentSound->sources[0].dxPatchChanged = true;
-	soundEditor.currentSound->sources[0].seedDocDxPatch(); // M3 owner-5: reflect the param edit into the DOM record
+	dxPatchFor(*soundEditor.currentSound, 0, *changed);
 }
 
 void DxParam::readValueAgain() {

@@ -21,6 +21,7 @@
 #include "engines/deluge/sound_state.h"
 
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 class Sound;
@@ -38,5 +39,13 @@ namespace deluge::bridge {
 /// @return Error::UNSPECIFIED when the list has another length or another file in any range (assigning a file is its
 /// gesture's own load), or its top notes do not rise.
 Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrument::RangeState>& ranges);
+
+/// @brief Source @p source's DX7 patch as the record holds it, or nullopt when it has none.
+[[nodiscard]] std::optional<deluge::instrument::DxPatchState> dxPatchOf(const ::Source& source);
+
+/// @brief Give source @p s of @p sound the patch @p patch: its 156 voice bytes, its engine mode and its random detune.
+/// Its voices take the new patch at their next note, as a menu edit always has.
+/// @return Error::UNSPECIFIED unless the source is a DX7 oscillator.
+Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instrument::DxPatchState& patch);
 
 } // namespace deluge::bridge

@@ -17,6 +17,7 @@
 
 #include "cartridge.h"
 #include "dsp/dx/engine.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/browser/dx_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
@@ -104,9 +105,10 @@ void DxCartridge::loadPatch() {
 		return;
 	}
 
-	DxPatch* patch = soundEditor.currentSource->ensureDxPatch();
-	pd->unpackProgram(patch->params, currentValue);
-	soundEditor.currentSource->seedDocDxPatch(); // M3 owner-5: reflect the loaded cartridge program into the DOM record
+	soundEditor.currentSource->ensureDxPatch();
+	std::optional<deluge::instrument::DxPatchState> program = deluge::bridge::dxPatchOf(*soundEditor.currentSource);
+	pd->unpackProgram(program->params, currentValue);
+	dxPatchFor(*soundEditor.currentSound, soundEditor.currentSourceIndex, *program);
 	soundEditor.currentSound->killAllVoices();
 	Instrument* instrument = getCurrentInstrument();
 	if (instrument->type == OutputType::SYNTH && !instrument->mightExistOnCard) {

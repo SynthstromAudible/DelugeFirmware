@@ -17,6 +17,7 @@
 
 #include "model/project_bridge/source_bridge.h"
 
+#include "dsp/dx/dx7note.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
@@ -69,6 +70,30 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 		}
 	}
 	source.seedDocRanges();
+	return Error::NONE;
+}
+
+std::optional<deluge::instrument::DxPatchState> dxPatchOf(const ::Source& source) {
+	deluge::instrument::SourceState into;
+	source.seedDxPatchInto(into);
+	return into.dx_patch;
+}
+
+Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instrument::DxPatchState& patch) {
+	::Source& source = sound.sources[s];
+	if (source.oscType != OscType::DX7) {
+		return Error::UNSPECIFIED;
+	}
+	if (dxPatchOf(source) != patch) {
+		DxPatch* runtime = source.ensureDxPatch();
+		std::ranges::copy(patch.params, runtime->params);
+		if (runtime->engineMode != patch.engine_mode) {
+			runtime->setEngineMode(patch.engine_mode);
+		}
+		runtime->random_detune = patch.random_detune;
+		source.dxPatchChanged = true;
+	}
+	source.seedDocDxPatch();
 	return Error::NONE;
 }
 

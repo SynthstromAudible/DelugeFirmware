@@ -18,6 +18,7 @@
 
 #include "io/debug/log.h"
 #include "model/edits/edit.h"
+#include "model/edits/set_dx_patch.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/edits/set_source_ranges.h"
 #include "model/project_bridge/setting_apply.h"
@@ -85,6 +86,22 @@ inline void rangesFor(::Sound& sound, int32_t s, std::vector<deluge::instrument:
 /// @brief Record source @p s's ranges as a gesture left them, after it loaded files or reshaped the list itself.
 inline void recordRanges(::Sound& sound, int32_t s) {
 	rangesFor(sound, s, deluge::bridge::rangesOf(sound.sources[s]));
+}
+
+/// @brief A gesture's change of source @p s of @p sound to the DX7 patch @p patch: an Edit on the sound's slot when it
+/// is bound in the current song, the patch alone for a sound with no slot in it.
+inline void dxPatchFor(::Sound& sound, int32_t s, const deluge::instrument::DxPatchState& patch) {
+	if (const std::optional<deluge::project::SlotAddress> slot = songSlotOf(sound)) {
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		deluge::edits::SetDxPatch edit{*slot, static_cast<uint8_t>(s), patch};
+		if (deluge::edits::apply(ctx, edit) != Error::NONE) {
+			D_PRINTLN("dx patch refused: osc%d", static_cast<int>(s + 1));
+		}
+		return;
+	}
+	if (deluge::bridge::applyDxPatch(sound, s, patch) != Error::NONE) {
+		D_PRINTLN("dx patch refused: osc%d", static_cast<int>(s + 1));
+	}
 }
 
 } // namespace deluge::gui::menu_item

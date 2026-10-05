@@ -56,6 +56,7 @@ SETTERS = (
     # The record's reseeds: a gesture records what it changed through the Edits, which reseed and refresh the slot.
     "seedDocRanges",
     "seedDocSourceScalars",
+    "seedDocDxPatch",
 )
 #: Receivers that are not a sound: an audio clip, and a sample range's holder.
 ALLOWED_RECEIVERS = {"audioClip", "getCurrentAudioClip", "sampleHolder"}
