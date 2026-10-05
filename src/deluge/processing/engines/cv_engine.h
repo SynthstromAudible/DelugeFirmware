@@ -111,6 +111,7 @@ private:
 	/// the pending gate's scheduled time has passed but it's being held until its cv is output
 	bool gateDueAwaitingCV{false};
 	void switchPendingNoteGates();
+	void switchPendingClockAndRun();
 	/// gate 3 as a run signal
 	bool asapGateOutputPending;
 	/// gate 4 as a clock signal
