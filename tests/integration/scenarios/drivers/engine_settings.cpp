@@ -316,6 +316,22 @@ std::string_view coherence(Sound& sound, Song& song, std::string_view path, cons
 	return {};
 }
 
+/// Whether @p sound takes a setting at @p path at all: sample playback only on a source that uses it; an oscillator's
+/// own transpose and cents only on a source that plays no samples (a sample source's tuning is its ranges'); modulators
+/// only on an FM sound; everything else always.
+bool takes(Sound& sound, std::string_view path) {
+	if (isSamplePlayback(path)) {
+		return playsSamples(sound, path);
+	}
+	if (path.starts_with("osc") && (path.ends_with("/transpose") || path.ends_with("/cents"))) {
+		return sound.getSynthMode() == SynthMode::FM || sound.sources[path[3] - '1'].oscType != OscType::SAMPLE;
+	}
+	if (path.starts_with("modulator")) {
+		return sound.getSynthMode() == SynthMode::FM;
+	}
+	return true;
+}
+
 /// 0 when every legal value of every edited path, set on @p sound through SetEngineSetting and then undone, leaves its
 /// slot coherent; else 3 after printing the first that does not.
 int settingLegs(Sound& sound, Song& song, const char* name) {
@@ -326,8 +342,7 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 	deluge::edits::Context ctx{song, song.project};
 	for (std::string_view path : kEditedPaths) {
 		const deluge::engine::SettingInfo* row = deluge::engine::find_setting(deluge::instrument::kSettings, path);
-		if ((isSamplePlayback(path) && !playsSamples(sound, path))
-		    || (path.starts_with("modulator") && sound.getSynthMode() != SynthMode::FM)) {
+		if (!takes(sound, path)) {
 			deluge::edits::SetEngineSetting refused{*address, std::string(path), Value::makeNumber(row->min)};
 			if (deluge::edits::apply(ctx, refused) == Error::NONE) {
 				std::fprintf(io.err, "%s %.*s: taken by a sound or source that does not use it\n", name,
@@ -400,16 +415,79 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 	return deluge::edits::apply(ctx, restore) == Error::NONE ? 0 : 3;
 }
 
-/// Whether @p sound takes a setting at @p path at all: sample playback only on a source that uses it, modulators only
-/// on an FM sound; everything else always.
-bool takes(Sound& sound, std::string_view path) {
-	if (isSamplePlayback(path)) {
-		return playsSamples(sound, path);
+/// @p ranges with each range's tuning nudged and its zone's start moved on by one sample where the zone has room: an
+/// in-place change of every range.
+std::vector<deluge::instrument::RangeState> nudged(std::vector<deluge::instrument::RangeState> ranges) {
+	for (deluge::instrument::RangeState& range : ranges) {
+		range.transpose = static_cast<int16_t>(range.transpose == 0 ? 1 : 0);
+		if (range.start_pos + 1 < range.end_pos) {
+			range.start_pos++;
+		}
 	}
-	if (path.starts_with("modulator")) {
-		return sound.getSynthMode() == SynthMode::FM;
+	return ranges;
+}
+
+/// The range leg: every sample source of @p sound has its ranges nudged in place through SetSourceRanges, the sound
+/// checked, then the old ranges set back. 0 when each holds, else 3 after printing the first that does not.
+int rangeLeg(Sound& sound, Song& song, const char* name) {
+	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
+	if (!address) {
+		return 0;
 	}
-	return true;
+	deluge::edits::Context ctx{song, song.project};
+	for (int32_t s = 0; s < kNumSources; s++) {
+		if (!playsSamples(sound, s == 0 ? "osc1/loopMode" : "osc2/loopMode") || sound.sources[s].ranges.empty()) {
+			continue;
+		}
+		const std::vector<deluge::instrument::RangeState> old = deluge::bridge::rangesOf(sound.sources[s]);
+		for (const auto& ranges : {nudged(old), old}) {
+			deluge::edits::SetSourceRanges edit{*address, static_cast<uint8_t>(s), ranges};
+			const std::string failed = deluge::edits::apply(ctx, edit) != Error::NONE
+			                               ? "refused"
+			                               : deluge::harness::soundIncoherence(sound, song);
+			if (!failed.empty()) {
+				std::fprintf(io.err, "%s osc%d ranges: %s\n", name, static_cast<int>(s + 1), failed.c_str());
+				return 3;
+			}
+		}
+	}
+	return 0;
+}
+
+/// The kit-wide range leg: range 0 of every sample drum's first source nudged, one Edit each, as the sample transpose
+/// menu does with affect-entire held, then every drum checked. 0 when each holds, else 3 after printing the first that
+/// does not.
+int affectEntireRangeLeg(Kit& kit, Song& song) {
+	deluge::edits::Context ctx{song, song.project};
+	std::vector<SoundDrum*> nudgedDrums;
+	std::vector<std::vector<deluge::instrument::RangeState>> before;
+	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
+		auto* soundDrum = drum->type == DrumType::SOUND ? static_cast<SoundDrum*>(drum) : nullptr;
+		const auto address = soundDrum != nullptr ? deluge::bridge::slotAddressOf(*soundDrum) : std::nullopt;
+		if (!address || !playsSamples(*soundDrum, "osc1/loopMode") || soundDrum->sources[0].ranges.empty()) {
+			continue;
+		}
+		before.push_back(deluge::bridge::rangesOf(soundDrum->sources[0]));
+		deluge::edits::SetSourceRanges edit{*address, 0, nudged(before.back())};
+		if (deluge::edits::apply(ctx, edit) != Error::NONE) {
+			std::fprintf(io.err, "kit %s affect-entire ranges on %s: refused\n", kit.name.c_str(),
+			             soundDrum->name().c_str());
+			return 3;
+		}
+		nudgedDrums.push_back(soundDrum);
+	}
+	for (SoundDrum* drum : nudgedDrums) {
+		if (const std::string failed = deluge::harness::soundIncoherence(*drum, song); !failed.empty()) {
+			std::fprintf(io.err, "kit %s affect-entire ranges on %s: %s\n", kit.name.c_str(), drum->name().c_str(),
+			             failed.c_str());
+			return 3;
+		}
+	}
+	for (size_t i = 0; i < nudgedDrums.size(); i++) {
+		deluge::edits::SetSourceRanges back{*deluge::bridge::slotAddressOf(*nudgedDrums[i]), 0, before[i]};
+		(void)deluge::edits::apply(ctx, back);
+	}
+	return 0;
 }
 
 /// The affect-entire leg: @p path set to @p value on every sound drum of @p kit, one Edit each, as the menus do with
@@ -467,11 +545,17 @@ int settingsOf(Output& output, Song& song) {
 			std::string name = std::string(kind) + " of " + output.name.c_str();
 			code = settingLegs(sound, song, name.c_str());
 			if (code == 0) {
+				code = rangeLeg(sound, song, name.c_str());
+			}
+			if (code == 0) {
 				code = modePairLeg(sound, song, name.c_str());
 			}
 		}
 	});
 	if (code == 0 && output.type == OutputType::KIT) {
+		if (code == 0) {
+			code = affectEntireRangeLeg(static_cast<Kit&>(output), song);
+		}
 		// A kit of sample drums is made mixed: its first sound drum's oscillator becomes a saw, which plays no samples.
 		for (Drum* drum = static_cast<Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
 			if (drum->type != DrumType::SOUND) {

@@ -20,6 +20,7 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
@@ -160,45 +161,57 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 		getCurrentAudioClip()->unassignVoiceSample(false);
 	}
 
-	if (markerTypeNow == MarkerType::START) {
-		getCurrentSampleHolder().startPos = value;
+	if (clipType == ClipType::AUDIO) {
+		// An audio clip's markers are its own holder's.
+		if (markerTypeNow == MarkerType::START) {
+			getCurrentSampleHolder().startPos = value;
+		}
+		else if (markerTypeNow == MarkerType::END) {
+			getCurrentSampleHolder().endPos = value;
+		}
+		// Marker prefetch must never block the UI on a card read — enqueue and let the loader fill it.
+		// Playback tolerates a not-yet-loaded cluster (same as the realtime path).
+		getCurrentSampleHolder().claimClusterReasons(getCurrentSampleControls()->reversed, CLUSTER_ENQUEUE);
 	}
-	else if (markerTypeNow == MarkerType::LOOP_START) {
-		auto& multiSampleRange = getCurrentMultisampleRange();
-		auto& sampleHolder = multiSampleRange.sampleHolder;
-		if (sampleHolder.loopLocked) {
-			uint32_t intendedLoopEndPos = value + static_cast<uint32_t>(sampleHolder.loopLength());
-			if (uint64_t{intendedLoopEndPos} <= sampleHolder.endPos) {
-				sampleHolder.loopStartPos = value;
-				sampleHolder.loopEndPos = intendedLoopEndPos;
+	else {
+		// A sound's markers are its range's zone: the new zone is built from the source's ranges and issued as one
+		// Edit, which re-claims the clusters a moved zone needs.
+		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(*soundEditor.currentSource);
+		deluge::instrument::RangeState& range = ranges[soundEditor.currentMultiRangeIndex];
+		const auto& sampleHolder = getCurrentMultisampleRange().sampleHolder;
+		if (markerTypeNow == MarkerType::START) {
+			range.start_pos = value;
+		}
+		else if (markerTypeNow == MarkerType::LOOP_START) {
+			if (sampleHolder.loopLocked) {
+				uint32_t intendedLoopEndPos = value + static_cast<uint32_t>(sampleHolder.loopLength());
+				if (uint64_t{intendedLoopEndPos} <= range.end_pos) {
+					range.loop_start_pos = value;
+					range.loop_end_pos = intendedLoopEndPos;
+				}
+			}
+			else {
+				range.loop_start_pos = value;
 			}
 		}
-		else {
-			sampleHolder.loopStartPos = value;
-		}
-	}
-	else if (markerTypeNow == MarkerType::LOOP_END) {
-		auto& multiSampleRange = getCurrentMultisampleRange();
-		auto& sampleHolder = multiSampleRange.sampleHolder;
-		if (sampleHolder.loopLocked) {
-			int32_t intendedLoopStartPos = static_cast<int32_t>(value) - sampleHolder.loopLength();
-			// pos == 0 would disable the loop, so the smallest legal start position is sample 1
-			if (intendedLoopStartPos >= 1 && static_cast<uint64_t>(intendedLoopStartPos) >= sampleHolder.startPos) {
-				sampleHolder.loopEndPos = value;
-				sampleHolder.loopStartPos = intendedLoopStartPos;
+		else if (markerTypeNow == MarkerType::LOOP_END) {
+			if (sampleHolder.loopLocked) {
+				int32_t intendedLoopStartPos = static_cast<int32_t>(value) - sampleHolder.loopLength();
+				// pos == 0 would disable the loop, so the smallest legal start position is sample 1
+				if (intendedLoopStartPos >= 1 && static_cast<uint64_t>(intendedLoopStartPos) >= range.start_pos) {
+					range.loop_end_pos = value;
+					range.loop_start_pos = intendedLoopStartPos;
+				}
+			}
+			else {
+				range.loop_end_pos = value;
 			}
 		}
-		else {
-			sampleHolder.loopEndPos = value;
+		else if (markerTypeNow == MarkerType::END) {
+			range.end_pos = value;
 		}
+		deluge::gui::menu_item::rangesFor(*soundEditor.currentSound, soundEditor.currentSourceIndex, std::move(ranges));
 	}
-	else if (markerTypeNow == MarkerType::END) {
-		getCurrentSampleHolder().endPos = value;
-	}
-
-	// Marker prefetch must never block the UI on a card read — enqueue and let the loader fill it.
-	// Playback tolerates a not-yet-loaded cluster (same as the realtime path).
-	getCurrentSampleHolder().claimClusterReasons(getCurrentSampleControls()->reversed, CLUSTER_ENQUEUE);
 
 	if (clipType == ClipType::AUDIO) {
 		if (audioClipActive) {
@@ -212,12 +225,6 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 		soundEditor.currentSound->sampleZoneChanged(markerTypeNow, soundEditor.currentSourceIndex, modelStack);
 		getCurrentInstrument()->beenEdited(true);
-	}
-
-	// M3 owner-5: reflect the marker zone edit into the DOM range record. AudioClip markers are owner-4 (handled
-	// elsewhere).
-	if (getCurrentAudioClip() == nullptr && soundEditor.currentSource != nullptr) {
-		soundEditor.currentSource->seedDocRanges();
 	}
 }
 

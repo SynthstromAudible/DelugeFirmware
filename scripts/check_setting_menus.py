@@ -53,6 +53,9 @@ SETTERS = (
     "setModulator1ToModulator0",
     "setOutputMidiChannel",
     "setOutputMidiNoteForDrum",
+    # The record's reseeds: a gesture records what it changed through the Edits, which reseed and refresh the slot.
+    "seedDocRanges",
+    "seedDocSourceScalars",
 )
 #: Receivers that are not a sound: an audio clip, and a sample range's holder.
 ALLOWED_RECEIVERS = {"audioClip", "getCurrentAudioClip", "sampleHolder"}
@@ -66,17 +69,24 @@ RECEIVER = re.compile(r"([A-Za-z_]\w*)\s*(?:\(\s*\))?\s*(?:\[[^\]]*\])?\s*$")
 SUFFIXES = {".h", ".hpp", ".cpp"}
 
 
-def calls(root: Path) -> list[str]:
-    """Every `path:line: receiver->setter` under root that sets a scalar setting of a sound."""
+#: Gesture files outside the menus checked the same way: the waveform marker editor edits a range's zone.
+ALSO = (REPO / "src" / "deluge" / "gui" / "ui" / "sample_marker_editor.cpp",)
+
+
+def calls(root: Path, also: tuple[Path, ...] = ()) -> list[str]:
+    """Every `path:line: receiver->setter` under root, or in @p also, that sets a sound's setting outside its Edit."""
     found = []
-    for path in sorted(root.rglob("*")):
+    for path in sorted(root.rglob("*")) + list(also):
         if path.suffix not in SUFFIXES or not path.is_file():
             continue
         for number, line in enumerate(path.read_text(errors="replace").splitlines(), 1):
             for match in CALL.finditer(line):
                 receiver = RECEIVER.search(line[: match.start()])
                 name = receiver.group(1) if receiver else "?"
-                audio_clip_menu = AUDIO_CLIP_MENUS in path.relative_to(root).parts
+                audio_clip_menu = (
+                    path.is_relative_to(root)
+                    and AUDIO_CLIP_MENUS in path.relative_to(root).parts
+                )
                 if name not in ALLOWED_RECEIVERS and not (
                     audio_clip_menu and name in AUDIO_CLIP_RECEIVERS
                 ):
@@ -89,8 +99,9 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--root", type=Path, default=REPO / "src" / "deluge" / "gui" / "menu_item"
     )
+    parser.add_argument("--also", type=Path, nargs="*", default=list(ALSO))
     args = parser.parse_args(argv)
-    found = calls(args.root)
+    found = calls(args.root, tuple(args.also))
     for line in found:
         print(line)
     if found:

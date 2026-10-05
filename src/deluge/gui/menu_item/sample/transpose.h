@@ -76,11 +76,10 @@ public:
 
 					if (!source.ranges.empty() && soundDrum->getSynthMode() != SynthMode::FM
 					    && source.oscType == OscType::SAMPLE) {
-						auto* multi_sample_range = static_cast<MultisampleRange*>(source.ranges.getElement(0));
-						multi_sample_range->sampleHolder.transpose = transpose;
-						multi_sample_range->sampleHolder.setCents(cents);
-						// M3 owner-5: range-level transpose/cents edit — reflect into the record.
-						source.seedDocRanges();
+						std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(source);
+						ranges[0].transpose = static_cast<int16_t>(transpose);
+						ranges[0].cents = static_cast<int8_t>(cents);
+						rangesFor(*soundDrum, source_id_, std::move(ranges));
 					}
 					else {
 						settingFor(*soundDrum, oscPath("transpose"), serialization::Value::makeNumber(transpose));
@@ -101,14 +100,14 @@ public:
 
 			if (!source.ranges.empty() && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 			    && source.oscType == OscType::SAMPLE) {
-				auto* multi_sample_range =
+				const size_t r =
 				    soundEditor.currentSourceIndex == source_id_ && soundEditor.currentMultiRange != nullptr
-				        ? static_cast<MultisampleRange*>(soundEditor.currentMultiRange)
-				        : static_cast<MultisampleRange*>(source.ranges.getElement(0));
-				multi_sample_range->sampleHolder.transpose = transpose;
-				multi_sample_range->sampleHolder.setCents(cents);
-				// M3 owner-5: range-level transpose/cents edit — reflect into the record.
-				source.seedDocRanges();
+				        ? static_cast<size_t>(soundEditor.currentMultiRangeIndex)
+				        : 0;
+				std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(source);
+				ranges[r].transpose = static_cast<int16_t>(transpose);
+				ranges[r].cents = static_cast<int8_t>(cents);
+				rangesFor(*soundEditor.currentSound, source_id_, std::move(ranges));
 			}
 			else {
 				settingFor(*soundEditor.currentSound, oscPath("transpose"),

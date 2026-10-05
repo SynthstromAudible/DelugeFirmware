@@ -110,11 +110,17 @@ bool applyOscillatorSetting(::Sound& sound, int32_t s, std::string_view rest, co
 	if (rest == "type") {
 		changeOscType(sound, s, deluge::instrument::parse_osc_type(text), song);
 	}
-	else if (rest == "transpose") {
-		sound.sources[s].setTranspose(static_cast<int16_t>(number));
-	}
-	else if (rest == "cents") {
-		sound.sources[s].setCents(number);
+	else if (rest == "transpose" || rest == "cents") {
+		// A sample source's tuning is its ranges' (SetSourceRanges); its own is not what a file holds.
+		if (sound.getSynthMode() != SynthMode::FM && sound.sources[s].oscType == OscType::SAMPLE) {
+			return false;
+		}
+		if (rest == "transpose") {
+			sound.sources[s].setTranspose(static_cast<int16_t>(number));
+		}
+		else {
+			sound.sources[s].setCents(number);
+		}
 	}
 	else if (rest == "retrigPhase") {
 		sound.setOscRetriggerPhase(s, static_cast<uint32_t>(number));
