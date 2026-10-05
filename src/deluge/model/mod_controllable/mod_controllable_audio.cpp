@@ -667,7 +667,7 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 				writer.writeClosingTag("midiKnob", true, true);
 			}
 			else {
-				writer.closeTag();
+				writer.closeTag(true); // the knob is a boxed list item
 			}
 		}
 		writer.writeArrayEnding("midiKnobs");
@@ -939,9 +939,9 @@ doReadPatchedParam:
 			if (!strcmp(tagName, "midiKnob")) {
 
 				MIDICable* cable = nullptr;
-				uint8_t channel;
-				uint8_t ccNumber;
-				bool relative;
+				uint8_t channel = 0;
+				uint8_t ccNumber = 0;
+				bool relative = false;
 				uint8_t p = params::GLOBAL_NONE;
 				PatchSource s = PatchSource::NOT_AVAILABLE;
 				PatchSource s2 = PatchSource::NOT_AVAILABLE;
@@ -953,6 +953,15 @@ doReadPatchedParam:
 					}
 					else if (!strcmp(tagName, "channel")) {
 						channel = reader.readTagOrAttributeValueInt();
+					}
+					else if (!strcmp(tagName, "mpeZone")) { // a knob learned on an MPE zone
+						const std::string_view zone = reader.readTagOrAttributeValue();
+						if (zone == "lower") {
+							channel = MIDI_CHANNEL_MPE_LOWER_ZONE;
+						}
+						else if (zone == "upper") {
+							channel = MIDI_CHANNEL_MPE_UPPER_ZONE;
+						}
 					}
 					else if (!strcmp(tagName, "ccNumber")) {
 						ccNumber = reader.readTagOrAttributeValueInt();

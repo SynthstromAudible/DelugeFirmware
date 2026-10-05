@@ -97,11 +97,14 @@ std::vector<ControllerMapping> decode_controls(const Value& element, const delug
 				continue;
 			}
 			MidiInputControl learned;
-			if (const Value* zone = knob->find("mpeZone")) {
-				learned.input.channel_or_zone = text(zone) == "lower" ? kLowerZone : kUpperZone;
-			}
-			else {
-				learned.input.channel_or_zone = byte_of(knob->find("channel"));
+			learned.input.channel_or_zone = byte_of(knob->find("channel"));
+			if (const Value* zone = knob->find("mpeZone")) { // a zone the runtime does not know leaves the channel
+				if (text(zone) == "lower") {
+					learned.input.channel_or_zone = kLowerZone;
+				}
+				else if (text(zone) == "upper") {
+					learned.input.channel_or_zone = kUpperZone;
+				}
 			}
 			learned.input.note_or_cc = byte_of(knob->find("ccNumber"));
 			learned.relative = serialization::int_of(knob->find("relative")).value_or(0) != 0;

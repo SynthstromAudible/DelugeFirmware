@@ -56,7 +56,23 @@ describe controls("a sound's mod knobs and learned MIDI knobs as model records",
 		expect(controls[0].target.value).to_equal(deluge::global_effectable::param::kLpfFrequency.value);
 		Value again = Value::makeMap();
 		encode_controls(controls, deluge::global_effectable::kNaming, again);
-		expect(decode_controls(again, deluge::global_effectable::kNaming) == controls).to_be_true();
+		const auto reread = decode_controls(again, deluge::global_effectable::kNaming);
+		expect(reread.size()).to_equal(size_t{1});
+		const auto& relearned = std::get<MidiInputControl>(reread[0].control);
+		expect(static_cast<int>(relearned.input.note_or_cc)).to_equal(74);
+		expect(relearned.relative).to_be_true();
+		expect(relearned.input.device).to_have_value();
+		expect(reread[0].target.value).to_equal(controls[0].target.value);
+	});
+
+	it("reads a knob learned on an MPE zone, and leaves the channel for a zone it does not know", _ {
+		Value kit = element(R"(<kit><midiKnobs>
+			<midiKnob mpeZone="upper" ccNumber="1" controlsParam="pan" />
+			<midiKnob channel="3" mpeZone="sideways" ccNumber="2" controlsParam="pan" /></midiKnobs></kit>)", "kit");
+		auto controls = decode_controls(kit, deluge::global_effectable::kNaming);
+		expect(controls.size()).to_equal(size_t{2});
+		expect(static_cast<int>(std::get<MidiInputControl>(controls[0].control).input.channel_or_zone)).to_equal(17);
+		expect(static_cast<int>(std::get<MidiInputControl>(controls[1].control).input.channel_or_zone)).to_equal(3);
 	});
 
 	it("round-trips a sound's knobs through its element", _ {
@@ -66,7 +82,15 @@ describe controls("a sound's mod knobs and learned MIDI knobs as model records",
 		auto controls = decode_controls(sound, deluge::instrument::kNaming);
 		Value again = Value::makeMap();
 		encode_controls(controls, deluge::instrument::kNaming, again);
-		expect(decode_controls(again, deluge::instrument::kNaming) == controls).to_be_true();
+		const auto reread = decode_controls(again, deluge::instrument::kNaming);
+		expect(reread.size()).to_equal(controls.size());
+		for (size_t i = 0; i < controls.size(); ++i) {
+			expect(reread[i].target.value).to_equal(controls[i].target.value);
+			const auto& was = std::get<ModKnobControl>(controls[i].control);
+			const auto& is = std::get<ModKnobControl>(reread[i].control);
+			expect(static_cast<int>(is.button)).to_equal(static_cast<int>(was.button));
+			expect(static_cast<int>(is.knob)).to_equal(static_cast<int>(was.knob));
+		}
 	});
 });
 

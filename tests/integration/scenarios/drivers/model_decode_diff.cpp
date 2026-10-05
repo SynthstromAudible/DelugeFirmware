@@ -154,6 +154,31 @@ std::string what_differs(const deluge::project::DocOutput& e, const deluge::proj
 	return out;
 }
 
+/// 0 when the knobs the app holds after loading a file (the song's, and each output's and drum's the file names by
+/// id) are those the file holds, else 3 after printing which differ.
+int compare_loaded_controls(const deluge::project::Song& loaded, const SongDocument& file) {
+	if (!(loaded.controls == file.controls)) {
+		std::fprintf(io.err, "DECODE DIFF: the song's knobs after loading are not the file's (loaded %zu, file %zu)\n",
+		             loaded.controls.size(), file.controls.size());
+		return 3;
+	}
+	for (const auto& [id, output] : file.outputs) {
+		auto it = loaded.output_structure.by_id.find(id);
+		if (it != loaded.output_structure.by_id.end() && !(it->second.controls == output.controls)) {
+			std::fprintf(io.err, "DECODE DIFF: output %u's knobs after loading are not the file's\n", id);
+			return 3;
+		}
+	}
+	for (const auto& [id, drum] : file.drums) {
+		auto it = loaded.drum_structure.by_id.find(id);
+		if (it != loaded.drum_structure.by_id.end() && !(it->second.controls == drum.controls)) {
+			std::fprintf(io.err, "DECODE DIFF: drum %u's knobs after loading are not the file's\n", id);
+			return 3;
+		}
+	}
+	return 0;
+}
+
 template <class Store, class Map>
 int compare_store(const char* what, const Store& engine, const Map& decoded) {
 	for (const auto& [id, record] : engine) {
@@ -235,11 +260,26 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 	orig[fileLen] = 0;
 	std::fclose(f);
 
+	// The file as written, decoded before the app reads it: the knobs the app holds after loading it must be these.
+	std::optional<deluge::serialization::Value> originalTree =
+	    parseDocument(std::string_view(orig, static_cast<size_t>(fileLen)), deluge::storage::formatOfPath(argv[1]));
+	std::optional<SongDocument> original;
+	if (originalTree) {
+		if (auto decodedOriginal = deluge::project::decode_song(*originalTree, deluge::bridge::codecEngines())) {
+			original = std::move(*decodedOriginal);
+		}
+	}
+
 	Error e;
 	Song* song = load_song(orig, fileLen, deluge::storage::formatOfPath(argv[1]), &e);
 	if (!song) {
 		std::fprintf(io.err, "LOADFAIL -> Error %d\n", static_cast<int>(e));
 		return 1;
+	}
+	if (original) {
+		if (int r = compare_loaded_controls(song->project, *original)) {
+			return r;
+		}
 	}
 	const long n1 = deluge::scenarios::driver::saveSongCapture(*song, gen1, kCap);
 
