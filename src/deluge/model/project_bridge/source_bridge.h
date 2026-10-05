@@ -33,9 +33,9 @@ namespace deluge::bridge {
 [[nodiscard]] std::vector<deluge::instrument::RangeState> rangesOf(const ::Source& source);
 
 /// @brief Make source @p s of @p sound play @p ranges, changing ranges in place: top notes, a sample range's zone,
-/// loop points, transpose and cents. When they equal the source's own, only the record is reseeded: a gesture that
-/// loaded files or reshaped the list itself records its result this way. Kills no voices: a zone moves under a
-/// sounding note, as the marker editor has always moved it.
+/// loop points, transpose and cents (kept by sample ranges whatever the source's type). When they equal the source's
+/// own, only the record is reseeded: a gesture that loaded files or reshaped the list itself records its result this
+/// way. Kills no voices: a zone moves under a sounding note, as the marker editor has always moved it.
 /// @return Error::UNSPECIFIED when the list has another length or another file in any range (assigning a file is its
 /// gesture's own load), or a top note it moves does not rise between its neighbours.
 Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrument::RangeState>& ranges);

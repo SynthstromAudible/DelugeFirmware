@@ -634,6 +634,17 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	ranges[0].top_note = 70;
 	deluge::edits::SetSourceRanges outOfOrder{*slot, 0, ranges};
 	check(deluge::edits::apply(ctx, outOfOrder) != Error::NONE, "ranges: a changed top note out of order is refused");
+
+	// A source that plays no samples still holds its sample ranges, which a change of their zone reaches.
+	deluge::edits::SetEngineSetting saw{*slot, "osc1/type", Value::makeScalar("saw")};
+	check(deluge::edits::apply(ctx, saw) == Error::NONE, "ranges: osc1 becomes a saw");
+	ranges = deluge::bridge::rangesOf(sound.sources[0]);
+	ranges[2].start_pos = 123;
+	deluge::edits::SetSourceRanges hidden{*slot, 0, ranges};
+	check(deluge::edits::apply(ctx, hidden) == Error::NONE
+	          && static_cast<MultisampleRange*>(sound.sources[0].ranges.getElement(2))->sampleHolder.startPos == 123,
+	      "ranges: a saw's sample range takes a zone change");
+	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: the saw stays coherent");
 }
 
 // A new drum's id is one no drum record of the song holds: a drum whose id the counter has not passed (a hibernating

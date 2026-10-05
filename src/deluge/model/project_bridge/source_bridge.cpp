@@ -61,8 +61,8 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 		for (size_t i = 0; i < ranges.size(); i++) {
 			MultiRange* range = source.ranges.getElement(static_cast<int32_t>(i));
 			range->topNote = ranges[i].top_note;
-			if (source.oscType != OscType::SAMPLE) {
-				continue;
+			if (source.ranges.currentElementSize() != sizeof(MultisampleRange)) {
+				continue; // a wavetable range has no zone; sample ranges keep theirs whatever the type
 			}
 			SampleHolderForVoice& holder = static_cast<MultisampleRange*>(range)->sampleHolder;
 			const bool zoneMoved = holder.startPos != ranges[i].start_pos || holder.endPos != ranges[i].end_pos
@@ -74,12 +74,13 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 			holder.loopEndPos = ranges[i].loop_end_pos;
 			holder.transpose = ranges[i].transpose;
 			holder.setCents(ranges[i].cents);
-			if (zoneMoved && holder.audioFile != nullptr) {
+			if (zoneMoved && holder.audioFile != nullptr && source.oscType == OscType::SAMPLE) {
 				moved.push_back(&holder);
 			}
 		}
 	}
-	// A claim reaches the sample reserve, which must not run while the render is excluded.
+	// A claim reaches the sample reserve, which must not run while the render is excluded. Only a playing sample
+	// source's zones are claimed.
 	for (SampleHolderForVoice* holder : moved) {
 		holder->claimClusterReasons(source.sampleControls.isCurrentlyReversed(), CLUSTER_ENQUEUE);
 	}
