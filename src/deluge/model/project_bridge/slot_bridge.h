@@ -49,7 +49,8 @@ void refreshSlots(::Song& song);
 [[nodiscard]] ::Sound* soundAt(::Song& song, deluge::project::SlotAddress address);
 
 /// @brief Make @p slot (@p sound's, as the model resolves it) hold the sound's state: the instrument's entries replaced
-/// by the state's encoding, every other entry kept. Nothing for a sound that is not bound.
+/// by the state's encoding at the slot's own tick magnitude, every other entry kept. Nothing for a sound that is not
+/// bound.
 void syncSlotState(const ::Sound& sound, deluge::project::InstrumentSlot& slot, const ::Song& song);
 
 /// @brief @p tree with the leaf at @p path (slash-separated) set to @p leaf, maps along the way made as needed, every

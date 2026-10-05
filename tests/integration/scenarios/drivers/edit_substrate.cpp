@@ -545,6 +545,14 @@ void testSetEngineSetting(deluge::edits::Context& ctx) {
 			}
 		}
 	}
+	// A slot written in part keeps the magnitude the whole of it was written at: its effects' sync levels, which only
+	// a whole write re-encodes, are relative to it too.
+	const int32_t stamped = ctx.model.resolveSlot(*slot)->tick_magnitude;
+	transport.inside_world_tick_magnitude = stamped + 1;
+	deluge::edits::SetEngineSetting partial{*slot, "voicePriority", Value::makeNumber(1)};
+	check(deluge::edits::apply(ctx, partial) == Error::NONE && ctx.model.resolveSlot(*slot)->tick_magnitude == stamped
+	          && deluge::harness::soundIncoherence(sound, ctx.song).empty(),
+	      "setting: a slot written in part keeps its magnitude");
 	transport.inside_world_tick_magnitude = oldMagnitude;
 	transport.inside_world_tick_magnitude_offset_from_bpm = oldOffset;
 

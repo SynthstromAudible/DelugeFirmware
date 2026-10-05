@@ -168,9 +168,10 @@ std::optional<deluge::project::SlotAddress> slotAddressOf(::Sound& sound) {
 
 void syncSlotState(const ::Sound& sound, deluge::project::InstrumentSlot& slot, const ::Song& song) {
 	if (sound.boundState() != nullptr) {
+		// At the magnitude the whole slot was written at: its other entries (the effects' sync levels) stay relative
+		// to it.
 		slot.state = deluge::instrument::with_state(slot.state, *sound.boundState(),
-		                                            {.input_tick_magnitude = song.getInputTickMagnitude()});
-		slot.tick_magnitude = song.getInputTickMagnitude();
+		                                            {.input_tick_magnitude = slot.tick_magnitude});
 	}
 }
 
