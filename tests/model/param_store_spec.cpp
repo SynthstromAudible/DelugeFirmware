@@ -20,10 +20,10 @@ DocParamSet block(uint32_t first, size_t count) {
 describe param_store("the model's param stores, addressed by id", ${
 	it("finds a lane by id from the store's first id", _ {
 		DocParamSet set = block(90, 43);
-		expect(set.find(ParamId{90}) == &set.params[0]).to_equal(true);
-		expect(set.find(ParamId{132}) == &set.params[42]).to_equal(true);
-		expect(set.find(ParamId{89}) == nullptr).to_equal(true);
-		expect(set.find(ParamId{133}) == nullptr).to_equal(true);
+		expect(set.find(ParamId{90})).to_equal(&set.params[0]);
+		expect(set.find(ParamId{132})).to_equal(&set.params[42]);
+		expect(set.find(ParamId{89})).to_be_null();
+		expect(set.find(ParamId{133})).to_be_null();
 		expect(set.indexOf(ParamId{101}).value()).to_equal(size_t{11});
 	});
 
@@ -31,18 +31,18 @@ describe param_store("the model's param stores, addressed by id", ${
 		DocParamManager mgr;
 		mgr.engine_params[0] = block(0, 55);
 		mgr.engine_params[1] = block(90, 27);
-		expect(mgr.findEngineParam(ParamId{23}) == &mgr.engine_params[0]->params[23]).to_equal(true);
-		expect(mgr.findEngineParam(ParamId{101}) == &mgr.engine_params[1]->params[11]).to_equal(true);
-		expect(mgr.findEngineParam(ParamId{60}) == nullptr).to_equal(true);
+		expect(mgr.findEngineParam(ParamId{23})).to_equal(&mgr.engine_params[0]->params[23]);
+		expect(mgr.findEngineParam(ParamId{101})).to_equal(&mgr.engine_params[1]->params[11]);
+		expect(mgr.findEngineParam(ParamId{60})).to_be_null();
 	});
 
 	it("resolves a song's own param by its id", _ {
 		Song song;
 		song.master_params.engine_params[1] = block(90, 43);
 		ParamAddress volume{OwnerId::song(), ParamSpace::ENGINE, ParamId{129}};
-		expect(song.resolveParam(volume) == &song.master_params.engine_params[1]->params[39]).to_equal(true);
+		expect(song.resolveParam(volume)).to_equal(&song.master_params.engine_params[1]->params[39]);
 		ParamAddress outside{OwnerId::song(), ParamSpace::ENGINE, ParamId{39}};
-		expect(song.resolveParam(outside) == nullptr).to_equal(true);
+		expect(song.resolveParam(outside)).to_be_null();
 	});
 
 	it("resolves an instrument's lane per clip and a drum's apart from it", _ {
@@ -51,12 +51,11 @@ describe param_store("the model's param stores, addressed by id", ${
 		song.backed_params.getOrCreate(OwnerId::drum(7), 3).engine_params[1] = block(90, 27);
 		ParamAddress gate{OwnerId::instrument(7), ParamSpace::ENGINE, ParamId{101}, 3};
 		DocAutoParam* lane = song.resolveParam(gate);
-		expect(lane == song.backed_params.find(OwnerId::instrument(7), 3)->findEngineParam(ParamId{101}))
-		    .to_equal(true);
+		expect(lane).to_equal(song.backed_params.find(OwnerId::instrument(7), 3)->findEngineParam(ParamId{101}));
 		ParamAddress drumGate{OwnerId::drum(7), ParamSpace::ENGINE, ParamId{101}, 3};
-		expect(song.resolveParam(drumGate) != lane).to_equal(true);
+		expect(song.resolveParam(drumGate)).not_().to_equal(lane);
 		ParamAddress otherClip{OwnerId::instrument(7), ParamSpace::ENGINE, ParamId{101}, 4};
-		expect(song.resolveParam(otherClip) == nullptr).to_equal(true);
+		expect(song.resolveParam(otherClip)).to_be_null();
 	});
 
 	it("resolves the host spaces: expression, a MIDI CC and a cable", _ {
@@ -66,13 +65,11 @@ describe param_store("the model's param stores, addressed by id", ${
 		clip.midi_params.push_back(DocMidiParam{.cc = 74});
 		DocParamManager& synth = song.backed_params.getOrCreate(OwnerId::instrument(9), std::nullopt);
 		synth.patch_cables.push_back(DocPatchCable{.from = 4, .destination = 0xFFFFFF02u});
-		expect(song.resolveParam({OwnerId::clip(5), ParamSpace::EXPRESSION, ParamId{2}})
-		       == &clip.expression->params[2]).to_equal(true);
-		expect(song.resolveParam({OwnerId::clip(5), ParamSpace::MIDI_CC, ParamId{74}})
-		       == &clip.midi_params[0].param).to_equal(true);
+		expect(song.resolveParam({OwnerId::clip(5), ParamSpace::EXPRESSION, ParamId{2}})).to_equal(&clip.expression->params[2]);
+		expect(song.resolveParam({OwnerId::clip(5), ParamSpace::MIDI_CC, ParamId{74}})).to_equal(&clip.midi_params[0].param);
 		ParamAddress cable{OwnerId::instrument(9), ParamSpace::PATCH_CABLE,
 		                   ParamId{patch_cable_param_id(0xFFFFFF02u, 4)}};
-		expect(song.resolveParam(cable) == &synth.patch_cables[0].amount).to_equal(true);
+		expect(song.resolveParam(cable)).to_equal(&synth.patch_cables[0].amount);
 	});
 });
 

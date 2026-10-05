@@ -25,5 +25,5 @@ FetchContent_Declare(CppUTest
         GIT_TAG eccbc2190c672e598c1dd2bf5e4295f5ba27aad1
 )
 FetchContent_Declare(CppSpec
-        URL https://github.com/toroidal-code/cppspec/archive/5fb1a59dc9a47f5f33eba16bab5891eb6a93d892.tar.gz
+        URL https://github.com/toroidal-code/cppspec/archive/8fc585ca23288a8aa489ab6593f15651535771a9.tar.gz
 )

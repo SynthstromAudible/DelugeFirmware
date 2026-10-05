@@ -11,7 +11,7 @@ using deluge::engine::VoicePriority;
 // clang-format off
 describe voice_priority("VoicePriority", $ {
 	it("is one byte, as songs and records store it", _ {
-		expect(std::is_same_v<std::underlying_type_t<VoicePriority>, uint8_t>).to_equal(true);
+		expect(std::is_same_v<std::underlying_type_t<VoicePriority>, uint8_t>).to_be_true();
 	});
 
 	it("keeps the values the priority attribute saves", _ {

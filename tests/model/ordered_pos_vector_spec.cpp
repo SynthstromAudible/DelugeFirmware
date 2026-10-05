@@ -39,7 +39,7 @@ describe ordered_pos_vector("the model's sorted container", ${
 			(void)nodes.insertSorted(1);
 			(void)nodes.reserveExtra(16);
 		}
-		expect(test::counts.allocations > 0).to_equal(true);
+		expect(test::counts.allocations > 0).to_be_true();
 		expect(test::counts.frees).to_equal(test::counts.allocations);
 	});
 
@@ -82,8 +82,8 @@ describe ordered_pos_vector("the model's sorted container", ${
 		(void)nodes.insertSorted(3);
 		test::counts.fail_next_allocation = true;
 		auto r = nodes.reserveExtra(1000);
-		expect(r.has_value()).to_equal(false);
-		expect(r.error() == AllocError::OUT_OF_MEMORY).to_equal(true);
+		expect(r).not_().to_have_value();
+		expect(r.error()).to_equal(AllocError::OUT_OF_MEMORY);
 		expect(keys_of(nodes)).to_equal(std::vector<int32_t>{3});
 		expect(test::counts.depth).to_equal(0);
 	});

@@ -11,7 +11,7 @@ using deluge::project::CVMode;
 // clang-format off
 describe cv_mode("CVMode", $ {
 	it("is one byte, as the cv2Source attribute and records store it", _ {
-		expect(std::is_same_v<std::underlying_type_t<CVMode>, uint8_t>).to_equal(true);
+		expect(std::is_same_v<std::underlying_type_t<CVMode>, uint8_t>).to_be_true();
 	});
 
 	it("keeps the values cv2Source saves", _ {

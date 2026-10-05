@@ -11,8 +11,8 @@ using namespace deluge::engine;
 // clang-format off
 describe sync_level("SyncLevel and SyncType", $ {
 	it("are one byte each, as songs and records store them", _ {
-		expect(std::is_same_v<std::underlying_type_t<SyncLevel>, uint8_t>).to_equal(true);
-		expect(std::is_same_v<std::underlying_type_t<SyncType>, uint8_t>).to_equal(true);
+		expect(std::is_same_v<std::underlying_type_t<SyncLevel>, uint8_t>).to_be_true();
+		expect(std::is_same_v<std::underlying_type_t<SyncType>, uint8_t>).to_be_true();
 	});
 
 	it("keeps the sync-level values songs save", _ {

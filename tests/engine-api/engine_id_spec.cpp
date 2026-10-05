@@ -8,8 +8,8 @@ using namespace deluge::engine;
 // clang-format off
 describe engine_id("an engine's id and the sync values its state stores", ${
 	it("names the Deluge instrument", _ {
-		expect(kDelugeInstrument == EngineId{"deluge.instrument"}).to_equal(true);
-		expect(kDelugeInstrument == EngineId{"deluge.clip-player"}).to_equal(false);
+		expect(kDelugeInstrument).to_equal(EngineId{"deluge.instrument"});
+		expect(kDelugeInstrument).not_().to_equal(EngineId{"deluge.clip-player"});
 	});
 
 	it("stores sync levels relative to the tick magnitude, and reads them back", _ {

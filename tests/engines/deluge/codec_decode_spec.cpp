@@ -59,7 +59,8 @@ describe codec_decode("the Deluge instrument reads every format a sound was save
 		auto doc = deluge::serialization::parseXml(read("duplicate_range.XML"));
 		SoundState state = new_synth_state();
 		auto decoded = decode(*doc->find("sound"), state, kNewSong);
-		expect(!decoded && decoded.error() == deluge::engine::StateError::DUPLICATE_RANGE).to_equal(true);
+		expect(decoded).to_have_error();
+		expect(decoded.error_or(deluge::engine::StateError::NOT_A_MAP)).to_equal(deluge::engine::StateError::DUPLICATE_RANGE);
 	});
 });
 

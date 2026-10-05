@@ -15,8 +15,8 @@ describe structure_codec("the structure records", ${
 	it("round-trips a clip and reads its legacy length and clamps", _ {
 		DocClip c{.loop_length = 384, .colour_offset = -12, .launch_style = LaunchStyle::FILL, .section = 4};
 		DocClip back;
-		expect(decode(encode(c), back).has_value()).to_equal(true);
-		expect(back == c).to_equal(true);
+		expect(decode(encode(c), back)).to_have_value();
+		expect(back).to_equal(c);
 		both_shapes(R"(<song trackLength="0" section="40" colourOffset="3"/>)",
 		            R"({"song": {"trackLength": 0, "section": 40, "colourOffset": 3}})", [&](const Value& clip) {
 			DocClip read;
@@ -32,8 +32,8 @@ describe structure_codec("the structure records", ${
 		             .sequence_direction = SequenceDirection::PINGPONG, .muted = true};
 		DocNoteRow back{.sequence_direction = SequenceDirection::OBEY_PARENT};
 		int32_t minY = -32768;
-		expect(decode(encode(r, false), back, minY).has_value()).to_equal(true);
-		expect(back == r).to_equal(true);
+		expect(decode(encode(r, false), back, minY)).to_have_value();
+		expect(back).to_equal(r);
 		expect(minY).to_equal(61);
 		both_shapes(R"(<song y="10"/>)", R"({"song": {"y": 10}})", [&](const Value& row) {
 			DocNoteRow read;
@@ -51,9 +51,9 @@ describe structure_codec("the structure records", ${
 		               .voice_priority = deluge::engine::VoicePriority::HIGH, .overdubs_should_clone = false};
 		DocAudioClip back;
 		(void)decode(encode(a), back);
-		expect(back.end_pos == uint64_t{0xFFFFFFFF90000000}).to_equal(true); // sign-extended, as the reader does
+		expect(back.end_pos).to_equal(uint64_t{0xFFFFFFFF90000000}); // sign-extended, as the reader does
 		back.end_pos = a.end_pos;
-		expect(back == a).to_equal(true);
+		expect(back).to_equal(a);
 	});
 
 	it("round-trips the identity of every output type", _ {
@@ -68,7 +68,7 @@ describe structure_codec("the structure records", ${
 		                               std::pair{"audioTrack", audio}}) {
 			DocOutput back;
 			(void)decode_identity(encode_identity(record, element), element, back);
-			expect(back == record).to_equal(true);
+			expect(back).to_equal(record);
 		}
 	});
 
@@ -99,7 +99,7 @@ describe structure_codec("the structure records", ${
 			DocOutput read = new_output("midi");
 			(void)decode_identity(out, "midi", read);
 			expect(static_cast<int>(read.output_mpe_y)).to_equal(74);
-			expect(read.collapse_mpe).to_equal(true);
+			expect(read.collapse_mpe).to_be_true();
 		});
 	});
 
@@ -110,7 +110,7 @@ describe structure_codec("the structure records", ${
 		      std::pair{"gateOutput", DocDrum{.drum_type = DrumType::GATE, .channel = 2, .name = "G"}}}) {
 			DocDrum back;
 			(void)decode_identity(encode_identity(record), element, back);
-			expect(back == record).to_equal(true);
+			expect(back).to_equal(record);
 		}
 	});
 
@@ -130,8 +130,9 @@ describe structure_codec("the structure records", ${
 		auto doc = deluge::serialization::parseXml(
 		    R"(<sound id="9" name="KICK" mode="subtractive"><osc1 type="sample"/></sound>)");
 		InstrumentSlot slot = slot_of_drum(*doc->find("sound"));
-		expect(slot.state.find("name") == nullptr && slot.state.find("id") == nullptr).to_equal(true);
-		expect(slot.state.find("osc1") != nullptr).to_equal(true);
+		expect(slot.state.find("name")).to_be_null();
+		expect(slot.state.find("id")).to_be_null();
+		expect(slot.state.find("osc1")).not_().to_be_null();
 	});
 });
 

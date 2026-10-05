@@ -116,7 +116,7 @@ describe codec_encode("the Deluge instrument writes its state", ${
 		expect(text(osc1, "dx7patch").substr(0, 4)).to_equal(std::string("AB00"));
 		expect(text(osc1, "dx7patch").size()).to_equal(312u);
 		expect(text(osc1, "dx7enginemode")).to_equal(std::string("2"));
-		expect(osc1.find("oscillatorSync") == nullptr).to_equal(true);
+		expect(osc1.find("oscillatorSync")).to_be_null();
 		expect(text(*p.body.find("osc2"), "oscillatorSync")).to_equal(std::string("1"));
 	});
 
@@ -145,8 +145,12 @@ describe codec_encode("the Deluge instrument writes its state", ${
 		expect(keys(whole)).to_equal(std::vector<std::string>{"polyphonic", "voicePriority", "mode", "maxVoices",
 		                                                      "osc1", "osc2", "lfo1", "lfo2", "lfo3", "lfo4",
 		                                                      "unison", "midiOutput"});
-		expect(is_state_key("osc1") && is_state_key("maxVoices") && is_state_key("sideChainSend")).to_equal(true);
-		expect(is_state_key("defaultParams") || is_state_key("modKnobs") || is_state_key("lpfMode")).to_equal(false);
+		expect(is_state_key("osc1")).to_be_true();
+		expect(is_state_key("maxVoices")).to_be_true();
+		expect(is_state_key("sideChainSend")).to_be_true();
+		expect(is_state_key("defaultParams")).to_be_false();
+		expect(is_state_key("modKnobs")).to_be_false();
+		expect(is_state_key("lpfMode")).to_be_false();
 	});
 });
 

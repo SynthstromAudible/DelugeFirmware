@@ -108,27 +108,27 @@ describe params("the Deluge instrument's param table", ${
 	it("pins every row's id and file name, in id order", _ {
 		for (size_t i = 0; i < kPinned.size(); ++i) {
 			expect(kParams[i].id.value).to_equal(kPinned[i].id);
-			expect(kParams[i].file_name == kPinned[i].name).to_equal(true);
+			expect(kParams[i].file_name).to_equal(kPinned[i].name);
 		}
 	});
 
 	it("pins every row's runtime index: patched ids as they are, unpatched ids from 90", _ {
 		for (const Pinned& row : kPinned) {
 			auto slot = runtime_slot(ParamId{row.id});
-			expect(slot.has_value()).to_equal(true);
+			expect(slot).to_have_value();
 			if (row.id < kUnpatchedFirstId) {
-				expect(slot->set == RuntimeSet::PATCHED).to_equal(true);
+				expect(static_cast<int>(slot->set)).to_equal(static_cast<int>(RuntimeSet::PATCHED));
 				expect(static_cast<uint32_t>(slot->index)).to_equal(row.id);
 			}
 			else {
-				expect(slot->set == RuntimeSet::UNPATCHED).to_equal(true);
+				expect(static_cast<int>(slot->set)).to_equal(static_cast<int>(RuntimeSet::UNPATCHED));
 				expect(static_cast<uint32_t>(slot->index)).to_equal(row.id - 90);
 			}
 			expect(param_id(*slot).value).to_equal(row.id);
 		}
-		expect(runtime_slot(ParamId{55}).has_value()).to_equal(false);
-		expect(runtime_slot(ParamId{89}).has_value()).to_equal(false);
-		expect(runtime_slot(ParamId{117}).has_value()).to_equal(false);
+		expect(runtime_slot(ParamId{55})).not_().to_have_value();
+		expect(runtime_slot(ParamId{89})).not_().to_have_value();
+		expect(runtime_slot(ParamId{117})).not_().to_have_value();
 	});
 
 	it("names each constant for its row", _ {
@@ -144,7 +144,8 @@ describe params("the Deluge instrument's param table", ${
 	it("scopes the voice params per voice and the rest per sound", _ {
 		for (const auto& row : kParams) {
 			bool perVoice = row.id.value <= 44;
-			expect(row.scope == (perVoice ? ParamScope::PER_VOICE : ParamScope::PER_SOUND)).to_equal(true);
+			expect(static_cast<int>(row.scope))
+			    .to_equal(static_cast<int>(perVoice ? ParamScope::PER_VOICE : ParamScope::PER_SOUND));
 		}
 	});
 
@@ -161,7 +162,7 @@ describe params("the Deluge instrument's param table", ${
 		expect(kParamBlocks[1].first.value).to_equal(90u);
 		expect(kParamBlocks[1].count).to_equal(27u);
 		for (const auto& row : kParams) {
-			expect(kParamBlocks[0].contains(row.id) || kParamBlocks[1].contains(row.id)).to_equal(true);
+			expect(row.id).to_satisfy([](ParamId id) { return kParamBlocks[0].contains(id) || kParamBlocks[1].contains(id); });
 		}
 	});
 
@@ -175,7 +176,7 @@ describe params("the Deluge instrument's param table", ${
 
 	it("has one row per name", _ {
 		for (const auto& row : kParams) {
-			expect(deluge::engine::find_param(kParams, row.file_name) == &row).to_equal(true);
+			expect(deluge::engine::find_param(kParams, row.file_name)).to_equal(&row);
 		}
 	});
 });

@@ -68,31 +68,31 @@ describe params("the provisional global-effectable param table", ${
 	it("pins every row's id and file name, in id order", _ {
 		for (size_t i = 0; i < kPinned.size(); ++i) {
 			expect(kParams[i].id.value).to_equal(kPinned[i].id);
-			expect(kParams[i].file_name == kPinned[i].name).to_equal(true);
+			expect(kParams[i].file_name).to_equal(kPinned[i].name);
 		}
 	});
 
 	it("pins every row's runtime index: the unpatched index, from 90", _ {
 		for (const Pinned& row : kPinned) {
-			expect(runtime_index(ParamId{row.id}).has_value()).to_equal(true);
+			expect(runtime_index(ParamId{row.id})).to_have_value();
 			expect(static_cast<uint32_t>(*runtime_index(ParamId{row.id}))).to_equal(row.id - 90);
 			expect(param_id(static_cast<uint8_t>(row.id - 90)).value).to_equal(row.id);
 		}
-		expect(runtime_index(ParamId{89}).has_value()).to_equal(false);
-		expect(runtime_index(ParamId{133}).has_value()).to_equal(false);
+		expect(runtime_index(ParamId{89})).not_().to_have_value();
+		expect(runtime_index(ParamId{133})).not_().to_have_value();
 	});
 
 	it("shares the instrument's ids for the params both have", _ {
 		for (uint32_t id = 90; id <= 115; ++id) {
-			expect(deluge::engine::find_param(kParams, ParamId{id})->file_name
-			       == deluge::engine::find_param(deluge::instrument::kParams, ParamId{id})->file_name).to_equal(true);
+			expect(deluge::engine::find_param(kParams, ParamId{id})->file_name)
+			    .to_equal(deluge::engine::find_param(deluge::instrument::kParams, ParamId{id})->file_name);
 		}
 	});
 
 	it("marks pan and pitch bipolar, and nothing else", _ {
 		for (const auto& row : kParams) {
 			expect(row.bipolar).to_equal(row.id.value == 121 || row.id.value == 131);
-			expect(row.scope == ParamScope::PER_SOUND).to_equal(true);
+			expect(static_cast<int>(row.scope)).to_equal(static_cast<int>(ParamScope::PER_SOUND));
 		}
 	});
 
@@ -105,7 +105,7 @@ describe params("the provisional global-effectable param table", ${
 
 	it("has one row per name", _ {
 		for (const auto& row : kParams) {
-			expect(deluge::engine::find_param(kParams, row.file_name) == &row).to_equal(true);
+			expect(deluge::engine::find_param(kParams, row.file_name)).to_equal(&row);
 		}
 	});
 });

@@ -32,8 +32,8 @@ describe sequence_direction("SequenceDirection", $ {
 	});
 
 	it("does not recognise other text, which callers read as FORWARD", _ {
-		expect(parse_sequence_direction("none").has_value()).to_equal(false);
-		expect(parse_sequence_direction("bogus").has_value()).to_equal(false);
+		expect(parse_sequence_direction("none")).not_().to_have_value();
+		expect(parse_sequence_direction("bogus")).not_().to_have_value();
 	});
 });
 

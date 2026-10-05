@@ -32,14 +32,14 @@ struct TestEngine {
 // clang-format off
 describe engine_api("an engine's state shape", ${
 	it("is satisfied by an engine with a descriptor and a state codec", _ {
-		expect(deluge::engine::InstrumentEngine<TestEngine>).to_equal(true);
+		expect(deluge::engine::InstrumentEngine<TestEngine>).to_be_true();
 	});
 
 	it("round-trips its state through a Value", _ {
 		TestState in{.value = 7};
 		TestState out{};
 		auto v = TestEngine::encode(in, {});
-		expect(TestEngine::decode(v, out, {}).has_value()).to_equal(true);
+		expect(TestEngine::decode(v, out, {})).to_have_value();
 		expect(out.value).to_equal(7);
 	});
 });

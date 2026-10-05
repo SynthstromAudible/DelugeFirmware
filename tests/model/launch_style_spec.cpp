@@ -29,9 +29,9 @@ describe launch_style("LaunchStyle", $ {
 	});
 
 	it("does not recognise other text, which callers read as DEFAULT", _ {
-		expect(parse_launch_style("bogus").has_value()).to_equal(false);
-		expect(parse_launch_style("").has_value()).to_equal(false);
-		expect(parse_launch_style("Fill").has_value()).to_equal(false);
+		expect(parse_launch_style("bogus")).not_().to_have_value();
+		expect(parse_launch_style("")).not_().to_have_value();
+		expect(parse_launch_style("Fill")).not_().to_have_value();
 	});
 });
 

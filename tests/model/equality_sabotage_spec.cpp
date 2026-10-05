@@ -21,7 +21,7 @@ std::string fixture() {
 describe equality_sabotage("the model-equality gate", ${
 	it("passes the song holding every record", _ {
 		auto result = check_equality(fixture(), false);
-		expect(result.has_value()).to_equal(true);
+		expect(result).to_have_value();
 	});
 
 	it("fails, naming the record, when encode drops a field", _ {
@@ -37,23 +37,23 @@ describe equality_sabotage("the model-equality gate", ${
 			document.set("song", std::move(song));
 		};
 		auto result = check_equality(fixture(), false, faults);
-		expect(result.has_value()).to_equal(false);
-		expect(result.error().find("groove") != std::string::npos).to_equal(true);
+		expect(result).to_have_error();
+		expect(result.error_or("")).to_partially_match("groove");
 	});
 
 	it("fails, naming the record, when decode misreads a field", _ {
 		EqualityFaults faults;
 		faults.on_decoded = [](SongDocument& document) { document.groove.swing_amount += 1; };
 		auto result = check_equality(fixture(), false, faults);
-		expect(result.has_value()).to_equal(false);
-		expect(result.error().find("groove") != std::string::npos).to_equal(true);
+		expect(result).to_have_error();
+		expect(result.error_or("")).to_partially_match("groove");
 	});
 
 	it("finds an XML song and its JSON save the same song", _ {
 		const std::string json = deluge::serialization::write_json(
 		    encode_song(*decode_song(*deluge::serialization::parseXml(fixture())), "c1.0.0"));
 		auto result = compare_songs(fixture(), false, json, true);
-		expect(result.has_value()).to_equal(true);
+		expect(result).to_have_value();
 	});
 
 	it("names the record when two saves are different songs", _ {
@@ -61,19 +61,21 @@ describe equality_sabotage("the model-equality gate", ${
 		changed->groove.swing_amount += 1;
 		const std::string json = deluge::serialization::write_json(encode_song(*changed, "c1.0.0"));
 		auto result = compare_songs(fixture(), false, json, true);
-		expect(!result && result.error().find("groove") != std::string::npos).to_equal(true);
+		expect(result).to_have_error();
+		expect(result.error_or("")).to_partially_match("groove");
 	});
 
 	it("finds two documents with the same tree the same, whatever their whitespace", _ {
 		auto result = compare_trees(R"(<sound a="1"><osc1 type="sine"/></sound>)", false,
 		                            "<sound\n  a=\"1\">\n<osc1\n type=\"sine\"></osc1></sound>", false);
-		expect(result.has_value()).to_equal(true);
+		expect(result).to_have_value();
 	});
 
 	it("names the first path where two trees differ", _ {
 		auto result = compare_trees(R"(<sound a="1"><osc1 type="sine"/></sound>)", false,
 		                            R"(<sound a="1"><osc1 type="saw"/></sound>)", false);
-		expect(!result && result.error().find("sound/osc1/type") != std::string::npos).to_equal(true);
+		expect(result).to_have_error();
+		expect(result.error_or("")).to_partially_match("sound/osc1/type");
 	});
 
 	it("fails, naming the output, when a synth track's sound changes", _ {
@@ -87,7 +89,8 @@ describe equality_sabotage("the model-equality gate", ${
 			}
 		};
 		auto result = check_equality(fixture(), false, faults);
-		expect(!result && result.error().find("output") != std::string::npos).to_equal(true);
+		expect(result).to_have_error();
+		expect(result.error_or("")).to_partially_match("output");
 	});
 
 	it("fails, naming the drum, when a sound kit row's sound changes", _ {
@@ -101,7 +104,8 @@ describe equality_sabotage("the model-equality gate", ${
 			}
 		};
 		auto result = check_equality(fixture(), false, faults);
-		expect(!result && result.error().find("drum") != std::string::npos).to_equal(true);
+		expect(result).to_have_error();
+		expect(result.error_or("")).to_partially_match("drum");
 	});
 });
 

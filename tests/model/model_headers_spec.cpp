@@ -8,7 +8,7 @@
 // clang-format off
 describe model_headers("the model's headers", ${
 	it("compile without the app", _ {
-		expect(sizeof(deluge::project::DocAutoParam) > 0).to_equal(true);
+		expect(sizeof(deluge::project::DocAutoParam) > 0).to_be_true();
 	});
 });
 

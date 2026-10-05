@@ -49,7 +49,7 @@ describe document("the model's parts of a whole song", ${
 	it("survives a JSON round trip", _ {
 		SongDocument a = decoded(kSong);
 		SongDocument b = through_json(a);
-		expect(b == a).to_equal(true);
+		expect(b).to_equal(a);
 		expect(write_json(encode_song(b, "c1.0.0"))).to_equal(write_json(encode_song(a, "c1.0.0")));
 	});
 
@@ -62,18 +62,18 @@ describe document("the model's parts of a whole song", ${
 		expect(a.clips.at(10).note_rows.size()).to_equal(2u);
 		expect(static_cast<int>(a.clips.at(13).section)).to_equal(255); // arranger-only
 		expect(a.outputs.at(2).name).to_equal(std::string("KIT"));
-		expect(a.drums.at(6).drum_type == DrumType::MIDI).to_equal(true);
-		expect(a.groove.swing_amount == 5).to_equal(true);
+		expect(a.drums.at(6).drum_type).to_equal(DrumType::MIDI);
+		expect(a.groove.swing_amount).to_equal(5);
 		// a pre-id macro naming its output by position names the output at that position
-		expect(a.arrangement.session_macros[1].kind == SessionMacroKind::OUTPUT_CYCLE).to_equal(true);
+		expect(a.arrangement.session_macros[1].kind).to_equal(SessionMacroKind::OUTPUT_CYCLE);
 		expect(*a.arrangement.session_macros[1].output_id).to_equal(2u);
 		expect(*a.arrangement.session_macros[0].clip_id).to_equal(10u);
 	});
 
 	it("tells a kit clip by its rows, so a kit row keeps its colour and takes no y from the file", _ {
 		SongDocument a = decoded(kSong);
-		expect(a.clip_entry(11)->in_kit).to_equal(true);
-		expect(a.clip_entry(10)->in_kit).to_equal(false);
+		expect(a.clip_entry(11)->in_kit).to_be_true();
+		expect(a.clip_entry(10)->in_kit).to_be_false();
 		expect(static_cast<int>(a.clips.at(11).note_rows.front().colour_offset)).to_equal(2);
 	});
 
@@ -88,7 +88,7 @@ describe document("the model's parts of a whole song", ${
 		expect(a.clips.size()).to_equal(4u);
 		expect(a.outputs.count(1)).to_equal(1u);
 		expect(a.clips.count(1)).to_equal(1u);
-		expect(through_json(a) == a).to_equal(true);
+		expect(through_json(a)).to_equal(a);
 	});
 });
 

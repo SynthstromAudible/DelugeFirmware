@@ -39,8 +39,8 @@ describe arrangement_codec("the arrangement", ${
 		a.session_macros[1] = {.kind = SessionMacroKind::OUTPUT_CYCLE, .output_id = 4};
 		a.session_macros[3] = {.kind = SessionMacroKind::SECTION, .section = 5};
 		Arrangement back;
-		expect(decode(saved(a), back).has_value()).to_equal(true);
-		expect(back == a).to_equal(true);
+		expect(decode(saved(a), back)).to_have_value();
+		expect(back).to_equal(a);
 	});
 
 	it("drops a learned program change and a note out of range, keeps the repeats", _ {
@@ -50,8 +50,8 @@ describe arrangement_codec("the arrangement", ${
 		    [&](const Value& song) {
 			Arrangement a;
 			(void)decode(song, a);
-			expect(a.sections[1].launch_midi_command.contains_something()).to_equal(false);
-			expect(a.sections[2].launch_midi_command.contains_something()).to_equal(false);
+			expect(a.sections[1].launch_midi_command.contains_something()).to_be_false();
+			expect(a.sections[2].launch_midi_command.contains_something()).to_be_false();
 			expect(static_cast<int>(a.sections[1].num_repetitions)).to_equal(2);
 		});
 	});
@@ -73,9 +73,9 @@ describe arrangement_codec("the arrangement", ${
 		    [&](const Value& song) {
 			Arrangement a;
 			(void)decode(song, a);
-			expect(a.sections[0].launch_midi_command.device->port == MidiDeviceRef::Port::UPSTREAM_USB_2).to_equal(true);
+			expect(a.sections[0].launch_midi_command.device->port).to_equal(MidiDeviceRef::Port::UPSTREAM_USB_2);
 			const MidiDeviceRef& hosted = *a.sections[1].launch_midi_command.device;
-			expect(hosted.port == MidiDeviceRef::Port::HOSTED).to_equal(true);
+			expect(hosted.port).to_equal(MidiDeviceRef::Port::HOSTED);
 			expect(hosted.name).to_equal(std::string("Pads"));
 			expect(static_cast<int>(hosted.vendor_id)).to_equal(0x09E8);
 			expect(static_cast<int>(hosted.product_id)).to_equal(0x0028);
@@ -90,11 +90,11 @@ describe arrangement_codec("the arrangement", ${
 			Arrangement a;
 			LegacyMacroTargets legacy;
 			(void)decode(song, a, &legacy);
-			expect(a.session_macros[0].kind == SessionMacroKind::OUTPUT_CYCLE).to_equal(true);
+			expect(a.session_macros[0].kind).to_equal(SessionMacroKind::OUTPUT_CYCLE);
 			expect(*legacy.output_index[0]).to_equal(2);
-			expect(a.session_macros[1].kind == SessionMacroKind::CLIP_LAUNCH).to_equal(true);
+			expect(a.session_macros[1].kind).to_equal(SessionMacroKind::CLIP_LAUNCH);
 			expect(*legacy.clip_index[1]).to_equal(0);
-			expect(a.session_macros[2].kind == SessionMacroKind::NO_MACRO).to_equal(true);
+			expect(a.session_macros[2].kind).to_equal(SessionMacroKind::NO_MACRO);
 		});
 	});
 });
