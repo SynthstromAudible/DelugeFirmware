@@ -78,6 +78,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
+#include "serialization/tree.h"
 #include "storage/audio/blocking_sample_load.h"
 #include "storage/byte_channel.h"
 #include "storage/flash_storage.h"
@@ -1391,6 +1392,39 @@ void Song::removeDocOutput(Output* output) {
 	}
 }
 
+namespace {
+
+/// The highest id any drum in @p node's tree carries: an element of a kit's soundSources, wherever the kit is.
+std::optional<uint32_t> highestDrumId(const deluge::serialization::Value& node) {
+	std::optional<uint32_t> highest;
+	const auto take = [&](std::optional<uint32_t> id) {
+		if (id && (!highest || *id > *highest)) {
+			highest = id;
+		}
+	};
+	if (node.isMap()) {
+		for (const auto& [key, value] : node.entries()) {
+			if (key == "soundSources") {
+				for (const deluge::serialization::NamedChild& drum : deluge::serialization::children(value)) {
+					if (const std::optional<int32_t> id = deluge::serialization::int_of(drum.node->find("id"));
+					    id && *id >= 0) {
+						take(static_cast<uint32_t>(*id));
+					}
+				}
+			}
+			take(highestDrumId(value));
+		}
+	}
+	else if (node.isArray()) {
+		for (const deluge::serialization::Value& item : node.items()) {
+			take(highestDrumId(item));
+		}
+	}
+	return highest;
+}
+
+} // namespace
+
 Error Song::readFromFile(Deserializer& reader, uint64_t timePerTimerTick) {
 	D_PRINTLN("DEBUG: readFromFile");
 	// Outputs added while the file is read are adopted once ids are known (assignMissingIds), not as they are added.
@@ -1400,6 +1434,10 @@ Error Song::readFromFile(Deserializer& reader, uint64_t timePerTimerTick) {
 		~ReadingFromFile() { reading = false; }
 	} readingFromFile{readingFromFile_};
 	drumIdsRead_.clear();
+	// A drum given a fresh id while the file is read (a second drum on one id) takes one no drum of the file holds.
+	if (const std::optional<uint32_t> highest = highestDrumId(deluge::storage::treeReaderOf(reader).root())) {
+		drumIdCounter_ = std::max(drumIdCounter_, *highest + 1);
+	}
 
 	outputClipInstanceListIsCurrentlyInvalid = true;
 

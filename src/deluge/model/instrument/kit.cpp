@@ -406,10 +406,11 @@ Error Kit::readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumTy
 	// M3 owner-3: bind the drum to its DOM record BEFORE reading its tags, so the name/channel/note tag reads write
 	// straight into the bound DocDrum (the step that lets the engine fallback fields be retired). Peek the durable id
 	// from the tree node id-first (mirroring Song::readClipsFromFile) so adoptDrum keys the record by the file id
-	// rather than minting a throwaway that the later "id" tag would orphan. A drum with no id (old song / standalone)
-	// mints in adoptDrum exactly as before.
+	// rather than minting a throwaway that the later "id" tag would orphan; the element is the one a JSON reader has
+	// entered as well as the one an XML reader has just named. A drum with no id (old song / standalone) mints in
+	// adoptDrum exactly as before.
 	if (song != nullptr) {
-		if (const deluge::storage::Value* drumNode = deluge::storage::treeReaderOf(reader).currentValue()) {
+		if (const deluge::storage::Value* drumNode = deluge::storage::treeReaderOf(reader).currentElement()) {
 			if (const deluge::storage::Value* idNode = drumNode->find("id")) {
 				newDrum->setId(static_cast<uint32_t>(stringToInt(idNode->str().c_str())));
 			}

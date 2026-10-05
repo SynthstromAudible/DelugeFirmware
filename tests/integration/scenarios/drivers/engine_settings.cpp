@@ -853,9 +853,9 @@ int hibernationLeg(Song& song) {
 	return settingsOf(*synth, song);
 }
 
-/// @p bytes (a song's XML) with the first kit's first two sound drums given one id, as a save made while two drums
-/// shared a record writes them; empty when the song has no such kit.
-std::string withSharedDrumId(std::string_view bytes) {
+/// @p bytes (a song's XML) with the first kit's first sound drums given @p ids, in order; empty when the song has no
+/// kit with that many sound drums.
+std::string withDrumIds(std::string_view bytes, std::span<const std::string_view> ids) {
 	const size_t kit = bytes.find("<kit");
 	const size_t sources = kit == std::string_view::npos ? kit : bytes.find("<soundSources", kit);
 	if (sources == std::string_view::npos) {
@@ -863,7 +863,7 @@ std::string withSharedDrumId(std::string_view bytes) {
 	}
 	std::string out(bytes);
 	size_t at = sources + 1;
-	for (int32_t drum = 0; drum < 2; drum++) {
+	for (std::string_view given : ids) {
 		size_t tag = out.find("<sound", at);
 		while (tag != std::string::npos && out.compare(tag, 13, "<soundSources") == 0) {
 			tag = out.find("<sound", tag + 1);
@@ -875,10 +875,10 @@ std::string withSharedDrumId(std::string_view bytes) {
 		const size_t id = out.find(" id=\"", tag);
 		if (id != std::string::npos && id < end) {
 			const size_t value = id + 5;
-			out.replace(value, out.find('"', value) - value, "424242");
+			out.replace(value, out.find('"', value) - value, given);
 		}
 		else {
-			out.insert(tag + 6, " id=\"424242\"");
+			out.insert(tag + 6, " id=\"" + std::string(given) + "\"");
 		}
 		at = out.find('>', tag) + 1;
 	}
@@ -891,9 +891,32 @@ int sharedDrumIdLeg(std::string_view bytes, deluge::storage::DocumentFormat form
 	if (format != deluge::storage::DocumentFormat::XML) {
 		return 0;
 	}
-	const std::string shared = withSharedDrumId(bytes);
+	constexpr std::array<std::string_view, 2> kShared{"424242", "424242"};
+	const std::string shared = withDrumIds(bytes, kShared);
 	if (shared.empty()) {
 		return 0;
+	}
+	// A second drum on one id gets a fresh one, which must not be an id a later drum of the file holds.
+	constexpr std::array<std::string_view, 3> kLaterId{"0", "0", "1"};
+	if (const std::string later = withDrumIds(bytes, kLaterId); !later.empty()) {
+		Song* song = loadSong(later, format);
+		if (song == nullptr) {
+			std::fprintf(io.err, "LOADFAIL later-id song\n");
+			return 1;
+		}
+		for (Output* output = song->live.media.first_output; output != nullptr; output = output->next) {
+			if (output->type != OutputType::KIT) {
+				continue;
+			}
+			int32_t sounds = 0;
+			for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
+				if (drum->type == DrumType::SOUND && ++sounds == 3 && drum->id() != std::optional<uint32_t>{1}) {
+					std::fprintf(io.err, "drum lost its file id in kit %s\n", output->name.c_str());
+					return 3;
+				}
+			}
+			break;
+		}
 	}
 	Song* song = loadSong(shared, format);
 	if (song == nullptr) {
