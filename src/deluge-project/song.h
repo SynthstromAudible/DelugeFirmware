@@ -23,6 +23,7 @@
 #include "deluge-project/clip_address.h"
 #include "deluge-project/clip_params.h"
 #include "deluge-project/clip_structure.h"
+#include "deluge-project/controller_mapping.h"
 #include "deluge-project/drum_structure.h"
 #include "deluge-project/groove.h"
 #include "deluge-project/metadata.h"
@@ -72,6 +73,8 @@ public:
 	/// The song's own effect params (the global-effectable table's ids): the authority for their values and
 	/// automation, projected into the engine's master chain.
 	DocParamManager master_params;
+	/// The song's own learned MIDI knobs, on its effects: refreshed from the runtime at load and at save.
+	std::vector<ControllerMapping> controls;
 	ClipParams clip_params;     // per-clip automation stores, keyed by Clip::id (id-addressable node storage)
 	BackedParams backed_params; // instrument-shared automation, keyed by (owner, clip) — persistent form of ParamBackup
 	ClipStructure clip_structure; // M3 owner-1: per-clip structural records (loop_length…), keyed by Clip::id

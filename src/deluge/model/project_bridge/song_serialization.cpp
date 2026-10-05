@@ -26,6 +26,7 @@
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/midi_device.h" // MIDICable::writeReferenceToFile
 #include "io/midi/midi_device_manager.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/midi_command.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
@@ -48,7 +49,8 @@ void saveSong(::Song& song, Serializer& out) {
 		ActiveWriterScope scope(out); // the song's nested writers (outputs, drums) write through `out` too
 		song.writeToFile(out);
 	}
-	refreshSlots(song); // each slot now holds what this save wrote for it
+	refreshSlots(song);    // each slot now holds what this save wrote for it
+	refreshControls(song); // and each record the knobs it saved
 }
 
 namespace {
@@ -153,6 +155,7 @@ Error loadSong(::Song& song, Deserializer& in) {
 		return error;
 	}
 	resolveMacros(song.project.arrangement, legacy, song);
+	refreshControls(song);
 	return Error::NONE;
 }
 

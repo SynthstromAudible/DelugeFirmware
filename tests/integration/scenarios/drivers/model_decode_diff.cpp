@@ -43,8 +43,7 @@
 #include <string>
 #include <string_view>
 
-#include "engines/deluge/naming.h"
-#include "engines/global_effectable/naming.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "scenarios/drivers/driver.h"
 
 namespace {
@@ -148,6 +147,10 @@ std::string what_differs(const deluge::project::DocOutput& e, const deluge::proj
 	num("collapse_mpe", e.collapse_mpe, d.collapse_mpe);
 	num("output_mpe_y", e.output_mpe_y, d.output_mpe_y);
 	num("cv2_source", static_cast<long>(e.cv2_source), static_cast<long>(d.cv2_source));
+	if (!(e.controls == d.controls)) {
+		out += " controls (engine " + std::to_string(e.controls.size()) + ", decoded "
+		       + std::to_string(d.controls.size()) + ")";
+	}
 	return out;
 }
 
@@ -248,9 +251,7 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 		std::fprintf(io.err, "LOADFAIL gen1 -> Error %d\n", static_cast<int>(e));
 		return 3;
 	}
-	static const std::array<deluge::engine::ParamNaming, 2> namings{deluge::instrument::kNaming,
-	                                                                deluge::global_effectable::kNaming};
-	auto decoded = deluge::project::decode_song(*tree, deluge::project::CodecEngines{.namings = namings});
+	auto decoded = deluge::project::decode_song(*tree, deluge::bridge::codecEngines());
 	if (!decoded) {
 		return differs("the saved song does not decode");
 	}
@@ -306,6 +307,11 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 	}
 	if (int r = compare_store("drum", m.drum_structure.by_id, d.drums)) {
 		return r;
+	}
+	if (!(m.controls == d.controls)) {
+		std::fprintf(io.err, "DECODE DIFF: the song's controls differ (engine %zu, decoded %zu)\n", m.controls.size(),
+		             d.controls.size());
+		return 3;
 	}
 	// The slots: the song that wrote the file holds what it wrote (refreshed at save); the song read from it holds what
 	// it read (filled at load); both are the file's elements without the model's keys.
