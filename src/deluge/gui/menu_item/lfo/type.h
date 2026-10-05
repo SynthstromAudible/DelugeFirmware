@@ -16,6 +16,8 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "engines/deluge/words.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -60,21 +62,13 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->setLfoWaveType(lfoId_, current_value);
-					// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
-					// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
-					// would be enough?
-					soundDrum->resyncGlobalLFOs();
+					settingFor(*soundDrum, lfoPath("type"), lfoTypeValue(current_value));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->setLfoWaveType(lfoId_, current_value);
-			// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
-			// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
-			// would be enough?
-			soundEditor.currentSound->resyncGlobalLFOs();
+			settingFor(*soundEditor.currentSound, lfoPath("type"), lfoTypeValue(current_value));
 		}
 	}
 
@@ -107,6 +101,15 @@ public:
 	}
 
 private:
+	/// This menu's LFO's setting @p name, as a settings path.
+	[[nodiscard]] std::string lfoPath(std::string_view name) const {
+		return "lfo" + std::to_string(lfoId_ + 1) + "/" + std::string(name);
+	}
+	/// The file form of @p type: the name a sound's file writes for it.
+	static serialization::Value lfoTypeValue(LFOType type) {
+		return serialization::Value::makeScalar(std::string(deluge::instrument::to_string(type)));
+	}
+
 	uint8_t lfoId_;
 };
 

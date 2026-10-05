@@ -15,6 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "engine-api/types/sync.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
@@ -47,29 +49,28 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->setLfoSync(lfoId_, syncValueToSyncType(current_value),
-					                      syncValueToSyncLevel(current_value));
-					// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
-					// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
-					// would be enough?
-					soundDrum->resyncGlobalLFOs();
-					soundDrum->setupPatchingForAllParamManagers(currentSong);
+					setSync(*soundDrum, current_value);
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->setLfoSync(lfoId_, syncValueToSyncType(current_value),
-			                                     syncValueToSyncLevel(current_value));
-			// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
-			// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
-			// would be enough?
-			soundEditor.currentSound->resyncGlobalLFOs();
-			soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
+			setSync(*soundEditor.currentSound, current_value);
 		}
 	}
 
 private:
+	/// Set @p sound's LFO to the menu's @p option (a sync type and level together) as two setting Edits, the level in
+	/// the file's form, relative to the song's tick magnitude.
+	void setSync(Sound& sound, int32_t option) const {
+		const std::string prefix = "lfo" + std::to_string(lfoId_ + 1) + "/";
+		settingFor(sound, prefix + "syncType",
+		           serialization::Value::makeNumber(std::to_underlying(syncValueToSyncType(option))));
+		settingFor(sound, prefix + "syncLevel",
+		           serialization::Value::makeNumber(deluge::engine::sync_level_to_file(
+		               deluge::engine::index_of(syncValueToSyncLevel(option)), currentSong->getInputTickMagnitude())));
+	}
+
 	uint8_t lfoId_;
 };
 

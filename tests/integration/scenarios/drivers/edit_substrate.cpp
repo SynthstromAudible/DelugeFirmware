@@ -475,7 +475,8 @@ void testScalarFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 // engine mutation path (ActionLogger snapshots off currentSong->live.clips).
 
 // A synth added to the song is bound to its slot; a setting Edit names the slot. A mapped path's Edit changes the sound
-// and its slot together; an unmapped path and a value out of range are refused and leave the slot.
+// and its slot together; a path the schema does not hold, a structured one and a value out of range are refused and
+// leave the slot.
 void testSetEngineSetting(deluge::edits::Context& ctx) {
 	using deluge::serialization::Value;
 	ParamManagerForTimeline paramManager;
@@ -500,8 +501,10 @@ void testSetEngineSetting(deluge::edits::Context& ctx) {
 	check(held != nullptr && *held == "2", "setting: the slot holds the value");
 
 	const Value before = ctx.model.resolveSlot(*slot)->state;
-	deluge::edits::SetEngineSetting unmapped{*slot, "unison/num", Value::makeNumber(3)};
-	check(deluge::edits::apply(ctx, unmapped) != Error::NONE, "setting: an unmapped path is refused");
+	deluge::edits::SetEngineSetting unknown{*slot, "noSuchSetting", Value::makeNumber(3)};
+	check(deluge::edits::apply(ctx, unknown) != Error::NONE, "setting: a path the schema does not hold is refused");
+	deluge::edits::SetEngineSetting structured{*slot, "osc1/fileName", Value::makeScalar("SAMPLES/A.WAV")};
+	check(deluge::edits::apply(ctx, structured) != Error::NONE, "setting: a structured path is refused");
 	deluge::edits::SetEngineSetting outOfRange{*slot, "voicePriority", Value::makeNumber(9)};
 	check(deluge::edits::apply(ctx, outOfRange) != Error::NONE, "setting: a value out of range is refused");
 	check(deluge::serialization::first_difference(ctx.model.resolveSlot(*slot)->state, before).empty(),

@@ -24,15 +24,19 @@
 // file does not load; 2 usage/IO; 3 a check fails (printed).
 
 #include "deluge-project/instrument_slot.h"
+#include "engine-api/types/sync.h"
 #include "engines/deluge/codec.h"
 #include "engines/deluge/settings.h"
+#include "extern.h"
 #include "memory/general_memory_allocator.h"
+#include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
+#include "model/model_stack.h"
 #include "model/output.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/song_serialization.h"
@@ -154,7 +158,7 @@ int expectBound(Output& output, const char* how) {
 }
 
 /// The setting paths an Edit maps so far.
-constexpr std::array<std::string_view, 26> kEditedPaths{
+constexpr std::array<std::string_view, 41> kEditedPaths{
     "polyphonic",
     "voicePriority",
     "maxVoices",
@@ -181,6 +185,21 @@ constexpr std::array<std::string_view, 26> kEditedPaths{
     "osc2/timeStretchAmount",
     "osc2/linearInterpolation",
     "osc2/oscillatorSync",
+    "lfo1/type",
+    "lfo1/syncLevel",
+    "lfo1/syncType",
+    "lfo2/type",
+    "lfo2/syncLevel",
+    "lfo2/syncType",
+    "lfo3/type",
+    "lfo3/syncLevel",
+    "lfo3/syncType",
+    "lfo4/type",
+    "lfo4/syncLevel",
+    "lfo4/syncType",
+    "unison/num",
+    "unison/detune",
+    "unison/spread",
 };
 
 /// Whether @p path is a sample-playback setting, which only a sample source of a non-FM sound takes.
@@ -263,6 +282,13 @@ std::vector<Value> legalValues(const deluge::engine::SettingInfo& row, const std
 	return values;
 }
 
+/// Whether the song's tick magnitude holds the file sync level @p value exactly.
+bool representable(const Value& value, Song& song) {
+	const int32_t file = deluge::serialization::int_of(&value).value_or(0);
+	const int32_t magnitude = song.getInputTickMagnitude();
+	return deluge::engine::sync_level_to_file(deluge::engine::sync_level_from_file(file, magnitude), magnitude) == file;
+}
+
 /// Empty when @p sound's slot agrees with its state after setting @p path to @p value, else which check fails.
 std::string_view coherence(Sound& sound, Song& song, std::string_view path, const Value& value) {
 	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
@@ -312,6 +338,14 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 		for (const Value& value : legalValues(*row, deluge::serialization::text_of(now))) {
 			const Value slotBefore = song.project.resolveSlot(*address)->state;
 			deluge::edits::SetEngineSetting edit{*address, std::string(path), value};
+			if (path.ends_with("/syncLevel") && !representable(value, song)) {
+				if (deluge::edits::apply(ctx, edit) == Error::NONE) {
+					std::fprintf(io.err, "%s %.*s=%s: a level the song cannot hold was taken\n", name,
+					             static_cast<int>(path.size()), path.data(), value.str().c_str());
+					return 3;
+				}
+				continue;
+			}
 			std::string_view failed =
 			    deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : coherence(sound, song, path, value);
 			if (failed.empty() && old && deluge::instrument::check_setting(path, *old)) {
@@ -420,6 +454,51 @@ int settingsOf(Output& output, Song& song) {
 	return code;
 }
 
+/// The live-unison leg: a note sounds on the first synth of @p song with a clip, and its unison count changes under it
+/// through an Edit; the voice keeps sounding and the slot stays coherent. 0 when each holds (or no synth sounds), else
+/// 3 after printing the first that does not.
+int liveUnisonLeg(Song& song) {
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		auto* clip = static_cast<InstrumentClip*>(output->getActiveClip());
+		if (output->type != OutputType::SYNTH || clip == nullptr) {
+			continue;
+		}
+		auto* synth = static_cast<SoundInstrument*>(output);
+		const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(*synth);
+		if (!address) {
+			continue;
+		}
+		char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* ms =
+		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, synth, clip, &clip->paramManager);
+		synth->Sound::noteOn(ms, &synth->arpeggiator, 60, zeroMPEValues);
+		const size_t sounding = synth->numActiveVoices();
+		if (sounding == 0) {
+			continue; // a source with nothing to play: try the next synth
+		}
+		deluge::edits::Context ctx{song, song.project};
+		for (int32_t num : {4, 1, 8}) {
+			const Value value = Value::makeNumber(num);
+			deluge::edits::SetEngineSetting edit{*address, "unison/num", value};
+			std::string_view failed = deluge::edits::apply(ctx, edit) != Error::NONE
+			                              ? "refused"
+			                              : coherence(*synth, song, "unison/num", value);
+			if (failed.empty() && synth->numActiveVoices() != sounding) {
+				failed = "the sounding note stopped";
+			}
+			if (!failed.empty()) {
+				std::fprintf(io.err, "synth %s live unison/num=%d: %.*s\n", synth->name.c_str(), num,
+				             static_cast<int>(failed.size()), failed.data());
+				return 3;
+			}
+		}
+		synth->killAllVoices();
+		std::fprintf(io.err, "live unison: %zu voices of %s re-tuned\n", sounding, synth->name.c_str());
+		return 0;
+	}
+	return 0;
+}
+
 /// The hibernation leg, for a song with no hibernating sound: a synth added to it and hibernated (as replacing an
 /// edited instrument hibernates it) keeps its slot, and its settings' Edits reach it there. 0 when each holds, else 3
 /// after printing the first that does not.
@@ -494,6 +573,9 @@ int engine_settings_main(int argc, char** argv, Io driverIo) {
 			if (int r = settingsOf(*sleeping, *song)) {
 				return r;
 			}
+		}
+		if (int r = liveUnisonLeg(*song)) {
+			return r;
 		}
 		if (int r = hibernationLeg(*song)) {
 			return r;

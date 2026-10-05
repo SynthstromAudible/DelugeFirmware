@@ -17,9 +17,16 @@
 
 #include "model/project_bridge/setting_apply.h"
 
+#include "engine-api/types/sync.h"
 #include "engines/deluge/settings.h"
 #include "engines/deluge/words.h"
+#include "model/clip/instrument_clip.h"
+#include "model/instrument/kit.h"
+#include "model/model_stack.h"
+#include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 #include "serialization/tree.h"
 #include "util/comparison.h"
@@ -117,6 +124,96 @@ bool applyOscillatorSetting(::Sound& sound, int32_t s, std::string_view rest, co
 	return true;
 }
 
+/// The LFO index a path's `lfoN/` prefix names, or -1 when it names none; @p rest is the path after the prefix.
+int32_t lfoOf(std::string_view path, std::string_view& rest) {
+	if (path.size() > 5 && path.starts_with("lfo") && path[3] >= '1' && path[3] <= '4' && path[4] == '/') {
+		rest = path.substr(5);
+		return path[3] - '1';
+	}
+	return -1;
+}
+
+/// Apply an `lfoN/` path as the LFO menus do, resyncing the song-wide LFOs and, for sync, re-patching: false when the
+/// path has no setter here, or a sync level the song's tick magnitude cannot hold.
+bool applyLfoSetting(::Sound& sound, int32_t l, std::string_view rest, const std::string& text, int32_t number,
+                     ::Song& song) {
+	const LFOConfig& now = sound.snapshot().lfoConfig[l];
+	if (rest == "type") {
+		sound.setLfoWaveType(l, deluge::instrument::parse_lfo_type(text));
+	}
+	else if (rest == "syncType") {
+		sound.setLfoSync(l, static_cast<SyncType>(number), now.syncLevel);
+		sound.setupPatchingForAllParamManagers(&song);
+	}
+	else if (rest == "syncLevel") {
+		// A file's level is relative to the song's tick magnitude; one this song cannot hold exactly is refused, not
+		// clamped to another.
+		const int32_t magnitude = song.getInputTickMagnitude();
+		const int32_t level = deluge::engine::sync_level_from_file(number, magnitude);
+		if (deluge::engine::sync_level_to_file(level, magnitude) != number) {
+			return false;
+		}
+		sound.setLfoSync(l, now.syncType, static_cast<SyncLevel>(level));
+		sound.setupPatchingForAllParamManagers(&song);
+	}
+	else {
+		return false;
+	}
+	sound.resyncGlobalLFOs();
+	return true;
+}
+
+/// The model stack a gesture on @p sound works in: its clip (a kit row's note row in its kit's clip) and the params it
+/// plays with there, or its backed-up params when it has no clip. Nullptr when it has no params at all.
+ModelStackWithSoundFlags* modelStackFor(void* memory, ::Sound& sound, ::Song& song) {
+	if (sound.isDrum()) {
+		auto& drum = static_cast<SoundDrum&>(sound);
+		auto* clip = drum.kit != nullptr ? static_cast<InstrumentClip*>(drum.kit->getActiveClip()) : nullptr;
+		int32_t noteRowIndex = 0;
+		NoteRow* noteRow = clip != nullptr ? clip->getNoteRowForDrum(&drum, &noteRowIndex) : nullptr;
+		if (noteRow != nullptr) {
+			return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, &song, clip, noteRowIndex, noteRow, &drum,
+			                                                          &noteRow->paramManager)
+			    ->addSoundFlags();
+		}
+		ParamManager* params = song.live.param_backup.getPreferablyWithClip(&drum, nullptr);
+		return params != nullptr
+		           ? setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, &drum, clip, params)->addSoundFlags()
+		           : nullptr;
+	}
+	auto& synth = static_cast<SoundInstrument&>(sound);
+	Clip* clip = synth.getActiveClip();
+	ParamManager* params =
+	    clip != nullptr ? &clip->paramManager : song.live.param_backup.getPreferablyWithClip(&synth, nullptr);
+	return params != nullptr
+	           ? setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, &synth, clip, params)->addSoundFlags()
+	           : nullptr;
+}
+
+/// Apply a `unison/` path as the unison menus do, re-tuning the sound's live voices: false when the path has no setter
+/// here, or the sound has no params to re-tune its voices with.
+bool applyUnisonSetting(::Sound& sound, std::string_view rest, int32_t number, ::Song& song) {
+	if (rest == "spread") {
+		sound.setUnisonStereoSpread(number);
+		return true;
+	}
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithSoundFlags* modelStack = modelStackFor(memory, sound, song);
+	if (modelStack == nullptr && sound.numActiveVoices() != 0) {
+		return false;
+	}
+	if (rest == "num") {
+		sound.setNumUnison(number, modelStack);
+	}
+	else if (rest == "detune") {
+		sound.setUnisonDetune(number, modelStack);
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
 } // namespace
 
 Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song) {
@@ -128,6 +225,12 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 	std::string_view rest;
 	if (const int32_t s = oscillatorOf(path, rest); s >= 0) {
 		return applyOscillatorSetting(sound, s, rest, text, number, song) ? Error::NONE : Error::UNSPECIFIED;
+	}
+	if (const int32_t l = lfoOf(path, rest); l >= 0) {
+		return applyLfoSetting(sound, l, rest, text, number, song) ? Error::NONE : Error::UNSPECIFIED;
+	}
+	if (path.starts_with("unison/")) {
+		return applyUnisonSetting(sound, path.substr(7), number, song) ? Error::NONE : Error::UNSPECIFIED;
 	}
 	if (path == "polyphonic") {
 		sound.setPolyphonic(deluge::instrument::parse_polyphony_mode(text));

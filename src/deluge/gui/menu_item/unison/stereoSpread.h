@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -41,13 +42,13 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
-					soundDrum->setUnisonStereoSpread(current_value);
+					settingFor(*soundDrum, "unison/spread", serialization::Value::makeNumber(current_value));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->setUnisonStereoSpread(current_value);
+			settingFor(*soundEditor.currentSound, "unison/spread", serialization::Value::makeNumber(current_value));
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxUnisonStereoSpread; }

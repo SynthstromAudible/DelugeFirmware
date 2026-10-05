@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -42,20 +43,13 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
-					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
-					ModelStackWithSoundFlags* modelStackForSoundDrum =
-					    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
-
-					soundDrum->setUnisonDetune(current_value, modelStackForSoundDrum);
+					settingFor(*soundDrum, "unison/detune", serialization::Value::makeNumber(current_value));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
-
-			soundEditor.currentSound->setUnisonDetune(current_value, modelStack);
+			settingFor(*soundEditor.currentSound, "unison/detune", serialization::Value::makeNumber(current_value));
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxUnisonDetune; }
