@@ -366,12 +366,16 @@ InstrumentSlot slot_without(const Value& element, const std::array<std::string_v
 
 } // namespace
 
-InstrumentSlot slot_of_output(const Value& element) {
-	return slot_without(element, kSoundOutputKeys);
+InstrumentSlot slot_of_output(const Value& element, int32_t tick_magnitude) {
+	InstrumentSlot slot = slot_without(element, kSoundOutputKeys);
+	slot.tick_magnitude = tick_magnitude;
+	return slot;
 }
 
-InstrumentSlot slot_of_drum(const Value& element) {
-	return slot_without(element, kSoundDrumKeys);
+InstrumentSlot slot_of_drum(const Value& element, int32_t tick_magnitude) {
+	InstrumentSlot slot = slot_without(element, kSoundDrumKeys);
+	slot.tick_magnitude = tick_magnitude;
+	return slot;
 }
 
 std::string_view drum_element(DrumType type) {

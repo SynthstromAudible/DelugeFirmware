@@ -126,8 +126,7 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		if (slot == nullptr) {
 			return "slot missing";
 		}
-		const Value encoded =
-		    deluge::instrument::encode(record, {.input_tick_magnitude = song.getInputTickMagnitude()});
+		const Value encoded = deluge::instrument::encode(record, {.input_tick_magnitude = slot->tick_magnitude});
 		if (std::string d = stateDifference(slot->state, encoded); !d.empty()) {
 			return "slot at " + d;
 		}
@@ -145,8 +144,8 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		if (slot == nullptr) {
 			return "decode: slot missing";
 		}
-		const auto decoded = deluge::instrument::decode_onto(slot->state, record,
-		                                                     {.input_tick_magnitude = song.getInputTickMagnitude()});
+		const auto decoded =
+		    deluge::instrument::decode_onto(slot->state, record, {.input_tick_magnitude = slot->tick_magnitude});
 		if (!decoded) {
 			return "decode refused";
 		}

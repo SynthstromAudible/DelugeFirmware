@@ -37,12 +37,15 @@
 
 namespace deluge::bridge {
 
-void fillSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, bool isDrum) {
+void fillSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, bool isDrum, const ::Song& song) {
+	const int32_t magnitude = song.getInputTickMagnitude(); // what the element's sync levels were read at
 	if (std::optional<deluge::serialization::Value> element = sound.takeLoadedElement()) {
-		slot = isDrum ? deluge::project::slot_of_drum(*element) : deluge::project::slot_of_output(*element);
+		slot = isDrum ? deluge::project::slot_of_drum(*element, magnitude)
+		              : deluge::project::slot_of_output(*element, magnitude);
 	}
 	else {
-		slot = deluge::project::InstrumentSlot{.engine = std::string(deluge::engine::kDelugeInstrument.name)};
+		slot = deluge::project::InstrumentSlot{.engine = std::string(deluge::engine::kDelugeInstrument.name),
+		                                       .tick_magnitude = magnitude};
 	}
 }
 
@@ -78,7 +81,7 @@ void refreshSlots(::Song& song) {
 			continue;
 		}
 		if (output->type == OutputType::SYNTH) {
-			output->docOutput_->instrument = deluge::project::slot_of_output(*element);
+			output->docOutput_->instrument = deluge::project::slot_of_output(*element, song.getInputTickMagnitude());
 			continue;
 		}
 		const deluge::serialization::Value* sources = element->find("soundSources");
@@ -90,7 +93,7 @@ void refreshSlots(::Song& song) {
 			deluge::project::DocDrum* record =
 			    id ? song.project.drum_structure.find(static_cast<uint32_t>(*id)) : nullptr;
 			if (record != nullptr && record->drum_type == DrumType::SOUND) {
-				record->instrument = deluge::project::slot_of_drum(*drum.node);
+				record->instrument = deluge::project::slot_of_drum(*drum.node, song.getInputTickMagnitude());
 			}
 		}
 	}
@@ -163,6 +166,7 @@ void syncSlotState(const ::Sound& sound, deluge::project::InstrumentSlot& slot, 
 	if (sound.boundState() != nullptr) {
 		slot.state = deluge::instrument::with_state(slot.state, *sound.boundState(),
 		                                            {.input_tick_magnitude = song.getInputTickMagnitude()});
+		slot.tick_magnitude = song.getInputTickMagnitude();
 	}
 }
 

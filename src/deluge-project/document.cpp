@@ -165,6 +165,8 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 		}
 	}
 
+	const int32_t magnitude =
+	    document.transport.inside_world_tick_magnitude + document.transport.inside_world_tick_magnitude_offset_from_bpm;
 	for (const NamedChild& output : outputs) {
 		if (!is_output_element(output.name) || !output.node->isMap()) {
 			continue;
@@ -173,7 +175,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 		DocOutput& record = document.outputs[entry.id] = new_output(output.name);
 		(void)decode_identity(*output.node, output.name, record);
 		if (output.name == "sound") {
-			record.instrument = slot_of_output(*output.node);
+			record.instrument = slot_of_output(*output.node, magnitude);
 		}
 		if (const deluge::engine::ParamNaming* naming = naming_of(output.name, engines)) {
 			record.controls = decode_controls(*output.node, *naming);
@@ -187,7 +189,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 				DocDrum& drumRecord = document.drums[id];
 				(void)decode_identity(*drum.node, drum.name, drumRecord);
 				if (drumRecord.drum_type == DrumType::SOUND) {
-					drumRecord.instrument = slot_of_drum(*drum.node);
+					drumRecord.instrument = slot_of_drum(*drum.node, magnitude);
 					if (const deluge::engine::ParamNaming* naming = naming_of("sound", engines)) {
 						drumRecord.controls = decode_controls(*drum.node, *naming);
 					}

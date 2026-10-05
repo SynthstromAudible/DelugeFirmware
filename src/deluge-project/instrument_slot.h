@@ -29,6 +29,8 @@ namespace deluge::project {
 struct InstrumentSlot {
 	std::string engine;                                           ///< the engine's id, e.g. "deluge.instrument"
 	serialization::Value state = serialization::Value::makeMap(); ///< the element's other entries, in order
+	/// The song's input tick magnitude when `state` was written: its sync levels are relative to it.
+	int32_t tick_magnitude{1};
 	bool operator==(const InstrumentSlot&) const = default;
 };
 

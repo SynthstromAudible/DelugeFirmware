@@ -117,8 +117,9 @@ describe structure_codec("the structure records", ${
 	it("keeps everything in a synth track's element the model does not own, in order, as the track's instrument", _ {
 		auto doc = deluge::serialization::parseXml(R"(<sound id="3" presetName="Bass" colour="5" polyphonic="poly")"
 		                                           R"( mode="fm"><osc1 type="sine"/><unison num="1"/></sound>)");
-		InstrumentSlot slot = slot_of_output(*doc->find("sound"));
+		InstrumentSlot slot = slot_of_output(*doc->find("sound"), 2);
 		expect(slot.engine).to_equal(std::string("deluge.instrument"));
+		expect(slot.tick_magnitude).to_equal(2);
 		std::vector<std::string> keys;
 		for (const auto& [key, value] : slot.state.entries()) {
 			keys.push_back(key);
@@ -129,7 +130,8 @@ describe structure_codec("the structure records", ${
 	it("keeps a sound drum's sound, without its id and name", _ {
 		auto doc = deluge::serialization::parseXml(
 		    R"(<sound id="9" name="KICK" mode="subtractive"><osc1 type="sample"/></sound>)");
-		InstrumentSlot slot = slot_of_drum(*doc->find("sound"));
+		InstrumentSlot slot = slot_of_drum(*doc->find("sound"), 3);
+		expect(slot.tick_magnitude).to_equal(3);
 		expect(slot.state.find("name")).to_be_null();
 		expect(slot.state.find("id")).to_be_null();
 		expect(slot.state.find("osc1")).not_().to_be_null();

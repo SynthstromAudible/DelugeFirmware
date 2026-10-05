@@ -153,7 +153,7 @@ Error SoundDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int3
 	if (error == Error::NONE && docDrum_ != nullptr) {
 		// Adopted before it was read, so its slot is filled now that the element has been.
 		deluge::bridge::fillSlot(*this, docDrum_->instrument ? *docDrum_->instrument : docDrum_->instrument.emplace(),
-		                         true);
+		                         true, *song);
 	}
 	return error;
 }

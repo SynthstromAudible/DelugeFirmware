@@ -28,8 +28,9 @@ class Sound;
 namespace deluge::bridge {
 
 /// @brief Fill @p slot from the element @p sound was read from (handed over once), or, for a sound not read from a
-/// document, start it empty for the Deluge instrument. @p isDrum says whose keys the model owns in the element.
-void fillSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, bool isDrum);
+/// document, start it empty for the Deluge instrument. @p isDrum says whose keys the model owns in the element. The
+/// slot is at @p song's input tick magnitude, which the element was read at.
+void fillSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, bool isDrum, const ::Song& song);
 
 /// @brief Make every synth track's and sound kit row's slot what the song writes for it now: each such output is
 /// written again into a ValueSerializer and its slot taken from that tree, the model's own keys left out.

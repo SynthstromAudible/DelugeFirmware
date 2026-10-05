@@ -79,11 +79,12 @@ inline constexpr uint8_t kMidiOutputMpeYDefault = 74;
                                                              std::string_view element, DocDrum& drum);
 
 /// @brief The instrument of a synth track's `sound` element: the element's entries the model does not own (its id,
-/// identity keys and controls), in order, for the Deluge instrument.
-[[nodiscard]] InstrumentSlot slot_of_output(const serialization::Value& element);
+/// identity keys and controls), in order, for the Deluge instrument, written at the song's @p tick_magnitude.
+[[nodiscard]] InstrumentSlot slot_of_output(const serialization::Value& element, int32_t tick_magnitude);
 
-/// @brief The instrument of a sound kit row's element: its entries other than its id, name and controls, in order.
-[[nodiscard]] InstrumentSlot slot_of_drum(const serialization::Value& element);
+/// @brief The instrument of a sound kit row's element: its entries other than its id, name and controls, in order,
+/// written at the song's @p tick_magnitude.
+[[nodiscard]] InstrumentSlot slot_of_drum(const serialization::Value& element, int32_t tick_magnitude);
 
 /// @brief The element a drum of @p type is written as.
 [[nodiscard]] std::string_view drum_element(DrumType type);

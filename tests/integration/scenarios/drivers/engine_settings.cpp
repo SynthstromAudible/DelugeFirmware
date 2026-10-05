@@ -693,6 +693,61 @@ int liveRangeLeg(Song& song) {
 	return 0;
 }
 
+/// Every bound sound of @p output: a synth's own, or each sound drum of a kit.
+void collectBoundSounds(Output& output, std::vector<Sound*>& sounds) {
+	if (output.type == OutputType::SYNTH) {
+		sounds.push_back(static_cast<SoundInstrument*>(&output));
+	}
+	else if (output.type == OutputType::KIT) {
+		for (Drum* drum = static_cast<Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
+			if (drum->type == DrumType::SOUND) {
+				sounds.push_back(static_cast<SoundDrum*>(drum));
+			}
+		}
+	}
+}
+
+/// The magnitude leg: the song's tick magnitude moves on by one, as a tempo-scale change moves it, and every bound
+/// sound takes an Edit that changes nothing; its LFO sync levels are unchanged and it stays coherent, since its slot's
+/// sync levels are relative to the magnitude the slot was written at. Then the magnitude goes back. 0 when each holds,
+/// else 3 after printing the first that does not.
+int magnitudeLeg(Song& song) {
+	std::vector<Sound*> sounds;
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		collectBoundSounds(*output, sounds);
+	}
+	for (Instrument* sleeping = song.live.media.first_hibernating_instrument; sleeping != nullptr;
+	     sleeping = static_cast<Instrument*>(sleeping->next)) {
+		collectBoundSounds(*sleeping, sounds);
+	}
+	song.project.transport.inside_world_tick_magnitude++;
+	int result = 0;
+	deluge::edits::Context ctx{song, song.project};
+	for (Sound* sound : sounds) {
+		const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(*sound);
+		if (!address || sound->boundState() == nullptr) {
+			continue;
+		}
+		const auto levels = sound->boundState()->lfo_sync_level;
+		const Value priority = *leafAt(song.project.resolveSlot(*address)->state, "voicePriority");
+		deluge::edits::SetEngineSetting edit{*address, "voicePriority", priority};
+		std::string failed = deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : "";
+		if (failed.empty() && sound->boundState()->lfo_sync_level != levels) {
+			failed = "the LFO sync levels moved";
+		}
+		if (failed.empty()) {
+			failed = deluge::harness::soundIncoherence(*sound, song);
+		}
+		if (!failed.empty()) {
+			std::fprintf(io.err, "magnitude +1: %s\n", failed.c_str());
+			result = 3;
+			break;
+		}
+	}
+	song.project.transport.inside_world_tick_magnitude--;
+	return result;
+}
+
 /// The hibernation leg, for a song with no hibernating sound: a synth added to it and hibernated (as replacing an
 /// edited instrument hibernates it) keeps its slot, and its settings' Edits reach it there. 0 when each holds, else 3
 /// after printing the first that does not.
@@ -841,6 +896,9 @@ int engine_settings_main(int argc, char** argv, Io driverIo) {
 			return r;
 		}
 		if (int r = hibernationLeg(*song)) {
+			return r;
+		}
+		if (int r = magnitudeLeg(*song)) {
 			return r;
 		}
 		// Last: it reads the song again, and the copy becomes the current song.

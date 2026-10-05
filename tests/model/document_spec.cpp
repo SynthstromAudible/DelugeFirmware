@@ -65,6 +65,9 @@ describe document("the model's parts of a whole song", ${
 		expect(a.outputs.at(2).name).to_equal(std::string("KIT"));
 		expect(a.drums.at(6).drum_type).to_equal(DrumType::MIDI);
 		expect(a.groove.swing_amount).to_equal(5);
+		// a slot's sync levels are relative to the magnitude its song was saved at
+		expect(a.outputs.at(1).instrument->tick_magnitude).to_equal(2);
+		expect(a.drums.at(5).instrument->tick_magnitude).to_equal(2);
 		// a pre-id macro naming its output by position names the output at that position
 		expect(a.arrangement.session_macros[1].kind).to_equal(SessionMacroKind::OUTPUT_CYCLE);
 		expect(*a.arrangement.session_macros[1].output_id).to_equal(2u);

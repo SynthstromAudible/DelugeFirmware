@@ -1313,7 +1313,8 @@ void Song::adoptDrum(Drum* drum) {
 	if (drum->type == DrumType::SOUND) {
 		Sound* sound = static_cast<Sound*>(static_cast<SoundDrum*>(drum));
 		sound->bindState();
-		deluge::bridge::fillSlot(*sound, d.instrument.emplace(), true); // a drum read from a file refills it once read
+		deluge::bridge::fillSlot(*sound, d.instrument.emplace(), true,
+		                         *this); // a drum read from a file refills it once read
 		if (!readingFromFile_) {
 			// A drum added to a running song (a preset loaded into a kit row) had its samples loaded first: its slot
 			// takes what the runtime now holds.
@@ -1359,7 +1360,7 @@ void Song::adoptOutput(Output* output) {
 	if (output->type == OutputType::SYNTH) {
 		Sound* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(output));
 		sound->bindState();
-		deluge::bridge::fillSlot(*sound, d.instrument.emplace(), false);
+		deluge::bridge::fillSlot(*sound, d.instrument.emplace(), false, *this);
 	}
 	// A preset's samples load before it is added, and a kit's drums were bound while it was read: the record and the
 	// slot take what the runtime now holds.
