@@ -21,7 +21,9 @@
 // Exit: 0 agree; 3 a row disagrees (each printed).
 
 #include "engines/deluge/cables.h"
+#include "engines/deluge/naming.h"
 #include "engines/deluge/params.h"
+#include "engines/global_effectable/naming.h"
 #include "engines/global_effectable/params.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/project_bridge/param_ids.h"
@@ -76,6 +78,11 @@ struct Checker {
 		}
 		if (deluge::bridge::runtimeIndexOf(kind, info.id) != index) {
 			fail(table, info, "the boundary map gives the id another runtime index");
+		}
+		const deluge::engine::ParamNaming& naming =
+		    kind == params::Kind::UNPATCHED_GLOBAL ? deluge::global_effectable::kNaming : deluge::instrument::kNaming;
+		if (!unnamed && naming.id_of({name}) != std::optional<ParamId>{info.id}) {
+			fail(table, info, "its naming does not give the runtime's name this id");
 		}
 	}
 };

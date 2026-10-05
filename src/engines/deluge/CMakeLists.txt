@@ -1,6 +1,6 @@
 # deluge_instrument: the Deluge instrument (today's whole sound pipeline as one engine) — its state, its words and its
 # codec. Built on the engine API only.
-add_library(deluge_instrument STATIC codec.cpp cable_codec.cpp)
+add_library(deluge_instrument STATIC codec.cpp cable_codec.cpp naming.cpp)
 target_include_directories(deluge_instrument PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../..)
 target_compile_features(deluge_instrument PUBLIC cxx_std_23)
 if(DEFINED DELUGE_CXX_STANDARD)
