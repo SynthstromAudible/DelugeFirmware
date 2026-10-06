@@ -36,6 +36,7 @@
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/change_effect.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/cable_bridge.h"
@@ -4181,9 +4182,11 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 				insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 			}
 
-			setSidechainSyncLevel(effects().sidechain.sync_level == (SyncLevel)(7 - insideWorldTickMagnitude)
-			                          ? (SyncLevel)(9 - insideWorldTickMagnitude)
-			                          : (SyncLevel)(7 - insideWorldTickMagnitude));
+			deluge::edits::changeEffect(*this, "sidechain/syncLevel",
+			                            deluge::serialization::Value::makeNumber(
+			                                effects().sidechain.sync_level == (SyncLevel)(7 - insideWorldTickMagnitude)
+			                                    ? 9 - insideWorldTickMagnitude
+			                                    : 7 - insideWorldTickMagnitude));
 
 			// if mod button is pressed, update mod button pop up
 			if (Buttons::isButtonPressed(

@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -106,14 +107,21 @@ private:
 
 	static void applyOptionToStutter(const Direction value, ModControllableAudio* mc) {
 		mc->setUseSongStutter(value == USE_SONG_STUTTER);
-		mc->setStutterReversed(value == REVERSED || value == REVERSED_PING_PONG);
-		mc->setStutterPingPong(value == FORWARD_PING_PONG || value == REVERSED_PING_PONG);
+		effectSettingFor(
+		    *mc, "stutter/reverse",
+		    deluge::serialization::Value::makeNumber(value == REVERSED || value == REVERSED_PING_PONG ? 1 : 0));
+		effectSettingFor(*mc, "stutter/pingPong",
+		                 deluge::serialization::Value::makeNumber(
+		                     value == FORWARD_PING_PONG || value == REVERSED_PING_PONG ? 1 : 0));
 
 		if (mc->effects().stutter.use_song_stutter) {
 			const auto& songStutter = currentSong->live.global_effectable.effects().stutter;
-			mc->setStutterQuantized(songStutter.quantized);
-			mc->setStutterReversed(songStutter.reversed);
-			mc->setStutterPingPong(songStutter.ping_pong);
+			effectSettingFor(*mc, "stutter/quantized",
+			                 deluge::serialization::Value::makeNumber(songStutter.quantized ? 1 : 0));
+			effectSettingFor(*mc, "stutter/reverse",
+			                 deluge::serialization::Value::makeNumber(songStutter.reversed ? 1 : 0));
+			effectSettingFor(*mc, "stutter/pingPong",
+			                 deluge::serialization::Value::makeNumber(songStutter.ping_pong ? 1 : 0));
 		}
 	}
 

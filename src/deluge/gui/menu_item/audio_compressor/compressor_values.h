@@ -3,6 +3,7 @@
 #include "dsp/compressor/rms_feedback.h"
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -65,7 +66,9 @@ class Attack final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
 	uint64_t getCompressorValue() override { return static_cast<uint64_t>(shown().attack); }
-	void setCompressorValue(q31_t value, ModControllableAudio& owner) override { owner.setCompressorAttack(value); }
+	void setCompressorValue(q31_t value, ModControllableAudio& owner) override {
+		effectSettingFor(owner, "audioCompressor/attack", deluge::serialization::Value::makeNumber(value));
+	}
 	float getDisplayValue() override { return RMSFeedbackCompressor::attackMsOf(shown().attack); }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return ATTACK; }
 	void getColumnLabel(etl::istring& label) override {
@@ -76,7 +79,9 @@ class Release final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
 	uint64_t getCompressorValue() final { return static_cast<uint64_t>(shown().release); }
-	void setCompressorValue(q31_t value, ModControllableAudio& owner) final { owner.setCompressorRelease(value); }
+	void setCompressorValue(q31_t value, ModControllableAudio& owner) final {
+		effectSettingFor(owner, "audioCompressor/release", deluge::serialization::Value::makeNumber(value));
+	}
 	float getDisplayValue() override { return RMSFeedbackCompressor::releaseMsOf(shown().release); }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 1; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return RELEASE; }
@@ -89,7 +94,9 @@ class Ratio final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
 	uint64_t getCompressorValue() override { return static_cast<uint64_t>(shown().ratio); }
-	void setCompressorValue(q31_t value, ModControllableAudio& owner) override { owner.setCompressorRatio(value); }
+	void setCompressorValue(q31_t value, ModControllableAudio& owner) override {
+		effectSettingFor(owner, "audioCompressor/ratio", deluge::serialization::Value::makeNumber(value));
+	}
 	float getDisplayValue() override { return RMSFeedbackCompressor::ratioOf(shown().ratio); }
 	const char* getUnit() override { return " : 1"; }
 };
@@ -98,7 +105,7 @@ public:
 	using CompressorValue::CompressorValue;
 	uint64_t getCompressorValue() override { return static_cast<uint64_t>(shown().sidechain_hpf); }
 	void setCompressorValue(q31_t value, ModControllableAudio& owner) override {
-		owner.setCompressorSidechainHpf(value);
+		effectSettingFor(owner, "audioCompressor/compHPF", deluge::serialization::Value::makeNumber(value));
 	}
 	float getDisplayValue() override { return RMSFeedbackCompressor::sidechainHzOf(shown().sidechain_hpf); }
 	const char* getUnit() override { return "HZ"; }
@@ -118,7 +125,7 @@ public:
 		else {
 			knobPos = ONE_Q31;
 		}
-		owner.setCompressorBlend(knobPos);
+		effectSettingFor(owner, "audioCompressor/compBlend", deluge::serialization::Value::makeNumber(knobPos));
 	}
 
 	float getDisplayValue() override { return RMSFeedbackCompressor::blendPercentOf(shown().blend); }

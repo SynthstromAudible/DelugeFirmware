@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -46,13 +47,15 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->setClippingAmount(current_value);
+					effectSettingFor(*soundDrum, "clippingAmount",
+					                 deluge::serialization::Value::makeNumber(current_value));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->setClippingAmount(current_value);
+			effectSettingFor(*soundEditor.currentModControllable, "clippingAmount",
+			                 deluge::serialization::Value::makeNumber(current_value));
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return 15; }

@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
@@ -40,13 +41,15 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->setDelayAnalog(current_value);
+					effectSettingFor(*soundDrum, "delay/analog",
+					                 deluge::serialization::Value::makeNumber(current_value ? 1 : 0));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->setDelayAnalog(current_value);
+			effectSettingFor(*soundEditor.currentModControllable, "delay/analog",
+			                 deluge::serialization::Value::makeNumber(current_value ? 1 : 0));
 		}
 	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
@@ -53,8 +54,12 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
-					soundDrum->setSidechainSyncType(syncValueToSyncType(current_value));
-					soundDrum->setSidechainSyncLevel(syncValueToSyncLevel(current_value));
+					effectSettingFor(*soundDrum, "sidechain/syncType",
+					                 deluge::serialization::Value::makeNumber(
+					                     util::to_underlying(syncValueToSyncType(current_value))));
+					effectSettingFor(*soundDrum, "sidechain/syncLevel",
+					                 deluge::serialization::Value::makeNumber(
+					                     deluge::engine::index_of(syncValueToSyncLevel(current_value))));
 				}
 			}
 		}
@@ -67,8 +72,12 @@ public:
 				currentSong->project.reverb.sidechain_sync = syncValueToSyncLevel(current_value);
 			}
 			else {
-				soundEditor.currentModControllable->setSidechainSyncType(syncValueToSyncType(current_value));
-				soundEditor.currentModControllable->setSidechainSyncLevel(syncValueToSyncLevel(current_value));
+				effectSettingFor(
+				    *soundEditor.currentModControllable, "sidechain/syncType",
+				    deluge::serialization::Value::makeNumber(util::to_underlying(syncValueToSyncType(current_value))));
+				effectSettingFor(*soundEditor.currentModControllable, "sidechain/syncLevel",
+				                 deluge::serialization::Value::makeNumber(
+				                     deluge::engine::index_of(syncValueToSyncLevel(current_value))));
 			}
 		}
 

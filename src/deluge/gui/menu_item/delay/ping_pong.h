@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
@@ -41,13 +42,15 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->setDelayPingPong(current_value);
+					effectSettingFor(*soundDrum, "delay/pingPong",
+					                 deluge::serialization::Value::makeNumber(current_value ? 1 : 0));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->setDelayPingPong(current_value);
+			effectSettingFor(*soundEditor.currentModControllable, "delay/pingPong",
+			                 deluge::serialization::Value::makeNumber(current_value ? 1 : 0));
 		}
 	}
 

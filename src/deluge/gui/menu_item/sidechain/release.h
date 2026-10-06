@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -50,7 +51,8 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
-					soundDrum->setSidechainRelease(current_value);
+					effectSettingFor(*soundDrum, "sidechain/release",
+					                 deluge::serialization::Value::makeNumber(current_value));
 				}
 			}
 		}
@@ -62,7 +64,8 @@ public:
 				currentSong->project.reverb.sidechain_release = current_value;
 			}
 			else {
-				soundEditor.currentModControllable->setSidechainRelease(current_value);
+				effectSettingFor(*soundEditor.currentModControllable, "sidechain/release",
+				                 deluge::serialization::Value::makeNumber(current_value));
 			}
 		}
 

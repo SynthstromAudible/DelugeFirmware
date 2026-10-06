@@ -17,6 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -47,14 +48,18 @@ public:
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
 					if (soundDrum->modControllableSnapshot().effects.filter.lpf_mode != FilterMode::OFF
 					    && soundDrum->modControllableSnapshot().effects.filter.hpf_mode != FilterMode::OFF) {
-						soundDrum->setFilterRoute(current_value);
+						effectSettingFor(*soundDrum, "filterRoute",
+						                 deluge::serialization::Value::makeScalar(
+						                     std::string(deluge::effects::to_string(current_value))));
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->setFilterRoute(current_value);
+			effectSettingFor(
+			    *soundEditor.currentModControllable, "filterRoute",
+			    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(current_value))));
 		}
 	}
 

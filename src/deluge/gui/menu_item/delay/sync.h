@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
@@ -43,15 +44,23 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->setDelaySyncType(syncValueToSyncType(current_value));
-					soundDrum->setDelaySyncLevel(syncValueToSyncLevel(current_value));
+					effectSettingFor(*soundDrum, "delay/syncType",
+					                 deluge::serialization::Value::makeNumber(
+					                     util::to_underlying(syncValueToSyncType(current_value))));
+					effectSettingFor(*soundDrum, "delay/syncLevel",
+					                 deluge::serialization::Value::makeNumber(
+					                     deluge::engine::index_of(syncValueToSyncLevel(current_value))));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->setDelaySyncType(syncValueToSyncType(current_value));
-			soundEditor.currentModControllable->setDelaySyncLevel(syncValueToSyncLevel(current_value));
+			effectSettingFor(
+			    *soundEditor.currentModControllable, "delay/syncType",
+			    deluge::serialization::Value::makeNumber(util::to_underlying(syncValueToSyncType(current_value))));
+			effectSettingFor(*soundEditor.currentModControllable, "delay/syncLevel",
+			                 deluge::serialization::Value::makeNumber(
+			                     deluge::engine::index_of(syncValueToSyncLevel(current_value))));
 		}
 	}
 };

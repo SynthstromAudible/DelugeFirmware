@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
@@ -46,14 +47,16 @@ public:
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
 					if (!soundEditor.currentModControllable->effects().stutter.use_song_stutter) {
-						soundDrum->setStutterQuantized(current_value);
+						effectSettingFor(*soundDrum, "stutter/quantized",
+						                 deluge::serialization::Value::makeNumber(current_value ? 1 : 0));
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->setStutterQuantized(current_value);
+			effectSettingFor(*soundEditor.currentModControllable, "stutter/quantized",
+			                 deluge::serialization::Value::makeNumber(current_value ? 1 : 0));
 		}
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {

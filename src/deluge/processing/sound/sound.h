@@ -232,6 +232,7 @@ public:
 	virtual void setSkippingRendering(bool newSkipping);
 
 	ModFXType getModFXType() override;
+	[[nodiscard]] ::Sound* asSound() override { return this; }
 	bool setModFXType(ModFXType newType) final;
 
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,

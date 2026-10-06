@@ -38,6 +38,7 @@
 #include "memory/heaps.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/change_effect.h"
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
@@ -472,6 +473,11 @@ void ModControllableAudio::projectModControllableSnapshot() {
 }
 
 namespace {
+/// @p mode as a filter mode setting's Edit form: its file name.
+deluge::serialization::Value effectWord(FilterMode mode) {
+	return deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(mode)));
+}
+
 /// @p owner's effect settings with @p change made to them, made its settings.
 template <class Change>
 void changeEffects(ModControllableAudio& owner, Change change) {
@@ -1267,11 +1273,13 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 }
 
 void ModControllableAudio::switchDelayPingPong() {
-	setDelayPingPong(!effects().delay.ping_pong);
+	deluge::edits::changeEffect(*this, "delay/pingPong",
+	                            deluge::serialization::Value::makeNumber(effects().delay.ping_pong ? 0 : 1));
 }
 
 void ModControllableAudio::switchDelayAnalog() {
-	setDelayAnalog(!effects().delay.analog);
+	deluge::edits::changeEffect(*this, "delay/analog",
+	                            deluge::serialization::Value::makeNumber(effects().delay.analog ? 0 : 1));
 }
 
 char const* ModControllableAudio::getDelayTypeDisplayName() {
@@ -1285,18 +1293,19 @@ char const* ModControllableAudio::getDelayTypeDisplayName() {
 }
 
 void ModControllableAudio::switchDelaySyncType() {
+	SyncType next = SYNC_TYPE_TRIPLET; // after even
 	switch (effects().delay.sync_type) {
 	case SYNC_TYPE_TRIPLET:
-		setDelaySyncType(SYNC_TYPE_DOTTED);
+		next = SYNC_TYPE_DOTTED;
 		break;
 	case SYNC_TYPE_DOTTED:
-		setDelaySyncType(SYNC_TYPE_EVEN);
+		next = SYNC_TYPE_EVEN;
 		break;
-
-	default: // SYNC_TYPE_EVEN
-		setDelaySyncType(SYNC_TYPE_TRIPLET);
+	default:
 		break;
 	}
+	deluge::edits::changeEffect(*this, "delay/syncType",
+	                            deluge::serialization::Value::makeNumber(util::to_underlying(next)));
 }
 
 char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
@@ -1312,16 +1321,19 @@ char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
 
 void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	setDelaySyncLevel(deluge::engine::sync_level_from_index(deluge::engine::index_of(effects().delay.sync_level)
-	                                                            % deluge::engine::index_of(SYNC_LEVEL_256TH)
-	                                                        + 1)); // cycle from 1 to 9 (omit 0)
+	deluge::edits::changeEffect(
+	    *this, "delay/syncLevel",
+	    deluge::serialization::Value::makeNumber(deluge::engine::index_of(effects().delay.sync_level)
+	                                                 % deluge::engine::index_of(SYNC_LEVEL_256TH)
+	                                             + 1)); // cycle from 1 to 9 (omit 0)
 }
 
 void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	setDelaySyncLevel(deluge::engine::sync_level_from_index(
-	    deluge::engine::index_of(effects().delay.sync_level)
-	    % deluge::engine::index_of(SYNC_LEVEL_256TH))); // cycle from 1 to 9 (omit 0)
+	deluge::edits::changeEffect(*this, "delay/syncLevel",
+	                            deluge::serialization::Value::makeNumber(
+	                                deluge::engine::index_of(effects().delay.sync_level)
+	                                % deluge::engine::index_of(SYNC_LEVEL_256TH))); // cycle from 1 to 9 (omit 0)
 	etl::string<kShortStringBufferSize> buffer;
 	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (deluge::engine::index_of(SYNC_LEVEL_256TH)
 	                                                       - deluge::engine::index_of(effects().delay.sync_level)));
@@ -1343,7 +1355,9 @@ char const* ModControllableAudio::getFilterTypeDisplayName(FilterType currentFil
 }
 
 void ModControllableAudio::switchLPFMode() {
-	setLpfMode(static_cast<FilterMode>((util::to_underlying(effects().filter.lpf_mode) + 1) % kNumLPFModes));
+	deluge::edits::changeEffect(
+	    *this, "lpfMode",
+	    effectWord(static_cast<FilterMode>((util::to_underlying(effects().filter.lpf_mode) + 1) % kNumLPFModes)));
 }
 
 // for future use with FM
@@ -1359,7 +1373,7 @@ void ModControllableAudio::switchLPFModeWithOff() {
 	default:
 		mode = static_cast<FilterMode>((util::to_underlying(mode) + 1));
 	}
-	setLpfMode(mode);
+	deluge::edits::changeEffect(*this, "lpfMode", effectWord(mode));
 }
 
 char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFilterType) {
@@ -1394,18 +1408,22 @@ char const* ModControllableAudio::getLPFModeDisplayName() {
 
 void ModControllableAudio::switchHPFMode() {
 	// this works fine, the offset to the first hpf doesn't matter with the modulus
-	setHpfMode(
-	    static_cast<FilterMode>((util::to_underlying(effects().filter.hpf_mode) + 1) % kNumHPFModes + kFirstHPFMode));
+	deluge::edits::changeEffect(
+	    *this, "hpfMode",
+	    effectWord(static_cast<FilterMode>((util::to_underlying(effects().filter.hpf_mode) + 1) % kNumHPFModes
+	                                       + kFirstHPFMode)));
 }
 
 // for future use with FM
 void ModControllableAudio::switchHPFModeWithOff() {
 	switch (effects().filter.hpf_mode) {
 	case FilterMode::OFF:
-		setHpfMode(firstHPFMode);
+		deluge::edits::changeEffect(*this, "hpfMode", effectWord(firstHPFMode));
 		break;
 	default:
-		setHpfMode(static_cast<FilterMode>((util::to_underlying(effects().filter.hpf_mode) + 1)));
+		deluge::edits::changeEffect(
+		    *this, "hpfMode",
+		    effectWord(static_cast<FilterMode>((util::to_underlying(effects().filter.hpf_mode) + 1))));
 	}
 }
 

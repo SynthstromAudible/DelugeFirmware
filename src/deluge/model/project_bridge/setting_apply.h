@@ -24,6 +24,7 @@
 #include <optional>
 #include <string_view>
 
+class ModControllableAudio;
 class Song;
 class Sound;
 
@@ -33,6 +34,11 @@ namespace deluge::bridge {
 /// sound editor's menu for it does, side effects included: the runtime's own setter for the path.
 /// @return Error::UNSPECIFIED when the schema does not allow @p value at @p path, or the path has no setter here.
 Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song);
+
+/// @brief Change @p owner's effect setting at @p path (a path of the effects' schema) to @p value, as its menu does:
+/// for a kit, an audio track or the song master, whose effects have no slot yet.
+/// @return Error::UNSPECIFIED when the schema does not allow @p value at @p path.
+Error applyEffectSetting(ModControllableAudio& owner, std::string_view path, const deluge::serialization::Value& value);
 
 /// @brief The state @p sound reaches when its setting at @p path becomes @p value, where the setting's menu reshapes
 /// more than the one value: an oscillator's type (its ranges keep only their top notes when they become the other

@@ -17,6 +17,7 @@
 #pragma once
 
 #include "io/debug/log.h"
+#include "model/edits/change_effect.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_controls.h"
 #include "model/edits/set_dx_patch.h"
@@ -67,6 +68,11 @@ inline void settingFor(::Sound& sound, std::string_view path, deluge::serializat
 	if (deluge::bridge::applySetting(sound, path, value, *currentSong) != Error::NONE) {
 		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
 	}
+}
+
+/// @brief A menu's change of @p owner's effect setting at @p path to @p value (its Edit form): see changeEffect.
+inline void effectSettingFor(ModControllableAudio& owner, std::string_view path, deluge::serialization::Value value) {
+	deluge::edits::changeEffect(owner, path, std::move(value));
 }
 
 /// @brief A gesture's change of source @p s of @p sound to @p ranges: an Edit on the sound's slot when it is bound,

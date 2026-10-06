@@ -38,6 +38,7 @@
 #include "engines/effects/state.h"
 
 class Clip;
+class Sound;
 class Knob;
 class MIDICable;
 class ModelStack;
@@ -100,6 +101,8 @@ public:
 	void beginStutter(ParamManagerForTimeline* paramManager);
 	void endStutter(ParamManagerForTimeline* paramManager);
 	virtual ModFXType getModFXType() = 0;
+	/// This owner as a sound, or nullptr for a kit, an audio track or the song master.
+	[[nodiscard]] virtual ::Sound* asSound() { return nullptr; }
 	virtual bool setModFXType(ModFXType newType);
 	// One effect setting each, through setEffects.
 	void setClippingAmount(uint8_t value);

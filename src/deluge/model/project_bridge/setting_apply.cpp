@@ -22,6 +22,7 @@
 #include "engines/deluge/dx7_init_voice.h"
 #include "engines/deluge/settings.h"
 #include "engines/deluge/words.h"
+#include "engines/effects/settings.h"
 #include "engines/effects/words.h"
 #include "hid/display/display.h"
 #include "model/clip/instrument_clip.h"
@@ -255,7 +256,7 @@ bool applyModulatorSetting(::Sound& sound, int32_t m, std::string_view rest, int
 
 /// Apply an effect's setting as its menu does, through the owner's setter: false when @p path is no effect's. A mod-FX
 /// type the memory cannot be found for is reported, as its menu reports it, and the type stays.
-bool applyEffectSetting(ModControllableAudio& owner, std::string_view path, const std::string& text, int32_t number) {
+bool applyEffectValue(ModControllableAudio& owner, std::string_view path, const std::string& text, int32_t number) {
 	namespace fx = deluge::effects;
 	const bool on = number != 0;
 	if (path == "modFXType") {
@@ -331,7 +332,6 @@ bool applyEffectSetting(ModControllableAudio& owner, std::string_view path, cons
 	}
 	return true;
 }
-
 } // namespace
 
 Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song) {
@@ -340,7 +340,7 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 	}
 	const std::string& text = *deluge::serialization::text_of(&value);
 	const int32_t number = deluge::serialization::int_of(&value).value_or(0);
-	if (applyEffectSetting(sound, path, text, number)) {
+	if (applyEffectValue(sound, path, text, number)) {
 		return Error::NONE;
 	}
 	std::string_view rest;
@@ -395,6 +395,17 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 		return Error::UNSPECIFIED; // the path has no setter here
 	}
 	return Error::NONE;
+}
+
+Error applyEffectSetting(ModControllableAudio& owner, std::string_view path,
+                         const deluge::serialization::Value& value) {
+	if (!deluge::effects::check_effect_setting(path, value)) {
+		return Error::UNSPECIFIED;
+	}
+	return applyEffectValue(owner, path, *deluge::serialization::text_of(&value),
+	                        deluge::serialization::int_of(&value).value_or(0))
+	           ? Error::NONE
+	           : Error::UNSPECIFIED;
 }
 
 std::optional<deluge::instrument::SoundState> stateWithSetting(const ::Sound& sound, std::string_view path,

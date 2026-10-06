@@ -17,6 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -37,29 +38,21 @@ public:
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<ModFXType>();
+		const deluge::serialization::Value value =
+		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(current_value)));
+		// A type the memory cannot be found for is reported where it is set, and the type stays.
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
-
 			Kit* kit = getCurrentKit();
-
-			bool some_error = false;
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
-					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					if (!soundDrum->setModFXType(current_value)) {
-						some_error = true;
-					}
+					effectSettingFor(*static_cast<SoundDrum*>(thisDrum), "modFXType", value);
 				}
-			}
-			if (some_error) {
-				display->displayError(Error::INSUFFICIENT_RAM);
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			if (!soundEditor.currentModControllable->setModFXType(current_value)) {
-				display->displayError(Error::INSUFFICIENT_RAM);
-			}
+			effectSettingFor(*soundEditor.currentModControllable, "modFXType", value);
 		}
 	}
 

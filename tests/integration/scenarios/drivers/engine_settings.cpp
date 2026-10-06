@@ -161,7 +161,7 @@ int expectBound(Output& output, const char* how) {
 }
 
 /// The setting paths an Edit maps so far.
-constexpr std::array<std::string_view, 50> kEditedPaths{
+constexpr std::array<std::string_view, 72> kEditedPaths{
     "polyphonic",
     "voicePriority",
     "maxVoices",
@@ -212,6 +212,28 @@ constexpr std::array<std::string_view, 50> kEditedPaths{
     "modulator2/toModulator1",
     "midiOutput/channel",
     "midiOutput/noteForDrum",
+    "modFXType",
+    "lpfMode",
+    "hpfMode",
+    "filterRoute",
+    "clippingAmount",
+    "delay/pingPong",
+    "delay/analog",
+    "delay/syncLevel",
+    "delay/syncType",
+    "sidechain/attack",
+    "sidechain/release",
+    "sidechain/syncLevel",
+    "sidechain/syncType",
+    "audioCompressor/attack",
+    "audioCompressor/release",
+    "audioCompressor/thresh",
+    "audioCompressor/ratio",
+    "audioCompressor/compHPF",
+    "audioCompressor/compBlend",
+    "stutter/quantized",
+    "stutter/reverse",
+    "stutter/pingPong",
 };
 
 /// Whether @p path is a sample-playback setting, which only a sample source of a non-FM sound takes.
@@ -807,11 +829,23 @@ int magnitudeLeg(Song& song) {
 			continue;
 		}
 		const auto levels = sound->boundState()->lfo_sync_level;
+		const deluge::effects::EffectStates effects = sound->boundState()->effects;
 		const Value priority = *leafAt(song.project.resolveSlot(*address)->state, "voicePriority");
 		deluge::edits::SetEngineSetting edit{*address, "voicePriority", priority};
 		std::string failed = deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : "";
+		// The delay's own sync level, set to what it is: an Edit that changes nothing.
+		deluge::edits::SetEngineSetting delay{*address, "delay/syncLevel",
+		                                      Value::makeNumber(deluge::engine::index_of(effects.delay.sync_level))};
+		if (failed.empty() && deluge::edits::apply(ctx, delay) != Error::NONE) {
+			failed = "delay/syncLevel refused";
+		}
 		if (failed.empty() && sound->boundState()->lfo_sync_level != levels) {
 			failed = "the LFO sync levels moved";
+		}
+		if (failed.empty()
+		    && (sound->boundState()->effects.delay.sync_level != effects.delay.sync_level
+		        || sound->boundState()->effects.sidechain.sync_level != effects.sidechain.sync_level)) {
+			failed = "the delay's or sidechain's sync level moved";
 		}
 		if (failed.empty()) {
 			failed = deluge::harness::soundIncoherence(*sound, song);

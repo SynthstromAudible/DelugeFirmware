@@ -17,6 +17,7 @@
 #pragma once
 
 #include "gui/menu_item/number.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -63,15 +64,21 @@ public:
 	void setMode(int32_t value) const { setModeForModControllable(value, soundEditor.currentModControllable); }
 	void setModeForModControllable(int32_t value, ModControllableAudio* modControllable) const {
 		if (slot == FilterSlot::HPF) {
-			modControllable->setHpfMode(static_cast<FilterMode>(value + kFirstHPFMode));
+			effectSettingFor(*modControllable, "hpfMode",
+			                 deluge::serialization::Value::makeScalar(std::string(
+			                     deluge::effects::to_string(static_cast<FilterMode>(value + kFirstHPFMode)))));
 		}
 		else {
 			// num lpf modes counts off but there's HPF modes in the middle
 			if (value >= kNumLPFModes) {
-				modControllable->setLpfMode(FilterMode::OFF);
+				effectSettingFor(
+				    *modControllable, "lpfMode",
+				    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(FilterMode::OFF))));
 			}
 			else {
-				modControllable->setLpfMode(static_cast<FilterMode>(value));
+				effectSettingFor(*modControllable, "lpfMode",
+				                 deluge::serialization::Value::makeScalar(
+				                     std::string(deluge::effects::to_string(static_cast<FilterMode>(value)))));
 			}
 		}
 	}
