@@ -519,9 +519,11 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 namespace {
 /// The sound element's tags the Deluge instrument decodes entirely (readFromFile), which this reader skips. Tags that
 /// also hold params (osc1/osc2, lfo1–lfo4, modulator1/2, the old oscillatorA/B and fileName) are read here for those.
-constexpr std::array<std::string_view, 14> kInstrumentOnlyTags{
-    "mode", "transpose", "cents",         "oscillatorReset", "unison",    "continuous",    "reversed",
-    "zone", "ringMod",   "sideChainSend", "polyphonic",      "maxVoices", "voicePriority", "midiOutput"};
+constexpr std::array<std::string_view, 23> kInstrumentOnlyTags{
+    "mode",           "transpose",  "cents",      "oscillatorReset", "unison",     "continuous",
+    "reversed",       "zone",       "ringMod",    "sideChainSend",   "polyphonic", "maxVoices",
+    "voicePriority",  "midiOutput", "modFXType",  "lpfMode",         "hpfMode",    "filterRoute",
+    "clippingAmount", "sidechain",  "compressor", "audioCompressor", "stutter"};
 } // namespace
 
 Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
@@ -778,15 +780,6 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		ENSURE_PARAM_MANAGER_EXISTS
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_PITCH_ADJUST, readAutomationUpToPos);
 		reader.exitTag("pitchAdjust");
-	}
-
-	else if (!strcmp(tagName, "modFXType")) {
-		bool result =
-		    setModFXType(stringToFXType(reader.readTagOrAttributeValue())); // This might not work if not enough RAM
-		if (!result) {
-			display->displayError(Error::INSUFFICIENT_RAM);
-		}
-		reader.exitTag("modFXType");
 	}
 
 	else if (!strcmp(tagName, "fx")) {
@@ -3519,6 +3512,15 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 		setLfoSync(l, state.lfo_sync_type[l], state.lfo_sync_level[l]);
 	}
 	resyncGlobalLFOs();
+
+	// The mod-FX type through its setter, which allocates the unit's memory: without it, the type stays as it was.
+	deluge::effects::EffectStates effects = state.effects;
+	if (effects.mod_fx.type != this->effects().mod_fx.type && !setModFXType(effects.mod_fx.type)) {
+		display->displayError(Error::INSUFFICIENT_RAM);
+	}
+	effects.mod_fx.type = this->effects().mod_fx.type;
+	setEffects(effects);
+	compressor.setThreshold(effects.compressor.threshold); // what a save before any render writes back
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const deluge::instrument::SourceState& from = state.sources[s];

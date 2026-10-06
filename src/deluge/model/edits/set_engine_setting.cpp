@@ -22,7 +22,7 @@ deluge::serialization::Value elementFor(const ::Sound& sound, const deluge::proj
 	if (std::optional<deluge::instrument::SoundState> reshaped = deluge::bridge::stateWithSetting(sound, path, value)) {
 		return deluge::instrument::with_state(slot.state, *reshaped, {.input_tick_magnitude = slot.tick_magnitude});
 	}
-	if (path.starts_with("lfo") && path.ends_with("/syncLevel")) {
+	if (path.ends_with("/syncLevel")) { // an LFO's, the delay's or the sidechain's
 		const int32_t level = deluge::serialization::int_of(&value).value_or(0);
 		return deluge::bridge::withLeaf(
 		    slot.state, path,

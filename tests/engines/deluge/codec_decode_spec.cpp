@@ -65,6 +65,18 @@ describe codec_decode("the Deluge instrument reads every format a sound was save
 		(void)decode(encode(written, kNewSong), read, kNewSong);
 		expect(deluge::serialization::first_difference(dump_state(read), dump_state(written))).to_equal(std::string{});
 	});
+	it("reads an old compressor tag as the sidechain, and leaves a delay's old feedback to the params", _ {
+		auto doc = deluge::serialization::parseXml(
+		    R"(<sound mode="subtractive"><compressor attack="11" release="22" syncLevel="0"/>)"
+		    R"(<delay pingPong="0" feedback="5"/></sound>)");
+		SoundState state = new_synth_state();
+		(void)decode(*doc->find("sound"), state, kNewSong);
+		expect(state.effects.sidechain.attack).to_equal(11);
+		expect(state.effects.sidechain.release).to_equal(22);
+		expect(state.effects.delay.ping_pong).to_be_false();
+		expect(is_state_key("compressor")).to_be_false();
+		expect(is_state_key("audioCompressor")).to_be_true();
+	});
 	it("refuses two ranges with the same top note", _ {
 		auto doc = deluge::serialization::parseXml(read("duplicate_range.XML"));
 		SoundState state = new_synth_state();

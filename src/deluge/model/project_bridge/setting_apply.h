@@ -37,7 +37,8 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 /// @brief The state @p sound reaches when its setting at @p path becomes @p value, where the setting's menu reshapes
 /// more than the one value: an oscillator's type (its ranges keep only their top notes when they become the other
 /// kind, sample or wavetable, and there is at least one; a DX7 has a patch) and its loop mode (stretching to note
-/// length makes pitch and speed independent, and leaving it gives that up). Nothing for any other setting.
+/// length makes pitch and speed independent, and leaving it gives that up), and the synth mode (into FM the filters go
+/// off; out of it, a filter that is off comes back on). Nothing for any other setting.
 [[nodiscard]] std::optional<deluge::instrument::SoundState>
 stateWithSetting(const ::Sound& sound, std::string_view path, const deluge::serialization::Value& value);
 

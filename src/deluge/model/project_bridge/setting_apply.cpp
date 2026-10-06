@@ -22,6 +22,8 @@
 #include "engines/deluge/dx7_init_voice.h"
 #include "engines/deluge/settings.h"
 #include "engines/deluge/words.h"
+#include "engines/effects/words.h"
+#include "hid/display/display.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -251,6 +253,85 @@ bool applyModulatorSetting(::Sound& sound, int32_t m, std::string_view rest, int
 	return true;
 }
 
+/// Apply an effect's setting as its menu does, through the owner's setter: false when @p path is no effect's. A mod-FX
+/// type the memory cannot be found for is reported, as its menu reports it, and the type stays.
+bool applyEffectSetting(ModControllableAudio& owner, std::string_view path, const std::string& text, int32_t number) {
+	namespace fx = deluge::effects;
+	const bool on = number != 0;
+	if (path == "modFXType") {
+		if (!owner.setModFXType(fx::parse_mod_fx_type(text))) {
+			display->displayError(Error::INSUFFICIENT_RAM);
+		}
+	}
+	else if (path == "lpfMode") {
+		owner.setLpfMode(fx::parse_filter_mode(text));
+	}
+	else if (path == "hpfMode") {
+		owner.setHpfMode(fx::parse_filter_mode(text));
+	}
+	else if (path == "filterRoute") {
+		owner.setFilterRoute(fx::parse_filter_route(text));
+	}
+	else if (path == "clippingAmount") {
+		owner.setClippingAmount(static_cast<uint8_t>(number));
+	}
+	else if (path == "delay/pingPong") {
+		owner.setDelayPingPong(on);
+	}
+	else if (path == "delay/analog") {
+		owner.setDelayAnalog(on);
+	}
+	else if (path == "delay/syncType") {
+		owner.setDelaySyncType(static_cast<SyncType>(number));
+	}
+	else if (path == "delay/syncLevel") {
+		owner.setDelaySyncLevel(deluge::engine::sync_level_from_index(number));
+	}
+	else if (path == "sidechain/attack") {
+		owner.setSidechainAttack(number);
+	}
+	else if (path == "sidechain/release") {
+		owner.setSidechainRelease(number);
+	}
+	else if (path == "sidechain/syncType") {
+		owner.setSidechainSyncType(static_cast<SyncType>(number));
+	}
+	else if (path == "sidechain/syncLevel") {
+		owner.setSidechainSyncLevel(deluge::engine::sync_level_from_index(number));
+	}
+	else if (path == "audioCompressor/attack") {
+		owner.setCompressorAttack(number);
+	}
+	else if (path == "audioCompressor/release") {
+		owner.setCompressorRelease(number);
+	}
+	else if (path == "audioCompressor/thresh") {
+		owner.setCompressorThreshold(number);
+	}
+	else if (path == "audioCompressor/ratio") {
+		owner.setCompressorRatio(number);
+	}
+	else if (path == "audioCompressor/compHPF") {
+		owner.setCompressorSidechainHpf(number);
+	}
+	else if (path == "audioCompressor/compBlend") {
+		owner.setCompressorBlend(number);
+	}
+	else if (path == "stutter/quantized") {
+		owner.setStutterQuantized(on);
+	}
+	else if (path == "stutter/reverse") {
+		owner.setStutterReversed(on);
+	}
+	else if (path == "stutter/pingPong") {
+		owner.setStutterPingPong(on);
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
 } // namespace
 
 Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song) {
@@ -259,6 +340,9 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 	}
 	const std::string& text = *deluge::serialization::text_of(&value);
 	const int32_t number = deluge::serialization::int_of(&value).value_or(0);
+	if (applyEffectSetting(sound, path, text, number)) {
+		return Error::NONE;
+	}
 	std::string_view rest;
 	if (const int32_t s = oscillatorOf(path, rest); s >= 0) {
 		return applyOscillatorSetting(sound, s, rest, text, number, song) ? Error::NONE : Error::UNSPECIFIED;
@@ -315,6 +399,27 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 
 std::optional<deluge::instrument::SoundState> stateWithSetting(const ::Sound& sound, std::string_view path,
                                                                const deluge::serialization::Value& value) {
+	if (path == "mode" && sound.boundState() != nullptr) {
+		// Into FM the filters go off; out of it, a filter that is off comes back on.
+		deluge::instrument::SoundState state = *sound.boundState();
+		const SynthMode was = state.synth_mode;
+		const SynthMode now = deluge::instrument::parse_synth_mode(value.str());
+		deluge::effects::FilterState& filter = state.effects.filter;
+		if (now == SynthMode::FM && was != SynthMode::FM) {
+			filter.lpf_mode = FilterMode::OFF;
+			filter.hpf_mode = FilterMode::OFF;
+		}
+		else if (now != SynthMode::FM && was == SynthMode::FM) {
+			if (filter.lpf_mode == FilterMode::OFF) {
+				filter.lpf_mode = FilterMode::TRANSISTOR_24DB;
+			}
+			if (filter.hpf_mode == FilterMode::OFF) {
+				filter.hpf_mode = FilterMode::HPLADDER;
+			}
+		}
+		state.synth_mode = now;
+		return state;
+	}
 	std::string_view rest;
 	const int32_t s = oscillatorOf(path, rest);
 	if (s < 0 || sound.boundState() == nullptr || (rest != "type" && rest != "loopMode")) {

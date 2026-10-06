@@ -248,10 +248,7 @@ Error commitSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, const de
 	    deluge::instrument::decode_change(element, slot.state, before, {.input_tick_magnitude = slot.tick_magnitude});
 	Error error = decoded ? applyDifference(sound, before, decoded->state, decoded->changed, song) : Error::UNSPECIFIED;
 	if (error == Error::NONE) {
-		// The effects' settings are not the slot's to say, and a gesture may move them (FM turns the filters off).
-		deluge::instrument::SoundState reached = decoded->state;
-		reached.effects = sound.boundState()->effects;
-		if (!(*sound.boundState() == reached)) {
+		if (!(*sound.boundState() == decoded->state)) {
 			error = Error::UNSPECIFIED; // the runtime did not reach what the slot says
 		}
 	}

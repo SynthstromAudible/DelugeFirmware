@@ -157,7 +157,28 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 		expect(static_cast<int32_t>(decoded->lfo_sync_level[0])).to_equal(1);
 	});
 
-	it("keeps the effects, which are not the instrument's", _ {
+	it("reads a changed effect entry and keeps the others", _ {
+		SoundState state = sampled();
+		state.effects.delay.analog = true;
+		SoundState written = state;
+		written.effects.filter.lpf_mode = deluge::effects::FilterMode::SVF_NOTCH;
+		const auto change = decode_change(encode(written, kContext), encode(state, kContext), state, kContext);
+		expect(change->state.effects.filter.lpf_mode).to_equal(deluge::effects::FilterMode::SVF_NOTCH);
+		expect(change->state.effects.delay.analog).to_be_true();
+		expect(change->changed).to_equal(std::vector<std::string_view>{"lpfMode"});
+	});
+
+	it("keeps whether a stutter uses the song's, which no slot holds", _ {
+		SoundState state = sampled();
+		state.effects.stutter.use_song_stutter = false;
+		SoundState written = state;
+		written.effects.stutter.reversed = true;
+		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
+		expect(decoded->effects.stutter.reversed).to_be_true();
+		expect(decoded->effects.stutter.use_song_stutter).to_be_false();
+	});
+
+	it("keeps an unchanged effect entry", _ {
 		SoundState state = sampled();
 		state.effects.filter.lpf_mode = deluge::effects::FilterMode::SVF_NOTCH;
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);

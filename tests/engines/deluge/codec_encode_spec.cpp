@@ -142,15 +142,18 @@ describe codec_encode("the Deluge instrument writes its state", ${
 	it("puts the pieces together in file order, and knows its own keys", _ {
 		SoundState s;
 		Value whole = encode(s, {});
-		expect(keys(whole)).to_equal(std::vector<std::string>{"polyphonic", "voicePriority", "mode", "maxVoices",
-		                                                      "osc1", "osc2", "lfo1", "lfo2", "lfo3", "lfo4",
-		                                                      "unison", "midiOutput"});
+		expect(keys(whole)).to_equal(std::vector<std::string>{
+		    "polyphonic", "voicePriority", "mode",  "modFXType", "lpfMode",    "hpfMode",
+		    "filterRoute", "maxVoices",   "osc1",  "osc2",      "lfo1",       "lfo2",
+		    "lfo3",        "lfo4",        "unison", "midiOutput", "delay",     "sidechain",
+		    "audioCompressor", "stutter"});
 		expect(is_state_key("osc1")).to_be_true();
 		expect(is_state_key("maxVoices")).to_be_true();
 		expect(is_state_key("sideChainSend")).to_be_true();
 		expect(is_state_key("defaultParams")).to_be_false();
 		expect(is_state_key("modKnobs")).to_be_false();
-		expect(is_state_key("lpfMode")).to_be_false();
+		expect(is_state_key("lpfMode")).to_be_true();
+		expect(is_state_key("midiKnobs")).to_be_false();
 	});
 });
 

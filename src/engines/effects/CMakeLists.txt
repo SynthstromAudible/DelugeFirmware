@@ -1,6 +1,6 @@
 # deluge_effects: the effects' words, their settings as plain state, and the codec of an owner element's effect
 # entries. Built on the engine API only; serves the Deluge instrument's per-sound effects and the host chains.
-add_library(deluge_effects STATIC codec.cpp)
+add_library(deluge_effects STATIC codec.cpp settings.cpp)
 target_include_directories(deluge_effects PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../..)
 target_compile_features(deluge_effects PUBLIC cxx_std_23)
 if(DEFINED DELUGE_CXX_STANDARD)

@@ -80,8 +80,7 @@ struct SoundPieces {
 /// @brief The fields of @p from that @p state's encoding does not write, copied into @p state: an FM sound's sources'
 /// types, sample playback, ranges and DX patches; a non-FM sound's modulators; a sample source's own transpose and
 /// cents and its retrigger phase (and for source 2 the oscillator sync); a non-sample source's sample playback, its
-/// ranges unless it is a wavetable, and its DX patch unless it is a DX7; and the effects, which are not the
-/// instrument's.
+/// ranges unless it is a wavetable, and its DX patch unless it is a DX7; and whether its stutter uses the song's.
 void keep_unwritten(SoundState& state, const SoundState& from);
 
 /// @brief What a sound's slot says once it is changed: the state it decodes to, and its instrument entries the change

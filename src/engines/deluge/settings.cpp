@@ -17,9 +17,12 @@
 
 #include "engines/deluge/settings.h"
 
+#include "engine-api/settings.h"
+
 #include "engine-api/types/sync.h"
 #include "engines/deluge/codec.h"
 #include "engines/deluge/words.h"
+#include "engines/effects/settings.h"
 #include "serialization/tree.h"
 
 #include <algorithm>
@@ -128,16 +131,6 @@ constexpr std::array kRows{
 #undef OSC_ROWS
 #undef LFO_ROWS
 #undef MODULATOR_ROWS
-
-/// @p text as a whole decimal integer, or nothing.
-std::optional<int64_t> whole_number(std::string_view text) {
-	int64_t n = 0;
-	const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), n);
-	if (error != std::errc{} || end != text.data() + text.size()) {
-		return std::nullopt;
-	}
-	return n;
-}
 
 using Answer = std::optional<serialization::Value>;
 
@@ -308,9 +301,17 @@ constexpr std::array kFamilies{
     Family{"midiOutput/", midiOutputValue}, Family{"", topLevelValue},
 };
 
+/// The instrument's rows, then its effects'.
+constexpr auto kAllRows = [] {
+	std::array<engine::SettingInfo, kRows.size() + effects::kEffectSettings.size()> all{};
+	std::ranges::copy(kRows, all.begin());
+	std::ranges::copy(effects::kEffectSettings, all.begin() + kRows.size());
+	return all;
+}();
+
 } // namespace
 
-const std::span<const engine::SettingInfo> kSettings{kRows};
+const std::span<const engine::SettingInfo> kSettings{kAllRows};
 
 namespace {
 
@@ -319,6 +320,9 @@ Answer anyValue(const SoundState& state, std::string_view path) {
 	const SettingInfo* row = engine::find_setting(kSettings, path);
 	if (row == nullptr || row->kind == STRUCTURED) {
 		return std::nullopt;
+	}
+	if (engine::find_setting(effects::kEffectSettings, path) != nullptr) {
+		return effects::effect_setting_value(state.effects, path);
 	}
 	for (const Family& family : kFamilies) {
 		if (path.starts_with(family.prefix)) {
@@ -335,7 +339,7 @@ std::optional<serialization::Value> canonical_setting(std::string_view path, con
 		return std::nullopt;
 	}
 	if (engine::find_setting(kSettings, path)->kind == INTEGER) {
-		return serialization::Value::makeNumber(*whole_number(*serialization::text_of(&value)));
+		return serialization::Value::makeNumber(*engine::whole_number(*serialization::text_of(&value)));
 	}
 	return value;
 }
@@ -364,24 +368,7 @@ bool takes_setting(const SoundState& state, std::string_view path) {
 }
 
 bool check_setting(std::string_view path, const serialization::Value& value) {
-	const SettingInfo* row = engine::find_setting(kSettings, path);
-	const std::string* text = serialization::text_of(&value);
-	if (row == nullptr || text == nullptr) {
-		return false;
-	}
-	switch (row->kind) {
-	case CHOICE:
-		return std::ranges::find(row->choices, std::string_view(*text)) != row->choices.end();
-	case INTEGER: {
-		const std::optional<int64_t> n = whole_number(*text);
-		return n && *n >= row->min && *n <= row->max;
-	}
-	case BOOL:
-		return *text == "0" || *text == "1";
-	case STRUCTURED:
-		break;
-	}
-	return false;
+	return engine::check_setting(kSettings, path, value);
 }
 
 } // namespace deluge::instrument

@@ -35,16 +35,20 @@ using serialization::Value;
 
 namespace {
 
-/// The top-level keys encode writes, in file order.
-constexpr std::array<std::string_view, 17> kStateKeys{
-    "polyphonic", "voicePriority", "sideChainSend", "mode",   "transpose", "cents",
-    "maxVoices",  "osc1",          "osc2",          "lfo1",   "lfo2",      "lfo3",
-    "lfo4",       "modulator1",    "modulator2",    "unison", "midiOutput"};
+/// The top-level keys encode writes, in file order: the sound's own, and its effects'.
+constexpr std::array<std::string_view, 26> kStateKeys{
+    "polyphonic",     "voicePriority", "sideChainSend", "mode",       "transpose",
+    "cents",          "modFXType",     "lpfMode",       "hpfMode",    "filterRoute",
+    "clippingAmount", "maxVoices",     "osc1",          "osc2",       "lfo1",
+    "lfo2",           "lfo3",          "lfo4",          "modulator1", "modulator2",
+    "unison",         "midiOutput",    "delay",         "sidechain",  "audioCompressor",
+    "stutter"};
 
 /// The top-level keys of older files decode still reads and encode never writes: the oscillators by their old names,
-/// ring mod as a flag, the retrigger switch, and an early sound's one sample.
-constexpr std::array<std::string_view, 8> kOldStateKeys{"oscillatorA", "oscillatorB", "ringMod",  "oscillatorReset",
-                                                        "fileName",    "continuous",  "reversed", "zone"};
+/// ring mod as a flag, the retrigger switch, an early sound's one sample, and the sidechain by its old name.
+constexpr std::array<std::string_view, 9> kOldStateKeys{"oscillatorA",     "oscillatorB", "ringMod",
+                                                        "oscillatorReset", "fileName",    "continuous",
+                                                        "reversed",        "zone",        "compressor"};
 
 /// A number as a file holds it: a 32-bit signed integer, whatever the field's own type.
 Value number(int64_t value) {
@@ -250,9 +254,12 @@ Value encode(const SoundState& state, const engine::CodecContext& context) {
 	SoundPieces pieces = encode_pieces(state, context);
 	auto map = Value::makeMap();
 	append(map, pieces.head);
+	append(map, pieces.effect_attributes);
 	append(map, pieces.max_voices);
 	append(map, pieces.body);
 	append(map, pieces.midi_output);
+	append(map, pieces.delay);
+	append(map, pieces.effect_tags);
 	return map;
 }
 
@@ -710,6 +717,7 @@ std::expected<void, engine::StateError> decodeImpl(const Value& element, SoundSt
 			}
 		}
 	}
+	deluge::effects::decode(element, state.effects, context);
 	return {};
 }
 
@@ -784,6 +792,9 @@ void keepEntry(std::string_view key, SoundState& state, const SoundState& from) 
 		state.output_midi_channel = from.output_midi_channel;
 		state.output_midi_note_for_drum = from.output_midi_note_for_drum;
 	}
+	else if (deluge::effects::is_effect_key(key)) {
+		deluge::effects::keep_effect_entry(key, state.effects, from.effects);
+	}
 }
 
 } // namespace
@@ -794,7 +805,8 @@ std::expected<void, engine::StateError> decode(const Value& element, SoundState&
 }
 
 void keep_unwritten(SoundState& state, const SoundState& from) {
-	state.effects = from.effects; // the effects', not the instrument's
+	// Whether a stutter uses the song's is in no entry.
+	state.effects.stutter.use_song_stutter = from.effects.stutter.use_song_stutter;
 	const bool fm = state.synth_mode == SynthMode::FM;
 	if (!fm) {
 		state.modulator_transpose = from.modulator_transpose;
@@ -935,7 +947,13 @@ SoundState new_synth_state() {
 }
 
 Value dump_state(const SoundState& state) {
-	Value map = encode(state, {.input_tick_magnitude = 1});
+	// The effects are compared on their own (their defaults are the song's, not the instrument's).
+	Value map = Value::makeMap();
+	for (const auto& [key, value] : encode(state, {.input_tick_magnitude = 1}).entries()) {
+		if (!deluge::effects::is_effect_key(key)) {
+			map.set(key, value);
+		}
+	}
 	map.set("voicePriorityIndex", number(std::to_underlying(state.voice_priority)));
 	map.set("oscillatorSync", number(state.oscillator_sync ? 1 : 0));
 	map.set("syncTypes", text(std::to_string(std::to_underlying(state.lfo_sync_type[0])) + ","
