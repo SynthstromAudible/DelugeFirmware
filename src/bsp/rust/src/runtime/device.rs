@@ -250,8 +250,11 @@ async fn app_task() {
     // Give `FS_ALLOCATOR` its arena and mount the filesystem before `deluge_app_init`, for the
     // first sample load. A failed mount does not stop boot, but streamed samples then won't load.
     {
-        // For LFN scan scratch and handle-table strings. Plain `.bss`, in on-chip SRAM.
+        // For LFN scan scratch and handle-table strings. In SDRAM (`.sdram_bss`, zeroed at boot before
+        // any task runs): the file system's metadata work runs on the loader tier, never in a render, and
+        // never as a DMA target, so it does not need on-chip SRAM, which the image fills.
         const EFATFS_ARENA_SIZE: usize = 96 * 1024;
+        #[unsafe(link_section = ".sdram_bss")]
         static mut EFATFS_ARENA: [u8; EFATFS_ARENA_SIZE] = [0; EFATFS_ARENA_SIZE];
 
         // SAFETY: only this block touches the function-local `EFATFS_ARENA`, and `app_task` runs
