@@ -696,6 +696,11 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 				next.stutter.ping_pong = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
 				reader.exitTag("pingPong");
 			}
+			else if (!strcmp(tagName, "useSongStutter")) {
+				int32_t contents = reader.readTagOrAttributeValueInt();
+				next.stutter.use_song_stutter = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
+				reader.exitTag("useSongStutter");
+			}
 		}
 		setEffects(next);
 		reader.exitTag("stutter", true);

@@ -106,9 +106,10 @@ std::optional<serialization::Value> effect_setting_value(const EffectStates& sta
 		                           : number(c.blend);
 	}
 	// stutter
-	return rest == "quantized" ? flag(states.stutter.quantized)
-	       : rest == "reverse" ? flag(states.stutter.reversed)
-	                           : flag(states.stutter.ping_pong);
+	return rest == "quantized"        ? flag(states.stutter.quantized)
+	       : rest == "reverse"        ? flag(states.stutter.reversed)
+	       : rest == "useSongStutter" ? flag(states.stutter.use_song_stutter)
+	                                  : flag(states.stutter.ping_pong);
 }
 
 } // namespace deluge::effects

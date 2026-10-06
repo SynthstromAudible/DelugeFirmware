@@ -137,8 +137,11 @@ describe settings("the Deluge instrument's settings schema", ${
 				expect(decode(withLeaf(encode(base, kContext), row.path, value), read, kContext)).to_have_value();
 				const Value reencoded = encode(read, kContext);
 				const Value* again = leafAt(reencoded, row.path);
-				// a value the encoding leaves out when it is the default reads back absent
-				const std::string got = again != nullptr ? *deluge::serialization::text_of(again) : std::string("0");
+				// a value the encoding leaves out when it is the default is read from the state it decoded to
+				const auto held = setting_value(read, row.path);
+				const std::string got = again != nullptr ? *deluge::serialization::text_of(again)
+				                        : held           ? *deluge::serialization::text_of(&*held)
+				                                         : std::string("0");
 				expect(std::string(row.path) + "=" + got).to_equal(std::string(row.path) + "=" + value);
 			}
 		}

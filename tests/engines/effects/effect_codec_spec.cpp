@@ -84,12 +84,20 @@ describe effect_codec("an owner element's effect entries", ${
 		expect(encode(busy(), kAtThree).find("delay")->find("syncLevel")->str())
 		    .not_().to_equal(encode(busy(), kAtOne).find("delay")->find("syncLevel")->str());
 	});
-	it("never writes whether a stutter uses the song's, and reads every stutter tag as using it", _ {
+	it("writes that a stutter keeps its own settings, and nothing when it uses the song's", _ {
 		EffectStates own = busy();
 		own.stutter.use_song_stutter = false;
-		expect(encode(own, kAtOne).find("stutter")->find("useSongStutter")).to_be_null();
-		EffectStates read = own;
+		expect(encode(own, kAtOne).find("stutter")->find("useSongStutter")->str()).to_equal(std::string("0"));
+		expect(encode(busy(), kAtOne).find("stutter")->find("useSongStutter")).to_be_null();
+		EffectStates read;
 		decode(encode(own, kAtOne), read, kAtOne);
+		expect(read.stutter.use_song_stutter).to_be_false();
+	});
+	it("reads an older stutter tag as using the song's", _ {
+		auto doc = deluge::serialization::parseXml(R"(<sound><stutter quantized="1" reverse="0" pingPong="0"/></sound>)");
+		EffectStates read = busy();
+		read.stutter.use_song_stutter = false;
+		decode(*doc->find("sound"), read, kAtOne);
 		expect(read.stutter.use_song_stutter).to_be_true();
 	});
 	it("reads an old compressor tag as the sidechain", _ {

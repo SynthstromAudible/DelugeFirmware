@@ -168,14 +168,16 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 		expect(change->changed).to_equal(std::vector<std::string_view>{"lpfMode"});
 	});
 
-	it("keeps whether a stutter uses the song's, which no slot holds", _ {
+	it("reads whether a stutter uses the song's from the slot", _ {
 		SoundState state = sampled();
 		state.effects.stutter.use_song_stutter = false;
 		SoundState written = state;
+		written.effects.stutter.use_song_stutter = true;
 		written.effects.stutter.reversed = true;
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
 		expect(decoded->effects.stutter.reversed).to_be_true();
-		expect(decoded->effects.stutter.use_song_stutter).to_be_false();
+		expect(decoded->effects.stutter.use_song_stutter).to_be_true();
+		expect(decode_onto(encode(state, kContext), state, kContext)->effects.stutter.use_song_stutter).to_be_false();
 	});
 
 	it("keeps an unchanged effect entry", _ {

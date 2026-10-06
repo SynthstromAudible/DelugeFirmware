@@ -81,6 +81,7 @@ SETTERS = (
     "setStutterQuantized",
     "setStutterReversed",
     "setStutterPingPong",
+    "setUseSongStutter",
     # The record's reseeds: a gesture records what it changed through the Edits, which reseed and refresh the slot.
     "seedDocRanges",
     "seedDocSourceScalars",

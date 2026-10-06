@@ -805,8 +805,6 @@ std::expected<void, engine::StateError> decode(const Value& element, SoundState&
 }
 
 void keep_unwritten(SoundState& state, const SoundState& from) {
-	// Whether a stutter uses the song's is in no entry.
-	state.effects.stutter.use_song_stutter = from.effects.stutter.use_song_stutter;
 	const bool fm = state.synth_mode == SynthMode::FM;
 	if (!fm) {
 		state.modulator_transpose = from.modulator_transpose;

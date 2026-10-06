@@ -50,7 +50,7 @@ inline constexpr int32_t kQ31Max = std::numeric_limits<int32_t>::max();
 
 /// @brief The effects' non-param settings, by their path in an owner's element. A sync level is the level itself
 /// (0–9, 0 = off); a file writes it relative to the song's tick magnitude.
-inline constexpr std::array<engine::SettingInfo, 22> kEffectSettings{{
+inline constexpr std::array<engine::SettingInfo, 23> kEffectSettings{{
     {.path = "modFXType", .kind = detail::CHOICE, .choices = detail::kModFxTypeNames},
     {.path = "lpfMode", .kind = detail::CHOICE, .choices = detail::kLpfModeNames},
     {.path = "hpfMode", .kind = detail::CHOICE, .choices = detail::kHpfModeNames},
@@ -73,6 +73,7 @@ inline constexpr std::array<engine::SettingInfo, 22> kEffectSettings{{
     {.path = "stutter/quantized", .kind = detail::BOOL},
     {.path = "stutter/reverse", .kind = detail::BOOL},
     {.path = "stutter/pingPong", .kind = detail::BOOL},
+    {.path = "stutter/useSongStutter", .kind = detail::BOOL},
 }};
 
 /// @brief Whether @p value is one kEffectSettings allows at @p path.

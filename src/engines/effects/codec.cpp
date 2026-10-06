@@ -150,6 +150,9 @@ void read_stutter(const Value& stutter, StutterState& state) {
 		else if (key == "pingPong") {
 			state.ping_pong = flag_of(value);
 		}
+		else if (key == "useSongStutter") {
+			state.use_song_stutter = flag_of(value);
+		}
 	}
 }
 
@@ -193,6 +196,9 @@ EffectPieces encode_pieces(const EffectStates& states, const engine::CodecContex
 	stutter.set("quantized", flag(states.stutter.quantized));
 	stutter.set("reverse", flag(states.stutter.reversed));
 	stutter.set("pingPong", flag(states.stutter.ping_pong));
+	if (!states.stutter.use_song_stutter) {
+		stutter.set("useSongStutter", flag(false)); // absent, as in older files, it is true
+	}
 	pieces.tags.set("stutter", std::move(stutter));
 	return pieces;
 }
@@ -273,10 +279,7 @@ void keep_effect_entry(std::string_view key, EffectStates& states, const EffectS
 		states.compressor = from.compressor;
 	}
 	else if (key == "stutter") {
-		// Whether it uses the song's is no entry's: it stays as it is.
-		const bool use_song_stutter = states.stutter.use_song_stutter;
 		states.stutter = from.stutter;
-		states.stutter.use_song_stutter = use_song_stutter;
 	}
 }
 

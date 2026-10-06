@@ -106,7 +106,8 @@ private:
 	static bool showUseSongOption() { return !soundEditor.currentModControllable->isSong(); }
 
 	static void applyOptionToStutter(const Direction value, ModControllableAudio* mc) {
-		mc->setUseSongStutter(value == USE_SONG_STUTTER);
+		effectSettingFor(*mc, "stutter/useSongStutter",
+		                 deluge::serialization::Value::makeNumber(value == USE_SONG_STUTTER ? 1 : 0));
 		effectSettingFor(
 		    *mc, "stutter/reverse",
 		    deluge::serialization::Value::makeNumber(value == REVERSED || value == REVERSED_PING_PONG ? 1 : 0));

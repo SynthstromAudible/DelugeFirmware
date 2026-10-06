@@ -327,6 +327,9 @@ bool applyEffectValue(ModControllableAudio& owner, std::string_view path, const 
 	else if (path == "stutter/pingPong") {
 		owner.setStutterPingPong(on);
 	}
+	else if (path == "stutter/useSongStutter") {
+		owner.setUseSongStutter(on);
+	}
 	else {
 		return false;
 	}

@@ -57,7 +57,7 @@ struct DelayState {
 
 /// @brief How a stutter repeats, and whether it takes the song's settings instead of these.
 struct StutterState {
-	/// Not saved: every stutter tag reads as true.
+	/// Saved only when false; a stutter tag without it (every older file's) reads as true.
 	bool use_song_stutter{true};
 	bool quantized{true};
 	bool reversed{false};

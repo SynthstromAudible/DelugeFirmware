@@ -161,7 +161,7 @@ int expectBound(Output& output, const char* how) {
 }
 
 /// The setting paths an Edit maps so far.
-constexpr std::array<std::string_view, 72> kEditedPaths{
+constexpr std::array<std::string_view, 73> kEditedPaths{
     "polyphonic",
     "voicePriority",
     "maxVoices",
@@ -234,6 +234,7 @@ constexpr std::array<std::string_view, 72> kEditedPaths{
     "stutter/quantized",
     "stutter/reverse",
     "stutter/pingPong",
+    "stutter/useSongStutter",
 };
 
 /// Whether @p path is a sample-playback setting, which only a sample source of a non-FM sound takes.
