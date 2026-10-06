@@ -100,7 +100,7 @@ describe effect_codec("an owner element's effect entries", ${
 		decode(*doc->find("sound"), read, kAtOne);
 		expect(read.stutter.use_song_stutter).to_be_true();
 	});
-	it("reads an old compressor tag as the sidechain", _ {
+	it("reads a factory preset's compressor tag as the sidechain", _ {
 		auto doc = deluge::serialization::parseXml(R"(<sound><compressor attack="11" release="22" syncLevel="0"/></sound>)");
 		EffectStates read;
 		decode(*doc->find("sound"), read, kAtOne);

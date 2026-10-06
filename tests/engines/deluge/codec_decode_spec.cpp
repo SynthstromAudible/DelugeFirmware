@@ -65,33 +65,22 @@ describe codec_decode("the Deluge instrument reads every format a sound was save
 		(void)decode(encode(written, kNewSong), read, kNewSong);
 		expect(deluge::serialization::first_difference(dump_state(read), dump_state(written))).to_equal(std::string{});
 	});
-	it("reads an old compressor tag as the sidechain, and leaves a delay's old feedback to the params", _ {
+	it("reads a factory preset's compressor tag as the sidechain", _ {
 		auto doc = deluge::serialization::parseXml(
-		    R"(<sound mode="subtractive"><compressor attack="11" release="22" syncLevel="0"/>)"
-		    R"(<delay pingPong="0" feedback="5"/></sound>)");
+		    R"(<sound mode="subtractive"><compressor attack="11" release="22" syncLevel="0"/></sound>)");
 		SoundState state = new_synth_state();
 		(void)decode(*doc->find("sound"), state, kNewSong);
 		expect(state.effects.sidechain.attack).to_equal(11);
 		expect(state.effects.sidechain.release).to_equal(22);
-		expect(state.effects.delay.ping_pong).to_be_false();
 		expect(is_state_key("compressor")).to_be_false();
-		expect(is_state_key("audioCompressor")).to_be_true();
 	});
-	it("reads a pre-October-2016 sound's filter mode and mod-FX type from their own tags", _ {
-		auto doc = deluge::serialization::parseXml(
-		    R"(<sound mode="subtractive"><lpf mode="12dB" resonance="0"/><fx type="flanger" rate="0"/></sound>)");
+	it("reads a filter mode and mod-FX type only where the latest release writes them", _ {
+		auto doc = deluge::serialization::parseXml(R"(<sound mode="subtractive"><lpf mode="12dB"/><fx type="flanger"/></sound>)");
 		SoundState state = new_synth_state();
+		const SoundState fresh = state;
 		(void)decode(*doc->find("sound"), state, kNewSong);
-		expect(state.effects.filter.lpf_mode).to_equal(deluge::effects::FilterMode::TRANSISTOR_12DB);
-		expect(state.effects.mod_fx.type).to_equal(deluge::effects::ModFXType::FLANGER);
-	});
-	it("takes a sound's own filter mode and mod-FX type over their old tags", _ {
-		auto doc = deluge::serialization::parseXml(R"(<sound mode="subtractive" lpfMode="SVF_Notch" modFXType="chorus">)"
-		                                           R"(<lpf mode="12dB"/><fx type="flanger"/></sound>)");
-		SoundState state = new_synth_state();
-		(void)decode(*doc->find("sound"), state, kNewSong);
-		expect(state.effects.filter.lpf_mode).to_equal(deluge::effects::FilterMode::SVF_NOTCH);
-		expect(state.effects.mod_fx.type).to_equal(deluge::effects::ModFXType::CHORUS);
+		expect(state.effects.filter.lpf_mode).to_equal(fresh.effects.filter.lpf_mode);
+		expect(state.effects.mod_fx.type).to_equal(fresh.effects.mod_fx.type);
 	});
 	it("refuses two ranges with the same top note", _ {
 		auto doc = deluge::serialization::parseXml(read("duplicate_range.XML"));

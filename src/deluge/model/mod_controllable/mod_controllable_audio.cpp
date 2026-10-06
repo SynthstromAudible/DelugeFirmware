@@ -636,8 +636,6 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
                                             ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
                                             ArpeggiatorSettings* arpSettings, Song* song) {
 
-	int32_t p;
-
 	if (!strcmp(tagName, "lpfMode")) {
 		setLpfMode(stringToLPFType(reader.readTagOrAttributeValue()));
 		reader.exitTag("lpfMode");
@@ -714,30 +712,7 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 
-			// These first two ensure compatibility with old files (pre late 2016 I think?)
-			if (!strcmp(tagName, "feedback")) {
-				p = params::GLOBAL_DELAY_FEEDBACK;
-doReadPatchedParam:
-				if (paramManager) {
-					if (!paramManager->containsAnyMainParamCollections()) {
-						Error error = Sound::createParamManagerForLoading(paramManager);
-						if (error != Error::NONE) {
-							return error;
-						}
-					}
-					ParamCollectionSummary* patchedParamsSummary = paramManager->getPatchedParamSetSummary();
-					PatchedParamSet* patchedParams = (PatchedParamSet*)patchedParamsSummary->paramCollection;
-					patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_DELAY_FEEDBACK,
-					                         readAutomationUpToPos);
-				}
-				reader.exitTag();
-			}
-			else if (!strcmp(tagName, "rate")) {
-				p = params::GLOBAL_DELAY_RATE;
-				goto doReadPatchedParam;
-			}
-
-			else if (!strcmp(tagName, "pingPong")) {
+			if (!strcmp(tagName, "pingPong")) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
 				next.delay.ping_pong = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
 				reader.exitTag("pingPong");
@@ -806,7 +781,7 @@ doReadPatchedParam:
 		setEffects(next);
 		reader.exitTag("audioCompressor", true);
 	}
-	// this is actually the sidechain but pre c1.1 songs save it as compressor
+	// The factory presets on every card name the sidechain "compressor".
 	else if (!strcmp(tagName, "compressor") || !strcmp(tagName, "sidechain")) { // Remember, Song doesn't use this
 		// Set default values in case they are not configured
 		const char* name = tagName;

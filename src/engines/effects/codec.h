@@ -55,8 +55,8 @@ inline constexpr std::array<std::string_view, 9> kEffectKeys{"modFXType",   "lpf
                                                              "filterRoute", "clippingAmount",  "delay",
                                                              "sidechain",   "audioCompressor", "stutter"};
 
-/// @brief Whether @p key, at the top of an owner element, is an effect entry: one encode writes, or an old file's
-/// sidechain ("compressor").
+/// @brief Whether @p key, at the top of an owner element, is an effect entry: one encode writes, or the sidechain as
+/// the factory presets on every card name it ("compressor").
 [[nodiscard]] bool is_effect_key(std::string_view key);
 
 /// @brief The part of @p states the effect entry @p key holds, copied from @p from.
