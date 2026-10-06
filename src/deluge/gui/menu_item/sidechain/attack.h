@@ -31,9 +31,9 @@ public:
 	    : Integer(newName, newTitle), is_reverb_sidechain_{isReverbSidechain} {}
 
 	void readCurrentValue() override {
-		const auto sidechain = getSidechain(is_reverb_sidechain_);
 		// For the reverb sidechain, project.reverb is the document of record (the engine is its cache).
-		int32_t attack = is_reverb_sidechain_ ? currentSong->project.reverb.sidechain_attack : sidechain->attack;
+		int32_t attack =
+		    is_reverb_sidechain_ ? currentSong->project.reverb.sidechain_attack : sidechainSettings(false).attack;
 		this->setValue(getLookupIndexFromValue(attack >> 2, attackRateTable, 50));
 	}
 	bool usesAffectEntire() override { return true; }
@@ -56,10 +56,9 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			// M3 owner-5: the reverb sidechain is a separate global (saved via project.reverb); only the owner's own
-			// sidechain funnels through the DOM-owning setter.
+			// The reverb's sidechain is the engine's own, saved in project.reverb.
 			if (is_reverb_sidechain_) {
-				getSidechain(true)->attack = current_value;
+				AudioEngine::reverbSidechainSettings.attack = current_value;
 				currentSong->project.reverb.sidechain_attack = current_value;
 			}
 			else {

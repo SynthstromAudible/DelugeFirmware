@@ -29,8 +29,8 @@ public:
 	using SyncLevel::SyncLevel;
 
 	void readCurrentValue() override {
-		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentModControllable->delay.syncType,
-		                                            soundEditor.currentModControllable->delay.syncLevel));
+		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentModControllable->effects().delay.sync_type,
+		                                            soundEditor.currentModControllable->effects().delay.sync_level));
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {

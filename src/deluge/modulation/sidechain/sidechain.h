@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "engines/effects/state.h"
 #include "modulation/sync.h"
 #include "synth/envelope.h" // Envelope::Stage
 
@@ -28,7 +29,6 @@ class Song;
 class SideChain {
 public:
 	SideChain();
-	void cloneFrom(SideChain* other);
 
 	Envelope::Stage status;
 	uint32_t pos;
@@ -38,17 +38,17 @@ public:
 	int32_t envelopeOffset{};
 	int32_t envelopeHeight{};
 
-	int32_t attack;
-	int32_t release;
-
-	SyncType syncType;
-	SyncLevel syncLevel; // Basically, 0 is off, max value is 9. Higher numbers are shorter intervals (higher speed).
-
-	int32_t render(uint16_t numSamples, int32_t shapeValue);
+	/// The envelope's next @p numSamples, shaped by @p shapeValue, at @p settings' attack, release and sync.
+	int32_t render(uint16_t numSamples, int32_t shapeValue, const deluge::effects::SidechainState& settings);
 	void registerHit(int32_t strength);
-	void registerHitRetrospectively(int32_t strength, uint32_t numSamplesAgo);
+	void registerHitRetrospectively(int32_t strength, uint32_t numSamplesAgo,
+	                                const deluge::effects::SidechainState& settings);
+
+	/// The settings an owner's sidechain starts with: the menus' default attack and release, and a sync level of an
+	/// eighth of the song being loaded (or the current one) at its tick magnitude.
+	[[nodiscard]] static deluge::effects::SidechainState defaultSettings();
 
 private:
-	int32_t getActualAttackRate();
-	int32_t getActualReleaseRate();
+	static int32_t getActualAttackRate(const deluge::effects::SidechainState& settings);
+	static int32_t getActualReleaseRate(const deluge::effects::SidechainState& settings);
 };

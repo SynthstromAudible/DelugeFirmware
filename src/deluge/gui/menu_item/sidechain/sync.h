@@ -32,12 +32,12 @@ public:
 
 	size_t size() override { return 10; };
 	void readCurrentValue() override {
-		const auto sidechain = getSidechain(is_reverb_sidechain_);
+		const deluge::effects::SidechainState& sidechain = sidechainSettings(is_reverb_sidechain_);
 		// For the reverb sidechain, project.reverb holds the persisted sync level (the engine is its
 		// cache); the sync type is runtime-only for the reverb instance and not part of the document.
 		// ::SyncLevel (the enum) — qualified to avoid the menu_item::SyncLevel base class of this name.
-		::SyncLevel level = is_reverb_sidechain_ ? currentSong->project.reverb.sidechain_sync : sidechain->syncLevel;
-		this->setValue(syncTypeAndLevelToMenuOption(sidechain->syncType, level));
+		::SyncLevel level = is_reverb_sidechain_ ? currentSong->project.reverb.sidechain_sync : sidechain.sync_level;
+		this->setValue(syncTypeAndLevelToMenuOption(sidechain.sync_type, level));
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
@@ -60,12 +60,10 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			// M3 owner-5: reverb sidechain is a separate global; only the owner's own sidechain funnels through the
-			// setter.
+			// The reverb's sidechain is the engine's own, its sync level saved in project.reverb.
 			if (is_reverb_sidechain_) {
-				SideChain* sidechain = getSidechain(true);
-				sidechain->syncType = syncValueToSyncType(current_value);
-				sidechain->syncLevel = syncValueToSyncLevel(current_value);
+				AudioEngine::reverbSidechainSettings.sync_type = syncValueToSyncType(current_value);
+				AudioEngine::reverbSidechainSettings.sync_level = syncValueToSyncLevel(current_value);
 				currentSong->project.reverb.sidechain_sync = syncValueToSyncLevel(current_value);
 			}
 			else {

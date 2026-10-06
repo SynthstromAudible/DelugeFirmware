@@ -784,7 +784,7 @@ std::expected<void, engine::StateError> decode(const Value& element, SoundState&
 }
 
 void keep_unwritten(SoundState& state, const SoundState& from) {
-	state.mod_controllable = from.mod_controllable; // the effects', not the instrument's
+	state.effects = from.effects; // the effects', not the instrument's
 	const bool fm = state.synth_mode == SynthMode::FM;
 	if (!fm) {
 		state.modulator_transpose = from.modulator_transpose;

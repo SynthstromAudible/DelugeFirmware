@@ -50,18 +50,18 @@ public:
 	}
 
 	void readCurrentValue() override {
-		const auto* stutter = &soundEditor.currentModControllable->stutterConfig;
+		const auto* stutter = &soundEditor.currentModControllable->effects().stutter;
 
-		if (showUseSongOption() && stutter->useSongStutter) {
+		if (showUseSongOption() && stutter->use_song_stutter) {
 			setValue(USE_SONG_STUTTER);
 		}
-		else if (stutter->reversed && stutter->pingPong) {
+		else if (stutter->reversed && stutter->ping_pong) {
 			setValue(REVERSED_PING_PONG);
 		}
 		else if (stutter->reversed) {
 			setValue(REVERSED);
 		}
-		else if (stutter->pingPong) {
+		else if (stutter->ping_pong) {
 			setValue(FORWARD_PING_PONG);
 		}
 		else {
@@ -80,13 +80,13 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					applyOptionToStutterConfig(value, soundDrum);
+					applyOptionToStutter(value, soundDrum);
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			applyOptionToStutterConfig(value, soundEditor.currentModControllable);
+			applyOptionToStutter(value, soundEditor.currentModControllable);
 		}
 	}
 
@@ -104,18 +104,16 @@ private:
 
 	static bool showUseSongOption() { return !soundEditor.currentModControllable->isSong(); }
 
-	// M3 owner-5 slice F: route through the ModControllableAudio setters so the DocModControllable record stays in
-	// sync. useSongStutter is NOT persisted (not in the record), so it stays a direct field write.
-	static void applyOptionToStutterConfig(const Direction value, ModControllableAudio* mc) {
-		mc->stutterConfig.useSongStutter = value == USE_SONG_STUTTER;
+	static void applyOptionToStutter(const Direction value, ModControllableAudio* mc) {
+		mc->setUseSongStutter(value == USE_SONG_STUTTER);
 		mc->setStutterReversed(value == REVERSED || value == REVERSED_PING_PONG);
 		mc->setStutterPingPong(value == FORWARD_PING_PONG || value == REVERSED_PING_PONG);
 
-		if (mc->stutterConfig.useSongStutter) {
-			const auto& songStutter = currentSong->live.global_effectable.stutterConfig;
+		if (mc->effects().stutter.use_song_stutter) {
+			const auto& songStutter = currentSong->live.global_effectable.effects().stutter;
 			mc->setStutterQuantized(songStutter.quantized);
 			mc->setStutterReversed(songStutter.reversed);
-			mc->setStutterPingPong(songStutter.pingPong);
+			mc->setStutterPingPong(songStutter.ping_pong);
 		}
 	}
 

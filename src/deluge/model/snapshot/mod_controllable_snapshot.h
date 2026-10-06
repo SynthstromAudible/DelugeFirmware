@@ -17,24 +17,14 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"                            // ModFXType
-#include "model/mod_controllable/filters/filter_config.h" // FilterMode, FilterRoute
-
-#include <cstdint>
+#include "engines/effects/state.h"
 
 namespace deluge::snapshot {
 
-/// The engine's derived read-view of a ModControllableAudio's effect configuration, the counterpart of
-/// SoundSnapshot for the effects base shared by Sound and GlobalEffectable. Projected from the bound
-/// `DocModControllable` (ModControllableAudio::projectModControllableSnapshot()); an unbound owner writes it directly.
-/// The delay, sidechain, compressor and stutter settings live in their DSP objects, which the projection writes in
-/// place.
+/// The render's copy of a ModControllableAudio's effect settings: the render reads nothing else of them. Replaced
+/// whole, with the render excluded, whenever the owner's settings change (ModControllableAudio::setEffects).
 struct ModControllableSnapshot {
-	uint8_t clippingAmount{0};                         ///< DocModControllable::clipping_amount
-	FilterMode lpfMode{FilterMode::TRANSISTOR_24DB};   ///< DocModControllable::lpf_mode
-	FilterMode hpfMode{FilterMode::HPLADDER};          ///< DocModControllable::hpf_mode
-	FilterRoute filterRoute{FilterRoute::HIGH_TO_LOW}; ///< DocModControllable::filter_route
-	ModFXType modFXType{ModFXType::NONE};              ///< DocModControllable::mod_fx_type
+	deluge::effects::EffectStates effects;
 };
 
 } // namespace deluge::snapshot

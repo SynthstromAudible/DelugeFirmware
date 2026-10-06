@@ -28,7 +28,7 @@ class PingPong final : public Selection {
 public:
 	using Selection::Selection;
 	bool isToggle() override { return true; }
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.pingPong); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->effects().delay.ping_pong); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();

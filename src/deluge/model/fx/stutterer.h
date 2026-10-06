@@ -18,6 +18,7 @@
 #pragma once
 
 #include "dsp/delay/delay_buffer.h"
+#include "engines/effects/state.h"
 #include <cstdint>
 #include <span>
 
@@ -28,13 +29,6 @@ struct StereoSample;
 } // namespace deluge::dsp
 using StereoSample = deluge::dsp::StereoSample;
 
-struct StutterConfig {
-	bool useSongStutter = true;
-	bool quantized = true;
-	bool reversed = false;
-	bool pingPong = false;
-};
-
 class Stutterer {
 public:
 	Stutterer() = default;
@@ -42,8 +36,9 @@ public:
 	inline bool isStuttering(void* source) { return stutterSource == source; }
 	// These calls are slightly awkward with the magniture & timePerTickInverse, but that's the price for not depending
 	// on currentSong and playbackhandler...
-	[[nodiscard]] Error beginStutter(void* source, ParamManagerForTimeline* paramManager, StutterConfig stutterConfig,
-	                                 int32_t magnitude, uint32_t timePerTickInverse);
+	[[nodiscard]] Error beginStutter(void* source, ParamManagerForTimeline* paramManager,
+	                                 const deluge::effects::StutterState& settings, int32_t magnitude,
+	                                 uint32_t timePerTickInverse);
 	void processStutter(std::span<StereoSample> audio, ParamManager* paramManager, int32_t magnitude,
 	                    uint32_t timePerTickInverse);
 	void endStutter(ParamManagerForTimeline* paramManager = nullptr);
@@ -61,7 +56,8 @@ private:
 	// TODO: This is currently unused! It's set to 7 initially, and never modified. Either we should set it depending
 	// on sync, or get rid of it entirely.
 	uint8_t sync = 7;
-	StutterConfig stutterConfig;
+	/// The settings of the stutter being played, taken when it began.
+	deluge::effects::StutterState playing_{};
 	int32_t sizeLeftUntilRecordFinished = 0;
 	int32_t valueBeforeStuttering = 0;
 	int32_t lastQuantizedKnobDiff = 0;

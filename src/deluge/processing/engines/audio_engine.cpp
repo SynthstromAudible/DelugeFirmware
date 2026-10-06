@@ -386,6 +386,7 @@ constexpr int MIN_VOICES = 7;
 
 dsp::Reverb reverb{};
 PLACE_INTERNAL_FRUNK SideChain reverbSidechain{};
+deluge::effects::SidechainState reverbSidechainSettings = SideChain::defaultSettings();
 int32_t reverbSidechainVolume;
 int32_t reverbSidechainShape;
 int32_t reverbPan = 0;
@@ -1278,7 +1279,7 @@ void renderReverb(size_t numSamples) {
 			reverbSidechain.registerHit(sideChainHitPending);
 		}
 
-		sidechainOutput = reverbSidechain.render(numSamples, reverbSidechainShapeInEffect);
+		sidechainOutput = reverbSidechain.render(numSamples, reverbSidechainShapeInEffect, reverbSidechainSettings);
 	}
 
 	int32_t reverbAmplitudeL;
@@ -1369,8 +1370,10 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 		    >> 1;
 		// there used to be a static subtraction of 2 nepers (natural log based dB), this is the multiplicative
 		// equivalent
-		currentSong->live.global_effectable.compressor.render(renderingBuffer, masterVolumeAdjustmentL >> 1,
-		                                                      masterVolumeAdjustmentR >> 1, songVolume >> 3);
+		GlobalEffectableForSong& master = currentSong->live.global_effectable;
+		master.compressor.configure(master.modControllableSnapshot().effects.compressor); // its threshold is its knob
+		master.compressor.render(renderingBuffer, masterVolumeAdjustmentL >> 1, masterVolumeAdjustmentR >> 1,
+		                         songVolume >> 3);
 		masterVolumeAdjustmentL = ONE_Q31;
 		masterVolumeAdjustmentR = ONE_Q31;
 		logAction("mastercomp end");
@@ -1804,9 +1807,11 @@ void updateReverbParams() {
 sidechainFound:
 			reverbSidechainShapeInEffect =
 			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE);
-			reverbSidechain.attack = modControllable->sidechain.attack;
-			reverbSidechain.release = modControllable->sidechain.release;
-			reverbSidechain.syncLevel = modControllable->sidechain.syncLevel;
+			const deluge::effects::SidechainState& from =
+			    modControllable->modControllableSnapshot().effects.sidechain; // the render's copy
+			reverbSidechainSettings.attack = from.attack;
+			reverbSidechainSettings.release = from.release;
+			reverbSidechainSettings.sync_level = from.sync_level;
 			return;
 		}
 
@@ -1865,9 +1870,9 @@ void getReverbParamsFromSong(Song* song) {
 	reverbPan = song->project.reverb.pan;
 	reverbSidechainVolume = song->project.reverb.sidechain_volume;
 	reverbSidechainShape = song->project.reverb.sidechain_shape;
-	reverbSidechain.attack = song->project.reverb.sidechain_attack;
-	reverbSidechain.release = song->project.reverb.sidechain_release;
-	reverbSidechain.syncLevel = song->project.reverb.sidechain_sync;
+	reverbSidechainSettings.attack = song->project.reverb.sidechain_attack;
+	reverbSidechainSettings.release = song->project.reverb.sidechain_release;
+	reverbSidechainSettings.sync_level = song->project.reverb.sidechain_sync;
 }
 
 bool allowedToStartVoice() {

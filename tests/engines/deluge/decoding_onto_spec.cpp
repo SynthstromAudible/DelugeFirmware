@@ -159,9 +159,9 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 
 	it("keeps the effects, which are not the instrument's", _ {
 		SoundState state = sampled();
-		state.mod_controllable.lpf_mode = 3;
+		state.effects.filter.lpf_mode = deluge::effects::FilterMode::SVF_NOTCH;
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
-		expect(decoded->mod_controllable.lpf_mode).to_equal(uint8_t{3});
+		expect(decoded->effects.filter.lpf_mode).to_equal(deluge::effects::FilterMode::SVF_NOTCH);
 	});
 
 	it("tells which entries a change to the slot touches, and reads them as decoding onto the state does", _ {

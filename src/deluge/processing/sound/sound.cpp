@@ -432,7 +432,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 }
 
 ModFXType Sound::getModFXType() {
-	return modControllableSnapshot_.modFXType;
+	return modControllableSnapshot_.effects.mod_fx.type;
 }
 
 // Returns false if not enough ram
@@ -453,9 +453,6 @@ bool Sound::setModFXType(ModFXType newType) {
 	}
 
 	assignModFXType(newType);
-	if (docModControllable_ != nullptr) {
-		docModControllable_->mod_fx_type = static_cast<uint8_t>(newType);
-	}
 	return true;
 }
 
@@ -1278,7 +1275,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 	case params::LOCAL_LPF_FREQ:
 	case params::LOCAL_LPF_MORPH:
 	case params::LOCAL_LPF_RESONANCE:
-		if (modControllableSnapshot_.lpfMode == FilterMode::OFF) {
+		if (modControllableSnapshot_.effects.filter.lpf_mode == FilterMode::OFF) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
@@ -1286,7 +1283,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 	case params::LOCAL_HPF_FREQ:
 	case params::LOCAL_HPF_MORPH:
 	case params::LOCAL_HPF_RESONANCE:
-		if (modControllableSnapshot_.hpfMode == FilterMode::OFF) {
+		if (modControllableSnapshot_.effects.filter.hpf_mode == FilterMode::OFF) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
@@ -2091,7 +2088,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 		if (skippingStatusNow) {
 
 			// We wanna start, skipping, but if MOD fx are on...
-			if ((modControllableSnapshot_.modFXType != ModFXType::NONE) || compressor.getThreshold() > 0) {
+			if ((modControllableSnapshot_.effects.mod_fx.type != ModFXType::NONE) || compressor.threshold() > 0) {
 
 				// If we didn't start the wait-time yet, start it now
 				if (!startSkippingRenderingAtTime) {
@@ -2104,7 +2101,7 @@ doCutModFXTail:
 					}
 
 					int32_t waitSamplesModfx = 0;
-					switch (modControllableSnapshot_.modFXType) {
+					switch (modControllableSnapshot_.effects.mod_fx.type) {
 					case ModFXType::CHORUS:
 						[[fallthrough]];
 					case ModFXType::CHORUS_STEREO:
@@ -2346,7 +2343,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 		int32_t old = params.sourceValues[patchSourceSidechainUnderlying];
 		params.sourceValues[patchSourceSidechainUnderlying] = sidechain.render(
-		    output.size(), paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
+		    output.size(), paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
+		    modControllableSnapshot_.effects.sidechain);
 		uint32_t anyChange = (old != params.sourceValues[patchSourceSidechainUnderlying]);
 		sourcesChanged |= anyChange << patchSourceSidechainUnderlying;
 	}
@@ -2414,7 +2412,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 	delayWorkingState.userDelayRate = params.paramFinalValues[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
-	delay.setupWorkingState(delayWorkingState, timePerTickInverse, !voices_.empty());
+	delay.setupWorkingState(delayWorkingState, modControllableSnapshot_.effects.delay, timePerTickInverse,
+	                        !voices_.empty());
 	delayWorkingState.analog_saturation = 8;
 
 	// Render each voice into a local buffer here
@@ -2442,7 +2441,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		q31_t hpfMorph = getSmoothedPatchedParamValue(params::LOCAL_HPF_MORPH, *paramManager);
 		q31_t hpfFreq = getSmoothedPatchedParamValue(params::LOCAL_HPF_FREQ, *paramManager);
 		bool doLPF = thisHasFilters
-		             && (modControllableSnapshot_.lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
+		             && (modControllableSnapshot_.effects.filter.lpf_mode == FilterMode::TRANSISTOR_24DB_DRIVE
 		                 || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_LPF_FREQ)
 		                 || (lpfFreq < 0x7FFFFFD2) || (lpfMorph > std::numeric_limits<q31_t>::min()));
 		bool doHPF =
@@ -2468,9 +2467,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 		const uint8_t* bendRangesSrc = expressionParams ? expressionParams->bendRanges : FlashStorage::defaultBendRange;
 		const VoiceConfig voiceConfig{
-		    .lpfMode = modControllableSnapshot_.lpfMode,
-		    .hpfMode = modControllableSnapshot_.hpfMode,
-		    .filterRoute = modControllableSnapshot_.filterRoute,
+		    .lpfMode = modControllableSnapshot_.effects.filter.lpf_mode,
+		    .hpfMode = modControllableSnapshot_.effects.filter.hpf_mode,
+		    .filterRoute = modControllableSnapshot_.effects.filter.route,
 		    .volumeNeutralValueForUnison = volumeNeutralValueForUnison,
 		    .synthMode = getSynthMode(),
 		    .lfo2Config = snapshot_.lfoConfig[LFO2_ID],
@@ -2484,7 +2483,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .hasFilters = thisHasFilters,
 		    .expressionSourcesChangedAtSynthLevel = expressionSourcesChangedAtSynthLevel,
 		    .monophonicExpressionValues = monophonicExpressionValues,
-		    .clippingAmount = modControllableSnapshot_.clippingAmount,
+		    .clippingAmount = modControllableSnapshot_.effects.saturation.clipping_amount,
 		    .doingOscSync = renderingOscillatorSyncCurrently(paramManager),
 		    .engineRenderingInStereo = AudioEngine::renderInStereo,
 		    .numUnison = snapshot_.numUnison,
@@ -2583,14 +2582,15 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	int32_t modFXRate = params.paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
 
 	processSRRAndBitcrushing(sound_stereo, &postFXVolume, paramManager);
-	processFX(sound_stereo, modControllableSnapshot_.modFXType, modFXRate, modFXDepth, delayWorkingState, &postFXVolume,
-	          paramManager, !voices_.empty(), reverbSendAmount >> 1);
+	processFX(sound_stereo, modControllableSnapshot_.effects.mod_fx.type, modFXRate, modFXDepth, delayWorkingState,
+	          &postFXVolume, paramManager, !voices_.empty(), reverbSendAmount >> 1);
 	processStutter(sound_stereo, paramManager);
 
 	processReverbSendAndVolume(sound_stereo, reverbBuffer, postFXVolume, postReverbVolume, reverbSendAmount, 0, true);
 
 	q31_t compThreshold = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
-	compressor.setThreshold(compThreshold);
+	compressor.configure(modControllableSnapshot_.effects.compressor);
+	compressor.setThreshold(compThreshold); // a sound's threshold is its param
 	if (compThreshold > 0) {
 		compressor.renderVolNeutral(sound_stereo, postFXVolume);
 	}
@@ -2670,7 +2670,8 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			// if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::SIDECHAIN)) {
 			if (AudioEngine::sizeLastSideChainHit) {
 				sidechain.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
-				                                     AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit);
+				                                     AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit,
+				                                     modControllableSnapshot_.effects.sidechain);
 				//}
 			}
 			// Special state to make it grab the actual value the first time it's rendered
@@ -2970,7 +2971,6 @@ void Sound::reseedRecord() {
 		return;
 	}
 	seedDocSoundScalars();
-	seedDocModControllable();
 	projectModControllableSnapshot();
 	projectSnapshot();
 	for (int32_t s = 0; s < kNumSources; s++) {
@@ -3090,10 +3090,10 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 			}
 		}
 		// switch the filters back on if needed
-		if (modControllableSnapshot_.lpfMode == FilterMode::OFF) {
+		if (modControllableSnapshot_.effects.filter.lpf_mode == FilterMode::OFF) {
 			setLpfMode(FilterMode::TRANSISTOR_24DB);
 		}
-		if (modControllableSnapshot_.hpfMode == FilterMode::OFF) {
+		if (modControllableSnapshot_.effects.filter.hpf_mode == FilterMode::OFF) {
 			setHpfMode(FilterMode::HPLADDER);
 		}
 	}
@@ -3212,7 +3212,8 @@ bool Sound::anyNoteIsOn() {
 }
 
 bool Sound::hasFilters() {
-	return (modControllableSnapshot_.lpfMode != FilterMode::OFF || modControllableSnapshot_.hpfMode != FilterMode::OFF);
+	return (modControllableSnapshot_.effects.filter.lpf_mode != FilterMode::OFF
+	        || modControllableSnapshot_.effects.filter.hpf_mode != FilterMode::OFF);
 }
 
 void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
@@ -3576,7 +3577,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 deluge::instrument::SoundState Sound::seededState() const {
 	deluge::instrument::SoundState seeded;
 	seedScalarsInto(seeded);
-	seedEffectsInto(seeded.mod_controllable);
+	seeded.effects = modControllableSnapshot_.effects; // what the render plays
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sources[s].seedScalarsInto(seeded.sources[s]);
 		sources[s].seedDxPatchInto(seeded.sources[s]);
@@ -3593,7 +3594,7 @@ void Sound::bindState() {
 	// first), so this seed is stale for drums — doneReadingFromFile re-runs it once parsing is done.
 	seedDocSoundScalars();
 	projectSnapshot(); // M4b: derive the render read-view from the now-seeded record
-	bindDocModControllable(&d->mod_controllable);
+	bindEffects(&d->effects);
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sources[s].bindState(&d->sources[s]);
 	}
@@ -4011,11 +4012,8 @@ ModelStackWithAutoParam* Sound::getParamFromModEncoderDeeper(int32_t whichModEnc
 }
 
 bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
-	bool result = modEncoderButtonActionImpl(whichModEncoder, on, modelStack);
-	// The impl may re-derive sidechain.syncLevel in any of its early-return branches: re-seed the effects' record once
-	// here. A knob it cycled is recorded by its caller, through the knobs' Edit.
-	seedDocModControllable();
-	return result;
+	// A knob it cycled is recorded by its caller, through the knobs' Edit.
+	return modEncoderButtonActionImpl(whichModEncoder, on, modelStack);
 }
 
 bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
@@ -4180,12 +4178,9 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 				insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 			}
 
-			if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
-				sidechain.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
-			}
-			else {
-				sidechain.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
-			}
+			setSidechainSyncLevel(effects().sidechain.sync_level == (SyncLevel)(7 - insideWorldTickMagnitude)
+			                          ? (SyncLevel)(9 - insideWorldTickMagnitude)
+			                          : (SyncLevel)(7 - insideWorldTickMagnitude));
 
 			// if mod button is pressed, update mod button pop up
 			if (Buttons::isButtonPressed(

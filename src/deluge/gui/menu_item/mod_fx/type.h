@@ -32,7 +32,7 @@ public:
 	using Selection::Selection;
 
 	void readCurrentValue() override {
-		this->setValue(soundEditor.currentModControllable->modControllableSnapshot().modFXType);
+		this->setValue(soundEditor.currentModControllable->modControllableSnapshot().effects.mod_fx.type);
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {

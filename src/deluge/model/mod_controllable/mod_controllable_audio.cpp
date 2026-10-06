@@ -84,7 +84,9 @@ ModControllableAudio::ModControllableAudio() {
 	else {
 		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
 	}
-	delay.syncLevel = syncLevel;
+	ownEffects_.delay.sync_level = syncLevel;
+	ownEffects_.sidechain = SideChain::defaultSettings();
+	modControllableSnapshot_.effects = ownEffects_; // nothing renders this owner yet
 }
 
 ModControllableAudio::~ModControllableAudio() {
@@ -93,17 +95,22 @@ ModControllableAudio::~ModControllableAudio() {
 }
 
 void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
-	setLpfMode(other->modControllableSnapshot_.lpfMode);
-	setHpfMode(other->modControllableSnapshot_.hpfMode);
-	setClippingAmount(other->modControllableSnapshot_.clippingAmount);
-	assignModFXType(other->modControllableSnapshot_.modFXType);
+	// A clone takes the other's filters, saturation, mod-FX, sidechain and stutter, and its delay but for its sync
+	// type; it keeps its own compressor.
+	const deluge::effects::EffectStates& from = other->effects();
+	deluge::effects::EffectStates next = effects();
+	next.filter = from.filter;
+	next.saturation = from.saturation;
+	next.mod_fx = from.mod_fx;
+	next.sidechain = from.sidechain;
+	next.delay.ping_pong = from.delay.ping_pong;
+	next.delay.analog = from.delay.analog;
+	next.delay.sync_level = from.delay.sync_level;
+	next.stutter = from.stutter;
+	setEffects(next);
 	bassFreq = other->bassFreq; // Eventually, these shouldn't be variables like this
 	trebleFreq = other->trebleFreq;
-	setFilterRoute(other->modControllableSnapshot_.filterRoute);
-	sidechain.cloneFrom(&other->sidechain);
 	midi_knobs = other->midi_knobs; // Could fail if no RAM... not too big a concern
-	delay = other->delay;
-	stutterConfig = other->stutterConfig;
 }
 
 void ModControllableAudio::initParams(ParamManager* paramManager) {
@@ -434,208 +441,133 @@ inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inpu
 }
 
 void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
-	// M3 owner-5 slice F: read the authoritative record when bound (a Sound); an unbound owner (GlobalEffectable, no
-	// record yet) keeps reading the native fields, so the flip is transparent for it.
-	bool bound = docModControllable_ != nullptr;
-	ModFXType savedModFXType =
-	    bound ? static_cast<ModFXType>(docModControllable_->mod_fx_type) : modControllableSnapshot_.modFXType;
-	FilterMode savedLpfMode =
-	    bound ? static_cast<FilterMode>(docModControllable_->lpf_mode) : modControllableSnapshot_.lpfMode;
-	FilterMode savedHpfMode =
-	    bound ? static_cast<FilterMode>(docModControllable_->hpf_mode) : modControllableSnapshot_.hpfMode;
-	FilterRoute savedFilterRoute =
-	    bound ? static_cast<FilterRoute>(docModControllable_->filter_route) : modControllableSnapshot_.filterRoute;
-	uint8_t savedClippingAmount =
-	    bound ? docModControllable_->clipping_amount : modControllableSnapshot_.clippingAmount;
-
-	writer.writeAttribute("modFXType", (char*)fxTypeToString(savedModFXType));
-	writer.writeAttribute("lpfMode", (char*)lpfTypeToString(savedLpfMode));
+	const deluge::effects::EffectStates& e = effects();
+	writer.writeAttribute("modFXType", (char*)fxTypeToString(e.mod_fx.type));
+	writer.writeAttribute("lpfMode", (char*)lpfTypeToString(e.filter.lpf_mode));
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeAttribute("hpfMode", (char*)lpfTypeToString(savedHpfMode));
-	writer.writeAttribute("filterRoute", (char*)filterRouteToString(savedFilterRoute));
-	if (savedClippingAmount) {
-		writer.writeAttribute("clippingAmount", savedClippingAmount);
+	writer.writeAttribute("hpfMode", (char*)lpfTypeToString(e.filter.hpf_mode));
+	writer.writeAttribute("filterRoute", (char*)filterRouteToString(e.filter.route));
+	if (e.saturation.clipping_amount) {
+		writer.writeAttribute("clippingAmount", e.saturation.clipping_amount);
 	}
 }
 
-void ModControllableAudio::bindDocModControllable(deluge::instrument::DocModControllable* d) {
-	docModControllable_ = d;
-	seedDocModControllable();
+void ModControllableAudio::setEffects(const deluge::effects::EffectStates& next) {
+	if (boundEffects_ != nullptr) {
+		*boundEffects_ = next;
+	}
+	else {
+		ownEffects_ = next;
+	}
+	projectModControllableSnapshot();
+}
+
+void ModControllableAudio::bindEffects(deluge::effects::EffectStates* record) {
+	if (record != nullptr) {
+		*record = effects();
+	}
+	else if (boundEffects_ != nullptr) {
+		ownEffects_ = *boundEffects_;
+	}
+	boundEffects_ = record;
 	projectModControllableSnapshot();
 }
 
 void ModControllableAudio::projectModControllableSnapshot() {
-	if (docModControllable_ == nullptr) {
-		return;
-	}
-	const deluge::instrument::DocModControllable& d = *docModControllable_;
-	modControllableSnapshot_.clippingAmount = d.clipping_amount;
-	modControllableSnapshot_.lpfMode = static_cast<FilterMode>(d.lpf_mode);
-	modControllableSnapshot_.hpfMode = static_cast<FilterMode>(d.hpf_mode);
-	modControllableSnapshot_.filterRoute = static_cast<FilterRoute>(d.filter_route);
-	modControllableSnapshot_.modFXType = static_cast<ModFXType>(d.mod_fx_type);
+	AudioExcludedSection section; // the render reads the copy
+	modControllableSnapshot_.effects = effects();
 }
+
+namespace {
+/// @p owner's effect settings with @p change made to them, made its settings.
+template <class Change>
+void changeEffects(ModControllableAudio& owner, Change change) {
+	deluge::effects::EffectStates next = owner.effects();
+	change(next);
+	owner.setEffects(next);
+}
+} // namespace
 
 void ModControllableAudio::assignModFXType(ModFXType value) {
-	if (docModControllable_ != nullptr) {
-		docModControllable_->mod_fx_type = static_cast<uint8_t>(value);
-		modControllableSnapshot_.modFXType = static_cast<ModFXType>(docModControllable_->mod_fx_type);
-	}
-	else {
-		modControllableSnapshot_.modFXType = value;
-	}
+	changeEffects(*this, [&](auto& e) { e.mod_fx.type = value; });
 }
-
 void ModControllableAudio::setClippingAmount(uint8_t value) {
-	if (docModControllable_ != nullptr) {
-		docModControllable_->clipping_amount = value;
-		modControllableSnapshot_.clippingAmount = docModControllable_->clipping_amount;
-	}
-	else {
-		modControllableSnapshot_.clippingAmount = value;
-	}
+	changeEffects(*this, [&](auto& e) { e.saturation.clipping_amount = value; });
 }
 void ModControllableAudio::setLpfMode(FilterMode value) {
-	if (docModControllable_ != nullptr) {
-		docModControllable_->lpf_mode = static_cast<uint8_t>(value);
-		modControllableSnapshot_.lpfMode = static_cast<FilterMode>(docModControllable_->lpf_mode);
-	}
-	else {
-		modControllableSnapshot_.lpfMode = value;
-	}
+	changeEffects(*this, [&](auto& e) { e.filter.lpf_mode = value; });
 }
 void ModControllableAudio::setHpfMode(FilterMode value) {
-	if (docModControllable_ != nullptr) {
-		docModControllable_->hpf_mode = static_cast<uint8_t>(value);
-		modControllableSnapshot_.hpfMode = static_cast<FilterMode>(docModControllable_->hpf_mode);
-	}
-	else {
-		modControllableSnapshot_.hpfMode = value;
-	}
+	changeEffects(*this, [&](auto& e) { e.filter.hpf_mode = value; });
 }
 void ModControllableAudio::setFilterRoute(FilterRoute value) {
-	if (docModControllable_ != nullptr) {
-		docModControllable_->filter_route = static_cast<uint8_t>(value);
-		modControllableSnapshot_.filterRoute = static_cast<FilterRoute>(docModControllable_->filter_route);
-	}
-	else {
-		modControllableSnapshot_.filterRoute = value;
-	}
+	changeEffects(*this, [&](auto& e) { e.filter.route = value; });
 }
 void ModControllableAudio::setDelayPingPong(bool value) {
-	delay.pingPong = value;
-	if (docModControllable_ != nullptr) {
-		docModControllable_->delay.ping_pong = value;
-	}
+	changeEffects(*this, [&](auto& e) { e.delay.ping_pong = value; });
 }
 void ModControllableAudio::setDelayAnalog(bool value) {
-	delay.analog = value;
-	if (docModControllable_ != nullptr) {
-		docModControllable_->delay.analog = value;
-	}
+	changeEffects(*this, [&](auto& e) { e.delay.analog = value; });
 }
 void ModControllableAudio::setDelaySyncType(SyncType value) {
-	delay.syncType = value;
-	if (docModControllable_ != nullptr) {
-		docModControllable_->delay.sync_type = static_cast<uint8_t>(value);
-	}
+	changeEffects(*this, [&](auto& e) { e.delay.sync_type = value; });
 }
 void ModControllableAudio::setDelaySyncLevel(SyncLevel value) {
-	delay.syncLevel = value;
-	if (docModControllable_ != nullptr) {
-		docModControllable_->delay.sync_level = static_cast<uint8_t>(value);
-	}
+	changeEffects(*this, [&](auto& e) { e.delay.sync_level = value; });
 }
 void ModControllableAudio::setStutterQuantized(bool value) {
-	stutterConfig.quantized = value;
-	if (docModControllable_ != nullptr) {
-		docModControllable_->stutter.quantized = value;
-	}
+	changeEffects(*this, [&](auto& e) { e.stutter.quantized = value; });
 }
 void ModControllableAudio::setStutterReversed(bool value) {
-	stutterConfig.reversed = value;
-	if (docModControllable_ != nullptr) {
-		docModControllable_->stutter.reversed = value;
-	}
+	changeEffects(*this, [&](auto& e) { e.stutter.reversed = value; });
 }
 void ModControllableAudio::setStutterPingPong(bool value) {
-	stutterConfig.pingPong = value;
-	if (docModControllable_ != nullptr) {
-		docModControllable_->stutter.ping_pong = value;
-	}
+	changeEffects(*this, [&](auto& e) { e.stutter.ping_pong = value; });
+}
+void ModControllableAudio::setUseSongStutter(bool value) {
+	changeEffects(*this, [&](auto& e) { e.stutter.use_song_stutter = value; });
 }
 void ModControllableAudio::setSidechainAttack(int32_t value) {
-	sidechain.attack = value;
-	if (docModControllable_ != nullptr) {
-		docModControllable_->sidechain.attack = value;
-	}
+	changeEffects(*this, [&](auto& e) { e.sidechain.attack = value; });
 }
 void ModControllableAudio::setSidechainRelease(int32_t value) {
-	sidechain.release = value;
-	if (docModControllable_ != nullptr) {
-		docModControllable_->sidechain.release = value;
-	}
+	changeEffects(*this, [&](auto& e) { e.sidechain.release = value; });
 }
 void ModControllableAudio::setSidechainSyncType(SyncType value) {
-	sidechain.syncType = value;
-	if (docModControllable_ != nullptr) {
-		docModControllable_->sidechain.sync_type = static_cast<uint8_t>(value);
-	}
+	changeEffects(*this, [&](auto& e) { e.sidechain.sync_type = value; });
 }
 void ModControllableAudio::setSidechainSyncLevel(SyncLevel value) {
-	sidechain.syncLevel = value;
-	if (docModControllable_ != nullptr) {
-		docModControllable_->sidechain.sync_level = static_cast<uint8_t>(value);
-	}
+	changeEffects(*this, [&](auto& e) { e.sidechain.sync_level = value; });
 }
-
-void ModControllableAudio::seedEffectsInto(deluge::instrument::DocModControllable& d) const {
-	d.clipping_amount = modControllableSnapshot_.clippingAmount;
-	d.lpf_mode = static_cast<uint8_t>(modControllableSnapshot_.lpfMode);
-	d.hpf_mode = static_cast<uint8_t>(modControllableSnapshot_.hpfMode);
-	d.filter_route = static_cast<uint8_t>(modControllableSnapshot_.filterRoute);
-	d.mod_fx_type = static_cast<uint8_t>(modControllableSnapshot_.modFXType);
-	d.delay.ping_pong = delay.pingPong;
-	d.delay.analog = delay.analog;
-	d.delay.sync_type = static_cast<uint8_t>(delay.syncType);
-	d.delay.sync_level = static_cast<uint8_t>(delay.syncLevel);
-	d.sidechain.attack = sidechain.attack;
-	d.sidechain.release = sidechain.release;
-	d.sidechain.sync_type = static_cast<uint8_t>(sidechain.syncType);
-	d.sidechain.sync_level = static_cast<uint8_t>(sidechain.syncLevel);
-	d.compressor.attack = compressor.getAttack();
-	d.compressor.release = compressor.getRelease();
-	d.compressor.threshold = compressor.getThreshold();
-	d.compressor.ratio = compressor.getRatio();
-	d.compressor.sidechain_hpf = compressor.getSidechain();
-	d.compressor.blend = compressor.getBlend();
-	d.stutter.quantized = stutterConfig.quantized;
-	d.stutter.reversed = stutterConfig.reversed;
-	d.stutter.ping_pong = stutterConfig.pingPong;
+void ModControllableAudio::setCompressorAttack(q31_t value) {
+	changeEffects(*this, [&](auto& e) { e.compressor.attack = value; });
 }
-
-void ModControllableAudio::seedDocModControllable() {
-	if (docModControllable_ != nullptr) {
-		seedEffectsInto(*docModControllable_);
-	}
+void ModControllableAudio::setCompressorRelease(q31_t value) {
+	changeEffects(*this, [&](auto& e) { e.compressor.release = value; });
+}
+void ModControllableAudio::setCompressorThreshold(q31_t value) {
+	changeEffects(*this, [&](auto& e) { e.compressor.threshold = value; });
+}
+void ModControllableAudio::setCompressorRatio(q31_t value) {
+	changeEffects(*this, [&](auto& e) { e.compressor.ratio = value; });
+}
+void ModControllableAudio::setCompressorSidechainHpf(q31_t value) {
+	changeEffects(*this, [&](auto& e) { e.compressor.sidechain_hpf = value; });
+}
+void ModControllableAudio::setCompressorBlend(q31_t value) {
+	changeEffects(*this, [&](auto& e) { e.compressor.blend = value; });
 }
 
 void ModControllableAudio::writeTagsToFile(Serializer& writer) {
-	// M3 owner-5 slice F: when bound (a Sound), delay + stutter read the authoritative record; an unbound owner
-	// (GlobalEffectable) keeps reading native. sidechain + compressor still save from native (later slice).
-	bool bound = docModControllable_ != nullptr;
+	const deluge::effects::EffectStates& e = effects();
 
 	// Delay
 	writer.writeOpeningTagBeginning("delay");
-	writer.writeAttribute("pingPong", bound ? docModControllable_->delay.ping_pong : delay.pingPong);
-	writer.writeAttribute("analog", bound ? docModControllable_->delay.analog : delay.analog);
-	writer.writeAbsoluteSyncLevelToFile(
-	    currentSong, "syncLevel",
-	    bound ? static_cast<SyncLevel>(docModControllable_->delay.sync_level) : delay.syncLevel, true);
+	writer.writeAttribute("pingPong", e.delay.ping_pong);
+	writer.writeAttribute("analog", e.delay.analog);
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", e.delay.sync_level, true);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(currentSong, "syncType",
-	                           bound ? static_cast<SyncType>(docModControllable_->delay.sync_type) : delay.syncType,
-	                           true);
+	writer.writeSyncTypeToFile(currentSong, "syncType", e.delay.sync_type, true);
 	writer.closeTag();
 
 	// MIDI knobs
@@ -675,34 +607,28 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 
 	// Sidechain (renamed from "compressor" from the official firmware)
 	writer.writeOpeningTagBeginning("sidechain");
-	writer.writeAttribute("attack", bound ? docModControllable_->sidechain.attack : sidechain.attack);
-	writer.writeAttribute("release", bound ? docModControllable_->sidechain.release : sidechain.release);
-	writer.writeAbsoluteSyncLevelToFile(
-	    currentSong, "syncLevel",
-	    bound ? static_cast<SyncLevel>(docModControllable_->sidechain.sync_level) : sidechain.syncLevel, true);
+	writer.writeAttribute("attack", e.sidechain.attack);
+	writer.writeAttribute("release", e.sidechain.release);
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", e.sidechain.sync_level, true);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(
-	    currentSong, "syncType",
-	    bound ? static_cast<SyncType>(docModControllable_->sidechain.sync_type) : sidechain.syncType, true);
+	writer.writeSyncTypeToFile(currentSong, "syncType", e.sidechain.sync_type, true);
 	writer.closeTag();
 
-	// Audio compressor (this section is all new so we write it at the end). M3 owner-5: the five stable knob positions
-	// read the record when bound (load-only for a Sound); threshold is re-derived from its param every render, so it
-	// stays a live native read to preserve the exact saved snapshot.
+	// Audio compressor (this section is all new so we write it at the end)
 	writer.writeOpeningTagBeginning("audioCompressor");
-	writer.writeAttribute("attack", bound ? docModControllable_->compressor.attack : compressor.getAttack());
-	writer.writeAttribute("release", bound ? docModControllable_->compressor.release : compressor.getRelease());
-	writer.writeAttribute("thresh", compressor.getThreshold());
-	writer.writeAttribute("ratio", bound ? docModControllable_->compressor.ratio : compressor.getRatio());
-	writer.writeAttribute("compHPF", bound ? docModControllable_->compressor.sidechain_hpf : compressor.getSidechain());
-	writer.writeAttribute("compBlend", bound ? docModControllable_->compressor.blend : compressor.getBlend());
+	writer.writeAttribute("attack", e.compressor.attack);
+	writer.writeAttribute("release", e.compressor.release);
+	writer.writeAttribute("thresh", savedCompressorThreshold());
+	writer.writeAttribute("ratio", e.compressor.ratio);
+	writer.writeAttribute("compHPF", e.compressor.sidechain_hpf);
+	writer.writeAttribute("compBlend", e.compressor.blend);
 	writer.closeTag();
 
 	// Stutter
 	writer.writeOpeningTagBeginning("stutter");
-	writer.writeAttribute("quantized", bound ? docModControllable_->stutter.quantized : stutterConfig.quantized);
-	writer.writeAttribute("reverse", bound ? docModControllable_->stutter.reversed : stutterConfig.reversed);
-	writer.writeAttribute("pingPong", bound ? docModControllable_->stutter.ping_pong : stutterConfig.pingPong);
+	writer.writeAttribute("quantized", e.stutter.quantized);
+	writer.writeAttribute("reverse", e.stutter.reversed);
+	writer.writeAttribute("pingPong", e.stutter.ping_pong);
 	writer.closeTag();
 }
 
@@ -777,35 +703,35 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 
 	else if (!strcmp(tagName, "stutter")) {
 		// Set default values in case they are not configured
-		stutterConfig.useSongStutter = true;
-		stutterConfig.quantized = true;
-		stutterConfig.reversed = false;
-		stutterConfig.pingPong = false;
+		deluge::effects::EffectStates next = effects();
+		next.stutter = deluge::effects::StutterState{};
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "quantized")) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
-				stutterConfig.quantized = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
+				next.stutter.quantized = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
 				reader.exitTag("quantized");
 			}
 			else if (!strcmp(tagName, "reverse")) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
-				stutterConfig.reversed = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
+				next.stutter.reversed = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
 				reader.exitTag("reverse");
 			}
 			else if (!strcmp(tagName, "pingPong")) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
-				stutterConfig.pingPong = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
+				next.stutter.ping_pong = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
 				reader.exitTag("pingPong");
 			}
 		}
+		setEffects(next);
 		reader.exitTag("stutter", true);
 	}
 
 	else if (!strcmp(tagName, "delay")) {
 		// Set default values in case they are not configured
-		delay.syncType = SYNC_TYPE_EVEN;
-		delay.syncLevel = SYNC_LEVEL_NONE;
+		deluge::effects::EffectStates next = effects();
+		next.delay.sync_type = SYNC_TYPE_EVEN;
+		next.delay.sync_level = SYNC_LEVEL_NONE;
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 
@@ -834,20 +760,20 @@ doReadPatchedParam:
 
 			else if (!strcmp(tagName, "pingPong")) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
-				delay.pingPong = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
+				next.delay.ping_pong = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
 				reader.exitTag("pingPong");
 			}
 			else if (!strcmp(tagName, "analog")) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
-				delay.analog = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
+				next.delay.analog = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
 				reader.exitTag("analog");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				delay.syncType = (SyncType)reader.readTagOrAttributeValueInt();
+				next.delay.sync_type = (SyncType)reader.readTagOrAttributeValueInt();
 				reader.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				delay.syncLevel =
+				next.delay.sync_level =
 				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
 				reader.exitTag("syncLevel");
 			}
@@ -855,71 +781,76 @@ doReadPatchedParam:
 				reader.exitTag(tagName);
 			}
 		}
+		setEffects(next);
 		reader.exitTag("delay", true);
 	}
 
 	else if (!strcmp(tagName, "audioCompressor")) {
+		deluge::effects::EffectStates next = effects();
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				q31_t masterCompressorAttack = reader.readTagOrAttributeValueInt();
-				compressor.setAttack(masterCompressorAttack);
+				next.compressor.attack = masterCompressorAttack;
 				reader.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "release")) {
 				q31_t masterCompressorRelease = reader.readTagOrAttributeValueInt();
-				compressor.setRelease(masterCompressorRelease);
+				next.compressor.release = masterCompressorRelease;
 				reader.exitTag("release");
 			}
 			else if (!strcmp(tagName, "thresh")) {
 				q31_t masterCompressorThresh = reader.readTagOrAttributeValueInt();
-				compressor.setThreshold(masterCompressorThresh);
+				next.compressor.threshold = masterCompressorThresh;
+				compressor.setThreshold(masterCompressorThresh); // what a save before any render writes back
 				reader.exitTag("thresh");
 			}
 			else if (!strcmp(tagName, "ratio")) {
 				q31_t masterCompressorRatio = reader.readTagOrAttributeValueInt();
-				compressor.setRatio(masterCompressorRatio);
+				next.compressor.ratio = masterCompressorRatio;
 				reader.exitTag("ratio");
 			}
 			else if (!strcmp(tagName, "compHPF")) {
 				q31_t masterCompressorSidechain = reader.readTagOrAttributeValueInt();
-				compressor.setSidechain(masterCompressorSidechain);
+				next.compressor.sidechain_hpf = masterCompressorSidechain;
 				reader.exitTag("compHPF");
 			}
 			else if (!strcmp(tagName, "compBlend")) {
 				q31_t masterCompressorBlend = reader.readTagOrAttributeValueInt();
-				compressor.setBlend(masterCompressorBlend);
+				next.compressor.blend = masterCompressorBlend;
 				reader.exitTag("compBlend");
 			}
 			else {
 				reader.exitTag(tagName);
 			}
 		}
+		setEffects(next);
 		reader.exitTag("audioCompressor", true);
 	}
 	// this is actually the sidechain but pre c1.1 songs save it as compressor
 	else if (!strcmp(tagName, "compressor") || !strcmp(tagName, "sidechain")) { // Remember, Song doesn't use this
 		// Set default values in case they are not configured
 		const char* name = tagName;
-		sidechain.syncType = SYNC_TYPE_EVEN;
-		sidechain.syncLevel = SYNC_LEVEL_NONE;
+		deluge::effects::EffectStates next = effects();
+		next.sidechain.sync_type = SYNC_TYPE_EVEN;
+		next.sidechain.sync_level = SYNC_LEVEL_NONE;
 
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
-				sidechain.attack = reader.readTagOrAttributeValueInt();
+				next.sidechain.attack = reader.readTagOrAttributeValueInt();
 				reader.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "release")) {
-				sidechain.release = reader.readTagOrAttributeValueInt();
+				next.sidechain.release = reader.readTagOrAttributeValueInt();
 				reader.exitTag("release");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				sidechain.syncType = (SyncType)reader.readTagOrAttributeValueInt();
+				next.sidechain.sync_type = (SyncType)reader.readTagOrAttributeValueInt();
 				reader.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				sidechain.syncLevel =
+				next.sidechain.sync_level =
 				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
 				reader.exitTag("syncLevel");
 			}
@@ -927,6 +858,7 @@ doReadPatchedParam:
 				reader.exitTag(tagName);
 			}
 		}
+		setEffects(next);
 		reader.exitTag(name, true);
 	}
 
@@ -1340,7 +1272,8 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	if (Error::NONE
 	    == stutterer.beginStutter(
 	        this, paramManager,
-	        stutterConfig.useSongStutter ? currentSong->live.global_effectable.stutterConfig : stutterConfig,
+	        effects().stutter.use_song_stutter ? currentSong->live.global_effectable.effects().stutter
+	                                           : effects().stutter,
 	        currentSong->getInputTickMagnitude(), playbackHandler.getTimePerInternalTickInverse())) {
 		// Redraw the LEDs. Really only for quantized stutter, but doing it for unquantized won't hurt.
 		view.notifyParamAutomationOccurred(paramManager);
@@ -1366,15 +1299,15 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 }
 
 void ModControllableAudio::switchDelayPingPong() {
-	setDelayPingPong(!delay.pingPong);
+	setDelayPingPong(!effects().delay.ping_pong);
 }
 
 void ModControllableAudio::switchDelayAnalog() {
-	setDelayAnalog(!delay.analog);
+	setDelayAnalog(!effects().delay.analog);
 }
 
 char const* ModControllableAudio::getDelayTypeDisplayName() {
-	switch (delay.analog) {
+	switch (effects().delay.analog) {
 		using enum deluge::l10n::String;
 	case 0:
 		return l10n::get(STRING_FOR_DIGITAL_DELAY);
@@ -1384,7 +1317,7 @@ char const* ModControllableAudio::getDelayTypeDisplayName() {
 }
 
 void ModControllableAudio::switchDelaySyncType() {
-	switch (delay.syncType) {
+	switch (effects().delay.sync_type) {
 	case SYNC_TYPE_TRIPLET:
 		setDelaySyncType(SYNC_TYPE_DOTTED);
 		break;
@@ -1399,7 +1332,7 @@ void ModControllableAudio::switchDelaySyncType() {
 }
 
 char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
-	switch (delay.syncType) {
+	switch (effects().delay.sync_type) {
 	case SYNC_TYPE_TRIPLET:
 		return "Triplet";
 	case SYNC_TYPE_DOTTED:
@@ -1411,7 +1344,7 @@ char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
 
 void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	setDelaySyncLevel(deluge::engine::sync_level_from_index(deluge::engine::index_of(delay.syncLevel)
+	setDelaySyncLevel(deluge::engine::sync_level_from_index(deluge::engine::index_of(effects().delay.sync_level)
 	                                                            % deluge::engine::index_of(SYNC_LEVEL_256TH)
 	                                                        + 1)); // cycle from 1 to 9 (omit 0)
 }
@@ -1419,11 +1352,11 @@ void ModControllableAudio::switchDelaySyncLevel() {
 void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	setDelaySyncLevel(deluge::engine::sync_level_from_index(
-	    deluge::engine::index_of(delay.syncLevel)
+	    deluge::engine::index_of(effects().delay.sync_level)
 	    % deluge::engine::index_of(SYNC_LEVEL_256TH))); // cycle from 1 to 9 (omit 0)
 	etl::string<kShortStringBufferSize> buffer;
 	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (deluge::engine::index_of(SYNC_LEVEL_256TH)
-	                                                       - deluge::engine::index_of(delay.syncLevel)));
+	                                                       - deluge::engine::index_of(effects().delay.sync_level)));
 	strncpy(displayName, buffer.data(), 29);
 }
 
@@ -1442,13 +1375,12 @@ char const* ModControllableAudio::getFilterTypeDisplayName(FilterType currentFil
 }
 
 void ModControllableAudio::switchLPFMode() {
-	setLpfMode(static_cast<FilterMode>((util::to_underlying(modControllableSnapshot_.lpfMode) + 1) % kNumLPFModes));
+	setLpfMode(static_cast<FilterMode>((util::to_underlying(effects().filter.lpf_mode) + 1) % kNumLPFModes));
 }
 
 // for future use with FM
 void ModControllableAudio::switchLPFModeWithOff() {
-	FilterMode mode =
-	    static_cast<FilterMode>((util::to_underlying(modControllableSnapshot_.lpfMode) + 1) % kNumLPFModes);
+	FilterMode mode = static_cast<FilterMode>((util::to_underlying(effects().filter.lpf_mode) + 1) % kNumLPFModes);
 	switch (mode) {
 	case FilterMode::OFF:
 		mode = FilterMode::TRANSISTOR_12DB;
@@ -1476,7 +1408,7 @@ char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFil
 char const* ModControllableAudio::getLPFModeDisplayName() {
 
 	using enum deluge::l10n::String;
-	switch (modControllableSnapshot_.lpfMode) {
+	switch (effects().filter.lpf_mode) {
 	case FilterMode::TRANSISTOR_12DB:
 		return l10n::get(STRING_FOR_12DB_LADDER);
 	case FilterMode::TRANSISTOR_24DB:
@@ -1494,24 +1426,24 @@ char const* ModControllableAudio::getLPFModeDisplayName() {
 
 void ModControllableAudio::switchHPFMode() {
 	// this works fine, the offset to the first hpf doesn't matter with the modulus
-	setHpfMode(static_cast<FilterMode>((util::to_underlying(modControllableSnapshot_.hpfMode) + 1) % kNumHPFModes
-	                                   + kFirstHPFMode));
+	setHpfMode(
+	    static_cast<FilterMode>((util::to_underlying(effects().filter.hpf_mode) + 1) % kNumHPFModes + kFirstHPFMode));
 }
 
 // for future use with FM
 void ModControllableAudio::switchHPFModeWithOff() {
-	switch (modControllableSnapshot_.hpfMode) {
+	switch (effects().filter.hpf_mode) {
 	case FilterMode::OFF:
 		setHpfMode(firstHPFMode);
 		break;
 	default:
-		setHpfMode(static_cast<FilterMode>((util::to_underlying(modControllableSnapshot_.hpfMode) + 1)));
+		setHpfMode(static_cast<FilterMode>((util::to_underlying(effects().filter.hpf_mode) + 1)));
 	}
 }
 
 char const* ModControllableAudio::getHPFModeDisplayName() {
 	using enum deluge::l10n::String;
-	switch (modControllableSnapshot_.hpfMode) {
+	switch (effects().filter.hpf_mode) {
 	case FilterMode::HPLADDER:
 		return l10n::get(STRING_FOR_HPLADDER);
 	case FilterMode::SVF_BAND:
@@ -1530,10 +1462,10 @@ void ModControllableAudio::wontBeRenderedForAWhile() {
 }
 
 void ModControllableAudio::clearModFXMemory() {
-	if (modControllableSnapshot_.modFXType == ModFXType::GRAIN) {
+	if (modControllableSnapshot_.effects.mod_fx.type == ModFXType::GRAIN) {
 		grainFX->clearGrainFXBuffer();
 	}
-	else if (modControllableSnapshot_.modFXType != ModFXType::NONE) {
+	else if (modControllableSnapshot_.effects.mod_fx.type != ModFXType::NONE) {
 		modfx.resetMemory();
 	}
 }
@@ -1635,7 +1567,7 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 
 char const* ModControllableAudio::getDelayPingPongStatusDisplayName() {
 	using enum deluge::l10n::String;
-	switch (delay.pingPong) {
+	switch (effects().delay.ping_pong) {
 	case 0:
 		return l10n::get(STRING_FOR_DISABLED);
 	default:
@@ -1673,7 +1605,7 @@ char const* ModControllableAudio::getSidechainDisplayName() {
 		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 	}
 	using enum deluge::l10n::String;
-	if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+	if (effects().sidechain.sync_level == (SyncLevel)(7 - insideWorldTickMagnitude)) {
 		return l10n::get(STRING_FOR_SLOW);
 	}
 	else {

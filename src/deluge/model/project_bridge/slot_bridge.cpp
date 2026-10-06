@@ -250,7 +250,7 @@ Error commitSlot(::Sound& sound, deluge::project::InstrumentSlot& slot, const de
 	if (error == Error::NONE) {
 		// The effects' settings are not the slot's to say, and a gesture may move them (FM turns the filters off).
 		deluge::instrument::SoundState reached = decoded->state;
-		reached.mod_controllable = sound.boundState()->mod_controllable;
+		reached.effects = sound.boundState()->effects;
 		if (!(*sound.boundState() == reached)) {
 			error = Error::UNSPECIFIED; // the runtime did not reach what the slot says
 		}

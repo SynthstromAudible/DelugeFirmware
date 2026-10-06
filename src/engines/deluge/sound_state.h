@@ -21,6 +21,7 @@
 #include "engine-api/types/sync.h"
 #include "engine-api/types/voice_priority.h"
 #include "engines/deluge/words.h"
+#include "engines/effects/state.h"
 
 #include <array>
 #include <cstdint>
@@ -73,51 +74,6 @@ struct SourceState {
 	bool operator==(const SourceState&) const = default;
 };
 
-/// @brief A sound's own effects' non-param settings, carried untyped until the effects become components of their
-/// own.
-struct DocModControllable {
-	uint8_t clipping_amount{0};
-	uint8_t lpf_mode{0};
-	uint8_t hpf_mode{0};
-	uint8_t filter_route{0};
-	uint8_t mod_fx_type{0};
-
-	struct Delay {
-		bool ping_pong{true};
-		bool analog{false};
-		uint8_t sync_type{0};
-		uint8_t sync_level{0};
-		bool operator==(const Delay&) const = default;
-	} delay;
-
-	struct Sidechain {
-		int32_t attack{0};
-		int32_t release{0};
-		uint8_t sync_type{0};
-		uint8_t sync_level{0};
-		bool operator==(const Sidechain&) const = default;
-	} sidechain;
-
-	struct Compressor { ///< knob positions, Q31
-		int32_t attack{0};
-		int32_t release{0};
-		int32_t threshold{0};
-		int32_t ratio{0};
-		int32_t sidechain_hpf{0};
-		int32_t blend{0};
-		bool operator==(const Compressor&) const = default;
-	} compressor;
-
-	struct Stutter {
-		bool quantized{true};
-		bool reversed{false};
-		bool ping_pong{false};
-		bool operator==(const Stutter&) const = default;
-	} stutter;
-
-	bool operator==(const DocModControllable&) const = default;
-};
-
 /// @brief The Deluge instrument's settings for one sound: everything about it that is not a param.
 struct SoundState {
 	engine::VoicePriority voice_priority{engine::VoicePriority::MEDIUM};
@@ -141,7 +97,7 @@ struct SoundState {
 	std::array<LFOType, 4> lfo_wave_type{};
 	std::array<engine::SyncType, 4> lfo_sync_type{};
 	std::array<engine::SyncLevel, 4> lfo_sync_level{};
-	DocModControllable mod_controllable;
+	deluge::effects::EffectStates effects; ///< the sound's own effects' settings
 	std::array<SourceState, 2> sources;
 	bool operator==(const SoundState&) const = default;
 };

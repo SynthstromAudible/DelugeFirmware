@@ -31,9 +31,9 @@ public:
 	    : Integer(newName, newTitle), is_reverb_sidechain_{isReverbSidechain} {}
 
 	void readCurrentValue() override {
-		const auto sidechain = getSidechain(is_reverb_sidechain_);
 		// For the reverb sidechain, project.reverb is the document of record (the engine is its cache).
-		int32_t release = is_reverb_sidechain_ ? currentSong->project.reverb.sidechain_release : sidechain->release;
+		int32_t release =
+		    is_reverb_sidechain_ ? currentSong->project.reverb.sidechain_release : sidechainSettings(false).release;
 		this->setValue(getLookupIndexFromValue(release >> 3, releaseRateTable, 50));
 	}
 	bool usesAffectEntire() override { return true; }
@@ -56,10 +56,9 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			// M3 owner-5: reverb sidechain is a separate global; only the owner's own sidechain funnels through the
-			// setter.
+			// The reverb's sidechain is the engine's own, saved in project.reverb.
 			if (is_reverb_sidechain_) {
-				getSidechain(true)->release = current_value;
+				AudioEngine::reverbSidechainSettings.release = current_value;
 				currentSong->project.reverb.sidechain_release = current_value;
 			}
 			else {

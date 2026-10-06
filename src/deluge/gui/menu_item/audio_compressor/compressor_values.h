@@ -16,6 +16,13 @@
 namespace deluge::gui::menu_item::audio_compressor {
 
 class CompressorValue : public DecimalWithoutScrolling {
+protected:
+	/// The compressor settings of the owner this menu shows.
+	[[nodiscard]] static const deluge::effects::CompressorState& shown() {
+		return soundEditor.currentModControllable->effects().compressor;
+	}
+
+public:
 	using DecimalWithoutScrolling::DecimalWithoutScrolling;
 	void readCurrentValue() final {
 		uint64_t value = getCompressorValue();
@@ -37,17 +44,17 @@ class CompressorValue : public DecimalWithoutScrolling {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
-					setCompressorValue(knobPos, &soundDrum->compressor);
+					setCompressorValue(knobPos, *soundDrum);
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			setCompressorValue(knobPos, &soundEditor.currentModControllable->compressor);
+			setCompressorValue(knobPos, *soundEditor.currentModControllable);
 		}
 	}
 	virtual uint64_t getCompressorValue() = 0;
-	virtual void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) = 0;
+	virtual void setCompressorValue(q31_t value, ModControllableAudio& owner) = 0;
 	[[nodiscard]] int32_t getMaxValue() const final { return kMaxKnobPos; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
 	const char* getUnit() override { return "MS"; }
@@ -57,11 +64,9 @@ class CompressorValue : public DecimalWithoutScrolling {
 class Attack final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
-	uint64_t getCompressorValue() override {
-		return (uint64_t)soundEditor.currentModControllable->compressor.getAttack();
-	}
-	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) override { compressor->setAttack(value); }
-	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getAttackMS(); }
+	uint64_t getCompressorValue() override { return static_cast<uint64_t>(shown().attack); }
+	void setCompressorValue(q31_t value, ModControllableAudio& owner) override { owner.setCompressorAttack(value); }
+	float getDisplayValue() override { return RMSFeedbackCompressor::attackMsOf(shown().attack); }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return ATTACK; }
 	void getColumnLabel(etl::istring& label) override {
 		label.append(l10n::get(l10n::String::STRING_FOR_ATTACK_SHORT));
@@ -70,11 +75,9 @@ public:
 class Release final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
-	uint64_t getCompressorValue() final {
-		return (uint64_t)soundEditor.currentModControllable->compressor.getRelease();
-	}
-	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) final { compressor->setRelease(value); }
-	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getReleaseMS(); }
+	uint64_t getCompressorValue() final { return static_cast<uint64_t>(shown().release); }
+	void setCompressorValue(q31_t value, ModControllableAudio& owner) final { owner.setCompressorRelease(value); }
+	float getDisplayValue() override { return RMSFeedbackCompressor::releaseMsOf(shown().release); }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 1; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return RELEASE; }
 
@@ -85,31 +88,27 @@ public:
 class Ratio final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
-	uint64_t getCompressorValue() override {
-		return (uint64_t)soundEditor.currentModControllable->compressor.getRatio();
-	}
-	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) override { compressor->setRatio(value); }
-	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getRatioForDisplay(); }
+	uint64_t getCompressorValue() override { return static_cast<uint64_t>(shown().ratio); }
+	void setCompressorValue(q31_t value, ModControllableAudio& owner) override { owner.setCompressorRatio(value); }
+	float getDisplayValue() override { return RMSFeedbackCompressor::ratioOf(shown().ratio); }
 	const char* getUnit() override { return " : 1"; }
 };
 class SideHPF final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
-	uint64_t getCompressorValue() override {
-		return (uint64_t)soundEditor.currentModControllable->compressor.getSidechain();
+	uint64_t getCompressorValue() override { return static_cast<uint64_t>(shown().sidechain_hpf); }
+	void setCompressorValue(q31_t value, ModControllableAudio& owner) override {
+		owner.setCompressorSidechainHpf(value);
 	}
-	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) override {
-		compressor->setSidechain(value);
-	}
-	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getSidechainForDisplay(); }
+	float getDisplayValue() override { return RMSFeedbackCompressor::sidechainHzOf(shown().sidechain_hpf); }
 	const char* getUnit() override { return "HZ"; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return HPF; }
 };
 class Blend final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
-	uint64_t getCompressorValue() final { return (uint64_t)soundEditor.currentModControllable->compressor.getBlend(); }
-	void setCompressorValue(q31_t, RMSFeedbackCompressor* compressor) final {
+	uint64_t getCompressorValue() final { return static_cast<uint64_t>(shown().blend); }
+	void setCompressorValue(q31_t, ModControllableAudio& owner) final {
 		auto value = this->getValue();
 
 		q31_t knobPos;
@@ -119,10 +118,10 @@ public:
 		else {
 			knobPos = ONE_Q31;
 		}
-		compressor->setBlend(knobPos);
+		owner.setCompressorBlend(knobPos);
 	}
 
-	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getBlendForDisplay(); }
+	float getDisplayValue() override { return RMSFeedbackCompressor::blendPercentOf(shown().blend); }
 	const char* getUnit() override { return " %"; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 0; }
 	[[nodiscard]] int32_t getOccupiedSlots() const override { return 1; }

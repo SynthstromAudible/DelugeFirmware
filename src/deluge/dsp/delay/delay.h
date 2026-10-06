@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/convolution/impulse_response_processor.h"
 #include "dsp/delay/delay_buffer.h"
+#include "engines/effects/state.h"
 #include "modulation/sync.h"
 
 #include <cstdint>
@@ -27,23 +28,19 @@
 
 class Delay {
 public:
+	/// The block's working state: the rate and feedback its owner derived, and the owner's settings it plays with.
 	struct State {
 		bool doDelay{};
 		int32_t userDelayRate{};
 		int32_t delayFeedbackAmount{};
 		int32_t analog_saturation = 8;
+		bool ping_pong{true};
+		bool analog{false};
 	};
 
 	Delay() = default;
 	Delay(const Delay& other) = delete;
-
-	// was originally cloneFrom
-	Delay& operator=(const Delay& rhs) {
-		pingPong = rhs.pingPong;
-		analog = rhs.analog;
-		syncLevel = rhs.syncLevel;
-		return *this;
-	}
+	Delay& operator=(const Delay& other) = delete;
 
 	[[nodiscard]] constexpr bool isActive() const { return (primaryBuffer.isActive() || secondaryBuffer.isActive()); }
 
@@ -51,7 +48,9 @@ public:
 	void copySecondaryToPrimary();
 	void copyPrimaryToSecondary();
 	void initializeSecondaryBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);
-	void setupWorkingState(State& workingState, uint32_t timePerInternalTickInverse, bool anySoundComingIn = true);
+	/// Fill @p workingState's rate (synced to @p settings' level and type when it is synced) and settings for a block.
+	void setupWorkingState(State& workingState, const deluge::effects::DelayState& settings,
+	                       uint32_t timePerInternalTickInverse, bool anySoundComingIn = true);
 	void discardBuffers();
 	void setTimeToAbandon(const State& workingState);
 	void hasWrapped();
@@ -62,13 +61,6 @@ public:
 
 	uint32_t countCyclesWithoutChange{};
 	int32_t userRateLastTime{};
-	bool pingPong = true;
-	bool analog = false;
-
-	SyncType syncType = SYNC_TYPE_EVEN;
-
-	// Basically, 0 is off, max value is 9. Higher numbers are shorter intervals (higher speed).
-	SyncLevel syncLevel = SYNC_LEVEL_16TH;
 
 	int32_t sizeLeftUntilBufferSwap{};
 

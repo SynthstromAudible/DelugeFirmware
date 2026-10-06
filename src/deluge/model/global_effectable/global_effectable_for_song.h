@@ -24,6 +24,8 @@ public:
 	GlobalEffectableForSong();
 
 	uint8_t* getModKnobMode() override { return &modKnobMode; }
+	/// The master's threshold is its knob, not a param: the file saves the setting.
+	[[nodiscard]] q31_t savedCompressorThreshold() const override { return effects().compressor.threshold; }
 
 	uint8_t modKnobMode;
 

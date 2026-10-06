@@ -91,7 +91,12 @@ void Delay::prepareToBeginWriting() {
 }
 
 // Set the rate and feedback in the workingState before calling this
-void Delay::setupWorkingState(Delay::State& workingState, uint32_t timePerInternalTickInverse, bool anySoundComingIn) {
+void Delay::setupWorkingState(Delay::State& workingState, const deluge::effects::DelayState& settings,
+                              uint32_t timePerInternalTickInverse, bool anySoundComingIn) {
+	workingState.ping_pong = settings.ping_pong;
+	workingState.analog = settings.analog;
+	const SyncLevel syncLevel = settings.sync_level;
+	const SyncType syncType = settings.sync_type;
 
 	// Set some stuff up that we need before we make some decisions
 	// BUG: we want to be able to reduce the 256 to 1, but for some reason, the
@@ -327,7 +332,7 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 		}
 	}
 
-	if (analog) {
+	if (delayWorkingState.analog) {
 
 		for (StereoSample& sample : working_buffer) {
 			ir_processor.process(sample, sample);
@@ -374,7 +379,7 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 		StereoSample current = input;
 
 		// Feedback calculation, and combination with input
-		if (pingPong && AudioEngine::renderInStereo) {
+		if (delayWorkingState.ping_pong && AudioEngine::renderInStereo) {
 			input.l = current.r;
 			input.r = ((output.l + output.r) >> 1) + current.l;
 		}

@@ -30,45 +30,42 @@ SideChain::SideChain() {
 	status = Envelope::Stage::OFF;
 	lastValue = 2147483647;
 	pos = 0;
-	attack = getParamFromUserValue(util::to_underlying(deluge::modulation::params::STATIC_SIDECHAIN_ATTACK), 7);
-	release = getParamFromUserValue(util::to_underlying(deluge::modulation::params::STATIC_SIDECHAIN_RELEASE), 28);
 	pendingHitStrength = 0;
+}
 
-	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the
-	// current song, or even better the one being preloaded. Default sync level is used obviously for the default synth
-	// sound if no SD card inserted, but also some synth presets, possibly just older ones, are saved without this so it
-	// can be set to the default at the time of loading.
+deluge::effects::SidechainState SideChain::defaultSettings() {
+	deluge::effects::SidechainState settings{
+	    .attack = getParamFromUserValue(util::to_underlying(deluge::modulation::params::STATIC_SIDECHAIN_ATTACK), 7),
+	    .release = getParamFromUserValue(util::to_underlying(deluge::modulation::params::STATIC_SIDECHAIN_RELEASE), 28),
+	    .sync_type = SYNC_TYPE_EVEN,
+	};
+	// The default sync level follows the song being loaded, or else the current one: the default synth with no card,
+	// and presets saved without a sync level, take it when they are read.
 	Song* song = preLoadedSong;
 	if (!song) {
 		song = currentSong;
 	}
 	if (song) {
-		syncLevel = (SyncLevel)(7
-		                        - (song->project.transport.inside_world_tick_magnitude
-		                           + song->project.transport.inside_world_tick_magnitude_offset_from_bpm));
+		settings.sync_level = (SyncLevel)(7
+		                                  - (song->project.transport.inside_world_tick_magnitude
+		                                     + song->project.transport.inside_world_tick_magnitude_offset_from_bpm));
 	}
 	else {
-		syncLevel = (SyncLevel)(7 - FlashStorage::defaultMagnitude);
+		settings.sync_level = (SyncLevel)(7 - FlashStorage::defaultMagnitude);
 	}
-	syncType = SYNC_TYPE_EVEN;
-}
-
-void SideChain::cloneFrom(SideChain* other) {
-	attack = other->attack;
-	release = other->release;
-	syncType = other->syncType;
-	syncLevel = other->syncLevel;
+	return settings;
 }
 
 void SideChain::registerHit(int32_t strength) {
 	pendingHitStrength = combineHitStrengths(pendingHitStrength, strength);
 }
 
-void SideChain::registerHitRetrospectively(int32_t strength, uint32_t numSamplesAgo) {
+void SideChain::registerHitRetrospectively(int32_t strength, uint32_t numSamplesAgo,
+                                           const deluge::effects::SidechainState& settings) {
 	pendingHitStrength = 0;
 	envelopeOffset = ONE_Q31 - strength;
 
-	uint32_t alteredAttack = getActualAttackRate();
+	uint32_t alteredAttack = getActualAttackRate(settings);
 	uint32_t attackStageLengthInSamples = 8388608 / alteredAttack;
 
 	envelopeHeight = ONE_Q31 - envelopeOffset;
@@ -82,7 +79,7 @@ void SideChain::registerHitRetrospectively(int32_t strength, uint32_t numSamples
 	// Or if past attack stage...
 	else {
 		uint32_t numSamplesSinceRelease = numSamplesAgo - attackStageLengthInSamples;
-		uint32_t alteredRelease = getActualReleaseRate();
+		uint32_t alteredRelease = getActualReleaseRate(settings);
 		uint32_t releaseStageLengthInSamples = 8388608 / alteredRelease;
 
 		// If we're still in the release stage...
@@ -98,14 +95,14 @@ void SideChain::registerHitRetrospectively(int32_t strength, uint32_t numSamples
 	}
 }
 
-int32_t SideChain::getActualAttackRate() {
+int32_t SideChain::getActualAttackRate(const deluge::effects::SidechainState& settings) {
 	int32_t alteredAttack;
-	if (syncLevel == SYNC_LEVEL_NONE) {
-		alteredAttack = attack;
+	if (settings.sync_level == SYNC_LEVEL_NONE) {
+		alteredAttack = settings.attack;
 	}
 	else {
-		int32_t rshiftAmount = (9 - deluge::engine::index_of(syncLevel)) - 2;
-		alteredAttack = multiply_32x32_rshift32(attack << 11, playbackHandler.getTimePerInternalTickInverse());
+		int32_t rshiftAmount = (9 - deluge::engine::index_of(settings.sync_level)) - 2;
+		alteredAttack = multiply_32x32_rshift32(settings.attack << 11, playbackHandler.getTimePerInternalTickInverse());
 
 		if (rshiftAmount >= 0) {
 			alteredAttack >>= rshiftAmount;
@@ -117,19 +114,20 @@ int32_t SideChain::getActualAttackRate() {
 	return alteredAttack;
 }
 
-int32_t SideChain::getActualReleaseRate() {
+int32_t SideChain::getActualReleaseRate(const deluge::effects::SidechainState& settings) {
 	int32_t alteredRelease;
-	if (syncLevel == SYNC_LEVEL_NONE) {
-		alteredRelease = release;
+	if (settings.sync_level == SYNC_LEVEL_NONE) {
+		alteredRelease = settings.release;
 	}
 	else {
-		alteredRelease = multiply_32x32_rshift32(release << 13, playbackHandler.getTimePerInternalTickInverse())
-		                 >> (9 - deluge::engine::index_of(syncLevel));
+		alteredRelease =
+		    multiply_32x32_rshift32(settings.release << 13, playbackHandler.getTimePerInternalTickInverse())
+		    >> (9 - deluge::engine::index_of(settings.sync_level));
 	}
 	return alteredRelease;
 }
 
-int32_t SideChain::render(uint16_t numSamples, int32_t shapeValue) {
+int32_t SideChain::render(uint16_t numSamples, int32_t shapeValue, const deluge::effects::SidechainState& settings) {
 
 	// Initial hit detected...
 	if (pendingHitStrength != 0) {
@@ -143,7 +141,7 @@ int32_t SideChain::render(uint16_t numSamples, int32_t shapeValue) {
 			envelopeOffset = newOffset;
 
 			// If attack is all the way down, jump directly to release stage
-			if (attack == attackRateTable[0] << 2) {
+			if (settings.attack == attackRateTable[0] << 2) {
 				goto prepareForRelease;
 			}
 
@@ -154,7 +152,7 @@ int32_t SideChain::render(uint16_t numSamples, int32_t shapeValue) {
 	}
 
 	if (status == Envelope::Stage::ATTACK) {
-		pos += numSamples * getActualAttackRate();
+		pos += numSamples * getActualAttackRate(settings);
 
 		if (pos >= 8388608) {
 prepareForRelease:
@@ -177,7 +175,7 @@ prepareForRelease:
 	}
 	else if (status == Envelope::Stage::RELEASE) {
 doRelease:
-		pos += numSamples * getActualReleaseRate();
+		pos += numSamples * getActualReleaseRate(settings);
 
 		if (pos >= 8388608) {
 			status = Envelope::Stage::OFF;

@@ -271,15 +271,7 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 		expect(snap.oscillatorSync == d.oscillator_sync, "oscillatorSync");
 		expect(snap.voicePriority == static_cast<VoicePriority>(d.voice_priority), "voicePriority");
 		expect(snap.modulator1ToModulator0 == d.modulator1_to_modulator0, "modulator1ToModulator0");
-		if (sound.docModControllable_ != nullptr) {
-			const deluge::instrument::DocModControllable& m = *sound.docModControllable_;
-			const deluge::snapshot::ModControllableSnapshot& ms = sound.modControllableSnapshot();
-			expect(ms.clippingAmount == m.clipping_amount, "clippingAmount");
-			expect(ms.lpfMode == static_cast<FilterMode>(m.lpf_mode), "lpfMode");
-			expect(ms.hpfMode == static_cast<FilterMode>(m.hpf_mode), "hpfMode");
-			expect(ms.filterRoute == static_cast<FilterRoute>(m.filter_route), "filterRoute");
-			expect(ms.modFXType == static_cast<ModFXType>(m.mod_fx_type), "modFXType");
-		}
+		expect(sound.modControllableSnapshot().effects == sound.effects(), "effects");
 		expect(snap.numUnison == d.num_unison, "numUnison");
 		expect(snap.unisonDetune == d.unison_detune, "unisonDetune");
 		expect(snap.unisonStereoSpread == d.unison_stereo_spread, "unisonStereoSpread");
@@ -409,25 +401,25 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 		sound.setUnisonStereoSpread(before.unisonStereoSpread);
 		sound.setUnisonDetune(before.unisonDetune, nullptr);
 		sound.setNumUnison(before.numUnison, nullptr);
-		if (sound.docModControllable_ != nullptr) {
-			const deluge::instrument::DocModControllable& m = *sound.docModControllable_;
-			const deluge::snapshot::ModControllableSnapshot mBefore = sound.modControllableSnapshot();
-			sound.setClippingAmount(static_cast<uint8_t>(mBefore.clippingAmount == 3 ? 4 : 3));
-			sound.setLpfMode(mBefore.lpfMode == FilterMode::SVF_BAND ? FilterMode::SVF_NOTCH : FilterMode::SVF_BAND);
-			sound.setHpfMode(mBefore.hpfMode == FilterMode::HPLADDER ? FilterMode::SVF_BAND : FilterMode::HPLADDER);
-			sound.setFilterRoute(mBefore.filterRoute == FilterRoute::PARALLEL ? FilterRoute::HIGH_TO_LOW
-			                                                                  : FilterRoute::PARALLEL);
-			const deluge::snapshot::ModControllableSnapshot& ms = sound.modControllableSnapshot();
-			roundTrip(ms.clippingAmount == m.clipping_amount && ms.clippingAmount != mBefore.clippingAmount
-			              && ms.lpfMode == static_cast<FilterMode>(m.lpf_mode) && ms.lpfMode != mBefore.lpfMode
-			              && ms.hpfMode == static_cast<FilterMode>(m.hpf_mode) && ms.hpfMode != mBefore.hpfMode
-			              && ms.filterRoute == static_cast<FilterRoute>(m.filter_route)
-			              && ms.filterRoute != mBefore.filterRoute,
+		{
+			const deluge::effects::EffectStates effectsBefore = sound.effects();
+			sound.setClippingAmount(static_cast<uint8_t>(effectsBefore.saturation.clipping_amount == 3 ? 4 : 3));
+			sound.setLpfMode(effectsBefore.filter.lpf_mode == FilterMode::SVF_BAND ? FilterMode::SVF_NOTCH
+			                                                                       : FilterMode::SVF_BAND);
+			sound.setHpfMode(effectsBefore.filter.hpf_mode == FilterMode::HPLADDER ? FilterMode::SVF_BAND
+			                                                                       : FilterMode::HPLADDER);
+			sound.setFilterRoute(effectsBefore.filter.route == FilterRoute::PARALLEL ? FilterRoute::HIGH_TO_LOW
+			                                                                         : FilterRoute::PARALLEL);
+			const deluge::effects::EffectStates& ms = sound.modControllableSnapshot().effects;
+			roundTrip(ms == sound.effects() && ms.saturation != effectsBefore.saturation
+			              && ms.filter.lpf_mode != effectsBefore.filter.lpf_mode
+			              && ms.filter.hpf_mode != effectsBefore.filter.hpf_mode
+			              && ms.filter.route != effectsBefore.filter.route,
 			          "setClippingAmount/setLpfMode/setHpfMode/setFilterRoute");
-			sound.setFilterRoute(mBefore.filterRoute);
-			sound.setHpfMode(mBefore.hpfMode);
-			sound.setLpfMode(mBefore.lpfMode);
-			sound.setClippingAmount(mBefore.clippingAmount);
+			sound.setFilterRoute(effectsBefore.filter.route);
+			sound.setHpfMode(effectsBefore.filter.hpf_mode);
+			sound.setLpfMode(effectsBefore.filter.lpf_mode);
+			sound.setClippingAmount(effectsBefore.saturation.clipping_amount);
 		}
 	}
 	std::fprintf(io.err, "M4b snapshot coherence %s: %d bound sounds, %d mismatches\n", label, sounds, bad);

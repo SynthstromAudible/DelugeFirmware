@@ -31,7 +31,8 @@ public:
 	using IntegerWithOff::IntegerWithOff;
 
 	void readCurrentValue() override {
-		this->setValue(soundEditor.currentModControllable->modControllableSnapshot().clippingAmount);
+		this->setValue(
+		    soundEditor.currentModControllable->modControllableSnapshot().effects.saturation.clipping_amount);
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {

@@ -1008,6 +1008,21 @@ tier = "pr"
 runtime = "~1s"
 
 [[harness]]
+name = "effect-owners"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "unit"
+status = "gate"
+gates = "every owner of effects (a synth's sound, a kit, an audio track, the song master) keeps its effect settings in its own state, and the render's copy follows each change (effect_owners.cpp, self-checking)"
+scenario = "effect_owners"
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+
+[[harness]]
 name = "edit-substrate"
 path = "."
 level = "integration"

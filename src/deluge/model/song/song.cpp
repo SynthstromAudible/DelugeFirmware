@@ -1666,36 +1666,38 @@ unknownTag:
 
 			// legacy section, read as part of global effectable (songParams tag) post c1.1
 			else if (!strcmp(tagName, "songCompressor")) {
+				deluge::effects::EffectStates next = live.global_effectable.effects();
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "attack")) {
 						q31_t masterCompressorAttack = reader.readTagOrAttributeValueInt();
-						live.global_effectable.compressor.setAttack(masterCompressorAttack);
+						next.compressor.attack = masterCompressorAttack;
 						reader.exitTag("attack");
 					}
 					else if (!strcmp(tagName, "release")) {
 						q31_t masterCompressorRelease = reader.readTagOrAttributeValueInt();
-						live.global_effectable.compressor.setRelease(masterCompressorRelease);
+						next.compressor.release = masterCompressorRelease;
 						reader.exitTag("release");
 					}
 					else if (!strcmp(tagName, "thresh")) {
 						q31_t masterCompressorThresh = reader.readTagOrAttributeValueInt();
-						live.global_effectable.compressor.setThreshold(masterCompressorThresh);
+						next.compressor.threshold = masterCompressorThresh;
 						reader.exitTag("thresh");
 					}
 					else if (!strcmp(tagName, "ratio")) {
 						q31_t masterCompressorRatio = reader.readTagOrAttributeValueInt();
-						live.global_effectable.compressor.setRatio(masterCompressorRatio);
+						next.compressor.ratio = masterCompressorRatio;
 						reader.exitTag("ratio");
 					}
 					else if (!strcmp(tagName, "compHPF")) {
 						q31_t masterCompressorSidechain = reader.readTagOrAttributeValueInt();
-						live.global_effectable.compressor.setSidechain(masterCompressorSidechain);
+						next.compressor.sidechain_hpf = masterCompressorSidechain;
 						reader.exitTag("compHPF");
 					}
 					else {
 						reader.exitTag(tagName);
 					}
 				}
+				live.global_effectable.setEffects(next);
 				reader.exitTag("songCompressor");
 			}
 

@@ -579,9 +579,9 @@ bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId con
 	// Shared
 	switch (modelStack->paramId) {
 	case params::UNPATCHED_STUTTER_RATE:
-		return !(((ModControllableAudio*)modelStack->modControllable)->stutterConfig.useSongStutter
-		             ? currentSong->live.global_effectable.stutterConfig.quantized
-		             : ((ModControllableAudio*)modelStack->modControllable)->stutterConfig.quantized)
+		return !(((ModControllableAudio*)modelStack->modControllable)->effects().stutter.use_song_stutter
+		             ? currentSong->live.global_effectable.effects().stutter.quantized
+		             : ((ModControllableAudio*)modelStack->modControllable)->effects().stutter.quantized)
 		       || isUIModeActive(UI_MODE_STUTTERING);
 	case params::UNPATCHED_BASS:
 	case params::UNPATCHED_TREBLE:

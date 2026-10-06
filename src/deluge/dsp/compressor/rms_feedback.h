@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/filter/ladder_components.h"
 #include "dsp/stereo_sample.h"
+#include "engines/effects/state.h"
 #include <cmath>
 #include <span>
 
@@ -27,15 +28,22 @@ class [[gnu::hot]] RMSFeedbackCompressor {
 public:
 	RMSFeedbackCompressor();
 
-	/// takes in all values as knob positions in the range 0-ONE_Q31
-	constexpr void setup(q31_t a, q31_t r, q31_t t, q31_t rat, q31_t fc, q31_t blend, float baseGain) {
-		setAttack(a);
-		setRelease(r);
-		setThreshold(t);
-		setRatio(rat);
-		setSidechain(fc);
-		setBlend(blend);
-		baseGain_ = baseGain;
+	/// Take @p state's knob positions, recomputing the time constants, ratio, sidechain filter and blend only when they
+	/// differ from the ones last taken. The threshold too, which an owner whose threshold is a param then overrides
+	/// with setThreshold every block.
+	void configure(const deluge::effects::CompressorState& state) {
+		if (state == configured_) {
+			return;
+		}
+		setAttack(state.attack);
+		setRelease(state.release);
+		if (state.threshold != configured_.threshold) {
+			setThreshold(state.threshold);
+		}
+		setRatio(state.ratio);
+		setSidechain(state.sidechain_hpf);
+		setBlend(state.blend);
+		configured_ = state;
 	}
 
 	/// Reset the state of the compressor so no gain reduction is applied at the start of the next render window.
@@ -66,98 +74,47 @@ public:
 	/// constant otherwise.
 	[[nodiscard]] float runEnvelope(float current, float desired, float numSamples) const;
 
-	/// Get the current attack time constant in terms of the full knob range (0 to 2^31)
-	[[nodiscard]] inline constexpr q31_t getAttack() const { return attackKnobPos; }
-
 	/// Get the current attack time constant in MS for a 3db change
 	[[nodiscard]] inline constexpr float getAttackMS() const { return attackMS; }
-
-	/// Set the attack time constant from a full-scale (0 to 2^31) number.
-	///
-	/// The parameter is exponentially mapped to a number between 0.5 and 70-ish ms
-	constexpr int32_t setAttack(q31_t attack) {
-		// this exp will be between 1 and 7ish, half the knob range is about 2.5
-		attackMS = 0.5 + (std::exp(2 * float(attack) / ONE_Q31f) - 1) * 10;
-		a_ = (-1000.0f / kSampleRate) / attackMS;
-		attackKnobPos = attack;
-		return attackMS;
-	};
-
-	/// Get the current release time constant in terms of the full knob range (0 to 2^31)
-	[[nodiscard]] inline constexpr q31_t getRelease() const { return releaseKnobPos; }
 
 	/// Get the current release time constant in MS for a 3db change
 	[[nodiscard]] inline constexpr float getReleaseMS() const { return releaseMS; }
 
-	/// Set the release time constant from a full-scale (0 to 2^31) number.
-	///
-	/// The parameter is exponentially mapped to a number between 50 and 400-ish ms
-	constexpr int32_t setRelease(q31_t release) {
-		// this exp will be between 1 and 7ish, half the knob range is about 2.5
-		releaseMS = 50 + (std::exp(2 * float(release) / ONE_Q31f) - 1) * 50;
-		r_ = (-1000.0f / kSampleRate) / releaseMS;
-		releaseKnobPos = release;
-		return releaseMS;
-	};
+	/// The threshold this block renders with, as a full-scale (0 to 2^31) number.
+	[[nodiscard]] inline constexpr q31_t threshold() const { return thresholdKnobPos; }
 
-	/// Get the current theshold as a full-scale (0 to 2^31) number.
-	[[nodiscard]] inline constexpr q31_t getThreshold() const { return thresholdKnobPos; }
-	/// Set the threshold based on a full-scale (0 to 2^31) number.
+	/// Set the threshold this block renders with, from a full-scale (0 to 2^31) number.
 	///
 	/// 0 corresponds to a threshold of 0.2, 2^31 corresponds to a theshold of 1.
 	constexpr void setThreshold(q31_t t) {
 		thresholdKnobPos = t;
-		threshold = 1 - 0.8f * (float(thresholdKnobPos) / ONE_Q31f);
+		threshold_ = 1 - 0.8f * (float(thresholdKnobPos) / ONE_Q31f);
 	}
 
-	/// Get the current ratio as a full-scale (0 to 2^31) number
-	[[nodiscard]] inline constexpr q31_t getRatio() const { return ratioKnobPos; }
-
-	/// Get the current ratio as a float
-	[[nodiscard]] inline constexpr float getRatioForDisplay() const { return ratio; }
-
-	/// Set the ratio based on a full-scale (0 to 2^31) number.
-	///
-	/// A inverse (1/x) mapping is used, where 0 corresponds to a ratio of 2:1, 2^31 corresponds to a ratio of 256:1.
-	constexpr int32_t setRatio(q31_t rat) {
-		ratioKnobPos = rat;
-		fraction = 0.5f + (float(ratioKnobPos) / ONE_Q31f) / 2;
-		ratio = 1 / (1 - fraction);
-		return ratio;
+	/// The attack time, in ms for a 3 dB change, a knob position (0 to 2^31) gives: about 0.5 to 70 ms.
+	[[nodiscard]] static float attackMsOf(q31_t attack) {
+		// this exp will be between 1 and 7ish, half the knob range is about 2.5
+		return 0.5 + (std::exp(2 * float(attack) / ONE_Q31f) - 1) * 10;
 	}
 
-	/// Get the current sidechain cutoff frequency as a full-scale (0 to 2^31) integer
-	[[nodiscard]] q31_t getSidechain() const { return sideChainKnobPos; }
+	/// The release time, in ms for a 3 dB change, a knob position (0 to 2^31) gives: about 50 to 400 ms.
+	[[nodiscard]] static float releaseMsOf(q31_t release) {
+		// this exp will be between 1 and 7ish, half the knob range is about 2.5
+		return 50 + (std::exp(2 * float(release) / ONE_Q31f) - 1) * 50;
+	}
 
-	/// Get the current sidechain cutoff frequency in hertz.
-	[[nodiscard]] inline constexpr float getSidechainForDisplay() const { return fc_hz; }
+	/// The ratio a knob position (0 to 2^31) gives, inversely: 0 is 2:1, 2^31 is 256:1.
+	[[nodiscard]] static float ratioOf(q31_t ratioKnob) { return 1 / (1 - fractionOf(ratioKnob)); }
 
-	/// Set the sidechain cutoff frequency from a full-scale (0 to 2^31) integer.
-	///
-	/// The parameter is exponentially mapped so 0 to 2^31 corresponds to about 0 to 100hz cutoff.
-	constexpr int32_t setSidechain(q31_t f) {
-		sideChainKnobPos = f;
+	/// The sidechain filter's cutoff in Hz a knob position (0 to 2^31) gives: about 0 to 100 Hz, 60 Hz at half.
+	[[nodiscard]] static float sidechainHzOf(q31_t sidechainKnob) {
 		// this exp will be between 1 and 5ish, half the knob range is about 2
-		// the result will then be from 0 to 100hz with half the knob range at 60hz
-		fc_hz = (std::exp(1.5 * float(f) / ONE_Q31f) - 1) * 30;
-		float fc = fc_hz / float(kSampleRate);
-		float wc = fc / (1 + fc);
-		hpfA_ = wc * ONE_Q31;
-		return fc_hz;
+		return (std::exp(1.5 * float(sidechainKnob) / ONE_Q31f) - 1) * 30;
 	}
 
-	/// returns blend in q31
-	[[nodiscard]] constexpr q31_t getBlend() const { return wet; }
-	/// returns blend as an integer percentage
-	constexpr int32_t getBlendForDisplay() { return wet > (127 << 24) ? 100 : 100 * (wet >> 24) >> 7; }
-
-	/// update the blend level, where blend is the wet level (i.e. ONE_Q31 is full wet)
-	/// returns wet percentage
-	constexpr int32_t setBlend(q31_t blend) {
-		// hack to allow it to get to full wet. Safe since this isn't a modulatable param and doesn't need the headroom
-		dry = ONE_Q31 - blend;
-		wet = blend;
-		return getBlendForDisplay();
+	/// The wet level a blend (Q31, ONE_Q31 full wet) gives, as a whole percentage.
+	[[nodiscard]] static constexpr int32_t blendPercentOf(q31_t blend) {
+		return blend > (127 << 24) ? 100 : 100 * (blend >> 24) >> 7;
 	}
 
 	/// Configure the base makeup gain. Since reduction is always negative, we only need to worry about the case where
@@ -176,6 +133,39 @@ public:
 	uint8_t gainReduction = 0;
 
 private:
+	[[nodiscard]] static float fractionOf(q31_t ratioKnob) { return 0.5f + (float(ratioKnob) / ONE_Q31f) / 2; }
+
+	void setAttack(q31_t attack) {
+		attackMS = attackMsOf(attack);
+		a_ = (-1000.0f / kSampleRate) / attackMS;
+	}
+
+	void setRelease(q31_t release) {
+		releaseMS = releaseMsOf(release);
+		r_ = (-1000.0f / kSampleRate) / releaseMS;
+	}
+
+	void setRatio(q31_t ratioKnob) {
+		fraction = fractionOf(ratioKnob);
+		ratio = 1 / (1 - fraction);
+	}
+
+	void setSidechain(q31_t sidechainKnob) {
+		fc_hz = sidechainHzOf(sidechainKnob);
+		float fc = fc_hz / float(kSampleRate);
+		float wc = fc / (1 + fc);
+		hpfA_ = wc * ONE_Q31;
+	}
+
+	void setBlend(q31_t blend) {
+		// ONE_Q31 is full wet: safe, since the blend is no modulatable param and needs no headroom
+		dry = ONE_Q31 - blend;
+		wet = blend;
+	}
+
+	/// The knob positions last taken (configure): a record of when to recompute, written nowhere else.
+	deluge::effects::CompressorState configured_{};
+
 	/// Attack time constant, in inverse samples
 	float a_ = (-1000.0f / kSampleRate);
 	/// Release time constant, in inverse samples
@@ -191,8 +181,8 @@ private:
 	float er = 0;
 	/// Threshold, in decibels
 	float threshdb = 17;
-	/// The raw threshold value
-	float threshold = 1;
+	/// The threshold this block renders with, as a linear level
+	float threshold_ = 1;
 	/// A parameter for the internal HPF
 	q31_t hpfA_ = ONE_Q15;
 
@@ -223,12 +213,8 @@ private:
 	/// is engaged.
 	float baseGain_;
 
-	// raw knob positions
+	/// The threshold this block renders with (setThreshold), full-scale.
 	q31_t thresholdKnobPos = 0;
-	q31_t ratioKnobPos = 0;
-	q31_t attackKnobPos = 0;
-	q31_t releaseKnobPos = 0;
-	q31_t sideChainKnobPos = 0;
 	q31_t dry;
 	q31_t wet;
 };

@@ -206,15 +206,16 @@ void GlobalEffectable::displayModFXSettings(bool on) {
 char const* GlobalEffectable::getModFXTypeDisplayName() {
 	auto modTypeCount = kNumModFXTypes;
 
-	assignModFXType(static_cast<ModFXType>(util::to_underlying(modControllableSnapshot_.modFXType) % modTypeCount));
+	assignModFXType(
+	    static_cast<ModFXType>(util::to_underlying(modControllableSnapshot_.effects.mod_fx.type) % modTypeCount));
 
-	return modfx::modFXToString(modControllableSnapshot_.modFXType);
+	return modfx::modFXToString(modControllableSnapshot_.effects.mod_fx.type);
 }
 
 char const* GlobalEffectable::getModFXParamDisplayName() {
 	currentModFXParam = static_cast<ModFXParam>(util::to_underlying(currentModFXParam) % kNumModFXParams);
 
-	return modfx::getParamName(modControllableSnapshot_.modFXType, currentModFXParam);
+	return modfx::getParamName(modControllableSnapshot_.effects.mod_fx.type, currentModFXParam);
 }
 
 // Returns whether Instrument changed
@@ -239,8 +240,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		if (whichModEncoder == 1) {
 			if (on) {
 				auto modTypeCount = kNumModFXTypes;
-				setModFXType(static_cast<ModFXType>((util::to_underlying(modControllableSnapshot_.modFXType) + 1)
-				                                    % modTypeCount));
+				setModFXType(static_cast<ModFXType>(
+				    (util::to_underlying(modControllableSnapshot_.effects.mod_fx.type) + 1) % modTypeCount));
 				ensureModFXParamIsValid();
 
 				// if mod button is pressed, update mod button pop up
@@ -469,32 +470,32 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 
 		// this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { // sidechain (threshold)
-			current = (compressor.getThreshold() >> 24);
+			current = (savedCompressorThreshold() >> 24);
 		}
 		else if (whichModEncoder == 0) {
 			switch (currentCompParam) {
 
 			case CompParam::RATIO:
-				current = (compressor.getRatio() >> 24);
+				current = (effects().compressor.ratio >> 24);
 
 				break;
 
 			case CompParam::ATTACK:
-				current = compressor.getAttack() >> 24;
+				current = effects().compressor.attack >> 24;
 
 				break;
 
 			case CompParam::RELEASE:
-				current = compressor.getRelease() >> 24;
+				current = effects().compressor.release >> 24;
 
 				break;
 
 			case CompParam::SIDECHAIN:
-				current = compressor.getSidechain() >> 24;
+				current = effects().compressor.sidechain_hpf >> 24;
 				break;
 
 			case CompParam::BLEND:
-				current = compressor.getBlend() >> 24;
+				current = effects().compressor.blend >> 24;
 				break;
 
 			// explicit fallthrough case
@@ -517,12 +518,12 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 		// this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { // sidechain (threshold)
 			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_THRESHOLD));
-			current = (compressor.getThreshold() >> 24) - 64;
+			current = (savedCompressorThreshold() >> 24) - 64;
 			current += offset;
 			current = std::clamp(current, -64, 64);
 			ledLevel = (64 + current);
 			displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
-			compressor.setThreshold(lshiftAndSaturate<24>(current + 64));
+			setCompressorThreshold(lshiftAndSaturate<24>(current + 64));
 			indicator_leds::setKnobIndicatorLevel(1, ledLevel);
 			unit = "";
 		}
@@ -531,56 +532,62 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 			case CompParam::RATIO:
 				parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RATIO));
-				current = (compressor.getRatio() >> 24) - 64;
+				current = (effects().compressor.ratio >> 24) - 64;
 				current += offset;
 				// this range is ratio of 2 to 20
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
-				displayLevel = compressor.setRatio(lshiftAndSaturate<24>(current + 64));
+				setCompressorRatio(lshiftAndSaturate<24>(current + 64));
+				displayLevel = static_cast<int32_t>(RMSFeedbackCompressor::ratioOf(effects().compressor.ratio));
 				unit = " : 1";
 				break;
 
 			case CompParam::ATTACK:
 				parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ATTACK));
-				current = (compressor.getAttack() >> 24) - 64;
+				current = (effects().compressor.attack >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 
-				displayLevel = compressor.setAttack(lshiftAndSaturate<24>(current + 64));
+				setCompressorAttack(lshiftAndSaturate<24>(current + 64));
+				displayLevel = static_cast<int32_t>(RMSFeedbackCompressor::attackMsOf(effects().compressor.attack));
 				unit = " MS";
 				break;
 
 			case CompParam::RELEASE:
 				parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RELEASE));
-				current = (compressor.getRelease() >> 24) - 64;
+				current = (effects().compressor.release >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 
-				displayLevel = compressor.setRelease(lshiftAndSaturate<24>(current + 64));
+				setCompressorRelease(lshiftAndSaturate<24>(current + 64));
+				displayLevel = static_cast<int32_t>(RMSFeedbackCompressor::releaseMsOf(effects().compressor.release));
 				unit = " MS";
 				break;
 
 			case CompParam::SIDECHAIN:
 				parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HPF));
-				current = (compressor.getSidechain() >> 24) - 64;
+				current = (effects().compressor.sidechain_hpf >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 
-				displayLevel = compressor.setSidechain(lshiftAndSaturate<24>(current + 64));
+				setCompressorSidechainHpf(lshiftAndSaturate<24>(current + 64));
+				displayLevel =
+				    static_cast<int32_t>(RMSFeedbackCompressor::sidechainHzOf(effects().compressor.sidechain_hpf));
 				unit = " HZ";
 				break;
 
 			case CompParam::BLEND: {
 				parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_BLEND));
-				current = (compressor.getBlend() >> 24) - 64;
+				current = (effects().compressor.blend >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 				q31_t level = current == 64 ? ONE_Q31 : lshiftAndSaturate<24>(current + 64);
-				displayLevel = compressor.setBlend(level);
+				setCompressorBlend(level);
+				displayLevel = RMSFeedbackCompressor::blendPercentOf(level);
 				unit = " %";
 				break;
 			}
@@ -704,26 +711,26 @@ ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int32_t whichM
 }
 
 ModFXType GlobalEffectable::getModFXType() {
-	return modControllableSnapshot_.modFXType;
+	return modControllableSnapshot_.effects.mod_fx.type;
 }
 
 void GlobalEffectable::ensureModFXParamIsValid() {
 	while (true) {
 		if (currentModFXParam == ModFXParam::DEPTH) {
-			if (modControllableSnapshot_.modFXType == ModFXType::FLANGER) {
+			if (modControllableSnapshot_.effects.mod_fx.type == ModFXType::FLANGER) {
 				goto ohNo;
 			}
 		}
 		else if (currentModFXParam == ModFXParam::OFFSET) {
-			if (modControllableSnapshot_.modFXType != ModFXType::CHORUS
-			    && modControllableSnapshot_.modFXType != ModFXType::CHORUS_STEREO
-			    && modControllableSnapshot_.modFXType != ModFXType::GRAIN) {
+			if (modControllableSnapshot_.effects.mod_fx.type != ModFXType::CHORUS
+			    && modControllableSnapshot_.effects.mod_fx.type != ModFXType::CHORUS_STEREO
+			    && modControllableSnapshot_.effects.mod_fx.type != ModFXType::GRAIN) {
 				goto ohNo;
 			}
 		}
 		else { // ModFXParam::FEEDBACK
-			if (modControllableSnapshot_.modFXType == ModFXType::CHORUS
-			    || modControllableSnapshot_.modFXType == ModFXType::CHORUS_STEREO) {
+			if (modControllableSnapshot_.effects.mod_fx.type == ModFXType::CHORUS
+			    || modControllableSnapshot_.effects.mod_fx.type == ModFXType::CHORUS_STEREO) {
 				goto ohNo;
 			}
 		}
@@ -757,16 +764,16 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_MORPH],
 	                                 cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH)));
 
-	bool doLPF = (modControllableSnapshot_.lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
+	bool doLPF = (modControllableSnapshot_.effects.filter.lpf_mode == FilterMode::TRANSISTOR_24DB_DRIVE
 	              || unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ) < 2147483602
 	              || unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH) > NEGATIVE_ONE_Q31);
 	bool doHPF = unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ) > NEGATIVE_ONE_Q31
 	             || unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH) > NEGATIVE_ONE_Q31;
-	FilterMode lpfModeForRender = doLPF ? modControllableSnapshot_.lpfMode : FilterMode::OFF;
-	FilterMode hpfModeForRender = doHPF ? modControllableSnapshot_.hpfMode : FilterMode::OFF;
+	FilterMode lpfModeForRender = doLPF ? modControllableSnapshot_.effects.filter.lpf_mode : FilterMode::OFF;
+	FilterMode hpfModeForRender = doHPF ? modControllableSnapshot_.effects.filter.hpf_mode : FilterMode::OFF;
 	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, lpfModeForRender, lpfMorph, hpfFrequency,
 	                                    hpfResonance, hpfModeForRender, hpfMorph, *postFXVolume,
-	                                    modControllableSnapshot_.filterRoute, false, NULL);
+	                                    modControllableSnapshot_.effects.filter.route, false, NULL);
 }
 
 [[gnu::hot]] void GlobalEffectable::processFilters(std::span<StereoSample> buffer) {
@@ -927,7 +934,7 @@ void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* par
 }
 
 ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
-	ModFXType modFXTypeNow = modControllableSnapshot_.modFXType;
+	ModFXType modFXTypeNow = modControllableSnapshot_.effects.mod_fx.type;
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -959,7 +966,8 @@ Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManage
 	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE],
 	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE)));
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
-	delay.setupWorkingState(delayWorkingState, timePerTickInverse, soundComingIn);
+	delay.setupWorkingState(delayWorkingState, modControllableSnapshot_.effects.delay, timePerTickInverse,
+	                        soundComingIn);
 
 	return delayWorkingState;
 }

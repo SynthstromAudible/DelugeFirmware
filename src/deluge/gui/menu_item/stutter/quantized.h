@@ -29,7 +29,9 @@ namespace deluge::gui::menu_item::stutter {
 class QuantizedStutter final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.quantized); }
+	void readCurrentValue() override {
+		this->setValue(soundEditor.currentModControllable->effects().stutter.quantized);
+	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		bool current_value = this->getValue();
@@ -43,7 +45,7 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
-					if (!soundEditor.currentModControllable->stutterConfig.useSongStutter) {
+					if (!soundEditor.currentModControllable->effects().stutter.use_song_stutter) {
 						soundDrum->setStutterQuantized(current_value);
 					}
 				}
@@ -56,7 +58,7 @@ public:
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return soundEditor.currentModControllable->isSong()
-		       || !soundEditor.currentModControllable->stutterConfig.useSongStutter;
+		       || !soundEditor.currentModControllable->effects().stutter.use_song_stutter;
 	}
 };
 

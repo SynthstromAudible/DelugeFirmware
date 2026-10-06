@@ -41,7 +41,7 @@ void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 	// Maximum value: 2.08 neppers, since finalVolume is at most 0x7fffffff (representing ~8 in 3.29 signed fixed point)
 	float songVolumedB = logf(finalVolume + 1e-10);
 
-	threshdb = songVolumedB * threshold;
+	threshdb = songVolumedB * threshold_;
 	// this is effectively where song volume gets applied, so we'll stick an IIR filter (e.g. the envelope) here to
 	// reduce clicking
 	float lastER = er;

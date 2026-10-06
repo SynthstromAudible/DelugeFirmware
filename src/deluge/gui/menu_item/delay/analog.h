@@ -27,7 +27,7 @@ namespace deluge::gui::menu_item::delay {
 class Analog final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.analog); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->effects().delay.analog); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();

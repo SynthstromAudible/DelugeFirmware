@@ -91,7 +91,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 			sidechain.registerHit(sideChainHitPending);
 		}
 		int32_t sidechainOutput =
-		    sidechain.render(output.size(), unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
+		    sidechain.render(output.size(), unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
+		                     modControllableSnapshot_.effects.sidechain);
 
 		int32_t positivePatchedValue =
 		    multiply_32x32_rshift32(sidechainOutput, getSidechainVolumeAmountAsPatchCableDepth(paramManagerForClip))
@@ -101,8 +102,9 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		postReverbVolume = (positivePatchedValue >> 15) * (positivePatchedValue >> 16);
 	}
 
+	compressor.configure(modControllableSnapshot_.effects.compressor);
 	const q31_t compThreshold = unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
-	compressor.setThreshold(compThreshold);
+	compressor.setThreshold(compThreshold); // a clip chain's threshold is its param
 
 	alignas(CACHE_LINE_SIZE) StereoSample global_effectable_memory[SSI_TX_BUFFER_NUM_SAMPLES];
 	memset(global_effectable_memory, 0, sizeof(StereoSample) * output.size());
@@ -114,7 +116,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
 	// Render saturation
-	if (modControllableSnapshot_.clippingAmount != 0u) {
+	if (modControllableSnapshot_.effects.saturation.clipping_amount != 0u) {
 		int32_t shiftAmount = getShiftAmountForSaturation();
 		for (StereoSample& sample : global_effectable_audio) {
 			sample.l = saturate(sample.l, &lastSaturationTanHWorkingValue[0], shiftAmount);
@@ -211,12 +213,9 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 				else {
 					insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 				}
-				if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
-					sidechain.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
-				}
-				else {
-					sidechain.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
-				}
+				setSidechainSyncLevel(effects().sidechain.sync_level == (SyncLevel)(7 - insideWorldTickMagnitude)
+				                          ? (SyncLevel)(9 - insideWorldTickMagnitude)
+				                          : (SyncLevel)(7 - insideWorldTickMagnitude));
 
 				// if mod button is pressed, update mod button pop up
 				if (Buttons::isButtonPressed(

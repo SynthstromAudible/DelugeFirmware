@@ -34,7 +34,7 @@
 #include "modulation/sidechain/sidechain.h"
 #include "synth/lfo.h"
 
-#include "engines/deluge/sound_state.h"
+#include "engines/effects/state.h"
 
 class Clip;
 class Knob;
@@ -58,24 +58,26 @@ public:
 	                                bool doAmplitudeIncrement = false);
 	void writeAttributesToFile(Serializer& writer);
 	void writeTagsToFile(Serializer& writer);
+	/// The compressor threshold a file saves: the one the render last applied, which for a sound or a clip chain is its
+	/// param's.
+	[[nodiscard]] virtual q31_t savedCompressorThreshold() const { return compressor.threshold(); }
 
-	/// M3 owner-5 slice F: non-owning pointer to this base's DocModControllable record. Bound by the owner when it
-	/// binds its own Doc (Sound points it at state_->mod_controllable). Stays null for owners without a record yet
-	/// (GlobalEffectable), whose save keeps reading the native fields — so the flip is transparent for them.
-	deluge::instrument::DocModControllable* docModControllable_{nullptr};
-	void bindDocModControllable(deluge::instrument::DocModControllable* d);
-	/// Copy the non-param structural fields native->record (guarded on docModControllable_). The load-bridge: run at
-	/// bind and re-run once parsing is done (the owner's doneReadingFromFile), mirroring the SoundState scalar seed.
-	void seedDocModControllable();
-	/// The settings seedDocModControllable copies, into @p d.
-	void seedEffectsInto(deluge::instrument::DocModControllable& d) const;
-	/// The derived read-view of the effect configuration; the render reads it. Always present: an unbound owner writes
-	/// it directly.
+	/// @brief This owner's effect settings: a bound sound's are its SoundState's, any other owner's its own.
+	[[nodiscard]] const deluge::effects::EffectStates& effects() const {
+		return boundEffects_ != nullptr ? *boundEffects_ : ownEffects_;
+	}
+	/// @brief Make @p next this owner's effect settings, and the render's copy of them, which is replaced with the
+	/// render excluded.
+	void setEffects(const deluge::effects::EffectStates& next);
+	/// @brief Keep this owner's effect settings in @p record (a sound's SoundState), which takes the settings held now;
+	/// nullptr keeps them here again.
+	void bindEffects(deluge::effects::EffectStates* record);
+	/// The render's copy of the effect settings: it reads nothing else of them.
 	deluge::snapshot::ModControllableSnapshot modControllableSnapshot_{};
 	[[nodiscard]] const deluge::snapshot::ModControllableSnapshot& modControllableSnapshot() const {
 		return modControllableSnapshot_;
 	}
-	/// Re-derive modControllableSnapshot_ from docModControllable_ (no-op when unbound).
+	/// Copy the settings into the render's copy, with the render excluded.
 	void projectModControllableSnapshot();
 	/// Store the mod-FX type without setModFXType()'s owner-specific setup — for the load path and cloneFrom().
 	void assignModFXType(ModFXType value);
@@ -94,15 +96,11 @@ public:
 	void endStutter(ParamManagerForTimeline* paramManager);
 	virtual ModFXType getModFXType() = 0;
 	virtual bool setModFXType(ModFXType newType);
-	// M3 owner-5 slice F: setters for the DOM-owned filter/clipping scalars (record in DocModControllable; native kept
-	// as hot cache). Each writes the record (when bound) AND the cache; menu/gesture sites funnel through these, save
-	// reads the record. The filter-mode toggles below mutate in several steps, so they re-seed their field at the end
-	// instead.
+	// One effect setting each, through setEffects.
 	void setClippingAmount(uint8_t value);
 	void setLpfMode(FilterMode value);
 	void setHpfMode(FilterMode value);
 	void setFilterRoute(FilterRoute value);
-	// Delay + stutter config (slice 2). Native sub-fields kept as hot cache; record authoritative for save.
 	void setDelayPingPong(bool value);
 	void setDelayAnalog(bool value);
 	void setDelaySyncType(SyncType value);
@@ -110,14 +108,19 @@ public:
 	void setStutterQuantized(bool value);
 	void setStutterReversed(bool value);
 	void setStutterPingPong(bool value);
-	// Sidechain (slice 3). Native sub-fields kept as hot cache; record authoritative for save. NB the reverb sidechain
-	// (AudioEngine::reverbSidechain) is a separate global — not a ModControllableAudio, so its menu path does not
-	// funnel here. compressor.threshold is per-render derived so it stays native-read at save; the other five are
-	// load-only for a Sound and read from the record.
+	void setUseSongStutter(bool value);
+	// The reverb's sidechain (AudioEngine::reverbSidechain) is the engine's own, not an owner's.
 	void setSidechainAttack(int32_t value);
 	void setSidechainRelease(int32_t value);
 	void setSidechainSyncType(SyncType value);
 	void setSidechainSyncLevel(SyncLevel value);
+	/// The compressor's knob positions, each Q31 (the menu's 0–127 shifted up by 24).
+	void setCompressorAttack(q31_t value);
+	void setCompressorRelease(q31_t value);
+	void setCompressorThreshold(q31_t value);
+	void setCompressorRatio(q31_t value);
+	void setCompressorSidechainHpf(q31_t value);
+	void setCompressorBlend(q31_t value);
 	bool offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
 	bool offerReceivedCCToLearnedParamsForSong(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
@@ -148,7 +151,6 @@ public:
 
 	// Delay
 	Delay delay;
-	StutterConfig stutterConfig;
 
 	bool sampleRateReductionOnLastTime;
 
@@ -167,6 +169,10 @@ public:
 
 	deluge::fast_vector<MIDIKnob> midi_knobs{};
 	int32_t postReverbVolumeLastTime{};
+
+private:
+	deluge::effects::EffectStates ownEffects_{};
+	deluge::effects::EffectStates* boundEffects_{nullptr};
 
 protected:
 	void processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,

@@ -65,11 +65,12 @@ int32_t Stutterer::getStutterRate(ParamManager* paramManager, int32_t magnitude,
 	return rate;
 }
 
-Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManager, StutterConfig sc, int32_t magnitude,
+Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManager,
+                              const deluge::effects::StutterState& settings, int32_t magnitude,
                               uint32_t timePerTickInverse) {
-	stutterConfig = sc;
-	currentReverse = stutterConfig.reversed;
-	if (stutterConfig.quantized) {
+	playing_ = settings;
+	currentReverse = playing_.reversed;
+	if (playing_.quantized) {
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 		int32_t paramValue = unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE);
 		int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, nullptr);
@@ -200,7 +201,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			}
 
 			// If ping-pong is active and we're at the start or end of the buffer, reverse the direction
-			if (stutterConfig.pingPong
+			if (playing_.ping_pong
 			    && ((currentReverse && &buffer.current() == buffer.begin())
 			        || (!currentReverse && &buffer.current() == buffer.end() - 1))) {
 				currentReverse = !currentReverse;
@@ -220,7 +221,7 @@ void Stutterer::endStutter(ParamManagerForTimeline* paramManager) {
 
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-		if (stutterConfig.quantized) {
+		if (playing_.quantized) {
 			// Sset back the value it had just before stuttering so orange LEDs are redrawn.
 			unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(valueBeforeStuttering);
 		}
