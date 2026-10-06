@@ -786,15 +786,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 	else if (!strcmp(tagName, "fx")) {
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 
-			if (!strcmp(tagName, "type")) {
-				bool result = setModFXType(
-				    stringToFXType(reader.readTagOrAttributeValue())); // This might not work if not enough RAM
-				if (!result) {
-					display->displayError(Error::INSUFFICIENT_RAM);
-				}
-				reader.exitTag("type");
-			}
-			else if (!strcmp(tagName, "rate")) {
+			if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_MOD_FX_RATE,
 				                         readAutomationUpToPos);
@@ -924,10 +916,6 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LPF_RESONANCE,
 				                         readAutomationUpToPos);
 				reader.exitTag("resonance");
-			}
-			else if (!strcmp(tagName, "mode")) { // For old, pre- October 2016 files
-				setLpfMode(stringToLPFType(reader.readTagOrAttributeValue()));
-				reader.exitTag("mode");
 			}
 			else {
 				reader.exitTag(tagName);

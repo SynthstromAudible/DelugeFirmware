@@ -247,6 +247,17 @@ void decode(const Value& element, EffectStates& states, const engine::CodecConte
 			read_stutter(value, states.stutter);
 		}
 	}
+	// A sound saved before October 2016 names its filter mode and mod-FX type inside its lpf and fx tags.
+	if (element.find("lpfMode") == nullptr) {
+		if (const Value* lpf = element.find("lpf"); lpf != nullptr && lpf->isMap() && lpf->find("mode") != nullptr) {
+			states.filter.lpf_mode = parse_filter_mode(text_or_empty(*lpf->find("mode")));
+		}
+	}
+	if (element.find("modFXType") == nullptr) {
+		if (const Value* fx = element.find("fx"); fx != nullptr && fx->isMap() && fx->find("type") != nullptr) {
+			states.mod_fx.type = parse_mod_fx_type(text_or_empty(*fx->find("type")));
+		}
+	}
 }
 
 bool is_effect_key(std::string_view key) {

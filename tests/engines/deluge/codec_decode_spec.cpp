@@ -77,6 +77,22 @@ describe codec_decode("the Deluge instrument reads every format a sound was save
 		expect(is_state_key("compressor")).to_be_false();
 		expect(is_state_key("audioCompressor")).to_be_true();
 	});
+	it("reads a pre-October-2016 sound's filter mode and mod-FX type from their own tags", _ {
+		auto doc = deluge::serialization::parseXml(
+		    R"(<sound mode="subtractive"><lpf mode="12dB" resonance="0"/><fx type="flanger" rate="0"/></sound>)");
+		SoundState state = new_synth_state();
+		(void)decode(*doc->find("sound"), state, kNewSong);
+		expect(state.effects.filter.lpf_mode).to_equal(deluge::effects::FilterMode::TRANSISTOR_12DB);
+		expect(state.effects.mod_fx.type).to_equal(deluge::effects::ModFXType::FLANGER);
+	});
+	it("takes a sound's own filter mode and mod-FX type over their old tags", _ {
+		auto doc = deluge::serialization::parseXml(R"(<sound mode="subtractive" lpfMode="SVF_Notch" modFXType="chorus">)"
+		                                           R"(<lpf mode="12dB"/><fx type="flanger"/></sound>)");
+		SoundState state = new_synth_state();
+		(void)decode(*doc->find("sound"), state, kNewSong);
+		expect(state.effects.filter.lpf_mode).to_equal(deluge::effects::FilterMode::SVF_NOTCH);
+		expect(state.effects.mod_fx.type).to_equal(deluge::effects::ModFXType::CHORUS);
+	});
 	it("refuses two ranges with the same top note", _ {
 		auto doc = deluge::serialization::parseXml(read("duplicate_range.XML"));
 		SoundState state = new_synth_state();
