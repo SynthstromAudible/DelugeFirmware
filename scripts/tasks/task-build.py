@@ -43,6 +43,7 @@ CPP_TARGETS = [
     "deluge_music_theory",
     "deluge_project",
     "deluge_instrument",
+    "deluge_effects",
     "deluge_midi",
 ]
 

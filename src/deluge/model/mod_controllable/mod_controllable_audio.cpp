@@ -23,6 +23,7 @@
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "dsp/stereo_sample.h"
 #include "engines/deluge/sound_state.h"
+#include "engines/effects/codec.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
@@ -441,15 +442,7 @@ inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inpu
 }
 
 void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
-	const deluge::effects::EffectStates& e = effects();
-	writer.writeAttribute("modFXType", (char*)fxTypeToString(e.mod_fx.type));
-	writer.writeAttribute("lpfMode", (char*)lpfTypeToString(e.filter.lpf_mode));
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeAttribute("hpfMode", (char*)lpfTypeToString(e.filter.hpf_mode));
-	writer.writeAttribute("filterRoute", (char*)filterRouteToString(e.filter.route));
-	if (e.saturation.clipping_amount) {
-		writer.writeAttribute("clippingAmount", e.saturation.clipping_amount);
-	}
+	writer.writeValue(deluge::effects::encode_pieces(effects(), effectsCodecContext()).attributes);
 }
 
 void ModControllableAudio::setEffects(const deluge::effects::EffectStates& next) {
@@ -559,17 +552,18 @@ void ModControllableAudio::setCompressorBlend(q31_t value) {
 }
 
 void ModControllableAudio::writeTagsToFile(Serializer& writer) {
-	const deluge::effects::EffectStates& e = effects();
+	const deluge::effects::EffectPieces pieces =
+	    deluge::effects::encode_pieces(effects(), effectsCodecContext(), savedCompressorThreshold());
+	writer.writeValue(pieces.delay);
+	writeMidiKnobsToFile(writer);
+	writer.writeValue(pieces.tags);
+}
 
-	// Delay
-	writer.writeOpeningTagBeginning("delay");
-	writer.writeAttribute("pingPong", e.delay.ping_pong);
-	writer.writeAttribute("analog", e.delay.analog);
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", e.delay.sync_level, true);
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(currentSong, "syncType", e.delay.sync_type, true);
-	writer.closeTag();
+deluge::engine::CodecContext ModControllableAudio::effectsCodecContext() {
+	return {.input_tick_magnitude = currentSong->getInputTickMagnitude()};
+}
 
+void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer) {
 	// MIDI knobs
 	if (midi_knobs.size() > 0) {
 		writer.writeArrayStart("midiKnobs");
@@ -604,32 +598,6 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 		}
 		writer.writeArrayEnding("midiKnobs");
 	}
-
-	// Sidechain (renamed from "compressor" from the official firmware)
-	writer.writeOpeningTagBeginning("sidechain");
-	writer.writeAttribute("attack", e.sidechain.attack);
-	writer.writeAttribute("release", e.sidechain.release);
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", e.sidechain.sync_level, true);
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(currentSong, "syncType", e.sidechain.sync_type, true);
-	writer.closeTag();
-
-	// Audio compressor (this section is all new so we write it at the end)
-	writer.writeOpeningTagBeginning("audioCompressor");
-	writer.writeAttribute("attack", e.compressor.attack);
-	writer.writeAttribute("release", e.compressor.release);
-	writer.writeAttribute("thresh", savedCompressorThreshold());
-	writer.writeAttribute("ratio", e.compressor.ratio);
-	writer.writeAttribute("compHPF", e.compressor.sidechain_hpf);
-	writer.writeAttribute("compBlend", e.compressor.blend);
-	writer.closeTag();
-
-	// Stutter
-	writer.writeOpeningTagBeginning("stutter");
-	writer.writeAttribute("quantized", e.stutter.quantized);
-	writer.writeAttribute("reverse", e.stutter.reversed);
-	writer.writeAttribute("pingPong", e.stutter.ping_pong);
-	writer.closeTag();
 }
 
 void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager,

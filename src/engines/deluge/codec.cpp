@@ -18,6 +18,7 @@
 #include "engines/deluge/codec.h"
 
 #include "engines/deluge/dx7_init_voice.h"
+#include "engines/effects/codec.h"
 #include "serialization/tree.h"
 
 #include <algorithm>
@@ -194,11 +195,15 @@ void append(Value& to, const Value& from) {
 
 } // namespace
 
-SoundPieces encode_pieces(const SoundState& state, const engine::CodecContext& context) {
+SoundPieces encode_pieces(const SoundState& state, const engine::CodecContext& context,
+                          std::optional<int32_t> compressor_threshold) {
 	SoundPieces pieces{.head = Value::makeMap(),
+	                   .effect_attributes = Value::makeMap(),
 	                   .max_voices = Value::makeMap(),
 	                   .body = Value::makeMap(),
-	                   .midi_output = Value::makeMap()};
+	                   .midi_output = Value::makeMap(),
+	                   .delay = Value::makeMap(),
+	                   .effect_tags = Value::makeMap()};
 	pieces.head.set("polyphonic", text(to_string(state.polyphonic)));
 	pieces.head.set("voicePriority", number(std::to_underlying(state.voice_priority)));
 	if (state.side_chain_send_level != 0) {
@@ -233,6 +238,11 @@ SoundPieces encode_pieces(const SoundState& state, const engine::CodecContext& c
 	midi.set("channel", number(state.output_midi_channel));
 	midi.set("noteForDrum", number(state.output_midi_note_for_drum));
 	pieces.midi_output.set("midiOutput", std::move(midi));
+	deluge::effects::EffectPieces effects =
+	    deluge::effects::encode_pieces(state.effects, context, compressor_threshold);
+	pieces.effect_attributes = std::move(effects.attributes);
+	pieces.delay = std::move(effects.delay);
+	pieces.effect_tags = std::move(effects.tags);
 	return pieces;
 }
 

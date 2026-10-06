@@ -34,6 +34,7 @@
 #include "modulation/sidechain/sidechain.h"
 #include "synth/lfo.h"
 
+#include "engine-api/engine.h"
 #include "engines/effects/state.h"
 
 class Clip;
@@ -58,6 +59,10 @@ public:
 	                                bool doAmplitudeIncrement = false);
 	void writeAttributesToFile(Serializer& writer);
 	void writeTagsToFile(Serializer& writer);
+	/// The learned MIDI knobs' tag, which a file writes between the delay and the other effect tags.
+	void writeMidiKnobsToFile(Serializer& writer);
+	/// The codec context a file's effect entries are written in: the current song's tick magnitude.
+	[[nodiscard]] static deluge::engine::CodecContext effectsCodecContext();
 	/// The compressor threshold a file saves: the one the render last applied, which for a sound or a clip chain is its
 	/// param's.
 	[[nodiscard]] virtual q31_t savedCompressorThreshold() const { return compressor.threshold(); }

@@ -22,6 +22,7 @@
 #include "serialization/value.h"
 
 #include <expected>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -34,19 +35,25 @@ inline constexpr int32_t kMaxUnisonDetune = 50;
 inline constexpr int32_t kMaxUnisonSpread = 50;
 
 /// @brief The instrument's entries of a sound element, split where other owners' entries sit between them in a file:
-/// the effects' attributes and a preset's path come between head and max_voices; params, the arpeggiator and the mod
-/// knobs between body and midi_output; the effects' elements after midi_output.
+/// a preset's path comes between effect_attributes and max_voices; params, the arpeggiator and the mod knobs between
+/// body and midi_output; the learned MIDI knobs between delay and effect_tags.
 struct SoundPieces {
-	serialization::Value head;        ///< polyphonic, voicePriority, sideChainSend, mode, transpose, cents
-	serialization::Value max_voices;  ///< maxVoices
-	serialization::Value body;        ///< osc1, osc2, lfo1–lfo4, modulator1–2 (FM only), unison
-	serialization::Value midi_output; ///< midiOutput
+	serialization::Value head;              ///< polyphonic, voicePriority, sideChainSend, mode, transpose, cents
+	serialization::Value effect_attributes; ///< modFXType, lpfMode, hpfMode, filterRoute, clippingAmount
+	serialization::Value max_voices;        ///< maxVoices
+	serialization::Value body;              ///< osc1, osc2, lfo1–lfo4, modulator1–2 (FM only), unison
+	serialization::Value midi_output;       ///< midiOutput
+	serialization::Value delay;             ///< delay
+	serialization::Value effect_tags;       ///< sidechain, audioCompressor, stutter
 };
 
 /// @brief The instrument's entries of a sound element for @p state, in file order, as pieces (see SoundPieces).
 /// Numbers are written as the file's 32-bit signed integers (a free-running phase, 0xFFFFFFFF, as -1); sync levels
 /// relative to @p context's tick magnitude.
-[[nodiscard]] SoundPieces encode_pieces(const SoundState& state, const engine::CodecContext& context);
+/// @param compressor_threshold The compressor threshold to write in place of the state's: a sound's is its param, as
+/// the render last applied it.
+[[nodiscard]] SoundPieces encode_pieces(const SoundState& state, const engine::CodecContext& context,
+                                        std::optional<int32_t> compressor_threshold = std::nullopt);
 
 /// @brief The pieces of encode_pieces as one Map, in file order: what the instrument owns of a sound element.
 [[nodiscard]] serialization::Value encode(const SoundState& state, const engine::CodecContext& context);

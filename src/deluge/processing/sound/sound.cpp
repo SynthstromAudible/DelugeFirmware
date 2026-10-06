@@ -3775,11 +3775,11 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		unbound = seededState(); // a sound under preview or audition saves what its runtime fields hold
 	}
 	const deluge::instrument::SoundState& state = state_ != nullptr ? *state_ : *unbound;
-	const deluge::instrument::SoundPieces pieces =
-	    deluge::instrument::encode_pieces(state, {.input_tick_magnitude = currentSong->getInputTickMagnitude()});
+	const deluge::instrument::SoundPieces pieces = deluge::instrument::encode_pieces(
+	    state, {.input_tick_magnitude = currentSong->getInputTickMagnitude()}, savedCompressorThreshold());
 
 	writer.writeValue(pieces.head);
-	ModControllableAudio::writeAttributesToFile(writer);
+	writer.writeValue(pieces.effect_attributes);
 	// Community Firmware parameters (always write them after the official ones)
 	if (pathAttribute) {
 		writer.writeAttribute("path", pathAttribute);
@@ -3823,8 +3823,9 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	writer.writeArrayEnding("modKnobs");
 
 	writer.writeValue(pieces.midi_output);
-
-	ModControllableAudio::writeTagsToFile(writer);
+	writer.writeValue(pieces.delay);
+	writeMidiKnobsToFile(writer);
+	writer.writeValue(pieces.effect_tags);
 }
 
 int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
