@@ -25,6 +25,7 @@
 #include "engine-api/types/interpolation_mode.h"
 #include "engine-api/types/voice_priority.h"
 #include "engines/deluge/words.h"
+#include "engines/effects/words.h"
 #include "sequence/iterance.h"
 #include "util/misc.h"
 
@@ -379,16 +380,7 @@ using deluge::instrument::LFOType;
 
 constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::WARBLER) + 1;
 
-enum class ModFXType : uint8_t {
-	NONE,
-	FLANGER,
-	CHORUS,
-	PHASER,
-	CHORUS_STEREO,
-	WARBLE,
-	DIMENSION,
-	GRAIN, // Look below if you want to add another one
-};
+using deluge::effects::ModFXType;
 constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
 
 using deluge::instrument::SynthMode;

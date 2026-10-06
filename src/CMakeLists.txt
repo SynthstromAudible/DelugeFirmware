@@ -4,6 +4,7 @@ add_subdirectory(engine-api/types) # deluge_engine_types: the host–engine cont
 add_subdirectory(foundation) # bottom of the stack; the layers below link it
 add_subdirectory(serialization) # deluge_serialization: the document tree and its XML and JSON parsers
 add_subdirectory(engine-api) # deluge_engine_api: the host–engine contract's interface
+add_subdirectory(engines/effects) # deluge_effects: the effects' words, state and codec
 add_subdirectory(engines/deluge) # deluge_instrument: the Deluge instrument's state, words and codec
 add_subdirectory(engines/global_effectable) # deluge_global_effectable: the provisional shared-effect param table
 add_subdirectory(music-theory) # deluge_music_theory: note sets, scales, keys and scale mapping

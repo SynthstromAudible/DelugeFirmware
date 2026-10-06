@@ -440,55 +440,10 @@ PolyphonyMode stringToPolyphonyMode(char const* string) {
 }
 
 char const* fxTypeToString(ModFXType fxType) {
-	switch (fxType) {
-	case ModFXType::FLANGER:
-		return "flanger";
-	case ModFXType::WARBLE:
-		return "TapeWarble";
-	case ModFXType::DIMENSION:
-		return "dimension";
-
-	case ModFXType::CHORUS:
-		return "chorus";
-
-	case ModFXType::CHORUS_STEREO:
-		return "StereoChorus";
-	case ModFXType::GRAIN:
-		return "grainFX";
-
-	case ModFXType::PHASER:
-		return "phaser";
-
-	default:
-		return "none";
-	}
+	return deluge::effects::to_string(fxType).data(); // a view of a string literal
 }
-
 ModFXType stringToFXType(char const* string) {
-	if (!strcmp(string, "flanger")) {
-		return ModFXType::FLANGER;
-	}
-	else if (!strcmp(string, "TapeWarble")) {
-		return ModFXType::WARBLE;
-	}
-	else if (!strcmp(string, "dimension")) {
-		return ModFXType::DIMENSION;
-	}
-	else if (!strcmp(string, "chorus")) {
-		return ModFXType::CHORUS;
-	}
-	else if (!strcmp(string, "StereoChorus")) {
-		return ModFXType::CHORUS_STEREO;
-	}
-	else if (!strcmp(string, "grainFX")) {
-		return ModFXType::GRAIN;
-	}
-	else if (!strcmp(string, "phaser")) {
-		return ModFXType::PHASER;
-	}
-	else {
-		return ModFXType::NONE;
-	}
+	return deluge::effects::parse_mod_fx_type(string);
 }
 
 char const* modFXParamToString(ModFXParam fxType) {
