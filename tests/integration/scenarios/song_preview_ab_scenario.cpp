@@ -468,7 +468,7 @@ constexpr std::array<Case, 6> kCases{{
 constexpr const char* kWindowLabel = "window";
 constexpr const char* kWindowFilename = "LATE.XML";
 
-/// Corpus songs, staged by the packer as `SONGS/CORPUS/C%02u.XML` when `DELUGE_SONG_CORPUS` names a
+/// Corpus songs, staged by the packer as `SONGS/CORPUS/C%02u.XML` or `.json` when `DELUGE_SONG_CORPUS` names a
 /// directory.
 ///
 /// They carry no absolute expectation -- their artwork is whatever their author made -- so the
@@ -573,6 +573,8 @@ size_t g_corpusRan = 0;
 size_t g_corpusRendered = 0;
 /// How many corpus songs the packer says it staged. Read from the card, never discovered.
 size_t g_corpusExpected = 0;
+/// Whether each staged corpus song is JSON (else XML), as `kCorpusCountPath` says.
+std::array<bool, kMaxCorpusCases> g_corpusIsJson{};
 bool g_corpusCountDispatched = false;
 bool g_corpusCountFailed = false;
 bool g_caseStarted = false;
@@ -907,13 +909,13 @@ void runWindowTick() {
 	g_stage = Stage::CorpusCount;
 }
 
-/// `C00.XML`, `C01.XML`, ... -- built by hand rather than with snprintf, which `src/lib/printf.h`
-/// soft-aliases the same way it aliases printf (see this file's #undef).
+/// `C00.XML`, `C01.json`, ... as the packer staged each -- built by hand rather than with snprintf, which
+/// `src/lib/printf.h` soft-aliases the same way it aliases printf (see this file's #undef).
 std::string corpusFilename(size_t index) {
 	std::string name = "C";
 	name += static_cast<char>('0' + (index / 10) % 10);
 	name += static_cast<char>('0' + index % 10);
-	name += ".XML";
+	name += g_corpusIsJson[index] ? ".json" : ".XML";
 	return name;
 }
 
@@ -932,7 +934,8 @@ void readCorpusCount(void*) {
 		g_corpusCountFailed = true;
 		return;
 	}
-	std::array<std::byte, 16> buffer{};
+	// The count, a newline, then one letter a staged song: `X` for XML, `J` for JSON.
+	std::array<std::byte, 8 + kMaxCorpusCases> buffer{};
 	const auto read = opened->read(buffer);
 	if (!read.has_value()) {
 		printf("FAIL [songPreviewAB/corpus]: '%s' could not be read\n", kCorpusCountPath);
@@ -942,8 +945,10 @@ void readCorpusCount(void*) {
 	}
 	size_t count = 0;
 	bool anyDigit = false;
-	for (std::byte b : read.value()) {
-		const auto c = static_cast<char>(b);
+	const auto bytes = read.value();
+	size_t at = 0;
+	for (; at < bytes.size(); at++) {
+		const auto c = static_cast<char>(bytes[at]);
 		if (c < '0' || c > '9') {
 			break;
 		}
@@ -966,6 +971,18 @@ void readCorpusCount(void*) {
 		g_failures++;
 		g_corpusCountFailed = true;
 		return;
+	}
+	at++; // the newline
+	for (size_t i = 0; i < count; i++, at++) {
+		const char kind = at < bytes.size() ? static_cast<char>(bytes[at]) : '\0';
+		if (kind != 'X' && kind != 'J') {
+			printf("FAIL [songPreviewAB/corpus]: '%s' does not say whether staged song %zu is XML or JSON\n",
+			       kCorpusCountPath, i);
+			g_failures++;
+			g_corpusCountFailed = true;
+			return;
+		}
+		g_corpusIsJson[i] = kind == 'J';
 	}
 	g_corpusExpected = count;
 }
@@ -3511,6 +3528,7 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_corpusRan = 0;
 	g_corpusRendered = 0;
 	g_corpusExpected = 0;
+	g_corpusIsJson = {};
 	g_corpusCountDispatched = false;
 	g_corpusCountFailed = false;
 	g_caseStarted = false;

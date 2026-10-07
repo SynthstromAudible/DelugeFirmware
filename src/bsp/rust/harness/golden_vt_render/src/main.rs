@@ -869,7 +869,7 @@ fn uniform_preview_song(value: u8) -> String {
 ///   whose backings must differ (Rendered against Truncated).
 /// - `SONGS/SWAP.XML` and `SONGS/SWAPB.XML` are the card-swap pair: the second is moved onto the
 ///   first's path once the card is marked ejected.
-/// - `SONGS/CORPUS/C%02u.XML` are real songs copied from `DELUGE_SONG_CORPUS` (or
+/// - `SONGS/CORPUS/C%02u.XML` (or `.json`) are real songs copied from `DELUGE_SONG_CORPUS` (or
 ///   `DELUGE_BACKUP/SONGS`) when set, with no absolute expectation; `COUNT.TXT` says how many.
 ///
 /// # Panics
@@ -954,6 +954,8 @@ fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
         std::env::var_os("DELUGE_BACKUP").map(|b| std::path::Path::new(&b).join("SONGS").into())
     });
     let mut copied = 0usize;
+    // One letter a staged song, in case order: `X` for XML, `J` for JSON.
+    let mut kinds = String::new();
     let corpus_was_named = corpus.is_some();
     if let Some(corpus) = corpus {
         let mut entries: Vec<std::path::PathBuf> = std::fs::read_dir(&corpus)
@@ -962,9 +964,9 @@ fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
                     .map(|e| e.path())
                     .filter(|p| {
                         p.is_file()
-                            && p.extension()
-                                .and_then(|e| e.to_str())
-                                .is_some_and(|e| e.eq_ignore_ascii_case("xml"))
+                            && p.extension().and_then(|e| e.to_str()).is_some_and(|e| {
+                                e.eq_ignore_ascii_case("xml") || e.eq_ignore_ascii_case("json")
+                            })
                     })
                     .collect()
             })
@@ -972,22 +974,30 @@ fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
         // Sorted: `read_dir` order is not stable, and both legs and every run need the same order.
         entries.sort();
         for path in entries.iter().take(MAX_CORPUS_CASES) {
-            let target = corpus_dir.join(format!("C{copied:02}.XML"));
+            let json = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .is_some_and(|e| e.eq_ignore_ascii_case("json"));
+            let target = corpus_dir.join(format!(
+                "C{copied:02}.{}",
+                if json { "json" } else { "XML" }
+            ));
             if std::fs::copy(path, &target).is_ok() {
                 copied += 1;
+                kinds.push(if json { 'J' } else { 'X' });
             }
         }
         // A named corpus that stages nothing is a failure, not a silent fallback to the synthetic
         // cases: the run would still pass with the real songs gone.
         assert!(
             copied > 0,
-            "DELUGE_SONG_CORPUS names {} but no .XML song could be staged from it",
+            "DELUGE_SONG_CORPUS names {} but no .XML or .json song could be staged from it",
             std::path::Path::new(&corpus).display()
         );
     }
     // Always written, zero included: the C++ side reads it (`kCorpusCountPath`) and fails if it is
     // absent, rather than taking absence to mean "no corpus".
-    write(corpus_dir.join("COUNT.TXT"), format!("{copied}\n"));
+    write(corpus_dir.join("COUNT.TXT"), format!("{copied}\n{kinds}\n"));
     log::info!(
         "golden_vt_render: song-preview fixture staged {copied} corpus song(s) (corpus named: {corpus_was_named})"
     );
