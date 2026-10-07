@@ -366,6 +366,8 @@ def _drum(
     row_params: str = "",
     cables: str = "",
 ) -> dict:
+    """A kit drum playing @p file: its extra `<sound>` attributes @p attrs and tags @p tags, its notes as (tick,
+    length) pairs, and extra attributes @p row_params and patch cables @p cables for its row's params."""
     return {
         "name": name,
         "file": file,

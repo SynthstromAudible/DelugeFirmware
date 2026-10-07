@@ -118,7 +118,9 @@ def _check_width(gate, result, label: str) -> None:
     """The run captured the width the gate asked for (see RS-CAPTURE)."""
     wanted = 1 if gate.env.get("RENDER_STEREO") == "1" else 0
     stereo = int_field(result.last("RS-CAPTURE "), "stereo")
-    if stereo != wanted:
+    if stereo is None:
+        gate.fail(f"RS-CAPTURE — {label}'s capture line reports no stereo= field")
+    elif stereo != wanted:
         gate.fail(
             f"RS-CAPTURE — {label} rendered {'stereo' if stereo else 'mono'}, asked for {'stereo' if wanted else 'mono'}"
         )

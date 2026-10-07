@@ -355,7 +355,8 @@ stereo_case(
 
 # --- dynamics and delay (JSON, as the firmware saves) ---------------------------
 # Each sidechain case sends hits of its own (sideChainSend) and ducks itself through the sidechain → post-reverb volume
-# cable. Its note script (sidechain.notes) plays a two-note chord, whose hits combine into a stronger one, then a single
+# cable. Its note script (sidechain_duck.notes, sidechain_instant_attack.notes, sidechain_synced.notes; the same
+# events in each) plays a two-note chord, whose hits combine into a stronger one, then a single
 # note inside the duck that chord made: that weaker hit is ignored. A last note after a silence wakes the sound from
 # skipping rendering, long after the last hit.
 SIDECHAIN_SEND = {"sideChainSend": "1073741824"}
@@ -402,7 +403,7 @@ case(
     ],
     json=True,
 )
-# A digital delay whose rate the note script steps with its MIDI-follow CC (53) mid-note: past double its buffer's
+# A digital delay whose rate the note script steps with MIDI-follow CC 53 (delay rate) mid-note: past double its buffer's
 # native rate, a little down (resampling until the rate settles), and below half, each growing a new buffer that is
 # swapped in once written. Unsynced, so the rates are the param's own.
 case(

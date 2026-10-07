@@ -1009,7 +1009,7 @@ level = "integration"
 runner = "scenario"
 kind = "property"
 status = "gate"
-gates = "an audio track's digital delay renders as recorded through rate changes and its end: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_AUDIO_DELAY) whose audio track's digital delay has its rate stepped by automation past double its buffer's rate, a little down, and below half, and runs out after the track's sample ends; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with the delay's feedback at its minimum must render differently (RS-FX), so the delay's settings reach the render"
+gates = "an audio track's digital delay renders as recorded through rate changes: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_AUDIO_DELAY) whose audio track's digital delay has its rate stepped by automation past double its buffer's rate, a little down, and below half, each change resampling and growing a new buffer swapped in once written; an audio clip renders until it loops, so this delay never abandons its buffers (render-kit-delay covers that); beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with the delay's feedback at its minimum must render differently (RS-FX), so the delay's settings reach the render"
 scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
 result = "RS-RESULT failures=0"

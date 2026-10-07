@@ -1,4 +1,4 @@
-# Hold C4; step the delay's rate with its MIDI-follow CC (53) at 0.5 s to the top (past double the buffer's native
+# Hold C4; step the delay's rate with MIDI-follow CC 53 (delay rate) at 0.5 s to the top (past double the buffer's native
 # rate), at 1 s a little down (resampled until it settles), and at 1.5 s to the bottom (below half).
 4608 90 3C 64
 22050 B0 35 7F
