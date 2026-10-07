@@ -16,7 +16,7 @@
  */
 
 // OnePole: the one-pole low-pass section the ladders, the compressor and the granular processor build on. The values
-// were recorded from the app's BasicFilterComponent: 16 samples of a ramp at moveability 0x20000000.
+// are 16 samples of a ramp at moveability 0x20000000.
 
 #include "dsp-next/fixed/filter/one_pole.h"
 
