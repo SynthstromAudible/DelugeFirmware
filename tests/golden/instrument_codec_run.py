@@ -24,7 +24,8 @@ def sweep(scenario: str, argv=None, description: str = "", extra_jobs=()) -> int
     ap.add_argument("--wrapper", default="")
     ap.add_argument("--corpus", default=driver.default_corpus() or "")
     ap.add_argument("--filter", default="")
-    ap.add_argument("--timeout", type=int, default=120)
+    # Above the slowest corpus song (about a minute alone) run beside a full pool of jobs; a hang still fails.
+    ap.add_argument("--timeout", type=int, default=300)
     ap.add_argument("--jobs", type=int, default=driver.default_jobs())
     args = ap.parse_args(argv)
     if not os.path.isdir(args.corpus):
