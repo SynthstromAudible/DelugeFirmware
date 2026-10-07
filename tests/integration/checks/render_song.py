@@ -50,7 +50,7 @@ def _pcm_record(pcm: bytes) -> dict:
     }
 
 
-def _generate(gate, name: str) -> dict[str, str] | None:
+def _generate(gate, name: str = "RS_STREAM") -> dict[str, str] | None:
     """Generate song @p name's card tree; the environment that plays it, or None when generating failed."""
     tree = gate.tmp / f"card-{name}"
     made = subprocess.run(
