@@ -39,8 +39,9 @@ namespace deluge::dsp::fixed {
 class LowPassLadder {
 public:
 	/// @brief Takes one block's settings.
-	/// @return @p config's gain (Q31) compensated for this filter's resonance and mode.
-	[[nodiscard]] q31 configure(const FilterConfig& config, LowPassLadderMode mode);
+	/// @param gain The volume going in, Q31.
+	/// @return @p gain (Q31) compensated for this filter's resonance and mode.
+	[[nodiscard]] q31 configure(q31 gain, const FilterConfig& config, LowPassLadderMode mode);
 
 	/// @brief Filters a mono @p block in place.
 	/// @param scratch At least @p block's size, used while the fade runs.

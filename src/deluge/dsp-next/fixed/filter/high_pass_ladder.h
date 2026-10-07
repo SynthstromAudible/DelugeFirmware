@@ -33,8 +33,9 @@ namespace deluge::dsp::fixed {
 class HighPassLadder {
 public:
 	/// @brief Takes one block's settings.
-	/// @return @p config's gain (Q31) cut as the resonance rises.
-	[[nodiscard]] q31 configure(const FilterConfig& config);
+	/// @param gain The volume going in, Q31.
+	/// @return @p gain (Q31) cut as the resonance rises.
+	[[nodiscard]] q31 configure(q31 gain, const FilterConfig& config);
 
 	/// @brief Filters a mono @p block in place.
 	/// @param scratch At least @p block's size, used while the fade runs.

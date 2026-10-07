@@ -23,7 +23,7 @@
 
 namespace deluge::dsp::fixed {
 
-q31 StateVariableFilter::configure(const FilterConfig& config, SvfMode mode) {
+q31 StateVariableFilter::configure(q31 gain, const FilterConfig& config, SvfMode mode) {
 	q31 morph = lshiftAndSaturate<2>(config.morph);
 	fc_ = curve_frequency(config.frequency).fc;
 	// The filter's true cutoff is the arcsine of this rate; × 1.25 brings it loosely in line with the ladders'.
@@ -58,7 +58,7 @@ q31 StateVariableFilter::configure(const FilterConfig& config, SvfMode mode) {
 		c_high_ = morph;
 		c_band_ = 0;
 	}
-	return config.gain;
+	return gain;
 }
 
 q31 StateVariableFilter::render(q31 input, Channel& channel) const {

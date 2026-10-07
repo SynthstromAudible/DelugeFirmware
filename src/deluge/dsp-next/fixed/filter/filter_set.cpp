@@ -80,12 +80,11 @@ void FilterSet::holdHighPass(HighPassSlot::Kind kind) {
 	high_held_ = kind;
 }
 
-q31 FilterSet::configure(const FilterConfig& low, LowPassSlot low_slot, const FilterConfig& high,
+q31 FilterSet::configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot, const FilterConfig& high,
                          HighPassSlot high_slot, FilterRoute route) {
 	low_slot_ = low_slot;
 	high_slot_ = high_slot;
 	route_ = route;
-	q31 gain = low.gain;
 
 	if (low_slot.kind != LowPassSlot::Kind::OFF) {
 		holdLowPass(low_slot.kind);
@@ -95,13 +94,13 @@ q31 FilterSet::configure(const FilterConfig& low, LowPassSlot low_slot, const Fi
 			if (family_changed) {
 				low_pass_.svf.reset(from_off);
 			}
-			gain = low_pass_.svf.configure(low, low_slot.svf);
+			gain = low_pass_.svf.configure(gain, low, low_slot.svf);
 		}
 		else {
 			if (family_changed) {
 				low_pass_.ladder.reset(from_off);
 			}
-			gain = low_pass_.ladder.configure(low, low_slot.ladder);
+			gain = low_pass_.ladder.configure(gain, low, low_slot.ladder);
 		}
 	}
 	low_last_ = low_slot.kind;
@@ -112,13 +111,12 @@ q31 FilterSet::configure(const FilterConfig& low, LowPassSlot low_slot, const Fi
 	if (high_slot.kind != HighPassSlot::Kind::OFF) {
 		holdHighPass(high_slot.kind);
 		FilterConfig config = high;
-		config.gain = gain;
 		// Changes in the resonance's low bits, made too often, rustle.
 		config.resonance = (high.resonance >> 21) << 21;
 		const bool mode_changed = !same_mode(high_last_, high_slot);
 		const bool from_off = high_last_.kind == HighPassSlot::Kind::OFF;
 		if (high_slot.kind == HighPassSlot::Kind::LADDER) {
-			gain = high_pass_.ladder.configure(config);
+			gain = high_pass_.ladder.configure(gain, config);
 			if (mode_changed) {
 				high_pass_.ladder.reset(from_off);
 			}
@@ -126,7 +124,7 @@ q31 FilterSet::configure(const FilterConfig& low, LowPassSlot low_slot, const Fi
 		else {
 			// The morph inverted, so the high-pass SVF sweeps high → band or notch → low.
 			config.morph = ((1 << 29) - 1) - high.morph;
-			gain = high_pass_.svf.configure(config, high_slot.svf);
+			gain = high_pass_.svf.configure(gain, config, high_slot.svf);
 			if (mode_changed) {
 				high_pass_.svf.reset(from_off);
 			}

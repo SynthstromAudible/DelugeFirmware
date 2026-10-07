@@ -44,12 +44,10 @@ const std::vector<int32_t> kInput{
     18578569,  4590277,   6420363,   13932263,  9908702,   -10947281, -35589850, -45647162, -36182765, -20423895,
     -15500126, -24293472, -32591589, -24536521};
 
-constexpr FilterConfig kDark{
-    .frequency = 1 << 22, .resonance = 0, .morph = 0, .gain = kGain, .allow_oversampling = true};
-constexpr FilterConfig kMid{
-    .frequency = 1 << 24, .resonance = 1 << 28, .morph = 1 << 27, .gain = kGain, .allow_oversampling = true};
+constexpr FilterConfig kDark{.frequency = 1 << 22, .resonance = 0, .morph = 0, .allow_oversampling = true};
+constexpr FilterConfig kMid{.frequency = 1 << 24, .resonance = 1 << 28, .morph = 1 << 27, .allow_oversampling = true};
 constexpr FilterConfig kBright{
-    .frequency = 50000000, .resonance = 500000000, .morph = 1 << 28, .gain = kGain, .allow_oversampling = true};
+    .frequency = 50000000, .resonance = 500000000, .morph = 1 << 28, .allow_oversampling = true};
 
 /// One block's output, the compensated gain, and the noise generator's next value after the block.
 struct Rendered {
@@ -64,7 +62,7 @@ Rendered renderMono(const FilterConfig& config, SvfMode mode) {
 	jcong = kSeed;
 	StateVariableFilter filter;
 	filter.zero();
-	const int32_t gain = filter.configure(config, mode);
+	const int32_t gain = filter.configure(kGain, config, mode);
 	std::vector<int32_t> block = kInput;
 	std::vector<int32_t> scratch(block.size());
 	filter.renderMono(block, scratch);
@@ -75,7 +73,7 @@ Rendered renderStereo(const FilterConfig& config, SvfMode mode) {
 	jcong = kSeed;
 	StateVariableFilter filter;
 	filter.zero();
-	const int32_t gain = filter.configure(config, mode);
+	const int32_t gain = filter.configure(kGain, config, mode);
 	std::vector<int32_t> block = kInput;
 	std::vector<int32_t> scratch(block.size());
 	filter.renderStereo(block, scratch);
@@ -232,11 +230,8 @@ const std::vector<int32_t> kBandMidFadeResetMono{
     -16646592, -11372418, -10908372, -9008952};
 
 /// The mid setting with its morph inverted as the high-pass slot passes it.
-constexpr FilterConfig kMidInverted{.frequency = 1 << 24,
-                                    .resonance = 1 << 28,
-                                    .morph = ((1 << 29) - 1) - (1 << 27),
-                                    .gain = kGain,
-                                    .allow_oversampling = true};
+constexpr FilterConfig kMidInverted{
+    .frequency = 1 << 24, .resonance = 1 << 28, .morph = ((1 << 29) - 1) - (1 << 27), .allow_oversampling = true};
 
 } // namespace
 
@@ -329,7 +324,7 @@ describe state_variable_filter("StateVariableFilter", ${
 	it("fades in from dry when fresh (its initializers start a fade)", _ {
 		jcong = kSeed;
 		StateVariableFilter filter;
-		std::ignore = filter.configure(kMid, SvfMode::BAND);
+		std::ignore = filter.configure(kGain, kMid, SvfMode::BAND);
 		std::vector<int32_t> block = kInput;
 		std::vector<int32_t> scratch(block.size());
 		filter.renderMono(block, scratch);
@@ -339,7 +334,7 @@ describe state_variable_filter("StateVariableFilter", ${
 		jcong = kSeed;
 		StateVariableFilter filter;
 		filter.zero();
-		std::ignore = filter.configure(kMid, SvfMode::BAND);
+		std::ignore = filter.configure(kGain, kMid, SvfMode::BAND);
 		std::vector<int32_t> block = kInput;
 		std::vector<int32_t> scratch(block.size());
 		filter.renderMono(block, scratch);
@@ -352,7 +347,7 @@ describe state_variable_filter("StateVariableFilter", ${
 		jcong = kSeed;
 		StateVariableFilter filter;
 		filter.zero();
-		std::ignore = filter.configure(kMid, SvfMode::BAND);
+		std::ignore = filter.configure(kGain, kMid, SvfMode::BAND);
 		std::vector<int32_t> block = kInput;
 		std::vector<int32_t> scratch(block.size());
 		filter.renderStereo(block, scratch);
@@ -365,7 +360,7 @@ describe state_variable_filter("StateVariableFilter", ${
 		jcong = kSeed;
 		StateVariableFilter filter;
 		filter.zero();
-		std::ignore = filter.configure(kMid, SvfMode::BAND);
+		std::ignore = filter.configure(kGain, kMid, SvfMode::BAND);
 		std::vector<int32_t> block = kInput;
 		std::vector<int32_t> scratch(block.size());
 		filter.renderMono(block, scratch);
@@ -378,7 +373,7 @@ describe state_variable_filter("StateVariableFilter", ${
 		jcong = kSeed;
 		StateVariableFilter filter;
 		filter.zero();
-		std::ignore = filter.configure(kMid, SvfMode::BAND);
+		std::ignore = filter.configure(kGain, kMid, SvfMode::BAND);
 		filter.reset(true);
 		std::vector<int32_t> block = kInput;
 		std::vector<int32_t> scratch(block.size());

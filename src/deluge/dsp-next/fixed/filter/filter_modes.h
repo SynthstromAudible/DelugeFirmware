@@ -75,9 +75,7 @@ struct FilterConfig {
 	q31 resonance;
 	/// The morph, Q29: each filter lifts it to Q31 (by 2^2, saturating) before use.
 	q31 morph;
-	/// The volume going in, Q31; configure returns it compensated.
-	q31 gain;
-	/// Whether the drive ladder may oversample: false under CPU load.
+	/// Whether the drive ladder may oversample: false under CPU load. Filters that never oversample have no use for it.
 	bool allow_oversampling;
 };
 

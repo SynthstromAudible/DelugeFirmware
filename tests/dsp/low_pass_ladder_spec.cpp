@@ -44,12 +44,10 @@ const std::vector<int32_t> kInput{
     18578569,  4590277,   6420363,   13932263,  9908702,   -10947281, -35589850, -45647162, -36182765, -20423895,
     -15500126, -24293472, -32591589, -24536521};
 
-constexpr FilterConfig kDark{
-    .frequency = 1 << 22, .resonance = 0, .morph = 0, .gain = kGain, .allow_oversampling = true};
-constexpr FilterConfig kMid{
-    .frequency = 1 << 24, .resonance = 1 << 28, .morph = 1 << 27, .gain = kGain, .allow_oversampling = true};
+constexpr FilterConfig kDark{.frequency = 1 << 22, .resonance = 0, .morph = 0, .allow_oversampling = true};
+constexpr FilterConfig kMid{.frequency = 1 << 24, .resonance = 1 << 28, .morph = 1 << 27, .allow_oversampling = true};
 constexpr FilterConfig kBright{
-    .frequency = 50000000, .resonance = 500000000, .morph = 1 << 28, .gain = kGain, .allow_oversampling = true};
+    .frequency = 50000000, .resonance = 500000000, .morph = 1 << 28, .allow_oversampling = true};
 
 /// One block's output, the compensated gain, and the noise generator's next value after the block.
 struct Rendered {
@@ -62,7 +60,7 @@ Rendered renderMono(const FilterConfig& config, LowPassLadderMode mode) {
 	jcong = kSeed;
 	LowPassLadder filter;
 	filter.zero();
-	const int32_t gain = filter.configure(config, mode);
+	const int32_t gain = filter.configure(kGain, config, mode);
 	std::vector<int32_t> block = kInput;
 	std::vector<int32_t> scratch(block.size());
 	filter.renderMono(block, scratch);
@@ -73,7 +71,7 @@ Rendered renderStereo(const FilterConfig& config, LowPassLadderMode mode) {
 	jcong = kSeed;
 	LowPassLadder filter;
 	filter.zero();
-	const int32_t gain = filter.configure(config, mode);
+	const int32_t gain = filter.configure(kGain, config, mode);
 	std::vector<int32_t> block = kInput;
 	std::vector<int32_t> scratch(block.size());
 	filter.renderStereo(block, scratch);
@@ -275,7 +273,7 @@ const std::vector<int32_t> kLp24MidFadeResetMono{
 
 /// The bright setting with the drive ladder's oversampling not allowed (under CPU load).
 constexpr FilterConfig kBrightUnderLoad{
-    .frequency = 50000000, .resonance = 500000000, .morph = 1 << 28, .gain = kGain, .allow_oversampling = false};
+    .frequency = 50000000, .resonance = 500000000, .morph = 1 << 28, .allow_oversampling = false};
 
 } // namespace
 
@@ -404,7 +402,7 @@ describe low_pass_ladder("LowPassLadder", ${
 	it("fades in from dry when fresh (its initializers start a fade)", _ {
 		jcong = kSeed;
 		LowPassLadder filter;
-		std::ignore = filter.configure(kMid, LowPassLadderMode::TRANSISTOR_24DB);
+		std::ignore = filter.configure(kGain, kMid, LowPassLadderMode::TRANSISTOR_24DB);
 		std::vector<int32_t> block = kInput;
 		std::vector<int32_t> scratch(block.size());
 		filter.renderMono(block, scratch);
@@ -414,7 +412,7 @@ describe low_pass_ladder("LowPassLadder", ${
 		jcong = kSeed;
 		LowPassLadder filter;
 		filter.zero();
-		std::ignore = filter.configure(kMid, LowPassLadderMode::TRANSISTOR_24DB);
+		std::ignore = filter.configure(kGain, kMid, LowPassLadderMode::TRANSISTOR_24DB);
 		std::vector<int32_t> block = kInput;
 		std::vector<int32_t> scratch(block.size());
 		filter.renderMono(block, scratch);
@@ -427,7 +425,7 @@ describe low_pass_ladder("LowPassLadder", ${
 		jcong = kSeed;
 		LowPassLadder filter;
 		filter.zero();
-		std::ignore = filter.configure(kMid, LowPassLadderMode::TRANSISTOR_24DB);
+		std::ignore = filter.configure(kGain, kMid, LowPassLadderMode::TRANSISTOR_24DB);
 		std::vector<int32_t> block = kInput;
 		std::vector<int32_t> scratch(block.size());
 		filter.renderStereo(block, scratch);
@@ -440,7 +438,7 @@ describe low_pass_ladder("LowPassLadder", ${
 		jcong = kSeed;
 		LowPassLadder filter;
 		filter.zero();
-		std::ignore = filter.configure(kMid, LowPassLadderMode::TRANSISTOR_24DB);
+		std::ignore = filter.configure(kGain, kMid, LowPassLadderMode::TRANSISTOR_24DB);
 		std::vector<int32_t> block = kInput;
 		std::vector<int32_t> scratch(block.size());
 		filter.renderMono(block, scratch);
@@ -453,7 +451,7 @@ describe low_pass_ladder("LowPassLadder", ${
 		jcong = kSeed;
 		LowPassLadder filter;
 		filter.zero();
-		std::ignore = filter.configure(kMid, LowPassLadderMode::TRANSISTOR_24DB);
+		std::ignore = filter.configure(kGain, kMid, LowPassLadderMode::TRANSISTOR_24DB);
 		filter.reset(true);
 		std::vector<int32_t> block = kInput;
 		std::vector<int32_t> scratch(block.size());

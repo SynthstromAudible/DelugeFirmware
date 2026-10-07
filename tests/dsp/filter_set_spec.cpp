@@ -53,13 +53,10 @@ const std::vector<int32_t> kLoud = [] {
 	return block;
 }();
 
-constexpr FilterConfig kLow{
-    .frequency = 1 << 24, .resonance = 1 << 28, .morph = 1 << 27, .gain = kGain, .allow_oversampling = true};
-constexpr FilterConfig kHigh{
-    .frequency = 1 << 23, .resonance = 1 << 27, .morph = 1 << 26, .gain = kGain, .allow_oversampling = true};
-constexpr FilterConfig kOpenLow{
-    .frequency = 1 << 26, .resonance = 0, .morph = 0, .gain = kGain, .allow_oversampling = true};
-constexpr FilterConfig kOpenHigh{.frequency = 0, .resonance = 0, .morph = 0, .gain = kGain, .allow_oversampling = true};
+constexpr FilterConfig kLow{.frequency = 1 << 24, .resonance = 1 << 28, .morph = 1 << 27, .allow_oversampling = true};
+constexpr FilterConfig kHigh{.frequency = 1 << 23, .resonance = 1 << 27, .morph = 1 << 26, .allow_oversampling = true};
+constexpr FilterConfig kOpenLow{.frequency = 1 << 26, .resonance = 0, .morph = 0, .allow_oversampling = true};
+constexpr FilterConfig kOpenHigh{.frequency = 0, .resonance = 0, .morph = 0, .allow_oversampling = true};
 
 constexpr LowPassSlot kLowOff{.kind = LowPassSlot::Kind::OFF};
 constexpr LowPassSlot kLow12{.kind = LowPassSlot::Kind::LADDER, .ladder = LowPassLadderMode::TRANSISTOR_12DB};
@@ -80,7 +77,7 @@ struct Rig {
 
 	int32_t configure(LowPassSlot low, HighPassSlot high, FilterRoute route = FilterRoute::HIGH_TO_LOW,
 	                  const FilterConfig& low_config = kLow, const FilterConfig& high_config = kHigh) {
-		return set.configure(low_config, low, high_config, high, route);
+		return set.configure(kGain, low_config, low, high_config, high, route);
 	}
 	std::vector<int32_t> mono(const std::vector<int32_t>& in) {
 		std::vector<int32_t> block = in;
@@ -253,6 +250,16 @@ const std::vector<int32_t> kSvfModeChange{
     27230889,  32914929,  35567934,  34604382,  30318117,  23468124,  14931669,  5472921,   -4579563,  -14700036,
     -23792331, -30560043, -34118001, -34461708, -32041491, -27179370, -20067531, -10969875, -699912,   9486648,
     18302829,  24934218,  29453898,  32169321};
+
+/// SVFs in both slots from a new set.
+const std::vector<int32_t> kSvfBothFresh{
+    0,         6678858,   17135637,  21337893,  14668581,  2356461,   -6130428, -7558821, -7728939,  -14507367,
+    -28091376, -39175602, -38064621, -23825286, -5855097,  5210925,   8139651,  10119879, 18388881,  31601178,
+    40510530,  37757394,  25222236,  12763788,  7978056,   8620761,   5844426,  -6088560, -22798923, -33947844,
+    -34073337, -27072825, -22144800, -23848893, -26955864, -22212990, -6689013, 11976114, 23281383,  24443136,
+    21643854,  23647422,  32046852,  38824032,  34764369,  19202010,  1577286,  -8291316, -9879042,  -10803603,
+    -18580497, -31864836, -41125641, -38663559, -26128707, -13301943, -7901412, -7887426, -4643862,  7404222,
+    23864697,  34545384,  34133052,  26661915};
 
 /// The 24dB ladder in parallel with the high-pass off: the low-pass plus the dry block.
 const std::vector<int32_t> kParallelHighOff{
@@ -431,6 +438,20 @@ describe filter_set("FilterSet", ${
 		std::ignore = rig.mono(kInput);
 		std::ignore = rig.configure(kLowNotch, kHighNotch);
 		expect(rig.mono(kInput)).to_equal(kSvfModeChange);
+	});
+	it("starts over after reset() with SVFs in both slots, as a new set does", _ {
+		jcong = kSeed;
+		Rig fresh;
+		std::ignore = fresh.configure(kLowBand, kHighBand);
+		expect(fresh.mono(kInput)).to_equal(kSvfBothFresh);
+		jcong = kSeed;
+		Rig rig;
+		std::ignore = rig.configure(kLowBand, kHighBand);
+		std::ignore = rig.mono(kInput);
+		rig.set.reset();
+		jcong = kSeed;
+		std::ignore = rig.configure(kLowBand, kHighBand);
+		expect(rig.mono(kInput)).to_equal(kSvfBothFresh);
 	});
 	it("adds the dry block in parallel when the high-pass is off", _ {
 		jcong = kSeed;

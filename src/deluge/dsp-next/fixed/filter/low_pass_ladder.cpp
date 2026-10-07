@@ -55,7 +55,7 @@ constexpr std::array<int16_t, 65> kResonanceLimits = {
 
 } // namespace
 
-q31 LowPassLadder::configure(const FilterConfig& config, LowPassLadderMode mode) {
+q31 LowPassLadder::configure(q31 gain, const FilterConfig& config, LowPassLadderMode mode) {
 	mode_ = mode;
 	morph_ = lshiftAndSaturate<2>(config.morph);
 	q31 frequency = config.frequency;
@@ -131,7 +131,6 @@ q31 LowPassLadder::configure(const FilterConfig& config, LowPassLadderMode mode)
 		    static_cast<q31>(72057594037927936.0 / static_cast<double>(one_plus_loop_gain));
 	}
 
-	q31 gain = config.gain;
 	if (mode_ != LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
 		// Extra feedback, but only while the cutoff is low enough not to alias.
 		if (curved.tanned <= 304587486) {

@@ -31,7 +31,9 @@ namespace deluge::dsp::fixed {
 /// @brief The scratch a set needs, each at least the block's samples (two per frame in stereo): the fades', and the
 /// parallel route's second copy of the block.
 struct FilterScratch {
+	/// The dry copy a filter blends with while it fades in; the two filters use it one after the other.
 	FadeScratch fade;
+	/// The parallel route's copy of the block, which the high-pass runs over before it is added back.
 	std::span<q31> parallel;
 };
 
@@ -42,14 +44,17 @@ struct FilterScratch {
 /// one filter at a time, the one its family needs.
 class FilterSet {
 public:
+	/// @brief A set in its reset state (see @ref reset): both filters off, nothing fading.
 	FilterSet() { reset(); }
 
 	/// @brief Takes one block's settings.
-	/// @param low The low-pass's settings; its gain (Q31) is the gain going into the set.
-	/// @param high The high-pass's settings; its gain is not read (the set hands on the low-pass's).
+	/// @param gain The volume going into the set, Q31. The low-pass compensates it, the set scales it, and the
+	/// high-pass compensates the result.
+	/// @param low The low-pass's settings.
+	/// @param high The high-pass's settings.
 	/// @return The gain going out of the set (Q31): compensated for each filter that is on, and scaled so that at 50%
 	/// resonance the level is unchanged.
-	[[nodiscard]] q31 configure(const FilterConfig& low, LowPassSlot low_slot, const FilterConfig& high,
+	[[nodiscard]] q31 configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot, const FilterConfig& high,
 	                            HighPassSlot high_slot, FilterRoute route);
 
 	/// @brief Filters a mono @p block in place.
@@ -59,8 +64,9 @@ public:
 	void renderStereo(std::span<q31> interleaved, FilterScratch scratch);
 
 	/// @brief Back to a new set's state: both filters off and every filter's state zero, the fades included (so the
-	/// next configure fades nothing in). The slots read as holding a ladder, so a low-pass ladder configured next is
-	/// not reset (its state is zero already) and anything else is.
+	/// next configure fades nothing in). Both slots read as holding a ladder, so neither the low-pass ladder nor the
+	/// high-pass ladder is reset by the first configure after this (their state is zero already); an SVF in either slot
+	/// is reset, without a fade.
 	void reset();
 
 	/// @brief Whether either filter is on.

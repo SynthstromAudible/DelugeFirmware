@@ -31,10 +31,11 @@ namespace deluge::dsp::fixed {
 class StateVariableFilter {
 public:
 	/// @brief Takes one block's settings.
+	/// @param gain The volume going in, Q31.
 	/// @param config The high-pass slot passes its morph already inverted ((1 << 29) - 1 - morph), so it sweeps
 	/// high → band or notch → low.
-	/// @return @p config's gain, unchanged.
-	[[nodiscard]] q31 configure(const FilterConfig& config, SvfMode mode);
+	/// @return @p gain, unchanged.
+	[[nodiscard]] q31 configure(q31 gain, const FilterConfig& config, SvfMode mode);
 
 	/// @brief Filters a mono @p block in place.
 	/// @param scratch At least @p block's size, used while the fade runs.

@@ -27,7 +27,7 @@
 
 namespace deluge::dsp::fixed {
 
-q31 HighPassLadder::configure(const FilterConfig& config) {
+q31 HighPassLadder::configure(q31 gain, const FilterConfig& config) {
 	constexpr int32_t kExtraFeedback = 1200000000;
 	morph_ = lshiftAndSaturate<2>(config.morph);
 	const CurvedFrequency curved = curve_frequency(config.frequency);
@@ -60,7 +60,7 @@ q31 HighPassLadder::configure(const FilterConfig& config) {
 	const q31 raw_resonance = std::min(config.resonance, q31{ONE_Q31 >> 2}) << 2;
 	q31 squared = multiply_32x32_rshift32(raw_resonance, raw_resonance) << 1;
 	squared = (multiply_32x32_rshift32(squared, squared) >> 4) * 19;
-	return multiply_32x32_rshift32(config.gain, ONE_Q31 - squared) << 1;
+	return multiply_32x32_rshift32(gain, ONE_Q31 - squared) << 1;
 }
 
 q31 HighPassLadder::render(q31 input, Channel& channel) const {

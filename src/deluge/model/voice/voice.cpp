@@ -991,24 +991,22 @@ skipAutoRelease: {}
 
 	// Prepare the filters. Level adjustment for unison happens before the filters, so the gain going in is neutral.
 	const bool allow_oversampling = AudioEngine::cpuDireness < 14;
-	filterGain = filterSet.configure(
-	    {
-	        .frequency = params.paramFinalValues[params::LOCAL_LPF_FREQ],
-	        .resonance = params.paramFinalValues[params::LOCAL_LPF_RESONANCE],
-	        .morph = params.paramFinalValues[params::LOCAL_LPF_MORPH],
-	        .gain = cfg.volumeNeutralValueForUnison << 1,
-	        .allow_oversampling = allow_oversampling,
-	    },
-	    doLPF ? effects::low_pass_slot(cfg.lpfMode) : dsp::fixed::LowPassSlot{},
-	    {
-	        .frequency = params.paramFinalValues[params::LOCAL_HPF_FREQ],
-	        .resonance = params.paramFinalValues[params::LOCAL_HPF_RESONANCE],
-	        .morph = params.paramFinalValues[params::LOCAL_HPF_MORPH],
-	        .gain = cfg.volumeNeutralValueForUnison << 1,
-	        .allow_oversampling = allow_oversampling,
-	    },
-	    doHPF ? effects::high_pass_slot(cfg.hpfMode) : dsp::fixed::HighPassSlot{},
-	    effects::filter_route(cfg.filterRoute));
+	filterGain = filterSet.configure(cfg.volumeNeutralValueForUnison << 1,
+	                                 {
+	                                     .frequency = params.paramFinalValues[params::LOCAL_LPF_FREQ],
+	                                     .resonance = params.paramFinalValues[params::LOCAL_LPF_RESONANCE],
+	                                     .morph = params.paramFinalValues[params::LOCAL_LPF_MORPH],
+	                                     .allow_oversampling = allow_oversampling,
+	                                 },
+	                                 doLPF ? effects::low_pass_slot(cfg.lpfMode) : dsp::fixed::LowPassSlot{},
+	                                 {
+	                                     .frequency = params.paramFinalValues[params::LOCAL_HPF_FREQ],
+	                                     .resonance = params.paramFinalValues[params::LOCAL_HPF_RESONANCE],
+	                                     .morph = params.paramFinalValues[params::LOCAL_HPF_MORPH],
+	                                     .allow_oversampling = allow_oversampling,
+	                                 },
+	                                 doHPF ? effects::high_pass_slot(cfg.hpfMode) : dsp::fixed::HighPassSlot{},
+	                                 effects::filter_route(cfg.filterRoute));
 
 	SynthMode synthMode = cfg.synthMode;
 
