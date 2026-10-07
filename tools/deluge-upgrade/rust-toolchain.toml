@@ -1,0 +1,4 @@
+# The repository's toolchain, which ./dbt provides; the upgrader itself needs only stable Rust.
+[toolchain]
+channel = "nightly"
+components = ["clippy", "rustfmt"]

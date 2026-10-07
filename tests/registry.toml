@@ -31,6 +31,19 @@ tier = "pr"
 runtime = "~1m"
 
 [[harness]]
+name = "upgrader"
+path = "tools/deluge-upgrade"
+level = "unit"
+runner = "cargo"
+kind = "unit"
+status = "gate"
+gates = "the file upgrader reads a Deluge document into the tree the firmware's parser builds (attributes and child tags alike, duplicate keys in order, entities, comments, empty elements), compares version stamps as the firmware does, applies each conversion as official firmware loaded it, and writes the firmware's JSON (its array containers as arrays, whole numbers bare)"
+run = ["cargo", "test"]
+requires = ["cargo"]
+tier = "pr"
+runtime = "~30s"
+
+[[harness]]
 name = "load-policy"
 path = "."
 level = "integration"
