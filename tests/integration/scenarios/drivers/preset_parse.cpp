@@ -99,8 +99,8 @@ int preset_parse_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		      "a JSON synth preset read into a kit row has its params");
 	}
 	{
-		// An unstamped (pre-1.2) synth with its filter open and half resonance: the old-file rule sets its resonance to
-		// none, and what it saves -- the param's stored value -- must say so too, not only what it plays.
+		// An unstamped synth with its filter open and half resonance: no old-file rule changes it (the upgrader
+		// converts files that old), so it reads -- and saves -- as its file says.
 		constexpr std::string_view kOldSynth =
 		    R"(<?xml version="1.0" encoding="UTF-8"?><sound mode="subtractive"><defaultParams lpfFrequency="0x7FFFFFFF" )"
 		    R"(lpfResonance="0x00000000" volume="0x40000000"/></sound>)";
@@ -121,9 +121,8 @@ int preset_parse_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			ParamManager* manager = currentSong->live.param_backup.getPreferablyWithClip(sound, nullptr);
 			PatchedParamSet* patched = manager != nullptr ? manager->getPatchedParamSet() : nullptr;
 			check(patched != nullptr
-			          && patched->docForParam(deluge::modulation::params::LOCAL_LPF_RESONANCE)->current_value
-			                 == -2147483648,
-			      "an old synth's resonance set to none is saved as none");
+			          && patched->docForParam(deluge::modulation::params::LOCAL_LPF_RESONANCE)->current_value == 0,
+			      "an unstamped synth's resonance reads as its file says");
 		}
 	}
 	if (failures == 0) {

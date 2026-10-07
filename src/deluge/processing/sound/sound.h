@@ -437,8 +437,6 @@ private:
 	Error readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                             int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 
-	Error readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerForTimeline* paramManager,
-	                         int32_t readAutomationUpToPos);
 	void stopSkippingRendering(ArpeggiatorSettings* arpSettings);
 	void startSkippingRendering(ModelStackWithSoundFlags* modelStack);
 	void getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSettings);
