@@ -34,12 +34,12 @@ engine::ParamId CableState::depth() const {
 
 namespace {
 
-/// The destination a cable's `destination` names: a param, the pre-3.2 range placeholder, or unknown.
+/// The destination a cable's `destination` names: a param, or unknown.
 engine::ParamId destination_of(std::string_view name) {
 	if (const engine::ParamInfo* row = engine::find_param(kParams, name)) {
 		return row->id;
 	}
-	return name == "range" ? kRangePlaceholder : kUnknownDestination;
+	return kUnknownDestination;
 }
 
 std::string_view text(const Value* node) {
@@ -86,7 +86,6 @@ void decode_depth_controllers(const Value& depthControlledBy, size_t first, std:
 
 std::vector<CableState> decode_cables(const Value& patchCables, const AmountTest& contains_something) {
 	std::vector<CableState> cables;
-	std::optional<CableRoute> rangeAdjustable;
 	for (const serialization::NamedChild& entry : serialization::children(patchCables)) {
 		if (cables.size() >= kMaxCables) {
 			break;
@@ -99,7 +98,6 @@ std::vector<CableState> decode_cables(const Value& patchCables, const AmountTest
 		std::optional<engine::ParamId> destination;
 		const Value* amount = nullptr;
 		Polarity polarity = Polarity::BIPOLAR;
-		bool adjustable = false;
 		for (const auto& [key, value] : entry.node->entries()) {
 			if (key == "source") {
 				source = parse_patch_source(text(&value));
@@ -112,9 +110,6 @@ std::vector<CableState> decode_cables(const Value& patchCables, const AmountTest
 			}
 			else if (key == "amount") {
 				amount = &value;
-			}
-			else if (key == "rangeAdjustable") {
-				adjustable = serialization::int_of(&value).value_or(0) != 0;
 			}
 			else if (key == "polarity") {
 				polarity = parse_polarity(text(&value));
@@ -133,23 +128,11 @@ std::vector<CableState> decode_cables(const Value& patchCables, const AmountTest
 			cables.resize(first);
 			continue;
 		}
-		if (adjustable) {
-			rangeAdjustable = CableRoute{source, *destination};
-		}
 		const engine::ParamId cableDepth = cable_depth_id(source, *destination).value_or(engine::ParamId{});
 		for (auto it = earlier; it != cables.end(); ++it) {
 			it->destination = cableDepth;
 		}
 		cables.push_back({source, *destination, polarity, amount});
-	}
-	if (rangeAdjustable) {
-		const engine::ParamId adjusted =
-		    cable_depth_id(rangeAdjustable->source, rangeAdjustable->destination).value_or(engine::ParamId{});
-		for (CableState& cable : cables) {
-			if (cable.destination == kRangePlaceholder) {
-				cable.destination = adjusted;
-			}
-		}
 	}
 	return cables;
 }

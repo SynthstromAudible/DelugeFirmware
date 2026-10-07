@@ -46,8 +46,6 @@ struct RangeState {
 	uint32_t loop_end_pos{0};   ///< in samples; 0 = none
 	int16_t transpose{0};       ///< semitones
 	int8_t cents{0};
-	int32_t start_msec{0}; ///< an early-2016 file's zone start in milliseconds; never written
-	int32_t end_msec{0};   ///< an early-2016 file's zone end in milliseconds; never written
 	bool operator==(const RangeState&) const = default;
 };
 

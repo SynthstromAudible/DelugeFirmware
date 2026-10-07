@@ -40,20 +40,37 @@ std::string differenceFor(const std::string& fixture) {
 
 // clang-format off
 describe codec_decode("the Deluge instrument reads every format a sound was saved in", ${
-	it("reads the pre-mid-2016 oscillators", _ {
-		expect(differenceFor("old_oscillators")).to_equal(std::string{});
+	it("reads none of the sound forms no release writes", _ {
+		auto doc = deluge::serialization::parseXml(
+		    R"(<sound ringMod="1" mode="fm" oscillatorReset="0" polyphonic="2"><oscillatorA type="square" note="72"/>)"
+		    R"(<fileName>SAMPLES/A.WAV</fileName></sound>)");
+		SoundState state = new_synth_state();
+		expect(decode(*doc->find("sound"), state, kNewSong)).to_have_value();
+		expect(state.synth_mode).to_equal(SynthMode::FM);
+		expect(state.osc_retrigger_phase[1]).to_equal(uint32_t{0}); // as every decode starts it: not freed
+		expect(state.polyphonic).to_equal(PolyphonyMode::POLY);
+		expect(state.sources[0].transpose).to_equal(int16_t{0});
 	});
-	it("keeps ring modulation over a later mode", _ {
-		expect(differenceFor("ringmod_then_mode")).to_equal(std::string{});
+	it("reads a zone only in samples", _ {
+		auto doc = deluge::serialization::parseXml(
+		    R"(<sound mode="subtractive"><continuous>1</continuous><reversed>1</reversed>)"
+		    R"(<osc1 type="sample" fileName="SAMPLES/B.WAV"><zone startSeconds="1" startMilliseconds="20" )"
+		    R"(endMilliseconds="80" startSamplePos="5" endSamplePos="900"/></osc1></sound>)");
+		SoundState state = new_synth_state();
+		expect(decode(*doc->find("sound"), state, kNewSong)).to_have_value();
+		expect(state.sources[0].ranges.size()).to_equal(size_t{1});
+		expect(state.sources[0].ranges[0].file_path).to_equal(std::string("SAMPLES/B.WAV"));
+		expect(state.sources[0].ranges[0].start_pos).to_equal(uint64_t{5});
+		expect(state.sources[0].ranges[0].end_pos).to_equal(uint64_t{900});
+		expect(state.sources[0].reversed).to_be_false();
 	});
-	it("frees every oscillator when reset is off", _ {
-		expect(differenceFor("oscillator_reset_off")).to_equal(std::string{});
-	});
-	it("reads an early-2016 sample sound, its zone in seconds and milliseconds", _ {
-		expect(differenceFor("early2016_sample")).to_equal(std::string{});
-	});
-	it("reads the old polyphony numbers and clamps unison", _ {
-		expect(differenceFor("polyphony_numbers")).to_equal(std::string{});
+	it("clamps unison to what a sound can play", _ {
+		auto doc = deluge::serialization::parseXml(R"(<sound><unison num="20" detune="70" spread="-3"/></sound>)");
+		SoundState state = new_synth_state();
+		(void)decode(*doc->find("sound"), state, kNewSong);
+		expect(static_cast<int32_t>(state.num_unison)).to_equal(8);
+		expect(static_cast<int32_t>(state.unison_detune)).to_equal(50);
+		expect(static_cast<int32_t>(state.unison_stereo_spread)).to_equal(0);
 	});
 	it("reads back a wavetable split into ranges", _ {
 		SoundState written = new_synth_state();

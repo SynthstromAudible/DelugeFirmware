@@ -18,7 +18,7 @@ std::ostream& operator<<(std::ostream& out, const SoundState& state) {
 /// A range, printed as its fields, so a failing comparison of range lists shows it.
 std::ostream& operator<<(std::ostream& out, const RangeState& range) {
 	return out << "{top " << range.top_note << " " << range.file_path << " " << range.start_pos << "-" << range.end_pos
-	           << " msec " << range.start_msec << "-" << range.end_msec << "}";
+	           << "}";
 }
 } // namespace deluge::instrument
 
@@ -99,9 +99,8 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 		expect(*decoded).to_equal(state);
 	});
 
-	it("keeps what an unchanged entry says, even where the file could not say it (a legacy zone, a sync level)", _ {
+	it("keeps what an unchanged entry says, even where the file could not say it (a sync level)", _ {
 		SoundState state = sampled();
-		state.sources[0].ranges[0].start_msec = 40;
 		state.lfo_sync_level[0] = static_cast<deluge::engine::SyncLevel>(1);
 		constexpr deluge::engine::CodecContext kSlow{.input_tick_magnitude = 0};
 		const auto decoded = decode_onto(encode(state, kSlow), state, kSlow);
@@ -117,10 +116,9 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 		expect(static_cast<int32_t>(decoded->lfo_sync_level[0])).to_equal(2); // where magnitude 0's file keeps WHOLE
 	});
 
-	it("keeps the ranges a changed oscillator type carries over, legacy zone and all", _ {
+	it("keeps the ranges a changed oscillator type carries over", _ {
 		SoundState state = sampled();
-		state.sources[1].ranges = {RangeState{.top_note = 32767, .file_path = "SAMPLES/OLD.WAV", .end_pos = 500,
-		                                      .start_msec = 40, .end_msec = 900}};
+		state.sources[1].ranges = {RangeState{.top_note = 32767, .file_path = "SAMPLES/OLD.WAV", .end_pos = 500}};
 		SoundState written = state;
 		written.sources[1].osc_type = OscType::SAMPLE;
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);

@@ -33,7 +33,7 @@ inline constexpr size_t kMaxCables = 32;
 /// @brief One cable as a file holds it: its route, its polarity, and its depth's automation leaf, which the host reads.
 struct CableState {
 	PatchSource source{PatchSource::NONE};
-	/// A param, another cable's depth, kUnknownDestination or kRangePlaceholder.
+	/// A param, another cable's depth, or kUnknownDestination.
 	engine::ParamId destination{};
 	Polarity polarity{Polarity::BIPOLAR};
 	/// The cable's `amount`: the host's automation leaf, pointing into the decoded tree.

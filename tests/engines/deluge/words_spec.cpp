@@ -17,9 +17,9 @@ describe words("the Deluge instrument's words and their file names", ${
 		expect(parse_osc_type("nonsense")).to_equal(OscType::TRIANGLE);
 	});
 
-	it("reads the pre-2017 polyphony numbers", _ {
-		expect(parse_polyphony_mode("0")).to_equal(PolyphonyMode::AUTO);
-		expect(parse_polyphony_mode("2")).to_equal(PolyphonyMode::CHOKE);
+	it("reads polyphony only by its words: the pre-2017 numbers and anything else are poly", _ {
+		expect(parse_polyphony_mode("0")).to_equal(PolyphonyMode::POLY);
+		expect(parse_polyphony_mode("2")).to_equal(PolyphonyMode::POLY);
 		expect(parse_polyphony_mode("anything")).to_equal(PolyphonyMode::POLY);
 		expect(std::string(to_string(PolyphonyMode::POLY))).to_equal(std::string("poly"));
 	});

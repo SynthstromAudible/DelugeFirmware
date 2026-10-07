@@ -44,11 +44,9 @@ constexpr std::array<std::string_view, 26> kStateKeys{
     "unison",         "midiOutput",    "delay",         "sidechain",  "audioCompressor",
     "stutter"};
 
-/// The top-level keys of older files decode still reads and encode never writes: the oscillators by their old names,
-/// ring mod as a flag, the retrigger switch, an early sound's one sample, and the sidechain by its old name.
-constexpr std::array<std::string_view, 9> kOldStateKeys{"oscillatorA",     "oscillatorB", "ringMod",
-                                                        "oscillatorReset", "fileName",    "continuous",
-                                                        "reversed",        "zone",        "compressor"};
+/// The top-level key of older files decode still reads and encode never writes: the sidechain by its old name, as the
+/// factory presets and official firmware write it.
+constexpr std::array<std::string_view, 1> kOldStateKeys{"compressor"};
 
 /// A number as a file holds it: a 32-bit signed integer, whatever the field's own type.
 Value number(int64_t value) {
@@ -359,11 +357,9 @@ SampleRepeatMode repeatModeOf(const Value& value) {
 	return static_cast<SampleRepeatMode>(mode);
 }
 
-/// A zone in seconds and milliseconds (early-2016) or in samples, into @p range.
+/// A zone in samples, into @p range.
 void readZone(const Value& zone, RangeState& range, bool resetPositions) {
 	if (resetPositions) {
-		range.start_msec = 0;
-		range.end_msec = 0;
 		range.start_pos = 0;
 		range.end_pos = 0;
 	}
@@ -371,19 +367,7 @@ void readZone(const Value& zone, RangeState& range, bool resetPositions) {
 		return;
 	}
 	for (const auto& [key, value] : zone.entries()) {
-		if (key == "startSeconds") {
-			range.start_msec += intOf(value) * 1000;
-		}
-		else if (key == "startMilliseconds") {
-			range.start_msec += intOf(value);
-		}
-		else if (key == "endSeconds") {
-			range.end_msec += intOf(value) * 1000;
-		}
-		else if (key == "endMilliseconds") {
-			range.end_msec += intOf(value);
-		}
-		else if (key == "startSamplePos") {
+		if (key == "startSamplePos") {
 			range.start_pos =
 			    static_cast<uint64_t>(static_cast<int64_t>(intOf(value))); // a 32-bit file value, sign-extended
 		}
@@ -543,31 +527,6 @@ void readLfo(const Value& lfo, SoundState& state, size_t l, const engine::CodecC
 	}
 }
 
-/// The pre-mid-2016 oscillator elements: `oscillatorA` / `oscillatorB`.
-void readOldOscillator(const Value& osc, SoundState& state, size_t s) {
-	if (!osc.isMap()) {
-		return;
-	}
-	for (const auto& [key, value] : osc.entries()) {
-		if (key == "type") {
-			state.sources[s].osc_type = parse_osc_type(textOf(value));
-		}
-		else if (s == 0 && key == "note") {
-			const int32_t offset = std::clamp(intOf(value), 1, 127) - 60;
-			for (size_t i = 0; i < 2; i++) {
-				state.sources[i].transpose = static_cast<int16_t>(state.sources[i].transpose + offset);
-				state.modulator_transpose[i] = static_cast<int16_t>(state.modulator_transpose[i] + offset);
-			}
-		}
-		else if (s == 1 && key == "transpose") {
-			state.sources[1].transpose = static_cast<int16_t>(state.sources[1].transpose + intOf(value));
-		}
-		else if (s == 1 && key == "cents") {
-			state.sources[1].cents = static_cast<int8_t>(intOf(value));
-		}
-	}
-}
-
 Value dumpRange(const RangeState& range) {
 	auto map = Value::makeMap();
 	map.set("topNote", number(range.top_note));
@@ -578,8 +537,6 @@ Value dumpRange(const RangeState& range) {
 	map.set("loopEndPos", Value::makeNumber(range.loop_end_pos));
 	map.set("transpose", number(range.transpose));
 	map.set("cents", number(range.cents));
-	map.set("startMsec", number(range.start_msec));
-	map.set("endMsec", number(range.end_msec));
 	return map;
 }
 
@@ -607,17 +564,7 @@ std::expected<void, engine::StateError> decodeImpl(const Value& element, SoundSt
 			}
 		}
 		else if (key == "mode") {
-			if (state.synth_mode != SynthMode::RINGMOD) {
-				state.synth_mode = parse_synth_mode(textOf(value));
-			}
-		}
-		else if (key == "ringMod") {
-			if (intOf(value) == 1) {
-				state.synth_mode = SynthMode::RINGMOD;
-			}
-		}
-		else if (key == "oscillatorA" || key == "oscillatorB") {
-			readOldOscillator(value, state, key == "oscillatorA" ? 0 : 1);
+			state.synth_mode = parse_synth_mode(textOf(value));
 		}
 		else if (key == "modulator1" || key == "modulator2") {
 			readModulator(value, state, key == "modulator1" ? 0 : 1);
@@ -627,12 +574,6 @@ std::expected<void, engine::StateError> decodeImpl(const Value& element, SoundSt
 		}
 		else if (key == "cents") {
 			state.cents = static_cast<int8_t>(intOf(value));
-		}
-		else if (key == "oscillatorReset") {
-			if (intOf(value) == 0) {
-				state.osc_retrigger_phase = {0xFFFFFFFF, 0xFFFFFFFF};
-				state.modulator_retrigger_phase = {0xFFFFFFFF, 0xFFFFFFFF};
-			}
 		}
 		else if (key == "unison") {
 			if (value.isMap()) {
@@ -649,19 +590,6 @@ std::expected<void, engine::StateError> decodeImpl(const Value& element, SoundSt
 					}
 				}
 			}
-		}
-		else if (key == "fileName") { // early-2016: the sound's one sample
-			firstRange(state.sources[0]).file_path = std::string(textOf(value));
-			state.sources[0].osc_type = OscType::SAMPLE;
-		}
-		else if (key == "continuous") {
-			state.sources[0].repeat_mode = repeatModeOf(value);
-		}
-		else if (key == "reversed") {
-			state.sources[0].reversed = intOf(value) != 0;
-		}
-		else if (key == "zone") {
-			readZone(value, firstRange(state.sources[0]), true);
 		}
 		else if (key.size() == 4 && key.starts_with("lfo") && key[3] >= '1' && key[3] <= '4') {
 			readLfo(value, state, static_cast<size_t>(key[3] - '1'), context);

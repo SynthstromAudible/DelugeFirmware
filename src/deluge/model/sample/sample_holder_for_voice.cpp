@@ -32,10 +32,6 @@ SampleHolderForVoice::SampleHolderForVoice() {
 	cents = 0;
 
 	loopLocked = false;
-
-	// For backwards compatibility
-	startMSec = 0;
-	endMSec = 0;
 }
 
 SampleHolderForVoice::~SampleHolderForVoice() {
@@ -180,44 +176,6 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 
 	// Or if not manually selected
 	else {
-
-		// Prior to V2.1.x, sample markers were stored as milliseconds. Try loading those now. Note - V2.1.x did still
-		// write these values in addition to the new, sample-based ones, for backward compatibility. But we have to 100%
-		// ignore these, cos it seems they were sometimes written incorrectly!
-		if (song_firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
-
-			bool convertedMSecValues = false;
-
-			// Convert old MSec values, loaded from old song files, to samples. Can only do this now that we know the
-			// sample rate
-			if (startMSec) {
-				if (!startPos) {
-					startPos = (uint64_t)startMSec * ((Sample*)audioFile)->sampleRate / 1000;
-					convertedMSecValues = true;
-				}
-				startMSec = 0;
-			}
-			if (endMSec) {
-				if ((!endPos || endPos == lengthInSamples)) { // && endMSec > startMSec) {
-					endPos = (uint64_t)endMSec * ((Sample*)audioFile)->sampleRate / 1000;
-					if (endPos > lengthInSamples && endPos <= lengthInSamples + 45) {
-						endPos = lengthInSamples;
-					}
-					convertedMSecValues = true;
-				}
-				endMSec = 0;
-			}
-
-			if (convertedMSecValues && reversed) {
-				int32_t oldStartPos = startPos;
-				startPos = lengthInSamples - endPos;
-				endPos = lengthInSamples - oldStartPos;
-
-				if (startPos < 0) {
-					startPos = 0;
-				}
-			}
-		}
 
 		// Check for illegal values - we could have a problem if an audio file got replaced with a shorter one
 		if (loopEndPos > ((Sample*)audioFile)->lengthInSamples) {

@@ -727,9 +727,8 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				reader.match('}'); // exit modKnobs value field.
 
 				if (k < kNumModButtons) { // Ensure we're not loading more than actually fit in our array
-					if (p != params::GLOBAL_NONE
-					    && p != params::PLACEHOLDER_RANGE) { // Discard any unlikely "range" ones from before V3.2.0,
-						                                     // for complex reasons
+					// A knob only controls a real param: "range" names no param a knob can move.
+					if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
 						ModKnob& new_knob = modKnobs[k][w];
 
 						if (s == PatchSource::NOT_AVAILABLE) {
@@ -3554,8 +3553,6 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 				holder->loopEndPos = range.loop_end_pos;
 				holder->transpose = range.transpose;
 				holder->cents = range.cents;
-				holder->startMSec = static_cast<uint32_t>(range.start_msec);
-				holder->endMSec = static_cast<uint32_t>(range.end_msec);
 			}
 			if (Error error = source.ranges.insertVariant(std::ssize(source.ranges), std::move(variant));
 			    error != Error::NONE) {

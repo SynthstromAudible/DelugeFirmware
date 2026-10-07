@@ -50,30 +50,19 @@ describe slot_from_state("a slot rebuilt from a state", ${
 		expect(rebuilt.find("osc1")).not_().to_be_null(); // appended
 	});
 
-	it("drops an old file's instrument keys, so a re-decode reads the state it holds", _ {
-		// an early file: a ring-mod sound, its oscillators by their old names, its one sample at the top level
-		const Value slot = *deluge::serialization::parseXml(R"(<sound ringMod="1" oscillatorReset="0"
-			fileName="SAMPLES/OLD.WAV" continuous="1" reversed="1" lpfMode="24dB">
-			<oscillatorA type="saw" /><oscillatorB type="square" /><zone startSamplePos="10" endSamplePos="99" />
-			</sound>)")->find("sound");
+	it("drops a factory preset's compressor tag, so a re-decode reads the sidechain it holds", _ {
+		const Value slot = *deluge::serialization::parseXml(
+		                        R"(<sound mode="subtractive"><compressor attack="11" release="22" /></sound>)")
+		                        ->find("sound");
 		SoundState state = new_synth_state();
 		expect(decode(slot, state, kContext).has_value()).to_be_true();
-		state.synth_mode = SynthMode::SUBTRACTIVE;
 		const Value rebuilt = with_state(slot, state, kContext);
-		for (std::string_view old : {"ringMod", "oscillatorReset", "fileName", "continuous", "reversed",
-		                             "oscillatorA", "oscillatorB", "zone"}) {
-			expect(rebuilt.find(old)).to_be_null();
-		}
-		expect(rebuilt.find("lpfMode")).not_().to_be_null();
-		// the slot reads back as its encoding does: nothing of the old form is read after it
+		expect(rebuilt.find("compressor")).to_be_null();
+		expect(rebuilt.find("sidechain")).not_().to_be_null();
 		SoundState again = new_synth_state();
 		expect(decode(rebuilt, again, kContext).has_value()).to_be_true();
-		SoundState saved = new_synth_state();
-		expect(decode(encode(state, kContext), saved, kContext).has_value()).to_be_true();
-		expect(deluge::serialization::first_difference(dump_state(again), dump_state(saved))).to_equal(std::string{});
-		expect(again.synth_mode).to_equal(SynthMode::SUBTRACTIVE);
+		expect(again.effects.sidechain.attack).to_equal(11);
 	});
-
 	it("leaves the encoding's keys equal to a fresh encode", _ {
 		SoundState state = new_synth_state();
 		state.unison_detune = 12;

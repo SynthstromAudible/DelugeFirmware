@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<sound polyphonic="poly" mode="subtractive">
-	<oscillatorA type="saw" note="64" volume="0x40000000" />
-	<oscillatorB type="square" transpose="3" cents="5" />
-</sound>

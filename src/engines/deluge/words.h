@@ -189,19 +189,18 @@ enum class SampleRepeatMode {
 	return "poly";
 }
 
-/// @brief The polyphony @p text names, including the numbers firmware before June 2017 wrote; anything else reads as
-/// poly.
+/// @brief The polyphony @p text names; anything else reads as poly.
 [[nodiscard]] constexpr PolyphonyMode parse_polyphony_mode(std::string_view text) noexcept {
 	if (text == "mono") {
 		return PolyphonyMode::MONO;
 	}
-	if (text == "auto" || text == "0") {
+	if (text == "auto") {
 		return PolyphonyMode::AUTO;
 	}
 	if (text == "legato") {
 		return PolyphonyMode::LEGATO;
 	}
-	if (text == "choke" || text == "2") {
+	if (text == "choke") {
 		return PolyphonyMode::CHOKE;
 	}
 	return PolyphonyMode::POLY;

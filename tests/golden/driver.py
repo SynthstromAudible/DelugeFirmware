@@ -151,11 +151,11 @@ def run_all(
 
 
 def find_songs(corpus: str, name_filter: str = "") -> list[str]:
-    """Every .XML under `corpus` whose file name holds `name_filter`, sorted."""
+    """Every song (.XML or .json) under `corpus` whose file name holds `name_filter`, sorted."""
     songs = []
     for root, _dirs, files in os.walk(corpus):
         for n in files:
-            if n.lower().endswith(".xml") and name_filter in n:
+            if n.lower().endswith((".xml", ".json")) and name_filter in n:
                 songs.append(os.path.join(root, n))
     return sorted(songs)
 

@@ -123,8 +123,6 @@ void Source::seedRangesInto(deluge::instrument::SourceState& d) const {
 			dr.loop_end_pos = range->sampleHolder.loopEndPos;
 			dr.transpose = range->sampleHolder.transpose;
 			dr.cents = range->sampleHolder.cents;
-			dr.start_msec = static_cast<int32_t>(range->sampleHolder.startMSec);
-			dr.end_msec = static_cast<int32_t>(range->sampleHolder.endMSec);
 		}
 		d.ranges.push_back(std::move(dr));
 	}
