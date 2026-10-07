@@ -326,6 +326,7 @@ Error StorageManager::parseInstrumentDocument(deluge::storage::TreeDocument& doc
 	Error error;
 	{
 		deluge::storage::ActiveReaderScope reading(document.reader());
+		document.reader().match('{'); // into the instrument's object: needed for JSON, a no-op in XML
 		error = newInstrument->readFromFile(document.reader(), song, clip, 0);
 	}
 
@@ -336,7 +337,7 @@ Error StorageManager::parseInstrumentDocument(deluge::storage::TreeDocument& doc
 deleteInstrumentAndGetOut:
 		D_PRINTLN("abandoning load -  %s", name->c_str());
 		newInstrument->deleteBackedUpParamManagers(song);
-		void* toDealloc = static_cast<void*>(newInstrument);
+		void* toDealloc = dynamic_cast<void*>(newInstrument); // the allocation's start, not the Instrument base
 		newInstrument->~Instrument();
 		delugeDealloc(toDealloc);
 
@@ -467,6 +468,7 @@ Error StorageManager::parseSynthDrumDocument(deluge::storage::TreeDocument& docu
 	Error error;
 	{
 		deluge::storage::ActiveReaderScope reading(document.reader());
+		document.reader().match('{'); // into the preset's object: needed for JSON, a no-op in XML
 		error = newDrum->readFromFile(document.reader(), song, clip, 0);
 	}
 

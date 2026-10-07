@@ -67,7 +67,7 @@ def find_presets(root):
         base = os.path.join(root, folder)
         for dirpath, _, files in os.walk(base):
             for n in files:
-                if n.lower().endswith(".xml"):
+                if n.lower().endswith((".xml", ".json")):
                     path = os.path.join(dirpath, n)
                     key = folder + "/" + os.path.relpath(path, base)
                     out.append((key, path, kind))

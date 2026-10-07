@@ -15,11 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// preset_roundtrip <preset.XML> <SYNTH|KIT> [gen1_out_path] — load a synth or kit preset, save it as a preset is saved,
-// load that and save again; the two saves must be identical.
+// preset_roundtrip <preset.XML|preset.json> <SYNTH|KIT> [gen1_out_path] — load a synth or kit preset, save it as a
+// preset is saved, load that and save again; the two saves must be identical.
 //
 // Exit: 0 settled; 1 load failure; 2 usage/IO; 3 not settled. PRESET_MISMATCH_DUMP=<path> keeps both saves of a
-// preset that does not settle.
+// preset that does not settle. PRESET_JSON_OUT=<path> also writes the preset, loaded, as a JSON preset stamped with
+// this firmware's version.
 
 #include "memory/general_memory_allocator.h"
 #include "model/global_effectable/global_effectable.h"
@@ -29,6 +30,7 @@
 #include "storage/storage_manager.h"
 #include "storage/tree_document.h"
 #include "util/firmware_version.h"
+#include "version.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -51,13 +53,14 @@ Io io{};
 /// instrument's clip, which this driver has none of, and writes the firmware version). So @p savedHere says the bytes
 /// are a save this firmware made, and they are read as the current firmware's, as a preset's firmwareVersion makes the
 /// real reload read them.
-long loadThenSave(std::string_view bytes, OutputType type, bool savedHere, char* out, uint32_t cap, Error* loadError) {
+long loadThenSave(std::string_view bytes, OutputType type, bool savedHere, char* out, uint32_t cap, Error* loadError,
+                  bool isJson = false, Serializer& saveAs = smSerializer) {
 	char const* firstTag = nullptr;
 	char const* altTag = nullptr;
 	StorageManager::instrumentDocumentTags(type, &firstTag, &altTag);
 	deluge::storage::TreeDocument document;
-	*loadError = document.open(std::span{reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size()},
-	                           /*isJson=*/false, firstTag, altTag);
+	*loadError = document.open(std::span{reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size()}, isJson,
+	                           firstTag, altTag);
 	if (*loadError != Error::NONE) {
 		return -1;
 	}
@@ -73,17 +76,48 @@ long loadThenSave(std::string_view bytes, OutputType type, bool savedHere, char*
 	if (*loadError != Error::NONE) {
 		return -1;
 	}
-	deluge::scenarios::driver::beginCapture(smSerializer);
+	const bool json = &saveAs == &smJsonSerializer;
+	FileWriter& writer = json ? static_cast<FileWriter&>(smJsonSerializer) : static_cast<FileWriter&>(smSerializer);
+	deluge::scenarios::driver::beginCapture(writer);
 	long n = -1;
 	{
-		ActiveWriterScope scope(smSerializer);
-		smSerializer.reset();
-		smSerializer.write(StorageManager::kXmlDocumentHead);
+		ActiveWriterScope scope(saveAs);
+		saveAs.reset();
+		if (!json) {
+			saveAs.write(StorageManager::kXmlDocumentHead);
+		}
 		instrument->writeToFile(nullptr, currentSong);
-		n = deluge::scenarios::driver::endCapture(smSerializer, out, cap);
+		n = deluge::scenarios::driver::endCapture(writer, out, cap);
 	}
 	currentSong->deleteOutput(instrument); // as the app deletes an output: its param managers, then retirement
 	return n;
+}
+
+/// A song for the preset to be loaded into, as a preset is always loaded into one.
+Song* freshSong();
+
+/// Writes the preset in @p bytes, loaded, to @p path as a JSON preset stamped with this firmware's version, as a
+/// preset save stamps it.
+bool writeJson(std::string_view bytes, OutputType type, bool isJson, const char* path) {
+	currentSong = freshSong();
+	constexpr uint32_t kCap = 4u * 1024 * 1024;
+	char* json = static_cast<char*>(std::malloc(kCap));
+	Error error = Error::NONE;
+	const long n = loadThenSave(bytes, type, false, json, kCap, &error, isJson, smJsonSerializer);
+	std::string text = n > 0 ? std::string(json, static_cast<size_t>(n)) : std::string{};
+	const size_t open = text.find('{');
+	bool ok = open != std::string::npos;
+	if (ok) {
+		// The save opens the document with `{"sound": {`: the stamp goes first, as the document's own member.
+		text.insert(open + 1, std::string("\n\"firmwareVersion\": \"") + kFirmwareVersionStringShort + "\",");
+		FILE* f = std::fopen(path, "wb");
+		ok = f != nullptr && std::fwrite(text.data(), 1, text.size(), f) == text.size();
+		if (f != nullptr) {
+			std::fclose(f);
+		}
+	}
+	std::free(json);
+	return ok;
 }
 
 /// A song for the preset to be loaded into, as a preset is always loaded into one.
@@ -115,12 +149,13 @@ int preset_roundtrip_main(int argc, char** argv, Io driverIo) {
 	}
 	std::fclose(f);
 
+	const bool inputIsJson = std::string_view{argv[1]}.ends_with(".json");
 	constexpr uint32_t kCap = 4u * 1024 * 1024;
 	char* gen1 = static_cast<char*>(std::malloc(kCap));
 	char* gen2 = static_cast<char*>(std::malloc(kCap));
 	Error e1 = Error::NONE;
 	Error e2 = Error::NONE;
-	const long n1 = loadThenSave(orig, type, false, gen1, kCap, &e1);
+	const long n1 = loadThenSave(orig, type, false, gen1, kCap, &e1, inputIsJson);
 	if (n1 < 0) {
 		std::fprintf(io.err, "LOADFAIL original -> Error %d\n", static_cast<int>(e1));
 		return 1;
@@ -143,6 +178,9 @@ int preset_roundtrip_main(int argc, char** argv, Io driverIo) {
 			std::fwrite(bytes, 1, static_cast<size_t>(len), df);
 			std::fclose(df);
 		}
+	}
+	if (const char* jsonOut = std::getenv("PRESET_JSON_OUT"); jsonOut != nullptr && settled) {
+		code = writeJson(orig, type, inputIsJson, jsonOut) ? code : 2;
 	}
 	if (settled && argc > 3) {
 		FILE* of = std::fopen(argv[3], "wb");

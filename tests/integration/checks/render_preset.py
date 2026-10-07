@@ -62,23 +62,24 @@ def cases(corpus: Path) -> list[str]:
     """Every case in the corpus, by name."""
     return sorted(
         str(p.relative_to(corpus).with_suffix(""))
-        for pattern in ("*.xml", "*.XML")
+        for pattern in ("*.xml", "*.XML", "*.json")
         for p in corpus.rglob(pattern)
     )
 
 
 def _preset(corpus: Path, name: str) -> Path:
-    for suffix in (".xml", ".XML"):
+    for suffix in (".xml", ".XML", ".json"):
         path = corpus / f"{name}{suffix}"
         if path.exists():
             return path
     raise FileNotFoundError(name)
 
 
-# A preset's saved MIDI learn, in the attribute format and the old tag format.
+# A preset's saved MIDI learn, in the attribute format, the old tag format and JSON.
 LEARNED_INPUT = re.compile(
     r'\s*inputMidiChannel="[^"]*"|\s*<inputMidiChannel>[^<]*</inputMidiChannel>'
 )
+LEARNED_INPUT_JSON = re.compile(r'\s*"inputMidiChannel":\s*[^,}\n]*,?')
 
 
 def _staged_preset_text(preset: Path) -> str:
@@ -87,6 +88,8 @@ def _staged_preset_text(preset: Path) -> str:
     The note scripts reach the preset through MIDI follow. A learn on the same channel would deliver every note a second
     time, starting a second voice for it, so a case's sound would depend on whether the preset happens to be learned.
     """
+    if preset.suffix == ".json":
+        return LEARNED_INPUT_JSON.sub("", preset.read_text())
     return LEARNED_INPUT.sub("", preset.read_text())
 
 
@@ -95,7 +98,8 @@ def _stage(corpus: Path, name: str, where: Path) -> dict[str, str]:
     preset = _preset(corpus, name)
     card = where / "card"
     (card / "SYNTHS").mkdir(parents=True)
-    (card / "SYNTHS" / "PRESET.XML").write_text(_staged_preset_text(preset))
+    staged = "PRESET.json" if preset.suffix == ".json" else "PRESET.XML"
+    (card / "SYNTHS" / staged).write_text(_staged_preset_text(preset))
     samples = [
         s
         for s in (preset.with_suffix(".wav"), preset.with_suffix(".2.wav"))

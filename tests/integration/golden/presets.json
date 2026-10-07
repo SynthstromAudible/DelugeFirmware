@@ -1817,6 +1817,18 @@
   "rms_db": -24.72,
   "sha256": "1a8f432abc1d1bf0a5b64e8073ca1744da6bd01bf3fca3b1872208fce84f135c"
  },
+ "json/A Fm Pad": {
+  "frames": 88200,
+  "peak": 604286976,
+  "rms_db": -24.64,
+  "sha256": "16a7d428353d9bac1aad965e613f2ed45703cae84a790b39a3d94b1697960056"
+ },
+ "json/Basic Bass": {
+  "frames": 88200,
+  "peak": 448747776,
+  "rms_db": -24.41,
+  "sha256": "45c89a7a8195ef45adef5eb315ab8016b47a1bb3bcb7055769ea47d9d8522482"
+ },
  "lfo_vibrato": {
   "frames": 88200,
   "peak": 173388032,
@@ -1924,6 +1936,18 @@
   "peak": 127081728,
   "rms_db": -27.26,
   "sha256": "dd2422993cf63e017b3094c751c3224200ebf462d02a3209f9bcf9b9d137e890"
+ },
+ "stamped/community_1_2_1": {
+  "frames": 88200,
+  "peak": 448747776,
+  "rms_db": -24.41,
+  "sha256": "45c89a7a8195ef45adef5eb315ab8016b47a1bb3bcb7055769ea47d9d8522482"
+ },
+ "stamped/official_4_1_4_fm": {
+  "frames": 88200,
+  "peak": 306485504,
+  "rms_db": -26.8,
+  "sha256": "ac14b17638de3251b0f7cc070b8651752576e53f3185cbc597ffe5c458053185"
  },
  "svf_band": {
   "frames": 88200,

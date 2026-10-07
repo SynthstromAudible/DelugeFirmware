@@ -1023,6 +1023,21 @@ requires = []
 tier = "pr"
 
 [[harness]]
+name = "preset-parse"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "unit"
+status = "gate"
+gates = "a JSON synth preset reads into a kit row as an XML one does; a synth or kit preset that cannot be read (XML or JSON) fails to load with an error and deletes the instrument it began, whole -- freeing it from its allocation's start, not from an interior base"
+scenario = "preset_parse"
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+
+[[harness]]
 name = "effect-owners"
 path = "."
 level = "integration"
