@@ -21,6 +21,7 @@
 
 #include <string_view>
 
+class GlobalEffectable;
 class ModControllableAudio;
 
 namespace deluge::edits {
@@ -29,5 +30,9 @@ namespace deluge::edits {
 /// Edit form): for a sound bound in the current song, a SetEngineSetting on its slot, so the slot keeps holding its
 /// effects; for any other owner (a kit, an audio track, the song master, a sound outside the song), its setter.
 void changeEffect(ModControllableAudio& owner, std::string_view path, deluge::serialization::Value value);
+
+/// @brief A gesture's change of which value @p owner's knobs edit (@p key `modFXCurrentParam` or `currentFilterType`)
+/// to @p word: a SetChainView on its chain when it has one in the current song, else its member.
+void changeView(GlobalEffectable& owner, std::string_view key, std::string_view word);
 
 } // namespace deluge::edits

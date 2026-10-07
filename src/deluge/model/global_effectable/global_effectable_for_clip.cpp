@@ -23,6 +23,7 @@
 #include "gui/views/view.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/edits/change_effect.h"
 #include "processing/engines/audio_engine.h"
 #include <limits>
 #include <string.h>
@@ -213,9 +214,11 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 				else {
 					insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 				}
-				setSidechainSyncLevel(effects().sidechain.sync_level == (SyncLevel)(7 - insideWorldTickMagnitude)
-				                          ? (SyncLevel)(9 - insideWorldTickMagnitude)
-				                          : (SyncLevel)(7 - insideWorldTickMagnitude));
+				const int32_t level = effects().sidechain.sync_level == (SyncLevel)(7 - insideWorldTickMagnitude)
+				                          ? 9 - insideWorldTickMagnitude
+				                          : 7 - insideWorldTickMagnitude;
+				deluge::edits::changeEffect(*this, "sidechain/syncLevel",
+				                            deluge::serialization::Value::makeNumber(level));
 
 				// if mod button is pressed, update mod button pop up
 				if (Buttons::isButtonPressed(

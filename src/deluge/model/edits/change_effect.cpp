@@ -18,14 +18,17 @@
 #include "model/edits/change_effect.h"
 
 #include "io/debug/log.h"
+#include "model/edits/set_chain_view.h"
 #include "model/edits/set_effect_setting.h"
 #include "model/edits/set_engine_setting.h"
+#include "model/global_effectable/global_effectable.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "util/functions.h"
 
 #include <optional>
 #include <string>
@@ -56,6 +59,27 @@ void changeEffect(ModControllableAudio& owner, std::string_view path, deluge::se
 	if (error != Error::NONE) {
 		// A gesture offers only what the setting takes; a refusal here is a gesture and schema out of step.
 		D_PRINTLN("effect setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
+	}
+}
+
+void changeView(GlobalEffectable& owner, std::string_view key, std::string_view word) {
+	if (currentSong != nullptr) {
+		if (const std::optional<deluge::project::ChainAddress> chain =
+		        deluge::bridge::chainAddressOf(owner, *currentSong)) {
+			Context ctx{*currentSong, currentSong->project};
+			SetChainView edit{*chain, std::string(key), deluge::serialization::Value::makeScalar(std::string(word))};
+			if (apply(ctx, edit) != Error::NONE) {
+				D_PRINTLN("view refused: %.*s", static_cast<int>(key.size()), key.data());
+			}
+			return;
+		}
+	}
+	const std::string text(word);
+	if (key == "modFXCurrentParam") {
+		owner.currentModFXParam = stringToModFXParam(text.c_str());
+	}
+	else if (key == "currentFilterType") {
+		owner.currentFilterType = stringToFilterType(text.c_str());
 	}
 }
 

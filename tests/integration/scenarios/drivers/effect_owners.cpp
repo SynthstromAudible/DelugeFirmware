@@ -10,6 +10,8 @@
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/model_stack.h"
+#include "model/project_bridge/chain_bridge.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "processing/audio_output.h"
@@ -17,6 +19,7 @@
 #include "scenarios/drivers/driver.h"
 #include "scenarios/slot_coherence.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
 
 #include <cstdio>
 #include <new>
@@ -52,6 +55,60 @@ void checkOwner(ModControllableAudio& owner, const char* name) {
 	check(owner.modControllableSnapshot().effects == record, name);
 }
 
+/// The chain of @p owner (a kit or the master) in @p song, or null.
+const deluge::project::FxChain* chainOf(GlobalEffectable& owner, Song& song) {
+	const std::optional<deluge::project::ChainAddress> address = deluge::bridge::chainAddressOf(owner, song);
+	return address ? song.project.resolveChain(*address) : nullptr;
+}
+
+/// Whether @p chain's view holds @p value at @p key.
+bool viewHolds(const deluge::project::FxChain* chain, const char* key, const char* value) {
+	const deluge::serialization::Value* entry = chain != nullptr ? chain->view.find(key) : nullptr;
+	return entry != nullptr && entry->str() == value;
+}
+
+/// Each knob and button gesture of @p owner that changes an effect or the view leaves its chain coherent.
+void checkGestures(GlobalEffectable& owner, ParamManagerForTimeline& paramManager, Song& song, const char* name,
+                   bool clipChain) {
+	const std::string who = name;
+	const auto coherent = [&](const char* gesture) {
+		const std::string what = deluge::harness::chainIncoherence(song);
+		if (!what.empty()) {
+			std::fprintf(io.err, "FAIL: %s, %s: %s\n", name, gesture, what.c_str());
+			failures++;
+		}
+	};
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* stack =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, &owner, nullptr, &paramManager);
+
+	*owner.getModKnobMode() = 4;
+	(void)owner.modEncoderActionForNonExistentParam(5, 1, nullptr);
+	coherent("the compressor's threshold knob");
+	owner.currentCompParam = CompParam::ATTACK;
+	(void)owner.modEncoderActionForNonExistentParam(5, 0, nullptr);
+	coherent("the compressor's attack knob");
+	if (clipChain) {
+		(void)owner.modEncoderButtonAction(1, true, stack);
+		coherent("the sidechain sync button");
+	}
+
+	*owner.getModKnobMode() = 5;
+	(void)owner.modEncoderButtonAction(1, true, stack);
+	coherent("the mod-FX type button");
+	(void)owner.modEncoderButtonAction(0, true, stack);
+	coherent("the mod-FX param button");
+	check(viewHolds(chainOf(owner, song), "modFXCurrentParam", modFXParamToString(owner.currentModFXParam)),
+	      (who + ": the view holds the mod-FX param").c_str());
+
+	*owner.getModKnobMode() = 1;
+	(void)owner.modEncoderButtonAction(1, true, stack);
+	coherent("the filter type button");
+	check(viewHolds(chainOf(owner, song), "currentFilterType", filterTypeToString(owner.currentFilterType)),
+	      (who + ": the view holds the filter type").c_str());
+	*owner.getModKnobMode() = 0;
+}
+
 int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	io = driverIo;
 
@@ -82,6 +139,11 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		std::fprintf(io.err, "FAIL: a new song's chains: %s\n", incoherent.c_str());
 		failures++;
 	}
+
+	if (kit != nullptr) {
+		checkGestures(*static_cast<Kit*>(kit), kitParams, *song, "a kit", true);
+	}
+	checkGestures(song->live.global_effectable, song->paramManager, *song, "the song master", false);
 
 	if (synth != nullptr) {
 		checkOwner(*static_cast<SoundInstrument*>(synth), "a synth's sound");

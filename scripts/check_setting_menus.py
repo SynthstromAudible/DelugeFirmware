@@ -123,6 +123,66 @@ RECORDERS = {
 #: Files outside the root checked the same way: none, now that the root is the whole UI.
 ALSO: tuple[Path, ...] = ()
 
+#: The host owners' code (a kit's, an audio track's and the master's effects and knobs): an effect setter or a view
+#: member written here, bare or through a receiver, is a write that bypasses the owner's chain.
+HOST_OWNER_DIRS = (
+    REPO / "src" / "deluge" / "model" / "global_effectable",
+    REPO / "src" / "deluge" / "model" / "mod_controllable",
+)
+EFFECT_SETTERS = tuple(
+    s
+    for s in SETTERS
+    if s.startswith(
+        (
+            "setLpf",
+            "setHpf",
+            "setFilter",
+            "setClipping",
+            "setModFX",
+            "setDelay",
+            "setSidechain",
+            "setCompressor",
+            "setStutter",
+            "setUseSongStutter",
+        )
+    )
+) + ("assignModFXType",)
+HOST_CALL = re.compile(r"(?<![\w:])(" + "|".join(EFFECT_SETTERS) + r")\s*\(")
+VIEW_WRITE = re.compile(r"(?<![\w.>])(currentModFXParam|currentFilterType)\s*=(?!=)")
+#: A function opening at the start of a line, `Class::name(`: the enclosing function of the lines after it.
+FUNCTION = re.compile(r"^[A-Za-z_][\w:<>,*& ]*?\b(\w+)::(~?\w+)\s*\(")
+#: The functions that may write an owner's effects or view natively: a setter's own definition (named as the setter),
+#: a copy of another owner (cloneFrom), a constructor, and the load from the owner's element.
+HOST_ALLOWED = {"cloneFrom", "readEffectsFromElement", "changeEffects"}
+
+
+def host_writes(dirs: tuple[Path, ...] = HOST_OWNER_DIRS) -> list[str]:
+    """Every `path:line: function writes <what>` in the host owners' code that writes an effect or the view natively."""
+    found = []
+    for root in dirs:
+        for path in sorted(root.rglob("*")):
+            if path.suffix not in {".cpp"} or not path.is_file():
+                continue
+            function = ""
+            owner = ""
+            for number, line in enumerate(
+                path.read_text(errors="replace").splitlines(), 1
+            ):
+                if opened := FUNCTION.match(line):
+                    owner, function = opened.group(1), opened.group(2)
+                    continue
+                if (
+                    function in HOST_ALLOWED
+                    or function == owner
+                    or function in EFFECT_SETTERS
+                ):
+                    continue
+                for match in [*HOST_CALL.finditer(line), *VIEW_WRITE.finditer(line)]:
+                    found.append(
+                        f"{path}:{number}: {owner}::{function} writes {match.group(1)}"
+                    )
+    return found
+
 
 def calls(root: Path, also: tuple[Path, ...] = ()) -> list[str]:
     """Every `path:line: receiver->setter` under root, or in @p also, that sets a sound's setting outside its Edit."""
@@ -186,7 +246,7 @@ def main(argv=None) -> int:
     parser.add_argument("--root", type=Path, default=REPO / "src" / "deluge" / "gui")
     parser.add_argument("--also", type=Path, nargs="*", default=list(ALSO))
     args = parser.parse_args(argv)
-    found = calls(args.root, tuple(args.also)) + unrecorded(args.root)
+    found = calls(args.root, tuple(args.also)) + unrecorded(args.root) + host_writes()
     for line in found:
         print(line)
     if found:

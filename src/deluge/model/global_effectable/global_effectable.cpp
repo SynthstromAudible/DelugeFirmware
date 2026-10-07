@@ -20,6 +20,7 @@
 #include "deluge-project/param_automation.h"
 #include "dsp/stereo_sample.h"
 #include "engines/effects/codec.h"
+#include "engines/effects/words.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/view.h"
@@ -27,6 +28,7 @@
 #include "hid/led/indicator_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/edits/change_effect.h"
 #include "model/mod_controllable/ModFXProcessor.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
@@ -205,17 +207,10 @@ void GlobalEffectable::displayModFXSettings(bool on) {
 }
 
 char const* GlobalEffectable::getModFXTypeDisplayName() {
-	auto modTypeCount = kNumModFXTypes;
-
-	assignModFXType(
-	    static_cast<ModFXType>(util::to_underlying(modControllableSnapshot_.effects.mod_fx.type) % modTypeCount));
-
 	return modfx::modFXToString(modControllableSnapshot_.effects.mod_fx.type);
 }
 
 char const* GlobalEffectable::getModFXParamDisplayName() {
-	currentModFXParam = static_cast<ModFXParam>(util::to_underlying(currentModFXParam) % kNumModFXParams);
-
 	return modfx::getParamName(modControllableSnapshot_.effects.mod_fx.type, currentModFXParam);
 }
 
@@ -240,9 +235,11 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 5) {
 		if (whichModEncoder == 1) {
 			if (on) {
-				auto modTypeCount = kNumModFXTypes;
-				setModFXType(static_cast<ModFXType>(
-				    (util::to_underlying(modControllableSnapshot_.effects.mod_fx.type) + 1) % modTypeCount));
+				const auto next = static_cast<ModFXType>(
+				    (util::to_underlying(modControllableSnapshot_.effects.mod_fx.type) + 1) % kNumModFXTypes);
+				deluge::edits::changeEffect(
+				    *this, "modFXType",
+				    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(next))));
 				ensureModFXParamIsValid();
 
 				// if mod button is pressed, update mod button pop up
@@ -261,8 +258,9 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		}
 		else {
 			if (on) {
-				currentModFXParam =
-				    static_cast<ModFXParam>((util::to_underlying(currentModFXParam) + 1) % kNumModFXParams);
+				deluge::edits::changeView(*this, "modFXCurrentParam",
+				                          modFXParamToString(static_cast<ModFXParam>(
+				                              (util::to_underlying(currentModFXParam) + 1) % kNumModFXParams)));
 				ensureModFXParamIsValid();
 
 				// if mod button is pressed, update mod button pop up
@@ -284,8 +282,9 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 1) {
 		if (whichModEncoder == 1) {
 			if (on) {
-				currentFilterType =
-				    static_cast<FilterType>((util::to_underlying(currentFilterType) + 1) % kNumFilterTypes);
+				deluge::edits::changeView(*this, "currentFilterType",
+				                          filterTypeToString(static_cast<FilterType>(
+				                              (util::to_underlying(currentFilterType) + 1) % kNumFilterTypes)));
 
 				// if mod button is pressed, update mod button pop up
 				if (Buttons::isButtonPressed(
@@ -524,7 +523,8 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			current = std::clamp(current, -64, 64);
 			ledLevel = (64 + current);
 			displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
-			setCompressorThreshold(lshiftAndSaturate<24>(current + 64));
+			deluge::edits::changeEffect(*this, "audioCompressor/thresh",
+			                            deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
 			indicator_leds::setKnobIndicatorLevel(1, ledLevel);
 			unit = "";
 		}
@@ -538,7 +538,9 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				// this range is ratio of 2 to 20
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
-				setCompressorRatio(lshiftAndSaturate<24>(current + 64));
+				deluge::edits::changeEffect(
+				    *this, "audioCompressor/ratio",
+				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
 				displayLevel = static_cast<int32_t>(RMSFeedbackCompressor::ratioOf(effects().compressor.ratio));
 				unit = " : 1";
 				break;
@@ -550,7 +552,9 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 
-				setCompressorAttack(lshiftAndSaturate<24>(current + 64));
+				deluge::edits::changeEffect(
+				    *this, "audioCompressor/attack",
+				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
 				displayLevel = static_cast<int32_t>(RMSFeedbackCompressor::attackMsOf(effects().compressor.attack));
 				unit = " MS";
 				break;
@@ -562,7 +566,9 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 
-				setCompressorRelease(lshiftAndSaturate<24>(current + 64));
+				deluge::edits::changeEffect(
+				    *this, "audioCompressor/release",
+				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
 				displayLevel = static_cast<int32_t>(RMSFeedbackCompressor::releaseMsOf(effects().compressor.release));
 				unit = " MS";
 				break;
@@ -574,7 +580,9 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 
-				setCompressorSidechainHpf(lshiftAndSaturate<24>(current + 64));
+				deluge::edits::changeEffect(
+				    *this, "audioCompressor/compHPF",
+				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
 				displayLevel =
 				    static_cast<int32_t>(RMSFeedbackCompressor::sidechainHzOf(effects().compressor.sidechain_hpf));
 				unit = " HZ";
@@ -587,7 +595,8 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 				q31_t level = current == 64 ? ONE_Q31 : lshiftAndSaturate<24>(current + 64);
-				setCompressorBlend(level);
+				deluge::edits::changeEffect(*this, "audioCompressor/compBlend",
+				                            deluge::serialization::Value::makeNumber(level));
 				displayLevel = RMSFeedbackCompressor::blendPercentOf(level);
 				unit = " %";
 				break;
@@ -716,29 +725,23 @@ ModFXType GlobalEffectable::getModFXType() {
 }
 
 void GlobalEffectable::ensureModFXParamIsValid() {
-	while (true) {
-		if (currentModFXParam == ModFXParam::DEPTH) {
-			if (modControllableSnapshot_.effects.mod_fx.type == ModFXType::FLANGER) {
-				goto ohNo;
-			}
+	const ModFXType type = modControllableSnapshot_.effects.mod_fx.type;
+	const auto valid = [type](ModFXParam param) {
+		switch (param) {
+		case ModFXParam::DEPTH:
+			return type != ModFXType::FLANGER;
+		case ModFXParam::OFFSET:
+			return type == ModFXType::CHORUS || type == ModFXType::CHORUS_STEREO || type == ModFXType::GRAIN;
+		default: // ModFXParam::FEEDBACK
+			return type != ModFXType::CHORUS && type != ModFXType::CHORUS_STEREO;
 		}
-		else if (currentModFXParam == ModFXParam::OFFSET) {
-			if (modControllableSnapshot_.effects.mod_fx.type != ModFXType::CHORUS
-			    && modControllableSnapshot_.effects.mod_fx.type != ModFXType::CHORUS_STEREO
-			    && modControllableSnapshot_.effects.mod_fx.type != ModFXType::GRAIN) {
-				goto ohNo;
-			}
-		}
-		else { // ModFXParam::FEEDBACK
-			if (modControllableSnapshot_.effects.mod_fx.type == ModFXType::CHORUS
-			    || modControllableSnapshot_.effects.mod_fx.type == ModFXType::CHORUS_STEREO) {
-				goto ohNo;
-			}
-		}
-		return; // If we got here, we're fine
-
-ohNo:
-		currentModFXParam = static_cast<ModFXParam>((util::to_underlying(currentModFXParam) + 1) % kNumModFXParams);
+	};
+	ModFXParam param = currentModFXParam;
+	for (int32_t tried = 0; tried < kNumModFXParams && !valid(param); tried++) {
+		param = static_cast<ModFXParam>((util::to_underlying(param) + 1) % kNumModFXParams);
+	}
+	if (param != currentModFXParam) {
+		deluge::edits::changeView(*this, "modFXCurrentParam", modFXParamToString(param));
 	}
 }
 
