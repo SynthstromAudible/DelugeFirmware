@@ -20,6 +20,7 @@
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
+#include "dsp-next/fixed/shaping/tanh.h"
 #include "libdeluge/file_io.h"
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
 #include "util/c_string.h"
@@ -166,25 +167,11 @@ int32_t quickLog(uint32_t input);
 
 template <unsigned saturationAmount>
 [[gnu::always_inline]] inline int32_t getTanH(int32_t input) {
-	uint32_t workingValue;
-
-	if (saturationAmount)
-		workingValue = (uint32_t)lshiftAndSaturate<saturationAmount>(input) + 2147483648u;
-	else
-		workingValue = (uint32_t)input + 2147483648u;
-
-	return interpolateTableSigned(workingValue, 32, tanHSmall, 8) >> (saturationAmount + 2);
+	return deluge::dsp::fixed::tanh<saturationAmount>(input);
 }
 
 [[gnu::always_inline]] inline int32_t getTanHUnknown(int32_t input, uint32_t saturationAmount) {
-	uint32_t workingValue;
-
-	if (saturationAmount)
-		workingValue = (uint32_t)lshiftAndSaturateUnknown(input, saturationAmount) + 2147483648u;
-	else
-		workingValue = (uint32_t)input + 2147483648u;
-
-	return interpolateTableSigned(workingValue, 32, tanHSmall, 8) >> (saturationAmount + 2);
+	return deluge::dsp::fixed::tanh(input, saturationAmount);
 }
 
 [[gnu::always_inline]] inline int32_t getTanHAntialiased(int32_t input, uint32_t* lastWorkingValue,

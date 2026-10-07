@@ -17,6 +17,8 @@
 
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/curves/instant_tan.h"
+#include "dsp-next/fixed/curves/quick_log.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
@@ -284,11 +286,7 @@ doInterval:
 // getExp moved to util/param_functions.cpp.
 
 int32_t quickLog(uint32_t input) {
-
-	uint32_t magnitude = getMagnitudeOld(input);
-	uint32_t inputLSBs = increaseMagnitude(input, 26 - magnitude);
-
-	return (magnitude << 25) + (inputLSBs & ~((uint32_t)1 << 26));
+	return deluge::dsp::fixed::quick_log(input);
 }
 
 bool memIsNumericChars(char const* mem, int32_t size) {
@@ -847,13 +845,7 @@ int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t max
 }
 
 int32_t instantTan(int32_t input) {
-	int32_t whichValue = input >> 25;                   // 25
-	int32_t howMuchFurther = (input << 6) & 2147483647; // 6
-	int32_t value1 = tanTable[whichValue];
-	int32_t value2 = tanTable[whichValue + 1];
-	return (multiply_32x32_rshift32(value2, howMuchFurther)
-	        + multiply_32x32_rshift32(value1, 2147483647 - howMuchFurther))
-	       << 1;
+	return deluge::dsp::fixed::instant_tan(input);
 }
 
 int32_t combineHitStrengths(int32_t strength1, int32_t strength2) {

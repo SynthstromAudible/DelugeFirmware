@@ -147,8 +147,8 @@ float RMSFeedbackCompressor::calcRMS(std::span<StereoSample> buffer) {
 	float lastMean = mean;
 
 	for (StereoSample sample : buffer) {
-		q31_t l = sample.l - hpfL.doFilter(sample.l, hpfA_);
-		q31_t r = sample.r - hpfR.doFilter(sample.r, hpfA_);
+		q31_t l = sample.l - hpfL.lowPass(sample.l, hpfA_);
+		q31_t r = sample.r - hpfR.lowPass(sample.r, hpfA_);
 		q31_t s = std::max(std::abs(l), std::abs(r));
 		sum += multiply_32x32_rshift32(s, s);
 	}

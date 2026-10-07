@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "dsp/filter/hpladder.h"
+#include <tuple>
 
 namespace deluge::dsp::filter {
 
@@ -89,10 +90,10 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 	q31_t constexpr lower_limit = -(ONE_Q31 >> 8);
 	q31_t temp_fc = std::max(multiply_accumulate_32x32_rshift32_rounded(fc, input << 4, morph_), lower_limit);
 
-	q31_t firstHPFOutput = input - state.hpfHPF1.doFilter(input, temp_fc);
+	q31_t firstHPFOutput = input - state.hpfHPF1.lowPass(input, temp_fc);
 
 	q31_t feedbacksValue =
-	    state.hpfHPF3.getFeedbackOutput(hpfHPF3Feedback) + state.hpfLPF1.getFeedbackOutput(hpfLPF1Feedback);
+	    state.hpfHPF3.feedbackOutput(hpfHPF3Feedback) + state.hpfLPF1.feedbackOutput(hpfLPF1Feedback);
 
 	q31_t a = multiply_32x32_rshift32_rounded(divideByTotalMoveability, firstHPFOutput + feedbacksValue) << (4 + 1);
 
@@ -107,7 +108,8 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 		}
 	}
 
-	state.hpfLPF1.doFilter(a - state.hpfHPF3.doFilter(a, temp_fc), temp_fc);
+	// Only the sections' memories are wanted here: they feed back on the next sample.
+	std::ignore = state.hpfLPF1.lowPass(a - state.hpfHPF3.lowPass(a, temp_fc), temp_fc);
 
 	// Normalization
 	a = multiply_32x32_rshift32_rounded(a, hpfDivideByProcessedResonance) << (8 - 1);

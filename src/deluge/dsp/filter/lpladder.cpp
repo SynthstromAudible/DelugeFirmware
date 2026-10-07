@@ -331,8 +331,8 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 	state.noiseLastValue += distanceToGo >> 7; // StorageManager::devVarB;
 	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
 
-	q31_t feedbacksSum = state.lpfLPF1.getFeedbackOutput(lpf1Feedback) + state.lpfLPF2.getFeedbackOutput(lpf2Feedback)
-	                     + state.lpfLPF3.getFeedbackOutput(divideBy1PlusTannedFrequency);
+	q31_t feedbacksSum = state.lpfLPF1.feedbackOutput(lpf1Feedback) + state.lpfLPF2.feedbackOutput(lpf2Feedback)
+	                     + state.lpfLPF3.feedbackOutput(divideBy1PlusTannedFrequency);
 	q31_t x = scaleInput(input, feedbacksSum);
 
 	// Only saturate if resonance is high enough. Surprisingly, saturation makes no audible difference until very near
@@ -340,7 +340,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 	// Saturation
 	// }
 
-	return state.lpfLPF3.doAPF(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m) << 1;
+	return state.lpfLPF3.allPass(state.lpfLPF2.lowPass(state.lpfLPF1.lowPass(x, noisy_m), noisy_m), noisy_m) << 1;
 }
 [[gnu::always_inline]] inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState& state) {
 
@@ -350,11 +350,11 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 	state.noiseLastValue += distanceToGo >> 7; // StorageManager::devVarB;
 	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
 
-	q31_t feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
-	                      + state.lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
-	                      + state.lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
-	                      + state.lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
-	                     << 2;
+	q31_t feedbacksSum =
+	    (state.lpfLPF1.feedbackOutputUnshifted(lpf1Feedback) + state.lpfLPF2.feedbackOutputUnshifted(lpf2Feedback)
+	     + state.lpfLPF3.feedbackOutputUnshifted(lpf3Feedback)
+	     + state.lpfLPF4.feedbackOutputUnshifted(divideBy1PlusTannedFrequency))
+	    << 2;
 
 	// Note: in the line above, we "should" halve filterSetConfig->divideBy1plusg to get it into the 1=1073741824 range.
 	// But it doesn't sound as good. Primarily it stops us getting to full resonance. But even if we allow further
@@ -369,8 +369,8 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 	// 	x = getTanHUnknown(x, 1);
 	// }
 
-	return state.lpfLPF4.doFilter(
-	           state.lpfLPF3.doFilter(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m),
+	return state.lpfLPF4.lowPass(
+	           state.lpfLPF3.lowPass(state.lpfLPF2.lowPass(state.lpfLPF1.lowPass(x, noisy_m), noisy_m), noisy_m),
 	           noisy_m)
 	       << 1;
 }
@@ -383,11 +383,11 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 	state.noiseLastValue += distanceToGo >> 7; // StorageManager::devVarB;
 	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
 
-	q31_t feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
-	                      + state.lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
-	                      + state.lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
-	                      + state.lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
-	                     << 2;
+	q31_t feedbacksSum =
+	    (state.lpfLPF1.feedbackOutputUnshifted(lpf1Feedback) + state.lpfLPF2.feedbackOutputUnshifted(lpf2Feedback)
+	     + state.lpfLPF3.feedbackOutputUnshifted(lpf3Feedback)
+	     + state.lpfLPF4.feedbackOutputUnshifted(divideBy1PlusTannedFrequency))
+	    << 2;
 
 	// Note: in the line above, we "should" halve filterSetConfig->divideBy1plusg to get it into the 1=1073741824 range.
 	// But it doesn't sound as good. Primarily it stops us getting to full resonance. But even if we allow further
@@ -399,13 +399,13 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 	// We don't saturate the input anymore, because that's the place where we'd get the most aliasing!
 	q31_t x = scaleInput(input, feedbacksSum);
 
-	q31_t a = state.lpfLPF1.doFilter(x, noisy_m);
+	q31_t a = state.lpfLPF1.lowPass(x, noisy_m);
 
-	q31_t b = state.lpfLPF2.doFilter(a, noisy_m);
+	q31_t b = state.lpfLPF2.lowPass(a, noisy_m);
 
-	q31_t c = state.lpfLPF3.doFilter(b, noisy_m);
+	q31_t c = state.lpfLPF3.lowPass(b, noisy_m);
 
-	q31_t d = state.lpfLPF4.doFilter(c, noisy_m) << 1;
+	q31_t d = state.lpfLPF4.lowPass(c, noisy_m) << 1;
 
 	return d;
 }

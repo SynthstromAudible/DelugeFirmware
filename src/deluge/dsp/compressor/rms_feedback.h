@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/filter/ladder_components.h"
+#include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp/stereo_sample.h"
 #include "engines/effects/state.h"
 #include <cmath>
@@ -201,8 +201,8 @@ private:
 	bool onLastTime = false;
 
 	// sidechain filter
-	deluge::dsp::filter::BasicFilterComponent hpfL;
-	deluge::dsp::filter::BasicFilterComponent hpfR;
+	deluge::dsp::fixed::OnePole hpfL;
+	deluge::dsp::fixed::OnePole hpfR;
 	// for display
 	float attackMS = 0;
 	float releaseMS = 0;

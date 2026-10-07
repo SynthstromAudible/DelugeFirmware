@@ -37,7 +37,6 @@
 extern const uint16_t centAdjustTableSmall[];
 extern const uint16_t decayTableSmall4[];
 extern const uint16_t decayTableSmall8[];
-extern const int16_t tanHSmall[];
 extern const int16_t hanningWindow[];
 
 extern const int16_t sineWaveSmall[];
@@ -55,7 +54,6 @@ extern const int32_t timeStretchAdjustTable[193];
 extern const int32_t attackRateTable[51];
 extern const int32_t releaseRateTable[51];
 extern const int32_t releaseRateTable64[65];
-extern const int32_t tanTable[65];
 
 #define NUM_PRESET_REVERBS 3
 const uint8_t presetReverbRoomSize[NUM_PRESET_REVERBS] = {16, 30, 44};

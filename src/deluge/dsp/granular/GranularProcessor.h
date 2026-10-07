@@ -19,7 +19,7 @@
 
 #include "GranularProcessor.h"
 #include "definitions_cxx.hpp"
-#include "dsp/filter/ladder_components.h"
+#include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp/stereo_sample.h"
 #include "synth/lfo.h"
 #include <libdeluge/scheduler.h>
@@ -89,8 +89,8 @@ private:
 	int32_t _densityKnobPos{0};
 	int32_t _rateKnobPos{0};
 	int32_t _mixKnobPos{0};
-	deluge::dsp::filter::BasicFilterComponent lpf_l{};
-	deluge::dsp::filter::BasicFilterComponent lpf_r{};
+	deluge::dsp::fixed::OnePole lpf_l{};
+	deluge::dsp::fixed::OnePole lpf_r{};
 	bool tempoSync{true};
 	bool bufferFull{false};
 };

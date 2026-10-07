@@ -17,36 +17,9 @@
 
 #pragma once
 
-#include "util/fixedpoint.h"
-#include <cstdint>
-namespace deluge::dsp::filter {
-class BasicFilterComponent {
-public:
-	BasicFilterComponent() { reset(); }
-	// moveability is tan(f)/(1+tan(f))
-	[[gnu::always_inline]] inline q31_t doFilter(q31_t input, q31_t moveability) {
-		q31_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;
-		q31_t b = a + memory;
-		memory = b + a;
-		return b;
-	}
-	[[gnu::always_inline]] inline int32_t doAPF(q31_t input, int32_t moveability) {
-		q31_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;
-		q31_t b = a + memory;
-		memory = a + b;
-		return b * 2 - input;
-	}
-	[[gnu::always_inline]] inline void affectFilter(q31_t input, int32_t moveability) {
-		memory += multiply_32x32_rshift32_rounded(input - memory, moveability) << 2;
-	}
-	[[gnu::always_inline]] inline void reset() { memory = 0; }
-	[[gnu::always_inline]] inline q31_t getFeedbackOutput(int32_t feedbackAmount) {
-		return multiply_32x32_rshift32_rounded(memory, feedbackAmount) << 2;
-	}
-	[[gnu::always_inline]] inline q31_t getFeedbackOutputWithoutLshift(int32_t feedbackAmount) {
-		return multiply_32x32_rshift32_rounded(memory, feedbackAmount);
-	}
+#include "dsp-next/fixed/filter/one_pole.h"
 
-	q31_t memory = 0;
-};
+namespace deluge::dsp::filter {
+/// The ladders' one-pole section, now dsp-next's.
+using BasicFilterComponent = deluge::dsp::fixed::OnePole;
 } // namespace deluge::dsp::filter
