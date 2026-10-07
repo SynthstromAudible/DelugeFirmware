@@ -31,7 +31,7 @@ namespace deluge::dsp::fixed {
 /// rate times π.
 class OnePole {
 public:
-	/// @brief One sample through the low-pass (doFilter): returns the section's output, Q31, and advances its memory.
+	/// @brief One sample through the low-pass: returns the section's output, Q31, and advances its memory.
 	/// @param moveability tan(f)/(1+tan(f)), Q31.
 	[[nodiscard, gnu::always_inline]] q31 lowPass(q31 input, q31 moveability) {
 		const q31 step = multiply_32x32_rshift32_rounded(input - memory_, moveability) << 1;
@@ -40,7 +40,7 @@ public:
 		return output;
 	}
 
-	/// @brief One sample through the all-pass built on the same section (doAPF): twice the low-pass output less the
+	/// @brief One sample through the all-pass built on the same section: twice the low-pass output less the
 	/// input, Q31.
 	/// @param moveability tan(f)/(1+tan(f)), Q31.
 	[[nodiscard, gnu::always_inline]] q31 allPass(q31 input, q31 moveability) {
@@ -50,19 +50,19 @@ public:
 		return (output * 2) - input;
 	}
 
-	/// @brief Advances the memory by one sample without an output (affectFilter): the memory moves by twice the
+	/// @brief Advances the memory by one sample without an output: the memory moves by twice the
 	/// low-pass's step.
 	/// @param moveability tan(f)/(1+tan(f)), Q31.
 	[[gnu::always_inline]] void affect(q31 input, q31 moveability) {
 		memory_ += multiply_32x32_rshift32_rounded(input - memory_, moveability) << 2;
 	}
 
-	/// @brief The memory scaled for a ladder's feedback (getFeedbackOutput): memory × @p feedback_amount (Q31) × 2.
+	/// @brief The memory scaled for a ladder's feedback: memory × @p feedback_amount (Q31) × 2.
 	[[nodiscard, gnu::always_inline]] q31 feedbackOutput(q31 feedback_amount) const {
 		return multiply_32x32_rshift32_rounded(memory_, feedback_amount) << 2;
 	}
 
-	/// @brief The memory scaled for a ladder's feedback, at half scale (getFeedbackOutputWithoutLshift): memory ×
+	/// @brief The memory scaled for a ladder's feedback, at half scale: memory ×
 	/// @p feedback_amount (Q31) ÷ 2, for callers that sum several before shifting.
 	[[nodiscard, gnu::always_inline]] q31 feedbackOutputUnshifted(q31 feedback_amount) const {
 		return multiply_32x32_rshift32_rounded(memory_, feedback_amount);

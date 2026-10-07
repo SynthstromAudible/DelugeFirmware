@@ -49,8 +49,8 @@ struct FilterParams {
 	int32_t hpf_frequency_param;
 	/// The high-pass morph param's own value, Q31 (INT32_MIN at its minimum).
 	int32_t hpf_morph_param;
-	/// Whether the drive ladder may oversample: false under CPU load.
-	bool allow_oversampling{true};
+	/// Whether the drive ladder may oversample: false under CPU load. No default, so every caller says which.
+	bool allow_oversampling;
 };
 
 /// @brief A host chain's filters (a kit's, an audio track's, the song's): a low-pass and a high-pass in the modes and

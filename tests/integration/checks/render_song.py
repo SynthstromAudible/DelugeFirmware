@@ -78,17 +78,25 @@ def generated_song(env: dict[str, str]) -> str:
     return env.get("RENDER_GENERATED") or "RS_STREAM"
 
 
+def dry_twin(name: str, songs) -> str | None:
+    """The dry twin of generated song @p name among @p songs (RS_KIT_FX -> RS_KIT_DRY, RS_KIT_FILTERS ->
+    RS_KIT_FILTERS_DRY), or None for RS_STREAM, which plays no effect. Any other song without a twin raises
+    LookupError: the twin is how its gate shows the effects reach the render."""
+    if name == "RS_STREAM":
+        return None
+    for twin in (name.removesuffix("_FX") + "_DRY", name + "_DRY"):
+        if twin != name and twin in songs:
+            return twin
+    raise LookupError(f"{name} has no dry twin in make_render_song.py")
+
+
 def _dry_twin(gate, name: str) -> str | None:
-    """The generator's dry twin of generated song @p name (RS_KIT_FX -> RS_KIT_DRY, RS_KIT_FILTERS -> RS_KIT_FILTERS_DRY), or
-    None when it has none."""
+    """The generator's dry twin of generated song @p name (see dry_twin)."""
     path = gate.root / "tests/integration/golden/songs/make_render_song.py"
     spec = importlib.util.spec_from_file_location("make_render_song", path)
     generator = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(generator)
-    for twin in (name.removesuffix("_FX") + "_DRY", name + "_DRY"):
-        if twin != name and twin in generator.SONGS:
-            return twin
-    return None
+    return dry_twin(name, generator.SONGS)
 
 
 def _level_swing(pcm: bytes) -> float:
@@ -134,7 +142,11 @@ def run(gate):
         )
 
     pcm = pcm_path.read_bytes()
-    dry = None if song else _dry_twin(gate, generated)
+    try:
+        dry = None if song else _dry_twin(gate, generated)
+    except LookupError as missing:
+        gate.fail(f"RS-FX — {missing}")
+        return
     if dry:
         dry_env = _generate(gate, dry)
         if dry_env is None:

@@ -157,6 +157,7 @@ constexpr FilterParams kOpen{
     .lpf_morph_param = kMinimum,
     .hpf_frequency_param = kMinimum,
     .hpf_morph_param = kMinimum,
+    .allow_oversampling = true,
 };
 
 /// The low-pass partly closed; the high-pass's final values set but its params at minimum.
@@ -171,6 +172,7 @@ constexpr FilterParams kLowOnlyParams{
     .lpf_morph_param = kMinimum,
     .hpf_frequency_param = kMinimum,
     .hpf_morph_param = kMinimum,
+    .allow_oversampling = true,
 };
 
 /// The interleaved samples as frames.
