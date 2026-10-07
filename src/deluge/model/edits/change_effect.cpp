@@ -18,8 +18,10 @@
 #include "model/edits/change_effect.h"
 
 #include "io/debug/log.h"
+#include "model/edits/set_effect_setting.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
@@ -40,7 +42,15 @@ void changeEffect(ModControllableAudio& owner, std::string_view path, deluge::se
 		SetEngineSetting edit{*slot, std::string(path), value};
 		error = apply(ctx, edit);
 	}
+	else if (const std::optional<deluge::project::ChainAddress> chain =
+	             currentSong != nullptr && sound == nullptr ? deluge::bridge::chainAddressOf(owner, *currentSong)
+	                                                        : std::nullopt) {
+		Context ctx{*currentSong, currentSong->project};
+		SetEffectSetting edit{*chain, std::string(path), value};
+		error = apply(ctx, edit);
+	}
 	else {
+		// An owner outside the song's chains (a sound not bound, a preview) holds its effects itself.
 		error = deluge::bridge::applyEffectSetting(owner, path, value);
 	}
 	if (error != Error::NONE) {

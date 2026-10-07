@@ -38,8 +38,10 @@
 #include "model/drum/drum.h"
 #include "model/edits/set_controls.h"
 #include "model/edits/set_dx_patch.h"
+#include "model/edits/set_effect_setting.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/edits/set_source_ranges.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
@@ -946,6 +948,64 @@ void testClonedAudioTrackRecordsKnobs(deluge::edits::Context& ctx) {
 	      "clone: the cloned track's record holds the knob");
 }
 
+/// A host owner's effect setting changes by its Edit: the owner, its render copy and its chain's slot follow; a refused
+/// value changes nothing.
+void testSetEffectSetting(deluge::edits::Context& ctx) {
+	using deluge::project::ChainAddress;
+	using deluge::serialization::Value;
+	ParamManagerForTimeline kitParams;
+	Instrument* kit = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
+	ctx.song.addOutput(kit);
+	struct Owner {
+		ModControllableAudio* owner;
+		ChainAddress address;
+		const char* name;
+	};
+	const Owner owners[] = {
+	    {static_cast<Kit*>(kit), {.kind = ChainAddress::Kind::OUTPUT, .id = kit->id().value_or(0)}, "a kit"},
+	    {&ctx.song.live.global_effectable, {.kind = ChainAddress::Kind::SONG}, "the master"},
+	};
+	for (const Owner& o : owners) {
+		const std::string name = o.name;
+		const auto applied = [&](const char* path, Value value) {
+			deluge::edits::SetEffectSetting edit{o.address, path, std::move(value)};
+			return deluge::edits::apply(ctx, edit);
+		};
+		check(applied("lpfMode", Value::makeScalar("SVF_Notch")) == Error::NONE, (name + ": lpfMode applied").c_str());
+		check(o.owner->effects().filter.lpf_mode == FilterMode::SVF_NOTCH, (name + ": the owner's filter").c_str());
+		check(o.owner->modControllableSnapshot().effects == o.owner->effects(), (name + ": its render copy").c_str());
+		const deluge::project::FxChain* chain = ctx.model.resolveChain(o.address);
+		const deluge::project::FxSlot* filter = nullptr;
+		if (chain != nullptr) {
+			for (const deluge::project::FxSlot& slot : chain->slots) {
+				if (slot.effect == "filter") {
+					filter = &slot;
+				}
+			}
+		}
+		check(filter != nullptr && filter->state.find("lpfMode") != nullptr
+		          && filter->state.find("lpfMode")->str() == "SVF_Notch",
+		      (name + ": the filter slot holds it").c_str());
+		check(deluge::harness::chainIncoherence(ctx.song).empty(), (name + ": the chain is coherent").c_str());
+
+		const deluge::effects::EffectStates before = o.owner->effects();
+		check(applied("lpfMode", Value::makeScalar("sideways")) != Error::NONE, (name + ": a refused value").c_str());
+		check(o.owner->effects() == before, (name + ": a refused value changes nothing").c_str());
+
+		const std::optional<deluge::project::FxChain> chainBefore =
+		    chain != nullptr ? std::optional{*chain} : std::nullopt;
+		const int32_t level = static_cast<int32_t>(o.owner->effects().delay.sync_level);
+		check(applied("delay/syncLevel", Value::makeNumber(level)) == Error::NONE,
+		      (name + ": the delay's sync level applied").c_str());
+		check(chain != nullptr && chainBefore && *chain == *chainBefore,
+		      (name + ": the same sync level leaves the chain as it was").c_str());
+
+		check(applied("modFXType", Value::makeScalar("chorus")) == Error::NONE, (name + ": modFXType applied").c_str());
+		check(o.owner->effects().mod_fx.type == ModFXType::CHORUS, (name + ": the owner renders chorus").c_str());
+		check(deluge::harness::chainIncoherence(ctx.song).empty(), (name + ": coherent after mod FX").c_str());
+	}
+}
+
 int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	io = driverIo;
 
@@ -983,6 +1043,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testKnobGesturesRecord(ctx);
 	testPresetChangeHandsOverKnobs(ctx);
 	testClonedAudioTrackRecordsKnobs(ctx);
+	testSetEffectSetting(ctx);
 
 	if (failures == 0) {
 		std::fprintf(io.out, "edit_substrate: OK\n");
