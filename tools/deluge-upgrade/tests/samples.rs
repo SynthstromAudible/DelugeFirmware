@@ -1,6 +1,7 @@
 //! Sample zones in milliseconds and sample playback, as official firmware before 2.1 read them.
 
 use deluge_upgrade::passes::samples::{linear_interpolation, millisecond_zones};
+use deluge_upgrade::passes::sound::old_sound_forms;
 use deluge_upgrade::report::Report;
 use deluge_upgrade::tree::Node;
 use deluge_upgrade::upgrade::Context;
@@ -89,6 +90,62 @@ fn a_reversed_source_swaps_its_converted_zone() {
         Some(&card),
     );
     assert_eq!(positions(&z), (Some("1450"), Some("3655")));
+}
+
+#[test]
+fn an_early_2016_sounds_reversed_zone_is_converted_on_its_one_source() {
+    let card = card("early");
+    let mut doc = Node::parse_xml(
+        r#"<sound><fileName>samples/a.wav</fileName><reversed>1</reversed><zone startMilliseconds="10" endMilliseconds="60"/></sound>"#,
+    )
+    .unwrap();
+    let mut report = Report::default();
+    let mut ctx = Context::new(Path::new("t.XML"), Some(&card), &mut report);
+    ctx.version = FirmwareVersion::of_document(&doc);
+    old_sound_forms(&mut doc, &mut ctx);
+    millisecond_zones(&mut doc, &mut ctx);
+    let sound = doc.get("sound").unwrap();
+    assert_eq!(
+        sound.entries().iter().filter(|(k, _)| k == "osc1").count(),
+        1
+    );
+    let osc1 = sound.get("osc1").unwrap();
+    assert_eq!(osc1.get("reversed").and_then(Node::text), Some("1"));
+    assert_eq!(
+        positions(osc1.get("zone").unwrap()),
+        (Some("1450"), Some("3655"))
+    );
+}
+
+#[test]
+fn a_kit_drum_tuned_only_at_its_sample_oscillator_keeps_its_interpolation() {
+    // Official firmware folded a sample source's transpose and cents into its ranges before the clips looked.
+    let mut doc = Node::parse_xml(
+        r#"<song><instruments><kit><soundSources><sound><osc1 type="sample" transpose="3" cents="5"/></sound></soundSources></kit></instruments></song>"#,
+    )
+    .unwrap();
+    let mut report = Report::default();
+    linear_interpolation(
+        &mut doc,
+        &mut Context::new(Path::new("t.XML"), None, &mut report),
+    );
+    let drum = &doc
+        .get("song")
+        .unwrap()
+        .get("instruments")
+        .unwrap()
+        .entries()[0]
+        .1
+        .get("soundSources")
+        .unwrap()
+        .entries()[0]
+        .1;
+    assert!(
+        drum.get("osc1")
+            .unwrap()
+            .get("linearInterpolation")
+            .is_none()
+    );
 }
 
 #[test]

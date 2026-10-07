@@ -396,6 +396,35 @@ fn place(sound: &mut Node, converted: Converted) {
     }
 }
 
+/// A sound reads a repeated source or modulator element into the one it has, a later setting replacing an earlier: the
+/// converted fragments are merged into the first, so that every later reader of the document sees one element.
+fn merge_repeated_elements(sound: &mut Node) {
+    let entries = sound.entries_mut().expect("a sound is a map");
+    for name in ["osc1", "osc2", "modulator1", "modulator2"] {
+        let Some(first) = entries
+            .iter()
+            .position(|(k, v)| k == name && matches!(v, Node::Map(_)))
+        else {
+            continue;
+        };
+        let mut index = 0;
+        let mut later = Vec::new();
+        entries.retain(|(k, v)| {
+            let repeated = index > first && k == name && matches!(v, Node::Map(_));
+            if repeated {
+                later.push(v.clone());
+            }
+            index += 1;
+            !repeated
+        });
+        for fragment in later {
+            for (key, value) in fragment.entries() {
+                entries[first].1.set(key, value.clone());
+            }
+        }
+    }
+}
+
 /// A sound's mode is the last one it reads: an earlier `mode` (left beside a converted ring mod) is dropped, so every
 /// later reader of the document sees the one that counts.
 fn keep_last_mode(sound: &mut Node) {
@@ -416,6 +445,7 @@ pub fn old_sound_forms(doc: &mut Node, _ctx: &mut Context) {
         let mut converted = Converted::default();
         collect(sound, &mut converted);
         place(sound, converted);
+        merge_repeated_elements(sound);
         keep_last_mode(sound);
     });
 }

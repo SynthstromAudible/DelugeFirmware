@@ -143,3 +143,58 @@ fn a_full_cable_set_gets_no_more() {
         .len();
     assert_eq!(n, 32); // room for aftertouch only
 }
+
+#[test]
+fn an_expression_cable_controlling_a_depth_counts_as_the_sounds_own() {
+    let doc = run(
+        r#"<sound><defaultParams><patchCables><patchCable source="envelope1" destination="pitch" amount="0x20000000">
+           <depthControlledBy><patchCable source="aftertouch" amount="0x10000000" polarity="unipolar"/></depthControlledBy>
+           </patchCable></patchCables></defaultParams></sound>"#,
+        default_expression_cables,
+    );
+    let cables = doc
+        .get("sound")
+        .unwrap()
+        .get("defaultParams")
+        .unwrap()
+        .get("patchCables")
+        .unwrap();
+    assert_eq!(cables.entries().len(), 1);
+}
+
+#[test]
+fn a_dropped_expression_cable_does_not_count_as_the_sounds_own() {
+    let doc = run(
+        r#"<sound><defaultParams><patchCables><patchCable source="y" destination="pan" amount="0x00000000"/>
+           </patchCables></defaultParams></sound>"#,
+        default_expression_cables,
+    );
+    let cables = doc
+        .get("sound")
+        .unwrap()
+        .get("defaultParams")
+        .unwrap()
+        .get("patchCables")
+        .unwrap();
+    assert_eq!(cables.entries().len(), 3);
+}
+
+#[test]
+fn an_arrangement_only_synth_clip_gets_the_default_expression_cables() {
+    let doc = run(
+        r#"<song><arrangementOnlyTracks><instrumentClip><soundParams/></instrumentClip></arrangementOnlyTracks></song>"#,
+        default_expression_cables,
+    );
+    let cables = doc
+        .get("song")
+        .unwrap()
+        .get("arrangementOnlyTracks")
+        .unwrap()
+        .get("instrumentClip")
+        .unwrap()
+        .get("soundParams")
+        .unwrap()
+        .get("patchCables")
+        .map(|c| c.entries().len());
+    assert_eq!(cables, Some(2));
+}

@@ -254,10 +254,9 @@ pub fn linear_interpolation(doc: &mut Node, ctx: &mut Context) {
                         if let Some(source) = drum.get_mut(osc)
                             && is_sample(source)
                         {
-                            let tuned = drum_tuned
-                                || decimal(source.get("transpose")) != 0
-                                || decimal(source.get("cents")) != 0;
-                            if tuned {
+                            // A sample source's own transpose and cents were folded into its ranges before
+                            // the clips looked, so only the drum's counts.
+                            if drum_tuned {
                                 source.set("linearInterpolation", Node::Text("1".into()));
                             } else {
                                 reports.push(

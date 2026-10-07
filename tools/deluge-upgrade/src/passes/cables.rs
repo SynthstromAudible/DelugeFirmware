@@ -1,6 +1,7 @@
 //! Patch cables and knobs in the forms firmware before 3.2 and 4.0 wrote: "range" cables and knobs, and the default
 //! expression cables a sound from before 4.0 was given on load.
 
+use super::params::for_each_clip;
 use super::sound::for_each_sound;
 use crate::tree::Node;
 use crate::upgrade::Context;
@@ -167,6 +168,18 @@ fn count_cables(set: &Node) -> usize {
         .sum()
 }
 
+/// Whether a cable the firmware keeps in `set` -- a depth-controlling one included -- takes aftertouch, X or Y.
+fn takes_expression(set: &Node) -> bool {
+    set.entries().iter().any(|(key, cable)| {
+        key == "patchCable"
+            && ((matches!(
+                cable.get("source").and_then(Node::text),
+                Some("aftertouch" | "x" | "y")
+            ) && holds_something(cable.get("amount")))
+                || cable.get("depthControlledBy").is_some_and(takes_expression))
+    })
+}
+
 /// Adds the default expression cables to `params` (a sound's defaultParams or a synth clip's soundParams) unless a cable
 /// of its own takes aftertouch, X or Y, while its set has room.
 fn add_default_cables(params: &mut Node, fm: bool) {
@@ -174,13 +187,7 @@ fn add_default_cables(params: &mut Node, fm: bool) {
         params.set("patchCables", Node::Map(vec![]));
     }
     let set = params.get_mut("patchCables").expect("just made");
-    let expressive = set.entries().iter().any(|(key, cable)| {
-        key == "patchCable"
-            && matches!(
-                cable.get("source").and_then(Node::text),
-                Some("aftertouch" | "x" | "y")
-            )
-    });
+    let expressive = takes_expression(set);
     if expressive {
         return;
     }
@@ -236,25 +243,13 @@ pub fn default_expression_cables(doc: &mut Node, _ctx: &mut Context) {
             add_default_cables(defaults, fm);
         }
     });
-    let Some(song) = doc.get("song") else { return };
-    let fm_by_clip: Vec<bool> = song
-        .get("sessionClips")
-        .into_iter()
-        .flat_map(Node::entries)
-        .map(|(_, clip)| clip_synth_is_fm(song, clip))
-        .collect();
-    let Some(clips) = doc
-        .get_mut("song")
-        .and_then(|s| s.get_mut("sessionClips"))
-        .and_then(Node::entries_mut)
-    else {
+    let Some(song) = doc.get("song").cloned() else {
         return;
     };
-    for ((key, clip), fm) in clips.iter_mut().zip(fm_by_clip) {
-        if key == "instrumentClip"
-            && let Some(params) = clip.get_mut("soundParams")
-        {
+    for_each_clip(doc, &mut |clip| {
+        let fm = clip_synth_is_fm(&song, clip);
+        if let Some(params) = clip.get_mut("soundParams") {
             add_default_cables(params, fm);
         }
-    }
+    });
 }

@@ -4,6 +4,7 @@
 use super::sound::for_each_sound;
 use crate::tree::Node;
 use crate::upgrade::Context;
+use crate::version::FirmwareVersion;
 
 /// A param as a file holds it: its value, and the automation nodes after it (8 hex digits of value, 8 of position).
 struct ParamText {
@@ -228,7 +229,7 @@ pub fn sound_resonance(doc: &mut Node, ctx: &mut Context) {
 }
 
 /// Every clip of a song, session and arrangement-only.
-fn for_each_clip(doc: &mut Node, f: &mut dyn FnMut(&mut Node)) {
+pub(crate) fn for_each_clip(doc: &mut Node, f: &mut dyn FnMut(&mut Node)) {
     let Some(song) = doc.get_mut("song") else {
         return;
     };
@@ -355,40 +356,95 @@ fn for_each_kit(node: &mut Node, f: &mut dyn FnMut(&mut Node)) {
 }
 
 /// A pre-1.2 kit: the volume its own filter's resonance cost, given back, then its filters as above.
-pub fn kit_resonance(doc: &mut Node, ctx: &mut Context) {
-    let mut paramless = false;
+pub fn kit_resonance(doc: &mut Node, _ctx: &mut Context) {
     for_each_kit(doc, &mut |kit| {
-        let Some(params) = kit.get_mut("defaultParams") else {
-            paramless = true;
+        if let Some(params) = kit.get_mut("defaultParams") {
+            kit_rule(params);
+        }
+    });
+}
+
+/// A kit's, song's or clip's params with each filter's morph nested in its `lpf` / `hpf` element, as community nightlies
+/// wrote them in 2024: the flat `lpfMorph` / `hpfMorph` the releases write, where the nested one was read, unless a flat
+/// one is read after it.
+pub fn nested_filter_morph(doc: &mut Node, _ctx: &mut Context) {
+    fn params(set: &mut Node) {
+        let Some(entries) = set.entries_mut() else {
             return;
         };
-        kit_rule(params);
-    });
-    if paramless {
+        for filter in ["lpf", "hpf"] {
+            let flat = format!("{filter}Morph");
+            let Some(at) = entries
+                .iter()
+                .position(|(k, v)| k == filter && v.get("morph").is_some())
+            else {
+                continue;
+            };
+            let morph = entries[at]
+                .1
+                .entries_mut()
+                .and_then(|e| {
+                    e.iter()
+                        .position(|(k, _)| k == "morph")
+                        .map(|i| e.remove(i).1)
+                })
+                .expect("found above");
+            if entries[at + 1..].iter().any(|(k, _)| *k == flat) {
+                continue;
+            }
+            let earlier = entries[..at].iter().filter(|(k, _)| *k == flat).count();
+            entries.retain(|(k, _)| *k != flat);
+            entries.insert(at - earlier, (flat, morph));
+        }
+    }
+    fn walk(node: &mut Node, in_sound: bool) {
+        let Some(entries) = node.entries_mut() else {
+            return;
+        };
+        for (key, child) in entries.iter_mut() {
+            if !in_sound
+                && matches!(
+                    key.as_str(),
+                    "defaultParams" | "songParams" | "kitParams" | "params"
+                )
+            {
+                params(child);
+            }
+            walk(child, key == "sound");
+        }
+    }
+    walk(doc, false);
+}
+
+/// A kit preset from before 2.2 without params of its own was given the defaults on load: an empty `defaultParams`
+/// is read as them. Before 1.2 those defaults' resonance also raised the kit's volume by 0.125 dB, which is reported.
+pub fn paramless_kit(doc: &mut Node, ctx: &mut Context) {
+    let Some(kit) = doc.get_mut("kit") else {
+        return;
+    };
+    if kit.get("defaultParams").is_some() {
+        return;
+    }
+    kit.set("defaultParams", Node::Map(vec![]));
+    if ctx.version < FirmwareVersion::official(1, 2, 0) {
         ctx.note(
             "kit params",
-            "a kit from before 2.2 without params of its own got the defaults on load".into(),
+            "a kit from before 1.2 without params gets the defaults without the 0.125 dB its default resonance \
+             added to its volume"
+                .into(),
         );
     }
 }
 
 /// A pre-1.5 song's synth clips with an unsynced arpeggiator: their arpeggiator rate was raised to keep its speed.
 pub fn arpeggiator_rate(doc: &mut Node, _ctx: &mut Context) {
-    let Some(song) = doc.get_mut("song") else {
-        return;
-    };
-    for (_, clip) in song
-        .get_mut("sessionClips")
-        .and_then(Node::entries_mut)
-        .into_iter()
-        .flatten()
-    {
+    for_each_clip(doc, &mut |clip| {
         let arpeggiating = clip.get("arpeggiator").is_some_and(|arp| {
             let mode = arp.get("mode").and_then(Node::text).unwrap_or("off");
             mode != "off" && arp.get("syncLevel").and_then(Node::int) == Some(0)
         });
         if !arpeggiating {
-            continue;
+            return;
         }
         if let Some(params) = clip.get_mut("soundParams")
             && let Some(mut rate) = param(params, "arpeggiatorRate")
@@ -400,7 +456,7 @@ pub fn arpeggiator_rate(doc: &mut Node, _ctx: &mut Context) {
             rate.hex = true;
             set_param(params, "arpeggiatorRate", &rate);
         }
-    }
+    });
 }
 
 /// A pre-3.1 song's swing interval was a sync level of its own; from 3.1 it is relative to the input tick magnitude.
@@ -434,19 +490,9 @@ pub fn swing_interval(doc: &mut Node, ctx: &mut Context) {
 /// Before official 3.2 a clip's bend range was always 12 and not saved: a clip with no expression of its own is given
 /// it. (Its MPE bend range came from the device's settings, as it still does for a clip that does not save one.)
 pub fn bend_range(doc: &mut Node, _ctx: &mut Context) {
-    let Some(clips) = doc
-        .get_mut("song")
-        .and_then(|s| s.get_mut("sessionClips"))
-        .and_then(Node::entries_mut)
-    else {
-        return;
-    };
-    for (key, clip) in clips.iter_mut() {
-        if key != "instrumentClip"
-            || clip.get("expressionData").is_some()
-            || clip.get("bendRange").is_some()
-        {
-            continue;
+    for_each_clip(doc, &mut |clip| {
+        if clip.get("expressionData").is_some() || clip.get("bendRange").is_some() {
+            return;
         }
         let expressive_cc = clip.get("midiParams").is_some_and(|params| {
             params.entries().iter().any(|(_, p)| {
@@ -460,11 +506,11 @@ pub fn bend_range(doc: &mut Node, _ctx: &mut Context) {
         if !expressive_cc {
             clip.set("bendRange", Node::Text("12".into()));
         }
-    }
+    });
 }
 
-/// Before official 1.2 a clip's params were read onto a copy of its instrument's: a param the clip does not hold is
-/// its instrument's (`instrument_clip.cpp`, `note_row.cpp`).
+/// Before official 1.2 a clip's params were read onto a copy of its instrument's, and a kit row's onto a copy of its
+/// drum's: a param the clip or row does not hold is its instrument's or drum's.
 pub fn clip_param_overlay(doc: &mut Node, _ctx: &mut Context) {
     let Some(song) = doc.get("song").cloned() else {
         return;
@@ -476,17 +522,46 @@ pub fn clip_param_overlay(doc: &mut Node, _ctx: &mut Context) {
             .find(|(kind, instrument)| kind == "sound" && names(instrument, reference))
             .and_then(|(_, synth)| synth.get("defaultParams").cloned())
     };
-    for_each_clip(doc, &mut |clip| {
-        let reference = clip_ref(clip);
-        let Some(defaults) = instrument_params(&reference) else {
-            return;
-        };
-        let Some(params) = clip.get_mut("soundParams") else {
-            return;
-        };
+    // A kit's drums in the order a row's `drumIndex` counts them; only a sound drum has params.
+    let kit_drums = |reference: &(Option<String>, Option<String>, Option<String>)| {
+        song.get("instruments")
+            .into_iter()
+            .flat_map(Node::entries)
+            .find(|(kind, instrument)| kind == "kit" && names(instrument, reference))
+            .and_then(|(_, kit)| kit.get("soundSources").cloned())
+    };
+    fn overlay(params: &mut Node, defaults: &Node) {
         for (key, value) in defaults.entries() {
             if params.get(key).is_none() {
                 params.set(key, value.clone());
+            }
+        }
+    }
+    for_each_clip(doc, &mut |clip| {
+        let reference = clip_ref(clip);
+        if let Some(defaults) = instrument_params(&reference)
+            && let Some(params) = clip.get_mut("soundParams")
+        {
+            overlay(params, &defaults);
+        }
+        let Some(drums) = kit_drums(&reference) else {
+            return;
+        };
+        let Some(rows) = clip.get_mut("noteRows").and_then(Node::entries_mut) else {
+            return;
+        };
+        for (_, row) in rows.iter_mut() {
+            let drum = row
+                .get("drumIndex")
+                .and_then(Node::int)
+                .and_then(|i| usize::try_from(i).ok())
+                .and_then(|i| drums.entries().get(i));
+            if let Some((kind, drum)) = drum
+                && kind == "sound"
+                && let Some(defaults) = drum.get("defaultParams")
+                && let Some(params) = row.get_mut("soundParams")
+            {
+                overlay(params, defaults);
             }
         }
     });

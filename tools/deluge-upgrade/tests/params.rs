@@ -1,7 +1,8 @@
 //! Param values official firmware recalculated on loading an old file.
 
 use deluge_upgrade::passes::params::{
-    arpeggiator_rate, kit_resonance, sound_resonance, swing_interval,
+    arpeggiator_rate, bend_range, clip_param_overlay, kit_resonance, nested_filter_morph,
+    paramless_kit, sound_resonance, swing_interval,
 };
 use deluge_upgrade::report::Report;
 use deluge_upgrade::tree::Node;
@@ -142,4 +143,160 @@ fn a_pre_3_1_swing_interval_becomes_relative_to_the_tick_magnitude() {
         swing_interval,
     );
     assert_eq!(param(&doc, &["song", "swingInterval"]), Some("1")); // left as it was, and reported
+}
+
+#[test]
+fn an_arrangement_only_clip_is_converted_as_a_session_clip_is() {
+    let doc = run(
+        r#"<song><arrangementOnlyTracks><instrumentClip><arpeggiator mode="up" syncLevel="0"/>
+           <soundParams arpeggiatorRate="0x10000000"/></instrumentClip></arrangementOnlyTracks></song>"#,
+        arpeggiator_rate,
+    );
+    assert_eq!(
+        param(
+            doc.get("song")
+                .unwrap()
+                .get("arrangementOnlyTracks")
+                .unwrap()
+                .get("instrumentClip")
+                .unwrap(),
+            &["soundParams", "arpeggiatorRate"]
+        ),
+        Some("0x60000000")
+    );
+    let doc = run(
+        r#"<song><arrangementOnlyTracks><instrumentClip/></arrangementOnlyTracks></song>"#,
+        bend_range,
+    );
+    assert_eq!(
+        param(
+            &doc,
+            &[
+                "song",
+                "arrangementOnlyTracks",
+                "instrumentClip",
+                "bendRange"
+            ]
+        ),
+        Some("12")
+    );
+}
+
+#[test]
+fn a_pre_3_2_clip_without_expression_of_its_own_bends_twelve_semitones() {
+    let doc = run(
+        r#"<song><sessionClips><instrumentClip/><instrumentClip><expressionData/></instrumentClip>
+           <instrumentClip><midiParams><param><cc>bend</cc></param></midiParams></instrumentClip>
+           <instrumentClip bendRange="2"/></sessionClips></song>"#,
+        bend_range,
+    );
+    let clips = doc
+        .get("song")
+        .unwrap()
+        .get("sessionClips")
+        .unwrap()
+        .entries();
+    let bend = |i: usize| clips[i].1.get("bendRange").and_then(Node::text);
+    assert_eq!(bend(0), Some("12"));
+    assert_eq!(bend(1), None);
+    assert_eq!(bend(2), None);
+    assert_eq!(bend(3), Some("2"));
+}
+
+#[test]
+fn a_pre_1_2_synth_clip_takes_a_param_it_does_not_hold_from_its_synth() {
+    let doc = run(
+        r#"<song><instruments><sound presetName="A"><defaultParams volume="0x10" pan="0x20"/></sound></instruments>
+           <sessionClips><instrumentClip instrumentPresetName="A"><soundParams pan="0x30"/></instrumentClip></sessionClips></song>"#,
+        clip_param_overlay,
+    );
+    let clip = ["song", "sessionClips", "instrumentClip", "soundParams"];
+    assert_eq!(
+        param(&doc, &[&clip[..], &["volume"]].concat()),
+        Some("0x10")
+    );
+    assert_eq!(param(&doc, &[&clip[..], &["pan"]].concat()), Some("0x30"));
+}
+
+#[test]
+fn a_pre_1_2_drum_row_takes_a_param_it_does_not_hold_from_its_drum() {
+    let doc = run(
+        r#"<song><instruments><kit presetName="K"><soundSources>
+           <sound><defaultParams volume="0x11"/></sound><sound><defaultParams volume="0x22" pan="0x33"/></sound>
+           </soundSources></kit></instruments>
+           <sessionClips><instrumentClip instrumentPresetName="K"><noteRows>
+           <noteRow drumIndex="1"><soundParams pan="0x44"/></noteRow></noteRows></instrumentClip></sessionClips></song>"#,
+        clip_param_overlay,
+    );
+    let row = [
+        "song",
+        "sessionClips",
+        "instrumentClip",
+        "noteRows",
+        "noteRow",
+        "soundParams",
+    ];
+    assert_eq!(param(&doc, &[&row[..], &["volume"]].concat()), Some("0x22"));
+    assert_eq!(param(&doc, &[&row[..], &["pan"]].concat()), Some("0x44"));
+}
+
+#[test]
+fn a_pre_2_2_kit_preset_without_params_gets_the_defaults_the_firmware_gave_it() {
+    let doc = run(r#"<kit><soundSources/></kit>"#, paramless_kit);
+    assert_eq!(
+        doc.get("kit").unwrap().get("defaultParams"),
+        Some(&Node::Map(vec![]))
+    );
+    let doc = run(r#"<kit><defaultParams volume="0x1"/></kit>"#, paramless_kit);
+    assert_eq!(
+        param(&doc, &["kit", "defaultParams", "volume"]),
+        Some("0x1")
+    );
+}
+
+#[test]
+fn a_nested_filter_morph_in_kit_and_song_params_becomes_flat() {
+    let doc = run(
+        r#"<kit><defaultParams><lpf frequency="0x1" morph="0x2"/><hpf morph="0x3"/></defaultParams></kit>"#,
+        nested_filter_morph,
+    );
+    assert_eq!(
+        param(&doc, &["kit", "defaultParams", "lpfMorph"]),
+        Some("0x2")
+    );
+    assert_eq!(
+        param(&doc, &["kit", "defaultParams", "hpfMorph"]),
+        Some("0x3")
+    );
+    assert_eq!(
+        param(&doc, &["kit", "defaultParams", "lpf", "frequency"]),
+        Some("0x1")
+    );
+    assert!(
+        doc.get("kit")
+            .unwrap()
+            .get("defaultParams")
+            .unwrap()
+            .get("lpf")
+            .unwrap()
+            .get("morph")
+            .is_none()
+    );
+    // A flat morph read after the nested one wins; one read before it does not.
+    let doc = run(
+        r#"<song><songParams lpfMorph="0x5"><lpf morph="0x6"/></songParams></song>"#,
+        nested_filter_morph,
+    );
+    assert_eq!(
+        param(&doc, &["song", "songParams", "lpfMorph"]),
+        Some("0x6")
+    );
+    let doc = run(
+        r#"<song><songParams><lpf morph="0x6"/><lpfMorph>0x7</lpfMorph></songParams></song>"#,
+        nested_filter_morph,
+    );
+    assert_eq!(
+        param(&doc, &["song", "songParams", "lpfMorph"]),
+        Some("0x7")
+    );
 }

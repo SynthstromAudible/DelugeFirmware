@@ -33,6 +33,11 @@ pub static ALL: &[Pass] = &[
         before: None,
         run: cables::range_forms,
     },
+    Pass {
+        name: "nested filter morph",
+        before: None,
+        run: params::nested_filter_morph,
+    },
     // Milliseconds become positions before 2.1 and are dropped after: every file is looked at.
     Pass {
         name: "millisecond zones",
@@ -56,6 +61,12 @@ pub static ALL: &[Pass] = &[
         name: "kit resonance",
         before: Some(FirmwareVersion::official(1, 2, 0)),
         run: params::kit_resonance,
+    },
+    // After the kit resonance rule, which a paramless kit did not get.
+    Pass {
+        name: "paramless kit",
+        before: Some(FirmwareVersion::official_tagged(2, 2, 0, "beta")),
+        run: params::paramless_kit,
     },
     Pass {
         name: "default expression cables",

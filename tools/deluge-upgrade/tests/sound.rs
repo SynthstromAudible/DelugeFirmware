@@ -61,8 +61,8 @@ fn polyphony_numbers_become_their_words() {
 fn oscillator_reset_off_frees_every_oscillator_where_it_was_read() {
     same(
         &converted(r#"<sound oscillatorReset="0"><osc1 retrigPhase="5"/></sound>"#),
-        r#"<sound><osc1 retrigPhase="-1"/><osc2 retrigPhase="-1"/><modulator1 retrigPhase="-1"/>
-           <modulator2 retrigPhase="-1"/><osc1 retrigPhase="5"/></sound>"#,
+        r#"<sound><osc1 retrigPhase="5"/><osc2 retrigPhase="-1"/><modulator1 retrigPhase="-1"/>
+           <modulator2 retrigPhase="-1"/></sound>"#,
     );
     same(&converted(r#"<sound oscillatorReset="1"/>"#), r#"<sound/>"#);
 }
