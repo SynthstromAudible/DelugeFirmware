@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/filter/filter_set.h"
+#include "engines/effects/filter.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/arpeggiator.h"
 #include "serialization/value.h"
@@ -36,8 +36,11 @@ public:
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) override;
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation = true) override;
-	void setupFilterSetConfig(int32_t* postFXVolume, ParamManager* paramManager);
-	void processFilters(std::span<StereoSample> buffer);
+	/// @brief Configures the filters for this block from @p paramManager's params and this owner's filter state.
+	/// @param postFXVolume The post-FX volume (Q31), compensated in place for the filters.
+	void configureFilter(int32_t* postFXVolume, ParamManager* paramManager);
+	/// @brief Filters @p buffer in place, as last configured.
+	void processFilter(std::span<StereoSample> buffer);
 	void processFXForGlobalEffectable(std::span<StereoSample> buffer, int32_t* postFXVolume, ParamManager* paramManager,
 	                                  const Delay::State& delayWorkingState, bool anySoundComingIn, q31_t verbAmount);
 
@@ -67,7 +70,7 @@ public:
 	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) override;
 	ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
 	                                                 ModelStackWithAutoParam* modelStack) override;
-	dsp::filter::FilterSet filterSet;
+	deluge::effects::Filter filter_;
 	ModFXParam currentModFXParam;
 	FilterType currentFilterType;
 	bool editingComp;

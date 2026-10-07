@@ -34,10 +34,12 @@
 #include "model/project_bridge/param_serialization.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "model/voice/filter_scratch.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/comparison.h"
 #include "util/etl_string.h"
@@ -49,7 +51,7 @@ namespace params = deluge::modulation::params;
 GlobalEffectable::GlobalEffectable() {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_GLOBAL;
 	setLpfMode(FilterMode::TRANSISTOR_24DB);
-	filterSet.reset();
+	filter_.reset();
 
 	assignModFXType(ModFXType::NONE);
 	currentModFXParam = ModFXParam::FEEDBACK;
@@ -745,43 +747,43 @@ void GlobalEffectable::ensureModFXParamIsValid() {
 	}
 }
 
-void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager* paramManager) {
+void GlobalEffectable::configureFilter(int32_t* postFXVolume, ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	int32_t lpfFrequency =
-	    getFinalParameterValueExp(paramNeutralValues[params::LOCAL_LPF_FREQ],
-	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ)));
-	int32_t lpfResonance =
-	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_RESONANCE],
-	                                 cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_LPF_RES)));
-	int32_t lpfMorph =
-	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_MORPH],
-	                                 cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH)));
-	int32_t hpfFrequency =
-	    getFinalParameterValueExp(paramNeutralValues[params::LOCAL_HPF_FREQ],
-	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ)));
-	int32_t hpfResonance =
-	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_RESONANCE],
-	                                 cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_RES)));
-	int32_t hpfMorph =
-	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_MORPH],
-	                                 cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH)));
+	const int32_t lpfFrequencyParam = unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ);
+	const int32_t lpfMorphParam = unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH);
+	const int32_t hpfFrequencyParam = unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ);
+	const int32_t hpfMorphParam = unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH);
 
-	bool doLPF = (modControllableSnapshot_.effects.filter.lpf_mode == FilterMode::TRANSISTOR_24DB_DRIVE
-	              || unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ) < 2147483602
-	              || unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH) > NEGATIVE_ONE_Q31);
-	bool doHPF = unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ) > NEGATIVE_ONE_Q31
-	             || unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH) > NEGATIVE_ONE_Q31;
-	FilterMode lpfModeForRender = doLPF ? modControllableSnapshot_.effects.filter.lpf_mode : FilterMode::OFF;
-	FilterMode hpfModeForRender = doHPF ? modControllableSnapshot_.effects.filter.hpf_mode : FilterMode::OFF;
-	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, lpfModeForRender, lpfMorph, hpfFrequency,
-	                                    hpfResonance, hpfModeForRender, hpfMorph, *postFXVolume,
-	                                    modControllableSnapshot_.effects.filter.route, false, NULL);
+	*postFXVolume =
+	    filter_.configure(modControllableSnapshot_.effects.filter,
+	                      {
+	                          .lpf_frequency = getFinalParameterValueExp(paramNeutralValues[params::LOCAL_LPF_FREQ],
+	                                                                     cableToExpParamShortcut(lpfFrequencyParam)),
+	                          .lpf_resonance = getFinalParameterValueLinear(
+	                              paramNeutralValues[params::LOCAL_LPF_RESONANCE],
+	                              cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_LPF_RES))),
+	                          .lpf_morph = getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_MORPH],
+	                                                                    cableToExpParamShortcut(lpfMorphParam)),
+	                          .hpf_frequency = getFinalParameterValueExp(paramNeutralValues[params::LOCAL_HPF_FREQ],
+	                                                                     cableToExpParamShortcut(hpfFrequencyParam)),
+	                          .hpf_resonance = getFinalParameterValueLinear(
+	                              paramNeutralValues[params::LOCAL_HPF_RESONANCE],
+	                              cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_RES))),
+	                          .hpf_morph = getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_MORPH],
+	                                                                    cableToExpParamShortcut(hpfMorphParam)),
+	                          .lpf_frequency_param = lpfFrequencyParam,
+	                          .lpf_morph_param = lpfMorphParam,
+	                          .hpf_frequency_param = hpfFrequencyParam,
+	                          .hpf_morph_param = hpfMorphParam,
+	                          .allow_oversampling = AudioEngine::cpuDireness < 14,
+	                      },
+	                      *postFXVolume);
 }
 
-[[gnu::hot]] void GlobalEffectable::processFilters(std::span<StereoSample> buffer) {
-	filterSet.renderLongStereo(&buffer.data()->l, &(buffer.data() + buffer.size())->l);
+[[gnu::hot]] void GlobalEffectable::processFilter(std::span<StereoSample> buffer) {
+	filter_.process(buffer, deluge::voice::filter_scratch());
 }
 
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {

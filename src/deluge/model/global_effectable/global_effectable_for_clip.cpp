@@ -76,7 +76,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		delayWorkingState.analog_saturation = 5;
 	}
 
-	setupFilterSetConfig(&volumePostFX, paramManagerForClip);
+	configureFilter(&volumePostFX, paramManagerForClip);
 
 	int32_t reverbSendAmount = getFinalParameterValueVolume(
 	    reverbAmountAdjust,
@@ -123,7 +123,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	if (renderedLastTime) {
 		// Render filters
-		processFilters(global_effectable_audio);
+		processFilter(global_effectable_audio);
 
 		// Render FX
 		processSRRAndBitcrushing(global_effectable_audio, &volumePostFX, paramManagerForClip);
