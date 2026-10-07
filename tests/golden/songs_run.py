@@ -84,7 +84,7 @@ def find_songs(corpus):
     out = []
     for root, _, files in os.walk(corpus):
         for n in files:
-            if n.lower().endswith(".xml"):
+            if n.lower().endswith((".xml", ".json")):
                 out.append(os.path.join(root, n))
     return sorted(out)
 

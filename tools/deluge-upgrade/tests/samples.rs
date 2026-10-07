@@ -10,7 +10,10 @@ use std::path::{Path, PathBuf};
 /// A card of its own for test `name`, holding SAMPLES/A.WAV: 4096 frames of 16-bit mono at 44.1 kHz. (Tests run in
 /// parallel; one card each keeps a test from reading another's half-written file.)
 fn card(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("deluge-upgrade-samples-{}-{name}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!(
+        "deluge-upgrade-samples-{}-{name}",
+        std::process::id()
+    ));
     std::fs::create_dir_all(dir.join("SAMPLES")).unwrap();
     let frames: u32 = 4096;
     let data = frames * 2;
@@ -160,4 +163,25 @@ fn a_song_synth_plays_its_samples_with_linear_interpolation_and_a_kit_drum_when_
             .and_then(Node::text),
         Some("1")
     );
+}
+
+#[test]
+fn a_zone_with_no_sample_file_has_nothing_to_convert() {
+    let mut doc = Node::parse_xml(
+        r#"<sound firmwareVersion="2.0.0"><osc1 type="sample"><zone startMilliseconds="20"/></osc1></sound>"#,
+    )
+    .unwrap();
+    let mut report = Report::default();
+    let mut ctx = Context::new(Path::new("t.XML"), None, &mut report);
+    ctx.version = FirmwareVersion::of_document(&doc);
+    millisecond_zones(&mut doc, &mut ctx);
+    let zone = doc
+        .get("sound")
+        .unwrap()
+        .get("osc1")
+        .unwrap()
+        .get("zone")
+        .unwrap();
+    assert!(zone.get("startMilliseconds").is_none());
+    assert!(report.findings.is_empty());
 }

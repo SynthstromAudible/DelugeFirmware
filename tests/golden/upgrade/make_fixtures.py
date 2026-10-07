@@ -265,8 +265,8 @@ def ms_zone(start: int, end: int, reversed_: bool = False) -> str:
     )
 
 
-# Golden render cases (the renderer stages a case's .wav as SAMPLES/WT.WAV): before official 2.1 a zone in milliseconds
-# became sample positions once its sample loaded.
+# The golden render cases presets/upgrade/<name> were recorded from these originals (the renderer stages a case's .wav
+# as SAMPLES/WT.WAV): before official 2.1 a zone in milliseconds became sample positions once its sample loaded.
 RENDER_CASES = {
     "ms_zone": ms_zone(20, 80),
     "ms_zone_end_only": ms_zone(0, 50),
@@ -294,7 +294,9 @@ def main() -> None:
         path = HERE / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
-    render = PRESETS / "upgrade"
+    # The golden corpus holds these cases upgraded (presets/upgrade/*.json, rendering as their records); the originals
+    # they were recorded from are kept here.
+    render = HERE / "render"
     render.mkdir(exist_ok=True)
     for name, text in RENDER_CASES.items():
         (render / f"{name}.xml").write_text(text)

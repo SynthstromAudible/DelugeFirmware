@@ -1,0 +1,275 @@
+{
+	"firmwareVersion": "c1.3.0",
+	"sound": {
+		"osc1": {
+			"type": "sine",
+			"transpose": 0,
+			"cents": 0
+		},
+		"osc2": {
+			"type": "square",
+			"transpose": 12,
+			"cents": 0
+		},
+		"polyphonic": "poly",
+		"clippingAmount": 0,
+		"voicePriority": 1,
+		"lfo1": {
+			"type": "triangle",
+			"syncLevel": 0
+		},
+		"lfo2": {
+			"type": "triangle"
+		},
+		"mode": "fm",
+		"modulator1": {
+			"transpose": 0,
+			"cents": 0
+		},
+		"modulator2": {
+			"transpose": 12,
+			"cents": 0,
+			"toModulator1": 0
+		},
+		"unison": {
+			"num": 1,
+			"detune": 2
+		},
+		"delay": {
+			"pingPong": 1,
+			"analog": 0,
+			"syncLevel": 7
+		},
+		"lpfMode": "Off",
+		"modFXType": "none",
+		"defaultParams": {
+			"arpeggiatorGate": "0x00000000",
+			"portamento": "0x80000000",
+			"compressorShape": "0xDC28F5B2",
+			"oscAVolume": "0x7FFFFFD2",
+			"oscAPulseWidth": "0x00000000",
+			"oscBVolume": "0x7FFFFFD2",
+			"oscBPulseWidth": "0x00000000",
+			"noiseVolume": "0x80000000",
+			"volume": "0x24000000",
+			"pan": "0x00000000",
+			"lpfFrequency": "0x10000000",
+			"lpfResonance": "0xF0A3D6F6",
+			"hpfFrequency": "0x80000000",
+			"hpfResonance": "0x80000000",
+			"envelope1": {
+				"attack": "0x051EB83A",
+				"decay": "0xFFFFFFE9",
+				"sustain": "0x570A3D4A",
+				"release": "0x99999995"
+			},
+			"envelope2": {
+				"attack": "0x80000000",
+				"decay": "0x851EB851",
+				"sustain": "0x80000000",
+				"release": "0xE147AE03"
+			},
+			"lfo1Rate": "0x51EB84F9",
+			"lfo2Rate": "0x24000000",
+			"modulator1Amount": "0xEC000000",
+			"modulator1Feedback": "0x80000000",
+			"modulator2Amount": "0x8A000000",
+			"modulator2Feedback": "0x80000000",
+			"carrier1Feedback": "0x80000000",
+			"carrier2Feedback": "0xC0000000",
+			"modFXRate": "0x00000000",
+			"modFXDepth": "0x00000000",
+			"delayRate": "0x00000000",
+			"delayFeedback": "0x80000000",
+			"reverbAmount": "0x80000000",
+			"arpeggiatorRate": "0x00000000",
+			"patchCables": [
+				{
+					"patchCable": {
+						"source": "velocity",
+						"destination": "volume",
+						"amount": "0x3FFFFFE8"
+					}
+				},
+				{
+					"patchCable": {
+						"source": "lfo2",
+						"destination": "pitch",
+						"amount": "0x02800000"
+					}
+				},
+				{
+					"patchCable": {
+						"source": "note",
+						"destination": "modulator1Volume",
+						"amount": "0xD1EB8530"
+					}
+				},
+				{
+					"patchCable": {
+						"source": "lfo1",
+						"destination": "modulator1Volume",
+						"amount": "0x0CCCCCC8",
+						"depthControlledBy": [
+							{
+								"patchCable": {
+									"source": "envelope2",
+									"amount": "0x3EB851D4",
+									"polarity": "bipolar"
+								}
+							}
+						]
+					}
+				},
+				{
+					"patchCable": {
+						"source": "note",
+						"destination": "modulator2Volume",
+						"amount": "0xE000000C"
+					}
+				},
+				{
+					"patchCable": {
+						"source": "lfo2",
+						"destination": "modulator2Volume",
+						"amount": "0x0E147ADC"
+					}
+				},
+				{
+					"patchCable": {
+						"source": "note",
+						"destination": "carrier2Feedback",
+						"amount": "0xC0000018"
+					}
+				},
+				{
+					"patchCable": {
+						"source": "envelope2",
+						"destination": "carrier2Feedback",
+						"amount": "0x2F5C28E4"
+					}
+				},
+				{
+					"patchCable": {
+						"source": "velocity",
+						"destination": "carrier2Feedback",
+						"amount": "0x19999990"
+					}
+				},
+				{
+					"patchCable": {
+						"source": "aftertouch",
+						"destination": "volume",
+						"polarity": "unipolar",
+						"amount": "0x2A3D7094"
+					}
+				},
+				{
+					"patchCable": {
+						"source": "y",
+						"destination": "modulator1Volume",
+						"polarity": "bipolar",
+						"amount": "0x1333332C"
+					}
+				}
+			],
+			"stutterRate": "0x00000000",
+			"sampleRateReduction": "0x80000000",
+			"bitCrush": "0x80000000",
+			"equalizer": {
+				"bass": "0x00000000",
+				"treble": "0x00000000",
+				"bassFrequency": "0x00000000",
+				"trebleFrequency": "0x00000000"
+			},
+			"modFXOffset": "0xFFC00000",
+			"modFXFeedback": "0xFFFFFFAA"
+		},
+		"midiKnobs": [],
+		"modKnobs": [
+			{
+				"modKnob": {
+					"controlsParam": "pan"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "volumePostFX"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "modulator2Volume"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "modulator1Volume"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "env1Release"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "env1Attack"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "delayFeedback"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "delayRate"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "reverbAmount"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "volumePostReverbSend",
+					"patchAmountFromSource": "compressor"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "pitch",
+					"patchAmountFromSource": "lfo2"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "lfo2Rate"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "portamento"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "stutterRate"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "modulator1Feedback"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "carrier2Feedback"
+				}
+			}
+		],
+		"hpfMode": "Off"
+	}
+}

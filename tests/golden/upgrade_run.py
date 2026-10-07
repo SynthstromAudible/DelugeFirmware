@@ -6,6 +6,10 @@ record what the firmware saves after loading each original: tests/golden/songs_f
 tests/golden/presets_fixtures.json hash save(load(file)), and tests/integration/golden/presets.json records each golden
 preset's render. So the upgraded file's round trip must hash, and its render match, exactly what its original's did.
 
+The song corpus and the SYNTHS and KITS folders beside it are kept upgraded (their fixtures keyed by the upgraded,
+`.json`, names); DELUGE_LEGACY_CORPUS names the original corpus they were upgraded from, and when it is set each
+original is upgraded again and must round-trip to its upgraded fixture's hash.
+
 Cases: the committed synthetic songs, the upgrader's legacy fixtures (tests/golden/upgrade/<group>/<name>.<kind>.XML,
 kind synth, kit or song; their hashes in tests/golden/upgrade_fixtures.json) and the golden preset corpus always; the
 song corpus and the SYNTHS and KITS folders beside it when DELUGE_SONG_CORPUS names one. --filter takes a substring of
@@ -49,6 +53,16 @@ def legacy_cases():
         if kind in KINDS:
             out.append((str(path.relative_to(HERE)), path, KINDS[kind]))
     return out
+
+
+def original(base: Path, key: str) -> Path:
+    """The original a corpus fixture's upgraded (`.json`) key was made from."""
+    stem = key.removesuffix(".json")
+    for suffix in (".XML", ".xml", ""):
+        path = base / (stem + suffix)
+        if path.is_file():
+            return path
+    return base / key
 
 
 def round_trip(binary, path, kind, timeout):
@@ -114,7 +128,7 @@ def main(argv=None) -> int:
         )
         return 0
     tool = build_tool()
-    corpus = os.environ.get("DELUGE_SONG_CORPUS") or ""
+    corpus = os.environ.get("DELUGE_LEGACY_CORPUS") or ""
     songs = json.loads((HERE / "songs_fixtures.json").read_text())
     presets = json.loads((HERE / "presets_fixtures.json").read_text())
 
@@ -133,7 +147,7 @@ def main(argv=None) -> int:
             if key.startswith(songs_run.SYNTHETIC_PREFIX):
                 source = HERE / key
             elif corpus:
-                source = Path(corpus) / key
+                source = original(Path(corpus), key)
             else:
                 continue
             if source.is_file():
@@ -143,7 +157,7 @@ def main(argv=None) -> int:
         if corpus:
             beside = Path(corpus).parent
             for key in sorted(presets):
-                source = beside / key
+                source = original(beside, key)
                 if args.filter in key and source.is_file():
                     cases.append(("preset", key, source, presets[key], None))
 

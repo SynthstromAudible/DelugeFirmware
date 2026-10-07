@@ -89,6 +89,11 @@ fn drop_times(zone: &mut Node) {
 
 /// A zone in milliseconds, before official 2.1: once its sample loaded, the firmware made positions of it.
 fn convert_zone(zone: &mut Node, file: &str, reversed: bool, ctx: &mut Context) {
+    // A source with no file loads no sample: nothing converted its zone, and a current file's milliseconds are unread.
+    if file.is_empty() {
+        drop_times(zone);
+        return;
+    }
     let (start_ms, end_ms) = zone_times(zone);
     let Some(card) = ctx.card.clone() else {
         ctx.note(
