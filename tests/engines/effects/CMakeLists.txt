@@ -1,5 +1,5 @@
-# The filter set the effects' filter runs is compiled into the app; the specs build it (and the noise generator its
-# ladders read) themselves.
+# This tree builds no dsp-next library (deluge_dsp_fixed), so the specs compile the filter set the effects' filter runs,
+# and the noise generator its ladders read, themselves.
 set(_dsp_filter ${CMAKE_CURRENT_LIST_DIR}/../../../src/deluge/dsp-next/fixed/filter)
 deluge_specs_driver(effects_specs
   SOURCES ${CMAKE_CURRENT_LIST_DIR}/../../support/mocks/mock_panic.cpp

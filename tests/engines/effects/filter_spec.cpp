@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// effects::Filter: a host chain's filters, each switched on by its params. The exact values are the legacy host-chain
-// path's outputs (GlobalEffectable::setupFilterSetConfig's gates feeding the legacy filter set), from a fresh filter
-// with the synth-wide noise generator seeded the same.
+// effects::Filter: a host chain's filters, each switched on by its params. Exact reference values pin the gates, the
+// modes reaching the set, the parallel route with the high-pass fading in, and the volume compensation, each case from
+// a fresh filter with the synth-wide noise generator seeded the same.
 
 #include "engines/effects/filter.h"
 
@@ -53,7 +53,7 @@ const std::vector<int32_t> kInput{
     18578569,  -18641844, 6420363,   12840725,  9908702,   32909693,  -35589850, 23726566,  -36182765, -6546145,
     -15500126, -31000253, -32591589, -27899491};
 
-/// The legacy outputs of a 24dB low-pass partly closed in parallel with the high-pass, the high-pass's params at their
+/// The outputs of a 24dB low-pass partly closed in parallel with the high-pass, the high-pass's params at their
 /// minimum (off) for the first block and its cutoff param raised (on, fading in) for the second.
 constexpr int32_t kLowOnlyVolume = 167960548;
 const std::vector<int32_t> kLowOnly{
@@ -74,7 +74,7 @@ const std::vector<int32_t> kBoth{
     43252946,  -10113492, 65455298,  17458114,  82578570,  27927688,  24563862,  12094738,  -9020354,  -15908634,
     -30727014, -30747944, -85340530, -18692418};
 constexpr int32_t kNoiseAfter = 1658262933;
-/// The legacy output of the drive ladder with its cutoff fully open.
+/// The output of the drive ladder with its cutoff fully open.
 constexpr int32_t kDriveOpenVolume = 107494750;
 const std::vector<int32_t> kDriveOpen{
     0,         0,         18499997,  16269687,  26424598,  28212058,  22603296,  21075005,  30334959,  -18406510,
@@ -85,6 +85,65 @@ const std::vector<int32_t> kDriveOpen{
     31004758,  -26375883, 10997239,  1824393,   2847491,   27342442,  -16501300, 27477137,  -31235052, 7808702,
     -26754504, -24939117, -21456107, -27749910};
 constexpr int32_t kDriveOpenNoiseAfter = 1658262933;
+
+/// Each gate opened alone from every filter at minimum (kOpen), in the default route: the low-pass SVF band by its
+/// morph param, the 24dB low-pass by its cutoff param just below fully open, the high-pass ladder by its cutoff param,
+/// and the high-pass SVF notch by its morph param.
+constexpr int32_t kLowMorphGateVolume = 134368438;
+const std::vector<int32_t> kLowMorphGate{
+    0,         0,         17934795,  15398622,  51122892,  53637447,  5237589,   13971030,  58287465,  -31003941,
+    19310130,  -38107779, -54148536, -24468702, 12108846,  17073600,  -44187399, 45180714,  -74904045, 28106832,
+    31881195,  -10377270, -12418425, -40095705, -8577726,  -35765268, 91047738,  2075607,   11287608,  37351782,
+    651054,    39163680,  57240333,  6753360,   -54743178, -31993968, -48898860, -42384987, 11790018,  -14789226,
+    -73957428, 25659024,  -15057285, 43442001,  57767094,  22602681,  -17344101, -18364188, 46844718,  -42993894,
+    75334419,  -29385939, -33403782, 10310076,  13561536,  40855473,  8424084,   35104191,  -91431021, -1904103,
+    -10874787, -37144635, -815445,   -39449772};
+constexpr int32_t kLowCutoffGateVolume = 167960548;
+const std::vector<int32_t> kLowCutoffGate{
+    0,         0,         20762732,  17714644,  17489380,  26431604,  18368812,  4429644,   35198244,  -14691016,
+    -10079984, -26381068, -5103192,  -10718592, -9676576,  12655700,  -40409604, 24477644,  -13628752, 16635636,
+    -6139652,  -9615084,  -5745460,  -22733312, 19908092,  -20601884, 33734524,  4536972,   7604320,   21778392,
+    24867128,  22263992,  5193672,   1821756,   -28253920, -20680148, -8851948,  -22904980, -27227760, -7866732,
+    -27198472, 18020992,  3507248,   23765604,  9277920,   12262128,  8207984,   -13339780, 38986552,  -24879188,
+    17504000,  -15321940, 520368,    7649108,   12278776,  25206012,  -26598448, 18011068,  -27978596, -2172772,
+    -11971268, -23696152, -22341524, -21018992};
+constexpr int32_t kHighCutoffGateVolume = 134368436;
+const std::vector<int32_t> kHighCutoffGate{
+    0,         0,         31326464,  26816512,  6054912,   22226432,  23923200,  -7811584,  16332544,  -35096832,
+    -32425984, -34212096, -20364032, -5061888,  -26296832, 27097088,  -49194240, 34154752,  -4394496,  10176512,
+    9277184,   -23287552, 3863296,   -36330240, 46801664,  -17249280, 34327296,  17066496,  4422144,   36161024,
+    19039232,  23089664,  -18093824, -10512128, -44794624, -34768128, -15880448, -28113920, -30955520, 3537664,
+    -21271296, 32052736,  29024000,  32084736,  18068736,  3603968,   24783616,  -28075008, 48222976,  -34795520,
+    3791616,   -10584576, -9635584,  23036928,  -4062976,  36183296,  -46901760, 17169152,  -34367488, -17105152,
+    -4428032,  -36174848, -19027200, -23089664};
+constexpr int32_t kHighMorphNotchVolume = 134368438;
+const std::vector<int32_t> kHighMorphNotch{
+    0,         0,         42776460,  36618081,  20343912,  40687830,  47489877,  8591814,   46711674,  -31141119,
+    -13005171, -43193973, -8426727,  -16853454, -24384372, 24467418,  -66060288, 44040189,  -24384372, 24467418,
+    -8426727,  -16853454, -13005171, -43193973, 46711674,  -31141119, 47489877,  8591814,   20343912,  40687830,
+    42776460,  36618081,  0,         0,         -42776463, -36618084, -20343915, -40687833, -47489880, -8591817,
+    -46711677, 31141116,  13005168,  43193970,  8426724,   16853451,  24384369,  -24467421, 66060285,  -44040192,
+    24384369,  -24467421, 8426724,   16853451,  13005168,  43193970,  -46711677, 31141116,  -47489880, -8591817,
+    -20343915, -40687833, -42776463, -36618084};
+/// The low-pass partly closed (kLowOnlyParams) as a 12dB and as a 24dB ladder, in the default route.
+constexpr int32_t kLow12dBVolume = 167960548;
+const std::vector<int32_t> kLow12dB{
+    0,         0,         -2790780,  -2407064,  -4741088,   -5580584,  2342396,   2263536,   15774536,  24436504,
+    35676604,  42914224,  55111020,  35541232,  53224268,   -855996,   28505640,  -43570136, -10600036, -59749468,
+    -56284532, -34676392, -84993684, 14692864,  -80985080,  51933220,  -49079668, 49581988,  4118900,   11745224,
+    59885356,  -30029948, 93648068,  -42896084, 96885336,   -19827952, 65852640,  15789384,  8781792,   31904624,
+    -49493976, 16074972,  -93108640, -14431824, -108192604, -29504196, -81442288, -14301912, -26296852, 17151892,
+    36010640,  34960032,  90359260,  21031636,  111895880,  -13904808, 90481124,  -39227616, 40676008,  -31730804,
+    -23359412, 3375176,   -80329544, 36439416};
+constexpr int32_t kLow24dBVolume = 167960548;
+const std::vector<int32_t> kLow24dB{
+    0,         0,         441764,    379392,   2753044,   2597964,  8235132,   8089560,   16425260,  14937300,
+    24777104,  17201860,  28560464,  9826292,  22916812,  -5525836, 6878996,   -19965900, -15684724, -23494108,
+    -37258028, -13011276, -48714204, 4690956,  -43900048, 17772348, -22861164, 18253520,  8434896,   7776384,
+    39554740,  -4450940,  59147348,  -9567684, 59560572,  -6035324, 39448624,  178116,    4684496,   1962884,
+    -33317148, -2097576,  -61863072, -6673104, -70554232, -5219948, -55053840, 3184040,   -20115708, 12235416,
+    22491540,  13680540,  58370136,  4831740,  74575908,  -8420500, 64963452,  -16059884, 33065216,  -12200920,
+    -10127236, -38432,    -50050500, 10785956};
 
 /// Every filter at minimum: the low-pass fully open, the high-pass off.
 constexpr FilterParams kOpen{
@@ -149,11 +208,16 @@ struct Rig {
 	}
 };
 
-/// The output of a fresh filter for @p state and @p params.
-std::vector<int32_t> fresh(const FilterState& state, const FilterParams& params) {
+/// The output of a fresh filter for @p state and @p params, and the volume it returned.
+struct Fresh {
+	std::vector<int32_t> output;
+	int32_t volume;
+};
+Fresh fresh(const FilterState& state, const FilterParams& params) {
 	jcong = kSeed;
 	Rig rig;
-	return rig.run(state, params);
+	std::vector<int32_t> output = rig.run(state, params);
+	return {.output = output, .volume = rig.volume};
 }
 
 /// The volume after only the set's scaling (no filter's compensation).
@@ -181,36 +245,52 @@ describe filter("a host chain's filters, switched on by their params", ${
 	it("runs the low-pass while its morph is above minimum", _ {
 		FilterParams params = kOpen;
 		params.lpf_morph_param = kMinimum + 1;
-		expect(fresh({.lpf_mode = FilterMode::SVF_BAND}, params) == kInput).to_be_false();
+		const Fresh run = fresh({.lpf_mode = FilterMode::SVF_BAND}, params);
+		expect(run.output).not_().to_equal(kInput);
+		expect(run.output).to_equal(kLowMorphGate);
+		expect(run.volume).to_equal(kLowMorphGateVolume);
 	});
 	it("runs the low-pass while its cutoff param is below fully open", _ {
 		FilterParams params = kOpen;
 		params.lpf_frequency_param = Filter::kLowPassOpen - 1;
-		expect(fresh({}, params) == kInput).to_be_false();
+		const Fresh run = fresh({}, params);
+		expect(run.output).not_().to_equal(kInput);
+		expect(run.output).to_equal(kLowCutoffGate);
+		expect(run.volume).to_equal(kLowCutoffGateVolume);
 	});
 	it("counts a cutoff param within the open margin as fully open", _ {
 		FilterParams params = kOpen;
 		params.lpf_frequency_param = Filter::kLowPassOpen;
-		expect(fresh({}, params)).to_equal(kInput);
+		expect(fresh({}, params).output).to_equal(kInput);
 	});
 	it("runs the high-pass while its cutoff param is above minimum", _ {
 		FilterParams params = kOpen;
 		params.hpf_frequency_param = kMinimum + 1;
 		params.hpf_frequency = 1 << 23;
-		expect(fresh({}, params) == kInput).to_be_false();
+		const Fresh run = fresh({}, params);
+		expect(run.output).not_().to_equal(kInput);
+		expect(run.output).to_equal(kHighCutoffGate);
+		expect(run.volume).to_equal(kHighCutoffGateVolume);
 	});
-	it("runs the high-pass while its morph is above minimum", _ {
+	it("runs the high-pass while its morph is above minimum, in the state's mode", _ {
 		FilterParams params = kOpen;
 		params.hpf_morph_param = kMinimum + 1;
 		params.hpf_morph = 1 << 26;
-		expect(fresh({.hpf_mode = FilterMode::SVF_NOTCH}, params) == kInput).to_be_false();
+		const Fresh run = fresh({.hpf_mode = FilterMode::SVF_NOTCH}, params);
+		expect(run.output).not_().to_equal(kInput);
+		expect(run.output).to_equal(kHighMorphNotch);
+		expect(run.volume).to_equal(kHighMorphNotchVolume);
 	});
 	it("runs the low-pass in the state's mode", _ {
-		expect(fresh({.lpf_mode = FilterMode::TRANSISTOR_12DB}, kLowOnlyParams)
-		       == fresh({.lpf_mode = FilterMode::TRANSISTOR_24DB}, kLowOnlyParams))
-		    .to_be_false();
+		const Fresh half = fresh({.lpf_mode = FilterMode::TRANSISTOR_12DB}, kLowOnlyParams);
+		const Fresh full = fresh({.lpf_mode = FilterMode::TRANSISTOR_24DB}, kLowOnlyParams);
+		expect(half.output).not_().to_equal(full.output);
+		expect(half.output).to_equal(kLow12dB);
+		expect(half.volume).to_equal(kLow12dBVolume);
+		expect(full.output).to_equal(kLow24dB);
+		expect(full.volume).to_equal(kLow24dBVolume);
 	});
-	it("filters as the legacy chain did, the high-pass switched on in parallel fading in", _ {
+	it("runs both in parallel, the high-pass switched on fading in", _ {
 		jcong = kSeed;
 		Rig rig;
 		const FilterState state{.lpf_mode = FilterMode::TRANSISTOR_24DB, .route = FilterRoute::PARALLEL};

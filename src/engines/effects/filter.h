@@ -61,7 +61,8 @@ struct FilterParams {
 /// morph is above minimum.
 class Filter {
 public:
-	/// @brief The cutoff param value below which the low-pass runs (Q31): within 46 of fully open counts as open.
+	/// @brief The cutoff param value below which the low-pass runs (Q31): from here up to fully open (INT32_MAX, 45
+	/// above) counts as open.
 	static constexpr int32_t kLowPassOpen = 2147483602;
 
 	/// @brief Takes one block's settings.

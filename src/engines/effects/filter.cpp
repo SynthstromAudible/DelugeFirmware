@@ -19,7 +19,9 @@
 
 #include "engines/effects/filter_slots.h"
 
+#include <cstddef>
 #include <limits>
+#include <type_traits>
 
 namespace deluge::effects {
 
@@ -48,6 +50,9 @@ int32_t Filter::configure(const FilterState& state, const FilterParams& params, 
 
 void Filter::process(std::span<dsp::StereoSample> block, dsp::fixed::FilterScratch scratch) {
 	// The set reads the frames as one interleaved run of samples, left then right.
+	static_assert(std::is_standard_layout_v<dsp::StereoSample>);
+	static_assert(offsetof(dsp::StereoSample, l) == 0);
+	static_assert(offsetof(dsp::StereoSample, r) == sizeof(dsp::q31));
 	static_assert(sizeof(dsp::StereoSample) == 2 * sizeof(dsp::q31));
 	set_.renderStereo({&block.data()->l, block.size() * 2}, scratch);
 }
