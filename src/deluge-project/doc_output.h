@@ -53,8 +53,10 @@ struct DocOutput {
 	/// The output's knobs: a synth track's mod knobs and learned MIDI knobs, a kit's or an audio track's learned MIDI
 	/// knobs, each pointed at a param of its engine.
 	std::vector<ControllerMapping> controls;
+	/// A kit's or an audio track's effects; absent for every other kind.
+	std::optional<FxChain> effects;
 
-	/// Equal when the identity fields, the instrument and the controls are.
+	/// Equal when the identity fields, the instrument, the controls and the effects are.
 	bool operator==(const DocOutput& other) const {
 		return name == other.name && colour == other.colour && mod_knob_mode == other.mod_knob_mode
 		       && muted_in_arrangement == other.muted_in_arrangement
@@ -65,7 +67,7 @@ struct DocOutput {
 		       && device_definition_file_name == other.device_definition_file_name
 		       && collapse_aftertouch == other.collapse_aftertouch && collapse_mpe == other.collapse_mpe
 		       && output_mpe_y == other.output_mpe_y && cv2_source == other.cv2_source && instrument == other.instrument
-		       && controls == other.controls;
+		       && controls == other.controls && effects == other.effects;
 	}
 };
 

@@ -47,6 +47,18 @@ ENGINE_WORDS = (
     "PATCH_CABLE",
     "PatchSource",
     "ParamDescriptor",
+    # The effects' state: the model keeps a chain's slots as values it does not interpret.
+    "EffectStates",
+    "FilterState",
+    "SaturationState",
+    "ModFxState",
+    "DelayState",
+    "StutterState",
+    "CompressorState",
+    "SidechainState",
+    "FilterMode",
+    "FilterRoute",
+    "ModFXType",
 )
 PATTERN = re.compile(r"\b(" + "|".join(ENGINE_WORDS) + r")\b")
 SUFFIXES = {".h", ".hpp", ".cpp", ".c", ".cc", ".inc"}

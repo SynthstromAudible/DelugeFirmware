@@ -106,6 +106,32 @@ describe equality_sabotage("the model-equality gate", ${
 		expect(result.error_or("")).to_partially_match("sound/osc1/type");
 	});
 
+	it("names a kit's effects when a slot is dropped", _ {
+		EqualityFaults faults;
+		faults.on_decoded = [](SongDocument& document) {
+			for (auto& [id, output] : document.outputs) {
+				if (output.effects && !output.effects->slots.empty()) {
+					output.effects->slots.pop_back();
+					return;
+				}
+			}
+		};
+		auto result = check_equality(fixture(), false, faults);
+		expect(result).to_have_error();
+		expect(result.error_or("")).to_partially_match("effects");
+	});
+
+	it("names the master's effects when an effect setting changes", _ {
+		EqualityFaults faults;
+		faults.on_decoded = [](SongDocument& document) {
+			document.master_effects.slots[0].state.set("modFXType",
+			                                           deluge::serialization::Value::makeScalar("chorus"));
+		};
+		auto result = check_equality(fixture(), false, faults);
+		expect(result).to_have_error();
+		expect(result.error_or("")).to_partially_match("master effects");
+	});
+
 	it("fails, naming the output, when a synth track's sound changes", _ {
 		EqualityFaults faults;
 		faults.on_decoded = [](SongDocument& document) {

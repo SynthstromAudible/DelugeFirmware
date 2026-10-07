@@ -205,7 +205,10 @@
 			presetFolder="KITS"
 			defaultVelocity="100"
 			activeModFunction="1"
-			colour="4">
+			colour="4"
+			modFXCurrentParam="feedback"
+			modFXType="chorus"
+			lpfMode="SVF_Notch">
 			<midiKnobs>
 				<midiKnob channel="2" ccNumber="74" relative="0" controlsParam="lpfFrequency">
 					<device port="din" />

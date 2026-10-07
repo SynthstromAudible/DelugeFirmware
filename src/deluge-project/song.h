@@ -56,6 +56,9 @@ public:
 	/// @brief The controller mappings @p address names: an output's, a kit row's or the song's own, or nullptr for an
 	/// output or a drum this song has no record of.
 	std::vector<ControllerMapping>* resolveControls(ControlsAddress address);
+	/// @brief The chain @p address names: a kit's or an audio track's, or the master's; nullptr for an output this song
+	/// has no record of or whose record holds no chain.
+	[[nodiscard]] FxChain* resolveChain(ChainAddress address);
 
 	/// M3 owner-1 (clip structure): resolve a clip's DOM-owned structural record (find; nullptr if not tree-resident),
 	/// or getOrCreate it (bound as the clip's authoritative `docClip_` in the Clip ctor). Mirrors resolveParam's CLIP
@@ -83,6 +86,8 @@ public:
 	DocParamManager master_params;
 	/// The song's own learned MIDI knobs, on its effects: refreshed from the runtime at load and at save.
 	std::vector<ControllerMapping> controls;
+	/// The song master's effects: refreshed from the runtime at load, written by its Edits.
+	FxChain master_effects;
 	ClipParams clip_params;     // per-clip automation stores, keyed by Clip::id (id-addressable node storage)
 	BackedParams backed_params; // instrument-shared automation, keyed by (owner, clip) — persistent form of ParamBackup
 	ClipStructure clip_structure; // M3 owner-1: per-clip structural records (loop_length…), keyed by Clip::id

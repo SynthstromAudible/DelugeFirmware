@@ -35,6 +35,11 @@ using serialization::Value;
 
 namespace {
 
+/// Whether an output @p element runs a host chain of effects: a kit or an audio track.
+bool has_chain(std::string_view element) {
+	return element == "kit" || element == "audioTrack";
+}
+
 /// The naming of the engine whose params the controls of a @p element (`sound`, `kit`, `audioTrack`, `song`) point
 /// at, or nullptr when that element has no controls or @p engines has no naming for its engine.
 const deluge::engine::ParamNaming* naming_of(std::string_view element, const CodecEngines& engines) {
@@ -135,6 +140,11 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 	if (const deluge::engine::ParamNaming* naming = naming_of("song", engines)) {
 		document.controls = decode_controls(*song, *naming);
 	}
+	const int32_t magnitude =
+	    document.transport.inside_world_tick_magnitude + document.transport.inside_world_tick_magnitude_offset_from_bpm;
+	if (engines.chains.decode != nullptr) {
+		document.master_effects = engines.chains.decode(*song, ChainHome::MASTER, magnitude);
+	}
 
 	const auto sessionClips = clip_list(*song, {"sessionClips", "tracks"});
 	const auto arrangementClips = clip_list(*song, {"arrangementOnlyTracks", "arrangementOnlyClips"});
@@ -165,8 +175,6 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 		}
 	}
 
-	const int32_t magnitude =
-	    document.transport.inside_world_tick_magnitude + document.transport.inside_world_tick_magnitude_offset_from_bpm;
 	for (const NamedChild& output : outputs) {
 		if (!is_output_element(output.name) || !output.node->isMap()) {
 			continue;
@@ -179,6 +187,9 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 		}
 		if (const deluge::engine::ParamNaming* naming = naming_of(output.name, engines)) {
 			record.controls = decode_controls(*output.node, *naming);
+		}
+		if (has_chain(output.name) && engines.chains.decode != nullptr) {
+			record.effects = engines.chains.decode(*output.node, ChainHome::CLIP, magnitude);
 		}
 		if (const Value* sources = output.node->find("soundSources")) {
 			for (const NamedChild& drum : children(*sources)) {
@@ -273,6 +284,9 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 	if (const deluge::engine::ParamNaming* naming = naming_of("song", engines)) {
 		encode_controls(song.controls, *naming, map);
 	}
+	if (engines.chains.encode != nullptr) {
+		engines.chains.encode(song.master_effects, map, magnitude);
+	}
 	if (Value macros = encode_macros(song.arrangement); !macros.items().empty()) {
 		map.set("sessionMacros", std::move(macros));
 	}
@@ -285,6 +299,9 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 		append_entries(element, encode_identity(output, entry.element));
 		if (const deluge::engine::ParamNaming* naming = naming_of(entry.element, engines)) {
 			encode_controls(output.controls, *naming, element);
+		}
+		if (output.effects && engines.chains.encode != nullptr) {
+			engines.chains.encode(*output.effects, element, magnitude);
 		}
 		if (output.instrument) {
 			append_entries(element, output.instrument->state);

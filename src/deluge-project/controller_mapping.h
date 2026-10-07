@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "deluge-project/fx_chain.h"
 #include "deluge-project/midi_command.h"
 #include "engine-api/types/param.h"
 #include "engine-api/types/param_naming.h"
@@ -61,6 +62,8 @@ struct ControlsAddress {
 /// @brief The engines whose params the codecs may meet, with how each names them.
 struct CodecEngines {
 	std::span<const deluge::engine::ParamNaming> namings;
+	/// How a host owner's effects are read and written; unset, the model keeps no chains.
+	ChainCodec chains;
 };
 
 } // namespace deluge::project

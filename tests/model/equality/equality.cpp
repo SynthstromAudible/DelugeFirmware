@@ -78,6 +78,14 @@ std::string difference(const SongDocument& a, const SongDocument& b) {
 	if (!(a.audio_clips == b.audio_clips)) {
 		return "audio clip " + first_differing_id(a.audio_clips, b.audio_clips);
 	}
+	if (!(a.master_effects == b.master_effects)) {
+		return "master effects";
+	}
+	for (const auto& [id, output] : a.outputs) {
+		if (auto it = b.outputs.find(id); it != b.outputs.end() && !(it->second.effects == output.effects)) {
+			return std::format("output {} effects", id);
+		}
+	}
 	if (!(a.outputs == b.outputs)) {
 		return "output " + first_differing_id(a.outputs, b.outputs);
 	}

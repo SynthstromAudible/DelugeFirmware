@@ -3,6 +3,7 @@
 // The engines the model's tests decode and encode with: the Deluge instrument and the provisional global-effectable
 // table, with how each names its params.
 
+#include "chain_test_engines.h"
 #include "deluge-project/controller_mapping.h"
 #include "engines/deluge/naming.h"
 #include "engines/global_effectable/naming.h"
@@ -20,7 +21,7 @@ inline const std::array<deluge::engine::ParamNaming, 2>& test_namings() {
 
 /// @brief The engines the tests' codecs use.
 inline CodecEngines test_engines() {
-	return CodecEngines{.namings = test_namings()};
+	return CodecEngines{.namings = test_namings(), .chains = test_chain_codec()};
 }
 
 } // namespace deluge::project::test

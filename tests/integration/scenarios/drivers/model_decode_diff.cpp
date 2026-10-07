@@ -151,6 +151,10 @@ std::string what_differs(const deluge::project::DocOutput& e, const deluge::proj
 		out += " controls (engine " + std::to_string(e.controls.size()) + ", decoded "
 		       + std::to_string(d.controls.size()) + ")";
 	}
+	if (!(e.effects == d.effects)) {
+		out += std::string(" effects (engine ") + (e.effects ? "a chain" : "none") + ", decoded "
+		       + (d.effects ? "a chain" : "none") + ")";
+	}
 	return out;
 }
 
@@ -351,6 +355,11 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 	if (!(m.controls == d.controls)) {
 		std::fprintf(io.err, "DECODE DIFF: the song's controls differ (engine %zu, decoded %zu)\n", m.controls.size(),
 		             d.controls.size());
+		return 3;
+	}
+	if (!(m.master_effects == d.master_effects)) {
+		std::fprintf(io.err, "DECODE DIFF: the master's effects differ (engine %zu slots, decoded %zu)\n",
+		             m.master_effects.slots.size(), d.master_effects.slots.size());
 		return 3;
 	}
 	// The slots: the song that wrote the file holds what it wrote (refreshed at save); the song read from it holds what

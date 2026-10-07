@@ -97,6 +97,14 @@ std::vector<ControllerMapping>* Song::resolveControls(ControlsAddress address) {
 	return &controls;
 }
 
+FxChain* Song::resolveChain(ChainAddress address) {
+	if (address.kind == ChainAddress::Kind::SONG) {
+		return &master_effects;
+	}
+	DocOutput* output = output_structure.find(address.id);
+	return output != nullptr && output->effects ? &*output->effects : nullptr;
+}
+
 // M3 owner-1 (clip structure): a clip's structural record is tree-resident by its durable id (clip_structure),
 // always set at construction (durable-id Phase 0), so there is no transient session-keyed store.
 DocClip* Song::resolveClip(const ClipAddress& address) {

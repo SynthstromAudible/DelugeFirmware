@@ -79,6 +79,8 @@ struct SongDocument {
 	std::map<uint32_t, DocDrum> drums;
 	/// The song's own learned MIDI knobs, on its effects.
 	std::vector<ControllerMapping> controls;
+	/// The song master's effects.
+	FxChain master_effects;
 	/// The entry of the clip with @p id, or nullptr.
 	[[nodiscard]] const ClipEntry* clip_entry(uint32_t id) const;
 
