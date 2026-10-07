@@ -48,6 +48,16 @@ set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/inter
 # The chunker caches each chunk's sinc kernel via windowed_sinc_kernel.select().
 set(wavetable_cycle_chunker_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
 
+# The filters: each spec builds all three (the noise stream is the jcong generator in waves.cpp).
+set(_filter_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/filter/low_pass_ladder.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/filter/high_pass_ladder.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/filter/state_variable_filter.cpp
+  ${_repo_root}/src/deluge/util/waves.cpp)
+set(low_pass_ladder_spec_DEPS ${_filter_DEPS})
+set(high_pass_ladder_spec_DEPS ${_filter_DEPS})
+set(state_variable_filter_spec_DEPS ${_filter_DEPS})
+
 # ETL for the synth headers that reach util/etl_string.h (modulation/sync.h, through the LFO). The x86 unit tree links it
 # everywhere; the ARM tree does not, so the specs link it themselves.
 FetchContent_MakeAvailable(etl)
