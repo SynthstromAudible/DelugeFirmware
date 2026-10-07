@@ -1186,6 +1186,21 @@ tier = "nightly"
 runtime = "~20s"
 
 [[harness]]
+name = "host-effect-settings"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a host owner's effects go through its chain: for every kit, audio track and master of every corpus song, every legal value of every effect setting is a SetEffectSetting after which the owner reads it back, each chain slot is the encoding of the owner's state and the render copy is the state; a tick-magnitude change leaves the delay's and sidechain's sync levels where they were; a changed filter mode and compressor attack survive a save and reload"
+scenario = "host_effect_settings"
+check = "tests/integration/checks/host_driver.py"
+builds = ["golden-vt-render"]
+requires = ["song-xml-corpus"]
+tier = "nightly"
+runtime = "~30s"
+
+[[harness]]
 name = "engine-settings"
 path = "."
 level = "integration"

@@ -21,6 +21,7 @@ RUNNERS = {
     "clip_clone_roundtrip": "clip_clone_run",
     "edit_undo_redo": "edit_undo_redo_run",
     "engine_settings": "engine_settings_run",
+    "host_effect_settings": "host_effect_settings_run",
     "instrument_codec_decode": "instrument_codec_decode_run",
     "instrument_codec_encode": "instrument_codec_run",
     "instrument_state_roundtrip": "instrument_state_roundtrip_run",
