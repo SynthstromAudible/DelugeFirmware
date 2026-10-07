@@ -62,12 +62,6 @@ ModControllableAudio::ModControllableAudio() {
 
 	// Grain
 
-	// EQ
-	withoutTrebleL = 0;
-	bassOnlyL = 0;
-	withoutTrebleR = 0;
-	bassOnlyR = 0;
-
 	// Filters
 
 	// Sample rate reduction
@@ -109,8 +103,7 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	next.delay.sync_level = from.delay.sync_level;
 	next.stutter = from.stutter;
 	setEffects(next);
-	bassFreq = other->bassFreq; // Eventually, these shouldn't be variables like this
-	trebleFreq = other->trebleFreq;
+	equalizer_.copy_coefficients_from(other->equalizer_);
 	midi_knobs = other->midi_knobs; // Could fail if no RAM... not too big a concern
 }
 
@@ -177,16 +170,6 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 	    *unpatchedParams->docForParam(params::UNPATCHED_COMPRESSOR_THRESHOLD), 0);
 }
 
-bool ModControllableAudio::hasBassAdjusted(ParamManager* paramManager) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(params::UNPATCHED_BASS) != 0);
-}
-
-bool ModControllableAudio::hasTrebleAdjusted(ParamManager* paramManager) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(params::UNPATCHED_TREBLE) != 0);
-}
-
 void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate,
                                      int32_t modFXDepth, const Delay::State& delayWorkingState, int32_t* postFXVolume,
                                      ParamManager* paramManager, bool anySoundComingIn, q31_t reverbSendAmount) {
@@ -203,31 +186,10 @@ void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType m
 	}
 
 	// EQ -------------------------------------------------------------------------------------
-	bool thisDoBass = hasBassAdjusted(paramManager);
-	bool thisDoTreble = hasTrebleAdjusted(paramManager);
-
-	// Bass. No-change represented by 0. Off completely represented by -536870912
-	int32_t positive = (unpatchedParams->getValue(params::UNPATCHED_BASS) >> 1) + 1073741824;
-	int32_t bassAmount = (multiply_32x32_rshift32_rounded(positive, positive) << 1) - 536870912;
-
-	// Treble. No-change represented by 536870912
-	positive = (unpatchedParams->getValue(params::UNPATCHED_TREBLE) >> 1) + 1073741824;
-	int32_t trebleAmount = multiply_32x32_rshift32_rounded(positive, positive) << 1;
-
-	if (thisDoBass || thisDoTreble) {
-
-		if (thisDoBass) {
-			bassFreq = getExp(120000000, (unpatchedParams->getValue(params::UNPATCHED_BASS_FREQ) >> 5) * 6);
-		}
-
-		if (thisDoTreble) {
-			trebleFreq = getExp(700000000, (unpatchedParams->getValue(params::UNPATCHED_TREBLE_FREQ) >> 5) * 6);
-		}
-
-		for (StereoSample& sample : buffer) {
-			doEQ(thisDoBass, thisDoTreble, &sample.l, &sample.r, bassAmount, trebleAmount);
-		}
-	}
+	equalizer_.process(buffer, {.bass = unpatchedParams->getValue(params::UNPATCHED_BASS),
+	                            .treble = unpatchedParams->getValue(params::UNPATCHED_TREBLE),
+	                            .bass_frequency = unpatchedParams->getValue(params::UNPATCHED_BASS_FREQ),
+	                            .treble_frequency = unpatchedParams->getValue(params::UNPATCHED_TREBLE_FREQ)});
 
 	// Delay ----------------------------------------------------------------------------------
 	delay.process(buffer, delayWorkingState);
@@ -321,39 +283,6 @@ void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buff
 	                  {.bitcrush = unpatched->getValue(params::UNPATCHED_BITCRUSHING),
 	                   .sample_rate_reduction = unpatched->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
 	                  *postFXVolume);
-}
-
-inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount,
-                                       int32_t trebleAmount) {
-	int32_t trebleOnlyL;
-	int32_t trebleOnlyR;
-
-	if (doTreble) {
-		int32_t distanceToGoL = *inputL - withoutTrebleL;
-		int32_t distanceToGoR = *inputR - withoutTrebleR;
-		withoutTrebleL += multiply_32x32_rshift32(distanceToGoL, trebleFreq) << 1;
-		withoutTrebleR += multiply_32x32_rshift32(distanceToGoR, trebleFreq) << 1;
-		trebleOnlyL = *inputL - withoutTrebleL;
-		trebleOnlyR = *inputR - withoutTrebleR;
-		*inputL = withoutTrebleL; // Input now has had the treble removed. Or is this bad?
-		*inputR = withoutTrebleR; // Input now has had the treble removed. Or is this bad?
-	}
-
-	if (doBass) {
-		int32_t distanceToGoL = *inputL - bassOnlyL;
-		int32_t distanceToGoR = *inputR - bassOnlyR;
-		bassOnlyL += multiply_32x32_rshift32(distanceToGoL, bassFreq); // 33554432
-		bassOnlyR += multiply_32x32_rshift32(distanceToGoR, bassFreq); // 33554432
-	}
-
-	if (doTreble) {
-		*inputL += (multiply_32x32_rshift32(trebleOnlyL, trebleAmount) << 3);
-		*inputR += (multiply_32x32_rshift32(trebleOnlyR, trebleAmount) << 3);
-	}
-	if (doBass) {
-		*inputL += (multiply_32x32_rshift32(bassOnlyL, bassAmount) << 3);
-		*inputR += (multiply_32x32_rshift32(bassOnlyR, bassAmount) << 3);
-	}
 }
 
 void ModControllableAudio::writeAttributesToFile(Serializer& writer) {

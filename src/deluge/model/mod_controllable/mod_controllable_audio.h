@@ -36,6 +36,7 @@
 
 #include "engine-api/engine.h"
 #include "engines/effects/bitcrush.h"
+#include "engines/effects/equalizer.h"
 #include "engines/effects/state.h"
 
 class Clip;
@@ -145,18 +146,10 @@ public:
 	virtual void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {} // Song may be NULL
 	bool isBitcrushingEnabled(ParamManager* paramManager);
 	bool isSRREnabled(ParamManager* paramManager);
-	bool hasBassAdjusted(ParamManager* paramManager);
-	bool hasTrebleAdjusted(ParamManager* paramManager);
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) override;
 
-	// EQ
-	int32_t bassFreq{}; // These two should eventually not be variables like this
-	int32_t trebleFreq{};
-
-	int32_t withoutTrebleL;
-	int32_t bassOnlyL;
-	int32_t withoutTrebleR;
-	int32_t bassOnlyR;
+	/// The two-band EQ, between the mod FX and the delay.
+	deluge::effects::Equalizer equalizer_;
 
 	// Delay
 	Delay delay;
@@ -217,7 +210,6 @@ protected:
 	void disableGrain();
 
 private:
-	void doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount, int32_t trebleAmount);
 	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
 	                                                       int32_t noteRowIndex);
 	void switchHPFModeWithOff();
