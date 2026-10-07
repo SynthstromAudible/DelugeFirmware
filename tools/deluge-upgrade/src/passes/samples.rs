@@ -149,6 +149,10 @@ fn for_each_zone(sound: &mut Node, f: &mut dyn FnMut(&mut Node, &str, bool)) {
         let Some(source) = sound.get_mut(osc) else {
             continue;
         };
+        // Only a sample source keeps its zones: the firmware drops any other source's.
+        if !is_sample(source) {
+            continue;
+        }
         let reversed = decimal(source.get("reversed")) != 0;
         let file = source
             .get("fileName")

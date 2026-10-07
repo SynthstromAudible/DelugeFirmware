@@ -5,6 +5,7 @@ use crate::upgrade::Context;
 use crate::version::FirmwareVersion;
 
 pub mod cables;
+pub mod params;
 pub mod samples;
 pub mod sound;
 
@@ -37,15 +38,36 @@ pub static ALL: &[Pass] = &[
         before: None,
         run: samples::millisecond_zones,
     },
-    // Version-gated: applied when the file is older than the version named.
+    // Version-gated, in the order a load applied them: a sound's resonance compensation came before its default
+    // expression cables (one of which goes to the filter whose cables the compensation checks).
+    Pass {
+        name: "sound resonance",
+        before: Some(FirmwareVersion::official(1, 2, 0)),
+        run: params::sound_resonance,
+    },
+    Pass {
+        name: "kit resonance",
+        before: Some(FirmwareVersion::official(1, 2, 0)),
+        run: params::kit_resonance,
+    },
+    Pass {
+        name: "default expression cables",
+        before: Some(FirmwareVersion::official_tagged(4, 0, 0, "beta")),
+        run: cables::default_expression_cables,
+    },
     Pass {
         name: "linear interpolation",
         before: Some(FirmwareVersion::official_tagged(2, 1, 0, "beta")),
         run: samples::linear_interpolation,
     },
     Pass {
-        name: "default expression cables",
-        before: Some(FirmwareVersion::official_tagged(4, 0, 0, "beta")),
-        run: cables::default_expression_cables,
+        name: "arpeggiator rate",
+        before: Some(FirmwareVersion::official_tagged(1, 5, 0, "pretest")),
+        run: params::arpeggiator_rate,
+    },
+    Pass {
+        name: "swing interval",
+        before: Some(FirmwareVersion::official_tagged(3, 1, 0, "alpha2")),
+        run: params::swing_interval,
     },
 ];
