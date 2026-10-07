@@ -42,6 +42,8 @@ TOOL = ROOT / "tools" / "deluge-upgrade"
 GOLDEN = ROOT / "tests" / "integration" / "golden" / "presets"
 LEGACY = HERE / "upgrade"
 LEGACY_FIXTURES = HERE / "upgrade_fixtures.json"
+# The originals of the golden millisecond-zone cases, each beside its sample.
+RENDER_ORIGINALS = LEGACY / "render"
 KINDS = {"synth": "SYNTH", "kit": "KIT", "song": "song"}
 
 
@@ -203,6 +205,7 @@ def main(argv=None) -> int:
         # Golden presets: the upgraded corpus renders exactly as recorded.
         if not args.no_render and (not args.filter or "golden" in args.filter):
             upgraded = work / "golden"
+            reissued = 0
             shutil.copytree(
                 GOLDEN, upgraded, ignore=shutil.ignore_patterns("*.xml", "*.XML")
             )
@@ -218,6 +221,44 @@ def main(argv=None) -> int:
                 shutil.copy(wav, card / "SAMPLES" / "WT.WAV")
                 target = upgraded / preset.parent.relative_to(GOLDEN)
                 converted, err = upgrade(tool, preset, target, card, report)
+            # The re-issued cases are upgraded again from their originals, over the copies: the millisecond zones
+            # against their own sample, the factory presets from the legacy corpus with it as the card.
+            for preset in sorted(RENDER_ORIGINALS.glob("*.xml")):
+                if not converted:
+                    break
+                card = work / "card" / ("ms-" + preset.stem)
+                (card / "SAMPLES").mkdir(parents=True)
+                shutil.copy(preset.with_suffix(".wav"), card / "SAMPLES" / "WT.WAV")
+                converted, err = upgrade(
+                    tool, preset, upgraded / "upgrade", card, report
+                )
+                reissued += 1
+            factory = sorted((GOLDEN / "factory").glob("*.json"))
+            backup = Path(corpus).parent if corpus else None
+            if backup is None or not (backup / "SYNTHS").is_dir():
+                fail += 1
+                print(
+                    "UPGRADE-FAIL golden: the factory presets' originals need DELUGE_LEGACY_CORPUS "
+                    "(its ../SYNTHS)"
+                )
+            else:
+                for preset in factory:
+                    if not converted:
+                        break
+                    source = backup / "SYNTHS" / (preset.stem + ".XML")
+                    if not source.is_file():
+                        fail += 1
+                        print(
+                            f"UPGRADE-FAIL golden: no original for factory/{preset.name}"
+                        )
+                        continue
+                    converted, err = upgrade(
+                        tool, source, upgraded / "factory", backup, report
+                    )
+                    reissued += 1
+            print(
+                f"UPGRADE-REISSUED {reissued} golden case(s) upgraded from their originals"
+            )
             if not converted:
                 fail += 1
                 print(f"UPGRADE-FAIL golden: the upgrader failed: {err.strip()[-300:]}")

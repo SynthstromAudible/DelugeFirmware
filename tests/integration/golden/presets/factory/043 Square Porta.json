@@ -4,20 +4,16 @@
 		"osc1": {
 			"type": "square",
 			"transpose": 0,
-			"cents": 0
+			"cents": 0,
+			"retrigPhase": -1
 		},
 		"osc2": {
 			"type": "square",
 			"transpose": -12,
-			"cents": -5
+			"cents": -5,
+			"retrigPhase": -1
 		},
 		"polyphonic": "auto",
-		"osc1": {
-			"retrigPhase": -1
-		},
-		"osc2": {
-			"retrigPhase": -1
-		},
 		"modulator1": {
 			"retrigPhase": -1
 		},

@@ -4,20 +4,16 @@
 		"osc1": {
 			"type": "saw",
 			"transpose": 0,
-			"cents": 0
+			"cents": 0,
+			"retrigPhase": -1
 		},
 		"osc2": {
 			"type": "saw",
 			"transpose": -24,
-			"cents": 0
+			"cents": 0,
+			"retrigPhase": -1
 		},
 		"polyphonic": "auto",
-		"osc1": {
-			"retrigPhase": -1
-		},
-		"osc2": {
-			"retrigPhase": -1
-		},
 		"modulator1": {
 			"retrigPhase": -1
 		},

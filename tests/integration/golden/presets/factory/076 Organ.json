@@ -4,25 +4,26 @@
 		"osc1": {
 			"type": "square",
 			"transpose": 0,
-			"cents": 0
+			"cents": 0,
+			"retrigPhase": -1
 		},
 		"osc2": {
 			"type": "saw",
 			"transpose": -17,
-			"cents": 0
+			"cents": 0,
+			"retrigPhase": -1
 		},
 		"polyphonic": "poly",
-		"osc1": {
-			"retrigPhase": -1
-		},
-		"osc2": {
-			"retrigPhase": -1
-		},
 		"modulator1": {
-			"retrigPhase": -1
+			"retrigPhase": -1,
+			"transpose": -10,
+			"cents": 0
 		},
 		"modulator2": {
-			"retrigPhase": -1
+			"retrigPhase": -1,
+			"transpose": -24,
+			"cents": 0,
+			"toModulator1": 0
 		},
 		"clippingAmount": 0,
 		"voicePriority": 1,
@@ -34,15 +35,6 @@
 			"type": "sine"
 		},
 		"mode": "fm",
-		"modulator1": {
-			"transpose": -10,
-			"cents": 0
-		},
-		"modulator2": {
-			"transpose": -24,
-			"cents": 0,
-			"toModulator1": 0
-		},
 		"transpose": 24,
 		"unison": {
 			"num": 2,
