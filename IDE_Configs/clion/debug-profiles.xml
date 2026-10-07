@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Debug Profiles">
+    <debug-profiles>
+      <debug-profile>
+        <option name="id" value="72d9984b-bfe0-4fc4-959b-01c046c8c0b7" />
+        <option name="type" value="jlink" />
+        <option name="name" value="SEGGER J-Link" />
+        <settings>
+          <device>
+            <option name="consoleEnabled" value="true" />
+            <option name="resetAfterLoad" value="false" />
+            <option name="resetBeforeLoad" value="true" />
+          </device>
+          <gdb>
+            <option name="customConnectionScript" />
+            <option name="liveWatchesEnabled" value="true" />
+          </gdb>
+          <server>
+            <option name="device" value="R7S721020" />
+            <option name="executable" value="/Applications/SEGGER/JLink_V796i/JLinkGDBServerCLExe" />
+          </server>
+        </settings>
+      </debug-profile>
+      <debug-profile>
+        <option name="id" value="4aa108cc-a153-4f49-8bf6-5be14adc75cb" />
+        <option name="type" value="generic-gdbserver" />
+        <option name="name" value="BMP GDB Server" />
+        <settings>
+          <device>
+            <option name="resetAfterLoad" value="false" />
+            <option name="resetCommand" />
+            <option name="warmUpMs" value="0" />
+          </device>
+          <gdb>
+            <option name="customConnectionScript" value="echo Connecting to target...\n&#10;$GDBTargetCommand$&#10;set mem inaccessible-by-default off&#10;mon swd_scan&#10;att 1&#10;echo Connected to target!\n" />
+            <option name="executable" value="arm-none-eabi-gdb" />
+            <option name="gdbRemoteString" value="/dev/cu.usbmodem98B72AB21" />
+            <option name="liveWatchesEnabled" value="true" />
+            <option name="useCustomConnectionScript" value="true" />
+          </gdb>
+          <server>
+            <option name="enabled" value="false" />
+          </server>
+        </settings>
+      </debug-profile>
+    </debug-profiles>
+  </component>
+</project>
