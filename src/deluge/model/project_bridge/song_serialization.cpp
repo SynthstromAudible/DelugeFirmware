@@ -26,6 +26,7 @@
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/midi_device.h" // MIDICable::writeReferenceToFile
 #include "io/midi/midi_device_manager.h"
+#include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/midi_command.h"
 #include "model/project_bridge/slot_bridge.h"
@@ -156,6 +157,7 @@ Error loadSong(::Song& song, Deserializer& in) {
 	}
 	resolveMacros(song.project.arrangement, legacy, song);
 	refreshControls(song);
+	fillChains(song); // each host owner's chain from the effects it loaded
 	return Error::NONE;
 }
 

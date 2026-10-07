@@ -56,6 +56,7 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/song_serialization.h"
@@ -249,6 +250,7 @@ Song::Song() {
 	project.metadata.file_extension = deluge::storage::extensionOf(deluge::storage::kSongSaveFormat);
 
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
+	deluge::bridge::fillChains(*this); // the master's chain, from the effects it starts with
 }
 
 namespace {
@@ -1380,6 +1382,7 @@ void Song::adoptOutput(Output* output) {
 	default:
 		break;
 	}
+	deluge::bridge::recordOutputChain(*output, *this); // a kit's or an audio track's effects are its record's too
 }
 
 // M3 owner-5: drop an output's identity record on genuine destruction. Callers guard on currentSong && docOutput_
@@ -1450,8 +1453,10 @@ Error Song::readFromFile(Deserializer& reader, uint64_t timePerTimerTick) {
 	// so this is only used as a fallback
 	model = deluge::dsp::Reverb::Model::FREEVERB;
 
-	if (!reader.match('{'))
+	const deluge::storage::Value* element = deluge::storage::treeReaderOf(reader).currentElement();
+	if (element == nullptr || !reader.match('{')) {
 		return Error::FILE_CORRUPTED;
+	}
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(30);
 		switch (*(uint32_t*)tagName) {
@@ -1878,6 +1883,7 @@ loadOutput:
 			}
 		}
 	}
+	live.global_effectable.readEffectsFromElement(*element, getInputTickMagnitude());
 
 	setTimePerTimerTick(timePerTimerTick);
 

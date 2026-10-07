@@ -32,6 +32,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file.h"
 #include "storage/storage_manager.h"
+#include "storage/value_tree_deserializer.h"
 #include "util/lookuptables/lookuptables.h"
 #include <algorithm>
 #include <new>
@@ -322,6 +323,10 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 
 // clip will always be NULL and is of no consequence - see note in parent output.h
 Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+	const deluge::storage::Value* element = deluge::storage::treeReaderOf(reader).currentElement();
+	if (element == nullptr) {
+		return Error::FILE_CORRUPTED;
+	}
 	char const* tagName;
 
 	ParamManagerForTimeline paramManager;
@@ -364,6 +369,8 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 			}
 		}
 	}
+
+	readEffectsFromElement(*element, song->getInputTickMagnitude());
 
 	if (paramManager.containsAnyMainParamCollections()) {
 		song->live.param_backup.backUp(this, NULL, &paramManager);

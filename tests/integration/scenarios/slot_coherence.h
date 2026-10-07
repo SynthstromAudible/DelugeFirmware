@@ -32,10 +32,15 @@ struct CoherenceChecks {
 	bool snapshot = true; ///< the snapshot == projectSnapshot() of the record
 	bool controls = true; ///< the owner's controls record == the runtime's knobs
 	bool decode = true;   ///< the slot decoded onto the record == the record (the flip would change nothing)
+	bool chains = true;   ///< each host chain (a kit's, an audio track's, the master's) == its owner's encoding
 };
 
 /// @brief The first equation @p sound breaks, as "<check> at <where>", or empty. An unbound sound breaks none.
 std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks checks = {});
+
+/// @brief The first host chain of @p song that is not its owner's runtime state encoded, as "output <id> effects:
+/// <where>" or "master effects: <where>", or empty.
+std::string chainIncoherence(::Song& song);
 
 /// @brief Every bound sound of @p song (its outputs', its hibernating instruments' and its kits' sound drums) checked;
 /// each break printed as `SLOT-COHERENT FAIL leg=<leg> <owner>: <what>`.

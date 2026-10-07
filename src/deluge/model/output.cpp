@@ -25,6 +25,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_existence.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
@@ -673,5 +674,6 @@ void Output::loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::Audio
 	(void)walkSampleDemands(load);
 	if (docOutput_ != nullptr && currentSong != nullptr) {
 		deluge::bridge::recordLoadedOutput(*this, *currentSong); // what the load made of its sounds
+		deluge::bridge::recordOutputChain(*this, *currentSong);
 	}
 }

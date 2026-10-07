@@ -21,6 +21,7 @@
 #include "dsp/filter/filter_set.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/arpeggiator.h"
+#include "serialization/value.h"
 using namespace deluge;
 class Serializer;
 
@@ -44,6 +45,9 @@ public:
 	void writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeToFile);
 	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                      int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) override;
+	/// @brief Reads this owner's effects and its view (which values its knobs edit) from its element, as the effects
+	/// library decodes them, sync levels relative to @p tickMagnitude.
+	void readEffectsFromElement(const deluge::serialization::Value& element, int32_t tickMagnitude);
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = nullptr);
 	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,

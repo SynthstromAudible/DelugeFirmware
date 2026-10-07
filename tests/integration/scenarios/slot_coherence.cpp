@@ -17,6 +17,9 @@
 
 #include "scenarios/slot_coherence.h"
 
+#include "model/project_bridge/chain_bridge.h"
+#include "model/song/song.h"
+
 #include "deluge-project/instrument_slot.h"
 #include "engines/deluge/codec.h"
 #include "engines/effects/codec.h"
@@ -24,6 +27,7 @@
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
+#include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
@@ -172,6 +176,72 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 	return {};
 }
 
+namespace {
+
+/// Where @p record and @p runtime first differ, or empty.
+std::string chainDifference(const deluge::project::FxChain& record, const deluge::project::FxChain& runtime) {
+	if (record.slots.size() != runtime.slots.size()) {
+		return "slot count " + std::to_string(record.slots.size()) + " vs " + std::to_string(runtime.slots.size());
+	}
+	for (size_t s = 0; s < record.slots.size(); s++) {
+		const deluge::project::FxSlot& a = record.slots[s];
+		const deluge::project::FxSlot& b = runtime.slots[s];
+		if (a.effect != b.effect) {
+			return "slot " + std::to_string(s) + " is " + a.effect + " vs " + b.effect;
+		}
+		if (const std::string d = deluge::serialization::first_difference(a.state, b.state); !d.empty()) {
+			return a.effect + " " + d;
+		}
+		if (a.tick_magnitude != b.tick_magnitude) {
+			return a.effect + " tick magnitude";
+		}
+	}
+	if (const std::string d = deluge::serialization::first_difference(record.view, runtime.view); !d.empty()) {
+		return "view " + d;
+	}
+	return record.reverb_return == runtime.reverb_return ? std::string{} : "reverb return";
+}
+
+} // namespace
+
+std::string chainIncoherence(::Song& song) {
+	for (const Output* output : std::initializer_list<const Output*>{song.live.media.first_output,
+	                                                                 song.live.media.first_hibernating_instrument}) {
+		for (; output != nullptr; output = output->next) {
+			if ((output->type != OutputType::KIT && output->type != OutputType::AUDIO) || !output->id()) {
+				continue;
+			}
+			const deluge::project::DocOutput* record = song.project.output_structure.find(*output->id());
+			if (record == nullptr) {
+				continue;
+			}
+			const std::string where = "output " + std::to_string(*output->id()) + " effects: ";
+			if (!record->effects) {
+				return where + "no chain";
+			}
+			::GlobalEffectable* owner = deluge::bridge::chainOwnerAt(
+			    {.kind = deluge::project::ChainAddress::Kind::OUTPUT, .id = *output->id()}, song);
+			const int32_t magnitude = record->effects->slots.empty() ? song.getInputTickMagnitude()
+			                                                         : record->effects->slots[0].tick_magnitude;
+			if (const std::string d =
+			        chainDifference(*record->effects,
+			                        deluge::bridge::encodeChainOf(*owner, deluge::project::ChainHome::CLIP, magnitude));
+			    !d.empty()) {
+				return where + d;
+			}
+		}
+	}
+	const deluge::project::FxChain& master = song.project.master_effects;
+	const int32_t magnitude = master.slots.empty() ? song.getInputTickMagnitude() : master.slots[0].tick_magnitude;
+	if (const std::string d =
+	        chainDifference(master, deluge::bridge::encodeChainOf(song.live.global_effectable,
+	                                                              deluge::project::ChainHome::MASTER, magnitude));
+	    !d.empty()) {
+		return "master effects: " + d;
+	}
+	return {};
+}
+
 int32_t expectSongCoherent(::Song& song, const char* leg, CoherenceChecks checks) {
 	int32_t failures = 0;
 	auto check = [&](Sound& sound, const std::string& owner) {
@@ -189,6 +259,12 @@ int32_t expectSongCoherent(::Song& song, const char* leg, CoherenceChecks checks
 	}
 	if (checks.controls) {
 		failures += ownControlsIncoherent(song, leg);
+	}
+	if (checks.chains) {
+		if (const std::string what = chainIncoherence(song); !what.empty()) {
+			std::printf("SLOT-COHERENT FAIL leg=%s %s\n", leg, what.c_str());
+			failures++;
+		}
 	}
 	return failures;
 }

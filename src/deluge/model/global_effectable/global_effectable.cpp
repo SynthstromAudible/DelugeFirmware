@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
 #include "dsp/stereo_sample.h"
+#include "engines/effects/codec.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/view.h"
@@ -879,26 +880,28 @@ Error GlobalEffectable::readTagFromFile(Deserializer& reader, char const* tagNam
 		reader.exitTag("defaultParams");
 	}
 
-	else if (!strcmp(tagName, "modFXType")) {
-		assignModFXType(stringToFXType(reader.readTagOrAttributeValue()));
-		reader.exitTag("modFXType");
-	}
-
-	else if (!strcmp(tagName, "modFXCurrentParam")) {
-		currentModFXParam = stringToModFXParam(reader.readTagOrAttributeValue());
-		reader.exitTag("modFXCurrentParam");
-	}
-
-	else if (!strcmp(tagName, "currentFilterType")) {
-		currentFilterType = stringToFilterType(reader.readTagOrAttributeValue());
-		reader.exitTag("currentFilterType");
-	}
-
 	else {
 		return ModControllableAudio::readTagFromFile(reader, tagName, NULL, readAutomationUpToPos, arpSettings, song);
 	}
 
 	return Error::NONE;
+}
+
+void GlobalEffectable::readEffectsFromElement(const deluge::serialization::Value& element, int32_t tickMagnitude) {
+	deluge::effects::EffectStates states = effects();
+	deluge::effects::decode(element, states, {.input_tick_magnitude = tickMagnitude});
+	setEffects(states);
+	// The runtime threshold is what a save before any render writes back: the file's, when it gives one.
+	if (const deluge::serialization::Value* settings = element.find("audioCompressor");
+	    settings != nullptr && settings->isMap() && settings->find("thresh") != nullptr) {
+		compressor.setThreshold(states.compressor.threshold);
+	}
+	if (const deluge::serialization::Value* param = element.find("modFXCurrentParam"); param && param->isScalar()) {
+		currentModFXParam = stringToModFXParam(param->str().c_str());
+	}
+	if (const deluge::serialization::Value* type = element.find("currentFilterType"); type && type->isScalar()) {
+		currentFilterType = stringToFilterType(type->str().c_str());
+	}
 }
 
 ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {

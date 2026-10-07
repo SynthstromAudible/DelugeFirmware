@@ -316,6 +316,10 @@ void Kit::writeDrumToFile(Serializer& writer, Drum* thisDrum, ParamManager* para
 }
 
 Error Kit::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+	const deluge::storage::Value* element = deluge::storage::treeReaderOf(reader).currentElement();
+	if (element == nullptr) {
+		return Error::FILE_CORRUPTED;
+	}
 
 	int32_t selectedDrumIndex = -1;
 
@@ -386,6 +390,7 @@ doReadDrum:
 	if (selectedDrumIndex != -1) {
 		selectedDrum = getDrumFromIndex(selectedDrumIndex);
 	}
+	readEffectsFromElement(*element, song->getInputTickMagnitude());
 
 	if (paramManager.containsAnyMainParamCollections()) {
 		song->live.param_backup.backUp(this, clip, &paramManager, true);

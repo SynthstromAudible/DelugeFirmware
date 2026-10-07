@@ -23,6 +23,7 @@
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
+#include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/midi_command.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
@@ -283,7 +284,7 @@ void recordOutputControls(::Output& output, ::Song& song) {
 deluge::project::CodecEngines codecEngines() {
 	static const std::array<deluge::engine::ParamNaming, 2> namings{deluge::instrument::kNaming,
 	                                                                deluge::global_effectable::kNaming};
-	return {.namings = namings};
+	return {.namings = namings, .chains = chainCodec()};
 }
 
 } // namespace deluge::bridge

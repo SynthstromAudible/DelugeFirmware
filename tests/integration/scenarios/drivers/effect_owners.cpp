@@ -15,10 +15,12 @@
 #include "processing/audio_output.h"
 #include "processing/sound/sound_instrument.h"
 #include "scenarios/drivers/driver.h"
+#include "scenarios/slot_coherence.h"
 #include "storage/storage_manager.h"
 
 #include <cstdio>
 #include <new>
+#include <string>
 
 namespace {
 
@@ -64,23 +66,32 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	check(synth != nullptr, "a new synth");
 	if (synth != nullptr) {
 		song->addOutput(synth);
-		checkOwner(*static_cast<SoundInstrument*>(synth), "a synth's sound");
 	}
-
 	ParamManagerForTimeline kitParams;
 	Instrument* kit = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
 	check(kit != nullptr, "a new kit");
 	if (kit != nullptr) {
 		song->addOutput(kit);
-		checkOwner(*static_cast<Kit*>(kit), "a kit's affect-entire");
 	}
-
 	AudioOutput* audio = song->createNewAudioOutput();
 	check(audio != nullptr, "a new audio track");
+
+	// A song's host owners each have their chain from the moment they are part of it.
+	const std::string incoherent = deluge::harness::chainIncoherence(*song);
+	if (!incoherent.empty()) {
+		std::fprintf(io.err, "FAIL: a new song's chains: %s\n", incoherent.c_str());
+		failures++;
+	}
+
+	if (synth != nullptr) {
+		checkOwner(*static_cast<SoundInstrument*>(synth), "a synth's sound");
+	}
+	if (kit != nullptr) {
+		checkOwner(*static_cast<Kit*>(kit), "a kit's affect-entire");
+	}
 	if (audio != nullptr) {
 		checkOwner(*audio, "an audio track");
 	}
-
 	checkOwner(song->live.global_effectable, "the song master");
 
 	if (failures == 0) {
