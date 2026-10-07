@@ -99,8 +99,8 @@ bool sdRoutineLock = false;
 bool allowSomeUserActionsEvenWhenInCardRoutine = false;
 
 extern "C" void midiAndGateTimerGoneOff(void) {
-	cvEngine.updateGateOutputs();
-	midiEngine.flushMIDI();
+	// only sends what's due now, and re-arms the timer for anything still to come
+	AudioEngine::midiGateOutputTimerFired();
 }
 
 uint32_t timeNextGraphicsTick = 0;

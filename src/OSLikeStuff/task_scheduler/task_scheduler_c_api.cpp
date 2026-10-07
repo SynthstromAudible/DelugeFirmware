@@ -19,6 +19,10 @@
 #include "OSLikeStuff/task_scheduler/task_scheduler.h"
 #include "resource_checker.h"
 
+extern "C" {
+#include "RZA1/ostm/ostm.h"
+}
+
 extern TaskManager taskManager;
 
 extern "C" {
@@ -91,5 +95,9 @@ void unblockTask(TaskID id) {
 
 double getSystemTime() {
 	return taskManager.getSecondsFromStart();
+}
+
+uint32_t getSystemTicks() {
+	return getTimerValue(0);
 }
 }

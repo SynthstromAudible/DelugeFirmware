@@ -66,6 +66,10 @@ void ignoreForStats();
 double getAverageRunTimeForTask(TaskID id);
 double getAverageRunTimeforCurrentTask();
 double getSystemTime();
+/// raw value of the free running system timer (DELUGE_CLOCKS_PER ticks per second), wraps roughly every 129 seconds.
+/// Unlike getSystemTime() this doesn't modify any state so it's safe to call from an ISR. Compare values using signed
+/// differences to handle the wrap. Only meaningful once the task manager clock is running.
+uint32_t getSystemTicks();
 void setNextRunTimeforCurrentTask(double seconds);
 void removeTask(TaskID id);
 void boostTask(TaskID id);
