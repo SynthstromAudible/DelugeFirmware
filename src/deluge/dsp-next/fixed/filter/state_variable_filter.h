@@ -50,6 +50,12 @@ public:
 	/// @brief The filter set's zeroing reset: every member zero, the fade included (so no fade runs).
 	void zero();
 
+	/// @brief The dry/wet fade, which a filter taking over this one's slot carries on.
+	[[nodiscard]] const DryWetFade& fade() const { return fade_; }
+
+	/// @brief Carries on @p fade, the fade of the filter this one takes over from in a slot.
+	void carryFade(const DryWetFade& fade) { fade_ = fade; }
+
 private:
 	/// One channel's integrators, Q31.
 	struct Channel {

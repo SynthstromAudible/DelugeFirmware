@@ -57,6 +57,8 @@ set(_filter_DEPS
 set(low_pass_ladder_spec_DEPS ${_filter_DEPS})
 set(high_pass_ladder_spec_DEPS ${_filter_DEPS})
 set(state_variable_filter_spec_DEPS ${_filter_DEPS})
+# The filter set runs the three filters.
+set(filter_set_spec_DEPS ${_filter_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp)
 
 # ETL for the synth headers that reach util/etl_string.h (modulation/sync.h, through the LFO). The x86 unit tree links it
 # everywhere; the ARM tree does not, so the specs link it themselves.

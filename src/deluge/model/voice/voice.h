@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/filter/filter_set.h"
+#include "dsp-next/fixed/filter/filter_set.h"
 #include "engines/effects/saturation.h"
 #include "model/voice/fm_engine.h"
 #include "model/voice/ringmod_engine.h"
@@ -77,7 +77,7 @@ public:
 	LFO lfo2;
 	LFO lfo4;
 
-	dsp::filter::FilterSet filterSet;
+	dsp::fixed::FilterSet filterSet;
 
 	// The ring-mod synth engine: owns the cross-source ring-mod relationship (renders both sources + combines).
 	// Stateless for now — the VA/wavetable components stay owned per-source on the VoiceUnisonParts.

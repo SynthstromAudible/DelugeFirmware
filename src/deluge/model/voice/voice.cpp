@@ -21,9 +21,9 @@
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4
 #include "dsp-next/fixed/osc/sine.h"
 #include "dsp/dx/engine.h"
-#include "dsp/filter/filter_set.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "dsp/util.hpp"
+#include "engines/effects/filter_slots.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -34,6 +34,7 @@
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/song/song.h"
+#include "model/voice/filter_scratch.h"
 #include "model/voice/source_component_render.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/params/param_set.h"
@@ -988,17 +989,26 @@ skipAutoRelease: {}
 	// This is the gain which gets applied to compensate for any change in gain that the filter is going to cause
 	int32_t filterGain;
 
-	// Prepare the filters
-	// Checking if filters should run now happens within the filterset
-	FilterMode lpfMode = doLPF ? cfg.lpfMode : FilterMode::OFF;
-	FilterMode hpfMode = doHPF ? cfg.hpfMode : FilterMode::OFF;
-	filterGain = filterSet.setConfig(
-	    params.paramFinalValues[params::LOCAL_LPF_FREQ], params.paramFinalValues[params::LOCAL_LPF_RESONANCE], lpfMode,
-	    params.paramFinalValues[params::LOCAL_LPF_MORPH], params.paramFinalValues[params::LOCAL_HPF_FREQ],
-	    (params
-	         .paramFinalValues[params::LOCAL_HPF_RESONANCE]), // >> StorageManager::devVarA) << StorageManager::devVarA,
-	    hpfMode, params.paramFinalValues[params::LOCAL_HPF_MORPH], cfg.volumeNeutralValueForUnison << 1,
-	    cfg.filterRoute, false, nullptr); // Level adjustment for unison now happens *before* the filter!
+	// Prepare the filters. Level adjustment for unison happens before the filters, so the gain going in is neutral.
+	const bool allow_oversampling = AudioEngine::cpuDireness < 14;
+	filterGain = filterSet.configure(
+	    {
+	        .frequency = params.paramFinalValues[params::LOCAL_LPF_FREQ],
+	        .resonance = params.paramFinalValues[params::LOCAL_LPF_RESONANCE],
+	        .morph = params.paramFinalValues[params::LOCAL_LPF_MORPH],
+	        .gain = cfg.volumeNeutralValueForUnison << 1,
+	        .allow_oversampling = allow_oversampling,
+	    },
+	    doLPF ? effects::low_pass_slot(cfg.lpfMode) : dsp::fixed::LowPassSlot{},
+	    {
+	        .frequency = params.paramFinalValues[params::LOCAL_HPF_FREQ],
+	        .resonance = params.paramFinalValues[params::LOCAL_HPF_RESONANCE],
+	        .morph = params.paramFinalValues[params::LOCAL_HPF_MORPH],
+	        .gain = cfg.volumeNeutralValueForUnison << 1,
+	        .allow_oversampling = allow_oversampling,
+	    },
+	    doHPF ? effects::high_pass_slot(cfg.hpfMode) : dsp::fixed::HighPassSlot{},
+	    effects::filter_route(cfg.filterRoute));
 
 	SynthMode synthMode = cfg.synthMode;
 
@@ -1204,7 +1214,7 @@ skipAutoRelease: {}
 			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, params.paramFinalValues[params::LOCAL_FOLD]);
 		}
 		// Filters
-		filterSet.renderLongStereo(oscBuffer, oscBufferEnd);
+		filterSet.renderStereo({oscBuffer, oscBufferEnd}, deluge::voice::filter_scratch());
 
 		// No clipping
 		if (!cfg.clippingAmount) {
@@ -1289,7 +1299,7 @@ skipAutoRelease: {}
 			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, foldAmount);
 		}
 
-		filterSet.renderLong(oscBuffer, oscBufferEnd, numSamples);
+		filterSet.renderMono({oscBuffer, oscBufferEnd}, deluge::voice::filter_scratch());
 
 		// No clipping
 		if (!cfg.clippingAmount) {

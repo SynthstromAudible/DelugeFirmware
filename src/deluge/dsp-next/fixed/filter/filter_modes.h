@@ -39,6 +39,33 @@ enum class SvfMode : uint8_t {
 	NOTCH, ///< The morph sweeps low → high, through the notch their sum makes.
 };
 
+/// @brief Which filters a set runs and how they are joined.
+enum class FilterRoute : uint8_t {
+	HIGH_TO_LOW, ///< The high-pass, then the low-pass.
+	LOW_TO_HIGH, ///< The low-pass, then the high-pass.
+	PARALLEL,    ///< Each on its own copy of the input, the two outputs summed (wrapping on overflow).
+};
+
+/// @brief What a set's low-pass slot runs: a ladder mode, an SVF mode, or nothing.
+struct LowPassSlot {
+	/// @brief The slot's filter family, or OFF.
+	enum class Kind : uint8_t { OFF, LADDER, SVF };
+	Kind kind{Kind::OFF};
+	/// The ladder's mode, read when @ref kind is LADDER.
+	LowPassLadderMode ladder{};
+	/// The SVF's mode, read when @ref kind is SVF.
+	SvfMode svf{};
+};
+
+/// @brief What a set's high-pass slot runs: the ladder, an SVF mode, or nothing.
+struct HighPassSlot {
+	/// @brief The slot's filter family, or OFF.
+	enum class Kind : uint8_t { OFF, LADDER, SVF };
+	Kind kind{Kind::OFF};
+	/// The SVF's mode, read when @ref kind is SVF.
+	SvfMode svf{};
+};
+
 /// @brief One block's settings of a filter (each as the param's final value).
 struct FilterConfig {
 	/// The cutoff, Q31: lifted by 2^5 (saturating) onto @ref instant_tan's angle, so 2^26 and above reach the top of
