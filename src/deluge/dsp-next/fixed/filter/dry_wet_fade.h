@@ -43,7 +43,7 @@ public:
 		wet_ = 0;
 	}
 
-	/// @brief Whether a fade is under way (dry at or above 0.001).
+	/// @brief Whether a fade is under way: dry not below 0.001 (the float compared as a double).
 	[[nodiscard]] bool active() const { return !(dry_ < 0.001); }
 
 	/// @brief Copies the dry @p block into @p scratch before the filter runs over it.

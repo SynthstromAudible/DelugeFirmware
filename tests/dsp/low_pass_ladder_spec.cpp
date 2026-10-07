@@ -264,7 +264,14 @@ const std::vector<int32_t> kLp24ResetMono{
     -20978592, -18108476, -16251912, -11942984, -2958608,  8814240,   18702792,  23463184,  24018188,  23887244,
     25067572,  25759684,  22364732,  13604480,  2362268,   -6777724,  -11752380, -14573996, -18630188, -24622000,
     -29428568, -29110320, -22955560, -14289140};
-constexpr int32_t kLp24FadeBlocks = 11;
+const std::vector<int32_t> kLp24MidFadeResetMono{
+    0,         12929602,  17948200,  16250562, 15900798,  22258772,  31811118,  35767480,  29219274,  16106878,
+    4960024,   189280,    -1816290,  -7874998, -19829646, -31840796, -36066862, -30610032, -21300304, -15541622,
+    -14807974, -13651068, -6073700,  7612414,  20702012,  26731098,  25693304,  23354206,  24590216,  27950176,
+    27247402,  18410384,  4201708,   -8212644, -14167006, -15584554, -18114592, -24513700, -31382010, -32675162,
+    -26116044, -15615714, -7236650,  -3115230, 209180,    7401844,   18661670,  28888674,  32555470,  29068560,
+    23004140,  19095360,  17395492,  13705614, 4667392,   -8038618,  -18888852, -23783668, -23780512, -23402500,
+    -25422978, -27738926, -25671578, -17148592};
 
 /// The bright setting with the drive ladder's oversampling not allowed (under CPU load).
 constexpr FilterConfig kBrightUnderLoad{
@@ -441,6 +448,20 @@ describe low_pass_ladder("LowPassLadder", ${
 		block = kInput;
 		filter.renderMono(block, scratch);
 		expect(block).to_equal(kLp24ResetMono);
+	});
+	it("keeps fading through reset(false) when a fade is under way", _ {
+		jcong = kSeed;
+		LowPassLadder filter;
+		filter.zero();
+		std::ignore = filter.configure(kMid, LowPassLadderMode::TRANSISTOR_24DB);
+		filter.reset(true);
+		std::vector<int32_t> block = kInput;
+		std::vector<int32_t> scratch(block.size());
+		filter.renderMono(block, scratch);
+		filter.reset(false);
+		block = kInput;
+		filter.renderMono(block, scratch);
+		expect(block).to_equal(kLp24MidFadeResetMono);
 	});
 });
 // clang-format on

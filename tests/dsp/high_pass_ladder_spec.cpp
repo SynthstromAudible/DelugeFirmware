@@ -161,7 +161,14 @@ const std::vector<int32_t> kHpResetMono{
     -2317056,  23249536,  39358080,  30127488,  -330240,   -21838848, -13834112, 13577856,  27953920,  9711872,
     -27088512, -42950528, -29474176, 1105664,   17142144,  1314688,   -27802368, -36558208, -17665664, 14906240,
     30711040,  20378624,  242944,    -2302336};
-constexpr int32_t kHpFadeBlocks = 11;
+const std::vector<int32_t> kHpMidFadeResetMono{
+    0,         24244606,  30075280,  14708022,  -2342030,  -225120,   19126454,  33448440,  23058990,  -7258028,
+    -28610994, -27041670, -8166526,  6462624,   -1152170,  -23872586, -36137324, -23920130, 2861830,   18969928,
+    13314130,  -4282926,  -9989384,  6375444,   29459222,  35255450,  15800184,  -9966992,  -15717544, 1123540,
+    22097620,  20874196,  -6749182,  -34423528, -38849266, -21071592, 1908910,   6526628,   -8572466,  -22197260,
+    -14016076, 11345862,  29209466,  24602226,  1949806,   -13001562, -3104446,  22242992,  35214272,  19446332,
+    -12566884, -27984248, -18287246, 5063238,   14932622,  -2393386,  -30133788, -39252054, -23099002, 4643242,
+    17421466,  7660130,   -9011822,  -8506610};
 
 } // namespace
 
@@ -250,6 +257,20 @@ describe high_pass_ladder("HighPassLadder", ${
 		block = kInput;
 		filter.renderMono(block, scratch);
 		expect(block).to_equal(kHpResetMono);
+	});
+	it("keeps fading through reset(false) when a fade is under way", _ {
+		jcong = kSeed;
+		HighPassLadder filter;
+		filter.zero();
+		std::ignore = filter.configure(kMid);
+		filter.reset(true);
+		std::vector<int32_t> block = kInput;
+		std::vector<int32_t> scratch(block.size());
+		filter.renderMono(block, scratch);
+		filter.reset(false);
+		block = kInput;
+		filter.renderMono(block, scratch);
+		expect(block).to_equal(kHpMidFadeResetMono);
 	});
 });
 // clang-format on

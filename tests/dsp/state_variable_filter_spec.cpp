@@ -222,7 +222,14 @@ const std::vector<int32_t> kBandResetMono{
     -17178288, -12739650, 354846,    15296448,  23297952,  22355937,  18295836,  18642288,  24294246,  28302117,
     23273850,  9493740,   -4684734,  -11492370, -11232135, -10972245, -16879968, -27064452, -33142386, -29024820,
     -17109387, -6229449,  -2397978,  -2999106};
-constexpr int32_t kBandFadeBlocks = 11;
+const std::vector<int32_t> kBandMidFadeResetMono{
+    0,         15960428,  25684080,  25298232,  20622904,  20328672,  26439626,  31910342,  27836856,  12876374,
+    -4875736,  -15411094, -16556572, -15228552, -19075458, -28363110, -35470962, -32726364, -20469222, -6903050,
+    -22408,    391594,    1838582,   10466000,  24278544,  34592408,  34543558,  25896550,  16804740,  13550630,
+    14195142,  11180294,  -69354,    -15831432, -27177204, -28746032, -23838564, -20259422, -22228870, -25930426,
+    -23651962, -12115740, 3647218,   14831032,  17597472,  16415512,  18389430,  25647694,  32741962,  32065370,
+    21780800,  7950084,   -1223708,  -3647742,  -4774478,  -10964696, -22481342, -32572120, -34034502, -26526352,
+    -16646592, -11372418, -10908372, -9008952};
 
 /// The mid setting with its morph inverted as the high-pass slot passes it.
 constexpr FilterConfig kMidInverted{.frequency = 1 << 24,
@@ -366,6 +373,20 @@ describe state_variable_filter("StateVariableFilter", ${
 		block = kInput;
 		filter.renderMono(block, scratch);
 		expect(block).to_equal(kBandResetMono);
+	});
+	it("keeps fading through reset(false) when a fade is under way", _ {
+		jcong = kSeed;
+		StateVariableFilter filter;
+		filter.zero();
+		std::ignore = filter.configure(kMid, SvfMode::BAND);
+		filter.reset(true);
+		std::vector<int32_t> block = kInput;
+		std::vector<int32_t> scratch(block.size());
+		filter.renderMono(block, scratch);
+		filter.reset(false);
+		block = kInput;
+		filter.renderMono(block, scratch);
+		expect(block).to_equal(kBandMidFadeResetMono);
 	});
 });
 // clang-format on
