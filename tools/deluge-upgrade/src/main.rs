@@ -7,6 +7,7 @@
 
 use deluge_upgrade::report::Report;
 use deluge_upgrade::tree::Node;
+use deluge_upgrade::upgrade::{Context, upgrade};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -76,11 +77,12 @@ fn documents(input: &Path) -> std::io::Result<Vec<(PathBuf, PathBuf)>> {
 fn upgrade_file(
     source: &Path,
     target: &Path,
-    _card: Option<&Path>,
-    _report: &mut Report,
+    card: Option<&Path>,
+    report: &mut Report,
 ) -> Result<(), String> {
     let text = std::fs::read_to_string(source).map_err(|e| e.to_string())?;
-    let doc = Node::parse_xml(&text).map_err(|e| e.to_string())?;
+    let mut doc = Node::parse_xml(&text).map_err(|e| e.to_string())?;
+    upgrade(&mut doc, &mut Context::new(source, card, report));
     if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }

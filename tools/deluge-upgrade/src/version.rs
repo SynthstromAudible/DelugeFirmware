@@ -58,6 +58,11 @@ impl FirmwareVersion {
         }
     }
 
+    /// The version the firmware stamps its own saves with, which the upgrader stamps its output with.
+    pub fn current() -> Self {
+        Self::parse(env!("DELUGE_FIRMWARE_VERSION"))
+    }
+
     /// The same version with pre-release tag `tag`.
     pub fn with_tag(mut self, tag: &str) -> Self {
         self.pre_release = tag.to_string();

@@ -2,8 +2,10 @@
 //! releases no longer write, and writes the firmware's JSON.
 #![forbid(unsafe_code)]
 
+pub mod passes;
 pub mod report;
 pub mod tree;
+pub mod upgrade;
 pub mod version;
 
 /// Why a file could not be upgraded.
