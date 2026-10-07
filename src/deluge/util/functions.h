@@ -19,6 +19,7 @@
 
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
+#include "engines/effects/kernels.h"
 #include "libdeluge/file_io.h"
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
 #include "util/c_string.h"
@@ -217,13 +218,7 @@ template <unsigned saturationAmount>
 
 [[gnu::always_inline]] inline int32_t getTanHAntialiased(int32_t input, uint32_t* lastWorkingValue,
                                                          uint32_t saturationAmount) {
-
-	uint32_t workingValue = (uint32_t)lshiftAndSaturateUnknown(input, saturationAmount) + 2147483648u;
-
-	int32_t toReturn = interpolateTableSigned2d(workingValue, *lastWorkingValue, 32, 32, &tanH2d[0][0], 7, 6)
-	                   >> (saturationAmount + 1);
-	*lastWorkingValue = workingValue;
-	return toReturn;
+	return deluge::effects::tanh_antialiased(input, *lastWorkingValue, saturationAmount);
 }
 
 #define znew (z = 36969 * (z & 65535) + (z >> 16))

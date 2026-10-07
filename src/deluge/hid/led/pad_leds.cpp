@@ -1209,7 +1209,7 @@ void renderZoom() {
 	// "0.5" (32768). And so on.
 
 	uint32_t inImageTimesBiggerThanNormal =
-	    linear_table_interpolator.interpolate(fine, 10, expTableSmall); // could run on more input bits
+	    linear_table_interpolator.interpolate(fine, 10, expTableSmall.data()); // could run on more input bits
 	inImageTimesBiggerThanNormal = increaseMagnitude(inImageTimesBiggerThanNormal, coarse - 14);
 
 	renderZoomWithProgress(inImageTimesBiggerThanNormal, sineValue, &imageStore[0][0][0],

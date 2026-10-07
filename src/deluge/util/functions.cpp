@@ -17,6 +17,7 @@
 
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
+#include "engines/effects/kernels.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -871,16 +872,10 @@ int32_t random(int32_t upperLimit) {
 }
 
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR) {
-	if (panAmount == 0) {
-		*amplitudeR = 1073741823;
-		*amplitudeL = 1073741823;
-		return false;
-	}
-
-	int32_t panOffset = std::max((int32_t)-1073741824, (int32_t)(std::min((int32_t)1073741824, (int32_t)panAmount)));
-	*amplitudeR = (panAmount >= 0) ? 1073741823 : (1073741824 + panOffset);
-	*amplitudeL = (panAmount <= 0) ? 1073741823 : (1073741824 - panOffset);
-	return true;
+	const deluge::effects::PanAmplitudes amplitudes = deluge::effects::pan_amplitudes(panAmount);
+	*amplitudeL = amplitudes.left;
+	*amplitudeR = amplitudes.right;
+	return panAmount != 0;
 }
 
 uint32_t getOscInitialPhaseForZero(OscType waveType) {

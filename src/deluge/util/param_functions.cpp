@@ -22,6 +22,7 @@
 #include "util/param_functions.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
+#include "engines/effects/kernels.h"
 #include "modulation/params/param.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
@@ -242,14 +243,7 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 }
 
 int32_t getExp(int32_t presetValue, int32_t adjustment) {
-
-	int32_t magnitudeIncrease = (adjustment >> 26) + 2;
-
-	// Do "fine" adjustment - change less than one doubling
-	int32_t adjustedPresetValue = multiply_32x32_rshift32(
-	    presetValue, linear_table_interpolator.interpolate(adjustment & 67108863, 26, expTableSmall));
-
-	return increaseMagnitudeAndSaturate(adjustedPresetValue, magnitudeIncrease);
+	return deluge::effects::exp_of(presetValue, adjustment);
 }
 
 int32_t lookupReleaseRate(int32_t input) {

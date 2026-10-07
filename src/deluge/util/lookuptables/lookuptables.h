@@ -37,9 +37,15 @@
 extern const uint16_t centAdjustTableSmall[];
 extern const uint16_t decayTableSmall4[];
 extern const uint16_t decayTableSmall8[];
-extern const uint16_t expTableSmall[];
+// The exp curve's and the antialiased tanh's tables are the effects library's (engines/effects/kernels.h), which
+// computes with them; the app reads the same tables through these names.
+namespace deluge::effects {
+extern const std::array<uint16_t, 257> kExpTableSmall;
+extern const std::array<std::array<int16_t, 129>, 65> kTanH2d;
+} // namespace deluge::effects
+inline constexpr const auto& expTableSmall = deluge::effects::kExpTableSmall;
 extern const int16_t tanHSmall[];
-extern const int16_t tanH2d[][129];
+inline constexpr const auto& tanH2d = deluge::effects::kTanH2d;
 extern const int16_t hanningWindow[];
 
 extern const int16_t sineWaveSmall[];

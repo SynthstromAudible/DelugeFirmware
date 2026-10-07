@@ -75,6 +75,19 @@ class LibraryBoundaryTest(unittest.TestCase):
                     1,
                 )
 
+    def test_the_effects_library_may_use_the_l0_dsp_library_and_fixed_point(self):
+        effects = LIBRARIES["effects"]
+        accepted = (
+            '#include "dsp-next/core/stereo_sample.h"\n#include "util/fixedpoint.h"\n'
+        )
+        self.assertEqual(self.check(accepted, library=effects), [])
+        self.assertEqual(
+            len(self.check('#include "util/functions.h"\n', library=effects)), 1
+        )
+        self.assertEqual(
+            len(self.check('#include "dsp/stereo_sample.h"\n', library=effects)), 1
+        )
+
     def test_accepts_a_declared_dependency_by_prefix_or_exact_path(self):
         text = '#include "engine-api/types/sync.h"\n#include "foundation/panic.h"\n#include "b/x.h"\n'
         self.assertEqual(self.check(text, library=WITH_DEPENDENCY), [])
