@@ -82,6 +82,11 @@ def main(argv=None) -> int:
     ap.add_argument(
         "--no-render", action="store_true", help="skip the golden preset renders"
     )
+    ap.add_argument(
+        "--render-filter",
+        default="",
+        help="render only the golden cases holding this (RENDER_PRESET_FILTER)",
+    )
     ap.add_argument("--timeout", type=int, default=60)
     ap.add_argument(
         "--record",
@@ -132,18 +137,15 @@ def main(argv=None) -> int:
             else:
                 continue
             if source.is_file():
-                card = (
-                    None
-                    if key.startswith(songs_run.SYNTHETIC_PREFIX)
-                    else Path(corpus).parent
-                )
-                cases.append(("song", key, source, songs[key], card))
+                # The round trip loads no samples: upgraded without a card, a zone in milliseconds stays (reported)
+                # and saves as the original's does there.
+                cases.append(("song", key, source, songs[key], None))
         if corpus:
             beside = Path(corpus).parent
             for key in sorted(presets):
                 source = beside / key
                 if args.filter in key and source.is_file():
-                    cases.append(("preset", key, source, presets[key], beside))
+                    cases.append(("preset", key, source, presets[key], None))
 
         def one(case):
             kind, key, source, want, card = case
@@ -192,11 +194,23 @@ def main(argv=None) -> int:
             )
             report = work / "golden-report.json"
             converted, err = upgrade(tool, GOLDEN, upgraded, None, report)
+            # A case with a sample is staged with it as SAMPLES/WT.WAV: it is upgraded against such a card.
+            for preset in sorted(GOLDEN.rglob("*.xml")):
+                wav = preset.with_suffix(".wav")
+                if not wav.exists() or not converted:
+                    continue
+                card = work / "card" / preset.stem
+                (card / "SAMPLES").mkdir(parents=True)
+                shutil.copy(wav, card / "SAMPLES" / "WT.WAV")
+                target = upgraded / preset.parent.relative_to(GOLDEN)
+                converted, err = upgrade(tool, preset, target, card, report)
             if not converted:
                 fail += 1
                 print(f"UPGRADE-FAIL golden: the upgrader failed: {err.strip()[-300:]}")
             else:
                 env = dict(os.environ, RENDER_PRESET_CORPUS=str(upgraded))
+                if args.render_filter:
+                    env["RENDER_PRESET_FILTER"] = args.render_filter
                 r = subprocess.run(
                     [str(ROOT / "dbt"), "test", "golden-synth"],
                     cwd=ROOT,

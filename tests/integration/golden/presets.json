@@ -1973,6 +1973,36 @@
   "rms_db": -27.59,
   "sha256": "f8cd3faada0ae6c1800d14860f1e12b3f1c3c9b2e5a2e116548011abd299e8c0"
  },
+ "upgrade/ms_zone": {
+  "frames": 88200,
+  "peak": 366039552,
+  "rms_db": -23.28,
+  "sha256": "89c63d4f8efa597a3e0cc811900adba69fb62b3dba3e55586b57461e830781ac"
+ },
+ "upgrade/ms_zone_end_only": {
+  "frames": 88200,
+  "peak": 346655744,
+  "rms_db": -21.85,
+  "sha256": "668e8c7efdb8bed590d4a6d2a5e70da58d0e0a48c095e8d8f1d7ce7caa18d2f3"
+ },
+ "upgrade/ms_zone_far_overshoot": {
+  "frames": 88200,
+  "peak": 365797376,
+  "rms_db": -21.88,
+  "sha256": "fac4b6bff4f5a0ab4f20d9803baf0267cdfba4c44561743ff2e528ceae70ed3c"
+ },
+ "upgrade/ms_zone_overshoot": {
+  "frames": 88200,
+  "peak": 365797376,
+  "rms_db": -21.88,
+  "sha256": "fac4b6bff4f5a0ab4f20d9803baf0267cdfba4c44561743ff2e528ceae70ed3c"
+ },
+ "upgrade/ms_zone_reversed": {
+  "frames": 88200,
+  "peak": 358596352,
+  "rms_db": -22.58,
+  "sha256": "15ab62097c42abaaecf63c88c75fddffbbd9013c31f4590d6e09b038fb5be53d"
+ },
  "velocity_dynamics": {
   "frames": 88200,
   "peak": 284025088,

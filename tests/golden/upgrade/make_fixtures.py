@@ -251,11 +251,43 @@ FIXTURES |= {
 }
 
 
+MONO = (PRESETS / "sample" / "mono.xml").read_text()
+
+
+def ms_zone(start: int, end: int, reversed_: bool = False) -> str:
+    """The sample case `mono`, stamped as official 2.0 with its zone in milliseconds only."""
+    text = MONO.replace('firmwareVersion="c1.3.0"', 'firmwareVersion="2.0.0"', 1)
+    text = text.replace('reversed="0"', f'reversed="{int(reversed_)}"', 1)
+    return text.replace(
+        '<zone startSamplePos="0" endSamplePos="4096" />',
+        f'<zone startMilliseconds="{start}" endMilliseconds="{end}" />',
+        1,
+    )
+
+
+# Golden render cases (the renderer stages a case's .wav as SAMPLES/WT.WAV): before official 2.1 a zone in milliseconds
+# became sample positions once its sample loaded.
+RENDER_CASES = {
+    "ms_zone": ms_zone(20, 80),
+    "ms_zone_end_only": ms_zone(0, 50),
+    "ms_zone_reversed": ms_zone(10, 60, reversed_=True),
+    "ms_zone_overshoot": ms_zone(5, 93),
+    "ms_zone_far_overshoot": ms_zone(5, 100),
+}
+
+
 def main() -> None:
     for name, text in FIXTURES.items():
         path = HERE / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
+    render = PRESETS / "upgrade"
+    render.mkdir(exist_ok=True)
+    for name, text in RENDER_CASES.items():
+        (render / f"{name}.xml").write_text(text)
+        (render / f"{name}.wav").write_bytes(
+            (PRESETS / "sample" / "mono.wav").read_bytes()
+        )
     for name, text in ORACLES.items():
         (HERE / name.replace(".XML", ".oracle.xml")).write_text(text)
     print(f"wrote {len(FIXTURES)} fixtures")

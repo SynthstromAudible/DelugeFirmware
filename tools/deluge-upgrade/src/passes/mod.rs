@@ -5,6 +5,7 @@ use crate::upgrade::Context;
 use crate::version::FirmwareVersion;
 
 pub mod cables;
+pub mod samples;
 pub mod sound;
 
 /// One conversion: it rewrites a document in place.
@@ -30,7 +31,18 @@ pub static ALL: &[Pass] = &[
         before: None,
         run: cables::range_forms,
     },
+    // Milliseconds become positions before 2.1 and are dropped after: every file is looked at.
+    Pass {
+        name: "millisecond zones",
+        before: None,
+        run: samples::millisecond_zones,
+    },
     // Version-gated: applied when the file is older than the version named.
+    Pass {
+        name: "linear interpolation",
+        before: Some(FirmwareVersion::official_tagged(2, 1, 0, "beta")),
+        run: samples::linear_interpolation,
+    },
     Pass {
         name: "default expression cables",
         before: Some(FirmwareVersion::official_tagged(4, 0, 0, "beta")),

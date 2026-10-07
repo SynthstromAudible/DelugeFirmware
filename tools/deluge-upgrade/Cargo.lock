@@ -6,8 +6,13 @@ version = 4
 name = "deluge-upgrade"
 version = "0.1.0"
 dependencies = [
+ "deluge_audio_format",
  "thiserror",
 ]
+
+[[package]]
+name = "deluge_audio_format"
+version = "0.1.0"
 
 [[package]]
 name = "proc-macro2"
