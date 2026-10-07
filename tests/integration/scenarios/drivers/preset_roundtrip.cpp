@@ -52,9 +52,6 @@ Io io{};
 /// are a save this firmware made, and they are read as the current firmware's, as a preset's firmwareVersion makes the
 /// real reload read them.
 long loadThenSave(std::string_view bytes, OutputType type, bool savedHere, char* out, uint32_t cap, Error* loadError) {
-	if (savedHere) {
-		song_firmware_version = current_firmware_version();
-	}
 	char const* firstTag = nullptr;
 	char const* altTag = nullptr;
 	StorageManager::instrumentDocumentTags(type, &firstTag, &altTag);
@@ -63,6 +60,9 @@ long loadThenSave(std::string_view bytes, OutputType type, bool savedHere, char*
 	                           /*isJson=*/false, firstTag, altTag);
 	if (*loadError != Error::NONE) {
 		return -1;
+	}
+	if (savedHere) { // after the open, which reads an unstamped document as the oldest official firmware
+		song_firmware_version = current_firmware_version();
 	}
 	Instrument* instrument = nullptr;
 	std::string name = "PRESET";

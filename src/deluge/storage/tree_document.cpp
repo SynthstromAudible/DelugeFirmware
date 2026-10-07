@@ -20,6 +20,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/parse_json.h"
 #include "storage/parse_xml.h"
+#include "storage/storage_manager.h"
 
 #include <cstring>
 #include <string_view>
@@ -30,6 +31,9 @@ Error TreeDocument::open(std::span<const uint8_t> bytes, bool isJson, char const
                          bool ignoreIncorrectFirmware) {
 	AudioEngine::logAction("TreeDocument::open");
 	release();
+	// The document is read as its own stamp says, or as the oldest official firmware when it has none: never as
+	// whatever was read before it, which would skip an unstamped file's old-file rules.
+	song_firmware_version = FirmwareVersion::official({});
 
 	const std::string_view text(reinterpret_cast<const char*>(bytes.data()), bytes.size());
 	tree_ = isJson ? parseJson(text) : parseXml(text);

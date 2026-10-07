@@ -1008,6 +1008,21 @@ tier = "pr"
 runtime = "~1s"
 
 [[harness]]
+name = "document-version"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "unit"
+status = "gate"
+gates = "the firmware version a document is read as is that document's own: its stamp, or the oldest official version when it has none -- never the stamp of whatever was read before it, which would skip an unstamped file's old-file rules"
+scenario = "document_version"
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+
+[[harness]]
 name = "effect-owners"
 path = "."
 level = "integration"
