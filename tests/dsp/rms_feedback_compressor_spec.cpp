@@ -618,7 +618,8 @@ const std::vector<int32_t> kStartZero{
     64799605,  -52201290, 64551865,  -49461593, 63296115,  -47973201, 60357989,  -48260098, 55000505,  -50233319,
     48230929,  -53373744, 43729844,  -56792260, 45197273,  -59808888, 51829129,  -62087145, 59076821,  -63609712,
     63667211,  -64533400, 65702996,  -65019815, 66459408,  -65175851};
-/// The knob curves at 0, 2^20 (where the cutoff's double-precision exp shows), 2^30 and 2^31 - 1.
+/// The knob curves at 0, 2^20 (where the cutoff's double-precision exp shows), 6 << 24 (a menu position where the
+/// times' float exps show), 2^30 and 2^31 - 1.
 constexpr float kAttackMsZero = 0x1p-1f;
 constexpr float kReleaseMsZero = 0x1.9p+5f;
 constexpr float kRatioZero = 0x1p+1f;
@@ -629,6 +630,11 @@ constexpr float kReleaseMsLow = 0x1.90640cp+5f;
 constexpr float kRatioLow = 0x1.002004p+1f;
 constexpr float kSidechainHzLow = 0x1.6821c2p-6f;
 constexpr int32_t kBlendPercentLow = 0;
+constexpr float kAttackMsMenu = 0x1.7b9c3p+0f;
+constexpr float kReleaseMsMenu = 0x1.b75068p+5f;
+constexpr float kRatioMenu = 0x1.0c9714p+1f;
+constexpr float kSidechainHzMenu = 0x1.17b7f8p+1f;
+constexpr int32_t kBlendPercentMenu = 4;
 constexpr float kAttackMsHalf = 0x1.1aecd2p+4f;
 constexpr float kReleaseMsHalf = 0x1.0fd404p+7f;
 constexpr float kRatioHalf = 0x1p+2f;
@@ -786,12 +792,12 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 	});
 
 	it("maps the knobs to times, ratio, cutoff and blend exactly", _ {
-		constexpr std::array<q31, 4> kKnobs{0, 1 << 20, 1 << 30, ONE_Q31};
-		const std::array<float, 4> attack{kAttackMsZero, kAttackMsLow, kAttackMsHalf, kAttackMsMax};
-		const std::array<float, 4> release{kReleaseMsZero, kReleaseMsLow, kReleaseMsHalf, kReleaseMsMax};
-		const std::array<float, 4> ratio{kRatioZero, kRatioLow, kRatioHalf, kRatioMax};
-		const std::array<float, 4> sidechain{kSidechainHzZero, kSidechainHzLow, kSidechainHzHalf, kSidechainHzMax};
-		const std::array<int32_t, 4> blend{kBlendPercentZero, kBlendPercentLow, kBlendPercentHalf, kBlendPercentMax};
+		constexpr std::array<q31, 5> kKnobs{0, 1 << 20, 6 << 24, 1 << 30, ONE_Q31};
+		const std::array<float, 5> attack{kAttackMsZero, kAttackMsLow, kAttackMsMenu, kAttackMsHalf, kAttackMsMax};
+		const std::array<float, 5> release{kReleaseMsZero, kReleaseMsLow, kReleaseMsMenu, kReleaseMsHalf, kReleaseMsMax};
+		const std::array<float, 5> ratio{kRatioZero, kRatioLow, kRatioMenu, kRatioHalf, kRatioMax};
+		const std::array<float, 5> sidechain{kSidechainHzZero, kSidechainHzLow, kSidechainHzMenu, kSidechainHzHalf, kSidechainHzMax};
+		const std::array<int32_t, 5> blend{kBlendPercentZero, kBlendPercentLow, kBlendPercentMenu, kBlendPercentHalf, kBlendPercentMax};
 		for (std::size_t i = 0; i < kKnobs.size(); i++) {
 			expect(compressor_attack_ms(kKnobs[i])).to_equal(attack[i]);
 			expect(compressor_release_ms(kKnobs[i])).to_equal(release[i]);

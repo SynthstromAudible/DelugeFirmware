@@ -59,8 +59,10 @@ using CompressorScratch = std::span<StereoSample>;
 
 /// @brief A feedback compressor: the gain for each block follows the RMS level, in log space, of the block before it.
 ///
-/// Levels and gains in the envelope are in nepers (natural-log units). The output is saturated through an
-/// antialiased tanh at drive 3, which keeps it within ±2^26.
+/// Levels and gains in the envelope are in nepers (natural-log units). The compressed signal is saturated through an
+/// antialiased tanh at drive 3, which keeps it within ±2^26: fully wet, that is the output's range. Below fully wet,
+/// the block as it came in is mixed back at the dry level (1 - blend), so the output's range is ±2^26 at the blend
+/// plus the input's own range at the dry level.
 class RmsFeedbackCompressor {
 public:
 	/// @brief A compressor at the default knobs (@ref CompressorKnobs), fully wet, with no gain reduction.
@@ -160,7 +162,9 @@ private:
 	/// The detector's high-pass, left then right.
 	std::array<OnePole, 2> detector_{};
 
+	/// The attack time in ms for a 3 dB change.
 	float attack_ms_ = 0;
+	/// The release time in ms for a 3 dB change.
 	float release_ms_ = 0;
 
 	/// The makeup gain in nepers at no reduction.
