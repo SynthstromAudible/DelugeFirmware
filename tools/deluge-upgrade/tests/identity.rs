@@ -110,3 +110,17 @@ fn json_escapes_text() {
         r#"{"s":{"name":"a"q"\\b"}}"#.replace("\"q\"", "\\\"q\\\"")
     );
 }
+
+#[test]
+fn a_midi_instrument_keeps_its_mod_knobs_an_object_as_the_firmware_writes_them() {
+    let doc = Node::parse_xml(
+        "<s><midi><modKnobs><modKnob cc=\"none\"/><modKnob cc=\"2\"/></modKnobs></midi>\
+         <sound><modKnobs><modKnob controlsParam=\"pan\"/></modKnobs></sound></s>",
+    )
+    .unwrap();
+    let compact: String = doc.to_json().split_whitespace().collect();
+    assert_eq!(
+        compact,
+        r#"{"s":{"midi":{"modKnobs":{"modKnob":{"cc":"none"},"modKnob":{"cc":2}}},"sound":{"modKnobs":[{"modKnob":{"controlsParam":"pan"}}]}}}"#
+    );
+}

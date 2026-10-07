@@ -31,6 +31,21 @@ tier = "pr"
 runtime = "~1m"
 
 [[harness]]
+name = "upgrade-differential"
+path = "."
+level = "integration"
+runner = "script"
+kind = "differential"
+status = "gate"
+gates = "a file the upgrader (tools/deluge-upgrade) writes as JSON must load to exactly what its original loaded: each committed synthetic song, and each corpus song and SYNTHS/KITS preset when DELUGE_SONG_CORPUS names them, upgraded, must round-trip to its original's fixture hash (tests/golden/songs_fixtures.json, presets_fixtures.json), and the whole golden preset corpus upgraded must render exactly as recorded (tests/integration/golden/presets.json, through RENDER_PRESET_CORPUS)"
+build = []
+run = ["python3", "tests/golden/upgrade_run.py"]
+builds = ["golden-vt-render"]
+requires = ["cargo"]
+tier = "nightly"
+runtime = "~10m"
+
+[[harness]]
 name = "upgrader"
 path = "tools/deluge-upgrade"
 level = "unit"

@@ -18,6 +18,8 @@ otherwise), `<case>.wav` and `<case>.2.wav` (staged as SAMPLES/WT.WAV and WT2.WA
 named by its path under the corpus without the extension, e.g. `factory/000 Rich Saw Bass`.
 
 RENDER_PRESET_FILTER takes a comma-separated list of substrings, and runs the cases whose name holds any of them.
+RENDER_PRESET_CORPUS=<dir> renders the cases of another copy of the corpus (e.g. its presets upgraded) against the same
+records.
 RENDER_PRESET_KEEP=<dir> keeps each case's output there, as `<case>.pcm` (interleaved little-endian i32, the case's
 length exactly), for tests/integration/golden/compare_renders.py.
 RENDER_RANDOM_SEED seeds the synth's random stream at each case's first note instead of its boot seed, to measure how
@@ -132,10 +134,13 @@ def _check_learn(gate, corpus: Path, pcm_record) -> None:
     listen, so only the preset's own learn can reach it."""
     where = gate.tmp / "learn"
     env = _stage(corpus, "sine_basic", where)
-    preset = where / "card" / "SYNTHS" / "PRESET.XML"
-    preset.write_text(
-        preset.read_text().replace("<sound", '<sound inputMidiChannel="1"', 1)
+    preset = next((where / "card" / "SYNTHS").glob("PRESET.*"))
+    learn = (
+        ('"sound": {', '"sound": {"inputMidiChannel": 1,')
+        if preset.suffix == ".json"
+        else ("<sound", '<sound inputMidiChannel="1"')
     )
+    preset.write_text(preset.read_text().replace(*learn, 1))
     notes = where / "channel2.notes"
     notes.write_text("4608 91 3C 64\n52000 81 3C 40\n")
     env["RENDER_MIDI"] = str(notes)
@@ -153,7 +158,11 @@ def _check_learn(gate, corpus: Path, pcm_record) -> None:
 
 
 def run(gate):
-    corpus = gate.root / "tests/integration/golden/presets"
+    # RENDER_PRESET_CORPUS renders another copy of the corpus (e.g. its files upgraded) against the same records.
+    corpus = Path(
+        gate.env.get("RENDER_PRESET_CORPUS")
+        or gate.root / "tests/integration/golden/presets"
+    )
     records_path = gate.root / "tests/integration/golden/presets.json"
     update = os.environ.get("RENDER_PRESET_UPDATE") == "1"
     keep = (

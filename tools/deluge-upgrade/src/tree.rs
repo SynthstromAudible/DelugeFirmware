@@ -40,6 +40,12 @@ pub const ARRAY_CONTAINERS: &[&str] = &[
     "wavetableRanges",
 ];
 
+/// Whether the container `key` inside the element `parent` is a JSON array: a MIDI instrument writes its `modKnobs`
+/// as an object (`midi_instrument.cpp`), a sound as an array.
+fn is_array(parent: &str, key: &str) -> bool {
+    ARRAY_CONTAINERS.contains(&key) && !(key == "modKnobs" && parent == "midi")
+}
+
 impl Node {
     /// Parses a document: its top-level elements, each an entry of the returned map.
     pub fn parse_xml(text: &str) -> Result<Node, UpgradeError> {
@@ -123,13 +129,13 @@ impl Node {
     /// a whole decimal number bare, any other text a string.
     pub fn to_json(&self) -> String {
         let mut out = String::new();
-        write_object(self.entries(), 0, &mut out);
+        write_object("", self.entries(), 0, &mut out);
         out.push('\n');
         out
     }
 }
 
-fn write_object(entries: &[(String, Node)], depth: usize, out: &mut String) {
+fn write_object(parent: &str, entries: &[(String, Node)], depth: usize, out: &mut String) {
     out.push('{');
     for (i, (key, value)) in entries.iter().enumerate() {
         if i > 0 {
@@ -138,7 +144,7 @@ fn write_object(entries: &[(String, Node)], depth: usize, out: &mut String) {
         newline(depth + 1, out);
         write_string(key, out);
         out.push_str(": ");
-        write_value(key, value, depth + 1, out);
+        write_value(parent, key, value, depth + 1, out);
     }
     if !entries.is_empty() {
         newline(depth, out);
@@ -146,25 +152,25 @@ fn write_object(entries: &[(String, Node)], depth: usize, out: &mut String) {
     out.push('}');
 }
 
-fn write_value(key: &str, value: &Node, depth: usize, out: &mut String) {
+fn write_value(parent: &str, key: &str, value: &Node, depth: usize, out: &mut String) {
     match value {
         Node::Text(text) if is_bare_number(text) => out.push_str(text),
         Node::Text(text) => write_string(text, out),
-        Node::Map(entries) if ARRAY_CONTAINERS.contains(&key) => {
+        Node::Map(entries) if is_array(parent, key) => {
             out.push('[');
             for (i, item) in entries.iter().enumerate() {
                 if i > 0 {
                     out.push(',');
                 }
                 newline(depth + 1, out);
-                write_object(std::slice::from_ref(item), depth + 1, out);
+                write_object(key, std::slice::from_ref(item), depth + 1, out);
             }
             if !entries.is_empty() {
                 newline(depth, out);
             }
             out.push(']');
         }
-        Node::Map(entries) => write_object(entries, depth, out),
+        Node::Map(entries) => write_object(key, entries, depth, out),
     }
 }
 
