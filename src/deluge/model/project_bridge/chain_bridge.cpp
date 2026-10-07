@@ -132,10 +132,9 @@ FxChain encodeChainOf(::GlobalEffectable& owner, ChainHome home, int32_t tick_ma
 	         deluge::serialization::Value::makeScalar(modFXParamToString(owner.currentModFXParam)));
 	view.set("currentFilterType",
 	         deluge::serialization::Value::makeScalar(filterTypeToString(owner.currentFilterType)));
-	return chainFrom(deluge::effects::encode_chain(owner.effects(), homeOf(home),
-	                                               {.input_tick_magnitude = tick_magnitude},
-	                                               owner.savedCompressorThreshold()),
-	                 home, tick_magnitude, std::move(view));
+	return chainFrom(
+	    deluge::effects::encode_chain(owner.effects(), homeOf(home), {.input_tick_magnitude = tick_magnitude}), home,
+	    tick_magnitude, std::move(view));
 }
 
 void fillChains(::Song& song) {

@@ -45,11 +45,10 @@ Error SetEffectSetting::apply(Context& ctx) {
 	}
 	owner->setEffects(states);
 
-	// The slot as the owner now encodes it (a clip chain's threshold stays its param's).
+	// The slot as the owner's state now encodes it.
 	const deluge::effects::Home home =
 	    chain->reverb_return ? deluge::effects::Home::MASTER : deluge::effects::Home::CLIP;
-	for (deluge::effects::SlotEntries& encoded :
-	     deluge::effects::encode_chain(owner->effects(), home, context, owner->savedCompressorThreshold())) {
+	for (deluge::effects::SlotEntries& encoded : deluge::effects::encode_chain(owner->effects(), home, context)) {
 		if (encoded.effect == *effect) {
 			slot->state = std::move(encoded.entries);
 		}

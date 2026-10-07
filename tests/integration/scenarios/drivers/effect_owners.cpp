@@ -141,6 +141,14 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	}
 
 	if (kit != nullptr) {
+		// The render takes a clip chain's threshold from its param each block: the chain holds the owner's state,
+		// which that does not move.
+		static_cast<Kit*>(kit)->compressor.setThreshold(0x12345678);
+		const std::string afterRender = deluge::harness::chainIncoherence(*song);
+		if (!afterRender.empty()) {
+			std::fprintf(io.err, "FAIL: a kit after a render moved its threshold: %s\n", afterRender.c_str());
+			failures++;
+		}
 		checkGestures(*static_cast<Kit*>(kit), kitParams, *song, "a kit", true);
 	}
 	checkGestures(song->live.global_effectable, song->paramManager, *song, "the song master", false);
