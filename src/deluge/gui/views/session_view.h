@@ -234,6 +234,14 @@ private:
 	int32_t gridSecondPressedY = -1;
 	inline bool gridSecondPadInactive() { return (gridSecondPressedX == -1 && gridSecondPressedY == -1); }
 
+	// Column-wide affect-entire (held AFFECT_ENTIRE + held clip pad) — mirrors clip-level param
+	// changes across every clip in the held column. Tracked independently of currentSong->affectEntire
+	// because the existing toggle is gated on UI_MODE_NONE and won't fire while a clip pad is held.
+	bool affectEntireButtonHeld = false;
+	bool isColumnAffectEntireActive() const;
+	void applyAbsoluteValueToColumn(Output* track, Clip* sourceClip, int32_t whichModEncoder, int32_t snappedValue);
+	void updateAffectEntireLED();
+
 	inline void gridResetPresses(bool first = true, bool second = true) {
 		if (first) {
 			gridFirstPressedX = -1;
