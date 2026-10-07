@@ -348,7 +348,8 @@ int run(Check check, int argc, char** argv, Io driverIo) {
 		StorageManager::instrumentDocumentTags(type, &firstTag, &altTag);
 		deluge::storage::TreeDocument document;
 		Error e = document.open(std::span{reinterpret_cast<const uint8_t*>(text.data()), text.size()},
-		                        /*isJson=*/false, firstTag, altTag);
+		                        deluge::storage::formatOfPath(argv[1]) == deluge::storage::DocumentFormat::JSON,
+		                        firstTag, altTag);
 		Instrument* instrument = nullptr;
 		if (e == Error::NONE) {
 			std::string name = "PRESET";

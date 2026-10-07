@@ -17,7 +17,8 @@ from presets_run import find_presets
 
 def sweep(scenario: str, argv=None, description: str = "", extra_jobs=()) -> int:
     """Run @scenario over every corpus song (SONG), every preset (SYNTH, KIT) and @extra_jobs ((path, kind) pairs): 0
-    when all pass, 1 on a failure, 77 with nothing to check. A file that does not load is skipped."""
+    when all pass, 1 on a failure or when no file of a kind it was given loaded, 77 with nothing to check. A file that
+    does not load is skipped."""
     ap = argparse.ArgumentParser(description=description)
     ap.add_argument("--binary", default=str(driver.default_binary()))
     ap.add_argument("--wrapper", default="")
@@ -47,10 +48,12 @@ def sweep(scenario: str, argv=None, description: str = "", extra_jobs=()) -> int
         args.jobs,
     )
     ok = fail = skip = 0
+    checked = {kind: 0 for _, kind in jobs}
     for (path, kind), r in zip(jobs, results):
         rel = os.path.relpath(path, root)
         if r.returncode == 0:
             ok += 1
+            checked[kind] += 1
         elif r.returncode == 1:
             skip += 1
             print(f"skip     {rel}")
@@ -60,6 +63,10 @@ def sweep(scenario: str, argv=None, description: str = "", extra_jobs=()) -> int
             print(f"FAIL(rc={r.returncode}) {kind} {rel}\n           {tail}")
     print("=" * 60)
     print(f"OK={ok} FAIL={fail} SKIP={skip}  ({scenario}, corpus={args.corpus})")
+    unchecked = sorted(kind for kind, n in checked.items() if n == 0)
+    if unchecked:
+        print(f"FAIL: no {', '.join(unchecked)} file loaded, so none was checked")
+        return 1
     return 1 if fail else 0
 
 

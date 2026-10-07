@@ -1,12 +1,11 @@
 // JSON round-trip fixture (deserializer step 2b): exercises the JSON side of the record-first
-// deserializer end-to-end -- JsonSerializer output, parseJson, and ValueTreeDeserializer JSON mode --
-// which the corpus (all XML) otherwise never touches. Run as the json_roundtrip scenario
-// (scenarios/drivers/driver.h):
+// deserializer end-to-end -- JsonSerializer output, parseJson, and ValueTreeDeserializer JSON mode. Run as the
+// json_roundtrip scenario (scenarios/drivers/driver.h):
 //
-//   json_roundtrip <song.XML>
+//   json_roundtrip <song.XML|song.json>
 //
 // For each song:
-//   1. load it via the XML tree (as song_roundtrip does),
+//   1. load it via the XML or the JSON tree, as its file is written,
 //   2. save it to a JSON buffer via JsonSerializer  (jsonA),
 //   3. load jsonA via parseJson + ValueTreeDeserializer{Json} into a fresh Song,
 //   4. save that to a JSON buffer (jsonB),
@@ -127,7 +126,7 @@ static Song* loadFromJson(char* json, size_t jsonLen, Error* loadErr) {
 int json_roundtrip_main(int argc, char** argv, Io driverIo) {
 	io = driverIo;
 	if (argc < 2) {
-		std::fprintf(io.err, "usage: %s <song.XML>\n", argv[0]);
+		std::fprintf(io.err, "usage: %s <song.XML|song.json>\n", argv[0]);
 		return 2;
 	}
 	const char* songPath = argv[1];
@@ -150,11 +149,12 @@ int json_roundtrip_main(int argc, char** argv, Io driverIo) {
 	orig[fileLen] = 0;
 	std::fclose(f);
 
-	// (1) XML -> Song, (2) Song -> JSON (jsonA)
+	// (1) file -> Song, (2) Song -> JSON (jsonA)
 	Error e;
-	Song* song1 = loadFromXml(orig, fileLen, &e);
+	const bool isJson = deluge::storage::formatOfPath(songPath) == deluge::storage::DocumentFormat::JSON;
+	Song* song1 = isJson ? loadFromJson(orig, fileLen, &e) : loadFromXml(orig, fileLen, &e);
 	if (!song1) {
-		std::fprintf(io.err, "LOADFAIL xml -> Error %d\n", (int)e);
+		std::fprintf(io.err, "LOADFAIL %s -> Error %d\n", isJson ? "json" : "xml", (int)e);
 		return 1;
 	}
 	// A name holding characters JSON must escape (a quote, a backslash, a tab) must save as valid JSON and come back

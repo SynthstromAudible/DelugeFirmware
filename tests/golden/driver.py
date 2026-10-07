@@ -167,7 +167,7 @@ def baseline_diff(
     description: str = "",
     require_exit_0: bool = False,
 ) -> int:
-    """For each `<name>.txt` baseline in `baseline_dir`, run the driver on the corpus song `<name>.XML` and
+    """For each `<name>.txt` baseline in `baseline_dir`, run the driver on the corpus song `<name>.XML` or `.json` and
     byte-compare its stdout (minus '#' comment lines, which carry the song's absolute path) against the baseline.
     With `require_exit_0`, a run that does not exit 0 is a regression too. Returns 0, 1 on a regression, or 77
     (skip) with no corpus or no baselines."""
@@ -200,8 +200,15 @@ def baseline_diff(
     ok = regress = absent = 0
     present = []
     for name in baselines:
-        song = os.path.join(args.corpus, name + ".XML")
-        if os.path.isfile(song):
+        song = next(
+            (
+                os.path.join(args.corpus, name + ext)
+                for ext in (".XML", ".json")
+                if os.path.isfile(os.path.join(args.corpus, name + ext))
+            ),
+            None,
+        )
+        if song is not None:
             present.append((name, song))
         else:
             print(f"ABSENT  {name} (fixture not in corpus)")
@@ -232,12 +239,16 @@ def baseline_diff(
     print(
         f"OK={ok} REGRESS={regress} ABSENT={absent}  (corpus={args.corpus}, {len(baselines)} baselines)"
     )
+    if ok == 0 and regress == 0:
+        print("FAIL: no baseline's song is in the corpus, so nothing was compared")
+        return 1
     return 1 if regress else 0
 
 
 def self_checking_sweep(scenario: str, argv=None, description: str = "") -> int:
     """Run a self-checking driver over every song in the corpus: exit 0 passes, 1 is a song it cannot load (not this
-    driver's concern, so skipped), anything else fails. Returns 0, 1 on a failure, or 77 (skip) with no songs."""
+    driver's concern, so skipped), anything else fails. Returns 0, 1 on a failure or when no song loaded, or 77 (skip)
+    with no songs."""
     import argparse
 
     ap = argparse.ArgumentParser(description=description)
@@ -279,4 +290,7 @@ def self_checking_sweep(scenario: str, argv=None, description: str = "") -> int:
             fail += 1
     print("=" * 60)
     print(f"OK={ok} FAIL={fail}  (corpus={args.corpus})")
+    if ok == 0:
+        print("FAIL: no song in the corpus loaded, so nothing was checked")
+        return 1
     return 1 if fail else 0

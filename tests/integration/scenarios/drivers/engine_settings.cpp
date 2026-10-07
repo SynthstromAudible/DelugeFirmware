@@ -105,14 +105,15 @@ Song* loadSong(std::string_view bytes, deluge::storage::DocumentFormat format) {
 	return song;
 }
 
-/// The instrument the preset in @p bytes holds, read into @p song as the app reads a preset (not yet in its outputs).
-Instrument* loadPreset(std::string_view bytes, OutputType type, Song& song) {
+/// The instrument the preset in @p bytes (written as @p format) holds, read into @p song as the app reads a preset (not
+/// yet in its outputs).
+Instrument* loadPreset(std::string_view bytes, deluge::storage::DocumentFormat format, OutputType type, Song& song) {
 	char const* firstTag = nullptr;
 	char const* altTag = nullptr;
 	StorageManager::instrumentDocumentTags(type, &firstTag, &altTag);
 	deluge::storage::TreeDocument document;
-	if (document.open(std::span{reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size()}, /*isJson=*/false,
-	                  firstTag, altTag)
+	if (document.open(std::span{reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size()},
+	                  format == deluge::storage::DocumentFormat::JSON, firstTag, altTag)
 	    != Error::NONE) {
 		return nullptr;
 	}
@@ -1047,7 +1048,7 @@ int engine_settings_main(int argc, char** argv, Io driverIo) {
 
 	const OutputType type = kind == "KIT" ? OutputType::KIT : OutputType::SYNTH;
 	currentSong = freshSong();
-	Instrument* first = loadPreset(bytes, type, *currentSong);
+	Instrument* first = loadPreset(bytes, deluge::storage::formatOfPath(argv[1]), type, *currentSong);
 	if (first == nullptr) {
 		std::fprintf(io.err, "LOADFAIL\n");
 		return 1;
@@ -1056,7 +1057,7 @@ int engine_settings_main(int argc, char** argv, Io driverIo) {
 	if (int r = expectBound(*first, "added to a running song")) {
 		return r;
 	}
-	Instrument* second = loadPreset(bytes, type, *currentSong);
+	Instrument* second = loadPreset(bytes, deluge::storage::formatOfPath(argv[1]), type, *currentSong);
 	if (second == nullptr) {
 		std::fprintf(io.err, "LOADFAIL second copy\n");
 		return 1;
