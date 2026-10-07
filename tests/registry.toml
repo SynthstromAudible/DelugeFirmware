@@ -1478,8 +1478,8 @@ level = "unit"
 runner = "script"
 kind = "unit"
 status = "gate"
-gates = "the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands"
-run = ["python3", "-m", "unittest", "test_render_preset"]
+gates = "the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands; each render-song gate plays its own generated song, whatever the shell exports"
+run = ["python3", "-m", "unittest", "test_render_preset", "test_render_song"]
 tier = "pr"
 runtime = "~1s"
 

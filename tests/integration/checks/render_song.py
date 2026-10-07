@@ -71,6 +71,12 @@ def _generate(gate, name: str = "RS_STREAM") -> dict[str, str] | None:
     return {"RENDER_TREE": str(tree), "RENDER_SONG": f"SONGS/{name}.XML"}
 
 
+def generated_song(env: dict[str, str]) -> str:
+    """The generated song a gate plays: its own `RENDER_GENERATED` (the registry's, over the shell's, in @p env), else
+    RS_STREAM."""
+    return env.get("RENDER_GENERATED") or "RS_STREAM"
+
+
 def _level_swing(pcm: bytes) -> float:
     """The ratio of the loudest to the quietest quarter second over the first 5.5 s of the left channel."""
     count = len(pcm) // 4
@@ -87,11 +93,8 @@ def _level_swing(pcm: bytes) -> float:
 def run(gate):
     pcm_path = gate.tmp / "out.pcm"
     song = gate.env.get("RENDER_SONG")
-    generated = (
-        os.environ.get("RENDER_GENERATED")
-        or gate.env.get("RENDER_GENERATED")
-        or "RS_STREAM"
-    )
+    generated = generated_song(gate.env)
+
     env = {} if song else _generate(gate, generated)
     if env is None:
         return
