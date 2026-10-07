@@ -4,6 +4,8 @@ use crate::tree::Node;
 use crate::upgrade::Context;
 use crate::version::FirmwareVersion;
 
+pub mod sound;
+
 /// One conversion: it rewrites a document in place.
 pub struct Pass {
     /// Its name, as the report and the tests use it.
@@ -15,4 +17,11 @@ pub struct Pass {
 }
 
 /// Every conversion the upgrader makes, in order.
-pub static ALL: &[Pass] = &[];
+pub static ALL: &[Pass] = &[
+    // Read by every firmware that read them: no version gates them.
+    Pass {
+        name: "old sound forms",
+        before: None,
+        run: sound::old_sound_forms,
+    },
+];
