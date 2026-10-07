@@ -921,7 +921,8 @@ void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* par
 	    && unpatchedParams->params[params::UNPATCHED_LPF_FREQ].getCurrentValue() >= 2147483602
 	    && !unpatchedParams->params[params::UNPATCHED_LPF_RES].containsSomething(
 	        *unpatchedParams->docForParam(params::UNPATCHED_LPF_RES), 0)) {
-		unpatchedParams->params[params::UNPATCHED_LPF_RES].currentValue = -2147483648;
+		unpatchedParams->params[params::UNPATCHED_LPF_RES].setCurrentValueBasicForSetup(
+		    *unpatchedParams->docForParam(params::UNPATCHED_LPF_RES), -2147483648);
 	}
 
 	// If no HPF on, and resonance is at 25%, set it to 0%
@@ -929,7 +930,8 @@ void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* par
 	        *unpatchedParams->docForParam(params::UNPATCHED_HPF_FREQ), -2147483648)
 	    && !unpatchedParams->params[params::UNPATCHED_LPF_RES].containsSomething(
 	        *unpatchedParams->docForParam(params::UNPATCHED_LPF_RES), -1073741824)) {
-		unpatchedParams->params[params::UNPATCHED_HPF_RES].currentValue = -2147483648;
+		unpatchedParams->params[params::UNPATCHED_HPF_RES].setCurrentValueBasicForSetup(
+		    *unpatchedParams->docForParam(params::UNPATCHED_HPF_RES), -2147483648);
 	}
 }
 

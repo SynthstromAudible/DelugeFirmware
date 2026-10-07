@@ -21,7 +21,9 @@
 #include "memory/general_memory_allocator.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/song/song.h"
+#include "modulation/params/param_set.h"
 #include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
 #include "scenarios/drivers/driver.h"
 #include "storage/storage_manager.h"
 #include "storage/tree_document.h"
@@ -95,6 +97,34 @@ int preset_parse_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(error == Error::NONE && drum != nullptr, "a JSON synth preset reads into a kit row");
 		check(drum != nullptr && currentSong->live.param_backup.getPreferablyWithClip(drum, nullptr) != nullptr,
 		      "a JSON synth preset read into a kit row has its params");
+	}
+	{
+		// An unstamped (pre-1.2) synth with its filter open and half resonance: the old-file rule sets its resonance to
+		// none, and what it saves -- the param's stored value -- must say so too, not only what it plays.
+		constexpr std::string_view kOldSynth =
+		    R"(<?xml version="1.0" encoding="UTF-8"?><sound mode="subtractive"><defaultParams lpfFrequency="0x7FFFFFFF" )"
+		    R"(lpfResonance="0x00000000" volume="0x40000000"/></sound>)";
+		deluge::storage::TreeDocument document;
+		check(document.open(std::span{reinterpret_cast<const uint8_t*>(kOldSynth.data()), kOldSynth.size()}, false,
+		                    "sound", "synth")
+		          == Error::NONE,
+		      "an old synth preset opens");
+		Instrument* instrument = nullptr;
+		std::string name = "OLD";
+		std::string dir = "SYNTHS";
+		const Error error = StorageManager::parseInstrumentDocument(document, currentSong, nullptr, OutputType::SYNTH,
+		                                                            false, &instrument, &name, &dir);
+		document.release();
+		check(error == Error::NONE && instrument != nullptr, "an old synth preset loads");
+		if (instrument != nullptr) {
+			auto* sound = static_cast<SoundInstrument*>(instrument);
+			ParamManager* manager = currentSong->live.param_backup.getPreferablyWithClip(sound, nullptr);
+			PatchedParamSet* patched = manager != nullptr ? manager->getPatchedParamSet() : nullptr;
+			check(patched != nullptr
+			          && patched->docForParam(deluge::modulation::params::LOCAL_LPF_RESONANCE)->current_value
+			                 == -2147483648,
+			      "an old synth's resonance set to none is saved as none");
+		}
 	}
 	if (failures == 0) {
 		std::fprintf(io.out, "preset_parse: OK\n");
