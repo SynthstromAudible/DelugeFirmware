@@ -172,6 +172,9 @@ justEnqueue:
 	else {
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.1.3 have been getting E341.
+		if (GeneralMemoryAllocator::get().getRegion(cluster) != MEMORY_REGION_STEALABLE) {
+			FREEZE_WITH_ERROR("invalid");
+		}
 		if (cluster && cluster->numReasonsToBeLoaded < 0) {
 			FREEZE_WITH_ERROR("i028"); // bnhrsch got this!!
 		}

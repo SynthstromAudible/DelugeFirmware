@@ -520,6 +520,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	stopOutputRecordingAtLoopEnd = false;
 
 	lastSwungTickActioned = 0;
+	firstSwungTickPending = true;
 	lastTriggerClockOutTickDone = -1;
 	lastMIDIClockOutTickDone = -1;
 	timeLastMIDIClockOutTickSent = 0;
@@ -975,6 +976,7 @@ void PlaybackHandler::actionSwungTick() {
 	currentlyActioningSwungTickOrResettingPlayPos = true;
 
 	swungTickScheduled = false;
+	firstSwungTickPending = false;
 
 	lastSwungTickActioned += swungTicksTilNextEvent;
 
@@ -1759,8 +1761,9 @@ void PlaybackHandler::scheduleSwungTickFromExternalClock() {
 	// Tick-based MIDI/CV interpolation can produce a zero next-event interval via
 	// ParamManagerForTimeline::processCurrentPos. That value can propagate into swungTicksTilNextEvent
 	// during playback scheduling (see Clip::processCurrentPos). Clamp here so we always advance at least one swung
-	// tick instead of re-actioning the current tick forever.
-	if (swungTicksTilNextEvent < 1) {
+	// tick instead of re-actioning the current tick forever. But at the start of playback, tick 0 hasn't been actioned
+	// yet and a 0 here is what schedules it - clamping then would skip everything on the first tick.
+	if (swungTicksTilNextEvent < 1 && !firstSwungTickPending) {
 		swungTicksTilNextEvent = 1;
 	}
 
@@ -3005,7 +3008,7 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_
 				}
 
 				// Beware - calling this might insert or delete a Clip!
-				session.toggleClipStatus(clip, &c, false, kMIDIKeyInputLatency);
+				session.toggleClipStatus(clip, &c, Buttons::isShiftButtonPressed(), kMIDIKeyInputLatency);
 
 				// use root UI in case this is called from performance view
 				sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);

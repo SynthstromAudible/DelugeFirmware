@@ -138,6 +138,9 @@ public:
 	// - A "launch" event
 	// - Start of playback, including if count-in ends
 	int64_t lastSwungTickActioned; // Will be set to a phony-ish "0" while playback being set up
+	// True between setupPlayback() and the first actionSwungTick(): tick 0 is due but hasn't been actioned yet, so a
+	// swungTicksTilNextEvent of 0 legitimately means "action tick 0" rather than "re-action the current tick".
+	bool firstSwungTickPending;
 
 	// Trigger-clock-out ticks
 	bool triggerClockOutTickScheduled;

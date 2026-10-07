@@ -1742,7 +1742,7 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 bool ModControllableAudio::enableGrain() {
 
 	if (grainFX == nullptr) {
-		void* grainMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GranularProcessor));
+		void* grainMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(GranularProcessor));
 		if (grainMemory) {
 			grainFX = new (grainMemory) GranularProcessor;
 			return true;

@@ -418,6 +418,9 @@ bool ClipView::shouldRenderShortcutsOverview() const {
 bool ClipView::maybeRenderShortcutsOverview(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                             uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                             bool drawUndefinedArea) {
+	// Sean: disabling rendering while in clip view for now
+	return false;
+
 	if (shouldRenderShortcutsOverview()) {
 		renderedShortcutOverview = true;
 		D_PRINTLN("rendering shortcuts for %x", getModControllableAudioOrNone());

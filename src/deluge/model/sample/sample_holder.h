@@ -53,9 +53,11 @@ public:
 	int32_t neutralPhaseIncrement;
 
 	Cluster* clustersForStart[kNumClustersLoadedAhead];
+	int32_t startPlaybackAtSample{};
+	uintptr_t startPlaybackAtByte{};
 
 protected:
 	void claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int32_t playDirection,
-	                                  int32_t clusterLoadInstruction);
+	                                  int32_t clusterLoadInstruction, int32_t numClustersToClaim);
 	virtual void sampleBeenSet(bool reversed, bool manuallySelected) {}
 };

@@ -19,6 +19,8 @@
 
 #include "definitions_cxx.hpp"
 #include "memory/memory_region.h"
+#include "memory/stealable.h"
+#include <concepts>
 
 #define MEMORY_REGION_STEALABLE 0
 #define MEMORY_REGION_INTERNAL 1
@@ -72,7 +74,12 @@ public:
 		return alloc(requiredSize, false, false, thingNotToStealFrom);
 	}
 
-	[[gnu::always_inline]] void* allocStealable(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
+	/// Stealable memory is marked SPACE_HEADER_STEALABLE, and the allocator calls Stealable's virtuals on whatever it
+	/// finds there when grabbing neighbouring memory - so only a Stealable may be constructed in it. requiredSize
+	/// covers any payload stored after the object.
+	template <std::derived_from<Stealable> T>
+	[[gnu::always_inline]] void* allocStealable(uint32_t requiredSize = sizeof(T),
+	                                            void* thingNotToStealFrom = nullptr) {
 		return alloc(requiredSize, false, true, thingNotToStealFrom);
 	}
 
