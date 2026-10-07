@@ -396,11 +396,26 @@ fn place(sound: &mut Node, converted: Converted) {
     }
 }
 
+/// A sound's mode is the last one it reads: an earlier `mode` (left beside a converted ring mod) is dropped, so every
+/// later reader of the document sees the one that counts.
+fn keep_last_mode(sound: &mut Node) {
+    let entries = sound.entries_mut().expect("a sound is a map");
+    if let Some(last) = entries.iter().rposition(|(k, _)| k == "mode") {
+        let mut index = 0;
+        entries.retain(|(k, _)| {
+            let keep = k != "mode" || index == last;
+            index += 1;
+            keep
+        });
+    }
+}
+
 /// Every old form of every sound in the document.
 pub fn old_sound_forms(doc: &mut Node, _ctx: &mut Context) {
     for_each_sound(doc, &mut |sound| {
         let mut converted = Converted::default();
         collect(sound, &mut converted);
         place(sound, converted);
+        keep_last_mode(sound);
     });
 }

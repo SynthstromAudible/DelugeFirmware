@@ -29,7 +29,7 @@ fn ring_mod_wins_over_a_later_mode_and_an_earlier_one() {
     );
     same(
         &converted(r#"<sound mode="fm" ringMod="1"/>"#),
-        r#"<sound mode="fm" mode="ringmod"/>"#,
+        r#"<sound mode="ringmod"/>"#,
     );
     same(
         &converted(r#"<sound ringMod="0" mode="fm"/>"#),

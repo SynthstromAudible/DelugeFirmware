@@ -5,6 +5,7 @@ use crate::upgrade::Context;
 use crate::version::FirmwareVersion;
 
 pub mod cables;
+pub mod community;
 pub mod params;
 pub mod samples;
 pub mod sound;
@@ -64,6 +65,33 @@ pub static ALL: &[Pass] = &[
         name: "arpeggiator rate",
         before: Some(FirmwareVersion::official_tagged(1, 5, 0, "pretest")),
         run: params::arpeggiator_rate,
+    },
+    // Before community 1.1 and 1.2 (every official file included).
+    Pass {
+        name: "FM filters off",
+        before: Some(FirmwareVersion::community(1, 2, 0)),
+        run: community::fm_filters_off,
+    },
+    Pass {
+        name: "old arpeggiator mode",
+        before: Some(FirmwareVersion::community(1, 1, 0)),
+        run: community::old_arpeggiator_mode,
+    },
+    Pass {
+        name: "mod wheel to Y",
+        before: Some(FirmwareVersion::community(1, 1, 0)),
+        run: community::mod_wheel_to_y,
+    },
+    // Note data: plain noteData is read whatever the stamp, noteDataWithLift before community 1.3.
+    Pass {
+        name: "old note data",
+        before: None,
+        run: community::old_note_data,
+    },
+    Pass {
+        name: "song compressor",
+        before: None,
+        run: community::song_compressor,
     },
     Pass {
         name: "swing interval",
