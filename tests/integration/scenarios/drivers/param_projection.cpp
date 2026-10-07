@@ -1212,8 +1212,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			expectSameParamInSet(unp2, unp, id, "ge-rt param");
 		}
 
-		// Legacy back-compat: a hand-crafted <lpf morph="..."> (the writer emits flat lpfMorph, but old
-		// files nested it) must still load into UNPATCHED_LPF_MORPH.
+		// A nested <lpf morph="..."> is no form any release writes (the writer emits flat lpfMorph; the upgrader
+		// converts files that nest it): it is not read.
 		deluge::project::DocParamSet morphDoc = deluge::bridge::toDocParamSet(*unp);
 		morphDoc.params[params::UNPATCHED_LPF_MORPH].current_value = 0x5A5A;
 		static char legacyBuf[4096];
@@ -1238,7 +1238,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 				legacyReader.exitTag();
 			}
 		}
-		check(unp3->params[params::UNPATCHED_LPF_MORPH].currentValue == 0x5A5A, "ge-rt legacy <lpf morph> loads");
+		check(unp3->params[params::UNPATCHED_LPF_MORPH].currentValue != 0x5A5A, "ge-rt nested <lpf morph> is not read");
 	}
 
 	// Phase 4c: the ExpressionParamSet (MPE) block serializes byte-identical to the engine's

@@ -515,16 +515,14 @@ constexpr DocParamAttr kGlobalEffectableFlatAttrs[] = {
     {"tempo", gp::kTempo},
     {"arpeggiatorRate", gp::kArpRate},
 };
-// Read-side <lpf>/<hpf> groups: same as the write groups plus the legacy nested `morph` member.
+// Read-side <lpf>/<hpf> groups: as the writer writes them (each filter's morph is flat, lpfMorph / hpfMorph).
 constexpr DocParamAttr kGlobalLpfReadGroup[] = {
     {"frequency", gp::kLpfFrequency},
     {"resonance", gp::kLpfResonance},
-    {"morph", gp::kLpfMorph},
 };
 constexpr DocParamAttr kGlobalHpfReadGroup[] = {
     {"frequency", gp::kHpfFrequency},
     {"resonance", gp::kHpfResonance},
-    {"morph", gp::kHpfMorph},
 };
 } // namespace
 

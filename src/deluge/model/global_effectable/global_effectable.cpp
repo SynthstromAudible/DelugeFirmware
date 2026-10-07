@@ -852,9 +852,7 @@ void GlobalEffectable::readParamsFromFileDomFirst(Deserializer& reader, ParamMan
 
 bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* tagName,
                                             ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
-	// Read the GlobalEffectable param block from the value DOM (deluge::project). The DOM reader handles
-	// the current format plus the legacy nested `morph` member of <lpf>/<hpf>, so the former hand-written
-	// dispatch collapses to one call; verified by the golden round-trip and the param-projection driver.
+	// Read the GlobalEffectable param block from the value DOM (deluge::project), as the writer writes it.
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 	return deluge::bridge::readGlobalEffectableParamTag(reader, tagName, *unpatchedParams, *unpatchedParamsSummary,
@@ -865,10 +863,6 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 Error GlobalEffectable::readTagFromFile(Deserializer& reader, char const* tagName,
                                         ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
                                         ArpeggiatorSettings* arpSettings, Song* song) {
-
-	// This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
-	// if (paramManager && strcmp(tagName, "delay") && GlobalEffectable::readParamTagFromFile(tagName, paramManager,
-	// readAutomation)) {}
 
 	// else
 	if (paramManager && !strcmp(tagName, "defaultParams")) {
