@@ -38,8 +38,6 @@ ParamManager::ParamManager() {
 	summaries[4] = {0};
 #endif
 	expressionParamSetOffset = 0;
-
-	resonanceBackwardsCompatibilityProcessed = false;
 }
 
 ParamManager::~ParamManager() {

@@ -25,30 +25,14 @@ describe codec("the model's codec foundation", ${
 		expect(sync_level_to_file(0, 3)).to_equal(0);
 	});
 
-	it("reads an old song version and its tick magnitude", _ {
-		auto doc = parseXml(R"(<song firmwareVersion="3.0.0" inputTickMagnitude="3"></song>)");
-		DecodeContext found = decode_context(*doc, *doc->find("song"));
-		expect(found.input_tick_magnitude).to_equal(3);
-		expect(found.swing_interval_is_relative).to_be_false();
+	it("reads a song's tick magnitude", _ {
+		auto doc = parseXml(R"(<song firmwareVersion="c1.3.0" inputTickMagnitude="3"></song>)");
+		expect(decode_context(*doc, *doc->find("song")).input_tick_magnitude).to_equal(3);
 	});
 
-	it("reads sync values as relative from 3.1.0-alpha2 and from every community version", _ {
-		auto official = parseJson(R"({"song": {"firmwareVersion": "3.1.0-alpha2"}})");
-		auto community = parseJson(R"({"song": {"firmwareVersion": "c1.2.0"}})");
-		expect(decode_context(*official, *official->find("song")).swing_interval_is_relative).to_be_true();
-		expect(decode_context(*community, *community->find("song")).swing_interval_is_relative).to_be_true();
-	});
-
-	it("takes the version of an old file from beside the song", _ {
-		auto doc = parseXml(R"(<firmwareVersion>3.1.0</firmwareVersion><song></song>)");
-		expect(decode_context(*doc, *doc->find("song")).swing_interval_is_relative).to_be_true();
-	});
-
-	it("treats a song without a version as the oldest", _ {
+	it("takes a tick magnitude of 1 when the song gives none", _ {
 		auto doc = parseXml(R"(<song></song>)");
-		DecodeContext found = decode_context(*doc, *doc->find("song"));
-		expect(found.swing_interval_is_relative).to_be_false();
-		expect(found.input_tick_magnitude).to_equal(1);
+		expect(decode_context(*doc, *doc->find("song")).input_tick_magnitude).to_equal(1);
 	});
 });
 

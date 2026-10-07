@@ -388,7 +388,6 @@ doReadDrum:
 	}
 
 	if (paramManager.containsAnyMainParamCollections()) {
-		compensateInstrumentVolumeForResonance(&paramManager, song);
 		song->live.param_backup.backUp(this, clip, &paramManager, true);
 	}
 
@@ -1154,30 +1153,6 @@ void Kit::prepareForHibernationOrDeletion() {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		thisDrum->prepareForHibernation();
-	}
-}
-
-void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song) {
-
-	// If it was a pre-V1.2.0 firmware file, we need to compensate for resonance
-	if (song_firmware_version < FirmwareVersion::official({1, 2, 0})
-	    && !paramManager->resonanceBackwardsCompatibilityProcessed) {
-
-		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-		int32_t compensation = interpolateTableSigned(unpatchedParams->getValue(params::UNPATCHED_LPF_RES) + 2147483648,
-		                                              32, oldResonanceCompensation, 3);
-		float compensationDB = (float)compensation / (1024 << 16);
-
-		if (compensationDB > 0.1) {
-			unpatchedParams->shiftParamVolumeByDB(params::UNPATCHED_VOLUME, compensationDB);
-		}
-
-		// The SoundDrums, like all Sounds, will have already had resonance compensation done on their default
-		// ParamManagers if and when any were in fact loaded. Or, if we're going through a Song doing this to all
-		// ParamManagers within Clips, the Clip will automatically do all NoteRows / Drums next.
-
-		GlobalEffectableForClip::compensateVolumeForResonance(paramManager);
 	}
 }
 

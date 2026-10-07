@@ -390,10 +390,6 @@ bool SoundInstrument::readTagFromFile(Deserializer& reader, char const* tagName)
 	return MelodicInstrument::readTagFromFile(reader, tagName);
 }
 
-void SoundInstrument::compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {
-	Sound::compensateVolumeForResonance(modelStack);
-}
-
 deluge::storage::Walk SoundInstrument::walkCrucialSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
 	return walkSampleDemands(visitor);
 }

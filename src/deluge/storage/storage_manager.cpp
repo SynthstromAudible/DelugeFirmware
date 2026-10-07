@@ -348,20 +348,7 @@ deleteInstrumentAndGetOut:
 	if (!song->live.param_backup.getPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
 	                                                   nullptr)) {
 
-		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
-		// paramManager to be created when we read the Kit just now. So, just make one.
-		if (song_firmware_version < FirmwareVersion::official({2, 2, 0, "beta"}) && outputType == OutputType::KIT) {
-			ParamManagerForTimeline paramManager;
-			error = paramManager.setupUnpatched();
-			if (error != Error::NONE) {
-				goto deleteInstrumentAndGetOut;
-			}
-
-			GlobalEffectableForClip::initParams(&paramManager);
-			((Kit*)newInstrument)->compensateInstrumentVolumeForResonance(&paramManager, song); // Necessary?
-			song->live.param_backup.backUp(((Kit*)newInstrument), clip, &paramManager, true);
-		}
-		else if (outputType == OutputType::MIDI_OUT) {
+		if (outputType == OutputType::MIDI_OUT) {
 			// midi instruments make the param manager later
 		}
 		else {

@@ -2892,30 +2892,11 @@ loadInstrument:
 		else if (!strcmp(tagName, "soundParams")) {
 			outputTypeWhileLoading = OutputType::SYNTH;
 
-			// Normal case - load in brand new ParamManager
-
-			if (song_firmware_version >= FirmwareVersion::official({1, 2, 0}) || !output) {
-createNewParamManager:
-				error = paramManager.setupWithPatching();
-				if (error != Error::NONE) {
-					goto someError;
-				}
-				Sound::initParams(&paramManager);
+			error = paramManager.setupWithPatching();
+			if (error != Error::NONE) {
+				goto someError;
 			}
-
-			// Slight hack to fix crash with late-2016-ish songs
-			else {
-
-				ParamManager* otherParamManager = song->live.param_backup.getPreferablyWithClip(
-				    (ModControllableAudio*)output->toModControllable(), this);
-				if (!otherParamManager) {
-					goto createNewParamManager;
-				}
-				error = paramManager.cloneParamCollectionsFrom(otherParamManager, false);
-				if (error != Error::NONE) {
-					goto someError;
-				}
-			}
+			Sound::initParams(&paramManager);
 			Sound::readParamsFromFile(reader, &paramManager, readAutomationUpToPos);
 		}
 
@@ -3113,16 +3094,6 @@ doReadBendRange:
 					}
 				}
 			}
-		}
-	}
-
-	// Pre V3.2.0 (and also for some of 3.2's alpha phase), bend range wasn't adjustable, wasn't written in the file,
-	// and was always 12.
-	if (song_firmware_version <= FirmwareVersion::official({3, 2, 0, "alpha"})
-	    && !paramManager.getExpressionParamSet()) {
-		ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet();
-		if (expressionParams) {
-			expressionParams->bendRanges[BEND_RANGE_MAIN] = 12;
 		}
 	}
 
@@ -3785,26 +3756,6 @@ void InstrumentClip::backupPresetSlot() {
 	}
 }
 
-void InstrumentClip::compensateVolumeForResonance(ModelStackWithTimelineCounter* modelStack) {
-	((Instrument*)output)
-	    ->compensateInstrumentVolumeForResonance(
-	        modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager));
-
-	if (output->type == OutputType::KIT) {
-
-		for (int32_t i = 0; i < std::ssize(noteRows); i++) {
-			NoteRow* thisNoteRow = &noteRows[i];
-			if (thisNoteRow->drum && thisNoteRow->paramManager.containsAnyMainParamCollections()
-			    && thisNoteRow->drum->type == DrumType::SOUND) {
-				SoundDrum* thisDrum = (SoundDrum*)thisNoteRow->drum;
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    modelStack->addNoteRow(i, thisNoteRow)->addOtherTwoThings(thisDrum, &thisNoteRow->paramManager);
-				thisDrum->compensateVolumeForResonance(modelStackWithThreeMainThings);
-			}
-		}
-	}
-}
-
 void InstrumentClip::deleteOldDrumNames() {
 	for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 		NoteRow* thisNoteRow = &noteRows[i];
@@ -4196,41 +4147,6 @@ haveNoDrum:
 						}
 					}
 				}
-
-				// If we've now got a paramManager and Drum...
-				if (thisNoteRow->drum) {
-
-					// If saved before V2.1, see if we need linear interpolation
-					if (song_firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
-						if (thisNoteRow->drum->type == DrumType::SOUND) {
-							SoundDrum* sound = (SoundDrum*)thisNoteRow->drum;
-
-							PatchedParamSet* patchedParams = thisNoteRow->paramManager.getPatchedParamSet();
-
-							for (int32_t s = 0; s < kNumSources; s++) {
-								Source* source = &sound->sources[s];
-								if (source->oscType == OscType::SAMPLE) {
-									if (sound->getTranspose() || source->transpose || source->cents
-									    || patchedParams->params[params::LOCAL_PITCH_ADJUST].containsSomething(
-									        *patchedParams->docForParam(params::LOCAL_PITCH_ADJUST), 0)
-									    //||
-									    // thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(params::LOCAL_PITCH_ADJUST)
-									    //// No, can't call these cos patching isn't set up yet. Oh well
-									    //||
-									    // thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(params::LOCAL_OSC_A_PITCH_ADJUST
-									    //+ s)
-									    || patchedParams->params[params::LOCAL_OSC_A_PITCH_ADJUST + s]
-									           .containsSomething(
-									               *patchedParams->docForParam(params::LOCAL_OSC_A_PITCH_ADJUST + s),
-									               0)) {
-
-										source->setInterpolationMode(InterpolationMode::LINEAR);
-									}
-								}
-							}
-						}
-					}
-				}
 			}
 			noteRowCount++;
 		}
@@ -4268,63 +4184,10 @@ haveNoDrum:
 				}
 			}
 		}
-		else if (output->type == OutputType::SYNTH) {
-			SoundInstrument* sound = (SoundInstrument*)output;
-			sound->possiblySetupDefaultExpressionPatching(&paramManager);
-		}
 
 		// Occasionally we get a song file with a crazy scroll value. Not sure how. It happened to Tia
 		if (!isScrollWithinRange(0, yScroll)) {
 			yScroll = 60;
-		}
-	}
-
-	// Now the Instrument (and all Drums) are matched up, we can do the resonance compensation crap.
-	compensateVolumeForResonance(modelStack);
-
-	// If saved before V2.1....
-	if (song_firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
-
-		if (output->type == OutputType::SYNTH) {
-			SoundInstrument* sound = (SoundInstrument*)output;
-
-			for (int32_t s = 0; s < kNumSources; s++) {
-				Source* source = &sound->sources[s];
-				if (source->oscType == OscType::SAMPLE) {
-					source->setInterpolationMode(InterpolationMode::LINEAR);
-				}
-			}
-		}
-
-		// For songs saved before V2.0, ensure that non-square oscillators have PW set to 0 (cos PW in this case didn't
-		// have an effect then but it will now)
-		if (song_firmware_version < FirmwareVersion::official({2, 0, 0, "beta"})) {
-			if (output->type == OutputType::SYNTH) {
-				SoundInstrument* sound = (SoundInstrument*)output;
-
-				ParamCollectionSummary* patchedParamsSummary = paramManager.getPatchedParamSetSummary();
-				PatchedParamSet* patchedParams = (PatchedParamSet*)patchedParamsSummary->paramCollection;
-
-				PatchCableSet* patchedCables = paramManager.getPatchCableSet();
-
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    modelStack->addOtherTwoThingsButNoNoteRow(sound, &paramManager);
-
-				for (int32_t s = 0; s < kNumSources; s++) {
-					if (sound->sources[s].oscType != OscType::SQUARE) {
-
-						ModelStackWithParamCollection* modelStackWithParamCollection =
-						    modelStackWithThreeMainThings->addParamCollection(patchedParams, patchedParamsSummary);
-
-						patchedParams->deleteAutomationForParamBasicForSetup(modelStackWithParamCollection,
-						                                                     params::LOCAL_OSC_A_PHASE_WIDTH + s);
-						patchedParams->params[params::LOCAL_OSC_A_PHASE_WIDTH + s].setCurrentValueBasicForSetup(
-						    *patchedParams->docForParam(params::LOCAL_OSC_A_PHASE_WIDTH + s), 0);
-						patchedCables->removeAllPatchingToParam(modelStackWithParamCollection,
-						                                        params::LOCAL_OSC_A_PHASE_WIDTH + s);
-					}
-				}
-			}
 		}
 	}
 

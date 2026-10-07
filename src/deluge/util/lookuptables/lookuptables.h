@@ -58,7 +58,6 @@ extern const int32_t attackRateTable[51];
 extern const int32_t releaseRateTable[51];
 extern const int32_t releaseRateTable64[65];
 extern const int32_t tanTable[65];
-extern const int16_t oldResonanceCompensation[];
 
 #define NUM_PRESET_REVERBS 3
 const uint8_t presetReverbRoomSize[NUM_PRESET_REVERBS] = {16, 30, 44};

@@ -1664,43 +1664,6 @@ unknownTag:
 				reader.exitTag("lastSelectedParamArrayPosition");
 			}
 
-			// legacy section, read as part of global effectable (songParams tag) post c1.1
-			else if (!strcmp(tagName, "songCompressor")) {
-				deluge::effects::EffectStates next = live.global_effectable.effects();
-				while (*(tagName = reader.readNextTagOrAttributeName())) {
-					if (!strcmp(tagName, "attack")) {
-						q31_t masterCompressorAttack = reader.readTagOrAttributeValueInt();
-						next.compressor.attack = masterCompressorAttack;
-						reader.exitTag("attack");
-					}
-					else if (!strcmp(tagName, "release")) {
-						q31_t masterCompressorRelease = reader.readTagOrAttributeValueInt();
-						next.compressor.release = masterCompressorRelease;
-						reader.exitTag("release");
-					}
-					else if (!strcmp(tagName, "thresh")) {
-						q31_t masterCompressorThresh = reader.readTagOrAttributeValueInt();
-						next.compressor.threshold = masterCompressorThresh;
-						reader.exitTag("thresh");
-					}
-					else if (!strcmp(tagName, "ratio")) {
-						q31_t masterCompressorRatio = reader.readTagOrAttributeValueInt();
-						next.compressor.ratio = masterCompressorRatio;
-						reader.exitTag("ratio");
-					}
-					else if (!strcmp(tagName, "compHPF")) {
-						q31_t masterCompressorSidechain = reader.readTagOrAttributeValueInt();
-						next.compressor.sidechain_hpf = masterCompressorSidechain;
-						reader.exitTag("compHPF");
-					}
-					else {
-						reader.exitTag(tagName);
-					}
-				}
-				live.global_effectable.setEffects(next);
-				reader.exitTag("songCompressor");
-			}
-
 			else if (!strcmp(tagName, "chordMem")) {
 				reader.match('[');
 				int slot_index = 0;
@@ -1957,19 +1920,6 @@ loadOutput:
 			if (error != Error::NONE) {
 				return error;
 			}
-
-			// Correct different non-synced rates of old song files
-			// In a perfect world, we'd do this for Kits, MIDI and CV too
-			if (song_firmware_version < FirmwareVersion::official({1, 5, 0, "pretest"})
-			    && thisClip->output->type == OutputType::SYNTH) {
-				if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
-				    && ((InstrumentClip*)thisClip)->arpSettings.syncLevel == SYNC_LEVEL_NONE) {
-					ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
-					thisParamManager->getPatchedParamSet()->params[params::GLOBAL_ARP_RATE].shiftValues(
-					    *thisParamManager->getPatchedParamSet()->docForParam(params::GLOBAL_ARP_RATE),
-					    (1 << 30) + (1 << 28));
-				}
-			}
 		}
 	}
 
@@ -2168,19 +2118,6 @@ skipInstance:
 				ao->setOutputRecordingFrom(getOutputFromIndex(ao->outputRecordingFromIndex));
 			}
 		}
-		// If saved before V2.1, set sample-based synth instruments to linear interpolation, cos that's how it was
-		if (song_firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
-			if (thisOutput->type == OutputType::SYNTH) {
-				SoundInstrument* sound = (SoundInstrument*)thisOutput;
-
-				for (int32_t s = 0; s < kNumSources; s++) {
-					Source* source = &sound->sources[s];
-					if (source->oscType == OscType::SAMPLE) {
-						source->setInterpolationMode(InterpolationMode::LINEAR);
-					}
-				}
-			}
-		}
 	}
 
 	outputClipInstanceListIsCurrentlyInvalid = false; // All clipInstances are valid now.
@@ -2207,13 +2144,6 @@ skipInstance:
 			deleteClipObject(clip, false, InstrumentRemoval::NONE);
 			c--;
 		}
-	}
-
-	// Pre V1.2...
-	if (song_firmware_version < FirmwareVersion::official({1, 2, 0})) {
-
-		deleteAllBackedUpParamManagers(); // Before V1.2, lots of extras of these could be created during loading
-		live.global_effectable.compensateVolumeForResonance(&paramManager);
 	}
 
 	if (live.sync_scaling_clip) {

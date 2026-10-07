@@ -335,7 +335,6 @@ public:
 	/// its sample's length, a path found in another folder).
 	void reseedRecord();
 	virtual void setupPatchingForAllParamManagers(Song* song) {}
-	void compensateVolumeForResonance(ModelStackWithThreeMainThings* modelStack);
 	// void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation = true) final;
@@ -366,7 +365,6 @@ public:
 	void wontBeRenderedForAWhile() override;
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) final;
 	virtual ArpeggiatorBase* getArp() = 0;
-	void possiblySetupDefaultExpressionPatching(ParamManager* paramManager);
 
 	int32_t getShiftAmountForSaturation() const {
 		return (modControllableSnapshot_.effects.saturation.clipping_amount >= 2)

@@ -89,7 +89,6 @@ public:
 	// for Instruments via virtual dispatch.
 	void seedDocOutputIdentity() override;
 
-	virtual void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {}
 	virtual bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) = 0;
 	virtual void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
 	                                              ModelStackWithTimelineCounter* modelStack) = 0;

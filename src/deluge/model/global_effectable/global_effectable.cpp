@@ -901,34 +901,6 @@ Error GlobalEffectable::readTagFromFile(Deserializer& reader, char const* tagNam
 	return Error::NONE;
 }
 
-// Before calling this, check that (reader.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0 &&
-// !paramManager->resonanceBackwardsCompatibilityProcessed)
-void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* paramManager) {
-
-	paramManager->resonanceBackwardsCompatibilityProcessed = true;
-
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	// If no LPF on, and resonance is at 50%, set it to 0%
-	if (!unpatchedParams->params[params::UNPATCHED_LPF_FREQ].isAutomated(
-	        *unpatchedParams->docForParam(params::UNPATCHED_LPF_FREQ))
-	    && unpatchedParams->params[params::UNPATCHED_LPF_FREQ].getCurrentValue() >= 2147483602
-	    && !unpatchedParams->params[params::UNPATCHED_LPF_RES].containsSomething(
-	        *unpatchedParams->docForParam(params::UNPATCHED_LPF_RES), 0)) {
-		unpatchedParams->params[params::UNPATCHED_LPF_RES].setCurrentValueBasicForSetup(
-		    *unpatchedParams->docForParam(params::UNPATCHED_LPF_RES), -2147483648);
-	}
-
-	// If no HPF on, and resonance is at 25%, set it to 0%
-	if (!unpatchedParams->params[params::UNPATCHED_HPF_FREQ].containsSomething(
-	        *unpatchedParams->docForParam(params::UNPATCHED_HPF_FREQ), -2147483648)
-	    && !unpatchedParams->params[params::UNPATCHED_LPF_RES].containsSomething(
-	        *unpatchedParams->docForParam(params::UNPATCHED_LPF_RES), -1073741824)) {
-		unpatchedParams->params[params::UNPATCHED_HPF_RES].setCurrentValueBasicForSetup(
-		    *unpatchedParams->docForParam(params::UNPATCHED_HPF_RES), -2147483648);
-	}
-}
-
 ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
 	ModFXType modFXTypeNow = modControllableSnapshot_.effects.mod_fx.type;
 

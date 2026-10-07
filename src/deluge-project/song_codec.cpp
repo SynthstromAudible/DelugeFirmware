@@ -88,10 +88,8 @@ std::expected<void, LoadError> decode(const Value& song, Groove& groove, const D
 		groove.swing_amount = std::clamp(static_cast<int8_t>(*amount), int8_t{-49}, int8_t{49});
 	}
 	if (auto interval = int_of(song.find("swingInterval"))) {
-		int32_t level = static_cast<uint8_t>(*interval); // wraps, as the streaming reader always has
-		if (context.swing_interval_is_relative) {
-			level = sync_level_from_file(level, context.input_tick_magnitude);
-		}
+		const int32_t level = sync_level_from_file(static_cast<uint8_t>(*interval), // wraps, as the reader always has
+		                                           context.input_tick_magnitude);
 		groove.swing_interval = engine::sync_level_from_index(static_cast<uint8_t>(std::min(level, int32_t{9})));
 	}
 	return {};

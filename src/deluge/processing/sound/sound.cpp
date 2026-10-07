@@ -359,19 +359,6 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 	doneReadingFromFile();
 }
 
-void Sound::possiblySetupDefaultExpressionPatching(ParamManager* paramManager) {
-
-	if (song_firmware_version < FirmwareVersion::official({4, 0, 0, "beta"})) {
-
-		if (!paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::AFTERTOUCH)
-		    && !paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::X)
-		    && !paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::Y)) {
-
-			setupDefaultExpressionPatching(paramManager);
-		}
-	}
-}
-
 void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 
@@ -2783,51 +2770,6 @@ Error Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager)
 	    *paramManager->getUnpatchedParamSet()->docForParam(params::UNPATCHED_SIDECHAIN_SHAPE),
 	    2147483647); // Hmm, why this here? Obviously I had some reason...
 	return Error::NONE;
-}
-
-void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {
-
-	// If it was an old-firmware file, we need to compensate for resonance
-	if (song_firmware_version < FirmwareVersion::official({1, 2, 0}) && getSynthMode() != SynthMode::FM) {
-		if (modelStack->paramManager->resonanceBackwardsCompatibilityProcessed) {
-			return;
-		}
-
-		modelStack->paramManager->resonanceBackwardsCompatibilityProcessed = true;
-
-		PatchedParamSet* patchedParams = modelStack->paramManager->getPatchedParamSet();
-
-		int32_t compensation = interpolateTableSigned(patchedParams->getValue(params::LOCAL_LPF_RESONANCE) + 2147483648,
-		                                              32, oldResonanceCompensation, 3);
-		float compensationDB = (float)compensation / (1024 << 16);
-
-		if (compensationDB > 0.1) {
-			// Uart::print("compensating dB: ");
-			// Uart::println((int32_t)(compensationDB * 100));
-			patchedParams->shiftParamVolumeByDB(params::GLOBAL_VOLUME_POST_FX, compensationDB);
-		}
-
-		ModelStackWithParamCollection* modelStackWithParamCollection =
-		    modelStack->paramManager->getPatchCableSet(modelStack);
-
-		PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
-
-		patchCableSet->setupPatching(
-		    modelStackWithParamCollection); // So that we may then call doesParamHaveSomethingPatchedToIt(), below
-
-		// If no LPF on, and resonance is at 50%, set it to 0%
-		if (!patchCableSet->doesParamHaveSomethingPatchedToIt(params::LOCAL_LPF_FREQ)
-		    && !patchedParams->params[params::LOCAL_LPF_FREQ].isAutomated(
-		        *patchedParams->docForParam(params::LOCAL_LPF_FREQ))
-		    && patchedParams->params[params::LOCAL_LPF_FREQ].getCurrentValue() >= 2147483602
-		    && !patchedParams->params[params::LOCAL_LPF_RESONANCE].isAutomated(
-		        *patchedParams->docForParam(params::LOCAL_LPF_RESONANCE))
-		    && patchedParams->params[params::LOCAL_LPF_RESONANCE].getCurrentValue() <= 0
-		    && patchedParams->params[params::LOCAL_LPF_RESONANCE].getCurrentValue() >= -23) {
-			patchedParams->params[params::LOCAL_LPF_RESONANCE].setCurrentValueBasicForSetup(
-			    *patchedParams->docForParam(params::LOCAL_LPF_RESONANCE), -2147483648);
-		}
-	}
 }
 
 void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {

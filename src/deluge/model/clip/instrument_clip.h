@@ -198,7 +198,6 @@ public:
 	void backupPresetSlot();
 	void setPosForParamManagers(ModelStackWithTimelineCounter* modelStack, bool useActualPos = true) override;
 	ModelStackWithNoteRow* getNoteRowForDrumName(ModelStackWithTimelineCounter* modelStack, char const* name);
-	void compensateVolumeForResonance(ModelStackWithTimelineCounter* modelStack);
 	Error undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) override;
 	Error setNonAudioInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager = nullptr);
 	Error setInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager,

@@ -3241,28 +3241,8 @@ uint32_t NoteRow::getNumNotes() {
 Error NoteRow::readSoundParams(Deserializer& reader, InstrumentClip* parentClip, Song* song,
                                int32_t readAutomationUpToPos) {
 
-	// Sneaky sorta hack for 2016 files - allow more params to be loaded into a ParamManager that
-	// already had some loading done by the Drum
-	if (song_firmware_version < FirmwareVersion::official({1, 2, 0}) && parentClip->output) {
-
-		SoundDrum* actualDrum = (SoundDrum*)((Kit*)parentClip->output)->getDrumFromIndex((int32_t)(uintptr_t)drum);
-
-		if (actualDrum) {
-			ParamManager* existingParamManager = song->live.param_backup.getPreferablyWithClip(actualDrum, parentClip);
-			if (existingParamManager) {
-				Error error = paramManager.cloneParamCollectionsFrom(existingParamManager, false);
-				if (error != Error::NONE) {
-					return error;
-				}
-				goto finishedNormalStuff;
-			}
-		}
-	}
-
 	paramManager.setupWithPatching();
 	Sound::initParams(&paramManager);
-
-finishedNormalStuff:
 	Sound::readParamsFromFile(reader, &paramManager, readAutomationUpToPos);
 	return Error::NONE;
 }
@@ -3380,20 +3360,8 @@ Error NoteRow::readNoteDataHex(Deserializer& reader, uint16_t noteHexLength) {
 			iterance = Iterance::fromInt(hexToIntFixedLength(&hexChars[22], 4));
 			probability = hexToIntFixedLength(&hexChars[20], 2);
 			lift = hexToIntFixedLength(&hexChars[18], 2);
-			if (lift == 0 || lift > 127) {
-				goto useDefaultLift;
-			}
 		}
-		else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
-			fill = hexToIntFixedLength(&hexChars[24], 2);
-			iterance = Iterance::fromPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
-			probability = hexToIntFixedLength(&hexChars[20], 2);
-			lift = hexToIntFixedLength(&hexChars[18], 2);
-			if (lift == 0 || lift > 127) {
-				goto useDefaultLift;
-			}
-		}
-		else if (noteHexLength == 22) { // If reading lift...
+		else { // the lift form, before community 1.3: its probability byte also held fill and iterance presets
 			probability = hexToIntFixedLength(&hexChars[20], 2);
 
 			if (probability == kOldFillProbabilityValue || probability == kOldNotFillProbabilityValue) {
@@ -3417,40 +3385,8 @@ Error NoteRow::readNoteDataHex(Deserializer& reader, uint16_t noteHexLength) {
 				iterance = kDefaultIteranceValue; // iterance off
 			}
 			lift = hexToIntFixedLength(&hexChars[18], 2);
-			if (lift == 0 || lift > 127) {
-				goto useDefaultLift;
-			}
 		}
-		else { // Or if no lift here to read
-			probability = hexToIntFixedLength(&hexChars[18], 2);
-
-			if (probability == kOldFillProbabilityValue || probability == kOldNotFillProbabilityValue) {
-				if (probability == kOldFillProbabilityValue) {
-					fill = FillMode::FILL;
-				}
-				else {
-					fill = FillMode::NOT_FILL;
-				}
-				iterance = kDefaultIteranceValue;    // iterance off
-				probability = kNumProbabilityValues; // 100% probability
-			}
-			else if (probability > kNumProbabilityValues
-			         && probability <= kNumProbabilityValues + kNumIterancePresets) {
-				fill = FillMode::OFF;
-				iterance = iterancePresets[probability - kNumProbabilityValues - 1];
-				probability = kNumProbabilityValues; // 100% probability
-			}
-			else {
-				fill = FillMode::OFF;
-				iterance = kDefaultIteranceValue; // iterance off
-			}
-
-			lift = hexToIntFixedLength(&hexChars[18], 2);
-			if (lift == 0 || lift > 127) {
-				goto useDefaultLift;
-			}
-
-useDefaultLift:
+		if (lift == 0 || lift > 127) {
 			lift = kDefaultLiftValue;
 		}
 
@@ -3551,21 +3487,16 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 			}
 		});
 	}
-	// Hex note data (V1.4+) -- exactly one variant per row; guards mirror the streaming reader.
-	const Value* nd = node.find("noteData");
-	uint16_t noteHexLength = 20;
-	if (nd == nullptr && song_firmware_version < FirmwareVersion::community({1, 3, 0})
+	// Hex note data, one variant per row: before community 1.3 the lift form the releases wrote, then split
+	// probability.
+	const Value* nd = nullptr;
+	uint16_t noteHexLength = 28;
+	if (song_firmware_version < FirmwareVersion::community({1, 3, 0})
 	    && (nd = node.find("noteDataWithLift")) != nullptr) {
 		noteHexLength = 22;
 	}
-#if ALPHA_OR_BETA_VERSION
-	else if (nd == nullptr && song_firmware_version < FirmwareVersion::community({1, 3, 0})
-	         && (nd = node.find("noteDataWithIteranceAndFill")) != nullptr) {
-		noteHexLength = 26;
-	}
-#endif
-	else if (nd == nullptr && (nd = node.find("noteDataWithSplitProb")) != nullptr) {
-		noteHexLength = 28;
+	else {
+		nd = node.find("noteDataWithSplitProb");
 	}
 	if (nd != nullptr) {
 		treeReader.readScalarValue(*nd, [&] { error = readNoteDataHex(reader, noteHexLength); });

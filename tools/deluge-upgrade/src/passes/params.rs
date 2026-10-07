@@ -419,17 +419,14 @@ pub fn swing_interval(doc: &mut Node, ctx: &mut Context) {
     if level == 0 {
         return;
     }
-    let mut file = level - 1 + magnitude;
-    if file == 0 {
-        if level == 1 {
-            file = -1; // reads back clamped to 1
-        } else {
-            ctx.note(
-                "swing interval",
-                format!("level {level} cannot be written at tick magnitude {magnitude}"),
-            );
-            return;
-        }
+    // The reader takes the stored value as a byte: no value below 1 reads back as a level.
+    let file = level - 1 + magnitude;
+    if file < 1 {
+        ctx.note(
+            "swing interval",
+            format!("level {level} cannot be written at tick magnitude {magnitude}"),
+        );
+        return;
     }
     song.set("swingInterval", Node::Text(file.to_string()));
 }

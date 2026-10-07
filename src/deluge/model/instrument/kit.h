@@ -115,7 +115,6 @@ public:
 	Error makeDrumNameUnique(std::string* name, int32_t startAtNumber);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
 	void setupPatching(ModelStackWithTimelineCounter* modelStack) override;
-	void compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song);
 	void deleteBackedUpParamManagers(Song* song) override;
 	void prepareForHibernationOrDeletion() override;
 	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) override;

@@ -186,7 +186,6 @@ public:
 	inline ParamManagerForTimeline* toForTimeline() { return (ParamManagerForTimeline*)this; }
 #endif
 
-	bool resonanceBackwardsCompatibilityProcessed{};
 	uint8_t expressionParamSetOffset{};
 
 	// This list should be terminated by an object whose values are all zero. Yes, all of them must be zero, because if
@@ -195,7 +194,6 @@ public:
 
 private:
 	void moveFrom(ParamManager& other) noexcept {
-		resonanceBackwardsCompatibilityProcessed = other.resonanceBackwardsCompatibilityProcessed;
 		expressionParamSetOffset = other.expressionParamSetOffset;
 		for (auto i = 0; i < PARAM_COLLECTIONS_STORAGE_NUM; i++) {
 			summaries[i] = other.summaries[i];

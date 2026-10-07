@@ -39,27 +39,24 @@ describe song_codec("the song-level records", ${
 	it("round-trips the groove at any tick magnitude", _ {
 		Groove g{.swing_amount = -20, .swing_interval = deluge::engine::sync_level_from_index(6)};
 		Groove back;
-		DecodeContext relative{.input_tick_magnitude = 3, .swing_interval_is_relative = true};
+		DecodeContext relative{.input_tick_magnitude = 3};
 		expect(decode(as_song(encode(g, 3)), back, relative)).to_have_value();
 		expect(back).to_equal(g);
 	});
 
-	it("reads an old file swing interval as internal, a new one as relative", _ {
+	it("reads a swing interval relative to the tick magnitude", _ {
 		both_shapes(R"(<song swingAmount="10" swingInterval="5"/>)",
 		            R"({"song": {"swingAmount": 10, "swingInterval": 5}})", [&](const Value& song) {
 			Groove relative;
-			Groove old;
-			(void)decode(song, relative, {.input_tick_magnitude = 3, .swing_interval_is_relative = true});
-			(void)decode(song, old, {.input_tick_magnitude = 3, .swing_interval_is_relative = false});
+			(void)decode(song, relative, {.input_tick_magnitude = 3});
 			expect(deluge::engine::index_of(relative.swing_interval)).to_equal(3);
-			expect(deluge::engine::index_of(old.swing_interval)).to_equal(5);
 		});
 	});
 
 	it("keeps the swing interval it holds when a file gives none", _ {
 		both_shapes(R"(<song/>)", R"({"song": {}})", [&](const Value& song) {
 			Groove g{.swing_amount = 0, .swing_interval = deluge::engine::sync_level_from_index(6)};
-			(void)decode(song, g, {.input_tick_magnitude = 3, .swing_interval_is_relative = true});
+			(void)decode(song, g, {.input_tick_magnitude = 3});
 			expect(deluge::engine::index_of(g.swing_interval)).to_equal(6);
 		});
 	});

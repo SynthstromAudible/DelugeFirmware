@@ -36,26 +36,15 @@ enum class LoadError : uint8_t {
 struct DecodeContext {
 	/// The file's input tick magnitude (`inputTickMagnitude`): sync values are stored relative to it.
 	int32_t input_tick_magnitude{1};
-	/// Whether the file stores `swingInterval` relative to the tick magnitude, as firmware 3.1.0-alpha2 and later do.
-	bool swing_interval_is_relative{true};
 };
 
 using deluge::engine::sync_level_from_file;
 using deluge::engine::sync_level_to_file;
 
-/// @brief The context for decoding @p song from the document @p root. The firmware version is the song's
-/// `firmwareVersion` attribute or, in old files, the root's `firmwareVersion` sibling of the song; a song with
-/// neither is from the oldest firmware.
-[[nodiscard]] inline DecodeContext decode_context(const serialization::Value& root, const serialization::Value& song) {
+/// @brief The context for decoding @p song: its input tick magnitude.
+[[nodiscard]] inline DecodeContext decode_context(const serialization::Value& /*root*/,
+                                                  const serialization::Value& song) {
 	DecodeContext context;
-	const serialization::Value* version = song.isMap() ? song.find("firmwareVersion") : nullptr;
-	if (version == nullptr && root.isMap()) {
-		version = root.find("firmwareVersion");
-	}
-	const std::string* text = serialization::text_of(version);
-	const FirmwareVersion fileVersion =
-	    (text != nullptr && !text->empty()) ? FirmwareVersion::parse(*text) : FirmwareVersion::official({0, 0, 0});
-	context.swing_interval_is_relative = fileVersion >= FirmwareVersion::official({3, 1, 0, "alpha2"});
 	if (song.isMap()) {
 		if (auto magnitude = serialization::int_of(song.find("inputTickMagnitude"))) {
 			context.input_tick_magnitude = *magnitude;

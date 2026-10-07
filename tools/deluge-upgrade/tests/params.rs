@@ -141,5 +141,5 @@ fn a_pre_3_1_swing_interval_becomes_relative_to_the_tick_magnitude() {
         r#"<song swingInterval="1" inputTickMagnitude="0"/>"#,
         swing_interval,
     );
-    assert_eq!(param(&doc, &["song", "swingInterval"]), Some("-1"));
+    assert_eq!(param(&doc, &["song", "swingInterval"]), Some("1")); // left as it was, and reported
 }
