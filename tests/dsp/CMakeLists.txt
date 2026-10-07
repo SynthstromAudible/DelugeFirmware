@@ -60,6 +60,12 @@ set(state_variable_filter_spec_DEPS ${_filter_DEPS})
 # The filter set runs the three filters.
 set(filter_set_spec_DEPS ${_filter_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp)
 
+# The compressor saturates through the tanh table's bilinear interpolator.
+set(rms_feedback_compressor_spec_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+
 # ETL for the synth headers that reach util/etl_string.h (modulation/sync.h, through the LFO). The x86 unit tree links it
 # everywhere; the ARM tree does not, so the specs link it themselves.
 FetchContent_MakeAvailable(etl)
