@@ -21,8 +21,8 @@
 
 #include "util/param_functions.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/curves/exp_curve.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
-#include "engines/effects/kernels.h"
 #include "modulation/params/param.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
@@ -243,7 +243,7 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 }
 
 int32_t getExp(int32_t presetValue, int32_t adjustment) {
-	return deluge::effects::exp_of(presetValue, adjustment);
+	return deluge::dsp::fixed::exp_curve(presetValue, adjustment);
 }
 
 int32_t lookupReleaseRate(int32_t input) {

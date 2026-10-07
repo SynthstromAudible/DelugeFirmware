@@ -17,101 +17,107 @@
 
 #include "engines/effects/bitcrush.h"
 
-#include "engines/effects/kernels.h"
+#include "dsp-next/fixed/curves/exp_curve.h"
 #include "util/fixedpoint.h"
 
 #include <algorithm>
 
 namespace deluge::effects {
 
+namespace {
+
+/// One sample in the sample-rate reduction's 22-bit fixed point (4194304 is 1).
+constexpr uint32_t kOne = 4194304;
+/// The largest 22-bit position below one sample.
+constexpr uint32_t kBelowOne = kOne - 1;
+
+/// @p value with @p mask applied to its bits.
+[[nodiscard]] int32_t masked(int32_t value, uint32_t mask) {
+	return static_cast<int32_t>(static_cast<uint32_t>(value) & mask);
+}
+
+} // namespace
+
 void Bitcrush::process(std::span<dsp::StereoSample> block, const BitcrushParams& params, int32_t& post_fx_volume) {
-	uint32_t bitCrushMaskForSRR = 0xFFFFFFFF;
+	uint32_t mask_for_srr = 0xFFFFFFFFu;
+	const bool srr_enabled = params.sample_rate_reduction != std::numeric_limits<int32_t>::min();
 
-	const bool srrEnabled = params.sample_rate_reduction != std::numeric_limits<int32_t>::min();
-
-	// Bitcrushing ------------------------------------------------------------------------------
+	// Bit depth reduction: the preset (0–7) masks off more low bits as it rises and, above 4, lowers the volume.
 	if (params.bitcrush >= -2113929216) {
-		uint32_t positivePreset = (params.bitcrush + 2147483648) >> 29;
-		if (positivePreset > 4) {
-			post_fx_volume >>= (positivePreset - 4);
+		const auto preset = static_cast<uint32_t>((static_cast<int64_t>(params.bitcrush) + 2147483648LL) >> 29);
+		if (preset > 4) {
+			post_fx_volume >>= (preset - 4);
 		}
-
-		// If not also doing SRR
-		if (!srrEnabled) {
-			uint32_t mask = 0xFFFFFFFF << (19 + (positivePreset));
-			for (dsp::StereoSample& sample : block) {
-				sample.l &= mask;
-				sample.r &= mask;
-			}
+		if (srr_enabled) {
+			// The sample-rate reduction masks the samples it grabs instead, one bit less.
+			mask_for_srr = 0xFFFFFFFFu << (18 + preset);
 		}
-
 		else {
-			bitCrushMaskForSRR = 0xFFFFFFFF << (18 + (positivePreset));
-		}
-	}
-
-	// Sample rate reduction -------------------------------------------------------------------------------------
-	if (srrEnabled) {
-
-		// Set up for first time
-		if (!srr_on_last_time_) {
-			srr_on_last_time_ = true;
-			last_sample_.l = last_sample_.r = 0;
-			grabbed_.l = grabbed_.r = 0;
-			low_rate_pos_ = 0;
-		}
-
-		// This function, slightly unusually, uses 22 bits to represent "1". That's 4194304. I tried using 24, but stuff
-		// started clipping off where I needed it if sample rate too low
-
-		uint32_t positivePreset = params.sample_rate_reduction + 2147483648;
-		int32_t lowSampleRateIncrement = exp_of(4194304, (positivePreset >> 3));
-		int32_t highSampleRateIncrement = ((uint32_t)0xFFFFFFFF / (lowSampleRateIncrement >> 6)) << 6;
-		// int32_t highSampleRateIncrement = exp_of(4194304, -(int32_t)(positivePreset >> 3)); // This would work too
-
-		for (dsp::StereoSample& sample : block) {
-			// Convert down.
-			// If time to "grab" another sample for down-conversion...
-			if (low_rate_pos_ < 4194304) {
-				int32_t strength2 = low_rate_pos_;
-				int32_t strength1 = 4194303 - strength2;
-
-				last_grabbed_ = grabbed_; // What was current is now last
-				grabbed_.l = multiply_32x32_rshift32_rounded(last_sample_.l, strength1 << 9)
-				             + multiply_32x32_rshift32_rounded(sample.l, strength2 << 9);
-				grabbed_.r = multiply_32x32_rshift32_rounded(last_sample_.r, strength1 << 9)
-				             + multiply_32x32_rshift32_rounded(sample.r, strength2 << 9);
-				grabbed_.l &= bitCrushMaskForSRR;
-				grabbed_.r &= bitCrushMaskForSRR;
-
-				// Set the "time" at which we want to "grab" our next sample for down-conversion.
-				low_rate_pos_ += lowSampleRateIncrement;
-
-				// "Re-sync" the up-conversion spinner.
-				// I previously had it using strength2 instead of "low_rate_pos_ & 16777215", but that just works
-				// better. Ah, writing the massive explanation would take ages.
-				high_rate_pos_ = multiply_32x32_rshift32_rounded(low_rate_pos_ & 4194303, highSampleRateIncrement << 8)
-				                 << 2;
+			const uint32_t mask = 0xFFFFFFFFu << (19 + preset);
+			for (dsp::StereoSample& sample : block) {
+				sample.l = masked(sample.l, mask);
+				sample.r = masked(sample.r, mask);
 			}
-			low_rate_pos_ -= 4194304; // We're one step closer to grabbing our next sample for down-conversion
-			last_sample_ = sample;
-
-			// Convert up
-			// Would only overshoot if we raised the sample rate during playback
-			int32_t strength2 = std::min(high_rate_pos_, (uint32_t)4194303);
-			int32_t strength1 = 4194303 - strength2;
-			sample.l = (multiply_32x32_rshift32_rounded(last_grabbed_.l, strength1 << 9)
-			            + multiply_32x32_rshift32_rounded(grabbed_.l, strength2 << 9))
-			           << 2;
-			sample.r = (multiply_32x32_rshift32_rounded(last_grabbed_.r, strength1 << 9)
-			            + multiply_32x32_rshift32_rounded(grabbed_.r, strength2 << 9))
-			           << 2;
-
-			high_rate_pos_ += highSampleRateIncrement;
 		}
 	}
-	else {
+
+	if (!srr_enabled) {
 		srr_on_last_time_ = false;
+		return;
+	}
+
+	// Sample-rate reduction: grab a sample at the lower rate (interpolated between the last input and this one), then
+	// interpolate back up between the last two grabbed samples. Positions are in 22-bit fixed point, which keeps the
+	// low rates from clipping.
+	if (!srr_on_last_time_) {
+		srr_on_last_time_ = true;
+		last_sample_.l = last_sample_.r = 0;
+		grabbed_.l = grabbed_.r = 0;
+		low_rate_pos_ = 0;
+	}
+
+	const uint32_t preset = static_cast<uint32_t>(params.sample_rate_reduction) + 2147483648u;
+	const int32_t low_rate_increment =
+	    dsp::fixed::exp_curve(static_cast<int32_t>(kOne), static_cast<int32_t>(preset >> 3));
+	const auto high_rate_increment =
+	    static_cast<int32_t>((0xFFFFFFFFu / static_cast<uint32_t>(low_rate_increment >> 6)) << 6);
+
+	for (dsp::StereoSample& sample : block) {
+		// Down: time to grab the next low-rate sample.
+		if (low_rate_pos_ < kOne) {
+			const auto toward_this = static_cast<int32_t>(low_rate_pos_);
+			const int32_t toward_last = static_cast<int32_t>(kBelowOne) - toward_this;
+
+			last_grabbed_ = grabbed_;
+			grabbed_.l = multiply_32x32_rshift32_rounded(last_sample_.l, toward_last << 9)
+			             + multiply_32x32_rshift32_rounded(sample.l, toward_this << 9);
+			grabbed_.r = multiply_32x32_rshift32_rounded(last_sample_.r, toward_last << 9)
+			             + multiply_32x32_rshift32_rounded(sample.r, toward_this << 9);
+			grabbed_.l = masked(grabbed_.l, mask_for_srr);
+			grabbed_.r = masked(grabbed_.r, mask_for_srr);
+
+			low_rate_pos_ += static_cast<uint32_t>(low_rate_increment);
+
+			// Re-sync the up-conversion to where the low-rate grab fell within this sample.
+			high_rate_pos_ =
+			    static_cast<uint32_t>(multiply_32x32_rshift32_rounded(static_cast<int32_t>(low_rate_pos_ & kBelowOne),
+			                                                          high_rate_increment << 8)
+			                          << 2);
+		}
+		low_rate_pos_ -= kOne;
+		last_sample_ = sample;
+
+		// Up: between the last two grabbed samples. The position only passes one sample if the rate rose mid-grab.
+		const auto toward_grabbed = static_cast<int32_t>(std::min(high_rate_pos_, kBelowOne));
+		const int32_t toward_last_grabbed = static_cast<int32_t>(kBelowOne) - toward_grabbed;
+		sample.l = (multiply_32x32_rshift32_rounded(last_grabbed_.l, toward_last_grabbed << 9)
+		            + multiply_32x32_rshift32_rounded(grabbed_.l, toward_grabbed << 9))
+		           << 2;
+		sample.r = (multiply_32x32_rshift32_rounded(last_grabbed_.r, toward_last_grabbed << 9)
+		            + multiply_32x32_rshift32_rounded(grabbed_.r, toward_grabbed << 9))
+		           << 2;
+
+		high_rate_pos_ += static_cast<uint32_t>(high_rate_increment);
 	}
 }
 

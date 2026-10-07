@@ -17,59 +17,47 @@
 
 #include "engines/effects/send_and_volume.h"
 
-#include "engines/effects/kernels.h"
+#include "dsp-next/fixed/vca/pan.h"
 #include "util/fixedpoint.h"
 
 namespace deluge::effects {
 
 bool SendAndVolume::process(std::span<dsp::StereoSample> block, std::span<int32_t> reverb,
                             const SendAndVolumeParams& params) {
+	const int32_t send_gain = multiply_32x32_rshift32(params.post_fx_volume, params.reverb_send) << 5;
 
-	int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(params.post_fx_volume, params.reverb_send) << 5;
+	int32_t gain_l = multiply_32x32_rshift32(params.post_reverb_volume, params.post_fx_volume) << 5;
+	int32_t gain_r = gain_l;
 
-	int32_t postFXAndReverbVolumeL, postFXAndReverbVolumeR;
-	int32_t amplitudeIncrementL = 0;
-	int32_t amplitudeIncrementR = 0;
-	postFXAndReverbVolumeL = postFXAndReverbVolumeR =
-	    (multiply_32x32_rshift32(params.post_reverb_volume, params.post_fx_volume) << 5);
-
-	// The amplitude increment applies to the post-FX volume. We want to have it just so that we can respond better to
-	// sidechain volume ducking, which is done through post-FX volume.
+	// The post-reverb volume ramps across the block from the last block's, so a sidechain's duck through it is smooth.
+	int32_t step_l = 0;
+	int32_t step_r = 0;
 	if (params.ramp) {
-		auto postReverbSendVolumeIncrement =
-		    (int32_t)((double)(params.post_reverb_volume - last_post_reverb_volume_) / (double)block.size());
-		amplitudeIncrementL = amplitudeIncrementR =
-		    (multiply_32x32_rshift32(params.post_fx_volume, postReverbSendVolumeIncrement) << 5);
+		const auto volume_step =
+		    static_cast<int32_t>(static_cast<double>(params.post_reverb_volume - last_post_reverb_volume_)
+		                         / static_cast<double>(block.size()));
+		step_l = step_r = multiply_32x32_rshift32(params.post_fx_volume, volume_step) << 5;
 	}
 
 	if (params.pan != 0 && params.stereo) {
-		// Set up panning
-		const PanAmplitudes amplitudes = pan_amplitudes(params.pan);
-		const int32_t amplitudeL = amplitudes.left;
-		const int32_t amplitudeR = amplitudes.right;
-
-		postFXAndReverbVolumeL = multiply_32x32_rshift32(postFXAndReverbVolumeL, amplitudeL) << 2;
-		postFXAndReverbVolumeR = multiply_32x32_rshift32(postFXAndReverbVolumeR, amplitudeR) << 2;
-
-		amplitudeIncrementL = multiply_32x32_rshift32(amplitudeIncrementL, amplitudeL) << 2;
-		amplitudeIncrementR = multiply_32x32_rshift32(amplitudeIncrementR, amplitudeR) << 2;
+		const dsp::fixed::PanAmplitudes pan = dsp::fixed::pan_amplitudes(params.pan);
+		gain_l = multiply_32x32_rshift32(gain_l, pan.left) << 2;
+		gain_r = multiply_32x32_rshift32(gain_r, pan.right) << 2;
+		step_l = multiply_32x32_rshift32(step_l, pan.left) << 2;
+		step_r = multiply_32x32_rshift32(step_r, pan.right) << 2;
 	}
 
-	auto reverbOut = reverb.begin();
+	auto reverb_out = reverb.begin();
 	for (dsp::StereoSample& sample : block) {
-		// Send to reverb
 		if (params.reverb_send != 0) {
-			*(reverbOut++) += multiply_32x32_rshift32(sample.l + sample.r, reverbSendAmountAndPostFXVolume) << 1;
+			*(reverb_out++) += multiply_32x32_rshift32(sample.l + sample.r, send_gain) << 1;
 		}
-
 		if (params.ramp) {
-			postFXAndReverbVolumeL += amplitudeIncrementL;
-			postFXAndReverbVolumeR += amplitudeIncrementR;
+			gain_l += step_l;
+			gain_r += step_r;
 		}
-
-		// Apply post-fx and post-reverb-send volume
-		sample.l = multiply_32x32_rshift32(sample.l, postFXAndReverbVolumeL) << 5;
-		sample.r = multiply_32x32_rshift32(sample.r, postFXAndReverbVolumeR) << 5;
+		sample.l = multiply_32x32_rshift32(sample.l, gain_l) << 5;
+		sample.r = multiply_32x32_rshift32(sample.r, gain_r) << 5;
 	}
 
 	last_post_reverb_volume_ = params.post_reverb_volume;

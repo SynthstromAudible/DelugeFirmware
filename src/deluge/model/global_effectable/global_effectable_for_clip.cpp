@@ -118,7 +118,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	// Render saturation
 	saturation_.process(global_effectable_audio,
-	                    {.clipping_amount = modControllableSnapshot_.effects.saturation.clipping_amount});
+	                    {.clipping_amount = modControllableSnapshot_.effects.saturation.clipping_amount,
+	                     .variant = deluge::effects::SaturationVariant::CHAIN});
 
 	if (renderedLastTime) {
 		// Render filters

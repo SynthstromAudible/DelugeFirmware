@@ -18,7 +18,7 @@
 #pragma once
 
 #include "dsp-next/core/stereo_sample.h"
-#include "engines/effects/kernels.h"
+#include "dsp-next/fixed/shaping/antialiased_tanh.h"
 
 #include <array>
 #include <cstdint>
@@ -26,8 +26,9 @@
 
 namespace deluge::effects {
 
-/// @brief Where saturation runs: a sound's voices (always, at 5 + amount, shifting back from amount 2) or a kit's or
-/// an audio track's bus (only while the amount is not 0, at 3 + amount, shifting back from amount 3).
+/// @brief Where saturation runs: a sound's voices (at 5 + amount, shifting back up from amount 2; a voice skips it
+/// at amount 0) or a kit's or an audio track's bus (while the amount is not 0, at 3 + amount, shifting back up from
+/// amount 3).
 enum class SaturationVariant : uint8_t { VOICE, CHAIN };
 
 /// @brief What one block of saturation uses: the clipping amount (0–15) and the home's variant.
@@ -36,32 +37,35 @@ struct SaturationParams {
 	SaturationVariant variant{SaturationVariant::CHAIN};
 };
 
-/// @brief Tanh saturation with antialiasing memory per channel.
+/// @brief Tanh saturation of a stereo signal: an antialiased tanh per channel.
 class Saturation {
 public:
-	/// @brief Memory starting at @p initial on both channels: 2^31 is a silent working value (a voice starts at 0 and
-	/// is set to 2^31 when its envelopes reset).
-	constexpr explicit Saturation(uint32_t initial = 2147483648u) : last_{initial, initial} {}
+	/// @brief Each channel's curve starts from @p initial (dsp::fixed::AntialiasedTanh::kSilent is silence; a voice
+	/// starts from 0 and is set silent when its envelopes reset).
+	constexpr explicit Saturation(uint32_t initial = dsp::fixed::AntialiasedTanh::kSilent)
+	    : channels_{dsp::fixed::AntialiasedTanh{0, initial}, dsp::fixed::AntialiasedTanh{0, initial}} {}
 
 	/// @brief One Q31 sample of @p channel (0 left, 1 right), as a voice saturates inside its own loop.
 	[[nodiscard, gnu::always_inline]] int32_t saturate(int32_t sample, uint32_t channel,
 	                                                   const SaturationParams& params) {
 		const uint32_t amount = params.clipping_amount;
+		dsp::fixed::AntialiasedTanh& curve = channels_[channel];
 		if (params.variant == SaturationVariant::VOICE) {
-			return tanh_antialiased(sample, last_[channel], 5 + amount) << (amount >= 2 ? amount - 2 : 0);
+			curve.setDrive(5 + amount);
+			return curve.render(sample) << (amount >= 2 ? amount - 2 : 0);
 		}
-		return tanh_antialiased(sample, last_[channel], 3 + amount) << (amount >= 3 ? amount - 3 : 0);
+		curve.setDrive(3 + amount);
+		return curve.render(sample) << (amount >= 3 ? amount - 3 : 0);
 	}
 
 	/// @brief A stereo block, in place; a CHAIN variant at amount 0 leaves it untouched.
 	void process(std::span<dsp::StereoSample> block, const SaturationParams& params);
 
-	/// @brief Forgets the antialiasing memory.
-	void reset() { last_ = {2147483648u, 2147483648u}; }
+	/// @brief Both channels' curves back to silence.
+	void reset() { channels_ = {dsp::fixed::AntialiasedTanh{}, dsp::fixed::AntialiasedTanh{}}; }
 
 private:
-	/// The previous working value per channel (2^31 is a silent one).
-	std::array<uint32_t, 2> last_{2147483648u, 2147483648u};
+	std::array<dsp::fixed::AntialiasedTanh, 2> channels_;
 };
 
 } // namespace deluge::effects

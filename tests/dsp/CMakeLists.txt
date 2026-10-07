@@ -70,8 +70,7 @@ endforeach()
 # undefined symbols, no gui/model/processing/storage objects) proves libdeluge-synth is self-contained. This
 # is the link-time companion to scripts/check_synth_boundary.py's transitive include check. The dep set is the
 # `nm -u` closure of the synth objects: param-math (param_functions), the numeric LUTs, interpolation, the
-# jcong RNG (waves), the one PatchCableSet runtime method (patch_cable_set_amount), and the effects library's
-# fixed-point kernels (the exp curve param-math computes with, and the tables it owns).
+# jcong RNG (waves), and the one PatchCableSet runtime method (patch_cable_set_amount).
 if(NOT DSP_SPEC_ARM)
   add_executable(synth_link_test
     ${CMAKE_CURRENT_LIST_DIR}/synth_link_main.cpp
@@ -83,7 +82,6 @@ if(NOT DSP_SPEC_ARM)
     ${_repo_root}/src/deluge/util/waves.cpp
     ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp
     ${_repo_root}/src/deluge/modulation/patch/patch_cable_set_amount.cpp
-    ${_repo_root}/src/engines/effects/kernels.cpp
   )
   target_link_libraries(synth_link_test PRIVATE etl::etl)
   deluge_test_neon(synth_link_test)

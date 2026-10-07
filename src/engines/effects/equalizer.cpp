@@ -17,62 +17,55 @@
 
 #include "engines/effects/equalizer.h"
 
-#include "engines/effects/kernels.h"
+#include "dsp-next/fixed/curves/exp_curve.h"
 #include "util/fixedpoint.h"
 
 namespace deluge::effects {
 
 void Equalizer::process(std::span<dsp::StereoSample> block, const EqualizerParams& params) {
-	const bool doBass = params.bass != 0;
-	const bool doTreble = params.treble != 0;
-	if (!doBass && !doTreble) {
+	const bool do_bass = params.bass != 0;
+	const bool do_treble = params.treble != 0;
+	if (!do_bass && !do_treble) {
 		return;
 	}
 
-	// Bass. No-change represented by 0. Off completely represented by -536870912
+	// Each band's gain, from its knob squared: bass 0 is flat and -536870912 removes it; treble 536870912 is flat.
 	int32_t positive = (params.bass >> 1) + 1073741824;
-	const int32_t bassAmount = (multiply_32x32_rshift32_rounded(positive, positive) << 1) - 536870912;
-
-	// Treble. No-change represented by 536870912
+	const int32_t bass_gain = (multiply_32x32_rshift32_rounded(positive, positive) << 1) - 536870912;
 	positive = (params.treble >> 1) + 1073741824;
-	const int32_t trebleAmount = multiply_32x32_rshift32_rounded(positive, positive) << 1;
+	const int32_t treble_gain = multiply_32x32_rshift32_rounded(positive, positive) << 1;
 
-	if (doBass) {
-		bass_coefficient_ = exp_of(120000000, (params.bass_frequency >> 5) * 6);
+	if (do_bass) {
+		bass_coefficient_ = dsp::fixed::exp_curve(120000000, (params.bass_frequency >> 5) * 6);
 	}
-	if (doTreble) {
-		treble_coefficient_ = exp_of(700000000, (params.treble_frequency >> 5) * 6);
+	if (do_treble) {
+		treble_coefficient_ = dsp::fixed::exp_curve(700000000, (params.treble_frequency >> 5) * 6);
 	}
 
 	for (dsp::StereoSample& sample : block) {
-		int32_t trebleOnlyL;
-		int32_t trebleOnlyR;
-
-		if (doTreble) {
-			int32_t distanceToGoL = sample.l - without_treble_.l;
-			int32_t distanceToGoR = sample.r - without_treble_.r;
-			without_treble_.l += multiply_32x32_rshift32(distanceToGoL, treble_coefficient_) << 1;
-			without_treble_.r += multiply_32x32_rshift32(distanceToGoR, treble_coefficient_) << 1;
-			trebleOnlyL = sample.l - without_treble_.l;
-			trebleOnlyR = sample.r - without_treble_.r;
-			sample.l = without_treble_.l; // the treble is taken out, and added back scaled below
+		// The treble is split off (a one-pole low-pass keeps the rest), then added back scaled; the bass is a one-pole
+		// low-pass of what remains, added on top scaled.
+		int32_t treble_l = 0;
+		int32_t treble_r = 0;
+		if (do_treble) {
+			without_treble_.l += multiply_32x32_rshift32(sample.l - without_treble_.l, treble_coefficient_) << 1;
+			without_treble_.r += multiply_32x32_rshift32(sample.r - without_treble_.r, treble_coefficient_) << 1;
+			treble_l = sample.l - without_treble_.l;
+			treble_r = sample.r - without_treble_.r;
+			sample.l = without_treble_.l;
 			sample.r = without_treble_.r;
 		}
-
-		if (doBass) {
-			int32_t distanceToGoL = sample.l - bass_only_.l;
-			int32_t distanceToGoR = sample.r - bass_only_.r;
-			bass_only_.l += multiply_32x32_rshift32(distanceToGoL, bass_coefficient_);
-			bass_only_.r += multiply_32x32_rshift32(distanceToGoR, bass_coefficient_);
+		if (do_bass) {
+			bass_only_.l += multiply_32x32_rshift32(sample.l - bass_only_.l, bass_coefficient_);
+			bass_only_.r += multiply_32x32_rshift32(sample.r - bass_only_.r, bass_coefficient_);
 		}
-
-		if (doTreble) {
-			sample.l += (multiply_32x32_rshift32(trebleOnlyL, trebleAmount) << 3);
-			sample.r += (multiply_32x32_rshift32(trebleOnlyR, trebleAmount) << 3);
+		if (do_treble) {
+			sample.l += multiply_32x32_rshift32(treble_l, treble_gain) << 3;
+			sample.r += multiply_32x32_rshift32(treble_r, treble_gain) << 3;
 		}
-		if (doBass) {
-			sample.l += (multiply_32x32_rshift32(bass_only_.l, bassAmount) << 3);
-			sample.r += (multiply_32x32_rshift32(bass_only_.r, bassAmount) << 3);
+		if (do_bass) {
+			sample.l += multiply_32x32_rshift32(bass_only_.l, bass_gain) << 3;
+			sample.r += multiply_32x32_rshift32(bass_only_.r, bass_gain) << 3;
 		}
 	}
 }

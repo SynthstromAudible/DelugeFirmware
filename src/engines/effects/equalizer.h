@@ -43,14 +43,9 @@ public:
 		treble_coefficient_ = other.treble_coefficient_;
 	}
 
-	void reset() {
-		without_treble_ = {};
-		bass_only_ = {};
-	}
-
 private:
-	int32_t bass_coefficient_{0};   ///< Q31, from exp_of(120000000, …), recomputed while the bass band is on
-	int32_t treble_coefficient_{0}; ///< Q31, from exp_of(700000000, …), recomputed while the treble band is on
+	int32_t bass_coefficient_{0};   ///< Q31, from exp_curve(120000000, …), recomputed while the bass band is on
+	int32_t treble_coefficient_{0}; ///< Q31, from exp_curve(700000000, …), recomputed while the treble band is on
 	dsp::StereoSample without_treble_{};
 	dsp::StereoSample bass_only_{};
 };

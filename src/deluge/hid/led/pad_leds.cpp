@@ -17,6 +17,7 @@
 
 #include "hid/led/pad_leds.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/curves/exp_curve.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "dsp-next/fixed/osc/sine_table.h"
 #include "gui/colour/colour.h"
@@ -1208,8 +1209,8 @@ void renderZoom() {
 	// images are to appear. E.g. when fully zoomed out, the out-image would be "1" (65536), and the in-image would be
 	// "0.5" (32768). And so on.
 
-	uint32_t inImageTimesBiggerThanNormal =
-	    linear_table_interpolator.interpolate(fine, 10, expTableSmall.data()); // could run on more input bits
+	uint32_t inImageTimesBiggerThanNormal = linear_table_interpolator.interpolate(
+	    fine, 10, deluge::dsp::fixed::kExpTable.data()); // could run on more input bits
 	inImageTimesBiggerThanNormal = increaseMagnitude(inImageTimesBiggerThanNormal, coarse - 14);
 
 	renderZoomWithProgress(inImageTimesBiggerThanNormal, sineValue, &imageStore[0][0][0],

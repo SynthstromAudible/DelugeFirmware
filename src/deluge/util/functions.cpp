@@ -17,7 +17,7 @@
 
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
-#include "engines/effects/kernels.h"
+#include "dsp-next/fixed/vca/pan.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -872,7 +872,7 @@ int32_t random(int32_t upperLimit) {
 }
 
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR) {
-	const deluge::effects::PanAmplitudes amplitudes = deluge::effects::pan_amplitudes(panAmount);
+	const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(panAmount);
 	*amplitudeL = amplitudes.left;
 	*amplitudeR = amplitudes.right;
 	return panAmount != 0;

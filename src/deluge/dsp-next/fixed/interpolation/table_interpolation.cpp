@@ -21,21 +21,6 @@
 
 namespace deluge::dsp::fixed {
 
-int32_t LinearTableInterpolator::interpolate(uint32_t input, int32_t input_fractional_bits, const uint16_t* table,
-                                             int32_t table_size_log2) const {
-	int32_t index = input >> (input_fractional_bits - table_size_log2);
-	int32_t value1 = table[index];
-	int32_t value2 = table[index + 1];
-
-	// The blend fraction is a 15-bit weight, so line up `input`'s sub-entry bits into the bottom 15.
-	int32_t shift = input_fractional_bits - 15 - table_size_log2;
-	uint32_t fraction = (shift >= 0) ? (input >> shift) : (input << -shift);
-
-	int32_t strength2 = fraction & 0x7FFF;  // weight toward the upper neighbour (Q15)
-	int32_t strength1 = 0x8000 - strength2; // and the remainder toward the lower
-	return value1 * strength1 + value2 * strength2;
-}
-
 uint32_t LinearTableInterpolator::inverse(int32_t table_value_q15, int32_t output_fractional_bits,
                                           const uint16_t* table, int32_t table_size_log2) const {
 	int32_t table_value = table_value_q15 >> 15;

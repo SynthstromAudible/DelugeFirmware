@@ -19,7 +19,7 @@
 
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
-#include "engines/effects/kernels.h"
+#include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "libdeluge/file_io.h"
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
 #include "util/c_string.h"
@@ -164,35 +164,6 @@ char const* sourceToStringShort(PatchSource source);
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
 
-// input must not have any extra bits set than numBitsInInput specifies
-// Output of this function (unlike the regular 1d one) is only +- 1073741824
-[[gnu::always_inline]] inline int32_t interpolateTableSigned2d(uint32_t inputX, uint32_t inputY,
-                                                               int32_t numBitsInInputX, int32_t numBitsInInputY,
-                                                               const int16_t* table, int32_t numBitsInTableSizeX,
-                                                               int32_t numBitsInTableSizeY) {
-
-	int32_t whichValue = inputY >> (numBitsInInputY - numBitsInTableSizeY);
-
-	int32_t tableSizeOneRow = (1 << numBitsInTableSizeX) + 1;
-
-	int32_t value1 =
-	    interpolateTableSigned(inputX, numBitsInInputX, &table[whichValue * tableSizeOneRow], numBitsInTableSizeX);
-	int32_t value2 = interpolateTableSigned(inputX, numBitsInInputX, &table[(whichValue + 1) * tableSizeOneRow],
-	                                        numBitsInTableSizeX);
-
-	int32_t lshiftAmount = 31 + numBitsInTableSizeY - numBitsInInputY;
-
-	uint32_t strength2;
-
-	if (lshiftAmount >= 0)
-		strength2 = (inputY << lshiftAmount) & 2147483647;
-	else
-		strength2 = (inputY >> (0 - lshiftAmount)) & 2147483647;
-
-	uint32_t strength1 = 2147483647 - strength2;
-	return multiply_32x32_rshift32(value1, strength1) + multiply_32x32_rshift32(value2, strength2);
-}
-
 template <unsigned saturationAmount>
 [[gnu::always_inline]] inline int32_t getTanH(int32_t input) {
 	uint32_t workingValue;
@@ -218,7 +189,10 @@ template <unsigned saturationAmount>
 
 [[gnu::always_inline]] inline int32_t getTanHAntialiased(int32_t input, uint32_t* lastWorkingValue,
                                                          uint32_t saturationAmount) {
-	return deluge::effects::tanh_antialiased(input, *lastWorkingValue, saturationAmount);
+	deluge::dsp::fixed::AntialiasedTanh tanh{saturationAmount, *lastWorkingValue};
+	const int32_t out = tanh.render(input);
+	*lastWorkingValue = tanh.previous();
+	return out;
 }
 
 #define znew (z = 36969 * (z & 65535) + (z >> 16))

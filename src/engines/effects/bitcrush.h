@@ -38,9 +38,6 @@ public:
 	/// @brief Crushes @p block in place; a strong bitcrush lowers @p post_fx_volume (Q31), as it always has.
 	void process(std::span<dsp::StereoSample> block, const BitcrushParams& params, int32_t& post_fx_volume);
 
-	/// @brief Forgets the conversion memory: the next block with sample-rate reduction on starts it afresh.
-	void reset() { srr_on_last_time_ = false; }
-
 private:
 	bool srr_on_last_time_{false};
 	uint32_t low_rate_pos_{0};  ///< 22-bit fixed point: 4194304 is one sample

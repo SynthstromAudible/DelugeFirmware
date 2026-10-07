@@ -16,7 +16,13 @@
  */
 #pragma once
 
+#include "util/fixedpoint.h" // multiply_32x32_rshift32
+
+#include <array>
+#include <bit>
+#include <cstddef>
 #include <cstdint>
+#include <span>
 
 namespace deluge::dsp::fixed {
 
@@ -42,8 +48,20 @@ public:
 	///        upper neighbour the top entry blends toward).
 	/// @param table_size_log2 log2 of the table's entry count (so the entry index is @p table_size_log2 bits).
 	/// @return The interpolated value at Q15 of the table's units (`table_value * 2^15`).
-	[[nodiscard]] int32_t interpolate(uint32_t input, int32_t input_fractional_bits, const uint16_t* table,
-	                                  int32_t table_size_log2 = 8) const;
+	[[nodiscard, gnu::always_inline]] int32_t interpolate(uint32_t input, int32_t input_fractional_bits,
+	                                                      const uint16_t* table, int32_t table_size_log2 = 8) const {
+		int32_t index = input >> (input_fractional_bits - table_size_log2);
+		int32_t value1 = table[index];
+		int32_t value2 = table[index + 1];
+
+		// The blend fraction is a 15-bit weight, so line up `input`'s sub-entry bits into the bottom 15.
+		int32_t shift = input_fractional_bits - 15 - table_size_log2;
+		uint32_t fraction = (shift >= 0) ? (input >> shift) : (input << -shift);
+
+		int32_t strength2 = fraction & 0x7FFF;  // weight toward the upper neighbour (Q15)
+		int32_t strength1 = 0x8000 - strength2; // and the remainder toward the lower
+		return value1 * strength1 + value2 * strength2;
+	}
 
 	/// @brief The inverse of @ref interpolate: find the @p input that would yield @p table_value_q15, by
 	/// binary-searching the monotonic table. Clamps to the table's ends.
@@ -84,6 +102,44 @@ public:
 
 /// The shared stateless instance (matches @ref windowed_sinc_kernel).
 inline constexpr LinearTableInterpolator linear_table_interpolator{};
+
+/// @brief A 2-D signed fixed-point LUT, sampled with linear interpolation along each row and then between the two
+/// rows the second index falls between.
+///
+/// The table is a span of rows, each `2^n + 1` entries wide (the `+1` is the upper neighbour), with `2^m + 1` rows;
+/// both log2 sizes come from the table's own shape. Each row is sampled as
+/// @ref LinearTableInterpolator::interpolateSigned does; the two row values are then blended by the second index's
+/// sub-row fraction at Q31, so the result is the table's units scaled by `2^16` (at most ±2^30 for a table of
+/// ±2^14 entries).
+class BilinearTableInterpolator {
+public:
+	/// @brief Sample @p rows at fractional indices @p input_x (along a row) and @p input_y (across rows).
+	/// @param input_x Fixed-point position along a row, @p x_bits wide.
+	/// @param input_y Fixed-point position across the rows, @p y_bits wide.
+	template <std::size_t Width>
+	[[nodiscard, gnu::always_inline]] int32_t
+	interpolateSigned(uint32_t input_x, uint32_t input_y, int32_t x_bits, int32_t y_bits,
+	                  std::span<const std::array<int16_t, Width>> rows) const {
+		constexpr auto row_size_log2 = static_cast<int32_t>(std::bit_width(Width - 1) - 1);
+		const auto rows_log2 = static_cast<int32_t>(std::bit_width(rows.size() - 1) - 1);
+
+		const uint32_t row = input_y >> (y_bits - rows_log2);
+		const int32_t lower =
+		    linear_table_interpolator.interpolateSigned(input_x, x_bits, rows[row].data(), row_size_log2);
+		const int32_t upper =
+		    linear_table_interpolator.interpolateSigned(input_x, x_bits, rows[row + 1].data(), row_size_log2);
+
+		// The sub-row fraction at Q31: the bits of `input_y` below the row index.
+		const int32_t shift = 31 + rows_log2 - y_bits;
+		const uint32_t toward_upper = (shift >= 0 ? (input_y << shift) : (input_y >> -shift)) & 2147483647u;
+		const uint32_t toward_lower = 2147483647u - toward_upper;
+		return multiply_32x32_rshift32(lower, static_cast<int32_t>(toward_lower))
+		       + multiply_32x32_rshift32(upper, static_cast<int32_t>(toward_upper));
+	}
+};
+
+/// The shared stateless instance.
+inline constexpr BilinearTableInterpolator bilinear_table_interpolator{};
 
 /// @brief Curve lookup into the `decayTableSmall8` decay curve.
 /// @param input Fixed-point position with @p input_fractional_bits fractional bits.
