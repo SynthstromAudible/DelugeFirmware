@@ -167,49 +167,94 @@ fn count_cables(set: &Node) -> usize {
         .sum()
 }
 
+/// Adds the default expression cables to `params` (a sound's defaultParams or a synth clip's soundParams) unless a cable
+/// of its own takes aftertouch, X or Y, while its set has room.
+fn add_default_cables(params: &mut Node, fm: bool) {
+    if params.get("patchCables").is_none() {
+        params.set("patchCables", Node::Map(vec![]));
+    }
+    let set = params.get_mut("patchCables").expect("just made");
+    let expressive = set.entries().iter().any(|(key, cable)| {
+        key == "patchCable"
+            && matches!(
+                cable.get("source").and_then(Node::text),
+                Some("aftertouch" | "x" | "y")
+            )
+    });
+    if expressive {
+        return;
+    }
+    let (y_destination, y_amount) = if fm {
+        ("modulator1Volume", "0x1333332C")
+    } else {
+        ("lpfFrequency", "0x19999990")
+    };
+    for (source, destination, amount, polarity) in [
+        ("aftertouch", "volume", "0x2A3D7094", "unipolar"),
+        ("y", y_destination, y_amount, "bipolar"),
+    ] {
+        if count_cables(set) >= MAX_CABLES {
+            return;
+        }
+        let cable = Node::Map(vec![
+            ("source".into(), text(source)),
+            ("destination".into(), text(destination)),
+            ("polarity".into(), text(polarity)),
+            ("amount".into(), text(amount)),
+        ]);
+        set.entries_mut()
+            .expect("a map")
+            .push(("patchCable".into(), cable));
+    }
+}
+
+/// Whether the song's synth that `clip` plays is in FM mode: the synth named as the clip names its instrument.
+fn clip_synth_is_fm(song: &Node, clip: &Node) -> bool {
+    let name = clip.get("instrumentPresetName").and_then(Node::text);
+    let slot = clip.get("instrumentPresetSlot").and_then(Node::text);
+    let sub_slot = clip.get("instrumentPresetSubSlot").and_then(Node::text);
+    song.get("instruments")
+        .into_iter()
+        .flat_map(Node::entries)
+        .any(|(kind, synth)| {
+            kind == "sound"
+                && synth.get("mode").and_then(Node::text) == Some("fm")
+                && ((name.is_some() && synth.get("presetName").and_then(Node::text) == name)
+                    || (slot.is_some()
+                        && synth.get("presetSlot").and_then(Node::text) == slot
+                        && synth.get("presetSubSlot").and_then(Node::text) == sub_slot))
+        })
+}
+
 /// A sound from before official 4.0 was given aftertouch to volume and Y to its filter (to its first modulator's
-/// volume, in FM) on load, unless a cable of its own already took aftertouch, X or Y, and while its set had room.
+/// volume, in FM) on load, and so was each synth clip's own params: unless a cable of its own already took aftertouch,
+/// X or Y, and while its set had room.
 pub fn default_expression_cables(doc: &mut Node, _ctx: &mut Context) {
     for_each_sound(doc, &mut |sound| {
         let fm = sound.get("mode").and_then(Node::text) == Some("fm");
-        let Some(defaults) = sound.get_mut("defaultParams") else {
-            return;
-        };
-        if defaults.get("patchCables").is_none() {
-            defaults.set("patchCables", Node::Map(vec![]));
-        }
-        let set = defaults.get_mut("patchCables").expect("just made");
-        let expressive = set.entries().iter().any(|(key, cable)| {
-            key == "patchCable"
-                && matches!(
-                    cable.get("source").and_then(Node::text),
-                    Some("aftertouch" | "x" | "y")
-                )
-        });
-        if expressive {
-            return;
-        }
-        let (y_destination, y_amount) = if fm {
-            ("modulator1Volume", "0x1333332C")
-        } else {
-            ("lpfFrequency", "0x19999990")
-        };
-        for (source, destination, amount, polarity) in [
-            ("aftertouch", "volume", "0x2A3D7094", "unipolar"),
-            ("y", y_destination, y_amount, "bipolar"),
-        ] {
-            if count_cables(set) >= MAX_CABLES {
-                return;
-            }
-            let cable = Node::Map(vec![
-                ("source".into(), text(source)),
-                ("destination".into(), text(destination)),
-                ("polarity".into(), text(polarity)),
-                ("amount".into(), text(amount)),
-            ]);
-            set.entries_mut()
-                .expect("a map")
-                .push(("patchCable".into(), cable));
+        if let Some(defaults) = sound.get_mut("defaultParams") {
+            add_default_cables(defaults, fm);
         }
     });
+    let Some(song) = doc.get("song") else { return };
+    let fm_by_clip: Vec<bool> = song
+        .get("sessionClips")
+        .into_iter()
+        .flat_map(Node::entries)
+        .map(|(_, clip)| clip_synth_is_fm(song, clip))
+        .collect();
+    let Some(clips) = doc
+        .get_mut("song")
+        .and_then(|s| s.get_mut("sessionClips"))
+        .and_then(Node::entries_mut)
+    else {
+        return;
+    };
+    for ((key, clip), fm) in clips.iter_mut().zip(fm_by_clip) {
+        if key == "instrumentClip"
+            && let Some(params) = clip.get_mut("soundParams")
+        {
+            add_default_cables(params, fm);
+        }
+    }
 }

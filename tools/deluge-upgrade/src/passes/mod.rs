@@ -41,6 +41,12 @@ pub static ALL: &[Pass] = &[
     },
     // Version-gated, in the order a load applied them: a sound's resonance compensation came before its default
     // expression cables (one of which goes to the filter whose cables the compensation checks).
+    // A pre-1.2 clip's params lay over its instrument's before anything else was done to them.
+    Pass {
+        name: "clip param overlay",
+        before: Some(FirmwareVersion::official(1, 2, 0)),
+        run: params::clip_param_overlay,
+    },
     Pass {
         name: "sound resonance",
         before: Some(FirmwareVersion::official(1, 2, 0)),
@@ -55,6 +61,11 @@ pub static ALL: &[Pass] = &[
         name: "default expression cables",
         before: Some(FirmwareVersion::official_tagged(4, 0, 0, "beta")),
         run: cables::default_expression_cables,
+    },
+    Pass {
+        name: "pulse width",
+        before: Some(FirmwareVersion::official_tagged(2, 0, 0, "beta")),
+        run: params::pulse_width,
     },
     Pass {
         name: "linear interpolation",
@@ -81,6 +92,12 @@ pub static ALL: &[Pass] = &[
         name: "mod wheel to Y",
         before: Some(FirmwareVersion::community(1, 1, 0)),
         run: community::mod_wheel_to_y,
+    },
+    // After the mod wheel: a converted Y expression gives its clip an expression of its own.
+    Pass {
+        name: "bend range",
+        before: Some(FirmwareVersion::official_tagged(3, 2, 0, "alpha\u{0}")),
+        run: params::bend_range,
     },
     // Note data: plain noteData is read whatever the stamp, noteDataWithLift before community 1.3.
     Pass {

@@ -276,6 +276,19 @@ RENDER_CASES = {
 }
 
 
+SYNTHETIC = HERE.parent / "synthetic"
+
+# Songs stamped as old official firmware: 1.4.0 (every song rule from before 1.5 up to community 1.3) and 1.1.0 (the
+# pre-1.2 rules too).
+FIXTURES |= {
+    f"songs/{song.stem}_{stamp.replace('.', '_')}.song.XML": restamp(
+        song.read_text(), stamp
+    )
+    for song in sorted(SYNTHETIC.glob("*.XML"))
+    for stamp in ("1.4.0", "1.1.0")
+}
+
+
 def main() -> None:
     for name, text in FIXTURES.items():
         path = HERE / name

@@ -7,9 +7,10 @@ use deluge_upgrade::upgrade::Context;
 use deluge_upgrade::version::FirmwareVersion;
 use std::path::{Path, PathBuf};
 
-/// A card holding SAMPLES/A.WAV: 4096 frames of 16-bit mono at 44.1 kHz.
-fn card() -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("deluge-upgrade-samples-{}", std::process::id()));
+/// A card of its own for test `name`, holding SAMPLES/A.WAV: 4096 frames of 16-bit mono at 44.1 kHz. (Tests run in
+/// parallel; one card each keeps a test from reading another's half-written file.)
+fn card(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("deluge-upgrade-samples-{}-{name}", std::process::id()));
     std::fs::create_dir_all(dir.join("SAMPLES")).unwrap();
     let frames: u32 = 4096;
     let data = frames * 2;
@@ -60,7 +61,7 @@ fn positions(zone: &Node) -> (Option<&str>, Option<&str>) {
 
 #[test]
 fn a_zone_in_milliseconds_becomes_positions_at_the_sample_rate() {
-    let card = card();
+    let card = card("positions");
     let (z, _) = zone(
         r#">"<zone startMilliseconds="20" endMilliseconds="80"/>"#,
         "2.0.0",
@@ -78,7 +79,7 @@ fn a_zone_in_milliseconds_becomes_positions_at_the_sample_rate() {
 
 #[test]
 fn a_reversed_source_swaps_its_converted_zone() {
-    let card = card();
+    let card = card("reversed");
     let (z, _) = zone(
         r#"reversed="1"><zone startMilliseconds="10" endMilliseconds="60"/>"#,
         "2.0.0",
@@ -89,7 +90,7 @@ fn a_reversed_source_swaps_its_converted_zone() {
 
 #[test]
 fn an_end_just_past_the_sample_is_its_end_and_one_far_past_is_reported() {
-    let card = card();
+    let card = card("overshoot");
     let (z, report) = zone(r#">"<zone endMilliseconds="93"/>"#, "2.0.0", Some(&card));
     assert_eq!(positions(&z).1, Some("4096"));
     assert!(report.findings.is_empty());

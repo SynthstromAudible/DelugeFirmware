@@ -151,43 +151,148 @@ fn patched_to(params: &Node, destination: &str) -> bool {
     })
 }
 
-/// A pre-1.2 sound (not FM): the volume its resonance cost, given back; and a filter left fully open with a little
-/// resonance has none.
+/// The pre-1.2 rule on one set of a sound's params: the volume its resonance cost, given back; and a filter left fully
+/// open with a little resonance has none. False when the set has no resonance to go by.
+fn sound_rule(params: &mut Node) -> bool {
+    let Some(resonance) = param(params, "lpfResonance") else {
+        return false;
+    };
+    compensate(params, resonance.value);
+    let open = param(params, "lpfFrequency").is_some_and(|f| {
+        !f.automated() && f.value >= 2_147_483_602 && !patched_to(params, "lpfFrequency")
+    });
+    if open && !resonance.automated() && (-23..=0).contains(&resonance.value) {
+        set_param(
+            params,
+            "lpfResonance",
+            &ParamText {
+                value: i32::MIN,
+                nodes: Vec::new(),
+                hex: true,
+            },
+        );
+    }
+    true
+}
+
+/// A pre-1.2 sound (not FM): the rule on its own params; in a song, on each clip's params too (a synth clip's, a kit
+/// clip's rows'), as the firmware applied it to every param set it loaded.
 pub fn sound_resonance(doc: &mut Node, ctx: &mut Context) {
     let mut missing = false;
     for_each_sound(doc, &mut |sound| {
         if sound.get("mode").and_then(Node::text) == Some("fm") {
             return;
         }
-        let Some(params) = sound.get_mut("defaultParams") else {
-            return;
-        };
-        let Some(resonance) = param(params, "lpfResonance") else {
-            missing = true;
-            return;
-        };
-        compensate(params, resonance.value);
-        let open = param(params, "lpfFrequency").is_some_and(|f| {
-            !f.automated() && f.value >= 2_147_483_602 && !patched_to(params, "lpfFrequency")
-        });
-        if open && !resonance.automated() && (-23..=0).contains(&resonance.value) {
-            set_param(
-                params,
-                "lpfResonance",
-                &ParamText {
-                    value: i32::MIN,
-                    nodes: Vec::new(),
-                    hex: true,
-                },
-            );
+        if let Some(params) = sound.get_mut("defaultParams") {
+            missing |= !sound_rule(params);
         }
     });
+    if let Some(song) = doc.get("song").cloned() {
+        for_each_clip(doc, &mut |clip| {
+            let fm = clip_is_fm(&song, clip_ref(clip));
+            if !fm && let Some(params) = clip.get_mut("soundParams") {
+                missing |= !sound_rule(params);
+            }
+        });
+        for_each_clip(doc, &mut |clip| {
+            let drums = kit_of_clip(&song, clip);
+            for (_, row) in clip
+                .get_mut("noteRows")
+                .and_then(Node::entries_mut)
+                .into_iter()
+                .flatten()
+            {
+                let fm = row
+                    .get("drumIndex")
+                    .and_then(Node::int)
+                    .and_then(|i| drums.get(usize::try_from(i).ok()?))
+                    .is_some_and(|fm| *fm);
+                if !fm && let Some(params) = row.get_mut("soundParams") {
+                    missing |= !sound_rule(params);
+                }
+            }
+            if let Some(params) = clip.get_mut("kitParams") {
+                kit_rule(params);
+            }
+        });
+        if let Some(params) = doc.get_mut("song").and_then(|s| s.get_mut("songParams")) {
+            zero_filter_resonance(params);
+        }
+    }
     if missing {
         ctx.note(
             "resonance compensation",
-            "a sound without an lpfResonance param was left as it is".into(),
+            "a param set without an lpfResonance param was left as it is".into(),
         );
     }
+}
+
+/// Every clip of a song, session and arrangement-only.
+fn for_each_clip(doc: &mut Node, f: &mut dyn FnMut(&mut Node)) {
+    let Some(song) = doc.get_mut("song") else {
+        return;
+    };
+    for container in ["sessionClips", "arrangementOnlyTracks"] {
+        for (key, clip) in song
+            .get_mut(container)
+            .and_then(Node::entries_mut)
+            .into_iter()
+            .flatten()
+        {
+            if key == "instrumentClip" {
+                f(clip);
+            }
+        }
+    }
+}
+
+/// How a clip names its instrument: its preset name, or slot and sub-slot.
+fn clip_ref(clip: &Node) -> (Option<String>, Option<String>, Option<String>) {
+    let get = |k: &str| clip.get(k).and_then(Node::text).map(str::to_string);
+    (
+        get("instrumentPresetName"),
+        get("instrumentPresetSlot"),
+        get("instrumentPresetSubSlot"),
+    )
+}
+
+fn names(
+    instrument: &Node,
+    (name, slot, sub_slot): &(Option<String>, Option<String>, Option<String>),
+) -> bool {
+    let get = |k: &str| instrument.get(k).and_then(Node::text).map(str::to_string);
+    (name.is_some() && get("presetName") == *name)
+        || (slot.is_some() && get("presetSlot") == *slot && get("presetSubSlot") == *sub_slot)
+}
+
+fn clip_is_fm(song: &Node, reference: (Option<String>, Option<String>, Option<String>)) -> bool {
+    song.get("instruments")
+        .into_iter()
+        .flat_map(Node::entries)
+        .any(|(kind, synth)| {
+            kind == "sound"
+                && synth.get("mode").and_then(Node::text) == Some("fm")
+                && names(synth, &reference)
+        })
+}
+
+/// Whether each drum of the kit a clip plays is FM, by drum index.
+fn kit_of_clip(song: &Node, clip: &Node) -> Vec<bool> {
+    let reference = clip_ref(clip);
+    song.get("instruments")
+        .into_iter()
+        .flat_map(Node::entries)
+        .find(|(kind, kit)| kind == "kit" && names(kit, &reference))
+        .map(|(_, kit)| {
+            kit.get("soundSources")
+                .into_iter()
+                .flat_map(Node::entries)
+                .map(|(kind, drum)| {
+                    kind == "sound" && drum.get("mode").and_then(Node::text) == Some("fm")
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// The global effectable's filters, as a pre-1.2 kit or song left them: an open LPF's half resonance and an off
@@ -229,6 +334,14 @@ fn zero_filter_resonance(params: &mut Node) {
     }
 }
 
+/// The pre-1.2 rule on a kit's params: the volume its own filter's resonance cost, given back, then its filters.
+fn kit_rule(params: &mut Node) {
+    if let Some(resonance) = params.get("lpf").and_then(|lpf| param(lpf, "resonance")) {
+        compensate(params, resonance.value);
+    }
+    zero_filter_resonance(params);
+}
+
 /// Every `kit` element: a kit preset's root, a song's kits.
 fn for_each_kit(node: &mut Node, f: &mut dyn FnMut(&mut Node)) {
     if let Some(entries) = node.entries_mut() {
@@ -249,10 +362,7 @@ pub fn kit_resonance(doc: &mut Node, ctx: &mut Context) {
             paramless = true;
             return;
         };
-        if let Some(resonance) = params.get("lpf").and_then(|lpf| param(lpf, "resonance")) {
-            compensate(params, resonance.value);
-        }
-        zero_filter_resonance(params);
+        kit_rule(params);
     });
     if paramless {
         ctx.note(
@@ -322,4 +432,86 @@ pub fn swing_interval(doc: &mut Node, ctx: &mut Context) {
         }
     }
     song.set("swingInterval", Node::Text(file.to_string()));
+}
+
+/// Before official 3.2 a clip's bend range was always 12 and not saved: a clip with no expression of its own is given
+/// it. (Its MPE bend range came from the device's settings, as it still does for a clip that does not save one.)
+pub fn bend_range(doc: &mut Node, _ctx: &mut Context) {
+    let Some(clips) = doc
+        .get_mut("song")
+        .and_then(|s| s.get_mut("sessionClips"))
+        .and_then(Node::entries_mut)
+    else {
+        return;
+    };
+    for (key, clip) in clips.iter_mut() {
+        if key != "instrumentClip"
+            || clip.get("expressionData").is_some()
+            || clip.get("bendRange").is_some()
+        {
+            continue;
+        }
+        let expressive_cc = clip.get("midiParams").is_some_and(|params| {
+            params.entries().iter().any(|(_, p)| {
+                p.get("cc").and_then(Node::text).is_some_and(|cc| {
+                    ["bend", "aftertouch", "channelPressure"]
+                        .iter()
+                        .any(|n| cc.trim().eq_ignore_ascii_case(n))
+                })
+            })
+        });
+        if !expressive_cc {
+            clip.set("bendRange", Node::Text("12".into()));
+        }
+    }
+}
+
+/// Before official 1.2 a clip's params were read onto a copy of its instrument's: a param the clip does not hold is
+/// its instrument's (`instrument_clip.cpp`, `note_row.cpp`).
+pub fn clip_param_overlay(doc: &mut Node, _ctx: &mut Context) {
+    let Some(song) = doc.get("song").cloned() else {
+        return;
+    };
+    let instrument_params = |reference: &(Option<String>, Option<String>, Option<String>)| {
+        song.get("instruments")
+            .into_iter()
+            .flat_map(Node::entries)
+            .find(|(kind, instrument)| kind == "sound" && names(instrument, reference))
+            .and_then(|(_, synth)| synth.get("defaultParams").cloned())
+    };
+    for_each_clip(doc, &mut |clip| {
+        let reference = clip_ref(clip);
+        let Some(defaults) = instrument_params(&reference) else {
+            return;
+        };
+        let Some(params) = clip.get_mut("soundParams") else {
+            return;
+        };
+        for (key, value) in defaults.entries() {
+            if params.get(key).is_none() {
+                params.set(key, value.clone());
+            }
+        }
+    });
+}
+
+/// Before official 2.0 a synth clip's pulse width on a source that was not a square was cleared on load; the upgrader
+/// does not follow a clip to its sources' types, so it reports such a song.
+pub fn pulse_width(doc: &mut Node, ctx: &mut Context) {
+    let mut found = false;
+    for_each_clip(doc, &mut |clip| {
+        if let Some(params) = clip.get("soundParams") {
+            found |= ["oscAPulseWidth", "oscBPulseWidth"]
+                .iter()
+                .any(|p| param(params, p).is_some_and(|v| v.holds_other_than(0)));
+        }
+    });
+    if found {
+        ctx.note(
+            "pulse width",
+            "a pre-2.0 synth clip's pulse width is left as it is; the firmware cleared it on a \
+                                 source that was not a square"
+                .into(),
+        );
+    }
 }
