@@ -81,7 +81,13 @@ def _preset(corpus: Path, name: str) -> Path:
 LEARNED_INPUT = re.compile(
     r'\s*inputMidiChannel="[^"]*"|\s*<inputMidiChannel>[^<]*</inputMidiChannel>'
 )
-LEARNED_INPUT_JSON = re.compile(r'\s*"inputMidiChannel":\s*[^,}\n]*,?')
+LEARNED_INPUT_JSON = re.compile(r'\s*"inputMidiChannel":\s*[^,}\n]*\s*,')
+LEARNED_INPUT_JSON_LAST = re.compile(r',?\s*"inputMidiChannel":\s*[^,}\n]*(?=\s*\})')
+
+
+def without_learned_input_json(text: str) -> str:
+    """A JSON preset without its MIDI learn member, and without the comma that joined it to its neighbours."""
+    return LEARNED_INPUT_JSON_LAST.sub("", LEARNED_INPUT_JSON.sub("", text))
 
 
 def _staged_preset_text(preset: Path) -> str:
@@ -91,7 +97,7 @@ def _staged_preset_text(preset: Path) -> str:
     time, starting a second voice for it, so a case's sound would depend on whether the preset happens to be learned.
     """
     if preset.suffix == ".json":
-        return LEARNED_INPUT_JSON.sub("", preset.read_text())
+        return without_learned_input_json(preset.read_text())
     return LEARNED_INPUT.sub("", preset.read_text())
 
 

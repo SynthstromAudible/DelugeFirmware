@@ -140,9 +140,14 @@ def main(argv=None) -> int:
         # Songs and corpus presets: the upgraded file's round trip hashes as its original's did.
         cases = []
         for key, path, kind in legacy_cases():
-            if args.filter in key and key in legacy:
-                kind_ = "song" if kind == "song" else ("preset-" + kind)
-                cases.append((kind_, key, path, legacy[key]["sha256"], None))
+            if args.filter not in key:
+                continue
+            if key not in legacy:
+                fail += 1
+                print(f"UPGRADE-FAIL {key}: no recorded hash (record it with --record)")
+                continue
+            kind_ = "song" if kind == "song" else ("preset-" + kind)
+            cases.append((kind_, key, path, legacy[key]["sha256"], None))
         for key in sorted(songs):
             if args.filter not in key:
                 continue
