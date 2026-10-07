@@ -26,61 +26,10 @@ namespace deluge::effects {
 
 namespace {
 
-/// @p val saturated to @p bits signed bits (12 to 31); a switch over the saturating instruction's fixed widths.
-[[gnu::always_inline]] inline int32_t saturate_to_bits(int32_t val, int32_t bits) {
-	switch (bits) {
-	case 31:
-		return signed_saturate<31>(val);
-	case 30:
-		return signed_saturate<30>(val);
-	case 29:
-		return signed_saturate<29>(val);
-	case 28:
-		return signed_saturate<28>(val);
-	case 27:
-		return signed_saturate<27>(val);
-	case 26:
-		return signed_saturate<26>(val);
-	case 25:
-		return signed_saturate<25>(val);
-	case 24:
-		return signed_saturate<24>(val);
-	case 23:
-		return signed_saturate<23>(val);
-	case 22:
-		return signed_saturate<22>(val);
-	case 21:
-		return signed_saturate<21>(val);
-	case 20:
-		return signed_saturate<20>(val);
-	case 19:
-		return signed_saturate<19>(val);
-	case 18:
-		return signed_saturate<18>(val);
-	case 17:
-		return signed_saturate<17>(val);
-	case 16:
-		return signed_saturate<16>(val);
-	case 15:
-		return signed_saturate<15>(val);
-	case 14:
-		return signed_saturate<14>(val);
-	case 13:
-		return signed_saturate<13>(val);
-	default:
-		return signed_saturate<12>(val);
-	}
-}
-
-/// @p val shifted left by @p lshift (more than 0), saturating rather than wrapping.
-[[gnu::always_inline]] inline int32_t lshift_and_saturate(int32_t val, uint8_t lshift) {
-	return saturate_to_bits(val, 32 - lshift) << lshift;
-}
-
 /// @p number scaled by 2^magnitude (a negative magnitude shifts right), saturating as it grows.
 [[gnu::always_inline]] inline int32_t increase_magnitude_and_saturate(int32_t number, int32_t magnitude) {
 	if (magnitude > 0) {
-		return lshift_and_saturate(number, magnitude);
+		return detail::lshift_and_saturate(number, static_cast<uint8_t>(magnitude));
 	}
 	return number >> (-magnitude);
 }
@@ -188,61 +137,6 @@ alignas(16) const std::array<std::array<int16_t, 129>, kTanH2dRows> kTanH2d = {{
 	{0, 258, 520, 786, 1057, 1332, 1611, 1895, 2183, 2477, 2775, 3078, 3387, 3700, 4019, 4344, 4674, 5010, 5352, 5700, 6054, 6414, 6781, 7154, 7535, 7921, 8315, 8716, 9125, 9540, 9963, 10394, 10832, 11278, 11732, 12193, 12663, 13140, 13624, 14117, 14616, 15123, 15637, 16158, 16685, 17217, 17755, 18297, 18843, 19392, 19943, 20495, 21047, 21596, 22143, 22686, 23222, 23751, 24271, 24780, 25277, 25759, 26226, 26677, 27110, 27524, 27918, 28293, 28647, 28980, 29293, 29585, 29857, 30110, 30345, 30561, 30760, 30943, 31111, 31265, 31405, 31533, 31650, 31756, 31852, 31940, 32019, 32091, 32156, 32215, 32268, 32317, 32360, 32400, 32436, 32468, 32497, 32523, 32547, 32569, 32588, 32606, 32622, 32636, 32650, 32661, 32672, 32682, 32691, 32699, 32706, 32713, 32719, 32724, 32729, 32734, 32738, 32742, 32745, 32748, 32751, 32754, 32756, 32758, 32760, 32762, 32764, 32766, 32767, },
 }};
 // clang-format on
-
-int32_t interpolate_table_signed(uint32_t input, int32_t bits_in_input, const int16_t* table, int32_t bits_in_table) {
-	int32_t whichValue = input >> (bits_in_input - bits_in_table);
-	int32_t rshiftAmount = bits_in_input - 16 - bits_in_table;
-	uint32_t rshifted;
-	if (rshiftAmount >= 0) {
-		rshifted = input >> rshiftAmount;
-	}
-	else {
-		rshifted = input << (-rshiftAmount);
-	}
-	int32_t strength2 = rshifted & 65535;
-	int32_t strength1 = 65536 - strength2;
-	return static_cast<int32_t>(table[whichValue]) * strength1
-	       + static_cast<int32_t>(table[whichValue + 1]) * strength2;
-}
-
-int32_t interpolate_table_signed_2d(uint32_t input_x, uint32_t input_y, int32_t bits_in_x, int32_t bits_in_y,
-                                    const int16_t* table, int32_t bits_in_table_x, int32_t bits_in_table_y) {
-	const uint32_t inputX = input_x;
-	const uint32_t inputY = input_y;
-	const int32_t numBitsInInputX = bits_in_x;
-	const int32_t numBitsInInputY = bits_in_y;
-	const int32_t numBitsInTableSizeX = bits_in_table_x;
-	const int32_t numBitsInTableSizeY = bits_in_table_y;
-
-	int32_t whichValue = inputY >> (numBitsInInputY - numBitsInTableSizeY);
-
-	int32_t tableSizeOneRow = (1 << numBitsInTableSizeX) + 1;
-
-	int32_t value1 =
-	    interpolate_table_signed(inputX, numBitsInInputX, &table[whichValue * tableSizeOneRow], numBitsInTableSizeX);
-	int32_t value2 = interpolate_table_signed(inputX, numBitsInInputX, &table[(whichValue + 1) * tableSizeOneRow],
-	                                          numBitsInTableSizeX);
-
-	int32_t lshiftAmount = 31 + numBitsInTableSizeY - numBitsInInputY;
-
-	uint32_t strength2;
-
-	if (lshiftAmount >= 0)
-		strength2 = (inputY << lshiftAmount) & 2147483647;
-	else
-		strength2 = (inputY >> (0 - lshiftAmount)) & 2147483647;
-
-	uint32_t strength1 = 2147483647 - strength2;
-	return multiply_32x32_rshift32(value1, strength1) + multiply_32x32_rshift32(value2, strength2);
-}
-
-int32_t tanh_antialiased(int32_t input, uint32_t& last, uint32_t amount) {
-	const uint32_t working =
-	    static_cast<uint32_t>(lshift_and_saturate(input, static_cast<uint8_t>(amount))) + 2147483648u;
-	const int32_t result = interpolate_table_signed_2d(working, last, 32, 32, kTanH2d[0].data(), 7, 6) >> (amount + 1);
-	last = working;
-	return result;
-}
 
 int32_t exp_of(int32_t preset, int32_t adjustment) {
 	const int32_t magnitude_increase = (adjustment >> 26) + 2;

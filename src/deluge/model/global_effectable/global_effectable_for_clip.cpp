@@ -117,13 +117,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
 	// Render saturation
-	if (modControllableSnapshot_.effects.saturation.clipping_amount != 0u) {
-		int32_t shiftAmount = getShiftAmountForSaturation();
-		for (StereoSample& sample : global_effectable_audio) {
-			sample.l = saturate(sample.l, &lastSaturationTanHWorkingValue[0], shiftAmount);
-			sample.r = saturate(sample.r, &lastSaturationTanHWorkingValue[1], shiftAmount);
-		}
-	}
+	saturation_.process(global_effectable_audio,
+	                    {.clipping_amount = modControllableSnapshot_.effects.saturation.clipping_amount});
 
 	if (renderedLastTime) {
 		// Render filters

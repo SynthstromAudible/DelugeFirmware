@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
+#include "engines/effects/saturation.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/sample/sample_recorder.h"
 
@@ -43,21 +44,8 @@ public:
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
 	                            int32_t* highestReverbAmountFound);
 
-	int32_t getShiftAmountForSaturation() {
-		return (modControllableSnapshot_.effects.saturation.clipping_amount >= 3)
-		           ? (modControllableSnapshot_.effects.saturation.clipping_amount - 3)
-		           : 0;
-	}
-
-	/// clipping amount must be greater than 0! Check before calling
-	/// Shift amount is givben by getShiftAmountForSaturation
-	[[gnu::always_inline]] q31_t saturate(q31_t data, uint32_t* workingValue, int32_t shiftAmount) {
-		// Clipping
-		return getTanHAntialiased(data, workingValue, 3 + modControllableSnapshot_.effects.saturation.clipping_amount)
-		       << (shiftAmount);
-	}
-
-	std::array<uint32_t, 2> lastSaturationTanHWorkingValue = {2147483648u, 2147483648u};
+	/// The bus's saturation, after its drums or audio clip render.
+	deluge::effects::Saturation saturation_;
 
 protected:
 	int32_t getParameterFromKnob(int32_t whichModEncoder) final;

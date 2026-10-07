@@ -366,20 +366,6 @@ public:
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) final;
 	virtual ArpeggiatorBase* getArp() = 0;
 
-	int32_t getShiftAmountForSaturation() const {
-		return (modControllableSnapshot_.effects.saturation.clipping_amount >= 2)
-		           ? (modControllableSnapshot_.effects.saturation.clipping_amount - 2)
-		           : 0;
-	}
-
-	///	clipping amount must be greater than 0! Check before calling
-	/// Shift amount is givben by getShiftAmountForSaturation
-	[[gnu::always_inline]] void saturate(int32_t* data, uint32_t* workingValue, int32_t shiftAmount) {
-		// Clipping
-		//*data = getTanHUnknown(*data, 5 + clippingAmount) << (shiftAmount);
-		*data = getTanHAntialiased(*data, workingValue, 5 + modControllableSnapshot_.effects.saturation.clipping_amount)
-		        << (shiftAmount);
-	}
 	uint32_t getSyncedLFOPhaseIncrement(const LFOConfig& config);
 
 	/// @brief Does this sound have any active voices?

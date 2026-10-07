@@ -65,18 +65,6 @@ PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[4][SSI_TX_BUFFER_NUM_SAMPLES]
 
 using namespace deluge::voice;
 
-namespace {
-// Output-stage tanh clipping/saturation — the body of the former Sound::saturate + getShiftAmountForSaturation,
-// relocated here as the voice render decouples from Sound (Phase 4). Driven by the snapshotted clippingAmount.
-[[gnu::always_inline]] inline int32_t shiftForSaturation(uint8_t clippingAmount) {
-	return (clippingAmount >= 2) ? (clippingAmount - 2) : 0;
-}
-[[gnu::always_inline]] inline void saturateSample(int32_t* data, uint32_t* workingValue, int32_t shiftAmount,
-                                                  uint8_t clippingAmount) {
-	*data = getTanHAntialiased(*data, workingValue, 5 + clippingAmount) << shiftAmount;
-}
-} // namespace
-
 // Hopefully I could make this use the spareRenderingBuffer instead...
 
 const Patcher::Config kPatcherConfigForVoice = {
@@ -191,8 +179,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 		doneFirstRender = false;
 		filterSet.reset();
 
-		lastSaturationTanHWorkingValue[0] = 2147483648;
-		lastSaturationTanHWorkingValue[1] = 2147483648;
+		saturation_.reset();
 	}
 
 	// Porta
@@ -1254,7 +1241,8 @@ skipAutoRelease: {}
 			int32_t const* __restrict__ oscBufferPos = oscBuffer; // For traversal
 			StereoSample* __restrict__ outputSample = (StereoSample*)soundBuffer;
 			int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
-			int32_t shiftAmount = shiftForSaturation(cfg.clippingAmount);
+			const deluge::effects::SaturationParams saturation{.clipping_amount = cfg.clippingAmount,
+			                                                   .variant = deluge::effects::SaturationVariant::VOICE};
 
 			do {
 				int32_t outputSampleL = *(oscBufferPos++);
@@ -1266,8 +1254,8 @@ skipAutoRelease: {}
 					outputSampleR = multiply_32x32_rshift32_rounded(outputSampleR, overallOscAmplitudeNow) << 1;
 				}
 
-				saturateSample(&outputSampleL, &lastSaturationTanHWorkingValue[0], shiftAmount, cfg.clippingAmount);
-				saturateSample(&outputSampleR, &lastSaturationTanHWorkingValue[1], shiftAmount, cfg.clippingAmount);
+				outputSampleL = saturation_.saturate(outputSampleL, 0, saturation);
+				outputSampleR = saturation_.saturate(outputSampleR, 1, saturation);
 
 				// Write to the output buffer, panning or not
 				if (doPanning) {
@@ -1339,7 +1327,8 @@ skipAutoRelease: {}
 			int32_t* __restrict__ outputSample = soundBuffer;
 			int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
 
-			int32_t shiftAmount = shiftForSaturation(cfg.clippingAmount);
+			const deluge::effects::SaturationParams saturation{.clipping_amount = cfg.clippingAmount,
+			                                                   .variant = deluge::effects::SaturationVariant::VOICE};
 			do {
 				int32_t output = *oscBufferPos;
 
@@ -1348,7 +1337,7 @@ skipAutoRelease: {}
 					output = multiply_32x32_rshift32_rounded(output, overallOscAmplitudeNow) << 1;
 				}
 
-				saturateSample(&output, &lastSaturationTanHWorkingValue[0], shiftAmount, cfg.clippingAmount);
+				output = saturation_.saturate(output, 0, saturation);
 
 				if (soundRenderingInStereo) {
 					if (doPanning) {

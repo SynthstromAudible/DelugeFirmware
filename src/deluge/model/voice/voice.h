@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
+#include "engines/effects/saturation.h"
 #include "model/voice/fm_engine.h"
 #include "model/voice/ringmod_engine.h"
 #include "model/voice/source_component_render.h" // deluge::synth::SourceRenderResult
@@ -97,7 +98,8 @@ public:
 	uint32_t portaEnvelopePos{};
 	int32_t portaEnvelopeMaxAmplitude{};
 
-	std::array<uint32_t, 2> lastSaturationTanHWorkingValue{};
+	/// The output stage's saturation; its memory starts at 0 and is set silent when the envelopes reset.
+	deluge::effects::Saturation saturation_{0u};
 
 	int32_t overallOscAmplitudeLastTime{};
 	std::array<int32_t, kNumSources> sourceAmplitudesLastTime{};
