@@ -71,7 +71,6 @@ ModControllableAudio::ModControllableAudio() {
 	// Filters
 
 	// Sample rate reduction
-	sampleRateReductionOnLastTime = false;
 
 	SyncLevel syncLevel;
 	Song* song = preLoadedSong;
@@ -317,96 +316,11 @@ bool ModControllableAudio::isSRREnabled(ParamManager* paramManager) {
 
 void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume,
                                                     ParamManager* paramManager) {
-	uint32_t bitCrushMaskForSRR = 0xFFFFFFFF;
-
-	bool srrEnabled = isSRREnabled(paramManager);
-
-	// Bitcrushing ------------------------------------------------------------------------------
-	if (isBitcrushingEnabled(paramManager)) {
-		uint32_t positivePreset =
-		    (paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_BITCRUSHING) + 2147483648) >> 29;
-		if (positivePreset > 4) {
-			*postFXVolume >>= (positivePreset - 4);
-		}
-
-		// If not also doing SRR
-		if (!srrEnabled) {
-			uint32_t mask = 0xFFFFFFFF << (19 + (positivePreset));
-			for (StereoSample& sample : buffer) {
-				sample.l &= mask;
-				sample.r &= mask;
-			}
-		}
-
-		else {
-			bitCrushMaskForSRR = 0xFFFFFFFF << (18 + (positivePreset));
-		}
-	}
-
-	// Sample rate reduction -------------------------------------------------------------------------------------
-	if (srrEnabled) {
-
-		// Set up for first time
-		if (!sampleRateReductionOnLastTime) {
-			sampleRateReductionOnLastTime = true;
-			lastSample.l = lastSample.r = 0;
-			grabbedSample.l = grabbedSample.r = 0;
-			lowSampleRatePos = 0;
-		}
-
-		// This function, slightly unusually, uses 22 bits to represent "1". That's 4194304. I tried using 24, but stuff
-		// started clipping off where I needed it if sample rate too low
-
-		uint32_t positivePreset =
-		    paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION) + 2147483648;
-		int32_t lowSampleRateIncrement = getExp(4194304, (positivePreset >> 3));
-		int32_t highSampleRateIncrement = ((uint32_t)0xFFFFFFFF / (lowSampleRateIncrement >> 6)) << 6;
-		// int32_t highSampleRateIncrement = getExp(4194304, -(int32_t)(positivePreset >> 3)); // This would work too
-
-		for (StereoSample& sample : buffer) {
-			// Convert down.
-			// If time to "grab" another sample for down-conversion...
-			if (lowSampleRatePos < 4194304) {
-				int32_t strength2 = lowSampleRatePos;
-				int32_t strength1 = 4194303 - strength2;
-
-				lastGrabbedSample = grabbedSample; // What was current is now last
-				grabbedSample.l = multiply_32x32_rshift32_rounded(lastSample.l, strength1 << 9)
-				                  + multiply_32x32_rshift32_rounded(sample.l, strength2 << 9);
-				grabbedSample.r = multiply_32x32_rshift32_rounded(lastSample.r, strength1 << 9)
-				                  + multiply_32x32_rshift32_rounded(sample.r, strength2 << 9);
-				grabbedSample.l &= bitCrushMaskForSRR;
-				grabbedSample.r &= bitCrushMaskForSRR;
-
-				// Set the "time" at which we want to "grab" our next sample for down-conversion.
-				lowSampleRatePos += lowSampleRateIncrement;
-
-				// "Re-sync" the up-conversion spinner.
-				// I previously had it using strength2 instead of "lowSampleRatePos & 16777215", but that just works
-				// better. Ah, writing the massive explanation would take ages.
-				highSampleRatePos =
-				    multiply_32x32_rshift32_rounded(lowSampleRatePos & 4194303, highSampleRateIncrement << 8) << 2;
-			}
-			lowSampleRatePos -= 4194304; // We're one step closer to grabbing our next sample for down-conversion
-			lastSample = sample;
-
-			// Convert up
-			// Would only overshoot if we raised the sample rate during playback
-			int32_t strength2 = std::min(highSampleRatePos, (uint32_t)4194303);
-			int32_t strength1 = 4194303 - strength2;
-			sample.l = (multiply_32x32_rshift32_rounded(lastGrabbedSample.l, strength1 << 9)
-			            + multiply_32x32_rshift32_rounded(grabbedSample.l, strength2 << 9))
-			           << 2;
-			sample.r = (multiply_32x32_rshift32_rounded(lastGrabbedSample.r, strength1 << 9)
-			            + multiply_32x32_rshift32_rounded(grabbedSample.r, strength2 << 9))
-			           << 2;
-
-			highSampleRatePos += highSampleRateIncrement;
-		}
-	}
-	else {
-		sampleRateReductionOnLastTime = false;
-	}
+	UnpatchedParamSet* unpatched = paramManager->getUnpatchedParamSet();
+	bitcrush_.process(buffer,
+	                  {.bitcrush = unpatched->getValue(params::UNPATCHED_BITCRUSHING),
+	                   .sample_rate_reduction = unpatched->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
+	                  *postFXVolume);
 }
 
 inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount,

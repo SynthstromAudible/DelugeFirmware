@@ -35,6 +35,7 @@
 #include "synth/lfo.h"
 
 #include "engine-api/engine.h"
+#include "engines/effects/bitcrush.h"
 #include "engines/effects/state.h"
 
 class Clip;
@@ -160,18 +161,13 @@ public:
 	// Delay
 	Delay delay;
 
-	bool sampleRateReductionOnLastTime;
+	/// Bitcrush and sample-rate reduction, with the conversion memory the latter carries.
+	deluge::effects::Bitcrush bitcrush_;
 
 	// Mod FX
 	ModFXProcessor modfx{};
 	RMSFeedbackCompressor compressor;
 	GranularProcessor* grainFX{nullptr};
-
-	uint32_t lowSampleRatePos{};
-	uint32_t highSampleRatePos{};
-	StereoSample lastSample{};
-	StereoSample grabbedSample{};
-	StereoSample lastGrabbedSample{};
 
 	SideChain sidechain; // Song doesn't use this, despite extending this class
 
