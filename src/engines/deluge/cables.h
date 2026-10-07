@@ -92,8 +92,6 @@ inline constexpr uint32_t kCableDepthFlag = 0x4000'0000;
 /// @brief The destination of a cable whose destination name the instrument does not know. The runtime keeps such a
 /// cable and leaves it out of patching.
 inline constexpr engine::ParamId kUnknownDestination{55};
-/// @brief The pre-3.2 `"range"` destination a file's range cable has before its adjusted cable is known.
-inline constexpr engine::ParamId kRangePlaceholder{89};
 
 /// @brief A cable's ends: its source and its destination (a param, or another cable's depth).
 struct CableRoute {

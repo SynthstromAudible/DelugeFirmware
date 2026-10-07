@@ -51,8 +51,7 @@ using AmountTest = std::function<bool(const serialization::Value& amount)>;
 ///
 /// Drops what the runtime drops: a cable with no known source, no destination or an empty amount, `x` → `pitch`
 /// (a 3.2.0-alpha mistake), a cable repeating an earlier cable's source and destination, and a depth-controlling
-/// cable repeating a source among its siblings. An AFTERTOUCH cable defaults to unipolar. A pre-3.2 `"range"`
-/// destination takes the depth of the cable marked `rangeAdjustable`.
+/// cable repeating a source among its siblings. An AFTERTOUCH cable defaults to unipolar.
 [[nodiscard]] std::vector<CableState> decode_cables(const serialization::Value& patchCables,
                                                     const AmountTest& contains_something);
 

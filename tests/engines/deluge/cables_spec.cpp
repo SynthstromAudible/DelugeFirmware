@@ -51,7 +51,7 @@ describe cables("the Deluge instrument's patch-cable words and depth ids", ${
 
 	it("keeps depth ids apart from param ids, unresolved destinations included", _ {
 		expect(is_cable_depth(ParamId{116})).to_be_false();
-		expect(is_cable_depth(*cable_depth_id(PatchSource::NONE, kRangePlaceholder))).to_be_true();
+		expect(is_cable_depth(*cable_depth_id(PatchSource::NONE, kUnknownDestination))).to_be_true();
 		expect(cable_route(*cable_depth_id(PatchSource::X, kUnknownDestination))->destination.value)
 		    .to_equal(kUnknownDestination.value);
 		expect(cable_depth_id(PatchSource::X, ParamId{300})).not_().to_have_value();
