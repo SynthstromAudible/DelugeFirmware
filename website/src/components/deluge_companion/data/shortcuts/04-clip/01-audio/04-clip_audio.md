@@ -18,7 +18,7 @@ Press an empty row / pad in session view.
 #OFFICIAL #COMMUNITY #SESSION
 
 ```shortcut
-hold(LEARN) + press(GRID), turn(SELECT), press(SELECT)
+hold(LEARN) + press(GRID_LIT), turn(SELECT), press(SELECT)
 ```
 
 ```community
@@ -30,7 +30,7 @@ The community firmware adds the ability to select an internal track as the input
 #OFFICIAL #COMMUNITY #SESSION
 
 ```shortcut
-press(GRID), turn(SELECT)
+hold(GRID_LIT) + turn(SELECT)
 ```
 
 ```community
@@ -128,7 +128,7 @@ The clip remains time-stretched, and shortened clips in waveform view play at a 
 #COMMUNITY #AUDIO
 
 ```shortcut
-press(Y) + press(X)
+hold(Y) + press(X)
 ```
 
 ```community

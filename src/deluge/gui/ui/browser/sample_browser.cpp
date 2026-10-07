@@ -1089,9 +1089,8 @@ doLoadAsSample:
 			}
 
 			parentMenuHeadingTo->focusChild(menuItemHeadingTo);
-			soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo;
-			soundEditor.navigationDepth = 0;
-			openUI(&soundEditor);
+			soundEditor.setup(getCurrentClip(), parentMenuHeadingTo);
+			soundEditor.enterOrUpdateSoundEditor(true);
 
 			parentMenuHeadingTo = nullptr;
 			menuItemHeadingTo = nullptr;

@@ -78,7 +78,7 @@ In the automation view editor, press a single step or select a range of steps to
 #COMMUNITY #ARRANGER #SYNTH #KIT #MIDI #CV #AUTOMATION_PARAMETER #AUTOMATION_VELOCITY
 
 ```shortcut
-hold(GRID) + turn(PARAMETER)
+hold(GRID_LIT) + turn(PARAMETER)
 ```
 
 Hold note / step and turn gold knob(s) to adjust automation at the selected step
@@ -88,7 +88,7 @@ Hold note / step and turn gold knob(s) to adjust automation at the selected step
 #COMMUNITY #SYNTH #KIT #MIDI #CV #AUTOMATION_PARAMETER #AUTOMATION_VELOCITY
 
 ```shortcut
-hold(GRID) + turn(EXTERNAL)
+hold(GRID_LIT) + turn(EXTERNAL)
 ```
 
 Hold note / step and send external midi cc to adjust automation at the selected step for the learned parameter(s)

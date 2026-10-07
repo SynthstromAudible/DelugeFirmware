@@ -43,6 +43,7 @@
   "midiTakeoverMenu": "c1.1",
   "transposeMidiCommand": "c1.1",
   "device_is_relative_menu": "c1.3",
+  "device_send_thru_menu": "c1.3",
 
   "__subsection_01_03_defaultsSubmenu": "Subsection: Defaults",
   "defaultUI": "c1.0",

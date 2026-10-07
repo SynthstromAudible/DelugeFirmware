@@ -59,7 +59,7 @@ public:
 		}
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return soundEditor.editingKitRow() && !soundEditor.editingGateDrumRow();
 	}
 	void getColumnLabel(StringBuf& label) override {

@@ -68,7 +68,7 @@ To edit decimal values in the currently selected vertical menu, use the horizont
 #COMMUNITY #MENU #SYNTH #KIT #MIDI #CV
 
 ```shortcut
-press(SELECT) + turn(SELECT), hold(SHIFT) + turn(SELECT)
+hold(SELECT) + turn(SELECT), hold(SHIFT) + turn(SELECT)
 ```
 
 Press and turn select or hold shift and turn select to edit fine edit decimal values in the currently selected horizontal menu.

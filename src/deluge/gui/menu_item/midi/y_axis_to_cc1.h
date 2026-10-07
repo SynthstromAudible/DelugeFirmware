@@ -36,7 +36,7 @@ public:
 		    this->getValue() ? CC_EXTERNAL_MOD_WHEEL : CC_EXTERNAL_MPE_Y;
 		getCurrentInstrument()->editedByUser = true;
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		// not relevant for cv
 		const auto type = getCurrentOutputType();
 		return (type == OutputType::MIDI_OUT);

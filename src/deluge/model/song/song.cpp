@@ -111,7 +111,11 @@ Kit* getCurrentKit() {
 
 /// Do not call in static/global constructors, song won't exist yet
 Instrument* getCurrentInstrument() {
-	auto output = currentSong->getCurrentClip()->output;
+	auto currentClip = currentSong->getCurrentClip();
+	if (currentClip == nullptr) {
+		return nullptr;
+	}
+	auto output = currentClip->output;
 	if (output == nullptr) {
 		return nullptr;
 	}
@@ -1274,6 +1278,8 @@ weAreInArrangementEditorOrInClipInstance:
 	GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true, valuesForOverride);
 	writer.writeClosingTag("songParams");
 
+	performanceView.writeSettingsToFile(writer);
+
 	writer.writeArrayStart("instruments");
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		thisOutput->writeToFile(nullptr, this);
@@ -2067,6 +2073,10 @@ loadOutput:
 				reader.exitTag("songParams", true);
 			}
 
+			else if (!strcmp(tagName, "performanceView")) {
+				performanceView.readSettingsFromFile(reader);
+			}
+
 			else if (!strcmp(tagName, "tracks") || !strcmp(tagName, "sessionClips")) {
 				Error error = readClipsFromFile(reader, &sessionClips);
 				if (error != Error::NONE) {
@@ -2438,6 +2448,8 @@ void Song::deleteSoundsWhichWontSound() {
 
 		AudioEngine::routineWithClusterLoading();
 		if (!clip->isActiveOnOutput() && clip != view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			// Arranger ClipInstances may still reference this Clip - remove them so they don't dangle (E455)
+			clip->output->deleteAnyInstancesOfClip(clip);
 			it.deleteClip(InstrumentRemoval::NONE);
 		}
 		else {
@@ -2454,6 +2466,7 @@ void Song::deleteSoundsWhichWontSound() {
 
 		AudioEngine::routineWithClusterLoading();
 		if (clip->deleteSoundsWhichWontSound(this)) {
+			clip->output->deleteAnyInstancesOfClip(clip);
 			it.deleteClip(InstrumentRemoval::DELETE);
 		}
 		else {
@@ -3150,6 +3163,13 @@ void Song::setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldL
 void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRemoval instrumentRemovalInstruction) {
 
 	if (!songBeingDestroyedToo) {
+#if ALPHA_OR_BETA_VERSION
+		// Callers must remove any ClipInstances referencing this Clip first, or the arrangement is left pointing at
+		// freed memory - and pickAnActiveClipIfPossible() would pick this Clip back up mid-destruction (E411/E412).
+		if (clip->output && clip->output->clipHasInstance(clip)) {
+			FREEZE_WITH_ERROR("E455");
+		}
+#endif
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, this, clip);
@@ -3924,10 +3944,11 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 			else {
 
 				ParamManagerForTimeline paramManager;
-				paramManager.stealParamCollectionsFrom(&backedUp->paramManager);
+				paramManager.stealParamCollectionsFrom(&backedUp->paramManager, false);
 				ModControllableAudio* modControllable = backedUp->modControllable;
 
-				// We have to delete that element...
+				// Destruct backed up param manager in case it also had expression params
+				backedUp->~BackedUpParamManager();
 				backedUpParamManagers.deleteAtIndex(i);
 
 				// ...and then go find the first one that had this ModControllable
@@ -5566,11 +5587,15 @@ bool Song::hasAnyPendingNextOverdubs() {
 	return false;
 }
 
-int32_t Song::countAudioClips() const {
+int32_t Song::countAudioVoices() const {
 	int32_t i = 0;
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
-			if (output->getActiveClip()) {
+			// this checks whether the audio output is skipping rendering
+			// to be rendering, the audio output must have:
+			// a) an active clip; and
+			// b) is monitoring and/or has a voice sample assigned
+			if (!(AudioOutput*)output->isSkippingRendering()) {
 				AudioClip* clip = (AudioClip*)output->getActiveClip();
 				// this seems to be the only way to find whether the voice is sounding
 				if (isClipActive(clip)) {

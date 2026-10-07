@@ -251,6 +251,8 @@ ActionResult InstrumentClipView::commandExitScaleMode() {
 ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	maybeStartShortcutOverview(b, on);
+
 	// Scale mode button
 	if (b == SCALE_MODE && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		return handleScaleButtonAction(on, inCardRoutine);
@@ -1769,6 +1771,8 @@ bool InstrumentClipView::changeOutputType(OutputType newOutputType) {
 
 void InstrumentClipView::selectEncoderAction(int8_t offset) {
 
+	exitedShortcutOverview = true;
+	uiNeedsRendering(this);
 	// User may be trying to edit noteCode...
 	if (currentUIMode == UI_MODE_AUDITIONING) {
 		if (Buttons::isButtonPressed(deluge::hid::button::SELECT_ENC)) {
@@ -3463,33 +3467,11 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 
 void InstrumentClipView::displayIterance(Iterance iterance) {
 	char buffer[(display->haveOLED()) ? 29 : 5];
-
-	// Iteration dependence
-	int32_t iterancePreset = iterance.toPresetIndex();
-
-	if (iterancePreset == kDefaultIterancePreset) {
-		strcpy(buffer, display->haveOLED() ? "Iterance: OFF" : "OFF");
-	}
-	else if (iterancePreset == kCustomIterancePreset) {
-		strcpy(buffer, display->haveOLED() ? "Iterance: CUSTOM" : "CUSTOM");
-	}
-	else if (iterancePreset == kFirstIterancePreset) {
-		strcpy(buffer, display->haveOLED() ? "Iterance: FIRST" : "1 ST");
-	}
-	else if (iterancePreset == kLastIterancePreset) {
-		strcpy(buffer, display->haveOLED() ? "Iterance: LAST" : "LAST");
-	}
-	else {
-		Iterance iterance = iterancePresets[iterancePreset - 1];
-		int32_t i = iterance.divisor;
-		for (; i >= 0; i--) {
-			// try to find which iteration step index is active
-			if (iterance.iteranceStep[i]) {
-				break;
-			}
-		}
-		sprintf(buffer, display->haveOLED() ? "Iterance: %d of %d" : "%dof%d", i + 1, iterance.divisor);
-	}
+	iterance.format_display_value(
+	    buffer, sizeof(buffer),
+	    {.step_format = display->haveOLED() ? "%d of %d" : "%dof%d",
+	     .prefix = display->haveOLED() ? "Iterance: " : "",
+	     .label_type = display->haveOLED() ? Iterance::DisplayLabelType::LONG : Iterance::DisplayLabelType::SHORT});
 
 	if (display->haveOLED()) {
 		display->popupText(buffer, PopupType::ITERANCE);
@@ -5554,6 +5536,36 @@ doDisplayError:
 	}
 }
 
+ModControllableAudio* InstrumentClipView::getModControllableAudioOrNone() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	auto output = clip->output;
+	auto type = output->type;
+
+	switch (type) {
+		using enum OutputType;
+
+	case SYNTH:
+		return static_cast<SoundInstrument*>(output);
+	case KIT: {
+		if (getAffectEntire()) {
+			return static_cast<ModControllableAudio*>(output->toModControllable());
+		}
+		if (selectedDrum != nullptr) {
+			if (selectedDrum->type == DrumType::SOUND)
+				return static_cast<SoundDrum*>(selectedDrum);
+		}
+		break;
+	}
+	case MIDI_OUT:
+	case CV:
+	case AUDIO:
+	case NONE:
+		break;
+	}
+
+	return nullptr;
+}
+
 void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 
 	Kit* kit = getCurrentKit();
@@ -6159,6 +6171,7 @@ static const uint32_t verticalScrollUIModes[] = {
 
 ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
+	exitedShortcutOverview = true;
 	if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 	}
@@ -6474,6 +6487,8 @@ shiftAllColour:
 static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
 
 ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
+	exitedShortcutOverview = true;
+	uiNeedsRendering(this);
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 	}
@@ -6553,6 +6568,7 @@ void InstrumentClipView::rotateNoteRowHorizontally(int32_t offset) {
 }
 
 void InstrumentClipView::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
+	exitedShortcutOverview = true;
 	auto quantizeType = encoderButtonPressed ? NudgeMode::QUANTIZE_ALL : NudgeMode::QUANTIZE;
 	if (isUIModeActive(UI_MODE_QUANTIZE)) {
 		commandQuantizeNotes(offset, quantizeType);
@@ -7343,6 +7359,10 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 	}
 
 	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
+		return true;
+	}
+
+	if (maybeRenderShortcutsOverview(whichRows, image, occupancyMask, drawUndefinedArea)) {
 		return true;
 	}
 

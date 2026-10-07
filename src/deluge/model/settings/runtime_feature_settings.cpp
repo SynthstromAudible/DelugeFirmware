@@ -204,6 +204,10 @@ void RuntimeFeatureSettings::init() {
 	// Rounded Corners
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RoundedCorners], STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS,
 	                  "roundedCorners", RuntimeFeatureStateToggle::On);
+
+	// Shortcut Overlay
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShortcutOverlay],
+	                  STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY, "shortcutOverlay", RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::factoryReset(bool showPopup) {

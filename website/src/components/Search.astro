@@ -10,6 +10,67 @@ import Default from "@astrojs/starlight/components/Search.astro"
   </p>
 </Default>
 
+<script>
+  const getSearchTarget = (scope: Element) => {
+    const terms = Array.from(
+      scope.querySelectorAll<HTMLElement>(".pagefind-ui__result-excerpt mark"),
+    )
+      .map((mark) => mark.textContent?.trim())
+      .filter(Boolean)
+
+    return terms
+      .filter(
+        (term, index) =>
+          terms.findIndex(
+            (candidate) =>
+              candidate?.toLocaleLowerCase() === term?.toLocaleLowerCase(),
+          ) === index,
+      )
+      .join(" ")
+  }
+
+  const updateSearchResultLinks = () => {
+    document
+      .querySelectorAll<HTMLAnchorElement>(
+        "#starlight__search .pagefind-ui__result-link",
+      )
+      .forEach((link) => {
+        const scope =
+          link.closest(".pagefind-ui__result-nested") ??
+          link.closest(".pagefind-ui__result")
+        if (!scope) return
+
+        const searchTarget = getSearchTarget(scope)
+        if (!searchTarget) return
+        const searchContext = scope
+          .querySelector(".pagefind-ui__result-excerpt")
+          ?.textContent?.trim()
+
+        const url = new URL(link.href, window.location.origin)
+        const section = decodeURIComponent(
+          url.hash.replace(/:~:.*$/, "").replace(/^#/, ""),
+        )
+        url.searchParams.set("search-target", searchTarget)
+        if (searchContext) {
+          url.searchParams.set("search-context", searchContext)
+        }
+        if (section && section !== "_top") {
+          url.searchParams.set("search-section", section)
+        }
+        link.href = `${url.pathname}${url.search}`
+      })
+  }
+
+  const searchContainer = document.querySelector("#starlight__search")
+  if (searchContainer) {
+    new MutationObserver(updateSearchResultLinks).observe(searchContainer, {
+      childList: true,
+      subtree: true,
+    })
+    updateSearchResultLinks()
+  }
+</script>
+
 <style>
   .message {
     box-sizing: content-box;

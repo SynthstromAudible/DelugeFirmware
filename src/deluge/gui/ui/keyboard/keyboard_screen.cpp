@@ -475,7 +475,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 					exitScaleMode();
 				}
 				else {
-					enterScaleMode();
+					enterScaleMode(currentSong->key.rootNote);
 				}
 			}
 			else if (inScaleMode && display->have7SEG()) {

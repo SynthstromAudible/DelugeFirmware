@@ -194,7 +194,7 @@ Lazy chop allows the grid pads to manually chop the sample into slices. Press th
 #OFFICIAL #COMMUNITY #KIT
 
 ```shortcut
-hold(SHIFT) + hold(GRID), hold(ENTIRE) + turn(SELECT)
+hold(SHIFT) + press(GRID), hold(ENTIRE) + turn(SELECT)
 ```
 
 Applies to all rows in a kit.

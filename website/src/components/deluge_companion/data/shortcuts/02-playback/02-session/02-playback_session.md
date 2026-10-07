@@ -3,9 +3,9 @@ capability-order: 3
 sub-capability: Playback Mode (Session)
 sub-capability-order: 2
 
-# Create clip (empty row)
+# Create clip (empty row / grid pad)
 
-#OFFICIAL #SESSION_ROW
+#OFFICIAL #COMMUNITY #SESSION #SESSION_ROW #SESSION_GRID
 
 ```shortcut
 press(GRID_UNLIT)
@@ -13,12 +13,20 @@ press(GRID_UNLIT)
 
 Creates the clip and enters clip view. You can create unlimited clips. Scroll up or down in session row view to view more rows.
 
-# Enter clip (non-empty row)
+# Enter clip (non-empty row / grid pad)
 
-#OFFICIAL #SESSION
+#OFFICIAL #COMMUNITY #SESSION #SESSION_ROW #SESSION_GRID
 
 ```shortcut
-press(GRID)
+press(GRID_LIT)
+```
+
+# Enter last selected clip
+
+#OFFICIAL #SESSION #SESSION #SESSION_ROW #SESSION_GRID #PERFORMANCE
+
+```shortcut
+press(CLIP)
 ```
 
 Enters the clip to view or edit it. Return to song mode with the Song button.
@@ -48,7 +56,7 @@ Stops or starts the clip immediately.
 #OFFICIAL #SESSION
 
 ```shortcut
-hold(GRID) + turn(Y)
+hold(GRID_LIT) + turn(Y)
 ```
 
 # Clip section color - change or create new
@@ -88,7 +96,7 @@ Changes INFInite to a repeat count for the section. The display counts down; pre
 #OFFICIAL #SESSION
 
 ```shortcut
-hold(GRID) + press(GRID)
+hold(GRID_LIT) + press(GRID_UNLIT)
 ```
 
 Hold source clip and press destination pad.
@@ -100,7 +108,7 @@ Destination row can be another existing clip. The cloned clip is inserted.
 #OFFICIAL #SESSION
 
 ```shortcut
-hold(GRID) + press(SAVE)
+hold(GRID_LIT) + press(SAVE)
 ```
 
 Cannot undo delete.
@@ -138,7 +146,7 @@ press(ENTIRE), turn(PARAMETER)
 #OFFICIAL #SESSION
 
 ```shortcut
-hold(GRID) + turn(SELECT)
+hold(GRID_LIT) + turn(SELECT)
 ```
 
 # Change existing clip to synth
@@ -146,7 +154,7 @@ hold(GRID) + turn(SELECT)
 #OFFICIAL #SESSION
 
 ```shortcut
-hold(GRID) + press(SYNTH)
+hold(GRID_LIT) + press(SYNTH)
 ```
 
 On an empty clip, pressing SYNTH also changes it to a synth clip.
@@ -156,7 +164,7 @@ On an empty clip, pressing SYNTH also changes it to a synth clip.
 #OFFICIAL #SESSION
 
 ```shortcut
-hold(GRID) + press(MIDI)
+hold(GRID_LIT) + press(MIDI)
 ```
 
 On an empty clip, pressing MIDI also changes it to a MIDI clip.
@@ -166,7 +174,7 @@ On an empty clip, pressing MIDI also changes it to a MIDI clip.
 #OFFICIAL #SESSION
 
 ```shortcut
-hold(GRID) + press(CV)
+hold(GRID_LIT) + press(CV)
 ```
 
 On an empty clip, pressing CV also changes it to a CV clip.
@@ -176,15 +184,15 @@ On an empty clip, pressing CV also changes it to a CV clip.
 #OFFICIAL #SESSION
 
 ```shortcut
-hold(GRID) + press(SELECT)
+hold(GRID_LIT) + press(SELECT)
 ```
 
-# Check name and type of non-empty clip
+# Select and check name and type of non-empty clip
 
 #OFFICIAL #SESSION
 
 ```shortcut
-hold(GRID)
+hold(GRID_LIT)
 ```
 
 The LED flashes with the clip name and the clip-type LED lights up, for example MIDI.
@@ -194,7 +202,7 @@ The LED flashes with the clip name and the clip-type LED lights up, for example 
 #COMMUNITY #SESSION
 
 ```shortcut
-hold(GRID) + press(SELECT)
+hold(GRID_LIT) + press(SELECT)
 ```
 
 # Clip Settings Menu (Session Row View)
@@ -212,7 +220,7 @@ Uses status pad (mute/launch) in first column of sidebar.
 #OFFICIAL #SESSION
 
 ```shortcut
-hold(GRID) + hold(SHIFT) + turn(Y)
+hold(GRID_LIT) + hold(SHIFT) + turn(Y)
 ```
 
 In Session Row view, cycle through colors for the held pad row.

@@ -38,7 +38,7 @@ Note #1: Hold SHIFT and turn SELECT to fast-scroll songs on the display.
 #OFFICIAL
 
 ```shortcut
-press(LOAD), turn(SELECT), hold(TEMPO), press(LOAD)
+press(LOAD), turn(SELECT), hold(TEMPO) + press(LOAD)
 ```
 
 If you wish to maintain the tempo of the old song into the new one, press down on the tempo knob while you press the load button. And if tempo magnitude matching is enabled, then a multiple of the old song’s tempo may be used if it means a less drastic change to the new song’s tempo.

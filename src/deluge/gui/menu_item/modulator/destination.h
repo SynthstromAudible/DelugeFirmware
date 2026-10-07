@@ -63,7 +63,7 @@ public:
 		                              : l10n::getView(STRING_FOR_MODULATOR_1),
 		};
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return sound->synthMode == SynthMode::FM;
 	}

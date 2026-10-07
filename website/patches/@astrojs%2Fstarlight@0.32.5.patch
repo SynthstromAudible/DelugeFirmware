@@ -1,5 +1,5 @@
 diff --git a/components/Search.astro b/components/Search.astro
-index 6ce176bbe27f56889f275a96d62090d7c155a5f8..dde72bb5c3f8f0e6c1c0f92bbd33deba72da433e 100644
+index 6ce176bbe27f56889f275a96d62090d7c155a5f8..db18bde9c923d272296ac86e3e84362b44614d06 100644
 --- a/components/Search.astro
 +++ b/components/Search.astro
 @@ -46,6 +46,7 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
@@ -10,6 +10,75 @@ index 6ce176bbe27f56889f275a96d62090d7c155a5f8..dde72bb5c3f8f0e6c1c0f92bbd33deba
  					</div>
  				)
  			}
+@@ -123,6 +124,42 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+ 			const stripTrailingSlash = (path: string) => path.replace(/(.)\/(#.*)?$/, '$1$2');
+ 			const formatURL = shouldStrip ? stripTrailingSlash : (path: string) => path;
+ 
++			const getSearchTarget = (excerpt?: string) => {
++				if (!excerpt) return '';
++				const template = document.createElement('template');
++				template.innerHTML = excerpt;
++				const terms = Array.from(template.content.querySelectorAll('mark'))
++					.map((mark) => mark.textContent?.trim())
++					.filter(Boolean);
++				return terms
++					.filter(
++						(term, index) =>
++							terms.findIndex(
++								(candidate) => candidate?.toLocaleLowerCase() === term?.toLocaleLowerCase(),
++							) === index,
++					)
++					.join(' ');
++			};
++
++			const addSearchTarget = (url: string, searchTarget: string, searchContext?: string) => {
++				if (!searchTarget) return url;
++
++				const parsedURL = new URL(url, window.location.origin);
++				const section = decodeURIComponent(parsedURL.hash.replace(/:~:.*$/, '').replace(/^#/, ''));
++				parsedURL.searchParams.set('search-target', searchTarget);
++				if (searchContext) parsedURL.searchParams.set('search-context', searchContext);
++				if (section && section !== '_top') parsedURL.searchParams.set('search-section', section);
++				return `${parsedURL.pathname}${parsedURL.search}${parsedURL.hash}`;
++			};
++
++			const addTextFragment = (url: string, plainExcerpt?: string, excerpt?: string) => {
++				const searchTarget = getSearchTarget(excerpt);
++				if (!searchTarget && !plainExcerpt?.trim()) return url;
++
++				const targetedURL = addSearchTarget(url, searchTarget, plainExcerpt);
++				return targetedURL.replace(/#.*$/, '');
++			};
++
+ 			window.addEventListener('DOMContentLoaded', () => {
+ 				if (import.meta.env.DEV) return;
+ 				const onIdle = window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
+@@ -145,9 +182,22 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+ 						translations,
+ 						showSubResults: true,
+-						processResult: (result: { url: string; sub_results: Array<{ url: string }> }) => {
+-							result.url = formatURL(result.url);
++						processResult: (result: {
++							url: string;
++							excerpt?: string;
++							plain_excerpt?: string;
++							sub_results: Array<{ url: string; excerpt?: string; plain_excerpt?: string }>;
++						}) => {
++							result.url = addTextFragment(
++								formatURL(result.url),
++								result.plain_excerpt,
++								result.excerpt,
++							);
+ 							result.sub_results = result.sub_results.map((sub_result) => {
+-								sub_result.url = formatURL(sub_result.url);
++								sub_result.url = addTextFragment(
++									formatURL(sub_result.url),
++									sub_result.plain_excerpt,
++									sub_result.excerpt,
++								);
+ 								return sub_result;
+ 							});
+ 						},
 diff --git a/index.ts b/index.ts
 index 9e463bdf6487df40de24b4d18c2a83b89f6fd2ae..b5256da056dcf4154a0e2b2f82a131986dd0953d 100644
 --- a/index.ts

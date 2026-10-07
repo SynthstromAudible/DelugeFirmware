@@ -130,6 +130,7 @@ public:
 	virtual ModControllable* toModControllable() { return nullptr; }
 	virtual bool isSkippingRendering() { return true; } // Not valid for Kits
 	bool clipHasInstance(Clip* clip);
+	void deleteAnyInstancesOfClip(Clip* clip);
 	bool isEmpty(bool displayPopup = true);
 	void clipLengthChanged(Clip* clip, int32_t oldLength);
 	virtual void cutAllSound() {}

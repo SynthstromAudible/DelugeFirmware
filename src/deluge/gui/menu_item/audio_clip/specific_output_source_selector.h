@@ -115,9 +115,10 @@ public:
 		display->setScrollingText(text, 0);
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		audioOutputBeingEdited = (AudioOutput*)getCurrentOutput();
-		return audioOutputBeingEdited->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT;
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
+		auto* output = getCurrentOutput();
+		return output and output->type == OutputType::AUDIO
+		       and ((AudioOutput*)output)->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT;
 	}
 
 	bool shouldEnterSubmenu() override { return true; }

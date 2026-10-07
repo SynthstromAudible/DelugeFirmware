@@ -1309,19 +1309,8 @@ void OLED::freezeWithError(char const* text) {
 	DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |=
 	    DMAC_CHCTRL_0S_CLRTC | DMAC_CHCTRL_0S_SETEN; // ---- Enable DMA Transfer and clear TC bit ----
 
-	while (1) {
-		PIC::flush();
-		uartFlushIfNotSending(UART_ITEM_MIDI);
+	deluge::hid::display::wait_for_select_encoder_press();
 
-		uint8_t value;
-		bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
-		if (anything) {
-			if (value == 175) {
-				break;
-			}
-			else if (value == 249) {}
-		}
-	}
 	oledWaitingForMessage = 256;
 	spiBusCurrentlySending = false;
 

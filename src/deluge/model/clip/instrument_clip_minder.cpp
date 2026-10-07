@@ -427,7 +427,8 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
+			// todo: this should probably be inside the sound editor but I don't want to deal with it right now
+			if (SoundEditor::shouldEditKitAffectEntire()) {
 				soundEditor.setupKitGlobalFXMenu = true;
 			}
 

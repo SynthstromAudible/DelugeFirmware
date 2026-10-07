@@ -47,7 +47,7 @@ public:
 	bool loopLocked;
 	PhaseIncrementFineTuner fineTuner;
 
-	Cluster* clustersForLoopStart[kNumClustersLoadedAhead];
+	Cluster* clustersForLoopStart[kMaxNumClustersLoadedAhead];
 
 	// These two now only exist for loading in data from old files
 	uint32_t startMSec;

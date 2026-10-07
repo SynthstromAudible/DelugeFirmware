@@ -35,6 +35,7 @@ MIDICable::MIDICable() {
 	sendClock = true;
 	receiveClock = true;
 	is_relative = false;
+	midi_thru = midiEngine.midiThru;
 	defaultVelocityToLevel = 0; // Means none set.
 
 	// These defaults for MPE are prescribed in the MPE standard. Wish we had the same for regular MIDI
@@ -179,7 +180,7 @@ void MIDICable::sendAllMCMs() {
 bool MIDICable::worthWritingToFile() {
 	return (ports[MIDI_DIRECTION_INPUT_TO_DELUGE].worthWritingToFile()
 	        || ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].worthWritingToFile() || hasDefaultVelocityToLevelSet()
-	        || !sendClock || !receiveClock || is_relative);
+	        || !sendClock || !receiveClock || is_relative || midi_thru);
 }
 
 void MIDICable::writePorts(Serializer& writer) {
@@ -214,6 +215,10 @@ void MIDICable::readFromFile(Deserializer& reader) {
 			is_relative = reader.readTagOrAttributeValueInt();
 		}
 
+		else if (strcmp(tagName, "midi_thru") == 0) {
+			midi_thru = reader.readTagOrAttributeValueInt() != 0;
+		}
+
 		reader.exitTag();
 	}
 }
@@ -226,6 +231,7 @@ void MIDICable::writeDefinitionAttributesToFile(Serializer& writer) {
 	writer.writeAttribute("sendClock", sendClock);
 	writer.writeAttribute("receiveClock", receiveClock);
 	writer.writeAttribute("is_relative", is_relative);
+	writer.writeAttribute("midi_thru", static_cast<int32_t>(midi_thru));
 }
 
 void MIDICable::writeToFile(Serializer& writer, char const* tagName) {

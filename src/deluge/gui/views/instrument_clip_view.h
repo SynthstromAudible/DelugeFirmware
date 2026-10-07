@@ -353,6 +353,8 @@ public:
 	// public for velocity keyboard view to access
 	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
 
+	ModControllableAudio* getModControllableAudioOrNone() override;
+
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress{};
 	bool offsettingNudgeNumberDisplay{};

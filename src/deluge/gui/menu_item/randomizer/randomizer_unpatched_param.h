@@ -28,7 +28,7 @@ public:
 	RandomizerUnpatchedParam(l10n::String newName, l10n::String title, int32_t newP, RenderingStyle style)
 	    : UnpatchedParam(newName, title, newP), style_(style) {}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		if (soundEditor.editingCVOrMIDIClip() || soundEditor.editingNonAudioDrumRow()) {
 			return false;
 		}
@@ -54,7 +54,7 @@ private:
 class RandomizerSoundOnlyUnpatchedParam final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKitAffectEntire()
 		       && !soundEditor.editingNonAudioDrumRow() && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
@@ -70,7 +70,7 @@ public:
 	RandomizerNonKitSoundUnpatchedParam(l10n::String newName, l10n::String title, int32_t newP, RenderingStyle style)
 	    : UnpatchedParam(newName, title, newP), style_(style) {}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKit()
 		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}

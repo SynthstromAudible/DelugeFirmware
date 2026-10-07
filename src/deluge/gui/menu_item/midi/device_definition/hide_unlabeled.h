@@ -40,7 +40,7 @@ public:
 		midiInstrument->hideUnlabeledCC = t;
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const {
 		Output* output = getCurrentOutput();
 		return (output && output->type == OutputType::MIDI_OUT);
 	}

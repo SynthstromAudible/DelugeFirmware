@@ -27,7 +27,7 @@ public:
 	LoopPoint(l10n::String newName, uint8_t sourceId) : MenuItem(newName), sourceId_{sourceId} {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final;
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) final;
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const final;
 	bool isRangeDependent() final { return true; }
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             ::MultiRange** currentRange) final;

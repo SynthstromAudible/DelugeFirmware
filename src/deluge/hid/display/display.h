@@ -124,6 +124,8 @@ extern deluge::hid::Display* display;
 
 namespace deluge::hid::display {
 void swapDisplayType();
+/// Blocks until the select encoder is newly pressed. Used by freezeWithError() to offer "attempt resume".
+void wait_for_select_encoder_press();
 // physical screen is oled
 extern bool have_oled_screen;
 } // namespace deluge::hid::display

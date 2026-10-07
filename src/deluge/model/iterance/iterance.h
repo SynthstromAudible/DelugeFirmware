@@ -18,11 +18,24 @@
 #pragma once
 
 #include <bitset>
+#include <cstddef>
 #include <cstdint>
 
 /// Represents first, last, or an x of y iteration
 /// If divisor is zero then instead represents either first or last
 struct Iterance {
+	enum class DisplayLabelType : uint8_t {
+		NUMERIC,
+		SHORT,
+		LONG,
+	};
+
+	struct DisplayOptions {
+		char const* step_format;
+		char const* prefix = "";
+		DisplayLabelType label_type = DisplayLabelType::SHORT;
+	};
+
 	uint8_t divisor;
 	std::bitset<8> iteranceStep;
 
@@ -43,9 +56,13 @@ struct Iterance {
 		return iteranceStep[repeatCount % divisor];
 	}
 
-	[[nodiscard]] uint16_t toInt();
+	[[nodiscard]] uint16_t toInt() const;
 	static Iterance fromInt(int32_t value);
 
-	[[nodiscard]] int32_t toPresetIndex();
+	[[nodiscard]] int32_t toPresetIndex() const;
 	static Iterance fromPresetIndex(int32_t presetIndex);
+
+	void format_display_value(char* buffer, size_t buffer_size, DisplayOptions options) const;
+	static void format_preset_display_value(int32_t preset_index, char* buffer, size_t buffer_size,
+	                                        DisplayOptions options);
 };

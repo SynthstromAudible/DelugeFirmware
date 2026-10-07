@@ -16,7 +16,7 @@ press(GRID_UNLIT)
 #OFFICIAL #ARRANGER
 
 ```shortcut
-hold(GRID) + turn(SELECT)
+hold(GRID_LIT) + turn(SELECT)
 ```
 
 This command is fundamental to arranger principles. You can switch between Arranger only clips (white) or Clips assigned to different Sections in Session View.
@@ -64,7 +64,7 @@ hold(AUDITION) + turn(Y)
 #OFFICIAL #ARRANGER
 
 ```shortcut
-hold(GRID) + press(GRID)
+hold(GRID_LIT) + press(GRID)
 ```
 
 Used to shorten as well as lengthen clip instances.
