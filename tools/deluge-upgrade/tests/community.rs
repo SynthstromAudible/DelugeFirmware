@@ -147,6 +147,26 @@ fn the_song_compressor_is_its_audio_compressor_where_it_stands() {
 }
 
 #[test]
+fn a_song_compressor_and_an_audio_compressor_keep_their_order_so_the_later_still_wins() {
+    same(
+        &run(
+            r#"<song><audioCompressor attack="1"/><songCompressor attack="2"/></song>"#,
+            "4.1.4-alpha",
+            song_compressor,
+        ),
+        r#"<song><audioCompressor attack="1"/><audioCompressor attack="2"/></song>"#,
+    );
+    same(
+        &run(
+            r#"<song><songCompressor attack="2"/><audioCompressor attack="1"/></song>"#,
+            "4.1.4-alpha",
+            song_compressor,
+        ),
+        r#"<song><audioCompressor attack="2"/><audioCompressor attack="1"/></song>"#,
+    );
+}
+
+#[test]
 fn an_old_midi_clip_mod_wheel_is_its_y_expression() {
     same(
         &run(
