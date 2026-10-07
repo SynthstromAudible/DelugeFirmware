@@ -16,7 +16,7 @@
  */
 
 // quick_log: a fast log2 approximation of an unsigned value — the magnitude in the bits from 25 up, the bits below the
-// leading one beneath it. The values were recorded from the app's quickLog before the move.
+// leading one beneath it. The values were recorded from the app's quickLog.
 
 #include "dsp-next/fixed/curves/quick_log.h"
 

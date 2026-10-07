@@ -20,6 +20,6 @@
 #include "dsp-next/fixed/filter/one_pole.h"
 
 namespace deluge::dsp::filter {
-/// The ladders' one-pole section, now dsp-next's.
+/// The ladders' one-pole section.
 using BasicFilterComponent = deluge::dsp::fixed::OnePole;
 } // namespace deluge::dsp::filter

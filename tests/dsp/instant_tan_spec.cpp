@@ -16,7 +16,7 @@
  */
 
 // instant_tan: tan of a Q31 angle by table (the ladders' frequency warp). The values were recorded from the app's
-// instantTan before the move.
+// instantTan.
 
 #include "dsp-next/fixed/curves/instant_tan.h"
 

@@ -16,7 +16,7 @@
  */
 
 // tanh: the plain (non-antialiased) tanh saturation — the input driven by 2^drive, looked up in kTanhSmallTable and
-// shifted down by drive + 2. The values were recorded from the app's getTanHUnknown / getTanH<N> before the move.
+// shifted down by drive + 2. The values were recorded from the app's getTanHUnknown / getTanH<N>.
 
 #include "dsp-next/fixed/shaping/tanh.h"
 

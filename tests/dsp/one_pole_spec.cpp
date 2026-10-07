@@ -16,13 +16,14 @@
  */
 
 // OnePole: the one-pole low-pass section the ladders, the compressor and the granular processor build on. The values
-// were recorded from the app's BasicFilterComponent before the move: 16 samples of a ramp at moveability 0x20000000.
+// were recorded from the app's BasicFilterComponent: 16 samples of a ramp at moveability 0x20000000.
 
 #include "dsp-next/fixed/filter/one_pole.h"
 
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>
+#include <tuple>
 
 using deluge::dsp::fixed::OnePole;
 
@@ -72,7 +73,7 @@ describe one_pole_spec("OnePole", ${
 	it("starts silent and resets to silence", _ {
 		OnePole pole;
 		expect(pole.memory()).to_equal(0);
-		(void)pole.lowPass(ramp(3), kMoveability);
+		std::ignore = pole.lowPass(ramp(3), kMoveability);
 		pole.reset();
 		expect(pole.memory()).to_equal(0);
 	});
