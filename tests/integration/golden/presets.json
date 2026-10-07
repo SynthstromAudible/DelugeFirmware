@@ -1787,6 +1787,30 @@
   "rms_db": -25.15,
   "sha256": "339945162341d5f5428755f6285544a7b5e396efe743fb02d78692ba5e9fd1f7"
  },
+ "filter_fade_lpf_ladder_hpf_svf": {
+  "frames": 88200,
+  "peak": 506604032,
+  "rms_db": -28.49,
+  "sha256": "46442ece71df2672c09cf6231bab9f16aa57084c0076fffa859501b71f83f56e"
+ },
+ "filter_fade_lpf_svf_hpf_ladder": {
+  "frames": 88200,
+  "peak": 499931904,
+  "rms_db": -21.54,
+  "sha256": "3ecad2772ed49c1ad04e802bdaeda8a2046f1532b0e80e9a0002dfe947da2daf"
+ },
+ "filter_parallel_lpf_only": {
+  "frames": 88200,
+  "peak": 428670208,
+  "rms_db": -23.02,
+  "sha256": "140bd91047c4a90567286c5da52244ec34ef02c1c9517cd9baf4a16ab9e49bc2"
+ },
+ "filter_svf_notch": {
+  "frames": 88200,
+  "peak": 381075200,
+  "rms_db": -25.11,
+  "sha256": "cded4ae066f3421c7dbc8753e78c4b0e1f3de5e52a490d86b114f2ed5290a07d"
+ },
  "fm_2op": {
   "frames": 88200,
   "peak": 567516160,

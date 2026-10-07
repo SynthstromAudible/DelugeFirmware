@@ -877,6 +877,78 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-kit-svf-morph"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a kit's state-variable filters render as recorded with their morphs up: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_KIT_SVF_MORPH) with only the filters on (a kit's SVF band LPF morphed past its midpoint and SVF notch HPF morphed, low-to-high) beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with the filters at their defaults must render differently (RS-FX), so the filters reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_KIT_SVF_MORPH" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-audio-track-drive"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "an audio track's oversampled drive filter, saturating ladder HPF and granular mod FX render as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_AUDIO_DRIVE) with an audio track's drive LPF high and resonant enough to oversample, its ladder HPF resonant enough to saturate and morphed, low-to-high, and its mod FX the granular one, beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with those settings at their defaults must render differently (RS-FX), so they reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_AUDIO_DRIVE" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-kit-filter-fade"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a kit's filters fade in as recorded when switched on: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_KIT_FILTER_FADE) whose kit clip automates its 24 dB ladder LPF on from fully open at the third beat and its SVF band HPF on from fully closed at the fourth, in parallel, beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with the filters at their defaults must render differently (RS-FX), so the filters reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_KIT_FILTER_FADE" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-audio-track-filter-fade"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "an audio track's filters fade in as recorded when switched on: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_AUDIO_FILTER_FADE) whose audio clip automates its SVF notch LPF on from fully open at the third beat and its ladder HPF on from fully closed at the fourth, high-to-low, beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with the filters at their defaults must render differently (RS-FX), so the filters reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_AUDIO_FILTER_FADE" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-song-corpus"
 path = "."
 level = "integration"

@@ -14,7 +14,10 @@ The other songs give each home of the effects a golden render of its chain at se
 sample voices still stream. Each has a dry twin (RS_KIT_DRY, RS_AUDIO_DRY, RS_MASTER_DRY) with every one of those
 settings at its default: the gate fails if a song and its twin render the same, which would mean the settings never
 reached the render. RS_KIT_FILTERS, RS_AUDIO_FILTERS and RS_MASTER_FILTERS do the same for the filter families and
-routes: only the filters are on, each with its own `_DRY` twin.
+routes: only the filters are on, each with its own `_DRY` twin. RS_KIT_SVF_MORPH, RS_AUDIO_DRIVE,
+RS_KIT_FILTER_FADE and RS_AUDIO_FILTER_FADE cover the filter paths those leave out: the SVF morphs, the oversampled
+drive filter, the saturating ladder HPF, the granular mod FX, and each filter fading in when its automation switches
+it on.
 """
 
 import math
@@ -164,6 +167,52 @@ MASTER_FILTERS = _filters(
     '<hpf frequency="0xA0000000" resonance="0x10000000" />',
 )
 
+
+def _stepped(start: int, value: int, tick: int) -> str:
+    """A param automated to hold @p start from the clip's start and step to @p value at @p tick, as a song saves it:
+    the current value, then each node's value and position."""
+    return f"0x{start:08X}{start:08X}00000000{value:08X}{tick:08X}"
+
+
+# The rest of the filter paths in the host chains. The kit's SVFs with both morphs up (the band's past its midpoint,
+# where it turns from band to high), in L2H.
+KIT_SVF_MORPH = _filters(
+    'lpfMode="SVF_Band" hpfMode="SVF_Notch" filterRoute="L2H"',
+    '<lpf frequency="0x20000000" resonance="0x30000000" />',
+    '<hpf frequency="0xC0000000" resonance="0x20000000" />',
+    ' lpfMorph="0x60000000" hpfMorph="0x20000000"',
+)
+# The audio track's drive LPF high and resonant enough to oversample, and its ladder HPF resonant enough to saturate
+# but not to anti-alias, with its morph up; and the granular mod FX, whose wet path runs through a one-pole low-pass.
+AUDIO_DRIVE = _filters(
+    'lpfMode="24dBDrive" hpfMode="HPLadder" filterRoute="L2H"',
+    '<lpf frequency="0x60000000" resonance="0x60000000" />',
+    '<hpf frequency="0xC0000000" resonance="0x00000000" />',
+) | {
+    "attributes": 'modFXCurrentParam="depth" modFXType="grainFX" lpfMode="24dBDrive" hpfMode="HPLadder" '
+    'filterRoute="L2H"',
+    "params": DRY["params"].replace(
+        'modFXDepth="0x00000000"', 'modFXDepth="0x20000000"'
+    )
+    + ' hpfMorph="0x20000000"',
+}
+# Each filter starts off (the low-pass fully open, the high-pass fully closed) and is switched on by its clip's
+# automation, the low-pass at the third beat and the high-pass at the fourth, so each fades in from dry. Neither ran
+# before it fades in, so each starts from the cleared state of a new chain; the clip loops at 8 s, and the steps are
+# late enough that neither switches on a second time before the render ends. The kit's are a 24 dB ladder and an SVF
+# band in PARA, so between the two steps the parallel route runs with one filter on; the audio track's are an SVF
+# notch and a ladder HPF in H2L.
+KIT_FILTER_FADE = _filters(
+    'lpfMode="24dB" hpfMode="SVF_Band" filterRoute="PARA"',
+    f'<lpf frequency="{_stepped(0x7FFFFFFF, 0x30000000, 192)}" resonance="0x30000000" />',
+    f'<hpf frequency="{_stepped(0x80000000, 0xB0000000, 288)}" resonance="0x20000000" />',
+)
+AUDIO_FILTER_FADE = _filters(
+    'lpfMode="SVF_Notch" hpfMode="HPLadder" filterRoute="H2L"',
+    f'<lpf frequency="{_stepped(0x7FFFFFFF, 0x20000000, 192)}" resonance="0x30000000" />',
+    f'<hpf frequency="{_stepped(0x80000000, 0xB0000000, 288)}" resonance="0x20000000" />',
+)
+
 # A kit of two sample drums; each note row keeps its drum's params, as a song saves a kit row.
 KIT = """\
 		<kit presetName="RSK" presetFolder="KITS" defaultVelocity="100" {attributes}>
@@ -290,6 +339,14 @@ SONGS = {
     "RS_AUDIO_FILTERS_DRY": lambda v: audio_song(v, DRY),
     "RS_MASTER_FILTERS": lambda v: master_song(v, MASTER_FILTERS),
     "RS_MASTER_FILTERS_DRY": lambda v: master_song(v, DRY),
+    "RS_KIT_SVF_MORPH": lambda v: kit_song(v, KIT_SVF_MORPH),
+    "RS_KIT_SVF_MORPH_DRY": lambda v: kit_song(v, DRY),
+    "RS_AUDIO_DRIVE": lambda v: audio_song(v, AUDIO_DRIVE),
+    "RS_AUDIO_DRIVE_DRY": lambda v: audio_song(v, DRY),
+    "RS_KIT_FILTER_FADE": lambda v: kit_song(v, KIT_FILTER_FADE),
+    "RS_KIT_FILTER_FADE_DRY": lambda v: kit_song(v, DRY),
+    "RS_AUDIO_FILTER_FADE": lambda v: audio_song(v, AUDIO_FILTER_FADE),
+    "RS_AUDIO_FILTER_FADE_DRY": lambda v: audio_song(v, DRY),
 }
 
 

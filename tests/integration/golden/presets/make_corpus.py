@@ -13,6 +13,8 @@ center/neutral, 0x4CCCCCA8 = the default synth volume.
 """
 
 import pathlib
+import subprocess
+import tempfile
 
 CORPUS = pathlib.Path(__file__).parent
 
@@ -97,6 +99,7 @@ def case(
     env2=None,
     cables=None,
     modulators=None,  # (mod1_attrs, mod2_attrs) — FM-mode cases only
+    json=False,  # write the case as the firmware's JSON, through the upgrader
 ):
     def merged(base, over):
         return {**base, **(over or {})}
@@ -134,7 +137,23 @@ def case(
     )
     lines.append("\t</defaultParams>")
     lines.append("</sound>")
-    (CORPUS / f"{name}.xml").write_text("\n".join(lines) + "\n")
+    text = "\n".join(lines) + "\n"
+    if not json:
+        (CORPUS / f"{name}.xml").write_text(text)
+        return
+    # The firmware saves presets as JSON. The upgrader (tools/deluge-upgrade) writes a document exactly as the firmware
+    # would, so the case is authored here in the same terms as the others and converted.
+    with tempfile.TemporaryDirectory() as scratch:
+        source = pathlib.Path(scratch) / f"{name}.xml"
+        source.write_text(text)
+        subprocess.run([str(upgrader()), str(source), "--out", str(CORPUS)], check=True)
+
+
+def upgrader() -> pathlib.Path:
+    """The upgrader, built if it is not current."""
+    tool = CORPUS.resolve().parents[3] / "tools" / "deluge-upgrade"
+    subprocess.run(["cargo", "build", "--release", "--quiet"], cwd=tool, check=True)
+    return tool / "target" / "release" / "deluge-upgrade"
 
 
 # --- basic waveforms ---------------------------------------------------------
@@ -224,6 +243,37 @@ case(
     cables=BASE_CABLES + [("lfo1", "pitch", "0x08000000")],
 )
 case("velocity_dynamics", cables=[("velocity", "volume", "0x50000000")])
+
+# --- filter modes, routes and transitions (JSON, as the firmware saves) -------
+# The SVF's notch in the low-pass slot.
+case(
+    "filter_svf_notch",
+    sound={"lpfMode": "SVF_Notch"},
+    params={"lpfFrequency": "0x20000000", "lpfResonance": "0x28000000"},
+    json=True,
+)
+# The parallel route with only its low-pass filter on: the dry signal is summed with the filtered one.
+case(
+    "filter_parallel_lpf_only",
+    sound={"lpfMode": "12dB", "filterRoute": "PARA"},
+    params={"lpfFrequency": "0x18000000", "lpfResonance": "0x30000000"},
+    json=True,
+)
+# Each filter starts off (the low-pass fully open, the high-pass fully closed) and is switched on mid-note by its
+# frequency's MIDI-follow CC (74, 81) in the case's note script, so it fades in from dry over its first blocks. The
+# filter never ran before it fades in, so it starts from the cleared state of a new voice.
+case(
+    "filter_fade_lpf_ladder_hpf_svf",
+    sound={"lpfMode": "24dB", "hpfMode": "SVF_Notch"},
+    params={"lpfResonance": "0x30000000", "hpfResonance": "0x20000000"},
+    json=True,
+)
+case(
+    "filter_fade_lpf_svf_hpf_ladder",
+    sound={"lpfMode": "SVF_Band", "hpfMode": "HPLadder"},
+    params={"lpfResonance": "0x30000000", "hpfResonance": "0x20000000"},
+    json=True,
+)
 
 # --- note-event behaviours (paired with dedicated .notes scripts) -------------
 case("poly_chord")
