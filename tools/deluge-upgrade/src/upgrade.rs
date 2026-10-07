@@ -39,6 +39,31 @@ pub fn upgrade(doc: &mut Node, ctx: &mut Context) {
     upgrade_with(doc, ctx, passes::ALL);
 }
 
+/// Upgrades a file's bytes to the firmware's JSON. The firmware reads a file's bytes as they are, so one that is not
+/// UTF-8 is read a byte to a character and written back a character to a byte: its names keep their bytes. It is
+/// reported, as a JSON tool other than the firmware may not read it.
+pub fn upgrade_bytes(bytes: &[u8], ctx: &mut Context) -> Result<Vec<u8>, crate::UpgradeError> {
+    let (text, utf8) = match std::str::from_utf8(bytes) {
+        Ok(text) => (text.to_string(), true),
+        Err(_) => (bytes.iter().map(|&b| char::from(b)).collect(), false),
+    };
+    let mut doc = Node::parse_xml(&text)?;
+    upgrade(&mut doc, ctx);
+    let json = doc.to_json();
+    if utf8 {
+        return Ok(json.into_bytes());
+    }
+    ctx.note(
+        "text encoding",
+        "the file is not UTF-8: its bytes are kept as they are, so the JSON is not UTF-8 either"
+            .into(),
+    );
+    Ok(json
+        .chars()
+        .map(|c| u8::try_from(u32::from(c)).unwrap_or(b'?'))
+        .collect())
+}
+
 /// Upgrades `doc` with `passes`: each one whose version is above the file's stamp, in order; then the file's stamps
 /// are replaced by the firmware's current one, as the document's first entry, where every reader looks first.
 pub fn upgrade_with(doc: &mut Node, ctx: &mut Context, passes: &[Pass]) {

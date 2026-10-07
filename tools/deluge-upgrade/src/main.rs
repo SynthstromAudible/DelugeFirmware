@@ -6,8 +6,7 @@
 #![forbid(unsafe_code)]
 
 use deluge_upgrade::report::Report;
-use deluge_upgrade::tree::Node;
-use deluge_upgrade::upgrade::{Context, upgrade};
+use deluge_upgrade::upgrade::{Context, upgrade_bytes};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -80,13 +79,13 @@ fn upgrade_file(
     card: Option<&Path>,
     report: &mut Report,
 ) -> Result<(), String> {
-    let text = std::fs::read_to_string(source).map_err(|e| e.to_string())?;
-    let mut doc = Node::parse_xml(&text).map_err(|e| e.to_string())?;
-    upgrade(&mut doc, &mut Context::new(source, card, report));
+    let bytes = std::fs::read(source).map_err(|e| e.to_string())?;
+    let json = upgrade_bytes(&bytes, &mut Context::new(source, card, report))
+        .map_err(|e| e.to_string())?;
     if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    std::fs::write(target, doc.to_json()).map_err(|e| e.to_string())
+    std::fs::write(target, json).map_err(|e| e.to_string())
 }
 
 fn main() -> ExitCode {

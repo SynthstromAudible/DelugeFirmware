@@ -300,3 +300,18 @@ fn a_nested_filter_morph_in_kit_and_song_params_becomes_flat() {
         Some("0x7")
     );
 }
+
+#[test]
+fn a_pre_1_2_sound_without_a_volume_gets_back_what_its_default_volume_lost() {
+    let with_default = run(
+        r#"<sound><defaultParams lpfResonance="0x80000000" volume="0x4CCCCCA8"/></sound>"#,
+        sound_resonance,
+    );
+    let without = run(
+        r#"<sound><defaultParams lpfResonance="0x80000000"/></sound>"#,
+        sound_resonance,
+    );
+    let volume = |doc: &Node| param(doc, &["sound", "defaultParams", "volume"]).map(str::to_string);
+    assert_ne!(volume(&with_default).as_deref(), Some("0x4CCCCCA8"));
+    assert_eq!(volume(&without), volume(&with_default));
+}

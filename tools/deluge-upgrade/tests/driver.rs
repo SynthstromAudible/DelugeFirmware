@@ -102,3 +102,17 @@ fn a_pass_with_no_version_runs_on_every_file_and_its_findings_are_reported() {
     assert_eq!(report.findings[0].conversion, "test-pass");
     assert!(report.to_json().contains("nothing to convert"));
 }
+
+#[test]
+fn a_file_that_is_not_utf_8_keeps_its_bytes_and_is_reported() {
+    let mut source = br#"<sound presetName="Caf"#.to_vec();
+    source.push(0xE9);
+    source.extend_from_slice(br#""/>"#);
+    let mut report = Report::default();
+    let mut ctx = Context::new(Path::new("test.XML"), None, &mut report);
+    let written = deluge_upgrade::upgrade::upgrade_bytes(&source, &mut ctx).unwrap();
+    let at = written.windows(3).position(|w| w == b"Caf").unwrap();
+    assert_eq!(written[at + 3], 0xE9);
+    assert_eq!(written[at + 4], b'"');
+    assert_eq!(report.findings.len(), 1);
+}

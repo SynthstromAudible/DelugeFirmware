@@ -133,6 +133,9 @@ fn resonance_compensation_db(resonance: i32) -> f32 {
     compensation as f32 / (1024 << 16) as f32
 }
 
+/// A sound's post-FX volume before its file sets one: user value 40 (`Sound::initParams`).
+const DEFAULT_SOUND_VOLUME: i32 = (40_u32 * 85_899_345).wrapping_sub(2_147_483_648) as i32;
+
 fn compensate(params: &mut Node, resonance: i32) {
     let db = resonance_compensation_db(resonance);
     if f64::from(db) > 0.1
@@ -158,6 +161,18 @@ fn sound_rule(params: &mut Node) -> bool {
     let Some(resonance) = param(params, "lpfResonance") else {
         return false;
     };
+    // The firmware shifted the volume its param set held, the default when the file gave none.
+    if param(params, "volume").is_none() {
+        set_param(
+            params,
+            "volume",
+            &ParamText {
+                value: DEFAULT_SOUND_VOLUME,
+                nodes: Vec::new(),
+                hex: true,
+            },
+        );
+    }
     compensate(params, resonance.value);
     let open = param(params, "lpfFrequency").is_some_and(|f| {
         !f.automated() && f.value >= 2_147_483_602 && !patched_to(params, "lpfFrequency")

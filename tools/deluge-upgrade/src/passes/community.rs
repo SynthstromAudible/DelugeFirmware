@@ -142,6 +142,9 @@ fn split_probability(hex: &str, width: usize) -> Option<String> {
     let digits = hex.strip_prefix("0x")?;
     let mut out = String::from("0x");
     for note in digits.as_bytes().chunks(width).filter(|n| n.len() == width) {
+        if !note.iter().all(u8::is_ascii_hexdigit) {
+            return None;
+        }
         let note = std::str::from_utf8(note).ok()?;
         let byte = |at: usize| u8::from_str_radix(&note[at..at + 2], 16).ok();
         let (lift, probability_at) = if width == 22 {
@@ -182,6 +185,7 @@ fn for_each_note_row(node: &mut Node, f: &mut dyn FnMut(&mut Node)) {
 /// `noteDataWithLift`; else `noteDataWithSplitProb`. The chosen one is rewritten as split probability.
 pub fn old_note_data(doc: &mut Node, ctx: &mut Context) {
     let before_1_3 = ctx.version < crate::version::FirmwareVersion::community(1, 3, 0);
+    let mut unreadable = 0usize;
     for_each_note_row(doc, &mut |row| {
         let chosen = if let Some(plain) = row.get("noteData").and_then(Node::text) {
             Some((plain.to_string(), 20))
@@ -202,8 +206,16 @@ pub fn old_note_data(doc: &mut Node, ctx: &mut Context) {
             row.remove("noteDataWithLift");
             row.remove("noteDataWithIteranceAndFill");
             row.set("noteDataWithSplitProb", text(converted));
+        } else {
+            unreadable += 1;
         }
     });
+    if unreadable > 0 {
+        ctx.note(
+            "note data",
+            format!("{unreadable} row(s) of old note data are not hex notes; the firmware reads none of their notes"),
+        );
+    }
 }
 
 /// A song's compressor under its old tag: read as the song's `audioCompressor` where it stands (its five settings,

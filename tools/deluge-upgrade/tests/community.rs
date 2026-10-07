@@ -177,3 +177,13 @@ fn an_old_midi_clip_mod_wheel_is_its_y_expression() {
         r#"<instrumentClip><midiParams><param><cc>7</cc><value>0x20</value></param></midiParams><expressionData yExpression="0x10"/></instrumentClip>"#,
     );
 }
+
+#[test]
+fn old_note_data_that_does_not_parse_is_reported() {
+    let mut doc = Node::parse_xml(r#"<noteRow noteData="0x0000000000000060ZZ14"/>"#).unwrap();
+    let mut report = Report::default();
+    let mut ctx = Context::new(Path::new("t.XML"), None, &mut report);
+    ctx.version = FirmwareVersion::parse("4.1.4-alpha");
+    old_note_data(&mut doc, &mut ctx);
+    assert_eq!(report.findings.len(), 1);
+}
