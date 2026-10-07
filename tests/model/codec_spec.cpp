@@ -27,12 +27,12 @@ describe codec("the model's codec foundation", ${
 
 	it("reads a song's tick magnitude", _ {
 		auto doc = parseXml(R"(<song firmwareVersion="c1.3.0" inputTickMagnitude="3"></song>)");
-		expect(decode_context(*doc, *doc->find("song")).input_tick_magnitude).to_equal(3);
+		expect(decode_context(*doc->find("song")).input_tick_magnitude).to_equal(3);
 	});
 
 	it("takes a tick magnitude of 1 when the song gives none", _ {
 		auto doc = parseXml(R"(<song></song>)");
-		expect(decode_context(*doc, *doc->find("song")).input_tick_magnitude).to_equal(1);
+		expect(decode_context(*doc->find("song")).input_tick_magnitude).to_equal(1);
 	});
 });
 

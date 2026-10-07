@@ -126,7 +126,7 @@ Error loadSong(::Song& song, Deserializer& in) {
 	if (songNode == nullptr || !songNode->isMap()) {
 		return Error::FILE_CORRUPTED;
 	}
-	DecodeContext context = decode_context(tree.root(), *songNode);
+	DecodeContext context = decode_context(*songNode);
 
 	// The tempo starts from the default tick length when the file gives none.
 	Transport transport = song.project.transport;

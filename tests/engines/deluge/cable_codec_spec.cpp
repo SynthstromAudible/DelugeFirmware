@@ -45,7 +45,7 @@ describe cable_codec("the Deluge instrument's cable decoder", ${
 		expect(*deluge::serialization::text_of(cables[3].amount)).to_equal(std::string("0x3FFFFFE8"));
 	});
 
-	it("reads a pre-3.2 range cable as one going nowhere, and ignores rangeAdjustable", _ {
+	it("reads none of the cable forms no release writes: a pre-3.2 range cable goes nowhere, rangeAdjustable is ignored", _ {
 		Value doc = Value::makeMap();
 		auto cables = decodeFixture("cables_pre32_range.XML", doc);
 		expect(cables.size()).to_equal(size_t{3});

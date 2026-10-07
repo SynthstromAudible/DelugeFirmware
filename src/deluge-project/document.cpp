@@ -123,7 +123,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 		return std::unexpected(LoadError::MISSING_SONG);
 	}
 	SongDocument document;
-	const DecodeContext context = decode_context(root, *song);
+	const DecodeContext context = decode_context(*song);
 	(void)decode(*song, document.transport);
 	(void)decode(*song, document.groove, context);
 	(void)decode(*song, document.scale);

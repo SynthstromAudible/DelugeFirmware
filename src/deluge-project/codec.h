@@ -42,8 +42,7 @@ using deluge::engine::sync_level_from_file;
 using deluge::engine::sync_level_to_file;
 
 /// @brief The context for decoding @p song: its input tick magnitude.
-[[nodiscard]] inline DecodeContext decode_context(const serialization::Value& /*root*/,
-                                                  const serialization::Value& song) {
+[[nodiscard]] inline DecodeContext decode_context(const serialization::Value& song) {
 	DecodeContext context;
 	if (song.isMap()) {
 		if (auto magnitude = serialization::int_of(song.find("inputTickMagnitude"))) {
