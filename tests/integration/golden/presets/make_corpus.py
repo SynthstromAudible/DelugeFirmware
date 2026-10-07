@@ -85,6 +85,7 @@ BASE_OSC1 = {"type": "saw", "transpose": "0", "cents": "0", "retrigPhase": "-1"}
 BASE_OSC2 = {"type": "square", "transpose": "0", "cents": "0", "retrigPhase": "-1"}
 BASE_LFO1 = {"type": "triangle", "syncLevel": "0"}
 BASE_UNISON = {"num": "1", "detune": "8"}
+BASE_DELAY = {"pingPong": "1", "analog": "0", "syncLevel": "7"}
 
 
 def case(
@@ -99,6 +100,8 @@ def case(
     env2=None,
     cables=None,
     modulators=None,  # (mod1_attrs, mod2_attrs) — FM-mode cases only
+    delay=None,
+    extra=(),  # further child elements of <sound>, each a line of XML
     json=False,  # write the case as the firmware's JSON, through the upgrader
 ):
     def merged(base, over):
@@ -122,7 +125,8 @@ def case(
             f"\t<modulator2 {attrs(merged({'transpose': '0', 'cents': '0', 'retrigPhase': '-1', 'toModulator1': '0'}, mod2))} />"
         )
     lines.append(f"\t<unison {attrs(merged(BASE_UNISON, unison))} />")
-    lines.append('\t<delay pingPong="1" analog="0" syncLevel="7" />')
+    lines.append(f"\t<delay {attrs(merged(BASE_DELAY, delay))} />")
+    lines.extend(f"\t{element}" for element in extra)
     lines.append(f"\t<defaultParams {attrs(merged(BASE_PARAMS, params))}>")
     lines.append(f"\t\t<envelope1 {attrs(merged(BASE_ENV1, env1))} />")
     lines.append(f"\t\t<envelope2 {attrs(merged(BASE_ENV2, env2))} />")
@@ -347,6 +351,65 @@ stereo_case(
 stereo_case(
     "delay_pingpong",
     params={"delayRate": "0x00000000", "delayFeedback": "0x00000000"},
+)
+
+# --- dynamics and delay (JSON, as the firmware saves) ---------------------------
+# Each sidechain case sends hits of its own (sideChainSend) and ducks itself through the sidechain → post-reverb volume
+# cable. Its note script (sidechain.notes) plays a two-note chord, whose hits combine into a stronger one, then a single
+# note inside the duck that chord made: that weaker hit is ignored. A last note after a silence wakes the sound from
+# skipping rendering, long after the last hit.
+SIDECHAIN_SEND = {"sideChainSend": "1073741824"}
+SIDECHAIN_CABLES = BASE_CABLES + [("compressor", "volumePostReverbSend", "0x1D800000")]
+
+
+def sidechain_case(name, sidechain, params=None):
+    settings = " ".join(f'{key}="{value}"' for key, value in sidechain.items())
+    case(
+        name,
+        sound=SIDECHAIN_SEND,
+        params=params,
+        cables=SIDECHAIN_CABLES,
+        extra=[f"<sidechain {settings} />"],
+        json=True,
+    )
+
+
+# The default attack and release (user values 7 and 28), unsynced.
+sidechain_case(
+    "sidechain_duck", {"attack": "327244", "release": "992", "syncLevel": "0"}
+)
+# The attack at its minimum, which skips the attack stage; the shape at its maximum, which flattens the release's
+# curve at its start.
+sidechain_case(
+    "sidechain_instant_attack",
+    {"attack": "1048576", "release": "992", "syncLevel": "0"},
+    params={"compressorShape": "0x7FFFFFFF"},
+)
+# Synced at the 256th-note level, finer than the 64th, where the attack rate is shifted left instead of right. The
+# attack is slow (user value 45), so that even shifted left it lasts several blocks.
+sidechain_case(
+    "sidechain_synced", {"attack": "588", "release": "992", "syncLevel": "9"}
+)
+# The compressor blended half wet, with its sidechain high-pass up.
+case(
+    "compressor_blend_hpf",
+    params={"compressorThreshold": "0x40000000"},
+    extra=[
+        (
+            '<audioCompressor attack="83886080" release="83886080" thresh="0" ratio="1073741824" '
+            'compHPF="1073741824" compBlend="1073741824" />'
+        )
+    ],
+    json=True,
+)
+# A digital delay whose rate the note script steps with its MIDI-follow CC (53) mid-note: past double its buffer's
+# native rate, a little down (resampling until the rate settles), and below half, each growing a new buffer that is
+# swapped in once written. Unsynced, so the rates are the param's own.
+case(
+    "delay_rate_sweep",
+    params={"delayRate": "0x00000000", "delayFeedback": "0x00000000"},
+    delay={"pingPong": "0", "syncLevel": "0"},
+    json=True,
 )
 
 # --- note-event behaviours (paired with dedicated .notes scripts) -------------

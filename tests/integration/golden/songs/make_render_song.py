@@ -17,10 +17,13 @@ reached the render. RS_KIT_FILTERS, RS_AUDIO_FILTERS and RS_MASTER_FILTERS do th
 routes: only the filters are on, each with its own `_DRY` twin. RS_KIT_SVF_MORPH, RS_AUDIO_DRIVE,
 RS_KIT_FILTER_FADE and RS_AUDIO_FILTER_FADE cover the filter paths those leave out: the SVF morphs, the oversampled
 drive filter, the saturating ladder HPF, the granular mod FX, and each filter fading in when its automation switches
-it on.
+it on. RS_AUDIO_DUCKED, RS_KIT_COMP, RS_KIT_DELAY, RS_AUDIO_DELAY and RS_KIT_PINGPONG cover the dynamics and delay
+paths: sidechain hits ducking an audio track, the reverb and a drum; a drum's compressor and a kit's blended one; a
+delay's rate stepped through new buffers until it is abandoned; and ping-pong, which its gate renders in stereo.
 """
 
 import math
+import re
 import struct
 import sys
 from pathlib import Path
@@ -326,6 +329,273 @@ def master_song(voices: list[tuple[str, str, int]], fx: dict) -> str:
     return song_xml(voices, song_settings=settings)
 
 
+# The dynamics and delay paths the songs above leave out, each beside RS_STREAM's two synths. A drum here is a dict:
+# its name and sample, extra `<sound>` attributes and tags, its notes as (tick, length) pairs, and extra attributes
+# and patch cables for its row's params.
+SIDECHAIN_CABLE = '<patchCable source="compressor" destination="volumePostReverbSend" amount="0x1D800000" />'
+# A sidechain's attack and release at their defaults (user values 7 and 28), unsynced.
+SIDECHAIN_DEFAULT = (
+    '<sidechain attack="327244" release="992" syncLevel="0" syncType="0" />'
+)
+COMPRESSOR_DEFAULT = (
+    '<audioCompressor attack="83886080" release="83886080" thresh="0" ratio="1073741824" compHPF="0" '
+    'compBlend="2147483647" />'
+)
+
+
+def _notes(notes: list[tuple[int, int]]) -> str:
+    """A note row's notes, in the format this firmware version writes (see CLIP)."""
+    return "0x" + "".join(
+        f"{tick:08X}{length:08X}404014000000" for tick, length in notes
+    )
+
+
+def _steps(start: int, steps: list[tuple[int, int]]) -> str:
+    """A param automated to hold @p start from the clip's start and step to each (value, tick) of @p steps."""
+    return f"0x{start:08X}{start:08X}00000000" + "".join(
+        f"{value:08X}{tick:08X}" for value, tick in steps
+    )
+
+
+def _drum(
+    name: str,
+    file: str,
+    notes: list[tuple[int, int]],
+    attrs: str = "",
+    tags: str = "",
+    row_params: str = "",
+    cables: str = "",
+) -> dict:
+    return {
+        "name": name,
+        "file": file,
+        "notes": notes,
+        "attrs": attrs,
+        "tags": tags,
+        "row_params": row_params,
+        "cables": cables,
+    }
+
+
+DRUM_WITH = """\
+				<sound name="{name}" polyphonic="poly" voicePriority="1" mode="subtractive" lpfMode="24dB" modFXType="none"{attrs}>
+					<osc1 type="sample" loopMode="0" reversed="0" timeStretchEnable="0" timeStretchAmount="0" transpose="0" cents="0" fileName="{file}">
+						<zone startSamplePos="0" endSamplePos="{frames}" />
+					</osc1>
+					<osc2 type="square" transpose="0" cents="0" retrigPhase="-1" />
+					<unison num="1" detune="8" />
+{tags}				</sound>
+"""
+KIT_ROW_NOTES = """\
+				<noteRow drumIndex="{index}" noteDataWithSplitProb="{notes}">
+{params}				</noteRow>
+"""
+
+
+def _row_params(drum: dict) -> str:
+    """A drum row's params: row_params(), with the drum's extra attributes and cables."""
+    params = row_params()
+    if drum["row_params"]:
+        params = params.replace("<soundParams ", f"<soundParams {drum['row_params']} ")
+    if drum["cables"]:
+        params = params.replace(
+            "</patchCables>", f"\t{drum['cables']}\n\t\t\t\t\t\t</patchCables>"
+        )
+    return params
+
+
+def kit_parts(fx: dict, drums: list[dict]) -> tuple[str, str]:
+    """A kit of @p drums with the host settings @p fx: its instrument and its clip."""
+    frames = RATE * SAMPLE_SECONDS
+    sounds = "".join(
+        DRUM_WITH.format(
+            name=d["name"],
+            file=d["file"],
+            frames=frames,
+            attrs=f" {d['attrs']}" if d["attrs"] else "",
+            tags="".join(f"\t\t\t\t\t{tag}\n" for tag in d["tags"].split("\n") if tag),
+        )
+        for d in drums
+    )
+    rows = "".join(
+        KIT_ROW_NOTES.format(index=i, notes=_notes(d["notes"]), params=_row_params(d))
+        for i, d in enumerate(drums)
+    )
+    return KIT.format(drums=sounds, **fx), KIT_CLIP.format(
+        ticks=CLIP_TICKS, rows=rows, **fx
+    )
+
+
+def audio_parts(fx: dict, extra_tags: str = "") -> tuple[str, str]:
+    """An audio track with the host settings @p fx playing sample A: its instrument and its clip."""
+    track = AUDIO_TRACK.format(**fx)
+    if extra_tags:
+        track = track.replace(
+            "\t\t</audioTrack>", f"\t\t\t{extra_tags}\n\t\t</audioTrack>"
+        )
+    return track, AUDIO_CLIP.format(
+        frames=RATE * SAMPLE_SECONDS, ticks=CLIP_TICKS, **fx
+    )
+
+
+def parts_song(
+    voices: list[tuple[str, str, int]],
+    parts: list[tuple[str, str]],
+    song_settings: str = ">",
+) -> str:
+    return song_xml(
+        voices,
+        song_settings=song_settings,
+        instruments="".join(p[0] for p in parts),
+        clips="".join(p[1] for p in parts),
+    )
+
+
+def _with_attributes(base: str, over: str) -> str:
+    """The attributes @p base with each of @p over in place of its own, or after them when @p base has none."""
+    pairs = dict(re.findall(r'(\w+)="([^"]*)"', base))
+    pairs.update(re.findall(r'(\w+)="([^"]*)"', over))
+    return " ".join(f'{key}="{value}"' for key, value in pairs.items())
+
+
+def _host(
+    attributes: str = "",
+    delay: str = DRY["delay"],
+    params: str = "",
+    param_tags: str = "",
+    **rest,
+) -> dict:
+    """Host settings at DRY's values but for those given."""
+    fx = {**DRY, **rest, "delay": delay}
+    if attributes:
+        fx["attributes"] = attributes
+    if params:
+        fx["params"] = _with_attributes(DRY["params"], params)
+    if param_tags:
+        fx["param_tags"] = param_tags
+    return fx
+
+
+# Sidechain hits ducking an audio track and the song's reverb. Drum RSD1 sends a full-strength hit at the start of
+# each of the first two bars and RSD2 a quarter-strength one 6 ticks later, inside the duck, so the host's and the
+# reverb's envelopes ignore it. The audio track's sidechain is synced, so its rates follow the tempo; the reverb's is
+# set by hand (its volume above zero) rather than following the sound with the most reverb. RSD3 is ducked by the same
+# hits through its own sidechain → volume cable, with an attack slow enough to still be under way when it starts:
+# each of its notes wakes it from skipping rendering, so it takes up the last hit where that hit's envelope has got to
+# by then -- in its attack in the first bar, its release in the second, and over in the fourth.
+SC_DRUMS = [
+    _drum(
+        "RSD1",
+        "SAMPLES/RS/A.WAV",
+        [(0, 24), (384, 24)],
+        attrs='sideChainSend="2147483647"',
+    ),
+    _drum(
+        "RSD2",
+        "SAMPLES/RS/B.WAV",
+        [(6, 24), (390, 24)],
+        attrs='sideChainSend="536870912"',
+    ),
+    _drum(
+        "RSD3",
+        "SAMPLES/RS/B.WAV",
+        [(24, 24), (584, 24), (1200, 24)],
+        tags='<sidechain attack="256" release="64" syncLevel="0" syncType="0" />',
+        cables=SIDECHAIN_CABLE,
+    ),
+]
+SC_DRUMS_DRY = [{**d, "attrs": "", "tags": "", "cables": ""} for d in SC_DRUMS]
+DUCKED_AUDIO = _host(
+    params='sidechainCompressorVolume="0x40000000" reverbAmount="0x40000000"'
+)
+DUCKED_AUDIO_DRY = _host(params='reverbAmount="0x40000000"')
+# The reverb's sidechain at full volume, unsynced.
+DUCKED_REVERB = (
+    '>\n\t<reverb roomSize="1288490240" dampening="1546188288" width="2147483647" pan="0">\n'
+    '\t\t<compressor attack="327244" release="992" volume="1073741800" shape="-601295438" syncLevel="0" />\n'
+    "\t</reverb>"
+)
+DUCKED_REVERB_DRY = DUCKED_REVERB.replace('volume="1073741800"', 'volume="0"')
+# file 7 at the song's input tick magnitude 2: the sixteenth-note level, whose attack rate is shifted right
+AUDIO_SIDECHAIN_SYNCED = (
+    '<sidechain attack="327244" release="992" syncLevel="7" syncType="0" />'
+)
+
+
+def ducked_song(voices: list[tuple[str, str, int]], dry: bool) -> str:
+    return parts_song(
+        voices,
+        [
+            kit_parts(DRY, SC_DRUMS_DRY if dry else SC_DRUMS),
+            audio_parts(
+                DUCKED_AUDIO_DRY if dry else DUCKED_AUDIO, AUDIO_SIDECHAIN_SYNCED
+            ),
+        ],
+        DUCKED_REVERB_DRY if dry else DUCKED_REVERB,
+    )
+
+
+# A kit drum's own compressor, and the kit's compressor blended half wet with its sidechain high-pass up.
+COMP_DRUMS = [
+    _drum(
+        "RSD1",
+        "SAMPLES/RS/A.WAV",
+        [(0, CLIP_TICKS // 2)],
+        tags=COMPRESSOR_DEFAULT,
+        row_params='compressorThreshold="0x40000000"',
+    ),
+    _drum(
+        "RSD2",
+        "SAMPLES/RS/B.WAV",
+        [(CLIP_TICKS // 2, CLIP_TICKS // 2)],
+        tags=COMPRESSOR_DEFAULT,
+    ),
+]
+COMP_DRUMS_DRY = [{**d, "row_params": ""} for d in COMP_DRUMS]
+KIT_COMP = _host(
+    compressor='<audioCompressor attack="83886080" release="83886080" thresh="0" ratio="1073741824" '
+    'compHPF="1073741824" compBlend="1073741824" />',
+    params='compressorThreshold="0x40000000"',
+)
+
+# A digital delay whose rate the clip's automation steps up past double its buffer's native rate at the second bar,
+# down a little at the third (where it resamples until the rate has settled), and below half the native rate at the
+# fourth, each growing a new buffer that is swapped in once written. Unsynced, so the rates are the param's own.
+DELAY_RATE_STEPS = _steps(
+    0x00000000, [(0x30000000, 384), (0x28000000, 768), (0xF0000000, 1056)]
+)
+DIGITAL_DELAY = '<delay pingPong="0" analog="0" syncLevel="0" syncType="0" />'
+# The kit's in ping-pong (heard as plain feedback in mono, where ping-pong does not cross channels), with feedback low
+# enough to repeat three times. Its drum plays through the first three bars and a beat of the fourth, across the
+# rate's steps, and then stops: the rest of the clip is silence long enough for the delay's repeats to run out and its
+# buffers to be abandoned.
+KIT_DELAY = _host(
+    delay='<delay pingPong="1" analog="0" syncLevel="0" syncType="0" />',
+    param_tags=DRY["param_tags"].replace(
+        '<delay rate="0x00000000" feedback="0x80000000" />',
+        f'<delay rate="{DELAY_RATE_STEPS}" feedback="0x90000000" />',
+    ),
+)
+DELAY_DRUMS = [_drum("RSD1", "SAMPLES/RS/A.WAV", [(0, 1080)])]
+# The audio track's digital delay, with the same rate steps and feedback. An audio clip renders until it loops, so
+# this delay never runs out.
+AUDIO_DELAY = _host(
+    delay=DIGITAL_DELAY,
+    param_tags=KIT_DELAY["param_tags"],
+)
+# The kit's delay in ping-pong, for a gate that renders in stereo, where ping-pong crosses channels.
+KIT_PINGPONG = _host(
+    delay='<delay pingPong="1" analog="0" syncLevel="7" syncType="0" />',
+    param_tags=DRY["param_tags"].replace(
+        '<delay rate="0x00000000" feedback="0x80000000" />',
+        '<delay rate="0x00000000" feedback="0x00000000" />',
+    ),
+)
+PINGPONG_DRUMS = [
+    _drum("RSD1", "SAMPLES/RS/A.WAV", [(0, 48), (768, 48)]),
+    _drum("RSD2", "SAMPLES/RS/B.WAV", [(384, 48), (1152, 48)]),
+]
+
 SONGS = {
     "RS_KIT_FX": lambda v: kit_song(v, FX),
     "RS_KIT_DRY": lambda v: kit_song(v, DRY),
@@ -347,6 +617,18 @@ SONGS = {
     "RS_KIT_FILTER_FADE_DRY": lambda v: kit_song(v, DRY),
     "RS_AUDIO_FILTER_FADE": lambda v: audio_song(v, AUDIO_FILTER_FADE),
     "RS_AUDIO_FILTER_FADE_DRY": lambda v: audio_song(v, DRY),
+    "RS_AUDIO_DUCKED": lambda v: ducked_song(v, dry=False),
+    "RS_AUDIO_DUCKED_DRY": lambda v: ducked_song(v, dry=True),
+    "RS_KIT_COMP": lambda v: parts_song(v, [kit_parts(KIT_COMP, COMP_DRUMS)]),
+    "RS_KIT_COMP_DRY": lambda v: parts_song(v, [kit_parts(DRY, COMP_DRUMS_DRY)]),
+    "RS_KIT_DELAY": lambda v: parts_song(v, [kit_parts(KIT_DELAY, DELAY_DRUMS)]),
+    "RS_KIT_DELAY_DRY": lambda v: parts_song(v, [kit_parts(DRY, DELAY_DRUMS)]),
+    "RS_AUDIO_DELAY": lambda v: parts_song(v, [audio_parts(AUDIO_DELAY)]),
+    "RS_AUDIO_DELAY_DRY": lambda v: parts_song(v, [audio_parts(DRY)]),
+    "RS_KIT_PINGPONG": lambda v: parts_song(
+        v, [kit_parts(KIT_PINGPONG, PINGPONG_DRUMS)]
+    ),
+    "RS_KIT_PINGPONG_DRY": lambda v: parts_song(v, [kit_parts(DRY, PINGPONG_DRUMS)]),
 }
 
 

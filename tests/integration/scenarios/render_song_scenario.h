@@ -32,6 +32,9 @@
 ///     be scheduled, and how long each chunk's read takes. Both 0 by default.
 ///   - `RENDER_FILL_BURST`: `<start block>:<blocks>:<ms>`, a window of playback in which the fill task waits `ms`
 ///     instead: a song load or a large listing competing for the storage tier.
+///   - `RENDER_STEREO`: `1` plugs headphones in from the scenario's start, so the app renders in stereo as the device
+///     does through them (ping-pong delay alternates, panning applies). Mono otherwise, as through the device's
+///     speaker.
 ///
 /// Lines:
 ///   - `RS-LOADED name=<n> outputs=<k> view=<v> playing_clips=<c> notes=<m>`: the song that loaded, the view it
@@ -45,7 +48,8 @@
 ///   - `RS-TIER-SYNC-AUDIO total=<n>`: synchronous card calls the render made; the audio tier must make none.
 ///   - `RS-STREAM reads=<n>`: card reads while playing, which is the sample data streaming in.
 ///   - `RS-UNDERRUN wait=<n> unassign=<n>`: sample data playback needed and did not have.
-///   - `RS-CAPTURE frames=<n>`: frames captured.
+///   - `RS-CAPTURE frames=<n> stereo=<0|1>`: frames captured, and whether headphones were plugged in. A failure if
+///     the app rendered in the other width at any tick while playing.
 ///   - `RS-MODEL fill_delay_ms=<n> fill_read_us=<n> burst=<start>:<blocks>:<ms>`: the storage model it ran under.
 ///   - `RS-RESULT failures=<n>`.
 extern "C" {

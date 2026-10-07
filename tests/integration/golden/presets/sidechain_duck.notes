@@ -1,0 +1,11 @@
+# A two-note chord, whose sidechain hits combine into one stronger hit; a single note 1280 frames later, inside the
+# duck the chord made, whose weaker hit is ignored; all released at 0.68 s. A last note at 1.59 s, after the sound has
+# gone quiet and stopped rendering, wakes it long after the last hit.
+4608 90 3C 64
+4608 90 40 64
+5888 90 43 64
+30000 80 3C 40
+30000 80 40 40
+30000 80 43 40
+70000 90 3C 64
+80000 80 3C 40

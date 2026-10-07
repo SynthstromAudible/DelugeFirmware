@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 
 // The app's printf.h aliases printf to an implementation that writes through putchar_, which the Rust BSP builds do not
@@ -47,10 +48,14 @@ void deluge_host_capture_start(void);
 uint64_t deluge_host_capture_stop(void);
 uint64_t deluge_host_render_count(void);
 uint64_t deluge_sim_card_reads(void);
+void deluge_host_headphones(bool on);
 // The fill task's modelled latencies (streaming_loader.rs).
 void deluge_streaming_set_fill_latency_ms(uint32_t ms);
 void deluge_streaming_set_fill_read_latency_us(uint32_t us);
 }
+
+// The app's input routine (deluge.cpp): reads the sockets, among them headphone detect, into the audio engine.
+void inputRoutine();
 
 namespace {
 
@@ -65,6 +70,7 @@ int32_t g_ticks = 0;
 
 std::string g_songPath;
 uint64_t g_blocksWanted = 3000;
+bool g_stereo = false;
 
 /// The storage model while playing (RENDER_FILL_DELAY_MS, RENDER_FILL_READ_US, RENDER_FILL_BURST): the fill task's
 /// wait to be scheduled, each chunk's read time, and a window of blocks, counted from playback's start, in which the
@@ -111,6 +117,8 @@ int64_t g_firstStop = -1;
 bool g_wasPlaying = false;
 int32_t g_direnessMax = 0;
 int32_t g_voicesMax = 0;
+/// Playing ticks whose output was not in the channel count the run asked for.
+int32_t g_wrongWidthTicks = 0;
 uint64_t g_captured = 0;
 
 void fail(const char* marker, const char* what) {
@@ -210,6 +218,11 @@ void stepPlay() {
 	deluge_streaming_set_fill_latency_ms(g_model.delayMs);
 	deluge_streaming_set_fill_read_latency_us(g_model.readUs);
 	g_inBurst = false;
+	if (g_stereo) {
+		// The app reads its sockets in its input routine, on a UI timer the harness does not tick; read them now, so
+		// the headphones plugged in at the start count from the first captured block.
+		inputRoutine();
+	}
 	deluge_host_capture_start();
 	playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 	g_wasPlaying = false;
@@ -227,6 +240,9 @@ void stepPlaying() {
 	g_wasPlaying = playing;
 	g_direnessMax = std::max(g_direnessMax, static_cast<int32_t>(AudioEngine::cpuDireness));
 	g_voicesMax = std::max(g_voicesMax, static_cast<int32_t>(AudioEngine::getNumVoices()));
+	if (AudioEngine::renderInStereo != g_stereo) {
+		g_wrongWidthTicks++;
+	}
 	g_blocksRendered = deluge_host_render_count() - g_renderBase;
 	const bool burst = g_model.burstBlocks != 0 && g_blocksRendered >= g_model.burstStart
 	                   && g_blocksRendered < g_model.burstStart + g_model.burstBlocks;
@@ -281,7 +297,11 @@ void report() {
 	printf("RS-UNDERRUN wait=%llu unassign=%llu\n",
 	       static_cast<unsigned long long>(deluge_sim_underrun_wait_count() - g_waitBase),
 	       static_cast<unsigned long long>(deluge_sim_underrun_unassign_count() - g_unassignBase));
-	printf("RS-CAPTURE frames=%llu\n", static_cast<unsigned long long>(g_captured));
+	printf("RS-CAPTURE frames=%llu stereo=%d\n", static_cast<unsigned long long>(g_captured), g_stereo ? 1 : 0);
+	if (g_wrongWidthTicks != 0) {
+		fail("RS-CAPTURE", g_stereo ? "the app rendered in mono with headphones plugged in"
+		                            : "the app rendered in stereo with nothing plugged in");
+	}
 	printf("RS-RESULT failures=%d\n", g_failures);
 	g_stage = Stage::Done;
 }
@@ -299,7 +319,13 @@ void deluge_scenario_render_song_begin(void) {
 	g_firstStop = -1;
 	g_direnessMax = 0;
 	g_voicesMax = 0;
+	g_wrongWidthTicks = 0;
 	g_captured = 0;
+	// Headphones plugged in from boot make the app render in stereo, as the device does through them; otherwise it
+	// renders in mono, as through the speaker.
+	const char* stereo = std::getenv("RENDER_STEREO");
+	g_stereo = stereo != nullptr && std::strcmp(stereo, "1") == 0;
+	deluge_host_headphones(g_stereo);
 	const char* song = std::getenv("RENDER_SONG");
 	g_songPath = song != nullptr ? song : "";
 	g_model = StorageModel{};

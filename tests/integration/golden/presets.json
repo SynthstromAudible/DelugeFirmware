@@ -773,6 +773,18 @@
   "rms_db": -27.34,
   "sha256": "3c7487724f56bc7378f42e5aba58dd8dbac6366200237fc02386ebede2d5f201"
  },
+ "compressor_blend_hpf": {
+  "frames": 88200,
+  "peak": 581788160,
+  "rms_db": -23.27,
+  "sha256": "4028d21f5c2c481438e689b55652bfc498954ea89dc545cb13fe50cb78580e1a"
+ },
+ "delay_rate_sweep": {
+  "frames": 88200,
+  "peak": 1232993280,
+  "rms_db": -15.08,
+  "sha256": "ae27a966510b4079b63240ae2418f890970d5ff77c04d12f1a14c27386366ecb"
+ },
  "env_shape": {
   "frames": 132300,
   "peak": 173365504,
@@ -1936,6 +1948,24 @@
   "peak": 173388032,
   "rms_db": -26.78,
   "sha256": "2e57b3ded626af2d3879b3ef7bdc978746735ceb2bcb7bf30f490253796f3851"
+ },
+ "sidechain_duck": {
+  "frames": 88200,
+  "peak": 517005056,
+  "rms_db": -25.15,
+  "sha256": "7de287e5a6ce40a01d3c7b8371e6adb2bbc643a642a3810c43f67fec60c0617c"
+ },
+ "sidechain_instant_attack": {
+  "frames": 88200,
+  "peak": 517005056,
+  "rms_db": -25.55,
+  "sha256": "5f05b9bdb7217fdcf0c7f417939f57821699c21c43ba4aa850846c054daf3294"
+ },
+ "sidechain_synced": {
+  "frames": 88200,
+  "peak": 517005056,
+  "rms_db": -24.6,
+  "sha256": "b783a3a372345e91af3b9bb1c0f18afcb439e456889f8460e22460dc1dd76b44"
  },
  "sine_basic": {
   "frames": 88200,

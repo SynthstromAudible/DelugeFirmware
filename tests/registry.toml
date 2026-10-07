@@ -949,6 +949,96 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-audio-ducked"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "sidechain hits duck as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_AUDIO_DUCKED) whose kit drums send sidechain hits, a full-strength one and then a weaker one inside its duck, which is ignored; they duck an audio track through its synced sidechain volume, the song's reverb through its sidechain volume set by hand, and a third drum through its own sidechain cable, which takes each hit up late, as it wakes from skipping rendering, in that hit's attack, its release and after it; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin without the hits, the audio track's sidechain volume or the reverb's must render differently (RS-FX), so the hits reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_AUDIO_DUCKED" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-kit-comp"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a kit's compressors render as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_KIT_COMP) whose kit drum runs its own compressor and whose kit runs one blended half wet with its sidechain high-pass up, beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with both thresholds at zero must render differently (RS-FX), so the compressors reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_KIT_COMP" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-kit-delay"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a kit's delay renders as recorded through rate changes and its end: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_KIT_DELAY) whose kit's digital ping-pong delay (rendered in mono, as plain feedback) has its rate stepped by automation past double its buffer's rate, a little down, and below half, each change resampling and growing a new buffer swapped in once written, and whose drum stops long enough before the clip loops for the delay to abandon its buffers; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with the delay's feedback at its minimum must render differently (RS-FX), so the delay's settings reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_KIT_DELAY" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-audio-track-delay"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "an audio track's digital delay renders as recorded through rate changes and its end: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_AUDIO_DELAY) whose audio track's digital delay has its rate stepped by automation past double its buffer's rate, a little down, and below half, and runs out after the track's sample ends; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with the delay's feedback at its minimum must render differently (RS-FX), so the delay's settings reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_AUDIO_DELAY" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-kit-pingpong-stereo"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a kit's ping-pong delay renders as recorded in stereo, where its echoes cross channels: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_KIT_PINGPONG) rendered with headphones plugged in (RENDER_STEREO=1; RS-CAPTURE fails a run in the other width), beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with the delay's feedback at its minimum, also in stereo, must render differently (RS-FX), so the delay's settings reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_KIT_PINGPONG", RENDER_STEREO = "1" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-song-corpus"
 path = "."
 level = "integration"

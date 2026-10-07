@@ -8,6 +8,8 @@ adds what depends on the song, and why each check is here:
                       nothing, and every other check would pass on silence.
     RS-STREAM reads   card reads while playing. None means the samples were already resident, so nothing streamed.
     RS-UNDERRUN       none. The harness's card answers at once, so an underrun here is a loader fault, not a slow card.
+    RS-CAPTURE        the width the gate asked for: stereo with RENDER_STEREO=1 (headphones plugged in), mono otherwise.
+                      A scenario that ignored the variable would render the other width and record it.
     RS-SWELL          the generated song only: its samples swell and fade twice in their six seconds, so the output's
                       level must move. Playback stuck at the start of each sample renders a steady level, streams
                       nothing past the first cluster, and passes every other check here -- the card reads it counts
@@ -112,6 +114,16 @@ def _level_swing(pcm: bytes) -> float:
     return max(levels, default=0.0) / quietest if quietest > 0 else math.inf
 
 
+def _check_width(gate, result, label: str) -> None:
+    """The run captured the width the gate asked for (see RS-CAPTURE)."""
+    wanted = 1 if gate.env.get("RENDER_STEREO") == "1" else 0
+    stereo = int_field(result.last("RS-CAPTURE "), "stereo")
+    if stereo != wanted:
+        gate.fail(
+            f"RS-CAPTURE — {label} rendered {'stereo' if stereo else 'mono'}, asked for {'stereo' if wanted else 'mono'}"
+        )
+
+
 def run(gate):
     pcm_path = gate.tmp / "out.pcm"
     song = gate.env.get("RENDER_SONG")
@@ -126,6 +138,7 @@ def run(gate):
     if not gate.require_standard(result):
         return
     gate.show(result)
+    _check_width(gate, result, record_name)
 
     voices = int_field(result.last("RS-VOICES "), "audio")
     if voices is None or voices <= 0:
@@ -153,8 +166,10 @@ def run(gate):
             return
         dry_path = gate.tmp / "dry.pcm"
         dry_env["RENDER_PCM_OUT"] = str(dry_path)
-        if not gate.require_standard(gate.run(env=dry_env)):
+        dry_result = gate.run(env=dry_env)
+        if not gate.require_standard(dry_result):
             return
+        _check_width(gate, dry_result, dry)
         if dry_path.read_bytes() == pcm:
             gate.fail(
                 f"RS-FX — the effects changed nothing: {generated} renders as {dry}"
