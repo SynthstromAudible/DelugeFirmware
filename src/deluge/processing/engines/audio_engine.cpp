@@ -67,6 +67,7 @@
 #include <cstdint>
 #include <cstring>
 #include <execution>
+#include <limits>
 #include <new>
 #include <numeric>
 #include <ranges>
@@ -169,8 +170,10 @@ bool bypassCulling = false;
 bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
 bool inputMonitoringWarmedUp = false;
-// ~500ms after power-on for the codec ADC to settle before we start monitoring its input (see inputMonitoringWarmedUp).
+// ~500ms after power-on for the codec ADC to settle before we start monitoring its input (see inputMonitoringWarmedUp),
+// then ~50ms to fade it in so monitoring doesn't switch on with a click.
 constexpr uint32_t kInputMonitoringWarmupSamples = kSampleRate / 2;
+constexpr uint32_t kInputMonitoringFadeInSamples = kSampleRate / 20;
 uint32_t i2sTXBufferPos;
 uint32_t i2sRXBufferPos;
 volatile int voices_started_this_render = 0;
@@ -603,13 +606,30 @@ bool calledFromScheduler = false;
 	sideChainHitPending = 0;
 	audioSampleTimer += numSamples;
 
-	// Once the codec has had time to settle after power-on, allow input monitoring. Latches true and stays true.
-	if (!inputMonitoringWarmedUp && audioSampleTimer >= kInputMonitoringWarmupSamples) {
+	// Once the codec has had time to settle after power-on and monitoring has faded in, allow full input monitoring.
+	// Latches true and stays true, so audioSampleTimer wrapping around can't mute monitoring again.
+	if (!inputMonitoringWarmedUp && audioSampleTimer >= kInputMonitoringWarmupSamples + kInputMonitoringFadeInSamples) {
 		inputMonitoringWarmedUp = true;
 	}
 
 	bypassCulling = false;
 }
+q31_t getInputMonitoringGain(uint32_t offset) {
+	if (inputMonitoringWarmedUp) {
+		return std::numeric_limits<q31_t>::max();
+	}
+	uint32_t time = audioSampleTimer + offset;
+	if (time <= kInputMonitoringWarmupSamples) {
+		return 0;
+	}
+	uint32_t elapsed = time - kInputMonitoringWarmupSamples;
+	if (elapsed >= kInputMonitoringFadeInSamples) {
+		return std::numeric_limits<q31_t>::max();
+	}
+	return static_cast<q31_t>((static_cast<uint64_t>(elapsed) * std::numeric_limits<q31_t>::max())
+	                          / kInputMonitoringFadeInSamples);
+}
+
 void renderAudio(size_t numSamples) {
 	std::span renderingBuffer{renderingMemory.data(), numSamples};
 	std::span reverbBuffer{reverbMemory.data(), numSamples};
