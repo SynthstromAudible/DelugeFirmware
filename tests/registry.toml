@@ -769,6 +769,60 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-kit-fx"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a kit's effect chain renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_KIT_FX) with every one of its effect settings away from its default (clipping, filter, bitcrush, sample-rate reduction, EQ, mod FX, delay, compressor, reverb send, pan, volume) beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with those settings at their defaults must render differently (RS-FX), so the settings reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_KIT_FX" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-audio-track-fx"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "an audio track's effect chain renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_AUDIO_FX) with every one of its effect settings away from its default (clipping, filter, bitcrush, sample-rate reduction, EQ, mod FX, delay, compressor, reverb send, pan, volume) beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with those settings at their defaults must render differently (RS-FX), so the settings reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_AUDIO_FX" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-master-fx"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the song master's effect chain renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_MASTER_FX) with every one of its effect settings away from its default (clipping, filter, bitcrush, sample-rate reduction, EQ, mod FX, delay, compressor, reverb send, pan, volume) beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with those settings at their defaults must render differently (RS-FX), so the settings reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_MASTER_FX" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-song-corpus"
 path = "."
 level = "integration"

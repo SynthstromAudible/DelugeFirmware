@@ -32,8 +32,6 @@ import sys
 
 from scenario_gate import int_field
 
-GENERATED_SONG = "SONGS/RS_STREAM.XML"
-
 
 def _pcm_record(pcm: bytes) -> dict:
     """The output's record: its hash, length, peak and RMS level (dB below full scale)."""
@@ -52,14 +50,16 @@ def _pcm_record(pcm: bytes) -> dict:
     }
 
 
-def _generate(gate) -> dict[str, str] | None:
-    """Generate the default song's card tree; the environment that plays it, or None when generating failed."""
-    tree = gate.tmp / "card"
+def _generate(gate, name: str) -> dict[str, str] | None:
+    """Generate song @p name's card tree; the environment that plays it, or None when generating failed."""
+    tree = gate.tmp / f"card-{name}"
     made = subprocess.run(
         [
             sys.executable,
             str(gate.root / "tests/integration/golden/songs/make_render_song.py"),
             str(tree),
+            "--song",
+            name,
         ],
         capture_output=True,
         text=True,
@@ -68,7 +68,7 @@ def _generate(gate) -> dict[str, str] | None:
     if made.returncode != 0:
         gate.fail(f"generating the song failed: {made.stderr.strip()}")
         return None
-    return {"RENDER_TREE": str(tree), "RENDER_SONG": GENERATED_SONG}
+    return {"RENDER_TREE": str(tree), "RENDER_SONG": f"SONGS/{name}.XML"}
 
 
 def _level_swing(pcm: bytes) -> float:
@@ -87,10 +87,15 @@ def _level_swing(pcm: bytes) -> float:
 def run(gate):
     pcm_path = gate.tmp / "out.pcm"
     song = gate.env.get("RENDER_SONG")
-    env = {} if song else _generate(gate)
+    generated = (
+        os.environ.get("RENDER_GENERATED")
+        or gate.env.get("RENDER_GENERATED")
+        or "RS_STREAM"
+    )
+    env = {} if song else _generate(gate, generated)
     if env is None:
         return
-    record_name = (song or GENERATED_SONG).rsplit("/", 1)[-1].rsplit(".", 1)[0]
+    record_name = song.rsplit("/", 1)[-1].rsplit(".", 1)[0] if song else generated
     env["RENDER_PCM_OUT"] = str(pcm_path)
     result = gate.run(env=env)
     if not gate.require_standard(result):
@@ -112,7 +117,22 @@ def run(gate):
         )
 
     pcm = pcm_path.read_bytes()
-    if not song:
+    if not song and generated.endswith("_FX"):
+        dry = generated.removesuffix("_FX") + "_DRY"
+        dry_env = _generate(gate, dry)
+        if dry_env is None:
+            return
+        dry_path = gate.tmp / "dry.pcm"
+        dry_env["RENDER_PCM_OUT"] = str(dry_path)
+        if not gate.require_standard(gate.run(env=dry_env)):
+            return
+        if dry_path.read_bytes() == pcm:
+            gate.fail(
+                f"RS-FX — the effects changed nothing: {generated} renders as {dry}"
+            )
+        else:
+            gate.say(f"RS-FX {generated} differs from {dry}")
+    if not song and generated == "RS_STREAM":
         swing = _level_swing(pcm)
         gate.say(f"RS-SWELL ratio={swing:.2f}")
         # 1.62 when playback advances; 1.02 when it is stuck at the samples' start.

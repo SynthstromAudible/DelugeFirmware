@@ -5,6 +5,24 @@
   "rms_db": -17.61,
   "sha256": "a27897024554141ffcd0cef78fdc6f47ad521472087f8e679c82214ca6241f5b"
  },
+ "RS_AUDIO_FX": {
+  "frames": 384000,
+  "peak": 1075748096,
+  "rms_db": -22.75,
+  "sha256": "ac1d1692d1254613f8f3b8807e74c2d23daa4d108b4bb344671aa9e7b658f599"
+ },
+ "RS_KIT_FX": {
+  "frames": 384000,
+  "peak": 759232512,
+  "rms_db": -23.59,
+  "sha256": "06f16b3cee88acb1773176d13d0d810c8402bfc830495bdf4cf9a908292f7d5c"
+ },
+ "RS_MASTER_FX": {
+  "frames": 384000,
+  "peak": 2147483648,
+  "rms_db": -17.05,
+  "sha256": "0680998389ff447a0df2a85b15bc3c011ab289e1e0d3cdd0ae5d25557191474c"
+ },
  "RS_STREAM": {
   "frames": 384000,
   "peak": 142074112,

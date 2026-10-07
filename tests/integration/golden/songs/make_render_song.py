@@ -5,9 +5,15 @@ Two synths, each playing its own six-second stereo sample through a long note in
 sample is about 32 clusters, so playback has to stream it cluster by cluster rather than finding it resident. Both
 samples are generated here, deterministically, so nothing binary is committed and every run plays the same bytes.
 
-    make_render_song.py <out-dir>
+    make_render_song.py <out-dir> [--song NAME]
 
-writes <out-dir>/SONGS/RS_STREAM.XML and <out-dir>/SAMPLES/RS/{A,B}.WAV.
+writes <out-dir>/SONGS/<NAME>.XML (RS_STREAM by default) and <out-dir>/SAMPLES/RS/{A,B}.WAV.
+
+The other songs give each home of the effects a golden render of its chain at settings away from its defaults: a kit
+(RS_KIT_FX), an audio track (RS_AUDIO_FX) and the song's master (RS_MASTER_FX), each beside RS_STREAM's two synths so
+sample voices still stream. Each has a dry twin (RS_KIT_DRY, RS_AUDIO_DRY, RS_MASTER_DRY) with every one of those
+settings at its default: the gate fails if a song and its twin render the same, which would mean the settings never
+reached the render.
 """
 
 import math
@@ -97,12 +103,88 @@ def wav(pcm: bytes) -> bytes:
     return header + pcm
 
 
-def song_xml(voices: list[tuple[str, str, int]]) -> str:
+# A host owner's effect settings: its own attributes and tags (`kit`, `audioTrack`, the song itself) and its params
+# (a kit clip's `kitParams`, an audio clip's `params`, the song's `songParams`). Every value is away from its default;
+# DRY holds the defaults the firmware writes for a new owner. The mod FX's knob selects its depth: a host chain's mod FX
+# is off while its selected param is at its minimum. Pan changes nothing here: the harness renders as the device does
+# through its speaker, in mono, where pan does not apply.
+FX = {
+    "attributes": 'modFXCurrentParam="depth" modFXType="chorus" lpfMode="24dB" hpfMode="HPLadder" filterRoute="H2L" clippingAmount="4"',
+    "delay": '<delay pingPong="0" analog="1" syncLevel="7" syncType="0" />',
+    "compressor": '<audioCompressor attack="83886080" release="83886080" thresh="1073741824" ratio="1073741824" '
+    'compHPF="0" compBlend="2147483647" />',
+    "params": 'reverbAmount="0x10000000" volume="0x30000000" pan="0x20000000" modFXDepth="0x20000000" '
+    'modFXRate="0x10000000" sampleRateReduction="0xC0000000" bitCrush="0xA0000000" compressorThreshold="0x40000000"',
+    "param_tags": '<delay rate="0x00000000" feedback="0xC0000000" /><lpf frequency="0x40000000" resonance="0x20000000" />'
+    '<hpf frequency="0x80000000" resonance="0x80000000" />'
+    '<equalizer bass="0x30000000" treble="0x30000000" bassFrequency="0x10000000" trebleFrequency="0xF0000000" />',
+}
+DRY = {
+    "attributes": 'modFXCurrentParam="feedback" modFXType="none" lpfMode="24dB" hpfMode="HPLadder" filterRoute="H2L"',
+    "delay": '<delay pingPong="1" analog="0" syncLevel="7" syncType="0" />',
+    "compressor": '<audioCompressor attack="83886080" release="83886080" thresh="0" ratio="1073741824" compHPF="0" '
+    'compBlend="2147483647" />',
+    "params": 'reverbAmount="0x80000000" volume="0x00000000" pan="0x00000000" modFXDepth="0x00000000" '
+    'modFXRate="0xE0000000" sampleRateReduction="0x80000000" bitCrush="0x80000000" compressorThreshold="0x00000000"',
+    "param_tags": '<delay rate="0x00000000" feedback="0x80000000" /><lpf frequency="0x7FFFFFFF" resonance="0x80000000" />'
+    '<hpf frequency="0x80000000" resonance="0x80000000" />'
+    '<equalizer bass="0x00000000" treble="0x00000000" bassFrequency="0x00000000" trebleFrequency="0x00000000" />',
+}
+
+# A kit of two sample drums; each note row keeps its drum's params, as a song saves a kit row.
+KIT = """\
+		<kit presetName="RSK" presetFolder="KITS" defaultVelocity="100" {attributes}>
+			{delay}
+			{compressor}
+			<soundSources>
+{drums}			</soundSources>
+		</kit>
+"""
+DRUM = """\
+				<sound name="{name}" polyphonic="poly" voicePriority="1" mode="subtractive" lpfMode="24dB" modFXType="none">
+					<osc1 type="sample" loopMode="0" reversed="0" timeStretchEnable="0" timeStretchAmount="0" transpose="0" cents="0" fileName="{file}">
+						<zone startSamplePos="0" endSamplePos="{frames}" />
+					</osc1>
+					<osc2 type="square" transpose="0" cents="0" retrigPhase="-1" />
+					<unison num="1" detune="8" />
+				</sound>
+"""
+KIT_CLIP = """\
+		<instrumentClip instrumentPresetName="RSK" instrumentPresetFolder="KITS" isPlaying="1" length="{ticks}" section="0">
+			<kitParams {params}>{param_tags}</kitParams>
+			<noteRows>
+{rows}			</noteRows>
+		</instrumentClip>
+"""
+KIT_ROW = """\
+				<noteRow drumIndex="{index}" noteDataWithSplitProb="0x{position:08X}{length:08X}404014000000">
+{params}				</noteRow>
+"""
+AUDIO_TRACK = """\
+		<audioTrack name="RSAUD" {attributes}>
+			{delay}
+			{compressor}
+		</audioTrack>
+"""
+AUDIO_CLIP = """\
+		<audioClip trackName="RSAUD" filePath="SAMPLES/RS/A.WAV" startSamplePos="0" endSamplePos="{frames}" isPlaying="1" length="{ticks}" section="0">
+			<params {params}>{param_tags}</params>
+		</audioClip>
+"""
+
+
+def song_xml(
+    voices: list[tuple[str, str, int]],
+    *,
+    song_settings: str = ">",
+    instruments: str = "",
+    clips: str = "",
+) -> str:
     frames = RATE * SAMPLE_SECONDS
     sounds = "".join(
         SOUND.format(name=name, file=file, frames=frames) for name, file, _ in voices
     )
-    clips = "".join(
+    synth_clips = "".join(
         CLIP.format(name=name, ticks=CLIP_TICKS, note=note) for name, _, note in voices
     )
     return (
@@ -110,16 +192,77 @@ def song_xml(voices: list[tuple[str, str, int]]) -> str:
         # The tempo, as the firmware writes it for a new song. Without it the song's clock runs so fast that every
         # note retriggers within a fraction of a second, and only the start of each sample ever plays.
         '<song firmwareVersion="c1.3.0" earliestCompatibleFirmware="4.1.0-alpha" timePerTimerTick="229" '
-        'timerTickFraction="-1342177280" inputTickMagnitude="2">\n'
-        f"\t<instruments>\n{sounds}\t</instruments>\n"
-        f"\t<sessionClips>\n{clips}\t</sessionClips>\n"
+        f'timerTickFraction="-1342177280" inputTickMagnitude="2"{song_settings}\n'
+        f"\t<instruments>\n{sounds}{instruments}\t</instruments>\n"
+        f"\t<sessionClips>\n{synth_clips}{clips}\t</sessionClips>\n"
         "</song>\n"
     )
 
 
+def row_params() -> str:
+    """A kit row's own params: the synth clips' `soundParams`, as a song saves a sound drum's."""
+    start = CLIP.index("<soundParams")
+    end = CLIP.index("</soundParams>") + len("</soundParams>")
+    return "\t" * 5 + CLIP[start:end].replace("\n\t\t\t", "\n\t\t\t\t\t") + "\n"
+
+
+def kit_song(voices: list[tuple[str, str, int]], fx: dict) -> str:
+    frames = RATE * SAMPLE_SECONDS
+    drums = "".join(
+        DRUM.format(name=name, file=file, frames=frames)
+        for name, file in (("RSD1", "SAMPLES/RS/A.WAV"), ("RSD2", "SAMPLES/RS/B.WAV"))
+    )
+    rows = "".join(
+        KIT_ROW.format(
+            index=i,
+            position=i * CLIP_TICKS // 2,
+            length=CLIP_TICKS // 2,
+            params=row_params(),
+        )
+        for i in range(2)
+    )
+    return song_xml(
+        voices,
+        instruments=KIT.format(drums=drums, **fx),
+        clips=KIT_CLIP.format(ticks=CLIP_TICKS, rows=rows, **fx),
+    )
+
+
+def audio_song(voices: list[tuple[str, str, int]], fx: dict) -> str:
+    return song_xml(
+        voices,
+        instruments=AUDIO_TRACK.format(**fx),
+        clips=AUDIO_CLIP.format(frames=RATE * SAMPLE_SECONDS, ticks=CLIP_TICKS, **fx),
+    )
+
+
+def master_song(voices: list[tuple[str, str, int]], fx: dict) -> str:
+    settings = (
+        f" {fx['attributes']}>\n\t{fx['delay']}\n\t{fx['compressor']}\n"
+        f"\t<songParams {fx['params']}>{fx['param_tags']}</songParams>"
+    )
+    return song_xml(voices, song_settings=settings)
+
+
+SONGS = {
+    "RS_KIT_FX": lambda v: kit_song(v, FX),
+    "RS_KIT_DRY": lambda v: kit_song(v, DRY),
+    "RS_AUDIO_FX": lambda v: audio_song(v, FX),
+    "RS_AUDIO_DRY": lambda v: audio_song(v, DRY),
+    "RS_MASTER_FX": lambda v: master_song(v, FX),
+    "RS_MASTER_DRY": lambda v: master_song(v, DRY),
+}
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) != 2:
+    name = "RS_STREAM"
+    if len(argv) == 4 and argv[2] == "--song":
+        name = argv[3]
+    elif len(argv) != 2:
         print(__doc__, file=sys.stderr)
+        return 2
+    if name != "RS_STREAM" and name not in SONGS:
+        print(f"unknown song {name}", file=sys.stderr)
         return 2
     out = Path(argv[1])
     (out / "SONGS").mkdir(parents=True, exist_ok=True)
@@ -129,7 +272,10 @@ def main(argv: list[str]) -> int:
         wav(sample_frames(1, [110.0, 220.0, 330.0, 440.0]))
     )
     (out / "SAMPLES/RS/B.WAV").write_bytes(wav(sample_frames(2, [138.6, 277.2, 415.8])))
-    (out / SONG).write_text(song_xml(voices))
+    if name == "RS_STREAM":
+        (out / SONG).write_text(song_xml(voices))
+    else:
+        (out / "SONGS" / f"{name}.XML").write_text(SONGS[name](voices))
     return 0
 
 
