@@ -39,7 +39,7 @@
 namespace params = deluge::modulation::params;
 
 GlobalEffectableForClip::GlobalEffectableForClip() {
-	this->postReverbVolumeLastTime = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
+	sendAndVolume_ = deluge::effects::SendAndVolume{paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND]};
 }
 
 // Beware - unlike usual, modelStack might have a NULL timelineCounter.
@@ -149,8 +149,6 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	// Add the global effectable data to the output
 	std::ranges::transform(global_effectable_audio, output, output.begin(), std::plus{});
-
-	postReverbVolumeLastTime = postReverbVolume;
 
 	if (playbackHandler.isEitherClockActive() && (playbackHandler.ticksLeftInCountIn == 0) && isClipActive) {
 		auto& interpolating_params = paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating;

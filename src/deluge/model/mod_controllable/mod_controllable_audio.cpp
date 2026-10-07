@@ -215,55 +215,15 @@ void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> bu
                                                       int32_t postFXVolume, int32_t postReverbVolume,
                                                       int32_t reverbSendAmount, int32_t pan,
                                                       bool doAmplitudeIncrement) {
-
-	int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(postFXVolume, reverbSendAmount) << 5;
-
-	int32_t postFXAndReverbVolumeL, postFXAndReverbVolumeR, amplitudeIncrementL, amplitudeIncrementR;
-	postFXAndReverbVolumeL = postFXAndReverbVolumeR = (multiply_32x32_rshift32(postReverbVolume, postFXVolume) << 5);
-
-	// The amplitude increment applies to the post-FX volume. We want to have it just so that we can respond better to
-	// sidechain volume ducking, which is done through post-FX volume.
-	if (doAmplitudeIncrement) {
-		auto postReverbSendVolumeIncrement =
-		    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)buffer.size());
-		amplitudeIncrementL = amplitudeIncrementR =
-		    (multiply_32x32_rshift32(postFXVolume, postReverbSendVolumeIncrement) << 5);
-	}
-
-	if (pan != 0 && AudioEngine::renderInStereo) {
-		// Set up panning
-		int32_t amplitudeL;
-		int32_t amplitudeR;
-		shouldDoPanning(pan, &amplitudeL, &amplitudeR);
-
-		postFXAndReverbVolumeL = multiply_32x32_rshift32(postFXAndReverbVolumeL, amplitudeL) << 2;
-		postFXAndReverbVolumeR = multiply_32x32_rshift32(postFXAndReverbVolumeR, amplitudeR) << 2;
-
-		amplitudeIncrementL = multiply_32x32_rshift32(amplitudeIncrementL, amplitudeL) << 2;
-		amplitudeIncrementR = multiply_32x32_rshift32(amplitudeIncrementR, amplitudeR) << 2;
-	}
-
-	for (StereoSample& sample : buffer) {
-		// Send to reverb
-		if (reverbSendAmount != 0) {
-			*(reverbBuffer++) += multiply_32x32_rshift32(sample.l + sample.r, reverbSendAmountAndPostFXVolume) << 1;
-		}
-
-		if (doAmplitudeIncrement) {
-			postFXAndReverbVolumeL += amplitudeIncrementL;
-			postFXAndReverbVolumeR += amplitudeIncrementR;
-		}
-
-		// Apply post-fx and post-reverb-send volume
-		sample.l = multiply_32x32_rshift32(sample.l, postFXAndReverbVolumeL) << 5;
-		sample.r = multiply_32x32_rshift32(sample.r, postFXAndReverbVolumeR) << 5;
-	}
-
-	// We've generated some sound. If reverb is happening, make note
-	if (reverbSendAmount != 0) {
+	if (sendAndVolume_.process(buffer, {reverbBuffer, buffer.size()},
+	                           {.post_fx_volume = postFXVolume,
+	                            .post_reverb_volume = postReverbVolume,
+	                            .reverb_send = reverbSendAmount,
+	                            .pan = pan,
+	                            .ramp = doAmplitudeIncrement,
+	                            .stereo = AudioEngine::renderInStereo})) {
 		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
 	}
-	postReverbVolumeLastTime = postReverbVolume;
 }
 
 bool ModControllableAudio::isBitcrushingEnabled(ParamManager* paramManager) {

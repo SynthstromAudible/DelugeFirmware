@@ -139,7 +139,7 @@ Sound::Sound() : patcher(kPatcherConfigForSound, params.sourceValues, params.par
 
 	setLpfMode(FilterMode::TRANSISTOR_24DB); // Good for samples, I think
 
-	postReverbVolumeLastTime = -1; // Special state to make it grab the actual value the first time it's rendered
+	sendAndVolume_.forget(); // its first render ramps from its own post-reverb volume
 
 	// LFO
 	modKnobs[0][1].paramDescriptor.setToHaveParamOnly(params::GLOBAL_VOLUME_POST_FX);
@@ -2023,9 +2023,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	int32_t postFXVolume = params.paramFinalValues[params::GLOBAL_VOLUME_POST_FX - params::FIRST_GLOBAL];
 	int32_t postReverbVolume = params.paramFinalValues[params::GLOBAL_VOLUME_POST_REVERB_SEND - params::FIRST_GLOBAL];
 
-	if (postReverbVolumeLastTime == -1) {
-		postReverbVolumeLastTime = postReverbVolume;
-	}
+	sendAndVolume_.prime(postReverbVolume);
 
 	int32_t modFXDepth = params.paramFinalValues[params::GLOBAL_MOD_FX_DEPTH - params::FIRST_GLOBAL];
 	int32_t modFXRate = params.paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
@@ -2054,8 +2052,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	// add the sound to the output, i.e. output = output + sound
 	std::ranges::transform(output, sound_stereo, output.begin(), std::plus{});
-
-	postReverbVolumeLastTime = postReverbVolume;
 
 	sourcesChanged = 0;
 	expressionSourcesChangedAtSynthLevel.reset();
@@ -2124,7 +2120,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 				//}
 			}
 			// Special state to make it grab the actual value the first time it's rendered
-			postReverbVolumeLastTime = -1;
+			sendAndVolume_.forget();
 
 			// clearModFXMemory(); // No need anymore, now we wait for this to basically empty before starting skipping
 		}

@@ -37,6 +37,7 @@
 #include "engine-api/engine.h"
 #include "engines/effects/bitcrush.h"
 #include "engines/effects/equalizer.h"
+#include "engines/effects/send_and_volume.h"
 #include "engines/effects/state.h"
 
 class Clip;
@@ -165,7 +166,8 @@ public:
 	SideChain sidechain; // Song doesn't use this, despite extending this class
 
 	deluge::fast_vector<MIDIKnob> midi_knobs{};
-	int32_t postReverbVolumeLastTime{};
+	/// The reverb send, post-FX volume and pan, which ramps the post-reverb volume from the last block's.
+	deluge::effects::SendAndVolume sendAndVolume_;
 
 private:
 	deluge::effects::EffectStates ownEffects_{};
