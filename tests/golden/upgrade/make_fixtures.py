@@ -72,6 +72,35 @@ def with_param(text: str, name: str, value: str) -> str:
     return re.sub(rf'(\n\t\t{name}=)"[^"]*"', rf'\1"{value}"', text, count=1)
 
 
+def without_cable(text: str, source: str) -> str:
+    """Removes the first cable from `source`."""
+    return re.sub(rf'\n\s*<patchCable\s+source="{source}"[^>]*/>', "", text, count=1)
+
+
+def with_cables(text: str, cables: str) -> str:
+    """Adds cables at the end of the sound's patchCables."""
+    return text.replace("</patchCables>", cables + "\n\t\t</patchCables>", 1)
+
+
+def cable(source: str, destination: str, amount: str, extra: str = "") -> str:
+    return f'\n\t\t\t<patchCable source="{source}" destination="{destination}" amount="{amount}"{extra} />'
+
+
+PRE_4 = restamp(SYNTH, "3.1.0")
+NO_EXPRESSION = without_cable(without_cable(PRE_4, "aftertouch"), "y")
+FM_NO_EXPRESSION = re.sub(
+    r'hpfMode="[^"]*"',
+    'hpfMode="Off"',
+    re.sub(
+        r'lpfMode="[^"]*"',
+        'lpfMode="Off"',
+        NO_EXPRESSION.replace('mode="subtractive"', 'mode="fm"', 1),
+        count=1,
+    ),
+    count=1,
+)
+
+
 # What official firmware read each form already gone from the firmware as, written in the current form: the recorded
 # hash of a fixture with an oracle is its oracle's.
 ORACLES = {
@@ -184,6 +213,41 @@ FIXTURES = {
     "sound/polyphony_2.synth.XML": OFFICIAL.replace(
         'polyphonic="mono"', 'polyphonic="2"', 1
     ),
+}
+
+
+FIXTURES |= {
+    # Pre-3.2 "range" cables: each controls the depth of the last rangeAdjustable cable; with none, nothing.
+    "cables/range_cables.synth.XML": with_cables(
+        OFFICIAL,
+        cable("lfo1", "range", "0x10000000")
+        + cable("envelope1", "pitch", "0x20000000", ' rangeAdjustable="1"')
+        + cable("velocity", "range", "0x30000000")
+        + cable("note", "lpfFrequency", "0x05000000", ' rangeAdjustable="1"')
+        + cable("aftertouch", "range", "0x40000000"),
+    ),
+    "cables/range_cables_none_adjustable.synth.XML": with_cables(
+        OFFICIAL,
+        cable("lfo1", "range", "0x10000000") + cable("random", "range", "0x30000000"),
+    ),
+    "cables/range_mod_knob.synth.XML": re.sub(
+        r"(<modKnobs>(?:\s*<modKnob[^>]*/>){12}\s*)<modKnob[^>]*/>",
+        r'\1<modKnob controlsParam="range" />',
+        OFFICIAL,
+        count=1,
+    ),
+    "cables/range_midi_knob.synth.XML": OFFICIAL.replace(
+        "<midiKnobs>",
+        '<midiKnobs>\n\t\t<midiKnob channel="3" ccNumber="20" relative="0" controlsParam="range" />',
+        1,
+    ),
+    # Before official 4.0 a sound was given aftertouch to volume and Y to its filter (FM: its first modulator).
+    "cables/default_expression.synth.XML": NO_EXPRESSION,
+    "cables/default_expression_fm.synth.XML": FM_NO_EXPRESSION,
+    "cables/default_expression_with_x.synth.XML": with_cables(
+        NO_EXPRESSION, cable("x", "pan", "0x10000000")
+    ),
+    "cables/default_expression_with_own.synth.XML": PRE_4,
 }
 
 

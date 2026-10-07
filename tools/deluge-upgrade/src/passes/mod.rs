@@ -4,6 +4,7 @@ use crate::tree::Node;
 use crate::upgrade::Context;
 use crate::version::FirmwareVersion;
 
+pub mod cables;
 pub mod sound;
 
 /// One conversion: it rewrites a document in place.
@@ -23,5 +24,16 @@ pub static ALL: &[Pass] = &[
         name: "old sound forms",
         before: None,
         run: sound::old_sound_forms,
+    },
+    Pass {
+        name: "range cables and knobs",
+        before: None,
+        run: cables::range_forms,
+    },
+    // Version-gated: applied when the file is older than the version named.
+    Pass {
+        name: "default expression cables",
+        before: Some(FirmwareVersion::official_tagged(4, 0, 0, "beta")),
+        run: cables::default_expression_cables,
     },
 ];

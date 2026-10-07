@@ -3,6 +3,7 @@
 //! release, pre-release tags compared as plain strings.
 
 use crate::tree::Node;
+use std::borrow::Cow;
 use std::cmp::Ordering;
 
 /// Which firmware line wrote a file, in the order the firmware ranks them.
@@ -21,7 +22,7 @@ pub struct FirmwareVersion {
     pub major: u8,
     pub minor: u8,
     pub patch: u8,
-    pub pre_release: String,
+    pub pre_release: Cow<'static, str>,
 }
 
 impl FirmwareVersion {
@@ -33,28 +34,28 @@ impl FirmwareVersion {
         major: 0,
         minor: 0,
         patch: 0,
-        pre_release: String::new(),
+        pre_release: Cow::Borrowed(""),
     };
 
-    /// An official release; add a pre-release tag with `with_tag`.
+    /// An official release; see the `_tagged` constructors for a pre-release.
     pub const fn official(major: u8, minor: u8, patch: u8) -> Self {
         FirmwareVersion {
             kind: Kind::Official,
             major,
             minor,
             patch,
-            pre_release: String::new(),
+            pre_release: Cow::Borrowed(""),
         }
     }
 
-    /// A community release; add a pre-release tag with `with_tag`.
+    /// A community release; see the `_tagged` constructors for a pre-release.
     pub const fn community(major: u8, minor: u8, patch: u8) -> Self {
         FirmwareVersion {
             kind: Kind::Community,
             major,
             minor,
             patch,
-            pre_release: String::new(),
+            pre_release: Cow::Borrowed(""),
         }
     }
 
@@ -63,10 +64,26 @@ impl FirmwareVersion {
         Self::parse(env!("DELUGE_FIRMWARE_VERSION"))
     }
 
-    /// The same version with pre-release tag `tag`.
-    pub fn with_tag(mut self, tag: &str) -> Self {
-        self.pre_release = tag.to_string();
-        self
+    /// An official pre-release, e.g. 4.0.0-beta.
+    pub const fn official_tagged(major: u8, minor: u8, patch: u8, tag: &'static str) -> Self {
+        FirmwareVersion {
+            kind: Kind::Official,
+            major,
+            minor,
+            patch,
+            pre_release: Cow::Borrowed(tag),
+        }
+    }
+
+    /// A community pre-release.
+    pub const fn community_tagged(major: u8, minor: u8, patch: u8, tag: &'static str) -> Self {
+        FirmwareVersion {
+            kind: Kind::Community,
+            major,
+            minor,
+            patch,
+            pre_release: Cow::Borrowed(tag),
+        }
     }
 
     /// Parses a stamp such as `4.1.4-alpha` or `c1.2.1`, as `FirmwareVersion::parse` does.
@@ -81,7 +98,7 @@ impl FirmwareVersion {
                 major,
                 minor,
                 patch,
-                pre_release: pre_release.to_string(),
+                pre_release: Cow::Owned(pre_release.to_string()),
             },
             None => Self::UNKNOWN,
         }

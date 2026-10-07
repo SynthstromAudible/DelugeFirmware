@@ -1,4 +1,36 @@
 {
+  "upgrade/cables/default_expression.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "7eedeefbcbe2304dfb4dc339d31fdd72361120b99bfd6ed7c365d435cd878c5c"
+  },
+  "upgrade/cables/default_expression_fm.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "4ac5652a7d2e4e4add30618048dae97fa779b07e9670b87916463a1df4769870"
+  },
+  "upgrade/cables/default_expression_with_own.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "f37550404fe9c0845fca5b83caff3e9b9716f1b74154fdb4f424698f74fb4597"
+  },
+  "upgrade/cables/default_expression_with_x.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "2bffb35af814784c0091088cd88d08db4e61c0f76c556b76a4c855a75efe8881"
+  },
+  "upgrade/cables/range_cables.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "179d95d5033effbebe784d4493c8ef5f15a5809d1b9d2bdc73476e229193670d"
+  },
+  "upgrade/cables/range_cables_none_adjustable.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "c2e9e02a996ad496644dbaf0df6fcc10c5b9a7add6130e4ec2b174a26866b866"
+  },
+  "upgrade/cables/range_midi_knob.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "f37550404fe9c0845fca5b83caff3e9b9716f1b74154fdb4f424698f74fb4597"
+  },
+  "upgrade/cables/range_mod_knob.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "cab80998c202fa4e125891d9918029cfbbb5eab96970d75921eb7dc4dde1bdbf"
+  },
   "upgrade/sound/delay_feedback_then_rate.synth.XML": {
     "kind": "SYNTH",
     "sha256": "0e523ef5e85f044c6a7f62d9904f1d6066a78a314b5714b28854571c23088027"
