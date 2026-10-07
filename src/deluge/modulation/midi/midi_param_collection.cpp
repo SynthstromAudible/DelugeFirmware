@@ -224,8 +224,8 @@ void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int
                                    int32_t midiOutputFilter) {
 	int32_t newValueSmall = autoparamValueToCC(newValue);
 
-	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64,
-	                  midiOutputFilter); // TODO: get master channel
+	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64, midiOutputFilter,
+	                  MIDIIntent::Continuous); // TODO: get master channel
 }
 
 // For MIDI CCs, which prior to V2.0 did interpolation
