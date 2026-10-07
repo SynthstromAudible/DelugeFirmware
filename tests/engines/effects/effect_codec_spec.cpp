@@ -1,3 +1,4 @@
+#include "effect_test_states.h"
 #include "engines/effects/codec.h"
 #include "serialization/parse_xml.h"
 #include "serialization/tree.h"
@@ -9,45 +10,7 @@
 using namespace deluge::effects;
 using deluge::serialization::Value;
 
-namespace {
-constexpr deluge::engine::CodecContext kAtOne{.input_tick_magnitude = 1};
-
-EffectStates busy() {
-	EffectStates s;
-	s.filter = {.lpf_mode = FilterMode::SVF_NOTCH, .hpf_mode = FilterMode::SVF_BAND, .route = FilterRoute::PARALLEL};
-	s.saturation.clipping_amount = 3;
-	s.mod_fx.type = ModFXType::GRAIN;
-	s.delay = {.ping_pong = false,
-	           .analog = true,
-	           .sync_type = deluge::engine::SyncType::TRIPLET,
-	           .sync_level = deluge::engine::SyncLevel::EIGHTH};
-	s.stutter = {.use_song_stutter = true, .quantized = false, .reversed = true, .ping_pong = true};
-	s.compressor = {.attack = 1 << 24,
-	                .release = 2 << 24,
-	                .threshold = 3 << 24,
-	                .ratio = 4 << 24,
-	                .sidechain_hpf = 5 << 24,
-	                .blend = 6 << 24};
-	s.sidechain = {.attack = 123,
-	               .release = 456,
-	               .sync_type = deluge::engine::SyncType::DOTTED,
-	               .sync_level = deluge::engine::SyncLevel::QUARTER};
-	return s;
-}
-} // namespace
-
-namespace deluge::effects {
-/// States, printed as their encoding, so a failing comparison shows them.
-std::ostream& operator<<(std::ostream& out, const EffectStates& states) {
-	return out << deluge::serialization::first_difference(encode(states, kAtOne), Value::makeMap());
-}
-
-/// A delay's state, printed field by field.
-std::ostream& operator<<(std::ostream& out, const DelayState& delay) {
-	return out << "{pingPong " << delay.ping_pong << " analog " << delay.analog << " syncType "
-	           << static_cast<int>(delay.sync_type) << " syncLevel " << static_cast<int>(delay.sync_level) << "}";
-}
-} // namespace deluge::effects
+using namespace deluge::effects::testing;
 
 // clang-format off
 describe effect_codec("an owner element's effect entries", ${
