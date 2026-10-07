@@ -13,7 +13,8 @@ The other songs give each home of the effects a golden render of its chain at se
 (RS_KIT_FX), an audio track (RS_AUDIO_FX) and the song's master (RS_MASTER_FX), each beside RS_STREAM's two synths so
 sample voices still stream. Each has a dry twin (RS_KIT_DRY, RS_AUDIO_DRY, RS_MASTER_DRY) with every one of those
 settings at its default: the gate fails if a song and its twin render the same, which would mean the settings never
-reached the render.
+reached the render. RS_KIT_FILTERS, RS_AUDIO_FILTERS and RS_MASTER_FILTERS do the same for the filter families and
+routes: only the filters are on, each with its own `_DRY` twin.
 """
 
 import math
@@ -130,6 +131,38 @@ DRY = {
     '<hpf frequency="0x80000000" resonance="0x80000000" />'
     '<equalizer bass="0x00000000" treble="0x00000000" bassFrequency="0x00000000" trebleFrequency="0x00000000" />',
 }
+
+
+# The filter families and routes, one set per host: only the filters are on, every other effect at DRY's value. The
+# kit takes a drive LPF and a ladder HPF in L2H; the audio track an SVF notch and an SVF band in PARA; the master a
+# 12 dB ladder LPF and an SVF band HPF in H2L. `lpfMorph` (the kit's) is above its minimum so the morph gate opens too.
+def _filters(attributes: str, lpf: str, hpf: str, extra_params: str = "") -> dict:
+    return {
+        **DRY,
+        "attributes": 'modFXCurrentParam="depth" modFXType="none" ' + attributes,
+        "params": DRY["params"] + extra_params,
+        "param_tags": DRY["param_tags"]
+        .replace('<lpf frequency="0x7FFFFFFF" resonance="0x80000000" />', lpf)
+        .replace('<hpf frequency="0x80000000" resonance="0x80000000" />', hpf),
+    }
+
+
+KIT_FILTERS = _filters(
+    'lpfMode="24dBDrive" hpfMode="HPLadder" filterRoute="L2H"',
+    '<lpf frequency="0x30000000" resonance="0x40000000" />',
+    '<hpf frequency="0xC0000000" resonance="0x30000000" />',
+    ' lpfMorph="0x20000000"',
+)
+AUDIO_FILTERS = _filters(
+    'lpfMode="SVF_Notch" hpfMode="SVF_Band" filterRoute="PARA"',
+    '<lpf frequency="0x20000000" resonance="0x50000000" />',
+    '<hpf frequency="0xB0000000" resonance="0x20000000" />',
+)
+MASTER_FILTERS = _filters(
+    'lpfMode="12dB" hpfMode="SVF_Band" filterRoute="H2L"',
+    '<lpf frequency="0x38000000" resonance="0x30000000" />',
+    '<hpf frequency="0xA0000000" resonance="0x10000000" />',
+)
 
 # A kit of two sample drums; each note row keeps its drum's params, as a song saves a kit row.
 KIT = """\
@@ -251,6 +284,12 @@ SONGS = {
     "RS_AUDIO_DRY": lambda v: audio_song(v, DRY),
     "RS_MASTER_FX": lambda v: master_song(v, FX),
     "RS_MASTER_DRY": lambda v: master_song(v, DRY),
+    "RS_KIT_FILTERS": lambda v: kit_song(v, KIT_FILTERS),
+    "RS_KIT_FILTERS_DRY": lambda v: kit_song(v, DRY),
+    "RS_AUDIO_FILTERS": lambda v: audio_song(v, AUDIO_FILTERS),
+    "RS_AUDIO_FILTERS_DRY": lambda v: audio_song(v, DRY),
+    "RS_MASTER_FILTERS": lambda v: master_song(v, MASTER_FILTERS),
+    "RS_MASTER_FILTERS_DRY": lambda v: master_song(v, DRY),
 }
 
 

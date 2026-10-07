@@ -787,6 +787,60 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-kit-filters"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a kit's filter chain renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_KIT_FILTERS) with only the filters on (a kit's drive 24 dB LPF and ladder HPF, low-to-high) beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with the filters at their defaults must render differently (RS-FX), so the filters reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_KIT_FILTERS" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-audio-track-filters"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "an audio track's filter chain renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_AUDIO_FILTERS) with only the filters on (an audio track's SVF notch LPF and SVF band HPF, in parallel) beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with the filters at their defaults must render differently (RS-FX), so the filters reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_AUDIO_FILTERS" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-master-filters"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the song master's filter chain renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_MASTER_FILTERS) with only the filters on (the song master's 12 dB ladder LPF and SVF band HPF, high-to-low) beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with the filters at their defaults must render differently (RS-FX), so the filters reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_MASTER_FILTERS" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-audio-track-fx"
 path = "."
 level = "integration"

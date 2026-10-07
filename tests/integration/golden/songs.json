@@ -5,17 +5,35 @@
   "rms_db": -17.61,
   "sha256": "a27897024554141ffcd0cef78fdc6f47ad521472087f8e679c82214ca6241f5b"
  },
+ "RS_AUDIO_FILTERS": {
+  "frames": 384000,
+  "peak": 2107020288,
+  "rms_db": -8.99,
+  "sha256": "a038986b6e2f14af5718949bfbef8a0da5e629b925d27f715a6a5811a257efd3"
+ },
  "RS_AUDIO_FX": {
   "frames": 384000,
   "peak": 1075748096,
   "rms_db": -22.75,
   "sha256": "ac1d1692d1254613f8f3b8807e74c2d23daa4d108b4bb344671aa9e7b658f599"
  },
+ "RS_KIT_FILTERS": {
+  "frames": 384000,
+  "peak": 364424192,
+  "rms_db": -27.4,
+  "sha256": "e3ec9c2d35caf34d46c1be55295a1fa8c75854236b0a7aca02a791971101f331"
+ },
  "RS_KIT_FX": {
   "frames": 384000,
   "peak": 759232512,
   "rms_db": -23.59,
   "sha256": "06f16b3cee88acb1773176d13d0d810c8402bfc830495bdf4cf9a908292f7d5c"
+ },
+ "RS_MASTER_FILTERS": {
+  "frames": 384000,
+  "peak": 178093568,
+  "rms_db": -30.75,
+  "sha256": "e875ff870bb7d2d3f94338b7bd5709a70d226d70177bde0099ca928c5fa8ccfd"
  },
  "RS_MASTER_FX": {
   "frames": 384000,

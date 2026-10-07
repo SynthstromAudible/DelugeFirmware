@@ -23,6 +23,7 @@ that records the new one.
 """
 
 import hashlib
+import importlib.util
 import json
 import math
 import os
@@ -77,6 +78,19 @@ def generated_song(env: dict[str, str]) -> str:
     return env.get("RENDER_GENERATED") or "RS_STREAM"
 
 
+def _dry_twin(gate, name: str) -> str | None:
+    """The generator's dry twin of generated song @p name (RS_KIT_FX -> RS_KIT_DRY, RS_KIT_FILTERS -> RS_KIT_FILTERS_DRY), or
+    None when it has none."""
+    path = gate.root / "tests/integration/golden/songs/make_render_song.py"
+    spec = importlib.util.spec_from_file_location("make_render_song", path)
+    generator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(generator)
+    for twin in (name.removesuffix("_FX") + "_DRY", name + "_DRY"):
+        if twin != name and twin in generator.SONGS:
+            return twin
+    return None
+
+
 def _level_swing(pcm: bytes) -> float:
     """The ratio of the loudest to the quietest quarter second over the first 5.5 s of the left channel."""
     count = len(pcm) // 4
@@ -120,8 +134,8 @@ def run(gate):
         )
 
     pcm = pcm_path.read_bytes()
-    if not song and generated.endswith("_FX"):
-        dry = generated.removesuffix("_FX") + "_DRY"
+    dry = None if song else _dry_twin(gate, generated)
+    if dry:
         dry_env = _generate(gate, dry)
         if dry_env is None:
             return
