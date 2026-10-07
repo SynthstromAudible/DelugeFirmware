@@ -221,7 +221,9 @@ pub extern "C" fn deluge_signal_write(signal: DelugeSignal, on: bool) {
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_signal_read(signal: DelugeSignal) -> bool {
     stub_log!("deluge_signal_read");
-    false
+    // Headphones are the one input a harness plugs in (`audio::host::deluge_host_headphones`).
+    signal == crate::sys::DelugeSignal_DELUGE_SIGNAL_HEADPHONE_DETECT
+        && crate::audio::host::headphones()
 }
 
 #[unsafe(no_mangle)]

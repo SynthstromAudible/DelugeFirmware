@@ -15,7 +15,8 @@ And once per run:
 
 The corpus is tests/integration/golden/presets/: `<case>.xml` (or `.XML`), optionally `<case>.notes` (default.notes
 otherwise), `<case>.wav` and `<case>.2.wav` (staged as SAMPLES/WT.WAV and WT2.WAV, which the preset names). A case is
-named by its path under the corpus without the extension, e.g. `factory/000 Rich Saw Bass`.
+named by its path under the corpus without the extension, e.g. `factory/000 Rich Saw Bass`. The cases under `stereo/`
+render with headphones plugged in, so in stereo (RENDER_STEREO); the rest render in mono, as through the speaker.
 
 RENDER_PRESET_FILTER takes a comma-separated list of substrings, and runs the cases whose name holds any of them.
 RENDER_PRESET_CORPUS=<dir> renders the cases of another copy of the corpus (e.g. its presets upgraded) against the same
@@ -44,6 +45,9 @@ DEFAULT_SECONDS = 2.0
 SECONDS = {"env_shape": 3.0}
 # Cases whose sources read the audio input: fed the harness's test signal instead of silence.
 INPUT = {"input_mono", "input_stereo", "input_pitchshift"}
+# Cases under this directory render with headphones plugged in, so the app renders in stereo; every other case renders
+# in mono, as through the device's speaker.
+STEREO_DIR = "stereo/"
 # The loudest sample of silence: 16 in 16-bit terms, the C-host harness's threshold. The render's dither floor sits
 # far below it.
 SILENCE_PEAK = 16 << 16
@@ -128,6 +132,8 @@ def _stage(corpus: Path, name: str, where: Path) -> dict[str, str]:
     }
     if name in INPUT:
         env["RENDER_INPUT"] = "1"
+    if name.startswith(STEREO_DIR):
+        env["RENDER_STEREO"] = "1"
     return env
 
 

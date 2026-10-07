@@ -31,6 +31,9 @@
 ///     up to a block past it.
 ///   - `RENDER_INPUT`: `1` feeds the audio input the harness's test signal from the start of capture (see
 ///     `audio/host.rs`), for presets whose sources read the input. Silence otherwise.
+///   - `RENDER_STEREO`: `1` plugs headphones in from the scenario's start, so the app renders in stereo as the device
+///     does through them (voices with a stereo source render and filter both channels, ping-pong delay alternates).
+///     Mono otherwise, as through the device's speaker.
 ///   - `RENDER_PCM_OUT`: where the harness writes the captured output (see `audio/host.rs`).
 ///
 /// Lines:
@@ -43,7 +46,8 @@
 ///     sounding at once, and the highest CPU direness seen. A failure if direness rose at all: direness culls voices
 ///     and lowers quality, and the golden masters record full-quality renders.
 ///   - `RP-TIER-SYNC-AUDIO total=<n>`: synchronous card calls the render made; the audio tier must make none.
-///   - `RP-CAPTURE frames=<n> input=<0|1>`: frames captured, and whether the test input signal was fed.
+///   - `RP-CAPTURE frames=<n> input=<0|1> stereo=<0|1>`: frames captured, whether the test input signal was fed, and
+///     whether headphones were plugged in. A failure if the app rendered any captured block in the other width.
 ///   - `RP-RESULT failures=<n>`.
 extern "C" {
 

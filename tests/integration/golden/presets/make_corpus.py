@@ -143,10 +143,12 @@ def case(
         return
     # The firmware saves presets as JSON. The upgrader (tools/deluge-upgrade) writes a document exactly as the firmware
     # would, so the case is authored here in the same terms as the others and converted.
+    target = (CORPUS / name).parent
+    target.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory() as scratch:
-        source = pathlib.Path(scratch) / f"{name}.xml"
+        source = pathlib.Path(scratch) / f"{pathlib.Path(name).name}.xml"
         source.write_text(text)
-        subprocess.run([str(upgrader()), str(source), "--out", str(CORPUS)], check=True)
+        subprocess.run([str(upgrader()), str(source), "--out", str(target)], check=True)
 
 
 def upgrader() -> pathlib.Path:
@@ -273,6 +275,78 @@ case(
     sound={"lpfMode": "SVF_Band", "hpfMode": "HPLadder"},
     params={"lpfResonance": "0x30000000", "hpfResonance": "0x20000000"},
     json=True,
+)
+
+# --- stereo voices -------------------------------------------------------------
+# The cases under stereo/ render with headphones plugged in, so the app renders in stereo. A voice renders (and
+# filters) both channels when a source of it is stereo: here, two unison voices spread across the field.
+STEREO_UNISON = {"num": "2", "detune": "10", "spread": "40"}
+
+
+def stereo_case(name, sound=None, params=None, **rest):
+    case(
+        f"stereo/{name}",
+        sound=sound,
+        params=params,
+        unison=STEREO_UNISON,
+        json=True,
+        **rest,
+    )
+
+
+# Each route with both filters on, between them every ladder and SVF in each slot.
+stereo_case(
+    "lpf_12db_hpf_ladder_h2l",
+    sound={"lpfMode": "12dB", "hpfMode": "HPLadder", "filterRoute": "H2L"},
+    params={
+        "lpfFrequency": "0x18000000",
+        "lpfResonance": "0x30000000",
+        "hpfFrequency": "0xC0000000",
+        "hpfResonance": "0x20000000",
+    },
+)
+stereo_case(
+    "lpf_24db_hpf_svf_band_l2h",
+    sound={"lpfMode": "24dB", "hpfMode": "SVF_Band", "filterRoute": "L2H"},
+    params={
+        "lpfFrequency": "0x18000000",
+        "lpfResonance": "0x30000000",
+        "hpfFrequency": "0xC0000000",
+        "hpfResonance": "0x20000000",
+    },
+)
+stereo_case(
+    "lpf_svf_band_hpf_svf_notch_parallel",
+    sound={"lpfMode": "SVF_Band", "hpfMode": "SVF_Notch", "filterRoute": "PARA"},
+    params={
+        "lpfFrequency": "0x20000000",
+        "lpfResonance": "0x28000000",
+        "hpfFrequency": "0xC0000000",
+        "hpfResonance": "0x20000000",
+    },
+)
+# The SVF notch alone in the parallel route: the dry signal is summed with it.
+stereo_case(
+    "lpf_svf_notch_parallel",
+    sound={"lpfMode": "SVF_Notch", "filterRoute": "PARA"},
+    params={"lpfFrequency": "0x20000000", "lpfResonance": "0x28000000"},
+)
+# The drive filter high and resonant enough to oversample.
+stereo_case(
+    "lpf_drive_oversampled",
+    sound={"lpfMode": "24dBDrive"},
+    params={"lpfFrequency": "0x60000000", "lpfResonance": "0x60000000"},
+)
+# Both filters switched on mid-note by the note script (the mono case's), so each fades in from dry.
+stereo_case(
+    "filter_fade_lpf_ladder_hpf_svf",
+    sound={"lpfMode": "24dB", "hpfMode": "SVF_Notch"},
+    params={"lpfResonance": "0x30000000", "hpfResonance": "0x20000000"},
+)
+# The delay in ping-pong, which alternates its echoes between the channels only in stereo.
+stereo_case(
+    "delay_pingpong",
+    params={"delayRate": "0x00000000", "delayFeedback": "0x00000000"},
 )
 
 # --- note-event behaviours (paired with dedicated .notes scripts) -------------

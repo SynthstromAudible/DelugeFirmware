@@ -44,8 +44,12 @@ uint64_t deluge_host_capture_stop(void);
 uint64_t deluge_host_render_count(void);
 int32_t deluge_host_midi_script_start(const char* path);
 void deluge_host_test_input(bool on);
+void deluge_host_headphones(bool on);
 uint32_t deluge_host_midi_script_released(void);
 }
+
+// The app's input routine (deluge.cpp): reads the sockets, among them headphone detect, into the audio engine.
+void inputRoutine();
 
 namespace {
 
@@ -62,6 +66,7 @@ int32_t g_ticks = 0;
 
 std::string g_midiPath;
 bool g_testInput = false;
+bool g_stereo = false;
 uint64_t g_blocksWanted = 0;
 int32_t g_midiEvents = 0;
 
@@ -70,6 +75,8 @@ uint32_t g_audioSyncBase = 0;
 uint64_t g_blocksRendered = 0;
 int32_t g_direnessMax = 0;
 int32_t g_voicesMax = 0;
+/// Captured ticks whose output was not in the channel count the case asked for.
+int32_t g_wrongWidthTicks = 0;
 uint64_t g_captured = 0;
 
 void fail(const char* marker, const char* what) {
@@ -111,6 +118,11 @@ void stepStart() {
 		}
 	}
 	deluge_host_test_input(g_testInput);
+	if (g_stereo) {
+		// The app reads its sockets in its input routine, on a UI timer the harness does not tick; read them now, so
+		// the headphones plugged in at the start count from the first captured block.
+		inputRoutine();
+	}
 	g_renderBase = deluge_host_render_count();
 	g_audioSyncBase = deluge_tier_sync_audio_total();
 	deluge_host_capture_start();
@@ -121,6 +133,9 @@ void stepStart() {
 void stepCapturing() {
 	g_direnessMax = std::max(g_direnessMax, static_cast<int32_t>(AudioEngine::cpuDireness));
 	g_voicesMax = std::max(g_voicesMax, static_cast<int32_t>(AudioEngine::getNumVoices()));
+	if (AudioEngine::renderInStereo != g_stereo) {
+		g_wrongWidthTicks++;
+	}
 	g_blocksRendered = deluge_host_render_count() - g_renderBase;
 	if (g_blocksRendered >= g_blocksWanted) {
 		g_captured = deluge_host_capture_stop();
@@ -153,7 +168,12 @@ void report() {
 	if (audioSync != 0) {
 		fail("RP-TIER-SYNC-AUDIO", "the render made a synchronous card call");
 	}
-	printf("RP-CAPTURE frames=%llu input=%d\n", static_cast<unsigned long long>(g_captured), g_testInput ? 1 : 0);
+	printf("RP-CAPTURE frames=%llu input=%d stereo=%d\n", static_cast<unsigned long long>(g_captured),
+	       g_testInput ? 1 : 0, g_stereo ? 1 : 0);
+	if (g_wrongWidthTicks != 0) {
+		fail("RP-CAPTURE", g_stereo ? "the app rendered in mono with headphones plugged in"
+		                            : "the app rendered in stereo with nothing plugged in");
+	}
 	printf("RP-RESULT failures=%d\n", g_failures);
 	g_stage = Stage::Done;
 }
@@ -171,6 +191,12 @@ void deluge_scenario_render_preset_begin(void) {
 	g_direnessMax = 0;
 	g_voicesMax = 0;
 	g_captured = 0;
+	g_wrongWidthTicks = 0;
+	// Headphones plugged in from boot make the app render in stereo, as the device does through them; otherwise it
+	// renders in mono, as through the speaker.
+	const char* stereo = std::getenv("RENDER_STEREO");
+	g_stereo = stereo != nullptr && std::strcmp(stereo, "1") == 0;
+	deluge_host_headphones(g_stereo);
 	const char* input = std::getenv("RENDER_INPUT");
 	g_testInput = input != nullptr && std::strcmp(input, "1") == 0;
 	const char* midi = std::getenv("RENDER_MIDI");
