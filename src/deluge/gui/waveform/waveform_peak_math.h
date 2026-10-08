@@ -30,29 +30,24 @@ struct WaveformRenderData;
 
 namespace deluge::gui::waveform {
 
-/// @brief log2 of the most samples scanPeak() reads per call; longer spans are subsampled.
-constexpr int32_t kMaxScanSamplesLog2 = 9;
-
-/// @brief Minimum and maximum of a run of raw 32-bit-aligned sample values.
+/// @brief Minimum and maximum of a run of samples, as full-scale 32-bit values.
 struct Peak {
-	int32_t min; ///< Smallest value read.
-	int32_t max; ///< Largest value read.
+	int32_t min; ///< Smallest sample.
+	int32_t max; ///< Largest sample.
 };
 
-/// @brief Finds the subsampled min/max over part of a Cluster's raw audio data.
+/// @brief Finds the min/max of every sample in part of a Cluster's audio data, using NEON.
 ///
-/// Reads at most about 2^kMaxScanSamplesLog2 samples, striding over the rest. For stereo the stride is forced odd so
-/// both channels get sampled. Each read is a 32-bit load offset by `byte_depth - 4`, so it lands on a sample's most
-/// significant bytes. For 8/16/24-bit data that indexes slightly before @p start, which is valid because Clusters keep
-/// padding bytes before their data.
+/// Only the top 16 bits of each sample are compared, which is plenty for drawing. Channels don't need separating, as
+/// they all count toward the peak.
 ///
-/// @param data Cluster::data of the Cluster being read.
-/// @param start First byte to read, relative to @p data. Should be frame-aligned.
+/// @param data Cluster::data of the Cluster being read, holding native little-endian signed samples.
+/// @param start First byte to read, relative to @p data. Must be on a sample boundary.
 /// @param end Byte after the last one to read, relative to @p data.
 /// @param byte_depth Bytes per sample (1-4).
-/// @param num_channels 1 or 2. Both channels are counted as samples.
-/// @returns The peaks found. If the range is empty, min is INT32_MAX and max is INT32_MIN.
-Peak scanPeak(const char* data, int32_t start, int32_t end, int32_t byte_depth, int32_t num_channels);
+/// @returns The peaks found, with each sample's top 16 bits in the top of the int32. If the range holds no whole
+///          sample, min is INT32_MAX and max is INT32_MIN.
+Peak scanPeak(const char* data, int32_t start, int32_t end, int32_t byte_depth);
 
 /// @brief Reduces a 32-bit peak to the 8-bit form stored in SampleCluster::minValue / maxValue.
 /// @param value Full-scale 32-bit sample value.

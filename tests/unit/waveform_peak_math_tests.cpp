@@ -2,6 +2,7 @@
 
 #include "gui/waveform/waveform_peak_math.h"
 #include "gui/waveform/waveform_render_data.h"
+#include <algorithm>
 #include <cstdint>
 #include <vector>
 
@@ -60,26 +61,68 @@ TEST(WaveformPeakMath, FirstFrameOffsetMisaligned24Bit) {
 	CHECK_EQUAL(2, firstFrameOffset(32769, 44, 3));
 }
 
-// scanPeak: finds the min and max of the 32-bit values it samples.
-TEST(WaveformPeakMath, ScanPeakFindsMinMax32Bit) {
-	// byteDepth 4 (32-bit), mono. Buffer of 8 int32 values; misalignment (byteDepth-4)==0.
-	std::vector<int32_t> samples = {5, -3, 100, -100, 42, 7, -1, 9};
-	const char* data = reinterpret_cast<const char*>(samples.data());
-	Peak peak = scanPeak(data, 0, static_cast<int32_t>(samples.size() * 4), 4, 1);
-	CHECK_EQUAL(-100, peak.min);
-	CHECK_EQUAL(100, peak.max);
+namespace {
+
+// What scanPeak should find, one sample at a time: the top 16 bits of each little-endian signed sample
+Peak referencePeak(const std::vector<uint8_t>& bytes, int32_t start, int32_t end, int32_t byte_depth) {
+	Peak peak{INT32_MAX, INT32_MIN};
+	for (int32_t pos = start; pos + byte_depth <= end; pos += byte_depth) {
+		int32_t value = static_cast<int8_t>(bytes[pos + byte_depth - 1]) * 256;
+		if (byte_depth > 1) {
+			value |= bytes[pos + byte_depth - 2];
+		}
+		peak.min = std::min(peak.min, value << 16);
+		peak.max = std::max(peak.max, value << 16);
+	}
+	return peak;
 }
 
-// scanPeak: 16-bit misalignment reads two bytes before the logical start,
-// so the caller must provide valid padding there. Verify the negative-index read is exercised.
-TEST(WaveformPeakMath, ScanPeak16BitMisalignedRead) {
-	// 6 int16 values laid out; provide 4 bytes of leading padding so start=4 with byteDepth-4=-2 is valid.
-	std::vector<int16_t> raw = {0, 0, 1000, -2000, 3000, -500, 750, 1};
-	const char* base = reinterpret_cast<const char*>(raw.data());
-	// startByte/endByte are within-cluster byte offsets into base; leading two int16 (4 bytes) are padding.
-	Peak peak = scanPeak(base, 4, 16, 2, 1);
-	// Just assert it produced an ordered pair (min <= max); exact values depend on the 32-bit window reads.
-	CHECK(peak.min <= peak.max);
+std::vector<uint8_t> randomBytes(size_t count, uint32_t seed) {
+	std::vector<uint8_t> bytes(count);
+	for (auto& byte : bytes) {
+		seed = (seed * 1664525) + 1013904223;
+		byte = static_cast<uint8_t>(seed >> 24);
+	}
+	return bytes;
+}
+
+} // namespace
+
+// scanPeak: matches a sample-by-sample scan for every bit depth, across lengths that exercise both the vector loop
+// and the scalar tail, from unaligned starts.
+TEST(WaveformPeakMath, ScanPeakMatchesReference) {
+	auto bytes = randomBytes(4096, 1);
+	for (int32_t byte_depth = 1; byte_depth <= 4; byte_depth++) {
+		for (int32_t start = 0; start < 4; start++) {
+			for (int32_t num_samples = 0; num_samples < 100; num_samples++) {
+				int32_t end = start + (num_samples * byte_depth);
+				Peak expected = referencePeak(bytes, start, end, byte_depth);
+				Peak actual = scanPeak(reinterpret_cast<const char*>(bytes.data()), start, end, byte_depth);
+				CHECK_EQUAL(expected.min, actual.min);
+				CHECK_EQUAL(expected.max, actual.max);
+			}
+		}
+	}
+}
+
+// scanPeak: finds a single loud sample anywhere in a long, quiet run - the case subsampling used to miss.
+TEST(WaveformPeakMath, ScanPeakFindsLoneTransient) {
+	std::vector<int16_t> samples(16384, 10);
+	for (size_t spike : {size_t{0}, size_t{7}, size_t{8191}, samples.size() - 1}) {
+		samples[spike] = 30000;
+		Peak peak = scanPeak(reinterpret_cast<const char*>(samples.data()), 0,
+		                     static_cast<int32_t>(samples.size() * sizeof(int16_t)), 2);
+		CHECK_EQUAL(30000 << 16, peak.max);
+		CHECK_EQUAL(10 << 16, peak.min);
+		samples[spike] = 10;
+	}
+}
+
+// scanPeak: an empty range reports nothing found.
+TEST(WaveformPeakMath, ScanPeakEmptyRange) {
+	std::vector<uint8_t> bytes(16);
+	Peak peak = scanPeak(reinterpret_cast<const char*>(bytes.data()), 4, 5, 2);
+	CHECK(peak.min > peak.max);
 }
 
 // columnShift: an exact whole-column scroll is reused in either direction.

@@ -13,6 +13,20 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(etl)
 
+# Argon, for NEON code. On the host its intrinsics come from SIMDe.
+FetchContent_Declare(
+        argon
+        GIT_REPOSITORY https://github.com/stellar-aria/argon
+        GIT_TAG cae5738c8e4119448ea80df691c297c4c8bc2d5e
+)
+FetchContent_Declare(
+        simde
+        GIT_REPOSITORY https://github.com/simd-everywhere/simde
+        GIT_TAG v0.8.2
+        GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(argon simde)
+
 # Set this to ON if you want to have the CppUTest's internal tests in your
 # project as well.
 set(TESTS OFF CACHE BOOL "Switch off CppUTest Test build")
@@ -116,7 +130,9 @@ set_target_properties(UnitTests
         CXX_EXTENSIONS ON
 )
 
-target_link_libraries(UnitTests CppUTestExt etl::etl)
+target_link_libraries(UnitTests CppUTestExt etl::etl argon)
+target_include_directories(UnitTests SYSTEM PRIVATE ${simde_SOURCE_DIR}/simde)
+target_compile_definitions(UnitTests PRIVATE SIMDE_ENABLE_NATIVE_ALIASES)
 
 # strchr is seemingly different in x86
 target_compile_options(UnitTests PUBLIC

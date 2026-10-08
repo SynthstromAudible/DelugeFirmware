@@ -378,238 +378,106 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 		int64_t colEndByte = static_cast<int64_t>(colEndSample) * sample->numChannels * sample->byteDepth
 		                     + sample->audioDataStartPosBytes;
 
-		int32_t colStartCluster = static_cast<int32_t>(colStartByte >> Cluster::size_magnitude);
-		int32_t colEndCluster = static_cast<int32_t>(colEndByte >> Cluster::size_magnitude);
-
-		int32_t clusterIndexToDo;
-		int32_t startByteWithinCluster;
-		int32_t endByteWithinCluster;
-
-		int32_t numClustersSpan = colEndCluster - colStartCluster;
-
-		bool investigatingAWholeCluster = false;
-
-		// If both same cluster...
-		if (numClustersSpan == 0) {
-			clusterIndexToDo = colStartCluster;
-			startByteWithinCluster = static_cast<int32_t>(colStartByte & (Cluster::size - 1));
-			endByteWithinCluster = static_cast<int32_t>(colEndByte & (Cluster::size - 1));
-		}
-
-		// Special case to make sure we get initial transient (we know there's more than 1 cluster)
-		else if (colStartSample == 0 && colStartByte < (Cluster::size >> 1)) {
-			clusterIndexToDo = colStartCluster;
-			startByteWithinCluster = static_cast<int32_t>(colStartByte & (Cluster::size - 1));
-			endByteWithinCluster = Cluster::size;
-			investigatingAWholeCluster = true;
-		}
-
-		// If 3 or more clusters, take 2nd one. TODO: have it take any one which has previously been fully investigated?
-		else if (numClustersSpan >= 2) {
-			clusterIndexToDo = colStartCluster + 1;
-
-			startByteWithinCluster =
-			    firstFrameOffset(clusterStart(clusterIndexToDo, Cluster::size_magnitude),
-			                     sample->audioDataStartPosBytes, sample->numChannels * sample->byteDepth);
-
-			endByteWithinCluster = Cluster::size;
-			investigatingAWholeCluster = true;
-		}
-
-		// If 2 cluster..
-		else if (numClustersSpan == 1) {
-
-			int32_t startByteWithinFirstCluster = static_cast<int32_t>(colStartByte & (Cluster::size - 1));
-			int32_t bytesInFirstCluster = Cluster::size - startByteWithinFirstCluster;
-
-			int32_t bytesInSecondCluster = static_cast<int32_t>(colEndByte & (Cluster::size - 1));
-
-			// If more in first cluster...
-			if (bytesInFirstCluster >= bytesInSecondCluster) {
-				clusterIndexToDo = colStartCluster;
-				startByteWithinCluster = startByteWithinFirstCluster;
-				endByteWithinCluster = Cluster::size;
-			}
-
-			// Or if more in second cluster...
-			else {
-				clusterIndexToDo = colEndCluster;
-
-				startByteWithinCluster =
-				    firstFrameOffset(clusterStart(clusterIndexToDo, Cluster::size_magnitude),
-				                     sample->audioDataStartPosBytes, sample->numChannels * sample->byteDepth);
-
-				endByteWithinCluster = bytesInSecondCluster;
-			}
-		}
-
-		if (clusterIndexToDo >= endClusters) { // Could this actually happen?
+		int32_t frameSize = sample->numChannels * sample->byteDepth;
+		int64_t audioEndByte = sample->audioDataStartPosBytes + static_cast<int64_t>(numValidBytes);
+		int32_t firstCluster = static_cast<int32_t>(colStartByte >> Cluster::size_magnitude);
+		int32_t lastCluster = static_cast<int32_t>((colEndByte - 1) >> Cluster::size_magnitude);
+		lastCluster = std::min(lastCluster, endClusters - 1);
+		if (firstCluster > lastCluster) {
 			data->colStatus[col] = ColumnStatus::BEYOND_WAVEFORM;
 			continue;
 		}
 
-		else if (clusterIndexToDo == endClusters - 1) {
+		int32_t minThisCol = std::numeric_limits<int32_t>::max();
+		int32_t maxThisCol = std::numeric_limits<int32_t>::min();
+		bool hadSamples = false;
+		bool loadFailed = false;
 
-			int32_t limit = lastClusterEnd(numValidBytes, sample->audioDataStartPosBytes, Cluster::size);
+		for (int32_t clusterIndex = firstCluster; clusterIndex <= lastCluster; clusterIndex++) {
+			int64_t thisClusterStart = clusterStart(clusterIndex, Cluster::size_magnitude);
+			int64_t audioStart = thisClusterStart +
+			                     firstFrameOffset(thisClusterStart, sample->audioDataStartPosBytes, frameSize);
+			int64_t audioEnd = std::min(thisClusterStart + Cluster::size, audioEndByte);
+			audioEnd -= std::max<int64_t>(audioEnd - audioStart, 0) % frameSize;
 
-			if (endByteWithinCluster > limit) {
-				endByteWithinCluster = limit;
+			int64_t readStart = std::max<int64_t>(colStartByte, audioStart);
+			int64_t readEnd = std::min<int64_t>(colEndByte, audioEnd);
+			readEnd -= std::max<int64_t>(readEnd - readStart, 0) % frameSize;
+			if (readEnd <= readStart) {
+				continue;
 			}
-		}
 
-		SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndexToDo);
+			bool stillRecording = recorder != nullptr && thisClusterStart + Cluster::size > audioEndByte;
+			bool wholeCluster = readStart == audioStart && readEnd == audioEnd && !stillRecording;
+			SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndex);
+			if (sampleCluster->cluster != nullptr && sampleCluster->cluster->numReasonsToBeLoaded < 0) {
+				FREEZE_WITH_ERROR("E449"); // Trying to catch errer before i028, which users have gotten.
+			}
 
-		if (sampleCluster->cluster && sampleCluster->cluster->numReasonsToBeLoaded < 0) {
-			FREEZE_WITH_ERROR("E449"); // Trying to catch errer before i028, which users have gotten.
-		}
-
-		// If we're wanting to investigate the whole length of one Cluster, and that's already actually been done
-		// previously, we can just reuse those findings!
-		if (investigatingAWholeCluster && sampleCluster->investigatedWholeLength) {
-			data->minPerCol[col] = (int32_t)sampleCluster->minValue << 24;
-			data->maxPerCol[col] = (int32_t)sampleCluster->maxValue << 24;
-		}
-
-		// Otherwise, do our normal investigation
-		else {
-			char const* errorCode;
-			if (sampleCluster->cluster) {
-				if (sampleCluster->cluster->loaded) {
-					errorCode = "E343";
-				}
-				else {
-					errorCode = "E344";
-				}
+			Peak peak;
+			if (wholeCluster && sampleCluster->investigatedWholeLength) {
+				peak = Peak{static_cast<int32_t>(sampleCluster->minValue) << 24,
+				            static_cast<int32_t>(sampleCluster->maxValue) << 24};
 			}
 			else {
-				errorCode = "E341"; // Qui got this, around V3.1.3! And Steven G, 3.1.5. And Brawny, V4.0.1-RC! And then
-				                    // Malte P.
-			}
-
-			Cluster* cluster = sampleCluster->getCluster(sample, clusterIndexToDo, load_instruction);
-			if (!cluster) {
-				D_PRINTLN("cant read");
-				retry_later(col);
-				continue;
-			}
-
-			// Enqueued rather than loaded
-			if (!cluster->loaded) {
-				holdUntilLoaded(sample, cluster);
-				retry_later(col);
-				continue;
-			}
-
-			if (cluster->numReasonsToBeLoaded <= 0) {
-				// Branko V got this. Trying to catch E340 below, which Ron R got while recording
-				FREEZE_WITH_ERROR(errorCode);
-			}
-
-			uint32_t numBytesToRead = endByteWithinCluster - startByteWithinCluster;
-
-			// Make the end-byte earlier, so we won't read past the end of the Cluster boundary
-			int32_t overshoot = numBytesToRead % (sample->numChannels * sample->byteDepth);
-			endByteWithinCluster -= overshoot;
-
-			// However, if that's reduced us to 0 bytes to read, we know we're gonna have to load in the next Cluster to
-			// get its sample that's on the boundary
-			Cluster* nextCluster = nullptr;
-			if (endByteWithinCluster <= startByteWithinCluster && clusterIndexToDo < endClusters - 1) {
-				endByteWithinCluster += overshoot;
-				SampleCluster* nextSampleCluster = sample->clusters.getElement(clusterIndexToDo + 1);
-				if ((nextSampleCluster->cluster != nullptr) && nextSampleCluster->cluster->numReasonsToBeLoaded < 0) {
-					FREEZE_WITH_ERROR("E450"); // Trying to catch errer before i028, which users have gotten.
-				}
-				nextCluster = nextSampleCluster->getCluster(sample, clusterIndexToDo + 1, load_instruction);
-
-				if (cluster->numReasonsToBeLoaded <= 0) {
-					FREEZE_WITH_ERROR("E342"); // Trying to catch E340 below, which Ron R got while recording
+				char const* errorCode = "E341";
+				if (sampleCluster->cluster != nullptr) {
+					errorCode = sampleCluster->cluster->loaded ? "E343" : "E344";
 				}
 
-				if (nextCluster == nullptr) {
-					audioFileManager.removeReasonFromCluster(*cluster, "po8w");
+				Cluster* cluster = sampleCluster->getCluster(sample, clusterIndex, load_instruction);
+				if (cluster == nullptr) {
 					D_PRINTLN("cant read");
 					retry_later(col);
-					continue;
+					loadFailed = true;
+					break;
 				}
-
-				if (!nextCluster->loaded) {
-					holdUntilLoaded(sample, nextCluster);
-					audioFileManager.removeReasonFromCluster(*cluster, "4460");
+				if (!cluster->loaded) {
+					holdUntilLoaded(sample, cluster);
 					retry_later(col);
-					continue;
+					loadFailed = true;
+					break;
+				}
+				if (cluster->numReasonsToBeLoaded <= 0) {
+					FREEZE_WITH_ERROR(errorCode);
 				}
 
-				// This entire block doesn't seem to actually do anything relevant - did I leave something out?
-				// Shouldn't it have moved startByteWithinCluster etc into nextCluster? Rohan
+				peak = scanPeak(cluster->data, static_cast<int32_t>(readStart - thisClusterStart),
+				                static_cast<int32_t>(readEnd - thisClusterStart), sample->byteDepth);
+				if (wholeCluster) {
+					int32_t prevMin = static_cast<int32_t>(sampleCluster->minValue) << 24;
+					int32_t prevMax = static_cast<int32_t>(sampleCluster->maxValue) << 24;
+					peak.min = std::min(peak.min, prevMin);
+					peak.max = std::max(peak.max, prevMax);
+					sampleCluster->minValue = coarsePeak(peak.min);
+					sampleCluster->maxValue = coarsePeak(peak.max);
+					sampleCluster->investigatedWholeLength = true;
+				}
+				else {
+					sampleCluster->minValue = std::min(sampleCluster->minValue, coarsePeak(peak.min));
+					sampleCluster->maxValue = std::max(sampleCluster->maxValue, coarsePeak(peak.max));
+				}
+
+				audioFileManager.removeReasonFromCluster(*cluster, "E340"); // Ron R got this, when error was "iiuh"
+				AudioEngine::routineWithClusterLoading();
 			}
 
-			numBytesToRead = endByteWithinCluster - startByteWithinCluster;
-
-			// If, after all boundary handling, there are still no whole frames to read (e.g. audio ends very
-			// early in the final cluster, so the next-cluster fallback above doesn't apply), this column has no
-			// valid data. Mark it as having nothing to draw rather than scanning an empty window and caching an
-			// inverted sentinel (min > max), which would render as a spurious bright column.
-			if (endByteWithinCluster <= startByteWithinCluster) {
-				data->colStatus[col] = ColumnStatus::BEYOND_WAVEFORM;
-				audioFileManager.removeReasonFromCluster(*cluster, "4460");
-				if (nextCluster != nullptr) {
-					audioFileManager.removeReasonFromCluster(*nextCluster, "4460");
-				}
-				continue;
+			if (peak.min <= peak.max) {
+				minThisCol = std::min(minThisCol, peak.min);
+				maxThisCol = std::max(maxThisCol, peak.max);
+				hadSamples = true;
 			}
-
-			// NOTE: from here on, we read *both* channels (if there are two), counting each one as a "sample"
-			Peak peak = scanPeak(cluster->data, startByteWithinCluster, endByteWithinCluster, sample->byteDepth,
-			                     sample->numChannels);
-			int32_t minThisCol = peak.min;
-			int32_t maxThisCol = peak.max;
-
-			// If we just looked at the length of one entire cluster...
-			if (investigatingAWholeCluster) {
-
-				// See if we want to include any previously captured maximums and minimums, which might have looked at
-				// slightly different values
-				int32_t prevMin = (int32_t)sampleCluster->minValue << 24;
-				int32_t prevMax = (int32_t)sampleCluster->maxValue << 24;
-
-				if (prevMin < minThisCol) {
-					minThisCol = prevMin;
-				}
-				if (prevMax > maxThisCol) {
-					maxThisCol = prevMax;
-				}
-
-				// And mark the SampleCluster as fully investigated (rounding toward 0)
-				sampleCluster->minValue = coarsePeak(minThisCol);
-				sampleCluster->maxValue = coarsePeak(maxThisCol);
-				sampleCluster->investigatedWholeLength = true;
-			}
-
-			// Or, if we only looked at a smaller part of a cluster...
-			else {
-
-				// Then just contribute to the running record of max and min found
-				int8_t smallMin = coarsePeak(minThisCol);
-				int8_t smallMax = coarsePeak(maxThisCol);
-
-				if (smallMin < sampleCluster->minValue) {
-					sampleCluster->minValue = smallMin;
-				}
-				if (smallMax > sampleCluster->maxValue) {
-					sampleCluster->maxValue = smallMax;
-				}
-			}
-
-			data->maxPerCol[col] = maxThisCol;
-			data->minPerCol[col] = minThisCol;
-
-			audioFileManager.removeReasonFromCluster(*cluster, "E340"); // Ron R got this, when error was "iiuh"
-			if (nextCluster != nullptr) {
-				audioFileManager.removeReasonFromCluster(*nextCluster, "9700");
-			}
-			AudioEngine::routineWithClusterLoading();
 		}
+
+		if (loadFailed) {
+			continue;
+		}
+		if (!hadSamples) {
+			data->colStatus[col] = ColumnStatus::BEYOND_WAVEFORM;
+			continue;
+		}
+		data->maxPerCol[col] = maxThisCol;
+		data->minPerCol[col] = minThisCol;
 	}
 
 	if (recorder != nullptr) {

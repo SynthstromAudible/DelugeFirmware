@@ -19,35 +19,110 @@
 #include "gui/waveform/waveform_render_data.h"
 
 #include <algorithm>
+#include <argon.hpp>
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 
 namespace deluge::gui::waveform {
 
-Peak scanPeak(const char* data, int32_t start, int32_t end, int32_t byte_depth, int32_t num_channels) {
-	int32_t num_samples = (end - start) / byte_depth;
-	int32_t stride = byte_depth;
+namespace {
 
-	// Don't read endless samples: if there are lots, skip some
-	int32_t skip = ((num_samples - 1) >> kMaxScanSamplesLog2) + 1;
-	if (skip > 1) {
-		// An odd stride alternates between the two channels, so both get read
-		if (num_channels == 2 && (skip & 1) == 0) {
-			skip++;
+/// Running min/max of samples' top 16 bits
+struct Range {
+	int16_t min = std::numeric_limits<int16_t>::max();
+	int16_t max = std::numeric_limits<int16_t>::min();
+
+	void add(int16_t value) {
+		min = std::min(min, value);
+		max = std::max(max, value);
+	}
+	void add(Argon<int16_t> min_lanes, Argon<int16_t> max_lanes) {
+		add(min_lanes.ReduceMin());
+		add(max_lanes.ReduceMax());
+	}
+};
+
+/// The top 16 bits of one sample. For 2-4 byte samples, those are its last two bytes.
+int16_t top16(const char* sample, int32_t byte_depth) {
+	if (byte_depth == 1) {
+		return static_cast<int16_t>(static_cast<int8_t>(*sample) * 256);
+	}
+	int16_t value;
+	std::memcpy(&value, sample + byte_depth - 2, sizeof(value));
+	return value;
+}
+
+/// Vector part of the scan: as many whole vectors' worth of samples as fit in @p num_samples.
+/// @returns How many samples it covered.
+int32_t scanVectors(const char* data, int32_t num_samples, int32_t byte_depth, Range& range) {
+	Argon<int16_t> min_lanes{std::numeric_limits<int16_t>::max()};
+	Argon<int16_t> max_lanes{std::numeric_limits<int16_t>::min()};
+	auto add = [&](Argon<int16_t> values) {
+		min_lanes = min_lanes.Min(values);
+		max_lanes = max_lanes.Max(values);
+	};
+
+	int32_t done = 0;
+	switch (byte_depth) {
+	case 1: { // 16 samples per vector, widened to their top 16 bits
+		auto* bytes = reinterpret_cast<const int8_t*>(data);
+		for (; done + 16 <= num_samples; done += 16) {
+			auto samples = Argon<int8_t>::Load(bytes + done);
+			add(samples.GetLow().ShiftLeftLong<8>());
+			add(samples.GetHigh().ShiftLeftLong<8>());
 		}
-		stride *= skip;
+		break;
+	}
+	case 2: { // 8 samples per vector
+		auto* samples = reinterpret_cast<const int16_t*>(data);
+		for (; done + 8 <= num_samples; done += 8) {
+			add(Argon<int16_t>::Load(samples + done));
+		}
+		break;
+	}
+	case 3: { // 16 samples per vector: split the bytes apart, then pair each sample's top two back up
+		auto* bytes = reinterpret_cast<const uint8_t*>(data);
+		for (; done + 16 <= num_samples; done += 16) {
+			auto planes = Argon<uint8_t>::LoadInterleaved<3>(bytes + (done * 3));
+			auto [low, high] = planes[1].ZipWith(planes[2]);
+			add(low.As<int16_t>());
+			add(high.As<int16_t>());
+		}
+		break;
+	}
+	case 4: { // 8 samples per vector: the odd int16s are their top halves
+		auto* halves = reinterpret_cast<const int16_t*>(data);
+		for (; done + 8 <= num_samples; done += 8) {
+			add(Argon<int16_t>::LoadInterleaved<2>(halves + (done * 2))[1]);
+		}
+		break;
+	}
+	default:
+		break;
 	}
 
-	// Offset so each 32-bit read lands on the sample's most significant bytes
-	int32_t offset = byte_depth - 4;
-
-	Peak peak{std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::min()};
-	for (int32_t pos = start + offset; pos < end + offset; pos += stride) {
-		int32_t value = *reinterpret_cast<const int32_t*>(&data[pos]);
-		peak.min = std::min(peak.min, value);
-		peak.max = std::max(peak.max, value);
+	if (done > 0) {
+		range.add(min_lanes, max_lanes);
 	}
-	return peak;
+	return done;
+}
+
+} // namespace
+
+Peak scanPeak(const char* data, int32_t start, int32_t end, int32_t byte_depth) {
+	int32_t num_samples = (end - start) / byte_depth;
+	if (num_samples <= 0) {
+		return Peak{std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::min()};
+	}
+
+	const char* samples = data + start;
+	Range range;
+	int32_t done = scanVectors(samples, num_samples, byte_depth, range);
+	for (int32_t i = done; i < num_samples; i++) {
+		range.add(top16(samples + (i * byte_depth), byte_depth));
+	}
+	return Peak{static_cast<int32_t>(range.min) << 16, static_cast<int32_t>(range.max) << 16};
 }
 
 int8_t coarsePeak(int32_t value) {
