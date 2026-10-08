@@ -47,6 +47,8 @@ describe one_pole_spec("OnePole", ${
 			expect(pole.lowPass(ramp(i), kMoveability)).to_equal(expected[i]);
 		}
 		expect(pole.memory()).to_equal(805326848);
+		expect(pole.feedbackOutput(kMoveability)).to_equal(402663424);
+		expect(pole.feedbackOutputUnshifted(kMoveability)).to_equal(100665856);
 	});
 	it("all-passes a ramp exactly", _ {
 		constexpr std::array<int32_t, 16> expected{
@@ -56,18 +58,6 @@ describe one_pole_spec("OnePole", ${
 		for (int32_t i = 0; i < 16; i++) {
 			expect(pole.allPass(ramp(i), kMoveability)).to_equal(expected[i]);
 		}
-		expect(pole.memory()).to_equal(805326848);
-	});
-	it("feeds back its memory after being affected", _ {
-		constexpr std::array<int32_t, 16> expected{
-		    -268435456, -369098752, -385875968, -360710144, -314572800, -257949696, -196083712, -131596288,
-		    -65798144, 655360, 67436544, 134381568, 201408512, 268476416, 335564800, 402663424};
-		OnePole pole;
-		for (int32_t i = 0; i < 16; i++) {
-			pole.affect(ramp(i), kMoveability);
-			expect(pole.feedbackOutput(kMoveability)).to_equal(expected[i]);
-		}
-		expect(pole.feedbackOutputUnshifted(kMoveability)).to_equal(100665856);
 		expect(pole.memory()).to_equal(805326848);
 	});
 	it("starts silent and resets to silence", _ {

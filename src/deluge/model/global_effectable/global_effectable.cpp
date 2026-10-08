@@ -34,12 +34,12 @@
 #include "model/project_bridge/param_serialization.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "model/voice/filter_scratch.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/render_scratch.h"
 #include "storage/storage_manager.h"
 #include "util/comparison.h"
 #include "util/etl_string.h"
@@ -785,7 +785,7 @@ void GlobalEffectable::configureFilter(int32_t* postFXVolume, ParamManager* para
 }
 
 [[gnu::hot]] void GlobalEffectable::processFilter(std::span<StereoSample> buffer) {
-	filter_.process(buffer, deluge::voice::filter_scratch());
+	filter_.process(buffer, deluge::render::filter_scratch());
 }
 
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {

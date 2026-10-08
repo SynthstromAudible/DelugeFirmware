@@ -31,9 +31,13 @@ namespace deluge::effects {
 class Sidechain {
 public:
 	/// @brief The attack param's minimum (attackRateTable[0] << 2): a hit at it skips the attack.
+	///
+	/// An attack rate in position steps per sample on the envelope's 2^23 stage scale.
 	static constexpr int32_t kInstantAttack = 262144 << 2;
 
-	/// @return @p state's rates at @p time_per_tick_inverse (the playback handler's, 32.0 ticks inverse).
+	/// @return @p state's rates at @p time_per_tick_inverse.
+	/// @param time_per_tick_inverse The playback handler's getTimePerInternalTickInverse(): 2^31 ÷ (1.5 × the samples
+	/// per internal tick), so internal ticks per sample at Q31, divided by 1.5.
 	///
 	/// Unsynced, the attack and release are the state's own. Synced, each is scaled by the tick inverse and shifted by
 	/// the sync level: the attack by 7 less the level's index (a left shift at the 1/128 and 1/256 levels), the

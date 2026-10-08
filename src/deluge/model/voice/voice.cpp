@@ -34,13 +34,13 @@
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/song/song.h"
-#include "model/voice/filter_scratch.h"
 #include "model/voice/source_component_render.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/render_scratch.h"
 #include "processing/sound/sound.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
@@ -61,7 +61,7 @@ using namespace deluge;
 using deluge::dsp::fixed::getDecay4;
 namespace params = deluge::modulation::params;
 
-PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[4][SSI_TX_BUFFER_NUM_SAMPLES]
+PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[deluge::render::kSpareRenderingRows][SSI_TX_BUFFER_NUM_SAMPLES]
     __attribute__((aligned(CACHE_LINE_SIZE)));
 
 using namespace deluge::voice;
@@ -1212,7 +1212,7 @@ skipAutoRelease: {}
 			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, params.paramFinalValues[params::LOCAL_FOLD]);
 		}
 		// Filters
-		filterSet.renderStereo({oscBuffer, oscBufferEnd}, deluge::voice::filter_scratch());
+		filterSet.renderStereo({oscBuffer, oscBufferEnd}, deluge::render::filter_scratch());
 
 		// No clipping
 		if (!cfg.clippingAmount) {
@@ -1297,7 +1297,7 @@ skipAutoRelease: {}
 			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, foldAmount);
 		}
 
-		filterSet.renderMono({oscBuffer, oscBufferEnd}, deluge::voice::filter_scratch());
+		filterSet.renderMono({oscBuffer, oscBufferEnd}, deluge::render::filter_scratch());
 
 		// No clipping
 		if (!cfg.clippingAmount) {

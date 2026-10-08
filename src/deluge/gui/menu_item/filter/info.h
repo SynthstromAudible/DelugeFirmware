@@ -88,14 +88,14 @@ public:
 	[[nodiscard]] std::string_view getMorphNameOr(std::string_view alt, bool shortName = false) const {
 		if (type == FilterParamType::MORPH) {
 			using enum l10n::String;
-			auto filt = dsp::filter::SpecificFilter(getMode());
+			auto filt = model::filter::SpecificFilter(getMode());
 			return l10n::getView(filt.getMorphName(shortName));
 		}
 		return alt;
 	}
 	[[nodiscard]] bool isMorphable() const {
-		auto filter = dsp::filter::SpecificFilter(getMode());
-		return filter.getFamily() == dsp::filter::FilterFamily::SVF;
+		auto filter = model::filter::SpecificFilter(getMode());
+		return filter.getFamily() == model::filter::FilterFamily::SVF;
 	}
 
 	bool isOn() const { return getMode() != ::FilterMode::OFF; }

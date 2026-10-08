@@ -64,9 +64,10 @@ no upward control coupling. The only thing standing between that and a literal `
 (`dsp-next/fixed/filter/`, mapped from the effects' mode and route words in `engines/effects/filter_slots.h`), so
 `voice.{h,cpp}` now reach legacy `dsp/` only through `dsp/dx/engine.h`, `dsp/timestretch/time_stretcher.h`,
 `dsp/util.hpp` and `dsp/oscillators/oscillator.h`. None of these is a coupling to *sever* — they are clean DSP the
-voice legitimately uses. They stay under `dsp/` until each is rewritten into `dsp-next`. So forcing the relocation now would mean either a **large idiomatic rewrite of those DSP subsystems into `dsp-next`** (the right
-long-term move, but a big separate effort) or **allowlisting legacy `dsp/` inside the library** (which defeats the
-boundary's purpose).
+voice legitimately uses. They stay under `dsp/` until each is rewritten into `dsp-next`. So forcing the relocation
+now would mean either a **large idiomatic rewrite of those DSP subsystems into `dsp-next`** (the right long-term
+move, but a big separate effort) or **allowlisting legacy `dsp/` inside the library** (which defeats the boundary's
+purpose).
 
 **Decision: stop the lift here.** Treat the dx/timestretch/util/oscillators → `dsp-next` migration as its own track (where
 the oscillators, interpolator, wavetable, and timestretch-crossfade helpers already went). When the voice's DSP

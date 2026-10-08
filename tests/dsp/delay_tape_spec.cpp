@@ -21,6 +21,9 @@
 // from a saved head, write back from it), and the stutterer recording then playing forward, backward and ping-pong,
 // native and resampled. A fresh tape's storage holds a known fill, so the samples the tape clears are pinned too.
 // Long runs are pinned by a 64-bit FNV-1a digest of every word, with their opening samples spelled out.
+//
+// The stutter mirror below follows Stutterer::processStutter (src/deluge/model/fx/stutterer.cpp) call for call; a
+// change to that function's use of its tape is a change to this mirror.
 
 #include "dsp-next/fixed/delay/delay_tape.h"
 

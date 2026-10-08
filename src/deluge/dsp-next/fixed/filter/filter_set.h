@@ -51,7 +51,13 @@ public:
 	/// @param gain The volume going into the set, Q31. The low-pass compensates it, the set scales it, and the
 	/// high-pass compensates the result.
 	/// @param low The low-pass's settings.
+	/// @param low_slot What the low-pass slot runs: a ladder mode, an SVF mode, or OFF. A change of family resets the
+	/// slot's filter; a change from OFF fades it in from dry.
 	/// @param high The high-pass's settings.
+	/// @param high_slot What the high-pass slot runs: the ladder, an SVF mode, or OFF. Any change of mode resets the
+	/// slot's filter; a change from OFF fades it in from dry.
+	/// @param route The order the two filters run in, or PARALLEL to run each over its own copy of the block and sum
+	/// the two.
 	/// @return The gain going out of the set (Q31): compensated for each filter that is on, and scaled so that at 50%
 	/// resonance the level is unchanged.
 	[[nodiscard]] q31 configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot, const FilterConfig& high,

@@ -3,7 +3,7 @@
 #include "mem_functions.h"
 
 // converts lpf/hpf mode to string for saving
-namespace deluge::dsp::filter {
+namespace deluge::model::filter {
 
 l10n::String SpecificFilter::getMorphName(bool shortName) const {
 	switch (family) {
@@ -18,7 +18,7 @@ l10n::String SpecificFilter::getMorphName(bool shortName) const {
 	}
 }
 
-} // namespace deluge::dsp::filter
+} // namespace deluge::model::filter
 
 char const* filterRouteToString(FilterRoute route) {
 	return deluge::effects::to_string(route).data(); // a view of a string literal

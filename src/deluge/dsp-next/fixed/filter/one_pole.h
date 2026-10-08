@@ -50,13 +50,6 @@ public:
 		return (output * 2) - input;
 	}
 
-	/// @brief Advances the memory by one sample without an output: the memory moves by twice the
-	/// low-pass's step.
-	/// @param moveability tan(f)/(1+tan(f)), Q31.
-	[[gnu::always_inline]] void affect(q31 input, q31 moveability) {
-		memory_ += multiply_32x32_rshift32_rounded(input - memory_, moveability) << 2;
-	}
-
 	/// @brief The memory scaled for a ladder's feedback: memory × @p feedback_amount (Q31) × 2.
 	[[nodiscard, gnu::always_inline]] q31 feedbackOutput(q31 feedback_amount) const {
 		return multiply_32x32_rshift32_rounded(memory_, feedback_amount) << 2;

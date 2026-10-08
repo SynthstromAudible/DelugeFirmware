@@ -47,7 +47,7 @@ char const* filterRouteToString(FilterRoute route);
 char const* lpfTypeToString(FilterMode lpfType);
 FilterMode stringToLPFType(char const* string);
 
-namespace deluge::dsp::filter {
+namespace deluge::model::filter {
 
 enum class FilterFamily { LP_LADDER, SVF, HP_LADDER, NONE };
 constexpr uint8_t kNumFamilies = 3;
@@ -127,4 +127,4 @@ private:
 	specificFilterType type;
 };
 
-} // namespace deluge::dsp::filter
+} // namespace deluge::model::filter

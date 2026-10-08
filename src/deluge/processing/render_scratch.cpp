@@ -21,17 +21,36 @@
 #include "dsp/stereo_sample.h"
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
+
+extern int32_t spareRenderingBuffer[deluge::render::kSpareRenderingRows][SSI_TX_BUFFER_NUM_SAMPLES];
 
 namespace deluge::render {
 
 namespace {
 
+/// Two samples per frame, for a stereo block.
+constexpr std::size_t kFilterScratchSamples = SSI_TX_BUFFER_NUM_SAMPLES * 2;
+
+std::array<dsp::q31, kFilterScratchSamples> filter_fade{};
+std::array<dsp::q31, kFilterScratchSamples> filter_parallel{};
+
 std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> compressor_dry;
 
 } // namespace
 
+dsp::fixed::FilterScratch filter_scratch() {
+	return {.fade = filter_fade, .parallel = filter_parallel};
+}
+
 dsp::fixed::CompressorScratch compressor_scratch() {
 	return compressor_dry;
+}
+
+std::span<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> delay_scratch() {
+	return std::span<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES>{reinterpret_cast<StereoSample*>(spareRenderingBuffer[0]),
+	                                                          SSI_TX_BUFFER_NUM_SAMPLES};
 }
 
 } // namespace deluge::render

@@ -27,7 +27,9 @@ namespace deluge::dsp::fixed {
 /// @brief The envelope's rates for one block, as the owner resolved them (tempo-synced or not): position steps per
 /// sample on a 2^23 stage.
 struct SidechainRates {
+	/// The attack stage's rate: position steps per sample on its 2^23 scale.
 	int32_t attack;
+	/// The release stage's rate: position steps per sample on its 2^23 scale.
 	int32_t release;
 	bool instant_attack; ///< the attack is at its minimum: a hit jumps straight to release
 };

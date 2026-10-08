@@ -69,8 +69,8 @@ public:
 
 	/// @return The tape size for a delay at @p rate, and whether it was clamped to [kMinSize, kMaxSize].
 	///
-	/// The size is kNeutralSize * 16777216 / @p rate, truncated to 32 bits before it is clamped (so a rate under 128
-	/// can wrap to a size of 0 or a negative one, which clamps to kMinSize or kMaxSize).
+	/// The size is kNeutralSize * 16777216 / @p rate, truncated to 32 bits before it is clamped (so a rate of 128 or
+	/// less can wrap to a size of 0 or a negative one, which clamps to kMinSize or kMaxSize).
 	[[nodiscard]] static std::pair<int32_t, bool> idealSizeForRate(uint32_t rate);
 
 	/// @return Whether the tape has storage.
@@ -170,7 +170,7 @@ public:
 	void writeNative(StereoSample sample) { *writePosition(0) = sample; }
 
 	/// @brief Writes @p sample (Q31) at @p write_pos, then moves @p write_pos on, wrapping at the storage's end.
-	void writeNativeAndMoveOn(StereoSample sample, StereoSample*& write_pos) const {
+	void writeNativeAndMoveOn(StereoSample sample, StereoSample*& write_pos) {
 		*write_pos = sample;
 		++write_pos;
 		if (write_pos == end_) {

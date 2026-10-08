@@ -73,8 +73,8 @@ const std::vector<int32_t> kTwoSine{
     -124188422, 893972424,  -125662720,  921828884,  -112518658,  931735302,  -84604065,   923902217,  -42278074,
     899055246,  13598197,   858410232,   81686994};
 
-/// Sample @p n of two sines at 440 Hz and 1250 Hz (44.1 kHz), each 2^29 at its peak: integer resonators, so every
-/// platform makes the same block.
+/// Two sines at 440 Hz and 1250 Hz (44.1 kHz), each 2^29 at its peak, one sample per next(): the left channel their
+/// sum, the right their difference. Integer resonators, so every platform makes the same block.
 class TwoSines {
 public:
 	StereoSample next() {
