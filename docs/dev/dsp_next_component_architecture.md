@@ -62,7 +62,8 @@ Each family has a block concept, a per-sample concept, and the composite of the 
 and two more:
 - **`control_generator`**: `advance(std::size_t n) -> value_type` returns the
   value after `n` samples. It is for block-rate control signals, whose
-  arithmetic is per block, so it has no per-sample `render`.
+  arithmetic is per block, so it has no per-sample `render`. `Control<K>`
+  ([Wrappers](#controlk-corecontrolh)) satisfies it.
 
   `advance(n)` is reserved for these block-rate sources. A source whose
   arithmetic is per sample exposes `render()`. The one exception is
@@ -169,7 +170,7 @@ data and runs in no loop of its own: the wrappers ([Mono and Stereo](#wrappers))
 are the only loops, and they own the `Coefficients` and `State`. Every new
 component, and every stateful piece of one, is written as a kernel and wrapped:
 per-sample or per-vector arithmetic as a `step`, block-staged arithmetic as a
-`process`. This is a documented pattern checked by the `kernel` concepts, not a
+`process`, a block-rate signal as an `advance`. This is a documented pattern checked by the `kernel` concepts, not a
 base class.
 
 ### The parts
@@ -221,7 +222,7 @@ accepted, and a `prepare` taking any other type is rejected, never converted. `n
 The wrapper runs `prepare` on the wrapper's own state, before it takes the
 local copies the loop runs on, so the loop's state stays in registers.
 
-### The four forms
+### The five forms
 
 A kernel takes exactly one form; a class providing two satisfies none.
 
@@ -231,6 +232,7 @@ A kernel takes exactly one form; a class providing two satisfies none.
 | Processor | `processor_kernel` | `step(c, b, s, x) -> step_type` |
 | Mixer | `mixer_kernel` | `step(c, b, s, a, b2) -> step_type` |
 | Staged | `staged_kernel` | `process(c, s, Signal in, Buffer out)` |
+| Control | `control_kernel` | `advance(c, s, n) -> value_type` |
 
 `c` is the `Coefficients`, `b` the `Block` and `s` the `State`. **`process` is
 for block-staged arithmetic only**: arithmetic that reads a whole block, shapes
@@ -249,6 +251,44 @@ needs before overwriting it.
 A moded kernel's `step` or `process` is checked at the first mode of its
 `Modes` only; a step ill-formed at another mode is reported where the wrapper
 instantiates it.
+
+### The control form
+
+A **control kernel** is a block-rate signal: an envelope or a duck that the
+owner reads once per block and applies as one value. Its arithmetic is per
+block, so the block is its step.
+
+```cpp
+static value_type advance(const Coefficients&, State&, std::size_t n);
+```
+
+- **`advance` moves the signal on by a whole block** of `n` samples and returns
+  its value after the block. `n` may be 0: an empty block still makes one call.
+- **No `prepare`, no `Block`.** The per-block work is `advance` itself, so a
+  control kernel that declares a `prepare` or a `Block` fails the concept.
+- **A scalar step.** `step_type` is `value_type`, and there is no
+  `kPartialStepAdvancesByCount`, having no vector to end partially.
+- **Moded `advance`.** A moded control kernel's `advance` is a template on the
+  mode, `template <Mode M> static value_type advance(...)`, with that signature
+  at every listed mode. All modes share one `State`.
+- **The signature is exact.** `advance` is matched like `prepare` and `reset`:
+  its address is converted to a pointer to that function type, so a function
+  template whose parameters deduce to exactly that type is accepted, and an
+  `advance` taking its count as any other type (an `int`, or a `uint32_t` where
+  that is not `std::size_t`) is rejected, never converted.
+- **Events are static functions on `State`.** What happens between blocks (a
+  hit, a stop) is a static function of the kernel, run on the wrapper's state
+  through `Control::on` (see [`Control<K>`](#controlk-corecontrolh)).
+- **A zero rate is a stage that never ends.** A kernel whose stages advance by
+  a rate treats a zero rate as a stage that never ends, with no division by it.
+  Only a kernel never configured has one.
+
+`fixed::DuckEnvelope` (`fixed/dynamics/duck_envelope.h`) is the reference control
+kernel: the sidechain's duck, with `advance`, the events `hit`, `hit_at` and
+`stop`, and its quirks named where they are carried. Two hits arriving before a
+block combine by `combine_hit_strengths`, which `fixed/dynamics/hit_strength.h`
+holds as the one home of that rule. The header is free of the kernel core, so a
+caller that only combines hits needs no argon.
 
 ### Modes
 
@@ -341,7 +381,8 @@ with `n` equal to the lane count; a counted kernel must be correct for that.
 `Mono<K>` is a kernel as a mono component: one `Coefficients`, one `State`. It
 is a generator, processor or mixer to match `K`'s step arity (`render` and
 `renderBlock`), and a `block_processor` only for a staged kernel. It is the only
-loop a kernel runs in.
+loop a kernel runs in. A control kernel is rejected at the class: it has no
+per-sample loop, so a `Mono` of one would be inert.
 
 - **Loop selection** is by `step_type`: an index loop over raw pointers for
   `step_type == value_type`; `argon::vectorize::for_each<q31>` for `Argon<q31>`;
@@ -388,8 +429,44 @@ loop a kernel runs in.
   depend on that channel's state), left first, then right, so a `prepare` that
   draws from a shared noise stream draws for left before right on every block.
   Then one mode dispatch covers the single loop over the frames.
-- It is constrained on `processor_kernel<K>` at the class, so a generator or
-  mixer kernel is a compile error, not an inert class.
+- It is constrained on `processor_kernel<K>` at the class, so a generator,
+  mixer or control kernel is a compile error, not an inert class. A kernel has
+  one form, so the constraint needs no clause for control kernels.
+
+### `Control<K>` (`core/control.h`)
+
+`Control<K>` is a control kernel as a block-rate control signal: one
+`Coefficients`, one `State`, one `advance` per block. It satisfies
+`control_generator`. It has no loop and no local copies: the kernel's `advance`
+is the block.
+
+- **Configure every block.** `configure(settings)` computes the coefficients
+  from the owner's settings and leaves the state alone. It is cheap and meant to
+  be called before every block, so a knob or tempo change applies from the next
+  block's first sample while the signal's position carries over. `coefficients()`
+  and `state()` read back what the wrapper holds; `reset()` returns to `State{}`,
+  or to the kernel's `static void reset(State&)` quirk when it declares one.
+- **Advance once per block.** `advance(n)` makes one call to the kernel's
+  `advance`, dispatching a moded kernel's mode once through `with_mode`, and
+  returns the signal's value after the block. `n` may be 0.
+- **Events.** `on<&K::event>(args...)` runs one of the kernel's static
+  functions on the wrapper's own state and returns what it returns, a
+  reference included. The event is one of two shapes:
+  - `event(const Coefficients&, State&, args...)`, given the configured
+    coefficients;
+  - `event(State&, args...)`, given the state alone.
+
+  The first shape is tried first, so the coefficients are passed exactly when
+  the event takes them. The state is taken by non-const reference. An event
+  taking it by value would change a copy, and one taking it by const reference
+  could not change it, so both fail to compile rather than silently doing
+  nothing.
+- **Unconfigured.** A default-constructed `Control` holds `Coefficients{}`; it
+  can be advanced and used with events before any configure, and a kernel
+  defines what that does (`DuckEnvelope` returns no duck).
+- **Always inline.** Every member is `[[gnu::always_inline]]`, the
+  default constructor included, so nothing sits between the owner's block and the
+  kernel's arithmetic under `-fno-inline-functions`.
 
 ### The shared glue
 
@@ -594,6 +671,8 @@ gates:
 - Are constants and bit-exactness quirks named?
 - Are there callback sinks, raw-pointer heads, out-parameters, or globals other
   than `SharedNoise`?
+- Is a block-rate signal a control kernel, and are its events static functions
+  on State?
 - Is there a hand-written `renderBlock` (or a new mixin `render`) where a kernel
   belongs? Per-sample or per-vector arithmetic is a kernel's `step`, and
   block-staged arithmetic (the delay's tape I/O) a staged kernel's `process`,
