@@ -101,6 +101,9 @@ public:
 	/// @return The last block's gain reduction for the LEDs, 0 to 127 (6.2 fixed-point dB, quadrupled).
 	[[nodiscard]] uint8_t gainReduction() const { return gain_reduction_; }
 
+	/// @brief The LEDs show no gain reduction until the next block: for an owner that skips rendering.
+	void clearGainReduction() { gain_reduction_ = 0; }
+
 	/// @return The attack time in ms for a 3 dB change.
 	[[nodiscard]] float attackMs() const { return attack_ms_; }
 

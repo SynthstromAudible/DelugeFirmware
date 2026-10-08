@@ -17,7 +17,6 @@
 
 #include "gui/views/arranger_view.h"
 #include "definitions_cxx.hpp"
-#include "dsp/compressor/rms_feedback.h"
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/context_menu/audio_input_selector.h"

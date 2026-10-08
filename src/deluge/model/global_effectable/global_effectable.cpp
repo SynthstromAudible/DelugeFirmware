@@ -543,7 +543,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				deluge::edits::changeEffect(
 				    *this, "audioCompressor/ratio",
 				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
-				displayLevel = static_cast<int32_t>(RMSFeedbackCompressor::ratioOf(effects().compressor.ratio));
+				displayLevel = static_cast<int32_t>(deluge::dsp::fixed::compressor_ratio(effects().compressor.ratio));
 				unit = " : 1";
 				break;
 
@@ -557,7 +557,8 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				deluge::edits::changeEffect(
 				    *this, "audioCompressor/attack",
 				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
-				displayLevel = static_cast<int32_t>(RMSFeedbackCompressor::attackMsOf(effects().compressor.attack));
+				displayLevel =
+				    static_cast<int32_t>(deluge::dsp::fixed::compressor_attack_ms(effects().compressor.attack));
 				unit = " MS";
 				break;
 
@@ -571,7 +572,8 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				deluge::edits::changeEffect(
 				    *this, "audioCompressor/release",
 				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
-				displayLevel = static_cast<int32_t>(RMSFeedbackCompressor::releaseMsOf(effects().compressor.release));
+				displayLevel =
+				    static_cast<int32_t>(deluge::dsp::fixed::compressor_release_ms(effects().compressor.release));
 				unit = " MS";
 				break;
 
@@ -585,8 +587,8 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				deluge::edits::changeEffect(
 				    *this, "audioCompressor/compHPF",
 				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
-				displayLevel =
-				    static_cast<int32_t>(RMSFeedbackCompressor::sidechainHzOf(effects().compressor.sidechain_hpf));
+				displayLevel = static_cast<int32_t>(
+				    deluge::dsp::fixed::compressor_sidechain_hz(effects().compressor.sidechain_hpf));
 				unit = " HZ";
 				break;
 
@@ -599,7 +601,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				q31_t level = current == 64 ? ONE_Q31 : lshiftAndSaturate<24>(current + 64);
 				deluge::edits::changeEffect(*this, "audioCompressor/compBlend",
 				                            deluge::serialization::Value::makeNumber(level));
-				displayLevel = RMSFeedbackCompressor::blendPercentOf(level);
+				displayLevel = deluge::dsp::fixed::compressor_blend_percent(level);
 				unit = " %";
 				break;
 			}
@@ -899,7 +901,7 @@ void GlobalEffectable::readEffectsFromElement(const deluge::serialization::Value
 	// The runtime threshold is what a save before any render writes back: the file's, when it gives one.
 	if (const deluge::serialization::Value* settings = element.find("audioCompressor");
 	    settings != nullptr && settings->isMap() && settings->find("thresh") != nullptr) {
-		compressor.setThreshold(states.compressor.threshold);
+		compressor.dsp().setThreshold(states.compressor.threshold);
 	}
 	if (const deluge::serialization::Value* param = element.find("modFXCurrentParam"); param && param->isScalar()) {
 		currentModFXParam = stringToModFXParam(param->str().c_str());

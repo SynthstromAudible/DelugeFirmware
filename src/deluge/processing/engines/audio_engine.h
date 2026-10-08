@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/compressor/rms_feedback.h"
 #include "dsp/envelope_follower/absolute_value.h"
+#include "engines/effects/state.h"
 #include "memory/fast_allocator.h"
 #include "memory/object_pool.h"
 #include "model/output.h"
@@ -52,7 +52,6 @@ class SideChain;
 class VoiceVector;
 class Freeverb;
 class Metronome;
-class RMSFeedbackCompressor;
 class ModelStackWithSoundFlags;
 class SoundDrum;
 class Clip;
@@ -265,7 +264,6 @@ extern int32_t reverbSidechainShape;
 extern int32_t reverbPan;
 extern SampleRecorder* firstRecorder;
 extern Metronome metronome;
-extern RMSFeedbackCompressor mastercompressor;
 extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
 extern StereoFloatSample approxRMSLevel;

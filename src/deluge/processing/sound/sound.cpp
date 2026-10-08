@@ -57,6 +57,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/render_scratch.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
@@ -1537,7 +1538,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 		if (skippingStatusNow) {
 
 			// We wanna start, skipping, but if MOD fx are on...
-			if ((modControllableSnapshot_.effects.mod_fx.type != ModFXType::NONE) || compressor.threshold() > 0) {
+			if ((modControllableSnapshot_.effects.mod_fx.type != ModFXType::NONE) || compressor.dsp().threshold() > 0) {
 
 				// If we didn't start the wait-time yet, start it now
 				if (!startSkippingRenderingAtTime) {
@@ -1563,7 +1564,7 @@ doCutModFXTail:
 						waitSamplesModfx = (90 * 441);
 					}
 					int32_t waitSamples =
-					    std::max(waitSamplesModfx, static_cast<int32_t>(compressor.getReleaseMS() * 44));
+					    std::max(waitSamplesModfx, static_cast<int32_t>(compressor.dsp().releaseMs() * 44));
 					startSkippingRenderingAtTime = AudioEngine::audioSampleTimer + waitSamples;
 				}
 
@@ -1740,7 +1741,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
                    int32_t pitchAdjust, SampleRecorder* recorder) {
 
 	if (skippingRendering) {
-		compressor.gainReduction = 0;
+		compressor.dsp().clearGainReduction();
 		return;
 	}
 
@@ -2037,12 +2038,12 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	q31_t compThreshold = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
 	compressor.configure(modControllableSnapshot_.effects.compressor);
-	compressor.setThreshold(compThreshold); // a sound's threshold is its param
+	compressor.dsp().setThreshold(compThreshold); // a sound's threshold is its param
 	if (compThreshold > 0) {
-		compressor.renderVolNeutral(sound_stereo, postFXVolume);
+		compressor.dsp().renderVolumeNeutral(sound_stereo, postFXVolume, deluge::render::compressor_scratch());
 	}
 	else {
-		compressor.reset();
+		compressor.dsp().reset();
 	}
 
 	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
@@ -2889,7 +2890,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	}
 	effects.mod_fx.type = this->effects().mod_fx.type;
 	setEffects(effects);
-	compressor.setThreshold(effects.compressor.threshold); // what a save before any render writes back
+	compressor.dsp().setThreshold(effects.compressor.threshold); // what a save before any render writes back
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const deluge::instrument::SourceState& from = state.sources[s];

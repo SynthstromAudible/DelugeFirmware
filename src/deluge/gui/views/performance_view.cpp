@@ -17,7 +17,6 @@
 
 #include "gui/views/performance_view.h"
 #include "definitions_cxx.hpp"
-#include "dsp/compressor/rms_feedback.h"
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
 #include "gui/context_menu/clip_settings/launch_style.h"

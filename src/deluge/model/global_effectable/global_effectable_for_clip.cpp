@@ -25,6 +25,7 @@
 #include "model/action/action_logger.h"
 #include "model/edits/change_effect.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/render_scratch.h"
 #include <limits>
 #include <string.h>
 // #include <algorithm>
@@ -105,7 +106,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	compressor.configure(modControllableSnapshot_.effects.compressor);
 	const q31_t compThreshold = unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
-	compressor.setThreshold(compThreshold); // a clip chain's threshold is its param
+	compressor.dsp().setThreshold(compThreshold); // a clip chain's threshold is its param
 
 	alignas(CACHE_LINE_SIZE) StereoSample global_effectable_memory[SSI_TX_BUFFER_NUM_SAMPLES];
 	memset(global_effectable_memory, 0, sizeof(StereoSample) * output.size());
@@ -142,10 +143,11 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	                           pan, true);
 
 	if (compThreshold > 0) {
-		compressor.renderVolNeutral(global_effectable_audio, volumePostFX);
+		compressor.dsp().renderVolumeNeutral(global_effectable_audio, volumePostFX,
+		                                     deluge::render::compressor_scratch());
 	}
 	else {
-		compressor.reset();
+		compressor.dsp().reset();
 	}
 
 	// Add the global effectable data to the output

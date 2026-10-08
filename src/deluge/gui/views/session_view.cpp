@@ -17,7 +17,6 @@
 
 #include "gui/views/session_view.h"
 #include "definitions_cxx.hpp"
-#include "dsp/compressor/rms_feedback.h"
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
@@ -2301,7 +2300,7 @@ void SessionView::potentiallyUpdateCompressorLEDs() {
 		if (modKnobMode == 4 && editingComp) { // upper
 			counter = (counter + 1) % 5;
 			if (counter == 0) {
-				uint8_t gr = currentSong->live.global_effectable.compressor.gainReduction;
+				uint8_t gr = currentSong->live.global_effectable.compressor.dsp().gainReduction();
 
 				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
 			}

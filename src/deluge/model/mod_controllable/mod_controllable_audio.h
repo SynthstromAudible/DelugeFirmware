@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge/dsp/granular/GranularProcessor.h"
-#include "dsp/compressor/rms_feedback.h"
 #include "dsp/delay/delay.h"
 #include "dsp/stereo_sample.h"
 #include "hid/button.h"
@@ -36,6 +35,7 @@
 
 #include "engine-api/engine.h"
 #include "engines/effects/bitcrush.h"
+#include "engines/effects/compressor.h"
 #include "engines/effects/equalizer.h"
 #include "engines/effects/send_and_volume.h"
 #include "engines/effects/state.h"
@@ -69,7 +69,7 @@ public:
 	[[nodiscard]] static deluge::engine::CodecContext effectsCodecContext();
 	/// The compressor threshold a file saves: the one the render last applied, which for a sound or a clip chain is its
 	/// param's.
-	[[nodiscard]] virtual q31_t savedCompressorThreshold() const { return compressor.threshold(); }
+	[[nodiscard]] virtual q31_t savedCompressorThreshold() const { return compressor.dsp().threshold(); }
 
 	/// @brief This owner's effect settings: a bound sound's are its SoundState's, any other owner's its own.
 	[[nodiscard]] const deluge::effects::EffectStates& effects() const {
@@ -160,7 +160,7 @@ public:
 
 	// Mod FX
 	ModFXProcessor modfx{};
-	RMSFeedbackCompressor compressor;
+	deluge::effects::Compressor compressor;
 	GranularProcessor* grainFX{nullptr};
 
 	SideChain sidechain; // Song doesn't use this, despite extending this class
