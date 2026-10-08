@@ -21,8 +21,8 @@ moves code must not change a single output sample.
 
 A component is not a transcribed class. A legacy class moved field for field,
 with its verbs, callbacks and globals, is not a component, however bit-exact it
-is. The shape (the concepts, the mixins, the settings convention, injected noise)
-is what the review gates on.
+is. The shape (the concepts, kernels and their wrappers, the settings convention,
+injected noise) is what the review gates on.
 
 ## Layer 1: types (`core/sample.h`, `core/types.h`, `core/stereo_sample.h`)
 
@@ -80,6 +80,13 @@ is asserted against that. Vector-aware `sample_*` concepts are a follow-up.
 
 ### Mixins (`core/generator.h`, `core/processor.h`, `core/mixer.h`)
 
+**New components are kernels.** Every new component, and every component a
+rewrite moves, is written as a kernel and wrapped by `Mono` or `Stereo` (see
+[Kernels](#kernels-corekernelh-coremodeh)). The mixins described here remain for
+the existing oscillators and `Amplitude` until they move onto kernels (see
+[Remaining work](#remaining-work)); no new component uses them. The tail,
+in-place and inlining rules below bind the wrappers in the same way.
+
 `Generator<D, T>`, `Processor<D, T>` and `Mixer<D, T>` are **non-virtual CRTP
 mixins**: they add no vptr and no state. Each supplies `renderBlock` from the
 component's `render`. The component writes only `render`, `[[gnu::always_inline]]`,
@@ -124,16 +131,19 @@ or a mixer's `out` and either input, may be the same buffer. The app calls
 `renderBlock(in, out)` with `in` and `out` the same buffer; every path gives the
 same result in place as out of place.
 
-**Writing `renderBlock` directly.** A component writes `renderBlock` itself only
-when its arithmetic genuinely is not per sample: irregular sync windows
-(`SyncedOscillator`, `WavetableSyncOscillator`), wavetable cycle chunks
-(`WavetableOscillator`), and tape I/O staged per block (the delay). Such a
-component satisfies only the `block_*` concept and follows the same tail and
-in-place rules. Arithmetic that is per sample is a `render` under a mixin.
+**Writing `renderBlock` directly.** The existing components that write
+`renderBlock` themselves do so because their arithmetic is not per sample:
+irregular sync windows (`SyncedOscillator`, `WavetableSyncOscillator`) and
+wavetable cycle chunks (`WavetableOscillator`). Such a component satisfies only
+the `block_*` concept and follows the same tail and in-place rules. In new code,
+arithmetic that is per sample or per vector is a kernel's `step`, and
+arithmetic that reads a whole block, shapes it and writes it back (the delay's
+tape I/O) is a staged kernel's `process`; neither is a hand-written
+`renderBlock`.
 
 The crude oscillators and `CrudeAmplitude` are per-sample arithmetic that still
-carries hand-written block loops; giving them a scalar `render` is a follow-up,
-and they are not a precedent.
+carries hand-written block loops; they move onto kernels with the rest of the
+mixin components, and they are not a precedent.
 
 ### Runtime selection (`core/as_block.h`)
 
@@ -152,9 +162,10 @@ the oscillator registry is the first user of `AsBlock`.
 
 A **kernel** is a stateless type holding a component's arithmetic. It owns no
 data and runs in no loop of its own: the wrappers ([Mono and Stereo](#wrappers))
-are the only loops, and they own the `Coefficients` and `State`. A component
-that is a plain per-sample or per-vector computation is written as a kernel and
-wrapped; this is a documented pattern checked by the `kernel` concepts, not a
+are the only loops, and they own the `Coefficients` and `State`. Every new
+component, and every stateful piece of one, is written as a kernel and wrapped:
+per-sample or per-vector arithmetic as a `step`, block-staged arithmetic as a
+`process`. This is a documented pattern checked by the `kernel` concepts, not a
 base class.
 
 ### The parts
@@ -355,7 +366,9 @@ loop a kernel runs in.
 ### `Stereo<K>` (`core/stereo.h`)
 
 `Stereo<K>` runs a mono q31 processor kernel on both channels of a
-`StereoSample` block, itself a `Processor<Stereo<K>, StereoSample>`.
+`StereoSample` block. It is a plain class, not a mixin, that satisfies the
+`processor` concept with `value_type` `StereoSample`: it writes `render` and
+`renderBlock` itself.
 
 - **Shared coefficients.** `configure` calls `K::coefficients` once, and both
   channels step with the result.
@@ -392,17 +405,20 @@ its parts through the same functions.
   mutable one a `StereoBuffer`. A range that owns its storage must be an lvalue
   (or the range borrowed), since a view of a temporary would dangle.
 - **`Stereo<K>`** (`core/stereo.h`) runs a mono q31 processor kernel on each
-  channel: one `State` per channel and one shared `Coefficients`, itself a
-  `Processor<Stereo<K>, StereoSample>`. Each frame steps the left channel and
+  channel: one `State` per channel and one shared `Coefficients`. It is a plain
+  class satisfying the `processor` concept over `StereoSample`. Each frame steps
+  the left channel and
   then the right, so a shared noise stream is drawn left then right on every
   frame, bit-exact. `configure(const K::Settings&)` sets both channels from one
   `Settings`. See [Wrappers](#wrappers).
 - **Native stereo.** A component that is stereo by nature, such as the
-  compressor or the delay, is written directly over `StereoSample`.
-- **SIMD stereo.** A stereo component whose `render` takes and returns
-  `StereoVector` (one `Argon<q31>` per channel, lane `i` of each the same frame)
-  gets NEON's interleaved loads and stores from the mixins, so its arithmetic
-  runs on whole channel vectors with no shuffles.
+  compressor or the delay, is a kernel whose `value_type` is `StereoSample`,
+  wrapped by `Mono`.
+- **SIMD stereo.** A stereo kernel whose `step_type` is `StereoVector` (one
+  `Argon<q31>` per channel, lane `i` of each the same frame) gets NEON's
+  interleaved loads and stores from `Mono`'s loop, so its arithmetic runs on
+  whole channel vectors with no shuffles. The existing mixin components get the
+  same from the mixins when their `render` takes and returns `StereoVector`.
 
 ## Noise (`fixed/noise/`)
 
@@ -470,15 +486,6 @@ How lanes behave:
 NEON on the Cortex-A9 has a 64-bit datapath, so expect roughly 2× on
 lane-parallel filter arithmetic, not 4×.
 
-## Later steps
-
-`U` (the unroll factor of the wrappers' loops, with `split` and `merge`),
-`Chain` (fused kernel composition) and `Lanes` (lane-parallel kernels) are not
-implemented. They are steps 3, 4 and 5 of the Delivery list in
-[the kernel-form spec](../superpowers/specs/2026-10-08-dsp-next-kernel-form-design.md),
-and the kernel concepts here are what they build on. The device benchmark mode
-(step 2) comes first and supplies the `U` values.
-
 ## Layer 3: oscillator components
 
 Each oscillator is a **stateful generator** that owns its phase:
@@ -523,9 +530,9 @@ state fully into the engine is later work.
   `CrudeAmplitude` is the crude paths' VCA, a separate component because its
   arithmetic (`multiply_accumulate`, rounded) differs. Unifying the two is an
   audible, re-baselined step.
-- Mixing into the voice's buffer (unison and oscillator summing) is a `Mixer`.
-- Filters, dynamics, delay and effects follow the same component model, under
-  the settings convention and the slotting-ready rules.
+- Mixing into the voice's buffer (unison and oscillator summing) is a mixer.
+- Filters, dynamics, delay and effects are kernels wrapped by `Mono` or
+  `Stereo`, under the settings convention and the slotting-ready rules.
 
 ## Bit-exactness: how the synth's math maps in
 
@@ -543,6 +550,16 @@ state fully into the engine is later work.
 
 ## Remaining work
 
+- **The mixin→kernel move.** The oscillators and `Amplitude`, and the crude
+  oscillators and `CrudeAmplitude` with their hand-written loops, move onto
+  kernels wrapped by `Mono`. The `Generator`, `Processor` and `Mixer` mixins go
+  once nothing uses them.
+- **The rest of the kernel form.** Not implemented yet: `U` (the unroll factor
+  of the wrappers' loops; stateful vector kernels opt in with `split`/`merge`,
+  checked bit-exact against U = 1), `Chain` (fused composition of kernels with
+  matching step types; `Modes` is the product of the parts') and `Lanes<K, N>`
+  (lane-parallel recursive kernels, N = 4/8/12). `U` and `N` are chosen from
+  device cycle-per-sample measurements.
 - **The oscillator registry.** The `OscType` choice becomes a block-level
   registry composing generator, band selection, sync and `Amplitude` behind
   `AsBlock`.
@@ -572,9 +589,10 @@ gates:
 - Are constants and bit-exactness quirks named?
 - Are there callback sinks, raw-pointer heads, out-parameters, or globals other
   than `SharedNoise`?
-- Is there a hand-written `renderBlock` where the arithmetic is per sample? It
-  should be a `render` under a mixin (see
-  [Writing `renderBlock` directly](#mixins-coregeneratorh-coreprocessorh-coremixerh)).
+- Is there a hand-written `renderBlock` (or a new mixin `render`) where a kernel
+  belongs? Per-sample or per-vector arithmetic is a kernel's `step`, and
+  block-staged arithmetic (the delay's tape I/O) a staged kernel's `process`,
+  wrapped by `Mono` or `Stereo` (see [Kernels](#kernels-corekernelh-coremodeh)).
 - Are there public verbs beyond `render`, `renderBlock`, `configure`,
   `coefficients`, `reset` and `advance`, other than accessors?
 - Is there a per-sample branch on mode, where a per-block policy belongs?
@@ -597,7 +615,7 @@ gates:
 - Is there a structured binding over an Argon `std::array` on a per-step path?
   Under those flags `std::get` is out of line; read through
   `__builtin_bit_cast` or `data()`.
-- Is every function on the per-sample path, the mixin glue included,
+- Is every function on the per-sample path, the wrapper and mixin glue included,
   `[[gnu::always_inline]]`? The app's translation units build with
   `-fno-inline-functions`, so anything else is an out-of-line call per sample
   or per vector in the shipping image.
