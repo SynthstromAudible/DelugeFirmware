@@ -148,29 +148,187 @@ No component inherits a virtual interface. The synth's oscillator shapes
 (`src/deluge/synth/source/va_shapes.cpp`) instantiate components statically;
 the oscillator registry is the first user of `AsBlock`.
 
-## Settings, Coefficients, State
+## Kernels (`core/kernel.h`, `core/mode.h`)
 
-A stateful component has three parts:
-- **`Settings`**: a plain value type holding what its owner sets (knob values,
+A **kernel** is a stateless type holding a component's arithmetic. It owns no
+data and runs in no loop of its own: the wrappers ([Mono and Stereo](#wrappers))
+are the only loops, and they own the `Coefficients` and `State`. A component
+that is a plain per-sample or per-vector computation is written as a kernel and
+wrapped; this is a documented pattern checked by the `kernel` concepts, not a
+base class.
+
+### The parts
+
+- **`value_type`**: a block's sample (`q31` or `StereoSample`).
+- **`step_type`**: what `step` takes and returns. It is `value_type` for a
+  scalar kernel, `Argon<q31>` for a vector kernel over q31 blocks, and
+  `StereoVector` for a vector kernel over stereo frames.
+- **`Settings`**: a plain value type holding what the owner sets (knob values,
   mode, rate).
-- **`Coefficients coefficients(const Settings&)`**: a pure function, `constexpr`
-  where the arithmetic allows (float arithmetic does not). It is specced on its
-  own.
-- **`State`**: the running memory.
+- **`Coefficients`**: what the arithmetic reads, computed by the pure
+  `static Coefficients coefficients(const Settings&)` (`constexpr` where the
+  arithmetic allows; float arithmetic does not). It is specced on its own. A
+  value the owner needs back, such as a filter's gain compensation, is a field
+  of `Coefficients`, read through the wrapper's `coefficients()`; there are no
+  out-parameters.
+- **`State`**: the running memory. `State{}` is the reset state.
+- **`Block`** (optional): per-block values that depend on the coefficients and
+  the state, such as a ramp's start and increment. A kernel that declares a
+  `Block` must declare a `prepare`.
+- **`Mode`** and **`Modes`** (optional): `Modes` is a `ModeList<...>` of the
+  enumerators the kernel's `step` is instantiated for, and `Coefficients`
+  carries the chosen one in a `mode` member of that enumeration. A moded
+  kernel's `step` (or `process`) is a template on the mode. All modes share one
+  `State`.
 
-The verbs:
-- `configure(const Settings&)` stores `coefficients(settings)`.
-- `render` reads the coefficients and mutates only the state.
-- A value the owner needs back, such as a filter's gain compensation, is a field
-  of `Coefficients`, read through `coefficients()`. There are no out-parameters.
-- A mode that changes the per-sample arithmetic is a compile-time policy,
-  dispatched once per block. It is never a per-sample branch on settings.
-- `reset()` returns `State` to its value-initialised state, or to a seeded
-  state the component documents, and never touches `Coefficients`. A quirk the
-  arithmetic requires after a reset, such as a filter's post-reset sentinel
-  value, is named in the code and documented on `reset()`.
+`Coefficients`, `State` and `Block` are plain value structs:
+default-constructible and trivially copyable, with no pointers and no hidden
+members.
 
-This is a documented pattern, not a base class.
+### `coefficients()` and `prepare()`
+
+`coefficients(settings)` is pure and runs on `configure`, not per block.
+
+`prepare` is optional and runs once per block:
+```cpp
+static Block prepare(const Coefficients&, State&, std::size_t n);
+```
+It is detected by name, so a `prepare` of any other shape (a template, a
+non-static member, a mismatched overload) fails the concept instead of being
+skipped. `n` is the block's length and may be 0: an empty block still prepares.
+The wrapper runs `prepare` on the wrapper's own state, before it takes the
+local copies the loop runs on, so the loop's state stays in registers.
+
+### The four forms
+
+A kernel takes exactly one form; a class providing two satisfies none.
+
+| Form | Concept | Provides |
+|---|---|---|
+| Generator | `generator_kernel` | `step(c, b, s) -> step_type` |
+| Processor | `processor_kernel` | `step(c, b, s, x) -> step_type` |
+| Mixer | `mixer_kernel` | `step(c, b, s, a, b2) -> step_type` |
+| Staged | `staged_kernel` | `process(c, s, Signal in, Buffer out)` |
+
+`c` is the `Coefficients`, `b` the `Block` and `s` the `State`. **`process` is
+for block-staged arithmetic only**: arithmetic that reads a whole block, shapes
+it, then writes the whole block (the delay's tape I/O). Arithmetic that is per
+sample or per vector is a `step`. A staged kernel has no `Block`, so it declares
+no `prepare`; its per-block work is `process` itself. A staged kernel may be
+moded, with `process<M>`.
+
+A moded kernel's `step` or `process` is checked at the first mode of its
+`Modes` only; a step ill-formed at another mode is reported where the wrapper
+instantiates it.
+
+### Modes
+
+A mode that changes the per-sample arithmetic is a compile-time policy, chosen
+once per block, never a per-sample branch on settings. `with_mode<List>(mode,
+body)` compares the runtime mode with each listed mode in turn and calls `body`
+once, instantiated for the match, so each mode's loop is compiled separately and
+branch-free. A mode outside the list is a precondition violation.
+
+### The `reset` quirk hook
+
+A wrapper's `reset()` returns the state to `State{}`. A kernel whose arithmetic
+needs something else after a reset, such as a filter's post-reset sentinel
+value, declares `static void reset(State&)`, and the wrapper calls it instead.
+The quirk is named in the code and documented on that function. `reset()` never
+touches `Coefficients`.
+
+### Composition
+
+A kernel composes by nesting. A kernel that is built from others holds their
+`Coefficients` and `State` as members of its own and calls their `step`s from
+its `step`. There is no inheritance and no runtime composition. `Chain` fusion,
+which generalises this, is a later step (see [Later steps](#later-steps)).
+
+### The domain rules
+
+1. **`prepare` is the only scalar per-block work.** Whatever must be computed
+   once per block (a ramp's increment, a smoothed coefficient) is computed in
+   `prepare`, in whatever arithmetic it needs, and handed to `step` in `Block`.
+2. **`Block` holds values in the step's domain.** A vector kernel's `Block`
+   holds vectors (already broadcast), so `step` does no scalar-to-vector
+   transfer per step.
+3. **A composed kernel stays in one domain per step.** A `step` is all scalar
+   or all vector; it does not drop to core registers and back inside the loop.
+
+### The partial step
+
+A vector loop over a block that is not a lane multiple ends with one partial
+step. Its lanes past the end load as zero and are never stored. By default a
+kernel's state advances by a whole vector on that step, which is today's
+`Amplitude` behaviour. A vector kernel whose state persists across blocks and
+must advance by exactly the samples rendered declares
+```cpp
+static constexpr bool kPartialStepAdvancesByCount = true;
+```
+and provides the counted overload, taking an `ActiveLanes{n}` tag after the
+other arguments: `step(c, b, s, ActiveLanes)` for a generator,
+`step(c, b, s, x, ActiveLanes)` for a processor. The wrapper calls it on the
+partial step only, with `n` the number of live leading lanes, 1 up to one less
+than the vector's lanes. `ActiveLanes` is a tag rather than an integer so a
+counted processor step never reads as a mixer step. A mixer or staged kernel
+has no counted partial step, so declaring the flag on one is a compile error.
+
+The partial step is told apart by type, which holds on NEON and SIMDe. On
+Helium (MVE) every step is predicated, so whole steps would also arrive counted,
+with `n` equal to the lane count; a counted kernel must be correct for that.
+
+## Wrappers
+
+### `Mono<K>` (`core/mono.h`)
+
+`Mono<K>` is a kernel as a mono component: one `Coefficients`, one `State`. It
+is a generator, processor or mixer to match `K`'s step arity (`render` and
+`renderBlock`), and a `block_processor` only for a staged kernel. It is the only
+loop a kernel runs in.
+
+- **Loop selection** is by `step_type`: an index loop over raw pointers for
+  `step_type == value_type`; `argon::vectorize::for_each<q31>` for `Argon<q31>`;
+  `argon::vectorize::for_each_interleaved<q31, 2>` for `StereoVector`
+  (de-interleave on load, re-interleave on store).
+- **Once per block**, `renderBlock` calls `prepare` (when declared), then
+  dispatches on `coefficients().mode` through `with_mode` (when moded), then
+  runs the one loop. A mode change set by `configure` takes effect at the next
+  block, and `State` carries across it untouched.
+- **A staged kernel** has no loop: `renderBlock` calls `process` once (or
+  `process<M>` through `with_mode`). `Mono` rejects a staged kernel that
+  declares `prepare`, since `process` takes no `Block` and the `prepare` would
+  be skipped silently.
+- **In place.** Each step loads before it stores, so the input and output may be
+  the same buffer, on every loop path.
+- **Local copies.** The loop runs on local copies of the coefficients and state,
+  written back after the block, so they stay in registers even though the output
+  may alias the component.
+- `render(...)` is a one-sample block: one `prepare` and one dispatch per call.
+  A vector kernel renders it as the partial step of a block of one.
+
+### `Stereo<K>` (`core/stereo.h`)
+
+`Stereo<K>` runs a mono q31 processor kernel on both channels of a
+`StereoSample` block, itself a `Processor<Stereo<K>, StereoSample>`.
+
+- **Shared coefficients.** `configure` calls `K::coefficients` once, and both
+  channels step with the result.
+- **A state per channel.** `left()` and `right()` are the two states, carried
+  across blocks. `reset()` resets both.
+- **Left then right.** Each frame steps the left channel into a local, then the
+  right, then stores the frame. A kernel drawing from a stream shared by the two
+  channels (noise) draws for left before right on every frame, which is the
+  order the legacy per-frame code draws in.
+- **Once per channel per block**, `prepare` runs for each channel (a `Block` may
+  depend on that channel's state), then one mode dispatch covers the single loop
+  over the frames.
+- It is constrained on `processor_kernel<K>` at the class, so a generator or
+  mixer kernel is a compile error, not an inert class.
+
+### The shared glue
+
+`Mono` and `Stereo` share `detail::prepare_block`, `detail::dispatch_mode` and
+`detail::step_at`, so the `prepare`, mode dispatch and step call exist once.
 
 ## Stereo
 
@@ -184,12 +342,12 @@ This is a documented pattern, not a base class.
   contiguous, sized range of q31. A const range gives a `StereoSignal`, a
   mutable one a `StereoBuffer`. A range that owns its storage must be an lvalue
   (or the range borrowed), since a view of a temporary would dangle.
-- **`Stereo<P>`** (`core/stereo.h`) runs a mono q31 `sample_processor` on each
-  channel: one `P` per channel, itself a `Processor<Stereo<P>, StereoSample>`.
-  `render(frame)` renders the left channel completely and then the right, so a
-  shared noise stream is drawn left then right on every frame, bit-exact.
-  `configure(const P::Settings&)` sets both channels from one `Settings`; it is
-  present only when `P` has `Settings` and `configure`.
+- **`Stereo<K>`** (`core/stereo.h`) runs a mono q31 processor kernel on each
+  channel: one `State` per channel and one shared `Coefficients`, itself a
+  `Processor<Stereo<K>, StereoSample>`. Each frame steps the left channel and
+  then the right, so a shared noise stream is drawn left then right on every
+  frame, bit-exact. `configure(const K::Settings&)` sets both channels from one
+  `Settings`. See [Wrappers](#wrappers).
 - **Native stereo.** A component that is stereo by nature, such as the
   compressor or the delay, is written directly over `StereoSample`.
 - **SIMD stereo.** A stereo component whose `render` takes and returns
@@ -225,7 +383,7 @@ components, and they bind every rewrite:
 1. `Coefficients` and `State` are plain value structs, with no pointers and no
    hidden members. A lane kernel can then be built from N scalar ones (packed
    SoA) and can reuse the scalar coefficient function per lane.
-2. Mode is a per-block policy (see [Settings, Coefficients, State](#settings-coefficients-state)).
+2. Mode is a per-block policy (see [Kernels](#kernels-corekernelh-coremodeh)).
    Lanes must agree on mode, never on settings.
 3. Nothing is hidden: no globals, and noise is injected.
 4. The scalar component is the reference. A lane kernel is a separate component,
@@ -262,6 +420,15 @@ How lanes behave:
 
 NEON on the Cortex-A9 has a 64-bit datapath, so expect roughly 2× on
 lane-parallel filter arithmetic, not 4×.
+
+## Later steps
+
+`U` (the unroll factor of the wrappers' loops, with `split` and `merge`),
+`Chain` (fused kernel composition) and `Lanes` (lane-parallel kernels) are not
+implemented. They are steps 3, 4 and 5 of the Delivery list in
+[the kernel-form spec](../superpowers/specs/2026-10-08-dsp-next-kernel-form-design.md),
+and the kernel concepts here are what they build on. The device benchmark mode
+(step 2) comes first and supplies the `U` values.
 
 ## Layer 3: oscillator components
 
@@ -365,10 +532,22 @@ gates:
 - Are `Coefficients` and `State` anything other than plain value structs?
 - Is noise read (through `CONG`, `jcong` or a held pointer) rather than
   injected as a template parameter?
-- Are the mono and stereo paths duplicated, where `Stereo<P>` or a native
+- Are the mono and stereo paths duplicated, where `Stereo<K>` or a native
   stereo `render` would serve?
 - Do comments paraphrase the legacy code, rather than state what the component
   does and why?
+- Does each stateful piece have a kernel, wrapped by `Mono` or `Stereo`, rather
+  than hand-written state and loops?
+- Is `step` free of per-sample mode branches? A mode is a `Modes` entry.
+- Is `process` used only for block-staged arithmetic?
+- Does each step stay in one domain, with `prepare` the only scalar per-block
+  work and `Block` holding values in the step's domain?
+- Are a kernel's `prepare` and `step` `[[gnu::always_inline]]`? App translation
+  units build with `-fno-inline-functions`, so an out-of-line `prepare` is one
+  call per channel per block.
+- Is there a structured binding over an Argon `std::array` on a per-step path?
+  Under those flags `std::get` is out of line; read through
+  `__builtin_bit_cast` or `data()`.
 - Is every function on the per-sample path, the mixin glue included,
   `[[gnu::always_inline]]`? The app's translation units build with
   `-fno-inline-functions`, so anything else is an out-of-line call per sample
