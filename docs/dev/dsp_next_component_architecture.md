@@ -344,7 +344,13 @@ loop a kernel runs in.
   written back after the block, so they stay in registers even though the output
   may alias the component.
 - `render(...)` is a one-sample block: one `prepare` and one dispatch per call.
-  A vector kernel renders it as the partial step of a block of one.
+  A vector kernel renders it as the partial step of a block of one. It builds
+  one-sample spans and runs a whole block's glue, several out-of-line
+  `std::span` calls per call under the shipping `-fno-inline-functions`, so it
+  is a convenience for tests and control-rate values, not for per-sample use in
+  shipping code. A component renders blocks; a kernel that needs another kernel
+  per sample nests it (see [Composition](#composition)). The same holds for
+  `Stereo<K>::render`.
 
 ### `Stereo<K>` (`core/stereo.h`)
 

@@ -62,6 +62,12 @@ requires std::same_as<std::remove_cvref_t<std::ranges::range_reference_t<R>>, q3
 /// drawing from a stream shared by both channels (noise) therefore draws for left before right on every frame, and
 /// the input and output blocks may be the same buffer.
 ///
+/// **Single samples.** `render(…)` is a one-frame block: it builds one-frame spans and runs a whole block's
+/// `prepare`, dispatch and loop, which under the shipping `-fno-inline-functions` costs several out-of-line
+/// `std::span` calls per call. It is a convenience for tests and for control-rate values, not for per-sample use in
+/// shipping code: a component renders blocks, and a kernel that needs another kernel per sample nests it and calls
+/// it through @ref kernel_ops.
+///
 /// **Inlining.** As in @ref Mono: the app builds with `-fno-inline-functions`, so `render`, `renderBlock` and the
 /// loop are `[[gnu::always_inline]]`, and the loop runs on local copies of the coefficients and both States, taken
 /// after `prepare` and written back after the block, so that they stay in registers even though the output may
@@ -110,6 +116,8 @@ public:
 
 	/// @brief Process one frame: a one-frame block, so one `prepare(…, 1)` per channel and one mode dispatch per
 	/// call.
+	/// @details A convenience for tests and control rate, not for per-sample use in shipping code (see **Single
+	/// samples** in the class documentation).
 	[[gnu::always_inline]] StereoSample render(StereoSample frame) {
 		StereoSample out{};
 		renderBlock(Signal<StereoSample>{&frame, 1}, Buffer<StereoSample>{&out, 1});
