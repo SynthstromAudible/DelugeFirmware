@@ -149,7 +149,7 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 		expect(through_sidechain.front()).not_().to_equal(0);
 	});
 
-	it("keeps the shape last rendered at when it places a late hit", _ {
+	it("renders a late hit between blocks as the duck envelope does, each block at the shape it renders at", _ {
 		const SidechainState synced = state(SyncLevel::EIGHTH);
 		Control<DuckEnvelope> duck;
 		std::vector<int32_t> through_duck;
@@ -165,7 +165,7 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 
 		const std::vector<int32_t> straight = lateHitBetweenBlocks(kStraightShape);
 		expect(straight).to_equal(through_duck);
-		// The late hit lands in the release, where the shape bends the level: the shape is what these blocks test.
+		// The late hit lands in the release, where the shape bends the level, so the rendered shape shows.
 		expect(straight).not_().to_equal(lateHitBetweenBlocks(0));
 	});
 

@@ -53,13 +53,13 @@ dsp::fixed::DuckEnvelope::Settings Sidechain::settings(const SidechainState& sta
 
 void Sidechain::registerHitRetrospectively(int32_t strength, uint32_t samples_ago, const SidechainState& state,
                                            uint32_t time_per_tick_inverse) {
-	duck_.configure(settings(state, time_per_tick_inverse, shape_));
+	// hit_at reads no shape, so the middle one serves.
+	duck_.configure(settings(state, time_per_tick_inverse, 0));
 	duck_.on<&dsp::fixed::DuckEnvelope::hit_at>(strength, samples_ago);
 }
 
 int32_t Sidechain::render(uint32_t num_samples, int32_t shape, const SidechainState& state,
                           uint32_t time_per_tick_inverse) {
-	shape_ = shape;
 	duck_.configure(settings(state, time_per_tick_inverse, shape));
 	return duck_.advance(num_samples);
 }

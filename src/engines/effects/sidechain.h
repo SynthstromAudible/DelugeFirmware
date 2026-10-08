@@ -52,7 +52,9 @@ public:
 	void registerHit(int32_t strength) { duck_.on<&dsp::fixed::DuckEnvelope::hit>(strength); }
 
 	/// @brief Places the duck where a hit of @p strength (Q31) @p samples_ago would have put it, at @p state's rates
-	/// for @p time_per_tick_inverse and the shape the last render used.
+	/// for @p time_per_tick_inverse.
+	/// @details The placement reads the rates alone: dsp::fixed::DuckEnvelope::hit_at takes no shape, and the next
+	/// render configures the shape it is given.
 	void registerHitRetrospectively(int32_t strength, uint32_t samples_ago, const SidechainState& state,
 	                                uint32_t time_per_tick_inverse);
 
@@ -67,9 +69,6 @@ public:
 
 private:
 	dsp::Control<dsp::fixed::DuckEnvelope> duck_; ///< The duck, configured from the owner's state at every call.
-	/// The shape the last render used, Q31: a late hit configures the rates afresh and keeps it, since the configured
-	/// coefficients do not give the shape back.
-	dsp::q31 shape_{0};
 };
 
 } // namespace deluge::effects
