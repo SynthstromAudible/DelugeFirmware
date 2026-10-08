@@ -67,7 +67,8 @@ inline constexpr bool unsupported_event = false;
 /// - `event(State&, args…)`, given the state alone.
 ///
 /// The first shape is tried first, so the coefficients are passed exactly when the event takes them. Any other shape
-/// (one taking the state by value, which would change a copy) fails to compile. `on` returns what the event returns.
+/// fails to compile: one taking the state by value, which would change a copy, and one taking it by const reference,
+/// which could not change it. `on` returns what the event returns, a reference included.
 ///
 /// **Inlining.** The app builds with `-fno-inline-functions`, so every member is `[[gnu::always_inline]]`: nothing
 /// sits between the owner's block and the kernel's arithmetic.
