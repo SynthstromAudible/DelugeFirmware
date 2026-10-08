@@ -1061,7 +1061,7 @@ level = "integration"
 runner = "scenario"
 kind = "property"
 status = "gate"
-gates = "the render-song checks, on a real song from the maintainer's card backup (Cordae: eight kits of sampled drums, played in the arranger). The committed render-song song is two synths; this is the one that exercises kits, the arrangement and a real song's sample set, and it is what the streaming-margin work is measured against. Needs the backup, so it is manual."
+gates = "the render-song checks, on a real song from the maintainer's card backup (Cordae: eight kits of sampled drums, played in the arranger). The committed render-song song is two synths; this is the one that exercises kits, the arrangement and a real song's sample set, and it is what the streaming-margin work is measured against. It runs nightly, so a change that moves its render is seen beside the render-song re-records; it needs the backup."
 scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
 result = "RS-RESULT failures=0"
@@ -1069,7 +1069,7 @@ check = "tests/integration/checks/render_song.py"
 env = { RENDER_SONG = "SONGS/Cordae.XML", GOLDEN_FIXTURE = "cordae" }
 builds = ["golden-vt-render"]
 requires = ["song-corpus"]
-tier = "manual"
+tier = "nightly"
 runtime = "~30s"
 
 [[harness]]
