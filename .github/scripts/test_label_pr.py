@@ -5,7 +5,10 @@ Run directly with:
     python3 .github/scripts/test_label_pr.py
 """
 
+import io
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -145,6 +148,142 @@ class TemplateTests(unittest.TestCase):
         self.assertEqual(lp.checked_types(sections), [])
         self.assertEqual(sections[lp.SUMMARY], "")
         self.assertEqual(sections[lp.TEST_SECTION], "")
+
+
+def pr_event(body_text, draft=False, user_type="User", labels=()):
+    return {
+        "action": "opened",
+        "pull_request": {
+            "number": 9,
+            "body": body_text,
+            "draft": draft,
+            "user": {"login": "someone", "type": user_type},
+            "labels": [{"name": name} for name in labels],
+        },
+    }
+
+
+class MainTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def run_main(self, event, existing_comment=None):
+        path = self.dir / "event.json"
+        path.write_text(json.dumps(event))
+        calls = []
+
+        def run(args):
+            if "--paginate" in args:
+                if existing_comment is None:
+                    return ""
+                return json.dumps({"id": 55, "body": existing_comment}) + "\n"
+            calls.append(args)
+            return ""
+
+        code = lp.main(
+            [],
+            run=run,
+            environ={"GITHUB_EVENT_PATH": str(path), "GITHUB_REPOSITORY": "o/r"},
+            out=io.StringIO(),
+        )
+        return code, calls
+
+    def test_complete_pr_gets_type_label_and_no_comment(self):
+        code, calls = self.run_main(pr_event(body()))
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            calls,
+            [
+                [
+                    "api",
+                    "-X",
+                    "POST",
+                    "repos/o/r/issues/9/labels",
+                    "-f",
+                    "labels[]=type: fix",
+                ]
+            ],
+        )
+
+    def test_incomplete_pr_gets_one_comment(self):
+        code, calls = self.run_main(pr_event(body(ticked=(), summary="")))
+        self.assertEqual(code, 0)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(
+            calls[0][:4], ["api", "-X", "POST", "repos/o/r/issues/9/comments"]
+        )
+        self.assertIn("body=" + lp.MARKER, calls[0][-1])
+
+    def test_existing_comment_is_edited_not_duplicated(self):
+        _, calls = self.run_main(
+            pr_event(body(ticked=())), existing_comment=lp.comment_body(["old"])
+        )
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(
+            calls[0][:4], ["api", "-X", "PATCH", "repos/o/r/issues/comments/55"]
+        )
+
+    def test_unchanged_comment_makes_no_write(self):
+        found = lp.problems(lp.parse_sections(body(ticked=())), has_type_label=False)
+        _, calls = self.run_main(
+            pr_event(body(ticked=())), existing_comment=lp.comment_body(found)
+        )
+        self.assertEqual(calls, [])
+
+    def test_resolved_pr_edits_existing_comment_to_thanks(self):
+        _, calls = self.run_main(
+            pr_event(body()), existing_comment=lp.comment_body(["old"])
+        )
+        patches = [c for c in calls if c[2] == "PATCH"]
+        self.assertEqual(len(patches), 1)
+        self.assertIn("complete", patches[0][-1])
+
+    def test_resolved_pr_with_no_comment_stays_quiet(self):
+        _, calls = self.run_main(pr_event(body(), labels=["type: fix"]))
+        self.assertEqual(calls, [])
+
+    def test_several_boxes_add_no_label(self):
+        _, calls = self.run_main(
+            pr_event(body(ticked=("Bug fix", "Chore (build, CI, docs, tooling)")))
+        )
+        self.assertFalse(
+            any(
+                "labels" in c[3] and c[2] == "POST" and c[3].endswith("/labels")
+                for c in calls
+            )
+        )
+        self.assertEqual(len(calls), 1)  # the comment
+
+    def test_existing_type_label_is_never_duplicated_or_contradicted(self):
+        _, calls = self.run_main(
+            pr_event(body(ticked=("Bug fix",)), labels=["type: deps"])
+        )
+        self.assertEqual(calls, [])
+
+    def test_null_body_makes_one_comment_and_no_label(self):
+        code, calls = self.run_main(pr_event(None))
+        self.assertEqual(code, 0)
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(calls[0][3].endswith("/comments"))
+
+    def test_drafts_and_bots_are_skipped(self):
+        for event in (
+            pr_event(body(), draft=True),
+            pr_event(body(), user_type="Bot"),
+            pr_event(None, user_type="Bot"),
+        ):
+            code, calls = self.run_main(event)
+            self.assertEqual((code, calls), (0, []))
+
+    def test_comment_does_not_echo_the_pr_body(self):
+        hostile = "## Summary\n\n@everyone $(rm -rf /) `x`\n\n## Type of change\n\n- [ ] Bug fix\n"
+        _, calls = self.run_main(pr_event(hostile))
+        self.assertNotIn("@everyone", calls[-1][-1])
+        self.assertNotIn("rm -rf", calls[-1][-1])
 
 
 if __name__ == "__main__":
