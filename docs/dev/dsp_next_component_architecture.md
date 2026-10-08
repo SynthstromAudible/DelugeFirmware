@@ -63,6 +63,11 @@ and two more:
 - **`control_generator`**: `advance(std::size_t n) -> value_type` returns the
   value after `n` samples. It is for block-rate control signals, whose
   arithmetic is per block, so it has no per-sample `render`.
+
+  `advance(n)` is reserved for these block-rate sources. A source whose
+  arithmetic is per sample exposes `render()`. The one exception is
+  `Phasor::advance()`, the per-sample phase step inside the oscillators, which
+  keeps its name.
 - **`converter`**: `render(input_type) -> output_type`, between numeric domains.
 
 Every component exposes `value_type`. A stateful component is checked against its
@@ -85,7 +90,19 @@ a path.
 |---|---|---|
 | `Argon<T>` (arithmetic `T`) | SIMD | `argon::vectorize::for_each` |
 | `StereoVector` (`T` is `StereoSample`) | SIMD stereo | `argon::vectorize::for_each_interleaved<q31, 2>`: de-interleave on load, re-interleave on store (`vld2`/`vst2`) |
-| `T` (`q31`, `f32`, `StereoSample`) | scalar | `std::ranges::generate` / `std::ranges::transform` |
+| `T` (`q31`, `f32`, `StereoSample`) | scalar | a plain index loop over raw pointers |
+
+**Everything per sample is `[[gnu::always_inline]]`.** The app's translation
+units build with `-fno-inline-functions` (`CMakeLists.txt`), under which clang
+marks every function definition `noinline` unless it is `always_inline`, and
+ThinLTO keeps that. The mixins are header templates instantiated in those
+translation units, so `dsp-next`'s own `-finline-functions` does not reach
+them. The mixins' per-step lambdas are therefore `[[gnu::always_inline]]` and
+their scalar path is a plain loop with no library calls in it, and every
+function a component calls per sample or per vector (its `render`, the
+`Phasor` accessors, `util::constexpr_for` and its lane lambdas, the noise
+step) is `[[gnu::always_inline]]` as well. Code that runs once per block needs
+no attribute.
 
 **The tail rule.** `renderBlock` writes every sample of the block, whatever its
 length. On the SIMD paths a block that is not a lane multiple ends with one
@@ -107,11 +124,16 @@ or a mixer's `out` and either input, may be the same buffer. The app calls
 `renderBlock(in, out)` with `in` and `out` the same buffer; every path gives the
 same result in place as out of place.
 
-**Writing `renderBlock` directly.** A component whose arithmetic is per block or
-per window, not per sample, writes `renderBlock` itself and satisfies only the
-`block_*` concept: the crude oscillators (an analytic loop per block),
-`SyncedOscillator` and `WavetableSyncOscillator` (irregular sync windows),
-`WavetableOscillator` (cycle chunks). It follows the same tail and in-place rules.
+**Writing `renderBlock` directly.** A component writes `renderBlock` itself only
+when its arithmetic genuinely is not per sample: irregular sync windows
+(`SyncedOscillator`, `WavetableSyncOscillator`), wavetable cycle chunks
+(`WavetableOscillator`), and tape I/O staged per block (the delay). Such a
+component satisfies only the `block_*` concept and follows the same tail and
+in-place rules. Arithmetic that is per sample is a `render` under a mixin.
+
+The crude oscillators and `CrudeAmplitude` are per-sample arithmetic that still
+carries hand-written block loops; giving them a scalar `render` is a follow-up,
+and they are not a precedent.
 
 ### Runtime selection (`core/as_block.h`)
 
@@ -143,6 +165,10 @@ The verbs:
   of `Coefficients`, read through `coefficients()`. There are no out-parameters.
 - A mode that changes the per-sample arithmetic is a compile-time policy,
   dispatched once per block. It is never a per-sample branch on settings.
+- `reset()` returns `State` to its value-initialised state, or to a seeded
+  state the component documents, and never touches `Coefficients`. A quirk the
+  arithmetic requires after a reset, such as a filter's post-reset sentinel
+  value, is named in the code and documented on `reset()`.
 
 This is a documented pattern, not a base class.
 
@@ -330,3 +356,20 @@ gates:
 - Are constants and bit-exactness quirks named?
 - Are there callback sinks, raw-pointer heads, out-parameters, or globals other
   than `SharedNoise`?
+- Is there a hand-written `renderBlock` where the arithmetic is per sample? It
+  should be a `render` under a mixin (see
+  [Writing `renderBlock` directly](#mixins-coregeneratorh-coreprocessorh-coremixerh)).
+- Are there public verbs beyond `render`, `renderBlock`, `configure`,
+  `coefficients`, `reset` and `advance`, other than accessors?
+- Is there a per-sample branch on mode, where a per-block policy belongs?
+- Are `Coefficients` and `State` anything other than plain value structs?
+- Is noise read (through `CONG`, `jcong` or a held pointer) rather than
+  injected as a template parameter?
+- Are the mono and stereo paths duplicated, where `Stereo<P>` or a native
+  stereo `render` would serve?
+- Do comments paraphrase the legacy code, rather than state what the component
+  does and why?
+- Is every function on the per-sample path, the mixin glue included,
+  `[[gnu::always_inline]]`? The app's translation units build with
+  `-fno-inline-functions`, so anything else is an out-of-line call per sample
+  or per vector in the shipping image.

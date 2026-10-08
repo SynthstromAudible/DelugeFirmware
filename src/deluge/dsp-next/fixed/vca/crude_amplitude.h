@@ -37,7 +37,8 @@ namespace deluge::dsp::fixed {
 ///
 /// The amplitude is **pre-incremented** each sample (`amplitude += increment; out = mac(...)`),
 /// matching the legacy crude loops, so substituting this mixer is bit-exact. It is a plain @ref block_mixer
-/// with no vptr: the ramp is stepped per sample inside one block loop.
+/// with no vptr. The arithmetic is per sample, but it keeps a hand-written block loop rather than a scalar
+/// `render(raw, mix)` under the @ref Mixer mixin; giving it `render` is a follow-up.
 class CrudeAmplitude {
 	int32_t amplitude_;
 	int32_t increment_;

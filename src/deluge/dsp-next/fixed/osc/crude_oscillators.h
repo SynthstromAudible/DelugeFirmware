@@ -42,8 +42,9 @@ namespace deluge::dsp::fixed {
 /// single per-wave shift (saw/square >> 1, triangle << 1). phase() reads the phase back (for
 /// the synced arms to store per voice).
 ///
-/// Each is a plain @ref block_generator with no vptr: the analytic loop is written per block, so there is no
-/// per-sample `render()` for a mixin to build on. Runtime selection goes through @ref AsBlock.
+/// Each is a plain @ref block_generator with no vptr. The arithmetic is per sample, but each keeps a hand-written
+/// block loop rather than a scalar `render()` under the @ref Generator mixin; giving them `render()` is a
+/// follow-up. Runtime selection goes through @ref AsBlock.
 
 /// @brief Crude sawtooth: the phase ramp itself is the wave.
 template <typename Phase>
