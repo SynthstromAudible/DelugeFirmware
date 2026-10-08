@@ -253,10 +253,35 @@ the concept instead of being skipped.
 
 ### Composition
 
-A kernel composes by nesting. A kernel that is built from others holds their
-`Coefficients` and `State` as members of its own and calls their `step`s from
-its `step`. There is no inheritance and no runtime composition. `Chain` fusion,
-which generalises this, is a later step (see [Later steps](#later-steps)).
+A kernel composes by nesting. A kernel built from others holds their
+`Coefficients`, `State` and `Block` as members of its own, and is itself an
+ordinary kernel that `Mono` or `Stereo` wraps. There is no inheritance and no
+runtime composition. It reaches its parts through the same calls the wrappers
+make, in `deluge::dsp::kernel_ops` (`core/kernel.h`):
+
+- **`Coefficients`**: its `coefficients()` calls each part's and stores the
+  results as members.
+- **`Block` and `prepare`**: its `Block` has a `kernel_block_t<Part>` member per
+  part, and its `prepare` fills each with
+  `kernel_ops::prepare_block<Part>(c.part, s.part, n)`, which calls the part's
+  `prepare` when it declares one and gives an `EmptyBlock` when it does not. A
+  composite whose parts all lack a `prepare` declares neither.
+- **`step`**: threads the value through
+  `kernel_ops::step_at<Part, M>(c.part, b.part, s.part, x)` for each part, which
+  calls `step<M>` on a moded part and the plain `step` on one without modes
+  (pass `kernel_ops::NoMode::NONE` there).
+- **`Modes`**: a composite dispatches once per block on its own `mode`, so its
+  `Modes` must cover every combination of its parts' modes that it runs. With
+  one moded part it reuses that part's `Mode` and `Modes` and copies the part's
+  mode into its own `Coefficients::mode`; with several, its `Modes` is the
+  product of theirs, each of its modes naming one mode per part, and its `step`
+  maps its mode to each part's. Keep products small: a part with many modes
+  stays its own component.
+
+`SeriesPoles` in `tests/dsp/mono_spec.cpp` is the reference: a moded one-pole
+and a one-pole with a `Block`, in series, checked against a hand loop over the
+parts. `Chain` fusion, which generalises this, is a later step (see
+[Remaining work](#remaining-work)).
 
 ### The domain rules
 
@@ -342,8 +367,10 @@ loop a kernel runs in.
 
 ### The shared glue
 
-`Mono` and `Stereo` share `detail::prepare_block`, `detail::dispatch_mode` and
-`detail::step_at`, so the `prepare`, mode dispatch and step call exist once.
+`Mono` and `Stereo` call a kernel through `kernel_ops::prepare_block`,
+`kernel_ops::dispatch_mode` and `kernel_ops::step_at` (`core/kernel.h`), so the
+`prepare`, mode dispatch and step call exist once, and a composed kernel calls
+its parts through the same functions.
 
 ## Stereo
 

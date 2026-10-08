@@ -23,18 +23,13 @@
 #include <argon.hpp>
 #include <argon/vectorize/for_each.hpp>
 #include <array>
-#include <concepts>
 #include <cstddef>
-#include <cstdint>
 
 /// @file
 /// @brief Mono<K>: a kernel as a mono component, and the only loop a kernel runs in.
 namespace deluge::dsp {
 
 namespace detail {
-
-/// @brief The mode a kernel without modes is stepped at: a placeholder the loop is templated on and never reads.
-enum class NoMode : uint8_t { NONE };
 
 /// @brief Whether the Argon loop step @p S is the partial last step of its block. Full steps are a distinct type.
 template <typename S>
@@ -47,45 +42,6 @@ inline constexpr bool is_partial_step<argon::vectorize::Step<T, false>> = true;
 /// @brief A partial step of `argon::vectorize::for_each_interleaved`.
 template <typename T, std::size_t Stride>
 inline constexpr bool is_partial_step<argon::vectorize::InterleavedStep<T, Stride, false>> = true;
-
-/// @brief K's per-block values for a block of @p n samples: its `prepare` when it declares one, else an
-/// EmptyBlock.
-template <typename K>
-[[gnu::always_inline]] inline kernel_block_t<K> prepare_block([[maybe_unused]] const typename K::Coefficients& c,
-                                                              [[maybe_unused]] typename K::State& s,
-                                                              [[maybe_unused]] std::size_t n) {
-	if constexpr (declares_prepare<K>) {
-		return K::prepare(c, s, n);
-	}
-	else {
-		return kernel_block_t<K>{};
-	}
-}
-
-/// @brief Call @p body.template operator()<M>() once: at the mode of @p c for a moded kernel, through with_mode,
-/// else at NoMode::NONE.
-template <typename K, typename Body>
-[[gnu::always_inline]] inline void dispatch_mode([[maybe_unused]] const typename K::Coefficients& c, Body&& body) {
-	if constexpr (moded_kernel<K>) {
-		with_mode<typename K::Modes>(c.mode, body);
-	}
-	else {
-		body.template operator()<NoMode::NONE>();
-	}
-}
-
-/// @brief One `step` of K at mode @p M (ignored for a kernel without modes).
-/// @param x The step's inputs: none, one or two step values, then an ActiveLanes for the counted partial step.
-template <typename K, auto M, typename... X>
-[[gnu::always_inline]] inline typename K::step_type
-step_at(const typename K::Coefficients& c, const kernel_block_t<K>& block, typename K::State& s, X... x) {
-	if constexpr (moded_kernel<K>) {
-		return K::template step<M>(c, block, s, x...);
-	}
-	else {
-		return K::step(c, block, s, x...);
-	}
-}
 
 } // namespace detail
 
@@ -195,7 +151,7 @@ public:
 	requires processor_kernel<K> || staged_kernel<K>
 	{
 		if constexpr (staged_kernel<K>) {
-			detail::dispatch_mode<K>(coefficients_, [&]<auto M> [[gnu::always_inline]] () {
+			kernel_ops::dispatch_mode<K>(coefficients_, [&]<auto M> [[gnu::always_inline]] () {
 				if constexpr (moded_kernel<K>) {
 					K::template process<M>(coefficients_, state_, in.first(out.size()), out);
 				}
@@ -240,10 +196,10 @@ private:
 	/// never escape to a `prepare` that is not inlined.
 	template <typename... In>
 	[[gnu::always_inline]] void runBlock(Buffer<value_type> out, In... in) {
-		const Block block = detail::prepare_block<K>(coefficients_, state_, out.size());
+		const Block block = kernel_ops::prepare_block<K>(coefficients_, state_, out.size());
 		const Coefficients c = coefficients_;
 		State s = state_;
-		detail::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () { loop<M>(c, block, s, out, in...); });
+		kernel_ops::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () { loop<M>(c, block, s, out, in...); });
 		state_ = s;
 	}
 
@@ -255,10 +211,11 @@ private:
 	[[gnu::always_inline]] static step_type vectorStepAt(const Coefficients& c, const Block& block, State& s,
 	                                                     const Step& step, X... x) {
 		if constexpr (partial_step_advances_by_count<K> && detail::is_partial_step<Step>) {
-			return detail::step_at<K, M>(c, block, s, x..., ActiveLanes{.n = static_cast<std::size_t>(step.count())});
+			return kernel_ops::step_at<K, M>(c, block, s, x...,
+			                                 ActiveLanes{.n = static_cast<std::size_t>(step.count())});
 		}
 		else {
-			return detail::step_at<K, M>(c, block, s, x...);
+			return kernel_ops::step_at<K, M>(c, block, s, x...);
 		}
 	}
 
@@ -294,7 +251,7 @@ private:
 	[[gnu::always_inline]] static void scalarLoop(const Coefficients& c, const Block& block, State& s, value_type* dst,
 	                                              std::ptrdiff_t n, const Src*... src) {
 		for (std::ptrdiff_t i = 0; i < n; ++i) {
-			dst[i] = detail::step_at<K, M>(c, block, s, src[i]...);
+			dst[i] = kernel_ops::step_at<K, M>(c, block, s, src[i]...);
 		}
 	}
 

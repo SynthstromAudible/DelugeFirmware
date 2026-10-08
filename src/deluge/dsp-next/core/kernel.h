@@ -21,6 +21,7 @@
 #include "dsp-next/core/types.h"
 #include <concepts>
 #include <cstddef>
+#include <cstdint>
 #include <type_traits>
 
 /// @file
@@ -30,7 +31,8 @@
 /// vector of them), `Settings` (what the owner sets), `Coefficients` and `State` (plain value structs; `State{}` is
 /// the reset state), and optionally `Block`, `Mode` and `Modes`. It provides a pure `coefficients(settings)`, an
 /// optional once-per-block `prepare`, and either a `step` at one of three arities or, for block-staged arithmetic, a
-/// `process`. The wrappers (`Mono`, `Stereo`) are the only loops; a kernel holds no data of its own.
+/// `process`. The wrappers (`Mono`, `Stereo`) are the only loops; a kernel holds no data of its own. The calls a
+/// wrapper makes on a kernel are in @ref kernel_ops, where a composed kernel finds them to call its parts.
 ///
 /// **One form per kernel.** A kernel takes exactly one of four forms: `step(c, b, s)` (generator),
 /// `step(c, b, s, x)` (processor), `step(c, b, s, a, b2)` (mixer), or `process(c, s, in, out)` (staged). Each form
@@ -384,5 +386,64 @@ concept kernel = generator_kernel<K> || processor_kernel<K> || mixer_kernel<K> |
 /// wrapper's first block dispatches on a mode the kernel has.
 template <typename K>
 concept moded_kernel = kernel<K> && detail::has_modes<K>;
+
+/// @brief The calls a wrapper makes on a kernel, public so that a composed kernel makes the same calls on its parts.
+/// @details A kernel built from smaller kernels prepares each part with @ref prepare_block and steps each part with
+/// @ref step_at, so it never has to know whether a part declares `prepare` or has modes. Everything here runs per
+/// block or per step and is `[[gnu::always_inline]]`.
+namespace kernel_ops {
+
+/// @brief The mode a kernel without modes is stepped at: a placeholder @ref step_at is templated on and ignores.
+enum class NoMode : uint8_t { NONE };
+
+/// @brief K's per-block values for a block of @p n samples: its `prepare` when it declares one, else an
+/// EmptyBlock.
+/// @param c K's coefficients.
+/// @param s K's state, which `prepare` may update.
+/// @param n The block's length in samples (frames for a stereo kernel); may be 0.
+template <kernel K>
+[[gnu::always_inline]] inline kernel_block_t<K> prepare_block([[maybe_unused]] const typename K::Coefficients& c,
+                                                              [[maybe_unused]] typename K::State& s,
+                                                              [[maybe_unused]] std::size_t n) {
+	if constexpr (detail::declares_prepare<K>) {
+		return K::prepare(c, s, n);
+	}
+	else {
+		return kernel_block_t<K>{};
+	}
+}
+
+/// @brief Call @p body.template operator()<M>() once: at the mode of @p c for a moded kernel, through with_mode,
+/// else at NoMode::NONE.
+/// @param c K's coefficients, whose `mode` a moded kernel dispatches on.
+/// @param body A callable with a templated call operator taking the mode as its sole non-type argument.
+template <kernel K, typename Body>
+[[gnu::always_inline]] inline void dispatch_mode([[maybe_unused]] const typename K::Coefficients& c, Body&& body) {
+	if constexpr (moded_kernel<K>) {
+		with_mode<typename K::Modes>(c.mode, body);
+	}
+	else {
+		body.template operator()<NoMode::NONE>();
+	}
+}
+
+/// @brief One `step` of K at mode @p M: `K::step<M>` for a moded kernel; for a kernel without modes, its
+/// non-template `step`, with @p M ignored (pass NoMode::NONE).
+/// @param c K's coefficients.
+/// @param block K's per-block values, from @ref prepare_block.
+/// @param s K's state.
+/// @param x The step's inputs: none, one or two step values, then an ActiveLanes for the counted partial step.
+template <kernel K, auto M, typename... X>
+[[gnu::always_inline]] inline typename K::step_type
+step_at(const typename K::Coefficients& c, const kernel_block_t<K>& block, typename K::State& s, X... x) {
+	if constexpr (moded_kernel<K>) {
+		return K::template step<M>(c, block, s, x...);
+	}
+	else {
+		return K::step(c, block, s, x...);
+	}
+}
+
+} // namespace kernel_ops
 
 } // namespace deluge::dsp

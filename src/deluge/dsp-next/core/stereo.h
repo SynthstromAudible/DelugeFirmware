@@ -119,14 +119,14 @@ public:
 	/// @param out The block to fill, every frame of it.
 	[[gnu::always_inline]] void renderBlock(Signal<StereoSample> in, Buffer<StereoSample> out) {
 		const std::size_t n = out.size();
-		const Block left_block = detail::prepare_block<K>(coefficients_, left_, n);
-		const Block right_block = detail::prepare_block<K>(coefficients_, right_, n);
+		const Block left_block = kernel_ops::prepare_block<K>(coefficients_, left_, n);
+		const Block right_block = kernel_ops::prepare_block<K>(coefficients_, right_, n);
 		const Coefficients c = coefficients_;
 		State l = left_;
 		State r = right_;
 		const StereoSample* src = in.data();
 		StereoSample* dst = out.data();
-		detail::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () {
+		kernel_ops::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () {
 			loop<M>(c, left_block, right_block, l, r, dst, static_cast<std::ptrdiff_t>(n), src);
 		});
 		left_ = l;
@@ -142,8 +142,8 @@ private:
 	                                        const StereoSample* src) {
 		for (std::ptrdiff_t i = 0; i < n; ++i) {
 			const StereoSample x = src[i];
-			const q31 left = detail::step_at<K, M>(c, left_block, l, x.l);
-			const q31 right = detail::step_at<K, M>(c, right_block, r, x.r);
+			const q31 left = kernel_ops::step_at<K, M>(c, left_block, l, x.l);
+			const q31 right = kernel_ops::step_at<K, M>(c, right_block, r, x.r);
 			dst[i] = {.l = left, .r = right};
 		}
 	}

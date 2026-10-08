@@ -396,6 +396,93 @@ struct StereoVecMix {
 	}
 };
 
+/// A moded one-pole low-pass, a part of SeriesPoles: y += (x - y) >> shift, the shift 4 (GENTLE) or 1 (FAST).
+struct OnePole {
+	using value_type = q31;
+	using step_type = q31;
+	enum class Mode : uint8_t { GENTLE, FAST };
+	using Modes = ModeList<Mode::GENTLE, Mode::FAST>;
+	struct Settings {
+		Mode mode;
+	};
+	struct Coefficients {
+		Mode mode;
+	};
+	struct State {
+		q31 y; ///< The last output.
+	};
+	static Coefficients coefficients(const Settings& s) { return {.mode = s.mode}; }
+	template <Mode M>
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s, q31 x) {
+		constexpr int kShift = M == Mode::GENTLE ? 4 : 1;
+		s.y += (x - s.y) >> kShift;
+		return s.y;
+	}
+};
+
+/// A one-pole low-pass with a Block, a part of SeriesPoles: y += (x - y) >> 2, offset by an eighth of y at the start
+/// of the block.
+struct BiasedPole {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {
+		q31 y; ///< The last output, before the bias.
+	};
+	struct Block {
+		q31 bias; ///< An eighth of y at the start of the block.
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[gnu::always_inline]] static Block prepare(const Coefficients& /*c*/, State& s, std::size_t /*n*/) {
+		return {.bias = s.y >> 3};
+	}
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const Block& b, State& s, q31 x) {
+		s.y += (x - s.y) >> 2;
+		return s.y + b.bias;
+	}
+};
+
+/// OnePole then BiasedPole, composed by nesting: the parts' Coefficients, State and Block are its members, its
+/// prepare prepares each part, and its step threads the sample through each part's step. OnePole is the one moded
+/// part, so its modes are the composite's.
+struct SeriesPoles {
+	using value_type = q31;
+	using step_type = q31;
+	using Mode = OnePole::Mode;
+	using Modes = OnePole::Modes;
+	struct Settings {
+		OnePole::Settings first;
+		BiasedPole::Settings second;
+	};
+	struct Coefficients {
+		Mode mode; ///< The block's mode: the first part's.
+		OnePole::Coefficients first;
+		BiasedPole::Coefficients second;
+	};
+	struct State {
+		OnePole::State first;
+		BiasedPole::State second;
+	};
+	struct Block {
+		kernel_block_t<OnePole> first;
+		kernel_block_t<BiasedPole> second;
+	};
+	static Coefficients coefficients(const Settings& s) {
+		const OnePole::Coefficients first = OnePole::coefficients(s.first);
+		return {.mode = first.mode, .first = first, .second = BiasedPole::coefficients(s.second)};
+	}
+	[[gnu::always_inline]] static Block prepare(const Coefficients& c, State& s, std::size_t n) {
+		return {.first = kernel_ops::prepare_block<OnePole>(c.first, s.first, n),
+		        .second = kernel_ops::prepare_block<BiasedPole>(c.second, s.second, n)};
+	}
+	template <Mode M>
+	[[gnu::always_inline]] static q31 step(const Coefficients& c, const Block& b, State& s, q31 x) {
+		const q31 y = kernel_ops::step_at<OnePole, M>(c.first, b.first, s.first, x);
+		return kernel_ops::step_at<BiasedPole, kernel_ops::NoMode::NONE>(c.second, b.second, s.second, y);
+	}
+};
+
 /// A generator whose reset is a quirk: it restarts at 100, not at State{}.
 struct ResetQuirk {
 	using value_type = q31;
@@ -426,6 +513,7 @@ static_assert(processor<Mono<StereoVecSwap>>);
 static_assert(generator<Mono<StereoVecRampCount>>);
 static_assert(processor<Mono<VecModeSwitch>>);
 static_assert(mixer<Mono<StereoVecMix>>);
+static_assert(moded_kernel<SeriesPoles> && processor<Mono<SeriesPoles>>);
 static_assert(!std::is_polymorphic_v<Mono<Gain>>);
 
 /// A deterministic test input of @p n samples, distinct per @p seed.
@@ -834,6 +922,32 @@ describe mono("Mono", ${
 				const auto whole_end = static_cast<q31>(lanes * ((n + lanes - 1) / lanes) * (block + 1));
 				expect(ramp_value(mono)).to_equal(whole_end);
 				expect(lanes_of(mono.state().value)[3]).to_equal(whole_end);
+			}
+		}
+	});
+
+	it("runs a composed kernel as a hand loop over its parts, across a mode switch", _ {
+		for (const std::size_t n : kLengths) {
+			Mono<SeriesPoles> mono{{.first = {.mode = OnePole::Mode::GENTLE}}};
+			OnePole::State first{};
+			BiasedPole::State second{};
+			for (int block = 0; block < 3; ++block) {
+				const OnePole::Mode mode = block == 1 ? OnePole::Mode::FAST : OnePole::Mode::GENTLE;
+				mono.configure({.first = {.mode = mode}});
+				const std::vector<q31> in = input(n, 0x00135791 * (block + 1));
+				std::vector<q31> got(n);
+				mono.renderBlock(in, got);
+
+				const OnePole::Coefficients c1 = OnePole::coefficients({.mode = mode});
+				const BiasedPole::Block b2 = BiasedPole::prepare({}, second, n);
+				for (std::size_t i = 0; i < n; ++i) {
+					const q31 y = mode == OnePole::Mode::GENTLE
+					                  ? OnePole::step<OnePole::Mode::GENTLE>(c1, {}, first, in[i])
+					                  : OnePole::step<OnePole::Mode::FAST>(c1, {}, first, in[i]);
+					expect(got[i]).to_equal(BiasedPole::step({}, b2, second, y));
+				}
+				expect(mono.state().first.y).to_equal(first.y);
+				expect(mono.state().second.y).to_equal(second.y);
 			}
 		}
 	});
