@@ -17,17 +17,19 @@
 
 #pragma once
 
-#include "dsp-next/fixed/dynamics/sidechain_envelope.h"
+#include "dsp-next/core/control.h"
+#include "dsp-next/fixed/dynamics/duck_envelope.h"
 #include "engines/effects/state.h"
 
 #include <cstdint>
 
 namespace deluge::effects {
 
-/// @brief An owner's sidechain: its SidechainState's rates, synced to the tempo when its sync level is set.
+/// @brief An owner's sidechain: the duck envelope at its SidechainState's rates, synced to the tempo when its sync
+/// level is set.
 ///
 /// The owner hands in its state and the playback handler's tick inverse at every call, so a knob turn or a tempo
-/// change takes effect from the next block.
+/// change takes effect from the next block, while the duck's position carries over.
 class Sidechain {
 public:
 	/// @brief The attack param's minimum (attackRateTable[0] << 2): a hit at it skips the attack.
@@ -35,38 +37,39 @@ public:
 	/// An attack rate in position steps per sample on the envelope's 2^23 stage scale.
 	static constexpr int32_t kInstantAttack = 262144 << 2;
 
-	/// @return @p state's rates at @p time_per_tick_inverse.
+	/// @return The duck envelope's settings for @p state at @p time_per_tick_inverse and @p shape.
 	/// @param time_per_tick_inverse The playback handler's getTimePerInternalTickInverse(): 2^31 ÷ (1.5 × the samples
 	/// per internal tick), so internal ticks per sample at Q31, divided by 1.5.
+	/// @param shape The shape param, Q31: the release's curve, passed through.
 	///
 	/// Unsynced, the attack and release are the state's own. Synced, each is scaled by the tick inverse and shifted by
 	/// the sync level: the attack by 7 less the level's index (a left shift at the 1/128 and 1/256 levels), the
 	/// release by 9 less it.
-	[[nodiscard]] static dsp::fixed::SidechainRates rates(const SidechainState& state, uint32_t time_per_tick_inverse);
+	[[nodiscard]] static dsp::fixed::DuckEnvelope::Settings settings(const SidechainState& state,
+	                                                                 uint32_t time_per_tick_inverse, dsp::q31 shape);
 
 	/// @brief Records a hit of @p strength (Q31) for the next render, combined with any already pending.
-	void registerHit(int32_t strength) { envelope_.registerHit(strength); }
+	void registerHit(int32_t strength) { duck_.on<&dsp::fixed::DuckEnvelope::hit>(strength); }
 
-	/// @brief Places the envelope where a hit of @p strength (Q31) @p samples_ago would have put it, at @p state's
-	/// rates for @p time_per_tick_inverse.
+	/// @brief Places the duck where a hit of @p strength (Q31) @p samples_ago would have put it, at @p state's rates
+	/// for @p time_per_tick_inverse and the shape the last render used.
 	void registerHitRetrospectively(int32_t strength, uint32_t samples_ago, const SidechainState& state,
-	                                uint32_t time_per_tick_inverse) {
-		envelope_.registerHitRetrospectively(strength, samples_ago, rates(state, time_per_tick_inverse));
-	}
+	                                uint32_t time_per_tick_inverse);
 
-	/// @brief Advances the envelope by @p num_samples at @p state's rates for @p time_per_tick_inverse.
+	/// @brief Advances the duck by @p num_samples at @p state's rates for @p time_per_tick_inverse.
 	/// @param shape The shape param, Q31: the release's curve.
 	/// @return The duck after the block, Q31: 0 is none, negative ducks.
 	[[nodiscard]] int32_t render(uint32_t num_samples, int32_t shape, const SidechainState& state,
-	                             uint32_t time_per_tick_inverse) {
-		return envelope_.render(num_samples, shape, rates(state, time_per_tick_inverse));
-	}
+	                             uint32_t time_per_tick_inverse);
 
-	/// @brief Ends the duck, as for an owner that will not render for a while; see dsp::fixed::SidechainEnvelope::stop.
-	void stop() { envelope_.stop(); }
+	/// @brief Ends the duck, as for an owner that will not render for a while; see dsp::fixed::DuckEnvelope::stop.
+	void stop() { duck_.on<&dsp::fixed::DuckEnvelope::stop>(); }
 
 private:
-	dsp::fixed::SidechainEnvelope envelope_;
+	dsp::Control<dsp::fixed::DuckEnvelope> duck_; ///< The duck, configured from the owner's state at every call.
+	/// The shape the last render used, Q31: a late hit configures the rates afresh and keeps it, since the configured
+	/// coefficients do not give the shape back.
+	dsp::q31 shape_{0};
 };
 
 } // namespace deluge::effects

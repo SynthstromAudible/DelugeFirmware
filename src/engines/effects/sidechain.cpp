@@ -22,10 +22,12 @@
 
 namespace deluge::effects {
 
-dsp::fixed::SidechainRates Sidechain::rates(const SidechainState& state, uint32_t time_per_tick_inverse) {
-	dsp::fixed::SidechainRates out{
+dsp::fixed::DuckEnvelope::Settings Sidechain::settings(const SidechainState& state, uint32_t time_per_tick_inverse,
+                                                       dsp::q31 shape) {
+	dsp::fixed::DuckEnvelope::Settings out{
 	    .attack = state.attack,
 	    .release = state.release,
+	    .shape = shape,
 	    .instant_attack = state.attack == kInstantAttack,
 	};
 	if (state.sync_level == engine::SyncLevel::NONE) {
@@ -47,6 +49,19 @@ dsp::fixed::SidechainRates Sidechain::rates(const SidechainState& state, uint32_
 
 	out.release = multiply_32x32_rshift32(state.release << 13, inverse) >> (9 - level);
 	return out;
+}
+
+void Sidechain::registerHitRetrospectively(int32_t strength, uint32_t samples_ago, const SidechainState& state,
+                                           uint32_t time_per_tick_inverse) {
+	duck_.configure(settings(state, time_per_tick_inverse, shape_));
+	duck_.on<&dsp::fixed::DuckEnvelope::hit_at>(strength, samples_ago);
+}
+
+int32_t Sidechain::render(uint32_t num_samples, int32_t shape, const SidechainState& state,
+                          uint32_t time_per_tick_inverse) {
+	shape_ = shape;
+	duck_.configure(settings(state, time_per_tick_inverse, shape));
+	return duck_.advance(num_samples);
 }
 
 } // namespace deluge::effects

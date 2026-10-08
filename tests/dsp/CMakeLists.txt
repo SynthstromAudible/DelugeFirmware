@@ -84,11 +84,6 @@ set(rms_feedback_compressor_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
-# The sidechain envelope's attack and release curves read the decay tables.
-set(sidechain_envelope_spec_DEPS
-  ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/sidechain_envelope.cpp
-  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
-  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The duck envelope's attack and release curves read the decay tables.
 set(duck_envelope_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/duck_envelope.cpp

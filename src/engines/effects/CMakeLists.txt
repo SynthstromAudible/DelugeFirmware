@@ -10,7 +10,11 @@ if(DEFINED DELUGE_CXX_STANDARD)
                                                   CXX_EXTENSIONS ON)
 endif()
 target_link_libraries(deluge_effects PUBLIC deluge_engine_api)
-# The filter, the compressor and the sidechain run dsp-next's compiled filter set, compressor and sidechain envelope
+# argon, header-only, as dsp-next links it: the sidechain's public header holds a Control of the duck envelope, and the
+# kernel core it reaches includes the NEON vector wrappers. A tree without real NEON also gives this library and its
+# users SIMDe, as tests/support/cmake/specs.cmake's deluge_test_neon() does.
+target_link_libraries(deluge_effects PUBLIC argon)
+# The filter, the compressor and the sidechain run dsp-next's compiled filter set, compressor and duck envelope
 # (deluge_dsp_fixed). That target exists where the app is built (the device and host trees); the unit-test trees build
 # no dsp-next library, so their specs compile the sources they run.
 # Link-only: dsp-next's compile definitions stay out of this library.
