@@ -62,8 +62,9 @@ inline constexpr bool unsupported_event = false;
 /// kernel_ops::dispatch_mode, on the configured coefficients. It returns the signal's value after the block, which the
 /// owner applies to the block.
 ///
-/// **Events.** `on<&K::event>(args…)` runs one of K's static functions on the wrapper's own state, for what happens
-/// between blocks (a hit, a stop). An event takes the state by non-const reference and is one of two shapes:
+/// **Events.** `on<&K::event>(args…)` runs a function taking K's State (and optionally its Coefficients first) on the
+/// wrapper's own state, for what happens between blocks (a hit, a stop). An event takes the state by non-const
+/// reference and is one of two shapes:
 /// - `event(const Coefficients&, State&, args…)`, given the configured coefficients;
 /// - `event(State&, args…)`, given the state alone.
 ///
@@ -113,7 +114,7 @@ public:
 	/// @brief Move the signal on by one block: one call to K's `advance`, at the configured mode when K has modes.
 	/// @param n The block's length in samples; may be 0.
 	/// @return The signal's value after the block.
-	[[gnu::always_inline]] value_type advance(std::size_t n) {
+	[[gnu::always_inline]] [[nodiscard]] value_type advance(std::size_t n) {
 		value_type out{};
 		kernel_ops::dispatch_mode<K>(coefficients_, [&]<auto M> [[gnu::always_inline]] () {
 			out = kernel_ops::advance_at<K, M>(coefficients_, state_, n);
@@ -122,7 +123,8 @@ public:
 	}
 
 	/// @brief Run the event @p Event on the state: with the coefficients when it takes them, else without.
-	/// @tparam Event A static function of K, of either shape in the class documentation.
+	/// @tparam Event A function taking K's State (and optionally its Coefficients first), of either shape in the class
+	/// documentation.
 	/// @param args The event's own arguments, after the coefficients and state.
 	/// @return What @p Event returns.
 	template <auto Event, typename... A>
