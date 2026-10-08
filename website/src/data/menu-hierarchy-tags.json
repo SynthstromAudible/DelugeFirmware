@@ -131,6 +131,7 @@
   "menuRoundedCorners": "c1.3",
   "menuTrimFromStartOfAudioClip": "c1.3",
   "menuShowBatteryLevel": "c1.3",
+  "menuChokeGroups": "c1.3",
 
   "__subsection_01_07_batteryLevelMenu": "Subsection: Battery level",
   "batteryLevelMenu": "c1.3",
@@ -303,6 +304,7 @@
 
   "__subsection_05_13_voiceMenu": "Subsection: Voice",
   "polyphonicVoiceCountMenu": "c1.1",
+  "chokeGroupMenu": "c1.3",
   "stereoSpreadMenu": "c1.0",
 
   "__subsection_05_14_outputMidiSubmenu": "Subsection: MIDI",
@@ -320,6 +322,7 @@
   "kitGlobalFXConfigureStemExportMenu": "c1.3",
   "configureKitFXMenu": "c1.3",
   "configureNormalizationForDrumsMenu": "c1.3",
+  "configureExportChokeGroupsMenu": "c1.3",
 
   "__subsection_06_02_kitArpMenu": "Subsection: Kit Arpeggiator",
   "kitArpMenu": "c1.3",

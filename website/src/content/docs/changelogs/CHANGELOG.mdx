@@ -125,6 +125,15 @@ import RecentMainChanges from "../../../components/RecentMainChanges.astro"
   set the stutter configuration independently of the song configuration if you wish.
 - Quantized stutter is enabled by default.
 
+#### <ins>Kits</ins>
+
+- Added numbered choke groups. A kit drum set to `Choke` polyphony can be put in one of 8 groups in the new
+  `VOICE > CHOKE GROUP` menu, and then only chokes drums in the same group.
+  - Existing kits load with every `Choke` drum in group 1, so they behave as before.
+  - Can be turned off in `SETTINGS > COMMUNITY FEATURES > CHOKE GROUPS (CGRP)`; group numbers already saved in a
+    song are kept either way.
+  - See [Numbered Choke Groups](/features/community_features#338---numbered-choke-groups) for details.
+
 ### User Interface
 
 #### <ins>General</ins>
@@ -237,6 +246,9 @@ Added main grid pad shortcuts for the following parameters:
 - Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
 - Added `AUDIO EXPORT` for `KIT DRUMS`, an automated process for exporting `DRUM's` while in `KIT INSTRUMENT CLIP VIEW`. Press :key[SAVE] + :key[RECORD] to start exporting.
 - Added Tempo, Root Note and Scale Information to file names
+- Added `EXPORT CHOKE GROUPS` to the kit drum export's `CONFIGURE EXPORT` menu. Drums that share a choke group are
+  exported together into one file, since they have to sound together for the choke to happen; every other drum is
+  still exported on its own. See [Export Choke Groups](/features/audio_export#export-choke-groups).
 
 #### <ins>Save/Load Patterns</ins>
 

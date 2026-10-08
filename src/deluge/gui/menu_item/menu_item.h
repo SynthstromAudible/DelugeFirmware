@@ -297,6 +297,14 @@ public:
 	/// true by default, but can be overridden
 	[[nodiscard]] virtual bool showColumnLabel() const { return true; }
 
+	/// @brief Whether this item's slot should be left completely blank (no label, no "-" placeholder) when
+	/// it's not relevant within a FIXED-layout Horizontal menu.
+	///
+	/// false by default, but can be overridden for a pair of mutually exclusive items that share the same
+	/// slot role, so the currently-irrelevant one doesn't clutter the grid with a redundant "-" while its
+	/// sibling is in use.
+	[[nodiscard]] virtual bool hideWhenIrrelevant() const { return false; }
+
 	/// @brief Get the number of occupied slots in Horizontal menu.
 	///
 	/// 1 by default, but can be overridden
