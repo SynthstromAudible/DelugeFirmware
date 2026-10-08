@@ -55,6 +55,7 @@ open	src/deluge/modulation/arpeggiator.cpp	^ArpeggiatorSettings::cloneFrom\(Arpe
 open	src/deluge/gui/ui_timer_manager.cpp	^UITimerManager::routine\(\)$	audio×interaction	state: AudioEngine::audioSampleTimer read by the UI timer routine while audio writes it (2026-09-26 probe; not in the 10-run triage)
 
 open	src/deluge/deluge.cpp	^inputRoutine\(\)$	audio×interaction	state: global 'AudioEngine::renderInStereo' (render-routine global read by the input routine; first seen in the C1 gate run)
+open	src/deluge/model/mod_controllable/mod_controllable_audio.cpp	^ModControllableAudio::processFX\(std::span<(deluge::dsp::)?StereoSample, 18446744073709551615ul>, deluge::effects::ModFXType, int, int, Delay::State const&, int\*, ParamManager\*, bool, int\)$	audio×interaction	state: global 'AudioEngine::renderInStereo' (render-routine global, read per delay block to choose the ping-pong routing)
 open	src/deluge/gui/ui/load/load_song_ui.cpp	^LoadSongUI::isLoadingSong\(\)$	audio×interaction	state: global 'loadSongUI' (load state polled across tiers; first seen in the C1 gate run)
 open	library/core/src/str/validations.rs	^core::str::validations::run_utf8_validation$	-	state: a string validated while another tier writes it (its tiers are not recorded)
 open	src/deluge/model/song/song.cpp	^Song::renderAudio\(std::span<(deluge::dsp::)?StereoSample, 18446744073709551615ul>, int\*, int\)$	audio×interaction	state: global 'AudioEngine::firstRecorder' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
@@ -112,7 +113,7 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock
 #   Render-routine globals (audioSampleTimer, routineBeenCalled, renderingBufferOutputPos, renderInStereo,
 #     bypassCulling, audioRoutineLocked): deluge_app_render, AudioEngine::renderAppBlock, AudioEngine::routine, routine_task, routineWithClusterLoading,
 #     getNumSamplesLeftToOutputFromPreviousRender, UITimerManager::workOutNextEventTime, deluge_debug_now_frames, PadLEDs::reassessGreyout,
-#     Sound::renderingVoicesInStereo, inputRoutine, AudioRecorder::beginOutputRecording, PlaybackHandler::doSongSwap,
+#     Sound::renderingVoicesInStereo, ModControllableAudio::processFX, inputRoutine, AudioRecorder::beginOutputRecording, PlaybackHandler::doSongSwap,
 #     WaveformRenderer::advanceOverviewScan
 #   Reverb (AudioEngine::reverb, reverbSidechainVolume, mustUpdateReverbParamsBeforeNextRender):
 #     updateReverbParams, getReverbParamsFromSong, renderReverb, freeverb Comb::process, Freeverb::ProcessOne
