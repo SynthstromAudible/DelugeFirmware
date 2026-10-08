@@ -47,7 +47,7 @@ requires std::same_as<std::remove_cvref_t<std::ranges::range_reference_t<R>>, q3
 
 /// @brief A mono q31 kernel run on both channels of a stereo frame: one Coefficients shared by both channels, one State
 /// per channel, left rendered fully before right on every frame.
-/// @tparam K The kernel: a scalar q31 kernel. Stereo<K> is a @ref processor when K is a processor kernel.
+/// @tparam K The kernel: a scalar q31 kernel. Stereo<K> is a @ref processor; K must be a processor kernel.
 /// @details
 /// **Shared coefficients.** `configure` calls `K::coefficients` once; both channels step with the result.
 ///
@@ -64,7 +64,7 @@ requires std::same_as<std::remove_cvref_t<std::ranges::range_reference_t<R>>, q3
 /// loop are `[[gnu::always_inline]]`, and the loop runs on local copies of the coefficients and both States, taken
 /// after `prepare` and written back after the block, so that they stay in registers even though the output may
 /// alias the component.
-template <kernel K>
+template <processor_kernel K>
 requires std::same_as<typename K::value_type, q31> && std::same_as<typename K::step_type, q31>
 class Stereo {
 	using Coefficients = typename K::Coefficients; ///< K's coefficients, computed on configure, shared by L and R.
@@ -108,9 +108,7 @@ public:
 
 	/// @brief Process one frame: a one-frame block, so one `prepare(…, 1)` per channel and one mode dispatch per
 	/// call.
-	[[gnu::always_inline]] StereoSample render(StereoSample frame)
-	requires processor_kernel<K>
-	{
+	[[gnu::always_inline]] StereoSample render(StereoSample frame) {
 		StereoSample out{};
 		renderBlock(Signal<StereoSample>{&frame, 1}, Buffer<StereoSample>{&out, 1});
 		return out;
@@ -119,9 +117,7 @@ public:
 	/// @brief Process `out.size()` frames of @p in into @p out, left before right on every frame.
 	/// @param in At least `out.size()` frames; may be the same buffer as @p out.
 	/// @param out The block to fill, every frame of it.
-	[[gnu::always_inline]] void renderBlock(Signal<StereoSample> in, Buffer<StereoSample> out)
-	requires processor_kernel<K>
-	{
+	[[gnu::always_inline]] void renderBlock(Signal<StereoSample> in, Buffer<StereoSample> out) {
 		const std::size_t n = out.size();
 		const Block left_block = detail::prepare_block<K>(coefficients_, left_, n);
 		const Block right_block = detail::prepare_block<K>(coefficients_, right_, n);
