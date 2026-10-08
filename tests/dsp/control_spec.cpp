@@ -137,6 +137,56 @@ struct RestartsAtSeven {
 	}
 };
 
+/// A control kernel whose `advance` has a deleted overload taking the coefficients by non-const reference. The const
+/// overload is the control form; the wrapper must call it, not the deleted one.
+struct ConstAdvance {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {
+		q31 rate; ///< Rise per sample.
+	};
+	struct Coefficients {
+		q31 rate; ///< Rise per sample.
+	};
+	struct State {
+		q31 level; ///< The current level.
+	};
+	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate}; }
+	static q31 advance(const Coefficients& c, State& s, std::size_t n) {
+		s.level += c.rate * static_cast<q31>(n);
+		return s.level;
+	}
+	static q31 advance(Coefficients& c, State& s, std::size_t n) = delete;
+};
+
+/// A moded control kernel whose `advance<M>` has a deleted overload taking the coefficients by non-const reference.
+struct ModedConstAdvance {
+	using value_type = q31;
+	using step_type = q31;
+	enum class Dir : uint8_t { DOWN, UP };
+	using Modes = ModeList<Dir::DOWN, Dir::UP>;
+	struct Settings {
+		q31 rate; ///< Change per sample.
+		Dir dir;  ///< Which way it changes.
+	};
+	struct Coefficients {
+		q31 rate;             ///< Change per sample.
+		Dir mode = Dir::DOWN; ///< Which way it changes.
+	};
+	struct State {
+		q31 level = 1000; ///< The current level.
+	};
+	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate, .mode = s.dir}; }
+	template <Dir M>
+	static q31 advance(const Coefficients& c, State& s, std::size_t n) {
+		const auto change = static_cast<q31>(c.rate * static_cast<q31>(n));
+		s.level += M == Dir::UP ? change : -change;
+		return s.level;
+	}
+	template <Dir M>
+	static q31 advance(Coefficients& c, State& s, std::size_t n) = delete;
+};
+
 /// A fall per sample of 2^-11 of full scale, Q1.31.
 constexpr q31 kRate = 1 << 20;
 
@@ -145,6 +195,7 @@ static_assert(control_kernel<SignedCountdown> && moded_kernel<SignedCountdown>);
 static_assert(control_kernel<RestartsAtSeven> && detail::declares_reset<RestartsAtSeven>);
 static_assert(control_generator<Control<Countdown>>);
 static_assert(control_generator<Control<SignedCountdown>>);
+static_assert(control_kernel<ConstAdvance> && control_kernel<ModedConstAdvance> && moded_kernel<ModedConstAdvance>);
 static_assert(!std::is_polymorphic_v<Control<Countdown>>);
 static_assert(detail::event_takes_state<Countdown, &Countdown::kick, q31>);
 static_assert(detail::event_takes_coefficients<Countdown, &Countdown::kick_scaled, q31>);
@@ -191,6 +242,17 @@ describe control("Control", ${
 		signed_countdown.configure({.rate = 10, .dir = SignedCountdown::Dir::UP});
 		expect(signed_countdown.advance(3)).to_equal(1000);
 		expect(signed_countdown.advance(2)).to_equal(1020);
+	});
+
+	it("calls the kernel's const-coefficients advance, never an overload taking them by non-const reference", _ {
+		Control<ConstAdvance> rising{ConstAdvance::Settings{.rate = 3}};
+		expect(rising.advance(4)).to_equal(12);
+		expect(rising.advance(1)).to_equal(15);
+
+		Control<ModedConstAdvance> moded{ModedConstAdvance::Settings{.rate = 10, .dir = ModedConstAdvance::Dir::UP}};
+		expect(moded.advance(3)).to_equal(1030);
+		moded.configure({.rate = 10, .dir = ModedConstAdvance::Dir::DOWN});
+		expect(moded.advance(2)).to_equal(1010);
 	});
 
 	it("runs an event on the state, with the coefficients when the event takes them", _ {

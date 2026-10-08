@@ -906,6 +906,28 @@ describe kernel_concepts("kernel concepts", ${
 		expect(ModedFall::advance<ModedFall::Mode::HOLD>({}, moded_fall_state, 4)).to_equal(5);
 		expect(ModedFall::advance<ModedFall::Mode::CLEAR>({}, moded_fall_state, 4)).to_equal(0);
 	});
+
+	it("advances a control kernel and processes a staged kernel through kernel_ops at a mode", _ {
+		Fall::State fall_state{};
+		expect(kernel_ops::advance_at<Fall, kernel_ops::NoMode::NONE>({.rate = 10}, fall_state, 3))
+		    .to_equal(ONE_Q31 - 30);
+
+		ModedFall::State moded_fall_state{.level = 5};
+		expect(kernel_ops::advance_at<ModedFall, ModedFall::Mode::HOLD>({}, moded_fall_state, 4)).to_equal(5);
+		expect(kernel_ops::advance_at<ModedFall, ModedFall::Mode::CLEAR>({}, moded_fall_state, 4)).to_equal(0);
+
+		const std::array<q31, 3> in{1, 2, 3};
+		std::array<q31, 3> out{};
+		Staged::State staged_state{};
+		kernel_ops::process_at<Staged, kernel_ops::NoMode::NONE>({}, staged_state, in, out);
+		expect(out[0]).to_equal(3);
+		expect(out[2]).to_equal(1);
+
+		ModedStaged::State moded_staged_state{};
+		kernel_ops::process_at<ModedStaged, ModedStaged::Mode::NEGATE>({}, moded_staged_state, in, out);
+		expect(out[0]).to_equal(-1);
+		expect(out[2]).to_equal(-3);
+	});
 });
 
 CPPSPEC_MAIN(kernel_concepts);

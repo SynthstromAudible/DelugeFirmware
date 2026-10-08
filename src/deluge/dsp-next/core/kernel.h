@@ -32,8 +32,9 @@
 /// the reset state), and optionally `Block`, `Mode` and `Modes`. It provides a pure `coefficients(settings)`, an
 /// optional once-per-block `prepare`, and either a `step` at one of three arities, or, for block-staged arithmetic,
 /// a `process`, or, for a block-rate control signal, an `advance`. The wrappers (`Mono`, `Stereo`, `Control`) are the
-/// only loops; a kernel holds no data of its own. The calls a wrapper makes on a kernel are in @ref kernel_ops, where
-/// a composed kernel finds them to call its parts.
+/// only loops; a kernel holds no data of its own. A wrapper calls a kernel only through @ref kernel_ops, which passes
+/// the coefficients as a const reference so that the call resolves to the form's own signature; a composed kernel
+/// calls its parts through the same functions.
 ///
 /// **One form per kernel.** A kernel takes exactly one of five forms: `step(c, b, s)` (generator),
 /// `step(c, b, s, x)` (processor), `step(c, b, s, a, b2)` (mixer), `process(c, s, in, out)` (staged), or
@@ -452,12 +453,14 @@ template <typename K>
 concept moded_kernel = kernel<K> && detail::has_modes<K>;
 
 /// @brief The calls a wrapper makes on a kernel, public so that a composed kernel makes the same calls on its parts.
-/// @details A kernel built from smaller kernels prepares each part with @ref prepare_block and steps each part with
-/// @ref step_at, so it never has to know whether a part declares `prepare` or has modes. Everything here runs per
-/// block or per step and is `[[gnu::always_inline]]`.
+/// @details `Mono`, `Stereo` and `Control` call a kernel through these alone: @ref prepare_block, @ref dispatch_mode,
+/// then @ref step_at, @ref process_at or @ref advance_at for the kernel's form. A kernel built from smaller kernels
+/// prepares each part with @ref prepare_block and steps each part with @ref step_at, so it never has to know whether a
+/// part declares `prepare` or has modes. Everything here runs per block or per step and is `[[gnu::always_inline]]`.
 namespace kernel_ops {
 
-/// @brief The mode a kernel without modes is stepped at: a placeholder @ref step_at is templated on and ignores.
+/// @brief The mode a kernel without modes is stepped at: a placeholder @ref step_at, @ref process_at and @ref
+/// advance_at are templated on and ignore.
 enum class NoMode : uint8_t { NONE };
 
 /// @brief K's per-block values for a block of @p n samples: its `prepare` when it declares one, else an
@@ -509,6 +512,44 @@ step_at(const typename K::Coefficients& c, const kernel_block_t<K>& block, typen
 	}
 	else {
 		return K::step(c, block, s, x...);
+	}
+}
+
+/// @brief One `advance` of control kernel K at mode @p M: `K::advance<M>` for a moded kernel; for a kernel without
+/// modes, its non-template `advance`, with @p M ignored (pass NoMode::NONE).
+/// @details The coefficients are passed as a const reference, so the call resolves to the `advance` the control form
+/// names even when K overloads it on non-const coefficients.
+/// @param c K's coefficients.
+/// @param s K's state.
+/// @param n The block's length in samples; may be 0.
+/// @return The signal's value after the block.
+template <control_kernel K, auto M>
+[[gnu::always_inline]] inline typename K::value_type advance_at(const typename K::Coefficients& c, typename K::State& s,
+                                                                std::size_t n) {
+	if constexpr (moded_kernel<K>) {
+		return K::template advance<M>(c, s, n);
+	}
+	else {
+		return K::advance(c, s, n);
+	}
+}
+
+/// @brief One `process` of staged kernel K at mode @p M: `K::process<M>` for a moded kernel; for a kernel without
+/// modes, its non-template `process`, with @p M ignored (pass NoMode::NONE).
+/// @details The coefficients are passed as a const reference, so the call resolves to the `process` the staged form
+/// names even when K overloads it on non-const coefficients.
+/// @param c K's coefficients.
+/// @param s K's state.
+/// @param in At least `out.size()` samples; may be the same buffer as @p out.
+/// @param out The block to fill.
+template <staged_kernel K, auto M>
+[[gnu::always_inline]] inline void process_at(const typename K::Coefficients& c, typename K::State& s,
+                                              Signal<typename K::value_type> in, Buffer<typename K::value_type> out) {
+	if constexpr (moded_kernel<K>) {
+		K::template process<M>(c, s, in, out);
+	}
+	else {
+		K::process(c, s, in, out);
 	}
 }
 

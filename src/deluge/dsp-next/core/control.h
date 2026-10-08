@@ -58,8 +58,9 @@ inline constexpr bool unsupported_event = false;
 /// takes effect from the next block's first sample while the signal's position carries over.
 ///
 /// **Advance once per block.** `advance(n)` moves the signal on by a whole block of @c n samples (0 included) in one
-/// call to K's `advance`, dispatching a moded kernel's mode once, through @ref kernel_ops::dispatch_mode, on the
-/// configured coefficients. It returns the signal's value after the block, which the owner applies to the block.
+/// call to K's `advance` through @ref kernel_ops::advance_at, dispatching a moded kernel's mode once, through @ref
+/// kernel_ops::dispatch_mode, on the configured coefficients. It returns the signal's value after the block, which the
+/// owner applies to the block.
 ///
 /// **Events.** `on<&K::event>(args…)` runs one of K's static functions on the wrapper's own state, for what happens
 /// between blocks (a hit, a stop). An event takes the state by non-const reference and is one of two shapes:
@@ -115,12 +116,7 @@ public:
 	[[gnu::always_inline]] value_type advance(std::size_t n) {
 		value_type out{};
 		kernel_ops::dispatch_mode<K>(coefficients_, [&]<auto M> [[gnu::always_inline]] () {
-			if constexpr (moded_kernel<K>) {
-				out = K::template advance<M>(coefficients_, state_, n);
-			}
-			else {
-				out = K::advance(coefficients_, state_, n);
-			}
+			out = kernel_ops::advance_at<K, M>(coefficients_, state_, n);
 		});
 		return out;
 	}

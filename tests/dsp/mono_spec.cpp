@@ -125,6 +125,52 @@ struct ModedStaged {
 	}
 };
 
+/// A block-staged kernel whose `process` has a deleted overload taking the coefficients by non-const reference. The
+/// const overload is the staged form; the wrapper must call it, not the deleted one.
+struct ConstProcess {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {
+		q31 offset;
+	};
+	struct Coefficients {
+		q31 offset;
+	};
+	struct State {};
+	static Coefficients coefficients(const Settings& s) { return {.offset = s.offset}; }
+	static void process(const Coefficients& c, State& /*s*/, Signal<q31> in, Buffer<q31> out) {
+		for (std::size_t i = 0; i < in.size(); ++i) {
+			out[i] = in[i] + c.offset;
+		}
+	}
+	static void process(Coefficients& c, State& s, Signal<q31> in, Buffer<q31> out) = delete;
+};
+
+/// A moded block-staged kernel whose `process<M>` has a deleted overload taking the coefficients by non-const
+/// reference.
+struct ModedConstProcess {
+	using value_type = q31;
+	using step_type = q31;
+	enum class Mode : uint8_t { COPY, NEGATE };
+	using Modes = ModeList<Mode::COPY, Mode::NEGATE>;
+	struct Settings {
+		Mode mode;
+	};
+	struct Coefficients {
+		Mode mode;
+	};
+	struct State {};
+	static Coefficients coefficients(const Settings& s) { return {.mode = s.mode}; }
+	template <Mode M>
+	static void process(const Coefficients& /*c*/, State& /*s*/, Signal<q31> in, Buffer<q31> out) {
+		for (std::size_t i = 0; i < in.size(); ++i) {
+			out[i] = M == Mode::COPY ? in[i] : -in[i];
+		}
+	}
+	template <Mode M>
+	static void process(Coefficients& c, State& s, Signal<q31> in, Buffer<q31> out) = delete;
+};
+
 /// A scalar processor whose prepare counts the blocks it is called for.
 struct CountingPrepare {
 	using value_type = q31;
@@ -864,6 +910,19 @@ describe mono("Mono", ${
 		quirk.reset();
 		expect(quirk.state().n).to_equal(100);
 		expect(quirk.render()).to_equal(101);
+	});
+
+	it("calls a staged kernel's const-coefficients process, never an overload taking them by non-const reference", _ {
+		static_assert(staged_kernel<ConstProcess> && staged_kernel<ModedConstProcess>);
+		const std::vector<q31> in{1, 2, 3};
+		std::vector<q31> out(in.size());
+		Mono<ConstProcess> offset{{.offset = 10}};
+		offset.renderBlock(in, out);
+		expect(out).to_equal(std::vector<q31>{11, 12, 13});
+
+		Mono<ModedConstProcess> moded{{.mode = ModedConstProcess::Mode::NEGATE}};
+		moded.renderBlock(in, out);
+		expect(out).to_equal(std::vector<q31>{-1, -2, -3});
 	});
 
 	it("renders a staged kernel's block through process", _ {

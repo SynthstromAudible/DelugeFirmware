@@ -70,9 +70,9 @@ inline constexpr bool is_partial_step<argon::vectorize::InterleavedStep<T, Strid
 /// counted, with `n` equal to the lane count.
 ///
 /// **Staged kernels** have no loop here: `renderBlock` calls `process(coefficients, state, in, out)` once, or
-/// `process<M>` through with_mode when the kernel is moded. A staged kernel does its per-block work in `process`, so
-/// one that declares `prepare` is rejected. `process` keeps the in-place promise itself: @ref staged_kernel requires
-/// it to give the same result when `in` and `out` are the same buffer.
+/// `process<M>` through with_mode when the kernel is moded, through @ref kernel_ops::process_at. A staged kernel does
+/// its per-block work in `process`, so one that declares `prepare` is rejected. `process` keeps the in-place promise
+/// itself: @ref staged_kernel requires it to give the same result when `in` and `out` are the same buffer.
 ///
 /// **Single samples.** `render(…)` is a one-sample block: it builds one-sample spans and runs a whole block's
 /// `prepare`, dispatch and loop, which under the shipping `-fno-inline-functions` costs several out-of-line
@@ -161,12 +161,7 @@ public:
 	{
 		if constexpr (staged_kernel<K>) {
 			kernel_ops::dispatch_mode<K>(coefficients_, [&]<auto M> [[gnu::always_inline]] () {
-				if constexpr (moded_kernel<K>) {
-					K::template process<M>(coefficients_, state_, in.first(out.size()), out);
-				}
-				else {
-					K::process(coefficients_, state_, in.first(out.size()), out);
-				}
+				kernel_ops::process_at<K, M>(coefficients_, state_, in.first(out.size()), out);
 			});
 		}
 		else {
