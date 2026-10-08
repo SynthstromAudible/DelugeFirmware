@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/curves/instant_tan.h"
 #include "dsp-next/fixed/curves/quick_log.h"
+#include "dsp-next/fixed/dynamics/sidechain_envelope.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
@@ -849,12 +850,7 @@ int32_t instantTan(int32_t input) {
 }
 
 int32_t combineHitStrengths(int32_t strength1, int32_t strength2) {
-	// Ideally, we'd do pythagoras on these. But to save computation time, we'll just go half way between the biggest
-	// one and the sum
-	uint32_t sum = (uint32_t)strength1 + (uint32_t)strength2;
-	sum = std::min(sum, (uint32_t)2147483647);
-	int32_t maxOne = std::max(strength1, strength2);
-	return (maxOne >> 1) + (sum >> 1);
+	return deluge::dsp::fixed::combine_hit_strengths(strength1, strength2);
 }
 
 uint32_t z = 362436069, w = 521288629;
