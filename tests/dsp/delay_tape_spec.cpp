@@ -541,10 +541,41 @@ describe delay_tape("DelayTape", ${
 		expect(DelayTape::idealSizeForRate(4294967295U)).to_equal(Size{64, false});
 		expect(DelayTape::idealSizeForRate(3200000)).to_equal(Size{85899, false});
 		expect(DelayTape::idealSizeForRate(1000000)).to_equal(Size{88200, true});
-		// The quotient is truncated to 32 bits before it is clamped: these wrap to 0 and to a negative size.
-		expect(DelayTape::idealSizeForRate(64)).to_equal(Size{1, true});
-		expect(DelayTape::idealSizeForRate(1)).to_equal(Size{1, true});
 		expect(DelayTape::idealSizeForRate(100)).to_equal(Size{88200, true});
+	});
+
+	it("sizes a rate of 64 or below at the largest size, never a tape shorter than its clear", _ {
+		using Size = std::pair<int32_t, bool>;
+		expect(DelayTape::idealSizeForRate(64)).to_equal(Size{88200, true});
+		expect(DelayTape::idealSizeForRate(32)).to_equal(Size{88200, true});
+		expect(DelayTape::idealSizeForRate(1)).to_equal(Size{88200, true});
+	});
+
+	it("clears a tape at the size a rate of 64 gets without writing past its storage", _ {
+		const size_t size = static_cast<size_t>(DelayTape::idealSizeForRate(64).first);
+		const size_t used = size + DelayTape::kWriteLag;
+		constexpr StereoSample kSentinel{.l = 0x13579BDF, .r = 0x2468ACE0};
+		std::vector<StereoSample> backing(used + 4, kSentinel);
+		DelayTape tape{std::span{backing}.first(used), size, 64};
+		tape.clear();
+		for (size_t i = used; i < backing.size(); ++i) {
+			expect(backing[i].l).to_equal(kSentinel.l);
+			expect(backing[i].r).to_equal(kSentinel.r);
+		}
+	});
+
+	it("resamples at a rate of 0 at the slowest spin it can write, two 16.16 steps a sample", _ {
+		Rig rig{kNative};
+		const Run run = secondary(rig, kNative, 0);
+		expect(rig.tape.resampling()).to_be_true();
+		expect(first(run.strengths, 4)).to_equal(std::vector<int32_t>{2, 4, 6, 8});
+		expect(run.strengths.back()).to_equal(768);
+		expect(run.wraps).to_equal(std::vector<int32_t>{});
+	});
+
+	it("sizes a rate of 0 at the largest size", _ {
+		using Size = std::pair<int32_t, bool>;
+		expect(DelayTape::idealSizeForRate(0)).to_equal(Size{88200, true});
 	});
 
 	it("makes its native rate precise for its size, alone or relative to another tape", _ {

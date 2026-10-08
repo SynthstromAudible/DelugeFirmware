@@ -69,8 +69,8 @@ public:
 
 	/// @return The tape size for a delay at @p rate, and whether it was clamped to [kMinSize, kMaxSize].
 	///
-	/// The size is kNeutralSize * 16777216 / @p rate, truncated to 32 bits before it is clamped (so a rate of 128 or
-	/// less can wrap to a size of 0 or a negative one, which clamps to kMinSize or kMaxSize).
+	/// The size is kNeutralSize * 16777216 / @p rate, clamped. Any rate below about 3116513, 0 included, gets
+	/// kMaxSize.
 	[[nodiscard]] static std::pair<int32_t, bool> idealSizeForRate(uint32_t rate);
 
 	/// @return Whether the tape has storage.
@@ -98,7 +98,8 @@ public:
 	///
 	/// A tape that is native stays native at its native rate, and an inactive one never starts resampling. One that
 	/// starts resampling first splits the sample last written, so the resampled writes' triangles mesh with it. Once
-	/// resampling, a tape stays resampling (at the native rate too) until clear().
+	/// resampling, a tape stays resampling (at the native rate too) until clear(). A tape resamples at no less than
+	/// 2^-15 of its native rate, the slowest its writes can widen to; a rate of 0 crawls at that.
 	void setupForRender(int32_t rate);
 
 	/// @brief Sets the native rate to the one whose ideal size is exactly this tape's size.

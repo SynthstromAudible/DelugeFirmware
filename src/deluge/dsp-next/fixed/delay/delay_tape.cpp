@@ -25,6 +25,10 @@ namespace deluge::dsp::fixed {
 namespace {
 /// The neutral rate's tape length times the neutral rate: a tape's size times its native rate, ideally.
 constexpr double kNeutralSpan = static_cast<double>(DelayTape::kNeutralSize) * static_cast<double>(kMaxSampleValue);
+/// The slowest a tape resamples, 8.24 of its native rate (2^-15). Below it the slowed-down write's widening no longer
+/// fits 32 bits: at 2^-16 the rate multiple times the read's slowness is 2^32, and below that the inverse rate is a
+/// division by zero. A rate of 0 crawls at this spin.
+constexpr uint32_t kMinSpinRate = 512;
 } // namespace
 
 DelayTape::DelayTape(std::span<StereoSample> storage, size_t size, uint32_t native_rate)
@@ -34,18 +38,12 @@ DelayTape::DelayTape(std::span<StereoSample> storage, size_t size, uint32_t nati
 }
 
 std::pair<int32_t, bool> DelayTape::idealSizeForRate(uint32_t rate) {
-	auto size = static_cast<int32_t>(static_cast<uint64_t>(kNeutralSize) * kMaxSampleValue / rate);
-	bool clamped = false;
-	// Compared unsigned, so a size that wrapped negative clamps to the largest.
-	if (static_cast<size_t>(size) > kMaxSize) {
-		size = static_cast<int32_t>(kMaxSize);
-		clamped = true;
+	if (rate == 0) {
+		return {static_cast<int32_t>(kMaxSize), true};
 	}
-	if (static_cast<size_t>(size) < kMinSize) {
-		size = static_cast<int32_t>(kMinSize);
-		clamped = true;
-	}
-	return {size, clamped};
+	const uint64_t ideal = static_cast<uint64_t>(kNeutralSize) * kMaxSampleValue / rate;
+	const uint64_t size = std::clamp<uint64_t>(ideal, kMinSize, kMaxSize);
+	return {static_cast<int32_t>(size), size != ideal};
 }
 
 void DelayTape::makeNativeRatePrecise() {
@@ -85,8 +83,10 @@ void DelayTape::setupForRender(int32_t rate) {
 		setupResample();
 	}
 
-	const auto actual_spin_rate = static_cast<uint32_t>(static_cast<uint64_t>(
-	    static_cast<double>(static_cast<uint64_t>(rate) << 24) / static_cast<double>(native_rate_)));
+	const auto actual_spin_rate =
+	    std::max(static_cast<uint32_t>(static_cast<uint64_t>(static_cast<double>(static_cast<uint64_t>(rate) << 24)
+	                                                         / static_cast<double>(native_rate_))),
+	             kMinSpinRate);
 	auto divide_by_rate =
 	    static_cast<uint32_t>(static_cast<double>(0xFFFFFFFF) / static_cast<double>(actual_spin_rate >> 8));
 
