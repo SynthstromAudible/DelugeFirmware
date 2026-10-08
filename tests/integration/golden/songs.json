@@ -41,6 +41,12 @@
   "rms_db": -22.75,
   "sha256": "ac1d1692d1254613f8f3b8807e74c2d23daa4d108b4bb344671aa9e7b658f599"
  },
+ "RS_DUCK_SHAPES": {
+  "frames": 384000,
+  "peak": 1504250368,
+  "rms_db": -14.41,
+  "sha256": "cd2cc121d88628032bcd05ab99fcf227023ce48eae23d99ca460f41988ded247"
+ },
  "RS_KIT_COMP": {
   "frames": 384000,
   "peak": 844851968,

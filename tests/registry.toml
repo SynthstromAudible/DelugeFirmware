@@ -967,6 +967,24 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-duck-shapes"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the sidechain envelope's instant attack, straight and clamped release shapes, and a stronger hit taken mid-attack and mid-release render as recorded on the host owners: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_DUCK_SHAPES) whose kit drums send a quarter-strength sidechain hit and then a full-strength one inside its duck, twice; they duck an audio track whose sidechain attack is at its minimum, so each hit skips the attack and the stronger one lands mid-release, the kit through its own sidechain with the shape param at its maximum, where the release's curve is clamped, and the stronger hit mid-release, and the song's reverb through its sidechain with the shape param at its minimum, a straight release, and an attack slow enough that the stronger hit lands mid-attack; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin without the hits or the three sidechain volumes must render differently (RS-FX), so the hits reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_DUCK_SHAPES" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-kit-comp"
 path = "."
 level = "integration"

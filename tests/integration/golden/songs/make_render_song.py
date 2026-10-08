@@ -20,6 +20,8 @@ drive filter, the saturating ladder HPF, the granular mod FX, and each filter fa
 it on. RS_AUDIO_DUCKED, RS_KIT_COMP, RS_KIT_DELAY, RS_AUDIO_DELAY and RS_KIT_PINGPONG cover the dynamics and delay
 paths: sidechain hits ducking an audio track, the reverb and a drum; a drum's compressor and a kit's blended one; a
 delay's rate stepped through new buffers until it is abandoned; and ping-pong, which its gate renders in stereo.
+RS_DUCK_SHAPES covers the sidechain envelope's paths RS_AUDIO_DUCKED leaves out on the host owners: the instant
+attack, the straight and clamped release shapes, and a stronger hit taken mid-attack and mid-release.
 """
 
 import math
@@ -406,8 +408,9 @@ def _row_params(drum: dict) -> str:
     return params
 
 
-def kit_parts(fx: dict, drums: list[dict]) -> tuple[str, str]:
-    """A kit of @p drums with the host settings @p fx: its instrument and its clip."""
+def kit_parts(fx: dict, drums: list[dict], extra_tags: str = "") -> tuple[str, str]:
+    """A kit of @p drums with the host settings @p fx and its own extra tags @p extra_tags: its instrument and its
+    clip."""
     frames = RATE * SAMPLE_SECONDS
     sounds = "".join(
         DRUM_WITH.format(
@@ -423,9 +426,12 @@ def kit_parts(fx: dict, drums: list[dict]) -> tuple[str, str]:
         KIT_ROW_NOTES.format(index=i, notes=_notes(d["notes"]), params=_row_params(d))
         for i, d in enumerate(drums)
     )
-    return KIT.format(drums=sounds, **fx), KIT_CLIP.format(
-        ticks=CLIP_TICKS, rows=rows, **fx
-    )
+    kit = KIT.format(drums=sounds, **fx)
+    if extra_tags:
+        kit = kit.replace(
+            "\t\t\t<soundSources>", f"\t\t\t{extra_tags}\n\t\t\t<soundSources>"
+        )
+    return kit, KIT_CLIP.format(ticks=CLIP_TICKS, rows=rows, **fx)
 
 
 def audio_parts(fx: dict, extra_tags: str = "") -> tuple[str, str]:
@@ -537,6 +543,61 @@ def ducked_song(voices: list[tuple[str, str, int]], dry: bool) -> str:
     )
 
 
+# The sidechain envelope's paths RS_AUDIO_DUCKED leaves out, each on a host owner. Drum RSD2 sends a quarter-strength
+# hit at the start of each of the first two bars and RSD1 a full-strength one inside its duck, 6 ticks later in the
+# first bar and 24 in the second, so every owner takes the stronger hit mid-duck. The audio track's attack is at its
+# minimum, so each hit skips the attack and the second lands mid-release. The kit's own sidechain has its shape param
+# at its maximum, where the release's curve is clamped, and its default attack, so the second hit lands mid-release.
+# The reverb's has its shape param at its minimum, a straight release, and an attack slow enough that the second hit
+# lands mid-attack; the audio track sends to it, so its duck is heard.
+DUCK_SHAPES_DRUMS = [
+    _drum(
+        "RSD1",
+        "SAMPLES/RS/A.WAV",
+        [(6, 24), (408, 24)],
+        attrs='sideChainSend="2147483647"',
+    ),
+    _drum(
+        "RSD2",
+        "SAMPLES/RS/B.WAV",
+        [(0, 24), (384, 24)],
+        attrs='sideChainSend="536870912"',
+    ),
+]
+DUCK_SHAPES_DRUMS_DRY = [{**d, "attrs": ""} for d in DUCK_SHAPES_DRUMS]
+DUCK_SHAPES_KIT = _host(
+    params='sidechainCompressorVolume="0x40000000" sidechainCompressorShape="0x7FFFFFFF"'
+)
+# The attack param's minimum: attackRateTable[0] << 2.
+SIDECHAIN_INSTANT = (
+    '<sidechain attack="1048576" release="992" syncLevel="0" syncType="0" />'
+)
+DUCK_SHAPES_AUDIO = _host(
+    params='sidechainCompressorVolume="0x40000000" reverbAmount="0x40000000"'
+)
+DUCK_SHAPES_REVERB = (
+    '>\n\t<reverb roomSize="1288490240" dampening="1546188288" width="2147483647" pan="0">\n'
+    '\t\t<compressor attack="256" release="992" volume="1073741800" shape="-2147483648" syncLevel="0" />\n'
+    "\t</reverb>"
+)
+DUCK_SHAPES_REVERB_DRY = DUCK_SHAPES_REVERB.replace('volume="1073741800"', 'volume="0"')
+
+
+def duck_shapes_song(voices: list[tuple[str, str, int]], dry: bool) -> str:
+    return parts_song(
+        voices,
+        [
+            kit_parts(DRY, DUCK_SHAPES_DRUMS_DRY)
+            if dry
+            else kit_parts(DUCK_SHAPES_KIT, DUCK_SHAPES_DRUMS, SIDECHAIN_DEFAULT),
+            audio_parts(DUCKED_AUDIO_DRY)
+            if dry
+            else audio_parts(DUCK_SHAPES_AUDIO, SIDECHAIN_INSTANT),
+        ],
+        DUCK_SHAPES_REVERB_DRY if dry else DUCK_SHAPES_REVERB,
+    )
+
+
 # A kit drum's own compressor, and the kit's compressor blended half wet with its sidechain high-pass up.
 COMP_DRUMS = [
     _drum(
@@ -621,6 +682,8 @@ SONGS = {
     "RS_AUDIO_FILTER_FADE_DRY": lambda v: audio_song(v, DRY),
     "RS_AUDIO_DUCKED": lambda v: ducked_song(v, dry=False),
     "RS_AUDIO_DUCKED_DRY": lambda v: ducked_song(v, dry=True),
+    "RS_DUCK_SHAPES": lambda v: duck_shapes_song(v, dry=False),
+    "RS_DUCK_SHAPES_DRY": lambda v: duck_shapes_song(v, dry=True),
     "RS_KIT_COMP": lambda v: parts_song(v, [kit_parts(KIT_COMP, COMP_DRUMS)]),
     "RS_KIT_COMP_DRY": lambda v: parts_song(v, [kit_parts(DRY, COMP_DRUMS_DRY)]),
     "RS_KIT_DELAY": lambda v: parts_song(v, [kit_parts(KIT_DELAY, DELAY_DRUMS)]),
