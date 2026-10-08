@@ -260,6 +260,25 @@ struct VecOffsetCount {
 	}
 };
 
+/// VecOffsetCount without the count: a stateful vector processor whose partial last vector advances its state by a
+/// whole vector, as `Amplitude`'s ramp does.
+struct VecOffsetWhole {
+	using value_type = q31;
+	using step_type = Argon<q31>;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {
+		Argon<q31> value; ///< The index of the next step's first sample, in every lane.
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
+	                                              Argon<q31> x) {
+		const Argon<q31> out = x + s.value + Argon<q31>::Iota(0);
+		s.value = s.value + Argon<q31>{static_cast<q31>(Argon<q31>::lanes)};
+		return out;
+	}
+};
+
 /// A vector mixer: the difference of its inputs.
 struct VecSubtract {
 	using value_type = q31;
@@ -401,6 +420,7 @@ static_assert(!processor<Mono<Staged>>);
 static_assert(processor<Mono<VecOffsetCount>>);
 static_assert(generator<Mono<VecRampCount>>);
 static_assert(mixer<Mono<VecSubtract>>);
+static_assert(processor<Mono<VecOffsetWhole>>);
 static_assert(processor<Mono<StereoSwap>>);
 static_assert(processor<Mono<StereoVecSwap>>);
 static_assert(generator<Mono<StereoVecRampCount>>);
@@ -743,6 +763,78 @@ describe mono("Mono", ${
 		moded.renderBlock(in, out);
 		for (std::size_t i = 0; i < in.size(); ++i) {
 			expect(out[i]).to_equal(in[i]);
+		}
+	});
+
+	it("mixes in place exactly as out of place, either input the output", _ {
+		for (const std::size_t n : kLengths) {
+			const std::vector<q31> a = input(n, 0x00321fed);
+			const std::vector<q31> b = input(n, -0x00054321);
+			std::vector<q31> out(n);
+			std::vector<q31> in_place(n);
+
+			Mono<Add> add;
+			add.renderBlock(a, b, out);
+			in_place = a;
+			add.renderBlock(in_place, b, in_place);
+			expect(in_place).to_equal(out);
+			in_place = b;
+			add.renderBlock(a, in_place, in_place);
+			expect(in_place).to_equal(out);
+
+			Mono<VecSubtract> subtract;
+			subtract.renderBlock(a, b, out);
+			in_place = a;
+			subtract.renderBlock(in_place, b, in_place);
+			expect(in_place).to_equal(out);
+			in_place = b;
+			subtract.renderBlock(a, in_place, in_place);
+			expect(in_place).to_equal(out);
+
+			const std::vector<StereoSample> fa = stereo_input(n);
+			std::vector<StereoSample> fb(n);
+			for (std::size_t i = 0; i < n; ++i) {
+				fb[i] = {.l = fa[i].r * 5 + 3, .r = fa[i].l - 0x00100000};
+			}
+			std::vector<StereoSample> frames_out(n);
+			std::vector<StereoSample> frames_in_place(n);
+			Mono<StereoVecMix> mix;
+			mix.renderBlock(fa, fb, frames_out);
+			for (const bool alias_a : {true, false}) {
+				frames_in_place = alias_a ? fa : fb;
+				if (alias_a) {
+					mix.renderBlock(frames_in_place, fb, frames_in_place);
+				}
+				else {
+					mix.renderBlock(fa, frames_in_place, frames_in_place);
+				}
+				for (std::size_t i = 0; i < n; ++i) {
+					expect(frames_in_place[i].l).to_equal(frames_out[i].l);
+					expect(frames_in_place[i].r).to_equal(frames_out[i].r);
+				}
+			}
+		}
+	});
+
+	it("advances a stateful vector processor without the count by a whole vector per partial step", _ {
+		constexpr auto lanes = static_cast<std::size_t>(Argon<q31>::lanes);
+		for (std::size_t n = 1; n <= 9; ++n) {
+			Mono<VecOffsetWhole> mono;
+			VecOffsetWhole::State s{};
+			for (int block = 0; block < 2; ++block) {
+				const std::vector<q31> in = input(n, 0x00024680 * (block + 1));
+				std::vector<q31> got(n);
+				mono.renderBlock(in, got);
+				for (std::size_t offset = 0; offset < n; offset += lanes) {
+					const std::array<q31, 4> want = lanes_of(VecOffsetWhole::step({}, {}, s, vector_at(in, offset)));
+					for (std::size_t i = 0; i < lanes && offset + i < n; ++i) {
+						expect(got[offset + i]).to_equal(want[i]);
+					}
+				}
+				const auto whole_end = static_cast<q31>(lanes * ((n + lanes - 1) / lanes) * (block + 1));
+				expect(ramp_value(mono)).to_equal(whole_end);
+				expect(lanes_of(mono.state().value)[3]).to_equal(whole_end);
+			}
 		}
 	});
 
