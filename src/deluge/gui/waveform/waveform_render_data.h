@@ -27,7 +27,7 @@
 struct WaveformRenderData {
 	int64_t xScroll;
 	int64_t xZoom;
-	int64_t validLengthSamples; ///< Waveform length at the last render. If it changes, the cached columns are stale.
+	int64_t num_samples; ///< Waveform length at the last render. If it changes, the cached columns are stale.
 	int32_t maxPerCol[kDisplayWidth];
 	int32_t minPerCol[kDisplayWidth];
 	uint8_t colStatus[kDisplayWidth];

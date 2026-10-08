@@ -39,6 +39,8 @@ extern "C" {
 extern uint8_t currentlyAccessingCard;
 }
 
+using namespace deluge::gui::waveform;
+
 WaveformRenderer waveformRenderer{};
 
 WaveformRenderer::WaveformRenderer() {
@@ -53,7 +55,7 @@ namespace {
 ///
 /// @param data The cache to slide.
 /// @param shift Columns scrolled, positive meaning rightwards. A whole screen or more clears everything.
-void shiftRenderCache(WaveformRenderData& data, int32_t shift) {
+void shiftColumns(WaveformRenderData& data, int32_t shift) {
 	if (shift == 0) {
 		return;
 	}
@@ -122,9 +124,9 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 	// Don't block on the card here: song row view renders many of these at once, so loading every missing Cluster
 	// synchronously made scrolling lag badly. Columns still waiting on a Cluster draw black until it arrives
 	// and our false return gets the row re-rendered. Not while recording, though: see findPeaksPerCol().
-	int32_t clusterLoadInstruction = (recorder != nullptr) ? CLUSTER_LOAD_IMMEDIATELY : CLUSTER_ENQUEUE;
+	bool wait_for_card = (recorder != nullptr);
 	bool completeSuccess =
-	    findPeaksPerCol(sample, xScroll, xZoom, data, recorder, xStartSource, xEndSource, clusterLoadInstruction);
+	    findPeaksPerCol(sample, xScroll, xZoom, data, recorder, xStartSource, xEndSource, wait_for_card);
 
 	int32_t maxPeakFromZero = sample->getMaxPeakFromZero();
 
@@ -270,9 +272,10 @@ void WaveformRenderer::renderOneColForCollapseAnimationInterpolation(int32_t xDi
 // Returns false if had trouble loading some (will often not be all) Clusters, e.g. cos we're in the card routine
 bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, uint64_t xZoomSamples,
                                        WaveformRenderData* data, SampleRecorder* recorder, int32_t xStart, int32_t xEnd,
-                                       int32_t clusterLoadInstruction) {
+                                       bool wait_for_card) {
 
-	releaseFinishedClusterLoads();
+	releaseFinishedLoads();
+	int32_t load_instruction = wait_for_card ? CLUSTER_LOAD_IMMEDIATELY : CLUSTER_ENQUEUE;
 
 	uint64_t numValidSamples;
 	int32_t endClusters;
@@ -287,15 +290,15 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 	uint64_t numValidBytes = numValidSamples * sample->byteDepth * sample->numChannels;
 
-	bool lengthChanged = static_cast<int64_t>(numValidSamples) != data->validLengthSamples;
+	bool length_changed = static_cast<int64_t>(numValidSamples) != data->num_samples;
 	if (recorder != nullptr) {
 		// During recording the waveform grows every frame. A monotonic append leaves already-investigated
 		// columns valid (the growing edge is re-checked below because only COL_STATUS_INVESTIGATED columns are
 		// skipped), so don't nuke the whole cache each frame just because the length ticked up.
-		lengthChanged = false;
+		length_changed = false;
 	}
 	// Callers set xScroll to -1 to force a re-render (e.g. sample replaced), which must never look like a scroll
-	if (xZoomSamples != data->xZoom || lengthChanged || data->xScroll == -1) {
+	if (xZoomSamples != data->xZoom || length_changed || data->xScroll == -1) {
 		// Zoom changed, or (off the record path) the waveform length changed (e.g. sample replaced/shrunk), or a
 		// re-render was forced: nothing is reusable.
 		std::ranges::fill(data->colStatus, COL_STATUS_NOT_INVESTIGATED);
@@ -304,10 +307,10 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 		// Scroll changed but zoom and length didn't. If we moved by a whole number of columns that fits the
 		// display width, the overlapping columns' peaks are still valid - slide them across so only the
 		// newly-exposed columns get re-investigated. Otherwise fall back to a full invalidate.
-		std::optional<int32_t> shiftCols =
-		    wholeColumnScrollShift(xScrollSamples - data->xScroll, static_cast<int64_t>(xZoomSamples), kDisplayWidth);
-		if (shiftCols.has_value()) {
-			shiftRenderCache(*data, *shiftCols);
+		std::optional<int32_t> shift =
+		    columnShift(xScrollSamples - data->xScroll, static_cast<int64_t>(xZoomSamples), kDisplayWidth);
+		if (shift.has_value()) {
+			shiftColumns(*data, *shift);
 		}
 		else {
 			std::ranges::fill(data->colStatus, COL_STATUS_NOT_INVESTIGATED);
@@ -316,9 +319,15 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 	data->xScroll = xScrollSamples;
 	data->xZoom = xZoomSamples;
-	data->validLengthSamples = static_cast<int64_t>(numValidSamples);
+	data->num_samples = static_cast<int64_t>(numValidSamples);
 
 	bool hadAnyTroubleLoading = false;
+
+	// Leaves a column un-investigated, for a later render to try again
+	auto retry_later = [&](int32_t col) {
+		data->colStatus[col] = COL_STATUS_NOT_INVESTIGATED;
+		hadAnyTroubleLoading = true;
+	};
 
 	for (int32_t col = xStart; col < xEnd; col++) {
 
@@ -392,8 +401,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			clusterIndexToDo = colStartCluster + 1;
 
 			startByteWithinCluster =
-			    firstFrameStartWithinCluster(clusterStartByte(clusterIndexToDo, Cluster::size_magnitude),
-			                                 sample->audioDataStartPosBytes, sample->numChannels * sample->byteDepth);
+			    firstFrameOffset(clusterStart(clusterIndexToDo, Cluster::size_magnitude),
+			                     sample->audioDataStartPosBytes, sample->numChannels * sample->byteDepth);
 
 			endByteWithinCluster = Cluster::size;
 			investigatingAWholeCluster = true;
@@ -418,9 +427,9 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			else {
 				clusterIndexToDo = colEndCluster;
 
-				startByteWithinCluster = firstFrameStartWithinCluster(
-				    clusterStartByte(clusterIndexToDo, Cluster::size_magnitude), sample->audioDataStartPosBytes,
-				    sample->numChannels * sample->byteDepth);
+				startByteWithinCluster =
+				    firstFrameOffset(clusterStart(clusterIndexToDo, Cluster::size_magnitude),
+				                     sample->audioDataStartPosBytes, sample->numChannels * sample->byteDepth);
 
 				endByteWithinCluster = bytesInSecondCluster;
 			}
@@ -433,7 +442,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 		else if (clusterIndexToDo == endClusters - 1) {
 
-			int32_t limit = lastAudioClusterEndByte(numValidBytes, sample->audioDataStartPosBytes, Cluster::size);
+			int32_t limit = lastClusterEnd(numValidBytes, sample->audioDataStartPosBytes, Cluster::size);
 
 			if (endByteWithinCluster > limit) {
 				endByteWithinCluster = limit;
@@ -469,20 +478,18 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 				                    // Malte P.
 			}
 
-			Cluster* cluster = sampleCluster->getCluster(sample, clusterIndexToDo, clusterLoadInstruction);
+			Cluster* cluster = sampleCluster->getCluster(sample, clusterIndexToDo, load_instruction);
 			if (!cluster) {
-cantReadData:
 				D_PRINTLN("cant read");
-				data->colStatus[col] = 0;
-				hadAnyTroubleLoading = true;
+				retry_later(col);
 				continue;
 			}
 
-			// Enqueued rather than loaded: leave this column for a later render rather than blocking on the card
-			// mid-scroll
+			// Enqueued rather than loaded
 			if (!cluster->loaded) {
 				holdUntilLoaded(sample, cluster);
-				goto cantReadData;
+				retry_later(col);
+				continue;
 			}
 
 			if (cluster->numReasonsToBeLoaded <= 0) {
@@ -505,7 +512,7 @@ cantReadData:
 				if ((nextSampleCluster->cluster != nullptr) && nextSampleCluster->cluster->numReasonsToBeLoaded < 0) {
 					FREEZE_WITH_ERROR("E450"); // Trying to catch errer before i028, which users have gotten.
 				}
-				nextCluster = nextSampleCluster->getCluster(sample, clusterIndexToDo + 1, clusterLoadInstruction);
+				nextCluster = nextSampleCluster->getCluster(sample, clusterIndexToDo + 1, load_instruction);
 
 				if (cluster->numReasonsToBeLoaded <= 0) {
 					FREEZE_WITH_ERROR("E342"); // Trying to catch E340 below, which Ron R got while recording
@@ -513,13 +520,16 @@ cantReadData:
 
 				if (nextCluster == nullptr) {
 					audioFileManager.removeReasonFromCluster(*cluster, "po8w");
-					goto cantReadData;
+					D_PRINTLN("cant read");
+					retry_later(col);
+					continue;
 				}
 
 				if (!nextCluster->loaded) {
 					holdUntilLoaded(sample, nextCluster);
 					audioFileManager.removeReasonFromCluster(*cluster, "4460");
-					goto cantReadData;
+					retry_later(col);
+					continue;
 				}
 
 				// This entire block doesn't seem to actually do anything relevant - did I leave something out?
@@ -542,8 +552,8 @@ cantReadData:
 			}
 
 			// NOTE: from here on, we read *both* channels (if there are two), counting each one as a "sample"
-			WaveformPeak peak = scanClusterPeak(cluster->data, startByteWithinCluster, endByteWithinCluster,
-			                                    sample->byteDepth, sample->numChannels);
+			Peak peak = scanPeak(cluster->data, startByteWithinCluster, endByteWithinCluster, sample->byteDepth,
+			                     sample->numChannels);
 			int32_t minThisCol = peak.min;
 			int32_t maxThisCol = peak.max;
 
@@ -563,8 +573,8 @@ cantReadData:
 				}
 
 				// And mark the SampleCluster as fully investigated (rounding toward 0)
-				sampleCluster->minValue = toCoarsePeak(minThisCol);
-				sampleCluster->maxValue = toCoarsePeak(maxThisCol);
+				sampleCluster->minValue = coarsePeak(minThisCol);
+				sampleCluster->maxValue = coarsePeak(maxThisCol);
 				sampleCluster->investigatedWholeLength = true;
 			}
 
@@ -572,8 +582,8 @@ cantReadData:
 			else {
 
 				// Then just contribute to the running record of max and min found
-				int8_t smallMin = toCoarsePeak(minThisCol);
-				int8_t smallMax = toCoarsePeak(maxThisCol);
+				int8_t smallMin = coarsePeak(minThisCol);
+				int8_t smallMax = coarsePeak(maxThisCol);
 
 				if (smallMin < sampleCluster->minValue) {
 					sampleCluster->minValue = smallMin;
@@ -616,51 +626,49 @@ cantReadData:
 	return !hadAnyTroubleLoading;
 }
 
-bool WaveformRenderer::holdUntilLoaded(Sample* sample, Cluster* cluster) {
-	for (int32_t i = 0; i < numPendingClusterLoads; i++) {
-		if (pendingClusterLoads[i].cluster == cluster) {
-			// Already holding it from an earlier column or render - one reason is enough
-			audioFileManager.removeReasonFromCluster(*cluster, "4460");
-			return true;
-		}
-	}
+void WaveformRenderer::holdUntilLoaded(Sample* sample, Cluster* cluster) {
+	auto is_this_cluster = [cluster](const PendingLoad& load) { return load.cluster == cluster; };
 
-	if (numPendingClusterLoads >= kMaxPendingClusterLoads) {
-		// Full. Let this one go; the column gets retried once earlier loads have finished.
+	// One reason is enough. And if we're full, the column gets retried once earlier loads have finished.
+	if (std::ranges::any_of(pending_loads_, is_this_cluster) || pending_loads_.full()) {
 		audioFileManager.removeReasonFromCluster(*cluster, "4460");
-		return false;
+		return;
 	}
 
 	sample->addReason();
-	pendingClusterLoads[numPendingClusterLoads++] = {cluster, sample};
-	return true;
+	pending_loads_.push_back({cluster, sample});
 }
 
-void WaveformRenderer::releasePendingClusterLoad(int32_t i) {
-	PendingClusterLoad pending = pendingClusterLoads[i];
-	pendingClusterLoads[i] = pendingClusterLoads[--numPendingClusterLoads];
-
-	audioFileManager.removeReasonFromCluster(*pending.cluster, "4460");
-	pending.sample->removeReason("4460");
+void WaveformRenderer::release(const PendingLoad& load) {
+	audioFileManager.removeReasonFromCluster(*load.cluster, "4460");
+	load.sample->removeReason("4460");
 }
 
-void WaveformRenderer::releaseFinishedClusterLoads() {
-	for (int32_t i = numPendingClusterLoads - 1; i >= 0; i--) {
-		const PendingClusterLoad& pending = pendingClusterLoads[i];
-		if (pending.cluster == audioFileManager.clusterBeingLoaded) {
-			continue;
+void WaveformRenderer::releaseFinishedLoads() {
+	auto finished = [](const PendingLoad& load) {
+		if (load.cluster == audioFileManager.clusterBeingLoaded) {
+			return false;
 		}
 		// Unloadable ones have been taken out of the loading queue, so would otherwise be held forever
-		if (pending.cluster->loaded || pending.cluster->unloadable || pending.sample->unloadable) {
-			releasePendingClusterLoad(i);
+		return load.cluster->loaded || load.cluster->unloadable || load.sample->unloadable;
+	};
+
+	for (auto it = pending_loads_.begin(); it != pending_loads_.end();) {
+		if (finished(*it)) {
+			release(*it);
+			it = pending_loads_.erase(it);
+		}
+		else {
+			++it;
 		}
 	}
 }
 
-void WaveformRenderer::releaseAllClusterLoads() {
-	while (numPendingClusterLoads > 0) {
-		releasePendingClusterLoad(numPendingClusterLoads - 1);
+void WaveformRenderer::releaseAllLoads() {
+	for (const PendingLoad& load : pending_loads_) {
+		release(load);
 	}
+	pending_loads_.clear();
 }
 
 void WaveformRenderer::getColBarPositions(int32_t xDisplay, WaveformRenderData* data, int32_t* min24, int32_t* max24,

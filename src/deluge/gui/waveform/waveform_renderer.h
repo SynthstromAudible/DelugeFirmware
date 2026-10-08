@@ -19,8 +19,8 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
-#include <array>
 #include <cstdint>
+#include <etl/vector.h>
 #include <optional>
 
 class Cluster;
@@ -75,27 +75,27 @@ public:
 	/// @param recorder The SampleRecorder still writing @p sample, if any. Its captured length is used.
 	/// @param xStart First column to fill in.
 	/// @param xEnd Column after the last one to fill in.
-	/// @param clusterLoadInstruction What to do about Clusters not in memory. CLUSTER_LOAD_IMMEDIATELY reads them from
-	///        the card now. CLUSTER_ENQUEUE queues them for loading and leaves their columns un-investigated. Don't use
-	///        CLUSTER_ENQUEUE while @p recorder is set: the reason it holds on @p sample would break
-	///        SampleRecorder::abort().
+	/// @param wait_for_card Whether to read Clusters that aren't in memory from the card now. If false, they're
+	/// enqueued
+	///        instead and their columns left un-investigated. Must be true while @p recorder is set: the reason held on
+	///        @p sample while waiting would break SampleRecorder::abort().
 	/// @returns false if any column couldn't be worked out yet (Cluster enqueued, or couldn't load it), so the caller
 	///          should try again later.
 	bool findPeaksPerCol(Sample* sample, int64_t xScroll, uint64_t xZoom, WaveformRenderData* data,
 	                     SampleRecorder* recorder = nullptr, int32_t xStart = 0, int32_t xEnd = kDisplayWidth,
-	                     int32_t clusterLoadInstruction = CLUSTER_LOAD_IMMEDIATELY);
+	                     bool wait_for_card = true);
 
 	/// @brief Lets go of enqueued Clusters that have finished loading, or that never will because they're unloadable.
 	///
 	/// Cheap. findPeaksPerCol() calls it, and AudioFileManager::slowRoutine() does too, so Clusters are let go of even
 	/// once nothing is rendering waveforms.
-	void releaseFinishedClusterLoads();
+	void releaseFinishedLoads();
 
 	/// @brief Lets go of every enqueued Cluster and its Sample, loaded or not.
 	///
 	/// Must be called before deleting Samples without checking their reasons, as
 	/// AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() does.
-	void releaseAllClusterLoads();
+	void releaseAllLoads();
 
 	int8_t collapseAnimationToWhichRow;
 
@@ -104,7 +104,7 @@ private:
 	///
 	/// We hold one reason on the Cluster, which keeps it in the loading queue, and one on its Sample, so the Sample
 	/// can't be deleted while we still point at it.
-	struct PendingClusterLoad {
+	struct PendingLoad {
 		Cluster* cluster; ///< The enqueued Cluster.
 		Sample* sample;   ///< The Sample it belongs to.
 	};
@@ -113,20 +113,20 @@ private:
 	///
 	/// Keeps a long scroll from flooding the loading queue ahead of playback. Columns that don't fit are retried on a
 	/// later render.
-	static constexpr int32_t kMaxPendingClusterLoads = 16;
-	std::array<PendingClusterLoad, kMaxPendingClusterLoads> pendingClusterLoads{}; ///< Unordered; first n are live.
-	int32_t numPendingClusterLoads = 0; ///< Number of live entries in pendingClusterLoads.
+	static constexpr size_t kMaxPendingLoads = 16;
+	etl::vector<PendingLoad, kMaxPendingLoads> pending_loads_;
 
 	/// @brief Takes over the caller's reason on an enqueued Cluster until it has loaded.
+	///
+	/// If it's already held, or there's no room, the caller's reason is removed instead, so @p cluster may no longer
+	/// exist afterwards.
+	///
 	/// @param sample The Sample @p cluster belongs to.
 	/// @param cluster An enqueued, not yet loaded Cluster that the caller holds one reason on.
-	/// @returns false if there was no room. The caller's reason has then been removed, so @p cluster may no longer
-	///          exist.
-	bool holdUntilLoaded(Sample* sample, Cluster* cluster);
+	void holdUntilLoaded(Sample* sample, Cluster* cluster);
 
-	/// @brief Removes the reasons held by one pending entry and drops that entry.
-	/// @param i Index into pendingClusterLoads. The last entry is moved into its place.
-	void releasePendingClusterLoad(int32_t i);
+	/// @brief Removes the reasons @p load holds. Doesn't remove it from pending_loads_.
+	static void release(const PendingLoad& load);
 
 	int32_t getColBrightnessForSingleRow(int32_t xDisplay, int32_t maxPeakFromZero, WaveformRenderData* data);
 	void getColBarPositions(int32_t xDisplay, WaveformRenderData* data, int32_t* min24, int32_t* max24,

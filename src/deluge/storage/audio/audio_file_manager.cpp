@@ -207,7 +207,7 @@ clusterSizeChangedButItsOk:
 void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 
 	// The waveform renderer may hold reasons on Samples we're about to delete regardless of their reasons
-	waveformRenderer.releaseAllClusterLoads();
+	waveformRenderer.releaseAllLoads();
 
 	// Also though, in case any of these Samples were still being recorded before the Song-delete, we need to make sure
 	// SampleRecorder::cardRoutine() gets called first to "detach" the Sample from the recorder. So, do this:
@@ -1251,7 +1251,7 @@ void AudioFileManager::slowRoutine() {
 	// for a copy if ever needed
 
 	// Even if no waveform is being rendered any more, don't sit on Clusters it enqueued once they've loaded
-	waveformRenderer.releaseFinishedClusterLoads();
+	waveformRenderer.releaseFinishedLoads();
 }
 
 #define REPORT_AWAY_TIME 0

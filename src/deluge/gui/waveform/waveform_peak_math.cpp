@@ -21,82 +21,83 @@
 #include <cstdlib>
 #include <limits>
 
-WaveformPeak scanClusterPeak(const char* clusterData, int32_t startByte, int32_t endByte, int32_t byteDepth,
-                             int32_t numChannels) {
-	int32_t numSamplesToRead = (endByte - startByte) / byteDepth;
-	int32_t byteIncrement = byteDepth;
+namespace deluge::gui::waveform {
 
-	// We don't want to read endless samples. If we were gonna read lots, skip some.
-	int32_t timesTooManySamples = ((numSamplesToRead - 1) >> kSamplesToReadPerColMagnitude) + 1;
-	if (timesTooManySamples > 1) {
-		// If stereo, force an odd stride so we alternate between reading both channels.
-		if (numChannels == 2 && (timesTooManySamples & 1) == 0) {
-			timesTooManySamples++;
+Peak scanPeak(const char* data, int32_t start, int32_t end, int32_t byte_depth, int32_t num_channels) {
+	int32_t num_samples = (end - start) / byte_depth;
+	int32_t stride = byte_depth;
+
+	// Don't read endless samples: if there are lots, skip some
+	int32_t skip = ((num_samples - 1) >> kMaxScanSamplesLog2) + 1;
+	if (skip > 1) {
+		// An odd stride alternates between the two channels, so both get read
+		if (num_channels == 2 && (skip & 1) == 0) {
+			skip++;
 		}
-		byteIncrement *= timesTooManySamples;
+		stride *= skip;
 	}
 
-	// Misalign, to align with non-32-bit data (the bytes before the logical start are valid padding).
-	int32_t bytePos = startByte + byteDepth - 4;
-	int32_t endPos = endByte + byteDepth - 4;
+	// Offset so each 32-bit read lands on the sample's most significant bytes
+	int32_t offset = byte_depth - 4;
 
-	WaveformPeak peak{std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::min()};
-	for (; bytePos < endPos; bytePos += byteIncrement) {
-		int32_t value = *reinterpret_cast<const int32_t*>(&clusterData[bytePos]);
+	Peak peak{std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::min()};
+	for (int32_t pos = start + offset; pos < end + offset; pos += stride) {
+		int32_t value = *reinterpret_cast<const int32_t*>(&data[pos]);
 		peak.min = std::min(peak.min, value);
 		peak.max = std::max(peak.max, value);
 	}
 	return peak;
 }
 
-int8_t toCoarsePeak(int32_t value) {
-	int8_t coarse = static_cast<int8_t>(value >> 24);
+int8_t coarsePeak(int32_t value) {
+	auto coarse = static_cast<int8_t>(value >> 24);
 	if (value < 0) {
-		coarse++; // round toward zero
+		coarse++; // Round toward zero
 	}
 	return coarse;
 }
 
-int32_t lastAudioClusterEndByte(uint64_t numValidBytes, uint32_t audioDataStartPosBytes, int32_t clusterSize) {
-	uint64_t totalEnd = numValidBytes + audioDataStartPosBytes;
-	return static_cast<int32_t>(((totalEnd - 1) & static_cast<uint64_t>(clusterSize - 1)) + 1);
+int32_t lastClusterEnd(uint64_t audio_bytes, uint32_t audio_start, int32_t cluster_size) {
+	uint64_t end = audio_bytes + audio_start;
+	return static_cast<int32_t>(((end - 1) & static_cast<uint64_t>(cluster_size - 1)) + 1);
 }
 
-int64_t clusterStartByte(int32_t clusterIndex, int32_t sizeMagnitude) {
-	return static_cast<int64_t>(clusterIndex) << sizeMagnitude;
+int64_t clusterStart(int32_t index, int32_t size_log2) {
+	return static_cast<int64_t>(index) << size_log2;
 }
 
-int32_t firstFrameStartWithinCluster(int64_t clusterStartByteAbs, uint32_t audioDataStartPosBytes, int32_t frameSize) {
-	if (clusterStartByteAbs <= static_cast<int64_t>(audioDataStartPosBytes)) {
-		// This cluster still contains the file header; audio data begins at audioDataStartPosBytes.
-		return static_cast<int32_t>(audioDataStartPosBytes - clusterStartByteAbs);
+int32_t firstFrameOffset(int64_t cluster_start, uint32_t audio_start, int32_t frame_size) {
+	if (cluster_start <= static_cast<int64_t>(audio_start)) {
+		return static_cast<int32_t>(audio_start - cluster_start); // Still in the file header
 	}
-	int32_t rem = static_cast<int32_t>((clusterStartByteAbs - audioDataStartPosBytes) % frameSize);
-	return (rem == 0) ? 0 : (frameSize - rem);
+	auto into_frame = static_cast<int32_t>((cluster_start - audio_start) % frame_size);
+	return (into_frame == 0) ? 0 : (frame_size - into_frame);
 }
 
-std::optional<int32_t> wholeColumnScrollShift(int64_t deltaSamples, int64_t zoomSamples, int32_t displayWidth) {
-	if (zoomSamples <= 0) {
+std::optional<int32_t> columnShift(int64_t delta, int64_t zoom, int32_t width) {
+	if (zoom <= 0) {
 		return std::nullopt;
 	}
 
-	// Round to the nearest whole column.
-	int64_t shift = deltaSamples / zoomSamples;
-	int64_t residual = deltaSamples - shift * zoomSamples;
-	if (residual * 2 > zoomSamples) {
+	// Round to the nearest whole column
+	int64_t shift = delta / zoom;
+	int64_t slack = delta - (shift * zoom);
+	if (slack * 2 > zoom) {
 		shift++;
-		residual -= zoomSamples;
+		slack -= zoom;
 	}
-	else if (residual * 2 < -zoomSamples) {
+	else if (slack * 2 < -zoom) {
 		shift--;
-		residual += zoomSamples;
+		slack += zoom;
 	}
 
-	if (shift == 0 || std::abs(shift) > displayWidth) {
+	if (shift == 0 || std::abs(shift) > width) {
 		return std::nullopt;
 	}
-	if (std::abs(residual) > std::abs(shift) || std::abs(residual) * 2 >= zoomSamples) {
+	if (std::abs(slack) > std::abs(shift) || std::abs(slack) * 2 >= zoom) {
 		return std::nullopt;
 	}
 	return static_cast<int32_t>(shift);
 }
+
+} // namespace deluge::gui::waveform
