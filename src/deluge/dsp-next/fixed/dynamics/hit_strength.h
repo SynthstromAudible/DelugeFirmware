@@ -25,14 +25,17 @@
 
 /// @file
 /// @brief A sidechain hit's strength: two hits before one block combined, and a hit waiting for the next block.
-/// @details Free of the kernel core, so that a header holding hits without a duck envelope can include it.
+/// @details A header of its own, free of the kernel core: the audio engine combines the hits it gathers before a
+/// block into one strength without including the duck envelope that takes them.
 namespace deluge::dsp::fixed {
 
 /// @brief Two hit strengths (Q31) arriving before one block, combined: the stronger half plus half the clamped sum.
 /// @details Two equal hits of x combine to one and a half x. The sum is clamped at full scale (ONE_Q31) before it is
 /// halved, so the result never exceeds full scale.
 [[nodiscard]] [[gnu::always_inline]] constexpr q31 combine_hit_strengths(q31 a, q31 b) {
-	const uint32_t sum = std::min(static_cast<uint32_t>(a) + static_cast<uint32_t>(b), static_cast<uint32_t>(ONE_Q31));
+	// Full scale, ONE_Q31, unsigned: the sum is clamped to it.
+	constexpr uint32_t kFullScale{ONE_Q31};
+	const uint32_t sum = std::min(static_cast<uint32_t>(a) + static_cast<uint32_t>(b), kFullScale);
 	return (std::max(a, b) >> 1) + static_cast<q31>(sum >> 1);
 }
 
