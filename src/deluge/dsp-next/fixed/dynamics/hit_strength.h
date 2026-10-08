@@ -25,8 +25,8 @@
 
 /// @file
 /// @brief A sidechain hit's strength: two hits before one block combined, and a hit waiting for the next block.
-/// @details A header of its own, free of the kernel core: the audio engine combines the hits it gathers before a
-/// block into one strength without including the duck envelope that takes them.
+/// @details The one home of the rule that combines hits: the duck envelope's pending hit and the audio engine's hits
+/// gathered before a block both use it. Free of the kernel core, so a caller that only combines hits needs no argon.
 namespace deluge::dsp::fixed {
 
 /// @brief Two hit strengths (Q31) arriving before one block, combined: the stronger half plus half the clamped sum.
