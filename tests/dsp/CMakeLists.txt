@@ -85,6 +85,11 @@ set(sidechain_envelope_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/sidechain_envelope.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The duck envelope's attack and release curves read the decay tables.
+set(duck_envelope_spec_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/duck_envelope.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The delay's tape: its resampling setup and its native-rate arithmetic. The analog impulse response is header-only.
 set(delay_tape_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/delay/delay_tape.cpp)
 # One block of the delay: the tape, and the analog feedback's tanh through the table interpolator.

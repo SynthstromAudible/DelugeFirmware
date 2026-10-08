@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "dsp-next/fixed/dynamics/hit_strength.h"
 #include "util/fixedpoint.h"
 
 #include <algorithm>
@@ -93,11 +94,5 @@ private:
 	/// ONE_Q31 in the release, Q31.
 	int32_t height_{0};
 };
-
-/// @return Two hits' combined strength (Q31): half the larger plus half their sum, the sum clamped at full scale.
-[[nodiscard]] constexpr int32_t combine_hit_strengths(int32_t a, int32_t b) {
-	const uint32_t sum = std::min(static_cast<uint32_t>(a) + static_cast<uint32_t>(b), uint32_t{2147483647});
-	return (std::max(a, b) >> 1) + static_cast<int32_t>(sum >> 1);
-}
 
 } // namespace deluge::dsp::fixed
