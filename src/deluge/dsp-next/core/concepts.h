@@ -18,14 +18,15 @@
 
 #include "dsp-next/core/types.h"
 #include <concepts>
+#include <cstddef>
 
 /// @file
-/// @brief The component concepts: generator, processor, mixer, converter.
+/// @brief The component concepts: generator, processor, mixer, control generator, converter.
 ///
 /// These describe the *static* interface a component exposes — a per-sample/vector
 /// `render(...)` (the inlined hot path) and a block `renderBlock(...)`. Runtime
-/// selection (the OscType registry) is done through the separate virtual block
-/// interfaces (BlockGenerator / BlockProcessor / BlockMixer), not these concepts.
+/// selection is done through the separate virtual block interfaces (BlockGenerator /
+/// BlockProcessor / BlockMixer), which a component reaches only through AsBlock.
 namespace deluge::dsp {
 
 /// @brief Fills a block of samples it generates itself (e.g. an oscillator).
@@ -40,6 +41,7 @@ concept sample_generator = requires(G g) {
 	{ g.render() } -> std::same_as<typename G::value_type>;
 };
 
+/// @brief A generator with both the per-sample and the block form.
 template <typename G>
 concept generator = block_generator<G> && sample_generator<G>;
 
@@ -55,6 +57,7 @@ concept sample_processor = requires(P p, typename P::value_type s) {
 	{ p.render(s) } -> std::same_as<typename P::value_type>;
 };
 
+/// @brief A processor with both the per-sample and the block form.
 template <typename P>
 concept processor = block_processor<P> && sample_processor<P>;
 
@@ -71,8 +74,16 @@ concept sample_mixer = requires(M m, typename M::value_type a, typename M::value
 	{ m.render(a, b) } -> std::same_as<typename M::value_type>;
 };
 
+/// @brief A mixer with both the per-sample and the block form.
 template <typename M>
 concept mixer = block_mixer<M> && sample_mixer<M>;
+
+/// @brief A block-rate control signal: `advance(n)` moves it on by @p n samples and returns its value there.
+/// @details Its arithmetic is per block, not per sample, so it has no per-sample `render`.
+template <typename G>
+concept control_generator = requires(G g, std::size_t n) {
+	{ g.advance(n) } -> std::same_as<typename G::value_type>;
+};
 
 /// @brief Converts a sample from one numeric domain to another (e.g. q31 <-> f32).
 template <typename C>

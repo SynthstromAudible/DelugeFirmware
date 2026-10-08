@@ -16,53 +16,87 @@
  */
 #pragma once
 
+#include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
 #include <algorithm>
 #include <argon.hpp>
-#include <argon/vectorize/store.hpp>
+#include <argon/vectorize/for_each.hpp>
+#include <concepts>
 #include <cstddef>
+#include <type_traits>
 
 namespace deluge::dsp {
 
-/// @brief Virtual block-level generator interface — the runtime dispatch point.
-/// @details The OscType registry holds a `BlockGenerator<q31>*` and calls renderBlock()
-/// once per block (~32-128 samples), so the virtual cost is negligible and per-sample
-/// dispatch is never virtual. Concrete generators get this via the @ref Generator mixin.
+/// @brief Virtual block-level generator interface, for a generator chosen at runtime.
+/// @details Called once per block, so the virtual cost is negligible and per-sample dispatch is never
+/// virtual. A concrete generator reaches it only through @ref AsBlock.
 template <typename T>
 struct BlockGenerator {
-	using value_type = T;
+	using value_type = T; ///< The sample type of the block.
 	virtual ~BlockGenerator() = default;
+	/// @brief Fill @p output with the next `output.size()` samples.
 	virtual void renderBlock(Buffer<T> output) = 0;
 };
 
-/// @brief CRTP mixin: a SIMD generator defining a static `Argon<T> render()` (advancing
-/// its own phase) gets a vectorised renderBlock for free and satisfies BlockGenerator.
-/// @details `render()` stays non-virtual and inlinable — the hot path. A generator that
-/// needs an exact, non-lane-aligned phase advance across the block overrides renderBlock.
+namespace detail {
+
+/// @brief @p D renders a vector of arithmetic @p T per call.
+template <typename D, typename T>
+concept simd_generator_render = std::is_arithmetic_v<T> && requires(D d) {
+	{ d.render() } -> std::same_as<Argon<T>>;
+};
+
+/// @brief @p D renders a vector of stereo frames per call.
+template <typename D, typename T>
+concept simd_stereo_generator_render = std::same_as<T, StereoSample> && requires(D d) {
+	{ d.render() } -> std::same_as<StereoVector>;
+};
+
+/// @brief @p D renders one @p T per call.
+template <typename D, typename T>
+concept scalar_generator_render = requires(D d) {
+	{ d.render() } -> std::same_as<T>;
+};
+
+} // namespace detail
+
+/// @brief CRTP mixin: builds a generator's `renderBlock` from its `render()`.
+/// @tparam Derived the component, which defines `render()`.
+/// @tparam T the sample type of the block (`q31`, `f32` or @ref StereoSample).
+/// @details Non-virtual: the mixin adds no vptr and no state. The path is chosen from the signature of
+/// `Derived::render()`:
+/// - SIMD, when it returns `Argon<T>`: one `render()` per vector, through `argon::vectorize::for_each`.
+/// - SIMD stereo, when `T` is @ref StereoSample and it returns @ref StereoVector: one `render()` per vector
+///   of frames, interleaved on store through `argon::vectorize::for_each_interleaved`.
+/// - Scalar, when it returns `T`: one `render()` per sample.
 ///
-/// The fill is **tail-safe**: full lane-width chunks are stored directly, then any
-/// remaining `size % lanes` samples are produced by one more `render()` and stored
-/// masked (only the valid lanes). This matters for arbitrary-length windows (e.g. osc
-/// sync) — `argon::vectorize::store` alone rounds the size *down* to a lane multiple and
-/// would silently drop the tail. For lane-multiple blocks (the common audio-block case)
-/// there is no tail and the result is identical.
+/// Every sample of the block is written. On the SIMD paths a block that is not a lane multiple ends with one
+/// partial step: `render()` runs once more and only the lanes inside the block are stored. `render()` is
+/// therefore called exactly `ceil(size / lanes)` times, so a generator's state (its phase) advances by whole
+/// vectors, the partial one included.
 template <typename Derived, typename T>
-struct Generator : BlockGenerator<T> {
-	static constexpr std::size_t kLanes = argon::vectorize::store<T>::lanes;
+struct Generator {
+	using value_type = T; ///< The sample type of the block.
 
-	void renderBlock(Buffer<T> output) override {
-		Derived* self = static_cast<Derived*>(this);
-		T* out = output.data();
-		std::size_t size = output.size();
-		std::size_t whole = size & ~(kLanes - 1);
-
-		for (std::size_t i = 0; i < whole; i += kLanes) {
-			self->render().StoreTo(out + i);
+	/// @brief Fill @p output with the next `output.size()` samples, every one of them.
+	void renderBlock(Buffer<T> output) {
+		auto& self = static_cast<Derived&>(*this);
+		const auto size = static_cast<std::ptrdiff_t>(output.size());
+		if constexpr (detail::simd_generator_render<Derived, T>) {
+			T* out = output.data();
+			argon::vectorize::for_each<T>(size, [&](auto step) { step.Store(out, self.render()); });
 		}
-		if (whole != size) {
-			T tail[kLanes];
-			self->render().StoreTo(tail);
-			std::copy_n(tail, size - whole, out + whole);
+		else if constexpr (detail::simd_stereo_generator_render<Derived, T>) {
+			q31* out = detail::interleaved(output);
+			argon::vectorize::for_each_interleaved<q31, 2>(size, [&](auto step) {
+				const StereoVector frames = self.render();
+				step.Store(out, {frames.l, frames.r});
+			});
+		}
+		else {
+			static_assert(detail::scalar_generator_render<Derived, T>,
+			              "a Generator defines render() returning Argon<T>, StereoVector or T");
+			std::ranges::generate(output, [&] { return self.render(); });
 		}
 	}
 };

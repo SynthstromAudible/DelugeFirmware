@@ -15,6 +15,8 @@ set(_repo_root ${CMAKE_CURRENT_LIST_DIR}/../..)
 # dsp-next is header-light, so building the few sources directly is simpler than
 # pulling in the whole library target here).
 set(sine_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/osc/sine.cpp)
+# The component framework spec needs no sources: the mixins, AsBlock and the concepts are header-only.
+set(component_framework_spec_DEPS)
 # The stateful-oscillator spec drives the band-limited saw + square bands (BandLimitedTableOscillator / pulse).
 set(stateful_oscillator_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/saw.cpp
