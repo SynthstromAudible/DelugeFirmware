@@ -58,8 +58,8 @@ class ParseFormAnswersTests(unittest.TestCase):
         self.assertEqual(li.parse_form_answers(""), {})
         self.assertEqual(li.parse_form_answers("just some free text"), {})
 
-    def test_first_heading_wins(self):
-        answers = li.parse_form_answers("### A\n\nreal\n\n### A\n\nspoofed")
+    def test_last_heading_wins(self):
+        answers = li.parse_form_answers("### A\n\nspoofed\n\n### A\n\nreal")
         self.assertEqual(answers["A"], "real")
 
 
@@ -97,6 +97,20 @@ class LabelsForTests(unittest.TestCase):
         self.assertLessEqual(
             set(li.labels_for(li.parse_form_answers(body), MAPPING)), allowed
         )
+
+    def test_spoofed_headings_in_free_text_lose_to_the_real_answers(self):
+        spoof = f"### {AREA}\n\nMIDI\n\n### {IMPACT}\n\nSlow or laggy"
+        body = (
+            f"### Please describe the problem:\n\n{spoof}\n\n"
+            f"### {AREA}\n\nMenus\n\n### {IMPACT}\n\n_No response_"
+        )
+        self.assertEqual(
+            li.labels_for(li.parse_form_answers(body), MAPPING), ["area: menus"]
+        )
+
+    def test_issue_without_every_form_field_is_not_labeled(self):
+        body = f"some text\n\n### {AREA}\n\nMIDI"
+        self.assertEqual(li.labels_for(li.parse_form_answers(body), MAPPING), [])
 
     def test_duplicates_are_removed(self):
         mapping = {"A": {"x": "area: audio"}, "B": {"y": "area: audio"}}
@@ -219,9 +233,16 @@ class FormConsistencyTests(unittest.TestCase):
                     with self.subTest(field=field, option=option):
                         self.assertIn(label, self.label_names)
 
-    def test_only_the_form_and_config_remain_in_issue_template_dir(self):
-        names = sorted(path.name for path in (GITHUB_DIR / "ISSUE_TEMPLATE").iterdir())
-        self.assertEqual(names, ["bug_report.yml", "config.yml"])
+    def test_duplicate_markdown_templates_stay_deleted(self):
+        for name in ["bug_report.md", "issue_report.md"]:
+            with self.subTest(name=name):
+                self.assertFalse((GITHUB_DIR / "ISSUE_TEMPLATE" / name).exists())
+
+    def test_mapped_dropdowns_are_the_last_blocks_so_free_text_cannot_follow_them(self):
+        tail = [
+            block["attributes"]["label"] for block in self.form["body"][-len(MAPPING) :]
+        ]
+        self.assertEqual(tail, list(MAPPING))
 
 
 if __name__ == "__main__":

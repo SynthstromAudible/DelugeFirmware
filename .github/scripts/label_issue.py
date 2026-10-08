@@ -33,13 +33,17 @@ def load_mapping(text: str) -> dict[str, dict[str, str | None]]:
 
 
 def parse_form_answers(body: str | None) -> dict[str, str]:
-    """Heading -> answer. The first occurrence of a heading wins."""
+    """Heading -> answer. The last occurrence of a heading wins.
+
+    The mapped dropdowns are the last fields in the form, so a heading typed into an
+    earlier free-text answer can never override the real answer.
+    """
     parts = HEADING.split(
         body or ""
     )  # [preamble, heading, answer, heading, answer, ...]
     answers: dict[str, str] = {}
     for heading, text in zip(parts[1::2], parts[2::2]):
-        answers.setdefault(heading, text.strip())
+        answers[heading] = text.strip()
     return answers
 
 
@@ -47,6 +51,8 @@ def labels_for(
     answers: dict[str, str], mapping: dict[str, dict[str, str | None]]
 ) -> list[str]:
     """Labels for the answers, in mapping order, without duplicates."""
+    if not all(field in answers for field in mapping):
+        return []  # not submitted through the form: a form always renders every field
     labels: list[str] = []
     for field, options in mapping.items():
         label = options.get(answers.get(field))
