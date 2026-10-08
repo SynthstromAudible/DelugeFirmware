@@ -133,12 +133,12 @@ struct Ramp {
 	};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& c, const EmptyBlock& b, State& s, Argon<q31> x) {
-		return step(c, b, s, x, Argon<q31>::lanes);
+		return step(c, b, s, x, ActiveLanes{.n = Argon<q31>::lanes});
 	}
 	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
-	                                              Argon<q31> x, std::size_t count) {
+	                                              Argon<q31> x, ActiveLanes active) {
 		const Argon<q31> out = x + s.value;
-		s.value = s.value + Argon<q31>{static_cast<q31>(count)};
+		s.value = s.value + Argon<q31>{static_cast<q31>(active.n)};
 		return out;
 	}
 };
@@ -179,8 +179,13 @@ struct TwoArities {
 	struct Coefficients {};
 	struct State {};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) { return x; }
-	static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 a, q31 b2) { return a + b2; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) {
+		return x;
+	}
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 a,
+	                                       q31 b2) {
+		return a + b2;
+	}
 };
 
 /// A kernel whose prepare has the wrong signature.
@@ -192,7 +197,9 @@ struct BadPrepare {
 	struct State {};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	static int prepare(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return 0; }
-	static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) { return x; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) {
+		return x;
+	}
 };
 
 /// A kernel whose State is not a plain value struct: copying it runs code.
@@ -206,7 +213,267 @@ struct NotPlain {
 		State(const State& /*other*/) {}
 	};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) { return x; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) {
+		return x;
+	}
+};
+
+/// A moded kernel whose prepare is a template on the mode: not callable as prepare(c, s, n).
+struct TemplatePrepare {
+	using value_type = q31;
+	using step_type = q31;
+	enum class Mode : uint8_t { A, B };
+	using Modes = ModeList<Mode::A, Mode::B>;
+	struct Settings {};
+	struct Coefficients {
+		Mode mode;
+	};
+	struct State {};
+	struct Block {
+		q31 offset;
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	template <Mode M>
+	static Block prepare(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) {
+		return {};
+	}
+	template <Mode M>
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const Block& /*b*/, State& /*s*/, q31 x) {
+		return x;
+	}
+};
+
+/// A kernel whose prepare overloads include no prepare(c, s, n).
+struct OverloadedPrepare {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	struct Block {
+		q31 offset;
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static Block prepare(const Coefficients& /*c*/, State& /*s*/) { return {}; }
+	static Block prepare(const Coefficients& /*c*/, const State& /*s*/, int* /*n*/) { return {}; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const Block& /*b*/, State& /*s*/, q31 x) {
+		return x;
+	}
+};
+
+/// A kernel without a Block whose prepare overloads include no prepare(c, s, n).
+struct OverloadedPrepareNoBlock {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static EmptyBlock prepare(const Coefficients& /*c*/, State& /*s*/) { return {}; }
+	static EmptyBlock prepare(const Coefficients& /*c*/, const State& /*s*/, int* /*n*/) { return {}; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) {
+		return x;
+	}
+};
+
+/// A kernel declaring a Block but no prepare to make one.
+struct BlockNoPrepare {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	struct Block {
+		q31 offset;
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const Block& /*b*/, State& /*s*/, q31 x) {
+		return x;
+	}
+};
+
+/// A vector generator whose phase persists across blocks: the counted step is at the generator arity.
+struct VecPhase {
+	using value_type = q31;
+	using step_type = Argon<q31>;
+	static constexpr bool kPartialStepAdvancesByCount = true;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {
+		Argon<q31> phase; ///< The phase in each lane.
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& c, const EmptyBlock& b, State& s) {
+		return step(c, b, s, ActiveLanes{.n = Argon<q31>::lanes});
+	}
+	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
+	                                              ActiveLanes active) {
+		const Argon<q31> out = s.phase;
+		s.phase = s.phase + Argon<q31>{static_cast<q31>(active.n)};
+		return out;
+	}
+};
+
+/// A scalar processor with a counted overload: the tag keeps it from reading as a mixer step.
+struct ScalarCount {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) {
+		return x;
+	}
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x,
+	                                       ActiveLanes /*active*/) {
+		return x;
+	}
+};
+
+/// A moded block-staged kernel: process is a template on the mode, like step.
+struct ModedStaged {
+	using value_type = q31;
+	using step_type = q31;
+	enum class Mode : uint8_t { COPY, NEGATE };
+	using Modes = ModeList<Mode::COPY, Mode::NEGATE>;
+	struct Settings {
+		Mode mode;
+	};
+	struct Coefficients {
+		Mode mode;
+	};
+	struct State {};
+	static Coefficients coefficients(const Settings& s) { return {.mode = s.mode}; }
+	template <Mode M>
+	static void process(const Coefficients& /*c*/, State& /*s*/, Signal<q31> in, Buffer<q31> out) {
+		for (std::size_t i = 0; i < in.size(); ++i) {
+			out[i] = M == Mode::COPY ? in[i] : -in[i];
+		}
+	}
+};
+
+/// A vector kernel declaring the counted partial step without providing it.
+struct VecNoCount {
+	using value_type = q31;
+	using step_type = Argon<q31>;
+	static constexpr bool kPartialStepAdvancesByCount = true;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/,
+	                                              Argon<q31> x) {
+		return x;
+	}
+};
+
+/// A vector generator declaring the counted partial step without providing it.
+struct VecGeneratorNoCount {
+	using value_type = q31;
+	using step_type = Argon<q31>;
+	static constexpr bool kPartialStepAdvancesByCount = true;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/) {
+		return Argon<q31>{0};
+	}
+};
+
+/// A kernel whose Block is not a plain value struct.
+struct NotPlainBlock {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	struct Block {
+		Block() = default;
+		Block(const Block& /*other*/) {}
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static Block prepare(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return {}; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const Block& /*b*/, State& /*s*/, q31 x) {
+		return x;
+	}
+};
+
+/// A kernel whose prepare is a non-static member.
+struct MemberPrepare {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	struct Block {
+		q31 offset;
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[nodiscard]] Block prepare(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) const { return {}; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const Block& /*b*/, State& /*s*/, q31 x) {
+		return x;
+	}
+};
+
+/// A kernel whose step returns something other than its step_type.
+struct WrongStepReturn {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[gnu::always_inline]] static int64_t step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/,
+	                                           q31 x) {
+		return x;
+	}
+};
+
+/// A kernel whose coefficients() returns something other than its Coefficients.
+struct WrongCoefficientsReturn {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static int coefficients(const Settings& /*s*/) { return 0; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) {
+		return x;
+	}
+};
+
+/// A kernel whose step is a non-static member.
+struct MemberStep {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[gnu::always_inline]] q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) const {
+		return x;
+	}
+};
+
+/// A moded kernel whose Coefficients::mode is of another enumeration than its Modes.
+struct ModeMismatch {
+	using value_type = q31;
+	using step_type = q31;
+	enum class Mode : uint8_t { A };
+	enum class Other : uint8_t { X };
+	using Modes = ModeList<Mode::A>;
+	struct Settings {};
+	struct Coefficients {
+		Other mode;
+	};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	template <Mode M>
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) {
+		return x;
+	}
 };
 
 static_assert(processor_kernel<Gain>);
@@ -233,6 +500,25 @@ static_assert(!mixer_kernel<Ramp>);
 static_assert(kernel_base<TwoArities> && !kernel<TwoArities>);
 static_assert(!kernel_base<BadPrepare> && !kernel<BadPrepare>);
 static_assert(!kernel_base<NotPlain> && !kernel<NotPlain>);
+static_assert(!kernel<TemplatePrepare>);
+static_assert(!kernel<OverloadedPrepare>);
+static_assert(!kernel<BlockNoPrepare>);
+static_assert(!kernel<OverloadedPrepareNoBlock>);
+static_assert(detail::declares_prepare<TemplatePrepare> && detail::declares_prepare<OverloadedPrepare>
+              && detail::declares_prepare<MemberPrepare> && detail::declares_prepare<OverloadedPrepareNoBlock>);
+static_assert(detail::declares_prepare<Prepared> && !detail::declares_prepare<Gain>);
+static_assert(generator_kernel<VecPhase> && partial_step_advances_by_count<VecPhase>);
+static_assert(processor_kernel<ScalarCount> && !mixer_kernel<ScalarCount>);
+static_assert(staged_kernel<ModedStaged> && moded_kernel<ModedStaged>);
+static_assert(!generator_kernel<ModedStaged> && !processor_kernel<ModedStaged> && !mixer_kernel<ModedStaged>);
+static_assert(!kernel<VecNoCount>);
+static_assert(!kernel<VecGeneratorNoCount>);
+static_assert(!kernel<NotPlainBlock>);
+static_assert(!kernel<MemberPrepare>);
+static_assert(!kernel<WrongStepReturn>);
+static_assert(!kernel<WrongCoefficientsReturn>);
+static_assert(!kernel<MemberStep>);
+static_assert(!kernel<ModeMismatch> && !moded_kernel<ModeMismatch>);
 
 } // namespace
 
@@ -264,7 +550,7 @@ describe kernel_concepts("kernel concepts", ${
 
 		Ramp::State ramp_state{.value = Argon<q31>{0}};
 		std::ignore = Ramp::step({}, none, ramp_state, Argon<q31>{100});
-		std::ignore = Ramp::step({}, none, ramp_state, Argon<q31>{100}, 3);
+		std::ignore = Ramp::step({}, none, ramp_state, Argon<q31>{100}, ActiveLanes{.n = 3});
 		std::array<q31, 4> lanes{};
 		ramp_state.value.StoreTo(lanes.data());
 		expect(lanes[0]).to_equal(7);
@@ -276,6 +562,17 @@ describe kernel_concepts("kernel concepts", ${
 		Staged::process({}, staged_state, in, out);
 		expect(out[0]).to_equal(3);
 		expect(out[2]).to_equal(1);
+
+		ModedStaged::State moded_staged_state{};
+		ModedStaged::process<ModedStaged::Mode::NEGATE>({}, moded_staged_state, in, out);
+		expect(out[0]).to_equal(-1);
+		expect(out[2]).to_equal(-3);
+
+		VecPhase::State phase_state{.phase = Argon<q31>{0}};
+		std::ignore = VecPhase::step({}, none, phase_state);
+		std::ignore = VecPhase::step({}, none, phase_state, ActiveLanes{.n = 2});
+		phase_state.phase.StoreTo(lanes.data());
+		expect(lanes[0]).to_equal(6);
 	});
 });
 
