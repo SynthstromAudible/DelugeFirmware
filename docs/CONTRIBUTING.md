@@ -84,6 +84,10 @@ Maintainers also set the **Priority** and **Effort** issue fields when triaging.
 The full list lives in [`.github/labels.yml`](../.github/labels.yml). To add or change a label, edit that
 file in a pull request; it is synced to GitHub automatically when merged.
 
+Pull requests are labeled automatically: `area:` labels come from the files you change, and the `type:` label
+comes from the box you tick under **Type of change** in the PR template. A bot comment will point out anything
+missing from the description; it never blocks a merge.
+
 ## Adding a Runtime Feature Setting (Community Feature)
 
 When introducing a new feature or behavior modification that should be toggleable by users, add a runtime feature setting by following these steps:
