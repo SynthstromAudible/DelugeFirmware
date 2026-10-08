@@ -2545,8 +2545,14 @@ bool SessionView::setupScroll(uint32_t oldScroll) {
 			if (moved) {
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-				clip->renderAsSingleRow(modelStackWithTimelineCounter, this, newLocalPos, xZoom,
-				                        PadLEDs::imageStore[yDisplay], PadLEDs::occupancyMaskStore[yDisplay]);
+				bool complete =
+				    clip->renderAsSingleRow(modelStackWithTimelineCounter, this, newLocalPos, xZoom,
+				                            PadLEDs::imageStore[yDisplay], PadLEDs::occupancyMaskStore[yDisplay]);
+				if (!complete) {
+					// Some of its waveform is still loading. Pending renders wait out the scroll, so this redraws
+					// the row once that finishes.
+					requestRendering(this, 1 << yDisplay, 0);
+				}
 				anyMoved = true;
 			}
 			PadLEDs::transitionTakingPlaceOnRow[yDisplay] = moved;
