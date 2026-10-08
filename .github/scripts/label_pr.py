@@ -21,6 +21,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 
 MARKER = "<!-- pr-checklist -->"
+BOT_LOGIN = "github-actions[bot]"
 
 SUMMARY = "Summary"
 TYPE_SECTION = "Type of change"
@@ -35,7 +36,8 @@ TYPE_LABELS = {
 }
 
 SECTION = re.compile(r"^## (.+?)[ \t\r]*$", re.MULTILINE)
-HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+# An unclosed comment runs to the end of the section.
+HTML_COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 CHECKBOX = re.compile(r"^[ \t]*[-*][ \t]+\[([ xX])\][ \t]+(.+?)[ \t\r]*$", re.MULTILINE)
 
 
@@ -103,7 +105,10 @@ def find_comment(
             "--paginate",
             f"repos/{repo}/issues/{number}/comments",
             "--jq",
-            f'.[] | select(.body | startswith("{MARKER}")) | {{id, body}} | @json',
+            (
+                f'.[] | select(.user.login == "{BOT_LOGIN}"'
+                f' and (.body | startswith("{MARKER}"))) | {{id, body}} | @json'
+            ),
         ]
     )
     for line in output.splitlines():
@@ -129,10 +134,20 @@ def main(
         print(f"#{number}: draft or bot PR, skipping", file=out)
         return 0
 
+    try:
+        update_pr(pr, repo, run, out)
+    except subprocess.CalledProcessError as error:
+        # Never fail the job over a PR description; the log has the details.
+        print(f"::warning::#{number}: {error} {error.stderr or ''}".strip(), file=out)
+    return 0
+
+
+def update_pr(pr: dict, repo: str, run: Callable[[list[str]], str], out) -> None:
+    number = pr["number"]
     sections = parse_sections(pr.get("body"))
-    has_type_label = any(
-        label["name"].startswith("type: ") for label in pr.get("labels", [])
-    )
+    # The event payload can be stale after a quick second edit, so ask for the current labels.
+    current = run(["api", f"repos/{repo}/issues/{number}/labels", "--jq", ".[].name"])
+    has_type_label = any(name.startswith("type: ") for name in current.splitlines())
     chosen = checked_types(sections)
     if not has_type_label and len(chosen) == 1:
         run(
@@ -176,7 +191,6 @@ def main(
             ]
         )
         print(f"#{number}: updated checklist comment", file=out)
-    return 0
 
 
 if __name__ == "__main__":

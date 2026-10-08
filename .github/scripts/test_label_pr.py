@@ -7,6 +7,7 @@ Run directly with:
 
 import io
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -61,6 +62,12 @@ class ParseSectionsTests(unittest.TestCase):
         self.assertEqual(lp.parse_sections(None), {})
         self.assertEqual(lp.parse_sections(""), {})
         self.assertEqual(lp.parse_sections("just text"), {})
+
+
+class UnclosedCommentTests(unittest.TestCase):
+    def test_unclosed_comment_is_not_content(self):
+        sections = lp.parse_sections("## Summary\n\n<!-- oops\n\n## What to test\nhi")
+        self.assertEqual(sections["Summary"], "")
 
 
 class CheckedTypesTests(unittest.TestCase):
@@ -173,12 +180,20 @@ class MainTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def run_main(self, event, existing_comment=None):
+    def run_main(
+        self, event, existing_comment=None, current_labels=None, run_override=None
+    ):
         path = self.dir / "event.json"
         path.write_text(json.dumps(event))
         calls = []
+        if current_labels is None:
+            current_labels = [x["name"] for x in event["pull_request"]["labels"]]
 
         def run(args):
+            if run_override:
+                return run_override(args)
+            if args[1].endswith("/labels") and "-X" not in args:
+                return "".join(f"{name}\n" for name in current_labels)
             if "--paginate" in args:
                 if existing_comment is None:
                     return ""
@@ -281,6 +296,30 @@ class MainTests(unittest.TestCase):
             code, calls = self.run_main(event)
             self.assertEqual((code, calls), (0, []))
 
+    def test_label_added_since_the_event_is_respected(self):
+        _, calls = self.run_main(
+            pr_event(body(ticked=("Bug fix",))), current_labels=["type: deps"]
+        )
+        self.assertEqual(calls, [])
+
+    def test_only_the_bot_comment_is_ever_edited(self):
+        seen = []
+
+        def run_override(args):
+            seen.append(args)
+            return ""
+
+        self.run_main(pr_event(body()), run_override=run_override)
+        lookup = next(a for a in seen if "--paginate" in a)
+        self.assertIn("github-actions[bot]", lookup[-1])
+
+    def test_gh_failure_is_reported_but_never_fails_the_job(self):
+        def run_override(args):
+            raise subprocess.CalledProcessError(1, ["gh", *args], stderr="HTTP 403")
+
+        code, _ = self.run_main(pr_event(body()), run_override=run_override)
+        self.assertEqual(code, 0)
+
     def test_comment_does_not_echo_the_pr_body(self):
         hostile = "## Summary\n\n@everyone $(rm -rf /) `x`\n\n## Type of change\n\n- [ ] Bug fix\n"
         _, calls = self.run_main(pr_event(hostile))
@@ -341,8 +380,13 @@ class WorkflowSafetyTests(unittest.TestCase):
         permissions = self.workflow["jobs"]["label"]["permissions"]
         self.assertEqual(
             permissions,
-            {"contents": "read", "pull-requests": "write", "issues": "write"},
+            {"contents": "read", "pull-requests": "write"},
         )
+
+    def test_privileged_checkout_does_not_persist_credentials(self):
+        steps = self.workflow["jobs"]["label"]["steps"]
+        checkout = next(s for s in steps if s["uses"].startswith("actions/checkout"))
+        self.assertIs(checkout["with"]["persist-credentials"], False)
 
     def test_labeler_is_add_only(self):
         steps = self.workflow["jobs"]["label"]["steps"]
