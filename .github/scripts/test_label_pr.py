@@ -320,5 +320,46 @@ class ConfigConsistencyTests(unittest.TestCase):
         self.assertEqual(areas - set(self.labeler), set())
 
 
+class WorkflowSafetyTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.path = GITHUB_DIR / "workflows" / "label-prs.yml"
+        cls.text = cls.path.read_text()
+        cls.workflow = yaml.safe_load(cls.text)
+
+    def test_privileged_job_never_checks_out_pr_code(self):
+        self.assertNotIn("pull_request.head", self.text)
+        for job in self.workflow["jobs"].values():
+            for step in job["steps"]:
+                if step.get("uses", "").startswith("actions/checkout"):
+                    self.assertNotIn("ref", step.get("with", {}))
+
+    def test_privileged_trigger_and_least_permissions(self):
+        self.assertIn(
+            "pull_request_target", self.workflow[True]
+        )  # PyYAML parses `on:` as True
+        permissions = self.workflow["jobs"]["label"]["permissions"]
+        self.assertEqual(
+            permissions,
+            {"contents": "read", "pull-requests": "write", "issues": "write"},
+        )
+
+    def test_labeler_is_add_only(self):
+        steps = self.workflow["jobs"]["label"]["steps"]
+        labeler = next(
+            s for s in steps if s.get("uses", "").startswith("actions/labeler")
+        )
+        self.assertFalse(labeler["with"]["sync-labels"])
+
+    def test_tests_run_only_on_plain_pull_request(self):
+        self.assertEqual(
+            self.workflow["jobs"]["test"]["if"], "github.event_name == 'pull_request'"
+        )
+        self.assertEqual(
+            self.workflow["jobs"]["label"]["if"],
+            "github.event_name == 'pull_request_target'",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
