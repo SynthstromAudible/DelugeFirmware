@@ -20,7 +20,6 @@
 #include "dsp/delay/delay_buffer.h"
 #include "dsp/stereo_sample.h"
 #include "io/debug/log.h"
-#include "memory/general_memory_allocator.h"
 #include "memory/stack_guard.h"
 #include "modulation/sync.h"
 #include <cstdlib>

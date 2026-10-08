@@ -69,6 +69,10 @@ const std::vector<S> kMainStages{S::ATTACK,  S::RELEASE, S::RELEASE, S::RELEASE,
 /// One hit, three blocks, a hit of 2^29 (weaker than the duck), five more.
 const std::vector<int32_t> kWeaker{-420429314,  -1603353912, -1585455984, -1556814480,
                                    -1517238720, -1466648424, -1404845568, -1331730312};
+/// One hit, three blocks, a hit as deep as the level held (strength 1585455984), five more.
+constexpr int32_t kEqualStrength = 1585455984;
+const std::vector<int32_t> kEqual{-420429314,  -1603353912, -1585455984, -1556814480,
+                                  -1517238720, -1466648424, -1404845568, -1331730312};
 /// One hit, three blocks, a full-scale hit, five more; and the stages.
 const std::vector<int32_t> kStronger{-420429314,  -1603353912, -1585455984, -1732165928,
                                      -2137805216, -2113941312, -2075752640, -2022984960};
@@ -168,6 +172,18 @@ describe sidechain_envelope("SidechainEnvelope", ${
 		rig.envelope.registerHit(0x20000000);
 		rig.blocks(5, 128);
 		expect(rig.out).to_equal(kWeaker);
+		expect(rig.out).to_equal(afterHit(kHit, 8));
+	});
+
+	it("ignores a hit exactly as deep as the level held", _ {
+		Rig rig;
+		rig.envelope.registerHit(kHit);
+		rig.blocks(3, 128);
+		const int32_t held = rig.out.back() + ONE_Q31;
+		expect(ONE_Q31 - held).to_equal(kEqualStrength);
+		rig.envelope.registerHit(kEqualStrength);
+		rig.blocks(5, 128);
+		expect(rig.out).to_equal(kEqual);
 		expect(rig.out).to_equal(afterHit(kHit, 8));
 	});
 

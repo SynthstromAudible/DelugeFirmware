@@ -220,7 +220,7 @@ change.
 |---|---|---|
 | `oscillators/oscillator.*` | `render_wave.h`, `audio_engine.h` (`cpuDireness`×5), `wave_table.h` | `fixed/` osc + wavetable view |
 | `oscillators/basic_waves.cpp`, `processing/render_wave.h` + `vector_rendering_function.h` | dsp code under `processing/` | rewritten into `fixed/` over spans |
-| `delay/delay.*` | `audio_engine.h` (`renderInStereo`), `model/sync.h`, `spareRenderingBuffer` | injected scratch/flag/rate |
+| `delay/delay.*` | `modulation/sync.h` (sync level and type), `engines/effects/state.h` (`DelayState`), `io/debug/log.h`, `memory/stack_guard.h` | the synced rate resolved by the owner; logging and the stack check dropped |
 | `delay_buffer.cpp`, `dx/engine.cpp` | `memory/general_memory_allocator.h` | the `memory_allocator_interface.h` seam |
 | `util/functions.h`, `util/lookuptables/` | export `gui/colour`, `gui/l10n`, `model/iterance` | wave LUTs move into `dsp-next` |
 | `granular/`, `timestretch/` | sample path | **deferred to Phase 3**, not migrated |
