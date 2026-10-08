@@ -2,8 +2,8 @@ version: 2
 updates:
   - package-ecosystem: "github-actions"
     labels:
-      - "pr-dependencies"
-      - "github workflow"
+      - "type: deps"
+      - "area: ci"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -16,8 +16,8 @@ updates:
   - package-ecosystem: "pip"
     directory: scripts/toolchain/
     labels:
-      - "pr-dependencies"
-      - "toolchain"
+      - "type: deps"
+      - "area: toolchain"
     schedule:
       interval: "weekly"
       day: "friday"
@@ -26,7 +26,7 @@ updates:
   - package-ecosystem: "pip"
     directory: tests/integration/usbmidi
     labels:
-      - "pr-dependencies"
+      - "type: deps"
     schedule:
       interval: "weekly"
       day: "friday"
