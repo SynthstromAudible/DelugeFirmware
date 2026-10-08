@@ -12,6 +12,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import label_issue as li
@@ -174,6 +176,52 @@ class MainTests(unittest.TestCase):
             form_body(area="MIDI; rm -rf /", impact="Crash or freeze")
         )
         self.assertEqual(calls, [li.label_command("o/r", 7, ["impact: crash"])])
+
+
+class FormConsistencyTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.form = yaml.safe_load(
+            (GITHUB_DIR / "ISSUE_TEMPLATE" / "bug_report.yml").read_text()
+        )
+        cls.dropdowns = {
+            block["attributes"]["label"]: block
+            for block in cls.form["body"]
+            if block["type"] == "dropdown"
+        }
+        cls.label_names = {
+            entry["name"]
+            for entry in yaml.safe_load((GITHUB_DIR / "labels.yml").read_text())
+        }
+
+    def test_form_sets_issue_type_bug(self):
+        self.assertEqual(self.form["type"], "Bug")
+
+    def test_every_mapped_field_is_an_optional_single_select_dropdown(self):
+        for field in MAPPING:
+            with self.subTest(field=field):
+                self.assertIn(field, self.dropdowns)
+                block = self.dropdowns[field]
+                self.assertFalse(block["validations"]["required"])
+                self.assertFalse(block["attributes"].get("multiple", False))
+
+    def test_mapping_options_match_form_options_exactly(self):
+        for field, options in MAPPING.items():
+            with self.subTest(field=field):
+                self.assertEqual(
+                    list(options), self.dropdowns[field]["attributes"]["options"]
+                )
+
+    def test_mapped_labels_exist_in_labels_yml(self):
+        for field, options in MAPPING.items():
+            for option, label in options.items():
+                if label:
+                    with self.subTest(field=field, option=option):
+                        self.assertIn(label, self.label_names)
+
+    def test_only_the_form_and_config_remain_in_issue_template_dir(self):
+        names = sorted(path.name for path in (GITHUB_DIR / "ISSUE_TEMPLATE").iterdir())
+        self.assertEqual(names, ["bug_report.yml", "config.yml"])
 
 
 if __name__ == "__main__":

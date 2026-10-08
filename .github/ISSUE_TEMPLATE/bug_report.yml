@@ -1,5 +1,6 @@
 name: Report a problem
 description: Please tell us if something did not work as expected, for feature suggestions please visit the Discussions tab
+type: Bug
 body:
   - type: markdown
     attributes:
@@ -60,6 +61,36 @@ body:
     attributes:
       label: "What is the firmware name:"
       description: "Please use the version displayed in the firmware menu, alternatively the binary file name or the commit hash from GitHub"
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where does it happen?
+      description: "Pick the closest match. This labels your report so the right people see it."
+      options:
+        - Sound / synth engine
+        - Sequencer / playback
+        - Automation
+        - MIDI
+        - CV / gate
+        - File browser
+        - Saving / loading songs and presets
+        - Menus
+        - Pads / display
+        - Other / not sure
+    validations:
+      required: false
+  - type: dropdown
+    id: impact
+    attributes:
+      label: How does it show up?
+      options:
+        - Crash or freeze
+        - Slow or laggy
+        - Behaves unexpectedly
+        - Hard to use (accessibility)
+        - Other / not sure
     validations:
       required: false
   - type: textarea
