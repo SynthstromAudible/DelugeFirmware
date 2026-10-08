@@ -1,8 +1,6 @@
 #! /usr/bin/env python3
 """One-shot migration of repository labels to the taxonomy in .github/labels.yml.
 
-See docs/superpowers/specs/2026-10-08-label-taxonomy-design.md.
-
 Phases (dry run unless --apply is given):
     pre     snapshot every issue/PR's labels, then fold secondary labels into
             their primary so the sync workflow's rename carries them
