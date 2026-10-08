@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "dsp-next/core/concepts.h"
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/bandlimited/table.h"
@@ -25,6 +26,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <type_traits>
 
 namespace deluge::dsp::fixed {
 
@@ -114,5 +116,7 @@ public:
 		return output;
 	}
 };
+static_assert(block_generator<PulseOscillator>, "a pulse oscillator fills a block");
+static_assert(!std::is_polymorphic_v<PulseOscillator>, "a pulse oscillator fills a block without a vptr");
 
 } // namespace deluge::dsp::fixed

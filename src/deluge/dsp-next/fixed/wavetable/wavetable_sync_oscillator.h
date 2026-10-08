@@ -16,13 +16,15 @@
  */
 #pragma once
 
-#include "dsp-next/core/generator.h" // BlockGenerator, Buffer, q31
+#include "dsp-next/core/concepts.h"
 #include "dsp-next/core/phasor.h"
+#include "dsp-next/core/types.h"
 #include "dsp-next/fixed/sync/sync_windower.h" // Resetter, SyncWindower
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include "dsp-next/fixed/wavetable/wavetable_cycle_chunker.h"
 #include <cstdint>
 #include <optional>
+#include <type_traits>
 
 namespace deluge::dsp::fixed {
 
@@ -32,9 +34,12 @@ namespace deluge::dsp::fixed {
 /// which restarts the wave at every @ref Resetter crossover (classic osc-sync) and seam-blends each
 /// restart. The chunk's cross-cycle morph is indexed by the window's offset — identically the legacy
 /// per-crossover callback accumulation — so the redone crossover sample reuses the same blend and
-/// the result is bit-exact.
-class [[gnu::hot]] WavetableSyncOscillator : public BlockGenerator<q31> {
+/// the result is bit-exact. A plain @ref block_generator with no vptr: sync windows and chunks are
+/// block-level, so there is no per-sample `render()`.
+class [[gnu::hot]] WavetableSyncOscillator {
 public:
+	using value_type = q31; ///< q31 wave samples.
+
 	WavetableSyncOscillator(WaveTableData table, uint32_t phase, uint32_t increment, Resetter resetter,
 	                        uint32_t retrigger_phase, int32_t wave_index, int32_t wave_index_increment)
 	    : table_{table}, phasor_{phase, increment}, resetter_{resetter}, retrigger_phase_{retrigger_phase},
@@ -43,7 +48,8 @@ public:
 	/// The audible phase after rendering — what the voice stores back to continue next block.
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
-	void renderBlock(Buffer output) override {
+	/// @brief Fill @p output with the next `output.size()` samples, chunk by cycle chunk.
+	void renderBlock(Buffer output) {
 		uint32_t phase = phasor_.phase();
 		uint32_t phase_increment = phasor_.increment();
 		uint32_t resetter_phase = resetter_.phase;
@@ -74,5 +80,8 @@ private:
 	int32_t wave_index_;
 	int32_t wave_index_increment_;
 };
+static_assert(block_generator<WavetableSyncOscillator>, "a synced wavetable oscillator fills a block");
+static_assert(!std::is_polymorphic_v<WavetableSyncOscillator>,
+              "a synced wavetable oscillator fills a block without a vptr");
 
 } // namespace deluge::dsp::fixed

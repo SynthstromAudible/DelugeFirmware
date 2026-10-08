@@ -16,11 +16,13 @@
  */
 #pragma once
 
+#include "dsp-next/core/concepts.h"
 #include "dsp-next/core/mixer.h"
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/core/types.h"
 #include <argon.hpp>
 #include <arm_neon.h>
+#include <type_traits>
 
 namespace deluge::dsp::fixed {
 
@@ -56,5 +58,7 @@ public:
 		return Argon<q31>{vaddq_s32(scaled, mix)};
 	}
 };
+static_assert(block_mixer<Amplitude>, "the VCA mixes a block");
+static_assert(!std::is_polymorphic_v<Amplitude>, "the VCA mixes a block without a vptr");
 
 } // namespace deluge::dsp::fixed

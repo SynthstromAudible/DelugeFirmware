@@ -16,12 +16,14 @@
  */
 #pragma once
 
-#include "dsp-next/core/generator.h" // BlockGenerator, Buffer, q31
+#include "dsp-next/core/concepts.h"
 #include "dsp-next/core/phasor.h"
+#include "dsp-next/core/types.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include "dsp-next/fixed/wavetable/wavetable_cycle_chunker.h"
 #include <cstdint>
 #include <optional>
+#include <type_traits>
 
 namespace deluge::dsp::fixed {
 
@@ -29,9 +31,12 @@ namespace deluge::dsp::fixed {
 ///
 /// Walks the @ref WaveTableData view as @ref CycleChunk "chunks" (single-cycle: one; morphing: one
 /// per cross-cycle run) and renders each straight from the running phase. Bit-identical to the
-/// legacy non-sync `WaveTable::render`.
-class [[gnu::hot]] WavetableOscillator : public BlockGenerator<q31> {
+/// legacy non-sync `WaveTable::render`. A plain @ref block_generator with no vptr: chunks are
+/// block-level, so there is no per-sample `render()`.
+class [[gnu::hot]] WavetableOscillator {
 public:
+	using value_type = q31; ///< q31 wave samples.
+
 	WavetableOscillator(WaveTableData table, uint32_t phase, uint32_t increment, int32_t wave_index,
 	                    int32_t wave_index_increment)
 	    : table_{table}, phasor_{phase, increment}, wave_index_{wave_index},
@@ -40,7 +45,8 @@ public:
 	/// The phase after rendering — what the voice stores back to continue next block.
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
-	void renderBlock(Buffer output) override {
+	/// @brief Fill @p output with the next `output.size()` samples, chunk by cycle chunk.
+	void renderBlock(Buffer output) {
 		uint32_t phase = phasor_.phase();
 		uint32_t phase_increment = phasor_.increment();
 
@@ -62,5 +68,7 @@ private:
 	int32_t wave_index_;
 	int32_t wave_index_increment_;
 };
+static_assert(block_generator<WavetableOscillator>, "a wavetable oscillator fills a block");
+static_assert(!std::is_polymorphic_v<WavetableOscillator>, "a wavetable oscillator fills a block without a vptr");
 
 } // namespace deluge::dsp::fixed
