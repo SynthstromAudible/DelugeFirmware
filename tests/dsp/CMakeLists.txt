@@ -24,6 +24,8 @@ set(mode_spec_DEPS)
 set(kernel_spec_DEPS)
 # The Mono spec needs no sources: Mono and its reference kernels are header-only.
 set(mono_spec_DEPS)
+# The Control spec needs no sources: Control and its reference kernels are header-only.
+set(control_spec_DEPS)
 # The noise spec shares jcong, which waves.cpp defines.
 set(noise_spec_DEPS ${_repo_root}/src/deluge/util/waves.cpp)
 # The stereo spec draws from the shared noise stream, which waves.cpp defines.

@@ -30,21 +30,23 @@
 /// A kernel declares `value_type` (a block's sample), `step_type` (what `step` takes and returns: a sample or a
 /// vector of them), `Settings` (what the owner sets), `Coefficients` and `State` (plain value structs; `State{}` is
 /// the reset state), and optionally `Block`, `Mode` and `Modes`. It provides a pure `coefficients(settings)`, an
-/// optional once-per-block `prepare`, and either a `step` at one of three arities or, for block-staged arithmetic, a
-/// `process`. The wrappers (`Mono`, `Stereo`) are the only loops; a kernel holds no data of its own. The calls a
-/// wrapper makes on a kernel are in @ref kernel_ops, where a composed kernel finds them to call its parts.
+/// optional once-per-block `prepare`, and either a `step` at one of three arities, or, for block-staged arithmetic,
+/// a `process`, or, for a block-rate control signal, an `advance`. The wrappers (`Mono`, `Stereo`, `Control`) are the
+/// only loops; a kernel holds no data of its own. The calls a wrapper makes on a kernel are in @ref kernel_ops, where
+/// a composed kernel finds them to call its parts.
 ///
-/// **One form per kernel.** A kernel takes exactly one of four forms: `step(c, b, s)` (generator),
-/// `step(c, b, s, x)` (processor), `step(c, b, s, a, b2)` (mixer), or `process(c, s, in, out)` (staged). Each form
-/// concept counts the forms a class provides and requires that count to be one, so a class providing two (say a
-/// processor `step` overloaded with a mixer `step`) satisfies no form and no `kernel`, and a wrapper never has to
-/// choose between them. The partial-step overloads take their count as an @ref ActiveLanes tag rather than an
-/// integer, so a counted processor step `step(c, b, s, x, ActiveLanes)` never reads as a mixer step, whatever the
-/// step type converts to.
+/// **One form per kernel.** A kernel takes exactly one of five forms: `step(c, b, s)` (generator),
+/// `step(c, b, s, x)` (processor), `step(c, b, s, a, b2)` (mixer), `process(c, s, in, out)` (staged), or
+/// `advance(c, s, n)` (control). Each form concept counts the forms a class provides and requires that count to be
+/// one, so a class providing two (say a processor `step` overloaded with a mixer `step`) satisfies no form and no
+/// `kernel`, and a wrapper never has to choose between them. The partial-step overloads take their count as an @ref
+/// ActiveLanes tag rather than an integer, so a counted processor step `step(c, b, s, x, ActiveLanes)` never reads as a
+/// mixer step, whatever the step type converts to.
 ///
 /// **Checked at one mode.** A moded kernel's `step` (or `process`) is checked at the first mode of its `Modes` only.
 /// A step that is ill-formed at another mode is reported where the wrapper instantiates it, when `Mono` or `Stereo`
-/// is built for the kernel.
+/// is built for the kernel. A control kernel's `advance` is checked at every listed mode: its exact signature is
+/// checked by taking its address, which costs nothing per mode.
 namespace deluge::dsp {
 
 /// @brief A kernel's per-block values when it declares none.
@@ -236,11 +238,44 @@ concept unmoded_processes_blocks = !has_modes<K>
 template <typename K>
 concept processes_blocks = moded_processes_blocks<K> || unmoded_processes_blocks<K>;
 
-/// @brief How many of the four forms K provides; a kernel provides exactly one.
+/// @brief The function type of a control kernel's `advance`: `value_type (const Coefficients&, State&, std::size_t)`.
 template <typename K>
-inline constexpr int kernel_form_count =
-    static_cast<int>(steps_as_generator<K>) + static_cast<int>(steps_as_processor<K>)
-    + static_cast<int>(steps_as_mixer<K>) + static_cast<int>(processes_blocks<K>);
+using advance_fn = typename K::value_type(const typename K::Coefficients&, typename K::State&, std::size_t);
+
+/// @brief Whether moded K's `advance<M>` is exactly `static value_type advance(const Coefficients&, State&,
+/// std::size_t)` at mode @p M: a static function template whose specialisation at @p M has that type.
+template <typename K, auto M>
+concept advances_exactly_at = requires { static_cast<advance_fn<K>*>(&K::template advance<M>); };
+
+/// @brief Whether moded K's `advance<M>` has the exact signature at every mode of the ModeList @p List.
+template <typename K, typename List>
+inline constexpr bool advances_at_every_mode = false;
+
+/// @brief Whether moded K's `advance<M>` has the exact signature at every mode of the ModeList @p List.
+template <typename K, auto... Ms>
+inline constexpr bool advances_at_every_mode<K, ModeList<Ms...>> = (advances_exactly_at<K, Ms> && ...);
+
+/// @brief Whether moded K's `advance<M>` is exactly `static value_type advance(const Coefficients&, State&,
+/// std::size_t)` at every listed mode.
+template <typename K>
+concept moded_advances_blocks = has_modes<K> && advances_at_every_mode<K, typename K::Modes>;
+
+/// @brief Whether K, which has no modes, has exactly `static value_type advance(const Coefficients&, State&,
+/// std::size_t)`: a static, non-template function of that type, or an overload set containing one.
+template <typename K>
+concept unmoded_advances_blocks = !has_modes<K> && requires { static_cast<advance_fn<K>*>(&K::advance); };
+
+/// @brief Whether K provides the control form: `advance(c, s, n)`, exactly `static value_type advance(const
+/// Coefficients&, State&, std::size_t)`. A moded kernel's `advance` is a template on the mode with that signature at
+/// every listed mode; a kernel without modes has a non-template `advance`.
+template <typename K>
+concept advances_blocks = moded_advances_blocks<K> || unmoded_advances_blocks<K>;
+
+/// @brief How many of the five forms K provides; a kernel provides exactly one.
+template <typename K>
+inline constexpr int kernel_form_count = static_cast<int>(steps_as_generator<K>)
+                                         + static_cast<int>(steps_as_processor<K>) + static_cast<int>(steps_as_mixer<K>)
+                                         + static_cast<int>(processes_blocks<K>) + static_cast<int>(advances_blocks<K>);
 
 /// @brief Whether K is a non-final class declaring the types every kernel has.
 template <typename K>
@@ -375,15 +410,33 @@ template <typename K>
 concept staged_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::processes_blocks<K>
                         && !partial_step_advances_by_count<K> && !detail::declares_prepare<K>;
 
-/// @brief A kernel of any form; a class satisfies at most one of the four form concepts.
+/// @brief A block-rate kernel: `advance(c, s, n) -> value_type` moves a control signal on by a whole block of @c n
+/// samples, and no other form.
+/// @details For a block-rate signal whose arithmetic is per block, not per sample: an envelope or a duck that the
+/// owner reads once per block and applies as one value. `Control` calls `advance` once per block; @c n is the block's
+/// length in samples and may be 0, so an empty block still makes one call. The signature is exact, as `prepare`'s and
+/// `reset`'s are: `static value_type advance(const Coefficients&, State&, std::size_t n)`, or, when K has modes,
+/// `template <Mode M> static value_type advance(...)` with that signature at every listed mode. An `advance` taking
+/// its count as any other type (an `int`, or a `uint32_t` where that is not `std::size_t`) is rejected, not converted.
+///
+/// The block is the step, so a control kernel:
+/// - steps a scalar (`step_type` is `value_type`);
+/// - declares no `prepare` and so no `Block` (its per-block work is `advance` itself);
+/// - declares no kPartialStepAdvancesByCount, having no vector to end partially.
 template <typename K>
-concept kernel = generator_kernel<K> || processor_kernel<K> || mixer_kernel<K> || staged_kernel<K>;
+concept control_kernel =
+    kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::advances_blocks<K> && detail::scalar_step_kernel<K>
+    && !detail::declares_prepare<K> && !partial_step_advances_by_count<K>;
+
+/// @brief A kernel of any form; a class satisfies at most one of the five form concepts.
+template <typename K>
+concept kernel = generator_kernel<K> || processor_kernel<K> || mixer_kernel<K> || staged_kernel<K> || control_kernel<K>;
 
 /// @brief Whether K has modes (K::Modes is a ModeList and Coefficients has a `mode` member).
 /// @details The `mode` member has the list's enumeration type; the wrapper dispatches on it once per block with
-/// with_mode. All of a kernel's modes share one State, and a moded kernel's `step` or `process` is a template on the
-/// mode. Its default `Coefficients{}` names a listed mode (kernel_base requires it), so a default-constructed
-/// wrapper's first block dispatches on a mode the kernel has.
+/// with_mode. All of a kernel's modes share one State, and a moded kernel's `step`, `process` or `advance` is a
+/// template on the mode. Its default `Coefficients{}` names a listed mode (kernel_base requires it), so a
+/// default-constructed wrapper's first block dispatches on a mode the kernel has.
 template <typename K>
 concept moded_kernel = kernel<K> && detail::has_modes<K>;
 

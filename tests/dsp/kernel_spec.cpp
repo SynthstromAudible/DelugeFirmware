@@ -611,6 +611,153 @@ struct ValueReset {
 	}
 };
 
+/// A control kernel: a block-rate level falling by its rate per sample, saturating at 0.
+struct Fall {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {
+		q31 rate; ///< Fall per sample, Q1.31.
+	};
+	struct Coefficients {
+		q31 rate; ///< Fall per sample, Q1.31.
+	};
+	struct State {
+		q31 level = ONE_Q31; ///< Q1.31.
+	};
+	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate}; }
+	static q31 advance(const Coefficients& c, State& s, std::size_t n) {
+		const int64_t next = int64_t{s.level} - (int64_t{c.rate} * static_cast<int64_t>(n));
+		s.level = next < 0 ? 0 : static_cast<q31>(next);
+		return s.level;
+	}
+};
+
+/// A moded control kernel: holds or clears its level, with `advance` a template on the mode.
+struct ModedFall {
+	using value_type = q31;
+	using step_type = q31;
+	enum class Mode : uint8_t { HOLD, CLEAR };
+	using Modes = ModeList<Mode::HOLD, Mode::CLEAR>;
+	struct Settings {
+		Mode mode;
+	};
+	struct Coefficients {
+		Mode mode;
+	};
+	struct State {
+		q31 level;
+	};
+	static Coefficients coefficients(const Settings& s) { return {.mode = s.mode}; }
+	template <Mode M>
+	static q31 advance(const Coefficients& /*c*/, State& s, std::size_t /*n*/) {
+		if constexpr (M == Mode::CLEAR) {
+			s.level = 0;
+		}
+		return s.level;
+	}
+};
+
+/// A class with both a control kernel's `advance` and a generator `step`: two forms.
+struct AdvanceAndStep {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static q31 advance(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return 0; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/) {
+		return 0;
+	}
+};
+
+/// A control kernel declaring a well-formed prepare, which a control kernel has no use for: its block is its step.
+struct AdvancePrepare {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static EmptyBlock prepare(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return {}; }
+	static q31 advance(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return 0; }
+};
+
+/// A control kernel declaring the counted partial step, which a block-rate kernel has no vector to need.
+struct AdvancePartialCount {
+	using value_type = q31;
+	using step_type = q31;
+	static constexpr bool kPartialStepAdvancesByCount = true;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static q31 advance(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return 0; }
+};
+
+/// A control kernel whose step type is a vector over its q31 value type.
+struct AdvanceVectorStep {
+	using value_type = q31;
+	using step_type = Argon<q31>;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static q31 advance(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return 0; }
+};
+
+/// A control kernel whose advance takes its count as an int rather than a std::size_t.
+struct AdvanceIntCount {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static q31 advance(const Coefficients& /*c*/, State& /*s*/, int /*n*/) { return 0; }
+};
+
+/// A control kernel whose advance takes its count as a uint32_t, which is std::size_t on a 32-bit Linux target.
+struct AdvanceU32Count {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static q31 advance(const Coefficients& /*c*/, State& /*s*/, uint32_t /*n*/) { return 0; }
+};
+
+/// A control kernel whose advance returns something other than its value_type.
+struct AdvanceWrongReturn {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static int64_t advance(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return 0; }
+};
+
+/// A moded control kernel whose advance exists at its first mode only.
+struct AdvanceFirstModeOnly {
+	using value_type = q31;
+	using step_type = q31;
+	enum class Mode : uint8_t { A, B };
+	using Modes = ModeList<Mode::A, Mode::B>;
+	struct Settings {};
+	struct Coefficients {
+		Mode mode;
+	};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	template <Mode M>
+	requires(M == Mode::A)
+	static q31 advance(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) {
+		return 0;
+	}
+};
+
 static_assert(processor_kernel<Gain>);
 static_assert(moded_kernel<Shaped>);
 static_assert(processor_kernel<Shaped>);
@@ -663,6 +810,21 @@ static_assert(generator_kernel<ResetQuirk> && detail::declares_reset<ResetQuirk>
 static_assert(detail::declares_reset<MemberReset> && !kernel<MemberReset>);
 static_assert(detail::declares_reset<ValueReset> && !kernel<ValueReset>);
 static_assert(!detail::declares_reset<Counter>);
+
+// The control form: a block-rate advance, and no other form.
+static_assert(control_kernel<Fall> && kernel<Fall> && !moded_kernel<Fall>);
+static_assert(control_kernel<ModedFall> && moded_kernel<ModedFall>);
+static_assert(!generator_kernel<Fall> && !processor_kernel<Fall> && !mixer_kernel<Fall> && !staged_kernel<Fall>);
+static_assert(!control_kernel<Counter> && !control_kernel<Gain> && !control_kernel<Add> && !control_kernel<Staged>);
+static_assert(kernel_base<AdvanceAndStep> && !control_kernel<AdvanceAndStep> && !kernel<AdvanceAndStep>);
+static_assert(kernel_base<AdvancePrepare> && !control_kernel<AdvancePrepare> && !kernel<AdvancePrepare>);
+static_assert(!control_kernel<AdvancePartialCount> && !kernel<AdvancePartialCount>);
+static_assert(kernel_base<AdvanceVectorStep> && !control_kernel<AdvanceVectorStep> && !kernel<AdvanceVectorStep>);
+static_assert(kernel_base<AdvanceIntCount> && !control_kernel<AdvanceIntCount> && !kernel<AdvanceIntCount>);
+// A uint32_t count is the exact signature where uint32_t is std::size_t, and rejected wherever it is not.
+static_assert(std::same_as<uint32_t, std::size_t> == control_kernel<AdvanceU32Count>);
+static_assert(!control_kernel<AdvanceWrongReturn> && !kernel<AdvanceWrongReturn>);
+static_assert(!control_kernel<AdvanceFirstModeOnly> && !kernel<AdvanceFirstModeOnly>);
 
 } // namespace
 
@@ -717,6 +879,14 @@ describe kernel_concepts("kernel concepts", ${
 		std::ignore = VecPhase::step({}, none, phase_state, ActiveLanes{.n = 2});
 		phase_state.phase.StoreTo(lanes.data());
 		expect(lanes[0]).to_equal(6);
+
+		Fall::State fall_state{};
+		expect(Fall::advance({.rate = 10}, fall_state, 3)).to_equal(ONE_Q31 - 30);
+		expect(Fall::advance({.rate = ONE_Q31}, fall_state, 2)).to_equal(0);
+
+		ModedFall::State moded_fall_state{.level = 5};
+		expect(ModedFall::advance<ModedFall::Mode::HOLD>({}, moded_fall_state, 4)).to_equal(5);
+		expect(ModedFall::advance<ModedFall::Mode::CLEAR>({}, moded_fall_state, 4)).to_equal(0);
 	});
 });
 
