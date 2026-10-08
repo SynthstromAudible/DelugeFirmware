@@ -72,6 +72,12 @@ set(sidechain_envelope_spec_DEPS
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The delay's tape: its resampling setup and its native-rate arithmetic. The analog impulse response is header-only.
 set(delay_tape_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/delay/delay_tape.cpp)
+# One block of the delay: the tape, and the analog feedback's tanh through the table interpolator.
+set(delay_processor_spec_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/delay/delay_processor.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/delay/delay_tape.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 
 # ETL for the synth headers that reach util/etl_string.h (modulation/sync.h, through the LFO). The x86 unit tree links it
 # everywhere; the ARM tree does not, so the specs link it themselves.

@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/fixed/delay/analog_impulse_response.h"
+#include "dsp-next/fixed/delay/delay_processor.h"
 #include "dsp/delay/delay_buffer.h"
 #include "engines/effects/state.h"
 #include "modulation/sync.h"
@@ -59,21 +59,24 @@ public:
 
 	DelayBuffer primaryBuffer;
 	DelayBuffer secondaryBuffer;
-	deluge::dsp::fixed::AnalogImpulseResponse analog_ir;
+	/// The block's DSP: the read, the feedback's shaping and high-pass, the mix and the writes.
+	deluge::dsp::fixed::DelayProcessor processor;
 
 	uint32_t countCyclesWithoutChange{};
 	int32_t userRateLastTime{};
 
 	int32_t sizeLeftUntilBufferSwap{};
 
-	int32_t postLPFL{};
-	int32_t postLPFR{};
-
 	int32_t prevFeedback = 0;
 
 	uint8_t repeatsUntilAbandon = 0; // 0 means never abandon
 
-	void process(std::span<StereoSample> buffer, const State& delayWorkingState);
+	/// @brief Renders one block of the delay into @p buffer: the lifecycle around the processor's block (the rate's
+	/// settling and a secondary tape grown before it; the swap and the abandon count after it).
+	/// @param scratch the working block, distinct from @p buffer and at least as long.
+	/// @param renderInStereo whether the engine renders in stereo: ping-pong crosses channels only then.
+	void process(std::span<StereoSample> buffer, const State& delayWorkingState, std::span<StereoSample> scratch,
+	             bool renderInStereo);
 
 private:
 	void prepareToBeginWriting();

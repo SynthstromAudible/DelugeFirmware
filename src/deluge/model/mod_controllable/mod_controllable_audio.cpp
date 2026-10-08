@@ -193,7 +193,8 @@ void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType m
 	                            .treble_frequency = unpatchedParams->getValue(params::UNPATCHED_TREBLE_FREQ)});
 
 	// Delay ----------------------------------------------------------------------------------
-	delay.process(buffer, delayWorkingState);
+	delay.process(buffer, delayWorkingState, {reinterpret_cast<StereoSample*>(spareRenderingBuffer[0]), buffer.size()},
+	              AudioEngine::renderInStereo);
 }
 void ModControllableAudio::processGrainFX(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth,
                                           int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,

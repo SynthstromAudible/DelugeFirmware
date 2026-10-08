@@ -23,13 +23,9 @@
 #include "memory/general_memory_allocator.h"
 #include "memory/stack_guard.h"
 #include "modulation/sync.h"
-#include "processing/engines/audio_engine.h"
 #include <cstdlib>
-#include <ranges>
 
 using deluge::dsp::fixed::DelayTape;
-
-extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
 void Delay::informWhetherActive(bool newActive, int32_t userDelayRate) {
 
@@ -47,8 +43,7 @@ setupSecondaryBuffer:
 			return;
 		}
 		prepareToBeginWriting();
-		postLPFL = 0;
-		postLPFR = 0;
+		processor.resetHighPass();
 		return;
 	}
 
@@ -229,7 +224,8 @@ void Delay::initializeSecondaryBuffer(int32_t newNativeRate, bool makeNativeRate
 	sizeLeftUntilBufferSwap = secondaryBuffer.tape().size() + 5;
 }
 
-void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingState) {
+void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingState, std::span<StereoSample> scratch,
+                    bool renderInStereo) {
 	if (!delayWorkingState.doDelay) {
 		return;
 	}
@@ -271,197 +267,27 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 		}
 	}
 
-	// Figure some stuff out for the primary buffer
-	primary.setupForRender(delayWorkingState.userDelayRate);
-
-	// Figure some stuff out for the secondary buffer - only if it's active
-	if (secondary.isActive()) {
-		secondary.setupForRender(delayWorkingState.userDelayRate);
-	}
-
-	bool wrapped = false;
-
-	std::span<StereoSample> working_buffer{reinterpret_cast<StereoSample*>(spareRenderingBuffer[0]), buffer.size()};
-
 	checkStack("delay");
 
-	DelayTape::Head primaryHead{};
+	DelayTape* const growing = secondary.isActive() ? &secondary : nullptr;
+	const deluge::dsp::fixed::DelayBlockResult result =
+	    processor.process(buffer, &primary, growing,
+	                      {.rate = delayWorkingState.userDelayRate,
+	                       .feedback = delayWorkingState.delayFeedbackAmount,
+	                       .analog = delayWorkingState.analog,
+	                       .analog_saturation = delayWorkingState.analog_saturation,
+	                       .ping_pong = delayWorkingState.ping_pong,
+	                       .render_in_stereo = renderInStereo},
+	                      scratch);
 
-	// If nothing to read yet, easy
-	if (!primary.isActive()) {
-		std::fill(working_buffer.begin(), working_buffer.end(), StereoSample{0, 0});
-	}
-
-	// Or...
-	else {
-
-		primaryHead = primary.head();
-
-		// Native read
-		if (primary.isNative()) {
-			for (StereoSample& sample : working_buffer) {
-				wrapped = primary.clearAndMoveOn() || wrapped;
-				sample = primary.current();
-			}
-		}
-
-		// Or, resampling read
-		else {
-
-			for (StereoSample& sample : working_buffer) {
-				// Move forward, and clear buffer as we go
-				int32_t primaryStrength2 = primary.advance([&] {
-					wrapped = primary.clearAndMoveOn() || wrapped; //<
-				});
-
-				int32_t primaryStrength1 = 65536 - primaryStrength2;
-
-				StereoSample* nextPos = &primary.current() + 1;
-				if (nextPos == primary.end()) {
-					nextPos = primary.begin();
-				}
-				StereoSample fromDelay1 = primary.current();
-				StereoSample fromDelay2 = *nextPos;
-
-				sample.l = (multiply_32x32_rshift32(fromDelay1.l, primaryStrength1 << 14)
-				            + multiply_32x32_rshift32(fromDelay2.l, primaryStrength2 << 14))
-				           << 2;
-				sample.r = (multiply_32x32_rshift32(fromDelay1.r, primaryStrength1 << 14)
-				            + multiply_32x32_rshift32(fromDelay2.r, primaryStrength2 << 14))
-				           << 2;
-			}
-		}
-	}
-
-	if (delayWorkingState.analog) {
-
-		for (StereoSample& sample : working_buffer) {
-			sample = analog_ir.process(sample);
-		}
-
-		for (StereoSample& sample : working_buffer) {
-			// Reduce headroom, since this sounds ok with analog sim
-			sample.l = getTanHUnknown(multiply_32x32_rshift32(sample.l, delayWorkingState.delayFeedbackAmount),
-			                          delayWorkingState.analog_saturation)
-			           << 2;
-			sample.r = getTanHUnknown(multiply_32x32_rshift32(sample.r, delayWorkingState.delayFeedbackAmount),
-			                          delayWorkingState.analog_saturation)
-			           << 2;
-		}
-	}
-
-	else {
-		for (StereoSample& sample : working_buffer) {
-			// Leave more headroom, because making it clip sounds bad with pure digital
-			sample.l = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.l, delayWorkingState.delayFeedbackAmount))
-			           << 2;
-			sample.r = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.r, delayWorkingState.delayFeedbackAmount))
-			           << 2;
-		}
-	}
-
-	// HPF on delay output, to stop it "farting out". Corner frequency is somewhere around 40Hz after many
-	// repetitions
-	for (StereoSample& sample : working_buffer) {
-		int32_t distanceToGoL = sample.l - postLPFL;
-		postLPFL += distanceToGoL >> 11;
-		sample.l -= postLPFL;
-
-		int32_t distanceToGoR = sample.r - postLPFR;
-		postLPFR += distanceToGoR >> 11;
-		sample.r -= postLPFR;
-	}
-
-	// Go through what we grabbed, sending it to the audio output buffer, and also preparing it to be fed back
-	// into the delay
-	for (auto [input, output] : std::views::zip(working_buffer, buffer)) {
-		StereoSample current = input;
-
-		// Feedback calculation, and combination with input
-		if (delayWorkingState.ping_pong && AudioEngine::renderInStereo) {
-			input.l = current.r;
-			input.r = ((output.l + output.r) >> 1) + current.l;
-		}
-		else {
-			input += output;
-		}
-
-		// Output
-		output += current;
-	}
-
-	// And actually feedback being applied back into the actual delay primary buffer...
-	if (primary.isActive()) {
-
-		// Native
-		if (primary.isNative()) {
-			StereoSample* writePos = primaryHead.pos - DelayTape::kWriteLag;
-			if (writePos < primary.begin()) {
-				writePos += primary.sizeIncludingExtra();
-			}
-
-			for (StereoSample sample : working_buffer) {
-				primary.writeNativeAndMoveOn(sample, writePos);
-			}
-		}
-
-		// Resampling
-		else {
-			primary.setHead(primaryHead);
-
-			for (StereoSample sample : working_buffer) {
-				// Move forward
-				int32_t primaryStrength2 = primary.advance([&] {
-					primary.moveOn(); //<
-				});
-				int32_t primaryStrength1 = 65536 - primaryStrength2;
-
-				primary.writeResampled(sample, primaryStrength1, primaryStrength2);
-			}
-		}
-	}
-
-	// And secondary buffer
-	// If secondary buffer active, we need to tick it along and write to it too
-	if (secondary.isActive()) {
-
-		// We want to disregard whatever the primary buffer told us, and just use the secondary one now
-		wrapped = false;
-
-		// Native
-		if (secondary.isNative()) {
-			for (StereoSample sample : working_buffer) {
-				wrapped = secondary.clearAndMoveOn() || wrapped;
-				sizeLeftUntilBufferSwap--;
-
-				// Write to secondary buffer
-				secondary.writeNative(sample);
-			};
-		}
-
-		// Resampled
-		else {
-
-			for (StereoSample sample : working_buffer) {
-				// Move forward, and clear buffer as we go
-				int32_t secondaryStrength2 = secondary.advance([&] {
-					wrapped = secondary.clearAndMoveOn() || wrapped; //<
-					sizeLeftUntilBufferSwap--;
-				});
-
-				int32_t secondaryStrength1 = 65536 - secondaryStrength2;
-
-				// Write to secondary buffer
-				secondary.writeResampled(sample, secondaryStrength1, secondaryStrength2);
-			}
-		}
-
+	if (growing != nullptr) {
+		sizeLeftUntilBufferSwap -= result.secondary_written;
 		if (sizeLeftUntilBufferSwap < 0) {
 			copySecondaryToPrimary();
 		}
 	}
 
-	if (wrapped) {
+	if (result.wrapped) {
 		hasWrapped();
 	}
 }
