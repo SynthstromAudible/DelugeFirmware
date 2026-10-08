@@ -48,7 +48,8 @@ namespace deluge::dsp::fixed {
 /// - *The instant attack.* When the attack is at its minimum, a hit skips the attack and starts the release from its
 ///   floor (see @ref Settings::instant_attack).
 /// - *A retrospective hit attacks from no duck*, wherever the level stood (see @ref hit_at).
-/// - *`stop` keeps the level*, so a hit pending at the next block is weighed against it (see @ref stop).
+/// - *`hit_at` and `stop` keep the level* the last block returned, so a hit pending at the next block is weighed
+///   against it (see @ref hit_at and @ref stop).
 struct DuckEnvelope {
 	using value_type = q31; ///< The level less ONE_Q31, Q31: 0 is no duck, negative ducks.
 	using step_type = q31;  ///< A control kernel steps a scalar: the block is its step.
@@ -126,7 +127,10 @@ struct DuckEnvelope {
 
 	/// @brief Places the duck where a hit of @p strength (Q31) @p samples_ago would have put it, dropping any pending
 	/// hit. A seek: the level is left for the next block to recompute.
-	/// @details The hit's attack starts from no duck, travelling the hit's whole strength, wherever the level stood.
+	/// @details The level stays what the last block returned until the next block recomputes it, so a @ref hit
+	/// between this and that block is weighed against the old level, not the placed duck's, as after @ref stop.
+	///
+	/// The hit's attack starts from no duck, travelling the hit's whole strength, wherever the level stood.
 	/// Each stage lasts its length over its step in whole samples, rounded down: a hit landing in a stage's last,
 	/// partial sample is placed at the next stage's start. The attack is placed by its step even when the attack is
 	/// instant. A zero step is a stage that never ends, so a hit at a zero rate stays in that stage, at position 0;
