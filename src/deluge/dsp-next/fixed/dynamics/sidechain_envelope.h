@@ -52,10 +52,15 @@ public:
 	/// @brief Takes any pending hit, then advances the envelope by @p num_samples.
 	///
 	/// A pending hit is taken only when it dips deeper than the level already is. A stage that ends inside the block
-	/// hands the rest of the block's step to the next stage at once.
+	/// moves on to the next stage at once, which starts at its position 0 and advances by the whole block.
 	/// @param shape The shape param, Q31: from INT32_MIN (a straight release) up, the release curves more.
 	/// @return The level after @p num_samples, minus ONE_Q31 (so 0 is no duck, negative ducks), Q31.
 	[[nodiscard]] int32_t render(uint32_t num_samples, int32_t shape, SidechainRates rates);
+
+	/// @brief Ends the duck: the next render outputs none unless a hit arrives.
+	///
+	/// The last level stays, so a hit pending at that render is weighed against it as usual.
+	void stop() { stage_ = Stage::OFF; }
 
 	/// @return The stage the envelope is in.
 	[[nodiscard]] Stage stage() const { return stage_; }

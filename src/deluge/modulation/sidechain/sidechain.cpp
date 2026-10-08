@@ -17,202 +17,33 @@
 
 #include "modulation/sidechain/sidechain.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4/8
 #include "model/song/song.h"
-#include "playback/playback_handler.h"
+#include "modulation/params/param.h"
+#include "modulation/sync.h"
 #include "storage/flash_storage.h"
-#include "util/lookuptables/lookuptables.h"
+#include "util/functions.h"
 
-using deluge::dsp::fixed::getDecay4;
-using deluge::dsp::fixed::getDecay8;
+namespace deluge::modulation {
 
-SideChain::SideChain() {
-	status = Envelope::Stage::OFF;
-	lastValue = 2147483647;
-	pos = 0;
-	pendingHitStrength = 0;
-}
-
-deluge::effects::SidechainState SideChain::defaultSettings() {
-	deluge::effects::SidechainState settings{
-	    .attack = getParamFromUserValue(util::to_underlying(deluge::modulation::params::STATIC_SIDECHAIN_ATTACK), 7),
-	    .release = getParamFromUserValue(util::to_underlying(deluge::modulation::params::STATIC_SIDECHAIN_RELEASE), 28),
+effects::SidechainState default_sidechain_state() {
+	effects::SidechainState settings{
+	    .attack = getParamFromUserValue(util::to_underlying(params::STATIC_SIDECHAIN_ATTACK), 7),
+	    .release = getParamFromUserValue(util::to_underlying(params::STATIC_SIDECHAIN_RELEASE), 28),
 	    .sync_type = SYNC_TYPE_EVEN,
 	};
 	// The default sync level follows the song being loaded, or else the current one: the default synth with no card,
 	// and presets saved without a sync level, take it when they are read.
-	Song* song = preLoadedSong;
-	if (!song) {
-		song = currentSong;
-	}
-	if (song) {
-		settings.sync_level = (SyncLevel)(7
-		                                  - (song->project.transport.inside_world_tick_magnitude
-		                                     + song->project.transport.inside_world_tick_magnitude_offset_from_bpm));
+	const Song* song = preLoadedSong != nullptr ? preLoadedSong : currentSong;
+	if (song != nullptr) {
+		settings.sync_level =
+		    static_cast<SyncLevel>(7
+		                           - (song->project.transport.inside_world_tick_magnitude
+		                              + song->project.transport.inside_world_tick_magnitude_offset_from_bpm));
 	}
 	else {
-		settings.sync_level = (SyncLevel)(7 - FlashStorage::defaultMagnitude);
+		settings.sync_level = static_cast<SyncLevel>(7 - FlashStorage::defaultMagnitude);
 	}
 	return settings;
 }
 
-void SideChain::registerHit(int32_t strength) {
-	pendingHitStrength = combineHitStrengths(pendingHitStrength, strength);
-}
-
-void SideChain::registerHitRetrospectively(int32_t strength, uint32_t numSamplesAgo,
-                                           const deluge::effects::SidechainState& settings) {
-	pendingHitStrength = 0;
-	envelopeOffset = ONE_Q31 - strength;
-
-	uint32_t alteredAttack = getActualAttackRate(settings);
-	uint32_t attackStageLengthInSamples = 8388608 / alteredAttack;
-
-	envelopeHeight = ONE_Q31 - envelopeOffset;
-
-	// If we're still in the attack stage...
-	if (numSamplesAgo < attackStageLengthInSamples) {
-		pos = numSamplesAgo * alteredAttack;
-		status = Envelope::Stage::ATTACK;
-	}
-
-	// Or if past attack stage...
-	else {
-		uint32_t numSamplesSinceRelease = numSamplesAgo - attackStageLengthInSamples;
-		uint32_t alteredRelease = getActualReleaseRate(settings);
-		uint32_t releaseStageLengthInSamples = 8388608 / alteredRelease;
-
-		// If we're still in the release stage...
-		if (numSamplesSinceRelease < releaseStageLengthInSamples) {
-			pos = numSamplesSinceRelease * alteredRelease;
-			status = Envelope::Stage::RELEASE;
-		}
-
-		// Or if we're past the release stage...
-		else {
-			status = Envelope::Stage::OFF;
-		}
-	}
-}
-
-int32_t SideChain::getActualAttackRate(const deluge::effects::SidechainState& settings) {
-	int32_t alteredAttack;
-	if (settings.sync_level == SYNC_LEVEL_NONE) {
-		alteredAttack = settings.attack;
-	}
-	else {
-		int32_t rshiftAmount = (9 - deluge::engine::index_of(settings.sync_level)) - 2;
-		alteredAttack = multiply_32x32_rshift32(settings.attack << 11, playbackHandler.getTimePerInternalTickInverse());
-
-		if (rshiftAmount >= 0) {
-			alteredAttack >>= rshiftAmount;
-		}
-		else {
-			alteredAttack <<= -rshiftAmount;
-		}
-	}
-	return alteredAttack;
-}
-
-int32_t SideChain::getActualReleaseRate(const deluge::effects::SidechainState& settings) {
-	int32_t alteredRelease;
-	if (settings.sync_level == SYNC_LEVEL_NONE) {
-		alteredRelease = settings.release;
-	}
-	else {
-		alteredRelease =
-		    multiply_32x32_rshift32(settings.release << 13, playbackHandler.getTimePerInternalTickInverse())
-		    >> (9 - deluge::engine::index_of(settings.sync_level));
-	}
-	return alteredRelease;
-}
-
-int32_t SideChain::render(uint16_t numSamples, int32_t shapeValue, const deluge::effects::SidechainState& settings) {
-
-	// Initial hit detected...
-	if (pendingHitStrength != 0) {
-		int32_t newOffset = ONE_Q31 - pendingHitStrength;
-
-		pendingHitStrength = 0;
-
-		// Only actually do anything if this hit is going to cause a bigger dip than we're already currently
-		// experiencing
-		if (newOffset < lastValue) {
-			envelopeOffset = newOffset;
-
-			// If attack is all the way down, jump directly to release stage
-			if (settings.attack == attackRateTable[0] << 2) {
-				goto prepareForRelease;
-			}
-
-			status = Envelope::Stage::ATTACK;
-			envelopeHeight = lastValue - envelopeOffset;
-			pos = 0;
-		}
-	}
-
-	if (status == Envelope::Stage::ATTACK) {
-		pos += numSamples * getActualAttackRate(settings);
-
-		if (pos >= 8388608) {
-prepareForRelease:
-			pos = 0;
-			status = Envelope::Stage::RELEASE;
-			envelopeHeight = ONE_Q31 - envelopeOffset;
-			goto doRelease;
-		}
-		// lastValue = (multiply_32x32_rshift32(envelopeHeight, decayTable4[pos >> 13]) << 1) + envelopeOffset; // Goes
-		// down quickly at first. Bad lastValue = (multiply_32x32_rshift32(envelopeHeight, 2147483647 - (pos << 8)) <<
-		// 1) + envelopeOffset; // Straight line
-		lastValue = (multiply_32x32_rshift32(envelopeHeight, (ONE_Q31 - getDecay4(8388608 - pos, 23))) << 1)
-		            + envelopeOffset; // Goes down slowly at first. Great squishiness
-		// lastValue = (multiply_32x32_rshift32(envelopeHeight, (2147483647 - decayTable8[1023 - (pos >> 13)])) << 1) +
-		// envelopeOffset; // Even slower to accelerate. Loses punch slightly lastValue =
-		// (multiply_32x32_rshift32(envelopeHeight, (sineWave[((pos >> 14) + 256) & 1023] >> 1) + 1073741824) << 1) +
-		// envelopeOffset; // Sine wave. Sounds a bit flat lastValue = (multiply_32x32_rshift32(envelopeHeight,
-		// 2147483647 - pos * (pos >> 15)) << 1) + envelopeOffset; // Parabola. Not bad, but doesn't quite have
-		// punchiness
-	}
-	else if (status == Envelope::Stage::RELEASE) {
-doRelease:
-		pos += numSamples * getActualReleaseRate(settings);
-
-		if (pos >= 8388608) {
-			status = Envelope::Stage::OFF;
-			goto doOff;
-		}
-
-		uint32_t positiveShapeValue = (uint32_t)shapeValue + 2147483648;
-
-		int32_t preValue;
-
-		// This would be the super simple case
-		// int32_t curvedness16 = (uint32_t)(positiveShapeValue + 32768) >> 16;
-
-		// And this is the better, more complicated case
-		int32_t curvedness16 = (positiveShapeValue >> 15) - (pos >> 7);
-		if (curvedness16 < 0) {
-			preValue = pos << 8;
-		}
-		else {
-			if (curvedness16 > 65536) {
-				curvedness16 = 65536;
-			}
-			int32_t straightness = 65536 - curvedness16;
-			preValue = straightness * (pos >> 8) + (getDecay8(8388608 - pos, 23) >> 16) * curvedness16;
-		}
-
-		lastValue = ONE_Q31 - envelopeHeight + (multiply_32x32_rshift32(preValue, envelopeHeight) << 1);
-
-		// lastValue = 2147483647 - (multiply_32x32_rshift32(decayTable8[pos >> 13], envelopeHeight) << 1); // Upside
-		// down exponential curve lastValue = 2147483647 - (((int64_t)((sineWave[((pos >> 14) + 256) & 1023] >> 1) +
-		// 1073741824) * (int64_t)envelopeHeight) >> 31); // Sine wave. Not great lastValue =
-		// (multiply_32x32_rshift32(pos * (pos >> 15), envelopeHeight) << 1); // Parabola. Doesn't "punch".
-	}
-	else { // Off
-doOff:
-		lastValue = ONE_Q31;
-	}
-
-	return lastValue - ONE_Q31;
-}
+} // namespace deluge::modulation

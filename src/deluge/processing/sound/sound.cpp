@@ -1794,7 +1794,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		int32_t old = params.sourceValues[patchSourceSidechainUnderlying];
 		params.sourceValues[patchSourceSidechainUnderlying] = sidechain.render(
 		    output.size(), paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
-		    modControllableSnapshot_.effects.sidechain);
+		    modControllableSnapshot_.effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
 		uint32_t anyChange = (old != params.sourceValues[patchSourceSidechainUnderlying]);
 		sourcesChanged |= anyChange << patchSourceSidechainUnderlying;
 	}
@@ -2117,7 +2117,8 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			if (AudioEngine::sizeLastSideChainHit) {
 				sidechain.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
 				                                     AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit,
-				                                     modControllableSnapshot_.effects.sidechain);
+				                                     modControllableSnapshot_.effects.sidechain,
+				                                     playbackHandler.getTimePerInternalTickInverse());
 				//}
 			}
 			// Special state to make it grab the actual value the first time it's rendered
@@ -3674,7 +3675,7 @@ void Sound::wontBeRenderedForAWhile() {
 	                 // Instrumentclip::detachFromInstrument()
 
 	getArp()->reset(); // Surely this shouldn't be quite necessary?
-	sidechain.status = Envelope::Stage::OFF;
+	sidechain.stop();
 
 	// Tell it to just cut the MODFX tail - we needa change status urgently!
 	reassessRenderSkippingStatus(nullptr, true);

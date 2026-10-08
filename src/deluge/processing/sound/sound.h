@@ -28,7 +28,6 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
-#include "modulation/sidechain/sidechain.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
 #include "serialization/value.h"

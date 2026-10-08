@@ -105,6 +105,8 @@ const std::vector<int32_t> kLateMidDuck{-420429314,  -1603353912, -1585455984, -
 const std::vector<S> kLateEdgeStages{S::ATTACK, S::RELEASE, S::RELEASE, S::OFF};
 /// Hits of 0x30000000 and 0x40000000 before one render, then four blocks.
 const std::vector<int32_t> kTwoHits{-385393538, -1469741086, -1453334652, -1427079940};
+/// Stopped one block into a duck with a weaker hit pending (dropped against the duck's level), then that hit again.
+const std::vector<int32_t> kStopped{-420429314, 0, 0, -70071554, -267225652};
 /// combine_hit_strengths at (0, 2^30), (2^30, 0), (x, x), near full scale, at full scale, and across 2^30.
 const std::vector<int32_t> kCombined{1073741824, 1073741824, 1207959552, 2013265919, 2147483646, 1610612735};
 
@@ -228,6 +230,19 @@ describe sidechain_envelope("SidechainEnvelope", ${
 			stages.push_back(envelope.stage());
 		}
 		expect(stages).to_equal(kLateEdgeStages);
+	});
+
+	it("stops the duck, weighing a pending hit against the level it stood at", _ {
+		Rig rig;
+		rig.envelope.registerHit(kHit);
+		rig.blocks(1, 128);
+		rig.envelope.stop();
+		expect(rig.envelope.stage()).to_equal(S::OFF);
+		rig.envelope.registerHit(0x10000000);
+		rig.blocks(2, 128);
+		rig.envelope.registerHit(0x10000000);
+		rig.blocks(2, 128);
+		expect(rig.out).to_equal(kStopped);
 	});
 
 	it("combines two hits registered before one render", _ {

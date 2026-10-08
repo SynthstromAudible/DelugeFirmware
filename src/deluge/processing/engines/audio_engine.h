@@ -48,7 +48,6 @@ class Voice;
 class VoiceSample;
 class TimeStretcher;
 #include <string>
-class SideChain;
 class VoiceVector;
 class Freeverb;
 class Metronome;
@@ -57,6 +56,9 @@ class SoundDrum;
 class Clip;
 class AbsValueFollower;
 
+namespace deluge::effects {
+class Sidechain;
+}
 namespace deluge::dsp {
 class Reverb;
 }
@@ -249,7 +251,7 @@ extern InputMonitoringMode inputMonitoringMode;
 extern bool audioRoutineLocked;
 extern bool routineBeenCalled;
 extern uint8_t numHopsEndedThisRoutineCall;
-extern SideChain reverbSidechain;
+extern deluge::effects::Sidechain reverbSidechain;
 /// The reverb sidechain's settings: the song's (project.reverb), or, on auto, those of the owner with the most
 /// reverb. Its sync type is set only from the menu.
 extern deluge::effects::SidechainState reverbSidechainSettings;

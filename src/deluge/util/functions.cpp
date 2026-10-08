@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/curves/instant_tan.h"
 #include "dsp-next/fixed/curves/quick_log.h"
-#include "dsp-next/fixed/dynamics/sidechain_envelope.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
@@ -847,10 +846,6 @@ int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t max
 
 int32_t instantTan(int32_t input) {
 	return deluge::dsp::fixed::instant_tan(input);
-}
-
-int32_t combineHitStrengths(int32_t strength1, int32_t strength2) {
-	return deluge::dsp::fixed::combine_hit_strengths(strength1, strength2);
 }
 
 uint32_t z = 362436069, w = 521288629;

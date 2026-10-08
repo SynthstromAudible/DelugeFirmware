@@ -23,6 +23,7 @@
 #include "deluge_resource.h" // deluge_resource_stats (loader instrumentation)
 #include "dsp/reverb/reverb.hpp"
 #include "dsp/timestretch/time_stretcher.h"
+#include "engines/effects/sidechain.h"
 #include "extern.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
@@ -56,6 +57,7 @@
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "modulation/sidechain/sidechain.h"
 #include "playback/render_requests.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
@@ -386,8 +388,8 @@ constexpr int32_t direnessThreshold = numSamplesLimit - 30;
 constexpr int MIN_VOICES = 7;
 
 dsp::Reverb reverb{};
-PLACE_INTERNAL_FRUNK SideChain reverbSidechain{};
-deluge::effects::SidechainState reverbSidechainSettings = SideChain::defaultSettings();
+PLACE_INTERNAL_FRUNK deluge::effects::Sidechain reverbSidechain{};
+deluge::effects::SidechainState reverbSidechainSettings = deluge::modulation::default_sidechain_state();
 int32_t reverbSidechainVolume;
 int32_t reverbSidechainShape;
 int32_t reverbPan = 0;
@@ -1280,7 +1282,8 @@ void renderReverb(size_t numSamples) {
 			reverbSidechain.registerHit(sideChainHitPending);
 		}
 
-		sidechainOutput = reverbSidechain.render(numSamples, reverbSidechainShapeInEffect, reverbSidechainSettings);
+		sidechainOutput = reverbSidechain.render(numSamples, reverbSidechainShapeInEffect, reverbSidechainSettings,
+		                                         playbackHandler.getTimePerInternalTickInverse());
 	}
 
 	int32_t reverbAmplitudeL;
@@ -1829,7 +1832,7 @@ sidechainFound:
 }
 
 void registerSideChainHit(int32_t strength) {
-	sideChainHitPending = combineHitStrengths(strength, sideChainHitPending);
+	sideChainHitPending = deluge::dsp::fixed::combine_hit_strengths(strength, sideChainHitPending);
 }
 
 void soundPreview() {

@@ -92,9 +92,9 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		if (sideChainHitPending != 0) {
 			sidechain.registerHit(sideChainHitPending);
 		}
-		int32_t sidechainOutput =
-		    sidechain.render(output.size(), unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
-		                     modControllableSnapshot_.effects.sidechain);
+		int32_t sidechainOutput = sidechain.render(
+		    output.size(), unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
+		    modControllableSnapshot_.effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
 
 		int32_t positivePatchedValue =
 		    multiply_32x32_rshift32(sidechainOutput, getSidechainVolumeAmountAsPatchCableDepth(paramManagerForClip))

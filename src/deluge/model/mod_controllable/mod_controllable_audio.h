@@ -30,7 +30,6 @@
 #include "modulation/knob.h"
 #include "modulation/params/param_descriptor.h"
 #include "modulation/params/param_set.h"
-#include "modulation/sidechain/sidechain.h"
 #include "synth/lfo.h"
 
 #include "engine-api/engine.h"
@@ -38,6 +37,7 @@
 #include "engines/effects/compressor.h"
 #include "engines/effects/equalizer.h"
 #include "engines/effects/send_and_volume.h"
+#include "engines/effects/sidechain.h"
 #include "engines/effects/state.h"
 
 class Clip;
@@ -163,7 +163,7 @@ public:
 	deluge::effects::Compressor compressor;
 	GranularProcessor* grainFX{nullptr};
 
-	SideChain sidechain; // Song doesn't use this, despite extending this class
+	deluge::effects::Sidechain sidechain; // Song doesn't use this, despite extending this class
 
 	deluge::fast_vector<MIDIKnob> midi_knobs{};
 	/// The reverb send, post-FX volume and pan, which ramps the post-reverb volume from the last block's.

@@ -48,6 +48,7 @@
 #include "model/song/song.h"
 #include "modulation/knob.h"
 #include "modulation/params/param_set.h"
+#include "modulation/sidechain/sidechain.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
@@ -80,7 +81,7 @@ ModControllableAudio::ModControllableAudio() {
 		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
 	}
 	ownEffects_.delay.sync_level = syncLevel;
-	ownEffects_.sidechain = SideChain::defaultSettings();
+	ownEffects_.sidechain = deluge::modulation::default_sidechain_state();
 	modControllableSnapshot_.effects = ownEffects_; // nothing renders this owner yet
 }
 

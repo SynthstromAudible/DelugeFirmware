@@ -17,38 +17,12 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
 #include "engines/effects/state.h"
-#include "modulation/sync.h"
-#include "synth/envelope.h" // Envelope::Stage
 
-#include <cstdint>
+namespace deluge::modulation {
 
-class Song;
+/// @return The settings an owner's sidechain starts with: the menus' default attack and release, and a sync level of an
+/// eighth of the song being loaded (or the current one) at its tick magnitude.
+[[nodiscard]] effects::SidechainState default_sidechain_state();
 
-class SideChain {
-public:
-	SideChain();
-
-	Envelope::Stage status;
-	uint32_t pos;
-	int32_t lastValue;
-	int32_t pendingHitStrength;
-
-	int32_t envelopeOffset{};
-	int32_t envelopeHeight{};
-
-	/// The envelope's next @p numSamples, shaped by @p shapeValue, at @p settings' attack, release and sync.
-	int32_t render(uint16_t numSamples, int32_t shapeValue, const deluge::effects::SidechainState& settings);
-	void registerHit(int32_t strength);
-	void registerHitRetrospectively(int32_t strength, uint32_t numSamplesAgo,
-	                                const deluge::effects::SidechainState& settings);
-
-	/// The settings an owner's sidechain starts with: the menus' default attack and release, and a sync level of an
-	/// eighth of the song being loaded (or the current one) at its tick magnitude.
-	[[nodiscard]] static deluge::effects::SidechainState defaultSettings();
-
-private:
-	static int32_t getActualAttackRate(const deluge::effects::SidechainState& settings);
-	static int32_t getActualReleaseRate(const deluge::effects::SidechainState& settings);
-};
+} // namespace deluge::modulation

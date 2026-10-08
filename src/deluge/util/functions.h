@@ -145,8 +145,6 @@ int32_t getParamFromUserValue(uint8_t p, int8_t userValue);
 int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t maxIndex);
 int32_t instantTan(int32_t input);
 
-int32_t combineHitStrengths(int32_t strength1, int32_t strength2);
-
 int32_t cableToLinearParamShortcut(int32_t sourceValue);
 int32_t cableToExpParamShortcut(int32_t sourceValue);
 
