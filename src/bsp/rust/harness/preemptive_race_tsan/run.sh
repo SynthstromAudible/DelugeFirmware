@@ -63,7 +63,7 @@ RUST_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"       # src/bsp/rust
 # Honour CARGO_TARGET_DIR rather than assuming the crate-local `target/`. `dbt test`
 # sets it (task-harness.py points every harness at one shared `target/harness` root), so a
 # hard-coded path looks in the wrong place: the run dies with "missing … — build failed?"
-# immediately after cargo reports success. Same defect `golden_embassy_diff.sh` had.
+# immediately after cargo reports success.
 TARGET_ROOT="${CARGO_TARGET_DIR:-$RUST_DIR/target}"
 REPO_ROOT="$(cd "$RUST_DIR/../../.." && pwd)"
 TSAN_BUILD_DIR="${TSAN_BUILD_DIR:-$REPO_ROOT/build-embassy-hostapp-tsan}"

@@ -241,30 +241,28 @@ level = "integration"
 runner = "script"
 kind = "differential"
 status = "unavailable"
-gates = "unavailable on this branch only, not obsolete: this script's `check`/`update`/`padsweep` verbs drive the C-host `deluge_render` CMake target, which this branch's sim/CMakeLists.txt does not have, because the sample-streaming golden runs on the async Embassy renderer here (see golden-embassy-diff); running `check`/`update`/`padsweep` now fails at the cmake build step (no such target), and only `reconstruct` -- a fixture-prep helper the Rust harnesses call internally, not a standalone gate -- still works here. The rig remains current on `feat/synth-golden-masters`, where `deluge_render` (sim/CMakeLists.txt) and the `tests/golden/` harness it belongs to still live. Do not delete `scripts/golden_mixdown.sh`: another branch depends on it."
+gates = "unavailable on this branch only, not obsolete: this script's `check`/`update`/`padsweep` verbs drive the C-host `deluge_render` CMake target, which this branch's sim/CMakeLists.txt does not have, because the sample-streaming golden runs on the async Embassy renderer here (see stem-export and embassy-layout-invariance); running `check`/`update`/`padsweep` now fails at the cmake build step (no such target), and only `reconstruct` -- a fixture-prep helper the Rust harnesses call internally, not a standalone gate -- still works here. The rig remains current on `feat/synth-golden-masters`, where `deluge_render` (sim/CMakeLists.txt) and the `tests/golden/` harness it belongs to still live. Do not delete `scripts/golden_mixdown.sh`: another branch depends on it."
 build = []
 run = ["scripts/golden_mixdown.sh", "check"]
 requires = ["song-corpus"]
 tier = "manual"
 runtime = "n/a — does not build"
 
-# tier = "manual": needs song-corpus, a directory of real songs on the maintainer's
-# machine that cannot be committed or fixtured. Runs locally via
-# `dbt test`; revisit if a synthetic corpus fixture is ever built.
+# tier = "nightly": needs song-corpus (the cordae project tree is reconstructed from it).
 [[harness]]
-name = "golden-embassy-diff"
+name = "embassy-layout-invariance"
 path = "."
 level = "integration"
 runner = "script"
-kind = "differential"
+kind = "property"
 status = "gate"
-gates = "the Embassy host BSP's mixdown must match the C-host golden renderer's for the same fixture"
+gates = "the Embassy host's cordae MIXDOWN must not depend on any allocation address: renders at heap pads 16, 64, 256 and 4096 bytes (DELUGE_SIM_HEAP_PAD, which shifts every allocation) must each be byte-identical to the unpadded render. The renders are compared with each other, not with a recorded hash, so this catches a layout-dependent render (an uninitialised read, an address-ordered container) that stem-export's single recorded hash would only see as an unexplained mismatch after a layout change."
 build = []
-run = ["scripts/golden_embassy_diff.sh", "cordae"]
+run = ["scripts/embassy_layout_invariance.sh", "cordae"]
 builds = ["golden-vt-render"]
-requires = ["song-corpus", "mtools"]
-tier = "manual"
-runtime = "~20m"
+requires = ["song-corpus"]
+tier = "nightly"
+runtime = "~45s"
 
 # unavailable: cargo cannot build or run this package at all (nested-workspace
 # error, see gates for root cause) -- unwired-but-valuable, not scheduled for
@@ -512,7 +510,7 @@ level = "integration"
 runner = "scenario"
 kind = "property"
 status = "gate"
-gates = "an offline stem export must render byte-identical audio and write it. This is NOT golden-embassy-diff and its baseline is NOT that gate's golden: that one compares against a golden kept outside the repo in DELUGE_GOLDEN_DIR, reconstructed from the song corpus. This one compares the Embassy render against ITSELF, recorded in tests/integration/checks/stem-export-cordae.sha256, so it needs no corpus. ST-RENDER is the regression claim. ST-BYTES is not redundant with it: an export can complete, report success and write a ZERO-BYTE file -- the recorder takes its stream-channel arm and the bytes never land -- and that failure must be reported as \"the export wrote nothing\" rather than as a hash mismatch. WARNING: this baseline is NOT expected to move. A walk's cadence is an implementation detail, rendered audio is not -- a red ST-RENDER is a finding to bisect, never a re-baseline."
+gates = "an offline stem export must render byte-identical audio and write it. It compares the Embassy render against ITSELF, recorded in tests/integration/checks/stem-export-cordae.sha256. ST-RENDER is the regression claim. ST-BYTES is not redundant with it: an export can complete, report success and write a ZERO-BYTE file -- the recorder takes its stream-channel arm and the bytes never land -- and that failure must be reported as \"the export wrote nothing\" rather than as a hash mismatch. WARNING: this baseline is NOT expected to move. A walk's cadence is an implementation detail, rendered audio is not -- a red ST-RENDER is a finding to bisect, never a re-baseline."
 scenario = ""
 check = "tests/integration/checks/stem_export.py"
 builds = ["golden-vt-render"]

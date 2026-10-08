@@ -2,11 +2,10 @@
 #
 # RENDER VERBS UNAVAILABLE ON THIS BRANCH: the sample-streaming golden runs on the async Embassy
 # renderer, and this branch has no C-host `deluge_render` target for check/update/padsweep to
-# drive. Use `scripts/golden_embassy_diff.sh <fixture> [check|update|padsweep]` for the async
-# song-render golden instead — including the `padsweep` layout-invariance guard, which it
-# implements on the Embassy renderer. Only the `reconstruct` verb below remains in use (it rebuilds a
-# fixture's project tree from the backup corpus and drives no renderer — `src/bsp/rust/src/storage/sd_image.rs`
-# calls it).
+# drive. The Embassy render's regression gate is the `stem-export` test, and its layout-invariance
+# guard is `scripts/embassy_layout_invariance.sh <fixture>` (the `embassy-layout-invariance` test).
+# Only the `reconstruct` verb below remains in use (it rebuilds a fixture's project tree from the
+# backup corpus and drives no renderer — `src/bsp/rust/src/storage/sd_image.rs` calls it).
 #
 # Golden A/B harness for the headless Cordae render (deluge_render).
 #

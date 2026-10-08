@@ -7,9 +7,7 @@ export -- the default, scenario-less arm of golden_vt_render -- and checks:
               before the hash so a zero-byte export reports what actually happened rather than an unhelpful mismatch.
   ST-RENDER   the exported WAV's sha256 matches stem-export-<fixture>.sha256, beside this module (field 1).
 
-THIS IS NOT golden-embassy-diff, AND ITS BASELINE IS NOT THAT GATE'S GOLDEN. That gate compares against a golden kept
-outside the repo in DELUGE_GOLDEN_DIR, reconstructed from the song corpus. This one compares the Embassy render against
-ITSELF, recorded in the repo, so it needs no corpus.
+The baseline is the Embassy render itself, recorded in the repo.
 
 THE BASELINE IS NOT EXPECTED TO MOVE. A walk's cadence is an implementation detail; rendered audio is not. If
 ST-RENDER goes red, that is a finding to investigate -- never a re-baseline.
