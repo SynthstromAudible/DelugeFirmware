@@ -81,7 +81,7 @@ public:
 	using value_type = typename K::value_type; ///< The signal's value: what `advance` returns.
 
 	/// @brief Value-initialised Coefficients and State{}.
-	Control() = default;
+	[[gnu::always_inline]] Control() = default;
 
 	/// @brief Configured from @p settings, with State{}.
 	[[gnu::always_inline]] explicit Control(const typename K::Settings& settings)
