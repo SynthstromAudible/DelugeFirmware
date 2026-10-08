@@ -40,6 +40,9 @@ namespace deluge::dsp::fixed {
 /// units) — callers typically `multiply_..._rshift32` or `>> 15` it back down.
 class LinearTableInterpolator {
 public:
+	/// @brief The blend's full weight, 1.0 at Q15: an entry read at a blend fraction of 0 is scaled by it.
+	static constexpr int32_t kFullWeight = int32_t{1} << 15;
+
 	/// @brief Sample @p table at fractional index @p input.
 	/// @param input Fixed-point index with @p input_fractional_bits fractional bits below the entry index.
 	///        Must carry no bits above @p input_fractional_bits.
@@ -58,8 +61,8 @@ public:
 		int32_t shift = input_fractional_bits - 15 - table_size_log2;
 		uint32_t fraction = (shift >= 0) ? (input >> shift) : (input << -shift);
 
-		int32_t strength2 = fraction & 0x7FFF;  // weight toward the upper neighbour (Q15)
-		int32_t strength1 = 0x8000 - strength2; // and the remainder toward the lower
+		int32_t strength2 = fraction & (kFullWeight - 1); // weight toward the upper neighbour (Q15)
+		int32_t strength1 = kFullWeight - strength2;      // and the remainder toward the lower
 		return value1 * strength1 + value2 * strength2;
 	}
 
@@ -142,12 +145,14 @@ public:
 inline constexpr BilinearTableInterpolator bilinear_table_interpolator{};
 
 /// @brief Curve lookup into the `decayTableSmall8` decay curve.
-/// @param input Fixed-point position with @p input_fractional_bits fractional bits.
+/// @param input Fixed-point position with @p input_fractional_bits fractional bits, from 0 up to and including
+///        2^input_fractional_bits, which reads the table's last entry.
 /// @return The interpolated decay value at Q15 (see @ref LinearTableInterpolator::interpolate).
 int32_t getDecay8(uint32_t input, uint8_t input_fractional_bits);
 
 /// @brief Curve lookup into the `decayTableSmall4` decay curve (a different curvature to @ref getDecay8).
-/// @param input Fixed-point position with @p input_fractional_bits fractional bits.
+/// @param input Fixed-point position with @p input_fractional_bits fractional bits, from 0 up to and including
+///        2^input_fractional_bits, which reads the table's last entry.
 /// @return The interpolated decay value at Q15 (see @ref LinearTableInterpolator::interpolate).
 int32_t getDecay4(uint32_t input, uint8_t input_fractional_bits);
 

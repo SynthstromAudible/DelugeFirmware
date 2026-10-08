@@ -58,12 +58,37 @@ uint32_t LinearTableInterpolator::inverse(int32_t table_value_q15, int32_t outpu
 	return output;
 }
 
+// The helper sits in a named namespace inside the anonymous one: the backend is a unity build, so another file's
+// anonymous helpers share this translation unit.
+namespace {
+namespace decay {
+
+/// The decay tables' entry-index bits: 2^8 intervals, so 2^8 + 1 entries.
+constexpr int32_t kTableSizeLog2 = 8;
+/// The index of a decay table's last entry, the end of its last interval.
+constexpr uint32_t kLastEntry = uint32_t{1} << kTableSizeLog2;
+
+/// @brief Samples the decay @p table at @p input, from 0 up to and including 2^@p input_fractional_bits.
+/// @details An input of exactly 2^@p input_fractional_bits indexes the last entry with a blend fraction of 0. The
+/// interpolator would also read the entry after it, past the table, at a weight of 0; the last entry at full weight
+/// is the same value, read without it.
+/// @return The decay value at Q15 of the table's units, as LinearTableInterpolator::interpolate returns it.
+int32_t sample(const uint16_t* table, uint32_t input, uint8_t input_fractional_bits) {
+	if (input == (uint32_t{1} << input_fractional_bits)) {
+		return table[kLastEntry] * LinearTableInterpolator::kFullWeight;
+	}
+	return linear_table_interpolator.interpolate(input, input_fractional_bits, table, kTableSizeLog2);
+}
+
+} // namespace decay
+} // namespace
+
 int32_t getDecay8(uint32_t input, uint8_t input_fractional_bits) {
-	return linear_table_interpolator.interpolate(input, input_fractional_bits, decayTableSmall8);
+	return decay::sample(decayTableSmall8, input, input_fractional_bits);
 }
 
 int32_t getDecay4(uint32_t input, uint8_t input_fractional_bits) {
-	return linear_table_interpolator.interpolate(input, input_fractional_bits, decayTableSmall4);
+	return decay::sample(decayTableSmall4, input, input_fractional_bits);
 }
 
 } // namespace deluge::dsp::fixed
