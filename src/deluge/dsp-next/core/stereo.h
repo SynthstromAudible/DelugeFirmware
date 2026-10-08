@@ -53,6 +53,7 @@ template <sample_processor P>
 requires std::same_as<typename P::value_type, q31>
 class Stereo : public Processor<Stereo<P>, StereoSample> {
 public:
+	/// @brief A stereo processor with a value-initialised processor per channel.
 	Stereo() = default;
 
 	/// @brief A stereo processor from one mono processor per channel.
@@ -76,8 +77,12 @@ public:
 
 	/// @brief The left channel's processor.
 	[[nodiscard]] P& left() { return left_; }
+	/// @brief The left channel's processor.
+	[[nodiscard]] const P& left() const { return left_; }
 	/// @brief The right channel's processor.
 	[[nodiscard]] P& right() { return right_; }
+	/// @brief The right channel's processor.
+	[[nodiscard]] const P& right() const { return right_; }
 
 private:
 	P left_{};

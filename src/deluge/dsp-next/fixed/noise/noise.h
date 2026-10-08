@@ -16,11 +16,13 @@
  */
 #pragma once
 
+#include "dsp-next/core/concepts.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/noise/congruential_step.h"
 #include "util/waves.h"
 
 #include <cstdint>
+#include <type_traits>
 
 /// @file
 /// @brief The synth's noise stream as injectable components: the shared stream and a private one.
@@ -38,6 +40,9 @@ public:
 	/// @return The new state, reinterpreted as a q31 sample.
 	[[nodiscard, gnu::always_inline]] q31 render() { return static_cast<q31>(CONG); }
 };
+
+static_assert(sample_generator<SharedNoise>);
+static_assert(!std::is_polymorphic_v<SharedNoise>);
 
 /// @brief A private noise stream with the same step as the shared one, for specs and components that want their own.
 class SeededNoise {
@@ -61,5 +66,8 @@ public:
 private:
 	uint32_t state_; ///< The generator state.
 };
+
+static_assert(sample_generator<SeededNoise>);
+static_assert(!std::is_polymorphic_v<SeededNoise>);
 
 } // namespace deluge::dsp::fixed
