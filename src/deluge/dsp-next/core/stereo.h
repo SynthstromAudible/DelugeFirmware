@@ -33,9 +33,11 @@ namespace deluge::dsp {
 /// @details Any contiguous range of q31 (a span, an array, a vector). A const range gives a
 /// @ref fixed::StereoSignal, a mutable one a @ref fixed::StereoBuffer. The view aliases @p interleaved: a frame is
 /// its two consecutive q31 samples, left first, which the layout assert in stereo_sample.h guarantees. The app's
-/// buffers are int32 storage, so no object of another type is created.
+/// buffers are int32 storage, so no object of another type is created. A range that owns its storage must be an
+/// lvalue, since a view of a temporary would dangle.
 template <std::ranges::contiguous_range R>
 requires std::same_as<std::remove_cvref_t<std::ranges::range_reference_t<R>>, q31> && std::ranges::sized_range<R>
+         && (std::is_lvalue_reference_v<R> || std::ranges::borrowed_range<R>)
 [[nodiscard]] auto as_frames(R&& interleaved) {
 	using Frame = std::conditional_t<std::is_const_v<std::remove_reference_t<std::ranges::range_reference_t<R>>>,
 	                                 const StereoSample, StereoSample>;

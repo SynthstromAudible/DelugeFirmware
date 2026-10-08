@@ -3,12 +3,14 @@
 
 #include <array>
 #include <cppspec.hpp>
+#include <span>
+#include <utility>
 #include <vector>
 
 using namespace deluge::dsp;
 
 namespace {
-/// A mono processor that adds a draw from a noise stream it shares with its sibling, recording the order.
+/// A mono processor that adds a draw from a noise stream it shares with its sibling.
 struct NoisyAdd : Processor<NoisyAdd, q31> {
 	explicit NoisyAdd(fixed::SeededNoise* shared) : noise{shared} {}
 	fixed::SeededNoise* noise; // test-only: both channels draw from one stream
@@ -24,6 +26,13 @@ struct Gain : Processor<Gain, q31> {
 };
 static_assert(processor<Stereo<Gain>>);
 static_assert(std::same_as<Stereo<Gain>::value_type, StereoSample>);
+// An owning temporary would leave the view dangling; a non-q31 range is not samples at all.
+template <typename R>
+concept viewable_as_frames = requires(R&& r) { as_frames(std::forward<R>(r)); };
+static_assert(!viewable_as_frames<std::vector<q31>>);
+static_assert(!viewable_as_frames<std::vector<float>&>);
+static_assert(viewable_as_frames<std::vector<q31>&>);
+static_assert(viewable_as_frames<std::span<q31>>);
 } // namespace
 
 // clang-format off
@@ -36,6 +45,13 @@ describe stereo("stereo frames and Stereo<P>", ${
 		expect(frames[1].r).to_equal(4);
 		frames[2].r = 60;
 		expect(raw[5]).to_equal(60);
+	});
+	it("views a const buffer as a read-only signal", _ {
+		std::array<q31, 4> raw{1, 2, 3, 4};
+		fixed::StereoSignal frames = as_frames(std::as_const(raw));
+		expect(frames.size()).to_equal(2u);
+		expect(frames[1].l).to_equal(3);
+		expect(frames[1].r).to_equal(4);
 	});
 	it("leaves an odd trailing sample outside the view", _ {
 		std::array<q31, 5> raw{1, 2, 3, 4, 5};
