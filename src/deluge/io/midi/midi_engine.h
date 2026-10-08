@@ -65,15 +65,18 @@ class MidiEngine {
 public:
 	MidiEngine();
 
-	void sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter);
-	void sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter);
+	void sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter,
+	              uint8_t deviceFilter = 0);
+	void sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter,
+	            uint8_t deviceFilter = 0);
 	bool checkIncomingSerialMidi();
 	static void check_incoming_usb();
 	void checkIncomingUsbMidi();
 
 	void checkIncomingUsbSysex(uint8_t const* message, int32_t ip, int32_t d, int32_t cable);
 
-	void sendMidi(MIDISource source, MIDIMessage message, int32_t filter = kMIDIOutputFilterNoMPE, bool sendUSB = true);
+	void sendMidi(MIDISource source, MIDIMessage message, int32_t filter = kMIDIOutputFilterNoMPE, bool sendUSB = true,
+	              uint8_t deviceFilter = 0);
 	void sendClock(MIDISource source, bool sendUSB = true, int32_t howMany = 1);
 	void sendStart(MIDISource source);
 	void sendStop(MIDISource source);
@@ -81,21 +84,23 @@ public:
 	void sendContinue(MIDISource source);
 
 	void flushMIDI();
-	void sendUsbMidi(MIDIMessage message, int32_t filter);
+	void sendUsbMidi(MIDIMessage message, int32_t filter, uint8_t deviceFilter = 0);
 	void sendSerialMidi(MIDIMessage message);
 
-	void sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter);
-	void sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter);
-	void sendBank(MIDISource source, int32_t channel, int32_t num, int32_t filter);
-	void sendSubBank(MIDISource source, int32_t channel, int32_t num, int32_t filter);
+	void sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter, uint8_t deviceFilter = 0);
+	void sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter, uint8_t deviceFilter = 0);
+	void sendBank(MIDISource source, int32_t channel, int32_t num, int32_t filter, uint8_t deviceFilter = 0);
+	void sendSubBank(MIDISource source, int32_t channel, int32_t num, int32_t filter, uint8_t deviceFilter = 0);
 	/// Send pitch bend
 	///
 	/// @param bend Bend amount. Only the lower 14 bits are used
-	void sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter);
+	void sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter, uint8_t deviceFilter = 0);
 	/// @param value Pressure amount. Saturated into 0-127
-	void sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter);
+	void sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter,
+	                           uint8_t deviceFilter = 0);
 	/// @param value Pressure amount. Saturated into 0-127
-	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, int32_t value, uint8_t noteCode, int32_t filter);
+	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, int32_t value, uint8_t noteCode, int32_t filter,
+	                              uint8_t deviceFilter = 0);
 	bool anythingInOutputBuffer();
 	void setupUSBHostReceiveTransfer(int32_t ip, int32_t midiDeviceNum);
 	void flushUSBMIDIOutput();

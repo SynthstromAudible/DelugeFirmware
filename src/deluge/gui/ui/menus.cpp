@@ -108,6 +108,7 @@
 #include "gui/menu_item/midi/follow/follow_feedback_channel_type.h"
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
 #include "gui/menu_item/midi/mpe_to_mono.h"
+#include "gui/menu_item/midi/output_device_selection.h"
 #include "gui/menu_item/midi/pgm.h"
 #include "gui/menu_item/midi/program.h"
 #include "gui/menu_item/midi/receive_clock.h"
@@ -653,6 +654,9 @@ PLACE_SDRAM_BSS midi::sound::OutputMidiNoteForDrum outputMidiNoteForDrumMenu{STR
 PLACE_SDRAM_BSS Submenu outputMidiSubmenu{STRING_FOR_MIDI, {&outputMidiChannelMenu, &outputMidiNoteForDrumMenu}};
 
 // MIDIInstrument menu ----------------------------------------------------------------------
+PLACE_SDRAM_BSS midi::OutputDeviceSelection midiOutputDeviceSelectionMenu{STRING_FOR_OUTPUT_DEVICE,
+                                                                          STRING_FOR_OUTPUT_DEVICE};
+
 PLACE_SDRAM_BSS midi::device_definition::Linked midiDeviceLinkedMenu{
     STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
     STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
@@ -1699,6 +1703,7 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     STRING_FOR_MIDI_INST_MENU_TITLE,
     {
         &soundEditorRootActionsMenuMIDIOrCV,
+        &midiOutputDeviceSelectionMenu,
         &midiDeviceDefinitionMenu,
         &midiProgramMenu,
         &arpMenuMIDIOrCV,
@@ -1716,6 +1721,7 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuMidiDrum{
     STRING_FOR_MIDI,
     {
         &soundEditorRootDrumActionsMenu,
+        &midiOutputDeviceSelectionMenu,
         &arpMenuMIDIOrCV,
         &randomizerMenu,
     },
