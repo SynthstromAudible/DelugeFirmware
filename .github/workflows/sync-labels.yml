@@ -1,0 +1,50 @@
+name: Sync labels
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/labels.yml
+      - .github/workflows/sync-labels.yml
+  pull_request:
+    paths:
+      - .github/labels.yml
+      - .github/dependabot.yml
+      - .github/scripts/migrate_labels.py
+      - .github/scripts/test_labels_yml.py
+      - .github/scripts/test_migrate_labels.py
+      - .github/workflows/sync-labels.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test label config and migration script
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - run: python .github/scripts/test_labels_yml.py
+      - run: python .github/scripts/test_migrate_labels.py
+
+  sync:
+    name: Sync labels (dry run on PRs)
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: crazy-max/ghaction-github-labeler@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          yaml-file: .github/labels.yml
+          skip-delete: true
+          dry-run: ${{ github.event_name == 'pull_request' }}

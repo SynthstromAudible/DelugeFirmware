@@ -126,6 +126,13 @@ class LabelsFileTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertIn(name, self.names)
 
+    def test_dependabot_uses_defined_labels(self):
+        dependabot = yaml.safe_load((LABELS_FILE.parent / "dependabot.yml").read_text())
+        for update in dependabot["updates"]:
+            for label in update.get("labels", []):
+                with self.subTest(ecosystem=update["package-ecosystem"], label=label):
+                    self.assertIn(label, self.names)
+
 
 if __name__ == "__main__":
     unittest.main()
