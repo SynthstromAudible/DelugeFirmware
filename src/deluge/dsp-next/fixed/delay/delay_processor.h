@@ -40,7 +40,8 @@ struct DelayBlock {
 struct DelayBlockResult {
 	bool wrapped;              ///< the read head wrapped (the abandon count steps): the secondary tape's when it is
 	                           ///< active, else the primary's
-	int32_t secondary_written; ///< the secondary tape's read-head steps (sizeLeftUntilBufferSwap's step), in samples
+	int32_t secondary_written; ///< tape samples, not block samples: the secondary tape's read-head steps this block
+	                           ///< (sizeLeftUntilBufferSwap's step), two per block sample at twice its native rate
 };
 
 /// @brief One block of the delay over tapes it is handed: read (silence while the primary has nothing), shape the

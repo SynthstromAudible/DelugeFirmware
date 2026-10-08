@@ -124,6 +124,16 @@ inline Case rateChange() {
 	return c;
 }
 
+/// A 256-sample tape whose rate falls to a quarter: the secondary tape is grown at half the new rate (2048 samples),
+/// so its read head steps twice per output sample until it is swapped in.
+inline Case doubleSpeedSecondary() {
+	Case c{};
+	for (size_t b = 0; b < kBlocks; ++b) {
+		c.block[b].rate = b < 4 ? 1 << 30 : 1 << 28;
+	}
+	return c;
+}
+
 /// What 20 blocks did: each block's output digest and whether it wrapped, the tapes' sizes after it (0 when
 /// inactive), and the opening 8 samples (interleaved) of block kWindowBlock.
 struct Record {
@@ -234,6 +244,18 @@ const Record kRateChange{
     .window = {237400466, -369128011, -121391697, 122321056, -77652223, -325660197, 100380100, 165779771, 144073171,
                -282210574, -214811799, 209220301, -36750750, -238779129, 6971038, 252642670}};
 
+/// doubleSpeedSecondary, per block: the secondary tape's read-head steps (100 on the native 256-sample tape that starts
+/// the delay, 200 on the 2048-sample tape grown at half the rate, 100 on the 1024-sample tape that follows its swap),
+/// the samples left until the swap after the block, and the tapes' sizes after it.
+const std::vector<int32_t> kWritten{100, 100, 100, 0,   200, 200, 200, 200, 200, 200,
+                                    200, 200, 200, 200, 200, 100, 100, 100, 100, 100};
+const std::vector<int32_t> kSizeLeft{156, 56,  -44, -44, 1853, 1653, 1453, 1253, 1053, 853,
+                                     653, 453, 253, 53,  -147, 929,  829,  729,  629,  529};
+const std::vector<int32_t> kPrimarySize{0,   0,   256, 256, 256,  256,  256,  256,  256,  256,
+                                        256, 256, 256, 256, 2048, 2048, 2048, 2048, 2048, 2048};
+const std::vector<int32_t> kSecondarySize{256,  256,  0,    0,    2048, 2048, 2048, 2048, 2048, 2048,
+                                          2048, 2048, 2048, 2048, 0,    1024, 1024, 1024, 1024, 1024};
+
 /// A tape and the heap storage it plays, as the delay's buffer allocates it: the ideal size for its rate plus
 /// kWriteLag, holding the allocator's fill.
 struct Buffer {
@@ -315,6 +337,7 @@ public:
 
 	[[nodiscard]] int32_t primarySize() const { return size(primary_.tape); }
 	[[nodiscard]] int32_t secondarySize() const { return size(secondary_.tape); }
+	[[nodiscard]] int32_t sizeLeft() const { return size_left_; }
 
 private:
 	static int32_t size(const DelayTape& tape) { return tape.isActive() ? static_cast<int32_t>(tape.size()) : 0; }
@@ -411,6 +434,31 @@ describe delay_processor("DelayProcessor", ${
 		expect(written).to_equal(std::vector<int32_t>{100, 100, 100, 100, 100, 100});
 		// The head starts kWriteLag in, at the end of a 532-sample ring, so it wraps 512 steps on, in the sixth block.
 		expect(wrapped).to_equal(std::vector<int32_t>{0, 0, 0, 0, 0, 1});
+	});
+
+	it("counts a resampled secondary tape's steps, two per sample at twice its native rate, and swaps it in once "
+	   "they pass its size", _ {
+		const Case c = doubleSpeedSecondary();
+		Owner owner{c.block[0].rate};
+		std::vector<int32_t> written;
+		std::vector<int32_t> left;
+		std::vector<int32_t> primary;
+		std::vector<int32_t> secondary;
+		int32_t k = 0;
+		for (size_t b = 0; b < kBlocks; ++b) {
+			std::array<StereoSample, kBlockSize> buffer{};
+			for (StereoSample& s : buffer) {
+				s = input(k++);
+			}
+			written.push_back(owner.block(buffer, c.block[b]).secondary_written);
+			left.push_back(owner.sizeLeft());
+			primary.push_back(owner.primarySize());
+			secondary.push_back(owner.secondarySize());
+		}
+		expect(written).to_equal(kWritten);
+		expect(left).to_equal(kSizeLeft);
+		expect(primary).to_equal(kPrimarySize);
+		expect(secondary).to_equal(kSecondarySize);
 	});
 
 	it("feeds back straight and clips digitally", _ { expect(run(digital())).to_equal(kDigital); });
