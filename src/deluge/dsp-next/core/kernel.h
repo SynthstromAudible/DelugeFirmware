@@ -253,8 +253,8 @@ inline constexpr bool partial_step_advances_by_count<K> = K::kPartialStepAdvance
 ///   copyable);
 /// - `static Coefficients coefficients(const Settings&)`;
 /// - when K declares any member named `prepare`, exactly `static kernel_block_t<K> prepare(const Coefficients&,
-///   State&, std::size_t n)`, called once per block of @c n samples. A template, non-static or mismatched `prepare`
-///   fails here rather than being skipped;
+///   State&, std::size_t n)`, called once per block of @c n samples. @c n may be 0: an empty block still prepares.
+///   A template, non-static or mismatched `prepare` fails here rather than being skipped;
 /// - when K declares a `Block`, a `prepare` to make it.
 template <typename K>
 concept kernel_base = detail::declares_kernel_types<K> && detail::plain_value<typename K::Coefficients>

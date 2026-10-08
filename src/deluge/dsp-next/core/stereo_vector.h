@@ -41,12 +41,12 @@ namespace detail {
 // interleaved buffers are int32 storage to begin with, so both views name the same int32 objects.
 
 /// @brief The interleaved q31 samples of a block of stereo frames (left, right, left, ...).
-[[nodiscard]] inline const q31* interleaved(std::span<const StereoSample> frames) {
+[[nodiscard, gnu::always_inline]] inline const q31* interleaved(std::span<const StereoSample> frames) {
 	return reinterpret_cast<const q31*>(frames.data());
 }
 
 /// @brief The interleaved q31 samples of a writable block of stereo frames (left, right, left, ...).
-[[nodiscard]] inline q31* interleaved(std::span<StereoSample> frames) {
+[[nodiscard, gnu::always_inline]] inline q31* interleaved(std::span<StereoSample> frames) {
 	return reinterpret_cast<q31*>(frames.data());
 }
 

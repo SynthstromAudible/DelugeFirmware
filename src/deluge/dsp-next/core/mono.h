@@ -62,6 +62,45 @@ template <typename K>
 concept stereo_vector_step_kernel =
     std::same_as<typename K::value_type, StereoSample> && std::same_as<typename K::step_type, StereoVector>;
 
+/// @brief K's per-block values for a block of @p n samples: its `prepare` when it declares one, else an
+/// EmptyBlock.
+template <typename K>
+[[gnu::always_inline]] inline kernel_block_t<K> prepare_block([[maybe_unused]] const typename K::Coefficients& c,
+                                                              [[maybe_unused]] typename K::State& s,
+                                                              [[maybe_unused]] std::size_t n) {
+	if constexpr (declares_prepare<K>) {
+		return K::prepare(c, s, n);
+	}
+	else {
+		return kernel_block_t<K>{};
+	}
+}
+
+/// @brief Call @p body.template operator()<M>() once: at the mode of @p c for a moded kernel, through with_mode,
+/// else at NoMode::NONE.
+template <typename K, typename Body>
+[[gnu::always_inline]] inline void dispatch_mode([[maybe_unused]] const typename K::Coefficients& c, Body&& body) {
+	if constexpr (moded_kernel<K>) {
+		with_mode<typename K::Modes>(c.mode, body);
+	}
+	else {
+		body.template operator()<NoMode::NONE>();
+	}
+}
+
+/// @brief One `step` of K at mode @p M (ignored for a kernel without modes).
+/// @param x The step's inputs: none, one or two step values, then an ActiveLanes for the counted partial step.
+template <typename K, auto M, typename... X>
+[[gnu::always_inline]] inline typename K::step_type
+step_at(const typename K::Coefficients& c, const kernel_block_t<K>& block, typename K::State& s, X... x) {
+	if constexpr (moded_kernel<K>) {
+		return K::template step<M>(c, block, s, x...);
+	}
+	else {
+		return K::step(c, block, s, x...);
+	}
+}
+
 } // namespace detail
 
 /// @brief A kernel as a mono component: one Coefficients, one State; the only loop.
@@ -84,7 +123,9 @@ concept stereo_vector_step_kernel =
 /// told apart. A kernel that declares kPartialStepAdvancesByCount gets its counted `step(…, ActiveLanes{count})` on
 /// that step, with the step's active-lane count, so its state advances by exactly the samples rendered; every other
 /// step, and every step of a kernel that does not declare it, calls the plain `step`, which advances by a whole
-/// vector. Every step loads before it stores, so the input and output blocks may be the same buffer.
+/// vector. Every step loads before it stores, so the input and output blocks may be the same buffer. The distinction
+/// by type holds on NEON (and SIMDe); on Helium (MVE) every step is predicated, so whole steps would also arrive
+/// counted, with `n` equal to the lane count.
 ///
 /// **Staged kernels** have no loop here: `renderBlock` calls `process(coefficients, state, in, out)` once, or
 /// `process<M>` through with_mode when the kernel is moded. A staged kernel does its per-block work in `process`, so
@@ -129,7 +170,9 @@ public:
 	[[nodiscard]] const State& state() const { return state_; }
 
 	/// @brief Generate one sample: a one-sample block, so one `prepare(…, 1)` and one mode dispatch per call.
-	/// @details A convenience for single samples; a vector kernel renders it as the partial step of a block of one.
+	/// @details A convenience for single samples; a vector kernel renders it as the partial step of a block of one,
+	/// so a stateful vector kernel that does not declare kPartialStepAdvancesByCount advances by a whole vector on
+	/// every call.
 	[[gnu::always_inline]] value_type render()
 	requires generator_kernel<K>
 	{
@@ -146,7 +189,9 @@ public:
 	}
 
 	/// @brief Process one sample: a one-sample block, so one `prepare(…, 1)` and one mode dispatch per call.
-	/// @details A convenience for single samples; a vector kernel renders it as the partial step of a block of one.
+	/// @details A convenience for single samples; a vector kernel renders it as the partial step of a block of one,
+	/// so a stateful vector kernel that does not declare kPartialStepAdvancesByCount advances by a whole vector on
+	/// every call.
 	[[gnu::always_inline]] value_type render(value_type x)
 	requires processor_kernel<K>
 	{
@@ -163,7 +208,7 @@ public:
 	{
 		if constexpr (staged_kernel<K>) {
 			static_assert(!detail::declares_prepare<K>, "a staged kernel does its per-block work in process");
-			dispatch(coefficients_, [&]<auto M> [[gnu::always_inline]] () {
+			detail::dispatch_mode<K>(coefficients_, [&]<auto M> [[gnu::always_inline]] () {
 				if constexpr (moded_kernel<K>) {
 					K::template process<M>(coefficients_, state_, in.first(out.size()), out);
 				}
@@ -200,51 +245,17 @@ private:
 	/// @brief Render one block of a stepping kernel: `prepare` once, one mode dispatch, one loop.
 	/// @param out The block to fill.
 	/// @param in The input blocks: none, one or two.
-	/// @details The loop runs on local copies of the coefficients and state, written back after the block, so they
-	/// stay in registers: the output buffer may alias the component, which would otherwise force a reload and a
-	/// store of the state on every step.
+	/// @details The loop runs on local copies of the coefficients and state, taken after `prepare` and written back
+	/// after the block, so they stay in registers: the output buffer may alias the component, which would otherwise
+	/// force a reload and a store of the state on every step. `prepare` sees the members, so the copies' addresses
+	/// never escape to a `prepare` that is not inlined.
 	template <typename... In>
 	[[gnu::always_inline]] void runBlock(Buffer<value_type> out, In... in) {
+		const Block block = detail::prepare_block<K>(coefficients_, state_, out.size());
 		const Coefficients c = coefficients_;
 		State s = state_;
-		const Block block = prepare(c, s, out.size());
-		dispatch(c, [&]<auto M> [[gnu::always_inline]] () { loop<M>(c, block, s, out, in...); });
+		detail::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () { loop<M>(c, block, s, out, in...); });
 		state_ = s;
-	}
-
-	/// @brief The block's values: K's `prepare` for @p n samples when it declares one, else an EmptyBlock.
-	[[gnu::always_inline]] static Block prepare([[maybe_unused]] const Coefficients& c, [[maybe_unused]] State& s,
-	                                            [[maybe_unused]] std::size_t n) {
-		if constexpr (detail::declares_prepare<K>) {
-			return K::prepare(c, s, n);
-		}
-		else {
-			return Block{};
-		}
-	}
-
-	/// @brief Call @p body.template operator()<M>() once: at the mode of @p c for a moded kernel, through
-	/// with_mode, else at detail::NoMode::NONE.
-	template <typename Body>
-	[[gnu::always_inline]] static void dispatch([[maybe_unused]] const Coefficients& c, Body&& body) {
-		if constexpr (moded_kernel<K>) {
-			with_mode<typename K::Modes>(c.mode, body);
-		}
-		else {
-			body.template operator()<detail::NoMode::NONE>();
-		}
-	}
-
-	/// @brief One `step` of K at mode @p M (ignored for a kernel without modes).
-	/// @param x The step's inputs: none, one or two step values, then an ActiveLanes for the counted partial step.
-	template <auto M, typename... X>
-	[[gnu::always_inline]] static step_type stepAt(const Coefficients& c, const Block& block, State& s, X... x) {
-		if constexpr (moded_kernel<K>) {
-			return K::template step<M>(c, block, s, x...);
-		}
-		else {
-			return K::step(c, block, s, x...);
-		}
 	}
 
 	/// @brief One vector step at mode @p M, counted on the partial last step when K declares
@@ -255,10 +266,10 @@ private:
 	[[gnu::always_inline]] static step_type vectorStepAt(const Coefficients& c, const Block& block, State& s,
 	                                                     const Step& step, X... x) {
 		if constexpr (partial_step_advances_by_count<K> && detail::is_partial_step<Step>) {
-			return stepAt<M>(c, block, s, x..., ActiveLanes{.n = static_cast<std::size_t>(step.count())});
+			return detail::step_at<K, M>(c, block, s, x..., ActiveLanes{.n = static_cast<std::size_t>(step.count())});
 		}
 		else {
-			return stepAt<M>(c, block, s, x...);
+			return detail::step_at<K, M>(c, block, s, x...);
 		}
 	}
 
@@ -297,7 +308,7 @@ private:
 	[[gnu::always_inline]] static void scalarLoop(const Coefficients& c, const Block& block, State& s, value_type* dst,
 	                                              std::ptrdiff_t n, const Src*... src) {
 		for (std::ptrdiff_t i = 0; i < n; ++i) {
-			dst[i] = stepAt<M>(c, block, s, src[i]...);
+			dst[i] = detail::step_at<K, M>(c, block, s, src[i]...);
 		}
 	}
 

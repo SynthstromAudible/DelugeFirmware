@@ -323,6 +323,56 @@ struct StereoVecRampCount {
 	}
 };
 
+/// A moded vector processor with a non-empty Block: adds (or subtracts, by mode) the block's bias and its step
+/// count to each vector. prepare counts the blocks and sets the bias from that count and the block length.
+struct VecModeSwitch {
+	using value_type = q31;
+	using step_type = Argon<q31>;
+	enum class Mode : uint8_t { ADD, SUBTRACT };
+	using Modes = ModeList<Mode::ADD, Mode::SUBTRACT>;
+	struct Settings {
+		Mode mode;
+	};
+	struct Coefficients {
+		Mode mode;
+	};
+	struct State {
+		q31 blocks; ///< Blocks prepared so far.
+		q31 steps;  ///< Vectors stepped so far, the partial last one included.
+	};
+	struct Block {
+		Argon<q31> bias; ///< 1000 × the block's index plus its length, in every lane.
+	};
+	static Coefficients coefficients(const Settings& s) { return {.mode = s.mode}; }
+	static Block prepare(const Coefficients& /*c*/, State& s, std::size_t n) {
+		return {.bias = Argon<q31>{s.blocks++ * 1000 + static_cast<q31>(n)}};
+	}
+	template <Mode M>
+	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const Block& b, State& s, Argon<q31> x) {
+		const Argon<q31> offset = b.bias + Argon<q31>{s.steps++};
+		if constexpr (M == Mode::ADD) {
+			return x + offset;
+		}
+		else {
+			return x - offset;
+		}
+	}
+};
+
+/// A stereo-vector mixer: left of a plus right of b on the left, right of a minus left of b on the right.
+struct StereoVecMix {
+	using value_type = StereoSample;
+	using step_type = StereoVector;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[gnu::always_inline]] static StereoVector step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/,
+	                                                StereoVector a, StereoVector b2) {
+		return {.l = a.l + b2.r, .r = a.r - b2.l};
+	}
+};
+
 /// A generator whose reset is a quirk: it restarts at 100, not at State{}.
 struct ResetQuirk {
 	using value_type = q31;
@@ -350,6 +400,8 @@ static_assert(mixer<Mono<VecSubtract>>);
 static_assert(processor<Mono<StereoSwap>>);
 static_assert(processor<Mono<StereoVecSwap>>);
 static_assert(generator<Mono<StereoVecRampCount>>);
+static_assert(processor<Mono<VecModeSwitch>>);
+static_assert(mixer<Mono<StereoVecMix>>);
 static_assert(!std::is_polymorphic_v<Mono<Gain>>);
 
 /// A deterministic test input of @p n samples, distinct per @p seed.
@@ -374,6 +426,26 @@ std::vector<StereoSample> stereo_input(std::size_t n) {
 template <typename M>
 q31 ramp_value(const M& mono) {
 	return lanes_of(mono.state().value)[0];
+}
+
+/// The vector at @p offset of @p v: its next four samples, zero past the end, as a partial step loads them.
+Argon<q31> vector_at(const std::vector<q31>& v, std::size_t offset) {
+	std::array<q31, 4> lanes{};
+	for (std::size_t i = 0; i < lanes.size() && offset + i < v.size(); ++i) {
+		lanes[i] = v[offset + i];
+	}
+	return Argon<q31>::Load(lanes.data());
+}
+
+/// The vector of frames at @p offset of @p v: its next four frames, zero past the end, one vector per channel.
+StereoVector frames_at(const std::vector<StereoSample>& v, std::size_t offset) {
+	std::array<q31, 4> l{};
+	std::array<q31, 4> r{};
+	for (std::size_t i = 0; i < l.size() && offset + i < v.size(); ++i) {
+		l[i] = v[offset + i].l;
+		r[i] = v[offset + i].r;
+	}
+	return {.l = Argon<q31>::Load(l.data()), .r = Argon<q31>::Load(r.data())};
 }
 
 } // namespace
@@ -577,6 +649,59 @@ describe mono("Mono", ${
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(stereo_in[i].l).to_equal(stereo_out[i].l);
 				expect(stereo_in[i].r).to_equal(stereo_out[i].r);
+			}
+		}
+	});
+
+	it("runs a moded vector kernel's block in its mode, prepare and state carried across a switch", _ {
+		constexpr auto lanes = static_cast<std::size_t>(Argon<q31>::lanes);
+		for (const std::size_t n : kLengths) {
+			Mono<VecModeSwitch> mono{{.mode = VecModeSwitch::Mode::ADD}};
+			VecModeSwitch::State s{};
+			for (int block = 0; block < 3; ++block) {
+				const VecModeSwitch::Mode mode = block == 1 ? VecModeSwitch::Mode::SUBTRACT : VecModeSwitch::Mode::ADD;
+				mono.configure({.mode = mode});
+				const std::vector<q31> in = input(n, 0x00013579 * (block + 1));
+				std::vector<q31> got(n);
+				mono.renderBlock(in, got);
+
+				const VecModeSwitch::Coefficients c = VecModeSwitch::coefficients({.mode = mode});
+				const VecModeSwitch::Block b = VecModeSwitch::prepare(c, s, n);
+				for (std::size_t offset = 0; offset < n; offset += lanes) {
+					const Argon<q31> want = mode == VecModeSwitch::Mode::ADD
+					                            ? VecModeSwitch::step<VecModeSwitch::Mode::ADD>(c, b, s, vector_at(in, offset))
+					                            : VecModeSwitch::step<VecModeSwitch::Mode::SUBTRACT>(c, b, s, vector_at(in, offset));
+					const std::array<q31, 4> want_lanes = lanes_of(want);
+					for (std::size_t i = 0; i < lanes && offset + i < n; ++i) {
+						expect(got[offset + i]).to_equal(want_lanes[i]);
+					}
+				}
+				expect(mono.state().blocks).to_equal(s.blocks);
+				expect(mono.state().steps).to_equal(s.steps);
+			}
+		}
+	});
+
+	it("mixes stereo vectors as a hand loop over step", _ {
+		constexpr auto lanes = static_cast<std::size_t>(Argon<q31>::lanes);
+		for (const std::size_t n : kLengths) {
+			const std::vector<StereoSample> a = stereo_input(n);
+			std::vector<StereoSample> b(n);
+			for (std::size_t i = 0; i < n; ++i) {
+				b[i] = {.l = a[i].r * 5 + 3, .r = a[i].l - 0x00100000};
+			}
+			std::vector<StereoSample> got(n);
+			Mono<StereoVecMix> mix;
+			mix.renderBlock(a, b, got);
+			StereoVecMix::State s{};
+			for (std::size_t offset = 0; offset < n; offset += lanes) {
+				const StereoVector want = StereoVecMix::step({}, {}, s, frames_at(a, offset), frames_at(b, offset));
+				const std::array<q31, 4> want_l = lanes_of(want.l);
+				const std::array<q31, 4> want_r = lanes_of(want.r);
+				for (std::size_t i = 0; i < lanes && offset + i < n; ++i) {
+					expect(got[offset + i].l).to_equal(want_l[i]);
+					expect(got[offset + i].r).to_equal(want_r[i]);
+				}
 			}
 		}
 	});
