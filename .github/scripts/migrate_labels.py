@@ -116,6 +116,13 @@ def rename_conflicts(renames: dict[str, str], existing: set[str]) -> list[str]:
     )
 
 
+def already_renamed(renames: dict[str, str], existing: set[str]) -> list[str]:
+    """Old names whose rename has already happened (new exists, old is gone)."""
+    return sorted(
+        old for old, new in renames.items() if new in existing and old not in existing
+    )
+
+
 def plan_pre(items: list[Item]) -> list[AddLabel]:
     """Add each secondary label's primary so the rename carries the merged items."""
     actions = []
@@ -271,6 +278,8 @@ def command_for(repo: str, action) -> list[str]:
                 f"repos/{repo}/issues/{number}",
                 "-f",
                 f"type={issue_type}",
+                "--jq",
+                ".type.name",
             ]
         case DeleteLabel(name):
             return [
@@ -327,7 +336,12 @@ class GitHub:
         return {line for line in output.splitlines() if line}
 
     def apply(self, action) -> None:
-        self.run(command_for(self.repo, action))
+        output = self.run(command_for(self.repo, action))
+        if isinstance(action, SetIssueType) and output.strip() != action.issue_type:
+            # GitHub answers 200 but silently drops type changes it did not accept.
+            raise RuntimeError(
+                f"#{action.number}: Issue Type {action.issue_type!r} did not stick; got {output.strip()!r}"
+            )
         time.sleep(self.delay)
 
 
@@ -374,6 +388,12 @@ def main(argv: list[str] | None = None, github_factory=GitHub, out=sys.stdout) -
         if conflicts:
             for conflict in conflicts:
                 say(conflict)
+            return 2
+        renamed = already_renamed(renames, existing)
+        if renamed:
+            say(
+                f"the sync has already renamed {renamed}; running pre now would recreate them. Use the post phase."
+            )
             return 2
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         snapshot = args.snapshot_dir / f"label-snapshot-{stamp}.json"

@@ -248,7 +248,16 @@ class CommandForTests(unittest.TestCase):
     def test_set_issue_type(self):
         self.assertEqual(
             ml.command_for(self.REPO, ml.SetIssueType(5, "Feature")),
-            ["api", "-X", "PATCH", "repos/o/r/issues/5", "-f", "type=Feature"],
+            [
+                "api",
+                "-X",
+                "PATCH",
+                "repos/o/r/issues/5",
+                "-f",
+                "type=Feature",
+                "--jq",
+                ".type.name",
+            ],
         )
 
     def test_delete_label_is_url_encoded(self):
@@ -320,6 +329,39 @@ class GitHubTests(unittest.TestCase):
         self.assertEqual(calls, [["api", "-X", "DELETE", "repos/o/r/labels/spam"]])
 
 
+class ApplyChecksTests(unittest.TestCase):
+    def test_set_issue_type_that_did_not_stick_raises(self):
+        github = ml.GitHub(
+            "o/r", run=lambda args: "\n", delay=0
+        )  # GitHub silently dropped the type
+        with self.assertRaises(RuntimeError):
+            github.apply(ml.SetIssueType(5, "Feature"))
+
+    def test_set_issue_type_that_stuck_passes(self):
+        ml.GitHub("o/r", run=lambda args: "Feature\n", delay=0).apply(
+            ml.SetIssueType(5, "Feature")
+        )
+
+
+class RenamedAlreadyTests(unittest.TestCase):
+    def test_detects_completed_rename(self):
+        self.assertEqual(
+            ml.already_renamed({"sys-audio": "area: audio"}, {"area: audio"}),
+            ["sys-audio"],
+        )
+
+    def test_not_renamed_yet_or_conflict_is_not_flagged(self):
+        self.assertEqual(
+            ml.already_renamed({"sys-audio": "area: audio"}, {"sys-audio"}), []
+        )
+        self.assertEqual(
+            ml.already_renamed(
+                {"sys-audio": "area: audio"}, {"sys-audio", "area: audio"}
+            ),
+            [],
+        )
+
+
 class FakeGitHub:
     def __init__(self, items, labels):
         self.items = items
@@ -375,6 +417,16 @@ class MainTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("area: audio", out)
         self.assertEqual(fake.applied, [])
+
+    def test_pre_refuses_after_sync_so_old_labels_are_not_recreated(self):
+        fake = FakeGitHub([issue(1, "sound", "area: audio")], {"sound", "area: audio"})
+        code, out = self.run_main(
+            fake, "--apply", "pre", "--snapshot-dir", str(self.dir)
+        )
+        self.assertEqual(code, 2)
+        self.assertIn("sys-audio", out)
+        self.assertEqual(fake.applied, [])
+        self.assertEqual(list(self.dir.glob("label-snapshot-*.json")), [])
 
     def test_post_refuses_before_sync(self):
         fake = FakeGitHub([], {"enhancement", "sound"})
