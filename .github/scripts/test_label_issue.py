@@ -5,7 +5,10 @@ Run directly with:
     python3 .github/scripts/test_label_issue.py
 """
 
+import io
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -104,6 +107,73 @@ class LoadMappingTests(unittest.TestCase):
             '"F":\n  "Other / not sure": null\n  "A": "area: ui"\n'
         )
         self.assertEqual(mapping, {"F": {"Other / not sure": None, "A": "area: ui"}})
+
+
+class LabelCommandTests(unittest.TestCase):
+    def test_builds_one_request_with_all_labels(self):
+        self.assertEqual(
+            li.label_command("o/r", 7, ["area: audio", "impact: crash"]),
+            [
+                "api",
+                "-X",
+                "POST",
+                "repos/o/r/issues/7/labels",
+                "-f",
+                "labels[]=area: audio",
+                "-f",
+                "labels[]=impact: crash",
+            ],
+        )
+
+
+class MainTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def run_main(self, body):
+        event = self.dir / "event.json"
+        event.write_text(
+            json.dumps({"action": "opened", "issue": {"number": 7, "body": body}})
+        )
+        calls = []
+        environ = {"GITHUB_EVENT_PATH": str(event), "GITHUB_REPOSITORY": "o/r"}
+        out = io.StringIO()
+        code = li.main(
+            ["--mapping-file", str(MAPPING_FILE)],
+            run=lambda args: calls.append(args) or "",
+            environ=environ,
+            out=out,
+        )
+        return code, calls, out.getvalue()
+
+    def test_applies_mapped_labels(self):
+        code, calls, _ = self.run_main(form_body())
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            calls, [li.label_command("o/r", 7, ["area: audio", "impact: crash"])]
+        )
+
+    def test_null_body_makes_no_call(self):
+        code, calls, out = self.run_main(None)
+        self.assertEqual(code, 0)
+        self.assertEqual(calls, [])
+        self.assertIn("no labels", out)
+
+    def test_not_sure_makes_no_call(self):
+        code, calls, _ = self.run_main(
+            form_body(area="Other / not sure", impact="Other / not sure")
+        )
+        self.assertEqual((code, calls), (0, []))
+
+    def test_hostile_answer_is_passed_as_data_not_a_shell_command(self):
+        _, calls, _ = self.run_main(
+            form_body(area="MIDI; rm -rf /", impact="Crash or freeze")
+        )
+        self.assertEqual(calls, [li.label_command("o/r", 7, ["impact: crash"])])
 
 
 if __name__ == "__main__":
