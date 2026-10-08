@@ -31,39 +31,36 @@ requires(sizeof...(Ms) > 0 && (std::is_enum_v<decltype(Ms)> && ...))
 struct ModeList {};
 
 namespace detail {
-/// @brief Expands the list into one comparison per mode and calls the body for the match.
+/// @brief Compares @p mode with each listed mode in turn and returns the matching call's result, reference included.
+/// @details The last mode is the fallthrough: a mode outside the list is unreachable. The return type is deduced
+/// across all the calls, so a body whose instantiations disagree on it does not compile.
 template <auto M0, auto... Ms, typename Mode, typename Body>
-[[gnu::always_inline]] constexpr decltype(auto) with_mode_impl(ModeList<M0, Ms...> /*list*/, Mode mode, Body&& body) {
-	using Result = std::remove_cvref_t<decltype(body.template operator()<M0>())>;
-	if constexpr (std::is_void_v<Result>) {
-		const bool matched = ((mode == M0 ? (body.template operator()<M0>(), true) : false) || ...
-		                      || (mode == Ms ? (body.template operator()<Ms>(), true) : false));
-		if (!matched) {
+[[gnu::always_inline]] constexpr decltype(auto) with_mode_impl(ModeList<M0, Ms...> /*list*/, Mode mode, Body& body) {
+	if constexpr (sizeof...(Ms) == 0) {
+		if (mode != M0) {
 			std::unreachable();
 		}
+		return body.template operator()<M0>();
 	}
 	else {
-		Result result{};
-		const bool matched = ((mode == M0 ? (result = body.template operator()<M0>(), true) : false) || ...
-		                      || (mode == Ms ? (result = body.template operator()<Ms>(), true) : false));
-		if (!matched) {
-			std::unreachable();
+		if (mode == M0) {
+			return body.template operator()<M0>();
 		}
-		return result;
+		return with_mode_impl(ModeList<Ms...>{}, mode, body);
 	}
 }
 } // namespace detail
 
-/// @brief Calls @p body.template operator()<M>() for the mode M in @p List equal to @p mode — once, through a switch
-/// the compiler builds from the list. A mode outside the list is a precondition violation (unreachable).
+/// @brief Calls @p body.template operator()<M>() for the mode M in @p List equal to @p mode — once, through a chain of
+/// comparisons against the list's modes in order. A mode outside the list is a precondition violation (unreachable).
 /// @tparam List A ModeList naming the modes to instantiate.
 /// @param mode The runtime mode, chosen once per block.
 /// @param body A callable with a templated call operator taking the mode as its sole non-type argument. Every
-/// instantiation must return the same type.
-/// @return Whatever @p body returns.
+/// instantiation must return the same type, which deduction enforces.
+/// @return Whatever @p body returns, forwarded as it is returned (a reference stays a reference).
 template <typename List, typename Mode, typename Body>
 [[gnu::always_inline]] decltype(auto) with_mode(Mode mode, Body&& body) {
-	return detail::with_mode_impl(List{}, mode, std::forward<Body>(body));
+	return detail::with_mode_impl(List{}, mode, body);
 }
 
 } // namespace deluge::dsp
