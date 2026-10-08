@@ -47,4 +47,4 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           yaml-file: .github/labels.yml
           skip-delete: true
-          dry-run: ${{ github.event_name == 'pull_request' }}
+          dry-run: ${{ github.ref != 'refs/heads/main' }}
