@@ -26,10 +26,22 @@
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
+#include <utility>
 
 using namespace deluge::dsp;
 
 namespace {
+
+/// A level that can be moved but not copied, so an event taking it by value receives what `on` forwards.
+struct MoveOnlyLevel {
+	q31 value; ///< Q1.31.
+	explicit MoveOnlyLevel(q31 v) : value{v} {}
+	MoveOnlyLevel(MoveOnlyLevel&&) = default;
+	MoveOnlyLevel(const MoveOnlyLevel&) = delete;
+	MoveOnlyLevel& operator=(MoveOnlyLevel&&) = default;
+	MoveOnlyLevel& operator=(const MoveOnlyLevel&) = delete;
+	~MoveOnlyLevel() = default;
+};
 
 /// A control kernel without modes: a level falling by its rate per sample from full scale, saturating at 0, that
 /// counts its own calls.
@@ -63,6 +75,10 @@ struct Countdown {
 		s.level = to;
 		return old;
 	}
+	/// Returns the state itself, so that the caller sees the wrapper's own state.
+	static State& self(State& s) { return s; }
+	/// Sets the level from a move-only argument, which `on` must forward rather than copy.
+	static void kick_owned(State& s, MoveOnlyLevel to) { s.level = to.value; }
 	/// Takes the state by value: it would change a copy, so `on` rejects it.
 	static void by_copy(State s, q31 to) { s.level = to; }
 	/// Takes the state by const reference: it cannot change it, so `on` rejects it.
@@ -193,6 +209,22 @@ describe control("Control", ${
 		expect(countdown.on<&Countdown::swap_level>(5)).to_equal(ONE_Q31);
 		expect(countdown.on<&Countdown::swap_level>(9)).to_equal(5);
 		expect(countdown.state().level).to_equal(9);
+	});
+
+	it("returns a reference an event returns, to the wrapper's own state", _ {
+		Control<Countdown> countdown;
+		static_assert(std::same_as<decltype(countdown.on<&Countdown::self>()), Countdown::State&>);
+		Countdown::State& state = countdown.on<&Countdown::self>();
+		expect(&state).to_equal(&countdown.state());
+	});
+
+	it("forwards a move-only argument to the event", _ {
+		Control<Countdown> countdown;
+		countdown.on<&Countdown::kick_owned>(MoveOnlyLevel{42});
+		expect(countdown.state().level).to_equal(42);
+		MoveOnlyLevel held{43};
+		countdown.on<&Countdown::kick_owned>(std::move(held));
+		expect(countdown.state().level).to_equal(43);
 	});
 
 	it("resets to State{}, keeping its coefficients", _ {
