@@ -37,11 +37,14 @@ struct StereoVector {
 	Argon<q31> r; ///< The right channel of each frame (q31).
 };
 
-namespace detail {
-
 static_assert(std::is_standard_layout_v<StereoSample> && sizeof(StereoSample) == 2 * sizeof(q31)
                   && offsetof(StereoSample, l) == 0 && offsetof(StereoSample, r) == sizeof(q31),
               "a block of StereoSample frames is an interleaved array of q31, left first");
+
+namespace detail {
+
+// The casts below view frames as their q31 samples: the layout is asserted above, and the app's interleaved buffers
+// are int32 storage to begin with, so both views name the same int32 objects.
 
 /// @brief The interleaved q31 samples of a block of stereo frames (left, right, left, ...).
 [[nodiscard]] inline const q31* interleaved(std::span<const StereoSample> frames) {
