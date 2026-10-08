@@ -63,7 +63,7 @@ describe mode("per-block mode dispatch", ${
 				return c;
 			}
 		});
-		expect(&got == &b).to_be_true();
+		expect(&got).to_equal(&b);
 	});
 });
 
