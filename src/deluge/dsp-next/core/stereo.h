@@ -52,9 +52,11 @@ requires std::same_as<std::remove_cvref_t<std::ranges::range_reference_t<R>>, q3
 /// **Shared coefficients.** `configure` calls `K::coefficients` once; both channels step with the result.
 ///
 /// **Per block.** `renderBlock` calls K's `prepare(coefficients, state, n)` once per channel, when K declares one,
-/// since a Block may depend on the State; then, for a moded kernel, dispatches once on `coefficients().mode`
-/// through with_mode. Inside that one dispatch a single raw-pointer loop runs every frame in the block's mode, so a
-/// mode change set by `configure` takes effect at the next block, and both States carry across it untouched.
+/// since a Block may depend on the State: the left channel's first, then the right's, so a `prepare` drawing from a
+/// stream shared by both channels (noise) draws for left before right on every block. Then, for a moded kernel,
+/// dispatches once on `coefficients().mode` through with_mode. Inside that one dispatch a single raw-pointer loop runs
+/// every frame in the block's mode, so a mode change set by `configure` takes effect at the next block, and both States
+/// carry across it untouched.
 ///
 /// **Order.** Each frame steps the left channel into a local, then the right, then stores the frame. A kernel
 /// drawing from a stream shared by both channels (noise) therefore draws for left before right on every frame, and

@@ -360,8 +360,9 @@ loop a kernel runs in.
   channels (noise) draws for left before right on every frame, which is the
   order the legacy per-frame code draws in.
 - **Once per channel per block**, `prepare` runs for each channel (a `Block` may
-  depend on that channel's state), then one mode dispatch covers the single loop
-  over the frames.
+  depend on that channel's state), left first, then right, so a `prepare` that
+  draws from a shared noise stream draws for left before right on every block.
+  Then one mode dispatch covers the single loop over the frames.
 - It is constrained on `processor_kernel<K>` at the class, so a generator or
   mixer kernel is a compile error, not an inert class.
 

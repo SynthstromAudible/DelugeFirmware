@@ -41,6 +41,26 @@ struct NoisyAdd {
 	}
 };
 
+/// A processor kernel whose prepare draws one sample of @p Noise per block, added to every sample of the block.
+template <typename Noise>
+struct NoisyPrepare {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	struct Block {
+		q31 offset; ///< The block's draw.
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static Block prepare(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) {
+		return {.offset = Noise::render()};
+	}
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const Block& b, State& /*s*/, q31 x) {
+		return x + b.offset;
+	}
+};
+
 /// A processor kernel without modes or prepare: a q31 gain (Q1.31, scaled ×2 to reach unity).
 struct Gain {
 	using value_type = q31;
@@ -223,6 +243,21 @@ describe stereo("stereo frames and Stereo<K>", ${
 		const StereoSample one = st.render({.l = 0, .r = 0});
 		expect(one.l).to_equal(expected.render());
 		expect(one.r).to_equal(expected.render());
+	});
+
+	it("prepares the left channel before the right on every block", _ {
+		fixed::SeededNoise expected{shared_noise.state()};
+		Stereo<NoisyPrepare<SharedSeeded>> st;
+		for (const std::size_t n : {1u, 4u, 7u}) {
+			std::vector<StereoSample> frames(n);
+			st.renderBlock(frames, frames);
+			const q31 left = expected.render();
+			const q31 right = expected.render();
+			for (const StereoSample& frame : frames) {
+				expect(frame.l).to_equal(left);
+				expect(frame.r).to_equal(right);
+			}
+		}
 	});
 
 	it("computes coefficients once per configure, shared by both channels", _ {
