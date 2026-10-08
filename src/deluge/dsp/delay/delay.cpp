@@ -27,6 +27,8 @@
 #include <cstdlib>
 #include <ranges>
 
+using deluge::dsp::fixed::DelayTape;
+
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
 void Delay::informWhetherActive(bool newActive, int32_t userDelayRate) {
@@ -57,12 +59,12 @@ setupSecondaryBuffer:
 		// If no writing has happened yet to this Delay, check that the buffer is the right size.
 		// The delay time might have changed since it was set up, and we could be better off making a new buffer,
 		// which is easily done now, before anything's been written
-		if (!primaryBuffer.isActive() && secondaryBuffer.isActive()
+		if (!primaryBuffer.tape().isActive() && secondaryBuffer.tape().isActive()
 		    && sizeLeftUntilBufferSwap == getAmountToWriteBeforeReadingBegins()) {
 
-			auto [idealBufferSize, clamped] = DelayBuffer::getIdealBufferSizeFromRate(userDelayRate);
+			auto [idealBufferSize, clamped] = DelayTape::idealSizeForRate(userDelayRate);
 
-			if (idealBufferSize != secondaryBuffer.size()) {
+			if (idealBufferSize != secondaryBuffer.tape().size()) {
 
 				D_PRINTLN("new secondary buffer before writing starts");
 
@@ -208,29 +210,32 @@ void Delay::discardBuffers() {
 }
 
 void Delay::initializeSecondaryBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer) {
-	Error result = secondaryBuffer.init(newNativeRate, primaryBuffer.size());
+	Error result = secondaryBuffer.init(newNativeRate, primaryBuffer.tape().size());
 	if (result != Error::NONE) {
 		return;
 	}
-	D_PRINTLN("new buffer, size:  %d", secondaryBuffer.size());
+	D_PRINTLN("new buffer, size:  %d", secondaryBuffer.tape().size());
 
 	// 2 different options here for different scenarios. I can't very clearly remember how to describe the
 	// difference
 	if (makeNativeRatePreciseRelativeToOtherBuffer) {
 		// D_PRINTLN("making precise");
-		primaryBuffer.makeNativeRatePreciseRelativeToOtherBuffer(secondaryBuffer);
+		primaryBuffer.tape().makeNativeRatePreciseRelativeTo(secondaryBuffer.tape());
 	}
 	else {
-		primaryBuffer.makeNativeRatePrecise();
-		secondaryBuffer.makeNativeRatePrecise();
+		primaryBuffer.tape().makeNativeRatePrecise();
+		secondaryBuffer.tape().makeNativeRatePrecise();
 	}
-	sizeLeftUntilBufferSwap = secondaryBuffer.size() + 5;
+	sizeLeftUntilBufferSwap = secondaryBuffer.tape().size() + 5;
 }
 
 void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingState) {
 	if (!delayWorkingState.doDelay) {
 		return;
 	}
+
+	DelayTape& primary = primaryBuffer.tape();
+	DelayTape& secondary = secondaryBuffer.tape();
 
 	if (delayWorkingState.userDelayRate != userRateLastTime) {
 		userRateLastTime = delayWorkingState.userDelayRate;
@@ -241,10 +246,10 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 	}
 
 	// If just a single buffer is being used for reading and writing, we can consider making a 2nd buffer
-	if (!secondaryBuffer.isActive()) {
+	if (!secondary.isActive()) {
 
 		// If resampling previously recorded as happening, or just about to be recorded as happening
-		if (primaryBuffer.resampling() || delayWorkingState.userDelayRate != primaryBuffer.nativeRate()) {
+		if (primary.resampling() || delayWorkingState.userDelayRate != primary.nativeRate()) {
 
 			// If delay speed has settled for a split second...
 			if (countCyclesWithoutChange >= (kSampleRate >> 3)) {
@@ -254,24 +259,24 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 
 			// If spinning at double native rate, there's no real need to be using such a big buffer, so make a new
 			// (smaller) buffer at our new rate
-			else if (delayWorkingState.userDelayRate >= (primaryBuffer.nativeRate() << 1)) {
+			else if (delayWorkingState.userDelayRate >= (primary.nativeRate() << 1)) {
 				initializeSecondaryBuffer(delayWorkingState.userDelayRate, false);
 			}
 
 			// If spinning below native rate, the quality's going to be suffering, so make a new buffer whose native
 			// rate is half our current rate (double the quality)
-			else if (delayWorkingState.userDelayRate < primaryBuffer.nativeRate() >> 1) {
+			else if (delayWorkingState.userDelayRate < primary.nativeRate() >> 1) {
 				initializeSecondaryBuffer(delayWorkingState.userDelayRate >> 1, false);
 			}
 		}
 	}
 
 	// Figure some stuff out for the primary buffer
-	primaryBuffer.setupForRender(delayWorkingState.userDelayRate);
+	primary.setupForRender(delayWorkingState.userDelayRate);
 
 	// Figure some stuff out for the secondary buffer - only if it's active
-	if (secondaryBuffer.isActive()) {
-		secondaryBuffer.setupForRender(delayWorkingState.userDelayRate);
+	if (secondary.isActive()) {
+		secondary.setupForRender(delayWorkingState.userDelayRate);
 	}
 
 	bool wrapped = false;
@@ -280,27 +285,23 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 
 	checkStack("delay");
 
-	StereoSample* primaryBufferOldPos;
-	uint32_t primaryBufferOldLongPos;
-	uint8_t primaryBufferOldLastShortPos;
+	DelayTape::Head primaryHead{};
 
 	// If nothing to read yet, easy
-	if (!primaryBuffer.isActive()) {
+	if (!primary.isActive()) {
 		std::fill(working_buffer.begin(), working_buffer.end(), StereoSample{0, 0});
 	}
 
 	// Or...
 	else {
 
-		primaryBufferOldPos = &primaryBuffer.current();
-		primaryBufferOldLongPos = primaryBuffer.longPos;
-		primaryBufferOldLastShortPos = primaryBuffer.lastShortPos;
+		primaryHead = primary.head();
 
 		// Native read
-		if (primaryBuffer.isNative()) {
+		if (primary.isNative()) {
 			for (StereoSample& sample : working_buffer) {
-				wrapped = primaryBuffer.clearAndMoveOn() || wrapped;
-				sample = primaryBuffer.current();
+				wrapped = primary.clearAndMoveOn() || wrapped;
+				sample = primary.current();
 			}
 		}
 
@@ -309,17 +310,17 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 
 			for (StereoSample& sample : working_buffer) {
 				// Move forward, and clear buffer as we go
-				int32_t primaryStrength2 = primaryBuffer.advance([&] {
-					wrapped = primaryBuffer.clearAndMoveOn() || wrapped; //<
+				int32_t primaryStrength2 = primary.advance([&] {
+					wrapped = primary.clearAndMoveOn() || wrapped; //<
 				});
 
 				int32_t primaryStrength1 = 65536 - primaryStrength2;
 
-				StereoSample* nextPos = &primaryBuffer.current() + 1;
-				if (nextPos == primaryBuffer.end()) {
-					nextPos = primaryBuffer.begin();
+				StereoSample* nextPos = &primary.current() + 1;
+				if (nextPos == primary.end()) {
+					nextPos = primary.begin();
 				}
-				StereoSample fromDelay1 = primaryBuffer.current();
+				StereoSample fromDelay1 = primary.current();
 				StereoSample fromDelay2 = *nextPos;
 
 				sample.l = (multiply_32x32_rshift32(fromDelay1.l, primaryStrength1 << 14)
@@ -335,12 +336,10 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 	if (delayWorkingState.analog) {
 
 		for (StereoSample& sample : working_buffer) {
-			ir_processor.process(sample, sample);
+			sample = analog_ir.process(sample);
 		}
 
 		for (StereoSample& sample : working_buffer) {
-			// impulseResponseProcessor.process(sample, sample);
-
 			// Reduce headroom, since this sounds ok with analog sim
 			sample.l = getTanHUnknown(multiply_32x32_rshift32(sample.l, delayWorkingState.delayFeedbackAmount),
 			                          delayWorkingState.analog_saturation)
@@ -392,53 +391,51 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 	}
 
 	// And actually feedback being applied back into the actual delay primary buffer...
-	if (primaryBuffer.isActive()) {
+	if (primary.isActive()) {
 
 		// Native
-		if (primaryBuffer.isNative()) {
-			StereoSample* writePos = primaryBufferOldPos - delaySpaceBetweenReadAndWrite;
-			if (writePos < primaryBuffer.begin()) {
-				writePos += primaryBuffer.sizeIncludingExtra;
+		if (primary.isNative()) {
+			StereoSample* writePos = primaryHead.pos - DelayTape::kWriteLag;
+			if (writePos < primary.begin()) {
+				writePos += primary.sizeIncludingExtra();
 			}
 
 			for (StereoSample sample : working_buffer) {
-				primaryBuffer.writeNativeAndMoveOn(sample, &writePos);
+				primary.writeNativeAndMoveOn(sample, writePos);
 			}
 		}
 
 		// Resampling
 		else {
-			primaryBuffer.setCurrent(primaryBufferOldPos);
-			primaryBuffer.longPos = primaryBufferOldLongPos;
-			primaryBuffer.lastShortPos = primaryBufferOldLastShortPos;
+			primary.setHead(primaryHead);
 
 			for (StereoSample sample : working_buffer) {
 				// Move forward
-				int32_t primaryStrength2 = primaryBuffer.advance([&] {
-					primaryBuffer.moveOn(); //<
+				int32_t primaryStrength2 = primary.advance([&] {
+					primary.moveOn(); //<
 				});
 				int32_t primaryStrength1 = 65536 - primaryStrength2;
 
-				primaryBuffer.writeResampled(sample, primaryStrength1, primaryStrength2);
+				primary.writeResampled(sample, primaryStrength1, primaryStrength2);
 			}
 		}
 	}
 
 	// And secondary buffer
 	// If secondary buffer active, we need to tick it along and write to it too
-	if (secondaryBuffer.isActive()) {
+	if (secondary.isActive()) {
 
 		// We want to disregard whatever the primary buffer told us, and just use the secondary one now
 		wrapped = false;
 
 		// Native
-		if (secondaryBuffer.isNative()) {
+		if (secondary.isNative()) {
 			for (StereoSample sample : working_buffer) {
-				wrapped = secondaryBuffer.clearAndMoveOn() || wrapped;
+				wrapped = secondary.clearAndMoveOn() || wrapped;
 				sizeLeftUntilBufferSwap--;
 
 				// Write to secondary buffer
-				secondaryBuffer.writeNative(sample);
+				secondary.writeNative(sample);
 			};
 		}
 
@@ -447,15 +444,15 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 
 			for (StereoSample sample : working_buffer) {
 				// Move forward, and clear buffer as we go
-				int32_t secondaryStrength2 = secondaryBuffer.advance([&] {
-					wrapped = secondaryBuffer.clearAndMoveOn() || wrapped; //<
+				int32_t secondaryStrength2 = secondary.advance([&] {
+					wrapped = secondary.clearAndMoveOn() || wrapped; //<
 					sizeLeftUntilBufferSwap--;
 				});
 
 				int32_t secondaryStrength1 = 65536 - secondaryStrength2;
 
 				// Write to secondary buffer
-				secondaryBuffer.writeResampled(sample, secondaryStrength1, secondaryStrength2);
+				secondary.writeResampled(sample, secondaryStrength1, secondaryStrength2);
 			}
 		}
 

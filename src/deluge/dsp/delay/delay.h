@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/convolution/impulse_response_processor.h"
+#include "dsp-next/fixed/delay/analog_impulse_response.h"
 #include "dsp/delay/delay_buffer.h"
 #include "engines/effects/state.h"
 #include "modulation/sync.h"
@@ -42,7 +42,9 @@ public:
 	Delay(const Delay& other) = delete;
 	Delay& operator=(const Delay& other) = delete;
 
-	[[nodiscard]] constexpr bool isActive() const { return (primaryBuffer.isActive() || secondaryBuffer.isActive()); }
+	[[nodiscard]] constexpr bool isActive() const {
+		return (primaryBuffer.tape().isActive() || secondaryBuffer.tape().isActive());
+	}
 
 	void informWhetherActive(bool newActive, int32_t userDelayRate = 0);
 	void copySecondaryToPrimary();
@@ -57,7 +59,7 @@ public:
 
 	DelayBuffer primaryBuffer;
 	DelayBuffer secondaryBuffer;
-	ImpulseResponseProcessor ir_processor;
+	deluge::dsp::fixed::AnalogImpulseResponse analog_ir;
 
 	uint32_t countCyclesWithoutChange{};
 	int32_t userRateLastTime{};
@@ -75,5 +77,7 @@ public:
 
 private:
 	void prepareToBeginWriting();
-	[[nodiscard]] constexpr int32_t getAmountToWriteBeforeReadingBegins() const { return secondaryBuffer.size(); }
+	[[nodiscard]] constexpr int32_t getAmountToWriteBeforeReadingBegins() const {
+		return secondaryBuffer.tape().size();
+	}
 };

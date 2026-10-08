@@ -104,7 +104,7 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 	Error error = buffer.init(getStutterRate(paramManager, magnitude, timePerTickInverse), 0, true);
 	if (error == Error::NONE) {
 		status = Status::RECORDING;
-		sizeLeftUntilRecordFinished = buffer.size();
+		sizeLeftUntilRecordFinished = buffer.tape().size();
 		stutterSource = source;
 	}
 	return error;
@@ -112,35 +112,36 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* paramManager, int32_t magnitude,
                                uint32_t timePerTickInverse) {
 	int32_t rate = getStutterRate(paramManager, magnitude, timePerTickInverse);
+	deluge::dsp::fixed::DelayTape& tape = buffer.tape();
 
-	buffer.setupForRender(rate);
+	tape.setupForRender(rate);
 
 	if (status == Status::RECORDING) {
 		for (StereoSample sample : audio) {
 			int32_t strength1;
 			int32_t strength2;
 
-			if (buffer.isNative()) {
-				buffer.clearAndMoveOn();
+			if (tape.isNative()) {
+				tape.clearAndMoveOn();
 				sizeLeftUntilRecordFinished--;
 			}
 			else {
-				strength2 = buffer.advance([&] {
-					buffer.clearAndMoveOn();
+				strength2 = tape.advance([&] {
+					tape.clearAndMoveOn();
 					sizeLeftUntilRecordFinished--;
 				});
 				strength1 = 65536 - strength2;
 			}
 
-			buffer.write(sample, strength1, strength2);
+			tape.write(sample, strength1, strength2);
 		}
 
 		if (sizeLeftUntilRecordFinished < 0) {
 			if (currentReverse) {
-				buffer.setCurrent(buffer.end() - 1);
+				tape.setCurrent(tape.end() - 1);
 			}
 			else {
-				buffer.setCurrent(buffer.begin());
+				tape.setCurrent(tape.begin());
 			}
 			status = Status::PLAYING;
 		}
@@ -150,32 +151,32 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			int32_t strength1;
 			int32_t strength2;
 
-			if (buffer.isNative()) {
+			if (tape.isNative()) {
 				if (currentReverse) {
-					buffer.moveBack(); // move backward in the buffer
+					tape.moveBack(); // move backward in the buffer
 				}
 				else {
-					buffer.moveOn(); // move forward in the buffer
+					tape.moveOn(); // move forward in the buffer
 				}
-				sample.l = buffer.current().l;
-				sample.r = buffer.current().r;
+				sample.l = tape.current().l;
+				sample.r = tape.current().r;
 			}
 			else {
 				if (currentReverse) {
-					strength2 = buffer.retreat([&] { buffer.moveBack(); });
+					strength2 = tape.retreat([&] { tape.moveBack(); });
 				}
 				else {
-					strength2 = buffer.advance([&] { buffer.moveOn(); });
+					strength2 = tape.advance([&] { tape.moveOn(); });
 				}
 
 				strength1 = 65536 - strength2;
 
 				if (currentReverse) {
-					StereoSample* prevPos = &buffer.current() - 1;
-					if (prevPos < buffer.begin()) {
-						prevPos = buffer.end() - 1; // Wrap around to the end of the buffer
+					StereoSample* prevPos = &tape.current() - 1;
+					if (prevPos < tape.begin()) {
+						prevPos = tape.end() - 1; // Wrap around to the end of the buffer
 					}
-					StereoSample& fromDelay1 = buffer.current();
+					StereoSample& fromDelay1 = tape.current();
 					StereoSample& fromDelay2 = *prevPos;
 					sample.l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
 					            + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
@@ -185,11 +186,11 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					           << 2;
 				}
 				else {
-					StereoSample* nextPos = &buffer.current() + 1;
-					if (nextPos == buffer.end()) {
-						nextPos = buffer.begin();
+					StereoSample* nextPos = &tape.current() + 1;
+					if (nextPos == tape.end()) {
+						nextPos = tape.begin();
 					}
-					StereoSample& fromDelay1 = buffer.current();
+					StereoSample& fromDelay1 = tape.current();
 					StereoSample& fromDelay2 = *nextPos;
 					sample.l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
 					            + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
@@ -202,8 +203,8 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 
 			// If ping-pong is active and we're at the start or end of the buffer, reverse the direction
 			if (playing_.ping_pong
-			    && ((currentReverse && &buffer.current() == buffer.begin())
-			        || (!currentReverse && &buffer.current() == buffer.end() - 1))) {
+			    && ((currentReverse && &tape.current() == tape.begin())
+			        || (!currentReverse && &tape.current() == tape.end() - 1))) {
 				currentReverse = !currentReverse;
 			}
 		}

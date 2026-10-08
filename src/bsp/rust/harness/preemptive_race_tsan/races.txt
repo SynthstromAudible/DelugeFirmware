@@ -90,6 +90,7 @@ open	src/deluge/deluge.cpp	^readButtonsAndPads\(\)$	audio×interaction	state: gl
 open	src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp	^deluge::dsp::fixed::RmsFeedbackCompressor::RmsFeedbackCompressor\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
 open	src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp	^deluge::dsp::fixed::RmsFeedbackCompressor::setBlend\(int\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
 open	src/deluge/dsp/delay/delay_buffer.h	^DelayBuffer::DelayBuffer\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
+open	src/deluge/dsp-next/fixed/delay/delay_tape.h	^deluge::dsp::fixed::DelayTape::DelayTape\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (the DelayBuffer constructor's writes, made by the tape it holds)
 open	src/deluge/dsp-next/fixed/filter/filter_set.h	^deluge::dsp::fixed::FilterSet::FilterSet\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
 open	src/deluge/dsp-next/fixed/filter/one_pole.h	^deluge::dsp::fixed::OnePole::OnePole\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
 open	src/deluge/model/mod_controllable/ModFXProcessor.h	^ModFXProcessor::ModFXProcessor\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
@@ -123,8 +124,8 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock
 #     Song::renderAudio, SampleRecorder::feedAudio, AudioRecorder::setupRecordingToFile, AudioEngine::outputStage
 #   Debug log buffer (logDebug::buffer): printf _out_buffer
 #   Memory the render read, freed and reused by the interaction tier (heap arena; TSan sees a constructor writing
-#     where audio last read): Song::Song, ModControllableAudio, AutoParam, FilterSet, OnePole,
-#     DelayBuffer, ModFXProcessor, RmsFeedbackCompressor (ctor, setBlend), readButtonsAndPads — the cross-tier
+#     where audio last read): Song::Song, ModControllableAudio, AutoParam, FilterSet, OnePole, DelayBuffer,
+#     DelayTape, ModFXProcessor, RmsFeedbackCompressor (ctor, setBlend), readButtonsAndPads — the cross-tier
 #     lifetime class: objects freed with no handover from the render. Candidate fix: retire + epoch reclamation.
 #   Arpeggiator settings: ArpeggiatorSettings::updateParamsFromUnpatchedParamSet, cloneFrom
 #   UI timers (audioSampleTimer read by the timer routine): UITimerManager::routine, workOutNextEventTime,
