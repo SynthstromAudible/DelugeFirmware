@@ -224,6 +224,8 @@ public:
 
 	/// @brief Mix one pair of samples: a one-sample block, so one `prepare(…, 1)` and one mode dispatch per call.
 	/// @details A convenience for single samples; a vector kernel renders it as the partial step of a block of one.
+	/// A mixer kernel cannot declare kPartialStepAdvancesByCount, so a stateful vector mixer advances a whole vector
+	/// on every call.
 	[[gnu::always_inline]] value_type render(value_type a, value_type b)
 	requires mixer_kernel<K>
 	{
