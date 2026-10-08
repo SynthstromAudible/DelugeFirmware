@@ -15,9 +15,16 @@ Requires an authenticated `gh` CLI and PyYAML.
 
 from __future__ import annotations
 
+import argparse
 import json
+import subprocess
+import sys
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 import yaml
 
@@ -218,3 +225,182 @@ def items_from_json(text: str) -> list[Item]:
         Item(d["kind"], d["number"], frozenset(d["labels"]), d["issue_type"])
         for d in json.loads(text)
     ]
+
+
+ITEMS_QUERY = """
+query($owner: String!, $name: String!, $endCursor: String) {
+  repository(owner: $owner, name: $name) {
+    %s(first: 100, after: $endCursor) {
+      pageInfo { hasNextPage endCursor }
+      nodes { number %s labels(first: 100) { nodes { name } } }
+    }
+  }
+}
+"""
+
+
+def run_gh(args: list[str]) -> str:
+    return subprocess.run(
+        ["gh", *args], check=True, capture_output=True, text=True
+    ).stdout
+
+
+def command_for(repo: str, action) -> list[str]:
+    match action:
+        case AddLabel(number, label):
+            return [
+                "api",
+                "-X",
+                "POST",
+                f"repos/{repo}/issues/{number}/labels",
+                "-f",
+                f"labels[]={label}",
+            ]
+        case RemoveLabel(number, label):
+            return [
+                "api",
+                "-X",
+                "DELETE",
+                f"repos/{repo}/issues/{number}/labels/{quote(label, safe='')}",
+            ]
+        case SetIssueType(number, issue_type):
+            return [
+                "api",
+                "-X",
+                "PATCH",
+                f"repos/{repo}/issues/{number}",
+                "-f",
+                f"type={issue_type}",
+            ]
+        case DeleteLabel(name):
+            return [
+                "api",
+                "-X",
+                "DELETE",
+                f"repos/{repo}/labels/{quote(name, safe='')}",
+            ]
+    raise TypeError(f"unknown action {action!r}")
+
+
+def parse_items(kind: str, output: str) -> list[Item]:
+    items = []
+    for line in output.splitlines():
+        if not line.strip():
+            continue
+        node = json.loads(line)
+        labels = frozenset(label["name"] for label in node["labels"]["nodes"])
+        issue_type = (node.get("issueType") or {}).get("name")
+        items.append(Item(kind, node["number"], labels, issue_type))
+    return items
+
+
+class GitHub:
+    def __init__(
+        self, repo: str, run: Callable[[list[str]], str] = run_gh, delay: float = 1.0
+    ):
+        self.repo = repo
+        self.run = run
+        self.delay = delay  # GitHub asks for >=1s between mutating requests
+
+    def _fetch(self, connection: str, kind: str, extra_fields: str) -> list[Item]:
+        owner, name = self.repo.split("/")
+        output = self.run(
+            [
+                "api", "graphql", "--paginate",
+                "-f", f"owner={owner}",
+                "-f", f"name={name}",
+                "-f", f"query={ITEMS_QUERY % (connection, extra_fields)}",
+                "--jq", f".data.repository.{connection}.nodes[] | @json",
+            ]
+        )  # fmt: skip
+        return parse_items(kind, output)
+
+    def fetch_items(self) -> list[Item]:
+        return self._fetch("issues", "issue", "issueType { name }") + self._fetch(
+            "pullRequests", "pr", ""
+        )
+
+    def fetch_label_names(self) -> set[str]:
+        output = self.run(
+            ["api", "--paginate", f"repos/{self.repo}/labels", "--jq", ".[].name"]
+        )
+        return {line for line in output.splitlines() if line}
+
+    def apply(self, action) -> None:
+        self.run(command_for(self.repo, action))
+        time.sleep(self.delay)
+
+
+def main(argv: list[str] | None = None, github_factory=GitHub, out=sys.stdout) -> int:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--repo", default=DEFAULT_REPO)
+    parser.add_argument("--labels-file", type=Path, default=DEFAULT_LABELS_FILE)
+    parser.add_argument(
+        "--apply", action="store_true", help="perform writes (default: dry run)"
+    )
+    phases = parser.add_subparsers(dest="phase", required=True)
+    pre = phases.add_parser(
+        "pre", help="snapshot labels and fold secondary labels into primaries"
+    )
+    pre.add_argument("--snapshot-dir", type=Path, default=Path.cwd())
+    phases.add_parser(
+        "post", help="move type labels to Issue Types and delete dead labels"
+    )
+    check = phases.add_parser(
+        "verify", help="compare current labels against a snapshot"
+    )
+    check.add_argument("--snapshot", type=Path, required=True)
+    args = parser.parse_args(argv)
+
+    def say(message: str) -> None:
+        print(message, file=out)
+
+    renames = load_renames(args.labels_file.read_text())
+    github = github_factory(args.repo)
+    items = github.fetch_items()
+
+    if args.phase == "verify":
+        problems = verify(items_from_json(args.snapshot.read_text()), items, renames)
+        for problem in problems:
+            say(problem)
+        say(f"{len(problems)} problem(s)")
+        return 1 if problems else 0
+
+    existing = github.fetch_label_names()
+    if args.phase == "pre":
+        conflicts = rename_conflicts(renames, existing)
+        if conflicts:
+            for conflict in conflicts:
+                say(conflict)
+            return 2
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        snapshot = args.snapshot_dir / f"label-snapshot-{stamp}.json"
+        snapshot.write_text(items_to_json(items))
+        say(f"snapshot: {snapshot} ({len(items)} items)")
+        actions = plan_pre(items)
+    else:
+        pending = sorted(set(renames) & existing)
+        if pending:
+            say(f"labels not yet renamed by the sync workflow: {pending}")
+            return 2
+        stragglers = unmerged(items, renames)
+        if stragglers:
+            say(
+                "run the pre phase first; unmerged items: "
+                + ", ".join(f"#{i.number}" for i in stragglers)
+            )
+            return 2
+        actions = plan_post(items, existing)
+
+    for action in actions:
+        say(("apply: " if args.apply else "dry-run: ") + action.describe())
+        if args.apply:
+            github.apply(action)
+    say(f"{len(actions)} action(s) {'applied' if args.apply else 'planned'}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
