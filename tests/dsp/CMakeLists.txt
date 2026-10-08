@@ -17,6 +17,8 @@ set(_repo_root ${CMAKE_CURRENT_LIST_DIR}/../..)
 set(sine_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/osc/sine.cpp)
 # The component framework spec needs no sources: the mixins, AsBlock and the concepts are header-only.
 set(component_framework_spec_DEPS)
+# The mode-dispatch spec needs no sources: ModeList and with_mode are header-only.
+set(mode_spec_DEPS)
 # The noise spec shares jcong, which waves.cpp defines.
 set(noise_spec_DEPS ${_repo_root}/src/deluge/util/waves.cpp)
 # The stereo spec draws from the shared noise stream, which waves.cpp defines.
