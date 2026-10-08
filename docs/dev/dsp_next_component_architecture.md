@@ -82,12 +82,12 @@ is asserted against that. Vector-aware `sample_*` concepts are a follow-up.
 ### Mixins (`core/generator.h`, `core/processor.h`, `core/mixer.h`)
 
 **New components are kernels.** Every new component, and every component a
-rewrite moves, is written as a kernel and wrapped by `Mono` or `Stereo` (see
-[Kernels](#kernels-corekernelh-coremodeh)). The mixins described here remain for
-the existing oscillators and `Amplitude` until they move onto kernels (see
-[Remaining work](#remaining-work)); no new component uses them. The in-place
-and inlining rules below bind the wrappers in the same way, and so does the tail
-rule, with one difference: a wrapper running a kernel that declares
+rewrite moves, is written as a kernel and wrapped by `Mono`, `Stereo` or
+`Control` (see [Kernels](#kernels-corekernelh-coremodeh)). The mixins described
+here remain for the existing oscillators and `Amplitude` until they move onto
+kernels (see [Remaining work](#remaining-work)); no new component uses them. The
+in-place and inlining rules below bind the wrappers in the same way, and so does
+the tail rule, with one difference: a wrapper running a kernel that declares
 `kPartialStepAdvancesByCount` advances its state on the partial step by the
 active-lane count, not by a whole vector (see
 [The partial step](#the-partial-step)).
@@ -166,12 +166,13 @@ the oscillator registry is the first user of `AsBlock`.
 ## Kernels (`core/kernel.h`, `core/mode.h`)
 
 A **kernel** is a stateless type holding a component's arithmetic. It owns no
-data and runs in no loop of its own: the wrappers ([Mono and Stereo](#wrappers))
-are the only loops, and they own the `Coefficients` and `State`. Every new
-component, and every stateful piece of one, is written as a kernel and wrapped:
-per-sample or per-vector arithmetic as a `step`, block-staged arithmetic as a
-`process`, a block-rate signal as an `advance`. This is a documented pattern checked by the `kernel` concepts, not a
-base class.
+data and runs in no loop of its own: the wrappers ([Mono, Stereo and
+Control](#wrappers)) are the only loops, and they own the `Coefficients` and
+`State`. Every new component, and every stateful piece of one, is written as a
+kernel and wrapped: per-sample or per-vector arithmetic as a `step`,
+block-staged arithmetic as a `process`, a block-rate signal as an `advance`.
+This is a documented pattern checked by the `kernel` concepts, not a base
+class.
 
 ### The parts
 
@@ -179,7 +180,8 @@ base class.
 - **`step_type`**: what `step` takes and returns. It is `value_type` for a
   scalar kernel, `Argon<q31>` for a vector kernel over q31 blocks, and
   `StereoVector` for a vector kernel over stereo frames. These are the pairs the
-  wrappers have loops for; any other pair fails the concept.
+  wrappers have loops for; any other pair fails the concept. A control kernel
+  sets `step_type` to `value_type`: its block is its step.
 - **`Settings`**: a plain value type holding what the owner sets (knob values,
   mode, rate).
 - **`Coefficients`**: what the arithmetic reads, computed by the pure
@@ -276,12 +278,10 @@ static value_type advance(const Coefficients&, State&, std::size_t n);
   template whose parameters deduce to exactly that type is accepted, and an
   `advance` taking its count as any other type (an `int`, or a `uint32_t` where
   that is not `std::size_t`) is rejected, never converted.
-- **Events are static functions on `State`.** What happens between blocks (a
-  hit, a stop) is a static function of the kernel, run on the wrapper's state
-  through `Control::on` (see [`Control<K>`](#controlk-corecontrolh)).
-- **A zero rate is a stage that never ends.** A kernel whose stages advance by
-  a rate treats a zero rate as a stage that never ends, with no division by it.
-  Only a kernel never configured has one.
+- **Events are functions on `State`.** What happens between blocks (a hit, a
+  stop) is a function taking the kernel's `State` (and optionally its
+  `Coefficients` first), run on the wrapper's state through `Control::on` (see
+  [`Control<K>`](#controlk-corecontrolh)).
 
 `fixed::DuckEnvelope` (`fixed/dynamics/duck_envelope.h`) is the reference control
 kernel: the sidechain's duck, with `advance`, the events `hit`, `hit_at` and
@@ -289,6 +289,17 @@ kernel: the sidechain's duck, with `advance`, the events `hit`, `hit_at` and
 block combine by `combine_hit_strengths`, which `fixed/dynamics/hit_strength.h`
 holds as the one home of that rule. The header is free of the kernel core, so a
 caller that only combines hits needs no argon.
+
+A zero rate is a `DuckEnvelope` stage that never ends: the stage holds at its
+start, and placing a late hit divides by no zero. The owner's settings give one,
+not only an envelope never configured: the sidechain reads a song file's
+attack or release of 0 as 0, and a long rate synced at the whole level resolves
+to 0 at a slow tempo.
+
+**What not to copy from it.** `DuckEnvelope`'s `Settings` are rates the owner
+has already resolved only because tempo sync needs `engine::SyncLevel`, which
+dsp-next must not see. A kernel whose mapping from params to rates is pure does
+that mapping in `coefficients()`.
 
 ### Modes
 
@@ -312,9 +323,10 @@ the concept instead of being skipped.
 
 A kernel composes by nesting. A kernel built from others holds their
 `Coefficients`, `State` and `Block` as members of its own, and is itself an
-ordinary kernel that `Mono` or `Stereo` wraps. There is no inheritance and no
-runtime composition. It reaches its parts through the same calls the wrappers
-make, in `deluge::dsp::kernel_ops` (`core/kernel.h`):
+ordinary kernel that `Mono`, `Stereo` or `Control` wraps. There is no
+inheritance and no runtime composition. It reaches its parts through the same
+calls the wrappers (`Mono`, `Stereo` and `Control`) make, in
+`deluge::dsp::kernel_ops` (`core/kernel.h`):
 
 - **`Coefficients`**: its `coefficients()` calls each part's and stores the
   results as members.
@@ -326,7 +338,8 @@ make, in `deluge::dsp::kernel_ops` (`core/kernel.h`):
 - **`step`**: threads the value through
   `kernel_ops::step_at<Part, M>(c.part, b.part, s.part, x)` for each part, which
   calls `step<M>` on a moded part and the plain `step` on one without modes
-  (pass `kernel_ops::NoMode::NONE` there).
+  (pass `kernel_ops::NoMode::NONE` there). A staged or control part is called
+  through `kernel_ops::process_at` or `kernel_ops::advance_at` the same way.
 - **`Modes`**: a composite dispatches once per block on its own `mode`, so its
   `Modes` must cover every combination of its parts' modes that it runs. With
   one moded part it reuses that part's `Mode` and `Modes` and copies the part's
@@ -447,11 +460,14 @@ is the block.
   and `state()` read back what the wrapper holds; `reset()` returns to `State{}`,
   or to the kernel's `static void reset(State&)` quirk when it declares one.
 - **Advance once per block.** `advance(n)` makes one call to the kernel's
-  `advance`, dispatching a moded kernel's mode once through `with_mode`, and
-  returns the signal's value after the block. `n` may be 0.
-- **Events.** `on<&K::event>(args...)` runs one of the kernel's static
-  functions on the wrapper's own state and returns what it returns, a
-  reference included. The event is one of two shapes:
+  `advance`, through `kernel_ops::advance_at`, dispatching a moded kernel's
+  mode once through `with_mode`, and returns the signal's value after the
+  block. `n` may be 0. It is `[[nodiscard]]`: the value is what the owner
+  applies to the block.
+- **Events.** `on<&K::event>(args...)` runs a function taking the kernel's
+  `State` (and optionally its `Coefficients` first) on the wrapper's own state
+  and returns what it returns, a reference included. The event is one of two
+  shapes:
   - `event(const Coefficients&, State&, args...)`, given the configured
     coefficients;
   - `event(State&, args...)`, given the state alone.
@@ -470,10 +486,13 @@ is the block.
 
 ### The shared glue
 
-`Mono` and `Stereo` call a kernel through `kernel_ops::prepare_block`,
-`kernel_ops::dispatch_mode` and `kernel_ops::step_at` (`core/kernel.h`), so the
-`prepare`, mode dispatch and step call exist once, and a composed kernel calls
-its parts through the same functions.
+`Mono`, `Stereo` and `Control` call a kernel only through `kernel_ops`
+(`core/kernel.h`): `prepare_block`, `dispatch_mode`, then `step_at`,
+`process_at` or `advance_at` for the kernel's form. So the `prepare`, mode
+dispatch and form call exist once, and a composed kernel calls its parts
+through the same functions. Each passes the coefficients as a const reference,
+so the call resolves to the form's own signature even when a kernel overloads
+it on non-const `Coefficients`.
 
 ## Stereo
 
@@ -613,8 +632,8 @@ state fully into the engine is later work.
   arithmetic (`multiply_accumulate`, rounded) differs. Unifying the two is an
   audible, re-baselined step.
 - Mixing into the voice's buffer (unison and oscillator summing) is a mixer.
-- Filters, dynamics, delay and effects are kernels wrapped by `Mono` or
-  `Stereo`, under the settings convention and the slotting-ready rules.
+- Filters, dynamics, delay and effects are kernels wrapped by `Mono`, `Stereo`
+  or `Control`, under the settings convention and the slotting-ready rules.
 
 ## Bit-exactness: how the synth's math maps in
 
@@ -671,14 +690,16 @@ gates:
 - Are constants and bit-exactness quirks named?
 - Are there callback sinks, raw-pointer heads, out-parameters, or globals other
   than `SharedNoise`?
-- Is a block-rate signal a control kernel, and are its events static functions
-  on State?
+- Is a block-rate signal a control kernel, and are its events functions on its
+  State?
 - Is there a hand-written `renderBlock` (or a new mixin `render`) where a kernel
   belongs? Per-sample or per-vector arithmetic is a kernel's `step`, and
   block-staged arithmetic (the delay's tape I/O) a staged kernel's `process`,
-  wrapped by `Mono` or `Stereo` (see [Kernels](#kernels-corekernelh-coremodeh)).
+  wrapped by `Mono` or `Stereo`, and a block-rate signal a control kernel's
+  `advance`, wrapped by `Control` (see
+  [Kernels](#kernels-corekernelh-coremodeh)).
 - Are there public verbs beyond `render`, `renderBlock`, `configure`,
-  `coefficients`, `reset` and `advance`, other than accessors?
+  `coefficients`, `reset`, `advance` and `on`, other than accessors?
 - Is there a per-sample branch on mode, where a per-block policy belongs?
 - Are `Coefficients` and `State` anything other than plain value structs?
 - Is noise read (through `CONG`, `jcong` or a held pointer) rather than
@@ -687,15 +708,16 @@ gates:
   stereo kernel (`value_type` `StereoSample`) wrapped by `Mono`, would serve?
 - Do comments paraphrase the legacy code, rather than state what the component
   does and why?
-- Does each stateful piece have a kernel, wrapped by `Mono` or `Stereo`, rather
-  than hand-written state and loops?
+- Does each stateful piece have a kernel, wrapped by `Mono`, `Stereo` or
+  `Control`, rather than hand-written state and loops?
 - Is `step` free of per-sample mode branches? A mode is a `Modes` entry.
 - Is `process` used only for block-staged arithmetic?
 - Does each step stay in one domain, with `prepare` the only scalar per-block
   work and `Block` holding values in the step's domain?
 - Are a kernel's `prepare` and `step` `[[gnu::always_inline]]`? App translation
   units build with `-fno-inline-functions`, so an out-of-line `prepare` is one
-  call per channel per block.
+  call per channel per block. A control kernel's `advance`, called once per
+  block, may be out of line; `DuckEnvelope::advance` is.
 - Is there a structured binding over an Argon `std::array` on a per-step path?
   Under those flags `std::get` is out of line. An interleaved stereo load goes
   through `detail::toStereo` (`core/stereo_vector.h`), a `__builtin_bit_cast`,
