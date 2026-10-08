@@ -104,10 +104,7 @@ struct Mixer {
 			const q31* b = detail::interleaved(input_b);
 			q31* out = detail::interleaved(output);
 			argon::vectorize::for_each_interleaved<q31, 2>(size, [&] [[gnu::always_inline]] (auto step) {
-				const auto [a_l, a_r] = step.Load(a);
-				const auto [b_l, b_r] = step.Load(b);
-				const StereoVector frames =
-				    self.render(StereoVector{.l = a_l, .r = a_r}, StereoVector{.l = b_l, .r = b_r});
+				const StereoVector frames = self.render(detail::toStereo(step.Load(a)), detail::toStereo(step.Load(b)));
 				step.Store(out, {frames.l, frames.r});
 			});
 		}

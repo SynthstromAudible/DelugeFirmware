@@ -99,8 +99,7 @@ struct Processor {
 			const q31* in = detail::interleaved(input);
 			q31* out = detail::interleaved(output);
 			argon::vectorize::for_each_interleaved<q31, 2>(size, [&] [[gnu::always_inline]] (auto step) {
-				const auto [l, r] = step.Load(in);
-				const StereoVector frames = self.render(StereoVector{.l = l, .r = r});
+				const StereoVector frames = self.render(detail::toStereo(step.Load(in)));
 				step.Store(out, {frames.l, frames.r});
 			});
 		}

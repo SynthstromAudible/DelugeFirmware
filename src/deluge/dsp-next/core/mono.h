@@ -22,7 +22,6 @@
 #include "dsp-next/core/types.h"
 #include <argon.hpp>
 #include <argon/vectorize/for_each.hpp>
-#include <array>
 #include <cstddef>
 
 /// @file
@@ -228,14 +227,6 @@ private:
 		}
 	}
 
-	/// @brief The frames of an interleaved load as a StereoVector.
-	/// @details A bit cast rather than element access: std::array's accessors are calls under
-	/// `-fno-inline-functions`, and this runs once per step.
-	[[gnu::always_inline]] static StereoVector toStereo(const std::array<Argon<q31>, 2>& channels) {
-		static_assert(sizeof(StereoVector) == sizeof(channels));
-		return __builtin_bit_cast(StereoVector, channels);
-	}
-
 	/// @brief Fill @p out from the input blocks @p in (none, one or two), one `step` at mode @p M per sample or
 	/// vector; the loop is picked from K's step type (see the class documentation).
 	/// @details The blocks' pointers and length are read here, once, so that the loop itself touches only raw
@@ -280,7 +271,7 @@ private:
 	[[gnu::always_inline]] static void interleavedLoop(const Coefficients& c, const Block& block, State& s, q31* dst,
 	                                                   std::ptrdiff_t n, const Src*... src) {
 		argon::vectorize::for_each_interleaved<q31, 2>(n, [&] [[gnu::always_inline]] (auto step) {
-			const StereoVector frames = vectorStepAt<M>(c, block, s, step, toStereo(step.Load(src))...);
+			const StereoVector frames = vectorStepAt<M>(c, block, s, step, detail::toStereo(step.Load(src))...);
 			step.Store(dst, {frames.l, frames.r});
 		});
 	}

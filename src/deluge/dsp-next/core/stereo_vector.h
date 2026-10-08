@@ -19,6 +19,7 @@
 #include "dsp-next/core/sample.h"        // q31
 #include "dsp-next/core/stereo_sample.h" // StereoSample
 #include <argon.hpp>
+#include <array>
 #include <span>
 
 /// @file
@@ -48,6 +49,15 @@ namespace detail {
 /// @brief The interleaved q31 samples of a writable block of stereo frames (left, right, left, ...).
 [[nodiscard, gnu::always_inline]] inline q31* interleaved(std::span<StereoSample> frames) {
 	return reinterpret_cast<q31*>(frames.data());
+}
+
+/// @brief The channels of an interleaved stereo load (`step.Load` in `for_each_interleaved<q31, 2>`) as a
+/// StereoVector.
+/// @details A bit cast rather than element access or a structured binding: std::array's accessors and `std::get`
+/// are calls under `-fno-inline-functions`, and this runs once per step.
+[[nodiscard, gnu::always_inline]] inline StereoVector toStereo(const std::array<Argon<q31>, 2>& channels) {
+	static_assert(sizeof(StereoVector) == sizeof(channels));
+	return __builtin_bit_cast(StereoVector, channels);
 }
 
 } // namespace detail
