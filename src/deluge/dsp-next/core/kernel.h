@@ -17,6 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/mode.h"
+#include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
 #include <concepts>
 #include <cstddef>
@@ -234,6 +235,25 @@ concept declares_kernel_types = std::is_class_v<K> && !std::is_final_v<K> && req
 	typename K::State;
 };
 
+/// @brief K steps one sample (or frame) at a time: its step type is its value type.
+template <typename K>
+concept scalar_step_kernel = std::same_as<typename K::step_type, typename K::value_type>;
+
+/// @brief K steps a vector of consecutive q31 samples.
+template <typename K>
+concept vector_step_kernel =
+    std::same_as<typename K::value_type, q31> && std::same_as<typename K::step_type, Argon<q31>>;
+
+/// @brief K steps a vector of consecutive stereo frames, de-interleaved one vector per channel.
+template <typename K>
+concept stereo_vector_step_kernel =
+    std::same_as<typename K::value_type, StereoSample> && std::same_as<typename K::step_type, StereoVector>;
+
+/// @brief Whether a wrapper has a loop for K's step type over its value type: the step type is the value type,
+/// `Argon<q31>` over q31, or StereoVector over StereoSample.
+template <typename K>
+concept supported_step_pair = scalar_step_kernel<K> || vector_step_kernel<K> || stereo_vector_step_kernel<K>;
+
 /// @brief Whether K has `static Coefficients coefficients(const Settings&)`.
 template <typename K>
 concept computes_coefficients = requires(const typename K::Settings& settings) {
@@ -263,8 +283,8 @@ using kernel_block_t = typename detail::kernel_block<K>::type;
 /// @brief Whether K's partial last vector advances its state by the active lane count (true) or a whole vector.
 /// @details False unless K declares `static constexpr bool kPartialStepAdvancesByCount`. A vector kernel whose state
 /// persists across blocks declares it true and provides the counted `step` overload taking a trailing ActiveLanes.
-/// The generator and processor concepts require that overload when this is true; the mixer and staged concepts
-/// reject the declaration, having no partial step.
+/// The generator and processor concepts require that overload when this is true, and reject the declaration on a
+/// scalar step; the mixer and staged concepts reject it, having no partial step.
 template <typename K>
 inline constexpr bool partial_step_advances_by_count = false;
 
@@ -275,7 +295,8 @@ inline constexpr bool partial_step_advances_by_count<K> = K::kPartialStepAdvance
 
 /// @brief The shape every kernel has: value/step types, Settings → Coefficients (pure), State, optional prepare.
 /// @details Requires:
-/// - a non-final class declaring `value_type`, `step_type` and `Settings`;
+/// - a non-final class declaring `value_type`, `step_type` and `Settings`, with a step type a wrapper has a loop
+///   for: the value type itself, `Argon<q31>` over q31 blocks, or StereoVector over StereoSample blocks;
 /// - `Coefficients`, `State` and kernel_block_t<K> as plain value structs (default-constructible, trivially
 ///   copyable);
 /// - `static Coefficients coefficients(const Settings&)`;
@@ -288,24 +309,28 @@ inline constexpr bool partial_step_advances_by_count<K> = K::kPartialStepAdvance
 ///   skipped.
 template <typename K>
 concept kernel_base =
-    detail::declares_kernel_types<K> && detail::plain_value<typename K::Coefficients>
+    detail::declares_kernel_types<K> && detail::supported_step_pair<K> && detail::plain_value<typename K::Coefficients>
     && detail::plain_value<typename K::State> && detail::plain_value<kernel_block_t<K>>
     && detail::computes_coefficients<K> && detail::prepare_well_formed<K> && detail::reset_well_formed<K>;
 
 /// @brief A kernel generating its output: `step(c, b, s) -> step_type`, and no other form. When K declares
-/// kPartialStepAdvancesByCount, also the counted `step(c, b, s, ActiveLanes) -> step_type`.
+/// kPartialStepAdvancesByCount, which only a vector step may (a scalar loop has no partial step), also the counted
+/// `step(c, b, s, ActiveLanes) -> step_type`.
 /// @details Checked at K's first mode, or at the non-template step when K has no modes.
 template <typename K>
-concept generator_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::steps_as_generator<K>
-                           && (!partial_step_advances_by_count<K> || detail::steps_with<K, ActiveLanes>);
+concept generator_kernel =
+    kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::steps_as_generator<K>
+    && (!partial_step_advances_by_count<K> || (!detail::scalar_step_kernel<K> && detail::steps_with<K, ActiveLanes>));
 
 /// @brief A kernel transforming its input: `step(c, b, s, x) -> step_type`, and no other form. When K declares
-/// kPartialStepAdvancesByCount, also the counted `step(c, b, s, x, ActiveLanes) -> step_type`.
+/// kPartialStepAdvancesByCount, which only a vector step may (a scalar loop has no partial step), also the counted
+/// `step(c, b, s, x, ActiveLanes) -> step_type`.
 /// @details Checked at K's first mode, or at the non-template step when K has no modes.
 template <typename K>
 concept processor_kernel =
     kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::steps_as_processor<K>
-    && (!partial_step_advances_by_count<K> || detail::steps_with<K, typename K::step_type, ActiveLanes>);
+    && (!partial_step_advances_by_count<K>
+        || (!detail::scalar_step_kernel<K> && detail::steps_with<K, typename K::step_type, ActiveLanes>));
 
 /// @brief A kernel combining two inputs: `step(c, b, s, a, b2) -> step_type`, and no other form.
 /// @details Checked at K's first mode, or at the non-template step when K has no modes. A mixer has no counted
@@ -317,11 +342,12 @@ concept mixer_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1
 /// @brief A block-staged kernel: process(c, s, Signal<value_type>, Buffer<value_type>) instead of step.
 /// @details For arithmetic that reads a whole block, shapes it, then writes the whole block (the delay's tape I/O);
 /// every other kernel is written as a `step`. It provides no `step` at any arity and has no partial step, so it must
-/// not declare kPartialStepAdvancesByCount. A moded staged kernel's `process` is a template on the mode, checked at
-/// its first mode.
+/// not declare kPartialStepAdvancesByCount. `process` takes no Block, so a staged kernel declares no `prepare`: its
+/// per-block work is `process` itself. A moded staged kernel's `process` is a template on the mode, checked at its
+/// first mode.
 template <typename K>
-concept staged_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1
-                        && detail::processes_blocks<K> && !partial_step_advances_by_count<K>;
+concept staged_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::processes_blocks<K>
+                        && !partial_step_advances_by_count<K> && !detail::declares_prepare<K>;
 
 /// @brief A kernel of any form; a class satisfies at most one of the four form concepts.
 template <typename K>

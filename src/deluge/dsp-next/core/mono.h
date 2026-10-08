@@ -48,20 +48,6 @@ inline constexpr bool is_partial_step<argon::vectorize::Step<T, false>> = true;
 template <typename T, std::size_t Stride>
 inline constexpr bool is_partial_step<argon::vectorize::InterleavedStep<T, Stride, false>> = true;
 
-/// @brief K steps one sample (or frame) at a time: its step type is its value type.
-template <typename K>
-concept scalar_step_kernel = std::same_as<typename K::step_type, typename K::value_type>;
-
-/// @brief K steps a vector of consecutive q31 samples.
-template <typename K>
-concept vector_step_kernel =
-    std::same_as<typename K::value_type, q31> && std::same_as<typename K::step_type, Argon<q31>>;
-
-/// @brief K steps a vector of consecutive stereo frames, de-interleaved one vector per channel.
-template <typename K>
-concept stereo_vector_step_kernel =
-    std::same_as<typename K::value_type, StereoSample> && std::same_as<typename K::step_type, StereoVector>;
-
 /// @brief K's per-block values for a block of @p n samples: its `prepare` when it declares one, else an
 /// EmptyBlock.
 template <typename K>
@@ -208,7 +194,6 @@ public:
 	requires processor_kernel<K> || staged_kernel<K>
 	{
 		if constexpr (staged_kernel<K>) {
-			static_assert(!detail::declares_prepare<K>, "a staged kernel does its per-block work in process");
 			detail::dispatch_mode<K>(coefficients_, [&]<auto M> [[gnu::always_inline]] () {
 				if constexpr (moded_kernel<K>) {
 					K::template process<M>(coefficients_, state_, in.first(out.size()), out);
@@ -299,9 +284,6 @@ private:
 			vectorLoop<M>(c, block, s, out.data(), n, in.data()...);
 		}
 		else {
-			static_assert(detail::stereo_vector_step_kernel<K>,
-			              "a kernel's step_type is its value_type, Argon<q31> over q31, or StereoVector over "
-			              "StereoSample");
 			interleavedLoop<M>(c, block, s, detail::interleaved(out), n, detail::interleaved(in)...);
 		}
 	}

@@ -162,7 +162,8 @@ base class.
 - **`value_type`**: a block's sample (`q31` or `StereoSample`).
 - **`step_type`**: what `step` takes and returns. It is `value_type` for a
   scalar kernel, `Argon<q31>` for a vector kernel over q31 blocks, and
-  `StereoVector` for a vector kernel over stereo frames.
+  `StereoVector` for a vector kernel over stereo frames. These are the pairs the
+  wrappers have loops for; any other pair fails the concept.
 - **`Settings`**: a plain value type holding what the owner sets (knob values,
   mode, rate).
 - **`Coefficients`**: what the arithmetic reads, computed by the pure
@@ -272,8 +273,9 @@ other arguments: `step(c, b, s, ActiveLanes)` for a generator,
 `step(c, b, s, x, ActiveLanes)` for a processor. The wrapper calls it on the
 partial step only, with `n` the number of live leading lanes, 1 up to one less
 than the vector's lanes. `ActiveLanes` is a tag rather than an integer so a
-counted processor step never reads as a mixer step. A mixer or staged kernel
-has no counted partial step, so declaring the flag on one is a compile error.
+counted processor step never reads as a mixer step. A scalar, mixer or staged
+kernel has no counted partial step, so declaring the flag on one is a compile
+error.
 
 The partial step is told apart by type, which holds on NEON and SIMDe. On
 Helium (MVE) every step is predicated, so whole steps would also arrive counted,
@@ -297,9 +299,9 @@ loop a kernel runs in.
   runs the one loop. A mode change set by `configure` takes effect at the next
   block, and `State` carries across it untouched.
 - **A staged kernel** has no loop: `renderBlock` calls `process` once (or
-  `process<M>` through `with_mode`). `Mono` rejects a staged kernel that
-  declares `prepare`, since `process` takes no `Block` and the `prepare` would
-  be skipped silently.
+  `process<M>` through `with_mode`). `staged_kernel` rejects a staged kernel
+  that declares `prepare`, since `process` takes no `Block` and the `prepare`
+  would be skipped silently.
 - **In place.** Each step loads before it stores, so the input and output may be
   the same buffer, on every loop path.
 - **Local copies.** The loop runs on local copies of the coefficients and state,

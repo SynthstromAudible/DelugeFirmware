@@ -159,6 +159,50 @@ struct Staged {
 	}
 };
 
+/// A block-staged kernel declaring a prepare, which process has no Block to receive.
+struct StagedPrepare {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static EmptyBlock prepare(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return {}; }
+	static void process(const Coefficients& /*c*/, State& /*s*/, Signal<q31> in, Buffer<q31> out) {
+		for (std::size_t i = 0; i < in.size(); ++i) {
+			out[i] = in[i];
+		}
+	}
+};
+
+/// A processor stepping stereo vectors over mono q31 blocks: no loop runs that pair.
+struct StereoVectorOverQ31 {
+	using value_type = q31;
+	using step_type = StereoVector;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[gnu::always_inline]] static StereoVector step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/,
+	                                                StereoVector x) {
+		return x;
+	}
+};
+
+/// A processor stepping q31 vectors over stereo frames: no loop runs that pair.
+struct VectorOverFrames {
+	using value_type = StereoSample;
+	using step_type = Argon<q31>;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/,
+	                                              Argon<q31> x) {
+		return x;
+	}
+};
+
 /// A component written with its own verbs instead of a kernel's.
 struct CustomVerbs {
 	using value_type = q31;
@@ -314,10 +358,12 @@ struct VecPhase {
 	}
 };
 
-/// A scalar processor with a counted overload: the tag keeps it from reading as a mixer step.
+/// A scalar processor declaring the counted partial step, which only a vector loop has. Its counted overload's tag
+/// keeps it from reading as a mixer step.
 struct ScalarCount {
 	using value_type = q31;
 	using step_type = q31;
+	static constexpr bool kPartialStepAdvancesByCount = true;
 	struct Settings {};
 	struct Coefficients {};
 	struct State {};
@@ -556,7 +602,10 @@ static_assert(detail::declares_prepare<TemplatePrepare> && detail::declares_prep
               && detail::declares_prepare<MemberPrepare> && detail::declares_prepare<OverloadedPrepareNoBlock>);
 static_assert(detail::declares_prepare<Prepared> && !detail::declares_prepare<Gain>);
 static_assert(generator_kernel<VecPhase> && partial_step_advances_by_count<VecPhase>);
-static_assert(processor_kernel<ScalarCount> && !mixer_kernel<ScalarCount>);
+static_assert(!kernel<ScalarCount> && detail::steps_as_processor<ScalarCount> && !detail::steps_as_mixer<ScalarCount>);
+static_assert(!kernel<StagedPrepare> && detail::processes_blocks<StagedPrepare>);
+static_assert(!kernel<StereoVectorOverQ31> && detail::steps_as_processor<StereoVectorOverQ31>);
+static_assert(!kernel<VectorOverFrames> && detail::steps_as_processor<VectorOverFrames>);
 static_assert(staged_kernel<ModedStaged> && moded_kernel<ModedStaged>);
 static_assert(!generator_kernel<ModedStaged> && !processor_kernel<ModedStaged> && !mixer_kernel<ModedStaged>);
 static_assert(!kernel<VecNoCount>);
