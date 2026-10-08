@@ -115,7 +115,8 @@ step_at(const typename K::Coefficients& c, const kernel_block_t<K>& block, typen
 ///
 /// **Staged kernels** have no loop here: `renderBlock` calls `process(coefficients, state, in, out)` once, or
 /// `process<M>` through with_mode when the kernel is moded. A staged kernel does its per-block work in `process`, so
-/// one that declares `prepare` is rejected.
+/// one that declares `prepare` is rejected. `process` keeps the in-place promise itself: @ref staged_kernel requires
+/// it to give the same result when `in` and `out` are the same buffer.
 ///
 /// **Inlining.** The app builds with `-fno-inline-functions`, which marks every definition noinline unless it says
 /// otherwise, so `render`, `renderBlock`, the loop and every lambda handed to Argon are `[[gnu::always_inline]]`:

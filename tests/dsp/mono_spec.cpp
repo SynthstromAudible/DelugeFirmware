@@ -82,7 +82,8 @@ struct Add {
 	}
 };
 
-/// A block-staged kernel: reverses its block.
+/// A block-staged kernel: reverses its block. It reads each mirrored pair before writing either, so it gives the
+/// same result in place as out of place.
 struct Staged {
 	using value_type = q31;
 	using step_type = q31;
@@ -92,8 +93,11 @@ struct Staged {
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	static void process(const Coefficients& /*c*/, State& /*s*/, Signal<q31> in, Buffer<q31> out) {
 		const std::size_t n = in.size();
-		for (std::size_t i = 0; i < n; ++i) {
-			out[i] = in[n - 1 - i];
+		for (std::size_t i = 0; i < (n + 1) / 2; ++i) {
+			const q31 front = in[i];
+			const q31 back = in[n - 1 - i];
+			out[i] = back;
+			out[n - 1 - i] = front;
 		}
 	}
 };
@@ -739,6 +743,28 @@ describe mono("Mono", ${
 		moded.renderBlock(in, out);
 		for (std::size_t i = 0; i < in.size(); ++i) {
 			expect(out[i]).to_equal(in[i]);
+		}
+	});
+
+	it("renders a staged kernel in place exactly as out of place", _ {
+		for (const std::size_t n : kLengths) {
+			const std::vector<q31> a = input(n, 0x00321fed);
+			std::vector<q31> out(n);
+			std::vector<q31> in_place = a;
+			Mono<Staged> staged;
+			staged.renderBlock(a, out);
+			staged.renderBlock(in_place, in_place);
+			for (std::size_t i = 0; i < n; ++i) {
+				expect(in_place[i]).to_equal(out[i]);
+			}
+
+			in_place = a;
+			Mono<ModedStaged> moded{{.mode = ModedStaged::Mode::NEGATE}};
+			moded.renderBlock(a, out);
+			moded.renderBlock(in_place, in_place);
+			for (std::size_t i = 0; i < n; ++i) {
+				expect(in_place[i]).to_equal(out[i]);
+			}
 		}
 	});
 });

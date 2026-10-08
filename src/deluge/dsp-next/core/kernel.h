@@ -364,6 +364,11 @@ concept mixer_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1
 /// not declare kPartialStepAdvancesByCount. `process` takes no Block, so a staged kernel declares no `prepare`: its
 /// per-block work is `process` itself. A moded staged kernel's `process` is a template on the mode, checked at its
 /// first mode.
+///
+/// **In place.** `process` must give the same result when `in` and `out` are the same buffer, as every wrapper path
+/// does: the app renders in place. A `process` that reads a sample after writing one it has not yet read (a
+/// reversal written front to back, a look-ahead) reads its own output; it stages what it still needs before
+/// overwriting it.
 template <typename K>
 concept staged_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::processes_blocks<K>
                         && !partial_step_advances_by_count<K> && !detail::declares_prepare<K>;

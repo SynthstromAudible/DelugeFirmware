@@ -222,6 +222,13 @@ sample or per vector is a `step`. A staged kernel has no `Block`, so it declares
 no `prepare`; its per-block work is `process` itself. A staged kernel may be
 moded, with `process<M>`.
 
+**`process` works in place.** The app renders with `in` and `out` the same
+buffer, and every wrapper path gives the same result in place as out of place,
+so `process` must too. The wrapper's loops get this from loading each step
+before storing it; a `process` that reads a sample after writing one it has not
+yet read (a reversal written front to back, a look-ahead) stages what it still
+needs before overwriting it.
+
 A moded kernel's `step` or `process` is checked at the first mode of its
 `Modes` only; a step ill-formed at another mode is reported where the wrapper
 instantiates it.

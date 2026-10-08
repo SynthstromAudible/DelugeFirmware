@@ -143,7 +143,8 @@ struct Ramp {
 	}
 };
 
-/// A block-staged kernel: reverses its block.
+/// A block-staged kernel: reverses its block. It reads each mirrored pair before writing either, so it gives the
+/// same result in place as out of place.
 struct Staged {
 	using value_type = q31;
 	using step_type = q31;
@@ -153,8 +154,11 @@ struct Staged {
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	static void process(const Coefficients& /*c*/, State& /*s*/, Signal<q31> in, Buffer<q31> out) {
 		const std::size_t n = in.size();
-		for (std::size_t i = 0; i < n; ++i) {
-			out[i] = in[n - 1 - i];
+		for (std::size_t i = 0; i < (n + 1) / 2; ++i) {
+			const q31 front = in[i];
+			const q31 back = in[n - 1 - i];
+			out[i] = back;
+			out[n - 1 - i] = front;
 		}
 	}
 };
