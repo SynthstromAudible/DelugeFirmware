@@ -156,9 +156,10 @@ public:
 	/// @brief The coefficients from the last configure, including any owner-facing values the kernel exposes.
 	[[nodiscard]] const Coefficients& coefficients() const { return coefficients_; }
 
-	/// @brief Return to the reset State: State{}, or whatever K's `reset(State&)` quirk sets when K declares one.
+	/// @brief Return to the reset State: State{}, or whatever K's `static void reset(State&)` quirk sets when K
+	/// declares one.
 	void reset() {
-		if constexpr (requires(State& s) { K::reset(s); }) {
+		if constexpr (detail::declares_reset<K>) {
 			K::reset(state_);
 		}
 		else {

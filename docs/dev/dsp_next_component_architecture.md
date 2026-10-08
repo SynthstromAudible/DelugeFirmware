@@ -235,7 +235,9 @@ A wrapper's `reset()` returns the state to `State{}`. A kernel whose arithmetic
 needs something else after a reset, such as a filter's post-reset sentinel
 value, declares `static void reset(State&)`, and the wrapper calls it instead.
 The quirk is named in the code and documented on that function. `reset()` never
-touches `Coefficients`.
+touches `Coefficients`. Like `prepare`, `reset` is detected by name, so a
+`reset` of any other shape (a non-static member, one returning a `State`) fails
+the concept instead of being skipped.
 
 ### Composition
 

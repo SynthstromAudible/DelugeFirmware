@@ -127,6 +127,29 @@ struct PrepareProbe : K, PrepareFallback {};
 template <typename K>
 concept declares_prepare = std::is_class_v<K> && !std::is_final_v<K> && !requires { &PrepareProbe<K>::prepare; };
 
+/// @brief A `reset` every probe has, so that naming `reset` in a class derived from both it and a kernel is
+/// ambiguous exactly when the kernel declares one.
+struct ResetFallback {
+	/// @brief Never defined or called; it exists only to collide with a kernel's own `reset`.
+	static void reset();
+};
+
+/// @brief Derives from a kernel and the fallback, so that `&ResetProbe<K>::reset` is ill-formed exactly when K
+/// declares a member named `reset`.
+template <typename K>
+struct ResetProbe : K, ResetFallback {};
+
+/// @brief Whether K declares a member named `reset`, of any kind, detected by name as @ref declares_prepare is.
+/// @details A `reset` of the wrong shape is seen here and rejected by kernel_base, never skipped. The wrappers call
+/// `K::reset` exactly when this holds. K must be a non-final class.
+template <typename K>
+concept declares_reset = std::is_class_v<K> && !std::is_final_v<K> && !requires { &ResetProbe<K>::reset; };
+
+/// @brief Whether K's `reset` is exactly `static void reset(State&)`: a static, non-template function of that type,
+/// or an overload set containing one.
+template <typename K>
+concept resets_exactly = requires { static_cast<void (*)(typename K::State&)>(&K::reset); };
+
 /// @brief Whether K's `prepare` is exactly `static kernel_block_t<K> prepare(const Coefficients&, State&,
 /// std::size_t)`: a static, non-template function of that type, or an overload set containing one.
 template <typename K>
@@ -227,6 +250,10 @@ template <typename K>
 concept prepare_well_formed =
     (!declares_prepare<K> || prepares_exactly<K>) && (!declares_block<K> || declares_prepare<K>);
 
+/// @brief Whether K's `reset`, if it declares one, is exactly `static void reset(State&)`.
+template <typename K>
+concept reset_well_formed = !declares_reset<K> || resets_exactly<K>;
+
 } // namespace detail
 
 /// @brief K::Block if K declares one, else EmptyBlock.
@@ -255,11 +282,15 @@ inline constexpr bool partial_step_advances_by_count<K> = K::kPartialStepAdvance
 /// - when K declares any member named `prepare`, exactly `static kernel_block_t<K> prepare(const Coefficients&,
 ///   State&, std::size_t n)`, called once per block of @c n samples. @c n may be 0: an empty block still prepares.
 ///   A template, non-static or mismatched `prepare` fails here rather than being skipped;
-/// - when K declares a `Block`, a `prepare` to make it.
+/// - when K declares a `Block`, a `prepare` to make it;
+/// - when K declares any member named `reset`, exactly `static void reset(State&)`, the reset quirk the wrappers
+///   call instead of assigning `State{}`. A non-static or otherwise mis-shaped `reset` fails here rather than being
+///   skipped.
 template <typename K>
-concept kernel_base = detail::declares_kernel_types<K> && detail::plain_value<typename K::Coefficients>
-                      && detail::plain_value<typename K::State> && detail::plain_value<kernel_block_t<K>>
-                      && detail::computes_coefficients<K> && detail::prepare_well_formed<K>;
+concept kernel_base =
+    detail::declares_kernel_types<K> && detail::plain_value<typename K::Coefficients>
+    && detail::plain_value<typename K::State> && detail::plain_value<kernel_block_t<K>>
+    && detail::computes_coefficients<K> && detail::prepare_well_formed<K> && detail::reset_well_formed<K>;
 
 /// @brief A kernel generating its output: `step(c, b, s) -> step_type`, and no other form. When K declares
 /// kPartialStepAdvancesByCount, also the counted `step(c, b, s, ActiveLanes) -> step_type`.

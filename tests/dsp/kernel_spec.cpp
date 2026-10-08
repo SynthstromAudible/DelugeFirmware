@@ -476,6 +476,54 @@ struct ModeMismatch {
 	}
 };
 
+/// A generator whose reset quirk has the stated shape: static void reset(State&).
+struct ResetQuirk {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {
+		q31 n;
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static void reset(State& s) { s.n = 100; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s) {
+		return ++s.n;
+	}
+};
+
+/// A generator whose reset is a non-static member.
+struct MemberReset {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {
+		q31 n;
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	void reset(State& s) const { s.n = 100; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s) {
+		return ++s.n;
+	}
+};
+
+/// A generator whose reset returns the reset State instead of setting one.
+struct ValueReset {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {
+		q31 n;
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static State reset() { return {.n = 100}; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s) {
+		return ++s.n;
+	}
+};
+
 static_assert(processor_kernel<Gain>);
 static_assert(moded_kernel<Shaped>);
 static_assert(processor_kernel<Shaped>);
@@ -519,6 +567,10 @@ static_assert(!kernel<WrongStepReturn>);
 static_assert(!kernel<WrongCoefficientsReturn>);
 static_assert(!kernel<MemberStep>);
 static_assert(!kernel<ModeMismatch> && !moded_kernel<ModeMismatch>);
+static_assert(generator_kernel<ResetQuirk> && detail::declares_reset<ResetQuirk>);
+static_assert(detail::declares_reset<MemberReset> && !kernel<MemberReset>);
+static_assert(detail::declares_reset<ValueReset> && !kernel<ValueReset>);
+static_assert(!detail::declares_reset<Counter>);
 
 } // namespace
 
