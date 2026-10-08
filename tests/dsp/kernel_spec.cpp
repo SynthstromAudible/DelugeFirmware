@@ -203,6 +203,43 @@ struct VectorOverFrames {
 	}
 };
 
+/// A moded kernel whose default Coefficients name a mode it does not list: a default-constructed component would
+/// dispatch on an unlisted mode.
+struct UnlistedDefaultMode {
+	using value_type = q31;
+	using step_type = q31;
+	enum class Mode : uint8_t { OFF, ON };
+	using Modes = ModeList<Mode::ON>;
+	struct Settings {};
+	struct Coefficients {
+		Mode mode;
+	};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {.mode = Mode::ON}; }
+	template <Mode M>
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) {
+		return x;
+	}
+};
+
+/// UnlistedDefaultMode with a default member initialiser naming its one listed mode.
+struct ListedDefaultMode {
+	using value_type = q31;
+	using step_type = q31;
+	enum class Mode : uint8_t { OFF, ON };
+	using Modes = ModeList<Mode::ON>;
+	struct Settings {};
+	struct Coefficients {
+		Mode mode = Mode::ON;
+	};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	template <Mode M>
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) {
+		return x;
+	}
+};
+
 /// A component written with its own verbs instead of a kernel's.
 struct CustomVerbs {
 	using value_type = q31;
@@ -606,6 +643,8 @@ static_assert(!kernel<ScalarCount> && detail::steps_as_processor<ScalarCount> &&
 static_assert(!kernel<StagedPrepare> && detail::processes_blocks<StagedPrepare>);
 static_assert(!kernel<StereoVectorOverQ31> && detail::steps_as_processor<StereoVectorOverQ31>);
 static_assert(!kernel<VectorOverFrames> && detail::steps_as_processor<VectorOverFrames>);
+static_assert(!kernel<UnlistedDefaultMode> && detail::has_modes<UnlistedDefaultMode>);
+static_assert(moded_kernel<ListedDefaultMode>);
 static_assert(staged_kernel<ModedStaged> && moded_kernel<ModedStaged>);
 static_assert(!generator_kernel<ModedStaged> && !processor_kernel<ModedStaged> && !mixer_kernel<ModedStaged>);
 static_assert(!kernel<VecNoCount>);

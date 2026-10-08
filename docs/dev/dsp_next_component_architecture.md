@@ -180,7 +180,11 @@ base class.
   enumerators the kernel's `step` is instantiated for, and `Coefficients`
   carries the chosen one in a `mode` member of that enumeration. A moded
   kernel's `step` (or `process`) is a template on the mode. All modes share one
-  `State`.
+  `State`. A default-constructed wrapper holds `Coefficients{}` and dispatches
+  on its `mode` at the first block, so `Coefficients{}` must be a constant
+  expression naming a listed mode; the concept checks it. An enumeration member
+  defaults to its zero enumerator, so a kernel that does not list that one gives
+  `mode` a default member initialiser.
 
 `Coefficients`, `State` and `Block` are plain value structs:
 default-constructible and trivially copyable, with no pointers and no hidden

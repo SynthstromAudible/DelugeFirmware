@@ -104,6 +104,21 @@ concept has_modes = requires {
 	                      std::remove_cv_t<decltype(first_mode_v<typename K::Modes>)>>;
 };
 
+/// @brief Whether @p mode is one of the modes of the ModeList passed as the first argument.
+template <auto... Ms, typename Mode>
+constexpr bool lists_mode(ModeList<Ms...> /*list*/, Mode mode) {
+	return ((mode == Ms) || ...);
+}
+
+/// @brief Whether moded K's default `Coefficients{}` names a mode in K's `Modes`, evaluated at compile time.
+/// @details A default-constructed wrapper holds value-initialised Coefficients and dispatches on their `mode` at its
+/// first block, so that mode must be listed: an unlisted one reaches the dispatch's unreachable fallthrough. A
+/// `Coefficients{}` that is not a constant expression fails this too, since its mode cannot be checked.
+template <typename K>
+concept default_mode_listed = requires {
+	typename std::bool_constant<lists_mode(typename K::Modes{}, typename K::Coefficients{}.mode)>;
+} && lists_mode(typename K::Modes{}, typename K::Coefficients{}.mode);
+
 /// @brief A plain value struct: default-constructible and trivially copyable, so it can be reset, copied and slotted
 /// as bytes.
 template <typename T>
@@ -306,12 +321,16 @@ inline constexpr bool partial_step_advances_by_count<K> = K::kPartialStepAdvance
 /// - when K declares a `Block`, a `prepare` to make it;
 /// - when K declares any member named `reset`, exactly `static void reset(State&)`, the reset quirk the wrappers
 ///   call instead of assigning `State{}`. A non-static or otherwise mis-shaped `reset` fails here rather than being
-///   skipped.
+///   skipped;
+/// - when K has modes, a default `Coefficients{}` that is a constant expression naming a listed mode, since a
+///   default-constructed wrapper dispatches on it (an enumeration member defaults to its zero enumerator, so a kernel
+///   whose zero enumerator is not listed gives `mode` a default member initialiser).
 template <typename K>
 concept kernel_base =
     detail::declares_kernel_types<K> && detail::supported_step_pair<K> && detail::plain_value<typename K::Coefficients>
     && detail::plain_value<typename K::State> && detail::plain_value<kernel_block_t<K>>
-    && detail::computes_coefficients<K> && detail::prepare_well_formed<K> && detail::reset_well_formed<K>;
+    && detail::computes_coefficients<K> && detail::prepare_well_formed<K> && detail::reset_well_formed<K>
+    && (!detail::has_modes<K> || detail::default_mode_listed<K>);
 
 /// @brief A kernel generating its output: `step(c, b, s) -> step_type`, and no other form. When K declares
 /// kPartialStepAdvancesByCount, which only a vector step may (a scalar loop has no partial step), also the counted
@@ -356,7 +375,8 @@ concept kernel = generator_kernel<K> || processor_kernel<K> || mixer_kernel<K> |
 /// @brief Whether K has modes (K::Modes is a ModeList and Coefficients has a `mode` member).
 /// @details The `mode` member has the list's enumeration type; the wrapper dispatches on it once per block with
 /// with_mode. All of a kernel's modes share one State, and a moded kernel's `step` or `process` is a template on the
-/// mode.
+/// mode. Its default `Coefficients{}` names a listed mode (kernel_base requires it), so a default-constructed
+/// wrapper's first block dispatches on a mode the kernel has.
 template <typename K>
 concept moded_kernel = kernel<K> && detail::has_modes<K>;
 
