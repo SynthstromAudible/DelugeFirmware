@@ -172,10 +172,12 @@ is gone.
   script, so a label created in the UI is never silently stripped from items.
 - Permissions: `issues: write` (apply), `contents: read`.
 
-### 3. `.github/scripts/migrate-labels.py`
+### 3. `.github/scripts/migrate_labels.py`
 
 One-shot migration, run locally by a maintainer with an authenticated `gh`.
-Python standard library only; shells out to `gh api` / `gh api graphql`.
+Python standard library plus PyYAML (to read `labels.yml` rather than duplicating
+its rename map); shells out to `gh api` / `gh api graphql`. Underscore filename so
+the test module can import it.
 Dry-run by default; `--apply` performs writes.
 
 - `pre` phase (before merging the PR):
@@ -209,10 +211,10 @@ through `.github/labels.yml`.
 ## Rollout
 
 1. Open the PR. Review the sync job's dry-run output.
-2. Run `migrate-labels.py pre --apply`.
+2. Run `migrate_labels.py pre --apply`.
 3. Merge the PR → sync workflow renames/creates labels.
-4. Run `migrate-labels.py post --apply`.
-5. Run `migrate-labels.py verify`; resolve any reported mismatches.
+4. Run `migrate_labels.py post --apply`.
+5. Run `migrate_labels.py verify`; resolve any reported mismatches.
 
 Between steps 3 and 4 some issues temporarily carry `type:` labels; this is harmless.
 
