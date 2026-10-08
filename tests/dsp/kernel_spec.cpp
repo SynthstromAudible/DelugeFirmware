@@ -833,15 +833,16 @@ static_assert(!generator_kernel<Fall> && !processor_kernel<Fall> && !mixer_kerne
 static_assert(!control_kernel<Counter> && !control_kernel<Gain> && !control_kernel<Add> && !control_kernel<Staged>);
 static_assert(kernel_base<AdvanceAndStep> && !control_kernel<AdvanceAndStep> && !kernel<AdvanceAndStep>);
 static_assert(kernel_base<AdvancePrepare> && !control_kernel<AdvancePrepare> && !kernel<AdvancePrepare>);
-static_assert(!control_kernel<AdvancePartialCount> && !kernel<AdvancePartialCount>);
+static_assert(kernel_base<AdvancePartialCount> && !control_kernel<AdvancePartialCount> && !kernel<AdvancePartialCount>);
 static_assert(kernel_base<AdvanceVectorStep> && !control_kernel<AdvanceVectorStep> && !kernel<AdvanceVectorStep>);
 static_assert(kernel_base<AdvanceIntCount> && !control_kernel<AdvanceIntCount> && !kernel<AdvanceIntCount>);
 // A uint32_t count is the exact signature where uint32_t is std::size_t, and rejected wherever it is not.
 static_assert(std::same_as<uint32_t, std::size_t> == control_kernel<AdvanceU32Count>);
 // A template whose count deduces to std::size_t has the exact signature; nothing is converted.
 static_assert(control_kernel<AdvanceDeducedCount>);
-static_assert(!control_kernel<AdvanceWrongReturn> && !kernel<AdvanceWrongReturn>);
-static_assert(!control_kernel<AdvanceFirstModeOnly> && !kernel<AdvanceFirstModeOnly>);
+static_assert(kernel_base<AdvanceWrongReturn> && !control_kernel<AdvanceWrongReturn> && !kernel<AdvanceWrongReturn>);
+static_assert(kernel_base<AdvanceFirstModeOnly> && !control_kernel<AdvanceFirstModeOnly>
+              && !kernel<AdvanceFirstModeOnly>);
 
 } // namespace
 
