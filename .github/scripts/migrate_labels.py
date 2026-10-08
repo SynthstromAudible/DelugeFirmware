@@ -8,6 +8,9 @@ Phases (dry run unless --apply is given):
             Types, then delete merged-away and dead labels
     verify  compare current labels against a pre-phase snapshot
 
+Only open issues and PRs are migrated; closed and merged ones are left as they are
+(deleting a label still removes it from them).
+
 Requires an authenticated `gh` CLI and PyYAML.
 """
 
@@ -235,7 +238,7 @@ def items_from_json(text: str) -> list[Item]:
 ITEMS_QUERY = """
 query($owner: String!, $name: String!, $endCursor: String) {
   repository(owner: $owner, name: $name) {
-    %s(first: 100, after: $endCursor) {
+    %s(first: 100, after: $endCursor, states: OPEN) {
       pageInfo { hasNextPage endCursor }
       nodes { number %s labels(first: 100) { nodes { name } } }
     }

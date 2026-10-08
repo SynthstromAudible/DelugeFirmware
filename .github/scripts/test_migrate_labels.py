@@ -317,6 +317,14 @@ class GitHubTests(unittest.TestCase):
             self.assertIn("owner=o", args)
             self.assertIn("name=r", args)
 
+    def test_fetch_items_only_asks_for_open_items(self):
+        calls = []
+        ml.GitHub(
+            "o/r", run=lambda args: calls.append(args) or "", delay=0
+        ).fetch_items()
+        for args in calls:
+            self.assertIn("states: OPEN", " ".join(args))
+
     def test_fetch_label_names(self):
         github = ml.GitHub("o/r", run=lambda args: "a\nb c\n", delay=0)
         self.assertEqual(github.fetch_label_names(), {"a", "b c"})
