@@ -1,0 +1,23 @@
+# Maps answers in .github/ISSUE_TEMPLATE/bug_report.yml to labels.
+# Keys are the dropdown's visible label (GitHub renders it as "### <label>" in the issue body)
+# and its option text. A null value applies no label.
+# Checked against the form and .github/labels.yml by .github/scripts/test_label_issue.py.
+
+"Where does it happen?":
+  "Sound / synth engine": "area: audio"
+  "Sequencer / playback": "area: sequencer"
+  "Automation": "area: automation"
+  "MIDI": "area: midi"
+  "CV / gate": "area: cv-gate"
+  "File browser": "area: browser"
+  "Saving / loading songs and presets": "area: files"
+  "Menus": "area: menus"
+  "Pads / display": "area: ui"
+  "Other / not sure": null
+
+"How does it show up?":
+  "Crash or freeze": "impact: crash"
+  "Slow or laggy": "impact: performance"
+  "Behaves unexpectedly": "impact: ux-inconsistent"
+  "Hard to use (accessibility)": "impact: accessibility"
+  "Other / not sure": null
