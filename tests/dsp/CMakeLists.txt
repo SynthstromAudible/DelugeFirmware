@@ -19,6 +19,8 @@ set(sine_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/osc/sine.cpp)
 set(component_framework_spec_DEPS)
 # The noise spec shares jcong, which waves.cpp defines.
 set(noise_spec_DEPS ${_repo_root}/src/deluge/util/waves.cpp)
+# The stereo spec draws from the shared noise stream, which waves.cpp defines.
+set(stereo_spec_DEPS ${_repo_root}/src/deluge/util/waves.cpp)
 # The stateful-oscillator spec drives the band-limited saw + square bands (BandLimitedTableOscillator / pulse).
 set(stateful_oscillator_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/saw.cpp
