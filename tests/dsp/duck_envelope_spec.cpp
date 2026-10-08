@@ -364,8 +364,9 @@ describe duck_envelope("DuckEnvelope", ${
 	});
 
 	it("places a late hit at a zero rate in that stage, at its start, as a stage that never ends", _ {
-		// Only an envelope never configured has a zero rate; the owner configures before every block. A zero-rate
-		// stage never ends, so placement divides by no zero: the hit stays in it, at position 0.
+		// A zero rate comes from the owner's settings (a song file's 0, a long synced rate at a slow tempo) or from an
+		// envelope never configured. A zero-rate stage never ends, so placement divides by no zero: the hit stays in
+		// it, at position 0.
 		Control<DuckEnvelope> unconfigured;
 		unconfigured.on<&DuckEnvelope::hit_at>(q31{0x50000000}, uint32_t{1000});
 		expect(unconfigured.state().stage).to_equal(S::ATTACK);

@@ -48,6 +48,13 @@ const std::vector<int32_t> kSyncedRender{
 /// A late hit 300 samples ago at the same settings (in its attack), then four blocks of 128.
 const std::vector<int32_t> kSyncedLate{-735523898, -1453628270, -1609082976, -1605972528};
 
+/// The largest tick inverse at which the longest attack and release, synced at the whole level, resolve to 0.
+constexpr uint32_t kZeroRateInverse = (uint32_t{1} << 19) - 1;
+/// The first block of 128 after a hit at kAttack and kRelease, unsynced.
+constexpr int32_t kUnsyncedFirstBlock = -420429314;
+/// The attack's level at its start, less ONE_Q31, Q31: two LSBs under no duck, from the curve's rounding.
+constexpr int32_t kAttackStart = -2;
+
 SidechainState state(SyncLevel level, int32_t attack = kAttack) {
 	return {.attack = attack, .release = kRelease, .sync_level = level};
 }
@@ -160,6 +167,42 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 		expect(straight).to_equal(through_duck);
 		// The late hit lands in the release, where the shape bends the level: the shape is what these blocks test.
 		expect(straight).not_().to_equal(lateHitBetweenBlocks(0));
+	});
+
+	it("reduces the longest synced attack and release to zero at the whole level and a slow enough tempo", _ {
+		// The longest attack (attackRateTable[50] << 2) and release (releaseRateTable[50] << 3) are both 256, which
+		// the whole level resolves to the tick inverse >> 19: a zero rate from a configured sidechain.
+		const SidechainState longest{.attack = attackRateTable[50] << 2,
+		                             .release = releaseRateTable[50] << 3,
+		                             .sync_level = SyncLevel::WHOLE};
+		expect(attackAndRelease(Sidechain::settings(longest, kZeroRateInverse, 0)))
+		    .to_equal(std::vector<int32_t>{0, 0});
+		expect(attackAndRelease(Sidechain::settings(longest, kZeroRateInverse + 1, 0)))
+		    .to_equal(std::vector<int32_t>{1, 1});
+	});
+
+	it("holds a hit at a zero attack at its attack's start, and places a late hit there without dividing", _ {
+		// A song file's attack of 0 reads as 0: the attack never ends, so the duck stays at its start, where the
+		// level is two LSBs under no duck.
+		const SidechainState zero_attack = state(SyncLevel::NONE, 0);
+		Sidechain sidechain;
+		sidechain.registerHit(kHit);
+		std::vector<int32_t> out;
+		for (int i = 0; i < 8; i++) {
+			out.push_back(sidechain.render(128, 0, zero_attack, kFastInverse));
+		}
+		expect(out).to_equal(std::vector<int32_t>(8, kAttackStart));
+		// Still in the attack, at its start: with a rate again, the next block is a fresh hit's first.
+		expect(sidechain.render(128, 0, state(SyncLevel::NONE), kFastInverse)).to_equal(kUnsyncedFirstBlock);
+
+		Sidechain late;
+		late.registerHitRetrospectively(kHit, kReleaseAge, zero_attack, kFastInverse);
+		std::vector<int32_t> late_out;
+		for (int i = 0; i < 4; i++) {
+			late_out.push_back(late.render(128, 0, zero_attack, kFastInverse));
+		}
+		expect(late_out).to_equal(std::vector<int32_t>(4, kAttackStart));
+		expect(late.render(128, 0, state(SyncLevel::NONE), kFastInverse)).to_equal(kUnsyncedFirstBlock);
 	});
 
 	it("places a late hit at the synced rates", _ {
