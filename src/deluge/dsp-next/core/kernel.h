@@ -165,13 +165,19 @@ struct ResetProbe : K, ResetFallback {};
 template <typename K>
 concept declares_reset = std::is_class_v<K> && !std::is_final_v<K> && !requires { &ResetProbe<K>::reset; };
 
-/// @brief Whether K's `reset` is exactly `static void reset(State&)`: a static, non-template function of that type,
-/// or an overload set containing one.
+/// @brief Whether K's `reset` is exactly `static void reset(State&)`.
+/// @details Checked by converting `&K::reset` to a pointer to that function type, which picks a static function of
+/// exactly that type from an overload set, or a function template whose parameters deduce to exactly that type. A
+/// `reset` of any other type is rejected, not converted.
 template <typename K>
 concept resets_exactly = requires { static_cast<void (*)(typename K::State&)>(&K::reset); };
 
 /// @brief Whether K's `prepare` is exactly `static kernel_block_t<K> prepare(const Coefficients&, State&,
-/// std::size_t)`: a static, non-template function of that type, or an overload set containing one.
+/// std::size_t)`.
+/// @details Checked as @ref resets_exactly is, by converting `&K::prepare` to a pointer to that function type: a
+/// static function of exactly that type, or a function template whose parameters deduce to exactly that type, is
+/// accepted. A template whose parameters cannot be deduced from it (one on a mode) and a `prepare` taking any other
+/// type are rejected, never converted.
 template <typename K>
 concept prepares_exactly = requires {
 	static_cast<typename kernel_block<K>::type (*)(const typename K::Coefficients&, typename K::State&, std::size_t)>(
@@ -261,13 +267,15 @@ template <typename K>
 concept moded_advances_blocks = has_modes<K> && advances_at_every_mode<K, typename K::Modes>;
 
 /// @brief Whether K, which has no modes, has exactly `static value_type advance(const Coefficients&, State&,
-/// std::size_t)`: a static, non-template function of that type, or an overload set containing one.
+/// std::size_t)`.
+/// @details Checked as @ref prepares_exactly is: a static function of exactly that type, or a function template whose
+/// parameters deduce to exactly that type, is accepted; an `advance` taking any other type is rejected.
 template <typename K>
 concept unmoded_advances_blocks = !has_modes<K> && requires { static_cast<advance_fn<K>*>(&K::advance); };
 
 /// @brief Whether K provides the control form: `advance(c, s, n)`, exactly `static value_type advance(const
 /// Coefficients&, State&, std::size_t)`. A moded kernel's `advance` is a template on the mode with that signature at
-/// every listed mode; a kernel without modes has a non-template `advance`.
+/// every listed mode; a kernel without modes has an `advance` whose address converts to that exact function type.
 template <typename K>
 concept advances_blocks = moded_advances_blocks<K> || unmoded_advances_blocks<K>;
 
@@ -354,7 +362,8 @@ inline constexpr bool partial_step_advances_by_count<K> = K::kPartialStepAdvance
 /// - `static Coefficients coefficients(const Settings&)`;
 /// - when K declares any member named `prepare`, exactly `static kernel_block_t<K> prepare(const Coefficients&,
 ///   State&, std::size_t n)`, called once per block of @c n samples. @c n may be 0: an empty block still prepares.
-///   A template, non-static or mismatched `prepare` fails here rather than being skipped;
+///   A non-static or mismatched `prepare`, or a template whose parameters do not deduce to that signature (one on a
+///   mode), fails here rather than being skipped;
 /// - when K declares a `Block`, a `prepare` to make it;
 /// - when K declares any member named `reset`, exactly `static void reset(State&)`, the reset quirk the wrappers
 ///   call instead of assigning `State{}`. A non-static or otherwise mis-shaped `reset` fails here rather than being
@@ -416,8 +425,10 @@ concept staged_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1 && d
 /// owner reads once per block and applies as one value. `Control` calls `advance` once per block; @c n is the block's
 /// length in samples and may be 0, so an empty block still makes one call. The signature is exact, as `prepare`'s and
 /// `reset`'s are: `static value_type advance(const Coefficients&, State&, std::size_t n)`, or, when K has modes,
-/// `template <Mode M> static value_type advance(...)` with that signature at every listed mode. An `advance` taking
-/// its count as any other type (an `int`, or a `uint32_t` where that is not `std::size_t`) is rejected, not converted.
+/// `template <Mode M> static value_type advance(...)` with that signature at every listed mode. It is checked by
+/// converting `advance`'s address to a pointer to that function type, so a function template whose parameters deduce
+/// to exactly that type is accepted too. An `advance` taking its count as any other type (an `int`, or a `uint32_t`
+/// where that is not `std::size_t`) is rejected, not converted.
 ///
 /// The block is the step, so a control kernel:
 /// - steps a scalar (`step_type` is `value_type`);

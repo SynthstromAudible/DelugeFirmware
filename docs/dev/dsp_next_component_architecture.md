@@ -213,9 +213,11 @@ members.
 ```cpp
 static Block prepare(const Coefficients&, State&, std::size_t n);
 ```
-It is detected by name, so a `prepare` of any other shape (a template, a
-non-static member, a mismatched overload) fails the concept instead of being
-skipped. `n` is the block's length and may be 0: an empty block still prepares.
+It is detected by name, so a `prepare` of any other shape (a template on the
+mode, a non-static member, a mismatched overload) fails the concept instead of
+being skipped. The signature is matched by converting `&K::prepare` to a pointer
+to that exact function type, so a template whose parameters deduce to it is
+accepted, and a `prepare` taking any other type is rejected, never converted. `n` is the block's length and may be 0: an empty block still prepares.
 The wrapper runs `prepare` on the wrapper's own state, before it takes the
 local copies the loop runs on, so the loop's state stays in registers.
 

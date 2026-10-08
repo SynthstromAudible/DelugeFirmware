@@ -728,6 +728,21 @@ struct AdvanceU32Count {
 	static q31 advance(const Coefficients& /*c*/, State& /*s*/, uint32_t /*n*/) { return 0; }
 };
 
+/// A control kernel whose advance is a template on its count's type: its address converts to the exact signature,
+/// with the count deduced as std::size_t.
+struct AdvanceDeducedCount {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	template <typename N>
+	static q31 advance(const Coefficients& /*c*/, State& /*s*/, N /*n*/) {
+		return 0;
+	}
+};
+
 /// A control kernel whose advance returns something other than its value_type.
 struct AdvanceWrongReturn {
 	using value_type = q31;
@@ -823,6 +838,8 @@ static_assert(kernel_base<AdvanceVectorStep> && !control_kernel<AdvanceVectorSte
 static_assert(kernel_base<AdvanceIntCount> && !control_kernel<AdvanceIntCount> && !kernel<AdvanceIntCount>);
 // A uint32_t count is the exact signature where uint32_t is std::size_t, and rejected wherever it is not.
 static_assert(std::same_as<uint32_t, std::size_t> == control_kernel<AdvanceU32Count>);
+// A template whose count deduces to std::size_t has the exact signature; nothing is converted.
+static_assert(control_kernel<AdvanceDeducedCount>);
 static_assert(!control_kernel<AdvanceWrongReturn> && !kernel<AdvanceWrongReturn>);
 static_assert(!control_kernel<AdvanceFirstModeOnly> && !kernel<AdvanceFirstModeOnly>);
 
