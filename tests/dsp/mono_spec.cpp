@@ -526,6 +526,9 @@ template <typename K>
 concept wraps_in_stereo = requires { typename Stereo<K>; };
 
 static_assert(control_kernel<BlockFall>);
+// Stereo takes a processor kernel, and a kernel has one form, so a control kernel fails Stereo's processor_kernel
+// constraint; Mono takes any kernel and rejects a control kernel by its own clause.
+static_assert(!processor_kernel<BlockFall>);
 static_assert(!wraps_in_mono<BlockFall> && !wraps_in_stereo<BlockFall>);
 static_assert(wraps_in_mono<Gain> && wraps_in_stereo<Gain>);
 
