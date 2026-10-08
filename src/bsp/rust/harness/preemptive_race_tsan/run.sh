@@ -30,7 +30,7 @@
 # Usage:
 #   ./run.sh                      # build + 5 runs, default Cordae fixture, 500 blocks
 #   NUM_RUNS=3 BLOCKS=2000 ./run.sh
-#   DELUGE_SD_IMAGE=/path/to/cached.img ./run.sh   # skip repacking the FAT image
+#   DELUGE_SD_IMAGE=/path/to/cached.img ./run.sh   # use this image (each run mounts a copy)
 #   SKIP_BUILD=1 ./run.sh         # reuse an already-built TSan tree + binary (fast iteration)
 #   ./run.sh --self-test          # no build/run: replay self_test/*.log fixtures through the
 #                                  # classifier and assert each matches its *.expect verdict
@@ -51,10 +51,11 @@
 # 100% reliable across dozens of runs. If a run reports `load_dispatched=false` with
 # `boot_ready=true`, prefer the cached-image form over debugging boot ordering.
 #
-# The /tmp images are not per-invocation: `sd_image::pack_image` names them by a
+# The /tmp image is a read-only template, not a card: `sd_image::pack_image` names it by a
 # fingerprint of the packed corpus, so the FIRST unset-DELUGE_SD_IMAGE run packs one
 # ~2.5GB-sparse image and every later run with the same corpus reuses it (and skips mtools
-# entirely). One image per distinct corpus, not one per run — no periodic `rm -f` needed.
+# entirely). Each run mounts its own unlinked sparse copy (`sd_image_path::private_copy`), so
+# what one run records never reaches the next run's card, and nothing is left to clean up.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

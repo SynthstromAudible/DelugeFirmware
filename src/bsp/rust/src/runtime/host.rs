@@ -155,26 +155,38 @@ pub fn main() {
 
         // Streaming scenario, opted into by DELUGE_STREAMING_SCENARIO_SONG (e.g.
         // "SONGS/Cordae.XML"): load the song, play and record it, and step until
-        // DELUGE_STREAMING_SCENARIO_BLOCKS blocks (default 500) have rendered. Unless
-        // DELUGE_SD_IMAGE names an image already holding the song, a FAT image is packed from the
-        // golden corpus. This must run before anything touches SD: `host_app_task` mounts the
-        // card as soon as it starts.
+        // DELUGE_STREAMING_SCENARIO_BLOCKS blocks (default 500) have rendered. The card is a
+        // private copy of DELUGE_SD_IMAGE if set, else of a FAT image packed from the golden
+        // corpus, so every run starts from the same card whatever earlier runs recorded or saved.
+        // This must run before anything touches SD: `host_app_task` mounts the card as soon as it
+        // starts.
         let scenario_cfg = std::env::var("DELUGE_STREAMING_SCENARIO_SONG")
             .ok()
             .map(|song| {
-                if std::env::var_os("DELUGE_SD_IMAGE").is_none() {
-                    let fixture = std::env::var("DELUGE_STREAMING_SCENARIO_FIXTURE")
-                        .unwrap_or_else(|_| "cordae".to_string());
-                    let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                        .ancestors()
-                        .nth(3)
-                        .expect("CARGO_MANIFEST_DIR (src/bsp/rust) has a repo root 3 levels up")
-                        .to_path_buf();
-                    let img = crate::storage::sd_image::pack_golden_fixture(&repo_root, &fixture);
-                    // SAFETY: no other thread exists yet, so nothing reads the environment
-                    // concurrently.
-                    unsafe { std::env::set_var("DELUGE_SD_IMAGE", &img) };
-                }
+                let template = std::env::var_os("DELUGE_SD_IMAGE")
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| {
+                        let fixture = std::env::var("DELUGE_STREAMING_SCENARIO_FIXTURE")
+                            .unwrap_or_else(|_| "cordae".to_string());
+                        let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                            .ancestors()
+                            .nth(3)
+                            .expect("CARGO_MANIFEST_DIR (src/bsp/rust) has a repo root 3 levels up")
+                            .to_path_buf();
+                        crate::storage::sd_image::pack_golden_fixture(&repo_root, &fixture)
+                    });
+                let card =
+                    crate::storage::sd_image_path::private_copy(&template).unwrap_or_else(|e| {
+                        panic!("copying the card image {} failed: {e}", template.display())
+                    });
+                log::info!(
+                    "streaming-scenario: card is a private copy of {} at {}",
+                    template.display(),
+                    card.display()
+                );
+                // SAFETY: no other thread exists yet, so nothing reads the environment
+                // concurrently.
+                unsafe { std::env::set_var("DELUGE_SD_IMAGE", &card) };
                 let target_blocks = std::env::var("DELUGE_STREAMING_SCENARIO_BLOCKS")
                     .ok()
                     .and_then(|s| s.parse().ok())

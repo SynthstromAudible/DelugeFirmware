@@ -1,11 +1,15 @@
-//! The content-addressed SD-image naming policy (`storage::sd_image_path`): stable, reusable image
-//! paths, reuse versus repack, and fingerprinting. Runs in a plain host build.
+//! The content-addressed SD-image policy (`storage::sd_image_path`): stable, reusable template
+//! paths, reuse versus repack, packing once under concurrency, each run's private copy, and
+//! fingerprinting. Runs in a plain host build.
 
 use deluge_bsp_rust::storage::sd_image_path;
 
-use sd_image_path::{Plan, fingerprint_dir, scenario_plan};
+use sd_image_path::{Plan, ensure_template, fingerprint_dir, private_copy, scenario_plan};
 use std::fs;
+use std::io::{Read, Seek, SeekFrom, Write};
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 /// Returns a fresh per-test scratch directory under the cargo target dir, not `/tmp`.
 fn scratch(name: &str) -> PathBuf {
@@ -105,6 +109,207 @@ fn staging_path_is_process_unique_so_concurrent_packs_do_not_collide() {
     assert_ne!(
         staging, final_path,
         "staging must differ from the final path so the install can be an atomic rename"
+    );
+}
+
+// --- the template and each run's private copy -------------------------------
+
+/// A sparse 64 MB stand-in for a packed template: a marked first sector, holes after, read-only.
+fn sparse_template(dir: &Path) -> PathBuf {
+    let path = dir.join("template.img");
+    let mut file = fs::File::create(&path).expect("create template");
+    file.write_all(&[0xA5; 512])
+        .expect("write the first sector");
+    file.set_len(64 << 20).expect("size the template");
+    drop(file);
+    let mut perms = fs::metadata(&path).expect("stat template").permissions();
+    perms.set_readonly(true);
+    fs::set_permissions(&path, perms).expect("make the template read-only");
+    path
+}
+
+/// Opens a card path the way `deluge_bsp::sd`'s host backing does.
+fn open_like_the_card(path: &Path) -> fs::File {
+    fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(path)
+        .unwrap_or_else(|e| panic!("the card cannot open {path:?}: {e}"))
+}
+
+fn first_sector(path: &Path) -> Vec<u8> {
+    let mut buf = vec![0u8; 512];
+    fs::File::open(path)
+        .expect("open for read")
+        .read_exact(&mut buf)
+        .expect("read the first sector");
+    buf
+}
+
+#[test]
+fn a_run_writes_to_its_copy_and_never_to_the_template() {
+    let tmp = scratch("copy_isolates_template");
+    let template = sparse_template(&tmp);
+    let before = fs::read(&template).expect("read template");
+
+    let card = private_copy(&template).expect("copy");
+    assert_ne!(card, template, "the run was handed the template itself");
+    assert_eq!(
+        first_sector(&card),
+        vec![0xA5; 512],
+        "the copy holds the template's contents"
+    );
+    let mut file = open_like_the_card(&card);
+    file.seek(SeekFrom::Start(0)).expect("seek");
+    file.write_all(&[0x5A; 512]).expect("a run writes its card");
+    file.seek(SeekFrom::Start(32 << 20))
+        .expect("seek into a hole");
+    file.write_all(b"output_001.wav").expect("a run records");
+    drop(file);
+
+    assert_eq!(
+        first_sector(&card),
+        vec![0x5A; 512],
+        "the run sees its own write"
+    );
+    assert!(
+        fs::read(&template).expect("reread template") == before,
+        "a run's writes reached the template, and with it every later run's card"
+    );
+}
+
+#[test]
+fn each_run_gets_its_own_copy() {
+    let tmp = scratch("copy_per_run");
+    let template = sparse_template(&tmp);
+
+    let a = private_copy(&template).expect("first copy");
+    let b = private_copy(&template).expect("second copy");
+    assert_ne!(a, b, "two runs share one card path");
+    open_like_the_card(&a)
+        .write_all(&[0x11; 512])
+        .expect("write a");
+
+    assert_eq!(
+        first_sector(&b),
+        vec![0xA5; 512],
+        "one run's write reached another's card"
+    );
+}
+
+#[test]
+fn a_copy_leaves_nothing_behind_to_clean_up() {
+    let tmp = scratch("copy_unlinked");
+    let template = sparse_template(&tmp);
+
+    let _card = private_copy(&template).expect("copy");
+
+    let names: Vec<_> = fs::read_dir(&tmp)
+        .expect("list")
+        .map(|e| e.expect("entry").file_name())
+        .collect();
+    assert_eq!(
+        names,
+        vec!["template.img"],
+        "a run left a named copy behind"
+    );
+}
+
+#[test]
+fn a_copy_keeps_the_template_sparse() {
+    let tmp = scratch("copy_sparse");
+    let template = sparse_template(&tmp);
+
+    let card = private_copy(&template).expect("copy");
+
+    let meta = fs::metadata(&card).expect("stat the copy");
+    assert_eq!(meta.len(), 64 << 20, "the copy has the template's length");
+    assert!(
+        meta.blocks() * 512 < 4 << 20,
+        "the copy wrote out its holes: {} bytes on disk",
+        meta.blocks() * 512
+    );
+}
+
+#[test]
+fn the_template_is_installed_read_only() {
+    let tmp = scratch("template_read_only");
+
+    let img =
+        ensure_template(&tmp, "deadbeef", |staging| fs::write(staging, b"packed")).expect("pack");
+
+    assert!(
+        fs::metadata(&img).expect("stat").permissions().readonly(),
+        "a writable template invites a run to mount it"
+    );
+}
+
+#[test]
+fn concurrent_runs_pack_the_template_exactly_once() {
+    let tmp = scratch("template_pack_once");
+    let packs = AtomicU32::new(0);
+
+    let paths: Vec<PathBuf> = std::thread::scope(|scope| {
+        let workers: Vec<_> = (0..8)
+            .map(|_| {
+                scope.spawn(|| {
+                    ensure_template(&tmp, "deadbeef", |staging| {
+                        packs.fetch_add(1, Ordering::SeqCst);
+                        std::thread::sleep(std::time::Duration::from_millis(50));
+                        fs::write(staging, b"packed")
+                    })
+                    .expect("ensure")
+                })
+            })
+            .collect();
+        workers
+            .into_iter()
+            .map(|w| w.join().expect("join"))
+            .collect()
+    });
+
+    assert_eq!(
+        packs.load(Ordering::SeqCst),
+        1,
+        "the template was packed more than once"
+    );
+    assert!(
+        paths.iter().all(|p| *p == paths[0]),
+        "runs disagree on the template: {paths:?}"
+    );
+}
+
+#[test]
+fn a_failed_pack_leaves_no_staging_file_or_template() {
+    let tmp = scratch("template_pack_fails");
+
+    let result = ensure_template(&tmp, "deadbeef", |staging| {
+        fs::write(staging, b"half")?;
+        Err(std::io::Error::other("mtools failed"))
+    });
+
+    assert!(result.is_err());
+    let leftovers: Vec<_> = fs::read_dir(&tmp)
+        .expect("list")
+        .map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())
+        .filter(|n| !n.ends_with(".lock"))
+        .collect();
+    assert!(leftovers.is_empty(), "a failed pack left {leftovers:?}");
+}
+
+#[test]
+fn a_dead_packers_staging_file_is_swept_before_packing() {
+    let tmp = scratch("template_sweeps_staging");
+    let dead = tmp.join("deluge-streaming-scenario-deadbeef.4294967295.part");
+    fs::write(&dead, b"half-packed by a killed run").expect("leave a stale staging file");
+
+    ensure_template(&tmp, "deadbeef", |staging| fs::write(staging, b"packed")).expect("pack");
+
+    assert!(
+        !dead.exists(),
+        "a killed packer's staging file was left in the temp dir"
     );
 }
 
