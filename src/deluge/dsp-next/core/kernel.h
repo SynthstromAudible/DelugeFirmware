@@ -401,6 +401,7 @@ enum class NoMode : uint8_t { NONE };
 /// @param c K's coefficients.
 /// @param s K's state, which `prepare` may update.
 /// @param n The block's length in samples (frames for a stereo kernel); may be 0.
+/// @return The block's values, which every step of the block receives.
 template <kernel K>
 [[gnu::always_inline]] inline kernel_block_t<K> prepare_block([[maybe_unused]] const typename K::Coefficients& c,
                                                               [[maybe_unused]] typename K::State& s,
@@ -415,6 +416,8 @@ template <kernel K>
 
 /// @brief Call @p body.template operator()<M>() once: at the mode of @p c for a moded kernel, through with_mode,
 /// else at NoMode::NONE.
+/// @tparam K The kernel whose mode is dispatched on.
+/// @tparam Body The callable run at the mode.
 /// @param c K's coefficients, whose `mode` a moded kernel dispatches on.
 /// @param body A callable with a templated call operator taking the mode as its sole non-type argument.
 template <kernel K, typename Body>
@@ -433,6 +436,7 @@ template <kernel K, typename Body>
 /// @param block K's per-block values, from @ref prepare_block.
 /// @param s K's state.
 /// @param x The step's inputs: none, one or two step values, then an ActiveLanes for the counted partial step.
+/// @return The step's output: one `K::step_type`.
 template <kernel K, auto M, typename... X>
 [[gnu::always_inline]] inline typename K::step_type
 step_at(const typename K::Coefficients& c, const kernel_block_t<K>& block, typename K::State& s, X... x) {

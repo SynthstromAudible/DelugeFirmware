@@ -84,8 +84,12 @@ is asserted against that. Vector-aware `sample_*` concepts are a follow-up.
 rewrite moves, is written as a kernel and wrapped by `Mono` or `Stereo` (see
 [Kernels](#kernels-corekernelh-coremodeh)). The mixins described here remain for
 the existing oscillators and `Amplitude` until they move onto kernels (see
-[Remaining work](#remaining-work)); no new component uses them. The tail,
-in-place and inlining rules below bind the wrappers in the same way.
+[Remaining work](#remaining-work)); no new component uses them. The in-place
+and inlining rules below bind the wrappers in the same way, and so does the tail
+rule, with one difference: a wrapper running a kernel that declares
+`kPartialStepAdvancesByCount` advances its state on the partial step by the
+active-lane count, not by a whole vector (see
+[The partial step](#the-partial-step)).
 
 `Generator<D, T>`, `Processor<D, T>` and `Mixer<D, T>` are **non-virtual CRTP
 mixins**: they add no vptr and no state. Each supplies `renderBlock` from the
@@ -407,9 +411,8 @@ its parts through the same functions.
 - **`Stereo<K>`** (`core/stereo.h`) runs a mono q31 processor kernel on each
   channel: one `State` per channel and one shared `Coefficients`. It is a plain
   class satisfying the `processor` concept over `StereoSample`. Each frame steps
-  the left channel and
-  then the right, so a shared noise stream is drawn left then right on every
-  frame, bit-exact. `configure(const K::Settings&)` sets both channels from one
+  the left channel and then the right, so a shared noise stream is drawn left
+  then right on every frame, bit-exact. `configure(const K::Settings&)` sets both channels from one
   `Settings`. See [Wrappers](#wrappers).
 - **Native stereo.** A component that is stereo by nature, such as the
   compressor or the delay, is a kernel whose `value_type` is `StereoSample`,
@@ -599,8 +602,8 @@ gates:
 - Are `Coefficients` and `State` anything other than plain value structs?
 - Is noise read (through `CONG`, `jcong` or a held pointer) rather than
   injected as a template parameter?
-- Are the mono and stereo paths duplicated, where `Stereo<K>` or a native
-  stereo `render` would serve?
+- Are the mono and stereo paths duplicated, where `Stereo<K>`, or a native
+  stereo kernel (`value_type` `StereoSample`) wrapped by `Mono`, would serve?
 - Do comments paraphrase the legacy code, rather than state what the component
   does and why?
 - Does each stateful piece have a kernel, wrapped by `Mono` or `Stereo`, rather
@@ -613,8 +616,9 @@ gates:
   units build with `-fno-inline-functions`, so an out-of-line `prepare` is one
   call per channel per block.
 - Is there a structured binding over an Argon `std::array` on a per-step path?
-  Under those flags `std::get` is out of line; read through
-  `__builtin_bit_cast` or `data()`.
+  Under those flags `std::get` is out of line. An interleaved stereo load goes
+  through `detail::toStereo` (`core/stereo_vector.h`), a `__builtin_bit_cast`,
+  as `Mono` and the mixins do; any other array is read through `data()`.
 - Is every function on the per-sample path, the wrapper and mixin glue included,
   `[[gnu::always_inline]]`? The app's translation units build with
   `-fno-inline-functions`, so anything else is an out-of-line call per sample
