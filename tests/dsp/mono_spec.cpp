@@ -18,6 +18,7 @@
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/mono.h"
+#include "dsp-next/core/stereo.h"
 #include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
 #include "util/fixedpoint.h"
@@ -498,6 +499,35 @@ struct ResetQuirk {
 		return ++s.n;
 	}
 };
+
+/// A control kernel: a level falling by its rate per sample, advanced a block at a time. `Control` wraps it; `Mono`
+/// and `Stereo` have no loop for it.
+struct BlockFall {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {
+		q31 level; ///< Q1.31.
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static q31 advance(const Coefficients& /*c*/, State& s, std::size_t n) {
+		s.level -= static_cast<q31>(n);
+		return s.level;
+	}
+};
+
+/// Whether `Mono<K>` names a class: false when K fails the class's constraints.
+template <typename K>
+concept wraps_in_mono = requires { typename Mono<K>; };
+
+/// Whether `Stereo<K>` names a class: false when K fails the class's constraints.
+template <typename K>
+concept wraps_in_stereo = requires { typename Stereo<K>; };
+
+static_assert(control_kernel<BlockFall>);
+static_assert(!wraps_in_mono<BlockFall> && !wraps_in_stereo<BlockFall>);
+static_assert(wraps_in_mono<Gain> && wraps_in_stereo<Gain>);
 
 static_assert(processor<Mono<Gain>>);
 static_assert(generator<Mono<Counter>>);

@@ -46,7 +46,8 @@ inline constexpr bool is_partial_step<argon::vectorize::InterleavedStep<T, Strid
 
 /// @brief A kernel as a mono component: one Coefficients, one State; the only loop.
 /// @tparam K The kernel. Mono<K> is a @ref generator, @ref processor or @ref mixer to match K's step arity; a staged
-/// kernel makes a @ref block_processor only.
+/// kernel makes a @ref block_processor only. A control kernel is rejected at the class: it has no per-sample loop,
+/// and `Control` wraps it.
 /// @details
 /// **Per block.** `renderBlock` calls K's `prepare(coefficients, state, n)` once, when K declares one (otherwise the
 /// block is an EmptyBlock), then, for a moded kernel, dispatches once on `coefficients().mode` through with_mode.
@@ -83,6 +84,7 @@ inline constexpr bool is_partial_step<argon::vectorize::InterleavedStep<T, Strid
 /// otherwise, so `render`, `renderBlock`, the loop and every lambda handed to Argon are `[[gnu::always_inline]]`:
 /// nothing sits between the block loop and the kernel's own always-inline `step`.
 template <kernel K>
+requires(!control_kernel<K>)
 class Mono {
 	using Coefficients = typename K::Coefficients; ///< K's coefficients, computed on configure.
 	using State = typename K::State;               ///< K's state, carried from block to block.

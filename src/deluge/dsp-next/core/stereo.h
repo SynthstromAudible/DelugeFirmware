@@ -47,7 +47,8 @@ requires std::same_as<std::remove_cvref_t<std::ranges::range_reference_t<R>>, q3
 
 /// @brief A mono q31 kernel run on both channels of a stereo frame: one Coefficients shared by both channels, one State
 /// per channel, left rendered fully before right on every frame.
-/// @tparam K The kernel: a scalar q31 kernel. Stereo<K> is a @ref processor; K must be a processor kernel.
+/// @tparam K The kernel: a scalar q31 kernel. Stereo<K> is a @ref processor; K must be a processor kernel. A control
+/// kernel is rejected at the class: it has no per-sample loop, and `Control` wraps it.
 /// @details
 /// **Shared coefficients.** `configure` calls `K::coefficients` once; both channels step with the result.
 ///
@@ -73,7 +74,7 @@ requires std::same_as<std::remove_cvref_t<std::ranges::range_reference_t<R>>, q3
 /// after `prepare` and written back after the block, so that they stay in registers even though the output may
 /// alias the component.
 template <processor_kernel K>
-requires std::same_as<typename K::value_type, q31> && std::same_as<typename K::step_type, q31>
+requires(!control_kernel<K>) && std::same_as<typename K::value_type, q31> && std::same_as<typename K::step_type, q31>
 class Stereo {
 	using Coefficients = typename K::Coefficients; ///< K's coefficients, computed on configure, shared by L and R.
 	using State = typename K::State;               ///< K's state, one per channel, carried from block to block.
