@@ -18,7 +18,6 @@
 
 #include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
-#include <algorithm>
 #include <argon.hpp>
 #include <argon/vectorize/for_each.hpp>
 #include <concepts>
@@ -74,6 +73,11 @@ concept scalar_generator_render = requires(D d) {
 /// partial step: `render()` runs once more and only the lanes inside the block are stored. `render()` is
 /// therefore called exactly `ceil(size / lanes)` times, so a generator's state (its phase) advances by whole
 /// vectors, the partial one included.
+///
+/// The per-step lambdas are `[[gnu::always_inline]]` and the scalar path is a plain index loop, so nothing
+/// sits between the block loop and `render` but the component's own code. The app's translation units build
+/// with `-fno-inline-functions`, under which clang marks every function definition noinline unless it says
+/// otherwise; a component's `render` is `[[gnu::always_inline]]` for the same reason.
 template <typename Derived, typename T>
 struct Generator {
 	using value_type = T; ///< The sample type of the block.
@@ -81,14 +85,17 @@ struct Generator {
 	/// @brief Fill @p output with the next `output.size()` samples, every one of them.
 	void renderBlock(Buffer<T> output) {
 		auto& self = static_cast<Derived&>(*this);
-		const auto size = static_cast<std::ptrdiff_t>(output.size());
+		const std::size_t n = output.size();
 		if constexpr (detail::simd_generator_render<Derived, T>) {
+			const auto size = static_cast<std::ptrdiff_t>(n);
 			T* out = output.data();
-			argon::vectorize::for_each<T>(size, [&](auto step) { step.Store(out, self.render()); });
+			argon::vectorize::for_each<T>(size,
+			                              [&] [[gnu::always_inline]] (auto step) { step.Store(out, self.render()); });
 		}
 		else if constexpr (detail::simd_stereo_generator_render<Derived, T>) {
+			const auto size = static_cast<std::ptrdiff_t>(n);
 			q31* out = detail::interleaved(output);
-			argon::vectorize::for_each_interleaved<q31, 2>(size, [&](auto step) {
+			argon::vectorize::for_each_interleaved<q31, 2>(size, [&] [[gnu::always_inline]] (auto step) {
 				const StereoVector frames = self.render();
 				step.Store(out, {frames.l, frames.r});
 			});
@@ -96,7 +103,10 @@ struct Generator {
 		else {
 			static_assert(detail::scalar_generator_render<Derived, T>,
 			              "a Generator defines render() returning Argon<T>, StereoVector or T");
-			std::ranges::generate(output, [&] { return self.render(); });
+			T* out = output.data();
+			for (std::size_t i = 0; i < n; ++i) {
+				out[i] = self.render();
+			}
 		}
 	}
 };

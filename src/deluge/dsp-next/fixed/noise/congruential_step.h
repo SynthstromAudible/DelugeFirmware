@@ -31,7 +31,9 @@ struct CongruentialStep {
 	/// @brief Steps the generator state.
 	/// @param x The current state.
 	/// @return The next state, which is also the next noise sample (reinterpreted as q31).
-	[[nodiscard]] static constexpr uint32_t next(uint32_t x) { return kMultiplier * x + kIncrement; }
+	[[nodiscard, gnu::always_inline]] static constexpr uint32_t next(uint32_t x) {
+		return kMultiplier * x + kIncrement;
+	}
 };
 
 } // namespace deluge::dsp::fixed

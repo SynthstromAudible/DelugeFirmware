@@ -50,7 +50,7 @@ public:
 
 	/// @brief Advances the stream.
 	/// @return The new state, reinterpreted as a q31 sample.
-	[[nodiscard]] constexpr q31 render() {
+	[[nodiscard, gnu::always_inline]] constexpr q31 render() {
 		state_ = CongruentialStep::next(state_);
 		return static_cast<q31>(state_);
 	}

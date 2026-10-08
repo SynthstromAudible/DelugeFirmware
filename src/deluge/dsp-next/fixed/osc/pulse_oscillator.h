@@ -80,7 +80,7 @@ public:
 		// half the time, and an alignment-qualified NEON load of it faults on ARM (see TableOscillator).
 		Argon<uint32_t> pair_a{0U};
 		Argon<uint32_t> pair_b{0U};
-		util::constexpr_for<0, 4, 1>([&]<int i>() {
+		util::constexpr_for<0, 4, 1>([&]<int i> [[gnu::always_inline]] () {
 			uint32_t here = phase + increment * (i + 1);
 			uint32_t index_a = here >> (32 - magnitude_);
 			uint32_t word_a;

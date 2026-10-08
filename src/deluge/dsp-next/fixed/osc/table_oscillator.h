@@ -70,7 +70,7 @@ public:
 		Argon<uint32_t> value_pair = 0U;
 		ArgonHalf<uint16_t> fraction = 0U;
 
-		util::constexpr_for<0, 4, 1>([&]<int i>() {
+		util::constexpr_for<0, 4, 1>([&]<int i> [[gnu::always_inline]] () {
 			uint32_t phase = phasor_.advance();
 			fraction[i] = phase >> (32 - 16 - magnitude_);
 			uint32_t index = phase >> (32 - magnitude_);

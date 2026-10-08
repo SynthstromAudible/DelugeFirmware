@@ -18,7 +18,6 @@
 
 #include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
-#include <algorithm>
 #include <argon.hpp>
 #include <argon/vectorize/for_each.hpp>
 #include <concepts>
@@ -74,6 +73,11 @@ concept scalar_processor_render = requires(D d, T s) {
 /// Every sample of the block is written. On the SIMD paths a block that is not a lane multiple ends with one
 /// partial step: lanes past the end load as zero, go through `render` with the rest, and are not stored.
 /// Each step loads before it stores, so @p input and @p output may be the same buffer.
+///
+/// The per-step lambdas are `[[gnu::always_inline]]` and the scalar path is a plain index loop, so nothing
+/// sits between the block loop and `render` but the component's own code. The app's translation units build
+/// with `-fno-inline-functions`, under which clang marks every function definition noinline unless it says
+/// otherwise; a component's `render` is `[[gnu::always_inline]]` for the same reason.
 template <typename Derived, typename T>
 struct Processor {
 	using value_type = T; ///< The sample type of the blocks.
@@ -82,16 +86,19 @@ struct Processor {
 	/// @param input at least `output.size()` samples; may be the same buffer as @p output.
 	void renderBlock(Signal<T> input, Buffer<T> output) {
 		auto& self = static_cast<Derived&>(*this);
-		const auto size = static_cast<std::ptrdiff_t>(output.size());
+		const std::size_t n = output.size();
 		if constexpr (detail::simd_processor_render<Derived, T>) {
+			const auto size = static_cast<std::ptrdiff_t>(n);
 			const T* in = input.data();
 			T* out = output.data();
-			argon::vectorize::for_each<T>(size, [&](auto step) { step.Store(out, self.render(step.Load(in))); });
+			argon::vectorize::for_each<T>(
+			    size, [&] [[gnu::always_inline]] (auto step) { step.Store(out, self.render(step.Load(in))); });
 		}
 		else if constexpr (detail::simd_stereo_processor_render<Derived, T>) {
+			const auto size = static_cast<std::ptrdiff_t>(n);
 			const q31* in = detail::interleaved(input);
 			q31* out = detail::interleaved(output);
-			argon::vectorize::for_each_interleaved<q31, 2>(size, [&](auto step) {
+			argon::vectorize::for_each_interleaved<q31, 2>(size, [&] [[gnu::always_inline]] (auto step) {
 				const auto [l, r] = step.Load(in);
 				const StereoVector frames = self.render(StereoVector{.l = l, .r = r});
 				step.Store(out, {frames.l, frames.r});
@@ -100,8 +107,11 @@ struct Processor {
 		else {
 			static_assert(detail::scalar_processor_render<Derived, T>,
 			              "a Processor defines render taking and returning Argon<T>, StereoVector or T");
-			std::ranges::transform(input.first(output.size()), output.begin(),
-			                       [&](T sample) { return self.render(sample); });
+			const T* in = input.data();
+			T* out = output.data();
+			for (std::size_t i = 0; i < n; ++i) {
+				out[i] = self.render(in[i]);
+			}
 		}
 	}
 };

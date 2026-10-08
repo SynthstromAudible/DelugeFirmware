@@ -44,12 +44,15 @@ public:
 		return phase_;
 	}
 
-	[[nodiscard]] constexpr uint32_t phase() const { return phase_; }
-	[[nodiscard]] constexpr uint32_t increment() const { return increment_; }
+	/// The current phase.
+	[[nodiscard, gnu::always_inline]] constexpr uint32_t phase() const { return phase_; }
+	/// The per-sample phase step.
+	[[nodiscard, gnu::always_inline]] constexpr uint32_t increment() const { return increment_; }
 
 	/// Jump the phase to @p phase (e.g. a hard-sync reset). Leaves the increment unchanged.
-	constexpr void seek(uint32_t phase) { phase_ = phase; }
-	constexpr void setIncrement(uint32_t increment) { increment_ = increment; }
+	[[gnu::always_inline]] constexpr void seek(uint32_t phase) { phase_ = phase; }
+	/// Set the per-sample phase step, keeping the phase.
+	[[gnu::always_inline]] constexpr void setIncrement(uint32_t increment) { increment_ = increment; }
 };
 
 } // namespace deluge::dsp
