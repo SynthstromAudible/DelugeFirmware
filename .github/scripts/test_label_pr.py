@@ -12,6 +12,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import label_pr as lp
@@ -284,6 +286,38 @@ class MainTests(unittest.TestCase):
         _, calls = self.run_main(pr_event(hostile))
         self.assertNotIn("@everyone", calls[-1][-1])
         self.assertNotIn("rm -rf", calls[-1][-1])
+
+
+class ConfigConsistencyTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.label_names = {
+            e["name"] for e in yaml.safe_load((GITHUB_DIR / "labels.yml").read_text())
+        }
+        cls.labeler = yaml.safe_load((GITHUB_DIR / "labeler.yml").read_text())
+
+    def test_type_checkbox_labels_exist(self):
+        for label in lp.TYPE_LABELS.values():
+            with self.subTest(label=label):
+                self.assertIn(label, self.label_names)
+
+    def test_labeler_only_applies_defined_area_labels(self):
+        for label in self.labeler:
+            with self.subTest(label=label):
+                self.assertIn(label, self.label_names)
+                self.assertTrue(label.startswith("area: "))
+
+    def test_every_rule_is_a_nonempty_changed_files_glob_list(self):
+        for label, rules in self.labeler.items():
+            with self.subTest(label=label):
+                self.assertEqual(len(rules), 1)
+                globs = rules[0]["changed-files"][0]["any-glob-to-any-file"]
+                self.assertTrue(globs)
+                self.assertTrue(all(isinstance(glob, str) for glob in globs))
+
+    def test_every_area_label_has_a_rule(self):
+        areas = {name for name in self.label_names if name.startswith("area: ")}
+        self.assertEqual(areas - set(self.labeler), set())
 
 
 if __name__ == "__main__":
