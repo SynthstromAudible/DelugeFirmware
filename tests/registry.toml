@@ -1728,3 +1728,14 @@ run = ["cargo", "+nightly", "fuzz", "run", "parse", "--", "-max_total_time=60"]
 requires = ["cargo-fuzz"]
 tier = "manual"
 runtime = "~2m"
+
+[[harness]]
+name = "dsp-bench-parser"
+path = "tools"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "the DSP bench host script's parsing of device captures: partial, mismatched and malformed runs are rejected, and the table text and probe arguments are exact"
+run = ["python3", "-m", "unittest", "test_dsp_bench"]
+tier = "pr"

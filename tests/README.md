@@ -128,6 +128,7 @@ a skip fail the run.
 | registry-selftest | unit | script | unit | gate | this registry's loader, validation, selection and probes, and the SDRAM annotation tool's tests | pr | ~1s |
 | render-preset-selftest | unit | script | unit | gate | the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands; each render-song gate plays its own generated song, whatever the shell exports | pr | ~1s |
 | audio-format-fuzz | component | script | fuzz | gate | the audio-format header parser must not panic, overrun or loop on arbitrary input | manual | ~2m |
+| dsp-bench-parser | unit | script | unit | gate | the DSP bench host script's parsing of device captures: partial, mismatched and malformed runs are rejected, and the table text and probe arguments are exact | pr | ? |
 <!-- END GENERATED TABLE -->
 
 ## Where things live, and why
