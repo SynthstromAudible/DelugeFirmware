@@ -51,6 +51,7 @@ import tempfile
 import threading
 import time
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_DEVICE = "R7S721020"
@@ -133,6 +134,35 @@ def entry_point(elf: str, readelf: str) -> str | None:
         if "Entry point" in line:
             return line.split()[-1]
     return None
+
+
+def wait_for_port_listening(port: int, deadline: float) -> bool:
+    """Wait until something listens on `port`, read from /proc rather than by connecting."""
+    hex_port = f":{port:04X}"
+    while time.time() < deadline:
+        for table in ("/proc/net/tcp", "/proc/net/tcp6"):
+            try:
+                rows = Path(table).read_text().splitlines()[1:]
+            except OSError:
+                continue
+            # Column 1 is local_address:port; state 0A is LISTEN.
+            if any(
+                r.split()[1].endswith(hex_port) and r.split()[3] == "0A" for r in rows
+            ):
+                return True
+        time.sleep(0.2)
+    return False
+
+
+def wait_for_server_line(
+    text: str, log: list[str], server: subprocess.Popen, deadline: float
+) -> bool:
+    """Wait until the GDB server has printed a line containing `text`."""
+    while time.time() < deadline and server.poll() is None:
+        if any(text in line for line in list(log)):
+            return True
+        time.sleep(0.2)
+    return False
 
 
 def wait_for_port(port: int, deadline: float) -> bool:
@@ -274,7 +304,17 @@ def main() -> int:
     threading.Thread(target=drain_server, daemon=True).start()
 
     deadline = started + args.timeout
-    if not wait_for_port(GDB_PORT, min(deadline, started + 30)):
+    # Wait for the server to say it is ready rather than probing its port: a probe connection is a
+    # GDB client to the server, and through a remote J-Link the server is still closing it when GDB
+    # connects, which breaks GDB's handshake (QStartNoAckMode conflicting enabled responses).
+    # "Connected to target" is the last whole line before the server listens: its "Waiting for GDB
+    # connection..." has no newline, so it never reaches a line reader.
+    if not wait_for_server_line("Connected to target", res.probe_log, srv, deadline):
+        srv.kill()
+        return finish(
+            3, "probe-error", "J-Link GDB server never connected to the target"
+        )
+    if not wait_for_port_listening(GDB_PORT, deadline):
         srv.kill()
         return finish(3, "probe-error", "J-Link GDB server never opened its port")
 
