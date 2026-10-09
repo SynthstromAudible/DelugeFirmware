@@ -72,17 +72,17 @@ These numbers explain the cost of a streaming q31 loop:
 
 ## Shared kernel costs
 
-Cycles per sample on the device, `Mono` wrapper, one channel. The bench ran on cab9fce07 (2026-10-09); the two tanh
-rows are from f75b87014 (2026-10-09):
+Cycles per sample on the device, `Mono` wrapper, one channel. The bench ran on 5c4df244f (2026-10-09), with the
+shared blocks padded off 1 KB multiples:
 
 | Kernel (case) | n=32 | n=64 | n=128 |
 |---|---:|---:|---:|
-| `ShiftTracker` (`shift_tracker`) | 6.82 | 6.14 | 5.83 |
-| `OnePole` LOW_PASS (`one_pole_lp`) | 10.20 | 9.59 | 9.31 |
-| `OnePole` ALL_PASS (`one_pole_ap`) | 12.78 | 11.73 | 11.13 |
-| `AntialiasedTanh` (`antialiased_tanh`) | 43.39 | 42.69 | 42.34 |
-| `Tanh<3>` (`tanh3`) | 17.14 | 16.56 | 16.28 |
-| `DryWetBlend` BLEND, `Mono` mixer (`dry_wet_blend`) | 9.58 | 8.51 | 8.02 |
+| `ShiftTracker` (`shift_tracker`) | 6.86 | 6.16 | 5.83 |
+| `OnePole` LOW_PASS (`one_pole_lp`) | 10.22 | 9.60 | 9.31 |
+| `OnePole` ALL_PASS (`one_pole_ap`) | 12.13 | 11.08 | 10.58 |
+| `AntialiasedTanh` (`antialiased_tanh`) | 43.42 | 42.69 | 42.38 |
+| `Tanh<3>` (`tanh3`) | 17.19 | 16.57 | 16.29 |
+| `DryWetBlend` BLEND, `Mono` mixer (`dry_wet_blend`) | 9.02 | 8.24 | 7.87 |
 
 - A single-channel `Mono` run measures a recursive kernel's scalar recursion with its dependency chain; it says
   nothing about the gain from interleaving channels. [Lanes](#lanes) measures that.
