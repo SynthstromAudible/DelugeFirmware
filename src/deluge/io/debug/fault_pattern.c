@@ -172,6 +172,8 @@ static FaultColour faultColour(DelugeCpuFault type) {
 		return (FaultColour){.r = 255, .g = 0, .b = 0}; // red
 	case DELUGE_CPU_FAULT_RESERVED:
 		return (FaultColour){.r = 255, .g = 0, .b = 255}; // magenta
+	case DELUGE_CPU_FAULT_RUST_PANIC:
+		return (FaultColour){.r = 255, .g = 128, .b = 0}; // orange
 	case DELUGE_CPU_FAULT_FREEZE:
 		return (FaultColour){.r = 255, .g = 255, .b = 0}; // yellow
 	case DELUGE_CPU_FAULT_SVC:

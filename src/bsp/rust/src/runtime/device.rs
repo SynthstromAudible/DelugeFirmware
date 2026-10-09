@@ -18,13 +18,39 @@ use crate::{boot, boot_mem, sys};
 #[global_allocator]
 static FS_ALLOCATOR: fs_alloc::DelugeGlobalAlloc = fs_alloc::DelugeGlobalAlloc::new();
 
+unsafe extern "C" {
+    /// Draws a fault's call chain on the pads and flushes it to the PIC (`io/debug/fault_pattern.h`).
+    /// `fault_type` is a `DelugeCpuFault` (`foundation/panic.h`).
+    fn deluge_fault_pattern_draw(fault_pc: u32, fault_type: u32, sys_lr: u32, sys_sp: u32);
+}
+
+/// `DELUGE_CPU_FAULT_RUST_PANIC`: the commit ID is drawn orange.
+const FAULT_RUST_PANIC: u32 = 0xD;
+
+/// Set by the first panic, so a panic raised while reporting one doesn't draw over it.
+static PANICKED: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
+
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
+    // Where the panic machinery was entered from, and the stack to walk for the rest of the chain.
+    let lr: u32;
+    let sp: u32;
+    // SAFETY: only reads two registers.
+    unsafe {
+        core::arch::asm!("mov {}, lr", out(reg) lr, options(nomem, nostack, preserves_flags));
+        core::arch::asm!("mov {}, sp", out(reg) sp, options(nomem, nostack, preserves_flags));
+    }
     // Never unwind across the `extern "C"` boundary. Print straight to RTT, not through `log`:
-    // release builds compile `log`'s levels out, which made every device panic silent. The spin
-    // stalls only the context that panicked, so a thread-mode panic leaves audio playing.
+    // release builds compile `log`'s levels out, which made every device panic silent.
     #[cfg(feature = "rtt")]
     rtt_target::rprintln!("PANIC: {}", _info);
+    // And on the pads, like a C++ freeze or a CPU fault, so a panic is legible with no probe
+    // attached. Drawn by polling, so it works from any context, the render's included.
+    if !PANICKED.swap(true, core::sync::atomic::Ordering::Relaxed) {
+        // SAFETY: the reporter only reads the stack within the board's declared stack bounds.
+        unsafe { deluge_fault_pattern_draw(0, FAULT_RUST_PANIC, lr, sp) };
+    }
+    // The spin stalls only the context that panicked, so a thread-mode panic leaves audio playing.
     loop {
         core::hint::spin_loop();
     }
