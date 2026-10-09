@@ -696,21 +696,27 @@ tools/dsp_bench.py --timeout 180          # flashes, captures RTT, writes the ta
 ./dbt build RelWithDebInfo
 ```
 
-Attach the J-Link probe before the board boots: the RTT buffer is 16 KB, the
-bench prints about 6 KB beside the boot logs, and lines are dropped when the
-buffer is full. `dsp_bench.py` writes `.superpowers/estate/bench/<date>-<sha>.md`
-(the table) and `.json` (the records and the run's metadata, the `BENCH-INFO`
-values among it). It exits 0 on success, 2 for an incomplete or malformed
-capture (no table is written), and passes the probe script's own code through
-(3 for a probe error, 4 for bad usage). `--from-capture FILE` re-tabulates a
-saved capture.
+`dsp_bench.py` runs `deluge_jlink.py`, which loads the RAM image and starts it
+itself, so there is no probe to attach beforehand. The bench runs before
+`deluge_app_init()`, so its lines (about 6 KB) are the first large write into the
+empty 16 KB RTT buffer and arrive whole; it is the boot lines after them that may
+be dropped while the buffer is full. `dsp_bench.py` writes
+`.superpowers/estate/bench/<date>-<sha>.md` (the table) and `.json` (the records
+and the run's metadata, the `BENCH-INFO` values and the sanity result among it).
+It exits 0 on success; 2 for an incomplete or malformed capture (no table is
+written); 3 when the probe script fails (its own code is in the message); and 4
+when the run is complete but fails the sanity check below (the table is written,
+marked with a `**SANITY CHECK FAILED**` banner). `--from-capture FILE`
+re-tabulates a saved capture.
 
 **What is measured.** Each case is a component, built as the voice builds it and
 run on the SRAM buffers the voice uses, and each is timed at block sizes
 n = 32, 64 and 128:
 
 1. `setup(n)` configures the component and fills its inputs;
-2. four blocks run untimed, so the component is in the state its comment
+2. blocks run untimed until at least 512 samples and at least four blocks have
+   run (16 blocks at n = 32, 8 at 64, 4 at 128), so the component's code and
+   tables are resident at every size and it is in the state its comment
    documents;
 3. K = 64 consecutive blocks run between two counter readings;
 4. the difference, modulo 2^32, less the calibration's difference at the same n
@@ -719,7 +725,16 @@ n = 32, 64 and 128:
 The calibration (`case=calibration`) is the same loop and the same indirect call
 over a component whose block does nothing, so subtracting it removes the cost of
 reading the counters and of the call. It is printed raw, so the table shows what
-was subtracted.
+was subtracted. The image starts with cold caches, so before the first block
+size the runner times the calibration once more and discards it; every printed
+calibration, the first size's included, is measured warm.
+
+The calibration removes the trampoline and the counter reads only. `cps` still
+includes each case's per-block glue: the loads of the spans its setup took, the
+call into the component's `renderBlock` (`advance` for the duck), and, for
+`synced_pulse` and `duck_envelope`, the construction and `configure` they run
+every block, as the voice and the sidechain do. That glue costs about the same in every block, so it adds roughly
+constant / n to `cps` and inflates the small-n rows most.
 
 **The lines.** Each measurement is one RTT line:
 
@@ -749,12 +764,15 @@ The events are the Cortex-A9 PMU's (Cortex-A9 TRM, DDI 0388I, Tables 11.5 and
 [1024 * n, 1024 * n + 2048] and its `cps` is at least 32.00 (the arithmetic is in
 the case's comment in `cases.h`). A result outside that means the event
 programming, not the component, is at fault: settle it before trusting any row.
+`dsp_bench.py` checks both at every n, and checks that `dbgauthstatus` has SNE
+(bit 6) set; on a failure it still writes the table, marked, and exits 4.
 
 **Counters that read zero.** The A9 counts events only where non-invasive debug
-is permitted. In Secure state that needs SPNIDEN (or SPIDEN) high (Cortex-A9 TRM,
-10.8, Table 10.12; ARMv7-A ARM, DDI 0406C.b, Part C, "Non-invasive debug
-authentication"). With it low the event counters do not count while PMCCNTR
-still does, because PMCR.DP is 0 (DDI 0406C.b, "Effects of non-invasive debug
+is permitted. In Secure state that needs both DBGEN or NIDEN high, and SPIDEN or
+SPNIDEN high (ARMv7-A ARM, DDI 0406C.b, Part C, "Non-invasive debug
+authentication", the table "v7 Debug non-invasive debug authentication, with
+Security Extensions"; Cortex-A9 TRM, 10.8, Table 10.12). Without them the event
+counters do not count while PMCCNTR still does, because PMCR.DP is 0 (DDI 0406C.b, "Effects of non-invasive debug
 authentication on the Performance Monitors"). The signature is a plausible
 `cycles` beside every event at zero, `inst` of `calibration_loop` first. The
 bench prints the register that settles it before the cases:
@@ -765,8 +783,10 @@ BENCH-INFO dbgauthstatus=0x........
 
 DBGAUTHSTATUS is read with `mrc p14, 0, <Rt>, c7, c14, 6` (DDI 0406C.b,
 "DBGAUTHSTATUS, Authentication Status register"; Cortex-A9 TRM, Table 10.9). Bit 6
-(SNE) is set when non-invasive debug is permitted in Secure PL1 modes, and bit 2
-(NSNE) when it is permitted in Non-secure state. With bit 6 clear the events do
+(SNE) is set when non-invasive debug is permitted in Secure PL1 modes, that is
+(DBGEN or NIDEN) and (SPIDEN or SPNIDEN), and bit 2 (NSNE) when it is permitted
+in Non-secure state. The bench prints a plain `bench: reading debug
+authentication` line just before the read, so a run that stops there shows it. With bit 6 clear the events do
 not count in Secure state, and it is the board's authentication signals, not the
 firmware, that have to change.
 
