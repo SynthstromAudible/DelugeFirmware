@@ -18,14 +18,14 @@
 // OnePole: the one-pole low-pass section the ladders, the compressor and the granular processor build on. The values
 // are 16 samples of a ramp at moveability 0x20000000.
 
-#include "dsp-next/fixed/filter/one_pole.h"
+#include "dsp-next/fixed/filter/legacy/one_pole.h"
 
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>
 #include <tuple>
 
-using deluge::dsp::fixed::OnePole;
+using deluge::dsp::fixed::legacy::OnePole;
 
 namespace {
 constexpr int32_t kMoveability = 0x20000000;

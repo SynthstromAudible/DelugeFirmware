@@ -22,7 +22,7 @@
 
 #include <cstdint>
 
-namespace deluge::dsp::fixed {
+namespace deluge::dsp::fixed::legacy {
 
 /// @brief A one-pole low-pass section with its memory (Q31): the ladders' (and the compressor's and the granular
 /// processor's) building block. Each step moves the memory toward the input by the moveability.
@@ -71,4 +71,4 @@ private:
 	q31 memory_{0};
 };
 
-} // namespace deluge::dsp::fixed
+} // namespace deluge::dsp::fixed::legacy

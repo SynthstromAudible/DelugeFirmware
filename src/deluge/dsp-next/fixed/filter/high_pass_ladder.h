@@ -20,7 +20,7 @@
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/filter/dry_wet_fade.h"
 #include "dsp-next/fixed/filter/filter_modes.h"
-#include "dsp-next/fixed/filter/one_pole.h"
+#include "dsp-next/fixed/filter/legacy/one_pole.h"
 
 #include <cstdint>
 #include <span>
@@ -61,9 +61,9 @@ public:
 private:
 	/// One channel's ladder: its three sections and the antialiased saturator's last position on the curve.
 	struct Channel {
-		OnePole high_pass_1;
-		OnePole low_pass_1;
-		OnePole high_pass_3;
+		legacy::OnePole high_pass_1;
+		legacy::OnePole low_pass_1;
+		legacy::OnePole high_pass_3;
 		uint32_t last_working_value{};
 
 		void reset() {

@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp" // kSampleRate
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
-#include "dsp-next/fixed/filter/one_pole.h"
+#include "dsp-next/fixed/filter/legacy/one_pole.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "util/fixedpoint.h"
 
@@ -163,7 +163,7 @@ private:
 	bool seeded_ = false;
 
 	/// The detector's high-pass, left then right.
-	std::array<OnePole, 2> detector_{};
+	std::array<legacy::OnePole, 2> detector_{};
 
 	/// The attack time in ms for a 3 dB change.
 	float attack_ms_ = 0;

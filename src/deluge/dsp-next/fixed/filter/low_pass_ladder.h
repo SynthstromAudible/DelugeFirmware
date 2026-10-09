@@ -20,7 +20,7 @@
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/filter/dry_wet_fade.h"
 #include "dsp-next/fixed/filter/filter_modes.h"
-#include "dsp-next/fixed/filter/one_pole.h"
+#include "dsp-next/fixed/filter/legacy/one_pole.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "util/fixedpoint.h"
 
@@ -67,10 +67,10 @@ private:
 	/// One channel's ladder: its noise follower (Q31, a quarter of the noise's range) and its four sections.
 	struct Channel {
 		q31 noise_last{};
-		std::array<OnePole, 4> sections{};
+		std::array<legacy::OnePole, 4> sections{};
 
 		void reset() {
-			for (OnePole& section : sections) {
+			for (legacy::OnePole& section : sections) {
 				section.reset();
 			}
 		}
