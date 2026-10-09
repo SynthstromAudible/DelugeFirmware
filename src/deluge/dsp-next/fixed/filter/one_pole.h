@@ -35,7 +35,7 @@ namespace deluge::dsp::fixed {
 /// @details Each step moves z toward the input x by the moveability m = tan(f)/(1+tan(f)), Q31, where f is the cutoff
 /// as a fraction of the sample rate times π:
 ///
-///     v = (x − z) × m × 2,   y = v + z,   z ← y + v
+///     v = (x − z) × m,   y = v + z,   z ← y + v
 ///
 /// y is the low-pass output. The product is rounded to Q30 (a multiply keeping the high word) and doubled back to Q31,
 /// so its lowest bit is always clear (see @ref kProductToQ31Shift).
@@ -89,7 +89,7 @@ struct OnePole {
 		return {.m = s.moveability, .mode = s.mode};
 	}
 
-	/// @brief One sample: v = (x − z) × m × 2, y = v + z, z ← y + v, wrapping; then y, x − y or 2y − x.
+	/// @brief One sample: v = (x − z) × m, y = v + z, z ← y + v, wrapping; then y, x − y or 2y − x.
 	/// @tparam M The block's mode.
 	/// @param c The moveability.
 	/// @param s The memory, updated before the return value is taken.
