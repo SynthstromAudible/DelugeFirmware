@@ -18,15 +18,28 @@ and ends with `BENCH-DONE cases=<count>`, where count covers every BENCH line be
 per-size `calibration` lines included. Before the cases the device prints metadata lines,
 `BENCH-INFO <key>=<value>` (today `dbgauthstatus=0x...`, the Cortex-A9 DBGAUTHSTATUS register); they
 are not measurements, are not counted by BENCH-DONE and are recorded under "info" in the JSON meta.
-Other RTT lines are ignored. The run is complete only when
-BENCH-DONE is present, its count equals the parsed lines and no line is malformed or a BENCH-ERROR.
+Other RTT lines (the boot log, and the plain `bench: ...` marker lines the device prints) are
+ignored. The run is complete only when BENCH-DONE is present, its count equals the parsed lines and no
+line is malformed or a BENCH-ERROR.
+
+A complete run is then checked for sanity:
+  * `calibration_loop` is present at every block size n in the run, with `inst` in
+    [1024*n, 1024*n + 2048] and `cps` at least 32.00 (the arithmetic is in cases.h);
+  * `BENCH-INFO dbgauthstatus` is present with SNE, bit 6, set: without it the event counters do not
+    count in Secure state.
+A failure means the counters, not the components, are at fault.
 
 Output, in --out: <YYYY-MM-DD>-<git short sha>.md (a Markdown table: case, n, cps, cycles and each
-event per sample, to two decimals) and .json (the records plus the run's metadata). Re-running on
-the same sha overwrites. Nothing is written for an incomplete run.
+event per sample, to two decimals) and .json (the records plus the run's metadata, its "sanity"
+result among it: {"passed": bool, "failures": [...]}). A run that fails the sanity check is still
+written, with a `**SANITY CHECK FAILED**` banner line above the table. Re-running on the same sha
+overwrites. Nothing is written for an incomplete run.
 
-Exit codes: 0 success; 2 incomplete or malformed capture; the probe script's own code (3 probe
-error, 4 usage) is passed through.
+Exit codes:
+    0  success
+    2  incomplete or malformed capture (nothing written)
+    3  the probe script failed (its own exit code is in the message)
+    4  the run is complete but fails the sanity check (the marked table is written)
 """
 
 import argparse
@@ -47,6 +60,17 @@ INT_FIELDS = ("n", "k", "cycles", *EVENTS)
 CPS_FORM = re.compile(r"\d+\.\d\d")
 DONE = re.compile(r"^BENCH-DONE cases=(\d+)\s*$")
 INFO = re.compile(r"^BENCH-INFO (\w+)=(\S+)\s*$")
+CALIBRATION_LOOP = "calibration_loop"
+# calibration_loop renames 4 instructions * 4 iterations per sample in each block, plus under 32
+# instructions of per-block constant: inst lies in [16*k*n, 16*k*n + 32*k], [1024*n, 1024*n + 2048] at
+# the device's k = 64.
+LOOP_INST_PER_BLOCK_SAMPLE = 16
+LOOP_INST_SLACK_PER_BLOCK = 32
+LOOP_MIN_CPS_HUNDREDTHS = 3200
+DBGAUTHSTATUS_SNE = 1 << 6
+EXIT_INCOMPLETE = 2
+EXIT_PROBE = 3
+EXIT_INSANE = 4
 
 
 class Record(NamedTuple):
@@ -120,8 +144,10 @@ def parse_capture(lines: list[str]) -> Capture:
 
 
 def per_sample(count: int, k: int, n: int) -> str:
-    """count / (k*n) to two decimals, rounded half up, in integers."""
+    """count / (k*n) to two decimals, rounded half up, in integers; 0.00 for no samples."""
     samples = k * n
+    if samples == 0:
+        return "0.00"
     hundredths = (100 * count + samples // 2) // samples
     return f"{hundredths // 100}.{hundredths % 100:02d}"
 
@@ -146,9 +172,50 @@ def problems(cap: Capture) -> list[str]:
     if cap.done_count is None:
         found.append("no BENCH-DONE line: the run did not finish")
     elif cap.done_count != len(cap.records) + len(cap.errors):
+        parsed = len(cap.records) + len(cap.errors)
         found.append(
-            f"BENCH-DONE says cases={cap.done_count} but {len(cap.records)} BENCH lines parsed"
+            f"BENCH-DONE counts {cap.done_count} lines but {len(cap.records)} BENCH lines"
+            f" and {len(cap.errors)} errors make {parsed}"
         )
+    return found
+
+
+def cps_hundredths(cps: str) -> int:
+    """A two-decimal cps text as hundredths."""
+    whole, _, fraction = cps.partition(".")
+    return int(whole) * 100 + int(fraction)
+
+
+def sanity(cap: Capture) -> list[str]:
+    """Why a complete capture's counters are not to be trusted; empty when they are."""
+    found = []
+    for n in sorted({r.n for r in cap.records}):
+        loops = [r for r in cap.records if r.case == CALIBRATION_LOOP and r.n == n]
+        if not loops:
+            found.append(f"no {CALIBRATION_LOOP} line at n={n}")
+        for r in loops:
+            low = LOOP_INST_PER_BLOCK_SAMPLE * r.k * n
+            high = low + LOOP_INST_SLACK_PER_BLOCK * r.k
+            if not low <= r.inst <= high:
+                found.append(
+                    f"{CALIBRATION_LOOP} n={n}: inst={r.inst} is outside [{low}, {high}]"
+                )
+            if cps_hundredths(r.cps) < LOOP_MIN_CPS_HUNDREDTHS:
+                found.append(f"{CALIBRATION_LOOP} n={n}: cps={r.cps} is below 32.00")
+    status = cap.info.get("dbgauthstatus")
+    if status is None:
+        found.append("no BENCH-INFO dbgauthstatus line")
+    else:
+        try:
+            value = int(status, 16)
+        except ValueError:
+            found.append(f"dbgauthstatus={status} is not a hex number")
+        else:
+            if not value & DBGAUTHSTATUS_SNE:
+                found.append(
+                    f"dbgauthstatus={status}: SNE (bit 6) is clear, so the event"
+                    " counters do not count in Secure state"
+                )
     return found
 
 
@@ -207,12 +274,13 @@ def run_probe(args: argparse.Namespace) -> tuple[int, list[str]]:
         rtt = []
         if proc.returncode in (0, 1, 2):
             print("dsp_bench: the probe script printed no JSON result", file=sys.stderr)
-            return 3, rtt
+            return EXIT_PROBE, rtt
     if proc.returncode not in (0, 1, 2):
         print(
             f"dsp_bench: probe failed ({proc.returncode}): {proc.stderr.strip()}",
             file=sys.stderr,
         )
+        return EXIT_PROBE, rtt
     return proc.returncode, rtt
 
 
@@ -248,8 +316,9 @@ def main(argv: list[str] | None = None) -> int:
         print("dsp_bench: incomplete run, nothing written:", file=sys.stderr)
         for p in found:
             print(f"  {p}", file=sys.stderr)
-        return 2
+        return EXIT_INCOMPLETE
 
+    failures = sanity(cap)
     meta = {
         "sha": git_sha(),
         "date": today(),
@@ -257,16 +326,24 @@ def main(argv: list[str] | None = None) -> int:
         "elf": args.elf,
         "elf_mtime": elf_stamp(args.elf),
         "info": cap.info,
+        "sanity": {"passed": not failures, "failures": failures},
     }
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     stem = out / f"{meta['date']}-{meta['sha']}"
     table = render_table(cap.records)
+    if failures:
+        table = f"**SANITY CHECK FAILED**: {'; '.join(failures)}\n\n{table}"
     stem.with_suffix(".md").write_text(table)
     doc = {"meta": meta, "records": [r._asdict() for r in cap.records]}
     stem.with_suffix(".json").write_text(json.dumps(doc, indent=2) + "\n")
     print(table, end="")
     print(f"dsp_bench: wrote {stem}.md and .json", file=sys.stderr)
+    if failures:
+        print("dsp_bench: the run fails the sanity check:", file=sys.stderr)
+        for f in failures:
+            print(f"  {f}", file=sys.stderr)
+        return EXIT_INSANE
     return 0
 
 
