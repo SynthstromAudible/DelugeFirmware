@@ -1739,3 +1739,4 @@ status = "gate"
 gates = "the DSP bench host script's parsing of device captures: partial, mismatched and malformed runs are rejected, and the table text and probe arguments are exact"
 run = ["python3", "-m", "unittest", "test_dsp_bench"]
 tier = "pr"
+runtime = "~1s"
