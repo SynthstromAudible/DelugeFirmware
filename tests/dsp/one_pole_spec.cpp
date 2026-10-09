@@ -19,8 +19,9 @@
 // of a ramp at moveability 0x20000000. The OnePole kernel is pinned against the class, sample by sample from equal
 // memories: LOW_PASS against lowPass, ALL_PASS against allPass, HIGH_PASS against the input less lowPass, as the
 // high-pass ladder and the compressor write it, and the feedback reads against the class's. Full-scale and extreme
-// inputs, whose differences overflow q31, are pinned against the class's expressions computed through uint32_t,
-// wrapping as the hardware does. Then Mono<OnePole> against a hand loop over the kernel, across a mode switch.
+// inputs, whose arithmetic overflows q31 in every mode's own operations, and the feedback reads at the memories they
+// leave and at the extremes, are pinned against the class's expressions computed through uint32_t, wrapping as the
+// hardware does. Then Mono<OnePole> against a hand loop over the kernel, across a mode switch.
 
 #include "dsp-next/fixed/filter/one_pole.h"
 
@@ -38,6 +39,7 @@
 #include <limits>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 using namespace deluge::dsp;
@@ -76,8 +78,12 @@ constexpr q31 kMax = std::numeric_limits<q31>::max();
 /// The feedback amounts the feedback reads run, Q31: the extremes, silence, and three between.
 constexpr std::array<q31, 6> kAmounts{kMin, -(1 << 29), 0, 1 << 29, 0x5A82'7999, kMax};
 
-/// The shift that quietens the comparisons' noise. Near Nyquist the memory swings far wider than the input, so the
-/// class's signed arithmetic, which the comparisons run against, stays inside q31 only on a quiet input.
+/// The shift that quietens the comparisons' noise, so that none of the class's signed operations can overflow.
+/// @details With μ the moveability as a fraction (m / 2^31), each step sets z ← (1 − 2μ)z + 2μx, so a bounded input
+/// bounds the memory at |z| ≤ μ/(1 − μ) · max|x| when μ > 1/2. At the comparisons' highest moveability, 0x78000000
+/// (μ = 15/16), that gain is 15: at an input of 2^-5 of full scale, |z| ≤ 15/32, x − z stays within 1/2 and 2y − x
+/// within 31/32 of full scale, give or take the product's rounding. 2^-5 is the largest power of two with that
+/// guarantee: at 2^-4, 2y − x could reach 31/16.
 constexpr int kQuietShift = 5;
 
 /// @p n samples of seeded noise at 2^-kQuietShift of full scale.
@@ -119,26 +125,63 @@ bool difference_overflows(q31 a, q31 b) {
 	return d < int64_t{kMin} || d > int64_t{kMax};
 }
 
-/// The class's lowPass and allPass on one memory, written through uint32_t so that they wrap as the hardware does.
+/// Whether @p a + @p b leaves q31.
+bool sum_overflows(q31 a, q31 b) {
+	const int64_t t = int64_t{a} + int64_t{b};
+	return t < int64_t{kMin} || t > int64_t{kMax};
+}
+
+/// The class's feedbackOutput on @p memory, its shift written through uint32_t so that it wraps as the class's does.
+q31 wrapped_feedback(q31 memory, q31 amount) {
+	return static_cast<q31>(static_cast<uint32_t>(multiply_32x32_rshift32_rounded(memory, amount)) << 2);
+}
+
+/// Whether the class's feedbackOutput on @p memory leaves q31 in its shift.
+bool feedback_overflows(q31 memory, q31 amount) {
+	const int64_t shifted = int64_t{multiply_32x32_rshift32_rounded(memory, amount)} * 4;
+	return shifted < int64_t{kMin} || shifted > int64_t{kMax};
+}
+
+/// The overflows the class's signed form would have met, counted per operation.
+struct Wraps {
+	std::size_t input_less_memory = 0;  ///< x - z, in every mode.
+	std::size_t step_plus_memory = 0;   ///< v + z, in every mode.
+	std::size_t output_plus_step = 0;   ///< y + v, in every mode.
+	std::size_t input_less_output = 0;  ///< HIGH_PASS's x - y.
+	std::size_t doubled_output = 0;     ///< ALL_PASS's y * 2.
+	std::size_t doubled_less_input = 0; ///< ALL_PASS's 2y - x, from the wrapped 2y.
+};
+
+/// The class's lowPass and allPass, and the high-pass its callers write, on one memory, written through uint32_t so
+/// that they wrap as the hardware does.
 struct WrappingReference {
 	q31 memory = 0;
-	/// The overflows the class's signed form would have met.
-	std::size_t wraps = 0;
+	Wraps wraps{};
 
 	/// One sample: the low-pass output, with the memory advanced.
 	q31 low_pass(q31 input, q31 moveability) {
-		wraps += difference_overflows(input, memory) ? 1 : 0;
+		wraps.input_less_memory += difference_overflows(input, memory) ? 1 : 0;
 		const q31 step = multiply_32x32_rshift32_rounded(sub_mod(input, memory), moveability) << 1;
+		wraps.step_plus_memory += sum_overflows(step, memory) ? 1 : 0;
 		const q31 output = add_mod(step, memory);
+		wraps.output_plus_step += sum_overflows(output, step) ? 1 : 0;
 		memory = add_mod(output, step);
 		return output;
+	}
+
+	/// One sample: the input less the low-pass output.
+	q31 high_pass(q31 input, q31 moveability) {
+		const q31 output = low_pass(input, moveability);
+		wraps.input_less_output += difference_overflows(input, output) ? 1 : 0;
+		return sub_mod(input, output);
 	}
 
 	/// One sample: twice the low-pass output less the input.
 	q31 all_pass(q31 input, q31 moveability) {
 		const q31 output = low_pass(input, moveability);
+		wraps.doubled_output += sum_overflows(output, output) ? 1 : 0;
 		const q31 doubled = add_mod(output, output);
-		wraps += difference_overflows(doubled, input) ? 1 : 0;
+		wraps.doubled_less_input += difference_overflows(doubled, input) ? 1 : 0;
 		return sub_mod(doubled, input);
 	}
 };
@@ -267,6 +310,23 @@ describe one_pole_spec("OnePole", ${
 			expect(s.z).to_equal(805326848);
 		});
 
+		it("reads the feedback at full-scale memories, its shift wrapping as the class's does", _ {
+			// z * amount at full scale is 2^30 - 1 or 2^30, which the shift by 2 carries out of q31.
+			expect(OnePole::feedback({.z = kMin}, kMin)).to_equal(q31{0});
+			expect(OnePole::feedback({.z = kMax}, kMax)).to_equal(q31{-4});
+			expect(OnePole::feedback({.z = kMin + 1}, kMin + 1)).to_equal(q31{-4});
+			expect(OnePole::feedback_unshifted({.z = kMin}, kMin)).to_equal(q31{1 << 30});
+			expect(OnePole::feedback_unshifted({.z = kMax}, kMax)).to_equal(q31{(1 << 30) - 1});
+			for (const q31 z : {kMin, kMax, kMin + 1}) {
+				const OnePole::State s{.z = z};
+				for (const q31 amount : kAmounts) {
+					expect(OnePole::feedback(s, amount)).to_equal(wrapped_feedback(z, amount));
+					expect(OnePole::feedback_unshifted(s, amount)).to_equal(multiply_32x32_rshift32_rounded(z, amount));
+				}
+				expect(s.z).to_equal(z);
+			}
+		});
+
 		it("wraps as two's complement at full scale and at the extremes, in every mode", _ {
 			const std::vector<q31> in = extreme_then_full_scale(kLongRun, kSeed);
 			for (const q31 m : kMoveabilities) {
@@ -276,21 +336,30 @@ describe one_pole_spec("OnePole", ${
 				WrappingReference low_ref;
 				WrappingReference high_ref;
 				WrappingReference all_ref;
+				std::size_t feedback_wraps = 0;
 				for (const q31 x : in) {
 					expect(OnePole::step<Mode::LOW_PASS>({.m = m}, {}, low, x)).to_equal(low_ref.low_pass(x, m));
-
-					const q31 low_passed = high_ref.low_pass(x, m);
-					high_ref.wraps += difference_overflows(x, low_passed) ? 1 : 0;
-					expect(OnePole::step<Mode::HIGH_PASS>({.m = m}, {}, high, x)).to_equal(sub_mod(x, low_passed));
-
+					expect(OnePole::step<Mode::HIGH_PASS>({.m = m}, {}, high, x)).to_equal(high_ref.high_pass(x, m));
 					expect(OnePole::step<Mode::ALL_PASS>({.m = m}, {}, all, x)).to_equal(all_ref.all_pass(x, m));
+
+					for (const auto& [state, ref] : {std::pair{&low, &low_ref}, {&high, &high_ref}, {&all, &all_ref}}) {
+						for (const q31 amount : kAmounts) {
+							feedback_wraps += feedback_overflows(ref->memory, amount) ? 1 : 0;
+							expect(OnePole::feedback(*state, amount)).to_equal(wrapped_feedback(ref->memory, amount));
+							expect(OnePole::feedback_unshifted(*state, amount))
+							    .to_equal(multiply_32x32_rshift32_rounded(ref->memory, amount));
+						}
+					}
 				}
 				expect(low.z).to_equal(low_ref.memory);
 				expect(high.z).to_equal(high_ref.memory);
 				expect(all.z).to_equal(all_ref.memory);
-				expect(low_ref.wraps).to_be_greater_than(std::size_t{100});
-				expect(high_ref.wraps).to_be_greater_than(std::size_t{100});
-				expect(all_ref.wraps).to_be_greater_than(std::size_t{100});
+				// Each mode's own output arithmetic wraps, not only the x - z the modes share.
+				expect(low_ref.wraps.input_less_memory).to_be_greater_than(std::size_t{100});
+				expect(high_ref.wraps.input_less_output).to_be_greater_than(std::size_t{100});
+				expect(all_ref.wraps.doubled_output).to_be_greater_than(std::size_t{100});
+				expect(all_ref.wraps.doubled_less_input).to_be_greater_than(std::size_t{100});
+				expect(feedback_wraps).to_be_greater_than(std::size_t{100});
 			}
 		});
 

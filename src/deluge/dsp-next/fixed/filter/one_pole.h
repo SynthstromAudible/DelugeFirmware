@@ -113,14 +113,19 @@ struct OnePole {
 	}
 
 	/// @brief The memory scaled for a ladder's feedback: z × @p amount × 2, Q31.
+	/// @details The shift wraps as two's complement: at full-scale z and amount the product leaves q31.
+	/// @param s The memory, read and not stepped.
 	/// @param amount The feedback amount, Q31.
+	/// @return z × @p amount × 2, Q31.
 	[[nodiscard]] [[gnu::always_inline]] static q31 feedback(const State& s, q31 amount) {
 		return multiply_32x32_rshift32_rounded(s.z, amount) << kFeedbackShift;
 	}
 
 	/// @brief The memory scaled for a ladder's feedback at a quarter of @ref feedback's scale: z × @p amount ÷ 2, Q31,
 	/// for a caller that sums several before shifting.
+	/// @param s The memory, read and not stepped.
 	/// @param amount The feedback amount, Q31.
+	/// @return z × @p amount ÷ 2, Q31.
 	[[nodiscard]] [[gnu::always_inline]] static q31 feedback_unshifted(const State& s, q31 amount) {
 		return multiply_32x32_rshift32_rounded(s.z, amount);
 	}

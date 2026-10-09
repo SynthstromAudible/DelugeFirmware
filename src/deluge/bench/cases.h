@@ -509,7 +509,8 @@ private:
 template <dsp::fixed::OnePole::Mode M>
 class OnePoleCase {
 public:
-	/// @brief The moveability, Q31: the granular processor's wet low-pass, about 12 kHz.
+	/// @brief The moveability, Q31: the granular processor's wet low-pass. m = 1/4 gives tan(πf/fs) = 1/3, a cutoff of
+	/// about 4.5 kHz at 44.1 kHz.
 	static constexpr q31 kMoveability = 1 << 29;
 
 	/// @brief Configures the pole in @p M from silence, fills input_a and takes the blocks' spans for @p n.
