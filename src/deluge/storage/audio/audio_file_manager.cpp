@@ -20,6 +20,7 @@
 #include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
+#include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
@@ -204,6 +205,9 @@ clusterSizeChangedButItsOk:
 // memory listed with their would-be real permanent filenames. Also, we won't be needing to play them back again. You
 // must not call this during the card or audio routines.
 void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
+
+	// The waveform renderer may hold reasons on Samples we're about to delete regardless of their reasons
+	waveformRenderer.releaseAllLoads();
 
 	// Also though, in case any of these Samples were still being recorded before the Song-delete, we need to make sure
 	// SampleRecorder::cardRoutine() gets called first to "detach" the Sample from the recorder. So, do this:
@@ -1245,6 +1249,9 @@ void AudioFileManager::slowRoutine() {
 	// see
 	// https://github.com/SynthstromAudible/DelugeFirmware/blob/866a71d0394e259a5b3db9d4fde605511bd1c67d/src/deluge/storage/audio/audio_file_manager.cpp#L1238
 	// for a copy if ever needed
+
+	// Even if no waveform is being rendered any more, don't sit on Clusters it enqueued once they've loaded
+	waveformRenderer.releaseFinishedLoads();
 }
 
 #define REPORT_AWAY_TIME 0
