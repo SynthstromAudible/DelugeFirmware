@@ -117,7 +117,8 @@ struct packed_state<K, N> {
 /// with one `step` over the pack: every operation runs across the lanes before the next, the independent work the
 /// Cortex-A9 overlaps. Each pack operation is its scalar operation lane by lane, so the result is bit for bit the
 /// lane-by-lane one. Such a K has no `prepare` and no Block, and draws no noise per lane, so the order rules above hold
-/// trivially. `state(lane)` then reads lane @p lane out of the packed state, by value.
+/// trivially. `state(lane)` then reads lane @p lane out of the packed state, by value: a snapshot of the state when it
+/// is called, which a reference bound to it keeps and later blocks do not update.
 ///
 /// **Inlining.** As in @ref Mono: the app builds with `-fno-inline-functions`, so `render`, `renderBlock`, the loop and
 /// the per-frame lane step are `[[gnu::always_inline]]`. The loop runs on local copies of the coefficients and every
@@ -155,6 +156,8 @@ class Lanes {
 	              "Lanes steps one sample per lane: K's step type is its value type");
 	static_assert(std::same_as<typename Access::lane_type, typename K::value_type> && Access::lanes == N,
 	              "the frame type holds N samples of K's value type");
+	static_assert(detail::lane_pack_opt_in_met<K>,
+	              "K declares kLanePackable = true, but its StateT or step is not written over its value type");
 
 public:
 	using value_type = F; ///< A block's frame: one sample per lane.

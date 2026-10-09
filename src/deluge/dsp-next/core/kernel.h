@@ -467,12 +467,14 @@ concept declares_lane_packable = requires {
 
 /// @brief Whether K's state is written over its value type: `StateT<q31>` is K's State, and `StateT<P>` holds every
 /// member as a P, so a pack of N lanes is N States side by side, member by member.
-/// @details Checked by size: a pack's state is the probe width's times a State's, and both copy as plain bytes.
+/// @details Checked by size: a pack's state is the probe width's times a State's, and both copy as plain bytes. The
+/// size shows every member is a P only while the packed state is aligned as a q31 is, so that no padding can make up
+/// a member of another type; an over-aligned packed state is rejected.
 template <typename K, typename P>
 concept state_written_over_value =
-    requires { typename K::template StateT<P>; }
-    && std::same_as<typename K::template StateT<q31>, typename K::State> && plain_value<typename K::template StateT<P>>
-    && std::is_trivially_copyable_v<typename K::State> && sizeof(typename K::State) % sizeof(q31) == 0
+    requires { typename K::template StateT<P>; } && std::same_as<typename K::template StateT<q31>, typename K::State>
+    && plain_value<typename K::template StateT<P>> && std::is_trivially_copyable_v<typename K::State>
+    && sizeof(typename K::State) % sizeof(q31) == 0 && alignof(typename K::template StateT<P>) == alignof(q31)
     && sizeof(typename K::template StateT<P>) == 2 * sizeof(typename K::State);
 
 /// @brief Whether K's `step` written over a value type is callable at pack P, with the form's step values as P's, and
@@ -514,6 +516,18 @@ concept lane_packable =
     && std::same_as<typename K::value_type, q31> && std::same_as<typename K::step_type, q31>
     && detail::declares_lane_packable<K> && !detail::declares_prepare<K> && !detail::declares_reset<K>
     && detail::state_written_over_value<K, detail::ProbePack> && detail::steps_packed<K, detail::ProbePack>;
+
+namespace detail {
+
+/// @brief Whether K's op-major opt-in, if it declares one, is met: K is @ref lane_packable, or it declares a `prepare`
+/// or a `reset` quirk, which keep it lane by lane by design.
+/// @details False exactly for a kernel that declares `kLanePackable = true` but whose StateT or step is not written
+/// over its value type. `Lanes` rejects such a kernel rather than step it lane by lane unannounced.
+template <typename K>
+concept lane_pack_opt_in_met =
+    !declares_lane_packable<K> || declares_prepare<K> || declares_reset<K> || lane_packable<K>;
+
+} // namespace detail
 
 /// @brief The calls a wrapper makes on a kernel, public so that a composed kernel makes the same calls on its parts.
 /// @details `Mono`, `Stereo` and `Control` call a kernel through these alone: @ref prepare_block, @ref dispatch_mode,
@@ -585,8 +599,8 @@ step_at(const typename K::Coefficients& c, const kernel_block_t<K>& block, typen
 /// @param x The step's inputs: none, one or two packs.
 /// @return The frame's outputs, one per lane.
 template <lane_packable K, auto M, typename P, typename... X>
-[[gnu::always_inline]] inline P step_packed_at(const typename K::Coefficients& c, typename K::template StateT<P>& s,
-                                               X... x) {
+[[nodiscard]] [[gnu::always_inline]] inline P step_packed_at(const typename K::Coefficients& c,
+                                                             typename K::template StateT<P>& s, X... x) {
 	if constexpr (moded_kernel<K>) {
 		return K::template step<M, P>(c, EmptyBlock{}, s, x...);
 	}

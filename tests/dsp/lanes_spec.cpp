@@ -428,6 +428,36 @@ static_assert(!lane_packable<Gain> && !lane_packable<AntialiasedTanh> && !lane_p
 static_assert(!lane_packable<LaneByLane<OnePole>> && !lane_packable<LaneByLane<Tracker>>);
 static_assert(processor_kernel<PreparedPole> && !lane_packable<PreparedPole>);
 static_assert(processor_kernel<QuirkResetPole> && !lane_packable<QuirkResetPole>);
+
+/// A kernel that declares the opt-in but whose state and step are not written over its value type.
+struct UnwrittenOptIn : AntialiasedTanh {
+	static constexpr bool kLanePackable = true;
+};
+
+/// A counter written over its value type whose state is over-aligned, so its size no longer shows every member is a V.
+struct OverAlignedCounter : PackedCounter {
+	template <class V>
+	struct alignas(8) StateT {
+		V n{};     ///< The last value.
+		V spare{}; ///< Unused.
+	};
+	using State = StateT<q31>;
+	template <class V>
+	[[gnu::always_inline]] static V step(const Coefficients& c, const EmptyBlock& /*b*/, StateT<V>& s) {
+		s.n = wrapping_add(s.n, V{c.by});
+		return s.n;
+	}
+};
+
+static_assert(!lane_packable<OverAlignedCounter>, "an over-aligned packed state is not op-major");
+static_assert(detail::lane_pack_opt_in_met<OnePole> && detail::lane_pack_opt_in_met<Tracker>
+                  && detail::lane_pack_opt_in_met<PackedCounter> && detail::lane_pack_opt_in_met<Gain>
+                  && detail::lane_pack_opt_in_met<LaneByLane<OnePole>>,
+              "a kernel that opts in and is written over V, or does not opt in, is accepted by Lanes");
+static_assert(detail::lane_pack_opt_in_met<PreparedPole> && detail::lane_pack_opt_in_met<QuirkResetPole>,
+              "a kernel with a prepare or a reset quirk keeps the lane-by-lane fallback");
+static_assert(!detail::lane_pack_opt_in_met<UnwrittenOptIn> && !detail::lane_pack_opt_in_met<OverAlignedCounter>,
+              "a kernel that opts in without being written over V is rejected by Lanes");
 static_assert(processor<Lanes<LaneByLane<OnePole>, 4>>);
 static_assert(std::same_as<decltype(std::declval<const Lanes<OnePole, 3>&>().state(0)), OnePole::State>,
               "an op-major Lanes reads a lane's State out of the packed state, by value");
