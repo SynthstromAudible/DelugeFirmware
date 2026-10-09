@@ -26,10 +26,11 @@
 
 namespace deluge::dsp::fixed {
 
-namespace detail {
-/// The curve's middle: a silent sample's position in @ref kTanhSmallTable.
+/// @brief The table centre a silent sample maps to, 2^31: a sample's position on the curve is the sample, driven, plus
+/// this. Shared by @ref tanh and the anti-aliased tanh, whose tables both span the 32-bit position range.
 inline constexpr uint32_t kTanhCentre = 2147483648u;
 
+namespace detail {
 /// @brief A position on the curve (unsigned, the full table across 32 bits) looked up and shifted down by drive + 2.
 [[nodiscard, gnu::always_inline]] inline q31 tanh_lookup(uint32_t position, uint32_t drive) {
 	return linear_table_interpolator.interpolateSigned(position, 32, kTanhSmallTable.data(), 8) >> (drive + 2);
@@ -43,9 +44,8 @@ inline constexpr uint32_t kTanhCentre = 2147483648u;
 /// beyond; see the compile-time overload for drives past 19.
 [[nodiscard, gnu::always_inline]] inline q31 tanh(q31 sample, uint32_t drive) {
 	const uint32_t position =
-	    drive != 0u
-	        ? static_cast<uint32_t>(lshiftAndSaturateUnknown(sample, static_cast<uint8_t>(drive))) + detail::kTanhCentre
-	        : static_cast<uint32_t>(sample) + detail::kTanhCentre;
+	    drive != 0u ? static_cast<uint32_t>(lshiftAndSaturateUnknown(sample, static_cast<uint8_t>(drive))) + kTanhCentre
+	                : static_cast<uint32_t>(sample) + kTanhCentre;
 	return detail::tanh_lookup(position, drive);
 }
 
@@ -55,10 +55,10 @@ template <uint32_t Drive>
 [[nodiscard, gnu::always_inline]] inline q31 tanh(q31 sample) {
 	uint32_t position{};
 	if constexpr (Drive != 0u) {
-		position = static_cast<uint32_t>(lshiftAndSaturate<Drive>(sample)) + detail::kTanhCentre;
+		position = static_cast<uint32_t>(lshiftAndSaturate<Drive>(sample)) + kTanhCentre;
 	}
 	else {
-		position = static_cast<uint32_t>(sample) + detail::kTanhCentre;
+		position = static_cast<uint32_t>(sample) + kTanhCentre;
 	}
 	return detail::tanh_lookup(position, Drive);
 }

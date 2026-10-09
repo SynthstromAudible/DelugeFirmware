@@ -81,6 +81,8 @@ q31 HighPassLadder::render(q31 input, Channel& channel) const {
 		channel.last_working_value = saturator.previous();
 	}
 	else {
+		// The saturator's position for this sample, kept so that switching it in interpolates from here: placed at
+		// shift 2 although the saturator drives at shift 1. 2147483648u is kTanhCentre (fixed/shaping/tanh.h).
 		channel.last_working_value = static_cast<uint32_t>(lshiftAndSaturate<2>(a)) + 2147483648u;
 		if (processed_resonance_ > 750000000) {
 			a = tanh<2>(a);

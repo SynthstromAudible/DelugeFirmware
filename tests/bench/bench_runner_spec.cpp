@@ -4,6 +4,8 @@
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
+#include "dsp-next/fixed/shaping/legacy/antialiased_tanh.h"
+#include "dsp-next/fixed/shaping/tanh.h"
 #include "util/fixedpoint.h"
 
 #include <algorithm>
@@ -201,9 +203,10 @@ static_assert(SyncedPulseCase::kAudibleIncrement > SyncedPulseCase::kMasterIncre
 
 /// The case list's names, in order.
 const std::vector<std::string_view> kCaseNames{
-    "calibration_loop", "amplitude",      "crude_amplitude", "pulse",       "band_limited_table", "crude_saw",
-    "crude_square",     "crude_triangle", "synced_pulse",    "wavetable",   "mono_gain",          "mono_vec_gain",
-    "stereo_gain",      "duck_envelope",  "shift_tracker",   "one_pole_lp", "one_pole_ap",
+    "calibration_loop", "amplitude",     "crude_amplitude",  "pulse",         "band_limited_table",
+    "crude_saw",        "crude_square",  "crude_triangle",   "synced_pulse",  "wavetable",
+    "mono_gain",        "mono_vec_gain", "stereo_gain",      "duck_envelope", "shift_tracker",
+    "one_pole_lp",      "one_pole_ap",   "antialiased_tanh", "tanh3",
 };
 
 /// Renders `blocks` blocks of `n` through a case's own setup and block, as the runner does.
@@ -644,6 +647,38 @@ describe bench_runner("The DSP benchmark runner", ${
 				};
 				check(set.one_pole_lp, false);
 				check(set.one_pole_ap, true);
+			}
+		});
+
+		it("saturates input_a from the centre, as the anti-aliased tanh class does, at every block size", _ {
+			CaseSet& set = case_set();
+			for (const std::size_t n : kSizes) {
+				set.antialiased_tanh.setup(n);
+				expect(set.antialiased_tanh.component().coefficients().drive).to_equal(3u);
+				expect(set.antialiased_tanh.component().state().position).to_equal(dsp::fixed::kTanhCentre);
+
+				render(set.antialiased_tanh, n, 2);
+				dsp::fixed::legacy::AntialiasedTanh curve{3};
+				for (std::size_t block = 0; block < 2; ++block) {
+					for (std::size_t i = 0; i < n; ++i) {
+						const q31 expected = curve.render(input_a()[i]);
+						if (block == 1) {
+							expect(output()[i]).to_equal(expected);
+						}
+					}
+				}
+				expect(set.antialiased_tanh.component().state().position).to_equal(curve.previous());
+			}
+		});
+
+		it("saturates input_a as tanh<3> does, at every block size", _ {
+			CaseSet& set = case_set();
+			for (const std::size_t n : kSizes) {
+				set.tanh3.setup(n);
+				render(set.tanh3, n, 2);
+				for (std::size_t i = 0; i < n; ++i) {
+					expect(output()[i]).to_equal(dsp::fixed::tanh<3>(input_a()[i]));
+				}
 			}
 		});
 

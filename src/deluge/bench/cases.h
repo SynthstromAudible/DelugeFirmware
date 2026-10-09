@@ -28,6 +28,8 @@
 #include "dsp-next/fixed/osc/band_limited_table_oscillator.h"
 #include "dsp-next/fixed/osc/crude_oscillators.h"
 #include "dsp-next/fixed/osc/pulse_oscillator.h"
+#include "dsp-next/fixed/shaping/antialiased_tanh.h"
+#include "dsp-next/fixed/shaping/tanh_kernel.h"
 #include "dsp-next/fixed/vca/amplitude.h"
 #include "dsp-next/fixed/vca/crude_amplitude.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
@@ -530,6 +532,47 @@ using OnePoleLowPassCase = OnePoleCase<dsp::fixed::OnePole::Mode::LOW_PASS>;
 /// @brief `one_pole_ap`: the all-pass.
 using OnePoleAllPassCase = OnePoleCase<dsp::fixed::OnePole::Mode::ALL_PASS>;
 
+/// @brief `Mono<AntialiasedTanh>` at drive 3, the compressor's, from input_a into the output.
+/// @details **Timed state:** the position carries from block to block, from the centre at setup, following the one
+/// input block the case repeats. Every block is the same arithmetic: a saturating shift for the position, two linear
+/// reads of the 2-D table and their blend, and the output shift.
+class AntialiasedTanhCase {
+public:
+	/// @brief The drive as a power of two: the compressor's.
+	static constexpr uint32_t kDrive = 3;
+
+	/// @brief Configures the drive from the centre, fills input_a and takes the blocks' spans for @p n.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const dsp::Mono<dsp::fixed::AntialiasedTanh>& component() const { return mono_; }
+
+private:
+	dsp::Mono<dsp::fixed::AntialiasedTanh> mono_;
+	BlockSpans spans_{};
+};
+
+/// @brief `Mono<Tanh<3>>`: tanh at drive 3, stateless, from input_a into the output.
+/// @details **Timed state:** none. Every block is the same arithmetic: a saturating shift for the position, one linear
+/// read of the small table, and the output shift.
+class Tanh3Case {
+public:
+	/// @brief The kernel: tanh at drive 3.
+	using Kernel = dsp::fixed::Tanh<3>;
+
+	/// @brief Fills input_a and takes the blocks' spans for @p n.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const dsp::Mono<Kernel>& component() const { return mono_; }
+
+private:
+	dsp::Mono<Kernel> mono_;
+	BlockSpans spans_{};
+};
+
 /// @brief `Control<DuckEnvelope>`: the sidechain's duck, configured then advanced once per block, as its owner does.
 /// @details The rates are as the owner resolves them: the spec's attack of 37,640 per sample (222 samples), and a
 /// release of 472 per sample (the release table's entry 40, 59 << 3: 17,772 samples), at the middle shape (fully
@@ -581,6 +624,8 @@ struct CaseSet {
 	ShiftTrackerCase shift_tracker;          ///< `shift_tracker`
 	OnePoleLowPassCase one_pole_lp;          ///< `one_pole_lp`
 	OnePoleAllPassCase one_pole_ap;          ///< `one_pole_ap`
+	AntialiasedTanhCase antialiased_tanh;    ///< `antialiased_tanh`
+	Tanh3Case tanh3;                         ///< `tanh3`
 };
 
 /// @brief The cases' components, built on first use.

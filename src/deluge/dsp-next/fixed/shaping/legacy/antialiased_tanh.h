@@ -19,6 +19,7 @@
 
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
+#include "dsp-next/fixed/shaping/tanh.h" // kTanhCentre
 #include "dsp-next/fixed/shaping/tanh_table.h"
 #include "util/param_functions.h" // lshiftAndSaturateUnknown
 
@@ -35,7 +36,7 @@ public:
 	using value_type = q31;
 
 	/// The previous position of a silent signal: the middle of the curve.
-	static constexpr uint32_t kSilent = 2147483648u;
+	static constexpr uint32_t kSilent = kTanhCentre;
 
 	/// @param drive How hard the input is driven into the curve: it is scaled by 2^drive (saturating) first.
 	/// @param previous The position the first sample is interpolated against.

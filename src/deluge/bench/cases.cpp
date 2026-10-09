@@ -316,6 +316,26 @@ void OnePoleCase<M>::block(std::size_t /*n*/) {
 template class OnePoleCase<OnePole::Mode::LOW_PASS>;
 template class OnePoleCase<OnePole::Mode::ALL_PASS>;
 
+void AntialiasedTanhCase::setup(std::size_t n) {
+	spans_ = spans(n);
+	fill_inputs();
+	mono_.configure({.drive = kDrive});
+	mono_.reset();
+}
+
+void AntialiasedTanhCase::block(std::size_t /*n*/) {
+	mono_.renderBlock(spans_.a, spans_.out);
+}
+
+void Tanh3Case::setup(std::size_t n) {
+	spans_ = spans(n);
+	fill_inputs();
+}
+
+void Tanh3Case::block(std::size_t /*n*/) {
+	mono_.renderBlock(spans_.a, spans_.out);
+}
+
 CaseSet& case_set() {
 	static CaseSet set;
 	return set;
@@ -341,6 +361,8 @@ std::span<const Case> cases() {
 	    make_case("shift_tracker", s.shift_tracker),
 	    make_case("one_pole_lp", s.one_pole_lp),
 	    make_case("one_pole_ap", s.one_pole_ap),
+	    make_case("antialiased_tanh", s.antialiased_tanh),
+	    make_case("tanh3", s.tanh3),
 	};
 	return list;
 }
