@@ -45,7 +45,9 @@ class Counters {
 public:
 	virtual ~Counters() = default;
 
-	/// @brief Enables the counters and zeroes them.
+	/// @brief Programs the events, zeroes every counter and enables them.
+	/// @details The runner calls it at the start of every measurement, so the implementation alone decides which
+	/// events the counters count.
 	virtual void start() = 0;
 
 	/// @brief Reads every counter.

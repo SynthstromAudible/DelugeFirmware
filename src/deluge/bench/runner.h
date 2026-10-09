@@ -43,7 +43,9 @@
 /// **The info line.** Before the cases, the caller may print metadata about the run with format_info_line():
 /// `BENCH-INFO <key>=0x<8 hex digits>`. It is not a measurement and is not counted by `BENCH-DONE`.
 ///
-/// The runner neither masks interrupts nor programs the counters' events: its caller does both before calling run().
+/// **Interrupts and events.** The runner does not mask interrupts: its caller does so before calling run(). Nor does
+/// its caller choose the events: the Counters do. run() calls Counters::start() at the start of every measurement,
+/// and start() programs the events, zeroes every counter and enables them (PmuA9::start() on the device).
 
 #include "bench/counters.h"
 
@@ -140,7 +142,8 @@ struct RunConfig {
 /// @brief Times every case at every block size by the protocol above, then prints the BENCH-DONE line.
 /// @param cases The cases, in the order they print at each block size.
 /// @param config The block sizes and block counts.
-/// @param counters The counters to time with; their events are already selected.
+/// @param counters The counters to time with; run() calls their start(), which programs and enables their events,
+/// before every measurement.
 /// @param sink Receives each line.
 /// @return The number of lines printed before BENCH-DONE: the count it carries.
 std::size_t run(std::span<const Case> cases, const RunConfig& config, Counters& counters, LineSink sink);
