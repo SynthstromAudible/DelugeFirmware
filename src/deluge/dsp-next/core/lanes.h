@@ -116,8 +116,13 @@ struct packed_state<K, N> {
 /// **Op-major.** When K is @ref lane_packable, `Lanes` holds K's state over a `LanePack<q31, N>` and steps each frame
 /// with one `step` over the pack: every operation runs across the lanes before the next, the independent work the
 /// Cortex-A9 overlaps. Each pack operation is its scalar operation lane by lane, so the result is bit for bit the
-/// lane-by-lane one. Such a K has no `prepare` and no Block, and draws no noise per lane, so the order rules above hold
+/// lane-by-lane one. Such a K has no `prepare` and no Block, and its step draws no noise, so the order rules above hold
 /// trivially.
+///
+/// **No noise op-major.** A step written over V must not draw from a stream the lanes share (noise): op-major steps
+/// every lane in one call, so one draw would reach every lane, where lane by lane draws once per lane in lane order. A
+/// kernel that needs noise does not opt in, and steps lane by lane. Nothing detects a draw at compile time, since it is
+/// a call inside the step, so each opted-in kernel's spec checks its op-major form against itself stepped lane by lane.
 ///
 /// **State.** `state(lane)` is a snapshot, by value in both forms: a copy of the lane's State when it is called, which
 /// later blocks do not update.

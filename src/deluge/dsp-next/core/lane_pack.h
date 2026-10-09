@@ -42,8 +42,10 @@ namespace deluge::dsp {
 
 /// @brief N lanes of @p T as one value: each operation is its scalar counterpart applied lane by lane, in lane order.
 /// @details A scalar operand broadcasts to every lane, as a kernel's coefficients, which every lane shares, do; so does
-/// a scalar initialiser, so `V z{0}` is silence in every lane. `LanePack{}` is every lane zero; a default-initialised
-/// pack's lanes are indeterminate, as a q31's would be. The comparisons give a pack of bool, which @ref select reads.
+/// a q31 initialiser, so `V z{q31{0}}` is silence in every lane. `V z{}` is silence too, and is the form a StateT
+/// member uses: the converting constructor takes exactly a T, and a bare `0` is an `int`, which is a q31 only where
+/// `int32_t` is `int`. A default-initialised pack's lanes are indeterminate, as a q31's would be. The comparisons give
+/// a pack of bool, which @ref select reads.
 /// @tparam T The lane type: q31 for the fixed-point operations, any arithmetic type for the rest.
 /// @tparam N The number of lanes. At least 1.
 template <class T, std::size_t N>

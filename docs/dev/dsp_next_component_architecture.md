@@ -437,8 +437,9 @@ arity, as `Mono` is. A staged or control kernel is rejected at the class: neithe
   other lanes' instructions to issue while each chain waits. Rule 3 of
   [a9_dsp_performance.md](a9_dsp_performance.md#what-follows-for-kernels) gives the N that hides the latency.
 - **Frames.** A block is a span of interleaved N-lane frames, lane 0 first: `Frame<q31, N>` (`core/frame.h`) by
-  default, or any F with that layout (`StereoSample` is two q31 lanes, left in lane 0). One input pointer and one
-  output pointer step over whole frames, with paired or multiple loads and stores. There is no form over N separate
+  default, or any F with that layout (`StereoSample` is two q31 lanes, left in lane 0). One input pointer per input
+  block (none for a generator, two for a mixer) and one output pointer step over whole frames, with paired or multiple
+  loads and stores. There is no form over N separate
   blocks: with 2N pointers clang shares one index register and steps it after the stores, which costs more than the
   interleaving saves.
 - **Per block.** `prepare`, when K declares one, runs once per lane in lane order, and each lane steps with its own
@@ -459,6 +460,11 @@ arity, as `Mono` is. A staged or control kernel is rejected at the class: neithe
   `lane_packable<K>` (`core/kernel.h`) detects the opt-in. A kernel with a `prepare` or a `reset` quirk stays lane by
   lane, since both act on one lane's State. A kernel that declares the opt-in without its state and step written over
   V fails to compile in `Lanes` rather than falling back.
+
+  An op-major step must not draw noise, or from any other stream the lanes share: it steps every lane in one call, so
+  one draw would reach every lane, where lane by lane draws once per lane in lane order. A kernel that needs noise does
+  not opt in and steps lane by lane. Nothing detects a draw at compile time, since it is a call inside the step, so
+  each opted-in kernel's spec checks its op-major form against its lane-by-lane one.
 - **State.** `state(lane)` returns a snapshot of the lane's State by value in both forms, and `Stereo`'s `left()` and
   `right()` do the same: later blocks do not update a copy taken earlier.
 - **What op-major buys.** Over interleaved frames clang compiles the two forms to the same loop at the shipping flags:
@@ -529,14 +535,14 @@ is the block.
 
 ### The shared glue
 
-`Mono`, `Lanes` (so `Stereo`) and `Control` call a kernel only through `kernel_ops`
-(`core/kernel.h`): `prepare_block`, `dispatch_mode`, then `step_at`,
-`process_at` or `advance_at` for the kernel's form, or `step_packed_at` for an
-op-major `Lanes`. So the `prepare`, mode
-dispatch and form call exist once, and a composed kernel calls its parts
-through the same functions. Each passes the coefficients as a const reference,
-so the call resolves to the form's own signature even when a kernel overloads
-it on non-const `Coefficients`.
+`Mono`, `Lanes` (so `Stereo`) and `Control` call a kernel only through
+`kernel_ops` (`core/kernel.h`): `prepare_block`, `dispatch_mode`, then
+`step_at`, `process_at` or `advance_at` for the kernel's form, or
+`dispatch_mode` then `step_packed_at` for an op-major `Lanes`. So the
+`prepare`, mode dispatch and form call exist once, and a composed kernel calls
+its parts through the same functions. Each passes the coefficients as a const
+reference, so the call resolves to the form's own signature even when a kernel
+overloads it on non-const `Coefficients`.
 
 ## Stereo
 

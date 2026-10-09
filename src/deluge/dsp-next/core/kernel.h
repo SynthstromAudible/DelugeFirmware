@@ -32,10 +32,10 @@
 /// vector of them), `Settings` (what the owner sets), `Coefficients` and `State` (plain value structs; `State{}` is
 /// the reset state), and optionally `Block`, `Mode` and `Modes`. It provides a pure `coefficients(settings)`, an
 /// optional once-per-block `prepare`, and either a `step` at one of three arities, or, for block-staged arithmetic,
-/// a `process`, or, for a block-rate control signal, an `advance`. The wrappers (`Mono`, `Stereo`, `Control`) are the
-/// only loops; a kernel holds no data of its own. A wrapper calls a kernel only through @ref kernel_ops, which passes
-/// the coefficients as a const reference so that the call resolves to the form's own signature; a composed kernel
-/// calls its parts through the same functions.
+/// a `process`, or, for a block-rate control signal, an `advance`. The wrappers (`Mono`, `Lanes`, with `Stereo` as
+/// `Lanes<K, 2>`, and `Control`) are the only loops; a kernel holds no data of its own. A wrapper calls a kernel only
+/// through @ref kernel_ops, which passes the coefficients as a const reference so that the call resolves to the form's
+/// own signature; a composed kernel calls its parts through the same functions.
 ///
 /// **One form per kernel.** A kernel takes exactly one of five forms: `step(c, b, s)` (generator),
 /// `step(c, b, s, x)` (processor), `step(c, b, s, a, b2)` (mixer), `process(c, s, in, out)` (staged), or
@@ -46,9 +46,9 @@
 /// mixer step, whatever the step type converts to.
 ///
 /// **Checked at one mode.** A moded kernel's `step` (or `process`) is checked at the first mode of its `Modes` only.
-/// A step that is ill-formed at another mode is reported where the wrapper instantiates it, when `Mono` or `Stereo`
-/// is built for the kernel. A control kernel's `advance` is checked at every listed mode: its exact signature is
-/// checked by taking its address, which costs nothing per mode.
+/// A step that is ill-formed at another mode is reported where the wrapper instantiates it, when `Mono` or `Lanes`
+/// (`Stereo` among them) is built for the kernel. A control kernel's `advance` is checked at every listed mode: its
+/// exact signature is checked by taking its address, which costs nothing per mode.
 namespace deluge::dsp {
 
 /// @brief A kernel's per-block values when it declares none.
@@ -530,10 +530,12 @@ concept lane_pack_opt_in_met =
 } // namespace detail
 
 /// @brief The calls a wrapper makes on a kernel, public so that a composed kernel makes the same calls on its parts.
-/// @details `Mono`, `Stereo` and `Control` call a kernel through these alone: @ref prepare_block, @ref dispatch_mode,
-/// then @ref step_at, @ref process_at or @ref advance_at for the kernel's form. A kernel built from smaller kernels
-/// prepares each part with @ref prepare_block and steps each part with @ref step_at, so it never has to know whether a
-/// part declares `prepare` or has modes. Everything here runs per block or per step and is `[[gnu::always_inline]]`.
+/// @details `Mono`, `Lanes` (`Stereo` is `Lanes<K, 2>`) and `Control` call a kernel through these alone: @ref
+/// prepare_block, @ref dispatch_mode, then @ref step_at, @ref process_at or @ref advance_at for the kernel's form; for
+/// a @ref lane_packable kernel, which `Lanes` steps op-major, @ref dispatch_mode then @ref step_packed_at. A kernel
+/// built from smaller kernels prepares each part with @ref prepare_block and steps each part with @ref step_at, so it
+/// never has to know whether a part declares `prepare` or has modes. Everything here runs per block or per step and is
+/// `[[gnu::always_inline]]`.
 namespace kernel_ops {
 
 /// @brief The mode a kernel without modes is stepped at: a placeholder @ref step_at, @ref process_at and @ref
