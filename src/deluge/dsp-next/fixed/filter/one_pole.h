@@ -20,7 +20,7 @@
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/types.h"
-#include "dsp-next/fixed/wrapping.h"
+#include "dsp-next/core/wrapping.h"
 #include "util/fixedpoint.h"
 
 #include <cstdint>

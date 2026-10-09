@@ -16,7 +16,7 @@
  */
 
 #include "dsp-next/fixed/filter/filter_set.h"
-#include "dsp-next/fixed/wrapping.h"
+#include "dsp-next/core/wrapping.h"
 
 #include "util/fixedpoint.h"
 

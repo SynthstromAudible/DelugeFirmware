@@ -853,7 +853,7 @@ gates:
   has `Settings`, `Coefficients` and `State`, not the legacy class's members and
   verbs.
 - Are constants and bit-exactness quirks named?
-- Can a q31 add or subtract leave range? It goes through `wrapping_add` / `wrapping_sub` (`fixed/wrapping.h`), because
+- Can a q31 add or subtract leave range? It goes through `wrapping_add` / `wrapping_sub` (`core/wrapping.h`), because
   signed overflow is undefined behaviour once a step is inlined. A left shift of a q31 (a doubling back from Q30, a
   feedback scale) is a plain signed `<<`, with no cast through `uint32_t`: C++20 defines it as modular.
 - Are there callback sinks, raw-pointer heads, out-parameters, or globals other

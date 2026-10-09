@@ -19,7 +19,7 @@
 
 #include "dsp-next/core/frame.h"
 #include "dsp-next/core/sample.h"
-#include "dsp-next/fixed/wrapping.h"
+#include "dsp-next/core/wrapping.h"
 #include "util/fixedpoint.h"
 
 #include <concepts>
@@ -33,7 +33,7 @@
 /// streams at once, each operation across every lane before the next. The same expression resolves for both: the
 /// pack's operations are hidden friends, found by argument-dependent lookup on a pack and invisible otherwise, so they
 /// never hide the scalar functions a kernel reaches by ordinary lookup (`::multiply_32x32_rshift32_rounded`,
-/// `fixed::wrapping_add`). The scalar @ref select, @ref min and @ref max below complete the set for a clamp.
+/// `dsp::wrapping_add`). The scalar @ref select, @ref min and @ref max below complete the set for a clamp.
 ///
 /// Every operation is a fixed-trip loop over the lanes, in lane order, applying the scalar operation, so a pack's
 /// result is bit for bit the scalar results side by side. Clang unrolls the loops, leaving one operation's lanes next
@@ -184,24 +184,24 @@ struct LanePack {
 		return r;
 	}
 
-	/// @brief @p a + @p b, Q31, in each lane, wrapping modulo 2^32 as fixed::wrapping_add does.
+	/// @brief @p a + @p b, Q31, in each lane, wrapping modulo 2^32 as dsp::wrapping_add does.
 	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack wrapping_add(LanePack a, LanePack b)
 	requires std::same_as<T, q31>
 	{
 		LanePack r;
 		for (std::size_t i = 0; i < N; ++i) {
-			r.lane[i] = fixed::wrapping_add(a.lane[i], b.lane[i]);
+			r.lane[i] = dsp::wrapping_add(a.lane[i], b.lane[i]);
 		}
 		return r;
 	}
 
-	/// @brief @p a − @p b, Q31, in each lane, wrapping modulo 2^32 as fixed::wrapping_sub does.
+	/// @brief @p a − @p b, Q31, in each lane, wrapping modulo 2^32 as dsp::wrapping_sub does.
 	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack wrapping_sub(LanePack a, LanePack b)
 	requires std::same_as<T, q31>
 	{
 		LanePack r;
 		for (std::size_t i = 0; i < N; ++i) {
-			r.lane[i] = fixed::wrapping_sub(a.lane[i], b.lane[i]);
+			r.lane[i] = dsp::wrapping_sub(a.lane[i], b.lane[i]);
 		}
 		return r;
 	}

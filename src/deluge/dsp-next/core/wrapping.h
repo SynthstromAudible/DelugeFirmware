@@ -27,7 +27,7 @@
 /// A signed overflow is undefined in C++, and once a kernel's step is inlined into a loop the compiler may assume it
 /// never happens. These compute through uint32_t, whose arithmetic is defined modulo 2^32, so an out-of-range result
 /// wraps exactly as the target's instruction does, and they compile to that one instruction.
-namespace deluge::dsp::fixed {
+namespace deluge::dsp {
 
 /// @brief @p a + @p b, Q31, wrapping modulo 2^32 on overflow.
 [[nodiscard]] [[gnu::always_inline]] constexpr q31 wrapping_add(q31 a, q31 b) {
@@ -39,4 +39,4 @@ namespace deluge::dsp::fixed {
 	return static_cast<q31>(static_cast<uint32_t>(a) - static_cast<uint32_t>(b));
 }
 
-} // namespace deluge::dsp::fixed
+} // namespace deluge::dsp

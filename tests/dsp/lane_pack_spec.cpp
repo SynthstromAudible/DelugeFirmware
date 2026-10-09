@@ -25,11 +25,11 @@
 #include "dsp-next/core/lane_pack.h"
 
 #include "dsp-next/core/frame.h"
+#include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
-#include "dsp-next/fixed/wrapping.h"
 #include "util/fixedpoint.h"
 
 #include <array>
@@ -251,15 +251,15 @@ describe lane_pack_spec("LanePack", ${
 		expect(t.compared).to_be_greater_than(std::size_t{10'000});
 	});
 
-	it("wraps its sums and differences lane by lane, as fixed::wrapping_add and wrapping_sub do", _ {
+	it("wraps its sums and differences lane by lane, as the scalar wrapping_add and wrapping_sub do", _ {
 		const Tally t = over_widths([]<std::size_t N>() {
 			Tally s = tally<N>([](const Trial<N>& x) { return wrapping_add(x.a, x.b); },
 			                   [](const Trial<N>& x, std::size_t i) {
-				                   return fixed::wrapping_add(x.a.lane[i], x.b.lane[i]);
+				                   return deluge::dsp::wrapping_add(x.a.lane[i], x.b.lane[i]);
 			                   });
 			s += tally<N>([](const Trial<N>& x) { return wrapping_sub(x.a, x.b); },
 			              [](const Trial<N>& x, std::size_t i) {
-				              return fixed::wrapping_sub(x.a.lane[i], x.b.lane[i]);
+				              return deluge::dsp::wrapping_sub(x.a.lane[i], x.b.lane[i]);
 			              });
 			return s;
 		});
