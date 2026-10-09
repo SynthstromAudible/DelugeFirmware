@@ -458,8 +458,9 @@ arity, as `Mono` is. A staged or control kernel is rejected at the class: neithe
 
   `lane_packable<K>` (`core/kernel.h`) detects the opt-in. A kernel with a `prepare` or a `reset` quirk stays lane by
   lane, since both act on one lane's State. A kernel that declares the opt-in without its state and step written over
-  V fails to compile in `Lanes` rather than falling back. In op-major `state(lane)` returns a snapshot of the lane's
-  State by value; lane by lane it returns a reference.
+  V fails to compile in `Lanes` rather than falling back.
+- **State.** `state(lane)` returns a snapshot of the lane's State by value in both forms, and `Stereo`'s `left()` and
+  `right()` do the same: later blocks do not update a copy taken earlier.
 - **What op-major buys.** Over interleaved frames clang compiles the two forms to the same loop at the shipping flags:
   `OnePole` at N = 2 and 4 and `ShiftTracker` at N = 4 give the same bytes either way. Opting in guarantees the shape
   in the source and the bit-exact check against lane by lane; it is not a speed-up. `OnePole` and `ShiftTracker` opt

@@ -117,8 +117,10 @@ struct packed_state<K, N> {
 /// with one `step` over the pack: every operation runs across the lanes before the next, the independent work the
 /// Cortex-A9 overlaps. Each pack operation is its scalar operation lane by lane, so the result is bit for bit the
 /// lane-by-lane one. Such a K has no `prepare` and no Block, and draws no noise per lane, so the order rules above hold
-/// trivially. `state(lane)` then reads lane @p lane out of the packed state, by value: a snapshot of the state when it
-/// is called, which a reference bound to it keeps and later blocks do not update.
+/// trivially.
+///
+/// **State.** `state(lane)` is a snapshot, by value in both forms: a copy of the lane's State when it is called, which
+/// later blocks do not update.
 ///
 /// **Inlining.** As in @ref Mono: the app builds with `-fno-inline-functions`, so `render`, `renderBlock`, the loop and
 /// the per-frame lane step are `[[gnu::always_inline]]`. The loop runs on local copies of the coefficients and every
@@ -197,33 +199,30 @@ public:
 		}
 	}
 
-	/// @brief Lane @p lane's state between blocks. @p lane is less than N.
-	[[nodiscard]] [[gnu::always_inline]] const State& state(std::size_t lane) const
-	requires(!kOpMajor)
-	{
-		return states_.lane[lane];
-	}
-
-	/// @brief Lane @p lane's state between blocks, read out of the packed state. @p lane is less than N.
-	/// @details Member m of the packed state is N q31 lanes, so lane @p lane's word m sits at m × N + @p lane.
-	[[nodiscard]] [[gnu::always_inline]] State state(std::size_t lane) const
-	requires kOpMajor
-	{
-		constexpr std::size_t kWords = sizeof(State) / sizeof(q31);
-		struct PackedWords {
-			// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-			q31 word[kWords * N]; ///< The packed state's words, member by member, lane 0 first in each.
-		};
-		struct StateWords {
-			// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-			q31 word[kWords]; ///< One State's words, member by member.
-		};
-		const auto packed = __builtin_bit_cast(PackedWords, packed_);
-		StateWords one{};
-		for (std::size_t m = 0; m < kWords; ++m) {
-			one.word[m] = packed.word[(m * N) + lane];
+	/// @brief A snapshot of lane @p lane's state between blocks. @p lane is less than N.
+	/// @details By value in both forms, so a caller never holds a view into state the next block rewrites. Op-major,
+	/// it is read out of the packed state: member m is N q31 lanes, so lane @p lane's word m sits at m × N + @p lane.
+	[[nodiscard]] [[gnu::always_inline]] State state(std::size_t lane) const {
+		if constexpr (kOpMajor) {
+			constexpr std::size_t kWords = sizeof(State) / sizeof(q31);
+			struct PackedWords {
+				// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+				q31 word[kWords * N]; ///< The packed state's words, member by member, lane 0 first in each.
+			};
+			struct StateWords {
+				// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+				q31 word[kWords]; ///< One State's words, member by member.
+			};
+			const auto packed = __builtin_bit_cast(PackedWords, packed_);
+			StateWords one{};
+			for (std::size_t m = 0; m < kWords; ++m) {
+				one.word[m] = packed.word[(m * N) + lane];
+			}
+			return __builtin_bit_cast(State, one);
 		}
-		return __builtin_bit_cast(State, one);
+		else {
+			return states_.lane[lane];
+		}
 	}
 
 	/// @brief Generate one frame: a one-frame block, so one `prepare(…, 1)` per lane and one mode dispatch per call.

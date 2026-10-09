@@ -461,10 +461,13 @@ static_assert(!detail::lane_pack_opt_in_met<UnwrittenOptIn> && !detail::lane_pac
 static_assert(processor<Lanes<LaneByLane<OnePole>, 4>>);
 static_assert(std::same_as<decltype(std::declval<const Lanes<OnePole, 3>&>().state(0)), OnePole::State>,
               "an op-major Lanes reads a lane's State out of the packed state, by value");
-static_assert(
-    std::same_as<decltype(std::declval<const Lanes<LaneByLane<OnePole>, 3>&>().state(0)), const OnePole::State&>,
-    "a lane-by-lane Lanes holds each lane's State");
-static_assert(std::same_as<decltype(std::declval<const Stereo<OnePole>&>().left()), OnePole::State>);
+static_assert(std::same_as<decltype(std::declval<const Lanes<LaneByLane<OnePole>, 3>&>().state(0)), OnePole::State>,
+              "a lane-by-lane Lanes gives a lane's State by value too, so state() is a snapshot in both forms");
+static_assert(std::same_as<decltype(std::declval<const Stereo<OnePole>&>().left()), OnePole::State>
+              && std::same_as<decltype(std::declval<const Stereo<OnePole>&>().right()), OnePole::State>);
+static_assert(std::same_as<decltype(std::declval<const Stereo<LaneByLane<OnePole>>&>().left()), OnePole::State>
+                  && std::same_as<decltype(std::declval<const Stereo<LaneByLane<OnePole>>&>().right()), OnePole::State>,
+              "a Stereo's channel states are snapshots in both forms");
 
 /// The extremes of q31.
 constexpr q31 kMin = std::numeric_limits<q31>::min();
