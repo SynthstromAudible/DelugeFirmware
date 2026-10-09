@@ -21,7 +21,11 @@
 // (25 and 30), on seeded noise at several levels and on alternating full-scale extremes; across a drive change in the
 // middle of a block, which keeps the position as the class's setDrive does; and after seed and place, against a class
 // constructed at the position those events set, at the drive extremes and at full-scale samples. The Tanh<Drive> kernel
-// is pinned against tanh<> per sample at every drive 0 to 20.
+// is pinned against tanh<> per sample at every drive 0 to 20. Both the kernel and the class are also pinned against a
+// reference that reads kTanhTable entry by entry and saturates by the documented rule, at every drive 0 to 30: at the
+// bounds of every saturation width ±64, each stepped from the previous input and from a random position, and on random
+// inputs from random positions; the kernel's outputs there, and the table's entries, are also pinned on recorded
+// digests.
 
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 
@@ -156,6 +160,152 @@ template <uint32_t... Drives>
 void run_tanh_at(std::integer_sequence<uint32_t, Drives...> /*drives*/, const std::vector<q31>& input,
                  std::vector<q31>& kernel, std::vector<q31>& plain) {
 	(run_tanh<Drives>(input, kernel, plain), ...);
+}
+
+/// The highest drive the kernel documents.
+constexpr uint32_t kTopDrive = 30;
+
+/// The FNV-1a offset basis: the digest of nothing.
+constexpr uint64_t kDigestBasis = 14695981039346656037ull;
+/// The entries of kTanhTable, row by row, digested.
+constexpr uint64_t kTanhTableDigest = 0x210975209ceed53bull;
+/// Every output of the kernel's sweeps at drives 0 to 30, in order, digested.
+constexpr uint64_t kSweepDigest = 0x2c5f42e65931dcc9ull;
+
+/// @p h, a 64-bit FNV-1a, extended by the 32-bit word @p w.
+uint64_t digest(uint64_t h, int32_t w) {
+	return (h ^ static_cast<uint32_t>(w)) * 1099511628211ull;
+}
+/// @p h extended by each of @p words.
+uint64_t digest(uint64_t h, std::span<const int32_t> words) {
+	for (const int32_t w : words) {
+		h = digest(h, w);
+	}
+	return h;
+}
+
+/// A xorshift64 stream, for positions and inputs the noise generator's range does not reach.
+struct XorShift {
+	uint64_t state;
+	uint32_t next() {
+		state ^= state << 13;
+		state ^= state >> 7;
+		state ^= state << 17;
+		return static_cast<uint32_t>(state >> 16);
+	}
+};
+
+/// The inputs at which a drive's saturation starts, stops or wraps: zero, the extremes, and the bounds of every
+/// saturation width from 1 to 32 bits, each ±64.
+std::vector<q31> saturation_edges() {
+	std::vector<q31> e;
+	for (int64_t d = -64; d <= 64; ++d) {
+		const int64_t m = d < 0 ? -d : d;
+		e.push_back(static_cast<q31>(d));
+		e.push_back(static_cast<q31>(int64_t{kMax} - m));
+		e.push_back(static_cast<q31>(int64_t{kMin} + m));
+	}
+	for (int bits = 1; bits <= 32; ++bits) {
+		const int64_t high = (int64_t{1} << (bits - 1)) - 1;
+		for (int64_t d = -64; d <= 64; ++d) {
+			for (const int64_t bound : {high, -high - 1}) {
+				const int64_t v = bound + d;
+				if (v >= kMin && v <= kMax) {
+					e.push_back(static_cast<q31>(v));
+				}
+			}
+		}
+	}
+	return e;
+}
+
+/// The reference's position for @p x at @p drive, from the documented rule: x saturated to 32 − drive bits for drives
+/// 1 to 20 and to 12 bits otherwise, shifted up by the drive (wrapping), plus the centre.
+uint32_t reference_position(uint32_t drive, q31 x) {
+	const int bits = (drive >= 1 && drive <= 20) ? 32 - static_cast<int>(drive) : 12;
+	const int64_t high = (int64_t{1} << (bits - 1)) - 1;
+	const int64_t clamped = x < -high - 1 ? -high - 1 : (x > high ? high : x);
+	return (static_cast<uint32_t>(clamped) << drive) + kTanhCentre;
+}
+
+/// The reference's output for a step from @p previous to @p position at @p drive: kTanhTable read entry by entry,
+/// each row blended at a Q16 weight, the two rows at a Q31 weight with 64-bit products, shifted down by drive + 1.
+q31 reference_output(uint32_t drive, uint32_t previous, uint32_t position) {
+	const uint32_t row = previous >> 26;    // 64 row intervals: the top 6 bits
+	const uint32_t column = position >> 25; // 128 column intervals: the top 7 bits
+	const int64_t along = (position >> 9) & 0xFFFFu;
+	const auto row_value = [&](uint32_t r) {
+		return static_cast<int32_t>(kTanhTable[r][column] * (0x10000 - along) + kTanhTable[r][column + 1] * along);
+	};
+	const int64_t toward_upper = (int64_t{previous} << 5) & 0x7FFF'FFFF;
+	const int64_t toward_lower = 0x7FFF'FFFF - toward_upper;
+	const auto lower = static_cast<int32_t>((row_value(row) * toward_lower) >> 32);
+	const auto upper = static_cast<int32_t>((row_value(row + 1) * toward_upper) >> 32);
+	return (lower + upper) >> (drive + 1);
+}
+
+/// The kernel, as a sweep drives it.
+struct KernelCurve {
+	AntialiasedTanh::Coefficients c;
+	AntialiasedTanh::State s{};
+	explicit KernelCurve(uint32_t drive) : c{AntialiasedTanh::coefficients({.drive = drive})} {}
+	q31 step(q31 x) { return AntialiasedTanh::step(c, EmptyBlock{}, s, x); }
+	void place(uint32_t p) { AntialiasedTanh::place(s, p); }
+	[[nodiscard]] uint32_t position() const { return s.position; }
+};
+
+/// The class, as a sweep drives it: a place constructs it afresh at the position.
+struct LegacyCurve {
+	uint32_t drive;
+	legacy::AntialiasedTanh curve;
+	explicit LegacyCurve(uint32_t d) : drive{d}, curve{d} {}
+	q31 step(q31 x) { return curve.render(x); }
+	void place(uint32_t p) { curve = legacy::AntialiasedTanh{drive, p}; }
+	[[nodiscard]] uint32_t position() const { return curve.previous(); }
+};
+
+/// The reference, as a sweep drives it.
+struct ReferenceCurve {
+	uint32_t drive;
+	uint32_t previous = kTanhCentre;
+	explicit ReferenceCurve(uint32_t d) : drive{d} {}
+	q31 step(q31 x) {
+		const uint32_t position = reference_position(drive, x);
+		const q31 out = reference_output(drive, previous, position);
+		previous = position;
+		return out;
+	}
+	void place(uint32_t p) { previous = p; }
+	[[nodiscard]] uint32_t position() const { return previous; }
+};
+
+/// @p Curve at @p drive from silence through: each edge stepped from the previous edge and again from a random
+/// position; full-range random inputs, from a random position every 16 steps; and random inputs at random levels.
+template <typename Curve>
+Run sweep(uint32_t drive, const std::vector<q31>& edges) {
+	Curve curve{drive};
+	XorShift rng{0x9E37'79B9'7F4A'7C15ull + drive};
+	Run run;
+	const auto step = [&](q31 x) {
+		run.out.push_back(curve.step(x));
+		run.positions.push_back(curve.position());
+	};
+	for (const q31 x : edges) {
+		step(x);
+		curve.place(rng.next());
+		step(x);
+	}
+	for (uint32_t i = 0; i < 4096; ++i) {
+		if (i % 16 == 0) {
+			curve.place(rng.next());
+		}
+		step(static_cast<q31>(rng.next()));
+	}
+	for (uint32_t i = 0; i < 2048; ++i) {
+		const uint32_t level = rng.next() & 31u;
+		step(static_cast<q31>(rng.next()) >> level);
+	}
+	return run;
 }
 
 /// The outputs of one fresh class at @p drive for the five inputs every legacy case uses, in order.
@@ -327,6 +477,45 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 	});
 });
 
+describe antialiased_tanh_reference("AntialiasedTanh against its definition", ${
+	it("reads kTanhTable's recorded entries", _ {
+		uint64_t h = kDigestBasis;
+		for (std::size_t r = 0; r < 65; ++r) {
+			for (std::size_t c = 0; c < 129; ++c) {
+				h = digest(h, int32_t{kTanhTable[r][c]});
+			}
+		}
+		expect(h).to_equal(kTanhTableDigest);
+	});
+	it("steps as the reference at every drive, at each saturation width's bounds and across the table", _ {
+		const std::vector<q31> edges = saturation_edges();
+		for (uint32_t drive = 0; drive <= kTopDrive; ++drive) {
+			const Run kernel = sweep<KernelCurve>(drive, edges);
+			const Run reference = sweep<ReferenceCurve>(drive, edges);
+			expect(kernel.out).to_equal(reference.out);
+			expect(kernel.positions).to_equal(reference.positions);
+		}
+	});
+	it("renders as the reference in the class at every drive, at each saturation width's bounds", _ {
+		const std::vector<q31> edges = saturation_edges();
+		for (uint32_t drive = 0; drive <= kTopDrive; ++drive) {
+			const Run legacy = sweep<LegacyCurve>(drive, edges);
+			const Run reference = sweep<ReferenceCurve>(drive, edges);
+			expect(legacy.out).to_equal(reference.out);
+			expect(legacy.positions).to_equal(reference.positions);
+		}
+	});
+	it("steps the recorded outputs at every drive", _ {
+		const std::vector<q31> edges = saturation_edges();
+		uint64_t h = kDigestBasis;
+		for (uint32_t drive = 0; drive <= kTopDrive; ++drive) {
+			const Run kernel = sweep<KernelCurve>(drive, edges);
+			h = digest(h, kernel.out);
+		}
+		expect(h).to_equal(kSweepDigest);
+	});
+});
+
 describe tanh_kernel("Tanh<Drive>", ${
 	it("steps as tanh<Drive> at every drive", _ {
 		const std::vector<q31> input = test_input(kLongRun, kSeed + 5);
@@ -348,4 +537,4 @@ describe tanh_kernel("Tanh<Drive>", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(legacy_antialiased_tanh, antialiased_tanh_kernel, tanh_kernel);
+CPPSPEC_MAIN(legacy_antialiased_tanh, antialiased_tanh_kernel, antialiased_tanh_reference, tanh_kernel);
