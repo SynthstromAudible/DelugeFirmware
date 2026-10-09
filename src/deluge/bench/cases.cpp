@@ -55,14 +55,17 @@ void fill_inputs() {
 	fill(input_b_block, ~kSeed);
 }
 
+/// @return The first @p n samples of input_a.
 [[nodiscard]] dsp::fixed::Signal signal_a(std::size_t n) {
 	return dsp::fixed::Signal{input_a_block.data(), n};
 }
 
+/// @return The first @p n samples of input_b.
 [[nodiscard]] dsp::fixed::Signal signal_b(std::size_t n) {
 	return dsp::fixed::Signal{input_b_block.data(), n};
 }
 
+/// @return The first @p n samples of the output block.
 [[nodiscard]] dsp::fixed::Buffer out(std::size_t n) {
 	return dsp::fixed::Buffer{output_block.data(), n};
 }
@@ -90,23 +93,30 @@ void CalibrationLoop::setup(std::size_t /*n*/) {
 
 void CalibrationLoop::block(std::size_t n) {
 	uint32_t count = static_cast<uint32_t>(n) * kIterationsPerSample;
+	uint32_t product = 1;
 	last_iterations_ = count;
-	if (count == 0) {
-		return;
-	}
+	if (count != 0) {
 #if defined(__arm__)
-	asm volatile("1:\n\t"
-	             "subs %0, %0, #1\n\t"
-	             "bne 1b"
-	             : "+r"(count)
-	             :
-	             : "cc");
+		asm volatile("1:\n\t"
+		             "mul %1, %1, %2\n\t"
+		             "mul %1, %1, %2\n\t"
+		             "subs %0, %0, #1\n\t"
+		             "bne 1b"
+		             : "+r"(count), "+r"(product)
+		             : "r"(kProductFactor)
+		             : "cc");
 #else
-	while (count != 0) {
-		--count;
-		asm volatile("" : "+r"(count));
-	}
+		while (count != 0) {
+			product *= kProductFactor;
+			asm volatile("" : "+r"(product));
+			product *= kProductFactor;
+			asm volatile("" : "+r"(product));
+			--count;
+			asm volatile("" : "+r"(count));
+		}
 #endif
+	}
+	last_product_ = product;
 }
 
 void AmplitudeCase::setup(std::size_t /*n*/) {

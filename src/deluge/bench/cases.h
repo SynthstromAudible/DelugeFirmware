@@ -35,6 +35,7 @@
 #include <argon.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <span>
 
 namespace deluge::bench {
@@ -47,7 +48,7 @@ inline constexpr std::size_t kMaxBlock = 128;
 
 /// @brief Blocks rendered from a case's setup to the end of its timed blocks, at the runner's defaults: warm-up
 /// plus K. A case whose state drifts across a run stays representative for this many blocks of kMaxBlock.
-inline constexpr std::size_t kBlocksPerRun = 4 + 64;
+inline constexpr std::size_t kBlocksPerRun = RunConfig{}.warmup_blocks + RunConfig{}.timed_blocks;
 
 /// @brief A4, 440 Hz: the mid-range pitch the band-limited and wavetable cases play at.
 inline constexpr uint32_t kA4Increment = 42'852'282;
@@ -116,20 +117,32 @@ struct VecGain {
 };
 static_assert(dsp::processor_kernel<VecGain>);
 
-/// @brief A loop of a known instruction count: the sanity case for the instruction event.
-/// @details Each block runs kIterationsPerSample · n iterations of a two-instruction loop, `subs` then `bne`, written
-/// in assembly on ARM so that the compiler cannot change it. One timed run of K blocks therefore renames `K · 2 ·
-/// kIterationsPerSample · n` loop instructions, `512 · n` at K = 64: 16,384 at n = 32, 32,768 at n = 64 and 65,536 at n
-/// = 128. Beyond those, each block adds a small constant the calibration does not cancel: the trampoline's call into
-/// `block`, the iteration count's setup and store, and the instructions renamed down the predicted path when the loop's
-/// last `bne` mispredicts. That constant is under 32 instructions, so the reported `inst` lies in [512 · n, 512 · n +
-/// 2048]. Off ARM the loop is plain C++, with an empty asm keeping the count live.
+/// @brief A loop of known instruction and cycle counts: the sanity case for the instruction and cycle counters.
+/// @details Each block runs kIterationsPerSample · n iterations of a four-instruction loop, written in assembly on ARM
+/// so that the compiler cannot change it: two `mul`s, each multiplying the product by kProductFactor and so consuming
+/// the other's result, then `subs` and `bne`.
 ///
-/// **Timed state:** stateless; every block runs the same loop.
+/// **Instructions.** One timed run of K = 64 blocks renames `K · 4 · kIterationsPerSample · n = 1024 · n` loop
+/// instructions: 32,768 at n = 32, 65,536 at n = 64 and 131,072 at n = 128. Beyond those, each block adds a small
+/// constant the calibration does not cancel: the trampoline's call into `block`, the count's and the product's setup
+/// and stores, and the instructions renamed down the predicted path when the loop's last `bne` mispredicts. That
+/// constant is under 32 instructions, so the reported `inst` lies in [1024 · n, 1024 · n + 2048].
+///
+/// **Cycles.** The A9 TRM (r4p1, Table B.5) gives `MUL` a result latency of 4 cycles. Each `mul` waits for the one
+/// before it, so an iteration takes at least 8 cycles: a run takes at least `K · 8 · kIterationsPerSample · n =
+/// 2048 · n` cycles (65,536, 131,072 and 262,144), and `cps` is at least 32.00. The loop thus retires at most one
+/// instruction per two cycles, so an event counting cycles in place of instructions reads at least twice the `inst`
+/// band's top, and the band check fails for it.
+///
+/// Off ARM the loop is plain C++, with empty asms keeping the count and the product live.
+///
+/// **Timed state:** stateless; every block runs the same loop from a product of 1.
 class CalibrationLoop {
 public:
 	/// @brief Loop iterations per sample of the block.
 	static constexpr uint32_t kIterationsPerSample = 4;
+	/// @brief What each `mul` multiplies the product by: odd, and 3 mod 8, so its powers repeat only every 2^30.
+	static constexpr uint32_t kProductFactor = 3;
 
 	/// @brief Nothing to configure or fill.
 	void setup(std::size_t n);
@@ -137,9 +150,12 @@ public:
 	void block(std::size_t n);
 	/// @return The iterations the last block ran.
 	[[nodiscard]] uint32_t last_iterations() const { return last_iterations_; }
+	/// @return The product the last block's multiplies ended on: kProductFactor^(2 · iterations), modulo 2^32.
+	[[nodiscard]] uint32_t last_product() const { return last_product_; }
 
 private:
 	uint32_t last_iterations_ = 0;
+	uint32_t last_product_ = 1;
 };
 
 /// @brief The band-limited VCA, `Amplitude`, mixing input_a (the raw wave) into input_b (the mix) into the output.
@@ -162,6 +178,10 @@ public:
 private:
 	dsp::fixed::Amplitude vca_{kRamp};
 };
+static_assert(AmplitudeCase::kRamp.value() > 0 && AmplitudeCase::kRamp.increment() > 0);
+static_assert(int64_t{AmplitudeCase::kRamp.value()}
+                  + (int64_t{AmplitudeCase::kRamp.increment()} * int64_t{kBlocksPerRun * kMaxBlock})
+              < int64_t{std::numeric_limits<int32_t>::max() / 2});
 
 /// @brief The crude VCA, `CrudeAmplitude`, mixing input_a into input_b into the output.
 /// @details **Timed state:** the same mid-level ramp as AmplitudeCase, built at setup and run every block from there;
@@ -181,10 +201,16 @@ public:
 private:
 	dsp::fixed::CrudeAmplitude vca_{kRamp};
 };
+static_assert(CrudeAmplitudeCase::kRamp.value() > 0 && CrudeAmplitudeCase::kRamp.increment() > 0);
+static_assert(int64_t{CrudeAmplitudeCase::kRamp.value()}
+                  + (int64_t{CrudeAmplitudeCase::kRamp.increment()} * int64_t{kBlocksPerRun * kMaxBlock})
+              < int64_t{std::numeric_limits<int32_t>::max() / 2});
 
 /// @brief The perfect pulse, `PulseOscillator`, rendering into the output.
-/// @details Configured as the voice's square configures it for a 50% width: half the note's increment (the pulse runs
-/// at half rate), a phase offset of -(2^31 / 2) = 0xC0000000 between its two squares, and the square band picked for
+/// @details The voice renders a square through PulseOscillator only at a non-zero pulse width; at 50% it plays the
+/// band-limited square table. The case uses the 50% width's offset, -(2^31 / 2) = 0xC0000000 between the two squares,
+/// to stand in for any non-zero width: the pulse's arithmetic is the same whatever the offset. The rest is as the
+/// voice configures a pulse: half the note's increment (the pulse runs at half rate), and the square band picked for
 /// 0.6 times the note's increment.
 ///
 /// **Timed state:** free-running at A4 from phase 0. The pulse renders whole vectors, and every block size is a
@@ -193,7 +219,7 @@ class PulseCase {
 public:
 	/// @brief The pulse's increment: half of A4's.
 	static constexpr uint32_t kIncrement = kA4Increment >> 1;
-	/// @brief The phase between the two squares for a 50% width.
+	/// @brief The phase between the two squares: the 50% width's, standing in for any width.
 	static constexpr uint32_t kPhaseOffset = 0xC000'0000;
 
 	/// @brief Restarts the pulse at phase 0.

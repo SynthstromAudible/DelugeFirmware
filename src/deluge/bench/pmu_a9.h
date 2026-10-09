@@ -13,11 +13,11 @@
 namespace deluge::bench {
 
 /// @brief The PMU event number each Event counts, indexed by Event; event counter i counts entry i.
-/// @details From the Cortex-A9 TRM (r4p1), "Performance monitoring events":
-/// - L1D_REFILL, 0x03: "Level 1 data cache refill" (architectural).
-/// - INSTRUCTIONS, 0x68: "Instructions coming out of the core renaming stage" (A9 specific), the A9's instruction
-///   count in place of the architectural 0x08. It counts instructions as they are renamed, so it also counts the few
-///   renamed down a mispredicted path.
+/// @details From the Cortex-A9 TRM (r4p1), "Performance monitoring events", Tables 11.5 and 11.6:
+/// - L1D_REFILL, 0x03: "Data cache miss" (Table 11.5, the architectural events): an L1 data cache refill.
+/// - INSTRUCTIONS, 0x68: "Instructions coming out of the core renaming stage" (Table 11.6, the A9 specific events).
+///   Table 11.5 marks the architectural 0x08 not implemented and points here. It counts instructions as they are
+///   renamed, so it also counts the few renamed down a mispredicted path.
 /// - DC_STALL, 0x61: "Data cache dependent stall cycles": cycles the core has an instruction it cannot issue while
 ///   the load/store unit has a linefill pending and no TLB request.
 /// - ISSUE_EMPTY, 0x66: "Issue does not dispatch any instruction": cycles the issue stage dispatches nothing, empty

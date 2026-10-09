@@ -137,6 +137,12 @@ std::string expected_line(std::string_view name, std::size_t n, std::size_t k, c
 	return std::string{format_line(buffer, name, n, k, delta)};
 }
 
+// The timed blocks alone carry the synced pulse's master through at least one whole cycle at the smallest block, and
+// the audible pulse runs faster than the master, so every timed run crosses over.
+static_assert(uint64_t{SyncedPulseCase::kMasterIncrement} * kSizes.front() * RunConfig{}.timed_blocks
+              > (uint64_t{1} << 32));
+static_assert(SyncedPulseCase::kAudibleIncrement > SyncedPulseCase::kMasterIncrement);
+
 /// The case list's names, in order.
 const std::vector<std::string_view> kCaseNames{
     "calibration_loop", "amplitude",     "crude_amplitude", "pulse",         "band_limited_table",
@@ -335,7 +341,7 @@ describe bench_runner("The DSP benchmark runner", ${
 			set.amplitude.setup(128);
 			expect(std::vector<q31>{input_a().begin(), input_a().end()}).to_equal(first_a);
 			expect(std::vector<q31>{input_b().begin(), input_b().end()}).to_equal(first_b);
-			expect(first_a != first_b).to_be_truthy();
+			expect(first_a).not_().to_equal(first_b);
 			expect(std::ranges::count(first_a, 0)).to_be_less_than(std::ptrdiff_t{2});
 		});
 
@@ -345,17 +351,29 @@ describe bench_runner("The DSP benchmark runner", ${
 				render(set.calibration_loop, n, 1);
 				expect(set.calibration_loop.last_iterations())
 				    .to_equal(static_cast<uint32_t>(CalibrationLoop::kIterationsPerSample * n));
+				// Each iteration multiplies the product by the factor twice, each multiply consuming the last one's result.
+				uint32_t product = 1;
+				for (std::size_t i = 0; i < CalibrationLoop::kIterationsPerSample * n * 2; ++i) {
+					product *= CalibrationLoop::kProductFactor;
+				}
+				expect(set.calibration_loop.last_product()).to_equal(product);
 			}
 		});
 
-		it("keeps each VCA's ramp mid-level and in range for a whole run", _ {
-			for (const dsp::Ramp ramp : {AmplitudeCase::ramp(), CrudeAmplitudeCase::ramp()}) {
-				const int64_t end = int64_t{ramp.value()}
-				                    + (int64_t{ramp.increment()} * int64_t{kBlocksPerRun * kMaxBlock});
-				expect(ramp.value()).to_be_greater_than(0);
-				expect(ramp.increment()).to_be_greater_than(0);
-				expect(end).to_be_less_than(int64_t{std::numeric_limits<int32_t>::max() / 2});
-			}
+		it("mixes the raw wave into the mix at the VCA's ramp", _ {
+			CaseSet& set = case_set();
+			// Amplitude: vqdmulh of the raw sample by the first lane's halved amplitude, (value + increment) >> 1, plus
+			// the mix, wrapping.
+			render(set.amplitude, kMaxBlock, 1);
+			const int64_t half_amplitude = (int64_t{AmplitudeCase::kRamp.value()} + AmplitudeCase::kRamp.increment()) >> 1;
+			const int64_t scaled = (2 * half_amplitude * int64_t{input_a()[0]}) >> 32;
+			expect(output()[0]).to_equal(static_cast<q31>(scaled + int64_t{input_b()[0]}));
+
+			// CrudeAmplitude: the amplitude steps first, then a rounded 32x32 high multiply-accumulate.
+			render(set.crude_amplitude, kMaxBlock, 1);
+			const int64_t amplitude = int64_t{CrudeAmplitudeCase::kRamp.value()} + CrudeAmplitudeCase::kRamp.increment();
+			const int64_t product = ((amplitude * int64_t{input_a()[0]}) + (int64_t{1} << 31)) >> 32;
+			expect(output()[0]).to_equal(static_cast<q31>(product + int64_t{input_b()[0]}));
 		});
 
 		it("runs each oscillator free at its configured increment", _ {
@@ -385,9 +403,22 @@ describe bench_runner("The DSP benchmark runner", ${
 				render(set.synced_pulse, n, 3);
 				expect(set.synced_pulse.master_phase())
 				    .to_equal(static_cast<uint32_t>(SyncedPulseCase::kMasterIncrement * n * 3));
-				// The timed blocks alone carry the master through at least one whole cycle.
-				expect(uint64_t{SyncedPulseCase::kMasterIncrement} * n * 64).to_be_greater_than(uint64_t{1} << 32);
-				expect(SyncedPulseCase::kAudibleIncrement).to_be_greater_than(SyncedPulseCase::kMasterIncrement);
+			}
+		});
+
+		it("restarts the synced pulse at a sync reset within a run", _ {
+			// Free-running, the pulse's half-rate phase advances by n times its increment each block, and is stored
+			// back doubled. A reset at a crossover moves it off that track.
+			CaseSet& set = case_set();
+			for (const std::size_t n : kSizes) {
+				uint32_t free_running = 0;
+				for (std::size_t i = 0; i < kBlocksPerRun; ++i) {
+					free_running = ((free_running >> 1)
+					                + (static_cast<uint32_t>(n) * (SyncedPulseCase::kAudibleIncrement >> 1)))
+					               << 1;
+				}
+				render(set.synced_pulse, n, kBlocksPerRun);
+				expect(set.synced_pulse.audible_phase()).not_().to_equal(free_running);
 			}
 		});
 

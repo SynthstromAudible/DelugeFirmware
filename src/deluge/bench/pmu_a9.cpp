@@ -23,14 +23,17 @@ constexpr uint32_t kCounterBits = ((uint32_t{1} << kEventCount) - 1) | kCycleCou
 	asm volatile("isb" ::: "memory");
 }
 
+/// @brief Writes PMCR, the control register.
 [[gnu::always_inline]] inline void write_pmcr(uint32_t value) {
 	asm volatile("mcr p15, 0, %0, c9, c12, 0" : : "r"(value) : "memory");
 }
 
+/// @brief Enables the counters in @p bits (PMCNTENSET is write-one-to-set).
 [[gnu::always_inline]] inline void write_pmcntenset(uint32_t bits) {
 	asm volatile("mcr p15, 0, %0, c9, c12, 1" : : "r"(bits) : "memory");
 }
 
+/// @brief Disables the counters in @p bits (PMCNTENCLR is write-one-to-clear).
 [[gnu::always_inline]] inline void write_pmcntenclr(uint32_t bits) {
 	asm volatile("mcr p15, 0, %0, c9, c12, 2" : : "r"(bits) : "memory");
 }
@@ -50,6 +53,7 @@ constexpr uint32_t kCounterBits = ((uint32_t{1} << kEventCount) - 1) | kCycleCou
 	asm volatile("mcr p15, 0, %0, c9, c13, 1" : : "r"(event) : "memory");
 }
 
+/// @brief Reads PMCCNTR, the cycle counter.
 [[gnu::always_inline]] inline uint32_t read_pmccntr() {
 	uint32_t value = 0;
 	asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r"(value) : : "memory");
