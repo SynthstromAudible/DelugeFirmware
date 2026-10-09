@@ -41,6 +41,7 @@
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -100,6 +101,7 @@ enum class Leg : uint8_t {
 	ClipDup,
 	Arrange,
 	Automate,
+	PatchCable,
 	Drum,
 	Replace,
 	Undo,
@@ -161,6 +163,8 @@ const char* legName(Leg leg) {
 		return "ARRANGE";
 	case Leg::Automate:
 		return "AUTOMATE";
+	case Leg::PatchCable:
+		return "PATCHCABLE";
 	case Leg::Drum:
 		return "DRUM";
 	case Leg::Replace:
@@ -225,6 +229,8 @@ const char* kindName(StructuralContainer kind) {
 		return "slab";
 	case StructuralContainer::ALLOC_METADATA:
 		return "memguard";
+	case StructuralContainer::PATCH_CABLES:
+		return "patchcables";
 	case StructuralContainer::COUNT_:
 		break;
 	}
@@ -537,6 +543,32 @@ void editLeg() {
 		const int32_t i = param.nodes.insertSorted(kNotePos).value_or(-1);
 		if (i >= 0) {
 			param.nodes.erase(param.nodes.begin() + i);
+		}
+		break;
+	}
+	case Leg::PatchCable: {
+		// A cable added and removed again through the set's own entry points, the sound editor's and a knob's: each
+		// grows or shrinks the cable storage and re-runs setupPatching(), which reorders the cables the render walks.
+		g_step = "addPatchCable";
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* three =
+		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, g_clip, &g_clip->paramManager);
+		ModelStackWithParamCollection* ms =
+		    three->addParamCollectionSummary(g_clip->paramManager.getPatchCableSetSummary());
+		auto* cables = static_cast<PatchCableSet*>(ms->paramCollection);
+		const uint8_t before = cables->numPatchCables;
+		ParamDescriptor destination;
+		destination.setToHaveParamOnly(deluge::modulation::params::LOCAL_PITCH_ADJUST);
+		const uint8_t c = cables->getPatchCableIndex(PatchSource::ENVELOPE_1, destination, ms, true);
+		if (c == 255 || cables->numPatchCables != before + 1) {
+			fail("the patch cable was not added");
+			break;
+		}
+		g_step = "deletePatchCable";
+		cables->deletePatchCable(ms, c);
+		if (cables->numPatchCables != before) {
+			fail("the patch cable was not deleted");
 		}
 		break;
 	}

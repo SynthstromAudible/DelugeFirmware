@@ -30,6 +30,10 @@
 #include "storage/storage_manager.h"
 #include "util/algorithm/quick_sorter.h"
 #include "util/misc.h"
+#include "util/structural_edit_probe.h"
+#include <algorithm>
+#include <libdeluge/system.h>
+#include <new>
 #include <string.h>
 
 namespace params = deluge::modulation::params;
@@ -68,14 +72,69 @@ inline void PatchCableSet::freeDestinationMemory(bool destructing) {
 }
 
 PatchCableSet::PatchCableSet(ParamCollectionSummary* summary) : ParamCollection(sizeof(PatchCableSet), summary) {
-	numUsablePatchCables = 0;
-	numPatchCables = 0;
-	destinations[GLOBALITY_LOCAL] = nullptr;
-	destinations[GLOBALITY_GLOBAL] = nullptr;
 }
 
 PatchCableSet::~PatchCableSet() {
 	freeDestinationMemory(true);
+	for (int32_t c = 0; c < numPatchCables; c++) {
+		patchCables[c].~PatchCable();
+	}
+	deluge::memory::dealloc(patchCables);
+}
+
+bool PatchCableSet::resizeCables(uint8_t count) {
+	const uint8_t oldCount = numPatchCables;
+	if (count == oldCount) {
+		return true;
+	}
+	PatchCable* storage = nullptr;
+	if (count != 0) {
+		storage = static_cast<PatchCable*>(deluge::memory::alloc_fast(sizeof(PatchCable) * count, alignof(PatchCable)));
+		if (storage == nullptr) {
+			return false;
+		}
+	}
+	PatchCable* old = patchCables;
+	const uint8_t kept = std::min(count, oldCount);
+	{
+		// The render walks these cables and ticks their amounts, so they move and the new storage is published with it
+		// excluded: it sees all of the old storage or all of the new.
+		AudioExcludedSection section;
+		deluge::noteStructuralEdit(deluge::StructuralContainer::PATCH_CABLES);
+		if (kept != 0) {
+			memcpy(static_cast<void*>(storage), old,
+			       sizeof(PatchCable) * kept); // a move: the old copies are not destroyed
+		}
+		for (int32_t c = kept; c < count; c++) {
+			new (&storage[c]) PatchCable();
+		}
+		if (count < numUsablePatchCables) {
+			// The Destinations may refer to a dropped cable. No patching until setupPatching() runs again.
+			freeDestinationMemory(false);
+			sourcesPatchedToAnything[GLOBALITY_LOCAL] = 0;
+			sourcesPatchedToAnything[GLOBALITY_GLOBAL] = 0;
+			numUsablePatchCables = count;
+		}
+		patchCables = storage;
+		numPatchCables = count;
+	}
+	for (int32_t c = kept; c < oldCount; c++) {
+		old[c].~PatchCable();
+	}
+	deluge::memory::dealloc(old);
+	return true;
+}
+
+PatchCable* PatchCableSet::addCable() {
+	if (numPatchCables >= kMaxNumPatchCables || !resizeCables(numPatchCables + 1)) {
+		return nullptr;
+	}
+	return &patchCables[numPatchCables - 1];
+}
+
+void PatchCableSet::truncateCables(uint8_t count) {
+	// Shrinking only frees memory, so it can't fail for want of it: keep the cables where they are if it does.
+	(void)resizeCables(std::min(count, numPatchCables));
 }
 
 bool PatchCableSet::isSourcePatchedToSomething(PatchSource s) {
@@ -131,6 +190,10 @@ const int32_t neutralRangeAdjustmentValue = 536870912;
 extern int32_t rangeFinalValues[];
 
 void PatchCableSet::setupPatching(ModelStackWithParamCollection const* modelStack) {
+	// The render walks the cables by the Destinations' index runs: reordering the one and rebuilding the other must not
+	// interleave with it.
+	AudioExcludedSection section;
+	deluge::noteStructuralEdit(deluge::StructuralContainer::PATCH_CABLES);
 
 	// Deallocate any old memory
 	freeDestinationMemory(false);
@@ -428,14 +491,16 @@ uint8_t PatchCableSet::getPatchCableIndex(PatchSource from, ParamDescriptor dest
 		return 255;
 	}
 
-	// Or, if there was an actual blank space, just use that
+	// Or, if there's room for another, add it
 	else {
-		c = numPatchCables++;
-claimPatchCable:
-		patchCables[c].initAmount(0);
-		patchCables[c].from = from;
-		patchCables[c].destinationParamDescriptor = destinationParamDescriptor;
-		patchCables[c].setDefaultPolarity();
+		PatchCable* cable = addCable();
+		if (cable == nullptr) {
+			return 255;
+		}
+		cable->initAmount(0);
+		cable->from = from;
+		cable->destinationParamDescriptor = destinationParamDescriptor;
+		cable->setDefaultPolarity();
 		// Re-setup the patching, to place this cable where it needs to be
 		if (modelStack) {
 			setupPatching(modelStack);
@@ -463,16 +528,18 @@ void PatchCableSet::deletePatchCable(ModelStackWithParamCollection const* modelS
 	patchCables[c].makeUnusable();
 	setupPatching(modelStack);
 
-	// The to-be-deleted cable now exists in the "unusable" section of the list of cables. Find it
+	// The to-be-deleted cable now exists in the "unusable" section of the list of cables, where the render doesn't
+	// reach. Find it, and move the last cable into its place.
 	for (int32_t c = numUsablePatchCables; c < numPatchCables - 1; c++) {
 		if (patchCables[c].destinationParamDescriptor.isNull()) {
-			memcpy(&patchCables[c], &patchCables[numPatchCables - 1], sizeof(PatchCable));
+			patchCables[c].~PatchCable();
+			memcpy(static_cast<void*>(&patchCables[c]), &patchCables[numPatchCables - 1], sizeof(PatchCable));
 			// The moved cable's automation now belongs to slot c - don't let the old slot free it too
 			patchCables[numPatchCables - 1].param.nodes.init();
 			break;
 		}
 	}
-	numPatchCables--;
+	truncateCables(numPatchCables - 1);
 }
 
 bool PatchCableSet::patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings const* modelStack) {
@@ -711,13 +778,33 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 }
 
 void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
+	// This object was memcpy'd from another, so the cable storage is still the other's: give this one its own.
+	PatchCable* const source = patchCables;
+	patchCables = nullptr;
+	if (numPatchCables != 0) {
+		patchCables = static_cast<PatchCable*>(
+		    deluge::memory::alloc_fast(sizeof(PatchCable) * numPatchCables, alignof(PatchCable)));
+		if (patchCables == nullptr) {
+			// No room for the cables: this clone has none, and so no patching either.
+			numPatchCables = 0;
+			numUsablePatchCables = 0;
+			sourcesPatchedToAnything[GLOBALITY_LOCAL] = 0;
+			sourcesPatchedToAnything[GLOBALITY_GLOBAL] = 0;
+			destinations[GLOBALITY_LOCAL] = nullptr;
+			destinations[GLOBALITY_GLOBAL] = nullptr;
+			return;
+		}
+		memcpy(static_cast<void*>(patchCables), source, sizeof(PatchCable) * numPatchCables);
+	}
+
 	int32_t c;
 	for (c = 0; c < numUsablePatchCables; c++) {
 		patchCables[c].param.beenCloned(copyAutomation, reverseDirectionWithLength);
 	}
 
-	// This initialization avoids a rare crash! (Ok that comment was from ages ago; not sure about now.)
-	for (; c < kMaxNumPatchCables; c++) {
+	// The unusable cables keep no automation. Their node storage is still the source's, so forget it rather than free
+	// it.
+	for (; c < numPatchCables; c++) {
 		patchCables[c].param.init();
 	}
 
@@ -729,14 +816,17 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 	newDestinations[GLOBALITY_LOCAL] = nullptr;
 	newDestinations[GLOBALITY_GLOBAL] = nullptr;
 
-	// Allocate new memory - max size we might need
+	// Allocate new memory, sized to the list including its terminator
 	for (int32_t g = 0; g < 2; g++) {
 		if (!destinations[g]) {
 			continue;
 		}
 
-		// TODO: this is more than we'll soon realise we need - we should really shorten it again afterwards.
-		newDestinations[g] = (Destination*)deluge::memory::alloc_fast(sizeof(Destination) * (kMaxNumPatchCables + 1));
+		int32_t numEntries = 1;
+		while (destinations[g][numEntries - 1].sources) {
+			numEntries++;
+		}
+		newDestinations[g] = (Destination*)deluge::memory::alloc_fast(sizeof(Destination) * numEntries);
 
 		// If couldn't...
 		if (!newDestinations[g]) {
@@ -771,7 +861,7 @@ done:
 }
 
 void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
-	numPatchCables = 0;
+	truncateCables(0);
 
 	// These are for loading in old-format presets, back when only one "range adjustable cable" was allowed.
 	PatchSource rangeAdjustableCableS = PatchSource::NOT_AVAILABLE;
@@ -843,10 +933,12 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 								}
 
 								// And write this range-adjusting cable's details
-								patchCables[numPatchCables].from = rangeSource;
-								patchCables[numPatchCables].param.cloneFrom(&tempRangeParam, true);
-								patchCables[numPatchCables].polarity = rangePolarity;
-								numPatchCables++;
+								PatchCable* cable = addCable();
+								if (cable != nullptr) {
+									cable->from = rangeSource;
+									cable->param.cloneFrom(&tempRangeParam, true);
+									cable->polarity = rangePolarity;
+								}
 							}
 						} // end of patchcable
 doneWithThisRangeCable:
@@ -891,11 +983,14 @@ doneWithThisRangeCable:
 				}
 
 				// And write this cable's details
-				patchCables[numPatchCables].from = source;
-				patchCables[numPatchCables].destinationParamDescriptor = destinationParamDescriptor;
-				patchCables[numPatchCables].param.cloneFrom(&tempParam, true);
-				patchCables[numPatchCables].polarity = polarity;
-				numPatchCables++;
+				PatchCable* cable = addCable();
+				if (cable == nullptr) {
+					goto abandonThisCable;
+				}
+				cable->from = source;
+				cable->destinationParamDescriptor = destinationParamDescriptor;
+				cable->param.cloneFrom(&tempParam, true);
+				cable->polarity = polarity;
 			}
 			else {
 abandonThisCable:
@@ -903,7 +998,7 @@ abandonThisCable:
 				for (int32_t c = numCablesAtStartOfThing; c < numPatchCables; c++) {
 					patchCables[c].param.deleteAutomationBasicForSetup();
 				}
-				numPatchCables = numCablesAtStartOfThing;
+				truncateCables(numCablesAtStartOfThing);
 			}
 		}
 
