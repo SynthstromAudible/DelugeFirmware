@@ -50,8 +50,7 @@ void log_dbgauthstatus() {
 
 extern "C" void deluge_app_bench(void) noexcept {
 	// The protocol times every case with IRQs masked, since an interrupt inside a timed run would land in its
-	// counts. The boot path does not guarantee the mask here (the app's critical sections unmask IRQs as they
-	// close), so the bench masks them itself and restores the mask it found.
+	// counts. The bench masks them itself rather than rely on its caller, and restores the mask it found.
 	const bool were_masked = irqs_masked();
 	asm volatile("cpsid i" ::: "memory");
 	log_dbgauthstatus();

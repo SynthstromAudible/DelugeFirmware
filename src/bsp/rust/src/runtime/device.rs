@@ -173,7 +173,7 @@ pub fn start() -> ! {
     unsafe { boot_mem::run_init_array() };
     log::info!("deluge-rust: C++ global constructors done");
 
-    // Clocks, caches, SDRAM and the static constructors are up; no peripheral IRQ is registered yet.
+    // Clocks, caches, SDRAM and the static constructors are up, and IRQs are still masked.
     // SAFETY: C ABI with no arguments; called once, before `deluge_app_init`.
     unsafe { sys::deluge_app_bench() };
 
