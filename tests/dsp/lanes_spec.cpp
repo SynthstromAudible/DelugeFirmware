@@ -20,7 +20,9 @@
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/lanes.h"
 #include "dsp-next/core/mono.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
+#include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
 #include "dsp-next/fixed/noise/noise.h"
@@ -104,6 +106,28 @@ struct CountingPrepare {
 	}
 };
 
+/// A processor kernel whose Block comes from its lane's State: prepare takes a sixteenth of the running sum, which
+/// every step of the block adds to its output, and each step moves the sum by half the input. A lane stepped with
+/// another lane's Block gives another lane's offset.
+struct StateBiased {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {
+		q31 acc; ///< The running sum of half the input.
+	};
+	struct Block {
+		q31 bias; ///< A sixteenth of the sum at the start of the block.
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static Block prepare(const Coefficients& /*c*/, State& s, std::size_t /*n*/) { return {.bias = s.acc >> 4}; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const Block& b, State& s, q31 x) {
+		s.acc = wrapping_add(s.acc, x >> 1);
+		return wrapping_add(s.acc, b.bias);
+	}
+};
+
 /// A generator kernel: counts up from 1 by its step, per lane.
 struct Counter {
 	using value_type = q31;
@@ -179,6 +203,8 @@ static_assert(processor<Lanes<OnePole, 4>>);
 static_assert(processor<Lanes<Gain, 1>>);
 static_assert(generator<Lanes<Counter, 3>>);
 static_assert(mixer<Lanes<RunningDifference, 2>>);
+static_assert(processor<Lanes<OnePole, 2, StereoSample>>);
+static_assert(std::same_as<Lanes<OnePole, 2, StereoSample>::value_type, StereoSample>);
 static_assert(std::same_as<Lanes<OnePole, 4>::value_type, Frame<q31, 4>>);
 static_assert(staged_kernel<Staged> && !wraps_in_lanes<Staged, 2>);
 static_assert(control_kernel<BlockFall> && !wraps_in_lanes<BlockFall, 2>);
@@ -361,6 +387,13 @@ describe lanes_spec("Lanes<K, N>", ${
 
 	it("equals N Monos of the anti-aliased tanh, state included", _ {
 		const Mismatches m = at_every_width<AntialiasedTanh>({.drive = 3}, {.drive = 20});
+		expect(m.samples).to_equal(std::size_t{0});
+		expect(m.states).to_equal(std::size_t{0});
+		expect(m.compared).to_equal(kComparedAllWidths);
+	});
+
+	it("steps each lane with the Block its own State prepared", _ {
+		const Mismatches m = at_every_width<StateBiased>({}, {});
 		expect(m.samples).to_equal(std::size_t{0});
 		expect(m.states).to_equal(std::size_t{0});
 		expect(m.compared).to_equal(kComparedAllWidths);
