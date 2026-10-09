@@ -2,7 +2,9 @@
 #include "bench/counters.h"
 #include "bench/runner.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
+#include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
+#include "util/fixedpoint.h"
 
 #include <algorithm>
 #include <array>
@@ -42,6 +44,19 @@ std::ostream& operator<<(std::ostream& out, ShiftTracker<11>::Mode mode) {
 		return out << "TRACK";
 	case ShiftTracker<11>::Mode::REMOVE:
 		return out << "REMOVE";
+	}
+	return out;
+}
+
+/// A one-pole case's mode, printed by name, so a failing comparison shows it.
+std::ostream& operator<<(std::ostream& out, OnePole::Mode mode) {
+	switch (mode) {
+	case OnePole::Mode::LOW_PASS:
+		return out << "LOW_PASS";
+	case OnePole::Mode::HIGH_PASS:
+		return out << "HIGH_PASS";
+	case OnePole::Mode::ALL_PASS:
+		return out << "ALL_PASS";
 	}
 	return out;
 }
@@ -186,9 +201,9 @@ static_assert(SyncedPulseCase::kAudibleIncrement > SyncedPulseCase::kMasterIncre
 
 /// The case list's names, in order.
 const std::vector<std::string_view> kCaseNames{
-    "calibration_loop", "amplitude",     "crude_amplitude", "pulse",         "band_limited_table",
-    "crude_saw",        "crude_square",  "crude_triangle",  "synced_pulse",  "wavetable",
-    "mono_gain",        "mono_vec_gain", "stereo_gain",     "duck_envelope", "shift_tracker",
+    "calibration_loop", "amplitude",      "crude_amplitude", "pulse",       "band_limited_table", "crude_saw",
+    "crude_square",     "crude_triangle", "synced_pulse",    "wavetable",   "mono_gain",          "mono_vec_gain",
+    "stereo_gain",      "duck_envelope",  "shift_tracker",   "one_pole_lp", "one_pole_ap",
 };
 
 /// Renders `blocks` blocks of `n` through a case's own setup and block, as the runner does.
@@ -592,6 +607,43 @@ describe bench_runner("The DSP benchmark runner", ${
 					}
 				}
 				expect(set.shift_tracker.component().state().y).to_equal(hp);
+			}
+		});
+
+		it("low- and all-passes input_a from silence, as the one-pole class does, at every block size", _ {
+			using Mode = dsp::fixed::OnePole::Mode;
+			CaseSet& set = case_set();
+			for (const std::size_t n : kSizes) {
+				set.one_pole_lp.setup(n);
+				set.one_pole_ap.setup(n);
+				for (const auto* mono : {&set.one_pole_lp.component(), &set.one_pole_ap.component()}) {
+					expect(mono->coefficients().m).to_equal(q31{1 << 29});
+					expect(mono->state().z).to_equal(q31{0});
+				}
+				expect(set.one_pole_lp.component().coefficients().mode).to_equal(Mode::LOW_PASS);
+				expect(set.one_pole_ap.component().coefficients().mode).to_equal(Mode::ALL_PASS);
+
+				// The class's lowPass and allPass on full-scale input, wrapping as the hardware's add and sub do.
+				const auto check = [&](auto& one_pole_case, bool all_pass) {
+					render(one_pole_case, n, 2);
+					uint32_t memory = 0;
+					for (std::size_t block = 0; block < 2; ++block) {
+						for (std::size_t i = 0; i < n; ++i) {
+							const auto x = static_cast<uint32_t>(input_a()[i]);
+							const auto difference = static_cast<q31>(x - memory);
+							const auto step =
+							    static_cast<uint32_t>(multiply_32x32_rshift32_rounded(difference, 1 << 29) << 1);
+							const uint32_t low = step + memory;
+							memory = low + step;
+							if (block == 1) {
+								expect(output()[i]).to_equal(static_cast<q31>(all_pass ? (low * 2) - x : low));
+							}
+						}
+					}
+					expect(one_pole_case.component().state().z).to_equal(static_cast<q31>(memory));
+				};
+				check(set.one_pole_lp, false);
+				check(set.one_pole_ap, true);
 			}
 		});
 

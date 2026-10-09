@@ -23,6 +23,7 @@
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
+#include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
 #include "dsp-next/fixed/osc/band_limited_table_oscillator.h"
 #include "dsp-next/fixed/osc/crude_oscillators.h"
@@ -500,6 +501,34 @@ private:
 	BlockSpans spans_{};
 };
 
+/// @brief `Mono<OnePole>` in mode @p M at the granular processor's moveability, from input_a into the output.
+/// @details **Timed state:** the memory carries from block to block, from silence at setup, following the one input
+/// block the case repeats. Every block is the same arithmetic: a subtract, a rounding multiply and two shifted adds to
+/// update the memory, and in ALL_PASS one reverse subtract for the output.
+/// @tparam M The mode: LOW_PASS for `one_pole_lp`, ALL_PASS for `one_pole_ap`.
+template <dsp::fixed::OnePole::Mode M>
+class OnePoleCase {
+public:
+	/// @brief The moveability, Q31: the granular processor's wet low-pass, about 12 kHz.
+	static constexpr q31 kMoveability = 1 << 29;
+
+	/// @brief Configures the pole in @p M from silence, fills input_a and takes the blocks' spans for @p n.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const dsp::Mono<dsp::fixed::OnePole>& component() const { return mono_; }
+
+private:
+	dsp::Mono<dsp::fixed::OnePole> mono_;
+	BlockSpans spans_{};
+};
+
+/// @brief `one_pole_lp`: the low-pass.
+using OnePoleLowPassCase = OnePoleCase<dsp::fixed::OnePole::Mode::LOW_PASS>;
+/// @brief `one_pole_ap`: the all-pass.
+using OnePoleAllPassCase = OnePoleCase<dsp::fixed::OnePole::Mode::ALL_PASS>;
+
 /// @brief `Control<DuckEnvelope>`: the sidechain's duck, configured then advanced once per block, as its owner does.
 /// @details The rates are as the owner resolves them: the spec's attack of 37,640 per sample (222 samples), and a
 /// release of 472 per sample (the release table's entry 40, 59 << 3: 17,772 samples), at the middle shape (fully
@@ -549,6 +578,8 @@ struct CaseSet {
 	StereoGainCase stereo_gain;              ///< `stereo_gain`
 	DuckEnvelopeCase duck_envelope;          ///< `duck_envelope`
 	ShiftTrackerCase shift_tracker;          ///< `shift_tracker`
+	OnePoleLowPassCase one_pole_lp;          ///< `one_pole_lp`
+	OnePoleAllPassCase one_pole_ap;          ///< `one_pole_ap`
 };
 
 /// @brief The cases' components, built on first use.

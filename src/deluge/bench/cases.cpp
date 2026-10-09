@@ -14,6 +14,7 @@ namespace deluge::bench {
 namespace {
 
 using dsp::fixed::DuckEnvelope;
+using dsp::fixed::OnePole;
 
 /// @brief The seed every input fill starts from.
 constexpr uint32_t kSeed = 0x5EED'1234;
@@ -299,6 +300,22 @@ void ShiftTrackerCase::block(std::size_t /*n*/) {
 	mono_.renderBlock(spans_.a, spans_.out);
 }
 
+template <OnePole::Mode M>
+void OnePoleCase<M>::setup(std::size_t n) {
+	spans_ = spans(n);
+	fill_inputs();
+	mono_.configure({.moveability = kMoveability, .mode = M});
+	mono_.reset();
+}
+
+template <OnePole::Mode M>
+void OnePoleCase<M>::block(std::size_t /*n*/) {
+	mono_.renderBlock(spans_.a, spans_.out);
+}
+
+template class OnePoleCase<OnePole::Mode::LOW_PASS>;
+template class OnePoleCase<OnePole::Mode::ALL_PASS>;
+
 CaseSet& case_set() {
 	static CaseSet set;
 	return set;
@@ -322,6 +339,8 @@ std::span<const Case> cases() {
 	    make_case("stereo_gain", s.stereo_gain),
 	    make_case("duck_envelope", s.duck_envelope),
 	    make_case("shift_tracker", s.shift_tracker),
+	    make_case("one_pole_lp", s.one_pole_lp),
+	    make_case("one_pole_ap", s.one_pole_ap),
 	};
 	return list;
 }
