@@ -56,9 +56,14 @@ These numbers explain the cost of a streaming q31 loop:
 2. **Unrolling (`U`) helps little for streaming kernels.** A gain unrolled two, three or four vectors per iteration
    gains at most about 12%. The loop is bound by the multiply's issue rate and the store, not by latency.
 3. **Interleaving independent streams (`Lanes<K, N>`) is for recursive kernels.** A filter or envelope whose next
-   sample depends on its last is latency-bound. N independent channels interleaved hide the latency when N is at least
-   the critical operation's result latency divided by its issue cycles. For `VQDMULH.32` Q (4 issue, 7–9 latency) that
-   is 2–3 streams; for `VQDMULH.16` (1 issue, about 6 latency) about 6. The bench and the trace confirm N on the device.
+   sample depends on its last is latency-bound. N independent streams interleaved hide the latency when N is at least
+   the recurrence latency divided by the whole per-lane issue cost: N ≥ latency ÷ (the lane's instructions ÷ about
+   1.5, counting 2 cycles per multiply). The divisor is everything a lane issues, not the critical operation's issue
+   cycles alone, since the other lanes' whole steps are what fills the wait. `OnePole` LOW_PASS recurs through a sub,
+   an `smmulr` and two shifted adds, about 9 cycles, and issues about 4.5 cycles per lane (six instructions, one of them
+   the multiply), so N = 2 hides it and the gain flattens beyond N = 2–3 (see [Lanes](#lanes)). On the integer core
+   the knee is N = 2–3; a NEON kernel needs 2–3 quadwords in flight. The bench and the trace confirm N on the device,
+   for every use.
 4. **Prefer 16-bit lanes where the precision allows.** Their multiplies run at full rate and a Q register holds eight
    samples, which also halves the store traffic per sample.
 5. **Keep per-block glue out of the loop.** The app builds with `-fno-inline-functions`, so an accessor such as
@@ -79,9 +84,8 @@ rows are from f75b87014 (2026-10-09):
 | `Tanh<3>` (`tanh3`) | 17.14 | 16.56 | 16.28 |
 | `DryWetBlend` BLEND, `Mono` mixer (`dry_wet_blend`) | 9.58 | 8.51 | 8.02 |
 
-- The one-pole is the first recursive kernel measured, so its cost is the first data point for `Lanes<K, N>`. A
-  single-channel `Mono` run measures the scalar recursion with its dependency chain; it says nothing about the gain from
-  interleaving channels, which needs a `Lanes` run to measure.
+- A single-channel `Mono` run measures a recursive kernel's scalar recursion with its dependency chain; it says
+  nothing about the gain from interleaving channels. [Lanes](#lanes) measures that.
 - Neither tanh kernel makes a call per sample. `BilinearTableInterpolator::interpolateSigned<Table>` takes its table
   (a built-in `int16_t[R][W]`) at compile time, so the base, the row stride and both log2 sizes are constants: the
   stride folds into the `ldrsh` offsets and every read stays inside one row. `AntialiasedTanh` clamps the input to
@@ -91,14 +95,55 @@ rows are from f75b87014 (2026-10-09):
   clamp, shift, index, four `ldrsh`, `mul`/`mla`, two `smmul`, shift, store), `Tanh<3>` 15 in about 16. Removing
   instructions gains little more. The next lever is interleaving independent chains: adjacent samples of
   `AntialiasedTanh` depend only on their inputs, so two samples or two channels stepped together can overlap. A plain
-  loop unroll does not do it: clang lays the copies out back to back, and the A9 does not overlap them itself.
+  loop unroll does not do it: clang lays the copies out back to back, and the A9 does not overlap them itself. Two
+  channels through `Stereo` gain 8% ([Lanes](#lanes)).
+
+## Lanes
+
+Cycles per channel-sample on the device for `Lanes<K, N>` (`one_pole_x2` and on), each beside its kernel's `Mono` case
+from the same image. The bench ran on 5c4df244f (2026-10-09), `DELUGE_DSP_BENCH_CASES=lanes`; the `kernels` list from
+the same tree gives the same `Mono` figures to within 0.01.
+
+| Case | Kernel, form | N | n=32 | n=64 | n=128 | against `Mono` at n=128 |
+|---|---|---:|---:|---:|---:|---:|
+| `one_pole_lp` | `OnePole` LOW_PASS, `Mono` | 1 | 10.20 | 9.59 | 9.30 | |
+| `one_pole_x2` | `OnePole` LOW_PASS, op-major | 2 | 6.58 | 6.28 | 6.14 | −34% |
+| `one_pole_x4` | `OnePole` LOW_PASS, op-major | 4 | 5.77 | 5.50 | 5.37 | −42% |
+| `shift_tracker` | `ShiftTracker<11>` REMOVE, `Mono` | 1 | 6.85 | 6.16 | 5.83 | |
+| `shift_tracker_x4` | `ShiftTracker<11>` REMOVE, op-major | 4 | 4.55 | 4.40 | 4.32 | −26% |
+| `shift_tracker_x8` | `ShiftTracker<11>` REMOVE, op-major | 8 | 3.63 | 3.50 | 3.44 | −41% |
+| `antialiased_tanh` | `AntialiasedTanh` drive 3, `Mono` | 1 | 43.42 | 42.70 | 42.38 | |
+| `stereo_antialiased_tanh` | `AntialiasedTanh` drive 3, `Stereo` (lane by lane) | 2 | 39.66 | 39.33 | 39.17 | −8% |
+| `mono_gain` | gain, `Mono` | 1 | 7.45 | 6.71 | 6.36 | |
+| `stereo_gain` | gain, `Stereo` | 2 | 4.64 | 4.31 | 4.16 | −35% |
+
+- **Every figure here is per channel-sample**, `stereo_gain`'s included: cycles ÷ (K·n·N). A table without the
+  `lanes=` field gives `stereo_gain` per frame, twice the figure here.
+- **"Op-major" names the form the source asks for, not a different loop.** Over interleaved frames clang compiles the
+  op-major and lane-by-lane forms to the same instructions at the shipping flags (`OnePole` at N = 2 and 4,
+  `ShiftTracker` at N = 4), so these are the figures of `Lanes` at each N, whichever form a kernel takes. Opting in is
+  a shape and test guarantee, not a speed-up; another kernel opts in only when a probe shows its op-major loop beating
+  lane by lane, or a `LanePack` specialisation lane by lane cannot reach.
+- **`OnePole` at N = 2 is issue-bound.** The loop is 12 instructions per frame (two `smmulr`, `ldrd`/`strd`, no calls,
+  no `muls`), and the PTM trace gives 12 cycles per iteration in 95% of them: one instruction per cycle, with the two
+  multiplies' latency hidden. What remains is issue: a loop of the same 12 instructions per frame has measured 11.1
+  cycles, with some dual issue. N = 4 (24 instructions, 1.14 per cycle) gains a further 13%. A hand-scheduled asm loop
+  reaches 4.4 at N = 4, each multiply placed between ALU operations, where clang's N = 2 loop puts each lane's
+  dependent add right behind its own multiply.
+- **`OnePole` HIGH_PASS and ALL_PASS run out of registers at N = 4.** Their loop is 34 instructions per frame,
+  reloading the coefficient from the stack four times and the end pointer once every frame. LOW_PASS at N = 4 keeps
+  everything in registers (24 instructions). Measure HIGH_PASS and ALL_PASS before choosing N = 4 for them.
+- **`ShiftTracker` from N = 4 is NEON.** clang vectorises the interleaved frames (`vld1`, `vsub`, `vsra`, `vsub`,
+  `vst1`) without being asked, bit for bit. N = 8 keeps two quadwords in flight. The step was issue-bound at 7
+  instructions in the scalar loop; one quadword is latency-bound, so the gain comes from the second.
+- **`Stereo<AntialiasedTanh>` gains 8%, not more.** Each lane's step is about 40 instructions with six multiplies and
+  five loads, and clang lays the two channels' chains out one after the other in an 83-instruction loop that spills
+  to the stack, so the core overlaps only the ends of the chains (IPC about 1.06). Software-pipelining adjacent
+  samples of one channel, whose steps depend only on their inputs, is the lever for this kernel, not a wider N.
 
 ## Open questions
 
 - Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain, such as
   filters. Measure when the first filter kernel lands.
 - The `wavetable` bench case costs about 336 cycles per sample. Look at it when the oscillators move to the kernel form.
-- How far interleaving takes the tanh kernels: a two-sample `AntialiasedTanh` step, or `Lanes<K, 2>` across a stereo
-  pair. `Saturation::process` steps L and R in one iteration; whether clang interleaves the two chains there is
-  unmeasured, and a stereo bench case would show it.
 - `Mono::renderBlock` calls `std::span::size()` and `data()` per block, and both are out of line at the shipping flags.

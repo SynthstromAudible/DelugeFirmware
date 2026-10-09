@@ -425,28 +425,68 @@ per-sample loop, so a `Mono` of one would be inert.
   per sample nests it (see [Composition](#composition)). The same holds for
   `Stereo<K>::render`.
 
+### `Lanes<K, N>` (`core/lanes.h`)
+
+`Lanes<K, N, F>` runs one scalar kernel on N independent streams at once (channels, voices, a ladder's sections): one
+`Coefficients` shared by every lane, one `State` per lane. It is a generator, processor or mixer to match `K`'s step
+arity, as `Mono` is. A staged or control kernel is rejected at the class: neither has a step to run per lane.
+
+- **Why.** The Cortex-A9 overlaps independent work only when the instruction stream interleaves it. Two independent
+  chains laid out one after the other cost the sum of the two, and clang lays them out that way. A recursive kernel on
+  one stream is one chain of dependent instructions, bound by its latency; N streams stepped in one loop give the core
+  other lanes' instructions to issue while each chain waits. Rule 3 of
+  [a9_dsp_performance.md](a9_dsp_performance.md#what-follows-for-kernels) gives the N that hides the latency.
+- **Frames.** A block is a span of interleaved N-lane frames, lane 0 first: `Frame<q31, N>` (`core/frame.h`) by
+  default, or any F with that layout (`StereoSample` is two q31 lanes, left in lane 0). One input pointer and one
+  output pointer step over whole frames, with paired or multiple loads and stores. There is no form over N separate
+  blocks: with 2N pointers clang shares one index register and steps it after the stores, which costs more than the
+  interleaving saves.
+- **Per block.** `prepare`, when K declares one, runs once per lane in lane order, and each lane steps with its own
+  `Block`. Then one mode dispatch covers the one loop over the frames.
+- **Lane by lane, the default.** Each frame steps lane 0, then 1, … N − 1, into a local frame, then stores it. Every
+  kernel can be stepped this way. A kernel drawing from a stream every lane shares (noise) draws in lane order on every
+  frame.
+- **Op-major, the opt-in.** A kernel written once over its value type steps a whole frame as one
+  `LanePack<q31, N>` (`core/lane_pack.h`), each operation across every lane before the next. Each pack operation is
+  its scalar operation applied lane by lane, so op-major equals lane by lane bit for bit, and `lanes_spec` checks every
+  opted-in kernel against its lane-by-lane form. A kernel opts in by declaring:
+  - `static constexpr bool kLanePackable = true`;
+  - `template <class V> struct StateT`, every member a V, with `using State = StateT<q31>`;
+  - `template <Mode M, class V> static V step(const Coefficients&, const EmptyBlock&, StateT<V>&,
+    std::type_identity_t<V> x)` (without M for a kernel without modes), its arithmetic called unqualified
+    (`wrapping_add`, `wrapping_sub`, the fixed-point multiplies) so that it resolves for q31 and for a pack.
+
+  `lane_packable<K>` (`core/kernel.h`) detects the opt-in. A kernel with a `prepare` or a `reset` quirk stays lane by
+  lane, since both act on one lane's State. A kernel that declares the opt-in without its state and step written over
+  V fails to compile in `Lanes` rather than falling back. In op-major `state(lane)` returns a snapshot of the lane's
+  State by value; lane by lane it returns a reference.
+- **What op-major buys.** Over interleaved frames clang compiles the two forms to the same loop at the shipping flags:
+  `OnePole` at N = 2 and 4 and `ShiftTracker` at N = 4 give the same bytes either way. Opting in guarantees the shape
+  in the source and the bit-exact check against lane by lane; it is not a speed-up. `OnePole` and `ShiftTracker` opt
+  in. A further kernel opts in only when a probe at the shipping flags shows its op-major loop beating its lane-by-lane
+  one, or when a `LanePack` specialisation exists (a hand-written or NEON operation) that lane by lane cannot reach.
+- **The loop.** Each frame is loaded whole and every pointer is stepped before the frame is stored: on the A9 a load
+  whose address is computed after a pending store waits for that store's data. Every input frame is read whole before
+  any lane of its output is written, so input and output may be the same buffer. The loop runs on local copies of the
+  coefficients and every State, written back after the block, as in `Mono`.
+- **`Stereo<K>` is `Lanes<K, 2, StereoSample>`** (below).
+- **Measure every use.** N is per kernel, 2 by default. Each use of `Lanes` gets a bench case at its N (the `lanes`
+  list in [Measuring](#measuring)), because clang's scheduling, addressing and encoding choices move the same work by
+  10–60%, and a compiler upgrade can undo a win. The measured figures are in
+  [a9_dsp_performance.md](a9_dsp_performance.md#lanes).
+
 ### `Stereo<K>` (`core/stereo.h`)
 
-`Stereo<K>` runs a mono q31 processor kernel on both channels of a
-`StereoSample` block. It is a plain class, not a mixin, that satisfies the
-`processor` concept with `value_type` `StereoSample`: it writes `render` and
-`renderBlock` itself.
+`Stereo<K>` runs a mono q31 processor kernel on both channels of a `StereoSample` block. It is
+`Lanes<K, 2, StereoSample>` with the channels named: `left()` and `right()` are `state(0)` and `state(1)`. Everything
+in [`Lanes`](#lanesk-n-corelanesh) holds for it:
 
-- **Shared coefficients.** `configure` calls `K::coefficients` once, and both
-  channels step with the result.
-- **A state per channel.** `left()` and `right()` are the two states, carried
-  across blocks. `reset()` resets both.
-- **Left then right.** Each frame steps the left channel into a local, then the
-  right, then stores the frame. A kernel drawing from a stream shared by the two
-  channels (noise) draws for left before right on every frame, which is the
-  order the legacy per-frame code draws in.
-- **Once per channel per block**, `prepare` runs for each channel (a `Block` may
-  depend on that channel's state), left first, then right, so a `prepare` that
-  draws from a shared noise stream draws for left before right on every block.
-  Then one mode dispatch covers the single loop over the frames.
-- It is constrained on `processor_kernel<K>` at the class, so a generator,
-  mixer or control kernel is a compile error, not an inert class. A kernel has
-  one form, so the constraint needs no clause for control kernels.
+- **Shared coefficients, a state per channel.** `configure` calls `K::coefficients` once and both channels step with
+  the result; `reset()` resets both.
+- **Left then right.** `prepare` runs left then right on every block, and each frame steps left before right, so a
+  kernel drawing from a noise stream both channels share draws in the order the legacy per-frame code does.
+- It is constrained on `processor_kernel<K>` at the class, so a generator, mixer or control kernel is a compile error,
+  not an inert class.
 
 ### `Control<K>` (`core/control.h`)
 
@@ -488,9 +528,10 @@ is the block.
 
 ### The shared glue
 
-`Mono`, `Stereo` and `Control` call a kernel only through `kernel_ops`
+`Mono`, `Lanes` (so `Stereo`) and `Control` call a kernel only through `kernel_ops`
 (`core/kernel.h`): `prepare_block`, `dispatch_mode`, then `step_at`,
-`process_at` or `advance_at` for the kernel's form. So the `prepare`, mode
+`process_at` or `advance_at` for the kernel's form, or `step_packed_at` for an
+op-major `Lanes`. So the `prepare`, mode
 dispatch and form call exist once, and a composed kernel calls its parts
 through the same functions. Each passes the coefficients as a const reference,
 so the call resolves to the form's own signature even when a kernel overloads
@@ -509,8 +550,8 @@ it on non-const `Coefficients`.
   mutable one a `StereoBuffer`. A range that owns its storage must be an lvalue
   (or the range borrowed), since a view of a temporary would dangle.
 - **`Stereo<K>`** (`core/stereo.h`) runs a mono q31 processor kernel on each
-  channel: one `State` per channel and one shared `Coefficients`. It is a plain
-  class satisfying the `processor` concept over `StereoSample`. Each frame steps
+  channel: one `State` per channel and one shared `Coefficients`. It is
+  `Lanes<K, 2, StereoSample>`, a `processor` over `StereoSample`. Each frame steps
   the left channel and then the right, so a shared noise stream is drawn left
   then right on every frame, bit-exact. `configure(const K::Settings&)` sets both channels from one
   `Settings`. See [Wrappers](#wrappers).
@@ -558,6 +599,12 @@ components, and they bind every rewrite:
    checked lane by lane against it.
 
 ### Target API for the lane arc
+
+This arc is NEON across voices: one kernel's arithmetic on SoA packs, a voice
+per vector lane, each lane with its own settings. It is distinct from
+[`Lanes<K, N>`](#lanesk-n-corelanesh), which steps a scalar kernel over
+interleaved frames with one shared `Coefficients`. The sketch below names its
+class `Lanes` too; it takes another name when it lands.
 
 ```cpp
 template <class K> concept lane_kernel = /* K::Scalar (the scalar component), K::Coefficients<N>, K::State<N>
@@ -691,10 +738,9 @@ replacement oracle, either recorded vectors or a reference written in the spec, 
   once nothing uses them.
 - **The rest of the kernel form.** Not implemented yet: `U` (the unroll factor
   of the wrappers' loops; stateful vector kernels opt in with `split`/`merge`,
-  checked bit-exact against U = 1), `Chain` (fused composition of kernels with
-  matching step types; `Modes` is the product of the parts') and `Lanes<K, N>`
-  (lane-parallel recursive kernels, N = 4/8/12). `U` and `N` are chosen from
-  device cycle-per-sample measurements.
+  checked bit-exact against U = 1) and `Chain` (fused composition of kernels with
+  matching step types; `Modes` is the product of the parts'). `U` is chosen from
+  device cycle-per-sample measurements, as each `Lanes` use's N is.
 - **The oscillator registry.** The `OscType` choice becomes a block-level
   registry composing generator, band selection, sync and `Amplitude` behind
   `AsBlock`.
@@ -739,12 +785,23 @@ tools/dsp_bench.py --timeout 180          # flashes, captures RTT, writes the ta
 ./dbt build RelWithDebInfo
 ```
 
-The cases come in two lists, since the device prints about 70 lines over RTT
-before it drops some: `kernels` (the default, one case per component) and
-`lanes` (each `Lanes` case beside the mono case of its kernel). Choose one with
+The cases come in two lists, chosen by the CMake cache string
+`DELUGE_DSP_BENCH_CASES`, since the device prints about 70 lines over RTT before
+it drops some:
+
+- `kernels` (the default): one case per component;
+- `lanes`: each `Lanes` case beside the mono case of its kernel.
+
+Choose one with
 `./dbt configure -DDELUGE_DSP_BENCH=ON -DDELUGE_DSP_BENCH_CASES=lanes`; it sticks
-in the cache as the option does. A case of N lanes prints `lanes=N`, and its cps
-is per channel-sample: cycles ÷ (K·n·N).
+in the cache as the option does, so set it back to `kernels` with the option
+OFF. Any other value fails the configure. `bench_runner_spec` checks that each
+list, run at the device's block sizes, prints fewer than 70 lines in all.
+
+A case of N lanes (a component declaring `static constexpr std::size_t kLanes =
+N`) prints `lanes=N` after `n=`, and its cps is per channel-sample: cycles ÷
+(K·n·N). That includes `stereo_gain`, whose cps is therefore half the per-frame
+figure a table without `lanes=` gives for it.
 
 `dsp_bench.py` runs `deluge_jlink.py`, which loads the RAM image and starts it
 itself, so there is no probe to attach beforehand. The bench runs before
@@ -792,7 +849,7 @@ constant / n to `cps` and inflates the small-n rows most.
 **The lines.** Each measurement is one RTT line:
 
 ```
-BENCH case=<name> n=<block> k=<blocks> cycles=<u32> cps=<x.xx> l1d_refill=<u32> inst=<u32> dc_stall=<u32> issue_empty=<u32> neon=<u32>
+BENCH case=<name> n=<block> [lanes=<N>] k=<blocks> cycles=<u32> cps=<x.xx> l1d_refill=<u32> inst=<u32> dc_stall=<u32> issue_empty=<u32> neon=<u32>
 ```
 
 ending with `BENCH-DONE cases=<count>`, which counts every `BENCH` line before it
@@ -802,7 +859,8 @@ cases are metadata and are not counted. The fields:
 | Field | Meaning |
 | --- | --- |
 | `cycles` | CPU cycles over the K timed blocks (PMCCNTR, undivided, 32 bits) |
-| `cps` | cycles per sample, cycles / (K * n), two decimals, rounded half up |
+| `lanes` | the case's lane count N, printed only when N > 1, so a mono line has no `lanes=` |
+| `cps` | cycles per channel-sample, cycles / (K * n * N), two decimals, rounded half up |
 | `l1d_refill` | L1 data cache refills (event 0x03) |
 | `inst` | instructions through the renaming stage (0x68; includes a few renamed down a mispredicted path) |
 | `dc_stall` | cycles stalled on a data cache dependency (0x61) |
@@ -811,7 +869,8 @@ cases are metadata and are not counted. The fields:
 
 The events are the Cortex-A9 PMU's (Cortex-A9 TRM, DDI 0388I, Tables 11.5 and
 11.6), one counter each, so they count together without multiplexing. The table
-`dsp_bench.py` writes shows `cps` as printed and the event counts per sample.
+`dsp_bench.py` writes shows `cps` as printed and the event counts per channel-sample,
+with `n` shown as `<n>x<N>` for a case of N lanes.
 
 **Sanity.** `calibration_loop` runs a loop of known length, so its `inst` lies in
 [1024 * n, 1024 * n + 2048] and its `cps` is at least 32.00 (the arithmetic is in
@@ -903,3 +962,21 @@ gates:
   or per vector in the shipping image.
 - Does a performance claim cite a bench table, or the exact shipping-flags
   disassembly?
+- Does every loop step its pointers before its stores? On the A9 a load whose
+  address is computed after a pending store waits for that store's data: the
+  same eight instructions cost 14.1 cycles with the pointer step after the store
+  and 8.3 with it after the load. In the disassembly the loads are
+  post-indexed (`ldrd r2, r3, [r0], #8`) or the pointer `add` follows them.
+- Is there a `muls` in a hot loop? It is Thumb-2's narrow flag-setting multiply,
+  which clang's size reduction picks when the registers allow it, and it costs
+  about 3.3 issue cycles against 2.0 for `mul`. Check the disassembly at the
+  shipping flags.
+- Is a block's output a multiple of 1 KB from its input? The same loop then
+  runs about a cycle per sample slower: `one_pole_lp` measures 10.29 with its
+  output 1024 bytes after its input and 9.30 otherwise, with no code change. The bench's
+  shared blocks are padded, with a `static_assert` that no two are a 1 KB
+  multiple apart, so their figures do not depend on where the linker puts them.
+- Does each new use of `Lanes` have a bench case at its N? Does a kernel opt in to
+  op-major without a probe showing its op-major loop beating lane by lane, or a
+  `LanePack` specialisation lane by lane cannot reach? See
+  [`Lanes<K, N>`](#lanesk-n-corelanesh).
