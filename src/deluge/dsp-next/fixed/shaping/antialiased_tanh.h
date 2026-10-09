@@ -63,7 +63,8 @@ struct AntialiasedTanh {
 
 	/// @brief What a step reads: the drive, and the bounds its saturation clamps the input to before the shift.
 	/// @details The bounds are those of `lshiftAndSaturateUnknown`'s width, so a step clamps with two compares rather
-	/// than dispatching on the width per sample. The defaults are drive 0's: 12 bits.
+	/// than dispatching on the width per sample. The defaults are drive 0's: 12 bits. Build them with coefficients(),
+	/// which derives the bounds from the drive: setting the drive alone leaves drive 0's bounds.
 	struct Coefficients {
 		uint32_t drive = 0;     ///< The drive as a power of two. 0 to 30.
 		int32_t floor = -2048;  ///< The lowest input kept before the shift, Q31: −2^(width − 1).

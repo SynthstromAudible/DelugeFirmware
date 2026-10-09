@@ -34,6 +34,8 @@ using deluge::dsp::fixed::getDecay8;
 
 /// 2^2 + 1 rows of 2^3 + 1 entries, every entry distinct and of both signs: a row stride off by one reads another
 /// value.
+// A built-in array, the shape BilinearTableInterpolator takes.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 constexpr int16_t kGrid[5][9] = {
     {-9000, -7000, -5100, -3000, -1100, 900, 3100, 5000, 7100},
     {-8800, -6900, -4900, -2950, -1000, 1050, 2900, 4950, 6800},
