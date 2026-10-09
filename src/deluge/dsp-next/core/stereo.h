@@ -39,10 +39,10 @@ template <std::ranges::contiguous_range R>
 requires std::same_as<std::remove_cvref_t<std::ranges::range_reference_t<R>>, q31> && std::ranges::sized_range<R>
          && (std::is_lvalue_reference_v<R> || std::ranges::borrowed_range<R>)
 [[nodiscard]] auto as_frames(R&& interleaved) {
-	using Frame = std::conditional_t<std::is_const_v<std::remove_reference_t<std::ranges::range_reference_t<R>>>,
-	                                 const StereoSample, StereoSample>;
-	return std::span<Frame>{reinterpret_cast<Frame*>(std::ranges::data(interleaved)),
-	                        std::ranges::size(interleaved) / 2};
+	using StereoFrame = std::conditional_t<std::is_const_v<std::remove_reference_t<std::ranges::range_reference_t<R>>>,
+	                                       const StereoSample, StereoSample>;
+	return std::span<StereoFrame>{reinterpret_cast<StereoFrame*>(std::ranges::data(interleaved)),
+	                              std::ranges::size(interleaved) / 2};
 }
 
 /// @brief A mono q31 kernel run on both channels of a stereo frame: @ref Lanes over two lanes, left in lane 0, with
