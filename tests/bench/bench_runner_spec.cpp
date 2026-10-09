@@ -582,11 +582,12 @@ describe bench_runner("The DSP benchmark runner", ${
 				q31 hp = 0;
 				for (std::size_t block = 0; block < 2; ++block) {
 					for (std::size_t i = 0; i < n; ++i) {
-						q31 x = input_a()[i];
-						hp += (x - hp) >> 11;
-						x -= hp;
+						// The delay's blocker on full-scale input, wrapping as the hardware's add and sub do.
+						const auto x = static_cast<uint32_t>(input_a()[i]);
+						const auto step = static_cast<q31>(x - static_cast<uint32_t>(hp)) >> 11;
+						hp = static_cast<q31>(static_cast<uint32_t>(hp) + static_cast<uint32_t>(step));
 						if (block == 1) {
-							expect(output()[i]).to_equal(x);
+							expect(output()[i]).to_equal(static_cast<q31>(x - static_cast<uint32_t>(hp)));
 						}
 					}
 				}

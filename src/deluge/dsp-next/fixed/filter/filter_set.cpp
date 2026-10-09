@@ -16,6 +16,7 @@
  */
 
 #include "dsp-next/fixed/filter/filter_set.h"
+#include "dsp-next/fixed/wrapping.h"
 
 #include "util/fixedpoint.h"
 
@@ -192,7 +193,7 @@ namespace {
 /// @brief @p block += @p other, sample by sample, wrapping on overflow (two's complement, as the hardware adds).
 void add_wrapping(std::span<q31> block, std::span<const q31> other) {
 	for (std::size_t i = 0; i < block.size(); i++) {
-		block[i] = static_cast<q31>(static_cast<uint32_t>(block[i]) + static_cast<uint32_t>(other[i]));
+		block[i] = wrapping_add(block[i], other[i]);
 	}
 }
 

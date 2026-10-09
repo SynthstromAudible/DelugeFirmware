@@ -20,6 +20,7 @@
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/types.h"
+#include "dsp-next/fixed/wrapping.h"
 
 #include <cstdint>
 #include <type_traits>
@@ -36,8 +37,9 @@ namespace deluge::dsp::fixed {
 /// **Order.** Both modes update y first and return from the updated y: TRACK returns the new y, REMOVE returns x less
 /// the new y. Neither returns the y the step started from.
 ///
-/// x − y is a plain q31 subtraction, as in the arithmetic this kernel replaces. y stays within the range of the inputs
-/// so far, so inputs within half scale keep x − y inside q31.
+/// **Wrapping.** The additions and subtractions wrap modulo 2^32, as two's-complement hardware computes them. At full
+/// scale x − y leaves q31 (an input at INT32_MAX after y has settled negative), and the result is the wrapped value
+/// the target's `sub` gives, not undefined behaviour.
 /// @tparam N The shift: the step is the difference over 2^N. 1 to 31.
 template <int N>
 requires(N >= 1 && N <= 31)
@@ -72,7 +74,7 @@ struct ShiftTracker {
 		return {.mode = s.mode};
 	}
 
-	/// @brief One sample: y += (x − y) >> N, then the new y (TRACK) or x less the new y (REMOVE).
+	/// @brief One sample: y += (x − y) >> N, wrapping, then the new y (TRACK) or x less the new y (REMOVE).
 	/// @tparam M The block's mode.
 	/// @param s The memory, updated before the return value is taken from it.
 	/// @param x The input, Q31.
@@ -80,12 +82,12 @@ struct ShiftTracker {
 	template <Mode M>
 	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
 	                                                     q31 x) {
-		s.y += (x - s.y) >> N;
+		s.y = wrapping_add(s.y, wrapping_sub(x, s.y) >> N);
 		if constexpr (M == Mode::TRACK) {
 			return s.y;
 		}
 		else {
-			return x - s.y;
+			return wrapping_sub(x, s.y);
 		}
 	}
 };
