@@ -18,6 +18,8 @@
 #pragma once
 
 #include "modulation/params/param_node.h"
-#include "util/container/ordered_pos_vector.h"
+#include "util/container/lazy_pos_vector.h"
 
-using ParamNodeVector = deluge::OrderedPosVector<ParamNode>;
+/// An AutoParam's automation nodes. Lazy, because every param has one and most are never automated: an unautomated
+/// AutoParam's node list is a null pointer.
+using ParamNodeVector = deluge::LazyPosVector<ParamNode>;
