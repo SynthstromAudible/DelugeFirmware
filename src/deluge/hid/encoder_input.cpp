@@ -49,16 +49,16 @@ void interpretEncodersTask() {
 }
 
 bool interpretEncoders() {
-	// Fold the raw A-pin edges the board's ISR has accumulated since last time into each encoder.
+	// Fold the quadrature edges the board has decoded since last time into each encoder.
 	// Detent reduction (DetentedEncoder) and gold-knob velocity (ContinuousEncoder) happen in
 	// applyEdges; this runs in task context now, not the ISR. The board's edge index order matches
 	// EncoderName: 0=scrollY 1=scrollX 2=tempo 3=select 4=mod1 5=mod0.
-	functionEncoderAt(0).applyEdges(deluge_encoder_take_edges(0)); // scrollY
-	functionEncoderAt(1).applyEdges(deluge_encoder_take_edges(1)); // scrollX
-	functionEncoderAt(2).applyEdges(deluge_encoder_take_edges(2)); // tempo
-	functionEncoderAt(3).applyEdges(deluge_encoder_take_edges(3)); // select
-	modEncoderAt(1).applyEdges(deluge_encoder_take_edges(4));      // mod1
-	modEncoderAt(0).applyEdges(deluge_encoder_take_edges(5));      // mod0
+	functionEncoderAt(0).applyEdges(deluge_encoder_take_quadrature_edges(0)); // scrollY
+	functionEncoderAt(1).applyEdges(deluge_encoder_take_quadrature_edges(1)); // scrollX
+	functionEncoderAt(2).applyEdges(deluge_encoder_take_quadrature_edges(2)); // tempo
+	functionEncoderAt(3).applyEdges(deluge_encoder_take_quadrature_edges(3)); // select
+	modEncoderAt(1).applyEdges(deluge_encoder_take_quadrature_edges(4));      // mod1
+	modEncoderAt(0).applyEdges(deluge_encoder_take_quadrature_edges(5));      // mod0
 
 	// do not interpret encoders when stem export is underway
 	if (stemExport.processStarted) {

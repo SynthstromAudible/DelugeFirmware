@@ -201,6 +201,8 @@ pub fn start() -> ! {
         spawner.spawn(control::pic_pump().unwrap());
         // The sole PIC transmitter: drains the LED/pad output queue.
         spawner.spawn(control::pad_render().unwrap());
+        // Samples the encoder pins for the transitions their interrupts miss.
+        spawner.spawn(control::encoder_poll().unwrap());
         // SSD1309 init and frame streaming over RSPI0.
         spawner.spawn(display::oled_render().unwrap());
         // CV DAC writer (shares RSPI0 with the OLED).

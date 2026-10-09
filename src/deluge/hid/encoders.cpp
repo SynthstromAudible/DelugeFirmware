@@ -25,10 +25,17 @@ namespace deluge::hid::encoders {
 // ── DetentedEncoder ────────────────────────────────────────────────────────
 
 void DetentedEncoder::applyEdges(int8_t edges) {
-	// Two A-pin edges per quadrature cycle, one quadrature cycle per detent click.
+	// Four edges per click, reported at the nearest click: see the class comment.
 	edgeAccumulator += edges;
-	int8_t ticks = edgeAccumulator / 2;
-	edgeAccumulator -= ticks * 2;
+	int32_t ticks = 0;
+	while (edgeAccumulator > 2) {
+		edgeAccumulator -= 4;
+		++ticks;
+	}
+	while (edgeAccumulator < -2) {
+		edgeAccumulator += 4;
+		--ticks;
+	}
 	pos.fetch_add(ticks, std::memory_order_relaxed);
 }
 
