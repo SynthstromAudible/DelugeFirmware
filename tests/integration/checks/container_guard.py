@@ -18,6 +18,9 @@ kinds=<kind=n,...>`:
     CG-CLIPDUP               a session clip cloned (SessionView::cloneClip())
     CG-ARRANGE               a clip instance inserted into and erased from an output's clipInstances
     CG-AUTOMATE              an automation node inserted into and erased from a playing clip's volume AutoParam
+    CG-PATCHCABLE            a patch cable added to and deleted from a playing synth (PatchCableSet::getPatchCableIndex()
+                             creating it, then deletePatchCable()): the cable storage grows and shrinks, and
+                             setupPatching() reorders the cables
     CG-DRUM                  a drum added to a playing kit (Kit::addDrum()) and removed (Kit::removeDrum())
     CG-REPLACE               a playing clip's synth replaced (Song::replaceInstrument())
     CG-UNDO                  a logged note delete, undone
@@ -63,6 +66,7 @@ LEGS = [
     "CLIPDUP",
     "ARRANGE",
     "AUTOMATE",
+    "PATCHCABLE",
     "DRUM",
     "REPLACE",
     "UNDO",

@@ -22,6 +22,7 @@ enum class StructuralContainer : uint8_t {
 	HEAP,               ///< a heap's TLSF step (crates/deluge_alloc: malloc, free, shrink, size, reclaim guard)
 	SLAB,               ///< a cluster-slab slot's claim, clear, pin, unpin or touch
 	ALLOC_METADATA,     ///< MEM_GUARD's side table of live allocations (memory/alloc_metadata.cpp)
+	PATCH_CABLES,       ///< a patch cable set's cables (PatchCableSet::patchCables)
 	COUNT_,
 };
 
