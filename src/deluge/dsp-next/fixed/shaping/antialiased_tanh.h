@@ -24,9 +24,7 @@
 #include "dsp-next/fixed/shaping/tanh_table.h"
 #include "util/param_functions.h" // lshiftAndSaturateUnknown
 
-#include <array>
 #include <cstdint>
-#include <span>
 #include <type_traits>
 
 /// @file
@@ -87,10 +85,9 @@ struct AntialiasedTanh {
 	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
 	                                                     q31 x) {
 		const uint32_t position = position_of(c, x);
-		const q31 out =
-		    bilinear_table_interpolator.interpolateSigned(position, s.position, kPositionBits, kPositionBits,
-		                                                  std::span<const std::array<int16_t, 129>>{kTanhTable})
-		    >> (c.drive + kLevelShift);
+		const q31 out = bilinear_table_interpolator.interpolateSigned<kTanhTable>(position, s.position, kPositionBits,
+		                                                                          kPositionBits)
+		                >> (c.drive + kLevelShift);
 		s.position = position;
 		return out;
 	}

@@ -23,8 +23,8 @@
 #include "dsp-next/fixed/shaping/tanh_table.h"
 #include "util/param_functions.h" // lshiftAndSaturateUnknown
 
+#include <cstddef>
 #include <cstdint>
-#include <span>
 
 namespace deluge::dsp::fixed::legacy {
 
@@ -51,9 +51,8 @@ public:
 	[[nodiscard, gnu::always_inline]] q31 render(q31 sample) {
 		const uint32_t position =
 		    static_cast<uint32_t>(lshiftAndSaturateUnknown(sample, static_cast<uint8_t>(drive_))) + kSilent;
-		const int32_t out = bilinear_table_interpolator.interpolateSigned(
-		                        position, previous_, 32, 32, std::span<const std::array<int16_t, 129>>{kTanhTable})
-		                    >> (drive_ + 1);
+		const int32_t out =
+		    bilinear_table_interpolator.interpolateSigned<kTanhTable>(position, previous_, 32, 32) >> (drive_ + 1);
 		previous_ = position;
 		return out;
 	}

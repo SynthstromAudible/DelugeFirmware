@@ -18,11 +18,10 @@
 
 #include "util/fixedpoint.h" // multiply_32x32_rshift32
 
-#include <array>
 #include <bit>
 #include <cstddef>
 #include <cstdint>
-#include <span>
+#include <type_traits>
 
 namespace deluge::dsp::fixed {
 
@@ -109,28 +108,38 @@ inline constexpr LinearTableInterpolator linear_table_interpolator{};
 /// @brief A 2-D signed fixed-point LUT, sampled with linear interpolation along each row and then between the two
 /// rows the second index falls between.
 ///
-/// The table is a span of rows, each `2^n + 1` entries wide (the `+1` is the upper neighbour), with `2^m + 1` rows;
-/// both log2 sizes come from the table's own shape. Each row is sampled as
-/// @ref LinearTableInterpolator::interpolateSigned does; the two row values are then blended by the second index's
-/// sub-row fraction at Q31, so the result is the table's units scaled by `2^16` (at most ±2^30 for a table of
-/// ±2^14 entries).
+/// The table is a built-in `int16_t[R][W]` array known at compile time: `R = 2^m + 1` rows, each `W = 2^n + 1`
+/// entries wide (the `+1`s are the upper neighbours). Its type gives both log2 sizes and the row stride as constants,
+/// so the per-sample path is subscripts and arithmetic with no calls. Each row is sampled as
+/// @ref LinearTableInterpolator::interpolateSigned does, through a pointer to that row, so every read stays inside one
+/// row; the two row values are then blended by the second index's sub-row fraction at Q31, so the result is the
+/// table's units scaled by `2^16` (at most ±2^30 for a table of ±2^14 entries).
 class BilinearTableInterpolator {
 public:
-	/// @brief Sample @p rows at fractional indices @p input_x (along a row) and @p input_y (across rows).
+	/// @brief Sample @p Table at fractional indices @p input_x (along a row) and @p input_y (across rows).
+	/// @tparam Table The table: a static `const int16_t[R][W]` with R − 1 and W − 1 powers of two.
 	/// @param input_x Fixed-point position along a row, @p x_bits wide.
 	/// @param input_y Fixed-point position across the rows, @p y_bits wide.
-	template <std::size_t Width>
-	[[nodiscard, gnu::always_inline]] int32_t
-	interpolateSigned(uint32_t input_x, uint32_t input_y, int32_t x_bits, int32_t y_bits,
-	                  std::span<const std::array<int16_t, Width>> rows) const {
-		constexpr auto row_size_log2 = static_cast<int32_t>(std::bit_width(Width - 1) - 1);
-		const auto rows_log2 = static_cast<int32_t>(std::bit_width(rows.size() - 1) - 1);
+	/// @param x_bits The width of @p input_x: log2(W − 1) index bits above the fraction.
+	/// @param y_bits The width of @p input_y: log2(R − 1) index bits above the fraction.
+	/// @return The blend, at Q16 of the table's units.
+	template <const auto& Table>
+	[[nodiscard, gnu::always_inline]] int32_t interpolateSigned(uint32_t input_x, uint32_t input_y, int32_t x_bits,
+	                                                            int32_t y_bits) const {
+		using TableType = std::remove_cvref_t<decltype(Table)>;
+		static_assert(std::rank_v<TableType> == 2, "the table is a built-in two-dimensional array");
+		static_assert(std::is_same_v<std::remove_all_extents_t<TableType>, int16_t>, "the table holds int16_t");
+		constexpr std::size_t kRows = std::extent_v<TableType, 0>;
+		constexpr std::size_t kWidth = std::extent_v<TableType, 1>;
+		static_assert(std::has_single_bit(kRows - 1) && std::has_single_bit(kWidth - 1),
+		              "each axis is a power of two plus its upper neighbour");
+		constexpr auto row_size_log2 = static_cast<int32_t>(std::bit_width(kWidth - 1) - 1);
+		constexpr auto rows_log2 = static_cast<int32_t>(std::bit_width(kRows - 1) - 1);
 
 		const uint32_t row = input_y >> (y_bits - rows_log2);
-		const int32_t lower =
-		    linear_table_interpolator.interpolateSigned(input_x, x_bits, rows[row].data(), row_size_log2);
+		const int32_t lower = linear_table_interpolator.interpolateSigned(input_x, x_bits, Table[row], row_size_log2);
 		const int32_t upper =
-		    linear_table_interpolator.interpolateSigned(input_x, x_bits, rows[row + 1].data(), row_size_log2);
+		    linear_table_interpolator.interpolateSigned(input_x, x_bits, Table[row + 1], row_size_log2);
 
 		// The sub-row fraction at Q31: the bits of `input_y` below the row index.
 		const int32_t shift = 31 + rows_log2 - y_bits;
