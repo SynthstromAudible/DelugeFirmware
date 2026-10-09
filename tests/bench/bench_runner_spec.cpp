@@ -110,6 +110,20 @@ struct FlatCost {
 	}
 };
 
+/// A fake component that records whether every block was rendered at the size it was last set up for. The synced
+/// pulse and the duck take n in `block` as well as in `setup`, so the runner must pass both the same n.
+struct SizeRecorder {
+	std::size_t setup_n = 0;
+	std::size_t blocks = 0;
+	std::size_t mismatched_blocks = 0;
+
+	void setup(std::size_t n) { setup_n = n; }
+	void block(std::size_t n) {
+		++blocks;
+		mismatched_blocks += n == setup_n ? 0 : 1;
+	}
+};
+
 /// A fake component whose block costs in proportion to its size, as a per-sample loop does.
 struct PerSampleCost {
 	std::size_t setups = 0;
@@ -205,6 +219,20 @@ describe bench_runner("The DSP benchmark runner", ${
 		                          "inst=4294967295 dc_stall=4294967295 issue_empty=4294967295 neon=4294967295"});
 	});
 
+	it("formats an info line with eight hex digits, zero-padded", _ {
+		std::array<char, kLineCapacity> buffer{};
+		expect(std::string{format_info_line(buffer, "dbgauthstatus", 0xAA)})
+		    .to_equal(std::string{"BENCH-INFO dbgauthstatus=0x000000aa"});
+		expect(std::string{format_info_line(buffer, "dbgauthstatus", 0)})
+		    .to_equal(std::string{"BENCH-INFO dbgauthstatus=0x00000000"});
+		expect(std::string{format_info_line(buffer, "x", 0xDEAD'BEEF)}).to_equal(std::string{"BENCH-INFO x=0xdeadbeef"});
+	});
+
+	it("returns an empty view for an info line that does not fit", _ {
+		std::array<char, 16> buffer{};
+		expect(format_info_line(buffer, "dbgauthstatus", 0xAA)).to_equal(std::string_view{});
+	});
+
 	it("rounds cycles per sample half up, to exactly two decimals", _ {
 		std::array<char, kLineCapacity> buffer{};
 		const auto cps = [&](uint32_t cycles, std::size_t n, std::size_t k) {
@@ -242,6 +270,16 @@ describe bench_runner("The DSP benchmark runner", ${
 		expect(flat.blocks).to_equal(kSizes.size() * (4 + 64));
 		expect(per_sample.blocks).to_equal(kSizes.size() * (4 + 64));
 		expect(flat.setup_sizes).to_equal(std::vector<std::size_t>{32, 64, 128});
+	});
+
+	it("renders every block at the size its case was set up for", _ {
+		SizeRecorder recorder;
+		const std::array cases{make_case("recorder", recorder)};
+		const RunConfig config{.block_sizes = kSizes, .warmup_blocks = 4, .timed_blocks = 64};
+		std::ignore = run(cases, config, counters, capture);
+
+		expect(recorder.blocks).to_equal(kSizes.size() * (4 + 64));
+		expect(recorder.mismatched_blocks).to_equal(std::size_t{0});
 	});
 
 	it("prints the calibration and each case at each size, then BENCH-DONE with the count", _ {
