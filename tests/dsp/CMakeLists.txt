@@ -26,6 +26,8 @@ set(kernel_spec_DEPS)
 # writes generically are header-only too.
 set(frame_spec_DEPS)
 set(lane_pack_spec_DEPS)
+# The Lanes spec needs no sources: Lanes, its reference kernels and the kernels it runs against Mono are header-only.
+set(lanes_spec_DEPS)
 # The Mono spec needs no sources: Mono and its reference kernels are header-only.
 set(mono_spec_DEPS)
 # The Control spec needs no sources: Control and its reference kernels are header-only.

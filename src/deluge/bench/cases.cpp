@@ -19,10 +19,35 @@ using dsp::fixed::OnePole;
 /// @brief The seed every input fill starts from.
 constexpr uint32_t kSeed = 0x5EED'1234;
 
-// The shared blocks, in SRAM .bss: every case reads and writes these, as the voice renders into its SRAM buffers.
-alignas(16) std::array<q31, kMaxBlock> input_a_block{};
-alignas(16) std::array<q31, kMaxBlock> input_b_block{};
-alignas(16) std::array<q31, kMaxBlock> output_block{};
+/// @brief The q31 samples of padding after each shared q31 block: 256 bytes.
+constexpr std::size_t kBlockGap = 64;
+
+/// @brief The shared q31 blocks, in SRAM .bss: every case reads and writes these, as the voice renders into its SRAM
+/// buffers.
+/// @details One object, so their distances are fixed by its layout rather than by where the linker places separate
+/// globals. Each block is followed by kBlockGap samples of padding, so no block sits a multiple of 1 KB from another:
+/// the inputs are 768 bytes apart, the output 768 bytes after input_b and 1536 after input_a. On the Cortex-A9 a load
+/// a multiple of 1 KB from a pending store waits on it (the check compares partial addresses), which cost a
+/// mono case about 1 cycle per sample in images where the linker placed the output 1 KB after the input.
+struct SharedBlocks {
+	alignas(16) std::array<q31, kMaxBlock> input_a; ///< The first input.
+	std::array<q31, kBlockGap> after_a;             ///< Padding, never read or written.
+	alignas(16) std::array<q31, kMaxBlock> input_b; ///< The second input.
+	std::array<q31, kBlockGap> after_b;             ///< Padding, never read or written.
+	alignas(16) std::array<q31, kMaxBlock> output;  ///< The output.
+};
+
+/// @brief Whether the blocks at byte offsets @p a and @p b of SharedBlocks sit a multiple of 1 KB apart.
+constexpr bool kilobyte_apart(std::size_t a, std::size_t b) {
+	return ((a > b ? a - b : b - a) % 1024) == 0;
+}
+
+static_assert(!kilobyte_apart(offsetof(SharedBlocks, input_a), offsetof(SharedBlocks, input_b))
+                  && !kilobyte_apart(offsetof(SharedBlocks, input_a), offsetof(SharedBlocks, output))
+                  && !kilobyte_apart(offsetof(SharedBlocks, input_b), offsetof(SharedBlocks, output)),
+              "no shared q31 block sits a multiple of 1 KB from another");
+
+SharedBlocks shared{};
 alignas(16) std::array<StereoSample, kMaxBlock> stereo_block{};
 
 /// @brief The wavetable's stored samples: each cycle, then its seven duplicates of the cycle's first samples.
@@ -52,31 +77,31 @@ void fill(std::span<q31> block, uint32_t seed) {
 
 /// @brief Fills both q31 inputs from fresh streams, so every setup fills them identically.
 void fill_inputs() {
-	fill(input_a_block, kSeed);
-	fill(input_b_block, ~kSeed);
+	fill(shared.input_a, kSeed);
+	fill(shared.input_b, ~kSeed);
 }
 
 /// @return The first @p n samples of each shared q31 block.
 [[nodiscard]] BlockSpans spans(std::size_t n) {
 	return BlockSpans{
-	    .a = dsp::fixed::Signal{input_a_block.data(), n},
-	    .b = dsp::fixed::Signal{input_b_block.data(), n},
-	    .out = dsp::fixed::Buffer{output_block.data(), n},
+	    .a = dsp::fixed::Signal{shared.input_a.data(), n},
+	    .b = dsp::fixed::Signal{shared.input_b.data(), n},
+	    .out = dsp::fixed::Buffer{shared.output.data(), n},
 	};
 }
 
 } // namespace
 
 std::span<const q31, kMaxBlock> input_a() {
-	return input_a_block;
+	return shared.input_a;
 }
 
 std::span<const q31, kMaxBlock> input_b() {
-	return input_b_block;
+	return shared.input_b;
 }
 
 std::span<const q31, kMaxBlock> output() {
-	return output_block;
+	return shared.output;
 }
 
 std::span<const StereoSample, kMaxBlock> stereo() {
@@ -278,7 +303,7 @@ void StereoGainCase::block(std::size_t /*n*/) {
 }
 
 void DuckEnvelopeCase::setup(std::size_t /*n*/) {
-	level_ = output_block.data();
+	level_ = shared.output.data();
 	duck_.configure(kSettings);
 	duck_.reset();
 	duck_.on<&DuckEnvelope::hit_at>(kHitStrength, kHitSamplesAgo);
