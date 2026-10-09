@@ -27,8 +27,8 @@ constexpr std::size_t kBlockGap = 64;
 /// @details One object, so their distances are fixed by its layout rather than by where the linker places separate
 /// globals. Each block is followed by kBlockGap samples of padding, so no block sits a multiple of 1 KB from another:
 /// the inputs are 768 bytes apart, the output 768 bytes after input_b and 1536 after input_a. On the Cortex-A9 a load
-/// a multiple of 1 KB from a pending store waits on it (the check compares partial addresses), which cost a
-/// mono case about 1 cycle per sample in images where the linker placed the output 1 KB after the input.
+/// a multiple of 1 KB from a pending store waits on it (the check compares partial addresses), which costs a mono
+/// case about 1 cycle per sample whenever its output sits a multiple of 1 KB from its input.
 struct SharedBlocks {
 	alignas(16) std::array<q31, kMaxBlock> input_a; ///< The first input.
 	std::array<q31, kBlockGap> after_a;             ///< Padding, never read or written.
