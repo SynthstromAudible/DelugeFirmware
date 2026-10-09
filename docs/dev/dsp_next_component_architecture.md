@@ -680,7 +680,8 @@ state fully into the engine is later work.
 ## Measuring
 
 The choices of `U`, `Lanes` and fusion rest on device cycle counts, and the
-build can take them. `DELUGE_DSP_BENCH` (CMake option, off by default) compiles
+build can take them. What the measurements have shown so far, and the rules for
+kernels that follow from them, are in [a9_dsp_performance.md](a9_dsp_performance.md). `DELUGE_DSP_BENCH` (CMake option, off by default) compiles
 the benchmarks in `src/deluge/bench` into the device image and runs them once at
 boot: the BSP calls `deluge_app_bench()` after the static constructors and
 before `deluge_app_init()`, and the bench masks IRQs for its run. A build with the option off
