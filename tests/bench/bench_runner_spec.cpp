@@ -159,6 +159,14 @@ void render(C& c, std::size_t n, std::size_t blocks) {
 	}
 }
 
+/// A case's component. CppSpec defines `context` as a macro, so the member is named with the macro set aside.
+void* component_of(const Case& c) {
+#pragma push_macro("context")
+#undef context
+	return c.context;
+#pragma pop_macro("context")
+}
+
 } // namespace
 
 // clang-format off
@@ -273,6 +281,20 @@ describe bench_runner("The DSP benchmark runner", ${
 		}
 		expect(lines[1]).to_equal(std::string{"BENCH case=flat n=32 k=64 cycles=640 cps=0.31 l1d_refill=64 inst=0 "
 		                                      "dc_stall=128 issue_empty=0 neon=192"});
+	});
+
+	it("times the calibration through the same trampoline as every case", _ {
+		const Case& c = calibration();
+		expect(c.name).to_equal(std::string_view{"calibration"});
+		expect(component_of(c)).not_().to_be_null();
+		// make_case's trampolines are one function per component type, so a case over any other EmptyComponent has
+		// the calibration's very functions.
+		EmptyComponent other;
+		const Case same_type = make_case("other", other);
+		expect(c.block).to_equal(same_type.block);
+		expect(c.setup).to_equal(same_type.setup);
+		FlatCost flat;
+		expect(c.block).not_().to_equal(make_case("flat", flat).block);
 	});
 
 	it("restarts the counters for every measurement", _ {

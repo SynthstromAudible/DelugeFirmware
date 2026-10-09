@@ -90,12 +90,11 @@ private:
 	return after - before;
 }
 
-void calibration_nothing(void* /*context*/, std::size_t /*n*/) {
-}
+/// @brief The calibration's component.
+EmptyComponent empty_component;
 
-/// @brief The calibration: the timing loop around an empty block, through the same indirect call as every case.
-constexpr Case kCalibration{
-    .name = "calibration", .context = nullptr, .setup = calibration_nothing, .block = calibration_nothing};
+/// @brief The calibration: the timing loop around an empty block, through the same trampoline as every case.
+constinit const Case kCalibration = make_case("calibration", empty_component);
 
 /// @brief Formats and prints one result line, or the overflow line in its place.
 void emit(LineSink sink, std::string_view name, std::size_t n, std::size_t k, const Sample& delta) {
@@ -105,6 +104,18 @@ void emit(LineSink sink, std::string_view name, std::size_t n, std::size_t k, co
 }
 
 } // namespace
+
+void EmptyComponent::setup(std::size_t /*n*/) {
+	asm volatile("");
+}
+
+void EmptyComponent::block(std::size_t /*n*/) {
+	asm volatile("");
+}
+
+const Case& calibration() {
+	return kCalibration;
+}
 
 std::string_view format_line(std::span<char> buffer, std::string_view name, std::size_t n, std::size_t k,
                              const Sample& delta) {
@@ -135,13 +146,14 @@ std::string_view format_line(std::span<char> buffer, std::string_view name, std:
 std::size_t run(std::span<const Case> cases, const RunConfig& config, Counters& counters, LineSink sink) {
 	std::size_t lines = 0;
 	for (const std::size_t n : config.block_sizes) {
-		const Sample calibration = measure(kCalibration, n, config, counters);
-		emit(sink, kCalibration.name, n, config.timed_blocks, calibration);
+		kCalibration.setup(kCalibration.context, n);
+		const Sample calibration_delta = measure(kCalibration, n, config, counters);
+		emit(sink, kCalibration.name, n, config.timed_blocks, calibration_delta);
 		++lines;
 
 		for (const Case& c : cases) {
 			c.setup(c.context, n);
-			const Sample delta = less_calibration(measure(c, n, config, counters), calibration);
+			const Sample delta = less_calibration(measure(c, n, config, counters), calibration_delta);
 			emit(sink, c.name, n, config.timed_blocks, delta);
 			++lines;
 		}

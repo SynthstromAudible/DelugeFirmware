@@ -11,8 +11,9 @@
 ///  5. the calibration's delta at the same n is subtracted from it, each counter saturating at zero;
 ///  6. the result is printed with cycles per sample, cycles ÷ (K·n).
 ///
-/// **The calibration** is a case whose block is empty, timed first at each block size through the same loop, the
-/// same indirect call and the same two reads as every other case. Its delta is the cost of the measurement itself, so
+/// **The calibration** is a case made by make_case() over an EmptyComponent, timed first at each block size through
+/// the same loop, the same indirect call, the same trampoline into the component's `block` and the same two reads as
+/// every other case. Its delta is the cost of the measurement itself, so
 /// subtracting it leaves the cost of the component's blocks alone. It is printed raw, as `case=calibration`, so the
 /// table shows how much was subtracted. A real case can measure under it by a few cycles of noise; that counter is
 /// reported as zero rather than wrapping to near 2^32.
@@ -80,6 +81,22 @@ template <Benchable Component>
 	    .block = [](void* context, std::size_t n) { static_cast<Component*>(context)->block(n); },
 	};
 }
+
+/// @brief The calibration's component: a `setup` and a `block` that do nothing.
+/// @details Both are defined out of line, as every case's are, so the calibration's trampoline makes the same call
+/// a case's makes. Each body is an empty `asm volatile`, which emits no instruction but keeps the optimiser from
+/// proving the call has no effect and removing it.
+class EmptyComponent {
+public:
+	/// @brief Does nothing.
+	void setup(std::size_t n);
+	/// @brief Does nothing.
+	void block(std::size_t n);
+};
+
+/// @brief The calibration case.
+/// @return make_case() over an EmptyComponent, named `calibration`: the case run() times first at each block size.
+[[nodiscard]] const Case& calibration();
 
 /// @brief What run() measures: the block sizes, and how many blocks warm up and are timed at each.
 struct RunConfig {

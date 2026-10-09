@@ -73,6 +73,16 @@ inline constexpr uint32_t kA1Increment = 5'356'535;
 /// @return kMaxBlock frames, filled by the case's setup.
 [[nodiscard]] std::span<const StereoSample, kMaxBlock> stereo();
 
+/// @brief The shared q31 blocks' first n samples: the spans a mono case's component renders between.
+/// @details A case builds these at setup, for the block size it is set up for, so that its timed `block` passes them
+/// by copy and makes no call besides its component's own: under the app's `-fno-inline-functions`, building a span
+/// is an out-of-line call, which the calibration would not cancel.
+struct BlockSpans {
+	dsp::fixed::Signal a;   ///< input_a's first n samples.
+	dsp::fixed::Signal b;   ///< input_b's first n samples.
+	dsp::fixed::Buffer out; ///< The output block's first n samples.
+};
+
 /// @brief A q31 gain: the reference processor kernel, as in the Mono and Stereo unit specs.
 struct Gain {
 	using value_type = q31; ///< Q31 samples.
@@ -123,16 +133,17 @@ static_assert(dsp::processor_kernel<VecGain>);
 /// the other's result, then `subs` and `bne`.
 ///
 /// **Instructions.** One timed run of K = 64 blocks renames `K · 4 · kIterationsPerSample · n = 1024 · n` loop
-/// instructions: 32,768 at n = 32, 65,536 at n = 64 and 131,072 at n = 128. Beyond those, each block adds a small
-/// constant the calibration does not cancel: the trampoline's call into `block`, the count's and the product's setup
-/// and stores, and the instructions renamed down the predicted path when the loop's last `bne` mispredicts. That
-/// constant is under 32 instructions, so the reported `inst` lies in [1024 · n, 1024 · n + 2048].
+/// instructions: 32,768 at n = 32, 65,536 at n = 64 and 131,072 at n = 128. The calibration runs the same trampoline
+/// into an empty `block`, so it cancels the calls; beyond the loop, each block adds a small constant it does not
+/// cancel: the count's and the product's setup and stores, the frame `block` keeps, and the instructions renamed down
+/// the predicted path when the loop's last `bne` mispredicts. That constant is under 32 instructions, so the reported
+/// `inst` lies in [1024 · n, 1024 · n + 2048].
 ///
 /// **Cycles.** The A9 TRM (r4p1, Table B.5) gives `MUL` a result latency of 4 cycles. Each `mul` waits for the one
 /// before it, so an iteration takes at least 8 cycles: a run takes at least `K · 8 · kIterationsPerSample · n =
 /// 2048 · n` cycles (65,536, 131,072 and 262,144), and `cps` is at least 32.00. The loop thus retires at most one
 /// instruction per two cycles, so an event counting cycles in place of instructions reads at least twice the `inst`
-/// band's top, and the band check fails for it.
+/// band's bottom (2 · 1024 · n), which is above the band's top, and the band check fails for it.
 ///
 /// Off ARM the loop is plain C++, with empty asms keeping the count and the product live.
 ///
@@ -168,15 +179,16 @@ public:
 	/// @brief The ramp the VCA is built from: a start of 2^29, a quarter of full scale (Q31), rising 1,024 per sample.
 	static constexpr dsp::Ramp kRamp{int32_t{1} << 29, 1024};
 
-	/// @brief Builds the VCA from kRamp and fills both inputs.
+	/// @brief Builds the VCA from kRamp, fills both inputs and takes the blocks' spans for @p n.
 	void setup(std::size_t n);
-	/// @brief Mixes one block.
+	/// @brief Mixes one block of the size it was set up for.
 	void block(std::size_t n);
 	/// @return The ramp the VCA was built from.
 	[[nodiscard]] static constexpr dsp::Ramp ramp() { return kRamp; }
 
 private:
 	dsp::fixed::Amplitude vca_{kRamp};
+	BlockSpans spans_{};
 };
 static_assert(AmplitudeCase::kRamp.value() > 0 && AmplitudeCase::kRamp.increment() > 0);
 static_assert(int64_t{AmplitudeCase::kRamp.value()}
@@ -191,15 +203,16 @@ public:
 	/// @brief The ramp the VCA is built from.
 	static constexpr dsp::Ramp kRamp = AmplitudeCase::kRamp;
 
-	/// @brief Builds the VCA from kRamp and fills both inputs.
+	/// @brief Builds the VCA from kRamp, fills both inputs and takes the blocks' spans for @p n.
 	void setup(std::size_t n);
-	/// @brief Mixes one block.
+	/// @brief Mixes one block of the size it was set up for.
 	void block(std::size_t n);
 	/// @return The ramp the VCA was built from.
 	[[nodiscard]] static constexpr dsp::Ramp ramp() { return kRamp; }
 
 private:
 	dsp::fixed::CrudeAmplitude vca_{kRamp};
+	BlockSpans spans_{};
 };
 static_assert(CrudeAmplitudeCase::kRamp.value() > 0 && CrudeAmplitudeCase::kRamp.increment() > 0);
 static_assert(int64_t{CrudeAmplitudeCase::kRamp.value()}
@@ -222,15 +235,16 @@ public:
 	/// @brief The phase between the two squares: the 50% width's, standing in for any width.
 	static constexpr uint32_t kPhaseOffset = 0xC000'0000;
 
-	/// @brief Restarts the pulse at phase 0.
+	/// @brief Restarts the pulse at phase 0, and takes the output's span for @p n.
 	void setup(std::size_t n);
-	/// @brief Renders one block.
+	/// @brief Renders one block of the size it was set up for.
 	void block(std::size_t n);
 	/// @return The pulse's phase.
 	[[nodiscard]] uint32_t phase() const { return pulse_.phase(); }
 
 private:
 	dsp::fixed::PulseOscillator pulse_{make()};
+	BlockSpans spans_{};
 	[[nodiscard]] static dsp::fixed::PulseOscillator make();
 };
 
@@ -242,15 +256,16 @@ public:
 	/// @brief The oscillator's increment: A4.
 	static constexpr uint32_t kIncrement = kA4Increment;
 
-	/// @brief Restarts the oscillator at phase 0.
+	/// @brief Restarts the oscillator at phase 0, and takes the output's span for @p n.
 	void setup(std::size_t n);
-	/// @brief Renders one block.
+	/// @brief Renders one block of the size it was set up for.
 	void block(std::size_t n);
 	/// @return The oscillator's phase.
 	[[nodiscard]] uint32_t phase() const { return oscillator_.phase(); }
 
 private:
 	dsp::fixed::BandLimitedTableOscillator oscillator_{make()};
+	BlockSpans spans_{};
 	[[nodiscard]] static dsp::fixed::BandLimitedTableOscillator make();
 };
 
@@ -262,15 +277,16 @@ public:
 	/// @brief The saw's increment: A1.
 	static constexpr uint32_t kIncrement = kA1Increment;
 
-	/// @brief Restarts the saw at phase 0.
+	/// @brief Restarts the saw at phase 0, and takes the output's span for @p n.
 	void setup(std::size_t n);
-	/// @brief Renders one block.
+	/// @brief Renders one block of the size it was set up for.
 	void block(std::size_t n);
 	/// @return The saw's phase.
 	[[nodiscard]] uint32_t phase() const { return saw_.phase(); }
 
 private:
 	dsp::fixed::CrudeSaw<dsp::Phasor> saw_{dsp::Phasor{0, kIncrement}};
+	BlockSpans spans_{};
 };
 
 /// @brief The crude square, `CrudeSquare<Phasor>`, rendering into the output.
@@ -285,15 +301,16 @@ public:
 	/// @brief The square's threshold phase: half a cycle.
 	static constexpr uint32_t kPulseWidth = 0x8000'0000;
 
-	/// @brief Restarts the square at phase 0.
+	/// @brief Restarts the square at phase 0, and takes the output's span for @p n.
 	void setup(std::size_t n);
-	/// @brief Renders one block.
+	/// @brief Renders one block of the size it was set up for.
 	void block(std::size_t n);
 	/// @return The square's phase.
 	[[nodiscard]] uint32_t phase() const { return square_.phase(); }
 
 private:
 	dsp::fixed::CrudeSquare<dsp::Phasor> square_{dsp::Phasor{0, kIncrement}, kPulseWidth};
+	BlockSpans spans_{};
 };
 
 /// @brief The crude triangle, `CrudeTriangle<Phasor>`, rendering into the output.
@@ -304,15 +321,16 @@ public:
 	/// @brief The triangle's increment: A4.
 	static constexpr uint32_t kIncrement = kA4Increment;
 
-	/// @brief Restarts the triangle at phase 0.
+	/// @brief Restarts the triangle at phase 0, and takes the output's span for @p n.
 	void setup(std::size_t n);
-	/// @brief Renders one block.
+	/// @brief Renders one block of the size it was set up for.
 	void block(std::size_t n);
 	/// @return The triangle's phase.
 	[[nodiscard]] uint32_t phase() const { return triangle_.phase(); }
 
 private:
 	dsp::fixed::CrudeTriangle<dsp::Phasor> triangle_{dsp::Phasor{0, kIncrement}};
+	BlockSpans spans_{};
 };
 
 /// @brief The hard-synced perfect pulse, `SyncedOscillator<PulseOscillator>`, rendering into the output.
@@ -335,9 +353,9 @@ public:
 	/// @brief The phase between the pulse's two squares for a 50% width.
 	static constexpr uint32_t kPhaseOffset = PulseCase::kPhaseOffset;
 
-	/// @brief Restarts the master and the audible phase at 0.
+	/// @brief Restarts the master and the audible phase at 0, and takes the output's span for @p n.
 	void setup(std::size_t n);
-	/// @brief Renders one block, then advances the master by it.
+	/// @brief Renders one block of the size it was set up for, then advances the master by it.
 	void block(std::size_t n);
 	/// @return The master's phase.
 	[[nodiscard]] uint32_t master_phase() const { return master_.phase(); }
@@ -347,6 +365,7 @@ public:
 private:
 	dsp::Phasor master_{0, kMasterIncrement};
 	uint32_t audible_phase_ = 0;
+	BlockSpans spans_{};
 };
 
 /// @brief The wavetable oscillator, `WavetableOscillator`, over a small morphing wavetable built in SRAM, rendering
@@ -371,15 +390,16 @@ public:
 	/// @brief The wave index: the voice's middle position.
 	static constexpr int32_t kWaveIndex = int32_t{1} << 30;
 
-	/// @brief Fills the wavetable and restarts the oscillator at phase 0.
+	/// @brief Fills the wavetable and restarts the oscillator at phase 0, and takes the output's span for @p n.
 	void setup(std::size_t n);
-	/// @brief Renders one block.
+	/// @brief Renders one block of the size it was set up for.
 	void block(std::size_t n);
 	/// @return The oscillator's phase.
 	[[nodiscard]] uint32_t phase() const { return oscillator_.phase(); }
 
 private:
 	dsp::fixed::WavetableOscillator oscillator_{make()};
+	BlockSpans spans_{};
 	[[nodiscard]] static dsp::fixed::WavetableOscillator make();
 };
 
@@ -390,15 +410,16 @@ public:
 	/// @brief The gain: -3 dB, Q31.
 	static constexpr q31 kGain = 0x5A82'799A;
 
-	/// @brief Configures the gain and fills input_a.
+	/// @brief Configures the gain, fills input_a and takes the blocks' spans for @p n.
 	void setup(std::size_t n);
-	/// @brief Processes one block.
+	/// @brief Processes one block of the size it was set up for.
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Mono<Gain>& component() const { return mono_; }
 
 private:
 	dsp::Mono<Gain> mono_;
+	BlockSpans spans_{};
 };
 
 /// @brief `Mono<VecGain>`: an Argon q31 kernel, from input_a into the output.
@@ -408,15 +429,16 @@ public:
 	/// @brief The gain: -3 dB, Q31.
 	static constexpr q31 kGain = MonoGainCase::kGain;
 
-	/// @brief Configures the gain and fills input_a.
+	/// @brief Configures the gain, fills input_a and takes the blocks' spans for @p n.
 	void setup(std::size_t n);
-	/// @brief Processes one block.
+	/// @brief Processes one block of the size it was set up for.
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Mono<VecGain>& component() const { return mono_; }
 
 private:
 	dsp::Mono<VecGain> mono_;
+	BlockSpans spans_{};
 };
 
 /// @brief `Stereo<Gain>`: a scalar q31 kernel on both channels, processing the stereo block in place, as the app's
@@ -428,15 +450,17 @@ public:
 	/// @brief The gain: unity, Q31.
 	static constexpr q31 kGain = 0x7FFF'FFFF;
 
-	/// @brief Configures the gain and fills the stereo block.
+	/// @brief Configures the gain, fills the stereo block and takes its span for @p n.
 	void setup(std::size_t n);
-	/// @brief Processes one block in place.
+	/// @brief Processes one block of the size it was set up for, in place.
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Stereo<Gain>& component() const { return stereo_; }
 
 private:
 	dsp::Stereo<Gain> stereo_;
+	dsp::Signal<StereoSample> in_{};  ///< The stereo block's first n frames, read.
+	dsp::Buffer<StereoSample> out_{}; ///< The same frames, written.
 };
 
 /// @brief `Control<DuckEnvelope>`: the sidechain's duck, configured then advanced once per block, as its owner does.
@@ -459,15 +483,16 @@ public:
 	/// @brief How long ago the hit landed, in samples.
 	static constexpr uint32_t kHitSamplesAgo = 4'665;
 
-	/// @brief Configures the duck and places the hit.
+	/// @brief Configures the duck, places the hit and takes the output block's first sample for the level.
 	void setup(std::size_t n);
-	/// @brief Configures the duck and advances it by one block, writing its level to the output.
+	/// @brief Configures the duck and advances it by one block, writing its level to the output block's first sample.
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Control<dsp::fixed::DuckEnvelope>& component() const { return duck_; }
 
 private:
 	dsp::Control<dsp::fixed::DuckEnvelope> duck_;
+	q31* level_ = nullptr; ///< The output block's first sample, which receives the level.
 };
 
 /// @brief Every case, by name.

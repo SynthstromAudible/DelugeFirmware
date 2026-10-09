@@ -55,19 +55,13 @@ void fill_inputs() {
 	fill(input_b_block, ~kSeed);
 }
 
-/// @return The first @p n samples of input_a.
-[[nodiscard]] dsp::fixed::Signal signal_a(std::size_t n) {
-	return dsp::fixed::Signal{input_a_block.data(), n};
-}
-
-/// @return The first @p n samples of input_b.
-[[nodiscard]] dsp::fixed::Signal signal_b(std::size_t n) {
-	return dsp::fixed::Signal{input_b_block.data(), n};
-}
-
-/// @return The first @p n samples of the output block.
-[[nodiscard]] dsp::fixed::Buffer out(std::size_t n) {
-	return dsp::fixed::Buffer{output_block.data(), n};
+/// @return The first @p n samples of each shared q31 block.
+[[nodiscard]] BlockSpans spans(std::size_t n) {
+	return BlockSpans{
+	    .a = dsp::fixed::Signal{input_a_block.data(), n},
+	    .b = dsp::fixed::Signal{input_b_block.data(), n},
+	    .out = dsp::fixed::Buffer{output_block.data(), n},
+	};
 }
 
 } // namespace
@@ -119,22 +113,24 @@ void CalibrationLoop::block(std::size_t n) {
 	last_product_ = product;
 }
 
-void AmplitudeCase::setup(std::size_t /*n*/) {
+void AmplitudeCase::setup(std::size_t n) {
+	spans_ = spans(n);
 	fill_inputs();
 	vca_ = dsp::fixed::Amplitude{kRamp};
 }
 
-void AmplitudeCase::block(std::size_t n) {
-	vca_.renderBlock(signal_a(n), signal_b(n), out(n));
+void AmplitudeCase::block(std::size_t /*n*/) {
+	vca_.renderBlock(spans_.a, spans_.b, spans_.out);
 }
 
-void CrudeAmplitudeCase::setup(std::size_t /*n*/) {
+void CrudeAmplitudeCase::setup(std::size_t n) {
+	spans_ = spans(n);
 	fill_inputs();
 	vca_ = dsp::fixed::CrudeAmplitude{kRamp};
 }
 
-void CrudeAmplitudeCase::block(std::size_t n) {
-	vca_.renderBlock(signal_a(n), signal_b(n), out(n));
+void CrudeAmplitudeCase::block(std::size_t /*n*/) {
+	vca_.renderBlock(spans_.a, spans_.b, spans_.out);
 }
 
 dsp::fixed::PulseOscillator PulseCase::make() {
@@ -144,51 +140,57 @@ dsp::fixed::PulseOscillator PulseCase::make() {
 	                                   kPhaseOffset};
 }
 
-void PulseCase::setup(std::size_t /*n*/) {
+void PulseCase::setup(std::size_t n) {
+	spans_ = spans(n);
 	pulse_ = make();
 }
 
-void PulseCase::block(std::size_t n) {
-	pulse_.renderBlock(out(n));
+void PulseCase::block(std::size_t /*n*/) {
+	pulse_.renderBlock(spans_.out);
 }
 
 dsp::fixed::BandLimitedTableOscillator BandLimitedTableCase::make() {
 	return dsp::fixed::BandLimitedTableOscillator{dsp::fixed::saw_bandlimited_table(), 0, kIncrement};
 }
 
-void BandLimitedTableCase::setup(std::size_t /*n*/) {
+void BandLimitedTableCase::setup(std::size_t n) {
+	spans_ = spans(n);
 	oscillator_ = make();
 }
 
-void BandLimitedTableCase::block(std::size_t n) {
-	oscillator_.renderBlock(out(n));
+void BandLimitedTableCase::block(std::size_t /*n*/) {
+	oscillator_.renderBlock(spans_.out);
 }
 
-void CrudeSawCase::setup(std::size_t /*n*/) {
+void CrudeSawCase::setup(std::size_t n) {
+	spans_ = spans(n);
 	saw_ = dsp::fixed::CrudeSaw{dsp::Phasor{0, kIncrement}};
 }
 
-void CrudeSawCase::block(std::size_t n) {
-	saw_.renderBlock(out(n));
+void CrudeSawCase::block(std::size_t /*n*/) {
+	saw_.renderBlock(spans_.out);
 }
 
-void CrudeSquareCase::setup(std::size_t /*n*/) {
+void CrudeSquareCase::setup(std::size_t n) {
+	spans_ = spans(n);
 	square_ = dsp::fixed::CrudeSquare{dsp::Phasor{0, kIncrement}, kPulseWidth};
 }
 
-void CrudeSquareCase::block(std::size_t n) {
-	square_.renderBlock(out(n));
+void CrudeSquareCase::block(std::size_t /*n*/) {
+	square_.renderBlock(spans_.out);
 }
 
-void CrudeTriangleCase::setup(std::size_t /*n*/) {
+void CrudeTriangleCase::setup(std::size_t n) {
+	spans_ = spans(n);
 	triangle_ = dsp::fixed::CrudeTriangle{dsp::Phasor{0, kIncrement}};
 }
 
-void CrudeTriangleCase::block(std::size_t n) {
-	triangle_.renderBlock(out(n));
+void CrudeTriangleCase::block(std::size_t /*n*/) {
+	triangle_.renderBlock(spans_.out);
 }
 
-void SyncedPulseCase::setup(std::size_t /*n*/) {
+void SyncedPulseCase::setup(std::size_t n) {
+	spans_ = spans(n);
 	master_ = dsp::Phasor{0, kMasterIncrement};
 	audible_phase_ = 0;
 }
@@ -203,7 +205,7 @@ void SyncedPulseCase::block(std::size_t n) {
 	                                        kIncrement, kPhaseOffset};
 	dsp::fixed::SyncedOscillator synced{pulse, phase, kIncrement,
 	                                    dsp::fixed::Resetter{master_.phase(), master_.increment()}, 0};
-	synced.renderBlock(out(n));
+	synced.renderBlock(spans_.out);
 	audible_phase_ = synced.phase() << 1;
 	master_.seek(master_.phase() + (master_.increment() * static_cast<uint32_t>(n)));
 }
@@ -222,7 +224,8 @@ dsp::fixed::WavetableOscillator WavetableCase::make() {
 	return dsp::fixed::WavetableOscillator{table, 0, kIncrement, kWaveIndex, 0};
 }
 
-void WavetableCase::setup(std::size_t /*n*/) {
+void WavetableCase::setup(std::size_t n) {
+	spans_ = spans(n);
 	dsp::fixed::SeededNoise noise{kSeed};
 	for (std::size_t cycle = 0; cycle < std::size_t{kCycles}; ++cycle) {
 		const std::span<int16_t> stored{wavetable_samples.data() + (cycle * kWavetableStride), kWavetableStride};
@@ -234,29 +237,33 @@ void WavetableCase::setup(std::size_t /*n*/) {
 	oscillator_ = make();
 }
 
-void WavetableCase::block(std::size_t n) {
-	oscillator_.renderBlock(out(n));
+void WavetableCase::block(std::size_t /*n*/) {
+	oscillator_.renderBlock(spans_.out);
 }
 
-void MonoGainCase::setup(std::size_t /*n*/) {
+void MonoGainCase::setup(std::size_t n) {
+	spans_ = spans(n);
 	fill_inputs();
 	mono_.configure({.gain = kGain});
 }
 
-void MonoGainCase::block(std::size_t n) {
-	mono_.renderBlock(signal_a(n), out(n));
+void MonoGainCase::block(std::size_t /*n*/) {
+	mono_.renderBlock(spans_.a, spans_.out);
 }
 
-void MonoVecGainCase::setup(std::size_t /*n*/) {
+void MonoVecGainCase::setup(std::size_t n) {
+	spans_ = spans(n);
 	fill_inputs();
 	mono_.configure({.gain = kGain});
 }
 
-void MonoVecGainCase::block(std::size_t n) {
-	mono_.renderBlock(signal_a(n), out(n));
+void MonoVecGainCase::block(std::size_t /*n*/) {
+	mono_.renderBlock(spans_.a, spans_.out);
 }
 
-void StereoGainCase::setup(std::size_t /*n*/) {
+void StereoGainCase::setup(std::size_t n) {
+	out_ = dsp::Buffer<StereoSample>{stereo_block.data(), n};
+	in_ = out_;
 	dsp::fixed::SeededNoise noise{kSeed};
 	for (StereoSample& frame : stereo_block) {
 		frame.l = noise.render();
@@ -265,12 +272,12 @@ void StereoGainCase::setup(std::size_t /*n*/) {
 	stereo_.configure({.gain = kGain});
 }
 
-void StereoGainCase::block(std::size_t n) {
-	const std::span<StereoSample> frames{stereo_block.data(), n};
-	stereo_.renderBlock(frames, frames);
+void StereoGainCase::block(std::size_t /*n*/) {
+	stereo_.renderBlock(in_, out_);
 }
 
 void DuckEnvelopeCase::setup(std::size_t /*n*/) {
+	level_ = output_block.data();
 	duck_.configure(kSettings);
 	duck_.reset();
 	duck_.on<&DuckEnvelope::hit_at>(kHitStrength, kHitSamplesAgo);
@@ -278,7 +285,7 @@ void DuckEnvelopeCase::setup(std::size_t /*n*/) {
 
 void DuckEnvelopeCase::block(std::size_t n) {
 	duck_.configure(kSettings);
-	output_block[0] = duck_.advance(n);
+	*level_ = duck_.advance(n);
 }
 
 CaseSet& case_set() {
