@@ -40,6 +40,15 @@ extern "C" {
 /// [task]
 void deluge_app_init(const DelugeBoard* board) DELUGE_NOEXCEPT;
 
+/// @brief Runs the app's DSP benchmarks. The device BSP calls it once at boot, after the static
+/// constructors and before `deluge_app_init`, with IRQs masked; a host never calls it.
+///
+/// Empty unless the app was built with `DELUGE_DSP_BENCH`. Then it times each DSP case and prints
+/// one `BENCH` line per measurement over the log channel (`deluge_log`), ending with
+/// `BENCH-DONE`; if IRQs are unmasked it prints `BENCH-ERROR irq-enabled` and times nothing.
+/// [task]
+void deluge_app_bench(void) DELUGE_NOEXCEPT;
+
 /// Why the BSP's app loop called deluge_app_service: a set of these bits.
 typedef uint32_t DelugeWake;
 #define DELUGE_WAKE_TIMER 1u    ///< a time deluge_app_service returned has come

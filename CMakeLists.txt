@@ -303,6 +303,11 @@ option(DELUGE_UBSAN "Enable the freestanding UndefinedBehaviorSanitizer layer" O
 set(DELUGE_UBSAN_SOURCE_DIRS "memory;util/container"
     CACHE STRING "Semicolon-separated subdirs under src/deluge to instrument when DELUGE_UBSAN is ON")
 
+# The DSP benchmarks (src/deluge/bench). Off by default; enable with -DDELUGE_DSP_BENCH=ON. A device image built with
+# it runs every DSP case once at boot, before the app starts, and prints its BENCH lines over RTT; without it the
+# benchmark is not compiled into the app, and its boot hook is empty. src/deluge/CMakeLists.txt applies it.
+option(DELUGE_DSP_BENCH "Run the DSP benchmarks at boot (device builds)" OFF)
+
 # GCC static analyzer (-fanalyzer). Off by default; enable with -DDELUGE_ANALYZER=ON. This is a compile-time (not
 # runtime) pass: it walks each function's paths looking for leaks, use-after-free, double-free, mismatched alloc/dealloc
 # and similar. Thanks to the [[gnu::malloc(delugeDealloc, 1)]] annotation on delugeAlloc it follows ownership through the

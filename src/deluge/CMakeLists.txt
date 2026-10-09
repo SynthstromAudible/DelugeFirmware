@@ -17,9 +17,19 @@ list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp/.*)
 # Likewise the new dsp-next library (built as deluge_dsp_fixed/_float); its path
 # is /dsp-next/, which the /dsp/ regex above does not match.
 list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp-next/.*)
-# The benchmark's Cortex-A9 PMU counters program CP15, which only the device has.
-if(DELUGE_HOST)
-  list(FILTER deluge_SOURCES EXCLUDE REGEX .*/bench/pmu_a9\\.cpp$)
+# The DSP benchmark (bench/) is in the app only on a device build with DELUGE_DSP_BENCH. Its boot hook,
+# app_bench.cpp, is always in, and is empty without the option. The host trees build the runner and the cases for
+# their spec only (tests/bench); the PMU counters program CP15, which only the device has.
+list(FILTER deluge_SOURCES EXCLUDE REGEX .*/bench/.*)
+list(APPEND deluge_SOURCES ${CMAKE_CURRENT_LIST_DIR}/bench/app_bench.cpp)
+set(_dsp_bench_on FALSE)
+if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
+  set(_dsp_bench_on TRUE)
+  list(APPEND deluge_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/bench/runner.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bench/cases.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bench/pmu_a9.cpp
+  )
 endif()
 
 # ---------------------------------------------------------------------------
@@ -76,6 +86,11 @@ target_compile_definitions(deluge_app PUBLIC
 )
 
 target_compile_options(deluge_app PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})
+
+if(_dsp_bench_on)
+    message(STATUS "DSP benchmarks run at boot (DELUGE_DSP_BENCH)")
+    target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH=1)
+endif()
 
 if(ENABLE_MATRIX_DEBUG)
     message(STATUS "Extra pad matrix debug enabled")
