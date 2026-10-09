@@ -49,16 +49,22 @@ void capture(std::string_view line) {
 ///
 /// Each read() costs `read_cost`, as a real counter read costs cycles; each fake block charges its own cost with
 /// charge(). The runner's calibration therefore measures exactly one read_cost, which it must subtract.
+///
+/// The second read since reset() also charges `cold_cost`, once: the first measurement's code runs from cold caches
+/// on the device, so its first timed region costs more than every later one.
 class FakeCounters final : public Counters {
 public:
 	static constexpr Sample kReadCost{.cycles = 7, .events = {1, 2, 3, 4, 5}};
 
 	Sample read_cost = kReadCost;
+	Sample cold_cost{};
 	std::size_t starts = 0;
 
 	void reset() {
 		read_cost = kReadCost;
+		cold_cost = {};
 		starts = 0;
+		reads_ = 0;
 		now_ = {};
 		started_ = false;
 	}
@@ -76,6 +82,9 @@ public:
 				now_.events[i] = UINT32_MAX - read_cost.events[i];
 			}
 		}
+		if (++reads_ == 2) {
+			charge(cold_cost);
+		}
 		charge(read_cost);
 		return now_;
 	}
@@ -90,6 +99,7 @@ public:
 private:
 	Sample now_{};
 	bool started_ = false;
+	std::size_t reads_ = 0;
 };
 
 FakeCounters counters;
@@ -321,6 +331,18 @@ describe bench_runner("The DSP benchmark runner", ${
 		                                      "dc_stall=128 issue_empty=0 neon=192"});
 	});
 
+	it("calibrates the first block size warm, as every later one", _ {
+		counters.cold_cost = {.cycles = 5000, .events = {50, 400, 60, 700, 80}};
+		FlatCost flat;
+		const std::array cases{make_case("flat", flat)};
+		const RunConfig config{.block_sizes = kSizes, .warmup_blocks = 4, .timed_blocks = 64};
+		std::ignore = run(cases, config, counters, capture);
+
+		expect(lines[0]).to_equal(expected_line("calibration", 32, 64, FakeCounters::kReadCost));
+		expect(lines[2]).to_equal(expected_line("calibration", 64, 64, FakeCounters::kReadCost));
+		expect(lines[1]).to_equal(expected_line("flat", 32, 64, {.cycles = 64 * 10, .events = {64, 0, 128, 0, 192}}));
+	});
+
 	it("times the calibration through the same trampoline as every case", _ {
 		const Case& c = calibration();
 		expect(c.name).to_equal(std::string_view{"calibration"});
@@ -340,7 +362,8 @@ describe bench_runner("The DSP benchmark runner", ${
 		const std::array cases{make_case("flat", flat)};
 		const RunConfig config{.block_sizes = kSizes, .warmup_blocks = 4, .timed_blocks = 64};
 		std::ignore = run(cases, config, counters, capture);
-		expect(counters.starts).to_equal(kSizes.size() * 2);
+		// One more than two per size: the discarded calibration that warms the measurement's code.
+		expect(counters.starts).to_equal(kSizes.size() * 2 + 1);
 	});
 
 	it("reports zero, not a wrapped count, for a counter that measured under the calibration", _ {

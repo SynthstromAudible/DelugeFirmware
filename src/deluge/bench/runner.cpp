@@ -4,6 +4,7 @@
 #include <charconv>
 #include <cstdint>
 #include <system_error>
+#include <tuple>
 #include <utility>
 
 namespace deluge::bench {
@@ -167,6 +168,13 @@ std::string_view format_info_line(std::span<char> buffer, std::string_view key, 
 
 std::size_t run(std::span<const Case> cases, const RunConfig& config, Counters& counters, LineSink sink) {
 	std::size_t lines = 0;
+	// The first measurement runs the counter reads and the timing loop for the first time, from cold caches; its
+	// result is discarded, so the first block size's calibration is measured warm, as every later one is.
+	if (!config.block_sizes.empty()) {
+		const std::size_t first = config.block_sizes.front();
+		kCalibration.setup(kCalibration.context, first);
+		std::ignore = measure(kCalibration, first, config, counters);
+	}
 	for (const std::size_t n : config.block_sizes) {
 		kCalibration.setup(kCalibration.context, n);
 		const Sample calibration_delta = measure(kCalibration, n, config, counters);

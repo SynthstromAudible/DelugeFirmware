@@ -18,6 +18,12 @@
 /// real case can measure under it by a few cycles of noise; that counter is reported as zero rather than wrapping to
 /// near 2^32.
 ///
+/// **The discarded calibration.** Before the first block size, run() times the calibration once more at that size and
+/// discards the result. The image starts with its caches cold, so the first measurement runs the counter reads and
+/// the timing loop from memory; timed as the first size's calibration, that cost would be subtracted from no case
+/// and every row at the first size would keep part of the measurement's own cost. The discarded run takes it, so
+/// every calibration, the first size's included, is measured warm.
+///
 /// **The lines.** Each measurement prints one line, without a newline:
 ///
 ///     BENCH case=<name> n=<block> k=<blocks> cycles=<u32> cps=<x.xx> l1d_refill=<u32> inst=<u32> dc_stall=<u32>
