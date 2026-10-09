@@ -21,7 +21,8 @@
 /// platform/BSP**. The platform owns `main` and the runtime; the application
 /// never assumes it owns either (so an Embassy executor can own them later).
 ///
-/// The Rust/Embassy BSP's `main` brings up Embassy and calls `deluge_app_init()`.
+/// The Rust/Embassy BSP's `main` brings up Embassy, runs the static constructors, calls
+/// `deluge_app_bench()` with IRQs masked, then calls `deluge_app_init()`.
 /// From then on the BSP's audio tier calls `deluge_app_audio_tick()`, and its app
 /// loop calls `deluge_app_service()`.
 #ifndef LIBDELUGE_APP_H
@@ -43,8 +44,8 @@ void deluge_app_init(const DelugeBoard* board) DELUGE_NOEXCEPT;
 /// @brief Runs the app's DSP benchmarks. The device BSP calls it once at boot, after the static
 /// constructors and before `deluge_app_init`, with IRQs masked; a host never calls it.
 ///
-/// Empty unless the app was built with `DELUGE_DSP_BENCH`. Then it times each DSP case and prints
-/// one `BENCH` line per measurement over the log channel (`deluge_log`), ending with
+/// Empty unless the app was built with `DELUGE_DSP_BENCH`. Then it prints a `BENCH-INFO dbgauthstatus=0x...` line,
+/// times each DSP case and prints one `BENCH` line per measurement over the log channel (`deluge_log`), ending with
 /// `BENCH-DONE`; if IRQs are unmasked it prints `BENCH-ERROR irq-enabled` and times nothing.
 /// [task]
 void deluge_app_bench(void) DELUGE_NOEXCEPT;
