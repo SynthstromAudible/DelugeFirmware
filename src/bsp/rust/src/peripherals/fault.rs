@@ -54,6 +54,18 @@ pub extern "C" fn deluge_fault_ranges(out: *mut DelugeFaultRanges) {
     }
 }
 
+/// Reads the Data Fault Address Register: the address the faulting access tried.
+#[cfg(target_os = "none")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_fault_data_address() -> usize {
+    let dfar: usize;
+    // SAFETY: reads CP15 c6 (DFAR), which has no side effects.
+    unsafe {
+        core::arch::asm!("mrc p15, 0, {}, c6, c0, 0", out(reg) dfar, options(nomem, nostack, preserves_flags));
+    }
+    dfar
+}
+
 /// Stages one byte for the PIC.
 ///
 /// Silently drops past [`STAGE_CAP`]: a truncated pattern still shows the leading pointers.
@@ -135,6 +147,7 @@ pub extern "C" fn deluge_fault_pad_flush() {
 }
 
 abi_pin!(
+    deluge_fault_data_address,
     deluge_fault_pad_flush,
     deluge_fault_pad_write,
     deluge_fault_ranges

@@ -28,6 +28,7 @@ extern "C" {
 ///
 /// The body of deluge_cpu_fault_report() and fault_handler_print_freeze_pointers(), which both own what
 /// happens afterwards. Layout, by column pair: the faulting instruction (magenta, when it is a code address),
+/// for a data abort the address it tried to access (white; read from the board, and unlit for a null pointer),
 /// the interrupted code's return address less 2 (blue), up to four return addresses from the stack less 2
 /// (green and cyan alternating), blank pairs, then the first four hex digits of the commit in the fault
 /// type's colour on the sidebar.

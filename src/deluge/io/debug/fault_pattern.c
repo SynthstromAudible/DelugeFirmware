@@ -184,8 +184,8 @@ static FaultColour faultColour(DelugeCpuFault type) {
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MAX_POINTER_COUNT 4
-[[gnu::always_inline]] static inline void printPointers(uint32_t faultPC, DelugeCpuFault type, uint32_t sysLR,
-                                                        uint32_t sysSP) {
+[[gnu::always_inline]] static inline void printPointers(uint32_t faultPC, DelugeCpuFault type, uint32_t dataAddress,
+                                                        uint32_t sysLR, uint32_t sysSP) {
 	// Search for stack pointers
 	uint32_t stackPointer = 0;
 	if (isStackPointer(sysSP)) {
@@ -227,6 +227,12 @@ static FaultColour faultColour(DelugeCpuFault type) {
 	// call through a null pointer (the PC is then near zero), and absent for a freeze.
 	if (isCodePointer(faultPC)) {
 		currentColumnPairIndex = drawPointer(currentColumnPairIndex, faultPC, 255, 0, 255);
+	}
+
+	// For a data abort, the address the access tried, in white. Drawn whatever it is: a null pointer shows as an unlit
+	// slot in this position.
+	if (type == DELUGE_CPU_FAULT_DATA_ABORT) {
+		currentColumnPairIndex = drawPointer(currentColumnPairIndex, dataAddress, 255, 255, 255);
 	}
 
 	// Every address drawn below is a return address: subtract 2 so it lands in the previous instruction, the call
@@ -292,7 +298,9 @@ static FaultColour faultColour(DelugeCpuFault type) {
 
 void deluge_fault_pattern_draw(uint32_t fault_pc, DelugeCpuFault fault_type, uint32_t sys_lr, uint32_t sys_sp) {
 	deluge_fault_ranges(&s_ranges);
-	printPointers(fault_pc, fault_type, sys_lr, sys_sp);
+	const uint32_t dataAddress =
+	    (fault_type == DELUGE_CPU_FAULT_DATA_ABORT) ? (uint32_t)deluge_fault_data_address() : 0;
+	printPointers(fault_pc, fault_type, dataAddress, sys_lr, sys_sp);
 }
 
 extern void fault_handler_print_freeze_pointers(uint32_t lr, uint32_t sp) {
