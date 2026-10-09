@@ -27,14 +27,17 @@ inline constexpr std::array<uint32_t, kEventCount> kA9EventNumbers{0x03, 0x68, 0
 
 /// @brief Reads DBGAUTHSTATUS, the debug authentication status register, through the CP14 interface:
 /// `mrc p14, 0, <Rt>, c7, c14, 6`.
-/// @details Its fields say which kinds of debug the authentication signals permit: SNE, bit 6, is set when
-/// non-invasive debug is permitted in Secure PL1 modes, and NSNE, bit 2, when it is permitted in Non-secure state
-/// (ARMv7-A ARM, DDI 0406C.b, Part C, "DBGAUTHSTATUS, Authentication Status register"; Cortex-A9 TRM, DDI 0388I,
-/// Table 10.9 in 10.6). The PMU's event counters count only where
-/// non-invasive debug is permitted: in Secure state that needs SPNIDEN (or SPIDEN) high, and with it low the event
-/// counters read zero while PMCCNTR still counts, because PMCR.DP is 0 (DDI 0406C.b, "Effects of non-invasive debug
-/// authentication on the Performance Monitors"; the signals are DDI 0388I 10.8, Table 10.12). Printing the register
-/// beside a run lets a zero `inst` on `calibration_loop` be told from a misprogrammed event.
+/// @details Its fields say which kinds of debug the authentication signals permit. SNE, bit 6, is set when
+/// non-invasive debug is permitted in Secure PL1 modes: with the recommended external debug interface it is
+/// (DBGEN or NIDEN) and (SPIDEN or SPNIDEN). NSNE, bit 2, is set when non-invasive debug is permitted in Non-secure
+/// state (ARMv7-A ARM, DDI 0406C.b, Part C, "DBGAUTHSTATUS, Authentication Status register"; Cortex-A9 TRM,
+/// DDI 0388I, Table 10.9 in 10.6). The PMU's event counters count only where non-invasive debug is permitted, so in
+/// Secure state they need both halves: DBGEN or NIDEN high, and SPIDEN or SPNIDEN high (DDI 0406C.b, Part C,
+/// "Non-invasive debug authentication" and its table "v7 Debug non-invasive debug authentication, with Security
+/// Extensions"; the A9's signals are DDI 0388I 10.8, Table 10.12). Without them the event counters read zero while
+/// PMCCNTR still counts, because PMCR.DP is 0 (DDI 0406C.b, "Effects of non-invasive debug authentication on the
+/// Performance Monitors"). Printing the register beside a run lets a zero `inst` on `calibration_loop` be told from
+/// a misprogrammed event.
 /// @return The register's value.
 [[nodiscard]] uint32_t read_dbgauthstatus();
 

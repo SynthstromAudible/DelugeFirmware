@@ -40,6 +40,8 @@ void log_line(std::string_view line) {
 /// @brief Prints the debug authentication status, which says whether the event counters can count.
 /// @details See read_dbgauthstatus().
 void log_dbgauthstatus() {
+	// A plain line first: a fault or hang in the CP14 read below then shows where the run stopped.
+	log_line("bench: reading debug authentication");
 	std::array<char, deluge::bench::kLineCapacity> buffer{};
 	log_line(deluge::bench::format_info_line(buffer, "dbgauthstatus", deluge::bench::read_dbgauthstatus()));
 }
