@@ -2,7 +2,7 @@
 //! LEDs, and encoders.
 //!
 //! [`pic_pump`] decodes the PIC byte stream into `EVENTS`; [`pad_render`] is the sole PIC
-//! transmitter; [`encoder_poll`] samples the encoder pins. The synchronous boundary functions only queue and drain. The one-time UART and
+//! transmitter. The synchronous boundary functions only queue and drain. The one-time UART and
 //! encoder GPIO/GIC setup runs in the device runtime's pre-executor window, with IRQs masked.
 #![allow(non_snake_case)]
 
@@ -177,18 +177,6 @@ pub extern "C" fn deluge_control_poll_event(out: *mut DelugeInputEvent) -> bool 
             true
         }
         Err(_) => false,
-    }
-}
-
-/// Samples the encoder pins every millisecond, for the B-pin transitions the encoder interrupts
-/// can't see. Without it a click that comes to rest on one is reported only when the knob moves on.
-#[cfg(target_os = "none")]
-#[embassy_executor::task]
-pub async fn encoder_poll() {
-    let mut ticker = embassy_time::Ticker::every(embassy_time::Duration::from_millis(1));
-    loop {
-        encoder::poll();
-        ticker.next().await;
     }
 }
 
