@@ -248,7 +248,9 @@ describe lane_pack_spec("LanePack", ${
 			return s;
 		});
 		expect(t.mismatched).to_equal(std::size_t{0});
-		expect(t.compared).to_be_greater_than(std::size_t{10'000});
+		// The trials are fixed, so the lanes whose scalar sum or difference stays in range are a fixed count of the
+		// 2 * kLanesPerWidthSum offered.
+		expect(t.compared).to_equal(std::size_t{27'576});
 	});
 
 	it("wraps its sums and differences lane by lane, as the scalar wrapping_add and wrapping_sub do", _ {
