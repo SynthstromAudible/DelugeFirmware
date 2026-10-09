@@ -267,6 +267,8 @@ def run_probe(args: argparse.Namespace) -> tuple[int, list[str]]:
         "--timeout",
         str(args.timeout),
     ]
+    if args.select:
+        cmd += ["--select", args.select]
     proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
     try:
         rtt = list(json.loads(proc.stdout).get("rtt", []))
@@ -299,6 +301,12 @@ def main(argv: list[str] | None = None) -> int:
         help="parse a saved capture instead of running",
     )
     ap.add_argument("--probe", choices=sorted(PROBES), default="jlink")
+    ap.add_argument(
+        "--select",
+        default=None,
+        metavar="SEL",
+        help="passed to the probe script's --select, e.g. IP=pi-top for a remote J-Link",
+    )
     args = ap.parse_args(argv)
 
     if args.from_capture:

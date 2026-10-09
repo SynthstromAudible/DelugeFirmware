@@ -196,6 +196,12 @@ def main() -> int:
     ap.add_argument("--gdb", default=DEFAULT_GDB)
     ap.add_argument("--server", default=None, help="path to JLinkGDBServerCLExe")
     ap.add_argument(
+        "--select",
+        default=None,
+        metavar="SEL",
+        help="the GDB server's -select, e.g. IP=pi-top for a probe behind JLinkRemoteServer",
+    )
+    ap.add_argument(
         "--rtt-address", default=None, help="override the _SEGGER_RTT address"
     )
     args = ap.parse_args()
@@ -251,6 +257,8 @@ def main() -> int:
     ]
     if args.jlinkscript and os.path.exists(args.jlinkscript):
         server_cmd += ["-jlinkscriptfile", args.jlinkscript]
+    if args.select:
+        server_cmd += ["-select", args.select]
 
     srv = subprocess.Popen(
         server_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True

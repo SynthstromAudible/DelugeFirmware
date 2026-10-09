@@ -340,6 +340,15 @@ class RunPathTests(unittest.TestCase):
             stderr="",
         )
 
+    def test_select_reaches_the_jlink_script(self):
+        rtt = COMPLETE.read_text().splitlines()
+        with mock.patch.object(
+            dsp_bench.subprocess, "run", return_value=self.completed(rtt)
+        ) as run:
+            code, _, _ = run_main("--select", "IP=pi-top", "--out", str(self.out))
+        self.assertEqual(code, 0)
+        self.assertEqual(run.call_args.args[0][-2:], ["--select", "IP=pi-top"])
+
     def test_jlink_arguments_are_exact(self):
         rtt = COMPLETE.read_text().splitlines()
         with mock.patch.object(
