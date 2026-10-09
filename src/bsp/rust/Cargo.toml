@@ -32,11 +32,11 @@ deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = [
 # deluge-sdk, pinned by revision. `dbt build` and `dbt sim` pass `src/bsp/rust/local-sdk.toml`
 # (gitignored) via `cargo --config` when it exists, to build against a sibling checkout instead.
 # The `flash` feature enables `deluge_bsp::flash`, which the settings sector reads need.
-deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de", features = [
+deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "b9451b88b366fb6a19e0d45faf58f46e1a3d17dc", features = [
     "flash",
 ] }
 # `app-fault-reporter`: every CPU fault vector calls the app's `deluge_cpu_fault_report`.
-rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de", features = [
+rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "b9451b88b366fb6a19e0d45faf58f46e1a3d17dc", features = [
     "app-fault-reporter",
 ] }
 
@@ -49,7 +49,7 @@ embedded-io-async = "0.7.0"
 # Device (armv7a-none-eabihf). `platform-cortex-ar` here and `platform-std` on host are mutually
 # exclusive in embassy-executor, so the two executors live in disjoint `[target]` sections.
 [target.'cfg(target_os = "none")'.dependencies]
-deluge-alloc = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de" }
+deluge-alloc = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "b9451b88b366fb6a19e0d45faf58f46e1a3d17dc" }
 
 # The device storage stack under the filesystem: `BlockDevice` over the SD driver, `BufStream`.
 block-device-driver = { path = "../../../crates/block-device-driver" }
@@ -96,7 +96,7 @@ block-device-driver = { path = "../../../crates/block-device-driver", optional =
 block-device-adapters = { path = "../../../crates/block-device-adapters", optional = true }
 aligned = { version = "0.4", optional = true }
 # The desktop simulator window for `sim`.
-deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de", optional = true }
+deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "b9451b88b366fb6a19e0d45faf58f46e1a3d17dc", optional = true }
 
 [features]
 default = ["host-runtime"]
