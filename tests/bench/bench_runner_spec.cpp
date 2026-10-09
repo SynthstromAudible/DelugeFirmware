@@ -1,17 +1,39 @@
+#include "bench/cases.h"
 #include "bench/counters.h"
 #include "bench/runner.h"
+#include "dsp-next/fixed/dynamics/duck_envelope.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <ostream>
 #include <span>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <vector>
 
 #include <cppspec.hpp>
 
 using namespace deluge::bench;
+namespace dsp = deluge::dsp;
+
+namespace deluge::dsp::fixed {
+/// A duck stage, printed by name, so a failing comparison shows it.
+std::ostream& operator<<(std::ostream& out, DuckEnvelope::Stage stage) {
+	switch (stage) {
+	case DuckEnvelope::Stage::OFF:
+		return out << "OFF";
+	case DuckEnvelope::Stage::ATTACK:
+		return out << "ATTACK";
+	case DuckEnvelope::Stage::RELEASE:
+		return out << "RELEASE";
+	}
+	return out;
+}
+} // namespace deluge::dsp::fixed
 
 namespace {
 
@@ -115,6 +137,22 @@ std::string expected_line(std::string_view name, std::size_t n, std::size_t k, c
 	return std::string{format_line(buffer, name, n, k, delta)};
 }
 
+/// The case list's names, in order.
+const std::vector<std::string_view> kCaseNames{
+    "calibration_loop", "amplitude",     "crude_amplitude", "pulse",         "band_limited_table",
+    "crude_saw",        "crude_square",  "crude_triangle",  "synced_pulse",  "wavetable",
+    "mono_gain",        "mono_vec_gain", "stereo_gain",     "duck_envelope",
+};
+
+/// Renders `blocks` blocks of `n` through a case's own setup and block, as the runner does.
+template <typename C>
+void render(C& c, std::size_t n, std::size_t blocks) {
+	c.setup(n);
+	for (std::size_t i = 0; i < blocks; ++i) {
+		c.block(n);
+	}
+}
+
 } // namespace
 
 // clang-format off
@@ -175,7 +213,7 @@ describe bench_runner("The DSP benchmark runner", ${
 	it("gives an empty line when the buffer cannot hold it", _ {
 		std::array<char, 16> buffer{};
 		const Sample delta{.cycles = 1234, .events = {1, 2, 3, 4, 5}};
-		expect(format_line(buffer, "osc.sine", 32, 64, delta).empty()).to_equal(true);
+		expect(format_line(buffer, "osc.sine", 32, 64, delta)).to_equal(std::string_view{});
 	});
 
 	it("sets each case up once per block size and renders warm-up plus timed blocks there", _ {
@@ -258,6 +296,138 @@ describe bench_runner("The DSP benchmark runner", ${
 		expect(count).to_equal(std::size_t{2});
 		expect(lines[1]).to_equal(std::string{"BENCH-ERROR line-overflow"});
 		expect(lines.back()).to_equal(std::string{"BENCH-DONE cases=2"});
+	});
+
+	context("the case list", _ {
+		it("names every case in snake_case, with no space or '='", _ {
+			std::vector<std::string_view> names;
+			for (const Case& c : cases()) {
+				names.push_back(c.name);
+				expect(c.name.find_first_of(" =")).to_equal(std::string_view::npos);
+				expect(c.name.size()).to_be_greater_than(std::size_t{0});
+			}
+			expect(names).to_equal(kCaseNames);
+		});
+
+		it("runs every case at every block size, the calibration's line included", _ {
+			const RunConfig config{.block_sizes = kSizes, .warmup_blocks = 4, .timed_blocks = 64};
+			const std::size_t count = run(cases(), config, counters, capture);
+
+			const std::size_t per_size = cases().size() + 1;
+			expect(count).to_equal(kSizes.size() * per_size);
+			expect(lines.size()).to_equal(kSizes.size() * per_size + 1);
+			expect(lines.back()).to_equal("BENCH-DONE cases=" + std::to_string(kSizes.size() * per_size));
+			for (std::size_t size = 0; size < kSizes.size(); ++size) {
+				const std::string n = std::to_string(kSizes[size]);
+				expect(lines[size * per_size]).to_start_with("BENCH case=calibration n=" + n + " ");
+				for (std::size_t i = 0; i < kCaseNames.size(); ++i) {
+					expect(lines[size * per_size + 1 + i])
+					    .to_start_with("BENCH case=" + std::string{kCaseNames[i]} + " n=" + n + " ");
+				}
+			}
+		});
+
+		it("fills the inputs from the same seed at every setup", _ {
+			CaseSet& set = case_set();
+			set.amplitude.setup(32);
+			const std::vector<q31> first_a{input_a().begin(), input_a().end()};
+			const std::vector<q31> first_b{input_b().begin(), input_b().end()};
+			set.amplitude.setup(128);
+			expect(std::vector<q31>{input_a().begin(), input_a().end()}).to_equal(first_a);
+			expect(std::vector<q31>{input_b().begin(), input_b().end()}).to_equal(first_b);
+			expect(first_a != first_b).to_be_truthy();
+			expect(std::ranges::count(first_a, 0)).to_be_less_than(std::ptrdiff_t{2});
+		});
+
+		it("runs the calibration loop's known iteration count", _ {
+			CaseSet& set = case_set();
+			for (const std::size_t n : kSizes) {
+				render(set.calibration_loop, n, 1);
+				expect(set.calibration_loop.last_iterations())
+				    .to_equal(static_cast<uint32_t>(CalibrationLoop::kIterationsPerSample * n));
+			}
+		});
+
+		it("keeps each VCA's ramp mid-level and in range for a whole run", _ {
+			for (const dsp::Ramp ramp : {AmplitudeCase::ramp(), CrudeAmplitudeCase::ramp()}) {
+				const int64_t end = int64_t{ramp.value()}
+				                    + (int64_t{ramp.increment()} * int64_t{kBlocksPerRun * kMaxBlock});
+				expect(ramp.value()).to_be_greater_than(0);
+				expect(ramp.increment()).to_be_greater_than(0);
+				expect(end).to_be_less_than(int64_t{std::numeric_limits<int32_t>::max() / 2});
+			}
+		});
+
+		it("runs each oscillator free at its configured increment", _ {
+			CaseSet& set = case_set();
+			for (const std::size_t n : kSizes) {
+				const auto advanced = [n](uint32_t increment, std::size_t blocks) {
+					return static_cast<uint32_t>(increment * n * blocks);
+				};
+				render(set.pulse, n, 3);
+				expect(set.pulse.phase()).to_equal(advanced(PulseCase::kIncrement, 3));
+				render(set.band_limited_table, n, 3);
+				expect(set.band_limited_table.phase()).to_equal(advanced(BandLimitedTableCase::kIncrement, 3));
+				render(set.crude_saw, n, 3);
+				expect(set.crude_saw.phase()).to_equal(advanced(CrudeSawCase::kIncrement, 3));
+				render(set.crude_square, n, 3);
+				expect(set.crude_square.phase()).to_equal(advanced(CrudeSquareCase::kIncrement, 3));
+				render(set.crude_triangle, n, 3);
+				expect(set.crude_triangle.phase()).to_equal(advanced(CrudeTriangleCase::kIncrement, 3));
+				render(set.wavetable, n, 3);
+				expect(set.wavetable.phase()).to_equal(advanced(WavetableCase::kIncrement, 3));
+			}
+		});
+
+		it("advances the synced pulse's master by each block and crosses over within every timed run", _ {
+			CaseSet& set = case_set();
+			for (const std::size_t n : kSizes) {
+				render(set.synced_pulse, n, 3);
+				expect(set.synced_pulse.master_phase())
+				    .to_equal(static_cast<uint32_t>(SyncedPulseCase::kMasterIncrement * n * 3));
+				// The timed blocks alone carry the master through at least one whole cycle.
+				expect(uint64_t{SyncedPulseCase::kMasterIncrement} * n * 64).to_be_greater_than(uint64_t{1} << 32);
+				expect(SyncedPulseCase::kAudibleIncrement).to_be_greater_than(SyncedPulseCase::kMasterIncrement);
+			}
+		});
+
+		it("configures each gain as documented", _ {
+			CaseSet& set = case_set();
+			set.mono_gain.setup(32);
+			expect(set.mono_gain.component().coefficients().gain).to_equal(MonoGainCase::kGain);
+			set.mono_vec_gain.setup(32);
+			expect(set.mono_vec_gain.component().coefficients().gain).to_equal(MonoVecGainCase::kGain);
+			set.stereo_gain.setup(32);
+			expect(set.stereo_gain.component().coefficients().gain).to_equal(StereoGainCase::kGain);
+		});
+
+		it("keeps the stereo frames at full scale through a whole in-place run", _ {
+			CaseSet& set = case_set();
+			set.stereo_gain.setup(kMaxBlock);
+			const std::vector<StereoSample> before{stereo().begin(), stereo().end()};
+			render(set.stereo_gain, kMaxBlock, kBlocksPerRun);
+			for (std::size_t i = 0; i < kMaxBlock; ++i) {
+				const int64_t drift_l = int64_t{before[i].l} - int64_t{stereo()[i].l};
+				const int64_t drift_r = int64_t{before[i].r} - int64_t{stereo()[i].r};
+				expect(drift_l).to_be_between(int64_t{0}, int64_t{2 * kBlocksPerRun + 1});
+				expect(drift_r).to_be_between(int64_t{0}, int64_t{2 * kBlocksPerRun + 1});
+			}
+		});
+
+		it("places the duck mid-release, and keeps it there, curved, for a whole run", _ {
+			using Stage = dsp::fixed::DuckEnvelope::Stage;
+			CaseSet& set = case_set();
+			set.duck_envelope.setup(kMaxBlock);
+			expect(set.duck_envelope.component().state().stage).to_equal(Stage::RELEASE);
+			expect(set.duck_envelope.component().state().pos).to_equal(uint32_t{2'097'096});
+
+			render(set.duck_envelope, kMaxBlock, kBlocksPerRun);
+			const auto& duck = set.duck_envelope.component();
+			expect(duck.state().stage).to_equal(Stage::RELEASE);
+			expect(duck.state().pos).to_be_less_than(dsp::fixed::DuckEnvelope::kStageLength);
+			expect(static_cast<int32_t>(duck.state().pos >> 7))
+			    .to_be_less_than(duck.coefficients().curve_extent16);
+		});
 	});
 });
 

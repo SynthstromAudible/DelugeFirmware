@@ -17,6 +17,10 @@ list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp/.*)
 # Likewise the new dsp-next library (built as deluge_dsp_fixed/_float); its path
 # is /dsp-next/, which the /dsp/ regex above does not match.
 list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp-next/.*)
+# The benchmark's Cortex-A9 PMU counters program CP15, which only the device has.
+if(DELUGE_HOST)
+  list(FILTER deluge_SOURCES EXCLUDE REGEX .*/bench/pmu_a9\\.cpp$)
+endif()
 
 # ---------------------------------------------------------------------------
 # deluge_app: the PORTABLE application. It links only the portable libraries and
