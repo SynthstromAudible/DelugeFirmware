@@ -27,15 +27,15 @@
 #include <type_traits>
 
 /// @file
-/// @brief The dry/wet blend: the arithmetic the filters' fade and the compressor share, and DryWetBlend, a mixer
-/// kernel running it at a level constant per block.
+/// @brief The dry/wet blend: the arithmetic the filters' fade runs and the compressor writes out by hand, and
+/// DryWetBlend, a mixer kernel running it at a level constant per block.
 namespace deluge::dsp::fixed {
 
 /// @brief The shift from the blend's rounded high word, Q30 (each product keeps the high word of a Q31 × Q31), back to
 /// Q31.
 inline constexpr int kDryWetBlendToQ31Shift = 1;
 
-/// @brief dry × (1 − level) + wet × level, Q31, in the rounding the filters' fade and the compressor share.
+/// @brief dry × (1 − level) + wet × level, Q31, in the rounding the filters' fade and the compressor use.
 /// @details The wet product keeps its high word truncated; the dry product is accumulated onto it rounded; the sum,
 /// Q30, is doubled back to Q31, so the result's lowest bit is always clear. At @p level ONE_Q31 the dry level is 0,
 /// but the wet product is (wet × (2^31 − 1)) ≫ 32 doubled: a negative wet sample with its lowest bit cleared, a
@@ -48,10 +48,10 @@ inline constexpr int kDryWetBlendToQ31Shift = 1;
 /// @param wet The wet sample, Q31.
 /// @param level The wet level, Q31: 0 is fully dry, ONE_Q31 fully wet.
 /// @return The blend, Q31, its lowest bit clear.
-[[nodiscard, gnu::always_inline]] constexpr q31 dry_wet_blend(q31 dry, q31 wet, q31 level) {
+[[nodiscard]] [[gnu::always_inline]] constexpr q31 dry_wet_blend(q31 dry, q31 wet, q31 level) {
 	const q31 dry_level = wrapping_sub(ONE_Q31, level);
 	const q31 sum = multiply_accumulate_32x32_rshift32_rounded(multiply_32x32_rshift32(wet, level), dry, dry_level);
-	return static_cast<q31>(static_cast<uint32_t>(sum) << kDryWetBlendToQ31Shift);
+	return sum << kDryWetBlendToQ31Shift;
 }
 
 /// @brief The dry/wet blend as a mixer kernel: inputs dry and wet, at a wet level constant per block.
@@ -84,7 +84,7 @@ struct DryWetBlend {
 	struct State {};
 
 	/// @brief The coefficients for @p s: the level, and FULL_WET at exactly ONE_Q31, BLEND at every other level.
-	[[nodiscard, gnu::always_inline]] static constexpr Coefficients coefficients(const Settings& s) {
+	[[nodiscard]] [[gnu::always_inline]] static constexpr Coefficients coefficients(const Settings& s) {
 		return {.level = s.level, .mode = s.level == ONE_Q31 ? Mode::FULL_WET : Mode::BLEND};
 	}
 
@@ -95,8 +95,8 @@ struct DryWetBlend {
 	/// @param wet The wet sample, Q31.
 	/// @return dry_wet_blend(dry, wet, level) (BLEND) or @p wet (FULL_WET), Q31.
 	template <Mode M>
-	[[nodiscard, gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& /*s*/,
-	                                                  q31 dry, q31 wet) {
+	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& /*s*/,
+	                                                     q31 dry, q31 wet) {
 		if constexpr (M == Mode::FULL_WET) {
 			return wet;
 		}

@@ -32,7 +32,7 @@ inline constexpr uint32_t kTanhCentre = 2147483648u;
 
 namespace detail {
 /// @brief A position on the curve (unsigned, the full table across 32 bits) looked up and shifted down by drive + 2.
-[[nodiscard, gnu::always_inline]] inline q31 tanh_lookup(uint32_t position, uint32_t drive) {
+[[nodiscard]] [[gnu::always_inline]] inline q31 tanh_lookup(uint32_t position, uint32_t drive) {
 	return linear_table_interpolator.interpolateSigned(position, 32, kTanhSmallTable.data(), 8) >> (drive + 2);
 }
 } // namespace detail
@@ -42,7 +42,7 @@ namespace detail {
 /// quarter of full scale undriven), and callers scale it back as their home needs.
 /// @param drive The drive as a power of two, 0 to 29: the output shift, drive + 2, must stay below 32. Saturation is
 /// at 32 - drive bits for drives 1 to 20 and at 12 bits for drives past 20; see the compile-time overload for those.
-[[nodiscard, gnu::always_inline]] inline q31 tanh(q31 sample, uint32_t drive) {
+[[nodiscard]] [[gnu::always_inline]] inline q31 tanh(q31 sample, uint32_t drive) {
 	const uint32_t position =
 	    drive != 0u ? static_cast<uint32_t>(lshiftAndSaturateUnknown(sample, static_cast<uint8_t>(drive))) + kTanhCentre
 	                : static_cast<uint32_t>(sample) + kTanhCentre;
@@ -54,7 +54,7 @@ namespace detail {
 /// @tparam Drive The drive as a power of two, 0 to 29: the output shift, Drive + 2, must stay below 32.
 template <uint32_t Drive>
 requires(Drive <= 29)
-[[nodiscard, gnu::always_inline]] inline q31 tanh(q31 sample) {
+[[nodiscard]] [[gnu::always_inline]] inline q31 tanh(q31 sample) {
 	uint32_t position{};
 	if constexpr (Drive != 0u) {
 		position = static_cast<uint32_t>(lshiftAndSaturate<Drive>(sample)) + kTanhCentre;
