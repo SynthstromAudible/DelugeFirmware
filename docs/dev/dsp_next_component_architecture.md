@@ -635,6 +635,32 @@ state fully into the engine is later work.
 - Filters, dynamics, delay and effects are kernels wrapped by `Mono`, `Stereo`
   or `Control`, under the settings convention and the slotting-ready rules.
 
+## Shared kernels (`fixed/`)
+
+These are the reference blocks that later rewrites compose rather than re-derive.
+
+- **`OnePole`** (`filter/one_pole.h`): a one-pole low-pass with a coefficient, with `LOW_PASS`, `HIGH_PASS`
+  (`x − y` from the same updated memory) and `ALL_PASS` (`2y − x`) as modes over one memory. The granular
+  processor's wet low-pass is one.
+- **`ShiftTracker<N>`** (`filter/shift_tracker.h`): a one-pole low-pass whose coefficient is a right shift by `N`, with
+  `TRACK` (the slow part) and `REMOVE` (the input less it) modes. It is the form `SeriesPoles` composes.
+- **`Tanh<Drive>`** (`shaping/tanh_kernel.h`) and **`AntialiasedTanh`** (`shaping/antialiased_tanh.h`): the tanh
+  saturation curves. The drive of `Tanh` is a compile-time value, at most 29, because the table lookup shifts by
+  `Drive + 2`. `AntialiasedTanh` keeps its previous table position in `State` and interpolates from it, so changing the
+  drive between two steps moves only the drive. A caller that starts mid-signal uses `seed(c, s, sample)`, which places
+  the position where stepping `sample` would, or `place(s, position)`, which sets it directly.
+- **`dry_wet_blend` / `DryWetBlend`** (`mix/dry_wet.h`): the dry/wet crossfade the filters' fade and the compressor
+  share. `FULL_WET` returns the wet sample unchanged, because the blend at `ONE_Q31` is not an identity.
+- **`wrapping_add` / `wrapping_sub`** (`wrapping.h`): q31 add and subtract with two's-complement wrap, defined for every
+  input.
+
+### The `legacy::` convention
+
+A class that still has users which have not moved is renamed into `legacy::` and placed in a `legacy/` directory beside
+its replacement (`filter/legacy/`, `shaping/legacy/`). The kernel is written fresh next to it, the legacy class is not
+edited, and it is deleted when its last user moves. Today `legacy::OnePole` remains for the ladders and the compressor,
+and `legacy::AntialiasedTanh` for the compressor and the high-pass ladder.
+
 ## Bit-exactness: how the synth's math maps in
 
 - Generator then VCA: `Oscillator.renderBlock(raw)` and then `Amplitude` over
@@ -819,6 +845,8 @@ gates:
   has `Settings`, `Coefficients` and `State`, not the legacy class's members and
   verbs.
 - Are constants and bit-exactness quirks named?
+- Can a q31 add or subtract leave range? It goes through `wrapping_add` / `wrapping_sub` (`fixed/wrapping.h`), because
+  signed overflow is undefined behaviour once a step is inlined.
 - Are there callback sinks, raw-pointer heads, out-parameters, or globals other
   than `SharedNoise`?
 - Is a block-rate signal a control kernel, and are its events functions on its

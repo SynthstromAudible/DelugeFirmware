@@ -65,8 +65,31 @@ These numbers explain the cost of a streaming q31 loop:
    `std::span::size()` is a call. Once per block it costs a few cycles per block. Inside the loop it costs that per
    sample.
 
+## Shared kernel costs
+
+Cycles per sample on the device, bench run on cab9fce07 (2026-10-09), `Mono` wrapper, one channel:
+
+| Kernel (case) | n=32 | n=64 | n=128 |
+|---|---:|---:|---:|
+| `ShiftTracker` (`shift_tracker`) | 6.82 | 6.14 | 5.83 |
+| `OnePole` LOW_PASS (`one_pole_lp`) | 10.20 | 9.59 | 9.31 |
+| `OnePole` ALL_PASS (`one_pole_ap`) | 12.78 | 11.73 | 11.13 |
+| `AntialiasedTanh` (`antialiased_tanh`) | 155.84 | 155.04 | 154.76 |
+| `Tanh<3>` (`tanh3`) | 18.26 | 17.61 | 17.31 |
+| `dry_wet_blend` (`dry_wet_blend`) | 9.58 | 8.51 | 8.02 |
+
+- The one-pole is the first recursive kernel measured, so its cost is the first data point for `Lanes<K, N>`. A
+  single-channel `Mono` run measures the scalar recursion with its dependency chain; it says nothing about the gain from
+  interleaving channels, which needs a `Lanes` run to measure.
+- `AntialiasedTanh` costs about nine times `Tanh<3>`. Its interpolated table read makes out-of-line calls per sample (see
+  the open items).
+
 ## Open questions
 
 - Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain, such as
   filters. Measure when the first filter kernel lands.
 - The `wavetable` bench case costs about 336 cycles per sample. Look at it when the oscillators move to the kernel form.
+- `BilinearTableInterpolator::interpolateSigned`, which `AntialiasedTanh` and the legacy saturation use, makes 7
+  out-of-line calls per sample at the shipping flags (span construction, `size`, `operator[]`, `bit_width`,
+  `array::data`). Reading through `data()` with constexpr rows would remove them.
+- `Mono::renderBlock` calls `std::span::size()` and `data()` per block, and both are out of line at the shipping flags.
