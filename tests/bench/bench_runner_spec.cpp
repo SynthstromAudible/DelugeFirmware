@@ -126,10 +126,15 @@ struct SizeRecorder {
 	std::size_t setup_n = 0;
 	std::size_t blocks = 0;
 	std::size_t mismatched_blocks = 0;
+	std::vector<std::size_t> blocks_per_setup; ///< The blocks rendered after each setup.
 
-	void setup(std::size_t n) { setup_n = n; }
+	void setup(std::size_t n) {
+		setup_n = n;
+		blocks_per_setup.push_back(0);
+	}
 	void block(std::size_t n) {
 		++blocks;
+		++blocks_per_setup.back();
 		mismatched_blocks += n == setup_n ? 0 : 1;
 	}
 };
@@ -272,31 +277,52 @@ describe bench_runner("The DSP benchmark runner", ${
 		FlatCost flat;
 		PerSampleCost per_sample;
 		const std::array cases{make_case("flat", flat), make_case("per_sample", per_sample)};
-		const RunConfig config{.block_sizes = kSizes, .warmup_blocks = 4, .timed_blocks = 64};
+		const RunConfig config{.block_sizes = kSizes};
 		std::ignore = run(cases, config, counters, capture);
 
 		expect(flat.setups).to_equal(kSizes.size());
 		expect(per_sample.setups).to_equal(kSizes.size());
-		expect(flat.blocks).to_equal(kSizes.size() * (4 + 64));
-		expect(per_sample.blocks).to_equal(kSizes.size() * (4 + 64));
+		// 512 samples of warm-up: 16 blocks at 32, 8 at 64 and 4 at 128, each before 64 timed.
+		expect(flat.blocks).to_equal(std::size_t{(16 + 64) + (8 + 64) + (4 + 64)});
+		expect(per_sample.blocks).to_equal(std::size_t{(16 + 64) + (8 + 64) + (4 + 64)});
 		expect(flat.setup_sizes).to_equal(std::vector<std::size_t>{32, 64, 128});
 	});
 
 	it("renders every block at the size its case was set up for", _ {
 		SizeRecorder recorder;
 		const std::array cases{make_case("recorder", recorder)};
-		const RunConfig config{.block_sizes = kSizes, .warmup_blocks = 4, .timed_blocks = 64};
+		const RunConfig config{.block_sizes = kSizes};
 		std::ignore = run(cases, config, counters, capture);
 
-		expect(recorder.blocks).to_equal(kSizes.size() * (4 + 64));
+		expect(recorder.blocks).to_equal(std::size_t{(16 + 64) + (8 + 64) + (4 + 64)});
 		expect(recorder.mismatched_blocks).to_equal(std::size_t{0});
+	});
+
+	it("warms every block size up by at least kWarmupSamples samples, and by at least four blocks", _ {
+		SizeRecorder recorder;
+		const std::array cases{make_case("recorder", recorder)};
+		const std::array<std::size_t, 5> sizes{32, 64, 128, 256, 100};
+		const RunConfig config{.block_sizes = sizes};
+		std::ignore = run(cases, config, counters, capture);
+
+		expect(kWarmupSamples).to_equal(std::size_t{512});
+		std::vector<std::size_t> warmups;
+		for (const std::size_t blocks : recorder.blocks_per_setup) {
+			warmups.push_back(blocks - config.timed_blocks);
+		}
+		// 512 / 100 rounds up to 6 blocks; at 256, 2 blocks would cover 512 samples, but every size warms up by 4.
+		expect(warmups).to_equal(std::vector<std::size_t>{16, 8, 4, 4, 6});
+		for (std::size_t i = 0; i < sizes.size(); ++i) {
+			expect(config.warmup_blocks(sizes[i])).to_equal(warmups[i]);
+			expect(config.blocks_per_run(sizes[i])).to_equal(warmups[i] + config.timed_blocks);
+		}
 	});
 
 	it("prints the calibration and each case at each size, then BENCH-DONE with the count", _ {
 		FlatCost flat;
 		PerSampleCost per_sample;
 		const std::array cases{make_case("flat", flat), make_case("per_sample", per_sample)};
-		const RunConfig config{.block_sizes = kSizes, .warmup_blocks = 4, .timed_blocks = 64};
+		const RunConfig config{.block_sizes = kSizes};
 		const std::size_t count = run(cases, config, counters, capture);
 
 		expect(count).to_equal(std::size_t{9});
@@ -313,7 +339,7 @@ describe bench_runner("The DSP benchmark runner", ${
 		FlatCost flat;
 		PerSampleCost per_sample;
 		const std::array cases{make_case("flat", flat), make_case("per_sample", per_sample)};
-		const RunConfig config{.block_sizes = kSizes, .warmup_blocks = 4, .timed_blocks = 64};
+		const RunConfig config{.block_sizes = kSizes};
 		std::ignore = run(cases, config, counters, capture);
 
 		for (std::size_t size = 0; size < kSizes.size(); ++size) {
@@ -335,7 +361,7 @@ describe bench_runner("The DSP benchmark runner", ${
 		counters.cold_cost = {.cycles = 5000, .events = {50, 400, 60, 700, 80}};
 		FlatCost flat;
 		const std::array cases{make_case("flat", flat)};
-		const RunConfig config{.block_sizes = kSizes, .warmup_blocks = 4, .timed_blocks = 64};
+		const RunConfig config{.block_sizes = kSizes};
 		std::ignore = run(cases, config, counters, capture);
 
 		expect(lines[0]).to_equal(expected_line("calibration", 32, 64, FakeCounters::kReadCost));
@@ -360,7 +386,7 @@ describe bench_runner("The DSP benchmark runner", ${
 	it("restarts the counters for every measurement", _ {
 		FlatCost flat;
 		const std::array cases{make_case("flat", flat)};
-		const RunConfig config{.block_sizes = kSizes, .warmup_blocks = 4, .timed_blocks = 64};
+		const RunConfig config{.block_sizes = kSizes};
 		std::ignore = run(cases, config, counters, capture);
 		// One more than two per size: the discarded calibration that warms the measurement's code.
 		expect(counters.starts).to_equal(kSizes.size() * 2 + 1);
@@ -370,7 +396,7 @@ describe bench_runner("The DSP benchmark runner", ${
 		CheaperThanCalibration cheap;
 		const std::array cases{make_case("cheap", cheap)};
 		const std::array<std::size_t, 1> sizes{32};
-		const RunConfig config{.block_sizes = sizes, .warmup_blocks = 4, .timed_blocks = 64};
+		const RunConfig config{.block_sizes = sizes};
 		std::ignore = run(cases, config, counters, capture);
 		expect(lines[1]).to_equal(expected_line("cheap", 32, 64, Sample{.cycles = 0, .events = {}}));
 	});
@@ -380,7 +406,7 @@ describe bench_runner("The DSP benchmark runner", ${
 		const std::string long_name(kLineCapacity, 'x');
 		const std::array cases{make_case(long_name, flat)};
 		const std::array<std::size_t, 1> sizes{32};
-		const RunConfig config{.block_sizes = sizes, .warmup_blocks = 4, .timed_blocks = 64};
+		const RunConfig config{.block_sizes = sizes};
 		const std::size_t count = run(cases, config, counters, capture);
 		expect(count).to_equal(std::size_t{2});
 		expect(lines[1]).to_equal(std::string{"BENCH-ERROR line-overflow"});
@@ -399,7 +425,7 @@ describe bench_runner("The DSP benchmark runner", ${
 		});
 
 		it("runs every case at every block size, the calibration's line included", _ {
-			const RunConfig config{.block_sizes = kSizes, .warmup_blocks = 4, .timed_blocks = 64};
+			const RunConfig config{.block_sizes = kSizes};
 			const std::size_t count = run(cases(), config, counters, capture);
 
 			const std::size_t per_size = cases().size() + 1;
@@ -494,13 +520,14 @@ describe bench_runner("The DSP benchmark runner", ${
 			// back doubled. A reset at a crossover moves it off that track.
 			CaseSet& set = case_set();
 			for (const std::size_t n : kSizes) {
+				const std::size_t blocks = RunConfig{}.blocks_per_run(n);
 				uint32_t free_running = 0;
-				for (std::size_t i = 0; i < kBlocksPerRun; ++i) {
+				for (std::size_t i = 0; i < blocks; ++i) {
 					free_running = ((free_running >> 1)
 					                + (static_cast<uint32_t>(n) * (SyncedPulseCase::kAudibleIncrement >> 1)))
 					               << 1;
 				}
-				render(set.synced_pulse, n, kBlocksPerRun);
+				render(set.synced_pulse, n, blocks);
 				expect(set.synced_pulse.audible_phase()).not_().to_equal(free_running);
 			}
 		});
@@ -515,32 +542,38 @@ describe bench_runner("The DSP benchmark runner", ${
 			expect(set.stereo_gain.component().coefficients().gain).to_equal(StereoGainCase::kGain);
 		});
 
-		it("keeps the stereo frames at full scale through a whole in-place run", _ {
+		it("keeps the stereo frames at full scale through a whole in-place run at every block size", _ {
 			CaseSet& set = case_set();
-			set.stereo_gain.setup(kMaxBlock);
-			const std::vector<StereoSample> before{stereo().begin(), stereo().end()};
-			render(set.stereo_gain, kMaxBlock, kBlocksPerRun);
-			for (std::size_t i = 0; i < kMaxBlock; ++i) {
-				const int64_t drift_l = int64_t{before[i].l} - int64_t{stereo()[i].l};
-				const int64_t drift_r = int64_t{before[i].r} - int64_t{stereo()[i].r};
-				expect(drift_l).to_be_between(int64_t{0}, int64_t{2 * kBlocksPerRun + 1});
-				expect(drift_r).to_be_between(int64_t{0}, int64_t{2 * kBlocksPerRun + 1});
+			for (const std::size_t n : kSizes) {
+				const std::size_t blocks = RunConfig{}.blocks_per_run(n);
+				set.stereo_gain.setup(n);
+				const std::vector<StereoSample> before{stereo().begin(), stereo().end()};
+				render(set.stereo_gain, n, blocks);
+				for (std::size_t i = 0; i < n; ++i) {
+					const int64_t drift_l = int64_t{before[i].l} - int64_t{stereo()[i].l};
+					const int64_t drift_r = int64_t{before[i].r} - int64_t{stereo()[i].r};
+					expect(drift_l).to_be_between(int64_t{0}, int64_t{2 * blocks + 1});
+					expect(drift_r).to_be_between(int64_t{0}, int64_t{2 * blocks + 1});
+				}
 			}
 		});
 
-		it("places the duck mid-release, and keeps it there, curved, for a whole run", _ {
+		it("places the duck mid-release, and keeps it there, curved, for a whole run at every block size", _ {
 			using Stage = dsp::fixed::DuckEnvelope::Stage;
 			CaseSet& set = case_set();
-			set.duck_envelope.setup(kMaxBlock);
-			expect(set.duck_envelope.component().state().stage).to_equal(Stage::RELEASE);
-			expect(set.duck_envelope.component().state().pos).to_equal(uint32_t{2'097'096});
+			expect(kSamplesPerRun).to_equal(std::size_t{8'704});
+			for (const std::size_t n : kSizes) {
+				set.duck_envelope.setup(n);
+				expect(set.duck_envelope.component().state().stage).to_equal(Stage::RELEASE);
+				expect(set.duck_envelope.component().state().pos).to_equal(uint32_t{2'097'096});
 
-			render(set.duck_envelope, kMaxBlock, kBlocksPerRun);
-			const auto& duck = set.duck_envelope.component();
-			expect(duck.state().stage).to_equal(Stage::RELEASE);
-			expect(duck.state().pos).to_be_less_than(dsp::fixed::DuckEnvelope::kStageLength);
-			expect(static_cast<int32_t>(duck.state().pos >> 7))
-			    .to_be_less_than(duck.coefficients().curve_extent16);
+				render(set.duck_envelope, n, RunConfig{}.blocks_per_run(n));
+				const auto& duck = set.duck_envelope.component();
+				expect(duck.state().stage).to_equal(Stage::RELEASE);
+				expect(duck.state().pos).to_be_less_than(dsp::fixed::DuckEnvelope::kStageLength);
+				expect(static_cast<int32_t>(duck.state().pos >> 7))
+				    .to_be_less_than(duck.coefficients().curve_extent16);
+			}
 		});
 	});
 });

@@ -93,7 +93,8 @@ private:
 /// @return The raw delta of the timed blocks.
 [[nodiscard]] Sample measure(const Case& c, std::size_t n, const RunConfig& config, Counters& counters) {
 	counters.start();
-	for (std::size_t i = 0; i < config.warmup_blocks; ++i) {
+	const std::size_t warmup_blocks = config.warmup_blocks(n);
+	for (std::size_t i = 0; i < warmup_blocks; ++i) {
 		c.block(c.context, n);
 	}
 	const Sample before = counters.read();

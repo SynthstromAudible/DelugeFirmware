@@ -32,7 +32,9 @@
 #include "dsp-next/fixed/wavetable/wavetable_oscillator.h"
 #include "util/fixedpoint.h"
 
+#include <algorithm>
 #include <argon.hpp>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -43,12 +45,25 @@ namespace deluge::bench {
 using dsp::q31;
 using dsp::StereoSample;
 
+/// @brief The block sizes the device times every case at, in samples.
+inline constexpr std::array<std::size_t, 3> kBlockSizes{32, 64, 128};
+
 /// @brief The largest block a case renders, in samples (or frames): the buffers' size.
 inline constexpr std::size_t kMaxBlock = 128;
+static_assert(std::ranges::max(kBlockSizes) == kMaxBlock);
 
-/// @brief Blocks rendered from a case's setup to the end of its timed blocks, at the runner's defaults: warm-up
-/// plus K. A case whose state drifts across a run stays representative for this many blocks of kMaxBlock.
-inline constexpr std::size_t kBlocksPerRun = RunConfig{}.warmup_blocks + RunConfig{}.timed_blocks;
+/// @brief The most samples a case renders from its setup to the end of its timed blocks, over kBlockSizes at the
+/// runner's defaults: the warm-up and the K timed blocks, at the size where they come to most.
+/// @details A case whose state drifts across a run stays representative for this many samples. At the defaults the
+/// sizes run 80 blocks of 32 (2,560 samples), 72 of 64 (4,608) and 68 of 128 (8,704).
+inline constexpr std::size_t kSamplesPerRun = [] {
+	std::size_t most = 0;
+	for (const std::size_t n : kBlockSizes) {
+		most = std::max(most, RunConfig{}.blocks_per_run(n) * n);
+	}
+	return most;
+}();
+static_assert(kSamplesPerRun == 8'704);
 
 /// @brief A4, 440 Hz: the mid-range pitch the band-limited and wavetable cases play at.
 inline constexpr uint32_t kA4Increment = 42'852'282;
@@ -171,9 +186,9 @@ private:
 
 /// @brief The band-limited VCA, `Amplitude`, mixing input_a (the raw wave) into input_b (the mix) into the output.
 /// @details **Timed state:** a mid-level ramp, a quarter of full scale (2^29) rising 1,024 per sample. A fresh
-/// Amplitude is built from it at setup and runs every block from there, as one long block. Over a whole run
-/// (kBlocksPerRun blocks of kMaxBlock) the ramp rises by under 9 · 10^6, so it stays mid-level and never saturates:
-/// every block is the same arithmetic on the same inputs.
+/// Amplitude is built from it at setup and runs every block from there, as one long block. Over a whole run (at most
+/// kSamplesPerRun samples) the ramp rises by under 9 · 10^6, so it stays mid-level and never saturates: every block is
+/// the same arithmetic on the same inputs.
 class AmplitudeCase {
 public:
 	/// @brief The ramp the VCA is built from: a start of 2^29, a quarter of full scale (Q31), rising 1,024 per sample.
@@ -192,7 +207,7 @@ private:
 };
 static_assert(AmplitudeCase::kRamp.value() > 0 && AmplitudeCase::kRamp.increment() > 0);
 static_assert(int64_t{AmplitudeCase::kRamp.value()}
-                  + (int64_t{AmplitudeCase::kRamp.increment()} * int64_t{kBlocksPerRun * kMaxBlock})
+                  + (int64_t{AmplitudeCase::kRamp.increment()} * int64_t{kSamplesPerRun})
               < int64_t{std::numeric_limits<int32_t>::max() / 2});
 
 /// @brief The crude VCA, `CrudeAmplitude`, mixing input_a into input_b into the output.
@@ -216,7 +231,7 @@ private:
 };
 static_assert(CrudeAmplitudeCase::kRamp.value() > 0 && CrudeAmplitudeCase::kRamp.increment() > 0);
 static_assert(int64_t{CrudeAmplitudeCase::kRamp.value()}
-                  + (int64_t{CrudeAmplitudeCase::kRamp.increment()} * int64_t{kBlocksPerRun * kMaxBlock})
+                  + (int64_t{CrudeAmplitudeCase::kRamp.increment()} * int64_t{kSamplesPerRun})
               < int64_t{std::numeric_limits<int32_t>::max() / 2});
 
 /// @brief The perfect pulse, `PulseOscillator`, rendering into the output.
@@ -469,10 +484,10 @@ private:
 /// curved at the release's start). Setup places a hit of 0x60000000 4,665 samples ago: 222 samples of attack, then
 /// 4,443 into the release, at position 4,443 · 472 = 2,097,096, a quarter of the stage.
 ///
-/// **Timed state:** mid-release. Over a whole run the position rises by at most 8,704 · 472 = 4,108,288, to
-/// 6,205,384, short of the stage's end at 2^23 = 8,388,608, and its curvedness, 65,536 - position / 128, stays above
-/// zero: every block is the same curved-release arithmetic. Its cycles per sample, like every case's, divide the
-/// block's cost by n, though the duck does its work once per block.
+/// **Timed state:** mid-release. Over a whole run the position rises by at most kSamplesPerRun · 472 = 8,704 · 472 =
+/// 4,108,288, to 6,205,384, short of the stage's end at 2^23 = 8,388,608, and its curvedness, 65,536 - position / 128,
+/// stays above zero: every block is the same curved-release arithmetic. Its cycles per sample, like every case's,
+/// divide the block's cost by n, though the duck does its work once per block.
 class DuckEnvelopeCase {
 public:
 	/// @brief The rates and shape, as the owner resolves them.

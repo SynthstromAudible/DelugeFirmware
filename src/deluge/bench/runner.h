@@ -5,7 +5,9 @@
 ///
 /// **The protocol.** For each block size n, and for each case at that size:
 ///  1. the case's `setup` configures its component for n, fills its inputs and leaves it in the state it documents;
-///  2. the counters are restarted, and the case renders `warmup_blocks` blocks untimed;
+///  2. the counters are restarted, and the case renders RunConfig::warmup_blocks(n) blocks untimed: at least
+///     kWarmupSamples samples, so its code, tables and buffers are resident at every block size, and at least
+///     `min_warmup_blocks` blocks, so its state settles into the steady state it documents;
 ///  3. the counters are read, the case renders `timed_blocks` (K) consecutive blocks, and the counters are read again;
 ///  4. the difference of the two readings, modulo 2^32, is the case's raw delta;
 ///  5. the calibration's delta at the same n is subtracted from it, each counter saturating at zero;
@@ -108,11 +110,31 @@ public:
 /// @return make_case() over an EmptyComponent, named `calibration`: the case run() times first at each block size.
 [[nodiscard]] const Case& calibration();
 
+/// @brief The fewest samples a case renders untimed before its timed blocks, at any block size.
+/// @details Counted in samples rather than blocks so that a small block size warms up as far as a large one: a fixed
+/// count of blocks would leave the smallest size's case touching only a few hundred samples' worth of its tables
+/// before it is timed, while larger sizes inherit them resident.
+inline constexpr std::size_t kWarmupSamples = 512;
+
 /// @brief What run() measures: the block sizes, and how many blocks warm up and are timed at each.
 struct RunConfig {
-	std::span<const std::size_t> block_sizes; ///< The block sizes, in samples; the device runs {32, 64, 128}.
-	std::size_t warmup_blocks = 4;            ///< Blocks rendered untimed before the timed ones.
-	std::size_t timed_blocks = 64;            ///< Blocks timed together: K.
+	std::span<const std::size_t> block_sizes;    ///< The block sizes, in samples; the device runs {32, 64, 128}.
+	std::size_t warmup_samples = kWarmupSamples; ///< The fewest samples rendered untimed before the timed blocks.
+	std::size_t min_warmup_blocks = 4;           ///< The fewest blocks rendered untimed before the timed blocks.
+	std::size_t timed_blocks = 64;               ///< Blocks timed together: K.
+
+	/// @brief The blocks rendered untimed at a block size.
+	/// @param n The block size, in samples.
+	/// @return max(`min_warmup_blocks`, ⌈`warmup_samples` ÷ n⌉); `min_warmup_blocks` when n is 0.
+	[[nodiscard]] constexpr std::size_t warmup_blocks(std::size_t n) const {
+		const std::size_t by_samples = n == 0 ? 0 : (warmup_samples + n - 1) / n;
+		return by_samples > min_warmup_blocks ? by_samples : min_warmup_blocks;
+	}
+
+	/// @brief The blocks a case renders from its setup to the end of its timed blocks at a block size.
+	/// @param n The block size, in samples.
+	/// @return warmup_blocks(n) + `timed_blocks`.
+	[[nodiscard]] constexpr std::size_t blocks_per_run(std::size_t n) const { return warmup_blocks(n) + timed_blocks; }
 };
 
 /// @brief Times every case at every block size by the protocol above, then prints the BENCH-DONE line.

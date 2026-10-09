@@ -44,9 +44,6 @@ void log_dbgauthstatus() {
 	log_line(deluge::bench::format_info_line(buffer, "dbgauthstatus", deluge::bench::read_dbgauthstatus()));
 }
 
-/// @brief The block sizes every case is timed at, in samples.
-constexpr std::array<std::size_t, 3> kBlockSizes{32, 64, 128};
-
 } // namespace
 
 extern "C" void deluge_app_bench(void) noexcept {
@@ -57,7 +54,8 @@ extern "C" void deluge_app_bench(void) noexcept {
 	}
 	log_dbgauthstatus();
 	deluge::bench::PmuA9 pmu;
-	std::ignore = deluge::bench::run(deluge::bench::cases(), {.block_sizes = kBlockSizes}, pmu, log_line);
+	std::ignore =
+	    deluge::bench::run(deluge::bench::cases(), {.block_sizes = deluge::bench::kBlockSizes}, pmu, log_line);
 }
 
 #else
