@@ -125,7 +125,11 @@ Kit* getCurrentKit() {
 
 /// Do not call in static/global constructors, song won't exist yet
 Instrument* getCurrentInstrument() {
-	auto output = currentSong->getCurrentClip()->output;
+	auto currentClip = currentSong->getCurrentClip();
+	if (currentClip == nullptr) {
+		return nullptr;
+	}
+	auto output = currentClip->output;
 	if (output == nullptr) {
 		return nullptr;
 	}
@@ -1294,6 +1298,8 @@ weAreInArrangementEditorOrInClipInstance:
 	GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true, valuesForOverride);
 	writer.writeClosingTag("songParams");
 
+	performanceView.writeSettingsToFile(writer);
+
 	writer.writeArrayStart("instruments");
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		thisOutput->writeToFile(nullptr, this);
@@ -2087,6 +2093,10 @@ loadOutput:
 				reader.exitTag("songParams", true);
 			}
 
+			else if (!strcmp(tagName, "performanceView")) {
+				performanceView.readSettingsFromFile(reader);
+			}
+
 			else if (!strcmp(tagName, "tracks") || !strcmp(tagName, "sessionClips")) {
 				Error error = readClipsFromFile(reader, &sessionClips);
 				if (error != Error::NONE) {
@@ -2461,6 +2471,8 @@ void Song::deleteSoundsWhichWontSound() {
 
 		AudioEngine::routineWithClusterLoading();
 		if (!clip->isActiveOnOutput() && clip != view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			// Arranger ClipInstances may still reference this Clip - remove them so they don't dangle (E455)
+			clip->output->deleteAnyInstancesOfClip(clip);
 			it.deleteClip(InstrumentRemoval::NONE);
 		}
 		else {
@@ -2477,6 +2489,7 @@ void Song::deleteSoundsWhichWontSound() {
 
 		AudioEngine::routineWithClusterLoading();
 		if (clip->deleteSoundsWhichWontSound(this)) {
+			clip->output->deleteAnyInstancesOfClip(clip);
 			it.deleteClip(InstrumentRemoval::DELETE);
 		}
 		else {

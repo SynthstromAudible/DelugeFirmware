@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "hid/encoder_acceleration.h"
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -63,8 +64,8 @@ public:
 	double calcNextKnobSpeed(int8_t offset);
 
 private:
-	std::atomic_int8_t pos = 0;   ///< Written by the IRQ (applyEdges), drained by the encoder task.
-	double currentKnobSpeed{0.0}; // Used for encoder acceleration
+	std::atomic_int8_t pos = 0; ///< Written by the IRQ (applyEdges), drained by the encoder task.
+	EncoderAcceleration acceleration_;
 };
 
 // ── Named encoder globals ─────────────────────────────────────────────────

@@ -467,6 +467,8 @@ void PatchCableSet::deletePatchCable(ModelStackWithParamCollection const* modelS
 	for (int32_t c = numUsablePatchCables; c < numPatchCables - 1; c++) {
 		if (patchCables[c].destinationParamDescriptor.isNull()) {
 			memcpy(&patchCables[c], &patchCables[numPatchCables - 1], sizeof(PatchCable));
+			// The moved cable's automation now belongs to slot c - don't let the old slot free it too
+			patchCables[numPatchCables - 1].param.nodes.init();
 			break;
 		}
 	}

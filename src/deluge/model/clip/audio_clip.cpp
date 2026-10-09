@@ -1106,7 +1106,6 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 	}
 
 	Clip::writeDataToFile(writer, song);
-	Clip::writeDataToFile(writer, song);
 
 	writer.writeOpeningTagEnd();
 

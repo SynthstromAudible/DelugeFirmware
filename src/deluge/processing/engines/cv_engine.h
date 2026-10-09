@@ -108,6 +108,8 @@ private:
 	uint32_t cvSentSnapshot{0};
 	/// gate 1-4 as synths or drums
 	bool gateOutputPending{false};
+	void switchPendingNoteGates();
+	void switchPendingClockAndRun();
 	/// gate 3 as a run signal
 	bool asapGateOutputPending;
 	/// gate 4 as a clock signal

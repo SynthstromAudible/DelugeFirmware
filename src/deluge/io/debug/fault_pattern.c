@@ -154,7 +154,7 @@ static DelugeFaultRanges s_ranges;
 	return result;
 }
 
-#define MIN(a, b) ((a) > (b) ? (b) : (a))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MAX_POINTER_COUNT 4
 [[gnu::always_inline]] static inline void printPointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR,
                                                         uint32_t addrUSRSP, bool hardFault) {
@@ -167,7 +167,7 @@ static DelugeFaultRanges s_ranges;
 		stackPointer = addrSYSSP;
 	}
 
-	uint8_t stackPointerCount = 0;
+	int8_t stackPointerCount = 0;
 	uint32_t stackPointers[MAX_POINTER_COUNT] = {0};
 
 	// Search for stack pointers before any printing
@@ -179,7 +179,7 @@ static DelugeFaultRanges s_ranges;
 			uint32_t stackValue = *((uint32_t*)stackPointer);
 
 			// Print any pointer that is pointing to code, different from the LRs and not the same as before
-			if (isCodePointer(stackValue) && stackValue != stackPointers[MIN(0, stackPointerCount - 1)]
+			if (isCodePointer(stackValue) && stackValue != stackPointers[MAX(0, stackPointerCount - 1)]
 			    && stackValue != addrUSRLR && stackValue != addrSYSLR) {
 				stackPointers[stackPointerCount] = stackValue;
 				++stackPointerCount;
@@ -187,22 +187,27 @@ static DelugeFaultRanges s_ranges;
 				if (stackPointerCount >= MAX_POINTER_COUNT) {
 					break;
 				}
+				stackPointer += 12; // seems like a reasonable min size between stored lr values, avoids garbage
 			}
-
-			stackPointer += 4;
+			else {
+				stackPointer += 4;
+			}
 		}
 	}
 
 	uint32_t currentColumnPairIndex = 0;
 
+	// Every address drawn below is a return address: subtract 2 so it lands in the previous instruction, the call
+	// itself. 4 overshoots in Thumb mode.
+
 	// Print LR from USR mode if it is valid
 	if (isCodePointer(addrUSRLR)) {
-		currentColumnPairIndex = drawPointer(currentColumnPairIndex, addrUSRLR, 255, 0, 255);
+		currentColumnPairIndex = drawPointer(currentColumnPairIndex, addrUSRLR - 2, 255, 0, 255);
 	}
 
 	// Print LR from SYS mode if it is valid and different from USR mode
 	if (isCodePointer(addrSYSLR) && addrSYSLR != addrUSRLR) {
-		currentColumnPairIndex = drawPointer(currentColumnPairIndex, addrSYSLR, 0, 0, 255);
+		currentColumnPairIndex = drawPointer(currentColumnPairIndex, addrSYSLR - 2, 0, 0, 255);
 	}
 
 	// Print all pointers
@@ -211,7 +216,7 @@ static DelugeFaultRanges s_ranges;
 		uint8_t currentBlueValue = 0;
 		while (currentPointerIndex < MAX_POINTER_COUNT) {
 			currentColumnPairIndex =
-			    drawPointer(currentColumnPairIndex, stackPointers[currentPointerIndex], 0, 255, currentBlueValue);
+			    drawPointer(currentColumnPairIndex, stackPointers[currentPointerIndex] - 2, 0, 255, currentBlueValue);
 
 			// Stop after filling all columns
 			if (currentColumnPairIndex >= 8) {
@@ -257,8 +262,6 @@ static DelugeFaultRanges s_ranges;
 	deluge_fault_pad_flush();
 }
 
-//@TODO: Pointers seem to be wrong right now and we will need to filter out the SP call to
-// fault_handler_print_freeze_pointers (we can't inline, otherwise that would be huge)
 extern void fault_handler_print_freeze_pointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR,
                                                 uint32_t addrUSRSP) {
 	deluge_fault_ranges(&s_ranges);
