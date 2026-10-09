@@ -33,4 +33,7 @@ constexpr char const* kFirmwareVersionString = "TESTS";
 #define FIRMWARE_VERSION_STRING "TESTS"
 #define FIRMWARE_COMMIT_SHORT "0000"
 
+// Defined by the test that needs it, as version.cpp defines it in the firmware.
+extern char const* kCommitShort;
+
 #endif

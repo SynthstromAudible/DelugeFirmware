@@ -35,7 +35,10 @@ deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = [
 deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de", features = [
     "flash",
 ] }
-rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de" }
+# `app-fault-reporter`: every CPU fault vector calls the app's `deluge_cpu_fault_report`.
+rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de", features = [
+    "app-fault-reporter",
+] }
 
 # The filesystem `storage::efatfs::portable` drives on every build. The 0.7 `embedded-io-async` is
 # the one whose `Read`/`Seek`/`Write` `embedded_fatfs::File` implements (the block-device crates

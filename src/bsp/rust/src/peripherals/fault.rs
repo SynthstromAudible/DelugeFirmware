@@ -58,7 +58,7 @@ pub extern "C" fn deluge_fault_ranges(out: *mut DelugeFaultRanges) {
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_fault_pad_write(byte: u8) {
-    // SAFETY: single-threaded fault context with interrupts masked; `handle_cpu_fault` admits one
+    // SAFETY: single-threaded fault context with interrupts masked; `deluge_cpu_fault_report` admits one
     // reporter and parks every later arrival, so nothing else touches STAGE/STAGED.
     unsafe {
         let n = STAGED;
