@@ -17,10 +17,10 @@
 #pragma once
 
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/mono.h"
+#include "dsp-next/core/lanes.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include <concepts>
-#include <cstddef>
 #include <ranges>
 #include <span>
 #include <type_traits>
@@ -45,124 +45,28 @@ requires std::same_as<std::remove_cvref_t<std::ranges::range_reference_t<R>>, q3
 	                        std::ranges::size(interleaved) / 2};
 }
 
-/// @brief A mono q31 kernel run on both channels of a stereo frame: one Coefficients shared by both channels, one State
-/// per channel, left rendered fully before right on every frame.
+/// @brief A mono q31 kernel run on both channels of a stereo frame: @ref Lanes over two lanes, left in lane 0, with
+/// the channels named.
 /// @tparam K The kernel: a scalar q31 kernel. Stereo<K> is a @ref processor; K must be a processor kernel. That
 /// rejects a control kernel at the class too, with no clause of its own: a kernel has one form, so no control kernel
 /// is a processor kernel. `Control` wraps a control kernel.
-/// @details
-/// **Shared coefficients.** `configure` calls `K::coefficients` once; both channels step with the result.
-///
-/// **Per block.** `renderBlock` calls K's `prepare(coefficients, state, n)` once per channel, when K declares one,
-/// since a Block may depend on the State: the left channel's first, then the right's, so a `prepare` drawing from a
-/// stream shared by both channels (noise) draws for left before right on every block. Then, for a moded kernel,
-/// dispatches once on `coefficients().mode` through with_mode. Inside that one dispatch a single raw-pointer loop runs
-/// every frame in the block's mode, so a mode change set by `configure` takes effect at the next block, and both States
-/// carry across it untouched.
-///
-/// **Order.** Each frame steps the left channel into a local, then the right, then stores the frame. A kernel
-/// drawing from a stream shared by both channels (noise) therefore draws for left before right on every frame, and
-/// the input and output blocks may be the same buffer.
-///
-/// **Single samples.** `render(…)` is a one-frame block: it builds one-frame spans and runs a whole block's
-/// `prepare`, dispatch and loop, which under the shipping `-fno-inline-functions` costs several out-of-line
-/// `std::span` calls per call. It is a convenience for tests and for control-rate values, not for per-sample use in
-/// shipping code: a component renders blocks, and a kernel that needs another kernel per sample nests it and calls
-/// it through @ref kernel_ops.
-///
-/// **Inlining.** As in @ref Mono: the app builds with `-fno-inline-functions`, so `render`, `renderBlock` and the
-/// loop are `[[gnu::always_inline]]`, and the loop runs on local copies of the coefficients and both States, taken
-/// after `prepare` and written back after the block, so that they stay in registers even though the output may
-/// alias the component.
+/// @details It behaves as @ref Lanes does: one Coefficients shared by both channels, one State per channel, `prepare`
+/// left then right on every block with a Block per channel, and every frame stepped left before right and read whole
+/// before it is written, so a kernel drawing from a stream both channels share (noise) draws for left before right,
+/// and the input and output blocks may be the same buffer.
 template <processor_kernel K>
 requires std::same_as<typename K::value_type, q31> && std::same_as<typename K::step_type, q31>
-class Stereo {
-	using Coefficients = typename K::Coefficients; ///< K's coefficients, computed on configure, shared by L and R.
-	using State = typename K::State;               ///< K's state, one per channel, carried from block to block.
-	using Block = kernel_block_t<K>;               ///< K's per-block values, one per channel, or EmptyBlock.
+class Stereo : public Lanes<K, 2, StereoSample> {
+	using Base = Lanes<K, 2, StereoSample>; ///< The two-lane component Stereo names the channels of.
 
 public:
-	using value_type = StereoSample; ///< A block's frame: a left/right pair of q31 samples.
+	using Base::Base;
 
-	/// @brief Value-initialised Coefficients and State{} on both channels.
-	Stereo() = default;
+	/// @brief The left channel's state between blocks: lane 0's.
+	[[nodiscard]] [[gnu::always_inline]] const typename K::State& left() const { return this->state(0); }
 
-	/// @brief Configured from @p settings, with State{} on both channels.
-	explicit Stereo(const typename K::Settings& settings) : coefficients_{K::coefficients(settings)} {}
-
-	/// @brief Store the coefficients for @p settings, computed once for both channels; they apply from the next
-	/// block, both States untouched.
-	void configure(const typename K::Settings& settings) { coefficients_ = K::coefficients(settings); }
-
-	/// @brief The coefficients from the last configure, including any owner-facing values the kernel exposes.
-	[[nodiscard]] const Coefficients& coefficients() const { return coefficients_; }
-
-	/// @brief Return both channels to the reset State: State{}, or whatever K's `static void reset(State&)` quirk sets
-	/// when K declares one.
-	void reset() {
-		if constexpr (detail::declares_reset<K>) {
-			K::reset(left_);
-			K::reset(right_);
-		}
-		else {
-			left_ = State{};
-			right_ = State{};
-		}
-	}
-
-	/// @brief The left channel's state between blocks.
-	[[nodiscard]] const State& left() const { return left_; }
-
-	/// @brief The right channel's state between blocks.
-	[[nodiscard]] const State& right() const { return right_; }
-
-	/// @brief Process one frame: a one-frame block, so one `prepare(…, 1)` per channel and one mode dispatch per
-	/// call.
-	/// @details A convenience for tests and control rate, not for per-sample use in shipping code (see **Single
-	/// samples** in the class documentation).
-	[[gnu::always_inline]] StereoSample render(StereoSample frame) {
-		StereoSample out{};
-		renderBlock(Signal<StereoSample>{&frame, 1}, Buffer<StereoSample>{&out, 1});
-		return out;
-	}
-
-	/// @brief Process `out.size()` frames of @p in into @p out, left before right on every frame.
-	/// @param in At least `out.size()` frames; may be the same buffer as @p out.
-	/// @param out The block to fill, every frame of it.
-	[[gnu::always_inline]] void renderBlock(Signal<StereoSample> in, Buffer<StereoSample> out) {
-		const std::size_t n = out.size();
-		const Block left_block = kernel_ops::prepare_block<K>(coefficients_, left_, n);
-		const Block right_block = kernel_ops::prepare_block<K>(coefficients_, right_, n);
-		const Coefficients c = coefficients_;
-		State l = left_;
-		State r = right_;
-		const StereoSample* src = in.data();
-		StereoSample* dst = out.data();
-		kernel_ops::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () {
-			loop<M>(c, left_block, right_block, l, r, dst, static_cast<std::ptrdiff_t>(n), src);
-		});
-		left_ = l;
-		right_ = r;
-	}
-
-private:
-	/// @brief One `step` per channel per frame at mode @p M: @p n frames of @p src into @p dst, the left channel
-	/// stepped into a local before the right.
-	template <auto M>
-	[[gnu::always_inline]] static void loop(const Coefficients& c, const Block& left_block, const Block& right_block,
-	                                        State& l, State& r, StereoSample* dst, std::ptrdiff_t n,
-	                                        const StereoSample* src) {
-		for (std::ptrdiff_t i = 0; i < n; ++i) {
-			const StereoSample x = src[i];
-			const q31 left = kernel_ops::step_at<K, M>(c, left_block, l, x.l);
-			const q31 right = kernel_ops::step_at<K, M>(c, right_block, r, x.r);
-			dst[i] = {.l = left, .r = right};
-		}
-	}
-
-	Coefficients coefficients_{}; ///< K's coefficients for the configured settings, shared by both channels.
-	State left_{};                ///< The left channel's state, carried from block to block.
-	State right_{};               ///< The right channel's state, carried from block to block.
+	/// @brief The right channel's state between blocks: lane 1's.
+	[[nodiscard]] [[gnu::always_inline]] const typename K::State& right() const { return this->state(1); }
 };
 
 } // namespace deluge::dsp
