@@ -22,7 +22,7 @@
 /// never assumes it owns either (so an Embassy executor can own them later).
 ///
 /// The Rust/Embassy BSP's `main` brings up Embassy, runs the static constructors, calls
-/// `deluge_app_bench()`, then calls `deluge_app_init()`.
+/// `deluge_app_bench()`, then, unless it ran benchmarks, calls `deluge_app_init()`.
 /// From then on the BSP's audio tier calls `deluge_app_audio_tick()`, and its app
 /// loop calls `deluge_app_service()`.
 #ifndef LIBDELUGE_APP_H
@@ -44,11 +44,16 @@ void deluge_app_init(const DelugeBoard* board) DELUGE_NOEXCEPT;
 /// @brief Runs the app's DSP benchmarks. The device BSP calls it once at boot, after the static
 /// constructors and before `deluge_app_init`; a host never calls it.
 ///
-/// Empty unless the app was built with `DELUGE_DSP_BENCH`. Then it prints a `BENCH-INFO dbgauthstatus=0x...` line,
-/// times each DSP case and prints one `BENCH` line per measurement over the log channel (`deluge_log`), ending with
-/// `BENCH-DONE`. It masks IRQs for the run and restores the mask it found.
+/// Does nothing unless the app was built with `DELUGE_DSP_BENCH`. Then it prints a `BENCH-INFO dbgauthstatus=0x...`
+/// line, times each DSP case and prints one `BENCH` line per measurement over the log channel (`deluge_log`), ending
+/// with `BENCH-DONE`. It masks IRQs for the run and restores the mask it found.
+///
+/// A bench image never starts the app. When this returns true, the BSP skips `deluge_app_init`, turns off every pad,
+/// button LED and gold-knob indicator and the OLED, whose state outlives a CPU reset, logs
+/// `bench: parked, pads/LEDs/OLED off`, and parks.
+/// @return true if it ran the benchmarks, false in a build without `DELUGE_DSP_BENCH`
 /// [task]
-void deluge_app_bench(void) DELUGE_NOEXCEPT;
+bool deluge_app_bench(void) DELUGE_NOEXCEPT;
 
 /// Why the BSP's app loop called deluge_app_service: a set of these bits.
 typedef uint32_t DelugeWake;

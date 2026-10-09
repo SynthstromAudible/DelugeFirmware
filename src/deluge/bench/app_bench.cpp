@@ -48,7 +48,7 @@ void log_dbgauthstatus() {
 
 } // namespace
 
-extern "C" void deluge_app_bench(void) noexcept {
+extern "C" bool deluge_app_bench(void) noexcept {
 	// The protocol times every case with IRQs masked, since an interrupt inside a timed run would land in its
 	// counts. The bench masks them itself rather than rely on its caller, and restores the mask it found.
 	const bool were_masked = irqs_masked();
@@ -60,11 +60,13 @@ extern "C" void deluge_app_bench(void) noexcept {
 	if (!were_masked) {
 		asm volatile("cpsie i" ::: "memory");
 	}
+	return true;
 }
 
 #else
 
-extern "C" void deluge_app_bench(void) noexcept {
+extern "C" bool deluge_app_bench(void) noexcept {
+	return false;
 }
 
 #endif
