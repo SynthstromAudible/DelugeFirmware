@@ -1740,3 +1740,15 @@ gates = "the DSP bench host script's parsing of device captures: partial, mismat
 run = ["python3", "-m", "unittest", "test_dsp_bench"]
 tier = "pr"
 runtime = "~1s"
+
+[[harness]]
+name = "ptm-trace-tool"
+path = "tools/deluge_trace"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "the PTM trace tool's host side: function names resolve to one address range (bare or full signature, Thumb bit cleared, overloads refused), the CoreSight ROM walk finds the trace path and programming writes the PTM, funnel, ETF and TPIU as the rig needs them, the OpenCSD snapshot names a Cortex-A9 and a PFT 1.0 PTM with the registers used, the J-Trace's reversed RAWTRACE bytes are put back in port order without frame syncs, and the report times blocks, loop iterations and instructions from a canned decode"
+run = ["python3", "-m", "unittest", "discover", "-p", "test_*.py"]
+tier = "pr"
+runtime = "~1s"

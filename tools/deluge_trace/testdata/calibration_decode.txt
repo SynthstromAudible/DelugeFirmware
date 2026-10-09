@@ -1,0 +1,33 @@
+Trace Packet Lister : Protocol printer PTM on Trace ID 0x10
+Idx:0; ID:10; OCSD_GEN_TRC_ELEM_NO_SYNC( [init-decoder])
+Idx:6; ID:10; [0x00 0x00 0x00 0x00 0x00 0x80 ];	ASYNC : Alignment Synchronisation Packet;
+Idx:12; ID:10; [0x08 0x99 0x35 0x0f 0x20 0x21 0xfc 0x8e 0xe3 ];	ISYNC : Instruction Synchronisation packet; (Trace Enable); Addr=0x200f3598; S;  ISA=Thumb2; Cycles=500;
+Idx:12; ID:10; OCSD_GEN_TRC_ELEM_TRACE_ON( [begin or filter] [CC=500]; )
+Idx:12; ID:10; OCSD_GEN_TRC_ELEM_PE_CONTEXT((ISA=T32) S; 32-bit; )
+Idx:21; ID:10; [0x8a ];	ATOM : Atom packet; N; Cycles=2;
+Idx:21; ID:10; OCSD_GEN_TRC_ELEM_INSTR_RANGE(exec range=0x200f3598:[0x200f359e] num_i(3) last_sz(2) (ISA=T32) N BR   <cond> [CC=2]; )
+Idx:22; ID:10; [0x8c ];	ATOM : Atom packet; E; Cycles=3;
+Idx:22; ID:10; OCSD_GEN_TRC_ELEM_INSTR_RANGE(exec range=0x200f359e:[0x200f35ae] num_i(6) last_sz(2) (ISA=T32) E BR   <cond> [CC=3]; )
+Idx:23; ID:10; [0xa0 ];	ATOM : Atom packet; E; Cycles=8;
+Idx:23; ID:10; OCSD_GEN_TRC_ELEM_INSTR_RANGE(exec range=0x200f35a2:[0x200f35ae] num_i(4) last_sz(2) (ISA=T32) E BR   <cond> [CC=8]; )
+Idx:24; ID:10; [0xa0 ];	ATOM : Atom packet; E; Cycles=8;
+Idx:24; ID:10; OCSD_GEN_TRC_ELEM_INSTR_RANGE(exec range=0x200f35a2:[0x200f35ae] num_i(4) last_sz(2) (ISA=T32) E BR   <cond> [CC=8]; )
+Idx:25; ID:10; [0xa2 ];	ATOM : Atom packet; N; Cycles=9;
+Idx:25; ID:10; OCSD_GEN_TRC_ELEM_INSTR_RANGE(exec range=0x200f35a2:[0x200f35ae] num_i(4) last_sz(2) (ISA=T32) N BR   <cond> [CC=9]; )
+Idx:26; ID:10; [0xc1 0x01 ];	BRANCH_ADDRESS : Branch address packet; Addr=0x200F4000 ~[0x0]; Cycles=16;
+Idx:26; ID:10; OCSD_GEN_TRC_ELEM_INSTR_RANGE(exec range=0x200f35ae:[0x200f35b2] num_i(2) last_sz(2) (ISA=T32) E iBR V7:impl ret [CC=16]; )
+Idx:30; ID:10; [0x08 0x99 0x35 0x0f 0x20 0x21 0xfc 0x8e 0xe3 ];	ISYNC : Instruction Synchronisation packet; (Trace Enable); Addr=0x200f3598; S;  ISA=Thumb2; Cycles=700;
+Idx:30; ID:10; OCSD_GEN_TRC_ELEM_TRACE_ON( [begin or filter] [CC=700]; )
+Idx:39; ID:10; [0x8a ];	ATOM : Atom packet; N; Cycles=2;
+Idx:39; ID:10; OCSD_GEN_TRC_ELEM_INSTR_RANGE(exec range=0x200f3598:[0x200f359e] num_i(3) last_sz(2) (ISA=T32) N BR   <cond> [CC=2]; )
+Idx:40; ID:10; [0x8c ];	ATOM : Atom packet; E; Cycles=3;
+Idx:40; ID:10; OCSD_GEN_TRC_ELEM_INSTR_RANGE(exec range=0x200f359e:[0x200f35ae] num_i(6) last_sz(2) (ISA=T32) E BR   <cond> [CC=3]; )
+Idx:41; ID:10; [0xa0 ];	ATOM : Atom packet; E; Cycles=8;
+Idx:41; ID:10; OCSD_GEN_TRC_ELEM_INSTR_RANGE(exec range=0x200f35a2:[0x200f35ae] num_i(4) last_sz(2) (ISA=T32) E BR   <cond> [CC=8]; )
+Idx:42; ID:10; [0x08 0xa3 0x35 0x0f 0x20 0x41 0xc0 0x3b ];	ISYNC : Instruction Synchronisation packet; (Restart Overflow); Addr=0x200f35a2; S;  ISA=Thumb2; Cycles=944;
+Idx:42; ID:10; OCSD_GEN_TRC_ELEM_TRACE_ON( [overflow] [CC=944]; )
+Idx:50; ID:10; [0xa0 ];	ATOM : Atom packet; E; Cycles=7;
+Idx:50; ID:10; OCSD_GEN_TRC_ELEM_INSTR_RANGE(exec range=0x200f35a2:[0x200f35ae] num_i(4) last_sz(2) (ISA=T32) E BR   <cond> [CC=7]; )
+Idx:51; ID:10; [0xa2 ];	ATOM : Atom packet; N; Cycles=8;
+Idx:51; ID:10; OCSD_GEN_TRC_ELEM_INSTR_RANGE(exec range=0x200f35a2:[0x200f35ae] num_i(4) last_sz(2) (ISA=T32) N BR   <cond> [CC=8]; )
+Idx:52; ID:10; OCSD_GEN_TRC_ELEM_EO_TRACE( [end-of-trace])

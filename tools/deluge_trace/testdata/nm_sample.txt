@@ -1,0 +1,8 @@
+200f3598 00000020 t deluge::bench::CalibrationLoop::block(unsigned int)
+200f4d6c 000000d8 t deluge::bench::MonoVecGainCase::block(unsigned int)
+200f4d22 0000003c t deluge::bench::MonoVecGainCase::setup(unsigned int)
+200f53c6 00000034 t deluge::bench::Case deluge::bench::make_case<deluge::bench::MonoVecGainCase>(std::basic_string_view<char, std::char_traits<char>>, deluge::bench::MonoVecGainCase&)
+200f5d10 00000004 t deluge::bench::Case deluge::bench::make_case<deluge::bench::MonoVecGainCase>(std::basic_string_view<char, std::char_traits<char>>, deluge::bench::MonoVecGainCase&)::'lambda0'(void*, unsigned int)::operator()(void*, unsigned int) const
+200f5d08 00000004 t deluge::bench::Case deluge::bench::make_case<deluge::bench::MonoVecGainCase>(std::basic_string_view<char, std::char_traits<char>>, deluge::bench::MonoVecGainCase&)::'lambda'(void*, unsigned int)::operator()(void*, unsigned int) const
+200f5d0c 00000004 t deluge::bench::Case deluge::bench::make_case<deluge::bench::MonoVecGainCase>(std::basic_string_view<char, std::char_traits<char>>, deluge::bench::MonoVecGainCase&)::'lambda0'(void*, unsigned int)::__invoke(void*, unsigned int)
+200f5d04 00000004 t deluge::bench::Case deluge::bench::make_case<deluge::bench::MonoVecGainCase>(std::basic_string_view<char, std::char_traits<char>>, deluge::bench::MonoVecGainCase&)::'lambda'(void*, unsigned int)::__invoke(void*, unsigned int)
