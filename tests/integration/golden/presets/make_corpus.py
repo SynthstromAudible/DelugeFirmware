@@ -352,6 +352,10 @@ stereo_case(
     "delay_pingpong",
     params={"delayRate": "0x00000000", "delayFeedback": "0x00000000"},
 )
+# The voice's output saturation on both channels, in each of its regimes: below 2 (no shift back up), at 2 (where the
+# shift starts, still 0) and above (shifted back up by the amount less 2).
+for amount in (1, 2, 5):
+    stereo_case(f"clipping_{amount}", sound={"clippingAmount": str(amount)})
 
 # --- dynamics and delay (JSON, as the firmware saves) ---------------------------
 # Each sidechain case sends hits of its own (sideChainSend) and ducks itself through the sidechain → post-reverb volume

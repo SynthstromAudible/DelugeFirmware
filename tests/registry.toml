@@ -1055,6 +1055,24 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-low-clip"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a host chain's saturation below amount 3, where it does not shift back up, renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_LOW_CLIP) whose kit saturates at amount 1 and whose audio track at amount 2, every other host setting at its default, beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with both amounts at 0 must render differently (RS-FX), so the saturation reaches the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_LOW_CLIP" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-song-corpus"
 path = "."
 level = "integration"
@@ -1079,7 +1097,7 @@ level = "integration"
 runner = "scenario"
 kind = "differential"
 status = "gate"
-gates = "every synth golden master must render as recorded: each of the 361 presets (tests/integration/golden/presets: synthesized cases for each oscillator, filter, envelope and modulation path, the factory and community preset packs, sample and wavetable playback, and live input) is loaded by the blank boot song, played by a DIN note script and rendered in real time on the audio tier, and its output is compared with its record in tests/integration/golden/presets.json (RP-PCM). A case fails if its preset did not replace the default synth (RP-LOADED), if the app did not read every scripted event (RP-MIDI), if CPU direness rose and the render took reduced-quality paths (RP-RENDER), if the render made a synchronous card call (RP-TIER-SYNC-AUDIO), or if it rendered silence (RP-SILENT). RENDER_PRESET_FILTER runs a subset; RENDER_PRESET_UPDATE=1 records instead of comparing."
+gates = "every synth golden master must render as recorded: each of the 364 presets (tests/integration/golden/presets: synthesized cases for each oscillator, filter, envelope and modulation path, the factory and community preset packs, sample and wavetable playback, and live input) is loaded by the blank boot song, played by a DIN note script and rendered in real time on the audio tier, and its output is compared with its record in tests/integration/golden/presets.json (RP-PCM). A case fails if its preset did not replace the default synth (RP-LOADED), if the app did not read every scripted event (RP-MIDI), if CPU direness rose and the render took reduced-quality paths (RP-RENDER), if the render made a synchronous card call (RP-TIER-SYNC-AUDIO), or if it rendered silence (RP-SILENT). RENDER_PRESET_FILTER runs a subset; RENDER_PRESET_UPDATE=1 records instead of comparing."
 scenario = "render_preset"
 markers = ["RP-LOADED", "RP-MIDI", "RP-RENDER", "RP-TIER-SYNC-AUDIO", "RP-CAPTURE"]
 result = "RP-RESULT failures=0"

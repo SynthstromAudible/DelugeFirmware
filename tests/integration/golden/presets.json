@@ -2003,6 +2003,24 @@
   "rms_db": -26.8,
   "sha256": "ac14b17638de3251b0f7cc070b8651752576e53f3185cbc597ffe5c458053185"
  },
+ "stereo/clipping_1": {
+  "frames": 88200,
+  "peak": 163280640,
+  "rms_db": -27.83,
+  "sha256": "946c5af443c877df40fc872cd785151db1190be84e168b84013b8a1c4e060f2b"
+ },
+ "stereo/clipping_2": {
+  "frames": 88200,
+  "peak": 140240128,
+  "rms_db": -28.85,
+  "sha256": "59501cba7ff62286271987998a0d004da7763c7c7f308d7ab6283ed7c3fb7b8d"
+ },
+ "stereo/clipping_5": {
+  "frames": 88200,
+  "peak": 200881664,
+  "rms_db": -23.71,
+  "sha256": "eb7af7f7446e1778bbc4e9a555cc21f7d535afaf590fc0c30a5677ba77542b72"
+ },
  "stereo/delay_pingpong": {
   "frames": 88200,
   "peak": 488827392,
