@@ -268,7 +268,10 @@ def analyse(dec: Decoded, insns: dict[int, str], lo: int, hi: int) -> dict:
 def render(name: str, lo: int, hi: int, result: dict, dec: Decoded) -> str:
     out = [f"## {name}", "", f"`0x{lo:08X}`-`0x{hi:08X}`", ""]
     reasons = ", ".join(f"{k}: {v}" for k, v in dec.trace_on.most_common()) or "none"
-    out += [f"Trace-on events (each a gap in the trace): {reasons}.", ""]
+    out += [
+        f"Trace-on events in the whole capture (each a gap in the trace): {reasons}.",
+        "",
+    ]
     if result["loops"]:
         out += [
             "### Cycles per loop iteration",
