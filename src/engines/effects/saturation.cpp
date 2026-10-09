@@ -25,13 +25,11 @@ void Saturation::process(std::span<dsp::StereoSample> block, const SaturationPar
 		return;
 	}
 	const bool voice = params.variant == SaturationVariant::VOICE;
-	const uint32_t drive = voice ? 5 + amount : 3 + amount;
-	const uint32_t shift = voice ? (amount >= 2 ? amount - 2 : 0) : (amount >= 3 ? amount - 3 : 0);
-	channels_[0].setDrive(drive);
-	channels_[1].setDrive(drive);
+	const Curve::Coefficients c = Curve::coefficients({.drive = drive(voice, amount)});
+	const uint32_t up = shift(voice, amount);
 	for (dsp::StereoSample& sample : block) {
-		sample.l = channels_[0].render(sample.l) << shift;
-		sample.r = channels_[1].render(sample.r) << shift;
+		sample.l = Curve::step(c, {}, left_, sample.l) << up;
+		sample.r = Curve::step(c, {}, right_, sample.r) << up;
 	}
 }
 

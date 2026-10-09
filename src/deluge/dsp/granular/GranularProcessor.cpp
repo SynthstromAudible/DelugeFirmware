@@ -26,6 +26,8 @@
 #include "synth/lfo.h"
 #include "util/fixedpoint.h" // q31_mult
 
+using deluge::dsp::fixed::OnePole;
+
 void GranularProcessor::setWrapsToShutdown() {
 
 	if (_grainFeedbackVol < 33554432) {
@@ -67,9 +69,8 @@ void GranularProcessor::processGrainFX(std::span<StereoSample> buffer, int32_t g
 			auto wetl = q31_mult(grainWet.l, _grainVol);
 			auto wetr = q31_mult(grainWet.r, _grainVol);
 
-			// filter slightly - one pole at 12ish khz
-			wetl = lpf_l.lowPass(wetl, 1 << 29);
-			wetr = lpf_r.lowPass(wetr, 1 << 29);
+			wetl = OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, lpf_state_l_, wetl);
+			wetr = OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, lpf_state_r_, wetr);
 
 			// WET and DRY Vol
 			sample.l = add_saturate(q31_mult(sample.l, _grainDryVol), wetl);

@@ -18,9 +18,9 @@
 #pragma once
 
 #include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/shaping/legacy/antialiased_tanh.h"
+#include "dsp-next/fixed/shaping/antialiased_tanh.h"
+#include "dsp-next/fixed/shaping/tanh.h" // kTanhCentre
 
-#include <array>
 #include <cstdint>
 #include <span>
 
@@ -37,35 +37,68 @@ struct SaturationParams {
 	SaturationVariant variant{SaturationVariant::CHAIN};
 };
 
-/// @brief Tanh saturation of a stereo signal: an antialiased tanh per channel.
+/// @brief Tanh saturation of a stereo signal: an anti-aliased tanh per channel, whose drive follows the params on
+/// every call while each channel's position carries over, so a drive change interpolates from the previous sample.
 class Saturation {
-public:
-	/// @brief Each channel's curve starts from @p initial (dsp::fixed::legacy::AntialiasedTanh::kSilent is silence; a
-	/// voice starts from 0 and is set silent when its envelopes reset).
-	constexpr explicit Saturation(uint32_t initial = dsp::fixed::legacy::AntialiasedTanh::kSilent)
-	    : channels_{dsp::fixed::legacy::AntialiasedTanh{0, initial}, dsp::fixed::legacy::AntialiasedTanh{0, initial}} {}
+	using Curve = dsp::fixed::AntialiasedTanh;
 
-	/// @brief One Q31 sample of @p channel (0 left, 1 right), as a voice saturates inside its own loop.
+public:
+	/// @brief The voice variant's drive is this plus the amount, as a power of two.
+	static constexpr uint32_t kVoiceDriveBase = 5;
+	/// @brief The voice variant shifts its output back up by the amount less this, from this amount on.
+	static constexpr uint32_t kVoiceShiftFrom = 2;
+	/// @brief The chain variant's drive is this plus the amount, as a power of two.
+	static constexpr uint32_t kChainDriveBase = 3;
+	/// @brief The chain variant shifts its output back up by the amount less this, from this amount on.
+	static constexpr uint32_t kChainShiftFrom = 3;
+
+	/// @brief Each channel's curve starts from the table position @p initial (dsp::fixed::kTanhCentre is silence; a
+	/// voice starts from 0 and is set silent when its envelopes reset).
+	/// @param initial The position each channel's first sample interpolates against, unsigned over 32 bits.
+	explicit Saturation(uint32_t initial = dsp::fixed::kTanhCentre) {
+		Curve::place(left_, initial);
+		Curve::place(right_, initial);
+	}
+
+	/// @brief One sample of @p channel, as a voice saturates inside its own loop.
+	/// @param sample The input, Q31.
+	/// @param channel 0 for the left channel, 1 for the right.
+	/// @param params The amount and variant, which set the drive for this sample.
+	/// @return The saturated sample, Q31.
 	[[nodiscard, gnu::always_inline]] int32_t saturate(int32_t sample, uint32_t channel,
 	                                                   const SaturationParams& params) {
 		const uint32_t amount = params.clipping_amount;
-		dsp::fixed::legacy::AntialiasedTanh& curve = channels_[channel];
-		if (params.variant == SaturationVariant::VOICE) {
-			curve.setDrive(5 + amount);
-			return curve.render(sample) << (amount >= 2 ? amount - 2 : 0);
-		}
-		curve.setDrive(3 + amount);
-		return curve.render(sample) << (amount >= 3 ? amount - 3 : 0);
+		Curve::State& position = channel == 0 ? left_ : right_;
+		const bool voice = params.variant == SaturationVariant::VOICE;
+		const Curve::Coefficients c = Curve::coefficients({.drive = drive(voice, amount)});
+		return Curve::step(c, {}, position, sample) << shift(voice, amount);
 	}
 
 	/// @brief A stereo block, in place; a CHAIN variant at amount 0 leaves it untouched.
+	/// @param block The block, Q31 per channel.
+	/// @param params The amount and variant, which set the drive for the whole block.
 	void process(std::span<dsp::StereoSample> block, const SaturationParams& params);
 
 	/// @brief Both channels' curves back to silence.
-	void reset() { channels_ = {dsp::fixed::legacy::AntialiasedTanh{}, dsp::fixed::legacy::AntialiasedTanh{}}; }
+	void reset() {
+		left_ = {};
+		right_ = {};
+	}
 
 private:
-	std::array<dsp::fixed::legacy::AntialiasedTanh, 2> channels_;
+	/// @brief The drive, as a power of two, for @p amount on a voice (@p voice) or a chain.
+	[[nodiscard, gnu::always_inline]] static constexpr uint32_t drive(bool voice, uint32_t amount) {
+		return (voice ? kVoiceDriveBase : kChainDriveBase) + amount;
+	}
+
+	/// @brief The left shift that brings the output back up for @p amount on a voice (@p voice) or a chain.
+	[[nodiscard, gnu::always_inline]] static constexpr uint32_t shift(bool voice, uint32_t amount) {
+		const uint32_t from = voice ? kVoiceShiftFrom : kChainShiftFrom;
+		return amount >= from ? amount - from : 0;
+	}
+
+	Curve::State left_;  ///< The left channel's position on the curve.
+	Curve::State right_; ///< The right channel's position on the curve.
 };
 
 } // namespace deluge::effects

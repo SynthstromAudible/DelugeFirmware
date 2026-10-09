@@ -19,7 +19,7 @@
 
 #include "GranularProcessor.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/fixed/filter/legacy/one_pole.h"
+#include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp/stereo_sample.h"
 #include "synth/lfo.h"
 #include <libdeluge/scheduler.h>
@@ -89,8 +89,12 @@ private:
 	int32_t _densityKnobPos{0};
 	int32_t _rateKnobPos{0};
 	int32_t _mixKnobPos{0};
-	deluge::dsp::fixed::legacy::OnePole lpf_l{};
-	deluge::dsp::fixed::legacy::OnePole lpf_r{};
+	/// @brief The wet signal's low-pass, one pole at about 4.5 kHz: a moveability of 1/4, Q31 (tan(f) = 1/3).
+	static constexpr deluge::dsp::fixed::OnePole::Coefficients kWetLowPass =
+	    deluge::dsp::fixed::OnePole::coefficients({.moveability = 1 << 29});
+	/// @brief The wet low-pass memories, kept across blocks and grain changes; a copy starts them from silence.
+	deluge::dsp::fixed::OnePole::State lpf_state_l_{};
+	deluge::dsp::fixed::OnePole::State lpf_state_r_{}; ///< @copydoc lpf_state_l_
 	bool tempoSync{true};
 	bool bufferFull{false};
 };
