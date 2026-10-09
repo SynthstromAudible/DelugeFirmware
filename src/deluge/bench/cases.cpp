@@ -336,6 +336,16 @@ void Tanh3Case::block(std::size_t /*n*/) {
 	mono_.renderBlock(spans_.a, spans_.out);
 }
 
+void DryWetBlendCase::setup(std::size_t n) {
+	spans_ = spans(n);
+	fill_inputs();
+	mono_.configure({.level = kLevel});
+}
+
+void DryWetBlendCase::block(std::size_t /*n*/) {
+	mono_.renderBlock(spans_.a, spans_.b, spans_.out);
+}
+
 CaseSet& case_set() {
 	static CaseSet set;
 	return set;
@@ -363,6 +373,7 @@ std::span<const Case> cases() {
 	    make_case("one_pole_ap", s.one_pole_ap),
 	    make_case("antialiased_tanh", s.antialiased_tanh),
 	    make_case("tanh3", s.tanh3),
+	    make_case("dry_wet_blend", s.dry_wet_blend),
 	};
 	return list;
 }

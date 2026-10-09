@@ -65,6 +65,8 @@ set(wavetable_cycle_chunker_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/in
 
 # The shift tracker needs no sources: the kernel is header-only, and its noise inputs come from SeededNoise.
 set(shift_tracker_spec_DEPS)
+# The dry/wet blend needs no sources: the kernel is header-only, and its noise inputs come from SeededNoise.
+set(dry_wet_spec_DEPS)
 # The filters: each spec builds all three (the noise stream is the jcong generator in waves.cpp).
 set(_filter_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/filter/low_pass_ladder.cpp

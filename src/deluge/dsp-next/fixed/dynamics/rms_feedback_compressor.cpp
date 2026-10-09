@@ -187,6 +187,7 @@ void RmsFeedbackCompressor::render(std::span<StereoSample> block, q31 volume_l, 
 		sample.r = saturation_[1].render(sample.r);
 
 		if (wet_ != ONE_Q31) {
+			// dry_wet_blend's arithmetic (fixed/mix/dry_wet.h), with DryWetBlend's FULL_WET skip around it.
 			// << 1 makes up for the two multiplies.
 			sample.l = multiply_32x32_rshift32(sample.l, wet_);
 			sample.l = multiply_accumulate_32x32_rshift32_rounded(sample.l, scratch[i].l, dry_);

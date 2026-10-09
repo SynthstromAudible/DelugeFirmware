@@ -18,6 +18,7 @@
 #pragma once
 
 #include "dsp-next/core/types.h"
+#include "dsp-next/fixed/mix/dry_wet.h"
 #include "util/fixedpoint.h"
 
 #include <algorithm>
@@ -49,12 +50,11 @@ public:
 	/// @brief Copies the dry @p block into @p scratch before the filter runs over it.
 	void keepDry(std::span<const q31> block, FadeScratch scratch) const { std::ranges::copy(block, scratch.begin()); }
 
-	/// @brief Blends the filtered @p block with the dry copy in @p scratch, stepping the fade once per sample (each
-	/// channel's sample in an interleaved stereo block steps it).
+	/// @brief Blends the filtered @p block with the dry copy in @p scratch by @ref dry_wet_blend at the wet level,
+	/// stepping the fade once per sample (each channel's sample in an interleaved stereo block steps it).
 	void blend(std::span<q31> block, FadeScratch scratch) {
 		for (std::size_t i = 0; i < block.size(); i++) {
-			const q31 wet = multiply_32x32_rshift32(block[i], wet_);
-			block[i] = multiply_accumulate_32x32_rshift32_rounded(wet, scratch[i], ONE_Q31 - wet_) << 1;
+			block[i] = dry_wet_blend(scratch[i], block[i], wet_);
 			step();
 		}
 	}

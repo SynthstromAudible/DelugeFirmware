@@ -4,6 +4,7 @@
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
+#include "dsp-next/fixed/mix/dry_wet.h"
 #include "dsp-next/fixed/shaping/legacy/antialiased_tanh.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "util/fixedpoint.h"
@@ -59,6 +60,17 @@ std::ostream& operator<<(std::ostream& out, OnePole::Mode mode) {
 		return out << "HIGH_PASS";
 	case OnePole::Mode::ALL_PASS:
 		return out << "ALL_PASS";
+	}
+	return out;
+}
+
+/// A dry/wet blend case's mode, printed by name, so a failing comparison shows it.
+std::ostream& operator<<(std::ostream& out, DryWetBlend::Mode mode) {
+	switch (mode) {
+	case DryWetBlend::Mode::BLEND:
+		return out << "BLEND";
+	case DryWetBlend::Mode::FULL_WET:
+		return out << "FULL_WET";
 	}
 	return out;
 }
@@ -206,7 +218,7 @@ const std::vector<std::string_view> kCaseNames{
     "calibration_loop", "amplitude",     "crude_amplitude",  "pulse",         "band_limited_table",
     "crude_saw",        "crude_square",  "crude_triangle",   "synced_pulse",  "wavetable",
     "mono_gain",        "mono_vec_gain", "stereo_gain",      "duck_envelope", "shift_tracker",
-    "one_pole_lp",      "one_pole_ap",   "antialiased_tanh", "tanh3",
+    "one_pole_lp",      "one_pole_ap",   "antialiased_tanh", "tanh3",         "dry_wet_blend",
 };
 
 /// Renders `blocks` blocks of `n` through a case's own setup and block, as the runner does.
@@ -678,6 +690,23 @@ describe bench_runner("The DSP benchmark runner", ${
 				render(set.tanh3, n, 2);
 				for (std::size_t i = 0; i < n; ++i) {
 					expect(output()[i]).to_equal(dsp::fixed::tanh<3>(input_a()[i]));
+				}
+			}
+		});
+
+		it("blends input_a (dry) with input_b (wet) at a half, as the filters' fade does, at every block size", _ {
+			CaseSet& set = case_set();
+			for (const std::size_t n : kSizes) {
+				set.dry_wet_blend.setup(n);
+				expect(set.dry_wet_blend.component().coefficients().level).to_equal(q31{1 << 30});
+				expect(set.dry_wet_blend.component().coefficients().mode).to_equal(dsp::fixed::DryWetBlend::Mode::BLEND);
+				render(set.dry_wet_blend, n, 2);
+				for (std::size_t i = 0; i < n; ++i) {
+					// The fade's arithmetic, at a wet level of a half.
+					const q31 wet = multiply_32x32_rshift32(input_b()[i], 1 << 30);
+					const q31 expected =
+					    multiply_accumulate_32x32_rshift32_rounded(wet, input_a()[i], ONE_Q31 - (1 << 30)) << 1;
+					expect(output()[i]).to_equal(expected);
 				}
 			}
 		});

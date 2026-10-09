@@ -25,6 +25,7 @@
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
+#include "dsp-next/fixed/mix/dry_wet.h"
 #include "dsp-next/fixed/osc/band_limited_table_oscillator.h"
 #include "dsp-next/fixed/osc/crude_oscillators.h"
 #include "dsp-next/fixed/osc/pulse_oscillator.h"
@@ -573,6 +574,26 @@ private:
 	BlockSpans spans_{};
 };
 
+/// @brief `Mono<DryWetBlend>` as a mixer at a mid level, blending input_a (dry) with input_b (wet) into the output.
+/// @details **Timed state:** none. Every block is the same arithmetic in BLEND: a truncating multiply for the wet
+/// product, a rounding multiply-accumulate of the dry one, and the doubling.
+class DryWetBlendCase {
+public:
+	/// @brief The wet level, Q31: a half.
+	static constexpr q31 kLevel = 1 << 30;
+
+	/// @brief Configures the level, fills the inputs and takes the blocks' spans for @p n.
+	void setup(std::size_t n);
+	/// @brief Mixes one block of the size it was set up for.
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const dsp::Mono<dsp::fixed::DryWetBlend>& component() const { return mono_; }
+
+private:
+	dsp::Mono<dsp::fixed::DryWetBlend> mono_;
+	BlockSpans spans_{};
+};
+
 /// @brief `Control<DuckEnvelope>`: the sidechain's duck, configured then advanced once per block, as its owner does.
 /// @details The rates are as the owner resolves them: the spec's attack of 37,640 per sample (222 samples), and a
 /// release of 472 per sample (the release table's entry 40, 59 << 3: 17,772 samples), at the middle shape (fully
@@ -626,6 +647,7 @@ struct CaseSet {
 	OnePoleAllPassCase one_pole_ap;          ///< `one_pole_ap`
 	AntialiasedTanhCase antialiased_tanh;    ///< `antialiased_tanh`
 	Tanh3Case tanh3;                         ///< `tanh3`
+	DryWetBlendCase dry_wet_blend;           ///< `dry_wet_blend`
 };
 
 /// @brief The cases' components, built on first use.
