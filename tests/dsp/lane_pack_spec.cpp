@@ -33,6 +33,7 @@
 #include "util/fixedpoint.h"
 
 #include <array>
+#include <concepts>
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -89,6 +90,21 @@ static_assert(std::is_trivially_copyable_v<LanePack<q31, 1>>);
 static_assert(std::is_trivially_copyable_v<LanePack<q31, 8>>);
 static_assert(sizeof(LanePack<q31, 4>) == 4 * sizeof(q31));
 static_assert(sizeof(LanePack<q31, 2>) == sizeof(Frame<q31, 2>));
+
+// A lane holds what the scalar operation gives, so + and - exist only where that is a T: a narrower T promotes to int.
+template <typename P>
+concept adds = requires(P a, P b) {
+	{ a + b } -> std::same_as<P>;
+};
+template <typename P>
+concept subtracts = requires(P a, P b) {
+	{ a - b } -> std::same_as<P>;
+};
+static_assert(adds<LanePack<q31, 2>> && subtracts<LanePack<q31, 2>>);
+static_assert(adds<LanePack<float, 2>> && subtracts<LanePack<float, 2>>);
+static_assert(!adds<LanePack<int16_t, 2>> && !subtracts<LanePack<int16_t, 2>>);
+static_assert(!adds<LanePack<uint8_t, 2>> && !subtracts<LanePack<uint8_t, 2>>);
+static_assert(!adds<LanePack<bool, 2>> && !subtracts<LanePack<bool, 2>>);
 
 constexpr q31 kMin = std::numeric_limits<q31>::min();
 constexpr q31 kMax = std::numeric_limits<q31>::max();

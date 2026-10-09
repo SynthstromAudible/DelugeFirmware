@@ -86,24 +86,26 @@ struct LanePack {
 
 	/// @brief @p a + @p b in each lane. As for a scalar, a sum that leaves T's range is undefined: a q31 sum that may
 	/// leave Q31 goes through @ref wrapping_add.
+	/// @details Only for a T whose scalar sum is a T: a narrower T promotes to int, which a lane could not hold.
 	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack operator+(LanePack a, LanePack b)
-	requires(std::is_arithmetic_v<T> && !std::same_as<T, bool>)
+	requires(std::is_arithmetic_v<T> && std::same_as<decltype(T{} + T{}), T>)
 	{
 		LanePack r;
 		for (std::size_t i = 0; i < N; ++i) {
-			r.lane[i] = static_cast<T>(a.lane[i] + b.lane[i]);
+			r.lane[i] = a.lane[i] + b.lane[i];
 		}
 		return r;
 	}
 
 	/// @brief @p a − @p b in each lane. As for a scalar, a difference that leaves T's range is undefined: a q31
 	/// difference that may leave Q31 goes through @ref wrapping_sub.
+	/// @details Only for a T whose scalar difference is a T: a narrower T promotes to int, which a lane could not hold.
 	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack operator-(LanePack a, LanePack b)
-	requires(std::is_arithmetic_v<T> && !std::same_as<T, bool>)
+	requires(std::is_arithmetic_v<T> && std::same_as<decltype(T{} - T{}), T>)
 	{
 		LanePack r;
 		for (std::size_t i = 0; i < N; ++i) {
-			r.lane[i] = static_cast<T>(a.lane[i] - b.lane[i]);
+			r.lane[i] = a.lane[i] - b.lane[i];
 		}
 		return r;
 	}
