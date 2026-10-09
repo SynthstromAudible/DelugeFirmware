@@ -43,7 +43,7 @@ void deluge_app_init(const DelugeBoard* board) DELUGE_NOEXCEPT;
 /// Why the BSP's app loop called deluge_app_service: a set of these bits.
 typedef uint32_t DelugeWake;
 #define DELUGE_WAKE_TIMER 1u    ///< a time deluge_app_service returned has come
-#define DELUGE_WAKE_ENCODERS 2u ///< an encoder has edges to take (deluge_encoder_take_edges)
+#define DELUGE_WAKE_ENCODERS 2u ///< an encoder has edges to take (deluge_encoder_take_quadrature_edges)
 #define DELUGE_WAKE_APP 4u      ///< the app asked for a pass (deluge_app_wake)
 #define DELUGE_WAKE_INPUT 8u    ///< pad or button events are queued (deluge_control_poll_event)
 #define DELUGE_WAKE_STORAGE 16u ///< a storage channel finished or dropped an operation

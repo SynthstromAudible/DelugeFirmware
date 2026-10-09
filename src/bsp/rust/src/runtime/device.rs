@@ -151,6 +151,7 @@ pub fn start() -> ! {
     // 31250 bps; `control::pic_pump` runs the handshake up to 200000 bps.
     unsafe { deluge_bsp::uart::init_pic(31_250) };
     unsafe { deluge_bsp::uart::init_midi(31_250) };
+    // The encoders' A-pin interrupts, and their 1 ms pin poll on MTU2 ch3.
     unsafe { deluge_bsp::encoder::irq_init() };
     // The sample-accurate MIDI/gate one-shot timer (MTU2 ch2), armed at render time through
     // `deluge_midi_gate_timer_arm`. Its module clock is already ungated by `init_clocks`.

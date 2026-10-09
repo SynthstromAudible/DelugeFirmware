@@ -58,7 +58,7 @@ static EVENTS: Channel<CriticalSectionRawMutex, DelugeInputEvent, 64> = Channel:
 /// `EVENTS`.
 ///
 /// OLED chip-select replies go to the `pic` notifier for the display path. Encoder motion never
-/// arrives via the PIC; it comes from GPIO IRQs (see [`deluge_encoder_take_edges`]).
+/// arrives via the PIC; it comes from the encoder pins (see [`deluge_encoder_take_quadrature_edges`]).
 #[embassy_executor::task]
 pub async fn pic_pump() {
     pic::init().await;
@@ -188,10 +188,10 @@ pub extern "C" fn deluge_control_poll_event(out: *mut DelugeInputEvent) -> bool 
 /// MOD_0(0/15)→2. The invert flags line up.
 const ENC_REMAP: [usize; encoder::NUM_ENCODERS] = [4, 0, 1, 5, 3, 2];
 
-/// Atomically reads and clears the signed A-pin edge count the quadrature ISRs accumulated for
-/// `encoder` (an app ordinal). Raw edges: the app applies its own detent policy.
+/// Atomically reads and clears the signed quadrature-edge count decoded for `encoder` (an app
+/// ordinal), four edges per cycle. Raw edges: the app applies its own detent policy.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_encoder_take_edges(encoder: u8) -> i8 {
+pub extern "C" fn deluge_encoder_take_quadrature_edges(encoder: u8) -> i8 {
     let i = encoder as usize;
     if i >= encoder::NUM_ENCODERS {
         return 0;
@@ -444,5 +444,5 @@ abi_pin!(
     deluge_control_set_led,
     deluge_control_set_pad_columns,
     deluge_control_set_refresh_time,
-    deluge_encoder_take_edges,
+    deluge_encoder_take_quadrature_edges,
 );
