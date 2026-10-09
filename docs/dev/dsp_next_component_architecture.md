@@ -346,7 +346,9 @@ calls the wrappers (`Mono`, `Stereo` and `Control`) make, in
   mode into its own `Coefficients::mode`; with several, its `Modes` is the
   product of theirs, each of its modes naming one mode per part, and its `step`
   maps its mode to each part's. Keep products small: a part with many modes
-  stays its own component.
+  stays its own component. A composite that fixes a part's mode owns that
+  part's modes: the part's `Settings.mode` and `Coefficients.mode` are dead
+  inside it, and the composite's `step` names the part's mode directly.
 
 `SeriesPoles` in `tests/dsp/mono_spec.cpp` is the reference: a moded one-pole
 and a one-pole with a `Block`, in series, checked against a hand loop over the
@@ -643,23 +645,29 @@ These are the reference blocks that later rewrites compose rather than re-derive
   (`x − y` from the same updated memory) and `ALL_PASS` (`2y − x`) as modes over one memory. The granular
   processor's wet low-pass is one.
 - **`ShiftTracker<N>`** (`filter/shift_tracker.h`): a one-pole low-pass whose coefficient is a right shift by `N`, with
-  `TRACK` (the slow part) and `REMOVE` (the input less it) modes. It is the form `SeriesPoles` composes.
+  `TRACK` (the slow part) and `REMOVE` (the input less it) modes. Its targets are the delay's DC blocker (`REMOVE`,
+  shift 11) and the low-pass ladder's noise follower (`TRACK`, shift 7); `SeriesPoles` composes it as a test fixture.
 - **`Tanh<Drive>`** (`shaping/tanh_kernel.h`) and **`AntialiasedTanh`** (`shaping/antialiased_tanh.h`): the tanh
   saturation curves. The drive of `Tanh` is a compile-time value, at most 29, because the table lookup shifts by
   `Drive + 2`. `AntialiasedTanh` keeps its previous table position in `State` and interpolates from it, so changing the
   drive between two steps moves only the drive. A caller that starts mid-signal uses `seed(c, s, sample)`, which places
   the position where stepping `sample` would, or `place(s, position)`, which sets it directly.
-- **`dry_wet_blend` / `DryWetBlend`** (`mix/dry_wet.h`): the dry/wet crossfade the filters' fade and the compressor
-  share. `FULL_WET` returns the wet sample unchanged, because the blend at `ONE_Q31` is not an identity.
+- **`dry_wet_blend` / `DryWetBlend`** (`mix/dry_wet.h`): the dry/wet crossfade. The filters' fade runs it; the
+  compressor writes the same arithmetic out by hand, pointing at it, until its rewrite. `FULL_WET` returns the wet
+  sample unchanged, because the blend at `ONE_Q31` is not an identity.
 - **`wrapping_add` / `wrapping_sub`** (`wrapping.h`): q31 add and subtract with two's-complement wrap, defined for every
   input.
 
 ### The `legacy::` convention
 
 A class that still has users which have not moved is renamed into `legacy::` and placed in a `legacy/` directory beside
-its replacement (`filter/legacy/`, `shaping/legacy/`). The kernel is written fresh next to it, the legacy class is not
-edited, and it is deleted when its last user moves. Today `legacy::OnePole` remains for the ladders and the compressor,
-and `legacy::AntialiasedTanh` for the compressor and the high-pass ladder.
+its replacement (`filter/legacy/`, `shaping/legacy/`). The kernel is written fresh next to it, the legacy class's
+behaviour is unchanged, and it is deleted when its last user moves. Today `legacy::OnePole` remains for the ladders and
+the compressor, and `legacy::AntialiasedTanh` for the compressor and the high-pass ladder.
+
+The legacy classes are also the bit-exactness oracle for four specs: `one_pole_spec`, `antialiased_tanh_spec`,
+`saturation_spec` and `bench_runner_spec`. Deleting a legacy class therefore starts by giving those specs a
+replacement oracle, either recorded vectors or a reference written in the spec, and only then removes the class.
 
 ## Bit-exactness: how the synth's math maps in
 
@@ -846,7 +854,8 @@ gates:
   verbs.
 - Are constants and bit-exactness quirks named?
 - Can a q31 add or subtract leave range? It goes through `wrapping_add` / `wrapping_sub` (`fixed/wrapping.h`), because
-  signed overflow is undefined behaviour once a step is inlined.
+  signed overflow is undefined behaviour once a step is inlined. A left shift of a q31 (a doubling back from Q30, a
+  feedback scale) is a plain signed `<<`, with no cast through `uint32_t`: C++20 defines it as modular.
 - Are there callback sinks, raw-pointer heads, out-parameters, or globals other
   than `SharedNoise`?
 - Is a block-rate signal a control kernel, and are its events functions on its
