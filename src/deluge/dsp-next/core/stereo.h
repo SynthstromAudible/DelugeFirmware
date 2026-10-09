@@ -62,11 +62,12 @@ class Stereo : public Lanes<K, 2, StereoSample> {
 public:
 	using Base::Base;
 
-	/// @brief The left channel's state between blocks: lane 0's.
-	[[nodiscard]] [[gnu::always_inline]] const typename K::State& left() const { return this->state(0); }
+	/// @brief The left channel's state between blocks: lane 0's, as @ref Lanes::state gives it (a reference, or a
+	/// value read out of the packed state when K steps op-major).
+	[[nodiscard]] [[gnu::always_inline]] decltype(auto) left() const { return this->state(0); }
 
-	/// @brief The right channel's state between blocks: lane 1's.
-	[[nodiscard]] [[gnu::always_inline]] const typename K::State& right() const { return this->state(1); }
+	/// @brief The right channel's state between blocks: lane 1's, as @ref Lanes::state gives it.
+	[[nodiscard]] [[gnu::always_inline]] decltype(auto) right() const { return this->state(1); }
 };
 
 } // namespace deluge::dsp

@@ -19,6 +19,7 @@
 
 #include "dsp-next/core/frame.h"
 #include "dsp-next/core/kernel.h"
+#include "dsp-next/core/lane_pack.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 
@@ -63,6 +64,21 @@ struct frame_lanes<StereoSample> {
 	}
 };
 
+/// @brief The state an op-major `Lanes<K, N>` holds: K's state over a pack of N lanes. `void` for a kernel stepped
+/// lane by lane, which holds one State per lane instead.
+template <typename K, std::size_t N>
+struct packed_state {
+	using type = void; ///< No packed state.
+};
+
+/// @brief K's state over `LanePack<q31, N>`: lane i of each member is lane i's State.
+template <lane_packable K, std::size_t N>
+struct packed_state<K, N> {
+	using type = typename K::template StateT<LanePack<q31, N>>; ///< Every lane's State, member by member.
+	static_assert(sizeof(type) == N * sizeof(typename K::State) && std::is_trivially_copyable_v<type>,
+	              "a packed state is N States, member by member, each member N lanes of q31");
+};
+
 } // namespace detail
 
 /// @brief A scalar kernel run on N independent streams: one Coefficients shared by every lane, one State per lane,
@@ -97,6 +113,12 @@ struct frame_lanes<StereoSample> {
 /// dispatch and loop, which under the shipping `-fno-inline-functions` costs several out-of-line `std::span` calls per
 /// call. It is a convenience for tests and for control-rate values, not for per-frame use in shipping code.
 ///
+/// **Op-major.** When K is @ref lane_packable, `Lanes` holds K's state over a `LanePack<q31, N>` and steps each frame
+/// with one `step` over the pack: every operation runs across the lanes before the next, the independent work the
+/// Cortex-A9 overlaps. Each pack operation is its scalar operation lane by lane, so the result is bit for bit the
+/// lane-by-lane one. Such a K has no `prepare` and no Block, and draws no noise per lane, so the order rules above hold
+/// trivially. `state(lane)` then reads lane @p lane out of the packed state, by value.
+///
 /// **Inlining.** As in @ref Mono: the app builds with `-fno-inline-functions`, so `render`, `renderBlock`, the loop and
 /// the per-frame lane step are `[[gnu::always_inline]]`. The loop runs on local copies of the coefficients and every
 /// State, taken after `prepare` and written back after the block, so that they stay in registers even though the
@@ -110,6 +132,9 @@ class Lanes {
 	using Block = kernel_block_t<K>;               ///< K's per-block values, one per lane, or EmptyBlock.
 	using Access = detail::frame_lanes<F>;         ///< How F holds its lanes.
 	using LaneFrame = Frame<typename Access::lane_type, N>; ///< The lanes the loop steps.
+	static constexpr bool kOpMajor = lane_packable<K>;      ///< Whether each frame is one step over a LanePack.
+	using Pack = LanePack<q31, N>;                          ///< A frame's lanes as one value, for the op-major step.
+	using PackedState = typename detail::packed_state<K, N>::type; ///< Every lane's State in one, when op-major.
 
 	/// @brief One State per lane, lane 0 first.
 	/// @details A struct around a built-in array: a copy is one assignment that constructs nothing, so the loop's
@@ -153,18 +178,50 @@ public:
 	/// @brief Return every lane to the reset State: State{}, or whatever K's `static void reset(State&)` quirk sets
 	/// when K declares one.
 	[[gnu::always_inline]] void reset() {
-		for (State& s : states_.lane) {
-			if constexpr (detail::declares_reset<K>) {
-				K::reset(s);
-			}
-			else {
-				s = State{};
+		if constexpr (kOpMajor) {
+			// StateT's initialisers are written over V, so a value-initialised pack is State{} in every lane.
+			packed_ = PackedState{};
+		}
+		else {
+			for (State& s : states_.lane) {
+				if constexpr (detail::declares_reset<K>) {
+					K::reset(s);
+				}
+				else {
+					s = State{};
+				}
 			}
 		}
 	}
 
 	/// @brief Lane @p lane's state between blocks. @p lane is less than N.
-	[[nodiscard]] [[gnu::always_inline]] const State& state(std::size_t lane) const { return states_.lane[lane]; }
+	[[nodiscard]] [[gnu::always_inline]] const State& state(std::size_t lane) const
+	requires(!kOpMajor)
+	{
+		return states_.lane[lane];
+	}
+
+	/// @brief Lane @p lane's state between blocks, read out of the packed state. @p lane is less than N.
+	/// @details Member m of the packed state is N q31 lanes, so lane @p lane's word m sits at m × N + @p lane.
+	[[nodiscard]] [[gnu::always_inline]] State state(std::size_t lane) const
+	requires kOpMajor
+	{
+		constexpr std::size_t kWords = sizeof(State) / sizeof(q31);
+		struct PackedWords {
+			// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+			q31 word[kWords * N]; ///< The packed state's words, member by member, lane 0 first in each.
+		};
+		struct StateWords {
+			// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+			q31 word[kWords]; ///< One State's words, member by member.
+		};
+		const auto packed = __builtin_bit_cast(PackedWords, packed_);
+		StateWords one{};
+		for (std::size_t m = 0; m < kWords; ++m) {
+			one.word[m] = packed.word[(m * N) + lane];
+		}
+		return __builtin_bit_cast(State, one);
+	}
 
 	/// @brief Generate one frame: a one-frame block, so one `prepare(…, 1)` per lane and one mode dispatch per call.
 	/// @details A convenience for tests and control rate, not for per-frame use in shipping code (see **Single
@@ -233,15 +290,20 @@ private:
 	/// escape to a `prepare` that is not inlined.
 	template <typename... In>
 	[[gnu::always_inline]] void runBlock(Buffer<value_type> out, In... in) {
-		const std::size_t n = out.size();
-		const Blocks blocks = prepareLanes(n, std::make_index_sequence<N>{});
-		const Coefficients c = coefficients_;
-		States s = states_;
-		value_type* const dst = out.data();
-		kernel_ops::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () {
-			loop<M>(c, blocks, s, dst, static_cast<std::ptrdiff_t>(n), in.data()...);
-		});
-		states_ = s;
+		if constexpr (kOpMajor) {
+			runPackedBlock(out, in...);
+		}
+		else {
+			const std::size_t n = out.size();
+			const Blocks blocks = prepareLanes(n, std::make_index_sequence<N>{});
+			const Coefficients c = coefficients_;
+			States s = states_;
+			value_type* const dst = out.data();
+			kernel_ops::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () {
+				loop<M>(c, blocks, s, dst, static_cast<std::ptrdiff_t>(n), in.data()...);
+			});
+			states_ = s;
+		}
 	}
 
 	/// @brief Every lane's Block for a block of @p n frames: K's `prepare` on each member State, lane 0 first.
@@ -282,8 +344,47 @@ private:
 		}
 	}
 
+	/// @brief Render one block op-major: one mode dispatch, one loop stepping each frame as one pack.
+	/// @details K has no `prepare`, so no Block: each step gets an EmptyBlock. The loop runs on a local copy of the
+	/// packed state, written back after the block, as the lane-by-lane form does.
+	template <typename... In>
+	[[gnu::always_inline]] void runPackedBlock(Buffer<value_type> out, In... in) {
+		const std::size_t n = out.size();
+		const Coefficients c = coefficients_;
+		PackedState s = packed_;
+		value_type* const dst = out.data();
+		kernel_ops::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () {
+			packedLoop<M>(c, s, dst, static_cast<std::ptrdiff_t>(n), in.data()...);
+		});
+		packed_ = s;
+	}
+
+	/// @brief @p n frames of the input blocks @p src (none, one or two) into @p dst, one op-major step per frame.
+	/// @details As @ref loop: each frame's inputs are loaded whole and the input pointers stepped before the step, and
+	/// the frame is stored after it.
+	/// @tparam S The packed state: PackedState, a template parameter so that a lane-by-lane Lanes never forms it.
+	template <auto M, typename S, typename... Src>
+	[[gnu::always_inline]] static void packedLoop(const Coefficients& c, S& s, value_type* dst, std::ptrdiff_t n,
+	                                              const Src*... src) {
+		value_type* const end = dst + n;
+		while (dst != end) {
+			const Pack y = kernel_ops::step_packed_at<K, M, Pack>(c, s, Pack::load(Access::to_lanes(*src++))...);
+			LaneFrame frame;
+			y.store(frame);
+			*dst++ = Access::from_lanes(frame);
+		}
+	}
+
+	/// @brief Each lane's State as a built-in array, or nothing when the State is packed.
+	struct NoStates {};
+	/// @brief The packed state, or nothing when each lane holds its own State.
+	struct NoPackedState {};
+
 	Coefficients coefficients_{}; ///< K's coefficients for the configured settings, shared by every lane.
-	States states_{};             ///< Each lane's state, lane 0 first, carried from block to block.
+	/// @brief Each lane's state, lane 0 first, carried from block to block, when stepped lane by lane.
+	[[no_unique_address]] std::conditional_t<kOpMajor, NoStates, States> states_{};
+	/// @brief Every lane's state as one pack, carried from block to block, when op-major.
+	[[no_unique_address]] std::conditional_t<kOpMajor, PackedState, NoPackedState> packed_{};
 };
 
 } // namespace deluge::dsp

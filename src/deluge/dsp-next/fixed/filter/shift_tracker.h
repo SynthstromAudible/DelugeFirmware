@@ -64,10 +64,16 @@ struct ShiftTracker {
 		Mode mode = Mode::TRACK; ///< What a step returns.
 	};
 
-	/// @brief The memory. State{} is silence: y at 0.
-	struct State {
-		q31 y{0}; ///< The slow part after the last step, Q31.
+	/// @brief The memory, over the value type V: q31 for one stream, a LanePack of q31 for one per lane. StateT{} is
+	/// silence: y at 0 in every lane.
+	template <class V>
+	struct StateT {
+		V y{}; ///< The slow part after the last step, Q31.
 	};
+	using State = StateT<q31>; ///< One stream's memory.
+
+	/// @brief The step is written once over its value type, so `Lanes` steps a whole frame as one LanePack.
+	static constexpr bool kLanePackable = true;
 
 	/// @brief The coefficients for @p s: the mode, unchanged.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr Coefficients coefficients(const Settings& s) {
@@ -75,13 +81,17 @@ struct ShiftTracker {
 	}
 
 	/// @brief One sample: y += (x − y) >> N, wrapping, then the new y (TRACK) or x less the new y (REMOVE).
+	/// @details Written over V: on q31 it steps one stream; on a LanePack every operation runs across the lanes, each
+	/// lane exactly the q31 step. The operations are called unqualified, so a pack's are found by argument-dependent
+	/// lookup.
 	/// @tparam M The block's mode.
+	/// @tparam V The value type: q31, or a LanePack of q31. Deduced from @p s.
 	/// @param s The memory, updated before the return value is taken from it.
 	/// @param x The input, Q31.
 	/// @return The new y, or x less the new y, Q31.
-	template <Mode M>
-	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
-	                                                     q31 x) {
+	template <Mode M, class V>
+	[[nodiscard]] [[gnu::always_inline]] static V step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, StateT<V>& s,
+	                                                   std::type_identity_t<V> x) {
 		s.y = wrapping_add(s.y, wrapping_sub(x, s.y) >> N);
 		if constexpr (M == Mode::TRACK) {
 			return s.y;

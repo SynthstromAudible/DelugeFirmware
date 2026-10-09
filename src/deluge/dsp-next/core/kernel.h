@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "dsp-next/core/lane_pack.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
@@ -452,6 +453,68 @@ concept kernel = generator_kernel<K> || processor_kernel<K> || mixer_kernel<K> |
 template <typename K>
 concept moded_kernel = kernel<K> && detail::has_modes<K>;
 
+namespace detail {
+
+/// @brief The lane pack the opt-in is detected at: two q31 lanes.
+using ProbePack = LanePack<q31, 2>;
+
+/// @brief Whether K declares `static constexpr bool kLanePackable = true`.
+template <typename K>
+concept declares_lane_packable = requires {
+	requires std::same_as<std::remove_cv_t<decltype(K::kLanePackable)>, bool>;
+	requires K::kLanePackable;
+};
+
+/// @brief Whether K's state is written over its value type: `StateT<q31>` is K's State, and `StateT<P>` holds every
+/// member as a P, so a pack of N lanes is N States side by side, member by member.
+/// @details Checked by size: a pack's state is the probe width's times a State's, and both copy as plain bytes.
+template <typename K, typename P>
+concept state_written_over_value =
+    requires { typename K::template StateT<P>; }
+    && std::same_as<typename K::template StateT<q31>, typename K::State> && plain_value<typename K::template StateT<P>>
+    && std::is_trivially_copyable_v<typename K::State> && sizeof(typename K::State) % sizeof(q31) == 0
+    && sizeof(typename K::template StateT<P>) == 2 * sizeof(typename K::State);
+
+/// @brief Whether K's `step` written over a value type is callable at pack P, with the form's step values as P's, and
+/// returns a P: `step<first mode, P>` for a moded kernel, `step<P>` for one without modes.
+template <typename K, typename P, typename... X>
+concept steps_packed_with =
+    requires(const typename K::Coefficients& c, const EmptyBlock& b, typename K::template StateT<P>& s, X... x) {
+	    requires((has_modes<K> && requires {
+		             { K::template step<first_mode_v<typename K::Modes>, P>(c, b, s, x...) } -> std::same_as<P>;
+	             }) || (!has_modes<K> && requires {
+		             { K::template step<P>(c, b, s, x...) } -> std::same_as<P>;
+	             }));
+    };
+
+/// @brief Whether K's step at pack P takes the step values K's form takes: none, one or two.
+template <typename K, typename P>
+concept steps_packed =
+    (generator_kernel<K> && steps_packed_with<K, P>) || (processor_kernel<K> && steps_packed_with<K, P, P>)
+    || (mixer_kernel<K> && steps_packed_with<K, P, P, P>);
+
+} // namespace detail
+
+/// @brief Whether K opts in to the op-major step: written once over its value type, it steps every lane of a frame
+/// as one @ref LanePack.
+/// @details K declares:
+/// - `static constexpr bool kLanePackable = true`;
+/// - `template <class V> struct StateT`, every member a V, with `using State = StateT<q31>`;
+/// - `template <Mode M, class V> static V step(const Coefficients&, const EmptyBlock&, StateT<V>&, …)` (without the
+///   mode when K has none), its arithmetic written so it resolves for q31 and for a LanePack: `wrapping_add`,
+///   `wrapping_sub` and the fixed-point multiplies called unqualified.
+///
+/// The coefficients stay scalar: every lane shares them, and a pack's operations broadcast a scalar operand. K is a
+/// generator, processor or mixer kernel stepping q31. The op-major step is not offered to a kernel that declares a
+/// `prepare`, whose Block may depend on each lane's State, nor to one with a `reset` quirk, which acts on one State:
+/// `Lanes` steps those lane by lane.
+template <typename K>
+concept lane_packable =
+    (generator_kernel<K> || processor_kernel<K> || mixer_kernel<K>)
+    && std::same_as<typename K::value_type, q31> && std::same_as<typename K::step_type, q31>
+    && detail::declares_lane_packable<K> && !detail::declares_prepare<K> && !detail::declares_reset<K>
+    && detail::state_written_over_value<K, detail::ProbePack> && detail::steps_packed<K, detail::ProbePack>;
+
 /// @brief The calls a wrapper makes on a kernel, public so that a composed kernel makes the same calls on its parts.
 /// @details `Mono`, `Stereo` and `Control` call a kernel through these alone: @ref prepare_block, @ref dispatch_mode,
 /// then @ref step_at, @ref process_at or @ref advance_at for the kernel's form. A kernel built from smaller kernels
@@ -512,6 +575,23 @@ step_at(const typename K::Coefficients& c, const kernel_block_t<K>& block, typen
 	}
 	else {
 		return K::step(c, block, s, x...);
+	}
+}
+
+/// @brief One op-major `step` of K at mode @p M over pack P: every lane of a frame at once, with the coefficients
+/// shared. `K::step<M, P>` for a moded kernel; `K::step<P>` for one without modes, with @p M ignored.
+/// @param c K's coefficients, shared by every lane.
+/// @param s The packed state: lane i of each member is lane i's State.
+/// @param x The step's inputs: none, one or two packs.
+/// @return The frame's outputs, one per lane.
+template <lane_packable K, auto M, typename P, typename... X>
+[[gnu::always_inline]] inline P step_packed_at(const typename K::Coefficients& c, typename K::template StateT<P>& s,
+                                               X... x) {
+	if constexpr (moded_kernel<K>) {
+		return K::template step<M, P>(c, EmptyBlock{}, s, x...);
+	}
+	else {
+		return K::template step<P>(c, EmptyBlock{}, s, x...);
 	}
 }
 

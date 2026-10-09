@@ -20,6 +20,7 @@
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/lanes.h"
 #include "dsp-next/core/mono.h"
+#include "dsp-next/core/stereo.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
@@ -34,6 +35,7 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <span>
 #include <tuple>
 #include <type_traits>
@@ -48,6 +50,8 @@ using fixed::AntialiasedTanh;
 using fixed::OnePole;
 using fixed::SeededNoise;
 using Tracker = fixed::ShiftTracker<11>;
+/// A tracker at a shift of 1, whose large steps meet the wraps within a few frames.
+using FastTracker = fixed::ShiftTracker<1>;
 
 /// A processor kernel without modes or prepare: a q31 gain (Q1.31, scaled ×2 to reach unity).
 struct Gain {
@@ -355,6 +359,180 @@ std::size_t in_place_mismatches(const typename K::Settings& settings) {
 	return mismatched;
 }
 
+/// K stepped lane by lane: K with its op-major opt-in withdrawn, so Lanes steps each lane's State in turn.
+template <typename K>
+struct LaneByLane : K {
+	static constexpr bool kLanePackable = false;
+};
+
+/// A generator kernel without modes, written over its value type: counts up from 1 by its step, per lane.
+struct PackedCounter {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {
+		q31 by; ///< The increment per sample.
+	};
+	struct Coefficients {
+		q31 by; ///< The increment per sample.
+	};
+	template <class V>
+	struct StateT {
+		V n{}; ///< The last value.
+	};
+	using State = StateT<q31>;
+	static constexpr bool kLanePackable = true;
+	static Coefficients coefficients(const Settings& s) { return {.by = s.by}; }
+	template <class V>
+	[[gnu::always_inline]] static V step(const Coefficients& c, const EmptyBlock& /*b*/, StateT<V>& s) {
+		s.n = wrapping_add(s.n, V{c.by});
+		return s.n;
+	}
+};
+
+/// A mixer kernel without modes, written over its value type: the running sum of a − b, per lane.
+struct PackedDifference {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	template <class V>
+	struct StateT {
+		V acc{}; ///< The sum so far.
+	};
+	using State = StateT<q31>;
+	static constexpr bool kLanePackable = true;
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	template <class V>
+	[[gnu::always_inline]] static V step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, StateT<V>& s,
+	                                     std::type_identity_t<V> a, std::type_identity_t<V> b) {
+		s.acc = wrapping_add(s.acc, wrapping_sub(a, b));
+		return s.acc;
+	}
+};
+
+static_assert(generator_kernel<PackedCounter> && lane_packable<PackedCounter>);
+static_assert(mixer_kernel<PackedDifference> && lane_packable<PackedDifference>);
+
+/// A one-pole that declares a prepare: op-major is not offered to a kernel with one.
+struct PreparedPole : OnePole {
+	static EmptyBlock prepare(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return {}; }
+};
+
+/// A one-pole that declares a reset quirk: op-major is not offered to a kernel with one.
+struct QuirkResetPole : OnePole {
+	static void reset(State& s) { s.z = q31{1}; }
+};
+
+static_assert(lane_packable<OnePole> && lane_packable<Tracker> && lane_packable<FastTracker>);
+static_assert(!lane_packable<Gain> && !lane_packable<AntialiasedTanh> && !lane_packable<StateBiased>);
+static_assert(!lane_packable<LaneByLane<OnePole>> && !lane_packable<LaneByLane<Tracker>>);
+static_assert(processor_kernel<PreparedPole> && !lane_packable<PreparedPole>);
+static_assert(processor_kernel<QuirkResetPole> && !lane_packable<QuirkResetPole>);
+static_assert(processor<Lanes<LaneByLane<OnePole>, 4>>);
+static_assert(std::same_as<decltype(std::declval<const Lanes<OnePole, 3>&>().state(0)), OnePole::State>,
+              "an op-major Lanes reads a lane's State out of the packed state, by value");
+static_assert(
+    std::same_as<decltype(std::declval<const Lanes<LaneByLane<OnePole>, 3>&>().state(0)), const OnePole::State&>,
+    "a lane-by-lane Lanes holds each lane's State");
+static_assert(std::same_as<decltype(std::declval<const Stereo<OnePole>&>().left()), OnePole::State>);
+
+/// The extremes of q31.
+constexpr q31 kMin = std::numeric_limits<q31>::min();
+constexpr q31 kMax = std::numeric_limits<q31>::max();
+
+/// @p n frames for the wrap cases: in each lane INT32_MIN, INT32_MAX and full-scale noise in turn, the pattern shifted
+/// by one frame per lane, so x − z, x − y and the outputs leave q31 within a few frames in every lane.
+template <std::size_t N>
+std::vector<Frame<q31, N>> extreme_frames(std::size_t n, uint32_t seed) {
+	std::vector<Frame<q31, N>> v = noise_frames<N>(n, seed);
+	for (std::size_t i = 0; i < n; ++i) {
+		for (std::size_t lane = 0; lane < N; ++lane) {
+			const std::size_t phase = (i + lane) % 3;
+			if (phase == 0) {
+				v[i][lane] = kMin;
+			}
+			else if (phase == 1) {
+				v[i][lane] = kMax;
+			}
+		}
+	}
+	return v;
+}
+
+/// Run K op-major (`Lanes<K, N>`) and lane by lane (`Lanes<LaneByLane<K>, N>`) over two blocks of every length 1 to 9,
+/// configured from @p first for block 0 and @p second for block 1, on the wrap frames, and count the differences.
+template <typename K, std::size_t N>
+Mismatches op_major_against_lane_by_lane(const typename K::Settings& first, const typename K::Settings& second) {
+	Mismatches m;
+	for (std::size_t n = 1; n <= kMaxLength; ++n) {
+		Lanes<K, N> op_major{first};
+		Lanes<LaneByLane<K>, N> lane_by_lane{first};
+		for (uint32_t block = 0; block < 2; ++block) {
+			if (block == 1) {
+				op_major.configure(second);
+				lane_by_lane.configure(second);
+			}
+			const std::vector<Frame<q31, N>> in = extreme_frames<N>(n, (static_cast<uint32_t>(n) * 131u) + block);
+			std::vector<Frame<q31, N>> packed_out(n);
+			std::vector<Frame<q31, N>> lane_out(n);
+			op_major.renderBlock(in, packed_out);
+			lane_by_lane.renderBlock(in, lane_out);
+			for (std::size_t i = 0; i < n; ++i) {
+				for (std::size_t lane = 0; lane < N; ++lane) {
+					++m.compared;
+					m.samples += packed_out[i][lane] != lane_out[i][lane] ? 1 : 0;
+				}
+			}
+		}
+		for (std::size_t lane = 0; lane < N; ++lane) {
+			m.states += same_state(op_major.state(lane), lane_by_lane.state(lane)) ? 0 : 1;
+		}
+	}
+	return m;
+}
+
+/// Every width's op-major mismatches for kernel K from @p first to @p second, summed.
+template <typename K>
+Mismatches op_major_at_every_width(const typename K::Settings& first, const typename K::Settings& second) {
+	Mismatches sum;
+	AllWidths::each([&]<std::size_t N>() {
+		const Mismatches m = op_major_against_lane_by_lane<K, N>(first, second);
+		sum.samples += m.samples;
+		sum.states += m.states;
+		sum.compared += m.compared;
+	});
+	return sum;
+}
+
+/// Whether @p a − @p b leaves q31.
+bool difference_overflows(q31 a, q31 b) {
+	const int64_t d = int64_t{a} - int64_t{b};
+	return d < int64_t{kMin} || d > int64_t{kMax};
+}
+
+/// A long run of the wrap frames at N = 4, op-major against lane by lane, one frame at a time. Counts the output
+/// samples that differ and the steps whose x − @p memory (read from the lane-by-lane state before the step) leaves q31.
+template <typename K, typename Memory>
+std::pair<std::size_t, std::size_t> long_wrap_run(const typename K::Settings& settings, Memory memory) {
+	constexpr std::size_t kFrames = 300;
+	const std::vector<Frame<q31, 4>> in = extreme_frames<4>(kFrames, 0xE7E7u);
+	Lanes<K, 4> op_major{settings};
+	Lanes<LaneByLane<K>, 4> lane_by_lane{settings};
+	std::size_t mismatched = 0;
+	std::size_t wraps = 0;
+	for (const Frame<q31, 4>& frame : in) {
+		for (std::size_t lane = 0; lane < 4; ++lane) {
+			wraps += difference_overflows(frame[lane], memory(lane_by_lane.state(lane))) ? 1 : 0;
+		}
+		const Frame<q31, 4> packed = op_major.render(frame);
+		const Frame<q31, 4> stepped = lane_by_lane.render(frame);
+		for (std::size_t lane = 0; lane < 4; ++lane) {
+			mismatched += packed[lane] != stepped[lane] ? 1 : 0;
+		}
+	}
+	return {mismatched, wraps};
+}
+
 } // namespace
 
 // clang-format off
@@ -566,6 +744,151 @@ describe lanes_spec("Lanes<K, N>", ${
 		for (std::size_t lane = 0; lane < 3; ++lane) {
 			expect(lanes.state(lane).z).to_equal(q31{0});
 		}
+	});
+	it("equals N Monos of a one-pole and a shift tracker stepped lane by lane, state included", _ {
+		const Mismatches pole = at_every_width<LaneByLane<OnePole>>(
+		    {.moveability = 0x12345678, .mode = OnePole::Mode::LOW_PASS},
+		    {.moveability = 0x7fffffff, .mode = OnePole::Mode::ALL_PASS});
+		const Mismatches tracker =
+		    at_every_width<LaneByLane<Tracker>>({.mode = Tracker::Mode::TRACK}, {.mode = Tracker::Mode::REMOVE});
+		for (const Mismatches& m : {pole, tracker}) {
+			expect(m.samples).to_equal(std::size_t{0});
+			expect(m.states).to_equal(std::size_t{0});
+			expect(m.compared).to_equal(kComparedAllWidths);
+		}
+	});
+
+	it("steps a one-pole op-major exactly as lane by lane, in every mode and across mode switches, at the extremes", _ {
+		using Mode = OnePole::Mode;
+		for (const Mode first : {Mode::LOW_PASS, Mode::HIGH_PASS, Mode::ALL_PASS}) {
+			for (const Mode second : {Mode::LOW_PASS, Mode::HIGH_PASS, Mode::ALL_PASS}) {
+				const Mismatches m = op_major_at_every_width<OnePole>({.moveability = 0x7fffffff, .mode = first},
+				                                                      {.moveability = 0x12345678, .mode = second});
+				expect(m.samples).to_equal(std::size_t{0});
+				expect(m.states).to_equal(std::size_t{0});
+				expect(m.compared).to_equal(kComparedAllWidths);
+			}
+		}
+	});
+
+	it("steps a shift tracker op-major exactly as lane by lane, in both modes and across switches, at the extremes", _ {
+		using Mode = Tracker::Mode;
+		for (const Mode first : {Mode::TRACK, Mode::REMOVE}) {
+			for (const Mode second : {Mode::TRACK, Mode::REMOVE}) {
+				const Mismatches m = op_major_at_every_width<Tracker>({.mode = first}, {.mode = second});
+				expect(m.samples).to_equal(std::size_t{0});
+				expect(m.states).to_equal(std::size_t{0});
+				expect(m.compared).to_equal(kComparedAllWidths);
+			}
+		}
+		const Mismatches fast = op_major_at_every_width<FastTracker>({.mode = FastTracker::Mode::TRACK},
+		                                                             {.mode = FastTracker::Mode::REMOVE});
+		expect(fast.samples).to_equal(std::size_t{0});
+		expect(fast.states).to_equal(std::size_t{0});
+	});
+
+	it("meets the wraps it is checked on, and steps them op-major exactly as lane by lane", _ {
+		const auto [pole_mismatched, pole_wraps] = long_wrap_run<OnePole>(
+		    {.moveability = 0x7fffffff, .mode = OnePole::Mode::ALL_PASS}, [](const OnePole::State& s) { return s.z; });
+		expect(pole_mismatched).to_equal(std::size_t{0});
+		expect(pole_wraps).to_be_greater_than(std::size_t{100});
+
+		const auto [tracker_mismatched, tracker_wraps] = long_wrap_run<FastTracker>(
+		    {.mode = FastTracker::Mode::REMOVE}, [](const FastTracker::State& s) { return s.y; });
+		expect(tracker_mismatched).to_equal(std::size_t{0});
+		expect(tracker_wraps).to_be_greater_than(std::size_t{100});
+	});
+
+	it("generates and mixes op-major exactly as lane by lane", _ {
+		AllWidths::each([&]<std::size_t N>() {
+			for (std::size_t n = 1; n <= kMaxLength; ++n) {
+				Lanes<PackedCounter, N> counter{{.by = 0x7f010203}};
+				Lanes<LaneByLane<PackedCounter>, N> counter_by_lane{{.by = 0x7f010203}};
+				Lanes<PackedDifference, N> difference;
+				Lanes<LaneByLane<PackedDifference>, N> difference_by_lane;
+				for (uint32_t block = 0; block < 2; ++block) {
+					std::vector<Frame<q31, N>> generated(n);
+					std::vector<Frame<q31, N>> generated_by_lane(n);
+					counter.renderBlock(generated);
+					counter_by_lane.renderBlock(generated_by_lane);
+					const std::vector<Frame<q31, N>> a = extreme_frames<N>(n, 0xa0u + block);
+					const std::vector<Frame<q31, N>> b = noise_frames<N>(n, 0xb0u + block);
+					std::vector<Frame<q31, N>> mixed(n);
+					std::vector<Frame<q31, N>> mixed_by_lane(n);
+					difference.renderBlock(a, b, mixed);
+					difference_by_lane.renderBlock(a, b, mixed_by_lane);
+					for (std::size_t i = 0; i < n; ++i) {
+						for (std::size_t lane = 0; lane < N; ++lane) {
+							expect(generated[i][lane]).to_equal(generated_by_lane[i][lane]);
+							expect(mixed[i][lane]).to_equal(mixed_by_lane[i][lane]);
+						}
+					}
+				}
+				for (std::size_t lane = 0; lane < N; ++lane) {
+					expect(counter.state(lane).n).to_equal(counter_by_lane.state(lane).n);
+					expect(difference.state(lane).acc).to_equal(difference_by_lane.state(lane).acc);
+				}
+			}
+			const Frame<q31, N> one = Lanes<PackedCounter, N>{{.by = 5}}.render();
+			for (std::size_t lane = 0; lane < N; ++lane) {
+				expect(one[lane]).to_equal(q31{5});
+			}
+		});
+	});
+
+	it("reads each lane's state out of the packed state", _ {
+		Lanes<OnePole, 4> lanes{{.moveability = 0x40000000, .mode = OnePole::Mode::HIGH_PASS}};
+		Lanes<Tracker, 8> trackers{{.mode = Tracker::Mode::TRACK}};
+		std::array<Mono<OnePole>, 4> poles;
+		std::array<Mono<Tracker>, 8> monos;
+		for (Mono<OnePole>& mono : poles) {
+			mono.configure({.moveability = 0x40000000, .mode = OnePole::Mode::HIGH_PASS});
+		}
+		const std::vector<Frame<q31, 4>> in4 = noise_frames<4>(7, 0x51u);
+		const std::vector<Frame<q31, 8>> in8 = noise_frames<8>(7, 0x52u);
+		std::vector<Frame<q31, 4>> out4(7);
+		std::vector<Frame<q31, 8>> out8(7);
+		lanes.renderBlock(in4, out4);
+		trackers.renderBlock(in8, out8);
+		for (std::size_t lane = 0; lane < 4; ++lane) {
+			const std::vector<q31> mono_in = lane_of(in4, lane);
+			std::vector<q31> mono_out(7);
+			poles[lane].renderBlock(mono_in, mono_out);
+			expect(lanes.state(lane).z).to_equal(poles[lane].state().z);
+			for (std::size_t other = 0; other < lane; ++other) {
+				expect(lanes.state(lane).z).not_().to_equal(lanes.state(other).z);
+			}
+		}
+		for (std::size_t lane = 0; lane < 8; ++lane) {
+			const std::vector<q31> mono_in = lane_of(in8, lane);
+			std::vector<q31> mono_out(7);
+			monos[lane].renderBlock(mono_in, mono_out);
+			expect(trackers.state(lane).y).to_equal(monos[lane].state().y);
+			for (std::size_t other = 0; other < lane; ++other) {
+				expect(trackers.state(lane).y).not_().to_equal(trackers.state(other).y);
+			}
+		}
+	});
+
+	it("steps a stereo one-pole op-major exactly as lane by lane, each channel named", _ {
+		Stereo<OnePole> op_major{{.moveability = 0x23456789, .mode = OnePole::Mode::ALL_PASS}};
+		Stereo<LaneByLane<OnePole>> lane_by_lane{{.moveability = 0x23456789, .mode = OnePole::Mode::ALL_PASS}};
+		std::vector<StereoSample> frames(9);
+		SeededNoise noise{0x5151u};
+		for (StereoSample& frame : frames) {
+			frame.l = noise.render();
+			frame.r = noise.render();
+		}
+		std::vector<StereoSample> packed = frames;
+		op_major.renderBlock(packed, packed);
+		lane_by_lane.renderBlock(frames, frames);
+		for (std::size_t i = 0; i < frames.size(); ++i) {
+			expect(packed[i].l).to_equal(frames[i].l);
+			expect(packed[i].r).to_equal(frames[i].r);
+		}
+		expect(op_major.left().z).to_equal(lane_by_lane.left().z);
+		expect(op_major.right().z).to_equal(lane_by_lane.right().z);
+		expect(op_major.left().z).not_().to_equal(op_major.right().z);
 	});
 });
 // clang-format on

@@ -79,10 +79,16 @@ struct OnePole {
 		Mode mode = Mode::LOW_PASS; ///< What a step returns.
 	};
 
-	/// @brief The memory. State{} is silence: z at 0.
-	struct State {
-		q31 z{0}; ///< The memory after the last step, Q31.
+	/// @brief The memory, over the value type V: q31 for one stream, a LanePack of q31 for one per lane. StateT{} is
+	/// silence: z at 0 in every lane.
+	template <class V>
+	struct StateT {
+		V z{}; ///< The memory after the last step, Q31.
 	};
+	using State = StateT<q31>; ///< One stream's memory.
+
+	/// @brief The step is written once over its value type, so `Lanes` steps a whole frame as one LanePack.
+	static constexpr bool kLanePackable = true;
 
 	/// @brief The coefficients for @p s: the moveability and the mode, unchanged.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr Coefficients coefficients(const Settings& s) {
@@ -90,16 +96,20 @@ struct OnePole {
 	}
 
 	/// @brief One sample: v = (x − z) × m, y = v + z, z ← y + v, wrapping; then y, x − y or 2y − x.
+	/// @details Written over V: on q31 it steps one stream; on a LanePack every operation runs across the lanes, each
+	/// lane exactly the q31 step, with the moveability broadcast. The operations are called unqualified, so a pack's
+	/// are found by argument-dependent lookup.
 	/// @tparam M The block's mode.
-	/// @param c The moveability.
+	/// @tparam V The value type: q31, or a LanePack of q31. Deduced from @p s.
+	/// @param c The moveability, shared by every lane.
 	/// @param s The memory, updated before the return value is taken.
 	/// @param x The input, Q31.
 	/// @return y (LOW_PASS), x − y (HIGH_PASS) or 2y − x (ALL_PASS), Q31.
-	template <Mode M>
-	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
-	                                                     q31 x) {
-		const q31 v = multiply_32x32_rshift32_rounded(wrapping_sub(x, s.z), c.m) << kProductToQ31Shift;
-		const q31 y = wrapping_add(v, s.z);
+	template <Mode M, class V>
+	[[nodiscard]] [[gnu::always_inline]] static V step(const Coefficients& c, const EmptyBlock& /*b*/, StateT<V>& s,
+	                                                   std::type_identity_t<V> x) {
+		const V v = multiply_32x32_rshift32_rounded(wrapping_sub(x, s.z), V{c.m}) << kProductToQ31Shift;
+		const V y = wrapping_add(v, s.z);
 		s.z = wrapping_add(y, v);
 		if constexpr (M == Mode::LOW_PASS) {
 			return y;
