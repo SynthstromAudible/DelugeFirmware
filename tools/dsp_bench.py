@@ -18,8 +18,11 @@ detaches, so the device it leaves running is dark. A complete run without it is 
 warning that the device may still be lit; "parked" in the JSON meta records which.
 
 The device prints one line per measurement:
-    BENCH case=<name> n=<block> k=<blocks> cycles=<u32> cps=<x.xx> l1d_refill=<u32> inst=<u32>
+    BENCH case=<name> n=<block> [lanes=<N>] k=<blocks> cycles=<u32> cps=<x.xx> l1d_refill=<u32> inst=<u32>
     dc_stall=<u32> issue_empty=<u32> neon=<u32>
+A case of N lanes (`lanes=` present, N > 1) renders blocks of n frames, N samples each. Its cps is per
+channel-sample, cycles / (k*n*N), as the device prints it; the table divides its events by N too, and
+shows its n as `<n>x<N>`.
 and ends with `BENCH-DONE cases=<count>`, where count covers every BENCH line before it, the
 per-size `calibration` lines included. Before the cases the device prints metadata lines,
 `BENCH-INFO <key>=<value>` (today `dbgauthstatus=0x...`, the Cortex-A9 DBGAUTHSTATUS register); they
@@ -93,6 +96,7 @@ class Record(NamedTuple):
     dc_stall: int
     issue_empty: int
     neon: int
+    lanes: int = 1
 
 
 class Capture(NamedTuple):
@@ -122,7 +126,15 @@ def parse_line(line: str) -> Record:
         numbers = {f: int(pairs[f]) for f in INT_FIELDS}
     except ValueError as e:
         raise ValueError(f"non-integer field ({e})") from e
-    return Record(case=pairs["case"], cps=pairs["cps"], **numbers)
+    lanes = 1
+    if "lanes" in pairs:
+        try:
+            lanes = int(pairs["lanes"])
+        except ValueError as e:
+            raise ValueError(f"non-integer field ({e})") from e
+        if lanes < 1:
+            raise ValueError(f"lanes {lanes} is below 1")
+    return Record(case=pairs["case"], cps=pairs["cps"], lanes=lanes, **numbers)
 
 
 def parse_capture(lines: list[str]) -> Capture:
@@ -158,9 +170,9 @@ def parse_capture(lines: list[str]) -> Capture:
     return Capture(records, done_count, errors, info, parked)
 
 
-def per_sample(count: int, k: int, n: int) -> str:
-    """count / (k*n) to two decimals, rounded half up, in integers; 0.00 for no samples."""
-    samples = k * n
+def per_sample(count: int, k: int, n: int, lanes: int = 1) -> str:
+    """count / (k*n*lanes) to two decimals, rounded half up, in integers; 0.00 for no samples."""
+    samples = k * n * lanes
     if samples == 0:
         return "0.00"
     hundredths = (100 * count + samples // 2) // samples
@@ -168,15 +180,16 @@ def per_sample(count: int, k: int, n: int) -> str:
 
 
 def render_table(records: list[Record]) -> str:
-    """The Markdown table: events are per sample."""
+    """The Markdown table: events are per channel-sample, and a case of several lanes shows n as <n>x<lanes>."""
     head = ["case", "n", "cps", "cycles", *(f"{e}/sample" for e in EVENTS)]
     out = [
         "| " + " | ".join(head) + " |",
         "| --- | ---: | ---: | ---: | " + " | ".join(["---:"] * len(EVENTS)) + " |",
     ]
     for r in records:
-        cells = [r.case, str(r.n), r.cps, str(r.cycles)]
-        cells += [per_sample(getattr(r, e), r.k, r.n) for e in EVENTS]
+        n = str(r.n) if r.lanes == 1 else f"{r.n}x{r.lanes}"
+        cells = [r.case, n, r.cps, str(r.cycles)]
+        cells += [per_sample(getattr(r, e), r.k, r.n, r.lanes) for e in EVENTS]
         out.append("| " + " | ".join(cells) + " |")
     return "\n".join(out) + "\n"
 

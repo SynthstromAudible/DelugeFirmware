@@ -168,6 +168,32 @@ class TableTests(unittest.TestCase):
         self.assertEqual(dsp_bench.per_sample(10, 4, 5), "0.50")
         self.assertEqual(dsp_bench.per_sample(1, 8, 2), "0.06")
 
+    def test_a_lanes_case_is_tabulated_per_channel_sample(self):
+        line = (
+            "BENCH case=pole_x4 n=32 lanes=4 k=64 cycles=49152 cps=6.00 l1d_refill=0 inst=65536 "
+            "dc_stall=8192 issue_empty=0 neon=0"
+        )
+        record = dsp_bench.parse_line(line)
+        self.assertEqual(record.lanes, 4)
+        self.assertEqual(record.cps, "6.00")
+        self.assertEqual(
+            dsp_bench.render_table([record]).splitlines()[2],
+            "| pole_x4 | 32x4 | 6.00 | 49152 | 0.00 | 8.00 | 1.00 | 0.00 | 0.00 |",
+        )
+
+    def test_a_mono_line_has_one_lane(self):
+        self.assertEqual(GAIN_32.lanes, 1)
+
+    def test_a_lanes_field_below_one_is_malformed(self):
+        with self.assertRaises(ValueError):
+            dsp_bench.parse_line(
+                "BENCH case=x n=32 lanes=0 k=64 cycles=1 cps=0.00 l1d_refill=0 inst=0 dc_stall=0 "
+                "issue_empty=0 neon=0"
+            )
+
+    def test_per_sample_divides_by_the_lanes(self):
+        self.assertEqual(dsp_bench.per_sample(1024, 64, 32, 2), "0.25")
+
     def test_per_sample_of_no_samples_is_zero(self):
         self.assertEqual(dsp_bench.per_sample(5, 0, 32), "0.00")
         self.assertEqual(dsp_bench.per_sample(5, 64, 0), "0.00")

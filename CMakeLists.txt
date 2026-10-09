@@ -307,6 +307,10 @@ set(DELUGE_UBSAN_SOURCE_DIRS "memory;util/container"
 # it runs every DSP case once at boot, before the app starts, and prints its BENCH lines over RTT; without it the
 # benchmark is not compiled into the app, and its boot hook is empty. src/deluge/CMakeLists.txt applies it.
 option(DELUGE_DSP_BENCH "Run the DSP benchmarks at boot (device builds)" OFF)
+# Which case list a bench image runs: "kernels" (one case per component) or "lanes" (the Lanes cases beside their mono
+# kernels). The device prints about 70 lines over RTT before it drops some, so the cases come in lists that fit.
+set(DELUGE_DSP_BENCH_CASES "kernels" CACHE STRING "The DSP bench's case list: kernels or lanes")
+set_property(CACHE DELUGE_DSP_BENCH_CASES PROPERTY STRINGS kernels lanes)
 
 # GCC static analyzer (-fanalyzer). Off by default; enable with -DDELUGE_ANALYZER=ON. This is a compile-time (not
 # runtime) pass: it walks each function's paths looking for leaks, use-after-free, double-free, mismatched alloc/dealloc

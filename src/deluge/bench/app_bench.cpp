@@ -55,8 +55,8 @@ extern "C" bool deluge_app_bench(void) noexcept {
 	asm volatile("cpsid i" ::: "memory");
 	log_dbgauthstatus();
 	deluge::bench::PmuA9 pmu;
-	std::ignore =
-	    deluge::bench::run(deluge::bench::cases(), {.block_sizes = deluge::bench::kBlockSizes}, pmu, log_line);
+	std::ignore = deluge::bench::run(deluge::bench::cases(deluge::bench::kBenchCaseList),
+	                                 {.block_sizes = deluge::bench::kBlockSizes}, pmu, log_line);
 	if (!were_masked) {
 		asm volatile("cpsie i" ::: "memory");
 	}

@@ -28,17 +28,20 @@
 ///
 /// **The lines.** Each measurement prints one line, without a newline:
 ///
-///     BENCH case=<name> n=<block> k=<blocks> cycles=<u32> cps=<x.xx> l1d_refill=<u32> inst=<u32> dc_stall=<u32>
-///     issue_empty=<u32> neon=<u32>
+///     BENCH case=<name> n=<block> [lanes=<N>] k=<blocks> cycles=<u32> cps=<x.xx> l1d_refill=<u32> inst=<u32>
+///     dc_stall=<u32> issue_empty=<u32> neon=<u32>
 ///
-/// (one line, wrapped here), and the run ends with `BENCH-DONE cases=<count>`, where count is the number of lines the
-/// run printed before it, the calibration's included. A line too long for kLineCapacity (a case name of about 100
-/// characters or more) is printed as `BENCH-ERROR line-overflow` and still counted, so a reader that compares the
-/// count with the result lines it parsed sees the run as incomplete. Lines are formatted with std::to_chars into a
-/// fixed buffer: the runner allocates nothing and does not use printf.
+/// (one line, wrapped here; `lanes=` only for a case of more than one lane), and the run ends with `BENCH-DONE
+/// cases=<count>`, where count is the number of lines the run printed before it, the calibration's included. A line too
+/// long for kLineCapacity (a case name of about 100 characters or more) is printed as `BENCH-ERROR line-overflow` and
+/// still counted, so a reader that compares the count with the result lines it parsed sees the run as incomplete. Lines
+/// are formatted with std::to_chars into a fixed buffer: the runner allocates nothing and does not use printf.
 ///
-/// **cps** is cycles ÷ (K·n) with exactly two decimals, rounded half up: hundredths = ⌊(100·cycles + K·n/2) ÷ (K·n)⌋,
-/// in 64-bit integers, so 0.125 prints as `0.13` and 0.9995 as `1.00`. A measurement of no samples prints `0.00`.
+/// **cps** is cycles per channel-sample: cycles ÷ (K·n·N), where N is the case's lane count (1 for a mono case), with
+/// exactly two decimals, rounded half up: hundredths = ⌊(100·cycles + K·n·N/2) ÷ (K·n·N)⌋, in 64-bit integers, so
+/// 0.125 prints as `0.13` and 0.9995 as `1.00`. A measurement of no samples prints `0.00`. A case of N lanes renders
+/// blocks of n frames, N samples each, so dividing by N makes its figure comparable with the mono case's; the events
+/// stay totals, per block of frames, and a reader divides them by N as it divides cps.
 ///
 /// **The info line.** Before the cases, the caller may print metadata about the run with format_info_line():
 /// `BENCH-INFO <key>=0x<8 hex digits>`. It is not a measurement and is not counted by `BENCH-DONE`.
@@ -54,6 +57,7 @@
 #include <cstdint>
 #include <span>
 #include <string_view>
+#include <type_traits>
 
 namespace deluge::bench {
 
@@ -72,7 +76,8 @@ struct Case {
 	std::string_view name;                       ///< The case's name in its result line; no spaces.
 	void* context;                               ///< The component the functions act on.
 	void (*setup)(void* context, std::size_t n); ///< Configures for blocks of n, fills inputs, leaves it ready.
-	void (*block)(void* context, std::size_t n); ///< Renders one block of n samples.
+	void (*block)(void* context, std::size_t n); ///< Renders one block of n samples (frames, for several lanes).
+	std::size_t lanes = 1;                       ///< The channel-samples in each of the n: a frame's lane count.
 };
 
 /// @brief A component a case can time: it prepares for a block size, then renders blocks of that size.
@@ -82,17 +87,29 @@ concept Benchable = requires(Component& component, std::size_t n) {
 	{ component.block(n) } -> std::same_as<void>;
 };
 
+/// @brief A component's lane count: its `kLanes` when it declares one, else 1.
+template <typename Component>
+inline constexpr std::size_t lanes_of = 1;
+
+/// @brief A component's lane count: its `kLanes` when it declares one, else 1.
+template <typename Component>
+requires std::same_as<std::remove_cv_t<decltype(Component::kLanes)>, std::size_t>
+inline constexpr std::size_t lanes_of<Component> = Component::kLanes;
+
 /// @brief Builds a case that times `component`.
 /// @param name The case's name in its result line; no spaces.
-/// @param component The component; it must outlive every run() of the case.
-/// @return A case whose `setup` and `block` call the component's own.
+/// @param component The component; it must outlive every run() of the case. A component renders frames of N lanes
+/// when it declares `static constexpr std::size_t kLanes = N`.
+/// @return A case whose `setup` and `block` call the component's own, with the component's lane count.
 template <Benchable Component>
 [[nodiscard]] constexpr Case make_case(std::string_view name, Component& component) {
+	static_assert(lanes_of<Component> >= 1, "a case renders at least one lane");
 	return Case{
 	    .name = name,
 	    .context = &component,
 	    .setup = [](void* context, std::size_t n) { static_cast<Component*>(context)->setup(n); },
 	    .block = [](void* context, std::size_t n) { static_cast<Component*>(context)->block(n); },
+	    .lanes = lanes_of<Component>,
 	};
 }
 
@@ -151,12 +168,13 @@ std::size_t run(std::span<const Case> cases, const RunConfig& config, Counters& 
 /// @brief Formats one result line.
 /// @param buffer Where the line is written.
 /// @param name The case's name.
-/// @param n The block size, in samples.
+/// @param n The block size, in samples (frames, for several lanes).
 /// @param k The number of blocks timed.
 /// @param delta The counts to print, already less the calibration.
+/// @param lanes The case's lane count: cps divides by it, and the line names it when it is more than 1.
 /// @return The line, a view into `buffer`; empty when `buffer` cannot hold it.
 std::string_view format_line(std::span<char> buffer, std::string_view name, std::size_t n, std::size_t k,
-                             const Sample& delta);
+                             const Sample& delta, std::size_t lanes = 1);
 
 /// @brief Formats one metadata line: `BENCH-INFO <key>=0x<value as 8 lowercase hex digits>`.
 /// @param buffer Where the line is written.

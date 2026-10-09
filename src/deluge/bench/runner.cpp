@@ -68,9 +68,10 @@ private:
 	bool overflowed_ = false;
 };
 
-/// @brief Hundredths of cycles per sample, rounded half up: ⌊(100·cycles + K·n/2) ÷ (K·n)⌋, or 0 for no samples.
-[[nodiscard]] uint64_t cps_hundredths(uint32_t cycles, std::size_t n, std::size_t k) {
-	const uint64_t samples = uint64_t{n} * uint64_t{k};
+/// @brief Hundredths of cycles per channel-sample, rounded half up: ⌊(100·cycles + K·n·N/2) ÷ (K·n·N)⌋, or 0 for no
+/// samples.
+[[nodiscard]] uint64_t cps_hundredths(uint32_t cycles, std::size_t n, std::size_t k, std::size_t lanes) {
+	const uint64_t samples = uint64_t{n} * uint64_t{k} * uint64_t{lanes};
 	if (samples == 0) {
 		return 0;
 	}
@@ -112,9 +113,9 @@ EmptyComponent empty_component;
 constinit const Case kCalibration = make_case("calibration", empty_component);
 
 /// @brief Formats and prints one result line, or the overflow line in its place.
-void emit(LineSink sink, std::string_view name, std::size_t n, std::size_t k, const Sample& delta) {
+void emit(LineSink sink, std::string_view name, std::size_t n, std::size_t k, const Sample& delta, std::size_t lanes) {
 	std::array<char, kLineCapacity> buffer{};
-	const std::string_view line = format_line(buffer, name, n, k, delta);
+	const std::string_view line = format_line(buffer, name, n, k, delta, lanes);
 	sink(line.empty() ? std::string_view{"BENCH-ERROR line-overflow"} : line);
 }
 
@@ -133,15 +134,18 @@ const Case& calibration() {
 }
 
 std::string_view format_line(std::span<char> buffer, std::string_view name, std::size_t n, std::size_t k,
-                             const Sample& delta) {
+                             const Sample& delta, std::size_t lanes) {
 	LineWriter out{buffer};
 	out.text("BENCH case=");
 	out.text(name);
 	out.field("n", n);
+	if (lanes > 1) {
+		out.field("lanes", lanes);
+	}
 	out.field("k", k);
 	out.field("cycles", delta.cycles);
 
-	const uint64_t hundredths = cps_hundredths(delta.cycles, n, k);
+	const uint64_t hundredths = cps_hundredths(delta.cycles, n, k, lanes);
 	out.field("cps", hundredths / 100);
 	out.text(".");
 	const uint64_t fraction = hundredths % 100;
@@ -179,13 +183,13 @@ std::size_t run(std::span<const Case> cases, const RunConfig& config, Counters& 
 	for (const std::size_t n : config.block_sizes) {
 		kCalibration.setup(kCalibration.context, n);
 		const Sample calibration_delta = measure(kCalibration, n, config, counters);
-		emit(sink, kCalibration.name, n, config.timed_blocks, calibration_delta);
+		emit(sink, kCalibration.name, n, config.timed_blocks, calibration_delta, kCalibration.lanes);
 		++lines;
 
 		for (const Case& c : cases) {
 			c.setup(c.context, n);
 			const Sample delta = less_calibration(measure(c, n, config, counters), calibration_delta);
-			emit(sink, c.name, n, config.timed_blocks, delta);
+			emit(sink, c.name, n, config.timed_blocks, delta, c.lanes);
 			++lines;
 		}
 	}

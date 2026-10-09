@@ -4,9 +4,16 @@
 /// @brief The DSP benchmark's case list: one case per dsp-next component, each configured as the voice configures it.
 ///
 /// **Buffers.** Every case reads and writes the same statically allocated SRAM blocks: two q31 input blocks and one
-/// q31 output block of kMaxBlock samples, and one stereo block of kMaxBlock frames. Each case's `setup` fills the
-/// inputs it reads from a fixed-seed SeededNoise, so every run times the same data, and a case measures the SRAM
-/// working set the voice renders in.
+/// q31 output block of kMaxBlock samples, one stereo block of kMaxBlock frames, and a lanes input and output block of
+/// kMaxBlock frames of up to kMaxLanes lanes. Each case's `setup` fills the inputs it reads from a fixed-seed
+/// SeededNoise, so every run times the same data, and a case measures the SRAM working set the voice renders in.
+///
+/// **Lanes.** A case of N lanes declares `kLanes = N` and renders blocks of n frames, N samples each; the runner
+/// divides its cycles by N as well, so its cps is per channel-sample, comparable with the mono case of its kernel.
+///
+/// **Two lists.** The device prints about 70 lines over RTT before it drops some, so the cases come in two lists,
+/// each run at every block size: the kernels (one case per component) and the lanes (each `Lanes` case beside the
+/// mono case of its kernel). A bench image runs one, chosen by the CMake cache string DELUGE_DSP_BENCH_CASES.
 ///
 /// **State at timing.** The runner warms each case up before timing it, so what is timed is the case's steady
 /// state. Each case's documentation says what that state is; the host spec checks each through its component's
@@ -16,7 +23,9 @@
 
 #include "bench/runner.h"
 #include "dsp-next/core/control.h"
+#include "dsp-next/core/frame.h"
 #include "dsp-next/core/kernel.h"
+#include "dsp-next/core/lanes.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/core/ramp.h"
@@ -92,6 +101,26 @@ inline constexpr uint32_t kA1Increment = 5'356'535;
 /// @brief The stereo block the stereo case processes in place.
 /// @return kMaxBlock frames, filled by the case's setup.
 [[nodiscard]] std::span<const StereoSample, kMaxBlock> stereo();
+
+/// @brief The most lanes a lanes case renders.
+inline constexpr std::size_t kMaxLanes = 8;
+
+/// @brief The block every lanes case reads: kMaxBlock frames of kMaxLanes lanes, as interleaved q31.
+/// @return kMaxBlock · kMaxLanes samples, filled by the case's setup.
+[[nodiscard]] std::span<const q31, kMaxBlock * kMaxLanes> lanes_input();
+
+/// @brief The block every lanes case writes: kMaxBlock frames of kMaxLanes lanes, as interleaved q31.
+/// @return kMaxBlock · kMaxLanes samples.
+[[nodiscard]] std::span<const q31, kMaxBlock * kMaxLanes> lanes_output();
+
+/// @brief The lanes blocks' first n frames of N lanes: the spans a lanes case's component renders between.
+/// @details Built at setup, as BlockSpans are. The blocks are q31 storage viewed as frames, whose layout is N q31 in
+/// lane order (frame.h), as `as_frames` views the app's interleaved buffers.
+template <class F>
+struct FrameSpans {
+	dsp::Signal<F> in;  ///< lanes_input's first n frames.
+	dsp::Buffer<F> out; ///< lanes_output's first n frames.
+};
 
 /// @brief The shared q31 blocks' first n samples: the spans a mono case's component renders between.
 /// @details A case builds these at setup, for the block size it is set up for, so that its timed `block` passes them
@@ -467,6 +496,7 @@ private:
 /// LSBs, so the frames keep their level for the whole run and every block is the same arithmetic on full-scale data.
 class StereoGainCase {
 public:
+	static constexpr std::size_t kLanes = 2; ///< Left and right.
 	/// @brief The gain: unity, Q31.
 	static constexpr q31 kGain = 0x7FFF'FFFF;
 
@@ -594,6 +624,90 @@ private:
 	BlockSpans spans_{};
 };
 
+/// @brief `Lanes<OnePole, N>` in LOW_PASS at the granular processor's moveability, op-major: N streams through one
+/// pole, from the lanes input into the lanes output.
+/// @details **Timed state:** every lane's memory carries from block to block, from silence at setup, following its
+/// own stream of the one input block the case repeats. Every frame is the same arithmetic: per lane a subtract, a
+/// rounding multiply and two shifted adds.
+/// @tparam N The lane count: 2 for `one_pole_x2`, 4 for `one_pole_x4`.
+template <std::size_t N>
+class LanesOnePoleCase {
+public:
+	static constexpr std::size_t kLanes = N; ///< The lanes per frame.
+	/// @brief The moveability, Q31: the mono case's.
+	static constexpr q31 kMoveability = OnePoleLowPassCase::kMoveability;
+	using Component = dsp::Lanes<dsp::fixed::OnePole, N>; ///< The component timed.
+
+	/// @brief Configures the pole from silence, fills the lanes input and takes the blocks' spans for @p n frames.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const Component& component() const { return lanes_; }
+
+private:
+	Component lanes_;
+	FrameSpans<dsp::Frame<q31, N>> spans_{};
+};
+
+/// @brief `one_pole_x2`.
+using OnePoleX2Case = LanesOnePoleCase<2>;
+/// @brief `one_pole_x4`.
+using OnePoleX4Case = LanesOnePoleCase<4>;
+
+/// @brief `Lanes<ShiftTracker<11>, N>` in REMOVE, op-major: N streams through the delay's DC blocker, from the lanes
+/// input into the lanes output.
+/// @details **Timed state:** every lane's memory carries from block to block, from silence at setup, tracking its own
+/// stream of the one input block the case repeats. Every frame is the same arithmetic: per lane a subtract, a shifted
+/// add and a subtract.
+/// @tparam N The lane count: 4 for `shift_tracker_x4`, 8 for `shift_tracker_x8`.
+template <std::size_t N>
+class LanesShiftTrackerCase {
+public:
+	static constexpr std::size_t kLanes = N;                    ///< The lanes per frame.
+	using Component = dsp::Lanes<ShiftTrackerCase::Tracker, N>; ///< The component timed.
+
+	/// @brief Configures the tracker in REMOVE from silence, fills the lanes input and takes the blocks' spans for @p n
+	/// frames.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const Component& component() const { return lanes_; }
+
+private:
+	Component lanes_;
+	FrameSpans<dsp::Frame<q31, N>> spans_{};
+};
+
+/// @brief `shift_tracker_x4`.
+using ShiftTrackerX4Case = LanesShiftTrackerCase<4>;
+/// @brief `shift_tracker_x8`.
+using ShiftTrackerX8Case = LanesShiftTrackerCase<8>;
+
+/// @brief `Stereo<AntialiasedTanh>` at drive 3, lane by lane: both channels of the lanes input's first two lanes per
+/// frame, read as stereo frames, into the lanes output.
+/// @details **Timed state:** each channel's position carries from block to block, from the centre at setup, following
+/// its channel of the one input block the case repeats. Every frame is the mono case's arithmetic twice, left then
+/// right.
+class StereoAntialiasedTanhCase {
+public:
+	static constexpr std::size_t kLanes = 2; ///< Left and right.
+	/// @brief The drive as a power of two: the mono case's.
+	static constexpr uint32_t kDrive = AntialiasedTanhCase::kDrive;
+
+	/// @brief Configures the drive from the centre, fills the lanes input and takes the blocks' spans for @p n frames.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const dsp::Stereo<dsp::fixed::AntialiasedTanh>& component() const { return stereo_; }
+
+private:
+	dsp::Stereo<dsp::fixed::AntialiasedTanh> stereo_;
+	FrameSpans<StereoSample> spans_{};
+};
+
 /// @brief `Control<DuckEnvelope>`: the sidechain's duck, configured then advanced once per block, as its owner does.
 /// @details The rates are as the owner resolves them: the spec's attack of 37,640 per sample (222 samples), and a
 /// release of 472 per sample (the release table's entry 40, 59 << 3: 17,772 samples), at the middle shape (fully
@@ -628,34 +742,54 @@ private:
 
 /// @brief Every case, by name.
 struct CaseSet {
-	CalibrationLoop calibration_loop;        ///< `calibration_loop`
-	AmplitudeCase amplitude;                 ///< `amplitude`
-	CrudeAmplitudeCase crude_amplitude;      ///< `crude_amplitude`
-	PulseCase pulse;                         ///< `pulse`
-	BandLimitedTableCase band_limited_table; ///< `band_limited_table`
-	CrudeSawCase crude_saw;                  ///< `crude_saw`
-	CrudeSquareCase crude_square;            ///< `crude_square`
-	CrudeTriangleCase crude_triangle;        ///< `crude_triangle`
-	SyncedPulseCase synced_pulse;            ///< `synced_pulse`
-	WavetableCase wavetable;                 ///< `wavetable`
-	MonoGainCase mono_gain;                  ///< `mono_gain`
-	MonoVecGainCase mono_vec_gain;           ///< `mono_vec_gain`
-	StereoGainCase stereo_gain;              ///< `stereo_gain`
-	DuckEnvelopeCase duck_envelope;          ///< `duck_envelope`
-	ShiftTrackerCase shift_tracker;          ///< `shift_tracker`
-	OnePoleLowPassCase one_pole_lp;          ///< `one_pole_lp`
-	OnePoleAllPassCase one_pole_ap;          ///< `one_pole_ap`
-	AntialiasedTanhCase antialiased_tanh;    ///< `antialiased_tanh`
-	Tanh3Case tanh3;                         ///< `tanh3`
-	DryWetBlendCase dry_wet_blend;           ///< `dry_wet_blend`
+	CalibrationLoop calibration_loop;                  ///< `calibration_loop`
+	AmplitudeCase amplitude;                           ///< `amplitude`
+	CrudeAmplitudeCase crude_amplitude;                ///< `crude_amplitude`
+	PulseCase pulse;                                   ///< `pulse`
+	BandLimitedTableCase band_limited_table;           ///< `band_limited_table`
+	CrudeSawCase crude_saw;                            ///< `crude_saw`
+	CrudeSquareCase crude_square;                      ///< `crude_square`
+	CrudeTriangleCase crude_triangle;                  ///< `crude_triangle`
+	SyncedPulseCase synced_pulse;                      ///< `synced_pulse`
+	WavetableCase wavetable;                           ///< `wavetable`
+	MonoGainCase mono_gain;                            ///< `mono_gain`
+	MonoVecGainCase mono_vec_gain;                     ///< `mono_vec_gain`
+	StereoGainCase stereo_gain;                        ///< `stereo_gain`
+	DuckEnvelopeCase duck_envelope;                    ///< `duck_envelope`
+	ShiftTrackerCase shift_tracker;                    ///< `shift_tracker`
+	OnePoleLowPassCase one_pole_lp;                    ///< `one_pole_lp`
+	OnePoleAllPassCase one_pole_ap;                    ///< `one_pole_ap`
+	AntialiasedTanhCase antialiased_tanh;              ///< `antialiased_tanh`
+	Tanh3Case tanh3;                                   ///< `tanh3`
+	DryWetBlendCase dry_wet_blend;                     ///< `dry_wet_blend`
+	OnePoleX2Case one_pole_x2;                         ///< `one_pole_x2`
+	OnePoleX4Case one_pole_x4;                         ///< `one_pole_x4`
+	ShiftTrackerX4Case shift_tracker_x4;               ///< `shift_tracker_x4`
+	ShiftTrackerX8Case shift_tracker_x8;               ///< `shift_tracker_x8`
+	StereoAntialiasedTanhCase stereo_antialiased_tanh; ///< `stereo_antialiased_tanh`
 };
 
 /// @brief The cases' components, built on first use.
 /// @return The one CaseSet every case in cases() acts on.
 [[nodiscard]] CaseSet& case_set();
 
-/// @brief The case list, in the order each block size prints it.
-/// @return One case per member of case_set(), built on first use.
-[[nodiscard]] std::span<const Case> cases();
+/// @brief Which of the two case lists a run prints.
+enum class CaseList : uint8_t {
+	KERNELS, ///< One case per component: the calibration loop, then each kernel in its Mono, Stereo or Control.
+	LANES,   ///< The calibration loop, then each `Lanes` case beside the mono case of its kernel.
+};
+
+/// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
+#if defined(DELUGE_DSP_BENCH_LANES)
+inline constexpr CaseList kBenchCaseList = CaseList::LANES;
+#else
+inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
+#endif
+
+/// @brief A case list, in the order each block size prints it.
+/// @param list Which list.
+/// @return Cases over members of case_set(), built on first use. Each list starts with `calibration_loop`, which the
+/// host script's sanity check reads.
+[[nodiscard]] std::span<const Case> cases(CaseList list);
 
 } // namespace deluge::bench

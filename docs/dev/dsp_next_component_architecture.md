@@ -739,6 +739,13 @@ tools/dsp_bench.py --timeout 180          # flashes, captures RTT, writes the ta
 ./dbt build RelWithDebInfo
 ```
 
+The cases come in two lists, since the device prints about 70 lines over RTT
+before it drops some: `kernels` (the default, one case per component) and
+`lanes` (each `Lanes` case beside the mono case of its kernel). Choose one with
+`./dbt configure -DDELUGE_DSP_BENCH=ON -DDELUGE_DSP_BENCH_CASES=lanes`; it sticks
+in the cache as the option does. A case of N lanes prints `lanes=N`, and its cps
+is per channel-sample: cycles ÷ (K·n·N).
+
 `dsp_bench.py` runs `deluge_jlink.py`, which loads the RAM image and starts it
 itself, so there is no probe to attach beforehand. The bench runs before
 `deluge_app_init()`, so its lines (about 6 KB) are the first large write into the

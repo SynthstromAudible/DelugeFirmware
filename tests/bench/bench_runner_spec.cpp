@@ -213,13 +213,35 @@ static_assert(uint64_t{SyncedPulseCase::kMasterIncrement} * kSizes.front() * Run
               > (uint64_t{1} << 32));
 static_assert(SyncedPulseCase::kAudibleIncrement > SyncedPulseCase::kMasterIncrement);
 
-/// The case list's names, in order.
-const std::vector<std::string_view> kCaseNames{
+/// The kernels list's names, in order.
+const std::vector<std::string_view> kKernelCaseNames{
     "calibration_loop", "amplitude",     "crude_amplitude",  "pulse",         "band_limited_table",
     "crude_saw",        "crude_square",  "crude_triangle",   "synced_pulse",  "wavetable",
     "mono_gain",        "mono_vec_gain", "stereo_gain",      "duck_envelope", "shift_tracker",
     "one_pole_lp",      "one_pole_ap",   "antialiased_tanh", "tanh3",         "dry_wet_blend",
 };
+
+/// The lanes list's names, in order.
+const std::vector<std::string_view> kLaneCaseNames{
+    "calibration_loop",        "one_pole_lp",      "one_pole_x2",      "one_pole_x4",
+    "shift_tracker",           "shift_tracker_x4", "shift_tracker_x8", "antialiased_tanh",
+    "stereo_antialiased_tanh", "mono_gain",        "stereo_gain",
+};
+
+/// Each lanes list case's lane count, in order.
+const std::vector<std::size_t> kLaneCaseLanes{1, 1, 2, 4, 1, 4, 8, 1, 2, 1, 2};
+
+/// A fake component of four lanes whose block costs a fixed amount per frame.
+struct FourLanes {
+	static constexpr std::size_t kLanes = 4;
+	void setup(std::size_t /*n*/) {}
+	void block(std::size_t n) { counters.charge({.cycles = 10 * static_cast<uint32_t>(n), .events = {}}); }
+};
+
+/// Lane @p lane of frame @p i of a lanes block of @p lanes lanes.
+q31 lane_sample(std::span<const q31> block, std::size_t lanes, std::size_t i, std::size_t lane) {
+	return block[(i * lanes) + lane];
+}
 
 /// Renders `blocks` blocks of `n` through a case's own setup and block, as the runner does.
 template <typename C>
@@ -307,6 +329,39 @@ describe bench_runner("The DSP benchmark runner", ${
 		expect(cps(4096 * 100 + 41, 64, 64)).to_equal(std::string{"100.01"});
 		// A measurement of no samples has no rate.
 		expect(cps(1234, 0, 64)).to_equal(std::string{"0.00"});
+	});
+
+	it("names a case's lanes and gives its cycles per channel-sample", _ {
+		std::array<char, kLineCapacity> buffer{};
+		const Sample delta{.cycles = 1234, .events = {1, 2, 3, 4, 5}};
+		expect(std::string{format_line(buffer, "x4", 32, 64, delta, 4)})
+		    .to_equal(std::string{"BENCH case=x4 n=32 lanes=4 k=64 cycles=1234 cps=0.15 l1d_refill=1 inst=2 dc_stall=3 "
+		                          "issue_empty=4 neon=5"});
+		// One lane is a mono case's line, with no lanes field.
+		expect(std::string{format_line(buffer, "x1", 32, 64, delta, 1)})
+		    .to_equal(std::string{format_line(buffer, "x1", 32, 64, delta)});
+		// cps divides by K · n · lanes: 4096 / (64 · 32 · 2) = 1 exactly, and 4096 / (64 · 32 · 8) = 0.25.
+		const auto cps = [&](uint32_t cycles, std::size_t lanes) {
+			const std::string line{format_line(buffer, "c", 32, 64, Sample{.cycles = cycles, .events = {}}, lanes)};
+			const auto from = line.find("cps=") + 4;
+			return line.substr(from, line.find(' ', from) - from);
+		};
+		expect(cps(4096, 2)).to_equal(std::string{"1.00"});
+		expect(cps(4096, 8)).to_equal(std::string{"0.25"});
+		// 8274 / 16384 = 0.50500...: rounds half up, over the lanes' samples.
+		expect(cps(8274, 8)).to_equal(std::string{"0.51"});
+	});
+
+	it("passes a case's lane count to its line", _ {
+		FourLanes four;
+		const std::array cases{make_case("four", four)};
+		expect(cases[0].lanes).to_equal(std::size_t{4});
+		const std::array<std::size_t, 1> sizes{32};
+		const RunConfig config{.block_sizes = sizes};
+		std::ignore = run(cases, config, counters, capture);
+		// 10 cycles per frame over 64 blocks of 32 frames, of 4 lanes: 2.50 per channel-sample.
+		expect(lines[1]).to_start_with(std::string{"BENCH case=four n=32 lanes=4 k=64 cycles=20480 cps=2.50 "});
+		expect(lines[0]).to_start_with(std::string{"BENCH case=calibration n=32 k=64 "});
 	});
 
 	it("gives an empty line when the buffer cannot hold it", _ {
@@ -457,29 +512,51 @@ describe bench_runner("The DSP benchmark runner", ${
 
 	context("the case list", _ {
 		it("names every case in snake_case, with no space or '='", _ {
-			std::vector<std::string_view> names;
-			for (const Case& c : cases()) {
-				names.push_back(c.name);
-				expect(c.name.find_first_of(" =")).to_equal(std::string_view::npos);
-				expect(c.name.size()).to_be_greater_than(std::size_t{0});
+			for (const auto& [list, expected] : {std::pair{CaseList::KERNELS, kKernelCaseNames},
+			                                     std::pair{CaseList::LANES, kLaneCaseNames}}) {
+				std::vector<std::string_view> names;
+				for (const Case& c : cases(list)) {
+					names.push_back(c.name);
+					expect(c.name.find_first_of(" =")).to_equal(std::string_view::npos);
+					expect(c.name.size()).to_be_greater_than(std::size_t{0});
+				}
+				expect(names).to_equal(expected);
 			}
-			expect(names).to_equal(kCaseNames);
 		});
 
-		it("runs every case at every block size, the calibration's line included", _ {
-			const RunConfig config{.block_sizes = kSizes};
-			const std::size_t count = run(cases(), config, counters, capture);
+		it("gives each lanes case its lane count, and the stereo gain two", _ {
+			std::vector<std::size_t> lanes;
+			for (const Case& c : cases(CaseList::LANES)) {
+				lanes.push_back(c.lanes);
+			}
+			expect(lanes).to_equal(kLaneCaseLanes);
+			for (const Case& c : cases(CaseList::KERNELS)) {
+				expect(c.lanes).to_equal(c.name == "stereo_gain" ? std::size_t{2} : std::size_t{1});
+			}
+		});
 
-			const std::size_t per_size = cases().size() + 1;
-			expect(count).to_equal(kSizes.size() * per_size);
-			expect(lines.size()).to_equal(kSizes.size() * per_size + 1);
-			expect(lines.back()).to_equal("BENCH-DONE cases=" + std::to_string(kSizes.size() * per_size));
-			for (std::size_t size = 0; size < kSizes.size(); ++size) {
-				const std::string n = std::to_string(kSizes[size]);
-				expect(lines[size * per_size]).to_start_with("BENCH case=calibration n=" + n + " ");
-				for (std::size_t i = 0; i < kCaseNames.size(); ++i) {
-					expect(lines[size * per_size + 1 + i])
-					    .to_start_with("BENCH case=" + std::string{kCaseNames[i]} + " n=" + n + " ");
+		it("runs every case at every block size, the calibration's line included, in fewer than 70 lines", _ {
+			for (const auto& [list, names] : {std::pair{CaseList::KERNELS, kKernelCaseNames},
+			                                  std::pair{CaseList::LANES, kLaneCaseNames}}) {
+				lines.clear();
+				counters.reset();
+				const RunConfig config{.block_sizes = kSizes};
+				const std::size_t count = run(cases(list), config, counters, capture);
+
+				const std::size_t per_size = cases(list).size() + 1;
+				expect(count).to_equal(kSizes.size() * per_size);
+				expect(count).to_be_less_than(std::size_t{70});
+				expect(lines.size()).to_equal(kSizes.size() * per_size + 1);
+				expect(lines.back()).to_equal("BENCH-DONE cases=" + std::to_string(kSizes.size() * per_size));
+				for (std::size_t size = 0; size < kSizes.size(); ++size) {
+					const std::string n = std::to_string(kSizes[size]);
+					expect(lines[size * per_size]).to_start_with("BENCH case=calibration n=" + n + " ");
+					for (std::size_t i = 0; i < names.size(); ++i) {
+						const std::size_t lanes = cases(list)[i].lanes;
+						const std::string lanes_field = lanes > 1 ? " lanes=" + std::to_string(lanes) : "";
+						expect(lines[size * per_size + 1 + i])
+						    .to_start_with("BENCH case=" + std::string{names[i]} + " n=" + n + lanes_field + " k=");
+					}
 				}
 			}
 		});
@@ -707,6 +784,91 @@ describe bench_runner("The DSP benchmark runner", ${
 					const q31 expected =
 					    multiply_accumulate_32x32_rshift32_rounded(wet, input_a()[i], ONE_Q31 - (1 << 30)) << 1;
 					expect(output()[i]).to_equal(expected);
+				}
+			}
+		});
+
+		it("low-passes each lane of the lanes input from silence, op-major, as the mono pole does, at every block size", _ {
+			CaseSet& set = case_set();
+			const auto check = [&]<std::size_t N>(LanesOnePoleCase<N>& c) {
+				for (const std::size_t n : kSizes) {
+					c.setup(n);
+					expect(c.component().coefficients().m).to_equal(q31{1 << 29});
+					expect(c.component().coefficients().mode).to_equal(dsp::fixed::OnePole::Mode::LOW_PASS);
+					render(c, n, 2);
+					for (std::size_t lane = 0; lane < N; ++lane) {
+						expect(c.component().state(lane).z).not_().to_equal(q31{0});
+						// The class's lowPass on lane `lane`'s stream, wrapping as the hardware's add and sub do.
+						uint32_t memory = 0;
+						for (std::size_t block = 0; block < 2; ++block) {
+							for (std::size_t i = 0; i < n; ++i) {
+								const auto x = static_cast<uint32_t>(lane_sample(lanes_input(), N, i, lane));
+								const auto difference = static_cast<q31>(x - memory);
+								const auto step =
+								    static_cast<uint32_t>(multiply_32x32_rshift32_rounded(difference, 1 << 29) << 1);
+								const uint32_t low = step + memory;
+								memory = low + step;
+								if (block == 1) {
+									expect(lane_sample(lanes_output(), N, i, lane)).to_equal(static_cast<q31>(low));
+								}
+							}
+						}
+						expect(c.component().state(lane).z).to_equal(static_cast<q31>(memory));
+					}
+				}
+			};
+			check(set.one_pole_x2);
+			check(set.one_pole_x4);
+		});
+
+		it("removes each lane's slow part from silence, op-major, as the delay's blocker does, at every block size", _ {
+			CaseSet& set = case_set();
+			const auto check = [&]<std::size_t N>(LanesShiftTrackerCase<N>& c) {
+				for (const std::size_t n : kSizes) {
+					c.setup(n);
+					expect(c.component().coefficients().mode).to_equal(ShiftTrackerCase::Tracker::Mode::REMOVE);
+					render(c, n, 2);
+					for (std::size_t lane = 0; lane < N; ++lane) {
+						q31 hp = 0;
+						for (std::size_t block = 0; block < 2; ++block) {
+							for (std::size_t i = 0; i < n; ++i) {
+								const auto x = static_cast<uint32_t>(lane_sample(lanes_input(), N, i, lane));
+								const auto step = static_cast<q31>(x - static_cast<uint32_t>(hp)) >> 11;
+								hp = static_cast<q31>(static_cast<uint32_t>(hp) + static_cast<uint32_t>(step));
+								if (block == 1) {
+									expect(lane_sample(lanes_output(), N, i, lane))
+									    .to_equal(static_cast<q31>(x - static_cast<uint32_t>(hp)));
+								}
+							}
+						}
+						expect(c.component().state(lane).y).to_equal(hp);
+					}
+				}
+			};
+			check(set.shift_tracker_x4);
+			check(set.shift_tracker_x8);
+		});
+
+		it("saturates both lanes input channels from the centre, as the anti-aliased tanh class does, at every size", _ {
+			CaseSet& set = case_set();
+			for (const std::size_t n : kSizes) {
+				set.stereo_antialiased_tanh.setup(n);
+				const auto& stereo = set.stereo_antialiased_tanh.component();
+				expect(stereo.coefficients().drive).to_equal(3u);
+				expect(stereo.left().position).to_equal(dsp::fixed::kTanhCentre);
+				expect(stereo.right().position).to_equal(dsp::fixed::kTanhCentre);
+				render(set.stereo_antialiased_tanh, n, 2);
+				for (std::size_t lane = 0; lane < 2; ++lane) {
+					dsp::fixed::legacy::AntialiasedTanh curve{3};
+					for (std::size_t block = 0; block < 2; ++block) {
+						for (std::size_t i = 0; i < n; ++i) {
+							const q31 expected = curve.render(lane_sample(lanes_input(), 2, i, lane));
+							if (block == 1) {
+								expect(lane_sample(lanes_output(), 2, i, lane)).to_equal(expected);
+							}
+						}
+					}
+					expect((lane == 0 ? stereo.left() : stereo.right()).position).to_equal(curve.previous());
 				}
 			}
 		});
