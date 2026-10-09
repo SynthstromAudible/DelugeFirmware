@@ -18,6 +18,7 @@ constexpr uint32_t kCodeEnd = 0x8000;
 std::vector<uint8_t> sent;
 int flushes = 0;
 std::span<uint32_t> stack;
+uintptr_t dataAddress = 0;
 
 /// One column pair as the PIC receives it: a select byte, then 16 pads of RGB.
 struct ColumnPair {
@@ -110,6 +111,7 @@ void reset() {
 	sent.clear();
 	flushes = 0;
 	stack = {};
+	dataAddress = 0;
 }
 
 } // namespace
@@ -125,6 +127,10 @@ void deluge_fault_ranges(DelugeFaultRanges* out) noexcept {
 		out->stack_start = reinterpret_cast<uintptr_t>(stack.data());
 		out->stack_end = reinterpret_cast<uintptr_t>(stack.data() + stack.size());
 	}
+}
+
+uintptr_t deluge_fault_data_address() noexcept {
+	return dataAddress;
 }
 
 void deluge_fault_pad_write(uint8_t byte) noexcept {
@@ -143,7 +149,7 @@ describe fault_pattern("deluge_fault_pattern_draw", $ {
 	it("draws the faulting instruction, the caller and the stack's return addresses, then the commit", _{
 		std::array<uint32_t, 8> words{0x3001, 0, 0, 0x4001, 0, 0, 0, 0};
 		stack = words;
-		deluge_fault_pattern_draw(0x1234, DELUGE_CPU_FAULT_DATA_ABORT, 0x2001, address(words[0]));
+		deluge_fault_pattern_draw(0x1234, DELUGE_CPU_FAULT_UNDEFINED, 0x2001, address(words[0]));
 
 		auto pairs = columnPairs();
 		expect(pairs.size()).to_equal(size_t{9});
@@ -160,6 +166,42 @@ describe fault_pattern("deluge_fault_pattern_draw", $ {
 		expect(pointerAt(pairs, 3).colour).to_equal(std::string{"cyan"});
 		expect(commit(pairs).value).to_equal(uint32_t{0xa1b2});
 		expect(flushes).to_equal(1);
+	});
+
+	it("draws a data abort's data address in white, after the faulting instruction", _{
+		std::array<uint32_t, 8> words{0x3001, 0, 0, 0x4001, 0, 0, 0, 0};
+		stack = words;
+		dataAddress = 0x20001000;
+		deluge_fault_pattern_draw(0x1234, DELUGE_CPU_FAULT_DATA_ABORT, 0x2001, address(words[0]));
+
+		auto pairs = columnPairs();
+		expect(pointerAt(pairs, 0).value).to_equal(uint32_t{0x1234});
+		expect(pointerAt(pairs, 0).colour).to_equal(std::string{"magenta"});
+		expect(pointerAt(pairs, 1).value).to_equal(uint32_t{0x20001000});
+		expect(pointerAt(pairs, 1).colour).to_equal(std::string{"white"});
+		expect(pointerAt(pairs, 2).value).to_equal(uint32_t{0x1fff});
+		expect(pointerAt(pairs, 2).colour).to_equal(std::string{"blue"});
+		expect(pointerAt(pairs, 3).value).to_equal(uint32_t{0x2fff});
+		expect(commit(pairs).colour).to_equal(std::string{"red"});
+	});
+
+	it("keeps a null data address's slot, unlit", _{
+		dataAddress = 0;
+		deluge_fault_pattern_draw(0x1234, DELUGE_CPU_FAULT_DATA_ABORT, 0x2001, 0);
+
+		auto pairs = columnPairs();
+		expect(pointerAt(pairs, 1).value).to_equal(uint32_t{0});
+		expect(pointerAt(pairs, 2).value).to_equal(uint32_t{0x1fff});
+		expect(pointerAt(pairs, 2).colour).to_equal(std::string{"blue"});
+	});
+
+	it("draws no data address for other faults", _{
+		dataAddress = 0x20001000;
+		deluge_fault_pattern_draw(0x1234, DELUGE_CPU_FAULT_PREFETCH_ABORT, 0x2001, 0);
+
+		auto pairs = columnPairs();
+		expect(pointerAt(pairs, 1).value).to_equal(uint32_t{0x1fff});
+		expect(pointerAt(pairs, 1).colour).to_equal(std::string{"blue"});
 	});
 
 	it("leaves out a faulting instruction that isn't code, as a call through a null pointer gives", _{
@@ -198,7 +240,7 @@ describe fault_pattern("deluge_fault_pattern_draw", $ {
 	it("skips a stack word that repeats the last return address found", _{
 		std::array<uint32_t, 12> words{0x3001, 0, 0, 0x4001, 0, 0, 0x4001, 0x5001, 0, 0, 0, 0};
 		stack = words;
-		deluge_fault_pattern_draw(0, DELUGE_CPU_FAULT_DATA_ABORT, 0, address(words[0]));
+		deluge_fault_pattern_draw(0, DELUGE_CPU_FAULT_UNDEFINED, 0, address(words[0]));
 
 		auto pairs = columnPairs();
 		expect(pointerAt(pairs, 0).value).to_equal(uint32_t{0x2fff});
@@ -210,7 +252,7 @@ describe fault_pattern("deluge_fault_pattern_draw", $ {
 	it("skips stack words that are the caller or the faulting instruction, already drawn", _{
 		std::array<uint32_t, 8> words{0x2001, 0x1234, 0x3001, 0, 0, 0, 0, 0};
 		stack = words;
-		deluge_fault_pattern_draw(0x1234, DELUGE_CPU_FAULT_DATA_ABORT, 0x2001, address(words[0]));
+		deluge_fault_pattern_draw(0x1234, DELUGE_CPU_FAULT_UNDEFINED, 0x2001, address(words[0]));
 
 		auto pairs = columnPairs();
 		expect(pointerAt(pairs, 2).value).to_equal(uint32_t{0x2fff});

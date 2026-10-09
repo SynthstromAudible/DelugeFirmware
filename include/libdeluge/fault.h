@@ -62,6 +62,10 @@ typedef struct DelugeFaultRanges {
 /// mean "cannot classify", which costs the report some candidate pointers. [task] [audio] [isr]
 void deluge_fault_ranges(DelugeFaultRanges* out) DELUGE_NOEXCEPT;
 
+/// The address a faulting data access tried to read or write. Valid only while a data
+/// abort is being reported; the reporter asks for it only then. [isr]
+uintptr_t deluge_fault_data_address(void) DELUGE_NOEXCEPT;
+
 /// Queue one byte to the pad driver on the fault path. [task] [audio] [isr]
 ///
 /// Byte-at-a-time deliberately: it mirrors how the pattern is generated (a colour at
