@@ -2,6 +2,7 @@
 #include "bench/counters.h"
 #include "bench/runner.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
+#include "dsp-next/fixed/filter/shift_tracker.h"
 
 #include <algorithm>
 #include <array>
@@ -30,6 +31,17 @@ std::ostream& operator<<(std::ostream& out, DuckEnvelope::Stage stage) {
 		return out << "ATTACK";
 	case DuckEnvelope::Stage::RELEASE:
 		return out << "RELEASE";
+	}
+	return out;
+}
+
+/// The shift tracker case's mode, printed by name, so a failing comparison shows it.
+std::ostream& operator<<(std::ostream& out, ShiftTracker<11>::Mode mode) {
+	switch (mode) {
+	case ShiftTracker<11>::Mode::TRACK:
+		return out << "TRACK";
+	case ShiftTracker<11>::Mode::REMOVE:
+		return out << "REMOVE";
 	}
 	return out;
 }
@@ -176,7 +188,7 @@ static_assert(SyncedPulseCase::kAudibleIncrement > SyncedPulseCase::kMasterIncre
 const std::vector<std::string_view> kCaseNames{
     "calibration_loop", "amplitude",     "crude_amplitude", "pulse",         "band_limited_table",
     "crude_saw",        "crude_square",  "crude_triangle",  "synced_pulse",  "wavetable",
-    "mono_gain",        "mono_vec_gain", "stereo_gain",     "duck_envelope",
+    "mono_gain",        "mono_vec_gain", "stereo_gain",     "duck_envelope", "shift_tracker",
 };
 
 /// Renders `blocks` blocks of `n` through a case's own setup and block, as the runner does.
@@ -555,6 +567,30 @@ describe bench_runner("The DSP benchmark runner", ${
 					expect(drift_l).to_be_between(int64_t{0}, int64_t{2 * blocks + 1});
 					expect(drift_r).to_be_between(int64_t{0}, int64_t{2 * blocks + 1});
 				}
+			}
+		});
+
+		it("removes input_a's slow part from silence, as the delay's blocker does, at every block size", _ {
+			using Tracker = ShiftTrackerCase::Tracker;
+			CaseSet& set = case_set();
+			for (const std::size_t n : kSizes) {
+				set.shift_tracker.setup(n);
+				expect(set.shift_tracker.component().coefficients().mode).to_equal(Tracker::Mode::REMOVE);
+				expect(set.shift_tracker.component().state().y).to_equal(q31{0});
+
+				render(set.shift_tracker, n, 2);
+				q31 hp = 0;
+				for (std::size_t block = 0; block < 2; ++block) {
+					for (std::size_t i = 0; i < n; ++i) {
+						q31 x = input_a()[i];
+						hp += (x - hp) >> 11;
+						x -= hp;
+						if (block == 1) {
+							expect(output()[i]).to_equal(x);
+						}
+					}
+				}
+				expect(set.shift_tracker.component().state().y).to_equal(hp);
 			}
 		});
 

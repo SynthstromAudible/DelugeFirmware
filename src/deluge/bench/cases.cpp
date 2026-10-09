@@ -288,6 +288,17 @@ void DuckEnvelopeCase::block(std::size_t n) {
 	*level_ = duck_.advance(n);
 }
 
+void ShiftTrackerCase::setup(std::size_t n) {
+	spans_ = spans(n);
+	fill_inputs();
+	mono_.configure({.mode = Tracker::Mode::REMOVE});
+	mono_.reset();
+}
+
+void ShiftTrackerCase::block(std::size_t /*n*/) {
+	mono_.renderBlock(spans_.a, spans_.out);
+}
+
 CaseSet& case_set() {
 	static CaseSet set;
 	return set;
@@ -310,6 +321,7 @@ std::span<const Case> cases() {
 	    make_case("mono_vec_gain", s.mono_vec_gain),
 	    make_case("stereo_gain", s.stereo_gain),
 	    make_case("duck_envelope", s.duck_envelope),
+	    make_case("shift_tracker", s.shift_tracker),
 	};
 	return list;
 }

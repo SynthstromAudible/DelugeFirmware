@@ -23,6 +23,7 @@
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
+#include "dsp-next/fixed/filter/shift_tracker.h"
 #include "dsp-next/fixed/osc/band_limited_table_oscillator.h"
 #include "dsp-next/fixed/osc/crude_oscillators.h"
 #include "dsp-next/fixed/osc/pulse_oscillator.h"
@@ -478,6 +479,27 @@ private:
 	dsp::Buffer<StereoSample> out_{}; ///< The same frames, written.
 };
 
+/// @brief `Mono<ShiftTracker<11>>` in REMOVE: the delay's DC blocker, from input_a into the output.
+/// @details **Timed state:** the memory carries from block to block, from silence at setup, tracking the slow part of
+/// the one input block the case repeats. Every block is the same arithmetic: one subtract, shift and add to update the
+/// memory, and one subtract for the output.
+class ShiftTrackerCase {
+public:
+	/// @brief The kernel: the delay's blocker, at a shift of 11.
+	using Tracker = dsp::fixed::ShiftTracker<11>;
+
+	/// @brief Configures the tracker in REMOVE from silence, fills input_a and takes the blocks' spans for @p n.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const dsp::Mono<Tracker>& component() const { return mono_; }
+
+private:
+	dsp::Mono<Tracker> mono_;
+	BlockSpans spans_{};
+};
+
 /// @brief `Control<DuckEnvelope>`: the sidechain's duck, configured then advanced once per block, as its owner does.
 /// @details The rates are as the owner resolves them: the spec's attack of 37,640 per sample (222 samples), and a
 /// release of 472 per sample (the release table's entry 40, 59 << 3: 17,772 samples), at the middle shape (fully
@@ -526,6 +548,7 @@ struct CaseSet {
 	MonoVecGainCase mono_vec_gain;           ///< `mono_vec_gain`
 	StereoGainCase stereo_gain;              ///< `stereo_gain`
 	DuckEnvelopeCase duck_envelope;          ///< `duck_envelope`
+	ShiftTrackerCase shift_tracker;          ///< `shift_tracker`
 };
 
 /// @brief The cases' components, built on first use.

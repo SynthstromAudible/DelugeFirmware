@@ -21,6 +21,7 @@
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
+#include "dsp-next/fixed/filter/shift_tracker.h"
 #include "util/fixedpoint.h"
 
 #include <array>
@@ -443,29 +444,8 @@ struct StereoVecMix {
 	}
 };
 
-/// A moded one-pole low-pass, a part of SeriesPoles: y += (x - y) >> shift, the shift 4 (GENTLE) or 1 (FAST).
-struct OnePole {
-	using value_type = q31;
-	using step_type = q31;
-	enum class Mode : uint8_t { GENTLE, FAST };
-	using Modes = ModeList<Mode::GENTLE, Mode::FAST>;
-	struct Settings {
-		Mode mode;
-	};
-	struct Coefficients {
-		Mode mode;
-	};
-	struct State {
-		q31 y; ///< The last output.
-	};
-	static Coefficients coefficients(const Settings& s) { return {.mode = s.mode}; }
-	template <Mode M>
-	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s, q31 x) {
-		constexpr int kShift = M == Mode::GENTLE ? 4 : 1;
-		s.y += (x - s.y) >> kShift;
-		return s.y;
-	}
-};
+/// The moded part of SeriesPoles: a shift tracker at a shift of 4, returning y (TRACK) or x - y (REMOVE).
+using Tracker = fixed::ShiftTracker<4>;
 
 /// A one-pole low-pass with a Block, a part of SeriesPoles: y += (x - y) >> 2, offset by an eighth of y at the start
 /// of the block.
@@ -490,42 +470,42 @@ struct BiasedPole {
 	}
 };
 
-/// OnePole then BiasedPole, composed by nesting: the parts' Coefficients, State and Block are its members, its
-/// prepare prepares each part, and its step threads the sample through each part's step. OnePole is the one moded
+/// Tracker then BiasedPole, composed by nesting: the parts' Coefficients, State and Block are its members, its
+/// prepare prepares each part, and its step threads the sample through each part's step. Tracker is the one moded
 /// part, so its modes are the composite's.
 struct SeriesPoles {
 	using value_type = q31;
 	using step_type = q31;
-	using Mode = OnePole::Mode;
-	using Modes = OnePole::Modes;
+	using Mode = Tracker::Mode;
+	using Modes = Tracker::Modes;
 	struct Settings {
-		OnePole::Settings first;
+		Tracker::Settings first;
 		BiasedPole::Settings second;
 	};
 	struct Coefficients {
 		Mode mode; ///< The block's mode: the first part's.
-		OnePole::Coefficients first;
+		Tracker::Coefficients first;
 		BiasedPole::Coefficients second;
 	};
 	struct State {
-		OnePole::State first;
+		Tracker::State first;
 		BiasedPole::State second;
 	};
 	struct Block {
-		kernel_block_t<OnePole> first;
+		kernel_block_t<Tracker> first;
 		kernel_block_t<BiasedPole> second;
 	};
 	static Coefficients coefficients(const Settings& s) {
-		const OnePole::Coefficients first = OnePole::coefficients(s.first);
+		const Tracker::Coefficients first = Tracker::coefficients(s.first);
 		return {.mode = first.mode, .first = first, .second = BiasedPole::coefficients(s.second)};
 	}
 	[[gnu::always_inline]] static Block prepare(const Coefficients& c, State& s, std::size_t n) {
-		return {.first = kernel_ops::prepare_block<OnePole>(c.first, s.first, n),
+		return {.first = kernel_ops::prepare_block<Tracker>(c.first, s.first, n),
 		        .second = kernel_ops::prepare_block<BiasedPole>(c.second, s.second, n)};
 	}
 	template <Mode M>
 	[[gnu::always_inline]] static q31 step(const Coefficients& c, const Block& b, State& s, q31 x) {
-		const q31 y = kernel_ops::step_at<OnePole, M>(c.first, b.first, s.first, x);
+		const q31 y = kernel_ops::step_at<Tracker, M>(c.first, b.first, s.first, x);
 		return kernel_ops::step_at<BiasedPole, kernel_ops::NoMode::NONE>(c.second, b.second, s.second, y);
 	}
 };
@@ -1020,22 +1000,22 @@ describe mono("Mono", ${
 
 	it("runs a composed kernel as a hand loop over its parts, across a mode switch", _ {
 		for (const std::size_t n : kLengths) {
-			Mono<SeriesPoles> mono{{.first = {.mode = OnePole::Mode::GENTLE}}};
-			OnePole::State first{};
+			Mono<SeriesPoles> mono{{.first = {.mode = Tracker::Mode::TRACK}}};
+			Tracker::State first{};
 			BiasedPole::State second{};
 			for (int block = 0; block < 3; ++block) {
-				const OnePole::Mode mode = block == 1 ? OnePole::Mode::FAST : OnePole::Mode::GENTLE;
+				const Tracker::Mode mode = block == 1 ? Tracker::Mode::REMOVE : Tracker::Mode::TRACK;
 				mono.configure({.first = {.mode = mode}});
 				const std::vector<q31> in = input(n, 0x00135791 * (block + 1));
 				std::vector<q31> got(n);
 				mono.renderBlock(in, got);
 
-				const OnePole::Coefficients c1 = OnePole::coefficients({.mode = mode});
+				const Tracker::Coefficients c1 = Tracker::coefficients({.mode = mode});
 				const BiasedPole::Block b2 = BiasedPole::prepare({}, second, n);
 				for (std::size_t i = 0; i < n; ++i) {
-					const q31 y = mode == OnePole::Mode::GENTLE
-					                  ? OnePole::step<OnePole::Mode::GENTLE>(c1, {}, first, in[i])
-					                  : OnePole::step<OnePole::Mode::FAST>(c1, {}, first, in[i]);
+					const q31 y = mode == Tracker::Mode::TRACK
+					                  ? Tracker::step<Tracker::Mode::TRACK>(c1, {}, first, in[i])
+					                  : Tracker::step<Tracker::Mode::REMOVE>(c1, {}, first, in[i]);
 					expect(got[i]).to_equal(BiasedPole::step({}, b2, second, y));
 				}
 				expect(mono.state().first.y).to_equal(first.y);
