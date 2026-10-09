@@ -41,6 +41,15 @@ HEADER = (
 )
 
 
+def unparked_lines():
+    """The complete capture without its parked line: a run whose device did not go dark."""
+    return [
+        line
+        for line in COMPLETE.read_text().splitlines()
+        if not line.startswith("bench: parked")
+    ]
+
+
 def run_main(*args):
     out, err = io.StringIO(), io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
@@ -71,9 +80,27 @@ class ParseTests(unittest.TestCase):
 
     def test_non_bench_lines_are_ignored(self):
         cap = self.parse(COMPLETE)
-        self.assertEqual(sum(1 for r in cap.records if r.case == "going"), 0)
         self.assertNotIn("bench:", " ".join(r.case for r in cap.records))
         self.assertEqual(cap.errors, [])
+
+    def test_parked_line_after_done_is_seen(self):
+        self.assertTrue(self.parse(COMPLETE).parked)
+
+    def test_no_parked_line_is_not_parked(self):
+        self.assertFalse(self.parse(TRUNCATED).parked)
+        self.assertFalse(dsp_bench.parse_capture(unparked_lines()).parked)
+
+    def test_parked_line_before_done_does_not_count(self):
+        cap = dsp_bench.parse_capture(
+            ["bench: parked, pads/LEDs/OLED off", "BENCH-DONE cases=0"]
+        )
+        self.assertFalse(cap.parked)
+
+    def test_lines_after_done_are_not_measurements(self):
+        lines = [*COMPLETE.read_text().splitlines(), "BENCH-ERROR line-overflow"]
+        cap = dsp_bench.parse_capture(lines)
+        self.assertEqual(cap.errors, [])
+        self.assertEqual(len(cap.records), 12)
 
     def test_truncated_has_no_done(self):
         cap = self.parse(TRUNCATED)
@@ -245,10 +272,29 @@ class CaptureCliTests(unittest.TestCase):
         self.assertEqual(doc["meta"]["date"], "2026-10-08")
         self.assertEqual(doc["meta"]["probe"], "capture")
         self.assertEqual(doc["meta"]["info"], {"dbgauthstatus": "0x000000ff"})
+        self.assertTrue(doc["meta"]["parked"])
         self.assertEqual(doc["meta"]["sanity"], {"passed": True, "failures": []})
         self.assertEqual(len(doc["records"]), 12)
         self.assertEqual(doc["records"][1]["case"], "gain")
         self.assertEqual(doc["records"][1]["cycles"], 9876)
+
+    def test_complete_capture_does_not_warn(self):
+        _, _, err = run_main("--from-capture", str(COMPLETE), "--out", str(self.out))
+        self.assertNotIn("warning", err)
+
+    def test_unparked_capture_is_written_with_a_warning(self):
+        capture = Path(self.out.parent) / "unparked.txt"
+        capture.write_text("\n".join(unparked_lines()) + "\n")
+        code, _, err = run_main("--from-capture", str(capture), "--out", str(self.out))
+        self.assertEqual(code, 0)
+        self.assertIn("warning: no `bench: parked` line", err)
+        self.assertIn("may still be lit", err)
+        self.assertTrue(
+            (self.out / "2026-10-08-abc1234.md").read_text().startswith(HEADER)
+        )
+        doc = json.loads((self.out / "2026-10-08-abc1234.json").read_text())
+        self.assertFalse(doc["meta"]["parked"])
+        self.assertEqual(len(doc["records"]), 12)
 
     def test_rerun_same_sha_overwrites(self):
         run_main("--from-capture", str(COMPLETE), "--out", str(self.out))
@@ -367,7 +413,7 @@ class RunPathTests(unittest.TestCase):
                 script,
                 "x/deluge.elf",
                 "--until",
-                "^BENCH-DONE",
+                "^bench: parked",
                 "--fail-on",
                 "panicked at",
                 "--fail-on",
@@ -422,6 +468,18 @@ class RunPathTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("BENCH-DONE", err)
         self.assertFalse(self.out.exists())
+
+    def test_timeout_after_done_without_parking_is_written_with_a_warning(self):
+        with mock.patch.object(
+            dsp_bench.subprocess,
+            "run",
+            return_value=self.completed(unparked_lines(), 2),
+        ):
+            code, _, err = run_main("--out", str(self.out))
+        self.assertEqual(code, 0)
+        self.assertIn("may still be lit", err)
+        doc = json.loads((self.out / "2026-10-08-abc1234.json").read_text())
+        self.assertFalse(doc["meta"]["parked"])
 
     def test_fail_on_bench_error_exits_2(self):
         rtt = [*TRUNCATED.read_text().splitlines()[:4], "BENCH-ERROR irq-enabled"]

@@ -7,9 +7,15 @@ Usage:
                        [--probe jlink|probe-rs]
 
 The ELF is built with `./dbt configure -DDELUGE_DSP_BENCH=ON`. By default the script runs
-deluge_jlink.py (or deluge_run.py for --probe probe-rs) until `BENCH-DONE`, failing on a panic or a
-`BENCH-ERROR` line, and reads the captured RTT lines from its --json result. --from-capture parses a
-saved capture (one RTT line per line) instead, for re-tabulating.
+deluge_jlink.py (or deluge_run.py for --probe probe-rs) until the device's `bench: parked` line,
+failing on a panic or a `BENCH-ERROR` line, and reads the captured RTT lines from its --json result.
+--from-capture parses a saved capture (one RTT line per line) instead, for re-tabulating.
+
+A bench image never starts the app. After `BENCH-DONE` it turns off the pads, button LEDs, gold-knob
+rings and OLED, which keep their state across a CPU reset, then prints
+`bench: parked, pads/LEDs/OLED off` and parks. The script waits for that line before the probe
+detaches, so the device it leaves running is dark. A complete run without it is still written, with a
+warning that the device may still be lit; "parked" in the JSON meta records which.
 
 The device prints one line per measurement:
     BENCH case=<name> n=<block> k=<blocks> cycles=<u32> cps=<x.xx> l1d_refill=<u32> inst=<u32>
@@ -18,8 +24,8 @@ and ends with `BENCH-DONE cases=<count>`, where count covers every BENCH line be
 per-size `calibration` lines included. Before the cases the device prints metadata lines,
 `BENCH-INFO <key>=<value>` (today `dbgauthstatus=0x...`, the Cortex-A9 DBGAUTHSTATUS register); they
 are not measurements, are not counted by BENCH-DONE and are recorded under "info" in the JSON meta.
-Other RTT lines (the boot log, and the plain `bench: ...` marker lines the device prints) are
-ignored. The run is complete only when BENCH-DONE is present, its count equals the parsed lines and no
+Other RTT lines (the boot log, and the plain `bench: ...` marker lines the device prints, the parked
+line apart) are ignored. The run is complete only when BENCH-DONE is present, its count equals the parsed lines and no
 line is malformed or a BENCH-ERROR.
 
 A complete run is then checked for sanity:
@@ -60,6 +66,7 @@ INT_FIELDS = ("n", "k", "cycles", *EVENTS)
 CPS_FORM = re.compile(r"\d+\.\d\d")
 DONE = re.compile(r"^BENCH-DONE cases=(\d+)\s*$")
 INFO = re.compile(r"^BENCH-INFO (\w+)=(\S+)\s*$")
+PARKED = "^bench: parked"
 CALIBRATION_LOOP = "calibration_loop"
 # calibration_loop renames 4 instructions * 4 iterations per sample in each block, plus under 32
 # instructions of per-block constant: inst lies in [16*k*n, 16*k*n + 32*k], [1024*n, 1024*n + 2048] at
@@ -95,6 +102,7 @@ class Capture(NamedTuple):
     done_count: int | None
     errors: list[str]
     info: dict[str, str]
+    parked: bool
 
 
 def parse_line(line: str) -> Record:
@@ -118,15 +126,22 @@ def parse_line(line: str) -> Record:
 
 
 def parse_capture(lines: list[str]) -> Capture:
-    """Pick the BENCH lines out of a capture; everything else is the app's own output."""
+    """Pick the BENCH lines out of a capture, and whether the device parked after them.
+
+    Lines after BENCH-DONE are not measurements; only the parked line is looked for there.
+    """
     records: list[Record] = []
     errors: list[str] = []
     info: dict[str, str] = {}
     done_count = None
+    parked = False
     for number, raw in enumerate(lines, start=1):
         line = raw.strip()
         if done_count is not None:
-            break
+            if re.match(PARKED, line):
+                parked = True
+                break
+            continue
         if line.startswith("BENCH-ERROR"):
             errors.append(f"line {number}: {line}")
         elif m := DONE.match(line):
@@ -140,7 +155,7 @@ def parse_capture(lines: list[str]) -> Capture:
                 records.append(parse_line(line))
             except ValueError as e:
                 errors.append(f"line {number}: malformed BENCH line: {e}")
-    return Capture(records, done_count, errors, info)
+    return Capture(records, done_count, errors, info, parked)
 
 
 def per_sample(count: int, k: int, n: int) -> str:
@@ -257,7 +272,7 @@ def run_probe(args: argparse.Namespace) -> tuple[int, list[str]]:
         str(TOOLS / PROBES[args.probe]),
         args.elf,
         "--until",
-        "^BENCH-DONE",
+        PARKED,
         "--fail-on",
         "panicked at",
         "--fail-on",
@@ -334,6 +349,7 @@ def main(argv: list[str] | None = None) -> int:
         "elf": args.elf,
         "elf_mtime": elf_stamp(args.elf),
         "info": cap.info,
+        "parked": cap.parked,
         "sanity": {"passed": not failures, "failures": failures},
     }
     out = Path(args.out)
@@ -347,6 +363,12 @@ def main(argv: list[str] | None = None) -> int:
     stem.with_suffix(".json").write_text(json.dumps(doc, indent=2) + "\n")
     print(table, end="")
     print(f"dsp_bench: wrote {stem}.md and .json", file=sys.stderr)
+    if not cap.parked:
+        print(
+            "dsp_bench: warning: no `bench: parked` line after BENCH-DONE; "
+            "the pads, LEDs and OLED may still be lit",
+            file=sys.stderr,
+        )
     if failures:
         print("dsp_bench: the run fails the sanity check:", file=sys.stderr)
         for f in failures:
