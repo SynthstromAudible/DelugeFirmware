@@ -76,7 +76,7 @@ Cycles per sample on the device, bench run on cab9fce07 (2026-10-09), `Mono` wra
 | `OnePole` ALL_PASS (`one_pole_ap`) | 12.78 | 11.73 | 11.13 |
 | `AntialiasedTanh` (`antialiased_tanh`) | 155.84 | 155.04 | 154.76 |
 | `Tanh<3>` (`tanh3`) | 18.26 | 17.61 | 17.31 |
-| `dry_wet_blend` (`dry_wet_blend`) | 9.58 | 8.51 | 8.02 |
+| `DryWetBlend` BLEND, `Mono` mixer (`dry_wet_blend`) | 9.58 | 8.51 | 8.02 |
 
 - The one-pole is the first recursive kernel measured, so its cost is the first data point for `Lanes<K, N>`. A
   single-channel `Mono` run measures the scalar recursion with its dependency chain; it says nothing about the gain from
@@ -90,6 +90,12 @@ Cycles per sample on the device, bench run on cab9fce07 (2026-10-09), `Mono` wra
   filters. Measure when the first filter kernel lands.
 - The `wavetable` bench case costs about 336 cycles per sample. Look at it when the oscillators move to the kernel form.
 - `BilinearTableInterpolator::interpolateSigned`, which `AntialiasedTanh` and the legacy saturation use, makes 7
-  out-of-line calls per sample at the shipping flags (span construction, `size`, `operator[]`, `bit_width`,
-  `array::data`). Reading through `data()` with constexpr rows would remove them.
+  top-level out-of-line calls per sample at the shipping flags (span construction, `size`, `operator[]`, `bit_width`,
+  `array::data`). They fan out to about 10 `bl`, one tail `b.w` and 10 returns per sample. `std::array::data()` and
+  `operator[]` are out of line too, so reading through either does not help. Two things remove the calls: a base
+  pointer evaluated at compile time, such as `inline constexpr const int16_t* kBase = kTanhTable[0].data();`, which
+  compiles to `movw`/`movt`; and a row count known at compile time, so that `bit_width` folds. With the calls gone,
+  the `antialiased_tanh` case would drop from about 155 to about 50–60 cycles per sample.
+- `tanh.h`'s `detail::tanh_lookup` calls `kTanhSmallTable.data()` out of line once per sample, and every `tanh<>` user
+  pays it: the ladders, the SVF and `Tanh<Drive>`. The same compile-time base pointer removes it.
 - `Mono::renderBlock` calls `std::span::size()` and `data()` per block, and both are out of line at the shipping flags.
