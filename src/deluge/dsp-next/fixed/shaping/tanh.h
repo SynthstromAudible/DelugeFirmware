@@ -32,8 +32,11 @@ inline constexpr uint32_t kTanhCentre = 2147483648u;
 
 namespace detail {
 /// @brief A position on the curve (unsigned, the full table across 32 bits) looked up and shifted down by drive + 2.
+/// @details The table's base is a constant, so the lookup makes no call to `std::array::data` where the app
+/// instantiates it.
 [[nodiscard]] [[gnu::always_inline]] inline q31 tanh_lookup(uint32_t position, uint32_t drive) {
-	return linear_table_interpolator.interpolateSigned(position, 32, kTanhSmallTable.data(), 8) >> (drive + 2);
+	constexpr const int16_t* kBase = kTanhSmallTable.data();
+	return linear_table_interpolator.interpolateSigned(position, 32, kBase, 8) >> (drive + 2);
 }
 } // namespace detail
 
