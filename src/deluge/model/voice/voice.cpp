@@ -51,7 +51,6 @@
 #include "synth/source/live/live_pitch_shifter.h"
 
 #include "dsp/oscillators/oscillator.h"
-#include "util/functions.h" // getTanHAntialiased (output-stage saturation)
 #include "util/misc.h"
 #include <cstring>
 #include <new>
