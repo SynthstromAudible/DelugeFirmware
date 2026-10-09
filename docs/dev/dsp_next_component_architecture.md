@@ -684,7 +684,15 @@ build can take them. `DELUGE_DSP_BENCH` (CMake option, off by default) compiles
 the benchmarks in `src/deluge/bench` into the device image and runs them once at
 boot: the BSP calls `deluge_app_bench()` after the static constructors and
 before `deluge_app_init()`, and the bench masks IRQs for its run. A build with the option off
-contains no bench code beyond the empty hook, and a host never calls it.
+contains no bench code beyond the hook, which returns false, and a host never calls it.
+
+A bench image ends parked and dark; it never starts the app. When the hook
+returns true, the BSP skips `deluge_app_init()`, waits for the PIC handshake,
+turns off every pad, sidebar pad, button LED and gold-knob ring, clears the OLED
+and sends it DISPLAY OFF, prints `bench: parked, pads/LEDs/OLED off`, and parks.
+The PIC and the OLED controller keep their state across a CPU reset, so without
+this they would show whatever the previous boot left for as long as the device
+stays powered.
 
 **Build and run.**
 
@@ -707,7 +715,10 @@ It exits 0 on success; 2 for an incomplete or malformed capture (no table is
 written); 3 when the probe script fails (its own code is in the message); and 4
 when the run is complete but fails the sanity check below (the table is written,
 marked with a `**SANITY CHECK FAILED**` banner). `--from-capture FILE`
-re-tabulates a saved capture.
+re-tabulates a saved capture. It runs the probe until the parked line, so the
+device it leaves running is dark; a capture with `BENCH-DONE` but no parked line
+is still written, with a warning that the device may still be lit, and the JSON
+metadata's `parked` says which.
 
 **What is measured.** Each case is a component, built as the voice builds it and
 run on the SRAM buffers the voice uses, and each is timed at block sizes
