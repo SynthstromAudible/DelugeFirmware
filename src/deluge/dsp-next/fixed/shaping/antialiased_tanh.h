@@ -22,7 +22,6 @@
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "dsp-next/fixed/shaping/tanh.h" // kTanhCentre
 #include "dsp-next/fixed/shaping/tanh_table.h"
-#include "util/param_functions.h" // lshiftAndSaturateUnknown
 
 #include <cstdint>
 #include <type_traits>
@@ -62,9 +61,13 @@ struct AntialiasedTanh {
 		uint32_t drive = 0; ///< The drive as a power of two: the input is scaled by 2^drive. 0 to 30: drive + 1 < 32.
 	};
 
-	/// @brief What a step reads.
+	/// @brief What a step reads: the drive, and the bounds its saturation clamps the input to before the shift.
+	/// @details The bounds are those of `lshiftAndSaturateUnknown`'s width, so a step clamps with two compares rather
+	/// than dispatching on the width per sample. The defaults are drive 0's: 12 bits.
 	struct Coefficients {
-		uint32_t drive = 0; ///< The drive as a power of two. 0 to 30.
+		uint32_t drive = 0;     ///< The drive as a power of two. 0 to 30.
+		int32_t floor = -2048;  ///< The lowest input kept before the shift, Q31: −2^(width − 1).
+		int32_t ceiling = 2047; ///< The highest input kept before the shift, Q31: 2^(width − 1) − 1.
 	};
 
 	/// @brief The previous sample's position. State{} is silence: the centre.
@@ -72,9 +75,12 @@ struct AntialiasedTanh {
 		uint32_t position = kTanhCentre; ///< The last step's position on the curve, unsigned over 32 bits.
 	};
 
-	/// @brief The coefficients for @p s: the drive, unchanged.
+	/// @brief The coefficients for @p s: the drive, and the bounds of its saturation width, 32 − drive bits for drives
+	/// 1 to 20 and 12 bits otherwise.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr Coefficients coefficients(const Settings& s) {
-		return {.drive = s.drive};
+		const int32_t width = (s.drive >= 1u && s.drive <= 20u) ? 32 - static_cast<int32_t>(s.drive) : 12;
+		const auto ceiling = static_cast<int32_t>((uint32_t{1} << (width - 1)) - 1u);
+		return {.drive = s.drive, .floor = -ceiling - 1, .ceiling = ceiling};
 	}
 
 	/// @brief One sample through the curve, interpolated from the previous position, which it then replaces.
@@ -109,8 +115,11 @@ struct AntialiasedTanh {
 
 private:
 	/// @brief @p x's position at the coefficients' drive: sat(x · 2^drive) + @ref kTanhCentre, wrapping unsigned.
+	/// @details Clamps with two ternaries: `std::clamp` is an out-of-line call where the app instantiates this.
 	[[nodiscard]] [[gnu::always_inline]] static uint32_t position_of(const Coefficients& c, q31 x) {
-		return static_cast<uint32_t>(lshiftAndSaturateUnknown(x, static_cast<uint8_t>(c.drive))) + kTanhCentre;
+		const q31 low_clamped = x < c.floor ? c.floor : x;
+		const q31 clamped = low_clamped > c.ceiling ? c.ceiling : low_clamped;
+		return (static_cast<uint32_t>(clamped) << c.drive) + kTanhCentre;
 	}
 };
 
