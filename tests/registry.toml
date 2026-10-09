@@ -214,6 +214,21 @@ tier = "pr"
 runtime = "~3m"
 
 [[harness]]
+name = "dsp-ubsan"
+path = "tests/dsp-ubsan"
+level = "unit"
+runner = "ctest"
+kind = "sanitizer"
+status = "gate"
+gates = "the dsp-next specs (tests/dsp) must run without a signed overflow or an out-of-range shift under UndefinedBehaviorSanitizer, any finding fatal: on the host a plain signed + gives the values wrapping_add gives, so the unit tree cannot see a kernel that overflows where it must wrap. filter_set_spec keeps the shift check only, for the legacy one-pole's wrapping sum (see tests/dsp-ubsan/CMakeLists.txt)"
+source = "tests/dsp-ubsan"
+tree = "build/test-dsp-ubsan"
+configure = ["-G", "Ninja"]
+requires = ["cmake", "clang"]
+tier = "pr"
+runtime = "~1m first build, ~5s after"
+
+[[harness]]
 name = "dsp-diff"
 path = "tests/component/dsp-diff"
 level = "component"
