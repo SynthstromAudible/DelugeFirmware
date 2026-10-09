@@ -52,6 +52,7 @@ typedef enum DelugeCpuFault : uint32_t {
 	DELUGE_CPU_FAULT_PREFETCH_ABORT = 1, ///< Instruction fetch from an address that can't be executed.
 	DELUGE_CPU_FAULT_DATA_ABORT = 2,     ///< Load or store to an address that can't be accessed.
 	DELUGE_CPU_FAULT_RESERVED = 3,       ///< The reserved vector (unreachable on the Cortex-A9).
+	DELUGE_CPU_FAULT_RUST_PANIC = 0xD,   ///< A Rust panic in the board support, not a CPU exception.
 	DELUGE_CPU_FAULT_FREEZE = 0xE,       ///< FREEZE_WITH_ERROR, not a CPU exception.
 	DELUGE_CPU_FAULT_SVC = 0xF,          ///< Supervisor call; nothing makes them, so it is a fault.
 } DelugeCpuFault;

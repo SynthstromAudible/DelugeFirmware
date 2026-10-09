@@ -56,6 +56,9 @@ std::string colourName(std::array<uint8_t, 3> rgb) {
 	if (rgb == std::array<uint8_t, 3>{255, 255, 255}) {
 		return "white";
 	}
+	if (rgb == std::array<uint8_t, 3>{255, 128, 0}) {
+		return "orange";
+	}
 	return "other";
 }
 
@@ -184,6 +187,7 @@ describe fault_pattern("deluge_fault_pattern_draw", $ {
 		};
 		for (Case const& c : {Case{DELUGE_CPU_FAULT_UNDEFINED, "green"}, Case{DELUGE_CPU_FAULT_PREFETCH_ABORT, "blue"},
 		                      Case{DELUGE_CPU_FAULT_DATA_ABORT, "red"}, Case{DELUGE_CPU_FAULT_RESERVED, "magenta"},
+		                      Case{DELUGE_CPU_FAULT_RUST_PANIC, "orange"},
 		                      Case{DELUGE_CPU_FAULT_FREEZE, "yellow"}, Case{DELUGE_CPU_FAULT_SVC, "cyan"}}) {
 			reset();
 			deluge_fault_pattern_draw(0, c.type, 0, 0);
