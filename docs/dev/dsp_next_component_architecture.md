@@ -677,6 +677,105 @@ state fully into the engine is later work.
   `FixedPoint<31>` types, full phase relocation into the engine, per-voice
   noise, the L1 `SourceEngine`/CLAP boundary.
 
+## Measuring
+
+The choices of `U`, `Lanes` and fusion rest on device cycle counts, and the
+build can take them. `DELUGE_DSP_BENCH` (CMake option, off by default) compiles
+the benchmarks in `src/deluge/bench` into the device image and runs them once at
+boot: the BSP calls `deluge_app_bench()` after the static constructors and
+before `deluge_app_init()`, with IRQs masked. A build with the option off
+contains no bench code beyond the empty hook, and a host never calls it.
+
+**Build and run.**
+
+```sh
+./dbt configure -DDELUGE_DSP_BENCH=ON
+./dbt build RelWithDebInfo
+tools/dsp_bench.py --timeout 180          # flashes, captures RTT, writes the table
+./dbt configure -DDELUGE_DSP_BENCH=OFF    # the option sticks in the CMake cache
+./dbt build RelWithDebInfo
+```
+
+Attach the J-Link probe before the board boots: the RTT buffer is 16 KB, the
+bench prints about 6 KB beside the boot logs, and lines are dropped when the
+buffer is full. `dsp_bench.py` writes `.superpowers/estate/bench/<date>-<sha>.md`
+(the table) and `.json` (the records and the run's metadata, the `BENCH-INFO`
+values among it). It exits 0 on success, 2 for an incomplete or malformed
+capture (no table is written), and passes the probe script's own code through
+(3 for a probe error, 4 for bad usage). `--from-capture FILE` re-tabulates a
+saved capture.
+
+**What is measured.** Each case is a component, built as the voice builds it and
+run on the SRAM buffers the voice uses, and each is timed at block sizes
+n = 32, 64 and 128:
+
+1. `setup(n)` configures the component and fills its inputs;
+2. four blocks run untimed, so the component is in the state its comment
+   documents;
+3. K = 64 consecutive blocks run between two counter readings;
+4. the difference, modulo 2^32, less the calibration's difference at the same n
+   (each counter floored at zero), is the case's result.
+
+The calibration (`case=calibration`) is the same loop and the same indirect call
+over a component whose block does nothing, so subtracting it removes the cost of
+reading the counters and of the call. It is printed raw, so the table shows what
+was subtracted.
+
+**The lines.** Each measurement is one RTT line:
+
+```
+BENCH case=<name> n=<block> k=<blocks> cycles=<u32> cps=<x.xx> l1d_refill=<u32> inst=<u32> dc_stall=<u32> issue_empty=<u32> neon=<u32>
+```
+
+ending with `BENCH-DONE cases=<count>`, which counts every `BENCH` line before it
+(the calibration lines included). `BENCH-INFO <key>=<value>` lines before the
+cases are metadata and are not counted. The fields:
+
+| Field | Meaning |
+| --- | --- |
+| `cycles` | CPU cycles over the K timed blocks (PMCCNTR, undivided, 32 bits) |
+| `cps` | cycles per sample, cycles / (K * n), two decimals, rounded half up |
+| `l1d_refill` | L1 data cache refills (event 0x03) |
+| `inst` | instructions through the renaming stage (0x68; includes a few renamed down a mispredicted path) |
+| `dc_stall` | cycles stalled on a data cache dependency (0x61) |
+| `issue_empty` | cycles the issue stage dispatched nothing (0x66) |
+| `neon` | NEON instructions through the renaming stage (0x74) |
+
+The events are the Cortex-A9 PMU's (Cortex-A9 TRM, DDI 0388I, Tables 11.5 and
+11.6), one counter each, so they count together without multiplexing. The table
+`dsp_bench.py` writes shows `cps` as printed and the event counts per sample.
+
+**Sanity.** `calibration_loop` runs a loop of known length, so its `inst` lies in
+[1024 * n, 1024 * n + 2048] and its `cps` is at least 32.00 (the arithmetic is in
+the case's comment in `cases.h`). A result outside that means the event
+programming, not the component, is at fault: settle it before trusting any row.
+
+**Counters that read zero.** The A9 counts events only where non-invasive debug
+is permitted. In Secure state that needs SPNIDEN (or SPIDEN) high (Cortex-A9 TRM,
+10.8, Table 10.12; ARMv7-A ARM, DDI 0406C.b, Part C, "Non-invasive debug
+authentication"). With it low the event counters do not count while PMCCNTR
+still does, because PMCR.DP is 0 (DDI 0406C.b, "Effects of non-invasive debug
+authentication on the Performance Monitors"). The signature is a plausible
+`cycles` beside every event at zero, `inst` of `calibration_loop` first. The
+bench prints the register that settles it before the cases:
+
+```
+BENCH-INFO dbgauthstatus=0x........
+```
+
+DBGAUTHSTATUS is read with `mrc p14, 0, <Rt>, c7, c14, 6` (DDI 0406C.b,
+"DBGAUTHSTATUS, Authentication Status register"; Cortex-A9 TRM, Table 10.9). Bit 6
+(SNE) is set when non-invasive debug is permitted in Secure PL1 modes, and bit 2
+(NSNE) when it is permitted in Non-secure state. With bit 6 clear the events do
+not count in Secure state, and it is the board's authentication signals, not the
+firmware, that have to change.
+
+**Using the numbers.** They inform: which `U` a wrapper unrolls by, which lane
+count a recursive kernel takes, and which kernels are worth fusing. They never
+gate: no test depends on them. A table is evidence for a performance claim with
+its sha and date. A codegen claim uses the exact shipping flags
+(`-fno-inline-functions`, LTO), because a host build differs.
+
 ## Review checklist
 
 Every reviewer of every component change applies these, alongside the golden
@@ -726,3 +825,5 @@ gates:
   `[[gnu::always_inline]]`? The app's translation units build with
   `-fno-inline-functions`, so anything else is an out-of-line call per sample
   or per vector in the shipping image.
+- Does a performance claim cite a bench table, or the exact shipping-flags
+  disassembly?
