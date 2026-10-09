@@ -22,19 +22,22 @@ constexpr uint32_t kSeed = 0x5EED'1234;
 /// @brief The q31 samples of padding after each shared q31 block: 256 bytes.
 constexpr std::size_t kBlockGap = 64;
 
-/// @brief The shared q31 blocks, in SRAM .bss: every case reads and writes these, as the voice renders into its SRAM
+/// @brief The shared blocks, in SRAM .bss: every case reads and writes these, as the voice renders into its SRAM
 /// buffers.
 /// @details One object, so their distances are fixed by its layout rather than by where the linker places separate
-/// globals. Each block is followed by kBlockGap samples of padding, so no block sits a multiple of 1 KB from another:
-/// the inputs are 768 bytes apart, the output 768 bytes after input_b and 1536 after input_a. On the Cortex-A9 a load
+/// globals. Each q31 block is followed by kBlockGap samples of padding, so no block sits a multiple of 1 KB from
+/// another: the inputs are 768 bytes apart, the output 768 bytes after input_b and 1536 after input_a, and the stereo
+/// block 768 bytes after the output, 1536 after input_b and 2304 after input_a. On the Cortex-A9 a load
 /// a multiple of 1 KB from a pending store waits on it (the check compares partial addresses), which costs a mono
 /// case about 1 cycle per sample whenever its output sits a multiple of 1 KB from its input.
 struct SharedBlocks {
-	alignas(16) std::array<q31, kMaxBlock> input_a; ///< The first input.
-	std::array<q31, kBlockGap> after_a;             ///< Padding, never read or written.
-	alignas(16) std::array<q31, kMaxBlock> input_b; ///< The second input.
-	std::array<q31, kBlockGap> after_b;             ///< Padding, never read or written.
-	alignas(16) std::array<q31, kMaxBlock> output;  ///< The output.
+	alignas(16) std::array<q31, kMaxBlock> input_a;         ///< The first input.
+	std::array<q31, kBlockGap> after_a;                     ///< Padding, never read or written.
+	alignas(16) std::array<q31, kMaxBlock> input_b;         ///< The second input.
+	std::array<q31, kBlockGap> after_b;                     ///< Padding, never read or written.
+	alignas(16) std::array<q31, kMaxBlock> output;          ///< The output.
+	std::array<q31, kBlockGap> after_output;                ///< Padding, never read or written.
+	alignas(16) std::array<StereoSample, kMaxBlock> stereo; ///< The stereo block, read and written in place.
 };
 
 /// @brief Whether the blocks at byte offsets @p a and @p b of SharedBlocks sit a multiple of 1 KB apart.
@@ -44,11 +47,13 @@ constexpr bool kilobyte_apart(std::size_t a, std::size_t b) {
 
 static_assert(!kilobyte_apart(offsetof(SharedBlocks, input_a), offsetof(SharedBlocks, input_b))
                   && !kilobyte_apart(offsetof(SharedBlocks, input_a), offsetof(SharedBlocks, output))
-                  && !kilobyte_apart(offsetof(SharedBlocks, input_b), offsetof(SharedBlocks, output)),
-              "no shared q31 block sits a multiple of 1 KB from another");
+                  && !kilobyte_apart(offsetof(SharedBlocks, input_b), offsetof(SharedBlocks, output))
+                  && !kilobyte_apart(offsetof(SharedBlocks, input_a), offsetof(SharedBlocks, stereo))
+                  && !kilobyte_apart(offsetof(SharedBlocks, input_b), offsetof(SharedBlocks, stereo))
+                  && !kilobyte_apart(offsetof(SharedBlocks, output), offsetof(SharedBlocks, stereo)),
+              "no shared block sits a multiple of 1 KB from another");
 
 SharedBlocks shared{};
-alignas(16) std::array<StereoSample, kMaxBlock> stereo_block{};
 
 /// @brief The wavetable's stored samples: each cycle, then its seven duplicates of the cycle's first samples.
 constexpr std::size_t kWavetableStride = WavetableCase::kCycleSize + dsp::fixed::kWavetableDuplicateSamplesAtCycleEnd;
@@ -105,7 +110,7 @@ std::span<const q31, kMaxBlock> output() {
 }
 
 std::span<const StereoSample, kMaxBlock> stereo() {
-	return stereo_block;
+	return shared.stereo;
 }
 
 void CalibrationLoop::setup(std::size_t /*n*/) {
@@ -288,10 +293,10 @@ void MonoVecGainCase::block(std::size_t /*n*/) {
 }
 
 void StereoGainCase::setup(std::size_t n) {
-	out_ = dsp::Buffer<StereoSample>{stereo_block.data(), n};
+	out_ = dsp::Buffer<StereoSample>{shared.stereo.data(), n};
 	in_ = out_;
 	dsp::fixed::SeededNoise noise{kSeed};
-	for (StereoSample& frame : stereo_block) {
+	for (StereoSample& frame : shared.stereo) {
 		frame.l = noise.render();
 		frame.r = noise.render();
 	}
