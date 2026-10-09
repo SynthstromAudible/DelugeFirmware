@@ -61,7 +61,7 @@ struct AntialiasedTanh {
 
 	/// @brief What the owner sets.
 	struct Settings {
-		uint32_t drive = 0; ///< The drive as a power of two: the input is scaled by 2^drive. 0 to 30.
+		uint32_t drive = 0; ///< The drive as a power of two: the input is scaled by 2^drive. 0 to 30: drive + 1 < 32.
 	};
 
 	/// @brief What a step reads.

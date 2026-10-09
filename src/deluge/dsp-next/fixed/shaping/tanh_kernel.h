@@ -31,9 +31,10 @@ namespace deluge::dsp::fixed {
 
 /// @brief Tanh saturation at drive 2^@p Drive with no memory: each step is @ref tanh<Drive> of its sample, Q31 in and
 /// Q31 out, shifted down by Drive + 2.
-/// @tparam Drive The drive as a power of two. Saturation is at 32 − Drive bits for every drive.
+/// @tparam Drive The drive as a power of two, 0 to 29: the output shift, Drive + 2, must stay below 32. Saturation is
+/// at 32 − Drive bits for every drive.
 template <uint32_t Drive>
-requires(Drive <= 31)
+requires(Drive <= 29)
 struct Tanh {
 	using value_type = q31; ///< A sample, Q31.
 	using step_type = q31;  ///< A sample, Q31: one step per sample.

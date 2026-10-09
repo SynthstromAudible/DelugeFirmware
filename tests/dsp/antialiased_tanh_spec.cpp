@@ -64,6 +64,13 @@ static_assert(processor_kernel<Tanh<0>>);
 static_assert(processor_kernel<Tanh<3>>);
 static_assert(processor_kernel<Tanh<20>>);
 static_assert(!std::is_polymorphic_v<Tanh<3>>);
+
+/// Whether Tanh<Drive> is a valid type: its output shift, Drive + 2, must stay below 32.
+template <uint32_t Drive>
+concept tanh_drive_allowed = requires { typename Tanh<Drive>; };
+static_assert(tanh_drive_allowed<29>);
+static_assert(!tanh_drive_allowed<30>);
+static_assert(!tanh_drive_allowed<31>);
 static_assert(processor<Mono<Tanh<3>>>);
 
 /// The extremes of q31.
@@ -204,12 +211,10 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 		for (uint32_t drive = 0; drive <= kMaxDrive; ++drive) {
 			AntialiasedTanh::State state{};
 			legacy::AntialiasedTanh curve{drive};
-			{
-				const Run kernel = run_kernel(drive, state, input);
-				const Run legacy = run_legacy(curve, input);
-				expect(kernel.out).to_equal(legacy.out);
-				expect(kernel.positions).to_equal(legacy.positions);
-			}
+			const Run kernel = run_kernel(drive, state, input);
+			const Run reference = run_legacy(curve, input);
+			expect(kernel.out).to_equal(reference.out);
+			expect(kernel.positions).to_equal(reference.positions);
 		}
 	});
 	it("keeps the position across a drive change in the middle of a block, as the class's setDrive does", _ {
@@ -221,19 +226,15 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 		         {{3, 8}, {8, 3}, {0, kMaxDrive}, {kMaxDrive, 0}, {5, 6}, {1, 0}}}) {
 			AntialiasedTanh::State state{};
 			legacy::AntialiasedTanh curve{from};
-			{
-				const Run kernel = run_kernel(from, state, before);
-				const Run legacy = run_legacy(curve, before);
-				expect(kernel.out).to_equal(legacy.out);
-				expect(kernel.positions).to_equal(legacy.positions);
-			}
+			const Run kernel_before = run_kernel(from, state, before);
+			const Run reference_before = run_legacy(curve, before);
+			expect(kernel_before.out).to_equal(reference_before.out);
+			expect(kernel_before.positions).to_equal(reference_before.positions);
 			curve.setDrive(to);
-			{
-				const Run kernel = run_kernel(to, state, after);
-				const Run legacy = run_legacy(curve, after);
-				expect(kernel.out).to_equal(legacy.out);
-				expect(kernel.positions).to_equal(legacy.positions);
-			}
+			const Run kernel_after = run_kernel(to, state, after);
+			const Run reference_after = run_legacy(curve, after);
+			expect(kernel_after.out).to_equal(reference_after.out);
+			expect(kernel_after.positions).to_equal(reference_after.positions);
 		}
 	});
 	it("keeps the position across a drive change between blocks in Mono, as the class's setDrive does", _ {
@@ -265,12 +266,10 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 				AntialiasedTanh::seed(c, state, sample);
 				expect(state.position).to_equal(compressor_seed(sample, drive));
 				legacy::AntialiasedTanh fresh{drive, compressor_seed(sample, drive)};
-				{
 				const Run kernel = run_kernel(drive, state, input);
-				const Run legacy = run_legacy(fresh, input);
-				expect(kernel.out).to_equal(legacy.out);
-				expect(kernel.positions).to_equal(legacy.positions);
-			}
+				const Run reference = run_legacy(fresh, input);
+				expect(kernel.out).to_equal(reference.out);
+				expect(kernel.positions).to_equal(reference.positions);
 			}
 		}
 	});
@@ -306,12 +305,10 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 				AntialiasedTanh::place(state, position);
 				expect(state.position).to_equal(position);
 				legacy::AntialiasedTanh fresh{drive, position};
-				{
 				const Run kernel = run_kernel(drive, state, input);
-				const Run legacy = run_legacy(fresh, input);
-				expect(kernel.out).to_equal(legacy.out);
-				expect(kernel.positions).to_equal(legacy.positions);
-			}
+				const Run reference = run_legacy(fresh, input);
+				expect(kernel.out).to_equal(reference.out);
+				expect(kernel.positions).to_equal(reference.positions);
 			}
 		}
 	});

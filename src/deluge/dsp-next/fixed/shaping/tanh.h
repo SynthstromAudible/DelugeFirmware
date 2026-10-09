@@ -40,8 +40,8 @@ namespace detail {
 /// @brief Tanh saturation without antialiasing memory: the input (Q31) driven by 2^@p drive (saturating), looked up
 /// in @ref kTanhSmallTable, and shifted down by drive + 2 — so the output's level falls as the drive rises (Q31 at a
 /// quarter of full scale undriven), and callers scale it back as their home needs.
-/// @param drive The drive as a power of two. Saturation is at 32 - drive bits for drives up to 19 and at 12 bits
-/// beyond; see the compile-time overload for drives past 19.
+/// @param drive The drive as a power of two, 0 to 29: the output shift, drive + 2, must stay below 32. Saturation is
+/// at 32 - drive bits for drives 1 to 20 and at 12 bits for drives past 20; see the compile-time overload for those.
 [[nodiscard, gnu::always_inline]] inline q31 tanh(q31 sample, uint32_t drive) {
 	const uint32_t position =
 	    drive != 0u ? static_cast<uint32_t>(lshiftAndSaturateUnknown(sample, static_cast<uint8_t>(drive))) + kTanhCentre
@@ -50,8 +50,10 @@ namespace detail {
 }
 
 /// @brief @ref tanh with the drive fixed at compile time: saturation is at exactly 32 - @p Drive bits for every drive
-/// (the runtime form's saturation stops narrowing at 12 bits, so the two differ past a drive of 19).
+/// (the runtime form's saturation stops narrowing at 12 bits, so the two differ past a drive of 20).
+/// @tparam Drive The drive as a power of two, 0 to 29: the output shift, Drive + 2, must stay below 32.
 template <uint32_t Drive>
+requires(Drive <= 29)
 [[nodiscard, gnu::always_inline]] inline q31 tanh(q31 sample) {
 	uint32_t position{};
 	if constexpr (Drive != 0u) {
