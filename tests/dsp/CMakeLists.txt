@@ -22,6 +22,10 @@ set(mode_spec_DEPS)
 # The kernel-concept spec needs no sources: the concepts are header-only, and its reference kernels use only
 # util/fixedpoint.h's inline arithmetic.
 set(kernel_spec_DEPS)
+# The frame and lane-pack specs need no sources: Frame and LanePack are header-only, and the kernels the lane-pack spec
+# writes generically are header-only too.
+set(frame_spec_DEPS)
+set(lane_pack_spec_DEPS)
 # The Mono spec needs no sources: Mono and its reference kernels are header-only.
 set(mono_spec_DEPS)
 # The Control spec needs no sources: Control and its reference kernels are header-only.
