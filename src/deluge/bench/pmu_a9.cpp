@@ -76,6 +76,12 @@ constexpr uint32_t kCounterBits = ((uint32_t{1} << kEventCount) - 1) | kCycleCou
 
 } // namespace
 
+uint32_t read_dbgauthstatus() {
+	uint32_t value = 0;
+	asm volatile("mrc p14, 0, %0, c7, c14, 6" : "=r"(value));
+	return value;
+}
+
 void PmuA9::start() {
 	// Stop every counter while the events change, and clear any overflow left from before.
 	write_pmcntenclr(kCounterBits);

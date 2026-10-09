@@ -1,0 +1,5 @@
+Deluge Rust BSP up
+BENCH-INFO dbgauthstatus=0x000000aa
+BENCH case=calibration n=128 k=64 cycles=410 cps=0.05 l1d_refill=0 inst=1030 dc_stall=0 issue_empty=0 neon=0
+BENCH case=slow n=128 k=64 cycles=4000000000 cps=488281.25 l1d_refill=4000000000 inst=4294967295 dc_stall=0 issue_empty=7 neon=0
+BENCH-DONE cases=2

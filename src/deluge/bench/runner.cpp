@@ -43,6 +43,19 @@ public:
 		number(value);
 	}
 
+	/// @brief Appends @p value as 0x and exactly eight lowercase hex digits.
+	void hex32(uint32_t value) {
+		constexpr std::size_t kDigits = 8;
+		std::array<char, kDigits> digits{};
+		const auto [end, error] = std::to_chars(digits.data(), digits.data() + kDigits, value, 16);
+		const auto written = error == std::errc{} ? static_cast<std::size_t>(end - digits.data()) : kDigits;
+		text("0x");
+		for (std::size_t i = written; i < kDigits; ++i) {
+			text("0");
+		}
+		text(std::string_view{digits.data(), written});
+	}
+
 	/// @return The text written, or an empty view if any of it did not fit.
 	[[nodiscard]] std::string_view line() const {
 		return overflowed_ ? std::string_view{} : std::string_view{buffer_.data(), used_};
@@ -140,6 +153,15 @@ std::string_view format_line(std::span<char> buffer, std::string_view name, std:
 	out.field("dc_stall", delta.events[std::to_underlying(Event::DC_STALL)]);
 	out.field("issue_empty", delta.events[std::to_underlying(Event::ISSUE_EMPTY)]);
 	out.field("neon", delta.events[std::to_underlying(Event::NEON)]);
+	return out.line();
+}
+
+std::string_view format_info_line(std::span<char> buffer, std::string_view key, uint32_t value) {
+	LineWriter out{buffer};
+	out.text("BENCH-INFO ");
+	out.text(key);
+	out.text("=");
+	out.hex32(value);
 	return out.line();
 }
 

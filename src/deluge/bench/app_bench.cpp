@@ -37,6 +37,13 @@ void log_line(std::string_view line) {
 	deluge_log("\n");
 }
 
+/// @brief Prints the debug authentication status, which says whether the event counters can count.
+/// @details See read_dbgauthstatus().
+void log_dbgauthstatus() {
+	std::array<char, deluge::bench::kLineCapacity> buffer{};
+	log_line(deluge::bench::format_info_line(buffer, "dbgauthstatus", deluge::bench::read_dbgauthstatus()));
+}
+
 /// @brief The block sizes every case is timed at, in samples.
 constexpr std::array<std::size_t, 3> kBlockSizes{32, 64, 128};
 
@@ -48,6 +55,7 @@ extern "C" void deluge_app_bench(void) noexcept {
 		log_line("BENCH-ERROR irq-enabled");
 		return;
 	}
+	log_dbgauthstatus();
 	deluge::bench::PmuA9 pmu;
 	std::ignore = deluge::bench::run(deluge::bench::cases(), {.block_sizes = kBlockSizes}, pmu, log_line);
 }

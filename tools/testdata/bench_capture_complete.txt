@@ -1,4 +1,5 @@
 Deluge Rust BSP up
+BENCH-INFO dbgauthstatus=0x000000aa
 0.004 SD card mounted
 BENCH case=calibration n=32 k=64 cycles=1210 cps=0.59 l1d_refill=0 inst=1030 dc_stall=2 issue_empty=310 neon=0
 BENCH case=gain n=32 k=64 cycles=9876 cps=4.82 l1d_refill=3 inst=14336 dc_stall=40 issue_empty=2100 neon=4096

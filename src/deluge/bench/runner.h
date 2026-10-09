@@ -13,14 +13,14 @@
 ///
 /// **The calibration** is a case made by make_case() over an EmptyComponent, timed first at each block size through
 /// the same loop, the same indirect call, the same trampoline into the component's `block` and the same two reads as
-/// every other case. Its delta is the cost of the measurement itself, so
-/// subtracting it leaves the cost of the component's blocks alone. It is printed raw, as `case=calibration`, so the
-/// table shows how much was subtracted. A real case can measure under it by a few cycles of noise; that counter is
-/// reported as zero rather than wrapping to near 2^32.
+/// every other case. Its delta is the cost of the measurement itself, so subtracting it leaves the cost of the
+/// component's blocks alone. It is printed raw, as `case=calibration`, so the table shows how much was subtracted. A
+/// real case can measure under it by a few cycles of noise; that counter is reported as zero rather than wrapping to
+/// near 2^32.
 ///
 /// **The lines.** Each measurement prints one line, without a newline:
 ///
-///     BENCH case=<name> n=<block> k=<blocks> cycles=<u64> cps=<x.xx> l1d_refill=<u32> inst=<u32> dc_stall=<u32>
+///     BENCH case=<name> n=<block> k=<blocks> cycles=<u32> cps=<x.xx> l1d_refill=<u32> inst=<u32> dc_stall=<u32>
 ///     issue_empty=<u32> neon=<u32>
 ///
 /// (one line, wrapped here), and the run ends with `BENCH-DONE cases=<count>`, where count is the number of lines the
@@ -32,12 +32,16 @@
 /// **cps** is cycles ÷ (K·n) with exactly two decimals, rounded half up: hundredths = ⌊(100·cycles + K·n/2) ÷ (K·n)⌋,
 /// in 64-bit integers, so 0.125 prints as `0.13` and 0.9995 as `1.00`. A measurement of no samples prints `0.00`.
 ///
+/// **The info line.** Before the cases, the caller may print metadata about the run with format_info_line():
+/// `BENCH-INFO <key>=0x<8 hex digits>`. It is not a measurement and is not counted by `BENCH-DONE`.
+///
 /// The runner neither masks interrupts nor programs the counters' events: its caller does both before calling run().
 
 #include "bench/counters.h"
 
 #include <concepts>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 #include <string_view>
 
@@ -122,5 +126,12 @@ std::size_t run(std::span<const Case> cases, const RunConfig& config, Counters& 
 /// @return The line, a view into `buffer`; empty when `buffer` cannot hold it.
 std::string_view format_line(std::span<char> buffer, std::string_view name, std::size_t n, std::size_t k,
                              const Sample& delta);
+
+/// @brief Formats one metadata line: `BENCH-INFO <key>=0x<value as 8 lowercase hex digits>`.
+/// @param buffer Where the line is written.
+/// @param key The metadata's name; no spaces.
+/// @param value The register or word to print.
+/// @return The line, a view into `buffer`; empty when `buffer` cannot hold it.
+std::string_view format_info_line(std::span<char> buffer, std::string_view key, uint32_t value);
 
 } // namespace deluge::bench

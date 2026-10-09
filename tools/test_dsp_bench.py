@@ -15,6 +15,7 @@ DATA = Path(__file__).parent / "testdata"
 COMPLETE = DATA / "bench_capture_complete.txt"
 TRUNCATED = DATA / "bench_capture_truncated.txt"
 MISMATCH = DATA / "bench_capture_count_mismatch.txt"
+EXTREMES = DATA / "bench_capture_extremes.txt"
 
 GAIN_32 = dsp_bench.Record(
     case="gain",
@@ -69,13 +70,26 @@ class ParseTests(unittest.TestCase):
         self.assertIsNone(cap.done_count)
         self.assertEqual(len(cap.records), 7)
 
+    def test_info_lines_are_recorded_and_not_counted(self):
+        cap = self.parse(COMPLETE)
+        self.assertEqual(cap.info, {"dbgauthstatus": "0x000000aa"})
+        self.assertEqual(cap.done_count, len(cap.records))
+
+    def test_malformed_info_line_is_an_error(self):
+        cap = dsp_bench.parse_capture(
+            ["BENCH-INFO dbgauthstatus", "BENCH-DONE cases=0"]
+        )
+        self.assertEqual(len(cap.errors), 1)
+        self.assertIn("line 1", cap.errors[0])
+        self.assertEqual(cap.info, {})
+
     def test_malformed_line_reports_its_line_number(self):
         lines = COMPLETE.read_text().splitlines()
-        self.assertTrue(lines[3].startswith("BENCH case=gain"))
-        lines[3] = lines[3].replace(" neon=4096", "")
+        self.assertTrue(lines[4].startswith("BENCH case=gain"))
+        lines[4] = lines[4].replace(" neon=4096", "")
         cap = dsp_bench.parse_capture(lines)
         self.assertEqual(len(cap.errors), 1)
-        self.assertIn("line 4", cap.errors[0])
+        self.assertIn("line 5", cap.errors[0])
         self.assertIn("neon", cap.errors[0])
 
     def test_bench_error_lines_are_errors(self):
@@ -118,6 +132,26 @@ class TableTests(unittest.TestCase):
         self.assertEqual(dsp_bench.per_sample(1, 8, 2), "0.06")
 
 
+class ExtremeValueTests(unittest.TestCase):
+    def test_small_cps_and_large_cycles_parse_and_tabulate(self):
+        cap = dsp_bench.parse_capture(EXTREMES.read_text().splitlines())
+        self.assertEqual(cap.errors, [])
+        self.assertEqual(cap.done_count, 2)
+        calibration, slow = cap.records
+        self.assertEqual((calibration.cps, calibration.cycles), ("0.05", 410))
+        self.assertEqual((slow.cps, slow.cycles), ("488281.25", 4_000_000_000))
+        self.assertEqual(slow.inst, 2**32 - 1)
+        lines = dsp_bench.render_table(cap.records).splitlines()
+        self.assertEqual(
+            lines[2],
+            "| calibration | 128 | 0.05 | 410 | 0.00 | 0.13 | 0.00 | 0.00 | 0.00 |",
+        )
+        self.assertEqual(
+            lines[3],
+            "| slow | 128 | 488281.25 | 4000000000 | 488281.25 | 524288.00 | 0.00 | 0.00 | 0.00 |",
+        )
+
+
 class CaptureCliTests(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
@@ -138,6 +172,7 @@ class CaptureCliTests(unittest.TestCase):
         self.assertEqual(doc["meta"]["sha"], "abc1234")
         self.assertEqual(doc["meta"]["date"], "2026-10-08")
         self.assertEqual(doc["meta"]["probe"], "capture")
+        self.assertEqual(doc["meta"]["info"], {"dbgauthstatus": "0x000000aa"})
         self.assertEqual(len(doc["records"]), 9)
         self.assertEqual(doc["records"][1]["case"], "gain")
         self.assertEqual(doc["records"][1]["cycles"], 9876)
@@ -168,17 +203,17 @@ class CaptureCliTests(unittest.TestCase):
 
     def test_malformed_line_exits_2_naming_the_line(self):
         lines = COMPLETE.read_text().splitlines()
-        lines[3] = lines[3].replace(" neon=4096", "")
+        lines[4] = lines[4].replace(" neon=4096", "")
         bad = Path(self.out.parent) / "bad.txt"
         bad.write_text("\n".join(lines) + "\n")
         code, _, err = run_main("--from-capture", str(bad), "--out", str(self.out))
         self.assertEqual(code, 2)
-        self.assertIn("line 4", err)
+        self.assertIn("line 5", err)
         self.assertFalse(self.out.exists())
 
     def test_overflow_line_makes_the_run_incomplete(self):
         lines = COMPLETE.read_text().splitlines()
-        lines[3] = "BENCH-ERROR line-overflow"
+        lines[4] = "BENCH-ERROR line-overflow"
         bad = Path(self.out.parent) / "overflow.txt"
         bad.write_text("\n".join(lines) + "\n")
         code, _, err = run_main("--from-capture", str(bad), "--out", str(self.out))

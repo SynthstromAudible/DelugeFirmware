@@ -12,10 +12,13 @@ deluge_jlink.py (or deluge_run.py for --probe probe-rs) until `BENCH-DONE`, fail
 saved capture (one RTT line per line) instead, for re-tabulating.
 
 The device prints one line per measurement:
-    BENCH case=<name> n=<block> k=<blocks> cycles=<u64> cps=<x.xx> l1d_refill=<u32> inst=<u32>
+    BENCH case=<name> n=<block> k=<blocks> cycles=<u32> cps=<x.xx> l1d_refill=<u32> inst=<u32>
     dc_stall=<u32> issue_empty=<u32> neon=<u32>
 and ends with `BENCH-DONE cases=<count>`, where count covers every BENCH line before it, the
-per-size `calibration` lines included. Other RTT lines are ignored. The run is complete only when
+per-size `calibration` lines included. Before the cases the device prints metadata lines,
+`BENCH-INFO <key>=<value>` (today `dbgauthstatus=0x...`, the Cortex-A9 DBGAUTHSTATUS register); they
+are not measurements, are not counted by BENCH-DONE and are recorded under "info" in the JSON meta.
+Other RTT lines are ignored. The run is complete only when
 BENCH-DONE is present, its count equals the parsed lines and no line is malformed or a BENCH-ERROR.
 
 Output, in --out: <YYYY-MM-DD>-<git short sha>.md (a Markdown table: case, n, cps, cycles and each
@@ -43,6 +46,7 @@ FIELDS = ("case", "n", "k", "cycles", "cps", *EVENTS)
 INT_FIELDS = ("n", "k", "cycles", *EVENTS)
 CPS_FORM = re.compile(r"\d+\.\d\d")
 DONE = re.compile(r"^BENCH-DONE cases=(\d+)\s*$")
+INFO = re.compile(r"^BENCH-INFO (\w+)=(\S+)\s*$")
 
 
 class Record(NamedTuple):
@@ -66,6 +70,7 @@ class Capture(NamedTuple):
     records: list[Record]
     done_count: int | None
     errors: list[str]
+    info: dict[str, str]
 
 
 def parse_line(line: str) -> Record:
@@ -92,6 +97,7 @@ def parse_capture(lines: list[str]) -> Capture:
     """Pick the BENCH lines out of a capture; everything else is the app's own output."""
     records: list[Record] = []
     errors: list[str] = []
+    info: dict[str, str] = {}
     done_count = None
     for number, raw in enumerate(lines, start=1):
         line = raw.strip()
@@ -101,14 +107,16 @@ def parse_capture(lines: list[str]) -> Capture:
             errors.append(f"line {number}: {line}")
         elif m := DONE.match(line):
             done_count = int(m.group(1))
-        elif line.startswith("BENCH-DONE"):
+        elif m := INFO.match(line):
+            info[m.group(1)] = m.group(2)
+        elif line.startswith(("BENCH-INFO", "BENCH-DONE")):
             errors.append(f"line {number}: malformed {line!r}")
         elif line.startswith("BENCH "):
             try:
                 records.append(parse_line(line))
             except ValueError as e:
                 errors.append(f"line {number}: malformed BENCH line: {e}")
-    return Capture(records, done_count, errors)
+    return Capture(records, done_count, errors, info)
 
 
 def per_sample(count: int, k: int, n: int) -> str:
@@ -248,6 +256,7 @@ def main(argv: list[str] | None = None) -> int:
         "probe": probe,
         "elf": args.elf,
         "elf_mtime": elf_stamp(args.elf),
+        "info": cap.info,
     }
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
