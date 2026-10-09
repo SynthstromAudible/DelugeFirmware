@@ -67,35 +67,38 @@ These numbers explain the cost of a streaming q31 loop:
 
 ## Shared kernel costs
 
-Cycles per sample on the device, bench run on cab9fce07 (2026-10-09), `Mono` wrapper, one channel:
+Cycles per sample on the device, `Mono` wrapper, one channel. The bench ran on cab9fce07 (2026-10-09); the two tanh
+rows are from f75b87014 (2026-10-09):
 
 | Kernel (case) | n=32 | n=64 | n=128 |
 |---|---:|---:|---:|
 | `ShiftTracker` (`shift_tracker`) | 6.82 | 6.14 | 5.83 |
 | `OnePole` LOW_PASS (`one_pole_lp`) | 10.20 | 9.59 | 9.31 |
 | `OnePole` ALL_PASS (`one_pole_ap`) | 12.78 | 11.73 | 11.13 |
-| `AntialiasedTanh` (`antialiased_tanh`) | 155.84 | 155.04 | 154.76 |
-| `Tanh<3>` (`tanh3`) | 18.26 | 17.61 | 17.31 |
+| `AntialiasedTanh` (`antialiased_tanh`) | 43.39 | 42.69 | 42.34 |
+| `Tanh<3>` (`tanh3`) | 17.14 | 16.56 | 16.28 |
 | `DryWetBlend` BLEND, `Mono` mixer (`dry_wet_blend`) | 9.58 | 8.51 | 8.02 |
 
 - The one-pole is the first recursive kernel measured, so its cost is the first data point for `Lanes<K, N>`. A
   single-channel `Mono` run measures the scalar recursion with its dependency chain; it says nothing about the gain from
   interleaving channels, which needs a `Lanes` run to measure.
-- `AntialiasedTanh` costs about nine times `Tanh<3>`. Its interpolated table read makes out-of-line calls per sample (see
-  the open items).
+- Neither tanh kernel makes a call per sample. `BilinearTableInterpolator::interpolateSigned<Table>` takes its table
+  (a built-in `int16_t[R][W]`) at compile time, so the base, the row stride and both log2 sizes are constants: the
+  stride folds into the `ldrsh` offsets and every read stays inside one row. `AntialiasedTanh` clamps the input to
+  bounds its coefficients precompute, two compares in place of `lshiftAndSaturateUnknown`'s jump table. `tanh_lookup`
+  reads `kTanhSmallTable` through a `constexpr` base pointer.
+- What remains is one dependency chain per sample: `AntialiasedTanh` is 40 instructions in about 42 cycles (load,
+  clamp, shift, index, four `ldrsh`, `mul`/`mla`, two `smmul`, shift, store), `Tanh<3>` 15 in about 16. Removing
+  instructions gains little more. The next lever is interleaving independent chains: adjacent samples of
+  `AntialiasedTanh` depend only on their inputs, so two samples or two channels stepped together can overlap. A plain
+  loop unroll does not do it: clang lays the copies out back to back, and the A9 does not overlap them itself.
 
 ## Open questions
 
 - Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain, such as
   filters. Measure when the first filter kernel lands.
 - The `wavetable` bench case costs about 336 cycles per sample. Look at it when the oscillators move to the kernel form.
-- `BilinearTableInterpolator::interpolateSigned`, which `AntialiasedTanh` and the legacy saturation use, makes 7
-  top-level out-of-line calls per sample at the shipping flags (span construction, `size`, `operator[]`, `bit_width`,
-  `array::data`). They fan out to about 10 `bl`, one tail `b.w` and 10 returns per sample. `std::array::data()` and
-  `operator[]` are out of line too, so reading through either does not help. Two things remove the calls: a base
-  pointer evaluated at compile time, such as `inline constexpr const int16_t* kBase = kTanhTable[0].data();`, which
-  compiles to `movw`/`movt`; and a row count known at compile time, so that `bit_width` folds. With the calls gone,
-  the `antialiased_tanh` case would drop from about 155 to about 50–60 cycles per sample.
-- `tanh.h`'s `detail::tanh_lookup` calls `kTanhSmallTable.data()` out of line once per sample, and every `tanh<>` user
-  pays it: the ladders, the SVF and `Tanh<Drive>`. The same compile-time base pointer removes it.
+- How far interleaving takes the tanh kernels: a two-sample `AntialiasedTanh` step, or `Lanes<K, 2>` across a stereo
+  pair. `Saturation::process` steps L and R in one iteration; whether clang interleaves the two chains there is
+  unmeasured, and a stereo bench case would show it.
 - `Mono::renderBlock` calls `std::span::size()` and `data()` per block, and both are out of line at the shipping flags.
