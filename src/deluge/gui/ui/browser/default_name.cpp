@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/browser/default_name.h"
+#include <algorithm>
 #include <cctype>
 #include <cstdint>
 #include <cstring>
@@ -28,13 +29,6 @@ namespace {
 
 constexpr size_t kMaxSlotDigits = 3;
 constexpr int32_t kMaxNumericSuffix = 9999;
-
-bool exists(FileListView const& files, std::string const& nameWithoutExtension) {
-	// The browser lists both extensions (allowedFileExtensionsXML), and saving picks between them via writeJsonFlag, so
-	// a name is taken if *either* form is on the card. Probing only .XML would hand back a name that already exists.
-	return files.contains((nameWithoutExtension + ".XML").c_str())
-	       || files.contains((nameWithoutExtension + ".Json").c_str());
-}
 
 char upper(char c) {
 	return static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
@@ -102,7 +96,72 @@ std::string numericStem(std::string_view name, char* delimiter) {
 	return std::string{name};
 }
 
+bool startsWithCaseless(std::string_view name, std::string_view prefix) {
+	if (name.size() < prefix.size()) {
+		return false;
+	}
+	for (size_t i = 0; i < prefix.size(); i++) {
+		if (upper(name[i]) != upper(prefix[i])) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/// The number a "<prefix><digits>" family member carries, or 0 if `name` is not one. The digits must run to the
+/// extension or the end of the name: that keeps a neighbour like "JAM 2024-01-05.XML" out of the "JAM " family,
+/// where it would read as 2024 and send the next save to "JAM 2025". Saturates at kMaxNumericSuffix.
+int32_t numberOfSibling(std::string_view name, std::string_view prefix) {
+	if (!startsWithCaseless(name, prefix)) {
+		return 0;
+	}
+	size_t pos = prefix.size();
+	if (pos == name.size() || !std::isdigit(static_cast<unsigned char>(name[pos]))) {
+		return 0;
+	}
+	int32_t number = 0;
+	while (pos < name.size() && std::isdigit(static_cast<unsigned char>(name[pos]))) {
+		number = std::min(number * 10 + (name[pos] - '0'), kMaxNumericSuffix);
+		pos++;
+	}
+	return (pos == name.size() || name[pos] == '.') ? number : 0;
+}
+
+/// 0-25 if `name` is "<stem><letter>" (any case), with or without an extension; -1 otherwise.
+int32_t letterVariationOf(std::string_view name, std::string_view stem) {
+	if (!startsWithCaseless(name, stem) || name.size() == stem.size()) {
+		return -1;
+	}
+	const char letter = upper(name[stem.size()]);
+	if (letter < 'A' || letter > 'Z') {
+		return -1;
+	}
+	const size_t after = stem.size() + 1;
+	return (after == name.size() || name[after] == '.') ? letter - 'A' : -1;
+}
+
 } // namespace
+
+NameFamilySurvey::NameFamilySurvey(std::string_view currentName, std::string_view slotPrefix) {
+	char letter = 0;
+	letterStem_ = slotStem(currentName, slotPrefix, &letter);
+	if (letterStem_.empty()) {
+		char delimiter = kNumericSuffixDelimiter;
+		numberPrefix_ = numericStem(currentName, &delimiter) + delimiter;
+	}
+}
+
+void NameFamilySurvey::observe(std::string_view fileName) {
+	if (!letterStem_.empty()) {
+		const int32_t letter = letterVariationOf(fileName, letterStem_);
+		if (letter >= 0) {
+			takenLetters_ |= 1U << letter;
+		}
+	}
+	else {
+		highestNumber_ = std::max(highestNumber_, numberOfSibling(fileName, numberPrefix_));
+	}
+}
 
 char const* numberPartOf(char const* name, char const* filePrefix) {
 	if (!filePrefix) {
@@ -123,32 +182,30 @@ char const* numberPartOf(char const* name, char const* filePrefix) {
 	return numberPart;
 }
 
-std::string nextDefaultName(std::string_view currentName, std::string_view slotPrefix, FileListView const& files) {
+std::string nextDefaultName(std::string_view currentName, std::string_view slotPrefix, NameFamilySurvey const& family) {
 	char letter = 0;
 	std::string stem = slotStem(currentName, slotPrefix, &letter);
 
-	// Slot-form name ("SONG185" / "SONG185A"): advance the letter suffix.
+	// Slot-form name ("SONG185" / "SONG185A"): the first free letter after the one we are on.
 	if (!stem.empty()) {
 		char from = (letter == 0) ? 'A' : static_cast<char>(letter + 1);
 		for (char c = from; c <= 'Z'; c++) {
-			std::string candidate = stem + c;
-			if (!exists(files, candidate)) {
-				return candidate;
+			if ((family.takenLetters() & (1U << (c - 'A'))) == 0) {
+				return stem + c;
 			}
 		}
 		return std::string{currentName}; // Letters exhausted.
 	}
 
-	// Anything else: advance the numeric suffix.
+	// Anything else: one past the family's highest number.
 	char delimiter = kNumericSuffixDelimiter;
-	std::string base = numericStem(currentName, &delimiter);
-	for (int32_t n = 2; n <= kMaxNumericSuffix; n++) {
-		std::string candidate = base + delimiter + std::to_string(n);
-		if (!exists(files, candidate)) {
-			return candidate;
-		}
+	const std::string prefix = numericStem(currentName, &delimiter) + delimiter;
+	const int32_t highest = std::max(family.highestNumber(), numberOfSibling(currentName, prefix));
+	if (highest >= kMaxNumericSuffix) {
+		return std::string{currentName}; // Numbers exhausted - the user will have to name this one.
 	}
-	return std::string{currentName};
+	// An unnumbered original ("MYTRACK" alone) counts as 1, so its first variation is "MYTRACK 2".
+	return prefix + std::to_string(std::max<int32_t>(highest, 1) + 1);
 }
 
 std::string nextSlotName(std::string_view lastName, std::string_view thingName) {
