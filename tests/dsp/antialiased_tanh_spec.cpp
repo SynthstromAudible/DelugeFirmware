@@ -17,11 +17,11 @@
 
 // The anti-aliased tanh. legacy::AntialiasedTanh, the class the compressor, the high-pass ladder and the saturation
 // effect still hold, is pinned on exact reference values on both backends. The AntialiasedTanh kernel is pinned against
-// the class, sample by sample from equal positions: at every drive the callers reach (0 to 20), on seeded noise at
-// several levels and on alternating full-scale extremes; across a drive change in the middle of a block, which keeps
-// the position as the class's setDrive does; and after seed and place, against a class constructed at the position
-// those events set, at the drive extremes and at full-scale samples. The Tanh<Drive> kernel is pinned against tanh<>
-// per sample at every drive 0 to 20.
+// the class, sample by sample from equal positions: at every drive the callers reach (0 to 20) and at two past them
+// (25 and 30), on seeded noise at several levels and on alternating full-scale extremes; across a drive change in the
+// middle of a block, which keeps the position as the class's setDrive does; and after seed and place, against a class
+// constructed at the position those events set, at the drive extremes and at full-scale samples. The Tanh<Drive> kernel
+// is pinned against tanh<> per sample at every drive 0 to 20.
 
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 
@@ -78,6 +78,8 @@ constexpr q31 kMin = std::numeric_limits<q31>::min();
 constexpr q31 kMax = std::numeric_limits<q31>::max();
 /// The highest drive a caller reaches: the saturation effect's voice variant at amount 15, 5 + 15.
 constexpr uint32_t kMaxDrive = 20;
+/// Drives past the callers' range, up to the documented 30, where the 12-bit saturation's shift wraps.
+constexpr std::array<uint32_t, 2> kWrappingDrives{25, 30};
 /// The samples the long comparisons run.
 constexpr std::size_t kLongRun = 10'000;
 /// The seed of every noise input.
@@ -209,6 +211,17 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 	it("steps as the class renders, at every drive, from silence", _ {
 		const std::vector<q31> input = test_input(kLongRun, kSeed);
 		for (uint32_t drive = 0; drive <= kMaxDrive; ++drive) {
+			AntialiasedTanh::State state{};
+			legacy::AntialiasedTanh curve{drive};
+			const Run kernel = run_kernel(drive, state, input);
+			const Run reference = run_legacy(curve, input);
+			expect(kernel.out).to_equal(reference.out);
+			expect(kernel.positions).to_equal(reference.positions);
+		}
+	});
+	it("steps as the class renders past the callers' drives, where the shift wraps", _ {
+		const std::vector<q31> input = test_input(kLongRun, kSeed);
+		for (const uint32_t drive : kWrappingDrives) {
 			AntialiasedTanh::State state{};
 			legacy::AntialiasedTanh curve{drive};
 			const Run kernel = run_kernel(drive, state, input);

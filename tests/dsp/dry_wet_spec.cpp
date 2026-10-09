@@ -159,7 +159,9 @@ describe dry_wet_spec("DryWetBlend", ${
 			}
 		});
 
-		it("is not the wet signal at full wet: it clears the lowest bit, and takes one more off a positive sample", _ {
+		it("is not the wet signal at full wet: a negative sample loses its lowest bit, a positive one lands 1 or 2 below "
+		   "itself with its lowest bit clear",
+		   _ {
 			const std::vector<q31> dry = extremes_then_full_scale(kLongRun, kDrySeed, false);
 			const std::vector<q31> wet = extremes_then_full_scale(kLongRun, kWetSeed, true);
 			std::size_t differing = 0;
