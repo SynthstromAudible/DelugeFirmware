@@ -21,7 +21,7 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/filter/legacy/one_pole.h"
-#include "dsp-next/fixed/shaping/antialiased_tanh.h"
+#include "dsp-next/fixed/shaping/legacy/antialiased_tanh.h"
 #include "util/fixedpoint.h"
 
 #include <array>
@@ -158,7 +158,8 @@ private:
 	/// The last block's mean square level, 1 at full scale.
 	float mean_ = 0;
 	/// The output saturation, left then right.
-	std::array<AntialiasedTanh, 2> saturation_{AntialiasedTanh{kSaturation}, AntialiasedTanh{kSaturation}};
+	std::array<legacy::AntialiasedTanh, 2> saturation_{legacy::AntialiasedTanh{kSaturation},
+	                                                   legacy::AntialiasedTanh{kSaturation}};
 	/// Whether the saturation has been seeded from a block's first frame since the last reset.
 	bool seeded_ = false;
 

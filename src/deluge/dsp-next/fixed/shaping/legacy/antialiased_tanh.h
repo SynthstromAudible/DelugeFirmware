@@ -25,7 +25,7 @@
 #include <cstdint>
 #include <span>
 
-namespace deluge::dsp::fixed {
+namespace deluge::dsp::fixed::legacy {
 
 /// @brief Tanh saturation, antialiased: each output is interpolated between this sample's and the previous one's
 /// position on the curve (@ref kTanhTable), so a jump between samples is smoothed rather than aliased. A processor
@@ -72,4 +72,4 @@ private:
 	uint32_t previous_;
 };
 
-} // namespace deluge::dsp::fixed
+} // namespace deluge::dsp::fixed::legacy

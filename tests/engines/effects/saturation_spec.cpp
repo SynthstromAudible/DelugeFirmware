@@ -1,6 +1,6 @@
 #include "engines/effects/saturation.h"
 
-#include "dsp-next/fixed/shaping/antialiased_tanh.h"
+#include "dsp-next/fixed/shaping/legacy/antialiased_tanh.h"
 
 #include <algorithm>
 #include <cppspec.hpp>
@@ -16,13 +16,13 @@ constexpr int32_t kInput = 1 << 28;
 
 /// The voice variant of one first sample, by hand: tanh at 5 + amount, shifted from amount 2.
 int32_t voice_by_hand(uint8_t amount) {
-	deluge::dsp::fixed::AntialiasedTanh curve{5u + amount};
+	deluge::dsp::fixed::legacy::AntialiasedTanh curve{5u + amount};
 	return curve.render(kInput) << (amount >= 2 ? amount - 2 : 0);
 }
 
 /// The chain variant of one first sample, by hand: tanh at 3 + amount, shifted from amount 3.
 int32_t chain_by_hand(uint8_t amount) {
-	deluge::dsp::fixed::AntialiasedTanh curve{3u + amount};
+	deluge::dsp::fixed::legacy::AntialiasedTanh curve{3u + amount};
 	return curve.render(kInput) << (amount >= 3 ? amount - 3 : 0);
 }
 

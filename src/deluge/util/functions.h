@@ -19,7 +19,7 @@
 
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/fixed/shaping/antialiased_tanh.h"
+#include "dsp-next/fixed/shaping/legacy/antialiased_tanh.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "libdeluge/file_io.h"
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
@@ -174,7 +174,7 @@ template <unsigned saturationAmount>
 
 [[gnu::always_inline]] inline int32_t getTanHAntialiased(int32_t input, uint32_t* lastWorkingValue,
                                                          uint32_t saturationAmount) {
-	deluge::dsp::fixed::AntialiasedTanh tanh{saturationAmount, *lastWorkingValue};
+	deluge::dsp::fixed::legacy::AntialiasedTanh tanh{saturationAmount, *lastWorkingValue};
 	const int32_t out = tanh.render(input);
 	*lastWorkingValue = tanh.previous();
 	return out;

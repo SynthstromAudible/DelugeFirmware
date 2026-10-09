@@ -17,7 +17,7 @@
 
 #include "dsp-next/fixed/filter/high_pass_ladder.h"
 
-#include "dsp-next/fixed/shaping/antialiased_tanh.h"
+#include "dsp-next/fixed/shaping/legacy/antialiased_tanh.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "util/fixedpoint.h"
 #include "util/param_functions.h" // lshiftAndSaturate
@@ -76,7 +76,7 @@ q31 HighPassLadder::render(q31 input, Channel& channel) const {
 
 	// Saturate (and antialias) only at high resonance.
 	if (processed_resonance_ > 900000000) {
-		AntialiasedTanh saturator{1, channel.last_working_value};
+		legacy::AntialiasedTanh saturator{1, channel.last_working_value};
 		a = saturator.render(a);
 		channel.last_working_value = saturator.previous();
 	}

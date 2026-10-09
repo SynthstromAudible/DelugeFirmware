@@ -18,13 +18,13 @@
 // AntialiasedTanh: tanh saturation interpolated against the previous working value, so a jump between samples is
 // smoothed rather than aliased. Exact reference values pin the arithmetic on both backends.
 
-#include "dsp-next/fixed/shaping/antialiased_tanh.h"
+#include "dsp-next/fixed/shaping/legacy/antialiased_tanh.h"
 
 #include <cppspec.hpp>
 #include <cstdint>
 #include <vector>
 
-using deluge::dsp::fixed::AntialiasedTanh;
+using deluge::dsp::fixed::legacy::AntialiasedTanh;
 
 namespace {
 

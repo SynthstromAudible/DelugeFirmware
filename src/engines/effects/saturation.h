@@ -18,7 +18,7 @@
 #pragma once
 
 #include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/shaping/antialiased_tanh.h"
+#include "dsp-next/fixed/shaping/legacy/antialiased_tanh.h"
 
 #include <array>
 #include <cstdint>
@@ -40,16 +40,16 @@ struct SaturationParams {
 /// @brief Tanh saturation of a stereo signal: an antialiased tanh per channel.
 class Saturation {
 public:
-	/// @brief Each channel's curve starts from @p initial (dsp::fixed::AntialiasedTanh::kSilent is silence; a voice
-	/// starts from 0 and is set silent when its envelopes reset).
-	constexpr explicit Saturation(uint32_t initial = dsp::fixed::AntialiasedTanh::kSilent)
-	    : channels_{dsp::fixed::AntialiasedTanh{0, initial}, dsp::fixed::AntialiasedTanh{0, initial}} {}
+	/// @brief Each channel's curve starts from @p initial (dsp::fixed::legacy::AntialiasedTanh::kSilent is silence; a
+	/// voice starts from 0 and is set silent when its envelopes reset).
+	constexpr explicit Saturation(uint32_t initial = dsp::fixed::legacy::AntialiasedTanh::kSilent)
+	    : channels_{dsp::fixed::legacy::AntialiasedTanh{0, initial}, dsp::fixed::legacy::AntialiasedTanh{0, initial}} {}
 
 	/// @brief One Q31 sample of @p channel (0 left, 1 right), as a voice saturates inside its own loop.
 	[[nodiscard, gnu::always_inline]] int32_t saturate(int32_t sample, uint32_t channel,
 	                                                   const SaturationParams& params) {
 		const uint32_t amount = params.clipping_amount;
-		dsp::fixed::AntialiasedTanh& curve = channels_[channel];
+		dsp::fixed::legacy::AntialiasedTanh& curve = channels_[channel];
 		if (params.variant == SaturationVariant::VOICE) {
 			curve.setDrive(5 + amount);
 			return curve.render(sample) << (amount >= 2 ? amount - 2 : 0);
@@ -62,10 +62,10 @@ public:
 	void process(std::span<dsp::StereoSample> block, const SaturationParams& params);
 
 	/// @brief Both channels' curves back to silence.
-	void reset() { channels_ = {dsp::fixed::AntialiasedTanh{}, dsp::fixed::AntialiasedTanh{}}; }
+	void reset() { channels_ = {dsp::fixed::legacy::AntialiasedTanh{}, dsp::fixed::legacy::AntialiasedTanh{}}; }
 
 private:
-	std::array<dsp::fixed::AntialiasedTanh, 2> channels_;
+	std::array<dsp::fixed::legacy::AntialiasedTanh, 2> channels_;
 };
 
 } // namespace deluge::effects

@@ -141,12 +141,12 @@ void RmsFeedbackCompressor::render(std::span<StereoSample> block, q31 volume_l, 
 
 	if (!seeded_) {
 		// The first sample interpolates against the block's own start rather than against silence.
-		saturation_[0] = AntialiasedTanh{
+		saturation_[0] = legacy::AntialiasedTanh{
 		    kSaturation, static_cast<uint32_t>(lshiftAndSaturateUnknown(block[0].l, static_cast<uint8_t>(kSaturation)))
-		                     + AntialiasedTanh::kSilent};
-		saturation_[1] = AntialiasedTanh{
+		                     + legacy::AntialiasedTanh::kSilent};
+		saturation_[1] = legacy::AntialiasedTanh{
 		    kSaturation, static_cast<uint32_t>(lshiftAndSaturateUnknown(block[0].r, static_cast<uint8_t>(kSaturation)))
-		                     + AntialiasedTanh::kSilent};
+		                     + legacy::AntialiasedTanh::kSilent};
 		seeded_ = true;
 	}
 	// Every block, since the song volume may have changed.
