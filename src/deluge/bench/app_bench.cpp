@@ -49,15 +49,18 @@ void log_dbgauthstatus() {
 } // namespace
 
 extern "C" void deluge_app_bench(void) noexcept {
-	// The protocol times every case with IRQs masked; an interrupt inside a timed run would land in its counts.
-	if (!irqs_masked()) {
-		log_line("BENCH-ERROR irq-enabled");
-		return;
-	}
+	// The protocol times every case with IRQs masked, since an interrupt inside a timed run would land in its
+	// counts. The boot path does not guarantee the mask here (the app's critical sections unmask IRQs as they
+	// close), so the bench masks them itself and restores the mask it found.
+	const bool were_masked = irqs_masked();
+	asm volatile("cpsid i" ::: "memory");
 	log_dbgauthstatus();
 	deluge::bench::PmuA9 pmu;
 	std::ignore =
 	    deluge::bench::run(deluge::bench::cases(), {.block_sizes = deluge::bench::kBlockSizes}, pmu, log_line);
+	if (!were_masked) {
+		asm volatile("cpsie i" ::: "memory");
+	}
 }
 
 #else

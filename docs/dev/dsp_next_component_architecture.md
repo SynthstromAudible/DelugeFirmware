@@ -683,7 +683,7 @@ The choices of `U`, `Lanes` and fusion rest on device cycle counts, and the
 build can take them. `DELUGE_DSP_BENCH` (CMake option, off by default) compiles
 the benchmarks in `src/deluge/bench` into the device image and runs them once at
 boot: the BSP calls `deluge_app_bench()` after the static constructors and
-before `deluge_app_init()`, with IRQs masked. A build with the option off
+before `deluge_app_init()`, and the bench masks IRQs for its run. A build with the option off
 contains no bench code beyond the empty hook, and a host never calls it.
 
 **Build and run.**
