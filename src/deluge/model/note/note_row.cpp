@@ -2559,6 +2559,8 @@ storePendingNoteOn:
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].sampleSyncLength =
 					    thisNote->getLength();
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].ticksLate = ticksLate;
+					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].noteMightBeConstant =
+					    noteMightBeConstant;
 					pendingNoteOnList->count++;
 				}
 				// FIXME: this is almost certainly a bad idea, we can't handle more than 8-10 note ons per
@@ -2618,7 +2620,8 @@ storePendingNoteOn:
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStack->addOtherTwoThings(drum->toModControllable(), &paramManager);
 					drum->kit->noteOnPreKitArp(modelStackWithThreeMainThings, drum, thisNote->velocity, mpeValues,
-					                           MIDI_CHANNEL_NONE, thisNote->length, ticksLate, samplesLate);
+					                           MIDI_CHANNEL_NONE, thisNote->length, ticksLate, samplesLate,
+					                           noteMightBeConstant);
 				}
 			}
 		}
