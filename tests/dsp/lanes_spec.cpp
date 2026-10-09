@@ -778,6 +778,18 @@ describe lanes_spec("Lanes<K, N>", ${
 			expect(lanes.state(lane).z).to_equal(q31{0});
 		}
 	});
+	it("resets every lane through K's reset quirk when K declares one", _ {
+		Lanes<QuirkResetPole, 3> lanes{{.moveability = 0x40000000, .mode = OnePole::Mode::LOW_PASS}};
+		std::vector<Frame<q31, 3>> frames = noise_frames<3>(5, 0x43u);
+		lanes.renderBlock(frames, frames);
+		for (std::size_t lane = 0; lane < 3; ++lane) {
+			expect(lanes.state(lane).z).not_().to_equal(q31{1});
+		}
+		lanes.reset();
+		for (std::size_t lane = 0; lane < 3; ++lane) {
+			expect(lanes.state(lane).z).to_equal(q31{1});
+		}
+	});
 	it("equals N Monos of a one-pole and a shift tracker stepped lane by lane, state included", _ {
 		const Mismatches pole = at_every_width<LaneByLane<OnePole>>(
 		    {.moveability = 0x12345678, .mode = OnePole::Mode::LOW_PASS},
