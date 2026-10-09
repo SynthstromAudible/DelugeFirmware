@@ -66,22 +66,32 @@ void CVEngine::updateGateOutputs() {
 		cvOutPending = false;
 	}
 
-	// clock or run signal
-	if (clockOutputPending || asapGateOutputPending) {
-		for (int32_t g = NUM_PHYSICAL_CV_CHANNELS; g < NUM_GATE_CHANNELS; g++) {
-			physicallySwitchGate(g);
-		}
-		clockOutputPending = false;
-		asapGateOutputPending = false;
-	}
+	switchPendingClockAndRun();
 	// note or gate on the cv channel - if there's a cv out pending we send the gate after it finishes. This avoids a
 	// situation where the cv is delayed for an oled refresh and the gate gets sent first, causing an audible pitch
 	// correction
 	if (!cvOutPending && gateOutputPending) {
-		for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
-			physicallySwitchGate(g);
-		}
-		gateOutputPending = false;
+		switchPendingNoteGates();
+	}
+}
+
+void CVEngine::switchPendingNoteGates() {
+	for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
+		physicallySwitchGate(g);
+	}
+	gateOutputPending = false;
+}
+
+// Only switches the clock and run outputs themselves - a gate channel used for notes must not be switched here, or a
+// pending note-on would go out before its scheduled time
+void CVEngine::switchPendingClockAndRun() {
+	if (clockOutputPending) {
+		physicallySwitchGate(WHICH_GATE_OUTPUT_IS_CLOCK);
+		clockOutputPending = false;
+	}
+	if (asapGateOutputPending) {
+		physicallySwitchGate(WHICH_GATE_OUTPUT_IS_RUN);
+		asapGateOutputPending = false;
 	}
 }
 
@@ -146,8 +156,8 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 
 		int32_t voltage;
 
-		// If it's not a gate-only note-on...
-		if (note != ALL_NOTES_OFF) {
+		// If it's not a gate-only note-on (and there's a physical CV output for this channel)...
+		if (note != ALL_NOTES_OFF && channel < NUM_PHYSICAL_CV_CHANNELS) {
 
 			// Calculate the voltage
 			voltage = calculateVoltage(note, channel);
@@ -161,7 +171,7 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 			switchGateOn(channel);
 		}
 
-		if (channel < NUM_PHYSICAL_CV_CHANNELS) {
+		if (note != ALL_NOTES_OFF && channel < NUM_PHYSICAL_CV_CHANNELS) {
 			cvChannels[channel].noteCurrentlyPlaying = note;
 		}
 	}
@@ -237,8 +247,9 @@ int32_t CVEngine::calculateVoltage(int32_t note, uint8_t channel) {
 
 void CVEngine::analogOutTick() {
 	// we need to do this in case there's a clock pending, otherwise both will be sent at once.
-	// gate update function checks and sends the update if there is
-	updateGateOutputs();
+	// This is called while rendering, ahead of the audio, so pending note gates are left for the timer - switching them
+	// here would send them early
+	switchPendingClockAndRun();
 	clockState = !clockState;
 	updateClockOutput();
 }

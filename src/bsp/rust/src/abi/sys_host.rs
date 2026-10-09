@@ -17,7 +17,7 @@ pub const DelugeStatus_DELUGE_ERR_NO_FILESYSTEM: DelugeStatus = -11;
 pub const DelugeStatus_DELUGE_ERR_NOT_EMPTY: DelugeStatus = -14;
 
 /// `libdeluge/control_surface.h`'s `DelugeInputEventKind`: `enum DelugeInputEventKind : uint8_t`.
-/// Encoder motion arrives through `deluge_encoder_take_edges`, not as `ENCODER` events.
+/// Encoder motion arrives through `deluge_encoder_take_quadrature_edges`, not as `ENCODER` events.
 pub type DelugeInputEventKind = u8;
 pub const DelugeInputEventKind_DELUGE_EVENT_PAD: DelugeInputEventKind = 0;
 pub const DelugeInputEventKind_DELUGE_EVENT_BUTTON: DelugeInputEventKind = 1;

@@ -47,10 +47,13 @@ void loadCables(PatchCableSet& set, const deluge::serialization::Value& patchCab
 	    patchCables, [readAutomationUpToPos](const deluge::serialization::Value& leaf) {
 		    return containsSomething(leaf, readAutomationUpToPos);
 	    });
-	set.numPatchCables = static_cast<uint8_t>(cables.size());
-	for (size_t i = 0; i < cables.size(); ++i) {
-		const deluge::instrument::CableState& state = cables[i];
-		PatchCable& cable = set.patchCables[i];
+	set.truncateCables(0);
+	for (const deluge::instrument::CableState& state : cables) {
+		PatchCable* added = set.addCable();
+		if (added == nullptr) {
+			break; // out of memory, or at kMaxNumPatchCables: keep the cables read so far
+		}
+		PatchCable& cable = *added;
 		cable.from = static_cast<PatchSource>(state.source);
 		cable.destinationParamDescriptor =
 		    ParamDescriptor(static_cast<int32_t>(cableWordOf(state.depth()))).getDestination();

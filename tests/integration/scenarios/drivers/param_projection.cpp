@@ -830,7 +830,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		// A patch cable (Phase 3b): source -> destination param, with an automatable amount.
 		PatchCableSet* pcs = pm.getPatchCableSet();
-		pcs->numPatchCables = 1;
+		pcs->addCable();
 		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
 		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
@@ -909,7 +909,9 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "pc-ser setup");
 		PatchCableSet* pcs = pm.getPatchCableSet();
-		pcs->numPatchCables = 3;
+		for (int32_t i = 0; i < 3; i++) {
+			pcs->addCable();
+		}
 		// flat cable 0: ENVELOPE_0 -> param 7
 		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
@@ -1352,7 +1354,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		// A patch cable so the <patchCables> block is exercised within the Sound layout.
 		PatchCableSet* pcs = pm.getPatchCableSet();
-		pcs->numPatchCables = 1;
+		pcs->addCable();
 		pcs->patchCables[0].from = PatchSource::LFO_GLOBAL_1;
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
 		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
@@ -1640,7 +1642,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(expr != nullptr, "helper: expression set created");
 		// A patch cable so the cable path is exercised.
 		PatchCableSet* pcs = pm.getPatchCableSet();
-		pcs->numPatchCables = 1;
+		pcs->addCable();
 		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
 		setNodeIn(*pcs->docForParam(0), 0, 424242, true);

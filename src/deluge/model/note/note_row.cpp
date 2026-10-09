@@ -45,6 +45,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "sequence/iterance_migration.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
@@ -3377,7 +3378,7 @@ Error NoteRow::readNoteDataHex(Deserializer& reader, uint16_t noteHexLength) {
 			else if (probability > kNumProbabilityValues
 			         && probability <= kNumProbabilityValues + kNumIterancePresets) {
 				fill = FillMode::OFF;
-				iterance = iterancePresets[probability - kNumProbabilityValues - 1];
+				iterance = iteranceFromLegacyProbabilityByte(probability);
 				probability = kNumProbabilityValues; // 100% probability
 			}
 			else {
@@ -3775,6 +3776,10 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		modelStack->song->live.param_backup.backUp(
 		    (SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(), &paramManager,
 		    false); // Don't steal expression params - we'll keep them here with this NoteRow.
+	}
+	else if (!backupOldParamManager) {
+		// Not backing up, so nothing else owns the main collections - free them rather than leaking them
+		paramManager.destructAndForgetMainParamCollections();
 	}
 	paramManager.forgetParamCollections();
 

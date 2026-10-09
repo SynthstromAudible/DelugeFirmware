@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "hid/encoder_acceleration.h"
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -24,7 +25,8 @@
 namespace deluge::hid::encoders {
 
 /// Black function encoders (SCROLL_X/Y, TEMPO, SELECT) are detented.
-/// Two A-pin edges = one quadrature cycle = one detent click.
+/// Four quadrature edges = one cycle = one detent click. The board confirms each edge one edge
+/// late, so a click is reported once more than two edges have accumulated, as in 1.x.
 class DetentedEncoder {
 public:
 	DetentedEncoder() = default;
@@ -40,11 +42,12 @@ public:
 	int32_t take();
 
 private:
-	int32_t edgeAccumulator = 0; ///< Accumulates A-pin edges until we have a full detent click. IRQ-only.
-	std::atomic_int32_t pos = 0; ///< Written by the IRQ (applyEdges), drained by the encoder task.
+	int32_t edgeAccumulator = 0; ///< Quadrature edges not yet a whole detent click, -2..2.
+	std::atomic_int32_t pos = 0; ///< Written by applyEdges, drained by the encoder task.
 };
 
-/// Gold mod encoders (MOD_0, MOD_1) are continuous, and accumulate raw edges for velocity.
+/// Gold mod encoders (MOD_0, MOD_1) are continuous, and accumulate raw edges for velocity: four per
+/// quadrature cycle, as in 1.x.
 class ContinuousEncoder {
 public:
 	ContinuousEncoder() = default;
@@ -63,8 +66,8 @@ public:
 	double calcNextKnobSpeed(int8_t offset);
 
 private:
-	std::atomic_int8_t pos = 0;   ///< Written by the IRQ (applyEdges), drained by the encoder task.
-	double currentKnobSpeed{0.0}; // Used for encoder acceleration
+	std::atomic_int8_t pos = 0; ///< Written by applyEdges, drained by the encoder task.
+	EncoderAcceleration acceleration_;
 };
 
 // ── Named encoder globals ─────────────────────────────────────────────────

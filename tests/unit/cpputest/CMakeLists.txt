@@ -50,6 +50,9 @@ file(GLOB_RECURSE deluge_SOURCES
         # For name comparison / default naming tests
         ../../../src/deluge/util/name_compare.cpp
         ../../../src/deluge/gui/ui/browser/default_name.cpp
+        # For iterance migration tests (against the real iterancePresets[])
+        ../../../src/deluge/sequence/iterance_migration.cpp
+        ../../../src/deluge/util/lookuptables/preset_tables.cpp
         ../../../src/deluge/gui/ui/load/navigation_step.cpp
         ../../../src/deluge/gui/ui/load/confirm_step.cpp
         # For sample transpose tests
@@ -108,6 +111,8 @@ add_executable(UnitTests
         clock_output_scheduler_tests.cpp
         name_compare_tests.cpp
         default_name_tests.cpp
+        encoder_acceleration_tests.cpp
+        iterance_migration_tests.cpp
         navigation_step_tests.cpp
         confirm_step_tests.cpp
         sample_transpose_tests.cpp

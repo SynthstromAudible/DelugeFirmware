@@ -21,5 +21,5 @@ extern "C" void freezeWithError(char const* errmsg) {
 	last = errmsg;
 }
 
-extern "C" void fault_handler_print_freeze_pointers(uint32_t, uint32_t, uint32_t, uint32_t) {
+extern "C" void fault_handler_print_freeze_pointers(uint32_t, uint32_t) {
 }

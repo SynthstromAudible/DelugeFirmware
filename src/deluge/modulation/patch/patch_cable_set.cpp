@@ -33,6 +33,9 @@
 #include "util/algorithm/quick_sorter.h"
 #include "util/exceptions.h"
 #include "util/misc.h"
+#include "util/structural_edit_probe.h"
+#include <algorithm>
+#include <libdeluge/system.h>
 #include <new>
 #include <string.h>
 
@@ -72,14 +75,69 @@ inline void PatchCableSet::freeDestinationMemory(bool destructing) {
 }
 
 PatchCableSet::PatchCableSet(ParamCollectionSummary* summary) : ParamCollection(sizeof(PatchCableSet), summary) {
-	numUsablePatchCables = 0;
-	numPatchCables = 0;
-	destinations[GLOBALITY_LOCAL] = nullptr;
-	destinations[GLOBALITY_GLOBAL] = nullptr;
 }
 
 PatchCableSet::~PatchCableSet() {
 	freeDestinationMemory(true);
+	for (int32_t c = 0; c < numPatchCables; c++) {
+		patchCables[c].~PatchCable();
+	}
+	deluge::memory::dealloc(patchCables);
+}
+
+bool PatchCableSet::resizeCables(uint8_t count) {
+	const uint8_t oldCount = numPatchCables;
+	if (count == oldCount) {
+		return true;
+	}
+	PatchCable* storage = nullptr;
+	if (count != 0) {
+		storage = static_cast<PatchCable*>(deluge::memory::alloc_fast(sizeof(PatchCable) * count, alignof(PatchCable)));
+		if (storage == nullptr) {
+			return false;
+		}
+	}
+	PatchCable* old = patchCables;
+	const uint8_t kept = std::min(count, oldCount);
+	{
+		// The render walks these cables and ticks their amounts, so they move and the new storage is published with it
+		// excluded: it sees all of the old storage or all of the new.
+		AudioExcludedSection section;
+		deluge::noteStructuralEdit(deluge::StructuralContainer::PATCH_CABLES);
+		if (kept != 0) {
+			memcpy(static_cast<void*>(storage), old,
+			       sizeof(PatchCable) * kept); // a move: the old copies are not destroyed
+		}
+		for (int32_t c = kept; c < count; c++) {
+			new (&storage[c]) PatchCable();
+		}
+		if (count < numUsablePatchCables) {
+			// The Destinations may refer to a dropped cable. No patching until setupPatching() runs again.
+			freeDestinationMemory(false);
+			sourcesPatchedToAnything[GLOBALITY_LOCAL] = 0;
+			sourcesPatchedToAnything[GLOBALITY_GLOBAL] = 0;
+			numUsablePatchCables = count;
+		}
+		patchCables = storage;
+		numPatchCables = count;
+	}
+	for (int32_t c = kept; c < oldCount; c++) {
+		old[c].~PatchCable();
+	}
+	deluge::memory::dealloc(old);
+	return true;
+}
+
+PatchCable* PatchCableSet::addCable() {
+	if (numPatchCables >= kMaxNumPatchCables || !resizeCables(numPatchCables + 1)) {
+		return nullptr;
+	}
+	return &patchCables[numPatchCables - 1];
+}
+
+void PatchCableSet::truncateCables(uint8_t count) {
+	// Shrinking only frees memory, so it can't fail for want of it: keep the cables where they are if it does.
+	(void)resizeCables(std::min(count, numPatchCables));
 }
 
 // M2-E (E3): cables are reordered by index at runtime — setupPatching() memcpy-swaps them into usable/unusable
@@ -191,6 +249,10 @@ const int32_t neutralRangeAdjustmentValue = 536870912;
 extern int32_t rangeFinalValues[];
 
 void PatchCableSet::setupPatching(ModelStackWithParamCollection const* modelStack) {
+	// The render walks the cables by the Destinations' index runs: reordering the one and rebuilding the other must not
+	// interleave with it.
+	AudioExcludedSection section;
+	deluge::noteStructuralEdit(deluge::StructuralContainer::PATCH_CABLES);
 
 	// Deallocate any old memory
 	freeDestinationMemory(false);
@@ -488,14 +550,16 @@ uint8_t PatchCableSet::getPatchCableIndex(PatchSource from, ParamDescriptor dest
 		return 255;
 	}
 
-	// Or, if there was an actual blank space, just use that
+	// Or, if there's room for another, add it
 	else {
-		c = numPatchCables++;
-claimPatchCable:
-		patchCables[c].initAmount(0);
-		patchCables[c].from = from;
-		patchCables[c].destinationParamDescriptor = destinationParamDescriptor;
-		patchCables[c].setDefaultPolarity();
+		PatchCable* cable = addCable();
+		if (cable == nullptr) {
+			return 255;
+		}
+		cable->initAmount(0);
+		cable->from = from;
+		cable->destinationParamDescriptor = destinationParamDescriptor;
+		cable->setDefaultPolarity();
 		// Re-setup the patching, to place this cable where it needs to be
 		if (modelStack) {
 			setupPatching(modelStack);
@@ -524,14 +588,18 @@ void PatchCableSet::deletePatchCable(ModelStackWithParamCollection const* modelS
 	patchCables[c].makeUnusable();
 	setupPatching(modelStack);
 
-	// The to-be-deleted cable now exists in the "unusable" section of the list of cables. Find it
+	// The to-be-deleted cable now exists in the "unusable" section of the list of cables, where the render doesn't
+	// reach. Find it, and move the last cable into its place.
 	for (int32_t c = numUsablePatchCables; c < numPatchCables - 1; c++) {
 		if (patchCables[c].destinationParamDescriptor.isNull()) {
-			memcpy(&patchCables[c], &patchCables[numPatchCables - 1], sizeof(PatchCable));
+			patchCables[c].~PatchCable();
+			memcpy(static_cast<void*>(&patchCables[c]), &patchCables[numPatchCables - 1], sizeof(PatchCable));
+			// The moved cable's automation now belongs to slot c - don't let the old slot free it too
+			patchCables[numPatchCables - 1].amount_.nodes.init();
 			break;
 		}
 	}
-	numPatchCables--;
+	truncateCables(numPatchCables - 1);
 }
 
 bool PatchCableSet::patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings const* modelStack) {
@@ -773,7 +841,12 @@ Destination* PatchCableSet::cloneDestinations(Destination const* src) {
 	if (src == nullptr) {
 		return nullptr;
 	}
-	auto* dst = static_cast<Destination*>(deluge::memory::alloc_fast(sizeof(Destination) * (kMaxNumPatchCables + 1)));
+	// Sized to the list, including its terminator
+	int32_t numEntries = 1;
+	while (src[numEntries - 1].sources) {
+		numEntries++;
+	}
+	auto* dst = static_cast<Destination*>(deluge::memory::alloc_fast(sizeof(Destination) * numEntries));
 	if (dst == nullptr) {
 		throw deluge::exception::BAD_ALLOC;
 	}
@@ -795,30 +868,49 @@ PatchCableSet::PatchCableSet(PatchCableSet const& other)
 	sourcesPatchedToAnything[GLOBALITY_LOCAL] = other.sourcesPatchedToAnything[GLOBALITY_LOCAL];
 	sourcesPatchedToAnything[GLOBALITY_GLOBAL] = other.sourcesPatchedToAnything[GLOBALITY_GLOBAL];
 
-	// Real-copy the live cables (deep-copies each cable's AutoParam nodes — may throw); init the rest,
-	// matching beenCloned()'s "avoid a rare crash" initialization of the unused tail.
-	for (int32_t c = 0; c < numUsablePatchCables; c++) {
-		patchCables[c] = other.patchCables[c];
-		// S4b: if `other` reads its live nodes from an external tree store, its inline amount_ is stale (edits went
-		// to the tree). Copy the current tree nodes so this clone starts self-owned (domCablesRef_ stays null, set
-		// below) with correct automation — mirroring ParamSet's copy-ctor deep-copying its bound store.
-		if (deluge::project::DocAutoParam* live =
-		        other.findDomCableAmount(patchCables[c].from, patchCables[c].destinationParamDescriptor)) {
-			patchCables[c].amount_ = *live;
+	// This set's own cable storage, sized to fit. Nothing renders a set under construction, so no exclusion.
+	if (numPatchCables != 0) {
+		patchCables = static_cast<PatchCable*>(
+		    deluge::memory::alloc_fast(sizeof(PatchCable) * numPatchCables, alignof(PatchCable)));
+		if (patchCables == nullptr) {
+			throw deluge::exception::BAD_ALLOC;
 		}
-	}
-	for (int32_t c = numUsablePatchCables; c < kMaxNumPatchCables; c++) {
-		patchCables[c].param.init(*docForParam(c));
 	}
 
-	// Deep-copy the destination arrays last, so a throw above leaves no raw allocation to clean up.
-	destinations[GLOBALITY_LOCAL] = cloneDestinations(other.destinations[GLOBALITY_LOCAL]);
+	// Real-copy the live cables (deep-copies each cable's AutoParam nodes — may throw); the rest start empty, keeping
+	// no automation. A throw destroys what was built, as the destructor won't run for a constructor that throws.
+	int32_t built = 0;
 	try {
-		destinations[GLOBALITY_GLOBAL] = cloneDestinations(other.destinations[GLOBALITY_GLOBAL]);
-	} catch (deluge::exception&) {
-		if (destinations[GLOBALITY_LOCAL]) {
-			delugeDealloc(destinations[GLOBALITY_LOCAL]);
+		for (; built < numUsablePatchCables; built++) {
+			PatchCable* cable = new (&patchCables[built]) PatchCable(other.patchCables[built]);
+			// S4b: if `other` reads its live nodes from an external tree store, its inline amount_ is stale (edits
+			// went to the tree). Copy the current tree nodes so this clone starts self-owned (domCablesRef_ stays
+			// null) with correct automation — mirroring ParamSet's copy-ctor deep-copying its bound store.
+			if (deluge::project::DocAutoParam* live =
+			        other.findDomCableAmount(cable->from, cable->destinationParamDescriptor)) {
+				cable->amount_ = *live;
+			}
 		}
+		for (; built < numPatchCables; built++) {
+			new (&patchCables[built]) PatchCable();
+			patchCables[built].param.init(*docForParam(built));
+		}
+
+		// Deep-copy the destination arrays last, so a throw leaves only the cables to clean up.
+		destinations[GLOBALITY_LOCAL] = cloneDestinations(other.destinations[GLOBALITY_LOCAL]);
+		try {
+			destinations[GLOBALITY_GLOBAL] = cloneDestinations(other.destinations[GLOBALITY_GLOBAL]);
+		} catch (deluge::exception&) {
+			if (destinations[GLOBALITY_LOCAL]) {
+				delugeDealloc(destinations[GLOBALITY_LOCAL]);
+			}
+			throw;
+		}
+	} catch (deluge::exception&) {
+		for (int32_t c = 0; c < built; c++) {
+			patchCables[c].~PatchCable();
+		}
+		deluge::memory::dealloc(patchCables);
 		throw;
 	}
 }

@@ -478,7 +478,8 @@ void Browser::sortFileItems() {
 Error Browser::readFileItemsForFolder(FileListing& into, const std::string& dirToRead, char const* filePrefixHere,
                                       bool allowFolders, char const** allowedFileExtensionsHere,
                                       char const* filenameToStartAt, int32_t newMaxNumFileItems,
-                                      CatalogSearch newCatalogSearchDirection) {
+                                      CatalogSearch newCatalogSearchDirection,
+                                      deluge::gui::browser::NameFamilySurvey* nameFamily) {
 
 	AudioEngine::logAction("readFileItemsForFolder");
 
@@ -548,6 +549,9 @@ Error Browser::readFileItemsForFolder(FileListing& into, const std::string& dirT
 	into.beginRead(dirToRead, filenameToStartAt != nullptr ? filenameToStartAt : "", newCatalogSearchDirection,
 	               newMaxNumFileItems,
 	               {.interpretNoteNames = shouldInterpretNoteNamesForThisBrowser, .octaveStartsFromA = false});
+	if (nameFamily != nullptr) {
+		nameFamily->restart();
+	}
 
 	while (true) {
 		AudioEngine::logAction("while loop");
@@ -582,6 +586,11 @@ extensionNotSupported:
 					goto extensionNotSupported; // If reached end of list
 				}
 			}
+		}
+
+		// Every file, before newItem() culls the listing down to its window.
+		if (nameFamily != nullptr && !isFolder) {
+			nameFamily->observe(entry->name);
 		}
 
 		FileItem* thisItem = into.newItem();
@@ -656,7 +665,8 @@ Error Browser::readFolder(FileListing& into, ListingRead& read) {
 		// re-running the ones before it.
 		Error error = readFileItemsForFolder(into, read.dir, read.filePrefix, read.allowFolders, allowedFileExtensions,
 		                                     read.filenameToStartAt.empty() ? nullptr : read.filenameToStartAt.c_str(),
-		                                     FILE_ITEMS_MAX_NUM_ELEMENTS, read.catalogSearchDirection);
+		                                     FILE_ITEMS_MAX_NUM_ELEMENTS, read.catalogSearchDirection,
+		                                     read.nameFamily.has_value() ? &*read.nameFamily : nullptr);
 		if (error == Error::LISTING_DEFERRED) {
 			return error;
 		}
@@ -698,6 +708,14 @@ Error Browser::readFolder(FileListing& into, ListingRead& read) {
 		if (error != Error::NONE) {
 			return error;
 		}
+		// The song's own Instruments may not be on the card yet, but their names are just as taken.
+		if (read.nameFamily.has_value()) {
+			for (int32_t i = 0; i < into.size(); i++) {
+				if (!into.item(i).isFolder) {
+					read.nameFamily->observe(into.item(i).filename);
+				}
+			}
+		}
 	}
 
 	if (!into.empty()) {
@@ -722,16 +740,6 @@ Error Browser::readFolder(FileListing& into, ListingRead& read) {
 Error Browser::openListingImpl(int32_t direction, char const* filenameToStartAt, char const* defaultDir) {
 	return arrivedInNewFolder(direction, filenameToStartAt, defaultDir);
 }
-
-namespace {
-/// Adapts Browser::listing to the FileListView seam used by nextDefaultName().
-class BrowserFileListView final : public deluge::gui::browser::FileListView {
-public:
-	bool contains(char const* nameWithExtension) const override {
-		return Browser::listing.search(nameWithExtension).exact;
-	}
-};
-} // namespace
 
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
 // outputTypeToLoad must be set before calling this.
@@ -785,6 +793,13 @@ Error Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStart
 	// Arm the machine and run it. On the synchronous arm nothing ever defers, so this returns with the
 	// listing complete and behaves exactly as the one straight-line function it replaced.
 	const bool haveSearchString = (filenameToStartAt != nullptr && *filenameToStartAt != 0);
+	// A save browser entering on an existing name proposes the name's next variation, so the read surveys the name's
+	// family: see applyListingSelection().
+	std::optional<deluge::gui::browser::NameFamilySurvey> nameFamily;
+	if (haveSearchString && mayDefaultToBrandNewNameOnEntry && direction == 0) {
+		const std::string_view searchName{filenameToStartAt};
+		nameFamily.emplace(searchName.substr(0, searchName.rfind('.')), slotPrefixForNaming());
+	}
 	listing_ = ListingState{
 	    .active = true,
 	    .phase = ListingPhase::Read,
@@ -797,6 +812,7 @@ Error Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStart
 	            .defaultDirToAlsoTry = defaultDirToAlsoTry,
 	            .allowFolders = true,
 	            .catalogSearchDirection = haveSearchString ? CatalogSearch::Both : CatalogSearch::Right,
+	            .nameFamily = std::move(nameFamily),
 	        },
 	    .direction = direction,
 	    // Spelled out rather than left to the default: the first read's selection is what chooses the
@@ -934,6 +950,12 @@ Error Browser::stepListing() {
 	}
 }
 
+std::string_view Browser::slotPrefixForNaming() const {
+	// Only songs earn letter suffixes; presets take the numeric suffix path, preserving existing preset behaviour.
+	return (filePrefix != nullptr && !memcasecmp(filePrefix, "SONG", 4)) ? std::string_view{filePrefix}
+	                                                                     : std::string_view{};
+}
+
 Error Browser::performListingRead() {
 	return readFolder(listing, listing_.read);
 }
@@ -972,12 +994,13 @@ std::expected<Browser::SelectionOutcome, Error> Browser::applyListingSelection()
 				return std::unexpected(error);
 			}
 			// Names are display-agnostic ("SONG185", never "185"), so this is one code path for both
-			// displays - see default_name.h.
-			BrowserFileListView view;
-			// Only songs earn letter suffixes; presets pass an empty slotPrefix and take the numeric
-			// suffix path, preserving existing preset behaviour.
-			char const* slotPrefix = (filePrefix && !memcasecmp(filePrefix, "SONG", 4)) ? filePrefix : "";
-			const std::string newName = deluge::gui::browser::nextDefaultName(enteredText.c_str(), slotPrefix, view);
+			// displays - see default_name.h. arrivedInNewFolder() armed the read to survey the name's
+			// family over the whole folder for exactly this case; were it ever missing, an empty survey
+			// still floors the result at the name's own number.
+			const auto family = listing_.read.nameFamily.value_or(
+			    deluge::gui::browser::NameFamilySurvey{enteredText, slotPrefixForNaming()});
+			const std::string newName =
+			    deluge::gui::browser::nextDefaultName(enteredText, slotPrefixForNaming(), family);
 			if (newName == enteredText) {
 				// No free variation available - stay on the file we found.
 				scrollPosVertical = fileIndexSelected;

@@ -85,6 +85,7 @@ public:
 	void flattenReverseAutomation(int32_t reverseDirectionWithLength);
 	void forgetParamCollections();
 	void destructAndForgetParamCollections();
+	void destructAndForgetMainParamCollections(); // Retains expression params, like forgetParamCollections()
 	bool ensureExpressionParamSetExists(bool forDrum = false);
 
 	inline int32_t getExpressionParamSetOffset() { return expressionParamSetOffset; }

@@ -301,9 +301,11 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 
 	modKnobs[6][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_PITCH_ADJUST);
 
-	paramManager->getPatchCableSet()->numPatchCables = 1;
-	paramManager->getPatchCableSet()->patchCables[0].setup(PatchSource::VELOCITY, params::LOCAL_VOLUME,
-	                                                       getParamFromUserValue(params::PATCH_CABLE, 50));
+	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
+	patchCableSet->truncateCables(0);
+	if (PatchCable* cable = patchCableSet->addCable()) {
+		cable->setup(PatchSource::VELOCITY, params::LOCAL_VOLUME, getParamFromUserValue(params::PATCH_CABLE, 50));
+	}
 
 	setupDefaultExpressionPatching(paramManager);
 
@@ -338,12 +340,21 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 	patchedParams->params[params::GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(
 	    *patchedParams->docForParam(params::GLOBAL_VOLUME_POST_FX), 0x50000000);
 
-	paramManager->getPatchCableSet()->patchCables[0].setup(PatchSource::NOTE, params::LOCAL_LPF_FREQ, 0x08F5C28C);
-	paramManager->getPatchCableSet()->patchCables[1].setup(PatchSource::ENVELOPE_1, params::LOCAL_LPF_FREQ, 0x1C28F5B8);
-	paramManager->getPatchCableSet()->patchCables[2].setup(PatchSource::VELOCITY, params::LOCAL_LPF_FREQ, 0x0F5C28F0);
-	paramManager->getPatchCableSet()->patchCables[3].setup(PatchSource::VELOCITY, params::LOCAL_VOLUME, 0x3FFFFFE8);
-
-	paramManager->getPatchCableSet()->numPatchCables = 4;
+	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
+	patchCableSet->truncateCables(0);
+	struct DefaultCable {
+		PatchSource from;
+		uint8_t to;
+		int32_t amount;
+	};
+	for (DefaultCable const& d : {DefaultCable{PatchSource::NOTE, params::LOCAL_LPF_FREQ, 0x08F5C28C},
+	                              DefaultCable{PatchSource::ENVELOPE_1, params::LOCAL_LPF_FREQ, 0x1C28F5B8},
+	                              DefaultCable{PatchSource::VELOCITY, params::LOCAL_LPF_FREQ, 0x0F5C28F0},
+	                              DefaultCable{PatchSource::VELOCITY, params::LOCAL_VOLUME, 0x3FFFFFE8}}) {
+		if (PatchCable* cable = patchCableSet->addCable()) {
+			cable->setup(d.from, d.to, d.amount);
+		}
+	}
 
 	setupDefaultExpressionPatching(paramManager);
 
@@ -363,23 +374,21 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 
-	if (patchCableSet->numPatchCables >= kMaxNumPatchCables) {
+	PatchCable* cable = patchCableSet->addCable();
+	if (cable == nullptr) {
 		return;
 	}
-	patchCableSet->patchCables[patchCableSet->numPatchCables++].setup(PatchSource::AFTERTOUCH, params::LOCAL_VOLUME,
-	                                                                  getParamFromUserValue(params::PATCH_CABLE, 33));
+	cable->setup(PatchSource::AFTERTOUCH, params::LOCAL_VOLUME, getParamFromUserValue(params::PATCH_CABLE, 33));
 
-	if (patchCableSet->numPatchCables >= kMaxNumPatchCables) {
+	cable = patchCableSet->addCable();
+	if (cable == nullptr) {
 		return;
 	}
-
 	if (getSynthMode() == SynthMode::FM) {
-		patchCableSet->patchCables[patchCableSet->numPatchCables++].setup(
-		    PatchSource::Y, params::LOCAL_MODULATOR_0_VOLUME, getParamFromUserValue(params::PATCH_CABLE, 15));
+		cable->setup(PatchSource::Y, params::LOCAL_MODULATOR_0_VOLUME, getParamFromUserValue(params::PATCH_CABLE, 15));
 	}
 	else {
-		patchCableSet->patchCables[patchCableSet->numPatchCables++].setup(
-		    PatchSource::Y, params::LOCAL_LPF_FREQ, getParamFromUserValue(params::PATCH_CABLE, 20));
+		cable->setup(PatchSource::Y, params::LOCAL_LPF_FREQ, getParamFromUserValue(params::PATCH_CABLE, 20));
 	}
 }
 
@@ -402,7 +411,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 		sources[0].oscType = OscType::DX7;
 		sources[0].ensureDxPatch(); // initializes DX engine if this is the first dx7patch
 		// velocity is forwarded to dx7 engine, don't do master volume
-		paramManager->getPatchCableSet()->numPatchCables = 0;
+		paramManager->getPatchCableSet()->truncateCables(0);
 		patchedParams->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
 		    *patchedParams->docForParam(params::LOCAL_ENV_0_RELEASE), 2147483647); // 30 ish
 	}
@@ -410,9 +419,11 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 		patchedParams->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
 		    *patchedParams->docForParam(params::LOCAL_ENV_0_RELEASE), -2147483648);
 
-		paramManager->getPatchCableSet()->numPatchCables = 1;
-		paramManager->getPatchCableSet()->patchCables[0].setup(PatchSource::VELOCITY, params::LOCAL_VOLUME,
-		                                                       getParamFromUserValue(params::PATCH_CABLE, 50));
+		PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
+		patchCableSet->truncateCables(0);
+		if (PatchCable* cable = patchCableSet->addCable()) {
+			cable->setup(PatchSource::VELOCITY, params::LOCAL_VOLUME, getParamFromUserValue(params::PATCH_CABLE, 50));
+		}
 	}
 
 	setupDefaultExpressionPatching(paramManager);

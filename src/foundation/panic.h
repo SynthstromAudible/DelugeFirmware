@@ -31,8 +31,9 @@
 ///   - freezeWithError(): the terminal handler — report the message and halt. The
 ///     Deluge application provides the rich OLED renderer (hid/display); a
 ///     host-sim/other board provides its own.
-///   - fault_handler_*(): dump CPU fault context to the board's status LEDs — the
-///     hardware side of the panic system, provided by the board.
+///   - fault_handler_print_freeze_pointers() / deluge_cpu_fault_report(): draw the
+///     freeze's or fault's call chain on the pads (io/debug/fault_pattern.c), through
+///     the board's libdeluge/fault.h hooks. The board's fault vectors call the latter.
 
 #include <stdint.h>
 
@@ -43,11 +44,31 @@ extern "C" {
 /// Terminal panic: report `errmsg` and halt. Does not return in practice.
 extern void freezeWithError(char const* errmsg);
 
-/// Dump fault context (system/user link + stack pointers) to the board's status
-/// LEDs. Called from FREEZE_WITH_ERROR and from the CPU fault vector.
-void fault_handler_print_freeze_pointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR,
-                                         uint32_t addrUSRSP);
-void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR, uint32_t addrUSRSP);
+/// @brief What stopped the CPU, as the fault vectors and FREEZE_WITH_ERROR report it.
+///
+/// The values are the HAL's: its fault vectors pass them in a register, so they must not change.
+typedef enum DelugeCpuFault : uint32_t {
+	DELUGE_CPU_FAULT_UNDEFINED = 0,      ///< Undefined instruction.
+	DELUGE_CPU_FAULT_PREFETCH_ABORT = 1, ///< Instruction fetch from an address that can't be executed.
+	DELUGE_CPU_FAULT_DATA_ABORT = 2,     ///< Load or store to an address that can't be accessed.
+	DELUGE_CPU_FAULT_RESERVED = 3,       ///< The reserved vector (unreachable on the Cortex-A9).
+	DELUGE_CPU_FAULT_RUST_PANIC = 0xD,   ///< A Rust panic in the board support, not a CPU exception.
+	DELUGE_CPU_FAULT_FREEZE = 0xE,       ///< FREEZE_WITH_ERROR, not a CPU exception.
+	DELUGE_CPU_FAULT_SVC = 0xF,          ///< Supervisor call; nothing makes them, so it is a fault.
+} DelugeCpuFault;
+
+/// @brief Draw FREEZE_WITH_ERROR's call site and call chain on the pads.
+/// @param lr The return address of the function that froze.
+/// @param sp The stack pointer at the freeze, where the call chain is walked from.
+void fault_handler_print_freeze_pointers(uint32_t lr, uint32_t sp);
+
+/// @brief The board's CPU fault vectors hand over here: draw the fault on the pads and halt.
+/// @param fault_pc   Address of the faulting instruction.
+/// @param fault_type Which exception it was.
+/// @param sys_lr     The interrupted code's link register: the return address of the call that went wrong.
+/// @param sys_sp     The interrupted code's stack pointer, where the call chain is walked from.
+[[noreturn]] void deluge_cpu_fault_report(uint32_t fault_pc, DelugeCpuFault fault_type, uint32_t sys_lr,
+                                          uint32_t sys_sp);
 
 #ifdef __cplusplus
 }
@@ -62,7 +83,7 @@ void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR
 		uint32_t regSP = 0;                                                                                            \
 		asm volatile("MOV %0, LR\n" : "=r"(regLR));                                                                    \
 		asm volatile("MOV %0, SP\n" : "=r"(regSP));                                                                    \
-		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);                                                       \
+		fault_handler_print_freeze_pointers(regLR, regSP);                                                             \
 		freezeWithError(error);                                                                                        \
 	})
 #else

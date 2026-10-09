@@ -79,7 +79,7 @@ int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		setNodeIn(*pm.getPatchedParamSet()->docForParam(5), 0, 100, true);
 
 		PatchCableSet* pcs = pm.getPatchCableSet();
-		pcs->numPatchCables = 1;
+		pcs->addCable();
 		pcs->numUsablePatchCables = 1; // beenCloned() only fixes up cables < numUsablePatchCables; the rest it init()s
 		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
@@ -171,7 +171,7 @@ int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "pcs clone: pm setup");
 		PatchCableSet* pcs = pm.getPatchCableSet();
-		pcs->numPatchCables = 1;
+		pcs->addCable();
 		pcs->numUsablePatchCables = 1;
 		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);

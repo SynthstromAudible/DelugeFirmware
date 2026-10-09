@@ -92,6 +92,8 @@ public:
 	bool editingKitRow();
 	void setCurrentSource(int32_t sourceIndex);
 
+	bool should_render_shortcut_overlay();
+	bool in_sound_editor();
 	bool renderMainPads(uint32_t whichRows, RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth],
 	                    bool drawUndefinedArea = false) override;

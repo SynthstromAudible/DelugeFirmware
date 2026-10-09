@@ -60,6 +60,7 @@
 #include <cstring>
 #include <span>
 #include <string>
+#include <vector>
 
 // The GUI headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded
 // `printf_`. That implementation emits through `putchar_`, which the Rust BSP builds do not define --
@@ -168,13 +169,16 @@ public:
 	///
 	/// saveSongUI, not loadSongUI: `mayDefaultToBrandNewNameOnEntry` is set only by SaveUI's
 	/// constructor, and without it a listing never reaches `pickBrandNewName` at all.
-	static void beginSaveListing(const char* dir) {
+	///
+	/// `filenameToStartAt` is the song being saved over, as the save browser opens on the current song's name; empty
+	/// for a song that has none.
+	static void beginSaveListing(const char* dir, const char* filenameToStartAt = "") {
 		Browser::currentDir = dir;
 		Browser::allowedFileExtensions = allowedFileExtensionsXML; // what opened() sets; see beginOpenListing
 		Browser::enteredText.clear();                              // the pickBrandNewName precondition
 		(void)saveSongUI.beginListing({.action = Browser::ListingAction::Open,
 		                               .direction = 0,
-		                               .filenameToStartAt = "",
+		                               .filenameToStartAt = filenameToStartAt,
 		                               .defaultDir = "",
 		                               .folderOrPath = ""});
 	}
@@ -1282,6 +1286,14 @@ constexpr int32_t kNewNameOpens = 3;
 constexpr const char* kSlotDir = "SLOTTEST";
 constexpr const char* kSlotExpected = "SONG003";
 
+/// The variation fixture: a family "JAM", "JAM 2" .. "JAM 12" between ten names that sort before it and ten that sort
+/// after, 33 files, so the listing culls to a window around the name being saved over. The save browser entered on
+/// "JAM 11" must propose the family's next number. Probing "JAM 2", "JAM 3", ... against the window proposed "JAM 2",
+/// which is on the card: the low members had sorted out of the window.
+constexpr const char* kVariationDir = "VARTEST";
+constexpr const char* kVariationStartAt = "JAM 11.XML";
+constexpr const char* kVariationExpected = "JAM 13";
+
 /// How long every directory open is held in flight while the listing and by-path stages run, in milliseconds of the
 /// harness's virtual clock. Long enough that each open is still pending when it is asked for again on the next ticks.
 constexpr uint32_t kDirectoryHoldMs = 5;
@@ -1299,6 +1311,7 @@ enum class ListingStep : uint8_t {
 	Create,
 	NewName,
 	SlotName,
+	Variation,
 	/// Unmounts the card, then lists: the tick after the new-name run.
 	Unmount,
 	Mount,
@@ -1325,6 +1338,33 @@ void buildSlotFixture() {
 		char path[64];
 		snprintf(path, sizeof(path), "%s/%s", kSlotDir, name);
 		auto file = deluge::io::File::open(path, DELUGE_FILE_WRITE_CREATE_NEW);
+		if (!file.has_value()) {
+			continue; // already present from a previous run
+		}
+		const char body[] = "<song firmwareVersion=\"c1.3.0\"></song>";
+		(void)file->write(std::as_bytes(std::span{body, sizeof(body) - 1}));
+		(void)file->close();
+	}
+}
+
+/// Build kVariationDir. Idempotent, like buildSlotFixture.
+void buildVariationFixture() {
+	(void)deluge::io::mkdir(kVariationDir);
+	std::vector<std::string> names;
+	for (int32_t i = 0; i < 10; i++) {
+		char name[16];
+		snprintf(name, sizeof(name), "AAA%03d.XML", static_cast<int>(i));
+		names.emplace_back(name);
+		snprintf(name, sizeof(name), "ZED%03d.XML", static_cast<int>(i));
+		names.emplace_back(name);
+	}
+	names.emplace_back("JAM.XML");
+	for (int32_t i = 2; i <= 12; i++) {
+		names.push_back("JAM " + std::to_string(i) + ".XML");
+	}
+	for (const std::string& name : names) {
+		const std::string path = std::string{kVariationDir} + "/" + name;
+		auto file = deluge::io::File::open(path.c_str(), DELUGE_FILE_WRITE_CREATE_NEW);
 		if (!file.has_value()) {
 			continue; // already present from a previous run
 		}
@@ -1479,6 +1519,8 @@ const char* listingStepName(ListingStep step) {
 		return "newname";
 	case ListingStep::SlotName:
 		return "slotname";
+	case ListingStep::Variation:
+		return "variation";
 	case ListingStep::Unmount:
 		return "unmount";
 	case ListingStep::Mount:
@@ -1502,6 +1544,7 @@ bool tickRun() {
 		return !BrowserListingAbProbe::predicting();
 	case ListingStep::NewName:
 	case ListingStep::SlotName:
+	case ListingStep::Variation:
 		if (BrowserListingAbProbe::inProgress()) {
 			BrowserListingAbProbe::tickSave();
 		}
@@ -1684,6 +1727,21 @@ void finishRun() {
 			printf("SP-SLOT FAIL named %s, wanted %s -- an entry sorting after the search key stayed in the read, "
 			       "and the slot was numbered from it\n",
 			       got.entered.c_str(), kSlotExpected);
+			g_failures++;
+		}
+		// Saving over a song whose family runs past the listing's window.
+		buildVariationFixture();
+		beginRun(ListingStep::Variation);
+		BrowserListingAbProbe::beginSaveListing(kVariationDir, kVariationStartAt);
+		return;
+
+	case ListingStep::Variation:
+		printf("SP-VARIATION dir=%s name=%s opens=%d\n", kVariationDir, got.entered.c_str(), runOpens());
+		checkResumed("variation");
+		if (got.entered != kVariationExpected) {
+			printf("SP-VARIATION FAIL saving over %s proposed %s, wanted %s -- the name's family was judged from the "
+			       "listing's window, not the whole folder\n",
+			       kVariationStartAt, got.entered.c_str(), kVariationExpected);
 			g_failures++;
 		}
 		g_listingStep = ListingStep::Unmount;

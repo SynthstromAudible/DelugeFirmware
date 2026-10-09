@@ -17,20 +17,11 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 
 namespace deluge::gui::browser {
-
-/// Read-only view over the browser's file list, so name derivation can be tested without a card, a display, or the
-/// browser's static state. Implemented over Browser::listing in the firmware, and over a vector in tests.
-class FileListView {
-public:
-	virtual ~FileListView() = default;
-	/// True if the list holds this exact name. The name includes its extension, matching FileItem::displayName (the
-	/// CStringArray sort key).
-	virtual bool contains(char const* nameWithExtension) const = 0;
-};
 
 /// The delimiter used when giving a name its first numeric suffix ("MYTRACK" -> "MYTRACK 2").
 /// Deliberately NOT display-dependent: a name must never depend on which Deluge saved it.
@@ -46,6 +37,40 @@ inline constexpr char kNumericSuffixDelimiter = ' ';
 /// slot navigation dies for those songs.
 char const* numberPartOf(char const* name, char const* filePrefix);
 
+/// @brief What a folder holds of a name's family: the variations nextDefaultName() must not hand out.
+///
+/// Built from the name being saved over before the folder is read, then fed every file name the read
+/// passes, so it sees the whole folder however the listing culls it. The listing keeps only a window of
+/// names around the file being saved, and a member of the family can sit any distance from it in sort
+/// order: probing candidates against that window reported names missing that were really there.
+class NameFamilySurvey {
+public:
+	/// @param currentName The name being saved over, without extension: "SONG185", "MY PROJECT 11".
+	/// @param slotPrefix  As for nextDefaultName().
+	NameFamilySurvey(std::string_view currentName, std::string_view slotPrefix);
+
+	/// @brief Fold in one name in the folder.
+	/// @param fileName With or without its extension. Names differing only in case are the same name.
+	void observe(std::string_view fileName);
+
+	/// @brief Forget everything observed, for a read that starts over.
+	void restart() {
+		highestNumber_ = 0;
+		takenLetters_ = 0;
+	}
+
+	/// The highest N among "<base><delimiter>N" names observed, 0 if none.
+	[[nodiscard]] int32_t highestNumber() const { return highestNumber_; }
+	/// A bit per observed "<stem><letter>" name, bit 0 for 'A'.
+	[[nodiscard]] uint32_t takenLetters() const { return takenLetters_; }
+
+private:
+	std::string letterStem_;   ///< "SONG185" for a slot-form name, else empty
+	std::string numberPrefix_; ///< "MY PROJECT " for any other name, else empty
+	int32_t highestNumber_{};
+	uint32_t takenLetters_{};
+};
+
 /// Derives the default name for the next variation of `currentName`.
 ///
 /// `currentName` and the result are real on-card names: no extension, and no display-specific mangling (always
@@ -56,12 +81,16 @@ char const* numberPartOf(char const* name, char const* filePrefix);
 /// take the numeric path.
 ///
 /// Two forms:
-///   <slotPrefix><digits>[letter]  -> next unused letter:  SONG185 -> SONG185A -> SONG185B
-///   anything else                 -> next unused number:  MYTRACK -> "MYTRACK 2"
-///                                                         TRACK_1 -> TRACK_2 (an existing delimiter is reused)
+///   <slotPrefix><digits>[letter]  -> first free letter after the current one:  SONG185 -> SONG185A -> SONG185B
+///   anything else                 -> one past the highest number:  MYTRACK -> "MYTRACK 2"
+///                                                                  TRACK_1 -> TRACK_2 (an existing delimiter is
+///                                                                  reused)
 ///
-/// Returns `currentName` unchanged when no free variation exists (letters exhausted past Z).
-std::string nextDefaultName(std::string_view currentName, std::string_view slotPrefix, FileListView const& files);
+/// Numbers count up from the family's highest member rather than filling gaps, so a deleted "MYTRACK 3" is not handed
+/// back. The name being saved over is on the card, so its own number is a floor even if `family` saw nothing.
+///
+/// Returns `currentName` unchanged when no free variation exists (letters past Z, numbers past 9999).
+std::string nextDefaultName(std::string_view currentName, std::string_view slotPrefix, NameFamilySurvey const& family);
 
 /// @brief The slot name after @p lastName -- "SYNT7" after "SYNT6" -- as Browser::getUnusedSlot names a new
 ///        instrument.

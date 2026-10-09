@@ -27,9 +27,9 @@ What the run checks (tests/integration/scenarios/song_preview_ab_scenario.cpp wr
             late artwork instead. Not diffed.
   SP-DEFER / SP-SUMMARY / SP-SWAP-SUMMARY
             how many times each song's preview deferred, and the swap's outcome. Read, not compared.
-  SP-LISTING / SP-PREDICT / SP-NEWNAME / SP-SLOT / SP-BYPATH / SP-TIER
-            the browser's listings, typing prediction, brand-new slot name (in an empty folder, and in a numbered one)
-            and by-path opens, each driven through the directory channel as steps of the scenario's tick machine and
+  SP-LISTING / SP-PREDICT / SP-NEWNAME / SP-SLOT / SP-VARIATION / SP-BYPATH / SP-TIER
+            the browser's listings, typing prediction, brand-new slot name (in an empty folder, and in a numbered one),
+            the next variation of a name whose family runs past the listing's window, and by-path opens, each driven through the directory channel as steps of the scenario's tick machine and
             checked in-process against what its fixture implies, with exactly one channel request per open (a listing
             that restarted would ask again). SP-TIER requires no synchronous browser directory operation on the
             interaction tier after boot.
@@ -68,7 +68,7 @@ SUMMARY = re.compile(
     r"^(SP-SUMMARY|SP-DEFER|SP-WINDOW|SP-SWAP-SUMMARY|SP-PREVIEW-STALL) "
 )
 STAGES = re.compile(
-    r"^(SP-LISTING|SP-NEWNAME|SP-PREDICT|SP-SLOT|SP-BYPATH|SP-DX|SP-TIER|SP-RELOAD)"
+    r"^(SP-LISTING|SP-NEWNAME|SP-PREDICT|SP-SLOT|SP-VARIATION|SP-BYPATH|SP-DX|SP-TIER|SP-RELOAD)"
 )
 
 

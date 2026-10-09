@@ -137,9 +137,15 @@ public:
 
 	uint32_t sourcesPatchedToAnything[2]{}; // Only valid after setupPatching()
 
-	PatchCable patchCables[kMaxNumPatchCables]; // TODO: store these in dynamic memory.
-	uint8_t numUsablePatchCables;
-	uint8_t numPatchCables;
+	/// @brief The cables, numPatchCables of them, in storage sized to fit; null when there are none.
+	///
+	/// In the order setupPatching() leaves them: the usable ones first, and each Destination's cables the run
+	/// [firstCable, endCable). The render walks and ticks them, so the storage changes only in addCable() and
+	/// truncateCables(), which publish with the render excluded.
+	PatchCable* patchCables{};
+	uint8_t numUsablePatchCables{};
+	/// How many cables there are. Changed only through addCable() and truncateCables().
+	uint8_t numPatchCables{};
 
 	/// DOM-owned node store the cable amount-AutoParams borrow (nullptr = unbound). RAII-freed with this
 	/// (heap-allocated, stable-address) collection. See bindDomStore().
@@ -151,6 +157,20 @@ public:
 	std::vector<deluge::project::DocCable>* domCablesRef_ = nullptr;
 
 	Destination* destinations[2]{};
+
+	/// @brief Append a cable, growing the storage to fit it.
+	///
+	/// It joins the unusable end of the list, where the render doesn't reach it, until setupPatching() places it.
+	/// @return The new cable, default-initialised; nullptr at kMaxNumPatchCables cables, or if out of memory.
+	PatchCable* addCable();
+
+	/// @brief Drop every cable from index @p count on, shrinking the storage to fit the rest.
+	///
+	/// Dropping a usable cable also drops the Destinations, which may refer to it, so the render sees no patching
+	/// until the caller re-runs setupPatching() - which it must anyway, and which also clears the summary's
+	/// automation flags for the dropped indices.
+	/// @param count At most numPatchCables.
+	void truncateCables(uint8_t count);
 
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override { return true; };
 
@@ -165,6 +185,9 @@ private:
 	/// or not present. Read-only (used to copy live nodes when cloning a bound set).
 	deluge::project::DocAutoParam* findDomCableAmount(PatchSource from, ParamDescriptor dest) const;
 
+	/// Move the cables into storage for exactly @p count of them, default-initialising any new ones and destroying
+	/// any dropped. @return false, with nothing changed, if the storage couldn't be allocated.
+	bool resizeCables(uint8_t count);
 	void swapCables(int32_t c1, int32_t c2);
 	void freeDestinationMemory(bool destructing);
 	/// Deep-copy a sentinel-terminated Destination array (terminated by an entry with sources == 0). Returns

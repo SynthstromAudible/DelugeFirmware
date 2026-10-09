@@ -216,8 +216,9 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 	    c != nullptr && c->getParamKind() == Kind::PATCH_CABLE) {
 		PatchCableSet* pcs = static_cast<PatchCableSet*>(c);
 		int32_t count = std::min(static_cast<int32_t>(doc.cables.size()), int32_t{kMaxNumPatchCables});
-		pcs->numPatchCables = count;
-		for (int32_t i = 0; i < count; i++) {
+		pcs->truncateCables(count);
+		while (pcs->numPatchCables < count && pcs->addCable() != nullptr) {}
+		for (int32_t i = 0; i < pcs->numPatchCables; i++) {
 			const DocCable& dc = doc.cables[i];
 			pcs->patchCables[i].from = source_of(dc);
 			pcs->patchCables[i].destinationParamDescriptor = destination_of(dc);

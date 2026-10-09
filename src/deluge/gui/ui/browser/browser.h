@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/browser/default_name.h"
 #include "gui/ui/browser/file_listing.h"
 #include "gui/ui/qwerty_ui.h"
 #include "hid/button.h"
@@ -79,7 +80,8 @@ public:
 	Error readFileItemsForFolder(FileListing& into, const std::string& dirToRead, char const* filePrefixHere,
 	                             bool allowFolders, char const** allowedFileExtensionsHere,
 	                             char const* filenameToStartAt, int32_t newMaxNumFileItems,
-	                             CatalogSearch newCatalogSearchDirection = CatalogSearch::Both);
+	                             CatalogSearch newCatalogSearchDirection = CatalogSearch::Both,
+	                             deluge::gui::browser::NameFamilySurvey* nameFamily = nullptr);
 	Error setFileByFullPath(OutputType outputType, char const* fullPath);
 	/// @brief Sort the listing by this browser's collation.
 	///
@@ -302,6 +304,12 @@ protected:
 		/// folder would otherwise `mkdir` it again on resume and read the resulting EXISTS as
 		/// terminal -- so it belongs with the read.
 		bool triedCreatingFolder{};
+		/// @brief The family of the name being saved over, surveyed across the whole folder as it is read.
+		///
+		/// Set when the read is a save browser's entry onto an existing name, which then proposes the
+		/// name's next variation. The listing keeps only a window around that name, so it can't say
+		/// which variations are taken; the read sees every file before the window is cut.
+		std::optional<deluge::gui::browser::NameFamilySurvey> nameFamily;
 
 		/// @brief Drop the search string, and the search DIRECTION that depends on it.
 		///
@@ -322,6 +330,7 @@ protected:
 		void dropSearchString() {
 			filenameToStartAt.clear();
 			catalogSearchDirection = CatalogSearch::Right;
+			nameFamily.reset(); // surveyed for the name searched for
 		}
 	};
 
@@ -554,6 +563,9 @@ protected:
 	bool qwertyAlwaysVisible;
 	// filePrefix is SONG/SYNT/SAMP etc., signifying the portion of the filesystem you're in
 	char const* filePrefix;
+	/// @brief The prefix that earns a name letter suffixes rather than numbers: `filePrefix` for songs, empty for
+	///        everything else. See nextDefaultName().
+	[[nodiscard]] std::string_view slotPrefixForNaming() const;
 	bool shouldInterpretNoteNamesForThisBrowser;
 };
 

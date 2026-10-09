@@ -21,6 +21,8 @@ add_library(deluge_spec STATIC
 # ObjectPool guards its free list with CriticalSectionGuard, whose C ABI the BSP owns; the
 # specs have no BSP, and single-threaded drivers have nothing to mask.
 ../../support/mocks/mock_critical_section.cpp
+# The pad-grid crash pattern, against fault_pattern_spec.cpp's recording board.
+../../../src/deluge/io/debug/fault_pattern.c
 )
 target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_serialization)
 
@@ -40,6 +42,8 @@ target_include_directories(deluge_spec PUBLIC ../../../src/deluge ../../../src .
 set_target_properties(deluge_spec PROPERTIES
   CXX_STANDARD 26
   CXX_STANDARD_REQUIRED YES
+  C_STANDARD 23
+  C_STANDARD_REQUIRED YES
 )
 
 deluge_specs_driver(all_specs)

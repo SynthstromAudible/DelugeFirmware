@@ -329,8 +329,8 @@ void deliverEverything() {
 	(void)Buttons::buttonAction(button::SYNTH, false);
 	(void)matrixDriver.padAction(3, 3, 64);
 	(void)matrixDriver.padAction(3, 3, 0);
-	encoders::functionEncoderAt(1).applyEdges(2); // scrollX
-	encoders::functionEncoderAt(0).applyEdges(2); // scrollY
+	encoders::functionEncoderAt(1).applyEdges(4); // scrollX
+	encoders::functionEncoderAt(0).applyEdges(4); // scrollY
 	encoders::modEncoderAt(0).applyEdges(1);
 	(void)encoders::interpretEncoders();
 	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 1);
@@ -419,7 +419,7 @@ void stepInertRun() {
 		if (!g_repeatsTried && currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 			g_repeatsTried = true;
 			const int32_t before = session.numRepeatsTilLaunch;
-			deluge::hid::encoders::functionEncoderAt(3).applyEdges(2);
+			deluge::hid::encoders::functionEncoderAt(3).applyEdges(4);
 			(void)deluge::hid::encoders::interpretEncoders();
 			g_repeatsMoved = session.numRepeatsTilLaunch == before + 1;
 			// That put the LOADING popup up; a knob turn on the still-playing song must leave it there.
