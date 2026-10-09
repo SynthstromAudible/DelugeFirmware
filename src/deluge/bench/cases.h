@@ -685,8 +685,8 @@ using ShiftTrackerX4Case = LanesShiftTrackerCase<4>;
 /// @brief `shift_tracker_x8`.
 using ShiftTrackerX8Case = LanesShiftTrackerCase<8>;
 
-/// @brief `Stereo<AntialiasedTanh>` at drive 3, lane by lane: both channels of the lanes input's first two lanes per
-/// frame, read as stereo frames, into the lanes output.
+/// @brief `Stereo<AntialiasedTanh>` at drive 3, lane by lane: the lanes input's first 2·n words, read as n
+/// consecutive left/right frames, into the lanes output's first 2·n words.
 /// @details **Timed state:** each channel's position carries from block to block, from the centre at setup, following
 /// its channel of the one input block the case repeats. Every frame is the mono case's arithmetic twice, left then
 /// right.

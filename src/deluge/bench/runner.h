@@ -80,20 +80,24 @@ struct Case {
 	std::size_t lanes = 1;                       ///< The channel-samples in each of the n: a frame's lane count.
 };
 
-/// @brief A component a case can time: it prepares for a block size, then renders blocks of that size.
+/// @brief Whether a component declares a member named `kLanes`, of any type.
+template <typename Component>
+concept declares_lanes = requires { Component::kLanes; };
+
+/// @brief A component a case can time: it prepares for a block size, then renders blocks of that size. A `kLanes` it
+/// declares is a `std::size_t`, so that one of another type is rejected rather than read as one lane.
 template <typename Component>
 concept Benchable = requires(Component& component, std::size_t n) {
 	{ component.setup(n) } -> std::same_as<void>;
 	{ component.block(n) } -> std::same_as<void>;
-};
+} && (!declares_lanes<Component> || std::same_as<std::remove_cv_t<decltype(Component::kLanes)>, std::size_t>);
 
 /// @brief A component's lane count: its `kLanes` when it declares one, else 1.
 template <typename Component>
 inline constexpr std::size_t lanes_of = 1;
 
 /// @brief A component's lane count: its `kLanes` when it declares one, else 1.
-template <typename Component>
-requires std::same_as<std::remove_cv_t<decltype(Component::kLanes)>, std::size_t>
+template <declares_lanes Component>
 inline constexpr std::size_t lanes_of<Component> = Component::kLanes;
 
 /// @brief Builds a case that times `component`.

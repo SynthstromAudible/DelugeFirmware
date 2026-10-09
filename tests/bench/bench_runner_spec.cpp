@@ -202,6 +202,19 @@ struct CheaperThanCalibration {
 
 constexpr std::array<std::size_t, 3> kSizes{32, 64, 128};
 
+/// A component whose lane count is declared as an int rather than a std::size_t.
+struct IntLanesComponent {
+	static constexpr int kLanes = 2;
+	void setup(std::size_t /*n*/) {}
+	void block(std::size_t /*n*/) {}
+};
+
+static_assert(!Benchable<IntLanesComponent>, "a kLanes of another type than std::size_t is rejected, not read as 1");
+static_assert(Benchable<CheaperThanCalibration>);
+
+/// The lines the app prints over RTT before the run's own: a plain marker and the debug authentication line.
+constexpr std::size_t kAppPreambleLines = 2;
+
 std::string expected_line(std::string_view name, std::size_t n, std::size_t k, const Sample& delta) {
 	std::array<char, kLineCapacity> buffer{};
 	return std::string{format_line(buffer, name, n, k, delta)};
@@ -535,21 +548,21 @@ describe bench_runner("The DSP benchmark runner", ${
 			}
 		});
 
-		it("runs every case at every block size, the calibration's line included, in fewer than 70 lines", _ {
+		it("runs every case at every device block size, the calibration's line included, in fewer than 70 lines", _ {
 			for (const auto& [list, names] : {std::pair{CaseList::KERNELS, kKernelCaseNames},
 			                                  std::pair{CaseList::LANES, kLaneCaseNames}}) {
 				lines.clear();
 				counters.reset();
-				const RunConfig config{.block_sizes = kSizes};
+				const RunConfig config{.block_sizes = kBlockSizes};
 				const std::size_t count = run(cases(list), config, counters, capture);
 
 				const std::size_t per_size = cases(list).size() + 1;
-				expect(count).to_equal(kSizes.size() * per_size);
-				expect(count).to_be_less_than(std::size_t{70});
-				expect(lines.size()).to_equal(kSizes.size() * per_size + 1);
-				expect(lines.back()).to_equal("BENCH-DONE cases=" + std::to_string(kSizes.size() * per_size));
-				for (std::size_t size = 0; size < kSizes.size(); ++size) {
-					const std::string n = std::to_string(kSizes[size]);
+				expect(count).to_equal(kBlockSizes.size() * per_size);
+				expect(lines.size()).to_equal(kBlockSizes.size() * per_size + 1);
+				expect(kAppPreambleLines + lines.size()).to_be_less_than(std::size_t{70});
+				expect(lines.back()).to_equal("BENCH-DONE cases=" + std::to_string(kBlockSizes.size() * per_size));
+				for (std::size_t size = 0; size < kBlockSizes.size(); ++size) {
+					const std::string n = std::to_string(kBlockSizes[size]);
 					expect(lines[size * per_size]).to_start_with("BENCH case=calibration n=" + n + " ");
 					for (std::size_t i = 0; i < names.size(); ++i) {
 						const std::size_t lanes = cases(list)[i].lanes;
