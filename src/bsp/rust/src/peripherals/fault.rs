@@ -4,9 +4,11 @@
 //! panel decodes the same on any board. Only the board-specific parts live here: getting bytes to
 //! the PIC, and saying which addresses are code or stack.
 //!
-//! Everything here runs from a CPU fault vector: no executor, a possibly wrecked heap, interrupts
-//! masked. The transport is therefore a bare FIFO poll; [`control`](super::control)'s queue and
-//! `deluge_bsp::pic`'s async senders need a live executor and would hang.
+//! Everything here runs from a CPU fault vector (no executor, a possibly wrecked heap, interrupts
+//! masked) or from FREEZE_WITH_ERROR, whose freeze the user can resume. The transport is therefore
+//! a bare FIFO poll, under its own critical section; [`control`](super::control)'s queue and
+//! `deluge_bsp::pic`'s async senders need a live executor and would hang. It leaves the PIC's TX
+//! DMA channel set up, so those senders work again after a resumed freeze.
 
 use deluge_bsp::uart::PIC_CH;
 
@@ -58,8 +60,8 @@ pub extern "C" fn deluge_fault_ranges(out: *mut DelugeFaultRanges) {
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_fault_pad_write(byte: u8) {
-    // SAFETY: single-threaded fault context with interrupts masked; `deluge_cpu_fault_report` admits one
-    // reporter and parks every later arrival, so nothing else touches STAGE/STAGED.
+    // SAFETY: one reporter at a time: `deluge_cpu_fault_report` admits one and parks every later
+    // arrival, and a freeze runs on the app's task with nothing else drawing a pattern.
     unsafe {
         let n = STAGED;
         if n < STAGE_CAP {
@@ -71,45 +73,65 @@ pub extern "C" fn deluge_fault_pad_write(byte: u8) {
 
 /// Pushes the staged bytes to the PIC and blocks until they are on the wire.
 ///
-/// Stops the PIC TX DMA channel first: writing the FIFO under a live DMA transfer would
-/// interleave two byte streams. Every wait is bounded, so a PIC that stops accepting bytes cannot
-/// hang the report.
+/// Lets a PIC TX DMA transfer that is already running finish first: writing the FIFO under it
+/// would interleave two byte streams, and stopping it would cut a PIC message in half and leave
+/// the PIC reading the pattern out of step. Every wait is bounded, so a PIC or DMA channel that
+/// stops making progress cannot hang the report; only a channel that never finishes is stopped.
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_fault_pad_flush() {
     /// Spin budget per FIFO top-up: far longer than a 16-byte FIFO takes to drain at 200 kbaud
     /// (~640 µs), and still finite.
     const SPIN_LIMIT: u32 = 2_000_000;
+    /// Spin budget for a DMA transfer already running: a transfer is at most 64 bytes, ~20 ms
+    /// even at the PIC's 31 250 baud power-on rate, and this allows several times that.
+    const DMA_DRAIN_LIMIT: u32 = 16 * SPIN_LIMIT;
 
-    // SAFETY: fault context with interrupts masked; no driver will run again, so taking the DMA
-    // channel and writing the SCIF FIFO directly is sound.
-    unsafe {
-        rza1l_hal::dmac::stop(deluge_bsp::system::PIC_DMA_TX_CH);
-
-        let staged = STAGED;
-        let mut sent = 0usize;
-        let mut spins = 0u32;
-        while sent < staged {
-            let wrote = rza1l_hal::uart::try_write_fifo(PIC_CH, &STAGE[sent..staged]);
-            if wrote == 0 {
+    let channel = deluge_bsp::system::PIC_DMA_TX_CH;
+    // A freeze arrives with interrupts on. Mask them for the flush, so no sender starts a DMA
+    // transfer between the drain and the FIFO writes; a fault vector has them masked already, and
+    // this restores whichever state it found.
+    critical_section::with(|_| {
+        // SAFETY: interrupts are masked, so nothing else drives the PIC's TX DMA channel or the
+        // SCIF FIFO until this returns.
+        unsafe {
+            let mut spins = 0u32;
+            while rza1l_hal::dmac::transfer_in_flight(channel) {
                 spins += 1;
-                if spins >= SPIN_LIMIT {
-                    break; // transmitter wedged — give up rather than hang the report
+                if spins >= DMA_DRAIN_LIMIT {
+                    // The transfer is wedged: stop it rather than wait forever, and accept that
+                    // the PIC may misread the start of the pattern.
+                    rza1l_hal::dmac::stop(channel);
+                    break;
                 }
                 core::hint::spin_loop();
-                continue;
             }
-            sent += wrote;
-            spins = 0;
-        }
 
-        // Let the last FIFO load reach the PIC before the caller parks forever.
-        for _ in 0..SPIN_LIMIT {
-            core::hint::spin_loop();
-        }
+            let staged = STAGED;
+            let mut sent = 0usize;
+            let mut spins = 0u32;
+            while sent < staged {
+                let wrote = rza1l_hal::uart::try_write_fifo(PIC_CH, &STAGE[sent..staged]);
+                if wrote == 0 {
+                    spins += 1;
+                    if spins >= SPIN_LIMIT {
+                        break; // transmitter wedged — give up rather than hang the report
+                    }
+                    core::hint::spin_loop();
+                    continue;
+                }
+                sent += wrote;
+                spins = 0;
+            }
 
-        STAGED = 0;
-    }
+            // Let the last FIFO load reach the PIC before the caller parks or resumes.
+            for _ in 0..SPIN_LIMIT {
+                core::hint::spin_loop();
+            }
+
+            STAGED = 0;
+        }
+    });
 }
 
 abi_pin!(
