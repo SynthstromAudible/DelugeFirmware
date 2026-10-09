@@ -48,11 +48,6 @@ fn setup_linker_script(manifest_dir: &Path, out_dir: &Path) {
 fn emit_forced_link_roots() {
     force_link_roots(&SAMPLE_STREAM_ROOTS);
     force_link_roots(&EFATFS_ROOTS);
-
-    // The pad-grid crash reporter (src/deluge/io/debug/fault_pattern.c). Its only reference is
-    // the HAL UNDEF vector's weak one, which pulls nothing from an archive; without this root
-    // every fault would fall back to a silent spin.
-    force_link_roots(&["handle_cpu_fault"]);
 }
 
 /// Resolves the CMake build dir, build config and archiver for the device link, each overridable

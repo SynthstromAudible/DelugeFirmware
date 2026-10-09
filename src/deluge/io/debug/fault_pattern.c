@@ -57,6 +57,7 @@
 // Sharing the renderer keeps the encoding provably identical between boards, which is
 // the whole point — the pattern is only useful if a photo of it decodes the same way
 // whoever built the firmware.
+#include "io/debug/fault_pattern.h"
 #include "foundation/panic.h"
 #include "libdeluge/fault.h"
 #include <stddef.h>
@@ -154,17 +155,39 @@ static DelugeFaultRanges s_ranges;
 	return result;
 }
 
+/// The colour the commit ID is drawn in, which is what tells a photo's reader what kind of fault it was.
+typedef struct FaultColour {
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+} FaultColour;
+
+static FaultColour faultColour(DelugeCpuFault type) {
+	switch (type) {
+	case DELUGE_CPU_FAULT_UNDEFINED:
+		return (FaultColour){.r = 0, .g = 255, .b = 0}; // green
+	case DELUGE_CPU_FAULT_PREFETCH_ABORT:
+		return (FaultColour){.r = 0, .g = 0, .b = 255}; // blue
+	case DELUGE_CPU_FAULT_DATA_ABORT:
+		return (FaultColour){.r = 255, .g = 0, .b = 0}; // red
+	case DELUGE_CPU_FAULT_RESERVED:
+		return (FaultColour){.r = 255, .g = 0, .b = 255}; // magenta
+	case DELUGE_CPU_FAULT_FREEZE:
+		return (FaultColour){.r = 255, .g = 255, .b = 0}; // yellow
+	case DELUGE_CPU_FAULT_SVC:
+		return (FaultColour){.r = 0, .g = 255, .b = 255}; // cyan
+	}
+	return (FaultColour){.r = 255, .g = 255, .b = 255}; // white: a type this renderer doesn't know
+}
+
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MAX_POINTER_COUNT 4
-[[gnu::always_inline]] static inline void printPointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR,
-                                                        uint32_t addrUSRSP, bool hardFault) {
+[[gnu::always_inline]] static inline void printPointers(uint32_t faultPC, DelugeCpuFault type, uint32_t sysLR,
+                                                        uint32_t sysSP) {
 	// Search for stack pointers
 	uint32_t stackPointer = 0;
-	if (isStackPointer(addrUSRSP)) {
-		stackPointer = addrUSRSP;
-	}
-	else if (isStackPointer(addrSYSSP)) {
-		stackPointer = addrSYSSP;
+	if (isStackPointer(sysSP)) {
+		stackPointer = sysSP;
 	}
 
 	int8_t stackPointerCount = 0;
@@ -178,9 +201,10 @@ static DelugeFaultRanges s_ranges;
 		while (stackPointer < stackEnd) {
 			uint32_t stackValue = *((uint32_t*)stackPointer);
 
-			// Print any pointer that is pointing to code, different from the LRs and not the same as before
+			// Print any pointer that is pointing to code, different from the ones drawn already and not the same as
+			// before
 			if (isCodePointer(stackValue) && stackValue != stackPointers[MAX(0, stackPointerCount - 1)]
-			    && stackValue != addrUSRLR && stackValue != addrSYSLR) {
+			    && stackValue != sysLR && stackValue != faultPC) {
 				stackPointers[stackPointerCount] = stackValue;
 				++stackPointerCount;
 
@@ -197,24 +221,25 @@ static DelugeFaultRanges s_ranges;
 
 	uint32_t currentColumnPairIndex = 0;
 
+	// The faulting instruction itself, as the fault vector worked it out. Not a code address when the fault was a
+	// call through a null pointer (the PC is then near zero), and absent for a freeze.
+	if (isCodePointer(faultPC)) {
+		currentColumnPairIndex = drawPointer(currentColumnPairIndex, faultPC, 255, 0, 255);
+	}
+
 	// Every address drawn below is a return address: subtract 2 so it lands in the previous instruction, the call
 	// itself. 4 overshoots in Thumb mode.
 
-	// Print LR from USR mode if it is valid
-	if (isCodePointer(addrUSRLR)) {
-		currentColumnPairIndex = drawPointer(currentColumnPairIndex, addrUSRLR - 2, 255, 0, 255);
-	}
-
-	// Print LR from SYS mode if it is valid and different from USR mode
-	if (isCodePointer(addrSYSLR) && addrSYSLR != addrUSRLR) {
-		currentColumnPairIndex = drawPointer(currentColumnPairIndex, addrSYSLR - 2, 0, 0, 255);
+	// The interrupted code's LR: the call that went wrong, or for a freeze the function that froze
+	if (isCodePointer(sysLR) && sysLR != faultPC) {
+		currentColumnPairIndex = drawPointer(currentColumnPairIndex, sysLR - 2, 0, 0, 255);
 	}
 
 	// Print all pointers
 	if (stackPointerCount > 0) {
 		uint8_t currentPointerIndex = 0;
 		uint8_t currentBlueValue = 0;
-		while (currentPointerIndex < MAX_POINTER_COUNT) {
+		while (currentPointerIndex < stackPointerCount) {
 			currentColumnPairIndex =
 			    drawPointer(currentColumnPairIndex, stackPointers[currentPointerIndex] - 2, 0, 255, currentBlueValue);
 
@@ -244,14 +269,15 @@ static DelugeFaultRanges s_ranges;
 		}
 	}
 
-	// Print first 4 byte of commit ID
+	// Print first 4 byte of commit ID, in the fault type's colour
 	sendToPIC(1 + currentColumnPairIndex);
 	char const* commitShort = kCommitShort;
+	const FaultColour colour = faultColour(type);
 
 	uint8_t firstByte = (getHexCharValue(commitShort[0]) << 4) | getHexCharValue(commitShort[1]);
-	drawByte(firstByte, 255, (hardFault ? 0 : 255), 0);
+	drawByte(firstByte, colour.r, colour.g, colour.b);
 	uint8_t secondByte = (getHexCharValue(commitShort[2]) << 4) | getHexCharValue(commitShort[3]);
-	drawByte(secondByte, 255, (hardFault ? 0 : 255), 0);
+	drawByte(secondByte, colour.r, colour.g, colour.b);
 
 #if ENABLE_TEXT_OUTPUT
 	D_PRINTLN("fault COMMIT: %s", kCommitShort);
@@ -262,13 +288,16 @@ static DelugeFaultRanges s_ranges;
 	deluge_fault_pad_flush();
 }
 
-extern void fault_handler_print_freeze_pointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR,
-                                                uint32_t addrUSRSP) {
+void deluge_fault_pattern_draw(uint32_t fault_pc, DelugeCpuFault fault_type, uint32_t sys_lr, uint32_t sys_sp) {
 	deluge_fault_ranges(&s_ranges);
-	printPointers(addrSYSLR, addrSYSSP, addrUSRLR, addrUSRSP, false);
+	printPointers(fault_pc, fault_type, sys_lr, sys_sp);
 }
 
-extern void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR, uint32_t addrUSRSP) {
+extern void fault_handler_print_freeze_pointers(uint32_t lr, uint32_t sp) {
+	deluge_fault_pattern_draw(0, DELUGE_CPU_FAULT_FREEZE, lr, sp);
+}
+
+extern void deluge_cpu_fault_report(uint32_t fault_pc, DelugeCpuFault fault_type, uint32_t sys_lr, uint32_t sys_sp) {
 	// Re-entry guard. Drawing the pattern touches the pad transport, so a fault raised
 	// from inside that path (or a second fault while reporting the first) would recurse
 	// straight back to here and never draw anything at all. First one in wins; anyone
@@ -276,11 +305,8 @@ extern void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t ad
 	static bool reporting = false;
 	if (!reporting) {
 		reporting = true;
-		deluge_fault_ranges(&s_ranges);
-		printPointers(addrSYSLR, addrSYSSP, addrUSRLR, addrUSRSP, true);
+		deluge_fault_pattern_draw(fault_pc, fault_type, sys_lr, sys_sp);
 	}
-	// if we start using user mode then we'd want to do this to get an accurate call stack. We don't so just don't
-	//__asm__("CPS  0x10"); // Go to USR mode
 
 	while (1) {
 		__asm__("nop");
