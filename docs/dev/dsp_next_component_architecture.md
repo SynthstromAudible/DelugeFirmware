@@ -932,7 +932,7 @@ tools/dsp_bench.py --timeout 180          # flashes, captures RTT, writes the ta
 ./dbt build RelWithDebInfo
 ```
 
-The cases come in three lists, chosen by the CMake cache string
+The cases come in four lists, chosen by the CMake cache string
 `DELUGE_DSP_BENCH_CASES`, since the device prints about 70 lines over RTT before
 it drops some:
 
@@ -944,8 +944,16 @@ it drops some:
   in, ARM mode with `-finline-functions` and no LTO
   (`src/deluge/bench/delay_feedback_cases.cpp`), and render in place, as the
   delay does, each block over the one before's output; the digital chain is
-  also timed out of place, beside it. Every other case builds with the app's
-  flags.
+  also timed out of place, beside it;
+- `delay`: today's whole delay block, `DelayProcessor::process`, over real tapes
+  in every tape form (native, resampled below and above the native rate), mix
+  (straight and ping-pong crossed) and shaper (digital and analog), and with a
+  secondary tape growing. The tapes' storage is in SDRAM, sized as the app sizes
+  them, as the app allocates them; one processor and one pair of tapes serve
+  every case, so the list fits on-chip SRAM. These cases build with the
+  library's flags too (`src/deluge/bench/delay_cases.cpp`).
+
+Every other case builds with the app's flags.
 
 Choose one with
 `./dbt configure -DDELUGE_DSP_BENCH=ON -DDELUGE_DSP_BENCH_CASES=lanes`; it sticks

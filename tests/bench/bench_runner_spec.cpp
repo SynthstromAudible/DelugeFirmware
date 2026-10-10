@@ -4,6 +4,8 @@
 #include "bench/runner.h"
 #include "dsp-next/core/chain.h"
 #include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/fixed/delay/delay_processor.h"
+#include "dsp-next/fixed/delay/delay_tape.h"
 #include "dsp-next/fixed/delay/feedback_shaper.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
 #include "dsp-next/fixed/filter/one_pole.h"
@@ -280,6 +282,41 @@ const std::vector<std::string_view> kChainCaseNames{
 /// Each chain list case's lane count, in order: the delay's feedback cases are stereo.
 const std::vector<std::size_t> kChainCaseLanes{1, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1};
 
+/// The delay list's names, in order.
+const std::vector<std::string_view> kDelayCaseNames{
+    "calibration_loop",
+    "delay_whole_native_straight_digital",
+    "delay_whole_native_straight_analog",
+    "delay_whole_native_cross_digital",
+    "delay_whole_native_cross_analog",
+    "delay_whole_res_lo_straight_digital",
+    "delay_whole_res_lo_straight_analog",
+    "delay_whole_res_lo_cross_digital",
+    "delay_whole_res_lo_cross_analog",
+    "delay_whole_res_hi_straight_digital",
+    "delay_whole_res_hi_straight_analog",
+    "delay_whole_res_hi_cross_digital",
+    "delay_whole_res_hi_cross_analog",
+    "delay_whole_growing",
+};
+
+/// Each delay list case's configuration, in order after the calibration loop.
+const std::vector<DelayWholeConfig> kDelayCaseConfigs{
+    delay_whole_mode(DelayTapeForm::NATIVE, false, false),
+    delay_whole_mode(DelayTapeForm::NATIVE, false, true),
+    delay_whole_mode(DelayTapeForm::NATIVE, true, false),
+    delay_whole_mode(DelayTapeForm::NATIVE, true, true),
+    delay_whole_mode(DelayTapeForm::RES_LO, false, false),
+    delay_whole_mode(DelayTapeForm::RES_LO, false, true),
+    delay_whole_mode(DelayTapeForm::RES_LO, true, false),
+    delay_whole_mode(DelayTapeForm::RES_LO, true, true),
+    delay_whole_mode(DelayTapeForm::RES_HI, false, false),
+    delay_whole_mode(DelayTapeForm::RES_HI, false, true),
+    delay_whole_mode(DelayTapeForm::RES_HI, true, false),
+    delay_whole_mode(DelayTapeForm::RES_HI, true, true),
+    kDelayWholeGrowing,
+};
+
 /// A fake component of four lanes whose block costs a fixed amount per frame.
 struct FourLanes {
 	static constexpr std::size_t kLanes = 4;
@@ -369,6 +406,62 @@ DelayFeedbackReference delay_feedback_reference(std::size_t n, bool analog, std:
 /// The lanes output's first @p n stereo frames, left and right interleaved.
 std::vector<q31> stereo_output(std::size_t n) {
 	return {lanes_output().begin(), lanes_output().begin() + static_cast<std::ptrdiff_t>(2 * n)};
+}
+
+/// @p frames as interleaved q31, so a comparison prints them.
+std::vector<q31> interleaved(std::span<const StereoSample> frames) {
+	std::vector<q31> out;
+	out.reserve(2 * frames.size());
+	for (const StereoSample frame : frames) {
+		out.push_back(frame.l);
+		out.push_back(frame.r);
+	}
+	return out;
+}
+
+/// A delay whole case's run, rendered by a direct call to `DelayProcessor::process` per block over tapes of its own.
+struct DelayWholeReference {
+	std::vector<q31> last_block;                ///< The last block, interleaved.
+	std::vector<StereoSample> primary;          ///< The primary tape's storage after the run.
+	std::vector<StereoSample> secondary;        ///< The secondary's, empty unless the case grows one.
+	dsp::fixed::DelayTape::Head primary_head{}; ///< The primary's read head after the run.
+	dsp::fixed::DelayBlockResult result{};      ///< The last block's result.
+};
+
+/// @p config's run of @p blocks blocks of @p n frames, from the delay cases' documented start: the primary tape the
+/// neutral rate's, filled by fill_delay_tape, native at kDelayNeutralRate; growing, a zeroed secondary for
+/// kDelayResHiRate, native there, the primary's native rate made precise relative to it; the block a quarter of the
+/// lanes input's first n frames, rendered in place.
+DelayWholeReference delay_whole_reference(const DelayWholeConfig& config, std::size_t n, std::size_t blocks) {
+	using dsp::fixed::DelayTape;
+	constexpr auto kLag = static_cast<std::size_t>(DelayTape::kWriteLag);
+	fill_delay_input();
+	std::vector<StereoSample> work(n);
+	for (std::size_t i = 0; i < n; ++i) {
+		work[i] = {.l = lane_sample(lanes_input(), 2, i, 0) >> 1, .r = lane_sample(lanes_input(), 2, i, 1) >> 1};
+	}
+	std::vector<StereoSample> scratch(n);
+
+	DelayWholeReference out;
+	out.primary.resize(DelayTape::kNeutralSize + kLag);
+	fill_delay_tape(out.primary);
+	DelayTape primary{out.primary, DelayTape::kNeutralSize, static_cast<uint32_t>(kDelayNeutralRate)};
+	DelayTape secondary;
+	if (config.growing) {
+		const auto size = static_cast<std::size_t>(DelayTape::idealSizeForRate(kDelayResHiRate).first);
+		out.secondary.assign(size + kLag, StereoSample{.l = 0, .r = 0});
+		secondary = DelayTape{out.secondary, size, static_cast<uint32_t>(kDelayResHiRate)};
+		primary.makeNativeRatePreciseRelativeTo(secondary);
+	}
+
+	dsp::fixed::DelayProcessor processor;
+	for (std::size_t b = 0; b < blocks; ++b) {
+		out.result = processor.process(work, &primary, config.growing ? &secondary : nullptr, delay_whole_block(config),
+		                               scratch);
+	}
+	out.last_block = interleaved(work);
+	out.primary_head = primary.head();
+	return out;
 }
 
 /// The chain3 cases' stages on full-scale input over two blocks of input_a's first @p n samples from silence: tanh at
@@ -645,7 +738,8 @@ describe bench_runner("The DSP benchmark runner", ${
 		it("names every case in snake_case, with no space or '='", _ {
 			for (const auto& [list, expected] : {std::pair{CaseList::KERNELS, kKernelCaseNames},
 			                                     std::pair{CaseList::LANES, kLaneCaseNames},
-			                                     std::pair{CaseList::CHAIN, kChainCaseNames}}) {
+			                                     std::pair{CaseList::CHAIN, kChainCaseNames},
+			                                     std::pair{CaseList::DELAY, kDelayCaseNames}}) {
 				std::vector<std::string_view> names;
 				for (const Case& c : cases(list)) {
 					names.push_back(c.name);
@@ -667,6 +761,9 @@ describe bench_runner("The DSP benchmark runner", ${
 				lanes.push_back(c.lanes);
 			}
 			expect(lanes).to_equal(kChainCaseLanes);
+			for (const Case& c : cases(CaseList::DELAY)) {
+				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
+			}
 			for (const Case& c : cases(CaseList::KERNELS)) {
 				expect(c.lanes).to_equal(c.name == "stereo_gain" ? std::size_t{2} : std::size_t{1});
 			}
@@ -675,7 +772,8 @@ describe bench_runner("The DSP benchmark runner", ${
 		it("runs every case at every device block size, the calibration's line included, in fewer than 70 lines", _ {
 			for (const auto& [list, names] : {std::pair{CaseList::KERNELS, kKernelCaseNames},
 			                                  std::pair{CaseList::LANES, kLaneCaseNames},
-			                                  std::pair{CaseList::CHAIN, kChainCaseNames}}) {
+			                                  std::pair{CaseList::CHAIN, kChainCaseNames},
+			                                  std::pair{CaseList::DELAY, kDelayCaseNames}}) {
 				lines.clear();
 				counters.reset();
 				const RunConfig config{.block_sizes = kBlockSizes};
@@ -1108,6 +1206,53 @@ describe bench_runner("The DSP benchmark runner", ${
 				expect(legacy.high_pass_r()).to_equal(expected.memory_r);
 				expect(legacy.drive()).to_equal(kDelayDrive);
 				expect(legacy.feedback()).to_equal(kDelayFeedback);
+			}
+		});
+
+		it("renders each delay whole case as a direct call to the delay's block per block, tapes and all, at every size", _ {
+			using dsp::fixed::DelayTape;
+			const std::span<const Case> delay = cases(CaseList::DELAY);
+			expect(delay.size()).to_equal(kDelayCaseConfigs.size() + 1);
+			for (std::size_t i = 0; i < kDelayCaseConfigs.size(); ++i) {
+				const DelayWholeConfig& config = kDelayCaseConfigs[i];
+				const Case& c = delay[i + 1];
+				for (const std::size_t n : kSizes) {
+					const std::size_t blocks = RunConfig{}.blocks_per_run(n);
+					const DelayWholeReference expected = delay_whole_reference(config, n, blocks);
+					c.setup(component_of(c), n);
+					for (std::size_t b = 0; b < blocks; ++b) {
+						c.block(component_of(c), n);
+					}
+					const DelayRig& rig = delay_rig();
+
+					expect(stereo_output(n)).to_equal(expected.last_block);
+					expect(std::ranges::count(expected.last_block, 0)).to_be_less_than(std::ptrdiff_t{2});
+					expect(interleaved({rig.primary.begin(), rig.primary.end()})).to_equal(interleaved(expected.primary));
+					expect(rig.primary.head().pos - rig.primary.begin())
+					    .to_equal(expected.primary_head.pos - expected.primary.data());
+					expect(rig.primary.head().long_pos).to_equal(expected.primary_head.long_pos);
+					expect(rig.primary.isNative()).to_equal(config.tape == DelayTapeForm::NATIVE);
+					expect(rig.result.wrapped).to_equal(expected.result.wrapped);
+					expect(rig.result.secondary_written).to_equal(expected.result.secondary_written);
+					expect(rig.primary_storage.size()).to_equal(kDelayStorageSize);
+					if (config.growing) {
+						const DelayTape* growing = rig.growing;
+						expect(growing).to_equal(&rig.secondary);
+						expect(interleaved({rig.secondary.begin(), rig.secondary.end()}))
+						    .to_equal(interleaved(expected.secondary));
+						expect(rig.secondary.isNative()).to_be_true();
+						// The secondary is written at its native rate, one step per block sample, and never wraps.
+						expect(rig.result.secondary_written).to_equal(static_cast<int32_t>(n));
+						expect(blocks * n).to_be_less_than(rig.secondary.size());
+					}
+					else {
+						expect(rig.growing).to_be_null();
+						expect(rig.secondary.isActive()).to_be_false();
+						expect(rig.result.secondary_written).to_equal(int32_t{0});
+					}
+					// No run reaches the end of the primary, so the read head never wraps.
+					expect(rig.result.wrapped).to_be_false();
+				}
 			}
 		});
 

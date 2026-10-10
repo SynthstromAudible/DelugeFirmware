@@ -11,10 +11,11 @@
 /// **Lanes.** A case of N lanes declares `kLanes = N` and renders blocks of n frames, N samples each; the runner
 /// divides its cycles by N as well, so its cps is per channel-sample, comparable with the mono case of its kernel.
 ///
-/// **Three lists.** The device prints about 70 lines over RTT before it drops some, so the cases come in three lists,
+/// **Four lists.** The device prints about 70 lines over RTT before it drops some, so the cases come in four lists,
 /// each run at every block size: the kernels (one case per component), the lanes (each `Lanes` case beside the mono
-/// case of its kernel), and the chain (stages run as separate passes beside the same stages as one `Chain`). A bench
-/// image runs one, chosen by the CMake cache string DELUGE_DSP_BENCH_CASES.
+/// case of its kernel), the chain (stages run as separate passes beside the same stages as one `Chain`), and the delay
+/// (today's whole delay block over real tapes). A bench image runs one, chosen by the CMake cache string
+/// DELUGE_DSP_BENCH_CASES.
 ///
 /// **State at timing.** The runner warms each case up before timing it, so what is timed is the case's steady
 /// state. Each case's documentation says what that state is; the host spec checks each through its component's
@@ -34,6 +35,8 @@
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/types.h"
+#include "dsp-next/fixed/delay/delay_processor.h"
+#include "dsp-next/fixed/delay/delay_tape.h"
 #include "dsp-next/fixed/delay/feedback_shaper.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
 #include "dsp-next/fixed/filter/one_pole.h"
@@ -932,6 +935,119 @@ private:
 	BlockSpans spans_{};
 };
 
+/// @brief The stereo block's first @p n frames, written: the delay whole cases' scratch.
+[[nodiscard]] dsp::Buffer<StereoSample> stereo_scratch(std::size_t n);
+
+/// @brief How a delay whole case's primary tape plays.
+enum class DelayTapeForm : uint8_t {
+	NATIVE, ///< At its native rate: one step per sample, the write kWriteLag behind the read.
+	RES_LO, ///< Resampled at kDelayResLoRate, below its native rate: the slowed-down four-sample write.
+	RES_HI, ///< Resampled at kDelayResHiRate, above its native rate: the sped-up triangle write.
+};
+
+/// @brief The delay's neutral rate (8.24 of the neutral tape speed): a tape of DelayTape::kNeutralSize samples, the
+/// primary tape's native rate in every delay whole case.
+inline constexpr int32_t kDelayNeutralRate = 16'777'216;
+/// @brief The res_lo cases' rate: three quarters of the native rate, between half of it (below which the owner grows a
+/// new tape at once) and the native rate.
+inline constexpr int32_t kDelayResLoRate = kDelayNeutralRate / 4 * 3;
+/// @brief The res_hi and growing cases' rate: one and a half times the native rate, below double it (at which the owner
+/// grows a new tape at once).
+inline constexpr int32_t kDelayResHiRate = kDelayNeutralRate / 2 * 3;
+/// @brief The storage each delay tape is given, in samples: the largest the app allocates, kMaxSize plus the write's
+/// run-off.
+inline constexpr std::size_t kDelayStorageSize =
+    dsp::fixed::DelayTape::kMaxSize + static_cast<std::size_t>(dsp::fixed::DelayTape::kWriteLag);
+
+/// @brief One delay whole case's configuration.
+struct DelayWholeConfig {
+	DelayTapeForm tape; ///< How the primary tape plays.
+	bool cross;         ///< Ping-pong in a stereo render, so the feedback crosses; else straight.
+	bool analog;        ///< The analog shaper (impulse response and tanh); else the digital clip.
+	bool growing;       ///< A secondary tape grows alongside, as the owner grows one while the rate settles.
+};
+
+/// @brief The block settings a delay whole case renders every block with: kDelayFeedback, a sound's drive
+/// (kDelayDrive), in a stereo render.
+/// @param config The case's configuration.
+[[nodiscard]] constexpr dsp::fixed::DelayBlock delay_whole_block(const DelayWholeConfig& config) {
+	const int32_t rate = config.tape == DelayTapeForm::RES_LO   ? kDelayResLoRate
+	                     : config.tape == DelayTapeForm::RES_HI ? kDelayResHiRate
+	                                                            : kDelayNeutralRate;
+	return {.rate = rate,
+	        .feedback = kDelayFeedback,
+	        .analog = config.analog,
+	        .analog_saturation = static_cast<int32_t>(kDelayDrive),
+	        .ping_pong = config.cross,
+	        .render_in_stereo = true};
+}
+
+/// @brief Fills a tape's storage with stereo noise at 2^-10 of full scale: a block's sum of its own input and every
+/// delayed sample the case's run adds to it stays inside q31.
+void fill_delay_tape(std::span<StereoSample> storage);
+
+/// @brief What every delay whole case renders with: one processor and one pair of tapes, over the two storage blocks
+/// in SDRAM, as the app allocates its delay tapes. The cases run one after another, so they share it; each case's
+/// setup builds it afresh, so it fits on-chip SRAM beside every other case.
+struct DelayRig {
+	dsp::fixed::DelayProcessor processor;        ///< The delay's block, as a Sound's Delay holds it.
+	dsp::fixed::DelayTape primary;               ///< The tape read and written back.
+	dsp::fixed::DelayTape secondary;             ///< The tape grown alongside; inactive unless the case grows one.
+	dsp::fixed::DelayTape* growing = nullptr;    ///< &secondary when the case grows one, else null.
+	dsp::fixed::DelayBlock settings{};           ///< The case's block settings.
+	dsp::fixed::DelayBlockResult result{};       ///< The last block's result.
+	dsp::Buffer<StereoSample> work{};            ///< The lanes output's first n frames, rendered in place.
+	dsp::Buffer<StereoSample> scratch{};         ///< The stereo block's first n frames.
+	std::span<StereoSample> primary_storage{};   ///< The primary's storage, kDelayStorageSize samples in SDRAM.
+	std::span<StereoSample> secondary_storage{}; ///< The secondary's storage, kDelayStorageSize samples in SDRAM.
+};
+
+/// @return The rig the delay whole cases render with.
+[[nodiscard]] const DelayRig& delay_rig();
+
+/// @brief Today's whole delay block, `DelayProcessor::process`, over real tapes: the read, the feedback's shaping and
+/// high-pass, the mix and the writes, as a Sound's Delay renders it.
+/// @details The primary tape is the neutral rate's (DelayTape::kNeutralSize samples, native at kDelayNeutralRate),
+/// filled with fill_delay_tape(), and plays at the case's rate. Growing, a secondary tape sized for kDelayResHiRate is
+/// grown alongside, native there, zeroed, the primary's native rate made precise relative to it: the owner's tapes in
+/// the block after its rate settled at kDelayResHiRate. The block is the lanes output's first n frames, a quarter of
+/// the lanes input copied there at setup, rendered in place, as the delay renders its owner's block.
+///
+/// **Timed state:** the feedback chain from silence at setup; the read head walks the noise the tape was filled with
+/// (no run reaches the end of a tape, so nothing it wrote is read back), and every block is the same per-sample work
+/// for the tape's form: in NATIVE one step, one read and one write; in RES_LO and RES_HI the long position's step,
+/// the interpolated read and the triangle write (four samples slowed down, about six sped up at 1.5); then the
+/// feedback (the 26-tap response and the tanh in ANALOG, the clip in DIGITAL), the high-pass and the mix (crossed or
+/// straight). Growing adds the secondary's native write, clearing ahead of its head, which never wraps in a run.
+///
+/// One class serves every configuration, which each case holds as data, so the image carries one setup and one block
+/// for all of them.
+class DelayWholeCase {
+public:
+	static constexpr std::size_t kLanes = 2; ///< Left and right.
+
+	/// @brief A case of @p config.
+	constexpr explicit DelayWholeCase(DelayWholeConfig config) : config_{config} {}
+
+	/// @brief Builds the rig for @p n frames: a fresh processor, the tapes, the block and the scratch.
+	void setup(std::size_t n);
+	/// @brief Renders one block of the size it was set up for, in place.
+	void block(std::size_t n);
+	/// @return The case's configuration.
+	[[nodiscard]] constexpr const DelayWholeConfig& config() const { return config_; }
+
+private:
+	DelayWholeConfig config_;
+};
+
+/// @brief The configuration of `delay_whole_<tape>_<mix>_<shaper>`, with no secondary.
+[[nodiscard]] constexpr DelayWholeConfig delay_whole_mode(DelayTapeForm tape, bool cross, bool analog) {
+	return {.tape = tape, .cross = cross, .analog = analog, .growing = false};
+}
+/// @brief The configuration of `delay_whole_growing`: res_hi, straight, digital, with a secondary growing.
+inline constexpr DelayWholeConfig kDelayWholeGrowing{
+    .tape = DelayTapeForm::RES_HI, .cross = false, .analog = false, .growing = true};
+
 /// @brief Every case, by name.
 struct CaseSet {
 	CalibrationLoop calibration_loop;                             ///< `calibration_loop`
@@ -968,17 +1084,43 @@ struct CaseSet {
 	DelayFeedbackChainDigitalOutOfPlaceCase delay_feedback_chain_digital_out_of_place;
 	Chain3PassesCase chain3_passes; ///< `chain3_passes`
 	Chain3FusedCase chain3_fused;   ///< `chain3_fused`
+	/// `delay_whole_native_straight_digital`
+	DelayWholeCase delay_whole_native_straight_digital{delay_whole_mode(DelayTapeForm::NATIVE, false, false)};
+	/// `delay_whole_native_straight_analog`
+	DelayWholeCase delay_whole_native_straight_analog{delay_whole_mode(DelayTapeForm::NATIVE, false, true)};
+	/// `delay_whole_native_cross_digital`
+	DelayWholeCase delay_whole_native_cross_digital{delay_whole_mode(DelayTapeForm::NATIVE, true, false)};
+	/// `delay_whole_native_cross_analog`
+	DelayWholeCase delay_whole_native_cross_analog{delay_whole_mode(DelayTapeForm::NATIVE, true, true)};
+	/// `delay_whole_res_lo_straight_digital`
+	DelayWholeCase delay_whole_res_lo_straight_digital{delay_whole_mode(DelayTapeForm::RES_LO, false, false)};
+	/// `delay_whole_res_lo_straight_analog`
+	DelayWholeCase delay_whole_res_lo_straight_analog{delay_whole_mode(DelayTapeForm::RES_LO, false, true)};
+	/// `delay_whole_res_lo_cross_digital`
+	DelayWholeCase delay_whole_res_lo_cross_digital{delay_whole_mode(DelayTapeForm::RES_LO, true, false)};
+	/// `delay_whole_res_lo_cross_analog`
+	DelayWholeCase delay_whole_res_lo_cross_analog{delay_whole_mode(DelayTapeForm::RES_LO, true, true)};
+	/// `delay_whole_res_hi_straight_digital`
+	DelayWholeCase delay_whole_res_hi_straight_digital{delay_whole_mode(DelayTapeForm::RES_HI, false, false)};
+	/// `delay_whole_res_hi_straight_analog`
+	DelayWholeCase delay_whole_res_hi_straight_analog{delay_whole_mode(DelayTapeForm::RES_HI, false, true)};
+	/// `delay_whole_res_hi_cross_digital`
+	DelayWholeCase delay_whole_res_hi_cross_digital{delay_whole_mode(DelayTapeForm::RES_HI, true, false)};
+	/// `delay_whole_res_hi_cross_analog`
+	DelayWholeCase delay_whole_res_hi_cross_analog{delay_whole_mode(DelayTapeForm::RES_HI, true, true)};
+	DelayWholeCase delay_whole_growing{kDelayWholeGrowing}; ///< `delay_whole_growing`
 };
 
 /// @brief The cases' components, built on first use.
 /// @return The one CaseSet every case in cases() acts on.
 [[nodiscard]] CaseSet& case_set();
 
-/// @brief Which of the three case lists a run prints.
+/// @brief Which of the four case lists a run prints.
 enum class CaseList : uint8_t {
 	KERNELS, ///< One case per component: the calibration loop, then each kernel in its Mono, Stereo or Control.
 	LANES,   ///< The calibration loop, then each `Lanes` case beside the mono case of its kernel.
 	CHAIN,   ///< The calibration loop, then stages run as separate passes beside the same stages as one `Chain`.
+	DELAY,   ///< The calibration loop, then today's whole delay block in every tape form, mix and shaper.
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -986,6 +1128,8 @@ enum class CaseList : uint8_t {
 inline constexpr CaseList kBenchCaseList = CaseList::LANES;
 #elif defined(DELUGE_DSP_BENCH_CHAIN)
 inline constexpr CaseList kBenchCaseList = CaseList::CHAIN;
+#elif defined(DELUGE_DSP_BENCH_DELAY)
+inline constexpr CaseList kBenchCaseList = CaseList::DELAY;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif

@@ -7,6 +7,9 @@ deluge_specs_driver(bench_specs NEON
     ${_src}/bench/runner.cpp
     ${_src}/bench/cases.cpp
     ${_src}/bench/delay_feedback_cases.cpp
+    ${_src}/bench/delay_cases.cpp
+    ${_src}/dsp-next/fixed/delay/delay_processor.cpp
+    ${_src}/dsp-next/fixed/delay/delay_tape.cpp
     ${_src}/dsp-next/fixed/bandlimited/saw.cpp
     ${_src}/dsp-next/fixed/bandlimited/square.cpp
     ${_src}/dsp-next/fixed/dynamics/duck_envelope.cpp

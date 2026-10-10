@@ -140,6 +140,10 @@ std::span<const StereoSample, kMaxBlock> stereo() {
 	return shared.stereo;
 }
 
+dsp::Buffer<StereoSample> stereo_scratch(std::size_t n) {
+	return dsp::Buffer<StereoSample>{shared.stereo.data(), n};
+}
+
 std::span<const q31, kMaxBlock * kMaxLanes> lanes_input() {
 	return shared.lanes_input;
 }
@@ -550,6 +554,25 @@ std::span<const Case> cases(CaseList list) {
 	    make_case("chain3_passes", s.chain3_passes),
 	    make_case("chain3_fused", s.chain3_fused),
 	};
+	static const std::array delay{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("delay_whole_native_straight_digital", s.delay_whole_native_straight_digital),
+	    make_case("delay_whole_native_straight_analog", s.delay_whole_native_straight_analog),
+	    make_case("delay_whole_native_cross_digital", s.delay_whole_native_cross_digital),
+	    make_case("delay_whole_native_cross_analog", s.delay_whole_native_cross_analog),
+	    make_case("delay_whole_res_lo_straight_digital", s.delay_whole_res_lo_straight_digital),
+	    make_case("delay_whole_res_lo_straight_analog", s.delay_whole_res_lo_straight_analog),
+	    make_case("delay_whole_res_lo_cross_digital", s.delay_whole_res_lo_cross_digital),
+	    make_case("delay_whole_res_lo_cross_analog", s.delay_whole_res_lo_cross_analog),
+	    make_case("delay_whole_res_hi_straight_digital", s.delay_whole_res_hi_straight_digital),
+	    make_case("delay_whole_res_hi_straight_analog", s.delay_whole_res_hi_straight_analog),
+	    make_case("delay_whole_res_hi_cross_digital", s.delay_whole_res_hi_cross_digital),
+	    make_case("delay_whole_res_hi_cross_analog", s.delay_whole_res_hi_cross_analog),
+	    make_case("delay_whole_growing", s.delay_whole_growing),
+	};
+	if (list == CaseList::DELAY) {
+		return delay;
+	}
 	if (list == CaseList::LANES) {
 		return lanes;
 	}
