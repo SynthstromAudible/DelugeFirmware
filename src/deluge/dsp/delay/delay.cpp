@@ -223,8 +223,7 @@ void Delay::initializeSecondaryBuffer(int32_t newNativeRate, bool makeNativeRate
 	sizeLeftUntilBufferSwap = secondaryBuffer.tape().size() + 5;
 }
 
-void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingState, std::span<StereoSample> scratch,
-                    bool renderInStereo) {
+void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingState, bool renderInStereo) {
 	if (!delayWorkingState.doDelay) {
 		return;
 	}
@@ -276,8 +275,7 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 	                       .analog = delayWorkingState.analog,
 	                       .analog_saturation = delayWorkingState.analog_saturation,
 	                       .ping_pong = delayWorkingState.ping_pong,
-	                       .render_in_stereo = renderInStereo},
-	                      scratch);
+	                       .render_in_stereo = renderInStereo});
 
 	if (growing != nullptr) {
 		sizeLeftUntilBufferSwap -= result.secondary_written;

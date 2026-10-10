@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Where today's staged delay order was wrong. The staged block reads every frame, then writes every frame back; the
+// Where the staged delay order is wrong. The staged block reads every frame, then writes every frame back; the
 // delay line's order, which the fused kernel takes, walks each frame (read, shape, mix, write) before the next. The two
 // can part only where a frame writes a tape sample that a later frame of the same block clears or reads: on 128-frame
 // blocks, delays shorter than 129 samples, where the block's walk laps the tape and the staged order loses echoes
@@ -89,11 +89,11 @@ OrderCheck checkFrameOrder(const delay_workloads::Workload& workload) {
 	struct Logged : delay_reference::ReferenceDelayProcessor {
 		DelayTape primary;
 		DelayTape secondary;
-		DelayBlockResult process(std::span<StereoSample> block, DelayTape* p, DelayTape* s, const DelayBlock& settings,
-		                         std::span<StereoSample> scratch) {
+		DelayBlockResult process(std::span<StereoSample> block, DelayTape* p, DelayTape* s,
+		                         const DelayBlock& settings) {
 			primary = p != nullptr ? *p : DelayTape{};
 			secondary = s != nullptr ? *s : DelayTape{};
-			return ReferenceDelayProcessor::process(block, p, s, settings, scratch);
+			return ReferenceDelayProcessor::process(block, p, s, settings);
 		}
 	};
 	delay_workloads::WorkloadRun<Logged> run{workload};

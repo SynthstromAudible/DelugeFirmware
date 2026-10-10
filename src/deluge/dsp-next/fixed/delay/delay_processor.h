@@ -17,13 +17,11 @@
 
 #pragma once
 
-#include "dsp-next/core/chain.h"
-#include "dsp-next/core/stereo.h"
+#include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/delay/delay_kernel.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "dsp-next/fixed/delay/feedback_shaper.h"
-#include "dsp-next/fixed/filter/shift_tracker.h"
 
 #include <cstdint>
 #include <span>
@@ -48,8 +46,10 @@ struct DelayBlockResult {
 	                           ///< (sizeLeftUntilBufferSwap's step), two per block sample at twice its native rate
 };
 
-/// @brief One block of the delay over tapes it is handed: read (silence while the primary has nothing), shape and
-/// high-pass the feedback in one pass, mix it into the block (ping-pong or straight), and write it back to both tapes.
+/// @brief One block of the delay over tapes it is handed, rendered in place as one fused frame loop (@ref Delay): each
+/// frame reads the primary tape (silence while the primary has nothing), shapes and high-passes the feedback, mixes it
+/// into the block (ping-pong or straight), and writes it back to both tapes before the next frame is read, so an echo
+/// shorter than the block comes round within it as the delay line plays it.
 ///
 /// The primary tape is read from the read head, clearing as it goes, and written back from the same head, kWriteLag
 /// samples behind. A secondary tape (a new size being grown while the rate settles) is written alongside, clearing
@@ -58,12 +58,13 @@ struct DelayBlockResult {
 /// **Feedback.** Each channel's delayed sample goes through a @ref FeedbackShaper (the feedback amount and the
 /// saturation: the analog impulse response then a tanh, or a digital clip) and then a high-pass that takes a one-pole
 /// low-pass (a 1/2048 step per sample) out of it, so repeats don't build up sub-bass; the corner settles near 40 Hz
-/// after many repeats. Both run as one chain, every sample through both stages in a single pass over the block, the
-/// mode chosen once per block. The processor owns the chain's state: each channel's impulse-response history and
-/// high-pass memory, 436 bytes in all, against 208 for a response that keeps 25 partial sums: the history is 50 words
-/// and an index per channel, mirrored so its tap loop stores nothing. Every ModControllableAudio (a Sound, a kit drum,
-/// a kit, an audio clip) carries one through its Delay, and a kit drum is allocated by `alloc_fast`, which tries the
-/// 44 KB internal SRAM heap first.
+/// after many repeats. The processor owns the chain's state in the kernel's State: each channel's impulse-response
+/// history and high-pass memory, the history 50 words and an index per channel, mirrored so its tap loop stores
+/// nothing. Every ModControllableAudio (a Sound, a kit drum, a kit, an audio clip) carries one through its Delay, and
+/// a kit drum is allocated by `alloc_fast`, which tries the 44 KB internal SRAM heap first.
+///
+/// **Where it is built.** The kernel is instantiated only in this component's source, which builds with the DSP
+/// library's flags, so the frame loops make no out-of-line call; the app's translation units see only the declaration.
 ///
 /// **Reactivation.** @ref resetHighPass resets the high-pass's memories only. The impulse response's history carries
 /// over, so a delay switched off and on again starts with up to 25 samples of the old response's tail. The render gate
@@ -77,42 +78,26 @@ public:
 	/// @brief The feedback's stages, Q31: shaped by the amount and saturated, then high-passed.
 	using FeedbackChain = DelayFeedbackChain;
 
-	/// @brief Renders one block: the delayed signal is added to @p block (Q31), and the block plus the shaped
-	/// feedback is written back to the tapes.
+	/// @brief Renders one block in place: the delayed signal is added to @p block (Q31), and the block plus the shaped
+	/// feedback is written back to the tapes, frame by frame.
+	/// @details The kernel is configured from @p settings and the tapes right before the block, since its tape form
+	/// and whether it reads and grows come from the tapes' state, which the owner's lifecycle changes between blocks.
 	/// @param primary the tape read and written back; null or inactive reads silence and writes nothing.
 	/// @param secondary null when the delay has a single tape.
-	/// @param scratch the working block, distinct from @p block and at least as long.
 	[[nodiscard]] DelayBlockResult process(std::span<StereoSample> block, DelayTape* primary, DelayTape* secondary,
-	                                       const DelayBlock& settings, std::span<StereoSample> scratch);
+	                                       const DelayBlock& settings);
 
 	/// @brief The high-pass's memories to 0 in both channels, as a new delay's are. The impulse response's history
 	/// is kept.
-	void resetHighPass() { feedback_.on<&FeedbackChain::reset_part<1>>(); }
+	void resetHighPass();
 
-	/// @return The feedback chain on both channels, between blocks: each channel's impulse response history and
-	/// high-pass memory.
-	[[nodiscard]] const Stereo<FeedbackChain>& feedback() const { return feedback_; }
+	/// @return The kernel's State between blocks: each channel's impulse response history and high-pass memory. Its
+	/// block results are cleared after every block.
+	[[nodiscard]] const Delay::State& state() const { return delay_.state(); }
 
 private:
-	/// @brief Reads @p primary into @p work from its read head, clearing as it goes.
-	/// @return Whether the read head wrapped.
-	static bool read(DelayTape& primary, std::span<StereoSample> work);
-
-	/// @brief Adds @p work (the delayed signal) to @p block, and @p block to @p work for the write: straight, or
-	/// crossed for ping-pong when the engine renders in stereo (the delayed right feeds the left; the delayed left
-	/// plus the mean of the block's channels feeds the right).
-	static void mix(std::span<StereoSample> work, std::span<StereoSample> block, bool cross);
-
-	/// @brief Writes @p work back to @p primary from @p head, its read head before the read.
-	static void writePrimary(DelayTape& primary, DelayTape::Head head, std::span<const StereoSample> work);
-
-	/// @brief Writes @p work to @p secondary, clearing ahead of its read head.
-	/// @return Whether its read head wrapped, and how many steps it took.
-	static DelayBlockResult writeSecondary(DelayTape& secondary, std::span<const StereoSample> work);
-
-	/// @brief The feedback chain on both channels: the impulse response's history and the high-pass's memory per
-	/// channel.
-	Stereo<FeedbackChain> feedback_;
+	/// @brief The fused frame kernel, its feedback memories in its State.
+	Mono<Delay> delay_;
 };
 
 } // namespace deluge::dsp::fixed

@@ -140,10 +140,6 @@ std::span<const StereoSample, kMaxBlock> stereo() {
 	return shared.stereo;
 }
 
-dsp::Buffer<StereoSample> stereo_scratch(std::size_t n) {
-	return dsp::Buffer<StereoSample>{shared.stereo.data(), n};
-}
-
 std::span<const q31, kMaxBlock * kMaxLanes> lanes_input() {
 	return shared.lanes_input;
 }

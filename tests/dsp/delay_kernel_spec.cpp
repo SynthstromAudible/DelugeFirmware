@@ -105,7 +105,7 @@ DelayBlockResult takeResult(Delay::State& s) {
 class KernelDelay {
 public:
 	DelayBlockResult process(std::span<StereoSample> block, DelayTape* primary, DelayTape* secondary,
-	                         const DelayBlock& settings, std::span<StereoSample> /*scratch*/) {
+	                         const DelayBlock& settings) {
 		delay_.configure({.rate = static_cast<uint32_t>(settings.rate),
 		                  .feedback = settings.feedback,
 		                  .analog = settings.analog,

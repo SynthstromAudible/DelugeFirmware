@@ -17,145 +17,36 @@
 
 #include "dsp-next/fixed/delay/delay_processor.h"
 
-#include "util/fixedpoint.h"
-
-#include <algorithm>
-#include <cstddef>
-#include <ranges>
-
 namespace deluge::dsp::fixed {
 
+namespace {
+
+/// @brief The block's result, read from the kernel's State and cleared there for the next block.
+DelayBlockResult takeResult(Delay::State& s) {
+	const DelayBlockResult result{.wrapped = s.wrapped, .secondary_written = s.secondary_written};
+	s.wrapped = false;
+	s.secondary_written = 0;
+	return result;
+}
+
+} // namespace
+
 DelayBlockResult DelayProcessor::process(std::span<StereoSample> block, DelayTape* primary, DelayTape* secondary,
-                                         const DelayBlock& settings, std::span<StereoSample> scratch) {
-	const bool reading = primary != nullptr && primary->isActive();
-	const bool growing = secondary != nullptr && secondary->isActive();
-
-	if (primary != nullptr) {
-		primary->setupForRender(settings.rate);
-	}
-	if (growing) {
-		secondary->setupForRender(settings.rate);
-	}
-
-	const std::span<StereoSample> work = scratch.first(block.size());
-
-	DelayBlockResult result{.wrapped = false, .secondary_written = 0};
-	DelayTape::Head head{};
-	if (reading) {
-		head = primary->head();
-		result.wrapped = read(*primary, work);
-	}
-	else {
-		std::ranges::fill(work, StereoSample{.l = 0, .r = 0});
-	}
-
-	feedback_.configure(FeedbackChain::Settings{
-	    FeedbackShaper::Settings{.feedback = settings.feedback,
-	                             .analog = settings.analog,
-	                             .drive = static_cast<uint32_t>(settings.analog_saturation)},
-	    ShiftTracker<11>::Settings{},
-	});
-	feedback_.renderBlock(work, work);
-	mix(work, block, settings.ping_pong && settings.render_in_stereo);
-
-	if (reading) {
-		writePrimary(*primary, head, work);
-	}
-	if (growing) {
-		// The secondary tape's wraps replace the primary's: it is the tape that will play on.
-		result = writeSecondary(*secondary, work);
-	}
-	return result;
+                                         const DelayBlock& settings) {
+	delay_.configure({.rate = static_cast<uint32_t>(settings.rate),
+	                  .feedback = settings.feedback,
+	                  .analog = settings.analog,
+	                  .analog_saturation = settings.analog_saturation,
+	                  .ping_pong = settings.ping_pong,
+	                  .render_in_stereo = settings.render_in_stereo,
+	                  .primary = primary,
+	                  .secondary = secondary});
+	delay_.renderBlock(block, block);
+	return delay_.on<&takeResult>();
 }
 
-bool DelayProcessor::read(DelayTape& primary, std::span<StereoSample> work) {
-	bool wrapped = false;
-	if (primary.isNative()) {
-		for (StereoSample& sample : work) {
-			wrapped = primary.clearAndMoveOn() || wrapped;
-			sample = primary.current();
-		}
-		return wrapped;
-	}
-
-	for (StereoSample& sample : work) {
-		// 16.16 strengths of the sample under the head and the next.
-		const int32_t strength2 = primary.advance([&] { wrapped = primary.clearAndMoveOn() || wrapped; });
-		const int32_t strength1 = 65536 - strength2;
-
-		StereoSample* next = &primary.current() + 1;
-		if (next == primary.end()) {
-			next = primary.begin();
-		}
-		const StereoSample from1 = primary.current();
-		const StereoSample from2 = *next;
-
-		sample.l =
-		    (multiply_32x32_rshift32(from1.l, strength1 << 14) + multiply_32x32_rshift32(from2.l, strength2 << 14))
-		    << 2;
-		sample.r =
-		    (multiply_32x32_rshift32(from1.r, strength1 << 14) + multiply_32x32_rshift32(from2.r, strength2 << 14))
-		    << 2;
-	}
-	return wrapped;
-}
-
-void DelayProcessor::mix(std::span<StereoSample> work, std::span<StereoSample> block, bool cross) {
-	for (auto [feedback, output] : std::views::zip(work, block)) {
-		const StereoSample delayed = feedback;
-		if (cross) {
-			feedback.l = delayed.r;
-			feedback.r = ((output.l + output.r) >> 1) + delayed.l;
-		}
-		else {
-			feedback += output;
-		}
-		output += delayed;
-	}
-}
-
-void DelayProcessor::writePrimary(DelayTape& primary, DelayTape::Head head, std::span<const StereoSample> work) {
-	if (primary.isNative()) {
-		auto index = (head.pos - primary.begin()) - DelayTape::kWriteLag;
-		if (index < 0) {
-			index += static_cast<std::ptrdiff_t>(primary.sizeIncludingExtra());
-		}
-		StereoSample* write_pos = primary.begin() + index;
-		for (const StereoSample sample : work) {
-			primary.writeNativeAndMoveOn(sample, write_pos);
-		}
-		return;
-	}
-
-	primary.setHead(head);
-	for (const StereoSample sample : work) {
-		const int32_t strength2 = primary.advance([&] { primary.moveOn(); });
-		const int32_t strength1 = 65536 - strength2;
-		primary.writeResampled(sample, strength1, strength2);
-	}
-}
-
-DelayBlockResult DelayProcessor::writeSecondary(DelayTape& secondary, std::span<const StereoSample> work) {
-	DelayBlockResult result{.wrapped = false, .secondary_written = 0};
-	auto step = [&] {
-		result.wrapped = secondary.clearAndMoveOn() || result.wrapped;
-		++result.secondary_written;
-	};
-
-	if (secondary.isNative()) {
-		for (const StereoSample sample : work) {
-			step();
-			secondary.writeNative(sample);
-		}
-		return result;
-	}
-
-	for (const StereoSample sample : work) {
-		const int32_t strength2 = secondary.advance(step);
-		const int32_t strength1 = 65536 - strength2;
-		secondary.writeResampled(sample, strength1, strength2);
-	}
-	return result;
+void DelayProcessor::resetHighPass() {
+	delay_.on<&Delay::reset_high_pass>();
 }
 
 } // namespace deluge::dsp::fixed

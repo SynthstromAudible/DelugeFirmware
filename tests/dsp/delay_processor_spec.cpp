@@ -25,9 +25,8 @@
 //
 // The recorded workloads (delay_workloads.h) run every mode combination, rate sweeps, secondaries grown through their
 // swaps, read-head wraps, a new delay's first blocks, both ends of the rate range and delays shorter than a block
-// through the same lifecycle. The staged reference (reference_delay_processor.h) must render each as today's
-// processor does; what today's processor and the frame-order reference (the delay line's order, the fused kernel's
-// target) render from each is pinned.
+// through the same lifecycle. The processor must render each as the frame-order reference (reference_delay_processor.h,
+// the delay line's order) does; what the frame order and the staged order render from each is pinned.
 
 #include "delay_workloads.h"
 #include "dsp-next/fixed/delay/delay_processor.h"
@@ -332,8 +331,7 @@ public:
 		                                                    .analog = s.analog,
 		                                                    .analog_saturation = s.saturation,
 		                                                    .ping_pong = s.ping_pong,
-		                                                    .render_in_stereo = s.stereo},
-		                                                   scratch_);
+		                                                    .render_in_stereo = s.stereo});
 		if (growing != nullptr) {
 			size_left_ -= result.secondary_written;
 			if (size_left_ < 0) {
@@ -368,7 +366,6 @@ private:
 	Buffer primary_;
 	Buffer secondary_;
 	DelayProcessor processor_;
-	std::array<StereoSample, 128> scratch_{};
 	size_t count_ = 0;
 	int32_t last_rate_ = 0;
 	int32_t size_left_ = 0;
@@ -420,7 +417,6 @@ std::vector<uint64_t> runSteps(const std::vector<Step>& steps) {
 	processor.resetHighPass();
 	Buffer primary;
 	std::ignore = primary.init(kNativeRate);
-	std::array<StereoSample, 128> scratch{};
 	std::vector<uint64_t> digests;
 	int32_t k = 0;
 	for (const Step& step : steps) {
@@ -439,8 +435,7 @@ std::vector<uint64_t> runSteps(const std::vector<Step>& steps) {
 		                                 .analog = step.analog,
 		                                 .analog_saturation = step.saturation,
 		                                 .ping_pong = false,
-		                                 .render_in_stereo = true},
-		                                scratch);
+		                                 .render_in_stereo = true});
 		digests.push_back(digest(words(block)));
 	}
 	return digests;
@@ -483,10 +478,9 @@ describe delay_processor("DelayProcessor", ${
 			block[i] = input(static_cast<int32_t>(i));
 		}
 		const std::vector<int32_t> before = words(block);
-		std::array<StereoSample, kBlockSize> scratch{};
 		const DelayBlockResult result = processor.process(block, nullptr, nullptr, {.rate = kNativeRate,
 		    .feedback = 0x30000000, .analog = false, .analog_saturation = 8, .ping_pong = false,
-		    .render_in_stereo = true}, scratch);
+		    .render_in_stereo = true});
 		expect(result.wrapped).to_be_false();
 		expect(result.secondary_written).to_equal(0);
 		expect(words(block)).to_equal(before);
@@ -496,14 +490,13 @@ describe delay_processor("DelayProcessor", ${
 		Buffer secondary;
 		std::ignore = secondary.init(kNativeRate);
 		DelayProcessor processor;
-		std::array<StereoSample, 128> scratch{};
 		const DelayBlock settings{.rate = kNativeRate, .feedback = 0x30000000, .analog = false,
 		    .analog_saturation = 8, .ping_pong = false, .render_in_stereo = true};
 		std::vector<int32_t> written;
 		std::vector<int32_t> wrapped;
 		for (int32_t b = 0; b < 6; ++b) {
 			std::array<StereoSample, kBlockSize> block{};
-			const DelayBlockResult result = processor.process(block, nullptr, &secondary.tape, settings, scratch);
+			const DelayBlockResult result = processor.process(block, nullptr, &secondary.tape, settings);
 			written.push_back(result.secondary_written);
 			wrapped.push_back(result.wrapped ? 1 : 0);
 		}
@@ -570,12 +563,12 @@ describe delay_processor("DelayProcessor", ${
 		expect(runSteps(modeSwitch())).to_equal(kModeSwitch);
 	});
 
-	it("renders every recorded workload as the staged reference does: outputs, results, both tapes byte for byte and "
-	   "their heads", _ {
+	it("renders every recorded workload as the frame-order reference does: outputs, results, both tapes byte for byte "
+	   "and their heads", _ {
 		std::vector<std::string> parted;
 		for (const delay_workloads::Workload& workload : delay_workloads::all_workloads()) {
 			const auto parting =
-			    delay_workloads::first_parting<DelayProcessor, delay_reference::ReferenceDelayProcessor>(workload);
+			    delay_workloads::first_parting<DelayProcessor, delay_reference::FrameOrderDelayProcessor>(workload);
 			if (parting) {
 				parted.push_back(std::string{workload.name} + " block " + std::to_string(parting->block) + ": "
 				                 + parting->what);
@@ -585,22 +578,23 @@ describe delay_processor("DelayProcessor", ${
 		expect(delay_workloads::all_workloads().size()).to_equal(delay_workloads::kWorkloadCount);
 	});
 
-	it("renders every workload as recorded: each block's output, every block's result, tape sizes and heads, and both "
-	   "tapes at the end", _ {
-		for (const delay_workloads::Workload& workload : delay_workloads::all_workloads()) {
-			const delay_workloads::WorkloadRecord& recorded =
-			    delay_workloads::kRecorded.at(static_cast<size_t>(workload.id));
-			expect(recorded.outputs.size()).to_equal(workload.blocks);
-			expect(delay_workloads::record<DelayProcessor>(workload)).to_equal(recorded);
-		}
-	});
-
-	it("renders every workload in the delay line's frame order as recorded, block for block", _ {
+	it("renders every workload in the delay line's frame order as recorded: each block's output, every block's "
+	   "result, tape sizes and heads, and both tapes at the end", _ {
 		for (const delay_workloads::Workload& workload : delay_workloads::all_workloads()) {
 			const delay_workloads::WorkloadRecord& recorded =
 			    delay_workloads::kRecordedFrameOrder.at(static_cast<size_t>(workload.id));
 			expect(recorded.outputs.size()).to_equal(workload.blocks);
+			expect(delay_workloads::record<DelayProcessor>(workload)).to_equal(recorded);
 			expect(delay_workloads::record<delay_reference::FrameOrderDelayProcessor>(workload)).to_equal(recorded);
+		}
+	});
+
+	it("leaves the staged order as recorded, block for block", _ {
+		for (const delay_workloads::Workload& workload : delay_workloads::all_workloads()) {
+			const delay_workloads::WorkloadRecord& recorded =
+			    delay_workloads::kRecorded.at(static_cast<size_t>(workload.id));
+			expect(recorded.outputs.size()).to_equal(workload.blocks);
+			expect(delay_workloads::record<delay_reference::ReferenceDelayProcessor>(workload)).to_equal(recorded);
 		}
 	});
 });

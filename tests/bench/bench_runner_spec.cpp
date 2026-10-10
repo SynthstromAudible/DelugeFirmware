@@ -430,11 +430,11 @@ struct DelayWholeReference {
 	std::vector<std::int64_t> feedback; ///< The processor's feedback memories after the run (delay_feedback_words).
 };
 
-/// @return @p processor's feedback memories, left then right: each channel's impulse response history and its oldest
-/// index, then its high-pass memory.
+/// @return @p processor's feedback memories from its kernel's State, left then right: each channel's impulse response
+/// history and its oldest index, then its high-pass memory.
 std::vector<std::int64_t> delay_feedback_words(const dsp::fixed::DelayProcessor& processor) {
 	std::vector<std::int64_t> out;
-	for (const auto& state : {processor.feedback().left(), processor.feedback().right()}) {
+	for (const auto& state : {processor.state().left, processor.state().right}) {
 		const auto& response = dsp::get<0>(state).response;
 		out.insert(out.end(), std::begin(response.history), std::end(response.history));
 		out.push_back(response.oldest);
@@ -455,8 +455,6 @@ DelayWholeReference delay_whole_reference(const DelayWholeConfig& config, std::s
 	for (std::size_t i = 0; i < n; ++i) {
 		work[i] = {.l = lane_sample(lanes_input(), 2, i, 0) >> 1, .r = lane_sample(lanes_input(), 2, i, 1) >> 1};
 	}
-	std::vector<StereoSample> scratch(n);
-
 	DelayWholeReference out;
 	out.primary.resize(DelayTape::kNeutralSize + kLag);
 	fill_delay_tape(out.primary);
@@ -471,8 +469,8 @@ DelayWholeReference delay_whole_reference(const DelayWholeConfig& config, std::s
 
 	dsp::fixed::DelayProcessor processor;
 	for (std::size_t b = 0; b < blocks; ++b) {
-		out.result = processor.process(work, &primary, config.growing ? &secondary : nullptr, delay_whole_block(config),
-		                               scratch);
+		out.result =
+		    processor.process(work, &primary, config.growing ? &secondary : nullptr, delay_whole_block(config));
 	}
 	out.last_block = interleaved(work);
 	out.primary_head = primary.head();

@@ -94,11 +94,10 @@ void DelayWholeCase::setup(std::size_t n) {
 	rig.work = spans.out;
 	std::ranges::transform(spans.in, rig.work.begin(),
 	                       [](StereoSample frame) { return StereoSample{.l = frame.l >> 1, .r = frame.r >> 1}; });
-	rig.scratch = stereo_scratch(n);
 }
 
 void DelayWholeCase::block(std::size_t /*n*/) {
-	rig.result = rig.processor.process(rig.work, &rig.primary, rig.growing, rig.settings, rig.scratch);
+	rig.result = rig.processor.process(rig.work, &rig.primary, rig.growing, rig.settings);
 }
 
 } // namespace deluge::bench

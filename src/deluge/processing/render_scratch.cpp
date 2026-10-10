@@ -24,8 +24,6 @@
 #include <cstddef>
 #include <cstdint>
 
-extern int32_t spareRenderingBuffer[deluge::render::kSpareRenderingRows][SSI_TX_BUFFER_NUM_SAMPLES];
-
 namespace deluge::render {
 
 namespace {
@@ -46,11 +44,6 @@ dsp::fixed::FilterScratch filter_scratch() {
 
 dsp::fixed::CompressorScratch compressor_scratch() {
 	return compressor_dry;
-}
-
-std::span<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> delay_scratch() {
-	return std::span<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES>{reinterpret_cast<StereoSample*>(spareRenderingBuffer[0]),
-	                                                          SSI_TX_BUFFER_NUM_SAMPLES};
 }
 
 } // namespace deluge::render

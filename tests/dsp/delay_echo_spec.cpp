@@ -16,10 +16,10 @@
  */
 
 // Where the delay's echoes land at the shortest delays, where a 128-frame block laps the tape. The frame-order
-// reference (the delay line's order, which the fused kernel takes) puts every echo where the tape does: D = S - 1
-// samples on a native tape of S samples, S / spin on a resampling one. The staged order drops a native 128-sample
-// tape's echoes once they come round to block frame 0, and damages those at block frame 0 on the 128-sample tape
-// resampling just below 1x (.superpowers/findings/delay-lap/).
+// reference (the delay line's order, which the fused kernel takes) and the shipped DelayProcessor put every echo where
+// the tape does: D = S - 1 samples on a native tape of S samples, S / spin on a resampling one. The staged order drops
+// a native 128-sample tape's echoes once they come round to block frame 0, and damages those at block frame 0 on the
+// 128-sample tape resampling just below 1x (.superpowers/findings/delay-lap/).
 
 #include "delay_workloads.h"
 #include "reference_delay_processor.h"
@@ -42,10 +42,12 @@ using deluge::dsp::fixed::DelayTape;
 
 namespace {
 
-/// The staged reference: today's order.
+/// The staged reference: the staged order.
 using Staged = delay_reference::ReferenceDelayProcessor;
 /// The delay line's order.
 using FrameOrder = delay_reference::FrameOrderDelayProcessor;
+/// The shipped processor, the delay line's order through the fused kernel.
+using deluge::dsp::fixed::DelayProcessor;
 
 /// The echoes of one impulse through the frame-order reference, over a single tape filled with zeros.
 struct EchoTrain {
@@ -77,13 +79,12 @@ EchoTrain echoes(size_t size, uint32_t native, uint32_t rate, int32_t frame, siz
 	const auto length = static_cast<size_t>((static_cast<double>(echoes) + 1) * delay) + static_cast<size_t>(frame);
 	std::vector<double> out;
 	std::array<StereoSample, 128> block{};
-	std::array<StereoSample, 128> scratch{};
 	for (size_t start = 0; start < length; start += block.size()) {
 		block.fill({.l = 0, .r = 0});
 		if (start == 0) {
 			block.at(static_cast<size_t>(frame)) = delay_workloads::kImpulse;
 		}
-		std::ignore = processor.process(block, &tape, nullptr, settings, scratch);
+		std::ignore = processor.process(block, &tape, nullptr, settings);
 		for (const StereoSample s : block) {
 			out.push_back(static_cast<double>(s.l));
 		}
@@ -174,6 +175,20 @@ describe delay_echo("Delay echoes", ${
 			for (const int32_t frame : {0, 5, 127}) {
 				for (const std::string& miss :
 				     misses(echoes<FrameOrder>(tape.size, tape.native, tape.rate, frame, 8))) {
+					missed.push_back(std::string{tape.name} + " frame " + std::to_string(frame) + ": " + miss);
+				}
+			}
+		}
+		expect(missed).to_equal(std::vector<std::string>{});
+	});
+
+	it("plays every echo through the shipped processor where the tape puts it at the shortest delays, wherever in the "
+	   "block the impulse falls", _ {
+		std::vector<std::string> missed;
+		for (const EchoTape& tape : kEchoTapes) {
+			for (const int32_t frame : {0, 5, 127}) {
+				for (const std::string& miss :
+				     misses(echoes<DelayProcessor>(tape.size, tape.native, tape.rate, frame, 8))) {
 					missed.push_back(std::string{tape.name} + " frame " + std::to_string(frame) + ": " + miss);
 				}
 			}

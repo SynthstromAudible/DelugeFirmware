@@ -36,8 +36,7 @@
 
 namespace deluge::render {
 
-/// @brief The rows of the spare rendering buffer, each SSI_TX_BUFFER_NUM_SAMPLES int32s: the voices' working rows,
-/// which the delay's working block also lives in (see @ref delay_scratch).
+/// @brief The rows of the spare rendering buffer, each SSI_TX_BUFFER_NUM_SAMPLES int32s: the voices' working rows.
 inline constexpr std::size_t kSpareRenderingRows = 4;
 
 /// @brief The scratch every filter set shares (the voices' and the host chains'): room for a stereo block of
@@ -47,18 +46,5 @@ inline constexpr std::size_t kSpareRenderingRows = 4;
 /// @brief The scratch every compressor shares (the sounds', the clip chains' and the song master's): a stereo block of
 /// SSI_TX_BUFFER_NUM_SAMPLES frames.
 [[nodiscard]] dsp::fixed::CompressorScratch compressor_scratch();
-
-/// @brief The delay's working block, SSI_TX_BUFFER_NUM_SAMPLES stereo frames: every delay's (the sounds' and the
-/// host chains').
-///
-/// It aliases the spare rendering buffer, starting at its first row and running into the second. The other readers of
-/// that buffer must not run inside a delay's block: the voices and their sources (the oscillators', FM's, the sample
-/// voice's and the live input's working rows) and the output stage's resampler. None does. A delay runs in its
-/// owner's effects, after the owner's voices have rendered, and the output stage runs after the whole render.
-[[nodiscard]] std::span<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> delay_scratch();
-
-static_assert(decltype(delay_scratch())::extent * sizeof(StereoSample)
-                  <= kSpareRenderingRows * SSI_TX_BUFFER_NUM_SAMPLES * sizeof(int32_t),
-              "the delay's working block must fit inside the spare rendering buffer it aliases");
 
 } // namespace deluge::render

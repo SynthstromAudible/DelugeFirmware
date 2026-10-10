@@ -73,10 +73,8 @@ public:
 
 	/// @brief Renders one block of the delay into @p buffer: the lifecycle around the processor's block (the rate's
 	/// settling and a secondary tape grown before it; the swap and the abandon count after it).
-	/// @param scratch the working block, distinct from @p buffer and at least as long.
 	/// @param renderInStereo whether the engine renders in stereo: ping-pong crosses channels only then.
-	void process(std::span<StereoSample> buffer, const State& delayWorkingState, std::span<StereoSample> scratch,
-	             bool renderInStereo);
+	void process(std::span<StereoSample> buffer, const State& delayWorkingState, bool renderInStereo);
 
 private:
 	void prepareToBeginWriting();

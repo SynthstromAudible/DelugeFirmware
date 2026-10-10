@@ -17,9 +17,9 @@
 
 /// @file
 /// @brief The delay's two reference orders, siblings over DelayReferenceBase's shared steps, with a test-only log of
-/// every tape address they clear, read and write: ReferenceDelayProcessor, today's staged order (read the whole block,
-/// shape, mix, then write it all back), copied from `DelayProcessor` line for line; and FrameOrderDelayProcessor, the
-/// same steps one frame at a time, the delay line's order and the fused kernel's target.
+/// every tape address they clear, read and write: ReferenceDelayProcessor, the staged order (read the whole block,
+/// shape, mix, then write it all back); and FrameOrderDelayProcessor, the same steps one frame at a time, the delay
+/// line's order, which `DelayProcessor`'s fused kernel renders.
 
 #pragma once
 
@@ -33,6 +33,7 @@
 #include "util/fixedpoint.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -76,9 +77,9 @@ struct TapeAccess {
 /// @brief Called on every access a block makes to its tapes, in the order the block makes them.
 using AddressLogger = std::function<void(const TapeAccess&)>;
 
-/// @brief What both reference orders share: the steps they take on the tapes (`DelayProcessor`'s `read`, `mix`,
-/// `writePrimary` and `writeSecondary`, copied line for line), the feedback chain as `Stereo<FeedbackChain>`, and the
-/// address log.
+/// @brief What both reference orders share: the steps they take on the tapes (`read`, `mix`, `writePrimary` and
+/// `writeSecondary`, each a whole pass over its span), the feedback chain as `Stereo<FeedbackChain>`, the working
+/// block, and the address log.
 ///
 /// With a logger set, each tape access is reported. Clears, reads and native writes are reported at the access. A
 /// resampled write is reported by probing: the samples around the write head are saved and zeroed, a probe sample
@@ -90,6 +91,9 @@ using AddressLogger = std::function<void(const TapeAccess&)>;
 /// Each order is a sibling over this base, never one derived from the other, so neither can be rendered as the other.
 class DelayReferenceBase {
 public:
+	/// @brief The longest block either order renders, in frames: the engine's.
+	static constexpr size_t kMaxBlockFrames = 128;
+
 	/// @brief The feedback's stages, Q31: shaped by the amount and saturated, then high-passed.
 	using FeedbackChain = Chain<FeedbackShaper, Pinned<ShiftTracker<11>, ShiftTracker<11>::Mode::REMOVE>>;
 
@@ -117,6 +121,9 @@ protected:
 
 	/// @brief The feedback chain on @p work, in place, both channels.
 	void renderFeedback(std::span<StereoSample> work) { feedback_.renderBlock(work, work); }
+
+	/// @return The working block, kMaxBlockFrames frames.
+	[[nodiscard]] std::span<StereoSample> scratch() { return scratch_; }
 
 	[[nodiscard]] static int32_t indexOf(const DelayTape& tape, const StereoSample* sample) {
 		return static_cast<int32_t>(sample - tape.begin());
@@ -300,6 +307,9 @@ private:
 	/// @brief The feedback chain on both channels: the impulse response's history and the high-pass's memory per
 	/// channel.
 	Stereo<FeedbackChain> feedback_;
+	/// @brief The working block: the delayed signal read, shaped and mixed, then written back. A block is at most
+	/// kMaxBlockFrames frames.
+	std::array<StereoSample, kMaxBlockFrames> scratch_{};
 	/// @brief Reports each tape access; empty when nothing listens.
 	AddressLogger log_;
 	/// @brief The smallest probe window's half-width, in samples: wider than a write at up to 8x.
@@ -309,8 +319,8 @@ private:
 	mutable int32_t probe_radius_ = kMinProbeRadius;
 };
 
-/// @brief Today's `DelayProcessor`, test-local: `process`, `read`, `mix`, `writePrimary` and `writeSecondary` as it
-/// renders them, with the feedback as its `Stereo<FeedbackChain>`: the record of today's staged order.
+/// @brief The staged order, test-local: the whole block read, its feedback shaped, mixed, then written back to both
+/// tapes, with the feedback as a `Stereo<FeedbackChain>`: the record of the staged order.
 ///
 /// The staged order reads the whole block before writing any of it back. When a block's walk laps the tape (on
 /// 128-frame blocks, delays shorter than 129 samples: rates of 2130836488 and up, above 2^38/129), a later frame reads
@@ -319,9 +329,9 @@ private:
 /// @ref FrameOrderDelayProcessor is the delay line's order.
 class ReferenceDelayProcessor : public DelayReferenceBase {
 public:
-	/// @brief One block, staged: as `DelayProcessor::process`.
+	/// @brief One block, staged, with `DelayProcessor::process`'s signature.
 	[[nodiscard]] DelayBlockResult process(std::span<StereoSample> block, DelayTape* primary, DelayTape* secondary,
-	                                       const DelayBlock& settings, std::span<StereoSample> scratch) {
+	                                       const DelayBlock& settings) {
 		const bool reading = primary != nullptr && primary->isActive();
 		const bool growing = secondary != nullptr && secondary->isActive();
 
@@ -332,7 +342,7 @@ public:
 			secondary->setupForRender(settings.rate);
 		}
 
-		const std::span<StereoSample> work = scratch.first(block.size());
+		const std::span<StereoSample> work = scratch().first(block.size());
 
 		DelayBlockResult result{.wrapped = false, .secondary_written = 0};
 		DelayTape::Head head{};
@@ -369,7 +379,7 @@ public:
 	/// @brief One block in frame order, with `DelayProcessor::process`'s signature: each frame read, shaped, mixed and
 	/// written to both tapes before the next is read.
 	[[nodiscard]] DelayBlockResult process(std::span<StereoSample> block, DelayTape* primary, DelayTape* secondary,
-	                                       const DelayBlock& settings, std::span<StereoSample> scratch) {
+	                                       const DelayBlock& settings) {
 		const bool reading = primary != nullptr && primary->isActive();
 		const bool growing = secondary != nullptr && secondary->isActive();
 
@@ -386,7 +396,7 @@ public:
 		DelayBlockResult grown{.wrapped = false, .secondary_written = 0};
 		for (size_t i = 0; i < block.size(); ++i) {
 			const auto frame = static_cast<int32_t>(i);
-			const std::span<StereoSample> work = scratch.subspan(i, 1);
+			const std::span<StereoSample> work = scratch().subspan(i, 1);
 			const std::span<StereoSample> out = block.subspan(i, 1);
 			DelayTape::Head head{};
 			if (reading) {

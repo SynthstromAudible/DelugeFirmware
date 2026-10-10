@@ -17,8 +17,8 @@
 
 /// @file
 /// @brief The delay's recorded workloads: deterministic runs of blocks over real tapes, driven by a line-for-line
-/// mirror of the lifecycle `Delay::process` keeps around its processor (src/deluge/dsp/delay/delay.cpp), and what
-/// today's `DelayProcessor` renders from each.
+/// mirror of the lifecycle `Delay::process` keeps around its processor (src/deluge/dsp/delay/delay.cpp), and what the
+/// delay's two orders render from each: the staged order and the frame order `DelayProcessor` renders.
 ///
 /// A workload gives, per block, the frame count, the rate (as a uint32_t, the way the tape takes it) and the block's
 /// settings, and starts from a tape setup: a delay switched on (its first tape a secondary, read as silence until it
@@ -565,7 +565,7 @@ public:
 		}
 
 		growing_ = secondary.isActive() ? &secondary : nullptr;
-		const DelayBlockResult result = processor_.process(buffer, &primary, growing_, s.settings, scratch_);
+		const DelayBlockResult result = processor_.process(buffer, &primary, growing_, s.settings);
 		if (growing_ != nullptr) {
 			size_left_ -= result.secondary_written;
 			if (size_left_ < 0) {
@@ -616,7 +616,6 @@ private:
 	Buffer primary_;
 	Buffer secondary_;
 	Processor processor_;
-	std::array<StereoSample, kMaxFrames> scratch_{};
 	DelayTape* growing_ = nullptr;
 	bool swapped_ = false;
 	uint32_t k_ = 0;
@@ -760,8 +759,8 @@ template <typename Processor>
 	return out;
 }
 
-/// @brief What today's DelayProcessor renders from each workload, in WorkloadId order: recorded from it, identical on
-/// the host and on ARM.
+/// @brief What the staged order (ReferenceDelayProcessor) renders from each workload, in WorkloadId order: recorded
+/// from it, identical on the host and on ARM.
 inline const std::array<WorkloadRecord, kWorkloadCount> kRecorded{{
     // native_straight_digital
     {.outputs = {0xdc9335e3aab409b9ull, 0x2494e0baa44182fdull, 0xdb9f39170ffd984dull, 0xb5207d7766ae4d54ull,

@@ -935,9 +935,6 @@ private:
 	BlockSpans spans_{};
 };
 
-/// @brief The stereo block's first @p n frames, written: the delay whole cases' scratch.
-[[nodiscard]] dsp::Buffer<StereoSample> stereo_scratch(std::size_t n);
-
 /// @brief How a delay whole case's primary tape plays.
 enum class DelayTapeForm : uint8_t {
 	NATIVE, ///< At its native rate: one step per sample, the write kWriteLag behind the read.
@@ -997,7 +994,6 @@ struct DelayRig {
 	dsp::fixed::DelayBlock settings{};           ///< The case's block settings.
 	dsp::fixed::DelayBlockResult result{};       ///< The last block's result.
 	dsp::Buffer<StereoSample> work{};            ///< The lanes output's first n frames, rendered in place.
-	dsp::Buffer<StereoSample> scratch{};         ///< The stereo block's first n frames.
 	std::span<StereoSample> primary_storage{};   ///< The primary's storage, kDelayStorageSize samples in SDRAM.
 	std::span<StereoSample> secondary_storage{}; ///< The secondary's storage, kDelayStorageSize samples in SDRAM.
 };
