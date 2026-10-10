@@ -16,18 +16,19 @@
  */
 
 // The Delay kernel: one frame kernel under Mono that reads the tape, runs the feedback, mixes and writes the tape,
-// frame by frame. Rendered in place, it must equal the frame-order reference (the delay line's order,
-// reference_delay_processor.h) bit for bit on every recorded workload (delay_workloads.h): each block's output, the
-// block's wrap and secondary steps read from the kernel's State, both tapes byte for byte, their heads, and the
-// feedback chain's memories. Between blocks it switches modes as the settings do, keeps the impulse response's history
-// through a reactivation, crosses ping-pong only when the engine renders in stereo, and plays a new delay's first
-// blocks as the dry signal while the secondary fills.
+// frame by frame. Driven through DelayProcessor, as its owner drives it, it must equal the frame-order reference (the
+// delay line's order, reference_delay_processor.h) bit for bit on every recorded workload (delay_workloads.h): each
+// block's output, the block's wrap and secondary steps read from the kernel's State, both tapes byte for byte, their
+// heads, and the feedback chain's memories. Between blocks it switches modes as the settings do, keeps the impulse
+// response's history through a reactivation, crosses ping-pong only when the engine renders in stereo, and plays a new
+// delay's first blocks as the dry signal while the secondary fills.
 
 #include "delay_workloads.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/delay/delay_kernel.h"
+#include "dsp-next/fixed/delay/delay_processor.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "dsp-next/fixed/delay/feedback_shaper.h"
 #include "reference_delay_processor.h"
@@ -51,6 +52,7 @@ using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::Delay;
 using deluge::dsp::fixed::DelayBlock;
 using deluge::dsp::fixed::DelayBlockResult;
+using deluge::dsp::fixed::DelayProcessor;
 using deluge::dsp::fixed::DelayTape;
 using deluge::dsp::fixed::FeedbackShaper;
 
@@ -92,41 +94,31 @@ std::vector<int32_t> frameWords(std::span<const StereoSample> frames) {
 /// The frame-order reference: the delay line's order.
 using FrameOrder = delay_reference::FrameOrderDelayProcessor;
 
-/// The block's result, read from the kernel's State and cleared there, as the owner reads it.
-DelayBlockResult takeResult(Delay::State& s) {
-	const DelayBlockResult result{.wrapped = s.wrapped, .secondary_written = s.secondary_written};
-	s.wrapped = false;
-	s.secondary_written = 0;
-	return result;
-}
-
-/// `Mono<Delay>` with `DelayProcessor`'s `process` and `resetHighPass`, so the workloads drive it as the owner will:
-/// configured from the block's settings and tapes, rendered in place, its result read from the State and cleared.
-class KernelDelay {
+/// `DelayProcessor`, logging the mode each block renders at: the kernel's coefficients for the block's settings and
+/// tapes, as the processor configures it right before the block.
+class ModeLog {
 public:
 	DelayBlockResult process(std::span<StereoSample> block, DelayTape* primary, DelayTape* secondary,
 	                         const DelayBlock& settings) {
-		delay_.configure({.rate = static_cast<uint32_t>(settings.rate),
-		                  .feedback = settings.feedback,
-		                  .analog = settings.analog,
-		                  .analog_saturation = settings.analog_saturation,
-		                  .ping_pong = settings.ping_pong,
-		                  .render_in_stereo = settings.render_in_stereo,
-		                  .primary = primary,
-		                  .secondary = secondary});
-		modes_.push_back(delay_.coefficients().mode);
-		delay_.renderBlock(block, block);
-		return delay_.on<&takeResult>();
+		modes_.push_back(Delay::coefficients({.rate = static_cast<uint32_t>(settings.rate),
+		                                      .feedback = settings.feedback,
+		                                      .analog = settings.analog,
+		                                      .analog_saturation = settings.analog_saturation,
+		                                      .ping_pong = settings.ping_pong,
+		                                      .render_in_stereo = settings.render_in_stereo,
+		                                      .primary = primary,
+		                                      .secondary = secondary})
+		                     .mode);
+		return processor_.process(block, primary, secondary, settings);
 	}
 
-	void resetHighPass() { delay_.on<&Delay::reset_high_pass>(); }
+	void resetHighPass() { processor_.resetHighPass(); }
 
-	[[nodiscard]] const Mono<Delay>& mono() const { return delay_; }
 	/// @return The mode each block rendered at, in order.
 	[[nodiscard]] const std::vector<Delay::Mode>& modes() const { return modes_; }
 
 private:
-	Mono<Delay> delay_;
+	DelayProcessor processor_;
 	std::vector<Delay::Mode> modes_;
 };
 
@@ -140,9 +132,9 @@ std::vector<int64_t> words(const Delay::FeedbackChain::State& s) {
 }
 
 /// @return The kernel's feedback memories, left then right.
-std::vector<int64_t> words(const KernelDelay& kernel) {
-	std::vector<int64_t> out = words(kernel.mono().state().left);
-	const std::vector<int64_t> right = words(kernel.mono().state().right);
+std::vector<int64_t> words(const DelayProcessor& kernel) {
+	std::vector<int64_t> out = words(kernel.state().left);
+	const std::vector<int64_t> right = words(kernel.state().right);
 	out.insert(out.end(), right.begin(), right.end());
 	return out;
 }
@@ -159,10 +151,10 @@ std::vector<int64_t> words(const FrameOrder& reference) {
 /// reference: the output, the result, the lifecycle, a tape or a head, or (checked before each block and after the
 /// last) the feedback memories. @p before runs on both at each of those points, after the memories are compared.
 std::vector<std::string> partings(const delay_workloads::Workload& workload,
-                                  const std::function<void(size_t, KernelDelay&, FrameOrder&)>& before = {}) {
+                                  const std::function<void(size_t, DelayProcessor&, FrameOrder&)>& before = {}) {
 	std::vector<std::string> out;
-	const auto parting = delay_workloads::first_parting<KernelDelay, FrameOrder>(
-	    workload, [&](size_t block, KernelDelay& kernel, FrameOrder& reference) {
+	const auto parting = delay_workloads::first_parting<DelayProcessor, FrameOrder>(
+	    workload, [&](size_t block, DelayProcessor& kernel, FrameOrder& reference) {
 		    if (words(kernel) != words(reference)) {
 			    out.push_back(std::string{workload.name} + " block " + std::to_string(block) + ": feedback memories");
 		    }
@@ -226,7 +218,7 @@ delay_workloads::Workload pingPong(bool ping_pong, bool stereo) {
 
 /// @return Every block's output digest of @p workload through the kernel.
 std::vector<uint64_t> outputs(const delay_workloads::Workload& workload) {
-	return delay_workloads::record<KernelDelay>(workload).outputs;
+	return delay_workloads::record<DelayProcessor>(workload).outputs;
 }
 
 /// The delay's settings, without tapes.
@@ -257,7 +249,7 @@ describe delay_kernel("Delay kernel", ${
 
 	it("renders every workload as the frame order's record, block for block", _ {
 		for (const delay_workloads::Workload& workload : delay_workloads::all_workloads()) {
-			expect(delay_workloads::record<KernelDelay>(workload))
+			expect(delay_workloads::record<DelayProcessor>(workload))
 			    .to_equal(delay_workloads::kRecordedFrameOrder.at(static_cast<size_t>(workload.id)));
 		}
 	});
@@ -266,7 +258,7 @@ describe delay_kernel("Delay kernel", ${
 		const delay_workloads::Workload workload = modeSwitches();
 		expect(partings(workload)).to_equal(std::vector<std::string>{});
 
-		delay_workloads::WorkloadRun<KernelDelay> run{workload};
+		delay_workloads::WorkloadRun<ModeLog> run{workload};
 		std::array<StereoSample, delay_workloads::kMaxFrames> block{};
 		for (size_t b = 0; b < workload.blocks; ++b) {
 			std::ignore = run.block(b, block);
@@ -306,7 +298,7 @@ describe delay_kernel("Delay kernel", ${
 		std::vector<std::vector<int64_t>> kept;
 		std::vector<int64_t> high_pass;
 		const std::vector<std::string> parted =
-		    partings(workload, [&](size_t block, KernelDelay& kernel, FrameOrder& reference) {
+		    partings(workload, [&](size_t block, DelayProcessor& kernel, FrameOrder& reference) {
 			    if (block != 10 && block != 25) {
 				    return;
 			    }
@@ -369,9 +361,9 @@ describe delay_kernel("Delay kernel", ${
 			const std::array<StereoSample, delay_workloads::kMaxFrames> dry = block;
 			delay.renderBlock(block, block);
 			expect(frameWords(block)).to_equal(frameWords(dry));
-			const DelayBlockResult result = delay.on<&takeResult>();
-			expect(result.secondary_written).to_equal(static_cast<int32_t>(delay_workloads::kMaxFrames));
-			expect(result.wrapped).to_be_false();
+			// The block's results accumulate in the State until the owner takes them.
+			expect(delay.state().secondary_written).to_equal(static_cast<int32_t>((b + 1) * delay_workloads::kMaxFrames));
+			expect(delay.state().wrapped).to_be_false();
 		}
 		expect(delay_workloads::tape_bytes(secondary.tape)).not_().to_equal(fresh);
 		expect(delay_workloads::tape_bytes(inactive)).to_equal(std::vector<uint8_t>{});

@@ -42,7 +42,7 @@ using deluge::dsp::fixed::DelayTape;
 
 namespace {
 
-/// The staged reference: the staged order.
+/// The staged reference: reads the whole block from the tape, then writes it back.
 using Staged = delay_reference::ReferenceDelayProcessor;
 /// The delay line's order.
 using FrameOrder = delay_reference::FrameOrderDelayProcessor;

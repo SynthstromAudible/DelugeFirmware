@@ -14,8 +14,8 @@
 /// **Four lists.** The device prints about 70 lines over RTT before it drops some, so the cases come in four lists,
 /// each run at every block size: the kernels (one case per component), the lanes (each `Lanes` case beside the mono
 /// case of its kernel), the chain (stages run as separate passes beside the same stages as one `Chain`), and the delay
-/// (today's whole delay block over real tapes). A bench image runs one, chosen by the CMake cache string
-/// DELUGE_DSP_BENCH_CASES.
+/// (the whole delay block over real tapes). A bench image runs one, chosen by the CMake cache string
+/// DELUGE_DSP_BENCH_CASES, and builds only that list's cases.
 ///
 /// **State at timing.** The runner warms each case up before timing it, so what is timed is the case's steady
 /// state. Each case's documentation says what that state is; the host spec checks each through its component's
@@ -1001,8 +1001,8 @@ struct DelayRig {
 /// @return The rig the delay whole cases render with.
 [[nodiscard]] const DelayRig& delay_rig();
 
-/// @brief Today's whole delay block, `DelayProcessor::process`, over real tapes: the read, the feedback's shaping and
-/// high-pass, the mix and the writes, as a Sound's Delay renders it.
+/// @brief The whole delay block, `DelayProcessor::process`, over real tapes, as a Sound's Delay renders it: one fused
+/// frame loop that reads the tape, shapes and high-passes the feedback, mixes and writes the tapes, frame by frame.
 /// @details The primary tape is the neutral rate's (DelayTape::kNeutralSize samples, native at kDelayNeutralRate),
 /// filled with fill_delay_tape(), and plays at the case's rate. Growing, a secondary tape sized for kDelayResHiRate is
 /// grown alongside, native there, zeroed, the primary's native rate made precise relative to it: the owner's tapes in
@@ -1010,9 +1010,9 @@ struct DelayRig {
 /// the lanes input copied there at setup, rendered in place, as the delay renders its owner's block.
 ///
 /// **Timed state:** the feedback chain from silence at setup; the read head walks the noise the tape was filled with
-/// (no run reaches the end of a tape, so nothing it wrote is read back), and every block is the same per-sample work
-/// for the tape's form: in NATIVE one step, one read and one write; in RES_LO and RES_HI the long position's step,
-/// the interpolated read and the triangle write (four samples slowed down, about six sped up at 1.5); then the
+/// (no run reaches the end of a tape, so nothing it wrote is read back), and every frame is the same work for the
+/// tape's form: in NATIVE one step, one read and one write; in RES_LO and RES_HI the long position's step, the
+/// interpolated read and the triangle write (four samples slowed down, about six sped up at 1.5); between them the
 /// feedback (the 26-tap response and the tanh in ANALOG, the clip in DIGITAL), the high-pass and the mix (crossed or
 /// straight). Growing adds the secondary's native write, clearing ahead of its head, which never wraps in a run.
 ///
@@ -1025,7 +1025,7 @@ public:
 	/// @brief A case of @p config.
 	constexpr explicit DelayWholeCase(DelayWholeConfig config) : config_{config} {}
 
-	/// @brief Builds the rig for @p n frames: a fresh processor, the tapes, the block and the scratch.
+	/// @brief Builds the rig for @p n frames: a fresh processor, the tapes and the block.
 	void setup(std::size_t n);
 	/// @brief Renders one block of the size it was set up for, in place.
 	void block(std::size_t n);
