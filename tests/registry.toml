@@ -1070,6 +1070,24 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-audio-track-delay-toggle"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "an analog delay switched off and on again while it rings renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_AUDIO_DELAY_TOGGLE) whose audio track's analog delay (its tanh at a host chain's drive) has its feedback dropped to its minimum by automation, which abandons its buffers at once, and raised again a beat later while the audio still plays, so the delay starts again with its impulse response's sums from the block before it went off; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its twin with the feedback held throughout must render differently (RS-FX), so the switch reaches the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_AUDIO_DELAY_TOGGLE" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-low-clip"
 path = "."
 level = "integration"

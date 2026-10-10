@@ -20,6 +20,7 @@ drive filter, the saturating ladder HPF, the granular mod FX, and each filter fa
 it on. RS_AUDIO_DUCKED, RS_KIT_COMP, RS_KIT_DELAY, RS_AUDIO_DELAY and RS_KIT_PINGPONG cover the dynamics and delay
 paths: sidechain hits ducking an audio track, the reverb and a drum; a drum's compressor and a kit's blended one; a
 delay's rate stepped through new buffers until it is abandoned; and ping-pong, which its gate renders in stereo.
+RS_AUDIO_DELAY_TOGGLE switches an audio track's analog delay off and on again while it rings.
 RS_LOW_CLIP covers a host chain's saturation below amount 3, which RS_KIT_FX and RS_AUDIO_FX (at 4) leave out: a
 kit at 1 and an audio track at 2.
 RS_DUCK_SHAPES covers the sidechain envelope's paths RS_AUDIO_DUCKED leaves out on the host owners: the instant
@@ -660,6 +661,28 @@ PINGPONG_DRUMS = [
     _drum("RSD1", "SAMPLES/RS/A.WAV", [(0, 48), (768, 48)]),
     _drum("RSD2", "SAMPLES/RS/B.WAV", [(384, 48), (1152, 48)]),
 ]
+# An audio track's analog delay (its tanh at a host chain's drive) switched off and on again while it rings: the
+# clip's automation drops the feedback to its minimum at the second bar, which abandons the delay's buffers at once,
+# and raises it again a beat later, while the audio still plays, so the delay starts again on new buffers. The
+# processor keeps the impulse response's sums from the last block before the delay went off, so the new delay's first
+# samples carry the old response's tail. Its twin holds the feedback the whole way through.
+ANALOG_DELAY = '<delay pingPong="0" analog="1" syncLevel="0" syncType="0" />'
+AUDIO_DELAY_TOGGLE = _host(
+    delay=ANALOG_DELAY,
+    param_tags=DRY["param_tags"].replace(
+        '<delay rate="0x00000000" feedback="0x80000000" />',
+        '<delay rate="0x00000000" feedback="'
+        + _steps(0x00000000, [(0x80000000, 384), (0x00000000, 480)])
+        + '" />',
+    ),
+)
+AUDIO_DELAY_TOGGLE_DRY = _host(
+    delay=ANALOG_DELAY,
+    param_tags=DRY["param_tags"].replace(
+        '<delay rate="0x00000000" feedback="0x80000000" />',
+        '<delay rate="0x00000000" feedback="0x00000000" />',
+    ),
+)
 # A host chain's saturation below amount 3, where it does not shift back up: the kit at 1 and the audio track at 2,
 # every other setting at DRY's value. RS_KIT_FX and RS_AUDIO_FX render it from 3 up.
 KIT_LOW_CLIP = _host(
@@ -704,6 +727,10 @@ SONGS = {
         v, [kit_parts(KIT_PINGPONG, PINGPONG_DRUMS)]
     ),
     "RS_KIT_PINGPONG_DRY": lambda v: parts_song(v, [kit_parts(DRY, PINGPONG_DRUMS)]),
+    "RS_AUDIO_DELAY_TOGGLE": lambda v: parts_song(v, [audio_parts(AUDIO_DELAY_TOGGLE)]),
+    "RS_AUDIO_DELAY_TOGGLE_DRY": lambda v: parts_song(
+        v, [audio_parts(AUDIO_DELAY_TOGGLE_DRY)]
+    ),
     "RS_LOW_CLIP": lambda v: parts_song(
         v, [kit_parts(KIT_LOW_CLIP, PINGPONG_DRUMS), audio_parts(AUDIO_LOW_CLIP)]
     ),

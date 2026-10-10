@@ -11,6 +11,12 @@
   "rms_db": -14.46,
   "sha256": "4dde3d70f228d6e7595a9e5e4676d4951ab302b4b4d6b6aad96c05fdb004fff8"
  },
+ "RS_AUDIO_DELAY_TOGGLE": {
+  "frames": 384000,
+  "peak": 1586480128,
+  "rms_db": -11.96,
+  "sha256": "ba90afc69229635432728c13933c3d246d663758a7f7200547adcccabb11f047"
+ },
  "RS_AUDIO_DRIVE": {
   "frames": 384000,
   "peak": 646538240,
