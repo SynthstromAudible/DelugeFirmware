@@ -426,22 +426,24 @@ alone.
   or one stepped on some blocks and not others. Two passes are then the
   structure, not a missed fusion.
 - **A part whose step is a long loop of its own.** Fusing removes a load, a
-  store and the loop overhead per sample, about a cycle per sample on the
+  store and the loop overhead per sample, one to four cycles per sample on the
   integer core ([a9_dsp_performance.md](a9_dsp_performance.md#chain)); it does
   not change what one part's loop costs, so get that loop right first. The
-  delay's analog response is most of its fused frame: summed in direct form
-  from a mirrored history, its tap loop stores nothing, issues two `smmlar`s
-  into even- and odd-tap accumulators and loads the next pair behind them, and
-  the analog feedback as one chain runs in 160.5 cycles per channel-sample,
-  against 216.9 for the stereo form that keeps partial sums. A per-channel
-  partial-sum loop, with a store per tap, made the same chain 393. The fused
-  loop also stores each channel's history, index and high-pass memory once per
-  frame and spills four values, from the tap loop's register pressure: chain
-  state and one stage output held across the other channel's loop, nothing
-  else stored between stages. The next lever is the stereo direct form, both
-  channels per tap (139.7 in C); it needs a chain that steps a stereo frame,
-  with a `Packed`/`PerChannel` adaptor for its per-channel parts, and is
-  deferred to the mod-FX rewrite (`.superpowers/findings/fir-form-spike/`).
+  delay's analog response is most of its fused frame. A store inside its tap
+  loop costs about 14 cycles a tap, each next load waiting behind its
+  load→multiply→add→store; summed in direct form from a mirrored history, the
+  tap loop has no store: it issues two `smmlar`s into even- and odd-tap
+  accumulators and loads the next pair behind them. Rendered in place, as the
+  delay renders it, the analog feedback as one chain runs in 162.6 cycles per
+  channel-sample, against 260.9 for the stereo form that keeps partial sums.
+  The fused loop also stores each channel's history, index and high-pass
+  memory once per frame and spills four values, from the tap loop's register
+  pressure: chain state and one stage output held across the other channel's
+  loop, nothing else stored between stages. The next lever is the stereo
+  direct form, both channels per tap (139.7 in C, measured out of place); it
+  needs a chain that steps a stereo frame, with a `Packed`/`PerChannel` adaptor
+  for its per-channel parts, and is deferred to the mod-FX rewrite
+  (`.superpowers/findings/fir-form-spike/`).
   Likewise `Stereo<Chain<OnePole, Pinned<ShiftTracker<11>, REMOVE>>>` in
   HIGH_PASS and ALL_PASS stores the two channels' outputs separately, one store
   more per frame than `Stereo<OnePole>`, from the chain's register pressure.
@@ -568,10 +570,23 @@ arity, as `Mono` is. A staged or control kernel is rejected at the class: neithe
   in the source and the bit-exact check against lane by lane; it is not a speed-up. `OnePole` and `ShiftTracker` opt
   in. A further kernel opts in only when a probe at the shipping flags shows its op-major loop beating its lane-by-lane
   one, or when a `LanePack` specialisation exists (a hand-written or NEON operation) that lane by lane cannot reach.
-- **The loop.** Each frame is loaded whole and every pointer is stepped before the frame is stored: on the A9 a load
-  whose address is computed after a pending store waits for that store's data. Every input frame is read whole before
-  any lane of its output is written, so input and output may be the same buffer. The loop runs on local copies of the
-  coefficients and every State, written back after the block, as in `Mono`.
+- **The loop.** Each frame is loaded whole, its lanes stepped, and then it is stored. Every input frame is read whole
+  before any lane of its output is written, so input and output may be the same buffer. Where the pointer steps fall
+  against the store is clang's choice: rendered in place (one span as input and output, as `DelayProcessor` renders
+  it), the input and output pointers merge into one, stepped after the frame's store, so the next frame's load address
+  is computed after a pending store. On the A9 such a load waits for that store's data. Check the in-place disassembly,
+  and bench in place what ships in place. The shipped digital delay loop measures the same in place as out of place
+  ([a9_dsp_performance.md](a9_dsp_performance.md#chain)), and so is left as it is; the remedy class, once a bench shows
+  the stall matters, is a one-frame software pipeline in the `Lanes`/`Mono` loop: load frame i + 1 before storing
+  frame i, so the next load's address never follows the store.
+- **The State copy.** The loop runs on local copies of the coefficients and every State, written back after the block,
+  as in `Mono`, so that scalar state can live in registers while the output may alias the component. Only scalar
+  state gains from it. An array in a State never lives in registers, so it is copied in and out for nothing, at a cost
+  that grows with its size: the delay's 416-byte `Stereo` State costs about a cycle per channel-sample in digital mode
+  at n = 128, two `memcpy`s a block. A kernel with a big ring (a reverb's combs, a chorus's or flanger's line) must not
+  take this path: a few kilobytes copied twice a block costs more than its step. The remedy class is to split the State
+  into a register part, copied, and a memory part stepped in place, or a wrapper policy keyed on a kernel declaration
+  or on the State's size. Design it when the first such kernel lands, most likely in the mod-FX rewrite.
 - **`Stereo<K>` is `Lanes<K, 2, StereoSample>`** (below).
 - **Measure every use.** N is per kernel, 2 by default. Each use of `Lanes` gets a bench case at its N (the `lanes`
   list in [Measuring](#measuring)), because clang's scheduling, addressing and encoding choices move the same work by
@@ -926,8 +941,10 @@ it drops some:
   delay's feedback, analog and digital, and three mono stages), with each stage
   alone. The delay's cases build with the flags of the library the delay ships
   in, ARM mode with `-finline-functions` and no LTO
-  (`src/deluge/bench/delay_feedback_cases.cpp`); every other case builds with
-  the app's.
+  (`src/deluge/bench/delay_feedback_cases.cpp`), and render in place, as the
+  delay does, each block over the one before's output; the digital chain is
+  also timed out of place, beside it. Every other case builds with the app's
+  flags.
 
 Choose one with
 `./dbt configure -DDELUGE_DSP_BENCH=ON -DDELUGE_DSP_BENCH_CASES=lanes`; it sticks
@@ -1099,11 +1116,18 @@ gates:
   or per vector in the shipping image.
 - Does a performance claim cite a bench table, or the exact shipping-flags
   disassembly?
-- Does every loop step its pointers before its stores? On the A9 a load whose
-  address is computed after a pending store waits for that store's data: the
-  same eight instructions cost 14.1 cycles with the pointer step after the store
-  and 8.3 with it after the load. In the disassembly the loads are
-  post-indexed (`ldrd r2, r3, [r0], #8`) or the pointer `add` follows them.
+- Does a recurrence's tap loop store? A store inside it is itself the cost:
+  each next load waits behind the load→multiply→add→store, about 14 cycles a
+  tap in the delay's response. Prefer a form with no store per tap: direct
+  form, or accumulate in registers.
+- Where a store is unavoidable, are the pointers stepped before it? On the A9 a
+  load whose address is computed after a pending store waits for that store's
+  data: the same eight instructions cost 14.1 cycles with the pointer step
+  after the store and 8.3 with it after the load. In the disassembly the loads
+  are post-indexed (`ldrd r2, r3, [r0], #8`) or the pointer `add` follows them.
+  This is secondary to removing the store. Check the in-place codegen too: an
+  in-place loop merges its input and output pointers into one, which clang
+  steps after the store.
 - Is there a `muls` in a hot loop? It is Thumb-2's narrow flag-setting multiply,
   which clang's size reduction picks when the registers allow it, and it costs
   about 3.3 issue cycles against 2.0 for `mul`. Check the disassembly at the

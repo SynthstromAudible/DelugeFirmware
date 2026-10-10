@@ -104,10 +104,13 @@ struct packed_state<K, N> {
 /// stream every lane shares (noise) therefore draws in lane order on every frame; at N = 2 that is left before right.
 ///
 /// **The loop.** One input pointer per input block and one output pointer step over whole frames. Each frame is
-/// loaded whole, every input pointer is stepped, the lanes are stepped, and then the frame is stored: the step for the
-/// next loads comes before the store, since on the Cortex-A9 a load whose address is computed after a pending store
-/// waits for that store's data. Every input frame is read whole before any lane of its output is written, so an input
-/// block may be the same buffer as the output.
+/// loaded whole, the lanes are stepped, and then the frame is stored. Every input frame is read whole before any lane
+/// of its output is written, so an input block may be the same buffer as the output. Where the pointer steps fall
+/// against the store is clang's choice, not the source's. Rendered in place (one span passed as input and output, as
+/// `DelayProcessor` does), the two pointers merge into one, stepped after the frame's store, so the next frame's load
+/// address is computed after a pending store; check the in-place disassembly, and bench in place what ships in place.
+/// The remedy class, once a bench shows that stall matters, is a one-frame software pipeline: load frame i + 1 before
+/// storing frame i.
 ///
 /// **Single samples.** `render(…)` is a one-frame block: it builds one-frame spans and runs a whole block's `prepare`,
 /// dispatch and loop, which under the shipping `-fno-inline-functions` costs several out-of-line `std::span` calls per
@@ -384,9 +387,8 @@ private:
 	}
 
 	/// @brief @p n frames of the input blocks @p src (none, one or two) into @p dst, one @ref stepFrame per frame.
-	/// @details Each frame's inputs are loaded whole and the input pointers stepped before the frame is stepped, and
-	/// the frame is stored after: the pointers for the next loads never wait behind the store, and an input may be the
-	/// output.
+	/// @details Each frame's inputs are loaded whole before the frame is stepped, and the frame is stored after, so an
+	/// input may be the output. In place the pointers merge and step after the store (the class's **The loop**).
 	template <auto M, typename... Src>
 	[[gnu::always_inline]] static void loop(const Coefficients& c, const Blocks& blocks, States& s, value_type* dst,
 	                                        std::ptrdiff_t n, const Src*... src) {
@@ -413,8 +415,7 @@ private:
 	}
 
 	/// @brief @p n frames of the input blocks @p src (none, one or two) into @p dst, one op-major step per frame.
-	/// @details As @ref loop: each frame's inputs are loaded whole and the input pointers stepped before the step, and
-	/// the frame is stored after it.
+	/// @details As @ref loop: each frame's inputs are loaded whole before the step, and the frame is stored after it.
 	/// @tparam S The packed state: PackedState, a template parameter so that a lane-by-lane Lanes never forms it.
 	template <auto M, typename S, typename... Src>
 	[[gnu::always_inline]] static void packedLoop(const Coefficients& c, S& s, value_type* dst, std::ptrdiff_t n,

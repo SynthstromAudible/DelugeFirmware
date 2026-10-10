@@ -53,8 +53,8 @@ These numbers explain the cost of a streaming q31 loop:
    another on each sample in one pass, keeping the intermediate values in registers, so the block is loaded and stored
    once. A gain, pan or mix stage belongs in the chain beside the kernel that produces or consumes the signal, as
    `Amplitude` multiplies and accumulates into its output in one pass. A standalone gain pass costs about 3.4 cycles
-   per sample, almost all of it memory traffic. On scalar integer kernels a removed pass saves about 1 cycle per sample
-   ([Chain](#chain)); fusing never turns one kernel's slow loop into a fast one.
+   per sample, almost all of it memory traffic. On scalar integer kernels a removed pass saves one to four cycles per
+   sample ([Chain](#chain)); fusing never turns one kernel's slow loop into a fast one.
 2. **Unrolling (`U`) helps little for streaming kernels.** A gain unrolled two, three or four vectors per iteration
    gains at most about 12%. The loop is bound by the multiply's issue rate and the store, not by latency.
 3. **Interleaving independent streams (`Lanes<K, N>`) is for recursive kernels.** A filter or envelope whose next
@@ -146,52 +146,65 @@ the same tree gives the same `Mono` figures to within 0.01.
 ## Chain
 
 Cycles per channel-sample on the device, each pair the same arithmetic as separate passes over the block and as one
-`Chain`, bit for bit the same output. The bench ran on 81d159c2a (2026-10-09), `DELUGE_DSP_BENCH_CASES=chain`
-(`.superpowers/estate/bench/2026-10-09-81d159c2a.md`). The delay cases build with the flags the delay ships with
-(`deluge_dsp_fixed`: ARM mode, `-finline-functions`, no LTO), the others with the app's.
+`Chain`, bit for bit the same output. The bench ran on 176d20e6b (2026-10-10), `DELUGE_DSP_BENCH_CASES=chain`
+(`.superpowers/estate/bench/2026-10-10-176d20e6b.md`). The delay cases build with the flags the delay ships with
+(`deluge_dsp_fixed`: ARM mode, `-finline-functions`, no LTO), the others with the app's. The delay cases render in
+place, as the delay renders its work block: each block over the one before's output. Out of place is one case, beside
+the in-place digital chain.
 
 | Case | Form | n=32 | n=64 | n=128 |
 |---|---|---:|---:|---:|
-| `delay_feedback_legacy_analog` | stereo response (partial sums, both channels per tap), then a tanh loop, then a high-pass loop | 217.52 | 217.58 | 216.88 |
-| `delay_feedback_passes_analog` | `Stereo<FeedbackShaper>`, then `Stereo<Pinned<ShiftTracker<11>, REMOVE>>` | 176.07 | 171.07 | 168.53 |
-| `delay_feedback_chain_analog` | `Stereo<Chain<FeedbackShaper, Pinned<ShiftTracker<11>, REMOVE>>>` | 167.98 | 162.99 | 160.49 |
-| `delay_feedback_passes_digital` | the two passes, DIGITAL | 19.44 | 14.47 | 11.99 |
-| `delay_feedback_chain_digital` | the chain, DIGITAL | 18.20 | 13.35 | 10.92 |
-| `chain3_passes` | `Tanh<3>`, `Pinned<OnePole, LOW_PASS>`, `Pinned<ShiftTracker<11>, REMOVE>`: three `Mono` passes | 34.61 | 33.05 | 32.27 |
-| `chain3_fused` | `Mono<Chain<…>>` of the same three | 31.87 | 30.95 | 30.47 |
-| `tanh3`, `one_pole_lp`, `shift_tracker` | each stage alone, `Mono` (sum) | 33.97 | 32.24 | 31.36 |
+| `delay_feedback_legacy_analog` | stereo response (partial sums, both channels per tap), then a tanh loop, then a high-pass loop | 261.41 | 261.03 | 260.85 |
+| `delay_feedback_passes_analog` | `Stereo<FeedbackShaper>`, then `Stereo<Pinned<ShiftTracker<11>, REMOVE>>` | 171.96 | 166.85 | 164.41 |
+| `delay_feedback_chain_analog` | `Stereo<Chain<FeedbackShaper, Pinned<ShiftTracker<11>, REMOVE>>>` | 170.23 | 165.12 | 162.56 |
+| `delay_feedback_passes_digital` | the two passes, DIGITAL | 21.97 | 16.99 | 14.49 |
+| `delay_feedback_chain_digital` | the chain, DIGITAL | 18.25 | 13.38 | 10.94 |
+| `delay_feedback_chain_digital_out_of_place` | the chain, DIGITAL, from the input block into the output block | 18.63 | 13.55 | 11.02 |
+| `chain3_passes` | `Tanh<3>`, `Pinned<OnePole, LOW_PASS>`, `Pinned<ShiftTracker<11>, REMOVE>`: three `Mono` passes | 34.05 | 32.27 | 31.39 |
+| `chain3_fused` | `Mono<Chain<…>>` of the same three | 31.16 | 30.60 | 30.29 |
+| `tanh3`, `one_pole_lp`, `shift_tracker` | each stage alone, `Mono` (sum) | 34.15 | 32.32 | 31.41 |
 
 **What a removed pass saves.** Per channel-sample, the passes less the chain, divided by the passes removed:
 
 | Pair | Passes removed | n=32 | n=64 | n=128 | Instructions removed (n=128) |
 |---|---:|---:|---:|---:|---:|
-| delay, DIGITAL | 1 | 1.24 | 1.12 | 1.07 | 3.9 |
-| delay, ANALOG | 1 | 8.09 | 8.08 | 8.04 | 13.0 |
-| chain3 | 2 | 1.37 | 1.05 | 0.90 | 4.7 per pass |
+| delay, DIGITAL | 1 | 3.72 | 3.61 | 3.55 | 3.5 |
+| delay, ANALOG | 1 | 1.73 | 1.73 | 1.85 | 1.5 |
+| chain3 | 2 | 1.45 | 0.84 | 0.55 | 4.7 per pass |
 
-- **A removed pass costs about a cycle per sample on the integer core**, its load, its store and its loop overhead,
-  though it removes four to five instructions. The separate passes' loops step independent samples, and the core
-  overlaps them; the fused loop runs each sample's stages as one longer dependency chain, so its issue-empty cycles
-  rise (8.76 to 10.27 per sample for chain3, 2.72 to 3.16 for the digital delay). The NEON-sourced store (6.5 cycles
-  per 16 bytes, [Measured costs](#measured-costs)) is where fusion pays most; no NEON chain is measured yet.
-- **The digital delay is one 13-instruction loop per frame** with both channels' high-pass memories in registers and
-  one store, the output frame. Its small-n rows carry the per-block copy of the chain's State in and out (two 416-byte
-  `memcpy`s, since `Stereo` runs on a local copy of every lane's State), which the analog response's history makes
-  large: 50 words and an index per channel.
-- **The analog delay as a chain beats the stereo form by 26%, and the response's direct form is why.**
+- **A removed pass saves its load, its store and its loop overhead**, one to four cycles per sample on the integer
+  core. The chain3 passes step independent samples, and the core overlaps them; the fused loop runs each sample's
+  stages as one longer dependency chain, so its issue-empty cycles rise (7.86 to 10.10 per sample). The digital delay
+  saves more, 3.6 cycles for 3.5 instructions, because its in-place shaper pass is the slow one: its pointer merges into
+  a post-indexed store (`str r0, [r5], #8`, after a separate `str` of the right channel), and the next frame's `ldrd`
+  is addressed from that store's writeback; the passes' issue-empty cycles are 4.49 per sample against the chain's
+  2.68. The NEON-sourced store (6.5 cycles per 16 bytes, [Measured costs](#measured-costs)) is where fusion should pay
+  most; no NEON chain is measured yet.
+- **The digital delay as shipped is one 15-instruction loop per frame**, 11.92 instructions per channel-sample on the
+  bench with the block's overhead, with both channels' high-pass memories in registers and one store, the output
+  frame's `strd`. In place its one frame pointer is stepped after that store, so the next frame's load address follows
+  a pending store; it measures 10.94 against 11.02 out of place (where clang steps both pointers after the store too),
+  so the order costs nothing measurable here. The bench's in-place loop is the shipped `DelayProcessor` loop instruction
+  for instruction. Its small-n rows carry the per-block copy of the chain's State in and out (two 416-byte `memcpy`s,
+  since `Stereo` runs on a local copy of every lane's State), which the analog response's history makes large: 50
+  words and an index per channel.
+- **The analog delay as a chain runs 38% under the stereo form, and the response's direct form is why.**
   `AnalogImpulseResponse` sums its 26 products straight from a mirrored history of the last 25 inputs, so its tap loop
   stores nothing: two `smmlar`s into an even-tap and an odd-tap accumulator, with the next pair's history samples and
   taps loaded behind them, 11 instructions per two taps (10 on the right channel, whose taps load as one `ldrd`). A
-  form that keeps running partial sums stores one per tap, and each next load waits behind its
-  load→multiply→add→store chain: that loop cost 14 to 15 cycles per tap per channel, and the chain 393 to 400 cycles
-  per channel-sample. The stereo form steps both channels per tap with its pointers stepped before its stores, 7
-  cycles per channel-tap. The direct form is bit for bit the partial sums': the same 26 rounded products, summed by
-  adds that wrap modulo 2^32, so their order does not matter. `.superpowers/findings/fir-form-spike/` measures every
-  form tried, the response alone and end to end.
-- **Fusing the analog delay saves about 8 cycles per channel-sample**, against about one for the digital pair, and
-  13 instructions against 3.9. The chain high-passes each shaped sample in registers where the passes load, high-pass
-  and store it in a second loop; no trace was taken of the direct-form loops, so the rest of the difference is not
-  attributed.
+  store inside a recurrence's tap loop is itself the cost: in a form that keeps running partial sums, each next load
+  waits behind its load→multiply→add→store, about 14 cycles a tap. The stereo form keeps partial sums for both
+  channels per tap and stores two per tap; in place its index is stepped between the two stores, and it measures
+  260.9, where out of place, with the index stepped before both, it measures 216.9
+  (`.superpowers/estate/bench/2026-10-09-81d159c2a.md`). Stepping the pointers before a store helps such a loop, but
+  removing the store is the lever. The direct form is bit for bit the partial sums': the same 26 rounded products,
+  summed by adds that wrap modulo 2^32, so their order does not matter. `.superpowers/findings/fir-form-spike/`
+  measures every form tried, the response alone and end to end.
+- **Fusing the analog delay saves about 1.8 cycles per channel-sample** in place. The chain high-passes each shaped
+  sample in registers where the passes load, high-pass and store it in a second loop; in place the chain also
+  measures 2.1 cycles per channel-sample above its out-of-place figure (160.5, the 2026-10-09 table), with 7 fewer
+  instructions and 8 more issue-empty cycles per sample. No trace was taken of the direct-form loops, so the
+  difference is not attributed.
 - **The fused analog loop stores the response's history and index and the high-pass memory per channel per frame,
   and spills four values.** Per frame: the input written twice into each channel's history and the advanced index
   (`Stereo` runs on a stack copy of the State, so these are stores to it), each channel's high-pass memory, the output
@@ -203,13 +216,20 @@ Cycles per channel-sample on the device, each pair the same arithmetic as separa
   `str [r10], #8`) where LOW_PASS and a bare `Stereo<OnePole>` store one `strd`: one store more per frame, from the
   chain's register pressure (four state registers and a coefficient across both channels).
 - **The next lever is the stereo direct form.** One tap loop stepping both channels, each tap loaded once for both,
-  measured 139.7 cycles per channel-sample end to end in C (13% under the chain's 160.5). A chain cannot express it
-  yet: it needs a chain that steps a stereo frame, with a `Packed`/`PerChannel` adaptor for its per-channel parts. It
-  is deferred to the mod-FX rewrite (`.superpowers/findings/fir-form-spike/`).
-- **Bench a component with the flags it ships with.** Under the app's flags (Thumb, `-fno-inline-functions`) the
-  response's `std::array` indexing is an out-of-line call per tap, and all three analog forms measured about 600 cycles
-  per channel-sample (`.superpowers/estate/bench/2026-10-09-a202884d7-appflags.md`). A kernel's `step` is
-  `[[gnu::always_inline]]`, but what it calls inherits the translation unit's flags.
+  measured 139.7 cycles per channel-sample end to end in C, out of place; it was not measured in place. A chain cannot
+  express it yet: it needs a chain that steps a stereo frame, with a `Packed`/`PerChannel` adaptor for its per-channel
+  parts. It is deferred to the mod-FX rewrite (`.superpowers/findings/fir-form-spike/`).
+- **The in-place loop's remedy class.** Where a bench shows the in-place stall matters, the remedy is a one-frame
+  software pipeline in the `Lanes`/`Mono` loop: load frame i + 1 before storing frame i, so the next load's address
+  never follows the store. It is not done: the digital delay shows no cost from the order, and the analog delay's
+  2.1 cycles are not yet attributed.
+- **Bench a component with the flags it ships with, and in place if it ships in place.** Under the app's flags
+  (Thumb, `-fno-inline-functions`) a `std::array` member function is an out-of-line call per use: a response reading
+  its taps and history through `std::array` makes calls in every frame, and all three analog forms measure about 600
+  cycles per channel-sample that way (`.superpowers/estate/bench/2026-10-09-a202884d7-appflags.md`).
+  `AnalogImpulseResponse` reads built-in arrays through plain pointers, so its step makes no call under either flag
+  set. A kernel's `step` is `[[gnu::always_inline]]`, but what it
+  calls inherits the translation unit's flags.
 
 ## Open questions
 

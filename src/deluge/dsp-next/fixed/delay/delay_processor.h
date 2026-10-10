@@ -59,7 +59,10 @@ struct DelayBlockResult {
 /// low-pass (a 1/2048 step per sample) out of it, so repeats don't build up sub-bass; the corner settles near 40 Hz
 /// after many repeats. Both run as one chain, every sample through both stages in a single pass over the block, the
 /// mode chosen once per block. The processor owns the chain's state: each channel's impulse-response history and
-/// high-pass memory.
+/// high-pass memory, 436 bytes in all, against 208 for a response that keeps 25 partial sums: the history is 50 words
+/// and an index per channel, mirrored so its tap loop stores nothing. Every ModControllableAudio (a Sound, a kit drum,
+/// a kit, an audio clip) carries one through its Delay, and a kit drum is allocated by `alloc_fast`, which tries the
+/// 44 KB internal SRAM heap first.
 ///
 /// **Reactivation.** @ref resetHighPass resets the high-pass's memories only. The impulse response's history carries
 /// over, so a delay switched off and on again starts with up to 25 samples of the old response's tail.
