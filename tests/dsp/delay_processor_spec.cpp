@@ -553,11 +553,11 @@ describe delay_processor("DelayProcessor", ${
 		expect(run(rateChange())).to_equal(kRateChange);
 	});
 
-	it("starts again after a reactivation with the impulse response's sums from before it, its high-pass reset", _ {
+	it("starts again after a reactivation with the impulse response's history from before it, its high-pass reset", _ {
 		expect(runSteps(reactivation())).to_equal(kReactivation);
 	});
 
-	it("resumes the impulse response's sums in analog after digital blocks left them untouched", _ {
+	it("resumes the impulse response's history in analog after digital blocks left it untouched", _ {
 		expect(runSteps(modeSwitch())).to_equal(kModeSwitch);
 	});
 });
