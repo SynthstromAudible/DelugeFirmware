@@ -17,8 +17,8 @@
 
 #pragma once
 
-// The delay's analog impulse response as the delay computed it before it was a kernel: the specs' reference, kept
-// here so that it outlives the class.
+// The delay's analog impulse response in its reference arithmetic: the verbatim stereo arithmetic the kernel is
+// checked against.
 
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/wrapping.h"
@@ -32,8 +32,8 @@ namespace reference {
 
 using deluge::dsp::StereoSample;
 
-/// @brief The analog delay's 26-tap impulse response (Q31 taps), one stereo sample at a time: a verbatim copy of the
-/// class the delay held.
+/// @brief The analog delay's 26-tap impulse response (Q31 taps), one stereo sample at a time: the reference
+/// arithmetic the kernel is checked against.
 /// @details Its sums are plain signed adds. Each product is half the tap times the input, and the taps' magnitudes sum
 /// to about 2.27, so a sum stays within about 1.13 of the input's peak: it can leave q31 at full scale, and this is a
 /// reference only for inputs under half of it. @ref WrappingReferenceImpulseResponse is the reference beyond that.

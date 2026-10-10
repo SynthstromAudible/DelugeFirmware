@@ -281,7 +281,7 @@ describe analog_impulse_response("AnalogImpulseResponse", ${
 		for (const int32_t t : AnalogImpulseResponse::kResponse) {
 			sum += multiply_32x32_rshift32_rounded(t > 0 ? kMax : kMin, t);
 		}
-		expect(sum > int64_t{kMax}).to_be_true();
+		expect(sum).to_be_greater_than(int64_t{kMax});
 		const Run r = run<WrappingReferenceImpulseResponse>(full_scale(AnalogImpulseResponse::kTaps, 3), 1);
 		expect(r.got[2 * (AnalogImpulseResponse::kTaps - 1)]).to_equal(static_cast<q31>(static_cast<uint32_t>(sum)));
 	});
