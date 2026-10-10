@@ -1068,9 +1068,11 @@ describe bench_runner("The DSP benchmark runner", ${
 						expect(dsp::get<1>(chain.left()).y).to_equal(expected.memory_l);
 						expect(dsp::get<1>(chain.right()).y).to_equal(expected.memory_r);
 						expect(dsp::get<0>(chain.coefficients().mode)).to_equal(dsp::fixed::FeedbackShaper::Mode::DIGITAL);
-						// A digital block holds the response still: its sums stay silent.
-						expect(std::ranges::count(dsp::get<0>(chain.left()).response.pending, 0))
-						    .to_equal(static_cast<std::ptrdiff_t>(dsp::fixed::AnalogImpulseResponse::kPending));
+						// A digital block holds the response still: its history stays silent, its index at the start.
+						const auto& response = dsp::get<0>(chain.left()).response;
+						expect(std::ranges::count(response.history, 0))
+						    .to_equal(static_cast<std::ptrdiff_t>(response.history.size()));
+						expect(response.oldest).to_equal(uint32_t{0});
 					}
 				}
 			}

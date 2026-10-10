@@ -772,7 +772,7 @@ inline constexpr uint32_t kDelayDrive = 8;
 /// @details The lanes input holds the stereo frames at under half of full scale (setup halves its noise), where the
 /// stereo reference's plain adds stay in q31, so every delay case reads the same frames.
 ///
-/// **Timed state:** every block reads the same input. The response's sums (analog) and each channel's high-pass
+/// **Timed state:** every block reads the same input. The response's history (analog) and each channel's high-pass
 /// memory carry from block to block, from silence at setup. Every frame is the same arithmetic: in ANALOG the 26-tap
 /// response, the feedback multiply and the tanh at the drive; in DIGITAL the multiply and the 29-bit clip; then the
 /// high-pass's subtract, shifted add and subtract.

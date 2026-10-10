@@ -58,11 +58,11 @@ struct DelayBlockResult {
 /// saturation: the analog impulse response then a tanh, or a digital clip) and then a high-pass that takes a one-pole
 /// low-pass (a 1/2048 step per sample) out of it, so repeats don't build up sub-bass; the corner settles near 40 Hz
 /// after many repeats. Both run as one chain, every sample through both stages in a single pass over the block, the
-/// mode chosen once per block. The processor owns the chain's state: each channel's impulse-response sums and
+/// mode chosen once per block. The processor owns the chain's state: each channel's impulse-response history and
 /// high-pass memory.
 ///
-/// **Reactivation.** @ref resetHighPass resets the high-pass's memories only. The impulse response's sums carry over,
-/// so a delay switched off and on again starts with up to 25 samples of the old response's tail.
+/// **Reactivation.** @ref resetHighPass resets the high-pass's memories only. The impulse response's history carries
+/// over, so a delay switched off and on again starts with up to 25 samples of the old response's tail.
 class DelayProcessor {
 public:
 	/// @brief Renders one block: the delayed signal is added to @p block (Q31), and the block plus the shaped
@@ -73,8 +73,8 @@ public:
 	[[nodiscard]] DelayBlockResult process(std::span<StereoSample> block, DelayTape* primary, DelayTape* secondary,
 	                                       const DelayBlock& settings, std::span<StereoSample> scratch);
 
-	/// @brief The high-pass's memories to 0 in both channels, as a new delay's are. The impulse response's sums are
-	/// kept.
+	/// @brief The high-pass's memories to 0 in both channels, as a new delay's are. The impulse response's history
+	/// is kept.
 	void resetHighPass() { feedback_.on<&FeedbackChain::reset_part<1>>(); }
 
 private:
@@ -97,7 +97,8 @@ private:
 	/// @return Whether its read head wrapped, and how many steps it took.
 	static DelayBlockResult writeSecondary(DelayTape& secondary, std::span<const StereoSample> work);
 
-	/// @brief The feedback chain on both channels: the impulse response's sums and the high-pass's memory per channel.
+	/// @brief The feedback chain on both channels: the impulse response's history and the high-pass's memory per
+	/// channel.
 	Stereo<FeedbackChain> feedback_;
 };
 

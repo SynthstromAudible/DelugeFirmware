@@ -190,10 +190,13 @@ struct Pair {
 	}
 };
 
-/// @p s's response sums, the whole of its State, for comparing States bit for bit.
-std::vector<q31> sums_of(const FeedbackShaper::State& s) {
-	static_assert(sizeof(FeedbackShaper::State) == sizeof(s.response.pending), "the sums are the whole State");
-	return {s.response.pending.begin(), s.response.pending.end()};
+/// @p s's response history and its index, the whole of its State, for comparing States bit for bit.
+std::vector<q31> history_of(const FeedbackShaper::State& s) {
+	static_assert(sizeof(FeedbackShaper::State) == sizeof(s.response.history) + sizeof(s.response.oldest),
+	              "the history and its index are the whole State");
+	std::vector<q31> v{s.response.history.begin(), s.response.history.end()};
+	v.push_back(static_cast<q31>(s.response.oldest));
+	return v;
 }
 
 } // namespace
@@ -248,8 +251,8 @@ describe feedback_shaper("FeedbackShaper", ${
 					const FeedbackShaper::State right = pair.kernel.right();
 					pair.block(in, {.feedback = kFeedbacks[2], .analog = analog[block], .analog_saturation = drive});
 					if (!analog[block]) {
-						expect(sums_of(pair.kernel.left())).to_equal(sums_of(left));
-						expect(sums_of(pair.kernel.right())).to_equal(sums_of(right));
+						expect(history_of(pair.kernel.left())).to_equal(history_of(left));
+						expect(history_of(pair.kernel.right())).to_equal(history_of(right));
 					}
 				}
 				expect(pair.got).to_equal(pair.want);

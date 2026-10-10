@@ -32,13 +32,27 @@
 namespace deluge::dsp::fixed {
 
 /// @brief The analog delay's 26-tap impulse response (Q31 taps), one channel's sample at a time.
-/// @details A direct-form FIR kept as running partial sums: each input adds its product with every tap into the sums
-/// still waiting to come out, so the output for a sample is the oldest sum plus the input times the first tap. Each
-/// product is the rounded high word of the 32x32 multiply, so a Q31 input comes out Q31 scaled by the tap.
+/// @details A direct-form FIR over the last 25 inputs: the output for a sample is the input times the first tap plus
+/// each of the last 25 inputs times its tap. Each product is the rounded high word of the 32x32 multiply, so a Q31
+/// input comes out Q31 scaled by the tap.
+///
+/// **Exactness.** The output is the sum of the same 26 rounded products, round(x[n − i] × tap_i >> 32), as a form
+/// that keeps running partial sums computes. The sums wrap modulo 2^32, and wrapping adds commute and associate, so
+/// the order the products are summed in does not change a bit. `smmlar` adds a product's rounded high word into an
+/// accumulator: (acc << 32 + a × b + 2^31) >> 32 is acc + round(a × b >> 32) modulo 2^32 exactly, because acc << 32 is
+/// a multiple of 2^32. The history carries the same information as 25 pending sums would: from State{} either form
+/// gives the same output for every input, silence after a long input included.
 ///
 /// **Wrapping.** Each product is half the tap times the input, and the taps' magnitudes sum to about 2.27, so a sum
 /// stays within about 1.13 of the input's peak: at full scale, an input whose signs follow the taps' takes a sum past
-/// q31. The sums wrap modulo 2^32, as the target's `add` computes them.
+/// q31. The sums wrap modulo 2^32, as the target's `add` and `smmlar` compute them.
+///
+/// **Shape.** The tap loop stores nothing: the history is a ring of 25 inputs written twice, at `oldest` and
+/// `oldest + 25`, so the 25 from `oldest` on are contiguous, oldest first, and a step writes two words after its sum.
+/// A store in the tap loop puts a load→multiply→add→store chain behind each next load. Each tap is one `smmlar`
+/// (multiply_accumulate_32x32_rshift32_rounded) into one of two accumulators, the even taps' and the odd taps', so
+/// neither waits on the other's multiply result. Each pair's history samples and taps are loaded an iteration
+/// ahead of their multiplies, so the loads are not waited on. docs/dev/a9_dsp_performance.md has the cycle counts.
 ///
 /// **Channels.** The response never mixes channels: `Stereo<AnalogImpulseResponse>` steps each channel through its own
 /// State, exactly as a stereo response stepping both channels side by side.
@@ -48,8 +62,8 @@ struct AnalogImpulseResponse {
 
 	/// @brief The response's length, in taps.
 	static constexpr std::size_t kTaps = 26;
-	/// @brief The sums still waiting to come out after a step: one fewer than the taps.
-	static constexpr std::size_t kPending = kTaps - 1;
+	/// @brief The past inputs a step reads: one fewer than the taps, the first tap being the input's.
+	static constexpr std::size_t kHistory = kTaps - 1;
 
 	/// @brief The taps, Q31: a short pre-ring, the main lobe at taps 8 and 9, then a damped tail.
 	static constexpr std::array<int32_t, kTaps> kResponse{
@@ -58,16 +72,28 @@ struct AnalogImpulseResponse {
 	    -37256992,  -11863856, 1390352,   14663296, 12784464,  14254800,  5690912,   4490736,
 	};
 
+	/// @brief Taps 25 down to 1, Q31, in the history's order: history sample j, oldest first, is x[n − 25 + j] and
+	/// meets tap 25 − j.
+	static constexpr std::array<int32_t, kHistory> kHistoryTaps = [] {
+		std::array<int32_t, kHistory> taps{};
+		for (std::size_t j = 0; j < kHistory; ++j) {
+			taps[j] = kResponse[kHistory - j];
+		}
+		return taps;
+	}();
+
 	/// @brief Nothing to set: the taps are fixed.
 	struct Settings {};
 	/// @brief Nothing to read: the taps are fixed.
 	struct Coefficients {};
 
-	/// @brief One channel's sums. State{} is silence: every sum 0.
+	/// @brief One channel's last 25 inputs. State{} is silence: every input 0.
 	struct State {
-		/// The sums still to come out: entry i is the output i + 1 samples from now, less the inputs yet to arrive,
-		/// Q31.
-		std::array<q31, kPending> pending{};
+		/// The last 25 inputs, Q31: entries i and i + 25 hold the same input, so the 25 from `oldest` on run oldest
+		/// first.
+		std::array<q31, 2 * kHistory> history{};
+		/// Where the oldest input lies, in [0, 25).
+		uint32_t oldest = 0;
 	};
 
 	/// @brief The coefficients: none.
@@ -75,24 +101,42 @@ struct AnalogImpulseResponse {
 		return {};
 	}
 
-	/// @return @p sample (Q31) times tap @p index, the rounded high word: Q31 scaled by the tap.
-	[[nodiscard]] [[gnu::always_inline]] static q31 tap(q31 sample, std::size_t index) {
-		return multiply_32x32_rshift32_rounded(sample, kResponse[index]);
-	}
-
-	/// @brief One sample: the oldest sum plus the input times the first tap; then each sum moves one nearer, the
-	/// input times its tap added, and the last takes the input times the last tap alone. The adds wrap.
-	/// @param s The sums, moved on by one sample.
+	/// @brief One sample: the input times the first tap plus the last 25 inputs times theirs, the even taps and the
+	/// odd taps summed apart and then together; then the input goes into the history over the oldest. The adds wrap.
+	/// @param s The history, moved on by one sample.
 	/// @param x The input, Q31.
 	/// @return The response's output, Q31.
 	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
 	                                                     q31 x) {
-		const q31 output = wrapping_add(s.pending[0], tap(x, 0));
-		for (std::size_t i = 1; i < kPending; i++) {
-			s.pending[i - 1] = wrapping_add(s.pending[i], tap(x, i));
+		const q31* const h = s.history.data() + s.oldest;
+		const int32_t* const t = kHistoryTaps.data();
+		q31 even = multiply_32x32_rshift32_rounded(x, kResponse[0]);
+		q31 odd = 0;
+		q31 h0 = h[0];
+		q31 h1 = h[1];
+		int32_t t0 = t[0];
+		int32_t t1 = t[1];
+		for (std::size_t j = 2; j < kHistory - 1; j += 2) {
+			const q31 next_h0 = h[j];
+			const q31 next_h1 = h[j + 1];
+			const int32_t next_t0 = t[j];
+			const int32_t next_t1 = t[j + 1];
+			even = multiply_accumulate_32x32_rshift32_rounded(even, h0, t0);
+			odd = multiply_accumulate_32x32_rshift32_rounded(odd, h1, t1);
+			h0 = next_h0;
+			h1 = next_h1;
+			t0 = next_t0;
+			t1 = next_t1;
 		}
-		s.pending[kPending - 1] = tap(x, kPending);
-		return output;
+		even = multiply_accumulate_32x32_rshift32_rounded(even, h0, t0);
+		odd = multiply_accumulate_32x32_rshift32_rounded(odd, h1, t1);
+		even = multiply_accumulate_32x32_rshift32_rounded(even, h[kHistory - 1], t[kHistory - 1]);
+
+		const uint32_t at = s.oldest;
+		s.history[at] = x;
+		s.history[at + kHistory] = x;
+		s.oldest = at + 1 == kHistory ? 0 : at + 1;
+		return wrapping_add(even, odd);
 	}
 };
 

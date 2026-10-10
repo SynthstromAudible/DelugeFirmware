@@ -37,13 +37,13 @@ namespace deluge::dsp::fixed {
 /// - **ANALOG**: y = tanh(r(x) × f, d) << 2, where r is the @ref AnalogImpulseResponse, f the feedback amount, d the
 ///   drive. Less headroom than digital: the analog saturation sounds fine driven.
 /// - **DIGITAL**: y = sat29(x × f) << 2: the product clipped to 29 bits, ±2^28. More headroom than analog: a pure
-///   digital clip sounds bad. The response's sums are left untouched.
+///   digital clip sounds bad. The response's history is left untouched.
 ///
 /// Each product is the high word of the 32x32 multiply, so a Q31 sample times a Q31 amount comes out Q30, and the
 /// final shift by 2 brings the saturated value back up.
 ///
 /// **Mode changes.** The response is nested in the State rather than chained, so a switch between blocks keeps its
-/// sums: a digital block leaves them as the last analog block did, and the next analog block resumes from them.
+/// history: a digital block leaves it as the last analog block did, and the next analog block resumes from it.
 ///
 /// **The shift.** Both shifts act on values the saturation has already bounded, so neither leaves q31. The tanh's
 /// table entries lie within ±32767, so its interpolated value lies within ±2^31 before the shift down by d + 2, and
@@ -80,9 +80,9 @@ struct FeedbackShaper {
 		Mode mode = Mode::DIGITAL; ///< How the feedback is saturated.
 	};
 
-	/// @brief The impulse response's sums. State{} is silence.
+	/// @brief The impulse response's history. State{} is silence.
 	struct State {
-		AnalogImpulseResponse::State response{}; ///< The response's pending sums, Q31; held still in DIGITAL.
+		AnalogImpulseResponse::State response{}; ///< The response's last 25 inputs, Q31; held still in DIGITAL.
 	};
 
 	/// @brief The coefficients for @p s: the amount and the drive unchanged, and `analog` as the mode.
@@ -93,7 +93,7 @@ struct FeedbackShaper {
 	/// @brief One sample of feedback, shaped.
 	/// @tparam M The block's mode.
 	/// @param c The amount and the drive.
-	/// @param s The response's sums: stepped in ANALOG, untouched in DIGITAL.
+	/// @param s The response's history: stepped in ANALOG, untouched in DIGITAL.
 	/// @param x The delayed sample, Q31.
 	/// @return tanh(r(x) × f, d) << 2 (ANALOG) or sat29(x × f) << 2 (DIGITAL), Q31.
 	template <Mode M>

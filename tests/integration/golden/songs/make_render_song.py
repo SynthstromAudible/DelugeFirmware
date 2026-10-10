@@ -664,8 +664,8 @@ PINGPONG_DRUMS = [
 # An audio track's analog delay (its tanh at a host chain's drive) switched off and on again while it rings: the
 # clip's automation drops the feedback to its minimum at the second bar, which abandons the delay's buffers at once,
 # and raises it again a beat later, while the audio still plays, so the delay starts again on new buffers. The
-# processor keeps the impulse response's sums from the last block before the delay went off, so the new delay's first
-# samples carry the old response's tail. Its twin holds the feedback the whole way through.
+# processor keeps the impulse response's history from the last block before the delay went off, so the new delay's
+# first samples carry the old response's tail. Its twin holds the feedback the whole way through.
 ANALOG_DELAY = '<delay pingPong="0" analog="1" syncLevel="0" syncType="0" />'
 AUDIO_DELAY_TOGGLE = _host(
     delay=ANALOG_DELAY,
