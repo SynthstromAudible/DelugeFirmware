@@ -1835,6 +1835,12 @@
   "rms_db": -17.28,
   "sha256": "c2eb24c89bb515f613ceb01a2b3f8a92e206ebc7c231a4413f715265b79e7473"
  },
+ "hpf_ladder_resonance_sweep_parallel": {
+  "frames": 88200,
+  "peak": 412395776,
+  "rms_db": -20.91,
+  "sha256": "f109e4ad1a172b578781dbae10150fd28ad0377f690577f4eafe14435b66a544"
+ },
  "input_mono": {
   "frames": 88200,
   "peak": 245172224,
@@ -2032,6 +2038,12 @@
   "peak": 467419904,
   "rms_db": -29.07,
   "sha256": "d387775a3c367188522aa48b4ccf97f18ebb4f701702de55bbbfa15c337e175d"
+ },
+ "stereo/hpf_ladder_resonance_sweep_parallel": {
+  "frames": 88200,
+  "peak": 418182400,
+  "rms_db": -21.89,
+  "sha256": "af2e4449e9df40b49a78391ddece6cedc09ba79740a326bcb77b581f21bf10cf"
  },
  "stereo/lpf_12db_hpf_ladder_h2l": {
   "frames": 88200,

@@ -280,6 +280,21 @@ case(
     params={"lpfResonance": "0x30000000", "hpfResonance": "0x20000000"},
     json=True,
 )
+# The high-pass ladder alone in the parallel route (the low-pass fully open, so off), its resonance swept by the LFO
+# across the levels where the ladder saturates: unsaturated, through the tanh, and anti-aliased, entering and leaving
+# the saturator mid-note. The dry signal is summed with it.
+HPF_RESONANCE_SWEEP = {
+    "sound": {"hpfMode": "HPLadder", "filterRoute": "PARA"},
+    "params": {
+        "lpfFrequency": "0x7FFFFFFF",
+        "lpfResonance": "0x80000000",
+        "hpfFrequency": "0xC0000000",
+        "hpfResonance": "0x00000000",
+        "lfo1Rate": "0x30000000",
+    },
+    "cables": BASE_CABLES + [("lfo1", "hpfResonance", "0x3FFFFFE8")],
+}
+case("hpf_ladder_resonance_sweep_parallel", **HPF_RESONANCE_SWEEP, json=True)
 
 # --- stereo voices -------------------------------------------------------------
 # The cases under stereo/ render with headphones plugged in, so the app renders in stereo. A voice renders (and
@@ -347,6 +362,8 @@ stereo_case(
     sound={"lpfMode": "24dB", "hpfMode": "SVF_Notch"},
     params={"lpfResonance": "0x30000000", "hpfResonance": "0x20000000"},
 )
+# The high-pass ladder's resonance sweep (the mono case's), on both channels.
+stereo_case("hpf_ladder_resonance_sweep_parallel", **HPF_RESONANCE_SWEEP)
 # The delay in ping-pong, which alternates its echoes between the channels only in stereo.
 stereo_case(
     "delay_pingpong",
