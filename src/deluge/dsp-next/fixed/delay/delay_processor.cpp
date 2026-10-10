@@ -17,7 +17,6 @@
 
 #include "dsp-next/fixed/delay/delay_processor.h"
 
-#include "dsp-next/fixed/shaping/tanh.h"
 #include "util/fixedpoint.h"
 
 #include <algorithm>
@@ -50,8 +49,13 @@ DelayBlockResult DelayProcessor::process(std::span<StereoSample> block, DelayTap
 		std::ranges::fill(work, StereoSample{.l = 0, .r = 0});
 	}
 
-	shapeFeedback(work, settings);
-	highPass(work);
+	feedback_.configure(FeedbackChain::Settings{
+	    FeedbackShaper::Settings{.feedback = settings.feedback,
+	                             .analog = settings.analog,
+	                             .drive = static_cast<uint32_t>(settings.analog_saturation)},
+	    ShiftTracker<11>::Settings{},
+	});
+	feedback_.renderBlock(work, work);
 	mix(work, block, settings.ping_pong && settings.render_in_stereo);
 
 	if (reading) {
@@ -94,37 +98,6 @@ bool DelayProcessor::read(DelayTape& primary, std::span<StereoSample> work) {
 		    << 2;
 	}
 	return wrapped;
-}
-
-void DelayProcessor::shapeFeedback(std::span<StereoSample> work, const DelayBlock& settings) {
-	if (settings.analog) {
-		for (StereoSample& sample : work) {
-			sample = analog_ir_.process(sample);
-		}
-		// Less headroom than digital: the analog saturation sounds fine driven.
-		const auto drive = static_cast<uint32_t>(settings.analog_saturation);
-		for (StereoSample& sample : work) {
-			sample.l = tanh(multiply_32x32_rshift32(sample.l, settings.feedback), drive) << 2;
-			sample.r = tanh(multiply_32x32_rshift32(sample.r, settings.feedback), drive) << 2;
-		}
-		return;
-	}
-
-	// More headroom than analog: a pure digital clip sounds bad.
-	for (StereoSample& sample : work) {
-		sample.l = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.l, settings.feedback)) << 2;
-		sample.r = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.r, settings.feedback)) << 2;
-	}
-}
-
-void DelayProcessor::highPass(std::span<StereoSample> work) {
-	for (StereoSample& sample : work) {
-		high_pass_l_ += (sample.l - high_pass_l_) >> 11;
-		sample.l -= high_pass_l_;
-
-		high_pass_r_ += (sample.r - high_pass_r_) >> 11;
-		sample.r -= high_pass_r_;
-	}
 }
 
 void DelayProcessor::mix(std::span<StereoSample> work, std::span<StereoSample> block, bool cross) {

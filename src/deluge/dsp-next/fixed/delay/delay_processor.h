@@ -17,9 +17,12 @@
 
 #pragma once
 
+#include "dsp-next/core/chain.h"
+#include "dsp-next/core/stereo.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
-#include "dsp-next/fixed/delay/legacy/analog_impulse_response.h"
+#include "dsp-next/fixed/delay/feedback_shaper.h"
+#include "dsp-next/fixed/filter/shift_tracker.h"
 
 #include <cstdint>
 #include <span>
@@ -44,13 +47,22 @@ struct DelayBlockResult {
 	                           ///< (sizeLeftUntilBufferSwap's step), two per block sample at twice its native rate
 };
 
-/// @brief One block of the delay over tapes it is handed: read (silence while the primary has nothing), shape the
-/// feedback, high-pass it, mix it into the block (ping-pong or straight), and write it back to both tapes.
+/// @brief One block of the delay over tapes it is handed: read (silence while the primary has nothing), shape and
+/// high-pass the feedback in one pass, mix it into the block (ping-pong or straight), and write it back to both tapes.
 ///
 /// The primary tape is read from the read head, clearing as it goes, and written back from the same head, kWriteLag
 /// samples behind. A secondary tape (a new size being grown while the rate settles) is written alongside, clearing
-/// ahead of its own head; the owner swaps it in once it is full. The processor owns the feedback's state: the analog
-/// impulse response and the post high-pass's memories.
+/// ahead of its own head; the owner swaps it in once it is full.
+///
+/// **Feedback.** Each channel's delayed sample goes through a @ref FeedbackShaper (the feedback amount and the
+/// saturation: the analog impulse response then a tanh, or a digital clip) and then a high-pass that takes a one-pole
+/// low-pass (a 1/2048 step per sample) out of it, so repeats don't build up sub-bass; the corner settles near 40 Hz
+/// after many repeats. Both run as one chain, every sample through both stages in a single pass over the block, the
+/// mode chosen once per block. The processor owns the chain's state: each channel's impulse-response sums and
+/// high-pass memory.
+///
+/// **Reactivation.** @ref resetHighPass resets the high-pass's memories only. The impulse response's sums carry over,
+/// so a delay switched off and on again starts with up to 25 samples of the old response's tail.
 class DelayProcessor {
 public:
 	/// @brief Renders one block: the delayed signal is added to @p block (Q31), and the block plus the shaped
@@ -61,24 +73,17 @@ public:
 	[[nodiscard]] DelayBlockResult process(std::span<StereoSample> block, DelayTape* primary, DelayTape* secondary,
 	                                       const DelayBlock& settings, std::span<StereoSample> scratch);
 
-	/// @brief The post high-pass's memories to 0, as a new delay's are.
-	void resetHighPass() {
-		high_pass_l_ = 0;
-		high_pass_r_ = 0;
-	}
+	/// @brief The high-pass's memories to 0 in both channels, as a new delay's are. The impulse response's sums are
+	/// kept.
+	void resetHighPass() { feedback_.on<&FeedbackChain::reset_part<1>>(); }
 
 private:
+	/// @brief The feedback's stages, Q31: shaped by the amount and saturated, then high-passed.
+	using FeedbackChain = Chain<FeedbackShaper, Pinned<ShiftTracker<11>, ShiftTracker<11>::Mode::REMOVE>>;
+
 	/// @brief Reads @p primary into @p work from its read head, clearing as it goes.
 	/// @return Whether the read head wrapped.
 	static bool read(DelayTape& primary, std::span<StereoSample> work);
-
-	/// @brief Scales @p work (Q31) by the feedback amount and saturates it: the analog impulse response then tanh, or
-	/// a digital clip at 29 bits. Either way the result is shifted back up by 2.
-	void shapeFeedback(std::span<StereoSample> work, const DelayBlock& settings);
-
-	/// @brief Takes a one-pole low-pass (a 1/2048 step per sample) out of @p work (Q31), so repeats don't build up
-	/// sub-bass. The corner settles near 40 Hz after many repeats.
-	void highPass(std::span<StereoSample> work);
 
 	/// @brief Adds @p work (the delayed signal) to @p block, and @p block to @p work for the write: straight, or
 	/// crossed for ping-pong when the engine renders in stereo (the delayed right feeds the left; the delayed left
@@ -92,11 +97,8 @@ private:
 	/// @return Whether its read head wrapped, and how many steps it took.
 	static DelayBlockResult writeSecondary(DelayTape& secondary, std::span<const StereoSample> work);
 
-	legacy::AnalogImpulseResponse analog_ir_;
-	/// The high-pass's low-passed left level, Q31.
-	int32_t high_pass_l_ = 0;
-	/// The high-pass's low-passed right level, Q31.
-	int32_t high_pass_r_ = 0;
+	/// @brief The feedback chain on both channels: the impulse response's sums and the high-pass's memory per channel.
+	Stereo<FeedbackChain> feedback_;
 };
 
 } // namespace deluge::dsp::fixed
