@@ -15,7 +15,8 @@ A bench image never starts the app. After `BENCH-DONE` it turns off the pads, bu
 rings and OLED, which keep their state across a CPU reset, then prints
 `bench: parked, pads/LEDs/OLED off` and parks. The script waits for that line before the probe
 detaches, so the device it leaves running is dark. A complete run without it is still written, with a
-warning that the device may still be lit; "parked" in the JSON meta records which.
+warning that the device may still be lit and the last line it printed; "parked" in the JSON meta
+records which.
 
 The device prints one line per measurement:
     BENCH case=<name> n=<block> [lanes=<N>] k=<blocks> cycles=<u32> cps=<x.xx> l1d_refill=<u32> inst=<u32>
@@ -168,6 +169,16 @@ def parse_capture(lines: list[str]) -> Capture:
             except ValueError as e:
                 errors.append(f"line {number}: malformed BENCH line: {e}")
     return Capture(records, done_count, errors, info, parked)
+
+
+def last_line(lines: list[str]) -> str | None:
+    """The capture's last non-blank line, or None for an empty capture.
+
+    For a run that did not park it says where the device stopped: a boot step after BENCH-DONE
+    means its boot stalled before the park task ran, while BENCH-DONE itself means nothing
+    reached the probe after it.
+    """
+    return next((line.strip() for line in reversed(lines) if line.strip()), None)
 
 
 def per_sample(count: int, k: int, n: int, lanes: int = 1) -> str:
@@ -382,6 +393,7 @@ def main(argv: list[str] | None = None) -> int:
             "the pads, LEDs and OLED may still be lit",
             file=sys.stderr,
         )
+        print(f"dsp_bench: the device's last line: {last_line(rtt)!r}", file=sys.stderr)
     if failures:
         print("dsp_bench: the run fails the sanity check:", file=sys.stderr)
         for f in failures:

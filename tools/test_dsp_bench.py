@@ -322,6 +322,23 @@ class CaptureCliTests(unittest.TestCase):
         self.assertFalse(doc["meta"]["parked"])
         self.assertEqual(len(doc["records"]), 12)
 
+    def test_unparked_capture_names_the_devices_last_line(self):
+        capture = Path(self.out.parent) / "stalled.txt"
+        capture.write_text(
+            "\n".join([*unparked_lines(), "INFO  [deluge_bsp::trigger_clock] ready"])
+            + "\n"
+        )
+        _, _, err = run_main("--from-capture", str(capture), "--out", str(self.out))
+        self.assertIn(
+            "the device's last line: 'INFO  [deluge_bsp::trigger_clock] ready'", err
+        )
+
+    def test_last_line_skips_blank_lines(self):
+        self.assertEqual(
+            dsp_bench.last_line(["BENCH-DONE cases=0", "  ", ""]), "BENCH-DONE cases=0"
+        )
+        self.assertIsNone(dsp_bench.last_line([]))
+
     def test_rerun_same_sha_overwrites(self):
         run_main("--from-capture", str(COMPLETE), "--out", str(self.out))
         md = self.out / "2026-10-08-abc1234.md"
