@@ -40,6 +40,7 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <span>
 #include <type_traits>
@@ -194,7 +195,7 @@ struct Pair {
 std::vector<q31> history_of(const FeedbackShaper::State& s) {
 	static_assert(sizeof(FeedbackShaper::State) == sizeof(s.response.history) + sizeof(s.response.oldest),
 	              "the history and its index are the whole State");
-	std::vector<q31> v{s.response.history.begin(), s.response.history.end()};
+	std::vector<q31> v{std::begin(s.response.history), std::end(s.response.history)};
 	v.push_back(static_cast<q31>(s.response.oldest));
 	return v;
 }

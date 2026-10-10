@@ -39,6 +39,7 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <span>
 #include <tuple>
@@ -57,9 +58,9 @@ static_assert(!moded_kernel<AnalogImpulseResponse>);
 static_assert(!std::is_polymorphic_v<AnalogImpulseResponse>);
 static_assert(processor<Stereo<AnalogImpulseResponse>>);
 static_assert(detail::plain_value<AnalogImpulseResponse::State>);
-static_assert(std::tuple_size_v<decltype(AnalogImpulseResponse::State{}.history)> == 50);
+static_assert(std::extent_v<decltype(AnalogImpulseResponse::State::history)> == 50);
 static_assert(AnalogImpulseResponse::kHistory == 25);
-static_assert(AnalogImpulseResponse::kResponse.size() == 26);
+static_assert(std::size(AnalogImpulseResponse::kResponse) == 26);
 
 /// The extremes of q31.
 constexpr q31 kMin = std::numeric_limits<q31>::min();
@@ -68,7 +69,7 @@ constexpr q31 kMax = std::numeric_limits<q31>::max();
 constexpr std::size_t kLongRun = 4096;
 /// The block lengths every case runs.
 constexpr std::size_t kMaxLength = 9;
-/// The silent samples that bring out every pending sum.
+/// The silent samples that bring out every input still in the history.
 constexpr std::size_t kFlush = 25;
 
 /// @p n stereo samples of seeded noise shifted down by @p shift, the channels from two streams.

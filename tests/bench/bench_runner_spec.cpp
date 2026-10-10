@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <iterator>
 #include <limits>
 #include <ostream>
 #include <span>
@@ -1069,7 +1070,7 @@ describe bench_runner("The DSP benchmark runner", ${
 						// A digital block holds the response still: its history stays silent, its index at the start.
 						const auto& response = dsp::get<0>(chain.left()).response;
 						expect(std::ranges::count(response.history, 0))
-						    .to_equal(static_cast<std::ptrdiff_t>(response.history.size()));
+						    .to_equal(static_cast<std::ptrdiff_t>(std::size(response.history)));
 						expect(response.oldest).to_equal(uint32_t{0});
 					}
 				}
