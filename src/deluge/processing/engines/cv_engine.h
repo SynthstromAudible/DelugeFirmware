@@ -20,6 +20,8 @@
 #include "model/drum/gate_drum.h"
 #include <cstdint>
 
+struct InterruptsDisabled;
+
 #define WHICH_GATE_OUTPUT_IS_RUN 2
 #define WHICH_GATE_OUTPUT_IS_CLOCK 3
 
@@ -73,7 +75,7 @@ public:
 	int32_t calculateVoltage(int32_t note, uint8_t channel);
 	void physicallySwitchGate(int32_t channel);
 	// release any gates which were held while CV is pending now that it's done
-	void cvOutUpdated();
+	void cvOutUpdated(const InterruptsDisabled&);
 
 	void analogOutTick();
 	void playbackBegun();
@@ -87,8 +89,8 @@ public:
 	/// take all gate changes made since the last call, so they can be scheduled to go out at a specific time.
 	/// asap (run) gates are only included if includeAsap is set, since they need to respect minGateOffTime
 	GateOutputs takePendingGateOutputs(bool includeAsap);
-	/// physically output a snapshot of gates. Safe to call from an ISR
-	void outputGates(const GateOutputs& outputs);
+	/// physically output a snapshot of gates
+	void outputGates(const GateOutputs& outputs, const InterruptsDisabled&);
 
 	bool isAnythingButRunPending() const { return (pendingGates & ~pendingAsapGates) != 0; }
 	bool isAnythingPending() const { return pendingGates != 0; }

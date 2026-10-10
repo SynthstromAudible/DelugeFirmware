@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/cv_engine.h"
+#include "RZA1/intc/devdrv_intc.h"
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
@@ -94,9 +95,10 @@ void CVEngine::updateGateOutputs() {
 	if (outputs.mask == 0) {
 		return;
 	}
+	CriticalSectionGuard guard;
 	// These are newer than anything already scheduled for these channels
-	AudioEngine::cancelScheduledGates(outputs.mask);
-	outputGates(outputs);
+	AudioEngine::cancelScheduledGates(outputs.mask, guard);
+	outputGates(outputs, guard);
 }
 
 GateOutputs CVEngine::takePendingGateOutputs(bool includeAsap) {
@@ -122,8 +124,7 @@ GateOutputs CVEngine::takePendingGateOutputs(bool includeAsap) {
 // note or gate on the cv channel - if there's a cv out pending we send the gate after it finishes. This avoids a
 // situation where the cv is delayed for an oled refresh and the gate gets sent first, causing an audible pitch
 // correction
-void CVEngine::outputGates(const GateOutputs& outputs) {
-	CriticalSectionGuard guard;
+void CVEngine::outputGates(const GateOutputs& outputs, const InterruptsDisabled&) {
 	uint8_t hold = cvOutPending ? outputs.cvWaitMask : 0;
 	for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
 		uint8_t bit = 1 << g;
@@ -144,7 +145,7 @@ void CVEngine::outputGates(const GateOutputs& outputs) {
 void CVEngine::switchGateNow(int32_t channel) {
 	uint8_t bit = 1 << channel;
 	CriticalSectionGuard guard;
-	AudioEngine::cancelScheduledGates(bit);
+	AudioEngine::cancelScheduledGates(bit, guard);
 	pendingGates &= ~bit;
 	pendingAsapGates &= ~bit;
 	pendingNoteOnGates &= ~bit;
@@ -398,8 +399,7 @@ void CVEngine::updateRunOutput() {
 bool CVEngine::isTriggerClockOutputEnabled() {
 	return (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode == GateType::SPECIAL);
 }
-void CVEngine::cvOutUpdated() {
-	CriticalSectionGuard guard;
+void CVEngine::cvOutUpdated(const InterruptsDisabled& guard) {
 	cvOutPending = false;
 	// Only release gates whose scheduled time has already passed. Releasing every pending gate here would send them
 	// up to a whole audio buffer early whenever the CV word finished before the MIDI/gate timer fired (e.g. when an
@@ -408,12 +408,20 @@ void CVEngine::cvOutUpdated() {
 		GateOutputs held;
 		held.mask = gatesAwaitingCV;
 		held.levels = levelsAwaitingCV;
-		outputGates(held);
+		outputGates(held, guard);
 	}
 }
 
 extern "C" {
+// Called both from the CV SPI ISR and from the main loop
 void cvSent() {
-	cvEngine.cvOutUpdated();
+	if (intc_func_active != 0) {
+		ISRCriticalSectionGuard guard;
+		cvEngine.cvOutUpdated(guard);
+	}
+	else {
+		CriticalSectionGuard guard;
+		cvEngine.cvOutUpdated(guard);
+	}
 }
 }

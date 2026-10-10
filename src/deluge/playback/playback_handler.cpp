@@ -954,7 +954,7 @@ void PlaybackHandler::doMIDIClockOutTick() {
 	CriticalSectionGuard guard;
 	// if there's a MIDI flush scheduled already then don't mess with it - the clock would go out early with it. Will
 	// catch at next output. Otherwise, any MIDI already waiting gets dumped now so the clock can go at its own time
-	if (!AudioEngine::prepareToSendMIDIClock()) {
+	if (!AudioEngine::prepareToSendMIDIClock(guard)) {
 		D_PRINTLN("already scheduled");
 		return;
 	}

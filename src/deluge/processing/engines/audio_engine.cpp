@@ -572,9 +572,9 @@ etl::vector<WindowOutput, kMaxWindowOutputs> windowOutputs;
 // Sorted by due time. Shared with the ISR, so only access it with interrupts disabled - functions using it take an
 // InterruptsDisabled to enforce that
 etl::vector<ScheduledOutput, kMaxScheduledOutputs> scheduledOutputs;
-// A flush from the ISR couldn't send everything (e.g. USB busy), so the timer's been re-armed to try again. Same
-// access rules as scheduledOutputs
-bool midiRetryPending = false;
+// A flush from the ISR left something in the MIDI output buffer - USB was busy/locked, or UART was still sending - so
+// the timer's been re-armed to flush again. Same access rules as scheduledOutputs
+bool midiFlushIncomplete = false;
 
 constexpr uint32_t kSystemTicksPerSampleQ8 = ((uint64_t)DELUGE_CLOCKS_PER << 8) / kSampleRate;
 // Anything due within a sample of now gets sent rather than re-arming the timer for it
@@ -636,28 +636,29 @@ void sendDueOutputs(uint32_t now, const InterruptsDisabled& guard) {
 	bool flushMIDI = false;
 	auto firstNotDue = scheduledOutputs.begin();
 	while (firstNotDue != scheduledOutputs.end() && (int32_t)(firstNotDue->due - now) <= kOutputTimeTolerance) {
-		cvEngine.outputGates(firstNotDue->gates);
+		cvEngine.outputGates(firstNotDue->gates, guard);
 		flushMIDI |= firstNotDue->midi;
 		firstNotDue++;
 	}
 	scheduledOutputs.erase(scheduledOutputs.begin(), firstNotDue);
 
 	// If a real flush is still to come, leave the retry to that - otherwise we'd send what it's waiting for early
-	flushMIDI |= midiRetryPending && !isMIDIFlushScheduled(guard);
-	midiRetryPending = false;
+	flushMIDI |= midiFlushIncomplete && !isMIDIFlushScheduled(guard);
+	midiFlushIncomplete = false;
 	if (flushMIDI) {
 		midiEngine.flushMIDI();
-		midiRetryPending = midiEngine.anythingInOutputBuffer();
+		// Covers both USB and UART (including bytes UART is still sending)
+		midiFlushIncomplete = midiEngine.anythingInOutputBuffer();
 	}
 }
 
 /// Arm the timer for the earliest scheduled output or MIDI retry, or stop it if there's nothing left
 void armMidiGateOutputTimer(uint32_t now, const InterruptsDisabled&) {
 	disableTimer(TIMER_MIDI_GATE_OUTPUT);
-	if (scheduledOutputs.empty() && !midiRetryPending) {
+	if (scheduledOutputs.empty() && !midiFlushIncomplete) {
 		return;
 	}
-	int32_t ticksTilDue = midiRetryPending ? kMIDIRetryTicks : INT32_MAX;
+	int32_t ticksTilDue = midiFlushIncomplete ? kMIDIRetryTicks : INT32_MAX;
 	if (!scheduledOutputs.empty()) {
 		ticksTilDue = std::min(ticksTilDue, (int32_t)(scheduledOutputs[0].due - now));
 	}
@@ -689,7 +690,7 @@ void sendWindowOutputsNow() {
 	CriticalSectionGuard guard;
 	bool flushMIDI = false;
 	for (const WindowOutput& output : windowOutputs) {
-		cvEngine.outputGates(output.gates);
+		cvEngine.outputGates(output.gates, guard);
 		flushMIDI |= output.midi;
 	}
 	windowOutputs.clear();
@@ -699,8 +700,7 @@ void sendWindowOutputsNow() {
 }
 } // namespace
 
-void cancelScheduledGates(uint8_t gateMask) {
-	CriticalSectionGuard guard;
+void cancelScheduledGates(uint8_t gateMask, const InterruptsDisabled&) {
 	for (WindowOutput& output : windowOutputs) {
 		removeGateOutputs(output.gates, gateMask);
 	}
@@ -709,8 +709,7 @@ void cancelScheduledGates(uint8_t gateMask) {
 	}
 }
 
-bool prepareToSendMIDIClock() {
-	CriticalSectionGuard guard;
+bool prepareToSendMIDIClock(const InterruptsDisabled& guard) {
 	if (isMIDIFlushScheduled(guard)) {
 		return false;
 	}
@@ -902,8 +901,8 @@ void flushMIDIGateBuffers() { // Flush everything out of the MIDI buffer now. At
 	// for those channels, so they supersede it
 	GateOutputs gates = cvEngine.takePendingGateOutputs(false);
 	if (gates.mask != 0) {
-		cancelScheduledGates(gates.mask);
-		cvEngine.outputGates(gates);
+		cancelScheduledGates(gates.mask, guard);
+		cvEngine.outputGates(gates, guard);
 	}
 
 	// We're only allowed to flush MIDI if the timer ISR isn't going to flush it - otherwise that would send whatever it
