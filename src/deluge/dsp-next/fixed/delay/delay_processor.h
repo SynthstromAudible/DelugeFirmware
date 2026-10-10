@@ -20,6 +20,7 @@
 #include "dsp-next/core/chain.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/fixed/delay/delay_kernel.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "dsp-next/fixed/delay/feedback_shaper.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
@@ -74,7 +75,7 @@ struct DelayBlockResult {
 class DelayProcessor {
 public:
 	/// @brief The feedback's stages, Q31: shaped by the amount and saturated, then high-passed.
-	using FeedbackChain = Chain<FeedbackShaper, Pinned<ShiftTracker<11>, ShiftTracker<11>::Mode::REMOVE>>;
+	using FeedbackChain = fixed::FeedbackChain;
 
 	/// @brief Renders one block: the delayed signal is added to @p block (Q31), and the block plus the shaped
 	/// feedback is written back to the tapes.

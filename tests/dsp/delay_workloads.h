@@ -657,13 +657,19 @@ struct Parting {
 
 /// @return Where @p workload, played through @p A and through @p B, first parts (the output, the result, the
 /// owner's swap, a tape's storage or a head); nothing when they agree on every block.
+/// @param before Called with the block's index and both processors before each block, when set: an event both
+/// processors take between blocks (a reactivation), or a check of their state.
 template <typename A, typename B>
-[[nodiscard]] std::optional<Parting> first_parting(const Workload& workload) {
+[[nodiscard]] std::optional<Parting> first_parting(const Workload& workload,
+                                                   const std::function<void(size_t, A&, B&)>& before = {}) {
 	WorkloadRun<A> a{workload};
 	WorkloadRun<B> b{workload};
 	std::array<StereoSample, kMaxFrames> out_a{};
 	std::array<StereoSample, kMaxFrames> out_b{};
 	for (size_t block = 0; block < workload.blocks; ++block) {
+		if (before) {
+			before(block, a.processor(), b.processor());
+		}
 		const DelayBlockResult ra = a.block(block, out_a);
 		const DelayBlockResult rb = b.block(block, out_b);
 		const size_t frames = workload.step(block).frames;
