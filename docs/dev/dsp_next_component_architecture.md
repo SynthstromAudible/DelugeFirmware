@@ -174,6 +174,12 @@ block-staged arithmetic as a `process`, a block-rate signal as an `advance`.
 This is a documented pattern checked by the `kernel` concepts, not a base
 class.
 
+Kernels compose into kernels. [`Chain<K1, …, Kn>`](#chain-and-pinned-corechainh)
+steps its parts one after another on each sample, in one pass, and is itself a
+kernel any wrapper takes; `Pinned<K, M>` is a moded kernel with its mode fixed
+at compile time, so a chain dispatches on the modes that vary and not on the
+ones that never do.
+
 ### The parts
 
 - **`value_type`**: a block's sample (`q31` or `StereoSample`).
@@ -352,8 +358,91 @@ calls the wrappers (`Mono`, `Stereo` and `Control`) make, in
 
 `SeriesPoles` in `tests/dsp/mono_spec.cpp` is the reference: a moded one-pole
 and a one-pole with a `Block`, in series, checked against a hand loop over the
-parts. `Chain` fusion, which generalises this, is a later step (see
-[Remaining work](#remaining-work)).
+parts. A composite that only runs its parts in series is a
+[`Chain`](#chain-and-pinned-corechainh), which does all of the above for any
+parts; write a composite by hand only when its step does more than thread one
+value through its parts.
+
+### `Chain` and `Pinned` (`core/chain.h`)
+
+`Chain<K1, …, Kn>` is a kernel made of kernels: each sample (or vector) goes
+through part 1's `step`, then part 2's on what part 1 returned, and so on, every
+step inline, in one pass over the block. Run as separate passes, each part loads
+and stores the whole block; chained, the block is loaded once and stored once,
+and the values between parts stay in registers. A chain is bit for bit its parts
+run in sequence, since each part steps its own State in the order it would
+alone.
+
+- **Composition and arity.** Two or more parts, all stepping the same
+  `step_type` over the same `value_type`, so a chain never converts between
+  domains. The first part may be a generator, a processor or a mixer, and the
+  chain takes its arity: a chain whose first part is an oscillator is a
+  generator, one whose first part sums two inputs is a mixer. Every later part
+  is a processor, taking the one value the part before it returns. `chainable`
+  rejects a control kernel and a staged kernel anywhere, a later part that is
+  not a processor, mismatched types, and a part whose partial step advances by
+  its count (a chain steps whole vectors).
+- **Plain values.** `Settings`, `State` and `Block` are `Parts<…>`, a recursive
+  aggregate of the parts' own, part I at `get<I>(…)`; `Coefficients` are the
+  same, beside a `mode` member when some part is moded. An aggregate, not a
+  `std::tuple`: a tuple's assignment is user-provided in libstdc++ and libc++,
+  so a tuple is never trivially copyable. A chain's values are
+  default-initialisable and trivially copyable, as every kernel's are, and an
+  empty part takes no space beside parts holding bytes. Settings are built part
+  by part: `Chain<A, B>::Settings{A::Settings{…}, B::Settings{…}}`.
+- **The mode product.** A chain's `Mode` holds one mode per moded part, in part
+  order, and its `Modes` is the product of their `ModeList`s, row-major, the
+  first entry every part's default. `coefficients(settings)` assembles the mode
+  from each part's own coefficients, and the wrapper dispatches on it once per
+  block, so each combination is a loop of its own. Rebuild the Coefficients
+  through `coefficients(settings)` (every wrapper's `configure` does): the chain
+  reads its own `mode`, never a part's.
+- **`Pinned<K, M>`** takes a part out of the product. It is K with its mode fixed
+  to M: unmoded, its `step` is `K::step<M>`, and its Settings, Coefficients,
+  State, `prepare` and `reset` are K's. The delay's high-pass is
+  `Pinned<ShiftTracker<11>, ShiftTracker<11>::Mode::REMOVE>`: a tracker that only
+  ever removes adds no mode, so the delay's chain has two loops (analog and
+  digital), not four.
+- **Per block and reset.** `prepare` runs each declaring part's `prepare` in part
+  order, and is declared only when some part declares one. `reset` is declared
+  only when some part has a reset quirk. `reset_part<I>` resets part I alone,
+  every other part's State untouched, as an event through the wrapper's `on`:
+  `stereo.on<&Chain<…>::reset_part<1>>()` runs it on each lane's State in lane
+  order. The delay resets its high-pass on reactivation this way and keeps the
+  response's sums.
+- **Nesting.** A chain is a kernel, so it can be a part of another chain;
+  `Chain<Chain<A, B>, C>` steps as `Chain<A, B, C>`.
+- **Op-major.** A chain declares no `kLanePackable`, so `Lanes<Chain<…>, N>` and
+  `Stereo<Chain<…>>` step it lane by lane: each lane runs every part before the
+  next lane starts.
+
+**When not to chain.**
+
+- **A part with many modes**, or several moded parts: the product is every
+  combination, each a loop of its own. Keep it small, pin what does not vary,
+  and leave a part with many modes its own component.
+- **A part that must run alone**: one whose result the owner reads between
+  stages, one that runs on a different block (another length, rate or buffer),
+  or one stepped on some blocks and not others. Two passes are then the
+  structure, not a missed fusion.
+- **A part whose step is a long chain of its own.** Fusing removes a load, a
+  store and the loop overhead per sample, about a cycle per sample on the
+  integer core ([a9_dsp_performance.md](a9_dsp_performance.md#chain)); it does
+  not change what one part's loop costs. In the delay's analog mode the 24-tap
+  response is 86% of the fused frame. The fused loop also stores each channel's
+  high-pass memory once per frame and spills two values, from the register
+  pressure the response's sums bring: chain state, not a store between stages.
+  The stereo form of the response, stepping both channels per tap, runs the
+  analog feedback in 217 cycles per channel-sample against the chain's 400 (the
+  table and the trace are in [a9_dsp_performance.md](a9_dsp_performance.md#chain)).
+  Likewise `Stereo<Chain<OnePole, Pinned<ShiftTracker<11>, REMOVE>>>` in
+  HIGH_PASS and ALL_PASS stores the two channels' outputs separately, one store
+  more per frame than `Stereo<OnePole>`, from the chain's register pressure.
+  Bench a chain against its passes before relying on the fusion.
+
+`chain_spec` (`tests/dsp`) pins a chain against its parts run in sequence: every
+form, every mode combination switched block by block, in place and out of place,
+`reset_part`, nesting, and `Stereo` and `Lanes` against per-lane `Mono`s.
 
 ### The domain rules
 
@@ -481,6 +570,35 @@ arity, as `Mono` is. A staged or control kernel is rejected at the class: neithe
   list in [Measuring](#measuring)), because clang's scheduling, addressing and encoding choices move the same work by
   10–60%, and a compiler upgrade can undo a win. The measured figures are in
   [a9_dsp_performance.md](a9_dsp_performance.md#lanes).
+
+#### Stereo effects with slots
+
+Design guidance for the first effect that needs it (likely the P3c-3 phaser or chorus). None of this is implemented.
+
+Which kernel form an effect takes follows from where its state is shared:
+
+| Effect shape | Kernel form |
+|---|---|
+| Independent streams, each with its own recurrence (stereo filter, per-voice envelope) | `Lanes<K, N>` / `Stereo<K>` |
+| Channels sharing state (chorus, flanger, ping-pong delay, linked compressor) | one kernel stepping `StereoSample` under `Mono` |
+| Parallel work inside one sample (taps, slots, bands) | `LanePack` inside that kernel's step |
+
+An effect with slots (several voices, taps or bands per channel) falls in one of two families.
+
+- **Slots share state**: taps or heads reading one buffer (chorus, ensemble, multi-tap delay).
+  - One `StereoSample` kernel templated on `Slots`, with a `LanePack<q31, 2 * Slots>` of taps (L0 R0 L1 R1 …) inside
+    `step`. Per-slot settings are packs in its `Coefficients`.
+  - A runtime slot count is a mode (`SLOTS_2`, `SLOTS_4`). `State` is sized for the maximum, and the mode is dispatched
+    once per block.
+  - It needs two `LanePack` additions: a gather load, and a strided lane sum.
+- **Each slot is its own stateful processor**: a parallel filter, comb or allpass bank.
+  - A `Slots<K, S, Mix>` adaptor kernel over a lane-packable K. It broadcasts the stereo frame to 2·S lanes, takes one
+    op-major step over `StateT<LanePack<q31, 2S>>`, and reduces the even lanes to L and the odd lanes to R.
+  - It needs `CoefficientsT<V>` (per-lane coefficients written over V), broadcast-interleave, a lane slice for a
+    runtime slot count, and the adaptor itself.
+  - It is the case that would lift the op-major adoption freeze (a kernel opts in only on a probe's evidence, above),
+    because a slot bank has no cheap lane-by-lane layout.
+  - Measure register pressure first: `OnePole` HIGH_PASS at N = 4 already spills its one shared coefficient.
 
 ### `Stereo<K>` (`core/stereo.h`)
 
@@ -745,9 +863,8 @@ replacement oracle, either recorded vectors or a reference written in the spec, 
   once nothing uses them.
 - **The rest of the kernel form.** Not implemented yet: `U` (the unroll factor
   of the wrappers' loops; stateful vector kernels opt in with `split`/`merge`,
-  checked bit-exact against U = 1) and `Chain` (fused composition of kernels with
-  matching step types; `Modes` is the product of the parts'). `U` is chosen from
-  device cycle-per-sample measurements, as each `Lanes` use's N is.
+  checked bit-exact against U = 1). `U` is chosen from device cycle-per-sample
+  measurements, as each `Lanes` use's N is.
 - **The oscillator registry.** The `OscType` choice becomes a block-level
   registry composing generator, band selection, sync and `Amplitude` behind
   `AsBlock`.
@@ -792,12 +909,18 @@ tools/dsp_bench.py --timeout 180          # flashes, captures RTT, writes the ta
 ./dbt build RelWithDebInfo
 ```
 
-The cases come in two lists, chosen by the CMake cache string
+The cases come in three lists, chosen by the CMake cache string
 `DELUGE_DSP_BENCH_CASES`, since the device prints about 70 lines over RTT before
 it drops some:
 
 - `kernels` (the default): one case per component;
-- `lanes`: each `Lanes` case beside the mono case of its kernel.
+- `lanes`: each `Lanes` case beside the mono case of its kernel;
+- `chain`: stages as separate passes beside the same stages as one `Chain` (the
+  delay's feedback, analog and digital, and three mono stages), with each stage
+  alone. The delay's cases build with the flags of the library the delay ships
+  in, ARM mode with `-finline-functions` and no LTO
+  (`src/deluge/bench/delay_feedback_cases.cpp`); every other case builds with
+  the app's.
 
 Choose one with
 `./dbt configure -DDELUGE_DSP_BENCH=ON -DDELUGE_DSP_BENCH_CASES=lanes`; it sticks
@@ -983,6 +1106,11 @@ gates:
   output 1024 bytes after its input and 9.30 otherwise, with no code change. The bench's
   shared blocks are padded, with a `static_assert` that no two are a 1 KB
   multiple apart, so their figures do not depend on where the linker puts them.
+- Do two or more kernels run back to back over one buffer, each a pass of its
+  own? Chain them (`Chain`, with `Pinned` for a part whose mode never varies),
+  unless a part must run alone (see
+  [`Chain` and `Pinned`](#chain-and-pinned-corechainh)), and bench the chain
+  against its passes.
 - Does each new use of `Lanes` have a bench case at its N? Does a kernel opt in to
   op-major without a probe showing its op-major loop beating lane by lane, or a
   `LanePack` specialisation lane by lane cannot reach? See

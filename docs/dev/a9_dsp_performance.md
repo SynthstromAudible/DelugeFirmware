@@ -48,11 +48,13 @@ These numbers explain the cost of a streaming q31 loop:
 
 ## What follows for kernels
 
-1. **Fuse before anything else.** Each kernel run as its own pass over a buffer pays a NEON store of every sample, and
-   the store is the dearest step. A chain that keeps intermediate results in registers (`Chain` in the kernel form)
-   pays it once. A gain, pan or mix stage belongs inside the kernel that produces or consumes the signal, as
+1. **Fuse before anything else.** Each kernel run as its own pass over a buffer pays a load and a store of every
+   sample, and a NEON store is the dearest step. `Chain<K1, …, Kn>` (`core/chain.h`) steps the kernels one after
+   another on each sample in one pass, keeping the intermediate values in registers, so the block is loaded and stored
+   once. A gain, pan or mix stage belongs in the chain beside the kernel that produces or consumes the signal, as
    `Amplitude` multiplies and accumulates into its output in one pass. A standalone gain pass costs about 3.4 cycles
-   per sample, almost all of it memory traffic.
+   per sample, almost all of it memory traffic. On scalar integer kernels a removed pass saves about 1 cycle per sample
+   ([Chain](#chain)); fusing never turns one kernel's slow loop into a fast one.
 2. **Unrolling (`U`) helps little for streaming kernels.** A gain unrolled two, three or four vectors per iteration
    gains at most about 12%. The loop is bound by the multiply's issue rate and the store, not by latency.
 3. **Interleaving independent streams (`Lanes<K, N>`) is for recursive kernels.** A filter or envelope whose next
@@ -141,9 +143,75 @@ the same tree gives the same `Mono` figures to within 0.01.
   to the stack, so the core overlaps only the ends of the chains (IPC about 1.06). Software-pipelining adjacent
   samples of one channel, whose steps depend only on their inputs, is the lever for this kernel, not a wider N.
 
+## Chain
+
+Cycles per channel-sample on the device, each pair the same arithmetic as separate passes over the block and as one
+`Chain`, bit for bit the same output. The bench ran on 63e1bd4ad (2026-10-09), `DELUGE_DSP_BENCH_CASES=chain`; a
+second run of the same code gave the same figures to within 1.6%. The delay cases build with the flags the delay
+ships with (`deluge_dsp_fixed`: ARM mode, `-finline-functions`, no LTO), the others with the app's.
+
+| Case | Form | n=32 | n=64 | n=128 |
+|---|---|---:|---:|---:|
+| `delay_feedback_legacy_analog` | stereo response (both channels per tap), then a tanh loop, then a high-pass loop | 217.55 | 217.10 | 216.89 |
+| `delay_feedback_passes_analog` | `Stereo<FeedbackShaper>`, then `Stereo<Pinned<ShiftTracker<11>, REMOVE>>` | 329.97 | 326.99 | 325.49 |
+| `delay_feedback_chain_analog` | `Stereo<Chain<FeedbackShaper, Pinned<ShiftTracker<11>, REMOVE>>>` | 397.90 | 394.95 | 399.87 |
+| `delay_feedback_passes_digital` | the two passes, DIGITAL | 15.34 | 12.42 | 10.96 |
+| `delay_feedback_chain_digital` | the chain, DIGITAL | 14.17 | 11.34 | 9.92 |
+| `chain3_passes` | `Tanh<3>`, `Pinned<OnePole, LOW_PASS>`, `Pinned<ShiftTracker<11>, REMOVE>`: three `Mono` passes | 34.65 | 33.08 | 32.29 |
+| `chain3_fused` | `Mono<Chain<…>>` of the same three | 31.91 | 30.94 | 30.47 |
+| `tanh3`, `one_pole_lp`, `shift_tracker` | each stage alone, `Mono` (sum) | 34.15 | 32.33 | 31.41 |
+
+**What a removed pass saves.** Per channel-sample, the passes less the chain, divided by the passes removed:
+
+| Pair | Passes removed | n=32 | n=64 | n=128 | Instructions removed (n=128) |
+|---|---:|---:|---:|---:|---:|
+| delay, DIGITAL | 1 | 1.17 | 1.08 | 1.04 | 3.9 |
+| chain3 | 2 | 1.37 | 1.07 | 0.91 | 4.7 per pass |
+
+- **A removed pass costs about a cycle per sample on the integer core**, its load, its store and its loop overhead,
+  though it removes four to five instructions. The separate passes' loops step independent samples, and the core
+  overlaps them; the fused loop runs each sample's stages as one longer dependency chain, so its issue-empty cycles
+  rise (8.75 to 10.27 per sample for chain3, 2.71 to 3.17 for the delay). The NEON-sourced store (6.5 cycles per 16
+  bytes, [Measured costs](#measured-costs)) is where fusion pays most; no NEON chain is measured yet.
+- **The digital delay is one 13-instruction loop per frame** with both channels' high-pass memories in registers and
+  one store, the output frame. Its small-n rows carry the per-block copy of the chain's State in and out (two 208-byte
+  `memcpy`s, since `Stereo` runs on a local copy of every lane's State), which the analog response's 25 sums per
+  channel make large.
+- **The analog delay is slower as a chain than in the stereo form, by 84%, and the per-channel response is the cause.**
+  The PTM trace of the chain (`.superpowers/estate/trace/2026-10-09-a202884d7-DelayFeedbackChainCase_true_-block`)
+  puts about 812 cycles in a frame: the response's 24-tap loop takes 14 cycles per iteration on the left channel and 15
+  on the right, 696 cycles, 86% of the frame; the tanh, the high-pass, the frame's store and the per-sample drive
+  dispatch take the other 116. The tap loop is 10 instructions, and it steps its index after its store
+  (`str r3, [r5, -r6, lsl #2]`, then `sub r6, r6, #1`), so the next iteration's load addresses are computed behind a
+  pending store: the pointer-after-store wait in the
+  [review checklist](dsp_next_component_architecture.md#review-checklist), 14.1 cycles against 8.3 for the same
+  instructions. The stereo form's loop steps both channels in one iteration, 16 instructions with its pointers stepped
+  before its stores, in 14 cycles: 7 per channel-tap against the chain's 14 to 15. `Stereo<FeedbackShaper>` runs the
+  per-channel response one channel after the other, so the two channels' tap loops cost the sum of the two.
+- **The analog passes beat the analog chain by luck of the loop, not by fusion.** The passes' tap loops are the same 10
+  instructions as the chain's. Their left loop averaged 8.65 cycles per iteration in the trace (half its iterations at
+  3, half at 14) and their right loop 14.84; that left loop is about 64 of the 74 cycles per channel-sample between
+  the two cases.
+  What fusion itself changes, the high-pass pass removed (8 cycles a frame in the passes) against the fused loop's
+  high-pass memory stored per channel per frame and two spills, is small beside it.
+- **The fused analog loop stores each channel's high-pass memory once per frame and spills two values** (the left
+  output before the frame's `strd`, and the advanced frame pointer). Those are chain state and register pressure from
+  the 24-tap response, which holds the sums in memory beside the memories; nothing is stored between the two stages.
+  The digital loop keeps both memories in registers. Likewise `Stereo<Chain<OnePole, Pinned<ShiftTracker<11>,
+  REMOVE>>>` in HIGH_PASS and ALL_PASS stores the two channels' outputs separately (`str [r10, #4]`, then
+  `str [r10], #8`) where LOW_PASS and a bare `Stereo<OnePole>` store one `strd`: one store more per frame, from the
+  chain's register pressure (four state registers and a coefficient across both channels).
+- **Bench a component with the flags it ships with.** Under the app's flags (Thumb, `-fno-inline-functions`) the
+  response's `std::array` indexing is an out-of-line call per tap, and all three analog forms measured about 600 cycles
+  per channel-sample (`.superpowers/estate/bench/2026-10-09-a202884d7-appflags.md`). A kernel's `step` is
+  `[[gnu::always_inline]]`, but what it calls inherits the translation unit's flags.
+
 ## Open questions
 
 - Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain, such as
   filters. Measure when the first filter kernel lands.
 - The `wavetable` bench case costs about 336 cycles per sample. Look at it when the oscillators move to the kernel form.
 - `Mono::renderBlock` calls `std::span::size()` and `data()` per block, and both are out of line at the shipping flags.
+- The analog delay's response: whether stepping its pointers before its stores brings the per-channel tap loop to
+  about 8 cycles per iteration, and whether a response stepping both channels per tap (a `StereoSample` kernel, or
+  the sums laid out over both lanes) is still needed after that.
