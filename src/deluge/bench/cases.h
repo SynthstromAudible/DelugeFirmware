@@ -1116,7 +1116,9 @@ enum class CaseList : uint8_t {
 	KERNELS, ///< One case per component: the calibration loop, then each kernel in its Mono, Stereo or Control.
 	LANES,   ///< The calibration loop, then each `Lanes` case beside the mono case of its kernel.
 	CHAIN,   ///< The calibration loop, then stages run as separate passes beside the same stages as one `Chain`.
-	DELAY,   ///< The calibration loop, then today's whole delay block in every tape form, mix and shaper.
+	/// The calibration loop, the whole delay block in every tape form, mix and shaper, then the feedback chain's
+	/// two cases from the chain list, unchanged code that bounds how much an image's code placement moves the rest.
+	DELAY,
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -1133,7 +1135,8 @@ inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 /// @brief A case list, in the order each block size prints it.
 /// @param list Which list.
 /// @return Cases over members of case_set(), built on first use. Each list starts with `calibration_loop`, which the
-/// host script's sanity check reads.
+/// host script's sanity check reads. A bench image builds only its own list (kBenchCaseList) and returns no cases for
+/// any other, so the other lists' code stays out of on-chip SRAM.
 [[nodiscard]] std::span<const Case> cases(CaseList list);
 
 } // namespace deluge::bench

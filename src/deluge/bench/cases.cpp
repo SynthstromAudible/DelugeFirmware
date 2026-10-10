@@ -499,8 +499,10 @@ CaseSet& case_set() {
 	return set;
 }
 
-std::span<const Case> cases(CaseList list) {
-	CaseSet& s = case_set();
+namespace {
+
+/// @brief The kernels list.
+std::span<const Case> kernel_list(CaseSet& s) {
 	static const std::array kernels{
 	    make_case("calibration_loop", s.calibration_loop),
 	    make_case("amplitude", s.amplitude),
@@ -523,6 +525,11 @@ std::span<const Case> cases(CaseList list) {
 	    make_case("tanh3", s.tanh3),
 	    make_case("dry_wet_blend", s.dry_wet_blend),
 	};
+	return kernels;
+}
+
+/// @brief The lanes list.
+std::span<const Case> lanes_list(CaseSet& s) {
 	static const std::array lanes{
 	    make_case("calibration_loop", s.calibration_loop),
 	    make_case("one_pole_lp", s.one_pole_lp),
@@ -536,6 +543,11 @@ std::span<const Case> cases(CaseList list) {
 	    make_case("mono_gain", s.mono_gain),
 	    make_case("stereo_gain", s.stereo_gain),
 	};
+	return lanes;
+}
+
+/// @brief The chain list.
+std::span<const Case> chain_list(CaseSet& s) {
 	static const std::array chain{
 	    make_case("calibration_loop", s.calibration_loop),
 	    make_case("delay_feedback_legacy_analog", s.delay_feedback_legacy_analog),
@@ -550,6 +562,11 @@ std::span<const Case> cases(CaseList list) {
 	    make_case("chain3_passes", s.chain3_passes),
 	    make_case("chain3_fused", s.chain3_fused),
 	};
+	return chain;
+}
+
+/// @brief The delay list.
+std::span<const Case> delay_list(CaseSet& s) {
 	static const std::array delay{
 	    make_case("calibration_loop", s.calibration_loop),
 	    make_case("delay_whole_native_straight_digital", s.delay_whole_native_straight_digital),
@@ -565,17 +582,50 @@ std::span<const Case> cases(CaseList list) {
 	    make_case("delay_whole_res_hi_cross_digital", s.delay_whole_res_hi_cross_digital),
 	    make_case("delay_whole_res_hi_cross_analog", s.delay_whole_res_hi_cross_analog),
 	    make_case("delay_whole_growing", s.delay_whole_growing),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
 	};
-	if (list == CaseList::DELAY) {
-		return delay;
+	return delay;
+}
+
+/// @brief The cases of @p L.
+template <CaseList L>
+std::span<const Case> list_cases(CaseSet& s) {
+	if constexpr (L == CaseList::DELAY) {
+		return delay_list(s);
 	}
-	if (list == CaseList::LANES) {
-		return lanes;
+	else if constexpr (L == CaseList::LANES) {
+		return lanes_list(s);
 	}
-	if (list == CaseList::CHAIN) {
-		return chain;
+	else if constexpr (L == CaseList::CHAIN) {
+		return chain_list(s);
 	}
-	return kernels;
+	else {
+		return kernel_list(s);
+	}
+}
+
+} // namespace
+
+std::span<const Case> cases(CaseList list) {
+	CaseSet& s = case_set();
+#if defined(DELUGE_DSP_BENCH)
+	// A bench image runs only its own list: building only that list's cases keeps the others' code out of on-chip
+	// SRAM, which the image fills.
+	return list == kBenchCaseList ? list_cases<kBenchCaseList>(s) : std::span<const Case>{};
+#else
+	switch (list) {
+	case CaseList::DELAY:
+		return list_cases<CaseList::DELAY>(s);
+	case CaseList::LANES:
+		return list_cases<CaseList::LANES>(s);
+	case CaseList::CHAIN:
+		return list_cases<CaseList::CHAIN>(s);
+	case CaseList::KERNELS:
+		break;
+	}
+	return list_cases<CaseList::KERNELS>(s);
+#endif
 }
 
 } // namespace deluge::bench

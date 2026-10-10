@@ -298,6 +298,8 @@ const std::vector<std::string_view> kDelayCaseNames{
     "delay_whole_res_hi_cross_digital",
     "delay_whole_res_hi_cross_analog",
     "delay_whole_growing",
+    "delay_feedback_chain_analog",
+    "delay_feedback_chain_digital",
 };
 
 /// Each delay list case's configuration, in order after the calibration loop.
@@ -1227,7 +1229,8 @@ describe bench_runner("The DSP benchmark runner", ${
 		it("renders each delay whole case as a direct call to the delay's block per block, tapes and all, at every size", _ {
 			using dsp::fixed::DelayTape;
 			const std::span<const Case> delay = cases(CaseList::DELAY);
-			expect(delay.size()).to_equal(kDelayCaseConfigs.size() + 1);
+			// The calibration loop, the whole cases, then the two feedback chain controls.
+			expect(delay.size()).to_equal(kDelayCaseConfigs.size() + 3);
 			for (std::size_t i = 0; i < kDelayCaseConfigs.size(); ++i) {
 				const DelayWholeConfig& config = kDelayCaseConfigs[i];
 				const Case& c = delay[i + 1];
