@@ -202,14 +202,23 @@ private:
 	/// @details The loop runs on local copies of the coefficients and state, taken after `prepare` and written back
 	/// after the block, so they stay in registers: the output buffer may alias the component, which would otherwise
 	/// force a reload and a store of the state on every step. `prepare` sees the members, so the copies' addresses
-	/// never escape to a `prepare` that is not inlined.
+	/// never escape to a `prepare` that is not inlined. A kernel declaring `kStateInPlace` (see @ref
+	/// detail::state_in_place) steps the member directly instead: its State is too large for registers, so the copy
+	/// would only add a load and a store of the whole State per block.
 	template <typename... In>
 	[[gnu::always_inline]] void runBlock(Buffer<value_type> out, In... in) {
 		const Block block = kernel_ops::prepare_block<K>(coefficients_, state_, out.size());
 		const Coefficients c = coefficients_;
-		State s = state_;
-		kernel_ops::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () { loop<M>(c, block, s, out, in...); });
-		state_ = s;
+		if constexpr (detail::state_in_place<K>) {
+			kernel_ops::dispatch_mode<K>(
+			    c, [&]<auto M> [[gnu::always_inline]] () { loop<M>(c, block, state_, out, in...); });
+		}
+		else {
+			State s = state_;
+			kernel_ops::dispatch_mode<K>(c,
+			                             [&]<auto M> [[gnu::always_inline]] () { loop<M>(c, block, s, out, in...); });
+			state_ = s;
+		}
 	}
 
 	/// @brief One vector step at mode @p M, counted on the partial last step when K declares

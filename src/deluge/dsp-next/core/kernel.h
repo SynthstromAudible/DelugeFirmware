@@ -338,6 +338,22 @@ concept prepare_well_formed =
 template <typename K>
 concept reset_well_formed = !declares_reset<K> || resets_exactly<K>;
 
+/// @brief Whether `Mono` steps K's member State in place rather than on a local copy.
+/// @details False unless K declares `static constexpr bool kStateInPlace` true. `Mono` normally copies the State to
+/// locals for the block and writes it back, so a scalar State stays in registers across the loop. Declare the trait
+/// when the State cannot live in registers (an array or a ring of hundreds of bytes): the copy would then cost a
+/// load and a store of the whole State per block, and the loop reads and writes the member by index anyway. A
+/// declaring kernel behaves identically; only where the State lives during the block differs. The output buffer may
+/// alias the component, as with any member State, so the compiler cannot assume the buffer and the State are
+/// disjoint.
+template <typename K>
+inline constexpr bool state_in_place = false;
+
+/// @brief Whether `Mono` steps K's member State in place; K declares `kStateInPlace` as a `const bool`.
+template <typename K>
+requires std::same_as<std::remove_cv_t<decltype(K::kStateInPlace)>, bool>
+inline constexpr bool state_in_place<K> = K::kStateInPlace;
+
 } // namespace detail
 
 /// @brief K::Block if K declares one, else EmptyBlock.

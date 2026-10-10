@@ -29,6 +29,7 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -273,6 +274,89 @@ struct ModeSwitch {
 		return s.acc;
 	}
 };
+
+/// A scalar processor whose State is an array no register file holds: a 64-sample ring and its head. Each step
+/// feeds the ring from the input and the sample it overwrites, so a lost write-back or a stale copy shows at once.
+struct RingCore {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {
+		q31 ring[64];       // NOLINT(cppcoreguidelines-avoid-c-arrays): a trivially copyable State is plain data.
+		std::uint32_t head; ///< Index of the next ring slot.
+		int prepares;       ///< How many times prepare has run.
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static EmptyBlock prepare(const Coefficients& /*c*/, State& s, std::size_t /*n*/) {
+		++s.prepares;
+		s.head = (s.head + static_cast<std::uint32_t>(s.prepares)) & 63U;
+		return {};
+	}
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s, q31 x) {
+		const std::uint32_t old = static_cast<std::uint32_t>(s.ring[s.head]);
+		s.ring[s.head] = static_cast<q31>(old * 3U + static_cast<std::uint32_t>(x) + 1U);
+		s.head = (s.head + 5U) & 63U;
+		return static_cast<q31>(old ^ static_cast<std::uint32_t>(x));
+	}
+	static void poke(State& s, q31 v) { s.ring[s.head] = v; }
+};
+
+/// RingCore, stepping its member State in place.
+struct RingInPlace : RingCore {
+	static constexpr bool kStateInPlace = true;
+};
+
+/// RingCore, with the in-place declaration spelled with the wrong type.
+struct RingWrongType : RingCore {
+	static constexpr int kStateInPlace = 1;
+};
+
+/// RingCore, declaring the trait false.
+struct RingFalse : RingCore {
+	static constexpr bool kStateInPlace = false;
+};
+
+/// A moded RingCore: the mode picks how the input enters the ring; all modes share the State.
+struct ModedRingCore {
+	using value_type = q31;
+	using step_type = q31;
+	enum class Mode : uint8_t { ADD, XOR };
+	using Modes = ModeList<Mode::ADD, Mode::XOR>;
+	using State = RingCore::State;
+	struct Settings {
+		Mode mode;
+	};
+	struct Coefficients {
+		Mode mode;
+	};
+	static Coefficients coefficients(const Settings& s) { return {.mode = s.mode}; }
+	static EmptyBlock prepare(const Coefficients& /*c*/, State& s, std::size_t n) {
+		return RingCore::prepare({}, s, n);
+	}
+	template <Mode M>
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s, q31 x) {
+		const std::uint32_t old = static_cast<std::uint32_t>(s.ring[s.head]);
+		const auto ux = static_cast<std::uint32_t>(x);
+		s.ring[s.head] = static_cast<q31>(M == Mode::ADD ? old + ux : old ^ (ux * 7U));
+		s.head = (s.head + 3U) & 63U;
+		return static_cast<q31>(old + ux);
+	}
+	static void poke(State& s, q31 v) { s.ring[s.head] = v; }
+};
+
+/// ModedRingCore, stepping its member State in place.
+struct ModedRingInPlace : ModedRingCore {
+	static constexpr bool kStateInPlace = true;
+};
+
+static_assert(detail::state_in_place<RingInPlace>);
+static_assert(detail::state_in_place<ModedRingInPlace>);
+static_assert(!detail::state_in_place<RingCore>);
+static_assert(!detail::state_in_place<RingFalse>);
+static_assert(!detail::state_in_place<RingWrongType>);
+static_assert(!detail::state_in_place<Gain>);
+static_assert(processor<Mono<RingInPlace>> && processor<Mono<ModedRingInPlace>>);
 
 /// The lanes of a q31 vector, lane 0 first.
 std::array<q31, 4> lanes_of(Argon<q31> v) {
@@ -628,6 +712,45 @@ std::vector<StereoSample> stereo_input(std::size_t n) {
 	return v;
 }
 
+/// What a Ring workload leaves behind: every block's output, then the final State.
+template <typename K>
+struct RingRun {
+	std::vector<q31> out;
+	typename K::State state;
+};
+
+/// Runs a fixed workload of @p n-sample blocks on Mono<K>: render, an event, render, reset, render, a mode change
+/// where K has modes, render. @p in_place renders each block over its own input.
+template <typename K, typename Alt>
+RingRun<K> run_ring(std::size_t n, bool in_place, Alt alt) {
+	Mono<K> mono;
+	RingRun<K> run{};
+	const std::vector<q31> src = input(n, 0x00765431);
+	auto block = [&] {
+		std::vector<q31> buf = src;
+		if (in_place) {
+			mono.renderBlock(buf, buf);
+		}
+		else {
+			std::vector<q31> dst(n);
+			mono.renderBlock(buf, dst);
+			buf = dst;
+		}
+		run.out.insert(run.out.end(), buf.begin(), buf.end());
+	};
+	block();
+	block();
+	mono.template on<&K::poke>(0x13579bdf);
+	block();
+	mono.reset();
+	block();
+	alt(mono);
+	block();
+	block();
+	run.state = mono.state();
+	return run;
+}
+
 /// The lane-0 value of a ramp kernel's state.
 template <typename M>
 q31 ramp_value(const M& mono) {
@@ -708,6 +831,32 @@ describe mono("Mono", ${
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(stereo_got[i].l).to_equal(frames[i].r);
 				expect(stereo_got[i].r).to_equal(frames[i].l + 1);
+			}
+		}
+	});
+
+	it("steps a kernel's state in place exactly as it steps a copy, in and out of place", _ {
+		for (std::size_t n = 1; n <= 9; ++n) {
+			for (const bool in_place : {false, true}) {
+				const auto none = [](auto&) {};
+				const auto want = run_ring<RingCore>(n, in_place, none);
+				const auto got = run_ring<RingInPlace>(n, in_place, none);
+				expect(got.out).to_equal(want.out);
+				expect(std::memcmp(&got.state, &want.state, sizeof(RingCore::State))).to_equal(0);
+				expect(got.state.prepares).to_equal(3);
+			}
+		}
+	});
+
+	it("steps a moded kernel's state in place across a mode switch", _ {
+		for (std::size_t n = 1; n <= 9; ++n) {
+			for (const bool in_place : {false, true}) {
+				const auto xor_mode = [](auto& mono) { mono.configure({.mode = ModedRingCore::Mode::XOR}); };
+				const auto want = run_ring<ModedRingCore>(n, in_place, xor_mode);
+				const auto got = run_ring<ModedRingInPlace>(n, in_place, xor_mode);
+				expect(got.out).to_equal(want.out);
+				expect(std::memcmp(&got.state, &want.state, sizeof(RingCore::State))).to_equal(0);
+				expect(got.state.prepares).to_equal(3);
 			}
 		}
 	});
