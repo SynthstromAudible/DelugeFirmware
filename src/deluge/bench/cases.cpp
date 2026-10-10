@@ -461,6 +461,20 @@ void fill_delay_input() {
 	}
 }
 
+void fill_filter_input() {
+	fill(shared.lanes_input, kSeed);
+	for (q31& sample : shared.lanes_input) {
+		sample >>= 4;
+	}
+}
+
+std::span<q31> in_place_filter_block(std::size_t samples) {
+	fill_filter_input();
+	const std::span<q31> work{shared.lanes_output.data(), samples};
+	std::ranges::copy(std::span{shared.lanes_input}.first(samples), work.begin());
+	return work;
+}
+
 FrameSpans<StereoSample> stereo_frame_spans(std::size_t n) {
 	return frame_spans<StereoSample>(n);
 }
@@ -588,10 +602,40 @@ std::span<const Case> delay_list(CaseSet& s) {
 	return delay;
 }
 
+/// @brief The filters list.
+std::span<const Case> filters_list(CaseSet& s) {
+	static const std::array filters{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("filter_lp12_mono", s.filter_lp12_mono),
+	    make_case("filter_lp12_stereo", s.filter_lp12_stereo),
+	    make_case("filter_lp24_mono", s.filter_lp24_mono),
+	    make_case("filter_lp24_stereo", s.filter_lp24_stereo),
+	    make_case("filter_lpdrive_mono", s.filter_lpdrive_mono),
+	    make_case("filter_lpdrive_stereo", s.filter_lpdrive_stereo),
+	    make_case("filter_lpdrive_os_mono", s.filter_lpdrive_os_mono),
+	    make_case("filter_lpdrive_os_stereo", s.filter_lpdrive_os_stereo),
+	    make_case("filter_hp_mono", s.filter_hp_mono),
+	    make_case("filter_hp_stereo", s.filter_hp_stereo),
+	    make_case("filter_svf_band_mono", s.filter_svf_band_mono),
+	    make_case("filter_svf_band_stereo", s.filter_svf_band_stereo),
+	    make_case("filter_svf_notch_mono", s.filter_svf_notch_mono),
+	    make_case("filter_svf_notch_stereo", s.filter_svf_notch_stereo),
+	    make_case("filterset_hl_stereo", s.filterset_hl_stereo),
+	    make_case("filterset_lh_stereo", s.filterset_lh_stereo),
+	    make_case("filterset_par_stereo", s.filterset_par_stereo),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	};
+	return filters;
+}
+
 /// @brief The cases of @p L.
 template <CaseList L>
 std::span<const Case> list_cases(CaseSet& s) {
-	if constexpr (L == CaseList::DELAY) {
+	if constexpr (L == CaseList::FILTERS) {
+		return filters_list(s);
+	}
+	else if constexpr (L == CaseList::DELAY) {
 		return delay_list(s);
 	}
 	else if constexpr (L == CaseList::LANES) {
@@ -621,6 +665,8 @@ std::span<const Case> cases(CaseList list) {
 		return list_cases<CaseList::LANES>(s);
 	case CaseList::CHAIN:
 		return list_cases<CaseList::CHAIN>(s);
+	case CaseList::FILTERS:
+		return list_cases<CaseList::FILTERS>(s);
 	case CaseList::KERNELS:
 		break;
 	}

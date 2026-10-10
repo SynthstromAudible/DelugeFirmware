@@ -11,11 +11,11 @@
 /// **Lanes.** A case of N lanes declares `kLanes = N` and renders blocks of n frames, N samples each; the runner
 /// divides its cycles by N as well, so its cps is per channel-sample, comparable with the mono case of its kernel.
 ///
-/// **Four lists.** The device prints about 70 lines over RTT before it drops some, so the cases come in four lists,
+/// **Five lists.** The device prints about 70 lines over RTT before it drops some, so the cases come in five lists,
 /// each run at every block size: the kernels (one case per component), the lanes (each `Lanes` case beside the mono
-/// case of its kernel), the chain (stages run as separate passes beside the same stages as one `Chain`), and the delay
-/// (the whole delay block over real tapes). A bench image runs one, chosen by the CMake cache string
-/// DELUGE_DSP_BENCH_CASES, and builds only that list's cases.
+/// case of its kernel), the chain (stages run as separate passes beside the same stages as one `Chain`), the delay
+/// (the whole delay block over real tapes) and the filters (each filter and the filter set, as a voice runs them). A
+/// bench image runs one, chosen by the CMake cache string DELUGE_DSP_BENCH_CASES, and builds only that list's cases.
 ///
 /// **State at timing.** The runner warms each case up before timing it, so what is timed is the case's steady
 /// state. Each case's documentation says what that state is; the host spec checks each through its component's
@@ -39,6 +39,8 @@
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "dsp-next/fixed/delay/feedback_shaper.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
+#include "dsp-next/fixed/filter/filter_modes.h"
+#include "dsp-next/fixed/filter/filter_set.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
 #include "dsp-next/fixed/mix/dry_wet.h"
@@ -1045,6 +1047,139 @@ private:
 inline constexpr DelayWholeConfig kDelayWholeGrowing{
     .tape = DelayTapeForm::RES_HI, .cross = false, .analog = false, .growing = true};
 
+/// @brief The filter cases' seed for the synth-wide noise generator (util/waves.h's jcong), which the low-pass ladder
+/// draws from: the app's boot value.
+inline constexpr uint32_t kFilterNoiseSeed = 380'116'160;
+/// @brief The gain going into every filter case's set, Q31: a quarter.
+inline constexpr q31 kFilterGain = 536'870'912;
+
+/// @brief The low-pass settings the filter cases run at: the cutoff at 2^23 (Q31), half resonance (2^28 of Q29's
+/// 2^29), no morph. The drive ladder does not oversample here: the cutoff's quick_log is 50 · 2^24, below the 52 at
+/// which oversampling starts (2^24 would reach it, and oversample at this resonance). The resonance is high enough that
+/// the ladders saturate their input.
+inline constexpr dsp::fixed::FilterConfig kFilterLowSettings{
+    .frequency = 1 << 23, .resonance = 1 << 28, .morph = 0, .allow_oversampling = true};
+/// @brief The drive ladder's oversampling settings: a bright cutoff (50,000,000, Q31) at high resonance (500,000,000,
+/// Q29), past the threshold above which the drive ladder runs at twice the rate.
+inline constexpr dsp::fixed::FilterConfig kFilterBrightSettings{
+    .frequency = 50'000'000, .resonance = 500'000'000, .morph = 0, .allow_oversampling = true};
+/// @brief The high-pass settings the filter cases run at: the cutoff at 2^23 (Q31), a quarter resonance (2^27 of Q29's
+/// 2^29), no morph. The ladder's processed resonance stays below the level at which it saturates: the high-pass
+/// ladder's unsaturated path, where most sounds run it.
+inline constexpr dsp::fixed::FilterConfig kFilterHighSettings{
+    .frequency = 1 << 23, .resonance = 1 << 27, .morph = 0, .allow_oversampling = true};
+
+/// @brief One filter case's configuration: what each slot of the set runs, the route, and each filter's settings.
+struct FilterCaseConfig {
+	dsp::fixed::LowPassSlot low;          ///< What the low-pass slot runs.
+	dsp::fixed::HighPassSlot high;        ///< What the high-pass slot runs.
+	dsp::fixed::FilterRoute route;        ///< The order the two run in.
+	dsp::fixed::FilterConfig low_config;  ///< The low-pass's settings.
+	dsp::fixed::FilterConfig high_config; ///< The high-pass's settings.
+};
+
+/// @brief The configuration of a case of the low-pass slot alone, running @p low at @p settings.
+[[nodiscard]] constexpr FilterCaseConfig
+filter_low_case(dsp::fixed::LowPassSlot low, const dsp::fixed::FilterConfig& settings = kFilterLowSettings) {
+	return {.low = low,
+	        .high = {},
+	        .route = dsp::fixed::FilterRoute::HIGH_TO_LOW,
+	        .low_config = settings,
+	        .high_config = kFilterHighSettings};
+}
+
+/// @brief `filter_lp12_*`: the 12 dB ladder.
+inline constexpr FilterCaseConfig kFilterLow12 = filter_low_case(
+    {.kind = dsp::fixed::LowPassSlot::Kind::LADDER, .ladder = dsp::fixed::LowPassLadderMode::TRANSISTOR_12DB});
+/// @brief `filter_lp24_*`: the 24 dB ladder.
+inline constexpr FilterCaseConfig kFilterLow24 = filter_low_case(
+    {.kind = dsp::fixed::LowPassSlot::Kind::LADDER, .ladder = dsp::fixed::LowPassLadderMode::TRANSISTOR_24DB});
+/// @brief `filter_lpdrive_*`: the drive ladder at the rate of the block.
+inline constexpr FilterCaseConfig kFilterLowDrive = filter_low_case(
+    {.kind = dsp::fixed::LowPassSlot::Kind::LADDER, .ladder = dsp::fixed::LowPassLadderMode::TRANSISTOR_24DB_DRIVE});
+/// @brief `filter_lpdrive_os_*`: the drive ladder oversampled, at kFilterBrightSettings.
+inline constexpr FilterCaseConfig kFilterLowDriveOs = filter_low_case(
+    {.kind = dsp::fixed::LowPassSlot::Kind::LADDER, .ladder = dsp::fixed::LowPassLadderMode::TRANSISTOR_24DB_DRIVE},
+    kFilterBrightSettings);
+/// @brief `filter_svf_band_*`: the SVF in band mode, in the low-pass slot.
+inline constexpr FilterCaseConfig kFilterSvfBand =
+    filter_low_case({.kind = dsp::fixed::LowPassSlot::Kind::SVF, .svf = dsp::fixed::SvfMode::BAND});
+/// @brief `filter_svf_notch_*`: the SVF in notch mode, in the low-pass slot.
+inline constexpr FilterCaseConfig kFilterSvfNotch =
+    filter_low_case({.kind = dsp::fixed::LowPassSlot::Kind::SVF, .svf = dsp::fixed::SvfMode::NOTCH});
+/// @brief `filter_hp_*`: the high-pass ladder alone.
+inline constexpr FilterCaseConfig kFilterHigh{.low = {},
+                                              .high = {.kind = dsp::fixed::HighPassSlot::Kind::LADDER},
+                                              .route = dsp::fixed::FilterRoute::HIGH_TO_LOW,
+                                              .low_config = kFilterLowSettings,
+                                              .high_config = kFilterHighSettings};
+
+/// @brief The configuration of `filterset_<hl|lh|par>_stereo`: the 24 dB ladder and the high-pass ladder (a sound's
+/// default modes) on @p route.
+[[nodiscard]] constexpr FilterCaseConfig filter_set_case(dsp::fixed::FilterRoute route) {
+	return {.low = kFilterLow24.low,
+	        .high = kFilterHigh.high,
+	        .route = route,
+	        .low_config = kFilterLowSettings,
+	        .high_config = kFilterHighSettings};
+}
+
+/// @brief Fills the lanes input with noise at 2^-4 of full scale, about an oscillator's level going into a voice's
+/// filters.
+void fill_filter_input();
+
+/// @brief Fills the lanes input (fill_filter_input()) and copies its first @p samples samples into the lanes output.
+/// @return Those output samples: the block a filter case renders first, in place.
+[[nodiscard]] std::span<q31> in_place_filter_block(std::size_t samples);
+
+/// @brief What every filter case renders with: one filter set, as a voice holds it. The cases run one after another,
+/// so they share it; each case's setup resets it.
+struct FilterRig {
+	dsp::fixed::FilterSet set; ///< The set, as a Voice's filterSet.
+	q31 gain{};                ///< The last configure's gain.
+	std::span<q31> work{};     ///< The lanes output's first n samples (2n in stereo), filtered in place.
+};
+
+/// @return The rig the filter cases render with.
+[[nodiscard]] const FilterRig& filter_rig();
+
+/// @brief A filter set's block as a voice renders it, `FilterSet::configure` then `renderMono` or `renderStereo`, in
+/// place over the lanes output, for a configuration the case holds as data.
+/// @details Setup resets the set, as a new voice's, and seeds the synth-wide noise at kFilterNoiseSeed; the block is
+/// the lanes input's first n samples (2n interleaved in stereo, as fill_filter_input() fills it) copied into the lanes
+/// output. Each block configures the set (the voice configures it every block) and filters the block in place, over
+/// the block before's output.
+///
+/// **Timed state:** every slot that runs holds its filter from the first block (a reset set holds ladders, and an SVF
+/// takes over the slot without a fade), so no fade runs and every block is the steady state of its filters: the
+/// low-pass ladder drawing one noise sample per channel-sample (two when the drive ladder oversamples), the high-pass
+/// ladder on its unsaturated path, the SVF's two passes per sample, and in the parallel route the copy of the block
+/// and the wrapping sum.
+/// @tparam Stereo Interleaved L/R frames, `renderStereo`; else mono, `renderMono`.
+template <bool Stereo>
+class FilterCase {
+public:
+	static constexpr std::size_t kLanes = Stereo ? 2 : 1; ///< A frame's samples.
+
+	/// @brief A case of @p config.
+	constexpr explicit FilterCase(const FilterCaseConfig& config) : config_{config} {}
+
+	/// @brief Resets the set, seeds the noise and fills the block for @p n frames.
+	void setup(std::size_t n);
+	/// @brief Configures the set and filters one block of the size it was set up for, in place.
+	void block(std::size_t n);
+	/// @return The case's configuration.
+	[[nodiscard]] constexpr const FilterCaseConfig& config() const { return config_; }
+
+private:
+	FilterCaseConfig config_;
+};
+
+/// @brief A filter case over mono blocks.
+using FilterMonoCase = FilterCase<false>;
+/// @brief A filter case over interleaved stereo blocks.
+using FilterStereoCase = FilterCase<true>;
+
 /// @brief Every case, by name.
 struct CaseSet {
 	CalibrationLoop calibration_loop;                             ///< `calibration_loop`
@@ -1105,14 +1240,34 @@ struct CaseSet {
 	DelayWholeCase delay_whole_res_hi_cross_digital{delay_whole_mode(DelayTapeForm::RES_HI, true, false)};
 	/// `delay_whole_res_hi_cross_analog`
 	DelayWholeCase delay_whole_res_hi_cross_analog{delay_whole_mode(DelayTapeForm::RES_HI, true, true)};
-	DelayWholeCase delay_whole_growing{kDelayWholeGrowing}; ///< `delay_whole_growing`
+	DelayWholeCase delay_whole_growing{kDelayWholeGrowing};       ///< `delay_whole_growing`
+	FilterMonoCase filter_lp12_mono{kFilterLow12};                ///< `filter_lp12_mono`
+	FilterStereoCase filter_lp12_stereo{kFilterLow12};            ///< `filter_lp12_stereo`
+	FilterMonoCase filter_lp24_mono{kFilterLow24};                ///< `filter_lp24_mono`
+	FilterStereoCase filter_lp24_stereo{kFilterLow24};            ///< `filter_lp24_stereo`
+	FilterMonoCase filter_lpdrive_mono{kFilterLowDrive};          ///< `filter_lpdrive_mono`
+	FilterStereoCase filter_lpdrive_stereo{kFilterLowDrive};      ///< `filter_lpdrive_stereo`
+	FilterMonoCase filter_lpdrive_os_mono{kFilterLowDriveOs};     ///< `filter_lpdrive_os_mono`
+	FilterStereoCase filter_lpdrive_os_stereo{kFilterLowDriveOs}; ///< `filter_lpdrive_os_stereo`
+	FilterMonoCase filter_hp_mono{kFilterHigh};                   ///< `filter_hp_mono`
+	FilterStereoCase filter_hp_stereo{kFilterHigh};               ///< `filter_hp_stereo`
+	FilterMonoCase filter_svf_band_mono{kFilterSvfBand};          ///< `filter_svf_band_mono`
+	FilterStereoCase filter_svf_band_stereo{kFilterSvfBand};      ///< `filter_svf_band_stereo`
+	FilterMonoCase filter_svf_notch_mono{kFilterSvfNotch};        ///< `filter_svf_notch_mono`
+	FilterStereoCase filter_svf_notch_stereo{kFilterSvfNotch};    ///< `filter_svf_notch_stereo`
+	/// `filterset_hl_stereo`
+	FilterStereoCase filterset_hl_stereo{filter_set_case(dsp::fixed::FilterRoute::HIGH_TO_LOW)};
+	/// `filterset_lh_stereo`
+	FilterStereoCase filterset_lh_stereo{filter_set_case(dsp::fixed::FilterRoute::LOW_TO_HIGH)};
+	/// `filterset_par_stereo`
+	FilterStereoCase filterset_par_stereo{filter_set_case(dsp::fixed::FilterRoute::PARALLEL)};
 };
 
 /// @brief The cases' components, built on first use.
 /// @return The one CaseSet every case in cases() acts on.
 [[nodiscard]] CaseSet& case_set();
 
-/// @brief Which of the four case lists a run prints.
+/// @brief Which of the five case lists a run prints.
 enum class CaseList : uint8_t {
 	KERNELS, ///< One case per component: the calibration loop, then each kernel in its Mono, Stereo or Control.
 	LANES,   ///< The calibration loop, then each `Lanes` case beside the mono case of its kernel.
@@ -1120,6 +1275,9 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, the whole delay block in every tape form, mix and shaper, then the feedback chain's
 	/// two cases from the chain list, unchanged code that bounds how much an image's code placement moves the rest.
 	DELAY,
+	/// The calibration loop, each filter mono and stereo, the filter set on each route, then the feedback chain's two
+	/// cases from the chain list, as in the delay list.
+	FILTERS,
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -1129,6 +1287,8 @@ inline constexpr CaseList kBenchCaseList = CaseList::LANES;
 inline constexpr CaseList kBenchCaseList = CaseList::CHAIN;
 #elif defined(DELUGE_DSP_BENCH_DELAY)
 inline constexpr CaseList kBenchCaseList = CaseList::DELAY;
+#elif defined(DELUGE_DSP_BENCH_FILTERS)
+inline constexpr CaseList kBenchCaseList = CaseList::FILTERS;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif

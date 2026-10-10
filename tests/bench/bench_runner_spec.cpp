@@ -8,12 +8,15 @@
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "dsp-next/fixed/delay/feedback_shaper.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
+#include "dsp-next/fixed/filter/filter_set.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
 #include "dsp-next/fixed/mix/dry_wet.h"
+#include "dsp-next/fixed/noise/congruential_step.h"
 #include "dsp-next/fixed/shaping/legacy/antialiased_tanh.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "util/fixedpoint.h"
+#include "util/waves.h" // jcong
 
 #include <algorithm>
 #include <array>
@@ -27,6 +30,7 @@
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include <cppspec.hpp>
@@ -302,6 +306,45 @@ const std::vector<std::string_view> kDelayCaseNames{
     "delay_feedback_chain_digital",
 };
 
+/// The filters list's names, in order.
+const std::vector<std::string_view> kFilterCaseNames{
+    "calibration_loop",
+    "filter_lp12_mono",
+    "filter_lp12_stereo",
+    "filter_lp24_mono",
+    "filter_lp24_stereo",
+    "filter_lpdrive_mono",
+    "filter_lpdrive_stereo",
+    "filter_lpdrive_os_mono",
+    "filter_lpdrive_os_stereo",
+    "filter_hp_mono",
+    "filter_hp_stereo",
+    "filter_svf_band_mono",
+    "filter_svf_band_stereo",
+    "filter_svf_notch_mono",
+    "filter_svf_notch_stereo",
+    "filterset_hl_stereo",
+    "filterset_lh_stereo",
+    "filterset_par_stereo",
+    "delay_feedback_chain_analog",
+    "delay_feedback_chain_digital",
+};
+
+/// Each filters list case's configuration and the noise draws it makes per channel-sample, in order after the
+/// calibration loop: the low-pass ladder draws once per channel-sample, twice when the drive ladder oversamples, and
+/// the high-pass ladder and the SVF never.
+const std::vector<std::pair<FilterCaseConfig, uint32_t>> kFilterCaseConfigs{
+    {kFilterLow12, 1}, {kFilterLow24, 1},   {kFilterLowDrive, 1}, {kFilterLowDriveOs, 2},
+    {kFilterHigh, 0},  {kFilterSvfBand, 0}, {kFilterSvfNotch, 0},
+};
+
+/// Each filter set case's route, in order after the single filters.
+const std::vector<dsp::fixed::FilterRoute> kFilterSetRoutes{
+    dsp::fixed::FilterRoute::HIGH_TO_LOW,
+    dsp::fixed::FilterRoute::LOW_TO_HIGH,
+    dsp::fixed::FilterRoute::PARALLEL,
+};
+
 /// Each delay list case's configuration, in order after the calibration loop.
 const std::vector<DelayWholeConfig> kDelayCaseConfigs{
     delay_whole_mode(DelayTapeForm::NATIVE, false, false),
@@ -419,6 +462,47 @@ std::vector<q31> interleaved(std::span<const StereoSample> frames) {
 		out.push_back(frame.r);
 	}
 	return out;
+}
+
+/// A filter case's run, rendered by direct calls to a filter set of its own.
+struct FilterReference {
+	std::vector<q31> last_block; ///< The block after the run, mono or interleaved.
+	q31 gain{};                  ///< The last configure's gain.
+	uint32_t noise{};            ///< The synth-wide noise state after the run.
+};
+
+/// @p config's run of @p blocks blocks of @p n frames (one sample each, two in @p stereo), from the filter cases'
+/// documented start: a reset set, the noise at kFilterNoiseSeed, the block the lanes input's first samples as
+/// fill_filter_input() fills them, each block configured and filtered in place.
+FilterReference filter_reference(const FilterCaseConfig& config, std::size_t n, bool stereo, std::size_t blocks) {
+	const std::size_t samples = stereo ? 2 * n : n;
+	fill_filter_input();
+	FilterReference out;
+	out.last_block.assign(lanes_input().begin(), lanes_input().begin() + static_cast<std::ptrdiff_t>(samples));
+	std::vector<q31> fade(samples);
+	std::vector<q31> parallel(samples);
+	jcong = kFilterNoiseSeed;
+	dsp::fixed::FilterSet set;
+	for (std::size_t b = 0; b < blocks; ++b) {
+		out.gain =
+		    set.configure(kFilterGain, config.low_config, config.low, config.high_config, config.high, config.route);
+		if (stereo) {
+			set.renderStereo(out.last_block, {.fade = fade, .parallel = parallel});
+		}
+		else {
+			set.renderMono(out.last_block, {.fade = fade, .parallel = parallel});
+		}
+	}
+	out.noise = jcong;
+	return out;
+}
+
+/// The noise state @p draws draws after @p seed.
+uint32_t noise_after(uint32_t seed, std::size_t draws) {
+	for (std::size_t i = 0; i < draws; ++i) {
+		seed = dsp::fixed::CongruentialStep::next(seed);
+	}
+	return seed;
 }
 
 /// A delay whole case's run, rendered by a direct call to `DelayProcessor::process` per block over tapes of its own.
@@ -756,7 +840,8 @@ describe bench_runner("The DSP benchmark runner", ${
 			for (const auto& [list, expected] : {std::pair{CaseList::KERNELS, kKernelCaseNames},
 			                                     std::pair{CaseList::LANES, kLaneCaseNames},
 			                                     std::pair{CaseList::CHAIN, kChainCaseNames},
-			                                     std::pair{CaseList::DELAY, kDelayCaseNames}}) {
+			                                     std::pair{CaseList::DELAY, kDelayCaseNames},
+			                                     std::pair{CaseList::FILTERS, kFilterCaseNames}}) {
 				std::vector<std::string_view> names;
 				for (const Case& c : cases(list)) {
 					names.push_back(c.name);
@@ -781,6 +866,10 @@ describe bench_runner("The DSP benchmark runner", ${
 			for (const Case& c : cases(CaseList::DELAY)) {
 				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
 			}
+			for (const Case& c : cases(CaseList::FILTERS)) {
+				const bool mono = c.name == "calibration_loop" || c.name.ends_with("_mono");
+				expect(c.lanes).to_equal(mono ? std::size_t{1} : std::size_t{2});
+			}
 			for (const Case& c : cases(CaseList::KERNELS)) {
 				expect(c.lanes).to_equal(c.name == "stereo_gain" ? std::size_t{2} : std::size_t{1});
 			}
@@ -790,7 +879,8 @@ describe bench_runner("The DSP benchmark runner", ${
 			for (const auto& [list, names] : {std::pair{CaseList::KERNELS, kKernelCaseNames},
 			                                  std::pair{CaseList::LANES, kLaneCaseNames},
 			                                  std::pair{CaseList::CHAIN, kChainCaseNames},
-			                                  std::pair{CaseList::DELAY, kDelayCaseNames}}) {
+			                                  std::pair{CaseList::DELAY, kDelayCaseNames},
+			                                  std::pair{CaseList::FILTERS, kFilterCaseNames}}) {
 				lines.clear();
 				counters.reset();
 				const RunConfig config{.block_sizes = kBlockSizes};
@@ -1278,6 +1368,44 @@ describe bench_runner("The DSP benchmark runner", ${
 					}
 					// No run reaches the end of the primary, so the read head never wraps.
 					expect(rig.result.wrapped).to_be_false();
+				}
+			}
+		});
+
+		it("renders each filter case as a direct call to a filter set per block, its noise draws counted, at every size", _ {
+			const std::span<const Case> filters = cases(CaseList::FILTERS);
+			// The calibration loop, each filter mono then stereo, the filter sets, then the two feedback chain controls.
+			expect(filters.size()).to_equal((2 * kFilterCaseConfigs.size()) + kFilterSetRoutes.size() + 3);
+			std::vector<std::tuple<FilterCaseConfig, bool, uint32_t>> runs;
+			for (const auto& [config, draws] : kFilterCaseConfigs) {
+				runs.emplace_back(config, false, draws);
+				runs.emplace_back(config, true, draws);
+			}
+			for (const dsp::fixed::FilterRoute route : kFilterSetRoutes) {
+				runs.emplace_back(filter_set_case(route), true, 1);
+			}
+			for (std::size_t i = 0; i < runs.size(); ++i) {
+				const auto& [config, stereo, draws] = runs[i];
+				const Case& c = filters[i + 1];
+				expect(c.lanes).to_equal(stereo ? std::size_t{2} : std::size_t{1});
+				for (const std::size_t n : kSizes) {
+					const std::size_t blocks = RunConfig{}.blocks_per_run(n);
+					const FilterReference expected = filter_reference(config, n, stereo, blocks);
+					c.setup(component_of(c), n);
+					for (std::size_t b = 0; b < blocks; ++b) {
+						c.block(component_of(c), n);
+					}
+					const std::size_t samples = stereo ? 2 * n : n;
+					expect(std::vector<q31>{lanes_output().begin(),
+					                        lanes_output().begin() + static_cast<std::ptrdiff_t>(samples)})
+					    .to_equal(expected.last_block);
+					expect(std::ranges::count(expected.last_block, 0)).to_be_less_than(std::ptrdiff_t{2});
+					expect(filter_rig().gain).to_equal(expected.gain);
+					expect(jcong).to_equal(expected.noise);
+					expect(jcong).to_equal(noise_after(kFilterNoiseSeed, blocks * samples * draws));
+					expect(filter_rig().set.isLowPassOn()).to_equal(config.low.kind != dsp::fixed::LowPassSlot::Kind::OFF);
+					expect(filter_rig().set.isHighPassOn())
+					    .to_equal(config.high.kind != dsp::fixed::HighPassSlot::Kind::OFF);
 				}
 			}
 		});

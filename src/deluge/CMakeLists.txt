@@ -30,12 +30,14 @@ if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
     ${CMAKE_CURRENT_LIST_DIR}/bench/cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/delay_feedback_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/delay_cases.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bench/filter_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/pmu_a9.cpp
   )
-  # The delay ships from deluge_dsp_fixed, so its feedback and whole cases take that library's flags
+  # The delay and the filters ship from deluge_dsp_fixed, so their cases take that library's flags
   # (dsp-next/CMakeLists.txt): ARM mode, -finline-functions and no LTO, each after the app's own and so in force.
   set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/bench/delay_feedback_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/delay_cases.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bench/filter_cases.cpp
     PROPERTIES COMPILE_OPTIONS "-fno-lto;-finline-functions;-marm")
 endif()
 
@@ -103,8 +105,11 @@ if(_dsp_bench_on)
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_CHAIN=1)
     elseif(DELUGE_DSP_BENCH_CASES STREQUAL "delay")
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_DELAY=1)
+    elseif(DELUGE_DSP_BENCH_CASES STREQUAL "filters")
+        target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_FILTERS=1)
     elseif(NOT DELUGE_DSP_BENCH_CASES STREQUAL "kernels")
-        message(FATAL_ERROR "DELUGE_DSP_BENCH_CASES is kernels, lanes, chain or delay, not '${DELUGE_DSP_BENCH_CASES}'")
+        message(FATAL_ERROR
+            "DELUGE_DSP_BENCH_CASES is kernels, lanes, chain, delay or filters, not '${DELUGE_DSP_BENCH_CASES}'")
     endif()
     message(STATUS "DSP bench case list: ${DELUGE_DSP_BENCH_CASES}")
 endif()
