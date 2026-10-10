@@ -301,10 +301,15 @@ public:
 	}
 
 private:
-	/// @brief The words of a packed state: member m is N q31 lanes, so lane i's word m sits at m × N + i.
-	static constexpr std::size_t kWords = sizeof(State) / sizeof(q31); ///< The words in one State.
-	/// @brief @p W q31 words, for reading a trivially copyable value as words; named only where used, so a kernel with
-	/// an empty State never forms a zero-length array.
+	/// @brief The q31 words in one State. Member m of a packed state is N q31 lanes, so lane i's word m sits at
+	/// m × N + i.
+	static constexpr std::size_t kWords = sizeof(State) / sizeof(q31);
+	static_assert(!kOpMajor || kWords > 0,
+	              "an op-major State is whole q31 words, at least one, so a packed lane never forms Words<0>");
+
+	/// @brief @p W q31 words, for reading a trivially copyable value as words. Named only on the op-major paths, whose
+	/// State is at least one word: @ref lane_packable requires a State made of whole q31 words, and an empty struct
+	/// is one byte.
 	template <std::size_t W>
 	struct Words {
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)

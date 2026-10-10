@@ -450,6 +450,27 @@ struct OverAlignedCounter : PackedCounter {
 };
 
 static_assert(!lane_packable<OverAlignedCounter>, "an over-aligned packed state is not op-major");
+
+/// A pass-through written over its value type with no memory: an empty State is no whole q31 word.
+struct EmptyPackedPass {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	template <class V>
+	struct StateT {};
+	using State = StateT<q31>;
+	static constexpr bool kLanePackable = true;
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	template <class V>
+	[[gnu::always_inline]] static V step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, StateT<V>& /*s*/,
+	                                     std::type_identity_t<V> x) {
+		return x;
+	}
+};
+
+static_assert(processor_kernel<EmptyPackedPass> && !lane_packable<EmptyPackedPass>,
+              "an empty State is not op-major, so an op-major Lanes never reads a State as zero words");
 static_assert(detail::lane_pack_opt_in_met<OnePole> && detail::lane_pack_opt_in_met<Tracker>
                   && detail::lane_pack_opt_in_met<PackedCounter> && detail::lane_pack_opt_in_met<Gain>
                   && detail::lane_pack_opt_in_met<LaneByLane<OnePole>>,
