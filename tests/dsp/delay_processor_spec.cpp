@@ -24,8 +24,10 @@
 // holds the recorder's allocator fill, so the samples a fresh tape has not cleared are pinned too.
 //
 // The recorded workloads (delay_workloads.h) run every mode combination, rate sweeps, secondaries grown through their
-// swaps, read-head wraps, a new delay's first blocks and both ends of the rate range through the same lifecycle; the
-// staged reference (reference_delay_processor.h) must render each as today's processor does.
+// swaps, read-head wraps, a new delay's first blocks, both ends of the rate range and delays shorter than a block
+// through the same lifecycle. The staged reference (reference_delay_processor.h) must render each as today's
+// processor does; what today's processor and the frame-order reference (the delay line's order, the fused kernel's
+// target) render from each is pinned.
 
 #include "delay_workloads.h"
 #include "dsp-next/fixed/delay/delay_processor.h"
@@ -572,10 +574,11 @@ describe delay_processor("DelayProcessor", ${
 	   "their heads", _ {
 		std::vector<std::string> parted;
 		for (const delay_workloads::Workload& workload : delay_workloads::all_workloads()) {
-			const std::string where =
+			const auto parting =
 			    delay_workloads::first_parting<DelayProcessor, delay_reference::ReferenceDelayProcessor>(workload);
-			if (!where.empty()) {
-				parted.push_back(where);
+			if (parting) {
+				parted.push_back(std::string{workload.name} + " block " + std::to_string(parting->block) + ": "
+				                 + parting->what);
 			}
 		}
 		expect(parted).to_equal(std::vector<std::string>{});
@@ -589,6 +592,15 @@ describe delay_processor("DelayProcessor", ${
 			    delay_workloads::kRecorded.at(static_cast<size_t>(workload.id));
 			expect(recorded.outputs.size()).to_equal(workload.blocks);
 			expect(delay_workloads::record<DelayProcessor>(workload)).to_equal(recorded);
+		}
+	});
+
+	it("renders every workload in the delay line's frame order as recorded, block for block", _ {
+		for (const delay_workloads::Workload& workload : delay_workloads::all_workloads()) {
+			const delay_workloads::WorkloadRecord& recorded =
+			    delay_workloads::kRecordedFrameOrder.at(static_cast<size_t>(workload.id));
+			expect(recorded.outputs.size()).to_equal(workload.blocks);
+			expect(delay_workloads::record<delay_reference::FrameOrderDelayProcessor>(workload)).to_equal(recorded);
 		}
 	});
 });

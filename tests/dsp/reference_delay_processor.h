@@ -16,9 +16,10 @@
  */
 
 /// @file
-/// @brief ReferenceDelayProcessor: the delay's block in its staged order (read the whole block, shape, mix, then
-/// write it all back), copied from `DelayProcessor` line for line, with a test-only log of every tape address it
-/// clears, reads and writes. A fused delay, one walk per frame, is checked against it.
+/// @brief The delay's two reference orders, with a test-only log of every tape address they clear, read and write:
+/// ReferenceDelayProcessor, today's staged order (read the whole block, shape, mix, then write it all back), copied
+/// from `DelayProcessor` line for line; and FrameOrderDelayProcessor, the same steps one frame at a time, the delay
+/// line's order and the fused kernel's target.
 
 #pragma once
 
@@ -76,7 +77,12 @@ struct TapeAccess {
 using AddressLogger = std::function<void(const TapeAccess&)>;
 
 /// @brief Today's `DelayProcessor`, test-local: `process`, `read`, `mix`, `writePrimary` and `writeSecondary` as it
-/// renders them, with the feedback as its `Stereo<FeedbackChain>`.
+/// renders them, with the feedback as its `Stereo<FeedbackChain>`: the record of today's staged order.
+///
+/// The staged order reads the whole block before writing any of it back. When a block's walk laps the tape (on
+/// 128-frame blocks, delays shorter than 129 samples: rates of 2130706433 and up), a later frame reads or clears a
+/// sample before an earlier frame's write reaches it, and echoes are lost (.superpowers/findings/delay-lap/).
+/// @ref FrameOrderDelayProcessor is the delay line's order.
 ///
 /// With a logger set, each tape access is reported. Clears, reads and native writes are reported at the access. A
 /// resampled write is reported by probing: the samples around the write head are saved and zeroed, a probe sample
@@ -128,10 +134,19 @@ public:
 		return result;
 	}
 
+	/// @brief The high-pass's memories to 0 in both channels; the impulse response's history is kept.
+	void resetHighPass() { feedback_.on<&FeedbackChain::reset_part<1>>(); }
+
+	/// @brief Reports every tape access from the next block on; an empty logger reports none.
+	void setLogger(AddressLogger logger) { log_ = std::move(logger); }
+
+	/// @brief The feedback chain on both channels, between blocks.
+	[[nodiscard]] const Stereo<FeedbackChain>& feedback() const { return feedback_; }
+
+protected:
 	/// @brief One block in frame order: each frame read, shaped, mixed and written to both tapes before the next is
-	/// read, as a fused delay walks it. Equal to process() exactly when no frame's write lands where a later frame of
-	/// the block clears or reads.
-	[[nodiscard]] DelayBlockResult processFrameByFrame(std::span<StereoSample> block, DelayTape* primary,
+	/// read. Equal to process() exactly when no frame's write lands where a later frame of the block clears or reads.
+	[[nodiscard]] DelayBlockResult processInFrameOrder(std::span<StereoSample> block, DelayTape* primary,
 	                                                   DelayTape* secondary, const DelayBlock& settings,
 	                                                   std::span<StereoSample> scratch) {
 		const bool reading = primary != nullptr && primary->isActive();
@@ -176,15 +191,6 @@ public:
 		}
 		return {.wrapped = primary_wrapped, .secondary_written = 0};
 	}
-
-	/// @brief The high-pass's memories to 0 in both channels; the impulse response's history is kept.
-	void resetHighPass() { feedback_.on<&FeedbackChain::reset_part<1>>(); }
-
-	/// @brief Reports every tape access from the next block on; an empty logger reports none.
-	void setLogger(AddressLogger logger) { log_ = std::move(logger); }
-
-	/// @brief The feedback chain on both channels, between blocks.
-	[[nodiscard]] const Stereo<FeedbackChain>& feedback() const { return feedback_; }
 
 private:
 	void configure(const DelayBlock& settings) {
@@ -384,6 +390,20 @@ private:
 	/// @brief The half-width the next probe starts from: half the last one that held its write, so a run of writes
 	/// at one rate rarely widens twice.
 	mutable int32_t probe_radius_ = kMinProbeRadius;
+};
+
+/// @brief The delay line's order: each frame read, its feedback shaped, mixed, and written to both tapes before the
+/// next frame is read. Every echo lands where the tape puts it, D = S − 1 samples on a native tape of S samples and
+/// S / spin on a resampling one, however short the delay; the staged order (@ref ReferenceDelayProcessor) drops or
+/// damages echoes when a block laps the tape and otherwise equals this bit for bit. The measurements are in
+/// .superpowers/findings/delay-lap/. A fused delay kernel must equal this on every workload.
+class FrameOrderDelayProcessor : public ReferenceDelayProcessor {
+public:
+	/// @brief One block in frame order, with `DelayProcessor::process`'s signature.
+	[[nodiscard]] DelayBlockResult process(std::span<StereoSample> block, DelayTape* primary, DelayTape* secondary,
+	                                       const DelayBlock& settings, std::span<StereoSample> scratch) {
+		return processInFrameOrder(block, primary, secondary, settings, scratch);
+	}
 };
 
 } // namespace delay_reference

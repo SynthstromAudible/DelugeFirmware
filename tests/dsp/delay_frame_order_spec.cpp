@@ -15,11 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The delay's frame order: whether one walk per frame (read, shape, mix, write) leaves the tapes as the staged block
-// does (read every frame, then write every frame back). It does exactly when no frame writes a tape sample that a
-// later frame of the same block clears or reads. The staged reference (reference_delay_processor.h) logs every clear,
-// read and write address of every recorded workload (delay_workloads.h); the check below finds every write a later
-// frame clears or reads, and the frame-by-frame order is run beside the staged one to show the two part exactly there.
+// Where today's staged delay order was wrong. The staged block reads every frame, then writes every frame back; the
+// delay line's order, which the fused kernel takes, walks each frame (read, shape, mix, write) before the next. The two
+// part exactly where a frame writes a tape sample that a later frame of the same block clears or reads: on 128-frame
+// blocks, delays shorter than 129 samples, where the block's walk laps the tape and the staged order loses echoes
+// (.superpowers/findings/delay-lap/). The staged reference's address log names those lapping blocks on every
+// recorded workload, and the two references are run side by side to show they part there and nowhere else.
+// delay_echo_spec measures the frame order's echoes against where the tape puts them.
 
 #include "delay_workloads.h"
 #include "reference_delay_processor.h"
@@ -32,6 +34,7 @@
 #include <iterator>
 #include <limits>
 #include <map>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -49,13 +52,8 @@ namespace {
 /// The staged reference.
 using Staged = delay_reference::ReferenceDelayProcessor;
 
-/// The staged reference's steps in frame order: each frame read, shaped, mixed and written before the next.
-struct FrameByFrame : delay_reference::ReferenceDelayProcessor {
-	DelayBlockResult process(std::span<StereoSample> block, DelayTape* primary, DelayTape* secondary,
-	                         const DelayBlock& settings, std::span<StereoSample> scratch) {
-		return processFrameByFrame(block, primary, secondary, settings, scratch);
-	}
-};
+/// The delay line's order.
+using FrameOrder = delay_reference::FrameOrderDelayProcessor;
 
 /// One sample a frame writes, flagged by the frame-order check.
 struct FlaggedWrite {
@@ -194,13 +192,31 @@ const std::vector<OrderCheck>& orderChecks() {
 	return checks;
 }
 
-/// @return @p writes summarised per block and tape, one line each: how many, the samples they span, the frames that
-/// made them, and (out of order) how many a later frame cleared or read, and the latest such frame.
+/// @return @p blocks (ascending, unique) as ranges: "2-11", or "2, 4-5".
+std::string blockRanges(const std::vector<size_t>& blocks) {
+	std::string out;
+	for (size_t i = 0; i < blocks.size();) {
+		size_t j = i;
+		while (j + 1 < blocks.size() && blocks[j + 1] == blocks[j] + 1) {
+			++j;
+		}
+		out += (out.empty() ? "" : ", ") + std::to_string(blocks[i]);
+		if (j > i) {
+			out += "-" + std::to_string(blocks[j]);
+		}
+		i = j + 1;
+	}
+	return out;
+}
+
+/// @return @p writes summarised per tape, one line each: the blocks they fall in, how many, the samples they span,
+/// the frames that made them, and (out of order) how many a later frame cleared or read, and the latest such frame.
 std::vector<std::string> summarise(std::string_view workload, const std::vector<FlaggedWrite>& writes) {
 	using delay_reference::TapeAccessKind;
 	using delay_reference::TapeRole;
 	struct Group {
-		size_t samples = 0;
+		std::vector<size_t> blocks;
+		size_t writes = 0;
 		int32_t low = std::numeric_limits<int32_t>::max();
 		int32_t high = -1;
 		int32_t first_write = std::numeric_limits<int32_t>::max();
@@ -209,10 +225,13 @@ std::vector<std::string> summarise(std::string_view workload, const std::vector<
 		size_t read = 0;
 		int32_t later = -1;
 	};
-	std::map<std::pair<size_t, TapeRole>, Group> groups;
+	std::map<TapeRole, Group> groups;
 	for (const FlaggedWrite& w : writes) {
-		Group& g = groups[{w.block, w.tape}];
-		++g.samples;
+		Group& g = groups[w.tape];
+		if (g.blocks.empty() || g.blocks.back() != w.block) {
+			g.blocks.push_back(w.block);
+		}
+		++g.writes;
 		g.low = std::min(g.low, w.index);
 		g.high = std::max(g.high, w.index);
 		g.first_write = std::min(g.first_write, w.write_frame);
@@ -222,12 +241,11 @@ std::vector<std::string> summarise(std::string_view workload, const std::vector<
 		g.later = std::max(g.later, w.later_frame);
 	}
 	std::vector<std::string> out;
-	for (const auto& [key, g] : groups) {
-		std::string line = std::string{workload} + " block " + std::to_string(key.first)
-		                   + (key.second == TapeRole::PRIMARY ? " primary: " : " secondary: ")
-		                   + std::to_string(g.samples) + " writes in [" + std::to_string(g.low) + ", "
-		                   + std::to_string(g.high) + "] written by frames " + std::to_string(g.first_write) + "-"
-		                   + std::to_string(g.last_write);
+	for (const auto& [tape, g] : groups) {
+		std::string line = std::string{workload} + (tape == TapeRole::PRIMARY ? " primary" : " secondary") + " blocks "
+		                   + blockRanges(g.blocks) + ": " + std::to_string(g.writes) + " writes in ["
+		                   + std::to_string(g.low) + ", " + std::to_string(g.high) + "] by frames "
+		                   + std::to_string(g.first_write) + "-" + std::to_string(g.last_write);
 		if (g.later >= 0) {
 			line += ", " + std::to_string(g.cleared) + " cleared and " + std::to_string(g.read)
 			        + " read by frames up to " + std::to_string(g.later);
@@ -237,103 +255,105 @@ std::vector<std::string> summarise(std::string_view workload, const std::vector<
 	return out;
 }
 
-/// Every write the frame-order check flags as out of order, summarised per block and tape: all at the top of the rate
-/// range. The neutral tape stepped to the highest rate (128x, before its 128-sample secondary swaps in) walks its
-/// whole ring in a block, so the last frame clears the left tails of the first frames' sped-up triangles. The
-/// 128-sample tape at the highest rate (native at 2^31, so it resamples just below 1x) walks 127 steps in a block, so
-/// the last frame reads, as the sample after the head, the one the first frame's slowed-down write reached two past
-/// the write head. A rate above 2^31 has a 113-sample tape step 196 times per sample, lapping it every frame.
+/// @return The first block of @p check whose primary laps: a frame writes a sample a later frame clears or reads.
+std::optional<size_t> firstLappingBlock(const OrderCheck& check) {
+	std::optional<size_t> first;
+	for (const FlaggedWrite& w : check.out_of_order) {
+		if (w.tape == delay_reference::TapeRole::PRIMARY && (!first || w.block < *first)) {
+			first = w.block;
+		}
+	}
+	return first;
+}
+
+/// Each workload whose two orders part, as "<name>: laps from block <a>, parts at block <b>". A lapping block parts
+/// the orders once a frame writes a nonzero sample a later frame reads or clears: on the lap workloads, the block the
+/// impulse comes round to frame 0, block 2 when it starts there.
+const std::vector<std::string> kParted{
+    "highest_rate: laps from block 2, parts at block 2",       "spin_689: laps from block 4, parts at block 4",
+    "spin_689_secondary: laps from block 8, parts at block 8", "rate_above_2_31: laps from block 2, parts at block 2",
+    "lap_f0_fb075: laps from block 2, parts at block 2",       "lap_f5_fb075: laps from block 2, parts at block 4",
+    "lap_f127_fb075: laps from block 2, parts at block 4",     "lap_f0_fb099: laps from block 2, parts at block 2",
+    "lap_f5_fb099: laps from block 2, parts at block 4",       "lap_f127_fb099: laps from block 2, parts at block 4",
+    "lap_threshold: laps from block 2, parts at block 4",
+};
+
+/// The staged order's lapping blocks, per workload and tape: every write a later frame of its block clears or reads.
+/// - The neutral tape stepped to the highest rate walks 128 steps per sample, its whole ring in a block, so the last
+///   frame clears the left tails of the first frames' sped-up triangles (blocks 2-3 of highest_rate).
+/// - A 128-sample tape at a rate of 2130836488 or more plays a delay of 127 samples (native) or about 128 (resampling
+///   just below 1x, its native made 2^31): a 128-frame block walks 127 or 128 steps of its 148-sample ring, and the
+///   last frame reads the sample the first frame writes.
+/// - A rate above 2^31 has a 113-sample tape step 196 times per sample, lapping it every frame; the secondary's loop
+///   is already in frame order, so its flagged writes part nothing.
 const std::vector<std::string> kOutOfOrder{
-    "highest_rate block 2 primary: 130 writes in [128, 256] written by frames 0-1, 127 cleared and 3 read by frames "
+    "highest_rate primary blocks 2-11: 268 writes in [8, 256] by frames 0-1, 254 cleared and 14 read by frames up to "
+    "127",
+    "spin_689 primary blocks 4-9: 6 writes in [8, 108] by frames 0-0, 0 cleared and 6 read by frames up to 127",
+    "spin_689_secondary primary blocks 8-11: 4 writes in [48, 108] by frames 0-0, 0 cleared and 4 read by frames up to "
+    "127",
+    "rate_above_2_31 primary blocks 2-11: 156501 writes in [0, 2305] by frames 0-126, 156497 cleared and 4 read by "
+    "frames up to 127",
+    "rate_above_2_31 secondary blocks 2: 16891 writes in [0, 132] by frames 0-126, 16891 cleared and 0 read by frames "
     "up to 127",
-    "highest_rate block 3 primary: 130 writes in [108, 236] written by frames 0-1, 127 cleared and 3 read by frames "
-    "up to 127",
-    "highest_rate block 4 primary: 1 writes in [108, 108] written by frames 0-0, 0 cleared and 1 read by frames up to "
+    "lap_f0_fb075 primary blocks 2-10: 9 writes in [8, 136] by frames 0-0, 0 cleared and 9 read by frames up to 127",
+    "lap_f5_fb075 primary blocks 2-10: 9 writes in [8, 136] by frames 0-0, 0 cleared and 9 read by frames up to 127",
+    "lap_f127_fb075 primary blocks 2-11: 10 writes in [8, 136] by frames 0-0, 0 cleared and 10 read by frames up to "
     "127",
-    "highest_rate block 5 primary: 1 writes in [88, 88] written by frames 0-0, 0 cleared and 1 read by frames up to "
+    "lap_f0_fb099 primary blocks 2-10: 9 writes in [8, 136] by frames 0-0, 0 cleared and 9 read by frames up to 127",
+    "lap_f5_fb099 primary blocks 2-10: 9 writes in [8, 136] by frames 0-0, 0 cleared and 9 read by frames up to 127",
+    "lap_f127_fb099 primary blocks 2-11: 10 writes in [8, 136] by frames 0-0, 0 cleared and 10 read by frames up to "
     "127",
-    "highest_rate block 6 primary: 1 writes in [68, 68] written by frames 0-0, 0 cleared and 1 read by frames up to "
-    "127",
-    "highest_rate block 7 primary: 1 writes in [48, 48] written by frames 0-0, 0 cleared and 1 read by frames up to "
-    "127",
-    "highest_rate block 8 primary: 1 writes in [28, 28] written by frames 0-0, 0 cleared and 1 read by frames up to "
-    "127",
-    "highest_rate block 9 primary: 1 writes in [8, 8] written by frames 0-0, 0 cleared and 1 read by frames up to 127",
-    "highest_rate block 10 primary: 1 writes in [136, 136] written by frames 0-0, 0 cleared and 1 read by frames up to "
-    "127",
-    "highest_rate block 11 primary: 1 writes in [116, 116] written by frames 0-0, 0 cleared and 1 read by frames up to "
-    "127",
-    "spin_689 block 4 primary: 1 writes in [108, 108] written by frames 0-0, 0 cleared and 1 read by frames up to 127",
-    "spin_689 block 5 primary: 1 writes in [88, 88] written by frames 0-0, 0 cleared and 1 read by frames up to 127",
-    "spin_689 block 6 primary: 1 writes in [68, 68] written by frames 0-0, 0 cleared and 1 read by frames up to 127",
-    "spin_689 block 7 primary: 1 writes in [48, 48] written by frames 0-0, 0 cleared and 1 read by frames up to 127",
-    "spin_689 block 8 primary: 1 writes in [28, 28] written by frames 0-0, 0 cleared and 1 read by frames up to 127",
-    "spin_689 block 9 primary: 1 writes in [8, 8] written by frames 0-0, 0 cleared and 1 read by frames up to 127",
-    "spin_689_secondary block 8 primary: 1 writes in [108, 108] written by frames 0-0, 0 cleared and 1 read by frames "
-    "up to 127",
-    "spin_689_secondary block 9 primary: 1 writes in [88, 88] written by frames 0-0, 0 cleared and 1 read by frames up "
-    "to 127",
-    "spin_689_secondary block 10 primary: 1 writes in [68, 68] written by frames 0-0, 0 cleared and 1 read by frames "
-    "up "
-    "to 127",
-    "spin_689_secondary block 11 primary: 1 writes in [48, 48] written by frames 0-0, 0 cleared and 1 read by frames "
-    "up "
-    "to 127",
-    "rate_above_2_31 block 2 primary: 4482 writes in [112, 2305] written by frames 0-15, 4478 cleared and 4 read by "
-    "frames up to 127",
-    "rate_above_2_31 block 2 secondary: 16891 writes in [0, 132] written by frames 0-126, 16891 cleared and 0 read by "
-    "frames up to 127",
-    "rate_above_2_31 block 3 primary: 16891 writes in [0, 132] written by frames 0-126, 16891 cleared and 0 read by "
-    "frames up to 127",
-    "rate_above_2_31 block 4 primary: 16891 writes in [0, 132] written by frames 0-126, 16891 cleared and 0 read by "
-    "frames up to 127",
-    "rate_above_2_31 block 5 primary: 16891 writes in [0, 132] written by frames 0-126, 16891 cleared and 0 read by "
-    "frames up to 127",
-    "rate_above_2_31 block 6 primary: 16891 writes in [0, 132] written by frames 0-126, 16891 cleared and 0 read by "
-    "frames up to 127",
-    "rate_above_2_31 block 7 primary: 16891 writes in [0, 132] written by frames 0-126, 16891 cleared and 0 read by "
-    "frames up to 127",
-    "rate_above_2_31 block 8 primary: 16891 writes in [0, 132] written by frames 0-126, 16891 cleared and 0 read by "
-    "frames up to 127",
-    "rate_above_2_31 block 9 primary: 16891 writes in [0, 132] written by frames 0-126, 16891 cleared and 0 read by "
-    "frames up to 127",
-    "rate_above_2_31 block 10 primary: 16891 writes in [0, 132] written by frames 0-126, 16891 cleared and 0 read by "
-    "frames up to 127",
-    "rate_above_2_31 block 11 primary: 16891 writes in [0, 132] written by frames 0-126, 16891 cleared and 0 read by "
-    "frames up to 127",
+    "lap_threshold primary blocks 2-10: 9 writes in [8, 136] by frames 0-0, 0 cleared and 9 read by frames up to 127",
 };
 
 /// Every write to a sample no clear has reached since its tape was made: a fresh secondary's first resampled write,
 /// whose triangle reaches back past the storage's start into its end. The head clears those samples before the tape
-/// is swapped in and read, so nothing plays them.
+/// is swapped in and read, so nothing plays them, in either order.
 const std::vector<std::string> kUncleared{
-    "growth_swap block 24 secondary: 2 writes in [6162, 6163] written by frames 0-0",
-    "growth_moving block 10 secondary: 2 writes in [2578, 2579] written by frames 0-0",
-    "spin_689_secondary block 2 secondary: 174 writes in [88046, 88219] written by frames 0-0",
+    "growth_swap secondary blocks 24: 2 writes in [6162, 6163] by frames 0-0",
+    "growth_moving secondary blocks 10: 2 writes in [2578, 2579] by frames 0-0",
+    "spin_689_secondary secondary blocks 2: 174 writes in [88046, 88219] by frames 0-0",
 };
 
 } // namespace
 
 // clang-format off
 describe delay_frame_order("Delay frame order", ${
-	it("walks every workload frame by frame as it walks it staged, tapes and all, exactly where no frame's write lands "
-	   "on a primary sample a later frame of its block clears or reads", _ {
-		std::vector<std::string> disagree;
+	it("parts from the staged order only where a block laps its tape, on the workloads that reach a delay shorter "
+	   "than a 128-frame block", _ {
+		std::vector<std::string> parted;
 		for (const delay_workloads::Workload& workload : delay_workloads::all_workloads()) {
 			const OrderCheck& check = orderChecks().at(static_cast<size_t>(workload.id));
 			expect(check.writes).to_be_greater_than(size_t{0});
-			const bool primary_in_order = std::ranges::none_of(check.out_of_order, [](const FlaggedWrite& w) {
-				return w.tape == delay_reference::TapeRole::PRIMARY;
-			});
-			if (delay_workloads::first_parting<Staged, FrameByFrame>(workload).empty() != primary_in_order) {
-				disagree.emplace_back(workload.name);
+			const std::optional<size_t> lap = firstLappingBlock(check);
+			const auto part = delay_workloads::first_parting<Staged, FrameOrder>(workload);
+			if (!lap && !part) {
+				continue;
 			}
+			parted.push_back(std::string{workload.name} + ": laps from block "
+			                 + (lap ? std::to_string(*lap) : std::string{"none"}) + ", parts at block "
+			                 + (part ? std::to_string(part->block) : std::string{"none"}));
 		}
-		expect(disagree).to_equal(std::vector<std::string>{});
+		expect(parted).to_equal(kParted);
 	});
 
-	it("writes no tape sample a later frame of its block clears or reads, on every workload but at the top of the rate "
-	   "range", _ {
+	it("records the same as the staged order on every workload but those, and differs on each of them", _ {
+		std::vector<std::string> differ;
+		for (const delay_workloads::Workload& workload : delay_workloads::all_workloads()) {
+			const auto i = static_cast<size_t>(workload.id);
+			if (delay_workloads::kRecorded.at(i) != delay_workloads::kRecordedFrameOrder.at(i)) {
+				differ.emplace_back(workload.name);
+			}
+		}
+		std::vector<std::string> expected;
+		for (const std::string& line : kParted) {
+			expected.push_back(line.substr(0, line.find(':')));
+		}
+		expect(differ).to_equal(expected);
+	});
+
+	it("names the blocks where the staged order laps the tape, and the fresh secondaries' writes past their start", _ {
 		std::vector<std::string> out_of_order;
 		std::vector<std::string> uncleared;
 		for (const delay_workloads::Workload& workload : delay_workloads::all_workloads()) {
