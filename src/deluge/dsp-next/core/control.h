@@ -74,14 +74,7 @@ public:
 
 	/// @brief Return to the reset State: State{}, or whatever K's `static void reset(State&)` quirk sets when K
 	/// declares one. The coefficients are kept.
-	[[gnu::always_inline]] void reset() {
-		if constexpr (detail::declares_reset<K>) {
-			K::reset(state_);
-		}
-		else {
-			state_ = State{};
-		}
-	}
+	[[gnu::always_inline]] void reset() { detail::reset_state<K>(state_); }
 
 	/// @brief The kernel's state between blocks.
 	[[gnu::always_inline]] [[nodiscard]] const State& state() const { return state_; }

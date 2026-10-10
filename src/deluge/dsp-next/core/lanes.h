@@ -197,12 +197,7 @@ public:
 		}
 		else {
 			for (State& s : states_.lane) {
-				if constexpr (detail::declares_reset<K>) {
-					K::reset(s);
-				}
-				else {
-					s = State{};
-				}
+				detail::reset_state<K>(s);
 			}
 		}
 	}

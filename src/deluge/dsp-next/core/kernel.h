@@ -575,6 +575,19 @@ template <typename K, auto Event, typename... A>
 	}
 }
 
+/// @brief Set @p s to K's reset State: K's `static void reset(State&)` quirk when it declares one, else `State{}`.
+/// @details The one reset rule: `Control::reset`, `Mono::reset`, lane-by-lane `Lanes::reset`, and a chain's `reset`
+/// and `reset_part` all call it, so they agree under every wrapper by construction.
+template <typename K>
+[[gnu::always_inline]] inline void reset_state(typename K::State& s) {
+	if constexpr (declares_reset<K>) {
+		K::reset(s);
+	}
+	else {
+		s = typename K::State{};
+	}
+}
+
 } // namespace detail
 
 /// @brief The calls a wrapper makes on a kernel, public so that a composed kernel makes the same calls on its parts.

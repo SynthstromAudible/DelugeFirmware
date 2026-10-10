@@ -138,17 +138,6 @@ inline constexpr bool chain_shares_types<K0, Rest...> =
       && std::same_as<typename Rest::step_type, typename K0::step_type>)
      && ...);
 
-/// @brief Set @p s to K's reset State: K's `reset` quirk when it declares one, else `State{}`.
-template <typename K>
-[[gnu::always_inline]] inline void reset_state(typename K::State& s) {
-	if constexpr (declares_reset<K>) {
-		K::reset(s);
-	}
-	else {
-		s = typename K::State{};
-	}
-}
-
 } // namespace detail
 
 namespace detail {
