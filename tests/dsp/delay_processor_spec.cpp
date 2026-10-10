@@ -396,6 +396,73 @@ Record run(const Case& c) {
 	return record;
 }
 
+/// One block of a run on a primary tape alone: its settings, and whether the delay is switched off and on again, as
+/// its owner does, before it.
+struct Step {
+	bool analog = true;
+	int32_t saturation = 8;
+	bool reactivate = false;
+};
+
+/// Each block's output digest over @p steps, played by one processor on a native-rate primary tape: a reactivation
+/// calls resetHighPass and plays on a new tape, as the owner does when a delay starts again.
+std::vector<uint64_t> runSteps(const std::vector<Step>& steps) {
+	DelayProcessor processor;
+	processor.resetHighPass();
+	Buffer primary;
+	std::ignore = primary.init(kNativeRate);
+	std::array<StereoSample, 128> scratch{};
+	std::vector<uint64_t> digests;
+	int32_t k = 0;
+	for (const Step& step : steps) {
+		if (step.reactivate) {
+			processor.resetHighPass();
+			primary = {};
+			std::ignore = primary.init(kNativeRate);
+		}
+		std::array<StereoSample, kBlockSize> block{};
+		for (StereoSample& s : block) {
+			s = input(k++);
+		}
+		std::ignore = processor.process(block, &primary.tape, nullptr,
+		                                {.rate = kNativeRate,
+		                                 .feedback = 0x38000000,
+		                                 .analog = step.analog,
+		                                 .analog_saturation = step.saturation,
+		                                 .ping_pong = false,
+		                                 .render_in_stereo = true},
+		                                scratch);
+		digests.push_back(digest(words(block)));
+	}
+	return digests;
+}
+
+/// Eight analog blocks at a sound's drive, the delay switched off and on again before the fifth.
+std::vector<Step> reactivation() {
+	std::vector<Step> steps(8);
+	steps[4].reactivate = true;
+	return steps;
+}
+
+/// Nine blocks at a host chain's drive: three analog, three digital, three analog.
+std::vector<Step> modeSwitch() {
+	std::vector<Step> steps(9, Step{.saturation = 5});
+	for (size_t b = 3; b < 6; ++b) {
+		steps[b].analog = false;
+	}
+	return steps;
+}
+
+/// reactivation, per block.
+const std::vector<uint64_t> kReactivation{0x8aa7220a7c697fabull, 0x5376b9bd707e1438ull, 0x512938d1fa2845fdull,
+                                          0xc2d71cd2941a5d36ull, 0x22afd840ab053535ull, 0xf3062b8c58040d8eull,
+                                          0x54c66d0892025357ull, 0x48016699cf038d20ull};
+
+/// modeSwitch, per block.
+const std::vector<uint64_t> kModeSwitch{0xa311cc4b9a7f8d1bull, 0x752a675ed800cd40ull, 0x1ca45bb0240210b9ull,
+                                        0x3355483403b6f12cull, 0xd3f49f7106e57afbull, 0xe166c9a5f581d580ull,
+                                        0x18362807d470e747ull, 0x6771a96b601fe5f4ull, 0x22cd52b8d0b30a1cull};
+
 } // namespace
 
 // clang-format off
@@ -484,6 +551,14 @@ describe delay_processor("DelayProcessor", ${
 	it("keeps playing through a rate change: resampling, a secondary tape grown and swapped in, the wraps the "
 	   "secondary's while it grows", _ {
 		expect(run(rateChange())).to_equal(kRateChange);
+	});
+
+	it("starts again after a reactivation with the impulse response's sums from before it, its high-pass reset", _ {
+		expect(runSteps(reactivation())).to_equal(kReactivation);
+	});
+
+	it("resumes the impulse response's sums in analog after digital blocks left them untouched", _ {
+		expect(runSteps(modeSwitch())).to_equal(kModeSwitch);
 	});
 });
 // clang-format on
