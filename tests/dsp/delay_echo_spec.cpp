@@ -19,7 +19,7 @@
 // reference (the delay line's order, which the fused kernel takes) and the shipped DelayProcessor put every echo where
 // the tape does: D = S - 1 samples on a native tape of S samples, S / spin on a resampling one. The staged order drops
 // a native 128-sample tape's echoes once they come round to block frame 0, and damages those at block frame 0 on the
-// 128-sample tape resampling just below 1x (.superpowers/findings/delay-lap/).
+// 128-sample tape resampling just below 1x (delay_frame_order_spec pins the delay line's order).
 
 #include "delay_workloads.h"
 #include "reference_delay_processor.h"

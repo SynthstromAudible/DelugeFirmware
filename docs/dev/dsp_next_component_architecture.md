@@ -246,8 +246,8 @@ A kernel takes exactly one form; a class providing two satisfies none.
 for block-staged arithmetic only**: arithmetic that must read a whole block,
 shape it, then write the whole block. Arithmetic that is per sample or per
 vector is a `step`, even when it reads and writes memory outside its State (see
-[A frame step over external memory](#a-frame-step-over-external-memory-delay)). A staged kernel has no `Block`, so it declares
-no `prepare`; its per-block work is `process` itself. A staged kernel may be
+[A frame step over external memory](#a-frame-step-over-external-memory-delay)). A staged kernel has no `Block`, so it
+declares no `prepare`; its per-block work is `process` itself. A staged kernel may be
 moded, with `process<M>`.
 
 **`process` works in place.** The app renders with `in` and `out` the same
@@ -285,13 +285,16 @@ next frame is read.
   delay line's behaviour, and `render-audio-track-delay-extremes` renders it.
 - **Modes are the per-frame choices; the rest is per block.** Shaper, mix and
   tape form are the eight modes, one loop each. `prepare` sets up the tapes for
-  the block (`DelayTape::setupForRender`, the one out-of-line call per block)
+  the block (`DelayTape::setupForRender`, an out-of-line call per active tape, so up to two per block)
   and takes their storage bounds into the `Block`. Whether the primary reads and
-  the secondary grows stays a branch in the loop: it changes only at a new
-  delay's first blocks.
-- **Cold work stays out of line.** The resampled secondary's write runs only in
-  the few blocks a resampled secondary grows, so it is one `noinline` cold call
-  rather than code inlined into all eight loops.
+  the secondary grows stays a branch in the loop: `growing` holds during every
+  secondary growth (a settled rate, the rate at least doubled, or the rate below
+  half), not only at a new delay's first blocks.
+- **Cold work stays out of line.** The resampled secondary's write runs only
+  while a resampled secondary grows, which lasts about one delay period (up to
+  about 345 blocks, roughly 1 s, at the maximum length), so it is one `noinline`
+  cold call rather than code inlined into all eight loops. The bench's `growing`
+  case uses a native secondary, so the resampled-growth path is not benched.
 - **It declares `kStateInPlace`.** Its State is two response histories, about
   424 bytes; see [`Mono<K>`](#monok-coremonoh).
 

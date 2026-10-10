@@ -55,8 +55,9 @@ using DelayFeedbackChain = Chain<FeedbackShaper, Pinned<ShiftTracker<11>, ShiftT
 ///    it: natively the sample behind where the read began, resampled the triangle the read's own strengths give.
 ///    Following the read is the same as walking the head again from where it stood, without the second walk. With
 ///    `growing`, the secondary is written too, clearing ahead of its own head and counting its steps: natively inline,
-///    one step a frame; resampling, through @ref writeSecondaryResampled, an out-of-line call made only in the few
-///    blocks a resampled secondary grows, so the eight loops do not each carry its advance and triangle write.
+///    one step a frame; resampling, through @ref writeSecondaryResampled, an out-of-line call made only while a
+///    resampled secondary grows (about one delay period, up to about 345 blocks at the longest), so the eight loops
+///    do not each carry its advance and triangle write.
 /// 5. **Return** the dry frame plus the feedback.
 ///
 /// Each frame's write lands before the next frame's read, so an echo at a delay shorter than the block comes round
@@ -77,7 +78,8 @@ using DelayFeedbackChain = Chain<FeedbackShaper, Pinned<ShiftTracker<11>, ShiftT
 ///
 /// **Hot path.** The tape, the response and the chain are stepped through their inline members, and the block's
 /// storage bounds are taken once per block (@ref Block). Under the DSP library's flags, where the kernel is
-/// instantiated, the eight loops make no call; the tape's out-of-line `setupForRender` runs once per block in
+/// instantiated, the steady-state loops make no call; the one cold call, @ref writeSecondaryResampled, is taken
+/// only while a resampled secondary grows. The tape's out-of-line `setupForRender` runs once per block in
 /// @ref prepare.
 struct Delay {
 	using value_type = StereoSample; ///< A frame, Q31 per channel.
@@ -327,8 +329,9 @@ struct Delay {
 
 	/// @brief Writes @p sample (Q31) to a growing secondary that resamples: its read head advanced by the spin,
 	/// clearing each sample it leaves, then the triangle the advance's 16.16 strengths give.
-	/// @details Out of line and cold: a resampled secondary grows only in the few blocks after a rate change, and
-	/// this one shared copy keeps its advance and its sped-up and slowed-down writes out of all eight loops.
+	/// @details Out of line and cold: a resampled secondary grows only for about one delay period after a rate change
+	/// (up to about 345 blocks at the longest), and this one shared copy keeps its advance and its sped-up and
+	/// slowed-down writes out of all eight loops.
 	[[gnu::noinline, gnu::cold]] static SecondaryWrite writeSecondaryResampled(DelayTape& secondary,
 	                                                                           StereoSample sample) {
 		SecondaryWrite written{.wrapped = false, .steps = 0};

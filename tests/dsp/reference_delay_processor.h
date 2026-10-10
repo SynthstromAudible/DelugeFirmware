@@ -325,7 +325,7 @@ private:
 /// The staged order reads the whole block before writing any of it back. When a block's walk laps the tape (on
 /// 128-frame blocks, delays shorter than 129 samples: rates of 2130836488 and up, above 2^38/129), a later frame reads
 /// or clears a sample before an earlier frame's write reaches it, and echoes are lost
-/// (.superpowers/findings/delay-lap/).
+/// (delay_echo_spec pins which).
 /// @ref FrameOrderDelayProcessor is the delay line's order.
 class ReferenceDelayProcessor : public DelayReferenceBase {
 public:
@@ -372,8 +372,8 @@ public:
 /// @brief The delay line's order: each frame read, its feedback shaped, mixed, and written to both tapes before the
 /// next frame is read. Every echo lands where the tape puts it, D = S − 1 samples on a native tape of S samples and
 /// S / spin on a resampling one, however short the delay; the staged order (@ref ReferenceDelayProcessor) drops or
-/// damages echoes when a block laps the tape and otherwise equals this bit for bit. The measurements are in
-/// .superpowers/findings/delay-lap/. A fused delay kernel must equal this on every workload.
+/// damages echoes when a block laps the tape and otherwise equals this bit for bit. The echoes are pinned by
+/// delay_echo_spec. A fused delay kernel must equal this on every workload.
 class FrameOrderDelayProcessor : public DelayReferenceBase {
 public:
 	/// @brief One block in frame order, with `DelayProcessor::process`'s signature: each frame read, shaped, mixed and

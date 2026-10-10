@@ -184,9 +184,9 @@ the in-place digital chain.
   bench with the block's overhead, with both channels' high-pass memories in registers and one store, the output
   frame's `strd`. In place its one frame pointer is stepped after that store, so the next frame's load address follows
   a pending store; it measures 10.94 against 11.02 out of place (where clang steps both pointers after the store too),
-  so the order costs nothing measurable here. Its small-n rows carry the per-block copy of the chain's State in and out (two 416-byte `memcpy`s,
-  since `Stereo` runs on a local copy of every lane's State), which the analog response's history makes large: 50
-  words and an index per channel.
+  so the order costs nothing measurable here. Its small-n rows carry the per-block copy of the chain's State in and
+  out (two 416-byte `memcpy`s, since `Stereo` runs on a local copy of every lane's State), which the analog
+  response's history makes large: 50 words and an index per channel.
 - **The analog delay as a chain runs 38% under the stereo form, and the response's direct form is why.**
   `AnalogImpulseResponse` sums its 26 products straight from a mirrored history of the last 25 inputs, so its tap loop
   stores nothing: two `smmlar`s into an even-tap and an odd-tap accumulator, with the next pair's history samples and
@@ -245,10 +245,11 @@ the in-place digital chain.
 The whole delay block, `DelayProcessor::process`, as the fused `Mono<Delay>` frame loop (read the tape, shape and
 high-pass the feedback, mix, write the tapes, per frame) against the delay as separate passes over the block (read,
 feedback chain, mix, writes). Cycles per channel-sample, in place over real tapes in SDRAM, with the delay library's
-flags (`DELUGE_DSP_BENCH_CASES=delay`). The passes ran on 171bac16a, the fused loop on 3acd83e2e (mean of two runs),
-both 2026-10-10 (`.superpowers/findings/delay-kernel/`: `baseline.md` and `after.md`). The two images differ only in the
-delay code; the unchanged `delay_feedback_chain_*` cases move by at most 0.3% between them and the two fused runs by at
-most 1.7%, so a difference inside ±2% is noise (≈).
+flags (`DELUGE_DSP_BENCH_CASES=delay`). The fused figures are the mean of two runs, all measured on 2026-10-10. The
+two images differ in the delay code and in which bench lists they link: the baseline image linked all four case lists
+and the fused image links only the delay list, so everything is placed differently. The unchanged
+`delay_feedback_chain_*` controls bound that placement effect: they move by at most 0.3% between the images, and the
+two fused runs differ by at most 1.7%, so a difference inside ±2% is noise (≈).
 
 | configuration | n=32 before → after (Δ) | n=64 before → after (Δ) | n=128 before → after (Δ) |
 |---|---:|---:|---:|
@@ -275,16 +276,17 @@ most 1.7%, so a difference inside ±2% is noise (≈).
   tap loops every frame. A PTM trace of the native analog loop puts it at ≈ 378 cycles a frame (189 per channel-sample,
   the bench figure): ≈ 185 in the tap loops (9.0–9.3 cycles a two-tap iteration, faster than the chain alone) and
   ≈ 193 around them, where the passes spent ≈ 119 around the chain's tap loops plus ≈ 40 in the tape passes
-  (`.superpowers/estate/trace/2026-10-10-3acd83e2e-DelayProcessor-process/`). Issue-empty cycles rise from 35.4 to 38.7
+  (a PTM trace of `DelayProcessor::process`). Issue-empty cycles rise from 35.4 to 38.7
   per channel-sample at n = 128. The lever is the stereo direct form (one tap loop for both channels, see
   [Chain](#chain)), which frees the registers; it is deferred to the mod-FX rewrite.
 - **Echoes shorter than a block are correct in every form.** The fused order is the delay line's order, so a delay of
-  fewer samples than the block keeps all its echoes; the separate passes lost them. The cost above buys no behaviour
-  change anywhere else: the two orders agree bit for bit wherever no block laps the tape.
+  fewer samples than the block keeps all its echoes, where the separate passes drop those that come round within the
+  block (pinned by `delay_frame_order_spec` and `delay_echo_spec`). The two orders agree bit for bit wherever no block
+  laps the tape.
 
-**`kStateInPlace`.** The same image with `Delay::kStateInPlace` false (one run, a throwaway build;
-`2026-10-10-5c045fe2c-state-copied.md`): the 424-byte State is copied to the stack and back every block, and the
-high-pass memories stay in registers through the loop. In place against copied, cycles per channel-sample:
+**`kStateInPlace`.** The same image with `Delay::kStateInPlace` false (one run, a throwaway build): the 424-byte State
+is copied to the stack and back every block, and the high-pass memories stay in registers through the loop. In place
+against copied, cycles per channel-sample:
 
 | configuration | n=32 in place / copied | n=64 | n=128 |
 |---|---:|---:|---:|
@@ -302,9 +304,10 @@ high-pass memories stay in registers through the loop. In place against copied, 
 | `res_hi_cross_analog` | 266.00 / 273.04 (+2.6%) | 265.52 / 268.16 (+1.0%) | 260.82 / 262.27 (+0.6%) |
 | `growing` | 125.46 / 135.73 (+8.2%) | 120.75 / 126.34 (+4.6%) | 118.28 / 120.76 (+2.1%) |
 
-The copy costs more than the in-place loop's per-frame high-pass stores in every configuration but one, which is
-inside noise: 6–7% of the native digital loop at n = 128 and 29–31% at n = 32, 3–4% of native analog at n = 128. A
-State of hundreds of bytes is stepped in place.
+The A/B is one run, and about 8 of its 39 cells are inside ±2%, so those differences are not distinguishable from
+noise. The copy costs more than the in-place loop's per-frame high-pass stores in the rest, and no cell shows it
+cheaper outside noise: 6–7% of the native digital loop at n = 128 and 29–31% at n = 32, 3–4% of native analog at
+n = 128. A State of hundreds of bytes is stepped in place.
 
 ## Open questions
 

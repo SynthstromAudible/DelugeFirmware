@@ -19,7 +19,7 @@
 // delay line's order, which the fused kernel takes, walks each frame (read, shape, mix, write) before the next. The two
 // can part only where a frame writes a tape sample that a later frame of the same block clears or reads: on 128-frame
 // blocks, delays shorter than 129 samples, where the block's walk laps the tape and the staged order loses echoes
-// (.superpowers/findings/delay-lap/). A lapping block parts them once the sample written there is nonzero; one whose
+// (delay_echo_spec pins the echoes). A lapping block parts them once the sample written there is nonzero; one whose
 // lapped write is zero leaves them equal. The staged reference's address log names those lapping blocks on every
 // recorded workload, and the two references are run side by side to show they part there and nowhere else.
 // delay_echo_spec measures the frame order's echoes against where the tape puts them.

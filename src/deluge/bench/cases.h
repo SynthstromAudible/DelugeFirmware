@@ -772,7 +772,8 @@ inline constexpr uint32_t kDelayDrive = 8;
 
 /// @brief Where a delay feedback case renders its blocks.
 enum class Placement : uint8_t {
-	/// In the lanes output, as the delay renders its work block: setup copies the lanes input's first n frames there,
+	/// In the lanes output, as the delay renders the owner's block in place: setup copies the lanes input's first n
+	/// frames there,
 	/// and each block renders the block before's output.
 	IN_PLACE,
 	/// From the lanes input's first n frames into the lanes output, every block.
@@ -782,7 +783,7 @@ enum class Placement : uint8_t {
 /// @brief The delay's feedback stages as two passes over the block, each in place in the lanes output:
 /// `Stereo<FeedbackShaper>`, then `Stereo<DelayHighPass>`.
 /// @details Setup copies the lanes input's first n frames into the lanes output, and every block renders the block
-/// before's output, as the delay renders its work block (Placement::IN_PLACE).
+/// before's output, as the delay renders the owner's block (Placement::IN_PLACE).
 ///
 /// **Timed state:** the response's history (analog) and each channel's high-pass memory carry from block to block,
 /// from silence at setup, and each block's input is the block before's output. Every frame is the same arithmetic,
