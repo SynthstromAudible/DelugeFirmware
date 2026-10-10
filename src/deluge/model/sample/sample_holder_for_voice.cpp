@@ -141,7 +141,7 @@ uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {
 }
 
 void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctaves, bool doingSingleCycle,
-                                                              bool rangeCoversJustOneNote, bool thatOneNote) {
+                                                              bool rangeCoversJustOneNote, int32_t that_one_note) {
 	((Sample*)audioFile)->workOutMIDINote(doingSingleCycle);
 	float midiNote = ((Sample*)audioFile)->midiNote;
 	if (midiNote != -1000) {
@@ -160,7 +160,7 @@ void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctav
 		}
 
 		else if (rangeCoversJustOneNote) {
-			if (semitonesInt == 60 - thatOneNote) {
+			if (semitonesInt == 60 - that_one_note) {
 				if (cents >= -4 && cents <= 4) {
 					cents = 0;
 					// Uart::println("discarded cents");
