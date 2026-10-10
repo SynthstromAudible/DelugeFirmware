@@ -17,7 +17,8 @@
 
 // The filters' and the compressor's verbatim references (reference_filters.h) against the firmware's classes, over
 // every recorded workload (filter_workloads.h): each block's output, the gain each target returns, the generator's
-// draws and the whole state must agree. A firmware object's state is read through its copy's layout.
+// draws and the whole state must agree. A firmware object's state is read through its copy's layout. What both render
+// is pinned (filter_workload_records.h): each block's output and draws, the values drawn, and the state at the end.
 
 #include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
 #include "dsp-next/fixed/filter/dry_wet_fade.h"
@@ -25,6 +26,7 @@
 #include "dsp-next/fixed/filter/high_pass_ladder.h"
 #include "dsp-next/fixed/filter/low_pass_ladder.h"
 #include "dsp-next/fixed/filter/state_variable_filter.h"
+#include "filter_workload_records.h"
 #include "filter_workloads.h"
 #include "reference_filters.h"
 
@@ -214,6 +216,26 @@ describe verbatim_filters("the filters' verbatim references", ${
 	   "whole state", _ {
 		expect(partings<FirmwareFamily, ReferenceFamily>(filter_workloads::all_compressor_workloads()))
 		    .to_equal(std::vector<std::string>{});
+	});
+
+	it("render every filter workload as recorded: each block's output and draws, the values drawn, and the state", _ {
+		for (const filter_workloads::FilterWorkload& workload : filter_workloads::all_workloads()) {
+			const filter_workloads::WorkloadRecord& recorded =
+			    filter_workloads::kRecorded.at(static_cast<size_t>(workload.id));
+			expect(recorded.outputs.size()).to_equal(workload.blocks);
+			expect(filter_workloads::record<ReferenceFamily>(workload)).to_equal(recorded);
+			expect(filter_workloads::record<FirmwareFamily>(workload)).to_equal(recorded);
+		}
+	});
+
+	it("render every compressor workload as recorded: each block's output and gain reduction, and the state", _ {
+		for (const filter_workloads::CompressorWorkload& workload : filter_workloads::all_compressor_workloads()) {
+			const filter_workloads::WorkloadRecord& recorded =
+			    filter_workloads::kCompressorRecorded.at(static_cast<size_t>(workload.id));
+			expect(recorded.outputs.size()).to_equal(workload.blocks);
+			expect(filter_workloads::record<ReferenceFamily>(workload)).to_equal(recorded);
+			expect(filter_workloads::record<FirmwareFamily>(workload)).to_equal(recorded);
+		}
 	});
 });
 // clang-format on
