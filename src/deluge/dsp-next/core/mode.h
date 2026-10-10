@@ -16,18 +16,26 @@
  */
 #pragma once
 
+#include <concepts>
 #include <type_traits>
 #include <utility>
 
 /// @file
-/// @brief Per-block mode dispatch: a runtime enum value selects a step instantiated for that value.
+/// @brief Per-block mode dispatch: a runtime mode value selects a step instantiated for that value.
 
 namespace deluge::dsp {
 
+/// @brief Whether @p T can be a mode: an enumeration, or a class compared with `==`, such as a chain's mode, which
+/// holds one enumerator (or one nested mode) per moded part.
+/// @details A mode is a template argument, so a class mode must also be structural: public, non-mutable members of
+/// structural type. Its `==` must compare every member, since with_mode picks a step by it; a defaulted `==` does.
+template <typename T>
+concept mode_type = std::is_enum_v<T> || (std::is_class_v<T> && std::equality_comparable<T>);
+
 /// @brief The modes a kernel's step is instantiated for; with_mode dispatches over exactly these.
-/// @tparam Ms The enumerators, all of enumeration type.
+/// @tparam Ms The modes, each a @ref mode_type value.
 template <auto... Ms>
-requires(sizeof...(Ms) > 0 && (std::is_enum_v<decltype(Ms)> && ...))
+requires(sizeof...(Ms) > 0 && (mode_type<decltype(Ms)> && ...))
 struct ModeList {};
 
 namespace detail {

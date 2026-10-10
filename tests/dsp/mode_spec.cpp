@@ -12,6 +12,21 @@ struct NoDefault {
 };
 enum class Shape : uint8_t { SAW, SQUARE, TRIANGLE };
 using Shapes = ModeList<Shape::SAW, Shape::SQUARE, Shape::TRIANGLE>;
+
+/// A structural mode: a shape and a polarity, compared member by member.
+struct Voicing {
+	Shape shape;
+	bool inverted;
+	constexpr bool operator==(const Voicing&) const = default;
+};
+using Voicings = ModeList<Voicing{Shape::SAW, false}, Voicing{Shape::SAW, true}, Voicing{Shape::SQUARE, true}>;
+
+/// Whether `ModeList<M>` names a class.
+template <auto M>
+concept lists_as_mode = requires { typename ModeList<M>; };
+
+static_assert(lists_as_mode<Shape::SAW> && lists_as_mode<Voicing{}>);
+static_assert(!lists_as_mode<1>, "a mode is an enumerator or a structural class value, not a number");
 } // namespace
 
 // clang-format off
@@ -43,6 +58,19 @@ describe mode("per-block mode dispatch", ${
 		});
 		expect(calls).to_equal(1);
 		expect(got).to_equal(7);
+	});
+	it("dispatches on a structural mode, matching every member", _ {
+		for (const Voicing v : {Voicing{Shape::SAW, false}, Voicing{Shape::SAW, true}, Voicing{Shape::SQUARE, true}}) {
+			int calls = 0;
+			Voicing seen{};
+			with_mode<Voicings>(v, [&]<Voicing M>() {
+				calls++;
+				seen = M;
+			});
+			expect(calls).to_equal(1);
+			expect(seen.shape).to_equal(v.shape);
+			expect(seen.inverted).to_equal(v.inverted);
+		}
 	});
 	it("returns a type with no default constructor", _ {
 		const NoDefault got = with_mode<Shapes>(Shape::TRIANGLE, []<Shape M>() { return NoDefault{static_cast<int>(M)}; });

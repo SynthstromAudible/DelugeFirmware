@@ -93,7 +93,7 @@ struct first_mode;
 /// @brief The first mode of a ModeList: the one the kernel concepts check `step` at.
 template <auto M0, auto... Ms>
 struct first_mode<ModeList<M0, Ms...>> {
-	static constexpr auto value = M0; ///< The list's first enumerator.
+	static constexpr auto value = M0; ///< The list's first mode.
 };
 
 /// @brief The first mode of the ModeList @p List.
@@ -101,7 +101,8 @@ template <typename List>
 inline constexpr auto first_mode_v = first_mode<List>::value;
 
 /// @brief Whether K has modes: K::Modes is a ModeList, and K::Coefficients has a `mode` member of the list's
-/// enumeration type, which carries the mode chosen by `coefficients()` to the wrapper's per-block dispatch.
+/// mode type (an enumeration, or a structural class such as a chain's), which carries the mode chosen by
+/// `coefficients()` to the wrapper's per-block dispatch.
 template <typename K>
 concept has_modes = requires {
 	typename K::Modes;
@@ -447,7 +448,7 @@ template <typename K>
 concept kernel = generator_kernel<K> || processor_kernel<K> || mixer_kernel<K> || staged_kernel<K> || control_kernel<K>;
 
 /// @brief Whether K has modes (K::Modes is a ModeList and Coefficients has a `mode` member).
-/// @details The `mode` member has the list's enumeration type; the wrapper dispatches on it once per block with
+/// @details The `mode` member has the list's mode type; the wrapper dispatches on it once per block with
 /// with_mode. All of a kernel's modes share one State, and a moded kernel's `step`, `process` or `advance` is a
 /// template on the mode. Its default `Coefficients{}` names a listed mode (kernel_base requires it), so a
 /// default-constructed wrapper's first block dispatches on a mode the kernel has.

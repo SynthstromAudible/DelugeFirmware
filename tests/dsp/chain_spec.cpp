@@ -17,13 +17,17 @@
 
 #include "dsp-next/core/chain.h"
 #include "dsp-next/core/concepts.h"
+#include "dsp-next/core/frame.h"
 #include "dsp-next/core/kernel.h"
+#include "dsp-next/core/lanes.h"
+#include "dsp-next/core/mode.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
+#include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "dsp-next/fixed/shaping/tanh_kernel.h"
@@ -44,6 +48,7 @@ using namespace deluge::dsp;
 namespace {
 
 using fixed::DuckEnvelope;
+using fixed::OnePole;
 using fixed::SeededNoise;
 using fixed::Tanh;
 using Tracker = fixed::ShiftTracker<11>;
@@ -216,6 +221,38 @@ struct VecCountedK : VecK {
 	}
 };
 
+/// The two modes the picking kernels share, so a part handed another part's mode still compiles.
+enum class Pick : uint8_t { FIRST, SECOND };
+
+/// A moded processor adding @p First at Pick::FIRST and @p Second at Pick::SECOND, counting its steps.
+/// @tparam List Its modes, in the order it lists them: the first is its default.
+template <int32_t First, int32_t Second, typename List>
+struct Picker {
+	using value_type = q31;
+	using step_type = q31;
+	using Modes = List;
+	struct Settings {
+		Pick mode = detail::first_mode_v<List>; ///< What a step adds.
+	};
+	struct Coefficients {
+		Pick mode = detail::first_mode_v<List>; ///< What a step adds.
+	};
+	struct State {
+		int32_t steps; ///< How many samples this part has stepped.
+	};
+	static constexpr Coefficients coefficients(const Settings& s) { return {.mode = s.mode}; }
+	template <Pick M>
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s, q31 x) {
+		++s.steps;
+		return wrapping_add(x, M == Pick::FIRST ? First : Second);
+	}
+};
+
+/// Adds 1 or 2, FIRST listed first.
+using PickA = Picker<1, 2, ModeList<Pick::FIRST, Pick::SECOND>>;
+/// Adds 10 or 20, SECOND listed first, so its default is not its zero enumerator.
+using PickB = Picker<10, 20, ModeList<Pick::SECOND, Pick::FIRST>>;
+
 static_assert(processor_kernel<AddK> && processor_kernel<ScaleK> && generator_kernel<RampGen> && mixer_kernel<SumMix>
               && processor_kernel<QuirkK> && staged_kernel<StagedK> && processor_kernel<VecK>
               && processor_kernel<VecCountedK> && control_kernel<DuckEnvelope>);
@@ -267,6 +304,42 @@ static_assert(!chainable<AddK, SumMix> && !chainable<AddK, RampGen>, "every part
 static_assert(!chainable<AddK, VecK> && !chainable<VecK, AddK>, "every part steps one step type");
 static_assert(!chainable<VecK, VecCountedK>, "a part advancing its partial vector by count is no part");
 static_assert(!chainable<AddK, int>, "every part is a kernel");
+
+using Picked = Chain<PickA, PickB>;
+/// A moded part, an unmoded one, then a moded one: the mode's members skip the unmoded part.
+using PickedAround = Chain<PickA, AddK, PickB>;
+using Filtered = Chain<OnePole, Remove>;
+using FilteredBoth = Chain<OnePole, Tracker>;
+
+// A chain's mode is its moded parts' modes; a chain of unmoded parts stays unmoded.
+static_assert(moded_kernel<Picked> && processor_kernel<Picked> && moded_kernel<PickedAround>);
+static_assert(moded_kernel<Filtered> && moded_kernel<FilteredBoth> && moded_kernel<Chain<Filtered, Tanh<3>>>);
+static_assert(!detail::has_modes<Three> && !detail::has_modes<Nested> && !detail::has_modes<Chain<Remove, Remove>>);
+static_assert(std::same_as<std::remove_cv_t<decltype(Picked::Coefficients{}.mode)>, Picked::Mode>);
+static_assert(detail::plain_value<Picked::Coefficients> && detail::plain_value<Filtered::Coefficients>
+              && detail::plain_value<Filtered::State>);
+static_assert(std::is_aggregate_v<Picked::Mode>, "a chain's mode is a structural aggregate");
+
+/// How many modes a ModeList lists.
+template <auto... Ms>
+constexpr std::size_t mode_count(ModeList<Ms...> /*list*/) {
+	return sizeof...(Ms);
+}
+
+static_assert(mode_count(FilteredBoth::Modes{}) == 6, "three filter modes by two tracker modes");
+static_assert(mode_count(Filtered::Modes{}) == 3, "a pinned part adds nothing to the product");
+static_assert(mode_count(PickedAround::Modes{}) == 4);
+
+/// Each listed mode of a two-moded-part chain as the pair of its parts' modes' underlying values, in list order.
+template <auto... Ms>
+std::vector<std::pair<int, int>> mode_pairs(ModeList<Ms...> /*list*/) {
+	return {std::pair{static_cast<int>(std::to_underlying(get<0>(Ms))),
+	                  static_cast<int>(std::to_underlying(get<1>(Ms)))}...};
+}
+
+/// The length of every block of the mode-product cases, whose input is silence, so a block's output is what its parts
+/// added.
+constexpr std::size_t kPickLength = 3;
 
 /// Coefficients shaped as a feedback shaper's: their last byte leaves three bytes of tail padding.
 struct ShaperLike {
@@ -353,6 +426,82 @@ std::vector<q31> interleaved(const std::vector<StereoSample>& frames) {
 		v.push_back(f.r);
 	}
 	return v;
+}
+
+/// Every combination of the picking parts' modes, block by block, and back again.
+constexpr std::array<std::pair<Pick, Pick>, 6> kPickCombos{{{Pick::FIRST, Pick::FIRST},
+                                                            {Pick::FIRST, Pick::SECOND},
+                                                            {Pick::SECOND, Pick::FIRST},
+                                                            {Pick::SECOND, Pick::SECOND},
+                                                            {Pick::FIRST, Pick::SECOND},
+                                                            {Pick::FIRST, Pick::FIRST}}};
+
+/// The filter modes the moded-chain cases cycle through, block by block.
+constexpr std::array<OnePole::Mode, 4> kFilterModes{OnePole::Mode::LOW_PASS, OnePole::Mode::ALL_PASS,
+                                                    OnePole::Mode::HIGH_PASS, OnePole::Mode::LOW_PASS};
+
+/// The filtering chain's settings at @p mode: a one-pole at a fixed moveability, then the pinned tracker.
+Filtered::Settings filtered_settings(OnePole::Mode mode) {
+	return Filtered::Settings{OnePole::Settings{.moveability = 0x0c000000, .mode = mode},
+	                          Remove::Settings{.mode = Tracker::Mode::TRACK}};
+}
+
+/// What one `Lanes<Filtered, N>` run gave, and what its N `Mono<Filtered>`s gave.
+struct LanesRun {
+	std::vector<std::vector<q31>> got;                   ///< Each block's lanes, out of place then in place.
+	std::vector<std::vector<q31>> want;                  ///< The Monos' blocks, once for each.
+	std::vector<std::vector<unsigned char>> got_states;  ///< Each lane's part States at the end, both runs.
+	std::vector<std::vector<unsigned char>> want_states; ///< The Monos' part States, once for each.
+};
+
+/// Run `Lanes<Filtered, N>`, in place and out of place, against N `Mono<Filtered>`s over every length 1 to 9,
+/// cycling the filter's modes block by block.
+template <std::size_t N>
+LanesRun run_lanes_and_monos() {
+	LanesRun run;
+	for (std::size_t n = 1; n <= kMaxLength; ++n) {
+		Lanes<Filtered, N> out_of_place;
+		Lanes<Filtered, N> in_place;
+		std::array<Mono<Filtered>, N> monos{};
+		for (std::size_t block = 0; block < kFilterModes.size(); ++block) {
+			const Filtered::Settings settings = filtered_settings(kFilterModes[block]);
+			out_of_place.configure(settings);
+			in_place.configure(settings);
+			std::vector<Frame<q31, N>> frames(n);
+			std::vector<std::vector<q31>> want(N);
+			for (std::size_t lane = 0; lane < N; ++lane) {
+				const std::vector<q31> in = noise(n, 0xa11 + static_cast<uint32_t>((lane * 131) + (block * 7) + n));
+				for (std::size_t i = 0; i < n; ++i) {
+					frames[i][lane] = in[i];
+				}
+				monos[lane].configure(settings);
+				want[lane].resize(n);
+				monos[lane].renderBlock(in, want[lane]);
+			}
+			std::vector<Frame<q31, N>> got(n);
+			out_of_place.renderBlock(frames, got);
+			in_place.renderBlock(frames, frames);
+			for (const std::vector<Frame<q31, N>>* result : {&got, &frames}) {
+				for (std::size_t lane = 0; lane < N; ++lane) {
+					std::vector<q31> samples;
+					for (const Frame<q31, N>& f : *result) {
+						samples.push_back(f[lane]);
+					}
+					run.got.push_back(samples);
+					run.want.push_back(want[lane]);
+				}
+			}
+		}
+		for (std::size_t lane = 0; lane < N; ++lane) {
+			for (const Filtered::State& s : {out_of_place.state(lane), in_place.state(lane)}) {
+				run.got_states.push_back(bytes_of(get<0>(s)));
+				run.got_states.push_back(bytes_of(get<1>(s)));
+				run.want_states.push_back(bytes_of(get<0>(monos[lane].state())));
+				run.want_states.push_back(bytes_of(get<1>(monos[lane].state())));
+			}
+		}
+	}
+	return run;
 }
 
 } // namespace
@@ -575,6 +724,205 @@ describe chain("Chain", ${
 				stereo_in_place.renderBlock(frames, frames);
 				expect(interleaved(frames)).to_equal(interleaved(stereo_got));
 			}
+		}
+	});
+	it("dispatches every combination of its parts' modes to that combination's steps, block by block", _ {
+		Mono<Picked> picked;
+		Mono<PickedAround> around{PickedAround::Settings{PickA::Settings{}, AddK::Settings{.offset = 100}, PickB::Settings{}}};
+		std::vector<std::vector<q31>> got;
+		std::vector<std::vector<q31>> got_around;
+		std::vector<std::pair<int, int>> modes;
+		std::vector<std::pair<int, int>> want_modes;
+		std::vector<std::vector<q31>> want;
+		std::vector<std::vector<q31>> want_around;
+		for (const auto& [a, b] : kPickCombos) {
+			picked.configure(Picked::Settings{PickA::Settings{.mode = a}, PickB::Settings{.mode = b}});
+			around.configure(PickedAround::Settings{PickA::Settings{.mode = a}, AddK::Settings{.offset = 100},
+			                                        PickB::Settings{.mode = b}});
+			modes.emplace_back(std::to_underlying(get<0>(picked.coefficients().mode)),
+			                   std::to_underlying(get<1>(picked.coefficients().mode)));
+			want_modes.emplace_back(std::to_underlying(a), std::to_underlying(b));
+			const std::vector<q31> silence(kPickLength);
+			std::vector<q31> out(kPickLength);
+			picked.renderBlock(silence, out);
+			got.push_back(out);
+			around.renderBlock(silence, out);
+			got_around.push_back(out);
+			const q31 added = (a == Pick::FIRST ? 1 : 2) + (b == Pick::FIRST ? 10 : 20);
+			want.emplace_back(kPickLength, added);
+			want_around.emplace_back(kPickLength, added + 100);
+		}
+		expect(modes).to_equal(want_modes);
+		expect(got).to_equal(want);
+		expect(got_around).to_equal(want_around);
+		expect(get<0>(picked.state()).steps).to_equal(static_cast<int32_t>(kPickCombos.size() * kPickLength));
+		expect(get<1>(picked.state()).steps).to_equal(static_cast<int32_t>(kPickCombos.size() * kPickLength));
+	});
+
+	it("defaults to each moded part's first listed mode", _ {
+		const Picked::Coefficients c{};
+		expect(get<0>(c.mode)).to_equal(Pick::FIRST);
+		expect(get<1>(c.mode)).to_equal(Pick::SECOND);
+		expect(get<0>(Picked::Mode{})).to_equal(Pick::FIRST);
+		expect(get<1>(Picked::Mode{})).to_equal(Pick::SECOND);
+
+		Mono<Picked> picked;
+		std::vector<q31> out(kPickLength);
+		picked.renderBlock(std::vector<q31>(kPickLength), out);
+		expect(out).to_equal(std::vector<q31>(kPickLength, 21));
+
+		const FilteredBoth::Coefficients both{};
+		expect(get<0>(both.mode)).to_equal(OnePole::Mode::LOW_PASS);
+		expect(get<1>(both.mode)).to_equal(Tracker::Mode::TRACK);
+	});
+
+	it("lists the product of its parts' modes row-major, part 0 slowest", _ {
+		const auto pick = [](Pick p) { return static_cast<int>(std::to_underlying(p)); };
+		const int first = pick(Pick::FIRST);
+		const int second = pick(Pick::SECOND);
+		expect(mode_pairs(Picked::Modes{})).to_equal(std::vector<std::pair<int, int>>{
+		    {first, second}, {first, first}, {second, second}, {second, first}});
+
+		const auto filter = [](OnePole::Mode m) { return static_cast<int>(std::to_underlying(m)); };
+		const auto track = [](Tracker::Mode m) { return static_cast<int>(std::to_underlying(m)); };
+		std::vector<std::pair<int, int>> want;
+		for (OnePole::Mode f : {OnePole::Mode::LOW_PASS, OnePole::Mode::HIGH_PASS, OnePole::Mode::ALL_PASS}) {
+			for (Tracker::Mode t : {Tracker::Mode::TRACK, Tracker::Mode::REMOVE}) {
+				want.emplace_back(filter(f), track(t));
+			}
+		}
+		expect(mode_pairs(FilteredBoth::Modes{})).to_equal(want);
+	});
+
+	it("assembles its mode from each moded part's coefficients, a pinned part contributing none", _ {
+		for (OnePole::Mode f : {OnePole::Mode::LOW_PASS, OnePole::Mode::HIGH_PASS, OnePole::Mode::ALL_PASS}) {
+			const Filtered::Coefficients c = Filtered::coefficients(filtered_settings(f));
+			expect(get<0>(c.mode)).to_equal(f);
+			expect(get<0>(c).mode).to_equal(f);
+			expect(get<1>(c).mode).to_equal(Tracker::Mode::REMOVE);
+			for (Tracker::Mode t : {Tracker::Mode::TRACK, Tracker::Mode::REMOVE}) {
+				const FilteredBoth::Coefficients both = FilteredBoth::coefficients(
+				    FilteredBoth::Settings{OnePole::Settings{.mode = f}, Tracker::Settings{.mode = t}});
+				expect(get<0>(both.mode)).to_equal(f);
+				expect(get<1>(both.mode)).to_equal(t);
+			}
+		}
+	});
+
+	it("equals its moded parts run in sequence as the filter's mode changes between blocks, bit for bit", _ {
+		for (std::size_t n = 1; n <= kMaxLength; ++n) {
+			Mono<Filtered> fused;
+			Mono<OnePole> filter;
+			Mono<Remove> remove;
+			std::vector<std::vector<q31>> got;
+			std::vector<std::vector<q31>> want;
+			for (std::size_t block = 0; block < kFilterModes.size(); ++block) {
+				const Filtered::Settings settings = filtered_settings(kFilterModes[block]);
+				fused.configure(settings);
+				filter.configure(get<0>(settings));
+				remove.configure(get<1>(settings));
+				const std::vector<q31> in = noise(n, 0xf11 + static_cast<uint32_t>((block * 13) + n));
+				std::vector<q31> fused_out(n);
+				std::vector<q31> parts_out(n);
+				fused.renderBlock(in, fused_out);
+				filter.renderBlock(in, parts_out);
+				remove.renderBlock(parts_out, parts_out);
+				got.push_back(fused_out);
+				want.push_back(parts_out);
+			}
+			expect(got).to_equal(want);
+			expect(bytes_of(get<0>(fused.state()))).to_equal(bytes_of(filter.state()));
+			expect(bytes_of(get<1>(fused.state()))).to_equal(bytes_of(remove.state()));
+		}
+	});
+
+	it("nests a moded chain: the outer chain's mode holds the inner chain's", _ {
+		using Shaped = Chain<Filtered, Tanh<3>>;
+		for (std::size_t n = 1; n <= kMaxLength; ++n) {
+			Mono<Shaped> nested;
+			Mono<Filtered> filtered;
+			Mono<Tanh<3>> shape;
+			std::vector<std::vector<q31>> got;
+			std::vector<std::vector<q31>> want;
+			for (std::size_t block = 0; block < kFilterModes.size(); ++block) {
+				nested.configure(Shaped::Settings{filtered_settings(kFilterModes[block]), Tanh<3>::Settings{}});
+				filtered.configure(filtered_settings(kFilterModes[block]));
+				expect(get<0>(get<0>(nested.coefficients().mode))).to_equal(kFilterModes[block]);
+				const std::vector<q31> in = noise(n, 0xb0b + static_cast<uint32_t>((block * 3) + n));
+				std::vector<q31> nested_out(n);
+				std::vector<q31> parts_out(n);
+				nested.renderBlock(in, nested_out);
+				filtered.renderBlock(in, parts_out);
+				shape.renderBlock(parts_out, parts_out);
+				got.push_back(nested_out);
+				want.push_back(parts_out);
+			}
+			expect(got).to_equal(want);
+		}
+	});
+
+	it("runs under Stereo as two Monos, in place and out of place, its mode changing between blocks", _ {
+		for (std::size_t n = 1; n <= kMaxLength; ++n) {
+			Stereo<Filtered> out_of_place;
+			Stereo<Filtered> in_place;
+			Mono<Filtered> left;
+			Mono<Filtered> right;
+			for (std::size_t block = 0; block < kFilterModes.size(); ++block) {
+				const Filtered::Settings settings = filtered_settings(kFilterModes[block]);
+				out_of_place.configure(settings);
+				in_place.configure(settings);
+				left.configure(settings);
+				right.configure(settings);
+				const std::vector<q31> l = noise(n, 0x3e1 + static_cast<uint32_t>((block * 5) + n));
+				const std::vector<q31> r = noise(n, 0x3e2 + static_cast<uint32_t>((block * 5) + n));
+				std::vector<StereoSample> frames(n);
+				for (std::size_t i = 0; i < n; ++i) {
+					frames[i] = {.l = l[i], .r = r[i]};
+				}
+				std::vector<q31> want_l(n);
+				std::vector<q31> want_r(n);
+				left.renderBlock(l, want_l);
+				right.renderBlock(r, want_r);
+				std::vector<StereoSample> want(n);
+				for (std::size_t i = 0; i < n; ++i) {
+					want[i] = {.l = want_l[i], .r = want_r[i]};
+				}
+				std::vector<StereoSample> got(n);
+				out_of_place.renderBlock(frames, got);
+				in_place.renderBlock(frames, frames);
+				expect(interleaved(got)).to_equal(interleaved(want));
+				expect(interleaved(frames)).to_equal(interleaved(want));
+			}
+			expect(bytes_of(get<0>(out_of_place.left()))).to_equal(bytes_of(get<0>(left.state())));
+			expect(bytes_of(get<1>(in_place.right()))).to_equal(bytes_of(get<1>(right.state())));
+		}
+	});
+
+	it("runs under Lanes as N Monos, in place and out of place, for N = 2, 3 and 4", _ {
+		for (const LanesRun& run : {run_lanes_and_monos<2>(), run_lanes_and_monos<3>(), run_lanes_and_monos<4>()}) {
+			expect(run.got).to_equal(run.want);
+			expect(run.got_states).to_equal(run.want_states);
+		}
+	});
+
+	it("resets one part of a moded chain in both channels through Stereo::on", _ {
+		Stereo<Filtered> chain{filtered_settings(OnePole::Mode::HIGH_PASS)};
+		std::vector<StereoSample> frames(8);
+		const std::vector<q31> l = noise(frames.size(), 3);
+		const std::vector<q31> r = noise(frames.size(), 4);
+		for (std::size_t i = 0; i < frames.size(); ++i) {
+			frames[i] = {.l = l[i], .r = r[i]};
+		}
+		chain.renderBlock(frames, frames);
+		const Filtered::State left = chain.left();
+		const Filtered::State right = chain.right();
+		expect(get<1>(left).y).not_().to_equal(0);
+		expect(get<1>(right).y).not_().to_equal(0);
+
+		chain.on<&Filtered::reset_part<1>>();
+		for (const auto& [now, before] : {std::pair{chain.left(), left}, std::pair{chain.right(), right}}) {
+			expect(bytes_of(get<0>(now))).to_equal(bytes_of(get<0>(before)));
+			expect(bytes_of(get<1>(now))).to_equal(bytes_of(Tracker::State{}));
 		}
 	});
 });

@@ -773,6 +773,36 @@ struct AdvanceFirstModeOnly {
 	}
 };
 
+/// A moded processor kernel whose mode is a structural class: a scale and a sign, compared member by member.
+struct Voiced {
+	using value_type = q31;
+	using step_type = q31;
+	enum class Scale : uint8_t { HALF, DOUBLE };
+	/// @brief The mode: a scale and a sign.
+	struct Mode {
+		Scale scale = Scale::DOUBLE; ///< Listed first, so the default.
+		bool negate = false;         ///< Whether the scaled sample is negated.
+		constexpr bool operator==(const Mode&) const = default;
+	};
+	using Modes = ModeList<Mode{Scale::DOUBLE, false}, Mode{Scale::HALF, false}, Mode{Scale::HALF, true}>;
+	struct Settings {
+		Mode mode;
+	};
+	struct Coefficients {
+		Mode mode;
+	};
+	struct State {};
+	static constexpr Coefficients coefficients(const Settings& s) { return {.mode = s.mode}; }
+	template <Mode M>
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) {
+		const q31 scaled = M.scale == Scale::HALF ? x >> 1 : x << 1;
+		return M.negate ? -scaled : scaled;
+	}
+};
+
+static_assert(moded_kernel<Voiced> && processor_kernel<Voiced> && detail::default_mode_listed<Voiced>);
+static_assert(detail::first_mode_v<Voiced::Modes> == Voiced::Mode{});
+
 static_assert(processor_kernel<Gain>);
 static_assert(moded_kernel<Shaped>);
 static_assert(processor_kernel<Shaped>);
@@ -905,6 +935,21 @@ describe kernel_concepts("kernel concepts", ${
 		ModedFall::State moded_fall_state{.level = 5};
 		expect(ModedFall::advance<ModedFall::Mode::HOLD>({}, moded_fall_state, 4)).to_equal(5);
 		expect(ModedFall::advance<ModedFall::Mode::CLEAR>({}, moded_fall_state, 4)).to_equal(0);
+	});
+
+	it("dispatches a kernel with a structural mode to the step at that mode", _ {
+		const std::array<Voiced::Mode, 3> modes{
+		    {{Voiced::Scale::DOUBLE, false}, {Voiced::Scale::HALF, false}, {Voiced::Scale::HALF, true}}};
+		const std::array<q31, 3> want{200, 50, -50};
+		for (std::size_t i = 0; i < modes.size(); ++i) {
+			const Voiced::Coefficients c = Voiced::coefficients({.mode = modes[i]});
+			Voiced::State s{};
+			q31 got = 0;
+			kernel_ops::dispatch_mode<Voiced>(c, [&]<auto M>() {
+				got = kernel_ops::step_at<Voiced, M>(c, EmptyBlock{}, s, 100);
+			});
+			expect(got).to_equal(want[i]);
+		}
 	});
 
 	it("advances a control kernel and processes a staged kernel through kernel_ops at a mode", _ {
