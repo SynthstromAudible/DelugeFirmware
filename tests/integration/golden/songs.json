@@ -5,6 +5,12 @@
   "rms_db": -17.61,
   "sha256": "3b05665cb83dd38b851dbfcca4f025f02b92542c6c127ecbe6e70d635bef2313"
  },
+ "RS_AUDIO_COMP_ONSET": {
+  "frames": 384000,
+  "peak": 1141902080,
+  "rms_db": -17.25,
+  "sha256": "7a41c53b209bc887e953b0354170ebcda8a8b26dd2ab89355f4bbedcfc204451"
+ },
  "RS_AUDIO_DELAY": {
   "frames": 384000,
   "peak": 1192348416,

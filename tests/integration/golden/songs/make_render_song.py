@@ -29,6 +29,8 @@ RS_AUDIO_DELAY_EXTREMES steps an audio track's delay rate from its minimum to it
 the fastest and the slowest the rate's range reaches.
 RS_LOW_CLIP covers a host chain's saturation below amount 3, which RS_KIT_FX and RS_AUDIO_FX (at 4) leave out: a
 kit at 1 and an audio track at 2.
+RS_AUDIO_COMP_ONSET switches an audio track's compressor on mid-render, so it seeds from a sounding frame rather than
+from the silence every other compressor golden starts in.
 RS_DUCK_SHAPES covers the sidechain envelope's paths RS_AUDIO_DUCKED leaves out on the host owners: the instant
 attack, the straight and clamped release shapes, and a stronger hit taken mid-attack and mid-release.
 """
@@ -724,6 +726,14 @@ AUDIO_LOW_CLIP = _host(
     attributes=_with_attributes(DRY["attributes"], 'clippingAmount="2"')
 )
 
+# An audio track's compressor switched on mid-render: its threshold, held at its minimum (the compressor off and reset
+# every block), steps up by the clip's automation at the second bar while the audio plays, so the compressor's first
+# block seeds its saturators from a sounding frame instead of silence. Its other settings are RS_AUDIO_FX's.
+AUDIO_COMP_ONSET = _host(
+    compressor=FX["compressor"],
+    params=f'compressorThreshold="{_stepped(0x00000000, 0x40000000, 384)}"',
+)
+
 SONGS = {
     "RS_KIT_FX": lambda v: kit_song(v, FX),
     "RS_KIT_DRY": lambda v: kit_song(v, DRY),
@@ -780,6 +790,8 @@ SONGS = {
     "RS_LOW_CLIP_DRY": lambda v: parts_song(
         v, [kit_parts(DRY, PINGPONG_DRUMS), audio_parts(DRY)]
     ),
+    "RS_AUDIO_COMP_ONSET": lambda v: parts_song(v, [audio_parts(AUDIO_COMP_ONSET)]),
+    "RS_AUDIO_COMP_ONSET_DRY": lambda v: parts_song(v, [audio_parts(DRY)]),
 }
 
 

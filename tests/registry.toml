@@ -1160,6 +1160,24 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-audio-track-comp-onset"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a compressor switched on while its audio sounds renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_AUDIO_COMP_ONSET) whose audio track's compressor threshold holds at its minimum, where the compressor is off and reset every block, then steps up by automation at the second bar while the audio plays, so the compressor's first block seeds its saturators from a sounding frame (every other compressor golden seeds from silence); beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with the threshold held at its minimum must render differently (RS-FX), so the compressor reaches the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_AUDIO_COMP_ONSET" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-song-corpus"
 path = "."
 level = "integration"
