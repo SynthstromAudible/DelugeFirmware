@@ -33,8 +33,8 @@ static void midiAndGateOutputTimerInterrupt(uint32_t int_sense) {
 	R_INTC_Disable(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT]);
 
 	timerClearCompareMatchTGRA(TIMER_MIDI_GATE_OUTPUT);
+	// sends what's due and re-enables the timer itself if any more MIDI / gates are scheduled for later
 	midiAndGateTimerGoneOff();
-	// re enabled at the end of the audio routine iff the gate needs to be triggered between renders
 }
 
 uint32_t triggerClockRisingEdgeTimes[TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED];
