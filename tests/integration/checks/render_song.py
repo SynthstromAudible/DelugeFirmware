@@ -14,6 +14,8 @@ adds what depends on the song, and why each check is here:
                       level must move. Playback stuck at the start of each sample renders a steady level, streams
                       nothing past the first cluster, and passes every other check here -- the card reads it counts
                       are the load's own background reads.
+    RS-SWITCH         a gate that switches delays mid-render (RENDER_DELAY_SWITCH) only: the same song rendered
+                      unswitched must render differently, or the switches never reached the render.
     RS-PCM            the rendered output, against its record in tests/integration/golden/songs.json: the same
                       record the synth golden masters keep (sha256, frames, peak, rms_db).
 
@@ -126,6 +128,29 @@ def _check_width(gate, result, label: str) -> None:
         )
 
 
+def _differs_unswitched(gate, song: str | None, generated: str, pcm: bytes) -> bool:
+    """Render the song again with no delay switch, and fail unless it differs from @p pcm (see RS-SWITCH). False when
+    that run itself failed."""
+    env = {} if song else _generate(gate, generated)
+    if env is None:
+        return False
+    path = gate.tmp / "unswitched.pcm"
+    env["RENDER_PCM_OUT"] = str(path)
+    env["RENDER_DELAY_SWITCH"] = ""
+    result = gate.run(env=env)
+    if result.code != 0 or not result.has_line(gate.entry.result):
+        gate.fail("RS-SWITCH — the unswitched render failed")
+        gate.show(result)
+        return False
+    if path.read_bytes() == pcm:
+        gate.fail(
+            "RS-SWITCH — the switches changed nothing: the song renders as it does unswitched"
+        )
+    else:
+        gate.say("RS-SWITCH the switched render differs from the unswitched one")
+    return True
+
+
 def run(gate):
     pcm_path = gate.tmp / "out.pcm"
     song = gate.env.get("RENDER_SONG")
@@ -157,11 +182,16 @@ def run(gate):
         )
 
     pcm = pcm_path.read_bytes()
-    try:
-        dry = None if song else _dry_twin(gate, generated)
-    except LookupError as missing:
-        gate.fail(f"RS-FX — {missing}")
-        return
+    if gate.env.get("RENDER_DELAY_SWITCH"):
+        if not _differs_unswitched(gate, song, generated, pcm):
+            return
+        dry = None
+    else:
+        try:
+            dry = None if song else _dry_twin(gate, generated)
+        except LookupError as missing:
+            gate.fail(f"RS-FX — {missing}")
+            return
     if dry:
         dry_env = _generate(gate, dry)
         if dry_env is None:

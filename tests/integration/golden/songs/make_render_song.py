@@ -20,7 +20,9 @@ drive filter, the saturating ladder HPF, the granular mod FX, and each filter fa
 it on. RS_AUDIO_DUCKED, RS_KIT_COMP, RS_KIT_DELAY, RS_AUDIO_DELAY and RS_KIT_PINGPONG cover the dynamics and delay
 paths: sidechain hits ducking an audio track, the reverb and a drum; a drum's compressor and a kit's blended one; a
 delay's rate stepped through new buffers until it is abandoned; and ping-pong, which its gate renders in stereo.
-RS_AUDIO_DELAY_TOGGLE switches an audio track's analog delay off and on again while it rings.
+RS_AUDIO_DELAY_TOGGLE switches an audio track's analog delay off and on again while it rings. RS_AUDIO_DELAY_SWITCH
+holds an audio track's analog delay ringing for its gate to switch between analog and digital mid-render; it has no dry
+twin, because its gate's twin is the same song rendered unswitched.
 RS_LOW_CLIP covers a host chain's saturation below amount 3, which RS_KIT_FX and RS_AUDIO_FX (at 4) leave out: a
 kit at 1 and an audio track at 2.
 RS_DUCK_SHAPES covers the sidechain envelope's paths RS_AUDIO_DUCKED leaves out on the host owners: the instant
@@ -683,6 +685,9 @@ AUDIO_DELAY_TOGGLE_DRY = _host(
         '<delay rate="0x00000000" feedback="0x00000000" />',
     ),
 )
+# An audio track's analog delay with its feedback held, ringing the whole way through: the song its gate switches
+# between analog and digital mid-render (RENDER_DELAY_SWITCH), the same delay each time.
+AUDIO_DELAY_SWITCH = AUDIO_DELAY_TOGGLE_DRY
 # A host chain's saturation below amount 3, where it does not shift back up: the kit at 1 and the audio track at 2,
 # every other setting at DRY's value. RS_KIT_FX and RS_AUDIO_FX render it from 3 up.
 KIT_LOW_CLIP = _host(
@@ -731,6 +736,7 @@ SONGS = {
     "RS_AUDIO_DELAY_TOGGLE_DRY": lambda v: parts_song(
         v, [audio_parts(AUDIO_DELAY_TOGGLE_DRY)]
     ),
+    "RS_AUDIO_DELAY_SWITCH": lambda v: parts_song(v, [audio_parts(AUDIO_DELAY_SWITCH)]),
     "RS_LOW_CLIP": lambda v: parts_song(
         v, [kit_parts(KIT_LOW_CLIP, PINGPONG_DRUMS), audio_parts(AUDIO_LOW_CLIP)]
     ),

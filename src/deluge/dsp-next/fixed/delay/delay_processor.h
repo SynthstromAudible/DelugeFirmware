@@ -65,7 +65,12 @@ struct DelayBlockResult {
 /// 44 KB internal SRAM heap first.
 ///
 /// **Reactivation.** @ref resetHighPass resets the high-pass's memories only. The impulse response's history carries
-/// over, so a delay switched off and on again starts with up to 25 samples of the old response's tail.
+/// over, so a delay switched off and on again starts with up to 25 samples of the old response's tail. The render gate
+/// `render-audio-track-delay-toggle` pins it.
+///
+/// **Mode switches.** A switch between analog and digital between blocks keeps the response's history too (see
+/// @ref FeedbackShaper): analog resumes from the last analog block's. `feedback_shaper_spec`, `delay_processor_spec`
+/// and the render gate `render-audio-track-delay-switch` pin it.
 class DelayProcessor {
 public:
 	/// @brief Renders one block: the delayed signal is added to @p block (Q31), and the block plus the shaped

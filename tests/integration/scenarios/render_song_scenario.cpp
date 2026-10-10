@@ -26,6 +26,9 @@
 #include "harness/streaming_underrun.h"
 #include "libdeluge/tier.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/change_effect.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/output.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -35,6 +38,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <vector>
 
 // The app's printf.h aliases printf to an implementation that writes through putchar_, which the Rust BSP builds do not
 // define; this harness links the Rust BSP, so the alias would leave every line below an undefined symbol.
@@ -100,6 +104,42 @@ void readBurst(StorageModel& model) {
 		model.burstStart = start;
 		model.burstBlocks = blocks;
 		model.burstMs = ms;
+	}
+}
+
+/// RENDER_DELAY_SWITCH: the blocks, counted from playback's start, at which every audio track's delay switches between
+/// analog and digital, ascending and comma-separated; empty by default. Each switch is the Edit the gold knob's press
+/// on the delay makes (ModControllableAudio::switchDelayAnalog), so the same delay is switched while it rings.
+std::vector<uint64_t> g_switchAt;
+std::size_t g_switchesDone = 0;
+int32_t g_tracksSwitched = 0;
+
+void readSwitches() {
+	g_switchAt.clear();
+	const char* list = std::getenv("RENDER_DELAY_SWITCH");
+	for (const char* at = list; at != nullptr && *at != '\0';) {
+		char* end = nullptr;
+		g_switchAt.push_back(std::strtoull(at, &end, 10));
+		at = (end != nullptr && *end == ',') ? end + 1 : nullptr;
+	}
+}
+
+/// Switch every audio track's delay between analog and digital, as a press of the gold knob on its delay does, at
+/// render block @p block.
+void switchDelays(uint64_t block) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
+		if (output->type != OutputType::AUDIO) {
+			continue;
+		}
+		auto* owner = static_cast<ModControllableAudio*>(output->toModControllable());
+		if (owner == nullptr) {
+			continue;
+		}
+		deluge::edits::changeEffect(*owner, "delay/analog",
+		                            deluge::serialization::Value::makeNumber(owner->effects().delay.analog ? 0 : 1));
+		g_tracksSwitched++;
+		printf("RS-DELAY-SWITCH block=%llu analog=%d\n", static_cast<unsigned long long>(block),
+		       owner->effects().delay.analog ? 1 : 0);
 	}
 }
 
@@ -244,6 +284,10 @@ void stepPlaying() {
 		g_wrongWidthTicks++;
 	}
 	g_blocksRendered = deluge_host_render_count() - g_renderBase;
+	while (g_switchesDone < g_switchAt.size() && g_blocksRendered >= g_switchAt[g_switchesDone]) {
+		switchDelays(g_blocksRendered);
+		g_switchesDone++;
+	}
 	const bool burst = g_model.burstBlocks != 0 && g_blocksRendered >= g_model.burstStart
 	                   && g_blocksRendered < g_model.burstStart + g_model.burstBlocks;
 	if (burst != g_inBurst) {
@@ -297,6 +341,13 @@ void report() {
 	printf("RS-UNDERRUN wait=%llu unassign=%llu\n",
 	       static_cast<unsigned long long>(deluge_sim_underrun_wait_count() - g_waitBase),
 	       static_cast<unsigned long long>(deluge_sim_underrun_unassign_count() - g_unassignBase));
+	if (!g_switchAt.empty()) {
+		printf("RS-DELAY-SWITCH switches=%zu asked=%zu tracks=%d\n", g_switchesDone, g_switchAt.size(),
+		       g_tracksSwitched);
+		if (g_switchesDone != g_switchAt.size() || g_tracksSwitched != static_cast<int32_t>(g_switchAt.size())) {
+			fail("RS-DELAY-SWITCH", "a switch asked for did not switch exactly one audio track's delay");
+		}
+	}
 	printf("RS-CAPTURE frames=%llu stereo=%d\n", static_cast<unsigned long long>(g_captured), g_stereo ? 1 : 0);
 	if (g_wrongWidthTicks != 0) {
 		fail("RS-CAPTURE", g_stereo ? "the app rendered in mono with headphones plugged in"
@@ -332,6 +383,9 @@ void deluge_scenario_render_song_begin(void) {
 	g_model.delayMs = envU32("RENDER_FILL_DELAY_MS");
 	g_model.readUs = envU32("RENDER_FILL_READ_US");
 	readBurst(g_model);
+	readSwitches();
+	g_switchesDone = 0;
+	g_tracksSwitched = 0;
 	if (const char* blocks = std::getenv("RENDER_BLOCKS")) {
 		g_blocksWanted = std::strtoull(blocks, nullptr, 10);
 	}

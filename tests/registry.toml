@@ -1088,6 +1088,24 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-audio-track-delay-switch"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "an analog delay switched to digital and back to analog while it rings renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_AUDIO_DELAY_SWITCH) whose audio track's analog delay rings with its feedback held, switched by the Edit the gold knob's press on the delay makes (RENDER_DELAY_SWITCH, RS-DELAY-SWITCH) at block 600 and again at block 1000, the same delay each time, so its digital blocks leave the impulse response's history as the last analog block did and the analog blocks after resume from it; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; the same song rendered unswitched must render differently (RS-SWITCH), so the switches reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-DELAY-SWITCH", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_AUDIO_DELAY_SWITCH", RENDER_DELAY_SWITCH = "600,1000" }
+tier = "pr"
+runtime = "~40s"
+
+[[harness]]
 name = "render-low-clip"
 path = "."
 level = "integration"
