@@ -32,6 +32,8 @@ set(lanes_spec_DEPS)
 set(mono_spec_DEPS)
 # The Control spec needs no sources: Control and its reference kernels are header-only.
 set(control_spec_DEPS)
+# The Chain spec needs no sources: Chain, Pinned and the kernels it chains are header-only.
+set(chain_spec_DEPS)
 # The noise spec shares jcong, which waves.cpp defines.
 set(noise_spec_DEPS ${_repo_root}/src/deluge/util/waves.cpp)
 # The stereo spec draws from the shared noise stream, which waves.cpp defines.
