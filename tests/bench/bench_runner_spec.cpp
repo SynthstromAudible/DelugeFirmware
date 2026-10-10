@@ -268,6 +268,7 @@ const std::vector<std::string_view> kChainCaseNames{
     "delay_feedback_chain_analog",
     "delay_feedback_passes_digital",
     "delay_feedback_chain_digital",
+    "delay_feedback_chain_digital_out_of_place",
     "tanh3",
     "one_pole_lp",
     "shift_tracker",
@@ -276,7 +277,7 @@ const std::vector<std::string_view> kChainCaseNames{
 };
 
 /// Each chain list case's lane count, in order: the delay's feedback cases are stereo.
-const std::vector<std::size_t> kChainCaseLanes{1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1};
+const std::vector<std::size_t> kChainCaseLanes{1, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1};
 
 /// A fake component of four lanes whose block costs a fixed amount per frame.
 struct FourLanes {
@@ -316,21 +317,26 @@ q31 delay_high_pass(q31 x, q31& memory) {
 }
 
 /// The delay's feedback as it shipped before it ran as one chain: the stereo impulse response (analog only), the
-/// feedback amount and its saturation, then the high-pass, each a loop of its own over the block. Two blocks of the
-/// lanes input's first @p n frames from silence, at the delay cases' feedback and drive.
+/// feedback amount and its saturation, then the high-pass, each a loop of its own over the block, every add wrapping
+/// as the hardware's does. @p blocks blocks of @p n frames from silence, from the lanes input's first @p n frames,
+/// filled as the delay cases fill it, at the delay cases' feedback and drive: in place, each block after the first
+/// renders the one before's output.
 struct DelayFeedbackReference {
-	std::vector<q31> second_block; ///< The second block's output, left and right interleaved.
-	q31 memory_l = 0;              ///< The left high-pass memory after both blocks.
-	q31 memory_r = 0;              ///< The right high-pass memory after both blocks.
+	std::vector<q31> last_block; ///< The last block's output, left and right interleaved.
+	q31 memory_l = 0;            ///< The left high-pass memory after every block.
+	q31 memory_r = 0;            ///< The right high-pass memory after every block.
 };
 
-DelayFeedbackReference delay_feedback_reference(std::size_t n, bool analog) {
-	reference::ReferenceImpulseResponse response;
+DelayFeedbackReference delay_feedback_reference(std::size_t n, bool analog, std::size_t blocks, Placement placement) {
+	fill_delay_input();
+	reference::WrappingReferenceImpulseResponse response;
 	DelayFeedbackReference out;
-	for (std::size_t block = 0; block < 2; ++block) {
-		std::vector<StereoSample> work(n);
-		for (std::size_t i = 0; i < n; ++i) {
-			work[i] = {.l = lane_sample(lanes_input(), 2, i, 0), .r = lane_sample(lanes_input(), 2, i, 1)};
+	std::vector<StereoSample> work(n);
+	for (std::size_t block = 0; block < blocks; ++block) {
+		if (block == 0 || placement == Placement::OUT_OF_PLACE) {
+			for (std::size_t i = 0; i < n; ++i) {
+				work[i] = {.l = lane_sample(lanes_input(), 2, i, 0), .r = lane_sample(lanes_input(), 2, i, 1)};
+			}
 		}
 		if (analog) {
 			for (StereoSample& sample : work) {
@@ -351,11 +357,10 @@ DelayFeedbackReference delay_feedback_reference(std::size_t n, bool analog) {
 			sample.l = delay_high_pass(sample.l, out.memory_l);
 			sample.r = delay_high_pass(sample.r, out.memory_r);
 		}
-		out.second_block.clear();
-		for (const StereoSample& sample : work) {
-			out.second_block.push_back(sample.l);
-			out.second_block.push_back(sample.r);
-		}
+	}
+	for (const StereoSample& sample : work) {
+		out.last_block.push_back(sample.l);
+		out.last_block.push_back(sample.r);
 	}
 	return out;
 }
@@ -1023,33 +1028,26 @@ describe bench_runner("The DSP benchmark runner", ${
 			}
 		});
 
-		it("keeps the delay cases' input under half of full scale, where the stereo reference's plain adds stay in q31", _ {
-			CaseSet& set = case_set();
-			set.delay_feedback_legacy_analog.setup(kMaxBlock);
-			int64_t peak = 0;
-			for (std::size_t i = 0; i < 2 * kMaxBlock; ++i) {
-				peak = std::max(peak, std::abs(int64_t{lanes_input()[i]}));
-			}
-			expect(peak).to_be_less_than(int64_t{1} << 30);
-			expect(peak).to_be_greater_than(int64_t{1} << 29);
-		});
-
-		it("shapes and high-passes the delay's feedback as the delay's loops do, in passes and as one chain, at every size", _ {
+		it("shapes and high-passes the delay's feedback in place, as the delay renders it, in passes and as one chain, at every size", _ {
 			CaseSet& set = case_set();
 			for (const std::size_t n : kSizes) {
 				for (const bool analog : {true, false}) {
-					const DelayFeedbackReference expected = delay_feedback_reference(n, analog);
-					expect(std::ranges::count(expected.second_block, 0)).to_be_less_than(std::ptrdiff_t{2});
+					const DelayFeedbackReference expected = delay_feedback_reference(n, analog, 2, Placement::IN_PLACE);
+					expect(std::ranges::count(expected.last_block, 0)).to_be_less_than(std::ptrdiff_t{2});
+					// In place, the second block's input is the first's output, not the lanes input again.
+					expect(expected.last_block)
+					    .not_()
+					    .to_equal(delay_feedback_reference(n, analog, 2, Placement::OUT_OF_PLACE).last_block);
 
 					if (analog) {
 						render(set.delay_feedback_passes_analog, n, 2);
-						expect(stereo_output(n)).to_equal(expected.second_block);
+						expect(stereo_output(n)).to_equal(expected.last_block);
 						const auto& high_pass = set.delay_feedback_passes_analog.high_pass();
 						expect(high_pass.left().y).to_equal(expected.memory_l);
 						expect(high_pass.right().y).to_equal(expected.memory_r);
 
 						render(set.delay_feedback_chain_analog, n, 2);
-						expect(stereo_output(n)).to_equal(expected.second_block);
+						expect(stereo_output(n)).to_equal(expected.last_block);
 						const auto& chain = set.delay_feedback_chain_analog.component();
 						expect(dsp::get<1>(chain.left()).y).to_equal(expected.memory_l);
 						expect(dsp::get<1>(chain.right()).y).to_equal(expected.memory_r);
@@ -1057,13 +1055,13 @@ describe bench_runner("The DSP benchmark runner", ${
 					}
 					else {
 						render(set.delay_feedback_passes_digital, n, 2);
-						expect(stereo_output(n)).to_equal(expected.second_block);
+						expect(stereo_output(n)).to_equal(expected.last_block);
 						const auto& high_pass = set.delay_feedback_passes_digital.high_pass();
 						expect(high_pass.left().y).to_equal(expected.memory_l);
 						expect(high_pass.right().y).to_equal(expected.memory_r);
 
 						render(set.delay_feedback_chain_digital, n, 2);
-						expect(stereo_output(n)).to_equal(expected.second_block);
+						expect(stereo_output(n)).to_equal(expected.last_block);
 						const auto& chain = set.delay_feedback_chain_digital.component();
 						expect(dsp::get<1>(chain.left()).y).to_equal(expected.memory_l);
 						expect(dsp::get<1>(chain.right()).y).to_equal(expected.memory_r);
@@ -1078,19 +1076,35 @@ describe bench_runner("The DSP benchmark runner", ${
 			}
 		});
 
-		it("runs the delay's analog feedback as it shipped, bit for bit the chain's output, at every block size", _ {
+		it("runs the digital chain out of place too, each block from the lanes input, at every size", _ {
+			CaseSet& set = case_set();
+			for (const std::size_t n : kSizes) {
+				const DelayFeedbackReference expected = delay_feedback_reference(n, false, 2, Placement::OUT_OF_PLACE);
+				render(set.delay_feedback_chain_digital_out_of_place, n, 2);
+				expect(stereo_output(n)).to_equal(expected.last_block);
+				const auto& chain = set.delay_feedback_chain_digital_out_of_place.component();
+				expect(dsp::get<1>(chain.left()).y).to_equal(expected.memory_l);
+				expect(dsp::get<1>(chain.right()).y).to_equal(expected.memory_r);
+				expect(dsp::get<0>(chain.coefficients().mode)).to_equal(dsp::fixed::FeedbackShaper::Mode::DIGITAL);
+			}
+		});
+
+		it("runs the delay's analog feedback as it shipped, in place, bit for bit the chain's output, at every block size", _ {
 			CaseSet& set = case_set();
 			for (const std::size_t n : kSizes) {
 				const std::size_t blocks = RunConfig{}.blocks_per_run(n);
+				const DelayFeedbackReference expected = delay_feedback_reference(n, true, blocks, Placement::IN_PLACE);
 				render(set.delay_feedback_chain_analog, n, blocks);
-				const std::vector<q31> fused = stereo_output(n);
+				expect(stereo_output(n)).to_equal(expected.last_block);
 				const auto& chain = set.delay_feedback_chain_analog.component();
 
 				render(set.delay_feedback_legacy_analog, n, blocks);
-				expect(stereo_output(n)).to_equal(fused);
+				expect(stereo_output(n)).to_equal(expected.last_block);
 				const auto& legacy = set.delay_feedback_legacy_analog;
 				expect(legacy.high_pass_l()).to_equal(dsp::get<1>(chain.left()).y);
 				expect(legacy.high_pass_r()).to_equal(dsp::get<1>(chain.right()).y);
+				expect(legacy.high_pass_l()).to_equal(expected.memory_l);
+				expect(legacy.high_pass_r()).to_equal(expected.memory_r);
 				expect(legacy.drive()).to_equal(kDelayDrive);
 				expect(legacy.feedback()).to_equal(kDelayFeedback);
 			}

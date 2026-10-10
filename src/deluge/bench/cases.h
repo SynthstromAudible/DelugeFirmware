@@ -767,24 +767,34 @@ inline constexpr uint32_t kDelayDrive = 8;
 	return {.feedback = kDelayFeedback, .analog = analog, .drive = kDelayDrive};
 }
 
-/// @brief The delay's feedback stages as two passes over the block: `Stereo<FeedbackShaper>` from the lanes input into
-/// the lanes output, then `Stereo<DelayHighPass>` over the lanes output in place.
-/// @details The lanes input holds the stereo frames at under half of full scale (setup halves its noise), where the
-/// stereo reference's plain adds stay in q31, so every delay case reads the same frames.
+/// @brief Where a delay feedback case renders its blocks.
+enum class Placement : uint8_t {
+	/// In the lanes output, as the delay renders its work block: setup copies the lanes input's first n frames there,
+	/// and each block renders the block before's output.
+	IN_PLACE,
+	/// From the lanes input's first n frames into the lanes output, every block.
+	OUT_OF_PLACE,
+};
+
+/// @brief The delay's feedback stages as two passes over the block, each in place in the lanes output:
+/// `Stereo<FeedbackShaper>`, then `Stereo<DelayHighPass>`.
+/// @details Setup copies the lanes input's first n frames into the lanes output, and every block renders the block
+/// before's output, as the delay renders its work block (Placement::IN_PLACE).
 ///
-/// **Timed state:** every block reads the same input. The response's history (analog) and each channel's high-pass
-/// memory carry from block to block, from silence at setup. Every frame is the same arithmetic: in ANALOG the 26-tap
-/// response, the feedback multiply and the tanh at the drive; in DIGITAL the multiply and the 29-bit clip; then the
-/// high-pass's subtract, shifted add and subtract.
+/// **Timed state:** the response's history (analog) and each channel's high-pass memory carry from block to block,
+/// from silence at setup, and each block's input is the block before's output. Every frame is the same arithmetic,
+/// whatever the samples: in ANALOG the 26-tap response, the feedback multiply and the tanh at the drive; in DIGITAL
+/// the multiply and the 29-bit clip; then the high-pass's subtract, shifted add and subtract.
 /// @tparam Analog The shaper's mode: true for `delay_feedback_passes_analog`, false for `_digital`.
 template <bool Analog>
 class DelayFeedbackPassesCase {
 public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
 
-	/// @brief Configures both passes from silence, fills the lanes input and takes the blocks' spans for @p n frames.
+	/// @brief Configures both passes from silence, fills the lanes input, copies its first @p n frames into the lanes
+	/// output and takes that block's span.
 	void setup(std::size_t n);
-	/// @brief Processes one block of the size it was set up for: the shaper's pass, then the high-pass's.
+	/// @brief Processes one block of the size it was set up for, in place: the shaper's pass, then the high-pass's.
 	void block(std::size_t n);
 	/// @return The shaper's component.
 	[[nodiscard]] const dsp::Stereo<dsp::fixed::FeedbackShaper>& shaper() const { return shaper_; }
@@ -794,8 +804,7 @@ public:
 private:
 	dsp::Stereo<dsp::fixed::FeedbackShaper> shaper_;
 	dsp::Stereo<DelayHighPass> high_pass_;
-	FrameSpans<StereoSample> spans_{};
-	dsp::Signal<StereoSample> shaped_{}; ///< The lanes output's first n frames, read by the high-pass's pass.
+	dsp::Buffer<StereoSample> work_{}; ///< The lanes output's first n frames, which both passes render in place.
 };
 
 /// @brief `delay_feedback_passes_analog`.
@@ -803,16 +812,23 @@ using DelayFeedbackPassesAnalogCase = DelayFeedbackPassesCase<true>;
 /// @brief `delay_feedback_passes_digital`.
 using DelayFeedbackPassesDigitalCase = DelayFeedbackPassesCase<false>;
 
-/// @brief The delay's feedback as the delay runs it: `Stereo<DelayFeedbackChain>`, one pass from the lanes input
-/// into the lanes output.
-/// @details **Timed state:** as DelayFeedbackPassesCase's, the same arithmetic per frame in one pass.
+/// @brief The delay's feedback as one pass of `Stereo<DelayFeedbackChain>`.
+/// @details In place (Placement::IN_PLACE) it is the delay's own render, `renderBlock(work, work)`: the loop the delay
+/// ships, whose one frame pointer is stepped after the frame's store. Out of place it renders the lanes input into the
+/// lanes output, a loop with an input pointer and an output pointer; `delay_feedback_chain_digital_out_of_place` times
+/// that form against the in-place one.
+///
+/// **Timed state:** as DelayFeedbackPassesCase's, the same arithmetic per frame in one pass; out of place, every block
+/// reads the same input.
 /// @tparam Analog The shaper's mode: true for `delay_feedback_chain_analog`, false for `_digital`.
-template <bool Analog>
+/// @tparam P Where it renders.
+template <bool Analog, Placement P = Placement::IN_PLACE>
 class DelayFeedbackChainCase {
 public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
 
-	/// @brief Configures the chain from silence, fills the lanes input and takes the blocks' spans for @p n frames.
+	/// @brief Configures the chain from silence, fills the lanes input and takes the blocks' spans for @p n frames; in
+	/// place, copies the input's frames into the lanes output and takes that block's span alone.
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for.
 	void block(std::size_t n);
@@ -821,31 +837,37 @@ public:
 
 private:
 	dsp::Stereo<DelayFeedbackChain> chain_;
-	FrameSpans<StereoSample> spans_{};
+	dsp::Buffer<StereoSample> work_{}; ///< In place: the lanes output's first n frames, passed as input and output.
+	FrameSpans<StereoSample> spans_{}; ///< Out of place: the lanes blocks' first n frames.
 };
 
 /// @brief `delay_feedback_chain_analog`.
 using DelayFeedbackChainAnalogCase = DelayFeedbackChainCase<true>;
 /// @brief `delay_feedback_chain_digital`.
 using DelayFeedbackChainDigitalCase = DelayFeedbackChainCase<false>;
+/// @brief `delay_feedback_chain_digital_out_of_place`.
+using DelayFeedbackChainDigitalOutOfPlaceCase = DelayFeedbackChainCase<false, Placement::OUT_OF_PLACE>;
 
 /// @brief The delay's analog feedback with the response stepping both channels in one tap loop: the stereo reference
-/// response from the lanes input into the lanes output, then a tanh pass and a high-pass pass over the lanes output in
-/// place, each a plain loop over both channels.
+/// response, then a tanh pass and a high-pass pass, each a plain loop over both channels in place in the lanes
+/// output, as the delay ran them.
 /// @details The baseline the chain's analog cost is measured against: its output is bit for bit
 /// `delay_feedback_chain_analog`'s, so the two time the same work in two forms, and the difference is the per-channel
-/// response's tap loop against the stereo one, less the two passes the chain fuses.
-/// The drive is read from a member, as the processor read it from its settings, so the tanh's shift stays a run-time
-/// one.
+/// response's tap loop against the stereo one, less the two passes the chain fuses. Its response's adds wrap, as the
+/// target's `add` computes them, since in place a block's input is the block before's output, which can be near full
+/// scale. The drive is read from a member, as the processor read it from its settings, so the tanh's shift stays a
+/// run-time one.
 ///
 /// **Timed state:** as DelayFeedbackPassesCase's in ANALOG.
 class DelayFeedbackLegacyAnalogCase {
 public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
 
-	/// @brief Clears the response and the memories, fills the lanes input and takes the blocks' spans for @p n frames.
+	/// @brief Clears the response and the memories, fills the lanes input, copies its first @p n frames into the lanes
+	/// output and takes that block's span.
 	void setup(std::size_t n);
-	/// @brief Processes one block of the size it was set up for: the response's pass, the tanh's and the high-pass's.
+	/// @brief Processes one block of the size it was set up for, in place: the response's pass, the tanh's and the
+	/// high-pass's.
 	void block(std::size_t n);
 	/// @return The left high-pass memory, Q31.
 	[[nodiscard]] int32_t high_pass_l() const { return high_pass_l_; }
@@ -857,12 +879,11 @@ public:
 	[[nodiscard]] uint32_t drive() const { return drive_; }
 
 private:
-	reference::ReferenceImpulseResponse response_;
+	reference::WrappingReferenceImpulseResponse response_;
 	int32_t high_pass_l_ = 0;
 	int32_t high_pass_r_ = 0;
 	q31 feedback_ = kDelayFeedback;
 	uint32_t drive_ = kDelayDrive;
-	std::span<const StereoSample> in_{};
 	std::span<StereoSample> work_{};
 };
 
@@ -943,8 +964,10 @@ struct CaseSet {
 	DelayFeedbackChainAnalogCase delay_feedback_chain_analog;     ///< `delay_feedback_chain_analog`
 	DelayFeedbackPassesDigitalCase delay_feedback_passes_digital; ///< `delay_feedback_passes_digital`
 	DelayFeedbackChainDigitalCase delay_feedback_chain_digital;   ///< `delay_feedback_chain_digital`
-	Chain3PassesCase chain3_passes;                               ///< `chain3_passes`
-	Chain3FusedCase chain3_fused;                                 ///< `chain3_fused`
+	/// `delay_feedback_chain_digital_out_of_place`
+	DelayFeedbackChainDigitalOutOfPlaceCase delay_feedback_chain_digital_out_of_place;
+	Chain3PassesCase chain3_passes; ///< `chain3_passes`
+	Chain3FusedCase chain3_fused;   ///< `chain3_fused`
 };
 
 /// @brief The cases' components, built on first use.

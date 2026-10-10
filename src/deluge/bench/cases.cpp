@@ -543,6 +543,7 @@ std::span<const Case> cases(CaseList list) {
 	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
 	    make_case("delay_feedback_passes_digital", s.delay_feedback_passes_digital),
 	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	    make_case("delay_feedback_chain_digital_out_of_place", s.delay_feedback_chain_digital_out_of_place),
 	    make_case("tanh3", s.tanh3),
 	    make_case("one_pole_lp", s.one_pole_lp),
 	    make_case("shift_tracker", s.shift_tracker),
