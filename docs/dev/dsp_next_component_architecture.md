@@ -1106,10 +1106,14 @@ gates:
   units build with `-fno-inline-functions`, so an out-of-line `prepare` is one
   call per channel per block. A control kernel's `advance`, called once per
   block, may be out of line; `DuckEnvelope::advance` is.
-- Is there a structured binding over an Argon `std::array` on a per-step path?
-  Under those flags `std::get` is out of line. An interleaved stereo load goes
-  through `detail::toStereo` (`core/stereo_vector.h`), a `__builtin_bit_cast`,
-  as `Mono` and the mixins do; any other array is read through `data()`.
+- Is a `std::array` read on a per-step path? Under those flags `std::get`,
+  `data()` and `operator[]` are all out-of-line calls. An Argon load that
+  returns a `std::array` of vectors (an interleaved stereo load) goes through
+  `detail::toStereo` (`core/stereo_vector.h`), a `__builtin_bit_cast`, as
+  `Mono` and the mixins do; any other such result is bit-cast the same way. A
+  kernel's own arrays (taps, a history, a window) are built-in arrays, each
+  with a NOLINT giving the reason, as `AnalogImpulseResponse` and `SincWindow`
+  are, or are read through a pointer taken once per block.
 - Is every function on the per-sample path, the wrapper and mixin glue included,
   `[[gnu::always_inline]]`? The app's translation units build with
   `-fno-inline-functions`, so anything else is an out-of-line call per sample
