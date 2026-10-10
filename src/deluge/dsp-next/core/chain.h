@@ -298,7 +298,9 @@ struct chain_step_mode<ChainModes<>> {
 
 /// @brief A moded chain's Coefficients: every part's, then the mode assembled from the moded parts'.
 /// @details The mode is a member beside the parts, never in a base's tail padding, so every part's Coefficients stays
-/// a whole object of its own. Part @c I's Coefficients are `get<I>(c)`, as for a bare @ref Parts.
+/// a whole object of its own. Part @c I's Coefficients are `get<I>(c)`, as for a bare @ref Parts. The chain dispatches
+/// on `mode` alone and never reads a part's own `mode` member, so Coefficients are rebuilt through
+/// `Chain::coefficients(settings)`, which sets both, rather than by editing a part's.
 template <typename Mode, typename... Ts>
 struct ModedParts {
 	Parts<Ts...> parts{}; ///< Each part's coefficients, part 0 first.

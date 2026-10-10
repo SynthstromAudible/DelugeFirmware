@@ -21,7 +21,7 @@ struct Voicing {
 };
 using Voicings = ModeList<Voicing{Shape::SAW, false}, Voicing{Shape::SAW, true}, Voicing{Shape::SQUARE, true}>;
 
-/// Whether `ModeList<M>` names a class.
+/// Whether `ModeList<M>` is a valid type: its mode is an enumerator or a structural class value.
 template <auto M>
 concept lists_as_mode = requires { typename ModeList<M>; };
 

@@ -861,6 +861,37 @@ describe chain("Chain", ${
 		}
 	});
 
+	it("nests a moded chain as one of two moded parts: equals the flat chain in every combination of modes", _ {
+		using NestedPick = Chain<Chain<PickA, AddK>, PickB>;
+		using PickInner = Chain<PickA, AddK>;
+		for (std::size_t n = 1; n <= kMaxLength; ++n) {
+			Mono<NestedPick> nested;
+			Mono<PickedAround> flat;
+			std::vector<std::vector<q31>> got;
+			std::vector<std::vector<q31>> want;
+			for (std::size_t block = 0; block < kPickCombos.size(); ++block) {
+				const auto& [a, b] = kPickCombos[block];
+				nested.configure(NestedPick::Settings{
+				    PickInner::Settings{PickA::Settings{.mode = a}, AddK::Settings{.offset = 100}},
+				    PickB::Settings{.mode = b}});
+				flat.configure(PickedAround::Settings{PickA::Settings{.mode = a}, AddK::Settings{.offset = 100},
+				                                      PickB::Settings{.mode = b}});
+				expect(get<0>(get<0>(nested.coefficients().mode))).to_equal(a);
+				expect(get<1>(nested.coefficients().mode)).to_equal(b);
+				const std::vector<q31> in = noise(n, 0x5e7 + static_cast<uint32_t>((block * 11) + n));
+				std::vector<q31> nested_out(n);
+				std::vector<q31> flat_out(n);
+				nested.renderBlock(in, nested_out);
+				flat.renderBlock(in, flat_out);
+				got.push_back(nested_out);
+				want.push_back(flat_out);
+			}
+			expect(got).to_equal(want);
+			expect(get<0>(get<0>(nested.state())).steps).to_equal(get<0>(flat.state()).steps);
+			expect(get<1>(nested.state()).steps).to_equal(get<2>(flat.state()).steps);
+		}
+	});
+
 	it("runs under Stereo as two Monos, in place and out of place, its mode changing between blocks", _ {
 		for (std::size_t n = 1; n <= kMaxLength; ++n) {
 			Stereo<Filtered> out_of_place;
@@ -893,8 +924,12 @@ describe chain("Chain", ${
 				expect(interleaved(got)).to_equal(interleaved(want));
 				expect(interleaved(frames)).to_equal(interleaved(want));
 			}
-			expect(bytes_of(get<0>(out_of_place.left()))).to_equal(bytes_of(get<0>(left.state())));
-			expect(bytes_of(get<1>(in_place.right()))).to_equal(bytes_of(get<1>(right.state())));
+			for (const Stereo<Filtered>* chain : {&out_of_place, &in_place}) {
+				expect(bytes_of(get<0>(chain->left()))).to_equal(bytes_of(get<0>(left.state())));
+				expect(bytes_of(get<1>(chain->left()))).to_equal(bytes_of(get<1>(left.state())));
+				expect(bytes_of(get<0>(chain->right()))).to_equal(bytes_of(get<0>(right.state())));
+				expect(bytes_of(get<1>(chain->right()))).to_equal(bytes_of(get<1>(right.state())));
+			}
 		}
 	});
 
