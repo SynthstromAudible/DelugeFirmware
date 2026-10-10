@@ -28,8 +28,13 @@ if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
   list(APPEND deluge_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/bench/runner.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/cases.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bench/delay_feedback_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/pmu_a9.cpp
   )
+  # The delay ships from deluge_dsp_fixed, so its feedback cases take that library's flags (dsp-next/CMakeLists.txt):
+  # ARM mode, -finline-functions and no LTO, each after the app's own and so in force.
+  set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/bench/delay_feedback_cases.cpp
+    PROPERTIES COMPILE_OPTIONS "-fno-lto;-finline-functions;-marm")
 endif()
 
 # ---------------------------------------------------------------------------

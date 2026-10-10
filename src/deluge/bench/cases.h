@@ -744,6 +744,13 @@ private:
 	q31* level_ = nullptr; ///< The output block's first sample, which receives the level.
 };
 
+/// @brief Fills the lanes input with stereo noise at under half of full scale: each sample of the noise halved.
+void fill_delay_input();
+
+/// @brief The lanes blocks' first @p n frames, viewed as stereo frames.
+/// @return The spans a stereo case renders between, built at setup.
+[[nodiscard]] FrameSpans<StereoSample> stereo_frame_spans(std::size_t n);
+
 /// @brief The delay's high-pass, as its feedback chain pins it: the shift tracker taking its memory out.
 using DelayHighPass = dsp::Pinned<ShiftTrackerCase::Tracker, ShiftTrackerCase::Tracker::Mode::REMOVE>;
 /// @brief The delay's feedback chain, as the delay processor builds it: shaped, then high-passed.
