@@ -409,7 +409,7 @@ alone.
   every other part's State untouched, as an event through the wrapper's `on`:
   `stereo.on<&Chain<…>::reset_part<1>>()` runs it on each lane's State in lane
   order. The delay resets its high-pass on reactivation this way and keeps the
-  response's sums.
+  response's history.
 - **Nesting.** A chain is a kernel, so it can be a part of another chain;
   `Chain<Chain<A, B>, C>` steps as `Chain<A, B, C>`.
 - **Op-major.** A chain declares no `kLanePackable`, so `Lanes<Chain<…>, N>` and
@@ -425,16 +425,23 @@ alone.
   stages, one that runs on a different block (another length, rate or buffer),
   or one stepped on some blocks and not others. Two passes are then the
   structure, not a missed fusion.
-- **A part whose step is a long chain of its own.** Fusing removes a load, a
+- **A part whose step is a long loop of its own.** Fusing removes a load, a
   store and the loop overhead per sample, about a cycle per sample on the
   integer core ([a9_dsp_performance.md](a9_dsp_performance.md#chain)); it does
-  not change what one part's loop costs. In the delay's analog mode the 24-tap
-  response is 86% of the fused frame. The fused loop also stores each channel's
-  high-pass memory once per frame and spills two values, from the register
-  pressure the response's sums bring: chain state, not a store between stages.
-  The stereo form of the response, stepping both channels per tap, runs the
-  analog feedback in 217 cycles per channel-sample against the chain's 400 (the
-  table and the trace are in [a9_dsp_performance.md](a9_dsp_performance.md#chain)).
+  not change what one part's loop costs, so get that loop right first. The
+  delay's analog response is most of its fused frame: summed in direct form
+  from a mirrored history, its tap loop stores nothing, issues two `smmlar`s
+  into even- and odd-tap accumulators and loads the next pair behind them, and
+  the analog feedback as one chain runs in 160.5 cycles per channel-sample,
+  against 216.9 for the stereo form that keeps partial sums. A per-channel
+  partial-sum loop, with a store per tap, made the same chain 393. The fused
+  loop also stores each channel's history, index and high-pass memory once per
+  frame and spills four values, from the tap loop's register pressure: chain
+  state and one stage output held across the other channel's loop, nothing
+  else stored between stages. The next lever is the stereo direct form, both
+  channels per tap (139.7 in C); it needs a chain that steps a stereo frame,
+  with a `Packed`/`PerChannel` adaptor for its per-channel parts, and is
+  deferred to the mod-FX rewrite (`.superpowers/findings/fir-form-spike/`).
   Likewise `Stereo<Chain<OnePole, Pinned<ShiftTracker<11>, REMOVE>>>` in
   HIGH_PASS and ALL_PASS stores the two channels' outputs separately, one store
   more per frame than `Stereo<OnePole>`, from the chain's register pressure.
