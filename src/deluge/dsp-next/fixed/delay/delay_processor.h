@@ -18,8 +18,8 @@
 #pragma once
 
 #include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/delay/analog_impulse_response.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
+#include "dsp-next/fixed/delay/legacy/analog_impulse_response.h"
 
 #include <cstdint>
 #include <span>
@@ -92,7 +92,7 @@ private:
 	/// @return Whether its read head wrapped, and how many steps it took.
 	static DelayBlockResult writeSecondary(DelayTape& secondary, std::span<const StereoSample> work);
 
-	AnalogImpulseResponse analog_ir_;
+	legacy::AnalogImpulseResponse analog_ir_;
 	/// The high-pass's low-passed left level, Q31.
 	int32_t high_pass_l_ = 0;
 	/// The high-pass's low-passed right level, Q31.

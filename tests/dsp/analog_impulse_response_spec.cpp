@@ -15,20 +15,97 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// AnalogImpulseResponse: the analog delay's 26-tap impulse response. Exact reference values pin an impulse (each tap
-// in order, halved and rounded) and a block of two sines through both channels.
+// The delay's analog impulse response as a kernel. Exact reference values recorded from the class the delay held pin an
+// impulse (each tap in order, halved and rounded) and a block of two sines through both channels, on both the kernel
+// and a verbatim copy of the class (reference_impulse_response.h). Stereo<AnalogImpulseResponse> is pinned against that
+// copy sample by sample: over 4096 seeded stereo samples at a quarter of full scale, where the class's plain adds stay
+// in q31, in blocks of every length 1 to 9; and over two blocks at every length 1 to 9. Each run ends with 25 silent
+// samples, which bring out every pending sum, so the States are compared through the output. At full scale (INT32_MIN
+// held, INT32_MAX held, the two alternating, the taps' signs reversed in time, and full-scale noise) a sum can leave
+// q31, and the kernel is pinned against the class with its adds wrapping as the hardware's do; the reversed signs are
+// pinned to reach the wrap.
 
 #include "dsp-next/fixed/delay/analog_impulse_response.h"
 
-#include <climits>
+#include "dsp-next/core/concepts.h"
+#include "dsp-next/core/kernel.h"
+#include "dsp-next/core/stereo.h"
+#include "dsp-next/fixed/noise/noise.h"
+#include "reference_impulse_response.h"
+
+#include <algorithm>
 #include <cppspec.hpp>
+#include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <span>
+#include <tuple>
+#include <type_traits>
 #include <vector>
 
-using deluge::dsp::StereoSample;
-using deluge::dsp::fixed::AnalogImpulseResponse;
+using namespace deluge::dsp;
+using namespace deluge::dsp::fixed;
+using reference::ReferenceImpulseResponse;
+using reference::WrappingReferenceImpulseResponse;
 
 namespace {
+
+static_assert(processor_kernel<AnalogImpulseResponse>);
+static_assert(!moded_kernel<AnalogImpulseResponse>);
+static_assert(!std::is_polymorphic_v<AnalogImpulseResponse>);
+static_assert(processor<Stereo<AnalogImpulseResponse>>);
+static_assert(detail::plain_value<AnalogImpulseResponse::State>);
+static_assert(std::tuple_size_v<decltype(AnalogImpulseResponse::State{}.pending)> == 25);
+static_assert(AnalogImpulseResponse::kResponse.size() == 26);
+
+/// The extremes of q31.
+constexpr q31 kMin = std::numeric_limits<q31>::min();
+constexpr q31 kMax = std::numeric_limits<q31>::max();
+/// The samples of the long run.
+constexpr std::size_t kLongRun = 4096;
+/// The block lengths every case runs.
+constexpr std::size_t kMaxLength = 9;
+/// The silent samples that bring out every pending sum.
+constexpr std::size_t kFlush = 25;
+
+/// @p n stereo samples of seeded noise shifted down by @p shift, the channels from two streams.
+std::vector<StereoSample> noise(std::size_t n, uint32_t seed, int shift) {
+	SeededNoise left{seed};
+	SeededNoise right{seed ^ 0x5bd1e995u};
+	std::vector<StereoSample> v(n);
+	for (StereoSample& s : v) {
+		s = {.l = left.render() >> shift, .r = right.render() >> shift};
+	}
+	return v;
+}
+
+/// The full-scale patterns: INT32_MIN held, INT32_MAX held, the two alternating, and the taps' signs reversed in time.
+constexpr int kFullScalePatterns = 4;
+
+/// @p n stereo samples at full scale in @p pattern, the right channel opposite the left. The last pattern gives every
+/// 26th sample's product with each tap the tap's sign, which drives the response's output past full scale.
+std::vector<StereoSample> full_scale(std::size_t n, int pattern) {
+	std::vector<StereoSample> v(n);
+	for (std::size_t i = 0; i < n; ++i) {
+		const std::size_t reversed = AnalogImpulseResponse::kTaps - 1 - (i % AnalogImpulseResponse::kTaps);
+		const bool high = pattern == 0   ? false
+		                  : pattern == 1 ? true
+		                  : pattern == 2 ? i % 2 == 1
+		                                 : AnalogImpulseResponse::kResponse[reversed] > 0;
+		v[i] = {.l = high ? kMax : kMin, .r = high ? kMin : kMax};
+	}
+	return v;
+}
+
+/// @p frames as interleaved samples, left first.
+std::vector<q31> interleaved(const std::vector<StereoSample>& frames) {
+	std::vector<q31> v;
+	for (const StereoSample& f : frames) {
+		v.push_back(f.l);
+		v.push_back(f.r);
+	}
+	return v;
+}
 
 /// An impulse of -1.0 on the left and +1.0 (ONE_Q31) on the right, then silence: 30 samples, interleaved L/R. Each
 /// output is a tap times the impulse with the rounded high-word multiply, so the taps appear in order, halved.
@@ -98,39 +175,115 @@ private:
 	int64_t b2_ = 95109287;
 };
 
-std::vector<int32_t> run(AnalogImpulseResponse& ir, auto&& input, int count) {
-	std::vector<int32_t> out;
-	for (int i = 0; i < count; i++) {
-		const StereoSample o = ir.process(input(i));
-		out.push_back(o.l);
-		out.push_back(o.r);
+/// What a run gave: the kernel's output and the reference's, interleaved.
+struct Run {
+	std::vector<q31> got;
+	std::vector<q31> want;
+};
+
+/// @p input, then kFlush silent samples, through Stereo<AnalogImpulseResponse> in blocks of @p block, and through
+/// a fresh @p Reference one sample at a time.
+template <typename Reference>
+Run run(const std::vector<StereoSample>& input, std::size_t block) {
+	std::vector<StereoSample> in = input;
+	in.resize(input.size() + kFlush, StereoSample{.l = 0, .r = 0});
+
+	Stereo<AnalogImpulseResponse> kernel;
+	std::vector<StereoSample> out(in.size());
+	for (std::size_t start = 0; start < in.size(); start += block) {
+		const std::size_t n = std::min(block, in.size() - start);
+		kernel.renderBlock(std::span<const StereoSample>{in}.subspan(start, n),
+		                   std::span<StereoSample>{out}.subspan(start, n));
 	}
-	return out;
+
+	Reference reference;
+	std::vector<StereoSample> want(in.size());
+	for (std::size_t i = 0; i < in.size(); ++i) {
+		want[i] = reference.process(in[i]);
+	}
+	return {.got = interleaved(out), .want = interleaved(want)};
+}
+
+/// @p input(i) for @p count samples through a fresh Stereo<AnalogImpulseResponse>, one block, and through the
+/// verbatim class, interleaved.
+Run run_recorded(auto&& input, int count) {
+	std::vector<StereoSample> in;
+	for (int i = 0; i < count; i++) {
+		in.push_back(input(i));
+	}
+	Stereo<AnalogImpulseResponse> kernel;
+	std::vector<StereoSample> out(in.size());
+	kernel.renderBlock(in, out);
+	ReferenceImpulseResponse reference;
+	std::vector<StereoSample> want(in.size());
+	for (std::size_t i = 0; i < in.size(); ++i) {
+		want[i] = reference.process(in[i]);
+	}
+	return {.got = interleaved(out), .want = interleaved(want)};
 }
 
 } // namespace
 
 // clang-format off
 describe analog_impulse_response("AnalogImpulseResponse", ${
-	it("answers an impulse with its 26 taps in order, then silence", _ {
-		AnalogImpulseResponse ir;
-		const auto out = run(ir, [](int i) {
-			return i == 0 ? StereoSample{.l = INT_MIN, .r = INT_MAX} : StereoSample{.l = 0, .r = 0};
+	it("answers an impulse with its 26 taps in order, then silence, as recorded from the class", _ {
+		const Run r = run_recorded([](int i) {
+			return i == 0 ? StereoSample{.l = kMin, .r = kMax} : StereoSample{.l = 0, .r = 0};
 		}, 30);
-		expect(out).to_equal(kImpulse);
+		expect(r.got).to_equal(kImpulse);
+		expect(r.want).to_equal(kImpulse);
 	});
 
-	it("filters a block of two sines exactly, each channel on its own", _ {
-		AnalogImpulseResponse ir;
+	it("filters a block of two sines exactly, each channel on its own, as recorded from the class", _ {
 		TwoSines sines;
-		const auto out = run(ir, [&](int) { return sines.next(); }, 128);
-		expect(out).to_equal(kTwoSine);
+		const Run r = run_recorded([&](int) { return sines.next(); }, 128);
+		expect(r.got).to_equal(kTwoSine);
+		expect(r.want).to_equal(kTwoSine);
 	});
 
 	it("starts silent: a fresh response outputs nothing for silence", _ {
-		AnalogImpulseResponse ir;
-		const auto out = run(ir, [](int) { return StereoSample{.l = 0, .r = 0}; }, 26);
-		expect(out).to_equal(std::vector<int32_t>(52, 0));
+		const Run r = run_recorded([](int) { return StereoSample{.l = 0, .r = 0}; }, 26);
+		expect(r.got).to_equal(std::vector<q31>(52, 0));
+		expect(r.want).to_equal(std::vector<q31>(52, 0));
+	});
+
+	it("equals the class over 4096 seeded stereo samples, in blocks of every length 1 to 9", _ {
+		for (std::size_t block = 1; block <= kMaxLength; ++block) {
+			const Run r = run<ReferenceImpulseResponse>(noise(kLongRun, 0x1a2b3c4d, 2), block);
+			expect(r.got).to_equal(r.want);
+		}
+	});
+
+	it("equals the class over two blocks, at every length 1 to 9", _ {
+		for (std::size_t n = 1; n <= kMaxLength; ++n) {
+			const Run r = run<ReferenceImpulseResponse>(noise(2 * n, 0x0bad5eed + static_cast<uint32_t>(n), 2), n);
+			expect(r.got).to_equal(r.want);
+		}
+	});
+
+	it("equals the class, its adds wrapping, at full scale", _ {
+		for (int pattern = 0; pattern < kFullScalePatterns; ++pattern) {
+			for (std::size_t n = 1; n <= kMaxLength; ++n) {
+				const Run r = run<WrappingReferenceImpulseResponse>(full_scale(64, pattern), n);
+				expect(r.got).to_equal(r.want);
+			}
+		}
+		for (std::size_t block = 1; block <= kMaxLength; ++block) {
+			const Run r = run<WrappingReferenceImpulseResponse>(noise(kLongRun, 0x600df00d, 0), block);
+			expect(r.got).to_equal(r.want);
+		}
+	});
+
+	it("wraps where the class's plain adds would leave q31", _ {
+		// The taps' signs reversed in time give the 26th output every tap's product at full scale with the tap's
+		// sign: their sum leaves q31, so the full-scale case above reaches the wrap.
+		int64_t sum = 0;
+		for (const int32_t t : AnalogImpulseResponse::kResponse) {
+			sum += multiply_32x32_rshift32_rounded(t > 0 ? kMax : kMin, t);
+		}
+		expect(sum > int64_t{kMax}).to_be_true();
+		const Run r = run<WrappingReferenceImpulseResponse>(full_scale(AnalogImpulseResponse::kTaps, 3), 1);
+		expect(r.got[2 * (AnalogImpulseResponse::kTaps - 1)]).to_equal(static_cast<q31>(static_cast<uint32_t>(sum)));
 	});
 });
 // clang-format on
