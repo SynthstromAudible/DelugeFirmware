@@ -23,6 +23,8 @@ delay's rate stepped through new buffers until it is abandoned; and ping-pong, w
 RS_AUDIO_DELAY_TOGGLE switches an audio track's analog delay off and on again while it rings. RS_AUDIO_DELAY_SWITCH
 holds an audio track's analog delay ringing for its gate to switch between analog and digital mid-render; it has no dry
 twin, because its gate's twin is the same song rendered unswitched.
+RS_PINGPONG_SWEEP crosses ping-pong in stereo while the rate steps through new buffers, digital on a kit and analog
+on an audio track: the resampled and analog crossings RS_KIT_PINGPONG leaves out.
 RS_LOW_CLIP covers a host chain's saturation below amount 3, which RS_KIT_FX and RS_AUDIO_FX (at 4) leave out: a
 kit at 1 and an audio track at 2.
 RS_DUCK_SHAPES covers the sidechain envelope's paths RS_AUDIO_DUCKED leaves out on the host owners: the instant
@@ -688,6 +690,15 @@ AUDIO_DELAY_TOGGLE_DRY = _host(
 # An audio track's analog delay with its feedback held, ringing the whole way through: the song its gate switches
 # between analog and digital mid-render (RENDER_DELAY_SWITCH), the same delay each time.
 AUDIO_DELAY_SWITCH = AUDIO_DELAY_TOGGLE_DRY
+# Ping-pong crossing channels while the rate steps, for a gate that renders in stereo: the kit's digital ping-pong
+# delay of RS_KIT_DELAY, its rate stepped past double, a little down and below half, its drum stopping so the delay is
+# abandoned, beside an audio track's analog ping-pong delay with the same rate steps and feedback. Each crosses
+# channels at its native rate, resampling below and above it, and on a new delay's first blocks, while its primary
+# is silent and its first buffer grows; the audio track's in the analog shaper, the kit's in the digital one.
+AUDIO_PINGPONG_SWEEP = _host(
+    delay='<delay pingPong="1" analog="1" syncLevel="0" syncType="0" />',
+    param_tags=KIT_DELAY["param_tags"],
+)
 # A host chain's saturation below amount 3, where it does not shift back up: the kit at 1 and the audio track at 2,
 # every other setting at DRY's value. RS_KIT_FX and RS_AUDIO_FX render it from 3 up.
 KIT_LOW_CLIP = _host(
@@ -737,6 +748,12 @@ SONGS = {
         v, [audio_parts(AUDIO_DELAY_TOGGLE_DRY)]
     ),
     "RS_AUDIO_DELAY_SWITCH": lambda v: parts_song(v, [audio_parts(AUDIO_DELAY_SWITCH)]),
+    "RS_PINGPONG_SWEEP": lambda v: parts_song(
+        v, [kit_parts(KIT_DELAY, DELAY_DRUMS), audio_parts(AUDIO_PINGPONG_SWEEP)]
+    ),
+    "RS_PINGPONG_SWEEP_DRY": lambda v: parts_song(
+        v, [kit_parts(DRY, DELAY_DRUMS), audio_parts(DRY)]
+    ),
     "RS_LOW_CLIP": lambda v: parts_song(
         v, [kit_parts(KIT_LOW_CLIP, PINGPONG_DRUMS), audio_parts(AUDIO_LOW_CLIP)]
     ),

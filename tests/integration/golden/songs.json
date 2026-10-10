@@ -119,6 +119,12 @@
   "rms_db": -17.05,
   "sha256": "0680998389ff447a0df2a85b15bc3c011ab289e1e0d3cdd0ae5d25557191474c"
  },
+ "RS_PINGPONG_SWEEP": {
+  "frames": 384000,
+  "peak": 1217956608,
+  "rms_db": -14.57,
+  "sha256": "6d1eab4efe9cb81dc96d96c7889d23517f7fa15778154f687cb8668e81f759cc"
+ },
  "RS_STREAM": {
   "frames": 384000,
   "peak": 142074112,

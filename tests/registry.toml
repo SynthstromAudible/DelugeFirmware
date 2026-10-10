@@ -1106,6 +1106,24 @@ tier = "pr"
 runtime = "~40s"
 
 [[harness]]
+name = "render-pingpong-stereo-sweep"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "ping-pong delays render as recorded in stereo, crossing channels while their rates step through new buffers: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_PINGPONG_SWEEP) whose kit's digital ping-pong delay and audio track's analog one each have their rate stepped by automation past double their buffer's rate, a little down, and below half, so each crosses at its native rate, resampling below and above it, and on a new delay's first blocks while its first buffer grows; the kit's drum stops so its delay is abandoned. Rendered with headphones plugged in (RENDER_STEREO=1; RS-CAPTURE fails a run in the other width), beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with both delays' feedback at its minimum, also in stereo, must render differently (RS-FX), so the delays' settings reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_PINGPONG_SWEEP", RENDER_STEREO = "1" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-low-clip"
 path = "."
 level = "integration"
