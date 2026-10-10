@@ -25,31 +25,6 @@
 /// @brief Control<K>: a control kernel as a block-rate control signal.
 namespace deluge::dsp {
 
-namespace detail {
-
-/// @brief Whether @p Event is an event `Control<K>::on` passes the coefficients to: callable as
-/// `Event(const Coefficients&, State&, A...)`, and taking the state by non-const reference.
-/// @details An event callable with a const State takes it by value or by const reference, so it could not change the
-/// wrapper's state; it is not an event.
-template <typename K, auto Event, typename... A>
-concept event_takes_coefficients =
-    std::is_invocable_v<decltype(Event), const typename K::Coefficients&, typename K::State&, A...>
-    && !std::is_invocable_v<decltype(Event), const typename K::Coefficients&, const typename K::State&, A...>;
-
-/// @brief Whether @p Event is an event `Control<K>::on` passes the state alone to: callable as
-/// `Event(State&, A...)`, and taking the state by non-const reference.
-/// @details An event callable with a const State takes it by value or by const reference, so it could not change the
-/// wrapper's state; it is not an event.
-template <typename K, auto Event, typename... A>
-concept event_takes_state = std::is_invocable_v<decltype(Event), typename K::State&, A...>
-                            && !std::is_invocable_v<decltype(Event), const typename K::State&, A...>;
-
-/// @brief False for every @p Event, so that a `static_assert` on it fails only when instantiated.
-template <auto Event>
-inline constexpr bool unsupported_event = false;
-
-} // namespace detail
-
 /// @brief A control kernel as a block-rate control signal: one Coefficients, one State, one `advance` per block.
 /// @tparam K The control kernel. Control<K> is a @ref control_generator.
 /// @details
@@ -129,16 +104,7 @@ public:
 	/// @return What @p Event returns.
 	template <auto Event, typename... A>
 	[[gnu::always_inline]] decltype(auto) on(A&&... args) {
-		if constexpr (detail::event_takes_coefficients<K, Event, A...>) {
-			return Event(coefficients_, state_, std::forward<A>(args)...);
-		}
-		else if constexpr (detail::event_takes_state<K, Event, A...>) {
-			return Event(state_, std::forward<A>(args)...);
-		}
-		else {
-			static_assert(detail::unsupported_event<Event>,
-			              "a control event is event(const Coefficients&, State&, args...) or event(State&, args...)");
-		}
+		return detail::run_event<K, Event>(coefficients_, state_, std::forward<A>(args)...);
 	}
 
 private:

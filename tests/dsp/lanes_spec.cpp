@@ -568,6 +568,108 @@ std::pair<std::size_t, std::size_t> long_wrap_run(const typename K::Settings& se
 
 } // namespace
 
+/// The counter the event probes draw from: the n-th lane an event runs on is stamped n.
+std::int32_t event_counter = 0;
+
+/// A generator kernel stepped lane by lane, with events that write the counter into a lane's State.
+struct StampLane {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {
+		q31 offset; ///< Added to a stamp by `stamp_c`.
+	};
+	struct Coefficients {
+		q31 offset; ///< Added to a stamp by `stamp_c`.
+	};
+	struct State {
+		q31 n{};    ///< The last stamp.
+		q31 keep{}; ///< Written by `set_keep`, never by `stamp`.
+	};
+	static Coefficients coefficients(const Settings& s) { return {.offset = s.offset}; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s) {
+		return ++s.n;
+	}
+	static void stamp(State& s) { s.n = event_counter++; }
+	static void stamp_c(const Coefficients& c, State& s) { s.n = c.offset + event_counter++; }
+	static void set_keep(State& s, q31 base) { s.keep = base + event_counter++; }
+};
+
+/// The same events on a kernel written over its value type, stepped op-major; the events are scalar.
+struct StampPacked {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {
+		q31 offset; ///< Added to a stamp by `stamp_c`.
+	};
+	struct Coefficients {
+		q31 offset; ///< Added to a stamp by `stamp_c`.
+	};
+	template <class V>
+	struct StateT {
+		V n{};    ///< The last stamp.
+		V keep{}; ///< Written by `set_keep`, never by `stamp`.
+	};
+	using State = StateT<q31>;
+	static constexpr bool kLanePackable = true;
+	static Coefficients coefficients(const Settings& s) { return {.offset = s.offset}; }
+	template <class V>
+	[[gnu::always_inline]] static V step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, StateT<V>& s) {
+		s.n = wrapping_add(s.n, V{1});
+		return s.n;
+	}
+	static void stamp(State& s) { s.n = event_counter++; }
+	static void stamp_c(const Coefficients& c, State& s) { s.n = c.offset + event_counter++; }
+	static void set_keep(State& s, q31 base) { s.keep = base + event_counter++; }
+};
+
+/// StampPacked as a processor, for Stereo: the input passes through.
+struct StampPackedPass : StampPacked {
+	template <class V>
+	[[gnu::always_inline]] static V step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, StateT<V>& /*s*/,
+	                                     std::type_identity_t<V> x) {
+		return x;
+	}
+};
+
+static_assert(processor_kernel<StampPackedPass> && lane_packable<StampPackedPass>);
+static_assert(generator_kernel<StampLane> && !lane_packable<StampLane>);
+static_assert(generator_kernel<StampPacked> && lane_packable<StampPacked>);
+
+/// The lanes of an N-lane K whose state does not hold the value it should after the events: `stamp` must leave lane i
+/// holding i, `set_keep` must leave `keep` at 100 + i, and `stamp_c` must see the configured offset.
+template <typename K, std::size_t N>
+std::size_t event_mismatches() {
+	std::size_t wrong = 0;
+	Lanes<K, N> lanes{{.offset = 1000}};
+
+	event_counter = 0;
+	lanes.template on<&K::set_keep>(100);
+	for (std::size_t i = 0; i < N; ++i) {
+		wrong += (lanes.state(i).keep != static_cast<q31>(100 + i)) ? 1 : 0;
+	}
+	event_counter = 0;
+	lanes.template on<&K::stamp>();
+	for (std::size_t i = 0; i < N; ++i) {
+		wrong += (lanes.state(i).n != static_cast<q31>(i)) ? 1 : 0;
+		wrong += (lanes.state(i).keep != static_cast<q31>(100 + i)) ? 1 : 0;
+	}
+	event_counter = 0;
+	lanes.template on<&K::stamp_c>();
+	for (std::size_t i = 0; i < N; ++i) {
+		wrong += (lanes.state(i).n != static_cast<q31>(1000 + i)) ? 1 : 0;
+		wrong += (lanes.state(i).keep != static_cast<q31>(100 + i)) ? 1 : 0;
+	}
+	return wrong;
+}
+
+/// The mismatches of K over every width in AllWidths.
+template <typename K>
+std::size_t event_mismatches_at_every_width() {
+	std::size_t wrong = 0;
+	AllWidths::each([&]<std::size_t N>() { wrong += event_mismatches<K, N>(); });
+	return wrong;
+}
+
 // clang-format off
 describe lanes_spec("Lanes<K, N>", ${
 	it("equals N Monos of a gain, bit for bit", _ {
@@ -938,4 +1040,34 @@ describe lanes_spec("Lanes<K, N>", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(lanes_spec);
+// clang-format off
+describe lanes_events("Lanes::on", ${
+	it("runs an event on every lane in lane order, lane by lane", _ {
+		expect(event_mismatches_at_every_width<StampLane>()).to_equal(std::size_t{0});
+	});
+
+	it("runs an event on every lane in lane order, op-major", _ {
+		expect(event_mismatches_at_every_width<StampPacked>()).to_equal(std::size_t{0});
+	});
+
+	it("keeps rendering from the changed states", _ {
+		Lanes<StampPacked, 4> lanes{{.offset = 0}};
+		event_counter = 10;
+		lanes.on<&StampPacked::stamp>();
+		const Frame<q31, 4> frame = lanes.render();
+		for (std::size_t i = 0; i < 4; ++i) {
+			expect(frame[i]).to_equal(static_cast<q31>(11 + i));
+		}
+	});
+
+	it("gives a stereo component the same events, left first", _ {
+		Stereo<StampPackedPass> stereo{{.offset = 0}};
+		event_counter = 7;
+		stereo.on<&StampPackedPass::stamp>();
+		expect(stereo.left().n).to_equal(7);
+		expect(stereo.right().n).to_equal(8);
+	});
+});
+// clang-format on
+
+CPPSPEC_MAIN(lanes_spec, lanes_events);

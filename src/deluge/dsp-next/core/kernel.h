@@ -24,6 +24,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
+#include <utility>
 
 /// @file
 /// @brief The kernel concepts: the shape of a stateless type holding a component's arithmetic.
@@ -526,6 +527,52 @@ namespace detail {
 template <typename K>
 concept lane_pack_opt_in_met =
     !declares_lane_packable<K> || declares_prepare<K> || declares_reset<K> || lane_packable<K>;
+
+} // namespace detail
+
+namespace detail {
+
+/// @brief Whether @p Event is an event `run_event` passes the coefficients to: callable as
+/// `Event(const Coefficients&, State&, A...)`, and taking the state by non-const reference.
+/// @details An event callable with a const State takes it by value or by const reference, so it could not change the
+/// wrapper's state; it is not an event.
+template <typename K, auto Event, typename... A>
+concept event_takes_coefficients =
+    std::is_invocable_v<decltype(Event), const typename K::Coefficients&, typename K::State&, A...>
+    && !std::is_invocable_v<decltype(Event), const typename K::Coefficients&, const typename K::State&, A...>;
+
+/// @brief Whether @p Event is an event `run_event` passes the state alone to: callable as
+/// `Event(State&, A...)`, and taking the state by non-const reference.
+/// @details An event callable with a const State takes it by value or by const reference, so it could not change the
+/// wrapper's state; it is not an event.
+template <typename K, auto Event, typename... A>
+concept event_takes_state = std::is_invocable_v<decltype(Event), typename K::State&, A...>
+                            && !std::is_invocable_v<decltype(Event), const typename K::State&, A...>;
+
+/// @brief False for every @p Event, so that a `static_assert` on it fails only when instantiated.
+template <auto Event>
+inline constexpr bool unsupported_event = false;
+
+/// @brief Run the event @p Event on @p state: with @p coefficients when it takes them, else without.
+/// @tparam K The kernel whose State the event changes.
+/// @tparam Event A function taking K's State by non-const reference, and optionally K's Coefficients first: the two
+/// shapes `Control::on`, `Mono::on` and `Lanes::on` accept. Any other shape fails to compile.
+/// @param args The event's own arguments, after the coefficients and state.
+/// @return What @p Event returns, a reference included.
+template <typename K, auto Event, typename... A>
+[[gnu::always_inline]] decltype(auto) run_event(const typename K::Coefficients& coefficients, typename K::State& state,
+                                                A&&... args) {
+	if constexpr (event_takes_coefficients<K, Event, A...>) {
+		return Event(coefficients, state, std::forward<A>(args)...);
+	}
+	else if constexpr (event_takes_state<K, Event, A...>) {
+		return Event(state, std::forward<A>(args)...);
+	}
+	else {
+		static_assert(unsupported_event<Event>,
+		              "an event is event(const Coefficients&, State&, args...) or event(State&, args...)");
+	}
+}
 
 } // namespace detail
 

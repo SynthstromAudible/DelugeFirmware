@@ -23,6 +23,7 @@
 #include <argon.hpp>
 #include <argon/vectorize/for_each.hpp>
 #include <cstddef>
+#include <utility>
 
 /// @file
 /// @brief Mono<K>: a kernel as a mono component, and the only loop a kernel runs in.
@@ -119,6 +120,16 @@ public:
 
 	/// @brief The kernel's state between blocks.
 	[[nodiscard]] const State& state() const { return state_; }
+
+	/// @brief Run the event @p Event on the state: with the coefficients when it takes them, else without.
+	/// @tparam Event A function taking K's State by non-const reference, and optionally its Coefficients first, as
+	/// @ref Control::on accepts. A staged kernel's `on` is the same.
+	/// @param args The event's own arguments, after the coefficients and state.
+	/// @return What @p Event returns, a reference included.
+	template <auto Event, typename... A>
+	[[gnu::always_inline]] decltype(auto) on(A&&... args) {
+		return detail::run_event<K, Event>(coefficients_, state_, std::forward<A>(args)...);
+	}
 
 	/// @brief Generate one sample: a one-sample block, so one `prepare(…, 1)` and one mode dispatch per call.
 	/// @details A convenience for tests and control rate, not for per-sample use in shipping code (see **Single

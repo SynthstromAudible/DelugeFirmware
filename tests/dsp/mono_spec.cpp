@@ -25,10 +25,12 @@
 #include "util/fixedpoint.h"
 
 #include <array>
+#include <concepts>
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 using namespace deluge::dsp;
@@ -54,6 +56,39 @@ struct Gain {
 		return multiply_32x32_rshift32(x, c.gain) << 1;
 	}
 };
+
+/// A generator kernel with events: a state and coefficients to change and read.
+struct EventProbe {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {
+		q31 scale;
+	};
+	struct Coefficients {
+		q31 scale;
+	};
+	struct State {
+		q31 n;
+	};
+	static Coefficients coefficients(const Settings& s) { return {.scale = s.scale}; }
+	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s) {
+		return ++s.n;
+	}
+	static void bump(State& s, int by) { s.n += by; }
+	static void bump_c(const Coefficients& c, State& s) { s.n += c.scale; }
+	static q31 take(State& s, q31 v) { return std::exchange(s.n, v); }
+	static State& self(State& s) { return s; }
+	static void by_value(State /*s*/) {}
+	static void by_const(const State& /*s*/) {}
+};
+
+static_assert(detail::event_takes_state<EventProbe, &EventProbe::bump, int>);
+static_assert(detail::event_takes_coefficients<EventProbe, &EventProbe::bump_c>);
+static_assert(!detail::event_takes_coefficients<EventProbe, &EventProbe::bump, int>);
+static_assert(!detail::event_takes_state<EventProbe, &EventProbe::by_value>);
+static_assert(!detail::event_takes_coefficients<EventProbe, &EventProbe::by_value>);
+static_assert(!detail::event_takes_state<EventProbe, &EventProbe::by_const>);
+static_assert(!detail::event_takes_coefficients<EventProbe, &EventProbe::by_const>);
 
 /// A generator kernel: counts up from its state.
 struct Counter {
@@ -1047,4 +1082,38 @@ describe mono("Mono", ${
 	});
 });
 
-CPPSPEC_MAIN(mono);
+// clang-format off
+describe mono_events("Mono::on", ${
+	it("runs an event taking the state alone on its own state", _ {
+		Mono<EventProbe> probe{{.scale = 0}};
+		probe.on<&EventProbe::bump>(3);
+		expect(probe.state().n).to_equal(3);
+		probe.on<&EventProbe::bump>(4);
+		expect(probe.state().n).to_equal(7);
+		expect(probe.render()).to_equal(8);
+	});
+
+	it("gives an event the configured coefficients when it takes them", _ {
+		Mono<EventProbe> probe{{.scale = 5}};
+		probe.on<&EventProbe::bump_c>();
+		expect(probe.state().n).to_equal(5);
+		probe.configure({.scale = 9});
+		probe.on<&EventProbe::bump_c>();
+		expect(probe.state().n).to_equal(14);
+	});
+
+	it("returns what the event returns, a reference included", _ {
+		Mono<EventProbe> probe{{.scale = 0}};
+		probe.on<&EventProbe::bump>(2);
+		static_assert(std::same_as<decltype(probe.on<&EventProbe::bump>(1)), void>);
+		static_assert(std::same_as<decltype(probe.on<&EventProbe::take>(q31{})), q31>);
+		static_assert(std::same_as<decltype(probe.on<&EventProbe::self>()), EventProbe::State&>);
+		expect(probe.on<&EventProbe::take>(11)).to_equal(2);
+		expect(probe.state().n).to_equal(11);
+		probe.on<&EventProbe::self>().n = 40;
+		expect(probe.state().n).to_equal(40);
+	});
+});
+// clang-format on
+
+CPPSPEC_MAIN(mono, mono_events);

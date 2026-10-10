@@ -209,24 +209,35 @@ public:
 	/// it is read out of the packed state: member m is N q31 lanes, so lane @p lane's word m sits at m × N + @p lane.
 	[[nodiscard]] [[gnu::always_inline]] State state(std::size_t lane) const {
 		if constexpr (kOpMajor) {
-			constexpr std::size_t kWords = sizeof(State) / sizeof(q31);
-			struct PackedWords {
-				// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-				q31 word[kWords * N]; ///< The packed state's words, member by member, lane 0 first in each.
-			};
-			struct StateWords {
-				// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-				q31 word[kWords]; ///< One State's words, member by member.
-			};
-			const auto packed = __builtin_bit_cast(PackedWords, packed_);
-			StateWords one{};
-			for (std::size_t m = 0; m < kWords; ++m) {
-				one.word[m] = packed.word[(m * N) + lane];
-			}
-			return __builtin_bit_cast(State, one);
+			return unpackLane(lane);
 		}
 		else {
 			return states_.lane[lane];
+		}
+	}
+
+	/// @brief Run the event @p Event on each lane's State, lane 0 first, then 1, … N − 1: with the coefficients when
+	/// it takes them, else without.
+	/// @tparam Event A function taking K's State by non-const reference, and optionally its Coefficients first, as
+	/// @ref Control::on accepts.
+	/// @param args The event's own arguments, after the coefficients and state; every lane is given the same
+	/// lvalues, so an event takes them by value or reference, never by rvalue reference.
+	/// @details Returns nothing, since there are N results. Op-major, each lane's State is unpacked, given to the
+	/// event and packed back before the next lane's, so an event touches exactly one lane at a time and the other
+	/// lanes' words are written back unchanged.
+	template <auto Event, typename... A>
+	[[gnu::always_inline]] void on(A&&... args) {
+		if constexpr (kOpMajor) {
+			for (std::size_t lane = 0; lane < N; ++lane) {
+				State s = unpackLane(lane);
+				detail::run_event<K, Event>(coefficients_, s, args...);
+				packLane(lane, s);
+			}
+		}
+		else {
+			for (State& s : states_.lane) {
+				detail::run_event<K, Event>(coefficients_, s, args...);
+			}
 		}
 	}
 
@@ -290,6 +301,36 @@ public:
 	}
 
 private:
+	/// @brief The words of a packed state: member m is N q31 lanes, so lane i's word m sits at m × N + i.
+	static constexpr std::size_t kWords = sizeof(State) / sizeof(q31); ///< The words in one State.
+	/// @brief @p W q31 words, for reading a trivially copyable value as words; named only where used, so a kernel with
+	/// an empty State never forms a zero-length array.
+	template <std::size_t W>
+	struct Words {
+		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+		q31 word[W]; ///< The words.
+	};
+
+	/// @brief Lane @p lane's State, read out of the packed state. Op-major only.
+	[[nodiscard]] [[gnu::always_inline]] State unpackLane(std::size_t lane) const {
+		const auto packed = __builtin_bit_cast(Words<kWords * N>, packed_);
+		Words<kWords> one{};
+		for (std::size_t m = 0; m < kWords; ++m) {
+			one.word[m] = packed.word[(m * N) + lane];
+		}
+		return __builtin_bit_cast(State, one);
+	}
+
+	/// @brief Write @p s into lane @p lane of the packed state, every other lane's words untouched. Op-major only.
+	[[gnu::always_inline]] void packLane(std::size_t lane, const State& s) {
+		auto packed = __builtin_bit_cast(Words<kWords * N>, packed_);
+		const auto one = __builtin_bit_cast(Words<kWords>, s);
+		for (std::size_t m = 0; m < kWords; ++m) {
+			packed.word[(m * N) + lane] = one.word[m];
+		}
+		packed_ = __builtin_bit_cast(PackedState, packed);
+	}
+
 	/// @brief Render one block: `prepare` once per lane in lane order, one mode dispatch, one loop.
 	/// @param out The block to fill.
 	/// @param in The input blocks: none, one or two.
