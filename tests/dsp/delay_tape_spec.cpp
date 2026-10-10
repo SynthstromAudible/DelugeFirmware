@@ -573,6 +573,25 @@ describe delay_tape("DelayTape", ${
 		expect(run.wraps).to_equal(std::vector<int32_t>{});
 	});
 
+	it("says whether it will resample at a rate exactly as its setup for that rate decides", _ {
+		// Native at its native rate stays native; native at any other rate starts resampling; resampling stays so, at
+		// its native rate too; an inactive tape never resamples.
+		Rig rig{kNative};
+		expect(rig.tape.resamplesAt(kNative)).to_be_false();
+		rig.tape.setupForRender(static_cast<int32_t>(kNative));
+		expect(rig.tape.resampling()).to_be_false();
+		expect(rig.tape.resamplesAt(static_cast<uint32_t>(kFast))).to_be_true();
+		rig.tape.setupForRender(kFast);
+		expect(rig.tape.resampling()).to_be_true();
+		expect(rig.tape.resamplesAt(kNative)).to_be_true();
+		rig.tape.setupForRender(static_cast<int32_t>(kNative));
+		expect(rig.tape.resampling()).to_be_true();
+		DelayTape inactive;
+		expect(inactive.resamplesAt(static_cast<uint32_t>(kFast))).to_be_false();
+		inactive.setupForRender(kFast);
+		expect(inactive.resampling()).to_be_false();
+	});
+
 	it("sizes a rate of 0 at the largest size", _ {
 		using Size = std::pair<int32_t, bool>;
 		expect(DelayTape::idealSizeForRate(0)).to_equal(Size{88200, true});

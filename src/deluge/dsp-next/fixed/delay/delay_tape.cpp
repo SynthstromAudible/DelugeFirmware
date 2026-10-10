@@ -76,10 +76,10 @@ void DelayTape::setupResample() {
 }
 
 void DelayTape::setupForRender(int32_t rate) {
+	if (!resamplesAt(static_cast<uint32_t>(rate))) {
+		return;
+	}
 	if (!resampling()) {
-		if (static_cast<uint32_t>(rate) == native_rate_ || start_ == nullptr) {
-			return;
-		}
 		setupResample();
 	}
 

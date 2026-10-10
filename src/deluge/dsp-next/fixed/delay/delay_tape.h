@@ -21,7 +21,6 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "util/fixedpoint.h"
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -93,6 +92,12 @@ public:
 	[[nodiscard]] constexpr StereoSample& current() const { return *current_; }
 	/// @brief Puts the read head on @p sample, which must lie in the storage.
 	constexpr void setCurrent(StereoSample* sample) { current_ = sample; }
+
+	/// @return Whether the tape resamples after setupForRender(@p rate): it already resamples, or it has storage and
+	/// @p rate (8.24 on the delay's rate scale, as setupForRender takes it) is not its native rate.
+	[[nodiscard]] constexpr bool resamplesAt(uint32_t rate) const {
+		return resampling() || (start_ != nullptr && rate != native_rate_);
+	}
 
 	/// @brief Sets up the resampling for a block at @p rate (native when it equals the native rate).
 	///
@@ -297,10 +302,14 @@ private:
 		const int32_t main = widen(strength1);
 		const int32_t next = widen(strength2);
 		// Right to left: two past the write head, one past it, the write head, one before it.
-		const std::array<int32_t, 4> strengths{next - 65536, next, main, main - 65536};
+		// A built-in array, not std::array: its operator[] is an out-of-line call under the app's
+		// -fno-inline-functions, and app TUs (the stutterer) reach this write.
+		constexpr size_t kStrengths = 4;
+		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+		const int32_t strengths[kStrengths]{next - 65536, next, main, main - 65536};
 
 		StereoSample* pos = writePosition(2);
-		for (size_t i = 0; i < strengths.size(); ++i) {
+		for (size_t i = 0; i < kStrengths; ++i) {
 			const int32_t strength = strengths[i];
 			if (strength > 0) {
 				const auto gain =
@@ -308,7 +317,7 @@ private:
 				pos->l += multiply_32x32_rshift32(sample.l, gain) << 2;
 				pos->r += multiply_32x32_rshift32(sample.r, gain) << 2;
 			}
-			if (i + 1 < strengths.size()) {
+			if (i + 1 < kStrengths) {
 				pos = before(pos);
 			}
 		}
