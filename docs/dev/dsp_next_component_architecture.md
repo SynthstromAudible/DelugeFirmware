@@ -243,9 +243,10 @@ A kernel takes exactly one form; a class providing two satisfies none.
 | Control | `control_kernel` | `advance(c, s, n) -> value_type` |
 
 `c` is the `Coefficients`, `b` the `Block` and `s` the `State`. **`process` is
-for block-staged arithmetic only**: arithmetic that reads a whole block, shapes
-it, then writes the whole block (the delay's tape I/O). Arithmetic that is per
-sample or per vector is a `step`. A staged kernel has no `Block`, so it declares
+for block-staged arithmetic only**: arithmetic that must read a whole block,
+shape it, then write the whole block. Arithmetic that is per sample or per
+vector is a `step`, even when it reads and writes memory outside its State (see
+[A frame step over external memory](#a-frame-step-over-external-memory-delay)). A staged kernel has no `Block`, so it declares
 no `prepare`; its per-block work is `process` itself. A staged kernel may be
 moded, with `process<M>`.
 
@@ -259,6 +260,40 @@ needs before overwriting it.
 A moded kernel's `step` or `process` is checked at the first mode of its
 `Modes` only; a step ill-formed at another mode is reported where the wrapper
 instantiates it.
+
+### A frame step over external memory: `Delay`
+
+`Delay` (`fixed/delay/delay_kernel.h`) is the reference for a fused component
+whose step writes memory it does not own. It is a processor kernel of stereo
+frames, rendered in place as `Mono<Delay>::renderBlock(block, block)`. Each
+frame reads the primary tape at its head, runs the feedback chain
+(`Chain<FeedbackShaper, Pinned<ShiftTracker<11>, REMOVE>>`, stepped once per
+channel), mixes, and writes the primary (and a growing secondary) before the
+next frame is read.
+
+- **The memory is handed in, not owned.** The tapes belong to the owner and
+  are pointed at by the `Coefficients`, which the owner rebuilds by `configure`
+  before every block, because the tape form comes from the tapes' state and the
+  owner's lifecycle (swap, abandon) changes it between blocks. The State holds
+  only the feedback memories and the block's results (`wrapped`,
+  `secondary_written`), which the owner reads and clears after each block.
+- **Per frame, not per block, is the behaviour.** Each write lands before the
+  next read, so an echo shorter than the block comes round within the block, as
+  the delay line plays it. Reading the whole block before writing any of it
+  drops or attenuates echoes at delays under one block (on 128-frame blocks, a
+  128-sample tape); `delay_frame_order_spec` and `delay_echo_spec` pin the
+  delay line's behaviour, and `render-audio-track-delay-extremes` renders it.
+- **Modes are the per-frame choices; the rest is per block.** Shaper, mix and
+  tape form are the eight modes, one loop each. `prepare` sets up the tapes for
+  the block (`DelayTape::setupForRender`, the one out-of-line call per block)
+  and takes their storage bounds into the `Block`. Whether the primary reads and
+  the secondary grows stays a branch in the loop: it changes only at a new
+  delay's first blocks.
+- **Cold work stays out of line.** The resampled secondary's write runs only in
+  the few blocks a resampled secondary grows, so it is one `noinline` cold call
+  rather than code inlined into all eight loops.
+- **It declares `kStateInPlace`.** Its State is two response histories, about
+  424 bytes; see [`Mono<K>`](#monok-coremonoh).
 
 ### The control form
 
@@ -408,7 +443,7 @@ alone.
   only when some part has a reset quirk. `reset_part<I>` resets part I alone,
   every other part's State untouched, as an event through the wrapper's `on`:
   `stereo.on<&Chain<…>::reset_part<1>>()` runs it on each lane's State in lane
-  order. The delay resets its high-pass on reactivation this way and keeps the
+  order. The delay resets each channel's high-pass part alone on reactivation and keeps the
   response's history.
 - **Nesting.** A chain is a kernel, so it can be a part of another chain;
   `Chain<Chain<A, B>, C>` steps as `Chain<A, B, C>`.
@@ -515,6 +550,17 @@ per-sample loop, so a `Mono` of one would be inert.
 - **Local copies.** The loop runs on local copies of the coefficients and state,
   written back after the block, so they stay in registers even though the output
   may alias the component.
+- **`kStateInPlace`.** A kernel declaring `static constexpr bool kStateInPlace =
+  true` is stepped on its member State directly, with no per-block copy in and
+  out. Declare it when the State cannot live in registers: an array, a history
+  or a ring of hundreds of bytes, which the loop reads and writes by index
+  anyway. The price is that the compiler cannot assume the output and the State
+  are disjoint, so a scalar part of the State is stored back every frame (the
+  delay stores each channel's high-pass memory per frame). Measure it: for
+  `Delay`'s 424-byte State the copy costs 6–7% of the digital loop at n = 128
+  and 29–31% at n = 32, far more than the per-frame stores
+  ([a9_dsp_performance.md](a9_dsp_performance.md#delay)). A kernel with a
+  small, scalar State keeps the default.
 - `render(...)` is a one-sample block: one `prepare` and one dispatch per call.
   A vector kernel renders it as the partial step of a block of one. It builds
   one-sample spans and runs a whole block's glue, several out-of-line
@@ -573,21 +619,23 @@ arity, as `Mono` is. A staged or control kernel is rejected at the class: neithe
   one, or when a `LanePack` specialisation exists (a hand-written or NEON operation) that lane by lane cannot reach.
 - **The loop.** Each frame is loaded whole, its lanes stepped, and then it is stored. Every input frame is read whole
   before any lane of its output is written, so input and output may be the same buffer. Where the pointer steps fall
-  against the store is clang's choice: rendered in place (one span as input and output, as `DelayProcessor` renders
-  it), the input and output pointers merge into one, stepped after the frame's store, so the next frame's load address
+  against the store is clang's choice: rendered in place (one span as input and output, as the delay renders its
+  block), the input and output pointers merge into one, stepped after the frame's store, so the next frame's load address
   is computed after a pending store. On the A9 such a load waits for that store's data. Check the in-place disassembly,
-  and bench in place what ships in place. The shipped digital delay loop measures the same in place as out of place
+  and bench in place what ships in place. The digital feedback chain measures the same in place as out of place
   ([a9_dsp_performance.md](a9_dsp_performance.md#chain)), and so is left as it is; the remedy class, once a bench shows
   the stall matters, is a one-frame software pipeline in the `Lanes`/`Mono` loop: load frame i + 1 before storing
   frame i, so the next load's address never follows the store.
 - **The State copy.** The loop runs on local copies of the coefficients and every State, written back after the block,
   as in `Mono`, so that scalar state can live in registers while the output may alias the component. Only scalar
   state gains from it. An array in a State never lives in registers, so it is copied in and out for nothing, at a cost
-  that grows with its size: the delay's 416-byte `Stereo` State costs about a cycle per channel-sample in digital mode
-  at n = 128, two `memcpy`s a block. A kernel with a big ring (a reverb's combs, a chorus's or flanger's line) must not
-  take this path: a few kilobytes copied twice a block costs more than its step. The remedy class is to split the State
-  into a register part, copied, and a memory part stepped in place, or a wrapper policy keyed on a kernel declaration
-  or on the State's size. Design it when the first such kernel lands, most likely in the mod-FX rewrite.
+  that grows with its size: the delay's feedback chain as `Stereo` copies 416 bytes in and out per block, about a cycle
+  per channel-sample in digital mode at n = 128 and 6–7% of the whole fused digital delay. `Mono` takes
+  `kStateInPlace` to skip the copy (above), and the delay ships as `Mono<Delay>` with it; `Lanes` and `Stereo` do not
+  take it yet. A kernel with a big ring (a reverb's combs, a chorus's or flanger's line) must not go through `Lanes`
+  until they do: a few kilobytes copied twice a block costs more than its step. Splitting the State into a register
+  part, copied, and a memory part stepped in place is the further refinement, to design with the first kernel that
+  needs both.
 - **`Stereo<K>` is `Lanes<K, 2, StereoSample>`** (below).
 - **Measure every use.** N is per kernel, 2 by default. Each use of `Lanes` gets a bench case at its N (the `lanes`
   list in [Measuring](#measuring)), because clang's scheduling, addressing and encoding choices move the same work by
@@ -945,15 +993,21 @@ it drops some:
   (`src/deluge/bench/delay_feedback_cases.cpp`), and render in place, as the
   delay does, each block over the one before's output; the digital chain is
   also timed out of place, beside it;
-- `delay`: today's whole delay block, `DelayProcessor::process`, over real tapes
+- `delay`: the whole delay block, `DelayProcessor::process` (the fused
+  `Mono<Delay>`), over real tapes
   in every tape form (native, resampled below and above the native rate), mix
   (straight and ping-pong crossed) and shaper (digital and analog), and with a
   secondary tape growing. The tapes' storage is in SDRAM, sized as the app sizes
   them, as the app allocates them; one processor and one pair of tapes serve
   every case, so the list fits on-chip SRAM. These cases build with the
-  library's flags too (`src/deluge/bench/delay_cases.cpp`).
+  library's flags too (`src/deluge/bench/delay_cases.cpp`). The list ends with
+  the chain list's `delay_feedback_chain_analog` and `_digital`, code the
+  delay's own changes leave alone: compared with the chain list's figures, they
+  bound how much a delay image's code placement moves the rest.
 
-Every other case builds with the app's flags.
+Every other case builds with the app's flags. A bench image builds only its own
+list's cases, since the image fills on-chip SRAM up to 0x202E0000 (past it the
+SRAM heap is negative and TLSF panics at boot, with no link error).
 
 Choose one with
 `./dbt configure -DDELUGE_DSP_BENCH=ON -DDELUGE_DSP_BENCH_CASES=lanes`; it sticks

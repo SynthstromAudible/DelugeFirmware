@@ -66,6 +66,9 @@ struct DelayBlockResult {
 /// **Where it is built.** The kernel is instantiated only in this component's source, which builds with the DSP
 /// library's flags, so the frame loops make no out-of-line call; the app's translation units see only the declaration.
 ///
+/// **Cost.** Per channel-sample on the device at 128-frame blocks: about 32 cycles native digital, 67 to 114 resampled
+/// digital, 189 native analog, where the response's two tap loops dominate (docs/dev/a9_dsp_performance.md, Delay).
+///
 /// **Reactivation.** @ref resetHighPass resets the high-pass's memories only. The impulse response's history carries
 /// over, so a delay switched off and on again starts with up to 25 samples of the old response's tail. The render gate
 /// `render-audio-track-delay-toggle` pins it.

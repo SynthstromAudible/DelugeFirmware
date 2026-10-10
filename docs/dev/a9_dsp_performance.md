@@ -180,12 +180,11 @@ the in-place digital chain.
   is addressed from that store's writeback; the passes' issue-empty cycles are 4.49 per sample against the chain's
   2.68. The NEON-sourced store (6.5 cycles per 16 bytes, [Measured costs](#measured-costs)) is where fusion should pay
   most; no NEON chain is measured yet.
-- **The digital delay as shipped is one 15-instruction loop per frame**, 11.92 instructions per channel-sample on the
+- **The digital feedback chain is one 15-instruction loop per frame**, 11.92 instructions per channel-sample on the
   bench with the block's overhead, with both channels' high-pass memories in registers and one store, the output
   frame's `strd`. In place its one frame pointer is stepped after that store, so the next frame's load address follows
   a pending store; it measures 10.94 against 11.02 out of place (where clang steps both pointers after the store too),
-  so the order costs nothing measurable here. The bench's in-place loop is the shipped `DelayProcessor` loop instruction
-  for instruction. Its small-n rows carry the per-block copy of the chain's State in and out (two 416-byte `memcpy`s,
+  so the order costs nothing measurable here. Its small-n rows carry the per-block copy of the chain's State in and out (two 416-byte `memcpy`s,
   since `Stereo` runs on a local copy of every lane's State), which the analog response's history makes large: 50
   words and an index per channel.
 - **The analog delay as a chain runs 38% under the stereo form, and the response's direct form is why.**
@@ -240,6 +239,72 @@ the in-place digital chain.
   `AnalogImpulseResponse` reads built-in arrays through plain pointers, so its step makes no call under either flag
   set. A kernel's `step` is `[[gnu::always_inline]]`, but what it
   calls inherits the translation unit's flags.
+
+## Delay
+
+The whole delay block, `DelayProcessor::process`, as the fused `Mono<Delay>` frame loop (read the tape, shape and
+high-pass the feedback, mix, write the tapes, per frame) against the delay as separate passes over the block (read,
+feedback chain, mix, writes). Cycles per channel-sample, in place over real tapes in SDRAM, with the delay library's
+flags (`DELUGE_DSP_BENCH_CASES=delay`). The passes ran on 171bac16a, the fused loop on 3acd83e2e (mean of two runs),
+both 2026-10-10 (`.superpowers/findings/delay-kernel/`: `baseline.md` and `after.md`). The two images differ only in the
+delay code; the unchanged `delay_feedback_chain_*` cases move by at most 0.3% between them and the two fused runs by at
+most 1.7%, so a difference inside ±2% is noise (≈).
+
+| configuration | n=32 before → after (Δ) | n=64 before → after (Δ) | n=128 before → after (Δ) |
+|---|---:|---:|---:|
+| `native_straight_digital` | 41.88 → 31.43 (-25.0%) | 35.99 → 32.61 (-9.4%) | 35.94 → 31.59 (-12.1%) |
+| `native_straight_analog` | 189.02 → 190.88 (+1.0% ≈) | 185.43 → 190.60 (+2.8%) | 182.87 → 189.37 (+3.6%) |
+| `native_cross_digital` | 36.25 → 31.70 (-12.6%) | 33.41 → 32.77 (-1.9% ≈) | 31.46 → 31.81 (+1.1% ≈) |
+| `native_cross_analog` | 187.99 → 187.87 (-0.1% ≈) | 184.83 → 189.90 (+2.7%) | 182.27 → 188.72 (+3.5%) |
+| `res_lo_straight_digital` | 82.22 → 68.46 (-16.7%) | 78.81 → 68.41 (-13.2%) | 74.48 → 66.81 (-10.3%) |
+| `res_lo_straight_analog` | 231.78 → 225.75 (-2.6%) | 230.08 → 226.87 (-1.4% ≈) | 226.63 → 224.78 (-0.8% ≈) |
+| `res_lo_cross_digital` | 82.13 → 71.92 (-12.4%) | 78.14 → 71.00 (-9.1%) | 75.55 → 71.06 (-5.9%) |
+| `res_lo_cross_analog` | 232.08 → 223.93 (-3.5%) | 230.00 → 222.87 (-3.1%) | 227.38 → 223.18 (-1.8% ≈) |
+| `res_hi_straight_digital` | 127.62 → 108.06 (-15.3%) | 121.82 → 107.19 (-12.0%) | 119.32 → 107.61 (-9.8%) |
+| `res_hi_straight_analog` | 282.20 → 268.34 (-4.9%) | 275.69 → 268.32 (-2.7%) | 269.72 → 263.45 (-2.3%) |
+| `res_hi_cross_digital` | 130.67 → 117.79 (-9.9%) | 124.60 → 116.59 (-6.4%) | 118.80 → 113.70 (-4.3%) |
+| `res_hi_cross_analog` | 282.09 → 266.00 (-5.7%) | 276.27 → 265.52 (-3.9%) | 270.31 → 260.82 (-3.5%) |
+| `growing` | 142.96 → 125.46 (-12.2%) | 139.31 → 120.75 (-13.3%) | 142.45 → 118.28 (-17.0%) |
+
+- **Removing the tape passes saves 4–17% wherever the feedback is cheap**: digital, resampled and growing. Each pass
+  removed is a load, a store and a loop over the block; the fused frame reads the tape and writes it back once. At
+  n = 32 the passes' per-block overhead weighs more, and native digital drops by a quarter.
+- **Native analog is 3–4% slower at n = 64 and 128.** The analog frame is dominated by its two 26-tap response loops,
+  whose two accumulators, four pipelined loads and two pointers take most of the registers. The tape pointers, the
+  block pointer and index, the read and grow flags and the drive then live on the stack and are reloaded around the
+  tap loops every frame. A PTM trace of the native analog loop puts it at ≈ 378 cycles a frame (189 per channel-sample,
+  the bench figure): ≈ 185 in the tap loops (9.0–9.3 cycles a two-tap iteration, faster than the chain alone) and
+  ≈ 193 around them, where the passes spent ≈ 119 around the chain's tap loops plus ≈ 40 in the tape passes
+  (`.superpowers/estate/trace/2026-10-10-3acd83e2e-DelayProcessor-process/`). Issue-empty cycles rise from 35.4 to 38.7
+  per channel-sample at n = 128. The lever is the stereo direct form (one tap loop for both channels, see
+  [Chain](#chain)), which frees the registers; it is deferred to the mod-FX rewrite.
+- **Echoes shorter than a block are correct in every form.** The fused order is the delay line's order, so a delay of
+  fewer samples than the block keeps all its echoes; the separate passes lost them. The cost above buys no behaviour
+  change anywhere else: the two orders agree bit for bit wherever no block laps the tape.
+
+**`kStateInPlace`.** The same image with `Delay::kStateInPlace` false (one run, a throwaway build;
+`2026-10-10-5c045fe2c-state-copied.md`): the 424-byte State is copied to the stack and back every block, and the
+high-pass memories stay in registers through the loop. In place against copied, cycles per channel-sample:
+
+| configuration | n=32 in place / copied | n=64 | n=128 |
+|---|---:|---:|---:|
+| `native_straight_digital` | 31.43 / 40.42 (+28.6%) | 32.61 / 36.83 (+13.0%) | 31.59 / 33.44 (+5.9%) |
+| `native_straight_analog` | 190.88 / 202.19 (+5.9%) | 190.60 / 197.81 (+3.8%) | 189.37 / 194.44 (+2.7%) |
+| `native_cross_digital` | 31.70 / 41.38 (+30.5%) | 32.77 / 37.49 (+14.4%) | 31.81 / 34.06 (+7.1%) |
+| `native_cross_analog` | 187.87 / 201.45 (+7.2%) | 189.90 / 198.53 (+4.5%) | 188.72 / 195.41 (+3.5%) |
+| `res_lo_straight_digital` | 68.46 / 81.08 (+18.4%) | 68.41 / 76.38 (+11.6%) | 66.81 / 72.42 (+8.4%) |
+| `res_lo_straight_analog` | 225.75 / 236.86 (+4.9%) | 226.87 / 233.08 (+2.7%) | 224.78 / 228.75 (+1.8%) |
+| `res_lo_cross_digital` | 71.92 / 82.52 (+14.7%) | 71.00 / 76.84 (+8.2%) | 71.06 / 74.30 (+4.6%) |
+| `res_lo_cross_analog` | 223.93 / 232.08 (+3.6%) | 222.87 / 229.03 (+2.8%) | 223.18 / 227.13 (+1.8%) |
+| `res_hi_straight_digital` | 108.06 / 116.69 (+8.0%) | 107.19 / 111.09 (+3.6%) | 107.61 / 109.31 (+1.6%) |
+| `res_hi_straight_analog` | 268.34 / 275.53 (+2.7%) | 268.32 / 269.09 (+0.3%) | 263.45 / 263.77 (+0.1%) |
+| `res_hi_cross_digital` | 117.79 / 125.66 (+6.7%) | 116.59 / 118.86 (+1.9%) | 113.70 / 112.81 (-0.8%) |
+| `res_hi_cross_analog` | 266.00 / 273.04 (+2.6%) | 265.52 / 268.16 (+1.0%) | 260.82 / 262.27 (+0.6%) |
+| `growing` | 125.46 / 135.73 (+8.2%) | 120.75 / 126.34 (+4.6%) | 118.28 / 120.76 (+2.1%) |
+
+The copy costs more than the in-place loop's per-frame high-pass stores in every configuration but one, which is
+inside noise: 6–7% of the native digital loop at n = 128 and 29–31% at n = 32, 3–4% of native analog at n = 128. A
+State of hundreds of bytes is stepped in place.
 
 ## Open questions
 
