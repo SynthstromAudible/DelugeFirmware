@@ -29,6 +29,48 @@
 /// kernel with its mode fixed at compile time.
 namespace deluge::dsp {
 
+template <typename... Ts>
+struct Parts;
+
+namespace detail {
+
+/// @brief Whether every one of @p Ts is an empty class: true for none.
+template <typename... Ts>
+inline constexpr bool all_empty = (std::is_empty_v<Ts> && ...);
+
+/// @brief The members of a non-empty @ref Parts: @p T's value, then @p Tail, each `[[no_unique_address]]` exactly
+/// when it is empty.
+/// @tparam HeadEmpty Whether @p T is an empty class.
+/// @tparam TailEmpty Whether every later part is an empty class, so @p Tail holds no bytes.
+template <typename T, typename Tail, bool HeadEmpty, bool TailEmpty>
+struct PartsNode {
+	T head{};    ///< This part's value.
+	Tail tail{}; ///< The later parts' values.
+};
+
+/// @brief An empty part, then later parts holding bytes.
+template <typename T, typename Tail>
+struct PartsNode<T, Tail, true, false> {
+	[[no_unique_address]] T head{}; ///< This part's value.
+	Tail tail{};                    ///< The later parts' values.
+};
+
+/// @brief A part holding bytes, then only empty parts.
+template <typename T, typename Tail>
+struct PartsNode<T, Tail, false, true> {
+	T head{};                          ///< This part's value.
+	[[no_unique_address]] Tail tail{}; ///< The later parts' values.
+};
+
+/// @brief An empty part, then only empty parts.
+template <typename T, typename Tail>
+struct PartsNode<T, Tail, true, true> {
+	[[no_unique_address]] T head{};    ///< This part's value.
+	[[no_unique_address]] Tail tail{}; ///< The later parts' values.
+};
+
+} // namespace detail
+
 /// @brief One value per part, part 0 first: the aggregate a chain's Settings, Coefficients, State and Block are made
 /// of.
 /// @details A recursive aggregate, `head` then `tail`, rather than `std::tuple`: a tuple's assignment is user-provided
@@ -36,9 +78,10 @@ namespace deluge::dsp {
 /// must be plain values. An aggregate's copy is a copy of its bytes, and its indexing (@ref get) is member access,
 /// which the shipping build inlines. Every member is value-initialised, so `Parts{}` holds each part's `T{}`.
 ///
-/// The members are `[[no_unique_address]]`, so an empty part (an EmptyBlock, a stateless kernel's State) takes no
-/// space beside a non-empty one. A part is read and written only as a whole member, never by copying its bytes, so a
-/// later part placed in an earlier one's tail padding is never overwritten.
+/// Only an empty member is `[[no_unique_address]]`: an empty part (an EmptyBlock, a stateless kernel's State), and a
+/// tail of empty parts, take no space beside parts holding bytes, though two empty parts of one type keep distinct
+/// addresses and so may take a byte. Every part holding bytes is a whole object of its own size. No part sits in
+/// another's tail padding, so a part's kernel may treat its value as a complete object, bytes and all.
 ///
 /// Built from its parts by brace elision, part 0 first: `Parts<A, B, C>{a, b, c}`.
 template <typename... Ts>
@@ -46,10 +89,7 @@ struct Parts {};
 
 /// @brief One value per part: @p T first, then the rest.
 template <typename T, typename... Ts>
-struct Parts<T, Ts...> {
-	[[no_unique_address]] T head{};            ///< This part's value.
-	[[no_unique_address]] Parts<Ts...> tail{}; ///< The later parts' values.
-};
+struct Parts<T, Ts...> : detail::PartsNode<T, Parts<Ts...>, std::is_empty_v<T>, detail::all_empty<Ts...>> {};
 
 /// @brief Part @p I of @p parts.
 template <std::size_t I, typename T, typename... Ts>
@@ -117,8 +157,8 @@ template <typename K>
 /// - a part after the first that is not a processor, since each later part takes the one value the part before it
 ///   returns;
 /// - parts whose value or step types differ, so a chain never converts between domains;
-/// - a part declaring kPartialStepAdvancesByCount: a chain steps whole vectors, so such a part would advance by a
-///   whole vector at a block's end in a chain and by the active lanes alone.
+/// - a part declaring kPartialStepAdvancesByCount: a chain steps whole vectors, so such a part's partial last vector
+///   would advance by a whole vector in a chain but by the active lanes when run alone.
 template <typename... Ks>
 concept chainable = sizeof...(Ks) >= 2 && (kernel<Ks> && ...) && (!control_kernel<Ks> && ...)
                     && (!staged_kernel<Ks> && ...) && detail::chain_later_parts_process<Ks...>
@@ -356,8 +396,8 @@ struct PinnedReset<true, K> {
 /// @tparam K A moded kernel.
 /// @tparam M One of K's listed modes.
 /// @details Its Settings, Coefficients, State and Block are K's, and its `coefficients`, `prepare` and `reset` are
-/// K's, declared exactly when K declares them. The Coefficients keep K's `mode` member, which nothing reads: the step
-/// is fixed at @p M whatever `coefficients` puts there. Pinned declares no `Modes`, so it is no moded kernel, and a
+/// K's, declared exactly when K declares them. The Coefficients keep K's `mode` member, which `coefficients` sets to
+/// @p M and the step never reads: it is fixed at @p M. Pinned declares no `Modes`, so it is no moded kernel, and a
 /// chain dispatches on nothing for it. It declares no `kLanePackable`, so `Lanes` steps it lane by lane. Its step
 /// forwards whatever K's takes, the counted partial step included, and it declares K's
 /// kPartialStepAdvancesByCount.
@@ -375,9 +415,11 @@ struct Pinned : detail::PinnedPrepare<detail::declares_prepare<K>, K>,
 	/// @brief Whether K's partial last vector advances by the active lanes.
 	static constexpr bool kPartialStepAdvancesByCount = partial_step_advances_by_count<K>;
 
-	/// @brief K's coefficients for @p settings.
+	/// @brief K's coefficients for @p settings, with @p M as their mode whatever the settings say.
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& settings) {
-		return K::coefficients(settings);
+		Coefficients c = K::coefficients(settings);
+		c.mode = M;
+		return c;
 	}
 
 	/// @brief One step of K at mode @p M, with whatever inputs K's step at its form takes.

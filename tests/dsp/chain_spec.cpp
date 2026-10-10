@@ -36,6 +36,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 using namespace deluge::dsp;
@@ -143,7 +144,7 @@ struct RampGen {
 	}
 };
 
-/// A mixer with memory: a leaky sum of a less half of b.
+/// A mixer with memory: a leaky sum of a minus half of b.
 struct SumMix {
 	using value_type = q31;
 	using step_type = q31;
@@ -267,6 +268,25 @@ static_assert(!chainable<AddK, VecK> && !chainable<VecK, AddK>, "every part step
 static_assert(!chainable<VecK, VecCountedK>, "a part advancing its partial vector by count is no part");
 static_assert(!chainable<AddK, int>, "every part is a kernel");
 
+/// Coefficients shaped as a feedback shaper's: their last byte leaves three bytes of tail padding.
+struct ShaperLike {
+	q31 feedback{};
+	uint32_t drive{};
+	uint8_t mode{};
+};
+/// Coefficients that are a mode alone: one byte, which would fit in a shaper's tail padding.
+struct ModeOnly {
+	uint8_t mode{};
+};
+
+// A part holding bytes is a whole object of its own; only empty parts take no space.
+static_assert(sizeof(Parts<ShaperLike, ModeOnly>) >= sizeof(ShaperLike) + sizeof(ModeOnly),
+              "no part sits in another's tail padding");
+static_assert(sizeof(Parts<q31, EmptyBlock>) == sizeof(q31) && sizeof(Parts<EmptyBlock, q31>) == sizeof(q31)
+                  && sizeof(Parts<EmptyBlock, q31, Tanh<3>::State, AddK::Settings>) == 2 * sizeof(q31)
+                  && sizeof(Parts<q31, EmptyBlock, Tanh<3>::State>) == sizeof(q31),
+              "an empty part takes no space beside parts holding bytes");
+
 /// The block lengths every case runs.
 constexpr std::size_t kMaxLength = 9;
 
@@ -314,12 +334,25 @@ struct Sequential {
 	}
 };
 
-/// How many of the fused chain's part States differ from the sequential parts' States.
-int part_states_differing(const Mono<Three>& fused, const Sequential& parts) {
+/// The fused chain's part States' bytes, part 0 first.
+std::vector<std::vector<unsigned char>> part_states(const Mono<Three>& fused) {
 	const Three::State& s = fused.state();
-	return static_cast<int>(bytes_of(get<0>(s)) != bytes_of(parts.add.state()))
-	       + static_cast<int>(bytes_of(get<1>(s)) != bytes_of(parts.scale.state()))
-	       + static_cast<int>(bytes_of(get<2>(s)) != bytes_of(parts.remove.state()));
+	return {bytes_of(get<0>(s)), bytes_of(get<1>(s)), bytes_of(get<2>(s))};
+}
+
+/// The sequential parts' States' bytes, part 0 first.
+std::vector<std::vector<unsigned char>> part_states(const Sequential& parts) {
+	return {bytes_of(parts.add.state()), bytes_of(parts.scale.state()), bytes_of(parts.remove.state())};
+}
+
+/// @p frames as interleaved samples, left first.
+std::vector<q31> interleaved(const std::vector<StereoSample>& frames) {
+	std::vector<q31> v;
+	for (const StereoSample& f : frames) {
+		v.push_back(f.l);
+		v.push_back(f.r);
+	}
+	return v;
 }
 
 } // namespace
@@ -338,7 +371,7 @@ describe chain("Chain", ${
 				parts.renderBlock(in, want);
 				expect(got).to_equal(want);
 			}
-			expect(part_states_differing(fused, parts)).to_equal(0);
+			expect(part_states(fused)).to_equal(part_states(parts));
 		}
 	});
 
@@ -347,7 +380,8 @@ describe chain("Chain", ${
 		Sequential parts{three_settings()};
 		const std::vector<q31> in = noise(4096, 0xc0ffee);
 		std::size_t at = 0;
-		int mismatched = 0;
+		std::vector<q31> first_got;
+		std::vector<q31> first_want;
 		for (std::size_t block = 0; at < in.size(); ++block) {
 			const std::size_t n = std::min<std::size_t>((block % 61) + 1, in.size() - at);
 			const std::vector<q31> slice(in.begin() + static_cast<std::ptrdiff_t>(at),
@@ -356,11 +390,14 @@ describe chain("Chain", ${
 			std::vector<q31> want(n);
 			fused.renderBlock(slice, got);
 			parts.renderBlock(slice, want);
-			mismatched += static_cast<int>(got != want);
+			if (got != want && first_got.empty()) {
+				first_got = got;
+				first_want = want;
+			}
 			at += n;
 		}
-		expect(mismatched).to_equal(0);
-		expect(part_states_differing(fused, parts)).to_equal(0);
+		expect(first_got).to_equal(first_want);
+		expect(part_states(fused)).to_equal(part_states(parts));
 		expect(get<0>(fused.state()).steps).to_equal(4096);
 	});
 
@@ -477,6 +514,26 @@ describe chain("Chain", ${
 		expect(get<2>(left).y).not_().to_equal(0);
 	});
 
+	it("steps a pinned kernel at its pinned mode, whatever its settings say", _ {
+		for (std::size_t n = 1; n <= kMaxLength; ++n) {
+			Mono<Remove> pinned{Remove::Settings{.mode = Tracker::Mode::TRACK}};
+			Mono<Tracker> removing{Tracker::Settings{.mode = Tracker::Mode::REMOVE}};
+			Mono<Tracker> tracking{Tracker::Settings{.mode = Tracker::Mode::TRACK}};
+			expect(std::to_underlying(pinned.coefficients().mode)).to_equal(std::to_underlying(Tracker::Mode::REMOVE));
+			for (uint32_t block = 0; block < 2; ++block) {
+				const std::vector<q31> in = noise(n, 0x4321 + block);
+				std::vector<q31> got(n);
+				std::vector<q31> removed(n);
+				std::vector<q31> tracked(n);
+				pinned.renderBlock(in, got);
+				removing.renderBlock(in, removed);
+				tracking.renderBlock(in, tracked);
+				expect(got).to_equal(removed);
+				expect(got).not_().to_equal(tracked);
+			}
+		}
+	});
+
 	it("nests: a chain as a part equals the flat chain", _ {
 		const Inner::Settings inner{AddK::Settings{.offset = 0x00abcdef}, ScaleK::Settings{.base = 0x60000000}};
 		for (std::size_t n = 1; n <= kMaxLength; ++n) {
@@ -516,11 +573,7 @@ describe chain("Chain", ${
 				std::vector<StereoSample> stereo_got(n);
 				stereo_out_of_place.renderBlock(frames, stereo_got);
 				stereo_in_place.renderBlock(frames, frames);
-				int mismatched = 0;
-				for (std::size_t i = 0; i < n; ++i) {
-					mismatched += static_cast<int>(frames[i].l != stereo_got[i].l || frames[i].r != stereo_got[i].r);
-				}
-				expect(mismatched).to_equal(0);
+				expect(interleaved(frames)).to_equal(interleaved(stereo_got));
 			}
 		}
 	});

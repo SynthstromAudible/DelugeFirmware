@@ -471,6 +471,9 @@ struct EmptyPackedPass {
 
 static_assert(processor_kernel<EmptyPackedPass> && !lane_packable<EmptyPackedPass>,
               "an empty State is not op-major, so an op-major Lanes never reads a State as zero words");
+static_assert(!detail::lane_pack_opt_in_met<EmptyPackedPass>,
+              "a kernel opting in with an empty State is rejected by Lanes, not stepped lane by lane");
+
 static_assert(detail::lane_pack_opt_in_met<OnePole> && detail::lane_pack_opt_in_met<Tracker>
                   && detail::lane_pack_opt_in_met<PackedCounter> && detail::lane_pack_opt_in_met<Gain>
                   && detail::lane_pack_opt_in_met<LaneByLane<OnePole>>,
