@@ -18,7 +18,8 @@
 // Where the delay's echoes land at the shortest delays, where a 128-frame block laps the tape. The frame-order
 // reference (the delay line's order, which the fused kernel takes) puts every echo where the tape does: D = S - 1
 // samples on a native tape of S samples, S / spin on a resampling one. The staged order drops a native 128-sample
-// tape's echoes once they come round to block frame 0 (.superpowers/findings/delay-lap/).
+// tape's echoes once they come round to block frame 0, and damages those at block frame 0 on the 128-sample tape
+// resampling just below 1x (.superpowers/findings/delay-lap/).
 
 #include "delay_workloads.h"
 #include "reference_delay_processor.h"
@@ -53,11 +54,11 @@ struct EchoTrain {
 	std::vector<double> amplitudes; ///< Each echo's level, relative to the impulse times feedback^k.
 };
 
-/// @return The first @p echoes echoes of an impulse (2^28) at frame @p frame of a 128-frame block, through @p Processor
-/// over a tape of
-/// @p size samples native at @p native, played at @p rate with digital feedback 0.99, straight. Each echo is found
-/// as the largest sample within half a delay of where the tape puts it; its position is the centroid of the seven
-/// samples around that peak and its level their sum (a wider sum would take in the feedback high-pass's tail).
+/// @return The first @p echoes echoes of an impulse (2^28) at frame @p frame of a 128-frame block, through
+/// @p Processor over a tape of @p size samples native at @p native, played at @p rate with digital feedback 0.99,
+/// straight. Each echo is found as the largest sample within half a delay of where the tape puts it; its position is
+/// the centroid of the seven samples around that peak and its level their sum (a wider sum would take in the feedback
+/// high-pass's tail).
 template <typename Processor>
 EchoTrain echoes(size_t size, uint32_t native, uint32_t rate, int32_t frame, size_t echoes) {
 	std::vector<StereoSample> storage(size + static_cast<size_t>(DelayTape::kWriteLag), StereoSample{.l = 0, .r = 0});
@@ -187,6 +188,17 @@ describe delay_echo("Delay echoes", ${
 		    .to_equal(std::vector<size_t>{1, 2, 3, 4, 5, 6, 7, 8});
 		expect(dropped(echoes<Staged>(tape.size, tape.native, tape.rate, 5, 8))).to_equal(std::vector<size_t>{6, 7, 8});
 		expect(dropped(echoes<FrameOrder>(tape.size, tape.native, tape.rate, 5, 8))).to_equal(std::vector<size_t>{});
+	});
+
+	it("measures the staged order damaging the 128-sample tape's echoes at block frame 0 while it resamples just "
+	   "below 1x", _ {
+		// The frame-0 write is four samples wide, and frame 127 reads it before the staged write lands: each pass loses
+		// part of the echo and pulls the rest late, 0.2 samples over eight echoes, the fourth on below half its level.
+		const EchoTape& tape = kEchoTapes.at(1);
+		const EchoTrain staged = echoes<Staged>(tape.size, tape.native, tape.rate, 0, 8);
+		expect(dropped(staged)).to_equal(std::vector<size_t>{4, 5, 6, 7, 8});
+		expect(staged.positions.back() / 8).to_be_greater_than(staged.delay + 0.15);
+		expect(misses(echoes<FrameOrder>(tape.size, tape.native, tape.rate, 0, 8))).to_equal(std::vector<std::string>{});
 	});
 });
 // clang-format on

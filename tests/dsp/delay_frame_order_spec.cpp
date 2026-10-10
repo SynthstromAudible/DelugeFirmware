@@ -17,9 +17,10 @@
 
 // Where today's staged delay order was wrong. The staged block reads every frame, then writes every frame back; the
 // delay line's order, which the fused kernel takes, walks each frame (read, shape, mix, write) before the next. The two
-// part exactly where a frame writes a tape sample that a later frame of the same block clears or reads: on 128-frame
+// can part only where a frame writes a tape sample that a later frame of the same block clears or reads: on 128-frame
 // blocks, delays shorter than 129 samples, where the block's walk laps the tape and the staged order loses echoes
-// (.superpowers/findings/delay-lap/). The staged reference's address log names those lapping blocks on every
+// (.superpowers/findings/delay-lap/). A lapping block parts them once the sample written there is nonzero; one whose
+// lapped write is zero leaves them equal. The staged reference's address log names those lapping blocks on every
 // recorded workload, and the two references are run side by side to show they part there and nowhere else.
 // delay_echo_spec measures the frame order's echoes against where the tape puts them.
 
@@ -267,8 +268,10 @@ std::optional<size_t> firstLappingBlock(const OrderCheck& check) {
 }
 
 /// Each workload whose two orders part, as "<name>: laps from block <a>, parts at block <b>". A lapping block parts
-/// the orders once a frame writes a nonzero sample a later frame reads or clears: on the lap workloads, the block the
-/// impulse comes round to frame 0, block 2 when it starts there.
+/// the orders once frame 0 writes a nonzero sample that frame 127 reads. On the lap workloads that is block 2 when the
+/// impulse falls on frame 0, since frame 0 writes the impulse itself. Otherwise it is block 4: the impulse's first
+/// echo, in block 3, charges the feedback high-pass's low-pass, so block 4's frame 0 writes the high-pass's small
+/// nonzero residual onto the lapped sample.
 const std::vector<std::string> kParted{
     "highest_rate: laps from block 2, parts at block 2",       "spin_689: laps from block 4, parts at block 4",
     "spin_689_secondary: laps from block 8, parts at block 8", "rate_above_2_31: laps from block 2, parts at block 2",

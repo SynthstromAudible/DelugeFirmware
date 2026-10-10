@@ -23,8 +23,10 @@
 /// A workload gives, per block, the frame count, the rate (as a uint32_t, the way the tape takes it) and the block's
 /// settings, and starts from a tape setup: a delay switched on (its first tape a secondary, read as silence until it
 /// is swapped in) or a primary tape already playing, holding a lap of noise. Fresh allocations hold a known fill, so
-/// any sample a tape writes or reads before clearing is pinned too. The abandon count is not mirrored: an abandoned
-/// delay stops rendering, and no workload runs long enough to abandon.
+/// any sample a tape writes or reads before clearing is pinned too. Two of the owner's paths are not mirrored: the
+/// abandon count (an abandoned delay stops rendering, and no workload runs long enough to abandon), and
+/// `Delay::informWhetherActive`'s rebuild of a new delay's secondary before anything is written to it (no workload
+/// changes the rate before its first write).
 
 #pragma once
 
@@ -505,7 +507,8 @@ struct Buffer {
 
 /// @brief A workload played through @p Processor (anything with DelayProcessor's `process` and `resetHighPass`),
 /// with the lifecycle Delay::process keeps around it, mirrored line for line: the rate's settling, a secondary tape
-/// grown when the rate leaves the primary's range, and the swap once it is full.
+/// grown when the rate leaves the primary's range, and the swap once it is full. Not mirrored: the abandon count, and
+/// `Delay::informWhetherActive`'s rebuild of a secondary nothing has been written to (see the file's documentation).
 template <typename Processor>
 class WorkloadRun {
 public:

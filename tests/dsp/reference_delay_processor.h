@@ -16,10 +16,10 @@
  */
 
 /// @file
-/// @brief The delay's two reference orders, with a test-only log of every tape address they clear, read and write:
-/// ReferenceDelayProcessor, today's staged order (read the whole block, shape, mix, then write it all back), copied
-/// from `DelayProcessor` line for line; and FrameOrderDelayProcessor, the same steps one frame at a time, the delay
-/// line's order and the fused kernel's target.
+/// @brief The delay's two reference orders, siblings over DelayReferenceBase's shared steps, with a test-only log of
+/// every tape address they clear, read and write: ReferenceDelayProcessor, today's staged order (read the whole block,
+/// shape, mix, then write it all back), copied from `DelayProcessor` line for line; and FrameOrderDelayProcessor, the
+/// same steps one frame at a time, the delay line's order and the fused kernel's target.
 
 #pragma once
 
@@ -76,63 +76,22 @@ struct TapeAccess {
 /// @brief Called on every access a block makes to its tapes, in the order the block makes them.
 using AddressLogger = std::function<void(const TapeAccess&)>;
 
-/// @brief Today's `DelayProcessor`, test-local: `process`, `read`, `mix`, `writePrimary` and `writeSecondary` as it
-/// renders them, with the feedback as its `Stereo<FeedbackChain>`: the record of today's staged order.
-///
-/// The staged order reads the whole block before writing any of it back. When a block's walk laps the tape (on
-/// 128-frame blocks, delays shorter than 129 samples: rates of 2130706433 and up), a later frame reads or clears a
-/// sample before an earlier frame's write reaches it, and echoes are lost (.superpowers/findings/delay-lap/).
-/// @ref FrameOrderDelayProcessor is the delay line's order.
+/// @brief What both reference orders share: the steps they take on the tapes (`DelayProcessor`'s `read`, `mix`,
+/// `writePrimary` and `writeSecondary`, copied line for line), the feedback chain as `Stereo<FeedbackChain>`, and the
+/// address log.
 ///
 /// With a logger set, each tape access is reported. Clears, reads and native writes are reported at the access. A
 /// resampled write is reported by probing: the samples around the write head are saved and zeroed, a probe sample
 /// (kProbe, which no nonzero strength turns into 0 in both channels) is written with the frame's strengths, every
 /// sample it left nonzero is reported, and the storage is restored before the frame's own write. The window widens
 /// until the samples at its edges are untouched, so the whole triangle is reported at any rate. A strength of 0 adds
-/// nothing in any order, so a sample written only at 0 is not reported. Without a logger the block runs as today's.
-class ReferenceDelayProcessor {
+/// nothing in any order, so a sample written only at 0 is not reported. Without a logger nothing is reported.
+///
+/// Each order is a sibling over this base, never one derived from the other, so neither can be rendered as the other.
+class DelayReferenceBase {
 public:
 	/// @brief The feedback's stages, Q31: shaped by the amount and saturated, then high-passed.
 	using FeedbackChain = Chain<FeedbackShaper, Pinned<ShiftTracker<11>, ShiftTracker<11>::Mode::REMOVE>>;
-
-	/// @brief One block, staged: as `DelayProcessor::process`.
-	[[nodiscard]] DelayBlockResult process(std::span<StereoSample> block, DelayTape* primary, DelayTape* secondary,
-	                                       const DelayBlock& settings, std::span<StereoSample> scratch) {
-		const bool reading = primary != nullptr && primary->isActive();
-		const bool growing = secondary != nullptr && secondary->isActive();
-
-		if (primary != nullptr) {
-			primary->setupForRender(settings.rate);
-		}
-		if (growing) {
-			secondary->setupForRender(settings.rate);
-		}
-
-		const std::span<StereoSample> work = scratch.first(block.size());
-
-		DelayBlockResult result{.wrapped = false, .secondary_written = 0};
-		DelayTape::Head head{};
-		if (reading) {
-			head = primary->head();
-			result.wrapped = read(*primary, work, 0);
-		}
-		else {
-			std::ranges::fill(work, StereoSample{.l = 0, .r = 0});
-		}
-
-		configure(settings);
-		feedback_.renderBlock(work, work);
-		mix(work, block, settings.ping_pong && settings.render_in_stereo);
-
-		if (reading) {
-			writePrimary(*primary, head, work, 0);
-		}
-		if (growing) {
-			// The secondary tape's wraps replace the primary's: it is the tape that will play on.
-			result = writeSecondary(*secondary, work, 0);
-		}
-		return result;
-	}
 
 	/// @brief The high-pass's memories to 0 in both channels; the impulse response's history is kept.
 	void resetHighPass() { feedback_.on<&FeedbackChain::reset_part<1>>(); }
@@ -144,55 +103,9 @@ public:
 	[[nodiscard]] const Stereo<FeedbackChain>& feedback() const { return feedback_; }
 
 protected:
-	/// @brief One block in frame order: each frame read, shaped, mixed and written to both tapes before the next is
-	/// read. Equal to process() exactly when no frame's write lands where a later frame of the block clears or reads.
-	[[nodiscard]] DelayBlockResult processInFrameOrder(std::span<StereoSample> block, DelayTape* primary,
-	                                                   DelayTape* secondary, const DelayBlock& settings,
-	                                                   std::span<StereoSample> scratch) {
-		const bool reading = primary != nullptr && primary->isActive();
-		const bool growing = secondary != nullptr && secondary->isActive();
+	DelayReferenceBase() = default;
 
-		if (primary != nullptr) {
-			primary->setupForRender(settings.rate);
-		}
-		if (growing) {
-			secondary->setupForRender(settings.rate);
-		}
-
-		configure(settings);
-		const bool cross = settings.ping_pong && settings.render_in_stereo;
-		bool primary_wrapped = false;
-		DelayBlockResult grown{.wrapped = false, .secondary_written = 0};
-		for (size_t i = 0; i < block.size(); ++i) {
-			const auto frame = static_cast<int32_t>(i);
-			const std::span<StereoSample> work = scratch.subspan(i, 1);
-			const std::span<StereoSample> out = block.subspan(i, 1);
-			DelayTape::Head head{};
-			if (reading) {
-				head = primary->head();
-				primary_wrapped = read(*primary, work, frame) || primary_wrapped;
-			}
-			else {
-				work.front() = {.l = 0, .r = 0};
-			}
-			feedback_.renderBlock(work, work);
-			mix(work, out, cross);
-			if (reading) {
-				writePrimary(*primary, head, work, frame);
-			}
-			if (growing) {
-				const DelayBlockResult step = writeSecondary(*secondary, work, frame);
-				grown.wrapped = step.wrapped || grown.wrapped;
-				grown.secondary_written += step.secondary_written;
-			}
-		}
-		if (growing) {
-			return grown;
-		}
-		return {.wrapped = primary_wrapped, .secondary_written = 0};
-	}
-
-private:
+	/// @brief The feedback chain's settings from @p settings.
 	void configure(const DelayBlock& settings) {
 		feedback_.configure(FeedbackChain::Settings{
 		    FeedbackShaper::Settings{.feedback = settings.feedback,
@@ -201,6 +114,9 @@ private:
 		    ShiftTracker<11>::Settings{},
 		});
 	}
+
+	/// @brief The feedback chain on @p work, in place, both channels.
+	void renderFeedback(std::span<StereoSample> work) { feedback_.renderBlock(work, work); }
 
 	[[nodiscard]] static int32_t indexOf(const DelayTape& tape, const StereoSample* sample) {
 		return static_cast<int32_t>(sample - tape.begin());
@@ -380,6 +296,7 @@ private:
 		return result;
 	}
 
+private:
 	/// @brief The feedback chain on both channels: the impulse response's history and the high-pass's memory per
 	/// channel.
 	Stereo<FeedbackChain> feedback_;
@@ -392,17 +309,108 @@ private:
 	mutable int32_t probe_radius_ = kMinProbeRadius;
 };
 
+/// @brief Today's `DelayProcessor`, test-local: `process`, `read`, `mix`, `writePrimary` and `writeSecondary` as it
+/// renders them, with the feedback as its `Stereo<FeedbackChain>`: the record of today's staged order.
+///
+/// The staged order reads the whole block before writing any of it back. When a block's walk laps the tape (on
+/// 128-frame blocks, delays shorter than 129 samples: rates of 2130836488 and up, above 2^38/129), a later frame reads
+/// or clears a sample before an earlier frame's write reaches it, and echoes are lost
+/// (.superpowers/findings/delay-lap/).
+/// @ref FrameOrderDelayProcessor is the delay line's order.
+class ReferenceDelayProcessor : public DelayReferenceBase {
+public:
+	/// @brief One block, staged: as `DelayProcessor::process`.
+	[[nodiscard]] DelayBlockResult process(std::span<StereoSample> block, DelayTape* primary, DelayTape* secondary,
+	                                       const DelayBlock& settings, std::span<StereoSample> scratch) {
+		const bool reading = primary != nullptr && primary->isActive();
+		const bool growing = secondary != nullptr && secondary->isActive();
+
+		if (primary != nullptr) {
+			primary->setupForRender(settings.rate);
+		}
+		if (growing) {
+			secondary->setupForRender(settings.rate);
+		}
+
+		const std::span<StereoSample> work = scratch.first(block.size());
+
+		DelayBlockResult result{.wrapped = false, .secondary_written = 0};
+		DelayTape::Head head{};
+		if (reading) {
+			head = primary->head();
+			result.wrapped = read(*primary, work, 0);
+		}
+		else {
+			std::ranges::fill(work, StereoSample{.l = 0, .r = 0});
+		}
+
+		configure(settings);
+		renderFeedback(work);
+		mix(work, block, settings.ping_pong && settings.render_in_stereo);
+
+		if (reading) {
+			writePrimary(*primary, head, work, 0);
+		}
+		if (growing) {
+			// The secondary tape's wraps replace the primary's: it is the tape that will play on.
+			result = writeSecondary(*secondary, work, 0);
+		}
+		return result;
+	}
+};
+
 /// @brief The delay line's order: each frame read, its feedback shaped, mixed, and written to both tapes before the
 /// next frame is read. Every echo lands where the tape puts it, D = S − 1 samples on a native tape of S samples and
 /// S / spin on a resampling one, however short the delay; the staged order (@ref ReferenceDelayProcessor) drops or
 /// damages echoes when a block laps the tape and otherwise equals this bit for bit. The measurements are in
 /// .superpowers/findings/delay-lap/. A fused delay kernel must equal this on every workload.
-class FrameOrderDelayProcessor : public ReferenceDelayProcessor {
+class FrameOrderDelayProcessor : public DelayReferenceBase {
 public:
-	/// @brief One block in frame order, with `DelayProcessor::process`'s signature.
+	/// @brief One block in frame order, with `DelayProcessor::process`'s signature: each frame read, shaped, mixed and
+	/// written to both tapes before the next is read.
 	[[nodiscard]] DelayBlockResult process(std::span<StereoSample> block, DelayTape* primary, DelayTape* secondary,
 	                                       const DelayBlock& settings, std::span<StereoSample> scratch) {
-		return processInFrameOrder(block, primary, secondary, settings, scratch);
+		const bool reading = primary != nullptr && primary->isActive();
+		const bool growing = secondary != nullptr && secondary->isActive();
+
+		if (primary != nullptr) {
+			primary->setupForRender(settings.rate);
+		}
+		if (growing) {
+			secondary->setupForRender(settings.rate);
+		}
+
+		configure(settings);
+		const bool cross = settings.ping_pong && settings.render_in_stereo;
+		bool primary_wrapped = false;
+		DelayBlockResult grown{.wrapped = false, .secondary_written = 0};
+		for (size_t i = 0; i < block.size(); ++i) {
+			const auto frame = static_cast<int32_t>(i);
+			const std::span<StereoSample> work = scratch.subspan(i, 1);
+			const std::span<StereoSample> out = block.subspan(i, 1);
+			DelayTape::Head head{};
+			if (reading) {
+				head = primary->head();
+				primary_wrapped = read(*primary, work, frame) || primary_wrapped;
+			}
+			else {
+				work.front() = {.l = 0, .r = 0};
+			}
+			renderFeedback(work);
+			mix(work, out, cross);
+			if (reading) {
+				writePrimary(*primary, head, work, frame);
+			}
+			if (growing) {
+				const DelayBlockResult step = writeSecondary(*secondary, work, frame);
+				grown.wrapped = step.wrapped || grown.wrapped;
+				grown.secondary_written += step.secondary_written;
+			}
+		}
+		if (growing) {
+			return grown;
+		}
+		return {.wrapped = primary_wrapped, .secondary_written = 0};
 	}
 };
 
