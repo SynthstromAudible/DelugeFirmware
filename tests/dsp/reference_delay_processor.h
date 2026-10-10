@@ -35,7 +35,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <limits>
 #include <ranges>
 #include <span>
 #include <vector>
@@ -80,10 +79,10 @@ using AddressLogger = std::function<void(const TapeAccess&)>;
 /// renders them, with the feedback as its `Stereo<FeedbackChain>`.
 ///
 /// With a logger set, each tape access is reported. Clears, reads and native writes are reported at the access. A
-/// resampled write is reported by probing: the samples around the write head are saved, a probe sample ({INT32_MIN,
-/// INT32_MAX}, which no nonzero strength turns into 0 in both channels) is written with the frame's strengths, every
-/// sample it changed is reported, and the storage is restored before the frame's own write. The probe widens until the
-/// samples at its window's edges are untouched, so the whole triangle is reported at any rate. A strength of 0 adds
+/// resampled write is reported by probing: the samples around the write head are saved and zeroed, a probe sample
+/// (kProbe, which no nonzero strength turns into 0 in both channels) is written with the frame's strengths, every
+/// sample it left nonzero is reported, and the storage is restored before the frame's own write. The window widens
+/// until the samples at its edges are untouched, so the whole triangle is reported at any rate. A strength of 0 adds
 /// nothing in any order, so a sample written only at 0 is not reported. Without a logger the block runs as today's.
 class ReferenceDelayProcessor {
 public:
@@ -216,6 +215,11 @@ private:
 		}
 	}
 
+	/// @brief The probe a resampled write is reported by. Each product rounds toward minus infinity, so a positive
+	/// strength leaves the left channel at -1 or below and a negative one the right; 2^20 keeps every sum of
+	/// overlapping writes far inside q31.
+	static constexpr StereoSample kProbe{.l = -(1 << 20), .r = 1 << 20};
+
 	/// @brief Reports the samples @p tape's resampled write at @p strength1, @p strength2 touches, leaving the
 	/// storage as it was.
 	void probeResampledWrite(TapeRole role, int32_t frame, DelayTape& tape, int32_t strength1,
@@ -225,30 +229,30 @@ private:
 		}
 		const auto ring = static_cast<int32_t>(tape.sizeIncludingExtra());
 		const int32_t head = writeHeadIndex(tape);
-		const StereoSample probe{.l = std::numeric_limits<int32_t>::min(), .r = std::numeric_limits<int32_t>::max()};
 		std::vector<StereoSample> saved;
 		std::vector<int32_t> changed;
-		for (int32_t radius = 32;; radius *= 2) {
+		for (int32_t radius = probe_radius_;; radius *= 2) {
 			const int32_t width = std::min((2 * radius) + 1, ring);
 			const int32_t first = (((head - radius) % ring) + ring) % ring;
 			auto at = [&](int32_t k) { return tape.begin() + ((first + k) % ring); };
 			saved.resize(static_cast<size_t>(width));
 			for (int32_t k = 0; k < width; ++k) {
 				saved[static_cast<size_t>(k)] = *at(k);
+				*at(k) = {.l = 0, .r = 0};
 			}
-			tape.writeResampled(probe, strength1, strength2);
+			tape.writeResampled(kProbe, strength1, strength2);
 			changed.clear();
 			for (int32_t k = 0; k < width; ++k) {
 				const StereoSample now = *at(k);
-				const StereoSample before = saved[static_cast<size_t>(k)];
-				if (now.l != before.l || now.r != before.r) {
+				if (now.l != 0 || now.r != 0) {
 					changed.push_back(k);
 				}
-				*at(k) = before;
+				*at(k) = saved[static_cast<size_t>(k)];
 			}
 			const bool whole = width == ring;
 			const bool edge = !changed.empty() && (changed.front() == 0 || changed.back() == width - 1);
 			if (whole || !edge) {
+				probe_radius_ = std::max(kMinProbeRadius, radius / 2);
 				for (const int32_t k : changed) {
 					note(role, TapeAccessKind::WRITE, frame, indexOf(tape, at(k)));
 				}
@@ -375,6 +379,11 @@ private:
 	Stereo<FeedbackChain> feedback_;
 	/// @brief Reports each tape access; empty when nothing listens.
 	AddressLogger log_;
+	/// @brief The smallest probe window's half-width, in samples: wider than a write at up to 8x.
+	static constexpr int32_t kMinProbeRadius = 32;
+	/// @brief The half-width the next probe starts from: half the last one that held its write, so a run of writes
+	/// at one rate rarely widens twice.
+	mutable int32_t probe_radius_ = kMinProbeRadius;
 };
 
 } // namespace delay_reference

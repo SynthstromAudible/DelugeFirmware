@@ -116,6 +116,8 @@ set(delay_processor_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/delay/delay_tape.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The delay's frame order, checked on the staged reference over the recorded workloads: the same sources.
+set(delay_frame_order_spec_DEPS ${delay_processor_spec_DEPS})
 
 # ETL for the synth headers that reach util/etl_string.h (modulation/sync.h, through the LFO). The x86 unit tree links it
 # everywhere; the ARM tree does not, so the specs link it themselves.
