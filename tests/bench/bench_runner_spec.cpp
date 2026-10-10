@@ -421,12 +421,27 @@ std::vector<q31> interleaved(std::span<const StereoSample> frames) {
 
 /// A delay whole case's run, rendered by a direct call to `DelayProcessor::process` per block over tapes of its own.
 struct DelayWholeReference {
-	std::vector<q31> last_block;                ///< The last block, interleaved.
-	std::vector<StereoSample> primary;          ///< The primary tape's storage after the run.
-	std::vector<StereoSample> secondary;        ///< The secondary's, empty unless the case grows one.
-	dsp::fixed::DelayTape::Head primary_head{}; ///< The primary's read head after the run.
-	dsp::fixed::DelayBlockResult result{};      ///< The last block's result.
+	std::vector<q31> last_block;                  ///< The last block, interleaved.
+	std::vector<StereoSample> primary;            ///< The primary tape's storage after the run.
+	std::vector<StereoSample> secondary;          ///< The secondary's, empty unless the case grows one.
+	dsp::fixed::DelayTape::Head primary_head{};   ///< The primary's read head after the run.
+	dsp::fixed::DelayTape::Head secondary_head{}; ///< The secondary's read head after the run, when it grows one.
+	dsp::fixed::DelayBlockResult result{};        ///< The last block's result.
+	std::vector<std::int64_t> feedback; ///< The processor's feedback memories after the run (delay_feedback_words).
 };
+
+/// @return @p processor's feedback memories, left then right: each channel's impulse response history and its oldest
+/// index, then its high-pass memory.
+std::vector<std::int64_t> delay_feedback_words(const dsp::fixed::DelayProcessor& processor) {
+	std::vector<std::int64_t> out;
+	for (const auto& state : {processor.feedback().left(), processor.feedback().right()}) {
+		const auto& response = dsp::get<0>(state).response;
+		out.insert(out.end(), std::begin(response.history), std::end(response.history));
+		out.push_back(response.oldest);
+		out.push_back(dsp::get<1>(state).y);
+	}
+	return out;
+}
 
 /// @p config's run of @p blocks blocks of @p n frames, from the delay cases' documented start: the primary tape the
 /// neutral rate's, filled by fill_delay_tape, native at kDelayNeutralRate; growing, a zeroed secondary for
@@ -461,6 +476,8 @@ DelayWholeReference delay_whole_reference(const DelayWholeConfig& config, std::s
 	}
 	out.last_block = interleaved(work);
 	out.primary_head = primary.head();
+	out.secondary_head = secondary.head();
+	out.feedback = delay_feedback_words(processor);
 	return out;
 }
 
@@ -1231,6 +1248,10 @@ describe bench_runner("The DSP benchmark runner", ${
 					expect(rig.primary.head().pos - rig.primary.begin())
 					    .to_equal(expected.primary_head.pos - expected.primary.data());
 					expect(rig.primary.head().long_pos).to_equal(expected.primary_head.long_pos);
+					expect(rig.primary.head().last_short_pos).to_equal(expected.primary_head.last_short_pos);
+					expect(delay_feedback_words(rig.processor)).to_equal(expected.feedback);
+					expect(std::ranges::count(expected.feedback, 0))
+					    .to_be_less_than(static_cast<std::ptrdiff_t>(expected.feedback.size()));
 					expect(rig.primary.isNative()).to_equal(config.tape == DelayTapeForm::NATIVE);
 					expect(rig.result.wrapped).to_equal(expected.result.wrapped);
 					expect(rig.result.secondary_written).to_equal(expected.result.secondary_written);
@@ -1240,6 +1261,10 @@ describe bench_runner("The DSP benchmark runner", ${
 						expect(growing).to_equal(&rig.secondary);
 						expect(interleaved({rig.secondary.begin(), rig.secondary.end()}))
 						    .to_equal(interleaved(expected.secondary));
+						expect(rig.secondary.head().pos - rig.secondary.begin())
+						    .to_equal(expected.secondary_head.pos - expected.secondary.data());
+						expect(rig.secondary.head().long_pos).to_equal(expected.secondary_head.long_pos);
+						expect(rig.secondary.head().last_short_pos).to_equal(expected.secondary_head.last_short_pos);
 						expect(rig.secondary.isNative()).to_be_true();
 						// The secondary is written at its native rate, one step per block sample, and never wraps.
 						expect(rig.result.secondary_written).to_equal(static_cast<int32_t>(n));

@@ -701,13 +701,13 @@ AUDIO_PINGPONG_SWEEP = _host(
     delay='<delay pingPong="1" analog="1" syncLevel="0" syncType="0" />',
     param_tags=KIT_DELAY["param_tags"],
 )
-# The rate's range end to end, on an audio track's digital delay: the rate held at its minimum (65536, a quarter of
-# the neutral rate's eighth octave down), which sizes the delay's buffer at its largest, two seconds, native at
-# 3116530, stepped at the third beat of the second bar to its maximum (the param saturating at 2147483647), where that
-# buffer resamples 689 times faster than its native rate: past the 8.24 spin's 256, so it wraps to about 177 steps per
-# sample, until a new buffer of 128 samples, grown at the new rate, is swapped in; and stepped back to its minimum at
-# the third bar, where that small buffer crawls at the slowest a tape resamples (2^-15 of its native rate) while a
-# new two-second buffer grows. The feedback holds high, so the delay rings throughout.
+# The rate's range end to end, on an audio track's digital delay: the rate held at its minimum (65536, 1/256 of the
+# neutral rate 16777216), which sizes the delay's buffer at its largest, two seconds, native at 3116530, stepped at the
+# third beat of the second bar to its maximum (the param saturating at 2147483647), where that buffer resamples 689
+# times faster than its native rate: past the 8.24 spin's 256, so it wraps to about 177 steps per sample, until a new
+# buffer of 128 samples, grown at the new rate, is swapped in; and stepped back to its minimum at the third bar, where
+# that small buffer crawls at the slowest a tape resamples (2^-15 of its native rate) while a new two-second buffer
+# grows. The feedback holds high, so the delay rings throughout.
 AUDIO_DELAY_EXTREMES = _host(
     delay=DIGITAL_DELAY,
     param_tags=DRY["param_tags"].replace(

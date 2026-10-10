@@ -73,6 +73,9 @@ struct DelayBlockResult {
 /// and the render gate `render-audio-track-delay-switch` pin it.
 class DelayProcessor {
 public:
+	/// @brief The feedback's stages, Q31: shaped by the amount and saturated, then high-passed.
+	using FeedbackChain = Chain<FeedbackShaper, Pinned<ShiftTracker<11>, ShiftTracker<11>::Mode::REMOVE>>;
+
 	/// @brief Renders one block: the delayed signal is added to @p block (Q31), and the block plus the shaped
 	/// feedback is written back to the tapes.
 	/// @param primary the tape read and written back; null or inactive reads silence and writes nothing.
@@ -85,10 +88,11 @@ public:
 	/// is kept.
 	void resetHighPass() { feedback_.on<&FeedbackChain::reset_part<1>>(); }
 
-private:
-	/// @brief The feedback's stages, Q31: shaped by the amount and saturated, then high-passed.
-	using FeedbackChain = Chain<FeedbackShaper, Pinned<ShiftTracker<11>, ShiftTracker<11>::Mode::REMOVE>>;
+	/// @return The feedback chain on both channels, between blocks: each channel's impulse response history and
+	/// high-pass memory.
+	[[nodiscard]] const Stereo<FeedbackChain>& feedback() const { return feedback_; }
 
+private:
 	/// @brief Reads @p primary into @p work from its read head, clearing as it goes.
 	/// @return Whether the read head wrapped.
 	static bool read(DelayTape& primary, std::span<StereoSample> work);
