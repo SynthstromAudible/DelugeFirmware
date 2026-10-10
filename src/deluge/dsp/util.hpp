@@ -18,6 +18,7 @@
 #pragma once
 #include "deluge/util/fixedpoint.h"
 #include "deluge/util/functions.h"
+#include <algorithm>
 #include <cmath>
 
 namespace deluge::dsp {
@@ -90,5 +91,21 @@ inline void foldBuffer(q31_t* startSample, q31_t* endSample, q31_t foldLevel) {
 
 		currentSample += 1;
 	} while (currentSample < endSample);
+}
+
+/**
+ * Converts a float already scaled into q31 range, clamping rather than overflowing.
+ *
+ * Letting an out-of-range float reach a narrowing cast is undefined behaviour, and the two
+ * targets disagree about it in the worst possible way: ARM's VCVT saturates, so an overdriven
+ * tail clips to full-scale positive, while x86 yields INT32_MIN, flipping the same sample to
+ * full-scale negative. Anything specced on the host would misreport what the hardware does.
+ */
+inline q31_t toQ31Saturating(float scaled) {
+	// (float)INT32_MAX rounds up to 2^31, which is itself out of range, so the ceiling has to
+	// be the largest float below it.
+	constexpr float kMax = 2147483520.f; // 0x7FFFFF80
+	constexpr float kMin = -2147483648.f;
+	return static_cast<q31_t>(std::clamp(scaled, kMin, kMax));
 }
 } // namespace deluge::dsp

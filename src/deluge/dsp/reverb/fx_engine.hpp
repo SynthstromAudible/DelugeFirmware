@@ -24,12 +24,27 @@ constexpr T Interpolate(const T x0, const T x1, float fractional) {
 namespace deluge::dsp::reverb {
 constexpr static int32_t TAIL = -1;
 
+#if DELUGE_DSP_BOUNDS_CHECK
+namespace debug {
+/// Latched when a DelayLine touches a slot outside its own reserved region.
+/// Spec-only instrumentation; compiled out of the firmware. See tests/spec/reverb_spec.cpp.
+inline bool out_of_bounds_access = false;
+} // namespace debug
+#endif
+
 enum LFOIndex { LFO_1, LFO_2 };
 
 class FxEngine {
 public:
+	/// The LFOs only step once every 32 frames, so a configured frequency has to be scaled up
+	/// to compensate. Skip this and the normalised frequency stays small enough that the
+	/// approximate cosine's `2 - 32f^2` coefficient rounds to exactly 2.0f -- at which point
+	/// both lanes collapse onto one much slower oscillation and the modulation stops being
+	/// two independent voices.
+	constexpr static float kLFOStride = 32.0f;
+
 	FxEngine(std::span<float> signal, std::array<float, 2> lfo_freqs)
-	    : buffer_(signal), mask(buffer_.size() - 1), lfo_{lfo_freqs} {};
+	    : buffer_(signal), lfo_{{lfo_freqs[0] * kLFOStride, lfo_freqs[1] * kLFOStride}}, mask(buffer_.size() - 1) {};
 	~FxEngine() = default;
 
 	void Clear() {
@@ -38,7 +53,7 @@ public:
 	}
 
 	//[gnu::always_inline]
-	void SetLFOFrequency(LFOIndex index, float frequency) { lfo_.SetFrequency(index, frequency * 32.0f); }
+	void SetLFOFrequency(LFOIndex index, float frequency) { lfo_.SetFrequency(index, frequency * kLFOStride); }
 
 	//[gnu::always_inline]
 	void Advance() {
@@ -46,21 +61,16 @@ public:
 		if (write_ptr_ < 0) {
 			write_ptr_ += buffer_.size();
 		}
+		StepLFO();
 	}
 
 	//[gnu::always_inline]
 	float& at(size_t index) { return buffer_[(write_ptr_ + index) & mask]; }
 
-	//[gnu::always_inline]
-	void StepLFO() {
-		if ((write_ptr_ & 31) == 0) {
-			lfo_.Next();
-		}
-	}
-
+	/// Reads the current value; stepping is Advance()'s job, so that a topology with several
+	/// modulated delay lines still only advances the oscillators once per frame.
 	//[gnu::always_inline]
 	float LFO(LFOIndex lfo) {
-		StepLFO();
 		switch (lfo) {
 		case LFO_1:
 			return lfo_.values()[0];
@@ -71,6 +81,13 @@ public:
 	}
 
 private:
+	//[gnu::always_inline]
+	void StepLFO() {
+		if ((write_ptr_ & 31) == 0) {
+			lfo_.Next();
+		}
+	}
+
 	int32_t write_ptr_ = 0;
 	std::span<float> buffer_;
 	DualCosineOscillator lfo_;
@@ -111,6 +128,15 @@ public: /******************** INNER CLASSES ****************/
 			if (index == TAIL) {
 				index = length - 1;
 			}
+#if DELUGE_DSP_BOUNDS_CHECK
+			// ConstructTopology reserves length + 1 slots per line, so indices 0..length are ours:
+			// index `length` is the slot written `length` frames ago. Anything past that is the
+			// next line's memory. Interpolated reads are the usual culprit, since they also
+			// touch offset + 1.
+			if (index < 0 || static_cast<size_t>(index) > length) {
+				debug::out_of_bounds_access = true;
+			}
+#endif
 			return engine_->at(this->base + index);
 		}
 
