@@ -75,7 +75,7 @@ struct DelayBlockResult {
 class DelayProcessor {
 public:
 	/// @brief The feedback's stages, Q31: shaped by the amount and saturated, then high-passed.
-	using FeedbackChain = fixed::FeedbackChain;
+	using FeedbackChain = DelayFeedbackChain;
 
 	/// @brief Renders one block: the delayed signal is added to @p block (Q31), and the block plus the shaped
 	/// feedback is written back to the tapes.

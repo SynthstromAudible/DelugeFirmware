@@ -37,7 +37,7 @@ namespace deluge::dsp::fixed {
 
 /// @brief The delay's feedback stages, Q31: shaped by the amount and saturated (@ref FeedbackShaper), then
 /// high-passed by a one-pole low-pass at a 1/2048 step taken out of it, so repeats don't build up sub-bass.
-using FeedbackChain = Chain<FeedbackShaper, Pinned<ShiftTracker<11>, ShiftTracker<11>::Mode::REMOVE>>;
+using DelayFeedbackChain = Chain<FeedbackShaper, Pinned<ShiftTracker<11>, ShiftTracker<11>::Mode::REMOVE>>;
 
 /// @brief The delay over tapes it is handed, as a processor kernel of stereo frames: each frame reads the primary tape,
 /// runs the feedback, mixes and writes both tapes before the next frame is read. Rendered in place as
@@ -47,18 +47,22 @@ using FeedbackChain = Chain<FeedbackShaper, Pinned<ShiftTracker<11>, ShiftTracke
 /// 1. **Read.** With `reading`, the primary is read at its read head, which clears each sample it leaves and notes a
 ///    wrap: natively the sample under the head after one step; resampled, the head advanced by the spin (8.24) and the
 ///    samples under it and after it weighed by the 16.16 strengths the advance gives. Without `reading`, silence.
-/// 2. **Feedback.** @ref FeedbackChain steps the left channel through `State::left`, then the right through
+/// 2. **Feedback.** @ref DelayFeedbackChain steps the left channel through `State::left`, then the right through
 ///    `State::right`, at the chain mode that matches @ref Mode::shaper.
 /// 3. **Mix.** Straight, the tape takes the dry frame plus the feedback. Crossed (ping-pong, rendering in stereo), the
 ///    left takes the right's feedback and the right takes the dry channels' mean plus the left's feedback.
 /// 4. **Write.** With `reading`, the primary is written kWriteLag samples behind the head where this frame's read left
 ///    it: natively the sample behind where the read began, resampled the triangle the read's own strengths give.
 ///    Following the read is the same as walking the head again from where it stood, without the second walk. With
-///    `growing`, the secondary is written too, clearing ahead of its own head and counting its steps.
+///    `growing`, the secondary is written too, clearing ahead of its own head and counting its steps: natively inline,
+///    one step a frame; resampling, through @ref writeSecondaryResampled, an out-of-line call made only in the few
+///    blocks a resampled secondary grows, so the eight loops do not each carry its advance and triangle write.
 /// 5. **Return** the dry frame plus the feedback.
 ///
 /// Each frame's write lands before the next frame's read, so an echo at a delay shorter than the block comes round
-/// within the block as the delay line plays it (.superpowers/findings/delay-lap/).
+/// within the block as the delay line plays it. Read the whole block before writing any of it, and a delay shorter
+/// than the block (on 128-frame blocks, a tape of 128 samples) reads samples its own earlier frames have yet to write,
+/// and loses echoes (`delay_frame_order_spec` and `delay_echo_spec` measure it).
 ///
 /// **External memory.** The step writes the tapes its Coefficients point at: memory outside its State, which the owner
 /// owns and hands it per block. The tapes' heads move as they are read and written. Configure before every block: the
@@ -80,7 +84,7 @@ struct Delay {
 	using step_type = StereoSample;  ///< One frame per step.
 
 	/// @brief The feedback chain the delay steps on each channel.
-	using FeedbackChain = fixed::FeedbackChain;
+	using FeedbackChain = DelayFeedbackChain;
 
 	/// @brief How the feedback is saturated: @ref FeedbackShaper's modes.
 	enum class Shaper : uint8_t {
@@ -122,7 +126,9 @@ struct Delay {
 
 	/// @brief One block's settings as the owner resolved them, and the tapes it plays.
 	struct Settings {
-		uint32_t rate = 0;              ///< The tape speed, unsigned as the tape sizes for it: 16777216 is neutral.
+		/// The tape speed, 8.24 on the delay's rate scale: 16777216 (1.0) plays the neutral 16384-sample tape at its
+		/// native rate. Unsigned, as the tape sizes for it; the tape's setup takes its int32_t image.
+		uint32_t rate = 0;
 		q31 feedback = 0;               ///< The feedback amount, Q31.
 		bool analog = false;            ///< The impulse response then a tanh; else a digital clip.
 		int32_t analog_saturation = 8;  ///< The tanh drive, as a power of two: 8 on a sound, 5 on a host chain.
@@ -137,7 +143,7 @@ struct Delay {
 		FeedbackChain::Coefficients feedback{}; ///< The chain's, built by FeedbackChain::coefficients.
 		DelayTape* primary = nullptr;           ///< The tape read and written back, or null.
 		DelayTape* secondary = nullptr;         ///< The tape grown alongside, or null.
-		uint32_t rate = 0;                      ///< The tape speed, as Settings::rate.
+		uint32_t rate = 0;                      ///< The tape speed, 8.24, as Settings::rate.
 		bool reading = false;                   ///< The primary is set and active: it is read and written.
 		bool growing = false;                   ///< The secondary is set and active: it is written.
 		Mode mode{};                            ///< The block's mode, which the wrapper dispatches on.
@@ -158,8 +164,8 @@ struct Delay {
 		bool secondary_resampled = false;      ///< Whether the growing secondary resamples this block.
 	};
 
-	/// @brief The kernel's State lives in its wrapper through the block: it holds two 25-word histories, too much for
-	/// registers.
+	/// @brief The kernel's State lives in its wrapper through the block: each channel's response history is 25 taps
+	/// mirrored to 50 words, about 424 bytes in all, too much for registers.
 	static constexpr bool kStateInPlace = true;
 
 	/// @brief The chain mode that matches @p shaper.
@@ -170,8 +176,8 @@ struct Delay {
 	/// @brief The coefficients for @p s.
 	/// @details The chain's coefficients and mode come from FeedbackChain::coefficients, and the shaper from the
 	/// chain's mode, so the two agree. The mix crosses when `ping_pong && render_in_stereo`. The tape form is the
-	/// primary's after this block's setup: a tape resampling stays so, and a native one starts resampling at any rate
-	/// but its native rate. The secondary's form is decided per block in @ref prepare, after its own setup.
+	/// primary's after this block's setup, by the rule the setup itself takes (DelayTape::resamplesAt). The
+	/// secondary's form is decided per block in @ref prepare, after its own setup.
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& s) {
 		Coefficients c{
 		    .feedback = FeedbackChain::coefficients(FeedbackChain::Settings{
@@ -188,15 +194,15 @@ struct Delay {
 		};
 		c.mode.shaper = get<0>(c.feedback.mode) == FeedbackShaper::Mode::ANALOG ? Shaper::ANALOG : Shaper::DIGITAL;
 		c.mode.mix = s.ping_pong && s.render_in_stereo ? Mix::CROSS : Mix::STRAIGHT;
-		const bool resampled = c.reading && (s.primary->resampling() || s.rate != s.primary->nativeRate());
+		const bool resampled = c.reading && s.primary->resamplesAt(s.rate);
 		c.mode.tape = resampled ? Tape::RESAMPLED : Tape::NATIVE;
 		return c;
 	}
 
 	/// @brief Sets each tape up for the block's rate, as the owner's block does: the primary whenever it is set, the
-	/// secondary while it grows.
+	/// secondary while it grows. A native secondary steps once a frame, so its @p n steps are counted here, once.
 	/// @return Where the primary's storage begins and how long it is, and whether the secondary resamples.
-	[[nodiscard]] [[gnu::always_inline]] static Block prepare(const Coefficients& c, State& /*s*/, std::size_t /*n*/) {
+	[[nodiscard]] [[gnu::always_inline]] static Block prepare(const Coefficients& c, State& s, std::size_t n) {
 		// The tape takes the rate's int32_t image.
 		const auto rate = static_cast<int32_t>(c.rate);
 		if (c.primary != nullptr) {
@@ -210,6 +216,9 @@ struct Delay {
 		if (c.growing) {
 			c.secondary->setupForRender(rate);
 			block.secondary_resampled = c.secondary->resampling();
+			if (!block.secondary_resampled) {
+				s.secondary_written += static_cast<int32_t>(n);
+			}
 		}
 		return block;
 	}
@@ -282,7 +291,16 @@ struct Delay {
 		}
 		if (c.growing) {
 			// The secondary's wraps replace the primary's: it is the tape that will play on.
-			wrapped = writeSecondary(b, s, *c.secondary, to_tape);
+			DelayTape& secondary = *c.secondary;
+			if (!b.secondary_resampled) {
+				wrapped = secondary.clearAndMoveOn();
+				secondary.writeNative(to_tape);
+			}
+			else {
+				const SecondaryWrite written = writeSecondaryResampled(secondary, to_tape);
+				wrapped = written.wrapped;
+				s.secondary_written += written.steps;
+			}
 		}
 		// Stored only on a wrap, so the frame does not load and store the flag.
 		if (wrapped) {
@@ -301,26 +319,25 @@ struct Delay {
 		FeedbackChain::reset_part<1>(s.right);
 	}
 
-private:
-	/// @brief Writes @p sample (Q31) to the growing @p secondary, clearing ahead of its read head and counting its
-	/// steps into `secondary_written`: natively one step then a write at its write head, resampled the steps its
-	/// advance takes then the triangle its strengths give.
-	/// @return Whether its read head wrapped.
-	[[nodiscard]] [[gnu::always_inline]] static bool writeSecondary(const Block& b, State& s, DelayTape& secondary,
-	                                                                StereoSample sample) {
-		bool wrapped = false;
-		if (!b.secondary_resampled) {
-			wrapped = secondary.clearAndMoveOn();
-			++s.secondary_written;
-			secondary.writeNative(sample);
-			return wrapped;
-		}
+	/// @brief What a resampled secondary's write did to its read head.
+	struct SecondaryWrite {
+		bool wrapped;  ///< The read head wrapped.
+		int32_t steps; ///< The read head's steps, in tape samples.
+	};
+
+	/// @brief Writes @p sample (Q31) to a growing secondary that resamples: its read head advanced by the spin,
+	/// clearing each sample it leaves, then the triangle the advance's 16.16 strengths give.
+	/// @details Out of line and cold: a resampled secondary grows only in the few blocks after a rate change, and
+	/// this one shared copy keeps its advance and its sped-up and slowed-down writes out of all eight loops.
+	[[gnu::noinline, gnu::cold]] static SecondaryWrite writeSecondaryResampled(DelayTape& secondary,
+	                                                                           StereoSample sample) {
+		SecondaryWrite written{.wrapped = false, .steps = 0};
 		const int32_t strength2 = secondary.advance([&] [[gnu::always_inline]] {
-			wrapped = secondary.clearAndMoveOn() || wrapped;
-			++s.secondary_written;
+			written.wrapped = secondary.clearAndMoveOn() || written.wrapped;
+			++written.steps;
 		});
 		secondary.writeResampled(sample, 65536 - strength2, strength2);
-		return wrapped;
+		return written;
 	}
 };
 

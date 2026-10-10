@@ -657,8 +657,9 @@ struct Parting {
 
 /// @return Where @p workload, played through @p A and through @p B, first parts (the output, the result, the
 /// owner's swap, a tape's storage or a head); nothing when they agree on every block.
-/// @param before Called with the block's index and both processors before each block, when set: an event both
-/// processors take between blocks (a reactivation), or a check of their state.
+/// @param before Called with the block's index and both processors before each block, and with the block count once
+/// after the last when no block parted, when set: an event both processors take between blocks (a reactivation), or
+/// a check of their state.
 template <typename A, typename B>
 [[nodiscard]] std::optional<Parting> first_parting(const Workload& workload,
                                                    const std::function<void(size_t, A&, B&)>& before = {}) {
@@ -688,6 +689,9 @@ template <typename A, typename B>
 		if (!same_storage(a.secondary(), b.secondary()) || head_of(a.secondary()) != head_of(b.secondary())) {
 			return Parting{.block = block, .what = "secondary tape"};
 		}
+	}
+	if (before) {
+		before(workload.blocks, a.processor(), b.processor());
 	}
 	return std::nullopt;
 }

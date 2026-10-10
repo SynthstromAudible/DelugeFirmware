@@ -37,7 +37,9 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <iterator>
+#include <ostream>
 #include <set>
 #include <span>
 #include <string>
@@ -60,7 +62,32 @@ static_assert(deluge::dsp::detail::state_in_place<Delay>);
 static_assert(deluge::dsp::processor_kernel<Delay>);
 static_assert(deluge::dsp::moded_kernel<Delay>);
 
+namespace deluge::dsp::fixed {
+
+// The kernel's mode enums, printed by name when an expectation fails.
+inline std::ostream& operator<<(std::ostream& out, Delay::Shaper shaper) {
+	return out << (shaper == Delay::Shaper::ANALOG ? "ANALOG" : "DIGITAL");
+}
+inline std::ostream& operator<<(std::ostream& out, Delay::Mix mix) {
+	return out << (mix == Delay::Mix::CROSS ? "CROSS" : "STRAIGHT");
+}
+inline std::ostream& operator<<(std::ostream& out, FeedbackShaper::Mode mode) {
+	return out << (mode == FeedbackShaper::Mode::ANALOG ? "ANALOG" : "DIGITAL");
+}
+
+} // namespace deluge::dsp::fixed
+
 namespace {
+
+/// @return @p frames as words, left then right per frame, so a failed comparison prints the samples.
+std::vector<int32_t> frameWords(std::span<const StereoSample> frames) {
+	std::vector<int32_t> out;
+	for (const StereoSample frame : frames) {
+		out.push_back(frame.l);
+		out.push_back(frame.r);
+	}
+	return out;
+}
 
 /// The frame-order reference: the delay line's order.
 using FrameOrder = delay_reference::FrameOrderDelayProcessor;
@@ -129,8 +156,8 @@ std::vector<int64_t> words(const FrameOrder& reference) {
 }
 
 /// @return "<name> block <b>: <what>" for each block where @p workload parts between the kernel and the frame-order
-/// reference: the output, the result, the lifecycle, a tape or a head, or (checked before each block) the feedback
-/// memories. @p before runs on both before each block, after the memories are compared.
+/// reference: the output, the result, the lifecycle, a tape or a head, or (checked before each block and after the
+/// last) the feedback memories. @p before runs on both at each of those points, after the memories are compared.
 std::vector<std::string> partings(const delay_workloads::Workload& workload,
                                   const std::function<void(size_t, KernelDelay&, FrameOrder&)>& before = {}) {
 	std::vector<std::string> out;
@@ -341,7 +368,7 @@ describe delay_kernel("Delay kernel", ${
 			}
 			const std::array<StereoSample, delay_workloads::kMaxFrames> dry = block;
 			delay.renderBlock(block, block);
-			expect(delay_workloads::same_frames(block, dry)).to_be_true();
+			expect(frameWords(block)).to_equal(frameWords(dry));
 			const DelayBlockResult result = delay.on<&takeResult>();
 			expect(result.secondary_written).to_equal(static_cast<int32_t>(delay_workloads::kMaxFrames));
 			expect(result.wrapped).to_be_false();
