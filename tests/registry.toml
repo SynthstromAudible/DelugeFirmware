@@ -1124,6 +1124,24 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-audio-track-delay-extremes"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a delay renders as recorded at both ends of its rate's range: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_AUDIO_DELAY_EXTREMES) whose audio track's digital delay has its rate held at its minimum, which gives it a two-second buffer, then stepped by automation to its maximum, where that buffer resamples so fast its 8.24 spin wraps (about 177 steps per sample) until a 128-sample buffer is swapped in, then back to its minimum, where the small buffer crawls at the slowest a tape resamples while a new two-second one grows; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with the delay's feedback at its minimum must render differently (RS-FX), so the delay's settings reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_AUDIO_DELAY_EXTREMES" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-low-clip"
 path = "."
 level = "integration"

@@ -25,6 +25,8 @@ holds an audio track's analog delay ringing for its gate to switch between analo
 twin, because its gate's twin is the same song rendered unswitched.
 RS_PINGPONG_SWEEP crosses ping-pong in stereo while the rate steps through new buffers, digital on a kit and analog
 on an audio track: the resampled and analog crossings RS_KIT_PINGPONG leaves out.
+RS_AUDIO_DELAY_EXTREMES steps an audio track's delay rate from its minimum to its maximum and back: its tape heads at
+the fastest and the slowest the rate's range reaches.
 RS_LOW_CLIP covers a host chain's saturation below amount 3, which RS_KIT_FX and RS_AUDIO_FX (at 4) leave out: a
 kit at 1 and an audio track at 2.
 RS_DUCK_SHAPES covers the sidechain envelope's paths RS_AUDIO_DUCKED leaves out on the host owners: the instant
@@ -699,6 +701,20 @@ AUDIO_PINGPONG_SWEEP = _host(
     delay='<delay pingPong="1" analog="1" syncLevel="0" syncType="0" />',
     param_tags=KIT_DELAY["param_tags"],
 )
+# The rate's range end to end, on an audio track's digital delay: the rate held at its minimum (65536, a quarter of
+# the neutral rate's eighth octave down), which sizes the delay's buffer at its largest, two seconds, native at
+# 3116530, stepped at the third beat of the second bar to its maximum (the param saturating at 2147483647), where that
+# buffer resamples 689 times faster than its native rate: past the 8.24 spin's 256, so it wraps to about 177 steps per
+# sample, until a new buffer of 128 samples, grown at the new rate, is swapped in; and stepped back to its minimum at
+# the third bar, where that small buffer crawls at the slowest a tape resamples (2^-15 of its native rate) while a
+# new two-second buffer grows. The feedback holds high, so the delay rings throughout.
+AUDIO_DELAY_EXTREMES = _host(
+    delay=DIGITAL_DELAY,
+    param_tags=DRY["param_tags"].replace(
+        '<delay rate="0x00000000" feedback="0x80000000" />',
+        f'<delay rate="{_steps(0x80000000, [(0x7FFFFFFF, 480), (0x80000000, 768)])}" feedback="0x90000000" />',
+    ),
+)
 # A host chain's saturation below amount 3, where it does not shift back up: the kit at 1 and the audio track at 2,
 # every other setting at DRY's value. RS_KIT_FX and RS_AUDIO_FX render it from 3 up.
 KIT_LOW_CLIP = _host(
@@ -754,6 +770,10 @@ SONGS = {
     "RS_PINGPONG_SWEEP_DRY": lambda v: parts_song(
         v, [kit_parts(DRY, DELAY_DRUMS), audio_parts(DRY)]
     ),
+    "RS_AUDIO_DELAY_EXTREMES": lambda v: parts_song(
+        v, [audio_parts(AUDIO_DELAY_EXTREMES)]
+    ),
+    "RS_AUDIO_DELAY_EXTREMES_DRY": lambda v: parts_song(v, [audio_parts(DRY)]),
     "RS_LOW_CLIP": lambda v: parts_song(
         v, [kit_parts(KIT_LOW_CLIP, PINGPONG_DRUMS), audio_parts(AUDIO_LOW_CLIP)]
     ),
