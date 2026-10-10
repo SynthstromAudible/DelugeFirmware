@@ -109,7 +109,8 @@ set(analog_impulse_response_spec_DEPS)
 set(feedback_shaper_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
-# One block of the delay: the tape, and the analog feedback's tanh through the table interpolator.
+# One block of the delay: the tape, and the analog feedback's tanh through the table interpolator. The staged reference
+# (reference_delay_processor.h) and the recorded workloads (delay_workloads.h) beside the spec are header-only.
 set(delay_processor_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/delay/delay_processor.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/delay/delay_tape.cpp

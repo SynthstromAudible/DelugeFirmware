@@ -22,15 +22,24 @@
 // first tape is a secondary, read as silence until it is swapped in), the rate's settling, a secondary tape grown
 // when the rate leaves the primary's range, the swap once it is full, and the abandon count's wraps. Fresh storage
 // holds the recorder's allocator fill, so the samples a fresh tape has not cleared are pinned too.
+//
+// The recorded workloads (delay_workloads.h) run every mode combination, rate sweeps, secondaries grown through their
+// swaps, read-head wraps, a new delay's first blocks and both ends of the rate range through the same lifecycle; the
+// staged reference (reference_delay_processor.h) must render each as today's processor does.
 
+#include "delay_workloads.h"
 #include "dsp-next/fixed/delay/delay_processor.h"
+#include "reference_delay_processor.h"
 
+#include <algorithm>
 #include <array>
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <ostream>
 #include <span>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -463,6 +472,57 @@ const std::vector<uint64_t> kModeSwitch{0xa311cc4b9a7f8d1bull, 0x752a675ed800cd4
                                         0x3355483403b6f12cull, 0xd3f49f7106e57afbull, 0xe166c9a5f581d580ull,
                                         0x18362807d470e747ull, 0x6771a96b601fe5f4ull, 0x22cd52b8d0b30a1cull};
 
+/// @return Whether @p a and @p b hold the same storage, byte for byte (both inactive counts as the same).
+bool sameStorage(const DelayTape& a, const DelayTape& b) {
+	const auto x = delay_workloads::tape_storage(a);
+	const auto y = delay_workloads::tape_storage(b);
+	return x.size() == y.size() && (x.empty() || std::memcmp(x.data(), y.data(), x.size()) == 0);
+}
+
+/// A tape's read head as an index into its storage, its long position and its last short position; all -1 when the
+/// tape is inactive.
+std::vector<int64_t> headOf(const DelayTape& tape) {
+	if (!tape.isActive()) {
+		return {-1, -1, -1};
+	}
+	const DelayTape::Head head = tape.head();
+	return {head.pos - tape.begin(), head.long_pos, head.last_short_pos};
+}
+
+/// Where today's processor and the staged reference first part on a workload, as "block N: what"; empty when they
+/// agree on every block's output, result, tapes and heads.
+std::string compareWithReference(const delay_workloads::Workload& workload) {
+	delay_workloads::WorkloadRun<DelayProcessor> today{workload};
+	delay_workloads::WorkloadRun<delay_reference::ReferenceDelayProcessor> reference{workload};
+	std::array<StereoSample, delay_workloads::kMaxFrames> a{};
+	std::array<StereoSample, delay_workloads::kMaxFrames> b{};
+	for (size_t block = 0; block < workload.blocks; ++block) {
+		const DelayBlockResult ra = today.block(block, a);
+		const DelayBlockResult rb = reference.block(block, b);
+		const std::string at = std::string{workload.name} + " block " + std::to_string(block) + ": ";
+		const size_t frames = workload.step(block).frames;
+		if (words(std::span{a}.first(frames)) != words(std::span{b}.first(frames))) {
+			return at + "output";
+		}
+		if (ra.wrapped != rb.wrapped || ra.secondary_written != rb.secondary_written) {
+			return at + "result";
+		}
+		if (today.swapped() != reference.swapped() || today.grew() != reference.grew()) {
+			return at + "lifecycle";
+		}
+		for (const auto& [x, y, name] : {std::tuple{&today.primary(), &reference.primary(), "primary"},
+		                                 std::tuple{&today.secondary(), &reference.secondary(), "secondary"}}) {
+			if (!sameStorage(*x, *y)) {
+				return at + name + " tape";
+			}
+			if (headOf(*x) != headOf(*y)) {
+				return at + name + " head";
+			}
+		}
+	}
+	return {};
+}
+
 } // namespace
 
 // clang-format off
@@ -559,6 +619,19 @@ describe delay_processor("DelayProcessor", ${
 
 	it("resumes the impulse response's history in analog after digital blocks left it untouched", _ {
 		expect(runSteps(modeSwitch())).to_equal(kModeSwitch);
+	});
+
+	it("renders every recorded workload as the staged reference does: outputs, results, both tapes byte for byte and "
+	   "their heads", _ {
+		std::vector<std::string> parted;
+		for (const delay_workloads::Workload& workload : delay_workloads::all_workloads()) {
+			const std::string where = compareWithReference(workload);
+			if (!where.empty()) {
+				parted.push_back(where);
+			}
+		}
+		expect(parted).to_equal(std::vector<std::string>{});
+		expect(delay_workloads::all_workloads().size()).to_equal(delay_workloads::kWorkloadCount);
 	});
 });
 // clang-format on
