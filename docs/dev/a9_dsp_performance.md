@@ -201,10 +201,19 @@ the in-place digital chain.
   summed by adds that wrap modulo 2^32, so their order does not matter. `.superpowers/findings/fir-form-spike/`
   measures every form tried, the response alone and end to end.
 - **Fusing the analog delay saves about 1.8 cycles per channel-sample** in place. The chain high-passes each shaped
-  sample in registers where the passes load, high-pass and store it in a second loop; in place the chain also
-  measures 2.1 cycles per channel-sample above its out-of-place figure (160.5, the 2026-10-09 table), with 7 fewer
-  instructions and 8 more issue-empty cycles per sample. No trace was taken of the direct-form loops, so the
-  difference is not attributed.
+  sample in registers where the passes load, high-pass and store it in a second loop.
+- **In place, the analog chain costs about 2 cycles per channel-sample more than out of place, from register
+  allocation around its tap loops.** In one image it measures 162.46 in place against 160.50 out of place, with 7.0
+  fewer instructions and 8.0 more issue-empty cycles per sample. A PTM trace of both loops puts the difference in the
+  code around the tap loops, not in the loops or in the order of a pointer step and a store. Per frame (both
+  channels), the tap loops run 18.7 cycles an iteration in place against 18.9 out of place, 2 cycles a frame faster,
+  because in place the left channel loads its history and its taps by `ldrd`; the code around them takes 133 cycles
+  against 127. In place, clang merges the input and output pointers into one register and spends the register that
+  frees differently: it spills the merged pointer and the right channel's input across the left tap loop, reloads
+  that input only to write it into the history (a load feeding two stores), and reloads the pointer to store the
+  frame and to step it. Out of place it keeps the right input in a register and spills the two pointers. The net is
+  3.65 cycles a frame. The trace, disassemblies and bench are in
+  `.superpowers/estate/ledgers/dsp-next-chain-minors-evidence/`.
 - **The fused analog loop stores the response's history and index and the high-pass memory per channel per frame,
   and spills four values.** Per frame: the input written twice into each channel's history and the advanced index
   (`Stereo` runs on a stack copy of the State, so these are stores to it), each channel's high-pass memory, the output
@@ -216,13 +225,14 @@ the in-place digital chain.
   `str [r10], #8`) where LOW_PASS and a bare `Stereo<OnePole>` store one `strd`: one store more per frame, from the
   chain's register pressure (four state registers and a coefficient across both channels).
 - **The next lever is the stereo direct form.** One tap loop stepping both channels, each tap loaded once for both,
-  measured 139.7 cycles per channel-sample end to end in C, out of place; it was not measured in place. A chain cannot
-  express it yet: it needs a chain that steps a stereo frame, with a `Packed`/`PerChannel` adaptor for its per-channel
+  measures 144.41 cycles per channel-sample end to end in C, in place as the delay renders, 11% under the in-place
+  chain's 162.46 in the same image; out of place it measures 139.67. In place, clang loads each history frame with
+  two `ldr`s rather than one `ldrd`, 9 instructions per tap-frame against 8. A chain cannot express it yet: it needs a chain that steps a stereo frame, with a `Packed`/`PerChannel` adaptor for its per-channel
   parts. It is deferred to the mod-FX rewrite (`.superpowers/findings/fir-form-spike/`).
 - **The in-place loop's remedy class.** Where a bench shows the in-place stall matters, the remedy is a one-frame
   software pipeline in the `Lanes`/`Mono` loop: load frame i + 1 before storing frame i, so the next load's address
   never follows the store. It is not done: the digital delay shows no cost from the order, and the analog delay's
-  2.1 cycles are not yet attributed.
+  in-place cost is register allocation around its tap loops (above), which the pipeline would not remove.
 - **Bench a component with the flags it ships with, and in place if it ships in place.** Under the app's flags
   (Thumb, `-fno-inline-functions`) a `std::array` member function is an out-of-line call per use: a response reading
   its taps and history through `std::array` makes calls in every frame, and all three analog forms measure about 600

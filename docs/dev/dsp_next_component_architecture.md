@@ -440,7 +440,8 @@ alone.
   memory once per frame and spills four values, from the tap loop's register
   pressure: chain state and one stage output held across the other channel's
   loop, nothing else stored between stages. The next lever is the stereo
-  direct form, both channels per tap (139.7 in C, measured out of place); it
+  direct form, both channels per tap (144.4 in C, measured in place as the
+  delay renders; 139.7 out of place); it
   needs a chain that steps a stereo frame, with a `Packed`/`PerChannel` adaptor
   for its per-channel parts, and is deferred to the mod-FX rewrite
   (`.superpowers/findings/fir-form-spike/`).
