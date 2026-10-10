@@ -87,6 +87,16 @@ set(state_variable_filter_spec_DEPS ${_filter_DEPS})
 # The filter set runs the three filters.
 set(filter_set_spec_DEPS ${_filter_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp)
 
+# The filters' and the compressor's verbatim references against the firmware's classes over the recorded workloads
+# (reference_filters.h and filter_workloads.h, header-only): the filters, the set, and the compressor with its tanh
+# table's interpolator.
+set(filters_reference_spec_DEPS
+  ${_filter_DEPS}
+  ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+
 # The decay-curve lookups read the decay tables.
 set(table_interpolation_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
