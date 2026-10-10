@@ -17,8 +17,9 @@
 
 #pragma once
 
-// The delay's analog impulse response in its reference arithmetic: the verbatim stereo arithmetic the kernel is
-// checked against.
+/// @file
+/// @brief The delay's analog impulse response as a stereo class, both channels in one tap loop: the reference the
+/// kernel is checked against, and the response the bench's legacy analog case runs.
 
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/wrapping.h"
@@ -28,9 +29,9 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace reference {
+namespace deluge::bench::reference {
 
-using deluge::dsp::StereoSample;
+using dsp::StereoSample;
 
 /// @brief The analog delay's 26-tap impulse response (Q31 taps), one stereo sample at a time: the reference
 /// arithmetic the kernel is checked against.
@@ -77,7 +78,7 @@ public:
 	/// @param input A stereo sample, Q31.
 	/// @return The response's output for it, Q31, wrapped.
 	[[nodiscard]] StereoSample process(StereoSample input) {
-		using deluge::dsp::wrapping_add;
+		using dsp::wrapping_add;
 		const StereoSample output{.l = wrapping_add(pending_[0].l, tap(input.l, 0)),
 		                          .r = wrapping_add(pending_[0].r, tap(input.r, 0))};
 		for (size_t i = 1; i < kPending; i++) {
@@ -108,4 +109,4 @@ private:
 	std::array<StereoSample, kPending> pending_{};
 };
 
-} // namespace reference
+} // namespace deluge::bench::reference

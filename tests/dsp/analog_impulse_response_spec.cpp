@@ -17,21 +17,21 @@
 
 // The delay's analog impulse response as a kernel. Exact reference values recorded from the class the delay held pin an
 // impulse (each tap in order, halved and rounded) and a block of two sines through both channels, on both the kernel
-// and a verbatim copy of the class (reference_impulse_response.h). Stereo<AnalogImpulseResponse> is pinned against that
-// copy sample by sample: over 4096 seeded stereo samples at a quarter of full scale, where the class's plain adds stay
-// in q31, in blocks of every length 1 to 9; and over two blocks at every length 1 to 9. Each run ends with 25 silent
-// samples, which bring out every pending sum, so the States are compared through the output. At full scale (INT32_MIN
-// held, INT32_MAX held, the two alternating, the taps' signs reversed in time, and full-scale noise) a sum can leave
-// q31, and the kernel is pinned against the class with its adds wrapping as the hardware's do; the reversed signs are
-// pinned to reach the wrap.
+// and the stereo reference (bench/reference_impulse_response.h). Stereo<AnalogImpulseResponse> is pinned against that
+// reference sample by sample: over 4096 seeded stereo samples at a quarter of full scale, where the reference's plain
+// adds stay in q31, in blocks of every length 1 to 9; and over two blocks at every length 1 to 9. Each run ends with 25
+// silent samples, which bring out every pending sum, so the States are compared through the output. At full scale
+// (INT32_MIN held, INT32_MAX held, the two alternating, the taps' signs reversed in time, and full-scale noise) a sum
+// can leave q31, and the kernel is pinned against the reference with its adds wrapping as the hardware's do; the
+// reversed signs are pinned to reach the wrap.
 
 #include "dsp-next/fixed/delay/analog_impulse_response.h"
 
+#include "bench/reference_impulse_response.h"
 #include "dsp-next/core/concepts.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/fixed/noise/noise.h"
-#include "reference_impulse_response.h"
 
 #include <algorithm>
 #include <cppspec.hpp>
@@ -45,8 +45,8 @@
 
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
-using reference::ReferenceImpulseResponse;
-using reference::WrappingReferenceImpulseResponse;
+using deluge::bench::reference::ReferenceImpulseResponse;
+using deluge::bench::reference::WrappingReferenceImpulseResponse;
 
 namespace {
 

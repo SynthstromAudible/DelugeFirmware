@@ -1,6 +1,10 @@
 #include "bench/cases.h"
 #include "bench/counters.h"
+#include "bench/reference_impulse_response.h"
 #include "bench/runner.h"
+#include "dsp-next/core/chain.h"
+#include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/fixed/delay/feedback_shaper.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
@@ -13,6 +17,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <limits>
 #include <ostream>
 #include <span>
@@ -60,6 +65,17 @@ std::ostream& operator<<(std::ostream& out, OnePole::Mode mode) {
 		return out << "HIGH_PASS";
 	case OnePole::Mode::ALL_PASS:
 		return out << "ALL_PASS";
+	}
+	return out;
+}
+
+/// The delay feedback cases' shaper mode, printed by name, so a failing comparison shows it.
+std::ostream& operator<<(std::ostream& out, FeedbackShaper::Mode mode) {
+	switch (mode) {
+	case FeedbackShaper::Mode::ANALOG:
+		return out << "ANALOG";
+	case FeedbackShaper::Mode::DIGITAL:
+		return out << "DIGITAL";
 	}
 	return out;
 }
@@ -244,6 +260,24 @@ const std::vector<std::string_view> kLaneCaseNames{
 /// Each lanes list case's lane count, in order.
 const std::vector<std::size_t> kLaneCaseLanes{1, 1, 2, 4, 1, 4, 8, 1, 2, 1, 2};
 
+/// The chain list's names, in order.
+const std::vector<std::string_view> kChainCaseNames{
+    "calibration_loop",
+    "delay_feedback_legacy_analog",
+    "delay_feedback_passes_analog",
+    "delay_feedback_chain_analog",
+    "delay_feedback_passes_digital",
+    "delay_feedback_chain_digital",
+    "tanh3",
+    "one_pole_lp",
+    "shift_tracker",
+    "chain3_passes",
+    "chain3_fused",
+};
+
+/// Each chain list case's lane count, in order: the delay's feedback cases are stereo.
+const std::vector<std::size_t> kChainCaseLanes{1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1};
+
 /// A fake component of four lanes whose block costs a fixed amount per frame.
 struct FourLanes {
 	static constexpr std::size_t kLanes = 4;
@@ -271,6 +305,84 @@ void* component_of(const Case& c) {
 #undef context
 	return c.context;
 #pragma pop_macro("context")
+}
+
+/// The delay's high-pass: a one-pole low-pass, a 1/2048 step per sample, taken out of the input, wrapping as the
+/// hardware's add and sub do. Steps @p memory and returns the high-passed sample.
+q31 delay_high_pass(q31 x, q31& memory) {
+	const auto step = static_cast<q31>(static_cast<uint32_t>(x) - static_cast<uint32_t>(memory)) >> 11;
+	memory = static_cast<q31>(static_cast<uint32_t>(memory) + static_cast<uint32_t>(step));
+	return static_cast<q31>(static_cast<uint32_t>(x) - static_cast<uint32_t>(memory));
+}
+
+/// The delay's feedback as it shipped before it ran as one chain: the stereo impulse response (analog only), the
+/// feedback amount and its saturation, then the high-pass, each a loop of its own over the block. Two blocks of the
+/// lanes input's first @p n frames from silence, at the delay cases' feedback and drive.
+struct DelayFeedbackReference {
+	std::vector<q31> second_block; ///< The second block's output, left and right interleaved.
+	q31 memory_l = 0;              ///< The left high-pass memory after both blocks.
+	q31 memory_r = 0;              ///< The right high-pass memory after both blocks.
+};
+
+DelayFeedbackReference delay_feedback_reference(std::size_t n, bool analog) {
+	reference::ReferenceImpulseResponse response;
+	DelayFeedbackReference out;
+	for (std::size_t block = 0; block < 2; ++block) {
+		std::vector<StereoSample> work(n);
+		for (std::size_t i = 0; i < n; ++i) {
+			work[i] = {.l = lane_sample(lanes_input(), 2, i, 0), .r = lane_sample(lanes_input(), 2, i, 1)};
+		}
+		if (analog) {
+			for (StereoSample& sample : work) {
+				sample = response.process(sample);
+			}
+			for (StereoSample& sample : work) {
+				sample.l = dsp::fixed::tanh(multiply_32x32_rshift32(sample.l, kDelayFeedback), kDelayDrive) << 2;
+				sample.r = dsp::fixed::tanh(multiply_32x32_rshift32(sample.r, kDelayFeedback), kDelayDrive) << 2;
+			}
+		}
+		else {
+			for (StereoSample& sample : work) {
+				sample.l = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.l, kDelayFeedback)) << 2;
+				sample.r = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.r, kDelayFeedback)) << 2;
+			}
+		}
+		for (StereoSample& sample : work) {
+			sample.l = delay_high_pass(sample.l, out.memory_l);
+			sample.r = delay_high_pass(sample.r, out.memory_r);
+		}
+		out.second_block.clear();
+		for (const StereoSample& sample : work) {
+			out.second_block.push_back(sample.l);
+			out.second_block.push_back(sample.r);
+		}
+	}
+	return out;
+}
+
+/// The lanes output's first @p n stereo frames, left and right interleaved.
+std::vector<q31> stereo_output(std::size_t n) {
+	return {lanes_output().begin(), lanes_output().begin() + static_cast<std::ptrdiff_t>(2 * n)};
+}
+
+/// The chain3 cases' stages on full-scale input over two blocks of input_a's first @p n samples from silence: tanh at
+/// drive 3, the one-pole low-pass at the granular moveability, then the delay's high-pass. Returns the second block,
+/// and leaves each memory in @p low and @p high.
+std::vector<q31> chain3_reference(std::size_t n, uint32_t& low, q31& high) {
+	std::vector<q31> second(n);
+	low = 0;
+	high = 0;
+	for (std::size_t block = 0; block < 2; ++block) {
+		for (std::size_t i = 0; i < n; ++i) {
+			const auto x = static_cast<uint32_t>(dsp::fixed::tanh<3>(input_a()[i]));
+			const auto difference = static_cast<q31>(x - low);
+			const auto step = static_cast<uint32_t>(multiply_32x32_rshift32_rounded(difference, 1 << 29) << 1);
+			const uint32_t low_passed = step + low;
+			low = low_passed + step;
+			second[i] = delay_high_pass(static_cast<q31>(low_passed), high);
+		}
+	}
+	return second;
 }
 
 } // namespace
@@ -526,7 +638,8 @@ describe bench_runner("The DSP benchmark runner", ${
 	context("the case list", _ {
 		it("names every case in snake_case, with no space or '='", _ {
 			for (const auto& [list, expected] : {std::pair{CaseList::KERNELS, kKernelCaseNames},
-			                                     std::pair{CaseList::LANES, kLaneCaseNames}}) {
+			                                     std::pair{CaseList::LANES, kLaneCaseNames},
+			                                     std::pair{CaseList::CHAIN, kChainCaseNames}}) {
 				std::vector<std::string_view> names;
 				for (const Case& c : cases(list)) {
 					names.push_back(c.name);
@@ -543,6 +656,11 @@ describe bench_runner("The DSP benchmark runner", ${
 				lanes.push_back(c.lanes);
 			}
 			expect(lanes).to_equal(kLaneCaseLanes);
+			lanes.clear();
+			for (const Case& c : cases(CaseList::CHAIN)) {
+				lanes.push_back(c.lanes);
+			}
+			expect(lanes).to_equal(kChainCaseLanes);
 			for (const Case& c : cases(CaseList::KERNELS)) {
 				expect(c.lanes).to_equal(c.name == "stereo_gain" ? std::size_t{2} : std::size_t{1});
 			}
@@ -550,7 +668,8 @@ describe bench_runner("The DSP benchmark runner", ${
 
 		it("runs every case at every device block size, the calibration's line included, in fewer than 70 lines", _ {
 			for (const auto& [list, names] : {std::pair{CaseList::KERNELS, kKernelCaseNames},
-			                                  std::pair{CaseList::LANES, kLaneCaseNames}}) {
+			                                  std::pair{CaseList::LANES, kLaneCaseNames},
+			                                  std::pair{CaseList::CHAIN, kChainCaseNames}}) {
 				lines.clear();
 				counters.reset();
 				const RunConfig config{.block_sizes = kBlockSizes};
@@ -901,6 +1020,101 @@ describe bench_runner("The DSP benchmark runner", ${
 				expect(duck.state().pos).to_be_less_than(dsp::fixed::DuckEnvelope::kStageLength);
 				expect(static_cast<int32_t>(duck.state().pos >> 7))
 				    .to_be_less_than(duck.coefficients().curve_extent16);
+			}
+		});
+
+		it("keeps the delay cases' input under half of full scale, where the stereo reference's plain adds stay in q31", _ {
+			CaseSet& set = case_set();
+			set.delay_feedback_legacy_analog.setup(kMaxBlock);
+			int64_t peak = 0;
+			for (std::size_t i = 0; i < 2 * kMaxBlock; ++i) {
+				peak = std::max(peak, std::abs(int64_t{lanes_input()[i]}));
+			}
+			expect(peak).to_be_less_than(int64_t{1} << 30);
+			expect(peak).to_be_greater_than(int64_t{1} << 29);
+		});
+
+		it("shapes and high-passes the delay's feedback as the delay's loops do, in passes and as one chain, at every size", _ {
+			CaseSet& set = case_set();
+			for (const std::size_t n : kSizes) {
+				for (const bool analog : {true, false}) {
+					const DelayFeedbackReference expected = delay_feedback_reference(n, analog);
+					expect(std::ranges::count(expected.second_block, 0)).to_be_less_than(std::ptrdiff_t{2});
+
+					if (analog) {
+						render(set.delay_feedback_passes_analog, n, 2);
+						expect(stereo_output(n)).to_equal(expected.second_block);
+						const auto& high_pass = set.delay_feedback_passes_analog.high_pass();
+						expect(high_pass.left().y).to_equal(expected.memory_l);
+						expect(high_pass.right().y).to_equal(expected.memory_r);
+
+						render(set.delay_feedback_chain_analog, n, 2);
+						expect(stereo_output(n)).to_equal(expected.second_block);
+						const auto& chain = set.delay_feedback_chain_analog.component();
+						expect(dsp::get<1>(chain.left()).y).to_equal(expected.memory_l);
+						expect(dsp::get<1>(chain.right()).y).to_equal(expected.memory_r);
+						expect(dsp::get<0>(chain.coefficients().mode)).to_equal(dsp::fixed::FeedbackShaper::Mode::ANALOG);
+					}
+					else {
+						render(set.delay_feedback_passes_digital, n, 2);
+						expect(stereo_output(n)).to_equal(expected.second_block);
+						const auto& high_pass = set.delay_feedback_passes_digital.high_pass();
+						expect(high_pass.left().y).to_equal(expected.memory_l);
+						expect(high_pass.right().y).to_equal(expected.memory_r);
+
+						render(set.delay_feedback_chain_digital, n, 2);
+						expect(stereo_output(n)).to_equal(expected.second_block);
+						const auto& chain = set.delay_feedback_chain_digital.component();
+						expect(dsp::get<1>(chain.left()).y).to_equal(expected.memory_l);
+						expect(dsp::get<1>(chain.right()).y).to_equal(expected.memory_r);
+						expect(dsp::get<0>(chain.coefficients().mode)).to_equal(dsp::fixed::FeedbackShaper::Mode::DIGITAL);
+						// A digital block holds the response still: its sums stay silent.
+						expect(std::ranges::count(dsp::get<0>(chain.left()).response.pending, 0))
+						    .to_equal(static_cast<std::ptrdiff_t>(dsp::fixed::AnalogImpulseResponse::kPending));
+					}
+				}
+			}
+		});
+
+		it("runs the delay's analog feedback as it shipped, bit for bit the chain's output, at every block size", _ {
+			CaseSet& set = case_set();
+			for (const std::size_t n : kSizes) {
+				const std::size_t blocks = RunConfig{}.blocks_per_run(n);
+				render(set.delay_feedback_chain_analog, n, blocks);
+				const std::vector<q31> fused = stereo_output(n);
+				const auto& chain = set.delay_feedback_chain_analog.component();
+
+				render(set.delay_feedback_legacy_analog, n, blocks);
+				expect(stereo_output(n)).to_equal(fused);
+				const auto& legacy = set.delay_feedback_legacy_analog;
+				expect(legacy.high_pass_l()).to_equal(dsp::get<1>(chain.left()).y);
+				expect(legacy.high_pass_r()).to_equal(dsp::get<1>(chain.right()).y);
+				expect(legacy.drive()).to_equal(kDelayDrive);
+				expect(legacy.feedback()).to_equal(kDelayFeedback);
+			}
+		});
+
+		it("runs tanh<3>, the low-pass and the high-pass as three passes and as one chain, alike, at every block size", _ {
+			CaseSet& set = case_set();
+			for (const std::size_t n : kSizes) {
+				uint32_t low = 0;
+				q31 high = 0;
+				const std::vector<q31> expected = chain3_reference(n, low, high);
+				expect(std::ranges::count(expected, 0)).to_be_less_than(std::ptrdiff_t{2});
+
+				render(set.chain3_passes, n, 2);
+				expect(std::vector<q31>{output().begin(), output().begin() + static_cast<std::ptrdiff_t>(n)})
+				    .to_equal(expected);
+				expect(set.chain3_passes.low_pass().state().z).to_equal(static_cast<q31>(low));
+				expect(set.chain3_passes.high_pass().state().y).to_equal(high);
+
+				render(set.chain3_fused, n, 2);
+				expect(std::vector<q31>{output().begin(), output().begin() + static_cast<std::ptrdiff_t>(n)})
+				    .to_equal(expected);
+				const auto& fused = set.chain3_fused.component();
+				expect(dsp::get<1>(fused.state()).z).to_equal(static_cast<q31>(low));
+				expect(dsp::get<2>(fused.state()).y).to_equal(high);
+				expect(dsp::get<1>(fused.coefficients()).m).to_equal(OnePoleLowPassCase::kMoveability);
 			}
 		});
 	});

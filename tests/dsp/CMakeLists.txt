@@ -103,7 +103,7 @@ set(duck_envelope_spec_DEPS
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The delay's tape: its resampling setup and its native-rate arithmetic.
 set(delay_tape_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/delay/delay_tape.cpp)
-# The analog impulse response kernel and its verbatim reference are header-only.
+# The analog impulse response kernel and its stereo reference (src/deluge/bench) are header-only.
 set(analog_impulse_response_spec_DEPS)
 # The feedback shaper: the analog mode's tanh through the table interpolator.
 set(feedback_shaper_spec_DEPS

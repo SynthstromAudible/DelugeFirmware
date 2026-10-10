@@ -11,9 +11,10 @@
 /// **Lanes.** A case of N lanes declares `kLanes = N` and renders blocks of n frames, N samples each; the runner
 /// divides its cycles by N as well, so its cps is per channel-sample, comparable with the mono case of its kernel.
 ///
-/// **Two lists.** The device prints about 70 lines over RTT before it drops some, so the cases come in two lists,
-/// each run at every block size: the kernels (one case per component) and the lanes (each `Lanes` case beside the
-/// mono case of its kernel). A bench image runs one, chosen by the CMake cache string DELUGE_DSP_BENCH_CASES.
+/// **Three lists.** The device prints about 70 lines over RTT before it drops some, so the cases come in three lists,
+/// each run at every block size: the kernels (one case per component), the lanes (each `Lanes` case beside the mono
+/// case of its kernel), and the chain (stages run as separate passes beside the same stages as one `Chain`). A bench
+/// image runs one, chosen by the CMake cache string DELUGE_DSP_BENCH_CASES.
 ///
 /// **State at timing.** The runner warms each case up before timing it, so what is timed is the case's steady
 /// state. Each case's documentation says what that state is; the host spec checks each through its component's
@@ -21,7 +22,9 @@
 ///
 /// **Rates.** Phase increments are UQ0.32 cycles per sample at 44.1 kHz: `frequency · 2^32 / 44100`.
 
+#include "bench/reference_impulse_response.h"
 #include "bench/runner.h"
+#include "dsp-next/core/chain.h"
 #include "dsp-next/core/control.h"
 #include "dsp-next/core/frame.h"
 #include "dsp-next/core/kernel.h"
@@ -31,6 +34,7 @@
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/types.h"
+#include "dsp-next/fixed/delay/feedback_shaper.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
@@ -740,48 +744,218 @@ private:
 	q31* level_ = nullptr; ///< The output block's first sample, which receives the level.
 };
 
+/// @brief The delay's high-pass, as its feedback chain pins it: the shift tracker taking its memory out.
+using DelayHighPass = dsp::Pinned<ShiftTrackerCase::Tracker, ShiftTrackerCase::Tracker::Mode::REMOVE>;
+/// @brief The delay's feedback chain, as the delay processor builds it: shaped, then high-passed.
+using DelayFeedbackChain = dsp::Chain<dsp::fixed::FeedbackShaper, DelayHighPass>;
+
+/// @brief The delay feedback cases' feedback amount, Q31: a half.
+inline constexpr q31 kDelayFeedback = 1 << 30;
+/// @brief The delay feedback cases' tanh drive, as a power of two: a sound's.
+inline constexpr uint32_t kDelayDrive = 8;
+
+/// @brief The delay feedback cases' settings for one mode: kDelayFeedback at kDelayDrive.
+/// @param analog Through the impulse response and a tanh; else clipped digitally.
+[[nodiscard]] constexpr dsp::fixed::FeedbackShaper::Settings delay_feedback_settings(bool analog) {
+	return {.feedback = kDelayFeedback, .analog = analog, .drive = kDelayDrive};
+}
+
+/// @brief The delay's feedback stages as two passes over the block: `Stereo<FeedbackShaper>` from the lanes input into
+/// the lanes output, then `Stereo<DelayHighPass>` over the lanes output in place.
+/// @details The lanes input holds the stereo frames at under half of full scale (setup halves its noise), where the
+/// stereo reference's plain adds stay in q31, so every delay case reads the same frames.
+///
+/// **Timed state:** every block reads the same input. The response's sums (analog) and each channel's high-pass
+/// memory carry from block to block, from silence at setup. Every frame is the same arithmetic: in ANALOG the 26-tap
+/// response, the feedback multiply and the tanh at the drive; in DIGITAL the multiply and the 29-bit clip; then the
+/// high-pass's subtract, shifted add and subtract.
+/// @tparam Analog The shaper's mode: true for `delay_feedback_passes_analog`, false for `_digital`.
+template <bool Analog>
+class DelayFeedbackPassesCase {
+public:
+	static constexpr std::size_t kLanes = 2; ///< Left and right.
+
+	/// @brief Configures both passes from silence, fills the lanes input and takes the blocks' spans for @p n frames.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for: the shaper's pass, then the high-pass's.
+	void block(std::size_t n);
+	/// @return The shaper's component.
+	[[nodiscard]] const dsp::Stereo<dsp::fixed::FeedbackShaper>& shaper() const { return shaper_; }
+	/// @return The high-pass's component.
+	[[nodiscard]] const dsp::Stereo<DelayHighPass>& high_pass() const { return high_pass_; }
+
+private:
+	dsp::Stereo<dsp::fixed::FeedbackShaper> shaper_;
+	dsp::Stereo<DelayHighPass> high_pass_;
+	FrameSpans<StereoSample> spans_{};
+	dsp::Signal<StereoSample> shaped_{}; ///< The lanes output's first n frames, read by the high-pass's pass.
+};
+
+/// @brief `delay_feedback_passes_analog`.
+using DelayFeedbackPassesAnalogCase = DelayFeedbackPassesCase<true>;
+/// @brief `delay_feedback_passes_digital`.
+using DelayFeedbackPassesDigitalCase = DelayFeedbackPassesCase<false>;
+
+/// @brief The delay's feedback as the delay runs it: `Stereo<DelayFeedbackChain>`, one pass from the lanes input
+/// into the lanes output.
+/// @details **Timed state:** as DelayFeedbackPassesCase's, the same arithmetic per frame in one pass.
+/// @tparam Analog The shaper's mode: true for `delay_feedback_chain_analog`, false for `_digital`.
+template <bool Analog>
+class DelayFeedbackChainCase {
+public:
+	static constexpr std::size_t kLanes = 2; ///< Left and right.
+
+	/// @brief Configures the chain from silence, fills the lanes input and takes the blocks' spans for @p n frames.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const dsp::Stereo<DelayFeedbackChain>& component() const { return chain_; }
+
+private:
+	dsp::Stereo<DelayFeedbackChain> chain_;
+	FrameSpans<StereoSample> spans_{};
+};
+
+/// @brief `delay_feedback_chain_analog`.
+using DelayFeedbackChainAnalogCase = DelayFeedbackChainCase<true>;
+/// @brief `delay_feedback_chain_digital`.
+using DelayFeedbackChainDigitalCase = DelayFeedbackChainCase<false>;
+
+/// @brief The delay's analog feedback with the response stepping both channels in one tap loop: the stereo reference
+/// response from the lanes input into the lanes output, then a tanh pass and a high-pass pass over the lanes output in
+/// place, each a plain loop over both channels.
+/// @details The baseline the chain's analog cost is measured against: its output is bit for bit
+/// `delay_feedback_chain_analog`'s, so the two time the same work in two forms, and the difference is the per-channel
+/// response's tap loop against the stereo one, less the two passes the chain fuses.
+/// The drive is read from a member, as the processor read it from its settings, so the tanh's shift stays a run-time
+/// one.
+///
+/// **Timed state:** as DelayFeedbackPassesCase's in ANALOG.
+class DelayFeedbackLegacyAnalogCase {
+public:
+	static constexpr std::size_t kLanes = 2; ///< Left and right.
+
+	/// @brief Clears the response and the memories, fills the lanes input and takes the blocks' spans for @p n frames.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for: the response's pass, the tanh's and the high-pass's.
+	void block(std::size_t n);
+	/// @return The left high-pass memory, Q31.
+	[[nodiscard]] int32_t high_pass_l() const { return high_pass_l_; }
+	/// @return The right high-pass memory, Q31.
+	[[nodiscard]] int32_t high_pass_r() const { return high_pass_r_; }
+	/// @return The feedback amount, Q31.
+	[[nodiscard]] q31 feedback() const { return feedback_; }
+	/// @return The tanh drive, as a power of two.
+	[[nodiscard]] uint32_t drive() const { return drive_; }
+
+private:
+	reference::ReferenceImpulseResponse response_;
+	int32_t high_pass_l_ = 0;
+	int32_t high_pass_r_ = 0;
+	q31 feedback_ = kDelayFeedback;
+	uint32_t drive_ = kDelayDrive;
+	std::span<const StereoSample> in_{};
+	std::span<StereoSample> work_{};
+};
+
+/// @brief The chain3 cases' low-pass, pinned: the one-pole at the granular moveability.
+using Chain3LowPass = dsp::Pinned<dsp::fixed::OnePole, dsp::fixed::OnePole::Mode::LOW_PASS>;
+/// @brief Three stages as one kernel: tanh at drive 3, the low-pass, then the delay's high-pass.
+using Chain3 = dsp::Chain<Tanh3Case::Kernel, Chain3LowPass, DelayHighPass>;
+
+/// @brief Tanh at drive 3, the one-pole low-pass and the delay's high-pass as three `Mono` passes: the first from
+/// input_a into the output, the others over the output in place.
+/// @details **Timed state:** every block reads the same input; the low-pass's and the high-pass's memories carry from
+/// block to block, from silence at setup. Every sample is the same arithmetic: the tanh's table read, the low-pass's
+/// subtract, rounding multiply and two shifted adds, and the high-pass's subtract, shifted add and subtract.
+class Chain3PassesCase {
+public:
+	/// @brief Configures the stages from silence, fills input_a and takes the blocks' spans for @p n.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for: each stage's pass in turn.
+	void block(std::size_t n);
+	/// @return The low-pass's component.
+	[[nodiscard]] const dsp::Mono<Chain3LowPass>& low_pass() const { return low_pass_; }
+	/// @return The high-pass's component.
+	[[nodiscard]] const dsp::Mono<DelayHighPass>& high_pass() const { return high_pass_; }
+
+private:
+	dsp::Mono<Tanh3Case::Kernel> tanh_;
+	dsp::Mono<Chain3LowPass> low_pass_;
+	dsp::Mono<DelayHighPass> high_pass_;
+	BlockSpans spans_{};
+	dsp::fixed::Signal written_{}; ///< The output's first n samples, read by the later passes.
+};
+
+/// @brief `Mono<Chain3>`: the three stages in one pass from input_a into the output.
+/// @details **Timed state:** as Chain3PassesCase's, the same arithmetic per sample in one pass.
+class Chain3FusedCase {
+public:
+	/// @brief Configures the chain from silence, fills input_a and takes the blocks' spans for @p n.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const dsp::Mono<Chain3>& component() const { return chain_; }
+
+private:
+	dsp::Mono<Chain3> chain_;
+	BlockSpans spans_{};
+};
+
 /// @brief Every case, by name.
 struct CaseSet {
-	CalibrationLoop calibration_loop;                  ///< `calibration_loop`
-	AmplitudeCase amplitude;                           ///< `amplitude`
-	CrudeAmplitudeCase crude_amplitude;                ///< `crude_amplitude`
-	PulseCase pulse;                                   ///< `pulse`
-	BandLimitedTableCase band_limited_table;           ///< `band_limited_table`
-	CrudeSawCase crude_saw;                            ///< `crude_saw`
-	CrudeSquareCase crude_square;                      ///< `crude_square`
-	CrudeTriangleCase crude_triangle;                  ///< `crude_triangle`
-	SyncedPulseCase synced_pulse;                      ///< `synced_pulse`
-	WavetableCase wavetable;                           ///< `wavetable`
-	MonoGainCase mono_gain;                            ///< `mono_gain`
-	MonoVecGainCase mono_vec_gain;                     ///< `mono_vec_gain`
-	StereoGainCase stereo_gain;                        ///< `stereo_gain`
-	DuckEnvelopeCase duck_envelope;                    ///< `duck_envelope`
-	ShiftTrackerCase shift_tracker;                    ///< `shift_tracker`
-	OnePoleLowPassCase one_pole_lp;                    ///< `one_pole_lp`
-	OnePoleAllPassCase one_pole_ap;                    ///< `one_pole_ap`
-	AntialiasedTanhCase antialiased_tanh;              ///< `antialiased_tanh`
-	Tanh3Case tanh3;                                   ///< `tanh3`
-	DryWetBlendCase dry_wet_blend;                     ///< `dry_wet_blend`
-	OnePoleX2Case one_pole_x2;                         ///< `one_pole_x2`
-	OnePoleX4Case one_pole_x4;                         ///< `one_pole_x4`
-	ShiftTrackerX4Case shift_tracker_x4;               ///< `shift_tracker_x4`
-	ShiftTrackerX8Case shift_tracker_x8;               ///< `shift_tracker_x8`
-	StereoAntialiasedTanhCase stereo_antialiased_tanh; ///< `stereo_antialiased_tanh`
+	CalibrationLoop calibration_loop;                             ///< `calibration_loop`
+	AmplitudeCase amplitude;                                      ///< `amplitude`
+	CrudeAmplitudeCase crude_amplitude;                           ///< `crude_amplitude`
+	PulseCase pulse;                                              ///< `pulse`
+	BandLimitedTableCase band_limited_table;                      ///< `band_limited_table`
+	CrudeSawCase crude_saw;                                       ///< `crude_saw`
+	CrudeSquareCase crude_square;                                 ///< `crude_square`
+	CrudeTriangleCase crude_triangle;                             ///< `crude_triangle`
+	SyncedPulseCase synced_pulse;                                 ///< `synced_pulse`
+	WavetableCase wavetable;                                      ///< `wavetable`
+	MonoGainCase mono_gain;                                       ///< `mono_gain`
+	MonoVecGainCase mono_vec_gain;                                ///< `mono_vec_gain`
+	StereoGainCase stereo_gain;                                   ///< `stereo_gain`
+	DuckEnvelopeCase duck_envelope;                               ///< `duck_envelope`
+	ShiftTrackerCase shift_tracker;                               ///< `shift_tracker`
+	OnePoleLowPassCase one_pole_lp;                               ///< `one_pole_lp`
+	OnePoleAllPassCase one_pole_ap;                               ///< `one_pole_ap`
+	AntialiasedTanhCase antialiased_tanh;                         ///< `antialiased_tanh`
+	Tanh3Case tanh3;                                              ///< `tanh3`
+	DryWetBlendCase dry_wet_blend;                                ///< `dry_wet_blend`
+	OnePoleX2Case one_pole_x2;                                    ///< `one_pole_x2`
+	OnePoleX4Case one_pole_x4;                                    ///< `one_pole_x4`
+	ShiftTrackerX4Case shift_tracker_x4;                          ///< `shift_tracker_x4`
+	ShiftTrackerX8Case shift_tracker_x8;                          ///< `shift_tracker_x8`
+	StereoAntialiasedTanhCase stereo_antialiased_tanh;            ///< `stereo_antialiased_tanh`
+	DelayFeedbackLegacyAnalogCase delay_feedback_legacy_analog;   ///< `delay_feedback_legacy_analog`
+	DelayFeedbackPassesAnalogCase delay_feedback_passes_analog;   ///< `delay_feedback_passes_analog`
+	DelayFeedbackChainAnalogCase delay_feedback_chain_analog;     ///< `delay_feedback_chain_analog`
+	DelayFeedbackPassesDigitalCase delay_feedback_passes_digital; ///< `delay_feedback_passes_digital`
+	DelayFeedbackChainDigitalCase delay_feedback_chain_digital;   ///< `delay_feedback_chain_digital`
+	Chain3PassesCase chain3_passes;                               ///< `chain3_passes`
+	Chain3FusedCase chain3_fused;                                 ///< `chain3_fused`
 };
 
 /// @brief The cases' components, built on first use.
 /// @return The one CaseSet every case in cases() acts on.
 [[nodiscard]] CaseSet& case_set();
 
-/// @brief Which of the two case lists a run prints.
+/// @brief Which of the three case lists a run prints.
 enum class CaseList : uint8_t {
 	KERNELS, ///< One case per component: the calibration loop, then each kernel in its Mono, Stereo or Control.
 	LANES,   ///< The calibration loop, then each `Lanes` case beside the mono case of its kernel.
+	CHAIN,   ///< The calibration loop, then stages run as separate passes beside the same stages as one `Chain`.
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
 #if defined(DELUGE_DSP_BENCH_LANES)
 inline constexpr CaseList kBenchCaseList = CaseList::LANES;
+#elif defined(DELUGE_DSP_BENCH_CHAIN)
+inline constexpr CaseList kBenchCaseList = CaseList::CHAIN;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif

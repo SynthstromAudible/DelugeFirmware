@@ -16,23 +16,23 @@
  */
 
 // The delay's feedback shaper. Stereo<FeedbackShaper> is pinned, sample by sample, against the delay's two shaping
-// loops copied verbatim (ReferenceShaper below, over the verbatim impulse response in reference_impulse_response.h):
-// at both drives (8, a sound's, and 5, a host chain's), in both modes, at feedback 0, ONE_Q31, a mid value and a
-// negative one, over 4096 seeded stereo samples at a quarter of full scale in blocks of every length 1 to 9. At full
-// scale (INT32_MIN held, INT32_MAX held, the two alternating, the taps' signs reversed in time, and full-scale noise)
-// the response's sums can leave q31, and the reference's response wraps its adds as the hardware's do. Across blocks
-// switching analog, digital and back, the response's State is bit for bit untouched by a digital block, and the next
-// analog block resumes from it.
+// loops copied verbatim (ReferenceShaper below, over the stereo reference response in
+// bench/reference_impulse_response.h): at both drives (8, a sound's, and 5, a host chain's), in both modes, at feedback
+// 0, ONE_Q31, a mid value and a negative one, over 4096 seeded stereo samples at a quarter of full scale in blocks of
+// every length 1 to 9. At full scale (INT32_MIN held, INT32_MAX held, the two alternating, the taps' signs reversed in
+// time, and full-scale noise) the response's sums can leave q31, and the reference's response wraps its adds as the
+// hardware's do. Across blocks switching analog, digital and back, the response's State is bit for bit untouched by a
+// digital block, and the next analog block resumes from it.
 
 #include "dsp-next/fixed/delay/feedback_shaper.h"
 
+#include "bench/reference_impulse_response.h"
 #include "dsp-next/core/concepts.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/fixed/delay/analog_impulse_response.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "dsp-next/fixed/shaping/tanh.h"
-#include "reference_impulse_response.h"
 #include "util/fixedpoint.h"
 
 #include <algorithm>
@@ -47,8 +47,8 @@
 
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
-using reference::ReferenceImpulseResponse;
-using reference::WrappingReferenceImpulseResponse;
+using deluge::bench::reference::ReferenceImpulseResponse;
+using deluge::bench::reference::WrappingReferenceImpulseResponse;
 
 namespace {
 

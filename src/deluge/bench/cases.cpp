@@ -3,6 +3,7 @@
 #include "dsp-next/fixed/bandlimited/saw.h"
 #include "dsp-next/fixed/bandlimited/square.h"
 #include "dsp-next/fixed/noise/noise.h"
+#include "dsp-next/fixed/shaping/tanh.h"
 #include "dsp-next/fixed/sync/synced_oscillator.h"
 
 #include <algorithm>
@@ -454,6 +455,113 @@ void StereoAntialiasedTanhCase::block(std::size_t /*n*/) {
 	stereo_.renderBlock(spans_.in, spans_.out);
 }
 
+namespace {
+
+/// @brief Fills the lanes input with stereo noise at under half of full scale: each sample of the noise halved.
+void fill_delay_input() {
+	fill(shared.lanes_input, kSeed);
+	for (q31& sample : shared.lanes_input) {
+		sample >>= 1;
+	}
+}
+
+} // namespace
+
+template <bool Analog>
+void DelayFeedbackPassesCase<Analog>::setup(std::size_t n) {
+	spans_ = frame_spans<StereoSample>(n);
+	shaped_ = spans_.out;
+	fill_delay_input();
+	shaper_.configure(delay_feedback_settings(Analog));
+	shaper_.reset();
+	high_pass_.configure({});
+	high_pass_.reset();
+}
+
+template <bool Analog>
+void DelayFeedbackPassesCase<Analog>::block(std::size_t /*n*/) {
+	shaper_.renderBlock(spans_.in, spans_.out);
+	high_pass_.renderBlock(shaped_, spans_.out);
+}
+
+template class DelayFeedbackPassesCase<true>;
+template class DelayFeedbackPassesCase<false>;
+
+template <bool Analog>
+void DelayFeedbackChainCase<Analog>::setup(std::size_t n) {
+	spans_ = frame_spans<StereoSample>(n);
+	fill_delay_input();
+	chain_.configure(DelayFeedbackChain::Settings{delay_feedback_settings(Analog), DelayHighPass::Settings{}});
+	chain_.reset();
+}
+
+template <bool Analog>
+void DelayFeedbackChainCase<Analog>::block(std::size_t /*n*/) {
+	chain_.renderBlock(spans_.in, spans_.out);
+}
+
+template class DelayFeedbackChainCase<true>;
+template class DelayFeedbackChainCase<false>;
+
+void DelayFeedbackLegacyAnalogCase::setup(std::size_t n) {
+	const FrameSpans<StereoSample> spans = frame_spans<StereoSample>(n);
+	in_ = spans.in;
+	work_ = spans.out;
+	fill_delay_input();
+	response_ = {};
+	high_pass_l_ = 0;
+	high_pass_r_ = 0;
+	feedback_ = kDelayFeedback;
+	drive_ = kDelayDrive;
+}
+
+void DelayFeedbackLegacyAnalogCase::block(std::size_t /*n*/) {
+	for (std::size_t i = 0; i < work_.size(); ++i) {
+		work_[i] = response_.process(in_[i]);
+	}
+	// Less headroom than digital: the analog saturation sounds fine driven.
+	for (StereoSample& sample : work_) {
+		sample.l = dsp::fixed::tanh(multiply_32x32_rshift32(sample.l, feedback_), drive_) << 2;
+		sample.r = dsp::fixed::tanh(multiply_32x32_rshift32(sample.r, feedback_), drive_) << 2;
+	}
+	for (StereoSample& sample : work_) {
+		high_pass_l_ += (sample.l - high_pass_l_) >> 11;
+		sample.l -= high_pass_l_;
+
+		high_pass_r_ += (sample.r - high_pass_r_) >> 11;
+		sample.r -= high_pass_r_;
+	}
+}
+
+void Chain3PassesCase::setup(std::size_t n) {
+	spans_ = spans(n);
+	written_ = spans_.out;
+	fill_inputs();
+	low_pass_.configure({.moveability = OnePoleLowPassCase::kMoveability});
+	low_pass_.reset();
+	high_pass_.configure({});
+	high_pass_.reset();
+}
+
+void Chain3PassesCase::block(std::size_t /*n*/) {
+	tanh_.renderBlock(spans_.a, spans_.out);
+	low_pass_.renderBlock(written_, spans_.out);
+	high_pass_.renderBlock(written_, spans_.out);
+}
+
+void Chain3FusedCase::setup(std::size_t n) {
+	spans_ = spans(n);
+	fill_inputs();
+	chain_.configure(Chain3::Settings{Tanh3Case::Kernel::Settings{},
+	                                  Chain3LowPass::Settings{.moveability = OnePoleLowPassCase::kMoveability},
+	                                  DelayHighPass::Settings{}});
+	chain_.reset();
+}
+
+void Chain3FusedCase::block(std::size_t /*n*/) {
+	chain_.renderBlock(spans_.a, spans_.out);
+}
+
 CaseSet& case_set() {
 	static CaseSet set;
 	return set;
@@ -496,8 +604,24 @@ std::span<const Case> cases(CaseList list) {
 	    make_case("mono_gain", s.mono_gain),
 	    make_case("stereo_gain", s.stereo_gain),
 	};
+	static const std::array chain{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("delay_feedback_legacy_analog", s.delay_feedback_legacy_analog),
+	    make_case("delay_feedback_passes_analog", s.delay_feedback_passes_analog),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_passes_digital", s.delay_feedback_passes_digital),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	    make_case("tanh3", s.tanh3),
+	    make_case("one_pole_lp", s.one_pole_lp),
+	    make_case("shift_tracker", s.shift_tracker),
+	    make_case("chain3_passes", s.chain3_passes),
+	    make_case("chain3_fused", s.chain3_fused),
+	};
 	if (list == CaseList::LANES) {
 		return lanes;
+	}
+	if (list == CaseList::CHAIN) {
+		return chain;
 	}
 	return kernels;
 }
