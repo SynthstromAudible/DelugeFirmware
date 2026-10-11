@@ -20,7 +20,6 @@
 // from the coefficients, one in-place block unless the effect is off, the block silent or a ring mode has no ring), it
 // must equal today's mod FX (reference_mod_fx.h) bit for bit on every workload (mod_fx_workloads.h): each block's
 // output, post-FX volume and ring, and at the end the ring's write index, both LFO phases and the phaser's memories.
-// RESEAT_HELD, local to this spec, returns to the warble with the ring full, so a missed warbler restart shows.
 
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mono.h"
@@ -229,42 +228,10 @@ template <typename Fx>
 	return trace;
 }
 
-/// @return A warble, a chorus and a warble again on one held ring, at an LFO rate whose warbler draws every 16 frames:
-/// the return to the warble restarts the main warbler while its taps read a full ring, so a warbler that is not
-/// restarted moves the output at once.
-[[nodiscard]] mw::ModFxWorkload reseat_held() {
-	constexpr int32_t kFastRate = 0x08000000;
-	mw::ModFxWorkload w{.name = "RESEAT_HELD", .blocks = {}, .cong_seed = mw::kCongSeed};
-	for (const ModFXType type : {ModFXType::WARBLE, ModFXType::CHORUS, ModFXType::WARBLE}) {
-		for (std::size_t i = 0; i < 3; ++i) {
-			w.blocks.push_back({.type = type,
-			                    .stereo = true,
-			                    .rate = kFastRate,
-			                    .depth = mw::kDepth,
-			                    .offset = mw::kOffset,
-			                    .feedback = mw::kFeedback,
-			                    .n = 128,
-			                    .sound = true,
-			                    .event = w.blocks.empty() ? mw::Event::SETUP : mw::Event::NONE});
-		}
-	}
-	return w;
-}
-
-/// @return Every workload of mod_fx_workloads.h, then @ref reseat_held.
-[[nodiscard]] const std::vector<mw::ModFxWorkload>& workloads() {
-	static const std::vector<mw::ModFxWorkload> all = [] {
-		std::vector<mw::ModFxWorkload> w = mw::all_mod_fx_workloads();
-		w.push_back(reseat_held());
-		return w;
-	}();
-	return all;
-}
-
 /// @return Each workload where the kernel parts from the reference, named with the block and what parted.
 [[nodiscard]] std::vector<std::string> partings() {
 	std::vector<std::string> parted;
-	for (const mw::ModFxWorkload& workload : workloads()) {
+	for (const mw::ModFxWorkload& workload : mw::all_mod_fx_workloads()) {
 		TestReference reference;
 		TestModFx kernel;
 		const RunTrace want = run(workload, reference);
@@ -304,7 +271,7 @@ describe mod_fx_kernel("the ModFx kernel", ${
 	});
 
 	it("renders every block of every workload equal to the reference, compared word for word", _ {
-		for (const mw::ModFxWorkload& workload : workloads()) {
+		for (const mw::ModFxWorkload& workload : mw::all_mod_fx_workloads()) {
 			TestReference reference;
 			TestModFx kernel;
 			const RunTrace want = run(workload, reference);
@@ -320,7 +287,7 @@ describe mod_fx_kernel("the ModFx kernel", ${
 
 	it("renders at every mode across the workloads", _ {
 		std::set<ModFx::Mode> modes;
-		for (const mw::ModFxWorkload& workload : workloads()) {
+		for (const mw::ModFxWorkload& workload : mw::all_mod_fx_workloads()) {
 			TestModFx kernel;
 			std::ignore = run(workload, kernel);
 			modes.insert(kernel.modes().begin(), kernel.modes().end());

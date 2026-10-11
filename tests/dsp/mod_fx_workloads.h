@@ -72,6 +72,8 @@ struct ModFxWorkload {
 inline constexpr uint32_t kCongSeed = 380116160;
 
 inline constexpr int32_t kRate = 0x00a00000;
+/// @brief A rate whose warbler draws a target every 16 frames, so it holds a non-zero value within a block of 128.
+inline constexpr int32_t kFastRate = 0x08000000;
 inline constexpr int32_t kDepth = 0x40000000;
 inline constexpr int32_t kOffset = 0x20000000;
 inline constexpr int32_t kFeedback = 0x20000000;
@@ -107,7 +109,7 @@ public:
 		for (std::size_t i = 0; i < count; ++i) {
 			blocks_.push_back({.type = type,
 			                   .stereo = stereo,
-			                   .rate = kRate,
+			                   .rate = rate_,
 			                   .depth = kDepth,
 			                   .offset = kOffset,
 			                   .feedback = feedback,
@@ -116,6 +118,12 @@ public:
 			                   .event = i == 0 ? first_event : Event::NONE,
 			                   .extremes = extremes});
 		}
+		return *this;
+	}
+
+	/// @brief The LFO rate of the blocks appended from now on, UQ0.32; @ref kRate until set.
+	Builder& at_rate(int32_t rate) {
+		rate_ = rate;
 		return *this;
 	}
 
@@ -130,6 +138,7 @@ public:
 
 private:
 	std::vector<ModFxBlock> blocks_;
+	int32_t rate_ = kRate;
 };
 
 } // namespace detail
@@ -171,7 +180,10 @@ private:
 			w.push_back(b.build("FULL_SCALE"));
 		}
 
+		// The warbler holds a value by the first chorus (kFastRate), and the ring is held from the first warble to the
+		// phaser, so the return to the warble re-seats a moving warbler while its taps read a full ring.
 		w.push_back(Builder{}
+		                .at_rate(kFastRate)
 		                .run(ModFXType::WARBLE, true, 10, Event::SETUP)
 		                .run(ModFXType::CHORUS, true, 10, Event::SETUP)
 		                .run(ModFXType::WARBLE, true, 10, Event::SETUP)
