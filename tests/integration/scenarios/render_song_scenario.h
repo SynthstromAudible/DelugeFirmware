@@ -42,7 +42,7 @@
 ///     from playback's start, every audio track's mod FX type is set to it by the Edit the mod FX type menu makes. None
 ///     by default.
 ///   - `RENDER_MODFX_CLEAR`: `<block>,<block>,...`, ascending: at each block, every audio track's comb mod FX memory
-///     is cleared (ModFXProcessor::resetMemory), as a sound's cut tail clears it. None by default.
+///     is cleared (effects::ModFx::clearMemory), as a sound's cut tail clears it. None by default.
 ///
 /// Lines:
 ///   - `RS-LOADED name=<n> outputs=<k> view=<v> playing_clips=<c> notes=<m>`: the song that loaded, the view it

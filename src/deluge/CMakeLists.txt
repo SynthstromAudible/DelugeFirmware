@@ -37,7 +37,7 @@ if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
   )
   # The delay, the filters and the compressor ship from deluge_dsp_fixed, so their cases take that library's flags
   # (dsp-next/CMakeLists.txt): ARM mode, -finline-functions and no LTO, each after the app's own and so in force.
-  # The mod FX cases time app code (ModFXProcessor), so mod_fx_cases.cpp keeps the app's flags.
+  # The mod FX cases call effects::ModFx::render, which deluge_effects builds; mod_fx_cases.cpp keeps the app's flags.
   set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/bench/delay_feedback_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/delay_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/filter_cases.cpp

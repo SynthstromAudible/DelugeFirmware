@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
+#include "engines/effects/mod_fx.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
@@ -91,6 +92,13 @@ constexpr int32_t kVelocity = 100;
 constexpr int32_t kBigRowCount = 128;
 /// RENDERALLOC renders this many blocks with its drum starting and stopping, counting the render's heap allocations.
 constexpr int32_t kRenderAllocBlocks = 1500;
+/// The mod FX legs' knobs when they render a block through an owner's mod FX themselves: a moderate rate (UQ0.32 per
+/// frame) and half depth (Q31).
+constexpr int32_t kModFxRate = 0x00a00000;
+constexpr int32_t kModFxDepth = 0x40000000;
+/// Blocks of a ramp the mod FX legs render through an owner's mod FX: more frames than its ring holds, so a delay-line
+/// effect reads back what it wrote.
+constexpr int32_t kModFxBlocks = 8;
 
 enum class Leg : uint8_t {
 	NoteAdd,
@@ -250,6 +258,49 @@ void renderBlocks(int32_t count) {
 	for (int32_t block = 0; block < count; block++) {
 		deluge_app_render(silence, output, kRenderBlockFrames);
 	}
+}
+
+/// The bytes of a mod FX ring, the allocation the mod FX legs make fail.
+constexpr std::size_t kModFxRingBytes = deluge::effects::ModFx::Kernel::kRingFrames * sizeof(deluge::dsp::StereoSample);
+
+/// @return Whether @p owner's mod FX holds its ring.
+bool holdsRing(ModControllableAudio& owner) {
+	return owner.modfx.holdsRing();
+}
+
+/// @return The ring index @p owner's mod FX writes next: it moves each block the render runs the effect.
+int32_t ringWrite(ModControllableAudio& owner) {
+	return owner.modfx.state().write;
+}
+
+/// @return Whether @p owner's mod FX, run as @p type over kModFxBlocks blocks of a ramp, changed any of them: the
+/// owner's block as its render makes it, with @p params' offset and feedback.
+bool changesBlock(ModControllableAudio& owner, ParamManager& params, ModFXType type) {
+	static StereoSample block[kRenderBlockFrames]{};
+	UnpatchedParamSet* unpatched = params.getUnpatchedParamSet();
+	const deluge::effects::ModFxInputs in{
+	    .active = type,
+	    .rate = kModFxRate,
+	    .depth = kModFxDepth,
+	    .offset = unpatched->getValue(deluge::modulation::params::UNPATCHED_MOD_FX_OFFSET),
+	    .feedback = unpatched->getValue(deluge::modulation::params::UNPATCHED_MOD_FX_FEEDBACK),
+	    .stereo = AudioEngine::renderInStereo,
+	    .sound = true,
+	};
+	bool changed = false;
+	int32_t volume = ONE_Q31 >> 1;
+	for (int32_t b = 0; b < kModFxBlocks; b++) {
+		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
+			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
+			block[i] = {v, -v};
+		}
+		owner.modfx.render(block, in, volume);
+		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
+			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
+			changed = changed || block[i].l != v || block[i].r != -v;
+		}
+	}
+	return changed;
 }
 
 /// A playing-ready session clip on a blank synth of its own, made through the new-clip gesture (as
@@ -761,9 +812,9 @@ void editLeg() {
 		break;
 	}
 	case Leg::ModFxOom: {
-		g_step = "render";
-		// The song master's chorus sets its buffer up inside the render. Make that allocation fail once: the block must
-		// pass the signal through, and the next block's retry must bring the effect back.
+		g_step = "modFXType";
+		// The song master's chorus with its ring's allocation made to fail: the type is set and its blocks pass the
+		// signal through. A change to flanger then takes a ring, and the master's render runs the effect over it.
 		auto& fx = currentSong->live.global_effectable;
 		currentSong->paramManager.getUnpatchedParamSet()
 		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
@@ -771,15 +822,20 @@ void editLeg() {
 		// Which mod FX parameter gates the effect on: the song's default names feedback, which sits at its minimum.
 		const ModFXParam paramBefore = fx.currentModFXParam;
 		fx.currentModFXParam = ModFXParam::DEPTH;
+		deluge::memory::failNextAllocationOfSize(kModFxRingBytes);
 		fx.setModFXType(ModFXType::CHORUS);
-		deluge::memory::failNextAllocationOfSize(kModFXBufferSize * sizeof(StereoSample));
-		renderBlocks(4);
 		const bool injected = !deluge::memory::allocationFailurePending();
-		const bool recovered = fx.modfx.modFXBuffer != nullptr;
+		renderBlocks(4);
+		const bool passthrough = !holdsRing(fx) && !changesBlock(fx, currentSong->paramManager, ModFXType::CHORUS);
+		fx.setModFXType(ModFXType::FLANGER);
+		const int32_t writeBefore = ringWrite(fx);
+		renderBlocks(1);
+		const bool recovered = holdsRing(fx) && ringWrite(fx) != writeBefore;
 		fx.setModFXType(ModFXType::NONE);
 		fx.currentModFXParam = paramBefore;
 		renderBlocks(1);
-		printf("CG-MODFXOOM injected=%d recovered=%d\n", injected ? 1 : 0, recovered ? 1 : 0);
+		printf("CG-MODFXOOM injected=%d passthrough=%d recovered=%d\n", injected ? 1 : 0, passthrough ? 1 : 0,
+		       recovered ? 1 : 0);
 		fflush(stdout);
 		break;
 	}

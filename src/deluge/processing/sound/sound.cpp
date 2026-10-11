@@ -437,17 +437,11 @@ ModFXType Sound::getModFXType() {
 // Returns false if not enough ram
 bool Sound::setModFXType(ModFXType newType) {
 
-	if (util::one_of(newType, {ModFXType::FLANGER, ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::WARBLE,
-	                           ModFXType::DIMENSION})) {
-		modfx.setupBuffer();
-		disableGrain();
-	}
-	else if (newType == ModFXType::GRAIN) {
+	// The mod FX ring follows the type where it reaches the render (projectModControllableSnapshot()).
+	if (newType == ModFXType::GRAIN) {
 		enableGrain();
-		modfx.disableBuffer();
 	}
 	else {
-		modfx.disableBuffer();
 		disableGrain();
 	}
 
@@ -2117,7 +2111,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			                getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2));
 
 			// Do Mod FX
-			modfx.tickLFO(modFXTimeOff, params.paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
+			modfx.tick(modFXTimeOff, params.paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
 
 			// Do arp
 			getArpBackInTimeAfterSkippingRendering(arpSettings);

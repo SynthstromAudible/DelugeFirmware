@@ -19,6 +19,7 @@
 #include "gui/menu_item/patched_param/integer.h"
 #include "gui/ui/sound_editor.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/mod_controllable/mod_fx_names.h"
 #include "util/comparison.h"
 
 namespace deluge::gui::menu_item::mod_fx {

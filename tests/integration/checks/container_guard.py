@@ -42,9 +42,10 @@ kinds=<kind=n,...>`:
                              heap step (crates/deluge_alloc/src/section.rs) must run inside a section
     CG-SLAB                  a cluster-slab slot claimed, touched and released from the interaction tier while the
                              render plays: each slot's claim or clear must run inside a section
-    CG-MODFXOOM              the song master's chorus with its buffer's allocation made to fail once: that block
-                             passes the signal through and the next brings the effect back
-                             (CG-MODFXOOM injected=1 recovered=1 required)
+    CG-MODFXOOM              the song master's mod FX type set to chorus with its ring's allocation made to fail:
+                             the type change consumes the failure, no ring is held and the chorus passes its block
+                             through unchanged; a change to flanger then holds a ring and the master's render runs the
+                             effect over it (CG-MODFXOOM injected=1 passthrough=1 recovered=1 required)
     CG-CHOKE                 two choke-mode drums sounded in turn, each choking the other, over 400 blocks
     CG-BIGROW                a note row inserted below 128 others, moving them all; CG-MASK reports the edit's host
                              wall time (maskMicros=), an upper bound on the section it holds (a block is ~2900 us)
@@ -125,12 +126,12 @@ def _check(gate, result) -> None:
         )
         return
 
-    # A mod FX buffer that could not be allocated passes the signal through; the effect comes back the next block.
-    if not result.has_line("CG-MODFXOOM injected=1 recovered=1"):
+    # A mod FX ring that could not be allocated passes the signal through; the next type change takes one.
+    if not result.has_line("CG-MODFXOOM injected=1 passthrough=1 recovered=1"):
         found = _grep(result, "CG-MODFXOOM injected", "no CG-MODFXOOM line")
         gate.fail(
-            f"{found}: a mod FX buffer that could not be allocated did not pass the signal through, or the effect"
-            " did not come back"
+            f"{found}: a mod FX ring that could not be allocated did not pass the signal through, or the next type"
+            " change did not bring the effect back"
         )
         return
 

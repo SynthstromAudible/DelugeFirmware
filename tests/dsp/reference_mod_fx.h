@@ -17,7 +17,8 @@
 
 /// @file
 /// @brief Test-local reference for the comb-filter mod FX (flanger, chorus, phaser, stereo chorus, warble and
-/// dimension): today's `ModFXProcessor` (model/mod_controllable/ModFXProcessor.cpp), copied line for line.
+/// dimension): the app's mod FX processor as it rendered before the kernel replaced it, copied line for line. The
+/// kernel is held bit-exact to it.
 ///
 /// @ref deluge::dsp::test::ReferenceModFx differs from it only where the test has no firmware around it:
 ///  - the two unpatched param reads (offset, feedback) are arguments, and `AudioEngine::renderInStereo` is the
@@ -136,7 +137,7 @@ private:
 	std::variant<ref_lfo_wave::Sine, ref_lfo_wave::Triangle, ref_lfo_wave::Warbler> wave_{};
 };
 
-/// @brief Today's mod FX, copied from `ModFXProcessor`.
+/// @brief The app's mod FX processor, copied line for line: what the kernel must match.
 class ReferenceModFx {
 public:
 	/// @brief How many adds and subtracts have wrapped since the last @ref reset_wraps.

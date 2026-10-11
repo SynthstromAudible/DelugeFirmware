@@ -16,7 +16,6 @@
  */
 
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include "ModFXProcessor.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
 #include "deluge/dsp/granular/GranularProcessor.h"
@@ -35,6 +34,7 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_takeover.h"
 #include "mem_functions.h"
+#include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -57,7 +57,15 @@
 
 namespace params = deluge::modulation::params;
 
-ModControllableAudio::ModControllableAudio() {
+namespace {
+/// The mod FX rings come from the app's heap.
+constexpr deluge::effects::RingAllocator kAppRingAllocator{
+    .allocate = [](std::size_t bytes) { return delugeAlloc(static_cast<unsigned int>(bytes)); },
+    .release = [](void* block) { delugeDealloc(block); },
+};
+} // namespace
+
+ModControllableAudio::ModControllableAudio() : modfx{kAppRingAllocator} {
 
 	// Grain
 
@@ -181,7 +189,16 @@ void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType m
 		               reverbSendAmount);
 	}
 	else {
-		modfx.processModFX(buffer, modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams, anySoundComingIn);
+		const deluge::effects::ModFxInputs in{
+		    .active = modFXType,
+		    .rate = modFXRate,
+		    .depth = modFXDepth,
+		    .offset = unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET),
+		    .feedback = unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK),
+		    .stereo = AudioEngine::renderInStereo,
+		    .sound = anySoundComingIn,
+		};
+		modfx.render(buffer, in, *postFXVolume);
 	}
 
 	// EQ -------------------------------------------------------------------------------------
@@ -270,8 +287,13 @@ void ModControllableAudio::bindEffects(deluge::effects::EffectStates* record) {
 }
 
 void ModControllableAudio::projectModControllableSnapshot() {
-	AudioExcludedSection section; // the render reads the copy
-	modControllableSnapshot_.effects = effects();
+	deluge::effects::RingChange ring = modfx.prepare(effects().mod_fx.type);
+	{
+		AudioExcludedSection section; // the render reads the copy and the ring
+		modControllableSnapshot_.effects = effects();
+		modfx.commit(modControllableSnapshot_.effects.mod_fx.type, ring);
+	}
+	modfx.finish(ring);
 }
 
 namespace {
@@ -1070,13 +1092,13 @@ void ModControllableAudio::clearModFXMemory() {
 		grainFX->clearGrainFXBuffer();
 	}
 	else if (modControllableSnapshot_.effects.mod_fx.type != ModFXType::NONE) {
-		modfx.resetMemory();
+		modfx.clearMemory();
 	}
 }
 
 bool ModControllableAudio::setModFXType(ModFXType newType) {
-	// For us ModControllableAudios, this is really simple. Memory gets allocated in
-	// GlobalEffectable::processFXForGlobalEffectable(). This function is overridden in Sound
+	// The mod FX ring is taken where the type reaches the render, in projectModControllableSnapshot(); Sound overrides
+	// this for its grain.
 	assignModFXType(newType);
 	return true;
 }

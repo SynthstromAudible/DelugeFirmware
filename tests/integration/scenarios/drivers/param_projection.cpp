@@ -13,6 +13,7 @@
 #include "deluge-project/backed_params.h"
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h"
+#include "memory/general_memory_allocator.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable_audio.h"

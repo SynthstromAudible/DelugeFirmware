@@ -1,38 +1,34 @@
 /// @file
-/// @brief The mod FX cases' rig, setup and blocks, built with the app's flags.
-/// @details The mod FX ships in the app (`ModFXProcessor`), which builds in Thumb mode with -fno-inline-functions, so
-/// this file takes the app's flags and times the code as the app runs it. Each block is one call into
-/// `ModFXProcessor::processModFX`, made as its owner makes it.
+/// @brief The mod FX cases' rig, setup and blocks.
+/// @details Each block is one call into `effects::ModFx::render`, made as its owner (ModControllableAudio::processFX)
+/// makes it, over a ring taken through the component's prepare, commit and finish as the owner's type change takes one.
 
 #include "bench/cases.h"
 
 #include "definitions_cxx.hpp"
-#include "model/mod_controllable/ModFXProcessor.h"
-#include "modulation/params/param_collection_summary.h"
-#include "modulation/params/param_set.h"
-#include "processing/engines/audio_engine.h"
+#include "engines/effects/mod_fx.h"
+#include "memory/general_memory_allocator.h"
 
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 
 namespace deluge::bench {
 
 namespace {
 
-/// @brief What every mod FX case renders with: one processor, the unpatched params it reads and the work block. The
-/// cases run one after another, so they share it; each case's setup resets it.
-struct ModFxRig {
-	ModFxRig() : params(&summary) {
-		summary.paramCollection = &params;
-		params.params[deluge::modulation::params::UNPATCHED_MOD_FX_OFFSET].setCurrentValueBasicForSetup(kModFxParam);
-		params.params[deluge::modulation::params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(kModFxParam);
-	}
+/// The rings come from the app's heap, as the owners' do.
+constexpr effects::RingAllocator kRingAllocator{
+    .allocate = [](std::size_t bytes) { return delugeAlloc(static_cast<unsigned int>(bytes)); },
+    .release = [](void* block) { delugeDealloc(block); },
+};
 
-	ModFXProcessor processor;         ///< The processor, as a Sound's.
-	ParamCollectionSummary summary{}; ///< The summary the params are built on.
-	UnpatchedParamSet params;         ///< The unpatched params, with the offset and feedback set.
-	int32_t volume{ONE_Q31 >> 1};     ///< The post-effect volume the processor scales in place (Q31).
-	dsp::Buffer<StereoSample> work{}; ///< The lanes output's first n frames, processed in place.
+/// @brief What every mod FX case renders with: one component and the work block. The cases run one after another,
+/// so they share it; each case's setup makes the component anew.
+struct ModFxRig {
+	std::optional<effects::ModFx> mod_fx; ///< The component, as a Sound's.
+	int32_t volume{ONE_Q31 >> 1};         ///< The post-effect volume the component scales in place (Q31).
+	dsp::Buffer<StereoSample> work{};     ///< The lanes output's first n frames, processed in place.
 };
 
 ModFxRig rig{};
@@ -59,17 +55,13 @@ constexpr ModFXType mod_fx_type(ModFxKind kind) {
 } // namespace
 
 void ModFxCase::setup(std::size_t n) {
-	// The phaser runs on the processor's allpass memory; the delay-line effects on its buffer.
-	if (config_.kind == ModFxKind::PHASER) {
-		rig.processor.disableBuffer();
-	}
-	else {
-		rig.processor.setupBuffer();
-	}
-	rig.processor.resetMemory();
-	rig.processor.modFXBufferWriteIndex = 0;
-	rig.processor.modFXLFO = LFO{};
-	rig.processor.modFXLFOStereo = LFO{};
+	// A fresh component: its LFOs at rest, and a zeroed ring for the effects that run over one.
+	const ModFXType type = mod_fx_type(config_.kind);
+	rig.mod_fx.reset();
+	rig.mod_fx.emplace(kRingAllocator);
+	effects::RingChange ring = rig.mod_fx->prepare(type);
+	rig.mod_fx->commit(type, ring);
+	rig.mod_fx->finish(ring);
 	rig.volume = ONE_Q31 >> 1;
 	fill_compressor_input();
 	const FrameSpans<StereoSample> spans = stereo_frame_spans(n);
@@ -78,11 +70,16 @@ void ModFxCase::setup(std::size_t n) {
 }
 
 void ModFxCase::block(std::size_t /*n*/) {
-	const bool was_stereo = AudioEngine::renderInStereo;
-	AudioEngine::renderInStereo = config_.stereo;
-	rig.processor.processModFX(rig.work, mod_fx_type(config_.kind), kModFxRate, kModFxDepth, &rig.volume, &rig.params,
-	                           true);
-	AudioEngine::renderInStereo = was_stereo;
+	const effects::ModFxInputs in{
+	    .active = mod_fx_type(config_.kind),
+	    .rate = kModFxRate,
+	    .depth = kModFxDepth,
+	    .offset = kModFxParam,
+	    .feedback = kModFxParam,
+	    .stereo = config_.stereo,
+	    .sound = true,
+	};
+	rig.mod_fx->render(rig.work, in, rig.volume);
 }
 
 } // namespace deluge::bench

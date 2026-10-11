@@ -190,7 +190,8 @@ void switchModFx(uint64_t block, const std::string& type) {
 
 /// RENDER_MODFX_CLEAR: the blocks, counted from playback's start, at which every audio track's comb mod FX memory is
 /// cleared, ascending and comma-separated; empty by default. Each clear is what ModControllableAudio::clearModFXMemory,
-/// which a sound's cut tail calls, does for a comb type: ModFXProcessor::resetMemory.
+/// which a sound's cut tail calls, does for a comb type: the mod FX component's clearMemory, which zeroes the ring
+/// when one is held and the phaser's memories otherwise.
 std::vector<uint64_t> g_modFxClearAt;
 std::size_t g_modFxClearsDone = 0;
 int32_t g_tracksModFxCleared = 0;
@@ -216,7 +217,7 @@ void clearModFx(uint64_t block) {
 		if (type == ModFXType::NONE || type == ModFXType::GRAIN) {
 			continue;
 		}
-		owner->modfx.resetMemory();
+		owner->modfx.clearMemory();
 		g_tracksModFxCleared++;
 		printf("RS-MODFX-CLEAR block=%llu type=%s\n", static_cast<unsigned long long>(block),
 		       std::string(deluge::effects::to_string(owner->effects().mod_fx.type)).c_str());

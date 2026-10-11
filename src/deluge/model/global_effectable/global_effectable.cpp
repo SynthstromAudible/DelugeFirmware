@@ -29,7 +29,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/edits/change_effect.h"
-#include "model/mod_controllable/ModFXProcessor.h"
+#include "model/mod_controllable/mod_fx_names.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -964,23 +964,14 @@ void GlobalEffectable::processFXForGlobalEffectable(std::span<StereoSample> buff
 
 	ModFXType modFXTypeNow = getActiveModFXType(paramManager);
 
-	// For GlobalEffectables, mod FX buffer memory is allocated here in the rendering routine - this might seem
-	// strange, but it's because unlike for Sounds, the effect can be switched on and off by changing a parameter
-	// like "depth".
-	// TODO: this saves a tiny amount of memory at the cost of needing allocations during the audio render cycle...
-	// seems kinda dumb
-	if (util::one_of(modFXTypeNow, {ModFXType::CHORUS_STEREO, ModFXType::CHORUS, ModFXType::FLANGER, ModFXType::WARBLE,
-	                                ModFXType::DIMENSION})) {
-		modfx.setupBuffer();
-		disableGrain();
-	}
-	else if (modFXTypeNow == ModFXType::GRAIN) {
+	// The grain is set up and torn down here, in the render, since a knob at its minimum switches it off. The mod FX
+	// ring is held for the type wherever it is set (projectModControllableSnapshot()).
+	if (modFXTypeNow == ModFXType::GRAIN) {
 		if (anySoundComingIn && !grainFX) {
 			enableGrain();
 		}
 	}
 	else {
-		modfx.disableBuffer();
 		disableGrain();
 	}
 

@@ -18,6 +18,7 @@
 
 #include "deluge/gui/l10n/l10n.h"
 #include "deluge/gui/menu_item/submenu.h"
+#include "model/mod_controllable/mod_fx_names.h"
 #include <string_view>
 
 namespace deluge::gui::menu_item::submenu {

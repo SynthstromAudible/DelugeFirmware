@@ -15,9 +15,9 @@
 /// each run at every block size: the kernels (one case per component), the lanes (each `Lanes` case beside the mono
 /// case of its kernel), the chain (stages run as separate passes beside the same stages as one `Chain`), the delay
 /// (the whole delay block over real tapes), the filters (each filter and the filter set, as a voice runs them) and the
-/// compressor (fully wet and blended, as its owners call it) and the mod FX (each type as `ModFXProcessor` renders it
-/// today). A bench image runs one, chosen by the CMake cache string
-/// DELUGE_DSP_BENCH_CASES, and builds only that list's cases.
+/// compressor (fully wet and blended, as its owners call it) and the mod FX (each type as its owners render it through
+/// `effects::ModFx`). A bench image runs one, chosen by the CMake cache string DELUGE_DSP_BENCH_CASES, and builds only
+/// that list's cases.
 ///
 /// **State at timing.** The runner warms each case up before timing it, so what is timed is the case's steady
 /// state. Each case's documentation says what that state is; the host spec checks each through its component's
@@ -1294,7 +1294,7 @@ enum class ModFxKind : uint8_t {
 /// @brief One mod FX case's configuration.
 struct ModFxConfig {
 	ModFxKind kind; ///< The effect.
-	bool stereo;    ///< `AudioEngine::renderInStereo` for the case's blocks.
+	bool stereo;    ///< The stereo flag the owner hands the component, as `AudioEngine::renderInStereo` sets it.
 };
 
 // Each effect with the engine rendering in stereo and in mono, named for its case.
@@ -1311,12 +1311,12 @@ inline constexpr ModFxConfig kModFxWarbleMono{.kind = ModFxKind::WARBLE, .stereo
 /// @brief `mod_fx_phaser`: the phaser ignores the stereo flag.
 inline constexpr ModFxConfig kModFxPhaser{.kind = ModFxKind::PHASER, .stereo = true};
 
-/// @brief The mod FX block as its owner renders it today: `ModFXProcessor::processModFX` in place over the lanes
-/// output, with the engine in the configuration's stereo mode.
-/// @details Setup resets the processor (its buffer, allocated once for the effects that have one, and its LFOs),
-/// restores the volume and copies the lanes input's first n frames (fill_compressor_input()'s sounding block) into
-/// the lanes output. Each block processes that block in place, over the block before's output. The engine's
-/// `renderInStereo` is set for each block and restored after it.
+/// @brief The mod FX block as its owner renders it: `effects::ModFx::render` in place over the lanes output, in the
+/// configuration's stereo mode.
+/// @details Setup makes the component anew (its LFOs at rest, and a zeroed ring taken through prepare, commit and
+/// finish for the effects that run over one), restores the volume and copies the lanes input's first n frames
+/// (fill_compressor_input()'s sounding block) into the lanes output. Each block processes that block in place, over
+/// the block before's output.
 class ModFxCase {
 public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
@@ -1324,7 +1324,7 @@ public:
 	/// @brief A case of @p config.
 	constexpr explicit ModFxCase(const ModFxConfig& config) : config_{config} {}
 
-	/// @brief A reset processor at the cases' knobs, and the block for @p n frames.
+	/// @brief A fresh component at the cases' knobs, and the block for @p n frames.
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for, in place.
 	void block(std::size_t n);
@@ -1452,8 +1452,8 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, the compressor fully wet and blended through `render` and `renderVolumeNeutral`, then the
 	/// feedback chain's two cases from the chain list, as in the delay list.
 	COMPRESSOR,
-	/// The calibration loop, each mod FX type as `ModFXProcessor` renders it today with the engine in stereo and in
-	/// mono (the phaser once), then the feedback chain's two cases from the chain list, as in the delay list.
+	/// The calibration loop, each mod FX type as its owners render it through `effects::ModFx`, in stereo and in mono
+	/// (the phaser once), then the feedback chain's two cases from the chain list, as in the delay list.
 	MOD_FX,
 };
 

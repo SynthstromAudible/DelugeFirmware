@@ -23,7 +23,6 @@
 #include "dsp/stereo_sample.h"
 #include "hid/button.h"
 #include "model/fx/stutterer.h"
-#include "model/mod_controllable/ModFXProcessor.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/snapshot/mod_controllable_snapshot.h"
@@ -36,6 +35,7 @@
 #include "engines/effects/bitcrush.h"
 #include "engines/effects/compressor.h"
 #include "engines/effects/equalizer.h"
+#include "engines/effects/mod_fx.h"
 #include "engines/effects/send_and_volume.h"
 #include "engines/effects/sidechain.h"
 #include "engines/effects/state.h"
@@ -158,8 +158,9 @@ public:
 	/// Bitcrush and sample-rate reduction, with the conversion memory the latter carries.
 	deluge::effects::Bitcrush bitcrush_;
 
-	// Mod FX
-	ModFXProcessor modfx{};
+	/// The mod FX but for the grain: its ring is taken and given back where the type changes, in
+	/// projectModControllableSnapshot().
+	deluge::effects::ModFx modfx;
 	deluge::effects::Compressor compressor;
 	GranularProcessor* grainFX{nullptr};
 
