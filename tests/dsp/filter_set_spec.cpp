@@ -471,6 +471,21 @@ describe filter_set("FilterSet", ${
 		std::ignore = rig.configure(kLow12, kHighLadder, FilterRoute::PARALLEL, kOpenLow, kOpenHigh);
 		expect(rig.stereo(kLoud)).to_equal(kParallelLoudStereo);
 	});
+	it("takes no fade scratch on blocks neither filter fades, rendering as with it", _ {
+		const auto render = [&](LowPassSlot low, HighPassSlot high, FilterRoute route, bool stereo) {
+			jcong = kSeed;
+			Rig rig;
+			rig.fade.clear();
+			std::ignore = rig.configure(low, high, route);
+			expect(FadeIn::active(rig.set.view().low_fade)).to_be_false();
+			expect(FadeIn::active(rig.set.view().high_fade)).to_be_false();
+			return stereo ? rig.stereo(kInput) : rig.mono(kInput);
+		};
+		expect(render(kLow24, kHighLadder, FilterRoute::HIGH_TO_LOW, false)).to_equal(kRouteH2LMono);
+		expect(render(kLow24, kHighLadder, FilterRoute::HIGH_TO_LOW, true)).to_equal(kRouteH2LStereo);
+		expect(render(kLowBand, kHighNotch, FilterRoute::HIGH_TO_LOW, false)).to_equal(kSvfPair);
+		expect(render(kLow24, kHighLadder, FilterRoute::PARALLEL, true)).to_equal(kRouteParallelStereo);
+	});
 	it("reports which filters are on", _ {
 		Rig rig;
 		expect(rig.set.isOn()).to_be_false();

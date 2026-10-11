@@ -32,11 +32,11 @@
 namespace deluge::dsp::fixed {
 
 /// @brief The scratch a filter needs while it fades between dry and wet: the caller's, at least the block's samples
-/// (two per frame in stereo).
+/// (two per frame in stereo). A block neither filter fades does not touch it, so it may be shorter, or empty, then.
 using FadeScratch = std::span<q31>;
 
-/// @brief The scratch a set needs, each at least the block's samples (two per frame in stereo): the fades', and the
-/// parallel route's second copy of the block.
+/// @brief The scratch a set needs, each at least the block's samples (two per frame in stereo): the fades' (only on
+/// a block a filter fades, see @ref FadeScratch), and the parallel route's second copy of the block.
 struct FilterScratch {
 	/// The dry copy a filter blends with while it fades in; the two filters use it one after the other.
 	FadeScratch fade;

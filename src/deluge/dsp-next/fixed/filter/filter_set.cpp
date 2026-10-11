@@ -45,8 +45,9 @@ void fade_in_if(Fade& fade, bool from_off) {
 template <typename Filter, typename Fade>
 void render_mono(Filter& filter, Fade& fade, std::span<q31> block, FadeScratch scratch) {
 	const bool fading = FadeIn::active(fade.state());
-	const std::span<q31> dry = scratch.first(block.size());
+	std::span<q31> dry;
 	if (fading) {
+		dry = scratch.first(block.size());
 		std::ranges::copy(block, dry.begin());
 	}
 	filter.renderLane(0, block, block);
@@ -60,8 +61,9 @@ void render_mono(Filter& filter, Fade& fade, std::span<q31> block, FadeScratch s
 template <typename Filter, typename Fade>
 void render_stereo(Filter& filter, Fade& fade, std::span<q31> interleaved, FadeScratch scratch) {
 	const bool fading = FadeIn::active(fade.state());
-	const std::span<q31> dry = scratch.first(interleaved.size());
+	std::span<q31> dry;
 	if (fading) {
+		dry = scratch.first(interleaved.size());
 		std::ranges::copy(interleaved, dry.begin());
 	}
 	const auto frames = as_frames(interleaved);

@@ -152,6 +152,10 @@ foreach(_spec_path IN LISTS _specs)
   add_test(NAME ${_name} COMMAND ${_name} --verbose)
 endforeach()
 
+# The filter set's spec checks the standard library's preconditions (span bounds among them), so that a scratch span
+# taken past its end fails the spec rather than going unseen at the trees' optimisation levels.
+target_compile_definitions(filter_set_spec PRIVATE _GLIBCXX_ASSERTIONS)
+
 # Standalone-link proof for the synth core (x86 only — the closure is arch-agnostic). The synth TUs + ONLY
 # their gui-free dependency TUs link into an executable with NOTHING from the app; a successful link (no
 # undefined symbols, no gui/model/processing/storage objects) proves libdeluge-synth is self-contained. This
