@@ -26,6 +26,10 @@
 /// (see `digest`). The copies add only const accessors and `digest`, which folds every member of the state into a
 /// @ref Digest.
 ///
+/// The copies whose plain sums overflow at full scale, as the legacy code's do (the target's `add` and `sub` wrap), are
+/// marked @ref DELUGE_REFERENCE_LEGACY_ARITHMETIC: the UBSan tree leaves their overflow unchecked, so a spec running a
+/// kernel against them there checks the kernel's arithmetic and not the copy's.
+///
 /// Only what the kernels replace is copied. The shared pieces they keep (the value types and modes in
 /// filter_modes.h, `tanh`, `instant_tan`, `quick_log`, the table interpolators, `dry_wet_blend`, `CompressorKnobs`)
 /// come from the firmware.
@@ -59,6 +63,10 @@
 #include <span>
 #include <tuple>
 #include <type_traits>
+
+/// @brief Marks a reference function whose legacy signed sums may overflow at full scale: UBSan's overflow check is
+/// off in its body (and only there), wherever it is inlined.
+#define DELUGE_REFERENCE_LEGACY_ARITHMETIC __attribute__((no_sanitize("signed-integer-overflow")))
 
 namespace filters_reference {
 
@@ -130,7 +138,7 @@ class ReferenceOnePole {
 public:
 	/// @brief One sample through the low-pass: returns the section's output, Q31, and advances its memory.
 	/// @param moveability tan(f)/(1+tan(f)), Q31.
-	[[nodiscard, gnu::always_inline]] q31 lowPass(q31 input, q31 moveability) {
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 lowPass(q31 input, q31 moveability) {
 		const q31 step = multiply_32x32_rshift32_rounded(input - memory_, moveability) << 1;
 		const q31 output = step + memory_;
 		memory_ = output + step;
@@ -140,7 +148,7 @@ public:
 	/// @brief One sample through the all-pass built on the same section: twice the low-pass output less the
 	/// input, Q31.
 	/// @param moveability tan(f)/(1+tan(f)), Q31.
-	[[nodiscard, gnu::always_inline]] q31 allPass(q31 input, q31 moveability) {
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 allPass(q31 input, q31 moveability) {
 		const q31 step = multiply_32x32_rshift32_rounded(input - memory_, moveability) << 1;
 		const q31 output = step + memory_;
 		memory_ = step + output;
@@ -752,7 +760,7 @@ public:
 	}
 
 private:
-	[[nodiscard, gnu::always_inline]] q31 render(q31 input, Channel& channel) const {
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 render(q31 input, Channel& channel) const {
 		// The inputs are small (about 16 bits), so this nudge is too; the floor is about as low as the cutoff goes
 		// without sounding broken.
 		constexpr q31 kLowerLimit = -(ONE_Q31 >> 8);

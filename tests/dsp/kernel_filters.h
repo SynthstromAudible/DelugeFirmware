@@ -33,6 +33,7 @@
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/filter/fade_in.h"
 #include "dsp-next/fixed/filter/filter_modes.h"
+#include "dsp-next/fixed/filter/high_pass_ladder_kernel.h"
 #include "dsp-next/fixed/filter/low_pass_ladder_kernel.h"
 #include "dsp-next/fixed/filter/svf.h"
 #include "dsp-next/fixed/noise/cong_noise.h"
@@ -299,12 +300,106 @@ private:
 	bool held_oversample_ = false;
 };
 
-/// @brief The kernels as a workload family, in one form: the SVF, the low-pass ladder and the fade as kernels, the rest
-/// the references.
+/// @brief `Stereo<HighPassLadderKernel>` or `Mono<…>` with its fade, as @ref
+/// filters_reference::ReferenceHighPassLadder.
+template <bool kStereo>
+class KernelHighPassLadder {
+	using Ladder = deluge::dsp::fixed::HighPassLadderKernel;
+	using FadeIn = deluge::dsp::fixed::FadeIn;
+	using Filter = std::conditional_t<kStereo, deluge::dsp::Stereo<Ladder>, deluge::dsp::Mono<Ladder>>;
+
+public:
+	[[nodiscard]] q31 configure(q31 gain, const deluge::dsp::fixed::FilterConfig& config) {
+		filter_.configure({.gain = gain, .config = config});
+		return Ladder::gain(filter_.coefficients());
+	}
+
+	void renderMono(std::span<q31> block, std::span<q31> scratch) {
+		if constexpr (kStereo) {
+			std::abort();
+		}
+		render(block, scratch);
+	}
+
+	void renderStereo(std::span<q31> interleaved, std::span<q31> scratch) {
+		if constexpr (!kStereo) {
+			std::abort();
+		}
+		render(interleaved, scratch);
+	}
+
+	/// @brief The sections silenced, the saturator's position kept (the kernel's reset), and with @p fade the fade
+	/// begun.
+	void reset(bool fade) {
+		filter_.reset();
+		if (fade) {
+			fade_.template on<&FadeIn::begin>();
+		}
+	}
+
+	/// @brief Every member zero, as the reference's zeroing reset: the saturator's position and the coefficients too.
+	void zero() {
+		filter_ = Filter{};
+		fade_.template on<&FadeIn::zero>();
+	}
+
+	/// @brief Folds each channel's sections and saturator position (left, then right: zero in mono), the
+	/// coefficients, and the fade into @p d, in the reference's order.
+	void digest(Digest& d) const {
+		Ladder::State left{};
+		Ladder::State right{};
+		if constexpr (kStereo) {
+			left = filter_.left();
+			right = filter_.right();
+		}
+		else {
+			left = filter_.state();
+		}
+		for (const Ladder::State& channel : {left, right}) {
+			d.add(channel.high_pass_1.z);
+			d.add(channel.low_pass_1.z);
+			d.add(channel.high_pass_3.z);
+			d.add(channel.saturator.position);
+		}
+		const Ladder::Coefficients& c = filter_.coefficients();
+		d.add(c.moveability);
+		d.add(c.morph);
+		d.add(c.processed_resonance);
+		d.add(c.divide_by_processed_resonance);
+		d.add(c.low_pass_1_feedback);
+		d.add(c.high_pass_3_feedback);
+		d.add(c.divide_by_total_moveability);
+		digest_fade(fade_.state(), d);
+	}
+
+private:
+	void render(std::span<q31> block, std::span<q31> scratch) {
+		const bool fading = FadeIn::active(fade_.state());
+		if (fading) {
+			std::ranges::copy(block, scratch.begin());
+		}
+		if constexpr (kStereo) {
+			const auto frames = deluge::dsp::as_frames(block);
+			filter_.renderBlock(frames, frames);
+		}
+		else {
+			filter_.renderBlock(block, block);
+		}
+		if (fading) {
+			blend<kStereo>(fade_, block, scratch);
+		}
+	}
+
+	Filter filter_{};
+	FadeWrapper<kStereo> fade_{};
+};
+
+/// @brief The kernels as a workload family, in one form: the SVF, both ladders and the fade as kernels, the rest the
+/// references.
 template <bool kStereo>
 struct KernelFamily {
 	using LowPassLadder = KernelLowPassLadder<kStereo>;
-	using HighPassLadder = filters_reference::ReferenceHighPassLadder;
+	using HighPassLadder = KernelHighPassLadder<kStereo>;
 	using StateVariableFilter = KernelSvf<kStereo>;
 	using DryWetFade = KernelFade<kStereo>;
 	using FilterSet = filters_reference::ReferenceFilterSet;
