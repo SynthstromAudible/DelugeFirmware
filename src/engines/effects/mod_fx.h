@@ -126,9 +126,10 @@ private:
 	RingAllocator allocator_;
 	dsp::Mono<Kernel> mono_;
 	std::optional<Kernel::Settings> settings_; ///< The last configured settings.
-	/// Whether the owner has not rendered a ring type since it last gave up its ring: set by a render of a type with
-	/// no ring, cleared by zeroing the ring or by committing a freshly zeroed one. While set, clearMemory clears the
-	/// phaser's memories, as an owner without a ring does.
+	/// Whether the owner has rendered a type with no ring since the ring was last zeroed or handed over: set by such
+	/// a render, which includes a chain's soft off (the type unchanged, the ring kept), cleared by zeroing the ring or
+	/// by committing a freshly zeroed one. While set, the ring is treated as freed, as the old processor's was: a
+	/// ring type's render zeroes the ring first, and clearMemory clears the phaser's memories.
 	bool soft_off_ = false;
 };
 

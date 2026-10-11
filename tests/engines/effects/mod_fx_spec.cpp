@@ -312,6 +312,28 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		expect(same_block(reference, owner, ModFXType::PHASER, 3)).to_equal(true);
 	});
 
+	it("clears the phaser's memories when a soft off's type changes to another ring type before the next render, as a "
+	   "global effectable's render-time buffer does", _ {
+		heap.reset();
+		ReferenceModFx reference;
+		Owner owner;
+		// Phaser memories filled first, then a ring type; the old buffer is taken in the render.
+		expect(same_block(reference, owner, ModFXType::PHASER, 1)).to_equal(true);
+		owner.change(ModFXType::CHORUS);
+		reference.setupBuffer();
+		expect(same_block(reference, owner, ModFXType::CHORUS, 2)).to_equal(true);
+		// The soft off frees the old buffer in the render; the type then changes, and the old buffer is not taken
+		// again until the next render.
+		reference.disableBuffer();
+		std::vector<StereoSample> idle = frames_of(16, 0);
+		int32_t volume = mw::kStartVolume;
+		owner.fx().render(idle, {.active = ModFXType::NONE, .sound = false}, volume);
+		owner.change(ModFXType::FLANGER);
+		reference.resetMemory();
+		owner.resetMemory();
+		expect(same_block(reference, owner, ModFXType::PHASER, 3)).to_equal(true);
+	});
+
 	it("does not zero a ring it has just been handed, which prepare zeroed already", _ {
 		heap.reset();
 		Owner owner;
