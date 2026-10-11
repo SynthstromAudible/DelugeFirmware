@@ -1178,6 +1178,24 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-audio-track-comp-blend"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a blended compressor on a loud audio track renders as recorded, its level sum wrapping: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_AUDIO_COMP_BLEND) whose audio track plays a sample normalised near full scale (SAMPLES/RS/LOUD.WAV) at the clip's full volume, its EQ's bass and treble at their maximum boost (the volume alone does not reach the wrap), through its compressor blended half wet with the threshold above its minimum, so the dry half carries the loud input into the level the compressor measures and that block's q31 sum of squares wraps (counted on a third or more of the clip's blocks, most of those negative); beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with the threshold at its minimum must render differently (RS-FX), so the blended compressor reaches the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_AUDIO_COMP_BLEND" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-song-corpus"
 path = "."
 level = "integration"

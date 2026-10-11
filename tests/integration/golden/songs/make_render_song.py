@@ -31,6 +31,9 @@ RS_LOW_CLIP covers a host chain's saturation below amount 3, which RS_KIT_FX and
 kit at 1 and an audio track at 2.
 RS_AUDIO_COMP_ONSET switches an audio track's compressor on mid-render, so it seeds from a sounding frame rather than
 from the silence every other compressor golden starts in.
+RS_AUDIO_COMP_BLEND blends an audio track's compressor half wet on a loud track (SAMPLES/RS/LOUD.WAV, written for it
+alone, its EQ boosting), so the dry half carries the loud input into the level the compressor measures and the
+level's sum wraps.
 RS_DUCK_SHAPES covers the sidechain envelope's paths RS_AUDIO_DUCKED leaves out on the host owners: the instant
 attack, the straight and clamped release shapes, and a stronger hit taken mid-attack and mid-release.
 """
@@ -83,24 +86,37 @@ CLIP = """\
 """
 
 
-def sample_frames(seed: int, partials: list[float]) -> bytes:
-    """Six seconds of a slowly beating chord with a little noise, 16-bit stereo, the same bytes on every run."""
-    frames = RATE * SAMPLE_SECONDS
-    state = seed
-    out = bytearray()
-    for i in range(frames):
+def chord_values(partials: list[float]) -> list[float]:
+    """Six seconds of a slowly beating chord, one value per frame, before any level or noise."""
+    values = []
+    for i in range(RATE * SAMPLE_SECONDS):
         t = i / RATE
         swell = 0.6 + 0.4 * math.sin(2 * math.pi * 0.5 * t)
-        value = (
+        values.append(
             sum(math.sin(2 * math.pi * f * t) / (k + 1) for k, f in enumerate(partials))
             * swell
         )
+    return values
+
+
+def sample_frames(seed: int, partials: list[float], level: float = 0.3) -> bytes:
+    """Six seconds of a slowly beating chord at @p level with a little noise, 16-bit stereo, the same bytes on every
+    run."""
+    state = seed
+    out = bytearray()
+    for value in chord_values(partials):
         state = (state * 1103515245 + 12345) & 0x7FFFFFFF
         noise = (state / 0x7FFFFFFF - 0.5) * 0.02
-        left = int(max(-1.0, min(1.0, 0.3 * value + noise)) * 32767)
-        right = int(max(-1.0, min(1.0, 0.3 * value - noise)) * 32767)
+        left = int(max(-1.0, min(1.0, level * value + noise)) * 32767)
+        right = int(max(-1.0, min(1.0, level * value - noise)) * 32767)
         out += struct.pack("<hh", left, right)
     return bytes(out)
+
+
+def loud_sample_frames(seed: int, partials: list[float]) -> bytes:
+    """sample_frames' chord normalised so its peak, noise included, is 0.99 of full scale."""
+    peak = max(abs(value) for value in chord_values(partials))
+    return sample_frames(seed, partials, 0.98 / peak)
 
 
 def wav(pcm: bytes) -> bytes:
@@ -734,6 +750,38 @@ AUDIO_COMP_ONSET = _host(
     params=f'compressorThreshold="{_stepped(0x00000000, 0x40000000, 384)}"',
 )
 
+# An audio track's compressor blended half wet on a loud track: the clip plays LOUD.WAV (sample A's chord normalised
+# near full scale) at the clip's full volume with the EQ's bass and treble at their maximum boost, so the dry half of
+# the blend carries the loud input back into the block the compressor measures, and a block's q31 level sum wraps
+# (the clip's volume alone does not reach it). Its threshold is above the minimum and every other host setting at
+# DRY's. Its twin holds the threshold at the minimum, where the compressor is off.
+LOUD_SAMPLE = "SAMPLES/RS/LOUD.WAV"
+COMP_BLEND = (
+    '<audioCompressor attack="83886080" release="83886080" thresh="1073741824" ratio="1073741824" compHPF="0" '
+    'compBlend="1073741824" />'
+)
+LOUD_EQ = DRY["param_tags"].replace(
+    '<equalizer bass="0x00000000" treble="0x00000000"',
+    '<equalizer bass="0x7FFFFFFF" treble="0x7FFFFFFF"',
+)
+AUDIO_COMP_BLEND = _host(
+    compressor=COMP_BLEND,
+    params='compressorThreshold="0x40000000" volume="0x7FFFFFFF"',
+    param_tags=LOUD_EQ,
+)
+AUDIO_COMP_BLEND_DRY = _host(
+    compressor=COMP_BLEND,
+    params='compressorThreshold="0x00000000" volume="0x7FFFFFFF"',
+    param_tags=LOUD_EQ,
+)
+
+
+def loud_audio_parts(fx: dict) -> tuple[str, str]:
+    """audio_parts, its clip playing LOUD_SAMPLE."""
+    track, clip = audio_parts(fx)
+    return track, clip.replace("SAMPLES/RS/A.WAV", LOUD_SAMPLE)
+
+
 SONGS = {
     "RS_KIT_FX": lambda v: kit_song(v, FX),
     "RS_KIT_DRY": lambda v: kit_song(v, DRY),
@@ -792,6 +840,12 @@ SONGS = {
     ),
     "RS_AUDIO_COMP_ONSET": lambda v: parts_song(v, [audio_parts(AUDIO_COMP_ONSET)]),
     "RS_AUDIO_COMP_ONSET_DRY": lambda v: parts_song(v, [audio_parts(DRY)]),
+    "RS_AUDIO_COMP_BLEND": lambda v: parts_song(
+        v, [loud_audio_parts(AUDIO_COMP_BLEND)]
+    ),
+    "RS_AUDIO_COMP_BLEND_DRY": lambda v: parts_song(
+        v, [loud_audio_parts(AUDIO_COMP_BLEND_DRY)]
+    ),
 }
 
 
@@ -813,6 +867,10 @@ def main(argv: list[str]) -> int:
         wav(sample_frames(1, [110.0, 220.0, 330.0, 440.0]))
     )
     (out / "SAMPLES/RS/B.WAV").write_bytes(wav(sample_frames(2, [138.6, 277.2, 415.8])))
+    if name.startswith("RS_AUDIO_COMP_BLEND"):
+        (out / LOUD_SAMPLE).write_bytes(
+            wav(loud_sample_frames(1, [110.0, 220.0, 330.0, 440.0]))
+        )
     if name == "RS_STREAM":
         (out / SONG).write_text(song_xml(voices))
     else:
