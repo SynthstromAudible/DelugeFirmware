@@ -895,6 +895,17 @@ struct WholeStepWithLoopState : lst::SplitWhole {
 	static constexpr auto kLoopState = &State::loop;
 };
 
+/// Declares kLoopState as a non-static data member, not a constant.
+struct NonStaticLoopState : lst::SplitLoop {
+	decltype(&State::loop) kLoopState = &State::loop;
+};
+
+/// Declares kLoopState as a mutable static, which no loop could take as a constant.
+struct MutableLoopState : lst::SplitLoop {
+	// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+	static inline auto kLoopState = &State::loop;
+};
+
 /// A staged kernel declaring kLoopState: it has no step to give the loop state to.
 struct StagedWithLoopState {
 	using value_type = q31;
@@ -923,6 +934,8 @@ static_assert(!kernel<LoopStateNotAPointer>);
 static_assert(!kernel<LoopStateOfAnotherStruct>);
 static_assert(!kernel<WholeStepWithLoopState> && detail::steps_as_processor<lst::SplitWhole>);
 static_assert(!kernel<StagedWithLoopState> && detail::processes_blocks<StagedWithLoopState>);
+static_assert(!kernel<NonStaticLoopState>);
+static_assert(!kernel<MutableLoopState>);
 
 } // namespace
 

@@ -205,10 +205,14 @@ struct state_member<M S::*, S> {
 	using type = M; ///< The member's type.
 };
 
-/// @brief Whether K's `kLoopState` is a pointer to a data member of K's State itself.
+/// @brief Whether K's `kLoopState` is a static constant pointer to a data member of K's State itself.
+/// @details Static, so `&K::kLoopState` is an ordinary pointer rather than a pointer to a member of K; constant, so the
+/// wrappers' member access folds to a fixed offset rather than loading the pointer at run time.
 template <typename K>
-concept loop_state_names_member =
-    requires { typename state_member<std::remove_cv_t<decltype(K::kLoopState)>, typename K::State>::type; };
+concept loop_state_names_member = std::is_pointer_v<decltype(&K::kLoopState)> && requires {
+	typename std::bool_constant<(K::kLoopState != nullptr)>;
+	typename state_member<std::remove_cv_t<decltype(K::kLoopState)>, typename K::State>::type;
+};
 
 /// @brief The part of K's State its step takes: K's State unless K's `kLoopState` names one of its members.
 template <typename K>
