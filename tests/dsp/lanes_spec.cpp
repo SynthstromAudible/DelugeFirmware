@@ -30,11 +30,14 @@
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "util/fixedpoint.h"
 
+#include "loop_state_kernels.h"
+
 #include <array>
 #include <bit>
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <span>
 #include <tuple>
@@ -471,6 +474,77 @@ struct PackedCounter {
 		return s.n;
 	}
 };
+
+/// PackedCounter declaring kStateInPlace: not lane-packable, so stepped lane by lane.
+struct PackedCounterInPlace : PackedCounter {
+	static constexpr bool kStateInPlace = true;
+};
+
+static_assert(lane_packable<PackedCounter> && !lane_packable<PackedCounterInPlace>);
+static_assert(!lane_packable<loop_state_test::SplitLoop>);
+static_assert(processor<Lanes<loop_state_test::SplitLoop, 2>>);
+static_assert(processor<Lanes<loop_state_test::SplitLoopInPlace, 2>>);
+
+/// The outputs and both lanes' final States of three @p n-frame blocks through Lanes<K, 2>: set_level before each
+/// block, XOR from the third. @p in_place renders each block over its own input.
+struct SplitLanesRun {
+	std::vector<q31> out; ///< Every frame's lanes, lane 0 first.
+	loop_state_test::SplitCore::State lane0;
+	loop_state_test::SplitCore::State lane1;
+};
+
+template <typename K>
+SplitLanesRun run_split_lanes(std::size_t n, bool in_place) {
+	Lanes<K, 2> lanes{{.mode = loop_state_test::Mode::ADD}};
+	SplitLanesRun run{};
+	for (std::size_t block = 0; block < 3; ++block) {
+		if (block == 2) {
+			lanes.configure({.mode = loop_state_test::Mode::XOR});
+		}
+		lanes.template on<&K::set_level>(static_cast<q31>((block * 1000) + 7));
+		const std::vector<q31> l = loop_state_test::input(n, block);
+		const std::vector<q31> r = loop_state_test::input(n, block + 10);
+		std::vector<Frame<q31, 2>> buf(n);
+		for (std::size_t i = 0; i < n; ++i) {
+			buf[i].lane[0] = l[i];
+			buf[i].lane[1] = r[i];
+		}
+		if (in_place) {
+			lanes.renderBlock(buf, buf);
+		}
+		else {
+			std::vector<Frame<q31, 2>> dst(n);
+			lanes.renderBlock(buf, dst);
+			buf = dst;
+		}
+		for (const Frame<q31, 2>& f : buf) {
+			run.out.push_back(f.lane[0]);
+			run.out.push_back(f.lane[1]);
+		}
+	}
+	run.lane0 = lanes.state(0);
+	run.lane1 = lanes.state(1);
+	return run;
+}
+
+/// The outputs and both lanes' States after three @p n-sample blocks of lane 1 alone through Lanes<K, 2>, XOR from
+/// the third.
+template <typename K>
+SplitLanesRun run_split_lane1(std::size_t n) {
+	Lanes<K, 2> lanes{{.mode = loop_state_test::Mode::ADD}};
+	SplitLanesRun run{};
+	for (std::size_t block = 0; block < 3; ++block) {
+		if (block == 2) {
+			lanes.configure({.mode = loop_state_test::Mode::XOR});
+		}
+		std::vector<q31> buf = loop_state_test::input(n, block);
+		lanes.template renderLane<1>(buf, buf);
+		run.out.insert(run.out.end(), buf.begin(), buf.end());
+	}
+	run.lane0 = lanes.state(0);
+	run.lane1 = lanes.state(1);
+	return run;
+}
 
 /// A mixer kernel without modes, written over its value type: the running sum of a − b, per lane.
 struct PackedDifference {
@@ -1174,6 +1248,56 @@ describe lanes_spec("Lanes<K, N>", ${
 		expect(op_major.left().z).to_equal(lane_by_lane.left().z);
 		expect(op_major.right().z).to_equal(lane_by_lane.right().z);
 		expect(op_major.left().z).not_().to_equal(op_major.right().z);
+	});
+
+	it("renders a kernel declaring kLoopState or kStateInPlace as the same kernel stepping its whole State", _ {
+		for (std::size_t n = 1; n <= 9; ++n) {
+			for (const bool in_place : {false, true}) {
+				const SplitLanesRun want = run_split_lanes<loop_state_test::SplitWhole>(n, in_place);
+				for (const SplitLanesRun& got : {run_split_lanes<loop_state_test::SplitLoop>(n, in_place),
+				                                 run_split_lanes<loop_state_test::SplitLoopInPlace>(n, in_place),
+				                                 run_split_lanes<loop_state_test::SplitWholeInPlace>(n, in_place)}) {
+					expect(got.out).to_equal(want.out);
+					expect(std::memcmp(&got.lane0, &want.lane0, sizeof want.lane0)).to_equal(0);
+					expect(std::memcmp(&got.lane1, &want.lane1, sizeof want.lane1)).to_equal(0);
+					expect(got.lane1.prepares).to_equal(3U);
+					expect(got.lane1.level).to_equal(2007);
+				}
+			}
+		}
+	});
+
+	it("renders one lane of a kernel declaring kLoopState or kStateInPlace, leaving the other lane's State alone", _ {
+		const loop_state_test::SplitCore::State fresh{};
+		for (std::size_t n = 1; n <= 9; ++n) {
+			const SplitLanesRun want = run_split_lane1<loop_state_test::SplitWhole>(n);
+			for (const SplitLanesRun& got : {run_split_lane1<loop_state_test::SplitLoop>(n),
+			                                 run_split_lane1<loop_state_test::SplitLoopInPlace>(n),
+			                                 run_split_lane1<loop_state_test::SplitWholeInPlace>(n)}) {
+				expect(got.out).to_equal(want.out);
+				expect(std::memcmp(&got.lane1, &want.lane1, sizeof want.lane1)).to_equal(0);
+				expect(std::memcmp(&got.lane0, &fresh, sizeof fresh)).to_equal(0);
+			}
+		}
+	});
+
+	it("steps a lane-packable kernel declaring kStateInPlace lane by lane, to its op-major output", _ {
+		for (std::size_t n = 1; n <= 9; ++n) {
+			Lanes<PackedCounter, 2> packed{{.by = 0x01234567}};
+			Lanes<PackedCounterInPlace, 2> in_place{{.by = 0x01234567}};
+			for (int block = 0; block < 3; ++block) {
+				std::vector<Frame<q31, 2>> want(n);
+				std::vector<Frame<q31, 2>> got(n);
+				packed.renderBlock(want);
+				in_place.renderBlock(got);
+				for (std::size_t i = 0; i < n; ++i) {
+					expect(got[i].lane[0]).to_equal(want[i].lane[0]);
+					expect(got[i].lane[1]).to_equal(want[i].lane[1]);
+				}
+			}
+			expect(in_place.state(0).n).to_equal(packed.state(0).n);
+			expect(in_place.state(1).n).to_equal(packed.state(1).n);
+		}
 	});
 });
 // clang-format on
