@@ -298,6 +298,58 @@ next frame is read.
 - **It declares `kStateInPlace`.** Its State is two response histories, about
   424 bytes; see [`Mono<K>`](#monok-coremonoh).
 
+### Block arithmetic in `prepare`, block inputs by event: `Compressor`
+
+`Compressor` (`fixed/dynamics/compressor_kernel.h`) is the reference for a
+processor kernel whose per-frame work follows arithmetic done once per block on
+values that arrive with each block. It is the RMS feedback compressor as one
+fused frame kernel of stereo frames, rendered in place as
+`Mono<Compressor>::renderBlock(block, block)` by its owner,
+`RmsFeedbackCompressor`, which holds no scratch.
+
+- **The block's inputs arrive by event, the knobs by `configure`.** The channel
+  gains, the final volume and the threshold knob come with each render call, so
+  the owner stores them with `on<&Compressor::set_levels>(levels)` before the
+  block; `prepare` reads them from the State. The knobs build the
+  `Coefficients`, so a knob change or a new makeup reconfigures the wrapper and
+  leaves the envelopes, gains, detectors, saturators and level as they are.
+- **The block arithmetic is `prepare`.** The makeup and reduction envelopes
+  (float, in nepers: a log and three exps), the gain and its clamp, the
+  gain-reduction reading, and the two increments that ramp each channel's gain
+  to its target by the block's end. The increments are the `Block`; the
+  envelopes stay in the State.
+- **The step is the frame:** ramp each channel's gain, multiply, saturate
+  (`AntialiasedTanh` at drive 3), blend in `BLEND`, and measure.
+- **Events around the block.** The owner's order per block is `set_levels`,
+  `seed` while the saturation is unseeded (from the block's first frame), the
+  block, then `finish_level`, which turns the block's 64-bit sum into the mean
+  square and the log RMS level the next block's gain follows. A reset (the
+  `reset` quirk) zeroes the envelopes and the mean and unseeds the saturation;
+  the gains, detectors and last level carry on. An empty block renders nothing
+  and changes nothing, since `prepare` divides by the block's length.
+- **The blend needs no scratch.** `BLEND` mixes the frame as it came in back at
+  the dry level, `dry_wet_blend`'s arithmetic. The step reads its input frame
+  before the wrapper stores the output, so the dry signal is the step's own
+  `x`, in place. The blend knob picks the mode per block: `WET` at `ONE_Q31`,
+  since the blend there is not an identity.
+- **The measurement runs one frame behind.** Measured on the output it has just
+  made, a frame is one dependency chain (the gain multiply, the table lookup and
+  interpolation, then the detector, the square and the 64-bit add), and the
+  core overlaps little of one frame with the next. Each step measures the frame
+  before instead, held in the State's `pending`, which its own gain and
+  saturation do not wait on. `prepare` sets `pending` to the detectors' own
+  memories, which high-pass to 0 and leave the memories as they are, and
+  `finish_level` measures the block's last frame. The sum is integer, so its
+  order changes nothing. The cost of each form is in
+  [a9_dsp_performance.md](a9_dsp_performance.md#compressor).
+- **The level cannot wrap.** The detector output's magnitude is unsigned
+  (`INT32_MIN` measures 2^31), and its square's high word is summed in 64 bits:
+  at most 2^37 over 128 frames.
+- **Its State is copied, not stepped in place.** The State is scalars, which the
+  loop keeps in registers or spills to the stack. Stepped in place, the loop
+  stores eight State words every frame, since the output may alias the State;
+  the copy in and out costs about 90 cycles per block.
+
 ### The control form
 
 A **control kernel** is a block-rate signal: an envelope or a duck that the
@@ -924,8 +976,8 @@ These are the reference blocks that later rewrites compose rather than re-derive
   drive between two steps moves only the drive. A caller that starts mid-signal uses `seed(c, s, sample)`, which places
   the position where stepping `sample` would, or `place(s, position)`, which sets it directly.
 - **`dry_wet_blend` / `DryWetBlend`** (`mix/dry_wet.h`): the dry/wet crossfade. The filters' fade runs it; the
-  compressor writes the same arithmetic out by hand, pointing at it, until its rewrite. `FULL_WET` returns the wet
-  sample unchanged, because the blend at `ONE_Q31` is not an identity.
+  compressor's `BLEND` step writes the same arithmetic with the dry level taken once per configure, pointing at it.
+  `FULL_WET` returns the wet sample unchanged, because the blend at `ONE_Q31` is not an identity.
 - **`wrapping_add` / `wrapping_sub`** (`wrapping.h`): q31 add and subtract with two's-complement wrap, defined for every
   input.
 
@@ -986,9 +1038,11 @@ memory.
   - **Cost.** What these passes cost, and what fusing the set into one loop could save, is measured in
     [a9_dsp_performance.md](a9_dsp_performance.md#filters).
 
-The compressor (`fixed/dynamics/rms_feedback_compressor.h`) is a hand-written class, not a kernel. It holds the shared
-kernels' States: two `OnePole` detectors stepped LOW_PASS, and two `AntialiasedTanh` saturators at drive 3, each
-seeded from the block's first frame after silence or at onset (`AntialiasedTanh::seed`).
+The compressor (`fixed/dynamics/compressor_kernel.h`) is a kernel, `Compressor`, which its owner
+`RmsFeedbackCompressor` (`rms_feedback_compressor.h`) renders as `Mono<Compressor>` (see
+[Block arithmetic in `prepare`, block inputs by event](#block-arithmetic-in-prepare-block-inputs-by-event-compressor)).
+Its State holds the shared kernels' States: two `OnePole` detectors stepped HIGH_PASS, and two `AntialiasedTanh`
+saturators at drive 3, each seeded from the block's first frame after a reset (`AntialiasedTanh::seed`).
 
 **Read-only inspection.** `FilterSet::view()` and `RmsFeedbackCompressor::view()` return a `View` of everything that
 carries from one block to the next:
@@ -1002,15 +1056,21 @@ and are unused in the app, so the linker drops them.
 ### Verbatim references
 
 A kernel that replaces hand-written code is checked bit for bit against a test-local, line-for-line copy of that code,
-not against the code itself, so the code can be deleted once its users move. The filters' and the compressor's copies
-are in `tests/dsp/reference_filters.h`: `OnePole`'s and `AntialiasedTanh`'s legacy forms, the fade, both ladders, the
-SVF, the filter set and the compressor.
+not against the code itself, so the code can be deleted once its users move. The filters' copies are in
+`tests/dsp/reference_filters.h`: `OnePole`'s and `AntialiasedTanh`'s legacy forms, the fade, both ladders, the SVF and
+the filter set. The compressor's are in `tests/dsp/reference_compressor.h`, on those legacy forms: the legacy class
+verbatim, and the same class with its two level defects fixed (the 32-bit sum of squares, and `std::abs` of
+`INT32_MIN`), which is what the kernel matches.
 
 **What is checked against them.** They are the oracle for:
 - `one_pole_spec`, `antialiased_tanh_spec`, `low_pass_ladder_spec`, `high_pass_ladder_spec`, `svf_spec` and
   `fade_in_spec`;
-- `filters_reference_spec`, which runs every filter, filter-set and compressor workload (`tests/dsp/filter_workloads.h`)
-  through both and pins the references' output, noise draws and whole state in `filter_workload_records.h`.
+- `filters_reference_spec`, which runs every filter and filter-set workload (`tests/dsp/filter_workloads.h`) through
+  both and pins the references' output, noise draws and whole state in `filter_workload_records.h`;
+- `compressor_reference_spec`, which runs every compressor workload (`tests/dsp/compressor_workloads.h`) through both
+  compressor references, shows where the level defects are reached, and pins each one's output, gain reduction and
+  state in `compressor_workload_records.h`; `compressor_kernel_spec` and `rms_feedback_compressor_spec` hold the
+  kernel and its owner to the fixed one.
 
 **Plain signed sums.** The copies keep the legacy plain signed sums. Those that overflow at full scale are marked
 `DELUGE_REFERENCE_LEGACY_ARITHMETIC`, which turns UBSan's overflow check off in those bodies alone. The `dsp-ubsan`
