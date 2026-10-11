@@ -161,6 +161,28 @@ private:
 	        .sound = true};
 }
 
+/// @brief Renders one block of @p type on the reference and on @p owner's component with the same frames, as an owner
+/// does when a sound comes in.
+/// @return Whether the two blocks and their post-FX volumes came out equal.
+[[nodiscard]] bool same_block(ReferenceModFx& reference, Owner& owner, ModFXType type, std::size_t seed) {
+	const std::vector<StereoSample> input = frames_of(128, seed);
+	std::vector<StereoSample> want = input;
+	std::vector<StereoSample> got = input;
+	int32_t want_volume = mw::kStartVolume;
+	int32_t got_volume = mw::kStartVolume;
+	reference.processModFX(want, type, mw::kRate, mw::kDepth, &want_volume, mw::kOffset, mw::kFeedback, true, true);
+	owner.fx().render(got,
+	                  {.active = type,
+	                   .rate = mw::kRate,
+	                   .depth = mw::kDepth,
+	                   .offset = mw::kOffset,
+	                   .feedback = mw::kFeedback,
+	                   .stereo = true,
+	                   .sound = true},
+	                  got_volume);
+	return words_of(want) == words_of(got) && want_volume == got_volume;
+}
+
 } // namespace
 
 // clang-format off
@@ -270,6 +292,61 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		fx.finish(c);
 		expect(heap.releases).to_equal(1);
 		expect(fx.holdsRing()).to_equal(false);
+	});
+
+	it("clears the phaser's memories in a soft off, as today's mod FX does once it has freed its ring", _ {
+		heap.reset();
+		ReferenceModFx reference;
+		Owner owner;
+		reference.setupBuffer();
+		owner.change(ModFXType::CHORUS);
+		expect(same_block(reference, owner, ModFXType::PHASER, 1)).to_equal(true);
+		expect(same_block(reference, owner, ModFXType::PHASER, 2)).to_equal(true);
+		// The soft off: the knob at minimum. The reference has freed its ring; the component keeps its own.
+		reference.disableBuffer();
+		std::vector<StereoSample> idle = frames_of(16, 0);
+		int32_t volume = mw::kStartVolume;
+		owner.fx().render(idle, {.active = ModFXType::NONE, .sound = false}, volume);
+		reference.resetMemory();
+		owner.resetMemory();
+		expect(same_block(reference, owner, ModFXType::PHASER, 3)).to_equal(true);
+	});
+
+	it("does not zero a ring it has just been handed, which prepare zeroed already", _ {
+		heap.reset();
+		Owner owner;
+		owner.change(ModFXType::PHASER);
+		std::vector<StereoSample> frames = frames_of(16, 4);
+		int32_t volume = mw::kStartVolume;
+		ModFxInputs phaser = flanger_inputs();
+		phaser.active = ModFXType::PHASER;
+		owner.fx().render(frames, phaser, volume);
+		owner.change(ModFXType::CHORUS);
+		std::byte* ring = heap.in_use[0] ? heap.blocks[0].data() : heap.blocks[1].data();
+		std::memset(ring, 0x5A, 16); // a marker where a second zeroing would erase it
+		ModFxInputs chorus = flanger_inputs();
+		chorus.active = ModFXType::CHORUS;
+		chorus.sound = false;
+		owner.fx().render(frames, chorus, volume);
+		expect(static_cast<int>(ring[0])).to_equal(0x5A);
+	});
+
+	it("keeps the ring it holds when a second one is acquired, and frees the spare", _ {
+		heap.reset();
+		{
+			ModFx fx(kAllocator);
+			RingChange first = fx.prepare(ModFXType::CHORUS);
+			RingChange second = fx.prepare(ModFXType::CHORUS);
+			expect(heap.allocations).to_equal(2);
+			const StereoSample* held = first.acquired;
+			fx.commit(ModFXType::CHORUS, first);
+			fx.finish(first);
+			fx.commit(ModFXType::CHORUS, second);
+			fx.finish(second);
+			expect(fx.state().ring).to_equal(held);
+			expect(heap.releases).to_equal(1);
+		}
+		expect(heap.releases).to_equal(2);
 	});
 
 	it("maps each type to its kernel mode", _ {

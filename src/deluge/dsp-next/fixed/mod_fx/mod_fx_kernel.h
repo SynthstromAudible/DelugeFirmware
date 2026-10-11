@@ -199,16 +199,20 @@ struct ModFx {
 			std::memset(s.ring, 0, kRingFrames * sizeof(StereoSample));
 		}
 	}
+	/// @brief Event: zeroes the phaser's memories (its allpass stages and feedback memory).
+	static void clear_phaser(State& s) {
+		s.phaser = {};
+		for (StereoSample& a : s.allpass) {
+			a = {};
+		}
+	}
 	/// @brief Event: zeroes the ring when one is held, otherwise the phaser's memories.
 	static void clear_memory(State& s) {
 		if (s.ring != nullptr) {
 			zero_ring(s);
 		}
 		else {
-			s.phaser = {};
-			for (StereoSample& a : s.allpass) {
-				a = {};
-			}
+			clear_phaser(s);
 		}
 	}
 	/// @brief Event: advances the main LFO's phase by @p n frames at @p rate (UQ0.32), as while rendering is skipped.

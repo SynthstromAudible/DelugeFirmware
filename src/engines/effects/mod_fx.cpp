@@ -47,7 +47,13 @@ RingChange ModFx::prepare(ModFXType type) {
 
 void ModFx::commit(ModFXType type, RingChange& change) {
 	if (change.acquired != nullptr) {
-		mono_.on<&Kernel::set_ring>(std::exchange(change.acquired, nullptr));
+		if (holdsRing()) {
+			change.released = std::exchange(change.acquired, nullptr);
+		}
+		else {
+			mono_.on<&Kernel::set_ring>(std::exchange(change.acquired, nullptr));
+			soft_off_ = false; // prepare zeroed it
+		}
 	}
 	else if (!is_ring_type(type) && holdsRing()) {
 		change.released = mono_.state().ring;
@@ -99,6 +105,10 @@ void ModFx::tick(int32_t frames, int32_t rate) {
 }
 
 void ModFx::clearMemory() {
+	if (soft_off_) {
+		mono_.on<&Kernel::clear_phaser>();
+		return;
+	}
 	mono_.on<&Kernel::clear_memory>();
 }
 

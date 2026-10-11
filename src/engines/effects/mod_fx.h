@@ -105,7 +105,7 @@ public:
 	/// A failed allocation leaves no ring, and the type's effect then passes through.
 	[[nodiscard]] RingChange prepare(ModFXType type);
 	/// @brief Inside the owner's AudioExcludedSection: hands the kernel the acquired ring, or takes the held one back
-	/// when @p type needs none.
+	/// when @p type needs none. An acquired ring is not taken while one is held: it moves to released.
 	void commit(ModFXType type, RingChange& change);
 	/// @brief After the section: frees what commit took back, and an acquired ring commit did not take.
 	void finish(RingChange& change);
@@ -115,7 +115,7 @@ public:
 	void render(std::span<dsp::StereoSample> block, const ModFxInputs& in, int32_t& post_fx_volume);
 	/// @brief Advances the LFO by @p frames at @p rate (UQ0.32 per frame) while the owner skips rendering.
 	void tick(int32_t frames, int32_t rate);
-	/// @brief Clears the ring when one is held, otherwise the phaser's memories.
+	/// @brief Clears the ring when one is held and the owner is not in a soft off, otherwise the phaser's memories.
 	void clearMemory();
 	/// @return Whether a ring is held.
 	[[nodiscard]] bool holdsRing() const { return mono_.state().ring != nullptr; }
@@ -126,8 +126,10 @@ private:
 	RingAllocator allocator_;
 	dsp::Mono<Kernel> mono_;
 	std::optional<Kernel::Settings> settings_; ///< The last configured settings.
-	bool soft_off_ =
-	    false; ///< Whether the ring is stale: set by a render of a type with no ring, cleared by zeroing it.
+	/// Whether the owner has not rendered a ring type since it last gave up its ring: set by a render of a type with
+	/// no ring, cleared by zeroing the ring or by committing a freshly zeroed one. While set, clearMemory clears the
+	/// phaser's memories, as an owner without a ring does.
+	bool soft_off_ = false;
 };
 
 } // namespace deluge::effects
