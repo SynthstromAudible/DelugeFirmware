@@ -56,7 +56,7 @@ namespace FlashStorage {
 static bool areAutomationSettingsValid(std::span<uint8_t> buffer);
 static bool areLegacyMidiFollowSettingsValid(std::span<uint8_t> buffer);
 
-/// MIDIFollowChannelType::NONE as it was numbered before c1.3 inserted Track ahead of it.
+/// NONE in the legacy {A, B, C, NONE} numbering of the feedback channel type stored at byte 131.
 constexpr uint8_t kLegacyMidiFollowChannelTypeNone = 3;
 
 /// First community release to store MIDI-follow settings at bytes 126-145. c1.0.x put unrelated settings there
@@ -685,11 +685,12 @@ void readSettings() {
 		   buffer[145] */
 		midiEngine.midiFollowKitRootNote = buffer[129];
 		midiEngine.midiFollowDisplayParam = !!buffer[130];
-		// MIDIFollowChannelType was {A, B, C, NONE} before c1.3 inserted Track at 3 and pushed NONE out to 4, so the
-		// stored 3 has to be remapped or it comes back as Track. A/B/C keep their values.
+		// The feedback channel was stored as a MIDIFollowChannelType numbered {A, B, C, NONE}. It is now a
+		// MIDIFollowFeedbackChannelType numbered {NONE, A, B, C, ...}, so the stored 3 becomes NONE and A/B/C shift
+		// up by one.
 		midiEngine.midiFollowFeedbackChannelType = (buffer[131] == kLegacyMidiFollowChannelTypeNone)
-		                                               ? MIDIFollowChannelType::NONE
-		                                               : static_cast<MIDIFollowChannelType>(buffer[131]);
+		                                               ? MIDIFollowFeedbackChannelType::NONE
+		                                               : static_cast<MIDIFollowFeedbackChannelType>(buffer[131] + 1);
 		midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[132]);
 		midiEngine.midiFollowFeedbackFilter = !!buffer[133];
 
