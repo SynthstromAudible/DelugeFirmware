@@ -358,13 +358,46 @@ const std::array<Setting, 4> kSettings{{
     {.mode = LowPassLadderMode::TRANSISTOR_24DB_DRIVE, .config = kBright},
 }};
 
-/// The configs the coefficient checks sweep: dark to bright, resonance off to past the limits, morph on and off, each
-/// with oversampling allowed and not.
+/// The cutoffs the coefficient checks sweep: dark to bright, with the drive ladder's oversampling range (a log cutoff
+/// past 51 on quick_log's scale, from 2^24) stepped through every segment of its threshold and limit tables up
+/// to 2^28 (log cutoff 56).
+constexpr std::array<q31, 13> kSweepFrequencies{
+    q31{1 << 20}, q31{1 << 22},   q31{1 << 24}, q31{30000000},  q31{1 << 25}, q31{40000000}, q31{50000000},
+    q31{1 << 26}, q31{100000000}, q31{1 << 27}, q31{200000000}, q31{1 << 28}, q31{ONE_Q31},
+};
+
+/// @return The resonances (Q29) just either side of where the reference's drive ladder starts oversampling at
+/// @p frequency (the last resonance that does not and the first two that do), or none if it never or always does.
+std::vector<q31> threshold_resonances(q31 frequency) {
+	const auto oversamples = [frequency](q31 resonance) {
+		ReferenceLowPassLadder reference;
+		std::ignore = reference.configure(
+		    kGain, {.frequency = frequency, .resonance = resonance, .morph = 0, .allow_oversampling = true},
+		    LowPassLadderMode::TRANSISTOR_24DB_DRIVE);
+		return reference.oversample();
+	};
+	q31 below = 0;
+	q31 above = 536870911;
+	if (oversamples(below) || !oversamples(above)) {
+		return {};
+	}
+	while (above - below > 1) {
+		const q31 middle = below + ((above - below) / 2);
+		(oversamples(middle) ? above : below) = middle;
+	}
+	return {below, above, above + 1};
+}
+
+/// The configs the coefficient checks sweep: each cutoff with resonance off, mid, high, past the limits and either
+/// side of the oversampling threshold, morph on and off, each with oversampling allowed and not.
 std::vector<FilterConfig> sweep_configs() {
 	std::vector<FilterConfig> configs;
-	for (const q31 frequency :
-	     {q31{1 << 20}, q31{1 << 22}, q31{1 << 24}, q31{30000000}, q31{50000000}, q31{1 << 26}, q31{ONE_Q31}}) {
-		for (const q31 resonance : {q31{0}, q31{1 << 27}, q31{400000000}, q31{500000000}, q31{536870911}}) {
+	for (const q31 frequency : kSweepFrequencies) {
+		std::vector<q31> resonances{0, 1 << 27, 400000000, 500000000, 536870911};
+		for (const q31 resonance : threshold_resonances(frequency)) {
+			resonances.push_back(resonance);
+		}
+		for (const q31 resonance : resonances) {
 			for (const q31 morph : {q31{0}, q31{1 << 28}}) {
 				for (const bool allow : {true, false}) {
 					configs.push_back(
@@ -630,13 +663,19 @@ describe low_pass_ladder_kernel("LowPassLadderKernel", ${
 		}
 	});
 
-	it("chooses oversampling and compensates the gain as the reference's configure does", _ {
+	it("configures every coefficient, chooses oversampling and compensates the gain as the reference's configure "
+	   "does", _ {
 		std::size_t oversampled = 0;
 		std::size_t at_rate = 0;
+		std::size_t thresholds = 0;
+		for (const q31 frequency : kSweepFrequencies) {
+			thresholds += threshold_resonances(frequency).empty() ? 0 : 1;
+		}
 		for (const FilterConfig& config : sweep_configs()) {
 			for (const LowPassLadderMode mode : {LowPassLadderMode::TRANSISTOR_12DB, LowPassLadderMode::TRANSISTOR_24DB,
 			                                     LowPassLadderMode::TRANSISTOR_24DB_DRIVE}) {
 				ReferenceLowPassLadder reference;
+				reference.zero();
 				const q31 gain = reference.configure(kGain, config, mode);
 				const Ladder::Coefficients c = Ladder::coefficients({.gain = kGain, .config = config, .mode = mode});
 				expect(Ladder::gain(c)).to_equal(gain);
@@ -654,14 +693,38 @@ describe low_pass_ladder_kernel("LowPassLadderKernel", ${
 					}
 				}
 				expect(c.mode).to_equal(expected);
+
+				// Every coefficient: the adapter's digest folds them all, as the reference's folds its members.
+				kernel_filters::KernelLowPassLadder<false> kernel;
+				kernel.zero();
+				expect(kernel.configure(kGain, config, mode)).to_equal(gain);
+				filter_workloads::Digest kernel_digest;
+				filter_workloads::Digest reference_digest;
+				kernel.digest(kernel_digest);
+				reference.digest(reference_digest);
+				expect(kernel_digest.value).to_equal(reference_digest.value);
 			}
 		}
 		expect(oversampled).to_be_greater_than(0u);
 		expect(at_rate).to_be_greater_than(0u);
+		// The threshold falls inside the resonance range from log cutoff 52 to 56, in every table segment.
+		expect(thresholds).to_be_greater_than(6u);
 	});
 
 	it("draws one CONG value per channel per sample, two when the drive ladder oversamples, and renders as the "
 	   "reference does", _ {
+		// The drive settings at the rate and oversampled, as the reference chooses them.
+		ReferenceLowPassLadder at_rate;
+		std::ignore = at_rate.configure(kGain, kSettings[2].config, kSettings[2].mode);
+		expect(kSettings[2].mode).to_equal(LowPassLadderMode::TRANSISTOR_24DB_DRIVE);
+		expect(at_rate.oversample()).to_be_false();
+		ReferenceLowPassLadder oversampled;
+		std::ignore = oversampled.configure(kGain, kSettings[3].config, kSettings[3].mode);
+		expect(kSettings[3].mode).to_equal(LowPassLadderMode::TRANSISTOR_24DB_DRIVE);
+		expect(oversampled.oversample()).to_be_true();
+		expect(Ladder::coefficients(settings_for(kSettings[2])).mode).to_equal(Ladder::Mode::DRIVE);
+		expect(Ladder::coefficients(settings_for(kSettings[3])).mode).to_equal(Ladder::Mode::DRIVE_OVERSAMPLED);
+
 		std::vector<q31> scratch(kInput.size());
 		for (const Setting& setting : kSettings) {
 			const uint32_t per_sample = Ladder::coefficients(settings_for(setting)).mode

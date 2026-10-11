@@ -104,8 +104,10 @@ struct LowPassLadderKernel {
 
 	/// @brief What the owner sets each block.
 	struct Settings {
-		q31 gain = 0;                                                ///< The volume going in, Q31.
-		FilterConfig config{};                                       ///< The cutoff, resonance (Q29) and morph (Q29).
+		q31 gain = 0; ///< The volume going in, Q31.
+		/// The cutoff (Q31, lifted by 2^5 onto the tan table: see @ref FilterConfig::frequency), the resonance (Q29)
+		/// and the morph (Q29), and whether the drive ladder may oversample.
+		FilterConfig config{};
 		LowPassLadderMode mode = LowPassLadderMode::TRANSISTOR_12DB; ///< The slot's ladder.
 	};
 
