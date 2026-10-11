@@ -3119,28 +3119,24 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
 	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
 	auto intTempo = (int32_t)(tempoBPM * 100);
-	int32_t pos = -1; // means use the live position
-	tempoParam->autoParam->setCurrentValueInResponseToUserInput(intTempo, tempoParam, shouldLogAction, pos);
-	setBPMInner(tempoBPM, shouldLogAction);
-}
+	int32_t pos = -1;   // means use the live position
+	int32_t length = 0; // means record at live position
 
-// Edit the tempo BPM for a specific point on the timeline (e.g. by holding on
-// a grid timeline pad while moving tempo encoder in arranger view).
-//
-// This fills in the tempo automation on the timeline with "tempoBPM" from
-// "pos" until the next automation event.
-void Song::setTempoAutomationUntilNextNode(int32_t pos, float tempoBPM, bool shouldLogAction) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
-	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
-	auto intTempo = (int32_t)(tempoBPM * 100);
+	// if you're holding a pad in arranger view and external clock is not active
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW && !playbackHandler.isExternalClockActive()) [[unlikely]] {
+		// Edit the tempo BPM for a specific point on the timeline (e.g. by holding on
+		// a grid timeline pad while moving tempo encoder in arranger view).
+		//
+		// This fills in the tempo automation on the timeline with "tempoBPM" from
+		// "pos" until the next automation event.
+		uint32_t x_scroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+		int32_t x_zoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+		pos = arrangerView.getPosFromSquare(arrangerView.xPressed, x_scroll, x_zoom);
+		length = std::min<int32_t>(tempoParam->autoParam->getDistanceToNextNode(tempoParam, pos, false),
+		                           arrangerView.getMaxLength());
+	}
 
-	int32_t length = tempoParam->autoParam->getDistanceToNextNode(tempoParam, pos, false);
-	tempoParam->autoParam->setValuePossiblyForRegion(intTempo, tempoParam, pos,
-	                                                 std::min<int32_t>(length, arrangerView.getMaxLength()));
-
+	tempoParam->autoParam->setValuePossiblyForRegion(intTempo, tempoParam, pos, length);
 	setBPMInner(tempoBPM, shouldLogAction);
 }
 
@@ -3149,7 +3145,6 @@ void Song::clearTempoAutomation() {
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
-	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
 	int32_t pos = -1; // means use the live position
 	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::ALLOWED);
 	tempoParam->autoParam->deleteAutomation(action, tempoParam);
