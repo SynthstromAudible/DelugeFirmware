@@ -8,8 +8,8 @@
  "RS_AUDIO_COMP_BLEND": {
   "frames": 384000,
   "peak": 2147483648,
-  "rms_db": -1.23,
-  "sha256": "42b99de02afe787f46c8f5111ece16cc5fdd6f03e058097fd679381e6f9a7c4f"
+  "rms_db": -1.28,
+  "sha256": "db0d99913add82ca1d35f811b3ca954b3016659de1f6a5b66f56f2e5cc54ee30"
  },
  "RS_AUDIO_COMP_ONSET": {
   "frames": 384000,
