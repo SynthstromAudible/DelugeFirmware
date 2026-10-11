@@ -357,6 +357,68 @@ fused frame kernel of stereo frames, rendered in place as
   loads and stores
   ([a9_dsp_performance.md](a9_dsp_performance.md#compressor)).
 
+### A kernel over memory an engine component owns: `ModFx`
+
+`ModFx` (`fixed/mod_fx/mod_fx_kernel.h`) is the reference for a moded kernel
+whose memory belongs to an engine component. It is the mod FX as one processor
+kernel of stereo frames, rendered in place as `Mono<ModFx<CongNoise>>::renderBlock(block, block)`
+by `effects::ModFx` (`engines/effects/mod_fx.{h,cpp}`). The kernel knows modes,
+rates and a ring it is pointed at; the component knows `ModFXType`, the params,
+the allocator and the soft off.
+
+- **Eight modes, one loop each.** Chorus and flanger in stereo (the right tap at
+  the negated LFO) and in mono (both taps at the left's position), dimension
+  (stereo and mono alike), warble in both, and the phaser (six stereo allpass
+  stages, no ring). `effects::mod_fx_mode` maps the type and the render's
+  width to the mode; the mode is one of `Settings`, so a change of type or
+  width reconfigures the wrapper and leaves the State as it is.
+- **The ring is keyed to the type.** A ring exists exactly when the type is a
+  ring type (chorus, stereo chorus, dimension, flanger, warble;
+  `effects::is_ring_type`) and the allocation succeeded. The component allocates
+  and zeroes it before the owner's audio-excluded section (`prepare`), hands it
+  to the kernel inside the section (`commit`, as the `set_ring` event, or takes
+  it back as `clear_ring` when the new type needs none), and frees what it took
+  back after the section (`finish`). A change between ring types holds the ring
+  and changes nothing, so the audio in it plays through the new mode's taps. A
+  ring type with no ring (out of memory) passes through, and the phaser holds
+  none. The kernel never allocates or frees.
+- **The hand-over is one pointer in the State.** `State::ring` is the only
+  link to the owner's memory, so the per-block State copy and `state()`'s
+  by-value snapshot carry the pointer, not the 4 KB it points at, and the
+  render allocates nothing. `clear_memory` zeroes the ring when one is held and
+  the phaser's memories otherwise; `zero_ring` zeroes the ring and keeps the
+  write index.
+- **One LFO state serves every mode, and a change of wave re-seats it.** The
+  phase carries across mode changes. The waves are sine (chorus, phaser),
+  triangle (dimension, flanger) and the warbler. `prepare` zeroes the main
+  warbler when the mode's wave is not the one the LFO last stepped, so a return
+  to warble starts the warbler afresh while its taps read a full ring, and a
+  change between modes of one wave leaves it alone. Warble steps a second
+  warbler at 0.97 of the rate, every frame: in stereo it moves the right tap,
+  and in mono it only draws its random targets, which keeps the noise sequence
+  the same in both. The right tap's LFO is chosen per mode at compile time: its
+  own, the second warbler, or the left's negated.
+- **The noise is a policy.** The warblers' random targets come from
+  `Noise::render()`, the app's `CongNoise` global, so the kernel's specs run
+  with a seeded copy.
+- **The State is copied whole.** It declares neither `kStateInPlace` nor
+  `kLoopState`: it is 100 bytes (the ring pointer, write index, two phases, two
+  warblers, the wave, the phaser's memory and six allpass stages), copied in and
+  out by `Mono` through `__aeabi_memcpy4`, a word-by-word loop in
+  `compiler_builtins` at the shipping flags, not a NEON copy. Nearly all of it
+  is the loop's own, so a partial copy would save little; the cost is in
+  [a9_dsp_performance.md](a9_dsp_performance.md#mod-fx).
+- **Inputs by value, results by reference.** The component's `render` takes the
+  type in effect (NONE in a chain's soft off), the rate, depth, offset and
+  feedback finals, whether the render is stereo and whether any sound came in,
+  and multiplies the post-FX volume by the mode's gain whether or not the block
+  renders, since the volume cut at high feedback applies either way. `tick`
+  advances the phase by a block's frames while the owner skips rendering.
+
+`RmsFeedbackCompressor` is engine glue as well (the owner of `Compressor`'s
+levels, its events and its `finish_level` call), and belongs beside
+`effects::Compressor` in `engines/effects/`; it moves there later.
+
 ### The control form
 
 A **control kernel** is a block-rate signal: an envelope or a duck that the

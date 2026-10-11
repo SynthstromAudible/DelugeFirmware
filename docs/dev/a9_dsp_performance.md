@@ -450,6 +450,53 @@ Fitted as a + C/2n from n = 32 and 128 (n = 64 lands within 0.16):
   each stores only its output frame (two `str`) and its spills: 17 stack loads and stores per frame in wet, 27 in
   blend. The level's 64-bit sum is among the spills.
 
+## Mod FX
+
+`effects::ModFx` (`Mono<ModFx<CongNoise>>`) as the app renders it (after) against `ModFXProcessor`, which rendered each
+frame through out-of-line calls (before): `processModFXBuffer<type>` calling `processOneModFXSample<type, stereo>`,
+`processModLFOs` and `LFO::render`, a `std::variant` visit with a call per wave. Cycles per channel-sample, a sounding
+block with the knobs at rate `0x00a00000`, depth `0x40000000`, offset and feedback `0x20000000`
+(`DELUGE_DSP_BENCH_CASES=mod_fx`), on 2026-10-11. The figures are the minimum of the runs of each image: two before, four
+after. Before, some cases land on one of two levels 10–20% apart run to run (chorus_mono, chorus_stereo_mono, the
+warblers and the phaser), so the minimum is the lower level; `chorus_stereo_mono` at n = 128 sat on the higher level in
+both runs (91.94). The after runs agree within 0.9% on every mod FX case at every size, and the `delay_feedback_chain_*`
+controls, which the change does not touch, within 0.1% of the baseline.
+
+| case | n=32 before → after (Δ) | n=64 before → after (Δ) | n=128 before → after (Δ) | after, run to run |
+|---|---:|---:|---:|---:|
+| `chorus_stereo` | 82.70 → 40.85 (-50.6%) | 81.27 → 37.65 (-53.7%) | 80.52 → 36.08 (-55.2%) | 0.6% |
+| `chorus_stereo_stereo` | 82.68 → 40.84 (-50.6%) | 81.25 → 37.66 (-53.6%) | 80.51 → 36.08 (-55.2%) | 0.6% |
+| `chorus_mono` | 78.64 → 30.87 (-60.7%) | 76.51 → 27.67 (-63.8%) | 75.79 → 26.08 (-65.6%) | 0.9% |
+| `chorus_stereo_mono` | 78.73 → 30.88 (-60.8%) | 76.48 → 27.68 (-63.8%) | 91.94 → 26.08 (-71.6%) | 0.7% |
+| `dimension_stereo` | 86.50 → 37.77 (-56.3%) | 84.21 → 34.56 (-59.0%) | 83.24 → 33.07 (-60.3%) | 0.5% |
+| `dimension_mono` | 86.56 → 37.92 (-56.2%) | 83.68 → 34.56 (-58.7%) | 83.14 → 33.08 (-60.2%) | 0.3% |
+| `flanger_stereo` | 90.21 → 39.03 (-56.7%) | 88.48 → 35.83 (-59.5%) | 87.39 → 34.22 (-60.8%) | 0.7% |
+| `flanger_mono` | 80.66 → 35.26 (-56.3%) | 78.65 → 32.06 (-59.2%) | 77.35 → 30.47 (-60.6%) | 0.4% |
+| `warble_stereo` | 181.64 → 51.84 (-71.5%) | 164.44 → 48.53 (-70.5%) | 180.81 → 46.87 (-74.1%) | 0.4% |
+| `warble_mono` | 150.01 → 52.47 (-65.0%) | 165.01 → 49.14 (-70.2%) | 162.73 → 47.48 (-70.8%) | 0.5% |
+| `phaser` | 119.85 → 107.81 (-10.0%) | 117.78 → 105.40 (-10.5%) | 117.27 → 104.20 (-11.1%) | 0.1% |
+| `control delay_feedback_chain_analog` | 171.48 → 171.46 (-0.0%) | 165.73 → 165.72 (-0.0%) | 162.86 → 162.86 (+0.0%) | 0.0% |
+| `control delay_feedback_chain_digital` | 19.93 → 19.92 (-0.1%) | 14.21 → 14.20 (-0.1%) | 11.35 → 11.35 (+0.0%) | 0.1% |
+
+Fitted as a + C/2n from n = 32 and 128, the stereo chorus costs about 69 cycles per frame and 405 cycles per block.
+
+- **The saving is the calls.** Before, `processModFXBuffer`'s loop alone was 69 instructions with 7 calls, ahead of the
+  sample's 38–55 instructions and the LFO's visit. In `effects::ModFx::render` a ring mode's loop is 57–73
+  instructions, the warblers' 113 and 124 (a second warbler and the noise refresh), and the phaser's 70 around an
+  18-instruction stage loop. Chorus, dimension and flanger run 51–61% faster, the warblers 65–74%.
+- **The phaser gains least (10–11%).** Its six allpass stages are a dependent chain per frame that removing calls does
+  not shorten.
+- **The loops' shape.** At the shipping flags minus `-flto=thin` (Thumb-2), no loop has a `muls` or an out-of-line
+  accessor; the sine LFO's table interpolation is `mul.w` and `mla`. Stores go to the frame, the ring slot, the phaser's
+  memories, the warblers' noise state and spills. The exception is `Mode::WARBLE_MONO`: its `std::ignore = lfo<...>()`
+  compiles to a call of `std::_Swallow_assign::operator=` once per frame at `-fno-inline-functions`.
+- **The State copy is two word loops per block.** `Mono` copies the 100-byte State in and out with `__aeabi_memcpy4`,
+  which `compiler_builtins` implements as one `ldmia`, `subs`, `stmia` and branch per word: about 100 instructions each
+  way, not NEON. The block's fixed cost is about 400 cycles by the fit (about 6 cycles per channel-sample at
+  n = 32), of which the copies are about 200 instructions. Nearly the whole State is the loop's, so `kLoopState` would save little of the copy's
+  size; a wider copy is the lever, and it is not measured.
+- **Code size.** `effects::ModFx::render` is 2,720 bytes in the device image, one function for all eight loops.
+
 ## Open questions
 
 - Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain. The
