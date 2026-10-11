@@ -79,8 +79,10 @@ These numbers explain the cost of a streaming q31 loop:
 7. **Copy only what the loop steps.** The wrappers copy a kernel's State around the loop so that scalar state stays
    in registers, and the compiler copies a large State with NEON loads and stores. A kernel whose State is mostly
    touched once per block (by `prepare` and the events) names its loop's part with `kLoopState`; the compressor's
-   per-block cost fell by 100–150 cycles that way. A State the loop cannot hold in registers (a ring, a history) is
-   stepped in place with `kStateInPlace` instead ([Delay](#delay)).
+   per-block cost fell by 100–150 cycles that way. The loop's register allocation moves with it, so bench the whole
+   kernel: the compressor's blend loop got 5 cycles per frame faster and its wet loop 4 slower, which nets the wet
+   cases −0.4% at n = 32 but +1.2% at 64 and +2.1% at 128. A State the loop cannot hold in registers (a ring, a
+   history) is stepped in place with `kStateInPlace` instead ([Delay](#delay)).
 
 ## Shared kernel costs
 
@@ -399,8 +401,9 @@ a saturation loop, a copy of the block for the blend, a blend loop and a level l
 per frame ÷ 2), in place over a loud stereo block past the threshold, fully wet (`wet`) or blended at half (`blend`),
 through `render` (the master's channel gains) or `renderVolumeNeutral`, with the library's flags
 (`DELUGE_DSP_BENCH_CASES=compressor`), measured on 2026-10-11 with `set_levels` inlined into the owner's render and the
-kernel declaring `kLoopState`. The after figures are the mean of two runs, which agree within 0.12% on every case. The
-unchanged `delay_feedback_chain_*` controls move by up to 1.6% between the two images (the digital one at n = 32), so a
+kernel declaring `kLoopState`. The after figures are the mean of two runs, which agree within 0.12 cycles per
+channel-sample (0.15%) on every compressor case and 0.21 (0.13%) on the controls. The unchanged
+`delay_feedback_chain_*` controls move by up to 1.6% between the two images (the digital one at n = 32), so a
 difference inside ±1.7% is noise (≈).
 
 | case | n=32 before → after (Δ) | n=64 before → after (Δ) | n=128 before → after (Δ) | inst/sample @128 |

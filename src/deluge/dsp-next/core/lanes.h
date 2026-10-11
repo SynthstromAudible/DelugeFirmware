@@ -295,9 +295,10 @@ public:
 	/// as a `Mono<K>` holding it would, and every other lane's State is untouched.
 	/// @details For an owner whose stream is sometimes one lane and sometimes all of them on the same State, such as a
 	/// voice's filter rendering mono blocks through the left channel and stereo blocks through both. The lane's
-	/// `prepare` runs once (on the member State, lane-by-lane), then one mode dispatch and one loop over the samples,
-	/// on local copies written back after the block, as @ref renderBlock does. A kernel drawing noise draws once per
-	/// sample, for this lane only. Op-major, the lane's State is unpacked for the block and packed back after it.
+	/// `prepare` runs once (on the member State, lane-by-lane), then one mode dispatch and one loop over the samples
+	/// on the lane's loop state, as @ref renderBlock steps it: a local copy written back after the block, or the
+	/// member itself when K declares `kStateInPlace`. A kernel drawing noise draws once per sample, for this lane
+	/// only. Op-major, the lane's State is unpacked for the block and packed back after it.
 	/// @tparam Lane The lane, less than N: a compile-time index, since the State written back is indexed by it.
 	/// @param in At least `out.size()` samples; may be the same buffer as @p out.
 	/// @param out The block to fill, every sample of it.
@@ -387,8 +388,10 @@ private:
 	/// @brief Render one block: `prepare` once per lane in lane order, one mode dispatch, one loop.
 	/// @param out The block to fill.
 	/// @param in The input blocks: none, one or two.
-	/// @details `prepare` runs on the member States, before the local copies are taken, so the copies' addresses never
-	/// escape to a `prepare` that is not inlined.
+	/// @details `prepare` runs on the member States, before any copy is taken, so its writes are in place before the
+	/// loop starts and a local's address never escapes to a `prepare` that is not inlined. The loop then steps every
+	/// lane's loop state: a local copy written back after the block, or, when K declares `kStateInPlace`, the members
+	/// themselves.
 	template <typename... In>
 	[[gnu::always_inline]] void runBlock(Buffer<value_type> out, In... in) {
 		if constexpr (kOpMajor) {

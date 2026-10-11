@@ -670,8 +670,7 @@ template <typename K>
 /// advance_at for the kernel's form; for a @ref lane_packable kernel, which `Lanes` steps op-major, @ref dispatch_mode
 /// then @ref step_packed_at. A kernel built from smaller kernels prepares each part with @ref prepare_block and steps
 /// each part with @ref step_at, so it never has to know whether a part declares `prepare` or has modes. Everything here
-/// runs per block or per step and is
-/// `[[gnu::always_inline]]`.
+/// runs per block or per step and is `[[gnu::always_inline]]`.
 namespace kernel_ops {
 
 /// @brief The mode a kernel without modes is stepped at: a placeholder @ref step_at, @ref process_at and @ref

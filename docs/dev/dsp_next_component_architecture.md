@@ -352,9 +352,9 @@ fused frame kernel of stereo frames, rendered in place as
   envelopes, `log_rms`, `mean`, block length, seed flag and LED value are read
   and written only by `prepare` and the events, so they stay in the member State.
   Stepped in place, the loop would store eight State words every frame, since
-  the output may alias the State. Copying only `Loop` cut the per-block cost by
-  100–150 cycles against copying the whole State, which the compiler had done
-  with NEON loads and stores
+  the output may alias the State. Copying only `Loop` costs 100–150 cycles less
+  per block than copying the whole State, which the compiler does with NEON
+  loads and stores
   ([a9_dsp_performance.md](a9_dsp_performance.md#compressor)).
 
 ### The control form
