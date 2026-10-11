@@ -20,11 +20,14 @@
 #include "dsp-next/core/types.h"
 #include "util/fixedpoint.h"
 
+#include "loop_state_kernels.h"
+
 #include <array>
 #include <concepts>
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <tuple>
 
 using namespace deluge::dsp;
@@ -874,6 +877,53 @@ static_assert(kernel_base<AdvanceWrongReturn> && !control_kernel<AdvanceWrongRet
 static_assert(kernel_base<AdvanceFirstModeOnly> && !control_kernel<AdvanceFirstModeOnly>
               && !kernel<AdvanceFirstModeOnly>);
 
+// The loop-state trait: a pointer to a data member of State, which a stepping kernel's step takes.
+namespace lst = loop_state_test;
+
+/// Declares kLoopState as an int, not a pointer to a member.
+struct LoopStateNotAPointer : lst::SplitLoop {
+	static constexpr int kLoopState = 0;
+};
+
+/// Declares kLoopState naming a member of another struct.
+struct LoopStateOfAnotherStruct : lst::SplitLoop {
+	static constexpr auto kLoopState = &lst::Loop::acc;
+};
+
+/// Declares kLoopState but steps the whole State.
+struct WholeStepWithLoopState : lst::SplitWhole {
+	static constexpr auto kLoopState = &State::loop;
+};
+
+/// A staged kernel declaring kLoopState: it has no step to give the loop state to.
+struct StagedWithLoopState {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {
+		q31 kept;    ///< Outside the loop.
+		q31 carried; ///< Named as the loop's part.
+	};
+	static constexpr auto kLoopState = &State::carried;
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static void process(const Coefficients& /*c*/, State& /*s*/, Signal<q31> in, Buffer<q31> out) {
+		for (std::size_t i = 0; i < out.size(); ++i) {
+			out[i] = in[i];
+		}
+	}
+};
+
+static_assert(processor_kernel<lst::SplitWhole> && moded_kernel<lst::SplitWhole>);
+static_assert(processor_kernel<lst::SplitLoop> && moded_kernel<lst::SplitLoop>);
+static_assert(detail::declares_loop_state<lst::SplitLoop> && !detail::declares_loop_state<lst::SplitWhole>);
+static_assert(std::same_as<loop_state_t<lst::SplitLoop>, lst::Loop>);
+static_assert(std::same_as<loop_state_t<lst::SplitWhole>, lst::SplitCore::State>);
+static_assert(!kernel<LoopStateNotAPointer>);
+static_assert(!kernel<LoopStateOfAnotherStruct>);
+static_assert(!kernel<WholeStepWithLoopState> && detail::steps_as_processor<lst::SplitWhole>);
+static_assert(!kernel<StagedWithLoopState> && detail::processes_blocks<StagedWithLoopState>);
+
 } // namespace
 
 // clang-format off
@@ -972,6 +1022,24 @@ describe kernel_concepts("kernel concepts", ${
 		kernel_ops::process_at<ModedStaged, ModedStaged::Mode::NEGATE>({}, moded_staged_state, in, out);
 		expect(out[0]).to_equal(-1);
 		expect(out[2]).to_equal(-3);
+	});
+
+	it("steps a kernel declaring kLoopState on its State's loop member, through kernel_ops", _ {
+		lst::SplitCore::State whole{};
+		lst::SplitCore::State split{};
+		expect(&kernel_ops::loop_state<lst::SplitLoop>(split)).to_equal(&split.loop);
+		expect(&kernel_ops::loop_state<lst::SplitWhole>(whole)).to_equal(&whole);
+		const auto c = lst::SplitLoop::coefficients({.mode = lst::Mode::XOR});
+		const auto bw = kernel_ops::prepare_block<lst::SplitWhole>(c, whole, 4);
+		const auto bs = kernel_ops::prepare_block<lst::SplitLoop>(c, split, 4);
+		for (const q31 x : {1, -7, 1 << 30, 12345}) {
+			const q31 want = kernel_ops::step_at<lst::SplitWhole, lst::Mode::XOR>(
+			    c, bw, kernel_ops::loop_state<lst::SplitWhole>(whole), x);
+			expect(kernel_ops::step_at<lst::SplitLoop, lst::Mode::XOR>(c, bs, kernel_ops::loop_state<lst::SplitLoop>(split),
+			                                                           x))
+			    .to_equal(want);
+		}
+		expect(std::memcmp(&split, &whole, sizeof whole)).to_equal(0);
 	});
 });
 

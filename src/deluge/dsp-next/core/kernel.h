@@ -188,27 +188,67 @@ concept prepares_exactly = requires {
 	    &K::prepare);
 };
 
-/// @brief Whether moded K's `step<first mode>` is callable with Coefficients, Block and State lvalues followed by
+/// @brief Whether K declares a member named `kLoopState`, of any kind, so that a wrong one is seen and rejected by
+/// kernel_base rather than ignored.
+template <typename K>
+concept declares_loop_state = requires { K::kLoopState; };
+
+/// @brief The type of the member a pointer to a data member of @p S points at; no `type` for anything else (a member
+/// of another class, a member function, a value that is no member pointer).
+template <typename P, typename S>
+struct state_member {};
+
+/// @brief The type of the member a pointer to a data member of @p S points at.
+template <typename M, typename S>
+requires std::is_object_v<M>
+struct state_member<M S::*, S> {
+	using type = M; ///< The member's type.
+};
+
+/// @brief Whether K's `kLoopState` is a pointer to a data member of K's State itself.
+template <typename K>
+concept loop_state_names_member =
+    requires { typename state_member<std::remove_cv_t<decltype(K::kLoopState)>, typename K::State>::type; };
+
+/// @brief The part of K's State its step takes: K's State unless K's `kLoopState` names one of its members.
+template <typename K>
+struct loop_state_of {
+	using type = typename K::State; ///< The whole State.
+};
+
+/// @brief The member K's `kLoopState` names.
+template <typename K>
+requires loop_state_names_member<K>
+struct loop_state_of<K> {
+	using type = typename state_member<std::remove_cv_t<decltype(K::kLoopState)>, typename K::State>::type; ///< It.
+};
+
+/// @brief Whether K's `kLoopState`, if it declares one, names a data member of its State that is a plain value.
+template <typename K>
+concept loop_state_well_formed =
+    !declares_loop_state<K> || (loop_state_names_member<K> && plain_value<typename loop_state_of<K>::type>);
+
+/// @brief Whether moded K's `step<first mode>` is callable with Coefficients, Block and loop-state lvalues followed by
 /// @p X, returning `step_type`.
 template <typename K, typename... X>
 concept moded_steps_with = has_modes<K>
                            && requires(const typename K::Coefficients& c, const typename kernel_block<K>::type& b,
-                                       typename K::State& s, X... x) {
+                                       typename loop_state_of<K>::type& s, X... x) {
 	                              {
 		                              K::template step<first_mode_v<typename K::Modes>>(c, b, s, x...)
 	                              } -> std::same_as<typename K::step_type>;
                               };
 
-/// @brief Whether K, which has no modes, has a non-template `step` callable with Coefficients, Block and State
+/// @brief Whether K, which has no modes, has a non-template `step` callable with Coefficients, Block and loop-state
 /// lvalues followed by @p X, returning `step_type`.
 template <typename K, typename... X>
 concept unmoded_steps_with = !has_modes<K>
                              && requires(const typename K::Coefficients& c, const typename kernel_block<K>::type& b,
-                                         typename K::State& s, X... x) {
+                                         typename loop_state_of<K>::type& s, X... x) {
 	                                { K::step(c, b, s, x...) } -> std::same_as<typename K::step_type>;
                                 };
 
-/// @brief Whether K's `step` is callable with Coefficients, Block and State lvalues followed by @p X, returning
+/// @brief Whether K's `step` is callable with Coefficients, Block and loop-state lvalues followed by @p X, returning
 /// `step_type`. A moded kernel is checked at its first mode; a kernel without modes at its non-template `step`.
 template <typename K, typename... X>
 concept steps_with = moded_steps_with<K, X...> || unmoded_steps_with<K, X...>;
@@ -338,18 +378,18 @@ concept prepare_well_formed =
 template <typename K>
 concept reset_well_formed = !declares_reset<K> || resets_exactly<K>;
 
-/// @brief Whether `Mono` steps K's member State in place rather than on a local copy.
-/// @details False unless K declares `static constexpr bool kStateInPlace` true. `Mono` normally copies the State to
-/// locals for the block and writes it back, so a scalar State stays in registers across the loop. Declare the trait
-/// when the State cannot live in registers (an array or a ring of hundreds of bytes): the copy would then cost a
-/// load and a store of the whole State per block, and the loop reads and writes the member by index anyway. A
-/// declaring kernel behaves identically; only where the State lives during the block differs. The output buffer may
-/// alias the component, as with any member State, so the compiler cannot assume the buffer and the State are
-/// disjoint.
+/// @brief Whether `Mono` and `Lanes` step K's member loop state in place rather than on a local copy.
+/// @details False unless K declares `static constexpr bool kStateInPlace` true. The wrappers normally copy the loop
+/// state to locals for the block and write it back, so a scalar loop state stays in registers across the loop.
+/// Declare the trait when the loop state cannot live in registers (an array or a ring of hundreds of bytes): the copy
+/// would then cost a load and a store of all of it per block, and the loop reads and writes the member by index
+/// anyway. A declaring kernel behaves identically; only where the loop state lives during the block differs. The
+/// output buffer may alias the component, as with any member State, so the compiler cannot assume the buffer and the
+/// State are disjoint. A kernel declaring it is never @ref lane_packable.
 template <typename K>
 inline constexpr bool state_in_place = false;
 
-/// @brief Whether `Mono` steps K's member State in place; K declares `kStateInPlace` as a `const bool`.
+/// @brief Whether the wrappers step K's member loop state in place; K declares `kStateInPlace` as a `const bool`.
 template <typename K>
 requires std::same_as<std::remove_cv_t<decltype(K::kStateInPlace)>, bool>
 inline constexpr bool state_in_place<K> = K::kStateInPlace;
@@ -359,6 +399,13 @@ inline constexpr bool state_in_place<K> = K::kStateInPlace;
 /// @brief K::Block if K declares one, else EmptyBlock.
 template <typename K>
 using kernel_block_t = typename detail::kernel_block<K>::type;
+
+/// @brief The part of K's State its step takes: the member K's `kLoopState` names, else the whole State.
+/// @details A kernel declares `static constexpr auto kLoopState = &State::member;` when much of its State is touched
+/// only once per block (by `prepare` and the events): the wrappers then copy only that member around the loop, and
+/// `step` takes it. `prepare`, `reset` and the events still take the whole State.
+template <typename K>
+using loop_state_t = typename detail::loop_state_of<K>::type;
 
 /// @brief Whether K's partial last vector advances its state by the active lane count (true) or a whole vector.
 /// @details False unless K declares `static constexpr bool kPartialStepAdvancesByCount`. A vector kernel whose state
@@ -388,6 +435,8 @@ inline constexpr bool partial_step_advances_by_count<K> = K::kPartialStepAdvance
 /// - when K declares any member named `reset`, exactly `static void reset(State&)`, the reset quirk the wrappers
 ///   call instead of assigning `State{}`. A non-static or otherwise mis-shaped `reset` fails here rather than being
 ///   skipped;
+/// - when K declares any member named `kLoopState`, a pointer to a data member of K's State that is a plain value
+///   struct (see @ref loop_state_t); `step` then takes that member, and is checked with it;
 /// - when K has modes, a default `Coefficients{}` that is a constant expression naming a listed mode, since a
 ///   default-constructed wrapper dispatches on it (an enumeration member defaults to its zero enumerator, so a kernel
 ///   whose zero enumerator is not listed gives `mode` a default member initialiser).
@@ -396,7 +445,7 @@ concept kernel_base =
     detail::declares_kernel_types<K> && detail::supported_step_pair<K> && detail::plain_value<typename K::Coefficients>
     && detail::plain_value<typename K::State> && detail::plain_value<kernel_block_t<K>>
     && detail::computes_coefficients<K> && detail::prepare_well_formed<K> && detail::reset_well_formed<K>
-    && (!detail::has_modes<K> || detail::default_mode_listed<K>);
+    && detail::loop_state_well_formed<K> && (!detail::has_modes<K> || detail::default_mode_listed<K>);
 
 /// @brief A kernel generating its output: `step(c, b, s) -> step_type`, and no other form. When K declares
 /// kPartialStepAdvancesByCount, which only a vector step may (a scalar loop has no partial step), also the counted
@@ -435,9 +484,12 @@ concept mixer_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1
 /// does: the app renders in place. A `process` that reads a sample after writing one it has not yet read (a
 /// reversal written front to back, a look-ahead) reads its own output; it stages what it still needs before
 /// overwriting it.
+///
+/// It has no step, so it declares no `kLoopState`.
 template <typename K>
-concept staged_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::processes_blocks<K>
-                        && !partial_step_advances_by_count<K> && !detail::declares_prepare<K>;
+concept staged_kernel =
+    kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::processes_blocks<K>
+    && !partial_step_advances_by_count<K> && !detail::declares_prepare<K> && !detail::declares_loop_state<K>;
 
 /// @brief A block-rate kernel: `advance(c, s, n) -> value_type` moves a control signal on by a whole block of @c n
 /// samples, and no other form.
@@ -453,11 +505,12 @@ concept staged_kernel = kernel_base<K> && detail::kernel_form_count<K> == 1 && d
 /// The block is the step, so a control kernel:
 /// - steps a scalar (`step_type` is `value_type`);
 /// - declares no `prepare` and so no `Block` (its per-block work is `advance` itself);
-/// - declares no kPartialStepAdvancesByCount, having no vector to end partially.
+/// - declares no kPartialStepAdvancesByCount, having no vector to end partially;
+/// - declares no `kLoopState`: it has no step.
 template <typename K>
 concept control_kernel =
     kernel_base<K> && detail::kernel_form_count<K> == 1 && detail::advances_blocks<K> && detail::scalar_step_kernel<K>
-    && !detail::declares_prepare<K> && !partial_step_advances_by_count<K>;
+    && !detail::declares_prepare<K> && !partial_step_advances_by_count<K> && !detail::declares_loop_state<K>;
 
 /// @brief A kernel of any form; a class satisfies at most one of the five form concepts.
 template <typename K>
@@ -526,24 +579,25 @@ concept steps_packed =
 ///
 /// The coefficients stay scalar: every lane shares them, and a pack's operations broadcast a scalar operand. K is a
 /// generator, processor or mixer kernel stepping q31. The op-major step is not offered to a kernel that declares a
-/// `prepare`, whose Block may depend on each lane's State, nor to one with a `reset` quirk, which acts on one State:
-/// `Lanes` steps those lane by lane.
+/// `prepare`, whose Block may depend on each lane's State, nor to one with a `reset` quirk, which acts on one State,
+/// nor to one declaring `kLoopState` or `kStateInPlace`, whose State is not one set of registers: `Lanes` steps those
+/// lane by lane.
 template <typename K>
 concept lane_packable =
-    (generator_kernel<K> || processor_kernel<K> || mixer_kernel<K>)
-    && std::same_as<typename K::value_type, q31> && std::same_as<typename K::step_type, q31>
-    && detail::declares_lane_packable<K> && !detail::declares_prepare<K> && !detail::declares_reset<K>
+    (generator_kernel<K> || processor_kernel<K> || mixer_kernel<K>) && std::same_as<typename K::value_type, q31>
+    && std::same_as<typename K::step_type, q31> && detail::declares_lane_packable<K> && !detail::declares_prepare<K>
+    && !detail::declares_reset<K> && !detail::declares_loop_state<K> && !detail::state_in_place<K>
     && detail::state_written_over_value<K, detail::ProbePack> && detail::steps_packed<K, detail::ProbePack>;
 
 namespace detail {
 
-/// @brief Whether K's op-major opt-in, if it declares one, is met: K is @ref lane_packable, or it declares a `prepare`
-/// or a `reset` quirk, which keep it lane by lane by design.
+/// @brief Whether K's op-major opt-in, if it declares one, is met: K is @ref lane_packable, or it declares a `prepare`,
+/// a `reset` quirk, `kLoopState` or `kStateInPlace`, which keep it lane by lane by design.
 /// @details False exactly for a kernel that declares `kLanePackable = true` but whose StateT or step is not written
 /// over its value type. `Lanes` rejects such a kernel rather than step it lane by lane unannounced.
 template <typename K>
-concept lane_pack_opt_in_met =
-    !declares_lane_packable<K> || declares_prepare<K> || declares_reset<K> || lane_packable<K>;
+concept lane_pack_opt_in_met = !declares_lane_packable<K> || declares_prepare<K> || declares_reset<K>
+                               || declares_loop_state<K> || state_in_place<K> || lane_packable<K>;
 
 } // namespace detail
 
@@ -608,10 +662,11 @@ template <typename K>
 
 /// @brief The calls a wrapper makes on a kernel, public so that a composed kernel makes the same calls on its parts.
 /// @details `Mono`, `Lanes` (`Stereo` is `Lanes<K, 2>`) and `Control` call a kernel through these alone: @ref
-/// prepare_block, @ref dispatch_mode, then @ref step_at, @ref process_at or @ref advance_at for the kernel's form; for
-/// a @ref lane_packable kernel, which `Lanes` steps op-major, @ref dispatch_mode then @ref step_packed_at. A kernel
-/// built from smaller kernels prepares each part with @ref prepare_block and steps each part with @ref step_at, so it
-/// never has to know whether a part declares `prepare` or has modes. Everything here runs per block or per step and is
+/// prepare_block, @ref dispatch_mode, then @ref step_at (on @ref loop_state of the State), @ref process_at or @ref
+/// advance_at for the kernel's form; for a @ref lane_packable kernel, which `Lanes` steps op-major, @ref dispatch_mode
+/// then @ref step_packed_at. A kernel built from smaller kernels prepares each part with @ref prepare_block and steps
+/// each part with @ref step_at, so it never has to know whether a part declares `prepare` or has modes. Everything here
+/// runs per block or per step and is
 /// `[[gnu::always_inline]]`.
 namespace kernel_ops {
 
@@ -653,16 +708,27 @@ template <kernel K, typename Body>
 	}
 }
 
+/// @brief The part of @p s K's step takes: the member K's `kLoopState` names, or @p s itself when K declares none.
+template <kernel K>
+[[nodiscard]] [[gnu::always_inline]] inline loop_state_t<K>& loop_state(typename K::State& s) {
+	if constexpr (detail::declares_loop_state<K>) {
+		return s.*K::kLoopState;
+	}
+	else {
+		return s;
+	}
+}
+
 /// @brief One `step` of K at mode @p M: `K::step<M>` for a moded kernel; for a kernel without modes, its
 /// non-template `step`, with @p M ignored (pass NoMode::NONE).
 /// @param c K's coefficients.
 /// @param block K's per-block values, from @ref prepare_block.
-/// @param s K's state.
+/// @param s K's loop state (@ref loop_state).
 /// @param x The step's inputs: none, one or two step values, then an ActiveLanes for the counted partial step.
 /// @return The step's output: one `K::step_type`.
 template <kernel K, auto M, typename... X>
 [[gnu::always_inline]] inline typename K::step_type
-step_at(const typename K::Coefficients& c, const kernel_block_t<K>& block, typename K::State& s, X... x) {
+step_at(const typename K::Coefficients& c, const kernel_block_t<K>& block, loop_state_t<K>& s, X... x) {
 	if constexpr (moded_kernel<K>) {
 		return K::template step<M>(c, block, s, x...);
 	}
