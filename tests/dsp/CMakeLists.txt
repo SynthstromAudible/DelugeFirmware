@@ -152,13 +152,12 @@ foreach(_spec_path IN LISTS _specs)
   deluge_test_neon(${_name})
   target_include_directories(${_name} PRIVATE ${_repo_root}/src/deluge ${_repo_root}/src)
   set_target_properties(${_name} PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED YES)
+  # Every spec checks the standard library's preconditions (span bounds among them), so that a span or container
+  # read past its end fails the spec rather than going unseen at the trees' optimisation levels.
+  target_compile_definitions(${_name} PRIVATE _GLIBCXX_ASSERTIONS)
 
   add_test(NAME ${_name} COMMAND ${_name} --verbose)
 endforeach()
-
-# The filter set's spec checks the standard library's preconditions (span bounds among them), so that a scratch span
-# taken past its end fails the spec rather than going unseen at the trees' optimisation levels.
-target_compile_definitions(filter_set_spec PRIVATE _GLIBCXX_ASSERTIONS)
 
 # Standalone-link proof for the synth core (x86 only — the closure is arch-agnostic). The synth TUs + ONLY
 # their gui-free dependency TUs link into an executable with NOTHING from the app; a successful link (no
