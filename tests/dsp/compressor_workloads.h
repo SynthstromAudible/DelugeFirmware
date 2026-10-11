@@ -71,9 +71,14 @@ struct CompressorStep {
 	q31 volume_r = 1 << 27;     ///< MASTER's right channel gain, 4.27 signed.
 	q31 final_volume = 1 << 27; ///< The final volume: 3.29 as MASTER passes it; as SOUND and CLIP pass it, before the
 	                            ///< neutral render's >> 3.
+	bool min_left = false; ///< Whether the block's middle frame (frames / 2) is replaced: left INT32_MIN, right -2^30.
 };
 
 /// @brief Every recorded compressor workload.
+///
+/// A reset between two sounding renders (the owner's threshold dropping to 0 for a block or two, then rising again) is
+/// the ONSET_PARTIAL_WET workloads' blocks 15 to 18: rendered, reset twice without rendering, rendered again, all
+/// sounding. The next render smooths its mean against 0 while the last level carries.
 enum class CompressorWorkloadId : uint8_t {
 	MASTER_SILENCE_THEN_SOUND, ///< On from the start: seeded from a silent frame, then sound arrives.
 	MASTER_ONSET_PARTIAL_WET,  ///< Off through silence, on at a sounding first frame; off and on again while sounding.
@@ -82,10 +87,36 @@ enum class CompressorWorkloadId : uint8_t {
 	CLIP_SILENCE_THEN_SOUND,
 	CLIP_ONSET_PARTIAL_WET,
 	MASTER_VOLUME_STEPS, ///< The master's final volume and channel gains stepped mid-run: the makeup envelope moves.
+	BLEND_SWITCH,        ///< A sound's blend alternating between fully wet and about 60% every 3 blocks.
+	BLOCK_LENGTHS,       ///< The master at block lengths 1 to 9, then 128, in turn.
+	UNEQUAL_VOLUMES,     ///< The master with its channel gains far apart, swapping sides every 8 blocks.
+	WRAPPED_SUM,         ///< A clip at 50% blend on full-scale input: a block's sum of squares passes 2^31.
+	INT32_MIN_DETECTOR,  ///< A clip all but dry: one frame per block whose high-passed left is exactly INT32_MIN.
 };
 
 /// @brief How many compressor workloads there are.
-inline constexpr size_t kCompressorWorkloadCount = static_cast<size_t>(CompressorWorkloadId::MASTER_VOLUME_STEPS) + 1;
+inline constexpr size_t kCompressorWorkloadCount = static_cast<size_t>(CompressorWorkloadId::INT32_MIN_DETECTOR) + 1;
+
+/// @brief How many workloads the legacy compressor's records cover: those up to MASTER_VOLUME_STEPS.
+inline constexpr size_t kLegacyRecordedCount = static_cast<size_t>(CompressorWorkloadId::MASTER_VOLUME_STEPS) + 1;
+
+/// @return Whether a level defect of the legacy compressor is reached in workload @p id.
+/// @details The 32-bit sum of squares wraps in WRAPPED_SUM, and in the ONSET_PARTIAL_WET workloads' loud blocks of 24
+/// frames and more, whose 40% dry part is near full scale. A detector output is exactly INT32_MIN in
+/// INT32_MIN_DETECTOR, where the legacy `std::abs` is undefined. Everywhere else the legacy compressor and the one with
+/// both defects fixed render alike.
+[[nodiscard]] constexpr bool defects_fire(CompressorWorkloadId id) {
+	switch (id) {
+	case CompressorWorkloadId::MASTER_ONSET_PARTIAL_WET:
+	case CompressorWorkloadId::SOUND_ONSET_PARTIAL_WET:
+	case CompressorWorkloadId::CLIP_ONSET_PARTIAL_WET:
+	case CompressorWorkloadId::WRAPPED_SUM:
+	case CompressorWorkloadId::INT32_MIN_DETECTOR:
+		return true;
+	default:
+		return false;
+	}
+}
 
 /// @brief A recorded compressor workload.
 struct CompressorWorkload {
@@ -185,6 +216,62 @@ inline constexpr q31 kPartialWet = 1288490188;
 		             }
 		             return s;
 	             }});
+	w.push_back({.id = CompressorWorkloadId::BLEND_SWITCH,
+	             .name = "comp_blend_switch",
+	             .owner = Owner::SOUND,
+	             .blocks = kBlocks,
+	             .step = [](size_t b) {
+		             CompressorStep s = owner_step(Owner::SOUND, b);
+		             s.knobs.blend = (b / 3) % 2 == 0 ? ONE_Q31 : kPartialWet;
+		             s.signal = b < 2 ? Signal::SILENCE : Signal::VOICE;
+		             return s;
+	             }});
+	w.push_back({.id = CompressorWorkloadId::BLOCK_LENGTHS,
+	             .name = "comp_block_lengths",
+	             .owner = Owner::MASTER,
+	             .blocks = kBlocks,
+	             .step = [](size_t b) {
+		             CompressorStep s = owner_step(Owner::MASTER, b);
+		             s.frames = b % 10 < 9 ? (b % 10) + 1 : kMaxFrames;
+		             s.signal = b % 7 == 6 ? Signal::LOUD : Signal::VOICE;
+		             return s;
+	             }});
+	w.push_back({.id = CompressorWorkloadId::UNEQUAL_VOLUMES,
+	             .name = "comp_unequal_volumes",
+	             .owner = Owner::MASTER,
+	             .blocks = kBlocks,
+	             .step = [](size_t b) {
+		             CompressorStep s = owner_step(Owner::MASTER, b);
+		             s.signal = b % 7 == 6 ? Signal::LOUD : Signal::VOICE;
+		             const bool left_loud = (b / 8) % 2 == 0;
+		             s.volume_l = left_loud ? 3 << 26 : 1 << 24;
+		             s.volume_r = left_loud ? 1 << 24 : 3 << 26;
+		             return s;
+	             }});
+	w.push_back({.id = CompressorWorkloadId::WRAPPED_SUM,
+	             .name = "comp_wrapped_sum",
+	             .owner = Owner::CLIP,
+	             .blocks = kBlocks,
+	             .step = [](size_t b) {
+		             CompressorStep s = owner_step(Owner::CLIP, b);
+		             s.knobs.blend = 1 << 30;
+		             s.signal = Signal::FULL_SCALE;
+		             return s;
+	             }});
+	w.push_back({.id = CompressorWorkloadId::INT32_MIN_DETECTOR,
+	             .name = "comp_int32_min_detector",
+	             .owner = Owner::CLIP,
+	             .blocks = kBlocks,
+	             .step = [](size_t b) {
+		             CompressorStep s = owner_step(Owner::CLIP, b);
+		             // Wet at 2^-31: a frame of INT32_MIN comes out as -2^31 when its saturated wet part, scaled by the
+		             // blend, rounds to -1. With the detector's high-pass at 0 its low-pass stays at 0, so the detector
+		             // passes the frame as it is. The other frames are quiet, so no block's sum wraps.
+		             s.knobs.blend = 1;
+		             s.knobs.sidechain_hpf = 0;
+		             s.min_left = true;
+		             return s;
+	             }});
 	return w;
 }
 
@@ -204,6 +291,9 @@ inline constexpr q31 kPartialWet = 1288490188;
 		const auto k = static_cast<uint32_t>((b * 1024) + (2 * i));
 		block[i] = {.l = filter_workloads::detail::signal_sample(s.signal, k),
 		            .r = filter_workloads::detail::signal_sample(s.signal, k + 1)};
+	}
+	if (s.min_left) {
+		block[block.size() / 2] = {.l = INT32_MIN, .r = -(1 << 30)};
 	}
 	return block;
 }
