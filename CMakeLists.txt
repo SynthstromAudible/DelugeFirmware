@@ -309,10 +309,12 @@ set(DELUGE_UBSAN_SOURCE_DIRS "memory;util/container"
 option(DELUGE_DSP_BENCH "Run the DSP benchmarks at boot (device builds)" OFF)
 # Which case list a bench image runs: "kernels" (one case per component), "lanes" (the Lanes cases beside their mono
 # kernels), "chain" (stages as separate passes beside the same stages as one Chain), "delay" (the whole delay block,
-# fused, over real tapes) or "filters" (each filter and the filter set, as a voice runs them). The device prints about
-# 70 lines over RTT before it drops some, so the cases come in lists that fit.
-set(DELUGE_DSP_BENCH_CASES "kernels" CACHE STRING "The DSP bench's case list: kernels, lanes, chain, delay or filters")
-set_property(CACHE DELUGE_DSP_BENCH_CASES PROPERTY STRINGS kernels lanes chain delay filters)
+# fused, over real tapes), "filters" (each filter and the filter set, as a voice runs them) or "compressor" (fully wet
+# and blended, as its owners call it). The device prints about 70 lines over RTT before it drops some, so the cases
+# come in lists that fit.
+set(DELUGE_DSP_BENCH_CASES "kernels" CACHE STRING
+    "The DSP bench's case list: kernels, lanes, chain, delay, filters or compressor")
+set_property(CACHE DELUGE_DSP_BENCH_CASES PROPERTY STRINGS kernels lanes chain delay filters compressor)
 
 # GCC static analyzer (-fanalyzer). Off by default; enable with -DDELUGE_ANALYZER=ON. This is a compile-time (not
 # runtime) pass: it walks each function's paths looking for leaks, use-after-free, double-free, mismatched alloc/dealloc

@@ -11,11 +11,12 @@
 /// **Lanes.** A case of N lanes declares `kLanes = N` and renders blocks of n frames, N samples each; the runner
 /// divides its cycles by N as well, so its cps is per channel-sample, comparable with the mono case of its kernel.
 ///
-/// **Five lists.** The device prints about 70 lines over RTT before it drops some, so the cases come in five lists,
+/// **Six lists.** The device prints about 70 lines over RTT before it drops some, so the cases come in six lists,
 /// each run at every block size: the kernels (one case per component), the lanes (each `Lanes` case beside the mono
 /// case of its kernel), the chain (stages run as separate passes beside the same stages as one `Chain`), the delay
-/// (the whole delay block over real tapes) and the filters (each filter and the filter set, as a voice runs them). A
-/// bench image runs one, chosen by the CMake cache string DELUGE_DSP_BENCH_CASES, and builds only that list's cases.
+/// (the whole delay block over real tapes), the filters (each filter and the filter set, as a voice runs them) and the
+/// compressor (fully wet and blended, as its owners call it). A bench image runs one, chosen by the CMake cache string
+/// DELUGE_DSP_BENCH_CASES, and builds only that list's cases.
 ///
 /// **State at timing.** The runner warms each case up before timing it, so what is timed is the case's steady
 /// state. Each case's documentation says what that state is; the host spec checks each through its component's
@@ -39,6 +40,7 @@
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "dsp-next/fixed/delay/feedback_shaper.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
+#include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
 #include "dsp-next/fixed/filter/filter_modes.h"
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "dsp-next/fixed/filter/one_pole.h"
@@ -1193,6 +1195,83 @@ using FilterMonoCase = FilterCase<false>;
 /// @brief A filter case over interleaved stereo blocks.
 using FilterStereoCase = FilterCase<true>;
 
+/// @brief The compressor cases' threshold knob, Q31 of its travel: half, where the compressor reduces the cases' level.
+inline constexpr q31 kCompressorThreshold = 1 << 30;
+/// @brief The blended cases' blend knob, Q31: half, which the menu shows as 50%.
+inline constexpr q31 kCompressorHalfBlend = 1 << 30;
+/// @brief The channels' gain in the `render` cases, 4.27 signed: the song master's neutral post-FX volume
+/// (167,763,968), halved as the master halves it.
+inline constexpr q31 kCompressorVolume = 83'881'984;
+/// @brief The final volume, 3.29: GLOBAL_VOLUME_POST_FX's neutral value, as a sound passes it to
+/// `renderVolumeNeutral`. The `render` cases pass it shifted down by 3, as `renderVolumeNeutral` does.
+inline constexpr q31 kCompressorFinalVolume = 134'217'728;
+
+/// @brief One compressor case's configuration.
+struct CompressorCaseConfig {
+	q31 blend;    ///< The blend knob, Q31: ONE_Q31 fully wet.
+	bool neutral; ///< `renderVolumeNeutral`, as a sound and a clip chain call it; else `render`, as the song master
+	              ///< does.
+};
+
+/// @brief `compressor_wet_render`: fully wet, through `render`.
+inline constexpr CompressorCaseConfig kCompressorWetRender{.blend = ONE_Q31, .neutral = false};
+/// @brief `compressor_wet_neutral`: fully wet, through `renderVolumeNeutral`.
+inline constexpr CompressorCaseConfig kCompressorWetNeutral{.blend = ONE_Q31, .neutral = true};
+/// @brief `compressor_blend_render`: half blended, through `render`.
+inline constexpr CompressorCaseConfig kCompressorBlendRender{.blend = kCompressorHalfBlend, .neutral = false};
+/// @brief `compressor_blend_neutral`: half blended, through `renderVolumeNeutral`.
+inline constexpr CompressorCaseConfig kCompressorBlendNeutral{.blend = kCompressorHalfBlend, .neutral = true};
+
+/// @return The knobs a compressor case configures: the defaults, with kCompressorThreshold and @p config's blend.
+[[nodiscard]] constexpr dsp::fixed::CompressorKnobs compressor_knobs(const CompressorCaseConfig& config) {
+	return {.threshold = kCompressorThreshold, .blend = config.blend};
+}
+
+/// @brief Fills the lanes input with noise at 2^-3 of full scale: loud, yet a blended block's level sum stays inside
+/// q31.
+void fill_compressor_input();
+
+/// @brief What every compressor case renders with: one compressor, as a sound holds it. The cases run one after
+/// another, so they share it; each case's setup replaces it with a fresh one.
+struct CompressorRig {
+	dsp::fixed::RmsFeedbackCompressor compressor; ///< The compressor, as a Sound's.
+	dsp::Buffer<StereoSample> work{};             ///< The lanes output's first n frames, compressed in place.
+};
+
+/// @return The rig the compressor cases render with.
+[[nodiscard]] const CompressorRig& compressor_rig();
+
+/// @brief The compressor's block as its owners render it today: `RmsFeedbackCompressor::render` (the song master) or
+/// `renderVolumeNeutral` (a sound, a clip chain), in place over the lanes output, fully wet or blended.
+/// @details Setup replaces the compressor with a fresh one at compressor_knobs(), and copies the lanes input's first n
+/// frames (fill_compressor_input()) into the lanes output. Each block compresses that block in place, over the block
+/// before's output, with the caller's scratch.
+///
+/// **Timed state:** from the second block the output is the saturation's, within ±2^26, plus in the blended cases half
+/// the block before's: every block ramps both gains, saturates both channels, blends when below fully wet (copying the
+/// block to the scratch first), then measures the level through the detector. The level is past the threshold, so
+/// the compressor reduces the gain, and the level's sum never wraps.
+///
+/// One class serves every configuration, which each case holds as data, so the image carries one setup and one block
+/// for all of them.
+class CompressorCase {
+public:
+	static constexpr std::size_t kLanes = 2; ///< Left and right.
+
+	/// @brief A case of @p config.
+	constexpr explicit CompressorCase(const CompressorCaseConfig& config) : config_{config} {}
+
+	/// @brief A fresh compressor at the cases' knobs, and the block for @p n frames.
+	void setup(std::size_t n);
+	/// @brief Compresses one block of the size it was set up for, in place.
+	void block(std::size_t n);
+	/// @return The case's configuration.
+	[[nodiscard]] constexpr const CompressorCaseConfig& config() const { return config_; }
+
+private:
+	CompressorCaseConfig config_;
+};
+
 /// @brief Every case, by name.
 struct CaseSet {
 	CalibrationLoop calibration_loop;                             ///< `calibration_loop`
@@ -1274,14 +1353,18 @@ struct CaseSet {
 	FilterStereoCase filterset_lh_stereo{filter_set_case(dsp::fixed::FilterRoute::LOW_TO_HIGH)};
 	/// `filterset_par_stereo`
 	FilterStereoCase filterset_par_stereo{filter_set_case(dsp::fixed::FilterRoute::PARALLEL)};
-	FilterStereoCase filter_lp24_fading_stereo{kFilterLow24Fading}; ///< `filter_lp24_fading_stereo`
+	FilterStereoCase filter_lp24_fading_stereo{kFilterLow24Fading};   ///< `filter_lp24_fading_stereo`
+	CompressorCase compressor_wet_render{kCompressorWetRender};       ///< `compressor_wet_render`
+	CompressorCase compressor_wet_neutral{kCompressorWetNeutral};     ///< `compressor_wet_neutral`
+	CompressorCase compressor_blend_render{kCompressorBlendRender};   ///< `compressor_blend_render`
+	CompressorCase compressor_blend_neutral{kCompressorBlendNeutral}; ///< `compressor_blend_neutral`
 };
 
 /// @brief The cases' components, built on first use.
 /// @return The one CaseSet every case in cases() acts on.
 [[nodiscard]] CaseSet& case_set();
 
-/// @brief Which of the five case lists a run prints.
+/// @brief Which of the six case lists a run prints.
 enum class CaseList : uint8_t {
 	KERNELS, ///< One case per component: the calibration loop, then each kernel in its Mono, Stereo or Control.
 	LANES,   ///< The calibration loop, then each `Lanes` case beside the mono case of its kernel.
@@ -1292,6 +1375,9 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, each filter mono and stereo, the filter set on each route, then the feedback chain's two
 	/// cases from the chain list, as in the delay list.
 	FILTERS,
+	/// The calibration loop, the compressor fully wet and blended through `render` and `renderVolumeNeutral`, then the
+	/// feedback chain's two cases from the chain list, as in the delay list.
+	COMPRESSOR,
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -1303,6 +1389,8 @@ inline constexpr CaseList kBenchCaseList = CaseList::CHAIN;
 inline constexpr CaseList kBenchCaseList = CaseList::DELAY;
 #elif defined(DELUGE_DSP_BENCH_FILTERS)
 inline constexpr CaseList kBenchCaseList = CaseList::FILTERS;
+#elif defined(DELUGE_DSP_BENCH_COMPRESSOR)
+inline constexpr CaseList kBenchCaseList = CaseList::COMPRESSOR;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif

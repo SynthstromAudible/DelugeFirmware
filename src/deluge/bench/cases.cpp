@@ -468,6 +468,13 @@ void fill_filter_input() {
 	}
 }
 
+void fill_compressor_input() {
+	fill(shared.lanes_input, kSeed);
+	for (q31& sample : shared.lanes_input) {
+		sample >>= 3;
+	}
+}
+
 std::span<q31> in_place_filter_block(std::size_t samples) {
 	fill_filter_input();
 	const std::span<q31> work{shared.lanes_output.data(), samples};
@@ -630,10 +637,27 @@ std::span<const Case> filters_list(CaseSet& s) {
 	return filters;
 }
 
+/// @brief The compressor list.
+std::span<const Case> compressor_list(CaseSet& s) {
+	static const std::array compressor{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("compressor_wet_render", s.compressor_wet_render),
+	    make_case("compressor_wet_neutral", s.compressor_wet_neutral),
+	    make_case("compressor_blend_render", s.compressor_blend_render),
+	    make_case("compressor_blend_neutral", s.compressor_blend_neutral),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	};
+	return compressor;
+}
+
 /// @brief The cases of @p L.
 template <CaseList L>
 std::span<const Case> list_cases(CaseSet& s) {
-	if constexpr (L == CaseList::FILTERS) {
+	if constexpr (L == CaseList::COMPRESSOR) {
+		return compressor_list(s);
+	}
+	else if constexpr (L == CaseList::FILTERS) {
 		return filters_list(s);
 	}
 	else if constexpr (L == CaseList::DELAY) {
@@ -668,6 +692,8 @@ std::span<const Case> cases(CaseList list) {
 		return list_cases<CaseList::CHAIN>(s);
 	case CaseList::FILTERS:
 		return list_cases<CaseList::FILTERS>(s);
+	case CaseList::COMPRESSOR:
+		return list_cases<CaseList::COMPRESSOR>(s);
 	case CaseList::KERNELS:
 		break;
 	}

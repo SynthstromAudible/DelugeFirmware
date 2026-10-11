@@ -8,6 +8,7 @@
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "dsp-next/fixed/delay/feedback_shaper.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
+#include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
@@ -343,6 +344,25 @@ const std::vector<std::string_view> kFilterCaseNames{
     "delay_feedback_chain_digital",
 };
 
+/// The compressor list's names, in order.
+const std::vector<std::string_view> kCompressorCaseNames{
+    "calibration_loop",
+    "compressor_wet_render",
+    "compressor_wet_neutral",
+    "compressor_blend_render",
+    "compressor_blend_neutral",
+    "delay_feedback_chain_analog",
+    "delay_feedback_chain_digital",
+};
+
+/// Each compressor list case's configuration, in order after the calibration loop.
+const std::vector<CompressorCaseConfig> kCompressorCaseConfigs{
+    kCompressorWetRender,
+    kCompressorWetNeutral,
+    kCompressorBlendRender,
+    kCompressorBlendNeutral,
+};
+
 /// Each filters list case's configuration and the noise draws it makes per channel-sample, in order after the
 /// calibration loop: the low-pass ladder draws once per channel-sample, twice when the drive ladder oversamples, and
 /// the high-pass ladder and the SVF never.
@@ -512,6 +532,36 @@ FilterReference filter_reference(const FilterCaseConfig& config, std::size_t n, 
 		}
 	}
 	out.noise = jcong;
+	return out;
+}
+
+/// A compressor case's run, rendered by direct calls to a compressor of its own.
+struct CompressorReference {
+	std::vector<q31> last_block;                  ///< The block after the run, interleaved.
+	dsp::fixed::RmsFeedbackCompressor compressor; ///< The compressor after the run.
+};
+
+/// @p config's run of @p blocks blocks of @p n frames, from the compressor cases' documented start: a compressor at
+/// the cases' knobs, the block the lanes input's first frames as fill_compressor_input() fills them, each block
+/// compressed in place through `render` or `renderVolumeNeutral`.
+CompressorReference compressor_reference(const CompressorCaseConfig& config, std::size_t n, std::size_t blocks) {
+	fill_compressor_input();
+	std::vector<StereoSample> work(n);
+	for (std::size_t i = 0; i < n; ++i) {
+		work[i] = {.l = lane_sample(lanes_input(), 2, i, 0), .r = lane_sample(lanes_input(), 2, i, 1)};
+	}
+	std::vector<StereoSample> scratch(n);
+	CompressorReference out;
+	out.compressor.configure(compressor_knobs(config));
+	for (std::size_t b = 0; b < blocks; ++b) {
+		if (config.neutral) {
+			out.compressor.renderVolumeNeutral(work, kCompressorFinalVolume, scratch);
+		}
+		else {
+			out.compressor.render(work, kCompressorVolume, kCompressorVolume, kCompressorFinalVolume >> 3, scratch);
+		}
+	}
+	out.last_block = interleaved(work);
 	return out;
 }
 
@@ -859,7 +909,8 @@ describe bench_runner("The DSP benchmark runner", ${
 			                                     std::pair{CaseList::LANES, kLaneCaseNames},
 			                                     std::pair{CaseList::CHAIN, kChainCaseNames},
 			                                     std::pair{CaseList::DELAY, kDelayCaseNames},
-			                                     std::pair{CaseList::FILTERS, kFilterCaseNames}}) {
+			                                     std::pair{CaseList::FILTERS, kFilterCaseNames},
+			                                     std::pair{CaseList::COMPRESSOR, kCompressorCaseNames}}) {
 				std::vector<std::string_view> names;
 				for (const Case& c : cases(list)) {
 					names.push_back(c.name);
@@ -888,6 +939,9 @@ describe bench_runner("The DSP benchmark runner", ${
 				const bool mono = c.name == "calibration_loop" || c.name.ends_with("_mono");
 				expect(c.lanes).to_equal(mono ? std::size_t{1} : std::size_t{2});
 			}
+			for (const Case& c : cases(CaseList::COMPRESSOR)) {
+				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
+			}
 			for (const Case& c : cases(CaseList::KERNELS)) {
 				expect(c.lanes).to_equal(c.name == "stereo_gain" ? std::size_t{2} : std::size_t{1});
 			}
@@ -898,7 +952,8 @@ describe bench_runner("The DSP benchmark runner", ${
 			                                  std::pair{CaseList::LANES, kLaneCaseNames},
 			                                  std::pair{CaseList::CHAIN, kChainCaseNames},
 			                                  std::pair{CaseList::DELAY, kDelayCaseNames},
-			                                  std::pair{CaseList::FILTERS, kFilterCaseNames}}) {
+			                                  std::pair{CaseList::FILTERS, kFilterCaseNames},
+			                                  std::pair{CaseList::COMPRESSOR, kCompressorCaseNames}}) {
 				lines.clear();
 				counters.reset();
 				const RunConfig config{.block_sizes = kBlockSizes};
@@ -1428,6 +1483,37 @@ describe bench_runner("The DSP benchmark runner", ${
 					    .to_equal(config.high.kind != dsp::fixed::HighPassSlot::Kind::OFF);
 					// Only the fading case's fade is under way after its block; every other case runs none.
 					expect(dsp::fixed::FadeIn::active(filter_rig().set.view().low_fade)).to_equal(config.fading);
+				}
+			}
+		});
+
+		it("renders each compressor case as a direct call to a compressor per block, compressing, at every size", _ {
+			const std::span<const Case> list = cases(CaseList::COMPRESSOR);
+			// The calibration loop, the four compressor cases, then the two feedback chain controls.
+			expect(list.size()).to_equal(kCompressorCaseConfigs.size() + 3);
+			for (std::size_t i = 0; i < kCompressorCaseConfigs.size(); ++i) {
+				const CompressorCaseConfig& config = kCompressorCaseConfigs[i];
+				const Case& c = list[i + 1];
+				expect(c.lanes).to_equal(std::size_t{2});
+				for (const std::size_t n : kSizes) {
+					const std::size_t blocks = RunConfig{}.blocks_per_run(n);
+					const CompressorReference expected = compressor_reference(config, n, blocks);
+					c.setup(component_of(c), n);
+					for (std::size_t b = 0; b < blocks; ++b) {
+						c.block(component_of(c), n);
+					}
+					expect(stereo_output(n)).to_equal(expected.last_block);
+					expect(std::ranges::count(expected.last_block, 0)).to_be_less_than(std::ptrdiff_t{2});
+					const dsp::fixed::RmsFeedbackCompressor& compressor = compressor_rig().compressor;
+					expect(compressor.gainReduction()).to_equal(expected.compressor.gainReduction());
+					expect(compressor.view().log_rms).to_equal(expected.compressor.view().log_rms);
+					expect(compressor.view().mean).to_equal(expected.compressor.view().mean);
+					expect(compressor.view().current_volume_l).to_equal(expected.compressor.view().current_volume_l);
+					expect(compressor.view().current_volume_r).to_equal(expected.compressor.view().current_volume_r);
+					expect(compressor.view().wet).to_equal(config.blend);
+					// The timed state: compressing, and the level's sum never wrapped (a wrapped sum's mean is negative).
+					expect(compressor.gainReduction()).to_be_greater_than(uint8_t{0});
+					expect(compressor.view().mean).to_be_greater_than(0.0f);
 				}
 			}
 		});

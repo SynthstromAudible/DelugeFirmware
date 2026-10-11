@@ -1087,7 +1087,7 @@ tools/dsp_bench.py --timeout 180          # flashes, captures RTT, writes the ta
 ./dbt build RelWithDebInfo
 ```
 
-The cases come in five lists, chosen by the CMake cache string
+The cases come in six lists, chosen by the CMake cache string
 `DELUGE_DSP_BENCH_CASES`, since the device prints about 70 lines over RTT before
 it drops some:
 
@@ -1123,7 +1123,14 @@ it drops some:
   draws from, so every run times the same stream, and the host check counts its
   draws. These cases build with the library's flags
   (`src/deluge/bench/filter_cases.cpp`), and the list ends with the same two
-  feedback chain controls as the delay list.
+  feedback chain controls as the delay list;
+- `compressor`: `RmsFeedbackCompressor` as its owners call it, fully wet and
+  blended at half, through `render` (the song master) and `renderVolumeNeutral`
+  (a sound, a clip chain), in place over a loud stereo block, past the threshold
+  so it reduces the gain. One compressor serves every case, fresh at each setup.
+  These cases build with the library's flags
+  (`src/deluge/bench/compressor_cases.cpp`), and the list ends with the same two
+  feedback chain controls.
 
 Every other case builds with the app's flags. A bench image builds only its own
 list's cases, since the image fills on-chip SRAM up to 0x202E0000 (past it the
