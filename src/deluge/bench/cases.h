@@ -11,11 +11,12 @@
 /// **Lanes.** A case of N lanes declares `kLanes = N` and renders blocks of n frames, N samples each; the runner
 /// divides its cycles by N as well, so its cps is per channel-sample, comparable with the mono case of its kernel.
 ///
-/// **Six lists.** The device prints about 70 lines over RTT before it drops some, so the cases come in six lists,
+/// **Seven lists.** The device prints about 70 lines over RTT before it drops some, so the cases come in seven lists,
 /// each run at every block size: the kernels (one case per component), the lanes (each `Lanes` case beside the mono
 /// case of its kernel), the chain (stages run as separate passes beside the same stages as one `Chain`), the delay
 /// (the whole delay block over real tapes), the filters (each filter and the filter set, as a voice runs them) and the
-/// compressor (fully wet and blended, as its owners call it). A bench image runs one, chosen by the CMake cache string
+/// compressor (fully wet and blended, as its owners call it) and the mod FX (each type as `ModFXProcessor` renders it
+/// today). A bench image runs one, chosen by the CMake cache string
 /// DELUGE_DSP_BENCH_CASES, and builds only that list's cases.
 ///
 /// **State at timing.** The runner warms each case up before timing it, so what is timed is the case's steady
@@ -1272,6 +1273,68 @@ private:
 	CompressorCaseConfig config_;
 };
 
+/// @brief The mod FX cases' LFO rate: a fast LFO, UQ0.32-style phase increment, so the delay tap moves within a block.
+inline constexpr int32_t kModFxRate = 0x00a00000;
+/// @brief The mod FX cases' depth knob, Q31 of its travel: half.
+inline constexpr int32_t kModFxDepth = 0x40000000;
+/// @brief The mod FX cases' offset and feedback params, Q31 of their travel: a quarter.
+inline constexpr int32_t kModFxParam = 0x20000000;
+
+/// @brief The mod FX effects the cases time. mod_fx_cases.cpp maps each to the app's `ModFXType`, which this header
+/// leaves out so that the host specs build it without the app's headers.
+enum class ModFxKind : uint8_t {
+	CHORUS,        ///< `ModFXType::CHORUS`
+	CHORUS_STEREO, ///< `ModFXType::CHORUS_STEREO`
+	DIMENSION,     ///< `ModFXType::DIMENSION`
+	FLANGER,       ///< `ModFXType::FLANGER`
+	PHASER,        ///< `ModFXType::PHASER`
+	WARBLE,        ///< `ModFXType::WARBLE`
+};
+
+/// @brief One mod FX case's configuration.
+struct ModFxConfig {
+	ModFxKind kind; ///< The effect.
+	bool stereo;    ///< `AudioEngine::renderInStereo` for the case's blocks.
+};
+
+// Each effect with the engine rendering in stereo and in mono, named for its case.
+inline constexpr ModFxConfig kModFxChorusStereo{.kind = ModFxKind::CHORUS, .stereo = true};
+inline constexpr ModFxConfig kModFxChorusMono{.kind = ModFxKind::CHORUS, .stereo = false};
+inline constexpr ModFxConfig kModFxChorusStereoStereo{.kind = ModFxKind::CHORUS_STEREO, .stereo = true};
+inline constexpr ModFxConfig kModFxChorusStereoMono{.kind = ModFxKind::CHORUS_STEREO, .stereo = false};
+inline constexpr ModFxConfig kModFxDimensionStereo{.kind = ModFxKind::DIMENSION, .stereo = true};
+inline constexpr ModFxConfig kModFxDimensionMono{.kind = ModFxKind::DIMENSION, .stereo = false};
+inline constexpr ModFxConfig kModFxFlangerStereo{.kind = ModFxKind::FLANGER, .stereo = true};
+inline constexpr ModFxConfig kModFxFlangerMono{.kind = ModFxKind::FLANGER, .stereo = false};
+inline constexpr ModFxConfig kModFxWarbleStereo{.kind = ModFxKind::WARBLE, .stereo = true};
+inline constexpr ModFxConfig kModFxWarbleMono{.kind = ModFxKind::WARBLE, .stereo = false};
+/// @brief `mod_fx_phaser`: the phaser ignores the stereo flag.
+inline constexpr ModFxConfig kModFxPhaser{.kind = ModFxKind::PHASER, .stereo = true};
+
+/// @brief The mod FX block as its owner renders it today: `ModFXProcessor::processModFX` in place over the lanes
+/// output, with the engine in the configuration's stereo mode.
+/// @details Setup resets the processor (its buffer, allocated once for the effects that have one, and its LFOs),
+/// restores the volume and copies the lanes input's first n frames (fill_compressor_input()'s sounding block) into
+/// the lanes output. Each block processes that block in place, over the block before's output. The engine's
+/// `renderInStereo` is set for each block and restored after it.
+class ModFxCase {
+public:
+	static constexpr std::size_t kLanes = 2; ///< Left and right.
+
+	/// @brief A case of @p config.
+	constexpr explicit ModFxCase(const ModFxConfig& config) : config_{config} {}
+
+	/// @brief A reset processor at the cases' knobs, and the block for @p n frames.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for, in place.
+	void block(std::size_t n);
+	/// @return The case's configuration.
+	[[nodiscard]] constexpr const ModFxConfig& config() const { return config_; }
+
+private:
+	ModFxConfig config_;
+};
+
 /// @brief Every case, by name.
 struct CaseSet {
 	CalibrationLoop calibration_loop;                             ///< `calibration_loop`
@@ -1358,13 +1421,24 @@ struct CaseSet {
 	CompressorCase compressor_wet_neutral{kCompressorWetNeutral};     ///< `compressor_wet_neutral`
 	CompressorCase compressor_blend_render{kCompressorBlendRender};   ///< `compressor_blend_render`
 	CompressorCase compressor_blend_neutral{kCompressorBlendNeutral}; ///< `compressor_blend_neutral`
+	ModFxCase mod_fx_chorus_stereo{kModFxChorusStereo};               ///< `mod_fx_chorus_stereo`
+	ModFxCase mod_fx_chorus_mono{kModFxChorusMono};                   ///< `mod_fx_chorus_mono`
+	ModFxCase mod_fx_chorus_stereo_stereo{kModFxChorusStereoStereo};  ///< `mod_fx_chorus_stereo_stereo`
+	ModFxCase mod_fx_chorus_stereo_mono{kModFxChorusStereoMono};      ///< `mod_fx_chorus_stereo_mono`
+	ModFxCase mod_fx_dimension_stereo{kModFxDimensionStereo};         ///< `mod_fx_dimension_stereo`
+	ModFxCase mod_fx_dimension_mono{kModFxDimensionMono};             ///< `mod_fx_dimension_mono`
+	ModFxCase mod_fx_flanger_stereo{kModFxFlangerStereo};             ///< `mod_fx_flanger_stereo`
+	ModFxCase mod_fx_flanger_mono{kModFxFlangerMono};                 ///< `mod_fx_flanger_mono`
+	ModFxCase mod_fx_warble_stereo{kModFxWarbleStereo};               ///< `mod_fx_warble_stereo`
+	ModFxCase mod_fx_warble_mono{kModFxWarbleMono};                   ///< `mod_fx_warble_mono`
+	ModFxCase mod_fx_phaser{kModFxPhaser};                            ///< `mod_fx_phaser`
 };
 
 /// @brief The cases' components, built on first use.
 /// @return The one CaseSet every case in cases() acts on.
 [[nodiscard]] CaseSet& case_set();
 
-/// @brief Which of the six case lists a run prints.
+/// @brief Which of the seven case lists a run prints.
 enum class CaseList : uint8_t {
 	KERNELS, ///< One case per component: the calibration loop, then each kernel in its Mono, Stereo or Control.
 	LANES,   ///< The calibration loop, then each `Lanes` case beside the mono case of its kernel.
@@ -1378,6 +1452,9 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, the compressor fully wet and blended through `render` and `renderVolumeNeutral`, then the
 	/// feedback chain's two cases from the chain list, as in the delay list.
 	COMPRESSOR,
+	/// The calibration loop, each mod FX type as `ModFXProcessor` renders it today with the engine in stereo and in
+	/// mono (the phaser once), then the feedback chain's two cases from the chain list, as in the delay list.
+	MOD_FX,
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -1391,6 +1468,8 @@ inline constexpr CaseList kBenchCaseList = CaseList::DELAY;
 inline constexpr CaseList kBenchCaseList = CaseList::FILTERS;
 #elif defined(DELUGE_DSP_BENCH_COMPRESSOR)
 inline constexpr CaseList kBenchCaseList = CaseList::COMPRESSOR;
+#elif defined(DELUGE_DSP_BENCH_MOD_FX)
+inline constexpr CaseList kBenchCaseList = CaseList::MOD_FX;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif

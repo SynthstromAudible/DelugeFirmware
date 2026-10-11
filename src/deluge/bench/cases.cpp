@@ -651,10 +651,34 @@ std::span<const Case> compressor_list(CaseSet& s) {
 	return compressor;
 }
 
+/// @brief The mod FX list.
+std::span<const Case> mod_fx_list(CaseSet& s) {
+	static const std::array mod_fx{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("mod_fx_chorus_stereo", s.mod_fx_chorus_stereo),
+	    make_case("mod_fx_chorus_mono", s.mod_fx_chorus_mono),
+	    make_case("mod_fx_chorus_stereo_stereo", s.mod_fx_chorus_stereo_stereo),
+	    make_case("mod_fx_chorus_stereo_mono", s.mod_fx_chorus_stereo_mono),
+	    make_case("mod_fx_dimension_stereo", s.mod_fx_dimension_stereo),
+	    make_case("mod_fx_dimension_mono", s.mod_fx_dimension_mono),
+	    make_case("mod_fx_flanger_stereo", s.mod_fx_flanger_stereo),
+	    make_case("mod_fx_flanger_mono", s.mod_fx_flanger_mono),
+	    make_case("mod_fx_warble_stereo", s.mod_fx_warble_stereo),
+	    make_case("mod_fx_warble_mono", s.mod_fx_warble_mono),
+	    make_case("mod_fx_phaser", s.mod_fx_phaser),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	};
+	return mod_fx;
+}
+
 /// @brief The cases of @p L.
 template <CaseList L>
 std::span<const Case> list_cases(CaseSet& s) {
-	if constexpr (L == CaseList::COMPRESSOR) {
+	if constexpr (L == CaseList::MOD_FX) {
+		return mod_fx_list(s);
+	}
+	else if constexpr (L == CaseList::COMPRESSOR) {
 		return compressor_list(s);
 	}
 	else if constexpr (L == CaseList::FILTERS) {
@@ -694,6 +718,8 @@ std::span<const Case> cases(CaseList list) {
 		return list_cases<CaseList::FILTERS>(s);
 	case CaseList::COMPRESSOR:
 		return list_cases<CaseList::COMPRESSOR>(s);
+	case CaseList::MOD_FX:
+		return list_cases<CaseList::MOD_FX>(s);
 	case CaseList::KERNELS:
 		break;
 	}

@@ -32,10 +32,12 @@ if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
     ${CMAKE_CURRENT_LIST_DIR}/bench/delay_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/filter_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/compressor_cases.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bench/mod_fx_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/pmu_a9.cpp
   )
   # The delay, the filters and the compressor ship from deluge_dsp_fixed, so their cases take that library's flags
   # (dsp-next/CMakeLists.txt): ARM mode, -finline-functions and no LTO, each after the app's own and so in force.
+  # The mod FX cases time app code (ModFXProcessor), so mod_fx_cases.cpp keeps the app's flags.
   set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/bench/delay_feedback_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/delay_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/filter_cases.cpp
@@ -121,8 +123,10 @@ if(_dsp_bench_on)
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_FILTERS=1)
     elseif(DELUGE_DSP_BENCH_CASES STREQUAL "compressor")
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_COMPRESSOR=1)
+    elseif(DELUGE_DSP_BENCH_CASES STREQUAL "mod_fx")
+        target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_MOD_FX=1)
     elseif(NOT DELUGE_DSP_BENCH_CASES STREQUAL "kernels")
-        message(FATAL_ERROR "DELUGE_DSP_BENCH_CASES is kernels, lanes, chain, delay, filters or compressor, \
+        message(FATAL_ERROR "DELUGE_DSP_BENCH_CASES is kernels, lanes, chain, delay, filters, compressor or mod_fx, \
 not '${DELUGE_DSP_BENCH_CASES}'")
     endif()
     message(STATUS "DSP bench case list: ${DELUGE_DSP_BENCH_CASES}")

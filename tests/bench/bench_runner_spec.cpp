@@ -363,6 +363,24 @@ const std::vector<CompressorCaseConfig> kCompressorCaseConfigs{
     kCompressorBlendNeutral,
 };
 
+/// The mod_fx list's names, in order.
+const std::vector<std::string_view> kModFxCaseNames{
+    "calibration_loop",
+    "mod_fx_chorus_stereo",
+    "mod_fx_chorus_mono",
+    "mod_fx_chorus_stereo_stereo",
+    "mod_fx_chorus_stereo_mono",
+    "mod_fx_dimension_stereo",
+    "mod_fx_dimension_mono",
+    "mod_fx_flanger_stereo",
+    "mod_fx_flanger_mono",
+    "mod_fx_warble_stereo",
+    "mod_fx_warble_mono",
+    "mod_fx_phaser",
+    "delay_feedback_chain_analog",
+    "delay_feedback_chain_digital",
+};
+
 /// Each filters list case's configuration and the noise draws it makes per channel-sample, in order after the
 /// calibration loop: the low-pass ladder draws once per channel-sample, twice when the drive ladder oversamples, and
 /// the high-pass ladder and the SVF never.
@@ -909,7 +927,8 @@ describe bench_runner("The DSP benchmark runner", ${
 			                                     std::pair{CaseList::CHAIN, kChainCaseNames},
 			                                     std::pair{CaseList::DELAY, kDelayCaseNames},
 			                                     std::pair{CaseList::FILTERS, kFilterCaseNames},
-			                                     std::pair{CaseList::COMPRESSOR, kCompressorCaseNames}}) {
+			                                     std::pair{CaseList::COMPRESSOR, kCompressorCaseNames},
+			                                     std::pair{CaseList::MOD_FX, kModFxCaseNames}}) {
 				std::vector<std::string_view> names;
 				for (const Case& c : cases(list)) {
 					names.push_back(c.name);
@@ -941,6 +960,9 @@ describe bench_runner("The DSP benchmark runner", ${
 			for (const Case& c : cases(CaseList::COMPRESSOR)) {
 				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
 			}
+			for (const Case& c : cases(CaseList::MOD_FX)) {
+				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
+			}
 			for (const Case& c : cases(CaseList::KERNELS)) {
 				expect(c.lanes).to_equal(c.name == "stereo_gain" ? std::size_t{2} : std::size_t{1});
 			}
@@ -952,7 +974,8 @@ describe bench_runner("The DSP benchmark runner", ${
 			                                  std::pair{CaseList::CHAIN, kChainCaseNames},
 			                                  std::pair{CaseList::DELAY, kDelayCaseNames},
 			                                  std::pair{CaseList::FILTERS, kFilterCaseNames},
-			                                  std::pair{CaseList::COMPRESSOR, kCompressorCaseNames}}) {
+			                                  std::pair{CaseList::COMPRESSOR, kCompressorCaseNames},
+			                                  std::pair{CaseList::MOD_FX, kModFxCaseNames}}) {
 				lines.clear();
 				counters.reset();
 				const RunConfig config{.block_sizes = kBlockSizes};
