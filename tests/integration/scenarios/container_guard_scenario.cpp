@@ -252,6 +252,8 @@ const char* kindName(StructuralContainer kind) {
 		return "memguard";
 	case StructuralContainer::PATCH_CABLES:
 		return "patchcables";
+	case StructuralContainer::MOD_FX_RING:
+		return "modfxring";
 	case StructuralContainer::COUNT_:
 		break;
 	}
@@ -844,6 +846,7 @@ void editLeg() {
 	}
 	case Leg::ModFxOom: {
 		g_step = "modFXType";
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::MOD_FX_RING);
 		// The song master's chorus with its ring's allocation made to fail: the type is set and its blocks pass the
 		// signal through. A change to flanger then takes a ring, and the master's render runs the effect over it.
 		auto& fx = currentSong->live.global_effectable;
@@ -865,8 +868,9 @@ void editLeg() {
 		fx.setModFXType(ModFXType::NONE);
 		fx.currentModFXParam = paramBefore;
 		renderBlocks(1);
-		printf("CG-MODFXOOM injected=%d passthrough=%d recovered=%d\n", injected ? 1 : 0, passthrough ? 1 : 0,
-		       recovered ? 1 : 0);
+		const bool noted = deluge::notedStructuralEdits(StructuralContainer::MOD_FX_RING) > notedBefore;
+		printf("CG-MODFXOOM injected=%d passthrough=%d recovered=%d noted=%d\n", injected ? 1 : 0, passthrough ? 1 : 0,
+		       recovered ? 1 : 0, noted ? 1 : 0);
 		fflush(stdout);
 		break;
 	}
@@ -891,6 +895,7 @@ void editLeg() {
 		// The mod FX type menu's Edit on a synth's chain while the song plays: each change to a delay-line type holds
 		// a ring and each change away from one gives it back.
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::MOD_FX_RING);
 		bool matched = true;
 		for (const ModFXType type : {ModFXType::CHORUS, ModFXType::FLANGER, ModFXType::PHASER, ModFXType::CHORUS}) {
 			deluge::edits::changeEffect(
@@ -900,7 +905,8 @@ void editLeg() {
 			matched = matched && synth->effects().mod_fx.type == type
 			          && holdsRing(*synth) == deluge::effects::is_ring_type(type);
 		}
-		printf("CG-MODFXSWAP rings=%d\n", matched ? 1 : 0);
+		const bool noted = deluge::notedStructuralEdits(StructuralContainer::MOD_FX_RING) > notedBefore;
+		printf("CG-MODFXSWAP rings=%d noted=%d\n", matched ? 1 : 0, noted ? 1 : 0);
 		fflush(stdout);
 		break;
 	}

@@ -23,6 +23,7 @@ enum class StructuralContainer : uint8_t {
 	SLAB,               ///< a cluster-slab slot's claim, clear, pin, unpin or touch
 	ALLOC_METADATA,     ///< MEM_GUARD's side table of live allocations (memory/alloc_metadata.cpp)
 	PATCH_CABLES,       ///< a patch cable set's cables (PatchCableSet::patchCables)
+	MOD_FX_RING,        ///< an owner's mod FX ring hand-over (ModControllableAudio::projectModControllableSnapshot)
 	COUNT_,
 };
 
@@ -35,6 +36,13 @@ void noteStructuralEdit(StructuralContainer kind);
 /// @param kind Which container kind to report.
 /// @return The unguarded-edit count for @p kind.
 uint32_t unguardedStructuralEdits(StructuralContainer kind);
+
+/// @brief [task] Structural edits of @p kind recorded since boot, guarded or not. A harness uses it to tell that an
+/// edit
+///        site ran at all, which a zero unguarded count cannot.
+/// @param kind Which container kind to report.
+/// @return The number of noteStructuralEdit() calls for @p kind.
+uint32_t notedStructuralEdits(StructuralContainer kind);
 
 /// @brief [task] Structural edits of every kind made while the render could preempt them, since boot.
 /// @return The unguarded-edit count across every container kind.

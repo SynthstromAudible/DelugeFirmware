@@ -10,10 +10,12 @@
 namespace deluge {
 namespace {
 std::array<std::atomic<uint32_t>, static_cast<size_t>(StructuralContainer::COUNT_)> unguarded_{};
+std::array<std::atomic<uint32_t>, static_cast<size_t>(StructuralContainer::COUNT_)> noted_{};
 } // namespace
 
 void noteStructuralEdit([[maybe_unused]] StructuralContainer kind) {
 #if ALPHA_OR_BETA_VERSION
+	noted_[static_cast<size_t>(kind)].fetch_add(1, std::memory_order_relaxed);
 	if (!deluge_in_audio_context() && deluge_audio_excluded_depth() == 0) {
 		unguarded_[static_cast<size_t>(kind)].fetch_add(1, std::memory_order_relaxed);
 	}
@@ -22,6 +24,10 @@ void noteStructuralEdit([[maybe_unused]] StructuralContainer kind) {
 
 uint32_t unguardedStructuralEdits(StructuralContainer kind) {
 	return unguarded_[static_cast<size_t>(kind)].load(std::memory_order_relaxed);
+}
+
+uint32_t notedStructuralEdits(StructuralContainer kind) {
+	return noted_[static_cast<size_t>(kind)].load(std::memory_order_relaxed);
 }
 
 uint32_t unguardedStructuralEditsTotal() {

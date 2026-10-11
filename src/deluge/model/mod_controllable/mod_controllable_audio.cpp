@@ -53,6 +53,7 @@
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
+#include "util/structural_edit_probe.h"
 #include <algorithm>
 
 namespace params = deluge::modulation::params;
@@ -292,6 +293,7 @@ void ModControllableAudio::projectModControllableSnapshot() {
 		AudioExcludedSection section; // the render reads the copy and the ring
 		modControllableSnapshot_.effects = effects();
 		modfx.commit(modControllableSnapshot_.effects.mod_fx.type, ring);
+		deluge::noteStructuralEdit(deluge::StructuralContainer::MOD_FX_RING);
 	}
 	modfx.finish(ring);
 }
