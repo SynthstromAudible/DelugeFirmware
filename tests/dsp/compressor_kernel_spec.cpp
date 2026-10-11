@@ -52,6 +52,7 @@ using deluge::dsp::fixed::CompressorKnobs;
 
 static_assert(deluge::dsp::detail::plain_value<Compressor::Coefficients>);
 static_assert(deluge::dsp::detail::plain_value<Compressor::State>);
+static_assert(std::same_as<deluge::dsp::loop_state_t<Compressor>, Compressor::Loop>);
 static_assert(deluge::dsp::detail::plain_value<Compressor::Block>);
 static_assert(deluge::dsp::processor_kernel<Compressor>);
 static_assert(deluge::dsp::moded_kernel<Compressor>);
@@ -147,16 +148,16 @@ public:
 		    .threshold = s.threshold,
 		    .detector_moveability = c.detector_moveability,
 		    .reduction_envelope = s.reduction_envelope,
-		    .current_volume_l = s.current_volume_l,
-		    .current_volume_r = s.current_volume_r,
+		    .current_volume_l = s.loop.current_volume_l,
+		    .current_volume_r = s.loop.current_volume_r,
 		    .log_rms = s.log_rms,
 		    .mean = s.mean,
 		    .saturation_drive = Compressor::kSaturator.drive,
-		    .saturation_l = s.saturation_l,
-		    .saturation_r = s.saturation_r,
+		    .saturation_l = s.loop.saturation_l,
+		    .saturation_r = s.loop.saturation_r,
 		    .seeded = s.seeded,
-		    .detector_l = s.detector_l,
-		    .detector_r = s.detector_r,
+		    .detector_l = s.loop.detector_l,
+		    .detector_r = s.loop.detector_r,
 		    .attack_ms = c.attack_ms,
 		    .release_ms = c.release_ms,
 		    .base_gain = c.base_gain,
@@ -235,15 +236,15 @@ template <typename A, typename B>
 	s.threshold = 0.5f;
 	s.makeup = 1.5f;
 	s.reduction_envelope = 2.5f;
-	s.current_volume_l = 5;
-	s.current_volume_r = 6;
+	s.loop.current_volume_l = 5;
+	s.loop.current_volume_r = 6;
 	s.log_rms = 7.5f;
 	s.mean = 0.25f;
-	s.saturation_l.position = 8;
-	s.saturation_r.position = 9;
-	s.detector_l.z = 10;
-	s.detector_r.z = 11;
-	s.sum = 12;
+	s.loop.saturation_l.position = 8;
+	s.loop.saturation_r.position = 9;
+	s.loop.detector_l.z = 10;
+	s.loop.detector_r.z = 11;
+	s.loop.sum = 12;
 	s.n = 13;
 	s.seeded = true;
 	s.gain_reduction = 14;
@@ -317,7 +318,7 @@ describe compressor_kernel("the Compressor kernel", ${
 				mono.on<&Compressor::seed>(block[0]);
 			}
 			mono.renderBlock(block, block);
-			largest = std::max<int64_t>(largest, mono.state().sum);
+			largest = std::max<int64_t>(largest, mono.state().loop.sum);
 			mono.on<&Compressor::finish_level>();
 			expect(mono.state().mean).not_().to_be_less_than(0.0F);
 		}
@@ -337,13 +338,13 @@ describe compressor_kernel("the Compressor kernel", ${
 		expect(s.mean).to_equal(expected.mean);
 		expect(s.seeded).to_equal(expected.seeded);
 		expect(s.threshold).to_equal(expected.threshold);
-		expect(s.current_volume_l).to_equal(expected.current_volume_l);
-		expect(s.current_volume_r).to_equal(expected.current_volume_r);
+		expect(s.loop.current_volume_l).to_equal(expected.loop.current_volume_l);
+		expect(s.loop.current_volume_r).to_equal(expected.loop.current_volume_r);
 		expect(s.log_rms).to_equal(expected.log_rms);
-		expect(s.saturation_l.position).to_equal(expected.saturation_l.position);
-		expect(s.saturation_r.position).to_equal(expected.saturation_r.position);
-		expect(s.detector_l.z).to_equal(expected.detector_l.z);
-		expect(s.detector_r.z).to_equal(expected.detector_r.z);
+		expect(s.loop.saturation_l.position).to_equal(expected.loop.saturation_l.position);
+		expect(s.loop.saturation_r.position).to_equal(expected.loop.saturation_r.position);
+		expect(s.loop.detector_l.z).to_equal(expected.loop.detector_l.z);
+		expect(s.loop.detector_r.z).to_equal(expected.loop.detector_r.z);
 		expect(s.levels.threshold).to_equal(expected.levels.threshold);
 		expect(s.gain_reduction).to_equal(expected.gain_reduction);
 	});

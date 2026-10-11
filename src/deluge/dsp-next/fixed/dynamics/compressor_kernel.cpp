@@ -77,18 +77,18 @@ void Compressor::reset(State& s) {
 }
 
 void Compressor::seed(State& s, StereoSample first) {
-	AntialiasedTanh::seed(kSaturator, s.saturation_l, first.l);
-	AntialiasedTanh::seed(kSaturator, s.saturation_r, first.r);
+	AntialiasedTanh::seed(kSaturator, s.loop.saturation_l, first.l);
+	AntialiasedTanh::seed(kSaturator, s.loop.saturation_r, first.r);
 	s.seeded = true;
 }
 
 void Compressor::finish_level(const Coefficients& c, State& s) {
-	measure(c, s, s.pending);
+	measure(c, s.loop, s.loop.pending);
 	const float last_mean = s.mean;
 	const auto ns = static_cast<float>(s.n * 2);
 	// The sum is under 2^38, so its two words meet exactly in a double, which rounds once to float as a direct
 	// conversion does, without the library call a 64-bit integer conversion makes.
-	const auto sum = static_cast<uint64_t>(s.sum);
+	const auto sum = static_cast<uint64_t>(s.loop.sum);
 	const double exact = static_cast<double>(static_cast<uint32_t>(sum >> 32)) * 0x1p32
 	                     + static_cast<double>(static_cast<uint32_t>(sum));
 	s.mean = (static_cast<float>(exact) / ONE_Q31f) / ns;
