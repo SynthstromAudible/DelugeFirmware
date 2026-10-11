@@ -51,7 +51,8 @@ The largest contributors:
 | libc/runtime (no debug info) | 98 KB | see the shims lever below |
 
 Under `-fno-inline-functions`, clang marks every definition `noinline`, so 5,910 functions are 4 bytes or less (4,108
-of them libstdc++ accessors). Each pays a call at every use site and an 8-byte `.ARM.exidx` entry.
+of them libstdc++ accessors). Each pays a call at every use site. Not an `.ARM.exidx` entry each: lld merges identical
+adjacent entries, so there are 10,125 entries for about 23,000 functions.
 
 Duplicate crates are not a cost. `--gc-sections` drops unreferenced copies, which was shown in 2026-08 and still holds.
 
@@ -137,13 +138,12 @@ Worked out from the linker scripts, not built:
 
 ## The UI and immediate mode
 
-The menu system costs about 236 KB of SRAM:
+The menu system costs about 215 KB of SRAM:
 
 | Part | Size |
 |---|---:|
 | `gui/menu_item/` code | 110 KB in 2,624 functions; 1,346 of them are 16 bytes or less |
 | menu-item vtables | 73 KB: 295 vtables, `MenuItem` declares 49 virtuals |
-| `.ARM.exidx` entries for that code | ~21 KB |
 | `menus.cpp` + `sound_editor.cpp` code | 32 KB, including a 2 KB static constructor |
 
 The 412 menu objects themselves are already `PLACE_SDRAM_BSS`.
@@ -235,6 +235,123 @@ dropped, among them `gic::init`'s report of an interrupt a reset left active. Th
 
 The host test estate passes. The image boots on a device: "going into main loop" at 1.51 s and the job summary at
 11.52 s, the same as before. The startup job's worst run was 26 ms, against 21–23 ms for the `"s"` images.
+
+## Refactor targets
+
+Audited on 2026-10-11 against `78d32470c`, after everything in [Applied](#applied): the SRAM heap is 444 KB, `.text`
+1,505 KB, `.rodata` 433 KB, `.bss` 326 KB. Each target's current cost was measured from the ELF. Savings are estimates
+unless marked measured.
+
+| # | Target | Saves | Effort | Risk |
+|---:|---|---:|---|---|
+| 1 | Oscillator tables to SDRAM | 287 KB | an hour | audio path: bench |
+| 2 | Reverb delay lines to SDRAM | 128 KB | an hour | audio path: bench |
+| 3 | No exceptions | 100–145 KB | 4–6 days | OOM recovery paths |
+| 4 | Immediate-mode menus, with context menus | 120–150 KB | large | existing program |
+| 5 | Finish the domain split | 50–70 KB | large | existing program |
+| 6 | Inline threshold instead of `-fno-inline-functions` | ~35 KB | a day of builds | codegen |
+| 7 | Container instantiations | 25–30 KB | days | low |
+| 8 | Async efatfs | ~25 KB | 3–4 days | low |
+| 9 | Diagnostic strings | 15–25 KB | a day | none |
+| 10 | Table-driven cold code | 10–12 KB | a day | none |
+| 11 | Static destructors | ~6 KB | an hour | none |
+| 12 | Streaming statics to SDRAM | ~45 KB | an hour | streaming: bench |
+
+1. **Oscillator tables to SDRAM, 287 KB.** The `dsp::fixed` band-limited tables (74 wave tables, 264 KB, plus
+   `kTanhTable`). Link them into `.sdram_init`: its load copy already goes to the heap, so the code change is one
+   section pattern, and the result stays bit-exact. A voice reads one table of 4–16 KB, sequentially with a stride, so
+   each 32-byte line serves about 16 samples. L2 misses then go to SDRAM instead of SRAM. Bench at high polyphony
+   across bands.
+   - Generating the tables at boot shrinks only the image, not the SRAM. FFTs show that the saw, square and triangle
+     tables are exact Fourier truncations of each other, but `analogSquare` and `mysterySynthA/BSaw` are independent
+     per band. Rounding a generated saw or square misses the stored values by 1 LSB in 2.7% of samples.
+2. **Reverb to SDRAM, 128 KB.** `AudioEngine::reverb` is a `std::variant` sized by its 128 KB members (Mutable,
+   Digital; Freeverb is 100 KB). It can go to `.sdram_bss`. Every tap advances sequentially, so it costs about one
+   miss per 8 samples per tap (estimate). Bench it. The alternative, heap-allocating only the active model, saves
+   just 28 KB.
+3. **No exceptions, 100–145 KB.** Today the image carries `.ARM.extab` 34 KB, `.ARM.exidx` 81 KB, about 29 KB of
+   landing pads and about 5 KB of unwinder.
+   - **Scope:** 16 throw sites (the allocators, the three global `operator new`, `model_out_of_memory`, two copy
+     constructors that throw) and 67 catches in 32 files. Because global `new` throws, every std container can throw.
+   - **What the catches do:** about 42 convert to an error code, mostly on vector growth. About 12 clean up a
+     half-built clone. About 9 ignore the failure. Seven are `catch (...)` firewalls. One is behavioural:
+     `sound.cpp` steals a voice when there is no memory for a new one.
+   - **Plan:**
+     1. `[[noreturn]] oom()` and strong `std::__throw_*` definitions that call it.
+     2. Fallible primitives: `try_alloc`, and a small vector with `try_push_back` / `try_reserve` returning
+        `std::expected`.
+     3. Convert the error-code catches. Make the throwing clones two-phase `cloneFrom() -> Error`.
+     4. Allocators and `operator new` call `oom()`.
+     5. Build with `-fno-exceptions` and delete the firewalls.
+     6. Discard `.ARM.exidx` / `.ARM.extab`. Rust is already `panic=abort`.
+4. **Immediate-mode menus, 120–150 KB.**
+   - Already planned (`feat/immediate-mode`).
+   - **Measured:** `menu_item` 97.5 KB of code and 71.5 KB of vtables (290 classes); `menus.cpp` 17.1 KB, of which
+     15.3 KB is the static initialisation of 497 globals; `sound_editor` 10.2 KB.
+   - Context menus are a further 12.4 KB and worth adding to that spec's scope.
+5. **Finish the domain split, 50–70 KB.**
+   - **Measured:** the legacy streaming `read*/write*File` methods are 46.9 KB (209 functions; `Song::readFromFile`
+     alone is 5.6 KB). The bridge is 19 KB, and the streaming XML/JSON backends about 9 KB. The new codecs (about
+     66 KB) are already linked, so today both paths are paid for.
+   - **Interim:** reading everything through `TreeDocument` drops the two streaming deserializers (about 5 KB).
+6. **An inline threshold, ~35 KB.**
+   - 2,329 C++ functions are 4 bytes or less, reached by 12,091 calls. Inlining them saves about 35 KB of `.text`.
+     Inlining 9–16-byte functions costs about 25 KB, which is why `-finline-hint-functions` lost.
+   - **Try:** `-finline-functions -mllvm -inline-threshold=N` at N = 0, 5 and 25, the same threshold at the ThinLTO
+     link (`-Wl,-mllvm,-inline-threshold=N`), and dsp-next left as it is. Unmeasured; LLVM's single-caller bonus
+     needs watching.
+7. **Container instantiations, 25–30 KB.** De-duplicated (`--icf=safe` already folds some), libstdc++ code is 132 KB.
+   `std::vector` is 40.6 KB across 64 element types, 23.6 KB of it growth paths. `_Rb_tree` is 18.3 KB across 14
+   instantiations.
+   - Constant lookup maps (`map<Button,…>` in `horizontal_menu.cpp` and `patch_cable_strength.cpp`, `set<Scale>` in
+     `chord_keyboard.h`) become a switch, array or bitmask: 5.5 KB measured.
+   - A `PtrVector<T>` facade over one `vector<void*>`: about 8 KB. On the device, `external_allocator` can alias
+     `std::allocator`, since both reach the same heap.
+   - A type-erased mutation core for `OrderedPosVector`: 5–6 KB.
+   - `MultiRangeArray` without `std::variant`: 3–4 KB.
+   - One id-map core for the `Doc*` maps: about 4 KB.
+   - `always_inline` on the project allocators: about 2 KB.
+   - The audio-tier vectors (`unique_ptr<Voice>`, `VoiceSample*`, `TimeStretcher*`) get fewer calls under the
+     facade, but bench them.
+8. **Async efatfs, ~25 KB.** Storage and channel code is 110 KB, and generic duplication is not the cause. Each
+   await costs about 100–115 B of state-machine boilerplate.
+   - The vendored `crates/embedded-fatfs` (de)serializes its boot sector, BPB, FSInfo and directory entries one
+     awaited field at a time: 15.2 KB. Reading the sector or entry once and parsing it synchronously saves 10–12 KB,
+     and makes directory walks faster.
+   - Eleven checkout → `with_fs` → commit functions in `efatfs/device.rs` each repeat about 600 B of wrapper. One
+     `ctx_op(handle, CtxOp)` path saves 5–6 KB.
+   - Path-level operations for `file_bytes` (read/write/stat in one `with_fs`): 4–5 KB.
+   - One shared parent walk in `dir.rs` (about 8 copies today): 1.5–2.5 KB.
+   - Dropping FAT12: 1.5 KB measured. Check that the host images aren't FAT12.
+   - Nine channel REQUEST/RESULT/IN_FLIGHT statics (3.2 KB) sit in SRAM `.data` because their empty state has a
+     non-zero niche byte. Zero it, or add the `.data` pattern to `.sdram_init`.
+   - Don't make the FS synchronous: a synchronous SD wait on the preemptive streaming executor starves thread mode.
+   - Bugs found on the way: `copy_file` reopens the destination for every chunk, and `deluge_efatfs_cluster_size`
+     calls `fs.stats()`, which can scan the whole FAT.
+9. **Diagnostic strings, 15–25 KB.** About 74 KB of printable strings sit in `.rodata`. The device build keeps all
+   347 `D_PRINT*` sites (`ENABLE_TEXT_OUTPUT=1`).
+   - Full `__FILE__` paths and Rust panic locations take 10.5 KB. Use `__FILE_NAME__` (or `-ffile-prefix-map`) and
+     `--remap-path-prefix`: 4–8 KB.
+   - Then either gate `D_PRINT` separately from RelWithDebInfo, or defer formatting defmt-style (an ID plus arguments
+     over RTT): 12–18 KB.
+10. **Table-driven cold code, 10–12 KB.**
+    - `ArpeggiatorBase::calculateRandomizerAmounts` (3.9 KB, one block pasted ten times).
+    - `FlashStorage` read/write/reset (5.3 KB).
+    - `MidiFollow::initDefaultMappings` (2.5 KB).
+    - `chords.cpp`'s 3.8 KB of static initialisation, which could be `constexpr`.
+11. **Static destructors, ~6 KB.** 302 `__dtor_` thunks and 305 `atexit` registrations (`-fno-use-cxa-atexit`) for
+    globals that are never destroyed. Use `-fno-c++-static-destructors`.
+12. **Streaming statics to SDRAM, ~45 KB.** `deluge_sample_source::abi::POOL` (28 KB) and the sample-stream
+    `REGISTRY` (12 KB), plus `streaming_fill_task::POOL` and `app_task::POOL` (4.4 KB, which the channel pattern
+    misses). Check whether the render path walks them, then bench.
+
+Leave in SRAM: `SD_DMA_BUF` (64 KB) and the SSI buffers (24 KB), which are DMA targets on the audio path, and the hot
+DSP kernels.
+
+Checked and not worth it: session vs arranger views (little shared code); near-duplicates ICF misses (26 KB over 196
+groups, mostly allocator variants); the instrument hierarchy (no parallel duplication); vtables outside the menus
+(about 24 KB); collapsing the storage channel tasks into one (about 1 KB, and it loses fairness against the streaming
+fill); `std::function` (0.3 KB).
 
 ## Suggested order
 
