@@ -14,4 +14,4 @@ deluge_specs_driver(effects_specs NEON
           ${_dsp_fixed}/interpolation/table_interpolation.cpp
           ${CMAKE_CURRENT_LIST_DIR}/../../../src/deluge/util/lookuptables/lookuptables.cpp
   LIBRARIES deluge_effects
-  INCLUDES ${CMAKE_CURRENT_LIST_DIR}/../../support/mocks)
+  INCLUDES ${CMAKE_CURRENT_LIST_DIR}/../../support/mocks ${CMAKE_CURRENT_LIST_DIR}/../../dsp)
