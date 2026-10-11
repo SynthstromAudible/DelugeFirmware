@@ -458,8 +458,8 @@ frame through out-of-line calls (before): `processModFXBuffer<type>` calling `pr
 block with the knobs at rate `0x00a00000`, depth `0x40000000`, offset and feedback `0x20000000`
 (`DELUGE_DSP_BENCH_CASES=mod_fx`), on 2026-10-11. The figures are the minimum of the runs of each image: two before, four
 after. Before, some cases land on one of two levels 10–20% apart run to run (chorus_mono, chorus_stereo_mono, the
-warblers and the phaser), so the minimum is the lower level; `chorus_stereo_mono` at n = 128 sat on the higher level in
-both runs (91.94). The after runs agree within 0.9% on every mod FX case at every size, and the `delay_feedback_chain_*`
+warblers and the phaser). With two runs the minimum is the lowest figure seen, not necessarily the lower level:
+`chorus_stereo_mono` at n = 128 sat on the higher level in both runs (91.94), and the warblers' baselines may too. The after runs agree within 0.9% on every mod FX case at every size, and the `delay_feedback_chain_*`
 controls, which the change does not touch, within 0.1% of the baseline.
 
 | case | n=32 before → after (Δ) | n=64 before → after (Δ) | n=128 before → after (Δ) | after, run to run |
@@ -481,20 +481,22 @@ controls, which the change does not touch, within 0.1% of the baseline.
 Fitted as a + C/2n from n = 32 and 128, the stereo chorus costs about 69 cycles per frame and 405 cycles per block.
 
 - **The saving is the calls.** Before, `processModFXBuffer`'s loop alone was 69 instructions with 7 calls, ahead of the
-  sample's 38–55 instructions and the LFO's visit. In `effects::ModFx::render` a ring mode's loop is 57–73
-  instructions, the warblers' 113 and 124 (a second warbler and the noise refresh), and the phaser's 70 around an
-  18-instruction stage loop. Chorus, dimension and flanger run 51–61% faster, the warblers 65–74%.
+  sample's 38–55 instructions and the LFO's visit. In `effects::ModFx::render` a ring mode's loop is 56–72
+  instructions, the warblers' 114 (a second warbler and the noise refresh), and the phaser's 65 around an
+  18-instruction stage loop. The table's chorus, dimension and flanger cases run 50.6–60.8% faster, except chorus_mono
+  and chorus_stereo_mono at 60.7–71.6% (the top of that range is against a baseline on its higher level); the warblers
+  run 65.0–74.1% faster.
 - **The phaser gains least (10–11%).** Its six allpass stages are a dependent chain per frame that removing calls does
   not shorten.
 - **The loops' shape.** At the shipping flags minus `-flto=thin` (Thumb-2), no loop has a `muls` or an out-of-line
   accessor; the sine LFO's table interpolation is `mul.w` and `mla`. Stores go to the frame, the ring slot, the phaser's
-  memories, the warblers' noise state and spills. The exception is `Mode::WARBLE_MONO`: its `std::ignore = lfo<...>()`
-  compiles to a call of `std::_Swallow_assign::operator=` once per frame at `-fno-inline-functions`.
+  memories, the warblers' noise state and spills. No loop has a call, `Mode::WARBLE_MONO` included: its second
+  warbler's value goes to an unused local, not to `std::ignore`, whose assignment is a call at `-fno-inline-functions`.
 - **The State copy is two word loops per block.** `Mono` copies the 100-byte State in and out with `__aeabi_memcpy4`,
   which `compiler_builtins` implements as one `ldmia`, `subs`, `stmia` and branch per word: about 100 instructions each
   way, not NEON. The block's fixed cost is about 400 cycles by the fit (about 6 cycles per channel-sample at
-  n = 32), of which the copies are about 200 instructions. Nearly the whole State is the loop's, so `kLoopState` would save little of the copy's
-  size; a wider copy is the lever, and it is not measured.
+  n = 32), of which the copies are about 200 instructions. Nearly the whole State is the loop's, so `kLoopState`
+  would save little of the copy's size; a wider copy is the lever, and it is not measured.
 - **Code size.** `effects::ModFx::render` is 2,720 bytes in the device image, one function for all eight loops.
 
 ## Open questions
