@@ -39,6 +39,8 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include <algorithm>
+#include <cstdint>
 #include <math.h>
 
 #define SAMPLES_TO_CLEAR_AFTER_RECORD 8820          // 200ms
@@ -773,22 +775,28 @@ getOut:
 
 /// identifies if a parameter is currently interpolating
 /// the value increment is used to increment / decrement the parameters current value
-bool AutoParam::hasInterpolationIncrement() {
-	return valueIncrementPerHalfTick != 0 || value_increment_per_half_tick_float != 0.0f;
+bool AutoParam::hasInterpolationIncrement(bool use_float_interpolation) {
+	if (use_float_interpolation) [[unlikely]] {
+		return value_increment_per_half_tick_float != 0.0f;
+	}
+	return valueIncrementPerHalfTick != 0;
 }
 
 /// resets interpolation increment to zero (can happen if we reached parameter value limits)
 /// or if we've reached another node in which case we'll be re-calculating the increment
 void AutoParam::resetInterpolationIncrement() {
 	valueIncrementPerHalfTick = 0;
-	value_increment_per_half_tick_float = 0.0f;
 	interpolation_increment_remainder_float = 0.0f;
 }
 
 /// reverse the interpolation increment in case we're now interpolating backwards to the previous node
-void AutoParam::reverseInterpolationIncrement() {
-	valueIncrementPerHalfTick = -valueIncrementPerHalfTick;
-	value_increment_per_half_tick_float = -value_increment_per_half_tick_float;
+void AutoParam::reverseInterpolationIncrement(bool use_float_interpolation) {
+	if (use_float_interpolation) [[unlikely]] {
+		value_increment_per_half_tick_float = -value_increment_per_half_tick_float;
+	}
+	else {
+		valueIncrementPerHalfTick = -valueIncrementPerHalfTick;
+	}
 	interpolation_increment_remainder_float = -interpolation_increment_remainder_float;
 }
 
@@ -929,19 +937,27 @@ bool AutoParam::applyValueIncrement(int32_t value_increment) {
 	return (currentValue != oldValue);
 }
 
-bool AutoParam::tickSamples(int32_t numSamples) {
+/// multiplies a per-half-tick increment by a number of half ticks, clamping to the int32 range rather than wrapping.
+/// A steep increment (a short segment covering a big value change) times a large number of skipped ticks overflows an
+/// int32 easily, and a wrapped increment sends currentValue in the wrong direction entirely.
+static int32_t saturatingIncrement(int32_t incrementPerHalfTick, int64_t halfTicks) {
+	int64_t increment = (int64_t)incrementPerHalfTick * halfTicks;
+	return (int32_t)std::clamp<int64_t>(increment, INT32_MIN, INT32_MAX);
+}
+
+bool AutoParam::tickSamples(int32_t numSamples, bool use_float_interpolation) {
 	// if we don't have any interpolation to apply, return false
-	if (!hasInterpolationIncrement()) {
+	if (!hasInterpolationIncrement(use_float_interpolation)) {
 		return false;
 	}
 
 	int32_t value_increment = 0;
 
 	// non-float interpolation
-	if (valueIncrementPerHalfTick != 0) [[likely]] {
-		value_increment =
-		    multiply_32x32_rshift32_rounded(valueIncrementPerHalfTick, playbackHandler.getTimePerInternalTickInverse())
-		    * 6 * numSamples;
+	if (!use_float_interpolation) [[likely]] {
+		value_increment = saturatingIncrement(
+		    multiply_32x32_rshift32_rounded(valueIncrementPerHalfTick, playbackHandler.getTimePerInternalTickInverse()),
+		    (int64_t)6 * numSamples);
 	}
 	// float interpolation
 	else {
@@ -955,18 +971,18 @@ bool AutoParam::tickSamples(int32_t numSamples) {
 	return applyValueIncrement(value_increment);
 }
 
-bool AutoParam::tickTicks(int32_t numTicks) {
+bool AutoParam::tickTicks(int32_t numTicks, bool use_float_interpolation) {
 	// if we don't have any interpolation to apply, return false
-	if (!hasInterpolationIncrement()) {
+	if (!hasInterpolationIncrement(use_float_interpolation)) {
 		return false;
 	}
 
 	int32_t value_increment = 0;
-	int32_t half_ticks = numTicks * 2;
+	int64_t half_ticks = (int64_t)numTicks * 2;
 
 	// non-float interpolation
-	if (valueIncrementPerHalfTick != 0) [[likely]] {
-		value_increment = valueIncrementPerHalfTick * half_ticks;
+	if (!use_float_interpolation) [[likely]] {
+		value_increment = saturatingIncrement(valueIncrementPerHalfTick, half_ticks);
 	}
 	// float interpolation
 	else {
@@ -1336,8 +1352,8 @@ getValueNormalWay:
 				return -1;
 			}
 			edgeIndexes[REGION_EDGE_LEFT] += (int32_t)anyWrap;
-			// Theoretically we'd re-get the other edgeNode here - but in fact, if it already existed, we won't access
-			// it again anyway.
+			// Note: a pre-existing left edgeNode pointer captured above may now dangle if this insert relocated the
+			// backing store. We re-fetch it unconditionally before writing it, below.
 		}
 
 		edgeNodes[REGION_EDGE_RIGHT] = nodes.getElement(edgeIndexes[REGION_EDGE_RIGHT]);
@@ -1369,6 +1385,10 @@ getValueNormalWay:
 		edgeNodes[REGION_EDGE_LEFT] = nodes.getElement(edgeIndexes[REGION_EDGE_LEFT]);
 		edgeNodes[REGION_EDGE_LEFT]->pos = edgePositions[REGION_EDGE_LEFT];
 	}
+	// Re-fetch unconditionally: if the left node pre-existed, the above block was skipped, but the right-edge
+	// insertAtIndex may have relocated the backing store - which would dangle the pointer captured earlier.
+	// edgeIndexes[REGION_EDGE_LEFT] is kept correct through both blocks, so it's safe to re-derive from it.
+	edgeNodes[REGION_EDGE_LEFT] = nodes.getElement(edgeIndexes[REGION_EDGE_LEFT]);
 	edgeNodes[REGION_EDGE_LEFT]->value = reversed ? valueAtLateEdge : startValue;
 	edgeNodes[REGION_EDGE_LEFT]->interpolated = interpolateLeftNode;
 
@@ -1555,8 +1575,8 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 		int32_t numNodes = nodes.getNumElements();
 
 		if (reverseDirectionWithLength && numNodes) {
-			// Sneakily and temporarily clone this - still pointing to the old AutoParam's nodes' memory.
-			ParamNodeVector oldNodes = nodes;
+			// Still belongs to the AutoParam we were cloned from, so we mustn't modify or free it.
+			ParamNodeVector& oldNodes = *nodes.get();
 			nodes.init();
 
 			error = nodes.insertAtIndex(0, numNodes);
@@ -1597,10 +1617,6 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 					oldNodeToLeftValue = oldNode->value;
 				}
 			}
-
-			// Because this is about to get destructed, we need to stop it pointing to the old
-			// AutoParam's nodes' memory, cos we don't want that getting deallocated.
-			oldNodes.init();
 		}
 
 		else {
@@ -1940,7 +1956,7 @@ addNewNodeAt0IfNecessary:
 				// Or, if we need to snapshot, work with that
 			}
 			else {
-				ParamNodeVector newNodes;
+				LazyParamNodeVector newNodes;
 				Error error = newNodes.insertAtIndex(0, newNumNodes);
 				if (error != Error::NONE) {
 					goto basicTrim;
@@ -2877,8 +2893,8 @@ setNodeValue:
 	nodes.testSequentiality("E334");
 }
 
-void AutoParam::notifyPingpongOccurred() {
-	reverseInterpolationIncrement();
+void AutoParam::notifyPingpongOccurred(bool use_float_interpolation) {
+	reverseInterpolationIncrement(use_float_interpolation);
 }
 
 void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,

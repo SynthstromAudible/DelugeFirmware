@@ -21,7 +21,7 @@
 #include "io/midi/midi_device_manager.h"
 
 namespace deluge::gui::menu_item::midi {
-class ReceiveClock final : public Toggle {
+class DeviceReceiveClock final : public Toggle {
 public:
 	using Toggle::Toggle;
 	void readCurrentValue() override { this->setValue(soundEditor.currentMIDICable->receiveClock); }

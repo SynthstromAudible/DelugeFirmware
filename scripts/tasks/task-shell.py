@@ -1,9 +1,9 @@
 #! /usr/bin/env python3
 import argparse
-import platform
-import subprocess
-import shutil
 import os
+import platform
+import shutil
+import subprocess
 import sys
 
 # Based on dbt_tools/shell.py by litui
@@ -31,7 +31,7 @@ def argparser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    result = subprocess.run([get_shell()] + sys.argv[1:], env=os.environ)
+    result = subprocess.run([get_shell()] + sys.argv[1:], env=os.environ, check=False)
     return result.returncode
 
 

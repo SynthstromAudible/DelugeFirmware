@@ -46,6 +46,7 @@ public:
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
 	void selectEncoderAction(int32_t offset) override;
 	void horizontalEncoderAction(int32_t offset) override;
+	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
 
 	modulation::params::Kind getParamKind();
 	uint32_t getParamIndex();

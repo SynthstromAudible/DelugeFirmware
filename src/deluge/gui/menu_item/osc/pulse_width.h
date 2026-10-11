@@ -36,7 +36,7 @@ public:
 		    soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP())));
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		const auto sound = static_cast<Sound*>(modControllable);
 		if (sound->getSynthMode() == SynthMode::FM) {
 			return false;

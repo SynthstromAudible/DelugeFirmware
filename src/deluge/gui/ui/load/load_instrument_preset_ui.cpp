@@ -36,6 +36,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -62,6 +63,11 @@ bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* row
 }
 
 bool LoadInstrumentPresetUI::opened() {
+
+	// The QWERTY keyboard is always shown in this UI (qwertyAlwaysVisible stays true), so the favourites row should
+	// be too. The static qwertyVisible flag can be left false by another browser (e.g. song load with the keyboard
+	// toggled off); without resetting it here the favourites row would stay hidden until something else set it. #4674
+	qwertyVisible = true;
 
 	if (getRootUI() == &keyboardScreen) {
 		PadLEDs::skipGreyoutFade();
@@ -336,7 +342,6 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 
 		if (currentFileItem
 		        ->instrument) { // When would this not have something? Well ok, maybe now that we have folders.
-			convertToPrefixFormatIfPossible();
 		}
 
 		if (outputTypeToLoad == OutputType::KIT && showingAuditionPads()) {
@@ -366,7 +371,6 @@ doChangeOutputType:
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			convertToPrefixFormatIfPossible(); // Why did I put this here?
 			changeOutputType(newOutputType);
 		}
 	}
@@ -423,7 +427,10 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 
 		bool fileExists = StorageManager::fileExists(filePath.get(), &currentFileItem->filePointer);
 		if (!fileExists) {
-			display->displayError(Error::FILE_NOT_FOUND);
+			// An unsaved (in-memory only) synth preset cannot be loaded / cloned because
+			// the XML is read from disk to create the instrument. If the preset hasn't
+			// been saved yet, there is no file on the SD card to read from.
+			display->displayError(Error::FILE_NOT_SAVED);
 			return ActionResult::DEALT_WITH;
 		}
 
@@ -431,7 +438,6 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 
 		if (available) {
 			display->setNextTransitionDirection(1);
-			convertToPrefixFormatIfPossible();
 			openUI(&gui::context_menu::loadInstrumentPreset);
 		}
 		else {
@@ -1066,45 +1072,81 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 		return Error::FILE_NOT_SAVED;
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack =
-	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
-	// make sure the drum isn't currently in use
-	noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
-	kitToLoadFor->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)soundDrumToReplace);
-	kitToLoadFor->removeDrum(soundDrumToReplace);
-
-	// swaps out the drum pointed to by soundDrumToReplace
-	Error error = StorageManager::loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
+	SoundDrum* oldDrum = soundDrumToReplace;
+	SoundDrum* newDrum = nullptr;
+	Error error = StorageManager::loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &newDrum,
 	                                              &currentFileItem->filePointer, &enteredText, &currentDir);
 	if (error != Error::NONE) {
 		return error;
 	}
-	// kitToLoadFor->addDrum(soundDrumToReplace);
+
+	// The old drum stays in the kit, and alive, until every NoteRow has been moved off it - loading samples can run
+	// the audio routine, and NoteRows in any Clip of this Kit may still be played or rendered in the meantime.
 	display->displayLoadingAnimationText("Loading", false, true);
-	soundDrumToReplace->loadAllSamples(true);
+	newDrum->loadAllSamples(true);
 
-	// soundDrumToReplace->name.set(getCurrentFilenameWithoutExtension());
-	soundDrumToReplace->drumName = getCurrentFilenameWithoutExtension();
-	soundDrumToReplace->path.set(&currentDir);
-	ParamManager* paramManager =
-	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
-	if (paramManager) {
-		kitToLoadFor->addDrum(soundDrumToReplace);
-		// don't back up the param manager since we can't use the backup anyway
-		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor, paramManager,
-		                 false);
+	newDrum->drumName = enteredText.get();
+	newDrum->path.set(&currentDir);
+	// Steal the ParamManager that loading backed up, so its (now empty) backup entry is removed from the Song. Take it
+	// out of the backups first - setDrum() backs up the old ParamManager, which can move the backups around
+	ParamManagerForTimeline paramManager;
+	if (!currentSong->getBackedUpParamManagerPreferablyWithClip(newDrum, instrumentClipToLoadFor, &paramManager)) {
+		currentSong->deleteBackedUpParamManagersForModControllable(newDrum);
+		void* toDealloc = dynamic_cast<void*>(newDrum);
+		newDrum->~SoundDrum();
+		delugeDealloc(toDealloc);
+		display->removeLoadingAnimation();
+		return Error::FILE_CORRUPTED;
+	}
 
-		kitToLoadFor->selectedDrum = soundDrumToReplace;
-		kitToLoadFor->beenEdited();
+	kitToLoadFor->addDrum(newDrum);
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack =
+	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
+	noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
+	// Back up the old ParamManager so it's freed along with the old drum below, rather than leaked
+	noteRow->setDrum(newDrum, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor, &paramManager, true);
+
+	// The same Drum is shared by NoteRows in every Clip of this Kit - move all of them onto the new drum, otherwise
+	// they'd be left pointing at the old one once it's deleted. They clone their ParamManager from the row above.
+	for (InstrumentClip* clip : InstrumentClips::everywhere(currentSong)) {
+		if (oldDrum == nullptr || clip->output != kitToLoadFor) {
+			continue;
+		}
+		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
+			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
+			if (thisNoteRow->drum != oldDrum) {
+				continue;
+			}
+			char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithNoteRow* otherModelStackWithNoteRow =
+			    setupModelStackWithTimelineCounter(otherModelStackMemory, currentSong, clip)
+			        ->addNoteRow(clip->getNoteRowId(thisNoteRow, i), thisNoteRow);
+			thisNoteRow->stopCurrentlyPlayingNote(otherModelStackWithNoteRow);
+			thisNoteRow->setDrum(newDrum, kitToLoadFor, otherModelStackWithNoteRow, instrumentClipToLoadFor, nullptr,
+			                     true);
+		}
 	}
-	else {
-		error = Error::FILE_CORRUPTED;
+
+	// Nothing references the old drum now, so it can go
+	if (oldDrum != nullptr) {
+		oldDrum->wontBeRenderedForAWhile();
+		kitToLoadFor->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)oldDrum);
+		kitToLoadFor->removeDrum(oldDrum);
+		currentSong->deleteBackedUpParamManagersForModControllable(oldDrum);
+		void* toDealloc = dynamic_cast<void*>(oldDrum);
+		oldDrum->~SoundDrum();
+		delugeDealloc(toDealloc);
 	}
+
+	soundDrumToReplace = newDrum;
+	kitToLoadFor->selectedDrum = newDrum;
+	kitToLoadFor->beenEdited();
 
 	display->removeLoadingAnimation();
-	return error;
+	return Error::NONE;
 }
 // Previously called "exitAndResetInstrumentToInitial()". Does just that.
 void LoadInstrumentPresetUI::exitAction() {
@@ -1566,7 +1608,7 @@ doneMoving:
 		view.displayOutputName(toReturn.fileItem->instrument, doBlink);
 	}
 	else {
-		toReturn.error = toReturn.fileItem->getDisplayNameWithoutExtension(&newName);
+		toReturn.error = toReturn.fileItem->getFilenameWithoutExtension(&newName);
 		if (toReturn.error != Error::NONE) {
 			emptyFileItems();
 			return toReturn;

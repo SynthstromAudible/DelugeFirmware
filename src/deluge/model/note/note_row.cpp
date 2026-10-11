@@ -29,6 +29,7 @@
 #include "model/drum/drum_name.h"
 #include "model/drum/gate_drum.h"
 #include "model/instrument/kit.h"
+#include "model/iterance/iterance_migration.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -1990,12 +1991,24 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 					}
 				}
 			}
-			if (drewNote && currentSong->isFillModeActive()) {
-				if (note->fill == FillMode::FILL) {
-					pixel = deluge::gui::colours::blue;
+			// if we're not dealing with a blurred note or a note tail
+			if (pixel != rowBlurColour && pixel != rowTailColour) {
+				// if fill mode is active, identify the notes that are fill or not-fill
+				if (drewNote && currentSong->isFillModeActive()) {
+					if (note->fill == FillMode::FILL) {
+						pixel = deluge::gui::colours::blue;
+					}
+					else if (note->fill == FillMode::NOT_FILL) {
+						pixel = deluge::gui::colours::red;
+					}
 				}
-				else if (note->fill == FillMode::NOT_FILL) {
-					pixel = deluge::gui::colours::red;
+				// if you're in the note editor, identify the notes that have non-default parameters
+				else if (drewNote && getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
+					// if note has non-default settings for probability, iterance or fill
+					if (note->getProbability() != kNumProbabilityValues || note->getIterance() != kDefaultIteranceValue
+					    || note->getFill() != FillMode::OFF) {
+						pixel = deluge::gui::colours::yellow;
+					}
 				}
 			}
 		}
@@ -2981,9 +2994,12 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		Iterance iterance = note->iterance;
 		int32_t pos = note->pos;
 
-		// If it's iteration dependent...
+		// If it's iteration dependent
 		if (iterance != kDefaultIteranceValue) {
 			int32_t divisor = iterance.divisor;
+			bool first = iterance == kFirstIteranceValue;
+			bool last = iterance == kLastIteranceValue;
+			divisor = std::max<int32_t>(divisor, 1);
 
 			int32_t newNumFullLoops = numRepeatsRounded ? newLoopLength / (uint32_t)(oldLoopLength * divisor) : 1;
 
@@ -3026,13 +3042,25 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 				}
 
 				int32_t iterationWithinDivisor = -1;
-				for (int32_t iteration = 0; iteration < 8; iteration++) {
-					if (iterance.iteranceStep[iteration]) {
-						int32_t iterationWithinDivisorWithinRepeat =
-						    numRepeatsRounded ? ((uint32_t)iteration % (uint32_t)numRepeatsRounded) : iteration;
-						if (whichRepeatWithinLoop == iterationWithinDivisorWithinRepeat) {
-							iterationWithinDivisor = iteration;
-							break;
+				// if we're first or last then check that first
+				if ((first and whichFullLoop == 0) or (last and whichFullLoop == newNumFullLoops - 1)) {
+					// condition is matched so keep this one
+					iterationWithinDivisor = 0;
+				}
+				else if (first or last) {
+					// in this case the first/last condition is not matched so delete it
+					iterationWithinDivisor = -1;
+				}
+				else {
+					// otherwise check through the divisor for a match
+					for (int32_t iteration = 0; iteration < 8; iteration++) {
+						if (iterance.iteranceStep[iteration]) {
+							int32_t iterationWithinDivisorWithinRepeat =
+							    numRepeatsRounded ? ((uint32_t)iteration % (uint32_t)numRepeatsRounded) : iteration;
+							if (whichRepeatWithinLoop == iterationWithinDivisorWithinRepeat) {
+								iterationWithinDivisor = iteration;
+								break;
+							}
 						}
 					}
 				}
@@ -3052,7 +3080,11 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 				else {
 
 					Iterance newIterance;
-					if (newNumFullLoops == 0) {
+					// in this case just keep the iterance as is - first stays first, last still last no matter what
+					if (first or last) {
+						newIterance = iterance;
+					}
+					else if (newNumFullLoops == 0) {
 						// I think this bit is for, like, if we had a note doing 1of6, and we're doing two
 						// repeats total on this Clip, well then to keep it sounding the same, we'd now need the
 						// note to be a 1of3.
@@ -3072,7 +3104,7 @@ switchOff:
 
 					thisRepeatedNote->setIterance(newIterance);
 				}
-
+next:
 				whichRepeatWithinLoop++;
 				if (whichRepeatWithinLoop >= divisor) {
 					whichRepeatWithinLoop = 0;
@@ -3383,7 +3415,7 @@ doReadNoteData:
 				}
 				else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
 					fill = hexToIntFixedLength(&hexChars[24], 2);
-					iterance = Iterance::fromPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
+					iterance = iteranceFromLegacyPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {
@@ -3406,7 +3438,7 @@ doReadNoteData:
 					else if (probability > kNumProbabilityValues
 					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
 						fill = FillMode::OFF;
-						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
+						iterance = iteranceFromLegacyProbabilityByte(probability);
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
@@ -3434,7 +3466,7 @@ doReadNoteData:
 					else if (probability > kNumProbabilityValues
 					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
 						fill = FillMode::OFF;
-						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
+						iterance = iteranceFromLegacyProbabilityByte(probability);
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
@@ -3715,6 +3747,10 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		modelStack->song->backUpParamManager(
 		    (SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(), &paramManager,
 		    false); // Don't steal expression params - we'll keep them here with this NoteRow.
+	}
+	else if (!backupOldParamManager) {
+		// Not backing up, so nothing else owns the main collections - free them rather than leaking them
+		paramManager.destructAndForgetMainParamCollections();
 	}
 	paramManager.forgetParamCollections();
 

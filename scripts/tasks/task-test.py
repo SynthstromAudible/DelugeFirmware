@@ -3,6 +3,7 @@ import argparse
 import os
 import subprocess
 import sys
+
 import util
 
 
@@ -23,7 +24,7 @@ def cmake_build() -> int:
     cmake_args = ["cmake"]
     cmake_args += ["--build", "build/tests/"]
 
-    return subprocess.run(cmake_args, env=os.environ).returncode
+    return subprocess.run(cmake_args, env=os.environ, check=False).returncode
 
 
 def cmake_test() -> int:
@@ -31,7 +32,7 @@ def cmake_test() -> int:
     cmake_args += ["--test-dir", "build/tests", "-C", "Debug"]
 
     return subprocess.run(
-        cmake_args, env=dict(os.environ, CTEST_OUTPUT_ON_FAILURE="1")
+        cmake_args, env=dict(os.environ, CTEST_OUTPUT_ON_FAILURE="1"), check=False
     ).returncode
 
 
@@ -41,11 +42,11 @@ def cmake_configure() -> int:
     cmake_args += ["-B", "build/tests"]
     cmake_args += ["-G", "Ninja Multi-Config"]  # generator
 
-    return subprocess.run(cmake_args, env=os.environ).returncode
+    return subprocess.run(cmake_args, env=os.environ, check=False).returncode
 
 
 def main() -> int:
-    (args, unknown_args) = argparser().parse_known_args()
+    (args, _unknown_args) = argparser().parse_known_args()
 
     os.chdir(util.get_git_root())
 

@@ -18,9 +18,11 @@
  */
 
 #include "io/midi/sysex.h"
+#include "hid/display/screensaver.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "storage/flash_storage.h"
 #include "util/chainload.h"
 
 #include "util/pack.h"
@@ -126,6 +128,11 @@ static void firstPacket(uint8_t* data, int32_t len) {
 	deluge::hid::display::OLED::clearMainImage();
 	deluge::hid::display::OLED::sendMainImage();
 
+	// Show the configured screensaver while the firmware payload is streaming in.
+	if (FlashStorage::screensaverMode != ScreensaverMode::OFF && ::display->haveOLED()) {
+		deluge::hid::display::Screensaver::timerEvent();
+	}
+
 	boostTask(midiEngine.routine_task_id);
 }
 
@@ -144,6 +151,7 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 	uint32_t handshake_received;
 	unpack_7bit_to_8bit((uint8_t*)&handshake_received, 4, data + 2, 5);
 	if (handshake != handshake_received) {
+		FREEZE_WITH_ERROR("E997");
 		return;
 	}
 
@@ -154,6 +162,7 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 	}
 
 	if (load_buf == nullptr || pos + 512 > load_bufsize) {
+		FREEZE_WITH_ERROR("E999");
 		return;
 	}
 
@@ -173,10 +182,12 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
 	uint32_t handshake = runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed);
 	if (handshake == 0) {
+		FREEZE_WITH_ERROR("E996");
 		return; // not allowed
 	}
 
 	if (len < 17 || load_buf == nullptr) {
+		FREEZE_WITH_ERROR("E995");
 		return; // cannot do that
 	}
 

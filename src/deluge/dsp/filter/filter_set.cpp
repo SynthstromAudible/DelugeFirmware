@@ -191,8 +191,4 @@ int32_t FilterSet::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 	return filterGain;
 }
 
-void FilterSet::reset() {
-	memset(&lpfilter, 0, sizeof(LowPass));
-	memset(&hpfilter, 0, sizeof(HighPass));
-}
 } // namespace deluge::dsp::filter

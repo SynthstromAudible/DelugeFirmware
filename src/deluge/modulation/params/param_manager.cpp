@@ -116,10 +116,24 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 		FREEZE_WITH_ERROR("E413");
 	}
 #endif
+	// don't steal from ourselves
+	if (other == this) {
+		return;
+	}
 
 	int32_t mpeParamsOffsetOther = other->getExpressionParamSetOffset();
 	int32_t mpeParamsOffsetHere = getExpressionParamSetOffset();
 	int32_t stopAtOther = mpeParamsOffsetOther;
+
+	// Main collections already owned by the destination are about to be
+	// overwritten. Release them while retaining its expression collection.
+	for (int32_t i = 0; i < mpeParamsOffsetHere; i++) {
+		if (summaries[i].paramCollection) {
+			summaries[i].paramCollection->~ParamCollection();
+			delugeDealloc(summaries[i].paramCollection);
+			summaries[i] = {0};
+		}
+	}
 
 	// If we're planning to steal expression params, and yes "other" does in fact have them...
 	if (stealExpressionParams && other->summaries[stopAtOther].paramCollection) {
@@ -142,6 +156,7 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	int32_t i;
 	for (i = 0; i < stopAtOther; i++) {
 		summaries[i] = other->summaries[i];
+		other->summaries[i] = {0};
 	}
 
 	summaries[stopAtOther] = hereMpeParamsOrNull; // Could the expression params, or NULL
@@ -285,6 +300,14 @@ void ParamManager::destructAndForgetParamCollections() {
 	expressionParamSetOffset = 0;
 }
 
+void ParamManager::destructAndForgetMainParamCollections() {
+	for (int32_t i = 0; i < expressionParamSetOffset; i++) {
+		summaries[i].paramCollection->~ParamCollection();
+		delugeDealloc(summaries[i].paramCollection);
+	}
+	forgetParamCollections(); // Shuffles any expression params down to the start
+}
+
 // Returns whether there is one / one could be created.
 bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
 	int32_t offset = getExpressionParamSetOffset();
@@ -378,11 +401,20 @@ void ParamManagerForTimeline::processCurrentPos(ModelStackWithThreeMainThings* m
 
 		FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
 
-		summary->paramCollection->processCurrentPos(modelStackWithParamCollection, ticksSkipped, reversed, didPingpong,
-		                                            true);
-		// if we can't interpolate by samples then we'll interpolate by ticks here instead
+		// If we can't interpolate by samples then we'll interpolate by ticks instead. This has to happen *before*
+		// processCurrentPos(), because that may reach a node and set up a new increment for the span we're about to
+		// begin - whereas the ticks we've skipped belong to the span we've just finished. Applying them to the new
+		// increment sends the value far past its target (a whole inter-node gap's worth of a few-tick ramp), which for
+		// MIDI output means expression values well outside 0-127.
 		if (!mayInterpolate && (summary->whichParamsAreInterpolating[0] != 0u)) {
 			summary->paramCollection->tickTicks(ticksSkipped, modelStackWithParamCollection);
+		}
+
+		summary->paramCollection->processCurrentPos(modelStackWithParamCollection, ticksSkipped, reversed, didPingpong,
+		                                            true);
+		// Re-check after processCurrentPos(): if a node has just started some interpolation, we need to come back every
+		// tick to advance it.
+		if (!mayInterpolate && (summary->whichParamsAreInterpolating[0] != 0u)) {
 			ticksTilNextEvent = 0;
 		}
 		ticksTilNextEvent = std::min(ticksTilNextEvent, summary->paramCollection->ticksTilNextEvent);

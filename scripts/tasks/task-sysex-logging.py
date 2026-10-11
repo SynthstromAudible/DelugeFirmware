@@ -1,6 +1,8 @@
 #! /usr/bin/env python3
-import time
 import argparse
+import sys
+import time
+
 import util
 
 
@@ -123,13 +125,13 @@ def main():
         midiout.open_port(outport)
         midiin.open_port(inport)
         ok = True
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - report any setup failure, then exit in finally
         util.note(f"ERROR: {e}")
     finally:
         if not ok:
             util.report_available_midi_ports("output", midiout)
             util.report_available_midi_ports("input", midiin)
-            exit(1)
+            sys.exit(1)
 
     sysex_console(midiout, midiin)
 

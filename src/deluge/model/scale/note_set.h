@@ -52,6 +52,12 @@ public:
 	 * This is the scale degree of the note if the NoteSet represents a scale and has a root.
 	 */
 	int8_t degreeOf(uint8_t note) const;
+	/** Returns number of notes lower than the note given, whether or not it is present.
+	 *
+	 * Unlike degreeOf(), a note absent from the NoteSet gets the index it would occupy
+	 * if it were added -- ie. the degree of the note immediately above it.
+	 */
+	int8_t degreesBelow(uint8_t note) const;
 	/** Marks all semitones as being part of the NoteSet.
 	 */
 	void fill() { bits = 0xfff; }

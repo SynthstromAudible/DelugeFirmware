@@ -1,10 +1,10 @@
 #! /usr/bin/env python3
 import argparse
 import importlib
+import os
 import subprocess
 import sys
 from pathlib import Path
-import os
 
 # Based on dbt_tools/gdb.py by litui
 
@@ -43,11 +43,12 @@ def main() -> int:
         [
             "arm-none-eabi-gdb",
             "-ex",
-            f"source {str(gdbinit)}",
+            f"source {gdbinit!s}",
             "-ex",
             "target extended-remote :3333",
             elf_path,
-        ]
+        ],
+        check=False,
     )
     return result.returncode
 

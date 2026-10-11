@@ -121,6 +121,10 @@ public:
 	static constexpr float kReverbTimeMax = 0.98f;
 	static constexpr float kWidthMin = 0.1f;
 	static constexpr float kWidthMax = 0.9f;
+	/// Range of the one-pole coefficient driving the damping filter inside the reverb loop. kLpMax is fully
+	/// transparent, kLpMin is a cutoff of roughly 70Hz, past which there is nothing left of the tail to damp.
+	static constexpr float kLpMin = 0.01f;
+	static constexpr float kLpMax = 1.f;
 
 	// Reverb Base Overrides
 	void setRoomSize(float value) override {
@@ -130,9 +134,12 @@ public:
 		return util::map(reverb_time_, kReverbTimeMin, kReverbTimeMax, 0.f, 1.f);
 	};
 
+	/// 0 is no damping at all, 1 is as dark as the loop filter goes. The curve is logarithmic so the audible
+	/// change is spread evenly over the parameter's range.
 	void setDamping(float value) override {
 		lp_val_ = value;
-		lp_ = (value == 0.f) ? 1.f : 1.f - std::clamp((std::log2(((1.f - lp_val_) * 50.f) + 1.f) / 5.7f), 0.f, 1.f);
+		const float damping = std::clamp(std::log2((value * 50.f) + 1.f) / 5.7f, 0.f, 1.f);
+		lp_ = util::map(1.f - damping, 0.f, 1.f, kLpMin, kLpMax);
 	}
 	[[nodiscard]] float getDamping() const override { return lp_val_; }
 

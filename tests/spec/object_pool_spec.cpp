@@ -1,10 +1,11 @@
 #include "../tracking_allocator.h"
 #include "memory/object_pool.h"
 
-#include "cppspec.hpp"
 #include <cassert>
 #include <future>
 #include <thread>
+
+#include "cppspec.hpp"
 
 using namespace deluge::memory;
 

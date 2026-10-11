@@ -219,7 +219,11 @@ public:
 	 */
 	static Response read() {
 		uint8_t value;
-		uartGetChar(UART_ITEM_PIC, (char*)&value);
+		// uartGetChar leaves value untouched when the RX buffer is empty.
+		// Report that explicitly so empty polls cannot look like real PIC events.
+		if (!uartGetChar(UART_ITEM_PIC, (char*)&value)) {
+			return Response::NONE;
+		}
 		return Response{value};
 	}
 
@@ -249,7 +253,13 @@ public:
 		uint16_t timeWaitBegan = *TCNT[TIMER_SYSTEM_FAST];
 		int32_t result = 1; // error with failure by default
 		while ((uint16_t)(*TCNT[TIMER_SYSTEM_FAST] - timeWaitBegan) < timeout) {
-			result = handler(PIC::read());
+			Response value = PIC::read();
+			if (value == Response::NONE) {
+				// Match the old boot-time scan, which waited for actual UART bytes.
+				// Empty polls must not poison the RESET_SETTINGS guard.
+				continue;
+			}
+			result = handler(value);
 			if (result != 0) {
 				return result;
 			}

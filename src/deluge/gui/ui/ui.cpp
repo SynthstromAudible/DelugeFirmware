@@ -48,6 +48,12 @@ void UI::graphicsRoutine() {
 	}
 }
 
+void UI::displayOrLanguageChanged() {
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+}
+
 void UI::close() {
 	closeUI(this);
 }
@@ -384,7 +390,6 @@ void doAnyPendingUIRendering() {
 	}
 
 	pendingUIRenderingLock = true;
-
 	doAnyPendingGridRendering();
 	doAnyPendingOLEDRendering();
 

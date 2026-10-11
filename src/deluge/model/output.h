@@ -130,6 +130,7 @@ public:
 	virtual ModControllable* toModControllable() { return nullptr; }
 	virtual bool isSkippingRendering() { return true; } // Not valid for Kits
 	bool clipHasInstance(Clip* clip);
+	void deleteAnyInstancesOfClip(Clip* clip);
 	bool isEmpty(bool displayPopup = true);
 	void clipLengthChanged(Clip* clip, int32_t oldLength);
 	virtual void cutAllSound() {}
@@ -222,14 +223,16 @@ public:
 		return false;
 	}
 	Output* getOutputRecordingThis() { return outputRecordingThisOutput; }
+	// only for audio outputs, will be used for instruments when I implement routing notes between clips
+	virtual void clearRecordingFrom() {}
+	/// Which output this one records from, or nullptr. Only audio outputs ever record from another output.
+	virtual Output* getOutputRecordingFrom() { return nullptr; }
 
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;
 	bool recorderIsEchoing{false};
 	// for clearing pointers when this output is deleted
 	Output* outputRecordingThisOutput{nullptr};
-	// only for audio outputs, will be used for instruments when I implement routing notes between clips
-	virtual void clearRecordingFrom() {}
 	Clip* activeClip{nullptr};
 	SampleRecorder* recorder{nullptr};
 };

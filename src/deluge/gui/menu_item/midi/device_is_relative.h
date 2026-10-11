@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
- *
+ * Copyright (c) 2026 Sean Ditny
+
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
  * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
@@ -21,7 +21,7 @@
 #include "io/midi/midi_device_manager.h"
 
 namespace deluge::gui::menu_item::midi {
-class IsRelative final : public Toggle {
+class DeviceIsRelative final : public Toggle {
 public:
 	using Toggle::Toggle;
 	void readCurrentValue() override { this->setValue(soundEditor.currentMIDICable->is_relative); }

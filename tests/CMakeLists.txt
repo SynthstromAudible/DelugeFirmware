@@ -11,6 +11,7 @@ set(DELUGE_C_STANDARD 23)
 set(DELUGE_CXX_STANDARD 23)
 
 enable_testing()
+add_compile_options(-Wno-unknown-warning-option)
 #needs to support -m32 since the memory tests assume a 32 bit architecture
 if (UNIX AND NOT APPLE)
     add_compile_options(-m32 -Og -ggdb3)

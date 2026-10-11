@@ -24,4 +24,5 @@ class WaveTable;
 class WaveTableHolder final : public AudioFileHolder {
 public:
 	WaveTableHolder();
+	~WaveTableHolder() override;
 };

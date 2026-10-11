@@ -41,6 +41,11 @@ bool SaveUI::opened() {
 		return false;
 	}
 
+	// qwertyVisible is shared by every browser and starts out true, and nothing here resets it (qwertyAlwaysVisible is
+	// true for save UIs). Left alone, 7SEG would open in the text view ("SONG...") until a browser that does reset it,
+	// like song load, had been visited, and in the slot view ever after. Always start in the slot view.
+	qwertyVisible = false;
+
 	PadLEDs::clearSideBar();
 	return true;
 }
@@ -85,7 +90,6 @@ void SaveUI::enterKeyPress() {
 	else if (enteredText.isEmpty()) {} // Previously had &&currentFolderIsEmpty ... why?
 
 	else {
-		SlotBrowser::enterKeyPress();
 		bool dealtWith = performSave(false);
 
 		if (display->have7SEG()) {
@@ -116,7 +120,6 @@ ActionResult SaveUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 
 ActionResult SaveUI::timerCallback() {
 	if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
-		convertToPrefixFormatIfPossible();
 
 		bool available = gui::context_menu::saveSongOrInstrument.setupAndCheckAvailability();
 

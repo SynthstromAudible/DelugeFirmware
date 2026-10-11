@@ -186,16 +186,21 @@ void Submenu::selectEncoderAction(int32_t offset) {
 
 bool Submenu::shouldForwardButtons() {
 	// Should we deliver buttons to selected menu item instead?
-	return (*current_item_)->isSubmenu() == false && renderingStyle() == RenderingStyle::HORIZONTAL;
+	return renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()
+	       && (*current_item_)->isSubmenu() == false;
 }
 
 MenuItem* Submenu::selectButtonPress() {
 	if (shouldForwardButtons()) {
+		// In horizontal menus, some items (e.g. patch cable menus like vibrato)
+		// should enter their own full-screen session before handling SELECT.
+		if ((*current_item_)->allowToBeginSessionFromHorizontalMenu()) {
+			return *current_item_;
+		}
 		return (*current_item_)->selectButtonPress();
 	}
-	else {
-		return *current_item_;
-	}
+
+	return *current_item_;
 }
 
 ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {

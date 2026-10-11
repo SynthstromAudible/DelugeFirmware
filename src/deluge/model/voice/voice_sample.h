@@ -37,10 +37,17 @@ class VoiceSample final : public SampleLowLevelReader {
 public:
 	VoiceSample() = default;
 	explicit VoiceSample(VoiceSample& other) = default;
-	VoiceSample(SampleLowLevelReader&& other) : SampleLowLevelReader{std::move(other)} {}
+	// explicit: an implicit conversion here is a footgun. `*voiceSample = SampleLowLevelReader(...)` would silently
+	// build a temporary VoiceSample (with default-null timeStretcher/cache) and memberwise-move it over the live one,
+	// nulling timeStretcher mid-flight and orphaning it (leaking its reasons -> E078, see TimeStretcher::hopEnd).
+	// Assign through the SampleLowLevelReader base subobject instead when you only mean to replace the reader state.
+	explicit VoiceSample(SampleLowLevelReader&& other) : SampleLowLevelReader{std::move(other)} {}
 	~VoiceSample() override { endTimeStretching(); }
 	VoiceSample& operator=(const VoiceSample& other) = delete;
-	VoiceSample& operator=(VoiceSample&& other) = default;
+	// Deleted: the defaulted memberwise move-assign would overwrite timeStretcher/cache without endTimeStretching(),
+	// leaking whatever the destination currently owns. VoiceSamples are pool-managed and referenced by pointer, so no
+	// object-level move-assign is needed; if one ever is, give it a body that releases resources first.
+	VoiceSample& operator=(VoiceSample&& other) = delete;
 
 	void noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32_t priorityRating);
 	bool noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybackGuide* voiceSource);

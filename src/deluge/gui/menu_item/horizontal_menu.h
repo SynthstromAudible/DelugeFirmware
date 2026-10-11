@@ -19,6 +19,7 @@
 
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/submenu.h"
+#include "hid/encoder_acceleration.h"
 #include "util/containers.h"
 #include <initializer_list>
 #include <span>
@@ -59,6 +60,7 @@ public:
 	virtual bool hasItem(const MenuItem* item);
 	decltype(items)& getItems() { return items; }
 	MenuItem* getCurrentItem() const { return *current_item_; }
+	bool selectEncoderActionEditsInstrument() override;
 
 protected:
 	Paging paging;
@@ -81,9 +83,9 @@ private:
 	static void renderPageCounters(const Paging& paging);
 	static void renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32_t slotStartX, int32_t slotWidth,
 	                              bool isSelected);
-	static void initializeItem(MenuItem* menuItem);
+	static MenuPermission initializeItem(MenuItem* menuItem);
 
-	double currentKnobSpeed{0.0};
+	static deluge::hid::encoders::EncoderAcceleration& acceleration();
 	double calcNextKnobSpeed(int8_t offset);
 };
 } // namespace deluge::gui::menu_item

@@ -103,6 +103,13 @@ extern bool scrollingToNothing;
 } // namespace vertical
 
 RGB prepareColour(int32_t x, int32_t y, RGB colourSource);
+/// Sync one row's sidebar occupancy to its colours. Sidebars can legitimately contain black pads, and transition
+/// blending treats an occupied-but-black pad as real content, so mark those empty instead.
+void refreshSidebarOccupancy(RGB rowImage[], uint8_t rowOccupancyMask[]);
+/// Blank store rows 0 and kDisplayHeight + 1. Clip collapse and explode animations span kDisplayHeight + 2 rows, so
+/// callers that can't fill the two offscreen rows with real content must clear them, or the animation drags in
+/// whatever the previous transition left there.
+void clearTransitionStoreOffScreenRows();
 void clearTickSquares(bool shouldSend = true);
 void setTickSquares(const uint8_t* squares, const uint8_t* colours);
 void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut = true);
@@ -113,6 +120,10 @@ void recordTransitionBegin(uint32_t newTransitionLength);
 int32_t getTransitionProgress();
 void renderAudioClipExpandOrCollapse();
 void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder);
+/// Morph keyboard view's two sidebar columns to/from the Session sidebar colours of the row the clip collapses into
+/// or expands out of. Keyboard view has no mute / section columns of its own, so without this they would pop.
+/// Call after setupInstrumentClipCollapseAnimation(), which clears it.
+void enableKeyboardSidebarMorph(RGB sessionSectionColour);
 void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip);
 
 void setGreyoutAmount(float newAmount);

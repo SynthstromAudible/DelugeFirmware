@@ -94,8 +94,22 @@ tryDefaultDir:
 		}
 	}
 
-	// not used for midi
-	filePrefix = (outputTypeToLoad == OutputType::SYNTH) ? "SYNT" : "KIT";
+	// set file prefix
+	switch (outputTypeToLoad) {
+	case OutputType::SYNTH:
+		filePrefix = "SYNT";
+		break;
+	case OutputType::KIT:
+		filePrefix = "KIT";
+		break;
+	// explicit fallthrough cases
+	case OutputType::MIDI_OUT:
+		filePrefix = "MIDI";
+		break;
+	case OutputType::CV:
+	case OutputType::AUDIO:
+	case OutputType::NONE:;
+	}
 
 	Error error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
 	if (error != Error::NONE) {
@@ -104,11 +118,21 @@ gotError:
 		goto doReturnFalse;
 	}
 
-	if (outputTypeToLoad == OutputType::SYNTH) {
+	// blink led of the type of instrument we're saving
+	switch (outputTypeToLoad) {
+	case OutputType::SYNTH:
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
-	}
-	else {
+		break;
+	case OutputType::KIT:
 		indicator_leds::blinkLed(IndicatorLED::KIT);
+		break;
+	// explicit fallthrough cases
+	case OutputType::MIDI_OUT:
+		indicator_leds::blinkLed(IndicatorLED::MIDI);
+		break;
+	case OutputType::CV:
+	case OutputType::AUDIO:
+	case OutputType::NONE:;
 	}
 
 	/*

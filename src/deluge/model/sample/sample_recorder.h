@@ -46,14 +46,18 @@ class Sample;
 class Cluster;
 class AudioClip;
 class Output;
+struct RecorderConfig {
+	bool neverUseThreshold = false;
+};
+
 class SampleRecorder {
 public:
 	SampleRecorder() = default;
 	~SampleRecorder();
 	Error setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
 	            bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency,
-	            Output* outputRecordingFrom);
-	void setRecordingThreshold();
+	            Output* outputRecordingFrom, RecorderConfig config = {});
+	void setRecordingThreshold(RecorderConfig config);
 	void feedAudio(std::span<StereoSample> input, bool applyGain = false, uint8_t gainToApply = 5);
 	Error cardRoutine();
 	void endSyncedRecording(int32_t buttonLatencyForTempolessRecording);
@@ -116,6 +120,7 @@ public:
 	bool pointerHeldElsewhere = false;
 	bool capturedTooMuch = false;
 	bool thresholdRecording = false;
+	uint32_t minThresholdMargin = 0;
 
 	// Most of these are not captured in the case of BALANCED input for AudioClips
 	bool recordingClippedRecently;

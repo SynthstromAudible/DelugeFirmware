@@ -94,6 +94,8 @@ usb_setup_t g_usb_pstd_req_reg; /* Device Request - Request structure */
                  : uint16_t     status       : BRDYSTS register & BRDYENB register.
  Return value    : none
  ***********************************************************************************************************************/
+
+/// For reasons that are a mystery this isn't actually done in an interrupt. Maybe should be
 static void usb_pstd_interrupt(uint16_t type, uint16_t status)
 {
     uint16_t stginfo;

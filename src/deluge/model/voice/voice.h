@@ -120,9 +120,14 @@ public:
 	/// Returns whether voice should still be left active
 	bool doImmediateRelease();
 
-	bool forceNormalRelease();
+	/// Already fading at (or faster than) the soft-cull rate. Cull victim selection and the voice limit
+	/// must treat such a voice as already gone, or it soaks up culls meant for live voices (issue #4721).
+	[[nodiscard]] bool isCullFading() const {
+		return envelopes[0].state >= EnvelopeStage::FAST_RELEASE
+		       && envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT;
+	}
 
-	bool speedUpRelease();
+	bool speedUpRelease(uint32_t minFastReleaseIncrement = SOFT_CULL_INCREMENT);
 	bool shouldBeDeleted() { return delete_this_voice_; }
 
 	// This compares based on the priority of two voices

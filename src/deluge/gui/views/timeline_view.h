@@ -39,8 +39,11 @@ public:
 	virtual bool setupScroll(uint32_t oldScroll); // Returns false if no animation needed
 	[[nodiscard]] virtual int32_t getNavSysId() const { return NAVIGATION_CLIP; }
 
-	virtual void tellMatrixDriverWhichRowsContainSomethingZoomable() {
-	} // SessionView doesn't have this because it does this a different way. Sorry, confusing I know
+	// By default, animate every row during a zoom transition. A row that renders identically before and after simply
+	// animates invisibly, so skipping rows is only ever a micro-optimization (e.g. ArrangerView overrides this to skip
+	// empty output rows). SessionView doesn't use this; it does the equivalent a different way, in
+	// calculateZoomPinSquares().
+	virtual void tellMatrixDriverWhichRowsContainSomethingZoomable();
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void displayZoomLevel(bool justPopup = false);

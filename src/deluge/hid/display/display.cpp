@@ -1,8 +1,14 @@
 #include "display.h"
+#include "drivers/pic/pic.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
+#include "hid/button.h"
 #include "hid/display/oled.h"
 #include "hid/display/seven_segment.h"
+
+extern "C" {
+#include "RZA1/uart/sio_char.h"
+}
 
 deluge::hid::Display* display = nullptr;
 namespace deluge::hid::display {
@@ -86,6 +92,32 @@ std::string_view getErrorMessage(Error error) {
 
 bool have_oled_screen = false;
 
+void wait_for_select_encoder_press() {
+	// The PIC reports press and release with the same button code, prefixing releases with NEXT_PAD_OFF. Ignoring
+	// those means a freeze triggered from a select press isn't dismissed by that same press's release.
+	bool next_is_release = false;
+
+	while (true) {
+		PIC::flush();
+		uartFlushIfNotSending(UART_ITEM_MIDI);
+
+		uint8_t value;
+		if (!uartGetChar(UART_ITEM_PIC, (char*)&value)) {
+			continue;
+		}
+
+		if (value == static_cast<uint8_t>(PIC::Response::NEXT_PAD_OFF)) {
+			next_is_release = true;
+			continue;
+		}
+
+		if (value == deluge::hid::button::SELECT_ENC && !next_is_release) {
+			return;
+		}
+		next_is_release = false;
+	}
+}
+
 void swapDisplayType() {
 	using ::display; // this is c++
 	bool was_oled = display->haveOLED();
@@ -100,7 +132,18 @@ void swapDisplayType() {
 	UI* ui = getCurrentUI();
 	if (ui) {
 		ui->displayOrLanguageChanged();
+
+		// Most UIs implement their 7SEG redraw in focusRegained(), not
+		// displayOrLanguageChanged(). When swapping from OLED to 7SEG, invoke
+		// focusRegained() so the numeric display is populated immediately.
+		if (!display->haveOLED()) {
+			ui->focusRegained();
+		}
 	}
+
+	// Apply any redraw request from displayOrLanguageChanged() immediately, so
+	// emulated display toggles are visible consistently regardless of active UI.
+	doAnyPendingUIRendering();
 }
 
 } // namespace deluge::hid::display

@@ -17,6 +17,7 @@
 
 #include "io/midi/midi_device_manager.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
@@ -30,6 +31,7 @@
 #include "storage/storage_manager.h"
 #include "util/container/vector/named_thing_vector.h"
 #include "util/misc.h"
+#include <new>
 
 extern "C" {
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
@@ -473,6 +475,26 @@ void writeDevicesToFile() {
 
 bool successfullyReadDevicesFromFile = false; // We'll only do this one time
 
+void factoryReset(bool showPopup) {
+	if (showPopup) {
+		display->displayPopup(display->haveOLED()
+		                          ? deluge::l10n::get(deluge::l10n::String::STRING_FOR_RESET_MIDI_DEVICES)
+		                          : deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+	}
+
+	f_unlink(MIDI_DEVICES_XML);
+
+	new (&upstreamUSBMIDICable1) MIDICableUSBUpstream{0, false, true};
+	new (&upstreamUSBMIDICable2) MIDICableUSBUpstream{1, true, false};
+	new (&upstreamUSBMIDICable3) MIDICableUSBUpstream{2, false, false};
+	new (&dinMIDIPorts) MIDICableDINPorts{};
+
+	recountSmallestMPEZones();
+	anyChangesToSave = false;
+	successfullyReadDevicesFromFile = false;
+	readDevicesFromFile();
+}
+
 void readDevicesFromFile() {
 	if (successfullyReadDevicesFromFile) {
 		return; // Yup, we only want to do this once
@@ -537,8 +559,8 @@ void readAHostedDeviceFromFile(Deserializer& reader) {
 	MIDICableUSBHosted* device = nullptr;
 
 	String name;
-	uint16_t vendorId;
-	uint16_t productId;
+	uint16_t vendorId = 0;
+	uint16_t productId = 0;
 
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -624,6 +646,19 @@ checkDevice:
 
 			if (device) {
 				device->is_relative = reader.readTagOrAttributeValueInt();
+			}
+		}
+		else if (strcmp(tagName, "midi_thru") == 0) {
+			// this is actually not much duplicated code, just checks for nulls and then an attempt to create a device
+			if (device == nullptr) {
+				if (!name.isEmpty() || vendorId != 0) {
+					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
+					                                                productId); // Will return NULL if error.
+				}
+			}
+
+			if (device != nullptr) {
+				device->midi_thru = reader.readTagOrAttributeValueInt() != 0;
 			}
 		}
 
@@ -712,7 +747,7 @@ ConnectedUSBMIDIDevice::ConnectedUSBMIDIDevice() {
 	sq = 0;
 	canHaveMIDISent = 0;
 	numBytesReceived = 0;
-	memset(receiveData, 0, 64);
+	memset(receiveData, 0, sizeof(receiveData));
 	memset(dataSendingNow, 0, MIDI_SEND_BUFFER_LEN_INNER * 4);
 	numBytesSendingNow = 0;
 	memset(sendDataRingBuf, 0, MIDI_SEND_BUFFER_LEN_RING);

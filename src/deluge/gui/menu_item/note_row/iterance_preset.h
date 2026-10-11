@@ -25,7 +25,6 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
-#include "util/lookuptables/lookuptables.h"
 
 extern gui::menu_item::Submenu noteRowCustomIteranceRootMenu;
 
@@ -80,48 +79,32 @@ public:
 	}
 
 	void drawPixelsForOled() override {
-		const std::string value = getIteranceDisplayValue("%d of %d");
+		const std::string value = get_iterance_display_value("%d of %d", Iterance::DisplayLabelType::LONG);
 		OLED::main.drawStringCentred(value.data(), 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY);
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		const std::string value = getIteranceDisplayValue("%d:%d");
+		const std::string value = get_iterance_display_value("%d:%d", Iterance::DisplayLabelType::SHORT);
 		OLED::main.drawStringCentered(value.data(), slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
 		                              kTextSpacingX, kTextSpacingY, slot.width);
 	}
 
 	void drawValue() override {
-		const std::string value = getIteranceDisplayValue("%dof%d");
+		const std::string value = get_iterance_display_value("%dof%d", Iterance::DisplayLabelType::SHORT);
 		display->setText(value);
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override { valueBuf.append(getIteranceDisplayValue("%d of %d")); }
+	void getNotificationValue(StringBuf& valueBuf) override {
+		valueBuf.append(get_iterance_display_value("%d of %d", Iterance::DisplayLabelType::LONG));
+	}
 
 	void writeCurrentValue() override { ; }
 
 private:
-	std::string getIteranceDisplayValue(const std::string& format) {
+	std::string get_iterance_display_value(const std::string& format, Iterance::DisplayLabelType label_type) {
 		char buffer[20];
-
-		int32_t iterancePreset = this->getValue();
-
-		if (iterancePreset == kDefaultIterancePreset) {
-			strcpy(buffer, "OFF");
-		}
-		else if (iterancePreset == kCustomIterancePreset) {
-			strcpy(buffer, "CUSTOM");
-		}
-		else {
-			Iterance iterance = iterancePresets[iterancePreset - 1];
-			int32_t i = iterance.divisor;
-			for (; i >= 0; i--) {
-				// try to find which iteration step index is active
-				if (iterance.iteranceStep[i]) {
-					break;
-				}
-			}
-			sprintf(buffer, format.data(), i + 1, iterance.divisor);
-		}
+		Iterance::format_preset_display_value(this->getValue(), buffer, sizeof(buffer),
+		                                      {.step_format = format.c_str(), .label_type = label_type});
 
 		return std::string(buffer);
 	}

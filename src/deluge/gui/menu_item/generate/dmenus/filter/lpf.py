@@ -1,4 +1,4 @@
-from dmui.dsl import Menu, Submenu, MultiModeMenu, MultiModeMenuMode
+from dmui.dsl import Menu, MultiModeMenu, MultiModeMenuMode, Submenu
 
 freq = Menu(
     "filter::FilterParam",

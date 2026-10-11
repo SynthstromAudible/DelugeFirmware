@@ -28,6 +28,8 @@
 #include <cstdint>
 #include <memory>
 
+struct InterruptsDisabled;
+
 extern "C" {
 #include "fatfs/ff.h"
 }
@@ -170,7 +172,7 @@ void registerSideChainHit(int32_t strength);
 
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
                                bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency,
-                               bool shouldNormalize, Output* outputRecordingFrom);
+                               bool shouldNormalize, Output* outputRecordingFrom, RecorderConfig config = {});
 void discardRecorder(SampleRecorder* recorder);
 bool isAnyInternalRecordingHappening();
 
@@ -228,4 +230,14 @@ q31_t getInputMonitoringGain(uint32_t offset);
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
 bool allowedToStartVoice();
+
+/// Remove these gate channels from any output waiting to be sent by the MIDI/gate timer, because they've been
+/// superseded by a newer state which is being output now
+void cancelScheduledGates(uint8_t gateMask, const InterruptsDisabled&);
+/// Call before adding a MIDI clock to the output buffer. Returns false if a MIDI flush is already scheduled for the
+/// MIDI/gate timer (the clock would then go out early with it). Otherwise flushes anything already in the MIDI output
+/// buffer so the clock can be sent on its own at its own time.
+bool prepareToSendMIDIClock(const InterruptsDisabled&);
+/// Called from the MIDI/gate timer ISR. Sends any MIDI/gate output which is due and re-arms the timer for the rest
+void midiGateOutputTimerFired();
 } // namespace AudioEngine

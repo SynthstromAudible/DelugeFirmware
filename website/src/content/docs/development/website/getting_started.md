@@ -42,13 +42,32 @@ Write in `.md` or `.mdx` format. `.md` files are "pure" Markdown but with direct
 
 ### On your machine
 
-Make sure that you have [bun](https://bun.sh/) installed on your system. You can check by running `bun -v` in your terminal.
+Make sure that you have [pnpm](https://pnpm.io/installation) installed on your system. You can check by running `pnpm -v` in your terminal.
 
-If the `bun` command is not recognized by your terminal after a successful installation and restarting the terminal, follow these steps to add it manually to your system PATH: [How to add bun to your PATH](https://bun.sh/docs/installation#how-to-add-your-path)
-
-If `bun` has been successfully installed, you can go to the `website` folder in your terminal (by running `cd website`) and run `bun install` and then `bun dev`.
+If `pnpm` has been successfully installed, go to the `website` folder in your terminal (`cd website`) and run `pnpm install` and then `pnpm run dev` (or `pnpm dev`).
 Once the dev server has started, you can open `http://localhost:4321` in your browser.
 The page will automatically refresh with the changes you make.
+
+If Playwright is not installed yet (required for Mermaid rendering during builds and for perf scripts), run:
+`pnpm exec playwright install --with-deps chromium chromium-headless-shell`
+
+### Deluge Companion performance guard (local only)
+
+Run the local perf guard from the `website` folder:
+
+- `pnpm run perf:guard`
+
+This script runs the Deluge Companion performance probe and fails with a non-zero exit code if thresholds are exceeded.
+It is intentionally local-only and is not part of PR checks.
+
+Useful options:
+
+- Use an already-running site instead of auto-starting preview:
+  `PERF_URL=http://127.0.0.1:4322 pnpm run perf:guard`
+- Change probe run count:
+  `PERF_RUNS=5 pnpm run perf:guard`
+- Override thresholds:
+  `MAX_MEDIAN_INTERACTIVE_MS=1100 MAX_AVG_SCRIPT_TRANSFER_BYTES=120000 pnpm run perf:guard`
 
 ## Links
 
@@ -101,16 +120,20 @@ Static assets, like favicons, can be placed in the `public/` directory.
 
 ## 🧞 Commands
 
-All commands are run from the root of the project, from a terminal:
+All commands are run from the `website` directory, from a terminal:
 
-| Command               | Action                                           |
-| :-------------------- | :----------------------------------------------- |
-| `bun install`         | Installs dependencies                            |
-| `bun dev`             | Starts local dev server at `localhost:4321`      |
-| `bun build`           | Build your production site to `./dist/`          |
-| `bun preview`         | Preview your build locally, before deploying     |
-| `bun astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `bun astro -- --help` | Get help using the Astro CLI                     |
+| Command                                                                     | Action                                               |
+| :-------------------------------------------------------------------------- | :--------------------------------------------------- |
+| `pnpm install`                                                              | Installs dependencies                                |
+| `pnpm run dev` (or `pnpm dev`)                                              | Starts local dev server at `localhost:4321`          |
+| `pnpm run build`                                                            | Builds the production site to `./dist/`              |
+| `pnpm run preview`                                                          | Builds and previews your site locally                |
+| `pnpm run check`                                                            | Runs Astro type/content checks, ESLint, and Prettier |
+| `pnpm run check:fix`                                                        | Applies lint/format fixes                            |
+| `pnpm run perf:guard`                                                       | Runs local Deluge Companion perf guard               |
+| `pnpm exec playwright install --with-deps chromium chromium-headless-shell` | Installs Playwright browsers/deps                    |
+| `pnpm astro ...`                                                            | Runs Astro CLI commands like `astro add`             |
+| `pnpm astro -- --help`                                                      | Get help using the Astro CLI                         |
 
 ## 👀 Want to learn more?
 
@@ -118,12 +141,13 @@ Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro 
 
 ## Troubleshooting
 
-### bun dev command doesn't work
+### pnpm dev command doesn't work
 
-Run the following command: `bun astro dev`
+Run `pnpm install` first, then use `pnpm run dev` (or `pnpm dev`).
 
 ### error is displayed saying to run "npx playwright install"
 
 The site uses playwright for generating the site previews and the mermaid diagrams.
 
-To install playwright, run the following command: `bun playwright install --with-deps chromium`
+To install Playwright browsers and required dependencies, run:
+`pnpm exec playwright install --with-deps chromium chromium-headless-shell`

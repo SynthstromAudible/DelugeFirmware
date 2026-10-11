@@ -93,6 +93,7 @@ public:
 	int32_t getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* modelStack) override;
 	bool willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* modelStack) override;
 	bool willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* modelStack) override;
+	// this is probably the only time we want an audio clip to use threshold sampling?
 	bool wantsToDoTempolessRecord(int32_t newPos) override;
 
 	uint8_t lastSectionArmed; // 255 means none. 254 means the action was switch-off-all-sections

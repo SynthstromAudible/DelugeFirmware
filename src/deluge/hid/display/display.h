@@ -23,6 +23,8 @@ enum class PopupType {
 	PROBABILITY,
 	/// Popup shown when editing note or row iterance.
 	ITERANCE,
+	/// Popup shown when editing note or row fill.
+	FILL,
 	/// Swing amount and interval
 	SWING,
 	/// Tempo
@@ -122,6 +124,8 @@ extern deluge::hid::Display* display;
 
 namespace deluge::hid::display {
 void swapDisplayType();
+/// Blocks until the select encoder is newly pressed. Used by freezeWithError() to offer "attempt resume".
+void wait_for_select_encoder_press();
 // physical screen is oled
 extern bool have_oled_screen;
 } // namespace deluge::hid::display

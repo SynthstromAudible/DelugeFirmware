@@ -1,36 +1,40 @@
 #! /usr/bin/env python3
 import argparse
 import importlib
+import os
 import shutil
 import subprocess
+
 import util
-import os
 
 
 def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sizediff",
-        description="Get a size difference from the current HEAD and where the branch forked from community",
+        description="Get a size difference from the current HEAD and where the branch forked from main",
     )
     parser.group = "Development"
     return parser
 
 
 def main() -> int:
-    (args, unknown_args) = argparser().parse_known_args()
+    (_args, _unknown_args) = argparser().parse_known_args()
 
     os.chdir(util.get_git_root())
     os.makedirs(".cache/sizediff", exist_ok=True)
 
-    # Get the commit hash of the community branch
-    old_hash = util.run_get_output(["git", "merge-base", "--fork-point", "community"])
+    # Get the commit hash of the main branch
+    old_hash = util.run_get_output(["git", "merge-base", "--fork-point", "main"])
 
     # get the current commit hash
     new_hash = util.run_get_output(["git", "rev-parse", "HEAD"])
 
     # get if git is dirty
     git_dirty = (
-        subprocess.run(["git", "diff", "--quiet"], capture_output=True).returncode != 0
+        subprocess.run(
+            ["git", "diff", "--quiet"], capture_output=True, check=False
+        ).returncode
+        != 0
     )
 
     # Read the current commit hash in .cache/sizediff/old-commit
@@ -65,12 +69,12 @@ def main() -> int:
         shutil.copy("build/Release/deluge.elf", ".cache/sizediff/deluge_new.elf")
 
     if needs_old_rebuild:
-        subprocess.run(["git", "checkout", old_hash])
+        subprocess.run(["git", "checkout", old_hash], check=False)
         importlib.import_module("task-build").main(["Release"])
         with open(".cache/sizediff/old-commit", "w") as f:
             f.write(old_hash)
         shutil.copy("build/Release/deluge.elf", ".cache/sizediff/deluge_old.elf")
-        subprocess.run(["git", "checkout", new_hash])
+        subprocess.run(["git", "checkout", new_hash], check=False)
 
     # Get the size of the old and new binaries using the size command
     old_size = (

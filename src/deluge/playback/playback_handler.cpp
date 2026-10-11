@@ -138,7 +138,10 @@ void PlaybackHandler::midiRoutine() {
 
 // This function will be called repeatedly, at all times, to see if it's time to do a tick, and such
 void PlaybackHandler::routine() {
-
+	if ((stemExport.processStarted && stemExport.renderOffline)) [[unlikely]] {
+		//  todo - should add the ability to block the task in the task manager instead but whatever
+		return;
+	}
 	// Check analog clock input
 	if (triggerClockRisingEdgesProcessed != triggerClockRisingEdgesReceived) {
 		uint32_t time =
@@ -365,15 +368,16 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 				bool recordingToArranger = isArrangerView && (recording == RecordingMode::NORMAL);
 				bool inArrangerCrossScreen = isArrangerView && currentSong->arrangerAutoScrollModeActive;
 
-				// start from current screen if:
-				// 1) restart shortcut is pressed and alternativePlaybackStartBehaviour is disabled
-				// 2) restart shortcut is not pressed and alternativePlaybackStartBehaviour is enabled
-				// 3) recording to arranger
-				// 4) in arranger view with cross screen auto scroll mode enabled
+				// Cross screen (arranger auto scroll) and alternativePlaybackStartBehaviour both flip the
+				// *default* direction so that plain play starts from the current screen; the restart shortcut
+				// always toggles the other way. This guarantees one combo starts from the current screen and
+				// the other from the beginning, even when cross screen and the community setting are both on
+				// (issue #3166). Recording into arranger always starts from the current screen.
 
-				startFromCurrentScreen = (isRestartShortcutPressed && !alternativePlaybackStartBehaviour)
-				                         || (!isRestartShortcutPressed && alternativePlaybackStartBehaviour)
-				                         || recordingToArranger || inArrangerCrossScreen;
+				bool startFromCurrentScreenByDefault = alternativePlaybackStartBehaviour || inArrangerCrossScreen;
+
+				startFromCurrentScreen =
+				    recordingToArranger || (isRestartShortcutPressed != startFromCurrentScreenByDefault);
 			}
 		}
 	}
@@ -516,6 +520,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	stopOutputRecordingAtLoopEnd = false;
 
 	lastSwungTickActioned = 0;
+	firstSwungTickPending = true;
 	lastTriggerClockOutTickDone = -1;
 	lastMIDIClockOutTickDone = -1;
 	timeLastMIDIClockOutTickSent = 0;
@@ -732,49 +737,48 @@ void PlaybackHandler::actionTimerTickPart2() {
 
 	// If not in count-in...
 	if (!ticksLeftInCountIn) {
-
 		currentSong->resyncLFOs();
-		if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
-			// Trigger clock output ticks
-			if (cvEngine.isTriggerClockOutputEnabled()) {
-				// Do any trigger clock output ticks up to and including now
-				uint32_t internalTicksPer;
-				uint32_t analogOutTicksPer;
-				getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
-				uint64_t fractionLastTimerTick = lastTimerTickActioned * analogOutTicksPer;
-				uint64_t fractionNextAnalogOutTick = (lastTriggerClockOutTickDone + 1) * internalTicksPer;
+	}
 
-				// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
-				// immediately otherwise set it to be done by the audio engine
-				if (fractionNextAnalogOutTick < fractionLastTimerTick) {
-					doTriggerClockOutTick();
-					fractionNextAnalogOutTick += internalTicksPer;
-				}
-				// Schedule another trigger clock output tick
-				scheduleTriggerClockOutTickParamsKnown(analogOutTicksPer, fractionLastTimerTick,
-				                                       fractionNextAnalogOutTick);
+	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
+		// Trigger clock output ticks
+		if (cvEngine.isTriggerClockOutputEnabled()) {
+			// Do any trigger clock output ticks up to and including now
+			uint32_t internalTicksPer;
+			uint32_t analogOutTicksPer;
+			getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
+			uint64_t fractionLastTimerTick = lastTimerTickActioned * analogOutTicksPer;
+			uint64_t fractionNextAnalogOutTick = (lastTriggerClockOutTickDone + 1) * internalTicksPer;
+
+			// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
+			// immediately otherwise set it to be done by the audio engine
+			if (fractionNextAnalogOutTick < fractionLastTimerTick) {
+				doTriggerClockOutTick();
+				fractionNextAnalogOutTick += internalTicksPer;
+			}
+			// Schedule another trigger clock output tick
+			scheduleTriggerClockOutTickParamsKnown(analogOutTicksPer, fractionLastTimerTick, fractionNextAnalogOutTick);
+		}
+
+		// MIDI clock output ticks
+		if (currentlySendingMIDIOutputClocks()) {
+			// Do any MIDI clock output ticks up to and including now
+			uint32_t internalTicksPer;
+			uint32_t midiClockOutTicksPer;
+			getMIDIClockOutTicksToInternalTicksRatio(&internalTicksPer, &midiClockOutTicksPer);
+			uint64_t fractionLastTimerTick = lastTimerTickActioned * midiClockOutTicksPer;
+
+			uint64_t fractionNextMIDIClockOutTick = (lastMIDIClockOutTickDone + 1) * internalTicksPer;
+			// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
+			// immediately otherwise set it to be done by the audio engine
+			if (fractionNextMIDIClockOutTick < fractionLastTimerTick) {
+				doMIDIClockOutTick();
+				fractionNextMIDIClockOutTick += midiClockOutTicksPer;
 			}
 
-			// MIDI clock output ticks
-			if (currentlySendingMIDIOutputClocks()) {
-				// Do any MIDI clock output ticks up to and including now
-				uint32_t internalTicksPer;
-				uint32_t midiClockOutTicksPer;
-				getMIDIClockOutTicksToInternalTicksRatio(&internalTicksPer, &midiClockOutTicksPer);
-				uint64_t fractionLastTimerTick = lastTimerTickActioned * midiClockOutTicksPer;
-
-				uint64_t fractionNextMIDIClockOutTick = (lastMIDIClockOutTickDone + 1) * internalTicksPer;
-				// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
-				// immediately otherwise set it to be done by the audio engine
-				if (fractionNextMIDIClockOutTick < fractionLastTimerTick) {
-					doMIDIClockOutTick();
-					fractionNextMIDIClockOutTick += midiClockOutTicksPer;
-				}
-
-				// Schedule another MIDI clock output tick
-				scheduleMIDIClockOutTickParamsKnown(midiClockOutTicksPer, fractionLastTimerTick,
-				                                    fractionNextMIDIClockOutTick);
-			}
+			// Schedule another MIDI clock output tick
+			scheduleMIDIClockOutTickParamsKnown(midiClockOutTicksPer, fractionLastTimerTick,
+			                                    fractionNextMIDIClockOutTick);
 		}
 	}
 }
@@ -948,13 +952,11 @@ void PlaybackHandler::scheduleMIDIClockOutTickFromExternalClock() {
 
 void PlaybackHandler::doMIDIClockOutTick() {
 	CriticalSectionGuard guard;
-	// if there's a scheduled output already then don't mess with it. Will catch at next output
-	if (isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
+	// if there's a MIDI flush scheduled already then don't mess with it - the clock would go out early with it. Will
+	// catch at next output. Otherwise, any MIDI already waiting gets dumped now so the clock can go at its own time
+	if (!AudioEngine::prepareToSendMIDIClock(guard)) {
+		D_PRINTLN("already scheduled");
 		return;
-	}
-	// otherwise if there's midi in here already then get it dumped
-	if (midiEngine.anythingInOutputBuffer()) {
-		midiEngine.flushMIDI();
 	}
 	midiClockOutTickScheduled = false;
 	lastMIDIClockOutTickDone++;
@@ -972,6 +974,7 @@ void PlaybackHandler::actionSwungTick() {
 	currentlyActioningSwungTickOrResettingPlayPos = true;
 
 	swungTickScheduled = false;
+	firstSwungTickPending = false;
 
 	lastSwungTickActioned += swungTicksTilNextEvent;
 
@@ -992,6 +995,9 @@ void PlaybackHandler::actionSwungTick() {
 			lastTimerTickActioned = 0;
 			lastSwungTickActioned = 0;
 			swungTicksTilNextEvent = 0;
+
+			lastTriggerClockOutTickDone = -1;
+			lastMIDIClockOutTickDone = -1;
 
 			// May not call audio routine during this, cos that'd try doing ticks before everything's set up
 			currentPlaybackMode->resetPlayPos(
@@ -1089,6 +1095,10 @@ void PlaybackHandler::scheduleSwungTick() {
 // This may be called when there already is one scheduled, to reschedule it, if the tempo has changed
 void PlaybackHandler::scheduleSwungTickFromInternalClock() {
 
+	// Tick-based MIDI/CV interpolation can produce a zero next-event interval via
+	// ParamManagerForTimeline::processCurrentPos. That value can propagate into swungTicksTilNextEvent
+	// during playback scheduling (see Clip::processCurrentPos). Clamp here so we always advance at least one swung
+	// tick instead of re-actioning the current tick forever.
 	if (swungTicksTilNextEvent < 1) {
 		swungTicksTilNextEvent = 1; // Shouldn't ultimately be necessary, but...
 	}
@@ -1746,6 +1756,15 @@ void PlaybackHandler::clockMessageReceived(uint32_t time) {
 }
 
 void PlaybackHandler::scheduleSwungTickFromExternalClock() {
+	// Tick-based MIDI/CV interpolation can produce a zero next-event interval via
+	// ParamManagerForTimeline::processCurrentPos. That value can propagate into swungTicksTilNextEvent
+	// during playback scheduling (see Clip::processCurrentPos). Clamp here so we always advance at least one swung
+	// tick instead of re-actioning the current tick forever. But at the start of playback, tick 0 hasn't been actioned
+	// yet and a 0 here is what schedules it - clamping then would skip everything on the first tick.
+	if (swungTicksTilNextEvent < 1 && !firstSwungTickPending) {
+		swungTicksTilNextEvent = 1;
+	}
+
 	uint64_t nextSwungTick = lastSwungTickActioned + swungTicksTilNextEvent;
 	uint64_t internalTickPositionForNextSwungTickTimes50;
 	if (!currentSong->hasAnySwing()) {
@@ -2694,7 +2713,6 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 				if (!sampleHolder->audioFile) {
 					continue; // Could maybe happen if some error?
 				}
-
 				foundAnyYet = true;
 				uint64_t loopLengthSamples = sampleHolder->getDurationInSamples(true);
 				action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
@@ -2988,7 +3006,7 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_
 				}
 
 				// Beware - calling this might insert or delete a Clip!
-				session.toggleClipStatus(clip, &c, false, kMIDIKeyInputLatency);
+				session.toggleClipStatus(clip, &c, Buttons::isShiftButtonPressed(), kMIDIKeyInputLatency);
 
 				// use root UI in case this is called from performance view
 				sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);

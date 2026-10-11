@@ -174,11 +174,11 @@ public:
 	 *
 	 * @param sourceA The first colour
 	 * @param sourceB The second colour
-	 * @param indexA The blend amount for sourceA
-	 * @param indexB The blend amount for sourceB
+	 * @param indexA The blend amount for sourceA, out of 65536
+	 * @param indexB The blend amount for sourceB, out of 65536
 	 * @return RGB The new blended colour
 	 */
-	[[nodiscard]] static constexpr RGB blend2(RGB sourceA, RGB sourceB, uint16_t indexA, uint16_t indexB) {
+	[[nodiscard]] static constexpr RGB blend2(RGB sourceA, RGB sourceB, uint32_t indexA, uint32_t indexB) {
 		return transform2(sourceA, sourceB, [indexA, indexB](channel_type channelA, channel_type channelB) {
 			return blendChannel2(channelA, channelB, indexA, indexB);
 		});
@@ -307,15 +307,19 @@ private:
 	 * @return The blended channel value
 	 */
 	static constexpr channel_type blendChannel(uint32_t channelA, uint32_t channelB, uint16_t index) {
-		return blendChannel2(channelA, channelB, index, (std::numeric_limits<uint16_t>::max() - index + 1));
+		return blendChannel2(channelA, channelB, index, 65536 - index);
 	}
 
 	/**
 	 * @brief Blend two channels in differing proportions
+	 *
+	 * Weights are out of 65536, so a full weight does not fit a uint16_t: keep these parameters wide. Truncating
+	 * them silently turns "keep all of this channel" into "keep none of it" and produces black.
+	 *
 	 * @return The blended channel value
 	 */
-	static constexpr channel_type blendChannel2(uint32_t channelA, uint32_t channelB, uint16_t indexA,
-	                                            uint16_t indexB) {
+	static constexpr channel_type blendChannel2(uint32_t channelA, uint32_t channelB, uint32_t indexA,
+	                                            uint32_t indexB) {
 		uint32_t newRGB = rshift_round(channelA * indexA, 16) + rshift_round(channelB * indexB, 16);
 		return std::clamp<uint32_t>(newRGB, 0, channel_max);
 	}

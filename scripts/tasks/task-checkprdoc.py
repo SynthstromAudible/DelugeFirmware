@@ -1,8 +1,10 @@
 import argparse
 import os
-from pathlib import Path
-import util
 import re
+import sys
+from pathlib import Path
+
+import util
 
 COMMUNITY_FEATURES_DOC = Path("docs/community_features.md")
 
@@ -14,7 +16,7 @@ def argparser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    (args, unknown_args) = argparser().parse_known_args()
+    (_args, _unknown_args) = argparser().parse_known_args()
 
     os.chdir(util.get_git_root())
 
@@ -31,4 +33,4 @@ def main() -> int:
                 f"[#{pr_number}]: https://github.com/SynthstromAudible/DelugeFirmware/pull/{pr_number}"
             )
 
-    exit(0)
+    sys.exit(0)

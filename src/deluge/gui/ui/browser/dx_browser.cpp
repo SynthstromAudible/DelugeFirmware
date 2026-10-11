@@ -110,11 +110,12 @@ void DxSyxBrowser::enterKeyPress() {
 		// TODO: c.f. slotbrowser, we might just be able to pass a file pointer to the FAT loader
 		String path;
 		getCurrentFilePath(&path);
-		close();
 
 		if (!path.isEmpty()) {
 			if (menu_item::dxCartridge.tryLoad(path.get())) {
 				soundEditor.enterSubmenu(&menu_item::dxCartridge);
+				soundEditor.shouldGoUpOneLevelOnBegin = false;
+				close();
 			}
 		}
 

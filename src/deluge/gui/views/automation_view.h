@@ -84,6 +84,7 @@ public:
 	                         TimelineView* timelineView, bool tripletsOnHere, int32_t xDisplay);
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
+	void clipNeedsReRendering(Clip* clip) override;
 	void renderDisplay(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection,
 	                   bool modEncoderAction = false);
 	void displayAutomation(bool padSelected = false, bool updateDisplay = true);
@@ -171,6 +172,8 @@ public:
 	int32_t rightPadSelectedX;
 	int32_t rightPadSelectedY;
 	int32_t lastPadSelectedKnobPos;
+
+	bool isNoteVelocityEditorShortcut(int32_t x, int32_t y);
 
 private:
 	// button action functions

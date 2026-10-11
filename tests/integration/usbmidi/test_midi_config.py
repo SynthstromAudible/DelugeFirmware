@@ -1,7 +1,8 @@
-import rtmidi
-import pytest
 import time
-from rtmidi.midiconstants import NOTE_ON, NOTE_OFF
+
+import pytest
+import rtmidi
+from rtmidi.midiconstants import NOTE_OFF, NOTE_ON
 
 
 @pytest.fixture
@@ -36,7 +37,7 @@ note_off = [NOTE_OFF, 60, 0]
 
 
 def send_note(port):
-    midiout, port_name = rtmidi.open_midioutput(name=f"Deluge MIDI {port}")
+    midiout, _port_name = rtmidi.open_midioutput(name=f"Deluge MIDI {port}")
     with midiout:
         print("Sending NoteOn event.")
         midiout.send_message(note_on)
@@ -59,11 +60,11 @@ def receive_note(port):
                 if msg:
                     message, deltatime = msg
                     timer += deltatime
-                    print("[%s] @%0.6f %r" % (port_name, timer, message))
+                    print(f"[{port_name}] @{timer:0.6f} {message!r}")
 
                 time.sleep(0.01)
         except KeyboardInterrupt:
-            print("")
+            print()
         finally:
             print("Exit.")
             midiin.close_port()

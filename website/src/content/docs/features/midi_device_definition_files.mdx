@@ -78,6 +78,12 @@ You can also manually unlink the song file / preset file from the `MIDI Device D
 
 You can also use the `MIDI > Device Definition` menu as another way to link / load a `MIDI Device Definition File`. When clicking on the `File Linked (LINK)` setting, it will prompt you to select a `MIDI Device Definition File` to load. After successfully loading the file, the file name will be displayed (on OLED only) below the `File Linked` setting.
 
+## Hiding / Unhiding Unlabeled CC'S
+
+You can hide CC's that are unlabeled by toggling `Hide Unlabeled CC (HIDE)` via the `MIDI > Device Definition (DEVI)` menu.
+
+With unlabeled CC"s hidden, when you scroll through assignable CC's (e.g. :key[Gold] + :key[Turn Select] or :key[Turn Select] in Automation View), you will only see labeled CC's.
+
 ## Tips and Tricks
 
 ### Scenario: I want to load a `MIDI Device Definition File` but make changes to the CC labels afterwards
@@ -258,5 +264,7 @@ The same information saved to the Midi Device Definition File is also saved to t
 		117=""
 		118=""
 		119="" />
+	<hideUnlabeledCC
+		value="0" />
 </midiDevice>
 ```

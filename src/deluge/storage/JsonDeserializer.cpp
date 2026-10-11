@@ -16,31 +16,14 @@
  */
 
 #include "definitions_cxx.hpp"
-#include "drivers/pic/pic.h"
-#include "fatfs/fatfs.hpp"
-#include "gui/ui/sound_editor.h"
-#include "gui/ui_timer_manager.h"
-#include "hid/display/display.h"
 #include "io/debug/log.h"
-#include "memory/general_memory_allocator.h"
-#include "model/clip/instrument_clip.h"
-#include "model/drum/gate_drum.h"
-#include "model/drum/midi_drum.h"
-#include "model/instrument/cv_instrument.h"
-#include "model/instrument/kit.h"
-#include "model/instrument/midi_instrument.h"
-#include "model/song/song.h"
-#include "modulation/midi/midi_param.h"
-#include "modulation/midi/midi_param_collection.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
-#include "storage/audio/audio_file_manager.h"
+#include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
+#include "util/d_string.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/try.h"
-#include "version.h"
 #include <string.h>
 
 extern "C" {
@@ -542,7 +525,7 @@ void JsonDeserializer::exitTag(char const* exitTagName, bool closeObject) {
 	// matching closing character. This can involve counting open and close characters until
 	// we get a match.
 	D_PRINTLN("Unread value detected");
-	readState == JsonState::ValueRead; // declare victory prematurely.
+	readState = JsonState::ValueRead; // declare victory prematurely.
 	skipWhiteSpace();
 	char leadingChar, trailingChar, currentChar, balanceCtr = 1;
 	readChar(&leadingChar);

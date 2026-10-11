@@ -26,7 +26,7 @@ extern void freezeWithError(char const* errmsg);
 		uint32_t regSP = 0;                                                                                            \
 		asm volatile("MOV %0, LR\n" : "=r"(regLR));                                                                    \
 		asm volatile("MOV %0, SP\n" : "=r"(regSP));                                                                    \
-		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);                                                       \
+		fault_handler_print_freeze_pointers(regLR, regSP);                                                             \
 		freezeWithError(error);                                                                                        \
 	})
 #else
@@ -76,8 +76,15 @@ extern void freezeWithError(char const* errmsg);
 // Paul: It seems this area is not executable, could not find a reason in the datasheet, marked NOLOAD now
 #define PLACE_INTERNAL_FRUNK __attribute__((__section__(".frunk_bss")))
 
+#ifndef IN_UNIT_TESTS
 #define PLACE_SDRAM_BSS __attribute__((__section__(".sdram_bss")))
 #define PLACE_SDRAM_DATA __attribute__((__section__(".sdram_data")))
 #define PLACE_SDRAM_RODATA __attribute__((__section__(".sdram_rodata")))
 // #define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text"))) // Paul: I had problems with execution from
 // SDRAM, maybe timing?
+#else
+#define PLACE_SDRAM_BSS
+#define PLACE_SDRAM_DATA
+#define PLACE_SDRAM_RODATA
+#define PLACE_SDRAM_TEXT
+#endif

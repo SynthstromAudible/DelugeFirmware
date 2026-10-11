@@ -23,6 +23,7 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/screensaver.h"
 #include "hid/hid_sysex.h"
 #include "io/debug/log.h"
 #include "io/midi/sysex.h"
@@ -307,6 +308,10 @@ bool OLED::isPermanentPopupPresent() {
 	return drawnPermanentPopup;
 }
 
+bool OLED::isWorkingAnimationPresent() {
+	return working_animation_count != 0;
+}
+
 void copyRowWithMask(uint8_t destMask, uint8_t sourceRow[], uint8_t destRow[], int32_t minX, int32_t maxX) {
 	uint8_t sourceMask = ~destMask;
 	uint8_t* __restrict__ source = &sourceRow[minX];
@@ -372,16 +377,40 @@ void OLED::sendMainImage() {
 
 	oledCurrentImage = &main.hackGetImageStore()[0];
 
-	if (hasConsoleItems()) {
-		copyBackgroundAroundForeground(main.hackGetImageStore(), console.hackGetImageStore(), consoleMinX,
-		                               consoleItems[numConsoleItems - 1].minY - 1, consoleMaxX,
-		                               OLED_MAIN_HEIGHT_PIXELS - 1);
-		oledCurrentImage = &console.hackGetImageStore()[0];
+	if (Screensaver::isActive()) {
+		// Point at the screensaver canvas before the dirty guard below, not after. This
+		// global is also read independently by the sysex display mirror
+		// (HIDSysex::sendOLEDData / sendOLEDDataDelta), which runs on its own schedule --
+		// if it were still pointed at `main` here, that mirror would show the live UI while
+		// the panel itself is showing the screensaver.
+		oledCurrentImage = &Screensaver::getCanvas().hackGetImageStore()[0];
+
+		if (!Screensaver::consumeFrameDirty()) {
+			// Some other timer marked the display dirty while we're showing. Nothing
+			// about our frame changed, so swallow it rather than re-pushing an
+			// identical frame.
+			//
+			// This guard is load-bearing, not an optimization: scrolling text re-arms
+			// itself every 5-15ms and calls sendMainImage() directly, forever, while
+			// idle. Without this check, an idle Deluge sitting on a side-scrolling menu
+			// label would push a full unchanged frame at that rate over the SPI bus we
+			// share with CV output.
+			needsSending = false;
+			return;
+		}
 	}
-	if (oledPopupWidth) {
-		copyBackgroundAroundForeground(oledCurrentImage, popup.hackGetImageStore(), popupMinX, popupMinY, popupMaxX,
-		                               popupMaxY);
-		oledCurrentImage = &popup.hackGetImageStore()[0];
+	else {
+		if (hasConsoleItems()) {
+			copyBackgroundAroundForeground(main.hackGetImageStore(), console.hackGetImageStore(), consoleMinX,
+			                               consoleItems[numConsoleItems - 1].minY - 1, consoleMaxX,
+			                               OLED_MAIN_HEIGHT_PIXELS - 1);
+			oledCurrentImage = &console.hackGetImageStore()[0];
+		}
+		if (oledPopupWidth) {
+			copyBackgroundAroundForeground(oledCurrentImage, popup.hackGetImageStore(), popupMinX, popupMinY, popupMaxX,
+			                               popupMaxY);
+			oledCurrentImage = &popup.hackGetImageStore()[0];
+		}
 	}
 
 #if OLED_LOG_TIMING
@@ -389,8 +418,7 @@ void OLED::sendMainImage() {
 	uartPrint("oled render time: ");
 	uartPrintNumber((uint16_t)(renderStopTime - renderStartTime));
 #endif
-	SpiTransferData m = {.imageAddress = oledCurrentImage[0]};
-	enqueueSPITransfer(0, m);
+	enqueueOLEDFrame(oledCurrentImage[0]);
 	HIDSysex::sendDisplayIfChanged();
 	needsSending = false;
 }
@@ -1247,7 +1275,7 @@ void OLED::freezeWithError(char const* text) {
 		}
 		oledWaitingForMessage = 256;
 	}
-	spiTransferQueueCurrentlySending = false;
+	spiBusCurrentlySending = false;
 
 	// Select OLED
 	PIC::selectOLED();
@@ -1275,27 +1303,16 @@ void OLED::freezeWithError(char const* text) {
 	DMACn(OLED_SPI_DMA_CHANNEL).N0TB_n = transferSize; // TODO: only do this once?
 	uint32_t dataAddress = (uint32_t)(&OLED::main.hackGetImageStore()[0][0]);
 	DMACn(OLED_SPI_DMA_CHANNEL).N0SA_n = dataAddress;
-	// spiTransferQueueReadPos = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+	// oledFrameQueueReadPos = (oledFrameQueueReadPos + 1) & (OLED_FRAME_QUEUE_SIZE - 1);
 	// todo - should only need a flush
 	invalidate_range_all_caches(dataAddress, dataAddress + transferSize);
 	DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |=
 	    DMAC_CHCTRL_0S_CLRTC | DMAC_CHCTRL_0S_SETEN; // ---- Enable DMA Transfer and clear TC bit ----
 
-	while (1) {
-		PIC::flush();
-		uartFlushIfNotSending(UART_ITEM_MIDI);
+	deluge::hid::display::wait_for_select_encoder_press();
 
-		uint8_t value;
-		bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
-		if (anything) {
-			if (value == 175) {
-				break;
-			}
-			else if (value == 249) {}
-		}
-	}
 	oledWaitingForMessage = 256;
-	spiTransferQueueCurrentlySending = false;
+	spiBusCurrentlySending = false;
 
 	clearMainImage();
 	OLED::popupText("Operation resumed. Save to new file then reboot.", false, PopupType::GENERAL);

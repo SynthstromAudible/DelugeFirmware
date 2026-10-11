@@ -335,7 +335,9 @@ goAgainWithoutIncrement:
 		if (patchCables[c].param.isAutomated()) {
 			flagCable(modelStack->summary->whichParamsAreAutomated, c);
 
-			if (patchCables[c].param.hasInterpolationIncrement()) {
+			int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
+			if (patchCables[c].param.hasInterpolationIncrement(
+			        shouldInterpolateWithFloat(modelStack->addParamId(paramId)))) {
 				flagCable(modelStack->summary->whichParamsAreInterpolating, c);
 			}
 		}
@@ -469,6 +471,8 @@ void PatchCableSet::deletePatchCable(ModelStackWithParamCollection const* modelS
 	for (int32_t c = numUsablePatchCables; c < numPatchCables - 1; c++) {
 		if (patchCables[c].destinationParamDescriptor.isNull()) {
 			memcpy(&patchCables[c], &patchCables[numPatchCables - 1], sizeof(PatchCable));
+			// The moved cable's automation now belongs to slot c - don't let the old slot free it too
+			patchCables[numPatchCables - 1].param.nodes.init();
 			break;
 		}
 	}
@@ -575,7 +579,7 @@ void PatchCableSet::tickSamples(int32_t numSamples, ModelStackWithParamCollectio
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 
 	int32_t oldValue = param->getCurrentValue();
-	bool shouldNotify = param->tickSamples(numSamples);
+	bool shouldNotify = param->tickSamples(numSamples, shouldInterpolateWithFloat(modelStackWithAutoParam));
 	if (shouldNotify) { // Should always actually be true...
 		notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
 	}
@@ -670,7 +674,7 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 	param->trimToLength(newLength, action, modelStackWithAutoParam);
 
-	if (!param->hasInterpolationIncrement()) {
+	if (!param->hasInterpolationIncrement(shouldInterpolateWithFloat(modelStackWithAutoParam))) {
 		unflagCable(modelStack->summary->whichParamsAreInterpolating, c);
 
 		bool stillAutomated = param->isAutomated();
@@ -736,7 +740,7 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 		int32_t ticksTilNextEventThisCable = param->processCurrentPos(modelStackWithAutoParam, reversed, didPingpong);
 		ticksTilNextEvent = std::min(ticksTilNextEvent, ticksTilNextEventThisCable);
 
-		if (param->hasInterpolationIncrement()) {
+		if (param->hasInterpolationIncrement(shouldInterpolateWithFloat(modelStackWithAutoParam))) {
 			flagCable(modelStack->summary->whichParamsAreInterpolating, c);
 		}
 		FOR_EACH_PARAM_END
@@ -998,7 +1002,7 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 
 				writer.writeOpeningTagBeginning("patchCable", true);
 				writer.writeAttribute("source", sourceToString(patchCables[d].from));
-				writer.writeAttribute("polarity", polarityToString(patchCables[c].polarity).data());
+				writer.writeAttribute("polarity", polarityToString(patchCables[d].polarity).data());
 				writer.insertCommaIfNeeded();
 				writer.write("\n");
 				writer.printIndents();
@@ -1139,7 +1143,7 @@ void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset,
 
 	param->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action, modelStackWithParam);
 
-	if (!param->hasInterpolationIncrement()) {
+	if (!param->hasInterpolationIncrement(shouldInterpolateWithFloat(modelStackWithParam))) {
 		unflagCable(modelStack->summary->whichParamsAreInterpolating, c);
 
 		bool stillAutomated = param->isAutomated();
@@ -1175,7 +1179,8 @@ void PatchCableSet::notifyPingpongOccurred(ModelStackWithParamCollection* modelS
 	ParamCollection::notifyPingpongOccurred(modelStack);
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating)
-	patchCables[c].param.notifyPingpongOccurred();
+	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
+	patchCables[c].param.notifyPingpongOccurred(shouldInterpolateWithFloat(modelStack->addParamId(paramId)));
 	FOR_EACH_PARAM_END
 }
 

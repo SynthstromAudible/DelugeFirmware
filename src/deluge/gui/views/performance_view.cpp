@@ -192,8 +192,6 @@ PerformanceView::PerformanceView() {
 
 	performanceLayoutBackedUp = false;
 
-	justExitedSoundEditor = false;
-
 	timeKeyboardShortcutPress = 0;
 
 	resetPadPressInfo();
@@ -465,6 +463,11 @@ bool PerformanceView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 ///
 /// XXX: This should take a canvas and render to it rather than pulling the main image all the time.
 void PerformanceView::renderViewDisplay() {
+	// don't update display if we're in the menu
+	if (getCurrentUI() != this) {
+		return;
+	}
+
 	if (defaultEditingMode) {
 		if (display->haveOLED()) {
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
@@ -541,10 +544,18 @@ void PerformanceView::renderViewDisplay() {
 
 /// Render Parameter Name and Value set when using Performance Pads
 void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, int32_t knobPos) {
+	// don't update display if we're in the menu
+	if (getCurrentUI() != this) {
+		return;
+	}
+
 	if (editingParam) {
 		// display parameter name
 		char parameterName[30];
-		strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
+		strncpy(parameterName,
+		        getParamDisplayName(paramKind, paramID,
+		                            (ModControllableAudio*)view.activeModControllableModelStack.modControllable),
+		        29);
 		if (display->haveOLED()) {
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 			deluge::hid::display::OLED::clearMainImage();
@@ -571,7 +582,10 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 
 			// display parameter name
 			char parameterName[30];
-			strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
+			strncpy(parameterName,
+			        getParamDisplayName(paramKind, paramID,
+			                            (ModControllableAudio*)view.activeModControllableModelStack.modControllable),
+			        29);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -987,86 +1001,79 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 }
 
 ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
-	if (!justExitedSoundEditor) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack =
-		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-		// if pad was pressed in main deluge grid (not sidebar)
-		if (xDisplay < kDisplayWidth) {
-			if (on) {
-				// if it's a shortcut press, enter soundEditor menu for that parameter
-				// but not if you're in default editing mode
-				if (Buttons::isShiftButtonPressed()) {
-					if (defaultEditingMode) {
-						return ActionResult::DEALT_WITH;
-					}
-					else {
-						return soundEditor.potentialShortcutPadAction(xDisplay, yDisplay, on);
-					}
-				}
-			}
-			// if not in param editor (so, regular performance view or value editor)
-			if (!editingParam) {
-				bool ignorePadAction =
-				    defaultEditingMode && lastPadPress.isActive && (lastPadPress.xDisplay != xDisplay);
-				if (ignorePadAction || (layoutForPerformance[xDisplay].paramID == kNoParamID)) {
+	// if pad was pressed in main deluge grid (not sidebar)
+	if (xDisplay < kDisplayWidth) {
+		if (on) {
+			// if it's a shortcut press, enter soundEditor menu for that parameter
+			// but not if you're in default editing mode
+			if (Buttons::isShiftButtonPressed()) {
+				if (defaultEditingMode) {
 					return ActionResult::DEALT_WITH;
 				}
-				normalPadAction(modelStack, xDisplay, yDisplay, on);
+				else {
+					return soundEditor.potentialShortcutPadAction(xDisplay, yDisplay, on);
+				}
 			}
-			// editing mode & editing parameter FX assignments
-			else {
-				paramEditorPadAction(modelStack, xDisplay, yDisplay, on);
-			}
-			uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
 		}
-		// if pad was pressed in sidebar and you're not in an editing mode
-		else if ((xDisplay >= kDisplayWidth) && !defaultEditingMode) {
-			// don't interact with sidebar if VU Meter is displayed
-			// and you're in the volume/pan mod knob mode (0)
-			if (view.displayVUMeter && (view.getModKnobMode() == 0)) {
+		// if not in param editor (so, regular performance view or value editor)
+		if (!editingParam) {
+			bool ignorePadAction = defaultEditingMode && lastPadPress.isActive && (lastPadPress.xDisplay != xDisplay);
+			if (ignorePadAction || (layoutForPerformance[xDisplay].paramID == kNoParamID)) {
 				return ActionResult::DEALT_WITH;
 			}
-			// if in arranger view
-			if (currentSong->lastClipInstanceEnteredStartPos != -1) {
-				// pressing the first column in sidebar to trigger sections / clips
-				if (xDisplay == kDisplayWidth) {
-					arrangerView.handleStatusPadAction(yDisplay, on, this);
-				}
-				// pressing the second column in sidebar to audition / edit instrument
-				else {
-					arrangerView.handleAuditionPadAction(yDisplay, on, this);
-					// when you let go of audition pad action, you need to reset led states
-					if (!on) {
-						setCentralLEDStates();
-					}
-				}
+			normalPadAction(modelStack, xDisplay, yDisplay, on);
+		}
+		// editing mode & editing parameter FX assignments
+		else {
+			paramEditorPadAction(modelStack, xDisplay, yDisplay, on);
+		}
+		uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
+	}
+	// if pad was pressed in sidebar and you're not in an editing mode
+	else if ((xDisplay >= kDisplayWidth) && !defaultEditingMode) {
+		// don't interact with sidebar if VU Meter is displayed
+		// and you're in the volume/pan mod knob mode (0)
+		if (view.displayVUMeter && (view.getModKnobMode() == 0)) {
+			return ActionResult::DEALT_WITH;
+		}
+		// if in arranger view
+		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+			// pressing the first column in sidebar to trigger sections / clips
+			if (xDisplay == kDisplayWidth) {
+				arrangerView.handleStatusPadAction(yDisplay, on, this);
 			}
-			// if in session view
+			// pressing the second column in sidebar to audition / edit instrument
 			else {
-				// if in row mode
-				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-					sessionView.padAction(xDisplay, yDisplay, on);
-				}
-				// if in grid mode
-				else {
-					// if you're in grid song view and you pressed / release a pad in the section launcher column
-					if (xDisplay == kDisplayWidth) {
-						sessionView.gridHandlePads(xDisplay, yDisplay, on);
-					}
-					// if you pressed the green or blue mode pads, go back to grid view and change mode
-					else if ((yDisplay == GridMode::GREEN) || (yDisplay == GridMode::BLUE)) {
-						releaseViewOnExit(modelStack);
-						changeRootUI(&sessionView);
-						sessionView.gridHandlePads(xDisplay, yDisplay, on);
-					}
+				arrangerView.handleAuditionPadAction(yDisplay, on, this);
+				// when you let go of audition pad action, you need to reset led states
+				if (!on) {
+					setCentralLEDStates();
 				}
 			}
 		}
-	}
-	else if (!on) {
-		justExitedSoundEditor = false;
+		// if in session view
+		else {
+			// if in row mode
+			if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+				sessionView.padAction(xDisplay, yDisplay, on);
+			}
+			// if in grid mode
+			else {
+				// if you're in grid song view and you pressed / release a pad in the section launcher column
+				if (xDisplay == kDisplayWidth) {
+					sessionView.gridHandlePads(xDisplay, yDisplay, on);
+				}
+				// if you pressed the green or blue mode pads, go back to grid view and change mode
+				else if ((yDisplay == GridMode::GREEN) || (yDisplay == GridMode::BLUE)) {
+					releaseViewOnExit(modelStack);
+					changeRootUI(&sessionView);
+					sessionView.gridHandlePads(xDisplay, yDisplay, on);
+				}
+			}
+		}
 	}
 	return ActionResult::DEALT_WITH;
 }
@@ -1733,6 +1740,16 @@ void PerformanceView::writeDefaultsToFile() {
 /// creates "FX1 - FX16 tags"
 /// limiting # of FX to the # of columns on the grid (16 = kDisplayWidth)
 /// could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own FX
+void PerformanceView::writeSettingsToFile(Serializer& writer) {
+	writer.writeOpeningTagBeginning("performanceView");
+	writer.writeOpeningTagEnd();
+	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_FXVALUES_TAG);
+	writer.writeOpeningTagEnd();
+	writeDefaultFXValuesToFile(writer);
+	writer.writeClosingTag(PERFORM_DEFAULTS_FXVALUES_TAG);
+	writer.writeClosingTag("performanceView");
+}
+
 void PerformanceView::writeDefaultFXValuesToFile(Serializer& writer) {
 	char tagName[10];
 	tagName[0] = 'F';
@@ -1888,7 +1905,7 @@ void PerformanceView::readDefaultsFromFile() {
 	// step into the <defaultFXValues> tag
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, PERFORM_DEFAULTS_FXVALUES_TAG)) {
-			readDefaultFXValuesFromFile();
+			readDefaultFXValuesFromFile(reader);
 		}
 		reader.exitTag();
 	}
@@ -1915,13 +1932,29 @@ void PerformanceView::loadDefaultLayout() {
 	successfullyReadDefaultsFromFile = true;
 }
 
-void PerformanceView::readDefaultFXValuesFromFile() {
+void PerformanceView::readSettingsFromFile(Deserializer& reader) {
+	char const* tagName;
+	reader.match('{');
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, PERFORM_DEFAULTS_FXVALUES_TAG)) {
+			// don't need to initialize held effects when readings settings from song file
+			// because held values are already persisted to the songParams section of the song file
+			// you also don't want to override the current song's parameter values if the loaded song
+			// has not been loaded yet (e.g. is not currentSong)
+			readDefaultFXValuesFromFile(reader, false);
+		}
+		reader.exitTag();
+	}
+	reader.exitTag("performanceView", true);
+	successfullyReadDefaultsFromFile = true;
+}
+
+void PerformanceView::readDefaultFXValuesFromFile(Deserializer& reader, bool initializeHeldEffects) {
 	char const* tagName;
 	char tagNameFX[5];
 	tagNameFX[0] = 'F';
 	tagNameFX[1] = 'X';
 
-	Deserializer& reader = smDeserializer;
 	// loop through all FX number tags
 	//<FX#>
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1930,7 +1963,7 @@ void PerformanceView::readDefaultFXValuesFromFile() {
 			intToString(xDisplay + 1, &tagNameFX[2]);
 
 			if (!strcmp(tagName, tagNameFX)) {
-				readDefaultFXParamAndRowValuesFromFile(xDisplay);
+				readDefaultFXParamAndRowValuesFromFile(reader, xDisplay, initializeHeldEffects);
 				break;
 			}
 		}
@@ -1938,21 +1971,21 @@ void PerformanceView::readDefaultFXValuesFromFile() {
 	}
 }
 
-void PerformanceView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
+void PerformanceView::readDefaultFXParamAndRowValuesFromFile(Deserializer& reader, int32_t xDisplay,
+                                                             bool initializeHeldEffects) {
 	char const* tagName;
-	Deserializer& reader = smDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<param>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_PARAM_TAG)) {
-			readDefaultFXParamFromFile(xDisplay);
+			readDefaultFXParamFromFile(reader, xDisplay);
 		}
 		//<row>
 		else if (!strcmp(tagName, PERFORM_DEFAULTS_ROW_TAG)) {
-			readDefaultFXRowNumberValuesFromFile(xDisplay);
+			readDefaultFXRowNumberValuesFromFile(reader, xDisplay);
 		}
 		//<hold>
 		else if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_TAG)) {
-			readDefaultFXHoldStatusFromFile(xDisplay);
+			readDefaultFXHoldStatusFromFile(reader, xDisplay, initializeHeldEffects);
 		}
 		reader.exitTag();
 	}
@@ -1961,9 +1994,8 @@ void PerformanceView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
 /// compares param name from <param> tag to the list of params available for use in performance view
 /// if param is found, it loads the layout info for that param into the view (paramKind, paramID, xDisplay, yDisplay,
 /// rowColour, rowTailColour)
-void PerformanceView::readDefaultFXParamFromFile(int32_t xDisplay) {
+void PerformanceView::readDefaultFXParamFromFile(Deserializer& reader, int32_t xDisplay) {
 	char const* paramName;
-	Deserializer& reader = smDeserializer;
 	char const* tagName = reader.readTagOrAttributeValue();
 
 	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
@@ -1979,10 +2011,9 @@ void PerformanceView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	}
 }
 
-void PerformanceView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
+void PerformanceView::readDefaultFXRowNumberValuesFromFile(Deserializer& reader, int32_t xDisplay) {
 	char const* tagName;
 	char rowNumber[5];
-	Deserializer& reader = smDeserializer;
 	// loop through all row <#> number tags
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// find the row number that the tag corresponds to
@@ -2012,10 +2043,10 @@ void PerformanceView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
 	}
 }
 
-void PerformanceView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
+void PerformanceView::readDefaultFXHoldStatusFromFile(Deserializer& reader, int32_t xDisplay,
+                                                      bool initializeHeldEffects) {
 	char const* tagName;
 	// loop through the hold tags
-	Deserializer& reader = smDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<status>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {
@@ -2053,7 +2084,9 @@ void PerformanceView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 		}
 		reader.exitTag();
 	}
-	initializeHeldFX(xDisplay);
+	if (initializeHeldEffects) {
+		initializeHeldFX(xDisplay);
+	}
 }
 
 void PerformanceView::initializeHeldFX(int32_t xDisplay) {

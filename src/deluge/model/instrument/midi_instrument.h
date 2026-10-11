@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/instrument/non_audio_instrument.h"
 #include "util/containers.h"
+#include "util/d_stringbuf.h"
 #include <array>
 #include <string_view>
 
@@ -53,6 +54,7 @@ public:
 	Error readDeviceDefinitionFile(Deserializer& reader, bool readFromPresetOrSong);
 	void readDeviceDefinitionFileNameFromPresetOrSong(Deserializer& reader);
 	Error readCCLabelsFromFile(Deserializer& reader);
+	Error readHideUnlabeledCCFromFile(Deserializer& reader);
 	/// writing
 	void writeDeviceDefinitionFile(Serializer& writer, bool writeFileNameToPresetOrSong);
 	void writeDeviceDefinitionFileNameToPresetOrSong(Serializer& writer);
@@ -63,11 +65,13 @@ public:
 	/// definition file
 	String deviceDefinitionFileName;
 	bool loadDeviceDefinitionFile = false;
+	bool hideUnlabeledCC = false;
 
 	void sendMIDIPGM() override;
 
 	void sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel);
 
+	int32_t getNextSelectableCC(int32_t cc, int32_t offset, bool includeNoCC = false);
 	int32_t changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode);
 	int32_t getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,
 	                         int32_t stopAt);
@@ -120,6 +124,10 @@ public:
 		return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "channel";
 	}
 	char const* getSubSlotXMLTag() override { return "suffix"; }
+
+	/// Appends a CC name/number to buf for the given CC assignment.
+	/// Returns true if a user-defined custom name was appended (caller may want to enable scrolling on 7SEG).
+	bool appendCCName(StringBuf& buf, int32_t cc);
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,

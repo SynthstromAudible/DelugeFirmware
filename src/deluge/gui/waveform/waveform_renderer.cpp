@@ -437,7 +437,7 @@ cantReadData:
 				if ((nextSampleCluster->cluster != nullptr) && nextSampleCluster->cluster->numReasonsToBeLoaded < 0) {
 					FREEZE_WITH_ERROR("E450"); // Trying to catch errer before i028, which users have gotten.
 				}
-				nextCluster = nextSampleCluster->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
+				nextCluster = nextSampleCluster->getCluster(sample, clusterIndexToDo + 1, CLUSTER_LOAD_IMMEDIATELY);
 
 				if (cluster->numReasonsToBeLoaded <= 0) {
 					FREEZE_WITH_ERROR("E342"); // Trying to catch E340 below, which Ron R got while recording
@@ -447,6 +447,9 @@ cantReadData:
 					audioFileManager.removeReasonFromCluster(*cluster, "po8w");
 					goto cantReadData;
 				}
+
+				// This entire block doesn't seem to actually do anything relevant - did I leave something out?
+				// Shouldn't it have moved startByteWithinCluster etc into nextCluster? Rohan
 			}
 
 			numBytesToRead = endByteWithinCluster - startByteWithinCluster;

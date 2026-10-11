@@ -37,11 +37,9 @@ protected:
 	void processBackspace() override;
 	// bool predictExtendedText();
 	virtual void predictExtendedTextFromMemory() {}
-	void convertToPrefixFormatIfPossible();
-	void enterKeyPress() override;
-	std::string getCurrentFilenameWithoutExtension();
-
-	static bool currentFileHasSuffixFormatNameImplied;
+	// 7SEG: whether turning the horizontal encoder on a non-slot name switches to the text view so the cursor is
+	// visible. Load browsers keep just scrolling the name, so the keyboard doesn't pop up while browsing (#101).
+	virtual bool showsTextCursorOn7Seg() const { return false; }
 
 	// Although this is only needed by the child class LoadInstrumentPresetUI, we cut a
 	// corner by including it here so our functions can set it to NULL, which is needed.
