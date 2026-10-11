@@ -30,10 +30,12 @@
 #include "filter_workloads.h"
 #include "reference_filters.h"
 
+#include <algorithm>
 #include <bit>
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <span>
 #include <string>
 #include <tuple>
@@ -170,7 +172,7 @@ describe verbatim_filters("the filters' verbatim references", ${
 		}
 	});
 
-	it("render every filter workload as today's filters do: each block's output, gain and draws, and the whole state",
+	it("render every filter workload as the legacy filters do: each block's output, gain and draws, and the whole state",
 	   _ {
 		expect(partings<FirmwareFamily, ReferenceFamily>(filter_workloads::all_workloads()))
 		    .to_equal(std::vector<std::string>{});
@@ -203,6 +205,42 @@ describe verbatim_filters("the filters' verbatim references", ${
 		}
 	});
 
+	it("change a slot's filter while its fade runs: before blocks 4 and 7 of every takeover, and while both slots fade "
+	   "in", _ {
+		using filter_workloads::WorkloadId;
+		const auto fading_before = [](WorkloadId id, bool low, std::initializer_list<size_t> blocks) {
+			const filter_workloads::FilterWorkload& workload = filter_workloads::filter_workload(id);
+			filter_workloads::FilterRun<ReferenceFamily> run{workload};
+			std::vector<q31> out;
+			Digest noise;
+			std::vector<bool> active;
+			for (size_t b = 0; b <= std::max(blocks); ++b) {
+				if (std::ranges::find(blocks, b) != blocks.end()) {
+					const ref::ReferenceFilterSet& set = run.filterSet();
+					active.push_back(low ? set.lowFade().active() : set.highFade().active());
+				}
+				std::ignore = run.block(b, out, noise);
+			}
+			return active;
+		};
+		for (const bool stereo : {false, true}) {
+			const auto id = [stereo](WorkloadId mono) {
+				return static_cast<WorkloadId>(static_cast<uint8_t>(mono) + static_cast<uint8_t>(stereo));
+			};
+			for (const WorkloadId mono : {WorkloadId::SET_LP_TAKEOVER_SVF_MODE_MONO, WorkloadId::SET_LP_TAKEOVER_BACK_MONO}) {
+				expect(fading_before(id(mono), true, {4, 7})).to_equal(std::vector<bool>{true, true});
+			}
+			for (const WorkloadId mono : {WorkloadId::SET_HP_TAKEOVER_SVF_MODE_MONO, WorkloadId::SET_HP_TAKEOVER_BACK_MONO}) {
+				expect(fading_before(id(mono), false, {4, 7})).to_equal(std::vector<bool>{true, true});
+			}
+			for (const WorkloadId mono :
+			     {WorkloadId::SET_FADE_LP_SVF_HP_LADDER_MONO, WorkloadId::SET_FADE_LP_LADDER_HP_SVF_MONO}) {
+				expect(fading_before(id(mono), true, {3, 7})).to_equal(std::vector<bool>{true, true});
+				expect(fading_before(id(mono), false, {3, 7})).to_equal(std::vector<bool>{true, true});
+			}
+		}
+	});
+
 	it("wrap the parallel route's sum in the full-scale workloads", _ {
 		using filter_workloads::WorkloadId;
 		for (const WorkloadId id : {WorkloadId::SET_PAR_FULL_SCALE_MONO, WorkloadId::SET_PAR_FULL_SCALE_STEREO}) {
@@ -212,7 +250,7 @@ describe verbatim_filters("the filters' verbatim references", ${
 		}
 	});
 
-	it("render every compressor workload as today's compressor does: each block's output and gain reduction, and the "
+	it("render every compressor workload as the legacy compressor does: each block's output and gain reduction, and the "
 	   "whole state", _ {
 		expect(partings<FirmwareFamily, ReferenceFamily>(filter_workloads::all_compressor_workloads()))
 		    .to_equal(std::vector<std::string>{});

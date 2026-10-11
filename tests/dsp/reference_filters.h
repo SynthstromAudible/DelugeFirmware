@@ -16,15 +16,15 @@
  */
 
 /// @file
-/// @brief Verbatim test-local copies of the filters and the compressor as the firmware renders them today: the
-/// legacy one-pole section and antialiased tanh they build on, the dry/wet fade, the low-pass ladder, the high-pass
-/// ladder, the state-variable filter, the filter set and the RMS feedback compressor.
+/// @brief Verbatim test-local copies of the legacy filters and compressor: the legacy one-pole section and
+/// antialiased tanh they build on, the dry/wet fade, the low-pass ladder, the high-pass ladder, the state-variable
+/// filter, the filter set and the RMS feedback compressor.
 ///
-/// Each copy keeps today's arithmetic line for line, plain signed `+` and `-` included, and the ladders still draw
-/// from the synth-wide generator through `CONG`, so a kernel checked against them is checked against the firmware's
-/// own output and noise stream. Each class keeps today's member layout, so a firmware object's bytes read as its
-/// copy (see `digest`). The copies add only const accessors and `digest`, which folds every member of the state
-/// into a @ref Digest.
+/// Each copy keeps the legacy arithmetic line for line, plain signed `+` and `-` included, and the ladders draw from
+/// the synth-wide generator through `CONG`, so a kernel checked against them is checked against the legacy output and
+/// noise stream as recorded. Each class keeps the legacy member layout, so a legacy object's bytes read as its copy
+/// (see `digest`). The copies add only const accessors and `digest`, which folds every member of the state into a
+/// @ref Digest.
 ///
 /// Only what the kernels replace is copied. The shared pieces they keep (the value types and modes in
 /// filter_modes.h, `tanh`, `instant_tan`, `quick_log`, the table interpolators, `dry_wet_blend`, `CompressorKnobs`)
@@ -77,23 +77,31 @@ using deluge::dsp::fixed::SvfMode;
 
 /// @brief A 64-bit FNV-1a over 32-bit words: what the records pin.
 struct Digest {
-	uint64_t value = 14695981039346656037ULL;
+	uint64_t value = 14695981039346656037ULL; ///< The digest so far.
 
+	/// @brief Folds in one 32-bit word.
 	void add(uint32_t word) { value = (value ^ word) * 1099511628211ULL; }
+	/// @brief Folds in a signed word (a q31 sample or coefficient) by its bits.
 	void add(int32_t word) { add(static_cast<uint32_t>(word)); }
+	/// @brief Folds in a byte, widened to a word.
 	void add(uint8_t word) { add(static_cast<uint32_t>(word)); }
+	/// @brief Folds in a flag as 0 or 1.
 	void add(bool word) { add(static_cast<uint32_t>(word)); }
+	/// @brief Folds in a float by its bits, so -0 and NaN payloads count.
 	void add(float word) { add(std::bit_cast<uint32_t>(word)); }
+	/// @brief Folds in an enumerator by its underlying value.
 	template <typename E>
 	requires std::is_enum_v<E>
 	void add(E word) {
 		add(static_cast<uint32_t>(word));
 	}
+	/// @brief Folds in each sample, in order.
 	void add(std::span<const q31> samples) {
 		for (const q31 s : samples) {
 			add(s);
 		}
 	}
+	/// @brief Folds in each frame, left then right.
 	void add(std::span<const StereoSample> samples) {
 		for (const StereoSample s : samples) {
 			add(s.l);
@@ -1116,6 +1124,15 @@ public:
 	[[nodiscard]] bool isLowPassOn() const { return low_slot_.kind != LowPassSlot::Kind::OFF; }
 	/// @brief Whether the high-pass is on.
 	[[nodiscard]] bool isHighPassOn() const { return high_slot_.kind != HighPassSlot::Kind::OFF; }
+
+	/// @brief The low-pass slot's fade: that of the filter the slot holds.
+	[[nodiscard]] const ReferenceDryWetFade& lowFade() const {
+		return low_held_ == LowPassSlot::Kind::SVF ? low_pass_.svf.fade() : low_pass_.ladder.fade();
+	}
+	/// @brief The high-pass slot's fade: that of the filter the slot holds.
+	[[nodiscard]] const ReferenceDryWetFade& highFade() const {
+		return high_held_ == HighPassSlot::Kind::SVF ? high_pass_.svf.fade() : high_pass_.ladder.fade();
+	}
 
 	/// @brief Folds the slots' bookkeeping and the held filters' state into @p d: only the union member each slot
 	/// holds.

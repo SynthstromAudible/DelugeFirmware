@@ -26,8 +26,10 @@
 ///
 /// The ladders draw from the synth-wide generator (`CONG`). Every run starts it at @ref kCongSeed, the app's boot
 /// value, and keeps its own copy between blocks, so two runs played side by side each see the stream they would see
-/// alone. Each block's draws are counted and their values digested: a filter that draws one value more or less, or
-/// draws them for the wrong samples, parts from the record.
+/// alone; around each block the caller's `jcong` is put back. Each block's draws are counted and their values
+/// digested, so a filter that draws one value more or less in a block, or moves a draw into another block, parts on
+/// the noise pin. A filter that draws the right values for the wrong samples (R before L, say) parts on the output
+/// and state pins, not on the noise pin.
 ///
 /// A run is generic over a family of implementations (@ref ReferenceFamily, or the firmware's in a spec), each
 /// providing the filter types, the set's scratch, and a digest of an object's state.
@@ -71,7 +73,8 @@ using filters_reference::Digest;
 /// @brief The synth-wide generator's state at boot (util/waves.cpp), where every run starts it.
 inline constexpr uint32_t kCongSeed = 380116160;
 
-/// @brief Restores the synth-wide generator to @ref kCongSeed.
+/// @brief Restores the synth-wide generator to @ref kCongSeed: for a spec that drives a kernel's noise through `jcong`
+/// directly rather than through a @ref FilterRun.
 inline void reset_cong() {
 	jcong = kCongSeed;
 }
@@ -106,15 +109,15 @@ enum class Event : uint8_t {
 
 /// @brief One block of a filter workload.
 struct FilterStep {
-	size_t frames = 1;
-	Signal signal = Signal::VOICE;
-	Event event = Event::NONE;
-	q31 gain = 1 << 29;
-	FilterConfig low{};
-	LowPassSlot low_slot{};
-	FilterConfig high{};
-	HighPassSlot high_slot{};
-	FilterRoute route = FilterRoute::HIGH_TO_LOW;
+	size_t frames = 1;                            ///< The block's length, in frames: 1 to @ref kMaxFrames.
+	Signal signal = Signal::VOICE;                ///< The block's input.
+	Event event = Event::NONE;                    ///< Taken before the block is configured.
+	q31 gain = 1 << 29;                           ///< The volume going in, Q31.
+	FilterConfig low{};                           ///< The low-pass's settings (and a lone SVF's).
+	LowPassSlot low_slot{};                       ///< The low-pass slot (a lone ladder's or SVF's mode).
+	FilterConfig high{};                          ///< The high-pass's settings.
+	HighPassSlot high_slot{};                     ///< The high-pass slot.
+	FilterRoute route = FilterRoute::HIGH_TO_LOW; ///< The set's route.
 };
 
 /// @brief Every recorded filter workload.
@@ -672,7 +675,9 @@ inline constexpr HighPassSlot kHighNotch{.kind = HighPassSlot::Kind::SVF, .svf =
 	return n;
 }
 
-/// @brief The family of reference implementations (reference_filters.h).
+/// @brief The family of reference implementations (reference_filters.h), as @ref FilterRun and @ref CompressorRun take
+/// a family: the five filter types and the compressor, the set's scratch built from the fade's and the parallel
+/// route's spans, and `digest`, which folds an object's whole state into a @ref Digest.
 struct ReferenceFamily {
 	using LowPassLadder = filters_reference::ReferenceLowPassLadder;
 	using HighPassLadder = filters_reference::ReferenceHighPassLadder;
@@ -712,6 +717,7 @@ public:
 		out = filter_input(workload_, b);
 		const std::span<q31> fade{fade_scratch_.data(), out.size()};
 		const std::span<q31> parallel{parallel_scratch_};
+		const uint32_t outer_cong = jcong;
 		jcong = cong_;
 		BlockResult result{};
 		switch (workload_.target) {
@@ -764,9 +770,13 @@ public:
 		}
 		result.draws = draws_between(cong_, jcong, (4 * static_cast<uint32_t>(out.size())) + 4, noise);
 		cong_ = jcong;
+		jcong = outer_cong;
 		result.cong = cong_;
 		return result;
 	}
+
+	/// @return The set, between blocks (a FILTER_SET workload's target).
+	[[nodiscard]] const typename Family::FilterSet& filterSet() const { return set_; }
 
 	/// @return The digest of the target's state.
 	[[nodiscard]] uint64_t state() const {
@@ -927,10 +937,11 @@ struct CompressorStep {
 	Signal signal = Signal::VOICE;
 	bool render = true; ///< Whether the owner renders; else it resets, as an owner does with its threshold at 0.
 	CompressorKnobs knobs{};
-	q31 threshold = 0; ///< The threshold param (SOUND and CLIP); MASTER takes the knobs' threshold.
-	q31 volume_l = 1 << 27;
-	q31 volume_r = 1 << 27;
-	q31 final_volume = 1 << 27;
+	q31 threshold = 0; ///< The threshold param, Q31 of the knob's travel (SOUND and CLIP); MASTER takes the knobs'.
+	q31 volume_l = 1 << 27;     ///< MASTER's left channel gain, 4.27 signed.
+	q31 volume_r = 1 << 27;     ///< MASTER's right channel gain, 4.27 signed.
+	q31 final_volume = 1 << 27; ///< The final volume: 3.29 as MASTER passes it; as SOUND and CLIP pass it, before the
+	                            ///< neutral render's >> 3.
 };
 
 /// @brief Every recorded compressor workload.
@@ -941,11 +952,11 @@ enum class CompressorWorkloadId : uint8_t {
 	SOUND_ONSET_PARTIAL_WET,
 	CLIP_SILENCE_THEN_SOUND,
 	CLIP_ONSET_PARTIAL_WET,
+	MASTER_VOLUME_STEPS, ///< The master's final volume and channel gains stepped mid-run: the makeup envelope moves.
 };
 
 /// @brief How many compressor workloads there are.
-inline constexpr size_t kCompressorWorkloadCount =
-    static_cast<size_t>(CompressorWorkloadId::CLIP_ONSET_PARTIAL_WET) + 1;
+inline constexpr size_t kCompressorWorkloadCount = static_cast<size_t>(CompressorWorkloadId::MASTER_VOLUME_STEPS) + 1;
 
 /// @brief A recorded compressor workload.
 struct CompressorWorkload {
@@ -1028,6 +1039,20 @@ inline constexpr q31 kPartialWet = 1288490188;
 			             return s;
 		             }});
 	}
+	w.push_back({.id = CompressorWorkloadId::MASTER_VOLUME_STEPS,
+	             .name = "comp_master_volume_steps",
+	             .owner = Owner::MASTER,
+	             .blocks = kBlocks,
+	             .step = [](size_t b) {
+		             CompressorStep s = owner_step(Owner::MASTER, b);
+		             s.signal = b % 7 == 6 ? Signal::LOUD : Signal::VOICE;
+		             // Up, down past the start, then near silence: the makeup envelope rises and falls.
+		             s.final_volume = b < 10 ? 1 << 27 : b < 20 ? 0x7FFFFFFF : b < 30 ? 1 << 24 : 1 << 12;
+		             if (b >= 20) {
+			             s.volume_l = 1 << 26;
+		             }
+		             return s;
+	             }});
 	return w;
 }
 

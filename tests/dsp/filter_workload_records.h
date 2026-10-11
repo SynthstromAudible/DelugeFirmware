@@ -16,7 +16,7 @@
  */
 
 /// @file
-/// @brief What each recorded workload (filter_workloads.h) renders, recorded from today's filters and compressor:
+/// @brief What each recorded workload (filter_workloads.h) renders, recorded from the legacy filters and compressor:
 /// each block's output digest, each block's draws from the synth-wide generator and a digest of the values drawn, and
 /// the target's state at the end. Identical on the host and on ARM.
 
@@ -1096,6 +1096,18 @@ inline const std::array<WorkloadRecord, kCompressorWorkloadCount> kCompressorRec
                  0xc0c064f9f793e9bfULL, 0x3f3b2f8a6fc7b691ULL, 0xd97ebe8787c9afe1ULL, 0x012f5cd3d496da10ULL,
                  0x9d31e9149a77ef0eULL, 0x1c607dd31dfae1acULL, 0x0f07ebf1d78e70eeULL, 0xfe2eb23309b84a1aULL},
      .state = 0xd39f7afe8a0ad115ULL},
+    // comp_master_volume_steps
+    {.outputs = {0xc564bbebdca54c59ULL, 0xab9fca16e1b32e46ULL, 0xfda3c13de6987cc3ULL, 0xa349200295547800ULL,
+                 0x34d25a8b50b14db9ULL, 0x940f61b8434604e5ULL, 0xd57e100f770ac837ULL, 0x2778155349f8d1ecULL,
+                 0xd66c916ae53b65e7ULL, 0x4c42d597ceb0285fULL, 0xa61754eedfbef546ULL, 0xa1c8d86bdc719dc1ULL,
+                 0xa70ff40dd48c0a14ULL, 0x2847c424fe863e91ULL, 0xdae9a008135cff1dULL, 0x42d2536bc008439dULL,
+                 0x6e3e56d3ed8bc3abULL, 0x41f6322ce1ba5c33ULL, 0xc4599db589687e95ULL, 0x6ca4a4fe8f22817bULL,
+                 0x8828426e5f459c0aULL, 0x947f28b78ad35adeULL, 0x25eb310dcf5642b8ULL, 0x2355515be7e5d3d3ULL,
+                 0xe95b529c77198a24ULL, 0xe0d7c3f2f1896c99ULL, 0x02e5bd4ded25f63dULL, 0xb8b7e15c91544d62ULL,
+                 0x71f3b350ff207c85ULL, 0xc458c91f335d164fULL, 0xa8ed8935b9185dfcULL, 0xf592f00798b684c5ULL,
+                 0x9cf6b00afa9b9b58ULL, 0x8c9529f5439268acULL, 0xf34a871035aa72fbULL, 0x05c272f092318862ULL,
+                 0x7230b48869915422ULL, 0xa952c405174e136cULL, 0x7cae770de11c37ecULL, 0x31639807d0bb6c33ULL},
+     .state = 0x03895ec595af3fa4ULL},
 }};
 
 } // namespace filter_workloads
