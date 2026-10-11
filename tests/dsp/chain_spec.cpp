@@ -33,12 +33,15 @@
 #include "dsp-next/fixed/shaping/tanh_kernel.h"
 #include "util/fixedpoint.h"
 
+#include "loop_state_kernels.h"
+
 #include <argon.hpp>
 #include <array>
 #include <bit>
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -504,6 +507,33 @@ LanesRun run_lanes_and_monos() {
 	return run;
 }
 
+using SplitPair = Chain<loop_state_test::SplitLoop, loop_state_test::SplitWhole>;
+using WholePair = Chain<loop_state_test::SplitWhole, loop_state_test::SplitWhole>;
+using PinnedSplit = Pinned<loop_state_test::SplitLoop, loop_state_test::Mode::XOR>;
+
+static_assert(processor_kernel<SplitPair> && !detail::declares_loop_state<SplitPair>);
+static_assert(processor_kernel<PinnedSplit> && std::same_as<loop_state_t<PinnedSplit>, loop_state_test::Loop>);
+
+/// Three @p n-sample blocks through Mono<K>, configured with @p first then, from the third block, @p third. Returns
+/// the outputs, with the final State's bytes appended as words.
+template <typename K>
+std::vector<q31> run_split_chain(std::size_t n, const typename K::Settings& first, const typename K::Settings& third) {
+	Mono<K> mono{first};
+	std::vector<q31> out;
+	for (std::size_t block = 0; block < 3; ++block) {
+		if (block == 2) {
+			mono.configure(third);
+		}
+		std::vector<q31> buf = loop_state_test::input(n, block);
+		mono.renderBlock(buf, buf);
+		out.insert(out.end(), buf.begin(), buf.end());
+	}
+	const auto& s = mono.state();
+	std::vector<q31> words(sizeof s / sizeof(q31));
+	std::memcpy(words.data(), &s, sizeof s);
+	out.insert(out.end(), words.begin(), words.end());
+	return out;
+}
 } // namespace
 
 // clang-format off
@@ -958,6 +988,25 @@ describe chain("Chain", ${
 		for (const auto& [now, before] : {std::pair{chain.left(), left}, std::pair{chain.right(), right}}) {
 			expect(bytes_of(get<0>(now))).to_equal(bytes_of(get<0>(before)));
 			expect(bytes_of(get<1>(now))).to_equal(bytes_of(Tracker::State{}));
+		}
+	});
+
+	it("steps a part declaring kLoopState on its loop member, as the part stepping its whole State", _ {
+		SplitPair::Settings first{};
+		SplitPair::Settings third{};
+		get<0>(third).mode = loop_state_test::Mode::XOR;
+		get<1>(first).mode = loop_state_test::Mode::XOR;
+		for (std::size_t n = 1; n <= 9; ++n) {
+			expect(run_split_chain<SplitPair>(n, first, third)).to_equal(run_split_chain<WholePair>(n, first, third));
+		}
+	});
+
+	it("pins a kernel declaring kLoopState, which steps its loop member at the pinned mode", _ {
+		const loop_state_test::SplitCore::Settings add{.mode = loop_state_test::Mode::ADD};
+		const loop_state_test::SplitCore::Settings xor_mode{.mode = loop_state_test::Mode::XOR};
+		for (std::size_t n = 1; n <= 9; ++n) {
+			expect(run_split_chain<PinnedSplit>(n, add, add))
+			    .to_equal(run_split_chain<loop_state_test::SplitWhole>(n, xor_mode, xor_mode));
 		}
 	});
 });

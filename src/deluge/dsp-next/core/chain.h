@@ -437,6 +437,9 @@ private:
 ///
 /// **Op-major.** A chain declares no `kLanePackable`: `Lanes` steps it lane by lane.
 ///
+/// **Loop state.** A part declaring `kLoopState` steps on that member of its State; the chain declares none, so a
+/// wrapper copies the chain's whole State around its loop.
+///
 /// **Inlining.** Every member is `[[gnu::always_inline]]`, so under the shipping `-fno-inline-functions` the parts'
 /// steps land in the wrapper's loop with no call between them.
 template <kernel... Ks>
@@ -596,16 +599,18 @@ private:
 		return y;
 	}
 
-	/// @brief Part @p P's step on @p x, with its own Coefficients, Block and State: at its member of @p M when it is
-	/// moded, else unmoded.
+	/// @brief Part @p P's step on @p x, with its own Coefficients, Block and State, on the part's loop state (@ref
+	/// loop_state_t): at its member of @p M when it is moded, else unmoded.
 	template <StepMode M, std::size_t P, typename... X>
 	[[nodiscard]] [[gnu::always_inline]] static step_type stepPart(const Coefficients& c, const Blocks& b, State& s,
 	                                                               X... x) {
 		if constexpr (detail::has_modes<part_t<P>>) {
-			return kernel_ops::step_at<part_t<P>, get<kModedIndex[P]>(M)>(get<P>(c), get<P>(b), get<P>(s), x...);
+			return kernel_ops::step_at<part_t<P>, get<kModedIndex[P]>(M)>(
+			    get<P>(c), get<P>(b), kernel_ops::loop_state<part_t<P>>(get<P>(s)), x...);
 		}
 		else {
-			return kernel_ops::step_at<part_t<P>, kernel_ops::NoMode::NONE>(get<P>(c), get<P>(b), get<P>(s), x...);
+			return kernel_ops::step_at<part_t<P>, kernel_ops::NoMode::NONE>(
+			    get<P>(c), get<P>(b), kernel_ops::loop_state<part_t<P>>(get<P>(s)), x...);
 		}
 	}
 };
@@ -628,6 +633,16 @@ struct PinnedPrepare<true, K> {
 	}
 };
 
+/// @brief A pinned kernel's `kLoopState`, present only when K declares one.
+template <bool Declares, typename K>
+struct PinnedLoopState {};
+
+/// @brief A pinned kernel's `kLoopState`: K's, a member of the State Pinned shares with K.
+template <typename K>
+struct PinnedLoopState<true, K> {
+	static constexpr auto kLoopState = K::kLoopState; ///< K's loop state.
+};
+
 /// @brief A pinned kernel's `reset`, present only when K has a reset quirk.
 template <bool Declares, typename K>
 struct PinnedReset {};
@@ -645,8 +660,9 @@ struct PinnedReset<true, K> {
 /// `K::step<M>`.
 /// @tparam K A moded kernel.
 /// @tparam M One of K's listed modes.
-/// @details Its Settings, Coefficients, State and Block are K's, and its `coefficients`, `prepare` and `reset` are
-/// K's, declared exactly when K declares them. The Coefficients keep K's `mode` member, which `coefficients` sets to
+/// @details Its Settings, Coefficients, State and Block are K's, and its `coefficients`, `prepare`, `reset` and
+/// `kLoopState` are K's, declared exactly when K declares them. The Coefficients keep K's `mode` member, which
+/// `coefficients` sets to
 /// @p M and the step never reads: it is fixed at @p M. Pinned declares no `Modes`, so it is no moded kernel, and a
 /// chain dispatches on nothing for it. It declares no `kLanePackable`, so `Lanes` steps it lane by lane. Its step
 /// forwards whatever K's takes, the counted partial step included, and it declares K's
@@ -655,7 +671,8 @@ template <kernel K, auto M>
 requires detail::has_modes<K> && std::same_as<decltype(M), std::remove_cv_t<decltype(K::Coefficients::mode)>>
              && (detail::lists_mode(typename K::Modes{}, M))
 struct Pinned : detail::PinnedPrepare<detail::declares_prepare<K>, K>,
-                detail::PinnedReset<detail::declares_reset<K>, K> {
+                detail::PinnedReset<detail::declares_reset<K>, K>,
+                detail::PinnedLoopState<detail::declares_loop_state<K>, K> {
 	using value_type = typename K::value_type;     ///< K's value type.
 	using step_type = typename K::step_type;       ///< K's step type.
 	using Settings = typename K::Settings;         ///< K's settings.
@@ -674,11 +691,11 @@ struct Pinned : detail::PinnedPrepare<detail::declares_prepare<K>, K>,
 
 	/// @brief One step of K at mode @p M, with whatever inputs K's step at its form takes.
 	template <typename... X>
-	requires requires(const Coefficients& c, const kernel_block_t<K>& b, State& s, X... x) {
+	requires requires(const Coefficients& c, const kernel_block_t<K>& b, loop_state_t<K>& s, X... x) {
 		K::template step<M>(c, b, s, x...);
 	}
 	[[nodiscard]] [[gnu::always_inline]] static step_type step(const Coefficients& c, const kernel_block_t<K>& b,
-	                                                           State& s, X... x) {
+	                                                           loop_state_t<K>& s, X... x) {
 		return K::template step<M>(c, b, s, x...);
 	}
 };
