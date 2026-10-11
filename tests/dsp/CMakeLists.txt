@@ -108,6 +108,7 @@ set(compressor_kernel_spec_DEPS ${compressor_reference_spec_DEPS})
 set(mod_fx_reference_spec_DEPS
   ${_repo_root}/src/deluge/util/waves.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+set(mod_fx_kernel_spec_DEPS ${mod_fx_reference_spec_DEPS})
 
 # The decay-curve lookups read the decay tables.
 set(table_interpolation_spec_DEPS
