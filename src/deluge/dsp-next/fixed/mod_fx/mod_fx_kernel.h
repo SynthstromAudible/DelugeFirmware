@@ -287,7 +287,7 @@ private:
 			else {
 				if constexpr (M == Mode::WARBLE_MONO) {
 					// The second warbler steps in mono too, so the noise draws match stereo's.
-					std::ignore = lfo<Wave::WARBLER>(s.phase2, s.warbler2, c.rate2);
+					[[maybe_unused]] const int32_t second_warbler = lfo<Wave::WARBLER>(s.phase2, s.warbler2, c.rate2);
 				}
 				return wrapping_sub(0, lfo1);
 			}
