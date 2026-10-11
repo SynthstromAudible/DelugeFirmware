@@ -29,6 +29,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <tuple>
 
 /// @file
 /// @brief ModFx: chorus, dimension, flanger, warble and the phaser as one moded kernel of stereo frames.
@@ -279,13 +280,18 @@ private:
 		constexpr bool kWarble = M == Mode::WARBLE || M == Mode::WARBLE_MONO;
 		constexpr bool kOwnRightTap = M == Mode::CHORUS || M == Mode::FLANGER || M == Mode::DIMENSION || kWarble;
 		const int32_t lfo1 = lfo<wave_of(M)>(s.phase, s.warbler, c.rate);
-		int32_t lfo2 = wrapping_sub(0, lfo1);
-		if constexpr (kWarble) {
-			const int32_t second = lfo<Wave::WARBLER>(s.phase2, s.warbler2, c.rate2);
+		const int32_t lfo2 = [&] [[gnu::always_inline]] () {
 			if constexpr (M == Mode::WARBLE) {
-				lfo2 = second;
+				return lfo<Wave::WARBLER>(s.phase2, s.warbler2, c.rate2);
 			}
-		}
+			else {
+				if constexpr (M == Mode::WARBLE_MONO) {
+					// The second warbler steps in mono too, so the noise draws match stereo's.
+					std::ignore = lfo<Wave::WARBLER>(s.phase2, s.warbler2, c.rate2);
+				}
+				return wrapping_sub(0, lfo1);
+			}
+		}();
 		StereoSample* const ring = s.ring;
 		Tap t = tap_at(s, multiply_32x32_rshift32(lfo1, c.delay_depth) + c.delay_offset);
 		int32_t out_l = multiply_32x32_rshift32_rounded(ring[t.pos & kRingMask].l, t.strength1)
