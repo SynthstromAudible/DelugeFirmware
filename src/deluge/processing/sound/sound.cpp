@@ -66,7 +66,6 @@
 #include "storage/value_tree_deserializer.h"
 #include "synth/envelope.h"
 #include "synth/patcher.h"
-#include "util/comparison.h"
 #include "util/exceptions.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
@@ -434,7 +433,9 @@ ModFXType Sound::getModFXType() {
 	return modControllableSnapshot_.effects.mod_fx.type;
 }
 
-// Returns false if not enough ram
+/// Sets the mod FX type and starts or stops grain with it. A ring type's ring is taken where the type reaches the
+/// render (projectModControllableSnapshot()); when that allocation fails the type is kept and the audio passes
+/// through until the next effects edit. Always returns true on the mod FX path.
 bool Sound::setModFXType(ModFXType newType) {
 
 	// The mod FX ring follows the type where it reaches the render (projectModControllableSnapshot()).
@@ -2888,7 +2889,8 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	}
 	resyncGlobalLFOs();
 
-	// The mod-FX type through its setter, which allocates the unit's memory: without it, the type stays as it was.
+	// The mod-FX type through its setter, which also starts grain. A ring type whose ring cannot be allocated keeps its
+	// type and passes the audio through; the next effects edit on this sound retries.
 	deluge::effects::EffectStates effects = state.effects;
 	if (effects.mod_fx.type != this->effects().mod_fx.type && !setModFXType(effects.mod_fx.type)) {
 		display->displayError(Error::INSUFFICIENT_RAM);

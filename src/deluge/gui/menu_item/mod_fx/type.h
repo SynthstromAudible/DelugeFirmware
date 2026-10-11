@@ -41,8 +41,8 @@ public:
 		auto current_value = this->getValue<ModFXType>();
 		const deluge::serialization::Value value =
 		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(current_value)));
-		// A type the memory cannot be found for is reported where it is set, and the type stays.
-		// If affect-entire button held, do whole kit
+		// A ring type whose ring cannot be allocated keeps its type and passes the audio through; the next effects edit
+		// retries. If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 			Kit* kit = getCurrentKit();
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {

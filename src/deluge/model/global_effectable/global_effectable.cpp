@@ -41,7 +41,6 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/render_scratch.h"
 #include "storage/storage_manager.h"
-#include "util/comparison.h"
 #include "util/etl_string.h"
 #include "util/firmware_version.h"
 

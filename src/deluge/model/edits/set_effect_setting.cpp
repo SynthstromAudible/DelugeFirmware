@@ -39,7 +39,8 @@ Error SetEffectSetting::apply(Context& ctx) {
 	deluge::effects::EffectStates states = owner->effects();
 	deluge::effects::decode_slot(*effect, deluge::bridge::withLeaf(slot->state, path_, leaf), states, context);
 
-	// The mod-FX type through its setter, which allocates what the unit needs: without it, nothing changes.
+	// The mod-FX type through its setter. A ring type whose ring cannot be allocated keeps its type and passes the
+	// audio through; the next effects edit on this owner retries.
 	if (states.mod_fx.type != owner->effects().mod_fx.type && !owner->setModFXType(states.mod_fx.type)) {
 		return Error::INSUFFICIENT_RAM;
 	}

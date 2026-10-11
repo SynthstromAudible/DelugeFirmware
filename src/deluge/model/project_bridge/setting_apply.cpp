@@ -255,7 +255,7 @@ bool applyModulatorSetting(::Sound& sound, int32_t m, std::string_view rest, int
 }
 
 /// Apply an effect's setting as its menu does, through the owner's setter: false when @p path is no effect's. A mod-FX
-/// type the memory cannot be found for is reported, as its menu reports it, and the type stays.
+/// type whose ring cannot be allocated keeps its type and passes the audio through until the next effects edit.
 bool applyEffectValue(ModControllableAudio& owner, std::string_view path, const std::string& text, int32_t number) {
 	namespace fx = deluge::effects;
 	const bool on = number != 0;
