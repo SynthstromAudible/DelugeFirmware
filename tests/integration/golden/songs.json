@@ -143,6 +143,30 @@
   "rms_db": -17.05,
   "sha256": "0680998389ff447a0df2a85b15bc3c011ab289e1e0d3cdd0ae5d25557191474c"
  },
+ "RS_MODFX_MONO": {
+  "frames": 384000,
+  "peak": 1555892480,
+  "rms_db": -12.08,
+  "sha256": "3ebdc890f3b5f8e8e1e50ba7b787f0a0fcb8764fcf8b8ba6091a6317345484f8"
+ },
+ "RS_MODFX_SOFT_OFF": {
+  "frames": 384000,
+  "peak": 2147483648,
+  "rms_db": -10.24,
+  "sha256": "24eb24cd07c1a99fe9bee7d05875592d017e8c2aaa0ec2633fed63817ed5329e"
+ },
+ "RS_MODFX_STEREO_A": {
+  "frames": 384000,
+  "peak": 2147483648,
+  "rms_db": -17.78,
+  "sha256": "f163b0cfed0f34f1e5655a7c2a32e0d4f84435c6e5af86015a4af7803de31ecd"
+ },
+ "RS_MODFX_STEREO_B": {
+  "frames": 384000,
+  "peak": 2147483392,
+  "rms_db": -8.12,
+  "sha256": "d9b32d7bba8b69f0c881654b142b61ee007a2930933ea6fa1895b1b131961e65"
+ },
  "RS_PINGPONG_SWEEP": {
   "frames": 384000,
   "peak": 1217956608,

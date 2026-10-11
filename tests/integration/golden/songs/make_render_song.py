@@ -38,6 +38,11 @@ alone, its EQ boosting), so the dry half carries the loud input into the level t
 that a q31 sum of a block's squares would pass 2^31, which the compressor's 64-bit level sum holds.
 RS_DUCK_SHAPES covers the sidechain envelope's paths RS_AUDIO_DUCKED leaves out on the host owners: the instant
 attack, the straight and clamped release shapes, and a stronger hit taken mid-attack and mid-release.
+RS_MODFX_MONO, RS_MODFX_STEREO_A and RS_MODFX_STEREO_B put every comb mod FX type on a host owner: the warble and the
+dimension, which no synth golden plays, in mono, and all six in stereo, whose gates render with headphones plugged in.
+RS_MODFX_SOFT_OFF takes a mod FX's selected knob to its minimum and back while the audio plays, which switches the
+effect off and on again: a flanger, whose delay line is freed while off and starts again zeroed, and a phaser, whose
+allpass memory carries across.
 """
 
 import math
@@ -788,6 +793,45 @@ AUDIO_COMP_BLEND_DRY = _host(
 )
 
 
+# A mod FX on each host owner, every other setting at DRY's value: the type, its knob selecting the depth, and its
+# rate, depth, feedback and offset away from their defaults.
+def _mod_fx(mod_fx_type: str, params: str = "") -> dict:
+    return _host(
+        attributes=_with_attributes(
+            DRY["attributes"],
+            f'modFXCurrentParam="depth" modFXType="{mod_fx_type}"',
+        ),
+        params='modFXDepth="0x20000000" modFXRate="0x10000000" modFXFeedback="0x40000000" '
+        'modFXOffset="0x20000000"' + (f" {params}" if params else ""),
+    )
+
+
+def master_settings(fx: dict) -> str:
+    """The song's own settings for its master chain @p fx, as master_song writes them."""
+    return (
+        f" {fx['attributes']}>\n\t{fx['delay']}\n\t{fx['compressor']}\n"
+        f"\t<songParams {fx['params']}>{fx['param_tags']}</songParams>"
+    )
+
+
+def mod_fx_song(
+    voices: list[tuple[str, str, int]], kit: dict, audio: dict, master: dict
+) -> str:
+    """A kit, an audio track and the song's master with the host settings @p kit, @p audio and @p master."""
+    return parts_song(
+        voices,
+        [kit_parts(kit, PINGPONG_DRUMS), audio_parts(audio)],
+        song_settings=master_settings(master),
+    )
+
+
+# The mod FX's knob, its depth, held above its minimum, taken to it at the second bar, which switches the effect off,
+# and back at the third while the audio plays, which switches it on again.
+MOD_FX_SOFT_OFF_DEPTH = (
+    f'modFXDepth="{_steps(0x20000000, [(0x80000000, 384), (0x20000000, 768)])}"'
+)
+
+
 def loud_audio_parts(fx: dict) -> tuple[str, str]:
     """audio_parts, its clip playing LOUD_SAMPLE."""
     track, clip = audio_parts(fx)
@@ -859,6 +903,28 @@ SONGS = {
     ),
     "RS_AUDIO_COMP_BLEND_DRY": lambda v: parts_song(
         v, [loud_audio_parts(AUDIO_COMP_BLEND_DRY)]
+    ),
+    "RS_MODFX_MONO": lambda v: mod_fx_song(
+        v, _mod_fx("TapeWarble"), _mod_fx("dimension"), DRY
+    ),
+    "RS_MODFX_MONO_DRY": lambda v: mod_fx_song(v, DRY, DRY, DRY),
+    "RS_MODFX_STEREO_A": lambda v: mod_fx_song(
+        v, _mod_fx("flanger"), _mod_fx("chorus"), _mod_fx("phaser")
+    ),
+    "RS_MODFX_STEREO_A_DRY": lambda v: mod_fx_song(v, DRY, DRY, DRY),
+    "RS_MODFX_STEREO_B": lambda v: mod_fx_song(
+        v, _mod_fx("StereoChorus"), _mod_fx("TapeWarble"), _mod_fx("dimension")
+    ),
+    "RS_MODFX_STEREO_B_DRY": lambda v: mod_fx_song(v, DRY, DRY, DRY),
+    "RS_MODFX_SOFT_OFF": lambda v: parts_song(
+        v,
+        [
+            kit_parts(_mod_fx("phaser", MOD_FX_SOFT_OFF_DEPTH), PINGPONG_DRUMS),
+            audio_parts(_mod_fx("flanger", MOD_FX_SOFT_OFF_DEPTH)),
+        ],
+    ),
+    "RS_MODFX_SOFT_OFF_DRY": lambda v: parts_song(
+        v, [kit_parts(DRY, PINGPONG_DRUMS), audio_parts(DRY)]
     ),
 }
 

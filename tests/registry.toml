@@ -1214,6 +1214,78 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-modfx-mono"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the warble and dimension mod FX, which no synth golden plays, render as recorded in mono: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_MODFX_MONO) whose kit's chain runs the warble, with its second, random LFO, and whose audio track's chain runs the dimension, each with its knob on depth and its rate, depth, feedback and offset away from their defaults, beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with both mod FX off must render differently (RS-FX), so the mod FX reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_MODFX_MONO" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-modfx-stereo-a"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the flanger, chorus and phaser mod FX render as recorded in stereo, where the comb types read a second tap for the right channel: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_MODFX_STEREO_A) whose kit's chain runs the flanger, its audio track's the chorus and the song's master the phaser, each with its knob on depth and its rate, depth, feedback and offset away from their defaults, rendered with headphones plugged in (RENDER_STEREO=1; RS-CAPTURE fails a run in the other width), beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with every mod FX off, also in stereo, must render differently (RS-FX), so the mod FX reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_MODFX_STEREO_A", RENDER_STEREO = "1" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-modfx-stereo-b"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the stereo chorus, warble and dimension mod FX render as recorded in stereo: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_MODFX_STEREO_B) whose kit's chain runs the stereo chorus, its audio track's the warble, with its second, random LFO, and the song's master the dimension, each with its knob on depth and its rate, depth, feedback and offset away from their defaults, rendered with headphones plugged in (RENDER_STEREO=1; RS-CAPTURE fails a run in the other width), beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with every mod FX off, also in stereo, must render differently (RS-FX), so the mod FX reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_MODFX_STEREO_B", RENDER_STEREO = "1" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-modfx-soft-off"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a mod FX switched off and on again by its knob renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_MODFX_SOFT_OFF) whose audio track's flanger and kit's phaser each have their selected knob, the depth, taken by automation to its minimum at the second bar, which switches the effect off (the flanger's delay line freed, the phaser's allpass memory kept), and back at the third while the audio plays, so the flanger starts again on a zeroed delay line and the phaser on its carried memory, its LFO's phase carried; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with both mod FX off must render differently (RS-FX), so the mod FX reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_MODFX_SOFT_OFF" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-song-corpus"
 path = "."
 level = "integration"
