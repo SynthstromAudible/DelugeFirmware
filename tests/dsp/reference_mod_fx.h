@@ -356,7 +356,7 @@ private:
 		int32_t scaledValue1L = multiply_32x32_rshift32_rounded(ring[sample1Pos & kModFXBufferIndexMask].l, strength1);
 		int32_t scaledValue2L =
 		    multiply_32x32_rshift32_rounded(ring[(sample1Pos - 1) & kModFXBufferIndexMask].l, strength2);
-		int32_t modFXOutputL = add(scaledValue1L, scaledValue2L);
+		int32_t modFXOutputL = scaledValue1L + scaledValue2L;
 
 		if constexpr (stereo || modFXType == ModFXType::DIMENSION || modFXType == ModFXType::WARBLE) {
 			delayTime = multiply_32x32_rshift32(lfo2Output, thisModFXDelayDepth) + modFXDelayOffset;
@@ -368,7 +368,7 @@ private:
 		int32_t scaledValue1R = multiply_32x32_rshift32_rounded(ring[sample1Pos & kModFXBufferIndexMask].r, strength1);
 		int32_t scaledValue2R =
 		    multiply_32x32_rshift32_rounded(ring[(sample1Pos - 1) & kModFXBufferIndexMask].r, strength2);
-		int32_t modFXOutputR = add(scaledValue1R, scaledValue2R);
+		int32_t modFXOutputR = scaledValue1R + scaledValue2R;
 
 		// feedback also controls the mix? Weird but ok, I guess it makes it work on one knob
 		if constexpr (modFXType == ModFXType::FLANGER) {
