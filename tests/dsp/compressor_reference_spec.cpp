@@ -152,10 +152,18 @@ describe verbatim_compressor("the compressor's verbatim reference", ${
 	});
 
 	it("reaches a level defect in exactly the workloads defects_fire names, as a probe through its arithmetic shows", _ {
+		std::vector<std::string> probed;
+		std::vector<std::string> named_by_defects_fire;
 		for (const cw::CompressorWorkload& workload : cw::all_compressor_workloads()) {
 			const LevelProbe probe = probe_levels(workload);
-			expect(probe.wrapped_blocks > 0 || probe.min_frames > 0).to_equal(cw::defects_fire(workload.id));
+			if (probe.wrapped_blocks > 0 || probe.min_frames > 0) {
+				probed.emplace_back(workload.name);
+			}
+			if (cw::defects_fire(workload.id)) {
+				named_by_defects_fire.emplace_back(workload.name);
+			}
 		}
+		expect(probed).to_equal(named_by_defects_fire);
 		for (const cw::CompressorWorkloadId id :
 		     {cw::CompressorWorkloadId::MASTER_ONSET_PARTIAL_WET, cw::CompressorWorkloadId::SOUND_ONSET_PARTIAL_WET,
 		      cw::CompressorWorkloadId::CLIP_ONSET_PARTIAL_WET, cw::CompressorWorkloadId::WRAPPED_SUM}) {
