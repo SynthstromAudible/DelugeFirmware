@@ -185,8 +185,8 @@ device task 5.5 KB, the audio loader 4.0 KB).
 
 Rust levers:
 
-- `opt-level = "z"`: measured +41.5 KB. Keep any genuinely hot crate at `"s"` with a `[profile.release.package]`
-  override.
+- `opt-level = "z"`: measured +41.5 KB, but the image does not boot (see [Applied](#applied)). It needs every
+  pre-MMU path free of unaligned reads, or the boot's logging moved after the MMU comes up.
 - Move the shared path-walk and directory-entry helpers out of line (`#[inline(never)]` on non-async helpers, or one
   shared future), so the tasks stop each carrying a copy (*not measured*).
 - Make the `.data` tables (`HANDLES`, `TASK_FILES`, `REGISTRY`) zero-initialised or move them to SDRAM.
@@ -200,8 +200,8 @@ steps 1 and 2 below except moving the sample-stream `REGISTRY`:
 
 | | Before (`10e2f7133`) | After |
 |---|---:|---:|
-| SRAM heap | 44 KB | **444 KB** |
-| `.text` | 1,701 KB | 1,450 KB |
+| SRAM heap | 44 KB | **413 KB** |
+| `.text` | 1,701 KB | 1,483 KB |
 | `.rodata` | 509 KB | 504 KB |
 | `.data` | 41 KB | 27 KB |
 | `.bss` | 371 KB | 326 KB |
@@ -221,10 +221,16 @@ steps 1 and 2 below except moving the sample-stream `REGISTRY`:
   - This also fixed the `.bin`, which used to begin with the `.sdram_init` load copy instead of the vector table and
     the bootloader header. A probe loading the ELF never noticed.
 - `-Oz` on the cold C++ (`cmake/optimise_for_size.cmake`, device builds only).
-- Rust `opt-level = "z"`, with the sample-streaming crates, the resource manager, both allocators, the HAL and the
-  executor at `"s"`: +31 KB, against +42 KB for `"z"` everywhere.
 
-The host test estate passes. The image has not been booted on a device yet.
+Rust `opt-level = "z"` was applied and reverted, because it does not boot. Under `"z"`, LLVM lowers unaligned reads to
+`__aeabi_uread4` calls, and `compiler_builtins` implements that helper as a plain `ldr`. `core::fmt` reads its
+templates that way, and the boot logs before the MMU is enabled, while all memory is strongly ordered. So the first
+log line takes an alignment fault (DFSR `0x01`). `core` is built by build-std at the root crate's level, which no
+per-package override reaches. The cold C++ under `-Oz` also calls `__aeabi_uread4`, which is safe only because none of
+it runs before the MMU is on.
+
+The host test estate passes. The image boots on a device: "going into main loop" at 1.51 s and the job summary at
+11.51 s, the same as before.
 
 ## Suggested order
 
