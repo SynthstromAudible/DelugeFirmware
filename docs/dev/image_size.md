@@ -194,8 +194,18 @@ Rust levers:
 
 ## Suggested order
 
-1. Cheap and contained: `--icf=safe`, the runtime shims, the heap-start fix in `rza1l_rtt.x`.
-2. Needs a check with the DSP bench (`tools/dsp_bench.py`): cold `-Oz`, Rust `opt-level = "z"`, reclaiming the
-   `.sdram_init` load copy.
-3. Structural: remove exceptions (`BAD_ALLOC` → returned errors) and discard `.ARM.exidx`; immediate-mode menus; cold
-   code to SDRAM.
+1. Cheap and contained:
+   - `--icf=safe`, the runtime shims and the heap-start fix in `rza1l_rtt.x`.
+   - A `cfg` gate on `bench_park`.
+   - The storage-only Rust buffers to SDRAM: the channel task pools and staging buffers (~47 KB) and the efatfs
+     `HANDLES` table (10 KB). Only the storage tasks touch them and none are DMA targets. Zero-initialising them alone
+     saves nothing, because `.data` and `.bss` are both SRAM.
+2. Needs a check with the DSP bench (`tools/dsp_bench.py`):
+   - Cold `-Oz`, Rust `opt-level = "z"` and reclaiming the `.sdram_init` load copy.
+   - The sample-stream `REGISTRY` (12 KB) to SDRAM, since the playback path may look it up.
+   - The efatfs path walk out of line: measure it as a variant after `"z"`, which already inlines less.
+3. Structural:
+   - Remove exceptions (`BAD_ALLOC` → returned errors) and discard `.ARM.exidx`.
+   - Cold code to SDRAM.
+   - Immediate-mode menus, an existing program on its own merits. Its ~160–180 KB is measured against the image after
+     steps 1 and 2, so it adds to them.
