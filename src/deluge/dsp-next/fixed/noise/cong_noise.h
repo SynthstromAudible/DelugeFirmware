@@ -18,7 +18,7 @@
 #pragma once
 
 #include "dsp-next/core/types.h"
-#include "util/waves.h" // CONG, the synth-wide generator
+#include "dsp-next/fixed/noise/noise.h"
 
 /// @file
 /// @brief CongNoise: the synth's shared noise stream as a kernel's noise policy.
@@ -30,9 +30,9 @@ namespace deluge::dsp::fixed {
 /// state, so the order of draws across voices and channels is part of the output: a kernel under `Stereo` draws for
 /// the left channel before the right in every frame.
 struct CongNoise {
-	/// @brief Advances the shared state exactly as `CONG` does.
+	/// @brief One draw from the shared stream: @ref SharedNoise's, so the two draw paths are one definition.
 	/// @return The new state, reinterpreted as a q31 sample.
-	[[nodiscard]] [[gnu::always_inline]] static q31 render() { return static_cast<q31>(CONG); }
+	[[nodiscard]] [[gnu::always_inline]] static q31 render() { return SharedNoise{}.render(); }
 };
 
 } // namespace deluge::dsp::fixed
