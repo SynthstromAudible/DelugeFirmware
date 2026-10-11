@@ -613,15 +613,16 @@ arity, as `Mono` is. A staged or control kernel is rejected at the class: neithe
   one draw would reach every lane, where lane by lane draws once per lane in lane order. A kernel that needs noise does
   not opt in and steps lane by lane. Nothing detects a draw at compile time, since it is a call inside the step, so
   each opted-in kernel's spec checks its op-major form against its lane-by-lane one.
-- **One lane alone.** `renderLane(lane, in, out)` runs one lane over a block of q31 samples, leaving every other
-  lane's State untouched: that lane's `prepare`, one mode dispatch and one loop, on local copies written back after the
-  block, so the lane steps exactly as a `Mono<K>` holding its State would (op-major, the lane is unpacked for the block
-  and packed back). It is for an owner whose stream is sometimes one lane and sometimes all of them on the same State:
-  a voice's filter renders mono blocks through the left channel and stereo blocks through both, and the voice moves
-  between them mid-note (unison stereo spread, stereo samples), so the left channel's state must carry across. A
-  separate `Mono<K>` beside the `Stereo<K>` would drop it at every switch. The mono loop costs what a dedicated mono
-  loop does ([a9_dsp_performance.md](a9_dsp_performance.md#filters)). `lanes_spec` checks it against that lane's
-  `Mono` at every width and on every lane.
+- **One lane alone.** `renderLane<Lane>(in, out)` runs one lane over a block of q31 samples, leaving every other lane's
+  State untouched (the lane is a template argument, so a lane past N is a compile error): that lane's `prepare`, one
+  mode dispatch and one loop, on local copies written back after the block, so the lane steps exactly as a `Mono<K>`
+  holding its State would (op-major, the lane is unpacked for the block and packed back). It is for an owner whose
+  stream is sometimes one lane and sometimes all of them on the same State: a voice's filter renders mono blocks through
+  the left channel and stereo blocks through both, and the voice moves between them mid-note (unison stereo spread,
+  stereo samples), so the left channel's state must carry across. A separate `Mono<K>` beside the `Stereo<K>` would drop
+  it at every switch. The mono loop costs what a dedicated mono loop does
+  ([a9_dsp_performance.md](a9_dsp_performance.md#filters)). `lanes_spec` checks it against that lane's `Mono` at every
+  width and on every lane.
 - **State.** `state(lane)` returns a snapshot of the lane's State by value in both forms, and `Stereo`'s `left()` and
   `right()` do the same: later blocks do not update a copy taken earlier.
 - **What op-major buys.** Over interleaved frames clang compiles the two forms to the same loop at the shipping flags:
@@ -802,7 +803,7 @@ overloads it on non-const `Coefficients`.
   step in every mode (the ladder once, twice when it oversamples), and under
   `Stereo` the left channel steps first in every frame, so the draws go left
   then right, the order the pinned output was drawn in. A mono block run through
-  `renderLane(0, …)` draws once per sample, for that lane only. An op-major
+  `renderLane<0>(…)` draws once per sample, for that lane only. An op-major
   step must not draw (see [`Lanes`](#lanesk-n-corelanesh)).
 
 ## Slotting-ready rules
@@ -932,13 +933,15 @@ These are the reference blocks that later rewrites compose rather than re-derive
 
 Each filter is a scalar q31 processor kernel built by nesting the shared kernels above
 ([Composition](#composition)): its `State` holds their States, and its `step` calls their `step`s directly, at the
-mode it needs (a section's LOW_PASS, the follower's TRACK). Each runs under `Stereo` (one `Coefficients`, a `State` per channel), and
-each moded one shares one `State` across its modes, so a mode change between blocks carries every memory.
+mode it needs (a section's LOW_PASS, the follower's TRACK). Each runs under `Stereo` (one `Coefficients`, a `State`
+per channel), and each moded one shares one `State` across its modes, so a mode change between blocks carries every
+memory.
 
 - **`LowPassLadder<Noise>`** (`low_pass_ladder.h`): the transistor-ladder low-pass.
   - Four `OnePole` sections and a `ShiftTracker<7>` TRACK noise follower. The 24 dB ladders step all four sections as
     LOW_PASS; the 12 dB ladder steps two LOW_PASS and one ALL_PASS.
-  - Plain `tanh<N>` saturation: drive 2 on the input, and in the drive ladder, 7 on the feedback sum and 4 on the output.
+  - Plain `tanh<N>` saturation: drive 2 on the input, and in the drive ladder, 7 on the feedback sum and 4 on the
+    output.
   - Modes T12, T24, DRIVE and DRIVE_OVERSAMPLED. `coefficients()` chooses oversampling from `allow_oversampling` and
     the resonance by the oversampling tables, so oversampling switching on or off under CPU load is a mode change.
   - The noise is its `Noise` policy ([Noise](#noise-fixednoise)): one draw per step, two when oversampled.
@@ -946,8 +949,8 @@ each moded one shares one `State` across its modes, so a mode change between blo
 - **`HighPassLadder`** (`high_pass_ladder.h`): two `OnePole` HIGH_PASS sections and one LOW_PASS around a resonant
   loop, and an `AntialiasedTanh` State.
   - The saturation is the mode, chosen per block from the processed resonance: BYPASS, TANH (`tanh<2>`) or ANTIALIASED
-    (`AntialiasedTanh` at drive 1). The resonance cannot change within a block, so the per-sample test the
-    hand-written loop made is gone. That is most of the kernel's speed ([a9_dsp_performance.md](a9_dsp_performance.md#filters)).
+    (`AntialiasedTanh` at drive 1). The resonance cannot change within a block, so the loop makes no per-sample
+    test of it. That is most of the kernel's speed ([a9_dsp_performance.md](a9_dsp_performance.md#filters)).
   - BYPASS and TANH keep the saturator's position tracking the signal (`AntialiasedTanh::place`, at shift 2 while it
     saturates at drive 1, a quirk kept bit-exact and named in the code), so ANTIALIASED switched in interpolates from
     the last sample.
@@ -983,7 +986,7 @@ each moded one shares one `State` across its modes, so a mode change between blo
   - **Cost.** What these passes cost, and what fusing the set into one loop could save, is measured in
     [a9_dsp_performance.md](a9_dsp_performance.md#filters).
 
-The compressor (`fixed/dynamics/rms_feedback_compressor.h`) is still a hand-written class. It holds the shared
+The compressor (`fixed/dynamics/rms_feedback_compressor.h`) is a hand-written class, not a kernel. It holds the shared
 kernels' States: two `OnePole` detectors stepped LOW_PASS, and two `AntialiasedTanh` saturators at drive 3, each
 seeded from the block's first frame after silence or at onset (`AntialiasedTanh::seed`).
 

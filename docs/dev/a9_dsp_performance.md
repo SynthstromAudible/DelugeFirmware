@@ -312,11 +312,11 @@ n = 128. A State of hundreds of bytes is stepped in place.
 ## Filters
 
 Each filter as a voice runs it, and the filter set, as kernels (`Stereo<LowPassLadder<CongNoise>>`,
-`Stereo<HighPassLadder>`, `Stereo<Svf>`, mono blocks through `renderLane(0, …)`) against the hand-written classes they
-replaced. Cycles per channel-sample, `FilterSet::configure` plus the render per block, in place, with the filter
+`Stereo<HighPassLadder>`, `Stereo<Svf>`, mono blocks through `renderLane<0>(…)`) against the hand-written classes
+(before). Cycles per channel-sample, `FilterSet::configure` plus the render per block, in place, with the filter
 library's flags (`DELUGE_DSP_BENCH_CASES=filters`), all measured on 2026-10-10; the kernel figures are the mean of two
 runs. The unchanged `delay_feedback_chain_*` controls move by at most 1.9% between the two images (0.0% for the analog
-chain, 0.08–0.34 cps on the digital one), and the two runs agree within 0.07%, so a difference inside ±1.9% is noise
+chain, 0.08–0.34 cps on the digital one), and the two runs agree within 0.09%, so a difference inside ±1.9% is noise
 (≈).
 
 | case | n=32 before → after (Δ) | n=64 before → after (Δ) | n=128 before → after (Δ) |
@@ -339,24 +339,25 @@ chain, 0.08–0.34 cps on the digital one), and the two runs agree within 0.07%,
 | `filterset_lh_stereo` | 165.41 → 146.91 (-11.2%) | 161.46 → 142.73 (-11.6%) | 159.48 → 140.61 (-11.8%) |
 | `filterset_par_stereo` | 171.74 → 153.73 (-10.5%) | 167.19 → 148.22 (-11.3%) | 164.97 → 145.85 (-11.6%) |
 
-- **Nothing is slower outside the noise.** The ladders gain 4–11%, the high-pass ladder 16–22%, and the set on every
-  route 10.5–11.8%.
-- **A mode chosen per block is the largest gain.** The high-pass ladder's saturation was a per-sample test of a value
-  that never changes within a block; as a mode (BYPASS, TANH, ANTIALIASED), the unsaturated loop runs 39.2 instructions
-  per sample against 55.9, mono.
+- **Nothing is slower outside the noise.** The 12 dB and 24 dB ladders gain 5.8–11.5%, the oversampled drive ladder
+  7.2–9.8% and the drive ladder without oversampling 1.8–5.0%; the high-pass ladder gains 15.8–22.2%, the SVF up to
+  4.4%, and the set on every route 10.5–11.8%.
+- **A mode chosen per block is the largest gain.** In the hand-written class the high-pass ladder's saturation is a
+  per-sample test of a value that never changes within a block; as a mode (BYPASS, TANH, ANTIALIASED), the
+  unsaturated loop runs 39.2 instructions per sample against 55.9, mono.
 - **Spills can cost nothing.** The stereo drive ladder's loop is 7–10 instructions per frame longer than the old one
   (the two channels' states spill), yet it runs 2.2–2.5% faster at n ≥ 64: the extra loads and stores issue into
   slots the old loop left empty (issue-empty cycles per sample at n = 128: 44.05 before, 35.04 after). Count cycles,
   not instructions.
 - **One lane of a `Stereo` costs a mono block nothing.** Every mono case is as fast as or faster than the dedicated
-  mono loops it replaced; `renderLane(0, …)` compiles to the same kind of loop on lane 0's State.
+  mono loops of the hand-written classes; `renderLane<0>(…)` compiles to the same kind of loop on lane 0's State.
 - **The stereo SVF is unchanged within the noise**, band sitting at +0.7–0.9% in both runs with 3.7 fewer
   instructions per sample and the same empty issue cycles; unexplained, inside the bound, so not traced.
 
 **The fusion question.** Whether to fuse the filter set into one loop (low-pass, high-pass and fades per sample) rests
 on what the passes around the filters cost, since fusion removes those and leaves each filter's own step as it is.
 
-| n | series route, set − its two filters alone | parallel route, set − its two filters alone | the fade pass while active |
+| n | series route, set − its filters alone | parallel route, set − its filters alone | the fade pass while active |
 | ---: | ---: | ---: | ---: |
 | 32 | −1.4 to −1.7 | +5.1 | 35.2 |
 | 64 | −0.7 to −0.9 | +4.6 | 34.4 |
@@ -375,8 +376,8 @@ Cycles per channel-sample, stereo: the 24 dB ladder and the high-pass ladder, ea
   a + C/2n). Its loop is 16 instructions a sample with no calls: the dry level steps in double (`vcvt.f64.f32`,
   `vmul.f64`, `vcvt.f32.f64`) and the wet level is formed from it in float and converted to Q31, every sample's level
   depending on the last, one serial VFP chain at about two cycles an instruction. Fusing would remove the dry copy and
-  the blend's load and store, not the chain, which bit-exactness fixes. The fade runs on about four blocks after a slot
-  switches on.
+  the blend's load and store, not the chain, which bit-exactness fixes. The fade runs for 688 channel-sample steps
+  after a slot switches on: about 344 stereo frames or 688 mono samples.
 - **So fusion buys little.** On the blocks every voice renders, at most a few cycles per sample on the series routes
   and 5 on the parallel route; on a fading block, the copy and a pass, out of the 33.5 the level chain costs. The
   filters' own loops (50–225 cycles per channel-sample) are where the cost is.
