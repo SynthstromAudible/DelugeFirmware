@@ -134,8 +134,9 @@ async fn stream_bootstrap() {
 /// Called from the binary's `main`, which the HAL reset handler enters with the caches and MMU
 /// off and the stacks set up.
 pub fn start() -> ! {
-    // RTT logger first, so every boot step is visible over the probe. The ring
-    // buffer + control block live in uncached SRAM (.rtt_buffer / rza1l_rtt.x).
+    // The RTT channel first, so the fault reporter can write to the probe from the first
+    // instruction. The ring buffer + control block live in uncached SRAM (.rtt_buffer /
+    // rza1l_rtt.x).
     #[cfg(feature = "rtt")]
     {
         let channels = rtt_target::rtt_init! {
@@ -143,9 +144,7 @@ pub fn start() -> ! {
             section_cb: ".rtt_buffer"
         };
         rtt_target::set_print_channel(channels.up.0);
-        rtt_target::init_logger_with_level(log::LevelFilter::Debug);
     }
-    log::info!("deluge-rust: boot — Rust/Embassy BSP for RZ/A1L");
 
     // No Rust SRAM heap: any static pool would come out of the C++ app's fast on-chip heap, which
     // starts at the image end. `deluge_alloc::SRAM` stays uninitialised, so an allocation from it
@@ -153,6 +152,14 @@ pub fn start() -> ! {
 
     // CPG/PLL, MMU, L1+L2 caches, SDRAM controller, GIC, and the embassy-time (OSTM) driver.
     unsafe { deluge_bsp::system::init_clocks() };
+
+    // The logger only now, with the MMU on. Until then all memory is strongly ordered and an
+    // unaligned access faults, and formatting may read unaligned: built for size, LLVM lowers
+    // `core::fmt`'s template reads to `__aeabi_uread4`, a plain `ldr`. With no logger set, the
+    // `log` macros return before formatting, so the HAL's own pre-MMU lines are dropped, not run.
+    #[cfg(feature = "rtt")]
+    rtt_target::init_logger_with_level(log::LevelFilter::Debug);
+    log::info!("deluge-rust: boot — Rust/Embassy BSP for RZ/A1L");
     log::info!("deluge-rust: clocks/MMU/cache/SDRAM/GIC up");
 
     // Zero the app's SDRAM .bss and copy .sdram_init from its SRAM load address (a debugger
