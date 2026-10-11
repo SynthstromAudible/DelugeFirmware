@@ -27,7 +27,6 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <tuple>
 
 using namespace deluge::dsp;
@@ -1052,7 +1051,7 @@ describe kernel_concepts("kernel concepts", ${
 			                                                           x))
 			    .to_equal(want);
 		}
-		expect(std::memcmp(&split, &whole, sizeof whole)).to_equal(0);
+		expect(loop_state_test::state_words(split)).to_equal(loop_state_test::state_words(whole));
 	});
 });
 

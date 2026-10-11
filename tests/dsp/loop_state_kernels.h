@@ -18,10 +18,13 @@
 
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
+#include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 /// @file
@@ -111,6 +114,125 @@ struct SplitLoopInPlace : SplitLoop {
 struct SplitWholeInPlace : SplitWhole {
 	static constexpr bool kStateInPlace = true;
 };
+
+/// @brief A vector kernel's State for the loop-state tests: the loop's part, a block counter and a level outside it.
+/// @details Two spare words fill it to a whole number of vectors, so it has no padding and compares as bytes.
+template <typename Loop>
+struct VecState {
+	Loop loop{};                ///< The loop's part.
+	std::uint32_t prepares = 0; ///< Blocks prepared.
+	q31 level = 0;              ///< Set by set_level; prepare adds it to the block's offset.
+	// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+	std::uint32_t spare[2]{}; ///< Fills the State to a whole number of vectors.
+};
+
+/// @brief What the vector loop-state test kernels share: per vector of q31 samples, a running sum offset by the block's
+/// offset, which `prepare` makes from the level outside the loop.
+struct VecSplitCore {
+	using value_type = q31;
+	using step_type = Argon<q31>;
+	struct Settings {};
+	struct Coefficients {};
+	struct Loop {
+		Argon<q31> acc; ///< The running sum, per lane, wrapping.
+	};
+	using State = VecState<Loop>;
+	struct Block {
+		q31 offset; ///< Added to every input of the block.
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static Block prepare(const Coefficients& /*c*/, State& s, std::size_t /*n*/) {
+		++s.prepares;
+		return {.offset = static_cast<q31>(static_cast<std::uint32_t>(s.level) + s.prepares)};
+	}
+	/// @brief Event: the level the next blocks' offset starts from.
+	static void set_level(State& s, q31 level) { s.level = level; }
+	/// @brief One step's arithmetic on the loop's part alone.
+	[[gnu::always_inline]] static Argon<q31> advance(const Block& b, Loop& l, Argon<q31> x) {
+		l.acc = l.acc + x + Argon<q31>{b.offset};
+		return l.acc;
+	}
+};
+
+/// @brief VecSplitCore stepping its whole State.
+struct VecSplitWhole : VecSplitCore {
+	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const Block& b, State& s, Argon<q31> x) {
+		return advance(b, s.loop, x);
+	}
+};
+
+/// @brief VecSplitCore declaring its loop's part.
+struct VecSplitLoop : VecSplitCore {
+	static constexpr auto kLoopState = &State::loop;
+	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const Block& b, Loop& s, Argon<q31> x) {
+		return advance(b, s, x);
+	}
+};
+
+/// @brief VecSplitLoop, stepping its loop state in place.
+struct VecSplitLoopInPlace : VecSplitLoop {
+	static constexpr bool kStateInPlace = true;
+};
+
+/// @brief What the interleaved loop-state test kernels share: per vector of stereo frames, a running sum per channel,
+/// the block's offset added on the left and taken off on the right.
+struct StereoVecSplitCore {
+	using value_type = StereoSample;
+	using step_type = StereoVector;
+	struct Settings {};
+	struct Coefficients {};
+	struct Loop {
+		StereoVector acc; ///< The running sums, per channel and lane, wrapping.
+	};
+	using State = VecState<Loop>;
+	struct Block {
+		q31 offset; ///< Added on the left and taken off on the right of every frame of the block.
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	static Block prepare(const Coefficients& /*c*/, State& s, std::size_t /*n*/) {
+		++s.prepares;
+		return {.offset = static_cast<q31>(static_cast<std::uint32_t>(s.level) + s.prepares)};
+	}
+	/// @brief Event: the level the next blocks' offset starts from.
+	static void set_level(State& s, q31 level) { s.level = level; }
+	/// @brief One step's arithmetic on the loop's part alone.
+	[[gnu::always_inline]] static StereoVector advance(const Block& b, Loop& l, StereoVector x) {
+		l.acc.l = l.acc.l + x.l + Argon<q31>{b.offset};
+		l.acc.r = l.acc.r + x.r - Argon<q31>{b.offset};
+		return l.acc;
+	}
+};
+
+/// @brief StereoVecSplitCore stepping its whole State.
+struct StereoVecSplitWhole : StereoVecSplitCore {
+	[[gnu::always_inline]] static StereoVector step(const Coefficients& /*c*/, const Block& b, State& s,
+	                                                StereoVector x) {
+		return advance(b, s.loop, x);
+	}
+};
+
+/// @brief StereoVecSplitCore declaring its loop's part.
+struct StereoVecSplitLoop : StereoVecSplitCore {
+	static constexpr auto kLoopState = &State::loop;
+	[[gnu::always_inline]] static StereoVector step(const Coefficients& /*c*/, const Block& b, Loop& s,
+	                                                StereoVector x) {
+		return advance(b, s, x);
+	}
+};
+
+/// @brief StereoVecSplitLoop, stepping its loop state in place.
+struct StereoVecSplitLoopInPlace : StereoVecSplitLoop {
+	static constexpr bool kStateInPlace = true;
+};
+
+/// @return @p s as 32-bit words, so that a mismatch prints, as numbers, where two values differ.
+template <typename T>
+[[nodiscard]] std::vector<std::uint32_t> state_words(const T& s) {
+	static_assert(sizeof s % sizeof(std::uint32_t) == 0, "the loop-state test States are whole words");
+	std::vector<std::uint32_t> words(sizeof s / sizeof(std::uint32_t));
+	std::memcpy(words.data(), &s, sizeof s);
+	return words;
+}
 
 /// @return @p n samples of a full-range sequence, different for each @p block.
 [[nodiscard]] inline std::vector<q31> input(std::size_t n, std::size_t block) {

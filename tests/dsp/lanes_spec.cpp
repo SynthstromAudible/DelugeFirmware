@@ -37,7 +37,6 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <limits>
 #include <span>
 #include <tuple>
@@ -528,9 +527,9 @@ SplitLanesRun run_split_lanes(std::size_t n, bool in_place) {
 }
 
 /// The outputs and both lanes' States after three @p n-sample blocks of lane 1 alone through Lanes<K, 2>, XOR from
-/// the third.
+/// the third. @p in_place renders each block over its own input.
 template <typename K>
-SplitLanesRun run_split_lane1(std::size_t n) {
+SplitLanesRun run_split_lane1(std::size_t n, bool in_place) {
 	Lanes<K, 2> lanes{{.mode = loop_state_test::Mode::ADD}};
 	SplitLanesRun run{};
 	for (std::size_t block = 0; block < 3; ++block) {
@@ -538,7 +537,14 @@ SplitLanesRun run_split_lane1(std::size_t n) {
 			lanes.configure({.mode = loop_state_test::Mode::XOR});
 		}
 		std::vector<q31> buf = loop_state_test::input(n, block);
-		lanes.template renderLane<1>(buf, buf);
+		if (in_place) {
+			lanes.template renderLane<1>(buf, buf);
+		}
+		else {
+			std::vector<q31> dst(n);
+			lanes.template renderLane<1>(buf, dst);
+			buf = dst;
+		}
 		run.out.insert(run.out.end(), buf.begin(), buf.end());
 	}
 	run.lane0 = lanes.state(0);
@@ -1258,8 +1264,8 @@ describe lanes_spec("Lanes<K, N>", ${
 				                                 run_split_lanes<loop_state_test::SplitLoopInPlace>(n, in_place),
 				                                 run_split_lanes<loop_state_test::SplitWholeInPlace>(n, in_place)}) {
 					expect(got.out).to_equal(want.out);
-					expect(std::memcmp(&got.lane0, &want.lane0, sizeof want.lane0)).to_equal(0);
-					expect(std::memcmp(&got.lane1, &want.lane1, sizeof want.lane1)).to_equal(0);
+					expect(loop_state_test::state_words(got.lane0)).to_equal(loop_state_test::state_words(want.lane0));
+					expect(loop_state_test::state_words(got.lane1)).to_equal(loop_state_test::state_words(want.lane1));
 					expect(got.lane1.prepares).to_equal(3U);
 					expect(got.lane1.level).to_equal(2007);
 				}
@@ -1270,13 +1276,15 @@ describe lanes_spec("Lanes<K, N>", ${
 	it("renders one lane of a kernel declaring kLoopState or kStateInPlace, leaving the other lane's State alone", _ {
 		const loop_state_test::SplitCore::State fresh{};
 		for (std::size_t n = 1; n <= 9; ++n) {
-			const SplitLanesRun want = run_split_lane1<loop_state_test::SplitWhole>(n);
-			for (const SplitLanesRun& got : {run_split_lane1<loop_state_test::SplitLoop>(n),
-			                                 run_split_lane1<loop_state_test::SplitLoopInPlace>(n),
-			                                 run_split_lane1<loop_state_test::SplitWholeInPlace>(n)}) {
-				expect(got.out).to_equal(want.out);
-				expect(std::memcmp(&got.lane1, &want.lane1, sizeof want.lane1)).to_equal(0);
-				expect(std::memcmp(&got.lane0, &fresh, sizeof fresh)).to_equal(0);
+			for (const bool in_place : {false, true}) {
+				const SplitLanesRun want = run_split_lane1<loop_state_test::SplitWhole>(n, in_place);
+				for (const SplitLanesRun& got : {run_split_lane1<loop_state_test::SplitLoop>(n, in_place),
+				                                 run_split_lane1<loop_state_test::SplitLoopInPlace>(n, in_place),
+				                                 run_split_lane1<loop_state_test::SplitWholeInPlace>(n, in_place)}) {
+					expect(got.out).to_equal(want.out);
+					expect(loop_state_test::state_words(got.lane1)).to_equal(loop_state_test::state_words(want.lane1));
+					expect(loop_state_test::state_words(got.lane0)).to_equal(loop_state_test::state_words(fresh));
+				}
 			}
 		}
 	});

@@ -785,6 +785,47 @@ SplitRun run_split(std::size_t n, bool in_place) {
 	return run;
 }
 
+/// The outputs, as q31 samples, and final State of three @p n-sample (or frame) blocks of a vector loop-state test
+/// kernel through Mono<K>: set_level before each block. @p in_place renders each block over its own input.
+template <typename K>
+std::pair<std::vector<q31>, std::vector<std::uint32_t>> run_vec_split(std::size_t n, bool in_place) {
+	using V = typename K::value_type;
+	Mono<K> mono;
+	std::vector<q31> out;
+	for (std::size_t block = 0; block < 3; ++block) {
+		mono.template on<&K::set_level>(static_cast<q31>((block * 1000) + 7));
+		const std::vector<q31> a = loop_state_test::input(n, block);
+		const std::vector<q31> b = loop_state_test::input(n, block + 10);
+		std::vector<V> buf(n);
+		for (std::size_t i = 0; i < n; ++i) {
+			if constexpr (std::same_as<V, StereoSample>) {
+				buf[i] = {.l = a[i], .r = b[i]};
+			}
+			else {
+				buf[i] = a[i];
+			}
+		}
+		if (in_place) {
+			mono.renderBlock(buf, buf);
+		}
+		else {
+			std::vector<V> dst(n);
+			mono.renderBlock(buf, dst);
+			buf = dst;
+		}
+		for (const V& v : buf) {
+			if constexpr (std::same_as<V, StereoSample>) {
+				out.push_back(v.l);
+				out.push_back(v.r);
+			}
+			else {
+				out.push_back(v);
+			}
+		}
+	}
+	return {out, loop_state_test::state_words(mono.state())};
+}
+
 /// The lane-0 value of a ramp kernel's state.
 template <typename M>
 q31 ramp_value(const M& mono) {
@@ -916,8 +957,21 @@ describe mono("Mono", ${
 				                            run_split<loop_state_test::SplitLoopInPlace>(n, in_place),
 				                            run_split<loop_state_test::SplitWholeInPlace>(n, in_place)}) {
 					expect(got.out).to_equal(want.out);
-					expect(std::memcmp(&got.state, &want.state, sizeof want.state)).to_equal(0);
+					expect(loop_state_test::state_words(got.state)).to_equal(loop_state_test::state_words(want.state));
 				}
+			}
+		}
+	});
+
+	it("renders a vector or interleaved kernel declaring kLoopState as the same kernel stepping its whole State", _ {
+		for (std::size_t n = 1; n <= 9; ++n) {
+			for (const bool in_place : {false, true}) {
+				const auto vec = run_vec_split<loop_state_test::VecSplitWhole>(n, in_place);
+				expect(run_vec_split<loop_state_test::VecSplitLoop>(n, in_place)).to_equal(vec);
+				expect(run_vec_split<loop_state_test::VecSplitLoopInPlace>(n, in_place)).to_equal(vec);
+				const auto stereo = run_vec_split<loop_state_test::StereoVecSplitWhole>(n, in_place);
+				expect(run_vec_split<loop_state_test::StereoVecSplitLoop>(n, in_place)).to_equal(stereo);
+				expect(run_vec_split<loop_state_test::StereoVecSplitLoopInPlace>(n, in_place)).to_equal(stereo);
 			}
 		}
 	});
