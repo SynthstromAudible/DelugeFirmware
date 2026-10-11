@@ -8,9 +8,10 @@ it leaves over becomes the internal heap. Measured on 2026-10-11 at `10e2f7133`.
 ## Measuring
 
 - **Section sizes:** `llvm-size -A -d build/RelWithDebInfo/deluge.elf`.
-- **Headroom:** the image ends at `__exidx_end`. While the HAL rounds the heap start up to 64 KB (see
-  [Placement waste](#placement-waste)), the image must end at or below `0x202E0000`, or the heap size goes negative and
-  TLSF panics at boot. Headroom is `0x202E0000 - __exidx_end`.
+- **Headroom:** the SRAM heap, `__sram_heap_end - __sram_heap_start` (`0x202EB000`, the RTT reserve, minus the start).
+  The heap starts where the image's boot-only tail does (see [Applied](#applied)), and rza1l-hal ASSERTs at link time
+  that it is not negative. The audit below predates that layout: there, the HAL started the heap at the image end rounded
+  up to 64 KB, the image had to end at or below `0x202E0000`, and headroom was `0x202E0000 - __exidx_end`.
 - **Attribution:** `llvm-nm -S --defined-only` for every sized symbol, then `llvm-symbolizer --no-inlines` on its
   address to find the source file. C++ is bucketed by source directory and Rust by crate (from the v0 mangling). Data
   symbols have no line info, so they are bucketed by name instead.
@@ -191,6 +192,39 @@ Rust levers:
 - Make the `.data` tables (`HANDLES`, `TASK_FILES`, `REGISTRY`) zero-initialised or move them to SDRAM.
 - `bench_park` is spawned behind a runtime check (`bench_ran`), so non-bench images carry it (1.9 KB plus its task
   pool). A `cfg` gate drops it.
+
+## Applied
+
+On branch `feat/image-size` (with rza1l-hal `40ec4195` on deluge-sdk branch `fix/sram-heap-at-image-end`), everything in
+steps 1 and 2 below except moving the sample-stream `REGISTRY`:
+
+| | Before (`10e2f7133`) | After |
+|---|---:|---:|
+| SRAM heap | 44 KB | **444 KB** |
+| `.text` | 1,701 KB | 1,450 KB |
+| `.rodata` | 509 KB | 504 KB |
+| `.data` | 41 KB | 27 KB |
+| `.bss` | 371 KB | 326 KB |
+| `.ARM.extab` + `.ARM.exidx` | 138 KB | 112 KB |
+| Boot-only tail (`.sdram_init` load copy, `.init_array`) | 30 KB, stranded mid-image | 43 KB, returned to the heap |
+
+- `--icf=safe`, and `snprintf` resolved to `eyalroz_printf` at link (`build/device.rs`).
+- libstdc++'s terminate handler and `__glibcxx_assert_fail` replaced by Rust ones that report through the panic
+  handler (`ffi_extra.rs`). A C++ `std::terminate` used to be a silent device death. It now prints over RTT and draws
+  the fault pattern on the pads.
+- `bench_park` compiled only into `DELUGE_DSP_BENCH` images (`cfg(dsp_bench)`, read from the CMake cache).
+- The storage channels' state and the efatfs mount's tables in SDRAM, by v0-mangled module path in
+  `linker/sdram_sections.x`. The fragment is passed before `rza1l.x`, so its patterns win.
+- The SDRAM heap starts at `__sdram_static_end`, the end of all static SDRAM content, whatever the section order.
+- The image ends with its boot-only tail, which `__sram_heap_base` hands to the heap. rza1l-hal starts the heap at
+  that hook, or at the unrounded image end.
+  - This also fixed the `.bin`, which used to begin with the `.sdram_init` load copy instead of the vector table and
+    the bootloader header. A probe loading the ELF never noticed.
+- `-Oz` on the cold C++ (`cmake/optimise_for_size.cmake`, device builds only).
+- Rust `opt-level = "z"`, with the sample-streaming crates, the resource manager, both allocators, the HAL and the
+  executor at `"s"`: +31 KB, against +42 KB for `"z"` everywhere.
+
+The host test estate passes. The image has not been booted on a device yet.
 
 ## Suggested order
 
