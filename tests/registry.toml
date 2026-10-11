@@ -1178,6 +1178,24 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-audio-track-comp-reset"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a compressor reset mid-sound renders as recorded when it comes back on: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_AUDIO_COMP_RESET) whose audio track's compressor threshold, above its minimum from the start, drops to the minimum at the second bar, where the compressor is off and reset every block while its level and detector carry over, and steps back up at the third while the audio plays, so the compressor renders again after a reset (no other gate resets a compressor that has rendered and then renders it); beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with the threshold held at its minimum must render differently (RS-FX), so the compressor reaches the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_AUDIO_COMP_RESET" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-audio-track-comp-blend"
 path = "."
 level = "integration"

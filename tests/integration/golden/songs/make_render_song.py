@@ -31,6 +31,8 @@ RS_LOW_CLIP covers a host chain's saturation below amount 3, which RS_KIT_FX and
 kit at 1 and an audio track at 2.
 RS_AUDIO_COMP_ONSET switches an audio track's compressor on mid-render, so it seeds from a sounding frame rather than
 from the silence every other compressor golden starts in.
+RS_AUDIO_COMP_RESET switches an audio track's compressor off mid-sound, where it resets, and on again, so it renders
+after a reset with its level and detector carried over.
 RS_AUDIO_COMP_BLEND blends an audio track's compressor half wet on a loud track (SAMPLES/RS/LOUD.WAV, written for it
 alone, its EQ boosting), so the dry half carries the loud input into the level the compressor measures and the
 level's sum wraps.
@@ -750,6 +752,15 @@ AUDIO_COMP_ONSET = _host(
     params=f'compressorThreshold="{_stepped(0x00000000, 0x40000000, 384)}"',
 )
 
+# An audio track's compressor reset mid-sound: its threshold, above the minimum from the clip's start, drops to the
+# minimum at the second bar (the compressor off and reset every block, its detector's level and filters carrying) and
+# steps back up at the third while the audio plays, so the compressor renders again after a reset with no seed
+# pending from silence. Its compressor's other settings are RS_AUDIO_FX's. Its twin holds the threshold at the minimum.
+AUDIO_COMP_RESET = _host(
+    compressor=FX["compressor"],
+    params=f'compressorThreshold="{_steps(0x40000000, [(0x00000000, 384), (0x40000000, 768)])}"',
+)
+
 # An audio track's compressor blended half wet on a loud track: the clip plays LOUD.WAV (sample A's chord normalised
 # near full scale) at the clip's full volume with the EQ's bass and treble at their maximum boost, so the dry half of
 # the blend carries the loud input back into the block the compressor measures, and a block's q31 level sum wraps
@@ -840,6 +851,8 @@ SONGS = {
     ),
     "RS_AUDIO_COMP_ONSET": lambda v: parts_song(v, [audio_parts(AUDIO_COMP_ONSET)]),
     "RS_AUDIO_COMP_ONSET_DRY": lambda v: parts_song(v, [audio_parts(DRY)]),
+    "RS_AUDIO_COMP_RESET": lambda v: parts_song(v, [audio_parts(AUDIO_COMP_RESET)]),
+    "RS_AUDIO_COMP_RESET_DRY": lambda v: parts_song(v, [audio_parts(DRY)]),
     "RS_AUDIO_COMP_BLEND": lambda v: parts_song(
         v, [loud_audio_parts(AUDIO_COMP_BLEND)]
     ),

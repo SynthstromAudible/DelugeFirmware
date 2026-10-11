@@ -17,6 +17,12 @@
   "rms_db": -17.25,
   "sha256": "7a41c53b209bc887e953b0354170ebcda8a8b26dd2ab89355f4bbedcfc204451"
  },
+ "RS_AUDIO_COMP_RESET": {
+  "frames": 384000,
+  "peak": 1274270976,
+  "rms_db": -18.05,
+  "sha256": "879293806bc0c9faeef1e330253fd9e8f5e37f8068b1ca4b153abea5a6648586"
+ },
  "RS_AUDIO_DELAY": {
   "frames": 384000,
   "peak": 1192348416,
