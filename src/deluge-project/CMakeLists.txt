@@ -10,6 +10,9 @@ file(GLOB_RECURSE deluge_project_SOURCES CONFIGURE_DEPENDS
 )
 
 add_library(deluge_project STATIC ${deluge_project_SOURCES})
+# The model's codecs and edits run on the UI tier, off the audio path.
+include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/optimise_for_size.cmake)
+deluge_optimise_target_for_size(deluge_project)
 
 # Headers are included as "deluge-project/..."; the include root is src/ (this directory's parent).
 target_include_directories(deluge_project PUBLIC ${CMAKE_CURRENT_LIST_DIR}/..)

@@ -60,6 +60,16 @@ add_library(deluge_app OBJECT
 )
 add_dependencies(deluge_app deluge_strings deluge_version deluge_menus)
 
+# The UI, input, file and project-edit code, and stem export, are built for size: none runs per sample.
+# Excluded: storage's sample streaming, cluster cache and multisample ranges, which voices read while they
+# play.
+include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/optimise_for_size.cmake)
+set(_deluge_cold_sources ${deluge_SOURCES})
+list(FILTER _deluge_cold_sources INCLUDE REGEX
+  "/src/deluge/(gui|hid|storage|io/debug|model/(project_bridge|edits|action|consequence|favourite)|processing/stem_export)/")
+list(FILTER _deluge_cold_sources EXCLUDE REGEX "/src/deluge/storage/(audio|cluster|multi_range)/")
+deluge_optimise_sources_for_size(${_deluge_cold_sources})
+
 target_include_directories(deluge_app PUBLIC
     ${deluge_version_INCLUDES}
     ${CMAKE_CURRENT_BINARY_DIR}
