@@ -26,34 +26,6 @@
 
 namespace deluge::dsp::fixed {
 
-namespace {
-
-/// 1 - 1/ratio at knob @p ratio: 0.5 to 1.
-[[nodiscard]] float ratio_fraction(q31 ratio) {
-	return 0.5f + (static_cast<float>(ratio) / ONE_Q31f) / 2;
-}
-
-} // namespace
-
-float compressor_attack_ms(q31 attack) {
-	// The exp runs from 1 to about 7.4, about 2.7 at half the knob.
-	return 0.5 + (std::exp(2 * static_cast<float>(attack) / ONE_Q31f) - 1) * 10;
-}
-
-float compressor_release_ms(q31 release) {
-	// The exp runs from 1 to about 7.4, about 2.7 at half the knob.
-	return 50 + (std::exp(2 * static_cast<float>(release) / ONE_Q31f) - 1) * 50;
-}
-
-float compressor_ratio(q31 ratio) {
-	return 1 / (1 - ratio_fraction(ratio));
-}
-
-float compressor_sidechain_hz(q31 sidechain_hpf) {
-	// The exp runs from 1 to about 4.5: about 33 Hz at half the knob, 104 Hz at the top.
-	return (std::exp(1.5 * static_cast<float>(sidechain_hpf) / ONE_Q31f) - 1) * 30;
-}
-
 RmsFeedbackCompressor::RmsFeedbackCompressor() {
 	setAttack(configured_.attack);
 	setRelease(configured_.release);

@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp" // kSampleRate
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
+#include "dsp-next/fixed/dynamics/compressor_kernel.h" // CompressorKnobs and their mappings
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "util/fixedpoint.h"
@@ -29,25 +30,6 @@
 
 namespace deluge::dsp::fixed {
 
-/// @brief The compressor's knob positions, each 0 to 2^31 (Q31 of the knob's travel).
-struct CompressorKnobs {
-	q31 attack{5 << 24};  ///< about 0.5 to 70 ms for a 3 dB change
-	q31 release{5 << 24}; ///< about 50 to 400 ms for a 3 dB change
-	q31 threshold{0};     ///< the threshold as a fraction of the volume's level in nepers: 0 is 1, 2^31 is 0.2
-	q31 ratio{64 << 24};  ///< 0 is 2:1, 2^31 is 256:1
-	q31 sidechain_hpf{0}; ///< the level detector's high-pass, about 0 to 100 Hz
-	q31 blend{ONE_Q31};   ///< the wet level, ONE_Q31 fully wet
-	bool operator==(const CompressorKnobs&) const = default;
-};
-
-/// @return The attack time in ms for a 3 dB change at knob @p attack.
-[[nodiscard]] float compressor_attack_ms(q31 attack);
-/// @return The release time in ms for a 3 dB change at knob @p release.
-[[nodiscard]] float compressor_release_ms(q31 release);
-/// @return The ratio at knob @p ratio.
-[[nodiscard]] float compressor_ratio(q31 ratio);
-/// @return The level detector's high-pass cutoff in Hz at knob @p sidechain_hpf.
-[[nodiscard]] float compressor_sidechain_hz(q31 sidechain_hpf);
 /// @return The wet level @p blend (Q31, ONE_Q31 fully wet) gives, as a whole percentage.
 [[nodiscard]] constexpr int32_t compressor_blend_percent(q31 blend) {
 	return blend > (127 << 24) ? 100 : 100 * (blend >> 24) >> 7;

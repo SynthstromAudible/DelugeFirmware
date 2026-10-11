@@ -14,6 +14,7 @@ deluge_specs_driver(bench_specs NEON
     ${_src}/dsp-next/fixed/delay/delay_tape.cpp
     ${_src}/dsp-next/fixed/bandlimited/saw.cpp
     ${_src}/dsp-next/fixed/bandlimited/square.cpp
+    ${_src}/dsp-next/fixed/dynamics/compressor_kernel.cpp
     ${_src}/dsp-next/fixed/dynamics/duck_envelope.cpp
     ${_src}/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp
     ${_src}/dsp-next/fixed/filter/filter_set.cpp

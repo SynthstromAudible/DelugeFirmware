@@ -98,7 +98,10 @@ set(filters_reference_spec_DEPS
 # compressor, with its tanh table's interpolator.
 set(compressor_reference_spec_DEPS
   ${_filter_DEPS}
-  ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp)
+  ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/compressor_kernel.cpp)
+# The Compressor kernel against the fixed reference over the same workloads: the same sources.
+set(compressor_kernel_spec_DEPS ${compressor_reference_spec_DEPS})
 
 # The decay-curve lookups read the decay tables.
 set(table_interpolation_spec_DEPS
@@ -107,6 +110,7 @@ set(table_interpolation_spec_DEPS
 # The compressor saturates through the tanh table's bilinear interpolator.
 set(rms_feedback_compressor_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/compressor_kernel.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The duck envelope's attack and release curves read the decay tables.
