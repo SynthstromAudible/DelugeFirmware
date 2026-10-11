@@ -161,7 +161,7 @@ ChannelWords words(const ReferenceHighPassLadder::Channel& c) {
 } // namespace
 
 // clang-format off
-describe high_pass_ladder_kernel("HighPassLadder", ${
+describe high_pass_ladder("HighPassLadder", ${
 	it("renders every high-pass workload as the reference does, mono and stereo: each block's output, gain and CONG "
 	   "draws, and the whole state", _ {
 		expect(partings(kHighPassWorkloads)).to_equal(std::vector<std::string>{});
@@ -326,4 +326,4 @@ describe high_pass_ladder_kernel("HighPassLadder", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(high_pass_ladder_kernel);
+CPPSPEC_MAIN(high_pass_ladder);

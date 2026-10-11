@@ -75,6 +75,95 @@ inline void digest_fade(const deluge::dsp::fixed::FadeIn::State& s, Digest& d) {
 	d.add(s.wet);
 }
 
+/// @brief Folds an SVF's integrators (left, then right), its coefficients and its fade into @p d, as
+/// @ref filters_reference::ReferenceStateVariableFilter::digest does: equal once `configure` has run.
+inline void digest_svf(const deluge::dsp::fixed::Svf::State& left, const deluge::dsp::fixed::Svf::State& right,
+                       const deluge::dsp::fixed::Svf::Coefficients& c, const deluge::dsp::fixed::FadeIn::State& fade,
+                       Digest& d) {
+	for (const deluge::dsp::fixed::Svf::State& channel : {left, right}) {
+		d.add(channel.low);
+		d.add(channel.band);
+	}
+	d.add(c.fc);
+	d.add(c.q);
+	d.add(c.in);
+	d.add(c.c_low);
+	d.add(c.c_band);
+	d.add(c.c_high);
+	d.add(c.mode == deluge::dsp::fixed::Svf::Mode::BAND);
+	digest_fade(fade, d);
+}
+
+/// @brief The low-pass ladder kernel the app runs.
+using AppLowPassLadder = deluge::dsp::fixed::LowPassLadder<deluge::dsp::fixed::CongNoise>;
+
+/// @brief What the reference low-pass ladder's digest folds beyond the kernel's state and coefficients: the mode last
+/// configured, and two values its configure writes only in some modes, the third feedback (left from the last 24dB
+/// or drive block while in 12dB) and the oversampling flag (left from the last drive block). The kernel reads neither
+/// outside the modes that set them, so a test holds them as the reference does.
+struct LadderHeld {
+	deluge::dsp::fixed::LowPassLadderMode mode{}; ///< The mode last configured.
+	q31 feedback = 0;                             ///< The third feedback as last written, Q30.
+	bool oversample = false;                      ///< The oversampling flag as last written.
+
+	/// @brief Takes a configure in mode @p m that produced @p c: what the reference's configure writes.
+	void take(deluge::dsp::fixed::LowPassLadderMode m, const AppLowPassLadder::Coefficients& c) {
+		mode = m;
+		if (m != deluge::dsp::fixed::LowPassLadderMode::TRANSISTOR_12DB) {
+			feedback = c.feedbacks[2];
+		}
+		if (m == deluge::dsp::fixed::LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
+			oversample = c.mode == AppLowPassLadder::Mode::DRIVE_OVERSAMPLED;
+		}
+	}
+};
+
+/// @brief Folds a low-pass ladder's mode, followers and sections (left, then right), coefficients, held values and
+/// fade into @p d, as @ref filters_reference::ReferenceLowPassLadder::digest does.
+inline void digest_low_pass_ladder(const LadderHeld& held, const AppLowPassLadder::State& left,
+                                   const AppLowPassLadder::State& right, const AppLowPassLadder::Coefficients& c,
+                                   const deluge::dsp::fixed::FadeIn::State& fade, Digest& d) {
+	d.add(held.mode);
+	for (const AppLowPassLadder::State& channel : {left, right}) {
+		d.add(channel.noise.y);
+		for (const deluge::dsp::fixed::OnePole::State& section : channel.sections) {
+			d.add(section.z);
+		}
+	}
+	d.add(c.processed_resonance);
+	d.add(c.divide_by_total_moveability_and_processed_resonance);
+	d.add(c.moveability);
+	d.add(c.morph);
+	d.add(c.divide_by_one_plus_tanned);
+	d.add(c.feedbacks[0]);
+	d.add(c.feedbacks[1]);
+	d.add(held.feedback);
+	d.add(held.oversample);
+	digest_fade(fade, d);
+}
+
+/// @brief Folds a high-pass ladder's sections and saturator position (left, then right), coefficients and fade into
+/// @p d, as @ref filters_reference::ReferenceHighPassLadder::digest does.
+inline void digest_high_pass_ladder(const deluge::dsp::fixed::HighPassLadder::State& left,
+                                    const deluge::dsp::fixed::HighPassLadder::State& right,
+                                    const deluge::dsp::fixed::HighPassLadder::Coefficients& c,
+                                    const deluge::dsp::fixed::FadeIn::State& fade, Digest& d) {
+	for (const deluge::dsp::fixed::HighPassLadder::State& channel : {left, right}) {
+		d.add(channel.high_pass_1.z);
+		d.add(channel.low_pass_1.z);
+		d.add(channel.high_pass_3.z);
+		d.add(channel.saturator.position);
+	}
+	d.add(c.moveability);
+	d.add(c.morph);
+	d.add(c.processed_resonance);
+	d.add(c.divide_by_processed_resonance);
+	d.add(c.low_pass_1_feedback);
+	d.add(c.high_pass_3_feedback);
+	d.add(c.divide_by_total_moveability);
+	digest_fade(fade, d);
+}
+
 /// @brief The fade alone, as @ref filters_reference::ReferenceDryWetFade.
 template <bool kStereo>
 class KernelFade {
@@ -148,19 +237,7 @@ public:
 		else {
 			left = filter_.state();
 		}
-		for (const Svf::State& channel : {left, right}) {
-			d.add(channel.low);
-			d.add(channel.band);
-		}
-		const Svf::Coefficients& c = filter_.coefficients();
-		d.add(c.fc);
-		d.add(c.q);
-		d.add(c.in);
-		d.add(c.c_low);
-		d.add(c.c_band);
-		d.add(c.c_high);
-		d.add(c.mode == Svf::Mode::BAND);
-		digest_fade(fade_.state(), d);
+		digest_svf(left, right, filter_.coefficients(), fade_.state(), d);
 	}
 
 private:
@@ -202,13 +279,7 @@ public:
 	[[nodiscard]] q31 configure(q31 gain, const deluge::dsp::fixed::FilterConfig& config, LowPassLadderMode mode) {
 		filter_.configure({.gain = gain, .config = config, .mode = mode});
 		const Ladder::Coefficients& c = filter_.coefficients();
-		mode_ = mode;
-		if (mode != LowPassLadderMode::TRANSISTOR_12DB) {
-			held_feedback_ = c.feedbacks[2];
-		}
-		if (mode == LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
-			held_oversample_ = c.mode == Ladder::Mode::DRIVE_OVERSAMPLED;
-		}
+		held_.take(mode, c);
 		return Ladder::gain(c);
 	}
 
@@ -237,9 +308,7 @@ public:
 	/// @brief Every member zero, as the reference's zeroing reset: the noise follower and the coefficients too.
 	void zero() {
 		filter_ = Filter{};
-		mode_ = {};
-		held_feedback_ = 0;
-		held_oversample_ = false;
+		held_ = {};
 		fade_.template on<&FadeIn::zero>();
 	}
 
@@ -255,24 +324,7 @@ public:
 		else {
 			left = filter_.state();
 		}
-		d.add(mode_);
-		for (const Ladder::State& channel : {left, right}) {
-			d.add(channel.noise.y);
-			for (const deluge::dsp::fixed::OnePole::State& section : channel.sections) {
-				d.add(section.z);
-			}
-		}
-		const Ladder::Coefficients& c = filter_.coefficients();
-		d.add(c.processed_resonance);
-		d.add(c.divide_by_total_moveability_and_processed_resonance);
-		d.add(c.moveability);
-		d.add(c.morph);
-		d.add(c.divide_by_one_plus_tanned);
-		d.add(c.feedbacks[0]);
-		d.add(c.feedbacks[1]);
-		d.add(held_feedback_);
-		d.add(held_oversample_);
-		digest_fade(fade_.state(), d);
+		digest_low_pass_ladder(held_, left, right, filter_.coefficients(), fade_.state(), d);
 	}
 
 private:
@@ -295,9 +347,7 @@ private:
 
 	Filter filter_{};
 	FadeWrapper<kStereo> fade_{};
-	LowPassLadderMode mode_{};
-	q31 held_feedback_ = 0;
-	bool held_oversample_ = false;
+	LadderHeld held_{};
 };
 
 /// @brief `Stereo<HighPassLadder>` or `Mono<…>` with its fade, as @ref
@@ -355,21 +405,7 @@ public:
 		else {
 			left = filter_.state();
 		}
-		for (const Ladder::State& channel : {left, right}) {
-			d.add(channel.high_pass_1.z);
-			d.add(channel.low_pass_1.z);
-			d.add(channel.high_pass_3.z);
-			d.add(channel.saturator.position);
-		}
-		const Ladder::Coefficients& c = filter_.coefficients();
-		d.add(c.moveability);
-		d.add(c.morph);
-		d.add(c.processed_resonance);
-		d.add(c.divide_by_processed_resonance);
-		d.add(c.low_pass_1_feedback);
-		d.add(c.high_pass_3_feedback);
-		d.add(c.divide_by_total_moveability);
-		digest_fade(fade_.state(), d);
+		digest_high_pass_ladder(left, right, filter_.coefficients(), fade_.state(), d);
 	}
 
 private:

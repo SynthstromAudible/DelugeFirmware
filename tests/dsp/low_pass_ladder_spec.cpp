@@ -232,7 +232,7 @@ std::vector<StereoSample> input_frames() {
 } // namespace
 
 // clang-format off
-describe low_pass_ladder_kernel("LowPassLadder", ${
+describe low_pass_ladder("LowPassLadder", ${
 	it("renders every ladder workload as the reference does, mono and stereo: each block's output, gain and CONG "
 	   "draws, and the whole state", _ {
 		expect(partings(kLadderWorkloads)).to_equal(std::vector<std::string>{});
@@ -443,4 +443,4 @@ describe low_pass_ladder_kernel("LowPassLadder", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(low_pass_ladder_kernel);
+CPPSPEC_MAIN(low_pass_ladder);

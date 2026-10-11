@@ -99,16 +99,34 @@ public:
 	/// @brief Whether the high-pass is on.
 	[[nodiscard]] bool isHighPassOn() const { return high_slot_.kind != HighPassSlot::Kind::OFF; }
 
-	/// @brief The low-pass slot's fade levels between blocks (@ref FadeIn::active says whether it is under way).
-	[[nodiscard]] const FadeIn::State& lowPassFade() const { return low_fade_.state(); }
-	/// @brief The high-pass slot's fade levels between blocks (@ref FadeIn::active says whether it is under way).
-	[[nodiscard]] const FadeIn::State& highPassFade() const { return high_fade_.state(); }
-
-private:
 	using LowPassLadderFilter = Stereo<LowPassLadder<CongNoise>>; ///< The low-pass ladder, both channels.
 	using HighPassLadderFilter = Stereo<HighPassLadder>;          ///< The high-pass ladder, both channels.
 	using SvfFilter = Stereo<Svf>;                                ///< The SVF, both channels, in either slot.
-	using Fade = Mono<FadeInMono>;                                ///< A slot's fade, over mono or interleaved blocks.
+
+	/// @brief The set between blocks, read-only: what each slot holds, how it was last configured, and its fade.
+	/// @details Exactly one of each slot's two filter pointers is set, the one its held kind names; the other is
+	/// nullptr. The pointers stay valid until the next configure or reset.
+	struct View {
+		LowPassSlot::Kind low_held;              ///< The family the low-pass slot holds (LADDER or SVF).
+		const LowPassLadderFilter* low_ladder;   ///< The low-pass ladder, when held.
+		const SvfFilter* low_svf;                ///< The low-pass SVF, when held.
+		HighPassSlot::Kind high_held;            ///< The family the high-pass slot holds (LADDER or SVF).
+		const HighPassLadderFilter* high_ladder; ///< The high-pass ladder, when held.
+		const SvfFilter* high_svf;               ///< The high-pass SVF, when held.
+		LowPassSlot low_slot;                    ///< The low-pass as configured (OFF when off).
+		HighPassSlot high_slot;                  ///< The high-pass as configured (OFF when off).
+		LowPassSlot::Kind low_last;              ///< The low-pass's family as last configured.
+		HighPassSlot high_last;                  ///< The high-pass's mode as last configured.
+		FilterRoute route;                       ///< The route as configured.
+		FadeIn::State low_fade;                  ///< The low-pass slot's fade levels.
+		FadeIn::State high_fade;                 ///< The high-pass slot's fade levels.
+	};
+
+	/// @brief The set between blocks, read-only (see @ref View).
+	[[nodiscard]] View view() const;
+
+private:
+	using Fade = Mono<FadeInMono>; ///< A slot's fade, over mono or interleaved blocks.
 
 	/// The low-pass slot's filter: the ladder or the SVF, whichever @ref low_held_ names.
 	union LowPass {

@@ -73,6 +73,26 @@ void render_stereo(Filter& filter, Fade& fade, std::span<q31> interleaved, FadeS
 
 } // namespace
 
+FilterSet::View FilterSet::view() const {
+	const bool low_svf = low_held_ == LowPassSlot::Kind::SVF;
+	const bool high_svf = high_held_ == HighPassSlot::Kind::SVF;
+	return {
+	    .low_held = low_held_,
+	    .low_ladder = low_svf ? nullptr : &low_pass_.ladder,
+	    .low_svf = low_svf ? &low_pass_.svf : nullptr,
+	    .high_held = high_held_,
+	    .high_ladder = high_svf ? nullptr : &high_pass_.ladder,
+	    .high_svf = high_svf ? &high_pass_.svf : nullptr,
+	    .low_slot = low_slot_,
+	    .high_slot = high_slot_,
+	    .low_last = low_last_,
+	    .high_last = high_last_,
+	    .route = route_,
+	    .low_fade = low_fade_.state(),
+	    .high_fade = high_fade_.state(),
+	};
+}
+
 void FilterSet::reset() {
 	std::construct_at(&low_pass_.ladder);
 	std::construct_at(&high_pass_.ladder);

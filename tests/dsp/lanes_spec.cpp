@@ -386,18 +386,24 @@ constexpr std::size_t lane_alone_compared_at(std::size_t lanes) {
 	return ((2 * lanes) + 1) * (kMaxLength * (kMaxLength + 1) / 2);
 }
 
-/// Every lane of every width in AllWidths rendered alone, for kernel K at @p settings: the mismatches summed, and
-/// whether every comparison ran.
+/// The output samples @ref lane_alone_against_monos compares over every lane of every width in AllWidths.
+constexpr std::size_t kLaneAloneComparedAllWidths = (1 * lane_alone_compared_at(1)) + (2 * lane_alone_compared_at(2))
+                                                    + (3 * lane_alone_compared_at(3)) + (4 * lane_alone_compared_at(4))
+                                                    + (8 * lane_alone_compared_at(8));
+
+/// Every lane of every width in AllWidths rendered alone, for kernel K at @p settings: the mismatches, summed.
 template <typename K>
-bool every_lane_alone_matches(const typename K::Settings& settings) {
-	bool matches = true;
+Mismatches every_lane_alone(const typename K::Settings& settings) {
+	Mismatches sum;
 	AllWidths::each([&]<std::size_t N>() {
 		for (std::size_t lane = 0; lane < N; ++lane) {
 			const Mismatches m = lane_alone_against_monos<K, N>(settings, lane);
-			matches = matches && m.samples == 0 && m.states == 0 && m.compared == lane_alone_compared_at(N);
+			sum.samples += m.samples;
+			sum.states += m.states;
+			sum.compared += m.compared;
 		}
 	});
-	return matches;
+	return sum;
 }
 
 /// Lanes<K, N> in place against out of place over two blocks of every length 1 to 9; the count of differing samples.
@@ -839,12 +845,17 @@ describe lanes_spec("Lanes<K, N>", ${
 	});
 
 	it("renders one lane alone as that lane's Mono renders it, every other lane's state untouched", _ {
-		expect(every_lane_alone_matches<LaneByLane<OnePole>>({.moveability = 0x12345678, .mode = OnePole::Mode::LOW_PASS}))
-		    .to_be_true();
-		expect(every_lane_alone_matches<OnePole>({.moveability = 0x23456789, .mode = OnePole::Mode::ALL_PASS}))
-		    .to_be_true();
-		expect(every_lane_alone_matches<StateBiased>({})).to_be_true();
-		expect(every_lane_alone_matches<AntialiasedTanh>({.drive = 3})).to_be_true();
+		const Mismatches lane_by_lane =
+		    every_lane_alone<LaneByLane<OnePole>>({.moveability = 0x12345678, .mode = OnePole::Mode::LOW_PASS});
+		const Mismatches op_major =
+		    every_lane_alone<OnePole>({.moveability = 0x23456789, .mode = OnePole::Mode::ALL_PASS});
+		const Mismatches prepared = every_lane_alone<StateBiased>({});
+		const Mismatches tanh = every_lane_alone<AntialiasedTanh>({.drive = 3});
+		for (const Mismatches& m : {lane_by_lane, op_major, prepared, tanh}) {
+			expect(m.samples).to_equal(std::size_t{0});
+			expect(m.states).to_equal(std::size_t{0});
+			expect(m.compared).to_equal(kLaneAloneComparedAllWidths);
+		}
 	});
 
 	it("draws noise for the one lane it renders alone, once per sample", _ {

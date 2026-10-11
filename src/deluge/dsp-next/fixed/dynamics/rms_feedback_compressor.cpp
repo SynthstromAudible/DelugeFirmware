@@ -63,6 +63,36 @@ RmsFeedbackCompressor::RmsFeedbackCompressor() {
 	setBlend(configured_.blend);
 }
 
+RmsFeedbackCompressor::View RmsFeedbackCompressor::view() const {
+	return {
+	    .configured = configured_,
+	    .attack_rate = attack_rate_,
+	    .release_rate = release_rate_,
+	    .fraction = fraction_,
+	    .makeup = makeup_,
+	    .threshold = threshold_,
+	    .detector_moveability = detector_moveability_,
+	    .reduction_envelope = reduction_envelope_,
+	    .current_volume_l = current_volume_l_,
+	    .current_volume_r = current_volume_r_,
+	    .log_rms = log_rms_,
+	    .mean = mean_,
+	    .saturation_drive = kSaturator.drive,
+	    .saturation_l = saturation_l_,
+	    .saturation_r = saturation_r_,
+	    .seeded = seeded_,
+	    .detector_l = detector_l_,
+	    .detector_r = detector_r_,
+	    .attack_ms = attack_ms_,
+	    .release_ms = release_ms_,
+	    .base_gain = base_gain_,
+	    .threshold_knob = threshold_knob_,
+	    .dry = dry_,
+	    .wet = wet_,
+	    .gain_reduction = gain_reduction_,
+	};
+}
+
 void RmsFeedbackCompressor::configure(const CompressorKnobs& knobs) {
 	if (knobs == configured_) {
 		return;

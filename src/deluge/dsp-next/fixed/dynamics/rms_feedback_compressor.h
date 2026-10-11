@@ -109,6 +109,38 @@ public:
 	/// @return The release time in ms for a 3 dB change.
 	[[nodiscard]] float releaseMs() const { return release_ms_; }
 
+	/// @brief The compressor between blocks, read-only: every value that carries from one block to the next.
+	struct View {
+		CompressorKnobs configured;          ///< The knob positions last taken.
+		float attack_rate;                   ///< The attack rate, per sample (negative).
+		float release_rate;                  ///< The release rate, per sample (negative).
+		float fraction;                      ///< 1 - 1/ratio.
+		float makeup;                        ///< The makeup envelope, nepers.
+		float threshold;                     ///< The threshold as a fraction of the final volume's level.
+		q31 detector_moveability;            ///< The detector's high-pass moveability, Q31.
+		float reduction_envelope;            ///< The reduction envelope, nepers past the threshold.
+		q31 current_volume_l;                ///< The left channel's gain, 5.26 signed.
+		q31 current_volume_r;                ///< The right channel's gain, 5.26 signed.
+		float log_rms;                       ///< The log (nepers) of the last block's RMS level.
+		float mean;                          ///< The last block's mean square level, 1 at full scale.
+		uint32_t saturation_drive;           ///< The output saturation's drive, as a power of two.
+		AntialiasedTanh::State saturation_l; ///< The left saturation's position.
+		AntialiasedTanh::State saturation_r; ///< The right saturation's position.
+		bool seeded;                         ///< Whether the saturation is seeded since the last reset.
+		OnePole::State detector_l;           ///< The left detector's one-pole memory, Q31.
+		OnePole::State detector_r;           ///< The right detector's one-pole memory, Q31.
+		float attack_ms;                     ///< The attack time in ms for a 3 dB change.
+		float release_ms;                    ///< The release time in ms for a 3 dB change.
+		float base_gain;                     ///< The makeup gain in nepers at no reduction.
+		q31 threshold_knob;                  ///< The threshold, Q31 of the knob's travel.
+		q31 dry;                             ///< The dry level in the blend, Q31.
+		q31 wet;                             ///< The wet level in the blend, Q31.
+		uint8_t gain_reduction;              ///< The last block's gain reduction for the LEDs.
+	};
+
+	/// @brief The compressor between blocks, read-only (see @ref View).
+	[[nodiscard]] View view() const;
+
 private:
 	/// How hard the output is driven into the tanh: by 2^3.
 	static constexpr uint32_t kSaturation = 3;

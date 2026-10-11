@@ -16,16 +16,15 @@
  */
 
 // The anti-aliased tanh. The legacy class, as its verbatim copy (reference_filters.h), is pinned on exact reference
-// values on both backends. The AntialiasedTanh kernel is pinned against
-// the class, sample by sample from equal positions: at every drive the callers reach (0 to 20) and at two past them
-// (25 and 30), on seeded noise at several levels and on alternating full-scale extremes; across a drive change in the
-// middle of a block, which keeps the position as the class's setDrive does; and after seed and place, against a class
-// constructed at the position those events set, at the drive extremes and at full-scale samples. The Tanh<Drive> kernel
-// is pinned against tanh<> per sample at every drive 0 to 20. Both the kernel and the class are also pinned against a
-// reference that reads kTanhTable entry by entry and saturates by the documented rule, at every drive 0 to 30: at the
-// bounds of every saturation width ±64, each stepped from the previous input and from a random position, and on random
-// inputs from random positions; the kernel's outputs there, and the table's entries, are also pinned on recorded
-// digests.
+// values on both backends. The AntialiasedTanh kernel is pinned against the class, sample by sample from equal
+// positions: at every drive the callers reach (0 to 20) and at two past them (25 and 30), on seeded noise at several
+// levels and on alternating full-scale extremes; across a drive change in the middle of a block, which keeps the
+// position as the class's setDrive does; and after seed and place, against a class constructed at the position those
+// events set, at the drive extremes and at full-scale samples. The Tanh<Drive> kernel is pinned against tanh<> per
+// sample at every drive 0 to 20. Both the kernel and the class are also pinned against a reference that reads
+// kTanhTable entry by entry and saturates by the documented rule, at every drive 0 to 30: at the bounds of every
+// saturation width ±64, each stepped from the previous input and from a random position, and on random inputs from
+// random positions; the kernel's outputs there, and the table's entries, are also pinned on recorded digests.
 
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 

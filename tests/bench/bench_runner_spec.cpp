@@ -113,10 +113,6 @@ struct HandTanh {
 	[[nodiscard]] uint32_t previous() const { return state.position; }
 };
 
-} // namespace
-
-namespace {
-
 /// Every line the runner emitted, in order.
 std::vector<std::string> lines;
 
