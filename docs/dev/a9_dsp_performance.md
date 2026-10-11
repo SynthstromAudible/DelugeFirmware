@@ -75,7 +75,7 @@ These numbers explain the cost of a streaming q31 loop:
    little of one frame with the next, so a stage appended to the end of a frame's chain adds its latency to every
    frame. The compressor's level measurement, fused onto the output it had just made, ran 12% slower than the two
    passes it replaced; measuring the frame before instead, independent of the frame's own gain and saturation, took
-   it back to within 2% ([Compressor](#compressor)).
+   the loop to within 2% ([Compressor](#compressor)).
 
 ## Shared kernel costs
 

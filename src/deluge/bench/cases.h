@@ -1245,12 +1245,12 @@ struct CompressorRig {
 /// `renderVolumeNeutral` (a sound, a clip chain), in place over the lanes output, fully wet or blended.
 /// @details Setup replaces the compressor with a fresh one at compressor_knobs(), and copies the lanes input's first n
 /// frames (fill_compressor_input()) into the lanes output. Each block compresses that block in place, over the block
-/// before's output, with the caller's scratch.
+/// before's output.
 ///
 /// **Timed state:** from the second block the output is the saturation's, within ±2^26, plus in the blended cases half
-/// the block before's: every block ramps both gains, saturates both channels, blends when below fully wet (copying the
-/// block to the scratch first), then measures the level through the detector. The level is past the threshold, so
-/// the compressor reduces the gain, and the level's sum never wraps.
+/// the block before's: every block ramps both gains, saturates both channels, blends when below fully wet (reading each
+/// input frame in place), then measures the level through the detector. The level is past the threshold, so the
+/// compressor reduces the gain, and the level's sum never wraps.
 ///
 /// One class serves every configuration, which each case holds as data, so the image carries one setup and one block
 /// for all of them.

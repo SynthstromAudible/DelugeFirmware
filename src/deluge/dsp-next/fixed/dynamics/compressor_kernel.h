@@ -60,6 +60,9 @@ struct CompressorKnobs {
 /// level, in log space, of the block before it. Rendered in place as `Mono<Compressor>::renderBlock(block, block)`.
 /// @details Levels and gains in the envelopes are in nepers (natural-log units).
 ///
+/// Not composable into a Chain or Lanes, or rendered through `Mono::render(x)`, unless the owner calls @ref
+/// finish_level after each block: the last frame's measurement and the level the next block follows are made there.
+///
 /// **Per block** (@ref prepare, from the levels the owner last set with @ref set_levels): the makeup envelope moves
 /// toward the level the final volume asks for, the reduction envelope toward how far the last block's level passed the
 /// threshold, and the channel gains get the increments that reach the gain they give by the block's end.
@@ -143,11 +146,12 @@ struct Compressor {
 		AntialiasedTanh::State saturation_r{}; ///< The right saturation's position on the curve.
 		OnePole::State detector_l{};           ///< The left detector's one-pole memory, Q31.
 		OnePole::State detector_r{};           ///< The right detector's one-pole memory, Q31.
-		StereoSample pending{};                ///< The last frame stepped, which the next step measures, Q31.
-		int64_t sum = 0;                       ///< The block's squared detector magnitudes, Q31, never wrapping.
-		uint32_t n = 0;                        ///< The block's length in frames, for @ref finish_level.
-		bool seeded = false;                   ///< Whether the saturation is seeded since the last reset.
-		uint8_t gain_reduction = 0;            ///< The block's gain reduction for the LEDs, 0 to 127.
+		StereoSample pending{};     ///< The frame the next step measures, Q31: the last frame stepped, or after @ref
+		                            ///< prepare the detectors' memories.
+		int64_t sum = 0;            ///< The block's squared detector magnitudes, Q31, never wrapping.
+		uint32_t n = 0;             ///< The block's length in frames, for @ref finish_level.
+		bool seeded = false;        ///< Whether the saturation is seeded since the last reset.
+		uint8_t gain_reduction = 0; ///< The block's gain reduction for the LEDs, 0 to 127.
 	};
 
 	/// @brief The block's gain ramps, from @ref prepare.
@@ -164,7 +168,7 @@ struct Compressor {
 	/// far the last level passed the threshold, and the gain they give (clamped to 31) sets each channel's target from
 	/// its volume; the increments reach the targets by the block's end. Sets `gain_reduction`, zeroes `sum`, records
 	/// @p n and sets `pending` to the detectors' memories.
-	/// @param n The block's length in frames, at least 1.
+	/// @param n The block's length in frames, at least 1: the compressor's owner skips empty blocks.
 	[[nodiscard]] [[gnu::always_inline]] static Block prepare(const Coefficients& c, State& s, std::size_t n) {
 		const auto frames = static_cast<float>(n);
 
@@ -207,7 +211,7 @@ struct Compressor {
 		};
 	}
 
-	/// @brief One frame at mode @p M: ramp, gain, saturate, blend in BLEND, then measure the output.
+	/// @brief One frame at mode @p M: ramp, gain, saturate, blend in BLEND, then measure the frame before.
 	/// @param x The frame as it came in, Q31: the dry signal in BLEND.
 	/// @return The compressed frame, Q31.
 	template <Mode M>
