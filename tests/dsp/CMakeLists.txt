@@ -96,7 +96,6 @@ set(filters_reference_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp)
 
-
 # The decay-curve lookups read the decay tables.
 set(table_interpolation_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
