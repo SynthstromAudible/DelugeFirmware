@@ -97,6 +97,15 @@ set(filters_reference_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 
+# The SVF and fade-in kernels (header-only) against the same verbatim references over the same workloads: the
+# references' noise stream (waves.cpp) and table lookups.
+set(_filter_kernel_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp
+  ${_repo_root}/src/deluge/util/waves.cpp)
+set(svf_spec_DEPS ${_filter_kernel_DEPS})
+set(fade_in_spec_DEPS ${_filter_kernel_DEPS})
+
 # The decay-curve lookups read the decay tables.
 set(table_interpolation_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp

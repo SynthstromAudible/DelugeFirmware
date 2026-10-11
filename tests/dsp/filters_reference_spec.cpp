@@ -172,8 +172,8 @@ describe verbatim_filters("the filters' verbatim references", ${
 		}
 	});
 
-	it("render every filter workload as the legacy filters do: each block's output, gain and draws, and the whole state",
-	   _ {
+	it("render every filter workload as the legacy filters do: each block's output, gain and draws, and the whole "
+	   "state", _ {
 		expect(partings<FirmwareFamily, ReferenceFamily>(filter_workloads::all_workloads()))
 		    .to_equal(std::vector<std::string>{});
 	});
@@ -227,10 +227,12 @@ describe verbatim_filters("the filters' verbatim references", ${
 			const auto id = [stereo](WorkloadId mono) {
 				return static_cast<WorkloadId>(static_cast<uint8_t>(mono) + static_cast<uint8_t>(stereo));
 			};
-			for (const WorkloadId mono : {WorkloadId::SET_LP_TAKEOVER_SVF_MODE_MONO, WorkloadId::SET_LP_TAKEOVER_BACK_MONO}) {
+			for (const WorkloadId mono :
+			     {WorkloadId::SET_LP_TAKEOVER_SVF_MODE_MONO, WorkloadId::SET_LP_TAKEOVER_BACK_MONO}) {
 				expect(fading_before(id(mono), true, {4, 7})).to_equal(std::vector<bool>{true, true});
 			}
-			for (const WorkloadId mono : {WorkloadId::SET_HP_TAKEOVER_SVF_MODE_MONO, WorkloadId::SET_HP_TAKEOVER_BACK_MONO}) {
+			for (const WorkloadId mono :
+			     {WorkloadId::SET_HP_TAKEOVER_SVF_MODE_MONO, WorkloadId::SET_HP_TAKEOVER_BACK_MONO}) {
 				expect(fading_before(id(mono), false, {4, 7})).to_equal(std::vector<bool>{true, true});
 			}
 			for (const WorkloadId mono :
@@ -250,8 +252,8 @@ describe verbatim_filters("the filters' verbatim references", ${
 		}
 	});
 
-	it("render every compressor workload as the legacy compressor does: each block's output and gain reduction, and the "
-	   "whole state", _ {
+	it("render every compressor workload as the legacy compressor does: each block's output and gain reduction, and "
+	   "the whole state", _ {
 		expect(partings<FirmwareFamily, ReferenceFamily>(filter_workloads::all_compressor_workloads()))
 		    .to_equal(std::vector<std::string>{});
 	});
