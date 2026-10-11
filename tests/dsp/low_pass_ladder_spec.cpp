@@ -18,13 +18,37 @@
 // LowPassLadder: the transistor ladder in its three modes, mono and stereo, with its dry/wet fade and its draws from
 // the shared noise generator. Exact reference values pin the arithmetic, each case from a filter zeroed as the filter
 // set zeroes it and with the synth-wide noise generator seeded the same.
+//
+// LowPassLadderKernel: the same ladder as a processor kernel, `Mono` and `Stereo`, with its noise a policy. Against the
+// verbatim reference (reference_filters.h) over every ladder workload (filter_workloads.h): each block's output, the
+// gain, the CONG draws (count and end state per block) and the whole state, at block lengths cycling 1–9, 24, 64 and
+// 128, and what it renders must equal the record. Every mode change between the four modes carries the state, and a
+// seeded stream shows the draws are left before right in every frame.
 
 #include "dsp-next/fixed/filter/low_pass_ladder.h"
+#include "dsp-next/fixed/filter/low_pass_ladder_kernel.h"
+
+#include "dsp-next/core/concepts.h"
+#include "dsp-next/core/kernel.h"
+#include "dsp-next/core/mono.h"
+#include "dsp-next/core/stereo.h"
+#include "dsp-next/fixed/noise/cong_noise.h"
+#include "dsp-next/fixed/noise/congruential_step.h"
+#include "dsp-next/fixed/noise/noise.h"
+#include "filter_workload_records.h"
+#include "filter_workloads.h"
+#include "kernel_filters.h"
+#include "reference_filters.h"
 #include "util/waves.h" // jcong, CONG
 
+#include <array>
 #include <cppspec.hpp>
+#include <cstddef>
 #include <cstdint>
+#include <span>
+#include <string>
 #include <tuple>
+#include <type_traits>
 #include <vector>
 
 using namespace deluge::dsp::fixed;
@@ -277,6 +301,134 @@ constexpr FilterConfig kBrightUnderLoad{
 
 } // namespace
 
+namespace {
+
+using deluge::dsp::Mono;
+using deluge::dsp::q31;
+using deluge::dsp::Stereo;
+using deluge::dsp::StereoSample;
+using filter_workloads::WorkloadId;
+using filters_reference::ReferenceLowPassLadder;
+using Ladder = LowPassLadderKernel<CongNoise>;
+
+static_assert(deluge::dsp::processor_kernel<Ladder>);
+static_assert(deluge::dsp::moded_kernel<Ladder>);
+static_assert(!std::is_polymorphic_v<Ladder>);
+static_assert(deluge::dsp::processor<Mono<Ladder>>);
+static_assert(deluge::dsp::processor<Stereo<Ladder>>);
+
+/// Every ladder workload: each mode steady, drive oversampling and not, the mode walk, the oversampling toggle and the
+/// fade, mono and stereo.
+constexpr std::array<WorkloadId, 16> kLadderWorkloads{
+    WorkloadId::LP12_MONO,           WorkloadId::LP12_STEREO,
+    WorkloadId::LP24_MONO,           WorkloadId::LP24_STEREO,
+    WorkloadId::LPDRIVE_MONO,        WorkloadId::LPDRIVE_STEREO,
+    WorkloadId::LPDRIVE_OS_MONO,     WorkloadId::LPDRIVE_OS_STEREO,
+    WorkloadId::LPDRIVE_OS_OFF_MONO, WorkloadId::LPDRIVE_OS_OFF_STEREO,
+    WorkloadId::LP_MODE_WALK_MONO,   WorkloadId::LP_MODE_WALK_STEREO,
+    WorkloadId::LP_OS_TOGGLE_MONO,   WorkloadId::LP_OS_TOGGLE_STEREO,
+    WorkloadId::LP_FADE_MONO,        WorkloadId::LP_FADE_STEREO,
+};
+
+/// @return Each of @p ids where the kernel parts from the reference, named with the block and what parted.
+std::vector<std::string> partings(std::span<const WorkloadId> ids) {
+	std::vector<std::string> parted;
+	for (const WorkloadId id : ids) {
+		const filter_workloads::FilterWorkload& workload = filter_workloads::filter_workload(id);
+		const auto parting = kernel_filters::first_parting(workload);
+		if (parting) {
+			parted.push_back(std::string{workload.name} + " block " + std::to_string(parting->block) + ": "
+			                 + parting->what);
+		}
+	}
+	return parted;
+}
+
+/// One block's settings: the ladder's mode, and the config that with it picks the drive ladder's oversampling.
+struct Setting {
+	LowPassLadderMode mode;
+	FilterConfig config;
+};
+
+/// Every effective mode: 12dB, 24dB, drive at the rate, and drive oversampled (the same config, oversampling allowed).
+const std::array<Setting, 4> kSettings{{
+    {.mode = LowPassLadderMode::TRANSISTOR_12DB, .config = kMid},
+    {.mode = LowPassLadderMode::TRANSISTOR_24DB, .config = kBright},
+    {.mode = LowPassLadderMode::TRANSISTOR_24DB_DRIVE, .config = kBrightUnderLoad},
+    {.mode = LowPassLadderMode::TRANSISTOR_24DB_DRIVE, .config = kBright},
+}};
+
+/// The configs the coefficient checks sweep: dark to bright, resonance off to past the limits, morph on and off, each
+/// with oversampling allowed and not.
+std::vector<FilterConfig> sweep_configs() {
+	std::vector<FilterConfig> configs;
+	for (const q31 frequency :
+	     {q31{1 << 20}, q31{1 << 22}, q31{1 << 24}, q31{30000000}, q31{50000000}, q31{1 << 26}, q31{ONE_Q31}}) {
+		for (const q31 resonance : {q31{0}, q31{1 << 27}, q31{400000000}, q31{500000000}, q31{536870911}}) {
+			for (const q31 morph : {q31{0}, q31{1 << 28}}) {
+				for (const bool allow : {true, false}) {
+					configs.push_back(
+					    {.frequency = frequency, .resonance = resonance, .morph = morph, .allow_oversampling = allow});
+				}
+			}
+		}
+	}
+	return configs;
+}
+
+/// A channel's follower and its four sections' memories, Q31.
+using ChannelWords = std::array<q31, 5>;
+
+template <class Noise>
+ChannelWords words(const typename LowPassLadderKernel<Noise>::State& s) {
+	return {s.noise.y, s.sections[0].z, s.sections[1].z, s.sections[2].z, s.sections[3].z};
+}
+
+ChannelWords words(const ReferenceLowPassLadder::Channel& c) {
+	return {c.noise_last, c.sections[0].memory(), c.sections[1].memory(), c.sections[2].memory(),
+	        c.sections[3].memory()};
+}
+
+/// @return How many steps of the noise generator take @p from to @p to (at most @p limit), or limit + 1.
+uint32_t draws_between(uint32_t from, uint32_t to, uint32_t limit) {
+	uint32_t n = 0;
+	while (from != to && n <= limit) {
+		from = CongruentialStep::next(from);
+		++n;
+	}
+	return n;
+}
+
+ChannelWords words(const Ladder::State& s) {
+	return words<CongNoise>(s);
+}
+
+/// The stream the seeded policy draws from.
+SeededNoise seeded_stream{filter_workloads::kCongSeed};
+
+/// A noise policy drawing from @ref seeded_stream.
+struct SeededPolicy {
+	[[gnu::always_inline]] static q31 render() { return seeded_stream.render(); }
+};
+
+using SeededLadder = LowPassLadderKernel<SeededPolicy>;
+
+/// The kernel's settings for @p setting at the test gain.
+Ladder::Settings settings_for(const Setting& setting) {
+	return {.gain = kGain, .config = setting.config, .mode = setting.mode};
+}
+
+/// kInput as interleaved stereo frames.
+std::vector<StereoSample> input_frames() {
+	std::vector<StereoSample> frames(kInput.size() / 2);
+	for (std::size_t i = 0; i < frames.size(); ++i) {
+		frames[i] = {.l = kInput[2 * i], .r = kInput[(2 * i) + 1]};
+	}
+	return frames;
+}
+
+} // namespace
+
 // clang-format off
 describe low_pass_ladder("LowPassLadder", ${
 	it("renders the 12dB ladder, dark, in mono exactly", _ {
@@ -464,4 +616,186 @@ describe low_pass_ladder("LowPassLadder", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(low_pass_ladder);
+// clang-format off
+describe low_pass_ladder_kernel("LowPassLadderKernel", ${
+	it("renders every ladder workload as the reference does, mono and stereo: each block's output, gain and CONG "
+	   "draws, and the whole state", _ {
+		expect(partings(kLadderWorkloads)).to_equal(std::vector<std::string>{});
+	});
+
+	it("renders every ladder workload as recorded, the CONG draws per block included", _ {
+		for (const WorkloadId id : kLadderWorkloads) {
+			const filter_workloads::FilterWorkload& workload = filter_workloads::filter_workload(id);
+			expect(kernel_filters::record(workload)).to_equal(filter_workloads::kRecorded.at(static_cast<size_t>(id)));
+		}
+	});
+
+	it("chooses oversampling and compensates the gain as the reference's configure does", _ {
+		std::size_t oversampled = 0;
+		std::size_t at_rate = 0;
+		for (const FilterConfig& config : sweep_configs()) {
+			for (const LowPassLadderMode mode : {LowPassLadderMode::TRANSISTOR_12DB, LowPassLadderMode::TRANSISTOR_24DB,
+			                                     LowPassLadderMode::TRANSISTOR_24DB_DRIVE}) {
+				ReferenceLowPassLadder reference;
+				const q31 gain = reference.configure(kGain, config, mode);
+				const Ladder::Coefficients c = Ladder::coefficients({.gain = kGain, .config = config, .mode = mode});
+				expect(Ladder::gain(c)).to_equal(gain);
+				Ladder::Mode expected = Ladder::Mode::T12;
+				if (mode == LowPassLadderMode::TRANSISTOR_24DB) {
+					expected = Ladder::Mode::T24;
+				}
+				else if (mode == LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
+					expected = reference.oversample() ? Ladder::Mode::DRIVE_OVERSAMPLED : Ladder::Mode::DRIVE;
+					if (reference.oversample()) {
+						++oversampled;
+					}
+					else {
+						++at_rate;
+					}
+				}
+				expect(c.mode).to_equal(expected);
+			}
+		}
+		expect(oversampled).to_be_greater_than(0u);
+		expect(at_rate).to_be_greater_than(0u);
+	});
+
+	it("draws one CONG value per channel per sample, two when the drive ladder oversamples, and renders as the "
+	   "reference does", _ {
+		std::vector<q31> scratch(kInput.size());
+		for (const Setting& setting : kSettings) {
+			const uint32_t per_sample = Ladder::coefficients(settings_for(setting)).mode
+			                                    == Ladder::Mode::DRIVE_OVERSAMPLED ? 2 : 1;
+			for (const bool stereo : {false, true}) {
+				ReferenceLowPassLadder reference;
+				reference.zero();
+				std::ignore = reference.configure(kGain, setting.config, setting.mode);
+				std::vector<q31> expected = kInput;
+				filter_workloads::reset_cong();
+				if (stereo) {
+					reference.renderStereo(expected, scratch);
+				}
+				else {
+					reference.renderMono(expected, scratch);
+				}
+				const uint32_t reference_end = jcong;
+
+				std::vector<q31> out = kInput;
+				filter_workloads::reset_cong();
+				if (stereo) {
+					Stereo<Ladder> ladder{settings_for(setting)};
+					const auto frames = deluge::dsp::as_frames(out);
+					ladder.renderBlock(frames, frames);
+				}
+				else {
+					Mono<Ladder> ladder{settings_for(setting)};
+					ladder.renderBlock(out, out);
+				}
+				const uint32_t limit = 4 * static_cast<uint32_t>(kInput.size());
+				expect(draws_between(filter_workloads::kCongSeed, jcong, limit))
+				    .to_equal(per_sample * static_cast<uint32_t>(kInput.size()));
+				expect(jcong).to_equal(reference_end);
+				expect(out).to_equal(expected);
+			}
+		}
+		filter_workloads::reset_cong();
+	});
+
+	it("draws for the left channel before the right in every frame, in every mode (a seeded stream)", _ {
+		const std::vector<StereoSample> input = input_frames();
+		for (const Setting& setting : kSettings) {
+			const SeededLadder::Settings settings{.gain = kGain, .config = setting.config, .mode = setting.mode};
+			const uint32_t per_sample = SeededLadder::coefficients(settings).mode
+			                                    == SeededLadder::Mode::DRIVE_OVERSAMPLED ? 2 : 1;
+
+			seeded_stream = SeededNoise{filter_workloads::kCongSeed};
+			Stereo<SeededLadder> stereo{settings};
+			std::vector<StereoSample> out(input.size());
+			stereo.renderBlock(input, out);
+			const uint32_t stereo_end = seeded_stream.state();
+
+			// The same draws, made by two mono ladders stepped a frame at a time: the left channel's, then the right's.
+			seeded_stream = SeededNoise{filter_workloads::kCongSeed};
+			Mono<SeededLadder> left{settings};
+			Mono<SeededLadder> right{settings};
+			std::vector<StereoSample> expected(input.size());
+			for (std::size_t i = 0; i < input.size(); ++i) {
+				expected[i].l = left.render(input[i].l);
+				expected[i].r = right.render(input[i].r);
+			}
+			expect(stereo_end).to_equal(seeded_stream.state());
+			expect(draws_between(filter_workloads::kCongSeed, stereo_end, 4 * static_cast<uint32_t>(kInput.size())))
+			    .to_equal(per_sample * static_cast<uint32_t>(kInput.size()));
+			for (std::size_t i = 0; i < input.size(); ++i) {
+				expect(out[i].l).to_equal(expected[i].l);
+				expect(out[i].r).to_equal(expected[i].r);
+			}
+			expect(words<SeededPolicy>(stereo.left())).to_equal(words<SeededPolicy>(left.state()));
+			expect(words<SeededPolicy>(stereo.right())).to_equal(words<SeededPolicy>(right.state()));
+		}
+	});
+
+	it("carries each channel's state across every mode change, oversampling switched on and off, as the reference "
+	   "does", _ {
+		std::vector<q31> scratch(kInput.size());
+		for (const Setting& from : kSettings) {
+			for (const Setting& to : kSettings) {
+				ReferenceLowPassLadder reference;
+				reference.zero();
+				Stereo<Ladder> ladder;
+				uint32_t reference_cong = filter_workloads::kCongSeed;
+				uint32_t kernel_cong = filter_workloads::kCongSeed;
+				for (const Setting& setting : {from, to, from}) {
+					std::vector<q31> expected = kInput;
+					jcong = reference_cong;
+					std::ignore = reference.configure(kGain, setting.config, setting.mode);
+					reference.renderStereo(expected, scratch);
+					reference_cong = jcong;
+
+					const Ladder::State left = ladder.left();
+					const Ladder::State right = ladder.right();
+					ladder.configure(settings_for(setting));
+					expect(words(ladder.left())).to_equal(words(left));
+					expect(words(ladder.right())).to_equal(words(right));
+
+					std::vector<q31> out = kInput;
+					jcong = kernel_cong;
+					const auto frames = deluge::dsp::as_frames(out);
+					ladder.renderBlock(frames, frames);
+					kernel_cong = jcong;
+
+					expect(out).to_equal(expected);
+					expect(kernel_cong).to_equal(reference_cong);
+					expect(words(ladder.left())).to_equal(words(reference.left()));
+					expect(words(ladder.right())).to_equal(words(reference.right()));
+				}
+			}
+		}
+		filter_workloads::reset_cong();
+	});
+
+	it("silences the sections on reset and keeps the noise follower, as the reference's reset does", _ {
+		std::vector<q31> scratch(kInput.size());
+		ReferenceLowPassLadder reference;
+		reference.zero();
+		std::ignore = reference.configure(kGain, kMid, LowPassLadderMode::TRANSISTOR_24DB);
+		std::vector<q31> expected = kInput;
+		filter_workloads::reset_cong();
+		reference.renderMono(expected, scratch);
+		reference.reset(false);
+
+		Mono<Ladder> ladder{Ladder::Settings{.gain = kGain, .config = kMid, .mode = LowPassLadderMode::TRANSISTOR_24DB}};
+		std::vector<q31> out = kInput;
+		filter_workloads::reset_cong();
+		ladder.renderBlock(out, out);
+		ladder.reset();
+
+		expect(ladder.state().noise.y).not_().to_equal(0);
+		expect(words(ladder.state())).to_equal(words(reference.left()));
+		expect(words(ladder.state())).to_equal(ChannelWords{ladder.state().noise.y, 0, 0, 0, 0});
+		filter_workloads::reset_cong();
+	});
+});
+// clang-format on
+
+CPPSPEC_MAIN(low_pass_ladder, low_pass_ladder_kernel);

@@ -81,7 +81,12 @@ set(_filter_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/filter/high_pass_ladder.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/filter/state_variable_filter.cpp
   ${_repo_root}/src/deluge/util/waves.cpp)
-set(low_pass_ladder_spec_DEPS ${_filter_DEPS})
+# The ladder spec also runs the ladder kernel against the verbatim reference, which reads the tables the references
+# interpolate.
+set(low_pass_ladder_spec_DEPS
+  ${_filter_DEPS}
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 set(high_pass_ladder_spec_DEPS ${_filter_DEPS})
 set(state_variable_filter_spec_DEPS ${_filter_DEPS})
 # The filter set runs the three filters.
