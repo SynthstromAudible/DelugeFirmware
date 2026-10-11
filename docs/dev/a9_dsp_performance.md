@@ -456,11 +456,12 @@ Fitted as a + C/2n from n = 32 and 128 (n = 64 lands within 0.16):
 frame through out-of-line calls (before): `processModFXBuffer<type>` calling `processOneModFXSample<type, stereo>`,
 `processModLFOs` and `LFO::render`, a `std::variant` visit with a call per wave. Cycles per channel-sample, a sounding
 block with the knobs at rate `0x00a00000`, depth `0x40000000`, offset and feedback `0x20000000`
-(`DELUGE_DSP_BENCH_CASES=mod_fx`), on 2026-10-11. The figures are the minimum of the runs of each image: two before, four
-after. Before, some cases land on one of two levels 10–20% apart run to run (chorus_mono, chorus_stereo_mono, the
+(`DELUGE_DSP_BENCH_CASES=mod_fx`), on 2026-10-11. The figures are the minimum of the runs of each image: two before,
+four after. Before, some cases land on one of two levels 10–20% apart run to run (chorus_mono, chorus_stereo_mono, the
 warblers and the phaser). With two runs the minimum is the lowest figure seen, not necessarily the lower level:
-`chorus_stereo_mono` at n = 128 sat on the higher level in both runs (91.94), and the warblers' baselines may too. The after runs agree within 0.9% on every mod FX case at every size, and the `delay_feedback_chain_*`
-controls, which the change does not touch, within 0.1% of the baseline.
+`chorus_stereo_mono` at n = 128 sat on the higher level in both runs (91.94), and the warblers' baselines may too. The
+after runs agree within 0.9% on every mod FX case at every size, and the `delay_feedback_chain_*` controls, which the
+change does not touch, within 0.1% of the baseline.
 
 | case | n=32 before → after (Δ) | n=64 before → after (Δ) | n=128 before → after (Δ) | after, run to run |
 |---|---:|---:|---:|---:|
@@ -497,7 +498,12 @@ Fitted as a + C/2n from n = 32 and 128, the stereo chorus costs about 69 cycles 
   way, not NEON. The block's fixed cost is about 400 cycles by the fit (about 6 cycles per channel-sample at
   n = 32), of which the copies are about 200 instructions. Nearly the whole State is the loop's, so `kLoopState`
   would save little of the copy's size; a wider copy is the lever, and it is not measured.
-- **Code size.** `effects::ModFx::render` is 2,720 bytes in the device image, one function for all eight loops.
+- **Code size.** `effects::ModFx::render` is 2,720 bytes in the device image, one function for all eight loops. Against
+  the old code, measured as the summed extents of the functions in the two non-LTO objects at the shipping flags minus
+  `-flto=thin`: `ModFXProcessor::processModFX` (391 B) and its six `processModFXBuffer<type>` instantiations (115–155 B
+  each) are 1,281 B, but they call the per-sample, setup and LFO functions, so the whole of `ModFXProcessor` in that
+  object is 3,298 B. The new `render` is 2,703 B there, and 2,930 B with `coefficients` (227 B), which does the old
+  setup's work. The old LFO visit machinery (`LFO::render`'s `std::variant` visit) is outside both figures.
 
 ## Open questions
 

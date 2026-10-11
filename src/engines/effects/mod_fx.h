@@ -110,7 +110,8 @@ public:
 	/// @brief After the section: frees what commit took back, and an acquired ring commit did not take.
 	void finish(RingChange& change);
 
-	/// @brief Render: the mod FX over @p block in place, multiplying @p post_fx_volume (Q31) by the type's gain.
+	/// @brief Render: the mod FX over @p block in place, multiplying @p post_fx_volume (Q31) by the type's gain
+	///        when a sound comes in and the type is an effect (not NONE or grain).
 	void render(std::span<dsp::StereoSample> block, const ModFxInputs& in, int32_t& post_fx_volume);
 	/// @brief Advances the LFO by @p frames at @p rate (UQ0.32 per frame) while the owner skips rendering.
 	void tick(int32_t frames, int32_t rate);
@@ -125,7 +126,8 @@ private:
 	RingAllocator allocator_;
 	dsp::Mono<Kernel> mono_;
 	std::optional<Kernel::Settings> settings_; ///< The last configured settings.
-	bool soft_off_ = false;                    ///< Whether the ring was left to fill with stale audio.
+	bool soft_off_ =
+	    false; ///< Whether the ring is stale: set by a render of a type with no ring, cleared by zeroing it.
 };
 
 } // namespace deluge::effects

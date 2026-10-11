@@ -318,8 +318,8 @@ set_property(CACHE DELUGE_DSP_BENCH_CASES PROPERTY STRINGS kernels lanes chain d
 
 # GCC static analyzer (-fanalyzer). Off by default; enable with -DDELUGE_ANALYZER=ON. This is a compile-time (not
 # runtime) pass: it walks each function's paths looking for leaks, use-after-free, double-free, mismatched alloc/dealloc
-# and similar. Thanks to the [[gnu::malloc(delugeDealloc, 1)]] annotation on delugeAlloc it follows ownership through the
-# Deluge allocator, not just libc malloc/free. It does NOT change codegen, so the resulting binary is unaffected.
+# and similar. Thanks to the [[gnu::malloc(delugeDealloc, 1)]] annotation on delugeAlloc it follows ownership through
+# the Deluge allocator, not just libc malloc/free. It does NOT change codegen, so the resulting binary is unaffected.
 #
 # -fanalyzer is slow and, on C++, prone to false positives, so it is scoped to a configurable set of subdirs (same idea
 # as DELUGE_UBSAN) and is NOT wired into -Werror. Read its warnings as leads to investigate, not hard failures. Point

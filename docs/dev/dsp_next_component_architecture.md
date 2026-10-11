@@ -400,7 +400,7 @@ the allocator and the soft off.
   own, the second warbler, or the left's negated.
 - **The noise is a policy.** The warblers' random targets come from
   `Noise::render()`, the app's `CongNoise` global, so the kernel's specs run
-  with a seeded copy.
+  `CongNoise` with its generator state reset to the boot seed.
 - **The State is copied whole.** It declares neither `kStateInPlace` nor
   `kLoopState`: it is 100 bytes (the ring pointer, write index, two phases, two
   warblers, the wave, the phaser's memory and six allpass stages), copied in and
@@ -411,9 +411,13 @@ the allocator and the soft off.
 - **Inputs by value, results by reference.** The component's `render` takes the
   type in effect (NONE in a chain's soft off), the rate, depth, offset and
   feedback finals, whether the render is stereo and whether any sound came in,
-  and multiplies the post-FX volume by the mode's gain whether or not the block
-  renders, since the volume cut at high feedback applies either way. `tick`
-  advances the phase by a block's frames while the owner skips rendering.
+  and multiplies the post-FX volume by the mode's gain whenever the block renders
+  (a sound comes in and the type is an effect, not NONE or grain), since the
+  volume cut at high feedback applies in every mode. `tick` advances the phase
+  by a block's frames while the owner skips rendering.
+- **A type without a ring frees it.** Changing a chain's type to grain, OFF or
+  the phaser frees the ring, so coming back to a ring type starts from a zeroed
+  ring. Grain holds no ring.
 
 `RmsFeedbackCompressor` is engine glue as well (the owner of `Compressor`'s
 levels, its events and its `finish_level` call), and belongs beside
