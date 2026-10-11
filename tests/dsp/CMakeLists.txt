@@ -88,12 +88,16 @@ set(fade_in_spec_DEPS ${_filter_DEPS})
 # The filter set runs the three filters.
 set(filter_set_spec_DEPS ${_filter_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp)
 
-# The filters' and the compressor's verbatim references against the firmware's set and compressor over the recorded
-# workloads, and what both render pinned (reference_filters.h, filter_workloads.h and filter_workload_records.h,
-# header-only): the set, and the compressor with its tanh table's interpolator.
+# The filters' verbatim references against the firmware's filters over the recorded workloads, and what both render
+# pinned (reference_filters.h, filter_workloads.h and filter_workload_records.h, header-only): the set.
 set(filters_reference_spec_DEPS
   ${_filter_DEPS}
-  ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp)
+# The compressor's references against the firmware's compressor over its recorded workloads, and what they render
+# pinned (reference_compressor.h, compressor_workloads.h and compressor_workload_records.h, header-only): the
+# compressor, with its tanh table's interpolator.
+set(compressor_reference_spec_DEPS
+  ${_filter_DEPS}
   ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp)
 
 # The decay-curve lookups read the decay tables.

@@ -16,9 +16,9 @@
  */
 
 /// @file
-/// @brief Verbatim test-local copies of the legacy filters and compressor: the legacy one-pole section and
-/// antialiased tanh they build on, the dry/wet fade, the low-pass ladder, the high-pass ladder, the state-variable
-/// filter, the filter set and the RMS feedback compressor.
+/// @brief Verbatim test-local copies of the legacy filters: the legacy one-pole section and antialiased tanh they
+/// build on (the compressor's reference, reference_compressor.h, builds on them too), the dry/wet fade, the low-pass
+/// ladder, the high-pass ladder, the state-variable filter and the filter set.
 ///
 /// Each copy keeps the legacy arithmetic line for line, plain signed `+` and `-` included, and the ladders draw from
 /// the synth-wide generator through `CONG`, so a kernel checked against them is checked against the legacy output and
@@ -30,18 +30,16 @@
 /// kernel against them there checks the kernel's arithmetic and not the copy's.
 ///
 /// Only what the kernels replace is copied. The shared pieces they keep (the value types and modes in
-/// filter_modes.h, `tanh`, `instant_tan`, `quick_log`, the table interpolators, `dry_wet_blend`, `CompressorKnobs`)
+/// filter_modes.h, `tanh`, `instant_tan`, `quick_log`, the table interpolators, `dry_wet_blend`)
 /// come from the firmware.
 
 #pragma once
 
-#include "definitions_cxx.hpp" // kSampleRate
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/curves/instant_tan.h"
 #include "dsp-next/fixed/curves/quick_log.h"
-#include "dsp-next/fixed/dynamics/rms_feedback_compressor.h" // CompressorKnobs
 #include "dsp-next/fixed/filter/filter_modes.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "dsp-next/fixed/mix/dry_wet.h"
@@ -72,7 +70,6 @@ namespace filters_reference {
 using deluge::dsp::q31;
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::bilinear_table_interpolator;
-using deluge::dsp::fixed::CompressorKnobs;
 using deluge::dsp::fixed::CurvedFrequency;
 using deluge::dsp::fixed::FilterConfig;
 using deluge::dsp::fixed::FilterRoute;
@@ -1289,289 +1286,9 @@ private:
 	FilterRoute route_{FilterRoute::HIGH_TO_LOW};
 };
 
-/// @brief The scratch a compressor needs to blend: distinct from the block and at least as long.
-using CompressorScratch = std::span<StereoSample>;
-
-namespace detail {
-
-/// 1 - 1/ratio at knob @p ratio: 0.5 to 1.
-[[nodiscard]] inline float ratio_fraction(q31 ratio) {
-	return 0.5f + (static_cast<float>(ratio) / ONE_Q31f) / 2;
-}
-
-[[nodiscard]] inline float compressor_attack_ms(q31 attack) {
-	return 0.5 + (std::exp(2 * static_cast<float>(attack) / ONE_Q31f) - 1) * 10;
-}
-
-[[nodiscard]] inline float compressor_release_ms(q31 release) {
-	return 50 + (std::exp(2 * static_cast<float>(release) / ONE_Q31f) - 1) * 50;
-}
-
-[[nodiscard]] inline float compressor_sidechain_hz(q31 sidechain_hpf) {
-	return (std::exp(1.5 * static_cast<float>(sidechain_hpf) / ONE_Q31f) - 1) * 30;
-}
-
-} // namespace detail
-
-/// @brief The legacy RMS feedback compressor, copied: its level detector's high-pass on the legacy one-pole, its output
-/// saturation on the legacy antialiased tanh, seeded from the first frame of the first block after a reset.
-class ReferenceRmsFeedbackCompressor {
-public:
-	/// @brief A compressor at the default knobs, fully wet, with no gain reduction.
-	ReferenceRmsFeedbackCompressor() {
-		setAttack(configured_.attack);
-		setRelease(configured_.release);
-		setThreshold(configured_.threshold);
-		setRatio(configured_.ratio);
-		setSidechain(configured_.sidechain_hpf);
-		setBlend(configured_.blend);
-	}
-
-	/// @brief Takes @p knobs, recomputing only when they changed.
-	void configure(const CompressorKnobs& knobs) {
-		if (knobs == configured_) {
-			return;
-		}
-		setAttack(knobs.attack);
-		setRelease(knobs.release);
-		if (knobs.threshold != configured_.threshold) {
-			setThreshold(knobs.threshold);
-		}
-		setRatio(knobs.ratio);
-		setSidechain(knobs.sidechain_hpf);
-		setBlend(knobs.blend);
-		configured_ = knobs;
-	}
-
-	/// @brief The threshold this block renders with, from a knob position (Q31 of the knob's travel).
-	void setThreshold(q31 threshold) {
-		threshold_knob_ = threshold;
-		threshold_ = 1 - 0.8f * (static_cast<float>(threshold_knob_) / ONE_Q31f);
-	}
-
-	/// @brief Makeup gain in nepers at no reduction.
-	void setBaseGain(float base_gain) { base_gain_ = base_gain; }
-
-	/// @brief No gain reduction at the start of the next block, and the saturation seeded again.
-	void reset() {
-		reduction_envelope_ = 0;
-		makeup_ = 0;
-		mean_ = 0;
-		seeded_ = false;
-	}
-
-	/// @brief Compresses @p block in place.
-	void render(std::span<StereoSample> block, q31 volume_l, q31 volume_r, q31 final_volume,
-	            CompressorScratch scratch) {
-		if (wet_ != ONE_Q31) {
-			std::ranges::copy(block, scratch.begin());
-		}
-
-		if (!seeded_) {
-			// The first sample interpolates against the block's own start rather than against silence.
-			saturation_[0] = ReferenceAntialiasedTanh{kSaturation, static_cast<uint32_t>(lshiftAndSaturateUnknown(
-			                                                           block[0].l, static_cast<uint8_t>(kSaturation)))
-			                                                           + ReferenceAntialiasedTanh::kSilent};
-			saturation_[1] = ReferenceAntialiasedTanh{kSaturation, static_cast<uint32_t>(lshiftAndSaturateUnknown(
-			                                                           block[0].r, static_cast<uint8_t>(kSaturation)))
-			                                                           + ReferenceAntialiasedTanh::kSilent};
-			seeded_ = true;
-		}
-		// Every block, since the song volume may have changed.
-		const float threshold = updateMakeup(static_cast<float>(block.size()), final_volume);
-
-		const float over = std::max<float>(0, (log_rms_ - threshold));
-
-		reduction_envelope_ = runEnvelope(reduction_envelope_, over, static_cast<float>(block.size()));
-
-		const float reduction = -reduction_envelope_ * fraction_;
-
-		const float gain_nepers = base_gain_ + makeup_ + reduction;
-
-		float gain = std::exp(gain_nepers);
-		gain = std::min<float>(gain, 31);
-
-		const float final_volume_l = gain * static_cast<float>(volume_l >> 9);
-		const float final_volume_r = gain * static_cast<float>(volume_r >> 9);
-
-		const q31 increment_l =
-		    static_cast<int32_t>((final_volume_l - (current_volume_l_ >> 8)) / static_cast<float>(block.size())) << 8;
-		const q31 increment_r =
-		    static_cast<int32_t>((final_volume_r - (current_volume_r_ >> 8)) / static_cast<float>(block.size())) << 8;
-
-		for (std::size_t i = 0; i < block.size(); i++) {
-			StereoSample& sample = block[i];
-			current_volume_l_ += increment_l;
-			current_volume_r_ += increment_r;
-
-			sample.l = multiply_32x32_rshift32(sample.l, current_volume_l_) << 4;
-			sample.l = saturation_[0].render(sample.l);
-
-			sample.r = multiply_32x32_rshift32(sample.r, current_volume_r_) << 4;
-			sample.r = saturation_[1].render(sample.r);
-
-			if (wet_ != ONE_Q31) {
-				sample.l = multiply_32x32_rshift32(sample.l, wet_);
-				sample.l = multiply_accumulate_32x32_rshift32_rounded(sample.l, scratch[i].l, dry_);
-				sample.l <<= 1;
-				sample.r = multiply_32x32_rshift32(sample.r, wet_);
-				sample.r = multiply_accumulate_32x32_rshift32_rounded(sample.r, scratch[i].r, dry_);
-				sample.r <<= 1;
-			}
-		}
-
-		gain_reduction_ = static_cast<uint8_t>(std::clamp<int32_t>(static_cast<int32_t>(-(reduction) * 4 * 4), 0, 127));
-		log_rms_ = measureLevel(block);
-	}
-
-	/// @brief render at neutral channel gain, with @p final_volume (3.29) scaled.
-	void renderVolumeNeutral(std::span<StereoSample> block, q31 final_volume, CompressorScratch scratch) {
-		render(block, 1 << 27, 1 << 27, final_volume >> 3, scratch);
-	}
-
-	/// @return The last block's gain reduction for the LEDs.
-	[[nodiscard]] uint8_t gainReduction() const { return gain_reduction_; }
-
-	/// @return Whether the saturation has been seeded since the last reset.
-	[[nodiscard]] bool seeded() const { return seeded_; }
-	/// @return The output saturation, left then right.
-	[[nodiscard]] const std::array<ReferenceAntialiasedTanh, 2>& saturation() const { return saturation_; }
-	/// @return The detector's high-pass, left then right.
-	[[nodiscard]] const std::array<ReferenceOnePole, 2>& detector() const { return detector_; }
-
-	/// @brief Folds every member, in declaration order, into @p d.
-	void digest(Digest& d) const {
-		d.add(configured_.attack);
-		d.add(configured_.release);
-		d.add(configured_.threshold);
-		d.add(configured_.ratio);
-		d.add(configured_.sidechain_hpf);
-		d.add(configured_.blend);
-		d.add(attack_rate_);
-		d.add(release_rate_);
-		d.add(fraction_);
-		d.add(makeup_);
-		d.add(threshold_);
-		d.add(detector_moveability_);
-		d.add(reduction_envelope_);
-		d.add(current_volume_l_);
-		d.add(current_volume_r_);
-		d.add(log_rms_);
-		d.add(mean_);
-		for (const ReferenceAntialiasedTanh& s : saturation_) {
-			d.add(s.drive());
-			d.add(s.previous());
-		}
-		d.add(seeded_);
-		for (const ReferenceOnePole& section : detector_) {
-			d.add(section.memory());
-		}
-		d.add(attack_ms_);
-		d.add(release_ms_);
-		d.add(base_gain_);
-		d.add(threshold_knob_);
-		d.add(dry_);
-		d.add(wet_);
-		d.add(gain_reduction_);
-	}
-
-private:
-	static constexpr uint32_t kSaturation = 3;
-
-	void setAttack(q31 attack) {
-		attack_ms_ = detail::compressor_attack_ms(attack);
-		attack_rate_ = (-1000.0f / kSampleRate) / attack_ms_;
-	}
-
-	void setRelease(q31 release) {
-		release_ms_ = detail::compressor_release_ms(release);
-		release_rate_ = (-1000.0f / kSampleRate) / release_ms_;
-	}
-
-	void setRatio(q31 ratio) { fraction_ = detail::ratio_fraction(ratio); }
-
-	void setSidechain(q31 sidechain_hpf) {
-		const float fc = detail::compressor_sidechain_hz(sidechain_hpf) / static_cast<float>(kSampleRate);
-		const float wc = fc / (1 + fc);
-		detector_moveability_ = static_cast<q31>(wc * static_cast<float>(ONE_Q31));
-	}
-
-	void setBlend(q31 blend) {
-		dry_ = ONE_Q31 - blend;
-		wet_ = blend;
-	}
-
-	float updateMakeup(float num_samples, q31 final_volume) {
-		const float song_volume = logf(final_volume + 1e-10);
-
-		const float threshold = song_volume * threshold_;
-		const float last = makeup_;
-		makeup_ = std::max<float>((song_volume - threshold - 1) * fraction_, 0);
-		makeup_ = runEnvelope(last, makeup_, num_samples);
-		return threshold;
-	}
-
-	[[nodiscard]] float runEnvelope(float current, float desired, float num_samples) const {
-		if (desired > current) {
-			return desired + std::exp(attack_rate_ * num_samples) * (current - desired);
-		}
-		return desired + std::exp(release_rate_ * num_samples) * (current - desired);
-	}
-
-	DELUGE_REFERENCE_LEGACY_ARITHMETIC float measureLevel(std::span<const StereoSample> block) {
-		q31 sum = 0;
-		const float last_mean = mean_;
-
-		for (const StereoSample sample : block) {
-			const q31 l = sample.l - detector_[0].lowPass(sample.l, detector_moveability_);
-			const q31 r = sample.r - detector_[1].lowPass(sample.r, detector_moveability_);
-			const q31 s = std::max(std::abs(l), std::abs(r));
-			sum += multiply_32x32_rshift32(s, s);
-		}
-
-		const auto ns = static_cast<float>(block.size() * 2);
-		mean_ = (static_cast<float>(sum) / ONE_Q31f) / ns;
-		mean_ = (mean_ * ns + last_mean) / (1 + ns);
-		const float rms = static_cast<float>(ONE_Q31) * std::sqrt(mean_);
-
-		return std::log(std::max(rms, 1.0f));
-	}
-
-	CompressorKnobs configured_{};
-
-	float attack_rate_ = (-1000.0f / kSampleRate);
-	float release_rate_ = (-1000.0f / kSampleRate);
-	float fraction_ = 0.5;
-	float makeup_ = 0;
-	float threshold_ = 1;
-	q31 detector_moveability_ = ONE_Q15;
-
-	float reduction_envelope_ = 0;
-	q31 current_volume_l_ = 0;
-	q31 current_volume_r_ = 0;
-	float log_rms_ = 0;
-	float mean_ = 0;
-	std::array<ReferenceAntialiasedTanh, 2> saturation_{ReferenceAntialiasedTanh{kSaturation},
-	                                                    ReferenceAntialiasedTanh{kSaturation}};
-	bool seeded_ = false;
-
-	std::array<ReferenceOnePole, 2> detector_{};
-
-	float attack_ms_ = 0;
-	float release_ms_ = 0;
-
-	float base_gain_ = 1.35f;
-
-	q31 threshold_knob_ = 0;
-	q31 dry_ = 0;
-	q31 wet_ = ONE_Q31;
-	uint8_t gain_reduction_ = 0;
-};
-
 static_assert(std::is_trivially_copyable_v<ReferenceLowPassLadder>);
 static_assert(std::is_trivially_copyable_v<ReferenceHighPassLadder>);
 static_assert(std::is_trivially_copyable_v<ReferenceStateVariableFilter>);
 static_assert(std::is_trivially_copyable_v<ReferenceFilterSet>);
-static_assert(std::is_trivially_copyable_v<ReferenceRmsFeedbackCompressor>);
 
 } // namespace filters_reference

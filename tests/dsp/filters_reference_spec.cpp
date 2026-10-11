@@ -15,14 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The filters' and the compressor's verbatim references (reference_filters.h) against the firmware, over every recorded
-// workload (filter_workloads.h). A lone filter or the fade runs as its kernel (kernel_filters.h), the set as the
-// firmware's FilterSet, the compressor as the firmware's; each state digest folds what its reference's does. Each
-// block's output, gain, generator draws and whole state must agree, and the set must agree too with mono and stereo
-// blocks alternating on one set. What the references render is pinned (filter_workload_records.h): each block's
-// output and draws, the values drawn, and the state at the end; the firmware's renders must equal the same pins.
+// The filters' verbatim references (reference_filters.h) against the firmware, over every recorded workload
+// (filter_workloads.h). A lone filter or the fade runs as its kernel (kernel_filters.h), the set as the firmware's
+// FilterSet; each state digest folds what its reference's does. Each block's output, gain, generator draws and whole
+// state must agree, and the set must agree too with mono and stereo blocks alternating on one set. What the references
+// render is pinned (filter_workload_records.h): each block's output and draws, the values drawn, and the state at the
+// end; the firmware's renders must equal the same pins.
 
-#include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
 #include "dsp-next/fixed/filter/fade_in.h"
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "filter_workload_records.h"
@@ -127,59 +126,18 @@ private:
 	fixed::LowPassSlot::Kind low_held_ = fixed::LowPassSlot::Kind::LADDER;
 };
 
-/// @brief Folds every value of @p compressor that carries between blocks into @p d, as
-/// @ref filters_reference::ReferenceRmsFeedbackCompressor::digest does.
-void digest_compressor(const fixed::RmsFeedbackCompressor& compressor, Digest& d) {
-	const fixed::RmsFeedbackCompressor::View v = compressor.view();
-	d.add(v.configured.attack);
-	d.add(v.configured.release);
-	d.add(v.configured.threshold);
-	d.add(v.configured.ratio);
-	d.add(v.configured.sidechain_hpf);
-	d.add(v.configured.blend);
-	d.add(v.attack_rate);
-	d.add(v.release_rate);
-	d.add(v.fraction);
-	d.add(v.makeup);
-	d.add(v.threshold);
-	d.add(v.detector_moveability);
-	d.add(v.reduction_envelope);
-	d.add(v.current_volume_l);
-	d.add(v.current_volume_r);
-	d.add(v.log_rms);
-	d.add(v.mean);
-	for (const fixed::AntialiasedTanh::State& s : {v.saturation_l, v.saturation_r}) {
-		d.add(v.saturation_drive);
-		d.add(s.position);
-	}
-	d.add(v.seeded);
-	for (const fixed::OnePole::State& section : {v.detector_l, v.detector_r}) {
-		d.add(section.z);
-	}
-	d.add(v.attack_ms);
-	d.add(v.release_ms);
-	d.add(v.base_gain);
-	d.add(v.threshold_knob);
-	d.add(v.dry);
-	d.add(v.wet);
-	d.add(v.gain_reduction);
-}
-
 /// @brief The firmware as a workload family, in one form: the lone filters and the fade as their kernels
-/// (kernel_filters.h), the set (@ref FirmwareSet) and the compressor as the firmware's classes. Every digest folds
-/// what its reference's does, so the whole state is compared and pinned.
+/// (kernel_filters.h), the set as the firmware's (@ref FirmwareSet). Every digest folds what its reference's does, so
+/// the whole state is compared and pinned.
 template <bool kStereo>
 struct FirmwareFamily : kernel_filters::KernelFamily<kStereo> {
 	using FilterSet = FirmwareSet;
-	using Compressor = fixed::RmsFeedbackCompressor;
 
 	[[nodiscard]] static fixed::FilterScratch filter_scratch(std::span<q31> fade, std::span<q31> parallel) {
 		return {.fade = fade, .parallel = parallel};
 	}
 
 	using kernel_filters::KernelFamily<kStereo>::digest;
-
-	static void digest(const fixed::RmsFeedbackCompressor& compressor, Digest& d) { digest_compressor(compressor, d); }
 };
 
 using filter_workloads::ReferenceFamily;
@@ -209,19 +167,6 @@ using filter_workloads::ReferenceFamily;
 		else {
 			parting = kernel_filters::first_parting(workload);
 		}
-		if (parting) {
-			parted.push_back(named(workload.name, *parting));
-		}
-	}
-	return parted;
-}
-
-/// @return Each compressor workload where the firmware's compressor parts from the reference: each block's output,
-/// gain reduction and whole state.
-[[nodiscard]] std::vector<std::string> compressor_partings() {
-	std::vector<std::string> parted;
-	for (const filter_workloads::CompressorWorkload& workload : filter_workloads::all_compressor_workloads()) {
-		const auto parting = filter_workloads::first_parting<ReferenceFamily, FirmwareFamily<true>>(workload);
 		if (parting) {
 			parted.push_back(named(workload.name, *parting));
 		}
@@ -363,11 +308,6 @@ describe verbatim_filters("the filters' verbatim references", ${
 		for (size_t i = 0; i < filters.size(); ++i) {
 			expect(static_cast<size_t>(filters[i].id)).to_equal(i);
 		}
-		const auto& compressors = filter_workloads::all_compressor_workloads();
-		expect(compressors.size()).to_equal(filter_workloads::kCompressorWorkloadCount);
-		for (size_t i = 0; i < compressors.size(); ++i) {
-			expect(static_cast<size_t>(compressors[i].id)).to_equal(i);
-		}
 	});
 
 	it("render every filter workload as the legacy filters do: each block's output, gain and draws, and the whole "
@@ -478,11 +418,6 @@ describe verbatim_filters("the filters' verbatim references", ${
 		}
 	});
 
-	it("render every compressor workload as the legacy compressor does: each block's output and gain reduction, and "
-	   "the whole state", _ {
-		expect(compressor_partings()).to_equal(std::vector<std::string>{});
-	});
-
 	it("render every filter workload as recorded: each block's output and draws, the values drawn, and the state", _ {
 		for (const filter_workloads::FilterWorkload& workload : filter_workloads::all_workloads()) {
 			const filter_workloads::WorkloadRecord& recorded =
@@ -497,16 +432,6 @@ describe verbatim_filters("the filters' verbatim references", ${
 			else {
 				expect(kernel_filters::record(workload)).to_equal(recorded);
 			}
-		}
-	});
-
-	it("render every compressor workload as recorded: each block's output and gain reduction, and the state", _ {
-		for (const filter_workloads::CompressorWorkload& workload : filter_workloads::all_compressor_workloads()) {
-			const filter_workloads::WorkloadRecord& recorded =
-			    filter_workloads::kCompressorRecorded.at(static_cast<size_t>(workload.id));
-			expect(recorded.outputs.size()).to_equal(workload.blocks);
-			expect(filter_workloads::record<ReferenceFamily>(workload)).to_equal(recorded);
-			expect(filter_workloads::record<FirmwareFamily<true>>(workload)).to_equal(recorded);
 		}
 	});
 });

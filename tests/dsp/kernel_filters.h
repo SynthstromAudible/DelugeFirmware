@@ -23,8 +23,8 @@
 /// A family is mono or stereo, as the workloads it plays: a kernel's mono and stereo forms are different wrappers
 /// (`Mono<Svf>` or `Stereo<Svf>`, `Mono<FadeInMono>` or `Mono<FadeIn>`), so each adapter is built for one form and
 /// aborts if handed the other. Each digest folds the same values in the same order as its reference's, so a kernel's
-/// state digest equals the reference's exactly when the two states agree. The set and the compressor are the
-/// references here; filters_reference_spec plays the firmware's against them.
+/// state digest equals the reference's exactly when the two states agree. The set is the reference here;
+/// filters_reference_spec plays the firmware's against it.
 
 #pragma once
 
@@ -439,7 +439,6 @@ struct KernelFamily {
 	using StateVariableFilter = KernelSvf<kStereo>;
 	using DryWetFade = KernelFade<kStereo>;
 	using FilterSet = filters_reference::ReferenceFilterSet;
-	using Compressor = filters_reference::ReferenceRmsFeedbackCompressor;
 
 	[[nodiscard]] static filters_reference::FilterScratch filter_scratch(std::span<q31> fade, std::span<q31> parallel) {
 		return {.fade = fade, .parallel = parallel};
