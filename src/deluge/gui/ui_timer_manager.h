@@ -49,6 +49,7 @@ enum class TimerName {
 	LOADING_ANIMATION,
 	MOD_ENCODER_POPUP_FLUSH,
 	SELECTED_CLIP_PULSE,
+	SELECTED_NOTE_PULSE,
 	/// Idle countdown before the screensaver appears, then its frame clock while it shows
 	SCREENSAVER,
 	/// Total number of timers
