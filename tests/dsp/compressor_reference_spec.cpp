@@ -228,7 +228,8 @@ describe fixed_compressor("the compressor's fixed reference", ${
 	it("measures a detector output of INT32_MIN as 2^31", _ {
 		// INT32_MIN_DETECTOR's first block is one frame, left INT32_MIN and right -2^30 coming out, through a
 		// detector whose high-pass is 0 and whose memory is 0: its sum of squares is (2^31)^2 >> 32 = 2^30.
-		cw::CompressorRun<FixedReferenceRmsFeedbackCompressor> run{workload_of(cw::CompressorWorkloadId::INT32_MIN_DETECTOR)};
+		const cw::CompressorWorkload& workload = workload_of(cw::CompressorWorkloadId::INT32_MIN_DETECTOR);
+		cw::CompressorRun<FixedReferenceRmsFeedbackCompressor> run{workload};
 		std::vector<StereoSample> block;
 		std::ignore = run.block(0, block);
 		expect(block.size()).to_equal(size_t{1});
