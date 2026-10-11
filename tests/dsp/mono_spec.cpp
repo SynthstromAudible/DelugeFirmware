@@ -24,6 +24,8 @@
 #include "dsp-next/fixed/filter/shift_tracker.h"
 #include "util/fixedpoint.h"
 
+#include "loop_state_kernels.h"
+
 #include <array>
 #include <concepts>
 #include <cppspec.hpp>
@@ -357,6 +359,7 @@ static_assert(!detail::state_in_place<RingFalse>);
 static_assert(!detail::state_in_place<RingWrongType>);
 static_assert(!detail::state_in_place<Gain>);
 static_assert(processor<Mono<RingInPlace>> && processor<Mono<ModedRingInPlace>>);
+static_assert(processor<Mono<loop_state_test::SplitLoop>> && processor<Mono<loop_state_test::SplitLoopInPlace>>);
 
 /// The lanes of a q31 vector, lane 0 first.
 std::array<q31, 4> lanes_of(Argon<q31> v) {
@@ -751,6 +754,37 @@ RingRun<K> run_ring(std::size_t n, bool in_place, Alt alt) {
 	return run;
 }
 
+/// The outputs and final State of three @p n-sample blocks through Mono<K>: set_level before each block, XOR from
+/// the third. @p in_place renders each block over its own input.
+struct SplitRun {
+	std::vector<q31> out;
+	loop_state_test::SplitCore::State state;
+};
+
+template <typename K>
+SplitRun run_split(std::size_t n, bool in_place) {
+	Mono<K> mono{{.mode = loop_state_test::Mode::ADD}};
+	SplitRun run{};
+	for (std::size_t block = 0; block < 3; ++block) {
+		if (block == 2) {
+			mono.configure({.mode = loop_state_test::Mode::XOR});
+		}
+		mono.template on<&K::set_level>(static_cast<q31>((block * 1000) + 7));
+		std::vector<q31> buf = loop_state_test::input(n, block);
+		if (in_place) {
+			mono.renderBlock(buf, buf);
+		}
+		else {
+			std::vector<q31> dst(n);
+			mono.renderBlock(buf, dst);
+			buf = dst;
+		}
+		run.out.insert(run.out.end(), buf.begin(), buf.end());
+	}
+	run.state = mono.state();
+	return run;
+}
+
 /// The lane-0 value of a ramp kernel's state.
 template <typename M>
 q31 ramp_value(const M& mono) {
@@ -857,6 +891,33 @@ describe mono("Mono", ${
 				expect(got.out).to_equal(want.out);
 				expect(std::memcmp(&got.state, &want.state, sizeof(RingCore::State))).to_equal(0);
 				expect(got.state.prepares).to_equal(3);
+			}
+		}
+	});
+
+	it("steps only a kernel's loop state, and keeps what prepare and the events wrote outside it", _ {
+		for (std::size_t n = 1; n <= 9; ++n) {
+			for (const bool in_place : {false, true}) {
+				for (const SplitRun& run : {run_split<loop_state_test::SplitLoop>(n, in_place),
+				                            run_split<loop_state_test::SplitLoopInPlace>(n, in_place)}) {
+					expect(run.state.prepares).to_equal(3U);
+					expect(run.state.last_n).to_equal(static_cast<std::uint32_t>(n));
+					expect(run.state.level).to_equal(2007);
+				}
+			}
+		}
+	});
+
+	it("renders a kernel declaring kLoopState as the same kernel stepping its whole State, copied or in place", _ {
+		for (std::size_t n = 1; n <= 9; ++n) {
+			for (const bool in_place : {false, true}) {
+				const SplitRun want = run_split<loop_state_test::SplitWhole>(n, in_place);
+				for (const SplitRun& got : {run_split<loop_state_test::SplitLoop>(n, in_place),
+				                            run_split<loop_state_test::SplitLoopInPlace>(n, in_place),
+				                            run_split<loop_state_test::SplitWholeInPlace>(n, in_place)}) {
+					expect(got.out).to_equal(want.out);
+					expect(std::memcmp(&got.state, &want.state, sizeof want.state)).to_equal(0);
+				}
 			}
 		}
 	});

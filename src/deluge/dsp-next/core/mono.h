@@ -53,7 +53,8 @@ inline constexpr bool is_partial_step<argon::vectorize::InterleavedStep<T, Strid
 /// **Per block.** `renderBlock` calls K's `prepare(coefficients, state, n)` once, when K declares one (otherwise the
 /// block is an EmptyBlock), then, for a moded kernel, dispatches once on `coefficients().mode` through with_mode.
 /// Inside that one dispatch a single loop runs every sample in the block's mode, so a mode change set by
-/// `configure` takes effect at the next block, and State carries across it untouched.
+/// `configure` takes effect at the next block, and State carries across it untouched. The loop steps the kernel's loop
+/// state (@ref loop_state_t); the rest of the State is `prepare`'s and the events'.
 ///
 /// **The loop** is chosen from K's step type:
 /// - `step_type == value_type` (q31 or StereoSample): a raw-pointer index loop, one `step` per sample.
@@ -89,6 +90,7 @@ requires(!control_kernel<K>)
 class Mono {
 	using Coefficients = typename K::Coefficients; ///< K's coefficients, computed on configure.
 	using State = typename K::State;               ///< K's state, carried from block to block.
+	using LoopState = loop_state_t<K>;             ///< The part of K's State the loop steps.
 	using Block = kernel_block_t<K>;               ///< K's per-block values, or EmptyBlock.
 	using step_type = typename K::step_type;       ///< What one `step` takes and returns.
 
@@ -199,25 +201,28 @@ private:
 	/// @brief Render one block of a stepping kernel: `prepare` once, one mode dispatch, one loop.
 	/// @param out The block to fill.
 	/// @param in The input blocks: none, one or two.
-	/// @details The loop runs on local copies of the coefficients and state, taken after `prepare` and written back
-	/// after the block, so they stay in registers: the output buffer may alias the component, which would otherwise
-	/// force a reload and a store of the state on every step. `prepare` sees the members, so the copies' addresses
-	/// never escape to a `prepare` that is not inlined. A kernel declaring `kStateInPlace` (see @ref
-	/// detail::state_in_place) steps the member directly instead: its State is too large for registers, so the copy
-	/// would only add a load and a store of the whole State per block.
+	/// @details `prepare` runs on the member State, so its writes (inside the loop state or out of it) are in place
+	/// before the loop starts, and a `prepare` that is not inlined never sees a local's address. The loop then runs on
+	/// local copies of the coefficients and of the loop state (@ref loop_state_t: the whole State unless K declares
+	/// `kLoopState`), written back after the block, so they stay in registers: the output buffer may alias the
+	/// component, which would otherwise force a reload and a store of the state on every step. The rest of the State
+	/// is neither copied nor written. A kernel declaring `kStateInPlace` (see @ref detail::state_in_place) steps its
+	/// member loop state directly instead: it is too large for registers, so the copy would only add a load and a
+	/// store of all of it per block.
 	template <typename... In>
 	[[gnu::always_inline]] void runBlock(Buffer<value_type> out, In... in) {
 		const Block block = kernel_ops::prepare_block<K>(coefficients_, state_, out.size());
 		const Coefficients c = coefficients_;
 		if constexpr (detail::state_in_place<K>) {
-			kernel_ops::dispatch_mode<K>(
-			    c, [&]<auto M> [[gnu::always_inline]] () { loop<M>(c, block, state_, out, in...); });
-		}
-		else {
-			State s = state_;
+			LoopState& s = kernel_ops::loop_state<K>(state_);
 			kernel_ops::dispatch_mode<K>(c,
 			                             [&]<auto M> [[gnu::always_inline]] () { loop<M>(c, block, s, out, in...); });
-			state_ = s;
+		}
+		else {
+			LoopState s = kernel_ops::loop_state<K>(state_);
+			kernel_ops::dispatch_mode<K>(c,
+			                             [&]<auto M> [[gnu::always_inline]] () { loop<M>(c, block, s, out, in...); });
+			kernel_ops::loop_state<K>(state_) = s;
 		}
 	}
 
@@ -226,7 +231,7 @@ private:
 	/// @param step The Argon loop step, full or partial.
 	/// @param x The step's loaded inputs.
 	template <auto M, typename Step, typename... X>
-	[[gnu::always_inline]] static step_type vectorStepAt(const Coefficients& c, const Block& block, State& s,
+	[[gnu::always_inline]] static step_type vectorStepAt(const Coefficients& c, const Block& block, LoopState& s,
 	                                                     const Step& step, X... x) {
 		if constexpr (partial_step_advances_by_count<K> && detail::is_partial_step<Step>) {
 			return kernel_ops::step_at<K, M>(c, block, s, x...,
@@ -242,8 +247,8 @@ private:
 	/// @details The blocks' pointers and length are read here, once, so that the loop itself touches only raw
 	/// pointers: a span accessor is a call under `-fno-inline-functions`.
 	template <auto M, typename... In>
-	[[gnu::always_inline]] static void loop(const Coefficients& c, const Block& block, State& s, Buffer<value_type> out,
-	                                        In... in) {
+	[[gnu::always_inline]] static void loop(const Coefficients& c, const Block& block, LoopState& s,
+	                                        Buffer<value_type> out, In... in) {
 		const auto n = static_cast<std::ptrdiff_t>(out.size());
 		if constexpr (detail::scalar_step_kernel<K>) {
 			scalarLoop<M>(c, block, s, out.data(), n, in.data()...);
@@ -258,8 +263,8 @@ private:
 
 	/// @brief One `step` per sample: @p n samples of @p src into @p dst.
 	template <auto M, typename... Src>
-	[[gnu::always_inline]] static void scalarLoop(const Coefficients& c, const Block& block, State& s, value_type* dst,
-	                                              std::ptrdiff_t n, const Src*... src) {
+	[[gnu::always_inline]] static void scalarLoop(const Coefficients& c, const Block& block, LoopState& s,
+	                                              value_type* dst, std::ptrdiff_t n, const Src*... src) {
 		for (std::ptrdiff_t i = 0; i < n; ++i) {
 			dst[i] = kernel_ops::step_at<K, M>(c, block, s, src[i]...);
 		}
@@ -268,7 +273,7 @@ private:
 	/// @brief One `step` per vector of q31 samples: @p n samples of @p src into @p dst, the partial last vector
 	/// included.
 	template <auto M, typename... Src>
-	[[gnu::always_inline]] static void vectorLoop(const Coefficients& c, const Block& block, State& s, q31* dst,
+	[[gnu::always_inline]] static void vectorLoop(const Coefficients& c, const Block& block, LoopState& s, q31* dst,
 	                                              std::ptrdiff_t n, const Src*... src) {
 		argon::vectorize::for_each<q31>(n, [&] [[gnu::always_inline]] (auto step) {
 			step.Store(dst, vectorStepAt<M>(c, block, s, step, step.Load(src)...));
@@ -278,8 +283,8 @@ private:
 	/// @brief One `step` per vector of stereo frames: @p n frames of the interleaved @p src into the interleaved
 	/// @p dst, the partial last vector included.
 	template <auto M, typename... Src>
-	[[gnu::always_inline]] static void interleavedLoop(const Coefficients& c, const Block& block, State& s, q31* dst,
-	                                                   std::ptrdiff_t n, const Src*... src) {
+	[[gnu::always_inline]] static void interleavedLoop(const Coefficients& c, const Block& block, LoopState& s,
+	                                                   q31* dst, std::ptrdiff_t n, const Src*... src) {
 		argon::vectorize::for_each_interleaved<q31, 2>(n, [&] [[gnu::always_inline]] (auto step) {
 			const StereoVector frames = vectorStepAt<M>(c, block, s, step, detail::toStereo(step.Load(src))...);
 			step.Store(dst, {frames.l, frames.r});
