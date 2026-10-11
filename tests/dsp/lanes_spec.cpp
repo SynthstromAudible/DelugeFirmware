@@ -226,6 +226,14 @@ struct Widths {
 };
 using AllWidths = Widths<1, 2, 3, 4, 8>;
 
+/// Run @p body at every lane of a width of @p N, lane 0 first, as `body.template operator()<Lane>()`.
+template <std::size_t N, typename Body>
+void each_lane(Body&& body) {
+	[&]<std::size_t... Lane>(std::index_sequence<Lane...> /*lanes*/) {
+		(body.template operator()<Lane>(), ...);
+	}(std::make_index_sequence<N>{});
+}
+
 /// The block lengths every case runs.
 constexpr std::size_t kMaxLength = 9;
 
@@ -337,10 +345,10 @@ Mismatches at_every_width(const typename K::Settings& first, const typename K::S
 }
 
 /// Lanes<K, N> against N Monos over three blocks of every length 1 to 9: the first and last whole frames, the middle
-/// one lane @p lane alone (`renderLane`), which only that lane's Mono renders. Counts the differences, the states
+/// one lane @p Lane alone (`renderLane`), which only that lane's Mono renders. Counts the differences, the states
 /// included.
-template <typename K, std::size_t N>
-Mismatches lane_alone_against_monos(const typename K::Settings& settings, std::size_t lane) {
+template <typename K, std::size_t N, std::size_t Lane>
+Mismatches lane_alone_against_monos(const typename K::Settings& settings) {
 	Mismatches m;
 	for (std::size_t n = 1; n <= kMaxLength; ++n) {
 		Lanes<K, N> lanes{settings};
@@ -366,11 +374,11 @@ Mismatches lane_alone_against_monos(const typename K::Settings& settings, std::s
 		};
 		const auto seed = static_cast<uint32_t>(n) * 31u;
 		whole(seed);
-		const std::vector<q31> in = lane_of(noise_frames<N>(n, seed + 1), lane);
+		const std::vector<q31> in = lane_of(noise_frames<N>(n, seed + 1), Lane);
 		std::vector<q31> out(n);
 		std::vector<q31> mono_out(n);
-		lanes.renderLane(lane, in, out);
-		monos[lane].renderBlock(in, mono_out);
+		lanes.template renderLane<Lane>(in, out);
+		monos[Lane].renderBlock(in, mono_out);
 		compare(out, mono_out);
 		whole(seed + 2);
 		for (std::size_t l = 0; l < N; ++l) {
@@ -396,12 +404,12 @@ template <typename K>
 Mismatches every_lane_alone(const typename K::Settings& settings) {
 	Mismatches sum;
 	AllWidths::each([&]<std::size_t N>() {
-		for (std::size_t lane = 0; lane < N; ++lane) {
-			const Mismatches m = lane_alone_against_monos<K, N>(settings, lane);
+		each_lane<N>([&]<std::size_t Lane>() {
+			const Mismatches m = lane_alone_against_monos<K, N, Lane>(settings);
 			sum.samples += m.samples;
 			sum.states += m.states;
 			sum.compared += m.compared;
-		}
+		});
 	});
 	return sum;
 }
@@ -860,18 +868,18 @@ describe lanes_spec("Lanes<K, N>", ${
 
 	it("draws noise for the one lane it renders alone, once per sample", _ {
 		AllWidths::each([&]<std::size_t N>() {
-			for (std::size_t lane = 0; lane < N; ++lane) {
+			each_lane<N>([&]<std::size_t Lane>() {
 				SeededNoise expected{shared_noise.state()};
 				Lanes<NoisyAdd, N> lanes;
 				for (std::size_t n = 1; n <= kMaxLength; ++n) {
 					std::vector<q31> block(n);
-					lanes.renderLane(lane, block, block);
+					lanes.template renderLane<Lane>(block, block);
 					for (const q31 sample : block) {
 						expect(sample).to_equal(expected.render());
 					}
 				}
 				expect(shared_noise.state()).to_equal(expected.state());
-			}
+			});
 		});
 	});
 

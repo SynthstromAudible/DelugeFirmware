@@ -52,7 +52,7 @@ struct FilterScratch {
 ///
 /// **Components.** Each slot's filter is a kernel in its `Stereo` wrapper (@ref LowPassLadder over @ref CongNoise,
 /// @ref HighPassLadder, @ref Svf). A stereo block runs the wrapper over its frames; a mono block runs its left channel
-/// alone (`renderLane(0, …)`), so a voice that moves between mono and stereo blocks keeps one state per channel, the
+/// alone (`renderLane<0>(…)`), so a voice that moves between mono and stereo blocks keeps one state per channel, the
 /// left carried across, as a filter holding both channels does.
 ///
 /// **The fades.** Each slot's fade is a @ref FadeInMono component the set holds beside the slot's union, not inside

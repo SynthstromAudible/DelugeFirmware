@@ -50,7 +50,7 @@ void render_mono(Filter& filter, Fade& fade, std::span<q31> block, FadeScratch s
 		dry = scratch.first(block.size());
 		std::ranges::copy(block, dry.begin());
 	}
-	filter.renderLane(0, block, block);
+	filter.template renderLane<0>(block, block);
 	if (fading) {
 		fade.renderBlock(dry, block, block);
 	}
