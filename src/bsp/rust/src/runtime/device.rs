@@ -174,8 +174,13 @@ pub fn start() -> ! {
     log::info!("deluge-rust: C++ global constructors done");
 
     // Clocks, caches, SDRAM and the static constructors are up, and IRQs are still masked.
+    // Only a `DELUGE_DSP_BENCH` tree has a bench to run, so a normal image carries neither the call
+    // nor the `bench_park` task.
     // SAFETY: C ABI with no arguments; called once, before `deluge_app_init`.
+    #[cfg(dsp_bench)]
     let bench_ran = unsafe { sys::deluge_app_bench() };
+    #[cfg(not(dsp_bench))]
+    let bench_ran = false;
 
     // GIC source registration, before the global interrupt enable below. The PIC UART starts at
     // 31250 bps; `control::pic_pump` runs the handshake up to 200000 bps.
@@ -243,6 +248,7 @@ pub fn start() -> ! {
         if bench_ran {
             // A bench image never starts the app: this task blanks the panel and the pads, then
             // parks. It owns the panel, so `oled_render` is not spawned.
+            #[cfg(dsp_bench)]
             spawner.spawn(bench_park().unwrap());
         } else {
             // SSD1309 init and frame streaming over RSPI0.
@@ -337,6 +343,7 @@ async fn app_task() {
 /// as the device stays powered. This task blanks them all. It is the panel's sole owner in a bench
 /// image ([`display::oled_render`] is not spawned), so its OLED commands cannot interleave with a
 /// frame.
+#[cfg(dsp_bench)]
 #[embassy_executor::task]
 async fn bench_park() {
     use deluge_bsp::{oled, pic, rgb};

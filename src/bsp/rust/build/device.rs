@@ -12,6 +12,7 @@ pub fn link(repo_root: &Path, manifest_dir: &Path, out_dir: &Path) {
     setup_linker_script(manifest_dir, out_dir);
     emit_forced_link_roots();
     let (build_dir, cfg, ar) = resolve_build_dir(repo_root);
+    emit_bench_cfg(&build_dir);
     let app_objs_archive = archive_app_objects(repo_root, &build_dir, &cfg, &ar, out_dir);
     link_app_closure(&build_dir, &cfg, &app_objs_archive);
     emit_runtime_link_args();
@@ -75,6 +76,29 @@ fn resolve_build_dir(repo_root: &Path) -> (PathBuf, String, PathBuf) {
             repo_root.join("toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-ar")
         });
     (build_dir, cfg, ar)
+}
+
+/// Sets `cfg(dsp_bench)` when the C++ tree at `build_dir` was configured with `DELUGE_DSP_BENCH`,
+/// so a normal image carries none of the bench's boot path.
+fn emit_bench_cfg(build_dir: &Path) {
+    let cache = build_dir.join("CMakeCache.txt");
+    println!("cargo:rerun-if-changed={}", cache.display());
+    let on = fs::read_to_string(&cache).is_ok_and(|text| {
+        text.lines()
+            .filter_map(|line| line.strip_prefix("DELUGE_DSP_BENCH:"))
+            .filter_map(|rest| rest.split_once('=').map(|(_, value)| value))
+            .any(cmake_true)
+    });
+    if on {
+        println!("cargo::rustc-cfg=dsp_bench");
+    }
+}
+
+/// CMake's true constants: `1`, `ON`, `YES`, `TRUE`, `Y`, case-insensitive.
+fn cmake_true(value: &str) -> bool {
+    ["1", "ON", "YES", "TRUE", "Y"]
+        .iter()
+        .any(|t| value.trim().eq_ignore_ascii_case(t))
 }
 
 /// Archives `deluge_app`'s objects (an OBJECT library, so CMake makes no `.a`) into

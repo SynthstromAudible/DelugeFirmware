@@ -22,6 +22,8 @@ fn main() {
     // `has_app`: the C++ app is linked and `sys` is bindgen's output, on the device and under
     // `host_app`.
     println!("cargo::rustc-check-cfg=cfg(has_app)");
+    // `dsp_bench`: the C++ tree was configured with `DELUGE_DSP_BENCH` (set by `device::link`).
+    println!("cargo::rustc-check-cfg=cfg(dsp_bench)");
     if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("none") {
         println!("cargo::rustc-cfg=has_app");
         bindgen::run(
