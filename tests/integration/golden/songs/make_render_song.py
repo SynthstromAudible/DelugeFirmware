@@ -34,8 +34,8 @@ from the silence every other compressor golden starts in.
 RS_AUDIO_COMP_RESET switches an audio track's compressor off mid-sound, where it resets, and on again, so it renders
 after a reset with its level and detector carried over.
 RS_AUDIO_COMP_BLEND blends an audio track's compressor half wet on a loud track (SAMPLES/RS/LOUD.WAV, written for it
-alone, its EQ boosting), so the dry half carries the loud input into the level the compressor measures and the
-level's sum wraps.
+alone, its EQ boosting), so the dry half carries the loud input into the level the compressor measures, loud enough
+that a q31 sum of a block's squares would pass 2^31, which the compressor's 64-bit level sum holds.
 RS_DUCK_SHAPES covers the sidechain envelope's paths RS_AUDIO_DUCKED leaves out on the host owners: the instant
 attack, the straight and clamped release shapes, and a stronger hit taken mid-attack and mid-release.
 """
@@ -763,9 +763,10 @@ AUDIO_COMP_RESET = _host(
 
 # An audio track's compressor blended half wet on a loud track: the clip plays LOUD.WAV (sample A's chord normalised
 # near full scale) at the clip's full volume with the EQ's bass and treble at their maximum boost, so the dry half of
-# the blend carries the loud input back into the block the compressor measures, and a block's q31 level sum wraps
-# (the clip's volume alone does not reach it). Its threshold is above the minimum and every other host setting at
-# DRY's. Its twin holds the threshold at the minimum, where the compressor is off.
+# the blend carries the loud input back into the block the compressor measures, loud enough that a q31 sum of a
+# block's squares would pass 2^31, which the 64-bit level sum holds (the clip's volume alone is not that loud). Its
+# threshold is above the minimum and every other host setting at DRY's. Its twin holds the threshold at the minimum,
+# where the compressor is off.
 LOUD_SAMPLE = "SAMPLES/RS/LOUD.WAV"
 COMP_BLEND = (
     '<audioCompressor attack="83886080" release="83886080" thresh="1073741824" ratio="1073741824" compHPF="0" '
