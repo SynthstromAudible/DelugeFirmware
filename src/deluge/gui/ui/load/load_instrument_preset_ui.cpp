@@ -1144,6 +1144,9 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	soundDrumToReplace = newDrum;
 	kitToLoadFor->selectedDrum = newDrum;
 	kitToLoadFor->beenEdited();
+	// The view may still have the old drum cached as its active ModControllable, and gold knobs turned while this
+	// browser is open go straight to it
+	view.setActiveModControllableTimelineCounter(instrumentClipToLoadFor);
 
 	display->removeLoadingAnimation();
 	return Error::NONE;
