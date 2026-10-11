@@ -250,7 +250,11 @@ struct Compressor {
 	}
 
 	/// @brief Event: the block's levels, and the threshold @p l's knob gives as a fraction of the volume's level.
-	static void set_levels(State& s, const Levels& l);
+	/// @details Inline: the owner calls it once per block, and its few instructions cost less than a call.
+	[[gnu::always_inline]] static void set_levels(State& s, const Levels& l) {
+		s.levels = l;
+		s.threshold = threshold_fraction(l.threshold);
+	}
 
 	/// @brief Event: seeds both saturations from @p first, the block's first frame as it comes in, so it interpolates
 	/// against itself rather than against silence; marks the state seeded.

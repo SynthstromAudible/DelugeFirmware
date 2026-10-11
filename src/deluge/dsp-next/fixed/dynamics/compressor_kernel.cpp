@@ -76,11 +76,6 @@ void Compressor::reset(State& s) {
 	s.seeded = false;
 }
 
-void Compressor::set_levels(State& s, const Levels& l) {
-	s.levels = l;
-	s.threshold = threshold_fraction(l.threshold);
-}
-
 void Compressor::seed(State& s, StereoSample first) {
 	AntialiasedTanh::seed(kSaturator, s.saturation_l, first.l);
 	AntialiasedTanh::seed(kSaturator, s.saturation_r, first.r);
