@@ -42,6 +42,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
+#include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
@@ -58,15 +59,7 @@
 
 namespace params = deluge::modulation::params;
 
-namespace {
-/// The mod FX rings come from the app's heap.
-constexpr deluge::effects::RingAllocator kAppRingAllocator{
-    .allocate = [](std::size_t bytes) { return delugeAlloc(static_cast<unsigned int>(bytes)); },
-    .release = [](void* block) { delugeDealloc(block); },
-};
-} // namespace
-
-ModControllableAudio::ModControllableAudio() : modfx{kAppRingAllocator} {
+ModControllableAudio::ModControllableAudio() : modfx{deluge::model::kModFxRingAllocator} {
 
 	// Grain
 

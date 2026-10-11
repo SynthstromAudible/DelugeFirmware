@@ -1316,7 +1316,8 @@ inline constexpr ModFxConfig kModFxPhaser{.kind = ModFxKind::PHASER, .stereo = t
 /// @details Setup makes the component anew (its LFOs at rest, and a zeroed ring taken through prepare, commit and
 /// finish for the effects that run over one), restores the volume and copies the lanes input's first n frames
 /// (fill_compressor_input()'s sounding block) into the lanes output. Each block processes that block in place, over
-/// the block before's output.
+/// the block before's output, so the signal is not a steady tone after the first blocks; the timing does not depend
+/// on the data.
 class ModFxCase {
 public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.

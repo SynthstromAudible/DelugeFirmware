@@ -38,8 +38,7 @@ void noteStructuralEdit(StructuralContainer kind);
 uint32_t unguardedStructuralEdits(StructuralContainer kind);
 
 /// @brief [task] Structural edits of @p kind recorded since boot, guarded or not. A harness uses it to tell that an
-/// edit
-///        site ran at all, which a zero unguarded count cannot.
+/// edit site ran at all, which a zero unguarded count cannot.
 /// @param kind Which container kind to report.
 /// @return The number of noteStructuralEdit() calls for @p kind.
 uint32_t notedStructuralEdits(StructuralContainer kind);

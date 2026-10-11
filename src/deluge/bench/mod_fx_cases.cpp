@@ -7,7 +7,7 @@
 
 #include "definitions_cxx.hpp"
 #include "engines/effects/mod_fx.h"
-#include "memory/general_memory_allocator.h"
+#include "model/mod_controllable/mod_fx_allocator.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -16,12 +16,6 @@
 namespace deluge::bench {
 
 namespace {
-
-/// The rings come from the app's heap, as the owners' do.
-constexpr effects::RingAllocator kRingAllocator{
-    .allocate = [](std::size_t bytes) { return delugeAlloc(static_cast<unsigned int>(bytes)); },
-    .release = [](void* block) { delugeDealloc(block); },
-};
 
 /// @brief What every mod FX case renders with: one component and the work block. The cases run one after another,
 /// so they share it; each case's setup makes the component anew.
@@ -55,10 +49,11 @@ constexpr ModFXType mod_fx_type(ModFxKind kind) {
 } // namespace
 
 void ModFxCase::setup(std::size_t n) {
-	// A fresh component: its LFOs at rest, and a zeroed ring for the effects that run over one.
+	// A fresh component, so each case starts from the same state: its write index and LFOs at rest (an owner never
+	// resets them), and a zeroed ring for the effects that run over one.
 	const ModFXType type = mod_fx_type(config_.kind);
 	rig.mod_fx.reset();
-	rig.mod_fx.emplace(kRingAllocator);
+	rig.mod_fx.emplace(model::kModFxRingAllocator);
 	effects::RingChange ring = rig.mod_fx->prepare(type);
 	rig.mod_fx->commit(type, ring);
 	rig.mod_fx->finish(ring);

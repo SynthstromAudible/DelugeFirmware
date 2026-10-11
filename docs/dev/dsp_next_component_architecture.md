@@ -386,8 +386,9 @@ the allocator and the soft off.
   link to the owner's memory, so the per-block State copy and `state()`'s
   by-value snapshot carry the pointer, not the 4 KB it points at, and the
   render allocates nothing. `clear_memory` zeroes the ring when one is held and
-  the phaser's memories otherwise; `zero_ring` zeroes the ring and keeps the
-  write index.
+  the phaser's memories otherwise; the component clears the phaser's memories
+  in a chain's soft off, as an owner without a ring does. `zero_ring` zeroes
+  the ring and keeps the write index.
 - **One LFO state serves every mode, and a change of wave re-seats it.** The
   phase carries across mode changes. The waves are sine (chorus, phaser),
   triangle (dimension, flanger) and the warbler. `prepare` zeroes the main
@@ -411,10 +412,10 @@ the allocator and the soft off.
 - **Inputs by value, results by reference.** The component's `render` takes the
   type in effect (NONE in a chain's soft off), the rate, depth, offset and
   feedback finals, whether the render is stereo and whether any sound came in,
-  and multiplies the post-FX volume by the mode's gain whenever the block renders
-  (a sound comes in and the type is an effect, not NONE or grain), since the
-  volume cut at high feedback applies in every mode. `tick` advances the phase
-  by a block's frames while the owner skips rendering.
+  and multiplies the post-FX volume by the mode's gain whenever the block
+  renders (a sound comes in and the type is an effect, not NONE or grain), since
+  the volume cut at high feedback applies in every effect type. `tick` advances
+  the phase by a block's frames while the owner skips rendering.
 - **A type without a ring frees it.** Changing a chain's type to grain, OFF or
   the phaser frees the ring, so coming back to a ring type starts from a zeroed
   ring. Grain holds no ring.

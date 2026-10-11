@@ -45,8 +45,8 @@ kinds=<kind=n,...>`:
     CG-MODFXOOM              the song master's mod FX type set to chorus with its ring's allocation made to fail:
                              the type change consumes the failure, no ring is held and the chorus passes its block
                              through unchanged; a change to flanger then holds a ring and the master's render runs the
-                             effect over it (CG-MODFXOOM injected=1 passthrough=1 recovered=1 noted=1 required; noted = the ring hand-over
-                             reported itself to the structural-edit probe)
+                             effect over it (CG-MODFXOOM injected=1 passthrough=1 recovered=1 noted=1
+                             required; noted = the ring hand-over reported itself to the structural-edit probe)
     CG-MODFXCLONE            an audio track whose chain runs chorus, cloned into a new track (AudioOutput::cloneFrom):
                              the clone holds its own ring before any block renders, and its chorus changes a block
                              (CG-MODFXCLONE ring=1 renders=1 required)

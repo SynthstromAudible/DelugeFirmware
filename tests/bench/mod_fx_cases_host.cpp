@@ -10,6 +10,8 @@
 
 namespace deluge::bench {
 
+// These cover the list, not the case's behaviour.
+
 void ModFxCase::setup(std::size_t /*n*/) {
 }
 
