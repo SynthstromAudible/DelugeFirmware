@@ -75,7 +75,12 @@ These numbers explain the cost of a streaming q31 loop:
    little of one frame with the next, so a stage appended to the end of a frame's chain adds its latency to every
    frame. The compressor's level measurement, fused onto the output it had just made, ran 12% slower than the two
    passes it replaced; measuring the frame before instead, independent of the frame's own gain and saturation, took
-   the loop to within 1% ([Compressor](#compressor)).
+   about 12 cycles per frame off the wet loop ([Compressor](#compressor)).
+7. **Copy only what the loop steps.** The wrappers copy a kernel's State around the loop so that scalar state stays
+   in registers, and the compiler copies a large State with NEON loads and stores. A kernel whose State is mostly
+   touched once per block (by `prepare` and the events) names its loop's part with `kLoopState`; the compressor's
+   per-block cost fell by 100–150 cycles that way. A State the loop cannot hold in registers (a ring, a history) is
+   stepped in place with `kStateInPlace` instead ([Delay](#delay)).
 
 ## Shared kernel costs
 
@@ -393,43 +398,44 @@ Cycles per channel-sample, stereo: the 24 dB ladder and the high-pass ladder, ea
 a saturation loop, a copy of the block for the blend, a blend loop and a level loop. Cycles per channel-sample (cycles
 per frame ÷ 2), in place over a loud stereo block past the threshold, fully wet (`wet`) or blended at half (`blend`),
 through `render` (the master's channel gains) or `renderVolumeNeutral`, with the library's flags
-(`DELUGE_DSP_BENCH_CASES=compressor`), measured on 2026-10-11 with `set_levels` inlined into the owner's render. The
-after figures are the mean of two runs, which agree within 0.02% on every compressor case. The unchanged
-`delay_feedback_chain_*` controls move by at most 0.8% between the two images, so a difference inside ±0.9% is noise
-(≈).
+(`DELUGE_DSP_BENCH_CASES=compressor`), measured on 2026-10-11 with `set_levels` inlined into the owner's render and the
+kernel declaring `kLoopState`. The after figures are the mean of two runs, which agree within 0.12% on every case. The
+unchanged `delay_feedback_chain_*` controls move by up to 1.6% between the two images (the digital one at n = 32), so a
+difference inside ±1.7% is noise (≈).
 
 | case | n=32 before → after (Δ) | n=64 before → after (Δ) | n=128 before → after (Δ) | inst/sample @128 |
 |---|---:|---:|---:|---:|
-| `wet_render` | 75.63 → 78.56 (+3.9%) | 68.74 → 70.35 (+2.3%) | 65.42 → 66.45 (+1.6%) | 57.8 → 54.8 |
-| `wet_neutral` | 75.36 → 78.66 (+4.4%) | 68.53 → 70.48 (+2.8%) | 65.26 → 66.48 (+1.9%) | 57.8 → 54.8 |
-| `blend_render` | 84.14 → 84.80 (+0.8% ≈) | 77.20 → 77.09 (-0.1% ≈) | 73.58 → 73.32 (-0.4% ≈) | 70.0 → 63.2 |
-| `blend_neutral` | 83.99 → 85.14 (+1.4%) | 76.88 → 77.12 (+0.3% ≈) | 73.44 → 73.35 (-0.1% ≈) | 70.0 → 63.2 |
-| control `delay_feedback_chain_analog` | 171.97 → 171.64 | 165.87 → 165.81 | 163.00 → 162.90 | 183.8 → 183.8 |
-| control `delay_feedback_chain_digital` | 19.93 → 20.09 | 14.21 → 14.29 | 11.35 → 11.39 | 12.8 → 12.8 |
+| `wet_render` | 75.63 → 78.27 (+3.5%) | 68.74 → 71.18 (+3.5%) | 65.42 → 67.87 (+3.7%) | 57.8 → 56.6 |
+| `wet_neutral` | 75.36 → 78.45 (+4.1%) | 68.53 → 71.31 (+4.1%) | 65.26 → 67.90 (+4.0%) | 57.8 → 56.6 |
+| `blend_render` | 84.14 → 80.73 (-4.1%) | 77.20 → 73.81 (-4.4%) | 73.58 → 70.44 (-4.3%) | 70.0 → 63.1 |
+| `blend_neutral` | 83.99 → 81.13 (-3.4%) | 76.88 → 73.84 (-4.0%) | 73.44 → 70.46 (-4.1%) | 70.0 → 63.1 |
+| control `delay_feedback_chain_analog` | 171.97 → 172.22 | 165.87 → 166.00 | 163.00 → 163.05 | 183.8 → 183.8 |
+| control `delay_feedback_chain_digital` | 19.93 → 20.25 | 14.21 → 14.36 | 11.35 → 11.43 | 12.8 → 12.8 |
 
-Fitted as a + C/2n from n = 32 and 128 (n = 64 lands within 0.15):
+Fitted as a + C/2n from n = 32 and 128 (n = 64 lands within 0.16):
 
 | | loop, cycles per frame | per block, cycles |
 |---|---:|---:|
 | wet, before (two loops) | 124.0 | 871 |
-| wet, after | 124.8 | 1033 |
+| wet, after | 128.8 | 887 |
 | blend, before (three loops and a copy) | 140.1 | 901 |
-| blend, after | 139.0 | 980 |
+| blend, after | 134.0 | 878 |
 
-- **The blend is as fast as before, the wet compressor 2–4% slower.** The fused blend loop drops the scratch copy and
-  the separate blend pass and runs about 1 cycle per frame faster. The wet loop runs about 1 cycle per frame slower
-  than the two loops it replaced, and every block costs about 80–160 cycles more, so the wet cases lose most at small
-  blocks.
-- **The per-block cost is the State's copy and the events.** In a PTM trace, writing the State back after the loop is
-  a 57-cycle block, and the copy in shares a 142-cycle block with the gain arithmetic: about 90 cycles for the copy.
-  `finish_level` measuring the block's last frame costs about 15. Stepped in place, the State needs no copy, but the
-  loop then stores eight State words every frame (a codegen probe at the shipping flags), so the copy stays.
-- **`set_levels` is inline; `seed` and `finish_level` are not.** Out of line, `set_levels` cost about 38 cycles a
-  block with its call, for 11 inside. Inlined, the owner's render keeps the levels in registers, and the register
-  allocation of both loops shifts with it: the wet loop gains an instruction but spills 4 fewer words per frame (about
-  1 cycle per frame faster), and the blend loop gains 4 instructions, its output frame stored as two `str` (about 1
-  cycle per frame slower). Net, wet is 0.5–0.7% faster and blend level at n = 32 and 0.25–0.5% slower at n = 64 and
-  128. `seed` runs only after a reset, and `finish_level` calls `logf` and `sqrtf`; the render now tail-calls it.
+- **The blend is 3–4% faster, the wet compressor 3.5–4% slower.** The fused blend loop drops the scratch copy and the
+  separate blend pass and runs about 6 cycles per frame faster. The wet loop runs about 5 cycles per frame slower than
+  the two loops it replaced. Per block, both now cost about what the hand-written class did.
+- **The per-block cost is the State's copy, so only the loop's part is copied.** Copied whole around the loop, the
+  compressor's State goes through NEON loads and stores, about 90 cycles per block in a PTM trace; stepped in place,
+  the loop stores eight State words every frame instead. The kernel declares `kLoopState`, so the wrapper copies only
+  `Compressor::Loop` (gains, saturators, detectors, `pending`, the 64-bit sum) with integer loads and stores: 887
+  cycles per block against 1033 for the whole copy (wet), 878 against 980 (blend). `finish_level` measuring the
+  block's last frame costs about 15 cycles.
+- **The loops' register allocation moves with the code around them.** With the partial copy the blend loop runs about 5
+  cycles per frame faster than with the whole copy, and the wet loop about 4 slower: its arithmetic is unchanged, but it
+  carries 4 more `mov`s and stores its output frame as two `str` where it had one `strd` (113 instructions against 109,
+  counted the same way). Inlining `set_levels` against calling it shifts them too: the wet loop gains an instruction but
+  spills 4 fewer words per frame, and the blend loop gains 4 instructions. `seed` runs only after a reset, and
+  `finish_level` calls `logf` and `sqrtf`; the render tail-calls it.
 - **Measured on the output it had just made, the level measurement cost 12%.** That form (before the measurement ran
   one frame behind) ran the wet cases 11.7–13.5% and the blend cases 1.3–3.7% slower than before, with 4 fewer
   instructions per channel-sample but 8.6 more issue-empty cycles per channel-sample on wet. Each frame was one
@@ -438,8 +444,8 @@ Fitted as a + C/2n from n = 32 and 128 (n = 64 lands within 0.15):
   126 cycles per frame. The 64-bit sum's conversion to float, through two words and an exact double rather than the
   library's 64-bit integer conversion, saves about 65 cycles more per block.
 - **The loops call nothing.** With the shipping flags, neither loop has a call, a `muls` or an out-of-line accessor;
-  each stores only its output frame (one `strd` in wet, two `str` in blend) and its spills: 17 stack loads and stores
-  per frame in wet (105 instructions), 26 in blend (122). The level's 64-bit sum is among the spills.
+  each stores only its output frame (two `str`) and its spills: 17 stack loads and stores per frame in wet, 27 in
+  blend. The level's 64-bit sum is among the spills.
 
 ## Open questions
 

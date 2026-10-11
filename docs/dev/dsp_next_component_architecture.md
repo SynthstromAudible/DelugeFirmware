@@ -345,10 +345,17 @@ fused frame kernel of stereo frames, rendered in place as
 - **The level cannot wrap.** The detector output's magnitude is unsigned
   (`INT32_MIN` measures 2^31), and its square's high word is summed in 64 bits:
   at most 2^37 over 128 frames.
-- **Its State is copied, not stepped in place.** The State is scalars, which the
-  loop keeps in registers or spills to the stack. Stepped in place, the loop
-  stores eight State words every frame, since the output may alias the State;
-  the copy in and out costs about 90 cycles per block.
+- **It declares `kLoopState`, not `kStateInPlace`.** The loop's part of the
+  State, `Compressor::Loop` (the channel gains, the saturators, the detectors,
+  `pending` and the 64-bit sum), is scalars, which the loop keeps in registers or
+  spills to the stack: the wrapper copies only that part in and out. The levels,
+  envelopes, `log_rms`, `mean`, block length, seed flag and LED value are read
+  and written only by `prepare` and the events, so they stay in the member State.
+  Stepped in place, the loop would store eight State words every frame, since
+  the output may alias the State. Copying only `Loop` cut the per-block cost by
+  100–150 cycles against copying the whole State, which the compiler had done
+  with NEON loads and stores
+  ([a9_dsp_performance.md](a9_dsp_performance.md#compressor)).
 
 ### The control form
 
@@ -463,6 +470,10 @@ and the values between parts stay in registers. A chain is bit for bit its parts
 run in sequence, since each part steps its own State in the order it would
 alone.
 
+- **Loop state.** A part declaring `kLoopState` steps on that member of its
+  State, through `kernel_ops::loop_state`. The chain declares none, so a
+  wrapper copies the chain's whole State around its loop. `Pinned<K, M>`
+  declares K's `kLoopState` when K does.
 - **Composition and arity.** Two or more parts, all stepping the same
   `step_type` over the same `value_type`, so a chain never converts between
   domains. The first part may be a generator, a processor or a mixer, and the
@@ -602,9 +613,24 @@ per-sample loop, so a `Mono` of one would be inert.
   would be skipped silently.
 - **In place.** Each step loads before it stores, so the input and output may be
   the same buffer, on every loop path.
-- **Local copies.** The loop runs on local copies of the coefficients and state,
-  written back after the block, so they stay in registers even though the output
-  may alias the component.
+- **Local copies.** The loop runs on local copies of the coefficients and of
+  the kernel's loop state, written back after the block, so they stay in
+  registers even though the output may alias the component. `prepare` runs on
+  the member State first, so its writes are in place before the copy is taken.
+- **`kLoopState`.** A kernel declaring `static constexpr auto kLoopState =
+  &State::member;` names the part of its State the loop steps; `loop_state_t<K>`
+  is that member's type (the whole State without the trait). Its `step` takes
+  that member, while `prepare`, `reset`, the events and `state()` see the whole
+  State, and the wrapper copies only that member around the loop. Declare it
+  when much of the State is touched only once per block, by `prepare` and the
+  events: the compressor's levels, envelopes and mean
+  ([Block arithmetic in `prepare`](#block-arithmetic-in-prepare-block-inputs-by-event-compressor)).
+  Leave it off when the loop touches most of the State. The kernel concept
+  checks it: a pointer to a data member of `State` itself, a plain value, which
+  `step` takes; only a stepping kernel declares it (a staged or control kernel
+  has no step). Kernels call each other's steps through
+  `kernel_ops::loop_state<K>(state)`, so a composed kernel never has to know
+  whether a part declares it.
 - **`kStateInPlace`.** A kernel declaring `static constexpr bool kStateInPlace =
   true` is stepped on its member State directly, with no per-block copy in and
   out. Declare it when the State cannot live in registers: an array, a history
@@ -615,7 +641,9 @@ per-sample loop, so a `Mono` of one would be inert.
   `Delay`'s 424-byte State the copy costs 6–7% of the digital loop at n = 128
   and 29–31% at n = 32, far more than the per-frame stores
   ([a9_dsp_performance.md](a9_dsp_performance.md#delay)). A kernel with a
-  small, scalar State keeps the default.
+  small, scalar State keeps the default. With `kLoopState` too, the loop steps
+  the named member in place: the two traits combine, one choosing which part
+  the loop steps and the other whether it is copied.
 - `render(...)` is a one-sample block: one `prepare` and one dispatch per call.
   A vector kernel renders it as the partial step of a block of one. It builds
   one-sample spans and runs a whole block's glue, several out-of-line
@@ -691,16 +719,19 @@ arity, as `Mono` is. A staged or control kernel is rejected at the class: neithe
   ([a9_dsp_performance.md](a9_dsp_performance.md#chain)), and so is left as it is; the remedy class, once a bench shows
   the stall matters, is a one-frame software pipeline in the `Lanes`/`Mono` loop: load frame i + 1 before storing
   frame i, so the next load's address never follows the store.
-- **The State copy.** The loop runs on local copies of the coefficients and every State, written back after the block,
-  as in `Mono`, so that scalar state can live in registers while the output may alias the component. Only scalar
-  state gains from it. An array in a State never lives in registers, so it is copied in and out for nothing, at a cost
-  that grows with its size: the delay's feedback chain as `Stereo` copies 416 bytes in and out per block, about a cycle
-  per channel-sample in digital mode at n = 128 and 6–7% of the whole fused digital delay. `Mono` takes
-  `kStateInPlace` to skip the copy (above), and the delay ships as `Mono<Delay>` with it; `Lanes` and `Stereo` do not
-  take it yet. A kernel with a big ring (a reverb's combs, a chorus's or flanger's line) must not go through `Lanes`
-  until they do: a few kilobytes copied twice a block costs more than its step. Splitting the State into a register
-  part, copied, and a memory part stepped in place is the further refinement, to design with the first kernel that
-  needs both.
+- **The State copy.** The loop runs on local copies of the coefficients and every lane's loop state, written back
+  after the block, as in `Mono`, so that scalar state can live in registers while the output may alias the component.
+  Only scalar state gains from it. An array in a State never lives in registers, so it is copied in and out for
+  nothing, at a cost that grows with its size: the delay's feedback chain as `Stereo` copies 416 bytes in and out per
+  block, about a cycle per channel-sample in digital mode at n = 128 and 6–7% of the whole fused digital delay. `Lanes`
+  takes both of `Mono`'s traits (above), per lane: `kLoopState` copies only each lane's loop state, and
+  `kStateInPlace` steps each lane's member loop state with no copy, so a kernel with a big ring (a reverb's combs, a
+  chorus's or flanger's line) declares it. `prepare` runs on each lane's member State, and `on`, `reset` and
+  `state(lane)` see the whole State. `renderLane` follows the same rules for its one lane.
+- **Neither trait is op-major.** A kernel declaring `kLoopState` or `kStateInPlace` is not `lane_packable`, so `Lanes`
+  steps it lane by lane, as it does a kernel with a `prepare` or a `reset` quirk. An op-major kernel has no `prepare`,
+  so nothing but an event would write a State outside its loop, and its packed State is per-block registers by
+  design.
 - **`Stereo<K>` is `Lanes<K, 2, StereoSample>`** (below).
 - **Measure every use.** N is per kernel, 2 by default. Each use of `Lanes` gets a bench case at its N (the `lanes`
   list in [Measuring](#measuring)), because clang's scheduling, addressing and encoding choices move the same work by
