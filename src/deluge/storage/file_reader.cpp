@@ -446,10 +446,9 @@ void StorageManager::releaseDocumentStaging() {
 // re-point one of these at a new buffer without duplicating that constructor's initialisation here.
 // Both start disengaged, so they are constant-initialised: no static constructor, no allocation. They
 // do still GROW .sdram_bss by their own size, and the Rust BSP derives the device's external heap base
-// from &__sdram_bss_end (services.rs, deluge_memory_region) -- so the device heap base shifts down and
+// from &__sdram_static_end (services.rs, deluge_memory_region) -- so the device heap base shifts up and
 // the heap shrinks by that much. Harmless at this size, and invisible to the goldens, which run on the Embassy host,
-// where
-// __sdram_bss_end is `.set` to a fixed host array the linker never moves.
+// where the region is a fixed host array the linker never moves.
 //
 // These are the first std::optionals in .sdram_bss, and being disengaged at boot is a fact they INHERIT
 // from the boot's zeroing of [__sdram_bss_start, __sdram_bss_end) (src/bsp/rust/src/boot_mem.rs,

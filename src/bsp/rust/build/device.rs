@@ -39,8 +39,11 @@ fn setup_linker_script(manifest_dir: &Path, out_dir: &Path) {
     )
     .unwrap();
     println!("cargo:rustc-link-search={}", out_dir.display());
-    println!("cargo:rustc-link-arg=-Wl,-T,{linker_script}");
+    // The fragment goes first. lld assigns each input section to the first matching output
+    // section in command-line script order, before applying the fragment's INSERTs, and the
+    // fragment's patterns that move statics to SDRAM must win over `rza1l.x`'s `*(.bss.*)`.
     println!("cargo:rustc-link-arg=-Wl,-T,sdram_sections.x");
+    println!("cargo:rustc-link-arg=-Wl,-T,{linker_script}");
     println!("cargo:rerun-if-changed=linker/memory.x");
     println!("cargo:rerun-if-changed=linker/memory_rtt.x");
     println!("cargo:rerun-if-changed=linker/sdram_sections.x");

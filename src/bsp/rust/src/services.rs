@@ -14,12 +14,13 @@ use crate::sys::{
     DelugeStatus_DELUGE_ERR_PARAM as DELUGE_ERR_PARAM, DelugeStatus_DELUGE_OK as DELUGE_OK,
 };
 
-// Linker boundary symbols (rza1l.x): the internal SRAM heap and the end of the SDRAM .bss.
+// Linker boundary symbols: the internal SRAM heap (rza1l.x) and the end of the static SDRAM
+// content (sdram_sections.x).
 #[cfg(target_os = "none")]
 unsafe extern "C" {
     static __sram_heap_start: u8;
     static __sram_heap_end: u8;
-    static __sdram_bss_end: u8;
+    static __sdram_static_end: u8;
 }
 
 // ── system.h ────────────────────────────────────────────────────────────────
@@ -210,7 +211,7 @@ pub extern "C" fn deluge_memory_region_count() -> u8 {
 pub extern "C" fn deluge_memory_region(index: u8, out: *mut DelugeMemoryRegion) -> DelugeStatus {
     let (base, size, kind) = match index {
         0 => {
-            let b = core::ptr::addr_of!(__sdram_bss_end) as usize;
+            let b = core::ptr::addr_of!(__sdram_static_end) as usize;
             (b, crate::boot_mem::RUST_SDRAM_BASE - b, KIND_EXTERNAL)
         }
         1 => {

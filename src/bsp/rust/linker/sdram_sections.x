@@ -1,36 +1,26 @@
-/* Supplementary linker fragment (added on top of rza1l.x via a second -T with
- * `INSERT AFTER .bss`): place the Deluge application's custom memory sections and
- * the C++ .init_array, and define the boundary symbols the app's
- * GeneralMemoryAllocator reads (general_memory_allocator.cpp):
+/* Supplementary linker fragment, added on top of rza1l.x by a second -T: places the Deluge
+ * application's custom memory sections and the C++ .init_array, and defines the boundary symbols
+ * the boot (boot_mem.rs) and the memory regions (services.rs) read:
  *
- *   stealable    = [__sdram_bss_end, RUST_SDRAM_BASE)                -- SDRAM
- *   internal     = [__heap_start,    program_stack_start)            -- SRAM
- *   internal_sml = [__frunk_bss_end, __frunk_slack_end)              -- SRAM (frunk)
+ *   SDRAM heap   = [__sdram_static_end, RUST_SDRAM_BASE)                  -- region 0
+ *   internal_sml = [__frunk_bss_end,    __frunk_slack_end)                -- SRAM (frunk)
  *
- * `program_stack_start` comes from rza1l.x (top of SRAM). The .frunk_bss/.heap
- * are INTERNAL (PLACE_INTERNAL_FRUNK), i.e. SRAM — NOT SDRAM.
+ * The SRAM heap (region 1) is rza1l.x's [__sram_heap_start, __sram_heap_end).
  *
- * Loadable SDRAM content (.sdram_*) gets a VMA in SDRAM but an LMA in SRAM
- * (`> SDRAM AT> RAM`) since the debugger can't write SDRAM at download; the Rust
- * boot copies it after init_clocks. NOLOAD bss is zeroed by the boot.
+ * Loadable SDRAM content (.sdram_init) gets a VMA in SDRAM but an LMA in SRAM (`> SDRAM AT> RAM`),
+ * since the debugger can't write SDRAM at download; the Rust boot copies it after init_clocks.
+ * NOLOAD bss is zeroed by the boot.
  *
- * Ordering note: the SDRAM sections come first so that the LAST section before
- * the bare `__heap_start = .` is a `> RAM` section — otherwise `.` tracks the
- * SDRAM VMA and __heap_start lands in SDRAM (the bug that put it at 0x0c0181a0).
+ * An input section goes to the FIRST output section whose pattern matches it, in command-line
+ * script order and before the INSERTs are applied. rza1l.x's `.bss` takes every `.bss.*` and its
+ * `.data` every `.data.*`, so this fragment is passed before rza1l.x (build/device.rs) for its
+ * patterns that move statics to SDRAM to win. The INSERTs then place the sections: `.sdram_bss`
+ * before `.bss`, the rest after it.
  */
-SECTIONS {
-    /* ---- External (SDRAM) ---- */
-    /* Initialised SDRAM content: VMA in SDRAM, LMA in SRAM (copied at boot). */
-    .sdram_init : {
-        PROVIDE(__sdram_init_start = .);
-        *(.sdram_text .sdram_text*)
-        *(.sdram_data .sdram_data*)
-        *(.sdram_rodata .sdram_rodata*)
-        PROVIDE(__sdram_init_end = .);
-    } > SDRAM AT> RAM
-    PROVIDE(__sdram_init_lma = LOADADDR(.sdram_init));
 
-    /* SDRAM zero-init region (NOLOAD) — start of the SDRAM "stealable" heap.
+/* ---- External (SDRAM), zero-initialised ---- */
+SECTIONS {
+    /* SDRAM zero-init region (NOLOAD).
      *
      * The boundary symbols are defined unconditionally, NOT with PROVIDE. PROVIDE
      * emits a symbol only if something still references it, which made the symbol
@@ -43,8 +33,36 @@ SECTIONS {
     .sdram_bss (NOLOAD) : {
         __sdram_bss_start = .;
         *(.sdram_bss .sdram_bss*)
+        /* The storage channels' state (request queues, results, and the embassy task pools,
+         * which `#[embassy_executor::task]` generates with no way to place them) and the efatfs
+         * mount's tables. Only the storage tasks and their C-ABI entry points touch them, and
+         * none is a DMA target: SD transfers go through SD_DMA_BUF. Matched by the static's
+         * v0-mangled module path. A rename of either module silently returns its statics to
+         * SRAM, which shows as lost headroom, never as a fault. */
+        *(.bss._RNv*15deluge_bsp_rust7channel*)
+        *(.bss._RNv*15deluge_bsp_rust7storage6efatfs6device*)
         __sdram_bss_end = .;
     } > SDRAM
+} INSERT BEFORE .bss;
+
+/* ---- External (SDRAM), initialised; and the internal (SRAM) extras ---- */
+SECTIONS {
+    /* Initialised SDRAM content: VMA in SDRAM, LMA in SRAM (copied at boot). */
+    .sdram_init : {
+        PROVIDE(__sdram_init_start = .);
+        *(.sdram_text .sdram_text*)
+        *(.sdram_data .sdram_data*)
+        *(.sdram_rodata .sdram_rodata*)
+        /* The efatfs mount's initialised tables (open handles, the mounted volume); as above. */
+        *(.data._RNv*15deluge_bsp_rust7storage6efatfs6device*)
+        PROVIDE(__sdram_init_end = .);
+    } > SDRAM AT> RAM
+    PROVIDE(__sdram_init_lma = LOADADDR(.sdram_init));
+
+    /* The end of all static SDRAM content, where the SDRAM heap starts. `.sdram_bss` precedes
+     * `.sdram_init` in the region (see the block order above), but neither the boot nor the heap
+     * relies on which comes first. */
+    __sdram_static_end = MAX(__sdram_bss_end, ADDR(.sdram_init) + SIZEOF(.sdram_init));
 
     /* ---- Internal (SRAM) ---- */
     /* The app's small-alloc "frunk" arena (PLACE_INTERNAL_FRUNK): the allocator
@@ -66,8 +84,8 @@ SECTIONS {
         PROVIDE(__init_array_end = .);
     } > RAM
 
-    /* NOTE: __heap_start (the app's internal-heap BASE) is defined by rza1l.x as
-     * __sram_heap_start (= end of the WHOLE image). It must NOT be set here: this
-     * fragment is INSERT'd before .text/.rodata/.data, so any `.`/__init_array_end
-     * value here lands mid-image and the app heap would overrun the code. */
+    /* NOTE: the SRAM heap's base is rza1l.x's __sram_heap_start (= end of the WHOLE image). It
+     * must NOT be set here: this block is INSERT'd before .text/.rodata/.data, so any `.` value
+     * here lands mid-image and the heap would overrun the code. The last section in this block is
+     * a `> RAM` one, so `.` leaves it tracking SRAM, not the SDRAM VMA. */
 } INSERT AFTER .bss;
