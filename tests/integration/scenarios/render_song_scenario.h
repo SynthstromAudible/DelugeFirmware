@@ -38,6 +38,11 @@
 ///   - `RENDER_DELAY_SWITCH`: `<block>,<block>,...`, ascending: at each block, counted from playback's start, every
 ///     audio track's delay switches between analog and digital by the Edit a press of the gold knob on its delay
 ///     makes. None by default.
+///   - `RENDER_MODFX_SWITCH`: `<block>:<type>,...`, ascending, each type as a file writes it: at each block, counted
+///     from playback's start, every audio track's mod FX type is set to it by the Edit the mod FX type menu makes. None
+///     by default.
+///   - `RENDER_MODFX_CLEAR`: `<block>,<block>,...`, ascending: at each block, every audio track's comb mod FX memory
+///     is cleared (ModFXProcessor::resetMemory), as a sound's cut tail clears it. None by default.
 ///
 /// Lines:
 ///   - `RS-LOADED name=<n> outputs=<k> view=<v> playing_clips=<c> notes=<m>`: the song that loaded, the view it
@@ -54,6 +59,10 @@
 ///   - `RS-DELAY-SWITCH block=<b> analog=<0|1>`: one audio track's delay switched at block @c b, and its mode after.
 ///     Then, after the run, `RS-DELAY-SWITCH switches=<n> asked=<m> tracks=<k>`: a failure unless every switch asked
 ///     for switched exactly one audio track's delay.
+///   - `RS-MODFX-SWITCH block=<b> type=<t>`: one audio track's mod FX set to type @c t at block @c b; after the run,
+///     `RS-MODFX-SWITCH switches=<n> asked=<m> tracks=<k>`, a failure unless each switch set exactly one track's.
+///   - `RS-MODFX-CLEAR block=<b> type=<t>`: one audio track's mod FX memory cleared at block @c b, its type @c t;
+///     after the run, `RS-MODFX-CLEAR clears=<n> asked=<m> tracks=<k>`, a failure unless each cleared exactly one.
 ///   - `RS-CAPTURE frames=<n> stereo=<0|1>`: frames captured, and whether headphones were plugged in. A failure if
 ///     the app rendered in the other width at any tick while playing.
 ///   - `RS-MODEL fill_delay_ms=<n> fill_read_us=<n> burst=<start>:<blocks>:<ms>`: the storage model it ran under.

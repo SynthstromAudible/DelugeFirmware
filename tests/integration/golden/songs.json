@@ -143,6 +143,12 @@
   "rms_db": -17.05,
   "sha256": "0680998389ff447a0df2a85b15bc3c011ab289e1e0d3cdd0ae5d25557191474c"
  },
+ "RS_MODFX_CLEAR": {
+  "frames": 384000,
+  "peak": 2147483648,
+  "rms_db": -11.13,
+  "sha256": "f086db4a1214103c0389411071fc845fdad92811722f613d68c2e66d4f3caaa8"
+ },
  "RS_MODFX_MONO": {
   "frames": 384000,
   "peak": 1555892480,
@@ -166,6 +172,12 @@
   "peak": 2147483392,
   "rms_db": -8.12,
   "sha256": "d9b32d7bba8b69f0c881654b142b61ee007a2930933ea6fa1895b1b131961e65"
+ },
+ "RS_MODFX_SWITCH": {
+  "frames": 384000,
+  "peak": 1799701504,
+  "rms_db": -12.04,
+  "sha256": "0e40262ad2bda36ae2923f619ce6714d27f895b8ceb841b50c04402bdd27d052"
  },
  "RS_PINGPONG_SWEEP": {
   "frames": 384000,

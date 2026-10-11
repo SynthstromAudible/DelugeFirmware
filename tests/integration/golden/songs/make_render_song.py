@@ -42,7 +42,9 @@ RS_MODFX_MONO, RS_MODFX_STEREO_A and RS_MODFX_STEREO_B put every comb mod FX typ
 dimension, which no synth golden plays, in mono, and all six in stereo, whose gates render with headphones plugged in.
 RS_MODFX_SOFT_OFF takes a mod FX's selected knob to its minimum and back while the audio plays, which switches the
 effect off and on again: a flanger, whose delay line is freed while off and starts again zeroed, and a phaser, whose
-allpass memory carries across.
+allpass memory carries across. RS_MODFX_SWITCH and RS_MODFX_CLEAR hold an audio track's warble and flanger playing
+for their gates to switch the type (RENDER_MODFX_SWITCH) and clear the memory (RENDER_MODFX_CLEAR) mid-render; like
+RS_AUDIO_DELAY_SWITCH they have no dry twin, because each gate's twin is the same song rendered unswitched.
 """
 
 import math
@@ -923,6 +925,8 @@ SONGS = {
             audio_parts(_mod_fx("flanger", MOD_FX_SOFT_OFF_DEPTH)),
         ],
     ),
+    "RS_MODFX_SWITCH": lambda v: parts_song(v, [audio_parts(_mod_fx("TapeWarble"))]),
+    "RS_MODFX_CLEAR": lambda v: parts_song(v, [audio_parts(_mod_fx("flanger"))]),
     "RS_MODFX_SOFT_OFF_DRY": lambda v: parts_song(
         v, [kit_parts(DRY, PINGPONG_DRUMS), audio_parts(DRY)]
     ),

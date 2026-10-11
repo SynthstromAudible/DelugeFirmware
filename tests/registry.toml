@@ -1286,6 +1286,42 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-modfx-switch"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a mod FX switched to another type and back while it plays renders as recorded, its LFO re-seating each time its wave changes after it has rendered: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_MODFX_SWITCH) whose audio track's warble is switched to the chorus at block 600 and back to the warble at block 1000 (RENDER_MODFX_SWITCH) by the Edit the mod FX type menu makes, so its main LFO re-seats from the warbler to the sine and back to a fresh warbler while its second, random LFO, which renders only for the warble, keeps its state, and its delay line carries across both switches; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; the same song rendered unswitched must render differently (RS-SWITCH), so the switches reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_MODFX_SWITCH", RENDER_MODFX_SWITCH = "600:chorus,1000:TapeWarble" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-modfx-clear"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a mod FX's memory cleared while it plays renders as recorded, both with a delay line and without one: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_MODFX_CLEAR) whose audio track's flanger has its memory cleared at block 1000 (RENDER_MODFX_CLEAR: ModFXProcessor::resetMemory, as ModControllableAudio::clearModFXMemory does for a comb type when a sound cuts its tail), which zeroes its delay line, then is switched to the phaser at block 1400 (RENDER_MODFX_SWITCH), which frees the delay line, and cleared again at block 1800, which zeroes the phaser's allpass memory; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; the same song rendered without its clears and switch must render differently (RS-SWITCH), so they reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-MODFX-CLEAR", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_MODFX_CLEAR", RENDER_MODFX_SWITCH = "1400:phaser", RENDER_MODFX_CLEAR = "1000,1800" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-song-corpus"
 path = "."
 level = "integration"

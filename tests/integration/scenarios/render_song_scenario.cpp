@@ -18,6 +18,7 @@
 #include "scenarios/render_song_scenario.h"
 
 #include "definitions_cxx.hpp"
+#include "engines/effects/words.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
@@ -140,6 +141,85 @@ void switchDelays(uint64_t block) {
 		g_tracksSwitched++;
 		printf("RS-DELAY-SWITCH block=%llu analog=%d\n", static_cast<unsigned long long>(block),
 		       owner->effects().delay.analog ? 1 : 0);
+	}
+}
+
+/// RENDER_MODFX_SWITCH: `<block>:<type>,...`, ascending, each type as a file writes it (`chorus`, `TapeWarble`); empty
+/// by default. At each block, counted from playback's start, every audio track's mod FX type is set to that type by the
+/// Edit the mod FX type menu makes, so the same mod FX switches type while it plays.
+struct ModFxSwitch {
+	uint64_t block;
+	std::string type;
+};
+std::vector<ModFxSwitch> g_modFxSwitchAt;
+std::size_t g_modFxSwitchesDone = 0;
+int32_t g_tracksModFxSwitched = 0;
+
+void readModFxSwitches() {
+	g_modFxSwitchAt.clear();
+	const char* list = std::getenv("RENDER_MODFX_SWITCH");
+	for (const char* at = list; at != nullptr && *at != '\0';) {
+		char* end = nullptr;
+		const uint64_t block = std::strtoull(at, &end, 10);
+		if (end == nullptr || *end != ':') {
+			break;
+		}
+		const char* type = end + 1;
+		const char* comma = std::strchr(type, ',');
+		g_modFxSwitchAt.push_back({block, comma != nullptr ? std::string(type, comma) : std::string(type)});
+		at = comma != nullptr ? comma + 1 : nullptr;
+	}
+}
+
+/// Set every audio track's mod FX type to @p type, as the mod FX type menu does, at render block @p block.
+void switchModFx(uint64_t block, const std::string& type) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
+		if (output->type != OutputType::AUDIO) {
+			continue;
+		}
+		auto* owner = static_cast<ModControllableAudio*>(output->toModControllable());
+		if (owner == nullptr) {
+			continue;
+		}
+		deluge::edits::changeEffect(*owner, "modFXType", deluge::serialization::Value::makeScalar(type));
+		g_tracksModFxSwitched++;
+		printf("RS-MODFX-SWITCH block=%llu type=%s\n", static_cast<unsigned long long>(block),
+		       std::string(deluge::effects::to_string(owner->effects().mod_fx.type)).c_str());
+	}
+}
+
+/// RENDER_MODFX_CLEAR: the blocks, counted from playback's start, at which every audio track's comb mod FX memory is
+/// cleared, ascending and comma-separated; empty by default. Each clear is what ModControllableAudio::clearModFXMemory,
+/// which a sound's cut tail calls, does for a comb type: ModFXProcessor::resetMemory.
+std::vector<uint64_t> g_modFxClearAt;
+std::size_t g_modFxClearsDone = 0;
+int32_t g_tracksModFxCleared = 0;
+
+void readModFxClears() {
+	g_modFxClearAt.clear();
+	const char* list = std::getenv("RENDER_MODFX_CLEAR");
+	for (const char* at = list; at != nullptr && *at != '\0';) {
+		char* end = nullptr;
+		g_modFxClearAt.push_back(std::strtoull(at, &end, 10));
+		at = (end != nullptr && *end == ',') ? end + 1 : nullptr;
+	}
+}
+
+/// Clear every audio track's mod FX memory at render block @p block.
+void clearModFx(uint64_t block) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
+		if (output->type != OutputType::AUDIO) {
+			continue;
+		}
+		auto* owner = static_cast<ModControllableAudio*>(output->toModControllable());
+		const ModFXType type = owner != nullptr ? owner->effects().mod_fx.type : ModFXType::NONE;
+		if (type == ModFXType::NONE || type == ModFXType::GRAIN) {
+			continue;
+		}
+		owner->modfx.resetMemory();
+		g_tracksModFxCleared++;
+		printf("RS-MODFX-CLEAR block=%llu type=%s\n", static_cast<unsigned long long>(block),
+		       std::string(deluge::effects::to_string(owner->effects().mod_fx.type)).c_str());
 	}
 }
 
@@ -288,6 +368,15 @@ void stepPlaying() {
 		switchDelays(g_blocksRendered);
 		g_switchesDone++;
 	}
+	while (g_modFxSwitchesDone < g_modFxSwitchAt.size()
+	       && g_blocksRendered >= g_modFxSwitchAt[g_modFxSwitchesDone].block) {
+		switchModFx(g_blocksRendered, g_modFxSwitchAt[g_modFxSwitchesDone].type);
+		g_modFxSwitchesDone++;
+	}
+	while (g_modFxClearsDone < g_modFxClearAt.size() && g_blocksRendered >= g_modFxClearAt[g_modFxClearsDone]) {
+		clearModFx(g_blocksRendered);
+		g_modFxClearsDone++;
+	}
 	const bool burst = g_model.burstBlocks != 0 && g_blocksRendered >= g_model.burstStart
 	                   && g_blocksRendered < g_model.burstStart + g_model.burstBlocks;
 	if (burst != g_inBurst) {
@@ -348,6 +437,22 @@ void report() {
 			fail("RS-DELAY-SWITCH", "a switch asked for did not switch exactly one audio track's delay");
 		}
 	}
+	if (!g_modFxSwitchAt.empty()) {
+		printf("RS-MODFX-SWITCH switches=%zu asked=%zu tracks=%d\n", g_modFxSwitchesDone, g_modFxSwitchAt.size(),
+		       g_tracksModFxSwitched);
+		if (g_modFxSwitchesDone != g_modFxSwitchAt.size()
+		    || g_tracksModFxSwitched != static_cast<int32_t>(g_modFxSwitchAt.size())) {
+			fail("RS-MODFX-SWITCH", "a switch asked for did not switch exactly one audio track's mod FX");
+		}
+	}
+	if (!g_modFxClearAt.empty()) {
+		printf("RS-MODFX-CLEAR clears=%zu asked=%zu tracks=%d\n", g_modFxClearsDone, g_modFxClearAt.size(),
+		       g_tracksModFxCleared);
+		if (g_modFxClearsDone != g_modFxClearAt.size()
+		    || g_tracksModFxCleared != static_cast<int32_t>(g_modFxClearAt.size())) {
+			fail("RS-MODFX-CLEAR", "a clear asked for did not clear exactly one audio track's comb mod FX");
+		}
+	}
 	printf("RS-CAPTURE frames=%llu stereo=%d\n", static_cast<unsigned long long>(g_captured), g_stereo ? 1 : 0);
 	if (g_wrongWidthTicks != 0) {
 		fail("RS-CAPTURE", g_stereo ? "the app rendered in mono with headphones plugged in"
@@ -386,6 +491,12 @@ void deluge_scenario_render_song_begin(void) {
 	readSwitches();
 	g_switchesDone = 0;
 	g_tracksSwitched = 0;
+	readModFxSwitches();
+	g_modFxSwitchesDone = 0;
+	g_tracksModFxSwitched = 0;
+	readModFxClears();
+	g_modFxClearsDone = 0;
+	g_tracksModFxCleared = 0;
 	if (const char* blocks = std::getenv("RENDER_BLOCKS")) {
 		g_blocksWanted = std::strtoull(blocks, nullptr, 10);
 	}
