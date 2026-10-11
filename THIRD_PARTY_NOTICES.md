@@ -24,4 +24,4 @@ The sequencer design is inspired by MDD Snake by Maxime Dangles. The MDD impleme
 
 ## Source and binaries
 
-The repository includes the editable custom source, vendored dependencies and build scripts. Any future binary release should identify its exact source commit and provide access to that matching source. This source-only audit update is newer than the previously distributed firmware binaries and must not be described as their exact source snapshot.
+The repository includes the editable custom source, vendored dependencies and build scripts. Any future binary release should identify its exact source commit and provide access to that matching source. The BIN in firmware/ is built from the exact source commit linked in firmware/INSTALL.md and recorded in firmware/BUILD_INFO.json. That source is newer than earlier separately distributed binaries and must not be described as their exact source snapshot.
