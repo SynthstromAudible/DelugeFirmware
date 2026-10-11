@@ -14,6 +14,12 @@ Unofficial OLED-focused modification of Synthstrom Audible's Deluge Community Fi
 
 Read [changes and attribution](CUSTOM_CHANGES.md), [licensing](THIRD_PARTY_NOTICES.md), [build instructions](BUILD_CUSTOM.md), and the [CPU audit](docs/custom/CPU_AUDIT.md).
 
+## User guide (PDF)
+
+[Read the MDD Snake + Plaits guide](docs/custom/Deluge-MDD-Plaits-Guide.pdf) · [Download PDF](https://raw.githubusercontent.com/mileda/DelugeFirmware/main/docs/custom/Deluge-MDD-Plaits-Guide.pdf)
+
+Original English guide, dated 10 October 2026, including the interface diagram, usage instructions, release notes and Plaits integration. Later optimization and safety changes are documented in the [CPU audit](docs/custom/CPU_AUDIT.md) and [Plaits performance notes](docs/custom/PLAITS_PERFORMANCE_20261011.md). For the current BIN and installation steps, use [firmware/INSTALL.md](firmware/INSTALL.md).
+
 ## License
 
 The combined firmware is distributed under **GNU GPL version 3 or later**; see [LICENSE](LICENSE). Existing copyright notices and component-specific licenses are retained. The imported Plaits/stmlib code is by Emilie Gillet under the MIT license; see [its notices](src/plaits_vendor/LICENSE-MIT.txt). No exclusive ownership of upstream work is claimed.
