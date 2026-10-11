@@ -4,13 +4,14 @@
 /// the app builds in Thumb mode with -fno-inline-functions. This file takes the library's flags
 /// (src/deluge/CMakeLists.txt), as delay_cases.cpp does. Each block calls the filter set through its public
 /// `configure` and `renderMono` or `renderStereo`, as a voice calls it, so the cases keep timing whatever filters the
-/// set holds.
+/// set holds. A fading case switches the low-pass off and back on first, so its fade runs over every block.
 
 #include "bench/cases.h"
 #include "util/waves.h" // jcong, the synth-wide noise the low-pass ladder draws from
 
 #include <array>
 #include <cstddef>
+#include <tuple>
 
 namespace deluge::bench {
 
@@ -40,6 +41,11 @@ void FilterCase<Stereo>::setup(std::size_t n) {
 
 template <bool Stereo>
 void FilterCase<Stereo>::block(std::size_t /*n*/) {
+	if (config_.fading) {
+		// The low-pass off for one configure, so the next switches it back on and restarts its fade.
+		std::ignore =
+		    rig.set.configure(kFilterGain, config_.low_config, {}, config_.high_config, config_.high, config_.route);
+	}
 	rig.gain = rig.set.configure(kFilterGain, config_.low_config, config_.low, config_.high_config, config_.high,
 	                             config_.route);
 	const dsp::fixed::FilterScratch scratch{.fade = fade_scratch, .parallel = parallel_scratch};

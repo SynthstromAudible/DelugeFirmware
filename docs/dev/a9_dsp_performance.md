@@ -309,9 +309,82 @@ noise. The copy costs more than the in-place loop's per-frame high-pass stores i
 cheaper outside noise: 6–7% of the native digital loop at n = 128 and 29–31% at n = 32, 3–4% of native analog at
 n = 128. A State of hundreds of bytes is stepped in place.
 
+## Filters
+
+Each filter as a voice runs it, and the filter set, as kernels (`Stereo<LowPassLadder<CongNoise>>`,
+`Stereo<HighPassLadder>`, `Stereo<Svf>`, mono blocks through `renderLane(0, …)`) against the hand-written classes they
+replaced. Cycles per channel-sample, `FilterSet::configure` plus the render per block, in place, with the filter
+library's flags (`DELUGE_DSP_BENCH_CASES=filters`), all measured on 2026-10-10; the kernel figures are the mean of two
+runs. The unchanged `delay_feedback_chain_*` controls move by at most 1.9% between the two images (0.0% for the analog
+chain, 0.08–0.34 cps on the digital one), and the two runs agree within 0.07%, so a difference inside ±1.9% is noise
+(≈).
+
+| case | n=32 before → after (Δ) | n=64 before → after (Δ) | n=128 before → after (Δ) |
+|---|---:|---:|---:|
+| `lp12_mono` | 102.67 → 96.52 (-6.0%) | 94.79 → 87.25 (-8.0%) | 90.89 → 82.61 (-9.1%) |
+| `lp12_stereo` | 98.52 → 88.89 (-9.8%) | 94.50 → 84.37 (-10.7%) | 92.50 → 81.84 (-11.5%) |
+| `lp24_mono` | 106.23 → 100.08 (-5.8%) | 102.12 → 94.52 (-7.4%) | 100.05 → 91.77 (-8.3%) |
+| `lp24_stereo` | 101.93 → 94.23 (-7.6%) | 99.72 → 91.37 (-8.4%) | 98.61 → 89.94 (-8.8%) |
+| `lpdrive_mono` | 139.27 → 133.63 (-4.0%) | 134.61 → 128.28 (-4.7%) | 132.32 → 125.65 (-5.0%) |
+| `lpdrive_stereo` | 132.26 → 129.93 (-1.8% ≈) | 129.89 → 127.00 (-2.2%) | 128.70 → 125.50 (-2.5%) |
+| `lpdrive_os_mono` | 248.47 → 225.95 (-9.1%) | 243.22 → 219.94 (-9.6%) | 240.61 → 216.98 (-9.8%) |
+| `lpdrive_os_stereo` | 247.16 → 229.34 (-7.2%) | 244.58 → 226.05 (-7.6%) | 243.29 → 224.37 (-7.8%) |
+| `hp_mono` | 71.10 → 55.96 (-21.3%) | 66.53 → 51.96 (-21.9%) | 64.27 → 50.00 (-22.2%) |
+| `hp_stereo` | 64.66 → 54.41 (-15.8%) | 62.33 → 52.22 (-16.2%) | 61.16 → 51.11 (-16.4%) |
+| `svf_band_mono` | 86.06 → 83.76 (-2.7%) | 83.01 → 79.86 (-3.8%) | 81.49 → 77.92 (-4.4%) |
+| `svf_band_stereo` | 81.24 → 81.99 (+0.9% ≈) | 79.36 → 79.99 (+0.8% ≈) | 78.43 → 78.99 (+0.7% ≈) |
+| `svf_notch_mono` | 81.86 → 80.73 (-1.4% ≈) | 78.92 → 76.85 (-2.6%) | 77.46 → 74.92 (-3.3%) |
+| `svf_notch_stereo` | 78.16 → 78.09 (-0.1% ≈) | 76.06 → 76.04 (0.0% ≈) | 75.04 → 75.01 (0.0% ≈) |
+| `filterset_hl_stereo` | 165.44 → 147.27 (-11.0%) | 161.48 → 142.86 (-11.5%) | 159.54 → 140.68 (-11.8%) |
+| `filterset_lh_stereo` | 165.41 → 146.91 (-11.2%) | 161.46 → 142.73 (-11.6%) | 159.48 → 140.61 (-11.8%) |
+| `filterset_par_stereo` | 171.74 → 153.73 (-10.5%) | 167.19 → 148.22 (-11.3%) | 164.97 → 145.85 (-11.6%) |
+
+- **Nothing is slower outside the noise.** The ladders gain 4–11%, the high-pass ladder 16–22%, and the set on every
+  route 10.5–11.8%.
+- **A mode chosen per block is the largest gain.** The high-pass ladder's saturation was a per-sample test of a value
+  that never changes within a block; as a mode (BYPASS, TANH, ANTIALIASED), the unsaturated loop runs 39.2 instructions
+  per sample against 55.9, mono.
+- **Spills can cost nothing.** The stereo drive ladder's loop is 7–10 instructions per frame longer than the old one
+  (the two channels' states spill), yet it runs 2.2–2.5% faster at n ≥ 64: the extra loads and stores issue into
+  slots the old loop left empty (issue-empty cycles per sample at n = 128: 44.05 before, 35.04 after). Count cycles,
+  not instructions.
+- **One lane of a `Stereo` costs a mono block nothing.** Every mono case is as fast as or faster than the dedicated
+  mono loops it replaced; `renderLane(0, …)` compiles to the same kind of loop on lane 0's State.
+- **The stereo SVF is unchanged within the noise**, band sitting at +0.7–0.9% in both runs with 3.7 fewer
+  instructions per sample and the same empty issue cycles; unexplained, inside the bound, so not traced.
+
+**The fusion question.** Whether to fuse the filter set into one loop (low-pass, high-pass and fades per sample) rests
+on what the passes around the filters cost, since fusion removes those and leaves each filter's own step as it is.
+
+| n | series route, set − its two filters alone | parallel route, set − its two filters alone | the fade pass while active |
+| ---: | ---: | ---: | ---: |
+| 32 | −1.4 to −1.7 | +5.1 | 35.2 |
+| 64 | −0.7 to −0.9 | +4.6 | 34.4 |
+| 128 | −0.4 | +4.8 | 34.0 |
+
+Cycles per channel-sample, stereo: the 24 dB ladder and the high-pass ladder, each alone and as a set; the fade is
+`filter_lp24_fading_stereo` (the 24 dB ladder switched off and on each block, so its fade runs over every block) less
+`filter_lp24_stereo`.
+
+- **A series route has no pass between its slots to remove.** The set costs less than its filters alone, by one block's
+  glue that it pays once instead of twice (the difference halves as n doubles). Fused, it could save the second
+  filter's load and store of the block: the one to four cycles per sample a removed integer pass saves
+  ([Chain](#chain)), against about 140 for the set.
+- **The parallel route's copy and wrapping sum cost 4.6–5.1** per channel-sample. Fusing it would remove them.
+- **The fade costs about 33.5 cycles per channel-sample while active**, plus about 107 cycles per block (fitted as
+  a + C/2n). Its loop is 16 instructions a sample with no calls: the dry level steps in double (`vcvt.f64.f32`,
+  `vmul.f64`, `vcvt.f32.f64`) and the wet level is formed from it in float and converted to Q31, every sample's level
+  depending on the last, one serial VFP chain at about two cycles an instruction. Fusing would remove the dry copy and
+  the blend's load and store, not the chain, which bit-exactness fixes. The fade runs on about four blocks after a slot
+  switches on.
+- **So fusion buys little.** On the blocks every voice renders, at most a few cycles per sample on the series routes
+  and 5 on the parallel route; on a fading block, the copy and a pass, out of the 33.5 the level chain costs. The
+  filters' own loops (50–225 cycles per channel-sample) are where the cost is.
+
 ## Open questions
 
-- Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain, such as
-  filters. Measure when the first filter kernel lands.
+- Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain. The
+  filter kernels do not answer it: they run on the integer core and the VFP, with no NEON in their loops. Measure it
+  with the first NEON kernel of that weight.
 - The `wavetable` bench case costs about 336 cycles per sample. Look at it when the oscillators move to the kernel form.
 - `Mono::renderBlock` calls `std::span::size()` and `data()` per block, and both are out of line at the shipping flags.

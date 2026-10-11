@@ -338,6 +338,7 @@ const std::vector<std::string_view> kFilterCaseNames{
     "filterset_hl_stereo",
     "filterset_lh_stereo",
     "filterset_par_stereo",
+    "filter_lp24_fading_stereo",
     "delay_feedback_chain_analog",
     "delay_feedback_chain_digital",
 };
@@ -485,7 +486,8 @@ struct FilterReference {
 
 /// @p config's run of @p blocks blocks of @p n frames (one sample each, two in @p stereo), from the filter cases'
 /// documented start: a reset set, the noise at kFilterNoiseSeed, the block the lanes input's first samples as
-/// fill_filter_input() fills them, each block configured and filtered in place.
+/// fill_filter_input() fills them, each block configured and filtered in place (a fading one configured with the
+/// low-pass off first).
 FilterReference filter_reference(const FilterCaseConfig& config, std::size_t n, bool stereo, std::size_t blocks) {
 	const std::size_t samples = stereo ? 2 * n : n;
 	fill_filter_input();
@@ -496,6 +498,10 @@ FilterReference filter_reference(const FilterCaseConfig& config, std::size_t n, 
 	jcong = kFilterNoiseSeed;
 	dsp::fixed::FilterSet set;
 	for (std::size_t b = 0; b < blocks; ++b) {
+		if (config.fading) {
+			std::ignore =
+			    set.configure(kFilterGain, config.low_config, {}, config.high_config, config.high, config.route);
+		}
 		out.gain =
 		    set.configure(kFilterGain, config.low_config, config.low, config.high_config, config.high, config.route);
 		if (stereo) {
@@ -1386,8 +1392,9 @@ describe bench_runner("The DSP benchmark runner", ${
 
 		it("renders each filter case as a direct call to a filter set per block, its noise draws counted, at every size", _ {
 			const std::span<const Case> filters = cases(CaseList::FILTERS);
-			// The calibration loop, each filter mono then stereo, the filter sets, then the two feedback chain controls.
-			expect(filters.size()).to_equal((2 * kFilterCaseConfigs.size()) + kFilterSetRoutes.size() + 3);
+			// The calibration loop, each filter mono then stereo, the filter sets, the fading 24 dB ladder, then the two
+			// feedback chain controls.
+			expect(filters.size()).to_equal((2 * kFilterCaseConfigs.size()) + kFilterSetRoutes.size() + 4);
 			std::vector<std::tuple<FilterCaseConfig, bool, uint32_t>> runs;
 			for (const auto& [config, draws] : kFilterCaseConfigs) {
 				runs.emplace_back(config, false, draws);
@@ -1396,6 +1403,7 @@ describe bench_runner("The DSP benchmark runner", ${
 			for (const dsp::fixed::FilterRoute route : kFilterSetRoutes) {
 				runs.emplace_back(filter_set_case(route), true, 1);
 			}
+			runs.emplace_back(kFilterLow24Fading, true, 1);
 			for (std::size_t i = 0; i < runs.size(); ++i) {
 				const auto& [config, stereo, draws] = runs[i];
 				const Case& c = filters[i + 1];
@@ -1418,6 +1426,8 @@ describe bench_runner("The DSP benchmark runner", ${
 					expect(filter_rig().set.isLowPassOn()).to_equal(config.low.kind != dsp::fixed::LowPassSlot::Kind::OFF);
 					expect(filter_rig().set.isHighPassOn())
 					    .to_equal(config.high.kind != dsp::fixed::HighPassSlot::Kind::OFF);
+					// Only the fading case's fade is under way after its block; every other case runs none.
+					expect(dsp::fixed::FadeIn::active(filter_rig().set.view().low_fade)).to_equal(config.fading);
 				}
 			}
 		});

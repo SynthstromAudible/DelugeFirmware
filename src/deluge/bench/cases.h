@@ -1076,6 +1076,9 @@ struct FilterCaseConfig {
 	dsp::fixed::FilterRoute route;        ///< The order the two run in.
 	dsp::fixed::FilterConfig low_config;  ///< The low-pass's settings.
 	dsp::fixed::FilterConfig high_config; ///< The high-pass's settings.
+	/// Each block switches the low-pass off and back on before it filters, so the low-pass fades in from dry over the
+	/// whole block.
+	bool fading = false;
 };
 
 /// @brief The configuration of a case of the low-pass slot alone, running @p low at @p settings.
@@ -1124,6 +1127,14 @@ inline constexpr FilterCaseConfig kFilterHigh{.low = {},
 	        .high_config = kFilterHighSettings};
 }
 
+/// @brief `filter_lp24_fading_stereo`: the 24 dB ladder fading in over every block. Against `filter_lp24_stereo`, it
+/// times the fade pass while it is active: the dry copy and the blend, with the level stepped per channel-sample.
+inline constexpr FilterCaseConfig kFilterLow24Fading = [] {
+	FilterCaseConfig config = kFilterLow24;
+	config.fading = true;
+	return config;
+}();
+
 /// @brief Fills the lanes input with noise at 2^-4 of full scale, about an oscillator's level going into a voice's
 /// filters.
 void fill_filter_input();
@@ -1154,7 +1165,9 @@ struct FilterRig {
 /// takes over the slot without a fade), so no fade runs and every block is the steady state of its filters: the
 /// low-pass ladder drawing one noise sample per channel-sample (two when the drive ladder oversamples), the high-pass
 /// ladder on its unsaturated path, the SVF's two passes per sample, and in the parallel route the copy of the block
-/// and the wrapping sum.
+/// and the wrapping sum. A fading configuration (FilterCaseConfig::fading) is the exception: each block first
+/// configures the low-pass off, then on, which resets the ladder's sections and restarts its fade, so every block
+/// runs the fade pass from its start (the level's arithmetic costs the same at every level).
 /// @tparam Stereo Interleaved L/R frames, `renderStereo`; else mono, `renderMono`.
 template <bool Stereo>
 class FilterCase {
@@ -1261,6 +1274,7 @@ struct CaseSet {
 	FilterStereoCase filterset_lh_stereo{filter_set_case(dsp::fixed::FilterRoute::LOW_TO_HIGH)};
 	/// `filterset_par_stereo`
 	FilterStereoCase filterset_par_stereo{filter_set_case(dsp::fixed::FilterRoute::PARALLEL)};
+	FilterStereoCase filter_lp24_fading_stereo{kFilterLow24Fading}; ///< `filter_lp24_fading_stereo`
 };
 
 /// @brief The cases' components, built on first use.

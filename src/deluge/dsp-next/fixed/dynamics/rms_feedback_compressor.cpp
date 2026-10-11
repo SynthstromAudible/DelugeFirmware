@@ -250,7 +250,8 @@ float RmsFeedbackCompressor::measureLevel(std::span<const StereoSample> block) {
 		const q31 r = wrapping_sub(
 		    sample.r, OnePole::step<OnePole::Mode::LOW_PASS>(detector, EmptyBlock{}, detector_r_, sample.r));
 		const q31 s = std::max(std::abs(l), std::abs(r));
-		// Wraps on a loud block, as the target's `add` does: the level the gain follows is that wrapped sum.
+		// Wraps on a loud block, as the target's `add` does, which keeps the output bit-exact. It is a defect kept, not
+		// a level: a wrapped sum can go negative, and the square root of a negative mean makes the block's level NaN.
 		sum = wrapping_add(sum, multiply_32x32_rshift32(s, s));
 	}
 

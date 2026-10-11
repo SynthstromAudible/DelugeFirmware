@@ -623,6 +623,7 @@ std::span<const Case> filters_list(CaseSet& s) {
 	    make_case("filterset_hl_stereo", s.filterset_hl_stereo),
 	    make_case("filterset_lh_stereo", s.filterset_lh_stereo),
 	    make_case("filterset_par_stereo", s.filterset_par_stereo),
+	    make_case("filter_lp24_fading_stereo", s.filter_lp24_fading_stereo),
 	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
 	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
 	};

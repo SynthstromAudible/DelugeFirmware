@@ -613,6 +613,15 @@ arity, as `Mono` is. A staged or control kernel is rejected at the class: neithe
   one draw would reach every lane, where lane by lane draws once per lane in lane order. A kernel that needs noise does
   not opt in and steps lane by lane. Nothing detects a draw at compile time, since it is a call inside the step, so
   each opted-in kernel's spec checks its op-major form against its lane-by-lane one.
+- **One lane alone.** `renderLane(lane, in, out)` runs one lane over a block of q31 samples, leaving every other
+  lane's State untouched: that lane's `prepare`, one mode dispatch and one loop, on local copies written back after the
+  block, so the lane steps exactly as a `Mono<K>` holding its State would (op-major, the lane is unpacked for the block
+  and packed back). It is for an owner whose stream is sometimes one lane and sometimes all of them on the same State:
+  a voice's filter renders mono blocks through the left channel and stereo blocks through both, and the voice moves
+  between them mid-note (unison stereo spread, stereo samples), so the left channel's state must carry across. A
+  separate `Mono<K>` beside the `Stereo<K>` would drop it at every switch. The mono loop costs what a dedicated mono
+  loop does ([a9_dsp_performance.md](a9_dsp_performance.md#filters)). `lanes_spec` checks it against that lane's
+  `Mono` at every width and on every lane.
 - **State.** `state(lane)` returns a snapshot of the lane's State by value in both forms, and `Stereo`'s `left()` and
   `right()` do the same: later blocks do not update a copy taken earlier.
 - **What op-major buys.** Over interleaved frames clang compiles the two forms to the same loop at the shipping flags:
@@ -770,16 +779,31 @@ overloads it on non-const `Coefficients`.
   (`util/waves.h`) delegates to it, so the app and L0 cannot diverge.
 - **`SharedNoise`** is a stateless `sample_generator<q31>`. Its `render()`
   advances the synth's one shared stream (the app's `jcong`, through `CONG`) and
-  returns the new state as q31. **It is the only place L0 touches shared
-  state**: every consumer, app and component alike, must draw from the one
-  stream in call order for the output to stay bit-exact.
+  returns the new state as q31. **It and `CongNoise` (below) are the only
+  places L0 touches shared state**: every consumer, app and component alike,
+  must draw from the one stream in call order for the output to stay
+  bit-exact.
 - **`SeededNoise`** runs the same step on its own `uint32_t`. Specs use it, as
   does anything that wants a private stream.
 - **Noise is a template parameter.** A component that draws noise takes it as a
-  template parameter, so `SharedNoise` inlines to the same code as a `CONG` site
+  template parameter, so the draw inlines to the same code as a `CONG` site
   and the component carries no pointer. The app spells the instantiation out
-  once. The ladder filter, which draws through `CONG` directly, comes under this
-  rule as `LowPassLadder<Noise>` when the filter family is rewritten.
+  once.
+- **A kernel's noise is a policy type.** A kernel cannot hold a generator
+  instance (its `State` is a plain value struct), so it takes a type with
+  `static q31 render()`, each call the next draw. **`CongNoise`**
+  (`cong_noise.h`) is the app's: it draws from the synth's one stream through
+  `CONG`, as `SharedNoise` does. Specs inject a static wrapper over a
+  `SeededNoise`. `LowPassLadder<Noise>` is the user: the app runs
+  `LowPassLadder<CongNoise>`.
+- **The draw order is part of the output.** Every voice draws from the one
+  stream, so one draw more or less, or two draws swapped, shifts everything
+  drawn after it, across voices. A kernel draws a fixed number of times per
+  step in every mode (the ladder once, twice when it oversamples), and under
+  `Stereo` the left channel steps first in every frame, so the draws go left
+  then right, the order the pinned output was drawn in. A mono block run through
+  `renderLane(0, …)` draws once per sample, for that lane only. An op-major
+  step must not draw (see [`Lanes`](#lanesk-n-corelanesh)).
 
 ## Slotting-ready rules
 
@@ -904,16 +928,93 @@ These are the reference blocks that later rewrites compose rather than re-derive
 - **`wrapping_add` / `wrapping_sub`** (`wrapping.h`): q31 add and subtract with two's-complement wrap, defined for every
   input.
 
-### The `legacy::` convention
+### The filters (`fixed/filter/`)
 
-A class that still has users which have not moved is renamed into `legacy::` and placed in a `legacy/` directory beside
-its replacement (`filter/legacy/`, `shaping/legacy/`). The kernel is written fresh next to it, the legacy class's
-behaviour is unchanged, and it is deleted when its last user moves. Today `legacy::OnePole` remains for the ladders and
-the compressor, and `legacy::AntialiasedTanh` for the compressor and the high-pass ladder.
+Each filter is a scalar q31 processor kernel built by nesting the shared kernels above
+([Composition](#composition)): its `State` holds their States, and its `step` calls their `step`s directly, at the
+mode it needs (a section's LOW_PASS, the follower's TRACK). Each runs under `Stereo` (one `Coefficients`, a `State` per channel), and
+each moded one shares one `State` across its modes, so a mode change between blocks carries every memory.
 
-The legacy classes are also the bit-exactness oracle for four specs: `one_pole_spec`, `antialiased_tanh_spec`,
-`saturation_spec` and `bench_runner_spec`. Deleting a legacy class therefore starts by giving those specs a
-replacement oracle, either recorded vectors or a reference written in the spec, and only then removes the class.
+- **`LowPassLadder<Noise>`** (`low_pass_ladder.h`): the transistor-ladder low-pass.
+  - Four `OnePole` sections and a `ShiftTracker<7>` TRACK noise follower. The 24 dB ladders step all four sections as
+    LOW_PASS; the 12 dB ladder steps two LOW_PASS and one ALL_PASS.
+  - Plain `tanh<N>` saturation: drive 2 on the input, and in the drive ladder, 7 on the feedback sum and 4 on the output.
+  - Modes T12, T24, DRIVE and DRIVE_OVERSAMPLED. `coefficients()` chooses oversampling from `allow_oversampling` and
+    the resonance by the oversampling tables, so oversampling switching on or off under CPU load is a mode change.
+  - The noise is its `Noise` policy ([Noise](#noise-fixednoise)): one draw per step, two when oversampled.
+  - Its `reset` quirk silences the sections and keeps the follower.
+- **`HighPassLadder`** (`high_pass_ladder.h`): two `OnePole` HIGH_PASS sections and one LOW_PASS around a resonant
+  loop, and an `AntialiasedTanh` State.
+  - The saturation is the mode, chosen per block from the processed resonance: BYPASS, TANH (`tanh<2>`) or ANTIALIASED
+    (`AntialiasedTanh` at drive 1). The resonance cannot change within a block, so the per-sample test the
+    hand-written loop made is gone. That is most of the kernel's speed ([a9_dsp_performance.md](a9_dsp_performance.md#filters)).
+  - BYPASS and TANH keep the saturator's position tracking the signal (`AntialiasedTanh::place`, at shift 2 while it
+    saturates at drive 1, a quirk kept bit-exact and named in the code), so ANTIALIASED switched in interpolates from
+    the last sample.
+  - A fresh State's position is 0, not the curve's centre, because the filter set's zeroing leaves it there.
+  - Its `reset` quirk silences the sections and keeps the position.
+- **`Svf`** (`svf.h`): the state-variable filter, two passes per sample over `{low, band}`, its band saturated by
+  `tanh<3>`. Modes BAND and NOTCH. Its gain compensation is the gain it was given.
+- **`FadeIn` and `FadeInMono`** (`fade_in.h`): the fade from a filter's dry input to its output after the filter is
+  switched on, a mixer kernel of (dry, wet).
+  - **The level.** The dry level is a float × 0.99 per step, computed in double. The wet level is `ONE_Q31 × (1 − dry)`
+    in float. Each sample is `dry_wet_blend` at the wet level, then the level steps. It is over once dry falls below
+    0.001.
+  - **One level, stepped once per channel-sample.** In stereo the left channel blends at one level and the right at the
+    next, so the two channels sit one step apart and a stereo fade ends in half the frames. That is why the fade is
+    not a q31 kernel under `Stereo`, which would give each channel its own level.
+  - **Two forms.** `FadeIn` steps `StereoSample` frames under `Mono`, twice per frame. `FadeInMono` steps q31 samples,
+    once per sample. Over an interleaved block that is the same sequence on the same `State`.
+  - **Events.** `begin` starts or restarts a fade, and `zero` leaves none.
+  - **Who uses which.** `FadeInMono` is the one the filter set runs. `FadeIn` is the frame-buffer form, for an owner
+    whose blocks are frames.
+- **`FilterSet`** (`filter_set.h`): a low-pass and a high-pass slot, in series either way or in parallel.
+  - **The slots.** Each is a union of the `Stereo` wrappers its families need: `Stereo<LowPassLadder<CongNoise>>` or
+    `Stereo<Svf>`, and `Stereo<HighPassLadder>` or `Stereo<Svf>`. A change of family rebuilds the member with a
+    zero State.
+  - **Blocks.** A stereo block runs the wrapper over its frames. A mono block runs lane 0 alone through `renderLane`
+    ([`Lanes`](#lanesk-n-corelanesh)), so the one object keeps both channels' state across a voice's mono and stereo
+    blocks.
+  - **The fades.** Each slot's fade is a `Mono<FadeInMono>` held beside the union, not inside it. A family change
+    mid-fade rebuilds the filter and leaves the fade running, with nothing to copy.
+  - **The fade pass.** It runs only on blocks where the fade is active, after a dry copy of the block. In stereo it
+    steps once per channel-sample over the interleaved block, as `FadeIn` does over frames.
+  - **The parallel route** runs the high-pass over a copy of the block and adds it back with `wrapping_add`.
+  - **Cost.** What these passes cost, and what fusing the set into one loop could save, is measured in
+    [a9_dsp_performance.md](a9_dsp_performance.md#filters).
+
+The compressor (`fixed/dynamics/rms_feedback_compressor.h`) is still a hand-written class. It holds the shared
+kernels' States: two `OnePole` detectors stepped LOW_PASS, and two `AntialiasedTanh` saturators at drive 3, each
+seeded from the block's first frame after silence or at onset (`AntialiasedTanh::seed`).
+
+**Read-only inspection.** `FilterSet::view()` and `RmsFeedbackCompressor::view()` return a `View` of everything that
+carries from one block to the next:
+- **`FilterSet::View`**: each slot's held family and a const pointer to the member it holds, the slots as configured
+  and last configured, the route, and both fades' levels.
+- **`RmsFeedbackCompressor::View`**: the envelopes, levels, rates, detectors and saturators.
+
+They are for specs, which compare an owner's whole state against its reference block by block. They change nothing
+and are unused in the app, so the linker drops them.
+
+### Verbatim references
+
+A kernel that replaces hand-written code is checked bit for bit against a test-local, line-for-line copy of that code,
+not against the code itself, so the code can be deleted once its users move. The filters' and the compressor's copies
+are in `tests/dsp/reference_filters.h`: `OnePole`'s and `AntialiasedTanh`'s legacy forms, the fade, both ladders, the
+SVF, the filter set and the compressor.
+
+**What is checked against them.** They are the oracle for:
+- `one_pole_spec`, `antialiased_tanh_spec`, `low_pass_ladder_spec`, `high_pass_ladder_spec`, `svf_spec` and
+  `fade_in_spec`;
+- `filters_reference_spec`, which runs every filter, filter-set and compressor workload (`tests/dsp/filter_workloads.h`)
+  through both and pins the references' output, noise draws and whole state in `filter_workload_records.h`.
+
+**Plain signed sums.** The copies keep the legacy plain signed sums. Those that overflow at full scale are marked
+`DELUGE_REFERENCE_LEGACY_ARITHMETIC`, which turns UBSan's overflow check off in those bodies alone. The `dsp-ubsan`
+leg therefore checks the kernels and runs with no exclusion.
+
+**Specs that step the kernel by hand.** `saturation_spec` and `bench_runner_spec` do this, and are checked through
+`antialiased_tanh_spec`'s pin of the kernel.
 
 ## Bit-exactness: how the synth's math maps in
 
@@ -1009,7 +1110,10 @@ it drops some:
   bound how much a delay image's code placement moves the rest;
 - `filters`: each filter as a voice runs it, mono and stereo (the low-pass
   ladder in 12 dB, 24 dB, drive and oversampled drive, the high-pass ladder, and
-  the SVF in band and notch), and the filter set on each route in stereo. Each
+  the SVF in band and notch), the filter set on each route in stereo, and the
+  24 dB ladder with its fade running over every block (`filter_lp24_fading_stereo`,
+  switched off and on before each block; less `filter_lp24_stereo`, it is the fade
+  pass's cost). Each
   block is `FilterSet::configure` then `renderMono` or `renderStereo`, in place,
   through the set's public API alone, so the cases time whatever filters the set
   holds. Each setup seeds the synth-wide noise (`jcong`) the low-pass ladder
@@ -1153,7 +1257,7 @@ gates:
   signed overflow is undefined behaviour once a step is inlined. A left shift of a q31 (a doubling back from Q30, a
   feedback scale) is a plain signed `<<`, with no cast through `uint32_t`: C++20 defines it as modular.
 - Are there callback sinks, raw-pointer heads, out-parameters, or globals other
-  than `SharedNoise`?
+  than the shared noise stream (`SharedNoise`, `CongNoise`)?
 - Is a block-rate signal a control kernel, and are its events functions on its
   State?
 - Is there a hand-written `renderBlock` (or a new mixin `render`) where a kernel
