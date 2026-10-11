@@ -152,6 +152,7 @@ describe reference_mod_fx("the mod FX reference", ${
 	it("draws the same noise in mono as in stereo: the second warbler steps in both", _ {
 		const std::size_t expected = expected_warble_draws(workload_named("EACH_WARBLE_STEREO"));
 		expect(expected).to_be_greater_than(std::size_t{0});
+		expect(expected).to_be_less_than(kMaxDraws);
 		expect(draws_of(workload_named("EACH_WARBLE_STEREO"))).to_equal(expected);
 		expect(draws_of(workload_named("EACH_WARBLE_MONO"))).to_equal(expected);
 	});
