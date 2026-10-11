@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
 #include "engines/effects/mod_fx.h"
+#include "engines/effects/words.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
@@ -32,8 +33,10 @@
 #include "memory/heaps.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/change_effect.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -45,11 +48,13 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
+#include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
+#include "serialization/value.h"
 #include "storage/preset_acquisition.h"
 #include "storage/storage_manager.h"
 #include "util/structural_edit_probe.h"
@@ -130,6 +135,8 @@ enum class Leg : uint8_t {
 	Heap,
 	Slab,
 	ModFxOom,
+	ModFxClone,
+	ModFxSwap,
 	Done,
 };
 
@@ -143,6 +150,7 @@ int32_t g_failures = 0;
 int32_t g_blocks = 0;
 uint32_t g_timerAtStart = 0;
 Clip* g_home = nullptr;
+AudioClip* g_audio = nullptr;
 InstrumentClip* g_clip = nullptr;
 NoteRow* g_row = nullptr;
 int32_t g_rowIndex = -1;
@@ -212,6 +220,10 @@ const char* legName(Leg leg) {
 		return "SLAB";
 	case Leg::ModFxOom:
 		return "MODFXOOM";
+	case Leg::ModFxClone:
+		return "MODFXCLONE";
+	case Leg::ModFxSwap:
+		return "MODFXSWAP";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -423,9 +435,28 @@ bool setupLeg() {
 	g_rowIndex = -1;
 	g_kit = nullptr;
 	g_drum = nullptr;
+	g_audio = nullptr;
 	if (g_leg == Leg::ClipNew) {
 		// The edit is the clip's creation; the clip already playing is the home clip.
 		return true;
+	}
+	if (g_leg == Leg::ModFxClone) {
+		// An audio track whose chain runs chorus with its depth above minimum, so the chorus is on.
+		Clip* clip = sessionView.createNewAudioClipForHarness(kAppendY);
+		if (clip == nullptr || clip->type != ClipType::AUDIO) {
+			return fail("no audio clip");
+		}
+		clip->activeIfNoSolo = true;
+		g_audio = static_cast<AudioClip*>(clip);
+		auto* output = static_cast<AudioOutput*>(clip->output);
+		clip->paramManager.getUnpatchedParamSet()
+		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
+		    .setCurrentValueBasicForSetup(0);
+		output->currentModFXParam = ModFXParam::DEPTH;
+		deluge::edits::changeEffect(
+		    *output, "modFXType",
+		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(ModFXType::CHORUS))));
+		return (output->effects().mod_fx.type == ModFXType::CHORUS) ? true : fail("the audio track took no chorus");
 	}
 	// A note row is deleted only from a kit clip (InstrumentClip::deleteNoteRow() treats the output as a Kit).
 	g_clip = (g_leg == Leg::Drum || g_leg == Leg::RowDel || g_leg == Leg::RenderSet || g_leg == Leg::RenderAlloc
@@ -836,6 +867,40 @@ void editLeg() {
 		renderBlocks(1);
 		printf("CG-MODFXOOM injected=%d passthrough=%d recovered=%d\n", injected ? 1 : 0, passthrough ? 1 : 0,
 		       recovered ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::ModFxClone: {
+		g_step = "cloneFrom";
+		// The audio track's clone, as its clip's overdub clone and the session view's clone into a new track make one:
+		// a new audio track whose chain is a copy of the chorus one. It holds its own ring from the clone on, before
+		// any block renders, and runs the chorus over it.
+		auto* source = static_cast<AudioOutput*>(g_audio->output);
+		AudioOutput* clone = currentSong->createNewAudioOutput();
+		if (clone != nullptr) {
+			clone->cloneFrom(source);
+		}
+		const bool ring = clone != nullptr && clone->effects().mod_fx.type == ModFXType::CHORUS && holdsRing(*clone);
+		const bool renders = clone != nullptr && changesBlock(*clone, g_audio->paramManager, ModFXType::CHORUS);
+		printf("CG-MODFXCLONE ring=%d renders=%d\n", ring ? 1 : 0, renders ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::ModFxSwap: {
+		g_step = "modFXType";
+		// The mod FX type menu's Edit on a synth's chain while the song plays: each change to a delay-line type holds
+		// a ring and each change away from one gives it back.
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		bool matched = true;
+		for (const ModFXType type : {ModFXType::CHORUS, ModFXType::FLANGER, ModFXType::PHASER, ModFXType::CHORUS}) {
+			deluge::edits::changeEffect(
+			    *synth, "modFXType",
+			    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(type))));
+			renderBlocks(2);
+			matched = matched && synth->effects().mod_fx.type == type
+			          && holdsRing(*synth) == deluge::effects::is_ring_type(type);
+		}
+		printf("CG-MODFXSWAP rings=%d\n", matched ? 1 : 0);
 		fflush(stdout);
 		break;
 	}

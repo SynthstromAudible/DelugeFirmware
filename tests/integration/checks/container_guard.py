@@ -46,6 +46,12 @@ kinds=<kind=n,...>`:
                              the type change consumes the failure, no ring is held and the chorus passes its block
                              through unchanged; a change to flanger then holds a ring and the master's render runs the
                              effect over it (CG-MODFXOOM injected=1 passthrough=1 recovered=1 required)
+    CG-MODFXCLONE            an audio track whose chain runs chorus, cloned into a new track (AudioOutput::cloneFrom):
+                             the clone holds its own ring before any block renders, and its chorus changes a block
+                             (CG-MODFXCLONE ring=1 renders=1 required)
+    CG-MODFXSWAP             a synth's mod FX type set chorus, flanger, phaser, chorus by the type menu's Edit while
+                             the song plays: after each change a ring is held exactly when the type runs over one
+                             (CG-MODFXSWAP rings=1 required)
     CG-CHOKE                 two choke-mode drums sounded in turn, each choking the other, over 400 blocks
     CG-BIGROW                a note row inserted below 128 others, moving them all; CG-MASK reports the edit's host
                              wall time (maskMicros=), an upper bound on the section it holds (a block is ~2900 us)
@@ -87,6 +93,8 @@ LEGS = [
     "HEAP",
     "SLAB",
     "MODFXOOM",
+    "MODFXCLONE",
+    "MODFXSWAP",
 ]
 # The legs whose edits must all be made while the render is excluded.
 
@@ -132,6 +140,20 @@ def _check(gate, result) -> None:
         gate.fail(
             f"{found}: a mod FX ring that could not be allocated did not pass the signal through, or the next type"
             " change did not bring the effect back"
+        )
+        return
+
+    # A cloned chain holds its own ring as soon as it is cloned, and runs its effect over it.
+    if not result.has_line("CG-MODFXCLONE ring=1 renders=1"):
+        found = _grep(result, "CG-MODFXCLONE ring", "no CG-MODFXCLONE line")
+        gate.fail(f"{found}: a cloned chain held no ring, or did not run its effect")
+        return
+
+    # Each type change holds a ring exactly when the type runs over one.
+    if not result.has_line("CG-MODFXSWAP rings=1"):
+        found = _grep(result, "CG-MODFXSWAP rings", "no CG-MODFXSWAP line")
+        gate.fail(
+            f"{found}: a mod FX type change left a ring that does not match its type"
         )
         return
 
