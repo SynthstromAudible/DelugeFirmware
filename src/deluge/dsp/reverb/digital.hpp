@@ -27,6 +27,9 @@ class Digital : public Mutable {
 	constexpr static size_t max_excursion = 16.f * kRatio;
 
 public:
+	void setWidth(float value) override { width_ = std::clamp(value, 0.f, 1.f); }
+	[[nodiscard]] float getWidth() const override { return width_; }
+
 	void process(std::span<q31_t> in, std::span<StereoSample> output) override {
 		typename FxEngine::Context c;
 
@@ -94,7 +97,7 @@ public:
 			c.Set(apout);
 			dap2a.Interpolate(c, 908.0f * kRatio, LFO_1, max_excursion, -kdd1);
 			del2a.Process(c);
-			c.Lp(lp_1, kdamp); // damping
+			c.Lp(lp_2, kdamp); // damping
 			c.Multiply(kdecay);
 			dap2b.Process(c, kdd2);
 			del2b.Process(c);
@@ -124,6 +127,12 @@ public:
 			right_sum = right_sum - dsp::OnePole(hp_r_, right_sum, hp_cutoff_);
 			right_sum = dsp::OnePole(lp_r_, right_sum, lp_cutoff_);
 
+			// Width 0 folds wet audio to mono; width 1 preserves the stereo tank output.
+			const float mid = (left_sum + right_sum) * 0.5f;
+			const float side = (left_sum - right_sum) * (0.5f * width_);
+			left_sum = mid + side;
+			right_sum = mid - side;
+
 			q31_t output_left =
 			    static_cast<int32_t>(left_sum * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
 
@@ -141,6 +150,7 @@ public:
 	}
 
 private:
-	float lp_band_;
+	float lp_band_{0.f};
+	float width_{1.f};
 };
 } // namespace deluge::dsp::reverb

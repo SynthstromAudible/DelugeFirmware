@@ -9,3 +9,5 @@ add_subdirectory(RTT)
 add_subdirectory(fatfs)
 add_subdirectory(NE10)
 add_subdirectory(lib)
+
+add_subdirectory(plaits_vendor)

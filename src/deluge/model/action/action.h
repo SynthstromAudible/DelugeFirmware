@@ -72,9 +72,10 @@ enum class ActionType {
 	NOTEROW_ROTATE,
 	NOTEROW_LENGTH_EDIT,
 	NOTEROW_HORIZONTAL_SHIFT,
+	MDD_WRITE,
 };
 
-extern EnumStringMap<ActionType, 28> actionTypeMap;
+extern EnumStringMap<ActionType, 29> actionTypeMap;
 
 class Action {
 public:

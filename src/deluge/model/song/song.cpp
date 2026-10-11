@@ -576,7 +576,9 @@ bool Song::anyScaleModeClips() {
 NoteSet Song::notesInScaleModeClips() {
 	NoteSet notes;
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
-		if (instrumentClip->isScaleModeClip()) {
+		// MDD quantizes its generated notes to the Song key. Its dormant stock rows
+		// do not describe the notes currently playing and must not block scale changes.
+		if (instrumentClip->isScaleModeClip() && !instrumentClip->mddEnabled && !instrumentClip->mddRequested) {
 			instrumentClip->seeWhatNotesWithinOctaveArePresent(notes, key);
 		}
 	}

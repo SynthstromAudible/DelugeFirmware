@@ -54,8 +54,9 @@ Action::Action(ActionType newActionType) {
 	offset = 0;
 }
 
-EnumStringMap<ActionType, 28> actionTypeMap{
+EnumStringMap<ActionType, 29> actionTypeMap{
     {{{ActionType::MISC, "misc"},
+      {ActionType::MDD_WRITE, "mdd_write"},
       {ActionType::NOTE_EDIT, "note_edit"},
       {ActionType::NOTE_TAIL_EXTEND, "note_tail_extend"},
       {ActionType::CLIP_LENGTH_INCREASE, "clip_length_increase"},

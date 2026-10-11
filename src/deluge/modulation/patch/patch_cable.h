@@ -48,6 +48,11 @@ public:
 	/// @brief Converts a patch cable source to the correct polarity.
 	/// The source is required because some sources are stored unipolar
 	int32_t toPolarity(int32_t value) {
+		// MDD stores a fixed unipolar source. Old files can retain the global
+		// bipolar preference, which must not change the lane's 0-100% meaning.
+		if (from >= PatchSource::SNAKE_CUSTOM_1 && from <= PatchSource::SNAKE_CUSTOM_4) {
+			return value;
+		}
 		// aftertouch is stored unipolar, all others are stored bipolar
 		if (from == PatchSource::AFTERTOUCH) {
 			if (polarity == Polarity::UNIPOLAR) {

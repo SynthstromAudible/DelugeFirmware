@@ -25,12 +25,21 @@ public:
 	Feedback(l10n::String name, l10n::String title_format_str, int32_t newP, uint8_t source_id)
 	    : PatchedParam(name, newP, source_id), FormattedTitle(title_format_str, source_id + 1) {}
 
-	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+	bool plaitsSelected() const {
+		return soundEditor.currentSound && isPlaits(soundEditor.currentSound->sources[source_id_].oscType);
+	}
+	[[nodiscard]] std::string_view getName() const override {
+		return plaitsSelected() ? std::string_view("Morph") : MenuItem::getName();
+	}
+	[[nodiscard]] std::string_view getTitle() const override {
+		return plaitsSelected() ? getName() : FormattedTitle::title();
+	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return (sound->getSynthMode() == SynthMode::FM || sound->sources[source_id_].oscType == OscType::DX7);
+		return (isPlaits(sound->sources[source_id_].oscType) || sound->getSynthMode() == SynthMode::FM
+		        || sound->sources[source_id_].oscType == OscType::DX7);
 	}
 };
 

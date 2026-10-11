@@ -1,3 +1,4 @@
+#include "dsp/plaits/voice.h"
 /*
  * Copyright © 2014-2023 Synthstrom Audible Limited
  *
@@ -15,7 +16,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/voice/voice_unison_part_source.h"
 #include "dsp/dx/dx7note.h"
 #include "dsp/dx/engine.h"
 #include "memory/general_memory_allocator.h"
@@ -23,6 +23,7 @@
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
+#include "model/voice/voice_unison_part_source.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/live/live_pitch_shifter.h"
@@ -69,6 +70,22 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 	        || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO)) {
 		// oscPos = 0;
 	}
+	else if (synthMode == SynthMode::SUBTRACTIVE && isPlaits(source->oscType)) {
+		if (plaitsVoice && !resetEverything)
+			return true;
+		void* memory = plaitsVoice;
+		if (plaitsVoice) {
+			plaitsVoice->~PlaitsVoice();
+			plaitsVoice = nullptr;
+		}
+		else {
+			memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(deluge::dsp::PlaitsVoice));
+		}
+		if (!memory)
+			return false;
+		plaitsVoice = new (memory) deluge::dsp::PlaitsVoice(static_cast<unsigned>(source->oscType)
+		                                                    - static_cast<unsigned>(OscType::PLAITS_FM));
+	}
 	else if (synthMode != SynthMode::FM && source->oscType == OscType::DX7) [[unlikely]] {
 		if (dxVoice == nullptr) { // We might actually already have one, and just be restarting this voice
 			dxVoice = getDxEngine()->solicitDxVoice();
@@ -95,6 +112,11 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 
 void VoiceUnisonPartSource::unassign(bool deletingSong) {
 	active = false;
+	if (plaitsVoice) {
+		plaitsVoice->~PlaitsVoice();
+		delugeDealloc(plaitsVoice);
+		plaitsVoice = nullptr;
+	}
 	if (voiceSample != nullptr) {
 		voiceSample->beenUnassigned(deletingSong);
 		AudioEngine::voiceSampleUnassigned(voiceSample);

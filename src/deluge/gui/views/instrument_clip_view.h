@@ -234,9 +234,14 @@ public:
 	// made these public so they can be accessed by the automation clip view
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override {
-		InstrumentClipMinder::renderOLED(canvas);
+		if (!renderMddOLED(canvas))
+			InstrumentClipMinder::renderOLED(canvas);
 	}
 
+	bool renderMddOLED(deluge::hid::display::oled_canvas::Canvas& canvas);
+	void refreshMdd();
+	bool mddControls() const;
+	bool mddGridWasRendered = false;
 	CopiedParamAutomation copiedParamAutomation{};
 	// Sometimes the user will want to hold an audition pad without actually sounding the note, by holding an encoder
 	bool auditioningSilently{};

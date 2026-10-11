@@ -516,6 +516,9 @@ int32_t PatchCableSet::getModifiedPatchCableAmount(int32_t c, int32_t p) {
 	// to small effects as well as big
 	int32_t output;
 	int32_t amount = patchCables[c].param.getCurrentValue();
+	// Custom Depth is linear: 50% means half the step signal, including pitch/rate targets.
+	if (patchCables[c].from >= PatchSource::SNAKE_CUSTOM_1 && patchCables[c].from <= PatchSource::SNAKE_CUSTOM_4)
+		return amount;
 	switch (p) {
 	case params::LOCAL_PITCH_ADJUST:
 	case params::LOCAL_OSC_A_PITCH_ADJUST:

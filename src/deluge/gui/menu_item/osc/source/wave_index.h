@@ -25,13 +25,22 @@ public:
 	WaveIndex(l10n::String name, l10n::String title_format_str, int32_t newP, uint8_t source_id)
 	    : PatchedParam(name, newP, source_id), FormattedTitle(title_format_str, source_id + 1) {}
 
-	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+	bool plaitsSelected() const {
+		return soundEditor.currentSound && isPlaits(soundEditor.currentSound->sources[source_id_].oscType);
+	}
+	[[nodiscard]] std::string_view getName() const override {
+		return plaitsSelected() ? std::string_view("Harmonics") : MenuItem::getName();
+	}
+	[[nodiscard]] std::string_view getTitle() const override {
+		return plaitsSelected() ? getName() : FormattedTitle::title();
+	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		const auto sound = static_cast<Sound*>(modControllable);
 		auto& source = sound->sources[source_id_];
-		return sound->getSynthMode() != SynthMode::FM && source.oscType == OscType::WAVETABLE
-		       && source.hasAtLeastOneAudioFileLoaded();
+		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && isPlaits(source.oscType))
+		       || (sound->getSynthMode() != SynthMode::FM && source.oscType == OscType::WAVETABLE
+		           && source.hasAtLeastOneAudioFileLoaded());
 	}
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return SLIDER; }

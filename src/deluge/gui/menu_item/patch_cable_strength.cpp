@@ -258,7 +258,7 @@ MenuPermission PatchCableStrength::checkPermissionToBeginSession(ModControllable
 	// If patching to another cable's range...
 	if (!destinationDescriptor.isJustAParam()) {
 		// Global source - can control any range
-		if (s < kFirstLocalSource) {
+		if (isGlobalPatchSource(s)) {
 			return MenuPermission::YES;
 		}
 

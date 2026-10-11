@@ -64,7 +64,8 @@ void Submenu::renderInHorizontalMenu(const SlotPosition& slot) {
 void Submenu::drawPixelsForOled() {
 	// Collect items before the current item, this is possibly more than we need.
 	etl::vector<MenuItem*, kOLEDMenuNumOptionsVisible> before = {};
-	for (auto it = current_item_ - 1; it != items.begin() - 1 && before.size() < before.capacity(); it--) {
+	for (auto it = current_item_; it != items.begin() && before.size() < before.capacity();) {
+		--it;
 		MenuItem* menuItem = (*it);
 		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
 			before.push_back(menuItem);

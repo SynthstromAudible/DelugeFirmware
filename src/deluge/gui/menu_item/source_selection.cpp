@@ -44,6 +44,10 @@ const PatchSource sourceMenuContents[] = {
     PatchSource::X,
     PatchSource::Y,
     PatchSource::AFTERTOUCH,
+    PatchSource::SNAKE_CUSTOM_1,
+    PatchSource::SNAKE_CUSTOM_2,
+    PatchSource::SNAKE_CUSTOM_3,
+    PatchSource::SNAKE_CUSTOM_4,
 };
 
 // We're assuming all patch sources are here -- and nothing else. Let's make sure.
@@ -173,6 +177,13 @@ void SourceSelection::drawValue() {
 		text = STRING_FOR_PATCH_SOURCE_Y;
 		break;
 
+	case PatchSource::SNAKE_CUSTOM_1:
+	case PatchSource::SNAKE_CUSTOM_2:
+	case PatchSource::SNAKE_CUSTOM_3:
+	case PatchSource::SNAKE_CUSTOM_4:
+		display->setText(sourceToStringShort(sourceMenuContents[this->getValue()]));
+		return;
+
 	// explicit fallthrough cases
 	case PatchSource::NOT_AVAILABLE:
 	case PatchSource::SOON:
@@ -272,7 +283,7 @@ bool SourceSelection::sourceIsAllowed(PatchSource source) {
 	// If patching to another cable's range...
 	if (!destinationDescriptor.isJustAParam()) {
 		// Global source - can control any range
-		if (source < kFirstLocalSource) {
+		if (isGlobalPatchSource(source)) {
 			return true;
 		}
 

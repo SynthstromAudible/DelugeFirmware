@@ -313,6 +313,18 @@ char const* sourceToString(PatchSource source) {
 	case PatchSource::Y:
 		return "y";
 
+	case PatchSource::SNAKE_CUSTOM_1:
+		return "snakeCustom1";
+
+	case PatchSource::SNAKE_CUSTOM_2:
+		return "snakeCustom2";
+
+	case PatchSource::SNAKE_CUSTOM_3:
+		return "snakeCustom3";
+
+	case PatchSource::SNAKE_CUSTOM_4:
+		return "snakeCustom4";
+
 	default:
 		return "none";
 	}
@@ -367,6 +379,18 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 
 	case PatchSource::Y:
 		return l10n::get(STRING_FOR_PATCH_SOURCE_Y);
+
+	case PatchSource::SNAKE_CUSTOM_1:
+		return "Snake Custom 1";
+
+	case PatchSource::SNAKE_CUSTOM_2:
+		return "Snake Custom 2";
+
+	case PatchSource::SNAKE_CUSTOM_3:
+		return "Snake Custom 3";
+
+	case PatchSource::SNAKE_CUSTOM_4:
+		return "Snake Custom 4";
 
 	default:
 		return "none";
@@ -430,6 +454,18 @@ char const* sourceToStringShort(PatchSource source) {
 
 	case PatchSource::Y:
 		return "mpeY";
+
+	case PatchSource::SNAKE_CUSTOM_1:
+		return "SnC1";
+
+	case PatchSource::SNAKE_CUSTOM_2:
+		return "SnC2";
+
+	case PatchSource::SNAKE_CUSTOM_3:
+		return "SnC3";
+
+	case PatchSource::SNAKE_CUSTOM_4:
+		return "SnC4";
 
 	default:
 		return "----";
@@ -768,6 +804,12 @@ char const* oscTypeToString(OscType oscType) {
 
 	case OscType::DX7:
 		return "dx7";
+	case OscType::PLAITS_FM:
+		return "plaitsFM";
+	case OscType::PLAITS_WAVE:
+		return "plaitsWave";
+	case OscType::PLAITS_VA:
+		return "plaitsVA";
 
 	default:
 		__builtin_unreachable();
@@ -775,6 +817,12 @@ char const* oscTypeToString(OscType oscType) {
 }
 
 OscType stringToOscType(char const* string) {
+	if (!strcmp(string, "plaitsFM"))
+		return OscType::PLAITS_FM;
+	if (!strcmp(string, "plaitsWave"))
+		return OscType::PLAITS_WAVE;
+	if (!strcmp(string, "plaitsVA"))
+		return OscType::PLAITS_VA;
 
 	if (!strcmp(string, "square")) {
 		return OscType::SQUARE;

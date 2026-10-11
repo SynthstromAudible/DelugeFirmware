@@ -85,6 +85,8 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		const auto sound = static_cast<Sound*>(modControllable);
 		Source& source = sound->sources[source_id_];
+		if (isPlaits(source.oscType) && sound->getSynthMode() != SynthMode::FM)
+			return false;
 
 		if (for_modulator_ && sound->getSynthMode() != SynthMode::FM) {
 			return false;

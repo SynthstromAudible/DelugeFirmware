@@ -20,6 +20,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_pattern_ui.h"
 #include "gui/ui/ui.h"
+#include "gui/menu_item/sequence/mdd.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
@@ -96,7 +97,9 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 	// Exception for loadPatternUI which does edit note rows on the grid
 	if ((getCurrentUI() != getRootUI())
 	    && (!(getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())))
-	    && (getCurrentUI() != &loadPatternUI)) {
+	    && (getCurrentUI() != &loadPatternUI)
+	    && !(newActionType == ActionType::MDD_WRITE && getCurrentUI() == &soundEditor
+	         && deluge::gui::menu_item::sequence::mdd::owns(soundEditor.getCurrentMenuItem()))) {
 		return nullptr;
 	}
 
@@ -192,7 +195,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		// newAction->modKnobModeSongView = currentSong->modKnobMode;
 		newAction->affectEntireSongView = currentSong->affectEntire;
 
-		newAction->view = getCurrentUI();
+		newAction->view = newActionType == ActionType::MDD_WRITE ? getRootUI() : getCurrentUI();
 		newAction->currentClip = getCurrentClip();
 	}
 

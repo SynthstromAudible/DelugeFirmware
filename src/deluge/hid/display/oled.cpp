@@ -963,6 +963,7 @@ struct SideScroller {
 	int32_t boxLengthPixels;
 	bool finished;
 	bool doHighlight;
+	bool allowWhilePlaying = false;
 	String string_;
 };
 
@@ -971,7 +972,8 @@ struct SideScroller {
 SideScroller sideScrollers[NUM_SIDE_SCROLLERS];
 // text will be copied into the scroller, caller does not need to keep it allocated
 void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
-                             int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight) {
+                             int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight,
+                             bool allowWhilePlaying) {
 
 	SideScroller* scroller = &sideScrollers[index];
 	scroller->textLength = text.size();
@@ -1002,6 +1004,7 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 	scroller->textSizeY = textSizeY;
 	scroller->finished = false;
 	scroller->doHighlight = doHighlight;
+	scroller->allowWhilePlaying = allowWhilePlaying;
 
 	sideScrollerDirection = 1;
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kScrollTime);
@@ -1041,19 +1044,23 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 		return; // Probably isn't necessary...
 	}
 
-	bool doScroll = !playbackHandler.isEitherClockActive(); // only scroll when playback is off
+	const bool playbackRunning = playbackHandler.isEitherClockActive();
+	bool anyScrolling = !playbackRunning;
 	bool finished = true;
 
 	for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 		bool doRender = true;
 		SideScroller* scroller = &sideScrollers[s];
+		const bool doScroll = !playbackRunning || scroller->allowWhilePlaying;
+		if (scroller->text && doScroll) anyScrolling = true;
 		if (scroller->text) {
 			if (doScroll) {
 				if (scroller->finished) {
 					continue;
 				}
 
-				scroller->pos += sideScrollerDirection;
+				scroller->pos = std::clamp<int32_t>(scroller->pos + sideScrollerDirection, 0,
+				    std::max<int32_t>(0, scroller->stringLengthPixels - scroller->boxLengthPixels));
 
 				if (scroller->pos <= 0) {
 					scroller->finished = true;
@@ -1076,7 +1083,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 			if (doRender) {
 				int32_t endX = scroller->endX;
 				bool doInversion = FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION;
-				if (!doInversion) {
+				if (!doInversion && !scroller->allowWhilePlaying) {
 					// for submenu's, this is the padding before the icon's are rendered
 					// need to clear this area otherwise it leaves a white pixels
 					endX += 4;
@@ -1105,7 +1112,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 	}
 	else {
 		timeInterval = kScrollTime;
-		if (doScroll) {
+		if (anyScrolling) {
 			sideScrollerDirection = -sideScrollerDirection;
 		}
 		// if  we're not scrolling, we reset the scroll position to forward

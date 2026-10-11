@@ -55,7 +55,8 @@ public:
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return sound->synthMode != SynthMode::FM && sound->sources[0].oscType != OscType::SAMPLE
+		return !isPlaits(sound->sources[0].oscType) && !isPlaits(sound->sources[1].oscType)
+		       && sound->synthMode != SynthMode::FM && sound->sources[0].oscType != OscType::SAMPLE
 		       && sound->sources[1].oscType != OscType::SAMPLE;
 	}
 

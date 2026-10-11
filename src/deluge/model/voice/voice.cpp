@@ -1,3 +1,5 @@
+#include "dsp/plaits/voice.h"
+#include "processing/plaits/engine_parameter.h"
 /*
  * Copyright © 2014-2023 Synthstrom Audible Limited
  *
@@ -15,7 +17,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/voice/voice.h"
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
 #include "dsp/dx/engine.h"
@@ -32,6 +33,7 @@
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/song/song.h"
+#include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -194,8 +196,9 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 	// value also takes into account the "preset value". This probably isn't strictly necessary for sources which we
 	// know will be constantly changing, because that would make patching constantly calculate too. But that's only
 	// really the envelopes, plus the LFOs (just the local one?) if they're not square
-	for (int32_t s = 0; s < util::to_underlying(kFirstLocalSource); s++) {
-		sourceValues[s] = sound.globalSourceValues[s];
+	for (int32_t s = 0; s < kNumPatchSources; s++) {
+		if (isGlobalPatchSource(static_cast<PatchSource>(s)))
+			sourceValues[s] = sound.globalSourceValues[s];
 	}
 	patcher.performInitialPatching(sound, *paramManager);
 
@@ -809,8 +812,9 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 
 	// Patch all the sources to their parameters
 	if (sourcesChanged) {
-		for (int32_t s = 0; s < util::to_underlying(kFirstLocalSource); s++) {
-			sourceValues[s] = sound.globalSourceValues[s];
+		for (int32_t s = 0; s < kNumPatchSources; s++) {
+			if (isGlobalPatchSource(static_cast<PatchSource>(s)))
+				sourceValues[s] = sound.globalSourceValues[s];
 		}
 		patcher.performPatching(sourcesChanged, sound, *paramManager);
 	}
@@ -2405,6 +2409,42 @@ dontUseCache: {}
 						}
 					} while (oscBufferPos != oscBufferEnd);
 				}
+			}
+		}
+		else if (isPlaits(sound.sources[s].oscType)) {
+			auto* engine = voiceUnisonPartSource->plaitsVoice;
+			if (!engine)
+				goto instantUnassign;
+			const int baseModel =
+			    util::to_underlying(sound.sources[s].oscType) - util::to_underlying(OscType::PLAITS_FM);
+			const unsigned model =
+			    deluge::plaits_control::modelFromFinal(baseModel, paramFinalValues[params::LOCAL_PLAITS_A_ENGINE + s]);
+			engine->setModel(model);
+			const float harmonics =
+			    std::clamp(0.5f + paramFinalValues[params::LOCAL_OSC_A_WAVE_INDEX + s] / 2147483648.f, 0.f, 1.f);
+			const float timbre =
+			    std::clamp(0.5f + paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s] / 2147483648.f, 0.f, 1.f);
+			const float morph =
+			    std::clamp(paramFinalValues[params::LOCAL_CARRIER_0_FEEDBACK + s] / 11863284.f, 0.f, 1.f);
+			int32_t amplitudeNow = sourceAmplitude;
+			for (int offset = 0; offset < numSamples;) {
+				float block[plaits::kMaxBlockSize];
+				const int n = std::min<int>(plaits::kMaxBlockSize, numSamples - offset);
+				engine->render(phaseIncrement, harmonics, timbre, morph, block, n);
+				for (int i = 0; i < n; ++i) {
+					amplitudeNow += amplitudeIncrement;
+					// Q25 * amplitude / 2^32 * 64 gives peak amplitude/2, matching stock sine.
+					const int32_t sample = static_cast<int32_t>(block[i] * 33554432.f);
+					const int32_t amplified = multiply_32x32_rshift32(sample, amplitudeNow) * 64;
+					if (stereoBuffer) {
+						oscBuffer[2 * (offset + i)] += multiply_32x32_rshift32(amplified, amplitudeL) * 4;
+						oscBuffer[2 * (offset + i) + 1] += multiply_32x32_rshift32(amplified, amplitudeR) * 4;
+					}
+					else {
+						oscBuffer[offset + i] += amplified;
+					}
+				}
+				offset += n;
 			}
 		}
 		else if (sound.sources[s].oscType == OscType::DX7) {

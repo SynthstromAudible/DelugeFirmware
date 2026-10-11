@@ -136,7 +136,9 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [LOCAL_OSC_B_PHASE_WIDTH]        = "Osc2 PW",
 	    [LOCAL_OSC_A_WAVE_INDEX]         = "Osc1 wave",
 	    [LOCAL_OSC_B_WAVE_INDEX]         = "Osc2 wave",
-	    [LOCAL_PAN]                      = "Pan",
+	    [LOCAL_PLAITS_A_ENGINE] = "Osc1 Engine",
+ [LOCAL_PLAITS_B_ENGINE] = "Osc2 Engine",
+ [LOCAL_PAN]                      = "Pan",
 	    [LOCAL_LPF_FREQ]                 = "LPf freq",
 	    [LOCAL_PITCH_ADJUST]             = "Pitch",
 	    [LOCAL_OSC_A_PITCH_ADJUST]       = "Osc1 pitch",
@@ -199,6 +201,10 @@ char const* getPatchedParamShortName(ParamType type, ModControllableAudio* modCo
 }
 
 char const* getPatchedParamDisplayName(int32_t p) {
+	if (p == LOCAL_PLAITS_A_ENGINE)
+		return "Osc1 Engine";
+	if (p == LOCAL_PLAITS_B_ENGINE)
+		return "Osc2 Engine";
 	using enum l10n::String;
 
 	static l10n::String const NAMES[GLOBAL_NONE] = {
@@ -225,6 +231,8 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	    [LOCAL_OSC_B_PHASE_WIDTH] = STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH,
 	    [LOCAL_OSC_A_WAVE_INDEX] = STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX,
 	    [LOCAL_OSC_B_WAVE_INDEX] = STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX,
+	    [LOCAL_PLAITS_A_ENGINE] = STRING_FOR_TYPE,
+	    [LOCAL_PLAITS_B_ENGINE] = STRING_FOR_TYPE,
 	    [LOCAL_PAN] = STRING_FOR_PARAM_LOCAL_PAN,
 	    [LOCAL_LPF_FREQ] = STRING_FOR_PARAM_LOCAL_LPF_FREQ,
 	    [LOCAL_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_PITCH_ADJUST,
@@ -632,6 +640,10 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 		case LOCAL_OSC_B_PHASE_WIDTH:
 			return "oscBPhaseWidth";
 
+		case LOCAL_PLAITS_A_ENGINE:
+			return "plaitsAEngine";
+		case LOCAL_PLAITS_B_ENGINE:
+			return "plaitsBEngine";
 		case LOCAL_OSC_A_WAVE_INDEX:
 			return "oscAWavetablePosition";
 

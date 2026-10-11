@@ -286,6 +286,7 @@ void killOneVoice(size_t num_samples) {
 		if (currentSong) {
 			currentSong->cullAudioClipVoice();
 		}
+		return;
 	}
 
 	const Sound::ActiveVoice& voice = *it;
@@ -1414,6 +1415,7 @@ void stopAnyPreviewing() {
 void getReverbParamsFromSong(Song* song) {
 	reverb.setModel(song->model);
 	reverb.setRoomSize(song->reverbRoomSize);
+	reverb.setHPF(song->reverbHPF);
 	reverb.setLPF(song->reverbLPF);
 	reverb.setDamping(song->reverbDamp);
 	reverb.setWidth(song->reverbWidth);

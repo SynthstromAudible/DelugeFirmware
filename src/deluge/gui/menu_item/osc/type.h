@@ -29,6 +29,7 @@
 #include <hid/display/oled.h>
 
 extern gui::menu_item::Submenu dxMenu;
+extern MenuItem* plaitsEngineMenus[2];
 
 namespace deluge::gui::menu_item::osc {
 class Type final : public Selection, public FormattedTitle {
@@ -39,19 +40,41 @@ public:
 
 	bool mayUseDx() const { return !soundEditor.editingKit() && sourceId_ == 0; }
 
-	void readCurrentValue() override {
-		int32_t rawVal = static_cast<int32_t>(soundEditor.currentSound->sources[sourceId_].oscType);
-		if (!mayUseDx() && rawVal > static_cast<int32_t>(OscType::DX7)) {
-			rawVal -= 1;
+	deluge::vector<OscType> availableTypes() const {
+		deluge::vector<OscType> types{OscType::SINE, OscType::TRIANGLE,     OscType::SQUARE,   OscType::ANALOG_SQUARE,
+		                              OscType::SAW,  OscType::ANALOG_SAW_2, OscType::WAVETABLE};
+		if (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD)
+			return types;
+		types.emplace_back(OscType::SAMPLE);
+		if (mayUseDx())
+			types.emplace_back(OscType::DX7);
+		types.emplace_back(OscType::INPUT_L);
+		if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) {
+			types.emplace_back(OscType::INPUT_R);
+			types.emplace_back(OscType::INPUT_STEREO);
 		}
-		setValue(rawVal);
+		types.emplace_back(OscType::PLAITS_FM);
+		return types;
+	}
+	void readCurrentValue() override {
+		const auto types = availableTypes();
+		auto current = soundEditor.currentSound->sources[sourceId_].oscType;
+		if (isPlaits(current))
+			current = OscType::PLAITS_FM;
+		auto it = std::find(types.begin(), types.end(), current);
+		if (it == types.end() && (current == OscType::INPUT_R || current == OscType::INPUT_STEREO))
+			it = std::find(types.begin(), types.end(), OscType::INPUT_L);
+		setValue(it == types.end() ? 0 : it - types.begin());
 	}
 	void writeCurrentValue() override {
 		OscType oldValue = soundEditor.currentSound->sources[sourceId_].oscType;
-		auto newValue = getValue<OscType>();
-		if (!mayUseDx() && static_cast<int32_t>(newValue) >= static_cast<int32_t>(OscType::DX7)) {
-			newValue = static_cast<OscType>(static_cast<int32_t>(newValue) + 1);
-		}
+		const auto types = availableTypes();
+		const int index = getValue();
+		if (index < 0 || index >= static_cast<int>(types.size()))
+			return;
+		auto newValue = types[index];
+		if (isPlaits(newValue) && isPlaits(oldValue))
+			return;
 
 		const auto needs_unassignment = {
 		    OscType::INPUT_L,
@@ -64,13 +87,14 @@ public:
 		    OscType::WAVETABLE,
 		};
 
-		if (util::one_of(oldValue, needs_unassignment) || util::one_of(newValue, needs_unassignment)) {
+		if (isPlaits(oldValue) || isPlaits(newValue) || util::one_of(oldValue, needs_unassignment)
+		    || util::one_of(newValue, needs_unassignment)) {
 			soundEditor.currentSound->killAllVoices();
 		}
 
 		soundEditor.currentSound->sources[sourceId_].setOscType(newValue);
 
-		if (oldValue == OscType::SQUARE || newValue == OscType::SQUARE) {
+		if (isPlaits(oldValue) || isPlaits(newValue) || oldValue == OscType::SQUARE || newValue == OscType::SQUARE) {
 			soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
 		}
 	}
@@ -109,6 +133,7 @@ public:
 			options.emplace_back(l10n::getView(STRING_FOR_INPUT));
 		}
 
+		options.emplace_back(display->haveOLED() ? "Plaits" : "PLTS");
 		return options;
 	}
 
@@ -118,6 +143,8 @@ public:
 	}
 
 	MenuItem* selectButtonPress() override {
+		if (isPlaits(soundEditor.currentSound->sources[sourceId_].oscType))
+			return plaitsEngineMenus[sourceId_];
 		if (soundEditor.currentSound->sources[sourceId_].oscType != OscType::DX7) {
 			return nullptr;
 		}
@@ -130,7 +157,7 @@ public:
 		oled_canvas::Canvas& image = OLED::main;
 
 		const OscType osc_type = soundEditor.currentSound->sources[sourceId_].oscType;
-		if (osc_type == OscType::DX7) {
+		if (osc_type == OscType::DX7 || isPlaits(osc_type)) {
 			const auto option = getOptions(OptType::FULL)[getValue()].data();
 			return image.drawStringCentered(option, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset + 5,
 			                                kTextTitleSpacingX, kTextTitleSizeY, slot.width);

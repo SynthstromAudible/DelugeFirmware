@@ -1,3 +1,25 @@
+# Deluge MDD Snake + Plaits — custom firmware
+
+Unofficial OLED-focused modification of Synthstrom Audible's Deluge Community Firmware, based on 1.3.0 beta (Derbyshire), upstream commit `3e06e01d713001e546480a3153f01570c0d05fa0`.
+
+**Modified version, published 11 October 2026.** This repository contains editable source code, third-party source, build scripts and regression tests. It is not an official Synthstrom or Mutable Instruments release.
+
+- MDD Snake: alternative clip sequencer with Notes, Gate, Velocity and four independent Custom modulation lanes; OLED/grid editing, Song root/scale integration, WRITE and Undo.
+- Plaits: FM, Waveshaping and Virtual Analog oscillator engines, with mappable engine selection. This is a three-engine subset, not the complete Plaits module.
+- Additional startup, OLED, effects and overload-safety changes.
+
+**Current status:** source-only CPU audit update. Host regression tests passed; this latest update has not been ARM-built or tested on physical hardware. No new BIN is published with this commit. Do not assume an older BIN contains these changes.
+
+Read [changes and attribution](CUSTOM_CHANGES.md), [licensing](THIRD_PARTY_NOTICES.md), [build instructions](BUILD_CUSTOM.md), and the [CPU audit](docs/custom/CPU_AUDIT.md).
+
+## License
+
+The combined firmware is distributed under **GNU GPL version 3 or later**; see [LICENSE](LICENSE). Existing copyright notices and component-specific licenses are retained. The imported Plaits/stmlib code is by Emilie Gillet under the MIT license; see [its notices](src/plaits_vendor/LICENSE-MIT.txt). No exclusive ownership of upstream work is claimed.
+
+---
+
+## Upstream project information
+
 # Deluge Community Firmware
 
 ## Dear Deluge owners

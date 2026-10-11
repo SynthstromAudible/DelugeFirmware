@@ -27,11 +27,26 @@ public:
 	PulseWidth(l10n::String name, l10n::String title_format_str, int32_t newP, uint8_t source_id)
 	    : PatchedParam(name, newP, source_id), FormattedTitle(title_format_str, source_id + 1) {}
 
-	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+	bool plaitsSelected() const {
+		return soundEditor.currentSound && isPlaits(soundEditor.currentSound->sources[source_id_].oscType);
+	}
+	[[nodiscard]] std::string_view getName() const override {
+		return plaitsSelected() ? std::string_view("Timbre") : MenuItem::getName();
+	}
+	[[nodiscard]] std::string_view getTitle() const override {
+		return plaitsSelected() ? getName() : FormattedTitle::title();
+	}
 
-	int32_t getFinalValue() override { return computeFinalValueForHalfPrecisionMenuItem(this->getValue()); }
+	int32_t getFinalValue() override {
+		return plaitsSelected() ? source::PatchedParam::getFinalValue()
+		                        : computeFinalValueForHalfPrecisionMenuItem(this->getValue());
+	}
 
 	void readCurrentValue() override {
+		if (plaitsSelected()) {
+			source::PatchedParam::readCurrentValue();
+			return;
+		}
 		this->setValue(computeCurrentValueForHalfPrecisionMenuItem(
 		    soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP())));
 	}
@@ -53,6 +68,10 @@ public:
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		if (plaitsSelected()) {
+			source::PatchedParam::renderInHorizontalMenu(slot);
+			return;
+		}
 		oled_canvas::Canvas& image = OLED::main;
 
 		const float norm = getValue() / 50.0f;

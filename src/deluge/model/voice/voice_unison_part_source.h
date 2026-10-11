@@ -28,6 +28,9 @@ class Voice;
 class VoiceSample;
 class LivePitchShifter;
 class DxVoice;
+namespace deluge::dsp {
+class PlaitsVoice;
+}
 
 class VoiceUnisonPartSource {
 public:
@@ -48,4 +51,5 @@ public:
 	VoiceSample* voiceSample = nullptr;
 	LivePitchShifter* livePitchShifter = nullptr;
 	gsl::owner<DxVoice*> dxVoice = nullptr;
+	deluge::dsp::PlaitsVoice* plaitsVoice = nullptr;
 };

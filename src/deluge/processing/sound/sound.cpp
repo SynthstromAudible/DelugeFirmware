@@ -51,6 +51,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "sequencer/snake_codec.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multi_wave_table_range.h"
@@ -138,6 +139,8 @@ void Sound::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
+	patchedParams->params[params::LOCAL_PLAITS_A_ENGINE].setCurrentValueBasicForSetup(0);
+	patchedParams->params[params::LOCAL_PLAITS_B_ENGINE].setCurrentValueBasicForSetup(0);
 	patchedParams->params[params::LOCAL_VOLUME].setCurrentValueBasicForSetup(0);
 	patchedParams->params[params::LOCAL_OSC_A_VOLUME].setCurrentValueBasicForSetup(2147483647);
 	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(2147483647);
@@ -411,7 +414,16 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
                                     int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) {
 
-	if (!strcmp(tagName, "osc1")) {
+	if (!strcmp(tagName, "snakeCustomV1") || !strcmp(tagName, "snakeCustomV2")) {
+		const bool version2 = !strcmp(tagName, "snakeCustomV2");
+		String settings;
+		const Error error = reader.readTagOrAttributeValueString(&settings);
+		if (error != Error::NONE)
+			return error;
+		deluge::sequencer::SnakeModulationCodec::decode(settings.get(), snakeCustomConfig, snakeCustomEnabled);
+		reader.exitTag(version2 ? "snakeCustomV2" : "snakeCustomV1");
+	}
+	else if (!strcmp(tagName, "osc1")) {
 		reader.match('{');
 		Error error = readSourceFromFile(reader, 0, paramManager, readAutomationUpToPos);
 		if (error != Error::NONE) {
@@ -1342,13 +1354,18 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		return PatchCableAcceptance::DISALLOWED;
 	}
 
-	if (p != 255 && s != PatchSource::NOT_AVAILABLE && s >= kFirstLocalSource && p >= params::FIRST_GLOBAL) {
+	if (p != 255 && s != PatchSource::NOT_AVAILABLE && !isGlobalPatchSource(s) && p >= params::FIRST_GLOBAL) {
 		return PatchCableAcceptance::DISALLOWED; // Can't patch local source to global param
 	}
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
 	switch (p) {
+	case params::LOCAL_PLAITS_A_ENGINE:
+	case params::LOCAL_PLAITS_B_ENGINE:
+		return getSynthMode() == SynthMode::SUBTRACTIVE && isPlaits(sources[p - params::LOCAL_PLAITS_A_ENGINE].oscType)
+		           ? PatchCableAcceptance::ALLOWED
+				   : PatchCableAcceptance::EDITABLE;
 	case params::GLOBAL_NONE:
 		return PatchCableAcceptance::DISALLOWED;
 
@@ -1377,6 +1394,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		                                                                      : PatchCableAcceptance::EDITABLE;
 
 	case params::LOCAL_CARRIER_0_FEEDBACK:
+		if (synthMode == SynthMode::SUBTRACTIVE && isPlaits(sources[0].oscType))
+			return PatchCableAcceptance::ALLOWED;
 		if (synthMode != SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
@@ -1401,6 +1420,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		                                                                      : PatchCableAcceptance::EDITABLE;
 
 	case params::LOCAL_CARRIER_1_FEEDBACK:
+		if (synthMode == SynthMode::SUBTRACTIVE && isPlaits(sources[1].oscType))
+			return PatchCableAcceptance::ALLOWED;
 		if (synthMode != SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
@@ -1603,6 +1624,7 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
                                   int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
                                   int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel) {
+	updateSnakeCustom();
 	const ActiveVoice* voiceToReuse = nullptr;
 	const ActiveVoice* voiceForLegato = nullptr;
 
@@ -2121,7 +2143,7 @@ bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
 }
 
 bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager) {
-	if (!oscillatorSync) {
+	if (!oscillatorSync || isPlaits(sources[0].oscType) || isPlaits(sources[1].oscType)) {
 		return false;
 	}
 	if (synthMode == SynthMode::FM) {
@@ -2132,7 +2154,7 @@ bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManag
 }
 
 bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
-	if (!oscillatorSync) {
+	if (!oscillatorSync || isPlaits(sources[0].oscType) || isPlaits(sources[1].oscType)) {
 		return false;
 	}
 	if (synthMode == SynthMode::FM) {
@@ -2383,6 +2405,8 @@ void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundF
 void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
                    int32_t sideChainHitPending, int32_t reverbAmountAdjust, bool shouldLimitDelayFeedback,
                    int32_t pitchAdjust, SampleRecorder* recorder) {
+
+	updateSnakeCustom();
 
 	if (skippingRendering) {
 		compressor.gainReduction = 0;
@@ -3802,6 +3826,13 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_PHASE_WIDTH, readAutomationUpToPos);
 		reader.exitTag("oscBPulseWidth");
 	}
+	else if (!strcmp(tagName, "plaitsAEngine") || !strcmp(tagName, "plaitsBEngine")) {
+		patchedParams->readParam(reader, patchedParamsSummary,
+		                         !strcmp(tagName, "plaitsAEngine") ? params::LOCAL_PLAITS_A_ENGINE
+		                                                           : params::LOCAL_PLAITS_B_ENGINE,
+		                         readAutomationUpToPos);
+		reader.exitTag();
+	}
 	else if (!strcmp(tagName, "oscAWavetablePosition")) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_WAVE_INDEX, readAutomationUpToPos);
 		reader.exitTag();
@@ -4061,6 +4092,8 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	unpatchedParams->writeParamAsAttribute(writer, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
 	                                       writeAutomation);
 
+	patchedParams->writeParamAsAttribute(writer, "plaitsAEngine", params::LOCAL_PLAITS_A_ENGINE, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "plaitsBEngine", params::LOCAL_PLAITS_B_ENGINE, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "oscAWavetablePosition", params::LOCAL_OSC_A_WAVE_INDEX,
@@ -4187,6 +4220,8 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.writeAttribute("path", pathAttribute);
 	}
 	writer.writeAttribute("maxVoices", maxVoiceCount);
+	const auto snakeSettings = deluge::sequencer::SnakeModulationCodec::encode(snakeCustomConfig, snakeCustomEnabled);
+	writer.writeAttribute("snakeCustomV2", snakeSettings.data());
 
 	writer.writeOpeningTagEnd();
 
@@ -5038,3 +5073,33 @@ void Sound::checkVoiceExists(const ActiveVoice& voice, const char* error) const 
 }
 
 #pragma GCC diagnostic pop
+// Called by the transport-side Snake driver, not by individual voices.
+void Sound::setSnakeCustomValues(const std::array<int32_t, 4>& values) {
+	for (unsigned i = 0; i < values.size(); ++i) {
+		const unsigned source = util::to_underlying(PatchSource::SNAKE_CUSTOM_1) + i;
+		const int32_t value = std::max<int32_t>(values[i], 0);
+		if (globalSourceValues[source] != value) {
+			globalSourceValues[source] = value;
+			sourcesChanged |= 1u << source;
+		}
+	}
+}
+
+bool Sound::setSnakePlaitsModel(unsigned oscillator, int model) {
+	if (oscillator >= kNumSources || model < -1 || model > 2)
+		return false;
+	snakePlaitsModels[oscillator] = model;
+	return true;
+}
+
+void Sound::updateSnakeCustom() {
+	if (mddClipActive)
+		return;
+	if (snakeCustomEnabled && playbackHandler.isEitherClockActive()) {
+		const auto tick = std::max<int64_t>(playbackHandler.getActualSwungTickCount(), 0);
+		deluge::sequencer::Snake::updateModulation(snakeCustomConfig, static_cast<uint64_t>(tick), *this);
+	}
+	else {
+		deluge::sequencer::Snake::clearModulation(*this);
+	}
+}

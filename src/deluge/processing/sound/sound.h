@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include "sequencer/snake.h"
 
 #include "definitions_cxx.hpp"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -85,7 +86,17 @@ public:
 	// before accessing this array!
 	std::array<int32_t, deluge::modulation::params::kNumParams - deluge::modulation::params::FIRST_GLOBAL>
 	    paramFinalValues{};
-	std::array<int32_t, util::to_underlying(kFirstLocalSource)> globalSourceValues{};
+	// Indexed by PatchSource; local-source entries are unused here. This preserves existing source IDs.
+	std::array<int32_t, kNumPatchSources> globalSourceValues{};
+	bool snakeCustomEnabled = false;
+	bool mddClipActive = false;
+    const void* mddClipOwner = nullptr; // Identity only; never dereferenced.
+	deluge::sequencer::SnakeConfig snakeCustomConfig;
+	void updateSnakeCustom();
+	void setSnakeCustomValues(const std::array<int32_t, 4>& values);
+	// -1 restores the oscillator's selected model. Overrides only apply to Plaits oscillators.
+	std::array<int8_t, kNumSources> snakePlaitsModels{-1, -1};
+	bool setSnakePlaitsModel(unsigned oscillator, int model);
 
 	uint32_t sourcesChanged{}; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 

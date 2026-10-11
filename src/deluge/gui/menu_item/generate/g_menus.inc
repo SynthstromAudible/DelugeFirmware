@@ -60,6 +60,7 @@ std::array<MenuItem*, 2> child5 = {
 };
 HorizontalMenu recorderMenu{STRING_FOR_SAMPLE_RECORDER, child5};
 osc::Type osc0TypeMenu{STRING_FOR_TYPE, STRING_FOR_OSC_TYPE_MENU_TITLE, 0};
+osc::PlaitsEngine plaits0EngineMenu{0};
 FileSelector deluge::gui::menu_item::file0SelectorMenu{STRING_FOR_FILE_BROWSER, 0};
 sample::Transpose source0TransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, params::LOCAL_OSC_A_PITCH_ADJUST, 0};
 osc::source::WaveIndex source0WaveIndexMenu{STRING_FOR_WAVE_INDEX, STRING_FOR_OSC_WAVE_IND_MENU_TITLE, params::LOCAL_OSC_A_WAVE_INDEX, 0};
@@ -73,8 +74,9 @@ sample::PitchSpeed sample0PitchSpeedMenu{STRING_FOR_PITCH_SPEED, 0};
 sample::Interpolation sample0InterpolationMenu{STRING_FOR_INTERPOLATION, STRING_FOR_SAMP_INTERP_MENU_TITLE, 0};
 sample::Start sample0StartMenu{STRING_FOR_START_POINT, 0};
 sample::End sample0EndMenu{STRING_FOR_END_POINT, 0};
-std::array<MenuItem*, 14> child6 = {
+std::array<MenuItem*, 15> child6 = {
     &osc0TypeMenu,
+    &plaits0EngineMenu,
     &deluge::gui::menu_item::file0SelectorMenu,
     &source0TransposeMenu,
     &source0WaveIndexMenu,
@@ -91,6 +93,7 @@ std::array<MenuItem*, 14> child6 = {
 };
 submenu::ActualSource source0Menu{STRING_FOR_OSCILLATOR_1, child6, 0};
 osc::Type osc1TypeMenu{STRING_FOR_TYPE, STRING_FOR_OSC_TYPE_MENU_TITLE, 1};
+osc::PlaitsEngine plaits1EngineMenu{1};
 FileSelector deluge::gui::menu_item::file1SelectorMenu{STRING_FOR_FILE_BROWSER, 1};
 sample::Transpose source1TransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, params::LOCAL_OSC_A_PITCH_ADJUST, 1};
 osc::source::WaveIndex source1WaveIndexMenu{STRING_FOR_WAVE_INDEX, STRING_FOR_OSC_WAVE_IND_MENU_TITLE, params::LOCAL_OSC_A_WAVE_INDEX, 1};
@@ -104,8 +107,9 @@ sample::PitchSpeed sample1PitchSpeedMenu{STRING_FOR_PITCH_SPEED, 1};
 sample::Interpolation sample1InterpolationMenu{STRING_FOR_INTERPOLATION, STRING_FOR_SAMP_INTERP_MENU_TITLE, 1};
 sample::Start sample1StartMenu{STRING_FOR_START_POINT, 1};
 sample::End sample1EndMenu{STRING_FOR_END_POINT, 1};
-std::array<MenuItem*, 14> child7 = {
+std::array<MenuItem*, 15> child7 = {
     &osc1TypeMenu,
+    &plaits1EngineMenu,
     &deluge::gui::menu_item::file1SelectorMenu,
     &source1TransposeMenu,
     &source1WaveIndexMenu,

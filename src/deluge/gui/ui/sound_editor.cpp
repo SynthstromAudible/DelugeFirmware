@@ -1,3 +1,4 @@
+#include "gui/menu_item/sequence/mdd.h"
 
 #include "gui/ui/sound_editor.h"
 #include "definitions_cxx.hpp"
@@ -421,6 +422,10 @@ void SoundEditor::setCurrentSource(int32_t sourceIndex) {
 }
 
 bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+    if (getRootUI() == &instrumentClipView && instrumentClipView.mddControls()
+        && deluge::gui::menu_item::sequence::mdd::owns(getCurrentMenuItem())) {
+        return false; // Keep the sequencer cells and moving playhead fully visible.
+    }
 	bool doGreyout = true;
 
 	RootUI* rootUI = getRootUI();
@@ -543,6 +548,12 @@ void SoundEditor::enterSubmenu(MenuItem* newItem, MenuItem* navigatedBackwardFro
 }
 
 ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+    if (b == deluge::hid::button::SHIFT && on && getRootUI() == &instrumentClipView
+        && instrumentClipView.mddControls() && deluge::gui::menu_item::sequence::mdd::owns(getCurrentMenuItem())) {
+        getCurrentInstrumentClip()->mdd.back();
+    }
+
+
 	using namespace deluge::hid::button;
 
 	Clip* clip = nullptr;
@@ -1262,7 +1273,14 @@ const uint32_t selectEncoderUIModes[] = {UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_
                                          UI_MODE_AUDITIONING, UI_MODE_STUTTERING, 0};
 
 void SoundEditor::selectEncoderAction(int8_t offset) {
-	int8_t scaledOffset = offset;
+    if (getRootUI() == &instrumentClipView && instrumentClipView.mddControls()
+        && deluge::gui::menu_item::sequence::mdd::owns(getCurrentMenuItem())
+        && getCurrentInstrumentClip()->mdd.gestures.held >= 0 && !Buttons::isShiftButtonPressed()) {
+        deluge::gui::menu_item::sequence::mdd::editStep(offset);
+        return;
+    }
+
+	int32_t scaledOffset = offset;
 	// 5x acceleration of select encoder when holding the shift button
 	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
 		scaledOffset *= 5;
@@ -1705,6 +1723,13 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 
 	RootUI* rootUI = getRootUI();
+
+    // MDD pads are a sequencer surface, not stock sound-parameter shortcut pads.
+    if (rootUI == &instrumentClipView && instrumentClipView.mddControls()
+        && deluge::gui::menu_item::sequence::mdd::owns(getCurrentMenuItem())
+        && !Buttons::isShiftButtonPressed() && x >= 0 && x < kDisplayWidth) {
+        return instrumentClipView.padAction(x, y, on);
+    }
 
 	if (!inSettingsMenu() && !inNoteEditor() && !inNoteRowEditor()) {
 		ActionResult result = potentialShortcutPadAction(x, y, on);

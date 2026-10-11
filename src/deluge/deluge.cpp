@@ -487,6 +487,8 @@ void setupStartupSong() {
 		else {
 			// what just failed??
 			display->consoleText("Startup fault F4");
+			f_unlink(failSafePath.get());
+			return;
 		}
 		// ...but we got this far, cleanup
 		f_unlink(failSafePath.get());
@@ -494,7 +496,13 @@ void setupStartupSong() {
 	case StartupSongMode::BLANK:
 		[[fallthrough]];
 	default:
-		return;
+		break;
+	}
+	// Loading UI owns popups during startup. Only show the greeting after it
+	// returns, so its dismissal cannot immediately erase the greeting.
+	if (display->haveOLED() && !deluge::hid::display::OLED::isPopupPresent()) {
+		deluge::hid::display::OLED::popupText("Holdontoentropy", false, PopupType::GENERAL);
+		uiTimerManager.setTimer(TimerName::DISPLAY, 4000);
 	}
 }
 

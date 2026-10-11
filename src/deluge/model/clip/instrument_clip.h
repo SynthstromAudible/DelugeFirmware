@@ -22,6 +22,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "model/note/note_row_vector.h"
 #include "modulation/arpeggiator.h"
+#include "sequencer/mdd/controller.hpp"
 
 class Song;
 
@@ -48,6 +49,20 @@ enum class VerticalNudgeType { ROW, OCTAVE };
 class InstrumentClip final : public Clip {
 public:
 	explicit InstrumentClip(Song* song = nullptr);
+	snake::Controller mdd;
+	bool mddEnabled = false, mddRequested = false, mddPending = false, mddNoteOn = false;
+	uint64_t mddTick = 0, mddOffAt = 0, mddLastProcessed = UINT64_MAX;
+	uint8_t mddNote = 60;
+	int32_t mddNormalPos = 0, mddNormalRepeat = 0;
+	bool mddNormalReversed = false;
+	void requestMdd(bool enabled);
+	Error writeMddToNormal(ModelStackWithTimelineCounter* modelStack);
+	void closeMdd(ModelStackWithTimelineCounter* modelStack);
+	void processMdd(ModelStackWithTimelineCounter* modelStack);
+	bool applyMddRoute(ModelStackWithTimelineCounter* stack, int lane, const snake::Route& oldRoute,
+	                   const snake::Route& newRoute);
+	int mddQuantize(int note, Song* song) const;
+
 	~InstrumentClip() override;
 	void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
 	                               IndependentNoteRowLengthIncrease independentNoteRowInstruction,

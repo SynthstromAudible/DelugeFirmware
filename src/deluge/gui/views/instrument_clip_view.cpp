@@ -1,3 +1,11 @@
+#include "gui/menu_item/sequence/mdd.h"
+#include "gui/menu_item/sequence/mode.h"
+#include "sequencer/mdd/sample_clock.hpp"
+extern deluge::gui::menu_item::sequence::Mode sequencerModeMenu;
+#include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
+#include "processing/sound/sound.h"
+#include <cstdio>
 /*
  * Copyright © 2014-2023 Synthstrom Audible Limited
  *
@@ -128,12 +136,19 @@ InstrumentClipView::InstrumentClipView() : numEditPadPresses(0) {
 }
 
 bool InstrumentClipView::opened() {
+	if (mddControls())
+		refreshMdd();
 
 	openedInBackground();
 
 	focusRegained();
 
 	return true;
+}
+
+static uint64_t mddTimeMs() {
+    static snake::SampleClock clock;
+    return clock.milliseconds(AudioEngine::audioSampleTimer);
 }
 
 void InstrumentClipView::openedInBackground() {
@@ -251,10 +266,39 @@ ActionResult InstrumentClipView::commandExitScaleMode() {
 ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	if (mddControls() && b == SHIFT && on)
+		getCurrentInstrumentClip()->mdd.back();
+	if (mddControls() && currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
+		if (b == BACK && on) {
+			if (inCardRoutine)
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			getCurrentInstrumentClip()->mdd.back();
+			if (soundEditor.setup(getCurrentClip()))
+				openUI(&soundEditor);
+			return ActionResult::DEALT_WITH;
+		}
+	}
 	maybeStartShortcutOverview(b, on);
 
 	// Scale mode button
 	if (b == SCALE_MODE && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
+		// MDD already uses the Song key. Never infer a new key from its dormant stock rows.
+		if (mddControls() && currentUIMode == UI_MODE_NONE && !Buttons::isButtonPressed(LEARN)) {
+			if (!on) return ActionResult::DEALT_WITH;
+			if (inCardRoutine) return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			auto* clip = getCurrentInstrumentClip();
+			actionLogger.deleteAllLogs();
+			if (Buttons::isShiftButtonPressed()) {
+				clip->inScaleMode = true;
+				currentSong->cycleThroughScales();
+			}
+			else clip->inScaleMode = !clip->inScaleMode;
+			indicator_leds::setLedState(IndicatorLED::SCALE_MODE, clip->inScaleMode);
+			if (clip->inScaleMode) currentSong->displayCurrentRootNoteAndScaleName();
+			else display->displayPopup("Chromatic");
+			uiNeedsRendering(this);
+			return ActionResult::DEALT_WITH;
+		}
 		return handleScaleButtonAction(on, inCardRoutine);
 	}
 
@@ -864,6 +908,20 @@ passToOthers:
 }
 
 ActionResult InstrumentClipView::timerCallback() {
+	if (mddControls()) {
+		auto& ui = getCurrentInstrumentClip()->mdd;
+		if (ui.gestures.editing(mddTimeMs()) && !ui.gestures.consumed
+		    && (getCurrentUI() == this
+		        || (getCurrentUI() == &soundEditor
+		            && deluge::gui::menu_item::sequence::mdd::owns(soundEditor.getCurrentMenuItem())))) {
+			ui.selectedStep = ui.gestures.held;
+			ui.gestures.consumed = true;
+			deluge::gui::menu_item::sequence::mdd::open(deluge::gui::menu_item::sequence::mdd::valueMenu);
+		}
+		refreshMdd();
+		return ActionResult::DEALT_WITH;
+	}
+
 	using namespace deluge::hid::button;
 
 	// Reveal the macro sidebar only once the Session button has been held past the long-press threshold.
@@ -1770,6 +1828,10 @@ bool InstrumentClipView::changeOutputType(OutputType newOutputType) {
 }
 
 void InstrumentClipView::selectEncoderAction(int8_t offset) {
+	if (mddControls() && getCurrentInstrumentClip()->mdd.gestures.held >= 0 && !Buttons::isShiftButtonPressed()) {
+		deluge::gui::menu_item::sequence::mdd::editStep(offset);
+		return;
+	}
 
 	exitedShortcutOverview = true;
 	uiNeedsRendering(this);
@@ -1861,6 +1923,38 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING,
                                              0};
 
 ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocity) {
+	if (mddControls()) {
+		auto& ui = getCurrentInstrumentClip()->mdd;
+		uint64_t now = mddTimeMs();
+		if (x >= 0 && x < 4 && y >= 4 && y < 8) {
+			int cell = (7 - y) * 4 + x;
+			if (velocity) {
+				ui.selectedStep = cell;
+				ui.gestures.down(cell, now);
+			}
+			else {
+				bool editOnRelease = cell == ui.gestures.held && ui.gestures.editing(now) && !ui.gestures.consumed;
+				ui.gestures.up(cell, now);
+				if (editOnRelease) {
+					ui.selectedStep = cell;
+					deluge::gui::menu_item::sequence::mdd::open(deluge::gui::menu_item::sequence::mdd::valueMenu);
+				}
+			}
+		}
+		else if (y == 3 && x >= 0 && x < int(snake::controlPads.size())) {
+			if (velocity) {
+				ui.down(snake::controlPads[x]);
+				deluge::gui::menu_item::sequence::mdd::control(snake::controlPads[x]);
+			}
+			else
+				ui.up();
+		}
+		if (getCurrentUI() == &soundEditor
+		    && deluge::gui::menu_item::sequence::mdd::owns(soundEditor.getCurrentMenuItem()))
+			deluge::gui::menu_item::sequence::mdd::refreshValue();
+		refreshMdd();
+		return ActionResult::DEALT_WITH;
+	}
 
 	// Drum Randomizer
 	if (x == 15 && y == 2 && velocity > 0
@@ -5943,6 +6037,14 @@ bool InstrumentClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayW
 	if (!image) {
 		return true;
 	}
+	if (mddControls()) {
+		for (int y = 0; y < kDisplayHeight; ++y)
+			for (int x = kDisplayWidth; x < kDisplayWidth + kSideBarWidth; ++x) {
+				image[y][x] = RGB{};
+				occupancyMask[y][x] = 0;
+			}
+		return true;
+	}
 
 	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
 		return true;
@@ -7162,6 +7264,15 @@ abandonModRegion:
 }
 #pragma GCC pop
 void InstrumentClipView::graphicsRoutine() {
+	if (currentSong && mddControls()) {
+		uint8_t ticks[kDisplayHeight];
+		uint8_t colours[kDisplayHeight]{};
+		memset(ticks, 255, sizeof(ticks));
+		PadLEDs::setTickSquares(ticks, colours);
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		return;
+	}
+
 	if (!currentSong) {
 		return; // Briefly, if loading a song fails, during the creation of a new blank one, this could happen.
 	}
@@ -7356,6 +7467,51 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
                                         bool drawUndefinedArea) {
 	if (!image) {
 		return true;
+	}
+	if (mddControls()) {
+		mddGridWasRendered = true;
+		auto* clip = getCurrentInstrumentClip();
+		auto& ui = clip->mdd;
+		ui.syncClock(currentSong->getQuarterNoteLength());
+		auto& lane = ui.core.lanes[ui.lane];
+		int active = lane.cell(clip->mddTick);
+		const RGB colours[4] = {RGB{.r = 150, .g = 130}, RGB{.g = 60, .b = 150}, RGB{.g = 150}, RGB{.r = 150}};
+		RGB colour = colours[std::min(ui.lane, 3)];
+		for (int y = 0; y < 8; ++y)
+			for (int x = 0; x < 16; ++x) {
+				image[y][x] = RGB{};
+				occupancyMask[y][x] = 0;
+			}
+		for (int i = 0; i < 16; ++i) {
+			int x = i % 4, y = 7 - i / 4;
+			auto c = colour;
+			if (lane.muted & (1u << i)) {
+				c.r /= 20;
+				c.g /= 20;
+				c.b /= 20;
+			}
+			if (clip->mddEnabled && playbackHandler.isEitherClockActive() && currentSong->isClipActive(clip)
+			    && i == active)
+				c = RGB::monochrome(lane.muted & (1u << i) ? 32 : 220);
+			image[y][x] = c;
+			occupancyMask[y][x] = 64;
+		}
+		for (int x = 0; x < int(snake::controlPads.size()); ++x) {
+			image[3][x] = x < 4 ? colours[x] : RGB{.r = 60, .g = 20, .b = 100};
+			occupancyMask[3][x] = 64;
+		}
+		return true;
+	}
+
+	if (mddGridWasRendered) {
+		mddGridWasRendered = false;
+		for (int y = 0; y < kDisplayHeight; ++y)
+			for (int x = 0; x < kDisplayWidth; ++x) {
+				image[y][x] = RGB{};
+				occupancyMask[y][x] = 0;
+			}
+		PadLEDs::clearTickSquares();
+		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 
 	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
@@ -8044,4 +8200,60 @@ void InstrumentClipView::blinkSelectedNoteRow(int32_t whichMainRows) {
 	noteRowFlashOn = !noteRowFlashOn;
 	uiNeedsRendering(getRootUI(), whichMainRows, 0xFFFFFFFF);
 	uiTimerManager.setTimer(TimerName::NOTE_ROW_BLINK, 180);
+}
+
+bool InstrumentClipView::mddControls() const {
+	return getCurrentClip() && getCurrentClip()->type == ClipType::INSTRUMENT && getCurrentOutputType() != OutputType::KIT
+	       && (getCurrentInstrumentClip()->mddEnabled || getCurrentInstrumentClip()->mddRequested);
+}
+void InstrumentClipView::refreshMdd() {
+	uiNeedsRendering(this);
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 20);
+}
+bool InstrumentClipView::renderMddOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	if (!mddControls())
+		return false;
+	auto* clip = getCurrentInstrumentClip();
+	auto& ui = clip->mdd;
+	ui.syncClock(currentSong->getQuarterNoteLength());
+	auto& l = ui.core.lanes[ui.lane];
+	char line[64];
+	static constexpr const char* roots[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+	snprintf(line, sizeof(line), "%s Root %s", ui.title(), roots[mod(currentSong->key.rootNote, 12)]);
+	canvas.drawString(line, 0, 5, 6, 7);
+	if (ui.gestures.held >= 0 && ui.gestures.editing(mddTimeMs())) {
+		int n = ui.gestures.held;
+		unsigned v = l.values[n];
+		if (ui.lane == 0) {
+			char note[16];
+			v = clip->mddQuantize(v, currentSong);
+			noteCodeToString(v, note, nullptr, true);
+			snprintf(line, sizeof(line), "Step %d %s", n + 1, note);
+		}
+		else if (ui.lane == 2)
+			snprintf(line, sizeof(line), "Step %d Vel %u", n + 1, v);
+		else if (ui.lane >= 3
+		         && (ui.routes[ui.lane - 3][0].target == deluge::modulation::params::LOCAL_PLAITS_A_ENGINE
+		             || ui.routes[ui.lane - 3][0].target == deluge::modulation::params::LOCAL_PLAITS_B_ENGINE))
+			snprintf(line, sizeof(line), "Step %d Engine %u", n + 1, ((v * 2 + 32767) / 65535) + 1);
+		else
+			snprintf(line, sizeof(line), "Step %d %d%%", n + 1, snake::percent(v));
+	}
+	else if (ui.held == snake::Control::Root || ui.held == snake::Control::Scale) {
+		snprintf(line, sizeof(line), "Root %s %s", roots[mod(currentSong->key.rootNote, 12)],
+		         getScaleName(currentSong->getCurrentScale()));
+	}
+
+	else
+		snprintf(line, sizeof(line), "Steps %u Shift %u", l.length, l.shift);
+	canvas.drawString(line, 0, 16, 6, 7);
+	static const char* dirs[] = {"Forward", "Reverse", "Pendulum", "Random"};
+	static const char* shapes[] = {"Rows", "Columns", "Snake Rows", "Snake Cols", "Spiral"};
+	snprintf(line, sizeof(line), "%s %s", dirs[int(l.direction)], shapes[int(l.shape)]);
+	canvas.drawString(line, 0, 27, 6, 7);
+	static const char* speeds[] = {"1/4", "1/8", "1/16", "1/32", "1/32T", "1/64"};
+	snprintf(line, sizeof(line), "%s %s", speeds[ui.speedIndex(l)],
+	         ui.held != snake::Control::None ? "SELECT: edit" : "SELECT: Synth edit");
+	canvas.drawString(line, 0, 38, 6, 7);
+	return true;
 }

@@ -311,6 +311,10 @@ enum class PatchSource : uint8_t {
 	VELOCITY,
 	NOTE,
 	RANDOM,
+	SNAKE_CUSTOM_1,
+	SNAKE_CUSTOM_2,
+	SNAKE_CUSTOM_3,
+	SNAKE_CUSTOM_4,
 	NONE,
 
 	// Used for shortcuts
@@ -322,6 +326,10 @@ constexpr int32_t kNumPatchSources = static_cast<int32_t>(kLastPatchSource);
 
 // constexpr PatchSource kFirstGlobalSourceWithChangedStatusAutomaticallyUpdated = PatchSource::ENVELOPE_0;
 constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
+constexpr bool isGlobalPatchSource(PatchSource source) {
+	return source < kFirstLocalSource
+	       || (source >= PatchSource::SNAKE_CUSTOM_1 && source <= PatchSource::SNAKE_CUSTOM_4);
+}
 // constexpr PatchSource kFirstUnchangeableSource = PatchSource::VELOCITY;
 
 // Menu Min Max Values
@@ -368,11 +376,18 @@ enum class OscType : uint8_t {
 	INPUT_L,
 	INPUT_R,
 	INPUT_STEREO,
+	PLAITS_FM,
+	PLAITS_WAVE,
+	PLAITS_VA,
 };
+
+constexpr bool isPlaits(OscType type) {
+	return type >= OscType::PLAITS_FM && type <= OscType::PLAITS_VA;
+}
 
 constexpr OscType kLastRingmoddableOscType = OscType::WAVETABLE;
 constexpr int32_t kNumOscTypesRingModdable = util::to_underlying(kLastRingmoddableOscType) + 1;
-constexpr int32_t kNumOscTypes = util::to_underlying(OscType::INPUT_STEREO) + 1;
+constexpr int32_t kNumOscTypes = util::to_underlying(OscType::PLAITS_VA) + 1;
 
 /** Integer index into Sound::lfoConfig[].
  *
