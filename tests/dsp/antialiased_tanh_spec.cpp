@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The anti-aliased tanh. legacy::AntialiasedTanh, the class the compressor, the high-pass ladder and the saturation
-// effect still hold, is pinned on exact reference values on both backends. The AntialiasedTanh kernel is pinned against
+// The anti-aliased tanh. The legacy class, as its verbatim copy (reference_filters.h), is pinned on exact reference
+// values on both backends. The AntialiasedTanh kernel is pinned against
 // the class, sample by sample from equal positions: at every drive the callers reach (0 to 20) and at two past them
 // (25 and 30), on seeded noise at several levels and on alternating full-scale extremes; across a drive change in the
 // middle of a block, which keeps the position as the class's setDrive does; and after seed and place, against a class
@@ -33,9 +33,9 @@
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/fixed/noise/noise.h"
-#include "dsp-next/fixed/shaping/legacy/antialiased_tanh.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "dsp-next/fixed/shaping/tanh_kernel.h"
+#include "reference_filters.h"
 #include "util/param_functions.h"
 
 #include <array>
@@ -51,6 +51,9 @@
 
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
+
+/// The legacy antialiased tanh class, as its verbatim copy.
+using LegacyTanh = filters_reference::ReferenceAntialiasedTanh;
 
 namespace {
 
@@ -69,7 +72,7 @@ static_assert(AntialiasedTanh::coefficients({.drive = 21}).ceiling == 2047);
 static_assert(AntialiasedTanh::coefficients({.drive = 30}).floor == -2048);
 static_assert(AntialiasedTanh::State{}.position == kTanhCentre);
 static_assert(kTanhCentre == 2147483648u);
-static_assert(legacy::AntialiasedTanh::kSilent == kTanhCentre);
+static_assert(LegacyTanh::kSilent == kTanhCentre);
 
 static_assert(processor_kernel<Tanh<0>>);
 static_assert(processor_kernel<Tanh<3>>);
@@ -136,7 +139,7 @@ Run run_kernel(uint32_t drive, AntialiasedTanh::State& state, const std::vector<
 }
 
 /// @p input through the class @p curve at the drive it holds.
-Run run_legacy(legacy::AntialiasedTanh& curve, const std::vector<q31>& input) {
+Run run_legacy(LegacyTanh& curve, const std::vector<q31>& input) {
 	Run run;
 	for (const q31 x : input) {
 		run.out.push_back(curve.render(x));
@@ -147,8 +150,7 @@ Run run_legacy(legacy::AntialiasedTanh& curve, const std::vector<q31>& input) {
 
 /// The compressor's seed: the position its first pre-gain sample takes at @p drive.
 uint32_t compressor_seed(q31 sample, uint32_t drive) {
-	return static_cast<uint32_t>(lshiftAndSaturateUnknown(sample, static_cast<uint8_t>(drive)))
-	       + legacy::AntialiasedTanh::kSilent;
+	return static_cast<uint32_t>(lshiftAndSaturateUnknown(sample, static_cast<uint8_t>(drive))) + LegacyTanh::kSilent;
 }
 
 /// @p input through Tanh<Drive>, and through tanh<Drive>, appended to @p kernel and @p plain.
@@ -264,10 +266,10 @@ struct KernelCurve {
 /// The class, as a sweep drives it: a place constructs it afresh at the position.
 struct LegacyCurve {
 	uint32_t drive;
-	legacy::AntialiasedTanh curve;
+	LegacyTanh curve;
 	explicit LegacyCurve(uint32_t d) : drive{d}, curve{d} {}
 	q31 step(q31 x) { return curve.render(x); }
-	void place(uint32_t p) { curve = legacy::AntialiasedTanh{drive, p}; }
+	void place(uint32_t p) { curve = LegacyTanh{drive, p}; }
 	[[nodiscard]] uint32_t position() const { return curve.previous(); }
 };
 
@@ -317,7 +319,7 @@ Run sweep(uint32_t drive, const std::vector<q31>& edges) {
 
 /// The outputs of one fresh class at @p drive for the five inputs every legacy case uses, in order.
 std::vector<int32_t> legacy_outputs(uint32_t drive) {
-	legacy::AntialiasedTanh tanh{drive};
+	LegacyTanh tanh{drive};
 	std::vector<int32_t> out;
 	for (int32_t in : {0, 1 << 28, -(1 << 28), 1 << 30, 12345678}) {
 		out.push_back(tanh.render(in));
@@ -328,7 +330,7 @@ std::vector<int32_t> legacy_outputs(uint32_t drive) {
 } // namespace
 
 // clang-format off
-describe legacy_antialiased_tanh("legacy::AntialiasedTanh", ${
+describe legacy_antialiased_tanh("the legacy antialiased tanh, copied", ${
 	it("saturates a sequence at drive 3 exactly", _ {
 		expect(legacy_outputs(3)).to_equal(std::vector<int32_t>{0, 55521277, -1, -9, 57900622});
 	});
@@ -339,26 +341,16 @@ describe legacy_antialiased_tanh("legacy::AntialiasedTanh", ${
 		expect(legacy_outputs(8)).to_equal(std::vector<int32_t>{0, 1735039, -1, -1, 2097087});
 	});
 	it("remembers the last working value", _ {
-		legacy::AntialiasedTanh tanh{3};
+		LegacyTanh tanh{3};
 		for (int32_t in : {0, 1 << 28, -(1 << 28), 1 << 30, 12345678}) {
 			std::ignore = tanh.render(in);
 		}
 		expect(tanh.previous()).to_equal(2246249072u);
 	});
 	it("starts from the value it is given", _ {
-		legacy::AntialiasedTanh fromZero{5, 0};
-		legacy::AntialiasedTanh fromSilence{5};
+		LegacyTanh fromZero{5, 0};
+		LegacyTanh fromSilence{5};
 		expect(fromZero.render(1 << 28)).not_().to_equal(fromSilence.render(1 << 28));
-	});
-	it("renders a block as it renders each sample", _ {
-		legacy::AntialiasedTanh bySample{5};
-		legacy::AntialiasedTanh byBlock{5};
-		const std::vector<int32_t> in{1 << 20, 1 << 26, -(1 << 27), 1 << 29};
-		std::vector<int32_t> out(in.size());
-		byBlock.renderBlock(in, out);
-		for (size_t i = 0; i < in.size(); i++) {
-			expect(out[i]).to_equal(bySample.render(in[i]));
-		}
 	});
 });
 // clang-format on
@@ -369,7 +361,7 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 		const std::vector<q31> input = test_input(kLongRun, kSeed);
 		for (uint32_t drive = 0; drive <= kMaxDrive; ++drive) {
 			AntialiasedTanh::State state{};
-			legacy::AntialiasedTanh curve{drive};
+			LegacyTanh curve{drive};
 			const Run kernel = run_kernel(drive, state, input);
 			const Run reference = run_legacy(curve, input);
 			expect(kernel.out).to_equal(reference.out);
@@ -380,7 +372,7 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 		const std::vector<q31> input = test_input(kLongRun, kSeed);
 		for (const uint32_t drive : kWrappingDrives) {
 			AntialiasedTanh::State state{};
-			legacy::AntialiasedTanh curve{drive};
+			LegacyTanh curve{drive};
 			const Run kernel = run_kernel(drive, state, input);
 			const Run reference = run_legacy(curve, input);
 			expect(kernel.out).to_equal(reference.out);
@@ -395,7 +387,7 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 		for (const auto& [from, to] : std::array<std::pair<uint32_t, uint32_t>, 6>{
 		         {{3, 8}, {8, 3}, {0, kMaxDrive}, {kMaxDrive, 0}, {5, 6}, {1, 0}}}) {
 			AntialiasedTanh::State state{};
-			legacy::AntialiasedTanh curve{from};
+			LegacyTanh curve{from};
 			const Run kernel_before = run_kernel(from, state, before);
 			const Run reference_before = run_legacy(curve, before);
 			expect(kernel_before.out).to_equal(reference_before.out);
@@ -418,7 +410,7 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 		mono.configure({.drive = kTo});
 		mono.renderBlock(std::span<const q31>{input.data() + half, input.size() - half},
 		                 std::span<q31>{out.data() + half, input.size() - half});
-		legacy::AntialiasedTanh curve{kFrom};
+		LegacyTanh curve{kFrom};
 		for (std::size_t i = 0; i < input.size(); ++i) {
 			if (i == half) {
 				curve.setDrive(kTo);
@@ -435,7 +427,7 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 				AntialiasedTanh::State state{.position = 0x5555'5555u};
 				AntialiasedTanh::seed(c, state, sample);
 				expect(state.position).to_equal(compressor_seed(sample, drive));
-				legacy::AntialiasedTanh fresh{drive, compressor_seed(sample, drive)};
+				LegacyTanh fresh{drive, compressor_seed(sample, drive)};
 				const Run kernel = run_kernel(drive, state, input);
 				const Run reference = run_legacy(fresh, input);
 				expect(kernel.out).to_equal(reference.out);
@@ -474,7 +466,7 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 				AntialiasedTanh::State state{};
 				AntialiasedTanh::place(state, position);
 				expect(state.position).to_equal(position);
-				legacy::AntialiasedTanh fresh{drive, position};
+				LegacyTanh fresh{drive, position};
 				const Run kernel = run_kernel(drive, state, input);
 				const Run reference = run_legacy(fresh, input);
 				expect(kernel.out).to_equal(reference.out);

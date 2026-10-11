@@ -1,6 +1,7 @@
 #include "engines/effects/saturation.h"
 
-#include "dsp-next/fixed/shaping/legacy/antialiased_tanh.h"
+#include "dsp-next/core/kernel.h"
+#include "dsp-next/fixed/shaping/antialiased_tanh.h"
 
 #include <algorithm>
 #include <cppspec.hpp>
@@ -14,16 +15,22 @@ namespace {
 
 constexpr int32_t kInput = 1 << 28;
 
+/// kInput through the antialiased tanh at @p drive, from silence: the first sample a fresh curve gives.
+int32_t first_sample(uint32_t drive) {
+	using deluge::dsp::fixed::AntialiasedTanh;
+	AntialiasedTanh::State state{};
+	return AntialiasedTanh::step(AntialiasedTanh::coefficients({.drive = drive}), deluge::dsp::EmptyBlock{}, state,
+	                             kInput);
+}
+
 /// The voice variant of one first sample, by hand: tanh at 5 + amount, shifted from amount 2.
 int32_t voice_by_hand(uint8_t amount) {
-	deluge::dsp::fixed::legacy::AntialiasedTanh curve{5u + amount};
-	return curve.render(kInput) << (amount >= 2 ? amount - 2 : 0);
+	return first_sample(5u + amount) << (amount >= 2 ? amount - 2 : 0);
 }
 
 /// The chain variant of one first sample, by hand: tanh at 3 + amount, shifted from amount 3.
 int32_t chain_by_hand(uint8_t amount) {
-	deluge::dsp::fixed::legacy::AntialiasedTanh curve{3u + amount};
-	return curve.render(kInput) << (amount >= 3 ? amount - 3 : 0);
+	return first_sample(3u + amount) << (amount >= 3 ? amount - 3 : 0);
 }
 
 std::vector<StereoSample> ramp() {

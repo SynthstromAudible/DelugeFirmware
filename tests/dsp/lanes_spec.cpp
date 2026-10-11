@@ -336,6 +336,70 @@ Mismatches at_every_width(const typename K::Settings& first, const typename K::S
 	return sum;
 }
 
+/// Lanes<K, N> against N Monos over three blocks of every length 1 to 9: the first and last whole frames, the middle
+/// one lane @p lane alone (`renderLane`), which only that lane's Mono renders. Counts the differences, the states
+/// included.
+template <typename K, std::size_t N>
+Mismatches lane_alone_against_monos(const typename K::Settings& settings, std::size_t lane) {
+	Mismatches m;
+	for (std::size_t n = 1; n <= kMaxLength; ++n) {
+		Lanes<K, N> lanes{settings};
+		std::array<Mono<K>, N> monos;
+		for (Mono<K>& mono : monos) {
+			mono.configure(settings);
+		}
+		const auto compare = [&](const std::vector<q31>& got, const std::vector<q31>& want) {
+			for (std::size_t i = 0; i < n; ++i) {
+				++m.compared;
+				m.samples += got[i] != want[i] ? 1 : 0;
+			}
+		};
+		const auto whole = [&](uint32_t seed) {
+			const std::vector<Frame<q31, N>> in = noise_frames<N>(n, seed);
+			std::vector<Frame<q31, N>> out(n);
+			lanes.renderBlock(in, out);
+			for (std::size_t l = 0; l < N; ++l) {
+				std::vector<q31> mono_out(n);
+				monos[l].renderBlock(lane_of(in, l), mono_out);
+				compare(lane_of(out, l), mono_out);
+			}
+		};
+		const auto seed = static_cast<uint32_t>(n) * 31u;
+		whole(seed);
+		const std::vector<q31> in = lane_of(noise_frames<N>(n, seed + 1), lane);
+		std::vector<q31> out(n);
+		std::vector<q31> mono_out(n);
+		lanes.renderLane(lane, in, out);
+		monos[lane].renderBlock(in, mono_out);
+		compare(out, mono_out);
+		whole(seed + 2);
+		for (std::size_t l = 0; l < N; ++l) {
+			m.states += same_state(lanes.state(l), monos[l].state()) ? 0 : 1;
+		}
+	}
+	return m;
+}
+
+/// The output samples @ref lane_alone_against_monos compares at @p N lanes: two whole blocks and one lane's block at
+/// every length 1 to 9.
+constexpr std::size_t lane_alone_compared_at(std::size_t lanes) {
+	return ((2 * lanes) + 1) * (kMaxLength * (kMaxLength + 1) / 2);
+}
+
+/// Every lane of every width in AllWidths rendered alone, for kernel K at @p settings: the mismatches summed, and
+/// whether every comparison ran.
+template <typename K>
+bool every_lane_alone_matches(const typename K::Settings& settings) {
+	bool matches = true;
+	AllWidths::each([&]<std::size_t N>() {
+		for (std::size_t lane = 0; lane < N; ++lane) {
+			const Mismatches m = lane_alone_against_monos<K, N>(settings, lane);
+			matches = matches && m.samples == 0 && m.states == 0 && m.compared == lane_alone_compared_at(N);
+		}
+	});
+	return matches;
+}
+
 /// Lanes<K, N> in place against out of place over two blocks of every length 1 to 9; the count of differing samples.
 template <typename K, std::size_t N>
 std::size_t in_place_mismatches(const typename K::Settings& settings) {
@@ -770,6 +834,32 @@ describe lanes_spec("Lanes<K, N>", ${
 			std::ignore = lanes.render(Frame<q31, N>{});
 			for (std::size_t lane = 0; lane < N; ++lane) {
 				expect(lanes.state(lane).prepares).to_equal(4);
+			}
+		});
+	});
+
+	it("renders one lane alone as that lane's Mono renders it, every other lane's state untouched", _ {
+		expect(every_lane_alone_matches<LaneByLane<OnePole>>({.moveability = 0x12345678, .mode = OnePole::Mode::LOW_PASS}))
+		    .to_be_true();
+		expect(every_lane_alone_matches<OnePole>({.moveability = 0x23456789, .mode = OnePole::Mode::ALL_PASS}))
+		    .to_be_true();
+		expect(every_lane_alone_matches<StateBiased>({})).to_be_true();
+		expect(every_lane_alone_matches<AntialiasedTanh>({.drive = 3})).to_be_true();
+	});
+
+	it("draws noise for the one lane it renders alone, once per sample", _ {
+		AllWidths::each([&]<std::size_t N>() {
+			for (std::size_t lane = 0; lane < N; ++lane) {
+				SeededNoise expected{shared_noise.state()};
+				Lanes<NoisyAdd, N> lanes;
+				for (std::size_t n = 1; n <= kMaxLength; ++n) {
+					std::vector<q31> block(n);
+					lanes.renderLane(lane, block, block);
+					for (const q31 sample : block) {
+						expect(sample).to_equal(expected.render());
+					}
+				}
+				expect(shared_noise.state()).to_equal(expected.state());
 			}
 		});
 	});

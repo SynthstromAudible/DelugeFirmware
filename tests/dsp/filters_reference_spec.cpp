@@ -15,20 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The filters' and the compressor's verbatim references (reference_filters.h) against the firmware's classes, over
-// every recorded workload (filter_workloads.h): each block's output, the gain each target returns, the generator's
-// draws and the whole state must agree. A firmware object's state is read through its copy's layout. What both render
-// is pinned (filter_workload_records.h): each block's output and draws, the values drawn, and the state at the end.
+// The filters' and the compressor's verbatim references (reference_filters.h) against the firmware, over every recorded
+// workload (filter_workloads.h). A lone filter or the fade runs as its kernel (kernel_filters.h), whose state digest
+// folds what its reference's does: each block's output, gain, generator draws and whole state must agree. The filter
+// set runs as the firmware's FilterSet: each block's output, gain and draws, and both slots' fade levels, must agree,
+// in its workload's form and with mono and stereo blocks alternating on one set. The compressor runs as the firmware's:
+// each block's output and gain reduction must agree. What the references render is pinned
+// (filter_workload_records.h): each block's output and draws, the values drawn, and the state at the end; the
+// firmware's renders must equal the same pins, its outputs, draws and values drawn for the set and the compressor.
 
 #include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
-#include "dsp-next/fixed/filter/dry_wet_fade.h"
+#include "dsp-next/fixed/filter/fade_in.h"
 #include "dsp-next/fixed/filter/filter_set.h"
-#include "dsp-next/fixed/filter/high_pass_ladder.h"
-#include "dsp-next/fixed/filter/low_pass_ladder.h"
-#include "dsp-next/fixed/filter/state_variable_filter.h"
 #include "filter_workload_records.h"
 #include "filter_workloads.h"
+#include "kernel_filters.h"
 #include "reference_filters.h"
+#include "util/waves.h" // jcong
 
 #include <algorithm>
 #include <bit>
@@ -36,10 +39,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
+#include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <tuple>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -48,22 +52,16 @@ namespace {
 namespace fixed = deluge::dsp::fixed;
 namespace ref = filters_reference;
 using deluge::dsp::q31;
+using deluge::dsp::StereoSample;
 using filter_workloads::Digest;
 
-/// @return @p object's bytes read as its reference copy @p R, whose members it shares in the same order.
-template <typename R, typename T>
-[[nodiscard]] R as_reference(const T& object) {
-	static_assert(sizeof(R) == sizeof(T));
-	static_assert(std::is_trivially_copyable_v<T>);
-	return std::bit_cast<R>(object);
-}
-
-/// @brief The firmware's filters and compressor as a workload family: each state digested through its copy.
-struct FirmwareFamily {
-	using LowPassLadder = fixed::LowPassLadder;
-	using HighPassLadder = fixed::HighPassLadder;
-	using StateVariableFilter = fixed::StateVariableFilter;
-	using DryWetFade = fixed::DryWetFade;
+/// @brief The firmware as a workload family, in one form: the lone filters and the fade as their kernels
+/// (kernel_filters.h), the set and the compressor as the firmware's classes.
+/// @details The set's state digest folds its two fades' levels, the state it exposes; the compressor's folds its gain
+/// reduction and threshold. Neither equals its reference's digest, so the set and the compressor are compared here
+/// through @ref set_parting and @ref compressor_parting, which leave the state digest out.
+template <bool kStereo>
+struct FirmwareFamily : kernel_filters::KernelFamily<kStereo> {
 	using FilterSet = fixed::FilterSet;
 	using Compressor = fixed::RmsFeedbackCompressor;
 
@@ -71,36 +69,172 @@ struct FirmwareFamily {
 		return {.fade = fade, .parallel = parallel};
 	}
 
-	static void digest(const fixed::LowPassLadder& x, Digest& d) {
-		as_reference<ref::ReferenceLowPassLadder>(x).digest(d);
+	using kernel_filters::KernelFamily<kStereo>::digest;
+
+	static void digest(const fixed::FilterSet& set, Digest& d) {
+		for (const fixed::FadeIn::State& fade : {set.lowPassFade(), set.highPassFade()}) {
+			d.add(fade.dry);
+			d.add(fade.wet);
+		}
 	}
-	static void digest(const fixed::HighPassLadder& x, Digest& d) {
-		as_reference<ref::ReferenceHighPassLadder>(x).digest(d);
-	}
-	static void digest(const fixed::StateVariableFilter& x, Digest& d) {
-		as_reference<ref::ReferenceStateVariableFilter>(x).digest(d);
-	}
-	static void digest(const fixed::DryWetFade& x, Digest& d) { as_reference<ref::ReferenceDryWetFade>(x).digest(d); }
-	static void digest(const fixed::FilterSet& x, Digest& d) { as_reference<ref::ReferenceFilterSet>(x).digest(d); }
-	static void digest(const fixed::RmsFeedbackCompressor& x, Digest& d) {
-		as_reference<ref::ReferenceRmsFeedbackCompressor>(x).digest(d);
+
+	static void digest(const fixed::RmsFeedbackCompressor& compressor, Digest& d) {
+		d.add(compressor.gainReduction());
+		d.add(compressor.threshold());
 	}
 };
 
 using filter_workloads::ReferenceFamily;
 
-/// @return Each workload in @p workloads where @p A and @p B part, named with the block and what parted.
-template <typename A, typename B, typename Workloads>
-[[nodiscard]] std::vector<std::string> partings(const Workloads& workloads) {
+/// @return @p parting named with @p workload's name and the block.
+[[nodiscard]] std::string named(std::string_view workload, const filter_workloads::Parting& parting) {
+	return std::string{workload} + " block " + std::to_string(parting.block) + ": " + parting.what;
+}
+
+/// @return Whether two fades' levels are the same, bit for bit.
+[[nodiscard]] bool same_fade(const ref::ReferenceDryWetFade& reference, const fixed::FadeIn::State& firmware) {
+	return std::bit_cast<uint32_t>(reference.dry()) == std::bit_cast<uint32_t>(firmware.dry)
+	       && reference.wet() == firmware.wet;
+}
+
+/// @return Where @p workload (a set workload), played through the reference set and through the firmware's set in the
+/// workload's form, first parts: each block's output, gain and draws, then both slots' fade levels.
+template <bool kStereo>
+[[nodiscard]] std::optional<filter_workloads::Parting> set_parting(const filter_workloads::FilterWorkload& workload) {
+	filter_workloads::FilterRun<ReferenceFamily> reference{workload};
+	filter_workloads::FilterRun<FirmwareFamily<kStereo>> firmware{workload};
+	std::vector<q31> out_reference;
+	std::vector<q31> out_firmware;
+	Digest noise_reference;
+	Digest noise_firmware;
+	for (size_t block = 0; block < workload.blocks; ++block) {
+		const filter_workloads::BlockResult r = reference.block(block, out_reference, noise_reference);
+		const filter_workloads::BlockResult f = firmware.block(block, out_firmware, noise_firmware);
+		if (out_reference != out_firmware) {
+			return filter_workloads::Parting{.block = block, .what = "output"};
+		}
+		if (r.gain != f.gain) {
+			return filter_workloads::Parting{.block = block, .what = "gain"};
+		}
+		if (r.draws != f.draws || r.cong != f.cong) {
+			return filter_workloads::Parting{.block = block, .what = "noise"};
+		}
+		if (!same_fade(reference.filterSet().lowFade(), firmware.filterSet().lowPassFade())
+		    || !same_fade(reference.filterSet().highFade(), firmware.filterSet().highPassFade())) {
+			return filter_workloads::Parting{.block = block, .what = "fade"};
+		}
+	}
+	return std::nullopt;
+}
+
+/// @return Each filter workload where the firmware parts from the reference, named with the block and what parted: a
+/// lone filter or the fade as its kernel (state included), the set as the firmware's (fades included).
+[[nodiscard]] std::vector<std::string> filter_partings() {
 	std::vector<std::string> parted;
-	for (const auto& workload : workloads) {
-		const auto parting = filter_workloads::first_parting<A, B>(workload);
+	for (const filter_workloads::FilterWorkload& workload : filter_workloads::all_workloads()) {
+		std::optional<filter_workloads::Parting> parting;
+		if (workload.target == filter_workloads::Target::FILTER_SET) {
+			parting = workload.stereo ? set_parting<true>(workload) : set_parting<false>(workload);
+		}
+		else {
+			parting = kernel_filters::first_parting(workload);
+		}
 		if (parting) {
-			parted.push_back(std::string{workload.name} + " block " + std::to_string(parting->block) + ": "
-			                 + parting->what);
+			parted.push_back(named(workload.name, *parting));
 		}
 	}
 	return parted;
+}
+
+/// @return Each compressor workload where the firmware's compressor parts from the reference: each block's output,
+/// then its gain reduction.
+[[nodiscard]] std::vector<std::string> compressor_partings() {
+	std::vector<std::string> parted;
+	for (const filter_workloads::CompressorWorkload& workload : filter_workloads::all_compressor_workloads()) {
+		filter_workloads::CompressorRun<ReferenceFamily> reference{workload};
+		filter_workloads::CompressorRun<FirmwareFamily<true>> firmware{workload};
+		std::vector<StereoSample> out_reference;
+		std::vector<StereoSample> out_firmware;
+		for (size_t block = 0; block < workload.blocks; ++block) {
+			const uint8_t r = reference.block(block, out_reference);
+			const uint8_t f = firmware.block(block, out_firmware);
+			const bool same_output = std::ranges::equal(
+			    out_reference, out_firmware, [](StereoSample x, StereoSample y) { return x.l == y.l && x.r == y.r; });
+			if (!same_output || r != f) {
+				parted.push_back(named(workload.name, {.block = block, .what = same_output ? "gain" : "output"}));
+				break;
+			}
+		}
+	}
+	return parted;
+}
+
+/// @brief One block of a set workload's step @p s through @p set, mono or stereo, with the generator at @p cong
+/// (advanced by the block's draws) and the caller's put back after.
+/// @return The gain the set returns, Q31.
+template <typename Scratch, typename Set>
+q31 play_block(Set& set, uint32_t& cong, const filter_workloads::FilterStep& s, bool mono, std::vector<q31>& block,
+               std::span<q31> fade, std::span<q31> parallel) {
+	const uint32_t outer = jcong;
+	jcong = cong;
+	if (s.event == filter_workloads::Event::RESET) {
+		set.reset();
+	}
+	const q31 gain = set.configure(s.gain, s.low, s.low_slot, s.high, s.high_slot, s.route);
+	const Scratch scratch{.fade = fade.first(block.size()), .parallel = parallel};
+	if (mono) {
+		set.renderMono(block, scratch);
+	}
+	else {
+		set.renderStereo(block, scratch);
+	}
+	cong = jcong;
+	jcong = outer;
+	return gain;
+}
+
+/// @return Where the firmware's set parts from the reference when @p workload (a stereo set workload) plays with its
+/// even blocks mono, over the first half of the block's input, and its odd blocks stereo, on one set each: each
+/// block's output, gain and generator state.
+[[nodiscard]] std::optional<filter_workloads::Parting>
+alternating_parting(const filter_workloads::FilterWorkload& workload) {
+	ref::ReferenceFilterSet reference;
+	fixed::FilterSet firmware;
+	uint32_t reference_cong = filter_workloads::kCongSeed;
+	uint32_t firmware_cong = filter_workloads::kCongSeed;
+	std::vector<q31> fade(2 * filter_workloads::kMaxFrames);
+	std::vector<q31> parallel(2 * filter_workloads::kMaxFrames);
+	for (size_t b = 0; b < workload.blocks; ++b) {
+		const filter_workloads::FilterStep s = workload.step(b);
+		const bool mono = b % 2 == 0;
+		std::vector<q31> in = filter_workloads::filter_input(workload, b);
+		if (mono) {
+			in.resize(in.size() / 2);
+		}
+		std::vector<q31> out_reference = in;
+		std::vector<q31> out_firmware = in;
+		const q31 gain_reference =
+		    play_block<ref::FilterScratch>(reference, reference_cong, s, mono, out_reference, fade, parallel);
+		const q31 gain_firmware =
+		    play_block<fixed::FilterScratch>(firmware, firmware_cong, s, mono, out_firmware, fade, parallel);
+		if (out_reference != out_firmware) {
+			return filter_workloads::Parting{.block = b, .what = "output"};
+		}
+		if (gain_reference != gain_firmware) {
+			return filter_workloads::Parting{.block = b, .what = "gain"};
+		}
+		if (reference_cong != firmware_cong) {
+			return filter_workloads::Parting{.block = b, .what = "noise"};
+		}
+	}
+	return std::nullopt;
+}
+
+/// @return @p workload's record as the firmware renders it, its state digest left out (zero): a set's or the
+/// compressor's state is compared through @ref set_parting and @ref compressor_parting instead.
+[[nodiscard]] filter_workloads::WorkloadRecord without_state(filter_workloads::WorkloadRecord record) {
+	record.state = 0;
+	return record;
 }
 
 /// @return How many samples of @p workload (a parallel set) sum past q31 when its low-pass and high-pass run alone
@@ -172,10 +306,26 @@ describe verbatim_filters("the filters' verbatim references", ${
 		}
 	});
 
-	it("render every filter workload as the legacy filters do: each block's output, gain and draws, and the whole "
-	   "state", _ {
-		expect(partings<FirmwareFamily, ReferenceFamily>(filter_workloads::all_workloads()))
-		    .to_equal(std::vector<std::string>{});
+	it("render every filter workload as the legacy filters do: each block's output, gain and draws, the kernels' "
+	   "whole state and the set's fades", _ {
+		expect(filter_partings()).to_equal(std::vector<std::string>{});
+	});
+
+	it("render every stereo set workload as the legacy set does with mono and stereo blocks alternating", _ {
+		std::vector<std::string> parted;
+		size_t played = 0;
+		for (const filter_workloads::FilterWorkload& workload : filter_workloads::all_workloads()) {
+			if (workload.target != filter_workloads::Target::FILTER_SET || !workload.stereo) {
+				continue;
+			}
+			++played;
+			const auto parting = alternating_parting(workload);
+			if (parting) {
+				parted.push_back(named(workload.name, *parting));
+			}
+		}
+		expect(parted).to_equal(std::vector<std::string>{});
+		expect(played).to_equal(size_t{15});
 	});
 
 	it("draw one value per channel-sample in the ladders, two when the drive ladder oversamples, none elsewhere", _ {
@@ -205,40 +355,52 @@ describe verbatim_filters("the filters' verbatim references", ${
 		}
 	});
 
-	it("change a slot's filter while its fade runs: before blocks 4 and 7 of every takeover, and while both slots fade "
-	   "in", _ {
+	it("change a slot's filter while its fade runs, in the legacy set and the firmware's: before blocks 4 and 7 of "
+	   "every takeover, and while both slots fade in", _ {
 		using filter_workloads::WorkloadId;
 		const auto fading_before = [](WorkloadId id, bool low, std::initializer_list<size_t> blocks) {
 			const filter_workloads::FilterWorkload& workload = filter_workloads::filter_workload(id);
-			filter_workloads::FilterRun<ReferenceFamily> run{workload};
+			filter_workloads::FilterRun<ReferenceFamily> reference{workload};
+			filter_workloads::FilterRun<FirmwareFamily<false>> mono{workload};
+			filter_workloads::FilterRun<FirmwareFamily<true>> stereo{workload};
 			std::vector<q31> out;
 			Digest noise;
 			std::vector<bool> active;
 			for (size_t b = 0; b <= std::max(blocks); ++b) {
 				if (std::ranges::find(blocks, b) != blocks.end()) {
-					const ref::ReferenceFilterSet& set = run.filterSet();
+					const ref::ReferenceFilterSet& set = reference.filterSet();
 					active.push_back(low ? set.lowFade().active() : set.highFade().active());
+					const fixed::FilterSet& firmware = workload.stereo ? stereo.filterSet() : mono.filterSet();
+					active.push_back(
+					    fixed::FadeIn::active(low ? firmware.lowPassFade() : firmware.highPassFade()));
 				}
-				std::ignore = run.block(b, out, noise);
+				std::ignore = reference.block(b, out, noise);
+				if (workload.stereo) {
+					std::ignore = stereo.block(b, out, noise);
+				}
+				else {
+					std::ignore = mono.block(b, out, noise);
+				}
 			}
 			return active;
 		};
+		const std::vector<bool> all_four(4, true);
 		for (const bool stereo : {false, true}) {
 			const auto id = [stereo](WorkloadId mono) {
 				return static_cast<WorkloadId>(static_cast<uint8_t>(mono) + static_cast<uint8_t>(stereo));
 			};
 			for (const WorkloadId mono :
 			     {WorkloadId::SET_LP_TAKEOVER_SVF_MODE_MONO, WorkloadId::SET_LP_TAKEOVER_BACK_MONO}) {
-				expect(fading_before(id(mono), true, {4, 7})).to_equal(std::vector<bool>{true, true});
+				expect(fading_before(id(mono), true, {4, 7})).to_equal(all_four);
 			}
 			for (const WorkloadId mono :
 			     {WorkloadId::SET_HP_TAKEOVER_SVF_MODE_MONO, WorkloadId::SET_HP_TAKEOVER_BACK_MONO}) {
-				expect(fading_before(id(mono), false, {4, 7})).to_equal(std::vector<bool>{true, true});
+				expect(fading_before(id(mono), false, {4, 7})).to_equal(all_four);
 			}
 			for (const WorkloadId mono :
 			     {WorkloadId::SET_FADE_LP_SVF_HP_LADDER_MONO, WorkloadId::SET_FADE_LP_LADDER_HP_SVF_MONO}) {
-				expect(fading_before(id(mono), true, {3, 7})).to_equal(std::vector<bool>{true, true});
-				expect(fading_before(id(mono), false, {3, 7})).to_equal(std::vector<bool>{true, true});
+				expect(fading_before(id(mono), true, {3, 7})).to_equal(all_four);
+				expect(fading_before(id(mono), false, {3, 7})).to_equal(all_four);
 			}
 		}
 	});
@@ -252,29 +414,38 @@ describe verbatim_filters("the filters' verbatim references", ${
 		}
 	});
 
-	it("render every compressor workload as the legacy compressor does: each block's output and gain reduction, and "
-	   "the whole state", _ {
-		expect(partings<FirmwareFamily, ReferenceFamily>(filter_workloads::all_compressor_workloads()))
-		    .to_equal(std::vector<std::string>{});
+	it("render every compressor workload as the legacy compressor does: each block's output and gain reduction", _ {
+		expect(compressor_partings()).to_equal(std::vector<std::string>{});
 	});
 
-	it("render every filter workload as recorded: each block's output and draws, the values drawn, and the state", _ {
+	it("render every filter workload as recorded: each block's output and draws, the values drawn, and the state (the "
+	   "set's from the reference)", _ {
 		for (const filter_workloads::FilterWorkload& workload : filter_workloads::all_workloads()) {
 			const filter_workloads::WorkloadRecord& recorded =
 			    filter_workloads::kRecorded.at(static_cast<size_t>(workload.id));
 			expect(recorded.outputs.size()).to_equal(workload.blocks);
 			expect(filter_workloads::record<ReferenceFamily>(workload)).to_equal(recorded);
-			expect(filter_workloads::record<FirmwareFamily>(workload)).to_equal(recorded);
+			if (workload.target == filter_workloads::Target::FILTER_SET) {
+				const filter_workloads::WorkloadRecord firmware =
+				    workload.stereo ? filter_workloads::record<FirmwareFamily<true>>(workload)
+				                    : filter_workloads::record<FirmwareFamily<false>>(workload);
+				expect(without_state(firmware)).to_equal(without_state(recorded));
+			}
+			else {
+				expect(kernel_filters::record(workload)).to_equal(recorded);
+			}
 		}
 	});
 
-	it("render every compressor workload as recorded: each block's output and gain reduction, and the state", _ {
+	it("render every compressor workload as recorded: each block's output and gain reduction, and the reference's "
+	   "state", _ {
 		for (const filter_workloads::CompressorWorkload& workload : filter_workloads::all_compressor_workloads()) {
 			const filter_workloads::WorkloadRecord& recorded =
 			    filter_workloads::kCompressorRecorded.at(static_cast<size_t>(workload.id));
 			expect(recorded.outputs.size()).to_equal(workload.blocks);
 			expect(filter_workloads::record<ReferenceFamily>(workload)).to_equal(recorded);
-			expect(filter_workloads::record<FirmwareFamily>(workload)).to_equal(recorded);
+			expect(without_state(filter_workloads::record<FirmwareFamily<true>>(workload)))
+			    .to_equal(without_state(recorded));
 		}
 	});
 });

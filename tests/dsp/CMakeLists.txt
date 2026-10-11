@@ -75,41 +75,27 @@ set(wavetable_cycle_chunker_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/in
 set(shift_tracker_spec_DEPS)
 # The dry/wet blend needs no sources: the kernel is header-only, and its noise inputs come from SeededNoise.
 set(dry_wet_spec_DEPS)
-# The filters: each spec builds all three (the noise stream is the jcong generator in waves.cpp).
+# The filters are header-only kernels: their specs build the noise stream the low-pass ladder draws (the jcong
+# generator in waves.cpp) and the table lookups the ladders' coefficients and the verbatim references read.
 set(_filter_DEPS
-  ${_repo_root}/src/deluge/dsp-next/fixed/filter/low_pass_ladder.cpp
-  ${_repo_root}/src/deluge/dsp-next/fixed/filter/high_pass_ladder.cpp
-  ${_repo_root}/src/deluge/dsp-next/fixed/filter/state_variable_filter.cpp
-  ${_repo_root}/src/deluge/util/waves.cpp)
-# The ladder specs also run the ladder kernels against the verbatim references, which read the tables the references
-# interpolate.
-set(low_pass_ladder_spec_DEPS
-  ${_filter_DEPS}
-  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
-  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
-set(high_pass_ladder_spec_DEPS ${low_pass_ladder_spec_DEPS})
-set(state_variable_filter_spec_DEPS ${_filter_DEPS})
-# The filter set runs the three filters.
-set(filter_set_spec_DEPS ${_filter_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp)
-
-# The filters' and the compressor's verbatim references against the firmware's classes over the recorded workloads,
-# and what both render pinned (reference_filters.h, filter_workloads.h and filter_workload_records.h, header-only):
-# the filters, the set, and the compressor with its tanh table's interpolator.
-set(filters_reference_spec_DEPS
-  ${_filter_DEPS}
-  ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp
-  ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp
-  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
-  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
-
-# The SVF and fade-in kernels (header-only) against the same verbatim references over the same workloads: the
-# references' noise stream (waves.cpp) and table lookups.
-set(_filter_kernel_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp
   ${_repo_root}/src/deluge/util/waves.cpp)
-set(svf_spec_DEPS ${_filter_kernel_DEPS})
-set(fade_in_spec_DEPS ${_filter_kernel_DEPS})
+set(low_pass_ladder_spec_DEPS ${_filter_DEPS})
+set(high_pass_ladder_spec_DEPS ${_filter_DEPS})
+set(svf_spec_DEPS ${_filter_DEPS})
+set(fade_in_spec_DEPS ${_filter_DEPS})
+# The filter set runs the three filters.
+set(filter_set_spec_DEPS ${_filter_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp)
+
+# The filters' and the compressor's verbatim references against the firmware's set and compressor over the recorded
+# workloads, and what both render pinned (reference_filters.h, filter_workloads.h and filter_workload_records.h,
+# header-only): the set, and the compressor with its tanh table's interpolator.
+set(filters_reference_spec_DEPS
+  ${_filter_DEPS}
+  ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp)
+
 
 # The decay-curve lookups read the decay tables.
 set(table_interpolation_spec_DEPS

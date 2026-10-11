@@ -7,9 +7,6 @@ set(_dsp_filter ${_dsp_fixed}/filter)
 deluge_specs_driver(effects_specs NEON
   SOURCES ${CMAKE_CURRENT_LIST_DIR}/../../support/mocks/mock_panic.cpp
           ${_dsp_filter}/filter_set.cpp
-          ${_dsp_filter}/low_pass_ladder.cpp
-          ${_dsp_filter}/high_pass_ladder.cpp
-          ${_dsp_filter}/state_variable_filter.cpp
           ${CMAKE_CURRENT_LIST_DIR}/../../../src/deluge/util/waves.cpp
           ${_dsp_fixed}/dynamics/rms_feedback_compressor.cpp
           ${_dsp_fixed}/dynamics/duck_envelope.cpp

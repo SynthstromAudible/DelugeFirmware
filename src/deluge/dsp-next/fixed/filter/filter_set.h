@@ -17,16 +17,23 @@
 
 #pragma once
 
+#include "dsp-next/core/mono.h"
+#include "dsp-next/core/stereo.h"
 #include "dsp-next/core/types.h"
-#include "dsp-next/fixed/filter/dry_wet_fade.h"
+#include "dsp-next/fixed/filter/fade_in.h"
 #include "dsp-next/fixed/filter/filter_modes.h"
 #include "dsp-next/fixed/filter/high_pass_ladder.h"
 #include "dsp-next/fixed/filter/low_pass_ladder.h"
-#include "dsp-next/fixed/filter/state_variable_filter.h"
+#include "dsp-next/fixed/filter/svf.h"
+#include "dsp-next/fixed/noise/cong_noise.h"
 
 #include <span>
 
 namespace deluge::dsp::fixed {
+
+/// @brief The scratch a filter needs while it fades between dry and wet: the caller's, at least the block's samples
+/// (two per frame in stereo).
+using FadeScratch = std::span<q31>;
 
 /// @brief The scratch a set needs, each at least the block's samples (two per frame in stereo): the fades', and the
 /// parallel route's second copy of the block.
@@ -42,6 +49,16 @@ struct FilterScratch {
 /// The low-pass resets when its family (ladder or SVF) changes and the high-pass when its mode changes at all; either
 /// fades in from dry when switched on from off. A fade under way carries on across a change of family. Each slot holds
 /// one filter at a time, the one its family needs.
+///
+/// **Components.** Each slot's filter is a kernel in its `Stereo` wrapper (@ref LowPassLadder over @ref CongNoise,
+/// @ref HighPassLadder, @ref Svf). A stereo block runs the wrapper over its frames; a mono block runs its left channel
+/// alone (`renderLane(0, …)`), so a voice that moves between mono and stereo blocks keeps one state per channel, the
+/// left carried across, as a filter holding both channels does.
+///
+/// **The fades.** Each slot's fade is a @ref FadeInMono component the set holds beside the slot's union, not inside
+/// it: a family change rebuilds the union member and leaves the fade where it is, so a fade under way carries on
+/// with no copy. It runs as its own pass, after the filter, only on blocks it is active for, over the block's
+/// samples: mono, or interleaved stereo stepping once per channel-sample, left then right.
 class FilterSet {
 public:
 	/// @brief A set in its reset state (see @ref reset): both filters off, nothing fading.
@@ -82,25 +99,35 @@ public:
 	/// @brief Whether the high-pass is on.
 	[[nodiscard]] bool isHighPassOn() const { return high_slot_.kind != HighPassSlot::Kind::OFF; }
 
+	/// @brief The low-pass slot's fade levels between blocks (@ref FadeIn::active says whether it is under way).
+	[[nodiscard]] const FadeIn::State& lowPassFade() const { return low_fade_.state(); }
+	/// @brief The high-pass slot's fade levels between blocks (@ref FadeIn::active says whether it is under way).
+	[[nodiscard]] const FadeIn::State& highPassFade() const { return high_fade_.state(); }
+
 private:
+	using LowPassLadderFilter = Stereo<LowPassLadder<CongNoise>>; ///< The low-pass ladder, both channels.
+	using HighPassLadderFilter = Stereo<HighPassLadder>;          ///< The high-pass ladder, both channels.
+	using SvfFilter = Stereo<Svf>;                                ///< The SVF, both channels, in either slot.
+	using Fade = Mono<FadeInMono>;                                ///< A slot's fade, over mono or interleaved blocks.
+
 	/// The low-pass slot's filter: the ladder or the SVF, whichever @ref low_held_ names.
 	union LowPass {
-		LowPassLadder ladder;
-		StateVariableFilter svf;
+		LowPassLadderFilter ladder;
+		SvfFilter svf;
 		LowPass() : ladder{} {}
 	};
 	/// The high-pass slot's filter: the ladder or the SVF, whichever @ref high_held_ names.
 	union HighPass {
-		HighPassLadder ladder;
-		StateVariableFilter svf;
+		HighPassLadderFilter ladder;
+		SvfFilter svf;
 		HighPass() : ladder{} {}
 	};
 
-	/// @brief Makes the low-pass slot hold @p kind's filter (LADDER or SVF): a new one, zeroed, carrying on the old
-	/// one's fade.
+	/// @brief Makes the low-pass slot hold @p kind's filter (LADDER or SVF): a new one, its state zero. The slot's
+	/// fade carries on.
 	void holdLowPass(LowPassSlot::Kind kind);
-	/// @brief Makes the high-pass slot hold @p kind's filter (LADDER or SVF): a new one, zeroed, carrying on the old
-	/// one's fade.
+	/// @brief Makes the high-pass slot hold @p kind's filter (LADDER or SVF): a new one, its state zero. The slot's
+	/// fade carries on.
 	void holdHighPass(HighPassSlot::Kind kind);
 
 	/// @brief The low-pass over a mono block, if on.
@@ -114,6 +141,10 @@ private:
 
 	LowPass low_pass_;
 	HighPass high_pass_;
+	/// The low-pass slot's fade, whichever filter the slot holds.
+	Fade low_fade_;
+	/// The high-pass slot's fade, whichever filter the slot holds.
+	Fade high_fade_;
 
 	/// The family @ref low_pass_ holds (LADDER or SVF).
 	LowPassSlot::Kind low_held_{LowPassSlot::Kind::LADDER};

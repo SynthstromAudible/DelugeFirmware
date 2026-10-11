@@ -27,13 +27,7 @@ add_link_options(${_ubsan})
 enable_testing()
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../dsp dsp)
 
-# filter_set_spec drives the legacy ladders past full scale, where legacy::OnePole::lowPass's `step + memory_`
-# (dsp-next/fixed/filter/legacy/one_pole.h) overflows q31. The firmware relies on that sum wrapping, as the ARM add
-# does, and the golden renders pin it; until that section's arithmetic goes through wrapping_add, its spec keeps the
-# shift checks and drops the overflow check.
-target_compile_options(filter_set_spec PRIVATE -fno-sanitize=signed-integer-overflow)
-
-# filters_reference_spec runs the firmware's filters and their verbatim copies (tests/dsp/reference_filters.h) over
-# loud and full-scale workloads, so the same legacy one-pole sums overflow there, in the firmware and in the copy alike.
-# It keeps the shift checks and drops the overflow check, as filter_set_spec does.
-target_compile_options(filters_reference_spec PRIVATE -fno-sanitize=signed-integer-overflow)
+# Every spec runs with both checks: the shipping code each one builds is checked whole. The verbatim references the
+# filter specs compare against (tests/dsp/reference_filters.h) reproduce the legacy plain signed sums, which overflow
+# at full scale as the target's add wraps; each function holding one is marked DELUGE_REFERENCE_LEGACY_ARITHMETIC,
+# which drops the overflow check in that body alone.

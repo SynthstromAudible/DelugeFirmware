@@ -20,11 +20,10 @@
 #include "definitions_cxx.hpp" // kSampleRate
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
-#include "dsp-next/fixed/filter/legacy/one_pole.h"
-#include "dsp-next/fixed/shaping/legacy/antialiased_tanh.h"
+#include "dsp-next/fixed/filter/one_pole.h"
+#include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "util/fixedpoint.h"
 
-#include <array>
 #include <cstdint>
 #include <span>
 
@@ -113,6 +112,8 @@ public:
 private:
 	/// How hard the output is driven into the tanh: by 2^3.
 	static constexpr uint32_t kSaturation = 3;
+	/// The output saturation's coefficients: the antialiased tanh at drive @ref kSaturation.
+	static constexpr AntialiasedTanh::Coefficients kSaturator = AntialiasedTanh::coefficients({.drive = kSaturation});
 
 	void setAttack(q31 attack);
 	void setRelease(q31 release);
@@ -157,14 +158,17 @@ private:
 	float log_rms_ = 0;
 	/// The last block's mean square level, 1 at full scale.
 	float mean_ = 0;
-	/// The output saturation, left then right.
-	std::array<legacy::AntialiasedTanh, 2> saturation_{legacy::AntialiasedTanh{kSaturation},
-	                                                   legacy::AntialiasedTanh{kSaturation}};
+	/// The left channel's output saturation: its position on the curve.
+	AntialiasedTanh::State saturation_l_{};
+	/// The right channel's output saturation: its position on the curve.
+	AntialiasedTanh::State saturation_r_{};
 	/// Whether the saturation has been seeded from a block's first frame since the last reset.
 	bool seeded_ = false;
 
-	/// The detector's high-pass, left then right.
-	std::array<legacy::OnePole, 2> detector_{};
+	/// The left channel's detector high-pass: the memory of the one-pole whose low-pass the detector subtracts.
+	OnePole::State detector_l_{};
+	/// The right channel's detector high-pass, as @ref detector_l_.
+	OnePole::State detector_r_{};
 
 	/// The attack time in ms for a 3 dB change.
 	float attack_ms_ = 0;

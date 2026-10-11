@@ -23,8 +23,8 @@
 /// A family is mono or stereo, as the workloads it plays: a kernel's mono and stereo forms are different wrappers
 /// (`Mono<Svf>` or `Stereo<Svf>`, `Mono<FadeInMono>` or `Mono<FadeIn>`), so each adapter is built for one form and
 /// aborts if handed the other. Each digest folds the same values in the same order as its reference's, so a kernel's
-/// state digest equals the reference's exactly when the two states agree. The targets without a kernel yet are the
-/// references themselves.
+/// state digest equals the reference's exactly when the two states agree. The set and the compressor are the
+/// references here; filters_reference_spec plays the firmware's against them.
 
 #pragma once
 
@@ -33,8 +33,8 @@
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/filter/fade_in.h"
 #include "dsp-next/fixed/filter/filter_modes.h"
-#include "dsp-next/fixed/filter/high_pass_ladder_kernel.h"
-#include "dsp-next/fixed/filter/low_pass_ladder_kernel.h"
+#include "dsp-next/fixed/filter/high_pass_ladder.h"
+#include "dsp-next/fixed/filter/low_pass_ladder.h"
 #include "dsp-next/fixed/filter/svf.h"
 #include "dsp-next/fixed/noise/cong_noise.h"
 #include "filter_workloads.h"
@@ -185,7 +185,7 @@ private:
 	FadeWrapper<kStereo> fade_{};
 };
 
-/// @brief `Stereo<LowPassLadderKernel<CongNoise>>` or `Mono<…>` with its fade, as
+/// @brief `Stereo<LowPassLadder<CongNoise>>` or `Mono<…>` with its fade, as
 /// @ref filters_reference::ReferenceLowPassLadder.
 /// @details The reference keeps two values its configure writes only in some modes: the third feedback (left over from
 /// the last 24dB or drive block while in 12dB) and the oversampling flag (left over from the last drive block). Its
@@ -193,7 +193,7 @@ private:
 /// modes that set them.
 template <bool kStereo>
 class KernelLowPassLadder {
-	using Ladder = deluge::dsp::fixed::LowPassLadderKernel<deluge::dsp::fixed::CongNoise>;
+	using Ladder = deluge::dsp::fixed::LowPassLadder<deluge::dsp::fixed::CongNoise>;
 	using FadeIn = deluge::dsp::fixed::FadeIn;
 	using Filter = std::conditional_t<kStereo, deluge::dsp::Stereo<Ladder>, deluge::dsp::Mono<Ladder>>;
 	using LowPassLadderMode = deluge::dsp::fixed::LowPassLadderMode;
@@ -300,11 +300,11 @@ private:
 	bool held_oversample_ = false;
 };
 
-/// @brief `Stereo<HighPassLadderKernel>` or `Mono<…>` with its fade, as @ref
+/// @brief `Stereo<HighPassLadder>` or `Mono<…>` with its fade, as @ref
 /// filters_reference::ReferenceHighPassLadder.
 template <bool kStereo>
 class KernelHighPassLadder {
-	using Ladder = deluge::dsp::fixed::HighPassLadderKernel;
+	using Ladder = deluge::dsp::fixed::HighPassLadder;
 	using FadeIn = deluge::dsp::fixed::FadeIn;
 	using Filter = std::conditional_t<kStereo, deluge::dsp::Stereo<Ladder>, deluge::dsp::Mono<Ladder>>;
 

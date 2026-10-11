@@ -22,9 +22,8 @@
 ///
 /// Each copy keeps the legacy arithmetic line for line, plain signed `+` and `-` included, and the ladders draw from
 /// the synth-wide generator through `CONG`, so a kernel checked against them is checked against the legacy output and
-/// noise stream as recorded. Each class keeps the legacy member layout, so a legacy object's bytes read as its copy
-/// (see `digest`). The copies add only const accessors and `digest`, which folds every member of the state into a
-/// @ref Digest.
+/// noise stream as recorded. Each class keeps the legacy member layout. The copies add only const accessors and
+/// `digest`, which folds every member of the state into a @ref Digest.
 ///
 /// The copies whose plain sums overflow at full scale, as the legacy code's do (the target's `add` and `sub` wrap), are
 /// marked @ref DELUGE_REFERENCE_LEGACY_ARITHMETIC: the UBSan tree leaves their overflow unchecked, so a spec running a
@@ -133,7 +132,7 @@ struct Digest {
 	};
 }
 
-/// @brief The legacy one-pole section (fixed/filter/legacy/one_pole.h), copied: its sums are plain signed `+`.
+/// @brief The legacy one-pole section, copied: its sums are plain signed `+`.
 class ReferenceOnePole {
 public:
 	/// @brief One sample through the low-pass: returns the section's output, Q31, and advances its memory.
@@ -175,8 +174,8 @@ private:
 	q31 memory_{0};
 };
 
-/// @brief The legacy antialiased tanh (fixed/shaping/legacy/antialiased_tanh.h), copied: each output interpolated
-/// between this sample's and the previous one's position on the curve.
+/// @brief The legacy antialiased tanh, copied: each output interpolated between this sample's and the previous one's
+/// position on the curve.
 class ReferenceAntialiasedTanh {
 public:
 	/// The previous position of a silent signal: the middle of the curve.
@@ -186,6 +185,9 @@ public:
 	/// @param previous The position the first sample is interpolated against.
 	constexpr explicit ReferenceAntialiasedTanh(uint32_t drive = 0, uint32_t previous = kSilent)
 	    : drive_{drive}, previous_{previous} {}
+
+	/// @brief Drives the input by 2^@p drive from the next sample on.
+	void setDrive(uint32_t drive) { drive_ = drive; }
 
 	/// @brief One sample (Q31) through the curve, shifted down by drive + 1.
 	[[nodiscard, gnu::always_inline]] q31 render(q31 sample) {
@@ -212,8 +214,8 @@ private:
 /// @brief The scratch a filter needs while it fades: at least the block's samples (two per frame in stereo).
 using FadeScratch = std::span<q31>;
 
-/// @brief The filters' dry/wet fade (fixed/filter/dry_wet_fade.h), copied: the dry level a float stepped by ×0.99 per
-/// sample, the fade ending once it falls below 0.001 (compared as a double), the wet level derived from it at Q31.
+/// @brief The legacy filters' dry/wet fade, copied: the dry level a float stepped by ×0.99 per sample, the fade ending
+/// once it falls below 0.001 (compared as a double), the wet level derived from it at Q31.
 class ReferenceDryWetFade {
 public:
 	/// @brief Starts fading in from dry.
@@ -292,9 +294,8 @@ inline constexpr std::array<int16_t, 65> kResonanceLimits = {
 
 } // namespace detail
 
-/// @brief The transistor-ladder low-pass (fixed/filter/low_pass_ladder.*), copied: 12dB, 24dB and drive, mono or
-/// stereo, with its fade. One `CONG` draw per channel per sample, left before right; two per sample when the drive
-/// ladder oversamples.
+/// @brief The legacy transistor-ladder low-pass, copied: 12dB, 24dB and drive, mono or stereo, with its fade. One
+/// `CONG` draw per channel per sample, left before right; two per sample when the drive ladder oversamples.
 class ReferenceLowPassLadder {
 public:
 	/// One channel's ladder: its noise follower (Q31, a quarter of the noise's range) and its four sections.
@@ -630,7 +631,7 @@ private:
 	ReferenceDryWetFade fade_{};
 };
 
-/// @brief The transistor-ladder high-pass (fixed/filter/high_pass_ladder.*), copied: mono or stereo, with its fade.
+/// @brief The legacy transistor-ladder high-pass, copied: mono or stereo, with its fade.
 class ReferenceHighPassLadder {
 public:
 	/// One channel's ladder: its three sections and the antialiased saturator's last position on the curve.
@@ -814,8 +815,7 @@ private:
 	ReferenceDryWetFade fade_{};
 };
 
-/// @brief The state-variable filter (fixed/filter/state_variable_filter.*), copied: two passes per sample, mono or
-/// stereo, with its fade.
+/// @brief The legacy state-variable filter, copied: two passes per sample, mono or stereo, with its fade.
 class ReferenceStateVariableFilter {
 public:
 	/// One channel's integrators, Q31.
@@ -936,7 +936,7 @@ public:
 	}
 
 private:
-	[[nodiscard, gnu::always_inline]] q31 render(q31 input, Channel& channel) const {
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 render(q31 input, Channel& channel) const {
 		q31 low = channel.low;
 		q31 band = channel.band;
 
@@ -1004,8 +1004,8 @@ struct FilterScratch {
 	std::span<q31> parallel;
 };
 
-/// @brief The filter set (fixed/filter/filter_set.*), copied: a low-pass and a high-pass slot, each holding a ladder
-/// or an SVF in a union, in series either way or in parallel (the sum wrapping).
+/// @brief The legacy filter set, copied: a low-pass and a high-pass slot, each holding a ladder or an SVF in a union,
+/// in series either way or in parallel (the sum wrapping).
 class ReferenceFilterSet {
 public:
 	/// @brief A set in its reset state: both filters off, nothing fading.
@@ -1313,9 +1313,8 @@ namespace detail {
 
 } // namespace detail
 
-/// @brief The RMS feedback compressor (fixed/dynamics/rms_feedback_compressor.*), copied: its level detector's
-/// high-pass on the legacy one-pole, its output saturation on the legacy antialiased tanh, seeded from the first
-/// frame of the first block after a reset.
+/// @brief The legacy RMS feedback compressor, copied: its level detector's high-pass on the legacy one-pole, its output
+/// saturation on the legacy antialiased tanh, seeded from the first frame of the first block after a reset.
 class ReferenceRmsFeedbackCompressor {
 public:
 	/// @brief A compressor at the default knobs, fully wet, with no gain reduction.
@@ -1519,7 +1518,7 @@ private:
 		return desired + std::exp(release_rate_ * num_samples) * (current - desired);
 	}
 
-	float measureLevel(std::span<const StereoSample> block) {
+	DELUGE_REFERENCE_LEGACY_ARITHMETIC float measureLevel(std::span<const StereoSample> block) {
 		q31 sum = 0;
 		const float last_mean = mean_;
 

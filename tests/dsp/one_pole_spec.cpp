@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The one-pole section. legacy::OnePole, the class the ladders and the compressor still hold, is pinned on 16 samples
+// The one-pole section. The legacy one-pole class, as its verbatim copy (reference_filters.h), is pinned on 16 samples
 // of a ramp at moveability 0x20000000. The OnePole kernel is pinned against the class, sample by sample from equal
 // memories: LOW_PASS against lowPass, ALL_PASS against allPass, HIGH_PASS against the input less lowPass, as the
 // high-pass ladder and the compressor write it, and the feedback reads against the class's. Full-scale and extreme
@@ -28,8 +28,8 @@
 #include "dsp-next/core/concepts.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mono.h"
-#include "dsp-next/fixed/filter/legacy/one_pole.h"
 #include "dsp-next/fixed/noise/noise.h"
+#include "reference_filters.h"
 #include "util/fixedpoint.h"
 
 #include <array>
@@ -208,12 +208,12 @@ constexpr std::array<Mode, 3> kModes{Mode::LOW_PASS, Mode::HIGH_PASS, Mode::ALL_
 
 // clang-format off
 describe one_pole_spec("OnePole", ${
-	context("legacy::OnePole", _ {
+	context("the legacy one-pole, copied", _ {
 		it("low-passes a ramp exactly", _ {
 			constexpr std::array<int32_t, 16> expected{
 			    -268435456, -637534208, -754974720, -746586112, -675282944, -572522496, -454033408, -327680000,
 			    -197394432, -65142784, 68091904, 201818112, 335790080, 469884928, 604041216, 738228224};
-			legacy::OnePole pole;
+			filters_reference::ReferenceOnePole pole;
 			for (int32_t i = 0; i < 16; i++) {
 				expect(pole.lowPass(ramp(i), kRampMoveability)).to_equal(expected[i]);
 			}
@@ -225,14 +225,14 @@ describe one_pole_spec("OnePole", ${
 			constexpr std::array<int32_t, 16> expected{
 			    536870912, -335544320, -704643072, -822083584, -813694976, -742391808, -639631360, -521142272,
 			    -394788864, -264503296, -132251648, 983040, 134709248, 268681216, 402776064, 536932352};
-			legacy::OnePole pole;
+			filters_reference::ReferenceOnePole pole;
 			for (int32_t i = 0; i < 16; i++) {
 				expect(pole.allPass(ramp(i), kRampMoveability)).to_equal(expected[i]);
 			}
 			expect(pole.memory()).to_equal(805326848);
 		});
 		it("starts silent and resets to silence", _ {
-			legacy::OnePole pole;
+			filters_reference::ReferenceOnePole pole;
 			expect(pole.memory()).to_equal(0);
 			std::ignore = pole.lowPass(ramp(3), kRampMoveability);
 			pole.reset();
@@ -246,7 +246,7 @@ describe one_pole_spec("OnePole", ${
 				const std::vector<q31> in = quiet_noise(kLongRun, kSeed);
 				const OnePole::Coefficients c = OnePole::coefficients({.moveability = m, .mode = Mode::LOW_PASS});
 				OnePole::State s{};
-				legacy::OnePole pole;
+				filters_reference::ReferenceOnePole pole;
 				for (const q31 x : in) {
 					expect(OnePole::step<Mode::LOW_PASS>(c, {}, s, x)).to_equal(pole.lowPass(x, m));
 				}
@@ -260,10 +260,9 @@ describe one_pole_spec("OnePole", ${
 				const std::vector<q31> in = quiet_noise(kLongRun, kSeed);
 				const OnePole::Coefficients c = OnePole::coefficients({.moveability = m, .mode = Mode::HIGH_PASS});
 				OnePole::State s{};
-				legacy::OnePole pole;
+				filters_reference::ReferenceOnePole pole;
 				for (const q31 input : in) {
-					// high_pass_ladder.cpp:   const q31 first_output = input - channel.high_pass_1.lowPass(input, temp_fc);
-					// rms_feedback_compressor.cpp:   const q31 l = sample.l - detector_[0].lowPass(sample.l, detector_moveability_);
+					// The legacy high-pass ladder and compressor detector: the input less the section's lowPass.
 					const q31 first_output = input - pole.lowPass(input, m);
 					expect(OnePole::step<Mode::HIGH_PASS>(c, {}, s, input)).to_equal(first_output);
 				}
@@ -277,7 +276,7 @@ describe one_pole_spec("OnePole", ${
 				const std::vector<q31> in = quiet_noise(kLongRun, kSeed);
 				const OnePole::Coefficients c = OnePole::coefficients({.moveability = m, .mode = Mode::ALL_PASS});
 				OnePole::State s{};
-				legacy::OnePole pole;
+				filters_reference::ReferenceOnePole pole;
 				for (const q31 x : in) {
 					expect(OnePole::step<Mode::ALL_PASS>(c, {}, s, x)).to_equal(pole.allPass(x, m));
 				}
@@ -290,7 +289,7 @@ describe one_pole_spec("OnePole", ${
 			for (const q31 m : kMoveabilities) {
 				const std::vector<q31> in = quiet_noise(kLongRun, kSeed);
 				OnePole::State s{};
-				legacy::OnePole pole;
+				filters_reference::ReferenceOnePole pole;
 				for (const q31 x : in) {
 					std::ignore = OnePole::step<Mode::LOW_PASS>({.m = m}, {}, s, x);
 					std::ignore = pole.lowPass(x, m);

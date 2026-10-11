@@ -106,8 +106,11 @@ struct FadeIn {
 	}
 };
 
-/// @brief The filters' fade-in over mono samples: @ref FadeIn's blend and level, one step per sample, on the same
+/// @brief The filters' fade-in over q31 samples: @ref FadeIn's blend and level, one step per sample, on the same
 /// State and through the same events (`on<&FadeIn::begin>`, `on<&FadeIn::zero>`).
+/// @details Over an interleaved L/R block it steps once per channel-sample, left then right, which is @ref FadeIn's
+/// order exactly. So an owner whose blocks are mono on some calls and interleaved stereo on others runs this one form
+/// over both and keeps one State, as @ref FilterSet does.
 struct FadeInMono {
 	using value_type = q31; ///< A sample, Q31.
 	using step_type = q31;  ///< One sample per step.

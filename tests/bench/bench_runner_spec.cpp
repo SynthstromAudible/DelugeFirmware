@@ -13,7 +13,7 @@
 #include "dsp-next/fixed/filter/shift_tracker.h"
 #include "dsp-next/fixed/mix/dry_wet.h"
 #include "dsp-next/fixed/noise/congruential_step.h"
-#include "dsp-next/fixed/shaping/legacy/antialiased_tanh.h"
+#include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "util/fixedpoint.h"
 #include "util/waves.h" // jcong
@@ -98,6 +98,22 @@ std::ostream& operator<<(std::ostream& out, DryWetBlend::Mode mode) {
 	return out;
 }
 } // namespace deluge::dsp::fixed
+
+namespace {
+
+/// The anti-aliased tanh at drive 3 stepped by hand from silence, one sample at a time.
+struct HandTanh {
+	dsp::fixed::AntialiasedTanh::State state{}; ///< The curve's last position.
+	/// @brief One sample through the curve.
+	q31 render(q31 x) {
+		using dsp::fixed::AntialiasedTanh;
+		return AntialiasedTanh::step(AntialiasedTanh::coefficients({.drive = 3}), dsp::EmptyBlock{}, state, x);
+	}
+	/// @brief The position the next sample is interpolated against.
+	[[nodiscard]] uint32_t previous() const { return state.position; }
+};
+
+} // namespace
 
 namespace {
 
@@ -1082,7 +1098,7 @@ describe bench_runner("The DSP benchmark runner", ${
 			}
 		});
 
-		it("saturates input_a from the centre, as the anti-aliased tanh class does, at every block size", _ {
+		it("saturates input_a from the centre, as the anti-aliased tanh stepped by hand does, at every block size", _ {
 			CaseSet& set = case_set();
 			for (const std::size_t n : kSizes) {
 				set.antialiased_tanh.setup(n);
@@ -1090,7 +1106,7 @@ describe bench_runner("The DSP benchmark runner", ${
 				expect(set.antialiased_tanh.component().state().position).to_equal(dsp::fixed::kTanhCentre);
 
 				render(set.antialiased_tanh, n, 2);
-				dsp::fixed::legacy::AntialiasedTanh curve{3};
+				HandTanh curve;
 				for (std::size_t block = 0; block < 2; ++block) {
 					for (std::size_t i = 0; i < n; ++i) {
 						const q31 expected = curve.render(input_a()[i]);
@@ -1192,7 +1208,7 @@ describe bench_runner("The DSP benchmark runner", ${
 			check(set.shift_tracker_x8);
 		});
 
-		it("saturates both lanes input channels from the centre, as the anti-aliased tanh class does, at every size", _ {
+		it("saturates both lanes from the centre, as the anti-aliased tanh stepped by hand does, at every size", _ {
 			CaseSet& set = case_set();
 			for (const std::size_t n : kSizes) {
 				set.stereo_antialiased_tanh.setup(n);
@@ -1202,7 +1218,7 @@ describe bench_runner("The DSP benchmark runner", ${
 				expect(stereo.right().position).to_equal(dsp::fixed::kTanhCentre);
 				render(set.stereo_antialiased_tanh, n, 2);
 				for (std::size_t lane = 0; lane < 2; ++lane) {
-					dsp::fixed::legacy::AntialiasedTanh curve{3};
+					HandTanh curve;
 					for (std::size_t block = 0; block < 2; ++block) {
 						for (std::size_t i = 0; i < n; ++i) {
 							const q31 expected = curve.render(lane_sample(lanes_input(), 2, i, lane));

@@ -33,19 +33,51 @@ namespace {
 	return a.kind == b.kind && (a.kind != HighPassSlot::Kind::SVF || a.svf == b.svf);
 }
 
-/// @brief A fresh @p Filter in @p storage (a union member), zeroed, carrying on @p fade.
-template <typename Filter>
-void take_over(Filter& storage, const DryWetFade& fade) {
-	Filter* filter = std::construct_at(&storage);
-	filter->zero();
-	filter->carryFade(fade);
+/// @brief Restarts @p fade from dry when @p from_off: a filter switched on from off fades in.
+template <typename Fade>
+void fade_in_if(Fade& fade, bool from_off) {
+	if (from_off) {
+		fade.template on<&FadeIn::begin>();
+	}
+}
+
+/// @brief @p filter over a mono @p block, its left channel alone; @p fade blended in over it while active.
+template <typename Filter, typename Fade>
+void render_mono(Filter& filter, Fade& fade, std::span<q31> block, FadeScratch scratch) {
+	const bool fading = FadeIn::active(fade.state());
+	const std::span<q31> dry = scratch.first(block.size());
+	if (fading) {
+		std::ranges::copy(block, dry.begin());
+	}
+	filter.renderLane(0, block, block);
+	if (fading) {
+		fade.renderBlock(dry, block, block);
+	}
+}
+
+/// @brief @p filter over an interleaved L/R block; @p fade blended in over its samples, left then right, while
+/// active.
+template <typename Filter, typename Fade>
+void render_stereo(Filter& filter, Fade& fade, std::span<q31> interleaved, FadeScratch scratch) {
+	const bool fading = FadeIn::active(fade.state());
+	const std::span<q31> dry = scratch.first(interleaved.size());
+	if (fading) {
+		std::ranges::copy(interleaved, dry.begin());
+	}
+	const auto frames = as_frames(interleaved);
+	filter.renderBlock(frames, frames);
+	if (fading) {
+		fade.renderBlock(dry, interleaved, interleaved);
+	}
 }
 
 } // namespace
 
 void FilterSet::reset() {
-	std::construct_at(&low_pass_.ladder)->zero();
-	std::construct_at(&high_pass_.ladder)->zero();
+	std::construct_at(&low_pass_.ladder);
+	std::construct_at(&high_pass_.ladder);
+	low_fade_.on<&FadeIn::zero>();
+	high_fade_.on<&FadeIn::zero>();
 	low_held_ = LowPassSlot::Kind::LADDER;
 	high_held_ = HighPassSlot::Kind::LADDER;
 	low_slot_ = {};
@@ -60,10 +92,10 @@ void FilterSet::holdLowPass(LowPassSlot::Kind kind) {
 		return;
 	}
 	if (kind == LowPassSlot::Kind::SVF) {
-		take_over(low_pass_.svf, DryWetFade{low_pass_.ladder.fade()});
+		std::construct_at(&low_pass_.svf);
 	}
 	else {
-		take_over(low_pass_.ladder, DryWetFade{low_pass_.svf.fade()});
+		std::construct_at(&low_pass_.ladder);
 	}
 	low_held_ = kind;
 }
@@ -73,10 +105,10 @@ void FilterSet::holdHighPass(HighPassSlot::Kind kind) {
 		return;
 	}
 	if (kind == HighPassSlot::Kind::SVF) {
-		take_over(high_pass_.svf, DryWetFade{high_pass_.ladder.fade()});
+		std::construct_at(&high_pass_.svf);
 	}
 	else {
-		take_over(high_pass_.ladder, DryWetFade{high_pass_.svf.fade()});
+		std::construct_at(&high_pass_.ladder);
 	}
 	high_held_ = kind;
 }
@@ -91,17 +123,22 @@ q31 FilterSet::configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot
 		holdLowPass(low_slot.kind);
 		const bool family_changed = low_last_ != low_slot.kind;
 		const bool from_off = low_last_ == LowPassSlot::Kind::OFF;
-		if (low_slot.kind == LowPassSlot::Kind::SVF) {
-			if (family_changed) {
-				low_pass_.svf.reset(from_off);
+		if (family_changed) {
+			if (low_slot.kind == LowPassSlot::Kind::SVF) {
+				low_pass_.svf.reset();
 			}
-			gain = low_pass_.svf.configure(gain, low, low_slot.svf);
+			else {
+				low_pass_.ladder.reset();
+			}
+			fade_in_if(low_fade_, from_off);
+		}
+		if (low_slot.kind == LowPassSlot::Kind::SVF) {
+			low_pass_.svf.configure({.gain = gain, .config = low, .mode = low_slot.svf});
+			gain = Svf::gain(low_pass_.svf.coefficients());
 		}
 		else {
-			if (family_changed) {
-				low_pass_.ladder.reset(from_off);
-			}
-			gain = low_pass_.ladder.configure(gain, low, low_slot.ladder);
+			low_pass_.ladder.configure({.gain = gain, .config = low, .mode = low_slot.ladder});
+			gain = LowPassLadder<CongNoise>::gain(low_pass_.ladder.coefficients());
 		}
 	}
 	low_last_ = low_slot.kind;
@@ -117,18 +154,23 @@ q31 FilterSet::configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot
 		const bool mode_changed = !same_mode(high_last_, high_slot);
 		const bool from_off = high_last_.kind == HighPassSlot::Kind::OFF;
 		if (high_slot.kind == HighPassSlot::Kind::LADDER) {
-			gain = high_pass_.ladder.configure(gain, config);
+			high_pass_.ladder.configure({.gain = gain, .config = config});
+			gain = HighPassLadder::gain(high_pass_.ladder.coefficients());
 			if (mode_changed) {
-				high_pass_.ladder.reset(from_off);
+				high_pass_.ladder.reset();
 			}
 		}
 		else {
 			// The morph inverted, so the high-pass SVF sweeps high → band or notch → low.
 			config.morph = ((1 << 29) - 1) - high.morph;
-			gain = high_pass_.svf.configure(gain, config, high_slot.svf);
+			high_pass_.svf.configure({.gain = gain, .config = config, .mode = high_slot.svf});
+			gain = Svf::gain(high_pass_.svf.coefficients());
 			if (mode_changed) {
-				high_pass_.svf.reset(from_off);
+				high_pass_.svf.reset();
 			}
+		}
+		if (mode_changed) {
+			fade_in_if(high_fade_, from_off);
 		}
 	}
 	high_last_ = high_slot;
@@ -139,10 +181,10 @@ q31 FilterSet::configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot
 void FilterSet::renderLowPassMono(std::span<q31> block, FadeScratch scratch) {
 	switch (low_slot_.kind) {
 	case LowPassSlot::Kind::LADDER:
-		low_pass_.ladder.renderMono(block, scratch);
+		render_mono(low_pass_.ladder, low_fade_, block, scratch);
 		break;
 	case LowPassSlot::Kind::SVF:
-		low_pass_.svf.renderMono(block, scratch);
+		render_mono(low_pass_.svf, low_fade_, block, scratch);
 		break;
 	case LowPassSlot::Kind::OFF:
 		break;
@@ -152,10 +194,10 @@ void FilterSet::renderLowPassMono(std::span<q31> block, FadeScratch scratch) {
 void FilterSet::renderHighPassMono(std::span<q31> block, FadeScratch scratch) {
 	switch (high_slot_.kind) {
 	case HighPassSlot::Kind::LADDER:
-		high_pass_.ladder.renderMono(block, scratch);
+		render_mono(high_pass_.ladder, high_fade_, block, scratch);
 		break;
 	case HighPassSlot::Kind::SVF:
-		high_pass_.svf.renderMono(block, scratch);
+		render_mono(high_pass_.svf, high_fade_, block, scratch);
 		break;
 	case HighPassSlot::Kind::OFF:
 		break;
@@ -165,10 +207,10 @@ void FilterSet::renderHighPassMono(std::span<q31> block, FadeScratch scratch) {
 void FilterSet::renderLowPassStereo(std::span<q31> interleaved, FadeScratch scratch) {
 	switch (low_slot_.kind) {
 	case LowPassSlot::Kind::LADDER:
-		low_pass_.ladder.renderStereo(interleaved, scratch);
+		render_stereo(low_pass_.ladder, low_fade_, interleaved, scratch);
 		break;
 	case LowPassSlot::Kind::SVF:
-		low_pass_.svf.renderStereo(interleaved, scratch);
+		render_stereo(low_pass_.svf, low_fade_, interleaved, scratch);
 		break;
 	case LowPassSlot::Kind::OFF:
 		break;
@@ -178,10 +220,10 @@ void FilterSet::renderLowPassStereo(std::span<q31> interleaved, FadeScratch scra
 void FilterSet::renderHighPassStereo(std::span<q31> interleaved, FadeScratch scratch) {
 	switch (high_slot_.kind) {
 	case HighPassSlot::Kind::LADDER:
-		high_pass_.ladder.renderStereo(interleaved, scratch);
+		render_stereo(high_pass_.ladder, high_fade_, interleaved, scratch);
 		break;
 	case HighPassSlot::Kind::SVF:
-		high_pass_.svf.renderStereo(interleaved, scratch);
+		render_stereo(high_pass_.svf, high_fade_, interleaved, scratch);
 		break;
 	case HighPassSlot::Kind::OFF:
 		break;

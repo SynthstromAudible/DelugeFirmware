@@ -17,7 +17,8 @@
 
 #include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
 
-#include "util/param_functions.h" // lshiftAndSaturateUnknown
+#include "dsp-next/core/kernel.h"
+#include "dsp-next/core/wrapping.h"
 
 #include <algorithm>
 #include <cmath>
@@ -141,12 +142,8 @@ void RmsFeedbackCompressor::render(std::span<StereoSample> block, q31 volume_l, 
 
 	if (!seeded_) {
 		// The first sample interpolates against the block's own start rather than against silence.
-		saturation_[0] = legacy::AntialiasedTanh{
-		    kSaturation, static_cast<uint32_t>(lshiftAndSaturateUnknown(block[0].l, static_cast<uint8_t>(kSaturation)))
-		                     + legacy::AntialiasedTanh::kSilent};
-		saturation_[1] = legacy::AntialiasedTanh{
-		    kSaturation, static_cast<uint32_t>(lshiftAndSaturateUnknown(block[0].r, static_cast<uint8_t>(kSaturation)))
-		                     + legacy::AntialiasedTanh::kSilent};
+		AntialiasedTanh::seed(kSaturator, saturation_l_, block[0].l);
+		AntialiasedTanh::seed(kSaturator, saturation_r_, block[0].r);
 		seeded_ = true;
 	}
 	// Every block, since the song volume may have changed.
@@ -181,10 +178,10 @@ void RmsFeedbackCompressor::render(std::span<StereoSample> block, q31 volume_l, 
 
 		// << 4: the gains are 5.26 signed rather than 1.30.
 		sample.l = multiply_32x32_rshift32(sample.l, current_volume_l_) << 4;
-		sample.l = saturation_[0].render(sample.l);
+		sample.l = AntialiasedTanh::step(kSaturator, EmptyBlock{}, saturation_l_, sample.l);
 
 		sample.r = multiply_32x32_rshift32(sample.r, current_volume_r_) << 4;
-		sample.r = saturation_[1].render(sample.r);
+		sample.r = AntialiasedTanh::step(kSaturator, EmptyBlock{}, saturation_r_, sample.r);
 
 		if (wet_ != ONE_Q31) {
 			// dry_wet_blend's arithmetic (fixed/mix/dry_wet.h), with DryWetBlend's FULL_WET skip around it.
@@ -214,12 +211,17 @@ float RmsFeedbackCompressor::runEnvelope(float current, float desired, float num
 float RmsFeedbackCompressor::measureLevel(std::span<const StereoSample> block) {
 	q31 sum = 0;
 	const float last_mean = mean_;
+	const OnePole::Coefficients detector{.m = detector_moveability_, .mode = OnePole::Mode::LOW_PASS};
 
 	for (const StereoSample sample : block) {
-		const q31 l = sample.l - detector_[0].lowPass(sample.l, detector_moveability_);
-		const q31 r = sample.r - detector_[1].lowPass(sample.r, detector_moveability_);
+		// The input less its low-pass, wrapping as the target's `sub` does.
+		const q31 l = wrapping_sub(
+		    sample.l, OnePole::step<OnePole::Mode::LOW_PASS>(detector, EmptyBlock{}, detector_l_, sample.l));
+		const q31 r = wrapping_sub(
+		    sample.r, OnePole::step<OnePole::Mode::LOW_PASS>(detector, EmptyBlock{}, detector_r_, sample.r));
 		const q31 s = std::max(std::abs(l), std::abs(r));
-		sum += multiply_32x32_rshift32(s, s);
+		// Wraps on a loud block, as the target's `add` does: the level the gain follows is that wrapped sum.
+		sum = wrapping_add(sum, multiply_32x32_rshift32(s, s));
 	}
 
 	const auto ns = static_cast<float>(block.size() * 2);

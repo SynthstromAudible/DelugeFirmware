@@ -277,6 +277,36 @@ public:
 		runBlock(out, in);
 	}
 
+	/// @brief Process `out.size()` samples of lane @p lane alone, @p in into @p out: that lane's State steps exactly
+	/// as a `Mono<K>` holding it would, and every other lane's State is untouched.
+	/// @details For an owner whose stream is sometimes one lane and sometimes all of them on the same State, such as a
+	/// voice's filter rendering mono blocks through the left channel and stereo blocks through both. The lane's
+	/// `prepare` runs once (on the member State, lane-by-lane), then one mode dispatch and one loop over the samples,
+	/// on local copies written back after the block, as @ref renderBlock does. A kernel drawing noise draws once per
+	/// sample, for this lane only. Op-major, the lane's State is unpacked for the block and packed back after it.
+	/// @param lane The lane, less than N.
+	/// @param in At least `out.size()` samples; may be the same buffer as @p out.
+	/// @param out The block to fill, every sample of it.
+	[[gnu::always_inline]] void renderLane(std::size_t lane, Signal<typename K::value_type> in,
+	                                       Buffer<typename K::value_type> out)
+	requires processor_kernel<K>
+	{
+		const auto n = static_cast<std::ptrdiff_t>(out.size());
+		if constexpr (kOpMajor) {
+			State s = unpackLane(lane);
+			const Coefficients c = coefficients_;
+			laneLoop(c, kernel_ops::prepare_block<K>(c, s, out.size()), s, in.data(), out.data(), n);
+			packLane(lane, s);
+		}
+		else {
+			const Block block = kernel_ops::prepare_block<K>(coefficients_, states_.lane[lane], out.size());
+			const Coefficients c = coefficients_;
+			State s = states_.lane[lane];
+			laneLoop(c, block, s, in.data(), out.data(), n);
+			states_.lane[lane] = s;
+		}
+	}
+
 	/// @brief Mix one pair of frames: a one-frame block, so one `prepare(…, 1)` per lane and one mode dispatch per
 	/// call.
 	/// @details A convenience for tests and control rate, not for per-frame use in shipping code (see **Single
@@ -392,6 +422,18 @@ private:
 			const LaneFrame y = stepFrame<M>(c, blocks, s, Access::to_lanes(*src++)...);
 			*dst++ = Access::from_lanes(y);
 		}
+	}
+
+	/// @brief @p n samples of one lane, @p src into @p dst, one `step` per sample at the block's mode, on that lane's
+	/// State @p s and Block @p block.
+	[[gnu::always_inline]] static void laneLoop(const Coefficients& c, const Block& block, State& s,
+	                                            const typename K::value_type* src, typename K::value_type* dst,
+	                                            std::ptrdiff_t n) {
+		kernel_ops::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () {
+			for (std::ptrdiff_t i = 0; i < n; ++i) {
+				dst[i] = kernel_ops::step_at<K, M>(c, block, s, src[i]);
+			}
+		});
 	}
 
 	/// @brief Render one block op-major: one mode dispatch, one loop stepping each frame as one pack.
