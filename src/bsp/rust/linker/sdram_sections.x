@@ -1,4 +1,4 @@
-/* Supplementary linker fragment, added on top of rza1l.x by a second -T: places the Deluge
+/* Supplementary linker fragment, added to rza1l.x by its own -T: places the Deluge
  * application's custom memory sections and the C++ .init_array, and defines the boundary symbols
  * the boot (boot_mem.rs) and the memory regions (services.rs) read:
  *
@@ -15,7 +15,7 @@
  * script order and before the INSERTs are applied. rza1l.x's `.bss` takes every `.bss.*` and its
  * `.data` every `.data.*`, so this fragment is passed before rza1l.x (build/device.rs) for its
  * patterns that move statics to SDRAM to win. The INSERTs then place the sections: `.sdram_bss`
- * before `.bss`, the rest after it.
+ * before `.bss`, `.frunk_bss` after it, and the boot-only tail after `.ARM.exidx`.
  */
 
 /* ---- External (SDRAM), zero-initialised ---- */
@@ -45,10 +45,30 @@ SECTIONS {
     } > SDRAM
 } INSERT BEFORE .bss;
 
-/* ---- External (SDRAM), initialised; and the internal (SRAM) extras ---- */
+/* ---- Internal (SRAM), zero-initialised ---- */
+SECTIONS {
+    /* The app's small-alloc "frunk" arena (PLACE_INTERNAL_FRUNK): the allocator
+     * metadata arrays live in .frunk_bss; the trailing slack is the
+     * "small internal" allocation heap [__frunk_bss_end, __frunk_slack_end). */
+    .frunk_bss (NOLOAD) : ALIGN(16) {
+        __frunk_bss_start = .; /* unconditional, as for .sdram_bss above */
+        *(.frunk_bss .frunk_bss*)
+        __frunk_bss_end = .;
+        . += 0x8000; /* 32 KB small-internal heap */
+        __frunk_slack_end = .;
+    } > RAM
+} INSERT AFTER .bss;
+
+/* ---- The image's tail: what only the boot reads ----
+ *
+ * The SDRAM content's load copy and the C++ constructor list end the image, after .ARM.exidx. The
+ * boot copies the one to SDRAM and runs the other (boot_mem.rs) before the app creates its heaps,
+ * and neither is read again, so the SRAM heap starts where this tail does (`__sram_heap_base`,
+ * which rza1l.x honours). Placing them here also keeps the vector table the image's first
+ * loadable byte, where the bootloader reads its header. */
 SECTIONS {
     /* Initialised SDRAM content: VMA in SDRAM, LMA in SRAM (copied at boot). */
-    .sdram_init : {
+    .sdram_init : ALIGN(16) {
         PROVIDE(__sdram_init_start = .);
         *(.sdram_text .sdram_text*)
         *(.sdram_data .sdram_data*)
@@ -60,23 +80,12 @@ SECTIONS {
     PROVIDE(__sdram_init_lma = LOADADDR(.sdram_init));
 
     /* The end of all static SDRAM content, where the SDRAM heap starts. `.sdram_bss` precedes
-     * `.sdram_init` in the region (see the block order above), but neither the boot nor the heap
-     * relies on which comes first. */
+     * `.sdram_init` in the region, but neither the boot nor the heap relies on which comes first. */
     __sdram_static_end = MAX(__sdram_bss_end, ADDR(.sdram_init) + SIZEOF(.sdram_init));
 
-    /* ---- Internal (SRAM) ---- */
-    /* The app's small-alloc "frunk" arena (PLACE_INTERNAL_FRUNK): the allocator
-     * metadata arrays live in .frunk_bss; the trailing slack is the
-     * "small internal" allocation heap [__frunk_bss_end, __frunk_slack_end). */
-    .frunk_bss (NOLOAD) : ALIGN(16) {
-        __frunk_bss_start = .; /* unconditional, as for .sdram_bss above */
-        *(.frunk_bss .frunk_bss*)
-        __frunk_bss_end = .;
-        . += 0x8000; /* 32 KB small-internal heap */
-        __frunk_slack_end = .;
-    } > RAM
-
-    /* C++ global constructors — loadable in SRAM, iterated by the Rust boot. */
+    /* C++ global constructors, iterated by the Rust boot. Last, and `> RAM`, so the location
+     * counter leaves this block tracking SRAM rather than the SDRAM VMA: rza1l.x takes the
+     * image's end from it. */
     .init_array : ALIGN(4) {
         PROVIDE(__init_array_start = .);
         KEEP(*(SORT(.init_array.*)))
@@ -84,8 +93,5 @@ SECTIONS {
         PROVIDE(__init_array_end = .);
     } > RAM
 
-    /* NOTE: the SRAM heap's base is rza1l.x's __sram_heap_start (= end of the WHOLE image). It
-     * must NOT be set here: this block is INSERT'd before .text/.rodata/.data, so any `.` value
-     * here lands mid-image and the heap would overrun the code. The last section in this block is
-     * a `> RAM` one, so `.` leaves it tracking SRAM, not the SDRAM VMA. */
-} INSERT AFTER .bss;
+    __sram_heap_base = ALIGN(__sdram_init_lma, 16);
+} INSERT AFTER .ARM.exidx;
