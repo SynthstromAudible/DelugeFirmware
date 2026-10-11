@@ -513,6 +513,8 @@ using PinnedSplit = Pinned<loop_state_test::SplitLoop, loop_state_test::Mode::XO
 
 static_assert(processor_kernel<SplitPair> && !detail::declares_loop_state<SplitPair>);
 static_assert(processor_kernel<PinnedSplit> && std::same_as<loop_state_t<PinnedSplit>, loop_state_test::Loop>);
+using PinnedSplitInPlace = Pinned<loop_state_test::SplitLoopInPlace, loop_state_test::Mode::XOR>;
+static_assert(detail::state_in_place<PinnedSplitInPlace> && !detail::state_in_place<PinnedSplit>);
 
 /// Three @p n-sample blocks through Mono<K>, configured with @p first then, from the third block, @p third. Returns
 /// the outputs, with the final State's bytes appended as words.
@@ -1006,6 +1008,8 @@ describe chain("Chain", ${
 		const loop_state_test::SplitCore::Settings xor_mode{.mode = loop_state_test::Mode::XOR};
 		for (std::size_t n = 1; n <= 9; ++n) {
 			expect(run_split_chain<PinnedSplit>(n, add, add))
+			    .to_equal(run_split_chain<loop_state_test::SplitWhole>(n, xor_mode, xor_mode));
+			expect(run_split_chain<PinnedSplitInPlace>(n, add, add))
 			    .to_equal(run_split_chain<loop_state_test::SplitWhole>(n, xor_mode, xor_mode));
 		}
 	});

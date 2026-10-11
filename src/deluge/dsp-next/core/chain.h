@@ -662,11 +662,10 @@ struct PinnedReset<true, K> {
 /// @tparam M One of K's listed modes.
 /// @details Its Settings, Coefficients, State and Block are K's, and its `coefficients`, `prepare`, `reset` and
 /// `kLoopState` are K's, declared exactly when K declares them. The Coefficients keep K's `mode` member, which
-/// `coefficients` sets to
-/// @p M and the step never reads: it is fixed at @p M. Pinned declares no `Modes`, so it is no moded kernel, and a
-/// chain dispatches on nothing for it. It declares no `kLanePackable`, so `Lanes` steps it lane by lane. Its step
-/// forwards whatever K's takes, the counted partial step included, and it declares K's
-/// kPartialStepAdvancesByCount.
+/// `coefficients` sets to @p M and the step never reads: it is fixed at @p M. Pinned declares no `Modes`, so it is no
+/// moded kernel, and a chain dispatches on nothing for it. It declares no `kLanePackable`, so `Lanes` steps it lane by
+/// lane. Its step forwards whatever K's takes, the counted partial step included, and it declares K's
+/// kPartialStepAdvancesByCount and kStateInPlace.
 template <kernel K, auto M>
 requires detail::has_modes<K> && std::same_as<decltype(M), std::remove_cv_t<decltype(K::Coefficients::mode)>>
              && (detail::lists_mode(typename K::Modes{}, M))
@@ -681,6 +680,8 @@ struct Pinned : detail::PinnedPrepare<detail::declares_prepare<K>, K>,
 
 	/// @brief Whether K's partial last vector advances by the active lanes.
 	static constexpr bool kPartialStepAdvancesByCount = partial_step_advances_by_count<K>;
+	/// @brief Whether the wrappers step K's loop state in place: K's choice.
+	static constexpr bool kStateInPlace = detail::state_in_place<K>;
 
 	/// @brief K's coefficients for @p settings, with @p M as their mode whatever the settings say.
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& settings) {
