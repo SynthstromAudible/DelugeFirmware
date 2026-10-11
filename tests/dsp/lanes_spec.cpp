@@ -344,9 +344,9 @@ Mismatches at_every_width(const typename K::Settings& first, const typename K::S
 	return sum;
 }
 
-/// Lanes<K, N> against N Monos over three blocks of every length 1 to 9: the first and last whole frames, the middle
-/// one lane @p Lane alone (`renderLane`), which only that lane's Mono renders. Counts the differences, the states
-/// included.
+/// Lanes<K, N> against N Monos over four blocks of every length 1 to 9: the first and last whole frames, the middle two
+/// lane @p Lane alone (`renderLane`), out of place and then in place, which only that lane's Mono renders. Counts the
+/// differences, the states included.
 template <typename K, std::size_t N, std::size_t Lane>
 Mismatches lane_alone_against_monos(const typename K::Settings& settings) {
 	Mismatches m;
@@ -380,6 +380,11 @@ Mismatches lane_alone_against_monos(const typename K::Settings& settings) {
 		lanes.template renderLane<Lane>(in, out);
 		monos[Lane].renderBlock(in, mono_out);
 		compare(out, mono_out);
+		const std::vector<q31> in_place_in = lane_of(noise_frames<N>(n, seed + 3), Lane);
+		std::vector<q31> in_place = in_place_in;
+		lanes.template renderLane<Lane>(in_place, in_place);
+		monos[Lane].renderBlock(in_place_in, mono_out);
+		compare(in_place, mono_out);
 		whole(seed + 2);
 		for (std::size_t l = 0; l < N; ++l) {
 			m.states += same_state(lanes.state(l), monos[l].state()) ? 0 : 1;
@@ -388,10 +393,10 @@ Mismatches lane_alone_against_monos(const typename K::Settings& settings) {
 	return m;
 }
 
-/// The output samples @ref lane_alone_against_monos compares at @p N lanes: two whole blocks and one lane's block at
-/// every length 1 to 9.
+/// The output samples @ref lane_alone_against_monos compares at @p N lanes: two whole blocks and two of one lane's
+/// blocks at every length 1 to 9.
 constexpr std::size_t lane_alone_compared_at(std::size_t lanes) {
-	return ((2 * lanes) + 1) * (kMaxLength * (kMaxLength + 1) / 2);
+	return ((2 * lanes) + 2) * (kMaxLength * (kMaxLength + 1) / 2);
 }
 
 /// The output samples @ref lane_alone_against_monos compares over every lane of every width in AllWidths.
@@ -852,7 +857,7 @@ describe lanes_spec("Lanes<K, N>", ${
 		});
 	});
 
-	it("renders one lane alone as that lane's Mono renders it, every other lane's state untouched", _ {
+	it("renders one lane alone as that lane's Mono renders it, in place or not, every other lane's state untouched", _ {
 		const Mismatches lane_by_lane =
 		    every_lane_alone<LaneByLane<OnePole>>({.moveability = 0x12345678, .mode = OnePole::Mode::LOW_PASS});
 		const Mismatches op_major =
