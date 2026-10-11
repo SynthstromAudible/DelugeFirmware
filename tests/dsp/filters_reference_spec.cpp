@@ -389,7 +389,7 @@ describe verbatim_filters("the filters' verbatim references", ${
 			}
 		}
 		expect(parted).to_equal(std::vector<std::string>{});
-		expect(played).to_equal(size_t{15});
+		expect(played).to_equal(size_t{16});
 	});
 
 	it("draw one value per channel-sample in the ladders, two when the drive ladder oversamples, none elsewhere", _ {

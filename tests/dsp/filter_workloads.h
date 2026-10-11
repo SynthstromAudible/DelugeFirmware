@@ -188,10 +188,12 @@ enum class WorkloadId : uint8_t {
 	SET_FADE_LP_LADDER_HP_SVF_STEREO,
 	SET_MODE_WALK_MONO, ///< Every slot mode, route and oversampling choice in turn, a reset half way.
 	SET_MODE_WALK_STEREO,
+	SET_HELD_OFF_MONO, ///< Both ladders on, then each slot OFF for six blocks (its ladder held) and back on.
+	SET_HELD_OFF_STEREO,
 };
 
 /// @brief How many filter workloads there are.
-inline constexpr size_t kWorkloadCount = static_cast<size_t>(WorkloadId::SET_MODE_WALK_STEREO) + 1;
+inline constexpr size_t kWorkloadCount = static_cast<size_t>(WorkloadId::SET_HELD_OFF_STEREO) + 1;
 
 /// @brief A recorded filter workload.
 struct FilterWorkload {
@@ -463,6 +465,20 @@ inline constexpr HighPassSlot kHighNotch{.kind = HighPassSlot::Kind::SVF, .svf =
 	});
 }
 
+/// The 24dB ladder and the high-pass ladder, high to low, each slot switched OFF for six blocks while the other runs
+/// (the low-pass at blocks 10 to 15, the high-pass at 22 to 27), then back on: the switched-off slot still holds its
+/// ladder, whose state carries until it comes back on and resets with a fade.
+[[nodiscard]] inline FilterWorkload held_off(WorkloadId id, std::string_view name, bool stereo) {
+	return set(id, name, stereo, [](size_t b) {
+		FilterStep s = at(b);
+		s.low_slot = b >= 10 && b < 16 ? kLowOff : kLow24;
+		s.low = swept(kLow, b);
+		s.high_slot = b >= 22 && b < 28 ? kHighOff : kHighLadder;
+		s.high = high_at(kHpTanh, b);
+		return s;
+	});
+}
+
 [[nodiscard]] inline std::vector<FilterWorkload> make_workloads() {
 	using enum WorkloadId;
 	using LM = LowPassLadderMode;
@@ -628,6 +644,7 @@ inline constexpr HighPassSlot kHighNotch{.kind = HighPassSlot::Kind::SVF, .svf =
 		                      name("set_fade_lp_ladder_hp_svf_mono", "set_fade_lp_ladder_hp_svf_stereo"), stereo,
 		                      kLow24, kHighNotch, FilterRoute::LOW_TO_HIGH));
 		w.push_back(mode_walk(id(SET_MODE_WALK_MONO), name("set_mode_walk_mono", "set_mode_walk_stereo"), stereo));
+		w.push_back(held_off(id(SET_HELD_OFF_MONO), name("set_held_off_mono", "set_held_off_stereo"), stereo));
 	}
 	std::ranges::sort(w, {}, [](const FilterWorkload& x) { return static_cast<uint8_t>(x.id); });
 	return w;
