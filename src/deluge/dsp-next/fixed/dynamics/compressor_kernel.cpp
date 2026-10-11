@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace deluge::dsp::fixed {
 
@@ -86,10 +87,16 @@ void Compressor::seed(State& s, StereoSample first) {
 	s.seeded = true;
 }
 
-void Compressor::finish_level(const Coefficients& /*c*/, State& s) {
+void Compressor::finish_level(const Coefficients& c, State& s) {
+	measure(c, s, s.pending);
 	const float last_mean = s.mean;
 	const auto ns = static_cast<float>(s.n * 2);
-	s.mean = (static_cast<float>(s.sum) / ONE_Q31f) / ns;
+	// The sum is under 2^38, so its two words meet exactly in a double, which rounds once to float as a direct
+	// conversion does, without the library call a 64-bit integer conversion makes.
+	const auto sum = static_cast<uint64_t>(s.sum);
+	const double exact = static_cast<double>(static_cast<uint32_t>(sum >> 32)) * 0x1p32
+	                     + static_cast<double>(static_cast<uint32_t>(sum));
+	s.mean = (static_cast<float>(exact) / ONE_Q31f) / ns;
 	// A one-pole IIR rather than a long FIR: close, and far cheaper. The more samples in the block, the more weight on
 	// its own mean, so the response keeps its speed when the blocks grow under load.
 	s.mean = (s.mean * ns + last_mean) / (1 + ns);

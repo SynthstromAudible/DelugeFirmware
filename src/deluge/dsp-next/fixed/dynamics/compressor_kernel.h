@@ -71,16 +71,19 @@ struct CompressorKnobs {
 /// 3. In @ref Mode::BLEND only, the frame as it came in is mixed back at the dry level: `dry_wet_blend`'s arithmetic
 ///    (fixed/mix/dry_wet.h). The step reads its input frame before the wrapper stores the output, so the blend runs in
 ///    place with no scratch.
-/// 4. The output frame is high-passed by each channel's detector; the larger unsigned magnitude is squared (the high
-///    word of an unsigned 32×32 product) into the block's 64-bit sum. A block of 128 frames sums at most 2^37, so the
-///    sum never wraps, and a detector output of INT32_MIN measures 2^31.
+/// 4. The frame before, held in `pending`, is measured: high-passed by each channel's detector, the larger unsigned
+///    magnitude squared (the high word of an unsigned 32×32 product) into the block's 64-bit sum. A block of 128 frames
+///    sums at most 2^37, so the sum never wraps, and a detector output of INT32_MIN measures 2^31. The measurement runs
+///    one frame behind so that it is independent of this frame's gain and saturation and the core overlaps the two;
+///    measured on the output it just made, the frame is one long dependency chain. @ref prepare sets `pending` to the
+///    detectors' own memories, which high-pass to 0 and leave the memories as they are.
 ///
-/// **After the block** (@ref finish_level), the block's mean square, smoothed against the last block's, gives the
-/// level the next block's gain follows.
+/// **After the block** (@ref finish_level), the block's last frame is measured, and the block's mean square, smoothed
+/// against the last block's, gives the level the next block's gain follows.
 ///
-/// **The owner's order per block:** @ref set_levels, @ref seed when not `seeded`, the block, then @ref finish_level. A
-/// reset (the wrapper's, through @ref reset) zeroes the envelopes and the mean and unseeds the saturation; the channel
-/// gains, the detectors and the last level carry on.
+/// **The owner's order per block:** @ref set_levels, @ref seed when not `seeded`, the block, then @ref finish_level,
+/// which the block's level needs: its last frame is measured there. A reset (the wrapper's, through @ref reset) zeroes
+/// the envelopes and the mean and unseeds the saturation; the channel gains, the detectors and the last level carry on.
 struct Compressor {
 	using value_type = StereoSample; ///< A frame, Q31 per channel.
 	using step_type = StereoSample;  ///< One frame per step.
@@ -140,6 +143,7 @@ struct Compressor {
 		AntialiasedTanh::State saturation_r{}; ///< The right saturation's position on the curve.
 		OnePole::State detector_l{};           ///< The left detector's one-pole memory, Q31.
 		OnePole::State detector_r{};           ///< The right detector's one-pole memory, Q31.
+		StereoSample pending{};                ///< The last frame stepped, which the next step measures, Q31.
 		int64_t sum = 0;                       ///< The block's squared detector magnitudes, Q31, never wrapping.
 		uint32_t n = 0;                        ///< The block's length in frames, for @ref finish_level.
 		bool seeded = false;                   ///< Whether the saturation is seeded since the last reset.
@@ -158,8 +162,8 @@ struct Compressor {
 	/// @brief The block's envelopes and gain ramps, from the levels last set and the last block's level.
 	/// @details The makeup envelope moves toward the level `final_volume` asks for, the reduction envelope toward how
 	/// far the last level passed the threshold, and the gain they give (clamped to 31) sets each channel's target from
-	/// its volume; the increments reach the targets by the block's end. Sets `gain_reduction`, zeroes `sum` and records
-	/// @p n.
+	/// its volume; the increments reach the targets by the block's end. Sets `gain_reduction`, zeroes `sum`, records
+	/// @p n and sets `pending` to the detectors' memories.
 	/// @param n The block's length in frames, at least 1.
 	[[nodiscard]] [[gnu::always_inline]] static Block prepare(const Coefficients& c, State& s, std::size_t n) {
 		const auto frames = static_cast<float>(n);
@@ -193,6 +197,8 @@ struct Compressor {
 		s.gain_reduction = static_cast<uint8_t>(leds < 0 ? 0 : leds > 127 ? 127 : leds);
 		s.sum = 0;
 		s.n = static_cast<uint32_t>(n);
+		// Each detector's own memory as the frame before the first: it high-passes to 0 and leaves the memory as it is.
+		s.pending = {.l = s.detector_l.z, .r = s.detector_r.z};
 
 		// The steps (5.26 signed) that reach the target gains by the end of the block.
 		return {
@@ -224,15 +230,8 @@ struct Compressor {
 			y.r = multiply_accumulate_32x32_rshift32_rounded(multiply_32x32_rshift32(y.r, c.wet), x.r, c.dry) << 1;
 		}
 
-		// The output less its one-pole low-pass, wrapping as the target's `sub` does.
-		const OnePole::Coefficients detector{.m = c.detector_moveability, .mode = OnePole::Mode::HIGH_PASS};
-		const uint32_t l =
-		    magnitude(OnePole::step<OnePole::Mode::HIGH_PASS>(detector, EmptyBlock{}, s.detector_l, y.l));
-		const uint32_t r =
-		    magnitude(OnePole::step<OnePole::Mode::HIGH_PASS>(detector, EmptyBlock{}, s.detector_r, y.r));
-		const uint64_t larger = l > r ? l : r;
-		s.sum += static_cast<int64_t>((larger * larger) >> 32);
-
+		measure(c, s, s.pending);
+		s.pending = y;
 		return y;
 	}
 
@@ -253,11 +252,24 @@ struct Compressor {
 	/// against itself rather than against silence; marks the state seeded.
 	static void seed(State& s, StereoSample first);
 
-	/// @brief Event, after the block: the block's mean square (never negative), smoothed one-pole against the last
-	/// block's, and its log RMS level (nepers), which the next block's gain follows.
+	/// @brief Event, after the block: measures the block's last frame, then the block's mean square (never negative),
+	/// smoothed one-pole against the last block's, and its log RMS level (nepers), which the next block's gain follows.
 	static void finish_level(const Coefficients& c, State& s);
 
 private:
+	/// @brief Adds output frame @p y to the block's sum: high-passed by each channel's detector, the larger unsigned
+	/// magnitude squared (the high word of an unsigned 32×32 product).
+	[[gnu::always_inline]] static void measure(const Coefficients& c, State& s, StereoSample y) {
+		// The output less its one-pole low-pass, wrapping as the target's `sub` does.
+		const OnePole::Coefficients detector{.m = c.detector_moveability, .mode = OnePole::Mode::HIGH_PASS};
+		const uint32_t l =
+		    magnitude(OnePole::step<OnePole::Mode::HIGH_PASS>(detector, EmptyBlock{}, s.detector_l, y.l));
+		const uint32_t r =
+		    magnitude(OnePole::step<OnePole::Mode::HIGH_PASS>(detector, EmptyBlock{}, s.detector_r, y.r));
+		const uint64_t larger = l > r ? l : r;
+		s.sum += static_cast<int64_t>((larger * larger) >> 32);
+	}
+
 	/// @return |@p x| as an unsigned value: INT32_MIN gives 2^31.
 	[[nodiscard]] [[gnu::always_inline]] static uint32_t magnitude(q31 x) {
 		return x < 0 ? 0u - static_cast<uint32_t>(x) : static_cast<uint32_t>(x);
