@@ -103,6 +103,12 @@ set(compressor_reference_spec_DEPS
 # The Compressor kernel against the fixed reference over the same workloads: the same sources.
 set(compressor_kernel_spec_DEPS ${compressor_reference_spec_DEPS})
 
+# The mod FX reference (reference_mod_fx.h, mod_fx_workloads.h, header-only) reads the sine table and draws the
+# warbler's noise from jcong.
+set(mod_fx_reference_spec_DEPS
+  ${_repo_root}/src/deluge/util/waves.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+
 # The decay-curve lookups read the decay tables.
 set(table_interpolation_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
