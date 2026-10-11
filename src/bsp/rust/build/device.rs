@@ -15,6 +15,7 @@ pub fn link(repo_root: &Path, manifest_dir: &Path, out_dir: &Path) {
     let app_objs_archive = archive_app_objects(repo_root, &build_dir, &cfg, &ar, out_dir);
     link_app_closure(&build_dir, &cfg, &app_objs_archive);
     emit_runtime_link_args();
+    emit_size_link_args();
 }
 
 /// Copies the memory layout for the active `rtt` feature and the SDRAM fragment into `out_dir`,
@@ -166,4 +167,17 @@ fn emit_runtime_link_args() {
         println!("cargo:rustc-link-arg={l}");
     }
     println!("cargo:rustc-link-arg=-Wl,--end-group");
+}
+
+/// Link options that shrink the image, which must fit in on-chip SRAM (docs/dev/image_size.md).
+///
+/// - `--icf=safe` folds functions whose code is identical, such as one template instantiated for
+///   types of the same layout. `safe` folds only functions whose address is never taken, so
+///   function-pointer comparisons keep their meaning. Folded functions share one address, so a
+///   backtrace may name a sibling of the function that really ran.
+/// - `snprintf` resolves to `eyalroz_printf`'s `snprintf_`, which the app already links, instead of
+///   newlib's, whose floating-point formatter is far larger. It supports every format the app uses.
+fn emit_size_link_args() {
+    println!("cargo:rustc-link-arg=-Wl,--icf=safe");
+    println!("cargo:rustc-link-arg=-Wl,--defsym=snprintf=snprintf_");
 }
