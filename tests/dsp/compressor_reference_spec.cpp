@@ -17,17 +17,15 @@
 
 // The compressor's references (reference_compressor.h) over every recorded workload (compressor_workloads.h).
 //
-// The verbatim reference against the firmware's compressor, wherever the legacy arithmetic is defined (everywhere but
-// INT32_MIN_DETECTOR): each block's output and gain reduction, and the whole `view()`, must agree. A probe through the
-// verbatim reference's own detector shows which workloads reach a level defect: a sum of squares past 2^31, or a
-// detector output of exactly INT32_MIN.
+// The verbatim reference is the record of the legacy compressor. A probe through its own detector shows which workloads
+// reach a level defect: a sum of squares past 2^31, or a detector output of exactly INT32_MIN.
 //
 // The fixed reference against the verbatim one: the same wherever no defect is reached, parted wherever the sum wraps,
 // its mean square never negative and its level never NaN, and INT32_MIN measured as 2^31.
 //
-// What the legacy compressor renders is pinned on the workloads up to MASTER_VOLUME_STEPS, and the firmware's renders
-// must equal the same pins; what the fixed reference renders is pinned on every workload
-// (compressor_workload_records.h).
+// What the legacy compressor renders is pinned on the workloads up to MASTER_VOLUME_STEPS; what the fixed reference
+// renders is pinned on every workload (compressor_workload_records.h), and the firmware's compressor must render the
+// same.
 
 #include "compressor_workload_records.h"
 #include "compressor_workloads.h"
@@ -74,12 +72,6 @@ template <typename A, typename B, typename Keep>
 		}
 	}
 	return parted;
-}
-
-/// @return Whether the legacy arithmetic is defined throughout workload @p id: everywhere but INT32_MIN_DETECTOR, whose
-/// detector output of INT32_MIN the legacy `std::abs` cannot negate.
-[[nodiscard]] bool legacy_defined(cw::CompressorWorkloadId id) {
-	return id != cw::CompressorWorkloadId::INT32_MIN_DETECTOR;
 }
 
 /// @return Whether neither level defect is reached in workload @p id.
@@ -159,12 +151,6 @@ describe verbatim_compressor("the compressor's verbatim reference", ${
 		}
 	});
 
-	it("renders every workload where its arithmetic is defined as today's compressor does: each block's output and "
-	   "gain reduction, and the whole view", _ {
-		expect(partings<ReferenceRmsFeedbackCompressor, fixed::RmsFeedbackCompressor>(legacy_defined))
-		    .to_equal(std::vector<std::string>{});
-	});
-
 	it("reaches a level defect in exactly the workloads defects_fire names, as a probe through its arithmetic shows", _ {
 		for (const cw::CompressorWorkload& workload : cw::all_compressor_workloads()) {
 			const LevelProbe probe = probe_levels(workload);
@@ -198,7 +184,6 @@ describe verbatim_compressor("the compressor's verbatim reference", ${
 			const cw::WorkloadRecord& recorded = cw::kCompressorRecorded.at(static_cast<size_t>(workload.id));
 			expect(recorded.outputs.size()).to_equal(workload.blocks);
 			expect(cw::record<ReferenceRmsFeedbackCompressor>(workload)).to_equal(recorded);
-			expect(cw::record<fixed::RmsFeedbackCompressor>(workload)).to_equal(recorded);
 		}
 	});
 });
@@ -243,11 +228,13 @@ describe fixed_compressor("the compressor's fixed reference", ${
 		expect(v.mean).to_equal((mean * kNs + 0) / (1 + kNs));
 	});
 
-	it("renders every workload as recorded: each block's output and gain reduction, and the state", _ {
+	it("renders every workload as recorded, as the firmware's compressor does: each block's output and gain reduction, "
+	   "and the state", _ {
 		for (const cw::CompressorWorkload& workload : cw::all_compressor_workloads()) {
 			const cw::WorkloadRecord& recorded = cw::kFixedCompressorRecorded.at(static_cast<size_t>(workload.id));
 			expect(recorded.outputs.size()).to_equal(workload.blocks);
 			expect(cw::record<FixedReferenceRmsFeedbackCompressor>(workload)).to_equal(recorded);
+			expect(cw::record<fixed::RmsFeedbackCompressor>(workload)).to_equal(recorded);
 		}
 	});
 });

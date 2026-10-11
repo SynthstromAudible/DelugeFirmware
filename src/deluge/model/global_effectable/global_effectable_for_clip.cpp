@@ -25,7 +25,6 @@
 #include "model/action/action_logger.h"
 #include "model/edits/change_effect.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/render_scratch.h"
 #include <limits>
 #include <string.h>
 // #include <algorithm>
@@ -143,8 +142,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	                           pan, true);
 
 	if (compThreshold > 0) {
-		compressor.dsp().renderVolumeNeutral(global_effectable_audio, volumePostFX,
-		                                     deluge::render::compressor_scratch());
+		compressor.dsp().renderVolumeNeutral(global_effectable_audio, volumePostFX);
 	}
 	else {
 		compressor.dsp().reset();

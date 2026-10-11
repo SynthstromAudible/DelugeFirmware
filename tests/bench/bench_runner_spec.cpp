@@ -550,15 +550,14 @@ CompressorReference compressor_reference(const CompressorCaseConfig& config, std
 	for (std::size_t i = 0; i < n; ++i) {
 		work[i] = {.l = lane_sample(lanes_input(), 2, i, 0), .r = lane_sample(lanes_input(), 2, i, 1)};
 	}
-	std::vector<StereoSample> scratch(n);
 	CompressorReference out;
 	out.compressor.configure(compressor_knobs(config));
 	for (std::size_t b = 0; b < blocks; ++b) {
 		if (config.neutral) {
-			out.compressor.renderVolumeNeutral(work, kCompressorFinalVolume, scratch);
+			out.compressor.renderVolumeNeutral(work, kCompressorFinalVolume);
 		}
 		else {
-			out.compressor.render(work, kCompressorVolume, kCompressorVolume, kCompressorFinalVolume >> 3, scratch);
+			out.compressor.render(work, kCompressorVolume, kCompressorVolume, kCompressorFinalVolume >> 3);
 		}
 	}
 	out.last_block = interleaved(work);

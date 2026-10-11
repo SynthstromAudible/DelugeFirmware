@@ -63,7 +63,6 @@
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
-#include "processing/render_scratch.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -1378,7 +1377,7 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 		GlobalEffectableForSong& master = currentSong->live.global_effectable;
 		master.compressor.configure(master.modControllableSnapshot().effects.compressor); // its threshold is its knob
 		master.compressor.dsp().render(renderingBuffer, masterVolumeAdjustmentL >> 1, masterVolumeAdjustmentR >> 1,
-		                               songVolume >> 3, deluge::render::compressor_scratch());
+		                               songVolume >> 3);
 		masterVolumeAdjustmentL = ONE_Q31;
 		masterVolumeAdjustmentR = ONE_Q31;
 		logAction("mastercomp end");

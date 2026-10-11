@@ -322,12 +322,23 @@ public:
 			compressor_.reset();
 			return compressor_.gainReduction();
 		}
-		const std::span<StereoSample> scratch{scratch_.data(), out.size()};
-		if (workload_.owner == Owner::MASTER) {
-			compressor_.render(out, s.volume_l, s.volume_r, s.final_volume, scratch);
+		const std::span<StereoSample> block{out};
+		if constexpr (kTakesScratch) {
+			const std::span<StereoSample> scratch{scratch_.data(), out.size()};
+			if (workload_.owner == Owner::MASTER) {
+				compressor_.render(block, s.volume_l, s.volume_r, s.final_volume, scratch);
+			}
+			else {
+				compressor_.renderVolumeNeutral(block, s.final_volume, scratch);
+			}
 		}
 		else {
-			compressor_.renderVolumeNeutral(out, s.final_volume, scratch);
+			if (workload_.owner == Owner::MASTER) {
+				compressor_.render(block, s.volume_l, s.volume_r, s.final_volume);
+			}
+			else {
+				compressor_.renderVolumeNeutral(block, s.final_volume);
+			}
 		}
 		return compressor_.gainReduction();
 	}
@@ -339,6 +350,10 @@ public:
 	[[nodiscard]] uint64_t state() const { return compressor_reference::digest(compressor_.view()); }
 
 private:
+	/// Whether @p C blends from a caller's scratch, as the references do; the firmware's compressor blends in place.
+	static constexpr bool kTakesScratch =
+	    requires(C& c, std::span<StereoSample> b) { c.render(b, q31{}, q31{}, q31{}, b); };
+
 	const CompressorWorkload& workload_;
 	C compressor_{};
 	std::array<StereoSample, kMaxFrames> scratch_{};

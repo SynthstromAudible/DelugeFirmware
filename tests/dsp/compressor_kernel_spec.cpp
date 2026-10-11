@@ -36,6 +36,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <ostream>
 #include <set>
 #include <span>
 #include <string>
@@ -54,6 +55,15 @@ static_assert(deluge::dsp::detail::plain_value<Compressor::State>);
 static_assert(deluge::dsp::detail::plain_value<Compressor::Block>);
 static_assert(deluge::dsp::processor_kernel<Compressor>);
 static_assert(deluge::dsp::moded_kernel<Compressor>);
+
+namespace deluge::dsp::fixed {
+
+// The kernel's mode, printed by name when an expectation fails.
+inline std::ostream& operator<<(std::ostream& out, Compressor::Mode mode) {
+	return out << (mode == Compressor::Mode::WET ? "WET" : "BLEND");
+}
+
+} // namespace deluge::dsp::fixed
 
 namespace {
 
@@ -97,8 +107,7 @@ public:
 	/// @param block Rendered in place (or from a copy, when not kInPlace).
 	/// @param volume_l, volume_r 4.27 signed.
 	/// @param final_volume 3.29.
-	void render(std::span<StereoSample> block, q31 volume_l, q31 volume_r, q31 final_volume,
-	            std::span<StereoSample> /*scratch*/) {
+	void render(std::span<StereoSample> block, q31 volume_l, q31 volume_r, q31 final_volume) {
 		mono_.template on<&Compressor::set_levels>(Compressor::Levels{
 		    .volume_l = volume_l, .volume_r = volume_r, .final_volume = final_volume, .threshold = threshold_knob_});
 		if (!mono_.state().seeded) {
@@ -115,8 +124,8 @@ public:
 	}
 
 	/// @brief render at neutral channel gain, with @p final_volume (3.29) scaled.
-	void renderVolumeNeutral(std::span<StereoSample> block, q31 final_volume, std::span<StereoSample> scratch) {
-		render(block, 1 << 27, 1 << 27, final_volume >> 3, scratch);
+	void renderVolumeNeutral(std::span<StereoSample> block, q31 final_volume) {
+		render(block, 1 << 27, 1 << 27, final_volume >> 3);
 	}
 
 	/// @return The last block's gain reduction for the LEDs.
@@ -273,7 +282,8 @@ describe compressor_kernel("the Compressor kernel", ${
 		for (size_t b = 0; b < workload.blocks; ++b) {
 			std::ignore = run.block(b, block);
 			const Compressor::Mode mode = run.compressor().coefficients().mode;
-			expect(mode == Compressor::Mode::WET).to_equal(workload.step(b).knobs.blend == ONE_Q31);
+			expect(mode).to_equal(workload.step(b).knobs.blend == ONE_Q31 ? Compressor::Mode::WET
+			                                                               : Compressor::Mode::BLEND);
 			wet += static_cast<size_t>(mode == Compressor::Mode::WET);
 			blended += static_cast<size_t>(mode == Compressor::Mode::BLEND);
 			switches += static_cast<size_t>(b > 0 && mode != last);
@@ -309,7 +319,7 @@ describe compressor_kernel("the Compressor kernel", ${
 			mono.renderBlock(block, block);
 			largest = std::max<int64_t>(largest, mono.state().sum);
 			mono.on<&Compressor::finish_level>();
-			expect(mono.state().mean >= 0).to_be_true();
+			expect(mono.state().mean).not_().to_be_less_than(0.0F);
 		}
 		expect(largest).to_be_greater_than(int64_t{INT32_MAX});
 	});

@@ -240,6 +240,12 @@ struct Compressor {
 	/// saturation seeded again. The channel gains, the detectors and the last level carry on.
 	static void reset(State& s);
 
+	/// @return The threshold as a fraction of the final volume's level in nepers, from knob @p threshold (Q31 of its
+	/// travel): 1 at 0, 0.2 at 2^31.
+	[[nodiscard]] static float threshold_fraction(q31 threshold) {
+		return 1 - 0.8f * (static_cast<float>(threshold) / ONE_Q31f);
+	}
+
 	/// @brief Event: the block's levels, and the threshold @p l's knob gives as a fraction of the volume's level.
 	static void set_levels(State& s, const Levels& l);
 

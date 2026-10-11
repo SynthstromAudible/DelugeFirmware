@@ -57,7 +57,6 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/render_scratch.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
@@ -2051,7 +2050,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	compressor.configure(modControllableSnapshot_.effects.compressor);
 	compressor.dsp().setThreshold(compThreshold); // a sound's threshold is its param
 	if (compThreshold > 0) {
-		compressor.dsp().renderVolumeNeutral(sound_stereo, postFXVolume, deluge::render::compressor_scratch());
+		compressor.dsp().renderVolumeNeutral(sound_stereo, postFXVolume);
 	}
 	else {
 		compressor.dsp().reset();

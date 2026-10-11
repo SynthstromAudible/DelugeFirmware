@@ -77,7 +77,7 @@ void Compressor::reset(State& s) {
 
 void Compressor::set_levels(State& s, const Levels& l) {
 	s.levels = l;
-	s.threshold = 1 - 0.8f * (static_cast<float>(l.threshold) / ONE_Q31f);
+	s.threshold = threshold_fraction(l.threshold);
 }
 
 void Compressor::seed(State& s, StereoSample first) {

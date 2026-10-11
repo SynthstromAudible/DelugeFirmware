@@ -8,15 +8,11 @@
 #include "bench/cases.h"
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
 
 namespace deluge::bench {
 
 namespace {
-
-/// @brief The scratch a blended block is copied to: the caller's, as deluge::render::compressor_scratch() is.
-alignas(16) std::array<StereoSample, kMaxBlock> scratch{};
 
 /// @brief The rig every compressor case renders with, in on-chip SRAM.
 CompressorRig rig{};
@@ -38,10 +34,10 @@ void CompressorCase::setup(std::size_t n) {
 
 void CompressorCase::block(std::size_t /*n*/) {
 	if (config_.neutral) {
-		rig.compressor.renderVolumeNeutral(rig.work, kCompressorFinalVolume, scratch);
+		rig.compressor.renderVolumeNeutral(rig.work, kCompressorFinalVolume);
 	}
 	else {
-		rig.compressor.render(rig.work, kCompressorVolume, kCompressorVolume, kCompressorFinalVolume >> 3, scratch);
+		rig.compressor.render(rig.work, kCompressorVolume, kCompressorVolume, kCompressorFinalVolume >> 3);
 	}
 }
 

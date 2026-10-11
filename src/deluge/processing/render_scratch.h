@@ -18,9 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // SSI_TX_BUFFER_NUM_SAMPLES
-#include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
 #include "dsp-next/fixed/filter/filter_set.h"
-#include "dsp/stereo_sample.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -42,9 +40,5 @@ inline constexpr std::size_t kSpareRenderingRows = 4;
 /// @brief The scratch every filter set shares (the voices' and the host chains'): room for a stereo block of
 /// SSI_TX_BUFFER_NUM_SAMPLES frames each for the fades and for the parallel route's copy.
 [[nodiscard]] dsp::fixed::FilterScratch filter_scratch();
-
-/// @brief The scratch every compressor shares (the sounds', the clip chains' and the song master's): a stereo block of
-/// SSI_TX_BUFFER_NUM_SAMPLES frames.
-[[nodiscard]] dsp::fixed::CompressorScratch compressor_scratch();
 
 } // namespace deluge::render

@@ -18,7 +18,6 @@
 #include "processing/render_scratch.h"
 
 #include "definitions_cxx.hpp" // SSI_TX_BUFFER_NUM_SAMPLES
-#include "dsp/stereo_sample.h"
 
 #include <array>
 #include <cstddef>
@@ -34,16 +33,10 @@ constexpr std::size_t kFilterScratchSamples = SSI_TX_BUFFER_NUM_SAMPLES * 2;
 std::array<dsp::q31, kFilterScratchSamples> filter_fade{};
 std::array<dsp::q31, kFilterScratchSamples> filter_parallel{};
 
-std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> compressor_dry;
-
 } // namespace
 
 dsp::fixed::FilterScratch filter_scratch() {
 	return {.fade = filter_fade, .parallel = filter_parallel};
-}
-
-dsp::fixed::CompressorScratch compressor_scratch() {
-	return compressor_dry;
 }
 
 } // namespace deluge::render

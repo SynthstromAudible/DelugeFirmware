@@ -19,14 +19,21 @@
 // values pin the gain ramp, the saturation, the feedback, the dry blend, the reset, the makeup gain and the knob
 // curves. A two-sine stereo signal (5 and 37 cycles left, 7 and 23 right, per 512 samples, at 2^27 and 2^26) runs in
 // 128-sample blocks.
+//
+// It runs on the Compressor kernel, so over every recorded workload (compressor_workloads.h) it must equal the fixed
+// reference (reference_compressor.h) bit for bit: each block's output and gain reduction, and the whole `view()` after
+// every block, reset blocks included.
 
+#include "compressor_workloads.h"
 #include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
+#include "reference_compressor.h"
 
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>
 #include <limits>
 #include <span>
+#include <string>
 #include <tuple>
 #include <vector>
 
@@ -677,15 +684,64 @@ std::vector<StereoSample> signalBlock(std::size_t index) {
 	return frames(std::span{kSignal}.subspan(index * kBlock * 2, kBlock * 2));
 }
 
-/// A compressor with its scratch.
+namespace cw = compressor_workloads;
+using compressor_reference::digest;
+using compressor_reference::FixedReferenceRmsFeedbackCompressor;
+
+/// @return Each workload where the compressor parts from the fixed reference, named with the block and what parted.
+std::vector<std::string> partings_from_fixed() {
+	std::vector<std::string> parted;
+	for (const cw::CompressorWorkload& workload : cw::all_compressor_workloads()) {
+		const auto parting = cw::first_parting<FixedReferenceRmsFeedbackCompressor, RmsFeedbackCompressor>(workload);
+		if (parting) {
+			parted.push_back(std::string{workload.name} + " block " + std::to_string(parting->block) + ": "
+			                 + parting->what);
+		}
+	}
+	return parted;
+}
+
+/// @return How many times @p workload resets between two rendered blocks.
+std::size_t resets_mid_sound(const cw::CompressorWorkload& workload) {
+	std::size_t resets = 0;
+	bool rendered = false; // whether a block has rendered yet
+	bool reset = false;    // whether a block has reset since the last rendered one
+	for (std::size_t b = 0; b < workload.blocks; ++b) {
+		if (!workload.step(b).render) {
+			reset = rendered;
+			continue;
+		}
+		resets += static_cast<std::size_t>(reset);
+		rendered = true;
+		reset = false;
+	}
+	return resets;
+}
+
+/// @return @p after with @p before's knobs, coefficients and base gain: what a reconfigure may change.
+RmsFeedbackCompressor::View with_coefficients_of(RmsFeedbackCompressor::View after,
+                                                 const RmsFeedbackCompressor::View& before) {
+	after.configured = before.configured;
+	after.attack_rate = before.attack_rate;
+	after.release_rate = before.release_rate;
+	after.fraction = before.fraction;
+	after.detector_moveability = before.detector_moveability;
+	after.attack_ms = before.attack_ms;
+	after.release_ms = before.release_ms;
+	after.base_gain = before.base_gain;
+	after.dry = before.dry;
+	after.wet = before.wet;
+	return after;
+}
+
+/// A compressor at its knobs.
 struct Rig {
 	RmsFeedbackCompressor compressor;
-	std::vector<StereoSample> scratch = std::vector<StereoSample>(kBlock);
 
 	explicit Rig(const CompressorKnobs& knobs = {}) { compressor.configure(knobs); }
 
 	std::vector<int32_t> render(std::vector<StereoSample> block, q31 volume_l, q31 volume_r, q31 final_volume) {
-		compressor.render(block, volume_l, volume_r, final_volume, scratch);
+		compressor.render(block, volume_l, volume_r, final_volume);
 		return interleave(block);
 	}
 	std::vector<int32_t> render(std::size_t index, q31 final_volume = kFinalDefault) {
@@ -730,22 +786,11 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 		expect(rig.compressor.threshold()).to_equal(q31{1 << 30});
 	});
 
-	it("blends at half wet exactly, the dry block taken from the scratch", _ {
+	it("blends at half wet exactly, in place", _ {
 		Rig rig{CompressorKnobs{.blend = 1 << 30}};
-		rig.scratch.assign(kBlock * 2, StereoSample{.l = 0x5a5a5a5a, .r = -0x5a5a5a5a});
 		expect(rig.render(0)).to_equal(kBlendBlock0);
-		expect(interleave(std::span{rig.scratch}.first(kBlock))).to_equal(interleave(signalBlock(0)));
-		expect(rig.scratch.back().l).to_equal(0x5a5a5a5a);
 		expect(rig.render(1)).to_equal(kBlendBlock1);
 		expect(rig.compressor.gainReduction()).to_equal(kBlendGainReduction[1]);
-	});
-
-	it("leaves the scratch untouched when fully wet", _ {
-		Rig rig;
-		rig.scratch.assign(kBlock, StereoSample{.l = 0x5a5a5a5a, .r = -0x5a5a5a5a});
-		std::ignore = rig.render(0);
-		expect(rig.scratch.front().l).to_equal(0x5a5a5a5a);
-		expect(rig.scratch.back().r).to_equal(-0x5a5a5a5a);
 	});
 
 	it("renders at neutral volume as at unity channel gain with an eighth of the final volume", _ {
@@ -753,7 +798,7 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 		Rig unity{kSecondKnobs};
 		for (std::size_t i = 0; i < 4; i++) {
 			std::vector<StereoSample> block = signalBlock(i);
-			neutral.compressor.renderVolumeNeutral(block, kFinalSecond, neutral.scratch);
+			neutral.compressor.renderVolumeNeutral(block, kFinalSecond);
 			expect(interleave(block)).to_equal(unity.render(signalBlock(i), kUnity, kUnity, kFinalSecond >> 3));
 			expect(neutral.compressor.gainReduction()).to_equal(unity.compressor.gainReduction());
 		}
@@ -789,6 +834,71 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 		zero[0] = {.l = 0, .r = 0};
 		expect(Rig{}.render(full, kUnity, kUnity, kFinalDefault)).to_equal(kStartFull);
 		expect(Rig{}.render(zero, kUnity, kUnity, kFinalDefault)).to_equal(kStartZero);
+	});
+
+	it("renders every workload as the fixed reference does: each block's output and gain reduction, and the whole "
+	   "view after every block", _ {
+		expect(partings_from_fixed()).to_equal(std::vector<std::string>{});
+	});
+
+	it("resets between rendered blocks in each partial-wet onset workload", _ {
+		for (const cw::CompressorWorkloadId id :
+		     {cw::CompressorWorkloadId::MASTER_ONSET_PARTIAL_WET, cw::CompressorWorkloadId::SOUND_ONSET_PARTIAL_WET,
+		      cw::CompressorWorkloadId::CLIP_ONSET_PARTIAL_WET}) {
+			expect(resets_mid_sound(cw::all_compressor_workloads().at(static_cast<std::size_t>(id))))
+			    .to_be_greater_than(std::size_t{0});
+		}
+	});
+
+	it("keeps its envelope, gains, saturation, detector and level across a knob change and a new base gain", _ {
+		Rig rig;
+		std::ignore = rig.render(0);
+		std::ignore = rig.render(1);
+		const RmsFeedbackCompressor::View before = rig.compressor.view();
+		rig.compressor.configure(CompressorKnobs{.attack = 1 << 30, .release = 1 << 29, .ratio = 1 << 30,
+		                                         .sidechain_hpf = 1 << 30, .blend = 1 << 30});
+		const RmsFeedbackCompressor::View knobs = rig.compressor.view();
+		expect(knobs.attack_ms).to_equal(kSecondAttackMs);
+		expect(knobs.wet).to_equal(q31{1 << 30});
+		expect(digest(with_coefficients_of(knobs, before))).to_equal(digest(before));
+
+		rig.compressor.setBaseGain(0.85F);
+		const RmsFeedbackCompressor::View gain = rig.compressor.view();
+		expect(gain.base_gain).to_equal(0.85F);
+		expect(digest(with_coefficients_of(gain, knobs))).to_equal(digest(knobs));
+	});
+
+	it("reads the threshold back before any render, as the fixed reference does", _ {
+		RmsFeedbackCompressor set;
+		FixedReferenceRmsFeedbackCompressor set_reference;
+		set.setThreshold(1 << 30);
+		set_reference.setThreshold(1 << 30);
+		expect(set.threshold()).to_equal(q31{1 << 30});
+		expect(set.view().threshold_knob).to_equal(q31{1 << 30});
+		expect(digest(set.view())).to_equal(digest(set_reference.view()));
+
+		RmsFeedbackCompressor configured;
+		FixedReferenceRmsFeedbackCompressor configured_reference;
+		configured.configure(kSecondKnobs);
+		configured_reference.configure(kSecondKnobs);
+		expect(configured.threshold()).to_equal(kSecondThreshold);
+		expect(digest(configured.view())).to_equal(digest(configured_reference.view()));
+	});
+
+	it("leaves everything untouched on an empty block, seeded or not", _ {
+		Rig fresh;
+		const uint64_t unseeded = digest(fresh.compressor.view());
+		fresh.compressor.render(std::span<StereoSample>{}, kUnity, kUnity, kFinalDefault);
+		fresh.compressor.renderVolumeNeutral(std::span<StereoSample>{}, kFinalDefault);
+		expect(digest(fresh.compressor.view())).to_equal(unseeded);
+
+		Rig rig;
+		std::ignore = rig.render(0);
+		std::ignore = rig.render(1);
+		const uint64_t seeded = digest(rig.compressor.view());
+		rig.compressor.render(std::span<StereoSample>{}, kUnity, kUnity, kFinalDefault);
+		rig.compressor.renderVolumeNeutral(std::span<StereoSample>{}, kFinalDefault);
+		expect(digest(rig.compressor.view())).to_equal(seeded);
 	});
 
 	it("maps the knobs to times, ratio, cutoff and blend exactly", _ {

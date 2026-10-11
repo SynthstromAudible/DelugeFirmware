@@ -17,51 +17,38 @@
 
 #include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
 
-#include "dsp-next/core/kernel.h"
-#include "dsp-next/core/wrapping.h"
-
-#include <algorithm>
-#include <cmath>
-#include <cstdlib>
-
 namespace deluge::dsp::fixed {
 
-RmsFeedbackCompressor::RmsFeedbackCompressor() {
-	setAttack(configured_.attack);
-	setRelease(configured_.release);
-	setThreshold(configured_.threshold);
-	setRatio(configured_.ratio);
-	setSidechain(configured_.sidechain_hpf);
-	setBlend(configured_.blend);
-}
-
 RmsFeedbackCompressor::View RmsFeedbackCompressor::view() const {
+	const Compressor::Coefficients& c = dsp_.coefficients();
+	const Compressor::State& s = dsp_.state();
 	return {
 	    .configured = configured_,
-	    .attack_rate = attack_rate_,
-	    .release_rate = release_rate_,
-	    .fraction = fraction_,
-	    .makeup = makeup_,
-	    .threshold = threshold_,
-	    .detector_moveability = detector_moveability_,
-	    .reduction_envelope = reduction_envelope_,
-	    .current_volume_l = current_volume_l_,
-	    .current_volume_r = current_volume_r_,
-	    .log_rms = log_rms_,
-	    .mean = mean_,
-	    .saturation_drive = kSaturator.drive,
-	    .saturation_l = saturation_l_,
-	    .saturation_r = saturation_r_,
-	    .seeded = seeded_,
-	    .detector_l = detector_l_,
-	    .detector_r = detector_r_,
-	    .attack_ms = attack_ms_,
-	    .release_ms = release_ms_,
-	    .base_gain = base_gain_,
+	    .attack_rate = c.attack_rate,
+	    .release_rate = c.release_rate,
+	    .fraction = c.fraction,
+	    .makeup = s.makeup,
+	    // From the knob, not the kernel's: the kernel takes the knob only when the next block's levels arrive.
+	    .threshold = Compressor::threshold_fraction(threshold_knob_),
+	    .detector_moveability = c.detector_moveability,
+	    .reduction_envelope = s.reduction_envelope,
+	    .current_volume_l = s.current_volume_l,
+	    .current_volume_r = s.current_volume_r,
+	    .log_rms = s.log_rms,
+	    .mean = s.mean,
+	    .saturation_drive = Compressor::kSaturator.drive,
+	    .saturation_l = s.saturation_l,
+	    .saturation_r = s.saturation_r,
+	    .seeded = s.seeded,
+	    .detector_l = s.detector_l,
+	    .detector_r = s.detector_r,
+	    .attack_ms = c.attack_ms,
+	    .release_ms = c.release_ms,
+	    .base_gain = c.base_gain,
 	    .threshold_knob = threshold_knob_,
-	    .dry = dry_,
-	    .wet = wet_,
-	    .gain_reduction = gain_reduction_,
+	    .dry = c.dry,
+	    .wet = c.wet,
+	    .gain_reduction = s.gain_reduction,
 	};
 }
 
@@ -69,173 +56,32 @@ void RmsFeedbackCompressor::configure(const CompressorKnobs& knobs) {
 	if (knobs == configured_) {
 		return;
 	}
-	setAttack(knobs.attack);
-	setRelease(knobs.release);
 	if (knobs.threshold != configured_.threshold) {
-		setThreshold(knobs.threshold);
+		threshold_knob_ = knobs.threshold;
 	}
-	setRatio(knobs.ratio);
-	setSidechain(knobs.sidechain_hpf);
-	setBlend(knobs.blend);
 	configured_ = knobs;
+	dsp_.configure(settings());
 }
 
-void RmsFeedbackCompressor::setThreshold(q31 threshold) {
-	threshold_knob_ = threshold;
-	threshold_ = 1 - 0.8f * (static_cast<float>(threshold_knob_) / ONE_Q31f);
+void RmsFeedbackCompressor::setBaseGain(float base_gain) {
+	base_gain_ = base_gain;
+	dsp_.configure(settings());
 }
 
-void RmsFeedbackCompressor::reset() {
-	reduction_envelope_ = 0;
-	makeup_ = 0;
-	mean_ = 0;
-	seeded_ = false;
-}
-
-void RmsFeedbackCompressor::setAttack(q31 attack) {
-	attack_ms_ = compressor_attack_ms(attack);
-	attack_rate_ = (-1000.0f / kSampleRate) / attack_ms_;
-}
-
-void RmsFeedbackCompressor::setRelease(q31 release) {
-	release_ms_ = compressor_release_ms(release);
-	release_rate_ = (-1000.0f / kSampleRate) / release_ms_;
-}
-
-void RmsFeedbackCompressor::setRatio(q31 ratio) {
-	fraction_ = ratio_fraction(ratio);
-}
-
-void RmsFeedbackCompressor::setSidechain(q31 sidechain_hpf) {
-	const float fc = compressor_sidechain_hz(sidechain_hpf) / static_cast<float>(kSampleRate);
-	const float wc = fc / (1 + fc);
-	detector_moveability_ = static_cast<q31>(wc * static_cast<float>(ONE_Q31));
-}
-
-void RmsFeedbackCompressor::setBlend(q31 blend) {
-	// ONE_Q31 is fully wet: the blend is no modulated param, so it needs no headroom.
-	dry_ = ONE_Q31 - blend;
-	wet_ = blend;
-}
-
-float RmsFeedbackCompressor::updateMakeup(float num_samples, q31 final_volume) {
-	// The offset keeps a final volume of zero from giving NaNs. At most 2.08 nepers, at 0x7fffffff (about 8 in 3.29).
-	const float song_volume = logf(final_volume + 1e-10);
-
-	const float threshold = song_volume * threshold_;
-	// The song volume lands here, so the envelope smooths it against clicks; the makeup gain and the reduction then
-	// move at the same rate.
-	const float last = makeup_;
-	makeup_ = std::max<float>((song_volume - threshold - 1) * fraction_, 0);
-	makeup_ = runEnvelope(last, makeup_, num_samples);
-	return threshold;
-}
-
-void RmsFeedbackCompressor::renderVolumeNeutral(std::span<StereoSample> block, q31 final_volume,
-                                                CompressorScratch scratch) {
-	render(block, 1 << 27, 1 << 27, final_volume >> 3, scratch);
-}
-
-void RmsFeedbackCompressor::render(std::span<StereoSample> block, q31 volume_l, q31 volume_r, q31 final_volume,
-                                   CompressorScratch scratch) {
-	if (wet_ != ONE_Q31) {
-		std::ranges::copy(block, scratch.begin());
+void RmsFeedbackCompressor::render(std::span<StereoSample> block, q31 volume_l, q31 volume_r, q31 final_volume) {
+	// The kernel's block arithmetic divides by the block's length.
+	if (block.empty()) {
+		return;
 	}
-
-	if (!seeded_) {
-		// The first sample interpolates against the block's own start rather than against silence.
-		AntialiasedTanh::seed(kSaturator, saturation_l_, block[0].l);
-		AntialiasedTanh::seed(kSaturator, saturation_r_, block[0].r);
-		seeded_ = true;
+	dsp_.on<&Compressor::set_levels>(Compressor::Levels{
+	    .volume_l = volume_l, .volume_r = volume_r, .final_volume = final_volume, .threshold = threshold_knob_});
+	if (!dsp_.state().seeded) {
+		// The first frame interpolates against the block's own start rather than against silence.
+		dsp_.on<&Compressor::seed>(block.front());
 	}
-	// Every block, since the song volume may have changed.
-	const float threshold = updateMakeup(static_cast<float>(block.size()), final_volume);
-
-	const float over = std::max<float>(0, (log_rms_ - threshold));
-
-	reduction_envelope_ = runEnvelope(reduction_envelope_, over, static_cast<float>(block.size()));
-
-	const float reduction = -reduction_envelope_ * fraction_;
-
-	// Nepers of gain: above 3.43 the gain would pass 31, the most there is headroom for.
-	const float gain_nepers = base_gain_ + makeup_ + reduction;
-
-	float gain = std::exp(gain_nepers);
-	gain = std::min<float>(gain, 31);
-
-	// The channels' target gains, 13.18 signed, held as floats on the way to the increments.
-	const float final_volume_l = gain * static_cast<float>(volume_l >> 9);
-	const float final_volume_r = gain * static_cast<float>(volume_r >> 9);
-
-	// The steps (5.26 signed) that reach the target gains by the end of the block.
-	const q31 increment_l =
-	    static_cast<int32_t>((final_volume_l - (current_volume_l_ >> 8)) / static_cast<float>(block.size())) << 8;
-	const q31 increment_r =
-	    static_cast<int32_t>((final_volume_r - (current_volume_r_ >> 8)) / static_cast<float>(block.size())) << 8;
-
-	for (std::size_t i = 0; i < block.size(); i++) {
-		StereoSample& sample = block[i];
-		current_volume_l_ += increment_l;
-		current_volume_r_ += increment_r;
-
-		// << 4: the gains are 5.26 signed rather than 1.30.
-		sample.l = multiply_32x32_rshift32(sample.l, current_volume_l_) << 4;
-		sample.l = AntialiasedTanh::step(kSaturator, EmptyBlock{}, saturation_l_, sample.l);
-
-		sample.r = multiply_32x32_rshift32(sample.r, current_volume_r_) << 4;
-		sample.r = AntialiasedTanh::step(kSaturator, EmptyBlock{}, saturation_r_, sample.r);
-
-		if (wet_ != ONE_Q31) {
-			// dry_wet_blend's arithmetic (fixed/mix/dry_wet.h), with DryWetBlend's FULL_WET skip around it.
-			// << 1 makes up for the two multiplies.
-			sample.l = multiply_32x32_rshift32(sample.l, wet_);
-			sample.l = multiply_accumulate_32x32_rshift32_rounded(sample.l, scratch[i].l, dry_);
-			sample.l <<= 1;
-			sample.r = multiply_32x32_rshift32(sample.r, wet_);
-			sample.r = multiply_accumulate_32x32_rshift32_rounded(sample.r, scratch[i].r, dry_);
-			sample.r <<= 1;
-		}
-	}
-
-	// × 4 for dB, then × 4 again for the LEDs' range, since a 30 dB reduction is all but silence.
-	gain_reduction_ = static_cast<uint8_t>(std::clamp<int32_t>(static_cast<int32_t>(-(reduction) * 4 * 4), 0, 127));
+	dsp_.renderBlock(block, block);
 	// The level the next block's gain follows.
-	log_rms_ = measureLevel(block);
-}
-
-float RmsFeedbackCompressor::runEnvelope(float current, float desired, float num_samples) const {
-	if (desired > current) {
-		return desired + std::exp(attack_rate_ * num_samples) * (current - desired);
-	}
-	return desired + std::exp(release_rate_ * num_samples) * (current - desired);
-}
-
-float RmsFeedbackCompressor::measureLevel(std::span<const StereoSample> block) {
-	q31 sum = 0;
-	const float last_mean = mean_;
-	const OnePole::Coefficients detector{.m = detector_moveability_, .mode = OnePole::Mode::LOW_PASS};
-
-	for (const StereoSample sample : block) {
-		// The input less its low-pass, wrapping as the target's `sub` does.
-		const q31 l = wrapping_sub(
-		    sample.l, OnePole::step<OnePole::Mode::LOW_PASS>(detector, EmptyBlock{}, detector_l_, sample.l));
-		const q31 r = wrapping_sub(
-		    sample.r, OnePole::step<OnePole::Mode::LOW_PASS>(detector, EmptyBlock{}, detector_r_, sample.r));
-		const q31 s = std::max(std::abs(l), std::abs(r));
-		// Wraps on a loud block, as the target's `add` does, which keeps the output bit-exact. It is a defect kept, not
-		// a level: a wrapped sum can go negative, and the square root of a negative mean makes the block's level NaN.
-		sum = wrapping_add(sum, multiply_32x32_rshift32(s, s));
-	}
-
-	const auto ns = static_cast<float>(block.size() * 2);
-	mean_ = (static_cast<float>(sum) / ONE_Q31f) / ns;
-	// A one-pole IIR rather than a long FIR: close, and far cheaper. The more samples in the block, the more weight
-	// on its own mean, so the response keeps its speed when the blocks grow under load.
-	mean_ = (mean_ * ns + last_mean) / (1 + ns);
-	const float rms = static_cast<float>(ONE_Q31) * std::sqrt(mean_);
-
-	// 0 to about 21.5 (full scale); the DAC clips at about 16.
-	return std::log(std::max(rms, 1.0f));
+	dsp_.on<&Compressor::finish_level>();
 }
 
 } // namespace deluge::dsp::fixed
