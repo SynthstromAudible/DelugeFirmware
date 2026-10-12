@@ -56,8 +56,13 @@ public:
 	[[nodiscard]] bool isStuttering(const ModControllableAudio& owner) const { return owner_ == &owner; }
 	/// @return Whether any owner is stuttering.
 	[[nodiscard]] bool active() const { return owner_ != nullptr; }
+	/// @brief [task] Forgets the quantized snap, as every end of a stutter leaves it.
+	void clearSnap() {
+		lastQuantizedKnobDiff = 0;
+		valueBeforeStuttering = 0;
+	}
 
-	/// The stutter-rate param's value before a quantized stutter snapped it, restored when it ends.
+	/// The stutter-rate param's value (signed Q31) before a quantized stutter snapped it, restored when it ends.
 	int32_t valueBeforeStuttering = 0;
 	/// The note length a quantized stutter snapped to, in knob positions (-64 to 64): added to the param's position
 	/// each block. Zero for a free stutter.

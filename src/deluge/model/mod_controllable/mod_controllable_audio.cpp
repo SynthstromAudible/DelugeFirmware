@@ -90,6 +90,7 @@ ModControllableAudio::~ModControllableAudio() {
 	// An owner deleted while it stutters ends the stutter, so no later owner at its address plays the tape.
 	if (currentSong != nullptr && currentSong->live.stutter.isStuttering(*this)) {
 		currentSong->live.stutter.end();
+		currentSong->live.stutter.clearSnap();
 		exitUIMode(UI_MODE_STUTTERING);
 	}
 	// The delay's tapes go back to the arena, and the owner leaves its margin, as a change to OFF does.
@@ -952,6 +953,10 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 }
 
 void ModControllableAudio::processStutter(std::span<StereoSample> buffer, ParamManager* paramManager) {
+	// A render with no song current (a sample preview between songs) has no stutter.
+	if (currentSong == nullptr) {
+		return;
+	}
 	deluge::model::SongStutter& stutter = currentSong->live.stutter;
 	if (stutter.isStuttering(*this)) {
 		const auto rate = static_cast<uint32_t>(deluge::model::stutterRate(
@@ -983,9 +988,7 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 				}
 			}
 		}
-		// Reset temporary and diff values for Quantized stutter
-		stutter.lastQuantizedKnobDiff = 0;
-		stutter.valueBeforeStuttering = 0;
+		stutter.clearSnap();
 	}
 	if (paramManager) {
 		// Redraw the LEDs.

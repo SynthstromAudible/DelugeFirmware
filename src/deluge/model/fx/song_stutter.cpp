@@ -51,8 +51,8 @@ Error SongStutter::begin(ModControllableAudio& owner, const deluge::effects::Stu
 		if (began) {
 			owner_ = &owner;
 			playing = settings;
+			deluge::noteStructuralEdit(deluge::StructuralContainer::STUTTER_TAPE);
 		}
-		deluge::noteStructuralEdit(deluge::StructuralContainer::STUTTER_TAPE);
 	}
 	fx_.finish(change);
 	return began ? Error::NONE : Error::INSUFFICIENT_RAM;
@@ -60,7 +60,6 @@ Error SongStutter::begin(ModControllableAudio& owner, const deluge::effects::Stu
 
 void SongStutter::end() {
 	if (!fx_.active()) {
-		owner_ = nullptr;
 		return;
 	}
 	deluge::effects::StutterChange change{};
