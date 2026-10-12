@@ -507,11 +507,19 @@ interaction tier lends it: `effects::DelayArena`
   while the render can. Everything outside `deluge_effects` (the general heap,
   the BSP heap, the app loop) comes through `effects::DelayArenaMemory`.
 - **The margin.** While any owner's delay type is not OFF, the arena holds room
-  for two tapes of the largest size (found by a trial) and free bytes for one
-  neutral-rate tape per owner on. A `take` that leaves the margin short (by the
-  render's own byte count) asks for the arena's job; the job, and every owner's
-  projection, lend a region in `prepare`, attach it in `commit` inside an
-  audio-excluded section, and return what was not needed in `finish`.
+  for two tapes of the largest size and, for each such owner, the reserve its
+  slot holds: the largest of a neutral-rate tape, the tape its settings need
+  (its rate param in each of its param managers, synced at the song's tempo,
+  without cables or modulation) and the largest tape it has taken. The margin
+  packs these largest first into the regions' free space, since a 1.5 MB region
+  holds only two of the largest tapes, and confirms the two largest by a trial.
+  The interaction tier sets the reserves when an owner is switched on or loaded,
+  when its rate param or sync changes and when the tempo changes; the render
+  only raises one when a tape it takes is larger. A `take` or a raised reserve
+  that leaves the margin short asks for the arena's job, which lends regions in
+  `prepare`, attaches them in `commit` inside an audio-excluded section, and
+  returns what was not needed in `finish`, a region a pass until the margin
+  holds.
 - **Regions stay while their owners stay on.** A delay that starts and rings out
   again and again keeps its region, so it takes nothing from the general heap
   (whose allocator evicts sample cache to find 1.5 MB) after the first time.
@@ -524,14 +532,13 @@ interaction tier lends it: `effects::DelayArena`
   could lift the feedback.
 - **When the arena runs short.** A tape is taken and given back at the blocks
   the delay asks for it, and the tapes never read storage they have not written,
-  so recycled storage needs no zeroing (`delay_poisoned_storage_spec`). The
-  margin covers what one block can ask for when each owner's tape is at most
-  the neutral size, plus two of the largest. More large tapes starting or
-  resizing in one block (five delays at their slowest rate on one downbeat; the
-  regions hold two largest tapes each) find it short: those delays pass the
-  audio through until the job tops the arena up, a block or so later
-  (`CG-DELAYMARGIN`). The render-song gates require no shortfall
-  (`RS-DELAY-ARENA shortfalls=0`).
+  so recycled storage needs no zeroing (`delay_poisoned_storage_spec`). With the
+  reserves in place before a downbeat or a tempo change, every delay finds its
+  tape (`CG-DELAYMARGIN`, `render-tempo-delays`). A delay whose rate a cable,
+  an LFO or automation pushes past its reserve, or whose sync follows an
+  external clock, finds its reserve only after its first larger tape; until the
+  job tops the arena up it passes the audio through. The render-song gates
+  require no shortfall (`RS-DELAY-ARENA shortfalls=0`).
 
 ### The control form
 
