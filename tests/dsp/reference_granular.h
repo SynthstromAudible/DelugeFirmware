@@ -107,6 +107,43 @@ public:
 	/// @return How many times the ring was acquired: zeroed afresh.
 	[[nodiscard]] std::size_t acquisitions() const { return acquisitions_; }
 
+	/// @brief The values the knobs last set, and the knob positions they were set from.
+	struct Cache {
+		int32_t size;     ///< `_grainSize`, frames.
+		int32_t period;   ///< `_grainRate`, frames.
+		int32_t wet;      ///< `_grainVol`, Q31.
+		int32_t dry;      ///< `_grainDryVol`, Q31.
+		int32_t feedback; ///< `_grainFeedbackVol`, Q31.
+		int32_t rate;     ///< `_rateKnobPos`.
+		int32_t mix;      ///< `_mixKnobPos`.
+		int32_t density;  ///< `_densityKnobPos`.
+	};
+	/// @return The values the knobs last set.
+	[[nodiscard]] Cache cache() const {
+		return {.size = _grainSize,
+		        .period = _grainRate,
+		        .wet = _grainVol,
+		        .dry = _grainDryVol,
+		        .feedback = _grainFeedbackVol,
+		        .rate = _rateKnobPos,
+		        .mix = _mixKnobPos,
+		        .density = _densityKnobPos};
+	}
+	/// @return The index the next frame is written to, before its lazy wrap.
+	[[nodiscard]] uint32_t write_index() const { return bufferWriteIndex; }
+	/// @return Whether grains may start.
+	[[nodiscard]] bool buffer_full() const { return bufferFull; }
+	/// @return Ring laps left before the ring is released.
+	[[nodiscard]] int32_t wraps_to_shutdown() const { return wrapsToShutdown; }
+	/// @return The grains.
+	[[nodiscard]] const auto& grain_states() const { return grains; }
+	/// @return The wet low-pass memories, left then right.
+	[[nodiscard]] std::array<deluge::dsp::fixed::OnePole::State, 2> low_pass() const {
+		return {lpf_state_l_, lpf_state_r_};
+	}
+	/// @return The ring.
+	[[nodiscard]] std::span<const StereoSample> ring_frames() const { return ring; }
+
 	/// allows the buffer to be stolen
 	void startSkippingRendering() {
 		// The instrument has gone idle — release the buffer outright instead of leaving it allocated-but-stealable.
