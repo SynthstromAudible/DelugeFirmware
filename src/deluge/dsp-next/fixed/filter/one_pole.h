@@ -31,7 +31,7 @@
 namespace deluge::dsp::fixed {
 
 /// @brief A one-pole section with its memory z, Q31: the building block of the ladders, the compressor's detector and
-/// the granular processor's wet low-pass.
+/// the granular kernel's wet low-pass.
 /// @details Each step moves z toward the input x by the moveability m = tan(f)/(1+tan(f)), Q31, where f is the cutoff
 /// as a fraction of the sample rate times π:
 ///

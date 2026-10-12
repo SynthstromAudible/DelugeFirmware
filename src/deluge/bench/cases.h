@@ -546,7 +546,7 @@ private:
 	BlockSpans spans_{};
 };
 
-/// @brief `Mono<OnePole>` in mode @p M at the granular processor's moveability, from input_a into the output.
+/// @brief `Mono<OnePole>` in mode @p M at the granular kernel's moveability, from input_a into the output.
 /// @details **Timed state:** the memory carries from block to block, from silence at setup, following the one input
 /// block the case repeats. Every block is the same arithmetic: a subtract, a rounding multiply and two shifted adds to
 /// update the memory, and in ALL_PASS one reverse subtract for the output.
@@ -554,7 +554,7 @@ private:
 template <dsp::fixed::OnePole::Mode M>
 class OnePoleCase {
 public:
-	/// @brief The moveability, Q31: the granular processor's wet low-pass. m = 1/4 gives tan(πf/fs) = 1/3, a cutoff of
+	/// @brief The moveability, Q31: the granular kernel's wet low-pass. m = 1/4 gives tan(πf/fs) = 1/3, a cutoff of
 	/// about 4.5 kHz at 44.1 kHz.
 	static constexpr q31 kMoveability = 1 << 29;
 
@@ -636,7 +636,7 @@ private:
 	BlockSpans spans_{};
 };
 
-/// @brief `Lanes<OnePole, N>` in LOW_PASS at the granular processor's moveability, op-major: N streams through one
+/// @brief `Lanes<OnePole, N>` in LOW_PASS at the granular kernel's moveability, op-major: N streams through one
 /// pole, from the lanes input into the lanes output.
 /// @details **Timed state:** every lane's memory carries from block to block, from silence at setup, following its
 /// own stream of the one input block the case repeats. Every frame is the same arithmetic: per lane a subtract, a
@@ -1336,16 +1336,16 @@ private:
 	ModFxConfig config_;
 };
 
-/// @brief The granular cases' rate knob, a signed Q31 param value: 0x10000 maps (setupGrainFX's log curve) to about
-/// 71 grain starts per second at 44.1 kHz, one every 1,242 frames, a mid setting of the knob's range. It differs from
-/// the kernel's initial knob position (0), so the first call applies it.
+/// @brief The granular cases' rate knob, a signed Q31 param value: 0x10000 maps (on the kernel's prepare's log curve)
+/// to about 71 grain starts per second at 44.1 kHz, one every 1,242 frames, a mid setting of the knob's range. It
+/// differs from the kernel's initial knob position (0), so the first call applies it.
 inline constexpr int32_t kGranularRate = 0x10000;
 /// @brief The granular cases' mix knob, signed Q31: 0x40000000 gives the cubic mix curve a wet volume of 0.875
 /// (0x70000000) and a full dry volume. It differs from the kernel's initial knob position (0), so the first call
 /// applies it; at 0 the wet volume would stay at the constructor's silence.
 inline constexpr int32_t kGranularMix = 0x40000000;
-/// @brief The sparse cases' density knob, signed Q31: grains of about 3,000 frames (setupGrainFX scales the length by
-/// the knob's 0..1 position, here 1/8), so two or three of the eight grains sound at a time.
+/// @brief The sparse cases' density knob, signed Q31: grains of about 3,000 frames (the kernel's prepare scales the
+/// length by the knob's 0..1 position, here 1/8), so two or three of the eight grains sound at a time.
 inline constexpr int32_t kGranularDensityLow = -0x60000000;
 /// @brief The dense cases' density knob, signed Q31: grains of about 10,600 frames (position 7/8), so all eight
 /// grains sound nearly all the time.

@@ -66,7 +66,7 @@ constexpr int32_t ramp(int32_t i) {
 	return -(1 << 30) + (i * (1 << 27));
 }
 
-/// The moveabilities the comparisons run, Q31: the granular processor's, one mid, and one near 2^31.
+/// The moveabilities the comparisons run, Q31: the granular kernel's, one mid, and one near 2^31.
 constexpr std::array<q31, 3> kMoveabilities{1 << 29, 1 << 30, 0x7800'0000};
 /// The samples the long comparisons run.
 constexpr std::size_t kLongRun = 10'000;

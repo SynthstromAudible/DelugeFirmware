@@ -2880,7 +2880,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	}
 	resyncGlobalLFOs();
 
-	// The mod-FX type through its setter, which also starts grain. A ring type whose ring cannot be allocated keeps its
+	// The mod-FX type through its setter. A ring type whose ring cannot be allocated keeps its
 	// type and passes the audio through; the next effects edit on this sound retries.
 	deluge::effects::EffectStates effects = state.effects;
 	if (effects.mod_fx.type != this->effects().mod_fx.type && !setModFXType(effects.mod_fx.type)) {

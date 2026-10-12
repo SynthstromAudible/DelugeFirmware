@@ -311,7 +311,7 @@ option(DELUGE_DSP_BENCH "Run the DSP benchmarks at boot (device builds)" OFF)
 # kernels), "chain" (stages as separate passes beside the same stages as one Chain), "delay" (the whole delay block,
 # fused, over real tapes), "filters" (each filter and the filter set, as a voice runs them), "compressor" (fully wet
 # and blended, as its owners call it), "mod_fx" (each mod FX type as its owners render it through effects::ModFx) or
-# "granular" (the granular processor with sparse and dense grains, with and without pitch randomness).
+# "granular" (the granular kernel with sparse and dense grains, with and without pitch randomness).
 # The device prints about 70 lines over RTT before it drops some, so the cases come in lists that fit.
 set(DELUGE_DSP_BENCH_CASES "kernels" CACHE STRING
     "The DSP bench's case list: kernels, lanes, chain, delay, filters, compressor, mod_fx or granular")

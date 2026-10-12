@@ -58,13 +58,13 @@ struct GranularInputs {
 ///
 /// Both come from the allocator. The State (about 350 bytes) is allocated on the first entry into GRAIN and kept until
 /// the owner is destroyed, so the grains, the wet low-pass memories, the first-pass flag and the shutdown countdown
-/// survive a stay on another type, as the processor's do today. The ring is zeroed once when acquired, so the grains
-/// read silence until it is written, and is freed on leaving GRAIN. An owner that has never used GRAIN holds nothing.
+/// survive a stay on another type. The ring is zeroed once when acquired, so the grains read silence until it is
+/// written, and is freed on leaving GRAIN. An owner that has never used GRAIN holds nothing.
 ///
 /// A type change runs in three steps around the owner's audio-excluded section: @ref prepare allocates, @ref commit
 /// swaps inside it, @ref finish frees. Leaving GRAIN restarts the effect and frees the ring; entering takes up a new
 /// ring and, for an owner built with EnterGrain::CLEAR, clears the effect. A chain's new State renders nothing until
-/// its first sounding block, as its processor is not made before then; a sound's renders from the type change. A
+/// its first sounding block, because the chain makes its effect then; a sound's renders from the type change. A
 /// chain's soft off, which leaves the type unchanged, calls @ref startSkippingRendering and keeps the ring.
 class Granular {
 public:
@@ -91,17 +91,17 @@ public:
 	/// @brief Render: the granular effect over @p block in place while sound comes in or the shutdown countdown runs.
 	/// Scales @p post_fx_volume (Q31) by 1/√2 then, adds the reverb feed into @p reverb_send (one value per frame),
 	/// and restarts the effect when the countdown ends. Passes through when no ring is held.
-	/// @details The owner calls this every rendered block, with all four knobs, as today's processGrainFX is called.
+	/// @details The owner calls this every rendered block, with all four knobs, as
+	/// ModControllableAudio::processGrainFX makes it.
 	void render(std::span<dsp::StereoSample> block, const GranularInputs& in, int32_t& post_fx_volume,
 	            std::span<dsp::q31> reverb_send);
-	/// @brief Stops the grains and begins the first pass again, as today's clearGrainFXBuffer; no effect without a
-	/// State.
+	/// @brief Stops the grains and begins the first pass again; no effect without a State.
 	void clear();
 	/// @brief The owner has gone idle or soft off: the ring is taken up afresh and grains wait until it is half full
 	/// again, those sounding going on. The ring is kept. No effect without a State.
 	void startSkippingRendering();
-	/// @return The frames left before the effect restarts: the laps left times the ring's length, as today's
-	/// getSamplesToShutdown; 0 without a State.
+	/// @return The frames left before the effect restarts: the laps left times the ring's length; 0 without a
+	/// State.
 	[[nodiscard]] int32_t samplesToShutdown() const;
 	/// @return Whether a ring is held.
 	[[nodiscard]] bool holdsBlock() const { return ring_ != nullptr; }
