@@ -75,6 +75,28 @@ def _failures(env: dict[str, str], *lines: str) -> list[str]:
 
 
 SWITCH = {"RENDER_MODFX_SWITCH": "600:chorus,1000:phaser"}
+# What an owner holds after a switch: (type, mod FX ring, granular ring), as the hook reports it.
+CHORUS = ("chorus", 1, 0)
+PHASER = ("phaser", 0, 0)
+GRAIN = ("grainFX", 0, 1)
+
+
+def _switch_lines(*held: tuple[str, int, int]) -> list[str]:
+    """The hook's per-owner markers for @p held, then its summary, as the scenario prints them."""
+    owners = [
+        f"RS-MODFX-SWITCH block={600 * (i + 1)} type={t} ring={r} grain={g} owner=X"
+        for i, (t, r, g) in enumerate(held)
+    ]
+    ring = sum(r for _, r, _ in held)
+    grain = sum(g for _, _, g in held)
+    types = ",".join(t for t, _, _ in held)
+    summary = (
+        f"RS-MODFX-SWITCH applied={len(held)} asked={len(held)} types={types} "
+        f"ring={ring} noring={len(held) - ring - grain} grain={grain}"
+    )
+    return [*owners, summary]
+
+
 CLEAR = {"RENDER_MODFX_CLEAR": "1000,1800"}
 GRAIN_CLEAR = {"RENDER_MODFX_CLEAR": "1300"}
 
@@ -84,24 +106,39 @@ class ModFxHooksTest(unittest.TestCase):
         self.assertEqual(_failures({}), [])
 
     def test_switches_applied_as_asked_pass(self):
-        line = "RS-MODFX-SWITCH applied=2 asked=2 types=chorus,phaser ring=1 noring=1"
-        self.assertEqual(_failures(SWITCH, line), [])
+        self.assertEqual(_failures(SWITCH, *_switch_lines(CHORUS, PHASER)), [])
 
     def test_switches_naming_their_owner_pass(self):
         env = {"RENDER_MODFX_SWITCH": "500:chorus:RSG,1200:grainFX:RSG"}
-        line = "RS-MODFX-SWITCH applied=2 asked=2 types=chorus,grainFX ring=1 noring=1"
-        self.assertEqual(_failures(env, line), [])
+        self.assertEqual(_failures(env, *_switch_lines(CHORUS, GRAIN)), [])
+
+    def test_a_master_entering_and_leaving_the_grain_passes(self):
+        env = {"RENDER_MODFX_SWITCH": "600:grainFX:master,1800:chorus:master"}
+        self.assertEqual(_failures(env, *_switch_lines(GRAIN, CHORUS)), [])
 
     def test_a_switch_hook_that_never_ran_fails(self):
         self.assertEqual(len(_failures(SWITCH)), 1)
 
     def test_a_switch_to_another_type_fails(self):
-        line = "RS-MODFX-SWITCH applied=2 asked=2 types=chorus,flanger ring=2 noring=0"
-        self.assertEqual(len(_failures(SWITCH, line)), 1)
+        self.assertEqual(
+            len(_failures(SWITCH, *_switch_lines(CHORUS, ("flanger", 1, 0)))), 1
+        )
 
     def test_a_ring_type_left_without_a_ring_fails(self):
-        line = "RS-MODFX-SWITCH applied=2 asked=2 types=chorus,phaser ring=0 noring=2"
-        self.assertEqual(len(_failures(SWITCH, line)), 1)
+        self.assertEqual(
+            len(_failures(SWITCH, *_switch_lines(("chorus", 0, 0), PHASER))), 1
+        )
+
+    def test_a_grain_left_without_its_ring_fails(self):
+        env = {"RENDER_MODFX_SWITCH": "500:chorus:RSG,1200:grainFX:RSG"}
+        self.assertEqual(
+            len(_failures(env, *_switch_lines(CHORUS, ("grainFX", 0, 0)))), 1
+        )
+
+    def test_a_summary_that_does_not_add_up_the_owners_fails(self):
+        owners = _switch_lines(CHORUS, PHASER)
+        summary = "RS-MODFX-SWITCH applied=2 asked=2 types=chorus,phaser ring=2 noring=0 grain=0"
+        self.assertEqual(len(_failures(SWITCH, owners[0], owners[1], summary)), 1)
 
     def test_clears_reaching_both_paths_pass(self):
         line = "RS-MODFX-CLEAR applied=2 asked=2 ring=1 noring=1"

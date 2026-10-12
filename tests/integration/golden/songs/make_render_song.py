@@ -54,6 +54,8 @@ takes a new one), and on a synth whose one note stops long enough for the sound 
 8 s, and the depth's return, start each again on a new ring, whose grains read slots not yet written since it was
 taken; those read 0. RS_GRAIN_OWNERS runs the grain on a synth holding its note, a kit and the master, for its gate to
 switch the synth's type away from the grain and back and to clear each owner's grain mid-render; it has no dry twin.
+RS_GRAIN_MASTER holds the master's chorus playing for its gate to switch the master to the grain and back mid-render;
+it has no dry twin.
 """
 
 import math
@@ -855,6 +857,7 @@ GRAIN_STEREO_VOLUME = 'volume="0xE0000000"'
 GRAIN_SWITCH_VOLUME = 'volume="0xE0000000"'
 GRAIN_RESTART_VOLUME = 'volume="0xE0000000"'
 GRAIN_OWNERS_VOLUME = 'volume="0xE0000000"'
+GRAIN_MASTER_VOLUME = 'volume="0xE0000000"'
 
 
 # The granular mod FX on a host owner: _mod_fx's knobs, which for the grain are its rate, mix (the depth), density (the
@@ -1068,6 +1071,13 @@ SONGS = {
             grain_synth_held_parts(),
         ],
         song_settings=master_settings(_grain(GRAIN_OWNERS_VOLUME)),
+    ),
+    "RS_GRAIN_MASTER": lambda v: parts_song(
+        v,
+        [],
+        song_settings=master_settings(
+            _mod_fx("chorus", f'modFXFeedback="0x7FFFFFFF" {GRAIN_MASTER_VOLUME}')
+        ),
     ),
     "RS_GRAIN_RESTART": lambda v: parts_song(
         v,

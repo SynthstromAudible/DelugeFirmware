@@ -1376,6 +1376,24 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-grain-master"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the song's master chain entering and leaving the granular mod FX by its type while it plays renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_GRAIN_MASTER) whose master runs the chorus, switched to the grain at block 600 and back to the chorus at block 1800 (RENDER_MODFX_SWITCH with the owner `master`, the Edit the mod FX type menu makes), so the master takes a granular ring and starts the grain on its next sounding block, then releases the ring; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; each owner's own RS-MODFX-SWITCH marker must show what it holds after its switch, the grain a granular ring and no mod FX ring and the chorus a mod FX ring and no granular one; the same song rendered without its switches must render differently (RS-SWITCH), so they reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_GRAIN_MASTER", RENDER_MODFX_SWITCH = "600:grainFX:master,1800:chorus:master" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-grain-restart"
 path = "."
 level = "integration"

@@ -83,6 +83,12 @@
   "rms_db": -14.41,
   "sha256": "cd2cc121d88628032bcd05ab99fcf227023ce48eae23d99ca460f41988ded247"
  },
+ "RS_GRAIN_MASTER": {
+  "frames": 384000,
+  "peak": 171845888,
+  "rms_db": -36.94,
+  "sha256": "14b63c2c619ec1da9467425f4f137c7af8d2ea34bc6df2e1e14ffc328f536c04"
+ },
  "RS_GRAIN_MONO": {
   "frames": 384000,
   "peak": 1396750848,

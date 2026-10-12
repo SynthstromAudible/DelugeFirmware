@@ -15,8 +15,8 @@ adds what depends on the song, and why each check is here:
                       nothing past the first cluster, and passes every other check here -- the card reads it counts
                       are the load's own background reads.
     RS-MODFX-SWITCH   a gate that switches mod FX types (RENDER_MODFX_SWITCH) only: the scenario's summary must show
-                      every switch asked for applied, setting the types asked for in order, each ring type left
-                      holding a ring and the phaser none. A hook that never ran, or switched to another type, would
+                      every switch asked for applied, setting the types asked for in order, and each owner's own marker
+                      must show what it holds: a ring type a mod FX ring, the grain a granular ring, the phaser none. A hook that never ran, or switched to another type, would
                       leave the song rendering as some other song does and still compare with a record made the same way.
     RS-MODFX-CLEAR    a gate that clears mod FX memory (RENDER_MODFX_CLEAR) only: every clear asked for applied; a gate
                       whose clears reach no grain must reach both of clearMemory's paths, a ring zeroed and, with none
@@ -141,6 +141,8 @@ def _check_width(gate, result, label: str) -> None:
 
 # The mod FX types, as a file writes them, that run over a ring (effects::is_ring_type).
 RING_TYPES = frozenset({"chorus", "StereoChorus", "dimension", "flanger", "TapeWarble"})
+# The granular mod FX type, which holds the granular ring in place of a mod FX ring.
+GRAIN_TYPE = "grainFX"
 
 
 def _check_mod_fx_hooks(gate, result) -> None:
@@ -150,17 +152,28 @@ def _check_mod_fx_hooks(gate, result) -> None:
     if switches:
         types = [item.split(":")[1] for item in switches.split(",")]
         line = result.last("RS-MODFX-SWITCH applied=")
-        ring = sum(t in RING_TYPES for t in types)
+        owners = result.starting("RS-MODFX-SWITCH block=")
         if line is None:
             gate.fail("RS-MODFX-SWITCH — no summary line: the switch hook did not run")
-        elif (
+            return
+        # Each owner's own marker says what it holds after its switch: a mod FX ring, a granular ring, or neither.
+        held = [
+            (field(o, "type"), int_field(o, "ring"), int_field(o, "grain"))
+            for o in owners
+        ]
+        wanted = [(t, int(t in RING_TYPES), int(t == GRAIN_TYPE)) for t in types]
+        ring = sum(h[1] == 1 for h in held)
+        grain = sum(h[2] == 1 for h in held)
+        if (
             int_field(line, "applied") != len(types)
             or field(line, "types") != ",".join(types)
+            or held != wanted
             or int_field(line, "ring") != ring
-            or int_field(line, "noring") != len(types) - ring
+            or int_field(line, "grain") != grain
+            or int_field(line, "noring") != len(held) - ring - grain
         ):
             gate.fail(
-                f"RS-MODFX-SWITCH — asked for {','.join(types)} ({ring} with a ring), applied: {line}"
+                f"RS-MODFX-SWITCH — asked for {','.join(types)}, the owners held {held}, summary: {line}"
             )
     clears = gate.env.get("RENDER_MODFX_CLEAR")
     if clears:
