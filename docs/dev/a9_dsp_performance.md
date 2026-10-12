@@ -568,6 +568,40 @@ with the baseline to 0.1%.
   `finish` 84 and `prepare` 68). The after object holds the allocation and type-change paths that lived in
   `ModControllableAudio` and the owners before, so the two are not like for like.
 
+## Stutter
+
+`effects::Stutter` (`Mono<Stutter>`, one frame kernel over a tape the component owns, four modes) as the app renders it
+(after) against the global `Stutterer::processStutter`, one loop per phase with the native/resampled and direction
+choices made per frame (before). Each block also computes the rate from the stutter-rate param, as the owner does, in
+both. Cycles per channel-sample; recording cases begin at the stutter-rate param `-0x40000000` (a 14,700-frame tape,
+recording throughout the run), playing cases at `0` (a 918-frame tape recorded untimed), resampled cases with the param
+moved `0x08000000` off the tape's native rate; 18,700,000 tick inverse, magnitude 1 (`DELUGE_DSP_BENCH_CASES=stutter`),
+on 2026-10-12. The figures are the minimum of four runs of each image; the last column is the after spread (max - min)
+in cycles, worst size.
+
+| case | n=32 before → after (delta) | n=64 before → after (delta) | n=128 before → after (delta) | after spread |
+|---|---:|---:|---:|---:|
+| `control calibration` | 0.59 → 0.58 (-1.7%) | 0.30 → 0.30 (+0.0%) | 0.15 → 0.15 (+0.0%) | 0.01 |
+| `control calibration_loop` | 32.10 → 32.10 (+0.0%) | 32.04 → 32.03 (-0.0%) | 32.02 → 32.02 (+0.0%) | 0.02 |
+| `control delay_feedback_chain_analog` | 171.47 → 171.64 (+0.1%) | 165.73 → 165.81 (+0.0%) | 162.87 → 162.90 (+0.0%) | 0.02 |
+| `control delay_feedback_chain_digital` | 20.05 → 20.10 (+0.2%) | 14.27 → 14.29 (+0.1%) | 11.38 → 11.39 (+0.1%) | 0.01 |
+| `stutter_play_native` | 27.92 → 15.62 (-44.1%) | 25.70 → 13.04 (-49.3%) | 24.59 → 11.77 (-52.1%) | 0.03 |
+| `stutter_play_resampled` | 59.33 → 40.59 (-31.6%) | 56.25 → 36.08 (-35.9%) | 54.79 → 33.94 (-38.1%) | 0.37 |
+| `stutter_record_native` | 37.72 → 25.50 (-32.4%) | 35.86 → 23.13 (-35.5%) | 34.95 → 21.92 (-37.3%) | 0.25 |
+| `stutter_record_resampled` | 177.73 → 183.67 (+3.3%) | 176.64 → 178.28 (+0.9%) | 175.08 → 176.01 (+0.5%) | 0.34 |
+
+- **Play and native record gain 32-52%.** The kernel's loop is chosen once per block, so a native play step is the
+  head's move and a copy (840 instructions a block of 128 frames against 1,394 before), and a resampled play no longer
+  branches on the tape's form each frame. Native recording drops the same per-frame form test and the strengths'
+  dispatch.
+- **Resampled recording is level.** Its cost is the tape's triangle write (`DelayTape::writeSlowedDown`), which both
+  run unchanged: 4% fewer instructions, a little more data-cache stall, and +0.5% at n=128 to +3.3% at n=32, a
+  per-block cost of about 400 cycles in the component's configure and finish check against a 23,000-cycle block.
+- **The first baseline measured nothing.** The bench runs before the app's start-up fills the params' neutral values,
+  so the stutter rate was about 0 and every case recorded a resampled tape of the largest size; the cases now fill them
+  (`functionsInit`) and begin at the rates above, and a probe on the device confirmed each case's phase, form and tape
+  size before these runs.
+
 ## Open questions
 
 - Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain. The

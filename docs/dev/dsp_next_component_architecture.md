@@ -540,6 +540,53 @@ interaction tier lends it: `effects::DelayArena`
   job tops the arena up it passes the audio through. The render-song gates
   require no shortfall (`RS-DELAY-ARENA shortfalls=0`).
 
+### A kernel over a tape its engine component owns, handed over by the song: `Stutter`
+
+`Stutter` (`fixed/stutter/stutter_kernel.h`) is the stutter as one processor
+kernel of stereo frames, rendered in place as `Mono<Stutter>::renderBlock(block, block)`
+by `effects::Stutter` (`engines/effects/stutter.{h,cpp}`). The kernel knows
+the tape it is pointed at, the rate and whether it records or plays; the
+component knows the allocator; the song's stutter (`deluge::model::SongStutter`,
+`model/fx/song_stutter.{h,cpp}`, in `Song::live`) knows which owner is
+stuttering; the owner (`ModControllableAudio`) keeps the UI mode, the
+quantized snap of the stutter-rate param and the rate each block.
+
+- **Four modes, one loop each.** Record or play, over a native or a resampled
+  tape. `coefficients` takes the phase from `Settings::playing` and the tape's
+  form from `DelayTape::resamplesAt`, the rule the block's own
+  `setupForRender` (in `prepare`) follows. Recording clears ahead of the read
+  head, counts the frames left, writes the frame `kWriteLag` behind and passes
+  it through. Playing steps the head forward or back and returns the tape's
+  frame; resampled, the two taps are weighed by the advance's 16.16 strengths
+  and their sum wraps (`wrapping_add`, shifted through `uint32_t`). Ping-pong
+  turns the head at either end of the tape, mid-block.
+- **Record turns to play between blocks.** When a recording block's frames ran
+  out, the component sends `finish_block` after it: the head to the tape's start
+  (its end when reversed), and `playing` set. A block never changes mode midway.
+- **The tape is the component's, and the song hands it over.** One stutter at a
+  time, owned by the song. `SongStutter::begin` runs the component's `prepare`
+  (it allocates the tape's storage from the low-speed heap, not zeroed: the read
+  head clears each sample before the write behind it reaches it), then, inside
+  an audio-excluded section, `commit`, which starts the kernel over the new
+  tape and takes a tape already held (another owner's stutter) back into the
+  change, and sets the owner; then `finish` frees what was taken back. `end`
+  does the same with `commit_end`. Both note `STUTTER_TAPE` to the
+  structural-edit probe. The render compares the owner's address with the one
+  stuttering and never dereferences it.
+- **A song swap ends it.** Both swap paths (`PlaybackHandler::doSongSwap` and
+  `deleteOldSongBeforeLoadingNew`) end the outgoing song's stutter and leave
+  the stutter UI mode before the song is let go; an owner deleted while it
+  stutters ends it too.
+- **Evidence.** `tests/dsp/reference_stutter.h` is the old `Stutterer`'s
+  `processStutter` verbatim but for owned storage and the wrapping sum; it equals
+  the old app code over every workload of `stutter_workloads.h`
+  (`kRecordedReference`), and the kernel (`stutter_kernel_spec`) and the
+  component (`engines/effects/stutter_spec`) equal it. The render gates
+  `render-stutter-*` stutter an audio track, a kit (quantized and reversed), the
+  master (ping-pong), a turned rate and a hand-over, recorded on the old code;
+  `CG-STUTTERHANDOFF`, `CG-STUTTEROOM` and `CG-STUTTERSWAP` hold the
+  hand-over.
+
 ### The control form
 
 A **control kernel** is a block-rate signal: an envelope or a duck that the
