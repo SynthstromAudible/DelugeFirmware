@@ -76,6 +76,7 @@ def _failures(env: dict[str, str], *lines: str) -> list[str]:
 
 SWITCH = {"RENDER_MODFX_SWITCH": "600:chorus,1000:phaser"}
 CLEAR = {"RENDER_MODFX_CLEAR": "1000,1800"}
+GRAIN_CLEAR = {"RENDER_MODFX_CLEAR": "1300"}
 
 
 class ModFxHooksTest(unittest.TestCase):
@@ -110,6 +111,18 @@ class ModFxHooksTest(unittest.TestCase):
 
     def test_a_clear_short_of_those_asked_fails(self):
         line = "RS-MODFX-CLEAR applied=1 asked=2 ring=1 noring=1"
+        self.assertEqual(len(_failures(CLEAR, line)), 1)
+
+    def test_clears_of_a_grain_pass(self):
+        line = "RS-MODFX-CLEAR applied=1 asked=1 ring=0 noring=0 grain=1"
+        self.assertEqual(_failures(GRAIN_CLEAR, line), [])
+
+    def test_a_grain_clear_short_of_those_asked_fails(self):
+        line = "RS-MODFX-CLEAR applied=0 asked=1 ring=0 noring=0 grain=0"
+        self.assertEqual(len(_failures(GRAIN_CLEAR, line)), 1)
+
+    def test_a_grain_gate_whose_clear_reached_a_comb_type_fails(self):
+        line = "RS-MODFX-CLEAR applied=2 asked=2 ring=1 noring=0 grain=1"
         self.assertEqual(len(_failures(CLEAR, line)), 1)
 
 

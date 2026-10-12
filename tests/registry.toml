@@ -1322,6 +1322,60 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-grain-mono"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the granular mod FX renders as recorded in mono on a host owner's chain: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_GRAIN_MONO) whose kit's chain and the song's master each run the grain, its knob on depth (its mix) and its rate, density and pitch randomness away from their defaults, the kit's pitch randomness at its maximum so its grains start in every pitch class, the kit's chain also rendering its tail between hits; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with both grains off must render differently (RS-FX), so the grains reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_GRAIN_MONO" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-grain-stereo"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the granular mod FX renders as recorded in stereo, where each grain is panned: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_GRAIN_STEREO) whose kit's chain, audio track's chain and the song's master each run the grain, its knob on depth (its mix) and its rate, density and pitch randomness away from their defaults, the kit's and the master's pitch randomness at its maximum, rendered with headphones plugged in (RENDER_STEREO=1; RS-CAPTURE fails a run in the other width), beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with every grain off, also in stereo, must render differently (RS-FX), so the grains reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_GRAIN_STEREO", RENDER_STEREO = "1" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-grain-switch"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the granular mod FX switched on and off by its type, and its memory cleared, while it plays renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_GRAIN_SWITCH) whose audio track's chorus is switched to the grain at block 600 (RENDER_MODFX_SWITCH, the Edit the mod FX type menu makes), so the chain makes its granular processor on the next sounding block; the grain is cleared at block 1300 (RENDER_MODFX_CLEAR: GranularProcessor::clearGrainFXBuffer, as ModControllableAudio::clearModFXMemory does for the grain), which stops its grains and starts its ring and its first pass over, and switched back to the chorus at block 1800, which releases its ring; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; the scenario's RS-MODFX-SWITCH summary must show both switches applied, the grain holding no mod FX ring and the chorus one, and its RS-MODFX-CLEAR summary the one clear applied to a grain; the same song rendered without its switches and clear must render differently (RS-SWITCH), so they reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-MODFX-CLEAR", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_GRAIN_SWITCH", RENDER_MODFX_SWITCH = "600:grainFX,1800:chorus", RENDER_MODFX_CLEAR = "1300" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-song-corpus"
 path = "."
 level = "integration"

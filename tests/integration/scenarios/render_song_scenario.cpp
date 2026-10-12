@@ -18,6 +18,7 @@
 #include "scenarios/render_song_scenario.h"
 
 #include "definitions_cxx.hpp"
+#include "dsp/granular/GranularProcessor.h"
 #include "engines/effects/words.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_song_ui.h"
@@ -197,16 +198,20 @@ void switchModFx(uint64_t block, const std::string& type) {
 	}
 }
 
-/// RENDER_MODFX_CLEAR: the blocks, counted from playback's start, at which every audio track's comb mod FX memory is
+/// RENDER_MODFX_CLEAR: the blocks, counted from playback's start, at which every audio track's mod FX memory is
 /// cleared, ascending and comma-separated; empty by default. Each clear is what ModControllableAudio::clearModFXMemory,
-/// which a sound's cut tail calls, does for a comb type: the mod FX component's clearMemory, which zeroes the ring
-/// when one is held and the phaser's memories otherwise.
+/// which a sound's cut tail calls, does for the track's type: for a comb type the mod FX component's clearMemory, which
+/// zeroes the ring when one is held and the phaser's memories otherwise; for the grain the granular processor's
+/// clearGrainFXBuffer, which stops its grains and starts its ring over. A grain track whose processor has not yet been
+/// made (the render makes it on its first sounding block) is not cleared.
 std::vector<uint64_t> g_modFxClearAt;
 std::size_t g_modFxClearsDone = 0;
 int32_t g_tracksModFxCleared = 0;
-/// Track clears that zeroed a ring, and clears of a track holding none, which zero the phaser's memories.
+/// Comb track clears that zeroed a ring, and those of a track holding none, which zero the phaser's memories.
 int32_t g_modFxClearedRing = 0;
 int32_t g_modFxClearedNoRing = 0;
+/// Grain track clears.
+int32_t g_modFxClearedGrain = 0;
 
 void readModFxClears() {
 	g_modFxClearAt.clear();
@@ -226,7 +231,18 @@ void clearModFx(uint64_t block) {
 		}
 		auto* owner = static_cast<ModControllableAudio*>(output->toModControllable());
 		const ModFXType type = owner != nullptr ? owner->effects().mod_fx.type : ModFXType::NONE;
-		if (type == ModFXType::NONE || type == ModFXType::GRAIN) {
+		if (type == ModFXType::NONE) {
+			continue;
+		}
+		if (type == ModFXType::GRAIN) {
+			if (owner->grainFX == nullptr) {
+				continue;
+			}
+			owner->grainFX->clearGrainFXBuffer();
+			g_tracksModFxCleared++;
+			g_modFxClearedGrain++;
+			printf("RS-MODFX-CLEAR block=%llu type=%s grain=1\n", static_cast<unsigned long long>(block),
+			       std::string(deluge::effects::to_string(type)).c_str());
 			continue;
 		}
 		const bool ring = owner->modfx.holdsRing();
@@ -462,11 +478,11 @@ void report() {
 		}
 	}
 	if (!g_modFxClearAt.empty()) {
-		printf("RS-MODFX-CLEAR applied=%d asked=%zu ring=%d noring=%d\n", g_tracksModFxCleared, g_modFxClearAt.size(),
-		       g_modFxClearedRing, g_modFxClearedNoRing);
+		printf("RS-MODFX-CLEAR applied=%d asked=%zu ring=%d noring=%d grain=%d\n", g_tracksModFxCleared,
+		       g_modFxClearAt.size(), g_modFxClearedRing, g_modFxClearedNoRing, g_modFxClearedGrain);
 		if (g_modFxClearsDone != g_modFxClearAt.size()
 		    || g_tracksModFxCleared != static_cast<int32_t>(g_modFxClearAt.size())) {
-			fail("RS-MODFX-CLEAR", "a clear asked for did not clear exactly one audio track's comb mod FX");
+			fail("RS-MODFX-CLEAR", "a clear asked for did not clear exactly one audio track's mod FX");
 		}
 	}
 	printf("RS-CAPTURE frames=%llu stereo=%d\n", static_cast<unsigned long long>(g_captured), g_stereo ? 1 : 0);
@@ -518,6 +534,7 @@ void deluge_scenario_render_song_begin(void) {
 	g_tracksModFxCleared = 0;
 	g_modFxClearedRing = 0;
 	g_modFxClearedNoRing = 0;
+	g_modFxClearedGrain = 0;
 	if (const char* blocks = std::getenv("RENDER_BLOCKS")) {
 		g_blocksWanted = std::strtoull(blocks, nullptr, 10);
 	}

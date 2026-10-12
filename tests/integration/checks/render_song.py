@@ -18,8 +18,9 @@ adds what depends on the song, and why each check is here:
                       every switch asked for applied, setting the types asked for in order, each ring type left
                       holding a ring and the phaser none. A hook that never ran, or switched to another type, would
                       leave the song rendering as some other song does and still compare with a record made the same way.
-    RS-MODFX-CLEAR    a gate that clears mod FX memory (RENDER_MODFX_CLEAR) only: every clear asked for applied, and
-                      both of clearMemory's paths reached, a ring zeroed and, with none held, the phaser's memories.
+    RS-MODFX-CLEAR    a gate that clears mod FX memory (RENDER_MODFX_CLEAR) only: every clear asked for applied; a gate
+                      whose clears reach no grain must reach both of clearMemory's paths, a ring zeroed and, with none
+                      held, the phaser's memories; one that clears a grain must clear only grains.
     RS-SWITCH         a gate that switches delays or mod FX types, or clears mod FX memory, mid-render
                       (RENDER_DELAY_SWITCH, RENDER_MODFX_SWITCH, RENDER_MODFX_CLEAR) only: the same song rendered
                       unswitched must render differently, or the switches never reached the render.
@@ -167,6 +168,11 @@ def _check_mod_fx_hooks(gate, result) -> None:
         line = result.last("RS-MODFX-CLEAR applied=")
         if line is None:
             gate.fail("RS-MODFX-CLEAR — no summary line: the clear hook did not run")
+        elif int_field(line, "grain"):
+            if int_field(line, "applied") != asked or int_field(line, "grain") != asked:
+                gate.fail(
+                    f"RS-MODFX-CLEAR — asked for {asked} clears of a grain, applied: {line}"
+                )
         elif (
             int_field(line, "applied") != asked
             or not int_field(line, "ring")

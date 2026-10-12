@@ -41,8 +41,9 @@
 ///   - `RENDER_MODFX_SWITCH`: `<block>:<type>,...`, ascending, each type as a file writes it: at each block, counted
 ///     from playback's start, every audio track's mod FX type is set to it by the Edit the mod FX type menu makes. None
 ///     by default.
-///   - `RENDER_MODFX_CLEAR`: `<block>,<block>,...`, ascending: at each block, every audio track's comb mod FX memory
-///     is cleared (effects::ModFx::clearMemory), as a sound's cut tail clears it. None by default.
+///   - `RENDER_MODFX_CLEAR`: `<block>,<block>,...`, ascending: at each block, every audio track's mod FX memory is
+///     cleared as a sound's cut tail clears it: a comb type's by effects::ModFx::clearMemory, the grain's by
+///     GranularProcessor::clearGrainFXBuffer once the render has made its processor. None by default.
 ///
 /// Lines:
 ///   - `RS-LOADED name=<n> outputs=<k> view=<v> playing_clips=<c> notes=<m>`: the song that loaded, the view it
@@ -63,10 +64,12 @@
 ///     whether it holds a ring after. After the run, `RS-MODFX-SWITCH applied=<n> asked=<m> types=<t,...> ring=<r>
 ///     noring=<k>`: the track switches made, the switches asked for, the type each set in order, and how many left the
 ///     track holding a ring and how many holding none; a failure unless each switch set exactly one track's.
-///   - `RS-MODFX-CLEAR block=<b> type=<t> ring=<0|1>`: one audio track's mod FX memory cleared at block @c b, its
-///     type @c t, and whether it held a ring, which the clear zeroes (otherwise it zeroes the phaser's memories). After
-///     the run, `RS-MODFX-CLEAR applied=<n> asked=<m> ring=<r> noring=<k>`: the track clears made, the clears asked
-///     for, and how many cleared a ring and how many none; a failure unless each clear cleared exactly one track's.
+///   - `RS-MODFX-CLEAR block=<b> type=<t> ring=<0|1>`: one audio track's comb mod FX memory cleared at block @c b,
+///     its type @c t, and whether it held a ring, which the clear zeroes (otherwise it zeroes the phaser's memories);
+///     `RS-MODFX-CLEAR block=<b> type=grainFX grain=1` for a grain track's. After the run, `RS-MODFX-CLEAR applied=<n>
+///     asked=<m> ring=<r> noring=<k> grain=<g>`: the track clears made, the clears asked for, how many comb clears
+///     cleared a ring and how many none, and how many cleared a grain; a failure unless each clear cleared exactly one
+///     track's.
 ///   - `RS-CAPTURE frames=<n> stereo=<0|1>`: frames captured, and whether headphones were plugged in. A failure if
 ///     the app rendered in the other width at any tick while playing.
 ///   - `RS-MODEL fill_delay_ms=<n> fill_read_us=<n> burst=<start>:<blocks>:<ms>`: the storage model it ran under.

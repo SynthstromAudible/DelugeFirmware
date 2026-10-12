@@ -45,6 +45,14 @@ effect off and on again: a flanger, whose delay line is freed while off and star
 allpass memory carries across. RS_MODFX_SWITCH and RS_MODFX_CLEAR hold an audio track's warble and flanger playing
 for their gates to switch the type (RENDER_MODFX_SWITCH) and clear the memory (RENDER_MODFX_CLEAR) mid-render; like
 RS_AUDIO_DELAY_SWITCH they have no dry twin, because each gate's twin is the same song rendered unswitched.
+RS_GRAIN_MONO and RS_GRAIN_STEREO put the granular mod FX on the host owners, in mono on a kit and the master and in
+stereo on all three, the kit's pitch randomness at its maximum so its grains start in every pitch class. RS_GRAIN_SWITCH
+holds an audio track's chorus playing for its gate to switch it to the grain, clear the grain and switch back
+mid-render; it has no dry twin. RS_GRAIN_RESTART runs the grain on a kit whose hits stop long enough for its grain to
+decay and release its ring, on an audio track whose depth goes to its minimum and back (which releases the ring and
+takes a new one), and on a synth whose one note stops long enough for the sound to skip rendering; the clip's loop at
+8 s, and the depth's return, start each again on a new ring, whose grains read slots not yet written since it was
+taken, so what it renders depends on what the allocator handed back.
 """
 
 import math
@@ -841,6 +849,55 @@ MOD_FX_STEREO_A_VOLUME = 'volume="0xE0000000"'
 MOD_FX_SOFT_OFF_VOLUME = 'volume="0xC0000000"'
 MOD_FX_STEREO_B_VOLUME = 'volume="0xE0000000"'
 MOD_FX_CLEAR_VOLUME = 'volume="0xC0000000"'
+GRAIN_MONO_VOLUME = 'volume="0xE0000000"'
+GRAIN_STEREO_VOLUME = 'volume="0xE0000000"'
+GRAIN_SWITCH_VOLUME = 'volume="0xE0000000"'
+GRAIN_RESTART_VOLUME = 'volume="0xE0000000"'
+
+
+# The granular mod FX on a host owner: _mod_fx's knobs, which for the grain are its rate, mix (the depth), density (the
+# offset) and pitch randomness (the feedback), with the pitch randomness at its maximum, so grains start in every pitch
+# class.
+def _grain(params: str = "") -> dict:
+    return _mod_fx(
+        "grainFX", 'modFXFeedback="0x7FFFFFFF"' + (f" {params}" if params else "")
+    )
+
+
+# A synth whose sound runs the granular mod FX, playing one short note of sample B at the clip's start, so the sound
+# falls silent long before the clip loops at 8 s and plays it again.
+GRAIN_SOUND = SOUND.replace('modFXType="none"', 'modFXType="grainFX"')
+GRAIN_CLIP = CLIP.replace(
+    'noteDataWithSplitProb="0x00000000{ticks:08X}404014000000"',
+    'noteDataWithSplitProb="0x0000000000000030404014000000"',
+).replace(
+    'modFXOffset="0x00000000" modFXFeedback="0x00000000"',
+    'modFXOffset="0x20000000" modFXFeedback="0x7FFFFFFF"',
+)
+
+
+def grain_synth_parts() -> tuple[str, str]:
+    """A synth with the granular mod FX playing one short note: its instrument and its clip."""
+    return (
+        GRAIN_SOUND.format(
+            name="RSG", file="SAMPLES/RS/B.WAV", frames=RATE * SAMPLE_SECONDS
+        ),
+        GRAIN_CLIP.format(name="RSG", ticks=CLIP_TICKS, note=67),
+    )
+
+
+def grain_synth_dry_parts() -> tuple[str, str]:
+    """grain_synth_parts with the mod FX off."""
+    sound, clip = grain_synth_parts()
+    return sound.replace('modFXType="grainFX"', 'modFXType="none"'), clip
+
+
+# One short hit of each drum at the clip's start, so the kit falls silent and its grain decays long before the clip
+# loops at 8 s and plays them again.
+GRAIN_RESTART_DRUMS = [
+    _drum("RSD1", "SAMPLES/RS/A.WAV", [(0, 48)]),
+    _drum("RSD2", "SAMPLES/RS/B.WAV", [(0, 48)]),
+]
 
 
 def loud_audio_parts(fx: dict) -> tuple[str, str]:
@@ -958,6 +1015,48 @@ SONGS = {
     "RS_MODFX_SWITCH": lambda v: parts_song(v, [audio_parts(_mod_fx("TapeWarble"))]),
     "RS_MODFX_CLEAR": lambda v: parts_song(
         v, [audio_parts(_mod_fx("flanger", MOD_FX_CLEAR_VOLUME))]
+    ),
+    "RS_GRAIN_MONO": lambda v: mod_fx_song(
+        v, _grain(GRAIN_MONO_VOLUME), DRY, _mod_fx("grainFX", GRAIN_MONO_VOLUME)
+    ),
+    "RS_GRAIN_MONO_DRY": lambda v: mod_fx_song(
+        v, _host(params=GRAIN_MONO_VOLUME), DRY, _host(params=GRAIN_MONO_VOLUME)
+    ),
+    "RS_GRAIN_STEREO": lambda v: mod_fx_song(
+        v,
+        _grain(GRAIN_STEREO_VOLUME),
+        _mod_fx("grainFX", GRAIN_STEREO_VOLUME),
+        _grain(GRAIN_STEREO_VOLUME),
+    ),
+    "RS_GRAIN_STEREO_DRY": lambda v: mod_fx_song(
+        v,
+        _host(params=GRAIN_STEREO_VOLUME),
+        _host(params=GRAIN_STEREO_VOLUME),
+        _host(params=GRAIN_STEREO_VOLUME),
+    ),
+    "RS_GRAIN_SWITCH": lambda v: parts_song(
+        v,
+        [
+            audio_parts(
+                _mod_fx("chorus", f'modFXFeedback="0x7FFFFFFF" {GRAIN_SWITCH_VOLUME}')
+            )
+        ],
+    ),
+    "RS_GRAIN_RESTART": lambda v: parts_song(
+        v,
+        [
+            kit_parts(_grain(GRAIN_RESTART_VOLUME), GRAIN_RESTART_DRUMS),
+            audio_parts(_grain(f"{MOD_FX_SOFT_OFF_DEPTH} {GRAIN_RESTART_VOLUME}")),
+            grain_synth_parts(),
+        ],
+    ),
+    "RS_GRAIN_RESTART_DRY": lambda v: parts_song(
+        v,
+        [
+            kit_parts(_host(params=GRAIN_RESTART_VOLUME), GRAIN_RESTART_DRUMS),
+            audio_parts(_host(params=GRAIN_RESTART_VOLUME)),
+            grain_synth_dry_parts(),
+        ],
     ),
     "RS_MODFX_SOFT_OFF_DRY": lambda v: parts_song(
         v,

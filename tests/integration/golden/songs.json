@@ -83,6 +83,24 @@
   "rms_db": -14.41,
   "sha256": "cd2cc121d88628032bcd05ab99fcf227023ce48eae23d99ca460f41988ded247"
  },
+ "RS_GRAIN_MONO": {
+  "frames": 384000,
+  "peak": 1396750848,
+  "rms_db": -19.86,
+  "sha256": "ef9cfa52e1d61551fb96e7140f1d19d16627e18305636e94f5b76280550df184"
+ },
+ "RS_GRAIN_STEREO": {
+  "frames": 384000,
+  "peak": 624594176,
+  "rms_db": -25.6,
+  "sha256": "61adea66b8e3165d7eff4e24afc147992e1f29d6af1f6c8cc862ff39fd61c5ad"
+ },
+ "RS_GRAIN_SWITCH": {
+  "frames": 384000,
+  "peak": 1011869440,
+  "rms_db": -21.14,
+  "sha256": "3d7d9c6aaf23ddb082cbd012f940787293c9997cda940f1f1627d0c5687b2266"
+ },
  "RS_KIT_COMP": {
   "frames": 384000,
   "peak": 844851968,
