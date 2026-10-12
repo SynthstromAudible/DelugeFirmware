@@ -58,6 +58,7 @@ reset_handler:
 /* Multi-core startup (future proofing boot code)                            */
 /* Check core, if not core 0  put to sleep.                                  */
 /* ========================================================================= */
+        CPSID if /* mask interrupts to make reset from debugger work*/
         MRC     p15, 0, r0, c0, c0, 5                          /* Read MPIDR */
         ANDS    r0, r0, #3
 goToSleep:

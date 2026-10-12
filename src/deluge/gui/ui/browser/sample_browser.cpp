@@ -1682,7 +1682,6 @@ doReturnFalse:
 		AudioEngine::audioRoutineLocked = false;
 
 		if (!success) {
-			delugeDealloc(sortArea);
 			for (int32_t s = 0; s < numSamples; s++) {
 				Sample* thisSample = sortArea[s];
 #if ALPHA_OR_BETA_VERSION
@@ -1692,6 +1691,7 @@ doReturnFalse:
 #endif
 				thisSample->removeReason("E393"); // Remove that temporary reason we added above
 			}
+			delugeDealloc(sortArea);
 			display->displayError(Error::INSUFFICIENT_RAM);
 			goto doReturnFalse;
 		}

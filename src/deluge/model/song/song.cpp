@@ -5613,20 +5613,26 @@ void Song::cullAudioClipVoice() {
 	AudioClip* bestClip = nullptr;
 	uint64_t lowestImmunity = 0xFFFFFFFFFFFFFFFF;
 
+	// find the audio clip with the lowest cull immunity
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
 			if (output->getActiveClip()) {
 				AudioClip* clip = (AudioClip*)output->getActiveClip();
 				if (clip->voiceSample && clip->voiceSample->oscPos > 0) {
 					uint64_t immunity = clip->getCullImmunity();
-					lowestImmunity = immunity;
-					bestClip = clip;
+					// is this the audio clip with the lowest cull immunity so far?
+					if (immunity < lowestImmunity) {
+						lowestImmunity = immunity;
+						bestClip = clip;
+					}
 				}
 			}
 		}
 	}
 
+	// did we find an audio clip voice to cull?
 	if (bestClip) {
+		// cull the audio clip voice with the lowest immunity
 		bestClip->unassignVoiceSample(false);
 		D_PRINTLN("audio clip voice culled!");
 	}

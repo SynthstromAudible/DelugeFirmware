@@ -1,8 +1,8 @@
 # Deluge MDD Snake + Plaits — custom firmware
 
-Unofficial OLED-focused modification of Synthstrom Audible's Deluge Community Firmware, based on 1.3.0 beta (Derbyshire), upstream commit `3e06e01d713001e546480a3153f01570c0d05fa0`.
+Unofficial OLED-focused modification of Synthstrom Audible's Deluge Community Firmware, based on 1.3.0 beta (Derbyshire), upstream beta commit `be3e993c4ae78719d3940f334848aa77973ea585`, plus reverb PR #4990.
 
-**Modified version, published 11 October 2026.** This repository contains editable source code, third-party source, build scripts and regression tests. It is not an official Synthstrom or Mutable Instruments release.
+**Modified source updated 12 October 2026.** This repository contains editable source code, third-party source, build scripts and regression tests. It is not an official Synthstrom or Mutable Instruments release.
 
 - MDD Snake: alternative clip sequencer with Notes, Gate, Velocity and four independent Custom modulation lanes; OLED/grid editing, Song root/scale integration, WRITE and Undo.
 - Plaits: FM, Waveshaping and Virtual Analog oscillator engines, with mappable engine selection. This is a three-engine subset, not the complete Plaits module.
@@ -12,7 +12,7 @@ Unofficial OLED-focused modification of Synthstrom Audible's Deluge Community Fi
 
 **Current status:** experimental ARM Release build available, compiled from source commit `15ade072b5a008b0af80eba64cee5046f8188a99` with DBT toolchain v22. Host regression tests passed. Physical-device testing has not been performed. This is not a stable official release. See [build details and checksum](firmware/BUILD_INFO.json).
 
-Read [changes and attribution](CUSTOM_CHANGES.md), [licensing](THIRD_PARTY_NOTICES.md), [build instructions](BUILD_CUSTOM.md), and the [CPU audit](docs/custom/CPU_AUDIT.md).
+Read [beta integration and all 15 retained changes](docs/custom/BETA_INTEGRATION_20261012.md), [changes and attribution](CUSTOM_CHANGES.md), [licensing](THIRD_PARTY_NOTICES.md), [build instructions](BUILD_CUSTOM.md), and the [CPU audit](docs/custom/CPU_AUDIT.md).
 
 ## User guide (PDF)
 

@@ -67,6 +67,8 @@ struct Submenu{
 for f in ['void Submenu::selectEncoderAction(int32_t offset)','void Submenu::drawPixelsForOled()']:
  menu+=method('src/deluge/gui/menu_item/submenu.cpp',f)
 s=(repo/'src/deluge/gui/ui/sound_editor.cpp').read_text();start=s.index('void SoundEditor::selectEncoderAction(int8_t offset)');start=s.index('{',start)+1
+# Stock acceleration is tested separately from MDD routing.
+start=s.index('int32_t scaledOffset = offset;',start)
 menu+='\nnamespace deluge::hid::button{constexpr int SHIFT=0;}namespace Buttons{bool held=false;bool isButtonPressed(int){return held;}}\n'
 menu+='int32_t accelerated(int8_t offset){'+s[start:s.index('MenuItem* item =',start)]+'return scaledOffset;}\n'
 menu+=r'''
@@ -90,9 +92,12 @@ int main(int argc,char** argv){assert(argc==2);
 cases=[('grain',grain,['allocation','rate']),('delay',delay,['copy']),('hpf',hpf,['load']),('reverb',(HERE/'reverb_probe.cpp').read_text(),['damping','width']),('menu',menu,['shift','navigation'])]
 with tempfile.TemporaryDirectory(prefix='deluge-regression-') as d:
  d=Path(d);failed=[]
+ # Compile against the actual upstream saturating conversion body.
+ (d/'dsp').mkdir()
+ (d/'dsp/util.hpp').write_text((HERE/'stubs/dsp/util.hpp').read_text()+'\n#include <algorithm>\nnamespace deluge::dsp {\n'+method('src/deluge/dsp/util.hpp','inline q31_t toQ31Saturating(float scaled)')+'\n}\n')
  for name,code,checks in cases:
   source=d/(name+'.cpp');source.write_text(code);exe=d/name
-  cmd=[a.cxx,'-std=c++23','-O1','-g','-fsanitize=undefined','-fno-sanitize-recover=all','-D_GLIBCXX_DEBUG','-Wno-attributes','-I'+str(HERE/'stubs'),'-I'+str(repo/'src/deluge'),'-I'+str(repo/'src'),str(source)]
+  cmd=[a.cxx,'-std=c++23','-O1','-g','-fsanitize=undefined','-fno-sanitize-recover=all','-D_GLIBCXX_DEBUG','-Wno-attributes','-I'+str(d),'-I'+str(HERE/'stubs'),'-I'+str(repo/'src/deluge'),'-I'+str(repo/'src'),str(source)]
   if name in ('hpf','reverb'):cmd+=[str(repo/'src/deluge/dsp/reverb/freeverb/freeverb.cpp')]
   subprocess.run(cmd+['-o',str(exe)],check=True)
   for check in checks:

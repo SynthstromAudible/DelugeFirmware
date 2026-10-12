@@ -18,24 +18,27 @@ public:
 		DIGITAL,
 	};
 
-	Reverb()
-	    : base_(&std::get<0>(reverb_)),     //<
-	      room_size_(base_->getRoomSize()), //<
-	      damping_(base_->getDamping()),    //<
-	      lpf_(base_->getLPF()),            //<
-	      width_(base_->getWidth()) {}
+	Reverb() : base_(&std::get<reverb::Freeverb>(reverb_)) {
+		room_size_ = base_->getRoomSize();
+		damping_ = base_->getDamping();
+		width_ = base_->getWidth();
+		hpf_ = base_->getHPF();
+		lpf_ = base_->getLPF();
+	}
 	~Reverb() override = default;
 
 	void setModel(Model m) {
+		// emplace destroys whatever was there, so base_ has to be re-pointed at the new object
+		// rather than left aimed at the corpse of the old one.
 		switch (m) {
 		case Model::FREEVERB:
-			reverb_.emplace<reverb::Freeverb>();
+			base_ = &reverb_.emplace<reverb::Freeverb>();
 			break;
 		case Model::DIGITAL:
-			reverb_.emplace<reverb::Digital>();
+			base_ = &reverb_.emplace<reverb::Digital>();
 			break;
 		case Model::MUTABLE:
-			reverb_.emplace<reverb::Mutable>();
+			base_ = &reverb_.emplace<reverb::Mutable>();
 			break;
 		}
 		base_->setRoomSize(room_size_);
@@ -117,10 +120,10 @@ private:
 
 	reverb::Base* base_ = nullptr;
 
-	float room_size_;
-	float damping_;
-	float width_;
-	float hpf_;
-	float lpf_;
+	float room_size_ = 0.f;
+	float damping_ = 0.f;
+	float width_ = 0.f;
+	float hpf_ = 0.f;
+	float lpf_ = 0.f;
 };
 } // namespace deluge::dsp
