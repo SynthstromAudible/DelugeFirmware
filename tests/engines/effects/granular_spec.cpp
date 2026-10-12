@@ -253,6 +253,54 @@ template <typename Fx, typename Leave, typename Enter>
 	return trace;
 }
 
+/// @brief Renders @p silent blocks without sound, then 300 with, through @p fx; every block is the same knobs.
+/// @param after_silence Called with the generator's state once the silent blocks are done.
+template <typename Fx>
+[[nodiscard]] gw::GranularTrace drive_silence_then_sound(Fx& fx, std::size_t silent, uint32_t& after_silence) {
+	jcong = gw::kCongSeed;
+	gw::GranularTrace trace;
+	for (std::size_t b = 0; b < silent + 300; ++b) {
+		const bool sound = b >= silent;
+		std::vector<StereoSample> frames = gw::stereo_input(256, b);
+		if (!sound) {
+			std::ranges::fill(frames, StereoSample{0, 0});
+		}
+		std::vector<q31_t> send = gw::send_input(256, b, false);
+		int32_t volume = gw::kStartVolume;
+		if (b == silent) {
+			after_silence = jcong;
+		}
+		fx.processGrainFX(frames, gw::kRateMid, gw::kMixMid, gw::kDensityMid, gw::kRandomnessMid, &volume, sound,
+		                  gw::kSendAmount, send);
+		for (const StereoSample frame : frames) {
+			trace.samples.push_back(frame.l);
+			trace.samples.push_back(frame.r);
+		}
+		trace.sends.insert(trace.sends.end(), send.begin(), send.end());
+		trace.volumes.push_back(volume);
+	}
+	return trace;
+}
+
+/// @brief A reference that does not exist until its first sounding block, as a chain's processor does not.
+class LateReference {
+public:
+	void processGrainFX(std::span<StereoSample> frames, int32_t rate, int32_t mix, int32_t density, int32_t randomness,
+	                    int32_t* volume, bool sound, q31_t reverb_amount, std::span<q31_t> send) {
+		if (!reference_) {
+			if (!sound) {
+				return;
+			}
+			reference_ = std::make_unique<ReferenceGranular>();
+		}
+		reference_->processGrainFX(frames, rate, mix, density, randomness, volume, sound, reverb_amount, send);
+	}
+	[[nodiscard]] const ReferenceGranular& reference() const { return *reference_; }
+
+private:
+	std::unique_ptr<ReferenceGranular> reference_;
+};
+
 /// @return The first @p blocks blocks of the workload named @p name.
 [[nodiscard]] gw::GranularWorkload prefix_of(const char* name, std::size_t blocks) {
 	for (const gw::GranularWorkload& w : gw::all_granular_workloads()) {
@@ -495,6 +543,41 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 			expect(heap.ring_allocations).to_equal(2);
 		}
 		expect(heap.releases).to_equal(heap.allocations);
+	});
+
+	it("renders nothing for a chain until its first sound, as its processor does not exist until then", _ {
+		heap.reset();
+		LateReference late;
+		uint32_t want_noise = 0;
+		const gw::GranularTrace want = drive_silence_then_sound(late, 100, want_noise);
+		{
+			Owner owner(EnterGrain::KEEP);
+			uint32_t got_noise = 0;
+			const gw::GranularTrace got = drive_silence_then_sound(owner, 100, got_noise);
+			expect(got.samples).to_equal(want.samples);
+			expect(got.sends).to_equal(want.sends);
+			expect(got.volumes).to_equal(want.volumes);
+			expect(got_noise).to_equal(gw::kCongSeed);
+			expect(got_noise).to_equal(want_noise);
+			expect(state_words(owner.fx())).to_equal(reference_words(late.reference()));
+		}
+	});
+
+	it("renders a sound's silent blocks as today's does, its processor existing from the type change", _ {
+		heap.reset();
+		const auto reference = std::make_unique<ReferenceGranular>();
+		uint32_t want_noise = 0;
+		const gw::GranularTrace want = drive_silence_then_sound(*reference, 100, want_noise);
+		{
+			Owner owner(EnterGrain::CLEAR);
+			uint32_t got_noise = 0;
+			const gw::GranularTrace got = drive_silence_then_sound(owner, 100, got_noise);
+			expect(got.samples).to_equal(want.samples);
+			expect(got.sends).to_equal(want.sends);
+			expect(got.volumes).to_equal(want.volumes);
+			expect(got_noise).to_equal(want_noise);
+			expect(state_words(owner.fx())).to_equal(reference_words(*reference));
+		}
 	});
 
 	it("keeps a chain's grains and first pass across a soft off, as today's startSkippingRendering does", _ {

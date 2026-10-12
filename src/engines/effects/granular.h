@@ -63,8 +63,9 @@ struct GranularInputs {
 ///
 /// A type change runs in three steps around the owner's audio-excluded section: @ref prepare allocates, @ref commit
 /// swaps inside it, @ref finish frees. Leaving GRAIN restarts the effect and frees the ring; entering takes up a new
-/// ring and, for an owner built with EnterGrain::CLEAR, clears the effect. A chain's soft off, which leaves the type
-/// unchanged, calls @ref startSkippingRendering and keeps the ring.
+/// ring and, for an owner built with EnterGrain::CLEAR, clears the effect. A chain's new State renders nothing until
+/// its first sounding block, as its processor is not made before then; a sound's renders from the type change. A
+/// chain's soft off, which leaves the type unchanged, calls @ref startSkippingRendering and keeps the ring.
 class Granular {
 public:
 	using Kernel = dsp::fixed::Granular<dsp::fixed::CongNoise>;
@@ -112,6 +113,10 @@ private:
 
 	/// @brief Ends @p state's life as a Mono and hands it back to @p allocator.
 	static void destroy_state(RingAllocator allocator, void* state);
+
+	/// @brief Event: the effect waits for its first sound, rendering nothing, as a chain's processor, which does not
+	/// exist before it, does.
+	static void idle(Kernel::State& state);
 
 	RingAllocator allocator_;
 	EnterGrain enter_;

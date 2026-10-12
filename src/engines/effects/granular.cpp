@@ -29,6 +29,10 @@ void Granular::destroy_state(RingAllocator allocator, void* state) {
 	allocator.release(state);
 }
 
+void Granular::idle(Kernel::State& state) {
+	state.wraps_to_shutdown = -1;
+}
+
 Granular::Granular(RingAllocator allocator, EnterGrain enter) : allocator_(allocator), enter_(enter) {
 }
 
@@ -67,6 +71,9 @@ GranularBlockChange Granular::prepare(ModFXType type) {
 void Granular::commit(ModFXType type, GranularBlockChange& change) {
 	if (change.acquired_state != nullptr && mono_ == nullptr) {
 		mono_ = static_cast<Mono*>(std::exchange(change.acquired_state, nullptr));
+		if (enter_ == EnterGrain::KEEP) {
+			mono_->on<&Granular::idle>();
+		}
 	}
 	if (change.acquired_ring != nullptr) {
 		if (ring_ != nullptr || mono_ == nullptr) {
