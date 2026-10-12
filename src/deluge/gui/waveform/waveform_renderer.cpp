@@ -60,7 +60,7 @@ void shiftColumns(WaveformRenderData& data, int32_t shift) {
 		return;
 	}
 	if (std::abs(shift) >= kDisplayWidth) {
-		std::ranges::fill(data.colStatus, COL_STATUS_NOT_INVESTIGATED);
+		std::ranges::fill(data.colStatus, ColumnStatus::NOT_INVESTIGATED);
 		return;
 	}
 
@@ -78,10 +78,10 @@ void shiftColumns(WaveformRenderData& data, int32_t shift) {
 
 	// Mark the freshly-exposed columns (left behind by the shift) as needing investigation.
 	if (shift > 0) {
-		std::fill_n(std::end(data.colStatus) - shift, shift, uint8_t{COL_STATUS_NOT_INVESTIGATED});
+		std::fill_n(std::end(data.colStatus) - shift, shift, ColumnStatus::NOT_INVESTIGATED);
 	}
 	else {
-		std::fill_n(std::begin(data.colStatus), -shift, uint8_t{COL_STATUS_NOT_INVESTIGATED});
+		std::fill_n(std::begin(data.colStatus), -shift, ColumnStatus::NOT_INVESTIGATED);
 	}
 }
 
@@ -122,8 +122,9 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 	}
 
 	// Don't block on the card here: song row view renders many of these at once, so loading every missing Cluster
-	// synchronously made scrolling lag badly. Columns still waiting on a Cluster draw black until it arrives
-	// and our false return gets the row re-rendered. Not while recording, though: see findPeaksPerCol().
+	// synchronously made scrolling lag badly. Columns still waiting on a Cluster show their placeholder estimate
+	// from before the zoom or scroll if they have one, or black otherwise, until it arrives and our false return
+	// gets the row re-rendered. Not while recording, though: see findPeaksPerCol().
 	bool wait_for_card = (recorder != nullptr);
 	bool completeSuccess =
 	    findPeaksPerCol(sample, xScroll, xZoom, data, recorder, xStartSource, xEndSource, wait_for_card);
@@ -137,8 +138,10 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 			xDisplaySource = kDisplayWidth - 1 - xDisplaySource;
 		}
 
-		// If no data here (e.g. if Sample not recorded this far yet...)
-		if (data->colStatus[xDisplaySource] != COL_STATUS_INVESTIGATED) {
+		// If no data here (e.g. if Sample not recorded this far yet...). Placeholders are drawn while their column
+		// waits on the card, rather than leaving it black.
+		ColumnStatus status = data->colStatus[xDisplaySource];
+		if (status != ColumnStatus::INVESTIGATED && status != ColumnStatus::PLACEHOLDER) {
 			thisImage[xDisplayOutput] = deluge::gui::colours::black;
 			continue;
 		}
@@ -189,7 +192,7 @@ void WaveformRenderer::renderOneColForCollapseAnimation(int32_t xDisplayWaveform
 		xDisplayData = kDisplayWidth - 1 - xDisplayData;
 	}
 
-	if (data->colStatus[xDisplayData] != COL_STATUS_INVESTIGATED) {
+	if (data->colStatus[xDisplayData] != ColumnStatus::INVESTIGATED) {
 		return;
 	}
 
@@ -222,7 +225,7 @@ void WaveformRenderer::renderOneColForCollapseAnimationZoomedOut(
 	int32_t singleSquareBrightnessTotal = 0;
 
 	for (int32_t xDisplayDataNow = xDisplayDataLeftEdge; xDisplayDataNow <= xDisplayDataRightEdge; xDisplayDataNow++) {
-		if (data->colStatus[xDisplayDataNow] != COL_STATUS_INVESTIGATED) {
+		if (data->colStatus[xDisplayDataNow] != ColumnStatus::INVESTIGATED) {
 			return;
 		}
 
@@ -293,27 +296,29 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 	bool length_changed = static_cast<int64_t>(numValidSamples) != data->num_samples;
 	if (recorder != nullptr) {
 		// During recording the waveform grows every frame. A monotonic append leaves already-investigated
-		// columns valid (the growing edge is re-checked below because only COL_STATUS_INVESTIGATED columns are
+		// columns valid (the growing edge is re-checked below because only ColumnStatus::INVESTIGATED columns are
 		// skipped), so don't nuke the whole cache each frame just because the length ticked up.
 		length_changed = false;
 	}
 	// Callers set xScroll to -1 to force a re-render (e.g. sample replaced), which must never look like a scroll
-	if (xZoomSamples != data->xZoom || length_changed || data->xScroll == -1) {
-		// Zoom changed, or (off the record path) the waveform length changed (e.g. sample replaced/shrunk), or a
-		// re-render was forced: nothing is reusable.
-		std::ranges::fill(data->colStatus, COL_STATUS_NOT_INVESTIGATED);
+	if (length_changed || data->xScroll == -1) {
+		// Off the record path the waveform length changed (e.g. sample replaced/shrunk), or a re-render was forced:
+		// nothing is reusable.
+		std::ranges::fill(data->colStatus, ColumnStatus::NOT_INVESTIGATED);
 	}
-	else if (xScrollSamples != data->xScroll) {
-		// Scroll changed but zoom and length didn't. If we moved by a whole number of columns that fits the
-		// display width, the overlapping columns' peaks are still valid - slide them across so only the
-		// newly-exposed columns get re-investigated. Otherwise fall back to a full invalidate.
-		std::optional<int32_t> shift =
-		    columnShift(xScrollSamples - data->xScroll, static_cast<int64_t>(xZoomSamples), kDisplayWidth);
+	else if (xZoomSamples != data->xZoom || xScrollSamples != data->xScroll) {
+		// If we only scrolled, by a whole number of columns, the overlapping columns' peaks are still valid - slide
+		// them across so only the newly-exposed columns get re-investigated. Otherwise carry over whatever of the
+		// old peaks still fits.
+		std::optional<int32_t> shift;
+		if (xZoomSamples == data->xZoom) {
+			shift = columnShift(xScrollSamples - data->xScroll, static_cast<int64_t>(xZoomSamples), kDisplayWidth);
+		}
 		if (shift.has_value()) {
 			shiftColumns(*data, *shift);
 		}
 		else {
-			std::ranges::fill(data->colStatus, COL_STATUS_NOT_INVESTIGATED);
+			remapColumns(*data, xScrollSamples, static_cast<int64_t>(xZoomSamples));
 		}
 	}
 
@@ -323,23 +328,26 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 	bool hadAnyTroubleLoading = false;
 
-	// Leaves a column un-investigated, for a later render to try again
+	bool was_placeholder = false;
+
+	// Leaves a column for a later render to try again. A placeholder keeps its estimate to draw in the meantime.
 	auto retry_later = [&](int32_t col) {
-		data->colStatus[col] = COL_STATUS_NOT_INVESTIGATED;
+		data->colStatus[col] = was_placeholder ? ColumnStatus::PLACEHOLDER : ColumnStatus::NOT_INVESTIGATED;
 		hadAnyTroubleLoading = true;
 	};
 
 	for (int32_t col = xStart; col < xEnd; col++) {
 
-		if (data->colStatus[col] == COL_STATUS_INVESTIGATED) {
+		if (data->colStatus[col] == ColumnStatus::INVESTIGATED) {
 			continue;
 		}
+		was_placeholder = (data->colStatus[col] == ColumnStatus::PLACEHOLDER);
 
-		data->colStatus[col] = COL_STATUS_INVESTIGATED; // Default, which we may override below
+		data->colStatus[col] = ColumnStatus::INVESTIGATED; // Default, which we may override below
 
 		int32_t colStartSample = xScrollSamples + col * xZoomSamples;
 		if (colStartSample >= numValidSamples) {
-			data->colStatus[col] = COL_STATUS_INVESTIGATED_BUT_BEYOND_WAVEFORM;
+			data->colStatus[col] = ColumnStatus::BEYOND_WAVEFORM;
 			continue;
 		}
 		else if (colStartSample < 0) {
@@ -354,13 +362,13 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			// If we're still recording, we'll just want to come back and render this one when the waveform has grown to
 			// cover this whole column
 			if (recorder) {
-				data->colStatus[col] = 0;
+				data->colStatus[col] = ColumnStatus::NOT_INVESTIGATED;
 				continue;
 			}
 			colEndSample = numValidSamples;
 		}
 		else if (colEndSample < 0) {
-			data->colStatus[col] = COL_STATUS_INVESTIGATED_BUT_BEYOND_WAVEFORM;
+			data->colStatus[col] = ColumnStatus::BEYOND_WAVEFORM;
 			continue;
 		}
 
@@ -436,7 +444,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 		}
 
 		if (clusterIndexToDo >= endClusters) { // Could this actually happen?
-			data->colStatus[col] = COL_STATUS_INVESTIGATED_BUT_BEYOND_WAVEFORM;
+			data->colStatus[col] = ColumnStatus::BEYOND_WAVEFORM;
 			continue;
 		}
 
@@ -543,7 +551,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			// valid data. Mark it as having nothing to draw rather than scanning an empty window and caching an
 			// inverted sentinel (min > max), which would render as a spurious bright column.
 			if (endByteWithinCluster <= startByteWithinCluster) {
-				data->colStatus[col] = COL_STATUS_INVESTIGATED_BUT_BEYOND_WAVEFORM;
+				data->colStatus[col] = ColumnStatus::BEYOND_WAVEFORM;
 				audioFileManager.removeReasonFromCluster(*cluster, "4460");
 				if (nextCluster != nullptr) {
 					audioFileManager.removeReasonFromCluster(*nextCluster, "4460");
@@ -612,7 +620,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 	// Keep a running best for the max and min found for the whole Sample
 	else {
 		for (int32_t col = xStart; col < xEnd; col++) {
-			if (data->colStatus[col] == COL_STATUS_INVESTIGATED) {
+			if (data->colStatus[col] == ColumnStatus::INVESTIGATED) {
 				if (data->maxPerCol[col] > sample->maxValueFound) {
 					sample->maxValueFound = data->maxPerCol[col];
 				}
@@ -724,7 +732,7 @@ void WaveformRenderer::renderOneCol(Sample* sample, int32_t xDisplay, RGB thisIm
 
 	int32_t xDisplaySource = reversed ? (kDisplayWidth - 1 - xDisplay) : xDisplay;
 
-	if (data->colStatus[xDisplaySource] == COL_STATUS_INVESTIGATED) {
+	if (data->colStatus[xDisplaySource] == ColumnStatus::INVESTIGATED) {
 
 		getColBarPositions(xDisplaySource, data, &min24, &max24, sample->getFoundValueCentrePoint(),
 		                   sample->getValueSpan());

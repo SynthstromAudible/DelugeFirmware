@@ -1,6 +1,7 @@
 #include "CppUTest/TestHarness.h"
 
 #include "gui/waveform/waveform_peak_math.h"
+#include "gui/waveform/waveform_render_data.h"
 #include <cstdint>
 #include <vector>
 
@@ -113,4 +114,104 @@ TEST(WaveformPeakMath, ColumnShiftBeyondDisplayWidth) {
 	CHECK_EQUAL(16, columnShift(16000, 1000, 16).value());
 	CHECK_FALSE(columnShift(17000, 1000, 16).has_value());
 	CHECK_FALSE(columnShift(INT64_MAX / 2, 1000, 16).has_value());
+}
+
+namespace {
+
+// A cache of fully investigated columns at the given scroll and zoom, where column i's peaks are -(i + 1) and i + 1.
+WaveformRenderData investigatedColumns(int64_t scroll, int64_t zoom) {
+	WaveformRenderData data{};
+	data.xScroll = scroll;
+	data.xZoom = zoom;
+	for (int32_t col = 0; col < kDisplayWidth; col++) {
+		data.colStatus[col] = ColumnStatus::INVESTIGATED;
+		data.minPerCol[col] = -(col + 1);
+		data.maxPerCol[col] = col + 1;
+	}
+	return data;
+}
+
+} // namespace
+
+// remapColumns: zooming out 2x, each new column on screen before is exactly the old pair it covers.
+TEST(WaveformPeakMath, RemapZoomOutReusesWholeColumns) {
+	WaveformRenderData data = investigatedColumns(0, 1000);
+	remapColumns(data, 0, 2000);
+	for (int32_t col = 0; col < kDisplayWidth / 2; col++) {
+		CHECK(data.colStatus[col] == ColumnStatus::INVESTIGATED);
+		CHECK_EQUAL(-(2 * col + 2), data.minPerCol[col]);
+		CHECK_EQUAL(2 * col + 2, data.maxPerCol[col]);
+	}
+	// The right half was off screen before
+	for (int32_t col = kDisplayWidth / 2; col < kDisplayWidth; col++) {
+		CHECK(data.colStatus[col] == ColumnStatus::NOT_INVESTIGATED);
+	}
+}
+
+// remapColumns: tick-to-sample truncation leaves a zoom out a sample or two off whole columns. Still exact.
+TEST(WaveformPeakMath, RemapZoomOutToleratesTickTruncation) {
+	WaveformRenderData data = investigatedColumns(0, 1000);
+	remapColumns(data, 1, 1999);
+	CHECK(data.colStatus[0] == ColumnStatus::INVESTIGATED);
+	CHECK_EQUAL(2, data.maxPerCol[0]);
+	CHECK(data.colStatus[7] == ColumnStatus::INVESTIGATED);
+	CHECK_EQUAL(16, data.maxPerCol[7]);
+}
+
+// remapColumns: zooming in 2x, each old column becomes a placeholder for the two new ones within it.
+TEST(WaveformPeakMath, RemapZoomInGivesPlaceholders) {
+	WaveformRenderData data = investigatedColumns(0, 2000);
+	remapColumns(data, 4000, 1000);
+	for (int32_t col = 0; col < kDisplayWidth; col++) {
+		CHECK(data.colStatus[col] == ColumnStatus::PLACEHOLDER);
+		CHECK_EQUAL(2 + col / 2 + 1, data.maxPerCol[col]);
+	}
+}
+
+// remapColumns: a scroll by part of a column overlaps two old columns, so each new one is an estimate from both.
+TEST(WaveformPeakMath, RemapPartialScrollGivesPlaceholders) {
+	WaveformRenderData data = investigatedColumns(0, 1000);
+	remapColumns(data, 500, 1000);
+	CHECK(data.colStatus[0] == ColumnStatus::PLACEHOLDER);
+	CHECK_EQUAL(-2, data.minPerCol[0]);
+	CHECK_EQUAL(2, data.maxPerCol[0]);
+	// The last one only half-overlaps the old screen, but that half still gives an estimate
+	CHECK(data.colStatus[kDisplayWidth - 1] == ColumnStatus::PLACEHOLDER);
+	CHECK_EQUAL(kDisplayWidth, data.maxPerCol[kDisplayWidth - 1]);
+}
+
+// remapColumns: an old column that wasn't worked out stops a new one covering it from being exact.
+TEST(WaveformPeakMath, RemapUninvestigatedOldColumnIsNotExact) {
+	WaveformRenderData data = investigatedColumns(0, 1000);
+	data.colStatus[1] = ColumnStatus::NOT_INVESTIGATED;
+	data.colStatus[2] = ColumnStatus::BEYOND_WAVEFORM;
+	data.colStatus[3] = ColumnStatus::BEYOND_WAVEFORM;
+	data.colStatus[4] = ColumnStatus::PLACEHOLDER;
+	remapColumns(data, 0, 2000);
+	CHECK(data.colStatus[0] == ColumnStatus::PLACEHOLDER);
+	CHECK_EQUAL(1, data.maxPerCol[0]);
+	CHECK(data.colStatus[1] == ColumnStatus::NOT_INVESTIGATED);
+	CHECK(data.colStatus[2] == ColumnStatus::PLACEHOLDER);
+	CHECK_EQUAL(6, data.maxPerCol[2]);
+}
+
+// remapColumns: at deep zoom the truncation slack would be a visible fraction of a column, so it must be exact.
+TEST(WaveformPeakMath, RemapDeepZoomNeedsNearExact) {
+	WaveformRenderData data = investigatedColumns(0, 4);
+	remapColumns(data, 0, 8);
+	CHECK(data.colStatus[0] == ColumnStatus::INVESTIGATED);
+
+	data = investigatedColumns(0, 4);
+	remapColumns(data, 2, 8);
+	CHECK(data.colStatus[0] == ColumnStatus::PLACEHOLDER);
+}
+
+// remapColumns: with no peaks cached yet (zoom 0, as a fresh WaveformRenderData has), nothing carries over.
+TEST(WaveformPeakMath, RemapFromNothing) {
+	WaveformRenderData data{};
+	data.colStatus[0] = ColumnStatus::INVESTIGATED;
+	remapColumns(data, 0, 1000);
+	for (ColumnStatus status : data.colStatus) {
+		CHECK(status == ColumnStatus::NOT_INVESTIGATED);
+	}
 }

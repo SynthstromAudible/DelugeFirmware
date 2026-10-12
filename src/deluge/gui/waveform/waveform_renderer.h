@@ -46,8 +46,9 @@ public:
 	                      bool reversed = false, int32_t xEnd = kDisplayWidth);
 	/// @brief Renders a Sample's waveform as one row of brightness, as song row view shows it.
 	///
-	/// Doesn't wait on the SD card unless @p recorder is set: Clusters not in memory are enqueued, and their columns
-	/// draw black until they've loaded. Everything that is available is always drawn.
+	/// Doesn't wait on the SD card unless @p recorder is set: Clusters not in memory are enqueued, and until they've
+	/// loaded their columns draw the estimate carried over from before the last zoom or scroll, or black if there
+	/// isn't one. Everything that is available is always drawn.
 	///
 	/// @returns false if some columns are still waiting on the card, so the caller should render the row again later.
 	bool renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, RGB* thisImage, WaveformRenderData* data,
@@ -65,8 +66,9 @@ public:
 	                                               int32_t valueCentrePoint, int32_t valueSpan);
 	/// @brief Fills in @p data's per-column min/max peaks for any columns in [@p xStart, @p xEnd) not already cached.
 	///
-	/// Cached columns are kept across calls while the zoom and waveform length stay the same. A whole-column scroll
-	/// slides them across, and only the newly exposed columns are worked out.
+	/// Cached columns are kept across calls while the waveform length stays the same. A whole-column scroll slides
+	/// them across, and only the newly exposed columns are worked out. Any other scroll or zoom carries over what it
+	/// can with remapColumns().
 	///
 	/// @param sample The Sample to read.
 	/// @param xScroll Sample position of the left edge of column 0.
@@ -76,9 +78,8 @@ public:
 	/// @param xStart First column to fill in.
 	/// @param xEnd Column after the last one to fill in.
 	/// @param wait_for_card Whether to read Clusters that aren't in memory from the card now. If false, they're
-	/// enqueued
-	///        instead and their columns left un-investigated. Must be true while @p recorder is set: the reason held on
-	///        @p sample while waiting would break SampleRecorder::abort().
+	///        enqueued instead, and their columns left un-investigated or as placeholders. Must be true while
+	///        @p recorder is set: the reason held on @p sample while waiting would break SampleRecorder::abort().
 	/// @returns false if any column couldn't be worked out yet (Cluster enqueued, or couldn't load it), so the caller
 	///          should try again later.
 	bool findPeaksPerCol(Sample* sample, int64_t xScroll, uint64_t xZoom, WaveformRenderData* data,

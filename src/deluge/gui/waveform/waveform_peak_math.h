@@ -26,6 +26,8 @@
 #include <cstdint>
 #include <optional>
 
+struct WaveformRenderData;
+
 namespace deluge::gui::waveform {
 
 /// @brief log2 of the most samples scanPeak() reads per call; longer spans are subsampled.
@@ -97,5 +99,22 @@ int32_t firstFrameOffset(int64_t cluster_start, uint32_t audio_start, int32_t fr
 /// @returns The number of columns moved (positive is rightwards), or std::nullopt if it wasn't a whole-column move of 1
 ///          to @p width columns.
 std::optional<int32_t> columnShift(int64_t delta, int64_t zoom, int32_t width);
+
+/// @brief Carries cached per-column peaks over to a new scroll and zoom, so they needn't all be worked out again.
+///
+/// For each new column, looks at the old columns it overlaps:
+/// - If it lines up with the edges of whole old columns (e.g. zooming out) that are all INVESTIGATED, their combined
+///   peaks are exactly what working it out would give, so it becomes INVESTIGATED. The edges are allowed the same
+///   slack from AudioClip's tick-to-sample truncation as columnShift() allows.
+/// - Otherwise, if any of them hold peaks (e.g. zooming in), it becomes a PLACEHOLDER with their combined peaks.
+/// - Otherwise it becomes NOT_INVESTIGATED.
+///
+/// For a whole-column scroll at the same zoom, columnShift() and sliding the arrays across gives the same result
+/// more cheaply.
+///
+/// @param data The cache to remap. Its xScroll and xZoom describe the columns it holds now, and are left alone.
+/// @param scroll New sample position of the left edge of column 0.
+/// @param zoom New samples per column. Must be positive.
+void remapColumns(WaveformRenderData& data, int64_t scroll, int64_t zoom);
 
 } // namespace deluge::gui::waveform
