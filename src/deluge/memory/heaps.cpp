@@ -263,6 +263,11 @@ void* alloc_sdram(std::size_t size, std::size_t align) {
 }
 void* alloc_external(std::size_t size, std::size_t align) {
 	countIfAudioTier();
+#ifdef DELUGE_HOST
+	if (injectedAllocationFailure(size)) {
+		return nullptr;
+	}
+#endif
 	init_heaps();
 	// external collapsed into the one SDRAM heap
 	return track_alloc(finalize(deluge_alloc(g_sdram, size, align), size), size, __builtin_return_address(0));

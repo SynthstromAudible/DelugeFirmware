@@ -53,6 +53,14 @@ kinds=<kind=n,...>`:
     CG-MODFXSWAP             a synth's mod FX type set chorus, flanger, phaser, chorus by the type menu's Edit while
                              the song plays: after each change a ring is held exactly when the type runs over one
                              (CG-MODFXSWAP rings=1 noted=1 required)
+    CG-GRAINOOM              the song master's mod FX type set to the grain with its ring's allocation made to fail:
+                             the type change consumes the failure, no ring is held and the grain passes its block
+                             through unchanged; setting the grain again holds a ring and the master's render runs the
+                             effect over it (CG-GRAINOOM injected=1 passthrough=1 recovered=1 noted=1 required; noted =
+                             the grain's hand-over reported itself to the structural-edit probe)
+    CG-GRAINSWAP             a synth's mod FX type set grain, chorus, grain, none by the type menu's Edit while the
+                             song plays: after each change the grain holds its ring exactly when the type is the grain
+                             (CG-GRAINSWAP blocks=1 noted=1 required)
     CG-CHOKE                 two choke-mode drums sounded in turn, each choking the other, over 400 blocks
     CG-BIGROW                a note row inserted below 128 others, moving them all; CG-MASK reports the edit's host
                              wall time (maskMicros=), an upper bound on the section it holds (a block is ~2900 us)
@@ -96,6 +104,8 @@ LEGS = [
     "MODFXOOM",
     "MODFXCLONE",
     "MODFXSWAP",
+    "GRAINOOM",
+    "GRAINSWAP",
 ]
 # The legs whose edits must all be made while the render is excluded.
 
@@ -155,6 +165,23 @@ def _check(gate, result) -> None:
         found = _grep(result, "CG-MODFXSWAP rings", "no CG-MODFXSWAP line")
         gate.fail(
             f"{found}: a mod FX type change left a ring that does not match its type"
+        )
+        return
+
+    # A grain ring that could not be allocated passes the signal through; setting the grain again takes one.
+    if not result.has_line("CG-GRAINOOM injected=1 passthrough=1 recovered=1 noted=1"):
+        found = _grep(result, "CG-GRAINOOM injected", "no CG-GRAINOOM line")
+        gate.fail(
+            f"{found}: a grain ring that could not be allocated did not pass the signal through, or setting the grain"
+            " again did not bring the effect back"
+        )
+        return
+
+    # Each type change holds the grain's ring exactly when the type is the grain.
+    if not result.has_line("CG-GRAINSWAP blocks=1 noted=1"):
+        found = _grep(result, "CG-GRAINSWAP blocks", "no CG-GRAINSWAP line")
+        gate.fail(
+            f"{found}: a mod FX type change left a grain ring that does not match its type"
         )
         return
 

@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
+#include "engines/effects/granular.h"
 #include "engines/effects/mod_fx.h"
 #include "engines/effects/words.h"
 #include "gui/ui/ui.h"
@@ -137,6 +138,8 @@ enum class Leg : uint8_t {
 	ModFxOom,
 	ModFxClone,
 	ModFxSwap,
+	GrainOom,
+	GrainSwap,
 	Done,
 };
 
@@ -224,6 +227,10 @@ const char* legName(Leg leg) {
 		return "MODFXCLONE";
 	case Leg::ModFxSwap:
 		return "MODFXSWAP";
+	case Leg::GrainOom:
+		return "GRAINOOM";
+	case Leg::GrainSwap:
+		return "GRAINSWAP";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -317,6 +324,48 @@ bool changesBlock(ModControllableAudio& owner, ParamManager& params, ModFXType t
 		}
 	}
 	return changed;
+}
+
+/// The bytes of the grain's ring, the allocation the grain legs make fail.
+constexpr std::size_t kGrainRingBytes =
+    deluge::effects::Granular::Kernel::kRingFrames * sizeof(deluge::dsp::StereoSample);
+
+/// @return Whether @p owner's grain, run over kModFxBlocks sounding blocks of a ramp, changed any of them: the owner's
+/// block as its render makes it, with @p params' density and randomness.
+bool grainChangesBlock(ModControllableAudio& owner, ParamManager& params) {
+	static StereoSample block[kRenderBlockFrames]{};
+	static q31_t send[kRenderBlockFrames]{};
+	UnpatchedParamSet* unpatched = params.getUnpatchedParamSet();
+	const deluge::effects::GranularInputs in{
+	    .rate = kModFxRate,
+	    .mix = kModFxDepth,
+	    .density = unpatched->getValue(deluge::modulation::params::UNPATCHED_MOD_FX_OFFSET),
+	    .randomness = unpatched->getValue(deluge::modulation::params::UNPATCHED_MOD_FX_FEEDBACK),
+	    .send_amount = 0,
+	    .sound = true,
+	};
+	bool changed = false;
+	for (int32_t b = 0; b < kModFxBlocks; b++) {
+		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
+			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
+			block[i] = {v, -v};
+		}
+		int32_t volume = ONE_Q31 >> 1;
+		owner.granular.render(block, in, volume, send);
+		changed = changed || volume != ONE_Q31 >> 1;
+		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
+			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
+			changed = changed || block[i].l != v || block[i].r != -v;
+		}
+	}
+	return changed;
+}
+
+/// @return The ring index @p owner's grain writes next, or -1 before its State is taken: it moves each block the
+/// render runs the effect.
+int64_t grainWrite(ModControllableAudio& owner) {
+	const auto* state = owner.granular.state();
+	return state == nullptr ? -1 : static_cast<int64_t>(state->write);
 }
 
 /// A playing-ready session clip on a blank synth of its own, made through the new-clip gesture (as
@@ -909,6 +958,56 @@ void editLeg() {
 		}
 		const bool noted = deluge::notedStructuralEdits(StructuralContainer::MOD_FX_RING) > notedBefore;
 		printf("CG-MODFXSWAP rings=%d noted=%d\n", matched ? 1 : 0, noted ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::GrainOom: {
+		g_step = "modFXType";
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::GRAIN_BLOCK);
+		// The song master's grain with its ring's allocation made to fail: the type is set and its blocks pass the
+		// signal through. Setting the grain again takes a ring, and the master's render runs the effect over it.
+		auto& fx = currentSong->live.global_effectable;
+		currentSong->paramManager.getUnpatchedParamSet()
+		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
+		    .setCurrentValueBasicForSetup(0);
+		const ModFXParam paramBefore = fx.currentModFXParam;
+		fx.currentModFXParam = ModFXParam::DEPTH;
+		deluge::memory::failNextAllocationOfSize(kGrainRingBytes);
+		fx.setModFXType(ModFXType::GRAIN);
+		const bool injected = !deluge::memory::allocationFailurePending();
+		renderBlocks(4);
+		const bool passthrough = !fx.granular.holdsBlock() && !grainChangesBlock(fx, currentSong->paramManager);
+		fx.setModFXType(ModFXType::GRAIN);
+		const int64_t writeBefore = grainWrite(fx);
+		renderBlocks(1);
+		const bool recovered = fx.granular.holdsBlock() && grainWrite(fx) != writeBefore;
+		fx.setModFXType(ModFXType::NONE);
+		fx.currentModFXParam = paramBefore;
+		renderBlocks(1);
+		const bool noted = deluge::notedStructuralEdits(StructuralContainer::GRAIN_BLOCK) > notedBefore;
+		printf("CG-GRAINOOM injected=%d passthrough=%d recovered=%d noted=%d\n", injected ? 1 : 0, passthrough ? 1 : 0,
+		       recovered ? 1 : 0, noted ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::GrainSwap: {
+		g_step = "modFXType";
+		// The mod FX type menu's Edit on a synth's chain while the song plays: the grain holds its ring exactly while
+		// its type is the grain, and the chorus between holds the mod FX ring.
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::GRAIN_BLOCK);
+		bool matched = true;
+		for (const ModFXType type : {ModFXType::GRAIN, ModFXType::CHORUS, ModFXType::GRAIN, ModFXType::NONE}) {
+			deluge::edits::changeEffect(
+			    *synth, "modFXType",
+			    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(type))));
+			renderBlocks(2);
+			matched = matched && synth->effects().mod_fx.type == type
+			          && synth->granular.holdsBlock() == (type == ModFXType::GRAIN)
+			          && holdsRing(*synth) == deluge::effects::is_ring_type(type);
+		}
+		const bool noted = deluge::notedStructuralEdits(StructuralContainer::GRAIN_BLOCK) > notedBefore;
+		printf("CG-GRAINSWAP blocks=%d noted=%d\n", matched ? 1 : 0, noted ? 1 : 0);
 		fflush(stdout);
 		break;
 	}
