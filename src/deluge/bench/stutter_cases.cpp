@@ -68,8 +68,8 @@ void StutterCase::setup(std::size_t n) {
 	const FrameSpans<StereoSample> spans = stereo_frame_spans(n);
 	rig.work = spans.out;
 	rig.input = spans.in;
-	// A recording case begins at the slowest rate, whose tape outlasts the warm-up and timed blocks; a playing case
-	// begins fast and records its short tape untimed.
+	// A recording case begins at a rate whose tape outlasts the warm-up and timed blocks; a playing case begins at the
+	// knob's middle and records its short tape untimed.
 	set_rate(config_.play ? kStutterRatePlay : kStutterRateRecord);
 	effects::StutterChange began =
 	    fx.prepare(static_cast<uint32_t>(model::stutterRate(&rig.params, 0, kStutterMagnitude, kStutterTickInverse)));

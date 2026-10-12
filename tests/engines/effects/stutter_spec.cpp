@@ -51,6 +51,9 @@ struct TestHeap {
 	int double_releases = 0;
 	bool fail = false; ///< Fails every request.
 
+	/// @return The blocks handed out and not yet released.
+	[[nodiscard]] int live() const { return (in_use[0] ? 1 : 0) + (in_use[1] ? 1 : 0); }
+
 	void reset() {
 		in_use[0] = in_use[1] = false;
 		allocations = releases = double_releases = 0;
@@ -163,7 +166,7 @@ describe stutter("effects::Stutter", ${
 		expect(fx.state().playing).to_be_false();
 		fx.finish(second);
 		expect(heap.releases).to_equal(1);
-		expect(heap.in_use[0] || heap.in_use[1]).to_be_true();
+		expect(heap.live()).to_equal(1);
 	});
 
 	it("takes the tape back at the end, and finish frees each tape once", _ {
@@ -193,7 +196,7 @@ describe stutter("effects::Stutter", ${
 			fx.finish(begin);
 		}
 		expect(heap.releases).to_equal(1);
-		expect(heap.in_use[0] || heap.in_use[1]).to_be_false();
+		expect(heap.live()).to_equal(0);
 	});
 
 	it("frees a tape prepare allocated that commit never took", _ {
