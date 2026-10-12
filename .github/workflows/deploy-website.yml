@@ -70,6 +70,50 @@ jobs:
           SITE_URL: ${{ steps.setup_pages.outputs.base_url }}
           SITE_BASE_PATH: ${{ steps.setup_pages.outputs.base_path }}
 
+      # FIXME can I reuse playwright here?
+      - name: Install Chromium
+        run: sudo apt-get install -y chromium-browser
+
+      - name: Run website
+        run: |
+          pnpm run preview &
+          echo $!
+
+      - name: Wait for server startup
+        run: sleep 5
+        shell: bash
+
+      # Process ID will be used later to shut down the server
+      - name: Record preview server's process ID
+        run: lsof -ti:4321 > preview.pid
+
+      # Change the port in the URL if you've configured the server to a different port.
+      # `/usr/bin/chromium-browser` is a default path for Chromium executable on Ubuntu.
+      # The resulting PDF will be available at https://delugecommunity.com/downloads/delugecommunity.com.pdf
+      # FIXME can I reuse playwright here?
+      - name: Create PDF
+        run:
+          npx starlight-to-pdf http://localhost:4321 --browser-executable
+          /usr/bin/chromium-browser \
+           --path ./dist/downloads \
+           --filename delugecommunity.com \
+           --contents-links internal \
+           --exclude '/downloads' \
+           --exclude '/reference/deluge_companion/' \
+           --preceding-html src/assets/starlight2pdf/templates/cover.html \
+           --header src/assets/starlight2pdf/templates/header-template.html \
+           --footer src/assets/starlight2pdf/templates/footer-template.html \
+           --print-bg \
+           --pdf-outline \
+           --margins '0 0 0 0' \
+           --paddings '2cm 1cm 2cm 1.5cm'
+
+
+      - name: Stop preview server
+        run: |
+          kill $(cat preview.pid)
+          rm preview.pid
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
