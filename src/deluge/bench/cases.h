@@ -1340,9 +1340,9 @@ private:
 /// 71 grain starts per second at 44.1 kHz, one every 1,242 frames, a mid setting of the knob's range. It differs from
 /// the processor's initial knob position (0), so the first call applies it.
 inline constexpr int32_t kGranularRate = 0x10000;
-/// @brief The granular cases' mix knob, signed Q31: 0x40000000 gives the cubic mix curve a wet volume of one half
-/// (and a full dry volume). It differs from the processor's initial knob position (0), so the first call applies it;
-/// at 0 the wet volume would stay at the constructor's silence.
+/// @brief The granular cases' mix knob, signed Q31: 0x40000000 gives the cubic mix curve a wet volume of 0.875
+/// (0x70000000) and a full dry volume. It differs from the processor's initial knob position (0), so the first call
+/// applies it; at 0 the wet volume would stay at the constructor's silence.
 inline constexpr int32_t kGranularMix = 0x40000000;
 /// @brief The sparse cases' density knob, signed Q31: grains of about 3,000 frames (setupGrainFX scales the length by
 /// the knob's 0..1 position, here 1/8), so two or three of the eight grains sound at a time.
@@ -1361,9 +1361,10 @@ inline constexpr int32_t kGranularRandomnessMax = 0x7fffffff;
 inline constexpr int32_t kGranularVerbAmount = 0x10000000;
 /// @brief The granular cases' tempo in beats per minute, as the owner hands it to the processor.
 inline constexpr float kGranularTempoBpm = 120.f;
-/// @brief The frames of untimed setup blocks: more than one full 65,536-frame ring, so that the processor has
-/// wrapped once (it then draws grains at random pitches and start points, its steady state) and its ring is more than
-/// half full (grains start). Every block size is at most 128, so the last block starts past the first wrap.
+/// @brief The frames of untimed setup blocks: more than one full 65,536-frame ring. The processor wraps its write index
+/// lazily, inside the per-sample step, and sets its initialised state only when a call starts with the index exactly at
+/// 65,536; that happens when the block length divides 65,536 (the bench's 32, 64 and 128 do). From then on grains draw
+/// random pitches and start points, the steady state, and the ring is more than half full, so grains start.
 inline constexpr std::size_t kGranularFillFrames = 66'000;
 
 /// @brief One granular case's configuration.
@@ -1386,8 +1387,7 @@ inline constexpr GranularConfig kGranularDenseRandom{.density = kGranularDensity
 /// output, with the reverb feed going to the audio engine's buffer.
 /// @details Setup makes the processor anew and reseeds the noise generator, then runs untimed blocks past one full
 /// ring, so grains are live and initialised and the processor's first-sound buffer allocation is out of the timed
-/// region. Each block
-/// processes the lanes input's sounding block in place, as the mod FX cases do.
+/// region. Each block processes the lanes input's sounding block in place, as the mod FX cases do.
 class GranularCase {
 public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
@@ -1395,7 +1395,7 @@ public:
 	/// @brief A case of @p config.
 	constexpr explicit GranularCase(const GranularConfig& config) : config_{config} {}
 
-	/// @brief A fresh processor filled past half its ring, and the block for @p n frames.
+	/// @brief A fresh processor run past one full ring, and the block for @p n frames.
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for, in place.
 	void block(std::size_t n);
