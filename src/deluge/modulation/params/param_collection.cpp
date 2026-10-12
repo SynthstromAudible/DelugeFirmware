@@ -18,6 +18,7 @@
 #include "modulation/params/param_collection.h"
 #include "definitions_cxx.hpp"
 #include "libdeluge/system.h"
+#include "memory/heaps.h"
 #include "model/mod_controllable/delay_type.h"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
@@ -49,7 +50,10 @@ void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 		ticksTilNextEvent = 0;
 	}
 
-	if (!deluge_in_audio_context()) {
+	// The interaction tier's writes only: a render writer (automation playback) never lifts a delay from OFF, and an
+	// Edit made from the render would allocate there. The host renders on a thread its audio-context check does not
+	// see, so the render block is checked too.
+	if (!deluge_in_audio_context() && !deluge::memory::inRenderBlock()) {
 		deluge::model::onDelayFeedbackModified(*modelStack, oldValue, automatedBefore);
 	}
 }

@@ -75,6 +75,9 @@ void countRenderAllocation();
 /// @brief Mark the calling thread as inside (or leaving) a render block, for audioTierAllocations() (host-only).
 /// @param entering True when entering the render block, false when leaving it.
 void noteRenderBlock(bool entering);
+/// @return Whether the calling thread is inside a render block (host-only; false on the device, where
+/// deluge_in_audio_context() answers).
+bool inRenderBlock();
 
 #ifdef DELUGE_HOST
 /// @brief Host-only test seam: make the next allocation of exactly @p size bytes fail, once.

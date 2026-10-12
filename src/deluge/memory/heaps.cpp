@@ -219,6 +219,9 @@ void countRenderAllocation() {
 void noteRenderBlock(bool entering) {
 	g_renderBlockDepth += entering ? 1 : -1;
 }
+bool inRenderBlock() {
+	return g_renderBlockDepth > 0 || deluge_tier_current() == DELUGE_TIER_AUDIO;
+}
 namespace {
 std::atomic<std::size_t> g_failNextSize{0};
 } // namespace
@@ -234,6 +237,9 @@ bool allocationFailurePending() {
 }
 #else
 void noteRenderBlock(bool) {
+}
+bool inRenderBlock() {
+	return false;
 }
 namespace {
 inline void countIfAudioTier() {

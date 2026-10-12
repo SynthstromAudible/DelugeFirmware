@@ -201,7 +201,9 @@ void onDelayFeedbackModified(const ModelStackWithAutoParam& modelStack, int32_t 
 	                       {.param = modelStack.autoParam, .value = oldValue, .automated = automatedBefore})) {
 		return;
 	}
-	// The Edit a press of the feedback knob makes: the press cycle's step from OFF.
+	// The Edit a press of the feedback knob makes: the press cycle's step from OFF. It is applied here, inside the
+	// change that lifted the feedback (itself an Edit when it is the knob's), as an undo step of its own; it reads and
+	// writes only the owner's delay type, so the outer Edit, still applying, is not disturbed by it.
 	deluge::edits::changeEffect(owner, "delay/type",
 	                            deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(
 	                                deluge::effects::next_delay_type(deluge::effects::DelayType::OFF)))));
