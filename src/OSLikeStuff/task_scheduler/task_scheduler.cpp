@@ -208,7 +208,7 @@ void TaskManager::setNextRunTimeforCurrentTask(Time seconds) {
 }
 
 void TaskManager::unblockTask(TaskID id) {
-	if (id > 0 && id < kMaxTasks) [[likely]] {
+	if (id >= 0 && id < kMaxTasks) [[likely]] {
 		auto* current_task = &list[id];
 		if (current_task->state == State::BLOCKED) {
 			current_task->state = State::READY;
@@ -217,7 +217,7 @@ void TaskManager::unblockTask(TaskID id) {
 }
 
 void TaskManager::blockTask(TaskID id) {
-	if (id > 0 && id < kMaxTasks) [[likely]] {
+	if (id >= 0 && id < kMaxTasks) [[likely]] {
 		auto* current_task = &list[id];
 		if (current_task->state == State::READY) {
 			current_task->state = State::BLOCKED;
