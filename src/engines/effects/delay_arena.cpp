@@ -17,6 +17,8 @@
 
 #include "engines/effects/delay_arena.h"
 
+#include "foundation/panic.h"
+
 #include <algorithm>
 
 namespace deluge::effects {
@@ -54,6 +56,7 @@ dsp::StereoSample* DelayArena::take(std::size_t frames) {
 void DelayArena::give_back(dsp::StereoSample* storage, std::size_t frames) {
 	const std::size_t i = region_of(storage);
 	if (i == count_) {
+		FREEZE_WITH_ERROR("DA02"); // storage the arena never handed out: a double give-back or a foreign tape
 		return;
 	}
 	Region& region = regions_[i];
@@ -75,6 +78,9 @@ ArenaChange DelayArena::prepare(int on_delta) {
 }
 
 void DelayArena::commit(ArenaChange& change) {
+	if (on_ + change.on_delta < 0) {
+		FREEZE_WITH_ERROR("DA01"); // an owner counted out that was never counted in
+	}
 	on_ = std::max(0, on_ + change.on_delta);
 	if (change.lent != nullptr && on_ > 0 && !holds_margin() && attach(change.lent)) {
 		change.lent = nullptr;

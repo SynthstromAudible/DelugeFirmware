@@ -21,6 +21,8 @@
 
 #include "engines/effects/delay_arena.h"
 
+#include "mock_panic.h"
+
 #include <algorithm>
 #include <cppspec.hpp>
 #include <cstddef>
@@ -28,6 +30,7 @@
 #include <iterator>
 #include <memory>
 #include <new>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -261,6 +264,24 @@ describe delay_arena("the delay's arena", ${
 		maintain(arena, +1);
 		expect(memory.lends).to_equal(lends);
 		maintain(arena, -2);
+	});
+	it("freezes on counting out an owner it never counted in", _ {
+		fresh_memory();
+		deluge::test::clear_freeze();
+		DelayArena arena{kMemory};
+		maintain(arena, -1);
+		expect(deluge::test::last_freeze()).to_equal(std::string("DA01"));
+		expect(arena.owners_on()).to_equal(0);
+	});
+	it("freezes on giving back storage it never handed out", _ {
+		fresh_memory();
+		deluge::test::clear_freeze();
+		DelayArena arena{kMemory};
+		maintain(arena, +1);
+		StereoSample foreign[4]{};
+		arena.give_back(foreign, 4);
+		expect(deluge::test::last_freeze()).to_equal(std::string("DA02"));
+		maintain(arena, -1);
 	});
 });
 // clang-format on
