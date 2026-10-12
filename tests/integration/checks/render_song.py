@@ -148,7 +148,7 @@ def _check_mod_fx_hooks(gate, result) -> None:
     RS-MODFX-CLEAR)."""
     switches = gate.env.get("RENDER_MODFX_SWITCH")
     if switches:
-        types = [item.split(":", 1)[-1] for item in switches.split(",")]
+        types = [item.split(":")[1] for item in switches.split(",")]
         line = result.last("RS-MODFX-SWITCH applied=")
         ring = sum(t in RING_TYPES for t in types)
         if line is None:

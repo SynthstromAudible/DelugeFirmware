@@ -89,6 +89,12 @@
   "rms_db": -19.86,
   "sha256": "ef9cfa52e1d61551fb96e7140f1d19d16627e18305636e94f5b76280550df184"
  },
+ "RS_GRAIN_OWNERS": {
+  "frames": 384000,
+  "peak": 206627584,
+  "rms_db": -35.49,
+  "sha256": "5904c2dd7902ef5d5b7cacea5398ffec98471b7dfd12862e0e55545db5538a37"
+ },
  "RS_GRAIN_RESTART": {
   "frames": 512000,
   "peak": 1137458176,

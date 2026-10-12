@@ -52,7 +52,8 @@ mid-render; it has no dry twin. RS_GRAIN_RESTART runs the grain on a kit whose h
 decay and release its ring, on an audio track whose depth goes to its minimum and back (which releases the ring and
 takes a new one), and on a synth whose one note stops long enough for the sound to skip rendering; the clip's loop at
 8 s, and the depth's return, start each again on a new ring, whose grains read slots not yet written since it was
-taken; those read 0.
+taken; those read 0. RS_GRAIN_OWNERS runs the grain on a synth holding its note, a kit and the master, for its gate to
+switch the synth's type away from the grain and back and to clear each owner's grain mid-render; it has no dry twin.
 """
 
 import math
@@ -853,6 +854,7 @@ GRAIN_MONO_VOLUME = 'volume="0xE0000000"'
 GRAIN_STEREO_VOLUME = 'volume="0xE0000000"'
 GRAIN_SWITCH_VOLUME = 'volume="0xE0000000"'
 GRAIN_RESTART_VOLUME = 'volume="0xE0000000"'
+GRAIN_OWNERS_VOLUME = 'volume="0xE0000000"'
 
 
 # The granular mod FX on a host owner: _mod_fx's knobs, which for the grain are its rate, mix (the depth), density (the
@@ -883,6 +885,23 @@ def grain_synth_parts() -> tuple[str, str]:
             name="RSG", file="SAMPLES/RS/B.WAV", frames=RATE * SAMPLE_SECONDS
         ),
         GRAIN_CLIP.format(name="RSG", ticks=CLIP_TICKS, note=67),
+    )
+
+
+# grain_synth_parts' synth holding its note for the whole clip, so its sound renders throughout.
+GRAIN_HELD_CLIP = CLIP.replace(
+    'modFXOffset="0x00000000" modFXFeedback="0x00000000"',
+    'modFXOffset="0x20000000" modFXFeedback="0x7FFFFFFF"',
+)
+
+
+def grain_synth_held_parts() -> tuple[str, str]:
+    """A synth with the granular mod FX holding one note: its instrument and its clip."""
+    return (
+        GRAIN_SOUND.format(
+            name="RSG", file="SAMPLES/RS/B.WAV", frames=RATE * SAMPLE_SECONDS
+        ),
+        GRAIN_HELD_CLIP.format(name="RSG", ticks=CLIP_TICKS, note=67),
     )
 
 
@@ -1041,6 +1060,14 @@ SONGS = {
                 _mod_fx("chorus", f'modFXFeedback="0x7FFFFFFF" {GRAIN_SWITCH_VOLUME}')
             )
         ],
+    ),
+    "RS_GRAIN_OWNERS": lambda v: parts_song(
+        v,
+        [
+            kit_parts(_grain(GRAIN_OWNERS_VOLUME), PINGPONG_DRUMS),
+            grain_synth_held_parts(),
+        ],
+        song_settings=master_settings(_grain(GRAIN_OWNERS_VOLUME)),
     ),
     "RS_GRAIN_RESTART": lambda v: parts_song(
         v,

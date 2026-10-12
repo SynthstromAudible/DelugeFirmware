@@ -1310,7 +1310,7 @@ level = "integration"
 runner = "scenario"
 kind = "property"
 status = "gate"
-gates = "a mod FX's memory cleared while it plays renders as recorded, both with a delay line and without one: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_MODFX_CLEAR) whose audio track's flanger has its memory cleared at block 1000 (RENDER_MODFX_CLEAR: effects::ModFx::clearMemory, as ModControllableAudio::clearModFXMemory does for a comb type when a sound cuts its tail), which zeroes its delay line, then is switched to the phaser at block 1400 (RENDER_MODFX_SWITCH), which frees the delay line, and cleared again at block 1800, which zeroes the phaser's allpass memory; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; the scenario's RS-MODFX-SWITCH summary must show the switch applied, leaving the track holding no ring, and its RS-MODFX-CLEAR summary both clears applied, one zeroing a ring and one the phaser's memories; the same song rendered without its clears and switch must render differently (RS-SWITCH), so they reach the render"
+gates = "a mod FX's memory cleared while it plays renders as recorded, both with a delay line and without one: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_MODFX_CLEAR) whose audio track's flanger has its memory cleared at block 1000 (RENDER_MODFX_CLEAR: ModControllableAudio::clearModFXMemory, as a sound cutting its tail calls it, which for a comb type is effects::ModFx::clearMemory), which zeroes its delay line, then is switched to the phaser at block 1400 (RENDER_MODFX_SWITCH), which frees the delay line, and cleared again at block 1800, which zeroes the phaser's allpass memory; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; the scenario's RS-MODFX-SWITCH summary must show the switch applied, leaving the track holding no ring, and its RS-MODFX-CLEAR summary both clears applied, one zeroing a ring and one the phaser's memories; the same song rendered without its clears and switch must render differently (RS-SWITCH), so they reach the render"
 scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-MODFX-CLEAR", "RS-CAPTURE"]
 result = "RS-RESULT failures=0"
@@ -1364,7 +1364,7 @@ level = "integration"
 runner = "scenario"
 kind = "property"
 status = "gate"
-gates = "the granular mod FX switched on and off by its type, and its memory cleared, while it plays renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_GRAIN_SWITCH) whose audio track's chorus is switched to the grain at block 600 (RENDER_MODFX_SWITCH, the Edit the mod FX type menu makes), so the chain makes its granular processor on the next sounding block; the grain is cleared at block 1300 (RENDER_MODFX_CLEAR: GranularProcessor::clearGrainFXBuffer, as ModControllableAudio::clearModFXMemory does for the grain), which stops its grains and starts its ring and its first pass over, and switched back to the chorus at block 1800, which releases its ring; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; the scenario's RS-MODFX-SWITCH summary must show both switches applied, the grain holding no mod FX ring and the chorus one, and its RS-MODFX-CLEAR summary the one clear applied to a grain; the same song rendered without its switches and clear must render differently (RS-SWITCH), so they reach the render"
+gates = "the granular mod FX switched on and off by its type, and its memory cleared, while it plays renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_GRAIN_SWITCH) whose audio track's chorus is switched to the grain at block 600 (RENDER_MODFX_SWITCH, the Edit the mod FX type menu makes), so the chain makes its granular processor on the next sounding block; the grain is cleared at block 1300 (RENDER_MODFX_CLEAR: ModControllableAudio::clearModFXMemory, which for the grain is GranularProcessor::clearGrainFXBuffer), which stops its grains and starts its ring and its first pass over, and switched back to the chorus at block 1800, which releases its ring; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; the scenario's RS-MODFX-SWITCH summary must show both switches applied, the grain holding no mod FX ring and the chorus one, and its RS-MODFX-CLEAR summary the one clear applied to a grain; the same song rendered without its switches and clear must render differently (RS-SWITCH), so they reach the render"
 scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-MODFX-CLEAR", "RS-CAPTURE"]
 result = "RS-RESULT failures=0"
@@ -1392,6 +1392,24 @@ requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_RESTART", RENDER_BLOCKS = "4000" }
 tier = "pr"
 runtime = "~25s"
+
+[[harness]]
+name = "render-grain-owners"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the granular mod FX switched by a synth's own type setter, and cleared through each owner's own clear, while it plays renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_GRAIN_OWNERS) whose synth holds a note through the grain, beside a kit and the song's master each running the grain; the synth's type is switched to the chorus at block 500 (RENDER_MODFX_SWITCH, the Edit the mod FX type menu makes, reaching Sound::setModFXType, which stops the grain and releases its ring) and back to the grain at block 1200 (which clears the processor it already holds, as enableGrain does), and the synth's, the kit's and the master's grains are cleared at blocks 1700, 1800 and 1900 (RENDER_MODFX_CLEAR: ModControllableAudio::clearModFXMemory, as a sound cutting its tail calls it); beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; the scenario's RS-MODFX-SWITCH summary must show both switches applied, the chorus holding a ring and the grain none, and its RS-MODFX-CLEAR summary the three clears applied to grains; the same song rendered without its switches and clears must render differently (RS-SWITCH), so they reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-MODFX-CLEAR", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_GRAIN_OWNERS", RENDER_MODFX_SWITCH = "500:chorus:RSG,1200:grainFX:RSG", RENDER_MODFX_CLEAR = "1700:RSG,1800:RSK,1900:master" }
+tier = "pr"
+runtime = "~20s"
 
 [[harness]]
 name = "render-song-corpus"

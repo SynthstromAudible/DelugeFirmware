@@ -87,6 +87,11 @@ class ModFxHooksTest(unittest.TestCase):
         line = "RS-MODFX-SWITCH applied=2 asked=2 types=chorus,phaser ring=1 noring=1"
         self.assertEqual(_failures(SWITCH, line), [])
 
+    def test_switches_naming_their_owner_pass(self):
+        env = {"RENDER_MODFX_SWITCH": "500:chorus:RSG,1200:grainFX:RSG"}
+        line = "RS-MODFX-SWITCH applied=2 asked=2 types=chorus,grainFX ring=1 noring=1"
+        self.assertEqual(_failures(env, line), [])
+
     def test_a_switch_hook_that_never_ran_fails(self):
         self.assertEqual(len(_failures(SWITCH)), 1)
 

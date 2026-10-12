@@ -18,7 +18,6 @@
 #include "scenarios/render_song_scenario.h"
 
 #include "definitions_cxx.hpp"
-#include "dsp/granular/GranularProcessor.h"
 #include "engines/effects/words.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_song_ui.h"
@@ -145,12 +144,33 @@ void switchDelays(uint64_t block) {
 	}
 }
 
-/// RENDER_MODFX_SWITCH: `<block>:<type>,...`, ascending, each type as a file writes it (`chorus`, `TapeWarble`); empty
-/// by default. At each block, counted from playback's start, every audio track's mod FX type is set to that type by the
-/// Edit the mod FX type menu makes, so the same mod FX switches type while it plays.
+/// The mod FX owners a hook entry names: @p name empty for every audio track, `master` for the song's master chain,
+/// and otherwise every output of that name (a synth's sound, a kit's chain, an audio track's chain).
+template <typename Visit>
+void forEachModFxOwner(const std::string& name, Visit visit) {
+	if (name == "master") {
+		visit(static_cast<ModControllableAudio&>(currentSong->live.global_effectable), name);
+		return;
+	}
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
+		if (name.empty() ? output->type != OutputType::AUDIO : output->name != name) {
+			continue;
+		}
+		auto* owner = static_cast<ModControllableAudio*>(output->toModControllable());
+		if (owner != nullptr) {
+			visit(*owner, output->name);
+		}
+	}
+}
+
+/// RENDER_MODFX_SWITCH: `<block>:<type>[:<owner>],...`, ascending, each type as a file writes it (`chorus`,
+/// `TapeWarble`); empty by default. At each block, counted from playback's start, the mod FX type of every audio track
+/// (or of the owner named, see forEachModFxOwner) is set to that type by the Edit the mod FX type menu makes, which
+/// reaches the owner's setModFXType, so the same mod FX switches type while it plays.
 struct ModFxSwitch {
 	uint64_t block;
 	std::string type;
+	std::string owner;
 };
 std::vector<ModFxSwitch> g_modFxSwitchAt;
 std::size_t g_modFxSwitchesDone = 0;
@@ -172,86 +192,82 @@ void readModFxSwitches() {
 		}
 		const char* type = end + 1;
 		const char* comma = std::strchr(type, ',');
-		g_modFxSwitchAt.push_back({block, comma != nullptr ? std::string(type, comma) : std::string(type)});
+		const std::string item = comma != nullptr ? std::string(type, comma) : std::string(type);
+		const std::size_t colon = item.find(':');
+		g_modFxSwitchAt.push_back(
+		    {block, item.substr(0, colon), colon == std::string::npos ? std::string() : item.substr(colon + 1)});
 		at = comma != nullptr ? comma + 1 : nullptr;
 	}
 }
 
-/// Set every audio track's mod FX type to @p type, as the mod FX type menu does, at render block @p block.
-void switchModFx(uint64_t block, const std::string& type) {
-	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
-		if (output->type != OutputType::AUDIO) {
-			continue;
-		}
-		auto* owner = static_cast<ModControllableAudio*>(output->toModControllable());
-		if (owner == nullptr) {
-			continue;
-		}
-		deluge::edits::changeEffect(*owner, "modFXType", deluge::serialization::Value::makeScalar(type));
+/// Set the mod FX type of the owners @p switched names to its type, as the mod FX type menu does, at render block
+/// @p block.
+void switchModFx(uint64_t block, const ModFxSwitch& switched) {
+	forEachModFxOwner(switched.owner, [&](ModControllableAudio& owner, const std::string& name) {
+		deluge::edits::changeEffect(owner, "modFXType", deluge::serialization::Value::makeScalar(switched.type));
 		g_tracksModFxSwitched++;
-		const std::string now(deluge::effects::to_string(owner->effects().mod_fx.type));
-		const bool ring = owner->modfx.holdsRing();
+		const std::string now(deluge::effects::to_string(owner.effects().mod_fx.type));
+		const bool ring = owner.modfx.holdsRing();
 		g_modFxSwitchedTypes += (g_modFxSwitchedTypes.empty() ? "" : ",") + now;
 		(ring ? g_modFxSwitchedRing : g_modFxSwitchedNoRing)++;
-		printf("RS-MODFX-SWITCH block=%llu type=%s ring=%d\n", static_cast<unsigned long long>(block), now.c_str(),
-		       ring ? 1 : 0);
-	}
+		printf("RS-MODFX-SWITCH block=%llu type=%s ring=%d owner=%s\n", static_cast<unsigned long long>(block),
+		       now.c_str(), ring ? 1 : 0, name.c_str());
+	});
 }
 
-/// RENDER_MODFX_CLEAR: the blocks, counted from playback's start, at which every audio track's mod FX memory is
-/// cleared, ascending and comma-separated; empty by default. Each clear is what ModControllableAudio::clearModFXMemory,
-/// which a sound's cut tail calls, does for the track's type: for a comb type the mod FX component's clearMemory, which
-/// zeroes the ring when one is held and the phaser's memories otherwise; for the grain the granular processor's
-/// clearGrainFXBuffer, which stops its grains and starts its ring over. A grain track whose processor has not yet been
-/// made (the render makes it on its first sounding block) is not cleared.
-std::vector<uint64_t> g_modFxClearAt;
+/// RENDER_MODFX_CLEAR: `<block>[:<owner>],...`, ascending; empty by default. At each block, counted from playback's
+/// start, the mod FX memory of every audio track (or of the owner named, see forEachModFxOwner) is cleared by
+/// ModControllableAudio::clearModFXMemory, which a sound's cut tail calls: for a comb type the mod FX component's
+/// clearMemory, which zeroes the ring when one is held and the phaser's memories otherwise; for the grain the granular
+/// processor's clearGrainFXBuffer, which stops its grains and starts its ring over. An owner whose type is none is not
+/// cleared, nor is a chain's grain whose processor the render has not yet made (on its first sounding block).
+struct ModFxClear {
+	uint64_t block;
+	std::string owner;
+};
+std::vector<ModFxClear> g_modFxClearAt;
 std::size_t g_modFxClearsDone = 0;
 int32_t g_tracksModFxCleared = 0;
 /// Comb track clears that zeroed a ring, and those of a track holding none, which zero the phaser's memories.
 int32_t g_modFxClearedRing = 0;
 int32_t g_modFxClearedNoRing = 0;
-/// Grain track clears.
+/// Grain clears.
 int32_t g_modFxClearedGrain = 0;
 
 void readModFxClears() {
 	g_modFxClearAt.clear();
 	const char* list = std::getenv("RENDER_MODFX_CLEAR");
 	for (const char* at = list; at != nullptr && *at != '\0';) {
-		char* end = nullptr;
-		g_modFxClearAt.push_back(std::strtoull(at, &end, 10));
-		at = (end != nullptr && *end == ',') ? end + 1 : nullptr;
+		const char* comma = std::strchr(at, ',');
+		const std::string item = comma != nullptr ? std::string(at, comma) : std::string(at);
+		const std::size_t colon = item.find(':');
+		g_modFxClearAt.push_back({std::strtoull(item.c_str(), nullptr, 10),
+		                          colon == std::string::npos ? std::string() : item.substr(colon + 1)});
+		at = comma != nullptr ? comma + 1 : nullptr;
 	}
 }
 
-/// Clear every audio track's mod FX memory at render block @p block.
-void clearModFx(uint64_t block) {
-	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
-		if (output->type != OutputType::AUDIO) {
-			continue;
+/// Clear the mod FX memory of the owners @p cleared names at render block @p block.
+void clearModFx(uint64_t block, const ModFxClear& cleared) {
+	forEachModFxOwner(cleared.owner, [&](ModControllableAudio& owner, const std::string& name) {
+		const ModFXType type = owner.effects().mod_fx.type;
+		if (type == ModFXType::NONE || (type == ModFXType::GRAIN && owner.grainFX == nullptr)) {
+			return;
 		}
-		auto* owner = static_cast<ModControllableAudio*>(output->toModControllable());
-		const ModFXType type = owner != nullptr ? owner->effects().mod_fx.type : ModFXType::NONE;
-		if (type == ModFXType::NONE) {
-			continue;
-		}
-		if (type == ModFXType::GRAIN) {
-			if (owner->grainFX == nullptr) {
-				continue;
-			}
-			owner->grainFX->clearGrainFXBuffer();
-			g_tracksModFxCleared++;
-			g_modFxClearedGrain++;
-			printf("RS-MODFX-CLEAR block=%llu type=%s grain=1\n", static_cast<unsigned long long>(block),
-			       std::string(deluge::effects::to_string(type)).c_str());
-			continue;
-		}
-		const bool ring = owner->modfx.holdsRing();
-		owner->modfx.clearMemory();
+		const bool ring = owner.modfx.holdsRing();
+		owner.clearModFXMemory();
 		g_tracksModFxCleared++;
+		const std::string word(deluge::effects::to_string(type));
+		if (type == ModFXType::GRAIN) {
+			g_modFxClearedGrain++;
+			printf("RS-MODFX-CLEAR block=%llu type=%s grain=1 owner=%s\n", static_cast<unsigned long long>(block),
+			       word.c_str(), name.c_str());
+			return;
+		}
 		(ring ? g_modFxClearedRing : g_modFxClearedNoRing)++;
-		printf("RS-MODFX-CLEAR block=%llu type=%s ring=%d\n", static_cast<unsigned long long>(block),
-		       std::string(deluge::effects::to_string(owner->effects().mod_fx.type)).c_str(), ring ? 1 : 0);
-	}
+		printf("RS-MODFX-CLEAR block=%llu type=%s ring=%d owner=%s\n", static_cast<unsigned long long>(block),
+		       word.c_str(), ring ? 1 : 0, name.c_str());
+	});
 }
 
 uint64_t g_renderBase = 0;
@@ -401,11 +417,11 @@ void stepPlaying() {
 	}
 	while (g_modFxSwitchesDone < g_modFxSwitchAt.size()
 	       && g_blocksRendered >= g_modFxSwitchAt[g_modFxSwitchesDone].block) {
-		switchModFx(g_blocksRendered, g_modFxSwitchAt[g_modFxSwitchesDone].type);
+		switchModFx(g_blocksRendered, g_modFxSwitchAt[g_modFxSwitchesDone]);
 		g_modFxSwitchesDone++;
 	}
-	while (g_modFxClearsDone < g_modFxClearAt.size() && g_blocksRendered >= g_modFxClearAt[g_modFxClearsDone]) {
-		clearModFx(g_blocksRendered);
+	while (g_modFxClearsDone < g_modFxClearAt.size() && g_blocksRendered >= g_modFxClearAt[g_modFxClearsDone].block) {
+		clearModFx(g_blocksRendered, g_modFxClearAt[g_modFxClearsDone]);
 		g_modFxClearsDone++;
 	}
 	const bool burst = g_model.burstBlocks != 0 && g_blocksRendered >= g_model.burstStart

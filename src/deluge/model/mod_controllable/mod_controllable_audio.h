@@ -107,6 +107,9 @@ public:
 	/// This owner as a sound, or nullptr for a kit, an audio track or the song master.
 	[[nodiscard]] virtual ::Sound* asSound() { return nullptr; }
 	virtual bool setModFXType(ModFXType newType);
+	/// Clear the mod FX's memory, as a sound cutting its tail does: a comb type's delay line or phaser memories, or the
+	/// grain's buffer. The type must not be grain unless the grain's processor exists.
+	void clearModFXMemory();
 	// One effect setting each, through setEffects.
 	void setClippingAmount(uint8_t value);
 	void setLpfMode(FilterMode value);
@@ -184,7 +187,6 @@ protected:
 	void switchDelaySyncLevel();
 	void switchLPFMode();
 	void switchHPFMode();
-	void clearModFXMemory();
 
 	/// What kind of unpatched parameters this ModControllable uses.
 	///
