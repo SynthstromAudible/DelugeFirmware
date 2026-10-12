@@ -25,8 +25,9 @@ adds what depends on the song, and why each check is here:
     RS-DELAY-OFF      no block in which a delay that is OFF had feedback enough to sound with sound coming in: a song
                       whose file saves no delay type has its delays set OFF only where no param of theirs could
                       lift the feedback, so a delay that renders silent here is one that rendered before.
-    RS-DELAY-ARENA    no tape the render could not take from the delay arena: its margin, topped up by its job, is
-                      there for every delay that starts or resizes, so a delay starts on the block it did before.
+    RS-DELAY-ARENA    no tape the render could not take from the delay arena: a delay that finds it short passes the
+                      audio through until the arena's job tops it up, so on these songs every delay starts on the
+                      block it asks to.
     RS-SWITCH         a gate that switches delays or mod FX types, or clears mod FX memory, mid-render
                       (RENDER_DELAY_SWITCH, RENDER_MODFX_SWITCH, RENDER_MODFX_CLEAR) only: the same song rendered
                       unswitched must render differently, or the switches never reached the render.

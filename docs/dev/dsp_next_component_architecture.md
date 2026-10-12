@@ -508,21 +508,30 @@ interaction tier lends it: `effects::DelayArena`
   the BSP heap, the app loop) comes through `effects::DelayArenaMemory`.
 - **The margin.** While any owner's delay type is not OFF, the arena holds room
   for two tapes of the largest size (found by a trial) and free bytes for one
-  neutral-rate tape per owner on. A `take` uses the margin and asks for the
-  arena's job; the job, and every owner's projection, lend a region in
-  `prepare` when the margin is short, attach it in `commit` inside an
-  audio-excluded section, and return regions with no tapes in `finish` once
-  what remains holds the margin (all of them when no delay is on).
-- **Keyed to a type after all.** The delay type (`DelayType`: off, digital,
-  analog) decides the margin: an owner is counted while its type is not OFF,
-  and gives its tapes back when set OFF. A file that saves no type has its
-  delays set OFF only where no param could lift the feedback.
-- **The timing is the old one.** A tape is taken and given back at the same
-  blocks the general heap's allocations were made, so the delay is bit-exact.
-  The tapes never read storage they have not written, so recycled storage needs
-  no zeroing (`delay_poisoned_storage_spec`). A tape the arena cannot supply
-  takes the old out-of-memory path, passing the audio through; the render-song
-  gates require none (`RS-DELAY-ARENA shortfalls=0`).
+  neutral-rate tape per owner on. A `take` that leaves the margin short (by the
+  render's own byte count) asks for the arena's job; the job, and every owner's
+  projection, lend a region in `prepare`, attach it in `commit` inside an
+  audio-excluded section, and return what was not needed in `finish`.
+- **Regions stay while their owners stay on.** A delay that starts and rings out
+  again and again keeps its region, so it takes nothing from the general heap
+  (whose allocator evicts sample cache to find 1.5 MB) after the first time.
+  Regions are returned as owners are counted out (set OFF, hibernated or
+  destroyed), once what remains holds the margin, and all of them when no delay
+  is on.
+- **The delay type keys the margin.** An owner is counted while its type
+  (`DelayType`: off, digital, analog) is not OFF, and gives its tapes back when
+  set OFF. A file that saves no type has its delays set OFF only where no param
+  could lift the feedback.
+- **When the arena runs short.** A tape is taken and given back at the blocks
+  the delay asks for it, and the tapes never read storage they have not written,
+  so recycled storage needs no zeroing (`delay_poisoned_storage_spec`). The
+  margin covers what one block can ask for when each owner's tape is at most
+  the neutral size, plus two of the largest. More large tapes starting or
+  resizing in one block (five delays at their slowest rate on one downbeat; the
+  regions hold two largest tapes each) find it short: those delays pass the
+  audio through until the job tops the arena up, a block or so later
+  (`CG-DELAYMARGIN`). The render-song gates require no shortfall
+  (`RS-DELAY-ARENA shortfalls=0`).
 
 ### The control form
 
