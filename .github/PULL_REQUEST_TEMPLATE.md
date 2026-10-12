@@ -2,7 +2,7 @@
 
 ## Summary
 
-<!-- What does this change, and why? Keep the scope focused and link related issues (e.g. "Fixes #123"). -->
+<!-- What does this change, and why? Keep the scope focused and link related issues (e.g. "Fixes #123"). Fixes that close an issue labelled "affects: release/X.Y" are automatically queued for backport; if the bug is in a release but there is no issue to close, add the "backport: release/X.Y" label yourself. -->
 
 ## Type of change
 
