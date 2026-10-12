@@ -33,6 +33,7 @@ if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
     ${CMAKE_CURRENT_LIST_DIR}/bench/filter_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/compressor_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/mod_fx_cases.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bench/granular_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/pmu_a9.cpp
   )
   # The delay, the filters and the compressor ship from deluge_dsp_fixed, so their cases take that library's flags
@@ -125,8 +126,10 @@ if(_dsp_bench_on)
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_COMPRESSOR=1)
     elseif(DELUGE_DSP_BENCH_CASES STREQUAL "mod_fx")
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_MOD_FX=1)
+    elseif(DELUGE_DSP_BENCH_CASES STREQUAL "granular")
+        target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_GRANULAR=1)
     elseif(NOT DELUGE_DSP_BENCH_CASES STREQUAL "kernels")
-        message(FATAL_ERROR "DELUGE_DSP_BENCH_CASES is kernels, lanes, chain, delay, filters, compressor or mod_fx, \
+        message(FATAL_ERROR "DELUGE_DSP_BENCH_CASES is kernels, lanes, chain, delay, filters, compressor, mod_fx or granular, \
 not '${DELUGE_DSP_BENCH_CASES}'")
     endif()
     message(STATUS "DSP bench case list: ${DELUGE_DSP_BENCH_CASES}")

@@ -672,10 +672,27 @@ std::span<const Case> mod_fx_list(CaseSet& s) {
 	return mod_fx;
 }
 
+/// @brief The granular list.
+std::span<const Case> granular_list(CaseSet& s) {
+	static const std::array granular{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("granular_sparse_unison", s.granular_sparse_unison),
+	    make_case("granular_sparse_random", s.granular_sparse_random),
+	    make_case("granular_dense_unison", s.granular_dense_unison),
+	    make_case("granular_dense_random", s.granular_dense_random),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	};
+	return granular;
+}
+
 /// @brief The cases of @p L.
 template <CaseList L>
 std::span<const Case> list_cases(CaseSet& s) {
-	if constexpr (L == CaseList::MOD_FX) {
+	if constexpr (L == CaseList::GRANULAR) {
+		return granular_list(s);
+	}
+	else if constexpr (L == CaseList::MOD_FX) {
 		return mod_fx_list(s);
 	}
 	else if constexpr (L == CaseList::COMPRESSOR) {
@@ -720,6 +737,8 @@ std::span<const Case> cases(CaseList list) {
 		return list_cases<CaseList::COMPRESSOR>(s);
 	case CaseList::MOD_FX:
 		return list_cases<CaseList::MOD_FX>(s);
+	case CaseList::GRANULAR:
+		return list_cases<CaseList::GRANULAR>(s);
 	case CaseList::KERNELS:
 		break;
 	}

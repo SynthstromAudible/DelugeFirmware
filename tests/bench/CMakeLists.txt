@@ -11,6 +11,7 @@ deluge_specs_driver(bench_specs NEON
     ${_src}/bench/filter_cases.cpp
     ${_src}/bench/compressor_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mod_fx_cases_host.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/granular_cases_host.cpp
     ${_src}/dsp-next/fixed/delay/delay_processor.cpp
     ${_src}/dsp-next/fixed/delay/delay_tape.cpp
     ${_src}/dsp-next/fixed/bandlimited/saw.cpp

@@ -1336,6 +1336,69 @@ private:
 	ModFxConfig config_;
 };
 
+/// @brief The granular cases' rate knob, a signed Q31 param value: the middle, which leaves the processor's own
+/// 35 Hz grain rate (1260 frames between grain starts) as it constructs.
+inline constexpr int32_t kGranularRate = 0;
+/// @brief The granular cases' mix knob, signed Q31: the middle, an even blend of dry and wet.
+inline constexpr int32_t kGranularMix = 0;
+/// @brief The sparse cases' density knob, signed Q31: grains of about 3,000 frames (setupGrainFX scales the length by
+/// the knob's 0..1 position, here 1/8), so two or three of the eight grains sound at a time.
+inline constexpr int32_t kGranularDensityLow = -0x60000000;
+/// @brief The dense cases' density knob, signed Q31: grains of about 10,600 frames (position 7/8), so all eight
+/// grains sound nearly all the time.
+inline constexpr int32_t kGranularDensityHigh = 0x60000000;
+/// @brief The unison cases' pitch randomness, signed Q31: none, so every grain is at the original pitch (some play
+/// reversed).
+inline constexpr int32_t kGranularRandomnessNone = 0;
+/// @brief The random cases' pitch randomness, signed Q31: the maximum, so grains draw their pitch from the full
+/// range.
+inline constexpr int32_t kGranularRandomnessMax = 0x7fffffff;
+/// @brief The granular cases' reverb send, Q31: a moderate amount of the wet signal fed to the reverb.
+inline constexpr int32_t kGranularReverbAmount = 0x10000000;
+/// @brief The granular cases' tempo in beats per minute, as the owner hands it to the processor.
+inline constexpr float kGranularTempoBpm = 120.f;
+/// @brief The frames of untimed setup blocks: past half the 65,536-frame ring (33,000), so grains start.
+inline constexpr std::size_t kGranularFillFrames = 33'000;
+
+/// @brief One granular case's configuration.
+struct GranularConfig {
+	int32_t density;    ///< The density knob (signed Q31).
+	int32_t randomness; ///< The pitch randomness knob (signed Q31).
+};
+
+// Each density with each pitch randomness, named for its case.
+inline constexpr GranularConfig kGranularSparseUnison{.density = kGranularDensityLow,
+                                                      .randomness = kGranularRandomnessNone};
+inline constexpr GranularConfig kGranularSparseRandom{.density = kGranularDensityLow,
+                                                      .randomness = kGranularRandomnessMax};
+inline constexpr GranularConfig kGranularDenseUnison{.density = kGranularDensityHigh,
+                                                     .randomness = kGranularRandomnessNone};
+inline constexpr GranularConfig kGranularDenseRandom{.density = kGranularDensityHigh,
+                                                     .randomness = kGranularRandomnessMax};
+
+/// @brief The granular block as its owner renders it: `GranularProcessor::processGrainFX` in place over the lanes
+/// output, with the reverb feed going to the audio engine's buffer.
+/// @details Setup makes the processor anew, then runs untimed blocks until the ring holds more than half its length,
+/// so grains are live and the processor's first-sound buffer allocation is out of the timed region. Each block
+/// processes the lanes input's sounding block in place, as the mod FX cases do.
+class GranularCase {
+public:
+	static constexpr std::size_t kLanes = 2; ///< Left and right.
+
+	/// @brief A case of @p config.
+	constexpr explicit GranularCase(const GranularConfig& config) : config_{config} {}
+
+	/// @brief A fresh processor filled past half its ring, and the block for @p n frames.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for, in place.
+	void block(std::size_t n);
+	/// @return The case's configuration.
+	[[nodiscard]] constexpr const GranularConfig& config() const { return config_; }
+
+private:
+	GranularConfig config_;
+};
+
 /// @brief Every case, by name.
 struct CaseSet {
 	CalibrationLoop calibration_loop;                             ///< `calibration_loop`
@@ -1433,6 +1496,10 @@ struct CaseSet {
 	ModFxCase mod_fx_warble_stereo{kModFxWarbleStereo};               ///< `mod_fx_warble_stereo`
 	ModFxCase mod_fx_warble_mono{kModFxWarbleMono};                   ///< `mod_fx_warble_mono`
 	ModFxCase mod_fx_phaser{kModFxPhaser};                            ///< `mod_fx_phaser`
+	GranularCase granular_sparse_unison{kGranularSparseUnison};       ///< `granular_sparse_unison`
+	GranularCase granular_sparse_random{kGranularSparseRandom};       ///< `granular_sparse_random`
+	GranularCase granular_dense_unison{kGranularDenseUnison};         ///< `granular_dense_unison`
+	GranularCase granular_dense_random{kGranularDenseRandom};         ///< `granular_dense_random`
 };
 
 /// @brief The cases' components, built on first use.
@@ -1456,6 +1523,9 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, each mod FX type as its owners render it through `effects::ModFx`, in stereo and in mono
 	/// (the phaser once), then the feedback chain's two cases from the chain list, as in the delay list.
 	MOD_FX,
+	/// The calibration loop, today's granular processor with sparse and dense grains at no and full pitch randomness,
+	/// then the feedback chain's two cases from the chain list, as in the delay list.
+	GRANULAR,
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -1471,6 +1541,8 @@ inline constexpr CaseList kBenchCaseList = CaseList::FILTERS;
 inline constexpr CaseList kBenchCaseList = CaseList::COMPRESSOR;
 #elif defined(DELUGE_DSP_BENCH_MOD_FX)
 inline constexpr CaseList kBenchCaseList = CaseList::MOD_FX;
+#elif defined(DELUGE_DSP_BENCH_GRANULAR)
+inline constexpr CaseList kBenchCaseList = CaseList::GRANULAR;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif
