@@ -219,8 +219,8 @@ void switchModFx(uint64_t block, const ModFxSwitch& switched) {
 /// start, the mod FX memory of every audio track (or of the owner named, see forEachModFxOwner) is cleared by
 /// ModControllableAudio::clearModFXMemory, which a sound's cut tail calls: for a comb type the mod FX component's
 /// clearMemory, which zeroes the ring when one is held and the phaser's memories otherwise; for the grain the granular
-/// processor's clearGrainFXBuffer, which stops its grains and starts its ring over. An owner whose type is none is not
-/// cleared, nor is a chain's grain whose processor the render has not yet made (on its first sounding block).
+/// component's clear, which stops its grains and starts its ring over. An owner whose type is none is not cleared, nor
+/// is a grain with no State (one whose allocation failed).
 struct ModFxClear {
 	uint64_t block;
 	std::string owner;
@@ -251,7 +251,7 @@ void readModFxClears() {
 void clearModFx(uint64_t block, const ModFxClear& cleared) {
 	forEachModFxOwner(cleared.owner, [&](ModControllableAudio& owner, const std::string& name) {
 		const ModFXType type = owner.effects().mod_fx.type;
-		if (type == ModFXType::NONE || (type == ModFXType::GRAIN && owner.grainFX == nullptr)) {
+		if (type == ModFXType::NONE || (type == ModFXType::GRAIN && owner.granular.state() == nullptr)) {
 			return;
 		}
 		const bool ring = owner.modfx.holdsRing();

@@ -1263,9 +1263,6 @@ startAgain:
 	return timeWithinWindowAtWhichMIDIOrGateOccurs;
 }
 
-void feedReverbBackdoorForGrain(int index, q31_t value) {
-	reverbMemory[index] += value;
-}
 void renderReverb(size_t numSamples) {
 	std::span renderingBuffer{renderingMemory.data(), numSamples};
 	std::span reverbBuffer{reverbMemory.data(), numSamples};

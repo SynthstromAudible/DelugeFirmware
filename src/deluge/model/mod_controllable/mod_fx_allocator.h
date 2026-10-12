@@ -19,6 +19,7 @@
 
 #include "engines/effects/mod_fx.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 
 #include <cstddef>
 
@@ -27,6 +28,13 @@ namespace deluge::model {
 /// @brief The mod FX rings come from the app's heap, for the owners and for the bench alike.
 inline constexpr effects::RingAllocator kModFxRingAllocator{
     .allocate = [](std::size_t bytes) { return delugeAlloc(static_cast<unsigned int>(bytes)); },
+    .release = [](void* block) { delugeDealloc(block); },
+};
+
+/// @brief The granular State and ring come from the non-stealable external SDRAM heap, 16-byte aligned, for the owners
+/// and for the bench alike.
+inline constexpr effects::RingAllocator kGranularAllocator{
+    .allocate = [](std::size_t bytes) { return memory::alloc_external(bytes); },
     .release = [](void* block) { delugeDealloc(block); },
 };
 

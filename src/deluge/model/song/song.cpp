@@ -2570,7 +2570,7 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	// don't bother checking if sound is coming in - its just to save resources and if nothing is being rendered we
 	// don't need to
 	live.global_effectable.processFXForGlobalEffectable(outputBuffer, &volumePostFX, &paramManager, delayWorkingState,
-	                                                    true, reverbSendAmount >> 3);
+	                                                    true, reverbSendAmount >> 3, reverbBuffer);
 
 	live.global_effectable.processReverbSendAndVolume(outputBuffer, reverbBuffer, volumePostFX, postReverbVolume,
 	                                                  reverbSendAmount >> 1);

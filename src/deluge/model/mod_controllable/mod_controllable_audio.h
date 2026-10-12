@@ -18,7 +18,6 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "deluge/dsp/granular/GranularProcessor.h"
 #include "dsp/delay/delay.h"
 #include "dsp/stereo_sample.h"
 #include "hid/button.h"
@@ -35,6 +34,7 @@
 #include "engines/effects/bitcrush.h"
 #include "engines/effects/compressor.h"
 #include "engines/effects/equalizer.h"
+#include "engines/effects/granular.h"
 #include "engines/effects/mod_fx.h"
 #include "engines/effects/send_and_volume.h"
 #include "engines/effects/sidechain.h"
@@ -54,6 +54,9 @@ class Deserializer;
 class ModControllableAudio : public ModControllable {
 public:
 	ModControllableAudio();
+	/// @brief An owner whose entry into GRAIN does @p enterGrain to its granular effect: CLEAR for a sound, KEEP for a
+	/// clip or master chain.
+	explicit ModControllableAudio(deluge::effects::EnterGrain enterGrain);
 	virtual ~ModControllableAudio();
 	virtual void cloneFrom(ModControllableAudio* other);
 
@@ -108,7 +111,7 @@ public:
 	[[nodiscard]] virtual ::Sound* asSound() { return nullptr; }
 	virtual bool setModFXType(ModFXType newType);
 	/// Clear the mod FX's memory, as a sound cutting its tail does: a comb type's delay line or phaser memories, or the
-	/// grain's buffer. The type must not be grain unless the grain's processor exists.
+	/// grain's grains and first pass.
 	void clearModFXMemory();
 	// One effect setting each, through setEffects.
 	void setClippingAmount(uint8_t value);
@@ -165,7 +168,9 @@ public:
 	/// projectModControllableSnapshot().
 	deluge::effects::ModFx modfx;
 	deluge::effects::Compressor compressor;
-	GranularProcessor* grainFX{nullptr};
+	/// The grain: its State is taken on the first entry into GRAIN and its ring while the type is GRAIN, both in
+	/// projectModControllableSnapshot().
+	deluge::effects::Granular granular;
 
 	deluge::effects::Sidechain sidechain; // Song doesn't use this, despite extending this class
 
@@ -178,9 +183,10 @@ private:
 	deluge::effects::EffectStates* boundEffects_{nullptr};
 
 protected:
+	/// @param reverbBuffer The block's reverb send buffer, which the grain adds its feed into from index 0.
 	void processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
 	               const Delay::State& delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
-	               bool anySoundComingIn, q31_t reverbSendAmount);
+	               bool anySoundComingIn, q31_t reverbSendAmount, int32_t* reverbBuffer);
 	void switchDelayPingPong();
 	void switchDelayAnalog();
 	void switchDelaySyncType();
@@ -209,11 +215,6 @@ protected:
 	void displaySidechainAndReverbSettings(bool on);
 	void displayOtherModKnobSettings(uint8_t whichModButton, bool on);
 
-protected:
-	// returns whether it succeeded
-	bool enableGrain();
-	void disableGrain();
-
 private:
 	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
 	                                                       int32_t noteRowIndex);
@@ -221,5 +222,6 @@ private:
 	void switchLPFModeWithOff();
 
 	void processGrainFX(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
-	                    UnpatchedParamSet* unpatchedParams, bool anySoundComingIn, q31_t verbAmount);
+	                    UnpatchedParamSet* unpatchedParams, bool anySoundComingIn, q31_t verbAmount,
+	                    int32_t* reverbBuffer);
 };

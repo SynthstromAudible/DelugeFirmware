@@ -130,7 +130,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	}
 
 	processFXForGlobalEffectable(global_effectable_audio, &volumePostFX, paramManagerForClip, delayWorkingState,
-	                             renderedLastTime, reverbSendAmount);
+	                             renderedLastTime, reverbSendAmount, reverbBuffer);
 	processStutter(global_effectable_audio, paramManagerForClip);
 	// record before pan/compression/volume to keep volumes consistent
 	if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {

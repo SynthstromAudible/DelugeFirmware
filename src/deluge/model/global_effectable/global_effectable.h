@@ -41,8 +41,10 @@ public:
 	void configureFilter(int32_t* postFXVolume, ParamManager* paramManager);
 	/// @brief Filters @p buffer in place, as last configured.
 	void processFilter(std::span<StereoSample> buffer);
+	/// @param reverbBuffer The block's reverb send buffer, which the grain adds its feed into from index 0.
 	void processFXForGlobalEffectable(std::span<StereoSample> buffer, int32_t* postFXVolume, ParamManager* paramManager,
-	                                  const Delay::State& delayWorkingState, bool anySoundComingIn, q31_t verbAmount);
+	                                  const Delay::State& delayWorkingState, bool anySoundComingIn, q31_t verbAmount,
+	                                  int32_t* reverbBuffer);
 
 	void writeAttributesToFile(Serializer& writer, bool writeToFile);
 	void writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeToFile);

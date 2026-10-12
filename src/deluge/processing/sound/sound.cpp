@@ -108,7 +108,9 @@ int32_t Sound::soundsDestroyedWithLiveVoices() {
 	return g_soundsDestroyedWithLiveVoices.load(std::memory_order_relaxed);
 }
 
-Sound::Sound() : patcher(kPatcherConfigForSound, params.sourceValues, params.paramFinalValues) {
+Sound::Sound()
+    : ModControllableAudio(deluge::effects::EnterGrain::CLEAR),
+      patcher(kPatcherConfigForSound, params.sourceValues, params.paramFinalValues) {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
 	// CONTAINMENT for the cross-tier race on voices_. The audio render runs on a
@@ -433,19 +435,10 @@ ModFXType Sound::getModFXType() {
 	return modControllableSnapshot_.effects.mod_fx.type;
 }
 
-/// Sets the mod FX type and starts or stops grain with it. A ring type's ring is taken where the type reaches the
+/// Sets the mod FX type. A ring type's ring, and the grain's State and ring, are taken where the type reaches the
 /// render (projectModControllableSnapshot()); when that allocation fails the type is kept and the audio passes
 /// through until the next effects edit. Always returns true on the mod FX path.
 bool Sound::setModFXType(ModFXType newType) {
-
-	// The mod FX ring follows the type where it reaches the render (projectModControllableSnapshot()).
-	if (newType == ModFXType::GRAIN) {
-		enableGrain();
-	}
-	else {
-		disableGrain();
-	}
-
 	assignModFXType(newType);
 	return true;
 }
@@ -1563,7 +1556,7 @@ doCutModFXTail:
 						waitSamplesModfx = 20 * 44;
 						break;
 					case ModFXType::GRAIN:
-						waitSamplesModfx = grainFX->getSamplesToShutdown();
+						waitSamplesModfx = granular.samplesToShutdown();
 						break;
 					default:
 						waitSamplesModfx = (90 * 441);
@@ -2036,7 +2029,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	processSRRAndBitcrushing(sound_stereo, &postFXVolume, paramManager);
 	processFX(sound_stereo, modControllableSnapshot_.effects.mod_fx.type, modFXRate, modFXDepth, delayWorkingState,
-	          &postFXVolume, paramManager, !voices_.empty(), reverbSendAmount >> 1);
+	          &postFXVolume, paramManager, !voices_.empty(), reverbSendAmount >> 1, reverbBuffer);
 	processStutter(sound_stereo, paramManager);
 
 	processReverbSendAndVolume(sound_stereo, reverbBuffer, postFXVolume, postReverbVolume, reverbSendAmount, 0, true);
@@ -2089,9 +2082,7 @@ void Sound::startSkippingRendering(ModelStackWithSoundFlags* modelStack) {
 	// completely reversible without doing anything
 
 	setSkippingRendering(true);
-	if (grainFX) { // grainFX is null unless GRAIN mod-FX has been used — guard like every other access
-		grainFX->startSkippingRendering();
-	}
+	granular.startSkippingRendering();
 	stopParamLPF(modelStack);
 }
 

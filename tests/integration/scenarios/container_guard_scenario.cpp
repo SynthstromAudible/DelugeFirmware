@@ -254,6 +254,8 @@ const char* kindName(StructuralContainer kind) {
 		return "patchcables";
 	case StructuralContainer::MOD_FX_RING:
 		return "modfxring";
+	case StructuralContainer::GRAIN_BLOCK:
+		return "grainblock";
 	case StructuralContainer::COUNT_:
 		break;
 	}

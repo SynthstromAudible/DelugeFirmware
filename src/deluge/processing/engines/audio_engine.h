@@ -273,7 +273,6 @@ extern AbsValueFollower envelopeFollower;
 /// Set once the BSP's audio tier drives the render (at the end of deluge_app_init). From then on
 /// runRoutine() leaves rendering to the tier, which preempts its caller.
 extern std::atomic<bool> renderDrivenByTier;
-void feedReverbBackdoorForGrain(int index, q31_t value);
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
 bool allowedToStartVoice();

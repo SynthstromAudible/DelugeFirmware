@@ -951,7 +951,7 @@ Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManage
 
 void GlobalEffectable::processFXForGlobalEffectable(std::span<StereoSample> buffer, int32_t* postFXVolume,
                                                     ParamManager* paramManager, const Delay::State& delayWorkingState,
-                                                    bool anySoundComingIn, q31_t verbAmount) {
+                                                    bool anySoundComingIn, q31_t verbAmount, int32_t* reverbBuffer) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	int32_t modFXRate =
@@ -963,19 +963,13 @@ void GlobalEffectable::processFXForGlobalEffectable(std::span<StereoSample> buff
 
 	ModFXType modFXTypeNow = getActiveModFXType(paramManager);
 
-	// The grain is set up and torn down here, in the render, since a knob at its minimum switches it off. The mod FX
-	// ring is held for the type wherever it is set (projectModControllableSnapshot()).
-	if (modFXTypeNow == ModFXType::GRAIN) {
-		if (anySoundComingIn && !grainFX) {
-			enableGrain();
-		}
-	}
-	else {
-		disableGrain();
+	// A knob at its minimum switches the grain off without changing its type: its ring is taken up afresh and kept.
+	if (modFXTypeNow != ModFXType::GRAIN && modControllableSnapshot_.effects.mod_fx.type == ModFXType::GRAIN) {
+		granular.startSkippingRendering();
 	}
 
 	processFX(buffer, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume, paramManager,
-	          anySoundComingIn, verbAmount);
+	          anySoundComingIn, verbAmount, reverbBuffer);
 }
 
 namespace modfx {

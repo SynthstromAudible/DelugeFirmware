@@ -18,7 +18,6 @@
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
-#include "deluge/dsp/granular/GranularProcessor.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "dsp/stereo_sample.h"
 #include "engines/deluge/sound_state.h"
@@ -59,14 +58,11 @@
 
 namespace params = deluge::modulation::params;
 
-ModControllableAudio::ModControllableAudio() : modfx{deluge::model::kModFxRingAllocator} {
+ModControllableAudio::ModControllableAudio() : ModControllableAudio(deluge::effects::EnterGrain::KEEP) {
+}
 
-	// Grain
-
-	// Filters
-
-	// Sample rate reduction
-
+ModControllableAudio::ModControllableAudio(deluge::effects::EnterGrain enterGrain)
+    : modfx{deluge::model::kModFxRingAllocator}, granular{deluge::model::kGranularAllocator, enterGrain} {
 	SyncLevel syncLevel;
 	Song* song = preLoadedSong;
 	if (!song) {
@@ -87,7 +83,6 @@ ModControllableAudio::ModControllableAudio() : modfx{deluge::model::kModFxRingAl
 
 ModControllableAudio::~ModControllableAudio() {
 	// delay.discardBuffers(); // No! The DelayBuffers will themselves destruct and do this
-	delete grainFX;
 }
 
 void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
@@ -173,14 +168,15 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 
 void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate,
                                      int32_t modFXDepth, const Delay::State& delayWorkingState, int32_t* postFXVolume,
-                                     ParamManager* paramManager, bool anySoundComingIn, q31_t reverbSendAmount) {
+                                     ParamManager* paramManager, bool anySoundComingIn, q31_t reverbSendAmount,
+                                     int32_t* reverbBuffer) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	// Mod FX -----------------------------------------------------------------------------------
 	if (modFXType == ModFXType::GRAIN) {
-		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, anySoundComingIn,
-		               reverbSendAmount);
+		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, anySoundComingIn, reverbSendAmount,
+		               reverbBuffer);
 	}
 	else {
 		const deluge::effects::ModFxInputs in{
@@ -206,19 +202,16 @@ void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType m
 }
 void ModControllableAudio::processGrainFX(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth,
                                           int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-                                          bool anySoundComingIn, q31_t verbAmount) {
-	// this shouldn't be possible but just in case
-	if (anySoundComingIn && !grainFX) [[unlikely]] {
-		enableGrain();
-	}
-
-	if (grainFX) {
-		int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(*postFXVolume, verbAmount) << 5;
-		grainFX->processGrainFX(buffer, modFXRate, modFXDepth,
-		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET),
-		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK), postFXVolume,
-		                        anySoundComingIn, currentSong->calculateBPM(), reverbSendAmountAndPostFXVolume);
-	}
+                                          bool anySoundComingIn, q31_t verbAmount, int32_t* reverbBuffer) {
+	const deluge::effects::GranularInputs in{
+	    .rate = modFXRate,
+	    .mix = modFXDepth,
+	    .density = unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET),
+	    .randomness = unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK),
+	    .send_amount = multiply_32x32_rshift32(*postFXVolume, verbAmount) << 5,
+	    .sound = anySoundComingIn,
+	};
+	granular.render(buffer, in, *postFXVolume, {reverbBuffer, buffer.size()});
 }
 
 void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* reverbBuffer,
@@ -281,13 +274,18 @@ void ModControllableAudio::bindEffects(deluge::effects::EffectStates* record) {
 }
 
 void ModControllableAudio::projectModControllableSnapshot() {
-	deluge::effects::RingChange ring = modfx.prepare(effects().mod_fx.type);
+	const ModFXType type = effects().mod_fx.type;
+	deluge::effects::RingChange ring = modfx.prepare(type);
+	deluge::effects::GranularBlockChange grain = granular.prepare(type);
 	{
-		AudioExcludedSection section; // the render reads the copy and the ring
+		AudioExcludedSection section; // the render reads the copy, the ring and the grain's blocks
 		modControllableSnapshot_.effects = effects();
 		modfx.commit(modControllableSnapshot_.effects.mod_fx.type, ring);
 		deluge::noteStructuralEdit(deluge::StructuralContainer::MOD_FX_RING);
+		granular.commit(modControllableSnapshot_.effects.mod_fx.type, grain);
+		deluge::noteStructuralEdit(deluge::StructuralContainer::GRAIN_BLOCK);
 	}
+	granular.finish(grain);
 	modfx.finish(ring);
 }
 
@@ -1084,7 +1082,7 @@ void ModControllableAudio::wontBeRenderedForAWhile() {
 
 void ModControllableAudio::clearModFXMemory() {
 	if (modControllableSnapshot_.effects.mod_fx.type == ModFXType::GRAIN) {
-		grainFX->clearGrainFXBuffer();
+		granular.clear();
 	}
 	else if (modControllableSnapshot_.effects.mod_fx.type != ModFXType::NONE) {
 		modfx.clearMemory();
@@ -1282,32 +1280,5 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 	}
 	else {
 		display->cancelPopup();
-	}
-}
-bool ModControllableAudio::enableGrain() {
-
-	if (grainFX == nullptr) {
-		// Plain SDRAM allocation via the typed-allocator surface (NOT allocStealable,
-		// and not GeneralMemoryAllocator::get()): GranularProcessor is not a Stealable
-		// (only its GrainBuffer member is), so marking its block stealable was a latent
-		// hazard — the neighbour-grab could cast it to Stealable* and call steal() on a
-		// non-Stealable. (Strangle taxonomy cleanup, step 1; clean-API call site.)
-		void* grainMemory = deluge::memory::alloc_external(sizeof(GranularProcessor), alignof(GranularProcessor));
-		if (grainMemory) {
-			grainFX = new (grainMemory) GranularProcessor;
-			return true;
-		}
-	}
-	else {
-		grainFX->clearGrainFXBuffer();
-		return false;
-	}
-	return false;
-}
-void ModControllableAudio::disableGrain() {
-	// grainFX is lazily allocated (null until GRAIN mod-FX is first used), but this is called whenever
-	// mod-FX is *not* grain — so null is the common case. Guard it like every other grainFX access.
-	if (grainFX) {
-		grainFX->startSkippingRendering();
 	}
 }

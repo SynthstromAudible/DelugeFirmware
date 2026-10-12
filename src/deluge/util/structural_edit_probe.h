@@ -24,6 +24,7 @@ enum class StructuralContainer : uint8_t {
 	ALLOC_METADATA,     ///< MEM_GUARD's side table of live allocations (memory/alloc_metadata.cpp)
 	PATCH_CABLES,       ///< a patch cable set's cables (PatchCableSet::patchCables)
 	MOD_FX_RING,        ///< an owner's mod FX ring hand-over (ModControllableAudio::projectModControllableSnapshot)
+	GRAIN_BLOCK,        ///< an owner's granular State and ring hand-over (the same projection)
 	COUNT_,
 };
 

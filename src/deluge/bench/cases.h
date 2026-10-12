@@ -1338,10 +1338,10 @@ private:
 
 /// @brief The granular cases' rate knob, a signed Q31 param value: 0x10000 maps (setupGrainFX's log curve) to about
 /// 71 grain starts per second at 44.1 kHz, one every 1,242 frames, a mid setting of the knob's range. It differs from
-/// the processor's initial knob position (0), so the first call applies it.
+/// the kernel's initial knob position (0), so the first call applies it.
 inline constexpr int32_t kGranularRate = 0x10000;
 /// @brief The granular cases' mix knob, signed Q31: 0x40000000 gives the cubic mix curve a wet volume of 0.875
-/// (0x70000000) and a full dry volume. It differs from the processor's initial knob position (0), so the first call
+/// (0x70000000) and a full dry volume. It differs from the kernel's initial knob position (0), so the first call
 /// applies it; at 0 the wet volume would stay at the constructor's silence.
 inline constexpr int32_t kGranularMix = 0x40000000;
 /// @brief The sparse cases' density knob, signed Q31: grains of about 3,000 frames (setupGrainFX scales the length by
@@ -1356,12 +1356,10 @@ inline constexpr int32_t kGranularRandomnessNone = 0;
 /// @brief The random cases' pitch randomness, signed Q31: the maximum, so grains draw their pitch from the full
 /// range.
 inline constexpr int32_t kGranularRandomnessMax = 0x7fffffff;
-/// @brief The granular cases' reverb send knob, Q31: a moderate amount. Each block turns it into the processor's
+/// @brief The granular cases' reverb send knob, Q31: a moderate amount. Each block turns it into the component's
 /// argument with the post-effect volume, as ModControllableAudio::processGrainFX does.
 inline constexpr int32_t kGranularVerbAmount = 0x10000000;
-/// @brief The granular cases' tempo in beats per minute, as the owner hands it to the processor.
-inline constexpr float kGranularTempoBpm = 120.f;
-/// @brief The frames of untimed setup blocks: more than one full 65,536-frame ring. The processor wraps its write index
+/// @brief The frames of untimed setup blocks: more than one full 65,536-frame ring. The kernel wraps its write index
 /// lazily, inside the per-sample step, and sets its initialised state only when a call starts with the index exactly at
 /// 65,536; that happens when the block length divides 65,536 (the bench's 32, 64 and 128 do). From then on grains draw
 /// random pitches and start points, the steady state, and the ring is more than half full, so grains start.
@@ -1383,11 +1381,11 @@ inline constexpr GranularConfig kGranularDenseUnison{.density = kGranularDensity
 inline constexpr GranularConfig kGranularDenseRandom{.density = kGranularDensityHigh,
                                                      .randomness = kGranularRandomnessMax};
 
-/// @brief The granular block as its owner renders it: `GranularProcessor::processGrainFX` in place over the lanes
-/// output, with the reverb feed going to the audio engine's buffer.
-/// @details Setup makes the processor anew and reseeds the noise generator, then runs untimed blocks past one full
-/// ring, so grains are live and initialised and the processor's first-sound buffer allocation is out of the timed
-/// region. Each block processes the lanes input's sounding block in place, as the mod FX cases do.
+/// @brief The granular block as its owner renders it: `effects::Granular::render` in place over the lanes output, with
+/// the reverb feed going to the rig's send buffer.
+/// @details Setup makes the component anew, takes its State and ring, and reseeds the noise generator, then runs
+/// untimed blocks past one full ring, so grains are live and initialised before the timed region. Each block processes
+/// the lanes input's sounding block in place, as the mod FX cases do.
 class GranularCase {
 public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
@@ -1395,7 +1393,7 @@ public:
 	/// @brief A case of @p config.
 	constexpr explicit GranularCase(const GranularConfig& config) : config_{config} {}
 
-	/// @brief A fresh processor run past one full ring, and the block for @p n frames.
+	/// @brief A fresh component run past one full ring, and the block for @p n frames.
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for, in place.
 	void block(std::size_t n);
@@ -1530,7 +1528,8 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, each mod FX type as its owners render it through `effects::ModFx`, in stereo and in mono
 	/// (the phaser once), then the feedback chain's two cases from the chain list, as in the delay list.
 	MOD_FX,
-	/// The calibration loop, today's granular processor with sparse and dense grains at no and full pitch randomness,
+	/// The calibration loop, the granular effect as its owners render it through `effects::Granular`, with sparse and
+	/// dense grains at no and full pitch randomness,
 	/// then the feedback chain's two cases from the chain list, as in the delay list.
 	GRANULAR,
 };
