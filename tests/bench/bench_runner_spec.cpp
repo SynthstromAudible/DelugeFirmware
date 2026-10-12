@@ -381,6 +381,12 @@ const std::vector<std::string_view> kModFxCaseNames{
     "delay_feedback_chain_digital",
 };
 
+/// The stutter list's names, in order.
+const std::vector<std::string_view> kStutterCaseNames{
+    "calibration_loop",       "stutter_record_native",       "stutter_record_resampled",     "stutter_play_native",
+    "stutter_play_resampled", "delay_feedback_chain_analog", "delay_feedback_chain_digital",
+};
+
 /// The granular list's names, in order.
 const std::vector<std::string_view> kGranularCaseNames{
     "calibration_loop",      "granular_sparse_unison",      "granular_sparse_random",       "granular_dense_unison",
@@ -935,7 +941,8 @@ describe bench_runner("The DSP benchmark runner", ${
 			                                     std::pair{CaseList::FILTERS, kFilterCaseNames},
 			                                     std::pair{CaseList::COMPRESSOR, kCompressorCaseNames},
 			                                     std::pair{CaseList::MOD_FX, kModFxCaseNames},
-			                                     std::pair{CaseList::GRANULAR, kGranularCaseNames}}) {
+			                                     std::pair{CaseList::GRANULAR, kGranularCaseNames},
+		                                     std::pair{CaseList::STUTTER, kStutterCaseNames}}) {
 				std::vector<std::string_view> names;
 				for (const Case& c : cases(list)) {
 					names.push_back(c.name);
@@ -973,6 +980,9 @@ describe bench_runner("The DSP benchmark runner", ${
 			for (const Case& c : cases(CaseList::GRANULAR)) {
 				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
 			}
+			for (const Case& c : cases(CaseList::STUTTER)) {
+				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
+			}
 			for (const Case& c : cases(CaseList::KERNELS)) {
 				expect(c.lanes).to_equal(c.name == "stereo_gain" ? std::size_t{2} : std::size_t{1});
 			}
@@ -986,7 +996,8 @@ describe bench_runner("The DSP benchmark runner", ${
 			                                  std::pair{CaseList::FILTERS, kFilterCaseNames},
 			                                  std::pair{CaseList::COMPRESSOR, kCompressorCaseNames},
 			                                  std::pair{CaseList::MOD_FX, kModFxCaseNames},
-			                                  std::pair{CaseList::GRANULAR, kGranularCaseNames}}) {
+			                                  std::pair{CaseList::GRANULAR, kGranularCaseNames},
+		                                     std::pair{CaseList::STUTTER, kStutterCaseNames}}) {
 				lines.clear();
 				counters.reset();
 				const RunConfig config{.block_sizes = kBlockSizes};

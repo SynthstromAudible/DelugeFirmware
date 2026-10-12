@@ -686,10 +686,27 @@ std::span<const Case> granular_list(CaseSet& s) {
 	return granular;
 }
 
+/// @brief The stutter list.
+std::span<const Case> stutter_list(CaseSet& s) {
+	static const std::array stutter{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("stutter_record_native", s.stutter_record_native),
+	    make_case("stutter_record_resampled", s.stutter_record_resampled),
+	    make_case("stutter_play_native", s.stutter_play_native),
+	    make_case("stutter_play_resampled", s.stutter_play_resampled),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	};
+	return stutter;
+}
+
 /// @brief The cases of @p L.
 template <CaseList L>
 std::span<const Case> list_cases(CaseSet& s) {
-	if constexpr (L == CaseList::GRANULAR) {
+	if constexpr (L == CaseList::STUTTER) {
+		return stutter_list(s);
+	}
+	else if constexpr (L == CaseList::GRANULAR) {
 		return granular_list(s);
 	}
 	else if constexpr (L == CaseList::MOD_FX) {
@@ -739,6 +756,8 @@ std::span<const Case> cases(CaseList list) {
 		return list_cases<CaseList::MOD_FX>(s);
 	case CaseList::GRANULAR:
 		return list_cases<CaseList::GRANULAR>(s);
+	case CaseList::STUTTER:
+		return list_cases<CaseList::STUTTER>(s);
 	case CaseList::KERNELS:
 		break;
 	}

@@ -1404,6 +1404,44 @@ private:
 	GranularConfig config_;
 };
 
+/// @brief The stutter cases' tick magnitude and tick inverse: a song at its default resolution near 120 bpm (229.7
+/// samples a tick), which gives the knob's middle a tape of about 900 frames.
+inline constexpr int32_t kStutterMagnitude = 1;
+inline constexpr uint32_t kStutterTickInverse = 18'700'000;
+/// @brief The stutter-rate param (signed Q31) a recording case begins at: its slowest, the largest tape.
+inline constexpr int32_t kStutterRateSlowest = -0x7fffffff;
+/// @brief The param a playing case begins at: a fast rate, so its short tape records untimed.
+inline constexpr int32_t kStutterRateFast = 0x30000000;
+/// @brief How far a resampled case moves the param off the tape's native rate.
+inline constexpr int32_t kStutterRateNudge = 0x08000000;
+/// @brief Frames a playing case records untimed: past any tape kStutterRateFast makes.
+inline constexpr std::size_t kStutterRecordFrames = 20'000;
+
+/// @brief One stutter case's configuration.
+struct StutterConfig {
+	bool play = false;      ///< Played back; otherwise recording.
+	bool resampled = false; ///< The rate moved off the tape's native rate.
+};
+
+/// @brief The stutter block as its owner renders it, in place over the lanes output.
+/// @details Setup begins a stutter anew as the gold knob's press begins one. A playing case records its tape untimed
+/// first; a resampled case then moves the rate off the tape's native one.
+class StutterCase {
+public:
+	static constexpr std::size_t kLanes = 2; ///< Left and right.
+
+	/// @brief A case of @p config.
+	constexpr explicit StutterCase(const StutterConfig& config) : config_{config} {}
+
+	/// @brief A stutter begun anew, and the block for @p n frames.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for, in place.
+	void block(std::size_t n);
+
+private:
+	StutterConfig config_;
+};
+
 /// @brief Every case, by name.
 struct CaseSet {
 	CalibrationLoop calibration_loop;                             ///< `calibration_loop`
@@ -1485,26 +1523,30 @@ struct CaseSet {
 	FilterStereoCase filterset_lh_stereo{filter_set_case(dsp::fixed::FilterRoute::LOW_TO_HIGH)};
 	/// `filterset_par_stereo`
 	FilterStereoCase filterset_par_stereo{filter_set_case(dsp::fixed::FilterRoute::PARALLEL)};
-	FilterStereoCase filter_lp24_fading_stereo{kFilterLow24Fading};   ///< `filter_lp24_fading_stereo`
-	CompressorCase compressor_wet_render{kCompressorWetRender};       ///< `compressor_wet_render`
-	CompressorCase compressor_wet_neutral{kCompressorWetNeutral};     ///< `compressor_wet_neutral`
-	CompressorCase compressor_blend_render{kCompressorBlendRender};   ///< `compressor_blend_render`
-	CompressorCase compressor_blend_neutral{kCompressorBlendNeutral}; ///< `compressor_blend_neutral`
-	ModFxCase mod_fx_chorus_stereo{kModFxChorusStereo};               ///< `mod_fx_chorus_stereo`
-	ModFxCase mod_fx_chorus_mono{kModFxChorusMono};                   ///< `mod_fx_chorus_mono`
-	ModFxCase mod_fx_chorus_stereo_stereo{kModFxChorusStereoStereo};  ///< `mod_fx_chorus_stereo_stereo`
-	ModFxCase mod_fx_chorus_stereo_mono{kModFxChorusStereoMono};      ///< `mod_fx_chorus_stereo_mono`
-	ModFxCase mod_fx_dimension_stereo{kModFxDimensionStereo};         ///< `mod_fx_dimension_stereo`
-	ModFxCase mod_fx_dimension_mono{kModFxDimensionMono};             ///< `mod_fx_dimension_mono`
-	ModFxCase mod_fx_flanger_stereo{kModFxFlangerStereo};             ///< `mod_fx_flanger_stereo`
-	ModFxCase mod_fx_flanger_mono{kModFxFlangerMono};                 ///< `mod_fx_flanger_mono`
-	ModFxCase mod_fx_warble_stereo{kModFxWarbleStereo};               ///< `mod_fx_warble_stereo`
-	ModFxCase mod_fx_warble_mono{kModFxWarbleMono};                   ///< `mod_fx_warble_mono`
-	ModFxCase mod_fx_phaser{kModFxPhaser};                            ///< `mod_fx_phaser`
-	GranularCase granular_sparse_unison{kGranularSparseUnison};       ///< `granular_sparse_unison`
-	GranularCase granular_sparse_random{kGranularSparseRandom};       ///< `granular_sparse_random`
-	GranularCase granular_dense_unison{kGranularDenseUnison};         ///< `granular_dense_unison`
-	GranularCase granular_dense_random{kGranularDenseRandom};         ///< `granular_dense_random`
+	FilterStereoCase filter_lp24_fading_stereo{kFilterLow24Fading};           ///< `filter_lp24_fading_stereo`
+	CompressorCase compressor_wet_render{kCompressorWetRender};               ///< `compressor_wet_render`
+	CompressorCase compressor_wet_neutral{kCompressorWetNeutral};             ///< `compressor_wet_neutral`
+	CompressorCase compressor_blend_render{kCompressorBlendRender};           ///< `compressor_blend_render`
+	CompressorCase compressor_blend_neutral{kCompressorBlendNeutral};         ///< `compressor_blend_neutral`
+	ModFxCase mod_fx_chorus_stereo{kModFxChorusStereo};                       ///< `mod_fx_chorus_stereo`
+	ModFxCase mod_fx_chorus_mono{kModFxChorusMono};                           ///< `mod_fx_chorus_mono`
+	ModFxCase mod_fx_chorus_stereo_stereo{kModFxChorusStereoStereo};          ///< `mod_fx_chorus_stereo_stereo`
+	ModFxCase mod_fx_chorus_stereo_mono{kModFxChorusStereoMono};              ///< `mod_fx_chorus_stereo_mono`
+	ModFxCase mod_fx_dimension_stereo{kModFxDimensionStereo};                 ///< `mod_fx_dimension_stereo`
+	ModFxCase mod_fx_dimension_mono{kModFxDimensionMono};                     ///< `mod_fx_dimension_mono`
+	ModFxCase mod_fx_flanger_stereo{kModFxFlangerStereo};                     ///< `mod_fx_flanger_stereo`
+	ModFxCase mod_fx_flanger_mono{kModFxFlangerMono};                         ///< `mod_fx_flanger_mono`
+	ModFxCase mod_fx_warble_stereo{kModFxWarbleStereo};                       ///< `mod_fx_warble_stereo`
+	ModFxCase mod_fx_warble_mono{kModFxWarbleMono};                           ///< `mod_fx_warble_mono`
+	ModFxCase mod_fx_phaser{kModFxPhaser};                                    ///< `mod_fx_phaser`
+	GranularCase granular_sparse_unison{kGranularSparseUnison};               ///< `granular_sparse_unison`
+	GranularCase granular_sparse_random{kGranularSparseRandom};               ///< `granular_sparse_random`
+	GranularCase granular_dense_unison{kGranularDenseUnison};                 ///< `granular_dense_unison`
+	GranularCase granular_dense_random{kGranularDenseRandom};                 ///< `granular_dense_random`
+	StutterCase stutter_record_native{{.play = false, .resampled = false}};   ///< `stutter_record_native`
+	StutterCase stutter_record_resampled{{.play = false, .resampled = true}}; ///< `stutter_record_resampled`
+	StutterCase stutter_play_native{{.play = true, .resampled = false}};      ///< `stutter_play_native`
+	StutterCase stutter_play_resampled{{.play = true, .resampled = true}};    ///< `stutter_play_resampled`
 };
 
 /// @brief The cases' components, built on first use.
@@ -1532,6 +1574,9 @@ enum class CaseList : uint8_t {
 	/// dense grains at no and full pitch randomness, then the feedback chain's two cases from the chain list, as in the
 	/// delay list.
 	GRANULAR,
+	/// The calibration loop, the stutter as its owners render it, recording and playing over a native and a resampled
+	/// tape, then the feedback chain's two cases from the chain list, as in the delay list.
+	STUTTER,
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -1549,6 +1594,8 @@ inline constexpr CaseList kBenchCaseList = CaseList::COMPRESSOR;
 inline constexpr CaseList kBenchCaseList = CaseList::MOD_FX;
 #elif defined(DELUGE_DSP_BENCH_GRANULAR)
 inline constexpr CaseList kBenchCaseList = CaseList::GRANULAR;
+#elif defined(DELUGE_DSP_BENCH_STUTTER)
+inline constexpr CaseList kBenchCaseList = CaseList::STUTTER;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif
