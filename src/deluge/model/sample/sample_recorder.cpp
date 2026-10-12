@@ -119,7 +119,7 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 	folderID = newFolderID;
 
 	// Didn't seem to make a difference forcing this into local RAM
-	void* sample_memory = GeneralMemoryAllocator::get().allocStealable(sizeof(Sample));
+	void* sample_memory = GeneralMemoryAllocator::get().allocStealable<Sample>();
 	if (sample_memory == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}

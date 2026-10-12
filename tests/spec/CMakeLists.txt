@@ -4,6 +4,21 @@ FetchContent_Declare(CppSpec
 )
 FetchContent_MakeAvailable(CppSpec)
 
+# The DSP headers are written against Argon. Keep this tag in sync with lib/CMakeLists.txt.
+FetchContent_Declare(argon
+  GIT_REPOSITORY https://github.com/stellar-aria/argon
+  GIT_TAG cae5738c8e4119448ea80df691c297c4c8bc2d5e
+)
+FetchContent_MakeAvailable(argon)
+
+# Argon falls back to SIMDe's <arm/neon.h> shim when the host isn't ARM, which is
+# what lets the reverb DSP be specced on a normal x86 dev machine.
+FetchContent_Declare(simde
+  GIT_REPOSITORY https://github.com/simd-everywhere/simde
+  GIT_TAG v0.8.2
+)
+FetchContent_MakeAvailable(simde)
+
 add_subdirectory(../../src/lib printf)
 
 add_library(deluge_spec STATIC
@@ -13,12 +28,17 @@ add_library(deluge_spec STATIC
 ../../src/deluge/util/lookuptables/lookuptables.cpp
 ../../src/deluge/hid/display/starfield.cpp
 ../../src/deluge/hid/display/rainfall.cpp
+../../src/deluge/dsp/reverb/freeverb/freeverb.cpp
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp
 )
-target_link_libraries(deluge_spec PUBLIC eyalroz_printf)
+target_link_libraries(deluge_spec PUBLIC eyalroz_printf argon)
 
-target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/)
+target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/ ${simde_SOURCE_DIR}/simde)
+
+# Turns every DelayLine read outside its own reserved region into a hard failure.
+# Compiled out of the firmware; see dsp/reverb/fx_engine.hpp.
+target_compile_definitions(deluge_spec PUBLIC DELUGE_DSP_BOUNDS_CHECK=1)
 
 set_target_properties(deluge_spec PROPERTIES
   CXX_STANDARD 23

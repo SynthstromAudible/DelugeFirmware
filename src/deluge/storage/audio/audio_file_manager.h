@@ -114,6 +114,8 @@ public:
 
 	void setCardRead() { cardReadOnce = true; }
 	void setCardEjected() { cardEjected = true; }
+	// Whether loadAnyEnqueuedClusters() is able to read the card at all
+	bool canLoadClusters() const { return !cardEjected && !cardDisabled; }
 
 	ClusterPriorityQueue loadingQueue;
 

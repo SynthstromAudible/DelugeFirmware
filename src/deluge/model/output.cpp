@@ -162,6 +162,20 @@ bool Output::clipHasInstance(Clip* clip) {
 	return false;
 }
 
+void Output::deleteAnyInstancesOfClip(Clip* clip) {
+	int32_t i = 0;
+
+	while (i < clipInstances.getNumElements()) {
+		ClipInstance* instance = clipInstances.getElement(i);
+		if (instance->clip == clip) {
+			clipInstances.deleteAtIndex(i);
+		}
+		else {
+			i++;
+		}
+	}
+}
+
 // check all instrument clip instances belonging to an output to see if they have any notes (for instrument clip) or
 // audio file (for audio clip) if so, then we need to check if there are other clip's assigned to that output which have
 // notes or audio files because we don't want to change the output type for all the clips assigned to that output if

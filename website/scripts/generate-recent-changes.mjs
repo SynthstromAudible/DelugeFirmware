@@ -59,7 +59,11 @@ async function currentPullRequest(pullRequest) {
       throw new Error(`GitHub returned ${response.status}`)
     }
     const data = await response.json()
-    return { title: data.title, url: data.html_url }
+    return {
+      title: data.title,
+      url: data.html_url,
+      labels: data.labels.map(({ name }) => name),
+    }
   } catch (error) {
     console.warn(
       `Could not refresh PR #${pullRequest}; using its merge commit title (${error.message}).`,
@@ -74,7 +78,31 @@ function changedPaths(hash) {
     .filter(Boolean)
 }
 
-function categoryFor(subject, paths) {
+// PR `type:` labels from .github/labels.yml, mapped to display categories.
+const typeLabelCategories = {
+  "type: feature": "Features",
+  "type: fix": "Fixes",
+  "type: refactor": "Maintenance",
+  "type: deps": "Maintenance",
+  "type: chore": "Maintenance",
+}
+const documentationAreaLabels = new Set(["area: docs", "area: website"])
+
+function categoryFromLabels(labels) {
+  const typeCategory = labels
+    .map((label) => typeLabelCategories[label])
+    .find(Boolean)
+  // Docs-only changes are labelled `type: chore` with a docs/website area.
+  if (
+    (!typeCategory || typeCategory === "Maintenance") &&
+    labels.some((label) => documentationAreaLabels.has(label))
+  ) {
+    return "Documentation"
+  }
+  return typeCategory
+}
+
+function categoryFor(subject, paths, labels) {
   if (
     paths.length > 0 &&
     paths.every(
@@ -83,6 +111,11 @@ function categoryFor(subject, paths) {
   ) {
     return "Documentation"
   }
+  const labelCategory = categoryFromLabels(labels)
+  if (labelCategory) {
+    return labelCategory
+  }
+  // Unlabelled PRs and direct commits: fall back to the commit subject.
   if (
     /^(?:docs?)(?:\([^)]*\))?:|\b(?:docs?|documentation|manual|website)\b/i.test(
       subject,
@@ -164,7 +197,7 @@ const activeCommits = await Promise.all(
       shortHash: hash.slice(0, 8),
       date,
       title: displaySubject(currentSubject),
-      category: categoryFor(currentSubject, paths),
+      category: categoryFor(currentSubject, paths, currentPr?.labels ?? []),
       url:
         currentPr?.url ??
         (pullRequest

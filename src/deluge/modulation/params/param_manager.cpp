@@ -300,6 +300,14 @@ void ParamManager::destructAndForgetParamCollections() {
 	expressionParamSetOffset = 0;
 }
 
+void ParamManager::destructAndForgetMainParamCollections() {
+	for (int32_t i = 0; i < expressionParamSetOffset; i++) {
+		summaries[i].paramCollection->~ParamCollection();
+		delugeDealloc(summaries[i].paramCollection);
+	}
+	forgetParamCollections(); // Shuffles any expression params down to the start
+}
+
 // Returns whether there is one / one could be created.
 bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
 	int32_t offset = getExpressionParamSetOffset();
