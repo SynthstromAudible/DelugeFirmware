@@ -530,6 +530,10 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 }
 
 int32_t PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
+	if (modelStack && modelStack->paramId >= params::GLOBAL_MDD_CUSTOM_1
+	    && modelStack->paramId <= params::GLOBAL_MDD_CUSTOM_4)
+		return (int64_t(std::max<int32_t>(0, paramValue)) * 128 + INT32_MAX / 2) / INT32_MAX - 64;
+
 	if (modelStack
 	    && (modelStack->paramId == params::LOCAL_OSC_A_PHASE_WIDTH
 	        || modelStack->paramId == params::LOCAL_OSC_B_PHASE_WIDTH)) {
@@ -541,6 +545,10 @@ int32_t PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithA
 }
 
 int32_t PatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
+	if (modelStack && modelStack->paramId >= params::GLOBAL_MDD_CUSTOM_1
+	    && modelStack->paramId <= params::GLOBAL_MDD_CUSTOM_4)
+		return int64_t(std::clamp(knobPos, -64, 64) + 64) * INT32_MAX / 128;
+
 	if (modelStack
 	    && (modelStack->paramId == params::LOCAL_OSC_A_PHASE_WIDTH
 	        || modelStack->paramId == params::LOCAL_OSC_B_PHASE_WIDTH)) {
