@@ -47,15 +47,19 @@ enum class Event : uint8_t {
 	SKIP,  ///< `startSkippingRendering()`: the instrument has gone idle and the ring is released.
 };
 
+/// @brief The reverb amount a block passes unless its workload varies it, Q31.
+inline constexpr q31_t kSendAmount = 0x10000000;
+
 /// @brief One block of a workload.
 struct GranularBlock {
-	int32_t rate;          ///< The rate knob, Q31.
-	int32_t mix;           ///< The mix knob, Q31.
-	int32_t density;       ///< The density knob, Q31.
-	int32_t randomness;    ///< The pitch randomness knob, Q31.
-	uint16_t n;            ///< Frames in the block.
-	bool sound;            ///< Whether anything rendered into the block; else its input is silence.
-	Event event;           ///< Applied before the block.
+	int32_t rate;                    ///< The rate knob, Q31.
+	int32_t mix;                     ///< The mix knob, Q31.
+	int32_t density;                 ///< The density knob, Q31.
+	int32_t randomness;              ///< The pitch randomness knob, Q31.
+	uint16_t n;                      ///< Frames in the block.
+	bool sound;                      ///< Whether anything rendered into the block; else its input is silence.
+	Event event;                     ///< Applied before the block.
+	q31_t send_amount = kSendAmount; ///< The reverb amount, Q31.
 	bool extremes = false; ///< The input is INT32_MAX and INT32_MIN alternating every @ref kExtremesRun frames, both
 	                       ///< channels alike so that the wet sum is full scale, rather than @ref stereo_input; the
 	                       ///< reverb feed starts full scale.
@@ -89,9 +93,6 @@ inline constexpr int32_t kRandomnessMax = INT32_MAX;  ///< @copydoc kRandomnessN
 
 /// @brief The post-FX volume a run starts each block's chain from, Q31.
 inline constexpr int32_t kStartVolume = 0x30000000;
-
-/// @brief The reverb amount every block passes, Q31.
-inline constexpr q31_t kSendAmount = 0x10000000;
 
 /// @brief The frames an extremes block holds each extreme: a square wave low enough to pass the wet low-pass.
 inline constexpr std::size_t kExtremesRun = 32;
@@ -209,7 +210,12 @@ inline constexpr std::size_t kShortPhaseFrames = 140'000;
 				        knob == 2 ? densities[level] : kDensityMid, knob == 3 ? randomnesses[level] : kRandomnessMid);
 				b.run(25, 256);
 			}
-			w.push_back(b.build("KNOB_SWEEP"));
+			GranularWorkload sweep = b.build("KNOB_SWEEP");
+			// The reverb amount steps each block through eight values, so the send's amount path sees more than one.
+			for (std::size_t i = 0; i < sweep.blocks.size(); ++i) {
+				sweep.blocks[i].send_amount = static_cast<q31_t>(((i % 8) + 1) * 0x04000000);
+			}
+			w.push_back(std::move(sweep));
 		}
 
 		// The knobs' extremes, each held long enough for grains to start (after half a ring) and for the cached knob
@@ -317,7 +323,7 @@ template <typename Fx>
 		std::vector<q31_t> send = send_input(block.n, b, block.extremes);
 		int32_t volume = kStartVolume;
 		fx.processGrainFX(frames, block.rate, block.mix, block.density, block.randomness, &volume, block.sound,
-		                  kSendAmount, send);
+		                  block.send_amount, send);
 		for (const StereoSample frame : frames) {
 			trace.samples.push_back(frame.l);
 			trace.samples.push_back(frame.r);
