@@ -275,7 +275,7 @@ int32_t numAudioLogItems = 0;
 #endif
 
 /// Force a voice to stop within this render window. Will click slightly, especially if multiple are stopped in the
-/// same render. Will stop an audio clip if there are no voices to  kill
+/// same render. Will stop an audio clip if there are no voices to kill
 void killOneVoice(size_t num_samples) {
 	logAction("kill");
 	auto lowest_priority_voices = sounds //<
@@ -284,10 +284,14 @@ void killOneVoice(size_t num_samples) {
 	auto it = std::ranges::max_element(lowest_priority_voices, [](const auto& a, const auto& b) {
 		return a->getPriorityRating() < b->getPriorityRating();
 	});
+	// are there any active voices to kill?
 	if (it == lowest_priority_voices.end()) {
+		// no active voices found, try to cull an audio clip instead
 		if (currentSong) {
 			currentSong->cullAudioClipVoice();
 		}
+		// return early since there are no active voices to kill
+		return;
 	}
 
 	const Sound::ActiveVoice& voice = *it;
