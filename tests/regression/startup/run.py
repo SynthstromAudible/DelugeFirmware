@@ -1,8 +1,13 @@
+import subprocess
+import tempfile
 from pathlib import Path
-import subprocess,tempfile
-root=Path(__file__).resolve().parents[3]
-s=(root/'src/deluge/deluge.cpp').read_text();a=s.index('void setupStartupSong()');b=s.index('\nvoid setupOLED()',a);function=s[a:b]
-scaffold=r'''
+
+root = Path(__file__).resolve().parents[3]
+s = (root / "src/deluge/deluge.cpp").read_text()
+a = s.index("void setupStartupSong()")
+b = s.index("\nvoid setupOLED()", a)
+function = s[a:b]
+scaffold = r"""
 #include <string>
 #include <cstring>
 #include <cassert>
@@ -24,8 +29,8 @@ bool openUI(Load*){return openOk;}
 struct Display {bool oled=true;bool haveOLED(){return oled;}void consoleText(const char*){}} device,*display=&device;
 namespace deluge::hid::display {struct OLED {static bool isPopupPresent(){return popup;}static void popupText(const char* text,bool,PopupType){assert(string(text)=="Holdontoentropy");popup=true;greetings++;}};}
 struct Timer {void setTimer(TimerName,int ms){expiry=now+ms;}} uiTimerManager;
-'''
-tests=r'''
+"""
+tests = r"""
 void reset(){now=expiry=greetings=loaded=0;popup=loadError=canary=false;openOk=writeOk=device.oled=true;}
 int main(){
  for(auto mode:{StartupSongMode::BLANK,StartupSongMode::TEMPLATE,StartupSongMode::LASTOPENED,StartupSongMode::LASTSAVED}){
@@ -40,8 +45,19 @@ int main(){
  reset();device.oled=false;setupStartupSong();assert(greetings==0);
  std::cout<<"PASS startup: four-second greeting after slow load / blank startup; load errors, canary, open/write failure and 7-segment guards\n";
 }
-'''
+"""
 with tempfile.TemporaryDirectory() as d:
- p=Path(d);(p/'probe.cpp').write_text(scaffold+function+tests)
- subprocess.run(['g++','-std=c++23','-fsanitize=undefined',str(p/'probe.cpp'),'-o',str(p/'probe')],check=True)
- subprocess.run([str(p/'probe')],check=True)
+    p = Path(d)
+    (p / "probe.cpp").write_text(scaffold + function + tests)
+    subprocess.run(
+        [
+            "g++",
+            "-std=c++23",
+            "-fsanitize=undefined",
+            str(p / "probe.cpp"),
+            "-o",
+            str(p / "probe"),
+        ],
+        check=True,
+    )
+    subprocess.run([str(p / "probe")], check=True)

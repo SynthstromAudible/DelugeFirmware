@@ -1,6 +1,5 @@
 #include "gui/menu_item/sequence/mdd.h"
 
-#include "gui/ui/sound_editor.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/strings.h"
@@ -18,6 +17,7 @@
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"

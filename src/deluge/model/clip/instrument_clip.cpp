@@ -18,7 +18,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/clip/instrument_clip.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
@@ -33,8 +32,9 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
-#include "model/consequence/consequence_note_row_mute.h"
+#include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_mdd_write.h"
+#include "model/consequence/consequence_note_row_mute.h"
 #include "model/consequence/consequence_scale_add_note.h"
 #include "model/drum/drum_name.h"
 #include "model/instrument/cv_instrument.h"
@@ -177,8 +177,8 @@ Error InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shou
 	newClip->mdd.high = mdd.high;
 	newClip->mddEnabled = mddEnabled;
 	newClip->mddRequested = mddRequested;
-    newClip->mddPending = mddPending;
-    newClip->mdd.quarterTicks = mdd.quarterTicks;
+	newClip->mddPending = mddPending;
+	newClip->mdd.quarterTicks = mdd.quarterTicks;
 	newClip->mddTick = mddTick;
 	newClip->mddNormalPos = mddNormalPos;
 	newClip->mddNormalRepeat = mddNormalRepeat;
@@ -719,26 +719,30 @@ void InstrumentClip::pingpongOccurred(ModelStackWithTimelineCounter* modelStack)
 }
 
 void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast) {
- if(output->type == OutputType::KIT){mddEnabled=false;mddRequested=false;mddPending=false;}
- if (mddPending
-	 && playbackHandler.lastSwungTickActioned % std::max<uint32_t>(1, modelStack->song->getQuarterNoteLength() / 4)
-	        == 0) {
-	 stopAllNotesPlaying(modelStack);
-	 if (mddRequested) {
-		 mddNormalPos = lastProcessedPos;
-		 mddNormalRepeat = repeatCount;
-		 mddNormalReversed = currentlyPlayingReversed;
-	 }
-	 // Keep the live Clip position on a running switch back to Normal.
-	 // Restoring the entry position rewinds this clip against the song clock.
+	if (output->type == OutputType::KIT) {
+		mddEnabled = false;
+		mddRequested = false;
+		mddPending = false;
+	}
+	if (mddPending
+	    && playbackHandler.lastSwungTickActioned % std::max<uint32_t>(1, modelStack->song->getQuarterNoteLength() / 4)
+	           == 0) {
+		stopAllNotesPlaying(modelStack);
+		if (mddRequested) {
+			mddNormalPos = lastProcessedPos;
+			mddNormalRepeat = repeatCount;
+			mddNormalReversed = currentlyPlayingReversed;
+		}
+		// Keep the live Clip position on a running switch back to Normal.
+		// Restoring the entry position rewinds this clip against the song clock.
 
-	 mddEnabled = mddRequested;
-	 mddPending = false;
- }
- if (mddPending) {
-	 // Recheck the next native tick, rather than waiting for a distant stock note event.
-	 playbackHandler.swungTicksTilNextEvent = std::min<int32_t>(1, playbackHandler.swungTicksTilNextEvent);
- }
+		mddEnabled = mddRequested;
+		mddPending = false;
+	}
+	if (mddPending) {
+		// Recheck the next native tick, rather than waiting for a distant stock note event.
+		playbackHandler.swungTicksTilNextEvent = std::min<int32_t>(1, playbackHandler.swungTicksTilNextEvent);
+	}
 	if (mddEnabled) {
 		Clip::processCurrentPos(modelStack, ticksSinceLast);
 		if (modelStack->getTimelineCounter() != this)
@@ -2581,7 +2585,8 @@ someError:
 			if (!snake::Codec::decode(settings.get(), mdd, mddEnabled, mddTick, params::GLOBAL_NONE))
 				return Error::FILE_CORRUPTED;
 			mddRequested = mddEnabled;
-			if (mddEnabled) mdd.activateClock(song->getQuarterNoteLength());
+			if (mddEnabled)
+				mdd.activateClock(song->getQuarterNoteLength());
 			reader.exitTag("mddSnakeV1");
 			continue;
 		}
@@ -4852,11 +4857,14 @@ void InstrumentClip::incrementPos(ModelStackWithTimelineCounter* modelStack, int
 */
 
 void InstrumentClip::requestMdd(bool enabled) {
-    if (!output) return;
+	if (!output)
+		return;
 	if (output->type != OutputType::SYNTH && output->type != OutputType::MIDI_OUT && output->type != OutputType::CV)
 		return;
-	if (enabled) mdd.activateClock(currentSong->getQuarterNoteLength());
-	else mdd.syncClock(currentSong->getQuarterNoteLength());
+	if (enabled)
+		mdd.activateClock(currentSong->getQuarterNoteLength());
+	else
+		mdd.syncClock(currentSong->getQuarterNoteLength());
 	mddRequested = enabled;
 	mddPending = enabled != mddEnabled;
 	ticksTilNextNoteRowEvent = 0;
@@ -4883,34 +4891,38 @@ Error InstrumentClip::writeMddToNormal(ModelStackWithTimelineCounter* stack) {
 	mdd.activateClock(stack->song->getQuarterNoteLength());
 	auto core = mdd.core;
 	unsigned count = 0;
-	bool ok = snake::bake(core, loopLength, [&](uint32_t pos, uint32_t duration, const snake::Frame& frame) {
-		// Bound memory use for abnormally long clips. Failure leaves both sequences intact.
-		if (++count > 65536)
-			return false;
-		int pitch = mddQuantize(frame.note, stack->song);
-		int index = rendered.search(pitch, GREATER_OR_EQUAL);
-		NoteRow* row = index < rendered.getNumElements() ? rendered.getElement(index) : nullptr;
-		if (!row || row->y != pitch)
-			row = rendered.insertNoteRowAtY(pitch);
-		if (!row)
-			return false;
-		int ni = row->notes.insertAtKey(pos, true);
-		if (ni < 0)
-			return false;
-		Note* note = row->notes.getElement(ni);
-		note->length = duration;
-		note->velocity = frame.velocity;
-		note->lift = kDefaultLiftValue;
-		note->probability = kNumProbabilityValues;
-		note->iterance = kDefaultIteranceValue;
-		note->fill = uint8_t(FillMode::OFF);
-		return true;
-	}, [] { AudioEngine::routineWithClusterLoading(false); });
+	bool ok = snake::bake(
+	    core, loopLength,
+	    [&](uint32_t pos, uint32_t duration, const snake::Frame& frame) {
+		    // Bound memory use for abnormally long clips. Failure leaves both sequences intact.
+		    if (++count > 65536)
+			    return false;
+		    int pitch = mddQuantize(frame.note, stack->song);
+		    int index = rendered.search(pitch, GREATER_OR_EQUAL);
+		    NoteRow* row = index < rendered.getNumElements() ? rendered.getElement(index) : nullptr;
+		    if (!row || row->y != pitch)
+			    row = rendered.insertNoteRowAtY(pitch);
+		    if (!row)
+			    return false;
+		    int ni = row->notes.insertAtKey(pos, true);
+		    if (ni < 0)
+			    return false;
+		    Note* note = row->notes.getElement(ni);
+		    note->length = duration;
+		    note->velocity = frame.velocity;
+		    note->lift = kDefaultLiftValue;
+		    note->probability = kNumProbabilityValues;
+		    note->iterance = kDefaultIteranceValue;
+		    note->fill = uint8_t(FillMode::OFF);
+		    return true;
+	    },
+	    [] { AudioEngine::routineWithClusterLoading(false); });
 	if (!ok)
 		return Error::INSUFFICIENT_RAM;
 	// Reserve the undo snapshot and native action before changing the old grid.
 	void* memory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceMddWrite));
-	if (!memory) return Error::INSUFFICIENT_RAM;
+	if (!memory)
+		return Error::INSUFFICIENT_RAM;
 	auto* consequence = new (memory) ConsequenceMddWrite(this);
 	auto* action = actionLogger.getNewAction(ActionType::MDD_WRITE, ActionAddition::NOT_ALLOWED);
 	if (!action) {
@@ -4951,7 +4963,10 @@ int InstrumentClip::mddQuantize(int note, Song* song) const {
 	return note;
 }
 void InstrumentClip::closeMdd(ModelStackWithTimelineCounter* stack) {
-    if (!output) { mddNoteOn = false; return; }
+	if (!output) {
+		mddNoteOn = false;
+		return;
+	}
 	if (mddNoteOn && output->type != OutputType::KIT) {
 		auto* model = stack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 		static_cast<MelodicInstrument*>(output)->sendNote(model, false, mddNote, nullptr);
@@ -4959,11 +4974,11 @@ void InstrumentClip::closeMdd(ModelStackWithTimelineCounter* stack) {
 	mddNoteOn = false;
 	if (output->type == OutputType::SYNTH) {
 		auto* sound = static_cast<Sound*>(output->toModControllable());
-        if (sound->mddClipOwner == this) {
-            sound->mddClipActive = false;
-            sound->mddClipOwner = nullptr;
-            sound->setSnakeCustomValues({});
-        }
+		if (sound->mddClipOwner == this) {
+			sound->mddClipActive = false;
+			sound->mddClipOwner = nullptr;
+			sound->setSnakeCustomValues({});
+		}
 	}
 }
 void InstrumentClip::processMdd(ModelStackWithTimelineCounter* stack) {
@@ -4983,7 +4998,7 @@ void InstrumentClip::processMdd(ModelStackWithTimelineCounter* stack) {
 	if (output->type == OutputType::SYNTH) {
 		auto* sound = static_cast<Sound*>(output->toModControllable());
 		sound->mddClipActive = true;
-        sound->mddClipOwner = this;
+		sound->mddClipOwner = this;
 		std::array<int32_t, 4> values{};
 		for (int i = 0; i < 4; ++i)
 			values[i] = snake::normalizedQ31(frame.custom[i]);

@@ -23,7 +23,6 @@ extern deluge::gui::menu_item::sequence::Mode sequencerModeMenu;
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/views/instrument_clip_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "fatfs.hpp"
@@ -46,6 +45,7 @@ extern deluge::gui::menu_item::sequence::Mode sequencerModeMenu;
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/automation_view.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -147,8 +147,8 @@ bool InstrumentClipView::opened() {
 }
 
 static uint64_t mddTimeMs() {
-    static snake::SampleClock clock;
-    return clock.milliseconds(AudioEngine::audioSampleTimer);
+	static snake::SampleClock clock;
+	return clock.milliseconds(AudioEngine::audioSampleTimer);
 }
 
 void InstrumentClipView::openedInBackground() {
@@ -284,18 +284,23 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 	if (b == SCALE_MODE && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		// MDD already uses the Song key. Never infer a new key from its dormant stock rows.
 		if (mddControls() && currentUIMode == UI_MODE_NONE && !Buttons::isButtonPressed(LEARN)) {
-			if (!on) return ActionResult::DEALT_WITH;
-			if (inCardRoutine) return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			if (!on)
+				return ActionResult::DEALT_WITH;
+			if (inCardRoutine)
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			auto* clip = getCurrentInstrumentClip();
 			actionLogger.deleteAllLogs();
 			if (Buttons::isShiftButtonPressed()) {
 				clip->inScaleMode = true;
 				currentSong->cycleThroughScales();
 			}
-			else clip->inScaleMode = !clip->inScaleMode;
+			else
+				clip->inScaleMode = !clip->inScaleMode;
 			indicator_leds::setLedState(IndicatorLED::SCALE_MODE, clip->inScaleMode);
-			if (clip->inScaleMode) currentSong->displayCurrentRootNoteAndScaleName();
-			else display->displayPopup("Chromatic");
+			if (clip->inScaleMode)
+				currentSong->displayCurrentRootNoteAndScaleName();
+			else
+				display->displayPopup("Chromatic");
 			uiNeedsRendering(this);
 			return ActionResult::DEALT_WITH;
 		}
@@ -8203,7 +8208,8 @@ void InstrumentClipView::blinkSelectedNoteRow(int32_t whichMainRows) {
 }
 
 bool InstrumentClipView::mddControls() const {
-	return getCurrentClip() && getCurrentClip()->type == ClipType::INSTRUMENT && getCurrentOutputType() != OutputType::KIT
+	return getCurrentClip() && getCurrentClip()->type == ClipType::INSTRUMENT
+	       && getCurrentOutputType() != OutputType::KIT
 	       && (getCurrentInstrumentClip()->mddEnabled || getCurrentInstrumentClip()->mddRequested);
 }
 void InstrumentClipView::refreshMdd() {

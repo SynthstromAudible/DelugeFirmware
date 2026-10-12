@@ -1,25 +1,42 @@
 #!/usr/bin/env python3
 """Envelope target coverage, using the actual firmware acceptance function and parameter enums."""
+
+import os
+import subprocess
+import tempfile
 from pathlib import Path
-import tempfile, subprocess, os
+
 root = Path(__file__).resolve().parents[3]
+
+
 def extract(text, marker):
-    start = text.index(marker); brace = text.index('{',start); end = brace+1; depth = 1
+    start = text.index(marker)
+    brace = text.index("{", start)
+    end = brace + 1
+    depth = 1
     while depth:
-        depth += (text[end]=='{') - (text[end]=='}'); end += 1
+        depth += (text[end] == "{") - (text[end] == "}")
+        end += 1
     return text[start:end]
-defs = (root/'src/definitions_cxx.hpp').read_text()
-params = (root/'src/deluge/modulation/params/param.h').read_text()
-sound = (root/'src/deluge/processing/sound/sound.cpp').read_text()
-code = '#include <array>\n#include <cassert>\n#include <cstdint>\n#include <iostream>\n'
-for name in ['PatchSource','SynthMode','PatchCableAcceptance','OscType']:
-    code += extract(defs,'enum class '+name)+';\n'
-code += extract(defs,'constexpr bool isPlaits')+'\n' if 'kFirstLocalSource' not in extract(defs,'constexpr bool isPlaits') else ''
-code += 'constexpr auto kFirstLocalSource = PatchSource::ENVELOPE_0;\n'
-code += extract(defs,'constexpr bool isGlobalPatchSource')+'\n'
-code += 'namespace params { using ParamType=uint8_t;\n'
-for name in ['Local','Global']: code += extract(params,'enum '+name+' :')+';\n'
-code += '''}
+
+
+defs = (root / "src/definitions_cxx.hpp").read_text()
+params = (root / "src/deluge/modulation/params/param.h").read_text()
+sound = (root / "src/deluge/processing/sound/sound.cpp").read_text()
+code = "#include <array>\n#include <cassert>\n#include <cstdint>\n#include <iostream>\n"
+for name in ["PatchSource", "SynthMode", "PatchCableAcceptance", "OscType"]:
+    code += extract(defs, "enum class " + name) + ";\n"
+code += (
+    extract(defs, "constexpr bool isPlaits") + "\n"
+    if "kFirstLocalSource" not in extract(defs, "constexpr bool isPlaits")
+    else ""
+)
+code += "constexpr auto kFirstLocalSource = PatchSource::ENVELOPE_0;\n"
+code += extract(defs, "constexpr bool isGlobalPatchSource") + "\n"
+code += "namespace params { using ParamType=uint8_t;\n"
+for name in ["Local", "Global"]:
+    code += extract(params, "enum " + name + " :") + ";\n"
+code += """}
 enum class FilterMode { OFF, ON };
 constexpr unsigned LFO1_ID=0, LFO3_ID=1, SYNC_LEVEL_NONE=0;
 struct Param { bool active = true; bool containsSomething(int32_t) { return active; } };
@@ -39,9 +56,9 @@ struct Sound {
  bool isSourceActiveEver(int,ParamManager*) { return active; }
  PatchCableAcceptance maySourcePatchToParam(PatchSource,uint8_t,ParamManager*);
 };
-'''
-code += extract(sound,'PatchCableAcceptance Sound::maySourcePatchToParam')+'\n'
-code += '''int main() {
+"""
+code += extract(sound, "PatchCableAcceptance Sound::maySourcePatchToParam") + "\n"
+code += """int main() {
  Sound sound; ParamManager manager; unsigned checks=0;
  for (auto mode : {SynthMode::SUBTRACTIVE,SynthMode::FM,SynthMode::RINGMOD})
  for (bool active : {false,true}) for (bool filters : {false,true})
@@ -66,8 +83,23 @@ code += '''int main() {
   assert(sound.maySourcePatchToParam(custom,params::GLOBAL_REVERB_AMOUNT,&manager)==PatchCableAcceptance::ALLOWED);
  }
  std::cout << "Envelope 1-3 destination coverage for all four Snake sources PASS: " << checks << " comparisons\\n";
-}'''
+}"""
 with tempfile.TemporaryDirectory() as tmp:
-    src=Path(tmp)/'probe.cpp'; src.write_text(code); out=Path(tmp)/'probe'
-    subprocess.run(['g++','-std=c++23','-O1','-fsanitize=address,undefined',str(src),'-o',str(out)],check=True)
-    subprocess.run([str(out)],check=True,env={**os.environ,'ASAN_OPTIONS':'detect_leaks=0'})
+    src = Path(tmp) / "probe.cpp"
+    src.write_text(code)
+    out = Path(tmp) / "probe"
+    subprocess.run(
+        [
+            "g++",
+            "-std=c++23",
+            "-O1",
+            "-fsanitize=address,undefined",
+            str(src),
+            "-o",
+            str(out),
+        ],
+        check=True,
+    )
+    subprocess.run(
+        [str(out)], check=True, env={**os.environ, "ASAN_OPTIONS": "detect_leaks=0"}
+    )

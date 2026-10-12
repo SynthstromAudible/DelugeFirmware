@@ -1052,15 +1052,17 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 		bool doRender = true;
 		SideScroller* scroller = &sideScrollers[s];
 		const bool doScroll = !playbackRunning || scroller->allowWhilePlaying;
-		if (scroller->text && doScroll) anyScrolling = true;
+		if (scroller->text && doScroll)
+			anyScrolling = true;
 		if (scroller->text) {
 			if (doScroll) {
 				if (scroller->finished) {
 					continue;
 				}
 
-				scroller->pos = std::clamp<int32_t>(scroller->pos + sideScrollerDirection, 0,
-				    std::max<int32_t>(0, scroller->stringLengthPixels - scroller->boxLengthPixels));
+				scroller->pos =
+				    std::clamp<int32_t>(scroller->pos + sideScrollerDirection, 0,
+				                        std::max<int32_t>(0, scroller->stringLengthPixels - scroller->boxLengthPixels));
 
 				if (scroller->pos <= 0) {
 					scroller->finished = true;

@@ -32,7 +32,13 @@ for i in range(2):
             name="STRING_FOR_TYPE",
             title="STRING_FOR_OSC_TYPE_MENU_TITLE",
         ),
-        Menu("osc::PlaitsEngine", f"plaits{i}EngineMenu", [f"{i}"], "oscillator/plaits_engine.md", name="STRING_FOR_TYPE"),
+        Menu(
+            "osc::PlaitsEngine",
+            f"plaits{i}EngineMenu",
+            [f"{i}"],
+            "oscillator/plaits_engine.md",
+            name="STRING_FOR_TYPE",
+        ),
         Menu(
             "FileSelector",
             f"deluge::gui::menu_item::file{i}SelectorMenu",

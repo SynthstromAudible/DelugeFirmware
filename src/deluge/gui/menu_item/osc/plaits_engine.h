@@ -14,7 +14,7 @@ class PlaitsEngine final : public patched_param::Integer {
 public:
 	explicit PlaitsEngine(int osc)
 	    : patched_param::Integer(l10n::String::STRING_FOR_TYPE,
-		                         deluge::modulation::params::LOCAL_PLAITS_A_ENGINE + osc),
+	                             deluge::modulation::params::LOCAL_PLAITS_A_ENGINE + osc),
 	      oscillator(osc) {}
 	void drawValue() override { display->setTextAsNumber(getDisplayValue()); }
 	void renderInHorizontalMenu(const SlotPosition& slot) override {

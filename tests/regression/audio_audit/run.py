@@ -1,10 +1,12 @@
+import subprocess
+import tempfile
 from pathlib import Path
-import subprocess, tempfile
+
 root = Path(__file__).resolve().parents[3]
-src = (root / 'src/deluge/processing/engines/audio_engine.cpp').read_text()
-start = src.index('void killOneVoice(')
-end = src.index('\n/// Force a voice to release', start)
-scaffold = r'''
+src = (root / "src/deluge/processing/engines/audio_engine.cpp").read_text()
+start = src.index("void killOneVoice(")
+end = src.index("\n/// Force a voice to release", start)
+scaffold = r"""
 #include <algorithm>
 #include <cassert>
 #include <memory>
@@ -28,8 +30,8 @@ std::vector<Sound*> sounds;
 Song* currentSong=nullptr;
 void logAction(const char*) {}
 #define D_PRINTLN(...) ((void)0)
-'''
-main = r'''
+"""
+main = r"""
 int main() {
  killOneVoice(128); // no song, no voices
  Song song; currentSong=&song;
@@ -44,9 +46,24 @@ int main() {
  assert(vb->calls==1 && b.freed==1 && va->calls==0 && song.culled==2);
  sounds={&a}; killOneVoice(128); assert(va->calls==1 && a.freed==0);
 }
-'''
+"""
 with tempfile.TemporaryDirectory() as d:
- p=Path(d)/'cull.cpp'; p.write_text(scaffold+src[start:end]+main)
- subprocess.run(['g++','-std=c++23','-D_GLIBCXX_DEBUG','-fsanitize=undefined','-fno-sanitize-recover=all',str(p),'-o',d+'/cull'],check=True)
- subprocess.run([d+'/cull'],check=True)
-print('PASS actual killOneVoice body: empty ranges, audio fallback, priority and release paths')
+    p = Path(d) / "cull.cpp"
+    p.write_text(scaffold + src[start:end] + main)
+    subprocess.run(
+        [
+            "g++",
+            "-std=c++23",
+            "-D_GLIBCXX_DEBUG",
+            "-fsanitize=undefined",
+            "-fno-sanitize-recover=all",
+            str(p),
+            "-o",
+            d + "/cull",
+        ],
+        check=True,
+    )
+    subprocess.run([d + "/cull"], check=True)
+print(
+    "PASS actual killOneVoice body: empty ranges, audio fallback, priority and release paths"
+)

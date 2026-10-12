@@ -1,0 +1,3 @@
+# Imported Plaits/stmlib source retains its original upstream formatting.
+# Deluge-specific integration code lives outside this vendor directory.
+DisableFormat: true

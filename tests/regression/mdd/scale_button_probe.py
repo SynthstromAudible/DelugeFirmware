@@ -1,9 +1,21 @@
 """Exercise the exact native MDD SCALE branch, including release and SD deferral."""
+
+import subprocess
+import tempfile
 from pathlib import Path
-import tempfile,subprocess
-r=Path(__file__).resolve().parents[3];s=(r/'src/deluge/gui/views/instrument_clip_view.cpp').read_text();a=s.index('if (mddControls() && currentUIMode == UI_MODE_NONE && !Buttons::isButtonPressed(LEARN))');i=s.index('{',a)+1;d=1
-while d:d+=(s[i]=='{')-(s[i]=='}');i+=1
-src=r'''
+
+r = Path(__file__).resolve().parents[3]
+s = (r / "src/deluge/gui/views/instrument_clip_view.cpp").read_text()
+a = s.index(
+    "if (mddControls() && currentUIMode == UI_MODE_NONE && !Buttons::isButtonPressed(LEARN))"
+)
+i = s.index("{", a) + 1
+d = 1
+while d:
+    d += (s[i] == "{") - (s[i] == "}")
+    i += 1
+src = (
+    r"""
 #include <cassert>
 #include <iostream>
 #include <string>
@@ -17,7 +29,9 @@ enum class IndicatorLED{SCALE_MODE};namespace indicator_leds{bool led=false;void
 struct Display{std::string text;void displayPopup(const char*s){text=s;}}displayObject,*display=&displayObject;
 struct View{bool enabled=true;bool mddControls(){return enabled;}Clip*getCurrentInstrumentClip(){return &clip;}ActionResult button(bool on,bool inCardRoutine);};void uiNeedsRendering(View*){}
 ActionResult View::button(bool on,bool inCardRoutine){
-'''+s[a:i]+r'''
+"""
+    + s[a:i]
+    + r"""
 return ActionResult::NOT_DEALT_WITH;}
 int main(){View view;
 assert(view.button(true,true)==ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE&&!clip.inScaleMode);
@@ -29,6 +43,14 @@ Buttons::learn=true;assert(view.button(true,false)==ActionResult::NOT_DEALT_WITH
 view.enabled=false;assert(view.button(true,false)==ActionResult::NOT_DEALT_WITH);
 std::cout<<"PASS production MDD SCALE: Song-key quantization toggle, release no double toggle, SHIFT cycle, LEARN/stock routing and SD deferral\n";
 }
-'''
+"""
+)
 with tempfile.TemporaryDirectory() as td:
- p=Path(td)/'probe.cpp';p.write_text(src);exe=Path(td)/'probe';subprocess.run(['g++','-std=c++23','-fsanitize=undefined',str(p),'-o',str(exe)],check=True);subprocess.run([str(exe)],check=True)
+    p = Path(td) / "probe.cpp"
+    p.write_text(src)
+    exe = Path(td) / "probe"
+    subprocess.run(
+        ["g++", "-std=c++23", "-fsanitize=undefined", str(p), "-o", str(exe)],
+        check=True,
+    )
+    subprocess.run([str(exe)], check=True)

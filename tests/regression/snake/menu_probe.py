@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """Real Custom menu classes with a minimal UI shell; check grid bounds and independent edits."""
+
+import os
+import subprocess
+import tempfile
 from pathlib import Path
-import tempfile, subprocess, os
-root=Path(__file__).resolve().parents[3]
-header=(root/'src/deluge/gui/menu_item/snake_custom.h').read_text()
-body=header[header.index('namespace deluge::gui::menu_item::snake_custom'):]
-code='''#include "sequencer/snake.h"
+
+root = Path(__file__).resolve().parents[3]
+header = (root / "src/deluge/gui/menu_item/snake_custom.h").read_text()
+body = header[header.index("namespace deluge::gui::menu_item::snake_custom") :]
+code = """#include "sequencer/snake.h"
 #include <array>
 #include <vector>
 #include <string_view>
@@ -50,9 +54,9 @@ class Selection : public Integer { public:
 }}
 struct Sound { bool snakeCustomEnabled=false; deluge::sequencer::SnakeConfig snakeCustomConfig; void updateSnakeCustom() {} };
 struct Editor { Sound* currentSound=nullptr; } soundEditor;
-'''
-code+=body
-code+='''int main() {
+"""
+code += body
+code += """int main() {
  using namespace deluge::gui::menu_item::snake_custom;
  Sound sound; soundEditor.currentSound=&sound;
  LaneMenu a(0,"Custom 1"), b(1,"Custom 2");
@@ -72,8 +76,24 @@ code+='''int main() {
  for (unsigned i=0;i<4;++i) assert(sound.snakeCustomConfig.mappings[i].target==deluge::sequencer::SnakeTarget::None);
  assert(a.path.getOptions().size()==5);
  std::cout << "Snake menu independent cell/path/phase edits and 48-pixel OLED grid bounds PASS\\n";
-}'''
+}"""
 with tempfile.TemporaryDirectory() as tmp:
- src=Path(tmp)/'probe.cpp'; src.write_text(code); out=Path(tmp)/'probe'
- subprocess.run(['g++','-std=c++23','-O1','-fsanitize=address,undefined','-I'+str(root/'src/deluge'),str(src),'-o',str(out)],check=True)
- subprocess.run([str(out)],check=True,env={**os.environ,'ASAN_OPTIONS':'detect_leaks=0'})
+    src = Path(tmp) / "probe.cpp"
+    src.write_text(code)
+    out = Path(tmp) / "probe"
+    subprocess.run(
+        [
+            "g++",
+            "-std=c++23",
+            "-O1",
+            "-fsanitize=address,undefined",
+            "-I" + str(root / "src/deluge"),
+            str(src),
+            "-o",
+            str(out),
+        ],
+        check=True,
+    )
+    subprocess.run(
+        [str(out)], check=True, env={**os.environ, "ASAN_OPTIONS": "detect_leaks=0"}
+    )

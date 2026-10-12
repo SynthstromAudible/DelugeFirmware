@@ -2,34 +2,53 @@
 Hardware-independent doubles replace display/model services; menu/edit logic is
 read from the firmware sources, including Value/Integer/Enumeration methods.
 """
-from pathlib import Path
-import subprocess, tempfile
-r = Path(__file__).resolve().parents[3]
-def method(path, name):
-    s = (r / path).read_text(); a = s.index(name); i = s.index('{', a)+1; depth = 1
-    while depth:
-        depth += (s[i]=='{')-(s[i]=='}'); i+=1
-    return s[a:i]
-native=(r/'src/deluge/gui/menu_item/sequence/mdd.cpp').read_text()
-native='\n'.join(line for line in native.splitlines() if not line.startswith('#include'))
-mode=(r/'src/deluge/gui/menu_item/sequence/mode.h').read_text()
-mode='\n'.join(line for line in mode.splitlines() if not line.startswith('#'))
-root=(r/'src/deluge/gui/views/instrument_clip_view.cpp').read_text()
-a=root.index('ActionResult InstrumentClipView::padAction('); b=root.index('\n\t// Drum Randomizer',a)
-pad=root[a:b]+'return ActionResult::NOT_DEALT_WITH;\n}'
-a=root.index('ActionResult InstrumentClipView::buttonAction('); b=root.index('\tmaybeStartShortcutOverview',a)
-button=root[a:b]+'return ActionResult::NOT_DEALT_WITH;\n}'
-a=root.index('ActionResult InstrumentClipView::timerCallback()'); b=root.index('\n\tusing namespace',a)
-timer=root[a:b]+'return ActionResult::NOT_DEALT_WITH;\n}'
-editor=(r/'src/deluge/gui/ui/sound_editor.cpp').read_text()
-a=editor.index('ActionResult SoundEditor::padAction('); b=editor.index('\n\tif (!inSettingsMenu()',a)
-editor_pad=editor[a:b]+'++stockShortcuts; return ActionResult::NOT_DEALT_WITH;\n}'
-a=editor.index('ActionResult SoundEditor::buttonAction('); b=editor.index('\n\tusing namespace',a)
-editor_button=editor[a:b]+'return ActionResult::NOT_DEALT_WITH;\n}'
-a=editor.index('bool SoundEditor::getGreyoutColsAndRows(');b=editor.index('\tbool doGreyout = true;',a)
-greyout=editor[a:b]+'return true;\n}'
 
-stubs=r'''
+import subprocess
+import tempfile
+from pathlib import Path
+
+r = Path(__file__).resolve().parents[3]
+
+
+def method(path, name):
+    s = (r / path).read_text()
+    a = s.index(name)
+    i = s.index("{", a) + 1
+    depth = 1
+    while depth:
+        depth += (s[i] == "{") - (s[i] == "}")
+        i += 1
+    return s[a:i]
+
+
+native = (r / "src/deluge/gui/menu_item/sequence/mdd.cpp").read_text()
+native = "\n".join(
+    line for line in native.splitlines() if not line.startswith("#include")
+)
+mode = (r / "src/deluge/gui/menu_item/sequence/mode.h").read_text()
+mode = "\n".join(line for line in mode.splitlines() if not line.startswith("#"))
+root = (r / "src/deluge/gui/views/instrument_clip_view.cpp").read_text()
+a = root.index("ActionResult InstrumentClipView::padAction(")
+b = root.index("\n\t// Drum Randomizer", a)
+pad = root[a:b] + "return ActionResult::NOT_DEALT_WITH;\n}"
+a = root.index("ActionResult InstrumentClipView::buttonAction(")
+b = root.index("\tmaybeStartShortcutOverview", a)
+button = root[a:b] + "return ActionResult::NOT_DEALT_WITH;\n}"
+a = root.index("ActionResult InstrumentClipView::timerCallback()")
+b = root.index("\n\tusing namespace", a)
+timer = root[a:b] + "return ActionResult::NOT_DEALT_WITH;\n}"
+editor = (r / "src/deluge/gui/ui/sound_editor.cpp").read_text()
+a = editor.index("ActionResult SoundEditor::padAction(")
+b = editor.index("\n\tif (!inSettingsMenu()", a)
+editor_pad = editor[a:b] + "++stockShortcuts; return ActionResult::NOT_DEALT_WITH;\n}"
+a = editor.index("ActionResult SoundEditor::buttonAction(")
+b = editor.index("\n\tusing namespace", a)
+editor_button = editor[a:b] + "return ActionResult::NOT_DEALT_WITH;\n}"
+a = editor.index("bool SoundEditor::getGreyoutColsAndRows(")
+b = editor.index("\tbool doGreyout = true;", a)
+greyout = editor[a:b] + "return true;\n}"
+
+stubs = r"""
 #include "sequencer/mdd/controller.hpp"
 #include <algorithm>
 #include <cassert>
@@ -100,14 +119,35 @@ namespace deluge::modulation::params {enum class Kind{PATCHED};constexpr int GLO
 constexpr int kDisplayWidth=16,kHorizontalMenuSlotYOffset=5,kTextSpacingX=6,kTextSpacingY=7,OLED_MAIN_WIDTH_PIXELS=128,OLED_MAIN_TOPMOST_PIXEL=0,kTextTitleSizeY=10,kTextTitleSpacingX=9;
 uint64_t nowMs=0;uint64_t mddTimeMs(){return nowMs;}
 struct InstrumentClipView:UI{bool mddGridWasRendered=false;bool mddControls()const{return clipObject.mddEnabled||clipObject.mddRequested;}void refreshMdd(){}ActionResult timerCallback();ActionResult padAction(int32_t,int32_t,int32_t);ActionResult buttonAction(deluge::hid::Button,bool,bool);}instrumentClipView;
-'''
-value_begin=method('src/deluge/gui/menu_item/value.h','void Value<T>::beginSession')
-value_turn=method('src/deluge/gui/menu_item/value.h','void Value<T>::selectEncoderAction')
-integer=method('src/deluge/gui/menu_item/integer.cpp','void Integer::selectEncoderAction')
-enumeration=method('src/deluge/gui/menu_item/enumeration.cpp','void Enumeration::selectEncoderAction')
-horizontal_turn=method('src/deluge/gui/menu_item/horizontal_menu.cpp','void HorizontalMenu::selectEncoderAction').replace('MenuItem* child = *current_item_;','MenuItem* child = getCurrentItem();')
-methods='namespace deluge::gui::menu_item {template<class T>\n'+value_begin+'\ntemplate<class T>\n'+value_turn+'\n'+integer+'\n'+enumeration+'\n'+horizontal_turn+'\n}\n'
-checks=r'''
+"""
+value_begin = method("src/deluge/gui/menu_item/value.h", "void Value<T>::beginSession")
+value_turn = method(
+    "src/deluge/gui/menu_item/value.h", "void Value<T>::selectEncoderAction"
+)
+integer = method(
+    "src/deluge/gui/menu_item/integer.cpp", "void Integer::selectEncoderAction"
+)
+enumeration = method(
+    "src/deluge/gui/menu_item/enumeration.cpp", "void Enumeration::selectEncoderAction"
+)
+horizontal_turn = method(
+    "src/deluge/gui/menu_item/horizontal_menu.cpp",
+    "void HorizontalMenu::selectEncoderAction",
+).replace("MenuItem* child = *current_item_;", "MenuItem* child = getCurrentItem();")
+methods = (
+    "namespace deluge::gui::menu_item {template<class T>\n"
+    + value_begin
+    + "\ntemplate<class T>\n"
+    + value_turn
+    + "\n"
+    + integer
+    + "\n"
+    + enumeration
+    + "\n"
+    + horizontal_turn
+    + "\n}\n"
+)
+checks = r"""
 int main(){using namespace deluge::gui::menu_item::sequence::mdd;
  rootUI=activeUI=&instrumentClipView; auto&s=clipObject.mdd;
  // Native encoder edits authoritative clip fields, not a private UI copy.
@@ -173,9 +213,48 @@ int main(){using namespace deluge::gui::menu_item::sequence::mdd;
  clipObject.failWrite=false;assert(writeConfirmation.selectButtonPress()==NO_NAVIGATION&&!clipObject.mddEnabled);
  std::cout<<"PASS native MDD: encoder writes, routes/rollback, root/scale, foreground pad forwarding, mute/hold/length, lane safety, held controls, stock Shift and mode navigation\n";
 }
-'''
-code=stubs+methods+mode+'\ndeluge::gui::menu_item::sequence::Mode sequencerModeMenu;\n'+native+'\n'+pad+'\n'+button+'\n'+timer+'\n'+editor_pad+'\n'+editor_button+'\n'+greyout+'\n'+checks
+"""
+code = (
+    stubs
+    + methods
+    + mode
+    + "\ndeluge::gui::menu_item::sequence::Mode sequencerModeMenu;\n"
+    + native
+    + "\n"
+    + pad
+    + "\n"
+    + button
+    + "\n"
+    + timer
+    + "\n"
+    + editor_pad
+    + "\n"
+    + editor_button
+    + "\n"
+    + greyout
+    + "\n"
+    + checks
+)
 with tempfile.TemporaryDirectory() as d:
- p=Path(d)/'probe.cpp';p.write_text(code);exe=Path(d)/'probe'
- subprocess.run(['g++','-std=c++23','-Wall','-Wextra','-Werror','-Wno-unused-parameter','-Wno-misleading-indentation','-fsanitize=undefined','-D_GLIBCXX_DEBUG','-I'+str(r/'src/deluge'),str(p),'-o',str(exe)],check=True)
- subprocess.run([str(exe)],check=True)
+    p = Path(d) / "probe.cpp"
+    p.write_text(code)
+    exe = Path(d) / "probe"
+    subprocess.run(
+        [
+            "g++",
+            "-std=c++23",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Wno-unused-parameter",
+            "-Wno-misleading-indentation",
+            "-fsanitize=undefined",
+            "-D_GLIBCXX_DEBUG",
+            "-I" + str(r / "src/deluge"),
+            str(p),
+            "-o",
+            str(exe),
+        ],
+        check=True,
+    )
+    subprocess.run([str(exe)], check=True)

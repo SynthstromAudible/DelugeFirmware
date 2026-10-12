@@ -1,15 +1,33 @@
 """Production Custom source setter/polarity arithmetic, with isolated host services."""
+
+import subprocess
+import tempfile
 from pathlib import Path
-import subprocess, tempfile
-r=Path(__file__).resolve().parents[3]
-def method(path,name):
- s=(r/path).read_text(); a=s.index(name);i=s.index('{',a)+1;d=1
- while d:d+=(s[i]=='{')-(s[i]=='}');i+=1
- return s[a:i]
-setter=method('src/deluge/processing/sound/sound.cpp','void Sound::setSnakeCustomValues')
-polarity=method('src/deluge/modulation/patch/patch_cable.h','int32_t toPolarity')
-default=method('src/deluge/modulation/patch/patch_cable.cpp','Polarity PatchCable::getDefaultPolarity')
-source=r'''
+
+r = Path(__file__).resolve().parents[3]
+
+
+def method(path, name):
+    s = (r / path).read_text()
+    a = s.index(name)
+    i = s.index("{", a) + 1
+    d = 1
+    while d:
+        d += (s[i] == "{") - (s[i] == "}")
+        i += 1
+    return s[a:i]
+
+
+setter = method(
+    "src/deluge/processing/sound/sound.cpp", "void Sound::setSnakeCustomValues"
+)
+polarity = method("src/deluge/modulation/patch/patch_cable.h", "int32_t toPolarity")
+default = method(
+    "src/deluge/modulation/patch/patch_cable.cpp",
+    "Polarity PatchCable::getDefaultPolarity",
+)
+source = (
+    r"""
 #include "sequencer/mdd/snake.hpp"
 #include <array>
 #include <cassert>
@@ -21,7 +39,13 @@ namespace util {int to_underlying(PatchSource p){return int(p);}}
 struct FlashStorage {static inline Polarity defaultPatchCablePolarity=Polarity::UNIPOLAR;};
 struct Sound {std::array<int32_t,19> globalSourceValues{};uint32_t sourcesChanged=0;void setSnakeCustomValues(const std::array<int32_t,4>&);};
 struct PatchCable {PatchSource from;Polarity polarity;static Polarity getDefaultPolarity(PatchSource);
-'''+polarity+'};\n'+setter+'\n'+default+r'''
+"""
+    + polarity
+    + "};\n"
+    + setter
+    + "\n"
+    + default
+    + r"""
 int main(){
  Sound s;
  for(int lane=0;lane<4;++lane){
@@ -52,8 +76,23 @@ int main(){
  s.setSnakeCustomValues({});for(int i=15;i<19;++i)assert(s.globalSourceValues[i]==0);
  std::cout<<"PASS production Custom 1-4 setter: independent source masks, full unipolar endpoints under both default polarities, signed/zero depth and clearing\n";
 }
-'''
+"""
+)
 with tempfile.TemporaryDirectory() as td:
- p=Path(td)/'probe.cpp';p.write_text(source);exe=Path(td)/'probe'
- subprocess.run(['g++','-std=c++23','-fsanitize=undefined','-Isrc/deluge',str(p),'-o',str(exe)],cwd=r,check=True)
- subprocess.run([str(exe)],check=True)
+    p = Path(td) / "probe.cpp"
+    p.write_text(source)
+    exe = Path(td) / "probe"
+    subprocess.run(
+        [
+            "g++",
+            "-std=c++23",
+            "-fsanitize=undefined",
+            "-Isrc/deluge",
+            str(p),
+            "-o",
+            str(exe),
+        ],
+        cwd=r,
+        check=True,
+    )
+    subprocess.run([str(exe)], check=True)

@@ -1,5 +1,7 @@
+import subprocess
+import tempfile
 from pathlib import Path
-import subprocess, tempfile
+
 r = Path(__file__).resolve().parents[3]
 s = (r / "src/deluge/gui/views/instrument_clip_view.cpp").read_text()
 start = s.index("bool InstrumentClipView::renderMddOLED")
@@ -9,7 +11,8 @@ while n:
     n += (s[i] == "{") - (s[i] == "}")
     i += 1
 method = s[start:i]
-code = r'''
+code = (
+    r"""
 #include "sequencer/mdd/controller.hpp"
 #include <cassert>
 #include <cstdio>
@@ -40,7 +43,9 @@ struct InstrumentClipView {
  Clip* getCurrentInstrumentClip(){return &clip;}
  bool renderMddOLED(deluge::hid::display::oled_canvas::Canvas&);
 };
-''' + method + r'''
+"""
+    + method
+    + r"""
 int main(){
  InstrumentClipView view;
  using deluge::hid::display::oled_canvas::Canvas;
@@ -58,9 +63,25 @@ int main(){
  c.lines.clear();view.renderMddOLED(c);assert(c.lines[1]=="Step 1 Engine 2");
  std::cout<<"PASS actual OLED rendering: 48px bounds, root status, native menu hint and discrete Engine values\n";
 }
-'''
+"""
+)
 with tempfile.TemporaryDirectory() as d:
-    cpp=Path(d)/"probe.cpp";out=Path(d)/"probe"
+    cpp = Path(d) / "probe.cpp"
+    out = Path(d) / "probe"
     cpp.write_text(code)
-    subprocess.run(["g++","-std=c++23","-Wall","-Wextra","-Werror","-fsanitize=undefined","-I"+str(r/"src/deluge"),str(cpp),"-o",str(out)],check=True)
-    subprocess.run([str(out)],check=True)
+    subprocess.run(
+        [
+            "g++",
+            "-std=c++23",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-fsanitize=undefined",
+            "-I" + str(r / "src/deluge"),
+            str(cpp),
+            "-o",
+            str(out),
+        ],
+        check=True,
+    )
+    subprocess.run([str(out)], check=True)

@@ -1,14 +1,26 @@
+import subprocess
+import tempfile
 from pathlib import Path
-import subprocess,tempfile
-r=Path(__file__).resolve().parents[3]
-s=(r/'src/deluge/model/clip/instrument_clip.cpp').read_text()
-def prefix(name,end):
- a=s.index(name);b=s.index(end,a);return s[a:b]+'}\n'
-seek=prefix('void InstrumentClip::setPos(', '\tClip::setPos(modelStack, newPos, useActualPosForParamManagers)')
-seek=seek[:-2]+'Clip::setPos(modelStack,newPos,useActualPosForParamManagers);}\n'
-move=prefix('void InstrumentClip::incrementPos(', '\n\tticksTilNextNoteRowEvent -=')
-switch=prefix('void InstrumentClip::processCurrentPos(', '\n\tif (mddEnabled) {')
-code=r'''
+
+r = Path(__file__).resolve().parents[3]
+s = (r / "src/deluge/model/clip/instrument_clip.cpp").read_text()
+
+
+def prefix(name, end):
+    a = s.index(name)
+    b = s.index(end, a)
+    return s[a:b] + "}\n"
+
+
+seek = prefix(
+    "void InstrumentClip::setPos(",
+    "\tClip::setPos(modelStack, newPos, useActualPosForParamManagers)",
+)
+seek = seek[:-2] + "Clip::setPos(modelStack,newPos,useActualPosForParamManagers);}\n"
+move = prefix("void InstrumentClip::incrementPos(", "\n\tticksTilNextNoteRowEvent -=")
+switch = prefix("void InstrumentClip::processCurrentPos(", "\n\tif (mddEnabled) {")
+code = (
+    r"""
 #include "sequencer/mdd/controller.hpp"
 #include <cassert>
 #include <iostream>
@@ -24,7 +36,11 @@ struct InstrumentClip:Clip{Output*output;snake::Controller mdd;bool mddEnabled=f
  void closeMdd(ModelStackWithTimelineCounter*){++closed;}void stopAllNotesPlaying(ModelStackWithTimelineCounter*){++stopped;}
  void setPos(ModelStackWithTimelineCounter*,int,bool);void incrementPos(ModelStackWithTimelineCounter*,int);void processCurrentPos(ModelStackWithTimelineCounter*,uint32_t);
 };
-'''+seek+move+switch+r'''
+"""
+    + seek
+    + move
+    + switch
+    + r"""
 int main(){ModelStackWithTimelineCounter stack;Output out;
 for(int quarter:{24,72}){song.quarter=quarter;InstrumentClip c;c.output=&out;c.loopLength=quarter*4;c.mdd.quarterTicks=quarter;for(auto&l:c.mdd.core.lanes)c.mdd.setSpeed(l,2);
  c.setPos(&stack,0,true);assert(c.mddTick==0&&c.mddLastProcessed==UINT64_MAX);
@@ -46,8 +62,27 @@ for(int quarter:{24,72}){song.quarter=quarter;InstrumentClip c;c.output=&out;c.l
  c.setPos(&stack,quarter*5,true);assert(c.mddTick==uint64_t(quarter*5)&&c.lastProcessedPos==quarter);
 }
 std::cout<<"PASS native sync: shared tick deltas in both modes, live mode switch without rewind, start/restart/seek, batched clock ticks and two song tick resolutions\n";}
-'''
-with tempfile.TemporaryDirectory()as d:
- p=Path(d)/'probe.cpp';p.write_text(code);exe=Path(d)/'probe'
- subprocess.run(['g++','-std=c++23','-Wall','-Wextra','-Werror','-Wno-unused-parameter','-Wno-misleading-indentation','-fsanitize=undefined','-I'+str(r/'src/deluge'),str(p),'-o',str(exe)],check=True)
- subprocess.run([str(exe)],check=True)
+"""
+)
+with tempfile.TemporaryDirectory() as d:
+    p = Path(d) / "probe.cpp"
+    p.write_text(code)
+    exe = Path(d) / "probe"
+    subprocess.run(
+        [
+            "g++",
+            "-std=c++23",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Wno-unused-parameter",
+            "-Wno-misleading-indentation",
+            "-fsanitize=undefined",
+            "-I" + str(r / "src/deluge"),
+            str(p),
+            "-o",
+            str(exe),
+        ],
+        check=True,
+    )
+    subprocess.run([str(exe)], check=True)

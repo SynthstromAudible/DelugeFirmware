@@ -1,11 +1,15 @@
 """Run the actual transactional InstrumentClip WRITE body with fault-injected containers."""
+
+import subprocess
+import tempfile
 from pathlib import Path
-import subprocess,tempfile
-r=Path(__file__).resolve().parents[3]
-s=(r/'src/deluge/model/clip/instrument_clip.cpp').read_text()
-a=s.index('Error InstrumentClip::writeMddToNormal(');b=s.index('\nint InstrumentClip::mddQuantize(',a)
-body=s[a:b]
-stubs=r'''
+
+r = Path(__file__).resolve().parents[3]
+s = (r / "src/deluge/model/clip/instrument_clip.cpp").read_text()
+a = s.index("Error InstrumentClip::writeMddToNormal(")
+b = s.index("\nint InstrumentClip::mddQuantize(", a)
+body = s[a:b]
+stubs = r"""
 #include "sequencer/mdd/bake.hpp"
 #include "sequencer/mdd/controller.hpp"
 #include <vector>
@@ -31,13 +35,17 @@ struct Logger{Action action;bool fail=false;Action*getNewAction(ActionType,Actio
 struct GeneralMemoryAllocator{static auto&get(){static GeneralMemoryAllocator a;return a;}void*allocLowSpeed(size_t n){return allocation()?std::malloc(n):nullptr;}};
 void delugeDealloc(void*p){std::free(p);}
 struct InstrumentClip{Output*output=&::output;int loopLength=96;snake::Controller mdd;uint64_t mddTick=37;SequenceDirection sequenceDirectionMode=SequenceDirection::REVERSE;bool currentlyPlayingReversed=true;NoteRowVector noteRows;bool mddRequested=true,mddEnabled=true,mddPending=false,inScaleMode=false;int noteRowsNumTicksBehindClip=8,ticksTilNextNoteRowEvent=7,yScroll=0,stops=0,resumes=0,events=0,lastProcessedPos=37;int mddQuantize(int n,Song*){return inScaleMode?n-n%2:n;}void stopAllNotesPlaying(ModelStackWithTimelineCounter*){++stops;}void resumePlayback(ModelStackWithTimelineCounter*,bool sound){assert(!sound);++resumes;}void expectEvent(){++events;}Error writeMddToNormal(ModelStackWithTimelineCounter*);};
-'''
-header=(r/'src/deluge/model/consequence/consequence_mdd_write.h').read_text()
-header='\n'.join(l for l in header.splitlines() if not l.startswith('#'))
-implementation=(r/'src/deluge/model/consequence/consequence_mdd_write.cpp').read_text()
-implementation='\n'.join(l for l in implementation.splitlines() if not l.startswith('#'))
-stubs+=header+'\n'+implementation+'\n'
-checks=r'''
+"""
+header = (r / "src/deluge/model/consequence/consequence_mdd_write.h").read_text()
+header = "\n".join(l for l in header.splitlines() if not l.startswith("#"))
+implementation = (
+    r / "src/deluge/model/consequence/consequence_mdd_write.cpp"
+).read_text()
+implementation = "\n".join(
+    l for l in implementation.splitlines() if not l.startswith("#")
+)
+stubs += header + "\n" + implementation + "\n"
+checks = r"""
 int main(){ModelStackWithTimelineCounter stack;
  for(int budget=0;budget<34;++budget){InstrumentClip c;failAfter=-1;c.noteRows.insertNoteRowAtY(42)->notes.insertAtKey(13,true);for(int i=0;i<16;++i)c.mdd.core.lanes[0].values[i]=60+i;failAfter=budget;
  assert(c.writeMddToNormal(&stack)==Error::INSUFFICIENT_RAM);assert(c.mddEnabled&&c.mddRequested&&c.stops==0&&c.noteRows.getNumElements()==1&&c.noteRows.getElement(0)->y==42&&c.noteRows.getElement(0)->notes.data[0].pos==13);}
@@ -52,8 +60,25 @@ int main(){ModelStackWithTimelineCounter stack;
  assert(AudioEngine::services>0);
  std::cout<<"PASS actual WRITE: rollback at 34 allocation points, native consequence undo/redo restores notes/row expression/direction and rejects missing action, stock row commit, scale, gates, velocity, empty sequence, preserved transport phase, audio service without user-action reentrancy\n";
 }
-'''
+"""
 with tempfile.TemporaryDirectory() as d:
- p=Path(d)/'probe.cpp';p.write_text(stubs+body+checks);exe=Path(d)/'probe'
- subprocess.run(['g++','-std=c++23','-Wall','-Wextra','-Werror','-fsanitize=undefined','-D_GLIBCXX_DEBUG','-I'+str(r/'src/deluge'),str(p),'-o',str(exe)],check=True)
- subprocess.run([str(exe)],check=True)
+    p = Path(d) / "probe.cpp"
+    p.write_text(stubs + body + checks)
+    exe = Path(d) / "probe"
+    subprocess.run(
+        [
+            "g++",
+            "-std=c++23",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-fsanitize=undefined",
+            "-D_GLIBCXX_DEBUG",
+            "-I" + str(r / "src/deluge"),
+            str(p),
+            "-o",
+            str(exe),
+        ],
+        check=True,
+    )
+    subprocess.run([str(exe)], check=True)

@@ -1365,7 +1365,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 	case params::LOCAL_PLAITS_B_ENGINE:
 		return getSynthMode() == SynthMode::SUBTRACTIVE && isPlaits(sources[p - params::LOCAL_PLAITS_A_ENGINE].oscType)
 		           ? PatchCableAcceptance::ALLOWED
-				   : PatchCableAcceptance::EDITABLE;
+		           : PatchCableAcceptance::EDITABLE;
 	case params::GLOBAL_NONE:
 		return PatchCableAcceptance::DISALLOWED;
 

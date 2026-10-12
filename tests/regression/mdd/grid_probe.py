@@ -1,10 +1,14 @@
+import subprocess
+import tempfile
 from pathlib import Path
-import subprocess,tempfile,sys
-r=Path(__file__).resolve().parents[3]
-s=(r/'src/deluge/gui/views/instrument_clip_view.cpp').read_text()
-a=s.index('bool InstrumentClipView::renderMainPads(');b=s.index('\n\tif (isUIModeActive',a)
-method=s[a:b]+'return false;\n}'
-code=r'''
+
+r = Path(__file__).resolve().parents[3]
+s = (r / "src/deluge/gui/views/instrument_clip_view.cpp").read_text()
+a = s.index("bool InstrumentClipView::renderMainPads(")
+b = s.index("\n\tif (isUIModeActive", a)
+method = s[a:b] + "return false;\n}"
+code = (
+    r"""
 #include "sequencer/mdd/controller.hpp"
 #include <cassert>
 #include <cstring>
@@ -17,7 +21,9 @@ Clip*getCurrentInstrumentClip(){return &clip;}
 struct Song{bool active=true;int getQuarterNoteLength(){return 24;}bool isClipActive(Clip*){return active;}}song,*currentSong=&song;
 struct Playback{bool running=true;bool isEitherClockActive(){return running;}}playbackHandler;
 struct InstrumentClipView{bool enabled=true,mddGridWasRendered=false;bool mddControls(){return enabled;}bool renderMainPads(uint32_t,RGB[][18],uint8_t[][18],bool);};
-'''+method+r'''
+"""
+    + method
+    + r"""
 int main(){InstrumentClipView view;RGB image[8][18]{};uint8_t mask[8][18]{};int frames=0;
 for(int n=0;n<7;++n)for(int shape=0;shape<5;++shape)for(int dir=0;dir<4;++dir)for(int length=1;length<=16;++length){
  clip.mdd.choose(n);auto&lane=clip.mdd.core.lanes[n];lane.shape=snake::Shape(shape);lane.direction=snake::Direction(dir);lane.length=length;lane.shift=3;lane.muted=65535;
@@ -32,8 +38,27 @@ view.enabled=false;view.renderMainPads(~0u,image,mask,false);assert(!view.mddGri
  for(int y=0;y<8;++y)for(int x=0;x<16;++x){assert(image[y][x].r==0&&image[y][x].g==0&&image[y][x].b==0&&mask[y][x]==0);}
 std::cout<<"PASS cleanup and actual grid render: "<<frames<<" frames, 7 lanes, 5 shapes, 4 directions, lengths 1-16, shifted/muted playhead and stopped/inactive states\n";
 }
-'''
+"""
+)
 with tempfile.TemporaryDirectory() as d:
- p=Path(d)/'probe.cpp';p.write_text(code);exe=Path(d)/'probe'
- subprocess.run(['g++','-std=c++23','-O1','-Wall','-Wextra','-Werror','-Wno-unused-parameter','-fsanitize=undefined','-I'+str(r/'src/deluge'),str(p),'-o',str(exe)],check=True)
- subprocess.run([str(exe)],check=True)
+    p = Path(d) / "probe.cpp"
+    p.write_text(code)
+    exe = Path(d) / "probe"
+    subprocess.run(
+        [
+            "g++",
+            "-std=c++23",
+            "-O1",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Wno-unused-parameter",
+            "-fsanitize=undefined",
+            "-I" + str(r / "src/deluge"),
+            str(p),
+            "-o",
+            str(exe),
+        ],
+        check=True,
+    )
+    subprocess.run([str(exe)], check=True)

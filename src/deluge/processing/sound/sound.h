@@ -90,7 +90,7 @@ public:
 	std::array<int32_t, kNumPatchSources> globalSourceValues{};
 	bool snakeCustomEnabled = false;
 	bool mddClipActive = false;
-    const void* mddClipOwner = nullptr; // Identity only; never dereferenced.
+	const void* mddClipOwner = nullptr; // Identity only; never dereferenced.
 	deluge::sequencer::SnakeConfig snakeCustomConfig;
 	void updateSnakeCustom();
 	void setSnakeCustomValues(const std::array<int32_t, 4>& values);
