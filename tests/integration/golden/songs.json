@@ -157,15 +157,15 @@
  },
  "RS_MODFX_SOFT_OFF": {
   "frames": 384000,
-  "peak": 2147483648,
-  "rms_db": -10.24,
-  "sha256": "24eb24cd07c1a99fe9bee7d05875592d017e8c2aaa0ec2633fed63817ed5329e"
+  "peak": 1222706944,
+  "rms_db": -21.14,
+  "sha256": "4e46f4d523b3e981718087b17fd046d806574a2b2b30c1e2fe6250ad0654b5a0"
  },
  "RS_MODFX_STEREO_A": {
   "frames": 384000,
-  "peak": 2147483648,
-  "rms_db": -17.78,
-  "sha256": "f163b0cfed0f34f1e5655a7c2a32e0d4f84435c6e5af86015a4af7803de31ecd"
+  "peak": 1452845824,
+  "rms_db": -26.93,
+  "sha256": "0b72c62242a73eae6bcc4a4c4a8621e6b3a60db3c18b2948a75a357422e89412"
  },
  "RS_MODFX_STEREO_B": {
   "frames": 384000,

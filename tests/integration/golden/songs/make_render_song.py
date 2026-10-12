@@ -834,6 +834,13 @@ MOD_FX_SOFT_OFF_DEPTH = (
 )
 
 
+# Each owner's volume below its default in the songs whose mod FX would otherwise take the output to full scale, where
+# clipping would hide a change to the loudest samples: RS_MODFX_STEREO_A peaks near 0.68 of full scale and
+# RS_MODFX_SOFT_OFF near 0.57. Their dry twins take the same volume, so only the mod FX differ.
+MOD_FX_STEREO_A_VOLUME = 'volume="0xE0000000"'
+MOD_FX_SOFT_OFF_VOLUME = 'volume="0xC0000000"'
+
+
 def loud_audio_parts(fx: dict) -> tuple[str, str]:
     """audio_parts, its clip playing LOUD_SAMPLE."""
     track, clip = audio_parts(fx)
@@ -911,9 +918,17 @@ SONGS = {
     ),
     "RS_MODFX_MONO_DRY": lambda v: mod_fx_song(v, DRY, DRY, DRY),
     "RS_MODFX_STEREO_A": lambda v: mod_fx_song(
-        v, _mod_fx("flanger"), _mod_fx("chorus"), _mod_fx("phaser")
+        v,
+        _mod_fx("flanger", MOD_FX_STEREO_A_VOLUME),
+        _mod_fx("chorus", MOD_FX_STEREO_A_VOLUME),
+        _mod_fx("phaser", MOD_FX_STEREO_A_VOLUME),
     ),
-    "RS_MODFX_STEREO_A_DRY": lambda v: mod_fx_song(v, DRY, DRY, DRY),
+    "RS_MODFX_STEREO_A_DRY": lambda v: mod_fx_song(
+        v,
+        _host(params=MOD_FX_STEREO_A_VOLUME),
+        _host(params=MOD_FX_STEREO_A_VOLUME),
+        _host(params=MOD_FX_STEREO_A_VOLUME),
+    ),
     "RS_MODFX_STEREO_B": lambda v: mod_fx_song(
         v, _mod_fx("StereoChorus"), _mod_fx("TapeWarble"), _mod_fx("dimension")
     ),
@@ -921,14 +936,23 @@ SONGS = {
     "RS_MODFX_SOFT_OFF": lambda v: parts_song(
         v,
         [
-            kit_parts(_mod_fx("phaser", MOD_FX_SOFT_OFF_DEPTH), PINGPONG_DRUMS),
-            audio_parts(_mod_fx("flanger", MOD_FX_SOFT_OFF_DEPTH)),
+            kit_parts(
+                _mod_fx("phaser", f"{MOD_FX_SOFT_OFF_DEPTH} {MOD_FX_SOFT_OFF_VOLUME}"),
+                PINGPONG_DRUMS,
+            ),
+            audio_parts(
+                _mod_fx("flanger", f"{MOD_FX_SOFT_OFF_DEPTH} {MOD_FX_SOFT_OFF_VOLUME}")
+            ),
         ],
     ),
     "RS_MODFX_SWITCH": lambda v: parts_song(v, [audio_parts(_mod_fx("TapeWarble"))]),
     "RS_MODFX_CLEAR": lambda v: parts_song(v, [audio_parts(_mod_fx("flanger"))]),
     "RS_MODFX_SOFT_OFF_DRY": lambda v: parts_song(
-        v, [kit_parts(DRY, PINGPONG_DRUMS), audio_parts(DRY)]
+        v,
+        [
+            kit_parts(_host(params=MOD_FX_SOFT_OFF_VOLUME), PINGPONG_DRUMS),
+            audio_parts(_host(params=MOD_FX_SOFT_OFF_VOLUME)),
+        ],
     ),
 }
 
