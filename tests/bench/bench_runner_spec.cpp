@@ -986,7 +986,7 @@ describe bench_runner("The DSP benchmark runner", ${
 			                                  std::pair{CaseList::FILTERS, kFilterCaseNames},
 			                                  std::pair{CaseList::COMPRESSOR, kCompressorCaseNames},
 			                                  std::pair{CaseList::MOD_FX, kModFxCaseNames},
-			                                     std::pair{CaseList::GRANULAR, kGranularCaseNames}}) {
+			                                  std::pair{CaseList::GRANULAR, kGranularCaseNames}}) {
 				lines.clear();
 				counters.reset();
 				const RunConfig config{.block_sizes = kBlockSizes};

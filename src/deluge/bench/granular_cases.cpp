@@ -7,6 +7,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/granular/GranularProcessor.h"
+#include "util/waves.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -27,11 +28,16 @@ struct GranularRig {
 
 GranularRig rig{};
 
-/// @brief One call as the owner makes it.
+/// @brief The noise generator's state at the start of every case, so that each case and run draws the same grains.
+constexpr uint32_t kNoiseSeed = 380116160;
+
+/// @brief One call as the owner makes it: a fresh post-effect volume and the reverb amount derived from it.
 /// @param config The case's knobs.
 void render_block(const GranularConfig& config) {
+	rig.volume = ONE_Q31 >> 1;
+	const int32_t reverb_amount = multiply_32x32_rshift32(rig.volume, kGranularVerbAmount) << 5;
 	rig.processor->processGrainFX(rig.work, kGranularRate, kGranularMix, config.density, config.randomness, &rig.volume,
-	                              true, kGranularTempoBpm, kGranularReverbAmount);
+	                              true, kGranularTempoBpm, reverb_amount);
 }
 
 } // namespace
@@ -40,13 +46,13 @@ void GranularCase::setup(std::size_t n) {
 	// A fresh processor, so each case starts from the same state; the destroyed one releases its ring.
 	rig.processor.reset();
 	rig.processor.emplace();
-	rig.volume = ONE_Q31 >> 1;
+	jcong = kNoiseSeed;
 	fill_compressor_input();
 	const FrameSpans<StereoSample> spans = stereo_frame_spans(n);
 	rig.work = spans.out;
 	rig.input = spans.in;
-	// The untimed blocks take the ring's allocation and fill it past half, so that grains are live from the first
-	// timed block.
+	// The untimed blocks take the ring's allocation and run it past one full ring, so that grains are live and
+	// initialised from the first timed block.
 	for (std::size_t frames = 0; frames < kGranularFillFrames; frames += n) {
 		std::ranges::copy(rig.input, rig.work.begin());
 		render_block(config_);

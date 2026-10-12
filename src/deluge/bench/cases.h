@@ -1336,11 +1336,14 @@ private:
 	ModFxConfig config_;
 };
 
-/// @brief The granular cases' rate knob, a signed Q31 param value: the middle, which leaves the processor's own
-/// 35 Hz grain rate (1260 frames between grain starts) as it constructs.
-inline constexpr int32_t kGranularRate = 0;
-/// @brief The granular cases' mix knob, signed Q31: the middle, an even blend of dry and wet.
-inline constexpr int32_t kGranularMix = 0;
+/// @brief The granular cases' rate knob, a signed Q31 param value: 0x10000 maps (setupGrainFX's log curve) to about
+/// 71 grain starts per second at 44.1 kHz, one every 1,242 frames, a mid setting of the knob's range. It differs from
+/// the processor's initial knob position (0), so the first call applies it.
+inline constexpr int32_t kGranularRate = 0x10000;
+/// @brief The granular cases' mix knob, signed Q31: 0x40000000 gives the cubic mix curve a wet volume of one half
+/// (and a full dry volume). It differs from the processor's initial knob position (0), so the first call applies it;
+/// at 0 the wet volume would stay at the constructor's silence.
+inline constexpr int32_t kGranularMix = 0x40000000;
 /// @brief The sparse cases' density knob, signed Q31: grains of about 3,000 frames (setupGrainFX scales the length by
 /// the knob's 0..1 position, here 1/8), so two or three of the eight grains sound at a time.
 inline constexpr int32_t kGranularDensityLow = -0x60000000;
@@ -1353,12 +1356,15 @@ inline constexpr int32_t kGranularRandomnessNone = 0;
 /// @brief The random cases' pitch randomness, signed Q31: the maximum, so grains draw their pitch from the full
 /// range.
 inline constexpr int32_t kGranularRandomnessMax = 0x7fffffff;
-/// @brief The granular cases' reverb send, Q31: a moderate amount of the wet signal fed to the reverb.
-inline constexpr int32_t kGranularReverbAmount = 0x10000000;
+/// @brief The granular cases' reverb send knob, Q31: a moderate amount. Each block turns it into the processor's
+/// argument with the post-effect volume, as ModControllableAudio::processGrainFX does.
+inline constexpr int32_t kGranularVerbAmount = 0x10000000;
 /// @brief The granular cases' tempo in beats per minute, as the owner hands it to the processor.
 inline constexpr float kGranularTempoBpm = 120.f;
-/// @brief The frames of untimed setup blocks: past half the 65,536-frame ring (33,000), so grains start.
-inline constexpr std::size_t kGranularFillFrames = 33'000;
+/// @brief The frames of untimed setup blocks: more than one full 65,536-frame ring, so that the processor has
+/// wrapped once (it then draws grains at random pitches and start points, its steady state) and its ring is more than
+/// half full (grains start). Every block size is at most 128, so the last block starts past the first wrap.
+inline constexpr std::size_t kGranularFillFrames = 66'000;
 
 /// @brief One granular case's configuration.
 struct GranularConfig {
@@ -1378,8 +1384,9 @@ inline constexpr GranularConfig kGranularDenseRandom{.density = kGranularDensity
 
 /// @brief The granular block as its owner renders it: `GranularProcessor::processGrainFX` in place over the lanes
 /// output, with the reverb feed going to the audio engine's buffer.
-/// @details Setup makes the processor anew, then runs untimed blocks until the ring holds more than half its length,
-/// so grains are live and the processor's first-sound buffer allocation is out of the timed region. Each block
+/// @details Setup makes the processor anew and reseeds the noise generator, then runs untimed blocks past one full
+/// ring, so grains are live and initialised and the processor's first-sound buffer allocation is out of the timed
+/// region. Each block
 /// processes the lanes input's sounding block in place, as the mod FX cases do.
 class GranularCase {
 public:
@@ -1506,7 +1513,7 @@ struct CaseSet {
 /// @return The one CaseSet every case in cases() acts on.
 [[nodiscard]] CaseSet& case_set();
 
-/// @brief Which of the seven case lists a run prints.
+/// @brief Which of the eight case lists a run prints.
 enum class CaseList : uint8_t {
 	KERNELS, ///< One case per component: the calibration loop, then each kernel in its Mono, Stereo or Control.
 	LANES,   ///< The calibration loop, then each `Lanes` case beside the mono case of its kernel.
