@@ -493,6 +493,16 @@ def audio_parts(fx: dict, extra_tags: str = "") -> tuple[str, str]:
     )
 
 
+# An owner's own stutter settings, as its element saves them when it does not use the song's: free (unquantized) and
+# forward on the audio track; quantized and reversed on the kit; ping-pong on the master. The gates begin and end each
+# stutter mid-render (RENDER_STUTTER), as the gold knob's press and release do.
+STUTTER_FREE = '<stutter quantized="0" reverse="0" pingPong="0" useSongStutter="0" />'
+STUTTER_QUANT_REV = (
+    '<stutter quantized="1" reverse="1" pingPong="0" useSongStutter="0" />'
+)
+STUTTER_PINGPONG = '<stutter quantized="0" reverse="0" pingPong="1" />'
+
+
 def parts_song(
     voices: list[tuple[str, str, int]],
     parts: list[tuple[str, str]],
@@ -1035,6 +1045,24 @@ SONGS = {
         song_settings=master_settings(delay_owners_master(dry=True)),
     ),
     "RS_TEMPO_DELAYS": lambda v: parts_song(v, tempo_delays_parts()),
+    "RS_STUTTER_AUDIO": lambda v: parts_song(v, [audio_parts(DRY, STUTTER_FREE)]),
+    # RS_STUTTER_AUDIO under its own name, so the gate that turns its rate keeps its own record.
+    "RS_STUTTER_RATE": lambda v: parts_song(v, [audio_parts(DRY, STUTTER_FREE)]),
+    "RS_STUTTER_KIT": lambda v: parts_song(
+        v, [kit_parts(DRY, PINGPONG_DRUMS, STUTTER_QUANT_REV)]
+    ),
+    "RS_STUTTER_MASTER": lambda v: parts_song(
+        v,
+        [audio_parts(DRY)],
+        song_settings=master_settings(DRY) + f"\n\t{STUTTER_PINGPONG}",
+    ),
+    "RS_STUTTER_HANDOFF": lambda v: parts_song(
+        v,
+        [
+            audio_parts(DRY, STUTTER_FREE),
+            kit_parts(DRY, PINGPONG_DRUMS, STUTTER_QUANT_REV),
+        ],
+    ),
     "RS_KIT_DELAY": lambda v: parts_song(v, [kit_parts(KIT_DELAY, DELAY_DRUMS)]),
     "RS_KIT_DELAY_DRY": lambda v: parts_song(v, [kit_parts(DRY, DELAY_DRUMS)]),
     "RS_AUDIO_DELAY": lambda v: parts_song(v, [audio_parts(AUDIO_DELAY)]),

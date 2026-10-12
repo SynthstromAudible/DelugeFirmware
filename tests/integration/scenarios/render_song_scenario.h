@@ -62,6 +62,10 @@
 ///     in (deluge::effects::delay_off_silenced_blocks); the check requires none.
 ///   - `RS-DELAY-ARENA shortfalls=<n> regions=<r> jobs=<j>`: tapes the render could not take from the delay arena
 ///     (the check requires none), the regions it holds at the end, and how often its job maintained it.
+///   - `RS-STUTTER block=<b> begin|end owner=<o>` and `RS-STUTTER block=<b> rate=<v> owner=<o>`: a stutter begun or
+///     ended, or its rate turned (RENDER_STUTTER, RENDER_STUTTER_RATE). After the run,
+///     `RS-STUTTER applied=<n> asked=<m> stuttered=<k>`: a failure unless every begin and end was made, an owner
+///     stuttered in some scenario tick, and the rate change asked for was made.
 ///   - `RS-TEMPO block=<b> bpm=<t>`: the song's tempo set at block @c b (RENDER_TEMPO).
 ///   - `RS-DELAY-SWITCH block=<b> analog=<0|1>`: one audio track's delay switched at block @c b, and its mode after.
 ///     Then, after the run, `RS-DELAY-SWITCH switches=<n> asked=<m> tracks=<k>`: a failure unless every switch asked

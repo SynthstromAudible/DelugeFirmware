@@ -1052,6 +1052,96 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-stutter-audio"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "an audio track's stutter renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_STUTTER_AUDIO) whose audio track, with its own stutter settings (free, forward), is stuttered from block 100 to 600 (RENDER_STUTTER) as the gold knob's press and release do, so it records a tape at its stutter rate and then plays it back; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; the scenario's RS-STUTTER summary must show the begin and the end made and ticks stuttered, and the song rendered without the stutter must render differently (RS-SWITCH)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_STUTTER_AUDIO", RENDER_STUTTER = "100:600:audio" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-stutter-kit"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a kit's quantized, reversed stutter renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_STUTTER_KIT) whose kit, with its own stutter settings (quantized, reversed), is stuttered from block 150 to 700 (RENDER_STUTTER), its stutter rate snapped to a note length at the begin and restored at the end; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; the RS-STUTTER summary must show the begin and end made and ticks stuttered, and the unstuttered song must render differently (RS-SWITCH)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_STUTTER_KIT", RENDER_STUTTER = "150:700:kit" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-stutter-master"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the song master's ping-pong stutter renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_STUTTER_MASTER) whose master, its stutter ping-pong, is stuttered from block 100 to 900 (RENDER_STUTTER), so the played tape turns at each end; beside RS_STREAM's two synths and an audio track, compared with its record in tests/integration/golden/songs.json; the RS-STUTTER summary must show the begin and end made and ticks stuttered, and the unstuttered song must render differently (RS-SWITCH)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_STUTTER_MASTER", RENDER_STUTTER = "100:900:master" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-stutter-rate"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a stutter whose rate knob is turned while it plays renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_STUTTER_RATE, render-stutter-audio's song) stuttered from block 100 to 900 (RENDER_STUTTER), its stutter-rate param set by the gold knob's SetParamValue Edit at block 400 (RENDER_STUTTER_RATE), so the recorded tape plays resampled; compared with its record in tests/integration/golden/songs.json; the RS-STUTTER summary must show the begin, the end and the rate change made, and the unstuttered song must render differently (RS-SWITCH)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_STUTTER_RATE", RENDER_STUTTER = "100:900:audio", RENDER_STUTTER_RATE = "400:0x30000000" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-stutter-handoff"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a stutter handed from one owner to another renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_STUTTER_HANDOFF) whose audio track is stuttered from block 100 and whose kit takes the stutter over at block 400 (RENDER_STUTTER: the track's ended, then the kit's begun, in the same block, as the performance view hands a stutter over), ending at 800; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; the RS-STUTTER summary must show every begin and end made and ticks stuttered, and the unstuttered song must render differently (RS-SWITCH)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_STUTTER_HANDOFF", RENDER_STUTTER = "100:400:audio,400:800:kit" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-tempo-delays"
 path = "."
 level = "integration"

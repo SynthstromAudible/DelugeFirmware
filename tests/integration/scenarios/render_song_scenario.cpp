@@ -28,10 +28,17 @@
 #include "libdeluge/tier.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/change_effect.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
+#include "model/fx/stutterer.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/model_stack.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include "modulation/params/param.h"
+#include "modulation/params/param_manager.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 
@@ -132,6 +139,128 @@ uint64_t g_tempoAt = 0;
 float g_tempoBpm = 0;
 bool g_tempoAsked = false;
 bool g_tempoDone = false;
+
+/// RENDER_STUTTER: `<begin block>:<end block>:<owner>`, comma-separated: a stutter begun and ended as the gold knob's
+/// press and release make them, on @c owner: `audio` (the first audio track), `kit` (the first kit) or `master`. In a
+/// block, ends are made before begins, as the performance view hands a stutter from one owner to the next.
+struct StutterSpan {
+	uint64_t begin = 0;
+	uint64_t end = 0;
+	std::string owner;
+	bool begun = false;
+	bool ended = false;
+};
+std::vector<StutterSpan> g_stutterAt;
+int32_t g_stutterApplied = 0;
+uint64_t g_stutteredTicks = 0;
+
+/// RENDER_STUTTER_RATE: `<block>:<value>`, the stuttering owner's stutter-rate param set to @c value (signed Q31) by
+/// the gold knob's SetParamValue Edit.
+uint64_t g_stutterRateAt = 0;
+int32_t g_stutterRateValue = 0;
+bool g_stutterRateAsked = false;
+bool g_stutterRateDone = false;
+
+void readStutter() {
+	g_stutterAt.clear();
+	const char* list = std::getenv("RENDER_STUTTER");
+	for (const char* at = list; at != nullptr && *at != '\0';) {
+		StutterSpan span;
+		char* end = nullptr;
+		span.begin = std::strtoull(at, &end, 10);
+		span.end = (end != nullptr && *end == ':') ? std::strtoull(end + 1, &end, 10) : 0;
+		const char* name = (end != nullptr && *end == ':') ? end + 1 : nullptr;
+		const char* stop = name != nullptr ? std::strchr(name, ',') : nullptr;
+		span.owner = name != nullptr ? std::string(name, stop != nullptr ? stop - name : std::strlen(name)) : "";
+		g_stutterAt.push_back(span);
+		at = stop != nullptr ? stop + 1 : nullptr;
+	}
+	const char* rate = std::getenv("RENDER_STUTTER_RATE");
+	if (rate != nullptr && *rate != '\0') {
+		char* end = nullptr;
+		g_stutterRateAt = std::strtoull(rate, &end, 10);
+		g_stutterRateValue =
+		    (end != nullptr && *end == ':') ? static_cast<int32_t>(std::strtoll(end + 1, nullptr, 0)) : 0;
+		g_stutterRateAsked = end != nullptr && *end == ':';
+	}
+}
+
+/// @return The stutter owner @p name names, and its param manager and timeline counter in @p params and @p clip.
+ModControllableAudio* stutterOwner(const std::string& name, ParamManagerForTimeline*& params, TimelineCounter*& clip) {
+	if (name == "master") {
+		params = &currentSong->paramManager;
+		clip = nullptr;
+		return &currentSong->live.global_effectable;
+	}
+	const OutputType type = name == "kit" ? OutputType::KIT : OutputType::AUDIO;
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
+		if (output->type != type || output->getActiveClip() == nullptr) {
+			continue;
+		}
+		Clip* active = output->getActiveClip();
+		params = &active->paramManager;
+		clip = active;
+		return static_cast<ModControllableAudio*>(output->toModControllable());
+	}
+	return nullptr;
+}
+
+/// @brief Sets @p owner's stutter-rate param to @p value as the gold knob does, by its SetParamValue Edit.
+void turnStutterRate(ModControllableAudio& owner, TimelineCounter* clip, ParamManagerForTimeline& params,
+                     int32_t value) {
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* ms =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, &owner, clip, &params);
+	ParamCollectionSummary* summary = params.getUnpatchedParamSetSummary();
+	ModelStackWithParamId* withId = ms->addParamCollectionAndId(
+	    summary->paramCollection, summary, static_cast<int32_t>(deluge::modulation::params::UNPATCHED_STUTTER_RATE));
+	ModelStackWithAutoParam* withParam = withId->paramCollection->getAutoParamFromId(withId);
+	deluge::edits::Context context{*currentSong, currentSong->project};
+	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*withParam), value, 0, 0, withParam};
+	deluge::edits::apply(context, edit);
+}
+
+/// @brief This block's stutter ends, then begins, then the rate change; and a scenario tick counted if an owner is
+/// stuttering.
+void runStutters(uint64_t block) {
+	ParamManagerForTimeline* params = nullptr;
+	TimelineCounter* clip = nullptr;
+	for (StutterSpan& span : g_stutterAt) {
+		if (span.begun && !span.ended && block >= span.end) {
+			if (ModControllableAudio* owner = stutterOwner(span.owner, params, clip)) {
+				owner->endStutter(params);
+				g_stutterApplied++;
+				printf("RS-STUTTER block=%llu end owner=%s\n", static_cast<unsigned long long>(block),
+				       span.owner.c_str());
+			}
+			span.ended = true;
+		}
+	}
+	for (StutterSpan& span : g_stutterAt) {
+		if (!span.begun && block >= span.begin) {
+			if (ModControllableAudio* owner = stutterOwner(span.owner, params, clip)) {
+				owner->beginStutter(params);
+				g_stutterApplied++;
+				printf("RS-STUTTER block=%llu begin owner=%s\n", static_cast<unsigned long long>(block),
+				       span.owner.c_str());
+			}
+			span.begun = true;
+		}
+	}
+	bool stuttering = false;
+	for (StutterSpan& span : g_stutterAt) {
+		ModControllableAudio* owner = stutterOwner(span.owner, params, clip);
+		const bool now = owner != nullptr && stutterer.isStuttering(owner);
+		if (now && g_stutterRateAsked && !g_stutterRateDone && block >= g_stutterRateAt) {
+			turnStutterRate(*owner, clip, *params, g_stutterRateValue);
+			g_stutterRateDone = true;
+			printf("RS-STUTTER block=%llu rate=%d owner=%s\n", static_cast<unsigned long long>(block),
+			       static_cast<int>(g_stutterRateValue), span.owner.c_str());
+		}
+		stuttering = stuttering || now;
+	}
+	g_stutteredTicks += stuttering ? 1 : 0;
+}
 
 void readTempo() {
 	const char* spec = std::getenv("RENDER_TEMPO");
@@ -436,6 +565,9 @@ void stepPlaying() {
 		g_wrongWidthTicks++;
 	}
 	g_blocksRendered = deluge_host_render_count() - g_renderBase;
+	if (!g_stutterAt.empty()) {
+		runStutters(g_blocksRendered);
+	}
 	if (g_tempoAsked && !g_tempoDone && g_blocksRendered >= g_tempoAt) {
 		currentSong->setBPM(g_tempoBpm, false);
 		g_tempoDone = true;
@@ -511,6 +643,14 @@ void report() {
 	if (g_tempoAsked && !g_tempoDone) {
 		fail("RS-TEMPO", "the tempo change asked for never happened");
 	}
+	if (!g_stutterAt.empty()) {
+		printf("RS-STUTTER applied=%d asked=%zu stuttered=%llu\n", g_stutterApplied, g_stutterAt.size() * 2,
+		       static_cast<unsigned long long>(g_stutteredTicks));
+		if (g_stutterApplied != static_cast<int32_t>(g_stutterAt.size() * 2) || g_stutteredTicks == 0
+		    || (g_stutterRateAsked && !g_stutterRateDone)) {
+			fail("RS-STUTTER", "a stutter asked for did not begin and end, never stuttered, or missed its rate change");
+		}
+	}
 	if (!g_switchAt.empty()) {
 		printf("RS-DELAY-SWITCH switches=%zu asked=%zu tracks=%d\n", g_switchesDone, g_switchAt.size(),
 		       g_tracksSwitched);
@@ -575,6 +715,7 @@ void deluge_scenario_render_song_begin(void) {
 	readBurst(g_model);
 	readSwitches();
 	readTempo();
+	readStutter();
 	g_switchesDone = 0;
 	g_tracksSwitched = 0;
 	readModFxSwitches();

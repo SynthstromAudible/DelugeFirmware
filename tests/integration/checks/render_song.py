@@ -28,8 +28,13 @@ adds what depends on the song, and why each check is here:
     RS-DELAY-ARENA    no tape the render could not take from the delay arena: a delay that finds it short passes the
                       audio through until the arena's job tops it up, so on these songs every delay starts on the
                       block it asks to.
-    RS-SWITCH         a gate that switches delays or mod FX types, clears mod FX memory or changes the tempo,
-                      mid-render (RENDER_DELAY_SWITCH, RENDER_MODFX_SWITCH, RENDER_MODFX_CLEAR, RENDER_TEMPO) only: the same song rendered
+    RS-STUTTER        a gate that stutters an owner (RENDER_STUTTER) only: the scenario's summary must show every begin
+                      and end asked for made, and scenario ticks in which an owner stuttered. A begin the owner refused
+                      would leave the song rendering unstuttered for some of its span and still compare with a record
+                      made the same way.
+    RS-SWITCH         a gate that switches delays or mod FX types, clears mod FX memory, changes the tempo or stutters,
+                      mid-render (RENDER_DELAY_SWITCH, RENDER_MODFX_SWITCH, RENDER_MODFX_CLEAR, RENDER_TEMPO,
+                      RENDER_STUTTER) only: the same song rendered
                       unswitched must render differently, or the switches never reached the render.
     RS-PCM            the rendered output, against its record in tests/integration/golden/songs.json: the same
                       record the synth golden masters keep (sha256, frames, peak, rms_db).
@@ -58,6 +63,7 @@ SWITCHES = (
     "RENDER_MODFX_SWITCH",
     "RENDER_MODFX_CLEAR",
     "RENDER_TEMPO",
+    "RENDER_STUTTER",
 )
 
 
@@ -218,6 +224,22 @@ def _check_delay_arena(gate, result) -> None:
         gate.fail(f"RS-DELAY-ARENA — {shortfalls} tapes found the arena short ({line})")
 
 
+def _check_stutter(gate, result) -> None:
+    """Every stutter asked for began and ended, and an owner stuttered in some tick (see RS-STUTTER)."""
+    if not gate.env.get("RENDER_STUTTER"):
+        return
+    line = result.last("RS-STUTTER applied=")
+    applied = int_field(line, "applied")
+    asked = int_field(line, "asked")
+    stuttered = int_field(line, "stuttered")
+    if applied is None or asked is None or stuttered is None:
+        gate.fail("RS-STUTTER — no RS-STUTTER applied= line")
+    elif applied != asked or stuttered <= 0:
+        gate.fail(
+            f"RS-STUTTER — a stutter did not begin and end, or never played ({line})"
+        )
+
+
 def _check_delay_off(gate, result) -> None:
     """No delay that is OFF was asked to sound (see RS-DELAY-OFF)."""
     line = result.last("RS-DELAY-OFF ")
@@ -272,6 +294,7 @@ def run(gate):
     _check_mod_fx_hooks(gate, result)
     _check_delay_off(gate, result)
     _check_delay_arena(gate, result)
+    _check_stutter(gate, result)
 
     voices = int_field(result.last("RS-VOICES "), "audio")
     if voices is None or voices <= 0:
