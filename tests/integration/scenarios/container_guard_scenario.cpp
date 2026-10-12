@@ -902,7 +902,7 @@ void editLeg() {
 		g_step = "modFXType";
 		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::MOD_FX_RING);
 		// The song master's chorus with its ring's allocation made to fail: the type is set and its blocks pass the
-		// signal through. Setting the chorus again then takes a ring, and the master's render runs the effect over it.
+		// signal through. A change to the dimension then takes a ring, and the master's render runs the effect over it.
 		auto& fx = currentSong->live.global_effectable;
 		currentSong->paramManager.getUnpatchedParamSet()
 		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
@@ -921,7 +921,7 @@ void editLeg() {
 		const bool injected = !deluge::memory::allocationFailurePending();
 		renderBlocks(4);
 		const bool passthrough = !holdsRing(fx) && !renderMasterFx(fx, currentSong->paramManager).differsFrom(dry);
-		fx.setModFXType(ModFXType::CHORUS);
+		fx.setModFXType(ModFXType::DIMENSION);
 		const int32_t writeBefore = ringWrite(fx);
 		renderBlocks(1);
 		const bool recovered = holdsRing(fx) && ringWrite(fx) != writeBefore

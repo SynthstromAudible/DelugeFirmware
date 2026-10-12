@@ -16,7 +16,8 @@ adds what depends on the song, and why each check is here:
                       are the load's own background reads.
     RS-MODFX-SWITCH   a gate that switches mod FX types (RENDER_MODFX_SWITCH) only: the scenario's summary must show
                       every switch asked for applied, setting the types asked for in order, and each owner's own marker
-                      must show what it holds: a ring type a mod FX ring, the grain a granular ring, the phaser none. A hook that never ran, or switched to another type, would
+                      must show what it holds: a ring type a mod FX ring, the grain a granular ring, the phaser
+                      none. A hook that never ran, or switched to another type, would
                       leave the song rendering as some other song does and still compare with a record made the same way.
     RS-MODFX-CLEAR    a gate that clears mod FX memory (RENDER_MODFX_CLEAR) only: every clear asked for applied; a gate
                       whose clears reach no grain must reach both of clearMemory's paths, a ring zeroed and, with none

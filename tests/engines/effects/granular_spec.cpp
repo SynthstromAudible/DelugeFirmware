@@ -571,38 +571,41 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 
 	it("renders a State that has no ring as a pass-through, touching nothing of the State", _ {
 		heap.reset();
-		Granular fx(kAllocator, EnterGrain::CLEAR);
-		heap.fail_rings = true;
-		GranularBlockChange c = fx.prepare(ModFXType::GRAIN);
-		fx.commit(ModFXType::GRAIN, c);
-		fx.finish(c);
-		expect(fx.state()).not_().to_be_null();
-		expect(fx.holdsRing()).to_equal(false);
-		const std::vector<uint32_t> before = state_words(fx);
-		jcong = gw::kCongSeed;
-		for (std::size_t b = 0; b < 4; ++b) {
-			const std::vector<StereoSample> input = gw::stereo_input(256, b);
-			std::vector<StereoSample> frames = input;
-			std::vector<q31_t> send = gw::send_input(256, b, false);
-			const std::vector<q31_t> send_in = send;
-			int32_t volume = gw::kStartVolume;
-			fx.render(frames,
-			          {.rate = gw::kRateMid,
-			           .mix = gw::kMixMid,
-			           .density = gw::kDensityMid,
-			           .randomness = gw::kRandomnessMid,
-			           .send_amount = gw::kSendAmount,
-			           .sound = true},
-			          volume, send);
-			for (std::size_t i = 0; i < frames.size(); ++i) {
-				expect(frames[i].l).to_equal(input[i].l);
-				expect(frames[i].r).to_equal(input[i].r);
+		{
+			Granular fx(kAllocator, EnterGrain::CLEAR);
+			heap.fail_rings = true;
+			GranularBlockChange c = fx.prepare(ModFXType::GRAIN);
+			fx.commit(ModFXType::GRAIN, c);
+			fx.finish(c);
+			expect(fx.state()).not_().to_be_null();
+			expect(fx.holdsRing()).to_equal(false);
+			const std::vector<uint32_t> before = state_words(fx);
+			jcong = gw::kCongSeed;
+			for (std::size_t b = 0; b < 4; ++b) {
+				const std::vector<StereoSample> input = gw::stereo_input(256, b);
+				std::vector<StereoSample> frames = input;
+				std::vector<q31_t> send = gw::send_input(256, b, false);
+				const std::vector<q31_t> send_in = send;
+				int32_t volume = gw::kStartVolume;
+				fx.render(frames,
+				          {.rate = gw::kRateMid,
+				           .mix = gw::kMixMid,
+				           .density = gw::kDensityMid,
+				           .randomness = gw::kRandomnessMid,
+				           .send_amount = gw::kSendAmount,
+				           .sound = true},
+				          volume, send);
+				for (std::size_t i = 0; i < frames.size(); ++i) {
+					expect(frames[i].l).to_equal(input[i].l);
+					expect(frames[i].r).to_equal(input[i].r);
+				}
+				expect(send).to_equal(send_in);
+				expect(volume).to_equal(gw::kStartVolume);
 			}
-			expect(send).to_equal(send_in);
-			expect(volume).to_equal(gw::kStartVolume);
+			expect(state_words(fx)).to_equal(before);
+			expect(jcong).to_equal(gw::kCongSeed);
 		}
-		expect(state_words(fx)).to_equal(before);
-		expect(jcong).to_equal(gw::kCongSeed);
+		expect(heap.releases).to_equal(heap.allocations);
 	});
 
 	it("keeps a State across GRAIN, off, GRAIN as across a stay on any other type", _ {
