@@ -58,8 +58,9 @@ struct GranularInputs {
 ///
 /// Both come from the allocator. The State (about 350 bytes) is allocated on the first entry into GRAIN and kept until
 /// the owner is destroyed, so the grains, the wet low-pass memories, the first-pass flag and the shutdown countdown
-/// survive a stay on another type. The ring is zeroed once when acquired, so the grains read silence until it is
-/// written, and is freed on leaving GRAIN. An owner that has never used GRAIN holds nothing.
+/// survive a stay on another type. The ring is not zeroed when acquired: the kernel reads a slot only once it has
+/// been written, so the grains read silence from the rest of it. It is freed on leaving GRAIN. An owner that has never
+/// used GRAIN holds nothing.
 ///
 /// A type change runs in three steps around the owner's audio-excluded section: @ref prepare allocates, @ref commit
 /// swaps inside it, @ref finish frees. Leaving GRAIN restarts the effect and frees the ring; entering takes up a new
@@ -93,6 +94,7 @@ public:
 	/// and restarts the effect when the countdown ends. Passes through when no ring is held.
 	/// @details The owner calls this every rendered block, with all four knobs, as
 	/// ModControllableAudio::processGrainFX makes it.
+	/// @pre @p reverb_send holds at least one value per frame of @p block.
 	void render(std::span<dsp::StereoSample> block, const GranularInputs& in, int32_t& post_fx_volume,
 	            std::span<dsp::q31> reverb_send);
 	/// @brief Stops the grains and begins the first pass again; no effect without a State.
@@ -104,7 +106,7 @@ public:
 	/// State.
 	[[nodiscard]] int32_t samplesToShutdown() const;
 	/// @return Whether a ring is held.
-	[[nodiscard]] bool holdsBlock() const { return ring_ != nullptr; }
+	[[nodiscard]] bool holdsRing() const { return ring_ != nullptr; }
 	/// @return The kernel's state, or null before the first entry into GRAIN; for specs.
 	[[nodiscard]] const Kernel::State* state() const;
 

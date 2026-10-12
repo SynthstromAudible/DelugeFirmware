@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// effects::Granular against today's granular (reference_granular.h) over every workload (granular_workloads.h),
+// effects::Granular against the reference granular (reference_granular.h) over every workload (granular_workloads.h),
 // played as an owner plays them, with a counting allocator over two static blocks: each block's frames, post-FX volume
 // and reverb feed, and the State at the end; the block following the type; a pass-through without a block; and the two
 // owner kinds' entry into and exit from GRAIN.
@@ -60,13 +60,14 @@ struct TestHeap {
 	int state_allocations = 0;
 	int ring_allocations = 0;
 	int releases = 0;
-	bool fail = false;       ///< Fails every request.
-	bool fail_rings = false; ///< Fails the large requests.
+	bool fail = false;         ///< Fails every request.
+	bool fail_rings = false;   ///< Fails the large requests.
+	bool poison_rings = false; ///< Fills each ring with a nonzero pattern as it is handed out.
 
 	void reset() {
 		ring_in_use[0] = ring_in_use[1] = state_in_use[0] = state_in_use[1] = false;
 		allocations = state_allocations = ring_allocations = releases = 0;
-		fail = fail_rings = false;
+		fail = fail_rings = poison_rings = false;
 		std::memset(rings, 0xA5, sizeof(rings)); // stale audio a fresh ring must not carry
 		std::memset(states, 0xA5, sizeof(states));
 	}
@@ -87,6 +88,9 @@ void* test_allocate(std::size_t bytes) {
 			in_use = true;
 			++heap.allocations;
 			++(is_state ? heap.state_allocations : heap.ring_allocations);
+			if (!is_state && heap.poison_rings) {
+				std::memset(heap.rings[i].data(), 0x5B, heap.rings[i].size());
+			}
 			return is_state ? static_cast<void*>(heap.states[i].data()) : static_cast<void*>(heap.rings[i].data());
 		}
 	}
@@ -317,7 +321,7 @@ private:
 
 // clang-format off
 describe granular("an owner's granular effect on the dsp-next kernel", ${
-	it("renders every workload as today's granular does: each block's frames, post-FX volume and reverb feed, and "
+	it("renders every workload as the reference granular does: each block's frames, post-FX volume and reverb feed, and "
 	   "the State and the ring at the end", _ {
 		for (const gw::GranularWorkload& workload : gw::all_granular_workloads()) {
 			heap.reset();
@@ -337,11 +341,30 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 		}
 	});
 
+	it("reads the slots of a ring it has not written as silence, whatever the allocator left in them", _ {
+		for (const gw::GranularWorkload& run : gw::all_granular_workloads()) {
+			const std::string_view name{run.name};
+			if (name != "DECAY_RESTART" && name != "SKIP_MID") {
+				continue;
+			}
+			heap.reset();
+			heap.poison_rings = true;
+			const auto reference = std::make_unique<ReferenceGranular>();
+			const gw::GranularTrace want = gw::play(run, *reference);
+			Owner owner;
+			const gw::GranularTrace got = gw::play(run, owner);
+			expect(got.samples).to_equal(want.samples);
+			expect(got.sends).to_equal(want.sends);
+			expect(got.volumes).to_equal(want.volumes);
+			expect(state_words(owner.fx())).to_equal(reference_words(*reference));
+		}
+	});
+
 	it("passes through, leaving the volume and the reverb feed, when no block is held", _ {
 		heap.reset();
 		heap.fail = true;
 		Owner owner;
-		expect(owner.fx().holdsBlock()).to_equal(false);
+		expect(owner.fx().holdsRing()).to_equal(false);
 		expect(owner.fx().samplesToShutdown()).to_equal(0);
 		const std::vector<StereoSample> input = gw::stereo_input(128, 3);
 		std::vector<StereoSample> frames = input;
@@ -360,7 +383,7 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 		owner.startSkippingRendering();
 	});
 
-	it("holds one zeroed block while the type is GRAIN and none otherwise, with no leak", _ {
+	it("holds one unwritten ring while the type is GRAIN and none otherwise, with no leak", _ {
 		heap.reset();
 		{
 			Granular fx(kAllocator, EnterGrain::CLEAR);
@@ -374,13 +397,9 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 			expect(heap.allocations).to_equal(2);
 			fx.commit(ModFXType::GRAIN, c);
 			fx.finish(c);
-			expect(fx.holdsBlock()).to_equal(true);
-			const std::vector<uint32_t> zero(2 * Granular::Kernel::kRingFrames, 0);
+			expect(fx.holdsRing()).to_equal(true);
 			const Granular::Kernel::State& s = *fx.state();
-			std::vector<uint32_t> raw(zero.size());
-			std::memcpy(raw.data(), s.ring, raw.size() * sizeof(uint32_t));
-			expect(raw).to_equal(zero);
-			expect(s.written).to_equal(0u);
+			expect(s.written).to_equal(0u); // no slot reads until it is written
 
 			c = fx.prepare(ModFXType::GRAIN); // held already
 			expect(c.acquired_ring).to_be_null();
@@ -390,7 +409,7 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 
 			c = fx.prepare(ModFXType::CHORUS);
 			fx.commit(ModFXType::CHORUS, c);
-			expect(fx.holdsBlock()).to_equal(false);
+			expect(fx.holdsRing()).to_equal(false);
 			expect(heap.releases).to_equal(0);
 			fx.finish(c);
 			expect(heap.releases).to_equal(1);
@@ -401,7 +420,7 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 			expect(c.acquired_state).to_be_null();
 			expect(heap.allocations).to_equal(3);
 			expect(heap.state_allocations).to_equal(1);
-			expect(fx.holdsBlock()).to_equal(true);
+			expect(fx.holdsRing()).to_equal(true);
 		}
 		expect(heap.releases).to_equal(3);
 	});
@@ -414,12 +433,12 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 		expect(c.acquired_ring).to_be_null();
 		fx.commit(ModFXType::GRAIN, c);
 		fx.finish(c);
-		expect(fx.holdsBlock()).to_equal(false);
+		expect(fx.holdsRing()).to_equal(false);
 		heap.fail = false;
 		c = fx.prepare(ModFXType::GRAIN);
 		fx.commit(ModFXType::GRAIN, c);
 		fx.finish(c);
-		expect(fx.holdsBlock()).to_equal(true);
+		expect(fx.holdsRing()).to_equal(true);
 	});
 
 	it("keeps the block it holds when a second is acquired, and frees the spare", _ {
@@ -447,7 +466,7 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 		GranularBlockChange c = fx.prepare(ModFXType::GRAIN);
 		fx.finish(c);
 		expect(heap.releases).to_equal(2);
-		expect(fx.holdsBlock()).to_equal(false);
+		expect(fx.holdsRing()).to_equal(false);
 		expect(fx.state()).to_be_null();
 	});
 
@@ -459,18 +478,18 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 		expect(c.acquired_ring).to_be_null();
 		fx.commit(ModFXType::GRAIN, c);
 		fx.finish(c);
-		expect(fx.holdsBlock()).to_equal(false);
+		expect(fx.holdsRing()).to_equal(false);
 		expect(fx.state()).not_().to_be_null();
 		heap.fail_rings = false;
 		c = fx.prepare(ModFXType::GRAIN);
 		expect(c.acquired_state).to_be_null();
 		fx.commit(ModFXType::GRAIN, c);
 		fx.finish(c);
-		expect(fx.holdsBlock()).to_equal(true);
+		expect(fx.holdsRing()).to_equal(true);
 		expect(heap.state_allocations).to_equal(1);
 	});
 
-	it("starts a sound's entry into GRAIN as today's clearGrainFXBuffer leaves the effect: grains stopped, first "
+	it("starts a sound's entry into GRAIN as the reference's clearGrainFXBuffer leaves the effect: grains stopped, first "
 	   "pass begun, nothing written", _ {
 		heap.reset();
 		const gw::GranularWorkload run = prefix_of("KNOB_SWEEP", 299);
@@ -480,15 +499,15 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 		std::ignore = gw::play(run, owner);
 		expect(owner.fx().state()->grains[0].length).not_().to_equal(0); // grains were sounding
 		reference->clearGrainFXBuffer();
-		owner.change(ModFXType::CHORUS); // leaves GRAIN: the block and its state are freed
-		owner.change(ModFXType::GRAIN);  // enters: a fresh block
+		owner.change(ModFXType::CHORUS); // leaves GRAIN: the ring is freed, the State kept
+		owner.change(ModFXType::GRAIN);  // enters: a fresh ring
 		expect(cursor_words(state_words(owner.fx(), false)))
 		    .to_equal(cursor_words(reference_words(*reference, false)));
 		expect(cursor_words(state_words(owner.fx(), false)))
 		    .to_equal(std::vector<uint32_t>{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
 	});
 
-	it("keeps a sound's State across GRAIN, chorus, GRAIN, clearing on the way back in as today's does", _ {
+	it("keeps a sound's State across GRAIN, chorus, GRAIN, clearing on the way back in as the reference does", _ {
 		heap.reset();
 		const auto reference = std::make_unique<ReferenceGranular>();
 		const gw::GranularTrace want = drive_round_trip(
@@ -563,7 +582,7 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 		}
 	});
 
-	it("renders a sound's silent blocks as today's does, its processor existing from the type change", _ {
+	it("renders a sound's silent blocks as the reference does, its processor existing from the type change", _ {
 		heap.reset();
 		const auto reference = std::make_unique<ReferenceGranular>();
 		uint32_t want_noise = 0;
@@ -580,7 +599,7 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 		}
 	});
 
-	it("keeps a chain's grains and first pass across a soft off, as today's startSkippingRendering does", _ {
+	it("keeps a chain's grains and first pass across a soft off, as the reference's startSkippingRendering does", _ {
 		heap.reset();
 		const gw::GranularWorkload run = prefix_of("KNOB_SWEEP", 299);
 		const auto reference = std::make_unique<ReferenceGranular>();
@@ -592,12 +611,12 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 		const std::vector<uint32_t> got = state_words(owner.fx(), false);
 		expect(got).to_equal(reference_words(*reference, false));
 		expect(owner.fx().state()->grains[0].length).not_().to_equal(0);
-		expect(owner.fx().holdsBlock()).to_equal(true);
+		expect(owner.fx().holdsRing()).to_equal(true);
 		expect(owner.fx().state()->initialized).to_equal(true);
 		expect(owner.fx().state()->written).to_equal(0u);
 	});
 
-	it("reports the samples to shutdown as laps times the ring, as today's does", _ {
+	it("reports the samples to shutdown as laps times the ring, as the reference does", _ {
 		heap.reset();
 		const gw::GranularWorkload run = prefix_of("TAIL", 100);
 		const auto reference = std::make_unique<ReferenceGranular>();

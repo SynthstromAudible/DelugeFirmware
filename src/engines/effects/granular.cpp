@@ -17,7 +17,7 @@
 
 #include "engines/effects/granular.h"
 
-#include <cstring>
+#include <cassert>
 #include <memory>
 #include <new>
 #include <utility>
@@ -61,7 +61,6 @@ GranularBlockChange Granular::prepare(ModFXType type) {
 		constexpr std::size_t kBytes = Kernel::kRingFrames * sizeof(dsp::StereoSample);
 		void* ring = allocator_.allocate(kBytes);
 		if (ring != nullptr) {
-			std::memset(ring, 0, kBytes);
 			change.acquired_ring = ring;
 		}
 	}
@@ -108,6 +107,7 @@ void Granular::finish(GranularBlockChange& change) {
 
 void Granular::render(std::span<dsp::StereoSample> block, const GranularInputs& in, int32_t& post_fx_volume,
                       std::span<dsp::q31> reverb_send) {
+	assert(reverb_send.size() >= block.size());
 	if (mono_ == nullptr || ring_ == nullptr) {
 		return;
 	}

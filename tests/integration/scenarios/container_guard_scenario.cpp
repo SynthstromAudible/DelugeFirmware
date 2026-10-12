@@ -976,11 +976,11 @@ void editLeg() {
 		fx.setModFXType(ModFXType::GRAIN);
 		const bool injected = !deluge::memory::allocationFailurePending();
 		renderBlocks(4);
-		const bool passthrough = !fx.granular.holdsBlock() && !grainChangesBlock(fx, currentSong->paramManager);
+		const bool passthrough = !fx.granular.holdsRing() && !grainChangesBlock(fx, currentSong->paramManager);
 		fx.setModFXType(ModFXType::GRAIN);
 		const int64_t writeBefore = grainWrite(fx);
 		renderBlocks(1);
-		const bool recovered = fx.granular.holdsBlock() && grainWrite(fx) != writeBefore;
+		const bool recovered = fx.granular.holdsRing() && grainWrite(fx) != writeBefore;
 		fx.setModFXType(ModFXType::NONE);
 		fx.currentModFXParam = paramBefore;
 		renderBlocks(1);
@@ -1003,7 +1003,7 @@ void editLeg() {
 			    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(type))));
 			renderBlocks(2);
 			matched = matched && synth->effects().mod_fx.type == type
-			          && synth->granular.holdsBlock() == (type == ModFXType::GRAIN)
+			          && synth->granular.holdsRing() == (type == ModFXType::GRAIN)
 			          && holdsRing(*synth) == deluge::effects::is_ring_type(type);
 		}
 		const bool noted = deluge::notedStructuralEdits(StructuralContainer::GRAIN_BLOCK) > notedBefore;
