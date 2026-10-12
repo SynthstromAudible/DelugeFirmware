@@ -77,6 +77,12 @@
   "rms_db": -22.75,
   "sha256": "ac1d1692d1254613f8f3b8807e74c2d23daa4d108b4bb344671aa9e7b658f599"
  },
+ "RS_DELAY_OWNERS": {
+  "frames": 384000,
+  "peak": 285767168,
+  "rms_db": -27.96,
+  "sha256": "8d7faabe729fc25a3b9b48e5d42ca9ab1c968cf9eaa6d24bc0bdf0373342287f"
+ },
  "RS_DUCK_SHAPES": {
   "frames": 384000,
   "peak": 1504250368,

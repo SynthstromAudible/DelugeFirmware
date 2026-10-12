@@ -1034,6 +1034,24 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-delay-owners"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a delay renders as recorded on each owner the kit and audio-track delay gates leave out: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_DELAY_OWNERS) with a digital delay on a synth and an analog delay on a kit drum's own sound, each holding a note while its rate is stepped by automation past double its buffer's rate, a little down, and below half, so each starts, grows and swaps in new buffers and abandons them before the clip loops, and a digital delay on the song's master (whose automation plays only in the arranger, so its rate holds); beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with every delay's feedback at its minimum must render differently (RS-FX), so the delays' settings reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_DELAY_OWNERS" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-audio-track-delay"
 path = "."
 level = "integration"

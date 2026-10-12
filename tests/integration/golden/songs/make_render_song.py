@@ -922,6 +922,52 @@ GRAIN_RESTART_DRUMS = [
 ]
 
 
+# A delay on each owner the delay gates' kits and audio tracks leave out: a synth's sound, a kit drum's own sound and
+# the song's master. The synth holds one note for RS_KIT_DELAY's drum's 1080 ticks with its digital delay's rate
+# stepped as that kit's is, so its delay starts, grows and swaps in new buffers while it plays, and abandons them
+# before the clip loops; the kit drum's analog delay plays the same way, its kit's own delay off. The master's digital
+# delay starts on the mix; a master's automation plays only in the arranger, so its rate holds. The dry twin holds
+# every feedback at its minimum.
+OWNERS_DELAY = '<delay pingPong="0" analog="0" syncLevel="0" syncType="0" />'
+OWNERS_DRUM_DELAY = '<delay pingPong="0" analog="1" syncLevel="0" syncType="0" />'
+OWNERS_DRUMS = [
+    _drum("RSD1", "SAMPLES/RS/A.WAV", [(0, 1080)], tags=OWNERS_DRUM_DELAY),
+]
+
+
+def delay_owners_parts(dry: bool) -> list[tuple[str, str]]:
+    """A synth with a delay holding one note, and a kit whose drum has its own delay: their instruments and clips;
+    with their feedback at its minimum when @p dry."""
+    feedback = "0x80000000" if dry else "0x90000000"
+    synth = SOUND.replace(
+        '<delay pingPong="1" analog="0" syncLevel="7" />', OWNERS_DELAY
+    ).format(name="RSY", file="SAMPLES/RS/B.WAV", frames=RATE * SAMPLE_SECONDS)
+    clip = (
+        CLIP.replace(
+            'noteDataWithSplitProb="0x00000000{ticks:08X}404014000000"',
+            'noteDataWithSplitProb="0x0000000000000438404014000000"',
+        )
+        .replace(
+            'delayRate="0x00000000" delayFeedback="0x80000000"',
+            f'delayRate="{DELAY_RATE_STEPS}" delayFeedback="{feedback}"',
+        )
+        .format(name="RSY", ticks=CLIP_TICKS, note=67)
+    )
+    kit, kit_clip = kit_parts(DRY, OWNERS_DRUMS)
+    kit_clip = kit_clip.replace(
+        'delayRate="0x00000000" delayFeedback="0x80000000"',
+        f'delayRate="{DELAY_RATE_STEPS}" delayFeedback="{feedback}"',
+    )
+    return [(synth, clip), (kit, kit_clip)]
+
+
+def delay_owners_master(dry: bool) -> dict:
+    """The master's digital delay; its feedback at its minimum when @p dry."""
+    if dry:
+        return _host(delay=OWNERS_DELAY)
+    return _host(delay=OWNERS_DELAY, param_tags=KIT_DELAY["param_tags"])
+
+
 def loud_audio_parts(fx: dict) -> tuple[str, str]:
     """audio_parts, its clip playing LOUD_SAMPLE."""
     track, clip = audio_parts(fx)
@@ -955,6 +1001,16 @@ SONGS = {
     "RS_DUCK_SHAPES_DRY": lambda v: duck_shapes_song(v, dry=True),
     "RS_KIT_COMP": lambda v: parts_song(v, [kit_parts(KIT_COMP, COMP_DRUMS)]),
     "RS_KIT_COMP_DRY": lambda v: parts_song(v, [kit_parts(DRY, COMP_DRUMS_DRY)]),
+    "RS_DELAY_OWNERS": lambda v: parts_song(
+        v,
+        delay_owners_parts(dry=False),
+        song_settings=master_settings(delay_owners_master(dry=False)),
+    ),
+    "RS_DELAY_OWNERS_DRY": lambda v: parts_song(
+        v,
+        delay_owners_parts(dry=True),
+        song_settings=master_settings(delay_owners_master(dry=True)),
+    ),
     "RS_KIT_DELAY": lambda v: parts_song(v, [kit_parts(KIT_DELAY, DELAY_DRUMS)]),
     "RS_KIT_DELAY_DRY": lambda v: parts_song(v, [kit_parts(DRY, DELAY_DRUMS)]),
     "RS_AUDIO_DELAY": lambda v: parts_song(v, [audio_parts(AUDIO_DELAY)]),
