@@ -33,7 +33,6 @@ using StereoSample = deluge::dsp::StereoSample;
 class Stutterer {
 public:
 	Stutterer() = default;
-	~Stutterer() { releaseTape(); }
 	Stutterer(const Stutterer&) = delete;
 	Stutterer& operator=(const Stutterer&) = delete;
 	static void initParams(ParamManager* paramManager);

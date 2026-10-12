@@ -35,6 +35,7 @@
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
+#include "memory/stack_guard.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/change_effect.h"
@@ -207,6 +208,7 @@ void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType m
 	                            .treble_frequency = unpatchedParams->getValue(params::UNPATCHED_TREBLE_FREQ)});
 
 	// Delay ----------------------------------------------------------------------------------
+	checkStack("delay");
 	delay.process(buffer, delayWorkingState, AudioEngine::renderInStereo);
 }
 void ModControllableAudio::processGrainFX(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth,

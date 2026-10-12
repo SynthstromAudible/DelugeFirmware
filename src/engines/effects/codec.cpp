@@ -17,11 +17,10 @@
 
 #include "engines/effects/codec.h"
 
-#include <optional>
-
 #include "serialization/tree.h"
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <utility>
 
