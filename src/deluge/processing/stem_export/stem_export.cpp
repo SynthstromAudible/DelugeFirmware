@@ -1101,7 +1101,7 @@ void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t ind
 		// A choke group spans however many rows share it, scattered anywhere in the kit, so no single
 		// row represents the stem being exported - scrolling to one would just make the display jump
 		// somewhere arbitrary. Reset the horizontal scroll like the other kit case and leave the
-		// vertical position where the user had it; the progress readout names the group.
+		// vertical position where the user had it.
 		currentSong->xScroll[NAVIGATION_CLIP] = 0;
 	}
 }
@@ -1137,7 +1137,9 @@ void StemExport::displayStemExportProgressOLED(StemExportType stemExportType) {
 		exportStatus.append(" drums");
 	}
 	else if (stemExportType == StemExportType::CHOKE_GROUP) {
-		exportStatus.append(" choke groups");
+		// The count is files, and only some of them are groups - a drum not bundled with another is a
+		// file of its own - so name what is actually being counted.
+		exportStatus.append(" kit stems");
 	}
 	deluge::hid::display::OLED::drawPermanentPopupLookingText(exportStatus.c_str());
 	deluge::hid::display::OLED::markChanged();
