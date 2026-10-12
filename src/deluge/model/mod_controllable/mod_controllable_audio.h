@@ -91,7 +91,7 @@ public:
 	}
 	/// Copy the settings into the render's copy, with the render excluded.
 	void projectModControllableSnapshot();
-	/// Store the mod-FX type; setModFXType() does the same through the virtual entry. For the load path and
+	/// Store the mod-FX type; setModFXType() does the same and returns true. For the load path and
 	/// cloneFrom().
 	void assignModFXType(ModFXType value);
 	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
@@ -110,7 +110,7 @@ public:
 	virtual ModFXType getModFXType() = 0;
 	/// This owner as a sound, or nullptr for a kit, an audio track or the song master.
 	[[nodiscard]] virtual ::Sound* asSound() { return nullptr; }
-	virtual bool setModFXType(ModFXType newType);
+	bool setModFXType(ModFXType newType);
 	/// Clear the mod FX's memory, as a sound cutting its tail does: a comb type's delay line or phaser memories, or the
 	/// grain's grains and first pass.
 	void clearModFXMemory();
