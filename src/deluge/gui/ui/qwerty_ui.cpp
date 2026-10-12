@@ -30,6 +30,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/misc.h"
+#include <algorithm>
 #include <string.h>
 
 using namespace deluge::gui;
@@ -468,14 +469,15 @@ void QwertyUI::processBackspace() {
 }
 
 ActionResult QwertyUI::horizontalEncoderAction(int32_t offset) {
+	int32_t length = enteredText.getLength();
 	if (offset > 0) {
 
 		// If already at far right end, just see if we can predict any further characters
-		if (enteredTextEditPos == enteredText.getLength()) {
+		if (enteredTextEditPos >= length) {
 			predictExtendedText();
 
 			// If not, get out
-			if (enteredTextEditPos == enteredText.getLength()) {
+			if (enteredTextEditPos >= enteredText.getLength()) {
 				return ActionResult::DEALT_WITH;
 			}
 
@@ -483,12 +485,14 @@ ActionResult QwertyUI::horizontalEncoderAction(int32_t offset) {
 		}
 	}
 	else {
-		if (enteredTextEditPos == 0) {
+		if (enteredTextEditPos <= 0) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
 
-	enteredTextEditPos += offset;
+	// The encoder hands over its whole accumulated delta, so a fast turn can step more than one character. Clamp, or
+	// the edit pos runs off either end of enteredText and never meets the end checks above again.
+	enteredTextEditPos = std::clamp<int32_t>(enteredTextEditPos + offset, 0, length);
 
 doDisplayText:
 	displayText();

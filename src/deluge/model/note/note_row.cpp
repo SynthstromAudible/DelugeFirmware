@@ -29,6 +29,7 @@
 #include "model/drum/drum_name.h"
 #include "model/drum/gate_drum.h"
 #include "model/instrument/kit.h"
+#include "model/iterance/iterance_migration.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -3417,7 +3418,7 @@ doReadNoteData:
 				}
 				else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
 					fill = hexToIntFixedLength(&hexChars[24], 2);
-					iterance = Iterance::fromPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
+					iterance = iteranceFromLegacyPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {
@@ -3440,7 +3441,7 @@ doReadNoteData:
 					else if (probability > kNumProbabilityValues
 					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
 						fill = FillMode::OFF;
-						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
+						iterance = iteranceFromLegacyProbabilityByte(probability);
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
@@ -3468,7 +3469,7 @@ doReadNoteData:
 					else if (probability > kNumProbabilityValues
 					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
 						fill = FillMode::OFF;
-						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
+						iterance = iteranceFromLegacyProbabilityByte(probability);
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
@@ -3749,6 +3750,10 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		modelStack->song->backUpParamManager(
 		    (SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(), &paramManager,
 		    false); // Don't steal expression params - we'll keep them here with this NoteRow.
+	}
+	else if (!backupOldParamManager) {
+		// Not backing up, so nothing else owns the main collections - free them rather than leaking them
+		paramManager.destructAndForgetMainParamCollections();
 	}
 	paramManager.forgetParamCollections();
 

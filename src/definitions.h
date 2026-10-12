@@ -26,7 +26,7 @@ extern void freezeWithError(char const* errmsg);
 		uint32_t regSP = 0;                                                                                            \
 		asm volatile("MOV %0, LR\n" : "=r"(regLR));                                                                    \
 		asm volatile("MOV %0, SP\n" : "=r"(regSP));                                                                    \
-		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);                                                       \
+		fault_handler_print_freeze_pointers(regLR, regSP);                                                             \
 		freezeWithError(error);                                                                                        \
 	})
 #else
