@@ -38,6 +38,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/change_effect.h"
+#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -67,6 +68,7 @@
 #include <cstring>
 #include <new>
 #include <unistd.h>
+#include <vector>
 
 // The firmware headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded `printf_`. This
 // harness links the Rust BSP, which has no `putchar_` provider, and every line this file writes IS the gate's output.
@@ -330,35 +332,36 @@ bool changesBlock(ModControllableAudio& owner, ParamManager& params, ModFXType t
 constexpr std::size_t kGrainRingBytes =
     deluge::effects::Granular::Kernel::kRingFrames * sizeof(deluge::dsp::StereoSample);
 
-/// @return Whether @p owner's grain, run over kModFxBlocks sounding blocks of a ramp, changed any of them: the owner's
-/// block as its render makes it, with @p params' density and randomness.
-bool grainChangesBlock(ModControllableAudio& owner, ParamManager& params) {
-	static StereoSample block[kRenderBlockFrames]{};
+/// What the song master's effects stage made of kModFxBlocks blocks of a ramp: each block's frames.
+struct MasterFxRender {
+	std::vector<StereoSample> frames; ///< kModFxBlocks blocks, one after the other.
+
+	/// @return Whether this render's audio differs from @p other's in any frame. The post-FX volume is not compared: a
+	/// mod FX type scales the post-FX volume for the filters' headroom whether or not it holds a ring.
+	[[nodiscard]] bool differsFrom(const MasterFxRender& other) const {
+		return !std::equal(frames.begin(), frames.end(), other.frames.begin(), other.frames.end(),
+		                   [](const StereoSample& a, const StereoSample& b) { return a.l == b.l && a.r == b.r; });
+	}
+};
+
+/// @return The blocks of a ramp as the song master's real effects stage makes them, under @p params' knobs and the
+/// master's current type: GlobalEffectable::processFXForGlobalEffectable, which Song::renderAllOutputs calls on the
+/// master's mix each block, over kModFxBlocks blocks.
+MasterFxRender renderMasterFx(GlobalEffectable& master, ParamManager& params) {
 	static q31_t send[kRenderBlockFrames]{};
-	UnpatchedParamSet* unpatched = params.getUnpatchedParamSet();
-	const deluge::effects::GranularInputs in{
-	    .rate = kModFxRate,
-	    .mix = kModFxDepth,
-	    .density = unpatched->getValue(deluge::modulation::params::UNPATCHED_MOD_FX_OFFSET),
-	    .randomness = unpatched->getValue(deluge::modulation::params::UNPATCHED_MOD_FX_FEEDBACK),
-	    .send_amount = 0,
-	    .sound = true,
-	};
-	bool changed = false;
+	MasterFxRender made;
+	const Delay::State delayState = master.createDelayWorkingState(params);
 	for (int32_t b = 0; b < kModFxBlocks; b++) {
+		StereoSample block[kRenderBlockFrames]{};
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
 			block[i] = {v, -v};
 		}
 		int32_t volume = ONE_Q31 >> 1;
-		owner.granular.render(block, in, volume, send);
-		changed = changed || volume != ONE_Q31 >> 1;
-		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
-			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
-			changed = changed || block[i].l != v || block[i].r != -v;
-		}
+		master.processFXForGlobalEffectable(block, &volume, &params, delayState, true, 0, send);
+		made.frames.insert(made.frames.end(), std::begin(block), std::end(block));
 	}
-	return changed;
+	return made;
 }
 
 /// @return The ring index @p owner's grain writes next, or -1 before its State is taken: it moves each block the
@@ -899,7 +902,7 @@ void editLeg() {
 		g_step = "modFXType";
 		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::MOD_FX_RING);
 		// The song master's chorus with its ring's allocation made to fail: the type is set and its blocks pass the
-		// signal through. A change to flanger then takes a ring, and the master's render runs the effect over it.
+		// signal through. Setting the chorus again then takes a ring, and the master's render runs the effect over it.
 		auto& fx = currentSong->live.global_effectable;
 		currentSong->paramManager.getUnpatchedParamSet()
 		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
@@ -907,15 +910,22 @@ void editLeg() {
 		// Which mod FX parameter gates the effect on: the song's default names feedback, which sits at its minimum.
 		const ModFXParam paramBefore = fx.currentModFXParam;
 		fx.currentModFXParam = ModFXParam::DEPTH;
+		if (fx.effects().mod_fx.type != ModFXType::NONE) {
+			fail("the master's mod FX is not off");
+			break;
+		}
+		// The master's dry render: its effects stage over a ramp with no mod FX.
+		const MasterFxRender dry = renderMasterFx(fx, currentSong->paramManager);
 		deluge::memory::failNextAllocationOfSize(kModFxRingBytes);
 		fx.setModFXType(ModFXType::CHORUS);
 		const bool injected = !deluge::memory::allocationFailurePending();
 		renderBlocks(4);
-		const bool passthrough = !holdsRing(fx) && !changesBlock(fx, currentSong->paramManager, ModFXType::CHORUS);
-		fx.setModFXType(ModFXType::FLANGER);
+		const bool passthrough = !holdsRing(fx) && !renderMasterFx(fx, currentSong->paramManager).differsFrom(dry);
+		fx.setModFXType(ModFXType::CHORUS);
 		const int32_t writeBefore = ringWrite(fx);
 		renderBlocks(1);
-		const bool recovered = holdsRing(fx) && ringWrite(fx) != writeBefore;
+		const bool recovered = holdsRing(fx) && ringWrite(fx) != writeBefore
+		                       && renderMasterFx(fx, currentSong->paramManager).differsFrom(dry);
 		fx.setModFXType(ModFXType::NONE);
 		fx.currentModFXParam = paramBefore;
 		renderBlocks(1);
@@ -972,15 +982,23 @@ void editLeg() {
 		    .setCurrentValueBasicForSetup(0);
 		const ModFXParam paramBefore = fx.currentModFXParam;
 		fx.currentModFXParam = ModFXParam::DEPTH;
+		if (fx.effects().mod_fx.type != ModFXType::NONE) {
+			fail("the master's mod FX is not off");
+			break;
+		}
+		// The master's dry render: its effects stage over a ramp with no mod FX.
+		const MasterFxRender dry = renderMasterFx(fx, currentSong->paramManager);
 		deluge::memory::failNextAllocationOfSize(kGrainRingBytes);
 		fx.setModFXType(ModFXType::GRAIN);
 		const bool injected = !deluge::memory::allocationFailurePending();
 		renderBlocks(4);
-		const bool passthrough = !fx.granular.holdsRing() && !grainChangesBlock(fx, currentSong->paramManager);
+		const bool passthrough =
+		    !fx.granular.holdsRing() && !renderMasterFx(fx, currentSong->paramManager).differsFrom(dry);
 		fx.setModFXType(ModFXType::GRAIN);
 		const int64_t writeBefore = grainWrite(fx);
 		renderBlocks(1);
-		const bool recovered = fx.granular.holdsRing() && grainWrite(fx) != writeBefore;
+		const bool recovered = fx.granular.holdsRing() && grainWrite(fx) != writeBefore
+		                       && renderMasterFx(fx, currentSong->paramManager).differsFrom(dry);
 		fx.setModFXType(ModFXType::NONE);
 		fx.currentModFXParam = paramBefore;
 		renderBlocks(1);
