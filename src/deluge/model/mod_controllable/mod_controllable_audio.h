@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/delay/delay.h"
 #include "dsp/stereo_sample.h"
+#include "engines/effects/delay.h"
 #include "hid/button.h"
 #include "model/fx/stutterer.h"
 #include "model/mod_controllable/filters/filter_config.h"
@@ -163,7 +163,7 @@ public:
 	deluge::effects::Equalizer equalizer_;
 
 	// Delay
-	Delay delay;
+	deluge::effects::Delay delay;
 
 	/// Bitcrush and sample-rate reduction, with the conversion memory the latter carries.
 	deluge::effects::Bitcrush bitcrush_;
@@ -189,8 +189,8 @@ private:
 protected:
 	/// @param reverbBuffer The block's reverb send buffer, which the grain adds its feed into from index 0.
 	void processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
-	               const Delay::State& delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
-	               bool anySoundComingIn, q31_t reverbSendAmount, int32_t* reverbBuffer);
+	               const deluge::effects::Delay::State& delayWorkingState, int32_t* postFXVolume,
+	               ParamManager* paramManager, bool anySoundComingIn, q31_t reverbSendAmount, int32_t* reverbBuffer);
 	void switchDelayPingPong();
 	/// One press of the delay's feedback knob: digital, analog, off, digital, by one Edit.
 	void cycleDelayType();

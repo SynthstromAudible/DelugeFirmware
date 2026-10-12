@@ -41,6 +41,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
+#include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/param_projection.h"
@@ -62,7 +63,8 @@ ModControllableAudio::ModControllableAudio() : ModControllableAudio(deluge::effe
 }
 
 ModControllableAudio::ModControllableAudio(deluge::effects::EnterGrain enterGrain)
-    : modfx{deluge::model::kModFxRingAllocator}, granular{deluge::model::kGranularAllocator, enterGrain} {
+    : modfx{deluge::model::kModFxRingAllocator}, granular{deluge::model::kGranularAllocator, enterGrain},
+      delay{deluge::model::delayArena()} {
 	SyncLevel syncLevel;
 	Song* song = preLoadedSong;
 	if (!song) {
@@ -82,7 +84,14 @@ ModControllableAudio::ModControllableAudio(deluge::effects::EnterGrain enterGrai
 }
 
 ModControllableAudio::~ModControllableAudio() {
-	// delay.discardBuffers(); // No! The DelayBuffers will themselves destruct and do this
+	// The delay's tapes go back to the arena, and the owner leaves its margin, as a change to OFF does.
+	deluge::effects::DelayChange change = delay.prepare(deluge::effects::DelayType::OFF);
+	{
+		AudioExcludedSection section; // the render takes from the arena
+		delay.commit(deluge::effects::DelayType::OFF, change);
+		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
+	}
+	delay.finish(change);
 }
 
 void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
@@ -167,9 +176,9 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 }
 
 void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate,
-                                     int32_t modFXDepth, const Delay::State& delayWorkingState, int32_t* postFXVolume,
-                                     ParamManager* paramManager, bool anySoundComingIn, q31_t reverbSendAmount,
-                                     int32_t* reverbBuffer) {
+                                     int32_t modFXDepth, const deluge::effects::Delay::State& delayWorkingState,
+                                     int32_t* postFXVolume, ParamManager* paramManager, bool anySoundComingIn,
+                                     q31_t reverbSendAmount, int32_t* reverbBuffer) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -277,14 +286,19 @@ void ModControllableAudio::projectModControllableSnapshot() {
 	const ModFXType type = effects().mod_fx.type;
 	deluge::effects::RingChange ring = modfx.prepare(type);
 	deluge::effects::GranularBlockChange grain = granular.prepare(type);
+	const deluge::effects::DelayType delayType = effects().delay.type;
+	deluge::effects::DelayChange delayChange = delay.prepare(delayType);
 	{
-		AudioExcludedSection section; // the render reads the copy, the ring and the grain's blocks
+		AudioExcludedSection section; // the render reads the copy, the ring, the grain's blocks and the delay's arena
 		modControllableSnapshot_.effects = effects();
 		modfx.commit(modControllableSnapshot_.effects.mod_fx.type, ring);
 		deluge::noteStructuralEdit(deluge::StructuralContainer::MOD_FX_RING);
 		granular.commit(modControllableSnapshot_.effects.mod_fx.type, grain);
 		deluge::noteStructuralEdit(deluge::StructuralContainer::GRAIN_BLOCK);
+		delay.commit(delayType, delayChange);
+		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
 	}
+	delay.finish(delayChange);
 	granular.finish(grain);
 	modfx.finish(ring);
 }
@@ -1080,7 +1094,11 @@ char const* ModControllableAudio::getHPFModeDisplayName() {
 
 // This can get called either for hibernation, or because drum now has no active noteRow
 void ModControllableAudio::wontBeRenderedForAWhile() {
-	delay.discardBuffers();
+	{
+		AudioExcludedSection section; // the render gives tapes back to the same arena
+		delay.discardBuffers();
+		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
+	}
 	endStutter(nullptr);
 }
 

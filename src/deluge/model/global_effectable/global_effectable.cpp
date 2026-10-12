@@ -927,10 +927,11 @@ ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
 	return modFXTypeNow;
 }
 
-Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManager, bool shouldLimitDelayFeedback,
-                                                       bool soundComingIn) {
+deluge::effects::Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManager,
+                                                                        bool shouldLimitDelayFeedback,
+                                                                        bool soundComingIn) {
 
-	Delay::State delayWorkingState;
+	deluge::effects::Delay::State delayWorkingState;
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
 	delayWorkingState.delayFeedbackAmount = getFinalParameterValueLinear(
@@ -951,7 +952,8 @@ Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManage
 }
 
 void GlobalEffectable::processFXForGlobalEffectable(std::span<StereoSample> buffer, int32_t* postFXVolume,
-                                                    ParamManager* paramManager, const Delay::State& delayWorkingState,
+                                                    ParamManager* paramManager,
+                                                    const deluge::effects::Delay::State& delayWorkingState,
                                                     bool anySoundComingIn, q31_t verbAmount, int32_t* reverbBuffer) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 

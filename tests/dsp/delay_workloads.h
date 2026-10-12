@@ -17,7 +17,7 @@
 
 /// @file
 /// @brief The delay's recorded workloads: deterministic runs of blocks over real tapes, driven by a line-for-line
-/// mirror of the lifecycle `Delay::process` keeps around its processor (src/deluge/dsp/delay/delay.cpp), and what the
+/// mirror of the lifecycle `Delay::process` keeps around its processor (src/engines/effects/delay.cpp), and what the
 /// delay's two orders render from each: the staged order and the frame order `DelayProcessor` renders.
 ///
 /// A workload gives, per block, the frame count, the rate (as a uint32_t, the way the tape takes it) and the block's
@@ -103,7 +103,7 @@ inline constexpr size_t kWorkloadCount = static_cast<size_t>(WorkloadId::LAP_BLO
 struct TapeSetup {
 	enum class Start : uint8_t {
 		ACTIVATE, ///< The delay switched on at `rate` (Delay::informWhetherActive): a secondary, sized for it.
-		PRIMARY,  ///< A primary tape sized for `rate`, as DelayBuffer::init sizes it, holding a lap of noise.
+		PRIMARY,  ///< A primary tape sized for `rate`, as effects::tape_shape sizes it, holding a lap of noise.
 	};
 	Start start;
 	uint32_t rate;
@@ -174,9 +174,9 @@ struct Mode {
 }
 
 /// A delay switched on at @p rate, on @p frames-frame blocks: its first tape (sized for the rate, native at it, as
-/// DelayBuffer::init makes it: 128 samples from 2130836488 up) fills and swaps in, then an impulse at frame @p frame of
-/// the first block after 256 samples, at digital feedback @p feedback, straight. At 128 frames each block's walk laps
-/// the 148-sample ring.
+/// effects::tape_shape makes it: 128 samples from 2130836488 up) fills and swaps in, then an impulse at frame @p frame
+/// of the first block after 256 samples, at digital feedback @p feedback, straight. At 128 frames each block's walk
+/// laps the 148-sample ring.
 [[nodiscard]] inline Workload lap(WorkloadId id, std::string_view name, uint32_t rate, size_t frames, int32_t frame,
                                   int32_t feedback) {
 	const size_t impulse_block = 256 / frames;
@@ -486,7 +486,7 @@ struct Buffer {
 	std::vector<StereoSample> storage;
 	DelayTape tape;
 
-	/// @brief Sizes the storage for @p rate, as DelayBuffer::init does, filled by @p fill(i) for sample i.
+	/// @brief Sizes the storage for @p rate, as effects::tape_shape does, filled by @p fill(i) for sample i.
 	/// @return Whether a buffer was made: not when the ideal size is @p fail_if_this_size.
 	bool init(uint32_t rate, uint32_t fail_if_this_size, const std::function<StereoSample(size_t)>& fill) {
 		const auto [size, clamped] = DelayTape::idealSizeForRate(rate);

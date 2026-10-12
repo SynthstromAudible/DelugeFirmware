@@ -213,6 +213,9 @@ void countIfAudioTier() {
 uint32_t audioTierAllocations() {
 	return g_audioTierAllocations.load(std::memory_order_relaxed);
 }
+void countRenderAllocation() {
+	countIfAudioTier();
+}
 void noteRenderBlock(bool entering) {
 	g_renderBlockDepth += entering ? 1 : -1;
 }
@@ -238,6 +241,8 @@ inline void countIfAudioTier() {
 } // namespace
 uint32_t audioTierAllocations() {
 	return 0;
+}
+void countRenderAllocation() {
 }
 #endif
 

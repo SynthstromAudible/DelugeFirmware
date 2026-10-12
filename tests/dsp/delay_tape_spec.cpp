@@ -16,7 +16,7 @@
  */
 
 // DelayTape: the read and write heads of the delay and the stutterer, native or resampling, over storage the tape does
-// not own. Exact reference values, recorded from the legacy DelayBuffer, pin what each caller's call sequence leaves
+// not own. Exact reference values, recorded from the app's tape sizing, pin what each caller's call sequence leaves
 // in the storage and reads back: the delay's secondary tape (clear-as-you-read, write behind), its primary tape (read
 // from a saved head, write back from it), and the stutterer recording then playing forward, backward and ping-pong,
 // native and resampled. A fresh tape's storage holds a known fill, so the samples the tape clears are pinned too.

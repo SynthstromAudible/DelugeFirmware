@@ -29,8 +29,10 @@ kinds=<kind=n,...>`:
     CG-OUTPUTMOVE            the arranger's output drag (Song::moveOutput(): a three-pointer splice)
     CG-QUANTIZE              a row quantized (NoteRow::quantize(), which rotates its notes in place)
     CG-RENDERSET             a kit drum sounded from the interaction tier (an audition): its kit's rendering set gains it
-    CG-RENDERALLOC           a kit clip playing for 200 blocks; CG-RENDERALLOC renderAllocs= counts heap allocations the
-                             render made (host only) -- required 0
+    CG-RENDERALLOC           a kit clip playing for 200 blocks, then its drum's own delay, which starts, has its rate stepped
+                             (new tapes grown and swapped in) and abandons its tapes; CG-RENDERALLOC renderAllocs=
+                             counts heap allocations the render made (host only) -- required 0, with delayStarts and
+                             delayStops at least 1
     CG-VOICEPOLY             more audition note-ons than a synth's voice limit, from the interaction tier
     CG-VOICEMONO             a MONO synth re-triggered while its voice plays
     CG-VOICEKILL             the oscillator-type menu's killAllVoices on a sounding synth
@@ -133,7 +135,15 @@ def _check(gate, result) -> None:
             return
 
     # The render must not allocate: a kit's drums start and stop rendering without touching the heap.
-    if not result.has_line("CG-RENDERALLOC renderAllocs=0"):
+    alloc = re.search(
+        r"CG-RENDERALLOC renderAllocs=(\d+) delayStarts=(\d+) delayStops=(\d+)",
+        "\n".join(result.lines),
+    )
+    if alloc and (int(alloc.group(2)) < 1 or int(alloc.group(3)) < 1):
+        gate.fail(
+            f"CG-RENDERALLOC — the drum's delay must start and abandon its tapes ({alloc.group(0)})"
+        )
+    if not (alloc and alloc.group(1) == "0"):
         found = _grep(
             result,
             "CG-RENDERALLOC renderAllocs=",

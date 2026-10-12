@@ -25,6 +25,7 @@ enum class StructuralContainer : uint8_t {
 	PATCH_CABLES,       ///< a patch cable set's cables (PatchCableSet::patchCables)
 	MOD_FX_RING,        ///< an owner's mod FX ring hand-over (ModControllableAudio::projectModControllableSnapshot)
 	GRAIN_BLOCK,        ///< an owner's granular State and ring hand-over (the same projection)
+	DELAY_TAPE,         ///< an owner's delay tapes given back, or the delay arena's regions changed
 	COUNT_,
 };
 

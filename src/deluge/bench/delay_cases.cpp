@@ -40,7 +40,7 @@ DELAY_TAPE_STORAGE std::array<StereoSample, kDelayStorageSize> secondary_storage
 /// @brief The rig every delay whole case renders with, in on-chip SRAM.
 DelayRig rig{};
 
-/// @brief A tape for a delay at @p rate over the start of @p storage, sized as the app sizes it (DelayBuffer::init):
+/// @brief A tape for a delay at @p rate over the start of @p storage, sized as the app sizes it (effects::tape_shape):
 /// the ideal size for the rate, kWriteLag samples more for the write's run-off.
 [[nodiscard]] DelayTape tape_for_rate(std::span<StereoSample> storage, int32_t rate) {
 	const auto [size, clamped] = DelayTape::idealSizeForRate(static_cast<uint32_t>(rate));

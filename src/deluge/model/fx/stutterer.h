@@ -17,7 +17,8 @@
 
 #pragma once
 
-#include "dsp/delay/delay_buffer.h"
+#include "dsp-next/fixed/delay/delay_tape.h"
+#include "dsp/stereo_sample.h"
 #include "engines/effects/state.h"
 #include <cstdint>
 #include <span>
@@ -32,6 +33,9 @@ using StereoSample = deluge::dsp::StereoSample;
 class Stutterer {
 public:
 	Stutterer() = default;
+	~Stutterer() { releaseTape(); }
+	Stutterer(const Stutterer&) = delete;
+	Stutterer& operator=(const Stutterer&) = delete;
 	static void initParams(ParamManager* paramManager);
 	inline bool isStuttering(void* source) { return stutterSource == source; }
 	// These calls are slightly awkward with the magniture & timePerTickInverse, but that's the price for not depending
@@ -51,7 +55,12 @@ private:
 	};
 	int32_t getStutterRate(ParamManager* paramManager, int32_t magnitude, uint32_t timePerTickInverse);
 	bool currentReverse{};
-	DelayBuffer buffer;
+	/// @brief Frees the tape's storage, if any.
+	void releaseTape();
+
+	/// The stutter's tape, over storage allocated when it begins and freed when it ends.
+	deluge::dsp::fixed::DelayTape tape_;
+	StereoSample* storage_ = nullptr;
 	Status status = Status::OFF;
 	// TODO: This is currently unused! It's set to 7 initially, and never modified. Either we should set it depending
 	// on sync, or get rid of it entirely.

@@ -17,6 +17,8 @@
 
 #include "model/fx/stutterer.h"
 #include "dsp/stereo_sample.h"
+#include "engines/effects/delay.h"
+#include "memory/memory_allocator_interface.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 
@@ -101,18 +103,23 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 
 	// You'd think I should apply "false" here, to make it not add extra space to the buffer, but somehow this seems to
 	// sound as good if not better (in terms of ticking / crackling)...
-	Error error = buffer.init(getStutterRate(paramManager, magnitude, timePerTickInverse), 0, true);
-	if (error == Error::NONE) {
-		status = Status::RECORDING;
-		sizeLeftUntilRecordFinished = buffer.tape().size();
-		stutterSource = source;
+	const auto rate = static_cast<uint32_t>(getStutterRate(paramManager, magnitude, timePerTickInverse));
+	const deluge::effects::TapeShape shape = deluge::effects::tape_shape(rate, true);
+	releaseTape();
+	storage_ = static_cast<StereoSample*>(allocLowSpeed(static_cast<uint32_t>(shape.frames * sizeof(StereoSample))));
+	if (storage_ == nullptr) {
+		return Error::INSUFFICIENT_RAM;
 	}
-	return error;
+	tape_ = deluge::effects::make_tape({storage_, shape.frames}, shape, rate);
+	status = Status::RECORDING;
+	sizeLeftUntilRecordFinished = tape_.size();
+	stutterSource = source;
+	return Error::NONE;
 }
 void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* paramManager, int32_t magnitude,
                                uint32_t timePerTickInverse) {
 	int32_t rate = getStutterRate(paramManager, magnitude, timePerTickInverse);
-	deluge::dsp::fixed::DelayTape& tape = buffer.tape();
+	deluge::dsp::fixed::DelayTape& tape = tape_;
 
 	tape.setupForRender(rate);
 
@@ -212,8 +219,16 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 }
 
 // paramManager is optional - if you don't send it, it won't change the stutter rate
+void Stutterer::releaseTape() {
+	tape_ = {};
+	if (storage_ != nullptr) {
+		delugeDealloc(storage_);
+		storage_ = nullptr;
+	}
+}
+
 void Stutterer::endStutter(ParamManagerForTimeline* paramManager) {
-	buffer.discard();
+	releaseTape();
 	status = Status::OFF;
 
 	bool automationOccurred = false;

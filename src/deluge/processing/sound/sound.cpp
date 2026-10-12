@@ -1520,7 +1520,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 	// A note that couldn't get a voice yet is only ever started from render(), so we must keep rendering while one is
 	// pending - otherwise it'd stay pending forever (issue #2262)
 	bool skippingStatusNow =
-	    (voices_.empty() && (delay.repeatsUntilAbandon == 0u) && !stutterer.isStuttering(this)
+	    (voices_.empty() && (delay.repeatsUntilAbandon() == 0u) && !stutterer.isStuttering(this)
 	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF)
 	     && !getArp()->hasPendingNotes(arpSettings));
 
@@ -1844,7 +1844,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	process_postarp_notes(modelStackWithSoundFlags, arpSettings, instruction);
 
 	// Setup delay
-	Delay::State delayWorkingState{};
+	deluge::effects::Delay::State delayWorkingState{};
 	delayWorkingState.delayFeedbackAmount =
 	    params.paramFinalValues[params::GLOBAL_DELAY_FEEDBACK - params::FIRST_GLOBAL];
 	if (shouldLimitDelayFeedback) {
@@ -2051,9 +2051,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		sources[i].dxPatchChanged = false;
 	}
 
-	// Unlike all the other possible reasons we might want to start skipping rendering, delay.repeatsUntilAbandon may
+	// Unlike all the other possible reasons we might want to start skipping rendering, delay.repeatsUntilAbandon() may
 	// have changed state just now.
-	if (!delay.repeatsUntilAbandon || startSkippingRenderingAtTime) {
+	if (delay.repeatsUntilAbandon() == 0u || startSkippingRenderingAtTime) {
 		reassessRenderSkippingStatus(modelStackWithSoundFlags);
 	}
 

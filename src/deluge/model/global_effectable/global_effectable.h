@@ -43,8 +43,8 @@ public:
 	void processFilter(std::span<StereoSample> buffer);
 	/// @param reverbBuffer The block's reverb send buffer, which the grain adds its feed into from index 0.
 	void processFXForGlobalEffectable(std::span<StereoSample> buffer, int32_t* postFXVolume, ParamManager* paramManager,
-	                                  const Delay::State& delayWorkingState, bool anySoundComingIn, q31_t verbAmount,
-	                                  int32_t* reverbBuffer);
+	                                  const deluge::effects::Delay::State& delayWorkingState, bool anySoundComingIn,
+	                                  q31_t verbAmount, int32_t* reverbBuffer);
 
 	void writeAttributesToFile(Serializer& writer, bool writeToFile);
 	void writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeToFile);
@@ -66,8 +66,9 @@ public:
 	                                       int32_t readAutomationUpToPos);
 	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
-	Delay::State createDelayWorkingState(ParamManager& paramManager, bool shouldLimitDelayFeedback = false,
-	                                     bool soundComingIn = true);
+	deluge::effects::Delay::State createDelayWorkingState(ParamManager& paramManager,
+	                                                      bool shouldLimitDelayFeedback = false,
+	                                                      bool soundComingIn = true);
 	bool isEditingComp() override { return editingComp; }
 	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) override;
 	ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,

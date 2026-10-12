@@ -25,6 +25,8 @@ adds what depends on the song, and why each check is here:
     RS-DELAY-OFF      no block in which a delay that is OFF had feedback enough to sound with sound coming in: a song
                       whose file saves no delay type has its delays set OFF only where no param of theirs could
                       lift the feedback, so a delay that renders silent here is one that rendered before.
+    RS-DELAY-ARENA    no tape the render could not take from the delay arena: its margin, topped up by its job, is
+                      there for every delay that starts or resizes, so a delay starts on the block it did before.
     RS-SWITCH         a gate that switches delays or mod FX types, or clears mod FX memory, mid-render
                       (RENDER_DELAY_SWITCH, RENDER_MODFX_SWITCH, RENDER_MODFX_CLEAR) only: the same song rendered
                       unswitched must render differently, or the switches never reached the render.
@@ -200,6 +202,16 @@ def _check_mod_fx_hooks(gate, result) -> None:
             )
 
 
+def _check_delay_arena(gate, result) -> None:
+    """No delay found the arena short (see RS-DELAY-ARENA)."""
+    line = result.last("RS-DELAY-ARENA ")
+    shortfalls = int_field(line, "shortfalls")
+    if shortfalls is None:
+        gate.fail("RS-DELAY-ARENA — no RS-DELAY-ARENA shortfalls= line")
+    elif shortfalls != 0:
+        gate.fail(f"RS-DELAY-ARENA — {shortfalls} tapes found the arena short ({line})")
+
+
 def _check_delay_off(gate, result) -> None:
     """No delay that is OFF was asked to sound (see RS-DELAY-OFF)."""
     line = result.last("RS-DELAY-OFF ")
@@ -253,6 +265,7 @@ def run(gate):
     _check_width(gate, result, record_name)
     _check_mod_fx_hooks(gate, result)
     _check_delay_off(gate, result)
+    _check_delay_arena(gate, result)
 
     voices = int_field(result.last("RS-VOICES "), "audio")
     if voices is None or voices <= 0:

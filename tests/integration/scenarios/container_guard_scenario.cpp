@@ -104,6 +104,8 @@ constexpr int32_t kVelocity = 100;
 constexpr int32_t kBigRowCount = 128;
 /// RENDERALLOC renders this many blocks with its drum starting and stopping, counting the render's heap allocations.
 constexpr int32_t kRenderAllocBlocks = 1500;
+/// RENDERALLOC then renders this many blocks of a synth's delay starting, resizing and abandoning its tapes.
+constexpr int32_t kRenderAllocDelayBlocks = 2500;
 /// The mod FX legs' knobs when they render a block through an owner's mod FX themselves: a moderate rate (UQ0.32 per
 /// frame) and half depth (Q31).
 constexpr int32_t kModFxRate = 0x00a00000;
@@ -272,6 +274,8 @@ const char* kindName(StructuralContainer kind) {
 		return "modfxring";
 	case StructuralContainer::GRAIN_BLOCK:
 		return "grainblock";
+	case StructuralContainer::DELAY_TAPE:
+		return "delaytape";
 	case StructuralContainer::COUNT_:
 		break;
 	}
@@ -357,7 +361,7 @@ struct MasterFxRender {
 MasterFxRender renderMasterFx(GlobalEffectable& master, ParamManager& params) {
 	static q31_t send[kRenderBlockFrames]{};
 	MasterFxRender made;
-	const Delay::State delayState = master.createDelayWorkingState(params);
+	const deluge::effects::Delay::State delayState = master.createDelayWorkingState(params);
 	for (int32_t b = 0; b < kModFxBlocks; b++) {
 		StereoSample block[kRenderBlockFrames]{};
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
@@ -450,22 +454,38 @@ InstrumentClip* makeKitClip() {
 	return static_cast<InstrumentClip*>(clip);
 }
 
-/// @brief Turns @p owner's delay feedback to @p value as the gold knob does, by its SetParamValue Edit: a Sound's
-/// patched GLOBAL_DELAY_FEEDBACK, or a chain's unpatched UNPATCHED_DELAY_AMOUNT, in @p paramManager.
-void turnDelayFeedback(ModControllableAudio& owner, TimelineCounter* clip, ParamManager& paramManager, int32_t value) {
-	char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* ms =
-	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, &owner, clip, &paramManager);
-	const bool sound = owner.asSound() != nullptr;
-	ParamCollectionSummary* summary =
-	    sound ? paramManager.getPatchedParamSetSummary() : paramManager.getUnpatchedParamSetSummary();
-	const int32_t id = sound ? static_cast<int32_t>(deluge::modulation::params::GLOBAL_DELAY_FEEDBACK)
-	                         : static_cast<int32_t>(deluge::modulation::params::UNPATCHED_DELAY_AMOUNT);
+/// @brief Turns param @p id of @p owner to @p value as the gold knob does, by its SetParamValue Edit: a Sound's patched
+/// param, or a chain's unpatched one, in @p paramManager.
+void turnParam(ModelStackWithThreeMainThings* ms, int32_t id, int32_t value) {
+	ParamManager& paramManager = *ms->paramManager;
+	ParamCollectionSummary* summary = static_cast<ModControllableAudio*>(ms->modControllable)->asSound() != nullptr
+	                                      ? paramManager.getPatchedParamSetSummary()
+	                                      : paramManager.getUnpatchedParamSetSummary();
 	ModelStackWithParamId* withId = ms->addParamCollectionAndId(summary->paramCollection, summary, id);
 	ModelStackWithAutoParam* withParam = withId->paramCollection->getAutoParamFromId(withId);
 	deluge::edits::Context context{*currentSong, currentSong->project};
 	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*withParam), value, 0, 0, withParam};
 	deluge::edits::apply(context, edit);
+}
+
+/// @brief turnParam on @p owner with no note row: a synth's sound or a chain, its params in @p paramManager.
+void turnParam(ModControllableAudio& owner, TimelineCounter* clip, ParamManager& paramManager, int32_t id,
+               int32_t value) {
+	char memory[MODEL_STACK_MAX_SIZE];
+	turnParam(setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, &owner, clip, &paramManager), id,
+	          value);
+}
+
+/// The delay feedback param of @p owner: a Sound's patched GLOBAL_DELAY_FEEDBACK, or a chain's unpatched
+/// UNPATCHED_DELAY_AMOUNT.
+int32_t delayFeedbackId(ModControllableAudio& owner) {
+	return owner.asSound() != nullptr ? static_cast<int32_t>(deluge::modulation::params::GLOBAL_DELAY_FEEDBACK)
+	                                  : static_cast<int32_t>(deluge::modulation::params::UNPATCHED_DELAY_AMOUNT);
+}
+
+/// @brief Turns @p owner's delay feedback to @p value as the gold knob does.
+void turnDelayFeedback(ModControllableAudio& owner, TimelineCounter* clip, ParamManager& paramManager, int32_t value) {
+	turnParam(owner, clip, paramManager, delayFeedbackId(owner), value);
 }
 
 /// @brief Sets @p owner's delay type by the Edit the delay type menu makes.
@@ -898,9 +918,44 @@ void editLeg() {
 		g_step = "render";
 		const uint32_t before = deluge::memory::audioTierAllocations();
 		renderBlocks(kRenderAllocBlocks);
-		printf("CG-RENDERALLOC renderAllocs=%u\n",
-		       static_cast<unsigned>(deluge::memory::audioTierAllocations() - before));
+		// Then the drum's own delay, sounding with each of its notes: it starts, has its rate stepped past double, down
+		// and below half (each a new tape grown and swapped in), and abandons its tapes between the notes.
+		constexpr int32_t kRate = static_cast<int32_t>(deluge::modulation::params::GLOBAL_DELAY_RATE);
+		auto* drum = static_cast<SoundDrum*>(g_kit->firstDrum);
+		const auto turnDrum = [&](int32_t id, int32_t value) {
+			char memory[MODEL_STACK_MAX_SIZE];
+			turnParam(setupModelStackWithTimelineCounter(memory, currentSong, g_clip)
+			              ->addNoteRow(g_rowIndex, g_row)
+			              ->addOtherTwoThings(drum, &g_row->paramManager),
+			          id, value);
+		};
+		setDelayType(*drum, deluge::effects::DelayType::DIGITAL);
+		turnDrum(delayFeedbackId(*drum), -0x60000000);
+		turnDrum(kRate, 0);
+		int32_t starts = 0;
+		int32_t stops = 0;
+		bool was = drum->delay.isActive();
+		for (int32_t b = 0; b < kRenderAllocDelayBlocks; b++) {
+			if (b == 400) {
+				turnDrum(kRate, 0x30000000);
+			}
+			else if (b == 800) {
+				turnDrum(kRate, -0x40000000);
+			}
+			renderBlocks(1);
+			const bool now = drum->delay.isActive();
+			starts += (!was && now) ? 1 : 0;
+			stops += (was && !now) ? 1 : 0;
+			was = now;
+		}
+		printf("CG-RENDERALLOC renderAllocs=%u delayStarts=%d delayStops=%d\n",
+		       static_cast<unsigned>(deluge::memory::audioTierAllocations() - before), static_cast<int>(starts),
+		       static_cast<int>(stops));
 		fflush(stdout);
+		turnDrum(delayFeedbackId(*drum), std::numeric_limits<int32_t>::min());
+		turnDrum(kRate, 0);
+		setDelayType(*drum, deluge::effects::DelayType::OFF);
+		renderBlocks(1);
 		break;
 	}
 	case Leg::Heap: {

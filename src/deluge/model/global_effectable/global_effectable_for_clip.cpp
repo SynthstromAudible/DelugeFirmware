@@ -70,7 +70,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	int32_t pitchAdjust =
 	    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
 
-	Delay::State delayWorkingState =
+	deluge::effects::Delay::State delayWorkingState =
 	    createDelayWorkingState(*paramManagerForClip, shouldLimitDelayFeedback, renderedLastTime);
 	if (outputType == OutputType::AUDIO) {
 		delayWorkingState.analog_saturation = 5;

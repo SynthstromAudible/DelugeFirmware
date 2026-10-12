@@ -28,6 +28,7 @@
 #include "libdeluge/tier.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/change_effect.h"
+#include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/output.h"
 #include "model/song/song.h"
@@ -507,7 +508,9 @@ void report() {
 			fail("RS-MODFX-CLEAR", "a clear asked for did not clear exactly one audio track's mod FX");
 		}
 	}
-	printf("RS-DELAY-OFF silenced=%u\n", delayOffSilencedBlocks());
+	printf("RS-DELAY-OFF silenced=%u\n", deluge::effects::delay_off_silenced_blocks());
+	printf("RS-DELAY-ARENA shortfalls=%u regions=%zu jobs=%u\n", deluge::model::delayArena().shortfalls(),
+	       deluge::model::delayArena().regions(), deluge::model::delayArenaMaintenanceRuns());
 	printf("RS-CAPTURE frames=%llu stereo=%d\n", static_cast<unsigned long long>(g_captured), g_stereo ? 1 : 0);
 	if (g_wrongWidthTicks != 0) {
 		fail("RS-CAPTURE", g_stereo ? "the app rendered in mono with headphones plugged in"

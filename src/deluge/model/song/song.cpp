@@ -2561,7 +2561,7 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	}
 	AudioEngine::logAction("done recorders");
 
-	Delay::State delayWorkingState = live.global_effectable.createDelayWorkingState(paramManager);
+	deluge::effects::Delay::State delayWorkingState = live.global_effectable.createDelayWorkingState(paramManager);
 
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	int32_t reverbSendAmount =

@@ -64,6 +64,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/favourite/favourite_manager.h"
+#include "model/mod_controllable/delay_arena_app.h"
 #include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -426,6 +427,9 @@ void registerJobs() {
 	AudioEngine::reclaimJob = appLoop.add("reclaim retired", &AudioEngine::reclaimRoutine, kNever, 0);
 	// Anything handed over before the job existed asked for nobody's run.
 	appLoop.request(AudioEngine::reclaimJob);
+	// Lends the delays' arena a region when a tape the render took has used its margin, and returns the regions it no
+	// longer needs. Runs when the render takes or gives back a tape.
+	deluge::model::registerDelayArenaJob();
 	// Runs only when the BSP has queued pad or button events, and drains them all.
 	appLoop.add("buttons and pads", &readButtonsAndPadsOnce, kNever, DELUGE_WAKE_INPUT);
 	appLoop.add("pending UI", &doAnyPendingUIRendering, us(0.02), 0);
