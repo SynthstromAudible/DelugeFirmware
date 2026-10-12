@@ -110,6 +110,10 @@ set(mod_fx_reference_spec_DEPS
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 set(mod_fx_kernel_spec_DEPS ${mod_fx_reference_spec_DEPS})
 
+# The granular reference (reference_granular.h, granular_workloads.h, header-only) draws its grains from jcong; its
+# quick_log, pan and wet low-pass are header-only.
+set(granular_reference_spec_DEPS ${_repo_root}/src/deluge/util/waves.cpp)
+
 # The decay-curve lookups read the decay tables.
 set(table_interpolation_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
