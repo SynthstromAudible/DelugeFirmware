@@ -407,7 +407,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EXPORT_STEMS));
 			}
 			else {
-				stemExport.startStemExportProcess(StemExportType::DRUM);
+				stemExport.startStemExportProcess(stemExport.kitStemExportType());
 				return ActionResult::DEALT_WITH;
 			}
 		}

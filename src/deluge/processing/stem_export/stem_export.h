@@ -104,6 +104,8 @@ public:
 	/// the kit clip currently open - used to decide whether to surface the option in the UI at all.
 	/// Unlike disarmAllChokeGroupsForStemExport(), this does not touch NoteRow mute state.
 	bool currentKitHasBundlingChokeGroup();
+	/// CHOKE_GROUP when EXPORT CHOKE GROUPS is on and would change the output, DRUM otherwise.
+	StemExportType kitStemExportType();
 
 	// start exporting
 	/// chokeGroup is only meaningful for StemExportType::CHOKE_GROUP, where it names the group in the
