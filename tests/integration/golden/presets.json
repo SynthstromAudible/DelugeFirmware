@@ -2087,6 +2087,12 @@
   "rms_db": -22.49,
   "sha256": "76af0fe0923d3b1231e0628765f4154bf7a4771c4439d475859622076fed86e3"
  },
+ "stereo/modfx_grain": {
+  "frames": 88200,
+  "peak": 342189568,
+  "rms_db": -29.07,
+  "sha256": "dedb897defdc485d13b5229af66c88f0279676d985ad3e80047bf7e63ba8aa1e"
+ },
  "stereo/modfx_warble": {
   "frames": 88200,
   "peak": 336116992,
