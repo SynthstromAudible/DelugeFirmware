@@ -33,17 +33,21 @@ DelayArena::~DelayArena() {
 
 dsp::StereoSample* DelayArena::take(std::size_t frames) {
 	const std::size_t bytes = frames * sizeof(dsp::StereoSample);
-	margin_ok_.store(false, std::memory_order_relaxed);
-	memory_.request_maintenance();
 	for (std::size_t i = 0; i < count_; i++) {
 		Region& region = regions_[i];
 		if (void* block = memory_.heap_alloc(region.heap, bytes); block != nullptr) {
 			region.live++;
 			region.used_bytes += bytes + kTapeOverheadBytes;
+			if (!margin_by_count()) {
+				margin_ok_.store(false, std::memory_order_relaxed);
+				memory_.request_maintenance();
+			}
 			return static_cast<dsp::StereoSample*>(block);
 		}
 	}
 	shortfalls_.fetch_add(1, std::memory_order_relaxed);
+	margin_ok_.store(false, std::memory_order_relaxed);
+	memory_.request_maintenance();
 	return nullptr;
 }
 
@@ -56,14 +60,15 @@ void DelayArena::give_back(dsp::StereoSample* storage, std::size_t frames) {
 	memory_.heap_free(region.heap, storage);
 	region.live--;
 	region.used_bytes -= std::min(region.used_bytes, (frames * sizeof(dsp::StereoSample)) + kTapeOverheadBytes);
-	if (region.live == 0) {
-		memory_.request_maintenance();
+	if (margin_by_count()) {
+		margin_ok_.store(true, std::memory_order_relaxed);
 	}
 }
 
 ArenaChange DelayArena::prepare(int on_delta) {
 	ArenaChange change{.on_delta = on_delta};
-	if (on_ + on_delta > 0 && !margin_ok_.load(std::memory_order_relaxed) && count_ < kArenaMaxRegions) {
+	if (on_delta >= 0 && on_ + on_delta > 0 && !margin_ok_.load(std::memory_order_relaxed)
+	    && count_ < kArenaMaxRegions) {
 		change.lent = memory_.lend(region_bytes_);
 	}
 	return change;
@@ -74,7 +79,8 @@ void DelayArena::commit(ArenaChange& change) {
 	if (change.lent != nullptr && on_ > 0 && !holds_margin() && attach(change.lent)) {
 		change.lent = nullptr;
 	}
-	for (std::size_t i = count_; i-- > 0;) {
+	// Regions are returned only as owners leave: a delay ringing out keeps its region for its next start.
+	for (std::size_t i = count_; change.on_delta < 0 && i-- > 0;) {
 		if (regions_[i].live != 0 || (on_ > 0 && !holds_margin_without(i))) {
 			continue;
 		}
@@ -102,16 +108,35 @@ bool DelayArena::holds_margin() {
 	return holds_margin_without(kArenaMaxRegions);
 }
 
-bool DelayArena::holds_margin_without(std::size_t skip) {
+std::size_t DelayArena::free_bytes_without(std::size_t skip) const {
 	std::size_t free_bytes = 0;
 	for (std::size_t i = 0; i < count_; i++) {
 		if (i != skip) {
 			free_bytes += region_bytes_ - std::min(region_bytes_, regions_[i].used_bytes);
 		}
 	}
-	const std::size_t wanted =
-	    (kMarginMaxTapes * kMaxTapeBytes) + (static_cast<std::size_t>(on_) * (kNeutralTapeBytes + kTapeOverheadBytes));
-	if (free_bytes < wanted) {
+	return free_bytes;
+}
+
+std::size_t DelayArena::margin_bytes() const {
+	return (kMarginMaxTapes * kMaxTapeBytes)
+	       + (static_cast<std::size_t>(on_) * (kNeutralTapeBytes + kTapeOverheadBytes));
+}
+
+bool DelayArena::margin_by_count() const {
+	if (on_ <= 0 || free_bytes_without(kArenaMaxRegions) < margin_bytes()) {
+		return false;
+	}
+	for (std::size_t i = 0; i < count_; i++) {
+		if (regions_[i].live == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool DelayArena::holds_margin_without(std::size_t skip) {
+	if (free_bytes_without(skip) < margin_bytes()) {
 		return false;
 	}
 	// The largest tapes need contiguous room: take them for a moment, each from the first region that has it.

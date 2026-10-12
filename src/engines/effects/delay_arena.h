@@ -57,9 +57,11 @@ struct ArenaChange {
 /// which the render takes tapes from and gives them back to without calling the general heap.
 ///
 /// While any owner is counted on (its delay type not OFF), the arena holds a margin: room for two tapes of the
-/// largest size, found by a trial, and free bytes for one tape at the neutral rate per owner on. A take uses the
-/// margin and asks for maintenance; the job (or an owner's projection) lends a region when the margin is short, and
-/// returns a region with no tapes when what remains holds it, or every empty region when no owner is on.
+/// largest size, found by a trial, and free bytes for one tape at the neutral rate per owner on. A take that leaves
+/// the margin short asks for maintenance; the job (or an owner's projection) then lends a region. Regions are kept
+/// while their owners stay on, so a delay starting and ringing out again and again takes nothing new from the general
+/// heap; they are returned when owners are counted out and what remains holds the margin, all of them when none is
+/// on.
 class DelayArena {
 public:
 	/// A region's size: room for one largest-size pair and its heap's own control block.
@@ -82,17 +84,17 @@ public:
 	DelayArena& operator=(const DelayArena&) = delete;
 
 	/// @brief [render] A tape's storage of @p frames frames, from the first region with room; null when none has
-	/// room (a shortfall). Asks for maintenance either way.
+	/// room (a shortfall). Asks for maintenance when it leaves the margin short.
 	[[nodiscard]] dsp::StereoSample* take(std::size_t frames);
-	/// @brief [render] Gives back @p storage, @p frames frames, as take gave it. Asks for maintenance when its region
-	/// is left empty.
+	/// @brief [render] Gives back @p storage, @p frames frames, as take gave it.
 	void give_back(dsp::StereoSample* storage, std::size_t frames);
 
-	/// @brief [task] Before the section: lends a region when owners will be counted on after @p on_delta and the
-	/// margin was last found short.
+	/// @brief [task] Before the section: lends a region when the change counts no owner out, owners will be on after
+	/// it, and the margin was last found short.
 	[[nodiscard]] ArenaChange prepare(int on_delta);
 	/// @brief [task] Inside the section: counts the change's owners in or out, attaches the lent region if the margin
-	/// is short without it, and detaches every empty region not needed for the margin (every one when none is on).
+	/// is short without it, and, when the change counts owners out, detaches every empty region not needed for the
+	/// margin (every one when none is on).
 	void commit(ArenaChange& change);
 	/// @brief [task] After the section: returns the lent region commit did not attach, and the detached ones.
 	void finish(ArenaChange& change);
@@ -116,6 +118,14 @@ private:
 
 	/// @return Whether the regions other than @p skip (none when out of range) hold the margin.
 	[[nodiscard]] bool holds_margin_without(std::size_t skip);
+	/// @return [render] Whether the margin holds by the render's own count: the free bytes are enough and a region is
+	/// empty (an empty region holds the two largest tapes). No trial: it may find the margin short when the trial
+	/// would not, never the other way.
+	[[nodiscard]] bool margin_by_count() const;
+	/// @return The free bytes the regions other than @p skip have, by their tapes' count.
+	[[nodiscard]] std::size_t free_bytes_without(std::size_t skip) const;
+	/// @return The free bytes the margin wants with the owners now on.
+	[[nodiscard]] std::size_t margin_bytes() const;
 	/// @return The index of the region holding @p storage; count_ when none does.
 	[[nodiscard]] std::size_t region_of(const void* storage) const;
 	/// @return Whether @p region was attached: a heap built over it.

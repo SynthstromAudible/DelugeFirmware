@@ -171,7 +171,7 @@ describe delay_arena("the delay's arena", ${
 		}
 		maintain(arena, -1);
 	});
-	it("returns a region left empty once what remains holds the margin", _ {
+	it("keeps a region its tapes left empty while its owners stay on", _ {
 		TestMemory& memory = fresh_memory();
 		DelayArena arena{kMemory};
 		maintain(arena, +1);
@@ -181,9 +181,44 @@ describe delay_arena("the delay's arena", ${
 		arena.give_back(a, kMaxFrames);
 		arena.give_back(b, kMaxFrames);
 		maintain(arena, 0);
+		expect(arena.regions()).to_equal(std::size_t{2});
+		expect(memory.unlends).to_equal(0);
+		maintain(arena, -1);
+	});
+	it("lends nothing for a take that leaves the margin held", _ {
+		TestMemory& memory = fresh_memory();
+		DelayArena arena{kMemory};
+		maintain(arena, +2);
+		maintain(arena, 0);
+		expect(arena.regions()).to_equal(std::size_t{2});
+		const int lends = memory.lends;
+		StereoSample* tape = arena.take(16);
+		maintain(arena, 0);
+		expect(memory.lends).to_equal(lends);
+		arena.give_back(tape, 16);
+		maintain(arena, -2);
+	});
+	it("returns the regions an owner counted out leaves spare", _ {
+		TestMemory& memory = fresh_memory();
+		DelayArena arena{kMemory};
+		maintain(arena, +12);
+		maintain(arena, 0);
+		expect(arena.regions()).to_equal(std::size_t{2});
+		maintain(arena, -11);
 		expect(arena.regions()).to_equal(std::size_t{1});
 		expect(memory.unlends).to_equal(1);
 		maintain(arena, -1);
+	});
+	it("lends nothing to count an owner out", _ {
+		TestMemory& memory = fresh_memory();
+		DelayArena arena{kMemory};
+		maintain(arena, +1);
+		StereoSample* tape = arena.take(kMaxFrames);
+		const int lends = memory.lends;
+		arena.give_back(tape, kMaxFrames);
+		maintain(arena, -1);
+		expect(memory.lends).to_equal(lends);
+		expect(arena.regions()).to_equal(std::size_t{0});
 	});
 	it("returns every region once no owner is on", _ {
 		TestMemory& memory = fresh_memory();
