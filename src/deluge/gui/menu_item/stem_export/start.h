@@ -45,16 +45,7 @@ public:
 			stemExport.startStemExportProcess(StemExportType::CLIP);
 		}
 		else if (rootUI == &instrumentClipView && getCurrentOutputType() == OutputType::KIT) {
-			// re-check the gating (not just whether the toggle happens to be set) at the point of
-			// export, the same way the CHOKE GROUP voice menu item itself re-checks it in
-			// PolyphonyType::selectButtonPress() rather than only hiding the toggle that leads here
-			if (stemExport.exportChokeGroups && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ChokeGroups)
-			    && stemExport.currentKitHasBundlingChokeGroup()) {
-				stemExport.startStemExportProcess(StemExportType::CHOKE_GROUP);
-			}
-			else {
-				stemExport.startStemExportProcess(StemExportType::DRUM);
-			}
+			stemExport.startStemExportProcess(stemExport.kitStemExportType());
 		}
 		return NO_NAVIGATION;
 	}

@@ -33,6 +33,7 @@
 #include "model/drum/choke_group.h"
 #include "model/instrument/non_audio_instrument.h"
 #include "model/note/note_row.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -975,6 +976,18 @@ bool StemExport::currentKitHasBundlingChokeGroup() {
 		return countRowsInChokeGroup(clip, totalNumNoteRows, group, isEligibleForDrumStemExport);
 	});
 	return bundlingGroups > 0;
+}
+
+/// The export type a kit export runs as, however it was started - the Start menu item and the
+/// SAVE+RECORD shortcut both ask here, so they can't disagree. The EXPORT CHOKE GROUPS toggle stays
+/// set after the community feature is turned off or the kit stops having a group to bundle, so it is
+/// re-checked against both rather than trusted on its own.
+StemExportType StemExport::kitStemExportType() {
+	if (exportChokeGroups && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ChokeGroups)
+	    && currentKitHasBundlingChokeGroup()) {
+		return StemExportType::CHOKE_GROUP;
+	}
+	return StemExportType::DRUM;
 }
 
 bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* output, bool& muteState,
