@@ -17,9 +17,9 @@
 
 // The Granular kernel: the granular effect as one frame kernel under Mono, rendered in place. Driven as its owner
 // drives it (TestGranular below: the ring handed over once and kept, a release a restart, the shutdown armed, the
-// knobs configured and the reverb send set each rendered block), it must equal today's granular (reference_granular.h)
-// bit for bit on every workload (granular_workloads.h): each block's output, post-FX volume and reverb send, and at
-// the end the State and the ring as the kernel reads it.
+// knobs configured and the reverb send set each rendered block), it must equal the reference granular
+// (reference_granular.h, the record of the former processor) bit for bit on every workload (granular_workloads.h): each
+// block's output, post-FX volume and reverb send, and at the end the State and the ring as the kernel reads it.
 
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mono.h"
@@ -44,7 +44,7 @@ using deluge::dsp::fixed::CongNoise;
 using Granular = deluge::dsp::fixed::Granular<CongNoise>;
 
 static_assert(deluge::dsp::processor_kernel<Granular>);
-static_assert(Granular::kRingFrames == kModFXGrainBufferSize);
+static_assert(Granular::kRingFrames == deluge::dsp::test::kModFXGrainBufferSize);
 
 namespace {
 
@@ -72,14 +72,14 @@ void push_grain(std::vector<uint32_t>& words, int32_t length, int32_t start, int
 /// reference's calls so that `granular_workloads::play` drives it.
 class TestGranular {
 public:
-	/// @brief Today's clearGrainFXBuffer: the grains stopped, the write index back to the ring's start.
+	/// @brief The reference's clearGrainFXBuffer: the grains stopped, the write index back to the ring's start.
 	void clearGrainFXBuffer() { mono_.on<&Granular::clear>(); }
 
-	/// @brief Today's startSkippingRendering: the ring released, so it restarts.
+	/// @brief The reference's startSkippingRendering: the ring released, so it restarts.
 	void startSkippingRendering() { mono_.on<&Granular::restart>(); }
 
-	/// @brief Today's processGrainFX: renders @p frames in place while there is sound or the countdown runs, adding
-	/// the reverb feed into @p send and scaling @p volume (Q31).
+	/// @brief The reference's processGrainFX: renders @p frames in place while there is sound or the countdown runs,
+	/// adding the reverb feed into @p send and scaling @p volume (Q31).
 	void processGrainFX(std::span<StereoSample> frames, int32_t rate, int32_t mix, int32_t density, int32_t randomness,
 	                    int32_t* volume, bool sound, q31_t reverb_amount, std::span<q31_t> send) {
 		if (sound || mono_.state().wraps_to_shutdown >= 0) {
@@ -217,7 +217,7 @@ struct RunTrace {
 
 // clang-format off
 describe granular_kernel("the Granular kernel", ${
-	it("renders every workload as today's granular does, in place: each block's output, post-FX volume and reverb "
+	it("renders every workload as the reference granular does, in place: each block's output, post-FX volume and reverb "
 	   "send, and the State and the ring at the end", _ {
 		expect(partings()).to_equal(std::vector<std::string>{});
 	});

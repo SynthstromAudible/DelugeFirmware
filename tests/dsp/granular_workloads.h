@@ -26,6 +26,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/stereo_sample.h"
+#include "granular_ring.h"
 #include "util/waves.h" // jcong
 
 #include <algorithm>

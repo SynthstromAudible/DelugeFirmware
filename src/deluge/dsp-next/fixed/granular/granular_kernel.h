@@ -115,8 +115,10 @@ struct Granular {
 	struct State {
 		StereoSample* ring = nullptr; ///< The owner's ring of kRingFrames frames, or null.
 		uint32_t write = 0;           ///< The ring index the next frame is written to; wraps lazily, at the next frame.
-		uint32_t written = 0;     ///< Ring slots [0, written) were written since the ring was taken up or restarted.
-		int32_t until_start = 0;  ///< Frames until the write index is a multiple of the period; set by prepare.
+		uint32_t written = 0; ///< Ring slots [0, written) were written since the ring was taken up or restarted.
+		/// Frames until the write index is next a multiple of the period: zero exactly at one. Set by prepare and at
+		/// the wrap.
+		int32_t until_start = 0;
 		bool full = false;        ///< Whether grains may start: the write index passed half the ring.
 		bool initialized = false; ///< Whether grains are free of the first pass: a block started at the ring's end.
 		int32_t wraps_to_shutdown = 0; ///< Ring laps left before the owner restarts the effect; below zero, it is idle.
@@ -235,6 +237,7 @@ struct Granular {
 		slot.l = multiply_accumulate_32x32_rshift32_rounded(x.l, grains_l, b.feedback);
 		slot.r = multiply_accumulate_32x32_rshift32_rounded(x.r, grains_r, b.feedback);
 		s.write += 1;
+		// Not std::max: an out-of-line call in the frame loop at -fno-inline-functions.
 		s.written = written > s.write ? written : s.write;
 
 		const q31 wet_l = OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, s.lpf_l, q31_mult(grains_l, b.wet));

@@ -193,7 +193,7 @@ describe reference_granular("the granular reference", ${
 			short_frames += blocks.blocks[short_blocks].n;
 			short_blocks += 1;
 		}
-		expect(short_frames).to_be_greater_than(static_cast<std::size_t>(2 * kModFXGrainBufferSize));
+		expect(short_frames).to_be_greater_than(static_cast<std::size_t>(2 * deluge::dsp::test::kModFXGrainBufferSize));
 
 		const auto fx = std::make_unique<ReferenceGranular>();
 		const gw::GranularWorkload shorts{blocks.name, {blocks.blocks.begin(), blocks.blocks.begin() + static_cast<std::ptrdiff_t>(short_blocks)}, blocks.cong_seed};

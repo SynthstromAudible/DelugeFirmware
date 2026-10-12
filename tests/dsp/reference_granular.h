@@ -40,6 +40,7 @@
 #include "dsp-next/fixed/curves/quick_log.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/vca/pan.h"
+#include "granular_ring.h"
 #include "util/fixedpoint.h"
 #include "util/waves.h" // CONG, jcong
 

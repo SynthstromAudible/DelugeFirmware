@@ -1529,8 +1529,8 @@ enum class CaseList : uint8_t {
 	/// (the phaser once), then the feedback chain's two cases from the chain list, as in the delay list.
 	MOD_FX,
 	/// The calibration loop, the granular effect as its owners render it through `effects::Granular`, with sparse and
-	/// dense grains at no and full pitch randomness,
-	/// then the feedback chain's two cases from the chain list, as in the delay list.
+	/// dense grains at no and full pitch randomness, then the feedback chain's two cases from the chain list, as in the
+	/// delay list.
 	GRANULAR,
 };
 
