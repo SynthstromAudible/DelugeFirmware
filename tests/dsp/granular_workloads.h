@@ -211,6 +211,28 @@ inline constexpr std::size_t kShortPhaseFrames = 140'000;
 			w.push_back(b.build("KNOB_SWEEP"));
 		}
 
+		// The knobs' extremes, each held long enough for grains to start (after half a ring) and for the cached knob
+		// paths to update: the mix at the top (dry), the bottom and zero, then back to wet; the rate at zero and at the
+		// bottom, then up; the randomness at the bottom; and the density and rate changing together.
+		{
+			Builder b;
+			b.run(160, 256);
+			const auto stretch = [&b](int32_t rate, int32_t mix, int32_t density, int32_t randomness) {
+				b.knobs(rate, mix, density, randomness).run(40, 256);
+			};
+			stretch(kRateHigh, kMixMax, kDensityHigh, kRandomnessMax);
+			stretch(kRateHigh, INT32_MIN, kDensityHigh, kRandomnessMax);
+			stretch(kRateHigh, 0, kDensityHigh, kRandomnessMax);
+			stretch(kRateHigh, kMixMid, kDensityHigh, kRandomnessMax);
+			stretch(0, kMixMid, kDensityHigh, kRandomnessMax);
+			stretch(INT32_MIN, kMixMid, kDensityHigh, kRandomnessMax);
+			stretch(kRateHigh, kMixMid, kDensityHigh, kRandomnessMax);
+			stretch(kRateHigh, kMixMid, kDensityHigh, INT32_MIN);
+			stretch(kRateHigh, kMixMid, kDensityHigh, kRandomnessMax);
+			stretch(kRateMid, kMixMid, kDensityLow, kRandomnessMax);
+			w.push_back(b.build("KNOB_EXTREMES"));
+		}
+
 		w.push_back(Builder{}.run(600, 512).build("PITCH_CLASSES"));
 
 		// The silence outlasts the longest countdown (four wraps, then one more to go below zero).

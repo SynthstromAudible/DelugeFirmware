@@ -137,13 +137,18 @@ describe reference_granular("the granular reference", ${
 		const gw::GranularWorkload dry =
 		    gw::detail::Builder{}.knobs(gw::kRateHigh, gw::kMixMax, gw::kDensityHigh, gw::kRandomnessMax).run(400).build("DRY");
 		const gw::GranularTrace trace = render(dry);
-		std::size_t far = 0;
+		// Wet exactly zero: the output is the dry product alone and the reverb feed is untouched.
+		std::size_t differing = 0;
 		for (std::size_t i = 0; i < trace.samples.size(); ++i) {
-			const int64_t gap = int64_t{trace.samples[i]} - trace.inputs[i];
-			far += static_cast<std::size_t>(gap > 16 || gap < -16);
+			differing += static_cast<std::size_t>(trace.samples[i] != q31_mult(trace.inputs[i], 2147483647));
 		}
-		expect(far).to_equal(std::size_t{0});
-		expect(nonzero(trace.sends)).to_be_greater_than(std::size_t{0});
+		expect(differing).to_equal(std::size_t{0});
+		std::vector<int32_t> started;
+		for (std::size_t b = 0; b < dry.blocks.size(); ++b) {
+			const std::vector<int32_t> start = gw::send_input(dry.blocks[b].n, b, false);
+			started.insert(started.end(), start.begin(), start.end());
+		}
+		expect(trace.sends).to_equal(started);
 	});
 
 	it("keeps the ring across a clear and zeroes it again after a skip or a decay", _ {
