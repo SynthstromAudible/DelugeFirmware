@@ -547,7 +547,7 @@ int32_t PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithA
 int32_t PatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
 	if (modelStack && modelStack->paramId >= params::GLOBAL_MDD_CUSTOM_1
 	    && modelStack->paramId <= params::GLOBAL_MDD_CUSTOM_4)
-		return int64_t(std::clamp(knobPos, -64, 64) + 64) * INT32_MAX / 128;
+		return int64_t(std::clamp<int32_t>(knobPos, -64, 64) + 64) * INT32_MAX / 128;
 
 	if (modelStack
 	    && (modelStack->paramId == params::LOCAL_OSC_A_PHASE_WIDTH
