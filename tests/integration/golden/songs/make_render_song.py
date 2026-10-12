@@ -1048,6 +1048,8 @@ SONGS = {
     "RS_STUTTER_AUDIO": lambda v: parts_song(v, [audio_parts(DRY, STUTTER_FREE)]),
     # RS_STUTTER_AUDIO under its own name, so the gate that turns its rate keeps its own record.
     "RS_STUTTER_RATE": lambda v: parts_song(v, [audio_parts(DRY, STUTTER_FREE)]),
+    # RS_STUTTER_AUDIO under its own name: its first synth stutters, with the song's stutter settings (quantized).
+    "RS_STUTTER_SYNTH": lambda v: parts_song(v, [audio_parts(DRY, STUTTER_FREE)]),
     "RS_STUTTER_KIT": lambda v: parts_song(
         v, [kit_parts(DRY, PINGPONG_DRUMS, STUTTER_QUANT_REV)]
     ),

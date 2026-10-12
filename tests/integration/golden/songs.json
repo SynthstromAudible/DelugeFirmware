@@ -263,6 +263,12 @@
   "rms_db": -13.93,
   "sha256": "a4c090dba6b0d7711f984259d4afe96a2c619acadde91dde7c5f7b17de15e468"
  },
+ "RS_STUTTER_SYNTH": {
+  "frames": 384000,
+  "peak": 1149059840,
+  "rms_db": -14.73,
+  "sha256": "1c17031a02daf543bd0b0448d6d6135190de889f584c854924421c844bac3985"
+ },
  "RS_TEMPO_DELAYS": {
   "frames": 384000,
   "peak": 314840064,

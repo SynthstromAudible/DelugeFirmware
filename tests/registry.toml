@@ -1070,6 +1070,24 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-stutter-synth"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a synth's stutter renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_STUTTER_SYNTH, render-stutter-audio's song) whose first synth's Sound, with the song's stutter settings (quantized), is stuttered from block 100 to 600 (RENDER_STUTTER) as the gold knob's press and release do on a synth, its stutter rate snapped to a note length at the begin and restored at the end; compared with its record in tests/integration/golden/songs.json; the RS-STUTTER summary must show the begin and end made and ticks stuttered, and the unstuttered song must render differently (RS-SWITCH)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_STUTTER_SYNTH", RENDER_STUTTER = "100:600:synth" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-stutter-kit"
 path = "."
 level = "integration"
