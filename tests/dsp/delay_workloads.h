@@ -473,7 +473,15 @@ struct Digest {
 	return {.l = static_cast<int32_t>(a) >> 5, .r = static_cast<int32_t>(b) >> 5};
 }
 
-/// @brief A tape and the storage it plays, as DelayBuffer allocates it: the ideal size for its rate plus kWriteLag.
+/// @brief What a fresh tape's storage holds before the tape writes it: sample @p i of the storage.
+using Fill = std::function<StereoSample(size_t)>;
+
+/// @return Sample @p i of a fresh allocation: the allocator's fill.
+[[nodiscard]] inline StereoSample allocator_sample(size_t i) {
+	return StereoSample{.l = allocator_fill(2 * i), .r = allocator_fill((2 * i) + 1)};
+}
+
+/// @brief A tape and the storage it plays, as the delay takes it: the ideal size for its rate plus kWriteLag.
 struct Buffer {
 	std::vector<StereoSample> storage;
 	DelayTape tape;
@@ -497,11 +505,9 @@ struct Buffer {
 		return true;
 	}
 
-	/// @brief As a fresh allocation: the allocator's fill.
-	bool allocate(uint32_t rate, uint32_t fail_if_this_size) {
-		return init(rate, fail_if_this_size, [](size_t i) {
-			return StereoSample{.l = allocator_fill(2 * i), .r = allocator_fill((2 * i) + 1)};
-		});
+	/// @brief As a fresh allocation, holding @p fill.
+	bool allocate(uint32_t rate, uint32_t fail_if_this_size, const Fill& fill = allocator_sample) {
+		return init(rate, fail_if_this_size, fill);
 	}
 };
 
@@ -512,11 +518,13 @@ struct Buffer {
 template <typename Processor>
 class WorkloadRun {
 public:
-	explicit WorkloadRun(Workload workload) : workload_{std::move(workload)} {
+	/// @param fill What each tape the run allocates holds before it is written.
+	explicit WorkloadRun(Workload workload, Fill fill = allocator_sample)
+	    : workload_{std::move(workload)}, fill_{std::move(fill)} {
 		static_assert(std::is_default_constructible_v<Processor>);
 		if (workload_.tapes.start == TapeSetup::Start::ACTIVATE) {
 			// Delay::informWhetherActive, then prepareToBeginWriting.
-			if (secondary_.allocate(workload_.tapes.rate, 0)) {
+			if (secondary_.allocate(workload_.tapes.rate, 0, fill_)) {
 				size_left_ = static_cast<int32_t>(secondary_.tape.size());
 			}
 			processor_.resetHighPass();
@@ -599,7 +607,7 @@ public:
 private:
 	/// Delay::initializeSecondaryBuffer.
 	void initializeSecondary(int32_t rate, bool relative) {
-		if (!secondary_.allocate(static_cast<uint32_t>(rate), static_cast<uint32_t>(primary_.tape.size()))) {
+		if (!secondary_.allocate(static_cast<uint32_t>(rate), static_cast<uint32_t>(primary_.tape.size()), fill_)) {
 			return;
 		}
 		if (relative) {
@@ -613,6 +621,7 @@ private:
 	}
 
 	Workload workload_;
+	Fill fill_;
 	Buffer primary_;
 	Buffer secondary_;
 	Processor processor_;
@@ -728,10 +737,10 @@ inline void add_head(Digest& digest, const DelayTape& tape) {
 	digest.add(static_cast<uint32_t>(tape.resampling()));
 }
 
-/// @return @p workload's record, rendered by @p Processor.
+/// @return @p workload's record, rendered by @p Processor over tapes whose fresh storage holds @p fill.
 template <typename Processor>
-[[nodiscard]] WorkloadRecord record(const Workload& workload) {
-	WorkloadRun<Processor> run{workload};
+[[nodiscard]] WorkloadRecord record(const Workload& workload, Fill fill = allocator_sample) {
+	WorkloadRun<Processor> run{workload, std::move(fill)};
 	WorkloadRecord out;
 	Digest lifecycle;
 	std::array<StereoSample, kMaxFrames> block{};

@@ -151,6 +151,8 @@ set(delay_echo_spec_DEPS ${delay_processor_spec_DEPS})
 # The fused Delay kernel against the frame-order reference over the recorded workloads: the same sources, the kernel
 # being header-only.
 set(delay_kernel_spec_DEPS ${delay_processor_spec_DEPS})
+# The delay over storage it hasn't written, through the recorded workloads: the same sources.
+set(delay_poisoned_storage_spec_DEPS ${delay_processor_spec_DEPS})
 
 # ETL for the synth headers that reach util/etl_string.h (modulation/sync.h, through the LFO). The x86 unit tree links it
 # everywhere; the ARM tree does not, so the specs link it themselves.
