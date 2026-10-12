@@ -176,12 +176,32 @@ struct RunTrace {
 	return {v.begin() + static_cast<std::ptrdiff_t>(begin), v.begin() + static_cast<std::ptrdiff_t>(begin + n)};
 }
 
+/// @brief A workload and what the reference and the kernel each made of it.
+struct WorkloadRuns {
+	const gw::GranularWorkload* workload;
+	RunTrace want;
+	RunTrace got;
+};
+
+/// @return Every workload run through the reference and the kernel, made once for all the cases that compare them.
+[[nodiscard]] const std::vector<WorkloadRuns>& workload_runs() {
+	static const std::vector<WorkloadRuns> runs = [] {
+		std::vector<WorkloadRuns> made;
+		for (const gw::GranularWorkload& workload : gw::all_granular_workloads()) {
+			made.push_back({.workload = &workload, .want = run_reference(workload), .got = run_kernel(workload)});
+		}
+		return made;
+	}();
+	return runs;
+}
+
 /// @return Each workload where the kernel parts from the reference, named with the first block and what parted.
 [[nodiscard]] std::vector<std::string> partings() {
 	std::vector<std::string> parted;
-	for (const gw::GranularWorkload& workload : gw::all_granular_workloads()) {
-		const RunTrace want = run_reference(workload);
-		const RunTrace got = run_kernel(workload);
+	for (const WorkloadRuns& runs : workload_runs()) {
+		const gw::GranularWorkload& workload = *runs.workload;
+		const RunTrace& want = runs.want;
+		const RunTrace& got = runs.got;
 		const auto part = [&](std::size_t b, const char* what) {
 			parted.push_back(std::string{workload.name} + " block " + std::to_string(b) + ": " + what);
 		};
@@ -223,13 +243,13 @@ describe granular_kernel("the Granular kernel", ${
 	});
 
 	it("renders the first block, State and ring chunk where a workload parts, compared word for word", _ {
-		for (const gw::GranularWorkload& workload : gw::all_granular_workloads()) {
-			const RunTrace want = run_reference(workload);
-			const RunTrace got = run_kernel(workload);
+		for (const WorkloadRuns& runs : workload_runs()) {
+			const gw::GranularWorkload& workload = *runs.workload;
+			const RunTrace& want = runs.want;
+			const RunTrace& got = runs.got;
 			std::size_t frame = 0;
-			for (const gw::GranularBlock& block : workload.blocks) {
-				const std::size_t n = block.n;
-				const std::size_t b = static_cast<std::size_t>(&block - workload.blocks.data());
+			for (std::size_t b = 0; b < workload.blocks.size(); ++b) {
+				const std::size_t n = workload.blocks[b].n;
 				const std::vector<int32_t> got_out = slice(got.trace.samples, 2 * frame, 2 * n);
 				const std::vector<int32_t> want_out = slice(want.trace.samples, 2 * frame, 2 * n);
 				const std::vector<int32_t> got_send = slice(got.trace.sends, frame, n);
