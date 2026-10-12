@@ -493,11 +493,18 @@ Fitted as a + C/2n from n = 32 and 128, the stereo chorus costs about 69 cycles 
   accessor; the sine LFO's table interpolation is `mul.w` and `mla`. Stores go to the frame, the ring slot, the phaser's
   memories, the warblers' noise state and spills. No loop has a call, `Mode::WARBLE_MONO` included: its second
   warbler's value goes to an unused local, not to `std::ignore`, whose assignment is a call at `-fno-inline-functions`.
-- **The State copy is two word loops per block.** `Mono` copies the 100-byte State in and out with `__aeabi_memcpy4`,
-  which `compiler_builtins` implements as one `ldmia`, `subs`, `stmia` and branch per word: about 100 instructions each
-  way, not NEON. The block's fixed cost is about 400 cycles by the fit (about 6 cycles per channel-sample at
-  n = 32), of which the copies are about 200 instructions. Nearly the whole State is the loop's, so `kLoopState`
-  would save little of the copy's size; a wider copy is the lever, and it is not measured.
+- **The block's fixed cost is about 405 cycles, over half of it the State copy.** For the stereo chorus the fit from
+  n = 32 and 128 gives 407 cycles per block and 69 per frame. About 590 instructions run outside the loop: `Mono` copies
+  the 100-byte State in and out with `__aeabi_memcpy4`, which `compiler_builtins` implements as six instructions per
+  word (about 185 each way, not NEON), and about 215 instructions of out-of-line glue remain (`is_ring_type`,
+  `mod_fx_mode`, the settings compare, `coefficients`, `holdsRing`, the span accessors, `prepare`, the mode dispatch).
+  With the State stepped in place the fixed cost is 194, so the copies are about 213 cycles and the glue about 194.
+- **The traits do not pay here.** `kStateInPlace` removes the copies, but the loops then store `write`, `phase` and the
+  warbler words every frame and the output may alias them: chorus_mono and flanger_stereo gain 9 and 16 cycles per frame
+  and are 14% and 20% slower at n = 128, against 2 to 15% faster elsewhere. `kLoopState` leaves out only `wave` (a
+  96-byte copy still through `memcpy4`) and moves the fixed cost up (432), as does a 16-byte-aligned State copied with
+  `vld1`/`vst1` (430). A loop's cost per frame moves by up to 14% with any change to its inputs, so none of the three
+  is kept. The lever left is a kernel that holds in registers only the few words its loop updates.
 - **Code size.** `effects::ModFx::render` is 2,720 bytes in the device image, one function for all eight loops. Against
   the old code, measured as the summed extents of the functions in the two non-LTO objects at the shipping flags minus
   `-flto=thin`: `ModFXProcessor::processModFX` (391 B) and its six `processModFXBuffer<type>` instantiations (115–155 B
