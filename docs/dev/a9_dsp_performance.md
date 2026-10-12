@@ -499,12 +499,12 @@ Fitted as a + C/2n from n = 32 and 128, the stereo chorus costs about 69 cycles 
   word (about 185 each way, not NEON), and about 215 instructions of out-of-line glue remain (`is_ring_type`,
   `mod_fx_mode`, the settings compare, `coefficients`, `holdsRing`, the span accessors, `prepare`, the mode dispatch).
   With the State stepped in place the fixed cost is 194, so the copies are about 213 cycles and the glue about 194.
-- **The traits do not pay here.** `kStateInPlace` removes the copies, but the loops then store `write`, `phase` and the
-  warbler words every frame and the output may alias them: chorus_mono and flanger_stereo gain 9 and 16 cycles per frame
-  and are 14% and 20% slower at n = 128 (chorus_stereo_mono, chorus_mono's twin, 14%), against 2 to 15% faster elsewhere. `kLoopState` leaves out only `wave` (a
-  96-byte copy still through `memcpy4`) and moves the fixed cost up (432), as does a 16-byte-aligned State copied with
-  `vld1`/`vst1` (430). A loop's cost per frame moves by up to 14% with any change to its inputs, so none of the three
-  is kept. The lever left, unmeasured, is a kernel that holds in
+- **The traits do not pay here.** `kStateInPlace` removes the copies, but the loops then store `write`, `phase` and
+  the warbler words every frame and the output may alias them: chorus_mono and flanger_stereo gain 9 and 16 cycles per
+  frame and are 14% and 20% slower at n = 128 (chorus_stereo_mono, chorus_mono's twin, 14%), against 2 to 15% faster
+  elsewhere. `kLoopState` leaves out only `wave` (a 96-byte copy still through `memcpy4`) and moves the fixed cost up
+  (432), as does a 16-byte-aligned State copied with `vld1`/`vst1` (430). A loop's cost per frame moves by up to 14%
+  with any change to its inputs, so none of the three is kept. The lever left, unmeasured, is a kernel that holds in
   registers only the few words its loop updates.
 - **Code size.** `effects::ModFx::render` is 2,720 bytes in the device image, one function for all eight loops. Against
   the old code, measured as the summed extents of the functions in the two non-LTO objects at the shipping flags minus
