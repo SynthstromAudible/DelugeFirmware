@@ -81,6 +81,8 @@
 #include <unistd.h>
 #include <vector>
 
+extern void setUIForLoadedSong(Song* song);
+
 // The firmware headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded `printf_`. This
 // harness links the Rust BSP, which has no `putchar_` provider, and every line this file writes IS the gate's output.
 #ifdef printf
@@ -161,7 +163,9 @@ enum class Leg : uint8_t {
 	DelayOff,
 	StutterHandoff,
 	StutterOom,
-	StutterSwap, ///< Last: it swaps the scenario's song for a new one.
+	StutterDelete,
+	StutterSwap,  ///< Swaps the scenario's song for a new one; the legs after it run in that one.
+	StutterClear, ///< Swaps the song again.
 	Done,
 };
 
@@ -265,8 +269,12 @@ const char* legName(Leg leg) {
 		return "STUTTERHANDOFF";
 	case Leg::StutterOom:
 		return "STUTTEROOM";
+	case Leg::StutterDelete:
+		return "STUTTERDELETE";
 	case Leg::StutterSwap:
 		return "STUTTERSWAP";
+	case Leg::StutterClear:
+		return "STUTTERCLEAR";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -640,7 +648,7 @@ bool setupLeg() {
 	// A note row is deleted only from a kit clip (InstrumentClip::deleteNoteRow() treats the output as a Kit).
 	g_clip = (g_leg == Leg::Drum || g_leg == Leg::RowDel || g_leg == Leg::RenderSet || g_leg == Leg::RenderAlloc
 	          || g_leg == Leg::Choke || g_leg == Leg::StutterHandoff || g_leg == Leg::StutterOom
-	          || g_leg == Leg::StutterSwap)
+	          || g_leg == Leg::StutterSwap || g_leg == Leg::StutterClear)
 	             ? makeKitClip()
 	             : makeSynthClip();
 	if (g_clip == nullptr) {
@@ -1391,26 +1399,85 @@ void editLeg() {
 		fflush(stdout);
 		break;
 	}
+	case Leg::StutterDelete: {
+		g_step = "stutter";
+		// A synth outside the song, quantized-stuttering, retired as a deleted output is: its destruction ends the
+		// stutter and clears the snap memory, so the next free stutter is not offset by its note length.
+		deluge::model::SongStutter& stutter = currentSong->live.stutter;
+		ParamManagerForTimeline paramManager;
+		auto* lone =
+		    static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager));
+		if (lone == nullptr) {
+			fail("no synth");
+			break;
+		}
+		UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
+		// A knob position of 20 snaps to 32nds: the knob offset to 8.
+		unpatched->params[deluge::modulation::params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(
+		    unpatched->knobPosToParamValue(20, nullptr));
+		lone->beginStutter(&paramManager);
+		const bool began = stutter.isStuttering(*lone) && stutter.lastQuantizedKnobDiff == 8;
+		AudioEngine::retire(static_cast<Output*>(lone));
+		renderBlocks(3);
+		AudioEngine::reclaimRetired();
+		const bool ended = !stutter.active() && !isUIModeActive(UI_MODE_STUTTERING);
+		const bool cleared = stutter.lastQuantizedKnobDiff == 0 && stutter.valueBeforeStuttering == 0;
+		printf("CG-STUTTERDELETE began=%d ended=%d cleared=%d\n", began ? 1 : 0, ended ? 1 : 0, cleared ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
 	case Leg::StutterSwap: {
-		g_step = "clearSong";
-		// The kit stuttering when the song is swapped for a new one through the clear-song menu's accept: the old
-		// song's stutter ends and gives its tape back before the song is let go, and the stutter UI mode goes.
+		g_step = "songSwap";
+		// The kit stuttering when a song swap with the clock running makes a new song current, as a load or a launch
+		// does: the swap's interaction side ends the outgoing song's stutter and gives its tape back, which is read
+		// from the outgoing song before it is retired.
 		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE);
 		g_kit->beginStutter(&g_clip->paramManager);
 		const bool began = currentSong->live.stutter.isStuttering(*g_kit) && isUIModeActive(UI_MODE_STUTTERING);
 		renderBlocks(20);
-		std::ignore = deluge::gui::context_menu::clearSong.acceptCurrentOption();
+		Song* const outgoing = currentSong;
+		AudioEngine::songSwapAboutToHappen();
+		preLoadedSong = new (deluge::memory::alloc_fast(sizeof(Song))) Song();
+		std::ignore = preLoadedSong->paramManager.setupUnpatched();
+		GlobalEffectable::initParams(&preLoadedSong->paramManager);
+		preLoadedSong->setupDefault();
+		std::ignore = preLoadedSong->ensureAtLeastOneSessionClip();
+		const bool playing = playbackHandler.isEitherClockActive();
+		playbackHandler.doSongSwap(true);
+		const bool ended = !outgoing->live.stutter.active();
+		const bool freed = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE) >= notedBefore + 2;
+		AudioEngine::retire(outgoing);
+		AudioEngine::awaitRetired();
+		setUIForLoadedSong(currentSong);
+		currentUIMode = UI_MODE_NONE;
 		// The scenario goes on in the new song.
 		g_kit = nullptr;
 		g_clip = nullptr;
 		g_home = currentSong->live.clips.session_clips.size() > 0 ? currentSong->live.clips.session_clips[0] : nullptr;
 		renderBlocks(5);
-		const bool ended = !currentSong->live.stutter.active();
-		const bool uiMode = !isUIModeActive(UI_MODE_STUTTERING);
+		printf("CG-STUTTERSWAP began=%d playing=%d ended=%d freed=%d\n", began ? 1 : 0, playing ? 1 : 0, ended ? 1 : 0,
+		       freed ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::StutterClear: {
+		g_step = "clearSong";
+		// The kit stuttering when the clear-song menu's accept swaps the song for a new one, the clock stopped first:
+		// the old song's stutter ends and gives its tape back before the song is let go. The old song is freed inside
+		// the accept, so only the hand-over it notes can be read.
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE);
+		g_kit->beginStutter(&g_clip->paramManager);
+		const bool began = currentSong->live.stutter.isStuttering(*g_kit) && isUIModeActive(UI_MODE_STUTTERING);
+		renderBlocks(20);
+		std::ignore = deluge::gui::context_menu::clearSong.acceptCurrentOption();
 		// The begin noted one hand-over and the end, before the old song was let go, another.
 		const bool freed = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE) >= notedBefore + 2;
-		printf("CG-STUTTERSWAP began=%d ended=%d uiMode=%d freed=%d\n", began ? 1 : 0, ended ? 1 : 0, uiMode ? 1 : 0,
-		       freed ? 1 : 0);
+		// The scenario goes on in the new song.
+		g_kit = nullptr;
+		g_clip = nullptr;
+		g_home = currentSong->live.clips.session_clips.size() > 0 ? currentSong->live.clips.session_clips[0] : nullptr;
+		renderBlocks(5);
+		printf("CG-STUTTERCLEAR began=%d freed=%d\n", began ? 1 : 0, freed ? 1 : 0);
 		fflush(stdout);
 		break;
 	}

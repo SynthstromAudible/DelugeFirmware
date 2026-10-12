@@ -79,9 +79,14 @@ kinds=<kind=n,...>`:
     CG-STUTTEROOM            a kit's quantized stutter with its tape made to fail: no stutter, no stutter UI mode, the
                              stutter-rate param's snap undone (CG-STUTTEROOM injected=1 stuttering=0 uiMode=0 restored=1
                              required)
-    CG-STUTTERSWAP           the last leg: a kit stuttering when the clear-song menu swaps the song for a new one; the
-                             stutter ends and its tape goes back before the old song is let go (CG-STUTTERSWAP began=1
-                             ended=1 uiMode=1 freed=1 required)
+    CG-STUTTERDELETE         a synth outside the song, quantized-stuttering, retired: its destruction ends the stutter
+                             and clears the snap memory (CG-STUTTERDELETE began=1 ended=1 cleared=1 required)
+    CG-STUTTERSWAP           a kit stuttering when a song swap with the clock running makes a new song current, as a
+                             load or a launch does: the outgoing song's stutter, read before it is retired, has ended and
+                             given its tape back (CG-STUTTERSWAP began=1 playing=1 ended=1 freed=1 required)
+    CG-STUTTERCLEAR          the last leg: a kit stuttering when the clear-song menu swaps the song; the stutter ends
+                             and its tape goes back before the old song is let go (CG-STUTTERCLEAR began=1 freed=1
+                             required)
     CG-GRAINSWAP             a synth's mod FX type set grain, chorus, grain, none by the type menu's Edit while the
                              song plays: after each change the grain holds its ring exactly when the type is the grain
                              (CG-GRAINSWAP blocks=1 noted=1 required)
@@ -136,7 +141,9 @@ LEGS = [
     "DELAYOFF",
     "STUTTERHANDOFF",
     "STUTTEROOM",
+    "STUTTERDELETE",
     "STUTTERSWAP",
+    "STUTTERCLEAR",
 ]
 # The legs whose edits must all be made while the render is excluded.
 
@@ -253,10 +260,23 @@ def _check(gate, result) -> None:
             ),
         ),
         (
-            "CG-STUTTERSWAP began=1 ended=1 uiMode=1 freed=1",
+            "CG-STUTTERDELETE began=1 ended=1 cleared=1",
             (
-                "a song swapped while it stutters must end the stutter and give its tape back before the song is "
-                "let go"
+                "an owner deleted while it stutters must end the stutter and clear the quantized snap, so the next "
+                "free stutter plays at its own rate"
+            ),
+        ),
+        (
+            "CG-STUTTERSWAP began=1 playing=1 ended=1 freed=1",
+            (
+                "a song swapped with the clock running while it stutters must end the outgoing song's stutter and "
+                "give its tape back before the song is retired"
+            ),
+        ),
+        (
+            "CG-STUTTERCLEAR began=1 freed=1",
+            (
+                "a song cleared while it stutters must end the stutter and give its tape back before the song is let go"
             ),
         ),
         (
