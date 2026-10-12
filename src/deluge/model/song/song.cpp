@@ -40,6 +40,7 @@
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_instance.h"
@@ -2179,7 +2180,7 @@ skipInstance:
 	AudioEngine::logAction("aaa4.2");
 
 	setupPatchingForAllParamManagers();
-	deluge::model::resolvePendingDelayTypes(*this);
+	deluge::model::settleLoadedDelays(*this);
 	AudioEngine::logAction("aaa4.3");
 
 	// Phase B (DOM single-store): the DOM is the sole owner of the song-global unpatched automation node storage
@@ -2622,6 +2623,11 @@ void Song::setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction) {
 	}
 
 	project.transport.samples_per_timer_tick_big = newTimeBig;
+
+	// Synced delays' tapes follow the tempo: their reserves in the delay arena with them, from the interaction tier.
+	if (currentSong == this && !deluge_in_audio_context() && !deluge::memory::inRenderBlock()) {
+		deluge::model::refreshDelayReserves(*this);
+	}
 
 	project.transport.inverse_samples_per_timer_tick = ((uint64_t)1 << 63) / ((newTimeBig * 3) >> 1);
 

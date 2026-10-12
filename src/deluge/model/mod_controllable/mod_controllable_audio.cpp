@@ -43,6 +43,7 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/mod_controllable/delay_arena_app.h"
+#include "model/mod_controllable/delay_type.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/param_projection.h"
@@ -289,6 +290,9 @@ void ModControllableAudio::projectModControllableSnapshot() {
 	deluge::effects::RingChange ring = modfx.prepare(type);
 	deluge::effects::GranularBlockChange grain = granular.prepare(type);
 	const deluge::effects::DelayType delayType = effects().delay.type;
+	const std::size_t delayReserve = (delayType != deluge::effects::DelayType::OFF && currentSong != nullptr)
+	                                     ? deluge::model::delayReserveFrames(*currentSong, *this)
+	                                     : 0;
 	deluge::effects::DelayChange delayChange = delay.prepare(delayType);
 	{
 		AudioExcludedSection section; // the render reads the copy, the ring, the grain's blocks and the delay's arena
@@ -297,7 +301,7 @@ void ModControllableAudio::projectModControllableSnapshot() {
 		deluge::noteStructuralEdit(deluge::StructuralContainer::MOD_FX_RING);
 		granular.commit(modControllableSnapshot_.effects.mod_fx.type, grain);
 		deluge::noteStructuralEdit(deluge::StructuralContainer::GRAIN_BLOCK);
-		delay.commit(delayType, delayChange);
+		delay.commit(delayType, delayChange, delayReserve);
 		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
 	}
 	delay.finish(delayChange);

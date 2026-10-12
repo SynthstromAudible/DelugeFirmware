@@ -51,6 +51,11 @@ struct DelayChange {
 	ArenaChange arena;
 };
 
+/// @return The rate a delay at @p userDelayRate (16777216 the neutral rate) plays at: as given unless @p settings sync
+/// it, then scaled by @p timePerInternalTickInverse to the sync level and type.
+[[nodiscard]] int32_t synced_delay_rate(int32_t userDelayRate, const DelayState& settings,
+                                        uint32_t timePerInternalTickInverse);
+
 /// @return How many blocks a delay that is OFF has been asked to sound: feedback enough to start, with sound coming in.
 [[nodiscard]] uint32_t delay_off_silenced_blocks();
 
@@ -95,8 +100,12 @@ public:
 
 	/// @brief [task] Before the section: the arena's change for @p type, counting the owner in or out.
 	[[nodiscard]] DelayChange prepare(DelayType type);
-	/// @brief [task] Inside the section: gives the tapes back when @p type is OFF, and commits the arena's change.
-	void commit(DelayType type, DelayChange& change);
+	/// @brief [task] Inside the section: gives the tapes back and closes the owner's slot when @p type is OFF;
+	/// otherwise opens or updates its slot, reserving the largest of a neutral-rate tape, @p reserveFrames (the tape
+	/// its settings need) and the largest tape it has taken; then commits the arena's change.
+	void commit(DelayType type, DelayChange& change, std::size_t reserveFrames = 0);
+	/// @brief [task, inside the section] Updates a counted owner's reserve to @p reserveFrames, as commit does.
+	void setReserve(std::size_t reserveFrames);
 	/// @brief [task] After the section.
 	void finish(DelayChange& change);
 	/// @return Whether the owner is counted on in the arena's margin.
@@ -118,7 +127,12 @@ private:
 		return static_cast<int32_t>(secondary_.size());
 	}
 
+	/// @return The reserve for @p reserveFrames: at least a neutral-rate tape and the largest tape taken.
+	[[nodiscard]] std::size_t reserveFor(std::size_t reserveFrames) const;
+
 	DelayArena* arena_;
+	std::size_t slot_ = 0;         ///< the owner's reserve in the arena, while counted
+	std::size_t largestTaken_ = 0; ///< the largest tape taken since the owner was counted, in frames
 	dsp::fixed::DelayTape primary_;
 	dsp::fixed::DelayTape secondary_;
 	/// The block's DSP: the read, the feedback's shaping and high-pass, the mix and the writes.

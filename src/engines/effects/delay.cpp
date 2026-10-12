@@ -36,6 +36,24 @@ std::atomic<uint32_t> g_offSilencedBlocks{0};
 
 } // namespace
 
+int32_t synced_delay_rate(int32_t userDelayRate, const DelayState& settings, uint32_t timePerInternalTickInverse) {
+	const engine::SyncLevel syncLevel = settings.sync_level;
+	if (syncLevel == engine::SyncLevel::NONE) {
+		return userDelayRate;
+	}
+	int32_t rate = multiply_32x32_rshift32_rounded(userDelayRate, static_cast<int32_t>(timePerInternalTickInverse));
+	// Limit to the biggest number we can store.
+	const int32_t limit = 2147483647 >> (engine::index_of(syncLevel) + 5);
+	rate = std::min(rate, limit);
+	if (settings.sync_type == engine::SyncType::TRIPLET) {
+		rate = rate * 3 / 2;
+	}
+	else if (settings.sync_type == engine::SyncType::DOTTED) {
+		rate = rate * 2 / 3;
+	}
+	return rate << (engine::index_of(syncLevel) + 5);
+}
+
 uint32_t delay_off_silenced_blocks() {
 	return g_offSilencedBlocks.load(std::memory_order_relaxed);
 }
@@ -70,6 +88,11 @@ bool Delay::takeTape(DelayTape& tape, uint32_t rate, uint32_t failIfThisSize) {
 		return false;
 	}
 	tape = make_tape({storage, shape.frames}, shape, rate);
+	// A tape larger than the owner's reserve (a rate its cables or automation moved) raises the reserve for the next.
+	largestTaken_ = std::max(largestTaken_, shape.frames);
+	if (counted_) {
+		arena_->raise_reserve(slot_, shape.frames);
+	}
 	return true;
 }
 
@@ -126,8 +149,6 @@ void Delay::setupWorkingState(State& workingState, const DelayState& settings, u
                               bool anySoundComingIn) {
 	workingState.ping_pong = settings.ping_pong;
 	workingState.analog = settings.type == DelayType::ANALOG;
-	const engine::SyncLevel syncLevel = settings.sync_level;
-	const engine::SyncType syncType = settings.sync_type;
 
 	// The patching engine gives a feedback of 112 for a knob at its minimum, so 256 is the least that sounds.
 	const bool off = settings.type == DelayType::OFF;
@@ -137,19 +158,9 @@ void Delay::setupWorkingState(State& workingState, const DelayState& settings, u
 	const bool mightDoDelay =
 	    !off && workingState.delayFeedbackAmount >= 256 && (anySoundComingIn || repeatsUntilAbandon_ != 0);
 
-	if (mightDoDelay && syncLevel != engine::SyncLevel::NONE) {
-		workingState.userDelayRate = multiply_32x32_rshift32_rounded(workingState.userDelayRate,
-		                                                             static_cast<int32_t>(timePerInternalTickInverse));
-		// Limit to the biggest number we can store.
-		const int32_t limit = 2147483647 >> (engine::index_of(syncLevel) + 5);
-		workingState.userDelayRate = std::min(workingState.userDelayRate, limit);
-		if (syncType == engine::SyncType::TRIPLET) {
-			workingState.userDelayRate = workingState.userDelayRate * 3 / 2;
-		}
-		else if (syncType == engine::SyncType::DOTTED) {
-			workingState.userDelayRate = workingState.userDelayRate * 2 / 3;
-		}
-		workingState.userDelayRate <<= (engine::index_of(syncLevel) + 5);
+	if (mightDoDelay) {
+		workingState.userDelayRate =
+		    synced_delay_rate(workingState.userDelayRate, settings, timePerInternalTickInverse);
 	}
 
 	informWhetherActive(mightDoDelay, workingState.userDelayRate);
@@ -303,12 +314,33 @@ DelayChange Delay::prepare(DelayType type) {
 	return {.arena = arena_->prepare(on_delta)};
 }
 
-void Delay::commit(DelayType type, DelayChange& change) {
+std::size_t Delay::reserveFor(std::size_t reserveFrames) const {
+	constexpr std::size_t kNeutralFrames = DelayArena::kNeutralTapeBytes / sizeof(dsp::StereoSample);
+	return std::max({kNeutralFrames, reserveFrames, largestTaken_});
+}
+
+void Delay::commit(DelayType type, DelayChange& change, std::size_t reserveFrames) {
 	if (type == DelayType::OFF) {
 		discardBuffers();
+		if (counted_) {
+			arena_->close_slot(slot_);
+		}
+		largestTaken_ = 0;
+	}
+	else if (!counted_) {
+		slot_ = arena_->open_slot(reserveFor(reserveFrames));
+	}
+	else {
+		arena_->set_reserve(slot_, reserveFor(reserveFrames));
 	}
 	arena_->commit(change.arena);
 	counted_ = type != DelayType::OFF;
+}
+
+void Delay::setReserve(std::size_t reserveFrames) {
+	if (counted_) {
+		arena_->set_reserve(slot_, reserveFor(reserveFrames));
+	}
 }
 
 void Delay::finish(DelayChange& change) {

@@ -54,7 +54,7 @@ void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 	// Edit made from the render would allocate there. The host renders on a thread its audio-context check does not
 	// see, so the render block is checked too.
 	if (!deluge_in_audio_context() && !deluge::memory::inRenderBlock()) {
-		deluge::model::onDelayFeedbackModified(*modelStack, oldValue, automatedBefore);
+		deluge::model::onDelayParamModified(*modelStack, oldValue, automatedBefore);
 	}
 }
 

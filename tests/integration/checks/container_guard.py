@@ -67,9 +67,9 @@ kinds=<kind=n,...>`:
     CG-DELAYOOM              a synth's delay set on with the arena's region made to fail: the delay cannot start and
                              passes the audio through; the arena's next maintenance lends a region and it starts
                              (CG-DELAYOOM injected=1 passthrough=1 recovered=1 noted=1 required)
-    CG-DELAYMARGIN           five synths' delays at their slowest rate starting on one block: the margin's regions hold
-                             four, the fifth finds the arena short and starts once it is topped up
-                             (CG-DELAYMARGIN shortfall=1 recovered=1 required)
+    CG-DELAYMARGIN           five synths' delays at their slowest rate starting on one block: their reserves, worked out
+                             from their settings, are in the arena first, so every one starts on that block
+                             (CG-DELAYMARGIN shortfall=0 started=1 required)
     CG-DELAYOFF              a ringing delay set OFF, on again, hibernated; a clone; a retired synth; then every delay
                              OFF (CG-DELAYOFF off=1 on=1 hibernate=1 clone=1 count=1 destroyed=1 released=1 noted=1
                              required)
@@ -220,8 +220,11 @@ def _check(gate, result) -> None:
             ),
         ),
         (
-            "CG-DELAYMARGIN shortfall=1 recovered=1",
-            "five largest tapes starting on one block must find the margin short, then all start once it is topped up",
+            "CG-DELAYMARGIN shortfall=0 started=1",
+            (
+                "five delays at their slowest rate starting on one block must find their reserves in the arena and "
+                "all start on that block"
+            ),
         ),
         (
             "CG-DELAYOFF off=1 on=1 hibernate=1 clone=1 count=1 destroyed=1 released=1 noted=1",

@@ -1197,9 +1197,14 @@ void editLeg() {
 			break;
 		}
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		// The rate set while the delay is OFF reserves nothing; lifting the feedback then turns it on, and the
+		// region its projection lends is the one made to fail.
+		turnParam(*synth, g_clip, g_clip->paramManager,
+		          static_cast<int32_t>(deluge::modulation::params::GLOBAL_DELAY_RATE), 0);
 		deluge::memory::failNextAllocationOfSize(deluge::effects::DelayArena::kRegionBytes);
-		setUpDelay(g_clip, 0, 0);
-		const bool injected = !deluge::memory::allocationFailurePending();
+		turnDelayFeedback(*synth, g_clip, g_clip->paramManager, 0);
+		const bool injected = !deluge::memory::allocationFailurePending()
+		                      && synth->effects().delay.type == deluge::effects::DelayType::DIGITAL;
 		auditionOn(g_clip, kRowNote, true);
 		renderBlocks(8);
 		const bool passthrough = !synth->delay.isActive() && arena.regions() == 0;
@@ -1217,8 +1222,9 @@ void editLeg() {
 	}
 	case Leg::DelayMargin: {
 		g_step = "delayStart";
-		// Five synths' delays at their slowest rate, the largest tapes, starting on the same block: the margin's two
-		// regions hold four, so the fifth finds the arena short, and starts once the arena's maintenance lends more.
+		// Five synths' delays at their slowest rate, the largest tapes, starting on the same block: their reserves,
+		// worked out from their settings as each is set up, are in the arena before the downbeat, so every one starts
+		// on that block.
 		auto& arena = deluge::model::delayArena();
 		std::array<InstrumentClip*, 5> clips{g_clip, makeSynthClip(), makeSynthClip(), makeSynthClip(),
 		                                     makeSynthClip()};
@@ -1234,16 +1240,14 @@ void editLeg() {
 		}
 		renderBlocks(1);
 		const bool shortfall = arena.shortfalls() > shortfallsBefore;
-		deluge::model::maintainDelayArena();
-		renderBlocks(4);
-		const bool recovered = std::ranges::all_of(
+		const bool started = std::ranges::all_of(
 		    clips, [](InstrumentClip* clip) { return static_cast<SoundInstrument*>(clip->output)->delay.isActive(); });
 		for (InstrumentClip* clip : clips) {
 			tearDownDelay(clip);
 		}
 		renderBlocks(1);
 		deluge::model::maintainDelayArena();
-		printf("CG-DELAYMARGIN shortfall=%d recovered=%d\n", shortfall ? 1 : 0, recovered ? 1 : 0);
+		printf("CG-DELAYMARGIN shortfall=%d started=%d\n", shortfall ? 1 : 0, started ? 1 : 0);
 		fflush(stdout);
 		break;
 	}

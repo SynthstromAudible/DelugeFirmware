@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 
@@ -51,10 +52,25 @@ void forEachDelayParamManager(Song& song, const std::function<void(ModControllab
 
 /// @brief [task] After an interaction-tier change to a param: when it is an owner's delay feedback, or a patch cable
 /// reaching it, and the change took the delay from unable to sound to able while its type is OFF, steps the type by
-/// the Edit a press of the feedback knob makes, OFF to DIGITAL.
+/// the Edit a press of the feedback knob makes, OFF to DIGITAL; when it is the delay's rate, refreshes its reserve.
 /// @param oldValue The param's value before the change.
 /// @param automatedBefore Whether it was automated before the change.
-void onDelayFeedbackModified(const ModelStackWithAutoParam& modelStack, int32_t oldValue, bool automatedBefore);
+void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t oldValue, bool automatedBefore);
+
+/// @return The tape, in frames, @p owner's delay settings need: its rate param in each of its param managers in
+/// @p song (the largest tape), synced to its sync settings at the playback's tempo; 0 when its type is OFF.
+[[nodiscard]] std::size_t delayReserveFrames(Song& song, ModControllableAudio& owner);
+
+/// @brief [task] Sets @p owner's reserve in the delay arena from its settings, then maintains the arena.
+void refreshDelayReserve(Song& song, ModControllableAudio& owner);
+
+/// @brief [task] Sets every delay of @p song that is on its reserve from its settings, then maintains the arena: on
+/// a load, and when the tempo changes.
+void refreshDelayReserves(Song& song);
+
+/// @brief [task] What a load does once the loaded owners' param managers are in @p song: works out the delay types
+/// files saved without (resolvePendingDelayTypes), then refreshes every delay's reserve.
+void settleLoadedDelays(Song& song);
 
 /// @brief Gives every owner of @p song whose file saved no delay type its type: OFF where no param manager of it could
 /// sound; otherwise the type its file's `analog` gave, or DIGITAL where its file had no delay.

@@ -17,10 +17,12 @@
 
 #include "model/mod_controllable/delay_type.h"
 
+#include "libdeluge/system.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/change_effect.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/delay_arena_app.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/clip_iterators.h"
@@ -30,12 +32,17 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "util/functions.h"
+#include "util/param_functions.h"
+#include "util/structural_edit_probe.h"
 
 #include <algorithm>
 #include <limits>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -168,7 +175,17 @@ void resolveWhere(Song& song, const std::function<bool(const ModControllableAudi
 
 } // namespace
 
-void onDelayFeedbackModified(const ModelStackWithAutoParam& modelStack, int32_t oldValue, bool automatedBefore) {
+void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t oldValue, bool automatedBefore) {
+	const bool rate =
+	    (modelStack.kind == params::Kind::PATCHED && modelStack.paramId == params::GLOBAL_DELAY_RATE)
+	    || (modelStack.kind == params::Kind::UNPATCHED_GLOBAL && modelStack.paramId == params::UNPATCHED_DELAY_RATE);
+	if (rate && modelStack.modControllable != nullptr && currentSong != nullptr) {
+		auto& owner = *static_cast<ModControllableAudio*>(modelStack.modControllable);
+		if (owner.effects().delay.type != deluge::effects::DelayType::OFF) {
+			refreshDelayReserve(*currentSong, owner);
+		}
+		return;
+	}
 	bool reaches = false;
 	switch (modelStack.kind) {
 	case params::Kind::PATCHED:
@@ -207,6 +224,92 @@ void onDelayFeedbackModified(const ModelStackWithAutoParam& modelStack, int32_t 
 	deluge::edits::changeEffect(owner, "delay/type",
 	                            deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(
 	                                deluge::effects::next_delay_type(deluge::effects::DelayType::OFF)))));
+}
+
+namespace {
+
+/// @return The tick inverse @p song's synced delays play at: the external clock's when it drives playback, otherwise
+/// @p song's own tempo (a song being loaded is not yet the current one).
+uint32_t tickInverseFor(Song& song) {
+	return playbackHandler.isExternalClockActive() ? playbackHandler.getTimePerInternalTickInverse(true)
+	                                               : song.project.transport.inverse_samples_per_timer_tick;
+}
+
+/// @return The tape, in frames, a delay whose rate param lives in @p paramManager needs with @p settings.
+std::size_t reserveIn(ParamManager& paramManager, bool sound, const deluge::effects::DelayState& settings,
+                      uint32_t timePerInternalTickInverse) {
+	if (!paramManager.containsAnyMainParamCollections()) {
+		return 0;
+	}
+	// The render's rate with no cable or modulation on it.
+	const int32_t value = sound ? paramManager.getPatchedParamSet()->getValue(params::GLOBAL_DELAY_RATE)
+	                            : paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_DELAY_RATE);
+	const int32_t userRate =
+	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE], cableToExpParamShortcut(value));
+	const int32_t rate = deluge::effects::synced_delay_rate(userRate, settings, timePerInternalTickInverse);
+	return deluge::effects::tape_shape(static_cast<uint32_t>(rate), true).frames;
+}
+
+/// @brief Sets each of @p reserves' owners its reserve inside one section, then maintains the arena.
+void applyReserves(std::span<const std::pair<ModControllableAudio*, std::size_t>> reserves) {
+	{
+		AudioExcludedSection section; // the render reads the arena's slots
+		for (const auto& [owner, frames] : reserves) {
+			owner->delay.setReserve(frames);
+		}
+		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
+	}
+	maintainDelayArena();
+}
+
+} // namespace
+
+std::size_t delayReserveFrames(Song& song, ModControllableAudio& owner) {
+	const deluge::effects::DelayState& settings = owner.effects().delay;
+	if (settings.type == deluge::effects::DelayType::OFF) {
+		return 0;
+	}
+	const uint32_t inverse = tickInverseFor(song);
+	const bool sound = owner.asSound() != nullptr;
+	std::size_t frames = 0;
+	forEachDelayParamManager(song, [&](ModControllableAudio& candidate, ParamManager& paramManager) {
+		if (&candidate == &owner) {
+			frames = std::max(frames, reserveIn(paramManager, sound, settings, inverse));
+		}
+	});
+	return frames;
+}
+
+void refreshDelayReserve(Song& song, ModControllableAudio& owner) {
+	const std::pair<ModControllableAudio*, std::size_t> reserve{&owner, delayReserveFrames(song, owner)};
+	applyReserves({&reserve, 1});
+}
+
+void refreshDelayReserves(Song& song) {
+	const uint32_t inverse = tickInverseFor(song);
+	std::vector<std::pair<ModControllableAudio*, std::size_t>> reserves;
+	forEachDelayParamManager(song, [&](ModControllableAudio& owner, ParamManager& paramManager) {
+		const deluge::effects::DelayState& settings = owner.effects().delay;
+		if (settings.type == deluge::effects::DelayType::OFF) {
+			return;
+		}
+		const std::size_t frames = reserveIn(paramManager, owner.asSound() != nullptr, settings, inverse);
+		auto found = std::ranges::find_if(reserves, [&](const auto& entry) { return entry.first == &owner; });
+		if (found == reserves.end()) {
+			reserves.emplace_back(&owner, frames);
+		}
+		else {
+			found->second = std::max(found->second, frames);
+		}
+	});
+	if (!reserves.empty()) {
+		applyReserves(reserves);
+	}
+}
+
+void settleLoadedDelays(Song& song) {
+	resolvePendingDelayTypes(song);
+	refreshDelayReserves(song);
 }
 
 void resolvePendingDelayTypes(Song& song) {

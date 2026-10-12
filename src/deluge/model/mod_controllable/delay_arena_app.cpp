@@ -56,13 +56,21 @@ void requestMaintenance() {
 
 void maintainDelayArena() {
 	deluge::effects::DelayArena& arena = delayArena();
-	deluge::effects::ArenaChange change = arena.prepare(0);
-	{
-		AudioExcludedSection section; // the render takes from these regions
-		arena.commit(change);
-		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
+	// One region a pass, until the margin holds: a load can reserve several largest tapes at once.
+	for (std::size_t pass = 0; pass < deluge::effects::kArenaMaxRegions; pass++) {
+		const std::size_t regionsBefore = arena.regions();
+		deluge::effects::ArenaChange change = arena.prepare(0);
+		const bool lent = change.lent != nullptr;
+		{
+			AudioExcludedSection section; // the render takes from these regions
+			arena.commit(change);
+			deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
+		}
+		arena.finish(change);
+		if (!lent || arena.regions() <= regionsBefore || arena.margin_holds()) {
+			break;
+		}
 	}
-	arena.finish(change);
 	g_runs.fetch_add(1, std::memory_order_relaxed);
 }
 
