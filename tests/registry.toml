@@ -1376,6 +1376,24 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-grain-restart"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the granular mod FX started again on a new ring renders as recorded, its grains reading 0 from every slot not yet written since the ring was taken: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_GRAIN_RESTART) whose kit's chain falls silent until its grain decays and releases its ring, whose audio track's grain has its depth taken to its minimum at the second bar (a soft off, which releases the ring) and back at the third, and whose synth's one note stops long enough for the sound to skip rendering, which releases its ring; the clip's loop at 8 s and the depth's return start each grain again on a new ring with its first pass done, so grains start ahead of the write index and read slots never written since the ring was re-acquired, which read 0 (the host's allocator zeroes them); rendered for 4,000 blocks so the grains run after each restart; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with every grain off must render differently (RS-FX), so the grains reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_GRAIN_RESTART", RENDER_BLOCKS = "4000" }
+tier = "pr"
+runtime = "~25s"
+
+[[harness]]
 name = "render-song-corpus"
 path = "."
 level = "integration"

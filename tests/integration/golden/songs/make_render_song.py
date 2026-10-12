@@ -52,7 +52,7 @@ mid-render; it has no dry twin. RS_GRAIN_RESTART runs the grain on a kit whose h
 decay and release its ring, on an audio track whose depth goes to its minimum and back (which releases the ring and
 takes a new one), and on a synth whose one note stops long enough for the sound to skip rendering; the clip's loop at
 8 s, and the depth's return, start each again on a new ring, whose grains read slots not yet written since it was
-taken, so what it renders depends on what the allocator handed back.
+taken; those read 0.
 """
 
 import math
