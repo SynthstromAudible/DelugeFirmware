@@ -489,6 +489,41 @@ what entering GRAIN does for each kind of owner.
   and pan of each grain come from `Noise::render()`, drawn in that order, so the
   kernel's specs run `CongNoise` with its generator reset to the boot seed.
 
+### Memory the render allocates from, lent by the interaction tier: the delay's arena
+
+The delay's tapes cannot be keyed to a type the way the mod FX ring is: a
+tape's size follows the delay rate (`DelayTape::idealSizeForRate`, 1 to 88,200
+frames), which the render computes from params, cables and automation, and a
+rate that moves far enough grows a second tape that is swapped in once
+written. So the render takes and gives back its own tapes, from memory the
+interaction tier lends it: `effects::DelayArena`
+(`engines/effects/delay_arena.{h,cpp}`), driven by `effects::Delay`
+(`engines/effects/delay.{h,cpp}`, the engine glue around the kernel's
+`DelayProcessor`).
+
+- **Regions, each its own heap.** The arena holds up to 32 regions of 1.5 MB of
+  SDRAM, each with a bounded-time heap built over it (`deluge_heap_create`).
+  `take` and `give_back` run in the render; no other tier touches a region
+  while the render can. Everything outside `deluge_effects` (the general heap,
+  the BSP heap, the app loop) comes through `effects::DelayArenaMemory`.
+- **The margin.** While any owner's delay type is not OFF, the arena holds room
+  for two tapes of the largest size (found by a trial) and free bytes for one
+  neutral-rate tape per owner on. A `take` uses the margin and asks for the
+  arena's job; the job, and every owner's projection, lend a region in
+  `prepare` when the margin is short, attach it in `commit` inside an
+  audio-excluded section, and return regions with no tapes in `finish` once
+  what remains holds the margin (all of them when no delay is on).
+- **Keyed to a type after all.** The delay type (`DelayType`: off, digital,
+  analog) decides the margin: an owner is counted while its type is not OFF,
+  and gives its tapes back when set OFF. A file that saves no type has its
+  delays set OFF only where no param could lift the feedback.
+- **The timing is the old one.** A tape is taken and given back at the same
+  blocks the general heap's allocations were made, so the delay is bit-exact.
+  The tapes never read storage they have not written, so recycled storage needs
+  no zeroing (`delay_poisoned_storage_spec`). A tape the arena cannot supply
+  takes the old out-of-memory path, passing the audio through; the render-song
+  gates require none (`RS-DELAY-ARENA shortfalls=0`).
+
 ### The control form
 
 A **control kernel** is a block-rate signal: an envelope or a duck that the
