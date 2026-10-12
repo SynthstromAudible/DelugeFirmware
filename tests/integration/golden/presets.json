@@ -2075,6 +2075,24 @@
   "rms_db": -20.48,
   "sha256": "a17b1f050df97d25a8aba26cca61a9ab3b148baae6650309f021fdb6b6c33b84"
  },
+ "stereo/modfx_chorus": {
+  "frames": 88200,
+  "peak": 245145344,
+  "rms_db": -27.29,
+  "sha256": "e0d00e5de470609290ef55c05ad64cbe8d4d61135077987355e246aa4b45f548"
+ },
+ "stereo/modfx_flanger": {
+  "frames": 88200,
+  "peak": 1061489152,
+  "rms_db": -22.49,
+  "sha256": "76af0fe0923d3b1231e0628765f4154bf7a4771c4439d475859622076fed86e3"
+ },
+ "stereo/modfx_warble": {
+  "frames": 88200,
+  "peak": 336116992,
+  "rms_db": -23.19,
+  "sha256": "0a4605edc948f1814cc40275961c00fa0ce68d50fffe31ba96d5ff9e24e0f045"
+ },
  "svf_band": {
   "frames": 88200,
   "peak": 381075200,
