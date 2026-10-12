@@ -58,6 +58,10 @@ kinds=<kind=n,...>`:
                              through unchanged; setting the grain again holds a ring and the master's render runs the
                              effect over it (CG-GRAINOOM injected=1 passthrough=1 recovered=1 noted=1 required; noted =
                              the grain's hand-over reported itself to the structural-edit probe)
+    CG-DELAYKNOB             a synth's and the master's delay feedback turned by the gold knob's Edit: lifted off its
+                             minimum while OFF it turns the delay on, digital; an ANALOG delay, or one set OFF with its
+                             feedback already up, keeps its type (CG-DELAYKNOB lifted=1 analogKept=1 offKept=1 chain=1
+                             required)
     CG-GRAINSWAP             a synth's mod FX type set grain, chorus, grain, none by the type menu's Edit while the
                              song plays: after each change the grain holds its ring exactly when the type is the grain
                              (CG-GRAINSWAP blocks=1 noted=1 required)
@@ -106,6 +110,7 @@ LEGS = [
     "MODFXSWAP",
     "GRAINOOM",
     "GRAINSWAP",
+    "DELAYKNOB",
 ]
 # The legs whose edits must all be made while the render is excluded.
 
@@ -178,6 +183,12 @@ def _check(gate, result) -> None:
         return
 
     # Each type change holds the grain's ring exactly when the type is the grain.
+    if not result.has_line("CG-DELAYKNOB lifted=1 analogKept=1 offKept=1 chain=1"):
+        found = _grep(result, "CG-DELAYKNOB lifted", "no CG-DELAYKNOB line")
+        gate.fail(
+            f"CG-DELAYKNOB — a knob lifting an OFF delay's feedback must turn it on, digital, and leave a delay "
+            f"already on, or one set OFF with its feedback up, as it is ({found})"
+        )
     if not result.has_line("CG-GRAINSWAP blocks=1 noted=1"):
         found = _grep(result, "CG-GRAINSWAP blocks", "no CG-GRAINSWAP line")
         gate.fail(

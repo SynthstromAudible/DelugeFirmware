@@ -17,6 +17,8 @@
 
 #include "modulation/params/param_collection.h"
 #include "definitions_cxx.hpp"
+#include "libdeluge/system.h"
+#include "model/mod_controllable/delay_type.h"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
@@ -45,6 +47,10 @@ void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 
 	if (automationChanged && automatedNow) {
 		ticksTilNextEvent = 0;
+	}
+
+	if (!deluge_in_audio_context()) {
+		deluge::model::onDelayFeedbackModified(*modelStack, oldValue, automatedBefore);
 	}
 }
 

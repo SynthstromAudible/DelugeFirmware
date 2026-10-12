@@ -19,7 +19,9 @@
 
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/change_effect.h"
 #include "model/instrument/kit.h"
+#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
@@ -34,6 +36,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -159,6 +162,45 @@ void resolveWhere(Song& song, const std::function<bool(const ModControllableAudi
 }
 
 } // namespace
+
+void onDelayFeedbackModified(const ModelStackWithAutoParam& modelStack, int32_t oldValue, bool automatedBefore) {
+	bool reaches = false;
+	switch (modelStack.kind) {
+	case params::Kind::PATCHED:
+		reaches = modelStack.paramId == params::GLOBAL_DELAY_FEEDBACK;
+		break;
+	case params::Kind::UNPATCHED_GLOBAL:
+		reaches = modelStack.paramId == params::UNPATCHED_DELAY_AMOUNT;
+		break;
+	case params::Kind::PATCH_CABLE: {
+		ParamDescriptor destination;
+		PatchSource source{};
+		PatchCableSet::dissectParamId(modelStack.paramId, &destination, &source);
+		reaches = destination.getJustTheParam() == params::GLOBAL_DELAY_FEEDBACK;
+		break;
+	}
+	default:
+		break;
+	}
+	if (!reaches || modelStack.modControllable == nullptr || modelStack.paramManager == nullptr) {
+		return;
+	}
+	auto& owner = *static_cast<ModControllableAudio*>(modelStack.modControllable);
+	if (owner.effects().delay.type != deluge::effects::DelayType::OFF) {
+		return;
+	}
+	ParamManager& paramManager = *modelStack.paramManager;
+	const bool sound = owner.asSound() != nullptr;
+	if (!delayCouldSound(paramManager, sound)
+	    || delayCouldSound(paramManager, sound,
+	                       {.param = modelStack.autoParam, .value = oldValue, .automated = automatedBefore})) {
+		return;
+	}
+	// The Edit a press of the feedback knob makes: the press cycle's step from OFF.
+	deluge::edits::changeEffect(owner, "delay/type",
+	                            deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(
+	                                deluge::effects::next_delay_type(deluge::effects::DelayType::OFF)))));
+}
 
 void resolvePendingDelayTypes(Song& song) {
 	resolveWhere(song, [](const ModControllableAudio&) { return true; });

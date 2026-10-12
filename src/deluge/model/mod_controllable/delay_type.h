@@ -21,6 +21,7 @@
 #include <functional>
 
 class AutoParam;
+class ModelStackWithAutoParam;
 class ModControllableAudio;
 class ParamManager;
 class Song;
@@ -47,6 +48,13 @@ struct ParamBefore {
 /// synth or kit and its kit's sound drums' note rows, each audio clip's track, the master with the song's param
 /// manager, and every backed-up param manager.
 void forEachDelayParamManager(Song& song, const std::function<void(ModControllableAudio&, ParamManager&)>& visit);
+
+/// @brief [task] After an interaction-tier change to a param: when it is an owner's delay feedback, or a patch cable
+/// reaching it, and the change took the delay from unable to sound to able while its type is OFF, steps the type by
+/// the Edit a press of the feedback knob makes, OFF to DIGITAL.
+/// @param oldValue The param's value before the change.
+/// @param automatedBefore Whether it was automated before the change.
+void onDelayFeedbackModified(const ModelStackWithAutoParam& modelStack, int32_t oldValue, bool automatedBefore);
 
 /// @brief Gives every owner of @p song whose file saved no delay type its type: OFF where no param manager of it could
 /// sound; otherwise the type its file's `analog` gave, or DIGITAL where its file had no delay.

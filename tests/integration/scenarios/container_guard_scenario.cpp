@@ -38,6 +38,9 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/change_effect.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -66,6 +69,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <new>
 #include <unistd.h>
 #include <vector>
@@ -142,6 +146,7 @@ enum class Leg : uint8_t {
 	ModFxSwap,
 	GrainOom,
 	GrainSwap,
+	DelayKnob,
 	Done,
 };
 
@@ -233,6 +238,8 @@ const char* legName(Leg leg) {
 		return "GRAINOOM";
 	case Leg::GrainSwap:
 		return "GRAINSWAP";
+	case Leg::DelayKnob:
+		return "DELAYKNOB";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -441,6 +448,30 @@ InstrumentClip* makeKitClip() {
 	clip->activeIfNoSolo = true;
 	g_kit = kit;
 	return static_cast<InstrumentClip*>(clip);
+}
+
+/// @brief Turns @p owner's delay feedback to @p value as the gold knob does, by its SetParamValue Edit: a Sound's
+/// patched GLOBAL_DELAY_FEEDBACK, or a chain's unpatched UNPATCHED_DELAY_AMOUNT, in @p paramManager.
+void turnDelayFeedback(ModControllableAudio& owner, TimelineCounter* clip, ParamManager& paramManager, int32_t value) {
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* ms =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, &owner, clip, &paramManager);
+	const bool sound = owner.asSound() != nullptr;
+	ParamCollectionSummary* summary =
+	    sound ? paramManager.getPatchedParamSetSummary() : paramManager.getUnpatchedParamSetSummary();
+	const int32_t id = sound ? static_cast<int32_t>(deluge::modulation::params::GLOBAL_DELAY_FEEDBACK)
+	                         : static_cast<int32_t>(deluge::modulation::params::UNPATCHED_DELAY_AMOUNT);
+	ModelStackWithParamId* withId = ms->addParamCollectionAndId(summary->paramCollection, summary, id);
+	ModelStackWithAutoParam* withParam = withId->paramCollection->getAutoParamFromId(withId);
+	deluge::edits::Context context{*currentSong, currentSong->project};
+	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*withParam), value, 0, 0, withParam};
+	deluge::edits::apply(context, edit);
+}
+
+/// @brief Sets @p owner's delay type by the Edit the delay type menu makes.
+void setDelayType(ModControllableAudio& owner, deluge::effects::DelayType type) {
+	deluge::edits::changeEffect(
+	    owner, "delay/type", deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(type))));
 }
 
 /// The note row for @p note on g_clip, made if it is not there, with its index.
@@ -1005,6 +1036,40 @@ void editLeg() {
 		const bool noted = deluge::notedStructuralEdits(StructuralContainer::GRAIN_BLOCK) > notedBefore;
 		printf("CG-GRAINOOM injected=%d passthrough=%d recovered=%d noted=%d\n", injected ? 1 : 0, passthrough ? 1 : 0,
 		       recovered ? 1 : 0, noted ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::DelayKnob: {
+		g_step = "delayFeedback";
+		// A knob lifting an OFF delay's feedback off its minimum turns it on, digital; one already on, or set OFF
+		// with its feedback up, keeps its type. On a synth's sound, then on the song master's chain.
+		using deluge::effects::DelayType;
+		constexpr int32_t kMinimum = std::numeric_limits<int32_t>::min();
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		ParamManager& synthParams = g_clip->paramManager;
+		turnDelayFeedback(*synth, g_clip, synthParams, kMinimum);
+		setDelayType(*synth, DelayType::OFF);
+		turnDelayFeedback(*synth, g_clip, synthParams, 0);
+		const bool lifted = synth->effects().delay.type == DelayType::DIGITAL;
+		setDelayType(*synth, DelayType::ANALOG);
+		turnDelayFeedback(*synth, g_clip, synthParams, kMinimum);
+		turnDelayFeedback(*synth, g_clip, synthParams, 0);
+		const bool analogKept = synth->effects().delay.type == DelayType::ANALOG;
+		setDelayType(*synth, DelayType::OFF);
+		turnDelayFeedback(*synth, g_clip, synthParams, 0x20000000);
+		const bool offKept = synth->effects().delay.type == DelayType::OFF;
+		turnDelayFeedback(*synth, g_clip, synthParams, kMinimum);
+
+		auto& master = currentSong->live.global_effectable;
+		turnDelayFeedback(master, nullptr, currentSong->paramManager, kMinimum);
+		setDelayType(master, DelayType::OFF);
+		turnDelayFeedback(master, nullptr, currentSong->paramManager, 0);
+		const bool chain = master.effects().delay.type == DelayType::DIGITAL;
+		turnDelayFeedback(master, nullptr, currentSong->paramManager, kMinimum);
+		setDelayType(master, DelayType::OFF);
+		renderBlocks(1);
+		printf("CG-DELAYKNOB lifted=%d analogKept=%d offKept=%d chain=%d\n", lifted ? 1 : 0, analogKept ? 1 : 0,
+		       offKept ? 1 : 0, chain ? 1 : 0);
 		fflush(stdout);
 		break;
 	}
