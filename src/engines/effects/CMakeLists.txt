@@ -1,7 +1,7 @@
 # deluge_effects: the effects' words, their settings as plain state, the codec of an owner element's effect
 # entries, and the host chains' effect components. Built on the engine API and the L0 DSP library (dsp-next); serves the
 # Deluge instrument's per-sound effects and the host chains.
-add_library(deluge_effects STATIC chain.cpp codec.cpp bitcrush.cpp compressor.cpp delay.cpp delay_arena.cpp equalizer.cpp filter.cpp granular.cpp mod_fx.cpp saturation.cpp send_and_volume.cpp settings.cpp sidechain.cpp)
+add_library(deluge_effects STATIC chain.cpp codec.cpp bitcrush.cpp compressor.cpp delay.cpp delay_arena.cpp equalizer.cpp filter.cpp granular.cpp mod_fx.cpp saturation.cpp stutter.cpp send_and_volume.cpp settings.cpp sidechain.cpp)
 # src/deluge for the L0 DSP library (dsp-next/) and util/fixedpoint.h; the library boundary check limits which.
 target_include_directories(deluge_effects PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../.. ${CMAKE_CURRENT_LIST_DIR}/../../deluge)
 target_compile_features(deluge_effects PUBLIC cxx_std_23)
