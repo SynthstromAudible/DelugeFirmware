@@ -42,6 +42,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
+#include "model/fx/song_stutter.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/delay_type.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
@@ -86,6 +87,11 @@ ModControllableAudio::ModControllableAudio(deluge::effects::EnterGrain enterGrai
 }
 
 ModControllableAudio::~ModControllableAudio() {
+	// An owner deleted while it stutters ends the stutter, so no later owner at its address plays the tape.
+	if (currentSong != nullptr && currentSong->live.stutter.isStuttering(*this)) {
+		currentSong->live.stutter.end();
+		exitUIMode(UI_MODE_STUTTERING);
+	}
 	// The delay's tapes go back to the arena, and the owner leaves its margin, as a change to OFF does.
 	deluge::effects::DelayChange change = delay.prepare(deluge::effects::DelayType::OFF);
 	{
@@ -158,7 +164,7 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setCurrentValueBasicForSetup(
 	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SPREAD_OCTAVE), -2147483648);
 
-	Stutterer::initParams(paramManager);
+	deluge::model::initStutterParams(paramManager);
 
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_OFFSET].setCurrentValueBasicForSetup(
 	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_OFFSET), 0);
@@ -896,28 +902,91 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	if (!isUIModeWithinRange(stutterUIModes)) {
 		return;
 	}
-	if (Error::NONE
-	    == stutterer.beginStutter(
-	        this, paramManager,
-	        effects().stutter.use_song_stutter ? currentSong->live.global_effectable.effects().stutter
-	                                           : effects().stutter,
-	        currentSong->getInputTickMagnitude(), playbackHandler.getTimePerInternalTickInverse())) {
-		// Redraw the LEDs. Really only for quantized stutter, but doing it for unquantized won't hurt.
-		view.notifyParamAutomationOccurred(paramManager);
-		enterUIMode(UI_MODE_STUTTERING);
+	deluge::model::SongStutter& stutter = currentSong->live.stutter;
+	const deluge::effects::StutterState& settings =
+	    effects().stutter.use_song_stutter ? currentSong->live.global_effectable.effects().stutter : effects().stutter;
+	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+	const int32_t paramValue = unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE);
+	const int32_t knobDiffBefore = stutter.lastQuantizedKnobDiff;
+	if (settings.quantized) {
+		int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, nullptr);
+		if (knobPos < -39) {
+			knobPos = -16; // 4ths
+		}
+		else if (knobPos < -14) {
+			knobPos = -8; // 8ths
+		}
+		else if (knobPos < 14) {
+			knobPos = 0; // 16ths
+		}
+		else if (knobPos < 39) {
+			knobPos = 8; // 32nds
+		}
+		else {
+			knobPos = 16; // 64ths
+		}
+		// Save current values for later recovering them
+		stutter.valueBeforeStuttering = paramValue;
+		stutter.lastQuantizedKnobDiff = knobPos;
+
+		// When stuttering, we center the value at 0, so the center is the reference for the stutter rate that we
+		// selected just before pressing the knob and we use the lastQuantizedKnobDiff value to calculate the relative
+		// (real) value
+		unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
 	}
+
+	const auto rate = static_cast<uint32_t>(
+	    deluge::model::stutterRate(paramManager, stutter.lastQuantizedKnobDiff, currentSong->getInputTickMagnitude(),
+	                               playbackHandler.getTimePerInternalTickInverse()));
+	if (stutter.begin(*this, settings, rate) != Error::NONE) {
+		// No stutter: the param and the snap memory go back to how they were.
+		if (settings.quantized) {
+			unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(paramValue);
+			stutter.lastQuantizedKnobDiff = knobDiffBefore;
+		}
+		return;
+	}
+	// Redraw the LEDs. Really only for quantized stutter, but doing it for unquantized won't hurt.
+	view.notifyParamAutomationOccurred(paramManager);
+	enterUIMode(UI_MODE_STUTTERING);
 }
 
 void ModControllableAudio::processStutter(std::span<StereoSample> buffer, ParamManager* paramManager) {
-	if (stutterer.isStuttering(this)) {
-		stutterer.processStutter(buffer, paramManager, currentSong->getInputTickMagnitude(),
-		                         playbackHandler.getTimePerInternalTickInverse());
+	deluge::model::SongStutter& stutter = currentSong->live.stutter;
+	if (stutter.isStuttering(*this)) {
+		const auto rate = static_cast<uint32_t>(deluge::model::stutterRate(
+		    paramManager, stutter.lastQuantizedKnobDiff, currentSong->getInputTickMagnitude(),
+		    playbackHandler.getTimePerInternalTickInverse()));
+		stutter.process(*this, buffer, rate);
 	}
 }
 
 // paramManager is optional - if you don't send it, it won't restore the stutter rate and we won't redraw the LEDs
 void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
-	stutterer.endStutter(paramManager);
+	// A song being read (none is current yet) has no stutter to end.
+	if (currentSong != nullptr) {
+		deluge::model::SongStutter& stutter = currentSong->live.stutter;
+		stutter.end();
+		if (paramManager) {
+			UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+			if (stutter.playing.quantized) {
+				// Set back the value it had just before stuttering so orange LEDs are redrawn.
+				unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(
+				    stutter.valueBeforeStuttering);
+			}
+			else {
+				// Regular Stutter FX (if below middle value, reset it back to middle)
+				// Normally we shouldn't call this directly, but it's ok because automation isn't allowed for stutter
+				// anyway
+				if (unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE) < 0) {
+					unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
+				}
+			}
+		}
+		// Reset temporary and diff values for Quantized stutter
+		stutter.lastQuantizedKnobDiff = 0;
+		stutter.valueBeforeStuttering = 0;
+	}
 	if (paramManager) {
 		// Redraw the LEDs.
 		view.notifyParamAutomationOccurred(paramManager);

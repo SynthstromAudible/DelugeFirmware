@@ -20,6 +20,7 @@
 #include "engines/effects/mod_fx.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
+#include "memory/memory_allocator_interface.h"
 
 #include <cstddef>
 
@@ -35,6 +36,12 @@ inline constexpr effects::RingAllocator kModFxRingAllocator{
 /// and for the bench alike.
 inline constexpr effects::RingAllocator kGranularAllocator{
     .allocate = [](std::size_t bytes) { return memory::alloc_external(bytes); },
+    .release = [](void* block) { delugeDealloc(block); },
+};
+
+/// @brief The stutter's tape comes from the app's low-speed heap, for the song's stutter and for the bench alike.
+inline constexpr effects::RingAllocator kStutterAllocator{
+    .allocate = [](std::size_t bytes) { return allocLowSpeed(static_cast<uint32_t>(bytes)); },
     .release = [](void* block) { delugeDealloc(block); },
 };
 

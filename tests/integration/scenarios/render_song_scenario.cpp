@@ -31,7 +31,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
-#include "model/fx/stutterer.h"
+#include "model/fx/song_stutter.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
@@ -250,7 +250,7 @@ void runStutters(uint64_t block) {
 	bool stuttering = false;
 	for (StutterSpan& span : g_stutterAt) {
 		ModControllableAudio* owner = stutterOwner(span.owner, params, clip);
-		const bool now = owner != nullptr && stutterer.isStuttering(owner);
+		const bool now = owner != nullptr && currentSong->live.stutter.isStuttering(*owner);
 		if (now && g_stutterRateAsked && !g_stutterRateDone && block >= g_stutterRateAt) {
 			turnStutterRate(*owner, clip, *params, g_stutterRateValue);
 			g_stutterRateDone = true;

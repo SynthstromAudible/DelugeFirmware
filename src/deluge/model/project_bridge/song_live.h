@@ -1,5 +1,6 @@
 #pragma once
 
+#include "model/fx/song_stutter.h"
 #include "model/global_effectable/global_effectable_for_song.h"
 #include "model/project_bridge/clips.h"
 #include "model/project_bridge/media_pool.h"
@@ -19,6 +20,8 @@ struct SongLive {
 	Clip* sync_scaling_clip{nullptr};
 	/// The song-global effect chain (master filters, FX, stutter, compressor).
 	GlobalEffectableForSong global_effectable;
+	/// The stutter playing on one of the song's owners, if any, and its tape.
+	deluge::model::SongStutter stutter;
 	/// Snapshot of the global unpatched param values, captured while a param is held in automation mode so the live
 	/// (overridden) value can be restored afterwards.
 	std::array<int32_t, deluge::modulation::params::kMaxNumUnpatchedParams> unautomated_param_values{};

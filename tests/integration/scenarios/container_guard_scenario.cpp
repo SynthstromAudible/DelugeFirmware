@@ -288,6 +288,8 @@ const char* kindName(StructuralContainer kind) {
 		return "grainblock";
 	case StructuralContainer::DELAY_TAPE:
 		return "delaytape";
+	case StructuralContainer::STUTTER_TAPE:
+		return "stuttertape";
 	case StructuralContainer::COUNT_:
 		break;
 	}

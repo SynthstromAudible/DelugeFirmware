@@ -709,6 +709,12 @@ void deleteOldSongBeforeLoadingNew() {
 
 	view.releaseActiveModControllable();
 
+	// The old song's stutter ends and its tape goes back before the song is let go.
+	if (currentSong != nullptr) {
+		currentSong->live.stutter.end();
+		exitUIMode(UI_MODE_STUTTERING);
+	}
+
 	// Hand the old song to the render, then wait -- bounded, on the render -- until it has been freed, so the new song
 	// is built in the memory it gave back. The wait runs no other interaction task, so none sees currentSong null.
 	Song* toDelete = currentSong;

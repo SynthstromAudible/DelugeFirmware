@@ -1,12 +1,15 @@
 /// @file
 /// @brief The stutter cases' rig, setup and blocks.
-/// @details Each block is one call into the stutter as its owner (ModControllableAudio::processStutter) makes it, over
-/// a tape begun as the gold knob's press begins one, with the stutter-rate param in a bench param manager.
+/// @details Each block is one call into the stutter as its owner (ModControllableAudio::processStutter) makes it: the
+/// rate from the stutter-rate param in a bench param manager, then the song's stutter component rendering over a tape
+/// begun as the gold knob's press begins one.
 
 #include "bench/cases.h"
 
 #include "definitions_cxx.hpp"
-#include "model/fx/stutterer.h"
+#include "engines/effects/stutter.h"
+#include "model/fx/song_stutter.h"
+#include "model/mod_controllable/mod_fx_allocator.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -33,6 +36,9 @@ struct StutterRig {
 
 StutterRig rig{};
 
+/// The stutter the cases render: the component the song's stutter holds, over the same allocator.
+effects::Stutter fx{model::kStutterAllocator};
+
 /// @brief Sets the rig's stutter-rate param to @p value, as a knob turn leaves it.
 void set_rate(int32_t value) {
 	UnpatchedParamSet* unpatched = rig.params.getUnpatchedParamSet();
@@ -42,7 +48,8 @@ void set_rate(int32_t value) {
 
 /// @brief One block as the owner renders it.
 void render_block() {
-	stutterer.processStutter(rig.work, &rig.params, kStutterMagnitude, kStutterTickInverse);
+	const auto rate = static_cast<uint32_t>(model::stutterRate(&rig.params, 0, kStutterMagnitude, kStutterTickInverse));
+	fx.render(rig.work, rate);
 }
 
 } // namespace
@@ -51,7 +58,9 @@ void StutterCase::setup(std::size_t n) {
 	if (!rig.ready) {
 		rig.ready = rig.params.setupUnpatched() == Error::NONE;
 	}
-	stutterer.endStutter(nullptr);
+	effects::StutterChange ended{};
+	fx.commit_end(ended);
+	fx.finish(ended);
 	fill_compressor_input();
 	const FrameSpans<StereoSample> spans = stereo_frame_spans(n);
 	rig.work = spans.out;
@@ -59,8 +68,10 @@ void StutterCase::setup(std::size_t n) {
 	// A recording case begins at the slowest rate, whose tape outlasts the warm-up and timed blocks; a playing case
 	// begins fast and records its short tape untimed.
 	set_rate(config_.play ? kStutterRateFast : kStutterRateSlowest);
-	std::ignore = stutterer.beginStutter(&rig, &rig.params, deluge::effects::StutterState{.quantized = false},
-	                                     kStutterMagnitude, kStutterTickInverse);
+	effects::StutterChange began =
+	    fx.prepare(static_cast<uint32_t>(model::stutterRate(&rig.params, 0, kStutterMagnitude, kStutterTickInverse)));
+	std::ignore = fx.commit(began, effects::StutterState{.quantized = false});
+	fx.finish(began);
 	if (config_.play) {
 		for (std::size_t frames = 0; frames < kStutterRecordFrames; frames += n) {
 			std::ranges::copy(rig.input, rig.work.begin());

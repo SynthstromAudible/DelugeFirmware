@@ -1516,6 +1516,11 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	// Swap stuff over
 	AudioEngine::killAllVoices(true);
 	Song* const outgoing = currentSong;
+	// The outgoing song's stutter ends and its tape goes back before the song is let go.
+	if (outgoing != nullptr) {
+		outgoing->live.stutter.end();
+		exitUIMode(UI_MODE_STUTTERING);
+	}
 	currentSong = preLoadedSong;
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	preLoadedSong = nullptr;

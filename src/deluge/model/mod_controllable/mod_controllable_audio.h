@@ -21,7 +21,6 @@
 #include "dsp/stereo_sample.h"
 #include "engines/effects/delay.h"
 #include "hid/button.h"
-#include "model/fx/stutterer.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/snapshot/mod_controllable_snapshot.h"

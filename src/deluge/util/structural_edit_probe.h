@@ -26,6 +26,7 @@ enum class StructuralContainer : uint8_t {
 	MOD_FX_RING,        ///< an owner's mod FX ring hand-over (ModControllableAudio::projectModControllableSnapshot)
 	GRAIN_BLOCK,        ///< an owner's granular State and ring hand-over (the same projection)
 	DELAY_TAPE,         ///< an owner's delay tapes given back, or the delay arena's regions changed
+	STUTTER_TAPE,       ///< the song's stutter tape handed to the render or taken back (SongStutter)
 	COUNT_,
 };
 
