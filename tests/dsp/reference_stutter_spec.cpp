@@ -19,6 +19,7 @@
 // workloads reach every mode, and that it reads no storage it has not written.
 
 #include "reference_stutter.h"
+#include "stutter_workload_records.h"
 #include "stutter_workloads.h"
 
 #include <array>
@@ -31,35 +32,6 @@ namespace {
 
 namespace sw = stutter_workloads;
 using deluge::dsp::test::ReferenceStutter;
-
-/// @brief What the reference renders from each workload, in WorkloadId order: recorded from it, identical on the host
-/// and on ARM.
-const std::array<sw::WorkloadRecord, sw::kWorkloadCount> kRecordedReference{{
-    // RECORD_NATIVE
-    {.outputs = 0xc0f3ae0719fe2674ULL, .lifecycle = 0x5b1e15350f8c47f5ULL, .tape = 0x439ba3e453f7f060ULL},
-    // RECORD_RESAMPLED
-    {.outputs = 0x44c1c640047fee6dULL, .lifecycle = 0x351c07620b9dc281ULL, .tape = 0xe5e024c6fc9b03eaULL},
-    // PLAY_FORWARD_NATIVE
-    {.outputs = 0xb07893f360439cf5ULL, .lifecycle = 0x39a4ee7a41988313ULL, .tape = 0x439ba3e453f7f060ULL},
-    // PLAY_FORWARD_RESAMPLED
-    {.outputs = 0xa811ab728adece4ULL, .lifecycle = 0x6f0b4034c72fdf1dULL, .tape = 0x11e23d2f6a84317dULL},
-    // PLAY_REVERSED_NATIVE
-    {.outputs = 0x859e9f5c46683a64ULL, .lifecycle = 0x13591ba094dfb733ULL, .tape = 0x439ba3e453f7f060ULL},
-    // PLAY_REVERSED_RESAMPLED
-    {.outputs = 0x5b2863ecd17fff6dULL, .lifecycle = 0x21d553c44bd38d9dULL, .tape = 0xfbda2dda90521003ULL},
-    // PING_PONG_NATIVE
-    {.outputs = 0x86d831954ba16a06ULL, .lifecycle = 0x4099c7684c7a369eULL, .tape = 0x439ba3e453f7f060ULL},
-    // PING_PONG_RESAMPLED
-    {.outputs = 0x8beed4fdd50293d4ULL, .lifecycle = 0x6976644ab30ad355ULL, .tape = 0x11e23d2f6a84317dULL},
-    // RATE_MOVES
-    {.outputs = 0x8258b653a971d118ULL, .lifecycle = 0x8e1c6fc4739971aaULL, .tape = 0x45b450819ee24691ULL},
-    // BLOCKS_1_TO_9
-    {.outputs = 0xeb2ab33b9eceac1fULL, .lifecycle = 0x733f7cd26f936f7eULL, .tape = 0x5ec6cd281afc7501ULL},
-    // FULL_SCALE
-    {.outputs = 0x95302607a1606a83ULL, .lifecycle = 0x6b132dff6eb9a843ULL, .tape = 0x4b423bff15217d45ULL},
-    // CLAMPED
-    {.outputs = 0x1647eb0331204911ULL, .lifecycle = 0xad9ec3a27f65a6a9ULL, .tape = 0x56febf11a0e1ba19ULL},
-}};
 
 /// @return Every block's output of @p workload, its storage starting as @p fill.
 [[nodiscard]] std::vector<int32_t> outputs(const sw::Workload& workload, deluge::dsp::StereoSample fill) {
@@ -84,7 +56,7 @@ describe reference_stutter("the stutter reference", ${
 	it("renders each workload as recorded", _ {
 		for (const sw::Workload& workload : sw::all_workloads()) {
 			const sw::WorkloadRecord record = sw::record<ReferenceStutter>(workload);
-			expect(record).to_equal(kRecordedReference.at(static_cast<std::size_t>(workload.id)));
+			expect(record).to_equal(sw::kRecordedReference.at(static_cast<std::size_t>(workload.id)));
 		}
 	});
 

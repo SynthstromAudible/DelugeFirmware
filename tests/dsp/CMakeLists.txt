@@ -155,6 +155,8 @@ set(delay_kernel_spec_DEPS ${delay_processor_spec_DEPS})
 set(delay_poisoned_storage_spec_DEPS ${delay_processor_spec_DEPS})
 # The stutter reference (reference_stutter.h, stutter_workloads.h, header-only) over the delay's tape: the same sources.
 set(reference_stutter_spec_DEPS ${delay_processor_spec_DEPS})
+# The Stutter kernel against the reference over the same workloads: the same sources, the kernel being header-only.
+set(stutter_kernel_spec_DEPS ${reference_stutter_spec_DEPS})
 
 # ETL for the synth headers that reach util/etl_string.h (modulation/sync.h, through the LFO). The x86 unit tree links it
 # everywhere; the ARM tree does not, so the specs link it themselves.
