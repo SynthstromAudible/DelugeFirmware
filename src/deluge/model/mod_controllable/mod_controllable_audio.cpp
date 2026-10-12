@@ -95,7 +95,7 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	next.mod_fx = from.mod_fx;
 	next.sidechain = from.sidechain;
 	next.delay.ping_pong = from.delay.ping_pong;
-	next.delay.analog = from.delay.analog;
+	next.delay.type = from.delay.type;
 	next.delay.sync_level = from.delay.sync_level;
 	next.stutter = from.stutter;
 	setEffects(next);
@@ -322,8 +322,8 @@ void ModControllableAudio::setFilterRoute(FilterRoute value) {
 void ModControllableAudio::setDelayPingPong(bool value) {
 	changeEffects(*this, [&](auto& e) { e.delay.ping_pong = value; });
 }
-void ModControllableAudio::setDelayAnalog(bool value) {
-	changeEffects(*this, [&](auto& e) { e.delay.analog = value; });
+void ModControllableAudio::setDelayType(deluge::effects::DelayType value) {
+	changeEffects(*this, [&](auto& e) { e.delay.type = value; });
 }
 void ModControllableAudio::setDelaySyncType(SyncType value) {
 	changeEffects(*this, [&](auto& e) { e.delay.sync_type = value; });
@@ -910,19 +910,23 @@ void ModControllableAudio::switchDelayPingPong() {
 	                            deluge::serialization::Value::makeNumber(effects().delay.ping_pong ? 0 : 1));
 }
 
-void ModControllableAudio::switchDelayAnalog() {
-	deluge::edits::changeEffect(*this, "delay/analog",
-	                            deluge::serialization::Value::makeNumber(effects().delay.analog ? 0 : 1));
+void ModControllableAudio::cycleDelayType() {
+	deluge::edits::changeEffect(*this, "delay/type",
+	                            deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(
+	                                deluge::effects::next_delay_type(effects().delay.type)))));
 }
 
 char const* ModControllableAudio::getDelayTypeDisplayName() {
-	switch (effects().delay.analog) {
-		using enum deluge::l10n::String;
-	case 0:
-		return l10n::get(STRING_FOR_DIGITAL_DELAY);
-	default:
+	using enum deluge::l10n::String;
+	switch (effects().delay.type) {
+	case deluge::effects::DelayType::OFF:
+		return l10n::get(STRING_FOR_DELAY_OFF);
+	case deluge::effects::DelayType::ANALOG:
 		return l10n::get(STRING_FOR_ANALOG_DELAY);
+	case deluge::effects::DelayType::DIGITAL:
+		break;
 	}
+	return l10n::get(STRING_FOR_DIGITAL_DELAY);
 }
 
 void ModControllableAudio::switchDelaySyncType() {

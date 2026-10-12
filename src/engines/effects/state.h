@@ -48,7 +48,7 @@ struct ModFxState {
 /// @brief The delay's character and, when synced, its rate.
 struct DelayState {
 	bool ping_pong{true};
-	bool analog{false};
+	DelayType type{DelayType::OFF};
 	engine::SyncType sync_type{engine::SyncType::EVEN};
 	/// The level itself (NONE = not synced); a file stores it relative to the song's input tick magnitude.
 	engine::SyncLevel sync_level{engine::SyncLevel::SIXTEENTH};

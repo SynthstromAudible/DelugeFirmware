@@ -219,7 +219,7 @@ constexpr std::array<std::string_view, 73> kEditedPaths{
     "filterRoute",
     "clippingAmount",
     "delay/pingPong",
-    "delay/analog",
+    "delay/type",
     "delay/syncLevel",
     "delay/syncType",
     "sidechain/attack",

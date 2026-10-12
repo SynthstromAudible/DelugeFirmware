@@ -22,16 +22,23 @@
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+#include <string>
+#include <utility>
 
 namespace deluge::gui::menu_item::delay {
 
-class Analog final : public Selection {
+/// The delay's type: off, digital or analog, in DelayType's order.
+class Type final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->effects().delay.analog); }
+	void readCurrentValue() override {
+		this->setValue(std::to_underlying(soundEditor.currentModControllable->effects().delay.type));
+	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		int32_t current_value = this->getValue();
+		const auto type = static_cast<deluge::effects::DelayType>(this->getValue());
+		const deluge::serialization::Value word =
+		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(type)));
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
@@ -41,20 +48,18 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					effectSettingFor(*soundDrum, "delay/analog",
-					                 deluge::serialization::Value::makeNumber(current_value ? 1 : 0));
+					effectSettingFor(*soundDrum, "delay/type", word);
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			effectSettingFor(*soundEditor.currentModControllable, "delay/analog",
-			                 deluge::serialization::Value::makeNumber(current_value ? 1 : 0));
+			effectSettingFor(*soundEditor.currentModControllable, "delay/type", word);
 		}
 	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		using enum l10n::String;
-		return {l10n::getView(STRING_FOR_DIGITAL),
+		return {l10n::getView(STRING_FOR_OFF), l10n::getView(STRING_FOR_DIGITAL),
 		        l10n::getView(optType == OptType::SHORT ? STRING_FOR_ANALOG_SHORT : STRING_FOR_ANALOG)};
 	}
 };

@@ -48,4 +48,11 @@ struct ParamBefore {
 /// manager, and every backed-up param manager.
 void forEachDelayParamManager(Song& song, const std::function<void(ModControllableAudio&, ParamManager&)>& visit);
 
+/// @brief Gives every owner of @p song whose file saved no delay type its type: OFF where no param manager of it could
+/// sound; otherwise the type its file's `analog` gave, or DIGITAL where its file had no delay.
+void resolvePendingDelayTypes(Song& song);
+
+/// @brief resolvePendingDelayTypes for @p owner alone, as a preset load sets up its param managers.
+void resolvePendingDelayType(Song& song, ModControllableAudio& owner);
+
 } // namespace deluge::model

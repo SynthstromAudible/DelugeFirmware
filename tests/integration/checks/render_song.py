@@ -22,6 +22,9 @@ adds what depends on the song, and why each check is here:
     RS-MODFX-CLEAR    a gate that clears mod FX memory (RENDER_MODFX_CLEAR) only: every clear asked for applied; a gate
                       whose clears reach no grain must reach both of clearMemory's paths, a ring zeroed and, with none
                       held, the phaser's memories; one that clears a grain must clear only grains.
+    RS-DELAY-OFF      no block in which a delay that is OFF had feedback enough to sound with sound coming in: a song
+                      whose file saves no delay type has its delays set OFF only where no param of theirs could
+                      lift the feedback, so a delay that renders silent here is one that rendered before.
     RS-SWITCH         a gate that switches delays or mod FX types, or clears mod FX memory, mid-render
                       (RENDER_DELAY_SWITCH, RENDER_MODFX_SWITCH, RENDER_MODFX_CLEAR) only: the same song rendered
                       unswitched must render differently, or the switches never reached the render.
@@ -197,6 +200,18 @@ def _check_mod_fx_hooks(gate, result) -> None:
             )
 
 
+def _check_delay_off(gate, result) -> None:
+    """No delay that is OFF was asked to sound (see RS-DELAY-OFF)."""
+    line = result.last("RS-DELAY-OFF ")
+    silenced = int_field(line, "silenced")
+    if silenced is None:
+        gate.fail("RS-DELAY-OFF — no RS-DELAY-OFF silenced= line")
+    elif silenced != 0:
+        gate.fail(
+            f"RS-DELAY-OFF — an OFF delay was asked to sound {silenced} blocks ({line})"
+        )
+
+
 def _differs_unswitched(gate, song: str | None, generated: str, pcm: bytes) -> bool:
     """Render the song again with none of its switches, and fail unless it differs from @p pcm (see RS-SWITCH). False when
     that run itself failed."""
@@ -237,6 +252,7 @@ def run(gate):
     gate.show(result)
     _check_width(gate, result, record_name)
     _check_mod_fx_hooks(gate, result)
+    _check_delay_off(gate, result)
 
     voices = int_field(result.last("RS-VOICES "), "audio")
     if voices is None or voices <= 0:

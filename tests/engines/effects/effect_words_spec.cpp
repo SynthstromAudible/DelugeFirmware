@@ -21,6 +21,20 @@ describe effect_words("the effects' words as a file writes them", ${
 		expect(to_string(FilterRoute::HIGH_TO_LOW)).to_equal(std::string_view("H2L"));
 		expect(parse_filter_route("nonsense")).to_equal(FilterRoute::PARALLEL);
 	});
+	it("names every delay type and reads each name back", _ {
+		expect(to_string(DelayType::OFF)).to_equal(std::string_view("off"));
+		expect(to_string(DelayType::DIGITAL)).to_equal(std::string_view("digital"));
+		expect(to_string(DelayType::ANALOG)).to_equal(std::string_view("analog"));
+		for (DelayType type : {DelayType::OFF, DelayType::DIGITAL, DelayType::ANALOG}) {
+			expect(parse_delay_type(to_string(type))).to_equal(type);
+		}
+		expect(parse_delay_type("nonsense")).to_equal(DelayType::DIGITAL);
+	});
+	it("steps a delay's type as its feedback knob's press does: digital, analog, off, digital", _ {
+		expect(next_delay_type(DelayType::DIGITAL)).to_equal(DelayType::ANALOG);
+		expect(next_delay_type(DelayType::ANALOG)).to_equal(DelayType::OFF);
+		expect(next_delay_type(DelayType::OFF)).to_equal(DelayType::DIGITAL);
+	});
 	it("names every mod-FX type, as old files spell them", _ {
 		expect(to_string(ModFXType::WARBLE)).to_equal(std::string_view("TapeWarble"));
 		expect(to_string(ModFXType::CHORUS_STEREO)).to_equal(std::string_view("StereoChorus"));

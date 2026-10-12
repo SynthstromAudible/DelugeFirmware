@@ -17,6 +17,8 @@
 
 #include "engines/effects/codec.h"
 
+#include <optional>
+
 #include "serialization/tree.h"
 
 #include <algorithm>
@@ -68,15 +70,23 @@ engine::SyncLevel sync_level_read(const Value& value, const engine::CodecContext
 void read_delay(const Value& delay, DelayState& state, const engine::CodecContext& context) {
 	state.sync_type = engine::SyncType::EVEN;
 	state.sync_level = engine::SyncLevel::NONE;
+	state.type = DelayType::DIGITAL;
 	if (!delay.isMap()) {
 		return;
 	}
+	// A file from a firmware without the type saves only whether the delay is analog; the owner works out whether it
+	// is off once its params are read.
+	bool analog = false;
+	std::optional<DelayType> type;
 	for (const auto& [key, value] : delay.entries()) {
 		if (key == "pingPong") {
 			state.ping_pong = flag_of(value);
 		}
 		else if (key == "analog") {
-			state.analog = flag_of(value);
+			analog = flag_of(value);
+		}
+		else if (key == "type") {
+			type = parse_delay_type(text_or_empty(value));
 		}
 		else if (key == "syncType") {
 			state.sync_type = static_cast<engine::SyncType>(int_or_zero(value));
@@ -85,6 +95,7 @@ void read_delay(const Value& delay, DelayState& state, const engine::CodecContex
 			state.sync_level = sync_level_read(value, context);
 		}
 	}
+	state.type = type.value_or(analog ? DelayType::ANALOG : DelayType::DIGITAL);
 }
 
 void read_sidechain(const Value& sidechain, SidechainState& state, const engine::CodecContext& context) {
@@ -171,7 +182,7 @@ EffectPieces encode_pieces(const EffectStates& states, const engine::CodecContex
 
 	auto delay = Value::makeMap();
 	delay.set("pingPong", flag(states.delay.ping_pong));
-	delay.set("analog", flag(states.delay.analog));
+	delay.set("type", text(to_string(states.delay.type)));
 	delay.set("syncLevel", number(sync_level_in_file(states.delay.sync_level, context)));
 	delay.set("syncType", number(std::to_underlying(states.delay.sync_type)));
 	pieces.delay.set("delay", std::move(delay));
@@ -212,6 +223,11 @@ Value encode(const EffectStates& states, const engine::CodecContext& context) {
 		}
 	}
 	return out;
+}
+
+bool saves_delay_type(const Value& element) {
+	const Value* delay = element.isMap() ? element.find("delay") : nullptr;
+	return delay != nullptr && delay->isMap() && delay->find("type") != nullptr;
 }
 
 void decode(const Value& element, EffectStates& states, const engine::CodecContext& context) {

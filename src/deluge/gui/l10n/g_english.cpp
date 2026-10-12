@@ -352,6 +352,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_NO_FURTHER_UNUSED_MIDI_PARAMS, "No further unused MIDI params"},
         {STRING_FOR_DIGITAL_DELAY, "Digital delay"},
         {STRING_FOR_ANALOG_DELAY, "Analog delay"},
+        {STRING_FOR_DELAY_OFF, "Delay off"},
         {STRING_FOR_NO_UNUSED_CHANNELS_AVAILABLE, "No unused channels available"},
         {STRING_FOR_NO_AVAILABLE_CHANNELS, "No available channels"},
         {STRING_FOR_PARAMETER_AUTOMATION_DELETED, "Parameter automation deleted"},

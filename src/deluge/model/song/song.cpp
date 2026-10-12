@@ -55,6 +55,7 @@
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/mod_controllable/delay_type.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
@@ -2178,6 +2179,7 @@ skipInstance:
 	AudioEngine::logAction("aaa4.2");
 
 	setupPatchingForAllParamManagers();
+	deluge::model::resolvePendingDelayTypes(*this);
 	AudioEngine::logAction("aaa4.3");
 
 	// Phase B (DOM single-store): the DOM is the sole owner of the song-global unpatched automation node storage

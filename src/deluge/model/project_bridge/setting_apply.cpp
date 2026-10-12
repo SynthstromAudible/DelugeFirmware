@@ -279,8 +279,8 @@ bool applyEffectValue(ModControllableAudio& owner, std::string_view path, const 
 	else if (path == "delay/pingPong") {
 		owner.setDelayPingPong(on);
 	}
-	else if (path == "delay/analog") {
-		owner.setDelayAnalog(on);
+	else if (path == "delay/type") {
+		owner.setDelayType(fx::parse_delay_type(text));
 	}
 	else if (path == "delay/syncType") {
 		owner.setDelaySyncType(static_cast<SyncType>(number));

@@ -157,12 +157,12 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 
 	it("reads a changed effect entry and keeps the others", _ {
 		SoundState state = sampled();
-		state.effects.delay.analog = true;
+		state.effects.delay.type = deluge::effects::DelayType::ANALOG;
 		SoundState written = state;
 		written.effects.filter.lpf_mode = deluge::effects::FilterMode::SVF_NOTCH;
 		const auto change = decode_change(encode(written, kContext), encode(state, kContext), state, kContext);
 		expect(change->state.effects.filter.lpf_mode).to_equal(deluge::effects::FilterMode::SVF_NOTCH);
-		expect(change->state.effects.delay.analog).to_be_true();
+		expect(change->state.effects.delay.type).to_equal(deluge::effects::DelayType::ANALOG);
 		expect(change->changed).to_equal(std::vector<std::string_view>{"lpfMode"});
 	});
 

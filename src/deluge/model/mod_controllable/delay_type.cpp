@@ -32,7 +32,10 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 
+#include <algorithm>
 #include <limits>
+#include <utility>
+#include <vector>
 
 namespace params = deluge::modulation::params;
 
@@ -88,6 +91,9 @@ bool delayCouldSound(ParamManager& paramManager, bool sound, const ParamBefore& 
 void forEachDelayParamManager(Song& song, const std::function<void(ModControllableAudio&, ParamManager&)>& visit) {
 	for (InstrumentClip* clip : InstrumentClips::everywhere(&song)) {
 		Output* output = clip->output;
+		if (output == nullptr) {
+			continue;
+		}
 		if (output->type == OutputType::SYNTH) {
 			visit(*static_cast<SoundInstrument*>(output), clip->paramManager);
 		}
@@ -102,12 +108,67 @@ void forEachDelayParamManager(Song& song, const std::function<void(ModControllab
 		}
 	}
 	for (AudioClip* clip : AudioClips::everywhere(&song)) {
-		visit(*static_cast<AudioOutput*>(clip->output), clip->paramManager);
+		if (clip->output != nullptr) {
+			visit(*static_cast<AudioOutput*>(clip->output), clip->paramManager);
+		}
 	}
 	visit(song.live.global_effectable, song.paramManager);
 	for (auto& [key, paramManager] : song.live.param_backup.map) {
 		visit(*key.first, paramManager);
 	}
+}
+
+namespace {
+
+/// @brief Gives @p owner its type, when its file saved none, from whether any of its param managers could sound.
+void resolve(ModControllableAudio& owner, bool couldSound) {
+	if (!owner.delayTypePending) {
+		return;
+	}
+	owner.delayTypePending = false;
+	const deluge::effects::DelayType type = owner.effects().delay.type;
+	if (!couldSound) {
+		if (type != deluge::effects::DelayType::OFF) {
+			owner.setDelayType(deluge::effects::DelayType::OFF);
+		}
+	}
+	else if (type == deluge::effects::DelayType::OFF) {
+		owner.setDelayType(deluge::effects::DelayType::DIGITAL);
+	}
+}
+
+/// @brief Resolves each pending owner of @p song that @p wanted accepts, from all of its param managers.
+void resolveWhere(Song& song, const std::function<bool(const ModControllableAudio&)>& wanted) {
+	std::vector<std::pair<ModControllableAudio*, bool>> owners;
+	forEachDelayParamManager(song, [&](ModControllableAudio& owner, ParamManager& paramManager) {
+		if (!owner.delayTypePending || !wanted(owner)) {
+			return;
+		}
+		const bool could = delayCouldSound(paramManager, owner.asSound() != nullptr);
+		auto found = std::ranges::find_if(owners, [&](const auto& entry) { return entry.first == &owner; });
+		if (found == owners.end()) {
+			owners.emplace_back(&owner, could);
+		}
+		else {
+			found->second = found->second || could;
+		}
+	});
+	for (const auto& [owner, could] : owners) {
+		resolve(*owner, could);
+	}
+}
+
+} // namespace
+
+void resolvePendingDelayTypes(Song& song) {
+	resolveWhere(song, [](const ModControllableAudio&) { return true; });
+}
+
+void resolvePendingDelayType(Song& song, ModControllableAudio& owner) {
+	if (!owner.delayTypePending) {
+		return;
+	}
+	resolveWhere(song, [&](const ModControllableAudio& candidate) { return &candidate == &owner; });
 }
 
 } // namespace deluge::model

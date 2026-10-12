@@ -20,7 +20,7 @@ inline EffectStates busy() {
 	s.saturation.clipping_amount = 3;
 	s.mod_fx.type = ModFXType::GRAIN;
 	s.delay = {.ping_pong = false,
-	           .analog = true,
+	           .type = DelayType::ANALOG,
 	           .sync_type = engine::SyncType::TRIPLET,
 	           .sync_level = engine::SyncLevel::EIGHTH};
 	s.stutter = {.use_song_stutter = true, .quantized = false, .reversed = true, .ping_pong = true};
@@ -45,7 +45,7 @@ inline std::ostream& operator<<(std::ostream& out, const EffectStates& states) {
 
 /// A delay's state, printed field by field.
 inline std::ostream& operator<<(std::ostream& out, const DelayState& delay) {
-	return out << "{pingPong " << delay.ping_pong << " analog " << delay.analog << " syncType "
+	return out << "{pingPong " << delay.ping_pong << " type " << to_string(delay.type) << " syncType "
 	           << static_cast<int>(delay.sync_type) << " syncLevel " << static_cast<int>(delay.sync_level) << "}";
 }
 } // namespace deluge::effects

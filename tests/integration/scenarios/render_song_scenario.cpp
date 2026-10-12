@@ -109,8 +109,8 @@ void readBurst(StorageModel& model) {
 }
 
 /// RENDER_DELAY_SWITCH: the blocks, counted from playback's start, at which every audio track's delay switches between
-/// analog and digital, ascending and comma-separated; empty by default. Each switch is the Edit the gold knob's press
-/// on the delay makes (ModControllableAudio::switchDelayAnalog), so the same delay is switched while it rings.
+/// analog and digital, ascending and comma-separated; empty by default. Each switch is the `delay/type` Edit the delay
+/// type menu makes, so the same delay is switched while it rings.
 std::vector<uint64_t> g_switchAt;
 std::size_t g_switchesDone = 0;
 int32_t g_tracksSwitched = 0;
@@ -136,11 +136,14 @@ void switchDelays(uint64_t block) {
 		if (owner == nullptr) {
 			continue;
 		}
-		deluge::edits::changeEffect(*owner, "delay/analog",
-		                            deluge::serialization::Value::makeNumber(owner->effects().delay.analog ? 0 : 1));
+		const bool analog = owner->effects().delay.type == deluge::effects::DelayType::ANALOG;
+		deluge::edits::changeEffect(
+		    *owner, "delay/type",
+		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(
+		        analog ? deluge::effects::DelayType::DIGITAL : deluge::effects::DelayType::ANALOG))));
 		g_tracksSwitched++;
 		printf("RS-DELAY-SWITCH block=%llu analog=%d\n", static_cast<unsigned long long>(block),
-		       owner->effects().delay.analog ? 1 : 0);
+		       owner->effects().delay.type == deluge::effects::DelayType::ANALOG ? 1 : 0);
 	}
 }
 
@@ -504,6 +507,7 @@ void report() {
 			fail("RS-MODFX-CLEAR", "a clear asked for did not clear exactly one audio track's mod FX");
 		}
 	}
+	printf("RS-DELAY-OFF silenced=%u\n", delayOffSilencedBlocks());
 	printf("RS-CAPTURE frames=%llu stereo=%d\n", static_cast<unsigned long long>(g_captured), g_stereo ? 1 : 0);
 	if (g_wrongWidthTicks != 0) {
 		fail("RS-CAPTURE", g_stereo ? "the app rendered in mono with headphones plugged in"

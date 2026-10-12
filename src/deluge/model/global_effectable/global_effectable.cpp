@@ -392,7 +392,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					}
 				}
 				else {
-					switchDelayAnalog();
+					cycleDelayType();
 
 					// if mod button is pressed, update mod button pop up
 					if (Buttons::isButtonPressed(
@@ -896,6 +896,7 @@ Error GlobalEffectable::readTagFromFile(Deserializer& reader, char const* tagNam
 void GlobalEffectable::readEffectsFromElement(const deluge::serialization::Value& element, int32_t tickMagnitude) {
 	deluge::effects::EffectStates states = effects();
 	deluge::effects::decode(element, states, {.input_tick_magnitude = tickMagnitude});
+	delayTypePending = !deluge::effects::saves_delay_type(element);
 	setEffects(states);
 	// The runtime threshold is what a save before any render writes back: the file's, when it gives one.
 	if (const deluge::serialization::Value* settings = element.find("audioCompressor");

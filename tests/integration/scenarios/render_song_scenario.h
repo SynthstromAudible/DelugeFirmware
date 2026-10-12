@@ -58,6 +58,8 @@
 ///   - `RS-TIER-SYNC-AUDIO total=<n>`: synchronous card calls the render made; the audio tier must make none.
 ///   - `RS-STREAM reads=<n>`: card reads while playing, which is the sample data streaming in.
 ///   - `RS-UNDERRUN wait=<n> unassign=<n>`: sample data playback needed and did not have.
+///   - `RS-DELAY-OFF silenced=<n>`: blocks in which a delay that is OFF had feedback enough to sound and sound coming
+///     in (delayOffSilencedBlocks); the check requires none.
 ///   - `RS-DELAY-SWITCH block=<b> analog=<0|1>`: one audio track's delay switched at block @c b, and its mode after.
 ///     Then, after the run, `RS-DELAY-SWITCH switches=<n> asked=<m> tracks=<k>`: a failure unless every switch asked
 ///     for switched exactly one audio track's delay.

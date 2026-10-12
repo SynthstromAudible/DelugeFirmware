@@ -50,6 +50,11 @@ struct EffectPieces {
 /// reader does; what the element does not name keeps its value. A delay's feedback and rate are params, not read here.
 void decode(const serialization::Value& element, EffectStates& states, const engine::CodecContext& context);
 
+/// @return Whether @p element saves its delay's type: a `type` entry in its `delay` map. A file from a firmware without
+/// the type saves only whether its delay is analog; its owner works out whether the delay is off once its params are
+/// read.
+[[nodiscard]] bool saves_delay_type(const serialization::Value& element);
+
 /// @brief The effect entries encode writes, in file order.
 inline constexpr std::array<std::string_view, 9> kEffectKeys{"modFXType",   "lpfMode",         "hpfMode",
                                                              "filterRoute", "clippingAmount",  "delay",

@@ -65,7 +65,7 @@ SETTERS = (
     "setClippingAmount",
     "setModFXType",
     "setDelayPingPong",
-    "setDelayAnalog",
+    "setDelayType",
     "setDelaySyncType",
     "setDelaySyncLevel",
     "setSidechainAttack",

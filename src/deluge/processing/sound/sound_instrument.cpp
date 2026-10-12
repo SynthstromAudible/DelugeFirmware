@@ -20,6 +20,7 @@
 #include "dsp/stereo_sample.h"
 #include "gui/views/view.h"
 #include "model/clip/instrument_clip.h"
+#include "model/mod_controllable/delay_type.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
@@ -298,6 +299,7 @@ void SoundInstrument::prepareForHibernationOrDeletion() {
 
 void SoundInstrument::setupPatchingForAllParamManagers(Song* song) {
 	song->setupPatchingForAllParamManagersForInstrument(this);
+	deluge::model::resolvePendingDelayType(*song, *this);
 }
 
 void SoundInstrument::deleteBackedUpParamManagers(Song* song) {

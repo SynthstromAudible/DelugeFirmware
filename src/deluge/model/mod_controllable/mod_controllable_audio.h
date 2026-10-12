@@ -120,7 +120,10 @@ public:
 	void setHpfMode(FilterMode value);
 	void setFilterRoute(FilterRoute value);
 	void setDelayPingPong(bool value);
-	void setDelayAnalog(bool value);
+	void setDelayType(deluge::effects::DelayType value);
+	/// Set by a read whose element saves no delay type: the type is worked out once the owner's params are read
+	/// (deluge::model::resolvePendingDelayTypes).
+	bool delayTypePending = false;
 	void setDelaySyncType(SyncType value);
 	void setDelaySyncLevel(SyncLevel value);
 	void setStutterQuantized(bool value);
@@ -189,7 +192,8 @@ protected:
 	               const Delay::State& delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
 	               bool anySoundComingIn, q31_t reverbSendAmount, int32_t* reverbBuffer);
 	void switchDelayPingPong();
-	void switchDelayAnalog();
+	/// One press of the delay's feedback knob: digital, analog, off, digital, by one Edit.
+	void cycleDelayType();
 	void switchDelaySyncType();
 	void switchDelaySyncLevel();
 	void switchLPFMode();

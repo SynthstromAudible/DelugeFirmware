@@ -24,6 +24,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/delay_type.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "model/voice/voice.h"
@@ -113,6 +114,7 @@ void SoundDrum::killAllVoices() {
 
 void SoundDrum::setupPatchingForAllParamManagers(Song* song) {
 	song->setupPatchingForAllParamManagersForDrum(this);
+	deluge::model::resolvePendingDelayType(*song, *this);
 }
 
 deluge::storage::Walk SoundDrum::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {

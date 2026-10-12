@@ -34,6 +34,8 @@ namespace detail {
 using engine::SettingInfo;
 using enum engine::SettingKind;
 
+/// A delay's types, as a file names them.
+inline constexpr std::array<std::string_view, 3> kDelayTypeNames{"off", "digital", "analog"};
 inline constexpr std::array<std::string_view, 8> kModFxTypeNames{"none",         "flanger",    "chorus",    "phaser",
                                                                  "StereoChorus", "TapeWarble", "dimension", "grainFX"};
 /// The low-pass filter's circuits and off, as a file names them.
@@ -57,7 +59,7 @@ inline constexpr std::array<engine::SettingInfo, 23> kEffectSettings{{
     {.path = "filterRoute", .kind = detail::CHOICE, .choices = detail::kFilterRouteNames},
     {.path = "clippingAmount", .min = 0, .max = 15},
     {.path = "delay/pingPong", .kind = detail::BOOL},
-    {.path = "delay/analog", .kind = detail::BOOL},
+    {.path = "delay/type", .kind = detail::CHOICE, .choices = detail::kDelayTypeNames},
     {.path = "delay/syncLevel", .min = 0, .max = engine::kMaxSyncLevel},
     {.path = "delay/syncType", .kind = detail::CHOICE, .choices = detail::kSyncTypeNames},
     {.path = "sidechain/attack", .min = 0, .max = detail::kQ31Max},

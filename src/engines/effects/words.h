@@ -143,4 +143,47 @@ enum class ModFXType : uint8_t {
 	return ModFXType::NONE;
 }
 
+/// @brief Whether a delay is on, and which feedback it plays. OFF holds no tapes and never renders.
+enum class DelayType : uint8_t {
+	OFF,
+	DIGITAL,
+	ANALOG,
+};
+
+/// @return @p type's name, as a file and an Edit write it.
+[[nodiscard]] constexpr std::string_view to_string(DelayType type) noexcept {
+	switch (type) {
+	case DelayType::OFF:
+		return "off";
+	case DelayType::ANALOG:
+		return "analog";
+	case DelayType::DIGITAL:
+		break;
+	}
+	return "digital";
+}
+
+/// @brief The delay type a file names @p text; DIGITAL for a name no type has.
+[[nodiscard]] constexpr DelayType parse_delay_type(std::string_view text) noexcept {
+	for (DelayType type : {DelayType::OFF, DelayType::ANALOG}) {
+		if (to_string(type) == text) {
+			return type;
+		}
+	}
+	return DelayType::DIGITAL;
+}
+
+/// @return The type one press of the delay's feedback knob gives after @p type: digital, analog, off, digital.
+[[nodiscard]] constexpr DelayType next_delay_type(DelayType type) noexcept {
+	switch (type) {
+	case DelayType::DIGITAL:
+		return DelayType::ANALOG;
+	case DelayType::ANALOG:
+		return DelayType::OFF;
+	case DelayType::OFF:
+		break;
+	}
+	return DelayType::DIGITAL;
+}
+
 } // namespace deluge::effects

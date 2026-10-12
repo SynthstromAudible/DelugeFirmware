@@ -26,6 +26,9 @@
 #include <cstdint>
 #include <span>
 
+/// @return How many blocks an OFF delay has been asked to sound: feedback enough to start, with sound coming in.
+uint32_t delayOffSilencedBlocks();
+
 class Delay {
 public:
 	/// The block's working state: the rate and feedback its owner derived, and the owner's settings it plays with.

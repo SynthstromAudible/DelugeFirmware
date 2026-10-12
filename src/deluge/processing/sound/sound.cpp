@@ -21,6 +21,7 @@
 #include "dsp/dx/engine.h"
 #include "engines/deluge/codec.h"
 #include "engines/deluge/sound_state.h"
+#include "engines/effects/codec.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/sound_editor.h"
@@ -2700,6 +2701,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	                                {.input_tick_magnitude = modelStack->song->getInputTickMagnitude()})) {
 		return Error::FILE_CORRUPTED;
 	}
+	delayTypePending = !deluge::effects::saves_delay_type(*element);
 
 	char const* tagName;
 
@@ -3450,7 +3452,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 				}
 			}
 			else {
-				switchDelayAnalog();
+				cycleDelayType();
 
 				// if mod button is pressed, update mod button pop up
 				if (Buttons::isButtonPressed(

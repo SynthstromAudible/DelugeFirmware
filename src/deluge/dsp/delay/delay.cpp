@@ -22,9 +22,19 @@
 #include "io/debug/log.h"
 #include "memory/stack_guard.h"
 #include "modulation/sync.h"
+#include <atomic>
 #include <cstdlib>
 
 using deluge::dsp::fixed::DelayTape;
+
+namespace {
+/// Blocks in which an OFF delay had feedback enough to sound and sound coming in.
+std::atomic<uint32_t> g_offSilencedBlocks{0};
+} // namespace
+
+uint32_t delayOffSilencedBlocks() {
+	return g_offSilencedBlocks.load(std::memory_order_relaxed);
+}
 
 void Delay::informWhetherActive(bool newActive, int32_t userDelayRate) {
 
@@ -90,14 +100,18 @@ void Delay::prepareToBeginWriting() {
 void Delay::setupWorkingState(Delay::State& workingState, const deluge::effects::DelayState& settings,
                               uint32_t timePerInternalTickInverse, bool anySoundComingIn) {
 	workingState.ping_pong = settings.ping_pong;
-	workingState.analog = settings.analog;
+	workingState.analog = settings.type == deluge::effects::DelayType::ANALOG;
 	const SyncLevel syncLevel = settings.sync_level;
 	const SyncType syncType = settings.sync_type;
 
 	// Set some stuff up that we need before we make some decisions
 	// BUG: we want to be able to reduce the 256 to 1, but for some reason, the
 	// patching engine spits out 112 even when this should be 0...
-	bool mightDoDelay = (workingState.delayFeedbackAmount >= 256 && (anySoundComingIn || repeatsUntilAbandon));
+	const bool off = settings.type == deluge::effects::DelayType::OFF;
+	if (off && workingState.delayFeedbackAmount >= 256 && anySoundComingIn) {
+		g_offSilencedBlocks.fetch_add(1, std::memory_order_relaxed);
+	}
+	bool mightDoDelay = (!off && workingState.delayFeedbackAmount >= 256 && (anySoundComingIn || repeatsUntilAbandon));
 
 	if (mightDoDelay) {
 

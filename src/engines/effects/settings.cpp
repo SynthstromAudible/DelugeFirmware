@@ -82,8 +82,8 @@ std::optional<serialization::Value> effect_setting_value(const EffectStates& sta
 		if (rest == "pingPong") {
 			return flag(states.delay.ping_pong);
 		}
-		if (rest == "analog") {
-			return flag(states.delay.analog);
+		if (rest == "type") {
+			return word(to_string(states.delay.type));
 		}
 		return sync_answer(rest, states.delay.sync_type, states.delay.sync_level);
 	}

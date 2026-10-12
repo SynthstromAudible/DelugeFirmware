@@ -13,7 +13,7 @@ EffectStates busy() {
 	s.saturation.clipping_amount = 3;
 	s.mod_fx.type = ModFXType::GRAIN;
 	s.delay = {.ping_pong = false,
-	           .analog = true,
+	           .type = DelayType::ANALOG,
 	           .sync_type = deluge::engine::SyncType::TRIPLET,
 	           .sync_level = deluge::engine::SyncLevel::EIGHTH};
 	s.compressor.threshold = 3 << 24;
@@ -40,6 +40,11 @@ describe effect_settings("the effects' settings in an Edit's form", ${
 	});
 	it("gives a sync level as the level itself", _ {
 		expect(effect_setting_value(busy(), "delay/syncLevel")->str()).to_equal(std::string("4"));
+	});
+	it("gives a delay's type as its word, and no longer an analog flag", _ {
+		expect(effect_setting_value(busy(), "delay/type")->str()).to_equal(std::string("analog"));
+		expect(effect_setting_value(EffectStates{}, "delay/type")->str()).to_equal(std::string("off"));
+		expect(effect_setting_value(busy(), "delay/analog")).not_().to_have_value();
 	});
 	it("gives the compressor's threshold as its state holds it", _ {
 		expect(effect_setting_value(busy(), "audioCompressor/thresh")->str()).to_equal(std::to_string(3 << 24));

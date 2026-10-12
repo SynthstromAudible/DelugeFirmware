@@ -78,6 +78,37 @@ describe effect_codec("an owner element's effect entries", ${
 		expect(read.delay.sync_type).to_equal(deluge::engine::SyncType::EVEN);
 		expect(read.delay.ping_pong).to_be_false();
 	});
+	it("reads a delay's type from a file that saves only whether it is analog", _ {
+		EffectStates read;
+		decode(*deluge::serialization::parseXml(R"(<sound><delay analog="1"/></sound>)")->find("sound"), read, kAtOne);
+		expect(read.delay.type).to_equal(DelayType::ANALOG);
+		decode(*deluge::serialization::parseXml(R"(<sound><delay analog="0"/></sound>)")->find("sound"), read, kAtOne);
+		expect(read.delay.type).to_equal(DelayType::DIGITAL);
+		read.delay.type = DelayType::OFF;
+		decode(*deluge::serialization::parseXml(R"(<sound><delay pingPong="0"/></sound>)")->find("sound"), read, kAtOne);
+		expect(read.delay.type).to_equal(DelayType::DIGITAL);
+	});
+	it("reads a saved delay type ahead of an analog flag", _ {
+		EffectStates read;
+		decode(*deluge::serialization::parseXml(R"(<sound><delay type="off" analog="1"/></sound>)")->find("sound"), read,
+		       kAtOne);
+		expect(read.delay.type).to_equal(DelayType::OFF);
+		decode(*deluge::serialization::parseXml(R"(<sound><delay analog="0" type="analog"/></sound>)")->find("sound"),
+		       read, kAtOne);
+		expect(read.delay.type).to_equal(DelayType::ANALOG);
+	});
+	it("writes a delay's type and no analog flag", _ {
+		const Value written = encode(busy(), kAtOne);
+		expect(written.find("delay")->find("type")->str()).to_equal(std::string("analog"));
+		expect(written.find("delay")->find("analog")).to_be_null();
+	});
+	it("tells whether an element saves its delay's type", _ {
+		expect(saves_delay_type(encode(busy(), kAtOne))).to_be_true();
+		expect(saves_delay_type(*deluge::serialization::parseXml(R"(<sound><delay analog="1"/></sound>)")->find("sound")))
+		    .to_be_false();
+		expect(saves_delay_type(*deluge::serialization::parseXml(R"(<sound lpfMode="12dB"/>)")->find("sound")))
+		    .to_be_false();
+	});
 	it("keeps what an element does not name", _ {
 		auto doc = deluge::serialization::parseXml(R"(<sound lpfMode="12dB"/>)");
 		EffectStates read = busy();
