@@ -59,10 +59,14 @@
 ///   - `RS-DELAY-SWITCH block=<b> analog=<0|1>`: one audio track's delay switched at block @c b, and its mode after.
 ///     Then, after the run, `RS-DELAY-SWITCH switches=<n> asked=<m> tracks=<k>`: a failure unless every switch asked
 ///     for switched exactly one audio track's delay.
-///   - `RS-MODFX-SWITCH block=<b> type=<t>`: one audio track's mod FX set to type @c t at block @c b; after the run,
-///     `RS-MODFX-SWITCH switches=<n> asked=<m> tracks=<k>`, a failure unless each switch set exactly one track's.
-///   - `RS-MODFX-CLEAR block=<b> type=<t>`: one audio track's mod FX memory cleared at block @c b, its type @c t;
-///     after the run, `RS-MODFX-CLEAR clears=<n> asked=<m> tracks=<k>`, a failure unless each cleared exactly one.
+///   - `RS-MODFX-SWITCH block=<b> type=<t> ring=<0|1>`: one audio track's mod FX set to type @c t at block @c b, and
+///     whether it holds a ring after. After the run, `RS-MODFX-SWITCH applied=<n> asked=<m> types=<t,...> ring=<r>
+///     noring=<k>`: the track switches made, the switches asked for, the type each set in order, and how many left the
+///     track holding a ring and how many holding none; a failure unless each switch set exactly one track's.
+///   - `RS-MODFX-CLEAR block=<b> type=<t> ring=<0|1>`: one audio track's mod FX memory cleared at block @c b, its
+///     type @c t, and whether it held a ring, which the clear zeroes (otherwise it zeroes the phaser's memories). After
+///     the run, `RS-MODFX-CLEAR applied=<n> asked=<m> ring=<r> noring=<k>`: the track clears made, the clears asked
+///     for, and how many cleared a ring and how many none; a failure unless each clear cleared exactly one track's.
 ///   - `RS-CAPTURE frames=<n> stereo=<0|1>`: frames captured, and whether headphones were plugged in. A failure if
 ///     the app rendered in the other width at any tick while playing.
 ///   - `RS-MODEL fill_delay_ms=<n> fill_read_us=<n> burst=<start>:<blocks>:<ms>`: the storage model it ran under.

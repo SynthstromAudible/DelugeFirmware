@@ -154,6 +154,11 @@ struct ModFxSwitch {
 std::vector<ModFxSwitch> g_modFxSwitchAt;
 std::size_t g_modFxSwitchesDone = 0;
 int32_t g_tracksModFxSwitched = 0;
+/// The type each track switch set, as a file writes it, comma-separated in the order they were made.
+std::string g_modFxSwitchedTypes;
+/// Track switches after which the track's mod FX holds a ring, and after which it holds none.
+int32_t g_modFxSwitchedRing = 0;
+int32_t g_modFxSwitchedNoRing = 0;
 
 void readModFxSwitches() {
 	g_modFxSwitchAt.clear();
@@ -183,8 +188,12 @@ void switchModFx(uint64_t block, const std::string& type) {
 		}
 		deluge::edits::changeEffect(*owner, "modFXType", deluge::serialization::Value::makeScalar(type));
 		g_tracksModFxSwitched++;
-		printf("RS-MODFX-SWITCH block=%llu type=%s\n", static_cast<unsigned long long>(block),
-		       std::string(deluge::effects::to_string(owner->effects().mod_fx.type)).c_str());
+		const std::string now(deluge::effects::to_string(owner->effects().mod_fx.type));
+		const bool ring = owner->modfx.holdsRing();
+		g_modFxSwitchedTypes += (g_modFxSwitchedTypes.empty() ? "" : ",") + now;
+		(ring ? g_modFxSwitchedRing : g_modFxSwitchedNoRing)++;
+		printf("RS-MODFX-SWITCH block=%llu type=%s ring=%d\n", static_cast<unsigned long long>(block), now.c_str(),
+		       ring ? 1 : 0);
 	}
 }
 
@@ -195,6 +204,9 @@ void switchModFx(uint64_t block, const std::string& type) {
 std::vector<uint64_t> g_modFxClearAt;
 std::size_t g_modFxClearsDone = 0;
 int32_t g_tracksModFxCleared = 0;
+/// Track clears that zeroed a ring, and clears of a track holding none, which zero the phaser's memories.
+int32_t g_modFxClearedRing = 0;
+int32_t g_modFxClearedNoRing = 0;
 
 void readModFxClears() {
 	g_modFxClearAt.clear();
@@ -217,10 +229,12 @@ void clearModFx(uint64_t block) {
 		if (type == ModFXType::NONE || type == ModFXType::GRAIN) {
 			continue;
 		}
+		const bool ring = owner->modfx.holdsRing();
 		owner->modfx.clearMemory();
 		g_tracksModFxCleared++;
-		printf("RS-MODFX-CLEAR block=%llu type=%s\n", static_cast<unsigned long long>(block),
-		       std::string(deluge::effects::to_string(owner->effects().mod_fx.type)).c_str());
+		(ring ? g_modFxClearedRing : g_modFxClearedNoRing)++;
+		printf("RS-MODFX-CLEAR block=%llu type=%s ring=%d\n", static_cast<unsigned long long>(block),
+		       std::string(deluge::effects::to_string(owner->effects().mod_fx.type)).c_str(), ring ? 1 : 0);
 	}
 }
 
@@ -439,16 +453,17 @@ void report() {
 		}
 	}
 	if (!g_modFxSwitchAt.empty()) {
-		printf("RS-MODFX-SWITCH switches=%zu asked=%zu tracks=%d\n", g_modFxSwitchesDone, g_modFxSwitchAt.size(),
-		       g_tracksModFxSwitched);
+		printf("RS-MODFX-SWITCH applied=%d asked=%zu types=%s ring=%d noring=%d\n", g_tracksModFxSwitched,
+		       g_modFxSwitchAt.size(), g_modFxSwitchedTypes.empty() ? "-" : g_modFxSwitchedTypes.c_str(),
+		       g_modFxSwitchedRing, g_modFxSwitchedNoRing);
 		if (g_modFxSwitchesDone != g_modFxSwitchAt.size()
 		    || g_tracksModFxSwitched != static_cast<int32_t>(g_modFxSwitchAt.size())) {
 			fail("RS-MODFX-SWITCH", "a switch asked for did not switch exactly one audio track's mod FX");
 		}
 	}
 	if (!g_modFxClearAt.empty()) {
-		printf("RS-MODFX-CLEAR clears=%zu asked=%zu tracks=%d\n", g_modFxClearsDone, g_modFxClearAt.size(),
-		       g_tracksModFxCleared);
+		printf("RS-MODFX-CLEAR applied=%d asked=%zu ring=%d noring=%d\n", g_tracksModFxCleared, g_modFxClearAt.size(),
+		       g_modFxClearedRing, g_modFxClearedNoRing);
 		if (g_modFxClearsDone != g_modFxClearAt.size()
 		    || g_tracksModFxCleared != static_cast<int32_t>(g_modFxClearAt.size())) {
 			fail("RS-MODFX-CLEAR", "a clear asked for did not clear exactly one audio track's comb mod FX");
@@ -495,9 +510,14 @@ void deluge_scenario_render_song_begin(void) {
 	readModFxSwitches();
 	g_modFxSwitchesDone = 0;
 	g_tracksModFxSwitched = 0;
+	g_modFxSwitchedTypes.clear();
+	g_modFxSwitchedRing = 0;
+	g_modFxSwitchedNoRing = 0;
 	readModFxClears();
 	g_modFxClearsDone = 0;
 	g_tracksModFxCleared = 0;
+	g_modFxClearedRing = 0;
+	g_modFxClearedNoRing = 0;
 	if (const char* blocks = std::getenv("RENDER_BLOCKS")) {
 		g_blocksWanted = std::strtoull(blocks, nullptr, 10);
 	}

@@ -14,6 +14,12 @@ adds what depends on the song, and why each check is here:
                       level must move. Playback stuck at the start of each sample renders a steady level, streams
                       nothing past the first cluster, and passes every other check here -- the card reads it counts
                       are the load's own background reads.
+    RS-MODFX-SWITCH   a gate that switches mod FX types (RENDER_MODFX_SWITCH) only: the scenario's summary must show
+                      every switch asked for applied, setting the types asked for in order, each ring type left
+                      holding a ring and the phaser none. A hook that never ran, or switched to another type, would
+                      leave the song rendering as some other song does and still compare with a record made the same way.
+    RS-MODFX-CLEAR    a gate that clears mod FX memory (RENDER_MODFX_CLEAR) only: every clear asked for applied, and
+                      both of clearMemory's paths reached, a ring zeroed and, with none held, the phaser's memories.
     RS-SWITCH         a gate that switches delays or mod FX types, or clears mod FX memory, mid-render
                       (RENDER_DELAY_SWITCH, RENDER_MODFX_SWITCH, RENDER_MODFX_CLEAR) only: the same song rendered
                       unswitched must render differently, or the switches never reached the render.
@@ -36,7 +42,7 @@ import struct
 import subprocess
 import sys
 
-from scenario_gate import int_field
+from scenario_gate import field, int_field
 
 # The scenario's mid-render switches; a gate that sets any of them is compared with the song rendered without them.
 SWITCHES = ("RENDER_DELAY_SWITCH", "RENDER_MODFX_SWITCH", "RENDER_MODFX_CLEAR")
@@ -132,6 +138,45 @@ def _check_width(gate, result, label: str) -> None:
         )
 
 
+# The mod FX types, as a file writes them, that run over a ring (effects::is_ring_type).
+RING_TYPES = frozenset({"chorus", "StereoChorus", "dimension", "flanger", "TapeWarble"})
+
+
+def _check_mod_fx_hooks(gate, result) -> None:
+    """The mod FX switches and clears the gate asked for were applied and reached their paths (see RS-MODFX-SWITCH and
+    RS-MODFX-CLEAR)."""
+    switches = gate.env.get("RENDER_MODFX_SWITCH")
+    if switches:
+        types = [item.split(":", 1)[-1] for item in switches.split(",")]
+        line = result.last("RS-MODFX-SWITCH applied=")
+        ring = sum(t in RING_TYPES for t in types)
+        if line is None:
+            gate.fail("RS-MODFX-SWITCH — no summary line: the switch hook did not run")
+        elif (
+            int_field(line, "applied") != len(types)
+            or field(line, "types") != ",".join(types)
+            or int_field(line, "ring") != ring
+            or int_field(line, "noring") != len(types) - ring
+        ):
+            gate.fail(
+                f"RS-MODFX-SWITCH — asked for {','.join(types)} ({ring} with a ring), applied: {line}"
+            )
+    clears = gate.env.get("RENDER_MODFX_CLEAR")
+    if clears:
+        asked = len(clears.split(","))
+        line = result.last("RS-MODFX-CLEAR applied=")
+        if line is None:
+            gate.fail("RS-MODFX-CLEAR — no summary line: the clear hook did not run")
+        elif (
+            int_field(line, "applied") != asked
+            or not int_field(line, "ring")
+            or not int_field(line, "noring")
+        ):
+            gate.fail(
+                f"RS-MODFX-CLEAR — asked for {asked} clears reaching a ring and the phaser's memories, applied: {line}"
+            )
+
+
 def _differs_unswitched(gate, song: str | None, generated: str, pcm: bytes) -> bool:
     """Render the song again with none of its switches, and fail unless it differs from @p pcm (see RS-SWITCH). False when
     that run itself failed."""
@@ -171,6 +216,7 @@ def run(gate):
         return
     gate.show(result)
     _check_width(gate, result, record_name)
+    _check_mod_fx_hooks(gate, result)
 
     voices = int_field(result.last("RS-VOICES "), "audio")
     if voices is None or voices <= 0:
