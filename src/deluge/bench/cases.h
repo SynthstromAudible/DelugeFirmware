@@ -1408,13 +1408,15 @@ private:
 /// samples a tick), which gives the knob's middle a tape of about 900 frames.
 inline constexpr int32_t kStutterMagnitude = 1;
 inline constexpr uint32_t kStutterTickInverse = 18'700'000;
-/// @brief The stutter-rate param (signed Q31) a recording case begins at: its slowest, the largest tape.
-inline constexpr int32_t kStutterRateSlowest = -0x7fffffff;
-/// @brief The param a playing case begins at: a fast rate, so its short tape records untimed.
-inline constexpr int32_t kStutterRateFast = 0x30000000;
+/// @brief The stutter-rate param (signed Q31) a recording case begins at: a tape of about 14,700 frames, longer than a
+/// case's warm-up and timed blocks, so it records throughout. The slowest param would clamp the tape to its largest
+/// size, whose native rate is made precise, so it would resample from the first frame.
+inline constexpr int32_t kStutterRateRecord = -0x40000000;
+/// @brief The param a playing case begins at: the knob's middle, a tape of about 900 frames, recorded untimed.
+inline constexpr int32_t kStutterRatePlay = 0;
 /// @brief How far a resampled case moves the param off the tape's native rate.
 inline constexpr int32_t kStutterRateNudge = 0x08000000;
-/// @brief Frames a playing case records untimed: past any tape kStutterRateFast makes.
+/// @brief Frames a playing case records untimed: past the tape kStutterRatePlay makes.
 inline constexpr std::size_t kStutterRecordFrames = 20'000;
 
 /// @brief One stutter case's configuration.

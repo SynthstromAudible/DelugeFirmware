@@ -13,6 +13,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "util/param_functions.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -56,6 +57,8 @@ void render_block() {
 
 void StutterCase::setup(std::size_t n) {
 	if (!rig.ready) {
+		// The bench runs before the app's start-up fills the params' neutral values, which the rate is built on.
+		functionsInit();
 		rig.ready = rig.params.setupUnpatched() == Error::NONE;
 	}
 	effects::StutterChange ended{};
@@ -67,7 +70,7 @@ void StutterCase::setup(std::size_t n) {
 	rig.input = spans.in;
 	// A recording case begins at the slowest rate, whose tape outlasts the warm-up and timed blocks; a playing case
 	// begins fast and records its short tape untimed.
-	set_rate(config_.play ? kStutterRateFast : kStutterRateSlowest);
+	set_rate(config_.play ? kStutterRatePlay : kStutterRateRecord);
 	effects::StutterChange began =
 	    fx.prepare(static_cast<uint32_t>(model::stutterRate(&rig.params, 0, kStutterMagnitude, kStutterTickInverse)));
 	std::ignore = fx.commit(began, effects::StutterState{.quantized = false});
@@ -80,7 +83,7 @@ void StutterCase::setup(std::size_t n) {
 	}
 	// A resampled case moves the rate off the tape's native one.
 	if (config_.resampled) {
-		set_rate((config_.play ? kStutterRateFast : kStutterRateSlowest) + kStutterRateNudge);
+		set_rate((config_.play ? kStutterRatePlay : kStutterRateRecord) + kStutterRateNudge);
 	}
 	std::ranges::copy(rig.input, rig.work.begin());
 }
