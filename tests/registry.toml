@@ -1052,6 +1052,24 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-tempo-delays"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "five synced delays resizing together after a tempo change render as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_TEMPO_DELAYS) whose kit's five drums each ring a digital delay synced to a half note, the song's tempo set to 70 bpm at block 300 (RENDER_TEMPO) while all five ring, so every delay grows a new, longer tape from the same block; the delays' arena, its reserves following the tempo, must have room for every one (RS-DELAY-ARENA shortfalls=0), so each takes its tape on the block it asks to, as the general heap gave it; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; the same song rendered without the tempo change must render differently (RS-SWITCH)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_TEMPO_DELAYS", RENDER_TEMPO = "300:70" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-audio-track-delay"
 path = "."
 level = "integration"

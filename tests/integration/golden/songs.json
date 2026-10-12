@@ -232,5 +232,11 @@
   "peak": 142074112,
   "rms_db": -31.24,
   "sha256": "56c9a9e7333d6a81544204c03d64ef8e9977c76cd125f67a86dd4d065b514492"
+ },
+ "RS_TEMPO_DELAYS": {
+  "frames": 384000,
+  "peak": 314840064,
+  "rms_db": -27.97,
+  "sha256": "4bb9a2cba5cc22a6a14152b57e996d2369de76cdead88ae666c7817d4dd0fd70"
  }
 }

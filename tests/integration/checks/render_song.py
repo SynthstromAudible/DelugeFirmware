@@ -28,8 +28,8 @@ adds what depends on the song, and why each check is here:
     RS-DELAY-ARENA    no tape the render could not take from the delay arena: a delay that finds it short passes the
                       audio through until the arena's job tops it up, so on these songs every delay starts on the
                       block it asks to.
-    RS-SWITCH         a gate that switches delays or mod FX types, or clears mod FX memory, mid-render
-                      (RENDER_DELAY_SWITCH, RENDER_MODFX_SWITCH, RENDER_MODFX_CLEAR) only: the same song rendered
+    RS-SWITCH         a gate that switches delays or mod FX types, clears mod FX memory or changes the tempo,
+                      mid-render (RENDER_DELAY_SWITCH, RENDER_MODFX_SWITCH, RENDER_MODFX_CLEAR, RENDER_TEMPO) only: the same song rendered
                       unswitched must render differently, or the switches never reached the render.
     RS-PCM            the rendered output, against its record in tests/integration/golden/songs.json: the same
                       record the synth golden masters keep (sha256, frames, peak, rms_db).
@@ -53,7 +53,12 @@ import sys
 from scenario_gate import field, int_field
 
 # The scenario's mid-render switches; a gate that sets any of them is compared with the song rendered without them.
-SWITCHES = ("RENDER_DELAY_SWITCH", "RENDER_MODFX_SWITCH", "RENDER_MODFX_CLEAR")
+SWITCHES = (
+    "RENDER_DELAY_SWITCH",
+    "RENDER_MODFX_SWITCH",
+    "RENDER_MODFX_CLEAR",
+    "RENDER_TEMPO",
+)
 
 
 def _pcm_record(pcm: bytes) -> dict:

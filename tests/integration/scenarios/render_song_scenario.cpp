@@ -126,6 +126,24 @@ void readSwitches() {
 	}
 }
 
+/// RENDER_TEMPO: `<block>:<bpm>`, the render block at which the song's tempo is set to @c bpm, as the tempo encoder
+/// sets it; empty by default.
+uint64_t g_tempoAt = 0;
+float g_tempoBpm = 0;
+bool g_tempoAsked = false;
+bool g_tempoDone = false;
+
+void readTempo() {
+	const char* spec = std::getenv("RENDER_TEMPO");
+	if (spec == nullptr || *spec == '\0') {
+		return;
+	}
+	char* end = nullptr;
+	g_tempoAt = std::strtoull(spec, &end, 10);
+	g_tempoBpm = (end != nullptr && *end == ':') ? std::strtof(end + 1, nullptr) : 0;
+	g_tempoAsked = g_tempoBpm > 0;
+}
+
 /// Switch every audio track's delay between analog and digital, as a press of the gold knob on its delay does, at
 /// render block @p block.
 void switchDelays(uint64_t block) {
@@ -418,6 +436,12 @@ void stepPlaying() {
 		g_wrongWidthTicks++;
 	}
 	g_blocksRendered = deluge_host_render_count() - g_renderBase;
+	if (g_tempoAsked && !g_tempoDone && g_blocksRendered >= g_tempoAt) {
+		currentSong->setBPM(g_tempoBpm, false);
+		g_tempoDone = true;
+		printf("RS-TEMPO block=%llu bpm=%.1f\n", static_cast<unsigned long long>(g_blocksRendered),
+		       static_cast<double>(g_tempoBpm));
+	}
 	while (g_switchesDone < g_switchAt.size() && g_blocksRendered >= g_switchAt[g_switchesDone]) {
 		switchDelays(g_blocksRendered);
 		g_switchesDone++;
@@ -484,6 +508,9 @@ void report() {
 	printf("RS-UNDERRUN wait=%llu unassign=%llu\n",
 	       static_cast<unsigned long long>(deluge_sim_underrun_wait_count() - g_waitBase),
 	       static_cast<unsigned long long>(deluge_sim_underrun_unassign_count() - g_unassignBase));
+	if (g_tempoAsked && !g_tempoDone) {
+		fail("RS-TEMPO", "the tempo change asked for never happened");
+	}
 	if (!g_switchAt.empty()) {
 		printf("RS-DELAY-SWITCH switches=%zu asked=%zu tracks=%d\n", g_switchesDone, g_switchAt.size(),
 		       g_tracksSwitched);
@@ -547,6 +574,7 @@ void deluge_scenario_render_song_begin(void) {
 	g_model.readUs = envU32("RENDER_FILL_READ_US");
 	readBurst(g_model);
 	readSwitches();
+	readTempo();
 	g_switchesDone = 0;
 	g_tracksSwitched = 0;
 	readModFxSwitches();

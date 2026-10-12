@@ -968,6 +968,29 @@ def delay_owners_master(dry: bool) -> dict:
     return _host(delay=OWNERS_DELAY, param_tags=KIT_DELAY["param_tags"])
 
 
+# Five kit drums, each with its own digital delay synced to a half note and its feedback held, all ringing when the
+# gate drops the tempo mid-render (RENDER_TEMPO): every delay's tape then needs a new, longer size, and every one
+# grows its new tape from the same block. The delays' arena must have room for all of them at once.
+TEMPO_DELAY = '<delay pingPong="0" analog="0" syncLevel="3" syncType="0" />'
+TEMPO_DRUMS = [
+    _drum(
+        f"RST{n}",
+        "SAMPLES/RS/A.WAV" if n % 2 else "SAMPLES/RS/B.WAV",
+        [(0, 1500)],
+        tags=TEMPO_DELAY,
+    )
+    for n in range(5)
+]
+
+
+def tempo_delays_parts() -> list[tuple[str, str]]:
+    """A kit of TEMPO_DRUMS, each drum's delay feedback held up: its instrument and its clip."""
+    kit, clip = kit_parts(DRY, TEMPO_DRUMS)
+    return [
+        (kit, clip.replace('delayFeedback="0x80000000"', 'delayFeedback="0xA0000000"'))
+    ]
+
+
 def loud_audio_parts(fx: dict) -> tuple[str, str]:
     """audio_parts, its clip playing LOUD_SAMPLE."""
     track, clip = audio_parts(fx)
@@ -1011,6 +1034,7 @@ SONGS = {
         delay_owners_parts(dry=True),
         song_settings=master_settings(delay_owners_master(dry=True)),
     ),
+    "RS_TEMPO_DELAYS": lambda v: parts_song(v, tempo_delays_parts()),
     "RS_KIT_DELAY": lambda v: parts_song(v, [kit_parts(KIT_DELAY, DELAY_DRUMS)]),
     "RS_KIT_DELAY_DRY": lambda v: parts_song(v, [kit_parts(DRY, DELAY_DRUMS)]),
     "RS_AUDIO_DELAY": lambda v: parts_song(v, [audio_parts(AUDIO_DELAY)]),
