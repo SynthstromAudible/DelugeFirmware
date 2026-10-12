@@ -43,6 +43,8 @@
 #include "model/edits/set_param_value.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/delay_arena_app.h"
+#include "model/mod_controllable/delay_type.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
@@ -64,6 +66,7 @@
 #include "storage/storage_manager.h"
 #include "util/structural_edit_probe.h"
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <csignal>
 #include <cstdio>
@@ -149,6 +152,9 @@ enum class Leg : uint8_t {
 	GrainOom,
 	GrainSwap,
 	DelayKnob,
+	DelayOom,
+	DelayMargin,
+	DelayOff,
 	Done,
 };
 
@@ -242,6 +248,12 @@ const char* legName(Leg leg) {
 		return "GRAINSWAP";
 	case Leg::DelayKnob:
 		return "DELAYKNOB";
+	case Leg::DelayOom:
+		return "DELAYOOM";
+	case Leg::DelayMargin:
+		return "DELAYMARGIN";
+	case Leg::DelayOff:
+		return "DELAYOFF";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -492,6 +504,51 @@ void turnDelayFeedback(ModControllableAudio& owner, TimelineCounter* clip, Param
 void setDelayType(ModControllableAudio& owner, deluge::effects::DelayType type) {
 	deluge::edits::changeEffect(
 	    owner, "delay/type", deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(type))));
+}
+
+/// @brief Plays @p note on @p clip's synth from the interaction tier, as a pad audition does (@p on), or ends it.
+void auditionOn(InstrumentClip* clip, int32_t note, bool on) {
+	auto* synth = static_cast<SoundInstrument*>(clip->output);
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* ms =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, clip, &clip->paramManager);
+	if (on) {
+		synth->Sound::noteOn(ms, &synth->arpeggiator, note, zeroMPEValues);
+	}
+	else {
+		synth->Sound::noteOff(ms, &synth->arpeggiator, note);
+	}
+}
+
+/// @brief Gives @p clip's synth a digital delay at feedback knob @p feedback and rate @p rate, by the menu's and the
+/// gold knob's Edits.
+void setUpDelay(InstrumentClip* clip, int32_t feedback, int32_t rate) {
+	auto* synth = static_cast<SoundInstrument*>(clip->output);
+	setDelayType(*synth, deluge::effects::DelayType::DIGITAL);
+	turnDelayFeedback(*synth, clip, clip->paramManager, feedback);
+	turnParam(*synth, clip, clip->paramManager, static_cast<int32_t>(deluge::modulation::params::GLOBAL_DELAY_RATE),
+	          rate);
+}
+
+/// @brief Ends @p clip's synth's delay: its note off, its feedback at the minimum, its type OFF.
+void tearDownDelay(InstrumentClip* clip) {
+	auto* synth = static_cast<SoundInstrument*>(clip->output);
+	auditionOn(clip, kRowNote, false);
+	turnDelayFeedback(*synth, clip, clip->paramManager, std::numeric_limits<int32_t>::min());
+	setDelayType(*synth, deluge::effects::DelayType::OFF);
+}
+
+/// @return How many owners of the song have a delay that is not OFF.
+int32_t ownersWithDelayOn() {
+	std::vector<ModControllableAudio*> owners;
+	deluge::model::forEachDelayParamManager(*currentSong, [&](ModControllableAudio& owner, ParamManager&) {
+		if (std::ranges::find(owners, &owner) == owners.end()) {
+			owners.push_back(&owner);
+		}
+	});
+	return static_cast<int32_t>(std::ranges::count_if(owners, [](ModControllableAudio* owner) {
+		return owner->effects().delay.type != deluge::effects::DelayType::OFF;
+	}));
 }
 
 /// The note row for @p note on g_clip, made if it is not there, with its index.
@@ -1125,6 +1182,127 @@ void editLeg() {
 		renderBlocks(1);
 		printf("CG-DELAYKNOB lifted=%d analogKept=%d offKept=%d chain=%d\n", lifted ? 1 : 0, analogKept ? 1 : 0,
 		       offKept ? 1 : 0, chain ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::DelayOom: {
+		g_step = "delayType";
+		// The arena's region made to fail when a synth's delay is set on: the delay cannot start and the audio passes
+		// through. The arena's next maintenance lends a region, and the delay starts on the next block.
+		auto& arena = deluge::model::delayArena();
+		deluge::model::maintainDelayArena();
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::DELAY_TAPE);
+		if (arena.regions() != 0) {
+			fail("the delay arena holds a region with no delay on");
+			break;
+		}
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		deluge::memory::failNextAllocationOfSize(deluge::effects::DelayArena::kRegionBytes);
+		setUpDelay(g_clip, 0, 0);
+		const bool injected = !deluge::memory::allocationFailurePending();
+		auditionOn(g_clip, kRowNote, true);
+		renderBlocks(8);
+		const bool passthrough = !synth->delay.isActive() && arena.regions() == 0;
+		deluge::model::maintainDelayArena();
+		renderBlocks(8);
+		const bool recovered = synth->delay.isActive() && arena.regions() >= 1;
+		tearDownDelay(g_clip);
+		renderBlocks(1);
+		deluge::model::maintainDelayArena();
+		const bool noted = deluge::notedStructuralEdits(StructuralContainer::DELAY_TAPE) > notedBefore;
+		printf("CG-DELAYOOM injected=%d passthrough=%d recovered=%d noted=%d\n", injected ? 1 : 0, passthrough ? 1 : 0,
+		       recovered ? 1 : 0, noted ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::DelayMargin: {
+		g_step = "delayStart";
+		// Five synths' delays at their slowest rate, the largest tapes, starting on the same block: the margin's two
+		// regions hold four, so the fifth finds the arena short, and starts once the arena's maintenance lends more.
+		auto& arena = deluge::model::delayArena();
+		std::array<InstrumentClip*, 5> clips{g_clip, makeSynthClip(), makeSynthClip(), makeSynthClip(),
+		                                     makeSynthClip()};
+		if (std::ranges::find(clips, nullptr) != clips.end()) {
+			break;
+		}
+		for (InstrumentClip* clip : clips) {
+			setUpDelay(clip, 0, std::numeric_limits<int32_t>::min());
+		}
+		const uint32_t shortfallsBefore = arena.shortfalls();
+		for (InstrumentClip* clip : clips) {
+			auditionOn(clip, kRowNote, true);
+		}
+		renderBlocks(1);
+		const bool shortfall = arena.shortfalls() > shortfallsBefore;
+		deluge::model::maintainDelayArena();
+		renderBlocks(4);
+		const bool recovered = std::ranges::all_of(
+		    clips, [](InstrumentClip* clip) { return static_cast<SoundInstrument*>(clip->output)->delay.isActive(); });
+		for (InstrumentClip* clip : clips) {
+			tearDownDelay(clip);
+		}
+		renderBlocks(1);
+		deluge::model::maintainDelayArena();
+		printf("CG-DELAYMARGIN shortfall=%d recovered=%d\n", shortfall ? 1 : 0, recovered ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::DelayOff: {
+		g_step = "delayOff";
+		// A ringing synth delay set OFF gives its tapes back and leaves the margin; set on again it starts again; a
+		// hibernating owner gives its tapes back; a clone is counted; a destroyed owner leaves the count; and with
+		// every delay OFF the arena returns its regions.
+		using deluge::effects::DelayType;
+		auto& arena = deluge::model::delayArena();
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::DELAY_TAPE);
+		setUpDelay(g_clip, 0, 0);
+		auditionOn(g_clip, kRowNote, true);
+		renderBlocks(20);
+		const std::size_t liveRinging = arena.live_tapes();
+		setDelayType(*synth, DelayType::OFF);
+		const bool off =
+		    synth->delay.isActive() == false && !synth->delay.counted() && arena.live_tapes() < liveRinging;
+		setDelayType(*synth, DelayType::DIGITAL);
+		renderBlocks(20);
+		const bool on = synth->delay.isActive() && synth->delay.counted();
+		synth->wontBeRenderedForAWhile();
+		const bool hibernate = !synth->delay.isActive();
+
+		InstrumentClip* other = makeSynthClip();
+		bool clone = false;
+		if (other != nullptr) {
+			auto* second = static_cast<SoundInstrument*>(other->output);
+			second->cloneFrom(synth);
+			clone = second->delay.counted() && second->effects().delay.type == DelayType::DIGITAL;
+		}
+		const bool count = arena.owners_on() == ownersWithDelayOn();
+
+		// A synth outside the song with its delay on, retired as a deleted output is: once destroyed it is not counted.
+		ParamManagerForTimeline paramManager;
+		auto* lone =
+		    static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager));
+		bool destroyed = false;
+		if (lone != nullptr) {
+			setDelayType(*lone, DelayType::DIGITAL);
+			const int32_t withLone = arena.owners_on();
+			AudioEngine::retire(static_cast<Output*>(lone));
+			renderBlocks(3);
+			AudioEngine::reclaimRetired();
+			destroyed = arena.owners_on() == withLone - 1;
+		}
+
+		tearDownDelay(g_clip);
+		if (other != nullptr) {
+			setDelayType(*static_cast<SoundInstrument*>(other->output), DelayType::OFF);
+		}
+		renderBlocks(1);
+		deluge::model::maintainDelayArena();
+		const bool released = arena.owners_on() != 0 || arena.regions() == 0;
+		const bool noted = deluge::notedStructuralEdits(StructuralContainer::DELAY_TAPE) > notedBefore;
+		printf("CG-DELAYOFF off=%d on=%d hibernate=%d clone=%d count=%d destroyed=%d released=%d noted=%d\n",
+		       off ? 1 : 0, on ? 1 : 0, hibernate ? 1 : 0, clone ? 1 : 0, count ? 1 : 0, destroyed ? 1 : 0,
+		       released ? 1 : 0, noted ? 1 : 0);
 		fflush(stdout);
 		break;
 	}

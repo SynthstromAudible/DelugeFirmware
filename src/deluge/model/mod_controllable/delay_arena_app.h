@@ -31,7 +31,11 @@ deluge::effects::DelayArena& delayArena();
 /// tape. Each run lends a region when the arena's margin is short and returns the regions it no longer needs.
 void registerDelayArenaJob();
 
-/// @return How many times the job has maintained the arena.
+/// @brief [task] What the job does: the arena's prepare, commit and finish around a section that excludes the render,
+/// counting no owner in or out.
+void maintainDelayArena();
+
+/// @return How many times the arena has been maintained.
 uint32_t delayArenaMaintenanceRuns();
 
 } // namespace deluge::model

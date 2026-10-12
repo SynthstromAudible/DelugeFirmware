@@ -64,6 +64,15 @@ kinds=<kind=n,...>`:
                              minimum while OFF it turns the delay on, digital; an ANALOG delay, or one set OFF with its
                              feedback already up, keeps its type (CG-DELAYKNOB lifted=1 analogKept=1 offKept=1 chain=1
                              required)
+    CG-DELAYOOM              a synth's delay set on with the arena's region made to fail: the delay cannot start and
+                             passes the audio through; the arena's next maintenance lends a region and it starts
+                             (CG-DELAYOOM injected=1 passthrough=1 recovered=1 noted=1 required)
+    CG-DELAYMARGIN           five synths' delays at their slowest rate starting on one block: the margin's regions hold
+                             four, the fifth finds the arena short and starts once it is topped up
+                             (CG-DELAYMARGIN shortfall=1 recovered=1 required)
+    CG-DELAYOFF              a ringing delay set OFF, on again, hibernated; a clone; a retired synth; then every delay
+                             OFF (CG-DELAYOFF off=1 on=1 hibernate=1 clone=1 count=1 destroyed=1 released=1 noted=1
+                             required)
     CG-GRAINSWAP             a synth's mod FX type set grain, chorus, grain, none by the type menu's Edit while the
                              song plays: after each change the grain holds its ring exactly when the type is the grain
                              (CG-GRAINSWAP blocks=1 noted=1 required)
@@ -113,6 +122,9 @@ LEGS = [
     "GRAINOOM",
     "GRAINSWAP",
     "DELAYKNOB",
+    "DELAYOOM",
+    "DELAYMARGIN",
+    "DELAYOFF",
 ]
 # The legs whose edits must all be made while the render is excluded.
 
@@ -199,6 +211,30 @@ def _check(gate, result) -> None:
             f"CG-DELAYKNOB — a knob lifting an OFF delay's feedback must turn it on, digital, and leave a delay "
             f"already on, or one set OFF with its feedback up, as it is ({found})"
         )
+    for line, why in (
+        (
+            "CG-DELAYOOM injected=1 passthrough=1 recovered=1 noted=1",
+            (
+                "a delay whose arena region could not be lent must pass the audio through, then start once the "
+                "arena's maintenance lends one"
+            ),
+        ),
+        (
+            "CG-DELAYMARGIN shortfall=1 recovered=1",
+            "five largest tapes starting on one block must find the margin short, then all start once it is topped up",
+        ),
+        (
+            "CG-DELAYOFF off=1 on=1 hibernate=1 clone=1 count=1 destroyed=1 released=1 noted=1",
+            (
+                "a delay set OFF, hibernated or destroyed must give its tapes back and leave the count, a clone must "
+                "be counted, and with no delay on the arena must hold no region"
+            ),
+        ),
+    ):
+        if not result.has_line(line):
+            leg = line.split(" ")[0]
+            found = _grep(result, leg + " ", f"no {leg} line")
+            gate.fail(f"{leg} — {why} ({found})")
     if not result.has_line("CG-GRAINSWAP blocks=1 noted=1"):
         found = _grep(result, "CG-GRAINSWAP blocks", "no CG-GRAINSWAP line")
         gate.fail(

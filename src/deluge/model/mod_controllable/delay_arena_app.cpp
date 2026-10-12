@@ -52,9 +52,9 @@ void requestMaintenance() {
 	}
 }
 
-/// The job: the arena's prepare, commit and finish around a section that excludes the render, with no owner counted
-/// in or out.
-void maintain() {
+} // namespace
+
+void maintainDelayArena() {
 	deluge::effects::DelayArena& arena = delayArena();
 	deluge::effects::ArenaChange change = arena.prepare(0);
 	{
@@ -66,8 +66,6 @@ void maintain() {
 	g_runs.fetch_add(1, std::memory_order_relaxed);
 }
 
-} // namespace
-
 deluge::effects::DelayArena& delayArena() {
 	static deluge::effects::DelayArena arena{
 	    {lendRegion, unlendRegion, createHeap, heapAlloc, heapFree, requestMaintenance}};
@@ -75,7 +73,7 @@ deluge::effects::DelayArena& delayArena() {
 }
 
 void registerDelayArenaJob() {
-	g_job = deluge::runtime::appLoop.add("delay arena", &maintain, deluge::runtime::kNever, 0);
+	g_job = deluge::runtime::appLoop.add("delay arena", &maintainDelayArena, deluge::runtime::kNever, 0);
 }
 
 uint32_t delayArenaMaintenanceRuns() {
