@@ -513,6 +513,61 @@ Fitted as a + C/2n from n = 32 and 128, the stereo chorus costs about 69 cycles 
   object is 3,298 B. The new `render` is 2,703 B there, and 2,930 B with `coefficients` (227 B), which does the old
   setup's work. The old LFO visit machinery (`LFO::render`'s `std::variant` visit) is outside both figures.
 
+## Granular
+
+`effects::Granular` (`Mono<Granular<CongNoise>>`, one frame kernel) as the app renders it (after) against
+`GranularProcessor`, which rendered each frame through `processOneGrainSample` (after `processGrainFX` called it, with
+`GrainBuffer::operator[]` calls and a division) (before). Cycles per channel-sample at rate `0x10000` (a grain every
+1,242 frames), mix `0x40000000`, density `-/+0x60000000` (sparse: two or three of the eight grains sound; dense: nearly
+all), pitch randomness 0 or `0x7fffffff`, 120 BPM, ring run past 66,000 frames (`DELUGE_DSP_BENCH_CASES=granular`), on
+2026-10-11. The figures are the minimum of four runs of each image; the last column is the after spread (max - min) in
+cycles, worst size. The `delay_feedback_chain_*` and `calibration_loop` controls, which the change does not touch, agree
+with the baseline to 0.1%.
+
+| case | n=32 before -> after (delta) | n=64 before -> after (delta) | n=128 before -> after (delta) | after spread |
+|---|---:|---:|---:|---:|
+| `sparse_unison` | 148.76 → 130.26 (-12.4%) | 145.69 → 121.46 (-16.6%) | 151.97 → 123.92 (-18.5%) | 1.46 |
+| `sparse_random` | 179.05 → 160.03 (-10.6%) | 178.23 → 155.35 (-12.8%) | 177.97 → 152.20 (-14.5%) | 1.66 |
+| `dense_unison` | 333.43 → 329.47 (-1.2%) | 346.42 → 336.02 (-3.0%) | 341.92 → 329.27 (-3.7%) | 8.54 |
+| `dense_random` | 346.66 → 345.10 (-0.5%) | 337.32 → 333.56 (-1.1%) | 360.52 → 352.17 (-2.3%) | 12.10 |
+| `control delay_feedback_chain_analog` | 171.45 → 171.44 (-0.0%) | 165.71 → 165.72 (+0.0%) | 162.86 → 162.86 (+0.0%) | 0.03 |
+| `control delay_feedback_chain_digital` | 19.92 → 19.91 (-0.1%) | 14.19 → 14.20 (+0.1%) | 11.35 → 11.35 (+0.0%) | 0.03 |
+
+- **Sparse grains gain 11-19%, dense ones 0.5-4%.** The saving is the per-frame calls. A sparse
+  case runs 116 instructions per channel-sample against 142 before; a dense one runs 222 against 221, since eight taps
+  of the same arithmetic dominate. The dense cases carry about 125-150 data-cache stall cycles per sample (each tap
+  reads the 512 KB ring, far larger than the L1) and about 1.1-1.4 L1 refills, the same before and after, so the
+  kernel does not remove them. The dense spread (8-12 cycles) is wider than the sparse (1.5); its cause is not
+  investigated.
+- **The loop's shape.** At the shipping flags minus `-flto=thin` (Thumb-2), the frame loop of
+  `effects::Granular::render` is 149 instructions plus a 5-instruction branch to the grain start, with no call, no `muls`, 3 `mul.w`/`mla`, 16
+  stack loads and 6 stack stores. An active tap is 53 instructions and a silent grain 5. The one call is `start_grain`
+  (`[[gnu::noinline]]`, 636 B): a grain starts once per `period` frames, 0.08% of frames at the benchmark's rate, about
+  one block in ten at n = 128. Before, `processOneGrainSample` was 112 instructions with 6 calls (`__aeabi_uidivmod`,
+  four `GrainBuffer::operator[]`, `setupGrainsIfNeeded`) and `processGrainFX` called it and
+  `AudioEngine::feedReverbBackdoorForGrain` for every frame. `std::max` on the high-water mark was a call in the loop at
+  `-fno-inline-functions` until it became a comparison.
+- **`kStateInPlace` is kept.** The kernel steps its 330-byte State where it lives. The copied form (the trait removed)
+  moves the State in and out through two `__aeabi_memcpy4` calls and the loop addresses a stack copy (24 stack loads
+  and 14 stores a frame loop against 16 and 6); against in place it is slower in every case, two runs:
+
+  | case | n=32 in place → copied | n=64 | n=128 | spread |
+  |---|---:|---:|---:|---:|
+  | `sparse_unison` | 130.26 → 139.20 (+6.9%) | 121.46 → 127.24 (+4.8%) | 123.92 → 126.61 (+2.2%) | 1.43 |
+  | `sparse_random` | 160.03 → 170.25 (+6.4%) | 155.35 → 160.52 (+3.3%) | 152.20 → 155.40 (+2.1%) | 0.43 |
+  | `dense_unison` | 329.47 → 340.44 (+3.3%) | 336.02 → 343.41 (+2.2%) | 329.27 → 332.15 (+0.9%) | 1.27 |
+  | `dense_random` | 345.10 → 356.78 (+3.4%) | 333.56 → 339.66 (+1.8%) | 352.17 → 355.90 (+1.1%) | 0.27 |
+  | `control delay_feedback_chain_analog` | 171.44 → 171.45 (+0.0%) | 165.72 → 165.71 (-0.0%) | 162.86 → 162.85 (-0.0%) | 0.01 |
+  | `control delay_feedback_chain_digital` | 19.91 → 19.91 (+0.0%) | 14.20 → 14.20 (+0.0%) | 11.35 → 11.35 (+0.0%) | 0.01 |
+
+  The copy costs 530-690 cycles a block (the fixed-cost gap of two-point fits).
+- **Code size.** Measured as the summed extents of the functions in the two non-LTO objects at the shipping flags minus
+  `-flto=thin`: `GranularProcessor.cpp.o` is 2,130 B of text (`setupGrainsIfNeeded` 610, `setupGrainFX` 342,
+  `processOneGrainSample` 322, `processGrainFX` 274); `effects::Granular`'s object is 2,962 B (`render` 716,
+  `start_grain` 636, the kernel's `prepare` 360, `Mono<Granular>`'s constructor 272, the component's `commit` 166,
+  `finish` 84 and `prepare` 68). The after object holds the allocation and type-change paths that lived in
+  `ModControllableAudio` and the owners before, so the two are not like for like.
+
 ## Open questions
 
 - Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain. The

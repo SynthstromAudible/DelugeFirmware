@@ -424,6 +424,72 @@ the allocator and the soft off.
 levels, its events and its `finish_level` call), and belongs beside
 `effects::Compressor` in `engines/effects/`; it moves there later.
 
+### Derived knob state and a send cursor: `Granular`
+
+`Granular` (`fixed/granular/granular_kernel.h`) is the granular effect as one
+processor kernel of stereo frames, rendered in place as
+`Mono<Granular<CongNoise>>::renderBlock(block, block)` by `effects::Granular`
+(`engines/effects/granular.{h,cpp}`). The kernel knows a ring it is pointed at,
+eight grains and four knobs; the component knows `ModFXType`, the allocator and
+what entering GRAIN does for each kind of owner.
+
+- **The knobs' derived values live in the State.** Each value is recomputed only
+  when its own knob moves (the grain size from the density and the rate, the
+  period from the rate, the wet, dry and feedback volumes from the mix), and the
+  size is computed from the period before the rate's own update. That caching
+  is not a pure function of the knobs, so it cannot be recomputed in a
+  `coefficients()` call: `State::levels` holds the values and `State::knobs` the
+  knob positions they came from, `prepare` updates them once per block, and the
+  `Block` it returns is a copy of `State::levels` (24 bytes; the randomness,
+  which is not cached, refreshed each block), so the steps read the values from
+  registers and the State carries them between blocks. The State is about 330 bytes: the ring pointer and indices, eight
+  grains of 36 bytes, the two wet low-pass memories, the send cursor and the
+  derived values.
+- **A high-water mask replaces zeroing the ring.** `State::written` counts the
+  slots written since the ring was taken up (`set_ring`) or restarted
+  (`restart`), and a grain's tap at or past it reads zero. The ring is never
+  zeroed by the kernel or the render, so taking one up costs nothing in the
+  audio tier, and a slot a decay restart has not rewritten reads silence where
+  it would have read the owner's earlier audio. `clear` keeps the slots written
+  before it, and the frame loop keeps `written` as one conditional move
+  (`std::max` is a call at `-fno-inline-functions`).
+- **The send cursor is an explicit second output.** The reverb feed is a value
+  per frame added to a buffer the owner supplies, so `State::send` is that
+  buffer's cursor: the `set_send` event sets it and the send amount each block,
+  and the frame step adds to it and advances it. The kernel's contract stays
+  "frames in, frames out", and the second output is a pointer the component
+  hands over by event, not a global. The post-FX volume is the other
+  by-reference result: `post_fx_volume` returns the owner's volume divided by
+  √2 for the component to store.
+- **The State block is kept for the owner's life, and the ring is keyed to the
+  type.** The first entry into GRAIN allocates the State and keeps it until the
+  owner is destroyed, so the grains, the wet low-pass memories, the first-pass
+  flag and the shutdown countdown survive a stay on another type. The 512 KB
+  ring (65,536 frames) exists exactly while the type is GRAIN: `prepare`
+  allocates it before the owner's audio-excluded section, `commit` hands it to
+  the kernel inside it (`set_ring`, or `restart` and `clear_ring` when the type
+  leaves GRAIN), and `finish` frees what was taken back after it. The kernel
+  never allocates or frees. A failed allocation leaves the effect passing
+  through.
+- **Entering GRAIN is per owner.** `EnterGrain::CLEAR` stops the grains and
+  begins the first pass again (a sound, whose change to GRAIN clears the
+  effect); `EnterGrain::KEEP` only takes the ring up afresh and leaves the
+  effect idle until its first sounding block (a clip or master chain, whose
+  effect is made when it first renders). The kernel has the events
+  (`clear`, `restart`, `arm_shutdown`, `note_full`); which of them an owner
+  gets is the component's.
+- **The frame loop has no call but the grain start.** `start_grain` is
+  `[[gnu::noinline]]` and runs once per `period` frames, about every 1,242
+  frames at the benchmark's rate, with no `muls` in the loop. The eight-tap
+  loop and the frame step are inlined into `effects::Granular::render`. See
+  [a9_dsp_performance.md](a9_dsp_performance.md#granular).
+- **The State is stepped in place.** The kernel declares `kStateInPlace`: the
+  copied form is 1% to 7% slower in every case, 530 to 690 cycles per block
+  (two copies of 330 bytes through `__aeabi_memcpy4`).
+- **The noise is a policy.** The spray, direction, pitch class, first-pass start
+  and pan of each grain come from `Noise::render()`, drawn in that order, so the
+  kernel's specs run `CongNoise` with its generator reset to the boot seed.
+
 ### The control form
 
 A **control kernel** is a block-rate signal: an envelope or a duck that the
