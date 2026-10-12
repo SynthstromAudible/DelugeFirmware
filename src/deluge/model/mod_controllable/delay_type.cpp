@@ -130,13 +130,18 @@ void resolve(ModControllableAudio& owner, bool couldSound) {
 	}
 	owner.delayTypePending = false;
 	const deluge::effects::DelayType type = owner.effects().delay.type;
+	deluge::effects::DelayType resolved = type;
 	if (!couldSound) {
-		if (type != deluge::effects::DelayType::OFF) {
-			owner.setDelayType(deluge::effects::DelayType::OFF);
-		}
+		resolved = deluge::effects::DelayType::OFF;
 	}
 	else if (type == deluge::effects::DelayType::OFF) {
-		owner.setDelayType(deluge::effects::DelayType::DIGITAL);
+		resolved = deluge::effects::DelayType::DIGITAL;
+	}
+	if (resolved != type) {
+		// Through the owner's slot or chain where it has one, so the model's record holds the type too.
+		deluge::edits::changeEffect(
+		    owner, "delay/type",
+		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(resolved))));
 	}
 }
 
@@ -204,13 +209,6 @@ void onDelayFeedbackModified(const ModelStackWithAutoParam& modelStack, int32_t 
 
 void resolvePendingDelayTypes(Song& song) {
 	resolveWhere(song, [](const ModControllableAudio&) { return true; });
-}
-
-void resolvePendingDelayType(Song& song, ModControllableAudio& owner) {
-	if (!owner.delayTypePending) {
-		return;
-	}
-	resolveWhere(song, [&](const ModControllableAudio& candidate) { return &candidate == &owner; });
 }
 
 } // namespace deluge::model

@@ -38,6 +38,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/mod_controllable/delay_type.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -630,6 +631,8 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		}
 		break;
 	}
+	// A preset saved without the delay type has it worked out now the acquired instrument is in the song.
+	deluge::model::resolvePendingDelayTypes(*currentSong);
 }
 
 ActionResult LoadInstrumentPresetUI::buttonAction(deluge::hid::Button b, bool on) {
@@ -1240,6 +1243,8 @@ Error LoadInstrumentPresetUI::swapInstrument(const deluge::gui::InstrumentLoadRe
 	}
 
 	instrumentToReplace = newInstrument;
+	// A preset saved without the delay type has it worked out now its param managers are in the song.
+	deluge::model::resolvePendingDelayTypes(*currentSong);
 	display->removeWorkingAnimation();
 	return Error::NONE;
 }
@@ -1315,6 +1320,8 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 	soundDrumToReplace = newDrum;
 	kitToLoadFor->selectedDrum = newDrum;
 	kitToLoadFor->beenEdited();
+	// A preset saved without the delay type has it worked out now its param manager is in the song.
+	deluge::model::resolvePendingDelayTypes(*currentSong);
 	return Error::NONE;
 }
 

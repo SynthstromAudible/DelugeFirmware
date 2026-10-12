@@ -60,7 +60,4 @@ void onDelayFeedbackModified(const ModelStackWithAutoParam& modelStack, int32_t 
 /// sound; otherwise the type its file's `analog` gave, or DIGITAL where its file had no delay.
 void resolvePendingDelayTypes(Song& song);
 
-/// @brief resolvePendingDelayTypes for @p owner alone, as a preset load sets up its param managers.
-void resolvePendingDelayType(Song& song, ModControllableAudio& owner);
-
 } // namespace deluge::model

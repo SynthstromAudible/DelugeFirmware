@@ -62,7 +62,11 @@
 #include <algorithm>
 #include <cstdio>
 #include <iterator>
+#include <span>
 #include <string>
+#include <string_view>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 // The GUI headers above reach `src/lib/printf.h`, which soft-aliases printf to an implementation this harness has no
@@ -476,6 +480,47 @@ bool writeInstrumentDocument(Instrument& instrument, const char* path, const cha
 }
 
 /// A synth preset whose first oscillator plays @p samplePath (see deluge::harness::writeSampleSynthPreset()).
+/// @brief Rewrites the preset at @p path in the form a firmware without the delay type saves it: each delay's `type`
+/// back as the `analog` flag it replaced. Its delays' types are then worked out when it loads.
+bool writeLegacyDelay(const char* path) {
+	std::string text;
+	{
+		auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
+		if (!opened.has_value()) {
+			return fail(legName(g_leg), "a preset could not be read back");
+		}
+		auto size = opened->size();
+		if (!size.has_value() || *size == 0) {
+			return fail(legName(g_leg), "a preset could not be read back");
+		}
+		text.resize(*size);
+		auto read = opened->read(std::as_writable_bytes(std::span{text}));
+		std::ignore = opened->close();
+		if (!read.has_value() || read->size() != *size) {
+			return fail(legName(g_leg), "a preset could not be read back");
+		}
+	}
+	for (const auto& [word, flag] :
+	     {std::pair{"type=\"off\"", "analog=\"0\""}, std::pair{"type=\"digital\"", "analog=\"0\""},
+	      std::pair{"type=\"analog\"", "analog=\"1\""}}) {
+		for (std::size_t at = text.find(word); at != std::string::npos; at = text.find(word, at)) {
+			text.replace(at, std::string_view{word}.size(), flag);
+		}
+	}
+	auto opened = deluge::io::File::open(path, DELUGE_FILE_WRITE_CREATE);
+	if (!opened.has_value()) {
+		return fail(legName(g_leg), "a preset could not be rewritten");
+	}
+	auto written = opened->write(std::as_bytes(std::span{text}));
+	std::ignore = opened->close();
+	return (written.has_value() && *written == text.size()) || fail(legName(g_leg), "a preset could not be rewritten");
+}
+
+/// @return Whether @p owner's delay type was worked out at its load: OFF, its feedback unable to sound.
+bool delayResolvedOff(ModControllableAudio& owner) {
+	return !owner.delayTypePending && owner.effects().delay.type == deluge::effects::DelayType::OFF;
+}
+
 bool writeSampleSynthPreset(const char* path, const char* samplePath) {
 	return deluge::harness::writeSampleSynthPreset(path, samplePath)
 	       || fail(legName(g_leg), "a synth preset could not be written");
@@ -714,6 +759,8 @@ void prepareLeg() {
 		bool ok = writeSampleSynthPreset(kSynthPreset, kSynthSample) && writeSampleSynthPreset(kRowPreset, kRowSample)
 		          && writeSampleSynthPreset(kClonePreset, kCloneSample)
 		          && writeKitPreset(kKitPreset, kKitDrumNames, kKitSamples, kKitDrumCount);
+		// The synth, the kit and the row load as files from a firmware without the delay type do.
+		ok = ok && writeLegacyDelay(kSynthPreset) && writeLegacyDelay(kKitPreset) && writeLegacyDelay(kRowPreset);
 		const char* baseName = "PLBASE";
 		const char* liteName = kLiteName;
 		ok = ok && writeKitPreset(kBaseKitPreset, &baseName, &kBaseKitSample, 1)
@@ -1072,6 +1119,12 @@ void checkLeg() {
 				    "is still open\n");
 				g_failures++;
 			}
+			const bool off = isSynth && delayResolvedOff(*static_cast<SoundInstrument*>(instrument));
+			printf("PL-DELAY leg=synth off=%d\n", off ? 1 : 0);
+			if (!off) {
+				printf("PL-DELAY FAIL the loaded synth's delay type was not worked out as OFF at its load\n");
+				g_failures++;
+			}
 		}
 		else {
 			// A clone takes an unused variation of the preset's name, never the name itself.
@@ -1121,6 +1174,15 @@ void checkLeg() {
 			       "NoteRow, or the browser is still open\n");
 			g_failures++;
 		}
+		bool off = isKit && delayResolvedOff(*kit);
+		for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
+			off = off && (drum->type != DrumType::SOUND || delayResolvedOff(*static_cast<SoundDrum*>(drum)));
+		}
+		printf("PL-DELAY leg=kit off=%d\n", off ? 1 : 0);
+		if (!off) {
+			printf("PL-DELAY FAIL the loaded kit's or a drum's delay type was not worked out as OFF at its load\n");
+			g_failures++;
+		}
 		break;
 	}
 	case Leg::Row: {
@@ -1139,6 +1201,12 @@ void checkLeg() {
 		if (!named || !bound || !browserClosed) {
 			printf("PL-ROW FAIL the kit row's drum is not the loaded synth, named after it with its sample bound, or "
 			       "the browser is still open\n");
+			g_failures++;
+		}
+		const bool off = drum != nullptr && delayResolvedOff(*drum);
+		printf("PL-DELAY leg=row off=%d\n", off ? 1 : 0);
+		if (!off) {
+			printf("PL-DELAY FAIL the loaded row drum's delay type was not worked out as OFF at its load\n");
 			g_failures++;
 		}
 		break;
