@@ -19,9 +19,11 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
+#include "engines/effects/delay.h"
 #include "engines/effects/granular.h"
 #include "engines/effects/mod_fx.h"
 #include "engines/effects/words.h"
+#include "gui/context_menu/clear_song.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
@@ -41,6 +43,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
+#include "model/fx/song_stutter.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/delay_arena_app.h"
@@ -74,6 +77,7 @@
 #include <cstring>
 #include <limits>
 #include <new>
+#include <tuple>
 #include <unistd.h>
 #include <vector>
 
@@ -155,6 +159,9 @@ enum class Leg : uint8_t {
 	DelayOom,
 	DelayMargin,
 	DelayOff,
+	StutterHandoff,
+	StutterOom,
+	StutterSwap, ///< Last: it swaps the scenario's song for a new one.
 	Done,
 };
 
@@ -254,6 +261,12 @@ const char* legName(Leg leg) {
 		return "DELAYMARGIN";
 	case Leg::DelayOff:
 		return "DELAYOFF";
+	case Leg::StutterHandoff:
+		return "STUTTERHANDOFF";
+	case Leg::StutterOom:
+		return "STUTTEROOM";
+	case Leg::StutterSwap:
+		return "STUTTERSWAP";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -626,13 +639,24 @@ bool setupLeg() {
 	}
 	// A note row is deleted only from a kit clip (InstrumentClip::deleteNoteRow() treats the output as a Kit).
 	g_clip = (g_leg == Leg::Drum || g_leg == Leg::RowDel || g_leg == Leg::RenderSet || g_leg == Leg::RenderAlloc
-	          || g_leg == Leg::Choke)
+	          || g_leg == Leg::Choke || g_leg == Leg::StutterHandoff || g_leg == Leg::StutterOom
+	          || g_leg == Leg::StutterSwap)
 	             ? makeKitClip()
 	             : makeSynthClip();
 	if (g_clip == nullptr) {
 		return false;
 	}
 	switch (g_leg) {
+	case Leg::StutterHandoff: {
+		// An audio track to stutter before the kit takes the stutter over.
+		Clip* clip = sessionView.createNewAudioClipForHarness(kAppendY);
+		if (clip == nullptr || clip->type != ClipType::AUDIO) {
+			return fail("no audio clip");
+		}
+		clip->activeIfNoSolo = true;
+		g_audio = static_cast<AudioClip*>(clip);
+		return true;
+	}
 	case Leg::RowDrag:
 		// Two rows to swap, straight into the row vector (scale mode discards empty out-of-scale rows).
 		return (g_clip->noteRows.insertNoteRowAtY(kRowNote) != nullptr
@@ -1309,6 +1333,84 @@ void editLeg() {
 		printf("CG-DELAYOFF off=%d on=%d hibernate=%d clone=%d count=%d destroyed=%d released=%d noted=%d\n",
 		       off ? 1 : 0, on ? 1 : 0, hibernate ? 1 : 0, clone ? 1 : 0, count ? 1 : 0, destroyed ? 1 : 0,
 		       released ? 1 : 0, noted ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::StutterHandoff: {
+		g_step = "stutter";
+		// While the song plays: the gold knob's press stutters the audio track; the song's stutter then begins the
+		// kit's, which ends the track's in the same section; the kit's release ends it.
+		deluge::model::SongStutter& stutter = currentSong->live.stutter;
+		auto* track = static_cast<AudioOutput*>(g_audio->output);
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE);
+		track->beginStutter(&g_audio->paramManager);
+		const bool first = stutter.isStuttering(*track) && isUIModeActive(UI_MODE_STUTTERING);
+		renderBlocks(20);
+		const auto rate = static_cast<uint32_t>(
+		    deluge::model::stutterRate(&g_clip->paramManager, 0, currentSong->getInputTickMagnitude(),
+		                               playbackHandler.getTimePerInternalTickInverse()));
+		const bool handed = stutter.begin(*g_kit, g_kit->effects().stutter, rate) == Error::NONE;
+		const bool second = handed && stutter.isStuttering(*g_kit) && !stutter.isStuttering(*track);
+		renderBlocks(20);
+		g_kit->endStutter(&g_clip->paramManager);
+		renderBlocks(5);
+		const bool ended = !stutter.active() && !isUIModeActive(UI_MODE_STUTTERING);
+		const bool noted = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE) >= notedBefore + 3;
+		printf("CG-STUTTERHANDOFF first=%d second=%d ended=%d noted=%d\n", first ? 1 : 0, second ? 1 : 0, ended ? 1 : 0,
+		       noted ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::StutterOom: {
+		g_step = "stutter";
+		// The kit's quantized stutter (the song's settings, quantized by default) with its tape made to fail: no
+		// stutter, no stutter UI mode, and the snap of the stutter-rate param undone.
+		deluge::model::SongStutter& stutter = currentSong->live.stutter;
+		UnpatchedParamSet* unpatched = g_clip->paramManager.getUnpatchedParamSet();
+		auto& rateParam = unpatched->params[deluge::modulation::params::UNPATCHED_STUTTER_RATE];
+		// A knob position of 20 snaps to 32nds: the param to 0, the knob offset to 8.
+		const int32_t before = unpatched->knobPosToParamValue(20, nullptr);
+		rateParam.setCurrentValueBasicForSetup(0);
+		const auto rate = static_cast<uint32_t>(
+		    deluge::model::stutterRate(&g_clip->paramManager, 8, currentSong->getInputTickMagnitude(),
+		                               playbackHandler.getTimePerInternalTickInverse()));
+		rateParam.setCurrentValueBasicForSetup(before);
+		const bool quantized = currentSong->live.global_effectable.effects().stutter.quantized
+		                       && g_kit->effects().stutter.use_song_stutter;
+		deluge::memory::failNextAllocationOfSize(deluge::effects::tape_shape(rate, true).frames
+		                                         * sizeof(deluge::dsp::StereoSample));
+		g_kit->beginStutter(&g_clip->paramManager);
+		const bool injected = quantized && !deluge::memory::allocationFailurePending();
+		const bool stuttering = stutter.active();
+		const bool uiMode = isUIModeActive(UI_MODE_STUTTERING);
+		const bool restored = unpatched->getValue(deluge::modulation::params::UNPATCHED_STUTTER_RATE) == before
+		                      && stutter.lastQuantizedKnobDiff == 0;
+		renderBlocks(2);
+		printf("CG-STUTTEROOM injected=%d stuttering=%d uiMode=%d restored=%d\n", injected ? 1 : 0, stuttering ? 1 : 0,
+		       uiMode ? 1 : 0, restored ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::StutterSwap: {
+		g_step = "clearSong";
+		// The kit stuttering when the song is swapped for a new one through the clear-song menu's accept: the old
+		// song's stutter ends and gives its tape back before the song is let go, and the stutter UI mode goes.
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE);
+		g_kit->beginStutter(&g_clip->paramManager);
+		const bool began = currentSong->live.stutter.isStuttering(*g_kit) && isUIModeActive(UI_MODE_STUTTERING);
+		renderBlocks(20);
+		std::ignore = deluge::gui::context_menu::clearSong.acceptCurrentOption();
+		// The scenario goes on in the new song.
+		g_kit = nullptr;
+		g_clip = nullptr;
+		g_home = currentSong->live.clips.session_clips.size() > 0 ? currentSong->live.clips.session_clips[0] : nullptr;
+		renderBlocks(5);
+		const bool ended = !currentSong->live.stutter.active();
+		const bool uiMode = !isUIModeActive(UI_MODE_STUTTERING);
+		// The begin noted one hand-over and the end, before the old song was let go, another.
+		const bool freed = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE) >= notedBefore + 2;
+		printf("CG-STUTTERSWAP began=%d ended=%d uiMode=%d freed=%d\n", began ? 1 : 0, ended ? 1 : 0, uiMode ? 1 : 0,
+		       freed ? 1 : 0);
 		fflush(stdout);
 		break;
 	}

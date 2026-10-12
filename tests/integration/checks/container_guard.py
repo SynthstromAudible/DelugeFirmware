@@ -73,6 +73,15 @@ kinds=<kind=n,...>`:
     CG-DELAYOFF              a ringing delay set OFF, on again, hibernated; a clone; a retired synth; then every delay
                              OFF (CG-DELAYOFF off=1 on=1 hibernate=1 clone=1 count=1 destroyed=1 released=1 noted=1
                              required)
+    CG-STUTTERHANDOFF        while the song plays, an audio track's stutter, then the kit's begun by the song's stutter
+                             (taking the track's tape back in the same section), then ended (CG-STUTTERHANDOFF first=1
+                             second=1 ended=1 noted=1 required)
+    CG-STUTTEROOM            a kit's quantized stutter with its tape made to fail: no stutter, no stutter UI mode, the
+                             stutter-rate param's snap undone (CG-STUTTEROOM injected=1 stuttering=0 uiMode=0 restored=1
+                             required)
+    CG-STUTTERSWAP           the last leg: a kit stuttering when the clear-song menu swaps the song for a new one; the
+                             stutter ends and its tape goes back before the old song is let go (CG-STUTTERSWAP began=1
+                             ended=1 uiMode=1 freed=1 required)
     CG-GRAINSWAP             a synth's mod FX type set grain, chorus, grain, none by the type menu's Edit while the
                              song plays: after each change the grain holds its ring exactly when the type is the grain
                              (CG-GRAINSWAP blocks=1 noted=1 required)
@@ -125,6 +134,9 @@ LEGS = [
     "DELAYOOM",
     "DELAYMARGIN",
     "DELAYOFF",
+    "STUTTERHANDOFF",
+    "STUTTEROOM",
+    "STUTTERSWAP",
 ]
 # The legs whose edits must all be made while the render is excluded.
 
@@ -224,6 +236,27 @@ def _check(gate, result) -> None:
             (
                 "five delays at their slowest rate starting on one block must find their reserves in the arena and "
                 "all start on that block"
+            ),
+        ),
+        (
+            "CG-STUTTERHANDOFF first=1 second=1 ended=1 noted=1",
+            (
+                "a stutter begun on a second owner must take the first's tape back in the same section, and its end "
+                "must leave no stutter and no stutter UI mode"
+            ),
+        ),
+        (
+            "CG-STUTTEROOM injected=1 stuttering=0 uiMode=0 restored=1",
+            (
+                "a stutter whose tape could not be allocated must leave no stutter, no stutter UI mode, and the "
+                "stutter-rate param as it was"
+            ),
+        ),
+        (
+            "CG-STUTTERSWAP began=1 ended=1 uiMode=1 freed=1",
+            (
+                "a song swapped while it stutters must end the stutter and give its tape back before the song is "
+                "let go"
             ),
         ),
         (
