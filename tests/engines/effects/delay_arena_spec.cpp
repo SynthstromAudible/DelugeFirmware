@@ -24,6 +24,7 @@
 #include "mock_panic.h"
 
 #include <algorithm>
+#include <array>
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -125,6 +126,16 @@ void maintain(DelayArena& arena, int on_delta) {
 	arena.commit(change);
 	arena.finish(change);
 }
+
+/// @brief Maintains @p arena until it lends nothing more, as its job does on each wake.
+void settle(DelayArena& arena) {
+	for (int i = 0; i < 8; i++) {
+		maintain(arena, 0);
+	}
+}
+
+/// A reserve of 68,750 frames (550,000 bytes): a region holds two, not three.
+constexpr std::size_t kTwoPerRegionFrames = 68750;
 
 } // namespace
 
@@ -263,6 +274,71 @@ describe delay_arena("the delay's arena", ${
 		maintain(arena, 0);
 		maintain(arena, +1);
 		expect(memory.lends).to_equal(lends);
+		maintain(arena, -2);
+	});
+	it("places five owners' largest reserves before any of their tapes is taken", _ {
+		fresh_memory();
+		DelayArena arena{kMemory};
+		maintain(arena, +5);
+		std::array<std::size_t, 5> slots{};
+		for (std::size_t& slot : slots) {
+			slot = arena.open_slot(kMaxFrames);
+		}
+		settle(arena);
+		expect(arena.holds_margin()).to_be_true();
+		std::array<StereoSample*, 5> tapes{};
+		for (StereoSample*& tape : tapes) {
+			tape = arena.take(kMaxFrames);
+		}
+		expect(arena.shortfalls()).to_equal(uint32_t{0});
+		for (StereoSample* tape : tapes) {
+			arena.give_back(tape, kMaxFrames);
+		}
+		for (std::size_t slot : slots) {
+			arena.close_slot(slot);
+		}
+		maintain(arena, -5);
+	});
+	it("packs reserves into regions where a byte count would find room that is not there", _ {
+		fresh_memory();
+		DelayArena arena{kMemory};
+		maintain(arena, +3);
+		std::array<std::size_t, 3> slots{};
+		for (std::size_t& slot : slots) {
+			slot = arena.open_slot(kTwoPerRegionFrames);
+		}
+		settle(arena);
+		expect(arena.regions()).to_equal(std::size_t{3});
+		for (std::size_t slot : slots) {
+			arena.close_slot(slot);
+		}
+		maintain(arena, -3);
+	});
+	it("asks for maintenance when the render raises a reserve past the margin", _ {
+		TestMemory& memory = fresh_memory();
+		DelayArena arena{kMemory};
+		maintain(arena, +1);
+		const std::size_t slot = arena.open_slot(DelayArena::kNeutralTapeBytes / sizeof(StereoSample));
+		settle(arena);
+		const int before = memory.maintenance;
+		arena.raise_reserve(slot, kMaxFrames);
+		expect(memory.maintenance).to_be_greater_than(before);
+		expect(arena.holds_margin()).to_be_false();
+		settle(arena);
+		expect(arena.holds_margin()).to_be_true();
+		arena.close_slot(slot);
+		maintain(arena, -1);
+	});
+	it("reuses a closed slot", _ {
+		fresh_memory();
+		DelayArena arena{kMemory};
+		maintain(arena, +2);
+		const std::size_t first = arena.open_slot(16);
+		const std::size_t second = arena.open_slot(16);
+		arena.close_slot(first);
+		expect(arena.open_slot(16)).to_equal(first);
+		arena.close_slot(first);
+		arena.close_slot(second);
 		maintain(arena, -2);
 	});
 	it("freezes on counting out an owner it never counted in", _ {

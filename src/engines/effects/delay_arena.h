@@ -24,6 +24,8 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <span>
+#include <vector>
 
 namespace deluge::effects {
 
@@ -57,7 +59,9 @@ struct ArenaChange {
 /// which the render takes tapes from and gives them back to without calling the general heap.
 ///
 /// While any owner is counted on (its delay type not OFF), the arena holds a margin: room for two tapes of the
-/// largest size, found by a trial, and free bytes for one tape at the neutral rate per owner on. A take that leaves
+/// largest size, and for each owner on the reserve its slot holds (the tape its settings or its largest take need; a
+/// neutral-rate tape for an owner with no slot), packed largest first into the regions' free space; the two largest
+/// are confirmed by a trial. A take that leaves
 /// the margin short asks for maintenance; the job (or an owner's projection) then lends a region. Regions are kept
 /// while their owners stay on, so a delay starting and ringing out again and again takes nothing new from the general
 /// heap; they are returned when owners are counted out and what remains holds the margin, all of them when none is
@@ -102,7 +106,22 @@ public:
 	/// @brief [task, inside the section] Whether the arena holds the margin. Takes and gives back two trial tapes.
 	[[nodiscard]] bool holds_margin();
 
+	/// @brief [task, inside the section] Opens a slot reserving @p frames frames for one owner's next tape.
+	/// @return The slot, for set_reserve, raise_reserve and close_slot.
+	[[nodiscard]] std::size_t open_slot(std::size_t frames);
+	/// @brief [task, inside the section] Sets @p slot's reserve to @p frames frames.
+	void set_reserve(std::size_t slot, std::size_t frames);
+	/// @brief [render] Raises @p slot's reserve to @p frames frames when that is larger, asking for maintenance when
+	/// the margin no longer holds.
+	void raise_reserve(std::size_t slot, std::size_t frames);
+	/// @brief [task, inside the section] Closes @p slot.
+	void close_slot(std::size_t slot);
+	/// @return @p slot's reserve, in frames.
+	[[nodiscard]] std::size_t reserve(std::size_t slot) const { return slot < slots_.size() ? slots_[slot] : 0; }
+
 	[[nodiscard]] std::size_t regions() const { return count_; }
+	/// @return Whether the margin was last found to hold.
+	[[nodiscard]] bool margin_holds() const { return margin_ok_.load(std::memory_order_relaxed); }
 	[[nodiscard]] std::size_t live_tapes() const;
 	[[nodiscard]] int owners_on() const { return on_; }
 	[[nodiscard]] uint32_t shortfalls() const { return shortfalls_.load(std::memory_order_relaxed); }
@@ -118,14 +137,14 @@ private:
 
 	/// @return Whether the regions other than @p skip (none when out of range) hold the margin.
 	[[nodiscard]] bool holds_margin_without(std::size_t skip);
-	/// @return [render] Whether the margin holds by the render's own count: the free bytes are enough and a region is
-	/// empty (an empty region holds the two largest tapes). No trial: it may find the margin short when the trial
-	/// would not, never the other way.
+	/// @return [render] Whether the margin holds by the render's own count: it packs in the slots' order (no sort,
+	/// no allocation) and a region is empty (an empty region holds the two largest tapes). No trial: it may find the
+	/// margin short when the trial would not, never the other way.
 	[[nodiscard]] bool margin_by_count() const;
-	/// @return The free bytes the regions other than @p skip have, by their tapes' count.
-	[[nodiscard]] std::size_t free_bytes_without(std::size_t skip) const;
-	/// @return The free bytes the margin wants with the owners now on.
-	[[nodiscard]] std::size_t margin_bytes() const;
+	/// @return Whether the margin's items pack into the free space of the regions other than @p skip, each into the
+	/// first with room: the two largest tapes, then @p reserves (frames; 0 for a closed slot) in their order, then a
+	/// neutral-rate tape for each owner on with no slot.
+	[[nodiscard]] bool margin_packs(std::size_t skip, std::span<const std::size_t> reserves) const;
 	/// @return The index of the region holding @p storage; count_ when none does.
 	[[nodiscard]] std::size_t region_of(const void* storage) const;
 	/// @return Whether @p region was attached: a heap built over it.
@@ -136,6 +155,12 @@ private:
 	std::array<Region, kArenaMaxRegions> regions_{};
 	std::size_t count_ = 0;
 	int on_ = 0;
+	/// Each open slot's reserve, in frames; 0 for a closed slot. Grown only inside the section; the render writes
+	/// only its own owner's slot.
+	std::vector<std::size_t> slots_;
+	std::size_t open_slots_ = 0;
+	/// The sorted reserves' scratch, for margin_packs on the interaction tier.
+	std::vector<std::size_t> scratch_;
 	std::atomic<bool> margin_ok_{false}; ///< written by take (the render) and commit; read by prepare
 	std::atomic<uint32_t> shortfalls_{0};
 };

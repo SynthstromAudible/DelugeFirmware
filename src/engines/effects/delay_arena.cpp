@@ -20,6 +20,8 @@
 #include "foundation/panic.h"
 
 #include <algorithm>
+#include <array>
+#include <functional>
 
 namespace deluge::effects {
 
@@ -114,35 +116,57 @@ bool DelayArena::holds_margin() {
 	return holds_margin_without(kArenaMaxRegions);
 }
 
-std::size_t DelayArena::free_bytes_without(std::size_t skip) const {
-	std::size_t free_bytes = 0;
+bool DelayArena::margin_packs(std::size_t skip, std::span<const std::size_t> reserves) const {
+	std::array<std::size_t, kArenaMaxRegions> free{};
 	for (std::size_t i = 0; i < count_; i++) {
-		if (i != skip) {
-			free_bytes += region_bytes_ - std::min(region_bytes_, regions_[i].used_bytes);
+		free[i] = i == skip ? 0 : region_bytes_ - std::min(region_bytes_, regions_[i].used_bytes);
+	}
+	const auto place = [&](std::size_t bytes) {
+		for (std::size_t i = 0; i < count_; i++) {
+			if (free[i] >= bytes) {
+				free[i] -= bytes;
+				return true;
+			}
+		}
+		return false;
+	};
+	for (std::size_t m = 0; m < kMarginMaxTapes; m++) {
+		if (!place(kMaxTapeBytes + kTapeOverheadBytes)) {
+			return false;
 		}
 	}
-	return free_bytes;
-}
-
-std::size_t DelayArena::margin_bytes() const {
-	return (kMarginMaxTapes * kMaxTapeBytes)
-	       + (static_cast<std::size_t>(on_) * (kNeutralTapeBytes + kTapeOverheadBytes));
+	const auto bytes_of = [](std::size_t frames) { return (frames * sizeof(dsp::StereoSample)) + kTapeOverheadBytes; };
+	for (const std::size_t frames : reserves) {
+		if (frames != 0 && !place(bytes_of(frames))) {
+			return false;
+		}
+	}
+	const int unslotted = on_ - static_cast<int>(open_slots_);
+	for (int o = 0; o < unslotted; o++) {
+		if (!place(kNeutralTapeBytes + kTapeOverheadBytes)) {
+			return false;
+		}
+	}
+	return true;
 }
 
 bool DelayArena::margin_by_count() const {
-	if (on_ <= 0 || free_bytes_without(kArenaMaxRegions) < margin_bytes()) {
+	if (on_ <= 0) {
 		return false;
 	}
+	bool empty_region = false;
 	for (std::size_t i = 0; i < count_; i++) {
-		if (regions_[i].live == 0) {
-			return true;
-		}
+		empty_region = empty_region || regions_[i].live == 0;
 	}
-	return false;
+	// The render's own count packs in the slots' order, without the interaction tier's sorted scratch.
+	return empty_region && margin_packs(kArenaMaxRegions, slots_);
 }
 
 bool DelayArena::holds_margin_without(std::size_t skip) {
-	if (free_bytes_without(skip) < margin_bytes()) {
+	// Largest first packs tightest; the sort's scratch belongs to the interaction tier.
+	scratch_.assign(slots_.begin(), slots_.end());
+	std::ranges::sort(scratch_, std::ranges::greater{});
+	if (!margin_packs(skip, scratch_)) {
 		return false;
 	}
 	// The largest tapes need contiguous room: take them for a moment, each from the first region that has it.
@@ -185,6 +209,43 @@ bool DelayArena::attach(void* region) {
 	}
 	regions_[count_++] = Region{.base = static_cast<std::byte*>(region), .heap = heap};
 	return true;
+}
+
+std::size_t DelayArena::open_slot(std::size_t frames) {
+	open_slots_++;
+	for (std::size_t slot = 0; slot < slots_.size(); slot++) {
+		if (slots_[slot] == 0) {
+			slots_[slot] = std::max<std::size_t>(frames, 1);
+			return slot;
+		}
+	}
+	slots_.push_back(std::max<std::size_t>(frames, 1));
+	return slots_.size() - 1;
+}
+
+void DelayArena::set_reserve(std::size_t slot, std::size_t frames) {
+	if (slot < slots_.size() && slots_[slot] != 0) {
+		slots_[slot] = std::max<std::size_t>(frames, 1);
+		margin_ok_.store(margin_by_count(), std::memory_order_relaxed);
+	}
+}
+
+void DelayArena::raise_reserve(std::size_t slot, std::size_t frames) {
+	if (slot >= slots_.size() || slots_[slot] == 0 || frames <= slots_[slot]) {
+		return;
+	}
+	slots_[slot] = frames;
+	if (!margin_by_count()) {
+		margin_ok_.store(false, std::memory_order_relaxed);
+		memory_.request_maintenance();
+	}
+}
+
+void DelayArena::close_slot(std::size_t slot) {
+	if (slot < slots_.size() && slots_[slot] != 0) {
+		slots_[slot] = 0;
+		open_slots_--;
+	}
 }
 
 std::size_t DelayArena::live_tapes() const {
