@@ -33,7 +33,7 @@ namespace deluge::effects {
 /// @brief A type change's allocations: the ones made before the section, and the ring taken back inside it.
 struct GranularBlockChange {
 	void* acquired_state = nullptr; ///< The kernel's State, allocated when the owner has none.
-	void* acquired_ring = nullptr;  ///< A zeroed ring, allocated for GRAIN when none was held.
+	void* acquired_ring = nullptr;  ///< A ring (not zeroed), allocated for GRAIN when none was held.
 	void* released_ring = nullptr;  ///< A ring taken back by commit, or an acquired one it did not use.
 };
 
@@ -79,8 +79,9 @@ public:
 	Granular(const Granular&) = delete;
 	Granular& operator=(const Granular&) = delete;
 
-	/// @brief Interaction tier, before the section: allocates the State when the owner has none, and a zeroed ring when
-	/// @p type is GRAIN and none is held. A failed allocation leaves the effect passing through.
+	/// @brief Interaction tier, before the section: allocates the State when the owner has none, and a ring (not
+	/// zeroed; the kernel reads it as silence) when @p type is GRAIN and none is held. A failed allocation leaves the
+	/// effect passing through.
 	[[nodiscard]] GranularBlockChange prepare(ModFXType type);
 	/// @brief Inside the owner's AudioExcludedSection: takes up the acquired State and ring, or restarts the effect and
 	/// hands the ring back when @p type is not GRAIN. An acquired ring is not taken while one is held: it moves to
