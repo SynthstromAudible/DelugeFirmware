@@ -24,70 +24,87 @@
 
 namespace deluge::effects {
 
-struct Granular::Held {
-	dsp::Mono<Kernel> mono;
-	// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-	dsp::StereoSample ring[Kernel::kRingFrames];
-};
-
-void Granular::destroy(RingAllocator allocator, void* block) {
-	std::destroy_at(static_cast<Held*>(block));
-	allocator.release(block);
+void Granular::destroy_state(RingAllocator allocator, void* state) {
+	std::destroy_at(static_cast<Mono*>(state));
+	allocator.release(state);
 }
 
-Granular::Granular(RingAllocator allocator) : allocator_(allocator) {
+Granular::Granular(RingAllocator allocator, EnterGrain enter) : allocator_(allocator), enter_(enter) {
 }
 
 Granular::~Granular() {
-	if (held_ != nullptr) {
-		destroy(allocator_, held_);
+	if (ring_ != nullptr) {
+		allocator_.release(ring_);
+	}
+	if (mono_ != nullptr) {
+		destroy_state(allocator_, mono_);
 	}
 }
 
 GranularBlockChange Granular::prepare(ModFXType type) {
 	GranularBlockChange change;
-	if (type != ModFXType::GRAIN || held_ != nullptr) {
+	if (type != ModFXType::GRAIN) {
 		return change;
 	}
-	void* block = allocator_.allocate(sizeof(Held));
-	if (block != nullptr) {
-		auto* held = new (block) Held;
-		std::memset(held->ring, 0, sizeof(held->ring));
-		held->mono.on<&Kernel::set_ring>(static_cast<dsp::StereoSample*>(held->ring));
-		change.acquired = held;
+	if (mono_ == nullptr) {
+		void* state = allocator_.allocate(sizeof(Mono));
+		if (state == nullptr) {
+			return change;
+		}
+		change.acquired_state = new (state) Mono;
+	}
+	if (ring_ == nullptr) {
+		constexpr std::size_t kBytes = Kernel::kRingFrames * sizeof(dsp::StereoSample);
+		void* ring = allocator_.allocate(kBytes);
+		if (ring != nullptr) {
+			std::memset(ring, 0, kBytes);
+			change.acquired_ring = ring;
+		}
 	}
 	return change;
 }
 
 void Granular::commit(ModFXType type, GranularBlockChange& change) {
-	if (change.acquired != nullptr) {
-		if (held_ != nullptr) {
-			change.released = std::exchange(change.acquired, nullptr);
+	if (change.acquired_state != nullptr && mono_ == nullptr) {
+		mono_ = static_cast<Mono*>(std::exchange(change.acquired_state, nullptr));
+	}
+	if (change.acquired_ring != nullptr) {
+		if (ring_ != nullptr || mono_ == nullptr) {
+			change.released_ring = std::exchange(change.acquired_ring, nullptr);
 		}
 		else {
-			held_ = static_cast<Held*>(std::exchange(change.acquired, nullptr));
+			ring_ = static_cast<dsp::StereoSample*>(std::exchange(change.acquired_ring, nullptr));
+			mono_->on<&Kernel::set_ring>(ring_);
+			if (enter_ == EnterGrain::CLEAR) {
+				mono_->on<&Kernel::clear>();
+			}
 		}
 	}
-	else if (type != ModFXType::GRAIN && held_ != nullptr) {
-		change.released = std::exchange(held_, nullptr);
+	else if (type != ModFXType::GRAIN && ring_ != nullptr) {
+		mono_->on<&Kernel::restart>();
+		mono_->on<&Kernel::clear_ring>();
+		change.released_ring = std::exchange(ring_, nullptr);
 	}
 }
 
 void Granular::finish(GranularBlockChange& change) {
-	if (change.released != nullptr) {
-		destroy(allocator_, std::exchange(change.released, nullptr));
+	if (change.released_ring != nullptr) {
+		allocator_.release(std::exchange(change.released_ring, nullptr));
 	}
-	if (change.acquired != nullptr) {
-		destroy(allocator_, std::exchange(change.acquired, nullptr));
+	if (change.acquired_ring != nullptr) {
+		allocator_.release(std::exchange(change.acquired_ring, nullptr));
+	}
+	if (change.acquired_state != nullptr) {
+		destroy_state(allocator_, std::exchange(change.acquired_state, nullptr));
 	}
 }
 
 void Granular::render(std::span<dsp::StereoSample> block, const GranularInputs& in, int32_t& post_fx_volume,
                       std::span<dsp::q31> reverb_send) {
-	if (held_ == nullptr) {
+	if (mono_ == nullptr || ring_ == nullptr) {
 		return;
 	}
-	dsp::Mono<Kernel>& mono = held_->mono;
+	Mono& mono = *mono_;
 	if (in.sound || mono.state().wraps_to_shutdown >= 0) {
 		if (in.sound) {
 			mono.on<&Kernel::arm_shutdown>();
@@ -104,23 +121,23 @@ void Granular::render(std::span<dsp::StereoSample> block, const GranularInputs& 
 }
 
 void Granular::clear() {
-	if (held_ != nullptr) {
-		held_->mono.on<&Kernel::clear>();
+	if (mono_ != nullptr) {
+		mono_->on<&Kernel::clear>();
 	}
 }
 
 void Granular::startSkippingRendering() {
-	if (held_ != nullptr) {
-		held_->mono.on<&Kernel::restart>();
+	if (mono_ != nullptr) {
+		mono_->on<&Kernel::restart>();
 	}
 }
 
 int32_t Granular::samplesToShutdown() const {
-	return held_ == nullptr ? 0 : held_->mono.state().wraps_to_shutdown * Kernel::kRingFrames;
+	return mono_ == nullptr ? 0 : mono_->state().wraps_to_shutdown * Kernel::kRingFrames;
 }
 
 const Granular::Kernel::State* Granular::state() const {
-	return held_ == nullptr ? nullptr : &held_->mono.state();
+	return mono_ == nullptr ? nullptr : &mono_->state();
 }
 
 } // namespace deluge::effects
