@@ -834,10 +834,9 @@ MOD_FX_SOFT_OFF_DEPTH = (
 )
 
 
-# Each owner's volume below its default in the songs whose mod FX would otherwise take the output to full scale, where
-# clipping would hide a change to the loudest samples: RS_MODFX_STEREO_A peaks near 0.68 of full scale,
-# RS_MODFX_SOFT_OFF near 0.57, RS_MODFX_STEREO_B near 0.41 and RS_MODFX_CLEAR near 0.52. Their dry twins take the same
-# volume, so only the mod FX differ.
+# Each owner's volume below its default in the songs whose mod FX would otherwise take the output to full scale, so
+# the peaks stay well below it: where clipping would hide a change to the loudest samples, a change shows. Their dry
+# twins take the same volume, so only the mod FX differ.
 MOD_FX_STEREO_A_VOLUME = 'volume="0xE0000000"'
 MOD_FX_SOFT_OFF_VOLUME = 'volume="0xC0000000"'
 MOD_FX_STEREO_B_VOLUME = 'volume="0xE0000000"'
