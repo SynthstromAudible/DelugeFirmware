@@ -1,5 +1,6 @@
 name: Report a problem
 description: Please tell us if something did not work as expected, for feature suggestions please visit the Discussions tab
+type: Bug
 body:
   - type: markdown
     attributes:
@@ -67,5 +68,35 @@ body:
     attributes:
       label: "If possible provide the steps to reproduce the issue and upload additional media:"
       description: "For example: 1. Turned on, 2. Clicked play, 3. Crash occured. You can drag and drop image and video files to the input box"
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where does it happen?
+      description: "Pick the closest match. This labels your report so the right people see it."
+      options:
+        - Sound / synth engine
+        - Sequencer / playback
+        - Automation
+        - MIDI
+        - CV / gate
+        - File browser
+        - Saving / loading songs and presets
+        - Menus
+        - Pads / display
+        - Other / not sure
+    validations:
+      required: false
+  - type: dropdown
+    id: impact
+    attributes:
+      label: How does it show up?
+      options:
+        - Crash or freeze
+        - Slow or laggy
+        - Behaves unexpectedly
+        - Hard to use (accessibility)
+        - Other / not sure
     validations:
       required: false

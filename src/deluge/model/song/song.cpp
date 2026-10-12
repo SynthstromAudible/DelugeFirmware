@@ -111,7 +111,11 @@ Kit* getCurrentKit() {
 
 /// Do not call in static/global constructors, song won't exist yet
 Instrument* getCurrentInstrument() {
-	auto output = currentSong->getCurrentClip()->output;
+	auto currentClip = currentSong->getCurrentClip();
+	if (currentClip == nullptr) {
+		return nullptr;
+	}
+	auto output = currentClip->output;
 	if (output == nullptr) {
 		return nullptr;
 	}
@@ -1274,6 +1278,8 @@ weAreInArrangementEditorOrInClipInstance:
 	GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true, valuesForOverride);
 	writer.writeClosingTag("songParams");
 
+	performanceView.writeSettingsToFile(writer);
+
 	writer.writeArrayStart("instruments");
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		thisOutput->writeToFile(nullptr, this);
@@ -2067,6 +2073,10 @@ loadOutput:
 				reader.exitTag("songParams", true);
 			}
 
+			else if (!strcmp(tagName, "performanceView")) {
+				performanceView.readSettingsFromFile(reader);
+			}
+
 			else if (!strcmp(tagName, "tracks") || !strcmp(tagName, "sessionClips")) {
 				Error error = readClipsFromFile(reader, &sessionClips);
 				if (error != Error::NONE) {
@@ -2438,6 +2448,8 @@ void Song::deleteSoundsWhichWontSound() {
 
 		AudioEngine::routineWithClusterLoading();
 		if (!clip->isActiveOnOutput() && clip != view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			// Arranger ClipInstances may still reference this Clip - remove them so they don't dangle (E455)
+			clip->output->deleteAnyInstancesOfClip(clip);
 			it.deleteClip(InstrumentRemoval::NONE);
 		}
 		else {
@@ -2454,6 +2466,7 @@ void Song::deleteSoundsWhichWontSound() {
 
 		AudioEngine::routineWithClusterLoading();
 		if (clip->deleteSoundsWhichWontSound(this)) {
+			clip->output->deleteAnyInstancesOfClip(clip);
 			it.deleteClip(InstrumentRemoval::DELETE);
 		}
 		else {
@@ -5598,20 +5611,26 @@ void Song::cullAudioClipVoice() {
 	AudioClip* bestClip = nullptr;
 	uint64_t lowestImmunity = 0xFFFFFFFFFFFFFFFF;
 
+	// find the audio clip with the lowest cull immunity
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
 			if (output->getActiveClip()) {
 				AudioClip* clip = (AudioClip*)output->getActiveClip();
 				if (clip->voiceSample && clip->voiceSample->oscPos > 0) {
 					uint64_t immunity = clip->getCullImmunity();
-					lowestImmunity = immunity;
-					bestClip = clip;
+					// is this the audio clip with the lowest cull immunity so far?
+					if (immunity < lowestImmunity) {
+						lowestImmunity = immunity;
+						bestClip = clip;
+					}
 				}
 			}
 		}
 	}
 
+	// did we find an audio clip voice to cull?
 	if (bestClip) {
+		// cull the audio clip voice with the lowest immunity
 		bestClip->unassignVoiceSample(false);
 		D_PRINTLN("audio clip voice culled!");
 	}

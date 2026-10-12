@@ -69,7 +69,6 @@ public:
 	virtual void setupPatching(ModelStackWithTimelineCounter* modelStack) {
 	} // You must call this when an Instrument comes into existence or something... for every Clip, not just for the
 	  // activeClip
-	void deleteAnyInstancesOfClip(InstrumentClip* clip);
 
 	// virtual void writeInstrumentDataToFile(bool savingSong, char const* slotName = "presetSlot", char const*
 	// subSlotName = "presetSubSlot");

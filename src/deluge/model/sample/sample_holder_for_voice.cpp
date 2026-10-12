@@ -22,6 +22,8 @@
 #include "storage/storage_manager.h"
 #include <cmath>
 
+#include "io/debug/log.h"
+
 SampleHolderForVoice::SampleHolderForVoice() {
 	loopStartPos = 0;
 	loopEndPos = 0;
@@ -44,7 +46,7 @@ SampleHolderForVoice::SampleHolderForVoice() {
 SampleHolderForVoice::~SampleHolderForVoice() {
 	// We have to unassign reasons here, even though our parent destructor will call unassignAllReasons() - our
 	// overriding of that virtual function won't happen as we've already been destructed!
-	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
+	for (int32_t l = 0; l < kMaxNumClustersLoadedAhead; l++) {
 		if (clustersForLoopStart[l]) {
 			audioFileManager.removeReasonFromCluster(*clustersForLoopStart[l], "E247");
 		}
@@ -53,7 +55,7 @@ SampleHolderForVoice::~SampleHolderForVoice() {
 
 void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 	SampleHolder::unassignAllClusterReasons(beingDestructed);
-	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
+	for (int32_t l = 0; l < kMaxNumClustersLoadedAhead; l++) {
 		if (clustersForLoopStart[l]) {
 			// Happened to me while auto-pilot testing, I think
 			audioFileManager.removeReasonFromCluster(*clustersForLoopStart[l], "E320");
@@ -87,23 +89,27 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 		}
 	}
 
-	if (loopStartPlaybackAtSample) {
+	uint32_t duration = getDurationInSamples();
+	auto duration_clusters = duration >> Cluster::size_magnitude;
+	if (duration_clusters <= kMaxNumClustersLoadedAhead + kNumClustersLoadedAhead) {
+		D_PRINTLN("caching whole sample");
+		// claim the next few reasons for the sample instead since we can keep it all cached
+		uint32_t nextClusterStartByte = startPlaybackAtByte + (2 * Cluster::size);
+
+		claimClusterReasonsForMarker(clustersForLoopStart, nextClusterStartByte, playDirection, clusterLoadInstruction,
+		                             kMaxNumClustersLoadedAhead);
+	}
+
+	else if (loopStartPlaybackAtSample) {
 		int32_t loopStartPlaybackAtByte =
 		    ((Sample*)audioFile)->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;
 		claimClusterReasonsForMarker(clustersForLoopStart, loopStartPlaybackAtByte, playDirection,
-		                             clusterLoadInstruction);
-	}
-
-	else if (((Sample*)audioFile)->clusters.getNumElements() <= 4) {
-		// claim the next few reasons for the sample instead since we can keep it all cached
-		int32_t nextClusterStartByte = (((Sample*)audioFile)->audioDataStartPosBytes + Cluster::size_magnitude) << 1;
-
-		claimClusterReasonsForMarker(clustersForLoopStart, nextClusterStartByte, playDirection, clusterLoadInstruction);
+		                             clusterLoadInstruction, kNumClustersLoadedAhead);
 	}
 
 	// Or if no loop start point now, clear out any reasons we had before
 	else {
-		for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
+		for (int32_t l = 0; l < kMaxNumClustersLoadedAhead; l++) {
 			if (clustersForLoopStart[l]) {
 				audioFileManager.removeReasonFromCluster(*clustersForLoopStart[l], "E246");
 				clustersForLoopStart[l] = nullptr;
@@ -136,7 +142,7 @@ uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {
 }
 
 void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctaves, bool doingSingleCycle,
-                                                              bool rangeCoversJustOneNote, bool thatOneNote) {
+                                                              bool rangeCoversJustOneNote, int32_t that_one_note) {
 	((Sample*)audioFile)->workOutMIDINote(doingSingleCycle);
 	float midiNote = ((Sample*)audioFile)->midiNote;
 	if (midiNote != -1000) {
@@ -155,7 +161,7 @@ void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctav
 		}
 
 		else if (rangeCoversJustOneNote) {
-			if (semitonesInt == 60 - thatOneNote) {
+			if (semitonesInt == 60 - that_one_note) {
 				if (cents >= -4 && cents <= 4) {
 					cents = 0;
 					// Uart::println("discarded cents");
