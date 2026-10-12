@@ -110,6 +110,9 @@ void songSwapInteractionSide(Song* outgoing, bool posted) {
 	// its retire, which applies the requests first.
 	if (outgoing != nullptr) {
 		outgoing->stopAllAuditioning();
+		// Its stutter ends and gives the tape back here, on the interaction tier, before the retire frees the song; the
+		// UI mode set below leaves the stutter's mode.
+		outgoing->live.stutter.end();
 #if defined(DELUGE_HOST)
 		g_outgoingAuditioning.store(anyAuditioning(outgoing) ? 1 : 0, std::memory_order_relaxed);
 #endif
