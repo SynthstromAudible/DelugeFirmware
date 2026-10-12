@@ -91,7 +91,8 @@ public:
 	}
 	/// Copy the settings into the render's copy, with the render excluded.
 	void projectModControllableSnapshot();
-	/// Store the mod-FX type without setModFXType()'s owner-specific setup — for the load path and cloneFrom().
+	/// Store the mod-FX type; setModFXType() does the same through the virtual entry. For the load path and
+	/// cloneFrom().
 	void assignModFXType(ModFXType value);
 	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);

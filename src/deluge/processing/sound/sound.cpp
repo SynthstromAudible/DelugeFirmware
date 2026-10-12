@@ -435,14 +435,6 @@ ModFXType Sound::getModFXType() {
 	return modControllableSnapshot_.effects.mod_fx.type;
 }
 
-/// Sets the mod FX type. A ring type's ring, and the grain's State and ring, are taken where the type reaches the
-/// render (projectModControllableSnapshot()); when that allocation fails the type is kept and the audio passes
-/// through until the next effects edit. Always returns true on the mod FX path.
-bool Sound::setModFXType(ModFXType newType) {
-	assignModFXType(newType);
-	return true;
-}
-
 void Sound::patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
                                            int32_t newValue) {
 

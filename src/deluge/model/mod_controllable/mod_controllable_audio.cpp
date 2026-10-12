@@ -1090,8 +1090,9 @@ void ModControllableAudio::clearModFXMemory() {
 }
 
 bool ModControllableAudio::setModFXType(ModFXType newType) {
-	// The mod FX ring is taken where the type reaches the render, in projectModControllableSnapshot(); Sound overrides
-	// this for its grain.
+	// The mod FX ring, and the grain's State and ring, are taken where the type reaches the render, in
+	// projectModControllableSnapshot(). When that allocation fails the type is kept and the audio passes through until
+	// the next effects edit.
 	assignModFXType(newType);
 	return true;
 }
