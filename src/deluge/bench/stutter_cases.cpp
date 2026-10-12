@@ -13,7 +13,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
-#include "util/param_functions.h"
+#include "util/functions.h"
 
 #include <algorithm>
 #include <cstddef>
