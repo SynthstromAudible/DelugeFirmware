@@ -1,0 +1,16 @@
+PASS production Custom 1-4 setter: independent source masks, full unipolar endpoints under both default polarities, signed/zero depth and clearing
+PASS production Custom Depth: all four sources, pitch/modulator/delay-rate, half/full/negative/zero, stock curve unchanged
+PASS production MDD SCALE: Song-key quantization toggle, release no double toggle, SHIFT cycle, LEARN/stock routing and SD deferral
+PASS production OLED: full WRITE header scrolls during playback, bounded forward/reverse cycle, stock labels remain still during playback and scroll when stopped
+PASS production Song scale fitting: active MDD dormant rows excluded, Normal and other project clips retained
+PASS actual WRITE: rollback at 34 allocation points, native consequence undo/redo restores notes/row expression/direction and rejects missing action, stock row commit, scale, gates, velocity, empty sequence, preserved transport phase, audio service without user-action reentrancy
+PASS native MDD: encoder writes, routes/rollback, root/scale, foreground pad forwarding, mute/hold/length, lane safety, held controls, stock Shift and mode navigation
+PASS native sync: shared tick deltas in both modes, live mode switch without rewind, start/restart/seek, batched clock ticks and two song tick resolutions
+PASS cleanup and actual grid render: 71680 frames, 7 lanes, 5 shapes, 4 directions, lengths 1-16, shifted/muted playhead and stopped/inactive states
+PASS actual OLED rendering: 48px bounds, root status, native menu hint and discrete Engine values
+PASS: paths, lengths, directions, gestures, mute, hold, random, gate, independent Custom, clip editor state
+PASS clip codec: atomic validation, settings, routes, mute, held and play position
+PASS actual InstrumentClip bridge: note-on/off, gate duration, duplicate tick, Custom output, cleanup, root/scale and deferred selection
+PASS Engine parameter: all manual model/base combinations, Custom endpoints 1/2/3 and bounds
+PASS bake: playback-equivalent notes/gates/velocity, 1280 shape/direction/length/speed combinations, empty loop and allocation failure
+PASS startup: all seven lanes default to actual 1/16 at nine clock resolutions, saved timing roundtrip, legacy native timing and all 15 plain/triplet/dotted speed rebindings and first-activation normalization

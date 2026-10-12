@@ -1,0 +1,8 @@
+Internal ctest changing into directory: /tmp/deluge-reverb-spec/build
+Test project /tmp/deluge-reverb-spec/build
+    Start 3: reverb_spec
+1/1 Test #3: reverb_spec ......................   Passed    9.62 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   9.62 sec

@@ -10,7 +10,7 @@ cd DelugeFirmware
 ./dbt build Release
 ```
 
-On Windows use `dbt.cmd build Release`. Consult the retained upstream development documentation for host dependencies and toolchain setup. Build output is generated under build/. The published BIN was built in ARM Release configuration from source commit `15ade072b5a008b0af80eba64cee5046f8188a99` using toolchain v22. Physical-device testing is still pending; compilation and host tests do not replace it. See firmware/BUILD_INFO.json for the exact build commands and checksum.
+On Windows use `dbt.cmd build Release`. Consult the retained upstream development documentation for host dependencies and toolchain setup. Build output is generated under build/. The published BIN was built in ARM Release configuration from source commit `a13bf0fba59f13217129a90c20b714223deef6a5` using toolchain v22. Physical-device testing is still pending; compilation and host tests do not replace it. See firmware/BUILD_INFO.json for the exact build commands and checksum.
 
 Host regressions (Python 3, g++ with C++23 and sanitizers):
 
@@ -26,3 +26,5 @@ g++ -std=c++23 -O3 -ffast-math -Isrc/deluge -Isrc/plaits_vendor tests/regression
 ```
 
 Use the exact source commit when labeling any built binary. The imported historical snapshot IDs in the notes are provenance records; the publication commit has its own Git hash. Firmware installation guidance remains in the upstream documentation.
+
+Toolchain v22 on this Linux host needed its LTO plugin registered with binutils before linking. If the bundle has no `arm-none-eabi-gcc/lib/bfd-plugins/liblto_plugin.so`, create a symlink there to `../../libexec/gcc/arm-none-eabi/14.2.1/liblto_plugin.so`. Reindex existing build archives with `arm-none-eabi-gcc-ranlib` or rebuild after registering the plugin. This changes the local toolchain setup, not firmware source.

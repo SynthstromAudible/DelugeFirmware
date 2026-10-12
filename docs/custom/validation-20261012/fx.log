@@ -1,0 +1,9 @@
+PASS grain/allocation
+PASS grain/rate
+PASS delay/copy
+PASS hpf/load
+PASS reverb/damping
+PASS reverb/width
+PASS menu/shift
+PASS menu/navigation
+All 8 host regression groups passed; hardware testing is separate.

@@ -1,0 +1,6 @@
+PASS model 0: buffers, macro corners, reset determinism, non-silent output
+PASS model 1: buffers, macro corners, reset determinism, non-silent output
+PASS model 2: buffers, macro corners, reset determinism, non-silent output
+PASS 1000 live model switches, finite output and unchanged-model continuity
+PASS A4 pitch: 440.011 Hz; host voice bytes 320
+PASS AUX-null primary output equality, parameter corners, dynamic pitch, guard samples

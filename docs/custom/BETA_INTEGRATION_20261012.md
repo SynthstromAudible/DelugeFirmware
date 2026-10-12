@@ -30,4 +30,4 @@ Song HPF loading is an additional fix: model initialization in #4990 does not re
 
 PR #4990 is upstream work by Katherine Whitlock. Deluge copyright and GPL notices remain intact. Plaits/stmlib is Emilie Gillet's MIT-licensed source; original notices and the MIT license are retained. This is an unofficial modified release.
 
-Host regressions and an ARM Release build are required before publishing the new BIN. No physical-device validation or ARM CPU/polyphony measurement is claimed. Existing historical audit documents describe their dated snapshots; consult firmware/BUILD_INFO.json for the distributed binary's exact source and checksum.
+MDD, Plaits, startup, audio-culling and all eight effects/menu regression groups passed. The upstream reverb_spec passed (including delay-line bounds checking). The ARM Release build completed with DBT v22. The ARM ELF header was verified, and objcopy output matched the distributed BIN byte for byte. No physical-device validation or ARM CPU/polyphony measurement is claimed. Existing historical audit documents describe their dated snapshots; consult firmware/BUILD_INFO.json for the distributed binary's exact source and checksum.

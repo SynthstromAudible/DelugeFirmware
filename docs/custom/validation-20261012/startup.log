@@ -1,0 +1,1 @@
+PASS startup: four-second greeting after slow load / blank startup; load errors, canary, open/write failure and 7-segment guards

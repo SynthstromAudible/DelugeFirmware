@@ -8,9 +8,9 @@ Unofficial OLED-focused modification of Synthstrom Audible's Deluge Community Fi
 - Plaits: FM, Waveshaping and Virtual Analog oscillator engines, with mappable engine selection. This is a three-engine subset, not the complete Plaits module.
 - Additional startup, OLED, effects and overload-safety changes.
 
-**Download:** [OLED firmware BIN](https://raw.githubusercontent.com/mileda/DelugeFirmware/main/firmware/deluge-mdd-plaits-oled-15ade072.bin) · [Installation instructions](firmware/INSTALL.md) · [Exact source](https://github.com/mileda/DelugeFirmware/tree/15ade072b5a008b0af80eba64cee5046f8188a99)
+**Download:** [OLED firmware BIN](https://raw.githubusercontent.com/mileda/DelugeFirmware/main/firmware/deluge-mdd-plaits-oled-a13bf0fb.bin) · [Installation instructions](firmware/INSTALL.md) · [Exact source](https://github.com/mileda/DelugeFirmware/tree/a13bf0fba59f13217129a90c20b714223deef6a5)
 
-**Current status:** experimental ARM Release build available, compiled from source commit `15ade072b5a008b0af80eba64cee5046f8188a99` with DBT toolchain v22. Host regression tests passed. Physical-device testing has not been performed. This is not a stable official release. See [build details and checksum](firmware/BUILD_INFO.json).
+**Current status:** experimental ARM Release build available, compiled from source commit `a13bf0fba59f13217129a90c20b714223deef6a5` with DBT toolchain v22. Host regression tests passed. Physical-device testing has not been performed. This is not a stable official release. See [build details and checksum](firmware/BUILD_INFO.json).
 
 Read [beta integration and all 15 retained changes](docs/custom/BETA_INTEGRATION_20261012.md), [changes and attribution](CUSTOM_CHANGES.md), [licensing](THIRD_PARTY_NOTICES.md), [build instructions](BUILD_CUSTOM.md), and the [CPU audit](docs/custom/CPU_AUDIT.md).
 

@@ -1,4 +1,6 @@
-# Custom modification notice — 2026-10-11
+# Custom modification notice — updated 2026-10-12
+
+The current build integrates beta `be3e993c` and Reverb PR #4990, retaining all selected custom changes 1–15. See [current integration notes](docs/custom/BETA_INTEGRATION_20261012.md). The inventory below records the earlier 11 October snapshot.
 
 This is a modified version of Deluge Community Firmware, distributed under GPL-3.0-or-later with component notices retained. Upstream authorship is preserved.
 
