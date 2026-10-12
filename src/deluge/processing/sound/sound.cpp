@@ -1359,7 +1359,19 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 	}
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-
+	if (p >= params::GLOBAL_MDD_CUSTOM_1 && p <= params::GLOBAL_MDD_CUSTOM_4)
+		return PatchCableAcceptance::DISALLOWED;
+	if (s >= PatchSource::SNAKE_CUSTOM_1 && s <= PatchSource::SNAKE_CUSTOM_4 && p < params::GLOBAL_NONE) {
+		auto* cables = paramManager->getPatchCableSet();
+		for (int i = 0; i < cables->numPatchCables; ++i) {
+			auto& cable = cables->patchCables[i];
+			if (cable.from != s && cable.from >= PatchSource::SNAKE_CUSTOM_1
+			    && cable.from <= PatchSource::SNAKE_CUSTOM_4 && cable.destinationParamDescriptor.isJustAParam()
+			    && cable.destinationParamDescriptor.getJustTheParam() == p
+			    && (cable.param.isAutomated() || cable.param.getCurrentValue() != 0))
+				return PatchCableAcceptance::DISALLOWED;
+		}
+	}
 	switch (p) {
 	case params::LOCAL_PLAITS_A_ENGINE:
 	case params::LOCAL_PLAITS_B_ENGINE:
@@ -1624,7 +1636,7 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
                                   int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
                                   int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel) {
-	updateSnakeCustom();
+	updateSnakeCustom(modelStack->paramManager);
 	const ActiveVoice* voiceToReuse = nullptr;
 	const ActiveVoice* voiceForLegato = nullptr;
 
@@ -2406,7 +2418,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
                    int32_t sideChainHitPending, int32_t reverbAmountAdjust, bool shouldLimitDelayFeedback,
                    int32_t pitchAdjust, SampleRecorder* recorder) {
 
-	updateSnakeCustom();
+	updateSnakeCustom(modelStack->paramManager);
 
 	if (skippingRendering) {
 		compressor.gainReduction = 0;
@@ -3826,6 +3838,12 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_PHASE_WIDTH, readAutomationUpToPos);
 		reader.exitTag("oscBPulseWidth");
 	}
+	else if (!strcmp(tagName, "mddCustom1Automation") || !strcmp(tagName, "mddCustom2Automation")
+	         || !strcmp(tagName, "mddCustom3Automation") || !strcmp(tagName, "mddCustom4Automation")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_MDD_CUSTOM_1 + tagName[9] - '1',
+		                         readAutomationUpToPos);
+		reader.exitTag();
+	}
 	else if (!strcmp(tagName, "plaitsAEngine") || !strcmp(tagName, "plaitsBEngine")) {
 		patchedParams->readParam(reader, patchedParamsSummary,
 		                         !strcmp(tagName, "plaitsAEngine") ? params::LOCAL_PLAITS_A_ENGINE
@@ -4092,6 +4110,11 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	unpatchedParams->writeParamAsAttribute(writer, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
 	                                       writeAutomation);
 
+	for (int i = 0; i < 4; ++i) {
+		static constexpr const char* names[] = {"mddCustom1Automation", "mddCustom2Automation", "mddCustom3Automation",
+		                                        "mddCustom4Automation"};
+		patchedParams->writeParamAsAttribute(writer, names[i], params::GLOBAL_MDD_CUSTOM_1 + i, writeAutomation);
+	}
 	patchedParams->writeParamAsAttribute(writer, "plaitsAEngine", params::LOCAL_PLAITS_A_ENGINE, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "plaitsBEngine", params::LOCAL_PLAITS_B_ENGINE, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
@@ -5092,9 +5115,18 @@ bool Sound::setSnakePlaitsModel(unsigned oscillator, int model) {
 	return true;
 }
 
-void Sound::updateSnakeCustom() {
-	if (mddClipActive)
+void Sound::updateSnakeCustom(ParamManager* paramManager) {
+	if (mddClipActive) {
+		if (mddBakedSources && paramManager) {
+			auto* patched = paramManager->getPatchedParamSet();
+			std::array<int32_t, 4> values{};
+			for (int i = 0; i < 4; ++i)
+				if (mddBakedSources & (1u << i))
+					values[i] = std::max<int32_t>(0, patched->getValue(params::GLOBAL_MDD_CUSTOM_1 + i));
+			setSnakeCustomValues(values);
+		}
 		return;
+	}
 	if (snakeCustomEnabled && playbackHandler.isEitherClockActive()) {
 		const auto tick = std::max<int64_t>(playbackHandler.getActualSwungTickCount(), 0);
 		deluge::sequencer::Snake::updateModulation(snakeCustomConfig, static_cast<uint64_t>(tick), *this);

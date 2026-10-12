@@ -1560,6 +1560,7 @@ PLACE_SDRAM_BSS Submenu soundEditorRootMenu{
         &drumBendRangeMenu,
         &patchCablesMenu,
         &sequencerModeMenu,
+        sequence::mdd::automationMenu,
         &sequenceDirectionMenu,
         &outputMidiSubmenu,
     },
@@ -1594,6 +1595,7 @@ PLACE_SDRAM_BSS Submenu soundEditorRootMenuDrum{
         &drumBendRangeMenu,
         &patchCablesMenu,
         &sequencerModeMenu,
+        sequence::mdd::automationMenu,
         &sequenceDirectionMenu,
         &outputMidiSubmenu,
     },
@@ -1689,6 +1691,7 @@ PLACE_SDRAM_BSS note_row::Fill noteRowFillMenu{STRING_FOR_NOTE_ROW_EDITOR_FILL};
 PLACE_SDRAM_BSS HorizontalMenu noteRowEditorRootMenu{STRING_FOR_NOTE_ROW_EDITOR,
                                                      {
                                                          &sequencerModeMenu,
+                                                         sequence::mdd::automationMenu,
                                                          &sequenceDirectionMenu,
                                                          &noteRowProbabilityMenu,
                                                          &noteRowIteranceMenu,
@@ -1725,6 +1728,7 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuMIDIOrCV{
         &mpeyToModWheelMenu,
         &midiMPEMenu,
         &sequencerModeMenu,
+        sequence::mdd::automationMenu,
         &sequenceDirectionMenu,
     },
 };

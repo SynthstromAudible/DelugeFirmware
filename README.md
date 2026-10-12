@@ -4,7 +4,7 @@ Unofficial OLED-focused modification of Synthstrom Audible's Deluge Community Fi
 
 **Modified source updated 12 October 2026.** This repository contains editable source code, third-party source, build scripts and regression tests. It is not an official Synthstrom or Mutable Instruments release.
 
-- MDD Snake: alternative clip sequencer with Notes, Gate, Velocity and four independent Custom modulation lanes; OLED/grid editing, Song root/scale integration, WRITE and Undo.
+- MDD Snake: alternative clip sequencer with Notes, Gate, Velocity and four independent Custom modulation lanes; OLED/grid editing, Song root/scale integration, Custom automation WRITE/Undo, exclusive Custom targets and real Tie/Legato/Overlap.
 - Plaits: FM, Waveshaping and Virtual Analog oscillator engines, with mappable engine selection. This is a three-engine subset, not the complete Plaits module.
 - Additional startup, OLED, effects and overload-safety changes.
 
@@ -12,7 +12,7 @@ Unofficial OLED-focused modification of Synthstrom Audible's Deluge Community Fi
 
 **Current status:** experimental ARM Release build available, compiled from source commit `a13bf0fba59f13217129a90c20b714223deef6a5` with DBT toolchain v22. Host regression tests passed. Physical-device testing has not been performed. This is not a stable official release. See [build details and checksum](firmware/BUILD_INFO.json).
 
-Read [beta integration and all 15 retained changes](docs/custom/BETA_INTEGRATION_20261012.md), [changes and attribution](CUSTOM_CHANGES.md), [licensing](THIRD_PARTY_NOTICES.md), [build instructions](BUILD_CUSTOM.md), and the [CPU audit](docs/custom/CPU_AUDIT.md).
+Read [new MDD features and usage](docs/custom/MDD_WRITE_TIES_20261012.md), [beta integration and all 15 retained changes](docs/custom/BETA_INTEGRATION_20261012.md), [changes and attribution](CUSTOM_CHANGES.md), [licensing](THIRD_PARTY_NOTICES.md), [build instructions](BUILD_CUSTOM.md), and the [CPU audit](docs/custom/CPU_AUDIT.md).
 
 ## User guide (PDF)
 

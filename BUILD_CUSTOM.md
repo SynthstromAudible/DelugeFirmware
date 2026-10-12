@@ -16,6 +16,7 @@ Host regressions (Python 3, g++ with C++23 and sanitizers):
 
 ```sh
 bash tests/regression/mdd/run.sh
+bash tests/regression/mdd_features/run.sh
 bash tests/regression/plaits/run.sh
 python3 tests/regression/plaits/menu_probe.py
 python3 tests/regression/audio_audit/run.py

@@ -60,7 +60,7 @@ stubs = r"""
 #include <string_view>
 #include <vector>
 #include <iterator>
-namespace deluge {template<class T> using vector=std::vector<T>; namespace hid {using Button=int; namespace button {constexpr int SELECT_ENC=0,BACK=1,SHIFT=2,SYNTH=3,KIT=4,MIDI=5,CV=6;}} namespace l10n {enum class String{EMPTY_STRING};}}
+namespace deluge {template<class T> using vector=std::vector<T>; namespace hid {using Button=int; namespace button {constexpr int SELECT_ENC=0,BACK=1,SHIFT=2,SYNTH=3,KIT=4,MIDI=5,CV=6;}} namespace l10n {enum class String{EMPTY_STRING,STRING_FOR_TYPE};}}
 enum class ActionResult {DEALT_WITH,NOT_DEALT_WITH,REMIND_ME_OUTSIDE_CARD_ROUTINE};
 enum class ClipType{INSTRUMENT}; enum class OutputType{SYNTH,KIT,MIDI};
 enum class PatchSource{SNAKE_CUSTOM_1}; enum class PatchCableAcceptance{DISALLOWED,ALLOWED};
@@ -82,7 +82,8 @@ struct SlotPosition{int start_x,start_y,width,height;};
 namespace deluge::hid::display {struct Canvas{std::string text;void drawStringCentered(const char*s,int,int,int,int,int width){text=s;assert(text.size()*6<=unsigned(width));}};struct OLED{static inline Canvas main;static void setupSideScroller(int,std::string_view,int,int,int,int,int,int,bool,bool){}};}
 class MenuItem {public:virtual void renderOLED(){}virtual int32_t getOccupiedSlots()const{return 1;}virtual void getColumnLabel(StringBuf&){}virtual void renderInHorizontalMenu(const SlotPosition&){} virtual ~MenuItem()=default;virtual std::string_view getName()const{return "";}virtual std::string_view getTitle()const{return "";}virtual bool isRelevant(ModControllableAudio*,int32_t)const{return true;} virtual void beginSession(MenuItem*){}virtual ActionResult timerCallback(){return ActionResult::DEALT_WITH;}virtual void readCurrentValue(){}virtual void readValueAgain(){readCurrentValue();}virtual bool isSubmenu(){return false;}virtual bool selectEncoderActionIsPermitted(){return true;}virtual void selectEncoderAction(int32_t){}virtual MenuItem* selectButtonPress(){return nullptr;}virtual bool shouldEnterSubmenu(){return true;}};
 #define NO_NAVIGATION ((MenuItem*)0xFFFFFFFF)
-struct SoundEditor : UI {MenuItem* current=nullptr;int opened=0,stockShortcuts=0; uint8_t navigationDepth=0;MenuItem* menuItemNavigationRecord[16]{};
+struct TestPatched{int getValue(int){return 0;}};struct TestParams{TestPatched p;TestPatched*getPatchedParamSet(){return &p;}}testParams;
+struct SoundEditor : UI {TestParams*currentParamManager=&testParams;MenuItem* current=nullptr;int opened=0,stockShortcuts=0; uint8_t navigationDepth=0;MenuItem* menuItemNavigationRecord[16]{};
  MenuItem* getCurrentMenuItem(){return current;}
  bool setup(void*,const MenuItem* item=nullptr,int=0){current=const_cast<MenuItem*>(item);navigationDepth=0;menuItemNavigationRecord[0]=current;++opened;return true;}
  bool beginScreen(MenuItem* from=nullptr){current->beginSession(from);return true;}
@@ -96,6 +97,7 @@ namespace deluge::gui::menu_item {
 template<class T=int32_t> class Value:public MenuItem {T value_{};public:void setValue(T v){value_=v;}T getValue(){return value_;}void beginSession(MenuItem*)override;void selectEncoderAction(int32_t)override;protected:virtual void writeCurrentValue(){}virtual void drawValue(){} };
 class Number:public Value<int32_t>{protected:virtual int32_t getMaxValue()const=0;virtual int32_t getMinValue()const{return 0;}};
 class Integer:public Number{public:virtual const char* getUnit(){return "";}void selectEncoderAction(int32_t)override;};
+namespace patched_param{class Integer:public menu_item::Integer{int p_;public:Integer(l10n::String,int p):p_(p){}int getP(){return p_;}virtual int32_t getFinalValue(){return 0;}int32_t getMaxValue()const override{return 100;}};}
 class Enumeration:public Value<int32_t>{public:virtual size_t size()=0;bool wrapAround(){return false;}void selectEncoderAction(int32_t)override;};
 class Selection:public Enumeration{public:enum class OptType{FULL,SHORT};virtual deluge::vector<std::string_view>getOptions(OptType=OptType::FULL)=0;size_t size()override{return getOptions().size();}MenuItem* selectButtonPress()override{return nullptr;}};
 class Submenu:public MenuItem{public:enum RenderingStyle{VERTICAL,HORIZONTAL};virtual RenderingStyle renderingStyle()const{return VERTICAL;}bool isSubmenu()override{return true;}std::vector<MenuItem*> items;Submenu(l10n::String,std::initializer_list<MenuItem*>i):items(i){}void beginSession(MenuItem*)override{} };
@@ -105,7 +107,7 @@ namespace sequence::mdd {extern MenuItem*settingsMenu;extern MenuItem*valueMenu;
 int mod(int a,int b){return (a%b+b)%b;}
 struct Sound:ModControllableAudio{PatchCableAcceptance maySourcePatchToParam(PatchSource,int p,void*){return p<4?PatchCableAcceptance::ALLOWED:PatchCableAcceptance::DISALLOWED;}}sound;
 struct Output {ModControllableAudio*toModControllable(){return &sound;}}output;
-struct Clip {ClipType type=ClipType::INSTRUMENT;snake::Controller mdd;bool mddRequested=true,mddEnabled=true,inScaleMode=false;Output*output=&::output;int paramManager=0;bool failRoute=false;int routeCalls=0;
+struct Clip {ClipType type=ClipType::INSTRUMENT;snake::Controller mdd;bool mddRequested=true,mddEnabled=true,inScaleMode=false;uint8_t mddBakedCustom=0;Output*output=&::output;int paramManager=0;bool failRoute=false;int routeCalls=0;
  int writes=0;bool failWrite=false;Error writeMddToNormal(void*){++writes;if(failWrite)return Error::INSUFFICIENT_RAM;mddRequested=mddEnabled=false;return Error::NONE;}
  void requestMdd(bool b){mddRequested=mddEnabled=b;}
  bool applyMddRoute(void*,int,const snake::Route&,const snake::Route&){++routeCalls;return !failRoute;}
@@ -115,7 +117,7 @@ Clip*getCurrentClip(){return &clipObject;}Clip*getCurrentInstrumentClip(){return
 OutputType outputType=OutputType::SYNTH;OutputType getCurrentOutputType(){return outputType;}
 struct Song{struct{int rootNote=0;}key;bool failScale=false;Scale scale=MAJOR;int getQuarterNoteLength(){return 24;}Scale getCurrentScale(){return scale;}void transposeAllScaleModeClips(int n){key.rootNote+=n;}Scale setScale(Scale s){if(failScale)return USER_SCALE;scale=s;return s;}void*setupModelStackWithCurrentClip(char*){return this;}}song,*currentSong=&song;
 const char*getScaleName(Scale s){return s==MAJOR?"Major":s==MINOR?"Minor":"User";}
-namespace deluge::modulation::params {enum class Kind{PATCHED};constexpr int GLOBAL_NONE=8,LOCAL_PLAITS_A_ENGINE=2,LOCAL_PLAITS_B_ENGINE=3;const char* getParamDisplayName(Kind,int){return "Target";}}
+namespace deluge::modulation::params {enum class Kind{PATCHED};constexpr int GLOBAL_MDD_CUSTOM_1=4,GLOBAL_NONE=8,LOCAL_PLAITS_A_ENGINE=2,LOCAL_PLAITS_B_ENGINE=3;const char* getParamDisplayName(Kind,int){return "Target";}}
 constexpr int kDisplayWidth=16,kHorizontalMenuSlotYOffset=5,kTextSpacingX=6,kTextSpacingY=7,OLED_MAIN_WIDTH_PIXELS=128,OLED_MAIN_TOPMOST_PIXEL=0,kTextTitleSizeY=10,kTextTitleSpacingX=9;
 uint64_t nowMs=0;uint64_t mddTimeMs(){return nowMs;}
 struct InstrumentClipView:UI{bool mddGridWasRendered=false;bool mddControls()const{return clipObject.mddEnabled||clipObject.mddRequested;}void refreshMdd(){}ActionResult timerCallback();ActionResult padAction(int32_t,int32_t,int32_t);ActionResult buttonAction(deluge::hid::Button,bool,bool);}instrumentClipView;
@@ -149,6 +151,15 @@ methods = (
 )
 checks = r"""
 int main(){using namespace deluge::gui::menu_item::sequence::mdd;
+ // All four Custom lanes share exclusive target ownership.
+ auto& ui=state();ui.choose(3);ui.routes[1][0].target=0;
+ assert(!targetMenu.allowed(0));assert(targetMenu.allowed(1));ui.routes[1][0].target=-1;
+ ui.choose(1);ui.selectedStep=2;tieMenu.readCurrentValue();tieMenu.selectEncoderAction(1);
+ assert(ui.core.ties==(1u<<2));overlapMenu.readCurrentValue();overlapMenu.selectEncoderAction(25);assert(snake::percent(ui.core.overlap)==25);
+ ui.core.ties=ui.core.overlap=0;ui.choose(0);ui.selectedStep=0;
+ clipObject.mddRequested=clipObject.mddEnabled=false;clipObject.mddBakedCustom=15;
+ assert(writtenMenu.isRelevant(&sound,0));written1.readCurrentValue();assert(written1.getValue()==0);
+ clipObject.mddBakedCustom=0;clipObject.mddRequested=clipObject.mddEnabled=true;
  rootUI=activeUI=&instrumentClipView; auto&s=clipObject.mdd;
  // Native encoder edits authoritative clip fields, not a private UI copy.
  stepsMenu.beginSession(nullptr); stepsMenu.selectEncoderAction(-9);assert(lane().length==7);

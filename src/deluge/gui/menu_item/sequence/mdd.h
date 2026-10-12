@@ -5,6 +5,7 @@
 namespace deluge::gui::menu_item::sequence::mdd {
 extern MenuItem* settingsMenu;
 extern MenuItem* valueMenu;
+extern MenuItem* automationMenu;
 bool owns(MenuItem* item);
 // Uses the same SoundEditor menu stack as OSC Source / Plaits Engine.
 void open(MenuItem* item);

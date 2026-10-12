@@ -156,6 +156,12 @@ enum Global : ParamType {
 	GLOBAL_LFO_FREQ_2,
 	GLOBAL_ARP_RATE,
 
+	// Native automation channels for written MDD Custom sources. Appended so
+	// existing parameter IDs remain stable; these are not patch destinations.
+	GLOBAL_MDD_CUSTOM_1,
+	GLOBAL_MDD_CUSTOM_2,
+	GLOBAL_MDD_CUSTOM_3,
+	GLOBAL_MDD_CUSTOM_4,
 	GLOBAL_NONE,
 };
 

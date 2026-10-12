@@ -41,7 +41,11 @@ enum class FilterMode { OFF, ON };
 constexpr unsigned LFO1_ID=0, LFO3_ID=1, SYNC_LEVEL_NONE=0;
 struct Param { bool active = true; bool containsSomething(int32_t) { return active; } };
 struct PatchedParamSet { std::array<Param, params::GLOBAL_NONE> params; };
-struct ParamManager { PatchedParamSet set; PatchedParamSet* getPatchedParamSet() { return &set; } };
+struct Descriptor{int p=0;bool isJustAParam(){return true;}int getJustTheParam(){return p;}};
+struct CableParam{int amount=0;bool isAutomated(){return false;}int getCurrentValue(){return amount;}};
+struct Cable{PatchSource from=PatchSource::NONE;Descriptor destinationParamDescriptor;CableParam param;};
+struct Cables{int numPatchCables=0;std::array<Cable,32> patchCables;};
+struct ParamManager { Cables cables;Cables*getPatchCableSet(){return &cables;}PatchedParamSet set; PatchedParamSet* getPatchedParamSet() { return &set; } };
 struct Sound {
  bool drum=false, active=true;
  SynthMode synthMode=SynthMode::SUBTRACTIVE;
@@ -82,6 +86,13 @@ code += """int main() {
   assert(sound.maySourcePatchToParam(custom,params::GLOBAL_DELAY_FEEDBACK,&manager)==PatchCableAcceptance::ALLOWED);
   assert(sound.maySourcePatchToParam(custom,params::GLOBAL_REVERB_AMOUNT,&manager)==PatchCableAcceptance::ALLOWED);
  }
+ manager.cables.numPatchCables=1;
+ manager.cables.patchCables[0].from=PatchSource::SNAKE_CUSTOM_2;
+ manager.cables.patchCables[0].destinationParamDescriptor.p=params::LOCAL_LPF_FREQ;
+ manager.cables.patchCables[0].param.amount=123;
+ for(auto source:{PatchSource::SNAKE_CUSTOM_1,PatchSource::SNAKE_CUSTOM_3,PatchSource::SNAKE_CUSTOM_4})
+   assert(sound.maySourcePatchToParam(source,params::LOCAL_LPF_FREQ,&manager)==PatchCableAcceptance::DISALLOWED);
+ manager.cables.numPatchCables=0;
  std::cout << "Envelope 1-3 destination coverage for all four Snake sources PASS: " << checks << " comparisons\\n";
 }"""
 with tempfile.TemporaryDirectory() as tmp:

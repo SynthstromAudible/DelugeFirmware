@@ -46,10 +46,15 @@ struct PendingNoteOn;
 
 enum class VerticalNudgeType { ROW, OCTAVE };
 
+#include "sequencer/mdd/held_notes.hpp"
+
 class InstrumentClip final : public Clip {
 public:
 	explicit InstrumentClip(Song* song = nullptr);
 	snake::Controller mdd;
+	snake::HeldNotes mddHeld;
+	uint8_t mddBakedCustom = 0;
+	void publishMddCustom();
 	bool mddEnabled = false, mddRequested = false, mddPending = false, mddNoteOn = false;
 	uint64_t mddTick = 0, mddOffAt = 0, mddLastProcessed = UINT64_MAX;
 	uint8_t mddNote = 60;

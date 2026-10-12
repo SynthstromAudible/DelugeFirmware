@@ -90,9 +90,10 @@ public:
 	std::array<int32_t, kNumPatchSources> globalSourceValues{};
 	bool snakeCustomEnabled = false;
 	bool mddClipActive = false;
+	uint8_t mddBakedSources = 0;
 	const void* mddClipOwner = nullptr; // Identity only; never dereferenced.
 	deluge::sequencer::SnakeConfig snakeCustomConfig;
-	void updateSnakeCustom();
+	void updateSnakeCustom(ParamManager* paramManager = nullptr);
 	void setSnakeCustomValues(const std::array<int32_t, 4>& values);
 	// -1 restores the oscillator's selected model. Overrides only apply to Plaits oscillators.
 	std::array<int8_t, kNumSources> snakePlaitsModels{-1, -1};

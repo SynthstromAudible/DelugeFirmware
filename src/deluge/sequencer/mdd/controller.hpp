@@ -135,6 +135,11 @@ struct Controller {
 	}
 	void up() { held = Control::None; }
 	void reset(int i) {
+		if (i == 1) {
+			core.ties = 0;
+			core.overlap = 0;
+			core.legato = false;
+		}
 		auto& v = core.lanes[i].values;
 		v.fill(i == 0 ? 60 : i == 1 ? 32768 : i == 2 ? 100 : 0);
 	}

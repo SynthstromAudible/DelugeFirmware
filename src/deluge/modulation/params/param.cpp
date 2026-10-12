@@ -170,6 +170,10 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [GLOBAL_LFO_FREQ_1]                = "LFO1 rate",
 	    [GLOBAL_LFO_FREQ_2]                = "LFO3 rate",
 	    [GLOBAL_ARP_RATE]                = "Arp. rate",
+        [GLOBAL_MDD_CUSTOM_1] = "Custom1 Auto",
+        [GLOBAL_MDD_CUSTOM_2] = "Custom2 Auto",
+        [GLOBAL_MDD_CUSTOM_3] = "Custom3 Auto",
+        [GLOBAL_MDD_CUSTOM_4] = "Custom4 Auto",
 	};
 	// clang-format on
 
@@ -201,6 +205,10 @@ char const* getPatchedParamShortName(ParamType type, ModControllableAudio* modCo
 }
 
 char const* getPatchedParamDisplayName(int32_t p) {
+	if (p >= GLOBAL_MDD_CUSTOM_1 && p <= GLOBAL_MDD_CUSTOM_4) {
+		static constexpr const char* names[] = {"Custom 1 Auto", "Custom 2 Auto", "Custom 3 Auto", "Custom 4 Auto"};
+		return names[p - GLOBAL_MDD_CUSTOM_1];
+	}
 	if (p == LOCAL_PLAITS_A_ENGINE)
 		return "Osc1 Engine";
 	if (p == LOCAL_PLAITS_B_ENGINE)
@@ -613,6 +621,14 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 
 		case GLOBAL_ARP_RATE:
 			return "arpRate";
+		case GLOBAL_MDD_CUSTOM_1:
+			return "mddCustom1Automation";
+		case GLOBAL_MDD_CUSTOM_2:
+			return "mddCustom2Automation";
+		case GLOBAL_MDD_CUSTOM_3:
+			return "mddCustom3Automation";
+		case GLOBAL_MDD_CUSTOM_4:
+			return "mddCustom4Automation";
 
 		case GLOBAL_NONE:
 		    // Intentionally not handled

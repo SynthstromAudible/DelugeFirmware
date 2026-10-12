@@ -83,6 +83,8 @@ inline uint8_t quantize(int note, int root, Scale scale) {
 	return note;
 }
 struct Frame {
+	bool tie = false;
+	uint32_t overlap = 0;
 	bool trigger = false;
 	uint8_t note = 60, velocity = 100;
 	uint32_t duration = 1;
@@ -91,6 +93,9 @@ struct Frame {
 struct Core {
 	// 0 Notes, 1 Gates, 2 Velocity, 3..6 Custom 1..4
 	std::array<Lane, 7> lanes{};
+	uint16_t ties = 0;    // Gate-cell tie bits; no retrigger while a note is held.
+	bool legato = false;  // Minimum one-tick overlap when percentage is zero.
+	uint16_t overlap = 0; // Fraction of a Notes interval, 0..65535.
 	int root = 0;
 	Scale scale = Scale::Chromatic;
 	Core() {
@@ -117,6 +122,19 @@ struct Core {
 		f.trigger = (tick == 0 || step != (tick - 1) * denominator / numerator) && !(notes.muted & (1u << nc))
 		            && !(lanes[1].muted & (1u << gc)) && !(lanes[2].muted & (1u << vc)) && lanes[1].values[gc] > 0
 		            && f.velocity > 0;
+		f.tie = (ties & (1u << gc)) != 0;
+		f.overlap = overlap ? std::max<uint64_t>(1, uint64_t(overlap) * interval / 65535) : legato ? 1 : 0;
+		// Any nonzero Overlap holds through the following note boundary,
+		// then overlaps by the chosen fraction, irrespective of a short gate.
+		if (f.overlap)
+			f.duration = interval;
+		// Keep a note alive up to a following tied boundary, even at a short gate.
+		const auto nextNc = notes.cell(nextBoundary);
+		const auto nextGc = lanes[1].cell(nextBoundary);
+		const auto nextVc = lanes[2].cell(nextBoundary);
+		if ((ties & (1u << nextGc)) && !(notes.muted & (1u << nextNc)) && !(lanes[1].muted & (1u << nextGc))
+		    && !(lanes[2].muted & (1u << nextVc)) && lanes[1].values[nextGc] && lanes[2].values[nextVc])
+			f.duration = interval;
 		for (int i = 0; i < 4; ++i) {
 			f.custom[i] = lanes[i + 3].sample(tick);
 		}

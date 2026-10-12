@@ -1,6 +1,7 @@
 #include "gui/menu_item/sequence/mdd.h"
 #include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/patched_param/integer.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/sequence/mode.h"
 #include "gui/menu_item/submenu.h"
@@ -78,7 +79,7 @@ static uint16_t stored(int v) {
 }
 class Number final : public Integer {
 public:
-	enum Field { Steps, Shift, Step, Value, Minimum, Maximum, Slot, Depth };
+	enum Field { Steps, Shift, Step, Value, Minimum, Maximum, Slot, Depth, Tie, Overlap, Legato };
 	Number(Field field, std::string_view label) : field_(field), label_(label) {}
 	std::string_view getName() const override { return label_; }
 	std::string_view getTitle() const override {
@@ -92,6 +93,8 @@ public:
 		return title;
 	}
 	const char* getUnit() override {
+		if (field_ == Overlap)
+			return "%";
 		return (field_ == Value || field_ == Minimum || field_ == Maximum) && state().lane != 0 && state().lane != 2
 		               && !engineValues()
 		           ? "%"
@@ -120,7 +123,11 @@ public:
 		case Slot:
 			return 4;
 		case Depth:
+		case Overlap:
 			return 100;
+		case Tie:
+		case Legato:
+			return 1;
 		default:
 			return state().lane == 0 || state().lane == 2 ? 127 : engineValues() ? 3 : 100;
 		}
@@ -148,6 +155,15 @@ public:
 			break;
 		case Slot:
 			setValue(s.routeSlot + 1);
+			break;
+		case Legato:
+			setValue(s.core.legato ? 1 : 0);
+			break;
+		case Tie:
+			setValue((s.core.ties & (1u << s.selectedStep)) ? 1 : 0);
+			break;
+		case Overlap:
+			setValue(snake::percent(s.core.overlap));
 			break;
 		case Depth:
 			setValue(snake::depthPercent(s.routes[s.lane - 3][s.routeSlot].depth));
@@ -180,6 +196,18 @@ public:
 			break;
 		case Slot:
 			s.routeSlot = v - 1;
+			break;
+		case Legato:
+			s.core.legato = v != 0;
+			break;
+		case Tie:
+			if (v)
+				s.core.ties |= 1u << s.selectedStep;
+			else
+				s.core.ties &= ~(1u << s.selectedStep);
+			break;
+		case Overlap:
+			s.core.overlap = snake::fromPercent(v);
 			break;
 		case Depth: {
 			auto& route = s.routes[s.lane - 3][s.routeSlot];
@@ -220,9 +248,10 @@ public:
 		auto& s = state();
 		if (s.lane < 3 || getCurrentOutputType() != OutputType::SYNTH)
 			return false;
-		for (int i = 0; i < 4; ++i)
-			if (i != s.routeSlot && s.routes[s.lane - 3][i].target == target)
-				return false;
+		for (int owner = 0; owner < 4; ++owner)
+			for (int i = 0; i < 4; ++i)
+				if ((owner != s.lane - 3 || i != s.routeSlot) && s.routes[owner][i].target == target)
+					return false;
 		auto* sound = static_cast<Sound*>(clip()->output->toModControllable());
 		return sound->maySourcePatchToParam(static_cast<PatchSource>(int(PatchSource::SNAKE_CUSTOM_1) + s.lane - 3),
 		                                    target, &clip()->paramManager)
@@ -510,12 +539,15 @@ static Choice laneMenu{Choice::Lane, "Lane"}, customMenu{Choice::Custom, "Custom
     targetMenu{Choice::Target, "Target"};
 static Number stepsMenu{Number::Steps, "Steps"}, shiftMenu{Number::Shift, "Shift"}, stepMenu{Number::Step, "Step"},
     stepValueMenu{Number::Value, "Step Value"}, minimumMenu{Number::Minimum, "Minimum"},
-    maximumMenu{Number::Maximum, "Maximum"}, slotMenu{Number::Slot, "Slot"}, depthMenu{Number::Depth, "Depth"};
+    maximumMenu{Number::Maximum, "Maximum"}, slotMenu{Number::Slot, "Slot"}, depthMenu{Number::Depth, "Depth"},
+    tieMenu{Number::Tie, "Tie"}, overlapMenu{Number::Overlap, "Overlap"}, legatoMenu{Number::Legato, "Legato"};
 static Action randomMenu{snake::Control::Random, "Random"}, resetMenu{snake::Control::Reset, "Reset"},
     randomAllMenu{snake::Control::RandomAll, "Random All"}, resetAllMenu{snake::Control::ResetAll, "Reset All"};
 static Menu mapMenu{"Map", {&slotMenu, &targetMenu, &depthMenu, &customMenu}, true};
 static Menu rangeMenu{"Range", {&minimumMenu, &maximumMenu, &stepsMenu, &shiftMenu}};
 static Menu valuesMenu{"MDD Values", {&stepMenu, &stepValueMenu, &stepsMenu, &shiftMenu}};
+static Menu gateValuesMenu{"MDD Gates",
+                           {&stepMenu, &stepValueMenu, &stepsMenu, &shiftMenu, &tieMenu, &overlapMenu, &legatoMenu}};
 static Menu customValuesMenu{"MDD Custom", {&customMenu, &stepMenu, &stepValueMenu, &stepsMenu}};
 static Menu keyMenu{"Root / Scale", {&rootMenu, &scaleMenu}};
 static Menu randomPage{"Random", {&randomMenu, &randomAllMenu, &minimumMenu, &maximumMenu}};
@@ -523,18 +555,69 @@ static Menu resetPage{"Reset", {&resetMenu, &resetAllMenu, &stepsMenu, &shiftMen
 static Menu rootSettings{"MDD Snake",
                          {&directionMenu, &speedMenu, &stepsMenu, &shiftMenu, &shapeMenu, &sequencerModeMenu, &laneMenu,
                           &customMenu, &rangeMenu}};
+class WrittenCustom final : public patched_param::Integer {
+	int index_;
+
+public:
+	explicit WrittenCustom(int i)
+	    : patched_param::Integer(l10n::String::STRING_FOR_TYPE, modulation::params::GLOBAL_MDD_CUSTOM_1 + i),
+	      index_(i) {}
+	std::string_view getName() const override {
+		static constexpr const char* names[] = {"C1", "C2", "C3", "C4"};
+		return names[index_];
+	}
+	std::string_view getTitle() const override {
+		static constexpr const char* names[] = {"Custom 1 Auto", "Custom 2 Auto", "Custom 3 Auto", "Custom 4 Auto"};
+		return names[index_];
+	}
+	bool isRelevant(ModControllableAudio*, int32_t) const override {
+		return display->haveOLED() && getCurrentClip() && getCurrentClip()->type == ClipType::INSTRUMENT
+		       && getCurrentOutputType() == OutputType::SYNTH && !clip()->mddRequested
+		       && (clip()->mddBakedCustom & (1u << index_));
+	}
+	int32_t getMinValue() const override { return 0; }
+	int32_t getMaxValue() const override { return 100; }
+	const char* getUnit() override { return "%"; }
+	void readCurrentValue() override {
+		setValue(
+		    (uint64_t(std::max<int32_t>(0, soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP())))
+		         * 100
+		     + INT32_MAX / 2)
+		    / INT32_MAX);
+	}
+	int32_t getFinalValue() override { return int64_t(getValue()) * INT32_MAX / 100; }
+};
+static WrittenCustom written1{0}, written2{1}, written3{2}, written4{3};
+class WrittenMenu final : public HorizontalMenu {
+public:
+	WrittenMenu()
+	    : HorizontalMenu(l10n::String::EMPTY_STRING, {&written1, &written2, &written3, &written4},
+	                     HorizontalMenu::FIXED) {}
+	std::string_view getName() const override { return "MDD Automation"; }
+	std::string_view getTitle() const override { return getName(); }
+	bool isRelevant(ModControllableAudio*, int32_t) const override {
+		return display->haveOLED() && getCurrentClip() && getCurrentClip()->type == ClipType::INSTRUMENT
+		       && getCurrentOutputType() == OutputType::SYNTH && !clip()->mddRequested && clip()->mddBakedCustom;
+	}
+	RenderingStyle renderingStyle() const override { return display->haveOLED() ? HORIZONTAL : VERTICAL; }
+};
+static WrittenMenu writtenMenu;
+MenuItem* automationMenu = &writtenMenu;
 MenuItem* settingsMenu = &rootSettings;
 MenuItem* valueMenu = &valuesMenu;
 bool owns(MenuItem* item) {
-	MenuItem* items[] = {&sequencerModeMenu, &rootSettings,  &laneMenu,      &customMenu,   &stepMenu,
-	                     &stepValueMenu,     &directionMenu, &speedMenu,     &stepsMenu,    &shiftMenu,
-	                     &shapeMenu,         &rootMenu,      &scaleMenu,     &mapMenu,      &rangeMenu,
-	                     &minimumMenu,       &maximumMenu,   &slotMenu,      &targetMenu,   &depthMenu,
-	                     &randomMenu,        &resetMenu,     &randomAllMenu, &resetAllMenu, &valuesMenu,
-	                     &customValuesMenu,  &keyMenu,       &randomPage,    &resetPage,    &writeConfirmation};
+	MenuItem* items[] = {&sequencerModeMenu, &rootSettings,  &laneMenu,      &customMenu,       &stepMenu,
+	                     &stepValueMenu,     &directionMenu, &speedMenu,     &stepsMenu,        &shiftMenu,
+	                     &shapeMenu,         &rootMenu,      &scaleMenu,     &mapMenu,          &rangeMenu,
+	                     &minimumMenu,       &maximumMenu,   &slotMenu,      &targetMenu,       &depthMenu,
+	                     &randomMenu,        &resetMenu,     &randomAllMenu, &resetAllMenu,     &valuesMenu,
+	                     &gateValuesMenu,    &tieMenu,       &overlapMenu,   &legatoMenu,       &customValuesMenu,
+	                     &keyMenu,           &randomPage,    &resetPage,     &writeConfirmation};
 	return std::find(std::begin(items), std::end(items), item) != std::end(items);
 }
 void open(MenuItem* item) {
+	if (item == valueMenu && state().lane == 1)
+		item = &gateValuesMenu;
 	// Pad shortcuts share the existing SoundEditor; SELECT release is consumed by opened().
 	bool alreadyOpen = getCurrentUI() == &soundEditor;
 	if (soundEditor.setup(getCurrentClip(), item)) {
@@ -546,6 +629,8 @@ void open(MenuItem* item) {
 		armTimer();
 		if (item == valueMenu)
 			valuesMenu.focusChild(&stepValueMenu);
+		if (item == &gateValuesMenu)
+			gateValuesMenu.focusChild(&stepValueMenu);
 	}
 }
 void selectFirstPageColumn(int column) {
