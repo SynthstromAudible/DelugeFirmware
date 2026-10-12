@@ -533,20 +533,20 @@ with the baseline to 0.1%.
 | `control delay_feedback_chain_analog` | 171.45 → 171.44 (-0.0%) | 165.71 → 165.72 (+0.0%) | 162.86 → 162.86 (+0.0%) | 0.03 |
 | `control delay_feedback_chain_digital` | 19.92 → 19.91 (-0.1%) | 14.19 → 14.20 (+0.1%) | 11.35 → 11.35 (+0.0%) | 0.03 |
 
-- **Sparse grains gain 11-19%, dense ones 0.5-4%.** The saving is the per-frame calls. A sparse
+- **Sparse grains gain 11-19%; dense ones are about level.** The saving is the per-frame calls. A sparse
   case runs 116 instructions per channel-sample against 142 before; a dense one runs 222 against 221, since eight taps
-  of the same arithmetic dominate. The dense cases carry about 125-150 data-cache stall cycles per sample (each tap
-  reads the 512 KB ring, far larger than the L1) and about 1.1-1.4 L1 refills, the same before and after, so the
-  kernel does not remove them. The dense spread (8-12 cycles) is wider than the sparse (1.5); its cause is not
-  investigated.
+  of the same arithmetic dominate. The dense cases carry about 125-150 data-cache stall cycles per sample and about
+  1.1-1.4 L1 refills, the same before and after, so the kernel does not remove them; the cause is inferred, not
+  isolated: each tap reads the 512 KB ring, far larger than the L1. The dense spread (8-12 cycles after, against 1-3.4
+  before) is wider than the sparse (1.5), and the 0.5-4% dense deltas are within it: dense is about level.
 - **The loop's shape.** At the shipping flags minus `-flto=thin` (Thumb-2), the frame loop of
-  `effects::Granular::render` is 149 instructions plus a 5-instruction branch to the grain start, with no call, no `muls`, 3 `mul.w`/`mla`, 16
-  stack loads and 6 stack stores. An active tap is 53 instructions and a silent grain 5. The one call is `start_grain`
-  (`[[gnu::noinline]]`, 636 B): a grain starts once per `period` frames, 0.08% of frames at the benchmark's rate, about
-  one block in ten at n = 128. Before, `processOneGrainSample` was 112 instructions with 6 calls (`__aeabi_uidivmod`,
-  four `GrainBuffer::operator[]`, `setupGrainsIfNeeded`) and `processGrainFX` called it and
-  `AudioEngine::feedReverbBackdoorForGrain` for every frame. `std::max` on the high-water mark was a call in the loop at
-  `-fno-inline-functions` until it became a comparison.
+  `effects::Granular::render` is 149 instructions plus a 5-instruction branch to the grain start, with no call, no
+  `muls`, 3 `mul.w`/`mla`, 16 stack loads and 6 stack stores. An active tap is 53 instructions and a silent grain 5. The
+  one call is `start_grain` (`[[gnu::noinline]]`, 636 B): a grain starts once per `period` frames, 0.08% of frames at
+  the benchmark's rate, about one block in ten at n = 128. Before, `processOneGrainSample` was 112 instructions with 6
+  calls (`__aeabi_uidivmod`, four `GrainBuffer::operator[]`, `setupGrainsIfNeeded`) and `processGrainFX` called it and
+  `AudioEngine::feedReverbBackdoorForGrain` for every frame. The high-water mark is a comparison, not `std::max`, which
+  is an out-of-line call at `-fno-inline-functions`.
 - **`kStateInPlace` is kept.** The kernel steps its 330-byte State where it lives. The copied form (the trait removed)
   moves the State in and out through two `__aeabi_memcpy4` calls and the loop addresses a stack copy (24 stack loads
   and 14 stores a frame loop against 16 and 6); against in place it is slower in every case, two runs:
@@ -557,8 +557,8 @@ with the baseline to 0.1%.
   | `sparse_random` | 160.03 → 170.25 (+6.4%) | 155.35 → 160.52 (+3.3%) | 152.20 → 155.40 (+2.1%) | 0.43 |
   | `dense_unison` | 329.47 → 340.44 (+3.3%) | 336.02 → 343.41 (+2.2%) | 329.27 → 332.15 (+0.9%) | 1.27 |
   | `dense_random` | 345.10 → 356.78 (+3.4%) | 333.56 → 339.66 (+1.8%) | 352.17 → 355.90 (+1.1%) | 0.27 |
-  | `control delay_feedback_chain_analog` | 171.44 → 171.45 (+0.0%) | 165.72 → 165.71 (-0.0%) | 162.86 → 162.85 (-0.0%) | 0.01 |
-  | `control delay_feedback_chain_digital` | 19.91 → 19.91 (+0.0%) | 14.20 → 14.20 (+0.0%) | 11.35 → 11.35 (+0.0%) | 0.01 |
+  | `control analog chain` | 171.44 → 171.45 (+0.0%) | 165.72 → 165.71 (-0.0%) | 162.86 → 162.85 (-0.0%) | 0.01 |
+  | `control digital chain` | 19.91 → 19.91 (+0.0%) | 14.20 → 14.20 (+0.0%) | 11.35 → 11.35 (+0.0%) | 0.01 |
 
   The copy costs 530-690 cycles a block (the fixed-cost gap of two-point fits).
 - **Code size.** Measured as the summed extents of the functions in the two non-LTO objects at the shipping flags minus

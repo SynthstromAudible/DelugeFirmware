@@ -442,9 +442,8 @@ what entering GRAIN does for each kind of owner.
   knob positions they came from, `prepare` updates them once per block, and the
   `Block` it returns is a copy of `State::levels` (24 bytes; the randomness,
   which is not cached, refreshed each block), so the steps read the values from
-  registers and the State carries them between blocks. The State is about 330 bytes: the ring pointer and indices, eight
-  grains of 36 bytes, the two wet low-pass memories, the send cursor and the
-  derived values.
+  registers and the State carries them between blocks. The State is about 330 bytes: the ring pointer and indices,
+  eight grains of 36 bytes, the two wet low-pass memories, the send cursor and the derived values.
 - **A high-water mask replaces zeroing the ring.** `State::written` counts the
   slots written since the ring was taken up (`set_ring`) or restarted
   (`restart`), and a grain's tap at or past it reads zero. The ring is never
