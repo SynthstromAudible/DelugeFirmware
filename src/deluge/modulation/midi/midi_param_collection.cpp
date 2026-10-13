@@ -162,8 +162,9 @@ void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* model
 			AutoParam* param = &midiParam->param;
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
 
-			int32_t ticksTilNextEventThisParam = param->processCurrentPos(modelStackWithAutoParam, reversed,
-			                                                              didPingpong, false, true); // No interpolating
+			// Interpolation is set up here but applied by tickTicks(), since MIDI can't interpolate per sample
+			int32_t ticksTilNextEventThisParam =
+			    param->processCurrentPos(modelStackWithAutoParam, reversed, didPingpong, true, true);
 			ticksTilNextEvent = std::min(ticksTilNextEvent, ticksTilNextEventThisParam);
 			if (param->hasInterpolationIncrement(shouldInterpolateWithFloat(modelStackWithAutoParam))) {
 				interpolating = true;
@@ -302,7 +303,7 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 }
 
 bool MIDIParamCollection::mayParamInterpolate(int32_t paramId) {
-	return false;
+	return true;
 }
 
 int32_t MIDIParamCollection::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
