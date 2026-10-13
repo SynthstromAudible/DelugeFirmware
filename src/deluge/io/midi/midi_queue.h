@@ -61,6 +61,10 @@ public:
 	/// it was queued, so anything due behind something which isn't yet waits for it
 	bool popDue(QueuedMIDI& out, uint32_t now, bool all = false);
 
+	/// Consumer only (or the producer, with the consumer locked out). Take the oldest queued MIDI whether it's due or
+	/// not, e.g. to make room when the queue's full. Returns false if nothing's queued
+	bool popOldest(QueuedMIDI& out);
+
 	/// Consumer only. Get the due time of the oldest queued MIDI. Returns false if nothing's queued
 	bool nextDue(uint32_t& due);
 

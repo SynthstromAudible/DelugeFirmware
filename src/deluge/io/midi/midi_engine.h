@@ -25,6 +25,7 @@
 #include "playback/playback_handler.h"
 
 struct InterruptsDisabled;
+struct QueuedMIDI;
 class MIDICable;
 class MIDIDrum;
 class MIDIInstrument;
@@ -171,6 +172,10 @@ private:
 	void queueMIDI(MIDIMessage message, int32_t filter, bool sendUSB, bool sendDIN, uint32_t due);
 	/// Interrupts must be disabled - see flushDueMIDI()
 	bool flushQueuedMIDI(bool all, uint32_t now);
+	/// Pop the oldest queued MIDI and put it in the output buffers, whether it's due yet or not. Returns false if
+	/// nothing was queued
+	bool sendOldestQueuedMIDI(const InterruptsDisabled&);
+	void sendQueuedMIDI(const QueuedMIDI& queued);
 
 	uint32_t midiDue_{0}; ///< Due time given to MIDI as it's queued, see setMIDIDue()
 };

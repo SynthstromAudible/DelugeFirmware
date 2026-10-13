@@ -45,6 +45,10 @@ bool MIDIQueue::popDue(QueuedMIDI& out, uint32_t now, bool all) {
 	return true;
 }
 
+bool MIDIQueue::popOldest(QueuedMIDI& out) {
+	return queue_.pop(out);
+}
+
 bool MIDIQueue::nextDue(uint32_t& due) {
 	QueuedMIDI queued;
 	if (!queue_.front(queued)) {

@@ -525,6 +525,13 @@ PLACE_SDRAM_BSS MIDIQueue midiQueue;
 } // namespace
 
 void MidiEngine::queueMIDI(MIDIMessage message, int32_t filter, bool sendUSB, bool sendDIN, uint32_t due) {
+	if (midiQueue.push(message, filter, sendUSB, sendDIN, due, getSystemTicks())) [[likely]] {
+		return;
+	}
+	// Full - send the oldest early to make room.
+	// queue is consumed by ISR so lock that out to be safe
+	CriticalSectionGuard guard;
+	sendOldestQueuedMIDI(guard);
 	midiQueue.push(message, filter, sendUSB, sendDIN, due, getSystemTicks());
 }
 
@@ -535,18 +542,31 @@ bool MidiEngine::nextMIDIDue(uint32_t& due) {
 bool MidiEngine::flushQueuedMIDI(bool all, uint32_t now) {
 	QueuedMIDI queued;
 	while (midiQueue.popDue(queued, now, all)) {
-		if (queued.usb) {
-			sendUsbMidi(queued.message, queued.filter);
-		}
-		if (queued.din) {
-			sendSerialMidi(queued.message);
-		}
+		sendQueuedMIDI(queued);
 	}
 	if (anythingInOutputBuffer()) {
 		flushMIDI();
 	}
 	// Covers both USB and UART (including bytes UART is still sending)
 	return anythingInOutputBuffer();
+}
+
+bool MidiEngine::sendOldestQueuedMIDI(const InterruptsDisabled&) {
+	QueuedMIDI queued;
+	if (!midiQueue.popOldest(queued)) {
+		return false;
+	}
+	sendQueuedMIDI(queued);
+	return true;
+}
+
+void MidiEngine::sendQueuedMIDI(const QueuedMIDI& queued) {
+	if (queued.usb) {
+		sendUsbMidi(queued.message, queued.filter);
+	}
+	if (queued.din) {
+		sendSerialMidi(queued.message);
+	}
 }
 
 bool MidiEngine::flushDueMIDI(uint32_t now, const InterruptsDisabled&) {
