@@ -227,6 +227,15 @@ Every active DOM slice is a course in the foundation under the command/event lay
 reification**, the **event → snapshot feed**, and the **executor/snapshot boundary** as an
 explicit thing.
 
+**Engine and effect settings follow the model.** A sound's settings are its `InstrumentSlot` in
+the model: `SetEngineSetting` writes the slot, then decodes the change onto the sound's typed
+`SoundState` and applies it by difference. A host chain's settings and view (a kit's, an audio
+track's, the song master's) are its `FxChain` record: `SetEffectSetting` and `SetChainView` write
+the record, then set the owner's typed `HostChainState` from it, which projects the render copy
+and makes the chain's hand-overs. The typed states are derived, never written but from a record
+(an owner outside the current song, which has no record, is the one exception). Host chains save
+from their records; sounds still save from their typed state.
+
 ---
 
 ## Sequencing (current state → destination)
