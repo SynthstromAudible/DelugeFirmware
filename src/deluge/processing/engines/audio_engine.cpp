@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "model/fx/chain_inputs.h"
 
 #include "chrono"
 #include "definitions.h"
@@ -850,7 +851,32 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 
 void scheduleMidiGateOutISR(uint32_t offsetInBlock, int32_t timeWithinWindowAtWhichMIDIOrGateOccurs);
 void setMonitoringMode();
-void renderSongFX(size_t numSamples);
+/// The output stage's volume while no song is current: 134217728 made a bit bigger, as a song master's filters start.
+constexpr int32_t kMasterVolumeWithoutSong = 167763968;
+
+/// @brief The current song's master over @p renderingBuffer: its half before the reverb with @p master (noting a send
+/// to the reverb), then @p between (which renders the reverb, and the sample preview, and returns the half after's
+/// inputs, or nothing to skip that half), then that half. The output stage's volume is unity after it; without it, it
+/// is left as it was.
+template <typename Between>
+void renderMaster(std::span<StereoSample> renderingBuffer, const deluge::effects::MasterChainInputs& master,
+                  Between&& between) {
+	bool post = false;
+	auto tracked = [&](bool sent) -> std::optional<deluge::effects::MasterPostInputs> {
+		if (sent) {
+			timeThereWasLastSomeReverb = audioSampleTimer; // the reverb renders only within a while of a send
+		}
+		std::optional<deluge::effects::MasterPostInputs> inputs = between();
+		post = inputs.has_value();
+		return inputs;
+	};
+	currentSong->live.global_effectable.chain().render(renderingBuffer, master,
+	                                                   {reverbMemory.data(), renderingBuffer.size()}, tracked);
+	if (post) {
+		masterVolumeAdjustmentL = ONE_Q31;
+		masterVolumeAdjustmentR = ONE_Q31;
+	}
+}
 void renderSamplePreview(size_t numSamples);
 void renderReverb(size_t numSamples);
 int32_t tickSongFinalizeWindows(size_t& numSamples);
@@ -1078,16 +1104,22 @@ void renderAudio(size_t numSamples) {
 
 	numHopsEndedThisRoutineCall = 0;
 
-	// Render audio for song
+	// Render audio for song: its outputs, then its master around the reverb and the sample preview.
 	if (currentSong != nullptr) {
-		currentSong->renderAudio(renderingBuffer, reverbBuffer.data(), sideChainHitPending);
+		const deluge::effects::MasterChainInputs master =
+		    currentSong->renderAudio(renderingBuffer, reverbBuffer.data(), sideChainHitPending);
+		renderMaster(renderingBuffer, master, [&]() -> std::optional<deluge::effects::MasterPostInputs> {
+			renderReverb(numSamples);
+			renderSamplePreview(numSamples);
+			return deluge::model::masterPostInputs(*currentSong);
+		});
 	}
-
-	renderReverb(numSamples);
-
-	renderSamplePreview(numSamples);
-
-	renderSongFX(numSamples);
+	else {
+		renderReverb(numSamples);
+		renderSamplePreview(numSamples);
+		masterVolumeAdjustmentL = kMasterVolumeWithoutSong;
+		masterVolumeAdjustmentR = kMasterVolumeWithoutSong;
+	}
 
 	metronome.render(renderingBuffer);
 
@@ -1113,14 +1145,23 @@ void renderAudioForStemExport(size_t numSamples) {
 
 	numHopsEndedThisRoutineCall = 0;
 
-	// Render audio for song
+	// Render audio for song: its outputs, then its master, around the reverb when the export takes the song's effects;
+	// without them, only the master's half before the reverb.
 	if (currentSong != nullptr) {
-		currentSong->renderAudio(renderingBuffer, reverbBuffer.data(), sideChainHitPending);
+		const deluge::effects::MasterChainInputs master =
+		    currentSong->renderAudio(renderingBuffer, reverbBuffer.data(), sideChainHitPending);
+		renderMaster(renderingBuffer, master, [&]() -> std::optional<deluge::effects::MasterPostInputs> {
+			if (!stemExport.includeSongFX) {
+				return std::nullopt;
+			}
+			renderReverb(numSamples);
+			return deluge::model::masterPostInputs(*currentSong);
+		});
 	}
-
-	if (stemExport.includeSongFX) {
+	else if (stemExport.includeSongFX) {
 		renderReverb(numSamples);
-		renderSongFX(numSamples);
+		masterVolumeAdjustmentL = kMasterVolumeWithoutSong;
+		masterVolumeAdjustmentR = kMasterVolumeWithoutSong;
 	}
 
 	// Feed the just-rendered block to the offline stem recorder. Two recorder channels
@@ -1326,59 +1367,6 @@ void renderSamplePreview(size_t numSamples) { // Previewing sample
 		    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
 
 		sampleForPreview->render(modelStack, renderingBuffer, reverbBuffer.data(), sideChainHitPending);
-	}
-}
-void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen after reverb mixed in, which is why it's
-	                                   // happening all the way out here
-	std::span renderingBuffer{renderingMemory.data(), numSamples};
-	std::span reverbBuffer{reverbMemory.data(), numSamples};
-
-	masterVolumeAdjustmentL = 167763968; // getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
-	masterVolumeAdjustmentR = 167763968; // getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
-	// 167763968 is 134217728 made a bit bigger so that default filter resonance doesn't reduce volume overall
-
-	if (currentSong) {
-		currentSong->live.global_effectable.configureFilter(&masterVolumeAdjustmentL, &currentSong->paramManager);
-		currentSong->live.global_effectable.processFilter(renderingBuffer);
-		currentSong->live.global_effectable.processSRRAndBitcrushing(renderingBuffer, &masterVolumeAdjustmentL,
-		                                                             &currentSong->paramManager);
-
-		masterVolumeAdjustmentR = masterVolumeAdjustmentL; // This might have changed in the above function calls
-
-		currentSong->live.global_effectable.processStutter(renderingBuffer, &currentSong->paramManager);
-
-		// And we do panning for song here too - must be post reverb, and we had to do a volume adjustment below
-		// anyway
-		int32_t pan = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_PAN) >> 1;
-
-		if (pan != 0) {
-			// Set up panning
-			int32_t amplitudeL;
-			int32_t amplitudeR;
-			bool doPanning = (renderInStereo && shouldDoPanning(pan, &amplitudeL, &amplitudeR));
-
-			if (doPanning) {
-				masterVolumeAdjustmentL = multiply_32x32_rshift32(masterVolumeAdjustmentL, amplitudeL) << 2;
-				masterVolumeAdjustmentR = multiply_32x32_rshift32(masterVolumeAdjustmentR, amplitudeR) << 2;
-			}
-		}
-		logAction("mastercomp start");
-
-		int32_t songVolume =
-		    getFinalParameterValueVolume(
-		        134217728, cableToLinearParamShortcut(
-		                       currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
-		    >> 1;
-		// there used to be a static subtraction of 2 nepers (natural log based dB), this is the multiplicative
-		// equivalent
-		GlobalEffectableForSong& master = currentSong->live.global_effectable;
-		master.core().compressor().configure(
-		    master.modControllableSnapshot().effects.compressor); // its threshold is its knob
-		master.core().compressor().dsp().render(renderingBuffer, masterVolumeAdjustmentL >> 1,
-		                                        masterVolumeAdjustmentR >> 1, songVolume >> 3);
-		masterVolumeAdjustmentL = ONE_Q31;
-		masterVolumeAdjustmentR = ONE_Q31;
-		logAction("mastercomp end");
 	}
 }
 void setMonitoringMode() { // Monitoring setup

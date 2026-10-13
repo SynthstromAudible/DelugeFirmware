@@ -19,6 +19,8 @@
 
 #include "model/fx/song_stutter.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
+#include "model/global_effectable/global_effectable_for_song.h"
+#include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -118,6 +120,51 @@ effects::ClipChainInputs clipChainInputs(GlobalEffectableForClip& owner, ParamMa
 	    .tick_inverse = playbackHandler.getTimePerInternalTickInverse(),
 	    .post_reverb_volume_neutral = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND],
 	    .compressor_threshold = unpatched->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD),
+	    .stutter = stutter.stutter,
+	    .stutter_rate = stutter.rate,
+	};
+}
+
+effects::MasterChainInputs masterChainInputs(Song& song, int32_t volumePostFX) {
+	GlobalEffectableForSong& master = song.live.global_effectable;
+	ParamManager& paramManager = song.paramManager;
+	const effects::Delay::State delay = master.createDelayWorkingState(paramManager);
+	const int32_t reverbSendAmount =
+	    getFinalParameterValueVolume(paramNeutralValues[params::GLOBAL_REVERB_AMOUNT],
+	                                 cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(
+	                                     params::UNPATCHED_REVERB_SEND_AMOUNT)));
+	return {
+	    .fx = hostFxInputs(master, paramManager, delay, reverbSendAmount >> 3),
+	    .volume_post_fx = volumePostFX,
+	    .post_reverb_volume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND],
+	    .reverb_send = reverbSendAmount >> 1,
+	};
+}
+
+effects::MasterPostInputs masterPostInputs(Song& song) {
+	GlobalEffectableForSong& master = song.live.global_effectable;
+	UnpatchedParamSet* unpatched = song.paramManager.getUnpatchedParamSet();
+	const StutterInput stutter = stutterInput(master, &song.paramManager);
+
+	// The pan applies after the reverb, in stereo only.
+	const int32_t pan = unpatched->getValue(params::UNPATCHED_PAN) >> 1;
+	int32_t amplitudeL = 0;
+	int32_t amplitudeR = 0;
+	const bool doPanning = pan != 0 && AudioEngine::renderInStereo && shouldDoPanning(pan, &amplitudeL, &amplitudeR);
+
+	return {
+	    .filter = chainFilterParams(*unpatched),
+	    .filter_scratch = render::filter_scratch(),
+	    .bitcrush = {.bitcrush = unpatched->getValue(params::UNPATCHED_BITCRUSHING),
+	                 .sample_rate_reduction = unpatched->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
+	    // 134217728 made a bit bigger, so the filters' default resonance doesn't reduce the volume overall.
+	    .master_volume = 167763968,
+	    .do_pan = doPanning,
+	    .pan_l = amplitudeL,
+	    .pan_r = amplitudeR,
+	    .song_volume = getFinalParameterValueVolume(
+	                       134217728, cableToLinearParamShortcut(unpatched->getValue(params::UNPATCHED_VOLUME)))
+	                   >> 1,
 	    .stutter = stutter.stutter,
 	    .stutter_rate = stutter.rate,
 	};

@@ -68,15 +68,16 @@ public:
 
 	/// @brief The half before the reverb over @p block in place, then @p between, then the half after it.
 	/// @param send The reverb send, one value per frame.
-	/// @param between Renders what the engine mixes in between the halves, then returns the half after's inputs, or
+	/// @param between Called with whether the half before fed the reverb (the engine notes it before the reverb
+	/// renders); renders what the engine mixes in between the halves, then returns the half after's inputs, or
 	/// nothing to skip that half (a stem export without the song's effects).
 	/// @return Whether the block fed the reverb.
-	// TODO(c++26): take std::function_ref<std::optional<MasterPostInputs>()> once the device's libstdc++ provides it
-	// (arm-none-eabi GCC 16; 15.2.1 does not).
+	// TODO(c++26): take std::function_ref<std::optional<MasterPostInputs>(bool)> once the device's libstdc++ provides
+	// it (arm-none-eabi GCC 16; 15.2.1 does not).
 	template <typename Between>
 	bool render(std::span<dsp::StereoSample> block, const MasterChainInputs& in, ReverbSend send, Between&& between) {
 		const bool sent = pre_reverb(block, in, send);
-		const std::optional<MasterPostInputs> post = between();
+		const std::optional<MasterPostInputs> post = between(sent);
 		if (post.has_value()) {
 			post_reverb(block, *in.fx.settings, *post);
 		}

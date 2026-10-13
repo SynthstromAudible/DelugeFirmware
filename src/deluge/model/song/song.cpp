@@ -53,6 +53,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
+#include "model/fx/chain_inputs.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
@@ -2512,7 +2513,8 @@ void Song::deleteSoundsWhichWontSound() {
 	deleteAllBackedUpParamManagersWithClips();
 }
 
-void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending) {
+deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer,
+                                                     int32_t sideChainHitPending) {
 
 	// int32_t volumePostFX = getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
 	int32_t volumePostFX =
@@ -2562,22 +2564,8 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	}
 	AudioEngine::logAction("done recorders");
 
-	deluge::effects::Delay::State delayWorkingState = live.global_effectable.createDelayWorkingState(paramManager);
-
-	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
-	int32_t reverbSendAmount =
-	    getFinalParameterValueVolume(paramNeutralValues[params::GLOBAL_REVERB_AMOUNT],
-	                                 cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(
-	                                     params::UNPATCHED_REVERB_SEND_AMOUNT)));
-
-	// don't bother checking if sound is coming in - its just to save resources and if nothing is being rendered we
-	// don't need to
-	live.global_effectable.processFXForGlobalEffectable(outputBuffer, &volumePostFX, &paramManager, delayWorkingState,
-	                                                    true, reverbSendAmount >> 3, reverbBuffer);
-
-	live.global_effectable.processReverbSendAndVolume(outputBuffer, reverbBuffer, volumePostFX, postReverbVolume,
-	                                                  reverbSendAmount >> 1);
-	AudioEngine::logAction("done global effectables");
+	// The master's inputs are read before the tick below; its chain renders in the engine, around the reverb.
+	const deluge::effects::MasterChainInputs master = deluge::model::masterChainInputs(*this, volumePostFX);
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
 	    && currentPlaybackMode == &arrangement) {
@@ -2591,6 +2579,7 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 		}
 	}
 	AudioEngine::logAction("done render");
+	return master;
 }
 
 void Song::setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction) {

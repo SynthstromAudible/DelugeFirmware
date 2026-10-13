@@ -285,8 +285,9 @@ std::string master_difference() {
 					};
 					std::vector<StereoSample> block = cw::input(w, b, frames);
 					std::vector<int32_t> send(frames, 0);
-					auto between = [&, side]() -> std::optional<MasterPostInputs> {
+					auto between = [&, side](bool sent) -> std::optional<MasterPostInputs> {
 						side->seen = words(block);
+						side->seen.push_back(sent ? 1 : 0);
 						++side->calls;
 						return w.post ? std::optional{post} : std::nullopt;
 					};

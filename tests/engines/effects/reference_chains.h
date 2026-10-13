@@ -178,8 +178,9 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 	return sent;
 }
 
-/// Song::renderAudio's tail (processFXForGlobalEffectable, then the send and volume), then @p between (the reverb,
-/// the sample preview, and the post-reverb inputs), then renderSongFX.
+/// Song::renderAudio's tail (processFXForGlobalEffectable, then the send and volume, which notes the reverb's time),
+/// then @p between with whether it sent (the reverb, the sample preview, and the post-reverb inputs), then
+/// renderSongFX.
 template <typename Between>
 bool master(fx::ChainCore& c, fx::Filter& filter_, const fx::MasterChainInputs& in,
             std::span<StereoSample> renderingBuffer, fx::ReverbSend reverbBuffer, Between&& between) {
@@ -194,7 +195,7 @@ bool master(fx::ChainCore& c, fx::Filter& filter_, const fx::MasterChainInputs& 
 	const bool sent = process_reverb_send_and_volume(c, renderingBuffer, reverbBuffer, volumePostFX,
 	                                                 in.post_reverb_volume, in.reverb_send, 0, false, in.fx.stereo);
 
-	const std::optional<fx::MasterPostInputs> post = between();
+	const std::optional<fx::MasterPostInputs> post = between(sent);
 	if (!post.has_value()) {
 		return sent;
 	}

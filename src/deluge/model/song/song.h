@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/song.h"
+#include "engines/effects/master_chain.h"
 #include "gui/menu_item/reverb/model.h"
 #include "gui/ui/browser/file_listing.h"
 #include "io/midi/learned_midi.h"
@@ -276,7 +277,10 @@ public:
 	/// @brief Report every audio file the song names to @p visitor, in load order: each output's, then each audio
 	///        clip's, with a checkpoint before every clip. Loads nothing.
 	void walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor);
-	void renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending);
+	/// @brief Renders every output into @p outputBuffer and feeds the mix recorders, then ticks the song's own params.
+	/// @return The master chain's inputs for the half before the reverb, read before that tick.
+	deluge::effects::MasterChainInputs renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer,
+	                                               int32_t sideChainHitPending);
 	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);
 	void setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction = false);
 	bool hasAnySwing();

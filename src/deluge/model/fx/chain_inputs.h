@@ -20,12 +20,14 @@
 #include "definitions_cxx.hpp"
 #include "engines/effects/clip_chain.h"
 #include "engines/effects/filter.h"
+#include "engines/effects/master_chain.h"
 
 #include <cstdint>
 
 class GlobalEffectable;
 class GlobalEffectableForClip;
 class ParamManager;
+class Song;
 class UnpatchedParamSet;
 
 namespace deluge::model {
@@ -50,5 +52,13 @@ namespace deluge::model {
                                                        int32_t volumeAdjustment, int32_t reverbAmountAdjust,
                                                        int32_t sideChainHitPending, const effects::Delay::State& delay,
                                                        OutputType outputType);
+
+/// @brief The song master's half before the reverb, from the song's params once its outputs have rendered; sets up the
+/// block's delay working state on the master's delay.
+/// @param volumePostFX The song's post-FX volume, Q31, as its outputs were rendered at.
+[[nodiscard]] effects::MasterChainInputs masterChainInputs(Song& song, int32_t volumePostFX);
+
+/// @brief The song master's half after the reverb, from the song's params once the reverb has rendered.
+[[nodiscard]] effects::MasterPostInputs masterPostInputs(Song& song);
 
 } // namespace deluge::model
