@@ -304,14 +304,83 @@ TEST(BlackEncoderQuadratureTest, PartialCyclePersistsAcrossDrains) {
 	CHECK_EQUAL(1, encoder.take());
 }
 
-// Reversing before a detent completes must cancel buffered edges without producing movement.
-TEST(BlackEncoderQuadratureTest, ReversalCancelsPartialCycle) {
-	DetentedEncoder encoder;
-	encoder.apply_edges(2);
-	CHECK_EQUAL(0, encoder.take());
-	encoder.apply_edges(-2);
+// A partial reversal must cancel net travel without discarding progress toward the next click.
+TEST(BlackEncoderQuadratureTest, PartialReversalPreservesNetProgress) {
+	for (int8_t direction : {int8_t{1}, int8_t{-1}}) {
+		DetentedEncoder encoder;
+		encoder.apply_edges(2 * direction);
+		encoder.apply_edges(-direction);
+		CHECK_EQUAL(0, encoder.take());
+		encoder.apply_edges(2 * direction);
+		CHECK_EQUAL(direction, encoder.take());
+	}
+}
 
-	CHECK_EQUAL(0, encoder.take());
+// Idle samples must leave partial travel intact in either direction.
+TEST(BlackEncoderQuadratureTest, ZeroEdgesPreservePartialCycle) {
+	for (int8_t direction : {int8_t{1}, int8_t{-1}}) {
+		DetentedEncoder encoder;
+		encoder.apply_edges(2 * direction);
+		encoder.apply_edges(0);
+		CHECK_EQUAL(0, encoder.take());
+		encoder.apply_edges(direction);
+		CHECK_EQUAL(direction, encoder.take());
+	}
+}
+
+// Rocking back and returning to a reported click must neither undo nor duplicate it.
+TEST(BlackEncoderQuadratureTest, FallbackDoesNotUndoClickOrSkipNextClick) {
+	for (int8_t direction : {int8_t{1}, int8_t{-1}}) {
+		DetentedEncoder encoder;
+		encoder.apply_edges(3 * direction);
+		CHECK_EQUAL(direction, encoder.take());
+		for (int i = 0; i < 3; ++i) {
+			encoder.apply_edges(-direction);
+			CHECK_EQUAL(0, encoder.take());
+			encoder.apply_edges(direction);
+			CHECK_EQUAL(0, encoder.take());
+		}
+		encoder.apply_edges(4 * direction);
+		CHECK_EQUAL(direction, encoder.take());
+	}
+}
+
+// Exercise actual pin transitions, draining after every sample so fallback cannot hide in a net count.
+TEST(BlackEncoderQuadratureTest, PinFallbackAndDeliberateReversal) {
+	constexpr std::array states = {EncoderPins{false, false}, EncoderPins{false, true},  EncoderPins{true, true},
+	                               EncoderPins{true, false},  EncoderPins{false, false}, // first forward click
+	                               EncoderPins{true, false},  EncoderPins{true, true},   // rock back half a cycle
+	                               EncoderPins{true, false},  EncoderPins{false, false}, // return to the same click
+	                               EncoderPins{false, true},  EncoderPins{true, true},   EncoderPins{true, false},
+	                               EncoderPins{false, false}, // next forward click
+	                               EncoderPins{true, false},  EncoderPins{true, true},   EncoderPins{false, true},
+	                               EncoderPins{false, false}, // deliberate reverse click
+	                               EncoderPins{true, false},  EncoderPins{true, true},   EncoderPins{false, true},
+	                               EncoderPins{false, false}, // another reverse click
+	                               EncoderPins{false, true},  EncoderPins{true, true},   EncoderPins{true, false},
+	                               EncoderPins{false, false}}; // reverse back to forward
+	for (bool invert : {false, true}) {
+		for (bool pollB : {false, true}) {
+			DetentedEncoder encoder;
+			QuadratureDecoder decoder;
+			decoder.initialize(false, false);
+			const int direction = invert ? -1 : 1;
+			for (size_t i = 1; i < states.size(); ++i) {
+				if (states[i].a != states[i - 1].a) {
+					encoder.apply_edges(decoder.observeAEdge(states[i].a, states[i].b, invert));
+				}
+				else if (pollB) {
+					encoder.apply_edges(decoder.observe(states[i].a, states[i].b, invert));
+				}
+				// The encoder task polls the resting pins even when intermediate B edges were missed.
+				if (i % 4 == 0) {
+					encoder.apply_edges(decoder.observe(states[i].a, states[i].b, invert));
+				}
+				const int expected = (i == 4 || i == 12 || i == 24) ? direction : (i == 16 || i == 20) ? -direction : 0;
+				CHECK_EQUAL(expected, encoder.take());
+			}
+		}
+	}
 }
 
 // A single accumulated batch must preserve every complete positive or negative detent.
