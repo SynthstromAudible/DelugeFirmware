@@ -49,6 +49,9 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium chromium-headless-shell
 
+      - name: Configure Chromium sandbox for PDF generation
+        run: bash ./scripts/setup-pdf-sandbox.sh
+
       # This gets us the site base URL
       - name: Setup Pages
         id: setup_pages
