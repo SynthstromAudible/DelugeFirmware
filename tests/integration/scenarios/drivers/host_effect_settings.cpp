@@ -17,9 +17,11 @@
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
+#include "processing/audio_output.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
 #include "scenarios/slot_coherence.h"
@@ -325,6 +327,45 @@ void ringFailureLeg(Song& song) {
 	std::ignore = setEffect(song, owner, "modFXType", none);
 }
 
+/// An audio track whose delay ping-pong was turned off, duplicated as the clone gesture duplicates it: the clone's
+/// record holds the delay as the clone rule copies it, and the song stays coherent. Nothing when the song has no audio
+/// track.
+void cloneLeg(Song& song) {
+	AudioOutput* source = nullptr;
+	for (Output* output = song.live.media.first_output; output != nullptr && source == nullptr; output = output->next) {
+		if (output->type == OutputType::AUDIO && output->id()) {
+			source = static_cast<AudioOutput*>(output);
+		}
+	}
+	if (source == nullptr) {
+		return;
+	}
+	const HostOwner from{.address = {.kind = ChainAddress::Kind::OUTPUT, .id = *source->id()}, .name = "clone source"};
+	if (setEffect(song, from, "delay/pingPong", Value::makeNumber(0)) != Error::NONE) {
+		fail(from, "delay/pingPong", Value::makeNumber(0), "refused");
+		return;
+	}
+	AudioOutput* clone = song.createNewAudioOutput();
+	if (clone == nullptr) {
+		fail(from, "-", Value::makeScalar("-"), "no new audio track");
+		return;
+	}
+	clone->cloneFrom(source);
+	deluge::bridge::recordOutputControls(*clone, song);
+	deluge::bridge::recordOutputChain(*clone, song);
+	const HostOwner to{.address = {.kind = ChainAddress::Kind::OUTPUT, .id = clone->id().value_or(0)}, .name = "clone"};
+	const deluge::project::FxChain* record = song.project.resolveChain(to.address);
+	if (record == nullptr || deluge::bridge::chainStateOf(*record).effects.delay.ping_pong) {
+		fail(to, "delay/pingPong", Value::makeNumber(0), "the clone's record does not hold the source's delay");
+	}
+	else if (const std::string what = deluge::harness::chainIncoherence(song); !what.empty()) {
+		fail(to, "-", Value::makeScalar("-"), what);
+	}
+	else {
+		ok++;
+	}
+}
+
 /// A kit added to the song, its chain edited, then hibernated (as replacing an edited instrument hibernates it): it
 /// keeps its record, an Edit on its chain reaches it there, and the song stays coherent.
 void hibernationLeg(Song& song) {
@@ -397,6 +438,7 @@ int host_effect_settings_main(int argc, char** argv, Io driverIo) {
 	hibernationLeg(*song);
 	ringFailureLeg(*song);
 	costLeg(*song);
+	cloneLeg(*song);
 	if (int r = roundTripLeg(*song, owners)) {
 		return r;
 	}

@@ -7,6 +7,7 @@
 #include "definitions_cxx.hpp"
 #include "engines/effects/state.h"
 #include "memory/general_memory_allocator.h"
+#include "model/edits/change_effect.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -39,14 +40,16 @@ void check(bool ok, const char* what) {
 	}
 }
 
-/// Every effect setting set on @p owner lands in its state, and the render's copy holds the same.
+/// Every effect setting set on @p owner, as a gesture sets it (by its Edit when the owner is in the song), lands in its
+/// state, and the render's copy holds the same.
 void checkOwner(ModControllableAudio& owner, const char* name) {
-	owner.setDelayPingPong(false);
-	owner.setDelaySyncLevel(SyncLevel::EIGHTH);
-	owner.setSidechainRelease(4242);
-	owner.setCompressorRatio(7 << 24);
-	owner.setStutterReversed(true);
-	owner.setLpfMode(FilterMode::SVF_BAND);
+	using deluge::serialization::Value;
+	deluge::edits::changeEffect(owner, "delay/pingPong", Value::makeNumber(0));
+	deluge::edits::changeEffect(owner, "delay/syncLevel", Value::makeNumber(static_cast<int32_t>(SyncLevel::EIGHTH)));
+	deluge::edits::changeEffect(owner, "sidechain/release", Value::makeNumber(4242));
+	deluge::edits::changeEffect(owner, "audioCompressor/ratio", Value::makeNumber(7 << 24));
+	deluge::edits::changeEffect(owner, "stutter/reverse", Value::makeNumber(1));
+	deluge::edits::changeEffect(owner, "lpfMode", Value::makeScalar("SVF_Band"));
 	const deluge::effects::EffectStates& record = owner.effects();
 	check(!record.delay.ping_pong && record.delay.sync_level == SyncLevel::EIGHTH && record.sidechain.release == 4242
 	          && record.compressor.ratio == (7 << 24) && record.stutter.reversed

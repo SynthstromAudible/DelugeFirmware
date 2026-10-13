@@ -128,6 +128,9 @@ ALSO: tuple[Path, ...] = ()
 HOST_OWNER_DIRS = (
     REPO / "src" / "deluge" / "model" / "global_effectable",
     REPO / "src" / "deluge" / "model" / "mod_controllable",
+    REPO / "src" / "deluge" / "model" / "instrument" / "kit.cpp",
+    REPO / "src" / "deluge" / "processing" / "audio_output.cpp",
+    REPO / "src" / "deluge" / "model" / "song" / "song.cpp",
 )
 EFFECT_SETTERS = tuple(
     s
@@ -148,19 +151,25 @@ EFFECT_SETTERS = tuple(
     )
 ) + ("assignModFXType",)
 HOST_CALL = re.compile(r"(?<![\w:])(" + "|".join(EFFECT_SETTERS) + r")\s*\(")
-VIEW_WRITE = re.compile(r"(?<![\w.>])(currentModFXParam|currentFilterType)\s*=(?!=)")
+#: A host owner's settings or view set wholesale: only the Edits, the bridge and the functions HOST_ALLOWED names do it.
+VIEW_WRITE = re.compile(r"(?<![\w:])(setEffects|setChainState)\s*\(")
 #: A function opening at the start of a line, `Class::name(`: the enclosing function of the lines after it.
 FUNCTION = re.compile(r"^[A-Za-z_][\w:<>,*& ]*?\b(\w+)::(~?\w+)\s*\(")
+#: A free function opening at the start of a line, `name(`.
+FREE_FUNCTION = re.compile(
+    r"^(?!namespace\b|template\b|using\b|return\b)[A-Za-z_][\w<>,*& ]*?\b(\w+)\s*\("
+)
 #: The functions that may write an owner's effects or view natively: a setter's own definition (named as the setter),
-#: a copy of another owner (cloneFrom), a constructor, and the load from the owner's element.
-HOST_ALLOWED = {"cloneFrom", "readEffectsFromElement", "changeEffects"}
+#: a copy of another owner (cloneFrom), a constructor, the load from the owner's element, and the one function that sets
+#: a host chain's state (setChainState), which the Edits and the bridge call.
+HOST_ALLOWED = {"cloneFrom", "readEffectsFromElement", "changeEffects", "setChainState"}
 
 
 def host_writes(dirs: tuple[Path, ...] = HOST_OWNER_DIRS) -> list[str]:
     """Every `path:line: function writes <what>` in the host owners' code that writes an effect or the view natively."""
     found = []
     for root in dirs:
-        for path in sorted(root.rglob("*")):
+        for path in sorted(root.rglob("*")) if root.is_dir() else [root]:
             if path.suffix not in {".cpp"} or not path.is_file():
                 continue
             function = ""
@@ -170,6 +179,9 @@ def host_writes(dirs: tuple[Path, ...] = HOST_OWNER_DIRS) -> list[str]:
             ):
                 if opened := FUNCTION.match(line):
                     owner, function = opened.group(1), opened.group(2)
+                    continue
+                if free := FREE_FUNCTION.match(line):
+                    owner, function = "", free.group(1)
                     continue
                 if (
                     function in HOST_ALLOWED

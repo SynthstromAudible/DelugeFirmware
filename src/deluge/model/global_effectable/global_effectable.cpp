@@ -67,9 +67,9 @@ void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
 }
 
 void GlobalEffectable::setChainState(const deluge::model::HostChainState& next) {
-	if (next.effects != effects()) {
-		setEffects(next.effects);
-	}
+	// Projected even when unchanged: a mod FX ring or a grain that could not be allocated is retried at every effects
+	// edit.
+	setEffects(next.effects);
 	chainState_.mod_fx_param = next.mod_fx_param;
 	chainState_.filter_type = next.filter_type;
 	if (modControllableSnapshot_.mod_fx_param != next.mod_fx_param) {
