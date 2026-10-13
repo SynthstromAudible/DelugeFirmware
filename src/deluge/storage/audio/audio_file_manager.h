@@ -92,13 +92,39 @@ public:
 	void loadAnyEnqueuedClusters(int32_t maxNum = 128, bool mayProcessUserActionsBetween = false);
 	void removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong = false);
 
+	/// @brief Holds a Cluster that's likely to be requested soon, loading it first if need be.
+	///
+	/// prefetches_ is a central list of the Clusters we expect to be asked for next. We hold a reason on each, so
+	/// unlike a merely cached Cluster it can't be stolen before it's used. The reason is held until claimPrefetch() is
+	/// called for it, or it's released some other way below.
+	/// Does nothing if it's already held, or if the list is full of Clusters that haven't loaded yet.
+	///
+	/// @param sample The Sample to load from.
+	/// @param clusterIndex Which of its Clusters to load. Must be a valid index into sample->clusters.
+	void prefetchCluster(Sample* sample, int32_t clusterIndex);
+
+	/// @brief Lets go of a prefetched Cluster, now that something that's going to play it holds its own reason on it.
+	///
+	/// Does nothing if @p cluster isn't prefetched.
+	void claimPrefetch(Cluster const* cluster);
+
+	/// @brief Lets go of every prefetched Cluster of @p sample, e.g. because what was going to play it has stopped.
+	void releasePrefetchesForSample(Sample const* sample);
+
+	/// @brief Lets go of prefetched Clusters that will never load because they're unloadable.
+	void releaseUnloadablePrefetches();
+
+	/// @brief Lets go of every prefetched Cluster and its Sample, loaded or not.
+	void releaseAllPrefetches();
+
 	bool ensureEnoughMemoryForOneMoreAudioFile();
 
 	void slowRoutine();
 
 	Error setupAlternateAudioFilePath(String& newPath, int32_t dirPathLength, String& oldPath);
 	Error setupAlternateAudioFileDir(String& newPath, char const* rootDir, const char* songFilenameWithoutExtension);
-	bool loadingQueueHasAnyLowestPriorityElements();
+	/// Whether any Samples' first Clusters, which let them start instantly, are still waiting to load
+	bool loadingQueueHasAnySampleStarts();
 	/// If songname isn't supplied the file is placed in the main recording folder and named as samples/folder/REC###.
 	/// If song and channel are supplied then it's placed in samples/folder/song/channel_###
 	Error getUnusedAudioRecordingFilePath(String& filePath, String* tempFilePathForRecording,
@@ -133,6 +159,25 @@ public:
 	void firstCardRead();
 
 private:
+	/// @brief A Cluster that prefetchCluster() is holding. We hold one reason on it and one on its Sample, so the
+	/// Sample can't be deleted while we still point at it.
+	struct Prefetch {
+		Cluster* cluster;
+		Sample* sample;
+	};
+
+	/// @brief Most Clusters held at once. Bounds the RAM they can pin, and keeps them from crowding out Clusters
+	/// something's actually waiting on.
+	static constexpr size_t kMaxPrefetches = 32;
+	/// Oldest first
+	std::array<Prefetch, kMaxPrefetches> prefetches_;
+	size_t numPrefetches_ = 0;
+
+	/// @brief Removes the reasons prefetches_[i] holds, and removes it from prefetches_, keeping the order.
+	void releasePrefetch(size_t i);
+	/// @brief Releases every prefetch @p shouldRelease returns true for.
+	void releasePrefetchesIf(auto shouldRelease);
+
 	bool cardReadOnce{false};
 	bool cardEjected;
 	bool cardDisabled = false;

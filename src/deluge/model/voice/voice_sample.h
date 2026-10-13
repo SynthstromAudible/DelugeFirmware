@@ -54,7 +54,8 @@ public:
 
 	void setupCacheLoopPoints(SamplePlaybackGuide* voiceSource, Sample* sample, LoopType loopingType);
 	LateStartAttemptStatus attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample,
-	                                              int64_t rawSamplesLate, int32_t numSamples = 0);
+	                                              int64_t rawSamplesLate, int32_t priorityRating,
+	                                              int32_t numSamples = 0);
 	void endTimeStretching();
 	bool render(SamplePlaybackGuide* guide, int32_t* oscBuffer, int32_t numSamples, Sample* sample, int32_t numChannels,
 	            LoopType loopingType, int32_t phaseIncrement, int32_t timeStretchRatio, int32_t amplitude,

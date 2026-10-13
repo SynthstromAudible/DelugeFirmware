@@ -171,6 +171,12 @@ justEnqueue:
 			FREEZE_WITH_ERROR("i028"); // bnhrsch got this!!
 		}
 
+		// If it's still waiting to load, it may have been enqueued at a lower priority than we need now - e.g. if it
+		// was prefetched, or enqueued for drawing a waveform
+		if (!cluster->loaded) {
+			audioFileManager.loadingQueue.raisePriority(cluster, priorityRating);
+		}
+
 		// If they'd prefer it loaded immediately and it's not loaded, try speeding loading along
 		if ((loadInstruction == CLUSTER_LOAD_IMMEDIATELY || loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE)
 		    && !cluster->loaded) {

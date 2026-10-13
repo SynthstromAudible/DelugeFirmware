@@ -220,7 +220,8 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 		}
 		SampleCluster* sampleCluster = ((Sample*)audioFile)->clusters.getElement(clusterIndex);
 
-		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction);
+		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction,
+		                                           ClusterPriority::kSampleStart);
 
 		if (!newClusters[l]) {
 			// D_PRINTLN("NULL!!");

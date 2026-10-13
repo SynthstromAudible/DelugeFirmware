@@ -37,6 +37,7 @@
 #include "storage/wave_table/wave_table_reader.h"
 #include "util/try.h"
 
+#include <algorithm>
 #include <new>
 #include <string.h>
 
@@ -208,6 +209,7 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 
 	// The waveform renderer may hold reasons on Samples we're about to delete regardless of their reasons
 	waveformRenderer.releaseAllLoads();
+	releaseAllPrefetches();
 
 	// Also though, in case any of these Samples were still being recorded before the Song-delete, we need to make sure
 	// SampleRecorder::cardRoutine() gets called first to "detach" the Sample from the recorder. So, do this:
@@ -1260,6 +1262,7 @@ void AudioFileManager::slowRoutine() {
 
 	// Even if no waveform is being rendered any more, don't sit on Clusters it enqueued once they've loaded
 	waveformRenderer.releaseFinishedLoads();
+	releaseUnloadablePrefetches();
 }
 
 #define REPORT_AWAY_TIME 0
@@ -1322,7 +1325,7 @@ performActionsAndGetOut:
 
 		// no more clusters to load, so exit
 		if (cluster == nullptr) {
-			return;
+			break;
 		}
 
 		// cluster has at least 1 "reason". If it didn't, it would have been removed from the load-queue
@@ -1354,7 +1357,7 @@ performActionsAndGetOut:
 				}
 
 				// TODO: If that fails, it'll just get awkwardly forgotten about
-				loadingQueue.enqueueCluster(*cluster, 0xFFFFFFFF); // lowest priority
+				loadingQueue.enqueueCluster(*cluster, ClusterPriority::kRetryAfterCardError);
 
 				// Also, return now. Normally we stay here til there's nothing left in the load-queue, but now that
 				// would leave us in an infinite loop!
@@ -1420,8 +1423,90 @@ void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* err
 	}
 }
 
-bool AudioFileManager::loadingQueueHasAnyLowestPriorityElements() {
-	return loadingQueue.hasAnyLowestPriority();
+void AudioFileManager::prefetchCluster(Sample* sample, int32_t clusterIndex) {
+	if (sample->unloadable) {
+		return;
+	}
+
+	SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndex);
+	Cluster const* existing = sampleCluster->cluster;
+	if (existing != nullptr
+	    && std::ranges::any_of(prefetches_.begin(), prefetches_.begin() + numPrefetches_,
+	                           [existing](const Prefetch& prefetch) { return prefetch.cluster == existing; })) {
+		return;
+	}
+
+	// If we're full, make room by letting go of the oldest one that's loaded. It just goes back to being cached, so
+	// if it's wanted again before it's stolen, it won't need reloading. But don't let go of unloaded ones - they'd be
+	// taken out of the loading queue and deleted, and with lots of AudioClips we'd keep doing that and never load
+	// anything.
+	if (numPrefetches_ == kMaxPrefetches) {
+		auto oldestLoaded =
+		    std::ranges::find_if(prefetches_, [](const Prefetch& prefetch) { return prefetch.cluster->loaded; });
+		if (oldestLoaded == prefetches_.end()) {
+			return;
+		}
+		releasePrefetch(oldestLoaded - prefetches_.begin());
+	}
+
+	// If it already exists, this just adds a reason, so it can no longer be stolen. Otherwise it enqueues it behind
+	// anything that's actually needed.
+	Error error;
+	Cluster* cluster =
+	    sampleCluster->getCluster(sample, clusterIndex, CLUSTER_ENQUEUE, ClusterPriority::kSpeculative, &error);
+	// Nothing's waiting on it yet, so if we can't get it now, playback will just ask again when it gets there
+	if (error != Error::NONE || cluster == nullptr) {
+		D_PRINTLN("prefetch failed for index:  %d  error:  %d", clusterIndex, util::to_underlying(error));
+		return;
+	}
+
+	sample->addReason();
+	prefetches_[numPrefetches_++] = {cluster, sample};
+}
+
+void AudioFileManager::releasePrefetch(size_t i) {
+	Prefetch prefetch = prefetches_[i];
+	std::move(prefetches_.begin() + i + 1, prefetches_.begin() + numPrefetches_, prefetches_.begin() + i);
+	numPrefetches_--;
+
+	removeReasonFromCluster(*prefetch.cluster, "4461");
+	prefetch.sample->removeReason("4461");
+}
+
+void AudioFileManager::releasePrefetchesIf(auto shouldRelease) {
+	for (size_t i = 0; i < numPrefetches_;) {
+		if (shouldRelease(prefetches_[i])) {
+			releasePrefetch(i);
+		}
+		else {
+			i++;
+		}
+	}
+}
+
+void AudioFileManager::claimPrefetch(Cluster const* cluster) {
+	releasePrefetchesIf([cluster](const Prefetch& prefetch) { return prefetch.cluster == cluster; });
+}
+
+void AudioFileManager::releasePrefetchesForSample(Sample const* sample) {
+	releasePrefetchesIf([sample](const Prefetch& prefetch) { return prefetch.sample == sample; });
+}
+
+void AudioFileManager::releaseUnloadablePrefetches() {
+	// They've been taken out of the loading queue, so would otherwise be held until everything's cleared
+	releasePrefetchesIf([this](const Prefetch& prefetch) {
+		return prefetch.cluster != clusterBeingLoaded && (prefetch.cluster->unloadable || prefetch.sample->unloadable);
+	});
+}
+
+void AudioFileManager::releaseAllPrefetches() {
+	while (numPrefetches_ > 0) {
+		releasePrefetch(numPrefetches_ - 1);
+	}
+}
+
+bool AudioFileManager::loadingQueueHasAnySampleStarts() {
+	return loadingQueue.hasAnyWithPriority(ClusterPriority::kSampleStart);
 }
 
 // Caller must also set alternateAudioFileLoadPath.

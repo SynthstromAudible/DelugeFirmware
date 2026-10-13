@@ -19,12 +19,31 @@
 
 #include "cluster.h"
 #include "util/containers.h"
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <ranges>
 
 using Priority = uint32_t;
 using qcluster = std::pair<Priority, Cluster*>;
+
+/// Priorities for loading Clusters. Lower numbers load first. From first to last:
+/// - AudioClips: forAudioClip(), which puts each one ahead of every Voice of the same VoicePriority.
+/// - Voices: Voice::getPriorityRating(), which stays at or below 0xFEFFFFFF.
+/// - The first Clusters of each Sample, so it can start instantly. LoadSongUI waits for these.
+/// - Speculative loads that nothing's waiting on yet, like prefetches and waveform drawing.
+/// - Retrying a load that failed, presumably because the card's gone.
+namespace ClusterPriority {
+constexpr Priority kSampleStart = 0xFFFFFFFD;
+constexpr Priority kSpeculative = 0xFFFFFFFE;
+constexpr Priority kRetryAfterCardError = 0xFFFFFFFF;
+
+/// Voice::getPriorityRating() puts the VoicePriority in the top two bits, with at least one active Voice counted below
+/// them, so leaving the rest zero puts the AudioClip ahead of all Voices of that VoicePriority.
+constexpr Priority forAudioClip(VoicePriority voicePriority) {
+	return static_cast<Priority>(3 - util::to_underlying(voicePriority)) << 30;
+}
+} // namespace ClusterPriority
 
 // comparator returns true if elements need to be swapped
 class Compare {
@@ -56,10 +75,29 @@ public:
 		return nullptr;
 	}
 
-	/* This is currently a consequence of how priorities are calculated (using full 32bits) next-gen getPriorityRating
-	 * should return an int32_t */
-	[[nodiscard]] constexpr bool hasAnyLowestPriority() const {
-		return !c.empty() && c.rbegin()->first == std::numeric_limits<uint32_t>::max();
+	/// @brief Whether any Cluster is queued at exactly @p priority. Has to check every entry, as the heap only keeps
+	/// the front in order.
+	[[nodiscard]] bool hasAnyWithPriority(Priority priority) const {
+		return std::ranges::any_of(
+		    this->c, [priority](const qcluster& entry) { return entry.second != nullptr && entry.first == priority; });
+	}
+
+	/// @brief If @p cluster is queued at a lower priority than @p priorityRating, moves it up to that.
+	///
+	/// Enqueuing it again instead would get it loaded twice, which corrupts any data that gets converted on load.
+	/// @return Whether it was queued at a lower priority.
+	bool raisePriority(const Cluster* cluster, Priority priorityRating) {
+		bool raised = false;
+		for (auto& [priority, val] : this->c) {
+			if (val == cluster && priorityRating < priority) {
+				priority = priorityRating;
+				raised = true;
+			}
+		}
+		if (raised) {
+			std::ranges::make_heap(this->c, this->comp);
+		}
+		return raised;
 	}
 
 	bool erase(const Cluster* cluster) {
