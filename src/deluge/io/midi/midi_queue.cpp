@@ -51,6 +51,15 @@ const QueuedMIDI* MIDIQueue::frontDue(OutputTime now, bool all, const CriticalSe
 	return &front;
 }
 
+bool MIDIQueue::popOldest(QueuedMIDI& out, const CriticalSectionGuard&) {
+	if (queue_.empty()) {
+		return false;
+	}
+	out = queue_.front();
+	queue_.pop();
+	return true;
+}
+
 bool MIDIQueue::nextDue(OutputTime& due, const CriticalSectionGuard&) const {
 	if (queue_.empty()) {
 		return false;

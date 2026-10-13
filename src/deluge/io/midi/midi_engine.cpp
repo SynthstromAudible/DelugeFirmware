@@ -208,15 +208,12 @@ PLACE_SDRAM_BSS MIDIQueue midiQueue;
 void MidiEngine::queueMIDI(MIDIMessage message, int32_t filter, bool sendUSB, bool sendDIN) {
 	CriticalSectionGuard guard;
 	QueuedMIDI queued{.message = message, .filter = (int16_t)filter, .usb = sendUSB, .din = sendDIN, .due = midiDue_};
-	if (!midiQueue.push(queued, outputTimeNow(), guard)) {
-		// Full, which shouldn't happen - send it now rather than lose it
-		if (sendUSB) {
-			sendUsbMidi(message, filter);
-		}
-		if (sendDIN) {
-			sendSerialMidi(message);
-		}
+	if (midiQueue.push(queued, outputTimeNow(), guard)) [[likely]] {
+		return;
 	}
+	// Full - send the oldest early to make room, so this one still goes out after everything queued before it
+	sendOldestQueuedMIDI(guard);
+	midiQueue.push(queued, outputTimeNow(), guard);
 }
 
 bool MidiEngine::nextMIDIDue(uint32_t& due, const CriticalSectionGuard& guard) {
@@ -235,16 +232,29 @@ bool MidiEngine::flushQueuedMIDI(bool all, uint32_t now, const CriticalSectionGu
 				break;
 			}
 		}
-		if (queued->usb) {
-			sendUsbMidi(queued->message, queued->filter);
-		}
-		if (queued->din) {
-			sendSerialMidi(queued->message);
-		}
+		sendQueuedMIDI(*queued);
 		midiQueue.pop(guard);
 	}
 	flushMIDI();
 	return blocked;
+}
+
+bool MidiEngine::sendOldestQueuedMIDI(const CriticalSectionGuard& guard) {
+	QueuedMIDI queued;
+	if (!midiQueue.popOldest(queued, guard)) {
+		return false;
+	}
+	sendQueuedMIDI(queued);
+	return true;
+}
+
+void MidiEngine::sendQueuedMIDI(const QueuedMIDI& queued) {
+	if (queued.usb) {
+		sendUsbMidi(queued.message, queued.filter);
+	}
+	if (queued.din) {
+		sendSerialMidi(queued.message);
+	}
 }
 
 bool MidiEngine::flushDueMIDI(uint32_t now, const CriticalSectionGuard& guard) {

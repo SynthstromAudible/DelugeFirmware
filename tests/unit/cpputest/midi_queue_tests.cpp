@@ -99,6 +99,31 @@ TEST(MidiQueueTests, FullQueueRejectsUntilSpaceFreed) {
 	CHECK(queue.push(noteOn(61, 1000), 1000, guard));
 }
 
+TEST(MidiQueueTests, PopOldestMakesRoomRegardlessOfDueTime) {
+	MIDIQueue queue;
+	CriticalSectionGuard guard;
+	for (size_t i = 0; i < MIDIQueue::kCapacity; i++) {
+		CHECK(queue.push(noteOn(i % 128, 2000), 1000, guard));
+	}
+	CHECK_FALSE(queue.push(noteOn(127, 2000), 1000, guard));
+
+	// None are due, but the oldest still comes out
+	CHECK(queue.frontDue(1000, false, guard) == nullptr);
+	QueuedMIDI oldest;
+	CHECK(queue.popOldest(oldest, guard));
+	CHECK_EQUAL(0, oldest.message.data1);
+	CHECK(queue.push(noteOn(127, 2000), 1000, guard));
+
+	// The new one went in behind everything already queued
+	for (size_t i = 1; i < MIDIQueue::kCapacity; i++) {
+		CHECK(queue.popOldest(oldest, guard));
+		CHECK_EQUAL(i % 128, oldest.message.data1);
+	}
+	CHECK(queue.popOldest(oldest, guard));
+	CHECK_EQUAL(127, oldest.message.data1);
+	CHECK_FALSE(queue.popOldest(oldest, guard));
+}
+
 TEST_GROUP(OutputTimeTests){};
 
 TEST(OutputTimeTests, WindowStartIsWhenThePlayheadReachesIt) {

@@ -69,6 +69,10 @@ public:
 	/// Remove the oldest queued MIDI
 	void pop(const CriticalSectionGuard&) { queue_.pop(); }
 
+	/// Take the oldest queued MIDI whether it's due or not, e.g. to make room when the queue's full. Returns false if
+	/// nothing's queued
+	bool popOldest(QueuedMIDI& out, const CriticalSectionGuard&);
+
 	/// Get the due time of the oldest queued MIDI. Returns false if nothing's queued
 	bool nextDue(OutputTime& due, const CriticalSectionGuard&) const;
 

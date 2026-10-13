@@ -25,6 +25,7 @@
 #include <libdeluge/scheduler.h>
 
 struct CriticalSectionGuard;
+struct QueuedMIDI;
 
 class MIDICable;
 class MIDIDrum;
@@ -165,6 +166,9 @@ private:
 
 	void queueMIDI(MIDIMessage message, int32_t filter, bool sendUSB, bool sendDIN);
 	bool flushQueuedMIDI(bool all, uint32_t now, const CriticalSectionGuard& guard);
+	/// Pop the oldest queued MIDI and send it, whether it's due yet or not. Returns false if nothing was queued
+	bool sendOldestQueuedMIDI(const CriticalSectionGuard& guard);
+	void sendQueuedMIDI(const QueuedMIDI& queued);
 
 	uint32_t midiDue_{0}; ///< Due time given to MIDI as it's queued, see setMIDIDue()
 };
