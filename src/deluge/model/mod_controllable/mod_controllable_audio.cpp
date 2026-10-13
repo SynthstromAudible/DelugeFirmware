@@ -181,7 +181,11 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 }
 
 void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
-	writer.writeValue(deluge::effects::encode_pieces(effects(), effectsCodecContext()).attributes);
+	writeAttributesToFile(writer, effects());
+}
+
+void ModControllableAudio::writeAttributesToFile(Serializer& writer, const deluge::effects::EffectStates& states) {
+	writer.writeValue(deluge::effects::encode_pieces(states, effectsCodecContext()).attributes);
 }
 
 void ModControllableAudio::setEffects(const deluge::effects::EffectStates& next) {
@@ -315,8 +319,13 @@ void ModControllableAudio::setCompressorBlend(q31_t value) {
 }
 
 void ModControllableAudio::writeTagsToFile(Serializer& writer) {
+	writeTagsToFile(writer, effects(), savedCompressorThreshold());
+}
+
+void ModControllableAudio::writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states,
+                                           q31_t compressorThreshold) {
 	const deluge::effects::EffectPieces pieces =
-	    deluge::effects::encode_pieces(effects(), effectsCodecContext(), savedCompressorThreshold());
+	    deluge::effects::encode_pieces(states, effectsCodecContext(), compressorThreshold);
 	writer.writeValue(pieces.delay);
 	writeMidiKnobsToFile(writer);
 	writer.writeValue(pieces.tags);

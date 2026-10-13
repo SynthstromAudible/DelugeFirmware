@@ -214,7 +214,8 @@ void magnitudeLeg(Song& song, const std::vector<HostOwner>& owners) {
 	song.project.transport.inside_world_tick_magnitude--;
 }
 
-/// A filter mode and a compressor attack changed on a kit and the master survive a save and a reload.
+/// A filter mode and a compressor attack changed on a kit and the master survive a save and a reload. A kit's
+/// compressor threshold, whose render follows its param, saves as its setting whatever the render last applied.
 int roundTripLeg(Song& song, const std::vector<HostOwner>& owners) {
 	const std::vector<HostOwner> edited = kitAndMaster(owners);
 	constexpr int32_t kAttack = 0x23456789;
@@ -222,6 +223,16 @@ int roundTripLeg(Song& song, const std::vector<HostOwner>& owners) {
 		if (setEffect(song, owner, "lpfMode", Value::makeScalar("SVF_Notch")) != Error::NONE
 		    || setEffect(song, owner, "audioCompressor/attack", Value::makeNumber(kAttack)) != Error::NONE) {
 			fail(owner, "round trip", Value::makeScalar("-"), "refused");
+		}
+	}
+	// The kit's render threshold moved off its setting, as the render moves it to the param each block.
+	std::vector<std::pair<HostOwner, int32_t>> thresholds;
+	for (const HostOwner& owner : edited) {
+		GlobalEffectable* runtime = deluge::bridge::chainOwnerAt(owner.address, song);
+		if (owner.address.kind == ChainAddress::Kind::OUTPUT && runtime != nullptr) {
+			const int32_t setting = runtime->effects().compressor.threshold;
+			runtime->core().compressor().dsp().setThreshold(setting == 0x40000000 ? 0x20000000 : 0x40000000);
+			thresholds.emplace_back(owner, setting);
 		}
 	}
 	constexpr uint32_t kCap = 16u * 1024 * 1024;
@@ -248,6 +259,15 @@ int roundTripLeg(Song& song, const std::vector<HostOwner>& owners) {
 		else if (runtime->effects().filter.lpf_mode != FilterMode::SVF_NOTCH
 		         || runtime->effects().compressor.attack != kAttack) {
 			fail(owner, "round trip", Value::makeScalar("-"), "a change did not survive the reload");
+		}
+		else {
+			ok++;
+		}
+	}
+	for (const auto& [owner, setting] : thresholds) {
+		GlobalEffectable* runtime = deluge::bridge::chainOwnerAt(owner.address, *reloaded);
+		if (runtime == nullptr || runtime->effects().compressor.threshold != setting) {
+			fail(owner, "round trip", Value::makeNumber(setting), "the compressor threshold saved is not its setting");
 		}
 		else {
 			ok++;

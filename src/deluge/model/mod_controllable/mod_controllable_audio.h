@@ -52,13 +52,17 @@ public:
 
 	void writeAttributesToFile(Serializer& writer);
 	void writeTagsToFile(Serializer& writer);
+	/// @brief Writes @p states' effect attributes.
+	void writeAttributesToFile(Serializer& writer, const deluge::effects::EffectStates& states);
+	/// @brief Writes @p states' effect tags, the learned MIDI knobs among them, with @p compressorThreshold for the
+	/// compressor's threshold.
+	void writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states, q31_t compressorThreshold);
 	/// The learned MIDI knobs' tag, which a file writes between the delay and the other effect tags.
 	void writeMidiKnobsToFile(Serializer& writer);
 	/// The codec context a file's effect entries are written in: the current song's tick magnitude.
 	[[nodiscard]] static deluge::engine::CodecContext effectsCodecContext();
-	/// The compressor threshold a file saves: the one the render last applied, which for a sound or a clip chain is its
-	/// param's.
-	[[nodiscard]] virtual q31_t savedCompressorThreshold() const { return core().compressor().dsp().threshold(); }
+	/// The compressor threshold a sound's file saves: the one the render last applied, its param's.
+	[[nodiscard]] q31_t savedCompressorThreshold() const { return core().compressor().dsp().threshold(); }
 
 	/// @brief This owner's effect settings: a bound sound's are its SoundState's, any other owner's its own.
 	[[nodiscard]] const deluge::effects::EffectStates& effects() const {

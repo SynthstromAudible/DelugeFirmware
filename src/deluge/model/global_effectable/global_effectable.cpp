@@ -31,6 +31,7 @@
 #include "model/action/action_logger.h"
 #include "model/edits/change_effect.h"
 #include "model/mod_controllable/mod_fx_names.h"
+#include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -481,7 +482,7 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 
 		// this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { // sidechain (threshold)
-			current = (savedCompressorThreshold() >> 24);
+			current = (effects().compressor.threshold >> 24);
 		}
 		else if (whichModEncoder == 0) {
 			switch (currentCompParam) {
@@ -529,7 +530,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 		// this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { // sidechain (threshold)
 			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_THRESHOLD));
-			current = (savedCompressorThreshold() >> 24) - 64;
+			current = (effects().compressor.threshold >> 24) - 64;
 			current += offset;
 			current = std::clamp(current, -64, 64);
 			ledLevel = (64 + current);
@@ -758,10 +759,23 @@ void GlobalEffectable::ensureModFXParamIsValid() {
 	}
 }
 
+deluge::model::HostChainState GlobalEffectable::savedChainState() {
+	if (currentSong != nullptr) {
+		if (const std::optional<deluge::project::ChainAddress> address =
+		        deluge::bridge::chainAddressOf(*this, *currentSong)) {
+			if (const deluge::project::FxChain* record = currentSong->project.resolveChain(*address)) {
+				return deluge::bridge::chainStateOf(*record);
+			}
+		}
+	}
+	return chainState_;
+}
+
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
-	writer.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(modFXParam()));
-	writer.writeAttribute("currentFilterType", (char*)filterTypeToString(filterType()));
-	ModControllableAudio::writeAttributesToFile(writer);
+	const deluge::model::HostChainState saved = savedChainState();
+	writer.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(saved.mod_fx_param));
+	writer.writeAttribute("currentFilterType", (char*)filterTypeToString(saved.filter_type));
+	ModControllableAudio::writeAttributesToFile(writer, saved.effects);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	// <--
 }
@@ -775,7 +789,9 @@ void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramMa
 		writer.writeClosingTag("defaultParams");
 	}
 
-	ModControllableAudio::writeTagsToFile(writer);
+	// A clip chain's render follows its threshold param; the file holds the setting, as the record does.
+	const deluge::model::HostChainState saved = savedChainState();
+	ModControllableAudio::writeTagsToFile(writer, saved.effects, saved.effects.compressor.threshold);
 }
 
 void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
