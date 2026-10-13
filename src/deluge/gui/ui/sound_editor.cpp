@@ -2072,7 +2072,7 @@ doMIDIOrCV:
 	currentMultiRange = newRange;
 
 	if (currentModControllable) {
-		currentSidechain = &currentModControllable->sidechain;
+		currentSidechain = &currentModControllable->core().sidechain();
 	}
 
 	if (currentSound) {

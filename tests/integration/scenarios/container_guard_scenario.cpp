@@ -336,12 +336,12 @@ constexpr std::size_t kModFxRingBytes = deluge::effects::ModFx::Kernel::kRingFra
 
 /// @return Whether @p owner's mod FX holds its ring.
 bool holdsRing(ModControllableAudio& owner) {
-	return owner.modfx.holdsRing();
+	return owner.core().mod_fx().holdsRing();
 }
 
 /// @return The ring index @p owner's mod FX writes next: it moves each block the render runs the effect.
 int32_t ringWrite(ModControllableAudio& owner) {
-	return owner.modfx.state().write;
+	return owner.core().mod_fx().state().write;
 }
 
 /// @return Whether @p owner's mod FX, run as @p type over kModFxBlocks blocks of a ramp, changed any of them: the
@@ -365,7 +365,7 @@ bool changesBlock(ModControllableAudio& owner, ParamManager& params, ModFXType t
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
 			block[i] = {v, -v};
 		}
-		owner.modfx.render(block, in, volume);
+		owner.core().mod_fx().render(block, in, volume);
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
 			changed = changed || block[i].l != v || block[i].r != -v;
@@ -413,7 +413,7 @@ MasterFxRender renderMasterFx(GlobalEffectable& master, ParamManager& params) {
 /// @return The ring index @p owner's grain writes next, or -1 before its State is taken: it moves each block the
 /// render runs the effect.
 int64_t grainWrite(ModControllableAudio& owner) {
-	const auto* state = owner.granular.state();
+	const auto* state = owner.core().granular().state();
 	return state == nullptr ? -1 : static_cast<int64_t>(state->write);
 }
 
@@ -1025,7 +1025,7 @@ void editLeg() {
 		turnDrum(kRate, 0);
 		int32_t starts = 0;
 		int32_t stops = 0;
-		bool was = drum->delay.isActive();
+		bool was = drum->core().delay().isActive();
 		for (int32_t b = 0; b < kRenderAllocDelayBlocks; b++) {
 			if (b == 400) {
 				turnDrum(kRate, 0x30000000);
@@ -1034,7 +1034,7 @@ void editLeg() {
 				turnDrum(kRate, -0x40000000);
 			}
 			renderBlocks(1);
-			const bool now = drum->delay.isActive();
+			const bool now = drum->core().delay().isActive();
 			starts += (!was && now) ? 1 : 0;
 			stops += (was && !now) ? 1 : 0;
 			was = now;
@@ -1170,11 +1170,11 @@ void editLeg() {
 		const bool injected = !deluge::memory::allocationFailurePending();
 		renderBlocks(4);
 		const bool passthrough =
-		    !fx.granular.holdsRing() && !renderMasterFx(fx, currentSong->paramManager).differsFrom(dry);
+		    !fx.core().granular().holdsRing() && !renderMasterFx(fx, currentSong->paramManager).differsFrom(dry);
 		fx.setModFXType(ModFXType::GRAIN);
 		const int64_t writeBefore = grainWrite(fx);
 		renderBlocks(1);
-		const bool recovered = fx.granular.holdsRing() && grainWrite(fx) != writeBefore
+		const bool recovered = fx.core().granular().holdsRing() && grainWrite(fx) != writeBefore
 		                       && renderMasterFx(fx, currentSong->paramManager).differsFrom(dry);
 		fx.setModFXType(ModFXType::NONE);
 		fx.currentModFXParam = paramBefore;
@@ -1241,10 +1241,10 @@ void editLeg() {
 		                      && synth->effects().delay.type == deluge::effects::DelayType::DIGITAL;
 		auditionOn(g_clip, kRowNote, true);
 		renderBlocks(8);
-		const bool passthrough = !synth->delay.isActive() && arena.regions() == 0;
+		const bool passthrough = !synth->core().delay().isActive() && arena.regions() == 0;
 		deluge::model::maintainDelayArena();
 		renderBlocks(8);
-		const bool recovered = synth->delay.isActive() && arena.regions() >= 1;
+		const bool recovered = synth->core().delay().isActive() && arena.regions() >= 1;
 		tearDownDelay(g_clip);
 		renderBlocks(1);
 		deluge::model::maintainDelayArena();
@@ -1274,8 +1274,9 @@ void editLeg() {
 		}
 		renderBlocks(1);
 		const bool shortfall = arena.shortfalls() > shortfallsBefore;
-		const bool started = std::ranges::all_of(
-		    clips, [](InstrumentClip* clip) { return static_cast<SoundInstrument*>(clip->output)->delay.isActive(); });
+		const bool started = std::ranges::all_of(clips, [](InstrumentClip* clip) {
+			return static_cast<SoundInstrument*>(clip->output)->core().delay().isActive();
+		});
 		for (InstrumentClip* clip : clips) {
 			tearDownDelay(clip);
 		}
@@ -1299,20 +1300,20 @@ void editLeg() {
 		renderBlocks(20);
 		const std::size_t liveRinging = arena.live_tapes();
 		setDelayType(*synth, DelayType::OFF);
-		const bool off =
-		    synth->delay.isActive() == false && !synth->delay.counted() && arena.live_tapes() < liveRinging;
+		const bool off = synth->core().delay().isActive() == false && !synth->core().delay().counted()
+		                 && arena.live_tapes() < liveRinging;
 		setDelayType(*synth, DelayType::DIGITAL);
 		renderBlocks(20);
-		const bool on = synth->delay.isActive() && synth->delay.counted();
+		const bool on = synth->core().delay().isActive() && synth->core().delay().counted();
 		synth->wontBeRenderedForAWhile();
-		const bool hibernate = !synth->delay.isActive();
+		const bool hibernate = !synth->core().delay().isActive();
 
 		InstrumentClip* other = makeSynthClip();
 		bool clone = false;
 		if (other != nullptr) {
 			auto* second = static_cast<SoundInstrument*>(other->output);
 			second->cloneFrom(synth);
-			clone = second->delay.counted() && second->effects().delay.type == DelayType::DIGITAL;
+			clone = second->core().delay().counted() && second->effects().delay.type == DelayType::DIGITAL;
 		}
 		const bool count = arena.owners_on() == ownersWithDelayOn();
 
@@ -1494,7 +1495,7 @@ void editLeg() {
 			    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(type))));
 			renderBlocks(2);
 			matched = matched && synth->effects().mod_fx.type == type
-			          && synth->granular.holdsRing() == (type == ModFXType::GRAIN)
+			          && synth->core().granular().holdsRing() == (type == ModFXType::GRAIN)
 			          && holdsRing(*synth) == deluge::effects::is_ring_type(type);
 		}
 		const bool noted = deluge::notedStructuralEdits(StructuralContainer::GRAIN_BLOCK) > notedBefore;

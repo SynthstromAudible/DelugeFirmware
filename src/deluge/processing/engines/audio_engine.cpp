@@ -1372,9 +1372,10 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 		// there used to be a static subtraction of 2 nepers (natural log based dB), this is the multiplicative
 		// equivalent
 		GlobalEffectableForSong& master = currentSong->live.global_effectable;
-		master.compressor.configure(master.modControllableSnapshot().effects.compressor); // its threshold is its knob
-		master.compressor.dsp().render(renderingBuffer, masterVolumeAdjustmentL >> 1, masterVolumeAdjustmentR >> 1,
-		                               songVolume >> 3);
+		master.core().compressor().configure(
+		    master.modControllableSnapshot().effects.compressor); // its threshold is its knob
+		master.core().compressor().dsp().render(renderingBuffer, masterVolumeAdjustmentL >> 1,
+		                                        masterVolumeAdjustmentR >> 1, songVolume >> 3);
 		masterVolumeAdjustmentL = ONE_Q31;
 		masterVolumeAdjustmentR = ONE_Q31;
 		logAction("mastercomp end");

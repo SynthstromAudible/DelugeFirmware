@@ -62,12 +62,7 @@
 
 namespace params = deluge::modulation::params;
 
-ModControllableAudio::ModControllableAudio() : ModControllableAudio(deluge::effects::EnterGrain::KEEP) {
-}
-
-ModControllableAudio::ModControllableAudio(deluge::effects::EnterGrain enterGrain)
-    : modfx{deluge::model::kModFxRingAllocator}, granular{deluge::model::kGranularAllocator, enterGrain},
-      delay{deluge::model::delayArena()} {
+ModControllableAudio::ModControllableAudio() {
 	SyncLevel syncLevel;
 	Song* song = preLoadedSong;
 	if (!song) {
@@ -93,7 +88,10 @@ ModControllableAudio::~ModControllableAudio() {
 		currentSong->live.stutter.clearSnap();
 		exitUIMode(UI_MODE_STUTTERING);
 	}
-	// The delay's tapes go back to the arena, and the owner leaves its margin, as a change to OFF does.
+}
+
+void ModControllableAudio::releaseChainMemory() {
+	deluge::effects::Delay& delay = core().delay();
 	deluge::effects::DelayChange change = delay.prepare(deluge::effects::DelayType::OFF);
 	{
 		AudioExcludedSection section; // the render takes from the arena
@@ -117,7 +115,7 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	next.delay.sync_level = from.delay.sync_level;
 	next.stutter = from.stutter;
 	setEffects(next);
-	equalizer_.copy_coefficients_from(other->equalizer_);
+	core().equalizer().copy_coefficients_from(other->core().equalizer());
 	midi_knobs = other->midi_knobs; // Could fail if no RAM... not too big a concern
 }
 
@@ -206,18 +204,18 @@ void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType m
 		    .stereo = AudioEngine::renderInStereo,
 		    .sound = anySoundComingIn,
 		};
-		modfx.render(buffer, in, *postFXVolume);
+		core().mod_fx().render(buffer, in, *postFXVolume);
 	}
 
 	// EQ -------------------------------------------------------------------------------------
-	equalizer_.process(buffer, {.bass = unpatchedParams->getValue(params::UNPATCHED_BASS),
-	                            .treble = unpatchedParams->getValue(params::UNPATCHED_TREBLE),
-	                            .bass_frequency = unpatchedParams->getValue(params::UNPATCHED_BASS_FREQ),
-	                            .treble_frequency = unpatchedParams->getValue(params::UNPATCHED_TREBLE_FREQ)});
+	core().equalizer().process(buffer, {.bass = unpatchedParams->getValue(params::UNPATCHED_BASS),
+	                                    .treble = unpatchedParams->getValue(params::UNPATCHED_TREBLE),
+	                                    .bass_frequency = unpatchedParams->getValue(params::UNPATCHED_BASS_FREQ),
+	                                    .treble_frequency = unpatchedParams->getValue(params::UNPATCHED_TREBLE_FREQ)});
 
 	// Delay ----------------------------------------------------------------------------------
 	checkStack("delay");
-	delay.process(buffer, delayWorkingState, AudioEngine::renderInStereo);
+	core().delay().process(buffer, delayWorkingState, AudioEngine::renderInStereo);
 }
 void ModControllableAudio::processGrainFX(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth,
                                           int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
@@ -230,20 +228,20 @@ void ModControllableAudio::processGrainFX(std::span<StereoSample> buffer, int32_
 	    .send_amount = multiply_32x32_rshift32(*postFXVolume, verbAmount) << 5,
 	    .sound = anySoundComingIn,
 	};
-	granular.render(buffer, in, *postFXVolume, {reverbBuffer, buffer.size()});
+	core().granular().render(buffer, in, *postFXVolume, {reverbBuffer, buffer.size()});
 }
 
 void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* reverbBuffer,
                                                       int32_t postFXVolume, int32_t postReverbVolume,
                                                       int32_t reverbSendAmount, int32_t pan,
                                                       bool doAmplitudeIncrement) {
-	if (sendAndVolume_.process(buffer, {reverbBuffer, buffer.size()},
-	                           {.post_fx_volume = postFXVolume,
-	                            .post_reverb_volume = postReverbVolume,
-	                            .reverb_send = reverbSendAmount,
-	                            .pan = pan,
-	                            .ramp = doAmplitudeIncrement,
-	                            .stereo = AudioEngine::renderInStereo})) {
+	if (core().send_and_volume().process(buffer, {reverbBuffer, buffer.size()},
+	                                     {.post_fx_volume = postFXVolume,
+	                                      .post_reverb_volume = postReverbVolume,
+	                                      .reverb_send = reverbSendAmount,
+	                                      .pan = pan,
+	                                      .ramp = doAmplitudeIncrement,
+	                                      .stereo = AudioEngine::renderInStereo})) {
 		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
 	}
 }
@@ -261,10 +259,10 @@ bool ModControllableAudio::isSRREnabled(ParamManager* paramManager) {
 void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume,
                                                     ParamManager* paramManager) {
 	UnpatchedParamSet* unpatched = paramManager->getUnpatchedParamSet();
-	bitcrush_.process(buffer,
-	                  {.bitcrush = unpatched->getValue(params::UNPATCHED_BITCRUSHING),
-	                   .sample_rate_reduction = unpatched->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
-	                  *postFXVolume);
+	core().bitcrush().process(buffer,
+	                          {.bitcrush = unpatched->getValue(params::UNPATCHED_BITCRUSHING),
+	                           .sample_rate_reduction = unpatched->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
+	                          *postFXVolume);
 }
 
 void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
@@ -294,26 +292,26 @@ void ModControllableAudio::bindEffects(deluge::effects::EffectStates* record) {
 
 void ModControllableAudio::projectModControllableSnapshot() {
 	const ModFXType type = effects().mod_fx.type;
-	deluge::effects::RingChange ring = modfx.prepare(type);
-	deluge::effects::GranularBlockChange grain = granular.prepare(type);
+	deluge::effects::RingChange ring = core().mod_fx().prepare(type);
+	deluge::effects::GranularBlockChange grain = core().granular().prepare(type);
 	const deluge::effects::DelayType delayType = effects().delay.type;
 	const std::size_t delayReserve = (delayType != deluge::effects::DelayType::OFF && currentSong != nullptr)
 	                                     ? deluge::model::delayReserveFrames(*currentSong, *this)
 	                                     : 0;
-	deluge::effects::DelayChange delayChange = delay.prepare(delayType);
+	deluge::effects::DelayChange delayChange = core().delay().prepare(delayType);
 	{
 		AudioExcludedSection section; // the render reads the copy, the ring, the grain's blocks and the delay's arena
 		modControllableSnapshot_.effects = effects();
-		modfx.commit(modControllableSnapshot_.effects.mod_fx.type, ring);
+		core().mod_fx().commit(modControllableSnapshot_.effects.mod_fx.type, ring);
 		deluge::noteStructuralEdit(deluge::StructuralContainer::MOD_FX_RING);
-		granular.commit(modControllableSnapshot_.effects.mod_fx.type, grain);
+		core().granular().commit(modControllableSnapshot_.effects.mod_fx.type, grain);
 		deluge::noteStructuralEdit(deluge::StructuralContainer::GRAIN_BLOCK);
-		delay.commit(delayType, delayChange, delayReserve);
+		core().delay().commit(delayType, delayChange, delayReserve);
 		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
 	}
-	delay.finish(delayChange);
-	granular.finish(grain);
-	modfx.finish(ring);
+	core().delay().finish(delayChange);
+	core().granular().finish(grain);
+	core().mod_fx().finish(ring);
 }
 
 namespace {
@@ -1174,7 +1172,7 @@ char const* ModControllableAudio::getHPFModeDisplayName() {
 void ModControllableAudio::wontBeRenderedForAWhile() {
 	{
 		AudioExcludedSection section; // the render gives tapes back to the same arena
-		delay.discardBuffers();
+		core().delay().discardBuffers();
 		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
 	}
 	endStutter(nullptr);
@@ -1182,10 +1180,10 @@ void ModControllableAudio::wontBeRenderedForAWhile() {
 
 void ModControllableAudio::clearModFXMemory() {
 	if (modControllableSnapshot_.effects.mod_fx.type == ModFXType::GRAIN) {
-		granular.clear();
+		core().granular().clear();
 	}
 	else if (modControllableSnapshot_.effects.mod_fx.type != ModFXType::NONE) {
-		modfx.clearMemory();
+		core().mod_fx().clearMemory();
 	}
 }
 

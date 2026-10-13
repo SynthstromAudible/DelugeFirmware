@@ -255,7 +255,7 @@ void applyReserves(std::span<const std::pair<ModControllableAudio*, std::size_t>
 	{
 		AudioExcludedSection section; // the render reads the arena's slots
 		for (const auto& [owner, frames] : reserves) {
-			owner->delay.setReserve(frames);
+			owner->core().delay().setReserve(frames);
 		}
 		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
 	}

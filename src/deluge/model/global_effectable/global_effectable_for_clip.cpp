@@ -32,14 +32,25 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/delay_arena_app.h"
+#include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 
 namespace params = deluge::modulation::params;
 
-GlobalEffectableForClip::GlobalEffectableForClip() {
-	sendAndVolume_ = deluge::effects::SendAndVolume{paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND]};
+GlobalEffectableForClip::GlobalEffectableForClip()
+    : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena(),
+             paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND]} {
+	// A new owner's filter mode and mod FX type, set once its chain exists.
+	setLpfMode(FilterMode::TRANSISTOR_24DB);
+	filter().reset();
+	assignModFXType(ModFXType::NONE);
+}
+
+GlobalEffectableForClip::~GlobalEffectableForClip() {
+	releaseChainMemory();
 }
 
 // Beware - unlike usual, modelStack might have a NULL timelineCounter.
@@ -89,9 +100,9 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	if (sidechainVolumeParam != std::numeric_limits<q31_t>::min()) {
 		if (sideChainHitPending != 0) {
-			sidechain.registerHit(sideChainHitPending);
+			core().sidechain().registerHit(sideChainHitPending);
 		}
-		int32_t sidechainOutput = sidechain.render(
+		int32_t sidechainOutput = core().sidechain().render(
 		    output.size(), unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
 		    modControllableSnapshot_.effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
 
@@ -103,9 +114,9 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		postReverbVolume = (positivePatchedValue >> 15) * (positivePatchedValue >> 16);
 	}
 
-	compressor.configure(modControllableSnapshot_.effects.compressor);
+	core().compressor().configure(modControllableSnapshot_.effects.compressor);
 	const q31_t compThreshold = unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
-	compressor.dsp().setThreshold(compThreshold); // a clip chain's threshold is its param
+	core().compressor().dsp().setThreshold(compThreshold); // a clip chain's threshold is its param
 
 	alignas(CACHE_LINE_SIZE) StereoSample global_effectable_memory[SSI_TX_BUFFER_NUM_SAMPLES];
 	memset(global_effectable_memory, 0, sizeof(StereoSample) * output.size());
@@ -117,9 +128,9 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
 	// Render saturation
-	saturation_.process(global_effectable_audio,
-	                    {.clipping_amount = modControllableSnapshot_.effects.saturation.clipping_amount,
-	                     .variant = deluge::effects::SaturationVariant::CHAIN});
+	chain_.saturation().process(global_effectable_audio,
+	                            {.clipping_amount = modControllableSnapshot_.effects.saturation.clipping_amount,
+	                             .variant = deluge::effects::SaturationVariant::CHAIN});
 
 	if (renderedLastTime) {
 		// Render filters
@@ -142,10 +153,10 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	                           pan, true);
 
 	if (compThreshold > 0) {
-		compressor.dsp().renderVolumeNeutral(global_effectable_audio, volumePostFX);
+		core().compressor().dsp().renderVolumeNeutral(global_effectable_audio, volumePostFX);
 	}
 	else {
-		compressor.dsp().reset();
+		core().compressor().dsp().reset();
 	}
 
 	// Add the global effectable data to the output

@@ -39,6 +39,8 @@
 #include "model/clip/instrument_clip.h"
 #include "model/edits/change_effect.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/delay_arena_app.h"
+#include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/cable_bridge.h"
 #include "model/project_bridge/param_ids.h"
@@ -110,8 +112,8 @@ int32_t Sound::soundsDestroyedWithLiveVoices() {
 }
 
 Sound::Sound()
-    : ModControllableAudio(deluge::effects::EnterGrain::CLEAR),
-      patcher(kPatcherConfigForSound, params.sourceValues, params.paramFinalValues) {
+    : patcher(kPatcherConfigForSound, params.sourceValues, params.paramFinalValues),
+      chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
 	// CONTAINMENT for the cross-tier race on voices_. The audio render runs on a
@@ -140,8 +142,6 @@ Sound::Sound()
 	assignModFXType(ModFXType::NONE);
 
 	setLpfMode(FilterMode::TRANSISTOR_24DB); // Good for samples, I think
-
-	sendAndVolume_.forget(); // its first render ramps from its own post-reverb volume
 
 	// LFO
 	modKnobs[0][1].paramDescriptor.setToHaveParamOnly(params::GLOBAL_VOLUME_POST_FX);
@@ -1520,7 +1520,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 	// A note that couldn't get a voice yet is only ever started from render(), so we must keep rendering while one is
 	// pending - otherwise it'd stay pending forever (issue #2262)
 	bool skippingStatusNow =
-	    (voices_.empty() && (delay.repeatsUntilAbandon() == 0u)
+	    (voices_.empty() && (core().delay().repeatsUntilAbandon() == 0u)
 	     && (currentSong == nullptr || !currentSong->live.stutter.isStuttering(*this))
 	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF)
 	     && !getArp()->hasPendingNotes(arpSettings));
@@ -1530,7 +1530,8 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 		if (skippingStatusNow) {
 
 			// We wanna start, skipping, but if MOD fx are on...
-			if ((modControllableSnapshot_.effects.mod_fx.type != ModFXType::NONE) || compressor.dsp().threshold() > 0) {
+			if ((modControllableSnapshot_.effects.mod_fx.type != ModFXType::NONE)
+			    || core().compressor().dsp().threshold() > 0) {
 
 				// If we didn't start the wait-time yet, start it now
 				if (!startSkippingRenderingAtTime) {
@@ -1550,13 +1551,13 @@ doCutModFXTail:
 						waitSamplesModfx = 20 * 44;
 						break;
 					case ModFXType::GRAIN:
-						waitSamplesModfx = granular.samplesToShutdown();
+						waitSamplesModfx = core().granular().samplesToShutdown();
 						break;
 					default:
 						waitSamplesModfx = (90 * 441);
 					}
 					int32_t waitSamples =
-					    std::max(waitSamplesModfx, static_cast<int32_t>(compressor.dsp().releaseMs() * 44));
+					    std::max(waitSamplesModfx, static_cast<int32_t>(core().compressor().dsp().releaseMs() * 44));
 					startSkippingRenderingAtTime = AudioEngine::audioSampleTimer + waitSamples;
 				}
 
@@ -1733,7 +1734,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
                    int32_t pitchAdjust, SampleRecorder* recorder) {
 
 	if (skippingRendering) {
-		compressor.dsp().clearGainReduction();
+		core().compressor().dsp().clearGainReduction();
 		return;
 	}
 
@@ -1778,13 +1779,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	// Do sidechain
 	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::SIDECHAIN)) {
 		if (sideChainHitPending) {
-			sidechain.registerHit(sideChainHitPending);
+			core().sidechain().registerHit(sideChainHitPending);
 		}
 
 		const auto patchSourceSidechainUnderlying = util::to_underlying(PatchSource::SIDECHAIN);
 
 		int32_t old = params.sourceValues[patchSourceSidechainUnderlying];
-		params.sourceValues[patchSourceSidechainUnderlying] = sidechain.render(
+		params.sourceValues[patchSourceSidechainUnderlying] = core().sidechain().render(
 		    output.size(), paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
 		    modControllableSnapshot_.effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
 		uint32_t anyChange = (old != params.sourceValues[patchSourceSidechainUnderlying]);
@@ -1854,8 +1855,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 	delayWorkingState.userDelayRate = params.paramFinalValues[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
-	delay.setupWorkingState(delayWorkingState, modControllableSnapshot_.effects.delay, timePerTickInverse,
-	                        !voices_.empty());
+	core().delay().setupWorkingState(delayWorkingState, modControllableSnapshot_.effects.delay, timePerTickInverse,
+	                                 !voices_.empty());
 	delayWorkingState.analog_saturation = 8;
 
 	// Render each voice into a local buffer here
@@ -2016,7 +2017,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	int32_t postFXVolume = params.paramFinalValues[params::GLOBAL_VOLUME_POST_FX - params::FIRST_GLOBAL];
 	int32_t postReverbVolume = params.paramFinalValues[params::GLOBAL_VOLUME_POST_REVERB_SEND - params::FIRST_GLOBAL];
 
-	sendAndVolume_.prime(postReverbVolume);
+	core().send_and_volume().prime(postReverbVolume);
 
 	int32_t modFXDepth = params.paramFinalValues[params::GLOBAL_MOD_FX_DEPTH - params::FIRST_GLOBAL];
 	int32_t modFXRate = params.paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
@@ -2029,13 +2030,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	processReverbSendAndVolume(sound_stereo, reverbBuffer, postFXVolume, postReverbVolume, reverbSendAmount, 0, true);
 
 	q31_t compThreshold = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
-	compressor.configure(modControllableSnapshot_.effects.compressor);
-	compressor.dsp().setThreshold(compThreshold); // a sound's threshold is its param
+	core().compressor().configure(modControllableSnapshot_.effects.compressor);
+	core().compressor().dsp().setThreshold(compThreshold); // a sound's threshold is its param
 	if (compThreshold > 0) {
-		compressor.dsp().renderVolumeNeutral(sound_stereo, postFXVolume);
+		core().compressor().dsp().renderVolumeNeutral(sound_stereo, postFXVolume);
 	}
 	else {
-		compressor.dsp().reset();
+		core().compressor().dsp().reset();
 	}
 
 	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
@@ -2052,9 +2053,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		sources[i].dxPatchChanged = false;
 	}
 
-	// Unlike all the other possible reasons we might want to start skipping rendering, delay.repeatsUntilAbandon() may
-	// have changed state just now.
-	if (delay.repeatsUntilAbandon() == 0u || startSkippingRenderingAtTime) {
+	// Unlike all the other possible reasons we might want to start skipping rendering,
+	// core().delay().repeatsUntilAbandon() may have changed state just now.
+	if (core().delay().repeatsUntilAbandon() == 0u || startSkippingRenderingAtTime) {
 		reassessRenderSkippingStatus(modelStackWithSoundFlags);
 	}
 
@@ -2076,7 +2077,7 @@ void Sound::startSkippingRendering(ModelStackWithSoundFlags* modelStack) {
 	// completely reversible without doing anything
 
 	setSkippingRendering(true);
-	granular.startSkippingRendering();
+	core().granular().startSkippingRendering();
 	stopParamLPF(modelStack);
 }
 
@@ -2097,7 +2098,8 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			                getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2));
 
 			// Do Mod FX
-			modfx.tick(modFXTimeOff, params.paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
+			core().mod_fx().tick(modFXTimeOff,
+			                     params.paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
 
 			// Do arp
 			getArpBackInTimeAfterSkippingRendering(arpSettings);
@@ -2105,14 +2107,14 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			// Do sidechain
 			// if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::SIDECHAIN)) {
 			if (AudioEngine::sizeLastSideChainHit) {
-				sidechain.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
-				                                     AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit,
-				                                     modControllableSnapshot_.effects.sidechain,
-				                                     playbackHandler.getTimePerInternalTickInverse());
+				core().sidechain().registerHitRetrospectively(
+				    AudioEngine::sizeLastSideChainHit,
+				    AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit,
+				    modControllableSnapshot_.effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
 				//}
 			}
 			// Special state to make it grab the actual value the first time it's rendered
-			sendAndVolume_.forget();
+			core().send_and_volume().forget();
 
 			// clearModFXMemory(); // No need anymore, now we wait for this to basically empty before starting skipping
 		}
@@ -2883,7 +2885,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	}
 	effects.mod_fx.type = this->effects().mod_fx.type;
 	setEffects(effects);
-	compressor.dsp().setThreshold(effects.compressor.threshold); // what a save before any render writes back
+	core().compressor().dsp().setThreshold(effects.compressor.threshold); // what a save before any render writes back
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const deluge::instrument::SourceState& from = state.sources[s];
@@ -3667,7 +3669,7 @@ void Sound::wontBeRenderedForAWhile() {
 	                 // Instrumentclip::detachFromInstrument()
 
 	getArp()->reset(); // Surely this shouldn't be quite necessary?
-	sidechain.stop();
+	core().sidechain().stop();
 
 	// Tell it to just cut the MODFX tail - we needa change status urgently!
 	reassessRenderSkippingStatus(nullptr, true);

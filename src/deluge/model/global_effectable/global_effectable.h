@@ -73,7 +73,8 @@ public:
 	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) override;
 	ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
 	                                                 ModelStackWithAutoParam* modelStack) override;
-	deluge::effects::Filter filter_;
+	/// The chain's filters: a clip chain's or the master's.
+	[[nodiscard]] virtual deluge::effects::Filter& filter() = 0;
 	ModFXParam currentModFXParam;
 	FilterType currentFilterType;
 	bool editingComp;

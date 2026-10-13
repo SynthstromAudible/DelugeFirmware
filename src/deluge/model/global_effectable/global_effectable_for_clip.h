@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
-#include "engines/effects/saturation.h"
+#include "engines/effects/clip_chain.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/sample/sample_recorder.h"
 
@@ -34,6 +34,12 @@ class ModelStackWithTimelineCounter;
 class GlobalEffectableForClip : public GlobalEffectable {
 public:
 	GlobalEffectableForClip();
+	~GlobalEffectableForClip() override;
+
+	[[nodiscard]] deluge::effects::ClipChain& chain() { return chain_; }
+	[[nodiscard]] deluge::effects::ChainCore& core() final { return chain_.core(); }
+	[[nodiscard]] const deluge::effects::ChainCore& core() const final { return chain_.core(); }
+	[[nodiscard]] deluge::effects::Filter& filter() final { return chain_.filter(); }
 
 	int32_t getSidechainVolumeAmountAsPatchCableDepth(ParamManager* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) final;
@@ -44,8 +50,8 @@ public:
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
 	                            int32_t* highestReverbAmountFound);
 
-	/// The bus's saturation, after its drums or audio clip render.
-	deluge::effects::Saturation saturation_;
+	/// The bus's effects: its saturation after its drums or audio clip render, then its filters and the rest.
+	deluge::effects::ClipChain chain_;
 
 protected:
 	int32_t getParameterFromKnob(int32_t whichModEncoder) final;

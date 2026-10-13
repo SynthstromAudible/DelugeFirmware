@@ -361,8 +361,8 @@ void switchModFx(uint64_t block, const ModFxSwitch& switched) {
 		deluge::edits::changeEffect(owner, "modFXType", deluge::serialization::Value::makeScalar(switched.type));
 		g_tracksModFxSwitched++;
 		const std::string now(deluge::effects::to_string(owner.effects().mod_fx.type));
-		const bool ring = owner.modfx.holdsRing();
-		const bool grain = owner.granular.holdsRing();
+		const bool ring = owner.core().mod_fx().holdsRing();
+		const bool grain = owner.core().granular().holdsRing();
 		g_modFxSwitchedTypes += (g_modFxSwitchedTypes.empty() ? "" : ",") + now;
 		(ring ? g_modFxSwitchedRing : grain ? g_modFxSwitchedGrain : g_modFxSwitchedNoRing)++;
 		printf("RS-MODFX-SWITCH block=%llu type=%s ring=%d grain=%d owner=%s\n", static_cast<unsigned long long>(block),
@@ -406,10 +406,10 @@ void readModFxClears() {
 void clearModFx(uint64_t block, const ModFxClear& cleared) {
 	forEachModFxOwner(cleared.owner, [&](ModControllableAudio& owner, const std::string& name) {
 		const ModFXType type = owner.effects().mod_fx.type;
-		if (type == ModFXType::NONE || (type == ModFXType::GRAIN && owner.granular.state() == nullptr)) {
+		if (type == ModFXType::NONE || (type == ModFXType::GRAIN && owner.core().granular().state() == nullptr)) {
 			return;
 		}
-		const bool ring = owner.modfx.holdsRing();
+		const bool ring = owner.core().mod_fx().holdsRing();
 		owner.clearModFXMemory();
 		g_tracksModFxCleared++;
 		const std::string word(deluge::effects::to_string(type));

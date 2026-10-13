@@ -2300,7 +2300,7 @@ void SessionView::potentiallyUpdateCompressorLEDs() {
 		if (modKnobMode == 4 && editingComp) { // upper
 			counter = (counter + 1) % 5;
 			if (counter == 0) {
-				uint8_t gr = currentSong->live.global_effectable.compressor.dsp().gainReduction();
+				uint8_t gr = currentSong->live.global_effectable.core().compressor().dsp().gainReduction();
 
 				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
 			}

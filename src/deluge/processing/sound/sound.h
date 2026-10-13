@@ -54,6 +54,7 @@ class ModelStackWithSoundFlags;
 class ModelStackWithModControllable;
 
 #include "engines/deluge/sound_state.h"
+#include "engines/effects/sound_chain.h"
 #include <optional>
 #include <utility>
 
@@ -88,7 +89,13 @@ public:
 			noteDestroyedWithLiveVoices();
 		}
 		AudioEngine::sounds.remove(this);
+		releaseChainMemory();
 	}
+
+	/// The sound's effects after its voices.
+	[[nodiscard]] deluge::effects::SoundChain& chain() { return chain_; }
+	[[nodiscard]] deluge::effects::ChainCore& core() final { return chain_.core(); }
+	[[nodiscard]] const deluge::effects::ChainCore& core() const final { return chain_.core(); }
 
 	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
 	/// @note A destruction that finds live voices does not survive itself: once this body returns, the voices_
@@ -431,6 +438,9 @@ private:
 	ModelStackWithAutoParam* getParamFromModEncoderDeeper(int32_t whichModEncoder,
 	                                                      ModelStackWithThreeMainThings* modelStack,
 	                                                      bool allowCreation = true);
+
+	/// The sound's effects after its voices; outlives voices_, whose teardown reads its delay.
+	deluge::effects::SoundChain chain_;
 
 	/// @brief the list of active voices for this sound
 	// O(n) lookup is fine when most of the time we're iterating over all voices anyways.

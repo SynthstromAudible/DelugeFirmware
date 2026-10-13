@@ -102,8 +102,8 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSampl
 	        ->addOtherTwoThingsButNoNoteRow(this, getParamManager(modelStack->song));
 
 	if (skippingRendering) {
-		compressor.dsp().reset();
-		compressor.dsp().clearGainReduction();
+		core().compressor().dsp().reset();
+		core().compressor().dsp().clearGainReduction();
 	}
 	else {
 		Sound::render(modelStackWithThreeMainThings, output, reverbBuffer, sideChainHitPending, reverbAmountAdjust,

@@ -240,7 +240,7 @@ Song::Song() {
 	model = deluge::dsp::Reverb::Model::MUTABLE;
 
 	// setup base compressor gain to match 1.0
-	live.global_effectable.compressor.dsp().setBaseGain(0.85f);
+	live.global_effectable.core().compressor().dsp().setBaseGain(0.85f);
 
 	// initialize automation arranger view variables
 	lastSelectedParamID = params::kNoParamID;

@@ -30,13 +30,7 @@
 #include "synth/lfo.h"
 
 #include "engine-api/engine.h"
-#include "engines/effects/bitcrush.h"
-#include "engines/effects/compressor.h"
-#include "engines/effects/equalizer.h"
-#include "engines/effects/granular.h"
-#include "engines/effects/mod_fx.h"
-#include "engines/effects/send_and_volume.h"
-#include "engines/effects/sidechain.h"
+#include "engines/effects/chain_core.h"
 #include "engines/effects/state.h"
 
 class Clip;
@@ -53,9 +47,6 @@ class Deserializer;
 class ModControllableAudio : public ModControllable {
 public:
 	ModControllableAudio();
-	/// @brief An owner whose entry into GRAIN does @p enterGrain to its granular effect: CLEAR for a sound, KEEP for a
-	/// clip or master chain.
-	explicit ModControllableAudio(deluge::effects::EnterGrain enterGrain);
 	virtual ~ModControllableAudio();
 	virtual void cloneFrom(ModControllableAudio* other);
 
@@ -71,7 +62,7 @@ public:
 	[[nodiscard]] static deluge::engine::CodecContext effectsCodecContext();
 	/// The compressor threshold a file saves: the one the render last applied, which for a sound or a clip chain is its
 	/// param's.
-	[[nodiscard]] virtual q31_t savedCompressorThreshold() const { return compressor.dsp().threshold(); }
+	[[nodiscard]] virtual q31_t savedCompressorThreshold() const { return core().compressor().dsp().threshold(); }
 
 	/// @brief This owner's effect settings: a bound sound's are its SoundState's, any other owner's its own.
 	[[nodiscard]] const deluge::effects::EffectStates& effects() const {
@@ -158,34 +149,20 @@ public:
 	bool isSRREnabled(ParamManager* paramManager);
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) override;
 
-	/// The two-band EQ, between the mod FX and the delay.
-	deluge::effects::Equalizer equalizer_;
-
-	// Delay
-	deluge::effects::Delay delay;
-
-	/// Bitcrush and sample-rate reduction, with the conversion memory the latter carries.
-	deluge::effects::Bitcrush bitcrush_;
-
-	/// The mod FX but for the grain: its ring is taken and given back where the type changes, in
-	/// projectModControllableSnapshot().
-	deluge::effects::ModFx modfx;
-	deluge::effects::Compressor compressor;
-	/// The grain: its State is taken on the first entry into GRAIN and its ring while the type is GRAIN, both in
-	/// projectModControllableSnapshot().
-	deluge::effects::Granular granular;
-
-	deluge::effects::Sidechain sidechain; // Song doesn't use this, despite extending this class
+	/// The effect components every owner has, in its chain: a sound's, a clip chain's or the master's.
+	[[nodiscard]] virtual deluge::effects::ChainCore& core() = 0;
+	[[nodiscard]] virtual const deluge::effects::ChainCore& core() const = 0;
 
 	deluge::fast_vector<MIDIKnob> midi_knobs{};
-	/// The reverb send, post-FX volume and pan, which ramps the post-reverb volume from the last block's.
-	deluge::effects::SendAndVolume sendAndVolume_;
 
 private:
 	deluge::effects::EffectStates ownEffects_{};
 	deluge::effects::EffectStates* boundEffects_{nullptr};
 
 protected:
+	/// @brief Gives the delay's tapes back to the arena and leaves its margin, as a change to OFF does. Each owner
+	/// calls it first in its destructor, while its chain still exists.
+	void releaseChainMemory();
 	/// @param reverbBuffer The block's reverb send buffer, which the grain adds its feed into from index 0.
 	void processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
 	               const deluge::effects::Delay::State& delayWorkingState, int32_t* postFXVolume,
