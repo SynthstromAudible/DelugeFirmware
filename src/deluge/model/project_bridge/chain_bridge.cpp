@@ -126,21 +126,36 @@ std::optional<ChainAddress> chainAddressOf(const ::ModControllableAudio& owner, 
 	return found;
 }
 
-FxChain encodeChainOf(::GlobalEffectable& owner, ChainHome home, int32_t tick_magnitude) {
+FxChain encodeChainOf(const deluge::model::HostChainState& state, ChainHome home, int32_t tick_magnitude) {
 	auto view = deluge::serialization::Value::makeMap();
-	view.set("modFXCurrentParam",
-	         deluge::serialization::Value::makeScalar(modFXParamToString(owner.currentModFXParam)));
-	view.set("currentFilterType",
-	         deluge::serialization::Value::makeScalar(filterTypeToString(owner.currentFilterType)));
+	view.set("modFXCurrentParam", deluge::serialization::Value::makeScalar(modFXParamToString(state.mod_fx_param)));
+	view.set("currentFilterType", deluge::serialization::Value::makeScalar(filterTypeToString(state.filter_type)));
 	return chainFrom(
-	    deluge::effects::encode_chain(owner.effects(), homeOf(home), {.input_tick_magnitude = tick_magnitude}), home,
+	    deluge::effects::encode_chain(state.effects, homeOf(home), {.input_tick_magnitude = tick_magnitude}), home,
 	    tick_magnitude, std::move(view));
+}
+
+deluge::model::HostChainState chainStateOf(const FxChain& chain) {
+	deluge::model::HostChainState state;
+	for (const FxSlot& slot : chain.slots) {
+		deluge::effects::decode_slot(slot.effect, slot.state, state.effects,
+		                             {.input_tick_magnitude = slot.tick_magnitude});
+	}
+	if (const deluge::serialization::Value* param = chain.view.find("modFXCurrentParam");
+	    param != nullptr && param->isScalar()) {
+		state.mod_fx_param = stringToModFXParam(param->str().c_str());
+	}
+	if (const deluge::serialization::Value* type = chain.view.find("currentFilterType");
+	    type != nullptr && type->isScalar()) {
+		state.filter_type = stringToFilterType(type->str().c_str());
+	}
+	return state;
 }
 
 void fillChains(::Song& song) {
 	const int32_t magnitude = song.getInputTickMagnitude();
 	forEachOutput(song, [&](::Output& output) { recordOutputChain(output, song); });
-	song.project.master_effects = encodeChainOf(song.live.global_effectable, ChainHome::MASTER, magnitude);
+	song.project.master_effects = encodeChainOf(song.live.global_effectable.chainState(), ChainHome::MASTER, magnitude);
 }
 
 void recordOutputChain(::Output& output, ::Song& song) {
@@ -152,7 +167,7 @@ void recordOutputChain(::Output& output, ::Song& song) {
 	if (record == nullptr) {
 		return;
 	}
-	record->effects = encodeChainOf(*owner, ChainHome::CLIP, song.getInputTickMagnitude());
+	record->effects = encodeChainOf(owner->chainState(), ChainHome::CLIP, song.getInputTickMagnitude());
 }
 
 } // namespace deluge::bridge

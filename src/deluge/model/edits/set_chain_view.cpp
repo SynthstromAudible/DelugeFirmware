@@ -17,24 +17,26 @@ Error SetChainView::apply(Context& ctx) {
 		return Error::UNSPECIFIED;
 	}
 	const char* word = value_.str().c_str();
+	deluge::model::HostChainState next = owner->chainState();
 	// A word is taken only when it names a value: each parse falls back on an unknown word, which would not round-trip.
 	if (key_ == "modFXCurrentParam") {
 		const ModFXParam param = stringToModFXParam(word);
 		if (std::strcmp(modFXParamToString(param), word) != 0) {
 			return Error::UNSPECIFIED;
 		}
-		owner->currentModFXParam = param;
+		next.mod_fx_param = param;
 	}
 	else if (key_ == "currentFilterType") {
 		const FilterType type = stringToFilterType(word);
 		if (std::strcmp(filterTypeToString(type), word) != 0) {
 			return Error::UNSPECIFIED;
 		}
-		owner->currentFilterType = type;
+		next.filter_type = type;
 	}
 	else {
 		return Error::UNSPECIFIED;
 	}
+	owner->setChainState(next);
 	chain->view = deluge::bridge::withLeaf(chain->view, key_, value_);
 	return Error::NONE;
 }

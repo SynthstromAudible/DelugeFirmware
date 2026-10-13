@@ -75,12 +75,14 @@ void changeView(GlobalEffectable& owner, std::string_view key, std::string_view 
 		}
 	}
 	const std::string text(word);
+	deluge::model::HostChainState next = owner.chainState();
 	if (key == "modFXCurrentParam") {
-		owner.currentModFXParam = stringToModFXParam(text.c_str());
+		next.mod_fx_param = stringToModFXParam(text.c_str());
 	}
 	else if (key == "currentFilterType") {
-		owner.currentFilterType = stringToFilterType(text.c_str());
+		next.filter_type = stringToFilterType(text.c_str());
 	}
+	owner.setChainState(next);
 }
 
 } // namespace deluge::edits

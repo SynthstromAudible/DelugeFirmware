@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "engines/effects/filter.h"
+#include "model/fx/host_chain_state.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/arpeggiator.h"
 #include "serialization/value.h"
@@ -66,8 +67,18 @@ public:
 	                                                 ModelStackWithAutoParam* modelStack) override;
 	/// The chain's filters: a clip chain's or the master's.
 	[[nodiscard]] virtual deluge::effects::Filter& filter() = 0;
-	ModFXParam currentModFXParam;
-	FilterType currentFilterType;
+	/// @brief The chain's settings and saved view, as its record decodes to.
+	[[nodiscard]] const deluge::model::HostChainState& chainState() const { return chainState_; }
+	/// @brief Sets the chain's settings and view from what its record decodes to (or, outside the song, directly):
+	/// the effects through setEffects, which projects the render copy and makes the chain's hand-overs.
+	void setChainState(const deluge::model::HostChainState& next);
+	/// @brief Binds effects() to the chain state: each derived owner calls it in its constructor, once its chain
+	/// exists.
+	void bindChainState() { bindEffects(&chainState_.effects); }
+	/// @return Which value the mod FX knob edits.
+	[[nodiscard]] ModFXParam modFXParam() const { return chainState_.mod_fx_param; }
+	/// @return Which filter the filter knobs edit.
+	[[nodiscard]] FilterType filterType() const { return chainState_.filter_type; }
 	bool editingComp;
 	CompParam currentCompParam;
 
@@ -81,6 +92,8 @@ protected:
 
 private:
 	void ensureModFXParamIsValid();
+	/// The chain's settings and view; effects() is bound to its effects.
+	deluge::model::HostChainState chainState_{};
 	void displayCompressorAndReverbSettings(bool on);
 	char const* getCompressorModeDisplayName();
 	char const* getCompressorParamDisplayName();

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/fx_chain.h"
+#include "model/fx/host_chain_state.h"
 
 #include <cstdint>
 #include <optional>
@@ -39,11 +40,14 @@ namespace deluge::bridge {
 [[nodiscard]] std::optional<deluge::project::ChainAddress> chainAddressOf(const ::ModControllableAudio& owner,
                                                                           ::Song& song);
 
-/// @brief @p owner's chain as its runtime state encodes it now, at @p tick_magnitude: its effects and its view. The
-/// compressor threshold is the state's: a clip chain's render takes its threshold from its param each block, which the
-/// state (what a load or an Edit sets) does not follow.
-[[nodiscard]] deluge::project::FxChain encodeChainOf(::GlobalEffectable& owner, deluge::project::ChainHome home,
-                                                     int32_t tick_magnitude);
+/// @brief @p state as a chain record encodes it, at @p tick_magnitude: its effects and its view. The compressor
+/// threshold is the state's setting: a clip chain's render takes its threshold from its param each block, which the
+/// setting does not follow.
+[[nodiscard]] deluge::project::FxChain encodeChainOf(const deluge::model::HostChainState& state,
+                                                     deluge::project::ChainHome home, int32_t tick_magnitude);
+
+/// @brief What @p chain decodes to: each slot onto the default settings, at its own tick magnitude, then the view.
+[[nodiscard]] deluge::model::HostChainState chainStateOf(const deluge::project::FxChain& chain);
 
 /// @brief After a song read: every kit's, audio track's and the master's chain from what the owner loaded.
 void fillChains(::Song& song);

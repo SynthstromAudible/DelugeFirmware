@@ -223,21 +223,28 @@ std::string chainIncoherence(::Song& song) {
 			    {.kind = deluge::project::ChainAddress::Kind::OUTPUT, .id = *output->id()}, song);
 			const int32_t magnitude = record->effects->slots.empty() ? song.getInputTickMagnitude()
 			                                                         : record->effects->slots[0].tick_magnitude;
-			if (const std::string d =
-			        chainDifference(*record->effects,
-			                        deluge::bridge::encodeChainOf(*owner, deluge::project::ChainHome::CLIP, magnitude));
+			if (const std::string d = chainDifference(
+			        *record->effects,
+			        deluge::bridge::encodeChainOf(owner->chainState(), deluge::project::ChainHome::CLIP, magnitude));
 			    !d.empty()) {
 				return where + d;
+			}
+			if (owner->modControllableSnapshot().effects != owner->chainState().effects) {
+				return where + "render copy";
 			}
 		}
 	}
 	const deluge::project::FxChain& master = song.project.master_effects;
 	const int32_t magnitude = master.slots.empty() ? song.getInputTickMagnitude() : master.slots[0].tick_magnitude;
 	if (const std::string d =
-	        chainDifference(master, deluge::bridge::encodeChainOf(song.live.global_effectable,
+	        chainDifference(master, deluge::bridge::encodeChainOf(song.live.global_effectable.chainState(),
 	                                                              deluge::project::ChainHome::MASTER, magnitude));
 	    !d.empty()) {
 		return "master effects: " + d;
+	}
+	if (song.live.global_effectable.modControllableSnapshot().effects
+	    != song.live.global_effectable.chainState().effects) {
+		return "master effects: render copy";
 	}
 	return {};
 }

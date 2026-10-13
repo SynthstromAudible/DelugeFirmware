@@ -642,7 +642,11 @@ bool setupLeg() {
 		clip->paramManager.getUnpatchedParamSet()
 		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
 		    .setCurrentValueBasicForSetup(0);
-		output->currentModFXParam = ModFXParam::DEPTH;
+		{
+			deluge::model::HostChainState view = output->chainState();
+			view.mod_fx_param = ModFXParam::DEPTH;
+			output->setChainState(view);
+		}
 		deluge::edits::changeEffect(
 		    *output, "modFXType",
 		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(ModFXType::CHORUS))));
@@ -1088,8 +1092,12 @@ void editLeg() {
 		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
 		    .setCurrentValueBasicForSetup(0);
 		// Which mod FX parameter gates the effect on: the song's default names feedback, which sits at its minimum.
-		const ModFXParam paramBefore = fx.currentModFXParam;
-		fx.currentModFXParam = ModFXParam::DEPTH;
+		const ModFXParam paramBefore = fx.modFXParam();
+		{
+			deluge::model::HostChainState view = fx.chainState();
+			view.mod_fx_param = ModFXParam::DEPTH;
+			fx.setChainState(view);
+		}
 		if (fx.effects().mod_fx.type != ModFXType::NONE) {
 			fail("the master's mod FX is not off");
 			break;
@@ -1107,7 +1115,11 @@ void editLeg() {
 		const bool recovered = holdsRing(fx) && ringWrite(fx) != writeBefore
 		                       && renderMasterFx(fx, currentSong->paramManager).differsFrom(dry);
 		fx.setModFXType(ModFXType::NONE);
-		fx.currentModFXParam = paramBefore;
+		{
+			deluge::model::HostChainState view = fx.chainState();
+			view.mod_fx_param = paramBefore;
+			fx.setChainState(view);
+		}
 		renderBlocks(1);
 		const bool noted = deluge::notedStructuralEdits(StructuralContainer::MOD_FX_RING) > notedBefore;
 		printf("CG-MODFXOOM injected=%d passthrough=%d recovered=%d noted=%d\n", injected ? 1 : 0, passthrough ? 1 : 0,
@@ -1160,8 +1172,12 @@ void editLeg() {
 		currentSong->paramManager.getUnpatchedParamSet()
 		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
 		    .setCurrentValueBasicForSetup(0);
-		const ModFXParam paramBefore = fx.currentModFXParam;
-		fx.currentModFXParam = ModFXParam::DEPTH;
+		const ModFXParam paramBefore = fx.modFXParam();
+		{
+			deluge::model::HostChainState view = fx.chainState();
+			view.mod_fx_param = ModFXParam::DEPTH;
+			fx.setChainState(view);
+		}
 		if (fx.effects().mod_fx.type != ModFXType::NONE) {
 			fail("the master's mod FX is not off");
 			break;
@@ -1180,7 +1196,11 @@ void editLeg() {
 		const bool recovered = fx.core().granular().holdsRing() && grainWrite(fx) != writeBefore
 		                       && renderMasterFx(fx, currentSong->paramManager).differsFrom(dry);
 		fx.setModFXType(ModFXType::NONE);
-		fx.currentModFXParam = paramBefore;
+		{
+			deluge::model::HostChainState view = fx.chainState();
+			view.mod_fx_param = paramBefore;
+			fx.setChainState(view);
+		}
 		renderBlocks(1);
 		const bool noted = deluge::notedStructuralEdits(StructuralContainer::GRAIN_BLOCK) > notedBefore;
 		printf("CG-GRAINOOM injected=%d passthrough=%d recovered=%d noted=%d\n", injected ? 1 : 0, passthrough ? 1 : 0,

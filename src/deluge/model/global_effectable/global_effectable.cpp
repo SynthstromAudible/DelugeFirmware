@@ -49,8 +49,6 @@ namespace params = deluge::modulation::params;
 
 GlobalEffectable::GlobalEffectable() {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_GLOBAL;
-	currentModFXParam = ModFXParam::FEEDBACK;
-	currentFilterType = FilterType::LPF;
 
 	editingComp = false;
 	currentCompParam = CompParam::RATIO;
@@ -59,8 +57,19 @@ GlobalEffectable::GlobalEffectable() {
 void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
 	ModControllableAudio::cloneFrom(other);
 
-	currentModFXParam = ((GlobalEffectable*)other)->currentModFXParam;
-	currentFilterType = ((GlobalEffectable*)other)->currentFilterType;
+	const auto& from = static_cast<GlobalEffectable&>(*other);
+	deluge::model::HostChainState next = chainState_;
+	next.mod_fx_param = from.modFXParam();
+	next.filter_type = from.filterType();
+	setChainState(next);
+}
+
+void GlobalEffectable::setChainState(const deluge::model::HostChainState& next) {
+	if (next.effects != effects()) {
+		setEffects(next.effects);
+	}
+	chainState_.mod_fx_param = next.mod_fx_param;
+	chainState_.filter_type = next.filter_type;
 }
 
 void GlobalEffectable::initParams(ParamManager* paramManager) {
@@ -131,7 +140,7 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 
 	// LPF/HPF/EQ
 	if (whichModButton == 1) {
-		displayFilterSettings(on, currentFilterType);
+		displayFilterSettings(on, filterType());
 	}
 	// Delay
 	else if (whichModButton == 3) {
@@ -208,7 +217,7 @@ char const* GlobalEffectable::getModFXTypeDisplayName() {
 }
 
 char const* GlobalEffectable::getModFXParamDisplayName() {
-	return modfx::getParamName(modControllableSnapshot_.effects.mod_fx.type, currentModFXParam);
+	return modfx::getParamName(modControllableSnapshot_.effects.mod_fx.type, modFXParam());
 }
 
 // Returns whether Instrument changed
@@ -257,7 +266,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 			if (on) {
 				deluge::edits::changeView(*this, "modFXCurrentParam",
 				                          modFXParamToString(static_cast<ModFXParam>(
-				                              (util::to_underlying(currentModFXParam) + 1) % kNumModFXParams)));
+				                              (util::to_underlying(modFXParam()) + 1) % kNumModFXParams)));
 				ensureModFXParamIsValid();
 
 				// if mod button is pressed, update mod button pop up
@@ -281,15 +290,15 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 			if (on) {
 				deluge::edits::changeView(*this, "currentFilterType",
 				                          filterTypeToString(static_cast<FilterType>(
-				                              (util::to_underlying(currentFilterType) + 1) % kNumFilterTypes)));
+				                              (util::to_underlying(filterType()) + 1) % kNumFilterTypes)));
 
 				// if mod button is pressed, update mod button pop up
 				if (Buttons::isButtonPressed(
 				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
-					displayFilterSettings(on, currentFilterType);
+					displayFilterSettings(on, filterType());
 				}
 				else {
-					display->displayPopup(getFilterTypeDisplayName(currentFilterType));
+					display->displayPopup(getFilterTypeDisplayName(filterType()));
 				}
 				return true;
 			}
@@ -298,29 +307,29 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		}
 		else {
 			if (on) {
-				if (currentFilterType == FilterType::LPF) {
+				if (filterType() == FilterType::LPF) {
 					switchLPFMode();
 
 					// if mod button is pressed, update mod button pop up
 					if (Buttons::isButtonPressed(
 					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
-						displayFilterSettings(on, currentFilterType);
+						displayFilterSettings(on, filterType());
 					}
 					else {
-						display->displayPopup(getFilterModeDisplayName(currentFilterType));
+						display->displayPopup(getFilterModeDisplayName(filterType()));
 					}
 					return true;
 				}
-				else if (currentFilterType == FilterType::HPF) {
+				else if (filterType() == FilterType::HPF) {
 					switchHPFMode();
 
 					// if mod button is pressed, update mod button pop up
 					if (Buttons::isButtonPressed(
 					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
-						displayFilterSettings(on, currentFilterType);
+						displayFilterSettings(on, filterType());
 					}
 					else {
-						display->displayPopup(getFilterModeDisplayName(currentFilterType));
+						display->displayPopup(getFilterModeDisplayName(filterType()));
 					}
 					return true;
 				}
@@ -630,7 +639,7 @@ int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
 		}
 	}
 	else if (modKnobMode == 1) {
-		switch (currentFilterType) {
+		switch (filterType()) {
 		case FilterType::LPF:
 			if (whichModEncoder != 0) {
 				return params::UNPATCHED_LPF_FREQ;
@@ -673,10 +682,10 @@ int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
 			return params::UNPATCHED_MOD_FX_RATE;
 		}
 		else {
-			if (currentModFXParam == ModFXParam::DEPTH) {
+			if (modFXParam() == ModFXParam::DEPTH) {
 				return params::UNPATCHED_MOD_FX_DEPTH;
 			}
-			else if (currentModFXParam == ModFXParam::OFFSET) {
+			else if (modFXParam() == ModFXParam::OFFSET) {
 				return params::UNPATCHED_MOD_FX_OFFSET;
 			}
 			else {
@@ -735,18 +744,18 @@ void GlobalEffectable::ensureModFXParamIsValid() {
 			return type != ModFXType::CHORUS && type != ModFXType::CHORUS_STEREO;
 		}
 	};
-	ModFXParam param = currentModFXParam;
+	ModFXParam param = modFXParam();
 	for (int32_t tried = 0; tried < kNumModFXParams && !valid(param); tried++) {
 		param = static_cast<ModFXParam>((util::to_underlying(param) + 1) % kNumModFXParams);
 	}
-	if (param != currentModFXParam) {
+	if (param != modFXParam()) {
 		deluge::edits::changeView(*this, "modFXCurrentParam", modFXParamToString(param));
 	}
 }
 
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
-	writer.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
-	writer.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
+	writer.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(modFXParam()));
+	writer.writeAttribute("currentFilterType", (char*)filterTypeToString(filterType()));
 	ModControllableAudio::writeAttributesToFile(writer);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	// <--
@@ -860,12 +869,14 @@ void GlobalEffectable::readEffectsFromElement(const deluge::serialization::Value
 	    settings != nullptr && settings->isMap() && settings->find("thresh") != nullptr) {
 		core().compressor().dsp().setThreshold(states.compressor.threshold);
 	}
+	deluge::model::HostChainState next = chainState_;
 	if (const deluge::serialization::Value* param = element.find("modFXCurrentParam"); param && param->isScalar()) {
-		currentModFXParam = stringToModFXParam(param->str().c_str());
+		next.mod_fx_param = stringToModFXParam(param->str().c_str());
 	}
 	if (const deluge::serialization::Value* type = element.find("currentFilterType"); type && type->isScalar()) {
-		currentFilterType = stringToFilterType(type->str().c_str());
+		next.filter_type = stringToFilterType(type->str().c_str());
 	}
+	setChainState(next);
 }
 
 ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
@@ -873,11 +884,10 @@ ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	if ((currentModFXParam == ModFXParam::DEPTH
-	     && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_DEPTH) == -2147483648)
-	    || (currentModFXParam == ModFXParam::FEEDBACK
+	if ((modFXParam() == ModFXParam::DEPTH && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_DEPTH) == -2147483648)
+	    || (modFXParam() == ModFXParam::FEEDBACK
 	        && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK) == -2147483648)
-	    || (currentModFXParam == ModFXParam::OFFSET
+	    || (modFXParam() == ModFXParam::OFFSET
 	        && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET) == -2147483648)) {
 		modFXTypeNow = ModFXType::NONE;
 	}

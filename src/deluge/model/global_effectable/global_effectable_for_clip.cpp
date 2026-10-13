@@ -45,7 +45,9 @@ namespace params = deluge::modulation::params;
 GlobalEffectableForClip::GlobalEffectableForClip()
     : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena(),
              paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND]} {
-	// A new owner's filter mode and mod FX type, set once its chain exists.
+	// A new owner's settings live in its chain state, and its filter mode and mod FX type are set, once its chain
+	// exists.
+	bindChainState();
 	setLpfMode(FilterMode::TRANSISTOR_24DB);
 	filter().reset();
 	assignModFXType(ModFXType::NONE);

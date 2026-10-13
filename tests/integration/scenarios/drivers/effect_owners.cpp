@@ -98,13 +98,13 @@ void checkGestures(GlobalEffectable& owner, ParamManagerForTimeline& paramManage
 	coherent("the mod-FX type button");
 	(void)owner.modEncoderButtonAction(0, true, stack);
 	coherent("the mod-FX param button");
-	check(viewHolds(chainOf(owner, song), "modFXCurrentParam", modFXParamToString(owner.currentModFXParam)),
+	check(viewHolds(chainOf(owner, song), "modFXCurrentParam", modFXParamToString(owner.modFXParam())),
 	      (who + ": the view holds the mod-FX param").c_str());
 
 	*owner.getModKnobMode() = 1;
 	(void)owner.modEncoderButtonAction(1, true, stack);
 	coherent("the filter type button");
-	check(viewHolds(chainOf(owner, song), "currentFilterType", filterTypeToString(owner.currentFilterType)),
+	check(viewHolds(chainOf(owner, song), "currentFilterType", filterTypeToString(owner.filterType())),
 	      (who + ": the view holds the filter type").c_str());
 	*owner.getModKnobMode() = 0;
 }
