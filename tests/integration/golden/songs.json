@@ -173,6 +173,12 @@
   "rms_db": -23.99,
   "sha256": "aaa97ba34bcf4ee36ac588f500d570bbb8721652c3dc73c2131a7ea3eb501128"
  },
+ "RS_MASTER_ARRANGER": {
+  "frames": 384000,
+  "peak": 2147483648,
+  "rms_db": -13.16,
+  "sha256": "0d18688cdea6eb64453950a46f1194a90820d26113ac66c9d828191c5e102a4d"
+ },
  "RS_MASTER_FILTERS": {
   "frames": 384000,
   "peak": 178093568,

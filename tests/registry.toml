@@ -908,6 +908,24 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-master-arranger"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the song master's automation plays in the arranger: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_MASTER_ARRANGER) opened in the arranger, RS_STREAM's two synths each playing its clip from an instance at the arrangement's start, the master's effects as render-master-fx's with its low-pass cutoff and its volume ramping over the first two bars; the loaded song must have automation to play on its own params (RS-SONGPARAMS, RENDER_SONG_AUTOMATED=1), it is compared with its record in tests/integration/golden/songs.json, and its dry twin must render differently (RS-FX)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-SONGPARAMS", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_MASTER_ARRANGER", RENDER_SONG_AUTOMATED = "1" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-master-grain-off"
 path = "."
 level = "integration"

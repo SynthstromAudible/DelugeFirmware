@@ -1848,11 +1848,9 @@ loadOutput:
 						reader.exitTag(paramTag);
 					}
 				}
-				// Sync each engine RT cursor from the store's (read or seeded-default) current_value. Nodes already
-				// live in the store, resolved via owner-resolution.
-				for (int32_t p = 0; p < songUnpatched->getNumParams() && p < (int32_t)songStore.params.size(); p++) {
-					songUnpatched->params[p].currentValue = songStore.params[p].current_value;
-				}
+				// Each engine cursor takes the store's current value, and each param with nodes is marked automated, so
+				// the arranger plays it.
+				songUnpatched->projectFromStoreAfterRead(paramManager.getUnpatchedParamSetSummary());
 				reader.exitTag("songParams", true);
 			}
 

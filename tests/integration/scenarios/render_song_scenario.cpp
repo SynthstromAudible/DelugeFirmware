@@ -516,6 +516,9 @@ void stepLoading() {
 	}
 	printf("RS-LOADED name=%s outputs=%d view=%s playing_clips=%d notes=%d\n", got.c_str(),
 	       static_cast<int>(currentSong->getNumOutputs()), view, playingClips, notes);
+	// Which of the song's own params play automation: the master's, which play in the arranger.
+	printf("RS-SONGPARAMS automated=%d\n",
+	       currentSong->paramManager.getUnpatchedParamSetSummary()->containsAutomation() ? 1 : 0);
 	if (got != want) {
 		printf("RS-LOADED listing_failures=%d last_listing_error=%d\n", static_cast<int>(Browser::listingFailures()),
 		       static_cast<int>(Browser::lastListingFailure()));

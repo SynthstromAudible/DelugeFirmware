@@ -57,6 +57,7 @@ switch the synth's type away from the grain and back and to clear each owner's g
 RS_GRAIN_MASTER holds the master's chorus playing for its gate to switch the master to the grain and back mid-render;
 it has no dry twin.
 RS_MASTER_PAN is RS_MASTER_FX under its own name, for a gate that renders it in stereo, where the master's pan applies.
+RS_MASTER_ARRANGER plays RS_MASTER_FX's master in the arranger, its low-pass cutoff and volume ramping over two bars.
 RS_MASTER_GRAIN_OFF holds the master's grain in its soft off (its selected knob at its minimum), its other effects as
 RS_MASTER_FX's.
 """
@@ -390,6 +391,41 @@ MASTER_GRAIN_OFF = {
         'modFXDepth="0x20000000"', 'modFXDepth="0x80000000"'
     ),
 }
+
+
+def _ramped(start: int, value: int, tick: int) -> str:
+    """A param automated to ramp from @p start at the arrangement's start to @p value at @p tick, as a song saves it:
+    the current value, then each node's value and position, the high bit of each position marking it interpolated."""
+    return f"0x{start:08X}{start:08X}80000000{value:08X}{tick | 0x80000000:08X}"
+
+
+# The song's master in the arranger, where its automation plays: FX's settings with its low-pass cutoff and its
+# volume ramping over the first two bars, so the master's params interpolate while it renders.
+ARRANGER_TICKS = CLIP_TICKS * 4
+MASTER_ARRANGER = {
+    **FX,
+    "params": FX["params"].replace(
+        'volume="0x30000000"', f'volume="{_ramped(0x30000000, 0x50000000, 768)}"'
+    ),
+    "param_tags": FX["param_tags"].replace(
+        '<lpf frequency="0x40000000"',
+        f'<lpf frequency="{_ramped(0x40000000, 0x10000000, 768)}"',
+    ),
+}
+
+
+def arranger_song(voices: list[tuple[str, str, int]], fx: dict) -> str:
+    """master_song in the arranger: each synth plays its clip from an instance at the start of the arrangement, and
+    the song opens in the arranger view, so play starts the arrangement."""
+    song = master_song(voices, fx).replace(
+        'inputTickMagnitude="2"', 'inputTickMagnitude="2" inArrangementView="1"'
+    )
+    for index, (name, _, _) in enumerate(voices):
+        song = song.replace(
+            f'<sound presetName="{name}" ',
+            f'<sound presetName="{name}" clipInstances="0x00000000{ARRANGER_TICKS:08X}{index:08X}" ',
+        )
+    return song
 
 
 # The dynamics and delay paths the songs above leave out, each beside RS_STREAM's two synths. A drum here is a dict:
@@ -1033,6 +1069,8 @@ SONGS = {
     "RS_MASTER_PAN_DRY": lambda v: master_song(v, DRY),
     "RS_MASTER_GRAIN_OFF": lambda v: master_song(v, MASTER_GRAIN_OFF),
     "RS_MASTER_GRAIN_OFF_DRY": lambda v: master_song(v, DRY),
+    "RS_MASTER_ARRANGER": lambda v: arranger_song(v, MASTER_ARRANGER),
+    "RS_MASTER_ARRANGER_DRY": lambda v: arranger_song(v, DRY),
     "RS_KIT_FILTERS": lambda v: kit_song(v, KIT_FILTERS),
     "RS_KIT_FILTERS_DRY": lambda v: kit_song(v, DRY),
     "RS_AUDIO_FILTERS": lambda v: audio_song(v, AUDIO_FILTERS),

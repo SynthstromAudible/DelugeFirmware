@@ -22,6 +22,8 @@ adds what depends on the song, and why each check is here:
     RS-MODFX-CLEAR    a gate that clears mod FX memory (RENDER_MODFX_CLEAR) only: every clear asked for applied; a gate
                       whose clears reach no grain must reach both of clearMemory's paths, a ring zeroed and, with none
                       held, the phaser's memories; one that clears a grain must clear only grains.
+    RS-SONGPARAMS     a gate whose song automates the master's params (RENDER_SONG_AUTOMATED=1) only: the loaded song has
+                      automation to play on its own params.
     RS-DELAY-OFF      no block in which a delay that is OFF had feedback enough to sound with sound coming in: a song
                       whose file saves no delay type has its delays set OFF only where no param of theirs could
                       lift the feedback, so a delay that renders silent here is one that rendered before.
@@ -240,6 +242,18 @@ def _check_stutter(gate, result) -> None:
         )
 
 
+def _check_song_automation(gate, result) -> None:
+    """A gate whose song automates the master's params (RENDER_SONG_AUTOMATED=1) loaded that automation to play (see
+    RS-SONGPARAMS)."""
+    if gate.env.get("RENDER_SONG_AUTOMATED") != "1":
+        return
+    automated = int_field(result.last("RS-SONGPARAMS "), "automated")
+    if automated != 1:
+        gate.fail(
+            "RS-SONGPARAMS — the song's automated params were loaded with no automation to play"
+        )
+
+
 def _check_delay_off(gate, result) -> None:
     """No delay that is OFF was asked to sound (see RS-DELAY-OFF)."""
     line = result.last("RS-DELAY-OFF ")
@@ -293,6 +307,7 @@ def run(gate):
     _check_width(gate, result, record_name)
     _check_mod_fx_hooks(gate, result)
     _check_delay_off(gate, result)
+    _check_song_automation(gate, result)
     _check_delay_arena(gate, result)
     _check_stutter(gate, result)
 
