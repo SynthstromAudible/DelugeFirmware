@@ -155,7 +155,9 @@ deluge::model::HostChainState chainStateOf(const FxChain& chain) {
 void fillChains(::Song& song) {
 	const int32_t magnitude = song.getInputTickMagnitude();
 	forEachOutput(song, [&](::Output& output) { recordOutputChain(output, song); });
-	song.project.master_effects = encodeChainOf(song.live.global_effectable.chainState(), ChainHome::MASTER, magnitude);
+	::GlobalEffectable& master = song.live.global_effectable;
+	song.project.master_effects = encodeChainOf(master.chainState(), ChainHome::MASTER, magnitude);
+	master.setChainState(chainStateOf(song.project.master_effects));
 }
 
 void recordOutputChain(::Output& output, ::Song& song) {
@@ -168,6 +170,7 @@ void recordOutputChain(::Output& output, ::Song& song) {
 		return;
 	}
 	record->effects = encodeChainOf(owner->chainState(), ChainHome::CLIP, song.getInputTickMagnitude());
+	owner->setChainState(chainStateOf(*record->effects));
 }
 
 } // namespace deluge::bridge

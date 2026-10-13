@@ -49,11 +49,12 @@ namespace deluge::bridge {
 /// @brief What @p chain decodes to: each slot onto the default settings, at its own tick magnitude, then the view.
 [[nodiscard]] deluge::model::HostChainState chainStateOf(const deluge::project::FxChain& chain);
 
-/// @brief After a song read: every kit's, audio track's and the master's chain from what the owner loaded.
+/// @brief After a song read: every kit's, audio track's and the master's chain record made from what the owner loaded
+/// (its element decoded onto the owner's defaults), then its state set from the record.
 void fillChains(::Song& song);
 
-/// @brief A host owner that joined or was rebuilt natively (adopted, created, cloned, a preset read over it): records
-/// its chain.
+/// @brief A host owner that joined or was rebuilt natively (adopted, created, cloned, a preset read over it): its chain
+/// record made from what it holds, then its state set from the record.
 void recordOutputChain(::Output& output, ::Song& song);
 
 } // namespace deluge::bridge

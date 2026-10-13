@@ -13,10 +13,12 @@
 #include "model/edits/edit.h"
 #include "model/edits/set_effect_setting.h"
 #include "model/global_effectable/global_effectable.h"
+#include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
+#include "modulation/params/param_manager.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
 #include "scenarios/slot_coherence.h"
@@ -252,6 +254,47 @@ int roundTripLeg(Song& song, const std::vector<HostOwner>& owners) {
 	return 0;
 }
 
+/// A kit added to the song, its chain edited, then hibernated (as replacing an edited instrument hibernates it): it
+/// keeps its record, an Edit on its chain reaches it there, and the song stays coherent.
+void hibernationLeg(Song& song) {
+	ParamManagerForTimeline paramManager;
+	Instrument* kit = StorageManager::createNewInstrument(OutputType::KIT, &paramManager);
+	if (kit == nullptr) {
+		std::fprintf(io.err, "HOST-EFFECTS-FAIL %s hibernation: no new kit\n", songName);
+		failed++;
+		return;
+	}
+	song.live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr, &paramManager,
+	                              true);
+	song.addOutput(kit);
+	const HostOwner owner{.address = {.kind = ChainAddress::Kind::OUTPUT, .id = kit->id().value_or(0)},
+	                      .name = "hibernating kit"};
+	if (setEffect(song, owner, "delay/pingPong", Value::makeNumber(0)) != Error::NONE) {
+		fail(owner, "delay/pingPong", Value::makeNumber(0), "refused while live");
+		return;
+	}
+	kit->editedByUser = true;
+	song.deleteOrHibernateOutput(kit);
+	if (song.live.media.first_hibernating_instrument != kit) {
+		fail(owner, "-", Value::makeScalar("-"), "did not hibernate");
+		return;
+	}
+	if (setEffect(song, owner, "lpfMode", Value::makeScalar("SVF_Notch")) != Error::NONE) {
+		fail(owner, "lpfMode", Value::makeScalar("SVF_Notch"), "refused while hibernating");
+		return;
+	}
+	const auto* runtime = static_cast<const Kit*>(kit);
+	if (runtime->effects().filter.lpf_mode != FilterMode::SVF_NOTCH || runtime->effects().delay.ping_pong) {
+		fail(owner, "-", Value::makeScalar("-"), "an edit did not reach the hibernating kit");
+		return;
+	}
+	if (const std::string what = deluge::harness::chainIncoherence(song); !what.empty()) {
+		fail(owner, "-", Value::makeScalar("-"), what);
+		return;
+	}
+	ok++;
+}
+
 int host_effect_settings_main(int argc, char** argv, Io driverIo) {
 	io = driverIo;
 	if (argc < 2) {
@@ -280,6 +323,7 @@ int host_effect_settings_main(int argc, char** argv, Io driverIo) {
 		settingLegs(*song, owner);
 	}
 	magnitudeLeg(*song, owners);
+	hibernationLeg(*song);
 	if (int r = roundTripLeg(*song, owners)) {
 		return r;
 	}
