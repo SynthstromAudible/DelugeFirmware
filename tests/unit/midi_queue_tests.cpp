@@ -214,6 +214,29 @@ TEST(MidiQueueBasicTests, FullQueueRejectsUntilSpaceFreed) {
 	CHECK_TRUE(mq.queueMIDI(MIDIMessage::noteOn(0, 48, 100), 0, true, true, 0));
 }
 
+TEST(MidiQueueBasicTests, PopOldestMakesRoomRegardlessOfDueTime) {
+	TestMidiQueue mq;
+	uint32_t now = 0;
+	mq.setMIDIDue(now + 1000);
+	for (uint32_t i = 0; i < 256; ++i) {
+		CHECK_TRUE(mq.queueMIDI(MIDIMessage::cc(0, i % 128, 0), 0, true, true, now));
+	}
+	CHECK_FALSE(mq.queueMIDI(MIDIMessage::noteOn(0, 48, 100), 0, true, true, now));
+
+	// None are due, but the oldest still comes out
+	CHECK_EQUAL(0, mq.flushDueMIDI(now));
+	QueuedMIDI oldest;
+	CHECK_TRUE(mq.queue.popOldest(oldest));
+	CHECK_EQUAL(0, oldest.message.data1);
+	CHECK_TRUE(mq.queueMIDI(MIDIMessage::noteOn(0, 48, 100), 0, true, true, now));
+
+	CHECK_EQUAL(256, mq.flushAllQueuedMIDI());
+	CHECK_EQUAL(1, mq.sent[0].message.data1);
+	CHECK_EQUAL(0x09, mq.sent[255].message.statusType);
+
+	CHECK_FALSE(mq.queue.popOldest(oldest));
+}
+
 TEST(MidiQueueBasicTests, WrapAroundFifoIntegrity) {
 	TestMidiQueue mq;
 	constexpr uint32_t kTotalMessages = 2000;
