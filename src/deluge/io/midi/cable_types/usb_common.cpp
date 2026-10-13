@@ -49,7 +49,7 @@ void MIDICableUSB::sendMessage(MIDIMessage message) {
 				uint32_t channeledMessage = fullMessage | (portNumber << 4);
 				// The MIDI/gate output timer ISR writes to this buffer too
 				CriticalSectionGuard guard;
-				connectedDevice->bufferMessage(fullMessage);
+				connectedDevice->bufferMessage(channeledMessage);
 			}
 		}
 	}
