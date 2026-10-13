@@ -75,9 +75,9 @@ void deluge_audio_input_resync(void) DELUGE_NOEXCEPT;
 /// the DAC plays sample `offset_frames` of the current render block, modulo
 /// the output ring (0 means a full ring from now). Optionally reports how many
 /// frames of the block's play position have elapsed since the block's render
-/// began (`*elapsed_frames_out`, unmasked). Used to arm
-/// `deluge_midi_gate_timer_arm()` sample-accurately. Single play-head poll.
-/// [audio]
+/// began (`*elapsed_frames_out`, unmasked). Used to time MIDI and gate output
+/// (`deluge_midi_gate_timer_arm_at()`) sample-accurately. Single play-head poll.
+/// [task] [audio]
 uint32_t deluge_audio_frames_until_block_offset(uint32_t offset_frames, uint32_t* elapsed_frames_out) DELUGE_NOEXCEPT;
 
 /// Convert a capture stamp into how far past the start of the most recently begun render block the event fell.

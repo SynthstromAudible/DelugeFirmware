@@ -180,7 +180,7 @@ pub fn start() -> ! {
     // The encoders' A-pin interrupts, and their 1 ms pin poll on MTU2 ch3.
     unsafe { deluge_bsp::encoder::irq_init() };
     // The sample-accurate MIDI/gate one-shot timer (MTU2 ch2), armed at render time through
-    // `deluge_midi_gate_timer_arm`. Its module clock is already ungated by `init_clocks`.
+    // `deluge_midi_gate_timer_arm_at`. Its module clock is already ungated by `init_clocks`.
     unsafe { rza1l_hal::mtu2::enable_write() };
     unsafe { signals::gate_timer_setup() };
     // Trigger clock in: P1_14 → IRQ6 on the falling edge (an on-board transistor inverts the

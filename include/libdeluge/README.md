@@ -45,10 +45,9 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
 
    Before `registerJobs()`, the boot's song-less render runs `routine()` once on the task executor, so the
    functions `routine()` reaches directly (`deluge_audio_drive`, `deluge_app_render`, `deluge_app_render_skipped`,
-   `deluge_heap_check`) also carry `[task]`. The render's deeper callees do not: the three `[audio]`-only ones
-   (`deluge_audio_frames_until_block_offset` and `deluge_midi_gate_timer_arm`, reached only when MIDI or gate output
-   is pending, and `deluge_sample_region_state`, reached only by a playing sample voice) need a song that boot has
-   not loaded.
+   `deluge_heap_check`, and `deluge_audio_frames_until_block_offset`, which times every sub-window's MIDI) also carry
+   `[task]`. The render's deeper callees do not: the one `[audio]`-only one (`deluge_sample_region_state`, reached
+   only by a playing sample voice) needs a song that boot has not loaded.
 
 ## Handles
 

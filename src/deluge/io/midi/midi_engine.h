@@ -24,6 +24,8 @@
 #include "playback/playback_handler.h"
 #include <libdeluge/scheduler.h>
 
+struct CriticalSectionGuard;
+
 class MIDICable;
 class MIDIDrum;
 class MIDIInstrument;
@@ -98,6 +100,18 @@ public:
 	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, int32_t value, uint8_t noteCode, int32_t filter);
 	bool anythingInOutputBuffer();
 
+	/// MIDI sent with sendMidi() doesn't go straight to the USB / DIN outputs - it's queued along with the time it's
+	/// due, so the MIDI/gate output timer can send it then. This sets the due time given to everything sent from now
+	/// on (see outputTimeNow()).
+	void setMIDIDue(uint32_t due) { midiDue_ = due; }
+	/// Send all queued MIDI due by now, in the order it was queued, then flush the outputs. Returns whether anything
+	/// due is still queued because an output had no room for it yet (DIN's FIFO is only 16 bytes)
+	bool flushDueMIDI(uint32_t now, const CriticalSectionGuard& guard);
+	/// Send everything queued that the outputs have room for, due or not, then flush them
+	void flushAllQueuedMIDI(const CriticalSectionGuard& guard);
+	/// Get the due time of the oldest queued MIDI. Returns false if nothing's queued
+	bool nextMIDIDue(uint32_t& due, const CriticalSectionGuard& guard);
+
 	// If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
 	LearnedMIDI globalMIDICommands[kNumGlobalMIDICommands]{};
 
@@ -148,6 +162,11 @@ private:
 	EventStackStorage::iterator eventStackTop_{};
 
 	int32_t getPotentialNumConnectedUSBMIDIDevices(int32_t ip);
+
+	void queueMIDI(MIDIMessage message, int32_t filter, bool sendUSB, bool sendDIN);
+	bool flushQueuedMIDI(bool all, uint32_t now, const CriticalSectionGuard& guard);
+
+	uint32_t midiDue_{0}; ///< Due time given to MIDI as it's queued, see setMIDIDue()
 };
 
 uint32_t setupUSBMessage(MIDIMessage message);

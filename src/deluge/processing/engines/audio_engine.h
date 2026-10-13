@@ -54,6 +54,7 @@ class Freeverb;
 class Metronome;
 class RMSFeedbackCompressor;
 enum class Polarity : uint8_t;
+struct CriticalSectionGuard;
 class ModelStackWithSoundFlags;
 class SoundDrum;
 class Clip;
@@ -289,6 +290,12 @@ extern AbsValueFollower envelopeFollower;
 /// runRoutine() leaves rendering to the tier, which preempts its caller.
 extern std::atomic<bool> renderDrivenByTier;
 void feedReverbBackdoorForGrain(int index, q31_t value);
+/// Remove these gate channels from any output waiting to be sent by the MIDI/gate output timer, because they've been
+/// superseded by a newer state which is being output now
+void cancelScheduledGates(uint8_t gateMask, const CriticalSectionGuard&);
+/// Called from the MIDI/gate output timer's interrupt. Sends any MIDI/gate output which is due and arms the timer for
+/// the rest
+void midiGateOutputTimerFired();
 /// Gain to apply to monitored codec input, `offset` samples into the buffer currently being rendered. 0 until the
 /// codec has settled after power-on, then ramps up to full scale.
 q31_t getInputMonitoringGain(uint32_t offset);

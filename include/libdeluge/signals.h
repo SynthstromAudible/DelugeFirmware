@@ -78,22 +78,21 @@ void deluge_battery_start_conversion(void) DELUGE_NOEXCEPT;
 
 // ---------------------------------------------------------------------------
 // MIDI/gate output timer. A board one-shot that fires midiAndGateTimerGoneOff()
-// a precise number of audio samples in the future, so MIDI clock and gate edges
-// land sample-accurately rather than at the audio-block boundary. The app owns
-// *when* (it computes the sample delay); the board owns the timer hardware and
-// the samples→ticks conversion, so neither the timer number nor its clock rate
-// crosses the boundary.
+// at a deadline on the deluge_clock_now() clock, so MIDI and gate edges land
+// sample-accurately rather than at the audio-block boundary. The app owns
+// *when* (it keeps the queue of timed output and arms for the earliest); the
+// board owns the timer hardware and its clock, so neither the timer number nor
+// its rate crosses the boundary.
 // ---------------------------------------------------------------------------
 
-/// True if the output timer is already armed (an output ISR is pending). The app
-/// checks this before arming, or before emitting output inline, so it never
-/// races the scheduled ISR. [task] [audio]
-bool deluge_midi_gate_timer_pending(void) DELUGE_NOEXCEPT;
+/// Arm the output timer to fire midiAndGateTimerGoneOff() once deluge_clock_now()
+/// reaches `deadline_us`, replacing any deadline already armed. A deadline already
+/// past fires as soon as the timer can. One further away than the timer can count
+/// fires early: the app finds nothing due and arms again. [task] [audio] [isr]
+void deluge_midi_gate_timer_arm_at(uint64_t deadline_us) DELUGE_NOEXCEPT;
 
-/// Arm the output timer to fire midiAndGateTimerGoneOff() `samples_from_now`
-/// audio samples in the future. Call only when !deluge_midi_gate_timer_pending().
-/// [audio]
-void deluge_midi_gate_timer_arm(uint32_t samples_from_now) DELUGE_NOEXCEPT;
+/// Disarm the output timer, if armed. [task] [audio] [isr]
+void deluge_midi_gate_timer_cancel(void) DELUGE_NOEXCEPT;
 
 // ---------------------------------------------------------------------------
 // Runtime-provided callbacks (inverse direction: the app implements, the
@@ -101,8 +100,8 @@ void deluge_midi_gate_timer_arm(uint32_t samples_from_now) DELUGE_NOEXCEPT;
 // <libdeluge/...>, never on the app's deluge.h. See system.h for the rationale.
 // ---------------------------------------------------------------------------
 
-/// Fired from the MIDI/gate output timer ISR: the scheduled gate/clock output
-/// time has arrived and the app should emit pending events. [isr]
+/// Fired from the MIDI/gate output timer ISR once an armed deadline arrives: the
+/// app sends whatever output is due and arms for the rest. [isr]
 void midiAndGateTimerGoneOff(void) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus

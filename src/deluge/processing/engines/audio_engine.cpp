@@ -38,8 +38,10 @@
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_queue.h"
 #include "libdeluge/app.h"
 #include "libdeluge/audio_io.h"
+#include "libdeluge/clock.h"
 #include "libdeluge/file_stream.h"
 #include "libdeluge/sample_stream.h" // deluge_streaming_resource_manager()
 #include "libdeluge/signals.h"
@@ -80,6 +82,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <etl/vector.h>
 #include <execution>
 #include <iterator>
 #include <libdeluge/scheduler.h>
@@ -845,12 +848,177 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	}
 }
 
-void scheduleMidiGateOutISR(uint32_t offsetInBlock, int32_t timeWithinWindowAtWhichMIDIOrGateOccurs);
+// MIDI / gate output scheduling. Gates changed while finalizing a render window are captured along with their sample
+// offset within the window, then given an output time once rendering is done. MIDI is queued by the MidiEngine with
+// its due time already worked out from where the playhead was at the start of the window (see
+// setMIDIDueAtWindowOffset()). Output times are on the deluge_clock_now() clock: the BSP says how many samples until
+// the playhead plays the start of each window, and the MIDI/gate output timer sends only what's due each time it
+// fires, then arms itself for anything else.
+namespace {
+struct WindowOutput {
+	int32_t offset; ///< samples from the start of the render window
+	GateOutputs gates;
+};
+
+struct ScheduledOutput {
+	OutputTime due;
+	GateOutputs gates;
+};
+
+constexpr size_t kMaxWindowOutputs = 8;
+constexpr size_t kMaxScheduledOutputs = 16;
+
+etl::vector<WindowOutput, kMaxWindowOutputs> windowOutputs;
+
+// Sorted by due time. Shared with the timer's interrupt, so only touched under a CriticalSectionGuard - the functions
+// using it take one to enforce that
+etl::vector<ScheduledOutput, kMaxScheduledOutputs> scheduledOutputs;
+// Something due couldn't be output yet - DIN's FIFO had no room for the next MIDI message, or gates are being held
+// until their CV reaches the DAC - so the timer's been armed to try again. Same access rules as scheduledOutputs
+bool outputIncomplete = false;
+
+// Anything due within a sample of now gets sent rather than arming the timer for it
+constexpr int32_t kOutputTimeTolerance = kMicrosPerSampleQ8 >> 8;
+// If something due couldn't be output, try again after 0.1ms
+constexpr int32_t kOutputRetryMicros = 100;
+
+// The time the current render window began rendering, and how many samples from then until the playhead plays its
+// first sample - together these give the time each sample in the window will be played
+OutputTime windowStart = 0;
+int32_t windowSamplesUntilPlays = 0;
+
+/// MIDI sent from now on is due when the playhead reaches this offset in the current render window
+void setMIDIDueAtWindowOffset(int32_t offset) {
+	midiEngine.setMIDIDue(outputTimeAtWindowOffset(windowStart, windowSamplesUntilPlays, offset));
+}
+
+/// A render window begins `offsetInBlock` samples into the BSP's block: note when its first sample will play
+void startWindow(uint32_t offsetInBlock) {
+	windowStart = outputTimeNow();
+	windowSamplesUntilPlays = static_cast<int32_t>(deluge_audio_frames_until_block_offset(offsetInBlock, nullptr));
+	// From here on, MIDI is due when the playhead reaches the start of this window, until a MIDI tick in the window
+	// moves that along
+	setMIDIDueAtWindowOffset(0);
+}
+
+void mergeGateOutputs(GateOutputs& into, const GateOutputs& from) {
+	into.levels = (into.levels & ~from.mask) | from.levels;
+	into.cvWaitMask = (into.cvWaitMask & ~from.mask) | from.cvWaitMask;
+	into.mask |= from.mask;
+	into.needsMinOffTime |= from.needsMinOffTime;
+}
+
+void removeGateOutputs(GateOutputs& gates, uint8_t gateMask) {
+	gates.mask &= ~gateMask;
+	gates.levels &= ~gateMask;
+	gates.cvWaitMask &= ~gateMask;
+}
+
+/// Take any gates changed since the last call, to be output at this offset in the window
+void captureWindowOutputs(int32_t offset) {
+	if (offset < 0) {
+		D_PRINTLN("negative offset");
+	}
+	GateOutputs gates = cvEngine.takePendingGateOutputs(true);
+	if (gates.mask == 0) {
+		return;
+	}
+
+	auto output = std::find_if(windowOutputs.begin(), windowOutputs.end(),
+	                           [offset](const WindowOutput& o) { return o.offset == offset; });
+	if (output == windowOutputs.end()) {
+		if (!windowOutputs.full()) {
+			windowOutputs.push_back(WindowOutput{.offset = offset, .gates = {}});
+		}
+		// Otherwise (shouldn't happen) merge into the latest one rather than losing it
+		output = &windowOutputs.back();
+	}
+	mergeGateOutputs(output->gates, gates);
+}
+
+/// Send everything which is due
+void sendDueOutputs(OutputTime now, const CriticalSectionGuard& guard) {
+	cvEngine.pollCVSent(guard);
+
+	auto firstNotDue = scheduledOutputs.begin();
+	while (firstNotDue != scheduledOutputs.end()
+	       && static_cast<int32_t>(firstNotDue->due - now) <= kOutputTimeTolerance) {
+		cvEngine.outputGates(firstNotDue->gates, guard);
+		firstNotDue++;
+	}
+	scheduledOutputs.erase(scheduledOutputs.begin(), firstNotDue);
+
+	bool midiBlocked = midiEngine.flushDueMIDI(now + kOutputTimeTolerance, guard);
+	outputIncomplete = midiBlocked || cvEngine.anyGatesAwaitingCV();
+}
+
+/// Arm the timer for the earliest scheduled output, queued MIDI or retry, or stop it if there's nothing left
+void armMidiGateOutputTimer(OutputTime now, const CriticalSectionGuard& guard) {
+	OutputTime midiDue = 0;
+	bool midiQueued = midiEngine.nextMIDIDue(midiDue, guard);
+	if (scheduledOutputs.empty() && !midiQueued && !outputIncomplete) {
+		deluge_midi_gate_timer_cancel();
+		return;
+	}
+	int32_t microsTilDue = outputIncomplete ? kOutputRetryMicros : INT32_MAX;
+	if (!scheduledOutputs.empty()) {
+		microsTilDue = std::min(microsTilDue, static_cast<int32_t>(scheduledOutputs[0].due - now));
+	}
+	if (midiQueued) {
+		microsTilDue = std::min(microsTilDue, static_cast<int32_t>(midiDue - now));
+	}
+	// A deadline further away than the timer can count just fires early, sends nothing and arms again
+	deluge_midi_gate_timer_arm_at(deluge_clock_now() + std::max<int32_t>(microsTilDue, 0));
+}
+
+void insertScheduledOutput(const ScheduledOutput& output, OutputTime now, const CriticalSectionGuard& guard) {
+	if (scheduledOutputs.full()) [[unlikely]] {
+		// Shouldn't happen - but if it does, send the earliest one now to make room
+		scheduledOutputs.front().due = now;
+		sendDueOutputs(now, guard);
+	}
+	// After any already scheduled for the same time, so they keep their order
+	auto position = std::upper_bound(
+	    scheduledOutputs.begin(), scheduledOutputs.end(), output,
+	    [](const ScheduledOutput& a, const ScheduledOutput& b) { return static_cast<int32_t>(a.due - b.due) < 0; });
+	scheduledOutputs.insert(position, output);
+}
+
+/// When not rendering in real time there's no playhead to schedule against, so just send everything now
+void sendWindowOutputsNow() {
+	CriticalSectionGuard guard;
+	cvEngine.pollCVSent(guard);
+	for (const WindowOutput& output : windowOutputs) {
+		cvEngine.outputGates(output.gates, guard);
+	}
+	windowOutputs.clear();
+	midiEngine.flushAllQueuedMIDI(guard);
+}
+} // namespace
+
+void cancelScheduledGates(uint8_t gateMask, const CriticalSectionGuard&) {
+	for (WindowOutput& output : windowOutputs) {
+		removeGateOutputs(output.gates, gateMask);
+	}
+	for (ScheduledOutput& output : scheduledOutputs) {
+		removeGateOutputs(output.gates, gateMask);
+	}
+}
+
+void midiGateOutputTimerFired() {
+	// The timer's interrupt can itself be preempted, so this takes a real guard rather than assuming one
+	CriticalSectionGuard guard;
+	OutputTime now = outputTimeNow();
+	sendDueOutputs(now, guard);
+	armMidiGateOutputTimer(now, guard);
+}
+
+void scheduleMidiGateOutISR(size_t numSamples);
 void setMonitoringMode();
 void renderSongFX(size_t numSamples);
 void renderSamplePreview(size_t numSamples);
 void renderReverb(size_t numSamples);
-int32_t tickSongFinalizeWindows(size_t& numSamples);
+void tickSongFinalizeWindows(size_t& numSamples);
 void flushMIDIGateBuffers();
 void renderAudio(size_t numSamples);
 void renderAudioForStemExport(size_t numSamples);
@@ -940,6 +1108,7 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 	bool offline = stemExport.processStarted && stemExport.renderOffline;
 
 	if (!offline) {
+		startWindow(0);
 		flushMIDIGateBuffers();
 		setDireness(frames);
 	}
@@ -970,19 +1139,20 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 		// Render the next sub-window, ending exactly at the next sequencer
 		// event (tickSongFinalizeWindows may shorten it).
 		if (produced != 0) {
+			startWindow(produced);
 			flushMIDIGateBuffers();
 		}
 
 		voices_started_this_render = 0;
 
 		size_t numSamples = frames - produced;
-		int32_t timeWithinWindowAtWhichMIDIOrGateOccurs = tickSongFinalizeWindows(numSamples);
+		tickSongFinalizeWindows(numSamples);
 
 		numSamplesLastTime = numSamples;
 
 		renderAudio(numSamples);
 
-		scheduleMidiGateOutISR(produced, timeWithinWindowAtWhichMIDIOrGateOccurs);
+		scheduleMidiGateOutISR(numSamples);
 
 		sideChainHitPending = 0;
 		audioSampleTimer += numSamples;
@@ -1167,33 +1337,24 @@ void renderAudioForStemExport(size_t numSamples) {
 	renderingBufferOutputEnd = renderingMemory.begin() + numSamples;
 }
 
-void flushMIDIGateBuffers() { // Flush everything out of the MIDI buffer now. At this stage, it would only really have
-	                          // live user-triggered
-	// output and MIDI THRU in it. We want any messages like "start" to go out before we send any clocks below, and
-	// also want to give them a head-start being sent and out of the way so the clock messages can be sent on-time
+void flushMIDIGateBuffers() {
 	CriticalSectionGuard guard;
-	bool anythingInMidiOutputBufferNow = midiEngine.anythingInOutputBuffer();
-	bool anythingInGateOutputBufferNow = cvEngine.isAnythingButRunPending();
-	if (anythingInMidiOutputBufferNow || anythingInGateOutputBufferNow) {
-
-		// We're only allowed to do this if the timer ISR isn't pending (i.e. we haven't enabled to timer to trigger
-		// it)
-		// - otherwise this will all get called soon anyway. I thiiiink this is 100% immune to any synchronization
-		// problems?
-		if (!deluge_midi_gate_timer_pending()) {
-			if (anythingInGateOutputBufferNow) {
-				cvEngine.updateGateOutputs();
-			}
-			if (anythingInMidiOutputBufferNow) {
-				midiEngine.flushMIDI();
-			}
-		}
+	cvEngine.pollCVSent(guard);
+	// Gates (other than run, which has to respect the minimum gate off time) are newer than anything already scheduled
+	// for those channels, so they supersede it
+	GateOutputs gates = cvEngine.takePendingGateOutputs(false);
+	if (gates.mask != 0) {
+		cancelScheduledGates(gates.mask, guard);
+		cvEngine.outputGates(gates, guard);
 	}
+
+	captureWindowOutputs(0);
+
+	// The outputs only hold MIDI which is already due (or sysex, which isn't queued), so they can go now
+	midiEngine.flushMIDI();
 }
 
-int32_t tickSongFinalizeWindows(size_t& numSamples) {
-	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs = -1; // -1 means none
-
+void tickSongFinalizeWindows(size_t& numSamples) {
 	// If a timer-tick is due during or directly after this window of audio samples...
 	if (playbackHandler.isEitherClockActive()) {
 
@@ -1227,10 +1388,9 @@ startAgain:
 				                                     // already been called, but fortunately this doesn't break anything
 			}
 
-			// Those could have outputted clock or other MIDI / gate
-			if (midiEngine.anythingInOutputBuffer() || cvEngine.isAnythingButRunPending()) {
-				timeWithinWindowAtWhichMIDIOrGateOccurs = 0;
-			}
+			// Those could have outputted clock or gates, which need to go at the start of the window. MIDI's already
+			// due then
+			captureWindowOutputs(0);
 
 			goto startAgain;
 		}
@@ -1251,9 +1411,7 @@ startAgain:
 						playbackHandler.doTriggerClockOutTick();
 						playbackHandler.scheduleTriggerClockOutTick(); // Schedules another one
 
-						if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
-							timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilTriggerClockOutTick;
-						}
+						captureWindowOutputs(timeTilTriggerClockOutTick);
 					}
 				}
 				else {
@@ -1266,12 +1424,10 @@ startAgain:
 				if (playbackHandler.midiClockOutTickScheduled) {
 					int32_t timeTilMIDIClockOutTick = playbackHandler.timeNextMIDIClockOutTick - audioSampleTimer;
 					if (std::cmp_less(timeTilMIDIClockOutTick, numSamples)) {
+						// The clock, and any MIDI after it (it's sent in order), is due at this point in the window
+						setMIDIDueAtWindowOffset(timeTilMIDIClockOutTick);
 						playbackHandler.doMIDIClockOutTick();
 						playbackHandler.scheduleMIDIClockOutTick(); // Schedules another one
-
-						if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
-							timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilMIDIClockOutTick;
-						}
 					}
 				}
 				else {
@@ -1280,7 +1436,6 @@ startAgain:
 			}
 		}
 	}
-	return timeWithinWindowAtWhichMIDIOrGateOccurs;
 }
 
 void feedReverbBackdoorForGrain(int index, q31_t value) {
@@ -1434,59 +1589,42 @@ void setMonitoringMode() { // Monitoring setup
 		}
 	}
 }
-void scheduleMidiGateOutISR(uint32_t offsetInBlock, int32_t timeWithinWindowAtWhichMIDIOrGateOccurs) {
-	bool anyGateOutputPending = cvEngine.isAnythingPending();
-
+void scheduleMidiGateOutISR(size_t numSamples) {
 	CriticalSectionGuard guard;
-	// guard against timer firing mid check
-	if ((midiEngine.anythingInOutputBuffer() || anyGateOutputPending) && !deluge_midi_gate_timer_pending()) {
 
-		// I don't think this actually could still get left at -1, but just in case...
-		if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
-			timeWithinWindowAtWhichMIDIOrGateOccurs = 0;
-		}
+	// Gates output since the window was finalized (e.g. during rendering) go at the start of the window
+	captureWindowOutputs(0);
 
-		// The event occurs `offsetInBlock + timeWithinWindow` frames into the
-		// render block the BSP is currently flushing; the BSP knows when the
-		// DAC will play that frame.
-		uint32_t blockElapsed;
-		int32_t samplesTilMIDIOrGate = (int32_t)deluge_audio_frames_until_block_offset(
-		    offsetInBlock + (uint32_t)timeWithinWindowAtWhichMIDIOrGateOccurs, &blockElapsed);
+	// Set the due time for any midi that comes in while this window is being output (e.g. live playing, external
+	// sequencer)
+	setMIDIDueAtWindowOffset(static_cast<int32_t>(numSamples));
 
-		if (!samplesTilMIDIOrGate) {
-			samplesTilMIDIOrGate = SSI_TX_BUFFER_NUM_SAMPLES;
-		}
+	// If a gate note-on was processed at the same time as a gate note-off, the note-off will have already
+	// been sent, but we need to make sure that the note-on now doesn't happen until a set amount of time
+	// after the note-off.
+	int32_t gateMinDelayInSamples =
+	    ((uint32_t)cvEngine.minGateOffTime * 289014) >> 16; // That's *4.41 (derived from 44100)
+	int32_t samplesTilAllowedToSend =
+	    cvEngine.mostRecentSwitchOffTimeOfPendingNoteOn + gateMinDelayInSamples - audioSampleTimer;
+
+	OutputTime now = outputTimeNow();
+
+	// Gates are scheduled the same way as MIDI (see setMIDIDueAtWindowOffset()), so the two stay lined up
+	for (const WindowOutput& windowOutput : windowOutputs) {
+		int32_t samplesTilGate = windowSamplesUntilPlays + windowOutput.offset;
 
 		// samplesTilMIDI += 10; This gets the start of stuff perfectly lined up. About 10 for MIDI, 12 for gate
 
-		if (anyGateOutputPending) {
-			// If a gate note-on was processed at the same time as a gate note-off, the note-off will have already
-			// been sent, but we need to make sure that the note-on now doesn't happen until a set amount of time
-			// after the note-off.
-			int32_t gateMinDelayInSamples =
-			    ((uint32_t)cvEngine.minGateOffTime * 289014) >> 16; // That's *4.41 (derived from 44100)
-			int32_t samplesTilAllowedToSend =
-			    cvEngine.mostRecentSwitchOffTimeOfPendingNoteOn + gateMinDelayInSamples - audioSampleTimer;
-
-			if (samplesTilAllowedToSend > 0) {
-
-				// Real time elapsed since this sub-window's timeline anchor
-				// (audioSampleTimer): the block's played frames minus the
-				// sub-window's offset into the block.
-				int32_t windowElapsed =
-				    (int32_t)(blockElapsed & (SSI_TX_BUFFER_NUM_SAMPLES - 1)) - (int32_t)offsetInBlock;
-				if (windowElapsed > 0) {
-					samplesTilAllowedToSend -= windowElapsed;
-				}
-
-				if (samplesTilMIDIOrGate < samplesTilAllowedToSend) {
-					samplesTilMIDIOrGate = samplesTilAllowedToSend;
-				}
-			}
+		if (windowOutput.gates.needsMinOffTime) {
+			samplesTilGate = std::max(samplesTilGate, samplesTilAllowedToSend);
 		}
 
-		deluge_midi_gate_timer_arm((uint32_t)samplesTilMIDIOrGate);
+		OutputTime due = outputTimeAtWindowOffset(windowStart, samplesTilGate, 0);
+		insertScheduledOutput(ScheduledOutput{.due = due, .gates = windowOutput.gates}, now, guard);
 	}
+	windowOutputs.clear();
+
+	armMidiGateOutputTimer(now, guard);
 }
 
 bool routine_task() {
@@ -1557,6 +1695,7 @@ uint32_t routine() {
 		for (int32_t block = 0; block < kOfflineBlocksPerRoutine; ++block) {
 			size_t numSamples = kOfflineFramesPerBlock;
 			tickSongFinalizeWindows(numSamples);
+			sendWindowOutputsNow();
 
 			numSamplesLastTime = numSamples;
 			renderAudioForStemExport(numSamples);

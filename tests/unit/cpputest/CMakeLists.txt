@@ -59,6 +59,7 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../../src/deluge/model/sample/sample_transpose.cpp
         # For waveform peak math tests
         ../../../src/deluge/gui/waveform/waveform_peak_math.cpp
+        ../../../src/deluge/io/midi/midi_queue.cpp
         # For the song-preview decode differential: the REAL deserializer stack, not a stand-in.
         # storage/file_reader.cpp exists so this is possible at all -- storage_manager.cpp, where the
         # reader used to live, reaches the whole instrument model to build what it loads.
@@ -107,6 +108,7 @@ add_executable(UnitTests
         function_tests.cpp
         volume_param_gain_tests.cpp
         db_shift_tests.cpp
+        midi_queue_tests.cpp
         sync_tests.cpp
         chord_tests.cpp
         time_tests.cpp

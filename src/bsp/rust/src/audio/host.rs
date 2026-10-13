@@ -460,6 +460,9 @@ fn render_block(live: Option<&[[f32; 2]]>) {
 
     CURSOR.store(block_start + APP_BLOCK_FRAMES as u64, Ordering::Relaxed);
     capture_block();
+    // The output timer's interrupt, which the host has no hardware for (see host_link_stubs).
+    #[cfg(feature = "host_app")]
+    crate::host_link_stubs::fire_midi_gate_timer_if_due();
 
     let n = DRIVE_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
     if render_mode() {

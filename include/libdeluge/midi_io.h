@@ -74,10 +74,14 @@ uint32_t deluge_midi_read_timed(DelugeMidiPort port, uint8_t* dst, uint32_t max,
                                 uint32_t* arrival_ticks) DELUGE_NOEXCEPT;
 
 /// Queue `len` bytes for transmission on `port`. Returns the number of bytes
-/// accepted (may be < len if the TX buffer is full). Non-blocking. [task] [audio]
+/// accepted (may be < len if the TX buffer is full). Non-blocking. Not reentrant
+/// per port: a caller that can be preempted by another writer to the same port
+/// (the MIDI/gate output timer's interrupt writes too) holds a critical section,
+/// so the two messages' bytes cannot interleave. [task] [audio] [isr]
 uint32_t deluge_midi_write(DelugeMidiPort port, const uint8_t* src, uint32_t len) DELUGE_NOEXCEPT;
 
-/// Free space (in bytes) in the port's TX buffer. [task]
+/// Free space (in bytes) in the port's TX buffer: a write of at most this many
+/// bytes is taken whole. [task] [audio] [isr]
 uint32_t deluge_midi_write_space(DelugeMidiPort port) DELUGE_NOEXCEPT;
 
 /// Bytes currently buffered for transmission on `port` but not yet on the wire.

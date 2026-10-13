@@ -954,15 +954,8 @@ void PlaybackHandler::scheduleMIDIClockOutTickFromExternalClock() {
 }
 
 void PlaybackHandler::doMIDIClockOutTick() {
-	CriticalSectionGuard guard;
-	// if there's a scheduled output already then don't mess with it. Will catch at next output
-	if (deluge_midi_gate_timer_pending()) {
-		return;
-	}
-	// otherwise if there's midi in here already then get it dumped
-	if (midiEngine.anythingInOutputBuffer()) {
-		midiEngine.flushMIDI();
-	}
+	// The clock is queued with its own due time (see AudioEngine's setMIDIDueAtWindowOffset()), behind any MIDI already
+	// waiting, so it neither goes out early with that MIDI nor has to wait for it to be flushed first
 	midiClockOutTickScheduled = false;
 	lastMIDIClockOutTickDone++;
 	timeLastMIDIClockOutTickSent = AudioEngine::audioSampleTimer;
