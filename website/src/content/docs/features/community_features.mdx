@@ -517,6 +517,26 @@ Here is a list of general improvements that have been made, ordered from newest 
   - The battery level menu item can be toggled on/off via the Community Features menu
   - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES > SHOW BATTERY LEVEL`
 
+### 3.38 - Numbered Choke Groups <Badge text="c1.3" variant="tip" />
+
+- Kit drums set to `Choke` under `VOICE (VOIC) > Polyphony Type (POLY)` can now be assigned to one of 8 numbered
+  choke groups instead of always sharing a single kit-wide group. Triggering a `Choke`-mode drum only silences other
+  `Choke`-mode drums in the _same_ numbered group, leaving drums in other groups unaffected.
+  - Access the `CHOKE GROUP (CGRP)` menu by selecting `Choke` in the `VOICE (VOIC) > Polyphony Type (POLY)` menu and
+    pressing :key[Select].
+  - As with `Max Voices`, holding :key[AffectEntire] while changing the choke group applies the new group number to
+    every `Choke`-mode drum in the kit at once.
+  - New drums default to choke group `1`. Since every drum that was already using `Choke` mode before this feature
+    existed also defaults to group `1`, old kits keep behaving exactly as before with no manual changes required.
+  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`. When `OFF`,
+    the `CHOKE GROUP` menu is hidden and every `Choke`-mode drum in a kit chokes every other one, matching the
+    original single-group behaviour; any group numbers already saved in a song are preserved either way and take
+    effect again if the feature is re-enabled.
+  - With this feature on, Kit Instrument Clip View's `EXPORT AUDIO` menu also gains an `EXPORT CHOKE GROUPS` option.
+    With it enabled, drums sharing a choke group are exported together into one file - they have to sound together
+    for the choking to happen - while every other drum is still exported on its own. See the
+    [Audio Export Documentation](/features/audio_export#export-choke-groups) for details.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1390,6 +1410,12 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
   - When On, the ability to trim from the start of an audio clip without needing to reverse it is enabled.
 - `Show Battery Level (BATT)` <Badge text="c1.3" variant="tip" />
   - When On, displays battery level information in the System menu. Shows voltage and percentage on OLED displays, percentage on 7-segment displays.
+- `Choke Groups (CGRP)` <Badge text="c1.3" variant="tip" />
+  - When On, enables the `CHOKE GROUP` menu for kit drums set to `Choke` polyphony, letting you assign each drum to
+    one of 8 numbered groups so only drums sharing a group choke each other. See
+    [3.38 - Numbered Choke Groups](#338---numbered-choke-groups). When Off, the menu is hidden and every `Choke`-mode
+    drum in a kit chokes every other one, as before this feature existed; group numbers already saved in songs are
+    preserved either way.
 
 ## 6. Sysex Handling
 

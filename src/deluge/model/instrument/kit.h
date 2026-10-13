@@ -104,7 +104,7 @@ public:
 	                                      ModelStackWithTimelineCounter* modelStack) override {}
 
 	void beenEdited(bool shouldMoveToEmptySlot = true) override;
-	void choke();
+	void choke(uint8_t triggeringChokeGroup);
 	void resyncLFOs() override;
 	void removeDrumFromKitArpeggiator(int32_t drumIndex);
 	void removeDrum(Drum* drum);

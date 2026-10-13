@@ -674,9 +674,11 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 	// Kit arp, get arp settings, perform setup and render arp pre-output
 	setupAndRenderArpPreOutput(modelStackWithTimelineCounter, paramManager, output);
 
-	// if you're exporting drum stems and includeKitFX configuration setting is disabled
+	// if you're exporting drum or choke group stems and includeKitFX configuration setting is disabled
 	// render kit row without kit affect entire FX (but leave in kit affect entire pitch adjustment)
-	if (stemExport.processStarted && (stemExport.currentStemExportType == StemExportType::DRUM)
+	if (stemExport.processStarted
+	    && (stemExport.currentStemExportType == StemExportType::DRUM
+	        || stemExport.currentStemExportType == StemExportType::CHOKE_GROUP)
 	    && !stemExport.includeKitFX) [[unlikely]] {
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -905,9 +907,9 @@ bool Kit::offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channe
 	return messageUsed;
 }
 
-void Kit::choke() {
+void Kit::choke(uint8_t triggeringChokeGroup) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		thisDrum->choke(nullptr);
+		thisDrum->choke(nullptr, triggeringChokeGroup);
 	}
 }
 

@@ -243,6 +243,7 @@ enum class StemExportType : uint8_t {
 	TRACK,
 	DRUM,
 	MIXDOWN,
+	CHOKE_GROUP,
 };
 
 enum class ThingType : uint8_t {

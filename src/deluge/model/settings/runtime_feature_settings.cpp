@@ -208,6 +208,10 @@ void RuntimeFeatureSettings::init() {
 	// Shortcut Overlay
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShortcutOverlay],
 	                  STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY, "shortcutOverlay", RuntimeFeatureStateToggle::On);
+
+	// Numbered choke groups
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ChokeGroups], STRING_FOR_COMMUNITY_FEATURE_CHOKE_GROUPS,
+	                  "chokeGroups", RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::factoryReset(bool showPopup) {
