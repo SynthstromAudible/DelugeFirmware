@@ -208,8 +208,11 @@ renderEnvelope:
 	                                     ? std::span{reinterpret_cast<StereoSample*>(bufferToTransferTo), render.size()}
 	                                     : render;
 
-	// add in the monitored audio if in sampler or looper mode
-	if (modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
+	// add in the monitored audio if in sampler or looper mode. Suppress until the codec ADC has settled after
+	// power-on, then fade it in (issue #4517) - otherwise its power-on transient gets passed straight through to the
+	// output.
+	q31_t const monitoring_gain_end = AudioEngine::getInputMonitoringGain(render.size());
+	if (monitoring_gain_end != 0 && modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
 	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
 		int32_t const* __restrict__ input_ptr = (int32_t const*)AudioEngine::i2sRXBufferPos;
@@ -219,9 +222,16 @@ renderEnvelope:
 			input_channel = AudioInputChannel::NONE; // 0 means combine channels
 		}
 
-		auto amplitude_increment = static_cast<int32_t>((static_cast<double>(amplitudeAtEnd - amplitudeAtStart) //
+		int32_t amplitude_start = amplitudeAtStart;
+		int32_t amplitude_end = amplitudeAtEnd;
+		if (!AudioEngine::inputMonitoringWarmedUp) {
+			amplitude_start = multiply_32x32_rshift32(amplitude_start, AudioEngine::getInputMonitoringGain(0)) << 1;
+			amplitude_end = multiply_32x32_rshift32(amplitude_end, monitoring_gain_end) << 1;
+		}
+
+		auto amplitude_increment = static_cast<int32_t>((static_cast<double>(amplitude_end - amplitude_start) //
 		                                                 / static_cast<double>(render.size())));
-		int32_t amplitude = amplitudeAtStart;
+		int32_t amplitude = amplitude_start;
 
 		for (StereoSample& output_sample : output) {
 			amplitude += amplitude_increment;
