@@ -284,7 +284,7 @@ public:
 	SquareInfo gridSquareInfo[kDisplayHeight][kDisplayWidth]{};
 
 	// adjust note parameters
-	void adjustVelocity(int32_t velocityChange);
+	void adjustVelocity(int32_t velocityChange, bool display_value = true);
 	void updateVelocityValue(int32_t& velocityValue, int32_t newVelocity);
 	void displayVelocity(int32_t velocityValue, int32_t velocityChange);
 	void popupVelocity(char const* displayString);

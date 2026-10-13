@@ -83,7 +83,7 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) final override {
-		instrumentClipView.adjustVelocity(offset);
+		instrumentClipView.adjustVelocity(offset, false);
 		readValueAgain();
 	}
 
