@@ -26,7 +26,6 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/led/indicator_leds.h"
-#include "libdeluge/system.h" // AudioExcludedSection
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/edits/change_effect.h"
@@ -67,15 +66,15 @@ void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
 }
 
 void GlobalEffectable::setChainState(const deluge::model::HostChainState& next) {
-	// Projected even when unchanged: a mod FX ring or a grain that could not be allocated is retried at every effects
-	// edit.
-	setEffects(next.effects);
 	chainState_.mod_fx_param = next.mod_fx_param;
 	chainState_.filter_type = next.filter_type;
-	if (modControllableSnapshot_.mod_fx_param != next.mod_fx_param) {
-		AudioExcludedSection section; // the render reads the copy
-		modControllableSnapshot_.mod_fx_param = next.mod_fx_param;
-	}
+	// The effects and the view reach the render copy together. Projected even when unchanged: a mod FX ring or a grain
+	// that could not be allocated is retried at every effects edit.
+	setEffects(next.effects);
+}
+
+void GlobalEffectable::projectView(deluge::snapshot::ModControllableSnapshot& copy) {
+	copy.mod_fx_param = chainState_.mod_fx_param;
 }
 
 void GlobalEffectable::initParams(ParamManager* paramManager) {
@@ -476,13 +475,18 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	return false; // Some cases could lead here
 }
 
+q31_t GlobalEffectable::displayedCompressorThreshold() {
+	// The master's threshold is its setting; a clip chain's render follows its threshold param, which the knob shows.
+	return isSong() ? effects().compressor.threshold : core().compressor().dsp().threshold();
+}
+
 int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) {
 	int current = 0;
 	if (*getModKnobMode() == 4) {
 
 		// this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { // sidechain (threshold)
-			current = (effects().compressor.threshold >> 24);
+			current = (displayedCompressorThreshold() >> 24);
 		}
 		else if (whichModEncoder == 0) {
 			switch (currentCompParam) {
@@ -530,7 +534,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 		// this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { // sidechain (threshold)
 			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_THRESHOLD));
-			current = (effects().compressor.threshold >> 24) - 64;
+			current = (displayedCompressorThreshold() >> 24) - 64;
 			current += offset;
 			current = std::clamp(current, -64, 64);
 			ledLevel = (64 + current);
@@ -773,8 +777,8 @@ deluge::model::HostChainState GlobalEffectable::savedChainState() {
 
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
 	const deluge::model::HostChainState saved = savedChainState();
-	writer.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(saved.mod_fx_param));
-	writer.writeAttribute("currentFilterType", (char*)filterTypeToString(saved.filter_type));
+	writer.writeAttribute("modFXCurrentParam", modFXParamToString(saved.mod_fx_param));
+	writer.writeAttribute("currentFilterType", filterTypeToString(saved.filter_type));
 	ModControllableAudio::writeAttributesToFile(writer, saved.effects);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	// <--
@@ -791,7 +795,7 @@ void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramMa
 
 	// A clip chain's render follows its threshold param; the file holds the setting, as the record does.
 	const deluge::model::HostChainState saved = savedChainState();
-	ModControllableAudio::writeTagsToFile(writer, saved.effects, saved.effects.compressor.threshold);
+	ModControllableAudio::writeTagsToFile(writer, saved.effects);
 }
 
 void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -881,16 +885,9 @@ Error GlobalEffectable::readTagFromFile(Deserializer& reader, char const* tagNam
 }
 
 void GlobalEffectable::readEffectsFromElement(const deluge::serialization::Value& element, int32_t tickMagnitude) {
-	deluge::effects::EffectStates states = effects();
-	deluge::effects::decode(element, states, {.input_tick_magnitude = tickMagnitude});
-	delayTypePending = !deluge::effects::saves_delay_type(element);
-	setEffects(states);
-	// The runtime threshold is what a save before any render writes back: the file's, when it gives one.
-	if (const deluge::serialization::Value* settings = element.find("audioCompressor");
-	    settings != nullptr && settings->isMap() && settings->find("thresh") != nullptr) {
-		core().compressor().dsp().setThreshold(states.compressor.threshold);
-	}
 	deluge::model::HostChainState next = chainState_;
+	deluge::effects::decode(element, next.effects, {.input_tick_magnitude = tickMagnitude});
+	delayTypePending = !deluge::effects::saves_delay_type(element);
 	if (const deluge::serialization::Value* param = element.find("modFXCurrentParam"); param && param->isScalar()) {
 		next.mod_fx_param = stringToModFXParam(param->str().c_str());
 	}

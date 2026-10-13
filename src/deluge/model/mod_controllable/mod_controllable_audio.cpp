@@ -221,6 +221,7 @@ void ModControllableAudio::projectModControllableSnapshot() {
 	{
 		AudioExcludedSection section; // the render reads the copy, the ring, the grain's blocks and the delay's arena
 		modControllableSnapshot_.effects = effects();
+		projectView(modControllableSnapshot_);
 		core().mod_fx().commit(modControllableSnapshot_.effects.mod_fx.type, ring);
 		deluge::noteStructuralEdit(deluge::StructuralContainer::MOD_FX_RING);
 		core().granular().commit(modControllableSnapshot_.effects.mod_fx.type, grain);
@@ -323,7 +324,7 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 }
 
 void ModControllableAudio::writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states,
-                                           q31_t compressorThreshold) {
+                                           std::optional<q31_t> compressorThreshold) {
 	const deluge::effects::EffectPieces pieces =
 	    deluge::effects::encode_pieces(states, effectsCodecContext(), compressorThreshold);
 	writer.writeValue(pieces.delay);

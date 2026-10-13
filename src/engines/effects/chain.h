@@ -48,7 +48,7 @@ struct SlotEntries {
 [[nodiscard]] std::optional<std::string_view> effect_of_setting(std::string_view path);
 
 /// @brief Each of @p home's slots as the owner element holds it, sync levels relative to @p context.
-/// @param compressor_threshold As for encode_pieces: a clip chain's threshold is its param.
+/// @param compressor_threshold As for encode_pieces; a host chain's record and file hold the state's.
 [[nodiscard]] std::vector<SlotEntries> encode_chain(const EffectStates& states, Home home,
                                                     const engine::CodecContext& context,
                                                     std::optional<int32_t> compressor_threshold = std::nullopt);

@@ -85,6 +85,7 @@ public:
 	CompParam currentCompParam;
 
 	ModFXType getModFXType() override;
+	void projectView(deluge::snapshot::ModControllableSnapshot& copy) override;
 	/// @return The mod FX type in effect: NONE while the selected mod FX knob is at its minimum (the soft off).
 	ModFXType getActiveModFXType(ParamManager* paramManager);
 
@@ -94,6 +95,8 @@ protected:
 
 private:
 	void ensureModFXParamIsValid();
+	/// @return The compressor threshold the comp-edit knob shows (Q31): the render's.
+	[[nodiscard]] q31_t displayedCompressorThreshold();
 	/// The chain's settings and view; effects() is bound to its effects.
 	deluge::model::HostChainState chainState_{};
 	void displayCompressorAndReverbSettings(bool on);

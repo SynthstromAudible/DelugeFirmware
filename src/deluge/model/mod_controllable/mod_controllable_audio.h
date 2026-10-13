@@ -54,9 +54,10 @@ public:
 	void writeTagsToFile(Serializer& writer);
 	/// @brief Writes @p states' effect attributes.
 	void writeAttributesToFile(Serializer& writer, const deluge::effects::EffectStates& states);
-	/// @brief Writes @p states' effect tags, the learned MIDI knobs among them, with @p compressorThreshold for the
-	/// compressor's threshold.
-	void writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states, q31_t compressorThreshold);
+	/// @brief Writes @p states' effect tags, the learned MIDI knobs among them; @p compressorThreshold, when given, in
+	/// place of the state's threshold.
+	void writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states,
+	                     std::optional<q31_t> compressorThreshold = std::nullopt);
 	/// The learned MIDI knobs' tag, which a file writes between the delay and the other effect tags.
 	void writeMidiKnobsToFile(Serializer& writer);
 	/// The codec context a file's effect entries are written in: the current song's tick magnitude.
@@ -81,6 +82,9 @@ public:
 	}
 	/// Copy the settings into the render's copy, with the render excluded.
 	void projectModControllableSnapshot();
+	/// @brief Inside projectModControllableSnapshot's excluded section: the owner's view into @p copy, for a host chain
+	/// (its selected mod FX knob); nothing for a sound.
+	virtual void projectView(deluge::snapshot::ModControllableSnapshot& /*copy*/) {}
 	/// Store the mod-FX type; setModFXType() does the same and returns true. For the load path and
 	/// cloneFrom().
 	void assignModFXType(ModFXType value);

@@ -150,14 +150,15 @@ EFFECT_SETTERS = tuple(
         )
     )
 ) + ("assignModFXType",)
-HOST_CALL = re.compile(r"(?<![\w:])(" + "|".join(EFFECT_SETTERS) + r")\s*\(")
+HOST_CALL = re.compile(r"(?<!\w)(" + "|".join(EFFECT_SETTERS) + r")\s*\(")
 #: A host owner's settings or view set wholesale: only the Edits, the bridge and the functions HOST_ALLOWED names do it.
-VIEW_WRITE = re.compile(r"(?<![\w:])(setEffects|setChainState)\s*\(")
-#: A function opening at the start of a line, `Class::name(`: the enclosing function of the lines after it.
-FUNCTION = re.compile(r"^[A-Za-z_][\w:<>,*& ]*?\b(\w+)::(~?\w+)\s*\(")
+VIEW_WRITE = re.compile(r"(?<!\w)(setEffects|setChainState)\s*\(")
+#: A function opening at the start of a line, `Class::name(` (a constructor's has no return type): the enclosing function
+#: of the lines after it.
+FUNCTION = re.compile(r"^(?:[A-Za-z_][\w:<>,*& ]*?\b)?(\w+)::(~?\w+)\s*\(")
 #: A free function opening at the start of a line, `name(`.
 FREE_FUNCTION = re.compile(
-    r"^(?!namespace\b|template\b|using\b|return\b)[A-Za-z_][\w<>,*& ]*?\b(\w+)\s*\("
+    r"^(?:\[\[\w+\]\]\s*)?(?!namespace\b|template\b|using\b|return\b)[A-Za-z_][\w:<>,*& ]*?\b(\w+)\s*\("
 )
 #: The functions that may write an owner's effects or view natively: a setter's own definition (named as the setter),
 #: a copy of another owner (cloneFrom), a constructor, the load from the owner's element, and the one function that sets

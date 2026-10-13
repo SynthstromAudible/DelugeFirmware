@@ -38,8 +38,8 @@ struct EffectPieces {
 
 /// @brief The entries a file writes for an owner's effects, the delay's and sidechain's sync levels relative to
 /// @p context's tick magnitude.
-/// @param compressor_threshold The threshold to write in place of the state's: a sound's and a clip chain's is its
-/// param, as the render last applied it.
+/// @param compressor_threshold The threshold to write in place of the state's: a sound's file holds its param's, as
+/// the render last applied it. A host chain's file holds the state's.
 [[nodiscard]] EffectPieces encode_pieces(const EffectStates& states, const engine::CodecContext& context,
                                          std::optional<int32_t> compressor_threshold = std::nullopt);
 

@@ -83,6 +83,15 @@ void encodeChain(const FxChain& chain, deluge::serialization::Value& element, in
 	}
 }
 
+/// @brief @p owner's state set from @p record, when the record decodes to anything else (it does not when the codec
+/// round-trips, so a load sets no state twice).
+void projectRecord(::GlobalEffectable& owner, const FxChain& record) {
+	const deluge::model::HostChainState decoded = chainStateOf(record);
+	if (decoded != owner.chainState()) {
+		owner.setChainState(decoded);
+	}
+}
+
 template <class F>
 void forEachOutput(::Song& song, F&& f) {
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
@@ -159,7 +168,7 @@ void fillChains(::Song& song) {
 	forEachOutput(song, [&](::Output& output) { recordOutputChain(output, song); });
 	::GlobalEffectable& master = song.live.global_effectable;
 	song.project.master_effects = encodeChainOf(master.chainState(), ChainHome::MASTER, magnitude);
-	master.setChainState(chainStateOf(song.project.master_effects));
+	projectRecord(master, song.project.master_effects);
 	// Setting a state reserves each delay's tape in the current song, which during a load is not yet this one: the
 	// reserves are worked out again in this song.
 	deluge::model::refreshDelayReserves(song);
@@ -175,7 +184,7 @@ void recordOutputChain(::Output& output, ::Song& song) {
 		return;
 	}
 	record->effects = encodeChainOf(owner->chainState(), ChainHome::CLIP, song.getInputTickMagnitude());
-	owner->setChainState(chainStateOf(*record->effects));
+	projectRecord(*owner, *record->effects);
 }
 
 } // namespace deluge::bridge

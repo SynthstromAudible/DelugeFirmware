@@ -69,8 +69,8 @@ struct StutterState {
 struct CompressorState {
 	int32_t attack{5 << 24};
 	int32_t release{5 << 24};
-	/// A sound's and a clip chain's threshold is its param, which the render applies every block; this is the
-	/// master's knob, and the value a sound's file last held.
+	/// The setting. The master renders it (its knob); a sound and a clip chain render their threshold param every block
+	/// instead. A host chain's record and file hold the setting; a sound's file holds its param's.
 	int32_t threshold{0};
 	int32_t ratio{64 << 24};
 	int32_t sidechain_hpf{0};
