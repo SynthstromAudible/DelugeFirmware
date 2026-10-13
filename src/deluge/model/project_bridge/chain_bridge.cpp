@@ -17,6 +17,8 @@
 
 #include "model/project_bridge/chain_bridge.h"
 
+#include "model/mod_controllable/delay_type.h"
+
 #include "engines/effects/chain.h"
 #include "engines/effects/codec.h"
 #include "model/global_effectable/global_effectable.h"
@@ -158,6 +160,9 @@ void fillChains(::Song& song) {
 	::GlobalEffectable& master = song.live.global_effectable;
 	song.project.master_effects = encodeChainOf(master.chainState(), ChainHome::MASTER, magnitude);
 	master.setChainState(chainStateOf(song.project.master_effects));
+	// Setting a state reserves each delay's tape in the current song, which during a load is not yet this one: the
+	// reserves are worked out again in this song.
+	deluge::model::refreshDelayReserves(song);
 }
 
 void recordOutputChain(::Output& output, ::Song& song) {

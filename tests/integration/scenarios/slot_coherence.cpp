@@ -232,6 +232,9 @@ std::string chainIncoherence(::Song& song) {
 			if (owner->modControllableSnapshot().effects != owner->chainState().effects) {
 				return where + "render copy";
 			}
+			if (owner->modControllableSnapshot().mod_fx_param != owner->chainState().mod_fx_param) {
+				return where + "render copy's mod FX knob";
+			}
 		}
 	}
 	const deluge::project::FxChain& master = song.project.master_effects;
@@ -245,6 +248,10 @@ std::string chainIncoherence(::Song& song) {
 	if (song.live.global_effectable.modControllableSnapshot().effects
 	    != song.live.global_effectable.chainState().effects) {
 		return "master effects: render copy";
+	}
+	if (song.live.global_effectable.modControllableSnapshot().mod_fx_param
+	    != song.live.global_effectable.chainState().mod_fx_param) {
+		return "master effects: render copy's mod FX knob";
 	}
 	return {};
 }

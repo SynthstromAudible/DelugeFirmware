@@ -15,6 +15,7 @@
 #include "model/edits/set_effect_setting.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/delay_type.h"
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
@@ -216,6 +217,27 @@ void magnitudeLeg(Song& song, const std::vector<HostOwner>& owners) {
 	song.project.transport.inside_world_tick_magnitude--;
 }
 
+/// @p song saved as JSON and read back, as the app saves and loads a song; nullptr (after printing why) when the save
+/// writes nothing or does not load.
+Song* savedAndReloaded(Song& song) {
+	constexpr uint32_t kCap = 16u * 1024 * 1024;
+	std::vector<char> saved(kCap);
+	song.setCurrentClip(nullptr);
+	deluge::scenarios::driver::beginCapture(smJsonSerializer);
+	deluge::bridge::saveSong(song, smJsonSerializer);
+	const long length = deluge::scenarios::driver::endCapture(smJsonSerializer, saved.data(), kCap);
+	if (length <= 0) {
+		std::fprintf(io.err, "HOST-EFFECTS-FAIL %s: the save wrote nothing\n", songName);
+		return nullptr;
+	}
+	Song* reloaded =
+	    loadSong(std::string_view(saved.data(), static_cast<size_t>(length)), deluge::storage::DocumentFormat::JSON);
+	if (reloaded == nullptr) {
+		std::fprintf(io.err, "HOST-EFFECTS-FAIL %s: the save does not load\n", songName);
+	}
+	return reloaded;
+}
+
 /// A filter mode and a compressor attack changed on a kit and the master survive a save and a reload. A kit's
 /// compressor threshold, whose render follows its param, saves as its setting whatever the render last applied.
 int roundTripLeg(Song& song, const std::vector<HostOwner>& owners) {
@@ -237,20 +259,8 @@ int roundTripLeg(Song& song, const std::vector<HostOwner>& owners) {
 			thresholds.emplace_back(owner, setting);
 		}
 	}
-	constexpr uint32_t kCap = 16u * 1024 * 1024;
-	std::vector<char> saved(kCap);
-	song.setCurrentClip(nullptr);
-	deluge::scenarios::driver::beginCapture(smJsonSerializer);
-	deluge::bridge::saveSong(song, smJsonSerializer);
-	const long length = deluge::scenarios::driver::endCapture(smJsonSerializer, saved.data(), kCap);
-	if (length <= 0) {
-		std::fprintf(io.err, "HOST-EFFECTS-FAIL %s: the save wrote nothing\n", songName);
-		return 3;
-	}
-	Song* reloaded =
-	    loadSong(std::string_view(saved.data(), static_cast<size_t>(length)), deluge::storage::DocumentFormat::JSON);
+	Song* reloaded = savedAndReloaded(song);
 	if (reloaded == nullptr) {
-		std::fprintf(io.err, "HOST-EFFECTS-FAIL %s: the save does not load\n", songName);
 		return 3;
 	}
 	for (const HostOwner& owner : edited) {
@@ -367,7 +377,8 @@ void cloneLeg(Song& song) {
 }
 
 /// A kit added to the song, its chain edited, then hibernated (as replacing an edited instrument hibernates it): it
-/// keeps its record, an Edit on its chain reaches it there, and the song stays coherent.
+/// keeps its record, an Edit on its chain reaches it there, and the song stays coherent. Revived (as choosing it again
+/// revives it), it holds both edits; saved and read back, so does the file.
 void hibernationLeg(Song& song) {
 	ParamManagerForTimeline paramManager;
 	Instrument* kit = StorageManager::createNewInstrument(OutputType::KIT, &paramManager);
@@ -404,7 +415,45 @@ void hibernationLeg(Song& song) {
 		fail(owner, "-", Value::makeScalar("-"), what);
 		return;
 	}
+	song.removeInstrumentFromHibernationList(kit);
+	song.addOutput(kit);
+	if (runtime->effects().filter.lpf_mode != FilterMode::SVF_NOTCH || runtime->effects().delay.ping_pong) {
+		fail(owner, "-", Value::makeScalar("-"), "the revived kit lost an edit");
+		return;
+	}
+	if (const std::string what = deluge::harness::chainIncoherence(song); !what.empty()) {
+		fail(owner, "revived", Value::makeScalar("-"), what);
+		return;
+	}
+	Song* reloaded = savedAndReloaded(song);
+	const GlobalEffectable* read =
+	    reloaded == nullptr ? nullptr : deluge::bridge::chainOwnerAt(owner.address, *reloaded);
+	if (read == nullptr || read->effects().filter.lpf_mode != FilterMode::SVF_NOTCH
+	    || read->effects().delay.ping_pong) {
+		fail(owner, "saved", Value::makeScalar("-"), "the revived kit's edits did not survive a save");
+		return;
+	}
 	ok++;
+}
+
+/// Right after the load, each host owner's delay holds the reserve its settings and params need in the song (as a
+/// tempo change or a rate edit would set it), not the neutral tape's.
+void reserveLeg(Song& song, const std::vector<HostOwner>& owners) {
+	for (const HostOwner& owner : owners) {
+		GlobalEffectable* runtime = deluge::bridge::chainOwnerAt(owner.address, song);
+		if (runtime == nullptr || !runtime->core().delay().counted()) {
+			continue;
+		}
+		const deluge::effects::Delay& delay = runtime->core().delay();
+		const std::size_t want = delay.reserveFor(deluge::model::delayReserveFrames(song, *runtime));
+		if (delay.reserve() != want) {
+			fail(owner, "delay reserve", Value::makeNumber(static_cast<int32_t>(want)),
+			     "the load left reserve " + std::to_string(delay.reserve()));
+		}
+		else {
+			ok++;
+		}
+	}
 }
 
 int host_effect_settings_main(int argc, char** argv, Io driverIo) {
@@ -431,6 +480,7 @@ int host_effect_settings_main(int argc, char** argv, Io driverIo) {
 		return 1;
 	}
 	const std::vector<HostOwner> owners = hostOwners(*song);
+	reserveLeg(*song, owners);
 	for (const HostOwner& owner : owners) {
 		settingLegs(*song, owner);
 	}

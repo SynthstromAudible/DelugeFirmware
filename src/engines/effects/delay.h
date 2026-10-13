@@ -110,6 +110,10 @@ public:
 	void finish(DelayChange& change);
 	/// @return Whether the owner is counted on in the arena's margin.
 	[[nodiscard]] bool counted() const { return counted_; }
+	/// @return The reserve for @p reserveFrames: at least a neutral-rate tape and the largest tape taken.
+	[[nodiscard]] std::size_t reserveFor(std::size_t reserveFrames) const;
+	/// @return The owner's reserve in the arena, in frames, while counted; else 0.
+	[[nodiscard]] std::size_t reserve() const { return counted_ ? arena_->reserve(slot_) : 0; }
 
 private:
 	void informWhetherActive(bool newActive, int32_t userDelayRate = 0);
@@ -126,9 +130,6 @@ private:
 	[[nodiscard]] constexpr int32_t getAmountToWriteBeforeReadingBegins() const {
 		return static_cast<int32_t>(secondary_.size());
 	}
-
-	/// @return The reserve for @p reserveFrames: at least a neutral-rate tape and the largest tape taken.
-	[[nodiscard]] std::size_t reserveFor(std::size_t reserveFrames) const;
 
 	DelayArena* arena_;
 	std::size_t slot_ = 0;         ///< the owner's reserve in the arena, while counted
