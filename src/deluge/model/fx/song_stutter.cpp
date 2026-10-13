@@ -19,9 +19,11 @@
 
 #include "libdeluge/system.h" // AudioExcludedSection
 #include "model/mod_controllable/mod_fx_allocator.h"
+#include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "playback/playback_handler.h"
 #include "util/fixedpoint.h"
 #include "util/functions.h"
 #include "util/param_functions.h"
@@ -77,6 +79,21 @@ void SongStutter::process(const ModControllableAudio& owner, std::span<deluge::d
 	if (owner_ == &owner) {
 		fx_.render(block, rate);
 	}
+}
+
+StutterInput stutterInput(const ModControllableAudio& owner, ParamManager* paramManager) {
+	if (currentSong == nullptr) {
+		return {};
+	}
+	SongStutter& stutter = currentSong->live.stutter;
+	deluge::effects::Stutter* const playing = stutter.stutterFor(owner);
+	if (playing == nullptr) {
+		return {};
+	}
+	return {.stutter = playing,
+	        .rate = static_cast<uint32_t>(stutterRate(paramManager, stutter.lastQuantizedKnobDiff,
+	                                                  currentSong->getInputTickMagnitude(),
+	                                                  playbackHandler.getTimePerInternalTickInverse()))};
 }
 
 void initStutterParams(ParamManager* paramManager) {

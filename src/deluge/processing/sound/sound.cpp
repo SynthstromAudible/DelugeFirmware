@@ -34,6 +34,7 @@
 #include "libdeluge/system.h"
 #include "memory/fast_allocator.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/stack_guard.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
@@ -60,6 +61,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_chain_inputs.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
@@ -2014,29 +2016,11 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		}
 	}
 
-	int32_t postFXVolume = params.paramFinalValues[params::GLOBAL_VOLUME_POST_FX - params::FIRST_GLOBAL];
-	int32_t postReverbVolume = params.paramFinalValues[params::GLOBAL_VOLUME_POST_REVERB_SEND - params::FIRST_GLOBAL];
-
-	core().send_and_volume().prime(postReverbVolume);
-
-	int32_t modFXDepth = params.paramFinalValues[params::GLOBAL_MOD_FX_DEPTH - params::FIRST_GLOBAL];
-	int32_t modFXRate = params.paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
-
-	processSRRAndBitcrushing(sound_stereo, &postFXVolume, paramManager);
-	processFX(sound_stereo, modControllableSnapshot_.effects.mod_fx.type, modFXRate, modFXDepth, delayWorkingState,
-	          &postFXVolume, paramManager, !voices_.empty(), reverbSendAmount >> 1, reverbBuffer);
-	processStutter(sound_stereo, paramManager);
-
-	processReverbSendAndVolume(sound_stereo, reverbBuffer, postFXVolume, postReverbVolume, reverbSendAmount, 0, true);
-
-	q31_t compThreshold = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
-	core().compressor().configure(modControllableSnapshot_.effects.compressor);
-	core().compressor().dsp().setThreshold(compThreshold); // a sound's threshold is its param
-	if (compThreshold > 0) {
-		core().compressor().dsp().renderVolumeNeutral(sound_stereo, postFXVolume);
-	}
-	else {
-		core().compressor().dsp().reset();
+	checkStack("delay");
+	if (chain_.process(sound_stereo,
+	                   soundChainInputs(*this, *paramManager, delayWorkingState, !voices_.empty(), reverbSendAmount),
+	                   {reverbBuffer, sound_stereo.size()})) {
+		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
 	}
 
 	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {

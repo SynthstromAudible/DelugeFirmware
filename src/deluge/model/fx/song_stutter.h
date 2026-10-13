@@ -52,6 +52,10 @@ public:
 	/// @brief [render] Records into or plays the tape over @p block at @p rate (8.24), when @p owner is the one
 	/// stuttering.
 	void process(const ModControllableAudio& owner, std::span<deluge::dsp::StereoSample> block, uint32_t rate);
+	/// @return [render] The stutter, while @p owner is the one stuttering; else null.
+	[[nodiscard]] deluge::effects::Stutter* stutterFor(const ModControllableAudio& owner) {
+		return owner_ == &owner ? &fx_ : nullptr;
+	}
 	/// @return Whether @p owner is the one stuttering.
 	[[nodiscard]] bool isStuttering(const ModControllableAudio& owner) const { return owner_ == &owner; }
 	/// @return Whether any owner is stuttering.
@@ -75,6 +79,17 @@ private:
 	/// The owner stuttering, compared and never dereferenced; set and cleared with the render excluded.
 	const ModControllableAudio* owner_ = nullptr;
 };
+
+/// @brief What an owner's chain renders of the song's stutter this block.
+struct StutterInput {
+	deluge::effects::Stutter* stutter =
+	    nullptr;       ///< The song's stutter while the owner is the one stuttering, else null.
+	uint32_t rate = 0; ///< Its rate, 8.24 on the delay's rate scale.
+};
+
+/// @brief [render] The current song's stutter for @p owner's chain, at the rate @p paramManager's stutter param gives:
+/// none with no song current (a sample preview between songs) or while another owner stutters.
+[[nodiscard]] StutterInput stutterInput(const ModControllableAudio& owner, ParamManager* paramManager);
 
 /// @brief Sets @p paramManager's stutter-rate param to its neutral value, as a new owner's params start.
 void initStutterParams(ParamManager* paramManager);
