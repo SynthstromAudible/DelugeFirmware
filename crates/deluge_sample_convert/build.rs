@@ -37,7 +37,7 @@ const ARM_ARCH_FLAGS: [&str; 7] = [
 
 // Must match the revisions in `cmake/deps.cmake`.
 const ARGON_URL: &str = "https://github.com/stellar-aria/argon";
-const ARGON_SHA: &str = "5897db725c1cdee452b5f288614796364468f2ea";
+const ARGON_SHA: &str = "4b8efc4f4f21595d454e415fb619dd91223c0400";
 const SIMDE_URL: &str = "https://github.com/simd-everywhere/simde";
 const SIMDE_SHA: &str = "71fd833d9666141edcd1d3c109a80e228303d8d7"; // == tag v0.8.2
 

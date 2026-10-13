@@ -44,7 +44,8 @@ public:
 	void factoryReset(bool showPopup = true);
 	void writeDefaultsToFile();
 	/// @brief writeDefaultsToFile's body, run where blocking on the card is legal.
-	void writeDefaultsInline();
+	/// @return Whether the file reached the card.
+	bool writeDefaultsInline();
 	/// @brief Read the follow defaults, preferring the channel.
 	/// @param onDone Told how the channel operation ended, when the channel took it.
 	/// @return Whether the CHANNEL accepted the read -- i.e. whether @p onDone will be called.
@@ -195,6 +196,10 @@ private:
 
 	// Loading
 	bool successfullyReadDefaultsFromFile{};
+
+	void completeLegacyFlashMigration(bool defaultsWereWritten);
+	/// @brief `deluge::storage::bytes::DoneFn` for writeDefaultsToFile's channel write.
+	static void defaultsWritten(void* ctx, deluge::storage::bytes::SettingsOutcome outcome);
 
 	// CC Mappings
 	void readDefaultMappingsFromFile(Deserializer& reader);

@@ -58,6 +58,9 @@ jobs:
       - name: Install Chromium for Playwright
         run: pnpm exec playwright install --with-deps chromium chromium-headless-shell
 
+      - name: Configure Chromium sandbox for PDF generation
+        run: bash ./scripts/setup-pdf-sandbox.sh
+
       # This gets us the site base URL
       - name: Setup Pages
         id: setup_pages
@@ -69,6 +72,13 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           SITE_URL: ${{ steps.setup_pages.outputs.base_url }}
           SITE_BASE_PATH: ${{ steps.setup_pages.outputs.base_path }}
+
+      - name: Create PDF
+        env:
+          SITE_URL: ${{ steps.setup_pages.outputs.base_url }}
+          SITE_BASE_PATH: ${{ steps.setup_pages.outputs.base_path }}
+        timeout-minutes: 10
+        run: pnpm run generate:pdf
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

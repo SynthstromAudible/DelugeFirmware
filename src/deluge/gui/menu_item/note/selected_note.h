@@ -27,13 +27,11 @@ public:
 	using Integer::Integer;
 
 	bool shouldEnterSubmenu() override {
-		int32_t x_display = instrumentClipView.lastSelectedNoteXDisplay;
-		int32_t y_display = instrumentClipView.lastSelectedNoteYDisplay;
-		if (x_display != kNoSelection && y_display != kNoSelection) {
-			if (instrumentClipView.gridSquareInfo[y_display][x_display].isValid) {
-				return true;
-			}
+		// check if we've selected a note, either by holding note(s) or by having a remembered note
+		if (instrumentClipView.getLeftMostNotePressed()) {
+			return true;
 		}
+		// no note is selected, shouldn't be possible but if it happens show pop-up
 		display->displayPopup("Select Note");
 		return false;
 	}

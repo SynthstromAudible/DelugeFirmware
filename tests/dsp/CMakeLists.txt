@@ -47,6 +47,12 @@ set(envelope_spec_DEPS
 set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
 # The chunker caches each chunk's sinc kernel via windowed_sinc_kernel.select().
 set(wavetable_cycle_chunker_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
+# The reverb models (Freeverb's out-of-line half; Digital and Mutable are header-only). The spec also needs
+# DELUGE_DSP_BOUNDS_CHECK, which turns every DelayLine read outside its own reserved region into a hard failure.
+set(reverb_spec_DEPS ${_repo_root}/src/deluge/dsp/reverb/freeverb/freeverb.cpp)
+set(reverb_spec_DEFS DELUGE_DSP_BOUNDS_CHECK=1)
+# The reverbs reach util/functions.h, which reaches the libdeluge headers.
+set(reverb_spec_INCLUDES ${_repo_root}/include)
 
 # ETL for the synth headers that reach util/etl_string.h (modulation/sync.h, through the LFO). The x86 unit tree links it
 # everywhere; the ARM tree does not, so the specs link it themselves.
@@ -58,6 +64,12 @@ foreach(_spec_path IN LISTS _specs)
 
   add_executable(${_name} ${_spec_path} ${${_name}_DEPS})
   target_link_libraries(${_name} PRIVATE c++spec etl::etl)
+  if(DEFINED ${_name}_DEFS)
+    target_compile_definitions(${_name} PRIVATE ${${_name}_DEFS})
+  endif()
+  if(DEFINED ${_name}_INCLUDES)
+    target_include_directories(${_name} PRIVATE ${${_name}_INCLUDES})
+  endif()
   deluge_test_neon(${_name})
   target_include_directories(${_name} PRIVATE ${_repo_root}/src/deluge ${_repo_root}/src)
   set_target_properties(${_name} PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED YES)

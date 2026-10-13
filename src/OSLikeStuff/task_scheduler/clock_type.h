@@ -1,3 +1,4 @@
+#pragma once
 #include <compare>               // Time's defaulted operator<=>
 #include <libdeluge/scheduler.h> // dTime, DELUGE_CLOCKS_PER*
 

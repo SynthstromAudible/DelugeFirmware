@@ -19,6 +19,7 @@
 #include "hid/button.h"
 #include "io/file.hpp"
 #include "model/sample/sample.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "util/try.h"
 #include <iterator>
 #include <optional>
@@ -79,6 +80,7 @@
 #include "util/c_string.h"
 #include "util/functions.h"
 #include "util/string.h"
+#include "util/volume_param_gain.h"
 #include <cstring>
 
 namespace params = deluge::modulation::params;
@@ -573,6 +575,70 @@ bool SampleBrowser::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	return true;
 }
 
+namespace {
+/// The target Sound's VELOCITY -> LOCAL_VOLUME patch cable, or nullptr if it has none.
+PatchCable* targetVelocityToVolumeCable(ParamManagerForTimeline* paramManager) {
+	PatchCableSet* cables = paramManager->getPatchCableSet();
+	for (int32_t c = 0; c < cables->numPatchCables; c++) {
+		PatchCable& cable = cables->patchCables[c];
+		if (cable.from == PatchSource::VELOCITY && cable.destinationParamDescriptor.isJustAParam()
+		    && cable.destinationParamDescriptor.getJustTheParam() == params::LOCAL_VOLUME) {
+			return &cable;
+		}
+	}
+	return nullptr;
+}
+
+/// The volume the sample will play at once it's loaded into the current instrument / kit-row, so the preview can
+/// match it (issue #1591). The song master volume is applied to the preview downstream, so this only needs the target
+/// Sound's own volume, plus - for a kit - the kit's output volume.
+///
+/// Not modelled: the kit's x1.25 postFX baseline and setupFilterSetConfig()'s resonance scaling, both applied in
+/// GlobalEffectableForClip::renderOutput(). A resonant kit will still preview slightly off. Modelling them would couple
+/// the preview path to the kit render chain.
+AudioEngine::PreviewVolume targetPreviewVolume() {
+	AudioEngine::PreviewVolume previewVolume = AudioEngine::PreviewVolume::neutral();
+
+	if (soundEditor.currentSound == nullptr || soundEditor.currentParamManager == nullptr
+	    || !soundEditor.currentParamManager->containsAnyMainParamCollections()) {
+		return previewVolume;
+	}
+
+	PatchedParamSet* targetParams = soundEditor.currentParamManager->getPatchedParamSet();
+	previewVolume.volumePostFX = targetParams->getValue(params::GLOBAL_VOLUME_POST_FX);
+	previewVolume.localVolume = targetParams->getValue(params::LOCAL_VOLUME);
+
+	// The preview drum always notes on at velocity 64, so matching both the depth and the polarity of this cable makes
+	// the preview's final per-voice volume match the target's. The polarity matters as much as the depth: at velocity
+	// 64 a bipolar cable contributes nothing, while a unipolar one contributes about half its depth.
+	PatchCable* velocityCable = targetVelocityToVolumeCable(soundEditor.currentParamManager);
+	if (velocityCable != nullptr) {
+		previewVolume.velocityCableDepth = velocityCable->param.getCurrentValue();
+		previewVolume.velocityCablePolarity = velocityCable->polarity;
+	}
+	else {
+		previewVolume.velocityCableDepth = 0;
+	}
+
+	if (getCurrentOutputType() == OutputType::KIT) {
+		ParamManagerForTimeline& kitParamManager = getCurrentInstrumentClip()->paramManager;
+		if (kitParamManager.containsAnyParamCollectionsIncludingExpression()) {
+			int32_t kitVolumeParam = kitParamManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME);
+			int32_t kitGainPos = volumeParamToGainPos(kitVolumeParam);
+
+			// Fold the kit's output volume into LOCAL_VOLUME first: it sits at neutral by default, so it has exactly
+			// the 4x of headroom the kit's maximum gain demands. Anything that doesn't fit - only possible when the
+			// drum's own local volume is already boosted - spills into GLOBAL_VOLUME_POST_FX.
+			VolumeParamGain local = applyGainToVolumeParam(previewVolume.localVolume, kitGainPos);
+			previewVolume.localVolume = local.param;
+			previewVolume.volumePostFX =
+			    applyGainToVolumeParam(previewVolume.volumePostFX, local.remainingGainPos).param;
+		}
+	}
+	return previewVolume;
+}
+} // namespace
+
 void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 	/*
@@ -712,7 +778,7 @@ void SampleBrowser::finishPreviewLoad(deluge::storage::LatestSampleLoad<PreviewT
 	}
 
 	if (shouldActuallySound) {
-		AudioEngine::soundPreview();
+		AudioEngine::soundPreview(targetPreviewVolume());
 	}
 
 	if (autoLoadEnabled && getCurrentClip()->type != ClipType::AUDIO) {

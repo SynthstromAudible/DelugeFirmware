@@ -83,6 +83,7 @@
 #include <execution>
 #include <iterator>
 #include <libdeluge/scheduler.h>
+#include <limits>
 #include <new>
 #include <numeric>
 #include <ranges>
@@ -457,6 +458,12 @@ static void advanceInputRingPos(size_t numSamples) {
 		inputRingPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
 	}
 }
+
+bool inputMonitoringWarmedUp = false;
+// ~500ms after power-on for the codec ADC to settle before we start monitoring its input (see inputMonitoringWarmedUp),
+// then ~50ms to fade it in so monitoring doesn't switch on with a click.
+constexpr uint32_t kInputMonitoringWarmupSamples = kSampleRate / 2;
+constexpr uint32_t kInputMonitoringFadeInSamples = kSampleRate / 20;
 volatile int voices_started_this_render = 0;
 bool headphonesPluggedIn;
 bool micPluggedIn;
@@ -560,7 +567,7 @@ int32_t numAudioLogItems = 0;
 #endif
 
 /// Force a voice to stop within this render window. Will click slightly, especially if multiple are stopped in the
-/// same render. Will stop an audio clip if there are no voices to  kill
+/// same render. Will stop an audio clip if there are no voices to kill
 void killOneVoice(size_t num_samples) {
 	logAction("kill");
 	sounds.walk([&](const auto& sounds) {
@@ -570,10 +577,14 @@ void killOneVoice(size_t num_samples) {
 		auto it = std::ranges::max_element(lowest_priority_voices, [](const auto& a, const auto& b) {
 			return a->getPriorityRating() < b->getPriorityRating();
 		});
+		// are there any active voices to kill?
 		if (it == lowest_priority_voices.end()) {
+			// no active voices found, try to cull an audio clip instead
 			if (currentSong) {
 				currentSong->cullAudioClipVoice();
 			}
+			// return early since there are no active voices to kill
+			return;
 		}
 
 		const Sound::ActiveVoice& voice = *it;
@@ -975,6 +986,13 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 
 		sideChainHitPending = 0;
 		audioSampleTimer += numSamples;
+
+		// Once the codec has had time to settle after power-on and monitoring has faded in, allow full input
+		// monitoring. Latches true and stays true, so audioSampleTimer wrapping around can't mute monitoring again.
+		if (!inputMonitoringWarmedUp
+		    && audioSampleTimer >= kInputMonitoringWarmupSamples + kInputMonitoringFadeInSamples) {
+			inputMonitoringWarmedUp = true;
+		}
 	}
 
 #if DO_AUDIO_LOG
@@ -1048,6 +1066,22 @@ extern "C" bool deluge_app_audio_tick() noexcept {
 		AudioEngine::audioRoutineLocked = false;
 		return false;
 	}
+}
+
+q31_t getInputMonitoringGain(uint32_t offset) {
+	if (inputMonitoringWarmedUp) {
+		return std::numeric_limits<q31_t>::max();
+	}
+	uint32_t time = audioSampleTimer + offset;
+	if (time <= kInputMonitoringWarmupSamples) {
+		return 0;
+	}
+	uint32_t elapsed = time - kInputMonitoringWarmupSamples;
+	if (elapsed >= kInputMonitoringFadeInSamples) {
+		return std::numeric_limits<q31_t>::max();
+	}
+	return static_cast<q31_t>((static_cast<uint64_t>(elapsed) * std::numeric_limits<q31_t>::max())
+	                          / kInputMonitoringFadeInSamples);
 }
 
 void renderAudio(size_t numSamples) {
@@ -1816,7 +1850,35 @@ void registerSideChainHit(int32_t strength) {
 	sideChainHitPending = combineHitStrengths(strength, sideChainHitPending);
 }
 
-void soundPreview() {
+PreviewVolume PreviewVolume::neutral() {
+	return {
+	    .volumePostFX = getParamFromUserValue(params::GLOBAL_VOLUME_POST_FX, kDefaultSoundVolumeUserValue),
+	    .localVolume = 0,
+	    .velocityCableDepth = getParamFromUserValue(params::PATCH_CABLE, kSampleDrumVelocityCableUserValue),
+	    .velocityCablePolarity = PatchCable::getDefaultPolarity(PatchSource::VELOCITY),
+	};
+}
+
+void soundPreview(PreviewVolume const& volume) {
+	// Adopt the volume of the instrument / kit-row the sample will be loaded into, so the preview sounds the same
+	// before and after selecting it (issue #1591). The song master volume is applied downstream in renderSongFX().
+	PatchedParamSet* previewParams = paramManagerForSamplePreview->getPatchedParamSet();
+	previewParams->params[params::GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(volume.volumePostFX);
+	previewParams->params[params::LOCAL_VOLUME].setCurrentValueBasicForSetup(volume.localVolume);
+
+	// setupAsSample() gives the preview drum one patch cable, VELOCITY -> LOCAL_VOLUME, unless it ran out of memory.
+	PatchCableSet* previewCables = paramManagerForSamplePreview->getPatchCableSet();
+	if (previewCables->numPatchCables != 0) {
+		PatchCable& velocityCable = previewCables->patchCables[0];
+		velocityCable.param.setCurrentValueBasicForSetup(volume.velocityCableDepth);
+		velocityCable.polarity = volume.velocityCablePolarity;
+	}
+
+	// GLOBAL_VOLUME_POST_FX is a Sound-level param with no patch cables on the preview drum, so its final value
+	// won't update on its own - recompute it before we note-on. LOCAL_VOLUME is per-voice and is picked up when
+	// the new voice is patched during noteOn().
+	sampleForPreview->recalculatePatchingToParam(params::GLOBAL_VOLUME_POST_FX, paramManagerForSamplePreview);
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
 	    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
