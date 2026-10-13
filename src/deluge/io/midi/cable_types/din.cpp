@@ -19,6 +19,7 @@
 #include "gui/l10n/l10n.h"
 #include "io/midi/midi_engine.h"
 #include "libdeluge/midi_io.h"
+#include "libdeluge/system.h"
 #include "storage/storage_manager.h"
 
 void MIDICableDINPorts::writeReferenceAttributesToFile(Serializer& writer) {
@@ -48,6 +49,8 @@ void MIDICableDINPorts::sendSysex(const uint8_t* data, int32_t len) {
 	}
 
 	// NB: beware of MIDI_TX_BUFFER_SIZE
+	// The MIDI/gate output timer's interrupt writes to DIN too: keep the sysex's bytes together
+	CriticalSectionGuard guard;
 	deluge_midi_write(DELUGE_MIDI_DIN, data, len);
 }
 

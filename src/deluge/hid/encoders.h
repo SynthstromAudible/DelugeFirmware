@@ -26,7 +26,10 @@ namespace deluge::hid::encoders {
 
 /// Black function encoders (SCROLL_X/Y, TEMPO, SELECT) are detented.
 /// Four quadrature edges = one cycle = one detent click. The board confirms each edge one edge
-/// late, so a click is reported once more than two edges have accumulated, as in 1.x.
+/// late, so the first click needs three confirmed edges, continuing needs four, and a reversal
+/// needs two (the pending edge is retraced before reverse edges confirm). Partial reverse travel
+/// cancels on returning to the detent, without undoing the reported click or discarding forward
+/// progress.
 class DetentedEncoder {
 public:
 	DetentedEncoder() = default;
@@ -42,7 +45,11 @@ public:
 	int32_t take();
 
 private:
-	int32_t edgeAccumulator = 0; ///< Quadrature edges not yet a whole detent click, -2..2.
+	int32_t positiveThreshold() const { return lastDirection == 0 ? 3 : (lastDirection == 1 ? 4 : 2); }
+	int32_t negativeThreshold() const { return lastDirection == 0 ? 3 : (lastDirection == -1 ? 4 : 2); }
+
+	int8_t lastDirection = 0;    ///< Direction of the last reported click, not the last electrical edge.
+	int32_t edgeAccumulator = 0; ///< Quadrature edges not yet a whole detent click.
 	std::atomic_int32_t pos = 0; ///< Written by applyEdges, drained by the encoder task.
 };
 

@@ -146,10 +146,6 @@ void ParamSet::shiftParamValues(int32_t p, int32_t offset) {
 	params[p].shiftValues(*docForParam(p), offset);
 }
 
-void ParamSet::shiftParamVolumeByDB(int32_t p, float offset) {
-	params[p].shiftParamVolumeByDB(*docForParam(p), offset);
-}
-
 void ParamSet::paramHasAutomationNow(ParamCollectionSummary* summary, int32_t p) {
 	summary->whichParamsAreAutomated[p >> 5] |= ((uint32_t)1 << (p & 31));
 }

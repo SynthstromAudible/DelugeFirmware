@@ -26,6 +26,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
+#include "io/midi/midi_queue.h"
 #include "io/midi/sysex.h"
 #include "libdeluge/midi_io.h"
 #include "libdeluge/system.h"
@@ -191,17 +192,77 @@ void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter
 	*eventStackTop_ = source;
 	++eventStackTop_;
 
-	// Send USB MIDI
-	if (sendUSB) {
-		sendUsbMidi(message, filter);
-	}
-
-	// Send serial MIDI
-	if (MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(message, filter)) {
-		sendSerialMidi(message);
+	bool sendDIN = MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(message, filter);
+	if (sendUSB || sendDIN) {
+		queueMIDI(message, filter, sendUSB, sendDIN);
 	}
 
 	--eventStackTop_;
+}
+
+namespace {
+// Shared with the MIDI/gate output timer's interrupt: only touched under a CriticalSectionGuard
+PLACE_SDRAM_BSS MIDIQueue midiQueue;
+} // namespace
+
+void MidiEngine::queueMIDI(MIDIMessage message, int32_t filter, bool sendUSB, bool sendDIN) {
+	CriticalSectionGuard guard;
+	QueuedMIDI queued{.message = message, .filter = (int16_t)filter, .usb = sendUSB, .din = sendDIN, .due = midiDue_};
+	if (midiQueue.push(queued, outputTimeNow(), guard)) [[likely]] {
+		return;
+	}
+	// Full - send the oldest early to make room, so this one still goes out after everything queued before it
+	sendOldestQueuedMIDI(guard);
+	midiQueue.push(queued, outputTimeNow(), guard);
+}
+
+bool MidiEngine::nextMIDIDue(uint32_t& due, const CriticalSectionGuard& guard) {
+	return midiQueue.nextDue(due, guard);
+}
+
+bool MidiEngine::flushQueuedMIDI(bool all, uint32_t now, const CriticalSectionGuard& guard) {
+	bool blocked = false;
+	while (const QueuedMIDI* queued = midiQueue.frontDue(now, all, guard)) {
+		// DIN takes a message only if it fits whole: its FIFO drops whatever doesn't. Leave it queued for a retry,
+		// and everything behind it too, so nothing goes out of order
+		if (queued->din) {
+			uint8_t statusByte = queued->message.channel | (queued->message.statusType << 4);
+			if (deluge_midi_write_space(DELUGE_MIDI_DIN) < bytesPerStatusMessage(statusByte)) {
+				blocked = true;
+				break;
+			}
+		}
+		sendQueuedMIDI(*queued);
+		midiQueue.pop(guard);
+	}
+	flushMIDI();
+	return blocked;
+}
+
+bool MidiEngine::sendOldestQueuedMIDI(const CriticalSectionGuard& guard) {
+	QueuedMIDI queued;
+	if (!midiQueue.popOldest(queued, guard)) {
+		return false;
+	}
+	sendQueuedMIDI(queued);
+	return true;
+}
+
+void MidiEngine::sendQueuedMIDI(const QueuedMIDI& queued) {
+	if (queued.usb) {
+		sendUsbMidi(queued.message, queued.filter);
+	}
+	if (queued.din) {
+		sendSerialMidi(queued.message);
+	}
+}
+
+bool MidiEngine::flushDueMIDI(uint32_t now, const CriticalSectionGuard& guard) {
+	return flushQueuedMIDI(false, now, guard);
+}
+
+void MidiEngine::flushAllQueuedMIDI(const CriticalSectionGuard& guard) {
+	flushQueuedMIDI(true, 0, guard);
 }
 
 uint32_t setupUSBMessage(MIDIMessage message) {
@@ -277,6 +338,8 @@ void MidiEngine::sendSerialMidi(MIDIMessage message) {
 			bytes[2] = message.data2;
 		}
 	}
+	// The MIDI/gate output timer's interrupt writes to DIN too: keep this message's bytes together
+	CriticalSectionGuard guard;
 	deluge_midi_write(DELUGE_MIDI_DIN, bytes, messageLength);
 }
 

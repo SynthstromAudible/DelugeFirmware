@@ -55,12 +55,17 @@ pub extern "C" fn deluge_cv_init(display_shares_spi: bool) {
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_cv_set(channel: u8, value: u16) {
     stub_log!("deluge_cv_set");
+    // No DAC to wait for: the write has gone out as soon as it is made.
+    CV_SENT_COUNT.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
 }
+
+/// How many CV writes have gone out: every one, at once, on the host.
+static CV_SENT_COUNT: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_cv_sent_count() -> u32 {
     stub_log!("deluge_cv_sent_count");
-    0
+    CV_SENT_COUNT.load(core::sync::atomic::Ordering::Relaxed)
 }
 
 #[unsafe(no_mangle)]
@@ -96,7 +101,7 @@ pub extern "C" fn deluge_trigger_clock_host_edge(stamp: u64) {
     }
 }
 
-// ── midi_io.h (+ signals.h's deluge_midi_gate_timer_pending) ────────────────
+// ── midi_io.h (+ signals.h's MIDI/gate output timer) ──────────────────────────
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_init() {
@@ -198,17 +203,38 @@ pub extern "C" fn deluge_midi_poll_usb_host_event() -> DelugeUsbHostEvent {
     USB_HOST_NONE
 }
 
+/// The output timer's armed deadline on the `deluge_clock_now()` clock, or [`TIMER_DISARMED`].
+static GATE_TIMER_DEADLINE: core::sync::atomic::AtomicU64 =
+    core::sync::atomic::AtomicU64::new(TIMER_DISARMED);
+const TIMER_DISARMED: u64 = u64::MAX;
+
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_gate_timer_pending() -> bool {
-    stub_log!("deluge_midi_gate_timer_pending");
-    false
+pub extern "C" fn deluge_midi_gate_timer_arm_at(deadline_us: u64) {
+    // A deadline of u64::MAX would read as disarmed; it is unreachable anyway.
+    GATE_TIMER_DEADLINE.store(
+        deadline_us.min(TIMER_DISARMED - 1),
+        core::sync::atomic::Ordering::Relaxed,
+    );
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_gate_timer_arm(samples_from_now: u32) {
-    stub_log!("deluge_midi_gate_timer_arm");
-    // No one-shot timer on host. Reached from the render path through
-    // `AudioEngine::scheduleMidiGateOutISR`.
+pub extern "C" fn deluge_midi_gate_timer_cancel() {
+    GATE_TIMER_DEADLINE.store(TIMER_DISARMED, core::sync::atomic::Ordering::Relaxed);
+}
+
+/// The host's stand-in for the output timer's interrupt: fires `midiAndGateTimerGoneOff()` once
+/// the armed deadline has passed. The render driver calls it after each block, on the render
+/// thread, so the app sees it at block granularity rather than mid-block.
+pub(crate) fn fire_midi_gate_timer_if_due() {
+    use core::sync::atomic::Ordering;
+    let deadline = GATE_TIMER_DEADLINE.load(Ordering::Relaxed);
+    if deadline == TIMER_DISARMED || embassy_time::Instant::now().as_micros() < deadline {
+        return;
+    }
+    // One-shot: disarmed before the handler runs, which arms again if anything is still to come.
+    GATE_TIMER_DEADLINE.store(TIMER_DISARMED, Ordering::Relaxed);
+    // SAFETY: an app-provided C symbol that `libdeluge/signals.h` documents as the timer callback.
+    unsafe { crate::sys::midiAndGateTimerGoneOff() };
 }
 
 // ── signals.h ──────────────────────────────────────────────────────────────
@@ -250,8 +276,8 @@ abi_pin!(
     deluge_gate_set,
     deluge_midi_din_read_timed,
     deluge_midi_flush,
-    deluge_midi_gate_timer_arm,
-    deluge_midi_gate_timer_pending,
+    deluge_midi_gate_timer_arm_at,
+    deluge_midi_gate_timer_cancel,
     deluge_midi_init,
     deluge_midi_poll_usb_host_event,
     deluge_midi_port_count,

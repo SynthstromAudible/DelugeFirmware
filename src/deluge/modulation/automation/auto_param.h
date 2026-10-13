@@ -111,7 +111,6 @@ public:
 	bool containsSomething(const deluge::project::DocAutoParam& doc, uint32_t neutralValue = 0);
 	static bool containedSomethingBefore(bool wasAutomatedBefore, uint32_t valueBefore, uint32_t neutralValue = 0);
 	void shiftValues(deluge::project::DocAutoParam& doc, int32_t offset);
-	void shiftParamVolumeByDB(deluge::project::DocAutoParam& doc, float offset);
 	void shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t amount, int32_t effectiveLength);
 	void swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack);
 	void copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* copiedParamAutomation, bool isPatchCable,

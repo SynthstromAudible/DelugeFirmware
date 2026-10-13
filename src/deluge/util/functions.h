@@ -24,6 +24,7 @@
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
 #include "util/c_string.h"
 #include "util/cfunctions.h" // IWYU pragma: export - minimal set of functions which need c linkage
+#include "util/db_shift.h"
 #include "util/etl_string.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
@@ -159,7 +160,6 @@ char const* sourceToString(PatchSource source);
 PatchSource stringToSource(char const* string);
 char const* sourceToStringShort(PatchSource source);
 
-int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
 
 template <unsigned saturationAmount>

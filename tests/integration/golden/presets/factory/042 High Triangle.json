@@ -50,7 +50,7 @@
 			"oscBVolume": "0x80000000",
 			"oscBPulseWidth": "0x00000000",
 			"noiseVolume": "0x80000000",
-			"volume": "0x7CBA2E80",
+			"volume": "0x7FFFFFFF",
 			"pan": "0x00000000",
 			"lpfFrequency": "0x7FFFFFFF",
 			"lpfResonance": "0xE4000000",

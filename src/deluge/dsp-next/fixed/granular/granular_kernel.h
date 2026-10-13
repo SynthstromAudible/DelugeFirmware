@@ -153,18 +153,19 @@ struct Granular {
 			s.initialized = true;
 		}
 		Block& l = s.levels;
-		// The size is computed from the period before this block's rate takes effect.
-		if (s.knobs.density != c.density || s.knobs.rate != c.rate) {
-			s.knobs.density = c.density;
-			const q31 density = (c.density / 2) + 1073741824; // 0 to 1, Q31
-			// Grains up to 8 periods long; past that, grains are stolen for new ones.
-			l.size = 1760 + q31_mult(l.period << 3, density);
-		}
+		// The size depends on both the density and the period, so it follows this block's rate.
+		const bool size_changed = s.knobs.density != c.density || s.knobs.rate != c.rate;
 		if (s.knobs.rate != c.rate) {
 			s.knobs.rate = c.rate;
 			const int32_t raw = std::clamp<int32_t>((quick_log(c.rate) - 364249088) >> 21, 0, 256);
 			const int32_t hz = std::max<int32_t>(1, ((360 * raw >> 8) * raw >> 8)); // 0 - 180 Hz, half-Hz units
 			l.period = (kSampleRate << 1) / hz;
+		}
+		if (size_changed) {
+			s.knobs.density = c.density;
+			const q31 density = (c.density / 2) + 1073741824; // 0 to 1, Q31
+			// Grains up to 8 periods long; past that, grains are stolen for new ones.
+			l.size = 1760 + q31_mult(l.period << 3, density);
 		}
 		if (s.knobs.mix != c.mix) {
 			s.knobs.mix = c.mix;

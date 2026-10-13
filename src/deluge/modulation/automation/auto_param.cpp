@@ -1608,12 +1608,6 @@ void AutoParam::shiftValues(deluge::project::DocAutoParam& doc, int32_t offset) 
 	currentValue = doc.current_value;
 }
 
-void AutoParam::shiftParamVolumeByDB(deluge::project::DocAutoParam& doc, float offset) {
-	doc.current_value = currentValue; // M2-C sync-bridge (see shiftValues)
-	deluge::project::shiftParamVolumeByDB(doc, offset);
-	currentValue = doc.current_value;
-}
-
 void AutoParam::shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t amount, int32_t effectiveLength) {
 	deluge::project::shiftHorizontally(doc, amount, effectiveLength); // M2-C: forward to the DOM kernel
 }

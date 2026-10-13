@@ -50,6 +50,19 @@ fn a_pre_1_2_sound_gets_back_the_volume_its_resonance_cost() {
 }
 
 #[test]
+fn a_volume_part_way_up_its_interval_is_shifted_from_where_it_is() {
+    // Halfway up the 2 dB interval: 1 dB to its top, then 7 more dB. The result is `shiftVolumeByDB`'s.
+    let doc = run(
+        r#"<sound><defaultParams volume="0x08000000" lpfResonance="0x80000000"/></sound>"#,
+        sound_resonance,
+    );
+    assert_eq!(
+        param(&doc, &["sound", "defaultParams", "volume"]),
+        Some("0x57627600")
+    );
+}
+
+#[test]
 fn an_open_filter_with_a_little_resonance_has_none_unless_something_moves_it() {
     let doc = run(
         r#"<sound><defaultParams lpfFrequency="0x7FFFFFFF" lpfResonance="0x00000000"/></sound>"#,

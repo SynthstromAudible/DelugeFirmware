@@ -250,10 +250,6 @@ void stealNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32_t loop
 void insertStolenNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32_t loopLength,
                        const StolenNodes& stolenNodes);
 
-/// Shift current_value and every node value by `offset` dB (a perceptual volume shift). Faithful port of
-/// AutoParam::shiftParamVolumeByDB (the dB curve is duplicated verbatim above to stay bit-identical).
-void shiftParamVolumeByDB(DocAutoParam& p, float offset);
-
 /// Insert extra interpolated nodes along a run so a coarsely-quantized interpolation approximates a smooth
 /// ramp: for each interpolated node whose "small" (quantized-down) value differs from its predecessor's by 2+
 /// steps, synthesises intermediate nodes tracing a straight-line gradient. `clipLength` resolves the

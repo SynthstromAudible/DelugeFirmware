@@ -49,9 +49,9 @@
  },
  "RS_AUDIO_DRIVE": {
   "frames": 384000,
-  "peak": 646538240,
-  "rms_db": -20.39,
-  "sha256": "08bd9860a468e64855152051c4e27e80d775d2ba97a4b7cbb795376766656603"
+  "peak": 724327424,
+  "rms_db": -18.86,
+  "sha256": "c0b7888aae5d6d82ed398228438d330c862f87746207b6b381da387fe650fc95"
  },
  "RS_AUDIO_DUCKED": {
   "frames": 384000,
@@ -91,39 +91,39 @@
  },
  "RS_GRAIN_MASTER": {
   "frames": 384000,
-  "peak": 171845888,
-  "rms_db": -36.94,
-  "sha256": "14b63c2c619ec1da9467425f4f137c7af8d2ea34bc6df2e1e14ffc328f536c04"
+  "peak": 152569600,
+  "rms_db": -37.24,
+  "sha256": "d02bb034351b226e4e3d82d7e368b561bab1b7f15e333ec3ea35f634e0037944"
  },
  "RS_GRAIN_MONO": {
   "frames": 384000,
-  "peak": 1396750848,
-  "rms_db": -19.86,
-  "sha256": "ef9cfa52e1d61551fb96e7140f1d19d16627e18305636e94f5b76280550df184"
+  "peak": 1349794048,
+  "rms_db": -19.98,
+  "sha256": "c91e33a609d037c3da597c37b8cc3847d88859b7b60c1a004fd770b35ee3fc64"
  },
  "RS_GRAIN_OWNERS": {
   "frames": 384000,
-  "peak": 206627584,
-  "rms_db": -35.49,
-  "sha256": "5904c2dd7902ef5d5b7cacea5398ffec98471b7dfd12862e0e55545db5538a37"
+  "peak": 184405248,
+  "rms_db": -35.47,
+  "sha256": "b67ba922d6bdc7d7131d6e44f135589a04b8e91c2df4d33c7a010c8ee235dd24"
  },
  "RS_GRAIN_RESTART": {
   "frames": 512000,
-  "peak": 1137458176,
-  "rms_db": -19.8,
-  "sha256": "f8abd2cc12143baf5f4ed289cead55ea1d8b5d17f88daac95caad5bf0b985897"
+  "peak": 1125889792,
+  "rms_db": -19.49,
+  "sha256": "1f65bf34514d02090bdff010e10573b305992dae381dd8ab7197c7a2420ec8cf"
  },
  "RS_GRAIN_STEREO": {
   "frames": 384000,
-  "peak": 624594176,
-  "rms_db": -25.6,
-  "sha256": "61adea66b8e3165d7eff4e24afc147992e1f29d6af1f6c8cc862ff39fd61c5ad"
+  "peak": 633338880,
+  "rms_db": -25.1,
+  "sha256": "1ccdeb3ed26c4b13eafbb98d1d6c4ed523a154c56a90e6da8b8b0e9909617dd5"
  },
  "RS_GRAIN_SWITCH": {
   "frames": 384000,
-  "peak": 1011869440,
-  "rms_db": -21.14,
-  "sha256": "3d7d9c6aaf23ddb082cbd012f940787293c9997cda940f1f1627d0c5687b2266"
+  "peak": 937129216,
+  "rms_db": -21.32,
+  "sha256": "0067a51bbf66cc2b3ae18ebc2ea19c7a970fb6a9029d5e3cbd665b06b8260e49"
  },
  "RS_KIT_COMP": {
   "frames": 384000,

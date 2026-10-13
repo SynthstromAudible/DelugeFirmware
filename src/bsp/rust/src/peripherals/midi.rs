@@ -20,8 +20,6 @@ const USB_PORT_BASE: u8 = 1;
 /// `MAX_NUM_USB_MIDI_DEVICES` from `board_config.h`.
 const MAX_USB_MIDI_DEVICES: u8 = 6;
 const PORT_COUNT: u8 = USB_PORT_BASE + MAX_USB_MIDI_DEVICES;
-/// SCIF TX FIFO depth in bytes, reported as the DIN write space.
-const DIN_TX_FIFO: u32 = 16;
 /// The USB-MIDI peripheral port: the single connection to a computer.
 const USB_PERIPHERAL_PORT: u8 = USB_PORT_BASE;
 
@@ -118,7 +116,7 @@ pub extern "C" fn deluge_midi_write(port: DelugeMidiPort, src: *const u8, len: u
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_write_space(port: DelugeMidiPort) -> u32 {
     match port {
-        DIN_PORT => DIN_TX_FIFO,
+        DIN_PORT => uart::midi_write_space() as u32,
         USB_PERIPHERAL_PORT => usb_midi::tx_free() as u32,
         _ => 0,
     }

@@ -5,8 +5,6 @@
 //! is inaudible until the app turns them on.
 #![allow(non_upper_case_globals)]
 
-use core::sync::atomic::{AtomicBool, Ordering};
-
 use rza1l_hal::{gpio, mtu2};
 
 use crate::sys::{
@@ -71,31 +69,30 @@ pub extern "C" fn deluge_battery_start_conversion() {
 
 // Sample-accurate MIDI/gate timer (MTU2 channel 2 one-shot)
 //
-// The app schedules MIDI-output and gate-edge events at sample offsets finer than its tick. The
-// one-shot's ISR calls the app's `midiAndGateTimerGoneOff()`. `deluge_bsp::midi_gate` drives the
-// same channel for pure-Rust firmware, but deluge-bsp must not reference app symbols, so this
-// module drives `mtu2` directly.
+// The app keeps its timed MIDI and gate output in a queue and arms this one-shot for the earliest
+// deadline, on the `deluge_clock_now()` clock. The one-shot's ISR calls the app's
+// `midiAndGateTimerGoneOff()`, which sends what is due and arms again. `deluge_bsp::midi_gate`
+// drives the same channel for pure-Rust firmware, but deluge-bsp must not reference app symbols,
+// so this module drives `mtu2` directly.
 
-/// MTU2 channel for the MIDI/gate one-shot (the app's `TIMER_MIDI_GATE_OUTPUT`).
+/// MTU2 channel for the MIDI/gate one-shot (the C firmware's `TIMER_MIDI_GATE_OUTPUT`).
 const GATE_TIMER_CH: u8 = 2;
-/// Prescaler P0/64 ≈ 520 kHz: 1 tick ≈ 1.92 µs, longest one-shot ≈ 126 ms.
+/// Prescaler P0/64 ≈ 516 kHz: 1 tick ≈ 1.94 µs, longest one-shot ≈ 127 ms.
 const GATE_TIMER_PRESCALER: u16 = 64;
+/// Timer ticks per second at [`GATE_TIMER_PRESCALER`]: P0 (33 MHz) / 64.
+const GATE_TIMER_TICKS_PER_SEC: u64 = 515_616;
 /// GIC priority, above USB so gate timing is not delayed behind USB servicing.
 const GATE_TIMER_PRIORITY: u8 = 5;
 
-/// True while a one-shot is armed and has not fired; the app re-arms only when it reads false.
-static GATE_TIMER_PENDING: AtomicBool = AtomicBool::new(false);
-
-/// MTU2 channel 2 compare-match-A ISR: clears and disarms the timer, clears
-/// [`GATE_TIMER_PENDING`], then runs the app handler (which may re-arm).
+/// MTU2 channel 2 compare-match-A ISR: clears and disarms the timer, then runs the app handler
+/// (which arms again if anything is still to come).
 fn gate_timer_isr() {
-    // SAFETY: only this ISR and the arm path touch channel 2 after setup. Clearing before
-    // disarming keeps the GIC line from re-triggering.
+    // SAFETY: only this ISR and the arm/cancel paths touch channel 2 after setup. Clearing
+    // before disarming keeps the GIC line from re-triggering.
     unsafe {
         mtu2::clear_flag(GATE_TIMER_CH);
         mtu2::disarm(GATE_TIMER_CH);
     }
-    GATE_TIMER_PENDING.store(false, Ordering::Release);
     // SAFETY: an app-provided C symbol that `libdeluge/signals.h` documents as an ISR callback.
     unsafe { crate::sys::midiAndGateTimerGoneOff() };
 }
@@ -117,26 +114,39 @@ pub(crate) unsafe fn gate_timer_setup() {
     };
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_gate_timer_pending() -> bool {
-    GATE_TIMER_PENDING.load(Ordering::Acquire)
+/// Timer ticks until `deadline_us`, at least one, saturating at the 16-bit compare register: a
+/// deadline beyond it fires early and the app arms again.
+fn ticks_until(deadline_us: u64, now_us: u64) -> u16 {
+    let us = deadline_us.saturating_sub(now_us);
+    (us.saturating_mul(GATE_TIMER_TICKS_PER_SEC) / 1_000_000).clamp(1, u16::MAX as u64) as u16
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_gate_timer_arm(samples_from_now: u32) {
-    // ticks = samples × 766245 / 2^16 (≈ samples × 515616 / 44100), in u64 so it cannot overflow.
-    // TGRA is 16-bit, so it saturates at the ~126 ms one-shot ceiling.
-    let ticks = (((samples_from_now as u64) * 766245) >> 16).min(u16::MAX as u64) as u16;
-    GATE_TIMER_PENDING.store(true, Ordering::Release);
-    // SAFETY: ch2 was configured by gate_timer_setup() at boot.
-    unsafe { mtu2::arm(GATE_TIMER_CH, ticks) };
+pub extern "C" fn deluge_midi_gate_timer_arm_at(deadline_us: u64) {
+    critical_section::with(|_| {
+        let ticks = ticks_until(deadline_us, embassy_time::Instant::now().as_micros());
+        // SAFETY: ch2 was configured by gate_timer_setup() at boot. `arm` stops the channel and
+        // clears its flag before loading the new compare value, so it replaces an armed deadline.
+        unsafe { mtu2::arm(GATE_TIMER_CH, ticks) };
+    });
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_midi_gate_timer_cancel() {
+    critical_section::with(|_| {
+        // SAFETY: ch2 was configured by gate_timer_setup() at boot.
+        unsafe {
+            mtu2::disarm(GATE_TIMER_CH);
+            mtu2::clear_flag(GATE_TIMER_CH);
+        }
+    });
 }
 
 abi_pin!(
     deluge_battery_read_raw,
     deluge_battery_start_conversion,
-    deluge_midi_gate_timer_arm,
-    deluge_midi_gate_timer_pending,
+    deluge_midi_gate_timer_arm_at,
+    deluge_midi_gate_timer_cancel,
     deluge_signal_read,
     deluge_signal_write,
 );

@@ -86,6 +86,7 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader);
 MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, uint16_t vendorId, uint16_t productId);
 void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const* memory);
 void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory);
+void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory);
 void recountSmallestMPEZones();
 void writeDevicesToFile();
 void readAHostedDeviceFromFile(Deserializer& reader);

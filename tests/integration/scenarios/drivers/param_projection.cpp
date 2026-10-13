@@ -2408,42 +2408,6 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// Movement 2 (M2-A): shiftParamVolumeByDB — dB-domain shift of current_value + node values; oracle diff.
-	// (float math, but the engine op and kernel run identical code, so they agree on each arch.)
-	{
-		struct N {
-			int32_t pos;
-			int32_t value;
-			bool interpolated;
-		};
-		const std::vector<std::vector<N>> cfgs = {
-		    {},
-		    {{0, 1000000000, true}, {48, 100000000, false}},
-		    {{0, -500000000, true}, {48, 2000000000, false}},
-		};
-		const int32_t cvs[] = {0, 500000000, -1000000000, 2000000000};
-		const float offs[] = {0.0f, 1.0f, 3.5f, 6.0f, 100.0f};
-		for (const auto& cfg : cfgs) {
-			for (int32_t cv : cvs) {
-				for (float off : offs) {
-					AutoParam ap;
-					deluge::project::DocAutoParam apDoc;
-					ap.currentValue = cv;
-					deluge::project::DocAutoParam doc{};
-					doc.current_value = cv;
-					for (const N& n : cfg) {
-						setNodeIn(apDoc, n.pos, n.value, n.interpolated);
-						deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
-					}
-					ap.shiftParamVolumeByDB(*(&apDoc), off);
-					deluge::project::shiftParamVolumeByDB(doc, off);
-					check(ap.currentValue == doc.current_value, "shiftParamVolumeByDB: current_value matches engine");
-					expectDocMatchesEngine(apDoc, doc, "shiftParamVolumeByDB: nodes match engine");
-				}
-			}
-		}
-	}
-
 	// Movement 2 (M2-A): makeInterpolationGoodAgain — inserts gradient nodes; oracle diff over CC-style configs.
 	// Non-pathological inputs (ascending positions < clipLength, no wrap collision) so both op + kernel do real
 	// insertion work and agree bit-for-bit. quantizationRShift 22 (pitch bend) + 25 (other MIDI), as the callers use.

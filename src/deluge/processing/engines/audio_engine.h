@@ -51,6 +51,8 @@ class TimeStretcher;
 class VoiceVector;
 class Freeverb;
 class Metronome;
+enum class Polarity : uint8_t;
+struct CriticalSectionGuard;
 class ModelStackWithSoundFlags;
 class SoundDrum;
 class Clip;
@@ -152,10 +154,23 @@ void routineWithClusterLoading();
 void runRoutine();
 
 void init();
-/// @brief Sound the preview drum, with whatever sample its first range holds.
+/// The volume context for a sample preview: the params the preview drum should adopt so that it sounds like the
+/// instrument or kit-row the sample will be loaded into (issue #1591). Values are already fully resolved - any kit
+/// output volume has been folded in by the caller.
+struct PreviewVolume {
+	int32_t volumePostFX;           ///< params::GLOBAL_VOLUME_POST_FX
+	int32_t localVolume;            ///< params::LOCAL_VOLUME
+	int32_t velocityCableDepth;     ///< depth of the VELOCITY -> LOCAL_VOLUME patch cable
+	Polarity velocityCablePolarity; ///< polarity of the VELOCITY -> LOCAL_VOLUME patch cable
+
+	/// The defaults the preview drum is built with, from Sound::initParams() and Sound::setupAsSample().
+	static PreviewVolume neutral();
+};
+
+/// @brief Sound the preview drum, with whatever sample its first range holds, at @p volume.
 ///
 /// The note-on half of a preview: the sample browser loads the sample through its own tick, then calls this.
-void soundPreview();
+void soundPreview(PreviewVolume const& volume);
 void stopAnyPreviewing();
 
 void songSwapAboutToHappen();
@@ -235,6 +250,10 @@ extern bool micPluggedIn;
 extern bool lineInPluggedIn;
 extern bool renderInStereo;
 extern uint32_t audioSampleTimer;
+// Latches true once enough samples have elapsed since power-on for the codec ADC to settle and input monitoring to
+// fade in. Until then, input monitoring (Looper/Sampler) is suppressed and then faded in, so the codec's power-on
+// transient isn't passed through to the output. See getInputMonitoringGain().
+extern bool inputMonitoringWarmedUp;
 extern bool mustUpdateReverbParamsBeforeNextRender;
 extern bool bypassCulling;
 // The app-owned input ring. A mirror of the received audio input, filled by the
@@ -273,6 +292,15 @@ extern AbsValueFollower envelopeFollower;
 /// Set once the BSP's audio tier drives the render (at the end of deluge_app_init). From then on
 /// runRoutine() leaves rendering to the tier, which preempts its caller.
 extern std::atomic<bool> renderDrivenByTier;
+/// Remove these gate channels from any output waiting to be sent by the MIDI/gate output timer, because they've been
+/// superseded by a newer state which is being output now
+void cancelScheduledGates(uint8_t gateMask, const CriticalSectionGuard&);
+/// Called from the MIDI/gate output timer's interrupt. Sends any MIDI/gate output which is due and arms the timer for
+/// the rest
+void midiGateOutputTimerFired();
+/// Gain to apply to monitored codec input, `offset` samples into the buffer currently being rendered. 0 until the
+/// codec has settled after power-on, then ramps up to full scale.
+q31_t getInputMonitoringGain(uint32_t offset);
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
 bool allowedToStartVoice();

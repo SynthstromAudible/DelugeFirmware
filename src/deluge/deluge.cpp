@@ -93,8 +93,8 @@ Song* preLoadedSong = nullptr;
 
 extern "C" void midiAndGateTimerGoneOff(void) noexcept {
 	try {
-		cvEngine.updateGateOutputs();
-		midiEngine.flushMIDI();
+		// Sends only what's due now, and arms the timer again for anything still to come
+		AudioEngine::midiGateOutputTimerFired();
 	} catch (...) {
 		// An interrupt has no caller to report to. What was not sent stays pending for the next flush.
 	}

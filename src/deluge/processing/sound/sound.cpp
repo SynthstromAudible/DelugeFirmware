@@ -199,7 +199,7 @@ void Sound::initParams(ParamManager* paramManager) {
 	    *patchedParams->docForParam(params::LOCAL_OSC_B_VOLUME), 2147483647);
 	patchedParams->params[params::GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(
 	    *patchedParams->docForParam(params::GLOBAL_VOLUME_POST_FX),
-	    getParamFromUserValue(params::GLOBAL_VOLUME_POST_FX, 40));
+	    getParamFromUserValue(params::GLOBAL_VOLUME_POST_FX, kDefaultSoundVolumeUserValue));
 	patchedParams->params[params::GLOBAL_VOLUME_POST_REVERB_SEND].setCurrentValueBasicForSetup(
 	    *patchedParams->docForParam(params::GLOBAL_VOLUME_POST_REVERB_SEND), 0);
 	patchedParams->params[params::LOCAL_FOLD].setCurrentValueBasicForSetup(
@@ -307,7 +307,8 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 	patchCableSet->truncateCables(0);
 	if (PatchCable* cable = patchCableSet->addCable()) {
-		cable->setup(PatchSource::VELOCITY, params::LOCAL_VOLUME, getParamFromUserValue(params::PATCH_CABLE, 50));
+		cable->setup(PatchSource::VELOCITY, params::LOCAL_VOLUME,
+		             getParamFromUserValue(params::PATCH_CABLE, kSampleDrumVelocityCableUserValue));
 	}
 
 	setupDefaultExpressionPatching(paramManager);

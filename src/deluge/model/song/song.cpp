@@ -3133,11 +3133,28 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
 	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
 	auto intTempo = (int32_t)(tempoBPM * 100);
-	// Scalar tempo edit (pos 0 => the scalar branch's implicit livePos -1). recordUnautomatedParamChange
-	// early-returns for UNPATCHED_TEMPO (tempo has its own recordTempoChange), so this opens no Action —
-	// same as the interior log did. shouldLogAction is dead here, kept below for setBPMInner.
+	int32_t pos = -1;   // means use the live position
+	int32_t length = 0; // means record at live position
+
+	// if you're holding a pad in arranger view and external clock is not active
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW && !playbackHandler.isExternalClockActive()) [[unlikely]] {
+		// Edit the tempo BPM for a specific point on the timeline (e.g. by holding on
+		// a grid timeline pad while moving tempo encoder in arranger view).
+		//
+		// This fills in the tempo automation on the timeline with "tempoBPM" from
+		// "pos" until the next automation event.
+		uint32_t x_scroll = persistentView.xScroll[NAVIGATION_ARRANGEMENT];
+		int32_t x_zoom = persistentView.xZoom[NAVIGATION_ARRANGEMENT];
+		pos = arrangerView.getPosFromSquare(arrangerView.xPressed, x_scroll, x_zoom);
+		length = std::min<int32_t>(tempoParam->autoParam->getDistanceToNextNode(tempoParam, pos, false),
+		                           arrangerView.getMaxLength());
+	}
+
+	// Scalar tempo edit (length 0 => the scalar branch's implicit livePos -1). recordUnautomatedParamChange
+	// early-returns for UNPATCHED_TEMPO (tempo has its own recordTempoChange), so this opens no Action;
+	// shouldLogAction is used below for setBPMInner. A held arranger pad makes it a region edit instead.
 	deluge::edits::Context editCtx{*this, this->project};
-	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*tempoParam), intTempo, 0, 0, tempoParam};
+	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*tempoParam), intTempo, pos, length, tempoParam};
 	deluge::edits::apply(editCtx, edit);
 	setBPMInner(tempoBPM, shouldLogAction);
 }
@@ -5540,20 +5557,26 @@ void Song::cullAudioClipVoice() {
 	AudioClip* bestClip = nullptr;
 	uint64_t lowestImmunity = 0xFFFFFFFFFFFFFFFF;
 
+	// find the audio clip with the lowest cull immunity
 	for (Output* output = live.media.first_output; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
 			if (output->getActiveClip()) {
 				AudioClip* clip = (AudioClip*)output->getActiveClip();
 				if (clip->voiceSample && clip->voiceSample->oscPos > 0) {
 					uint64_t immunity = clip->getCullImmunity();
-					lowestImmunity = immunity;
-					bestClip = clip;
+					// is this the audio clip with the lowest cull immunity so far?
+					if (immunity < lowestImmunity) {
+						lowestImmunity = immunity;
+						bestClip = clip;
+					}
 				}
 			}
 		}
 	}
 
+	// did we find an audio clip voice to cull?
 	if (bestClip) {
+		// cull the audio clip voice with the lowest immunity
 		bestClip->unassignVoiceSample(false);
 		D_PRINTLN("audio clip voice culled!");
 	}

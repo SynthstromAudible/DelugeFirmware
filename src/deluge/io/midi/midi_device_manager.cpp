@@ -31,6 +31,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "libdeluge/midi_io.h" // deluge_midi_init/_usb_port/_write/_write_space, deluge_midi_poll_usb_host_event
+#include "libdeluge/system.h"  // CriticalSectionGuard
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "storage/byte_channel.h"
@@ -449,6 +450,13 @@ void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory
 	}
 }
 
+// Read-only counterpart of the MIDI-follow device references that lived in flash before c1.3 moved those settings
+// into MIDIFollow.XML. Only used by the one-time migration in FlashStorage::readSettings() - we never write these
+// bytes again.
+void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory) {
+	midiEngine.midiFollowChannelType[util::to_underlying(whichType)].cable = readCableFromFlash(memory);
+}
+
 /// @brief `writeDevicesToFile`'s body, run where blocking on the card is legal.
 void writeDevicesInline();
 /// @brief `readDevicesFromFile`'s body, run where blocking on the card is legal.
@@ -809,6 +817,8 @@ void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
 	    (uint8_t)(fullMessage >> 16),
 	    (uint8_t)(fullMessage >> 24),
 	};
+	// The MIDI/gate output timer's interrupt writes to this port too: keep this packet's bytes together
+	CriticalSectionGuard guard;
 	deluge_midi_write(port, bytes, sizeof(bytes));
 }
 

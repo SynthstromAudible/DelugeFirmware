@@ -92,32 +92,47 @@ const DB_INTERVALS: [f32; 16] = [
     24.0, 12.1, 7.0, 5.0, 3.9, 3.2, 2.6, 2.4, 2.0, 1.8, 1.7, 1.5, 1.4, 1.3, 1.2, 1.1,
 ];
 
-/// `shiftVolumeByDB`, in single precision as the firmware computes it (its integer division making the starting
-/// fraction 0).
+/// `shiftVolumeByDB` (`util/db_shift.h`), in single precision as the firmware computes it: the value's position is
+/// linear in decibels within each interval, and the shift saturates both ways.
 fn shift_volume_by_db(old: i32, mut offset: f32) -> i32 {
     let positive = (old as u32).wrapping_add(2_147_483_648);
     let mut interval = positive >> 28;
+    // Interval 0 is not a real decibel interval: nothing to shift within it.
     if interval < 1 {
         return old;
     }
-    let mut how_far: f32 = 0.0;
+    let mut how_far = (positive & 268_435_455) as f32 / 268_435_456.0_f32;
     loop {
         let db_this = DB_INTERVALS[interval as usize];
-        let db_left = (1.0_f32 - how_far) * db_this;
-        if db_left > offset {
-            let wanted = offset / db_left;
-            let new_how_far = how_far + wanted;
-            let new_positive =
-                (interval << 28).wrapping_add((new_how_far * 268_435_456.0_f32) as u32);
-            return new_positive.wrapping_sub(2_147_483_648) as i32;
+        if offset >= 0.0 {
+            let db_left = (1.0_f32 - how_far) * db_this;
+            if db_left > offset {
+                how_far += offset / db_this;
+                break;
+            }
+            if interval == 15 {
+                return i32::MAX;
+            }
+            offset -= db_left;
+            interval += 1;
+            how_far = 0.0;
+        } else {
+            let db_left = how_far * db_this;
+            if db_left > -offset {
+                how_far += offset / db_this;
+                break;
+            }
+            if interval == 1 {
+                return i32::MIN;
+            }
+            offset += db_left;
+            interval -= 1;
+            how_far = 1.0;
         }
-        interval += 1;
-        if interval == 16 {
-            return 0xFFFF_FFFF_u32.wrapping_sub(2_147_483_648) as i32;
-        }
-        offset -= db_left;
-        how_far = 0.0;
     }
+    let how_far = how_far.clamp(0.0, 0.999_999_94_f32);
+    let new_positive = (interval << 28) + (how_far * 268_435_456.0_f32) as u32;
+    new_positive.wrapping_sub(2_147_483_648) as i32
 }
 
 /// The volume a pre-1.2 filter's resonance cost, in decibels (`oldResonanceCompensation`, interpolated).

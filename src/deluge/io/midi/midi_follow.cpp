@@ -48,6 +48,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
+#include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include "util/etl_string.h"
@@ -1649,25 +1650,35 @@ void MidiFollow::writeDefaultsToFile() {
 		writer.write(StorageManager::kXmlDocumentHead); // the inline arm gets this from createXMLFile
 		serialiseDefaults(writer);
 		if (deluge::storage::bytes::submitWrite(MIDI_FOLLOW_XML, writer.getBufferPtr(),
-		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
+		                                        static_cast<uint32_t>(writer.bytesWritten()),
+		                                        &MidiFollow::defaultsWritten, this)) {
 			return;
 		}
 		// Not taken: too large for the channel (a busy channel queues instead). The body below runs only where
 		// blocking is legal; after boot it is refused and nothing is written.
 	}
-	(void)deluge::storage::bytes::runDuringBoot([](void* ctx) { static_cast<MidiFollow*>(ctx)->writeDefaultsInline(); },
-	                                            this);
+	(void)deluge::storage::bytes::runDuringBoot(
+	    [](void* ctx) {
+		    auto* self = static_cast<MidiFollow*>(ctx);
+		    self->completeLegacyFlashMigration(self->writeDefaultsInline());
+	    },
+	    this);
 }
 
-void MidiFollow::writeDefaultsInline() {
+void MidiFollow::defaultsWritten(void* ctx, deluge::storage::bytes::SettingsOutcome outcome) {
+	static_cast<MidiFollow*>(ctx)->completeLegacyFlashMigration(outcome
+	                                                            == deluge::storage::bytes::SettingsOutcome::Written);
+}
+
+bool MidiFollow::writeDefaultsInline() {
 	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// MidiFollow.xml
 	Error error = StorageManager::createXMLFile(MIDI_FOLLOW_XML, smSerializer, true);
 	if (error != Error::NONE) {
-		return;
+		return false;
 	}
 	serialiseDefaults(GetSerializer());
-	GetSerializer().closeFileAfterWriting();
+	return GetSerializer().closeFileAfterWriting() == Error::NONE;
 }
 
 void MidiFollow::serialiseDefaults(Serializer& writer) {
@@ -1829,6 +1840,21 @@ void MidiFollow::writeDisplayParamSettingToFile(Serializer& writer) {
 	writer.writeTag(MIDI_DEFAULTS_SETTINGS_DISPLAYPARAM_POPUP_TAG, getNameFromBool(midiEngine.midiFollowDisplayParam));
 }
 
+/// Close out the pre-c1.3 flash migration started by FlashStorage::readSettings().
+///
+/// Stamping this firmware's version into flash is what stops readSettings() migrating again on the next boot - it is
+/// not otherwise written until the user happens to exit the settings menu, so without this the migration would repeat
+/// on every boot and keep overwriting the <settings> block of MIDIFollow.XML. That same write zeroes the legacy bytes
+/// 126-145, so it must not happen until the recovered values are safely on the card: if the XML write failed (no card,
+/// card full, write-protected) we leave both the flash bytes and the pending flag alone and retry next boot.
+void MidiFollow::completeLegacyFlashMigration(bool defaultsWereWritten) {
+	if (!FlashStorage::areLegacyMidiFollowSettingsPending() || !defaultsWereWritten) {
+		return;
+	}
+	FlashStorage::clearLegacyMidiFollowSettingsPending();
+	FlashStorage::writeSettings();
+}
+
 /// read defaults from XML
 bool MidiFollow::readDefaultsFromFile(deluge::storage::bytes::DoneFn onDone) {
 	if (deluge::storage::bytes::usingByteChannel()) {
@@ -1859,17 +1885,19 @@ void MidiFollow::parseDefaultsBytes(void* ctx, char* bytes, uint32_t len) {
 	    == Error::NONE) {
 		self->parseDefaults(*activeDeserializer);
 		self->successfullyReadDefaultsFromFile = true;
-	}
-	else {
-		// A document that will not open is treated exactly as the inline arm treats a failed
-		// `openXMLFile`: write the defaults over it. Not a silent give-up -- that path is
-		// pre-existing behaviour, preserved.
 		activeDeserializer = previous;
-		self->writeDefaultsToFile();
-		self->successfullyReadDefaultsFromFile = true;
+		// Write the migrated settings back out over the <settings> block parseDefaults skipped
+		if (FlashStorage::areLegacyMidiFollowSettingsPending()) {
+			self->writeDefaultsToFile();
+		}
 		return;
 	}
+	// A document that will not open is treated exactly as the inline arm treats a failed
+	// `openXMLFile`: write the defaults over it. Not a silent give-up -- that path is
+	// pre-existing behaviour, preserved.
 	activeDeserializer = previous;
+	self->writeDefaultsToFile();
+	self->successfullyReadDefaultsFromFile = true;
 }
 
 void MidiFollow::writeDefaultsAbsent(void* ctx) {
@@ -1886,8 +1914,15 @@ void MidiFollow::writeDefaultsAbsent(void* ctx) {
 	//
 	// Nothing is lost. The defaults in memory are already the configuration, and the file is written
 	// by the path that should write it -- `sound_editor.cpp` when the user edits a setting.
+	//
+	// The one exception is a pre-c1.3 save whose MIDI-follow settings FlashStorage::readSettings() recovered from
+	// flash: those exist nowhere else, and the flash bytes holding them are zeroed by the next settings write, so
+	// they go to the card now. Only an upgrade from c1.1/c1.2 flash takes this, never a test run.
 	auto* self = static_cast<MidiFollow*>(ctx);
 	self->successfullyReadDefaultsFromFile = true;
+	if (FlashStorage::areLegacyMidiFollowSettingsPending()) {
+		self->writeDefaultsToFile();
+	}
 }
 
 void MidiFollow::readDefaultsInline() {
@@ -1911,6 +1946,7 @@ void MidiFollow::readDefaultsInline() {
 			auto result = deluge::io::mkdir(SETTINGS_FOLDER);
 			if (result.has_value() || result.error() == deluge::io::Status::EXISTS) {
 				// folder eixsts now, write defaults
+				// (this also persists any settings migrated out of flash by FlashStorage::readSettings())
 				writeDefaultsToFile();
 				successfullyReadDefaultsFromFile = true;
 				return;
@@ -1939,6 +1975,11 @@ void MidiFollow::readDefaultsInline() {
 	activeDeserializer->closeWriter();
 	StorageManager::releaseDocumentStaging();
 	successfullyReadDefaultsFromFile = true;
+
+	// Write the migrated settings back out over the <settings> block parseDefaults skipped
+	if (FlashStorage::areLegacyMidiFollowSettingsPending()) {
+		writeDefaultsToFile();
+	}
 }
 
 void MidiFollow::resetToDefaults() {
@@ -1947,6 +1988,10 @@ void MidiFollow::resetToDefaults() {
 	// Default MIDI-follow input: channel 1 on any device, as MidiEngine starts with, so incoming MIDI plays the
 	// active instrument when there is no MIDIFollow.XML. A user's MIDIFollow.XML, when present, overrides channel A
 	// when the settings below are read.
+	// Not while settings recovered from a pre-c1.3 save are waiting to be persisted: channel A is one of them.
+	if (FlashStorage::areLegacyMidiFollowSettingsPending()) {
+		return;
+	}
 	LearnedMIDI& a = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)];
 	a.clear();
 	a.channelOrZone = 0; // MIDI channel 1; cable left null = match any input device (omni)
@@ -1963,8 +2008,12 @@ void MidiFollow::parseDefaults(Deserializer& reader) {
 			readDefaultMappingsFromFile(reader);
 		}
 		// step into the <settings> tag
+		// (skipped while migrating a pre-c1.3 save - back then these settings lived in flash, so whatever this file
+		// says about them is either absent or a default we wrote over the top of the real values)
 		else if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_TAG)) {
-			readDefaultSettingsFromFile(reader);
+			if (!FlashStorage::areLegacyMidiFollowSettingsPending()) {
+				readDefaultSettingsFromFile(reader);
+			}
 		}
 		reader.exitTag();
 	}

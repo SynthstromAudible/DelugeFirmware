@@ -1322,6 +1322,9 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 	kitToLoadFor->beenEdited();
 	// The loaded preset's delays: types a file saved without worked out, reserves set, now it is in the song.
 	deluge::model::settleLoadedDelays(*currentSong);
+	// The view may still have the old drum cached as its active ModControllable, and gold knobs turned while this
+	// browser is open go straight to it
+	view.setActiveModControllableTimelineCounter(instrumentClipToLoadFor);
 	return Error::NONE;
 }
 

@@ -102,17 +102,15 @@ void ModControllableAudio::releaseChainMemory() {
 }
 
 void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
-	// A clone takes the other's filters, saturation, mod-FX, sidechain and stutter, and its delay but for its sync
-	// type; it keeps its own compressor.
+	// A clone takes the other's filters, saturation, mod-FX, sidechain, delay and stutter; it keeps its own
+	// compressor.
 	const deluge::effects::EffectStates& from = other->effects();
 	deluge::effects::EffectStates next = effects();
 	next.filter = from.filter;
 	next.saturation = from.saturation;
 	next.mod_fx = from.mod_fx;
 	next.sidechain = from.sidechain;
-	next.delay.ping_pong = from.delay.ping_pong;
-	next.delay.type = from.delay.type;
-	next.delay.sync_level = from.delay.sync_level;
+	next.delay = from.delay;
 	next.stutter = from.stutter;
 	setEffects(next);
 	core().equalizer().copy_coefficients_from(other->core().equalizer());

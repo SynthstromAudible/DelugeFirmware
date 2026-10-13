@@ -117,7 +117,6 @@ public:
 	void paramHasNoAutomationNow(ModelStackWithParamCollection const* modelStack, int32_t p);
 
 	void shiftParamValues(int32_t p, int32_t offset);
-	void shiftParamVolumeByDB(int32_t p, float offset);
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) final;
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) override;
 	void deleteAutomationForParamBasicForSetup(ModelStackWithParamCollection* modelStack, int32_t p);

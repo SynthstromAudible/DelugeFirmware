@@ -25,15 +25,17 @@ namespace deluge::hid::encoders {
 // ── DetentedEncoder ────────────────────────────────────────────────────────
 
 void DetentedEncoder::applyEdges(int8_t edges) {
-	// Four edges per click, reported at the nearest click: see the class comment.
+	// Thresholds depend on the last click's direction: see the class comment.
 	edgeAccumulator += edges;
 	int32_t ticks = 0;
-	while (edgeAccumulator > 2) {
-		edgeAccumulator -= 4;
+	while (edgeAccumulator >= positiveThreshold()) {
+		edgeAccumulator -= positiveThreshold();
+		lastDirection = 1;
 		++ticks;
 	}
-	while (edgeAccumulator < -2) {
-		edgeAccumulator += 4;
+	while (edgeAccumulator <= -negativeThreshold()) {
+		edgeAccumulator += negativeThreshold();
+		lastDirection = -1;
 		--ticks;
 	}
 	pos.fetch_add(ticks, std::memory_order_relaxed);

@@ -31,3 +31,8 @@ extern "C" double getSystemTime() noexcept {
 // libdeluge/app.h: asks the BSP for an app-loop pass. There is no app loop here.
 extern "C" void deluge_app_wake(uint32_t) noexcept {
 }
+
+// libdeluge/clock.h: the clock MIDI output times are kept on. Stands still, like getSystemTime() above.
+extern "C" uint64_t deluge_clock_now() noexcept {
+	return 0;
+}

@@ -33,6 +33,7 @@
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
 #include "gui/menu_item/colour.h"
+#include "gui/menu_item/cpu/voice_usage.h"
 #include "gui/menu_item/cv/cv2Mapping.h"
 #include "gui/menu_item/cv/selection.h"
 #include "gui/menu_item/cv/submenu.h"
@@ -1051,6 +1052,7 @@ PLACE_SDRAM_BSS flash::Status flashStatusMenu{STRING_FOR_PLAY_CURSOR};
 PLACE_SDRAM_BSS firmware::Version firmwareVersionMenu{STRING_FOR_FIRMWARE_VERSION, STRING_FOR_FIRMWARE_VER_MENU_TITLE};
 
 PLACE_SDRAM_BSS battery::Level batteryLevelMenu{STRING_FOR_BATTERY_LEVEL, STRING_FOR_BATTERY_LEVEL_MENU_TITLE};
+PLACE_SDRAM_BSS cpu::VoiceUsage voiceUsageMenu{STRING_FOR_VOICE_USAGE, STRING_FOR_VOICE_USAGE};
 
 PLACE_SDRAM_BSS runtime_feature::Settings runtimeFeatureSettingsMenu{STRING_FOR_COMMUNITY_FTS,
                                                                      STRING_FOR_COMMUNITY_FTS_MENU_TITLE};
@@ -1910,6 +1912,7 @@ PLACE_SDRAM_BSS Submenu settingsRootMenu{
         &recordSubmenu,
         &runtimeFeatureSettingsMenu,
         &batteryLevelMenu,
+        &voiceUsageMenu,
         &firmwareVersionMenu,
     },
 };
