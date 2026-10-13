@@ -26,6 +26,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/led/indicator_leds.h"
+#include "libdeluge/system.h" // AudioExcludedSection
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/edits/change_effect.h"
@@ -70,6 +71,10 @@ void GlobalEffectable::setChainState(const deluge::model::HostChainState& next) 
 	}
 	chainState_.mod_fx_param = next.mod_fx_param;
 	chainState_.filter_type = next.filter_type;
+	if (modControllableSnapshot_.mod_fx_param != next.mod_fx_param) {
+		AudioExcludedSection section; // the render reads the copy
+		modControllableSnapshot_.mod_fx_param = next.mod_fx_param;
+	}
 }
 
 void GlobalEffectable::initParams(ParamManager* paramManager) {
@@ -884,10 +889,11 @@ ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	if ((modFXParam() == ModFXParam::DEPTH && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_DEPTH) == -2147483648)
-	    || (modFXParam() == ModFXParam::FEEDBACK
+	if ((modControllableSnapshot_.mod_fx_param == ModFXParam::DEPTH
+	     && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_DEPTH) == -2147483648)
+	    || (modControllableSnapshot_.mod_fx_param == ModFXParam::FEEDBACK
 	        && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK) == -2147483648)
-	    || (modFXParam() == ModFXParam::OFFSET
+	    || (modControllableSnapshot_.mod_fx_param == ModFXParam::OFFSET
 	        && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET) == -2147483648)) {
 		modFXTypeNow = ModFXType::NONE;
 	}

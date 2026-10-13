@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "engines/effects/state.h"
 
 namespace deluge::snapshot {
@@ -25,6 +26,9 @@ namespace deluge::snapshot {
 /// whole, with the render excluded, whenever the owner's settings change (ModControllableAudio::setEffects).
 struct ModControllableSnapshot {
 	deluge::effects::EffectStates effects;
+	/// A host chain's selected mod FX knob, which its soft off reads (GlobalEffectable::getActiveModFXType); set with
+	/// the render excluded whenever the chain's view changes. A sound's is not read.
+	ModFXParam mod_fx_param{ModFXParam::FEEDBACK};
 };
 
 } // namespace deluge::snapshot
