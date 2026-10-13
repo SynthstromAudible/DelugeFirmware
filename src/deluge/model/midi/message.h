@@ -103,3 +103,11 @@ struct MIDIMessage {
 };
 
 static_assert(sizeof(MIDIMessage) == 4);
+
+/// Saturate a value into the 7 bits a MIDI data byte gets. Callers derive these from internal 32-bit parameter values,
+/// which can land outside 0-127; letting one through sets bit 7 and the receiver reads it as a status byte instead - if
+/// it falls in 0xF8-0xFF that's a spurious System Real-Time message (see #4821).
+uint8_t toDataByte(int32_t value);
+
+/// Format a message per the USB MIDI spec, on virtual cable 0
+uint32_t setupUSBMessage(MIDIMessage message);
