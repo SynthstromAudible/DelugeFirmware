@@ -2374,6 +2374,11 @@ void SessionView::potentiallyUpdateCompressorLEDs() {
 
 // checks if tempo has changed since it was last rendered on the display and updates it if required
 void SessionView::displayPotentialTempoChange(UI* ui) {
+	// don't refresh tempo display if we're holding an arrangement pad or clip in session view
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+		return;
+	}
+
 	// check UI in case graphics routine is called while we're in another UI (e.g. menu)
 	if (getCurrentUI() == ui) {
 		float tempo = playbackHandler.calculateBPMForDisplay();

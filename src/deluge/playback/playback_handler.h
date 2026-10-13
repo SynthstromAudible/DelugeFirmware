@@ -205,6 +205,8 @@ public:
 	bool subModeAllowsRecording();
 
 	float calculateBPM(float timePerInternalTick);
+	float getTempoBPMAtArrangementPos(int32_t pos);
+	void getTempoParamsAtArrangementPos(int32_t pos, int32_t* magnitude, int8_t* whichValue);
 	void switchToArrangement();
 	void switchToSession();
 	void finishTempolessRecording(bool startPlaybackAgain, int32_t buttonLatencyForTempolessRecord,
@@ -263,6 +265,7 @@ private:
 
 	void resetTimePerInternalTickMovingAverage();
 	void getCurrentTempoParams(int32_t* magnitude, int8_t* whichValue);
+	void getTempoParamsFromTimePer(uint64_t timePer, int32_t* magnitude, int8_t* whichValue);
 	void displayTempoFromParams(int32_t magnitude, int8_t whichValue);
 	void displayTempoBPM(float tempoBPM);
 	void getAnalogOutTicksToInternalTicksRatio(uint32_t* internalTicksPer, uint32_t* analogOutTicksPer);
