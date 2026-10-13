@@ -120,8 +120,9 @@ constexpr uint32_t kHeldLatencyMs = 10000;
 /// runs on its own job, as soon as the channel answers, so without a hold it can finish before the next scenario tick.
 constexpr uint32_t kBackLatencyMs = 20;
 
-/// Notes per row. Sized so the document clears 65536 bytes -- two doublings of the 32768-byte
-/// staging buffer -- with the default song's own ~11.5 KB underneath it.
+/// Rows and notes per row. Sized so the document clears 65536 bytes -- two doublings of the 32768-byte
+/// staging buffer -- with the default song's own ~11.5 KB underneath it: a note saves as about 30 bytes.
+constexpr int32_t kNoteRows = 16;
 constexpr int32_t kNotesPerRow = 220;
 
 enum class Stage : uint8_t {
@@ -244,7 +245,7 @@ void inflateSong() {
 	const int32_t noteLength = 1;
 	const int32_t step = clipLength / kNotesPerRow > 0 ? clipLength / kNotesPerRow : 1;
 
-	for (int32_t y = 0; y < 8; y++) {
+	for (int32_t y = 0; y < kNoteRows; y++) {
 		ModelStackWithNoteRow* rowStack = clip->getOrCreateNoteRowForYNote(60 + y, modelStack, nullptr);
 		if (rowStack == nullptr) {
 			continue;
