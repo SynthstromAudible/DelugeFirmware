@@ -48,14 +48,14 @@ void GranularProcessor::processGrainFX(std::span<StereoSample> buffer, int32_t g
                                        int32_t grainDensity, int32_t pitchRandomness, int32_t* postFXVolume,
                                        bool anySoundComingIn, float tempoBPM, q31_t reverbAmount) {
 	if (anySoundComingIn || wrapsToShutdown >= 0) {
-		if (anySoundComingIn) {
-			setWrapsToShutdown();
-		}
 		if (grainBuffer == nullptr) {
 			getBuffer(); // in case it was stolen
 			if (grainBuffer == nullptr) {
 				return;
 			}
+		}
+		if (anySoundComingIn) {
+			setWrapsToShutdown();
 		}
 		setupGrainFX(grainRate, grainMix, grainDensity, pitchRandomness, postFXVolume, tempoBPM);
 		int i = 0;
@@ -94,14 +94,8 @@ void GranularProcessor::setupGrainFX(int32_t grainRate, int32_t grainMix, int32_
 	                                                                                 // Shift
 	_grainShift =
 	    44 * 300; // this is where we should tempo sync ( it's kSampleRate / 1000 * 300 for a 300ms base delay amount);
-	// Size depends on both density and rate
-	if (_densityKnobPos != grainDensity || _rateKnobPos != grainRate) {
-		_densityKnobPos = grainDensity;
-		q31_t density = ((grainDensity / 2) + (1073741824)); // convert to 0-2^31
-		// the maximum length is 8x the rate, past that grains get stolen for new grains. This keeps a consistent
-		// proportion of grain sound as you increase the rate
-		_grainSize = 1760 + q31_mult(_grainRate << 3, density);
-	}
+	// grain size depends on both density and rate, check if either has changed
+	const bool grain_size_changed = _densityKnobPos != grainDensity || _rateKnobPos != grainRate;
 	// Rate
 	if (_rateKnobPos != grainRate) {
 		_rateKnobPos = grainRate;
@@ -110,6 +104,14 @@ void GranularProcessor::setupGrainFX(int32_t grainRate, int32_t grainMix, int32_
 		_grainRate = ((360 * grainRateRaw >> 8) * grainRateRaw >> 8); // 0 - 180hz
 		_grainRate = std::max<int32_t>(1, _grainRate);
 		_grainRate = (kSampleRate << 1) / _grainRate;
+	}
+	// if grain size changed, calculate density and re-calculate grain size
+	if (grain_size_changed) {
+		_densityKnobPos = grainDensity;
+		q31_t density = ((grainDensity / 2) + (1073741824)); // convert to 0-2^31
+		// the maximum length is 8x the rate, past that grains get stolen for new grains. This keeps a consistent
+		// proportion of grain sound as you increase the rate
+		_grainSize = 1760 + q31_mult(_grainRate << 3, density);
 	}
 	// this is only 2 cycles so there's no point in checking
 	_pitchRandomness = toPositive(pitchRandomness);
