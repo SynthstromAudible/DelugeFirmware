@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "website/**"
+      - ".github/workflows/pr-build-website.yml"
+      - ".github/workflows/deploy-website.yml"
       - "src/deluge/gui/ui/menus.cpp"
       - "src/deluge/gui/menu_item/generate/g_menus.inc"
       - "src/deluge/gui/l10n/english.json"
@@ -47,6 +49,9 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium chromium-headless-shell
 
+      - name: Configure Chromium sandbox for PDF generation
+        run: bash ./scripts/setup-pdf-sandbox.sh
+
       # This gets us the site base URL
       - name: Setup Pages
         id: setup_pages
@@ -61,6 +66,20 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           SITE_URL: ${{ steps.setup_pages.outputs.base_url }}
           SITE_BASE_PATH: ${{ steps.setup_pages.outputs.base_path }}
+
+      - name: Generate and check PDF
+        timeout-minutes: 10
+        run: pnpm run generate:pdf
+        env:
+          SITE_URL: ${{ steps.setup_pages.outputs.base_url }}
+          SITE_BASE_PATH: ${{ steps.setup_pages.outputs.base_path }}
+
+      - name: Upload PDF
+        uses: actions/upload-artifact@v7
+        with:
+          name: documentation-pdf
+          path: website/dist/downloads/delugecommunity.com.pdf
+          if-no-files-found: error
 
       # We upload the artifact for manual downloading and opening locally
       - name: Upload artifact

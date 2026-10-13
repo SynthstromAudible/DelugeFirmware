@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+  <body>
+    <style>
+      .header-container {
+        --color: rgb(76, 60, 25);
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-block-end: 1px solid var(--color);
+        color: var(--color);
+        font-size: 10px;
+        font-family: Arial, Helvetica, sans-serif;
+        margin-inline: 1.5cm 1cm;
+        padding-block: 0.25cm 0.5cm;
+        width: 100%;
+      }
+    </style>
+
+    <div class="header-container">
+      <div>Deluge Community Documentation</div>
+      <!-- Date inside the element with `.date` class is injected automatically by Puppeteer -->
+      <div class="date"></div>
+    </div>
+  </body>
+</html>
