@@ -27,7 +27,10 @@ namespace deluge::hid::encoders {
 
 /// Black function encoders (SCROLL_X/Y, TEMPO, SELECT) are detented.
 /// Four quadrature edges = one detent click. The decoder confirms each edge one edge late,
-/// so a click is reported once more than two edges have accumulated, as in 1.x.
+/// so the first click needs three confirmed edges, continuing needs four, and a
+/// reversal needs two (the pending edge is retraced before reverse edges confirm).
+/// Partial reverse travel cancels on returning to the detent, without undoing the
+/// reported click or discarding forward progress.
 class DetentedEncoder {
 public:
 	DetentedEncoder() = default;
@@ -37,12 +40,14 @@ public:
 	void apply_edges(int8_t edges) {
 		edge_accumulator += edges;
 		int32_t ticks = 0;
-		while (edge_accumulator > 2) {
-			edge_accumulator -= 4;
+		while (edge_accumulator >= positiveThreshold()) {
+			edge_accumulator -= positiveThreshold();
+			last_direction_ = 1;
 			++ticks;
 		}
-		while (edge_accumulator < -2) {
-			edge_accumulator += 4;
+		while (edge_accumulator <= -negativeThreshold()) {
+			edge_accumulator += negativeThreshold();
+			last_direction_ = -1;
 			--ticks;
 		}
 		pos.fetch_add(ticks, std::memory_order_relaxed);
@@ -59,6 +64,10 @@ public:
 	void restore(int32_t val) { pos.fetch_add(val, std::memory_order_relaxed); }
 
 private:
+	int32_t positiveThreshold() const { return last_direction_ == 0 ? 3 : (last_direction_ == 1 ? 4 : 2); }
+	int32_t negativeThreshold() const { return last_direction_ == 0 ? 3 : (last_direction_ == -1 ? 4 : 2); }
+
+	int8_t last_direction_ = 0;   ///< Direction of the last reported detent, not the last electrical edge.
 	int32_t edge_accumulator = 0; ///< Accumulates quadrature edges until we have a full detent click.
 	std::atomic_int32_t pos = 0;  ///< Written by the IRQ (apply_edges), drained by the encoder task.
 };
