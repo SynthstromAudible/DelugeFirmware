@@ -1,0 +1,28 @@
+[  0%] Built target eyalroz_printf
+[  0%] Built target argon
+[  2%] Built target plaits_dsp
+[  4%] Built target NE10
+[  5%] Built target deluge_strings
+[  5%] Built target deluge_menus
+[  5%] Generating version from git state...
+[  6%] Built target fatfs
+[  7%] Built target RTT
+[  7%] Building CXX object src/deluge/dsp/CMakeFiles/deluge_dsp.dir/Unity/unity_2_cxx.cxx.obj
+-- Deluge Community Firmware v1.3.0-dev-03556b92
+[  7%] Built target deluge_version
+[ 24%] Built target RZA1
+[ 24%] Linking CXX static library libdeluge_dsp.a
+[ 25%] Built target deluge_dsp
+[ 25%] Building CXX object CMakeFiles/deluge.dir/src/deluge/gui/menu_item/key_range.cpp.obj
+[ 25%] Building CXX object CMakeFiles/deluge.dir/src/deluge/gui/ui/audio_recorder.cpp.obj
+[ 25%] Building CXX object CMakeFiles/deluge.dir/src/deluge/hid/matrix/matrix_driver.cpp.obj
+[ 25%] Building CXX object CMakeFiles/deluge.dir/src/deluge/model/instrument/cv_instrument.cpp.obj
+[ 25%] Linking CXX executable deluge.elf
+/tmp/deluge-toolchain/toolchain/v22/linux-x86_64/arm-none-eabi-gcc/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/bin/ld: warning: deluge.elf has a LOAD segment with RWX permissions
+/tmp/deluge-toolchain/toolchain/v22/linux-x86_64/arm-none-eabi-gcc/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/bin/ld: total time in link: 1.785149
+Objcopying deluge to firmware Release/deluge.bin
+Objcopying deluge to firmware Release/deluge.hex
+NM dumping deluge firmware Release/deluge.nmdump
+   text	   data	    bss	    dec	    hex	filename
+1754208	  67476	 365832	2187516	 2160fc	/workspace/scratch/deluge-release/build/deluge.elf
+[100%] Built target deluge

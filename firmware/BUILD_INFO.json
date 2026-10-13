@@ -1,24 +1,24 @@
 {
-  "filename": "deluge-mdd-plaits-oled-a13bf0fb.bin",
-  "source_commit": "a13bf0fba59f13217129a90c20b714223deef6a5",
-  "source_url": "https://github.com/mileda/DelugeFirmware/tree/a13bf0fba59f13217129a90c20b714223deef6a5",
-  "build_date": "2026-10-12",
+  "filename": "deluge-mdd-plaits-oled-03556b92.bin",
+  "source_commit": "03556b92957d4cef776b7940f08cd60d196d0ff9",
+  "source_url": "https://github.com/mileda/DelugeFirmware/tree/03556b92957d4cef776b7940f08cd60d196d0ff9",
+  "build_date": "2026-10-13",
   "configuration": "Release",
   "target": "ARM Cortex-A9, Deluge, OLED custom UI",
   "toolchain": "DBT v22 / arm-none-eabi-g++ 14.2.1 20241119",
-  "firmware_version": "1.3.0-dev-a13bf0fb",
-  "size_bytes": 1811032,
-  "sha256": "72bef3c546a80aee92f6e4c9a2332af47536efcefff6eafe64bc4583de7e57fb",
-  "elf_sha256": "679027ab458bb12b2f43835df8c8ef298c7a14a6940390844a96c4026d4516e3",
+  "firmware_version": "1.3.0-dev-03556b92",
+  "size_bytes": 1821776,
+  "sha256": "6bd898ace9e42b97e589c00744542da284e172b34ffa749e5849a8945a83a526",
+  "elf_sha256": "271b37b5ec4c17a06ca412e24cda5d67601c4a7ef568abae553cecde15a14868",
   "checks": [
     "ARM ELF header",
     "ELF objcopy output equals distributed BIN",
     "clean source checkout matches source_commit"
   ],
   "hardware_tested": false,
-  "configure_command": "DELUGE_FW_ROOT=\"$PWD\" DBT_TOOLCHAIN_PATH=\"$PWD\" toolchain/v22/linux-x86_64/cmake/bin/cmake -S . -B build -DCMAKE_BUILD_TYPE=Release",
-  "build_command": "DELUGE_FW_ROOT=\"$PWD\" DBT_TOOLCHAIN_PATH=\"$PWD\" toolchain/v22/linux-x86_64/cmake/bin/cmake --build build --config Release -j4",
-  "setup": "Install toolchain v22 in toolchain/v22/linux-x86_64 and create build/Release before configuring.",
+  "configure_command": "DELUGE_FW_ROOT=\"$PWD\" DBT_TOOLCHAIN_PATH=/tmp/deluge-toolchain /tmp/deluge-toolchain/toolchain/v22/linux-x86_64/cmake/bin/cmake -S . -B build -DCMAKE_BUILD_TYPE=Release",
+  "build_command": "DELUGE_FW_ROOT=\"$PWD\" DBT_TOOLCHAIN_PATH=/tmp/deluge-toolchain /tmp/deluge-toolchain/toolchain/v22/linux-x86_64/cmake/bin/cmake --build build --config Release -j4",
+  "setup": "Install DBT v22 in /tmp/deluge-toolchain/toolchain/v22/linux-x86_64; create build/Release and register the LTO plugin as described in BUILD_CUSTOM.md.",
   "upstream_beta_commit": "be3e993c4ae78719d3940f334848aa77973ea585",
   "reverb_pr": 4990,
   "reverb_pr_commit": "4087ca1ba2592dcda900fedfae0d3bc9aaa98269",
@@ -41,11 +41,8 @@
   ],
   "toolchain_setup_note": "The v22 bundle required a lib/bfd-plugins/liblto_plugin.so symlink to ../../libexec/gcc/arm-none-eabi/14.2.1/liblto_plugin.so. Existing archives were reindexed with arm-none-eabi-gcc-ranlib before linking.",
   "host_tests": [
-    "MDD regression",
-    "Plaits regression",
-    "Startup regression",
-    "Effect/menu: eight groups",
-    "Audio culling regression",
-    "Upstream reverb_spec"
-  ]
+    "Source 03556b92 validated in preceding session: MDD feature suite (Tie/Overlap, source automation, native range, WRITE allocation rollback and Undo/Redo, exclusive targets); full MDD, Plaits and effects suites previously passed."
+  ],
+  "rebuild_note": "The first fresh build left five zero-length object files. These generated files were removed and rebuilt with -j4; no firmware source was changed.",
+  "format_check": "https://github.com/mileda/DelugeFirmware/actions/runs/38329223147"
 }

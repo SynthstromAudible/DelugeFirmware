@@ -4,9 +4,9 @@ Unofficial custom firmware based on Deluge Community Firmware 1.3.0 beta (Derbys
 
 ## Download
 
-[Download the firmware BIN](https://raw.githubusercontent.com/mileda/DelugeFirmware/main/firmware/deluge-mdd-plaits-oled-a13bf0fb.bin)
+[Download the firmware BIN](https://raw.githubusercontent.com/mileda/DelugeFirmware/main/firmware/deluge-mdd-plaits-oled-03556b92.bin)
 
-[Exact corresponding source](https://github.com/mileda/DelugeFirmware/tree/a13bf0fba59f13217129a90c20b714223deef6a5) · [Source ZIP](https://github.com/mileda/DelugeFirmware/archive/a13bf0fba59f13217129a90c20b714223deef6a5.zip) · [SHA256SUMS](SHA256SUMS) · [Build record](BUILD_INFO.json)
+[Exact corresponding source](https://github.com/mileda/DelugeFirmware/tree/03556b92957d4cef776b7940f08cd60d196d0ff9) · [Source ZIP](https://github.com/mileda/DelugeFirmware/archive/03556b92957d4cef776b7940f08cd60d196d0ff9.zip) · [SHA256SUMS](SHA256SUMS) · [Build record](BUILD_INFO.json)
 
 ## Install
 
@@ -19,6 +19,8 @@ Unofficial custom firmware based on Deluge Community Firmware 1.3.0 beta (Derbys
 These steps follow the retained [upstream SD-card update guide](../website/src/content/docs/manual/device_overview/sd_card.mdx). To reinstall a known-working firmware, repeat the update procedure with its BIN. Custom song/preset compatibility across firmware versions is not guaranteed; keep the backups.
 
 ## Included
+
+Custom automation WRITE with atomic Undo/Redo, one Custom per destination, true Tie across loop boundaries, Legato and adjustable Overlap are included. See [new features and controls](../docs/custom/MDD_WRITE_TIES_20261012.md).
 
 MDD clip sequencer, four Custom modulation lanes, Plaits FM/Waveshaping/Virtual Analog sources, Plaits optimization, all 15 selected custom changes, the published 12 October beta fixes and upstream Reverb PR #4990. See [integration notes](../docs/custom/BETA_INTEGRATION_20261012.md). See the [modification notice](../CUSTOM_CHANGES.md) and [audit](../docs/custom/CPU_AUDIT.md).
 

@@ -50,3 +50,7 @@ WRITE captures wrapping ties as single notes across the loop boundary and overla
 - Existing MDD, Plaits and eight effect/menu regression groups remain required; ARM Release and GitHub formatting checks are required for publication.
 
 Physical Deluge testing is still pending. Back up songs/presets: older firmware does not implement V2 articulation or these four automation channels. The earlier PDF and audit describe their dated snapshots; this document describes the new behavior.
+
+## Publication: 13 October 2026
+
+Source `03556b92957d4cef776b7940f08cd60d196d0ff9` was rebuilt with DBT v22 in ARM Release configuration. ELF32/ARM identification and exact ELF-to-BIN conversion passed. The source GitHub Format Check and feature regression suite passed in the preceding validation session. See [build record](../../firmware/BUILD_INFO.json) and [installation/download](../../firmware/INSTALL.md). Physical-device testing remains pending.

@@ -1,4 +1,6 @@
-# Custom modification notice — updated 2026-10-12
+# Custom modification notice — updated 2026-10-13
+
+The 13 October publication adds Custom automation WRITE with atomic Undo/Redo, exclusive Custom destinations, real Tie across loops, Legato/Overlap, and native automation editing. See [new features and usage](docs/custom/MDD_WRITE_TIES_20261012.md).
 
 The current build integrates beta `be3e993c` and Reverb PR #4990, retaining all selected custom changes 1–15. See [current integration notes](docs/custom/BETA_INTEGRATION_20261012.md). The inventory below records the earlier 11 October snapshot.
 

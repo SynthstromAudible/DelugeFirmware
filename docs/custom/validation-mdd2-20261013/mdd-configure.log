@@ -1,0 +1,29 @@
+-- The CXX compiler identification is GNU 14.2.1
+-- The C compiler identification is GNU 14.2.1
+-- The ASM compiler identification is GNU
+-- Found assembler: /tmp/deluge-toolchain/toolchain/v22/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gcc
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /tmp/deluge-toolchain/toolchain/v22/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-g++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /tmp/deluge-toolchain/toolchain/v22/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gcc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Found Python: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12 (found version "3.12.14") found components: Interpreter 
+-- Found Git: /usr/local/bin/git (found version "2.51.1") 
+-- Could NOT find Doxygen (missing: DOXYGEN_EXECUTABLE) 
+CMake Warning at CMakeLists.txt:150 (message):
+  Doxygen needs to be installed to generate documentation.Please install from
+  https://github.com/doxygen/doxygen/releases
+
+
+-- etl | Version string determined with git describe: 20.40.0
+-- etl | Determined ETL version 20.40.0 from the git tag
+-- RTT enabled for deluge
+-- RTT enabled for RZA1
+-- Configuring done (17.6s)
+-- Generating done (0.0s)
+-- Build files have been written to: /workspace/scratch/deluge-release/build
