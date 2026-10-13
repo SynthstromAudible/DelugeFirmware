@@ -30,7 +30,7 @@ public:
 	MenuItem* selectButtonPress() override;
 	void noteOnToChangeRange(int32_t noteCode);
 	bool isRangeDependent() override { return true; }
-	void deletePress();
+	void deletePress() override;
 	MenuItem* menuItemHeadingTo;
 
 protected:

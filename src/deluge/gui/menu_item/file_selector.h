@@ -35,6 +35,7 @@ public:
 	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
 	void renderInHorizontalMenu(const SlotPosition& slot) override;
 	void getColumnLabel(StringBuf& label) override;
+	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return sourceId_; }
 
 private:
 	uint8_t sourceId_;

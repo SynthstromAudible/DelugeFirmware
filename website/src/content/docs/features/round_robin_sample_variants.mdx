@@ -1,0 +1,121 @@
+---
+title: Round-Robin Sample Variants
+---
+
+Each oscillator sample zone in Synth and Kit sound sources can hold up to 4 sample variants: the primary sample
+plus up to 3 alternates, played in rotation each time the zone is triggered. This is the classic
+multi-sample-per-pad workflow found on MPC-style samplers, and is especially useful for removing the "machine
+gun" effect that repeated hits of the same drum sample can produce.
+
+## Enabling the feature
+
+This feature is On by default and can be turned off via `SETTINGS > COMMUNITY FEATURES > ROUND-ROBIN SAMPLE
+VARIANTS (VARI)`. When off, the `VARIANTS` menu is hidden, playback always uses the primary sample, and bulk
+folder imports behave exactly as they did before this feature existed (extra same-note samples are skipped,
+not stored - see below). Turning the feature off does not delete any variant data already saved in a song -
+it simply stops being used until the feature is turned back on.
+
+## Importing folders
+
+When importing a whole folder as a multisample synth, samples that land on the same note become round-robin
+variants of one zone (up to 4 per note: one primary plus 3 alternates), instead of the extras being silently
+dropped as before. Each sample's note comes from the root-note tag embedded in its WAV/AIFF header when
+present, or from pitch detection otherwise.
+
+A folder of at most 4 files that all carry the _same_ embedded root note is treated as a deliberately
+prepared round-robin set - for example four takes of one kick, all tagged C3 - and imports as a single
+full-keyboard zone with the takes as variants. (Larger folders where every file claims the same root note are
+still assumed to be mis-tagged by the exporting software, and fall back to pitch detection, as they always
+have.)
+
+If every sample that lands on a note has a velocity tag in its filename - `vel` (or `velocity`) followed by a
+number from 1 to 127, such as `Snare_vel40.wav` and `Snare_vel100.wav` - that zone is set to `VELOCITY` mode
+and 1-127 is split between its samples, each boundary falling halfway between neighbouring tags. If any sample
+on the note is untagged, the zone stays in `CYCLE` with every slot on the full range. A bare `v` is not read
+as a velocity, since `Kick_v2.wav` usually means version 2.
+
+With the community feature turned off, none of this happens: folder import keeps its original behaviour, one
+sample per note with duplicates skipped, and no variant data is created or saved.
+
+## The Variants menu
+
+With an oscillator in `SAMPLE` mode, a new `VARIANTS` submenu is available under `OSC1`/`OSC2`, alongside the
+existing `FILE` browser item.
+
+Variants are stored per keyboard zone. On an oscillator split into several keyboard zones (a typical
+keyboard-spanning multisample instrument), entering `VARIANTS` first opens the familiar note-range picker to
+choose which zone to edit - the same zone-selection step used by the `FILE`/`START`/`END`/`TRANSPOSE` items -
+and everything inside the menu then applies to that zone. Each zone rotates through its own variants
+independently during playback.
+
+Opening `VARIANTS` takes you through the note-range picker first, exactly as `START` and `END` always have,
+with your last-used zone already selected so you can simply confirm it. From there the Variants screen and its
+slot pages name the zone in their titles - `Var C3-F#4` and `S2 C3-F#4` - since everything from that point
+down applies to that one zone. The oscillator page itself keeps its plain title: once any zone has variants,
+everything left on it is a setting for the whole oscillator. The keyboard pads covering the current zone are
+lit brighter. Single-zone sources are unchanged, with no zone shown anywhere.
+
+The `VARIANTS` entry on the oscillator page shows how many samples are loaded on that oscillator in total,
+counting every zone across the keyboard. It stays put as you play and as you move in and out of the menu - like
+the rest of the oscillator page, it describes the whole oscillator rather than any one zone. On a single-zone
+source it is simply that zone's own slot count.
+
+Once any zone on an oscillator has variants loaded, that oscillator's own `FILE`, `START`, `END` and
+`TRANSPOSE` items step aside, and every zone's sample is edited through `VARIANTS` instead - including zones
+that only have a single sample. Hiding them for the whole oscillator rather than zone by zone keeps the menu
+the same shape wherever you are, and is the same rule a Kit drum has always followed.
+
+- `MODE` - selects how the next variant is chosen each time the zone is triggered. Only shown once at least one
+  alternate is loaded.
+  - `CYCLE` - play the loaded slots in order, wrapping around (classic round-robin).
+  - `RANDOM` - pick any loaded slot at random.
+  - `NO REPEAT` - pick a random slot, but never repeat the slot that just played.
+  - `VELOCITY` - pick a slot whose velocity range covers the incoming note's velocity, so the slots become
+    velocity layers rather than a rotation. See below for what happens where ranges overlap.
+- `SLOT 1` through `SLOT 4` - each opens a submenu for that slot:
+  - `FILE` - opens the sample browser to load (or replace) that slot's sample. `SLOT 1` is the primary sample and
+    can also be loaded via the regular `FILE` browser item; slots 2-4 are alternates and must be filled in order
+    (the next empty slot is indicated with `Load`).
+  - `STRT` and `END` - each opens the sample marker editor for that slot, focused on that marker. Loop points are
+    editable from the same screen: pressing near any marker switches focus to it, so these two entries cover
+    everything you'd otherwise need separate loop-point items for.
+  - `TRANSPOSE` - a per-slot pitch offset in semitones and cents, independent of the zone's other pitch settings.
+    It is one combined value, mirroring how the oscillator's own pitch is one entry rather than two.
+  - `VMIN` and `VMAX` - the two ends of this slot's velocity range, 1-127. Shown only while `MODE` is `VELOCITY`,
+    since they mean nothing in the other modes. They sit in adjacent columns and are edited in place with the
+    select encoder, the same as `TRANSPOSE`; raising `VMIN` past `VMAX` pushes the other end along rather than
+    inverting the range. Slots default to the full 1-127, so an unconfigured slot always matches - give each slot
+    its own band to build a velocity-layered instrument.
+  - `VOL` - a per-slot level trim on the familiar 0-50 scale, where 50 is unity and 0 is silence. Takes recorded
+    at different levels rarely match, and this pulls the loud ones into line without touching the oscillator's
+    own volume. It only attenuates - there is no boost - so it can never push a variant into clipping.
+- Pressing `SHIFT` + `SAVE/DELETE` while an alternate slot (2-4) is selected clears that variant, shifting any
+  later slots down to fill the gap.
+
+### Overlapping velocity ranges
+
+Velocity ranges may overlap, and by default they all do - every slot starts at the full 1-127. Where several
+slots cover the incoming velocity, they are round-robined between: **velocity picks the band, and the cycle
+picks the take within it.** Put slots 1 and 2 on 1-64 and slots 3 and 4 on 65-127 and you get two velocity
+layers of two alternating takes each, which is more than a plain velocity switch can do. Where nothing overlaps,
+exactly one slot ever matches and this is the straightforward velocity switch it appears to be.
+
+Velocities that fall in a gap between configured ranges play slot 1, so a zone always makes a sound.
+
+This differs from an MPC, where overlapping layers sound _together_ - a Deluge voice plays one sample per
+oscillator, so the overlap alternates instead of stacking. The cycle position is carried across bands rather
+than kept per band, so alternating hard and soft hits keeps working through each band's takes instead of
+sticking on the first one.
+
+## Auditioning a specific variant
+
+While a slot's submenu (or its marker editor) is open, auditioning the drum or note plays that exact slot
+without advancing the round-robin cycle - so you can always hear exactly what you're editing, regardless of
+which mode is selected or where the cycle currently is.
+
+## Save format
+
+Variants are saved with the song/preset alongside the zone's existing sample data. Songs that don't use
+variants are unaffected. Songs that do use variants still load correctly on firmware without this feature (or
+with the community feature turned off) - the primary sample loads as normal and the variant data is simply
+not used until the feature is available and enabled again.

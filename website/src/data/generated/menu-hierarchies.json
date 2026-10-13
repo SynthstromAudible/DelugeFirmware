@@ -3372,6 +3372,14 @@
               "tag": "c1.3"
             },
             {
+              "varName": "menuRoundRobinSampleVariants",
+              "token": "STRING_FOR_COMMUNITY_FEATURE_ROUND_ROBIN_VARIANTS",
+              "oled": "Round-Robin Sample Variants",
+              "code": "VARI",
+              "children": [],
+              "tag": "c1.3"
+            },
+            {
               "varName": "menuShortcutOverlay",
               "token": "STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY",
               "oled": "Shortcut Overlay",
@@ -11379,6 +11387,279 @@
               "children": []
             },
             {
+              "varName": "sample0RoundRobinMenu",
+              "token": "STRING_FOR_VARIANTS",
+              "oled": "Variants",
+              "code": "VARI",
+              "children": [
+                {
+                  "varName": "sample0RoundRobinModeMenu",
+                  "token": "STRING_FOR_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": [
+                    {
+                      "varName": "virtualSelector_sample0RoundRobinModeMenu_0",
+                      "token": "STRING_FOR_CYCLE",
+                      "oled": "Cycle",
+                      "code": "CYCL",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample0RoundRobinModeMenu_1",
+                      "token": "STRING_FOR_RANDOM",
+                      "oled": "Random",
+                      "code": "RAND",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample0RoundRobinModeMenu_2",
+                      "token": "STRING_FOR_NO_REPEAT",
+                      "oled": "No Repeat",
+                      "code": "NREP",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample0RoundRobinModeMenu_3",
+                      "token": "STRING_FOR_VELOCITY",
+                      "oled": "Velocity",
+                      "code": "Velocity",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample0RoundRobinSlot1Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_1",
+                  "oled": "Slot 1",
+                  "code": "SLT1",
+                  "children": [
+                    {
+                      "varName": "sample0RRFile1",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRStart1",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RREnd1",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRTranspose1",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMin1",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax1",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVolume1",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample0RoundRobinSlot2Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_2",
+                  "oled": "Slot 2",
+                  "code": "SLT2",
+                  "children": [
+                    {
+                      "varName": "sample0RRFile2",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRStart2",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RREnd2",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRTranspose2",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMin2",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax2",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVolume2",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample0RoundRobinSlot3Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_3",
+                  "oled": "Slot 3",
+                  "code": "SLT3",
+                  "children": [
+                    {
+                      "varName": "sample0RRFile3",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRStart3",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RREnd3",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRTranspose3",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMin3",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax3",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVolume3",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample0RoundRobinSlot4Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_4",
+                  "oled": "Slot 4",
+                  "code": "SLT4",
+                  "children": [
+                    {
+                      "varName": "sample0RRFile4",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRStart4",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RREnd4",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRTranspose4",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMin4",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax4",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVolume4",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                }
+              ],
+              "tag": "c1.3"
+            },
+            {
               "varName": "source0TransposeMenu",
               "token": "STRING_FOR_TRANSPOSE",
               "oled": "Transpose",
@@ -13592,6 +13873,279 @@
               "oled": "File browser",
               "code": "File browser",
               "children": []
+            },
+            {
+              "varName": "sample1RoundRobinMenu",
+              "token": "STRING_FOR_VARIANTS",
+              "oled": "Variants",
+              "code": "VARI",
+              "children": [
+                {
+                  "varName": "sample1RoundRobinModeMenu",
+                  "token": "STRING_FOR_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": [
+                    {
+                      "varName": "virtualSelector_sample1RoundRobinModeMenu_0",
+                      "token": "STRING_FOR_CYCLE",
+                      "oled": "Cycle",
+                      "code": "CYCL",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample1RoundRobinModeMenu_1",
+                      "token": "STRING_FOR_RANDOM",
+                      "oled": "Random",
+                      "code": "RAND",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample1RoundRobinModeMenu_2",
+                      "token": "STRING_FOR_NO_REPEAT",
+                      "oled": "No Repeat",
+                      "code": "NREP",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample1RoundRobinModeMenu_3",
+                      "token": "STRING_FOR_VELOCITY",
+                      "oled": "Velocity",
+                      "code": "Velocity",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample1RoundRobinSlot1Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_1",
+                  "oled": "Slot 1",
+                  "code": "SLT1",
+                  "children": [
+                    {
+                      "varName": "sample1RRFile1",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRStart1",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RREnd1",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRTranspose1",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMin1",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax1",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVolume1",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample1RoundRobinSlot2Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_2",
+                  "oled": "Slot 2",
+                  "code": "SLT2",
+                  "children": [
+                    {
+                      "varName": "sample1RRFile2",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRStart2",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RREnd2",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRTranspose2",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMin2",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax2",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVolume2",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample1RoundRobinSlot3Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_3",
+                  "oled": "Slot 3",
+                  "code": "SLT3",
+                  "children": [
+                    {
+                      "varName": "sample1RRFile3",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRStart3",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RREnd3",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRTranspose3",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMin3",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax3",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVolume3",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample1RoundRobinSlot4Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_4",
+                  "oled": "Slot 4",
+                  "code": "SLT4",
+                  "children": [
+                    {
+                      "varName": "sample1RRFile4",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRStart4",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RREnd4",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRTranspose4",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMin4",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax4",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVolume4",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                }
+              ],
+              "tag": "c1.3"
             },
             {
               "varName": "source1TransposeMenu",
@@ -21570,6 +22124,279 @@
               "children": []
             },
             {
+              "varName": "sample0RoundRobinMenu",
+              "token": "STRING_FOR_VARIANTS",
+              "oled": "Variants",
+              "code": "VARI",
+              "children": [
+                {
+                  "varName": "sample0RoundRobinModeMenu",
+                  "token": "STRING_FOR_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": [
+                    {
+                      "varName": "virtualSelector_sample0RoundRobinModeMenu_0",
+                      "token": "STRING_FOR_CYCLE",
+                      "oled": "Cycle",
+                      "code": "CYCL",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample0RoundRobinModeMenu_1",
+                      "token": "STRING_FOR_RANDOM",
+                      "oled": "Random",
+                      "code": "RAND",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample0RoundRobinModeMenu_2",
+                      "token": "STRING_FOR_NO_REPEAT",
+                      "oled": "No Repeat",
+                      "code": "NREP",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample0RoundRobinModeMenu_3",
+                      "token": "STRING_FOR_VELOCITY",
+                      "oled": "Velocity",
+                      "code": "Velocity",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample0RoundRobinSlot1Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_1",
+                  "oled": "Slot 1",
+                  "code": "SLT1",
+                  "children": [
+                    {
+                      "varName": "sample0RRFile1",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRStart1",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RREnd1",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRTranspose1",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMin1",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax1",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVolume1",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample0RoundRobinSlot2Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_2",
+                  "oled": "Slot 2",
+                  "code": "SLT2",
+                  "children": [
+                    {
+                      "varName": "sample0RRFile2",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRStart2",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RREnd2",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRTranspose2",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMin2",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax2",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVolume2",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample0RoundRobinSlot3Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_3",
+                  "oled": "Slot 3",
+                  "code": "SLT3",
+                  "children": [
+                    {
+                      "varName": "sample0RRFile3",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRStart3",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RREnd3",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRTranspose3",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMin3",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax3",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVolume3",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample0RoundRobinSlot4Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_4",
+                  "oled": "Slot 4",
+                  "code": "SLT4",
+                  "children": [
+                    {
+                      "varName": "sample0RRFile4",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRStart4",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RREnd4",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRTranspose4",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMin4",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax4",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVolume4",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                }
+              ],
+              "tag": "c1.3"
+            },
+            {
               "varName": "source0TransposeMenu",
               "token": "STRING_FOR_TRANSPOSE",
               "oled": "Transpose",
@@ -23783,6 +24610,279 @@
               "oled": "File browser",
               "code": "File browser",
               "children": []
+            },
+            {
+              "varName": "sample1RoundRobinMenu",
+              "token": "STRING_FOR_VARIANTS",
+              "oled": "Variants",
+              "code": "VARI",
+              "children": [
+                {
+                  "varName": "sample1RoundRobinModeMenu",
+                  "token": "STRING_FOR_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": [
+                    {
+                      "varName": "virtualSelector_sample1RoundRobinModeMenu_0",
+                      "token": "STRING_FOR_CYCLE",
+                      "oled": "Cycle",
+                      "code": "CYCL",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample1RoundRobinModeMenu_1",
+                      "token": "STRING_FOR_RANDOM",
+                      "oled": "Random",
+                      "code": "RAND",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample1RoundRobinModeMenu_2",
+                      "token": "STRING_FOR_NO_REPEAT",
+                      "oled": "No Repeat",
+                      "code": "NREP",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample1RoundRobinModeMenu_3",
+                      "token": "STRING_FOR_VELOCITY",
+                      "oled": "Velocity",
+                      "code": "Velocity",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample1RoundRobinSlot1Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_1",
+                  "oled": "Slot 1",
+                  "code": "SLT1",
+                  "children": [
+                    {
+                      "varName": "sample1RRFile1",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRStart1",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RREnd1",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRTranspose1",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMin1",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax1",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVolume1",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample1RoundRobinSlot2Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_2",
+                  "oled": "Slot 2",
+                  "code": "SLT2",
+                  "children": [
+                    {
+                      "varName": "sample1RRFile2",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRStart2",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RREnd2",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRTranspose2",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMin2",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax2",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVolume2",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample1RoundRobinSlot3Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_3",
+                  "oled": "Slot 3",
+                  "code": "SLT3",
+                  "children": [
+                    {
+                      "varName": "sample1RRFile3",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRStart3",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RREnd3",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRTranspose3",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMin3",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax3",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVolume3",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "sample1RoundRobinSlot4Menu",
+                  "token": "STRING_FOR_VARIANT_SLOT_4",
+                  "oled": "Slot 4",
+                  "code": "SLT4",
+                  "children": [
+                    {
+                      "varName": "sample1RRFile4",
+                      "token": "STRING_FOR_FILE",
+                      "oled": "File",
+                      "code": "File",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRStart4",
+                      "token": "STRING_FOR_START_POINT",
+                      "oled": "Start-point",
+                      "code": "Start-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RREnd4",
+                      "token": "STRING_FOR_END_POINT",
+                      "oled": "End-point",
+                      "code": "End-point",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRTranspose4",
+                      "token": "STRING_FOR_TRANSPOSE",
+                      "oled": "Transpose",
+                      "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMin4",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax4",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVolume4",
+                      "token": "STRING_FOR_VARIANT_VOLUME",
+                      "oled": "Volume",
+                      "code": "VOL",
+                      "children": []
+                    }
+                  ]
+                }
+              ],
+              "tag": "c1.3"
             },
             {
               "varName": "source1TransposeMenu",
@@ -30330,5 +31430,5 @@
     "noteRowEditorMenu": "noteRowEditorRootMenu",
     "songClipSettingsMenu": "songClipSettingsMenu"
   },
-  "generatedAt": "2026-09-15T04:25:04.035Z"
+  "generatedAt": "2026-09-25T23:51:30.679Z"
 }
