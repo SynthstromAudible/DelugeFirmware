@@ -602,6 +602,27 @@ in cycles, worst size.
   (`functionsInit`) and begin at the rates above, and a probe on the device confirmed each case's phase, form and tape
   size before these runs.
 
+## Chains
+
+Each home's effect chain runtime (`effects::SoundChain`, `ClipChain`, `MasterChain`) against the same sequence written
+out over the same components (`bench/reference_chains.h`), in one image (`DELUGE_DSP_BENCH_CASES=fx_chains`), on
+2026-10-13. Settings: chorus, a ringing digital delay (feedback `0x30000000`, unsynced), EQ off flat, bitcrush and
+sample-rate reduction on, compressor on (threshold `0x40000000`); a clip chain's saturation and both filters and the
+master's filters on; the owner's delay working state set up in each block. The figures are cycles per channel-sample,
+the minimum of four runs; the last column is the spread (max - min), runtime / reference, worst size.
+
+| case | n=32 reference → runtime | n=64 reference → runtime | n=128 reference → runtime | spread |
+|---|---:|---:|---:|---:|
+| `control calibration_loop` | 32.10 | 32.05 | 32.02 | 0.01 |
+| `fx_chain_sound` | 240.71 → 242.51 (+0.7%) | 214.02 → 214.33 (+0.1%) | 200.36 → 200.58 (+0.1%) | 0.61 / 0.27 |
+| `fx_chain_clip` | 443.33 → 442.97 (-0.1%) | 405.86 → 405.57 (-0.1%) | 386.81 → 386.62 (-0.0%) | 0.46 / 0.39 |
+| `fx_chain_master` | 398.95 → 398.60 (-0.1%) | 364.20 → 363.77 (-0.1%) | 346.14 → 346.28 (+0.0%) | 0.59 / 0.42 |
+
+- **The call layer costs nothing measurable.** The clip chain's tap and the master's between are template parameters,
+  inlined; the runtimes make the same component calls as the sequence.
+- **The sound chain is +0.7% at n=32** (about 115 cycles a block), beyond its spread: it copies its 100-byte
+  `FxInputs` each block to put the setting's mod FX type in. At n=128 it is level.
+
 ## Open questions
 
 - Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain. The
