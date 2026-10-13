@@ -36,17 +36,17 @@ Error SetEffectSetting::apply(Context& ctx) {
 		leaf =
 		    deluge::serialization::Value::makeNumber(deluge::engine::sync_level_to_file(level, slot->tick_magnitude));
 	}
-	deluge::effects::EffectStates states = owner->effects();
-	deluge::effects::decode_slot(*effect, deluge::bridge::withLeaf(slot->state, path_, leaf), states, context);
+	// The record first: the effect's slot with the new leaf.
+	slot->state = deluge::bridge::withLeaf(slot->state, path_, leaf);
 
-	// The mod-FX type through its setter. A ring type whose ring cannot be allocated keeps its type and passes the
-	// audio through; the next effects edit on this owner retries.
-	if (states.mod_fx.type != owner->effects().mod_fx.type && !owner->setModFXType(states.mod_fx.type)) {
-		return Error::INSUFFICIENT_RAM;
-	}
-	owner->setEffects(states);
+	// Then the state, as the slot decodes onto it, set on the owner: projected to its render copy, with the chain's
+	// hand-overs. A mod FX type whose ring cannot be allocated is kept and passes the audio through; the next effects
+	// edit on this owner retries.
+	deluge::model::HostChainState state = owner->chainState();
+	deluge::effects::decode_slot(*effect, slot->state, state.effects, context);
+	owner->setChainState(state);
 
-	// The slot as the owner's state now encodes it.
+	// The slot in the form the state encodes to (a leaf the file writes differently, e.g. a number for a bool).
 	const deluge::effects::Home home =
 	    chain->reverb_return ? deluge::effects::Home::MASTER : deluge::effects::Home::CLIP;
 	for (deluge::effects::SlotEntries& encoded : deluge::effects::encode_chain(owner->effects(), home, context)) {

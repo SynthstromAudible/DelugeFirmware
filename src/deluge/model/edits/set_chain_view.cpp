@@ -36,8 +36,9 @@ Error SetChainView::apply(Context& ctx) {
 	else {
 		return Error::UNSPECIFIED;
 	}
-	owner->setChainState(next);
+	// The record first, then the owner's state from it.
 	chain->view = deluge::bridge::withLeaf(chain->view, key_, value_);
+	owner->setChainState(next);
 	return Error::NONE;
 }
 

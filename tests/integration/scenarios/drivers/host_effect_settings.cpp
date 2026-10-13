@@ -10,6 +10,7 @@
 #include "deluge-project/fx_chain.h"
 #include "engines/effects/settings.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_effect_setting.h"
 #include "model/global_effectable/global_effectable.h"
@@ -28,6 +29,7 @@
 #include "storage/value_tree_deserializer.h"
 
 #include <charconv>
+#include <chrono>
 #include <cstdio>
 #include <string>
 #include <string_view>
@@ -254,6 +256,55 @@ int roundTripLeg(Song& song, const std::vector<HostOwner>& owners) {
 	return 0;
 }
 
+/// The cost of a host Edit on the host: 1,000 SetEffectSetting applies on the master, alternating a filter mode, as
+/// `HOST-EFFECTS-COST us_per_edit=<n>` (evidence, not checked).
+void costLeg(Song& song) {
+	const HostOwner owner{.address = {.kind = ChainAddress::Kind::SONG}, .name = "master"};
+	const Value modes[] = {Value::makeScalar("SVF_Notch"), Value::makeScalar("24dB")};
+	constexpr int kEdits = 1000;
+	const auto start = std::chrono::steady_clock::now();
+	for (int i = 0; i < kEdits; ++i) {
+		std::ignore = setEffect(song, owner, "lpfMode", modes[i % 2]);
+	}
+	const auto elapsed = std::chrono::steady_clock::now() - start;
+	std::fprintf(io.out, "HOST-EFFECTS-COST us_per_edit=%.1f\n",
+	             std::chrono::duration<double, std::micro>(elapsed).count() / kEdits);
+}
+
+/// A mod FX type whose ring cannot be allocated, set on the master by its Edit: the Edit takes it, the record and the
+/// owner's state both name it (the audio passes through until a later effects edit takes a ring), and the song stays
+/// coherent.
+void ringFailureLeg(Song& song) {
+	const HostOwner owner{.address = {.kind = ChainAddress::Kind::SONG}, .name = "master"};
+	GlobalEffectable& master = song.live.global_effectable;
+	const Value none = Value::makeScalar("none");
+	if (setEffect(song, owner, "modFXType", none) != Error::NONE) {
+		fail(owner, "modFXType", none, "refused");
+		return;
+	}
+	constexpr std::size_t kRingBytes = deluge::effects::ModFx::Kernel::kRingFrames * sizeof(deluge::dsp::StereoSample);
+	deluge::memory::failNextAllocationOfSize(kRingBytes);
+	const Value chorus = Value::makeScalar("chorus");
+	const Error error = setEffect(song, owner, "modFXType", chorus);
+	const bool injected = !deluge::memory::allocationFailurePending();
+	if (!injected) {
+		fail(owner, "modFXType", chorus, "no ring allocation was attempted");
+	}
+	else if (error != Error::NONE) {
+		fail(owner, "modFXType", chorus, "refused when its ring could not be allocated");
+	}
+	else if (master.effects().mod_fx.type != ModFXType::CHORUS || master.core().mod_fx().holdsRing()) {
+		fail(owner, "modFXType", chorus, "the type is not held, or a ring is");
+	}
+	else if (const std::string what = deluge::harness::chainIncoherence(song); !what.empty()) {
+		fail(owner, "modFXType", chorus, what);
+	}
+	else {
+		ok++;
+	}
+	std::ignore = setEffect(song, owner, "modFXType", none);
+}
+
 /// A kit added to the song, its chain edited, then hibernated (as replacing an edited instrument hibernates it): it
 /// keeps its record, an Edit on its chain reaches it there, and the song stays coherent.
 void hibernationLeg(Song& song) {
@@ -324,6 +375,8 @@ int host_effect_settings_main(int argc, char** argv, Io driverIo) {
 	}
 	magnitudeLeg(*song, owners);
 	hibernationLeg(*song);
+	ringFailureLeg(*song);
+	costLeg(*song);
 	if (int r = roundTripLeg(*song, owners)) {
 		return r;
 	}

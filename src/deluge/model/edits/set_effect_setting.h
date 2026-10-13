@@ -8,8 +8,9 @@
 
 namespace deluge::edits {
 
-/// @brief Changes one effect setting of a kit, an audio track or the song master: writes the effect's slot, reads the
-/// effect from it onto the owner, and refreshes the owner's render copy. Settings record no undo.
+/// @brief Changes one effect setting of a kit, an audio track or the song master: writes the effect's slot in the
+/// chain's record, then sets the owner's state to what the slot decodes onto it (which refreshes its render copy and
+/// makes the chain's hand-overs). Settings record no undo.
 class SetEffectSetting final : public Edit {
 public:
 	SetEffectSetting(deluge::project::ChainAddress chain, std::string path, deluge::serialization::Value value)
