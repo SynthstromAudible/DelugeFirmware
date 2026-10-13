@@ -700,10 +700,29 @@ std::span<const Case> stutter_list(CaseSet& s) {
 	return stutter;
 }
 
+/// @brief The effect chain list.
+std::span<const Case> fx_chains_list(CaseSet& s) {
+	static const std::array fx_chains{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("fx_chain_sound", s.fx_chain_sound),
+	    make_case("fx_chain_sound_reference", s.fx_chain_sound_reference),
+	    make_case("fx_chain_clip", s.fx_chain_clip),
+	    make_case("fx_chain_clip_reference", s.fx_chain_clip_reference),
+	    make_case("fx_chain_master", s.fx_chain_master),
+	    make_case("fx_chain_master_reference", s.fx_chain_master_reference),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	};
+	return fx_chains;
+}
+
 /// @brief The cases of @p L.
 template <CaseList L>
 std::span<const Case> list_cases(CaseSet& s) {
-	if constexpr (L == CaseList::STUTTER) {
+	if constexpr (L == CaseList::FX_CHAINS) {
+		return fx_chains_list(s);
+	}
+	else if constexpr (L == CaseList::STUTTER) {
 		return stutter_list(s);
 	}
 	else if constexpr (L == CaseList::GRANULAR) {
@@ -758,6 +777,8 @@ std::span<const Case> cases(CaseList list) {
 		return list_cases<CaseList::GRANULAR>(s);
 	case CaseList::STUTTER:
 		return list_cases<CaseList::STUTTER>(s);
+	case CaseList::FX_CHAINS:
+		return list_cases<CaseList::FX_CHAINS>(s);
 	case CaseList::KERNELS:
 		break;
 	}

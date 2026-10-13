@@ -50,10 +50,6 @@ public:
 	virtual ~ModControllableAudio();
 	virtual void cloneFrom(ModControllableAudio* other);
 
-	void processStutter(std::span<StereoSample> buffer, ParamManager* paramManager);
-	void processReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* reverbBuffer, int32_t postFXVolume,
-	                                int32_t postReverbVolume, int32_t reverbSendAmount, int32_t pan = 0,
-	                                bool doAmplitudeIncrement = false);
 	void writeAttributesToFile(Serializer& writer);
 	void writeTagsToFile(Serializer& writer);
 	/// The learned MIDI knobs' tag, which a file writes between the delay and the other effect tags.
@@ -86,7 +82,6 @@ public:
 	void assignModFXType(ModFXType value);
 	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
-	void processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume, ParamManager* paramManager);
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = nullptr);
 	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -145,8 +140,6 @@ public:
 	                       uint8_t midiChannel, Song* song);
 	bool unlearnKnobs(ParamDescriptor paramDescriptor, Song* song);
 	virtual void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {} // Song may be NULL
-	bool isBitcrushingEnabled(ParamManager* paramManager);
-	bool isSRREnabled(ParamManager* paramManager);
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) override;
 
 	/// The effect components every owner has, in its chain: a sound's, a clip chain's or the master's.
@@ -163,10 +156,6 @@ protected:
 	/// @brief Gives the delay's tapes back to the arena and leaves its margin, as a change to OFF does. Each owner
 	/// calls it first in its destructor, while its chain still exists.
 	void releaseChainMemory();
-	/// @param reverbBuffer The block's reverb send buffer, which the grain adds its feed into from index 0.
-	void processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
-	               const deluge::effects::Delay::State& delayWorkingState, int32_t* postFXVolume,
-	               ParamManager* paramManager, bool anySoundComingIn, q31_t reverbSendAmount, int32_t* reverbBuffer);
 	void switchDelayPingPong();
 	/// One press of the delay's feedback knob: digital, analog, off, digital, by one Edit.
 	void cycleDelayType();
@@ -201,8 +190,4 @@ private:
 	                                                       int32_t noteRowIndex);
 	void switchHPFModeWithOff();
 	void switchLPFModeWithOff();
-
-	void processGrainFX(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
-	                    UnpatchedParamSet* unpatchedParams, bool anySoundComingIn, q31_t verbAmount,
-	                    int32_t* reverbBuffer);
 };

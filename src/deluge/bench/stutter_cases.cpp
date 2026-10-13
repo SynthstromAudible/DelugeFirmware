@@ -1,6 +1,6 @@
 /// @file
 /// @brief The stutter cases' rig, setup and blocks.
-/// @details Each block is one call into the stutter as its owner (ModControllableAudio::processStutter) makes it: the
+/// @details Each block is one call into the stutter as an owner's chain makes it (deluge::model::stutterInput): the
 /// rate from the stutter-rate param in a bench param manager, then the song's stutter component rendering over a tape
 /// begun as the gold knob's press begins one.
 

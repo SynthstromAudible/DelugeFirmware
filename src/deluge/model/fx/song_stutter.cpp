@@ -74,13 +74,6 @@ void SongStutter::end() {
 	fx_.finish(change);
 }
 
-void SongStutter::process(const ModControllableAudio& owner, std::span<deluge::dsp::StereoSample> block,
-                          uint32_t rate) {
-	if (owner_ == &owner) {
-		fx_.render(block, rate);
-	}
-}
-
 StutterInput stutterInput(const ModControllableAudio& owner, ParamManager* paramManager) {
 	if (currentSong == nullptr) {
 		return {};

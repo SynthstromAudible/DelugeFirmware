@@ -49,9 +49,6 @@ public:
 	                          uint32_t rate);
 	/// @brief [task] Ends the stutter, if any, and frees its tape.
 	void end();
-	/// @brief [render] Records into or plays the tape over @p block at @p rate (8.24), when @p owner is the one
-	/// stuttering.
-	void process(const ModControllableAudio& owner, std::span<deluge::dsp::StereoSample> block, uint32_t rate);
 	/// @return [render] The stutter, while @p owner is the one stuttering; else null.
 	[[nodiscard]] deluge::effects::Stutter* stutterFor(const ModControllableAudio& owner) {
 		return owner_ == &owner ? &fx_ : nullptr;

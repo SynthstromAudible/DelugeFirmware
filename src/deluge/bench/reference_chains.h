@@ -15,12 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Today's effect sequences over the chain components, each home's copied from the app: Sound::render from the send
-// and volume's prime to the compressor; GlobalEffectableForClip::renderOutput from the sidechain to the compressor,
-// the content render left out; Song::renderAudio's tail, then the reverb (the caller's between), then renderSongFX.
-// Every ParamManager, AudioEngine or playback handler read is replaced by the inputs field that carries it, and the
-// process* helpers they call are written out in place (processFX, processGrainFX, processSRRAndBitcrushing,
-// processStutter, processReverbSendAndVolume, configureFilter, processFilter). No other edit.
+// Each home's effect sequence over the chain components, written out step by step as the owners render it: a sound's
+// from the send and volume's prime to the compressor; a kit's or an audio track's from the filter's settings and the
+// sidechain's duck to the compressor, its content render left out (the block arrives rendered); the song master's half
+// before the reverb, the caller's between, then its half after. Owner reads are the inputs fields that carry them. The
+// runtimes are checked against this, so it is written independently of them and changes only with the sound itself.
 
 #pragma once
 
@@ -40,7 +39,7 @@ namespace chain_reference {
 using deluge::dsp::StereoSample;
 namespace fx = deluge::effects;
 
-/// processFX, with processGrainFX written out: a sound passes its mod FX type, a host chain its active type.
+/// The mod FX (or the grain), the EQ and the delay: a sound passes its mod FX type, a host chain its type in effect.
 inline void process_fx(fx::ChainCore& c, std::span<StereoSample> buffer, fx::ModFXType modFXType,
                        const fx::FxInputs& in, int32_t* postFXVolume, bool anySoundComingIn, q31_t verbAmount,
                        fx::ReverbSend reverbBuffer) {
@@ -71,7 +70,7 @@ inline void process_fx(fx::ChainCore& c, std::span<StereoSample> buffer, fx::Mod
 	c.delay().process(buffer, in.delay, in.stereo);
 }
 
-/// processReverbSendAndVolume. @return whether anything was sent (the app notes the reverb's time then).
+/// The reverb send, then the volumes and pan. @return Whether anything was sent (the engine notes the reverb's time).
 inline bool process_reverb_send_and_volume(fx::ChainCore& c, std::span<StereoSample> buffer,
                                            fx::ReverbSend reverbBuffer, int32_t postFXVolume, int32_t postReverbVolume,
                                            int32_t reverbSendAmount, int32_t pan, bool doAmplitudeIncrement,
@@ -85,7 +84,7 @@ inline bool process_reverb_send_and_volume(fx::ChainCore& c, std::span<StereoSam
 	                                    .stereo = stereo});
 }
 
-/// Sound::render, from the prime to the compressor.
+/// A sound's chain, from the prime to the compressor.
 inline bool sound(fx::ChainCore& c, const fx::SoundChainInputs& in, std::span<StereoSample> sound_stereo,
                   fx::ReverbSend reverbBuffer) {
 	const fx::EffectStates& settings = *in.fx.settings;
@@ -115,8 +114,8 @@ inline bool sound(fx::ChainCore& c, const fx::SoundChainInputs& in, std::span<St
 	return sent;
 }
 
-/// GlobalEffectableForClip::renderOutput, from the volume to the compressor, the content render left out (its block
-/// arrives already rendered, @p renderedLastTime saying whether it rendered); @p tap is the recorder.
+/// A kit's or an audio track's chain, from the filter's settings to the compressor, the content render left out (its
+/// block arrives already rendered, @p renderedLastTime saying whether it rendered); @p tap is the recorder.
 template <typename Tap>
 bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, const fx::ClipChainInputs& in,
           std::span<StereoSample> global_effectable_audio, bool renderedLastTime, fx::ReverbSend reverbBuffer,
@@ -124,7 +123,7 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 	const fx::EffectStates& settings = *in.fx.settings;
 	int32_t volumePostFX = in.volume_post_fx;
 
-	// configureFilter
+	// The filters' settings, which compensate the post-FX volume.
 	volumePostFX = filter_.configure(settings.filter, in.filter, volumePostFX);
 
 	int32_t reverbSendAmount = in.reverb_send;
@@ -155,7 +154,7 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 		c.bitcrush().process(global_effectable_audio, in.bitcrush, volumePostFX);
 	}
 
-	// processFXForGlobalEffectable
+	// The soft off of a GRAIN the setting holds, then the mod FX, EQ and delay.
 	if (in.fx.mod_fx_type != fx::ModFXType::GRAIN && settings.mod_fx.type == fx::ModFXType::GRAIN) {
 		c.granular().startSkippingRendering();
 	}
@@ -178,9 +177,8 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 	return sent;
 }
 
-/// Song::renderAudio's tail (processFXForGlobalEffectable, then the send and volume, which notes the reverb's time),
-/// then @p between with whether it sent (the reverb, the sample preview, and the post-reverb inputs), then
-/// renderSongFX.
+/// The song master: its mod FX, EQ, delay and send and volume, then @p between with whether it sent (the reverb, the
+/// sample preview, and the post-reverb inputs), then its filter, bitcrush, stutter, pan and compressor.
 template <typename Between>
 bool master(fx::ChainCore& c, fx::Filter& filter_, const fx::MasterChainInputs& in,
             std::span<StereoSample> renderingBuffer, fx::ReverbSend reverbBuffer, Between&& between) {

@@ -43,6 +43,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
+#include "model/fx/chain_inputs.h"
 #include "model/fx/song_stutter.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
@@ -391,12 +392,13 @@ struct MasterFxRender {
 };
 
 /// @return The blocks of a ramp as the song master's real effects stage makes them, under @p params' knobs and the
-/// master's current type: GlobalEffectable::processFXForGlobalEffectable, which Song::renderAllOutputs calls on the
-/// master's mix each block, over kModFxBlocks blocks.
+/// master's current type: its chain's soft off and mod FX, EQ and delay, as its chain renders the master's mix each
+/// block before the reverb, over kModFxBlocks blocks.
 MasterFxRender renderMasterFx(GlobalEffectable& master, ParamManager& params) {
 	static q31_t send[kRenderBlockFrames]{};
 	MasterFxRender made;
 	const deluge::effects::Delay::State delayState = master.createDelayWorkingState(params);
+	const deluge::effects::FxInputs fx = deluge::model::hostFxInputs(master, params, delayState, 0);
 	for (int32_t b = 0; b < kModFxBlocks; b++) {
 		StereoSample block[kRenderBlockFrames]{};
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
@@ -404,7 +406,8 @@ MasterFxRender renderMasterFx(GlobalEffectable& master, ParamManager& params) {
 			block[i] = {v, -v};
 		}
 		int32_t volume = ONE_Q31 >> 1;
-		master.processFXForGlobalEffectable(block, &volume, &params, delayState, true, 0, send);
+		master.core().soft_off_grain(fx);
+		master.core().render_fx(block, fx, volume, true, send);
 		made.frames.insert(made.frames.end(), std::begin(block), std::end(block));
 	}
 	return made;

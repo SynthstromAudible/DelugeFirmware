@@ -387,6 +387,19 @@ const std::vector<std::string_view> kStutterCaseNames{
     "stutter_play_resampled", "delay_feedback_chain_analog", "delay_feedback_chain_digital",
 };
 
+/// The effect chain list's names, in order.
+const std::vector<std::string_view> kFxChainCaseNames{
+    "calibration_loop",
+    "fx_chain_sound",
+    "fx_chain_sound_reference",
+    "fx_chain_clip",
+    "fx_chain_clip_reference",
+    "fx_chain_master",
+    "fx_chain_master_reference",
+    "delay_feedback_chain_analog",
+    "delay_feedback_chain_digital",
+};
+
 /// The granular list's names, in order.
 const std::vector<std::string_view> kGranularCaseNames{
     "calibration_loop",      "granular_sparse_unison",      "granular_sparse_random",       "granular_dense_unison",
@@ -942,7 +955,8 @@ describe bench_runner("The DSP benchmark runner", ${
 			                                     std::pair{CaseList::COMPRESSOR, kCompressorCaseNames},
 			                                     std::pair{CaseList::MOD_FX, kModFxCaseNames},
 			                                     std::pair{CaseList::GRANULAR, kGranularCaseNames},
-		                                     std::pair{CaseList::STUTTER, kStutterCaseNames}}) {
+		                                     std::pair{CaseList::STUTTER, kStutterCaseNames},
+		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames}}) {
 				std::vector<std::string_view> names;
 				for (const Case& c : cases(list)) {
 					names.push_back(c.name);
@@ -983,6 +997,9 @@ describe bench_runner("The DSP benchmark runner", ${
 			for (const Case& c : cases(CaseList::STUTTER)) {
 				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
 			}
+			for (const Case& c : cases(CaseList::FX_CHAINS)) {
+				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
+			}
 			for (const Case& c : cases(CaseList::KERNELS)) {
 				expect(c.lanes).to_equal(c.name == "stereo_gain" ? std::size_t{2} : std::size_t{1});
 			}
@@ -997,7 +1014,8 @@ describe bench_runner("The DSP benchmark runner", ${
 			                                  std::pair{CaseList::COMPRESSOR, kCompressorCaseNames},
 			                                  std::pair{CaseList::MOD_FX, kModFxCaseNames},
 			                                  std::pair{CaseList::GRANULAR, kGranularCaseNames},
-		                                     std::pair{CaseList::STUTTER, kStutterCaseNames}}) {
+		                                     std::pair{CaseList::STUTTER, kStutterCaseNames},
+		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames}}) {
 				lines.clear();
 				counters.reset();
 				const RunConfig config{.block_sizes = kBlockSizes};

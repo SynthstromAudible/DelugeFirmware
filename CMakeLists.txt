@@ -311,12 +311,14 @@ option(DELUGE_DSP_BENCH "Run the DSP benchmarks at boot (device builds)" OFF)
 # kernels), "chain" (stages as separate passes beside the same stages as one Chain), "delay" (the whole delay block,
 # fused, over real tapes), "filters" (each filter and the filter set, as a voice runs them), "compressor" (fully wet
 # and blended, as its owners call it), "mod_fx" (each mod FX type as its owners render it through effects::ModFx) or
-# "granular" (the granular kernel with sparse and dense grains, with and without pitch randomness), or
-# "stutter" (the stutter recording and playing over a native and a resampled tape).
+# "granular" (the granular kernel with sparse and dense grains, with and without pitch randomness),
+# "stutter" (the stutter recording and playing over a native and a resampled tape), or "fx_chains" (each home's effect
+# chain runtime beside the same sequence written out over its components).
 # The device prints about 70 lines over RTT before it drops some, so the cases come in lists that fit.
 set(DELUGE_DSP_BENCH_CASES "kernels" CACHE STRING
-    "The DSP bench's case list: kernels, lanes, chain, delay, filters, compressor, mod_fx, granular or stutter")
-set_property(CACHE DELUGE_DSP_BENCH_CASES PROPERTY STRINGS kernels lanes chain delay filters compressor mod_fx granular stutter)
+    "The DSP bench's case list: kernels, lanes, chain, delay, filters, compressor, mod_fx, granular, stutter or fx_chains")
+set_property(CACHE DELUGE_DSP_BENCH_CASES PROPERTY STRINGS kernels lanes chain delay filters compressor mod_fx granular stutter
+                                                           fx_chains)
 
 # GCC static analyzer (-fanalyzer). Off by default; enable with -DDELUGE_ANALYZER=ON. This is a compile-time (not
 # runtime) pass: it walks each function's paths looking for leaks, use-after-free, double-free, mismatched alloc/dealloc

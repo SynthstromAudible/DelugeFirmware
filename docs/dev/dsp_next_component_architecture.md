@@ -548,8 +548,9 @@ by `effects::Stutter` (`engines/effects/stutter.{h,cpp}`). The kernel knows
 the tape it is pointed at, the rate and whether it records or plays; the
 component knows the allocator; the song's stutter (`deluge::model::SongStutter`,
 `model/fx/song_stutter.{h,cpp}`, in `Song::live`) knows which owner is
-stuttering; the owner (`ModControllableAudio`) keeps the UI mode, the
-quantized snap of the stutter-rate param and the rate each block.
+stuttering; the owner (`ModControllableAudio`) keeps the UI mode and the
+quantized snap of the stutter-rate param; `deluge::model::stutterInput` hands
+the owner's chain the stutter and its rate each block (see "Effect chains").
 
 - **Four modes, one loop each.** Record or play, over a native or a resampled
   tape. `coefficients` takes the phase from `Settings::playing` and the tape's
@@ -1220,6 +1221,80 @@ state fully into the engine is later work.
 - Mixing into the voice's buffer (unison and oscillator summing) is a mixer.
 - Filters, dynamics, delay and effects are kernels wrapped by `Mono`, `Stereo`
   or `Control`, under the settings convention and the slotting-ready rules.
+
+## Effect chains (`engines/effects/`)
+
+Each home's effects run, in that home's fixed order, in a typed runtime in
+`deluge_effects`. The runtime owns the components; the app works out the
+block's inputs from its params and makes one call.
+
+- **`ChainCore`** (`chain_core.{h,cpp}`) holds what every home has: EQ, delay,
+  bitcrush, mod FX, granular, compressor, sidechain, and the send and volume. It
+  also holds the stage they share, `render_fx`: the mod FX (or the grain, when
+  the type in effect is GRAIN), then the EQ, then the delay. A host chain's soft
+  off of a GRAIN it holds (`soft_off_grain`) is here too.
+- **`SoundChain`** (`sound_chain.{h,cpp}`) is a sound's effects after its
+  voices: bitcrush, mod FX or grain, EQ, delay, stutter, send and volume,
+  compressor. The per-voice filter and saturation stay in `Sound`. The sidechain
+  is a patch source, and the sound renders it before its voices.
+- **`ClipChain`** (`clip_chain.{h,cpp}`) is a kit's or an audio track's chain,
+  in two steps around the content render:
+  - `begin_block` configures the filters (which compensate the post-FX volume),
+    ducks the post-reverb volume by the sidechain and configures the
+    compressor.
+  - `process` runs saturation, then filter and bitcrush (only when the content
+    rendered), mod FX or grain, EQ, delay and stutter, then the `tap` callback
+    (the recorder), then send, volume and pan, then the compressor (or its
+    reset at a threshold at or below 0).
+- **`MasterChain`** (`master_chain.{h,cpp}`) is the song's master, one `render`
+  call around the reverb:
+  - The half before the reverb: mod FX or grain, EQ, delay, send and volume.
+  - Then `between(sent)`: the engine notes a send (the reverb renders only
+    within 12 s of one), renders the reverb and the sample preview, and returns
+    the half after's inputs. It returns nothing for a stem export without the
+    song's effects.
+  - The half after: filter, bitcrush, stutter, pan and the compressor with the
+    song volume.
+
+  The master's saturation and sidechain are saved with the song and not
+  rendered.
+- **Inputs are values.** Each inputs struct (`FxInputs`, `SoundChainInputs`,
+  `ClipChainInputs`, `MasterChainInputs`, `MasterPostInputs`) carries:
+  - param finals and knobs;
+  - the owner's render copy of its settings (`const EffectStates*`);
+  - the delay's working state, which the owner set up on the chain's delay;
+  - the filter scratch;
+  - the song's stutter and its rate while this owner is the one stuttering.
+
+  No `ParamManager`, song or engine state enters the library.
+- **The adapters sit with the params that feed them.** `soundChainInputs`
+  (`processing/sound/sound_chain_inputs`) reads a sound's patcher finals, so it
+  travels with `Sound` when the synth becomes a plugin. Its `SoundChain` is the
+  synth's own FX section, which the mod matrix modulates.
+  - `clipChainInputs`, `masterChainInputs` and `masterPostInputs`
+    (`model/fx/chain_inputs`) read unpatched params and automation. Those
+    chains are the host's inserts and master bus.
+  - The master's two halves read their inputs at the points the render always
+    has: the half before, in `Song::renderAudio` before its param tick; the half
+    after, after the reverb.
+  - The reverb send is an argument to every chain (`ReverbSend`), so a plugin's
+    send can become an output port.
+- **Order.** Each runtime's `order()` names the effects it renders, in order.
+  `chain_runtime_spec` checks the clip chain's and the master's against
+  `chain.h`'s `chain_effects`, the master's reverb return against
+  `reverb_return`, and the sound's against the clip chain's order without
+  saturation, filter and sidechain.
+- **Evidence.** `bench/reference_chains.h` writes each home's sequence out over
+  the components.
+  - `chain_runtime_spec` runs a runtime and the reference on two chains built
+    alike, block by block, over `chain_workloads.h`: block lengths 1–9 and 128,
+    stereo and mono, sounding and silent, every mod FX path, the delay ringing,
+    the compressor on and reset, the stutter playing, and sidechain hits. It
+    compares output, send, tap and noise draws word for word.
+  - The in-app gates hold the owners' renders bit-exact: golden 370, every
+    `render-*` gate, and `container-guard`.
+  - The `fx_chains` bench list (`DELUGE_DSP_BENCH_CASES=fx_chains`) times each
+    runtime beside the reference in one image.
 
 ## Shared kernels (`fixed/`)
 

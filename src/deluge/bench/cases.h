@@ -1357,7 +1357,7 @@ inline constexpr int32_t kGranularRandomnessNone = 0;
 /// range.
 inline constexpr int32_t kGranularRandomnessMax = 0x7fffffff;
 /// @brief The granular cases' reverb send knob, Q31: a moderate amount. Each block turns it into the component's
-/// argument with the post-effect volume, as ModControllableAudio::processGrainFX does.
+/// argument with the post-effect volume, as an owner's chain does (effects::ChainCore::render_fx).
 inline constexpr int32_t kGranularVerbAmount = 0x10000000;
 /// @brief The frames of untimed setup blocks: more than one full 65,536-frame ring. The kernel wraps its write index
 /// lazily, inside the per-sample step, and sets its initialised state only when a call starts with the index exactly at
@@ -1444,6 +1444,42 @@ private:
 	StutterConfig config_;
 };
 
+/// @brief Which home an effect chain case renders.
+enum class FxChainHome : uint8_t {
+	SOUND,  ///< A sound's chain after its voices.
+	CLIP,   ///< A kit's or an audio track's chain.
+	MASTER, ///< The song's master, both halves, with nothing mixed in between.
+};
+
+/// @brief One effect chain case's configuration.
+struct FxChainConfig {
+	FxChainHome home;
+	/// The home's sequence written out over its components (bench/reference_chains.h); otherwise its runtime.
+	bool reference;
+};
+
+/// @brief One block of a home's effect chain at typical settings, in place over the lanes output: the chorus, a
+/// ringing digital delay, the EQ moved off flat, the bitcrush on, and the compressor on (a clip chain's filter and
+/// saturation too, and the master's filter); the owner's delay working state set up each block, as its owner does.
+/// @details The runtime and the reference cases render the same components the same way, so their difference is the
+/// cost of the runtime's call layer.
+class FxChainCase {
+public:
+	static constexpr std::size_t kLanes = 2; ///< Left and right.
+
+	/// @brief A case of @p config.
+	constexpr explicit FxChainCase(const FxChainConfig& config) : config_{config} {}
+
+	/// @brief The home's chain anew, its settings handed over as an owner hands them over, and the block for @p n
+	/// frames.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for, in place.
+	void block(std::size_t n);
+
+private:
+	FxChainConfig config_;
+};
+
 /// @brief Every case, by name.
 struct CaseSet {
 	CalibrationLoop calibration_loop;                             ///< `calibration_loop`
@@ -1525,37 +1561,45 @@ struct CaseSet {
 	FilterStereoCase filterset_lh_stereo{filter_set_case(dsp::fixed::FilterRoute::LOW_TO_HIGH)};
 	/// `filterset_par_stereo`
 	FilterStereoCase filterset_par_stereo{filter_set_case(dsp::fixed::FilterRoute::PARALLEL)};
-	FilterStereoCase filter_lp24_fading_stereo{kFilterLow24Fading};           ///< `filter_lp24_fading_stereo`
-	CompressorCase compressor_wet_render{kCompressorWetRender};               ///< `compressor_wet_render`
-	CompressorCase compressor_wet_neutral{kCompressorWetNeutral};             ///< `compressor_wet_neutral`
-	CompressorCase compressor_blend_render{kCompressorBlendRender};           ///< `compressor_blend_render`
-	CompressorCase compressor_blend_neutral{kCompressorBlendNeutral};         ///< `compressor_blend_neutral`
-	ModFxCase mod_fx_chorus_stereo{kModFxChorusStereo};                       ///< `mod_fx_chorus_stereo`
-	ModFxCase mod_fx_chorus_mono{kModFxChorusMono};                           ///< `mod_fx_chorus_mono`
-	ModFxCase mod_fx_chorus_stereo_stereo{kModFxChorusStereoStereo};          ///< `mod_fx_chorus_stereo_stereo`
-	ModFxCase mod_fx_chorus_stereo_mono{kModFxChorusStereoMono};              ///< `mod_fx_chorus_stereo_mono`
-	ModFxCase mod_fx_dimension_stereo{kModFxDimensionStereo};                 ///< `mod_fx_dimension_stereo`
-	ModFxCase mod_fx_dimension_mono{kModFxDimensionMono};                     ///< `mod_fx_dimension_mono`
-	ModFxCase mod_fx_flanger_stereo{kModFxFlangerStereo};                     ///< `mod_fx_flanger_stereo`
-	ModFxCase mod_fx_flanger_mono{kModFxFlangerMono};                         ///< `mod_fx_flanger_mono`
-	ModFxCase mod_fx_warble_stereo{kModFxWarbleStereo};                       ///< `mod_fx_warble_stereo`
-	ModFxCase mod_fx_warble_mono{kModFxWarbleMono};                           ///< `mod_fx_warble_mono`
-	ModFxCase mod_fx_phaser{kModFxPhaser};                                    ///< `mod_fx_phaser`
-	GranularCase granular_sparse_unison{kGranularSparseUnison};               ///< `granular_sparse_unison`
-	GranularCase granular_sparse_random{kGranularSparseRandom};               ///< `granular_sparse_random`
-	GranularCase granular_dense_unison{kGranularDenseUnison};                 ///< `granular_dense_unison`
-	GranularCase granular_dense_random{kGranularDenseRandom};                 ///< `granular_dense_random`
-	StutterCase stutter_record_native{{.play = false, .resampled = false}};   ///< `stutter_record_native`
-	StutterCase stutter_record_resampled{{.play = false, .resampled = true}}; ///< `stutter_record_resampled`
-	StutterCase stutter_play_native{{.play = true, .resampled = false}};      ///< `stutter_play_native`
-	StutterCase stutter_play_resampled{{.play = true, .resampled = true}};    ///< `stutter_play_resampled`
+	FilterStereoCase filter_lp24_fading_stereo{kFilterLow24Fading};               ///< `filter_lp24_fading_stereo`
+	CompressorCase compressor_wet_render{kCompressorWetRender};                   ///< `compressor_wet_render`
+	CompressorCase compressor_wet_neutral{kCompressorWetNeutral};                 ///< `compressor_wet_neutral`
+	CompressorCase compressor_blend_render{kCompressorBlendRender};               ///< `compressor_blend_render`
+	CompressorCase compressor_blend_neutral{kCompressorBlendNeutral};             ///< `compressor_blend_neutral`
+	ModFxCase mod_fx_chorus_stereo{kModFxChorusStereo};                           ///< `mod_fx_chorus_stereo`
+	ModFxCase mod_fx_chorus_mono{kModFxChorusMono};                               ///< `mod_fx_chorus_mono`
+	ModFxCase mod_fx_chorus_stereo_stereo{kModFxChorusStereoStereo};              ///< `mod_fx_chorus_stereo_stereo`
+	ModFxCase mod_fx_chorus_stereo_mono{kModFxChorusStereoMono};                  ///< `mod_fx_chorus_stereo_mono`
+	ModFxCase mod_fx_dimension_stereo{kModFxDimensionStereo};                     ///< `mod_fx_dimension_stereo`
+	ModFxCase mod_fx_dimension_mono{kModFxDimensionMono};                         ///< `mod_fx_dimension_mono`
+	ModFxCase mod_fx_flanger_stereo{kModFxFlangerStereo};                         ///< `mod_fx_flanger_stereo`
+	ModFxCase mod_fx_flanger_mono{kModFxFlangerMono};                             ///< `mod_fx_flanger_mono`
+	ModFxCase mod_fx_warble_stereo{kModFxWarbleStereo};                           ///< `mod_fx_warble_stereo`
+	ModFxCase mod_fx_warble_mono{kModFxWarbleMono};                               ///< `mod_fx_warble_mono`
+	ModFxCase mod_fx_phaser{kModFxPhaser};                                        ///< `mod_fx_phaser`
+	GranularCase granular_sparse_unison{kGranularSparseUnison};                   ///< `granular_sparse_unison`
+	GranularCase granular_sparse_random{kGranularSparseRandom};                   ///< `granular_sparse_random`
+	GranularCase granular_dense_unison{kGranularDenseUnison};                     ///< `granular_dense_unison`
+	GranularCase granular_dense_random{kGranularDenseRandom};                     ///< `granular_dense_random`
+	StutterCase stutter_record_native{{.play = false, .resampled = false}};       ///< `stutter_record_native`
+	StutterCase stutter_record_resampled{{.play = false, .resampled = true}};     ///< `stutter_record_resampled`
+	StutterCase stutter_play_native{{.play = true, .resampled = false}};          ///< `stutter_play_native`
+	StutterCase stutter_play_resampled{{.play = true, .resampled = true}};        ///< `stutter_play_resampled`
+	FxChainCase fx_chain_sound{{.home = FxChainHome::SOUND, .reference = false}}; ///< `fx_chain_sound`
+	FxChainCase fx_chain_sound_reference{
+	    {.home = FxChainHome::SOUND, .reference = true}};                                ///< `fx_chain_sound_reference`
+	FxChainCase fx_chain_clip{{.home = FxChainHome::CLIP, .reference = false}};          ///< `fx_chain_clip`
+	FxChainCase fx_chain_clip_reference{{.home = FxChainHome::CLIP, .reference = true}}; ///< `fx_chain_clip_reference`
+	FxChainCase fx_chain_master{{.home = FxChainHome::MASTER, .reference = false}};      ///< `fx_chain_master`
+	FxChainCase fx_chain_master_reference{
+	    {.home = FxChainHome::MASTER, .reference = true}}; ///< `fx_chain_master_reference`
 };
 
 /// @brief The cases' components, built on first use.
 /// @return The one CaseSet every case in cases() acts on.
 [[nodiscard]] CaseSet& case_set();
 
-/// @brief Which of the eight case lists a run prints.
+/// @brief Which case list a run prints.
 enum class CaseList : uint8_t {
 	KERNELS, ///< One case per component: the calibration loop, then each kernel in its Mono, Stereo or Control.
 	LANES,   ///< The calibration loop, then each `Lanes` case beside the mono case of its kernel.
@@ -1579,6 +1623,9 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, the stutter as its owners render it, recording and playing over a native and a resampled
 	/// tape, then the feedback chain's two cases from the chain list, as in the delay list.
 	STUTTER,
+	/// The calibration loop, each home's effect chain runtime beside its sequence written out over the same
+	/// components, then the feedback chain's two cases from the chain list, as in the delay list.
+	FX_CHAINS,
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -1598,6 +1645,8 @@ inline constexpr CaseList kBenchCaseList = CaseList::MOD_FX;
 inline constexpr CaseList kBenchCaseList = CaseList::GRANULAR;
 #elif defined(DELUGE_DSP_BENCH_STUTTER)
 inline constexpr CaseList kBenchCaseList = CaseList::STUTTER;
+#elif defined(DELUGE_DSP_BENCH_FX_CHAINS)
+inline constexpr CaseList kBenchCaseList = CaseList::FX_CHAINS;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif

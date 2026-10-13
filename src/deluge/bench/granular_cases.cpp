@@ -1,7 +1,7 @@
 /// @file
 /// @brief The granular cases' rig, setup and blocks.
-/// @details Each block is one call into `effects::Granular::render`, made as its owner
-/// (ModControllableAudio::processGrainFX) makes it, over a State and ring taken through the component's prepare,
+/// @details Each block is one call into `effects::Granular::render`, made as an owner's chain
+/// (effects::ChainCore::render_fx) makes it, over a State and ring taken through the component's prepare,
 /// commit and finish as a Sound's change to GRAIN takes them, with the reverb feed going to the rig's send buffer.
 
 #include "bench/cases.h"

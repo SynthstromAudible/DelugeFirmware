@@ -182,89 +182,6 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 	    *unpatchedParams->docForParam(params::UNPATCHED_COMPRESSOR_THRESHOLD), 0);
 }
 
-void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate,
-                                     int32_t modFXDepth, const deluge::effects::Delay::State& delayWorkingState,
-                                     int32_t* postFXVolume, ParamManager* paramManager, bool anySoundComingIn,
-                                     q31_t reverbSendAmount, int32_t* reverbBuffer) {
-
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	// Mod FX -----------------------------------------------------------------------------------
-	if (modFXType == ModFXType::GRAIN) {
-		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, anySoundComingIn, reverbSendAmount,
-		               reverbBuffer);
-	}
-	else {
-		const deluge::effects::ModFxInputs in{
-		    .active = modFXType,
-		    .rate = modFXRate,
-		    .depth = modFXDepth,
-		    .offset = unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET),
-		    .feedback = unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK),
-		    .stereo = AudioEngine::renderInStereo,
-		    .sound = anySoundComingIn,
-		};
-		core().mod_fx().render(buffer, in, *postFXVolume);
-	}
-
-	// EQ -------------------------------------------------------------------------------------
-	core().equalizer().process(buffer, {.bass = unpatchedParams->getValue(params::UNPATCHED_BASS),
-	                                    .treble = unpatchedParams->getValue(params::UNPATCHED_TREBLE),
-	                                    .bass_frequency = unpatchedParams->getValue(params::UNPATCHED_BASS_FREQ),
-	                                    .treble_frequency = unpatchedParams->getValue(params::UNPATCHED_TREBLE_FREQ)});
-
-	// Delay ----------------------------------------------------------------------------------
-	checkStack("delay");
-	core().delay().process(buffer, delayWorkingState, AudioEngine::renderInStereo);
-}
-void ModControllableAudio::processGrainFX(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth,
-                                          int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-                                          bool anySoundComingIn, q31_t verbAmount, int32_t* reverbBuffer) {
-	const deluge::effects::GranularInputs in{
-	    .rate = modFXRate,
-	    .mix = modFXDepth,
-	    .density = unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET),
-	    .randomness = unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK),
-	    .send_amount = multiply_32x32_rshift32(*postFXVolume, verbAmount) << 5,
-	    .sound = anySoundComingIn,
-	};
-	core().granular().render(buffer, in, *postFXVolume, {reverbBuffer, buffer.size()});
-}
-
-void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* reverbBuffer,
-                                                      int32_t postFXVolume, int32_t postReverbVolume,
-                                                      int32_t reverbSendAmount, int32_t pan,
-                                                      bool doAmplitudeIncrement) {
-	if (core().send_and_volume().process(buffer, {reverbBuffer, buffer.size()},
-	                                     {.post_fx_volume = postFXVolume,
-	                                      .post_reverb_volume = postReverbVolume,
-	                                      .reverb_send = reverbSendAmount,
-	                                      .pan = pan,
-	                                      .ramp = doAmplitudeIncrement,
-	                                      .stereo = AudioEngine::renderInStereo})) {
-		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
-	}
-}
-
-bool ModControllableAudio::isBitcrushingEnabled(ParamManager* paramManager) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(params::UNPATCHED_BITCRUSHING) >= -2113929216);
-}
-
-bool ModControllableAudio::isSRREnabled(ParamManager* paramManager) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION) != -2147483648);
-}
-
-void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume,
-                                                    ParamManager* paramManager) {
-	UnpatchedParamSet* unpatched = paramManager->getUnpatchedParamSet();
-	core().bitcrush().process(buffer,
-	                          {.bitcrush = unpatched->getValue(params::UNPATCHED_BITCRUSHING),
-	                           .sample_rate_reduction = unpatched->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
-	                          *postFXVolume);
-}
-
 void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
 	writer.writeValue(deluge::effects::encode_pieces(effects(), effectsCodecContext()).attributes);
 }
@@ -948,20 +865,6 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	// Redraw the LEDs. Really only for quantized stutter, but doing it for unquantized won't hurt.
 	view.notifyParamAutomationOccurred(paramManager);
 	enterUIMode(UI_MODE_STUTTERING);
-}
-
-void ModControllableAudio::processStutter(std::span<StereoSample> buffer, ParamManager* paramManager) {
-	// A render with no song current (a sample preview between songs) has no stutter.
-	if (currentSong == nullptr) {
-		return;
-	}
-	deluge::model::SongStutter& stutter = currentSong->live.stutter;
-	if (stutter.isStuttering(*this)) {
-		const auto rate = static_cast<uint32_t>(deluge::model::stutterRate(
-		    paramManager, stutter.lastQuantizedKnobDiff, currentSong->getInputTickMagnitude(),
-		    playbackHandler.getTimePerInternalTickInverse()));
-		stutter.process(*this, buffer, rate);
-	}
 }
 
 // paramManager is optional - if you don't send it, it won't restore the stutter rate and we won't redraw the LEDs

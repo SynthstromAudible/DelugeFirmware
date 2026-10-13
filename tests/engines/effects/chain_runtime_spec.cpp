@@ -15,20 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The chain runtimes (sound_chain.h, clip_chain.h, master_chain.h) against today's sequences over the same components
-// (reference_chains.h): two chains built alike, one driven by the runtime and one by the reference, block by block
-// over every workload (chain_workloads.h), each side from the same state of the synth-wide noise stream the filters
-// and the grain draw from, their output, reverb send, recorder tap and noise draws compared word for word. And
-// each runtime's order against chain.h's, and the master's between: once per block, after the send and volume, before
-// the filter.
+// The chain runtimes (sound_chain.h, clip_chain.h, master_chain.h) against each home's sequence over the same
+// components (bench/reference_chains.h, which the bench times too): two chains built alike, one driven by the runtime
+// and one by the reference, block by block over every workload (chain_workloads.h), each side from the same state of
+// the synth-wide noise stream the filters and the grain draw from, their output, reverb send, recorder tap and noise
+// draws compared word for word. And each runtime's order against chain.h's, and the master's between: once per block,
+// after the send and volume, before the filter.
 
 #include "engines/effects/chain.h"
 #include "engines/effects/clip_chain.h"
 #include "engines/effects/master_chain.h"
 #include "engines/effects/sound_chain.h"
 
+#include "bench/reference_chains.h"
 #include "chain_workloads.h"
-#include "reference_chains.h"
 #include "util/waves.h"
 
 #include <algorithm>
@@ -333,15 +333,15 @@ std::vector<std::string_view> as_vector(std::span<const std::string_view> order)
 
 // clang-format off
 describe chain_runtime("the effect chain runtimes", ${
-	it("render a sound's chain as Sound::render does, over every workload", _ {
+	it("render a sound's chain as the reference does, over every workload", _ {
 		expect(sound_difference()).to_equal(std::string{});
 	});
 
-	it("render a clip chain as GlobalEffectableForClip::renderOutput does, over every workload", _ {
+	it("render a clip chain as the reference does, over every workload", _ {
 		expect(clip_difference()).to_equal(std::string{});
 	});
 
-	it("render the master as the song's tail and renderSongFX do around the reverb, over every workload", _ {
+	it("render the master around the reverb as the reference does, over every workload", _ {
 		expect(master_difference()).to_equal(std::string{});
 	});
 

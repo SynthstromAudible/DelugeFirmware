@@ -93,8 +93,8 @@ public:
 	/// @brief Render: the granular effect over @p block in place while sound comes in or the shutdown countdown runs.
 	/// Scales @p post_fx_volume (Q31) by 1/√2 then, adds the reverb feed into @p reverb_send (one value per frame),
 	/// and restarts the effect when the countdown ends. Passes through when no ring is held.
-	/// @details The owner calls this every rendered block, with all four knobs, as
-	/// ModControllableAudio::processGrainFX makes it.
+	/// @details The owner's chain calls this every rendered block while the type in effect is GRAIN, with all four
+	/// knobs (ChainCore::render_fx).
 	/// @pre @p reverb_send holds at least one value per frame of @p block.
 	void render(std::span<dsp::StereoSample> block, const GranularInputs& in, int32_t& post_fx_volume,
 	            std::span<dsp::q31> reverb_send);

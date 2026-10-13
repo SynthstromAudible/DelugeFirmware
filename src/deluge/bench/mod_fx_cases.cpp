@@ -1,7 +1,8 @@
 /// @file
 /// @brief The mod FX cases' rig, setup and blocks.
-/// @details Each block is one call into `effects::ModFx::render`, made as its owner (ModControllableAudio::processFX)
-/// makes it, over a ring taken through the component's prepare, commit and finish as the owner's type change takes one.
+/// @details Each block is one call into `effects::ModFx::render`, made as an owner's chain
+/// (effects::ChainCore::render_fx) makes it, over a ring taken through the component's prepare, commit and finish as
+/// the owner's type change takes one.
 
 #include "bench/cases.h"
 

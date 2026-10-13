@@ -744,45 +744,6 @@ void GlobalEffectable::ensureModFXParamIsValid() {
 	}
 }
 
-void GlobalEffectable::configureFilter(int32_t* postFXVolume, ParamManager* paramManager) {
-
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	const int32_t lpfFrequencyParam = unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ);
-	const int32_t lpfMorphParam = unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH);
-	const int32_t hpfFrequencyParam = unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ);
-	const int32_t hpfMorphParam = unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH);
-
-	*postFXVolume =
-	    filter().configure(modControllableSnapshot_.effects.filter,
-	                       {
-	                           .lpf_frequency = getFinalParameterValueExp(paramNeutralValues[params::LOCAL_LPF_FREQ],
-	                                                                      cableToExpParamShortcut(lpfFrequencyParam)),
-	                           .lpf_resonance = getFinalParameterValueLinear(
-	                               paramNeutralValues[params::LOCAL_LPF_RESONANCE],
-	                               cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_LPF_RES))),
-	                           .lpf_morph = getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_MORPH],
-	                                                                     cableToExpParamShortcut(lpfMorphParam)),
-	                           .hpf_frequency = getFinalParameterValueExp(paramNeutralValues[params::LOCAL_HPF_FREQ],
-	                                                                      cableToExpParamShortcut(hpfFrequencyParam)),
-	                           .hpf_resonance = getFinalParameterValueLinear(
-	                               paramNeutralValues[params::LOCAL_HPF_RESONANCE],
-	                               cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_RES))),
-	                           .hpf_morph = getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_MORPH],
-	                                                                     cableToExpParamShortcut(hpfMorphParam)),
-	                           .lpf_frequency_param = lpfFrequencyParam,
-	                           .lpf_morph_param = lpfMorphParam,
-	                           .hpf_frequency_param = hpfFrequencyParam,
-	                           .hpf_morph_param = hpfMorphParam,
-	                           .allow_oversampling = AudioEngine::cpuDireness < 14,
-	                       },
-	                       *postFXVolume);
-}
-
-[[gnu::hot]] void GlobalEffectable::processFilter(std::span<StereoSample> buffer) {
-	filter().process(buffer, deluge::render::filter_scratch());
-}
-
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
 	writer.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
 	writer.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
@@ -945,30 +906,6 @@ deluge::effects::Delay::State GlobalEffectable::createDelayWorkingState(ParamMan
 	                                 soundComingIn);
 
 	return delayWorkingState;
-}
-
-void GlobalEffectable::processFXForGlobalEffectable(std::span<StereoSample> buffer, int32_t* postFXVolume,
-                                                    ParamManager* paramManager,
-                                                    const deluge::effects::Delay::State& delayWorkingState,
-                                                    bool anySoundComingIn, q31_t verbAmount, int32_t* reverbBuffer) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	int32_t modFXRate =
-	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_MOD_FX_RATE],
-	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_MOD_FX_RATE)));
-	int32_t modFXDepth = getFinalParameterValueVolume(
-	    paramNeutralValues[params::GLOBAL_MOD_FX_DEPTH],
-	    cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_MOD_FX_DEPTH)));
-
-	ModFXType modFXTypeNow = getActiveModFXType(paramManager);
-
-	// A knob at its minimum switches the grain off without changing its type: its ring is taken up afresh and kept.
-	if (modFXTypeNow != ModFXType::GRAIN && modControllableSnapshot_.effects.mod_fx.type == ModFXType::GRAIN) {
-		core().granular().startSkippingRendering();
-	}
-
-	processFX(buffer, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume, paramManager,
-	          anySoundComingIn, verbAmount, reverbBuffer);
 }
 
 namespace modfx {
