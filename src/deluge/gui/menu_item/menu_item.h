@@ -117,10 +117,21 @@ public:
 	/// Double-check that this MenuItem will work with the currently selected sound range.
 	virtual MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                                     MultiRange** currentRange);
+
+	/// @brief The source (oscillator) whose per-zone data this item edits, or -1 for items that
+	/// aren't zone-scoped.
+	///
+	/// When entering an item returns MenuPermission::MUST_SELECT_RANGE, the sound editor opens the
+	/// note-range picker, which operates on soundEditor.currentSource. The shortcut-pad entry path
+	/// pins currentSource from the pad position before that happens, but menu-only navigation has no
+	/// pad to learn the source from - this accessor closes that gap so the picker always lists the
+	/// zones of the oscillator the item actually belongs to.
+	[[nodiscard]] virtual int32_t getSourceIndexForRangeSelection() const { return -1; }
 	/// @brief Begin an editing session with this menu item.
 	///
 	/// Should make sure the menu's internal state matches the system and redraw the display.
 	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr) {};
+	virtual void deletePress() {}
 
 	/// @brief End an editing session with this menu item
 	virtual void endSession();

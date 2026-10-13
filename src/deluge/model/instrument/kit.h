@@ -165,7 +165,8 @@ public:
 
 	void noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum, uint8_t velocity,
 	                     int16_t const* mpeValues, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE,
-	                     uint32_t sampleSyncLength = 0, int32_t ticksLate = 0, uint32_t samplesLate = 0);
+	                     uint32_t sampleSyncLength = 0, int32_t ticksLate = 0, uint32_t samplesLate = 0,
+	                     bool noteMightBeConstant = false);
 	void noteOffPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum, int32_t velocity = kDefaultLiftValue);
 
 protected:
