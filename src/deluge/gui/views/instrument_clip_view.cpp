@@ -2873,6 +2873,11 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange, bool display_val
 		}
 	}
 
+	// update instrument default velocity value
+	if (velocityValue != 255) {
+		getCurrentInstrument()->defaultVelocity = velocityValue;
+	}
+
 	reassessAllAuditionStatus();
 }
 
@@ -2917,7 +2922,6 @@ void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocity
 			// updated when user releases last press.
 		}
 		else {
-			getCurrentInstrument()->defaultVelocity = velocityValue;
 			// if we're not in automation view, show popup
 			// automation view is currently only used in this context with velocity view
 			// which takes care of drawing velocity changes on the display
