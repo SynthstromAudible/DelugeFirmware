@@ -56,6 +56,9 @@ taken; those read 0. RS_GRAIN_OWNERS runs the grain on a synth holding its note,
 switch the synth's type away from the grain and back and to clear each owner's grain mid-render; it has no dry twin.
 RS_GRAIN_MASTER holds the master's chorus playing for its gate to switch the master to the grain and back mid-render;
 it has no dry twin.
+RS_MASTER_PAN is RS_MASTER_FX under its own name, for a gate that renders it in stereo, where the master's pan applies.
+RS_MASTER_GRAIN_OFF holds the master's grain in its soft off (its selected knob at its minimum), its other effects as
+RS_MASTER_FX's.
 """
 
 import math
@@ -376,6 +379,17 @@ def master_song(voices: list[tuple[str, str, int]], fx: dict) -> str:
         f"\t<songParams {fx['params']}>{fx['param_tags']}</songParams>"
     )
     return song_xml(voices, song_settings=settings)
+
+
+# The master's soft off of its granular mod FX: GRAIN with its selected knob (depth) at its minimum, every other
+# effect as FX has it, so the grain's ring is taken up afresh each block while the rest of the chain renders.
+MASTER_GRAIN_OFF = {
+    **FX,
+    "attributes": FX["attributes"].replace('modFXType="chorus"', 'modFXType="grainFX"'),
+    "params": FX["params"].replace(
+        'modFXDepth="0x20000000"', 'modFXDepth="0x80000000"'
+    ),
+}
 
 
 # The dynamics and delay paths the songs above leave out, each beside RS_STREAM's two synths. A drum here is a dict:
@@ -1014,6 +1028,11 @@ SONGS = {
     "RS_AUDIO_DRY": lambda v: audio_song(v, DRY),
     "RS_MASTER_FX": lambda v: master_song(v, FX),
     "RS_MASTER_DRY": lambda v: master_song(v, DRY),
+    # RS_MASTER_FX under its own name, rendered in stereo, where the master's pan applies.
+    "RS_MASTER_PAN": lambda v: master_song(v, FX),
+    "RS_MASTER_PAN_DRY": lambda v: master_song(v, DRY),
+    "RS_MASTER_GRAIN_OFF": lambda v: master_song(v, MASTER_GRAIN_OFF),
+    "RS_MASTER_GRAIN_OFF_DRY": lambda v: master_song(v, DRY),
     "RS_KIT_FILTERS": lambda v: kit_song(v, KIT_FILTERS),
     "RS_KIT_FILTERS_DRY": lambda v: kit_song(v, DRY),
     "RS_AUDIO_FILTERS": lambda v: audio_song(v, AUDIO_FILTERS),

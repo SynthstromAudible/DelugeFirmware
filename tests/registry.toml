@@ -890,6 +890,42 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "render-master-pan-stereo"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the song master's pan renders as recorded in stereo, where it applies: render-master-fx's song under its own name (tests/integration/golden/songs/make_render_song.py --song RS_MASTER_PAN), its pan away from the centre, rendered in stereo (RENDER_STEREO=1), so the master's post-reverb volume is panned; compared with its record in tests/integration/golden/songs.json; its dry twin must render differently (RS-FX)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_MASTER_PAN", RENDER_STEREO = "1" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-master-grain-off"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the song master's granular mod FX in its soft off renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_MASTER_GRAIN_OFF) whose master holds GRAIN with its selected knob (depth) at its minimum, so every block takes the grain's ring up afresh and renders no grain, its other effects as render-master-fx's; compared with its record in tests/integration/golden/songs.json; its dry twin must render differently (RS-FX)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_MASTER_GRAIN_OFF" }
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "render-kit-svf-morph"
 path = "."
 level = "integration"

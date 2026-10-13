@@ -185,6 +185,18 @@
   "rms_db": -17.05,
   "sha256": "0680998389ff447a0df2a85b15bc3c011ab289e1e0d3cdd0ae5d25557191474c"
  },
+ "RS_MASTER_GRAIN_OFF": {
+  "frames": 384000,
+  "peak": 2147483648,
+  "rms_db": -16.75,
+  "sha256": "6084f08951e237bc9d35a8908b0f5178b844cae96acd21afd19b14fea1bd9932"
+ },
+ "RS_MASTER_PAN": {
+  "frames": 384000,
+  "peak": 2147483648,
+  "rms_db": -17.79,
+  "sha256": "4e2c81abadaca1fc24b4d140a1467183645899436eb047ec8cbbcca984633fba"
+ },
  "RS_MODFX_CLEAR": {
   "frames": 384000,
   "peak": 1127436288,
