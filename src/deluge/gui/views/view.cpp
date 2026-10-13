@@ -2330,8 +2330,10 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 		NonAudioInstrument* oldNonAudioInstrument = (NonAudioInstrument*)oldInstrument;
 		int32_t newChannel = oldNonAudioInstrument->getChannel();
 		int32_t newChannelSuffix;
+		uint8_t outputDeviceForSuffix = deluge::io::midi::kMIDIOutputDeviceMatchUnspecified;
 		if (outputType == OutputType::MIDI_OUT) {
 			newChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
+			outputDeviceForSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->outputDevice;
 		}
 
 		// TODO: the contents of these badly wants to be replaced with how I did it in changeOutputType()!
@@ -2401,7 +2403,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 						else if (newChannel > MIDI_CHANNEL_MPE_UPPER_ZONE && newChannel <= IS_A_DEST) {
 							newChannel = MIDI_CHANNEL_MPE_UPPER_ZONE;
 						}
-						newChannelSuffix = modelStack->song->getMaxMIDIChannelSuffix(newChannel);
+						newChannelSuffix = modelStack->song->getMaxMIDIChannelSuffix(newChannel, outputDeviceForSuffix);
 					}
 				}
 
@@ -2409,7 +2411,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				else {
 
 					if (newChannelSuffix >= 26
-					    || newChannelSuffix > modelStack->song->getMaxMIDIChannelSuffix(newChannel)) {
+					    || newChannelSuffix
+					           > modelStack->song->getMaxMIDIChannelSuffix(newChannel, outputDeviceForSuffix)) {
 						newChannel = (newChannel + step);
 						if (newChannel > MIDI_CHANNEL_MPE_UPPER_ZONE && newChannel <= IS_A_DEST) {
 							newChannel = IS_A_DEST + 1;
@@ -2432,14 +2435,15 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					break;
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
-					if (!modelStack->song->doesNonAudioSlotHaveClipInSession(outputType, newChannel,
-					                                                         newChannelSuffix)) {
+					if (!modelStack->song->doesNonAudioSlotHaveClipInSession(outputType, newChannel, newChannelSuffix,
+					                                                         outputDeviceForSuffix)) {
 						break;
 					}
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
 					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix,
-					                                                   nullptr, nullptr, false)) {
+					                                                   nullptr, nullptr, false, true,
+					                                                   outputDeviceForSuffix)) {
 						break;
 					}
 				}
@@ -2449,7 +2453,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 		}
 
 		newInstrument = modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr,
-		                                                              nullptr, false);
+		                                                              nullptr, false, true, outputDeviceForSuffix);
 		// this can happen specifically with cv to handle channels 1+2 together
 		if (newInstrument == oldInstrument) {
 			newInstrument = nullptr;
@@ -2502,6 +2506,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					MIDIInstrument* newMIDIInstrument = (MIDIInstrument*)newInstrument;
 					MIDIInstrument* oldMIDIInstrument = (MIDIInstrument*)clip->output;
 					newMIDIInstrument->modKnobCCAssignments = oldMIDIInstrument->modKnobCCAssignments;
+					newMIDIInstrument->outputDevice = oldMIDIInstrument->outputDevice;
+					newMIDIInstrument->outputDeviceName.set(&oldMIDIInstrument->outputDeviceName);
 					newInstrument->editedByUser =
 					    oldNonAudioInstrument->editedByUser; // This keeps a record of "whether there are any CC
 					                                         // assignments", so must be copied across

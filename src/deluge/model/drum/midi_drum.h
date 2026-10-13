@@ -18,6 +18,7 @@
 #pragma once
 
 #include "model/drum/non_audio_drum.h"
+#include "util/d_string.h"
 
 class MIDIDrum final : public NonAudioDrum {
 public:
@@ -45,4 +46,7 @@ public:
 
 	uint8_t note;
 	int8_t noteEncoderCurrentOffset;
+
+	uint8_t outputDevice{0};
+	String outputDeviceName;
 };

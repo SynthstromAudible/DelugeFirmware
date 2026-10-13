@@ -3205,7 +3205,7 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 	delugeDealloc(toDealloc);
 }
 
-int32_t Song::getMaxMIDIChannelSuffix(int32_t channel) {
+int32_t Song::getMaxMIDIChannelSuffix(int32_t channel, uint8_t outputDevice) {
 	if (channel >= 16) {
 		return -1; // MPE zones - just don't do freakin suffixes?
 	}
@@ -3219,6 +3219,10 @@ int32_t Song::getMaxMIDIChannelSuffix(int32_t channel) {
 		if (output->type == OutputType::MIDI_OUT) {
 			MIDIInstrument* instrument = (MIDIInstrument*)output;
 			if (instrument->getChannel() == channel) {
+				if (outputDevice != deluge::io::midi::kMIDIOutputDeviceMatchUnspecified
+				    && instrument->outputDevice != outputDevice) {
+					continue;
+				}
 				int32_t suffix = instrument->channelSuffix;
 				if (suffix < -1 || suffix >= 26) {
 					continue; // Just for safety
@@ -3715,11 +3719,11 @@ AudioOutput* Song::getAudioOutputFromName(std::string_view name) {
 // You can put name as NULL if it's MIDI or CV
 Instrument* Song::getInstrumentFromPresetSlot(OutputType outputType, int32_t channel, int32_t channelSuffix,
                                               char const* name, char const* dirPath, bool searchHibernating,
-                                              bool searchNonHibernating) {
+                                              bool searchNonHibernating, uint8_t outputDevice) {
 
 	if (searchNonHibernating) {
 		for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-			bool match = thisOutput->matchesPreset(outputType, channel, channelSuffix, name, dirPath);
+			bool match = thisOutput->matchesPreset(outputType, channel, channelSuffix, name, dirPath, outputDevice);
 			if (match) {
 				return (Instrument*)thisOutput;
 			}
@@ -3728,7 +3732,7 @@ Instrument* Song::getInstrumentFromPresetSlot(OutputType outputType, int32_t cha
 
 	if (searchHibernating) {
 		for (Output* thisOutput = firstHibernatingInstrument; thisOutput; thisOutput = thisOutput->next) {
-			bool match = thisOutput->matchesPreset(outputType, channel, channelSuffix, name, dirPath);
+			bool match = thisOutput->matchesPreset(outputType, channel, channelSuffix, name, dirPath, outputDevice);
 			if (match) {
 				return (Instrument*)thisOutput;
 			}
@@ -4079,7 +4083,8 @@ bool Song::doesOutputHaveActiveClipInSession(Output* output) {
 }
 
 // This is for non-audio Instruments only, so no name is relevant
-bool Song::doesNonAudioSlotHaveActiveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot) {
+bool Song::doesNonAudioSlotHaveActiveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot,
+                                                   uint8_t outputDevice) {
 
 	// For each Clip in session
 	for (Clip* clip : AllClips::inSession(this)) {
@@ -4090,6 +4095,11 @@ bool Song::doesNonAudioSlotHaveActiveClipInSession(OutputType outputType, int32_
 
 			if (instrument->type == outputType && ((NonAudioInstrument*)instrument)->getChannel() == slot
 			    && (outputType == OutputType::CV || ((MIDIInstrument*)instrument)->channelSuffix == subSlot)) {
+				if (outputType == OutputType::MIDI_OUT
+				    && outputDevice != deluge::io::midi::kMIDIOutputDeviceMatchUnspecified
+				    && ((MIDIInstrument*)instrument)->outputDevice != outputDevice) {
+					continue;
+				}
 				return true;
 			}
 		}
@@ -4099,7 +4109,8 @@ bool Song::doesNonAudioSlotHaveActiveClipInSession(OutputType outputType, int32_
 }
 
 // This is for non-audio Instruments only, so no name is relevant
-bool Song::doesNonAudioSlotHaveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot) {
+bool Song::doesNonAudioSlotHaveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot,
+                                             uint8_t outputDevice) {
 
 	// For each Clip in session
 	for (Clip* clip : AllClips::inSession(this)) {
@@ -4110,6 +4121,11 @@ bool Song::doesNonAudioSlotHaveClipInSession(OutputType outputType, int32_t slot
 
 			if (instrument->type == outputType && ((NonAudioInstrument*)instrument)->getChannel() == slot
 			    && (outputType == OutputType::CV || ((MIDIInstrument*)instrument)->channelSuffix == subSlot)) {
+				if (outputType == OutputType::MIDI_OUT
+				    && outputDevice != deluge::io::midi::kMIDIOutputDeviceMatchUnspecified
+				    && ((MIDIInstrument*)instrument)->outputDevice != outputDevice) {
+					continue;
+				}
 				return true;
 			}
 		}
@@ -4863,6 +4879,8 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 		// Or MIDI
 		else {
 
+			uint8_t outputDeviceForSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->outputDevice;
+
 			oldNonAudioInstrument->setChannel(-1); // Get it out of the way
 
 			do {
@@ -4874,13 +4892,14 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 				if (offset < 0) {
 					if (newChannelSuffix < -1) {
 						newChannel = (newChannel + step) & 15;
-						newChannelSuffix = currentSong->getMaxMIDIChannelSuffix(newChannel);
+						newChannelSuffix = currentSong->getMaxMIDIChannelSuffix(newChannel, outputDeviceForSuffix);
 					}
 				}
 
 				// Turned right
 				else {
-					if (newChannelSuffix >= 26 || newChannelSuffix > currentSong->getMaxMIDIChannelSuffix(newChannel)) {
+					if (newChannelSuffix >= 26
+					    || newChannelSuffix > currentSong->getMaxMIDIChannelSuffix(newChannel, outputDeviceForSuffix)) {
 						newChannel = (newChannel + step) & 15;
 						newChannelSuffix = -1;
 					}
@@ -4893,7 +4912,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 				}
 
 			} while (currentSong->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr,
-			                                                  nullptr, false));
+			                                                  nullptr, false, true, outputDeviceForSuffix));
 
 			oldNonAudioInstrument->setChannel(oldChannel); // Put it back, before switching notes off etc
 		}
