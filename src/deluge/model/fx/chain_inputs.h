@@ -1,0 +1,54 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "definitions_cxx.hpp"
+#include "engines/effects/clip_chain.h"
+#include "engines/effects/filter.h"
+
+#include <cstdint>
+
+class GlobalEffectable;
+class GlobalEffectableForClip;
+class ParamManager;
+class UnpatchedParamSet;
+
+namespace deluge::model {
+
+/// @brief A host chain's filter params for one block: each filter's final values from its unpatched params, the
+/// params' own values, and whether the CPU allows the drive ladder to oversample.
+[[nodiscard]] effects::FilterParams chainFilterParams(UnpatchedParamSet& unpatched);
+
+/// @brief The mod FX, EQ and delay inputs a host chain reads from its unpatched params: the type in effect (NONE in its
+/// soft off), the rate and depth finals and the knobs.
+/// @param delay The block's delay working state, set up on the owner's chain's delay.
+/// @param grainSend The granular's reverb send, Q31.
+[[nodiscard]] effects::FxInputs hostFxInputs(GlobalEffectable& owner, ParamManager& paramManager,
+                                             const effects::Delay::State& delay, int32_t grainSend);
+
+/// @brief A kit's or an audio track's chain inputs for one block, from its unpatched params.
+/// @param volumeAdjustment The output's volume param's final, halved (Q31), as the drums are rendered at.
+/// @param reverbAmountAdjust The song's reverb send scaling for this output, Q31.
+/// @param sideChainHitPending The sidechain hit pending this block, Q31; 0 for none.
+/// @param delay The block's delay working state, set up on the owner's chain's delay.
+[[nodiscard]] effects::ClipChainInputs clipChainInputs(GlobalEffectableForClip& owner, ParamManager& paramManager,
+                                                       int32_t volumeAdjustment, int32_t reverbAmountAdjust,
+                                                       int32_t sideChainHitPending, const effects::Delay::State& delay,
+                                                       OutputType outputType);
+
+} // namespace deluge::model

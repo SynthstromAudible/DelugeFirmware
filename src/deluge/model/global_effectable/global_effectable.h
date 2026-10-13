@@ -81,11 +81,12 @@ public:
 	CompParam currentCompParam;
 
 	ModFXType getModFXType() override;
+	/// @return The mod FX type in effect: NONE while the selected mod FX knob is at its minimum (the soft off).
+	ModFXType getActiveModFXType(ParamManager* paramManager);
 
 protected:
 	int maxCompParam = 0;
 	virtual int32_t getParameterFromKnob(int32_t whichModEncoder);
-	ModFXType getActiveModFXType(ParamManager* paramManager);
 
 private:
 	void ensureModFXParamIsValid();

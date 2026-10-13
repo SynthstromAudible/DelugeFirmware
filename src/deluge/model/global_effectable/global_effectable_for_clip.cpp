@@ -30,7 +30,9 @@
 // #include <algorithm>
 #include "hid/buttons.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/stack_guard.h"
 #include "model/clip/clip.h"
+#include "model/fx/chain_inputs.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
@@ -68,55 +70,22 @@ GlobalEffectableForClip::~GlobalEffectableForClip() {
 	int32_t a = cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
 	int32_t volumeAdjustment = getFinalParameterValueVolume(134217728, a) >> 1;
 
-	int32_t volumePostFX = volumeAdjustment;
-
-	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall.
-	// Unfortunately when I first implemented this for Kits, I just fudged a number which didn't give the 100% accuracy
-	// that I need for AudioOutputs, and I now have to maintain both for backwards compatibility
-	volumePostFX += (outputType == OutputType::AUDIO) ? multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397)
-	                                                  : (volumeAdjustment >> 2);
-
 	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(reverbAmountAdjust, volumeAdjustment) << 5;
 
 	int32_t pitchAdjust =
 	    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
 
+	// The delay starts or stops on whether the content rendered last block.
 	deluge::effects::Delay::State delayWorkingState =
 	    createDelayWorkingState(*paramManagerForClip, shouldLimitDelayFeedback, renderedLastTime);
 	if (outputType == OutputType::AUDIO) {
 		delayWorkingState.analog_saturation = 5;
 	}
 
-	configureFilter(&volumePostFX, paramManagerForClip);
-
-	int32_t reverbSendAmount = getFinalParameterValueVolume(
-	    reverbAmountAdjust,
-	    cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT)));
-
-	int32_t pan = unpatchedParams->getValue(params::UNPATCHED_PAN) >> 1;
-
-	// Render sidechain
-	int32_t sidechainVolumeParam = unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_VOLUME);
-	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
-	if (sidechainVolumeParam != std::numeric_limits<q31_t>::min()) {
-		if (sideChainHitPending != 0) {
-			core().sidechain().registerHit(sideChainHitPending);
-		}
-		int32_t sidechainOutput = core().sidechain().render(
-		    output.size(), unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
-		    modControllableSnapshot_.effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
-
-		int32_t positivePatchedValue =
-		    multiply_32x32_rshift32(sidechainOutput, getSidechainVolumeAmountAsPatchCableDepth(paramManagerForClip))
-		    + 536870912;
-
-		// This is tied to getParamNeutralValue(params::GLOBAL_VOLUME_POST_REVERB_SEND) returning 134217728
-		postReverbVolume = (positivePatchedValue >> 15) * (positivePatchedValue >> 16);
-	}
-
-	core().compressor().configure(modControllableSnapshot_.effects.compressor);
-	const q31_t compThreshold = unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
-	core().compressor().dsp().setThreshold(compThreshold); // a clip chain's threshold is its param
+	const deluge::effects::ClipChainInputs in =
+	    deluge::model::clipChainInputs(*this, *paramManagerForClip, volumeAdjustment, reverbAmountAdjust,
+	                                   sideChainHitPending, delayWorkingState, outputType);
+	deluge::effects::ClipBlock levels = chain_.begin_block(in, output.size());
 
 	alignas(CACHE_LINE_SIZE) StereoSample global_effectable_memory[SSI_TX_BUFFER_NUM_SAMPLES];
 	memset(global_effectable_memory, 0, sizeof(StereoSample) * output.size());
@@ -127,36 +96,17 @@ GlobalEffectableForClip::~GlobalEffectableForClip() {
 	    modelStack, global_effectable_audio, nullptr, reverbBuffer, reverbAmountAdjustForDrums, sideChainHitPending,
 	    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
-	// Render saturation
-	chain_.saturation().process(global_effectable_audio,
-	                            {.clipping_amount = modControllableSnapshot_.effects.saturation.clipping_amount,
-	                             .variant = deluge::effects::SaturationVariant::CHAIN});
-
-	if (renderedLastTime) {
-		// Render filters
-		processFilter(global_effectable_audio);
-
-		// Render FX
-		processSRRAndBitcrushing(global_effectable_audio, &volumePostFX, paramManagerForClip);
-	}
-
-	processFXForGlobalEffectable(global_effectable_audio, &volumePostFX, paramManagerForClip, delayWorkingState,
-	                             renderedLastTime, reverbSendAmount, reverbBuffer);
-	processStutter(global_effectable_audio, paramManagerForClip);
-	// record before pan/compression/volume to keep volumes consistent
-	if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
-		recorder->feedAudio(global_effectable_audio, true, 2);
-	}
-
-	processReverbSendAndVolume(global_effectable_audio, reverbBuffer, volumePostFX, postReverbVolume, reverbSendAmount,
-	                           pan, true);
-
-	if (compThreshold > 0) {
-		core().compressor().dsp().renderVolumeNeutral(global_effectable_audio, volumePostFX);
-	}
-	else {
-		core().compressor().dsp().reset();
+	checkStack("delay");
+	// The recorder takes the block after the stutter, before pan, volume and compression, so its level is the clip's.
+	auto record = [&](std::span<const StereoSample> /*block*/) {
+		if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+			// we need to double it because for reasons I don't understand audio clips max volume is half the sample
+			// volume
+			recorder->feedAudio(global_effectable_audio, true, 2);
+		}
+	};
+	if (chain_.process(global_effectable_audio, in, levels, renderedLastTime, {reverbBuffer, output.size()}, record)) {
+		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
 	}
 
 	// Add the global effectable data to the output
