@@ -41,5 +41,7 @@ pnpm exec starlight-to-pdf "$preview_url" \
   --print-bg \
   --pdf-outline \
   --margins '0 0 0 0' \
-  --paddings '2cm 1cm 2cm 1.5cm'
+  --paddings '2cm 1cm 2cm 1.5cm' \
+  --styles src/assets/starlight2pdf/body.css
+
 test -s dist/downloads/delugecommunity.com.pdf
