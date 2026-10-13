@@ -42,6 +42,7 @@ public:
 		pingPong = rhs.pingPong;
 		analog = rhs.analog;
 		syncLevel = rhs.syncLevel;
+		syncType = rhs.syncType;
 		return *this;
 	}
 
