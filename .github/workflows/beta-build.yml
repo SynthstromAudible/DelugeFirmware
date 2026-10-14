@@ -6,6 +6,9 @@ on:
   schedule:
     - cron: "14 0 * * *" # runs daily at 00:14
 
+permissions:
+  contents: read
+
 jobs:
   beta-detect:
     runs-on: ubuntu-latest
@@ -28,6 +31,8 @@ jobs:
             echo "count=$count" >> $GITHUB_OUTPUT
           fi
   beta-build:
+    permissions:
+      contents: write
     uses: ./.github/workflows/build.yml
     needs: beta-detect
     if: needs.beta-detect.outputs.new-commits > 0
@@ -37,6 +42,8 @@ jobs:
       build-tag: "beta"
       branch: "main"
   beta-publish:
+    permissions:
+      contents: write
     uses: ./.github/workflows/publish.yml
     needs: beta-build
     with:
