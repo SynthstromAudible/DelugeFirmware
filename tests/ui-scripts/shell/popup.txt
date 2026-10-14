@@ -1,0 +1,10 @@
+# Level 2: DemoScene from the start, one navigation, one popup, and its expiry.
+0     snapshot start
+50    button Clip down
+70    button Clip up
+100   snapshot after-clip          # DemoScene arg 1 on top
+200   notice Text SAVED
+210   snapshot popup               # Popup/General on top
+3000  snapshot popup-gone
+3100  released
+3200  quit

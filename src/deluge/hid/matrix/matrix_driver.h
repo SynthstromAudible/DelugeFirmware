@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/waveform/waveform_render_data.h"
+#include "model/sample/waveform_render_data.h"
 #include "pad.h"
 #include <cstdint>
 

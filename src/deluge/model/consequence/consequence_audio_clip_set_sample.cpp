@@ -22,6 +22,7 @@
 #include "model/song/song.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include "util/notify.h"
 
 ConsequenceAudioClipSetSample::ConsequenceAudioClipSetSample(AudioClip* newClip) {
 
@@ -53,7 +54,7 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 	else {
 		Error error = clip->sampleHolder.loadFile(false, false, true);
 		if (error != Error::NONE) {
-			display->displayError(error); // Rare, shouldn't cause later problems.
+			deluge::notify::notice(error); // Rare, shouldn't cause later problems.
 		}
 
 		if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {

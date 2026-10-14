@@ -62,6 +62,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/sample/waveform_scan.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -77,6 +78,7 @@
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include "util/functions.h"
+#include "util/shell_menu_entry.h"
 #include "util/try.h"
 #include <algorithm>
 #include <cstdint>
@@ -314,8 +316,22 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on) {
 		}
 		// open Song FX menu
 		else if (on && currentUIMode == UI_MODE_NONE) {
-			soundEditor.setup();
-			openUI(&soundEditor);
+			// F1 task 9, site 3 of 14 (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the two
+			// legacy statements unchanged.
+			if (deluge::gui::ui::shellMenuEnabled()) {
+				// No shift (`:324`) and the arranger is the root: the same
+				// `soundEditorRootMenuSongView` site 2 opens (`gui/ui/sound_editor.cpp:1802-1805`),
+				// but `sessionViewRoot` is false -- `getRootUI()` is the arranger, not the session
+				// view, and two items in that root read exactly that difference.
+				(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
+				                                     /*performanceView=*/false,
+				                                     /*sessionOrArrangerRoot=*/true,
+				                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
+			}
+			else {
+				soundEditor.setup();
+				openUI(&soundEditor);
+			}
 		}
 	}
 
@@ -1898,8 +1914,8 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			                                currentSong->persistentView.xZoom[NAVIGATION_CLIP], &xScrollSamples,
 			                                &xZoomSamples);
 
-			waveformRenderer.findPeaksPerCol((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
-			                                 xZoomSamples, &((AudioClip*)clip)->renderData);
+			deluge::sample::find_peaks_per_col((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
+			                                   xZoomSamples, &((AudioClip*)clip)->renderData);
 
 			PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)clip);
 		}
@@ -3284,9 +3300,16 @@ void ArrangerView::graphicsRoutine() {
 	mustRedrawTickSquares = false;
 }
 
-void ArrangerView::notifyActiveClipChangedOnOutput(Output* output) {
-	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && outputsOnScreen[yPressedEffective] == output) {
-		view.setActiveModControllableTimelineCounter(output->getActiveClip());
+void ArrangerView::refresh_held_row_mod_target() {
+	// currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION guarantees yPressedEffective is a
+	// valid row index into outputsOnScreen (set alongside entering this mode, clamped to range) --
+	// same invariant every other unguarded outputsOnScreen[yPressedEffective] access in this file
+	// relies on. The row's output can still be null, so it's guarded explicitly before use.
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yPressedEffective >= 0
+	    && yPressedEffective < kDisplayHeight) {
+		if (Output* output = outputsOnScreen[yPressedEffective]) {
+			view.setActiveModControllableTimelineCounter(output->getActiveClip());
+		}
 	}
 }
 

@@ -86,19 +86,18 @@ public:
 		// Outline
 		image.drawRectangleRounded(min_x - 1, start_y - 1, max_x + 1, end_y + 1);
 
+		// The per-point callback is a plain function pointer plus an opaque context, not a
+		// std::function: src/gfx is a no-allocation library, and a std::function holding a
+		// capturing lambda heap-allocates. FillPattern carries the callback's state (the canvas,
+		// the bottom of the fill, and the previous point) across calls instead.
+		FillPattern fill{.image = &image, .end_y = end_y};
 		auto draw_segment = [&](int32_t x0, int32_t y0, int32_t x1, int32_t y1) {
-			oled_canvas::Point last_point{-1, -1};
-			auto draw_fill_pattern = [&](oled_canvas::Point point) {
-				if (last_point.x != point.x && point.x % 3 == 0) {
-					for (int32_t y = point.y; y <= end_y; y++) {
-						if (y % 3 == 1) {
-							image.drawPixel(point.x, y);
-						}
-					}
-				}
-				last_point = point;
-			};
-			image.drawLine(x0, y0, x1, y1, {.min_x = min_x, .max_x = max_x, .point_callback = draw_fill_pattern});
+			fill.last_point = {-1, -1}; // each segment starts a fresh run
+			image.drawLine(x0, y0, x1, y1,
+			               {.min_x = min_x,
+			                .max_x = max_x,
+			                .point_callback = &FilterContainer::drawFillPattern,
+			                .callback_ctx = &fill});
 		};
 
 		// Left slope
@@ -117,6 +116,28 @@ public:
 	};
 
 private:
+	/// Per-call state for drawFillPattern: the target canvas, the fill's lower bound, and the
+	/// last point visited.
+	struct FillPattern {
+		oled_canvas::Canvas* image{nullptr};
+		int32_t end_y{0};
+		oled_canvas::Point last_point{-1, -1};
+	};
+
+	/// Hatches the area under the filter curve: on the first visit to each x that is a multiple
+	/// of 3, draw every third pixel from the curve down to `end_y`.
+	static void drawFillPattern(oled_canvas::Point point, void* ctx) {
+		auto& fill = *static_cast<FillPattern*>(ctx);
+		if (fill.last_point.x != point.x && point.x % 3 == 0) {
+			for (int32_t y = point.y; y <= fill.end_y; y++) {
+				if (y % 3 == 1) {
+					fill.image->drawPixel(point.x, y);
+				}
+			}
+		}
+		fill.last_point = point;
+	}
+
 	FilterParam* morph_item_{nullptr};
 	UnpatchedFilterParam* morph_item_unpatched_{nullptr};
 

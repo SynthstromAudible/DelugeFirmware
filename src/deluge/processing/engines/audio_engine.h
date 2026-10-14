@@ -256,6 +256,20 @@ extern uint32_t audioSampleTimer;
 extern bool inputMonitoringWarmedUp;
 extern bool mustUpdateReverbParamsBeforeNextRender;
 extern bool bypassCulling;
+/// @brief Set by the render loop when it culls a voice while the high-CPU indicator is on; cleared
+///        by the UI tick, which blinks the Play LED in response.
+///
+/// A namespace-scope `inline` variable -- one object across all TUs, not `static`, which would
+/// give each TU its own copy. [any]
+///
+/// @note `std::atomic<bool>` because the write happens on the audio render path (or, on the
+///       RZ/A1, an audio ISR) while the read-and-clear happens on the UI drain: two threads
+///       touching a plain `bool` without synchronisation is a data race even though each side
+///       only ever writes a single boolean value. `memory_order_relaxed` suffices -- this carries
+///       no other memory with it, it is just a flag -- so the drain clears it with
+///       `exchange(false, std::memory_order_relaxed)` rather than a separate load-then-store,
+///       which would race the render loop setting it again in between.
+inline std::atomic<bool> cull_alert_pending{false};
 // The app-owned input ring. A mirror of the received audio input, filled by the
 // audio routine ahead of each render window; everything in the application that
 // consumes live input (monitoring, INPUT_L/R oscillators, live input buffers,
@@ -301,6 +315,86 @@ void midiGateOutputTimerFired();
 /// Gain to apply to monitored codec input, `offset` samples into the buffer currently being rendered. 0 until the
 /// codec has settled after power-on, then ramps up to full scale.
 q31_t getInputMonitoringGain(uint32_t offset);
+
+/// @name The foreground recording
+///
+/// `AudioRecorder::recordingSource` and `AudioRecorder::recorder` (`gui/ui/audio_recorder.h:40-42`)
+/// are not that class's private bookkeeping: **nine subsystems read them** as "a foreground
+/// recording is live". `setMonitoringMode()` below enables input monitoring only for the two
+/// channels the recorder UI arms; `hid/buttons.cpp:147,180` gate shift+RECORD on them;
+/// `processing/stem_export/stem_export.cpp:195,412,460,594,716`,
+/// `playback/playback_handler.cpp:2503`, `playback/mode/arrangement.cpp:328`,
+/// `gui/ui/keyboard/keyboard_screen.cpp:305`, `gui/views/instrument_clip_view.cpp:354,5535` and
+/// `gui/ui/browser/sample_browser.cpp:492` all test one of them.
+///
+/// These two functions are that pair's write and read seam, for a UI that is **not**
+/// `AudioRecorder` -- `deluge::scenes::recorder::RecorderScene`, which may not name a `gui/` global
+/// (`scripts/check_layer_rules.py`, `scenes-no-root-ui`) and would otherwise arm a recording nine
+/// subsystems cannot see. They live here rather than in a new `processing/` file because
+/// `audio_engine.cpp` **already** names `audioRecorder` (`setMonitoringMode` does), so this adds no
+/// layer edge that was not there; a new file would add a `model-includes-ui` baseline row.
+///
+/// @note Not a replacement for `AudioRecorder`'s own writes: `setupRecordingToFile` and
+///       `finishRecording` still assign the members directly, and this is an additional writer of
+///       the same storage.
+/// @{
+/// @brief Publish (or clear) the foreground recording.
+///
+/// **The pointer's visible window strictly contains the channel's**, which is why the two stores are
+/// ordered *differently* in the two directions: publishing writes `recorder` first (legacy's own
+/// order, under the comment "This sets recording to begin happening even as the file is created",
+/// `gui/ui/audio_recorder.cpp:135-138`) and clearing writes `recordingSource` first. So a reader
+/// that finds the channel naming a live capture has always been able to see a non-null pointer.
+///
+/// Legacy clears in the opposite order (`:250-251`) -- it nulls the pointer while the channel still
+/// says `LEFT`/`STEREO`, and worse, `finishRecording` frees through the member *before* either store
+/// (`:248`). It survives only on `setMonitoringMode`'s `&& audioRecorder.recorder` double-check
+/// (`audio_engine.cpp:1037`), which is a guard against the wrong thing: the reader runs on the
+/// preemptive audio interrupt-executor, so it can land mid-`discardRecorder` with the pointer freed
+/// and still non-null. This seam does not inherit that ordering.
+///
+/// The two stores are separated by a `std::atomic_signal_fence` -- a compiler barrier, no
+/// instructions. See the call site for why that is the right tool and a `dmb` is not.
+///
+/// **The read side is fenced to match** (E3 final review, A5). `setMonitoringMode` loads the pair
+/// exactly once, channel first, under an `acquire` signal fence, and uses the locals for the rest of
+/// the function -- so its `&& recorder` double-check really does guard the dereferences below it.
+/// Fencing only the writer left the invariant enforced in one direction: the compiler was still free
+/// to reload `audioRecorder.recorder` after that branch had tested it.
+///
+/// @param recorder The armed recorder, or null to clear.
+/// @param source   The channel it captures from, or `AudioInputChannel::NONE` to clear.
+void setForegroundRecording(SampleRecorder* recorder, AudioInputChannel source);
+/// @brief The foreground recording's channel -- `AudioRecorder::recordingSource`.
+/// @return `AudioInputChannel::NONE` when nothing is recording.
+AudioInputChannel foregroundRecordingSource();
+/// @brief Is it unsafe to free a `SampleRecorder` right now?
+///
+/// `discardRecorder` destroys and frees the object, and that must not happen from inside the SD
+/// routine: the recorder may be suspended part-way through its own `cardRoutine()`, so freeing it
+/// there leaves that `cardRoutine()` running on freed memory and then frees it a second time.
+/// `AudioRecorder::slowRoutine` (`gui/ui/audio_recorder.cpp:168-176`) is where legacy states that,
+/// and its guard is `deluge::sync::sd_busy()` -- exactly this condition.
+/// `discardRecorder`'s own ALPHA_OR_BETA diagnostic now reads this function too, so the precondition
+/// has one spelling rather than two.
+///
+/// A sibling of the seam above, and here for the same reason: the other caller that has to ask is
+/// `deluge::scenes::recorder::RecorderScene`, and `src/scenes` may include neither
+/// `OSLikeStuff/scheduler_api.h` nor `sync/sd_access.h` (`scripts/check_layer_rules.py`,
+/// `scenes-includes-outside`). `audio_engine.cpp` already reaches both.
+///
+/// @return True while a caller must **defer and retry** rather than free.
+bool sdRoutineBusy();
+/// @}
+
+/// @brief Re-derive `doMonitoring` and `monitoringAction` from the foreground recording.
+///
+/// Called from `routine()` on every render window, so a UI that arms a recording never has to call
+/// it; declared here (it was a file-local forward declaration) so a spec can pin the *behaviour*
+/// the seam above exists to preserve rather than only the two values it writes.
+void setMonitoringMode();
+/// @brief Is live input being monitored through to the output? Set by `setMonitoringMode()`.
+extern bool doMonitoring;
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
 bool allowedToStartVoice();

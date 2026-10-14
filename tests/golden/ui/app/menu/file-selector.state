@@ -1,0 +1,33 @@
+led AffectEntire on
+led Clip on
+led Load on
+led Mod1 on
+led Synth on
+pad 0 7 0 2 2
+pad 1 7 0 2 2
+pad 10 7 0 2 2
+pad 11 7 0 2 2
+pad 12 7 0 2 2
+pad 13 7 0 2 2
+pad 14 7 0 2 2
+pad 15 7 0 2 2
+pad 16 0 6 65 8
+pad 16 1 6 65 8
+pad 16 2 6 65 8
+pad 16 3 6 65 8
+pad 16 4 6 65 8
+pad 16 5 6 65 8
+pad 16 6 6 65 8
+pad 16 7 6 65 8
+pad 17 0 0 46 209
+pad 17 7 0 226 29
+pad 2 7 0 2 2
+pad 3 7 0 2 2
+pad 4 7 0 2 2
+pad 5 7 0 2 2
+pad 6 7 0 2 2
+pad 7 7 0 2 2
+pad 8 7 0 2 2
+pad 9 7 0 2 2
+indicator lower 72 0 0 0
+indicator upper 255 255 36 0

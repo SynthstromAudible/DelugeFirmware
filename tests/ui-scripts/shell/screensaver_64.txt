@@ -1,0 +1,21 @@
+# Level-2 acceptance (E4 task 13), 128x64 panel: `overlay::ScreensaverScene`.
+#
+# Board and OLED `Style` both come from the spec (`board_64()` / `profile_64()`) -- see
+# `audio_clip_64.txt`'s header.
+#
+# **Read this before the goldens, because they are not what a 64-row golden usually is.** These two
+# frames are, byte for byte, `screensaver.txt`'s own two with sixteen blank rows appended -- checked
+# with a script, not assumed. That is deliberate and documented: `draw_rainfall` clips to
+# `Rainfall`'s own `kWidth`/`kTopmost`/`kHeight` (128 x 48, band from row 5) rather than to the
+# frame it is handed, "so a frame on a taller panel shows the animation in the same 128x43 band
+# legacy draws it in ... rather than silently letting the rows legacy clips away appear"
+# (`ui/oled/rainfall.h:344-351`). Legacy has no 64-row mode to port, and inventing one would be new
+# UX (Global Constraint 1).
+#
+# So what these two frames assert at this geometry is exactly (a) that the band stays where legacy
+# put it, (b) that rows 48-63 stay black, and (c) that it is still moving. If the animation is ever
+# taught the panel height -- which would be a design decision, not a bug fix -- these are the
+# goldens that say so out loud.
+300   snapshot saver_shown       # the rainfall in its fixed band; rows 48-63 blank
+600   snapshot saver_advanced    # 300 ms of quiet ticks later, the same band, further fallen
+700   quit

@@ -8,8 +8,11 @@ if (WIN32 AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Gcc")
     set(CPPUTEST_PLATFORM VisualCpp)
 endif ()
 
-set(DELUGE_C_STANDARD 23)
-set(DELUGE_CXX_STANDARD 26)
+# MAINTAINER_MODE, DELUGE_C_STANDARD / DELUGE_CXX_STANDARD and DELUGE_COMMON_COMPILE_OPTIONS,
+# also included by the device (top-level CMakeLists.txt) and host-sim (sim/CMakeLists.txt)
+# projects. The UI leaf libraries added below (../../src/gfx, ui, shell, notify) apply
+# DELUGE_COMMON_COMPILE_OPTIONS themselves, so their warning set is identical wherever they build.
+include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/deluge_common_options.cmake)
 
 # Opt-in dynamic analysis for the host test binaries. Enable with -DDELUGE_TEST_SANITIZERS=ON.
 #
@@ -33,6 +36,15 @@ function(deluge_apply_test_sanitizers target)
 endfunction()
 
 enable_testing()
+
+find_package(Python3 COMPONENTS Interpreter)
+if (Python3_Interpreter_FOUND)
+    add_test(NAME gfx_layer_check
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/../../scripts/check_gfx_layer.py
+                     --root ${CMAKE_CURRENT_LIST_DIR}/../../src/gfx)
+    add_test(NAME layer_rules
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/../../scripts/check_layer_rules.py)
+endif ()
 
 # ETL (etl::string) is used by util/string helpers pulled in transitively via functions.h,
 # so make it available to every test target (spec, unit).
@@ -156,6 +168,21 @@ endif ()
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../serialization serialization)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../music-theory music-theory)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../bench bench)
+# The UI leaf libraries, added once here and shared by the test subdirectories below:
+# deluge_gfx_oled / deluge_gfx_grid (pure drawing primitives), deluge_ui_core / deluge_ui_oled /
+# deluge_ui_grid (the immediate-mode toolkit), deluge_ui_shell (surfaces, scene stack, input
+# lowering, services, tick, flush) and deluge_notify (the model->UI notification channel).
+cmake_path(SET SHARED_INCLUDE ${CMAKE_CURRENT_LIST_DIR}/../../src)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/gfx gfx)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/ui ui)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/shell shell)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/notify notify)
+
+# TODO(ui-integration): the UI spec suite under tests/spec (gfx, ui, shell, notify, scenes, gui,
+# harness specs; CppSpec via cmake/deluge_specs.cmake) is not wired into this project. Its library
+# compiled src/bsp/host/host_script_tables.c and host_snapshot.c for the level-3 harness
+# cross-checks; those halves are re-hosted on golden_vt_render, and the BSP-free specs join here.
+# The C host BSP version is clean/ui-perf-1:tests/spec/CMakeLists.txt.
 add_subdirectory(spec)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../engine-api engine-api)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../engines engines)

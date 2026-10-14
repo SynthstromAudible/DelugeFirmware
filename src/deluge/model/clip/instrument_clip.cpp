@@ -57,6 +57,7 @@
 #include "util/const_functions.h"
 #include "util/exceptions.h"
 #include "util/firmware_version.h"
+#include "util/notify.h"
 #include "util/string.h"
 #include "util/try.h"
 #include <array>
@@ -3825,7 +3826,7 @@ bool InstrumentClip::isEmpty(bool displayPopup) {
 	// does this clip have notes?
 	if (containsAnyNotes()) {
 		if (displayPopup) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
+			deluge::notify::notice(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY);
 		}
 		return false;
 	}
@@ -3921,7 +3922,7 @@ bool InstrumentClip::beginChangeOutputType(ModelStackWithTimelineCounter* modelS
 Instrument* InstrumentClip::applyChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
                                                   const deluge::storage::AcquireResult& acquired) {
 	if (acquired.error != Error::NONE) {
-		display->displayError(acquired.error);
+		deluge::notify::notice(acquired.error);
 		return nullptr;
 	}
 	bool canReplaceWholeInstrument = modelStack->song->shouldOldOutputBeReplaced(this);
@@ -3965,6 +3966,8 @@ Instrument* InstrumentClip::finishChangeOutputType(ModelStackWithTimelineCounter
 	outputChanged(modelStack, newInstrument);
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E062", "H062");
 
+	// NOTIFY-DEFERRED: the working animation has no notice mapping yet, so it stays a direct
+	// display call.
 	display->removeWorkingAnimation();
 
 	return newInstrument;
@@ -4194,9 +4197,7 @@ haveNoDrum:
 void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,
                                            int32_t buttonLatencyForTempolessRecord) {
 
-	if (getRootUI() == &arrangerView) {
-		arrangerView.clipNeedsReRendering(this);
-	}
+	notify_content_changed();
 
 	InstrumentClip* newInstrumentClip = nullptr;
 	if (nextPendingLoop) {
@@ -4295,9 +4296,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 		isUnfinishedAutoOverdub = false;
 	}
 
-	if (getRootUI()) {
-		getRootUI()->clipNeedsReRendering(this); // Notes might have been lengthened - we'd better render it.
-	}
+	notify_content_changed(); // Notes might have been lengthened - we'd better render it.
 }
 
 Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature) {
@@ -4306,7 +4305,7 @@ Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStac
 	void* clipMemory = deluge::memory::alloc_fast(sizeof(InstrumentClip));
 	if (!clipMemory) {
 ramError:
-		display->displayError(Error::INSUFFICIENT_RAM);
+		deluge::notify::notice(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -4314,7 +4313,7 @@ ramError:
 
 	Error error = newParamManager.cloneParamCollectionsFrom(&paramManager, false, true);
 	if (error != Error::NONE) {
-		display->displayError(error);
+		deluge::notify::notice(error);
 		return nullptr;
 	}
 

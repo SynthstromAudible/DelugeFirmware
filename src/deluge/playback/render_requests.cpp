@@ -130,6 +130,8 @@ void songSwapInteractionSide(Song* outgoing, bool posted) {
 	deluge::gui::instrumentLoad.songMadeCurrent();
 	// More loading might need to happen now, or still be happening. The mode is also what moves a load waiting on an
 	// armed swap on to its finish (LoadSongUI's AWAIT_ARM phase).
+	// Shown directly, not queued as a notice: the swap's interaction side is the first interaction-tier entry after
+	// the swap, and the animation must already be up for whatever job runs next.
 	display->displayLoadingAnimationText("Loading");
 	currentUIMode = UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
 }

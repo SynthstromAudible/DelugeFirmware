@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/waveform/waveform_render_data.h"
+#include "model/sample/waveform_navigator.h"
 #include <cstdint>
 
 class Sample;
@@ -28,25 +28,37 @@ class SampleHolder;
 // This class supports basic navigation for samples not tied to a timeline - i.e. not AudioClips. Navigation is done and
 // thought about at the individual-sample level. This is used (but not inherited) by SampleMarkerEditor and
 // SampleBrowser
-
-class WaveformBasicNavigator {
+//
+// The navigation ARITHMETIC now lives in `deluge::sample::WaveformNav` (model/sample/waveform_navigator.h), which this
+// derives from: `sample`, `xScroll`, `xZoom`, `renderData`, `opened()`, `max_zoom()`, `is_zoomed_in()`, `scroll()` and
+// `adjust_scroll_position()` are all inherited unchanged. What stays here is the one thing that is not arithmetic --
+// the PadLEDs zoom TRANSITION ANIMATION -- which is why `zoom()` is redeclared below and shadows the base's.
+class WaveformBasicNavigator : public deluge::sample::WaveformNav {
 public:
-	WaveformBasicNavigator();
-	void opened(SampleHolder* range = nullptr);
-	int32_t getMaxZoom();
-	bool isZoomedIn();
+	WaveformBasicNavigator() = default;
 
+	/// @brief `WaveformNav::zoom` plus legacy's PadLEDs zoom transition.
+	///
+	/// Shadows (does not override -- the base is not polymorphic) `WaveformNav::zoom`. Every legacy
+	/// caller reaches this through the `waveformBasicNavigator` global, whose static type is this
+	/// class, so they all get the animation; a `deluge::sample::WaveformNav` of one's own -- which
+	/// is what `scenes/marker/` holds -- gets the arithmetic alone.
+	/// @param offset                      Signed detents; >= 0 zooms in.
+	/// @param shouldAllowExtraScrollRight Allow scrolling past the end of the waveform.
+	/// @param cols                        Marker columns, or null.
+	/// @param markerType                  Which marker to prefer pinning.
+	/// @return False when the zoom was refused; no animation is started in that case.
 	bool zoom(int32_t offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = nullptr,
 	          MarkerType markerType = MarkerType::NONE);
-	bool scroll(int32_t offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = nullptr);
-	void potentiallyAdjustScrollPosition(bool shouldAllowExtraScrollRight = false);
 
-	Sample* sample{};
-
-	int64_t xZoom{};
-	int64_t xScroll{};
-
-	WaveformRenderData renderData;
+	/// @brief `WaveformNav::max_zoom()`, under legacy's spelling.
+	int32_t getMaxZoom() { return max_zoom(); }
+	/// @brief `WaveformNav::is_zoomed_in()`, under legacy's spelling.
+	bool isZoomedIn() { return is_zoomed_in(); }
+	/// @brief `WaveformNav::adjust_scroll_position()`, under legacy's spelling.
+	void potentiallyAdjustScrollPosition(bool shouldAllowExtraScrollRight = false) {
+		adjust_scroll_position(shouldAllowExtraScrollRight);
+	}
 };
 
 extern WaveformBasicNavigator waveformBasicNavigator;

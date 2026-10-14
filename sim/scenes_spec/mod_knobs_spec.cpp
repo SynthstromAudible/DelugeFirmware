@@ -1,0 +1,1410 @@
+/// @file
+/// @brief `services::ModKnobs` -- driven against the real legacy it ports, `View::modEncoderAction`
+///        and friends (`gui/views/view.cpp`), on a real `Song` built by `support/song_fixture.h`.
+///
+/// @par The oracle, and why it is the model and not the port's report of it
+///
+/// The central example here (`writes the model exactly as legacy does`) does **not** ask
+/// `ModKnobs` what it did. It reads the resulting `ParamManager` -- every value in both param sets,
+/// by identity -- and compares it against the `ParamManager` legacy left behind after the same
+/// turn. The two sides run on **two different clips**, each with its own `SoundInstrument` and its
+/// own param manager, seeded by its own explicit write; there is no shared state for a
+/// "port stored nothing" bug to hide in, and the example additionally asserts that the model
+/// *moved* on both sides, so a port that wrote nothing fails on the equality and on the movement.
+/// That is E2's blindness lesson applied: deleting `menu::mod_encoder_turn`'s
+/// `setValuePossiblyForRegion` call turns this example red (see the task-2 report's mutation
+/// table).
+///
+/// @par What this spec counts as uncovered (oracle discipline)
+///
+///   * **The popup's performance-view and song-browser suppression arms** (`view.cpp:886-891`,
+///     `:885`). `PerformanceScene` does not exist and the song browser is not among the legacy UIs
+///     `BrowserScene` carries, so there is no port-side state that could make either fire. See
+///     `ModKnobs::popup_suppressed`.
+///   * **`PopupContext::stuttering`**. Nothing in the port owns the stutter gesture yet, so no
+///     caller can set it true and legacy's `isUIModeActive(UI_MODE_STUTTERING)` half of the
+///     rate-bucket guard is never exercised from this side.
+///   * **`PopupContext::midi_instrument`, the MIDI-clip CC/expression naming arm**
+///     (`view.cpp:1139-1163`). Reachable now -- widening `show()` is what made it so -- but not
+///     driven: a bare MIDI fixture's gold knobs resolve through
+///     `MIDIInstrument::getParamFromModEncoder` (`model/instrument/midi_instrument.cpp:156-169`),
+///     whose default CC assignment yields no `autoParam`, so `mod_encoder_turn` takes the
+///     non-existent-param arm and no popup is shown at all. Covering it needs a fixture that
+///     assigns a mod-knob CC, which is more MIDI-clip setup than this task owns. The
+///     `ModControllableAudio*` half of the same widening IS driven, below.
+///   * **`ModKnobs::notify_param_automation_occurred`'s `DISPLAY_AUTOMATION` consumer.** Legacy's
+///     timer callback is `automationView.displayAutomation()` / `view.displayAutomation()`
+///     (`gui/ui_timer_manager.cpp:157-171`), both view-side and not ported; only the *arming* is
+///     compared here.
+
+#include "scenes/menu/context.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/menu/node.h"
+#include "scenes/menu/node_id.h"
+#include "scenes/overlay/param_popup_scene.h"
+#include "scenes/registry.h"
+#include "scenes/services/mod_knobs.h"
+
+#include "shell/input_lowering.h"
+#include "shell/profiles/deluge.h"
+#include "shell/router.h"
+#include "shell/scene_stack.h"
+
+#include "gui/l10n/l10n.h"
+#include "gui/l10n/strings.h"
+#include "gui/views/view.h"
+#include "hid/display/display.h"
+#include "hid/led/indicator_leds.h"
+#include "model/clip/instrument_clip.h"
+#include "model/mod_controllable/filters/filter_config.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/song/song.h"
+#include "modulation/params/param.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_instrument.h"
+#include "storage/storage_manager.h"
+
+#include "spec/shell/support/fake_surfaces.h"
+#include "support/song_fixture.h"
+
+#include "cppspec.hpp"
+
+#include <array>
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "spec/support/spec_main.h"
+
+using namespace deluge::scenes;
+using deluge::modulation::params::Kind;
+using deluge::scenes::services::ModKnobs;
+using deluge::ui::EncoderRole;
+using deluge::ui::shell::BoardProfile;
+using deluge::ui::shell::ButtonId;
+using deluge::ui::shell::deluge_profile;
+using deluge::ui::shell::InputLowering;
+using deluge::ui::shell::Result;
+using deluge::ui::shell::Router;
+using deluge::ui::shell::Scene;
+using deluge::ui::shell::SceneId;
+using deluge::ui::shell::SceneKind;
+using deluge::ui::shell::SceneRegistry;
+using deluge::ui::shell::SceneStack;
+using deluge::ui::shell::Service;
+using deluge::ui::shell::Services;
+using deluge::ui::shell::UiContext;
+using deluge::ui::shell::UiEvent;
+
+namespace {
+
+/// `Action` unqualified is the model's own undo `Action`, reachable through `gui/views/view.h`'s
+/// `model/model_stack.h`; the shell's is a different type with the same name (every other spec in
+/// this directory makes the same alias for the same reason).
+using ShellAction = deluge::ui::shell::Action;
+
+/// @brief The minimum `Display` legacy's popup needs; `display` is null in a spec process
+///        (`hid/display/display.cpp:4`) and `View::displayModEncoderValuePopup` dereferences it.
+///
+/// The popup's *pixels* are `param_popup_spec.cpp`'s subject, driven against the real
+/// `OLED::displayNotification`; what this records is the one thing that spec cannot reach, the
+/// parameter *name* legacy chose for a MIDI clip -- see the `PopupContext` example below.
+struct StubDisplay final : deluge::hid::Display {
+	int notifications = 0;
+	std::string last_title;
+	bool showing = false;
+
+	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
+	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
+	void popupText(char const*, PopupType) override {}
+	void popupTextTemporary(char const*, PopupType) override {}
+	void cancelPopup() override {}
+	void freezeWithError(char const*) override {}
+	void displayError(Error) override {}
+	void removeWorkingAnimation() override {}
+	void displayLoadingAnimationText(char const*, bool, bool) override {}
+	void removeLoadingAnimation() override {}
+	bool hasPopup() override { return showing; }
+	bool hasPopupOfType(PopupType type) override { return showing && type == PopupType::NOTIFICATION; }
+	void consoleText(char const*) override {}
+	void timerRoutine() override {}
+	void displayNotification(std::string_view title, std::optional<std::string_view>) override {
+		last_title = title;
+		showing = true;
+		notifications++;
+	}
+};
+
+/// @brief A second (or third) default synth clip in @p song -- `make_synth_song`'s own recipe
+///        (`song_fixture.h`, `song.cpp:378-403`'s `couldntLoad` branch), applied again.
+///
+/// The two-clip shape is the point: legacy and the port each get a clip of their own, so neither
+/// can read the other's model.
+/// @param song The song to add to.
+/// @param name The instrument's slot name; two instruments in one song must not share one.
+/// @return The new clip.
+InstrumentClip* add_synth_clip(Song* song, const char* name) {
+	InstrumentClip* clip = spec::detail::make_session_clip(song);
+	ParamManagerForTimeline params;
+	auto* synth = static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &params));
+	synth->dirPath = "SYNTHS";
+	synth->name = name;
+	synth->setupAsDefaultSynth(&params);
+	spec::detail::attach(song, clip, synth, params);
+	return clip;
+}
+
+/// @brief Every stored param value in @p pm, by identity: the patched set then the unpatched set.
+///
+/// The model-side readback the central example compares. `ParamSet::getValue`
+/// (`modulation/params/param_set.h:45`) is `AutoParam::getCurrentValue()` -- what is actually in
+/// the model, not what either side reported having put there.
+/// @param pm The param manager to read.
+/// @return One entry per param, patched set first.
+std::vector<int32_t> param_snapshot(ParamManagerForTimeline& pm) {
+	std::vector<int32_t> out;
+	if (PatchedParamSet* patched = pm.getPatchedParamSet(); patched != nullptr) {
+		for (int32_t i = 0; i < patched->getNumParams(); i++) {
+			out.push_back(patched->getValue(i));
+		}
+	}
+	if (UnpatchedParamSet* unpatched = pm.getUnpatchedParamSet(); unpatched != nullptr) {
+		for (int32_t i = 0; i < unpatched->getNumParams(); i++) {
+			out.push_back(unpatched->getValue(i));
+		}
+	}
+	return out;
+}
+
+/// @brief How many entries of @p a and @p b differ.
+/// @param a One snapshot.
+/// @param b The other, of the same length.
+/// @return The number of differing entries, or -1 if the lengths disagree.
+int32_t differences(const std::vector<int32_t>& a, const std::vector<int32_t>& b) {
+	if (a.size() != b.size()) {
+		return -1;
+	}
+	int32_t n = 0;
+	for (size_t i = 0; i < a.size(); i++) {
+		n += (a[i] != b[i]) ? 1 : 0;
+	}
+	return n;
+}
+
+/// @brief Write @p value into every param of @p pm -- this side's own explicit sentinel.
+///
+/// Not "whatever `setupAsDefaultSynth` left": each side seeds its own model to a known,
+/// non-default starting point through its own write, so neither the starting point nor the
+/// expectation is derived from the other side's state.
+/// @param pm    The param manager to seed.
+/// @param value The value to write into every param.
+void seed_params(ParamManagerForTimeline& pm, int32_t value) {
+	if (PatchedParamSet* patched = pm.getPatchedParamSet(); patched != nullptr) {
+		for (int32_t i = 0; i < patched->getNumParams(); i++) {
+			patched->params[i].setCurrentValueBasicForSetup(value);
+		}
+	}
+	if (UnpatchedParamSet* unpatched = pm.getUnpatchedParamSet(); unpatched != nullptr) {
+		for (int32_t i = 0; i < unpatched->getNumParams(); i++) {
+			unpatched->params[i].setCurrentValueBasicForSetup(value);
+		}
+	}
+}
+
+/// @name The legacy LED/indicator oracle
+///
+/// `indicator_leds` is the *only* thing legacy's `setModLedStates`/`setKnobIndicatorLevel` produce
+/// output through, and in the host BSP both sinks keep a shadow of what they were last handed
+/// (`src/bsp/host/host_bsp.c:747-750`, written by `deluge_control_set_led` at `:782-790` and
+/// `deluge_control_set_indicator` at `:791-805`). That shadow is this spec's oracle: it is what
+/// legacy actually put on the hardware, not a re-derivation of what it meant to.
+///
+/// Declared rather than included: `host_script.h` lives under `src/bsp/host`, which is on this
+/// target's link line but not on its include path, and two `extern "C"` lines are cheaper -- and
+/// more explicit about the dependency -- than another include directory.
+/// @{
+extern "C" const uint8_t* host_script_led_shadow(void);
+extern "C" const uint8_t* host_script_ring_shadow(uint8_t which);
+/// @}
+
+/// @brief What legacy's LED layer is currently saying about one mod button's LED.
+///
+/// Two facts, because `LedState` distinguishes three cases and the shadow only distinguishes two:
+/// `indicator_leds::blinkLed` (`hid/led/indicator_leds.cpp:54-95`) both registers a blinker *and*
+/// drives the shadow to its `initialState`, so "lit" alone cannot tell a steady LED from a
+/// blinking one. `getLedBlinkerIndex` (`:150-157`) is the other half.
+struct LegacyLed {
+	bool lit = false;
+	bool blinking = false;
+	bool operator==(const LegacyLed&) const = default;
+};
+
+/// @brief Read mod button @p i's LED out of legacy's own output.
+/// @param i 0..7.
+LegacyLed legacy_mod_led(int32_t i) {
+	const IndicatorLED led = indicator_leds::modLed[i];
+	return LegacyLed{host_script_led_shadow()[static_cast<uint8_t>(led)] != 0,
+	                 indicator_leds::getLedBlinkerIndex(led) != 255};
+}
+
+/// @brief The same two facts, read out of a port `LedFrame`'s declaration for mod button @p i.
+///
+/// By identity: the entry must be *present* (a missing declaration is a defect, not an "off"), and
+/// its `LedState::Kind` is compared against legacy's lit/blinking pair rather than against a count.
+/// @param frame The composed frame.
+/// @param i     0..7.
+/// @return The port's answer, or `std::nullopt` when nothing declared that LED.
+std::optional<LegacyLed> port_mod_led(const deluge::ui::LedFrame& frame, int32_t i) {
+	const auto want = static_cast<deluge::ui::LedId>(static_cast<uint8_t>(ButtonId::Mod0) + i);
+	for (const auto& [id, state] : frame.entries()) {
+		if (id != want) {
+			continue;
+		}
+		switch (state.kind) {
+		case deluge::ui::LedState::Kind::Off:
+			return LegacyLed{false, false};
+		case deluge::ui::LedState::Kind::On:
+			return LegacyLed{true, false};
+		case deluge::ui::LedState::Kind::Blink:
+			// `blinkLed`'s default `initialState` is true (`indicator_leds.h:86`), and
+			// `shell/leds.h`'s `led_is_on` reads phase 0 of a blink as lit too, so a freshly
+			// declared blink is lit on both sides.
+			return LegacyLed{true, true};
+		}
+	}
+	return std::nullopt;
+}
+
+/// @brief The four segment brightnesses legacy last sent for knob @p which, or `nullptr`.
+const uint8_t* legacy_indicator(int32_t which) {
+	return host_script_ring_shadow(static_cast<uint8_t>(which));
+}
+
+/// @brief Force legacy's indicator cache to miss, so the next real level is actually sent.
+///
+/// `indicator_leds::actuallySetKnobIndicatorLevel` returns early when the level *and* the polarity
+/// both match what it last sent (`indicator_leds.cpp:186-189`). A comparison that ran twice with
+/// the same value would still be reading the right bytes, but a comparison run after this one is
+/// only meaningful if the shadow was written for *this* call -- so each side is preceded by a poke
+/// with a level no fixture here produces.
+void poke_legacy_indicator(int32_t which) {
+	indicator_leds::actuallySetKnobIndicatorLevel(static_cast<uint8_t>(which), 251, false);
+}
+
+/// @brief A `UiContext` for a directly-invoked `handle()` call: no lowering, no held buttons.
+struct DirectCtx {
+	deluge::ui::shell::ButtonSet held{};
+	deluge::ui::PadMask pads{};
+	UiContext ctx;
+	explicit DirectCtx(uint32_t now_ms = 0) : ctx{held, pads, false, false, now_ms, deluge_profile()} {}
+};
+
+/// A gold-knob turn event.
+UiEvent gold_turn(EncoderRole role, int8_t delta) {
+	UiEvent e{};
+	e.kind = UiEvent::Kind::Encoder;
+	e.encoder = role;
+	e.delta = delta;
+	return e;
+}
+
+/// An encoder-button event -- the shape `InputLowering` emits for `ButtonId::ModEnc0`/`ModEnc1`
+/// and `SelectEnc` (`shell/input_lowering.cpp:42-53`, `:300`).
+UiEvent encoder_button_event(ButtonId b, bool on) {
+	UiEvent e{};
+	e.kind = UiEvent::Kind::EncoderButton;
+	e.button = b;
+	e.on = on;
+	return e;
+}
+
+/// A plain button event.
+UiEvent button_event(ButtonId b, bool on) {
+	UiEvent e{};
+	e.kind = UiEvent::Kind::Button;
+	e.button = b;
+	e.on = on;
+	return e;
+}
+
+/// @brief A scene that counts what it was handed and claims everything, unless told not to.
+///
+/// `claim` is what makes this rig able to stand in for both sides of legacy's dispatch: a UI that
+/// *overrides* `modEncoderAction`/`modButtonAction` (claim = true) and one that inherits `UI`'s
+/// base implementation and so drops through to `view` (claim = false, the router's `mod_knobs`
+/// step).
+class RecordingScene final : public Scene {
+public:
+	SceneKind kind() const override { return SceneKind::FirstApp; }
+	Result handle(const UiEvent& event, const UiContext&) override {
+		calls++;
+		last = event;
+		Result r;
+		r.handled = claim;
+		return r;
+	}
+	bool claim = true;
+	int calls = 0;
+	UiEvent last{};
+};
+
+/// @brief A `Service` that counts what the router hands it and claims nothing.
+class RecordingService final : public Service {
+public:
+	Result handle(const UiEvent& event, const UiContext&) override {
+		calls++;
+		last = event;
+		return Result::unhandled();
+	}
+	int calls = 0;
+	UiEvent last{};
+};
+
+/// @brief The stack, lowering and router the routing examples share.
+struct RouteRig {
+	RecordingScene scene;
+	std::array<Scene*, 17> table{};
+	SceneRegistry reg{};
+	SceneStack stack{reg};
+	RecordingService mod_knobs;
+	InputLowering lowering{deluge_profile(), {}};
+	Router router{stack, Services{&mod_knobs}, lowering};
+
+	RouteRig() {
+		table[16] = &scene;
+		reg.by_kind = std::span<Scene* const>{table};
+		(void)stack.push({SceneKind::FirstApp});
+	}
+	RouteRig(const RouteRig&) = delete;
+	RouteRig& operator=(const RouteRig&) = delete;
+
+	UiContext ctx() const {
+		return UiContext{lowering.held(),   lowering.held_pads(),       lowering.shift(),
+		                 lowering.sticky(), lowering.snapshot().now_ms, lowering.profile(),
+		                 &lowering};
+	}
+};
+
+// ---------------------------------------------------------------------------------------------
+// A one-column horizontal page bound to `LOCAL_LPF_RESONANCE` -- `modKnobs[1][0]`'s param
+// (`processing/sound/sound.cpp:98`), which is what `GoldLower` actually edits on the
+// `SoundInstrument` `spec::make_synth_song()` builds: measured (not assumed) against the fixture's
+// own default mod-knob mode, which is 1 (the FILTER page), not 0. Built to test
+// `ModKnobs::popup_suppressed`'s horizontal-page forwarding (`mod_knobs.cpp:342`): the menu's own
+// focused *column*, not the page node, is what the same-param guard has to compare against.
+namespace mod_knobs_spec_nodes {
+inline constexpr deluge::scenes::menu::Node res_col = deluge::scenes::menu::param(
+    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESONANCE),
+    {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_RESONANCE});
+inline constexpr const deluge::scenes::menu::Node* kResPageChildren[] = {&res_col};
+inline constexpr deluge::scenes::menu::Node res_page =
+    deluge::scenes::menu::submenu(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_LPF), kResPageChildren,
+                                  deluge::scenes::menu::Layout::Horizontal);
+inline constexpr const deluge::scenes::menu::Node* kRoots[] = {&res_page};
+} // namespace mod_knobs_spec_nodes
+
+/// @brief A live `ModKnobs` over a real (empty) scene stack and a real `InputLowering`.
+struct KnobRig {
+	SceneRegistry reg = scene_registry();
+	SceneStack stack{reg};
+	InputLowering lowering{deluge_profile(), {}};
+	ModKnobs knobs{overlay::param_popup_scene(), stack, lowering};
+
+	KnobRig() = default;
+	KnobRig(const KnobRig&) = delete;
+	KnobRig& operator=(const KnobRig&) = delete;
+
+	/// Leave the stack empty again: the popup scene is a process singleton, so a pushed one would
+	/// leak into the next example (E3 task 10's cross-contamination lesson).
+	~KnobRig() {
+		while (stack.depth() > 0) {
+			stack.pop(SceneKind::Null);
+		}
+	}
+};
+
+} // namespace
+
+// clang-format off
+describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
+
+	// Legacy's param naming resolves l10n strings, and nothing here boots the app, so
+	// `l10n::chosenLanguage` is otherwise left null (`gui/l10n/l10n.cpp:6`) and
+	// `getParamDisplayName` dereferences it -- the same `before_all` every other spec in this
+	// directory needs, for the same reason.
+	before_all([] { deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english; });
+
+	it("clamps a turn exactly as View::calculateKnobPosForModEncoderTurn does", _ {
+		// The pure half, compared against the live legacy function for every kind that branches in
+		// it and every edge the clamp has. Both sides are mutation-proved in the task report.
+		const Kind kinds[] = {Kind::PATCH_CABLE, Kind::MIDI, Kind::PATCHED, Kind::UNPATCHED_SOUND,
+		                      Kind::UNPATCHED_GLOBAL, Kind::EXPRESSION, Kind::NONE};
+		const int32_t positions[] = {-256, -192, -193, -64, -65, -1, 0, 1, 62, 63, 64, 65};
+		const int32_t offsets[] = {-40, -5, -1, 0, 1, 5, 40};
+
+		int32_t compared = 0;
+		for (const Kind kind : kinds) {
+			for (const int32_t pos : positions) {
+				for (const int32_t offset : offsets) {
+					const int32_t legacy = view.calculateKnobPosForModEncoderTurn(kind, pos, offset);
+					const int32_t port = ModKnobs::calculate_knob_pos_for_mod_encoder_turn(kind, pos, offset);
+					if (legacy != port) {
+						// Name the disagreeing triple rather than just "false is not true".
+						const std::string where = "kind=" + std::to_string(static_cast<int>(kind))
+						                        + " pos=" + std::to_string(pos)
+						                        + " offset=" + std::to_string(offset);
+						expect(where + " port=" + std::to_string(port)
+						       + " legacy=" + std::to_string(legacy)).to_equal(where);
+					}
+					compared++;
+				}
+			}
+		}
+		expect(compared).to_equal(int32_t(7 * 12 * 7));
+	});
+
+	it("folds a patch cable's position exactly as View::convertPatchCableKnobPosToIndicatorLevel does", _ {
+		for (int32_t pos = -192; pos <= 192; pos++) {
+			const int32_t legacy = view.convertPatchCableKnobPosToIndicatorLevel(pos);
+			const int32_t port = ModKnobs::convert_patch_cable_knob_pos_to_indicator_level(pos);
+			if (legacy != port) {
+				expect("pos=" + std::to_string(pos) + " port=" + std::to_string(port)).to_equal(
+				    "pos=" + std::to_string(pos) + " legacy=" + std::to_string(legacy));
+			}
+		}
+	});
+
+	it("writes the model exactly as legacy's View::modEncoderAction does, each side on its own clip", _ {
+		StubDisplay stub;
+		display = &stub;
+		AudioEngine::audioSampleTimer = 0;
+
+		spec::SongFixture f = spec::make_synth_song();
+		InstrumentClip* legacy_clip = f.clip;
+		InstrumentClip* port_clip = add_synth_clip(f.song, "1");
+
+		// Each side seeds its own model, through its own write, to the same known non-default
+		// starting point. `0` is a real, reachable param value and not the default any of these
+		// params carries, so "the model moved" below is a real observation.
+		constexpr int32_t kStart = 0;
+		seed_params(legacy_clip->paramManager, kStart);
+		seed_params(port_clip->paramManager, kStart);
+
+		const std::vector<int32_t> legacy_before = param_snapshot(legacy_clip->paramManager);
+		const std::vector<int32_t> port_before = param_snapshot(port_clip->paramManager);
+		// The two sides really do start identical -- otherwise the comparison below proves nothing.
+		expect(differences(legacy_before, port_before)).to_equal(int32_t(0));
+		expect(legacy_before.empty()).to_be_false();
+
+		// Legacy, through its own entry points.
+		view.setActiveModControllableTimelineCounter(legacy_clip, false);
+		view.setModRegion();
+		view.modEncoderAction(0, 5);
+
+		// The port, through its own -- a routed gold-knob turn on the LOWER knob, which is mod
+		// encoder 0 (`hid/encoders.h:80-81`).
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(port_clip, false);
+		rig.knobs.set_mod_region();
+		DirectCtx c{1000};
+		const Result r = rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), c.ctx);
+
+		const std::vector<int32_t> legacy_after = param_snapshot(legacy_clip->paramManager);
+		const std::vector<int32_t> port_after = param_snapshot(port_clip->paramManager);
+
+		// Legacy moved the model; so did the port; and they agree, param for param, by identity.
+		expect(differences(legacy_before, legacy_after)).to_equal(int32_t(1));
+		expect(differences(port_before, port_after)).to_equal(int32_t(1));
+		expect(differences(legacy_after, port_after)).to_equal(int32_t(0));
+
+		// A gold-knob turn is consumed here, exactly as `interpretEncoders` consumes it.
+		expect(r.handled).to_be_true();
+	});
+
+	it("takes the non-existent-param arm without writing anything, as legacy does", _ {
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		InstrumentClip* legacy_clip = f.clip;
+		InstrumentClip* port_clip = add_synth_clip(f.song, "1");
+		seed_params(legacy_clip->paramManager, 0);
+		seed_params(port_clip->paramManager, 0);
+
+		const std::vector<int32_t> legacy_before = param_snapshot(legacy_clip->paramManager);
+		const std::vector<int32_t> port_before = param_snapshot(port_clip->paramManager);
+
+		// A `Sound` in mod-knob mode 0 has a real param on both knobs, so the way to reach the
+		// non-existent arm without inventing a `ModControllable` is the target with no controllable
+		// at all -- `view.cpp:841`'s test, which skips the whole body on both sides.
+		view.setActiveModControllableTimelineCounter(nullptr, false);
+		view.modEncoderAction(0, 5);
+
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(nullptr, false);
+		DirectCtx c{1000};
+		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), c.ctx);
+
+		expect(rig.knobs.target().mod_controllable == nullptr).to_be_true();
+		expect(differences(legacy_before, param_snapshot(legacy_clip->paramManager))).to_equal(int32_t(0));
+		expect(differences(port_before, param_snapshot(port_clip->paramManager))).to_equal(int32_t(0));
+	});
+
+	it("points at what View::setActiveModControllableTimelineCounter points at", _ {
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		InstrumentClip* clip = f.clip;
+
+		view.setActiveModControllableTimelineCounter(clip, false);
+
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(clip, false);
+
+		// The five resolved fields, by identity against legacy's own resolved stack.
+		expect(rig.knobs.target().timeline_counter
+		       == view.activeModControllableModelStack.getTimelineCounterAllowNull()).to_be_true();
+		expect(rig.knobs.target().mod_controllable
+		       == view.activeModControllableModelStack.modControllable).to_be_true();
+		expect(rig.knobs.target().param_manager
+		       == view.activeModControllableModelStack.paramManager).to_be_true();
+		expect(rig.knobs.target().note_row
+		       == view.activeModControllableModelStack.getNoteRowAllowNull()).to_be_true();
+		expect(rig.knobs.target().note_row_id).to_equal(view.activeModControllableModelStack.noteRowId);
+
+		// And it really did resolve something, so the five equalities above are not all "null == null".
+		expect(rig.knobs.target().mod_controllable != nullptr).to_be_true();
+		expect(rig.knobs.target().param_manager != nullptr).to_be_true();
+
+		// `getModKnobMode` agrees too.
+		expect(rig.knobs.mode()).to_equal(view.getModKnobMode());
+	});
+
+	it("points at what View::setActiveModControllableWithoutTimelineCounter points at", _ {
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		// A bare `ModControllable` with no timeline: the clip's own `SoundInstrument` (a `Sound`,
+		// which is a `ModControllable`) plus the clip's param manager -- the shape legacy's
+		// audition/arranger callers pass.
+		ModControllable* controllable = static_cast<SoundInstrument*>(f.instrument);
+		ParamManager* params = &f.clip->paramManager;
+
+		view.setActiveModControllableWithoutTimelineCounter(controllable, params);
+
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_without_timeline(controllable, params);
+
+		expect(rig.knobs.target().timeline_counter == nullptr).to_be_true();
+		expect(view.activeModControllableModelStack.timelineCounterIsSet()).to_be_false();
+		expect(rig.knobs.target().mod_controllable == view.activeModControllableModelStack.modControllable)
+		    .to_be_true();
+		expect(rig.knobs.target().param_manager == view.activeModControllableModelStack.paramManager).to_be_true();
+		expect(rig.knobs.target().note_row == nullptr).to_be_true();
+	});
+
+	it("records the mod region legacy records", _ {
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		view.setModRegion(1234, 56, 7);
+
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		rig.knobs.set_mod_region(1234, 56, 7);
+
+		expect(rig.knobs.target().mod_pos).to_equal(view.modPos);
+		expect(rig.knobs.target().mod_length).to_equal(view.modLength);
+		expect(rig.knobs.target().mod_note_row_id).to_equal(view.modNoteRowId);
+
+		// And the defaulted call is legacy's defaulted call (`view.h:81`).
+		view.setModRegion();
+		rig.knobs.set_mod_region();
+		expect(rig.knobs.target().mod_pos).to_equal(view.modPos);
+		expect(rig.knobs.target().mod_length).to_equal(view.modLength);
+	});
+
+	it("accelerates a repeated turn through InputLowering::calc_next_knob_speed", _ {
+		// The carry item E1 opened and this task closes. `calc_next_knob_speed` itself is pinned by
+		// `tests/spec/shell/input_lowering_spec.cpp` against the legacy arithmetic; what is checked
+		// here is that `ModKnobs` is the consumer legacy's `hid/encoder_input.cpp:192` is -- i.e.
+		// that a fast repeat moves the model further than a slow one does.
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		InstrumentClip* slow_clip = f.clip;
+		InstrumentClip* fast_clip = add_synth_clip(f.song, "1");
+		seed_params(slow_clip->paramManager, 0);
+		seed_params(fast_clip->paramManager, 0);
+
+		// Slow: each turn is a second apart, past `reset_speed_time_threshold` (0.3s), so the ramp
+		// resets every time and the multiplier stays at its 1.0 floor.
+		{
+			KnobRig rig;
+			rig.knobs.set_song(f.song);
+			rig.knobs.set_target_with_timeline(slow_clip, false);
+			rig.knobs.set_mod_region();
+			for (uint32_t i = 0; i < 4; i++) {
+				DirectCtx c{1000 + i * 1000};
+				(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
+			}
+		}
+		// Fast: the same four turns, 10ms apart, all in the same direction -- the ramp builds.
+		{
+			KnobRig rig;
+			rig.knobs.set_song(f.song);
+			rig.knobs.set_target_with_timeline(fast_clip, false);
+			rig.knobs.set_mod_region();
+			for (uint32_t i = 0; i < 4; i++) {
+				DirectCtx c{1000 + i * 10};
+				(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
+			}
+		}
+
+		const std::vector<int32_t> slow = param_snapshot(slow_clip->paramManager);
+		const std::vector<int32_t> fast = param_snapshot(fast_clip->paramManager);
+		expect(differences(slow, fast) > 0).to_be_true();
+
+		// Both moved the same single param, and the accelerated side moved it further.
+		int32_t moved = -1;
+		for (size_t i = 0; i < slow.size(); i++) {
+			if (slow[i] != fast[i]) {
+				moved = static_cast<int32_t>(i);
+			}
+		}
+		expect(moved >= 0).to_be_true();
+		// Guarded rather than indexed straight: a failure above must report as a failure, not as a
+		// libstdc++ bounds assertion that takes the whole process (and every later example) down.
+		if (moved >= 0) {
+			expect(fast[static_cast<size_t>(moved)] > slow[static_cast<size_t>(moved)]).to_be_true();
+		}
+	});
+
+	it("shows the value popup and pushes it exactly once, however many turns arrive", _ {
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		rig.knobs.set_mod_region();
+
+		expect(rig.stack.depth()).to_equal(size_t(0));
+		for (uint32_t i = 0; i < 5; i++) {
+			DirectCtx c{2000 + i * 200};
+			(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
+		}
+		expect(rig.stack.depth()).to_equal(size_t(1));
+		expect(rig.stack.id_at(0).kind == overlay::kParamPopupSceneKind).to_be_true();
+		expect(overlay::param_popup_scene().remaining_ms() > 0).to_be_true();
+	});
+
+	it("suppresses the popup when the menu is focused on a horizontal page's same-param column",
+	   _ {
+		// `ModKnobs::popup_suppressed` (`scenes/services/mod_knobs.cpp:342`) now compares against
+		// `MenuScene::focused_value()`, not `focused()`: legacy's same-param test forwards through a
+		// horizontal page to the focused *column* (`Submenu::getParamKind`/`getParamIndex`,
+		// `gui/menu_item/submenu.cpp:205-219`, both gated on `shouldForwardButtons`, `:181-185`),
+		// and the page node itself has no `bind.param` to ever match against -- so the un-fixed
+		// version could never suppress on a horizontal page, only on a full-page leaf. `GoldLower`
+		// edits `LOCAL_LPF_RESONANCE` on this fixture (see
+		// `mod_knobs_spec_nodes`'s own note), which `res_page`'s one column is bound to, so this is
+		// `LOCAL_LPF_RESONANCE` on both sides of the comparison.
+		StubDisplay stub;
+		display = &stub;
+		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+
+		spec::SongFixture f = spec::make_synth_song();
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		rig.knobs.set_mod_region();
+
+		const menu::MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		(void)menu::assign_node_ids(mod_knobs_spec_nodes::kRoots);
+		menu_scene().open(mod_knobs_spec_nodes::res_page, ctx);
+		expect(rig.stack.push(SceneId{SceneKind::FirstApp, menu::node_id(mod_knobs_spec_nodes::res_page)}))
+		    .to_be_true();
+		expect(rig.stack.depth()).to_equal(size_t(1));
+		expect(menu_scene().focused_value() == &mod_knobs_spec_nodes::res_col).to_be_true();
+
+		for (uint32_t i = 0; i < 5; i++) {
+			DirectCtx c{2000 + i * 200};
+			(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
+		}
+		// No popup pushed: the stack still holds only the menu.
+		expect(rig.stack.depth()).to_equal(size_t(1));
+	});
+
+	it("files an OLED repaint for every COMMITTED popup update, not only the first", _ {
+		// **The defect E4 task 13's level-2 golden found, pinned at the unit level.**
+		// `ParamPopupScene::show` writes the popup's text; legacy's counterpart,
+		// `display->displayNotification(...)` at `view.cpp:1262`, writes AND blits. The scene has no
+		// `Result` of its own to file a repaint in (`show()` is not a `Scene::handle`) and its
+		// `next_timer()` while showing is the popup's whole 2000 ms lifetime -- so without this
+		// action the panel keeps the value it had when the popup opened, and the next OLED frame is
+		// the one that draws the popup disappearing. A gold knob turned slowly showed a stale value
+		// for two seconds; the *fast* path did not, because the throttled arm arms
+		// `pending_flush_remaining_ms_` and `timer_repaints()` names `{.oled = true}`. So it was the
+		// immediate-commit arm alone.
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		rig.knobs.set_mod_region();
+
+		// **`ParamPopupScene` is a process singleton and the example above legitimately left it
+		// showing.** Driven to its own expiry through its own `tick()` rather than by reaching into
+		// its fields, so this example starts from the state a fresh boot has: nothing showing, and
+		// therefore an arbitration that cannot refuse the first commit. Without it the leftover
+		// `last_display_value_` can make the first turn take the same-param-refresh arm and this
+		// example asserts about the previous one's state.
+		expect(overlay::param_popup_scene().remaining_ms() > 0).to_be_true();
+		overlay::param_popup_scene().tick(3000);
+		expect(overlay::param_popup_scene().remaining_ms()).to_equal(uint32_t{0});
+
+		const auto repaints_main = [](const Result& r) {
+			int32_t n = 0;
+			for (const ShellAction& a : r.actions) {
+				if (a.kind == ShellAction::Kind::Repaint && a.surface == deluge::ui::shell::SurfaceRole::Main) {
+					n++;
+				}
+			}
+			return n;
+		};
+
+		// The first turn commits (nothing is showing, so the arbitration cannot refuse) and pushes.
+		DirectCtx first{2000};
+		const Result r1 = rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), first.ctx);
+		expect(repaints_main(r1)).to_equal(int32_t{1});
+
+		// A LATER turn, far enough apart that `kMinUpdateIntervalMs` (45 ms) has elapsed, so this
+		// takes the immediate-commit arm too -- the arm that used to file nothing. `kMinDisplayOwnership`
+		// does not bite: it is the same param, so `current_param_owns_display` is true.
+		DirectCtx second{2500};
+		const Result r2 = rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), second.ctx);
+		expect(repaints_main(r2)).to_equal(int32_t{1});
+		// It really was a commit and not a refresh: the shown value moved.
+		const std::string moved{overlay::param_popup_scene().shown_value()};
+
+		// And a turn that changes NOTHING files nothing: `has_param_info_changed` is false, the
+		// arbitration takes its same-param-refresh arm, no pixel changes, no repaint is owed. This is
+		// the half that makes the assertion above a mapping rather than "always file one".
+		DirectCtx third{3000};
+		const Result r3 = rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 0), third.ctx);
+		expect(repaints_main(r3)).to_equal(int32_t{0});
+		expect(std::string(overlay::param_popup_scene().shown_value())).to_equal(moved);
+	});
+
+	it("gives the popup the model context legacy reads off View, so its filter-morph name can fire", _ {
+		// The interface decision this task made, and the example that spends it. E4 task 1 shipped
+		// `ParamPopupScene::show()` with legacy's five value-conversion arguments only, so three of
+		// legacy's arms -- the `ModControllableAudio*`-aware LPF/HPF-morph rename
+		// (`modulation/params/param.cpp:356-381`), the stutter rate-bucket text, and the MIDI-clip
+		// CC naming -- could never fire and were recorded as uncovered. `ModKnobs` is the class
+		// that HAS that context and is the popup's first real caller, so `show()` was widened
+		// (`overlay::PopupContext`) instead of leaving them dead. This drives the widened path and
+		// the un-widened one and compares BOTH against the real
+		// `View::displayModEncoderValuePopup`.
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		auto* sound = static_cast<SoundInstrument*>(f.instrument);
+		// A ladder LPF is what makes the rename fire; an SVF or a filter that is off keeps the
+		// default name (`param.cpp:365-372`'s own comment).
+		sound->lpfMode = FilterMode::TRANSISTOR_24DB;
+
+		constexpr int32_t kMorph = deluge::modulation::params::LOCAL_LPF_MORPH;
+
+		// Legacy, with the context it reads off `View::activeModControllableModelStack`.
+		AudioEngine::audioSampleTimer = 0;
+		stub.showing = false;
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		view.displayModEncoderValuePopup(Kind::PATCHED, kMorph, 0);
+		const std::string legacy_named = stub.last_title;
+
+		// The port, with the same context, from its own (drained) state.
+		overlay::param_popup_scene().tick(10000);
+		expect(overlay::param_popup_scene().remaining_ms()).to_equal(uint32_t(0));
+		overlay::PopupContext popup_context; // not `context`: CppSpec's own DSL owns that name here
+		popup_context.mod = static_cast<ModControllableAudio*>(static_cast<ModControllable*>(sound));
+		overlay::param_popup_scene().show(Kind::PATCHED, kMorph, 0, PatchSource::NONE, PatchSource::NONE, 60000,
+		                                  popup_context);
+		const std::string port_named{overlay::param_popup_scene().shown_name()};
+
+		// And with NO context -- task 1's shape, which is what the widening was needed to escape.
+		overlay::param_popup_scene().tick(10000);
+		overlay::param_popup_scene().show(Kind::PATCHED, kMorph, 0, PatchSource::NONE, PatchSource::NONE, 120000);
+		const std::string port_unnamed{overlay::param_popup_scene().shown_name()};
+
+		expect(legacy_named.empty()).to_be_false();
+		expect(port_named).to_equal(legacy_named);
+		// Not vacuous: the context really is what selects this name. Without it the port falls back
+		// to the mode-agnostic one, which is exactly the arm task 1 could not leave.
+		expect(port_unnamed == port_named).to_be_false();
+	});
+
+	it("agrees with View::isClipContext on every reachable target shape", _ {
+		// Fix round 1, Important 1: the port's predicate dropped legacy's outer
+		// `if (activeModControllableModelStack.modControllable)` (`view.cpp:1751`), so a target with
+		// a clip counter but no resolved mod controllable read as a clip context here and not in
+		// legacy -- which makes `target_changed` send a MIDI CC legacy would never send. Shape 4 is
+		// the one that fails without the guard.
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		auto* sound = static_cast<SoundInstrument*>(f.instrument);
+
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+
+		// 1. No counter, no controllable.
+		view.setActiveModControllableTimelineCounter(nullptr, false);
+		rig.knobs.set_target_with_timeline(nullptr, false);
+		expect(deluge::scenes::services::is_clip_context(rig.knobs.target())).to_equal(view.isClipContext());
+		expect(view.isClipContext()).to_be_false();
+
+		// 2. No counter, a controllable.
+		view.setActiveModControllableWithoutTimelineCounter(sound, &f.clip->paramManager);
+		rig.knobs.set_target_without_timeline(sound, &f.clip->paramManager);
+		expect(deluge::scenes::services::is_clip_context(rig.knobs.target())).to_equal(view.isClipContext());
+		expect(view.isClipContext()).to_be_false();
+
+		// 3. A clip counter and a controllable -- the only true case.
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		expect(deluge::scenes::services::is_clip_context(rig.knobs.target())).to_equal(view.isClipContext());
+		expect(view.isClipContext()).to_be_true();
+
+		// 4. A clip counter and NO controllable. Each side is dropped into that shape through its
+		//    own state -- legacy's public stack member, the port's own `ModTarget` -- because no
+		//    entry point on either side reaches it directly on this fixture.
+		view.activeModControllableModelStack.modControllable = nullptr;
+		deluge::scenes::services::ModTarget no_controllable = rig.knobs.target();
+		no_controllable.mod_controllable = nullptr;
+		expect(deluge::scenes::services::is_clip_context(no_controllable)).to_equal(view.isClipContext());
+		expect(view.isClipContext()).to_be_false();
+
+		// 5. The SONG as the counter, with a controllable: set, but not a clip. `affectEntire` is
+		//    what makes `Song::getActiveModControllable` resolve one at all (`song.cpp:5537-5544`);
+		//    without it the song resolves nothing and this shape would collapse into shape 1.
+		f.song->affectEntire = true;
+		view.setActiveModControllableTimelineCounter(f.song, false);
+		rig.knobs.set_target_with_timeline(f.song, false);
+		expect(deluge::scenes::services::is_clip_context(rig.knobs.target())).to_equal(view.isClipContext());
+		expect(view.isClipContext()).to_be_false();
+		// ...and it really is pointed at something, so shape 5 is not shape 1 in disguise.
+		expect(rig.knobs.target().timeline_counter != nullptr).to_be_true();
+		expect(rig.knobs.target().mod_controllable != nullptr).to_be_true();
+	});
+
+	it("takes a gold turn, a mod button and a gold push only after the scene declines them", _ {
+		// All three of `View`'s base-class-fallback hooks, against the real service event set.
+		// Legacy dispatches every one of them through `getCurrentUI()` and reaches `view` only
+		// through `UI`'s own forwarding bodies: `modEncoderAction` (`hid/encoder_input.cpp:194`,
+		// `gui/ui/ui.cpp:35-37`), `modButtonAction` (`hid/buttons.cpp:104`, `ui.cpp:39-41`) and
+		// `modEncoderButtonAction` (`hid/buttons.cpp:227`, `:230`, `ui.cpp:43-45`). E4 task 2 found the
+		// chain inverted (service first); E4 task 3 part A fixed it and added the two pushes, which
+		// plan D had excluded outright. `tests/spec/shell/router_spec.cpp` holds the ordering proof
+		// with a shared call log; this example pins WHICH events reach the service at all.
+		//
+		// The pushes are built as `UiEvent::Kind::EncoderButton`, which is what `InputLowering`
+		// actually emits for `ButtonId::ModEnc0`/`ModEnc1` (`shell/input_lowering.cpp:42-53` and
+		// `:298`). Building them as plain `Kind::Button`, as this example did before, tested a
+		// shape the lowering never produces.
+		RouteRig r;
+
+		// A scene that claims -- one of the six/two/five overriding UIs -- is the end of the line
+		// for all three shapes.
+		r.router.route(gold_turn(EncoderRole::GoldLower, 1), r.ctx());
+		expect(r.scene.calls).to_equal(1);
+		expect(r.mod_knobs.calls).to_equal(0);
+
+		r.router.route(encoder_button_event(ButtonId::ModEnc0, true), r.ctx());
+		expect(r.scene.calls).to_equal(2);
+		expect(r.mod_knobs.calls).to_equal(0);
+		expect(r.scene.last.button == ButtonId::ModEnc0).to_be_true();
+
+		r.router.route(button_event(ButtonId::Mod0, true), r.ctx());
+		expect(r.scene.calls).to_equal(3);
+		expect(r.mod_knobs.calls).to_equal(0);
+
+		// A scene that declines -- a UI inheriting `UI`'s forward-to-`view` body -- drops all three
+		// through to the service.
+		r.scene.claim = false;
+		r.router.route(gold_turn(EncoderRole::GoldLower, 1), r.ctx());
+		expect(r.scene.calls).to_equal(4);
+		expect(r.mod_knobs.calls).to_equal(1);
+
+		r.router.route(button_event(ButtonId::Mod0, true), r.ctx());
+		expect(r.scene.calls).to_equal(5);
+		expect(r.mod_knobs.calls).to_equal(2);
+		expect(r.mod_knobs.last.button == ButtonId::Mod0).to_be_true();
+
+		r.router.route(encoder_button_event(ButtonId::ModEnc1, true), r.ctx());
+		expect(r.scene.calls).to_equal(6);
+		expect(r.mod_knobs.calls).to_equal(3);
+		expect(r.mod_knobs.last.button == ButtonId::ModEnc1).to_be_true();
+
+		// And the SELECT encoder's push is still not one of these: legacy's tail handles it itself
+		// and its hook has no `view` fallback, so it must reach the scene and then `global_controls`,
+		// never `mod_knobs`.
+		r.router.route(encoder_button_event(ButtonId::SelectEnc, true), r.ctx());
+		expect(r.scene.calls).to_equal(7);
+		expect(r.mod_knobs.calls).to_equal(3);
+	});
+
+	it("claims exactly the events it is the View fallback for, and nothing else", _ {
+		// Defence in depth behind the routing example above: what `ModKnobs::handle` reports
+		// `handled` for, called directly. Legacy consumes all three unconditionally -- the mod
+		// button and the push both end in `Buttons::buttonAction`'s `dealtWith`
+		// (`hid/buttons.cpp:105`, `:232`) and the turn is the last thing `interpretEncoders` does
+		// with it -- so `handled` is true even on the arms that do nothing.
+		spec::SongFixture f = spec::make_synth_song();
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		DirectCtx c{0};
+		expect(rig.knobs.handle(encoder_button_event(ButtonId::ModEnc0, true), c.ctx).handled).to_be_true();
+		expect(rig.knobs.handle(button_event(ButtonId::Mod4, true), c.ctx).handled).to_be_true();
+		// ...and not the rest.
+		expect(rig.knobs.handle(encoder_button_event(ButtonId::SelectEnc, true), c.ctx).handled).to_be_false();
+		expect(rig.knobs.handle(button_event(ButtonId::Back, true), c.ctx).handled).to_be_false();
+		expect(rig.knobs.handle(gold_turn(EncoderRole::Select, 1), c.ctx).handled).to_be_false();
+		expect(rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 0), c.ctx).handled).to_be_false();
+	});
+
+	// --- E4 task 3: the buttons, the mode, the LEDs and the indicators -------------------------
+
+	it("declares the eight mod LEDs exactly as View::setModLedStates writes them, in every mode", _ {
+		// The mode -> LED table, asserted BY IDENTITY: all eight declarations, on every one of the
+		// eight modes, with each side driven into that mode through its own `modButtonAction` and
+		// each side's answer read from its own output -- legacy's from the LED shadow the host BSP
+		// keeps of `deluge_control_set_led` plus `getLedBlinkerIndex`, the port's from the
+		// `LedFrame` it declared into. Nothing here counts lit LEDs; a table with the right number
+		// of entries and the wrong ones set fails on the first mode.
+		//
+		// The two sides run on two different clips, so neither can read the other's mod knob mode.
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		InstrumentClip* port_clip = add_synth_clip(f.song, "MODLED");
+		currentSong = f.song;
+
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(port_clip, false);
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		// The stack must be non-empty for `declare_indicators` (legacy's `if (!getRootUI()) return`);
+		// the LED half below does not depend on it, but leaving it empty would silently skip the
+		// indicator declarations the next example checks.
+		expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+
+		for (int32_t mode = 0; mode < 8; mode++) {
+			view.modButtonAction(static_cast<uint8_t>(mode), true);
+			view.modButtonAction(static_cast<uint8_t>(mode), false);
+			rig.knobs.mod_button_action(mode, true);
+			rig.knobs.mod_button_action(mode, false);
+
+			// Both sides really did change mode -- otherwise every row below would compare two
+			// unchanged tables and pass on a port that ignores the button entirely.
+			expect(rig.knobs.mode()).to_equal(mode);
+			expect(view.getModKnobMode()).to_equal(mode);
+
+			deluge::ui::LedFrame frame;
+			rig.knobs.leds(frame);
+			for (int32_t i = 0; i < 8; i++) {
+				const std::optional<LegacyLed> port = port_mod_led(frame, i);
+				const std::string where = "mode=" + std::to_string(mode) + " led=" + std::to_string(i);
+				if (!port.has_value()) {
+					expect(where + " undeclared").to_equal(where);
+					continue;
+				}
+				const LegacyLed legacy = legacy_mod_led(i);
+				if (*port != legacy) {
+					expect(where + " port{lit=" + std::to_string(port->lit) + ",blink="
+					       + std::to_string(port->blinking) + "} legacy{lit=" + std::to_string(legacy.lit)
+					       + ",blink=" + std::to_string(legacy.blinking) + "}")
+					    .to_equal(where);
+				}
+			}
+		}
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("blinks the volume mod LED when the VU meter is on, and only in the song context", _ {
+		// `view.cpp:1683-1684` -- the one row of the table that is not "on iff selected", and the
+		// only reason `displayVUMeter` is ported at all. It needs three things at once: the song
+		// context, mod button 0 selected, and the meter on. Each side toggles the meter through its
+		// own `modButtonAction` -- pressing the already-selected button 0 outside a clip minder
+		// (`:1517-1523`) -- so this drives the toggle as well as the LED it feeds.
+		StubDisplay stub;
+		display = &stub;
+
+		// TWO songs, not two clips: `itsTheSong` requires each side to point at a *song*, and a
+		// song's mod-knob mode lives on its one `GlobalEffectable`. Sharing one song here would
+		// have the two sides writing the same `modKnobMode` and reading each other's selection --
+		// which is exactly what the first draft of this example did, and it made the port toggle the
+		// VU meter on a press legacy treated as a plain selection.
+		spec::SongFixture f = spec::make_synth_song();
+		spec::SongFixture pf = spec::make_synth_song();
+		currentSong = f.song;
+		f.song->affectEntire = true;  // so the SONG resolves a mod controllable (`song.cpp:5537-5544`)
+		pf.song->affectEntire = true;
+
+		KnobRig rig;
+		rig.knobs.set_song(pf.song);
+		rig.knobs.set_target_with_timeline(pf.song, false); // the song, so `itsTheSong` is true
+		view.setActiveModControllableTimelineCounter(f.song, false);
+
+		// `View::displayVUMeter` is a process-global `View` member and an earlier example in this
+		// file has already toggled it; `ModKnobs::display_vu_meter_` is fresh with each `KnobRig`.
+		// Putting the legacy side into the port's known start state is aligning the two sentinels,
+		// not deriving one from the other -- everything compared below is produced afterwards, by
+		// each side's own `modButtonAction`.
+		view.displayVUMeter = false;
+		expect(rig.knobs.display_vu_meter()).to_be_false();
+
+		// Select a different mod button first, so the press that follows is a *selection* and not
+		// already the toggle.
+		view.modButtonAction(1, true);
+		rig.knobs.mod_button_action(1, true);
+		expect(rig.knobs.mode()).to_equal(1);
+
+		// First press of 0 selects it; it was not already selected, so no toggle.
+		view.modButtonAction(0, true);
+		rig.knobs.mod_button_action(0, true);
+		expect(rig.knobs.display_vu_meter()).to_equal(view.displayVUMeter);
+		{
+			deluge::ui::LedFrame frame;
+			rig.knobs.leds(frame);
+			expect(port_mod_led(frame, 0).value() == legacy_mod_led(0)).to_be_true();
+		}
+
+		// Second press: already selected, button 0, not a clip minder -> the meter turns on, and
+		// mod LED 0 goes from steady to blinking on both sides.
+		view.modButtonAction(0, true);
+		rig.knobs.mod_button_action(0, true);
+		expect(view.displayVUMeter).to_be_true();
+		expect(rig.knobs.display_vu_meter()).to_be_true();
+		{
+			deluge::ui::LedFrame frame;
+			rig.knobs.leds(frame);
+			const LegacyLed port = port_mod_led(frame, 0).value();
+			expect(port.blinking).to_be_true();
+			expect(port == legacy_mod_led(0)).to_be_true();
+			// And every other mod LED is still plain off -- by identity, not "at least one on".
+			for (int32_t i = 1; i < 8; i++) {
+				expect(port_mod_led(frame, i).value() == LegacyLed{false, false}).to_be_true();
+			}
+		}
+
+		// Point the knobs at a CLIP instead: same meter flag, but `itsTheSong` is false, so the
+		// blink arm's first clause fails and the LED is merely on.
+		rig.knobs.set_target_with_timeline(pf.clip, false);
+		expect(deluge::scenes::services::is_clip_context(rig.knobs.target())).to_be_true();
+		// The clip's `SoundInstrument` carries its own mod-knob mode, which is not the song's, so
+		// select button 0 on it. It was not already selected, so this is a plain selection and the
+		// meter flag -- the thing under test -- is untouched.
+		rig.knobs.mod_button_action(0, true);
+		rig.knobs.mod_button_action(0, false);
+		expect(rig.knobs.mode()).to_equal(0);
+		expect(rig.knobs.display_vu_meter()).to_be_true();
+		{
+			deluge::ui::LedFrame frame;
+			rig.knobs.leds(frame);
+			const LegacyLed port = port_mod_led(frame, 0).value();
+			expect(port.lit).to_be_true();
+			expect(port.blinking).to_be_false(); // `itsTheSong` is false, so the blink arm cannot fire
+		}
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("turns every mod LED off in the automation editor, and declares no indicator there", _ {
+		// `view.cpp:1687-1688` and `:1402-1405`. Legacy's condition is
+		// `(getRootUI() == &automationView) && automationView.inAutomationEditor()`, which no spec
+		// process can produce -- there is no root UI here at all -- so this arm is driven through
+		// the injected `ViewState` the port carries in its place, and it is the ONE row of the
+		// table whose legacy side is asserted from the source rather than from a live comparison.
+		// Named here rather than left implicit.
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+		rig.knobs.mod_button_action(3, true);
+		rig.knobs.mod_button_action(3, false);
+		expect(rig.knobs.mode()).to_equal(3);
+
+		{
+			deluge::ui::LedFrame frame;
+			rig.knobs.leds(frame);
+			expect(port_mod_led(frame, 3).value() == LegacyLed{true, false}).to_be_true();
+			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower) != nullptr).to_be_true();
+		}
+
+		ModKnobs::ViewState state;
+		state.in_automation_editor = true;
+		rig.knobs.set_view_state(state);
+		{
+			deluge::ui::LedFrame frame;
+			rig.knobs.leds(frame);
+			for (int32_t i = 0; i < 8; i++) {
+				expect(port_mod_led(frame, i).value() == LegacyLed{false, false}).to_be_true();
+			}
+			// `:1386-1387`'s early return: legacy leaves both columns exactly as they were, which here
+			// is "declares nothing".
+			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower) == nullptr).to_be_true();
+			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Upper) == nullptr).to_be_true();
+		}
+
+		// `:1501-1505` -- and the mod button itself is ignored, so the mode does not move.
+		rig.knobs.mod_button_action(5, true);
+		expect(rig.knobs.mode()).to_equal(3);
+		// ...except mod button 0 on arranger automation view (`:1503`).
+		state.automation_on_arranger = true;
+		rig.knobs.set_view_state(state);
+		rig.knobs.mod_button_action(0, true);
+		expect(rig.knobs.mode()).to_equal(0);
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("levels both knob indicators exactly as View::setKnobIndicatorLevel does", _ {
+		// The indicator half, by identity: all four segment brightnesses of both columns, compared
+		// against what legacy actually handed `deluge_control_set_indicator`. That covers the whole
+		// chain on both sides -- the param read, the clamp, the `kKnobPosOffset` shift, the
+		// patch-cable fold, and `indicator_leds`' own brightness arithmetic, which the port
+		// re-implements as `ui::knob_indicator_levels`.
+		//
+		// Driven across all eight mod-knob modes because the mode is what decides WHICH param each
+		// gold knob addresses, and across a turn on each knob so the levels are not all the fixture
+		// default.
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		InstrumentClip* port_clip = add_synth_clip(f.song, "MODIND");
+		currentSong = f.song;
+
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(port_clip, false);
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+
+		int32_t compared = 0;
+		for (int32_t mode = 0; mode < 8; mode++) {
+			view.modButtonAction(static_cast<uint8_t>(mode), true);
+			view.modButtonAction(static_cast<uint8_t>(mode), false);
+			rig.knobs.mod_button_action(mode, true);
+			rig.knobs.mod_button_action(mode, false);
+
+			for (int32_t offset : {0, 7, -13}) {
+				if (offset != 0) {
+					view.modEncoderAction(0, offset);
+					view.modEncoderAction(1, -offset);
+					DirectCtx c{0};
+					(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, static_cast<int8_t>(offset)), c.ctx);
+					(void)rig.knobs.handle(gold_turn(EncoderRole::GoldUpper, static_cast<int8_t>(-offset)), c.ctx);
+				}
+
+				deluge::ui::LedFrame frame;
+				rig.knobs.leds(frame);
+				for (int32_t k = 0; k < 2; k++) {
+					poke_legacy_indicator(k);
+					view.setKnobIndicatorLevel(static_cast<uint8_t>(k));
+					const uint8_t* legacy = legacy_indicator(k);
+					const deluge::ui::KnobIndicator* port =
+					    frame.indicator_or_null(static_cast<deluge::ui::IndicatorId>(k));
+					const std::string where =
+					    "mode=" + std::to_string(mode) + " offset=" + std::to_string(offset) + " knob="
+					    + std::to_string(k);
+					if (legacy == nullptr || port == nullptr) {
+						expect(where + (legacy == nullptr ? " legacy-null" : " port-null")).to_equal(where);
+						continue;
+					}
+					for (int32_t seg = 0; seg < 4; seg++) {
+						if (port->levels[seg] != legacy[seg]) {
+							expect(where + " seg=" + std::to_string(seg) + " port="
+							       + std::to_string(port->levels[seg]) + " legacy=" + std::to_string(legacy[seg]))
+							    .to_equal(where);
+						}
+					}
+					compared++;
+				}
+			}
+		}
+		// The loop really ran: 8 modes x 3 offsets x 2 knobs.
+		expect(compared).to_equal(48);
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("clears both indicator columns when the knobs point at nothing, as clearKnobIndicatorLevels does", _ {
+		// `view.cpp:1415-1417`. `indicator_leds::clearKnobIndicatorLevels`
+		// (`hid/led/indicator_leds.cpp:318-322`) is `setKnobIndicatorLevel(i, 0)` for both, so the
+		// legacy side is driven through exactly that and read back from the same shadow.
+		KnobRig rig;
+		expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+		expect(rig.knobs.target().mod_controllable == nullptr).to_be_true();
+
+		indicator_leds::clearKnobIndicatorLevels();
+
+		deluge::ui::LedFrame frame;
+		rig.knobs.leds(frame);
+		for (int32_t k = 0; k < 2; k++) {
+			const uint8_t* legacy = legacy_indicator(k);
+			const deluge::ui::KnobIndicator* port = frame.indicator_or_null(static_cast<deluge::ui::IndicatorId>(k));
+			expect(legacy != nullptr).to_be_true();
+			expect(port != nullptr).to_be_true();
+			for (int32_t seg = 0; seg < 4; seg++) {
+				expect(static_cast<int32_t>(port->levels[seg])).to_equal(static_cast<int32_t>(legacy[seg]));
+			}
+		}
+	});
+
+	it("declares no indicator at all with an empty scene stack, as legacy declares none with no root UI", _ {
+		// `view.cpp:1397-1399`. The mod LEDs are unaffected -- that block is below the early return
+		// in legacy and outside `declare_indicators` here -- so this also pins that the two halves
+		// of `leds()` are gated separately.
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		expect(rig.stack.depth()).to_equal(size_t(0));
+
+		deluge::ui::LedFrame frame;
+		rig.knobs.leds(frame);
+		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower) == nullptr).to_be_true();
+		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Upper) == nullptr).to_be_true();
+		expect(port_mod_led(frame, 0).has_value()).to_be_true();
+		currentSong = nullptr;
+	});
+
+	it("handles a gold-knob push the way View::modEncoderButtonAction does", _ {
+		// `view.cpp:1349-1366` and its two helpers. The push arrives as an `EncoderButton` event,
+		// which is what `InputLowering` actually emits for `ButtonId::ModEnc0`
+		// (`shell/input_lowering.cpp:42-53`, `:300`) -- and which the router now routes here, after
+		// the scene (E4 task 3 part A; `tests/spec/shell/router_spec.cpp`).
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		InstrumentClip* port_clip = add_synth_clip(f.song, "MODPUSH");
+		currentSong = f.song;
+
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(port_clip, false);
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+
+		UiEvent push{};
+		push.kind = UiEvent::Kind::EncoderButton;
+		push.button = ButtonId::ModEnc0;
+		push.on = true;
+
+		// Claimed unconditionally: legacy's tail always reaches `dealtWith`
+		// (`hid/buttons.cpp:225-232`).
+		DirectCtx plain{0};
+		const Result r = rig.knobs.handle(push, plain.ctx);
+		expect(r.handled).to_be_true();
+		expect(r.actions.size()).to_equal(size_t(0)); // no shift: no "automation deleted" popup
+
+		// Shift + push deletes the param's automation and raises the popup legacy raises at
+		// `:1359`. `menu::mod_delete_automation` reports whether there was an `autoParam` to delete,
+		// and on this fixture there is, so the action must be there.
+		struct ShiftCtx {
+			deluge::ui::shell::ButtonSet held{};
+			deluge::ui::PadMask pads{};
+			UiContext ctx;
+			ShiftCtx() : ctx{held, pads, true, false, 0, deluge_profile()} {}
+		} shifted;
+		const Result deleted = rig.knobs.handle(push, shifted.ctx);
+		expect(deleted.handled).to_be_true();
+		expect(deleted.actions.size()).to_equal(size_t(1));
+		expect(deleted.actions[0].kind == ShellAction::Kind::Popup).to_be_true();
+		expect(deleted.actions[0].popup_string)
+		    .to_equal(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
+
+		// LEARN held: legacy returns immediately (`:1336-1338`) and still counts as dealt with.
+		struct LearnCtx {
+			deluge::ui::shell::ButtonSet held = learn_held();
+			deluge::ui::PadMask pads{};
+			UiContext ctx{held, pads, true, false, 0, deluge_profile()};
+			static deluge::ui::shell::ButtonSet learn_held() {
+				deluge::ui::shell::ButtonSet b{};
+				b.set(ButtonId::Learn, true);
+				return b;
+			}
+		} learning;
+		const Result learn = rig.knobs.handle(push, learning.ctx);
+		expect(learn.handled).to_be_true();
+		expect(learn.actions.size()).to_equal(size_t(0)); // no popup: the shift arm never ran
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("arms notifyParamAutomationOccurred's two timers exactly when legacy does", _ {
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		rig.knobs.tick(5000, 0);
+
+		// A param manager the knobs are NOT pointed at arms nothing (`view.cpp:1709`).
+		ParamManagerForTimeline other;
+		rig.knobs.notify_param_automation_occurred(&other, true);
+		expect(rig.knobs.automation_display_pending()).to_be_false();
+		expect(rig.knobs.next_timer().has_value()).to_be_false();
+
+		// The one they are pointed at arms both, 25ms out (`:1699`, `:1708`).
+		rig.knobs.notify_param_automation_occurred(rig.knobs.target().param_manager, false);
+		expect(rig.knobs.automation_display_pending()).to_be_true();
+		expect(rig.knobs.automation_updates_mod_levels()).to_be_false();
+		expect(rig.knobs.next_timer().value()).to_equal(uint32_t(25));
+
+		// A second call inside the window does not re-arm, but does upgrade the payload
+		// (`:1702-1706`).
+		rig.knobs.tick(5010, 10);
+		rig.knobs.notify_param_automation_occurred(rig.knobs.target().param_manager, true);
+		expect(rig.knobs.automation_updates_mod_levels()).to_be_true();
+		expect(rig.knobs.next_timer().value()).to_equal(uint32_t(15));
+
+		// And it disarms on its own deadline, with no input.
+		rig.knobs.tick(5025, 15);
+		expect(rig.knobs.automation_display_pending()).to_be_false();
+		expect(rig.knobs.next_timer().has_value()).to_be_false();
+	});
+});
+// clang-format on
+
+DELUGE_SPEC(mod_knobs_spec, mod_knobs_spec_body)

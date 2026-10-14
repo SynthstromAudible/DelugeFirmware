@@ -1,0 +1,15 @@
+led AffectEntire on
+led Clip on
+led Mod1 on
+pad 16 0 5 96 7
+pad 16 1 5 96 7
+pad 16 2 5 96 7
+pad 16 3 5 96 7
+pad 16 4 5 96 7
+pad 16 5 5 96 7
+pad 16 6 5 96 7
+pad 16 7 5 96 7
+pad 17 0 0 46 209
+pad 17 7 0 226 29
+indicator lower 72 0 0 0
+indicator upper 255 255 36 0

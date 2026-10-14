@@ -28,7 +28,6 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
-#include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -85,6 +84,7 @@
 #include "util/cfunctions.h"
 #include "util/etl_string.h"
 #include "util/functions.h"
+#include "util/notify.h"
 #include <iterator>
 #include <math.h>
 #include <new>
@@ -189,7 +189,7 @@ void PlaybackHandler::slowRoutine() {
 			if (ALPHA_OR_BETA_VERSION && pendingGlobalMIDICommandNumClustersWritten) {
 				char buffer[12];
 				intToString(pendingGlobalMIDICommandNumClustersWritten, buffer);
-				display->displayPopup(buffer);
+				deluge::notify::notice(std::string_view(buffer));
 			}
 
 			// The reversion runs on the interaction tier: it loads the files its consequences will bind
@@ -246,8 +246,8 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 					arrangementPosToStartAtOnSwitch = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 				}
 				session.armForSwitchToArrangement();
-				renderUIsForOled();
-				display->cancelPopup();
+				deluge::notify::raise(deluge::notify::Dirty::Oled);
+				deluge::notify::notice_cancel_popup();
 			}
 
 			// Otherwise, if internal clock, restart playback
@@ -256,7 +256,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 					forceResetPlayPos(currentSong);
 				}
 				else {
-					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FOLLOWING_EXTERNAL_CLOCK));
+					deluge::notify::notice(deluge::l10n::String::STRING_FOR_FOLLOWING_EXTERNAL_CLOCK);
 				}
 			}
 		}
@@ -546,14 +546,6 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	playbackState = newPlaybackState;
 	cvEngine.playbackBegun(); // Call this *after* playbackState is set. If there's a count-in, nothing will happen
 
-	// make exception for note / note row editor because we want to be able to hear note changes
-	bool inNoteOrNoteRowEditor =
-	    getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
-
-	if (getRootUI() && ((getCurrentUI() == getRootUI()) || inNoteOrNoteRowEditor)) {
-		getRootUI()->notifyPlaybackBegun();
-	}
-
 	currentPlaybackMode->setupPlayback(); // This doesn't call the audio routine
 
 	arrangerView.reassessWhetherDoingAutoScroll(playFromPos);
@@ -567,6 +559,11 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 		AudioEngine::routineWithClusterLoading();
 		playbackState = newPlaybackState;
 	}
+
+	// Raise unconditionally, after the transient `playbackState = 0` window above, or a drain
+	// landing inside that window would read 0 and miss the begin edge, silently losing the paired
+	// playbackEnded() dispatch later.
+	deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
 
 	// May not call audio routine during this, cos that'd try doing ticks before everything's set up
 	bool oldState = AudioEngine::audioRoutineLocked;
@@ -611,7 +608,8 @@ void PlaybackHandler::endPlayback() {
 	playbackState = 0;
 
 	cvEngine.playbackEnded(); // Call this *after* playbackState is set
-	PadLEDs::clearTickSquares();
+	// [any] The UI tick clears the tick squares once it sees playback has stopped.
+	deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
 
 	// Sometimes, ending playback will trigger an instant song swap
 	if (shouldDoInstantSongSwap) {
@@ -631,15 +629,12 @@ void PlaybackHandler::endPlayback() {
 			recording = RecordingMode::OFF;
 			view.setModLedStates();
 		}
-
-		if (currentSong && getRootUI()) {
-			getRootUI()->playbackEnded();
-		}
+		// PlaybackState was already raised unconditionally above; no need to raise it again here.
 	}
 
 	if (currentVisualCountForCountIn) {
 		currentVisualCountForCountIn = 0;
-		display->cancelPopup(); // In case the count-in was showing
+		deluge::notify::notice_cancel_popup(); // In case the count-in was showing
 	}
 
 	setLedStates();
@@ -1020,9 +1015,9 @@ void PlaybackHandler::actionSwungTick() {
 				}
 			}
 
-			display->cancelPopup();
+			// [audio] The UI tick sees the count go back to 0 and takes down the popup.
 			currentVisualCountForCountIn = 0;
-			currentUIMode &= UI_MODE_AUDITIONING;
+			deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
 
 			// And then yeah, just keep going below
 		}
@@ -1032,12 +1027,9 @@ void PlaybackHandler::actionSwungTick() {
 
 			int32_t newVisualCount = (uint32_t)(ticksLeftInCountIn - 1) / currentSong->getQuarterNoteLength() + 1;
 
-			if (newVisualCount != currentVisualCountForCountIn) {
-				currentVisualCountForCountIn = newVisualCount;
-				char buffer[12];
-				intToString(newVisualCount, buffer);
-				display->displayPopup(buffer, 0, true, 255, 2);
-			}
+			// [audio] No formatting here -- just the fact. The UI tick polls this every pass and renders
+			// the digit; no dirty bit, since a redraw is not wanted on every count-in beat.
+			currentVisualCountForCountIn = newVisualCount;
 			swungTicksTilNextEvent = 2147483647;
 			goto doMetronome;
 		}
@@ -2202,7 +2194,7 @@ void PlaybackHandler::commandNudgeClock(int8_t offset) {
 			numInputTicksToSkip++; // Perform one less tick
 		}
 	}
-	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_NUDGED));
+	deluge::notify::notice(deluge::l10n::String::STRING_FOR_SYNC_NUDGED);
 }
 
 void PlaybackHandler::commandEditClockOutScale(int8_t offset) {
@@ -2615,7 +2607,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 
 	if (clip->type != ClipType::AUDIO || clip->getCurrentlyRecordingLinearly()
 	    || !((AudioClip*)clip)->sampleHolder.audioFile) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_GRAB_TEMPO_FROM_CLIP));
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_CANT_GRAB_TEMPO_FROM_CLIP);
 		return;
 	}
 
@@ -2883,7 +2875,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, i
 				// attaches where it was recorded and the next song follows (see slowRoutine()).
 				if (audioRecorder.inputTakeInProgress()) {
 					nextSongPending_ = true;
-					display->displayPopup("Next song after take");
+					deluge::notify::notice("Next song after take");
 				}
 				else {
 					currentSong->loadNextSong();
@@ -3091,7 +3083,7 @@ void PlaybackHandler::switchToArrangement() {
 	arrangerView.reassessWhetherDoingAutoScroll();
 	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
 	    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-		renderUIsForOled();
+		deluge::notify::raise(deluge::notify::Dirty::Oled);
 	}
 
 	if (getCurrentUI() == &sessionView) {
@@ -3130,6 +3122,20 @@ void PlaybackHandler::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8
 		                                                        << 2;
 	}
 	else {
+		// **The same divergence `midiCCReceived` carries at `playback_handler.cpp:3164`, and the same
+		// ruling** (F1 task 10): under the ShellMenu toggle `getCurrentUI()` is `ShellHostUI`, so
+		// pitch-bend MIDI learn never reaches the ported menu, and it cannot be closed by a `UI`
+		// virtual because none
+		// exists. Read that comment for the whole account.
+		//
+		// This half has a *second* reason it could not be closed even with a seam here:
+		// `SoundEditor::pitchBendReceived` calls `getCurrentMenuItem()->learnKnob(...)`
+		// (`gui/ui/sound_editor.cpp:1614`), and `MenuItem::learnKnob` has **no port at all** --
+		// `grep -rn "learn_knob" src/scenes` is empty. `MenuScene` carries `learn_note_on`,
+		// `learn_cc` and `learn_program_change` and not a fourth. Recorded at
+		// `gui/ui/shell_host_ui.h`'s `@par What leaving the mod hooks on the base costs`, which is
+		// where the gold-knob half of the same missing port is written up.
+		//
 		// If the SoundEditor is the active UI, give it first dibs on the message
 		if (getCurrentUI() == &soundEditor) {
 			if (soundEditor.pitchBendReceived(cable, channel, data1, data2)) {
@@ -3181,6 +3187,28 @@ void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t 
 	}
 	else {
 		int32_t channelOrZone = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+		// **A divergence under `RuntimeFeatureSettingType::ShellMenu`, recorded by F1 task 10 rather
+		// than closed.** With the toggle on, `ShellHostUI` is the current UI wherever `soundEditor`
+		// would have been, so this test is false and a CC arriving under MIDI learn goes straight to
+		// `view.ccReceivedForMIDILearn` below -- the ported menu never sees it, and
+		// `MenuScene::learn_cc` (`scenes/menu/menu_scene.cpp:630-633`) has no caller.
+		//
+		// The guest closes the note-on and program-change halves of the same gesture by overriding
+		// `UI::noteOnReceivedForMidiLearn` / `pcReceivedForMidiLearn`, because those two dispatchers
+		// ask the current UI through a virtual (`:2968`, `:2898`). **This one cannot be closed that
+		// way: there is no virtual to override.** `gui/ui/ui.h` declares exactly two `*ForMidiLearn`
+		// hooks (`:130` pc, `:132` noteOn), and what stands here instead is a hardcoded identity
+		// test against one global, sitting *outside* the `UI_MODE_MIDI_LEARN` gate. Closing it means
+		// adding a third `UI` virtual and rewriting this `if`/`else if` chain -- a legacy-behaviour
+		// change, which plan F1 does not make. Same shape and same reason at
+		// `pitchBendReceived`'s `playback_handler.cpp:3091`.
+		//
+		// It is latent today for a reason that is not this line's: nothing under the guest ever sets
+		// `currentUIMode = UI_MODE_MIDI_LEARN` in the first place (`ShellHostUI`'s `@par MIDI learn`
+		// has the two lines in the tree that do, and why neither runs). The divergence becomes
+		// visible the moment that changes, which is why it is written down here and not left to be
+		// rediscovered then.
+		//
 		// If the SoundEditor is the active UI, give it first dibs on the message
 		if (getCurrentUI() == &soundEditor && soundEditor.midiCCReceived(cable, channelOrZone, ccNumber, value)) {
 			return;
@@ -3405,13 +3433,11 @@ doCreateNextOverdub:
 					}
 				}
 				else {
-					display->displayPopup(
-					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_TRACK_HAS_NO_INPUT_CHANNEL));
+					deluge::notify::notice(deluge::l10n::String::STRING_FOR_AUDIO_TRACK_HAS_NO_INPUT_CHANNEL);
 				}
 			}
 			else {
-				display->displayPopup(
-				    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CREATE_OVERDUB_FROM_WHICH_CLIP));
+				deluge::notify::notice(deluge::l10n::String::STRING_FOR_CREATE_OVERDUB_FROM_WHICH_CLIP);
 			}
 		}
 	}

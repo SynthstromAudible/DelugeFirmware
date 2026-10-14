@@ -35,6 +35,14 @@ extern "C" {
 /// Asynchronous: the BSP may DMA the transfer. No-op on 7-segment boards. [task]
 DelugeStatus deluge_display_blit_oled(const uint8_t* pixels, uint16_t width, uint16_t height) DELUGE_NOEXCEPT;
 
+/// Blit to panel `index` (0 .. deluge_board()->display_count-1). Index 0 is the
+/// same panel as `deluge_display_blit_oled`. DELUGE_ERR_PARAM for an index the
+/// board does not have. [task]
+DelugeStatus deluge_display_blit_oled_n(uint8_t index, const uint8_t* pixels, uint16_t width,
+                                        uint16_t height) DELUGE_NOEXCEPT;
+/// Per-panel `deluge_display_busy`. Always false for an index the board lacks. [task] [isr]
+bool deluge_display_busy_n(uint8_t index) DELUGE_NOEXCEPT;
+
 /// Write the 7-segment display. `digits` points to `count` raw segment bytes
 /// (board-defined segment bit layout). No-op on OLED boards. [task]
 DelugeStatus deluge_display_write_seven_segment(const uint8_t* digits, uint8_t count) DELUGE_NOEXCEPT;

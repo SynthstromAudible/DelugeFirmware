@@ -58,7 +58,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # For sample transpose tests
         ../../../src/deluge/model/sample/sample_transpose.cpp
         # For waveform peak math tests
-        ../../../src/deluge/gui/waveform/waveform_peak_math.cpp
+        ../../../src/deluge/model/sample/waveform_peak_math.cpp
         ../../../src/deluge/io/midi/midi_queue.cpp
         # For the song-preview decode differential: the REAL deserializer stack, not a stand-in.
         # storage/file_reader.cpp exists so this is possible at all -- storage_manager.cpp, where the
@@ -169,7 +169,9 @@ set_target_properties(UnitTests
         CXX_EXTENSIONS ON
 )
 
-target_link_libraries(UnitTests PRIVATE CppUTestExt etl::etl)
+# The UI libraries: the legacy canvas and the notify channel the app sources here are built on.
+target_link_libraries(UnitTests PRIVATE CppUTestExt etl::etl deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_oled
+                                        deluge_ui_grid deluge_notify)
 
 # strchr is seemingly different in x86
 target_compile_options(UnitTests PUBLIC

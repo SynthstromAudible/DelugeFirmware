@@ -1,0 +1,162 @@
+#pragma once
+#include "ui/core/input.h"
+#include "ui/core/style.h"
+#include <cstdint>
+#include <span>
+#include <string_view>
+
+namespace deluge::ui::shell {
+
+/// @brief Every physical button/encoder-push the shell can name, board-independent.
+///
+/// A `BoardProfile::button_by_matrix` maps a physical matrix coordinate onto one of these;
+/// `ButtonSet` and `led_by_button` then work in terms of the id rather than the coordinate. The
+/// six `*Enc` entries are an encoder's own push action (distinct from `EncoderRole`, which is the
+/// encoder's *turn*), so `Count` bounds both a `ButtonSet` bit index and a `button_name()` lookup.
+enum class ButtonId : uint8_t {
+	None = 0,
+	AffectEntire,
+	Session,
+	Clip,
+	Synth,
+	Kit,
+	Midi,
+	Cv,
+	Keyboard,
+	Scale,
+	CrossScreen,
+	Back,
+	Load,
+	Save,
+	Learn,
+	TapTempo,
+	SyncScaling,
+	Triplets,
+	Play,
+	Record,
+	Shift,
+	Mod0,
+	Mod1,
+	Mod2,
+	Mod3,
+	Mod4,
+	Mod5,
+	Mod6,
+	Mod7,
+	SelectEnc,
+	TempoEnc,
+	XEnc,
+	YEnc,
+	ModEnc0,
+	ModEnc1,
+	Count
+};
+
+/// @brief Which surface a UI event/render call targets.
+///
+/// `Main` is the primary OLED (or the sole surface on a board with only one); `Param0..3` are
+/// per-parameter displays on boards that have them; `Aux` is a catch-all extra surface; `None`
+/// marks "no surface" (e.g. a routed event with nothing to render).
+enum class SurfaceRole : uint8_t { Main, Param0, Param1, Param2, Param3, Aux, None };
+
+/// @brief How an encoder's turn behaves.
+///
+/// `Detented` reports one step per physical click; `Accelerating` reports a magnitude that grows
+/// with turn speed. `BoardProfile::encoder_kind` maps each `EncoderRole` to one of these.
+enum class EncoderKind : uint8_t { Detented, Accelerating };
+
+/// @brief A bitset of `ButtonId`s: which buttons are currently held, or which changed this tick.
+///
+/// One `uint64_t`, so `ButtonId::Count` must stay at or under 64 (asserted below).
+struct ButtonSet {
+	uint64_t bits = 0;
+
+	/// @brief Is \p b set?
+	bool has(ButtonId b) const;
+	/// @brief Set or clear \p b.
+	void set(ButtonId b, bool on);
+	/// @brief True if any bit is set.
+	bool any() const;
+};
+static_assert(static_cast<int>(ButtonId::Count) <= 64);
+
+/// @brief The shell's l10n bridge: a string id (as stored on disk / baked into a board profile)
+/// to display text. The shell has no l10n of its own; a board profile supplies this bridge, or
+/// `nullptr` to fall back to rendering the id as digits (`BoardProfile::text_or_digits`).
+/// @param string_id The id to resolve.
+/// @return The resolved text.
+using TextLookup = std::string_view (*)(uint16_t string_id);
+/// @brief As `TextLookup`, for error codes.
+/// @param error_code The code to resolve.
+/// @return The resolved text.
+using ErrorLookup = std::string_view (*)(int16_t error_code);
+
+/// @brief The caller-owned buffer a `BoardProfile` text accessor renders its numeric fallback into.
+///
+/// The fallback has to produce a `std::string_view` over storage that outlives the call, and
+/// `src/shell` allocates nothing on the tick path, so the caller supplies the bytes: declare one of
+/// these next to the view it is filling, and keep it alive for exactly as long as that view. Eight
+/// bytes is the widest case with room to spare -- `int16_t`'s `"-32768"` is six characters plus a
+/// terminator, and `uint16_t`'s `"65535"` is five.
+struct TextScratch {
+	char chars[8];
+};
+
+/// @brief Everything the shell needs to know about one physical board.
+///
+/// Every span is a view over board-owned storage (typically a `constexpr` array in a board's
+/// `.cpp`), so a `BoardProfile` itself is cheap to copy and carries no ownership.
+struct BoardProfile {
+	std::span<const ButtonId> button_by_matrix; ///< [y * button_cols + x]
+	std::span<const int8_t> led_by_button;      ///< [ButtonId] -> board LED index, -1 = none
+	/// libdeluge encoder index -> role. The Deluge's board order is 0=scrollY, 1=scrollX, 2=tempo,
+	/// 3=select, 4=mod1, 5=mod0 (`hid/encoder_input.cpp:56-63`), and `mod0` is the *lower* gold
+	/// encoder with `mod1` the upper (`hid/encoders.h:80-81`) -- so index 4 is `GoldUpper` and
+	/// index 5 is `GoldLower`, which is the pair most easily got backwards.
+	std::span<const EncoderRole> encoder_by_index;
+	std::span<const EncoderKind> encoder_kind;       ///< [EncoderRole]
+	std::span<const SurfaceRole> oled_role_by_index; ///< libdeluge display index -> role
+	/// libdeluge display index -> toolkit `Style` (task-9 reconciliation: was a single `style`;
+	/// a board with more than one OLED, or a panel-height-64 second frontend, needs a `Style`
+	/// per surface -- `OledSurface::style` (Task 2) is chosen from here at build time).
+	std::span<const Style* const> style_by_index;
+	TextLookup text;
+	ErrorLookup error_text;
+	uint8_t button_cols, button_rows;
+	/// How many of the board's pad columns are sidebar rather than main grid.
+	///
+	/// `DelugeBoard::pad_grid_width` counts *main* columns only and the descriptor has no sidebar
+	/// field, so the sidebar width is a profile fact rather than a board-descriptor one. The
+	/// Deluge's two sidebar columns are the default; a board with no sidebar sets 0.
+	uint8_t sidebar_cols = 2;
+
+	/// @name Resolving text
+	///
+	/// The one place `text`/`error_text` are read. Every consumer goes through these rather than
+	/// testing the pointer itself, so the `nullptr` case has exactly one behaviour: the id,
+	/// rendered as digits. An empty string was the alternative, and is strictly worse -- an SD
+	/// write failure on a profile with no `error_text` would draw a correctly framed, correctly
+	/// sized, completely blank popup box, which is neither reportable nor distinguishable from a
+	/// rendering bug.
+	/// @{
+	/// @brief Resolve \p string_id through `text`, or render it as digits when `text` is null.
+	/// @param string_id The id to resolve.
+	/// @param scratch   Storage for the digits; must outlive the returned view, which points into
+	///                  it whenever the fallback is taken.
+	/// @return The looked-up text, or the decimal spelling of \p string_id.
+	std::string_view text_or_digits(uint16_t string_id, TextScratch& scratch) const;
+	/// @brief Resolve \p error_code through `error_text`, or render it as digits when
+	///        `error_text` is null.
+	/// @param error_code The code to resolve; a negative code keeps its sign.
+	/// @param scratch    Storage for the digits; must outlive the returned view.
+	/// @return The looked-up text, or the decimal spelling of \p error_code.
+	std::string_view error_text_or_digits(int16_t error_code, TextScratch& scratch) const;
+	/// @}
+};
+
+/// @brief The button's name, for `.state` files and diagnostics.
+/// @param b The id to name; anything at or past `ButtonId::Count` returns `"?"`.
+/// @return A static, null-terminated string.
+const char* button_name(ButtonId b);
+
+} // namespace deluge::ui::shell

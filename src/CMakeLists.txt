@@ -10,8 +10,16 @@ add_subdirectory(engines/global_effectable) # deluge_global_effectable: the prov
 add_subdirectory(music-theory) # deluge_music_theory: note sets, scales, keys and scale mapping
 add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + tests)
 add_subdirectory(deluge-project) # deluge_project: the project model (deluge::project::Song)
+add_subdirectory(gfx)        # deluge_gfx_oled / deluge_gfx_grid: pure drawing primitives
+add_subdirectory(ui)         # deluge_ui_core / deluge_ui_oled / deluge_ui_grid: the immediate-mode toolkit
+add_subdirectory(shell)      # deluge_ui_shell: surfaces, scene stack, input lowering, services, tick, flush
+add_subdirectory(notify)     # deluge_notify: model->UI notification channel
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)
+# deluge_scenes: the first UI layer allowed to include the model. Links deluge_app, so it comes
+# after deluge_app exists. Archived into the firmware and the host app by the Rust BSP's build
+# scripts beside deluge_app.
+add_subdirectory(scenes)
 add_subdirectory(NE10)
 add_subdirectory(lib)
 

@@ -1,0 +1,511 @@
+# deluge_ui_shell
+
+Surfaces, scene stack, input lowering, services, tick, flush (spec: `docs/superpowers/specs/2026-08-26-ui-shell-design.md`,
+spec D of the UI stack redesign, amended by B.1 Task 9: `render_oled`/`render_grid`/`after_render`,
+per-surface `Style`, input claims, `begin_tick`).
+
+Rules:
+1. `src/shell/**` may include only `shell/**`, `ui/**`, `gfx/**`, `notify/**`, `libdeluge/**` and
+   the standard library -- never `model/`, `gui/`, `hid/`, `definitions*`, `board_config.h`.
+2. `snake_case` functions/members, `PascalCase` types, `k` constants; namespace
+   `deluge::ui::shell`.
+3. No mutable globals; a `BoardProfile` is a view over board-owned storage, not an owner.
+
+## Board profile (`profile.h`, Task 1)
+
+The board-independent vocabulary a `BoardProfile` is built from:
+
+| type | purpose |
+|---|---|
+| `ButtonId` | Every physical button/encoder-push the shell can name (`Count` bounds a `ButtonSet` bit and `button_name()`, and is asserted `<= 64`) |
+| `SurfaceRole` | Which surface a UI event/render call targets (`Main`, `Param0..3`, `Aux`, `None`) |
+| `EncoderKind` | `Detented` or `Accelerating` |
+| `ButtonSet` | A `uint64_t`-backed bitset of `ButtonId`s (`has`/`set`/`any`) |
+| `TextLookup`, `ErrorLookup` | The shell's l10n bridge -- the shell has no l10n of its own |
+| `TextScratch`, `BoardProfile::text_or_digits`/`error_text_or_digits` | The one place those two hooks are read: a null hook renders the id as digits into the caller's `TextScratch`, never an empty string |
+| `BoardProfile` | The full board description: button matrix, LED map, encoder roles/kinds, OLED surface roles and per-surface `Style`, the l10n bridge, and the matrix dimensions |
+| `button_name(ButtonId)` | For `.state` files and diagnostics |
+| `FixedVector<T, N>` (`fixed_vector.h`) | A no-heap, fixed-capacity vector; `push_back` fails soft past `N` |
+
+`BoardProfile::encoder_by_index` and `encoder_kind` are indexed by `deluge::ui::EncoderRole`
+(`ui/core/input.h`) and `style_by_index`/the style fields by `deluge::ui::Style`
+(`ui/core/style.h`) -- both from the finished toolkit, not redefined here.
+
+Concrete board tables (e.g. the Deluge's own matrix/LED/encoder layout) are a later task; Task 1
+is the vocabulary only.
+
+`deluge_profile()` sets `text` and `error_text` to nothing on purpose: the `l10n::String` table
+they resolve against is spec E's and wiring the firmware's copy of it to this profile is spec F's. Until then every popup string id and error code shows as its own digits --
+which is what `text_or_digits`/`error_text_or_digits` do with a null hook, and the reason no call
+site is allowed to test the hook itself.
+
+## Surfaces (`surfaces.h`, `board_surfaces.h`)
+
+`SurfaceSet` is the shell's only hardware seam. Everything above it renders into the surfaces and
+flushes through the sink virtuals. **There are three implementations**, and the third is new:
+`BoardSurfaceSet` binds the sinks to libdeluge, the specs' `uitest::FakeSurfaceSet` binds them to
+recorders, and `GuestSurfaceSet` (`src/deluge/gui/ui/shell_guest_surfaces.{h,cpp}`, F1 task 4) binds
+them to **legacy** -- `OLED::main` for the panel, `PadLEDs::image` for the grid,
+`indicator_leds::setLedState` for the LEDs -- so that the ported UI can run inside the shipping
+firmware as a guest.
+
+**`GuestSurfaceSet` copies; it does not alias**, and spec F §3's "aliasing is free and copy-less"
+is false on both halves. The grid *cannot* alias: `PadGrid` stores `cells_[kMaxGridRows][kMaxGridCols]`
+with `kMaxGridCols` = 32 against legacy's 18-column `PadLEDs::image`, and
+`src/gfx/grid/pad_grid.h:37-41` already said so, naming `row(y)` as the seam for copying. The OLED
+*could* alias and must not: `OLED::clearMainImage()` (`hid/display/oled.h:46`) is called from legacy
+all over the tree, including immediately before `renderOLED` (`gui/ui/ui.cpp:358`, then `:362`), and
+the shell is retained-mode -- `flush` blits only on `blit_pending`, so a buffer legacy zeroed
+between renders goes blank with nothing to re-dirty it. The copy is measured rather than waved
+through: 768 B per OLED blit, 48 B per changed column pair, 432 B for a full grid, `static_assert`ed
+against `kDelugeOled.bytes()` and `sizeof(PadLEDs::image)`.
+
+| type | purpose |
+|---|---|
+| `OledSurface` | One panel: `Canvas` over the pool storage, its `Geometry`, a `RepaintGate`, its `SurfaceRole`, `index`, `blit_pending`, and the profile's `Style*` for it |
+| `ColumnPair` | The 16 pad colours of one main-grid column pair, in the legacy `sortLedsForCol` order |
+| `ActiveTween` | A grid animation the shell's tick drives (`Fade`, `ScrollH`, `ScrollV`, `GreyOut`) |
+| `GridSurface` | The `PadGrid` plus the send-side shadow (`last_sent`/`sent_once`) the legacy `sendOutMainPadColours` lacks |
+| `LedSurface` | The `LedFrame` plus the LED and knob-indicator send-side shadow |
+| `SurfaceSet` | The surfaces, `oled(SurfaceRole)` lookup, and the sink virtuals |
+| `BoardSurfaceSet` | The libdeluge-backed `SurfaceSet`; the **only** `.cpp` here that includes `libdeluge/display.h` / `libdeluge/control_surface.h` |
+
+Storage is a fixed pool: `kMaxOled` (4) surfaces of `kOledStorageBytes` (128x64/8) each, sized at
+`build()` time from the board descriptor. No heap.
+
+`DelugeBoard::pad_grid_width` counts **main** pad columns only (16 on the Deluge) and the
+descriptor has no sidebar field, so the sidebar width comes from `BoardProfile::sidebar_cols`
+(default 2). The grid is `{pad_grid_width, sidebar_cols, pad_grid_height}` and
+`GridSurface::pairs` counts pairs across the *total* width -- 9 on the Deluge.
+
+## Input lowering and routing (`input_lowering.h`, `router.h`, Tasks 4–5)
+
+One `InputLowering` sits between the board and every scene. It owns every piece of state legacy
+scattered across `Buttons::`, `MatrixDriver::padStates` and the encoder accumulators -- held
+buttons and pads, when each press began, whether a press was already consumed, the sticky-shift
+latch, and each encoder's partial detent -- and turns raw board events into the shell's own
+`UiEvent` vocabulary. A tick is a begin/feed/end machine: `begin_tick` clears the per-tick state
+(the routed FIFO is the one exception -- it is drained by `next()`, so an event that arrived while
+the shell was busy still gets delivered next tick, not dropped); `end_tick` stamps the tick's clock
+onto the `ui::InputSnapshot` every widget's frame reads. Six shapes -- five encoder turns
+(`Select`, `GoldUpper`, `GoldLower`, `Horizontal`, `Vertical`), the select encoder's own push, and
+`Button{Back}` -- are the toolkit's widget-owned inputs; they still update the lowering's
+bookkeeping and reach the snapshot every tick, but are held back from routing into `held_back()`
+rather than delivered during `pump_input`, because whether a widget wants them is only knowable
+once render has happened. `Router::route` delivers everything else immediately, in the legacy
+order top scene -> mod-knobs -> global controls -> MIDI learn -> dropped; `Router::route_post_render` delivers
+the held-back six the same way, once per tick, after render, skipping any input `ctx().claims`
+shows a widget already took. Neither step ever touches `SceneStack` directly -- both apply the
+`Result`'s `Action`s through the router, which is what keeps a scene's `handle()` from ever
+re-entering the stack it is itself being called through.
+
+## Scenes and the stack (`scene.h`, `scene_stack.h`)
+
+A scene is one screen's worth of behaviour: what it draws on each surface, what it does with an
+event nothing else claimed, and what it remembers. Scenes are long-lived singletons the
+application owns and registers once; the stack only holds pointers.
+
+| type | purpose |
+|---|---|
+| `SceneKind` | The registry index and state-slot key; `Null..Screensaver` are the shell's own, applications number from `FirstApp` (16) |
+| `SceneId` | `{kind, arg}` -- the navigation target; `arg` is a clip/output/browser index the target scene interprets |
+| `SceneState` | 256 opaque 8-aligned bytes per `SceneKind`, saved and restored across a `replace_root` |
+| `UiEvent` | One lowered event, as a tagged POD struct (`Pad`, `Button`, `Encoder`, `EncoderButton`, `AllReleased`) |
+| `UiContext` | The world around one event: held buttons and pads, shift, the clock, the board profile, and the `InputLowering` behind `press_used_up`/`held_since` |
+| `Action`, `Result` | What a scene asks the shell to do (`Push`/`Replace`/`ReplaceRoot`/`Pop`/`Popup`/`Repaint`/`LockInput`) and whether the event was handled |
+| `Scene` | The interface; only `kind()` and `handle()` are pure, everything else defaults to nothing |
+| `Scene::dims_grid` | Whether what is beneath this scene is dimmed for it. Defaults to `is_grid_overlay()`; an overlay that composites nothing (the notice scenes) returns false |
+| `Scene::input_transparent` | "Drawn over what is beneath, but never takes its input" -- popups, console lines, the working animation. `SceneStack::input_top()` walks past these to the scene that is routed to and focused |
+| `SceneRegistry` | `std::span<Scene* const>` indexed by kind; `find()` is null for an unregistered or out-of-range kind |
+| `NullScene` | What `SceneStack::top()` reports when the stack is empty: draws nothing, swallows everything |
+| `SceneStack` | `push`/`pop`/`replace_root`/`replace_top`/`reset` over at most `kStackDepth` (8) scenes |
+
+A scene never mutates the stack: it returns `Action`s and the shell's router applies them once the
+call has returned, so a scene cannot be exited or re-entered inside its own method. Only
+`replace_root` saves and restores `SceneState`; `pop` and `replace_top` do not. Every stack
+operation sets `changed_since_last_query()`, which is deliberately conservative -- a redundant
+greyout re-query is cheaper than a stale one.
+
+`UiContext::press_used_up`/`held_since` are declared with the struct but defined alongside
+`InputLowering`; a context built with a null `lowering` (a spec, a synthesised event) answers
+false and 0.
+
+## Services (`service.h`, Task 5) -- the seam for spec E
+
+A `Service` is a scene-shaped participant in the routing chain that is not itself pushed or
+popped and has no render surface: `handle()`, `leds()`, `tick()`, `next_timer()`, `timer_repaints()`, all defaulting
+to nothing. `Services{mod_knobs, global_controls, midi_learn}` is what a `Shell` is built with, or
+handed later through `Shell::set_services` — which is how an application installs the three real
+ones, since each needs the `SceneStack&` (and two of them the `InputLowering&`) that only exists
+once the shell owning it does. Either way, every unfilled slot defaults to `null_service()`, so the full legacy chain shape (the scene, then
+the mod-knobs bar, then global transport/shift/record handling, then MIDI learn) runs with the
+unfilled slots contributing nothing. `Notices` and `Screensaver` are the two services this task
+actually implemented, because they need nothing from the model; `ModKnobs`, `GlobalControls` and
+`MidiLearn` are the seam spec E filled in (E4 tasks 2-5) -- the model-owned `ModTarget`, transport
+state and MIDI-learn table. Nothing in `src/shell` depends on their being real: a `Service` is the
+whole contract, and a `NullService` satisfies it completely.
+
+**An application installs them for the first time in F1** (`src/deluge/gui/ui/shell_guest_services.cpp`,
+task 8), from `deluge_boot` and again from `ShellHostUI::opened()`. Two things that showed up only
+once something did: an unseeded `ModKnobs` is **not** inert -- with no `ModTarget` it declares all
+eight mod LEDs off and level 0 on both gold knobs every tick -- and a service can reach *shared
+`InputLowering` state out of band of the router*, because `ModKnobs::pretend_knobs_untouched()`
+backdates `last_turn_ms_`, which is what the gold-knob wiggle debounce reads. Neither is a shell
+change; both are things to check for when the next service arrives.
+
+`Screensaver` pushes `SceneKind::Screensaver` but ships no scene of that kind — the animation is
+`deluge::scenes::overlay::ScreensaverScene` (E4 task 7), registered by the application like any
+other scene, and since that task the shipped registry does register it, so the push succeeds. Where
+nothing is registered at that kind — a profile or a spec that fills the slot in with nothing — the
+push is refused, and **the first refusal latches the service off for good**: `active()` stays false, `next_timer()`
+reports nothing, no further push is attempted, and `Shell::screensaver_push_refused()` counts it.
+Without the latch the idle deadline stays past for ever, so every subsequent tick retried the push
+— which, with a `SceneStack` that flagged even a refused push as a change, re-queried the greyout
+and invalidated every gate once per tick: a full OLED render, blit and grid recompose on every tick
+with `next_wake()` pinned to now. That is why `SceneStack` now flags only operations that touched
+something (see `changed_since_last_query`).
+
+**Every absolute deadline in the shell is compared in difference form**
+(`static_cast<int32_t>(now_ms - deadline) >= 0`), never `now_ms >= deadline` — the popup and console
+lifetimes, the screensaver idle deadline, an LED blink's `until_ms`, and `compute_next_wake`'s
+choice of the earliest deadline. The clock is a `uint32_t` millisecond counter that wraps at ~49.7
+days of uptime, and an absolute compare across that wrap reads a freshly armed (wrapped, therefore
+small) deadline as long past. This is the form `RepaintGate`, `Mirror::due` and `InputLowering`'s
+hold/press comparisons already use.
+
+### What E4's scene tasks changed in here
+
+The Services section above used to claim the shell changed "only twice" while spec E filled that
+seam. It changed **seven times**, and the count matters more than it looks: every one of these is a
+shell contract that no consumer had ever exercised, and four were defects rather than extensions —
+the inverted routing chain (`is_mod_or_gold` is that same hook a third time), the declared LED blink
+that was not a wake source, the service timer that dirtied nothing, and `on_resume`. If a scenes
+task makes you change something in `src/shell`, add it here: a shell contributor reads this file
+before the headers, and under half of what this branch moved was described in it.
+
+| what changed | why a scene task needed it |
+|---|---|
+| `Scene::is_root()` (task 4) | `View::buttonAction` is reachable only from a legacy `RootUI`, while `Buttons::buttonAction`'s tail runs for any current UI. `GlobalControls` gates one group on it and `MidiLearn` gates all of `handle()`; see the hook's own doc. |
+| `Service::timer_repaints()` + `Shell::tick`'s step 8c (task 5) | A service's `next_timer()` reached `compute_next_wake` and dirtied nothing, so `MidiLearn`'s flash phase advanced on schedule with no pad ever repainting. Step 8c is the service half of the timer fold. |
+| `led_next_change()` + `compute_next_wake`'s blink loop (task 4) | A *declared* LED blink was not a wake source, so a blinking transport LED froze between unrelated wakes — and worse, an unrelated scene timer that did not divide the blink period rendered it at a beat frequency. |
+| `SceneStack::resume_new_input_top()` (task 10) | `pop`/`remove` notified `on_resume` unconditionally and on the *raw* top, so a slicer under its own expiring popup was told it had regained the top and reset forty hand-placed slices. Shell spec §15.7. |
+| `InputLowering::pretend_knob_untouched()` (task 2) | Legacy's gold-knob popup path backdates the knob's last-turned clock; the clock is private and `UiContext::lowering` is const, so a service had no way to reach it. |
+| `Router::run_chain`'s reorder (task 3) | The chain ran `mod_knobs` *before* the top scene, which inverts legacy: `UI::modEncoderAction`/`modButtonAction`/`modEncoderButtonAction` are base-class hooks that forward to `view`, so `View` is the fallback and six UIs override it. Shell spec §15.4. |
+| `is_mod_or_gold`'s widening to `ModEnc0`/`ModEnc1` (task 3) | The same hook a third time: a gold knob's own *push* also forwards to `View`, and excluding it left `ModKnobs`' port of `modEncoderButtonAction` unreachable. Shell spec §15.5. |
+
+An eighth change came from E4's final review rather than from a task: `Scene::RepaintSurfaces`' member
+defaults moved from `true` to `false`, so a designated initializer arms only the surfaces it names
+(shell spec §15.8).
+
+## The tick (`shell.h`, Task 7)
+
+`Shell` is the whole UI once per tick, replacing the legacy `doAnyPendingUIRendering` /
+`uiTimerManager.routine` / UI half of `readButtonsAndPadsOnce` / `GRAPHICS_ROUTINE` quartet
+(`deluge.cpp:596-628`). It owns the stack, the lowering, the router, the three overlay scenes and
+`Notices`; it borrows the `SurfaceSet` and the board profile, and allocates nothing.
+
+`tick(now_ms)` runs spec D §7's order exactly:
+
+1. `notify::dirty().drain()` → `on_model_changed` on every stacked scene, and the facts onto the
+   gates (`Oled` → the OLED surfaces; `GridMain`/`GridSidebar`/`ClipContent`/`NoteRows` → the grid;
+   anything else → both).
+2. `notices_.drain(notify::notices(), now)` → the popup/console/working scenes.
+3. `pump_input` — end the lowering's *input* phase (`end_tick(now_ms)`, which stamps the tick's
+   clock onto the snapshot every frame reads) and route the ordinary shapes; a `Popup` action the
+   router stored is resolved through `BoardProfile::text_or_digits` and handed to
+   `Notices::show_popup`. The window itself is closed at the bottom of `tick()`, not here. This
+   bridge runs *before* steps 7 and 8, so a `Popup` action produced by `after_render()` or by
+   post-render delivery is shown one tick later — `Router::popup_string_` is only cleared on
+   consumption, so it is late, never lost.
+4. `tick_stack` — scenes top-down, stopping below the first `occludes_grid()`, then the services.
+   A stack that changed re-queries the union of `greyout_mask()` and invalidates every gate.
+5. OLED, per surface: `gate.needs_frame(...) || widgets_gate || router_.repaint_requested(role)`.
+6. Grid: `gate.needs_frame(...) || widgets_gate`.
+
+`needs_frame`'s `model_dirty` argument is always `false`: step 1 has already requested exactly the
+gates this tick's facts name (and every gate for a fact that names none), so passing `dirty.any()`
+as well — spec D §7's shorthand, written before the shell had that channel — would repaint the OLED
+for a note-row change and the grid for an OLED one. A `Result` cannot request a *grid* repaint
+today: `Action::Repaint` names a `SurfaceRole` and there is no grid role, so the grid decision omits
+`repaint_requested`. Left as-is pending a ruling; the model side reaches the grid gate through
+`notify::Dirty` instead.
+7. `after_render()` on every scene rendered this tick, applied through the router.
+8. `deliver_post_render_input` — the held-back, widget-owned shapes, each gated on `ctx().claims`.
+8b. **Every stacked scene's `next_timer()`, armed as a repaint deadline on whichever of its own
+   surfaces `Scene::timer_repaints()` names.** "Wake me later" and "repaint me later" are one thing,
+   not two: a timer used to feed `next_wake()` only, so an animated scene *also* had to call
+   `request_repaint_after` from its own `render_*` — and four scenes in a row shipped or nearly
+   shipped without doing so (E2's menu cursor blink, `BrowserScene`, `MarkerScene`, `RecorderScene`,
+   where the cost was a recording that never noticed it had finished). `timer_repaints()` returns
+   `{oled, grid}`, both true by default; `{false, false}` is the opt-out for a timer with no visible
+   consequence at all, and it is the *only* case `compute_next_wake`'s scene loop still exists for —
+   every scene that names at least one surface reaches `next_wake()` as that surface's own gate
+   deadline. The split matters because the grid's `flush` diffs against `last_sent` and the OLED
+   panels' does not (`flush` blits an OLED surface unconditionally once rendered): `MenuScene`
+   overrides `{.oled = false, .grid = true}` because its timer is the shortcut/source pad blink
+   cadence alone, and arming the OLED gates from it too meant both panels blitting unconditionally,
+   forever, whenever a patched-param leaf was focused (E3 task 10 fix round 1).
+9. `derive_leds`, then `flush` (Task 8).
+
+**Repaint requests are cleared between 6 and 7, not at the bottom of the tick.**
+`Action::Repaint`/`RepaintAll` set a flag on the `Router` and nothing else — no surface, no gate —
+so step 5 is their only reader. Steps 7 and 8 both `apply()` results of their own, and a clear
+placed after them set and wiped such a request inside one tick with nothing reading it in between:
+a menu scene that advanced its selection from a post-render-delivered detent and asked for a
+`Repaint{Main}` got no frame at all until some unrelated event fired a gate. What steps 7 and 8
+request instead lands on the named surfaces' own `RepaintGate`s at the bottom of the tick, at a
+zero-millisecond deadline, so `next_wake()` reports `now` and the next tick both happens and
+renders.
+
+The widgets' gate is evaluated **once** per tick (`needs_frame` consumes the request) and the
+answer OR'd into every surface's decision.
+
+**The tick window.** `InputLowering::begin_tick` clears the held-back queue, the claims and
+`had_input_this_tick`, but input arrives *between* ticks -- so the shell opens the window lazily on
+the first feed (or at `pump_input`) and closes it at the *bottom* of `tick()`. Nothing between
+`end_tick()` and the end of the tick calls `begin_tick()`, which is what lets step 8 still read
+`held_back()` and `claims` after the frame has been built.
+
+**Focus and routing.** Exactly one scene per tick owns the input: `SceneStack::input_top()`, the
+topmost scene that is not `Scene::input_transparent()`. It is the scene `Router` calls `handle()`
+on, and the only one whose render frames are built with `InputMask::all()` — every other layer in a
+pass, above or below, draws with `none()` and so paints normally but reads 0/false and claims
+nothing. The three notice scenes are `input_transparent`, because legacy routes nothing to a popup,
+a console line or the working animation; without the flag, a console message would deafen the view
+it is drawn over for as long as the line is up.
+
+**A scene reads any one input in at most one render pass per tick.** Reading through a frame *is*
+claiming it (`ui/core/frame_context.h`, rule 2), and a scene drawn on two surfaces builds two
+independent `FrameInput`s in one tick — reading `f.turn()` in both `render_oled` and `render_grid`
+claims the same detent twice and trips `InputClaims::double_claim`. A scene whose two surfaces both
+react to one input reads it in the pass that owns it and draws the resulting state on the other; a
+scene that needs the raw event on both leaves it unclaimed and reacts in `handle()`, which the shell
+delivers *after* render for exactly that reason.
+
+**Composition.** `render_oled` walks down from the top while each scene is `oled_transparent(role)`
+and draws from there up -- the port of `OLED::sendMainImage`'s two-layer if-chain
+(`oled.cpp:364-376`) as a property each scene declares. `render_grid` draws the topmost
+non-overlay scene, dims it by `RGB::dim(1)` (`>> 1` per channel) if anything overlays it, draws the
+overlays, then applies the stack's greyout at legacy's full strength (`setGreyoutAmount(1)` →
+`greyProportion = 6500000`, `pad_leds.cpp:753,786-788`). The dim is **spec D design, not a port**:
+legacy has only the greyout. Spec D §7 says "dim if any overlay is above"; the shell narrows that
+to "if any overlay above the base `dims_grid()`", so an overlay that composites nothing can opt out.
+
+> **That "not a port" is an OUTSTANDING flag, not a settled decision** -- one of the inventions
+> deferred rather than resolved, and the UI-stack port's standing constraint is that everything be a
+> port of something legacy already does. (This line said "one of four" until F3 task 5 counted
+> them; **the live tally is `src/scenes/README.md`'s sweep row and it is five sites**, not the
+> 2026-09-06 audit's four, two of which turned out to ship no UX. `shell.cpp`'s own `@warning`
+> carries the arithmetic.) It is no longer only a design question: since F1 the
+> compositor runs inside the shipping firmware, so `dim_grid` is live code in the path the level-3
+> A/B exercises. **And the A/B found the adjacent question empirically.** With the ported menu open,
+> legacy leaves the clip view showing with the sidebar **greyed**
+> (`SoundEditor::getGreyoutColsAndRows`, `gui/ui/sound_editor.cpp:252-294`) and the guest **blacks
+> the grid**. That has two causes and fixing either alone leaves it wrong: (a) `GuestSurfaceSet`'s
+> `send_columns` writes the menu's all-black grid, and (b) legacy's greyout walk never runs at all,
+> because `ShellHostUI` never re-requests grid rendering, so `reassessGreyout` and `prepareColour`
+> are never reached. Proved by probe: disabling (a) alone brought the sidebar back **ungreyed**.
+> Whoever settles `dim_grid` should settle this at the same time; they are plausibly one question.
+
+The three notice scenes are grid overlays that paint nothing and dim nothing (`is_grid_overlay()`
+true, `dims_grid()` false, `occludes_grid()` false, no `render_grid`). Both flags are load-bearing
+and separate: the grid base is the topmost scene that is *not* an overlay, so without
+`is_grid_overlay()` a pushed notice would become the base and -- since `render_grid` clears first --
+leave the pads black; and with the dim left on, a "SAVED" popup would halve the brightness of a grid
+it never touches. Legacy's popups, console lines and working animation are OLED-only; the pads keep
+showing the view underneath, unchanged.
+
+## Flush (`shell.cpp`, Task 8) -- the seam for spec F
+
+`Shell::flush` is the only place the shell touches `SurfaceSet`'s sink virtuals, once per tick,
+after LEDs are derived:
+
+- **OLED**: one `blit()` per surface that rendered this tick and is not `oled_busy()`; a busy panel
+  keeps `blit_pending` armed and is retried next tick. `oled_busy()` means "can this backend take a
+  frame right now?", and each backend answers with its own pre-push condition -- `deluge_display_busy_n`
+  for `BoardSurfaceSet`, legacy's pad-output gate (`doAnyPendingUIRendering`, `gui/ui/ui.cpp:389`)
+  for the guest. This bullet used to gloss it as "the `deluge_display_busy` skip around legacy's
+  `sendMainImage`"; there is no such skip -- `OLED::sendMainImage` gates only on its own
+  `needsSending` flag, and nothing under `src/deluge/` calls `deluge_display_busy` at all. See §15.10
+  of the shell spec. The `Main` surface's blit additionally feeds `Mirror::after_blit`,
+  which throttles sends to `MirrorSink` to at most one per `min_interval_ms` and -- unlike a naive
+  throttle -- never drops a frame the throttle held back: `Mirror::retry` redelivers the pending
+  frame once the interval has passed, every tick, independent of whether that tick blitted anything.
+- **Grid**: column pairs are diffed against `last_sent` and sent within a budget derived from
+  `SurfaceSet::pad_output_space() / kBytesPerColumnPair` (legacy's `deluge_control_pad_output_space`
+  guard in `sendOutMainPadColours`,
+  generalised from an all-or-nothing gate to a per-pair budget so a large backlog drains over
+  several ticks); a pair skipped for budget stays dirty and arms a real repaint deadline via
+  `RepaintGate::request_repaint_after`, so `next_wake()` reports it rather than the scheduler
+  sleeping past a backlog that still needs to drain.
+- **Tweens** (`ActiveTween`, `Shell::start_tween`): `Fade`/`ScrollH`/`ScrollV` blend a snapshot
+  taken at tween-start toward the live grid over `duration_ms`; `GreyOut` ramps `RGB::greyOut`'s
+  proportion from 0 to a target *inside the stack's greyout mask only*, replacing (not stacking
+  with) the tick's ordinary full-strength greyout pass while it runs -- the port of legacy's ramp
+  (`pad_leds.cpp:983-1005`) feeding the same masked `prepareColour`. Every tween's step deadline is
+  also a `request_repaint_after` call, for the same reason as the grid backlog above.
+- **LEDs**: `derive_leds`'s composed `desired_on`/`desired_declared`, indexed by *board LED index*
+  (`LedId`'s own value -- see the LEDs section below), diffed against `last_on` and sent through
+  `SurfaceSet::set_led`/`set_indicator`.
+
+`SurfaceSet` (`surfaces.h`) is the shell's only hardware seam, and `flush` is the only method that
+calls its sink virtuals -- `blit`, `oled_busy`, `send_columns`, `pad_output_space`, `set_led`,
+`set_indicator`. `BoardSurfaceSet` (`board_surfaces.cpp`) binds those to `libdeluge`, and is the
+**only** `.cpp` in `src/shell` that includes `libdeluge/display.h` or `libdeluge/control_surface.h`
+-- the two headers that actually name hardware, and the only `.cpp`, not the only file:
+`input_lowering.h` includes `libdeluge/control_surface.h` for the raw event type it lowers.
+Other `libdeluge/*` headers are ordinary dependencies here (`surfaces.h`, `profiles/deluge.cpp`
+and `profiles/test_board.cpp` all include `libdeluge/board.h`).
+The `shell-includes-outside` ratchet enforces the *layer* rule at the top of this file -- no
+`model/`, `gui/`, `hid/`, `definitions*` -- and allows `libdeluge/` from anywhere, so the
+display/control-surface narrowing is a convention this file records, not something the ratchet
+checks. The specs' `uitest::FakeSurfaceSet` binds the same virtuals to recorders
+instead, so a spec drives the exact code path a board does. Spec D §8's grid scroll opcodes
+(hardware column-shift instructions some boards expose) are **not implemented** -- there is no
+`SurfaceSet` sink for them yet, so `ScrollH`/`ScrollV` tweens always redraw every pair every step;
+a board that wants the hardware path needs a new sink added to `SurfaceSet`, which is the seam
+spec F (or a later amendment) would extend.
+
+## LEDs (`leds.h`, Task 7)
+
+| name | purpose |
+|---|---|
+| `led_is_on(state, now_ms)` | The whole `indicator_leds` blinker table (`indicator_leds.h:71-79`, `LED_BLINK*` timers at `kFlashTime`/`kFastFlashTime`) as a pure function: phase is `now_ms / period_ms`, so same-period LEDs blink together, and `until_ms` folds an alert back to On |
+| `LedCompose::compose` | Services first, then the stack bottom to top; `LedFrame::set` overwrites, so the top scene wins for every LED it mentions and the ones beneath supply the rest |
+| `led_send_needed` | The diff Task 8's flush drives `set_led` from; an LED nothing declared is never sent |
+
+`Shell::derive_leds` composes into `LedSurface::frame` and resolves each declaration into
+`LedSurface::desired_on`/`desired_declared`, both indexed by *board LED index* (`LedId`'s own
+value), not by position in `frame.entries()`. `LedId` is the toolkit's opaque enum
+(`ui/core/led_frame.h`); this board's profile chooses its values to equal `ButtonId`'s own, so a
+scene declaring the LED under `ButtonId::Play` writes `static_cast<LedId>(ButtonId::Play)` rather
+than a separately-numbered id -- one table (`led_by_button`) instead of two, at the cost of a
+board profile that reuses another enum's numbering rather than inventing its own. A future board
+is free to choose differently -- `LedId` and `ButtonId` are only required to agree here, by this
+profile's own contract, not by anything in `shell.cpp` or `leds.h`.
+
+## The shell's first host (`ShellHostUI`, spec F phase 4, F1)
+
+Everything above was written while nothing drove a `Shell` outside a spec. Plan F1 built the driver,
+and it lives in the **legacy** tree rather than here, which is the point of phase 4: the ported UI
+runs as a *guest* of the shipping firmware, behind a runtime toggle that is Off by default.
+
+`deluge::gui::ui::ShellHostUI` (`src/deluge/gui/ui/shell_host_ui.{h,cpp}`) is a legacy `UI` subclass
+holding one `Shell` over a `GuestSurfaceSet`. It is pushed with `openUI` from `openShellMenu`
+(`src/deluge/util/shell_menu_entry.h`), which eight of legacy's fourteen `openUI(&soundEditor)` sites
+call when `shellMenuEnabled()` is true. The mapping, so a shell contributor knows what now depends on
+each hook:
+
+| shell surface | what the guest does with it |
+|---|---|
+| `Shell::tick(now_ms)` | `ShellHostUI::timerCallback`, re-arming `TimerName::UI_SPECIFIC` from `Shell::next_wake()` with a 1 ms floor |
+| `Shell::feed(...)` | `buttonAction`, `padAction`, `selectEncoderAction` and the horizontal/vertical encoder hooks. The three **mod** hooks stay on `UI`'s base on purpose: legacy already applies `calcNextKnobSpeed`, so forwarding would double-accelerate |
+| `SurfaceSet` sinks | `GuestSurfaceSet`, above -- `renderOLED`, `renderMainPads`, `renderSidebar` |
+| `Shell::stack()` / `lowering()` | the three real services are constructed over these and installed with `Shell::set_services` |
+| `Shell::next_wake()` | the timer re-arm, and the reason the note below matters |
+| `Shell::state_lines()` | the level-3 harness's `.state` snapshot, unchanged |
+
+**Plans F2 and F3 added two more things the host does every tick, and both are deliberately *not*
+`Shell` surfaces.** `gui::ui::dispatchShellActions` (`src/deluge/gui/ui/shell_action_dispatch.{h,cpp}`,
+F2) drains `deluge::scenes::menu::MenuScene::take_action()` — a **scene-owned** one-slot outbox — and
+performs the seven pieces of legacy behaviour a ported menu item may ask for.
+`gui::ui::dispatchShellChoices` (`src/deluge/gui/ui/shell_choice_dispatch.{h,cpp}`, F3) is the same
+poll for the **noun** half: it drains `BrowserScene::take_choice()`, a second scene-owned one-slot
+outbox holding a file the ported browser chose and may not load, and performs
+the sample claim (`SampleClaim`) against it. Nothing was added to `Shell`, `Router`, `Scene` or
+`Action` to carry either, and that was the decision rather than an omission: the shell's vocabulary
+is scenes, and what these requests name (`openUI(&performanceView)`,
+`stemExport.startStemExportProcess(...)`, `soundEditor.setShortcutsVersion(...)`,
+`sampleClaim.request(...)`) is not a scene, so an `Action::Kind` for them would have put
+legacy root-UI concepts into the shell's own enum. The seams are `src/scenes`' and the consumers are
+the application's; `src/shell` is untouched by both.
+
+What a shell contributor needs from them anyway is the **ordering constraint they put on the host**,
+because it is not expressible in the shell's own contracts, and it is the same constraint twice.
+Each poll sits *after* `Shell::tick` — an action is filed by `MenuScene::after_render`, which the
+tick runs as its step 7 (`shell/shell.cpp:402-410`), and a choice is filed while the tick *routes*
+the press, so polling first is always one tick late — and *above* the close check that returns early
+without re-arming the timer, or a request filed on the tick the guest closes would be stranded until
+something reopened it. Neither position is enforced by anything: neither outbox announces that it is
+full, and both slots overwrite silently. `tests/spec/gui/shell_action_dispatch_spec.cpp` is what pins
+the action poll from this side of the seam; the choice poll is pinned from the other side, by
+`sim/scenes_spec/browser_choice_spec.cpp`'s `browser_choice_dispatch` group, because the acting half
+needs a real SD card and the choosing half does not.
+
+**The two are ordered relative to each other, and it is written down rather than incidental**: the
+choice drain runs second. Both mailboxes can hold something on the same tick, because `Defer` parks
+the choice *and* closes the browser, so the menu underneath is frontmost again by the same tick's
+`after_render`. Neither drain reads the other's mailbox, so nothing observable turns on the order
+today; `shell_host_ui.cpp`'s comment at the two calls is the record of why it is fixed anyway.
+
+**`next_wake()`'s "the shell only ticks when its host asks it to" now has a host that asks at up to
+1 kHz.** A scene returning `0u` from `next_timer()` -- which the contract reads as "next tick", and
+which `AudioClipScene` returns while the playhead is live -- compounds twice through that 1 ms floor:
+the scene's grid gate is re-armed at `now` every tick, so it is a full grid *render* at 1 kHz, and
+legacy's own 29-timer sweep runs at up to 1 kHz where its `GRAPHICS_ROUTINE` is about 66 Hz. `0u` is
+still the right answer -- the rate is the host's decision, not the scene's, and the grid flush diffs
+against `last_sent` -- but it is no longer *free*. Latent while `MenuScene` is the only tenant.
+Shell spec §15.11.
+
+**Two divergences from legacy that are the guest's, not the shell's**, recorded here because a shell
+contributor will meet them: `ShellHostUI::exitUI` returns `NOT_DEALT_WITH` where every self-closing
+legacy `UI` returns `ACTIONED_AND_CAUSED_CHANGE`, and it can never return
+`REMIND_ME_OUTSIDE_CARD_ROUTINE`, the one value the timer manager acts on; and `canSeeViewUnderneath`
+answers `!top().occludes_grid()` rather than the top scene's OLED transparency, because the two
+callers ask a grid-shaped question (whether the root view's animation runs, `gui/ui/ui.cpp:47-51`)
+and the spec's original mapping would have frozen the clip view's playhead whenever the menu was open.
+
+## Testing
+
+Every header above has a matching spec in `tests/spec/shell/` (`profile_spec.cpp`,
+`profiles_spec.cpp`, `surfaces_spec.cpp`, `scene_stack_spec.cpp`, `input_lowering_spec.cpp`,
+`router_spec.cpp`, `notices_spec.cpp`, `leds_spec.cpp`, `tick_spec.cpp`, `flush_spec.cpp`,
+`lifecycle_spec.cpp`), built into the `all_specs` binary and run individually through CTest --
+`layer_rules` (this file's ratchet script) is one more CTest entry alongside them, not a separate
+mechanism. Two rigs make that possible without a board:
+
+- **`uitest::FakeSurfaceSet`** (`tests/spec/shell/support/fake_surfaces.h`) implements every
+  `SurfaceSet` sink as a recorder instead of a `libdeluge` call -- `BlitRecord`s, sent column
+  pairs, sent LED/indicator states -- so a spec drives `Shell::flush`'s exact code path and reads
+  back what would have gone to hardware. The same file's board/profile helpers (`test_profile()`,
+  a two-OLED test board) are what `profiles_spec.cpp` and most of the others build a `Shell` or a
+  `SurfaceSet` over.
+- **Golden PBMs** (`tests/golden/shell/*.pbm`) pin exact OLED pixel output -- `popup_saved_48.pbm`/
+  `popup_saved_64.pbm` for the popup scene at both panel heights, `overlay_48.pbm` for a grid
+  overlay's composition -- so a rendering regression fails a byte comparison, not just a "something
+  changed" assertion.
+
+Event-script tests (spec G's acceptance suite: boot -> session -> press Clip -> snapshot every
+surface + `.state`) are not part of this task; `Shell::state_lines()` exists for that harness to
+call but nothing under `src/shell` depends on the harness existing.
+
+**Since F1 there is also a level-3 A/B over the whole firmware**, and it is the strongest thing
+pinning this library's behaviour. `tests/ui-scripts/app/menu.txt` is booted into `deluge_host` twice
+against two SD-card fixtures that differ by exactly one file (`tests/fixtures/card` and
+`tests/fixtures/card-shell-menu`, whose `SETTINGS/CommunityFeatures.XML` sets `shellMenu`), and
+`scripts/ui_app_ab_check.py` compares the two output trees against each other. **The script has been
+extended twice since and the numbers here are F3's close, not F1's**: **16 OLED panels, all 16
+byte-identical**, across an open, a navigation, a gold-knob edit, an exit, an `AudioClip` verb
+performed through `dispatchShellActions` (F2), and a sample file chosen in the **ported** browser
+over a real card and claimed through `dispatchShellChoices` (F3). A shell change that moves a pixel
+in the composed frame turns that red. Seven ctest rows —
+`ui_app_scripts_{boot,boot_diff,menu,menu_diff,menu_shell,menu_shell_diff,menu_ab}`. **The `.state`
+half is not identical and is not meant to be**: 9 of the 16 differ, each explained by a recorded
+finding — F1 task 11's antiphase BACK blink, the sidebar divergence of migration §10.2 item 2, and
+the ported browser drawing its text keyboard where legacy draws the sample's waveform. What the A/B
+covers and what it does not is migration §10.8 for F1, §10.9 for F2 and §10.10 for F3.
+
+## Archive size
+
+```
+$ ./dbt build Debug
+$ ls -l build/src/shell/Debug/libdeluge_ui_shell.a
+-rw-r--r-- 1 kate kate 1813358 Aug 28 18:34 build/src/shell/Debug/libdeluge_ui_shell.a
+```
+
+1.8 MB, unstripped, with full debug info -- the static archive alone, not a linked firmware image.
+`./dbt sizediff` (the tool that reports the *linked* firmware's size delta against a baseline)
+needs a full device link, which this environment cannot produce: the toolchain's ThinLTO Rust/C++
+link step fails with `ld.lld: ... Invalid record` before a `.bin` ever exists (a pre-existing
+environment limitation, not something this branch introduced -- see the plan's environment
+rulings). The number above is the nearest substitute this environment can produce.

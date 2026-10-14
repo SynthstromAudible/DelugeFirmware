@@ -18,19 +18,29 @@
 #pragma once
 
 #include "range.h"
+#include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item {
 
 class IntegerRange final : public Range {
 public:
-	IntegerRange(l10n::String newName, l10n::String title, int32_t newMin, int32_t newMax)
-	    : Range(newName, title), minValue(newMin), maxValue(newMax) {}
+	/// @param slot Which `FlashStorage::defaultRanges` entry this item's `lower`/`upper` name. The
+	///             two values used to be members here; they are settings the loader has always
+	///             persisted, so they live in `FlashStorage` and this binds references onto them --
+	///             the same move `menu_item::Colour::value` made, and for the same reason (a layer
+	///             that may not name `gui/` still has to edit them). See
+	///             `storage/flash_storage.h`'s `defaultRanges`.
+	IntegerRange(l10n::String newName, l10n::String title, int32_t newMin, int32_t newMax,
+	             FlashStorage::DefaultRangeSlot slot)
+	    : Range(newName, title), lower(FlashStorage::defaultRanges[slot].lower),
+	      upper(FlashStorage::defaultRanges[slot].upper), minValue(newMin), maxValue(newMax) {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) override;
 	void selectEncoderAction(int32_t offset) override;
 	int32_t getRandomValueInRange();
 
-	int32_t lower{}, upper{};
+	int32_t& lower;
+	int32_t& upper;
 
 	int32_t minValue, maxValue;
 };

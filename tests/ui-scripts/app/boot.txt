@@ -1,0 +1,10 @@
+# Level 3 (spec G §4.2): the whole legacy app, headless, on the deterministic frame clock.
+# Times are milliseconds of rendered audio: ms = host_rendered_frames * 1000 / 44100.
+#
+# Not 0 ms: the legacy app blits its first OLED frame from inside the main loop, *after* its first
+# input poll, so nothing has been drawn at 0 ms and a snapshot there has no panel to record (the
+# run fails rather than record a blank). The first frame lands between 5 and 10 ms; 50 gives that
+# a comfortable margin while still being the app's very first screen.
+50     snapshot boot
+2000   snapshot idle
+2100   quit

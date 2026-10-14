@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "gui/ui/notify_drain.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
@@ -403,13 +404,19 @@ void doAnyPendingUIRendering() {
 		return; // There's no point going in here multiple times inside each other
 	}
 
-	if (deluge_control_pad_output_space() <= (kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2) {
-		return; // Trialling the *2 to fix flickering when flicking through presets very fast
-	}
-
 	ReentryLockHold hold{pendingUIRenderingLock};
-	doAnyPendingGridRendering();
-	doAnyPendingOLEDRendering();
+
+	// Before the pad-output-space gate, not after: notices and playback-hook edges (count-in, the cull-alert LED
+	// blink) must never be starved by pad TX back-pressure, and the drain's ring is only 16 deep, so a notice delayed
+	// long enough is overwritten, not merely late. Under the lock, so a render the drain triggers cannot re-enter
+	// this function and drain a second time in the same pass.
+	drain_notifications();
+
+	if (deluge_control_pad_output_space() > (kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2) {
+		// Trialling the *2 to fix flickering when flicking through presets very fast
+		doAnyPendingGridRendering();
+		doAnyPendingOLEDRendering();
+	}
 }
 
 uint32_t currentUIMode = 0;
@@ -502,7 +509,8 @@ EnumStringMap<UIType, util::to_underlying(UIType::UI_TYPE_COUNT)> uiTypeMap = {
       {UIType::SAVE_SONG, "save_song"},
       {UIType::SESSION, "session"},
       {UIType::SLICER, "slicer"},
-      {UIType::SOUND_EDITOR, "sound_editor"}}}};
+      {UIType::SOUND_EDITOR, "sound_editor"},
+      {UIType::SHELL_HOST, "shell_host"}}}};
 
 const char* UI::getUIName() {
 	const UIType type = getUIType();

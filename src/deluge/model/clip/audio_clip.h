@@ -19,11 +19,11 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/views/audio_clip_view.h"
-#include "gui/waveform/waveform_render_data.h"
 #include "model/clip/clip.h"
 #include "model/sample/sample_controls.h"
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
+#include "model/sample/waveform_render_data.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
 #include "util/c_string.h"

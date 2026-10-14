@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #include "model/action/action_logger.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -26,7 +25,6 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -50,6 +48,8 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
+#include "util/note_editor_open.h"
+#include "util/notify.h"
 #include <iterator>
 #include <new>
 #include <string.h>
@@ -96,7 +96,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 	// Exception for sound editor note row editor UI which can edit note rows on the grid
 	// Exception for loadPatternUI which does edit note rows on the grid
 	if ((getCurrentUI() != getRootUI())
-	    && (!(getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())))
+	    && (!(deluge::gui::ui::noteEditorOpen() || deluge::gui::ui::noteRowEditorOpen()))
 	    && (getCurrentUI() != &loadPatternUI)) {
 		return nullptr;
 	}
@@ -667,7 +667,8 @@ currentClipSwitchedOver:
 			    && whichAnimation != Animation::CLIP_MINDER_TO_ARRANGEMENT) {
 				instrumentClipView.recalculateColours();
 				if (whichAnimation == Animation::NONE) {
-					uiNeedsRendering(currentUI);
+					deluge::notify::raise(deluge::notify::Dirty::GridMain);
+					deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 				}
 			}
 		}
@@ -679,24 +680,27 @@ currentClipSwitchedOver:
 					instrumentClipView.recalculateColours();
 				}
 				if (whichAnimation == Animation::NONE) {
-					uiNeedsRendering(currentUI);
+					deluge::notify::raise(deluge::notify::Dirty::GridMain);
+					deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 				}
 			}
 		}
 		else if (currentUI == &audioClipView) {
 			if (whichAnimation == Animation::NONE) {
-				uiNeedsRendering(currentUI);
+				deluge::notify::raise(deluge::notify::Dirty::GridMain);
+				deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 			}
 		}
 		else if (currentUI == &keyboardScreen) {
 			if (whichAnimation != Animation::ENTER_KEYBOARD_VIEW) {
-				uiNeedsRendering(currentUI, 0xFFFFFFFF, 0);
+				deluge::notify::raise(deluge::notify::Dirty::GridMain);
 			}
 		}
 		// Got to try this even if we're supposedly doing a horizontal scroll animation or something cos that may have
 		// failed if the Clip wasn't long enough before we did the action->revert() ...
 		else if (currentUI == &sessionView) {
-			uiNeedsRendering(currentUI, 0xFFFFFFFF, 0xFFFFFFFF);
+			deluge::notify::raise(deluge::notify::Dirty::GridMain);
+			deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 		}
 		else if (currentUI == &arrangerView) {
 			arrangerView.repopulateOutputsOnScreen(whichAnimation == Animation::NONE);
@@ -744,7 +748,7 @@ currentClipSwitchedOver:
 
 	// If there was an actual error in the reversion itself...
 	if (error != Error::NONE) {
-		display->displayError(error);
+		deluge::notify::notice(error);
 
 		deleteAllLogs();
 	}
@@ -818,7 +822,7 @@ displayUndoMessage:
 #ifdef undoLedX
 		indicator_leds::indicateAlertOnLed(undoLedX, undoLedY);
 #else
-		display->consoleText("Undo");
+		deluge::notify::notice("Undo", deluge::notify::Notice::Kind::Console);
 #endif
 	}
 }
@@ -828,7 +832,7 @@ void ActionLogger::redo() {
 #ifdef redoLedX
 		indicator_leds::indicateAlertOnLed(redoLedX, redoLedY);
 #else
-		display->consoleText("Redo");
+		deluge::notify::notice("Redo", deluge::notify::Notice::Kind::Console);
 #endif
 	}
 }

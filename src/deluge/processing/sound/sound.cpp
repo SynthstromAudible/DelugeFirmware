@@ -75,6 +75,7 @@
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/misc.h"
+#include "util/notify.h"
 #include "util/structural_edit_probe.h"
 #include <algorithm>
 #include <array>
@@ -2863,7 +2864,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	// type and passes the audio through; the next effects edit on this sound retries.
 	deluge::effects::EffectStates effects = state.effects;
 	if (effects.mod_fx.type != this->effects().mod_fx.type && !setModFXType(effects.mod_fx.type)) {
-		display->displayError(Error::INSUFFICIENT_RAM);
+		deluge::notify::notice(Error::INSUFFICIENT_RAM);
 	}
 	effects.mod_fx.type = this->effects().mod_fx.type;
 	setEffects(effects);
@@ -3396,7 +3397,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 					displayDelaySettings(on);
 				}
 				else {
-					display->displayPopup(getDelaySyncTypeDisplayName());
+					deluge::notify::notice(std::string_view(getDelaySyncTypeDisplayName()));
 				}
 			}
 			else {
@@ -3408,7 +3409,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 					displayDelaySettings(on);
 				}
 				else {
-					display->displayPopup(getDelayPingPongStatusDisplayName());
+					deluge::notify::notice(std::string_view(getDelayPingPongStatusDisplayName()));
 				}
 			}
 			return true;
@@ -3433,7 +3434,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 				else {
 					char displayName[30];
 					getDelaySyncLevelDisplayName(displayName);
-					display->displayPopup(displayName);
+					deluge::notify::notice(std::string_view(displayName));
 				}
 			}
 			else {
@@ -3445,7 +3446,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 					displayDelaySettings(on);
 				}
 				else {
-					display->displayPopup(getDelayTypeDisplayName());
+					deluge::notify::notice(std::string_view(getDelayTypeDisplayName()));
 				}
 			}
 			return true;
@@ -3467,7 +3468,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 				displayFilterSettings(on, currentFilterType);
 			}
 			else {
-				display->displayPopup(getFilterModeDisplayName(currentFilterType));
+				deluge::notify::notice(std::string_view(getFilterModeDisplayName(currentFilterType)));
 			}
 			return true;
 		}
@@ -3487,7 +3488,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 				displayFilterSettings(on, currentFilterType);
 			}
 			else {
-				display->displayPopup(getFilterModeDisplayName(currentFilterType));
+				deluge::notify::notice(std::string_view(getFilterModeDisplayName(currentFilterType)));
 			}
 			return true;
 		}
@@ -3506,7 +3507,8 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 				displaySidechainAndReverbSettings(on);
 			}
 			else {
-				display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+				deluge::notify::notice(
+				    std::string_view(view.getReverbPresetDisplayName(view.getCurrentReverbPreset())));
 			}
 		}
 		return false;
@@ -3538,7 +3540,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 				displaySidechainAndReverbSettings(on);
 			}
 			else {
-				display->displayPopup(getSidechainDisplayName());
+				deluge::notify::notice(std::string_view(getSidechainDisplayName()));
 			}
 			return true;
 		}
@@ -3565,7 +3567,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 				displayFilterSettings(on, currentFilterType);
 			}
 			else {
-				display->displayPopup(getFilterTypeDisplayName(currentFilterType));
+				deluge::notify::notice(std::string_view(getFilterTypeDisplayName(currentFilterType)));
 			}
 		}
 		return false;
@@ -3588,7 +3590,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 				displayFilterSettings(on, currentFilterType);
 			}
 			else {
-				display->displayPopup(getFilterTypeDisplayName(currentFilterType));
+				deluge::notify::notice(std::string_view(getFilterTypeDisplayName(currentFilterType)));
 			}
 		}
 		return false;
@@ -3611,7 +3613,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 				displayFilterSettings(on, currentFilterType);
 			}
 			else {
-				display->displayPopup(getFilterTypeDisplayName(currentFilterType));
+				deluge::notify::notice(std::string_view(getFilterTypeDisplayName(currentFilterType)));
 			}
 		}
 		return false;

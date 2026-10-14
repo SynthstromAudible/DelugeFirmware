@@ -1,0 +1,848 @@
+#include "../gfx/support/golden.h"
+#include "gfx/oled/canvas.h"
+#include "gfx/oled/icons.h"
+#include "support/frames.h"
+#include "ui/oled/meters.h"
+
+#include "cppspec.hpp"
+
+#include "../support/spec_main.h"
+#include <cmath>
+#include <cstdlib>
+#include <string>
+
+using namespace deluge::ui;
+using namespace deluge::ui::oled;
+using deluge::gfx::oled::Canvas;
+using deluge::gfx::oled::Rect;
+namespace icons = deluge::gfx::oled::icons;
+namespace uitest = deluge::ui::test;
+
+// Every meter below is pinned three ways at once, the same way values_spec.cpp pins the value
+// widgets. First as a byte-for-byte comparison against the legacy routine itself: `namespace
+// legacy` re-transcribes `Number::drawPercent` / `drawKnob` / `drawBar` / `drawSlider` /
+// `drawLengthSlider` / `drawPan` / `drawHpf` / `drawLpf` / `drawAttack` / `drawRelease` /
+// `drawSidechainDucking` against the raw gfx `Canvas` in canvas-absolute coordinates, with every
+// magic number spelled as a literal (2 for kHorizontalMenuSlotYOffset, 6/9 for the Apple ][ font,
+// 9/10 for the title font) rather than borrowed from the constants the port lays out with, and
+// every scene is drawn both ways and compared. Second as individual coordinates read off the
+// legacy source, for a handful of checks worth pinning explicitly. Third as golden PBMs. Both
+// shipped geometries are covered for every meter, since the legacy `SlotPosition::start_y` was
+// panel-relative and the frame's origin now carries the bezel term.
+//
+// Points where the port's shape departs from a literal reading of the legacy interface, all
+// resolved in the legacy code's favour:
+//
+//  - `unipolar_bar(0.5)` inverts exactly ten columns, not eleven: `drawBar` computes
+//    `fill_width = norm * 21` through a `uint8_t` -- 10, not 10.5 and not 11 -- and
+//    `invertArea`'s `width` is exclusive, so exactly ten columns invert: bar_start_x ..
+//    bar_start_x + 9. Asserted below, including that bar_start_x + 10 stays dark.
+//  - `meter(f, slot, Hint, float norm, int32_t raw)` has no room for `getMaxValue()`, which
+//    `drawSidechainDucking` reads to pick between its two value scales. A defaulted sixth
+//    parameter `raw_max` carries it; a five-argument call still compiles and selects the
+//    `/ 50.0f` arm.
+//  - `percent(f, slot, int32_t value)`'s parameter is the number that gets *printed*, and `meter`
+//    does legacy's doubling of `getValue()` before passing it in. Pinned by the dispatch test at
+//    the bottom.
+//  - Legacy's `drawSlider` takes an optional value override and `drawLengthSlider` a
+//    `min_slider_pos` flag; `slider(f, slot, float norm)` drops the former (it is just "whichever
+//    number the caller wants normalised") and keeps the latter as `min_pos`. Both arms of
+//    `min_pos` are covered.
+//  - `min_pos` DEFAULTS TO TRUE, because legacy's does: `drawLengthSlider(const SlotPosition&,
+//    bool min_slider_pos = 3)` copy-initialises the bool from `3`, and `renderInHorizontalMenu`
+//    is its only caller in the tree -- so every LENGTH_SLIDER slot the firmware draws (the arp
+//    gate item) uses `true`, and the thumb sits one pixel right at the bottom of the range. The
+//    `meter_length_slider_*` goldens are recorded with the defaulted (true) arm for that reason;
+//    the `false` arm is still pinned against the legacy replay.
+//
+// The `meter` dispatch is driven through `legacy::renderInHorizontalMenu` -- a transcription
+// *including* its defaulted arguments -- so no arm is checked merely against the port's own
+// widget called with the port's own arguments.
+
+namespace {
+
+// The slot geometry: three legacy SlotPositions side by side.
+constexpr int32_t kSlotY = 14;
+constexpr int32_t kSlotW = 31;
+constexpr int32_t kSlotH = 25;
+constexpr int32_t kSlotX[3] = {0, 32, 64};
+constexpr float kNorms[3] = {0.0f, 0.5f, 1.0f};
+
+Rect slot_at(int32_t i) {
+	return Rect{kSlotX[i], kSlotY, kSlotW, kSlotH};
+}
+
+/// Verbatim transcriptions of the eleven legacy renderers, drawing through the raw gfx Canvas.
+/// `slot_y` is canvas-absolute -- the legacy `SlotPosition::start_y` plus the panel's topmost
+/// pixel, which is what the horizontal menu handed them -- so these can be replayed onto a
+/// reference canvas of either geometry. `image.` and the parameter names are legacy's own.
+namespace legacy {
+
+void drawPercent(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t slot_w, int32_t value) {
+	// `value` is legacy's getValue(); the doubling lives *inside* the routine, which is what
+	// makes the doubling a real decision on the port's side.
+	const std::string valueString = std::to_string(value * 2); // etl::string<12> + appendInt
+
+	constexpr char percent_char = '%';
+	const int32_t value_width = image.get_string_width_in_pixels(valueString.c_str(), 9);
+	const int32_t percent_char_width = image.get_char_width_in_pixels(percent_char, 9);
+	constexpr int32_t padding_between = 2;
+	const int32_t total_width = value_width + percent_char_width + padding_between;
+
+	int32_t x = slot_x + (slot_w - total_width) / 2 + 1;
+	int32_t y = slot_y + 2;
+	image.draw_string(valueString, x, y, 6, 9);
+
+	x += value_width + padding_between;
+	image.draw_char(percent_char, x, y, 6, 9);
+}
+
+void drawKnob(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t slot_w, float norm) {
+	image.draw_icon_centered(icons::knobArc, slot_x, slot_w, slot_y - 1);
+
+	constexpr uint8_t knob_radius = 10;
+	const uint8_t center_x = slot_x + slot_w / 2;
+	const uint8_t center_y = slot_y + knob_radius;
+	constexpr uint8_t arc_range_angle = 210;
+	constexpr uint8_t beginning_angle = 165;
+	const float current_angle = beginning_angle + (arc_range_angle * norm);
+
+	// M_PI itself, not the port's spelled-out copy of it: the spec is host-only, where <cmath>
+	// always defines it, so the oracle proves the port's portable literal is that same double.
+	const float radians = current_angle * M_PI / 180.0f;
+	constexpr float outer_radius = knob_radius - 1.0f;
+	constexpr float inner_radius = 3.5f;
+	const float cos_a = std::cos(radians);
+	const float sin_a = std::sin(radians);
+	const float line_start_x = center_x + inner_radius * cos_a;
+	const float line_start_y = center_y + inner_radius * sin_a;
+	const float line_end_x = center_x + outer_radius * cos_a;
+	const float line_end_y = center_y + outer_radius * sin_a;
+	image.draw_line(std::round(line_start_x), std::round(line_start_y), std::round(line_end_x), std::round(line_end_y),
+	                {.thick = true});
+}
+
+void drawBar(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t /*slot_w*/, float norm) {
+	constexpr uint8_t bar_width = 21;
+	constexpr uint8_t bar_height = 5;
+	constexpr uint8_t outline_padding = 2;
+	const uint8_t bar_start_x = slot_x + 5;
+	const uint8_t bar_start_y = slot_y + 2 + 2;
+	const uint8_t bar_end_x = bar_start_x + bar_width - 1;
+	const uint8_t bar_end_y = bar_start_y + bar_height - 1;
+
+	image.draw_rectangle(bar_start_x - outline_padding, bar_start_y - outline_padding, bar_end_x + outline_padding,
+	                     bar_end_y + outline_padding);
+
+	const uint8_t fill_width = norm * bar_width;
+	image.invert_area(bar_start_x, fill_width, bar_start_y, bar_end_y);
+}
+
+void drawSlider(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t /*slot_w*/, float norm) {
+	constexpr int32_t slider_width = 23;
+	constexpr int32_t slider_height = 11;
+	const int32_t min_x = slot_x + 4;
+	const int32_t max_x = min_x + slider_width - 1;
+	const int32_t min_y = slot_y + 1;
+	const int32_t max_y = min_y + slider_height - 1;
+
+	const int32_t value_line_min_x = min_x;
+	const int32_t value_line_width = static_cast<int32_t>(norm * (max_x - 1 - value_line_min_x));
+	const int32_t value_line_x = value_line_min_x + value_line_width;
+
+	const int32_t center_y = min_y + (max_y - min_y) / 2;
+	for (int32_t x = min_x; x <= max_x; x += 3) {
+		if (x != value_line_x - 1 && x != value_line_x + 2) {
+			image.draw_pixel(x, center_y - 1);
+			image.draw_pixel(x, center_y + 1);
+		}
+	}
+
+	image.draw_vertical_line(value_line_x, min_y, max_y);
+	image.draw_vertical_line(value_line_x + 1, min_y, max_y);
+}
+
+void drawLengthSlider(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t /*slot_w*/, float norm,
+                      bool min_slider_pos) {
+	constexpr int32_t slider_width = 23;
+	constexpr int32_t slider_height = 11;
+	const int32_t min_x = slot_x + 4;
+	const int32_t max_x = min_x + slider_width - 1;
+	const int32_t min_y = slot_y + 1;
+	const int32_t max_y = min_y + slider_height - 1;
+
+	const int32_t value_line_min_x = min_x + min_slider_pos;
+	const int32_t value_line_width = static_cast<int32_t>(norm * (max_x - value_line_min_x));
+	const int32_t value_line_x = value_line_min_x + value_line_width;
+
+	const int32_t center_y = min_y + (max_y - min_y) / 2;
+	for (int32_t y = center_y - 1; y <= center_y + 1; y++) {
+		image.draw_horizontal_line(y, min_x, value_line_x);
+	}
+	image.draw_vertical_line(value_line_x, min_y, max_y);
+
+	for (int32_t x = max_x; x >= value_line_min_x; x -= 3) {
+		image.draw_pixel(x, center_y - 1);
+		image.draw_pixel(x, center_y + 1);
+	}
+}
+
+void drawPan(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t /*slot_w*/, int32_t value) {
+	constexpr uint8_t bar_width = 21;
+	constexpr uint8_t bar_height = 5;
+	constexpr uint8_t outline_padding = 2;
+	const uint8_t bar_start_x = slot_x + 5;
+	const uint8_t bar_start_y = slot_y + 2 + 2;
+	const uint8_t bar_end_x = bar_start_x + bar_width - 1;
+	const uint8_t bar_end_y = bar_start_y + bar_height - 1;
+	const uint8_t bar_center_x = bar_start_x + bar_width / 2;
+
+	image.draw_rectangle(bar_start_x - outline_padding, bar_start_y - outline_padding, bar_end_x + outline_padding,
+	                     bar_end_y + outline_padding);
+
+	for (const auto offset : {1, 2}) {
+		image.draw_pixel(bar_center_x, bar_end_y + outline_padding + offset);
+		image.draw_pixel(bar_center_x, bar_start_y - outline_padding - offset);
+	}
+
+	image.draw_vertical_line(bar_center_x, bar_start_y, bar_end_y);
+
+	const int8_t direction = (value > 0) - (value < 0);
+
+	uint8_t abs_value = std::abs(value);
+	if (abs_value > 0 && abs_value < 3) {
+		abs_value = 3;
+	}
+
+	const uint8_t fill_width = abs_value / 25.f * (bar_width / 2);
+	if (fill_width > 0) {
+		const uint8_t fill_start_x = direction >= 0 ? bar_center_x + 1 : bar_center_x - fill_width - 1;
+		image.invert_area(fill_start_x, fill_width + 1, bar_start_y, bar_end_y);
+	}
+}
+
+void drawHpf(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t /*slot_w*/, float norm) {
+	constexpr uint8_t slope_width = 5;
+	constexpr uint8_t width = 21;
+	constexpr uint8_t height = 11;
+
+	const uint8_t hpf_start_x = slot_x + 5;
+	const uint8_t hpf_end_x = hpf_start_x + width - 1;
+	const uint8_t hpf_start_y = slot_y + 1;
+	const uint8_t hpf_end_y = hpf_start_y + height - 1;
+
+	const uint8_t slope_start_x = std::lerp(hpf_start_x, hpf_end_x - slope_width - 4, norm);
+	const uint8_t slope_end_x = slope_start_x + slope_width;
+
+	image.draw_line(slope_start_x, hpf_end_y, slope_end_x, hpf_start_y, {.thick = true});
+	image.draw_horizontal_line(hpf_start_y, slope_end_x, hpf_end_x);
+	image.draw_horizontal_line(hpf_start_y + 1, slope_end_x, hpf_end_x);
+
+	for (uint8_t x = hpf_start_x; x < slope_start_x; x += 3) {
+		image.draw_pixel(x, hpf_start_y);
+	}
+	if (slope_start_x != hpf_start_x) {
+		for (uint8_t y = hpf_start_y; y < hpf_end_y; y += 3) {
+			image.draw_pixel(hpf_start_x, y);
+		}
+	}
+}
+
+void drawLpf(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t /*slot_w*/, float norm) {
+	constexpr uint8_t slope_width = 5;
+	constexpr uint8_t width = 21;
+	constexpr uint8_t height = 11;
+
+	const uint8_t lpf_start_x = slot_x + 5;
+	const uint8_t lpf_end_x = lpf_start_x + width - 1;
+	const uint8_t lpf_start_y = slot_y + 1;
+	const uint8_t lpf_end_y = lpf_start_y + height - 1;
+
+	const uint8_t slope_start_x = std::lerp(lpf_start_x + 3, lpf_end_x - slope_width, norm);
+	const uint8_t slope_end_x = slope_start_x + slope_width;
+
+	image.draw_line(slope_start_x, lpf_start_y, slope_end_x, lpf_end_y, {.thick = true});
+	image.draw_horizontal_line(lpf_start_y, lpf_start_x, slope_start_x);
+	image.draw_horizontal_line(lpf_start_y + 1, lpf_start_x, slope_start_x);
+
+	for (uint8_t x = lpf_end_x; x > slope_end_x; x -= 3) {
+		image.draw_pixel(x, lpf_start_y);
+	}
+	if (slope_end_x != lpf_end_x) {
+		for (uint8_t y = lpf_start_y; y < lpf_end_y; y += 3) {
+			image.draw_pixel(lpf_end_x, y);
+		}
+	}
+}
+
+void drawRelease(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t /*slot_w*/, float norm) {
+	constexpr uint8_t width = 19;
+	constexpr uint8_t height = 11;
+
+	const uint8_t rel_start_x = slot_x + 5;
+	const uint8_t rel_end_x = rel_start_x + width - 1;
+	const uint8_t rel_start_y = slot_y + 2 - 1;
+	const uint8_t rel_end_y = rel_start_y + height - 1;
+
+	const uint8_t rel_stage_start_x = rel_start_x + 4;
+	const uint8_t rel_effective_x = std::lerp(rel_stage_start_x, rel_end_x, norm);
+
+	image.draw_horizontal_line(rel_start_y, rel_start_x, rel_stage_start_x);
+	image.draw_line(rel_stage_start_x, rel_start_y, rel_effective_x, rel_end_y);
+
+	constexpr uint8_t indicator_offset = 2;
+	for (uint8_t x = rel_effective_x - indicator_offset; x <= rel_effective_x + indicator_offset; x++) {
+		for (uint8_t y = rel_end_y - indicator_offset; y <= rel_end_y + indicator_offset - 1; y++) {
+			image.draw_pixel(x, y);
+		}
+	}
+
+	for (uint8_t x = rel_end_x; x > rel_effective_x + 1; x -= 2) {
+		image.draw_pixel(x, rel_end_y);
+	}
+}
+
+void drawAttack(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t /*slot_w*/, float norm) {
+	constexpr uint8_t width = 19;
+	constexpr uint8_t height = 11;
+
+	const uint8_t atk_start_x = slot_x + 7;
+	const uint8_t atk_end_x = atk_start_x + width - 1;
+	const uint8_t atk_start_y = slot_y + 2;
+	const uint8_t atk_end_y = atk_start_y + height - 1;
+
+	const uint8_t atk_effective_x = std::lerp(atk_start_x, atk_end_x - 2, norm);
+
+	image.draw_line(atk_start_x, atk_end_y, atk_effective_x, atk_start_y, {.thick = false});
+
+	constexpr uint8_t indicator_offset = 2;
+	for (uint8_t x = atk_effective_x - indicator_offset; x <= atk_effective_x + indicator_offset; x++) {
+		for (uint8_t y = atk_start_y - indicator_offset + 1; y <= atk_start_y + indicator_offset; y++) {
+			image.draw_pixel(x, y);
+		}
+	}
+
+	for (uint8_t x = atk_end_x; x > atk_effective_x + 1; x -= 2) {
+		image.draw_pixel(x, atk_start_y);
+	}
+}
+
+void drawSidechainDucking(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t slot_w, int32_t value, int32_t max) {
+	constexpr int32_t width = 23;
+	constexpr int32_t height = 11;
+
+	const int32_t left_padding = (slot_w - width) / 2;
+	const int32_t min_x = slot_x + left_padding;
+	const int32_t max_x = min_x + width;
+	const int32_t min_y = slot_y + 2 - 1;
+	const int32_t max_y = min_y + height - 1;
+
+	const float norm = max > 50 ? std::abs(value) / 5000.0f : value / 50.0f;
+	const int32_t fill_height = norm * height;
+	const int32_t y_offset = (height - fill_height) / 2;
+
+	int32_t ducking_start_y, ducking_end_y, y0, y1;
+	if (value >= 0) {
+		ducking_start_y = min_y + y_offset;
+		ducking_end_y = ducking_start_y + fill_height;
+		y0 = ducking_end_y;
+		y1 = ducking_start_y;
+	}
+	else {
+		ducking_end_y = max_y - y_offset;
+		ducking_start_y = ducking_end_y - fill_height;
+		y0 = ducking_start_y;
+		y1 = ducking_end_y;
+	}
+
+	constexpr int32_t offset_right = 10;
+	image.draw_line(min_x, y0, max_x - offset_right, y1);
+	image.draw_line(min_x, y0, min_x, y1);
+	image.draw_horizontal_line(y1, max_x - offset_right, max_x);
+}
+
+/// `enum RenderingStyle` verbatim, including the order and the `NUMBER` default arm.
+enum RenderingStyle {
+	NUMBER,
+	KNOB,
+	BAR,
+	PERCENT,
+	SLIDER,
+	LENGTH_SLIDER,
+	PAN,
+	LPF,
+	HPF,
+	ATTACK,
+	RELEASE,
+	SIDECHAIN_DUCKING
+};
+
+/// `Number::normalize`.
+float normalize(int32_t value, int32_t min_value, int32_t max_value) {
+	return static_cast<float>(value - min_value) / static_cast<float>(max_value - min_value);
+}
+
+/// `Number::renderInHorizontalMenu`, the dispatch itself -- **including the defaulted arguments,
+/// which are part of what each arm draws.** `getValue()` / `getMinValue()` / `getMaxValue()`
+/// become the three trailing parameters.
+void renderInHorizontalMenu(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t slot_w, RenderingStyle style,
+                            int32_t value, int32_t min_value, int32_t max_value) {
+	const float norm = normalize(value, min_value, max_value);
+	switch (style) {
+	case PERCENT:
+		return drawPercent(image, slot_x, slot_y, slot_w, value);
+	case KNOB:
+		return drawKnob(image, slot_x, slot_y, slot_w, norm);
+	case BAR:
+		return drawBar(image, slot_x, slot_y, slot_w, norm);
+	case SLIDER:
+		// drawSlider(slot) -- the `std::optional<int32_t> value = std::nullopt` default means
+		// value_or(getValue()), i.e. this same norm.
+		return drawSlider(image, slot_x, slot_y, slot_w, norm);
+	case LENGTH_SLIDER:
+		// drawLengthSlider(slot) -- `bool min_slider_pos = 3` copy-initialises to TRUE, and this
+		// is the only caller of drawLengthSlider in the tree.
+		return drawLengthSlider(image, slot_x, slot_y, slot_w, norm, true);
+	case PAN:
+		return drawPan(image, slot_x, slot_y, slot_w, value);
+	case HPF:
+		return drawHpf(image, slot_x, slot_y, slot_w, norm);
+	case LPF:
+		return drawLpf(image, slot_x, slot_y, slot_w, norm);
+	case ATTACK:
+		return drawAttack(image, slot_x, slot_y, slot_w, norm);
+	case RELEASE:
+		return drawRelease(image, slot_x, slot_y, slot_w, norm);
+	case SIDECHAIN_DUCKING:
+		return drawSidechainDucking(image, slot_x, slot_y, slot_w, value, max_value);
+	default: {
+		const std::string paramValue = std::to_string(value);
+		return image.draw_string_centered(paramValue.c_str(), slot_x, slot_y + 2, 9, 10, slot_w);
+	}
+	}
+}
+
+} // namespace legacy
+
+/// Draw the three-slot scene into \p r: the widget through the frame, the legacy routine onto
+/// the rig's reference canvas at the same slots shifted down by the panel's hidden rows (which
+/// is exactly what the frame's origin adds).
+template <class Rig, class Widget, class Legacy>
+void three_slots(Rig& r, Widget&& widget, Legacy&& legacy_draw) {
+	for (int32_t i = 0; i < 3; i++) {
+		widget(r.frame, slot_at(i), i);
+		legacy_draw(r.reference, kSlotX[i], kSlotY + r.frame.origin.y, kSlotW, i);
+	}
+}
+
+/// The whole check for one meter: the three-slot scene at both shipped geometries, each compared
+/// against the legacy replay and recorded as a golden.
+template <class Self, class Widget, class Legacy>
+void both_geometries(Self& self, const std::string& name, Widget&& widget, Legacy&& legacy_draw) {
+	uitest::Rig48 r;
+	three_slots(r, widget, legacy_draw);
+	expect(r.pbm()).to_equal(r.reference_pbm());
+	expect_golden(self, "../ui/widgets/" + name + "_48.pbm", r.pbm());
+
+	uitest::Rig64 r64;
+	three_slots(r64, widget, legacy_draw);
+	expect(r64.pbm()).to_equal(r64.reference_pbm());
+	expect_golden(self, "../ui/widgets/" + name + "_64.pbm", r64.pbm());
+}
+
+/// One `meter` dispatch scene against the legacy dispatch: three slots carrying the same
+/// rendering style at three values, drawn through `meter` on one side and through
+/// `legacy::renderInHorizontalMenu` on the other, compared byte for byte at both geometries.
+///
+/// This is the oracle the widget examples have and the dispatch used not to: `meter` is checked
+/// against a transcription of `Number::renderInHorizontalMenu` *including its defaulted
+/// arguments*, not against the port's own widgets called with the port's own arguments. \p norm
+/// is computed the way a caller computes it, with legacy's `normalize`.
+template <class Self>
+void dispatch_matches_legacy(Self& self, Hint hint, legacy::RenderingStyle style, const int32_t (&values)[3],
+                             int32_t min_value, int32_t max_value) {
+	const auto scene = [&](auto& r) {
+		for (int32_t i = 0; i < 3; i++) {
+			const int32_t value = values[i];
+			meter(r.frame, slot_at(i), hint, legacy::normalize(value, min_value, max_value), value, max_value);
+			legacy::renderInHorizontalMenu(r.reference, kSlotX[i], kSlotY + r.frame.origin.y, kSlotW, style, value,
+			                               min_value, max_value);
+		}
+		expect(r.pbm()).to_equal(r.reference_pbm());
+	};
+	uitest::Rig48 r;
+	scene(r);
+	uitest::Rig64 r64;
+	scene(r64);
+}
+
+} // namespace
+
+// clang-format off
+describe meters_w("ui::oled::meters", $ {
+
+	// -------------------------------------------------------------------- percent
+
+	it("draws the legacy percent readout at both geometries", _ {
+		// The oracle takes legacy's getValue() and doubles it itself; the widget takes the
+		// already-doubled number, so the doubling has to happen on this side of the call. The
+		// three slots print 0%, 50% and 100%.
+		constexpr int32_t raw[3] = {0, 25, 50};
+		both_geometries(self, "meter_percent",
+			[&](OledFrame& f, Rect s, int32_t i) { percent(f, s, raw[i] * 2); },
+			[&](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) { legacy::drawPercent(c, x, y, w, raw[i]); });
+
+		// The middle slot spelled out in coordinates: "50" is 12px wide at height 9 and '%' 6px,
+		// so total_width is 20 and the pair starts at 32 + (31 - 20) / 2 + 1 = 38, with the '%'
+		// at 38 + 12 + 2 = 52. y is slot.y + kHorizontalMenuSlotYOffset = 16, canvas row 21.
+		uitest::Rig48 r;
+		percent(r.frame, slot_at(1), 50);
+		r.reference.draw_string("50", 38, 21, 6, 9);
+		r.reference.draw_char('%', 52, 21, 6, 9);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+	});
+
+	// ------------------------------------------------------------------- knob_arc
+
+	it("draws the legacy knob arc and leading line at both geometries", _ {
+		both_geometries(self, "meter_knob",
+			[](OledFrame& f, Rect s, int32_t i) { knob_arc(f, s, kNorms[i]); },
+			[](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) { legacy::drawKnob(c, x, y, w, kNorms[i]); });
+
+		// The trig spelled out here rather than borrowed from the port: at norm 1 the line ends
+		// at 165 + 210 = 375 degrees, radius knob_radius - 1, about a centre at
+		// (slot.x + slot.w / 2, slot.y + 10).
+		uitest::Rig48 r;
+		knob_arc(r.frame, slot_at(2), 1.0f);
+		const double radians = (165.0 + 210.0) * M_PI / 180.0;
+		const int32_t center_x = kSlotX[2] + kSlotW / 2;
+		const int32_t center_y = kSlotY + 10 + 5;                    // + the 48-row panel's hidden rows
+		const int32_t end_x = std::round(center_x + 9.0f * std::cos(static_cast<float>(radians)));
+		const int32_t end_y = std::round(center_y + 9.0f * std::sin(static_cast<float>(radians)));
+		expect(end_x).to_equal(88);                                  // 79 + 9 * cos 15deg = 87.69
+		expect(end_y).to_equal(31);                                  // 29 + 9 * sin 15deg = 31.33
+		expect(r.lit(end_x, end_y)).to_be_true();
+		// The arc bitmap does not reach that pixel -- its last two columns ink canvas rows 24/25
+		// and 26..31 respectively -- so only the leading line can have lit it. Its inner end is
+		// at radius 3.5, which rounds to (82, 30).
+		expect(r.lit(82, 30)).to_be_true();
+		expect(r.lit(80, 29)).to_be_false();                         // inside the arc, past the line's start
+
+		// At norm 0 the line points the other way (165 degrees, i.e. up-left of centre).
+		uitest::Rig48 zero;
+		knob_arc(zero.frame, slot_at(2), 0.0f);
+		const double zero_radians = 165.0 * M_PI / 180.0;
+		expect(zero.lit(std::round(center_x + 9.0f * std::cos(static_cast<float>(zero_radians))),
+		                std::round(center_y + 9.0f * std::sin(static_cast<float>(zero_radians))))).to_be_true();
+	});
+
+	// --------------------------------------------------------------- unipolar_bar
+
+	it("draws the legacy bar at both geometries", _ {
+		both_geometries(self, "meter_bar",
+			[](OledFrame& f, Rect s, int32_t i) { unipolar_bar(f, s, kNorms[i]); },
+			[](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) { legacy::drawBar(c, x, y, w, kNorms[i]); });
+	});
+
+	it("inverts exactly ten columns at half (D1)", _ {
+		// fill_width = norm * 21 through a uint8_t is 10, and invertArea's width is exclusive --
+		// so bar_start_x .. bar_start_x + 9, not + 10.
+		uitest::Rig48 r;
+		unipolar_bar(r.frame, slot_at(1), 0.5f);
+		const int32_t bar_start_x = kSlotX[1] + 5;                   // 37
+		const int32_t bar_start_y = kSlotY + 2 + 2 + 5;              // canvas row 23
+		const int32_t bar_end_y = bar_start_y + 5 - 1;               // canvas row 27
+
+		bool filled = true, empty = true;
+		for (int32_t y = bar_start_y; y <= bar_end_y; y++) {
+			for (int32_t x = bar_start_x; x <= bar_start_x + 9; x++) {
+				filled = filled && r.lit(x, y);
+			}
+			for (int32_t x = bar_start_x + 10; x <= bar_start_x + 20; x++) {
+				empty = empty && !r.lit(x, y);
+			}
+			empty = empty && !r.lit(bar_start_x - 1, y);             // the gap inside the outline
+		}
+		expect(filled).to_be_true();
+		expect(empty).to_be_true();
+
+		// The outline is 2px outside the bar on every side: x 35..59 and canvas rows 21..29.
+		expect(r.lit(35, 21)).to_be_true();
+		expect(r.lit(59, 29)).to_be_true();
+		expect(r.lit(34, 21)).to_be_false();
+		expect(r.lit(60, 29)).to_be_false();
+
+		// Nothing at all at norm 0 beyond the outline (fill_width 0 -> invertArea of width 0).
+		uitest::Rig48 zero;
+		unipolar_bar(zero.frame, slot_at(1), 0.0f);
+		bool all_dark = true;
+		for (int32_t y = bar_start_y; y <= bar_end_y; y++) {
+			for (int32_t x = bar_start_x; x <= bar_start_x + 20; x++) {
+				all_dark = all_dark && !zero.lit(x, y);
+			}
+		}
+		expect(all_dark).to_be_true();
+	});
+
+	it("shifts by exactly visible_top between the two geometries", _ {
+		// The slot is frame-local and the frame's origin carries the bezel, so the 64-row panel
+		// draws the identical picture five rows higher and nothing else changes.
+		uitest::Rig48 r;
+		uitest::Rig64 r64;
+		for (int32_t i = 0; i < 3; i++) {
+			unipolar_bar(r.frame, slot_at(i), kNorms[i]);
+			unipolar_bar(r64.frame, slot_at(i), kNorms[i]);
+		}
+		bool shifted = true;
+		for (int32_t y = 0; y < 48; y++) {
+			for (int32_t x = 0; x < 128; x++) {
+				if (y < 5) {
+					shifted = shifted && !r.lit(x, y);               // the hidden rows stay dark
+				}
+				else {
+					shifted = shifted && (r.lit(x, y) == r64.lit(x, y - 5));
+				}
+			}
+		}
+		expect(shifted).to_be_true();
+		bool tail_dark = true;
+		for (int32_t y = 43; y < 64; y++) {
+			for (int32_t x = 0; x < 128; x++) {
+				tail_dark = tail_dark && !r64.lit(x, y);
+			}
+		}
+		expect(tail_dark).to_be_true();
+	});
+
+	// ------------------------------------------------------------------------ pan
+
+	it("draws the legacy pan meter at both geometries", _ {
+		constexpr int32_t values[3] = {-25, 0, 25};
+		both_geometries(self, "meter_pan",
+			[&](OledFrame& f, Rect s, int32_t i) { pan(f, s, values[i]); },
+			[&](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) { legacy::drawPan(c, x, y, w, values[i]); });
+	});
+
+	it("draws only the midline at pan zero", _ {
+		uitest::Rig48 r;
+		pan(r.frame, slot_at(1), 0);
+		const int32_t bar_start_x = kSlotX[1] + 5;                   // 37
+		const int32_t bar_center_x = bar_start_x + 21 / 2;           // 47
+		const int32_t bar_start_y = kSlotY + 2 + 2 + 5;              // canvas row 23
+		const int32_t bar_end_y = bar_start_y + 5 - 1;               // canvas row 27
+
+		// Inside the bar, the centre column and nothing else: value 0 gives direction 0 and
+		// abs_value 0, so fill_width is 0 and the invertArea never runs.
+		bool only_midline = true;
+		for (int32_t y = bar_start_y; y <= bar_end_y; y++) {
+			for (int32_t x = bar_start_x; x <= bar_start_x + 20; x++) {
+				const bool want = (x == bar_center_x);
+				only_midline = only_midline && (r.lit(x, y) == want);
+			}
+		}
+		expect(only_midline).to_be_true();
+
+		// The two notches above and below the outline are drawn regardless.
+		expect(r.lit(bar_center_x, bar_end_y + 2 + 1)).to_be_true();
+		expect(r.lit(bar_center_x, bar_end_y + 2 + 2)).to_be_true();
+		expect(r.lit(bar_center_x, bar_start_y - 2 - 1)).to_be_true();
+		expect(r.lit(bar_center_x, bar_start_y - 2 - 2)).to_be_true();
+
+		// A magnitude of 1 is rounded up to 3 so that "off centre" always shows: fill_width =
+		// 3 / 25 * 10 = 1, inverting two columns right of the midline.
+		uitest::Rig48 nudged;
+		pan(nudged.frame, slot_at(1), 1);
+		expect(nudged.lit(bar_center_x + 1, bar_start_y)).to_be_true();
+		expect(nudged.lit(bar_center_x + 2, bar_start_y)).to_be_true();
+		expect(nudged.lit(bar_center_x + 3, bar_start_y)).to_be_false();
+		nudged.reference.clear();
+		legacy::drawPan(nudged.reference, kSlotX[1], kSlotY + 5, kSlotW, 1);
+		expect(nudged.pbm()).to_equal(nudged.reference_pbm());
+	});
+
+	// --------------------------------------------------------------------- slider
+
+	it("draws the legacy slider at both geometries", _ {
+		both_geometries(self, "meter_slider",
+			[](OledFrame& f, Rect s, int32_t i) { slider(f, s, kNorms[i]); },
+			[](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) { legacy::drawSlider(c, x, y, w, kNorms[i]); });
+
+		// The thumb is two columns wide and spans the full 11-row track, and at norm 0 it sits on
+		// the track's left edge (slot.x + 4). Track rows are slot.y + 1 .. + 11, i.e. canvas
+		// 20..30 for the 48-row panel.
+		uitest::Rig48 r;
+		slider(r.frame, slot_at(0), 0.0f);
+		expect(r.lit(4, 20)).to_be_true();
+		expect(r.lit(5, 30)).to_be_true();
+		expect(r.lit(6, 30)).to_be_false();
+	});
+
+	// -------------------------------------------------------------- length_slider
+
+	it("draws the legacy length slider at both geometries", _ {
+		// Recorded with the DEFAULTED min_pos, which is legacy's `= 3` -> true and therefore the
+		// only shape the firmware's LENGTH_SLIDER slots have ever drawn.
+		both_geometries(self, "meter_length_slider",
+			[](OledFrame& f, Rect s, int32_t i) { length_slider(f, s, kNorms[i]); },
+			[](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) {
+				legacy::drawLengthSlider(c, x, y, w, kNorms[i], true);
+			});
+
+		// The other arm still has to be right, since the parameter exists.
+		uitest::Rig48 off;
+		for (int32_t i = 0; i < 3; i++) {
+			length_slider(off.frame, slot_at(i), kNorms[i], false);
+			legacy::drawLengthSlider(off.reference, kSlotX[i], kSlotY + 5, kSlotW, kNorms[i], false);
+		}
+		expect(off.pbm()).to_equal(off.reference_pbm());
+	});
+
+	it("puts the thumb one pixel right when min_pos, and defaults it on", _ {
+		// value_line_min_x = min_x + min_slider_pos, and value_line_width = norm *
+		// (max_x - value_line_min_x), so the two arms land on different columns at the bottom of
+		// the range and converge higher up. For the slot at x 32: min_x = 36, max_x = 58, and at
+		// norm 0.25 the thumb is at 36 + 1 + int(0.25 * 21) = 42 with min_pos and at
+		// 36 + int(0.25 * 22) = 41 without. The thumb is the full-height vline, so canvas row 20
+		// discriminates -- the 3-row fill and the dotted run are both at center_y +/- 1, canvas
+		// rows 24..26.
+		uitest::Rig48 on;
+		length_slider(on.frame, slot_at(1), 0.25f); // defaulted -> true, as legacy defaults it
+		expect(on.lit(42, 20)).to_be_true();
+		expect(on.lit(41, 20)).to_be_false();
+
+		uitest::Rig48 off;
+		length_slider(off.frame, slot_at(1), 0.25f, false);
+		expect(off.lit(41, 20)).to_be_true();
+		expect(off.lit(42, 20)).to_be_false();
+
+		// And at norm 0 the whole fill moves with it: the thumb is min_x + 1 vs min_x.
+		uitest::Rig48 zero_on;
+		length_slider(zero_on.frame, slot_at(1), 0.0f);
+		expect(zero_on.lit(37, 20)).to_be_true();
+		expect(zero_on.lit(36, 20)).to_be_false();
+		uitest::Rig48 zero_off;
+		length_slider(zero_off.frame, slot_at(1), 0.0f, false);
+		expect(zero_off.lit(36, 20)).to_be_true();
+	});
+
+	// --------------------------------------------------------------- filter_curve
+
+	it("draws the legacy low-pass curve at both geometries", _ {
+		both_geometries(self, "meter_lpf",
+			[](OledFrame& f, Rect s, int32_t i) { filter_curve(f, s, kNorms[i], FilterKind::Lpf); },
+			[](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) { legacy::drawLpf(c, x, y, w, kNorms[i]); });
+	});
+
+	it("draws the legacy high-pass curve at both geometries", _ {
+		both_geometries(self, "meter_hpf",
+			[](OledFrame& f, Rect s, int32_t i) { filter_curve(f, s, kNorms[i], FilterKind::Hpf); },
+			[](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) { legacy::drawHpf(c, x, y, w, kNorms[i]); });
+
+		// The two are not mirror images, and the dotted stopband is conditional at both ends.
+		// The low-pass corner travels lerp(start + 3, end - 5, norm), so at norm 1 slope_end_x
+		// lands on lpf_end_x and both the dotted top-right run and the dotted right edge vanish;
+		// at norm 0 the run is there. The corner's own pixel at (lpf_end_x, lpf_start_y) is
+		// canvas (25, 20) for a slot at x 0.
+		uitest::Rig48 lpf_open;
+		filter_curve(lpf_open.frame, slot_at(0), 0.0f, FilterKind::Lpf);
+		expect(lpf_open.lit(25, 20)).to_be_true();
+		uitest::Rig48 lpf_shut;
+		filter_curve(lpf_shut.frame, slot_at(0), 1.0f, FilterKind::Lpf);
+		expect(lpf_shut.lit(25, 20)).to_be_false();
+
+		// The high-pass corner travels lerp(start, end - 5 - 4, norm) -- flush against the left
+		// edge at norm 0, where legacy leaves the near edge bare.
+		uitest::Rig48 hpf_open;
+		filter_curve(hpf_open.frame, slot_at(0), 0.0f, FilterKind::Hpf);
+		expect(hpf_open.lit(5, 20)).to_be_false();
+		uitest::Rig48 hpf_shut;
+		filter_curve(hpf_shut.frame, slot_at(0), 1.0f, FilterKind::Hpf);
+		expect(hpf_shut.lit(5, 20)).to_be_true();
+	});
+
+	// ------------------------------------------------------------- envelope_stage
+
+	it("draws the legacy attack ramp at both geometries", _ {
+		both_geometries(self, "meter_attack",
+			[](OledFrame& f, Rect s, int32_t i) { envelope_stage(f, s, kNorms[i], StageKind::Attack); },
+			[](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) { legacy::drawAttack(c, x, y, w, kNorms[i]); });
+	});
+
+	it("draws the legacy release ramp at both geometries", _ {
+		both_geometries(self, "meter_release",
+			[](OledFrame& f, Rect s, int32_t i) { envelope_stage(f, s, kNorms[i], StageKind::Release); },
+			[](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) { legacy::drawRelease(c, x, y, w, kNorms[i]); });
+	});
+
+	// ---------------------------------------------------------- sidechain_ducking
+
+	it("draws the legacy ducking wedge at both geometries", _ {
+		// max 50 selects legacy's `getValue() / 50.0f` arm, so these three are norms 0, 0.5 and 1.
+		constexpr int32_t values[3] = {0, 25, 50};
+		both_geometries(self, "meter_ducking",
+			[&](OledFrame& f, Rect s, int32_t i) { sidechain_ducking(f, s, values[i], 50); },
+			[&](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) {
+				legacy::drawSidechainDucking(c, x, y, w, values[i], 50);
+			});
+
+		// The negative branch draws bottom-up ...
+		uitest::Rig48 down;
+		sidechain_ducking(down.frame, slot_at(1), -25, 50);
+		legacy::drawSidechainDucking(down.reference, kSlotX[1], kSlotY + 5, kSlotW, -25, 50);
+		expect(down.pbm()).to_equal(down.reference_pbm());
+
+		// ... and a max above 50 switches to the /5000 scale on the magnitude, so -2500 there is
+		// the same wedge shape as +2500.
+		uitest::Rig48 big;
+		sidechain_ducking(big.frame, slot_at(1), -2500, 1000);
+		legacy::drawSidechainDucking(big.reference, kSlotX[1], kSlotY + 5, kSlotW, -2500, 1000);
+		expect(big.pbm()).to_equal(big.reference_pbm());
+	});
+
+	// ---------------------------------------------------------------------- meter
+
+	it("dispatches like Number::renderInHorizontalMenu, defaulted arguments included", _ {
+		// Driven against legacy::renderInHorizontalMenu rather than against the port's own
+		// widgets, so an arm that passes the wrong argument fails here -- which is exactly how a
+		// defaulted argument like LENGTH_SLIDER's `min_slider_pos = 3` can hide from assertions
+		// derived from the port itself. Three values per style, three slots, both geometries,
+		// whole-canvas comparison.
+		constexpr int32_t thirds[3] = {0, 25, 50}; // norms 0, 0.5, 1 over [0, 50]
+		dispatch_matches_legacy(self, Hint::Knob, legacy::KNOB, thirds, 0, 50);
+		dispatch_matches_legacy(self, Hint::Bar, legacy::BAR, thirds, 0, 50);
+		dispatch_matches_legacy(self, Hint::Slider, legacy::SLIDER, thirds, 0, 50);
+		dispatch_matches_legacy(self, Hint::Lpf, legacy::LPF, thirds, 0, 50);
+		dispatch_matches_legacy(self, Hint::Hpf, legacy::HPF, thirds, 0, 50);
+		dispatch_matches_legacy(self, Hint::Attack, legacy::ATTACK, thirds, 0, 50);
+		dispatch_matches_legacy(self, Hint::Release, legacy::RELEASE, thirds, 0, 50);
+		// PERCENT prints getValue() * 2 inside the legacy routine, so this is also the pin on
+		// `meter` doing that doubling for the widget.
+		dispatch_matches_legacy(self, Hint::Percent, legacy::PERCENT, thirds, 0, 50);
+		// LENGTH_SLIDER at a low norm, where min_slider_pos actually moves pixels: value 12 is
+		// norm 0.24, one of the values that discriminates true from false.
+		constexpr int32_t low[3] = {0, 12, 50};
+		dispatch_matches_legacy(self, Hint::LengthSlider, legacy::LENGTH_SLIDER, low, 0, 50);
+		// PAN reads the raw -25..25 value, not the norm.
+		constexpr int32_t pans[3] = {-25, 0, 25};
+		dispatch_matches_legacy(self, Hint::Pan, legacy::PAN, pans, -25, 25);
+		// SIDECHAIN_DUCKING reads both the value and getMaxValue(): once on the `/ 50.0f` arm,
+		// once on the `max > 50` magnitude arm.
+		dispatch_matches_legacy(self, Hint::Ducking, legacy::SIDECHAIN_DUCKING, thirds, 0, 50);
+		constexpr int32_t deep[3] = {-2500, 0, 2500};
+		dispatch_matches_legacy(self, Hint::Ducking, legacy::SIDECHAIN_DUCKING, deep, -5000, 5000);
+		// The default arm: NUMBER is legacy's first enumerator and its `default:`. None/Enum/Toggle
+		// all land there.
+		constexpr int32_t numbers[3] = {0, 42, -7};
+		dispatch_matches_legacy(self, Hint::None, legacy::NUMBER, numbers, -100, 100);
+		dispatch_matches_legacy(self, Hint::Enum, legacy::NUMBER, numbers, -100, 100);
+		dispatch_matches_legacy(self, Hint::Toggle, legacy::NUMBER, numbers, -100, 100);
+
+		// And the doubling is a real difference, not a no-op at these values.
+		uitest::Rig48 doubled;
+		uitest::Rig48 plain;
+		meter(doubled.frame, slot_at(1), Hint::Percent, 0.5f, 25);
+		percent(plain.frame, slot_at(1), 25);
+		expect(doubled.pbm() == plain.pbm()).to_be_false();
+	});
+});
+DELUGE_SPEC(ui_meters_spec, meters_w)

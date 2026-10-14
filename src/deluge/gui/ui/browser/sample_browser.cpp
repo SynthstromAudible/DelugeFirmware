@@ -46,7 +46,6 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
-#include "gui/waveform/waveform_render_data.h" // COL_STATUS_*
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -63,6 +62,7 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/sample/waveform_render_data.h" // COL_STATUS_*
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
@@ -182,10 +182,10 @@ dissectionDone:
 	// The listing (and its post-listing tail, in onBrowserOpened()) happens async: dispatch it and
 	// return optimistically. Failure goes through the base Browser::onListingFailed() (displayError
 	// + close(), not goBackToSoundEditor(), which would left-scroll) once the listing completes.
-	beginListing({.action = ListingAction::Open,
-	              .direction = 1,
-	              .filenameToStartAt = searchFilename ? searchFilename : "",
-	              .defaultDir = "SAMPLES"});
+	beginListingOrRetryLater({.action = ListingAction::Open,
+	                          .direction = 1,
+	                          .filenameToStartAt = searchFilename ? searchFilename : "",
+	                          .defaultDir = "SAMPLES"});
 
 	return true;
 }

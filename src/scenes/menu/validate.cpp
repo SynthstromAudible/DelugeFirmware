@@ -1,0 +1,407 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/// @file
+/// @brief The menu-tree validator. See `validate.h` for the rule list and the `Issue` shape.
+///
+/// **Rule-by-rule, against spec E §4.4's sentence** ("Every node reachable from a root; every
+/// `Submenu` non-empty under at least one context; every `ParamRef` resolves for its
+/// `MenuContext`; every `Enum` has `names` or `dynamic_names`; every shortcut cell points at a
+/// node; no duplicate `(name, parent)`; `Custom` count <= 10"):
+///
+///   * *reachable* -> `Issue::Kind::Unreachable`. `assign_node_ids` reports how many nodes it could
+///     number and stops at `kMaxNodes` (`node_id.h`); this walk counts the reachable nodes itself
+///     and flags the first one left without an id. "Reachable" means over both static edge kinds --
+///     `Node::children` and `Node::chain_targets` -- exactly as `assign_node_ids` walks them, or
+///     the two counts would not be comparable and the seven chain-only pages would each be
+///     reported as unreachable.
+///   * *non-empty submenu* -> `EmptySubmenu`, quantified over the supplied contexts in which the
+///     submenu is itself relevant (see the rule's own comment for why that qualifier is there).
+///   * *`ParamRef` resolves* -> `BadParamRef`. Structural, not model-backed: the kind must be one
+///     `bindings.cpp` can serve and the index must be inside that kind's parameter space
+///     (`modulation/params/param.h:253-260`). Whether a *particular* song's param manager holds the
+///     collection is `bindings::read`/`write`'s own `serves_param` test, at the point of use, and is
+///     not something a static tree check can decide.
+///   * *`Enum` names* -> `EnumWithoutNames`.
+///   * *shortcut cells* -> `ShortcutToNothing`, over every `MenuContext::Root` and both shift
+///     layers.
+///   * *no duplicate `(name, parent)`* -> `DuplicateName`, among siblings that can be on screen
+///     together (see `co_visible` for why that qualifier is there).
+///   * *`Custom` <= 10* -> `TooManyCustom`, counting **nodes that point at a custom item**
+///     (`validate.h`'s `kMaxCustomNodes`), and no longer at 10 -- see that constant for the
+///     deviation and the real number.
+///
+/// plus, beyond §4.4: `MissingTitle`, `NullCustom` and `RangeWithoutSpec` (three ways a node would
+/// render nothing),
+/// `FlagMismatch` with `Flag::ReverbUpdateWithHook` (task-8 ruling: a `set` hook silently swallows
+/// `Binding::updates_reverb_params`), with `Flag::ChainTargetsMismatch` (a `select_chain` hook
+/// without its static target list, or the reverse), and with `Flag::AdjustWithoutGet`
+/// (E-note-family task 3: `Binding::adjust` on a node with no `get`, which would read through
+/// `param` and write through the hook),
+/// `PlaceholderCustom` (a node that renders a stand-in rather than a real item -- unconditional
+/// since E3 task 7 retired the last two stand-ins and with them the option that suppressed this,
+/// see `validate.h`'s `kPendingCustomNodes`), and the two `FlagMismatch` audits (task 6's ruling 4).
+///
+/// **No heap, no model.** The walk uses two fixed `kMaxNodes`-wide arrays of node pointers -- the
+/// reachable set and `collect`'s explicit work stack -- so the frame is `2 * kMaxNodes *
+/// sizeof(const Node*)`: 8 KB on the 32-bit target, 16 KB on a 64-bit host. Fine for a spec, and
+/// the reason nothing here is recursive; check it against the device stack before Task 12 wires
+/// this into boot.
+
+#include "scenes/menu/validate.h"
+
+#include "scenes/menu/node_id.h"
+#include "scenes/menu/shortcuts.h"
+
+#include "gfx/grid/pad_grid.h" // kMaxGridCols / kMaxGridRows -- the widest pad grid to sweep
+#include "modulation/params/param.h"
+
+#include <algorithm>
+
+namespace deluge::scenes::menu {
+
+namespace {
+
+namespace params = deluge::modulation::params;
+
+using Issues = deluge::ui::shell::FixedVector<Issue, 64>;
+
+void add(Issues& out, Issue::Kind kind, const Node* node, uint16_t detail = 0) {
+	(void)out.push_back(Issue{kind, node, detail});
+}
+
+/// @brief The reachable set, in `assign_node_ids`' own pre-order.
+struct Reachable {
+	const Node* nodes[kMaxNodes]{};
+	size_t count = 0;
+
+	bool contains(const Node* n) const { return std::find(nodes, nodes + count, n) != nodes + count; }
+	bool push(const Node* n) {
+		if (count == kMaxNodes) {
+			return false;
+		}
+		nodes[count++] = n;
+		return true;
+	}
+};
+
+/// @brief Collect every node reachable from @p roots, depth-first, pre-order, declaration order --
+///        the same walk `assign_node_ids` does, so the two counts are comparable.
+///
+/// @return False if the walk hit `kMaxNodes` and had to stop (the tree is bigger than the registry).
+bool collect(std::span<const Node* const> roots, Reachable& seen) {
+	// An explicit stack rather than recursion: a malformed table could otherwise blow the real
+	// stack, and this file is meant to survive being handed a bad tree.
+	const Node* stack[kMaxNodes];
+	size_t top = 0;
+	for (size_t i = roots.size(); i > 0; i--) {
+		if (top == kMaxNodes) {
+			return false;
+		}
+		stack[top++] = roots[i - 1];
+	}
+	while (top > 0) {
+		const Node* n = stack[--top];
+		if (n == nullptr || seen.contains(n)) {
+			continue; // a shared node is one node, visited once
+		}
+		if (!seen.push(n)) {
+			return false;
+		}
+		// Chain targets pushed first so they pop *after* the children -- `assign_node_ids` visits
+		// children then `chain_targets`, and the two walks have to reach the same set for the
+		// `Unreachable` rule's count comparison to mean anything. A cycle through `chain_targets`
+		// terminates on the `seen.contains` test at the top of the loop, the same way a shared node
+		// does.
+		for (size_t i = n->chain_targets.size(); i > 0; i--) {
+			if (top == kMaxNodes) {
+				return false;
+			}
+			stack[top++] = n->chain_targets[i - 1];
+		}
+		for (size_t i = n->children.size(); i > 0; i--) {
+			if (top == kMaxNodes) {
+				return false;
+			}
+			stack[top++] = n->children[i - 1];
+		}
+	}
+	return true;
+}
+
+/// @brief Is @p param a pair `bindings.cpp` could resolve? (`modulation/params/param.h:253-260`.)
+bool param_in_range(const ParamRef& param) {
+	switch (param.kind) {
+	case params::Kind::PATCHED:
+		return param.index < params::kNumParams;
+	case params::Kind::UNPATCHED_SOUND:
+	case params::Kind::UNPATCHED_GLOBAL:
+		return param.index < params::kMaxNumUnpatchedParams;
+	default:
+		return false;
+	}
+}
+
+/// @brief Does @p node hold a value at all -- i.e. is a missing binding a bug?
+bool is_value_kind(Kind k) {
+	switch (k) {
+	case Kind::Toggle:
+	case Kind::Enum:
+	case Kind::Int:
+	case Kind::Decimal:
+	case Kind::SyncLevel:
+	case Kind::Range:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/// @brief How many of @p node's declared children @p ctx admits.
+size_t visible_count(const Node& node, const MenuContext& ctx) {
+	size_t n = 0;
+	for (const Node* kid : node.children) {
+		if (kid != nullptr && (kid->relevant == nullptr || kid->relevant(ctx))) {
+			n++;
+		}
+	}
+	return n;
+}
+
+/// @brief Can @p a and @p b be shown at the same time?
+///
+/// The qualifier on the `DuplicateName` rule, and the same kind of refinement `EmptySubmenu`
+/// already carries: spec E §4.4's sentence is "no duplicate `(name, parent)`", but legacy's tree
+/// deliberately puts **variant pairs** side by side under one parent -- one item for a sound, one
+/// for a MIDI/CV clip, named identically because the user only ever sees one of them. There are
+/// eighteen such pairs in the sound-editor root alone (every randomizer parameter and its
+/// `midi_cv` twin, both arpeggiator rhythm and sequence-length twins, the two note modes, and the
+/// bend-range submenu beside a kit's single bend-range item). Reporting all of those would make
+/// the rule noise rather than a check.
+///
+/// Two tests, either of which means "these really do collide":
+///
+///   * **Identical visibility.** The two carry the same `relevant` hook -- including both carrying
+///     none -- so nothing can ever separate them. This is the static half, and it is what still
+///     catches legacy's three genuine `FormattedTitle` collisions (both sample recorders under
+///     `is_subtractive`, both oscillator volumes under `not_ringmod`, both FM modulator levels
+///     under `is_fm`), which are ambiguous in the data because a `Node::name` is one static id.
+///   * **Actually both on screen.** Some supplied context admits both. This is the dynamic half,
+///     and it is what stops a pair with two *different* predicates that happen to agree from
+///     slipping through unnoticed in the contexts the caller cares about.
+///
+/// With no contexts supplied only the static half applies, which is the right answer for a
+/// structural-only check.
+bool co_visible(const Node& a, const Node& b, std::span<const MenuContext> contexts) {
+	if (a.relevant == b.relevant) {
+		return true;
+	}
+	for (const MenuContext& ctx : contexts) {
+		const bool a_on = a.relevant == nullptr || a.relevant(ctx);
+		const bool b_on = b.relevant == nullptr || b.relevant(ctx);
+		if (a_on && b_on) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void check_flag_set(Issues& out, const Reachable& seen, std::span<const Node* const> expected, Flag flag,
+                    bool (*has_flag)(const Node&)) {
+	const auto detail = static_cast<uint16_t>(flag);
+	// Set, but not expected.
+	for (size_t i = 0; i < seen.count; i++) {
+		const Node* n = seen.nodes[i];
+		if (has_flag(*n) && std::find(expected.begin(), expected.end(), n) == expected.end()) {
+			add(out, Issue::Kind::FlagMismatch, n, detail);
+		}
+	}
+	// Expected, but not set (or not even in the tree).
+	for (const Node* n : expected) {
+		if (n == nullptr || !seen.contains(n) || !has_flag(*n)) {
+			add(out, Issue::Kind::FlagMismatch, n, detail);
+		}
+	}
+}
+
+bool flag_range_dependent(const Node& n) {
+	return n.range_dependent;
+}
+bool flag_half_precision(const Node& n) {
+	return n.bind.param.valid() && n.bind.scaling == Scaling::HalfPrecision;
+}
+
+} // namespace
+
+deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* const> roots,
+                                                        std::span<const MenuContext> contexts,
+                                                        std::span<const Node* const> expected_range_dependent,
+                                                        std::span<const Node* const> expected_half_precision,
+                                                        ValidateOptions options) {
+	Issues out;
+
+	// Ruling Q7: ids first, so everything downstream (and the `Unreachable` rule below) has them.
+	const uint16_t assigned = assign_node_ids(roots);
+
+	Reachable seen;
+	const bool complete = collect(roots, seen);
+
+	// --- Every node reachable from a root got an id -------------------------------------------
+	if (!complete || assigned != seen.count) {
+		const Node* offender = nullptr;
+		for (size_t i = 0; i < seen.count && offender == nullptr; i++) {
+			if (node_id(*seen.nodes[i]) == 0) {
+				offender = seen.nodes[i];
+			}
+		}
+		add(out, Issue::Kind::Unreachable, offender, static_cast<uint16_t>(seen.count));
+	}
+
+	// --- Per-node rules -----------------------------------------------------------------------
+	// Fix round 2, I4: counted in **nodes that point at a custom item**, not in distinct
+	// `CustomItem` instances -- see `kMaxCustomNodes` for why the old spelling could never fire.
+	size_t custom_count = 0;
+	const Node* last_custom = nullptr;
+
+	for (size_t i = 0; i < seen.count; i++) {
+		const Node& n = *seen.nodes[i];
+
+		if (n.title == 0) {
+			add(out, Issue::Kind::MissingTitle, &n, n.name);
+		}
+
+		if (n.kind == Kind::Enum && n.bind.names.empty() && n.bind.dynamic_names == nullptr) {
+			add(out, Issue::Kind::EnumWithoutNames, &n);
+		}
+
+		if (n.bind.param.kind != params::Kind::NONE && !param_in_range(n.bind.param)) {
+			add(out, Issue::Kind::BadParamRef, &n, n.bind.param.index);
+		}
+		else if (is_value_kind(n.kind) && !n.bind.param.valid() && n.bind.get == nullptr) {
+			add(out, Issue::Kind::BadParamRef, &n, n.bind.param.index);
+		}
+
+		// `adjust` with no `get` would read through `param` and write through the hook -- see
+		// `Flag::AdjustWithoutGet`. The rule just above already reports a value node with neither
+		// `get` nor `param` at all; this is the remaining case.
+		if (n.bind.adjust != nullptr && n.bind.get == nullptr) {
+			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::AdjustWithoutGet));
+		}
+
+		// A `set` hook plus `updates_reverb_params` is a silent no-op -- see `Flag::ReverbUpdateWithHook`.
+		if (n.bind.updates_reverb_params && n.bind.set != nullptr) {
+			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::ReverbUpdateWithHook));
+		}
+
+		// A chain hook and its static target list are set together or not at all -- see
+		// `Flag::ChainTargetsMismatch`.
+		if ((n.select_chain != nullptr) != !n.chain_targets.empty()) {
+			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::ChainTargetsMismatch));
+		}
+
+		// A range node's upper edge lives entirely in `range_spec` -- see `Issue::Kind::RangeWithoutSpec`.
+		if (n.kind == Kind::Range && (n.bind.range_spec == nullptr || n.bind.range_spec->format == nullptr)) {
+			add(out, Issue::Kind::RangeWithoutSpec, &n);
+		}
+
+		if (n.kind == Kind::Custom) {
+			if (n.custom == nullptr) {
+				add(out, Issue::Kind::NullCustom, &n);
+			}
+			else {
+				if (n.custom->is_placeholder()) {
+					add(out, Issue::Kind::PlaceholderCustom, &n, n.name);
+				}
+				last_custom = &n;
+				custom_count++;
+			}
+		}
+
+		if (n.kind == Kind::Submenu) {
+			// A dynamic submenu's children only exist at render time, so it cannot be judged here.
+			if (n.dynamic_children == nullptr) {
+				// "Non-empty under at least one context" is quantified over the contexts in which
+				// the submenu is itself *shown*: a submenu whose own `relevant` hook is false here
+				// is not on screen, so its children being filtered out is not an emptiness bug --
+				// legacy's `modulator0Menu` / `modulator1Menu` are exactly that shape, an FM-only
+				// page whose every child is FM-only too (`submenu/modulator.h:25-28`). When no
+				// supplied context shows the submenu at all, there is nothing to quantify over and
+				// the check falls back to the structural one: does it declare any children?
+				bool populated = false;
+				bool ever_shown = false;
+				for (const MenuContext& ctx : contexts) {
+					if (n.relevant != nullptr && !n.relevant(ctx)) {
+						continue;
+					}
+					ever_shown = true;
+					if (visible_count(n, ctx) > 0) {
+						populated = true;
+						break;
+					}
+				}
+				if (!ever_shown) {
+					populated = !n.children.empty();
+				}
+				if (!populated) {
+					add(out, Issue::Kind::EmptySubmenu, &n, static_cast<uint16_t>(n.children.size()));
+				}
+			}
+
+			// No duplicate `(name, parent)` -- among siblings that can be on screen together.
+			for (size_t a = 0; a < n.children.size(); a++) {
+				if (n.children[a] == nullptr) {
+					continue;
+				}
+				for (size_t b = a + 1; b < n.children.size(); b++) {
+					if (n.children[b] != nullptr && n.children[b]->name == n.children[a]->name
+					    && co_visible(*n.children[a], *n.children[b], contexts)) {
+						add(out, Issue::Kind::DuplicateName, n.children[b], n.children[b]->name);
+					}
+				}
+			}
+		}
+	}
+
+	if (custom_count > kMaxCustomNodes) {
+		add(out, Issue::Kind::TooManyCustom, last_custom, static_cast<uint16_t>(custom_count));
+	}
+
+	// --- Every shortcut cell points at a node the tree reaches --------------------------------
+	// Whole-tree only: see `ValidateOptions::skip_shortcut_sweep`.
+	for (uint8_t root = 0; !options.skip_shortcut_sweep && root < static_cast<uint8_t>(MenuContext::Root::Count);
+	     root++) {
+		for (uint8_t layer = 0; layer < 2; layer++) {
+			for (uint8_t y = 0; y < deluge::gfx::grid::kMaxGridRows; y++) {
+				for (uint8_t x = 0; x < deluge::gfx::grid::kMaxGridCols; x++) {
+					const Node* cell = shortcut_node(static_cast<MenuContext::Root>(root), layer != 0, x, y);
+					if (cell != nullptr && !seen.contains(cell)) {
+						add(out, Issue::Kind::ShortcutToNothing, cell,
+						    static_cast<uint16_t>(static_cast<uint16_t>(y) * 256 + x));
+					}
+				}
+			}
+		}
+	}
+
+	// --- The two flag audits (ruling 4) -------------------------------------------------------
+	check_flag_set(out, seen, expected_range_dependent, Flag::RangeDependent, flag_range_dependent);
+	check_flag_set(out, seen, expected_half_precision, Flag::HalfPrecision, flag_half_precision);
+
+	return out;
+}
+
+} // namespace deluge::scenes::menu

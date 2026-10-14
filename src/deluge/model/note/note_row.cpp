@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #include "model/note/note_row.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_note.h"
@@ -53,6 +52,8 @@
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/lookuptables/preset_tables.h"
+#include "util/note_editor_open.h"
+#include "util/notify.h"
 #include "util/structural_edit_probe.h"
 #include <new>
 #include <string.h>
@@ -2035,7 +2036,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 					}
 				}
 				// if you're in the note editor, identify the notes that have non-default parameters
-				else if (drewNote && getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
+				else if (drewNote && deluge::gui::ui::noteEditorOpen()) {
 					// if note has non-default settings for probability, iterance or fill
 					if (note->getProbability() != kNumProbabilityValues || note->getIterance() != kDefaultIteranceValue
 					    || note->getFill() != FillMode::OFF) {
@@ -2496,7 +2497,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 
 	if (timeAgo < 0) { // Gregory J got this. And Vinz
 #if ALPHA_OR_BETA_VERSION
-		display->displayPopup("E336"); // Popup only
+		deluge::notify::notice("E336"); // Popup only
 #endif
 		timeAgo = 0; // Just don't crash
 	}
@@ -3773,7 +3774,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 						// This is at least not ideal, so we'd better tell the user
 						if (ALPHA_OR_BETA_VERSION) {
-							display->displayPopup("E073");
+							deluge::notify::notice("E073");
 						}
 					}
 				}

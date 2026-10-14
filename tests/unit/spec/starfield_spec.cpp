@@ -1,12 +1,12 @@
-#include "hid/display/starfield.h"
+#include "ui/oled/starfield.h"
 
 #include "cppspec.hpp"
 #include <cmath>
 
-using deluge::hid::display::Starfield;
+using deluge::ui::oled::Starfield;
 
 // Upper depth bound is kMaxDepth + 0.2, not kMaxDepth: scatter() spawns stars in
-// [0.1, kMaxDepth + 0.1) via its `nextRandomFloat() * kMaxDepth + 0.1f` expression,
+// [0.1, kMaxDepth + 0.1) via its `next_random_float() * kMaxDepth + 0.1f` expression,
 // so the ceiling needs headroom above kMaxDepth alone.
 static constexpr float kDepthCeiling = Starfield::kMaxDepth + 0.2f;
 
@@ -15,8 +15,8 @@ describe starfield("Starfield", $ {
 	it("puts every star in front of the viewer on construction", _ {
 		Starfield field;
 		for (size_t i = 0; i < Starfield::kNumStars; i++) {
-			expect(field.depthOf(i)).to_be_greater_than(0.0f);
-			expect(field.depthOf(i)).to_be_less_than(kDepthCeiling);
+			expect(field.depth_of(i)).to_be_greater_than(0.0f);
+			expect(field.depth_of(i)).to_be_less_than(kDepthCeiling);
 		}
 	});
 
@@ -24,7 +24,7 @@ describe starfield("Starfield", $ {
 		Starfield a;
 		Starfield b;
 		for (size_t i = 0; i < Starfield::kNumStars; i++) {
-			expect(a.depthOf(i)).to_equal(b.depthOf(i));
+			expect(a.depth_of(i)).to_equal(b.depth_of(i));
 			expect(a.project(i).x).to_equal(b.project(i).x);
 			expect(a.project(i).y).to_equal(b.project(i).y);
 		}
@@ -34,14 +34,14 @@ describe starfield("Starfield", $ {
 		Starfield field;
 		float firstDepths[Starfield::kNumStars];
 		for (size_t i = 0; i < Starfield::kNumStars; i++) {
-			firstDepths[i] = field.depthOf(i);
+			firstDepths[i] = field.depth_of(i);
 		}
 
 		field.scatter();
 
 		bool anyDifferent = false;
 		for (size_t i = 0; i < Starfield::kNumStars; i++) {
-			if (field.depthOf(i) != firstDepths[i]) {
+			if (field.depth_of(i) != firstDepths[i]) {
 				anyDifferent = true;
 			}
 		}
@@ -55,8 +55,8 @@ describe starfield("Starfield", $ {
 			for (int32_t frame = 0; frame < 5000; frame++) {
 				field.advance();
 				for (size_t i = 0; i < Starfield::kNumStars; i++) {
-					expect(field.depthOf(i)).to_be_greater_than(0.0f);
-					expect(field.depthOf(i)).to_be_less_than(kDepthCeiling);
+					expect(field.depth_of(i)).to_be_greater_than(0.0f);
+					expect(field.depth_of(i)).to_be_less_than(kDepthCeiling);
 				}
 			}
 		});
@@ -82,7 +82,7 @@ describe starfield("Starfield", $ {
 				field.advance();
 				for (size_t i = 0; i < Starfield::kNumStars; i++) {
 					const int32_t expectedSize =
-					    (field.depthOf(i) < Starfield::kNearThreshold) ? 2 : 1;
+					    (field.depth_of(i) < Starfield::kNearThreshold) ? 2 : 1;
 					expect(field.project(i).size).to_equal(expectedSize);
 				}
 			}

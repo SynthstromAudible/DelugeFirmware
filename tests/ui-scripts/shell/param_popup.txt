@@ -1,0 +1,64 @@
+# Level-2 acceptance (E4 task 13): `overlay::ParamPopupScene` (E4 task 1), pushed by
+# `services::ModKnobs` (E4 task 2).
+#
+# **How the scene gets on the stack: nothing in this script pushes it.** A gold-knob turn is offered
+# to the top scene first (`shell/router.h`'s `route()`, which is legacy's `UI::modEncoderAction` ->
+# `view` fallback), `AudioClipScene` declines it explicitly ("the two gold knobs and the tempo
+# encoder are `services::ModKnobs`'s", `audio_clip_scene.cpp:247-251`), and
+# `ModKnobs::mod_encoder_action` then writes the param and calls `show_popup`, which ends by running
+# `stack_.push(SceneId{kParamPopupSceneKind})` (`services/mod_knobs.cpp:417`). **This script
+# cannot exist with `Services{}`**: with a null mod-knob service the turn is dropped and no popup
+# frame is ever produced. It is the one script here whose whole subject is a service.
+#
+# The base scene is `AudioClipScene` on the same clip the knobs are pointed at, so the popup is
+# composited over something rather than over a blank panel -- `ParamPopupScene::oled_transparent`
+# reports true for `SurfaceRole::Main` precisely so the scene beneath shows around it.
+#
+# **The turn at 100 ms is SWALLOWED, and that is the port working, not the script failing.**
+# `ModKnobs::set_target_with_timeline` opens with `pretend_knobs_untouched()`
+# (`services/mod_knobs.cpp:120`, legacy's `View::pretendModKnobsUntouchedForAWhile`,
+# `view.cpp:1968-1972`), which backdates `InputLowering::last_turn_ms_` by a second -- so the next
+# gold turn is not "recent" and `InputLowering::action_gold_turn` writes it off as the opening half
+# of a possible wiggle (`input_lowering.cpp:206-231`). Every gold gesture on the device therefore
+# costs a detent to arm, and the fixture sets the mod target before the run exactly as
+# `View::setActiveModControllableTimelineCounter` does on the device. Found by recording the frame
+# and looking at it: the first version of this script turned once and recorded a `popup_shown`
+# golden byte-identical to `idle`.
+#
+# `src/scenes/README.md`'s divergence table already logs the *other* face of this debounce -- the
+# first turn after boot is swallowed too, because `last_turn_ms_` starts at 0 and on device `now_ms`
+# is uptime -- and records that whether the whole mechanism is a defect needs a device to settle. So
+# "the port working" is the narrow claim: the port reproduces legacy here. Whether legacy is right
+# is the open question that row already carries.
+#
+# **`popup_moved` is the frame that found, and now guards, a real defect.** E4 task 13 first recorded
+# this script with no such frame, because there was nothing to record: a second detent on an
+# already-open popup moved the scene's text and **nothing repainted the panel**, so the pixels kept
+# the first value until the popup expired. The narrow cause was the arbitration's *immediate-commit*
+# arm alone -- the throttled arm (a turn inside `kMinUpdateIntervalMs`) arms
+# `pending_flush_remaining_ms_`, which `next_timer()` reports and `timer_repaints()` resolves to
+# `{.oled = true}`, so a FAST turn repainted itself and only a slow one did not.
+# `ParamPopupScene::show` now reports whether it committed and `ModKnobs::show_popup` passes that up
+# to `mod_encoder_action`, which files `Action::Kind::Repaint` on `SurfaceRole::Main` --
+# legacy's `display->displayNotification(...)` at `view.cpp:1262` being a write AND a blit. Deleting
+# that action turns this frame back into a copy of `popup_shown`.
+0     snapshot idle              # the audio clip view, no popup -- `.state` has one `scene` line
+100   encoder GoldUpper +1       # armed, not acted on: see above
+150   encoder GoldUpper +1
+200   snapshot popup_shown       # `ModKnobs` wrote the param and pushed the popup: the MASTER LEVEL
+                                 # name/value notification strip over the top of the clip view, and
+                                 # a second `scene` line in `.state`
+300   encoder GoldUpper +25
+400   snapshot popup_moved       # twenty-five more detents on the SAME param: the strip's value
+                                 # moves and the knob's indicator ring with it. Nothing is pushed a
+                                 # second time (`show_popup`'s already-stacked guard,
+                                 # `mod_knobs.cpp:412-416`), so `.state` still has exactly two
+                                 # `scene` lines -- what changed is the text and the ring
+# +2100 ms of quiet ticks, no input at all. `kPopupLifetimeMs` is 2000 ms from the last commit
+# (`param_popup_scene.cpp:37`), so the deadline falls at ~2300.
+2500  snapshot popup_expired     # the popup ran its own timer down and removed ITSELF --
+                                 # `after_render`'s `Action::Kind::Remove`, never `Pop`
+                                 # (`param_popup_scene.cpp:368`). The clip view owns the panel again
+                                 # and `.state` is back to one `scene` line, with the indicator
+                                 # ring left where the 300 ms turn put it
+2600  quit

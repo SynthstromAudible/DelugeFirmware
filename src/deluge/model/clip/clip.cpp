@@ -39,6 +39,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"
+#include "util/notify.h"
 #include <atomic>
 #include <initializer_list>
 #include <new>
@@ -512,7 +513,7 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 
 		Error error = beginLinearRecording(modelStack, buttonPressLatency);
 		if (error != Error::NONE) {
-			display->displayError(error);
+			deluge::notify::notice(error);
 			return false;
 		}
 
@@ -843,6 +844,18 @@ void Clip::prepareForDestruction(ModelStackWithTimelineCounter* modelStack,
 	}
 }
 
+void Clip::notify_content_changed() {
+	using namespace deluge::notify;
+	const int32_t i = currentSong ? currentSong->live.clips.session_clips.getIndexForClip(this) : -1;
+	if (i >= 0) {
+		raise_clip(Dirty::ClipContent, static_cast<uint16_t>(i));
+	}
+	else {
+		// Arrangement-only (or not-yet-added) clip: no session index to name, so the coarse bit.
+		raise(Dirty::ClipContent);
+	}
+}
+
 // Virtual function, extended by InstrumentClip.
 void Clip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 	// If linear recording (which means it must be a loop / session playback if we reached the end)
@@ -861,10 +874,7 @@ void Clip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 
 			// Whichever view is showing this Clip needs to re-render, not just SessionView - e.g. in a clip view, the
 			// area drawn as being past the end of the Clip just shrank.
-			RootUI* rootUI = getRootUI();
-			if (rootUI) {
-				rootUI->clipNeedsReRendering(this);
-			}
+			notify_content_changed();
 
 			// For InstrumentClips only, we record and make undoable the length-change here. For AudioClips, on the
 			// other hand, it happens in one go at the end of the recording - because for those, if recording is aborted

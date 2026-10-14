@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
-#include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "io/file.hpp"
 #include "libdeluge/block_device.h"
@@ -44,6 +43,7 @@
 #include "storage/tree_document.h"
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
+#include "util/notify.h"
 
 #include "etl/string.h"
 #include "util/firmware_version.h"
@@ -193,8 +193,8 @@ Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer,
 	writer.reset();
 	if (!created) {
 		if (displayErrors) {
-			display->removeWorkingAnimation();
-			display->displayError(created.error());
+			deluge::notify::notice_clear_working();
+			deluge::notify::notice(created.error());
 		}
 		return created.error();
 	}
@@ -210,8 +210,8 @@ Error StorageManager::createJsonFile(char const* filePath, JsonSerializer& write
 	writer.reset();
 	if (!created) {
 		if (displayErrors) {
-			display->removeWorkingAnimation();
-			display->displayError(created.error());
+			deluge::notify::notice_clear_working();
+			deluge::notify::notice(created.error());
 		}
 		return created.error();
 	}

@@ -11,7 +11,10 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use deluge_bsp::{oled, pic};
 
-use crate::sys::{DelugeStatus, DelugeStatus_DELUGE_OK as DELUGE_OK};
+use crate::sys::{
+    DelugeStatus, DelugeStatus_DELUGE_ERR_PARAM as DELUGE_ERR_PARAM,
+    DelugeStatus_DELUGE_OK as DELUGE_OK,
+};
 
 /// The latest frame from the app, written by [`deluge_display_blit_oled`] and read by
 /// [`oled_render`].
@@ -67,6 +70,28 @@ pub extern "C" fn deluge_display_blit_oled(
     FRAME_VALID.store(true, Ordering::Release);
     oled::notify_redraw();
     DELUGE_OK
+}
+
+/// Blits to panel `index`. The Deluge has one panel: index 0 is [`deluge_display_blit_oled`], any
+/// other index is `DELUGE_ERR_PARAM`.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_display_blit_oled_n(
+    index: u8,
+    pixels: *const u8,
+    width: u16,
+    height: u16,
+) -> DelugeStatus {
+    if index != 0 {
+        return DELUGE_ERR_PARAM;
+    }
+    deluge_display_blit_oled(pixels, width, height)
+}
+
+/// Whether panel `index` is mid-transfer. Never: a blit only stashes the frame for the render task,
+/// so a new one can always be handed over.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_display_busy_n(_index: u8) -> bool {
+    false
 }
 
 /// One-time display bring-up: nothing to do, since [`oled_render`] runs the panel init
@@ -146,6 +171,8 @@ pub extern "C" fn deluge_display_freeze(pixels: *const u8) {
 
 abi_pin!(
     deluge_display_blit_oled,
+    deluge_display_blit_oled_n,
+    deluge_display_busy_n,
     deluge_display_freeze,
     deluge_display_init,
     deluge_display_service,

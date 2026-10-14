@@ -8,11 +8,11 @@
 ///
 /// Usage: ./tests/build/spec/StarfieldPreview [numFrames]
 
-#include "hid/display/starfield.h"
+#include "ui/oled/starfield.h"
 #include <cstdio>
 #include <cstdlib>
 
-using deluge::hid::display::Starfield;
+using deluge::ui::oled::Starfield;
 
 // Mirrors OLED_MAIN_WIDTH_PIXELS / OLED_MAIN_HEIGHT_PIXELS / OLED_MAIN_TOPMOST_PIXEL from
 // src/board_config.h (128 / 48 / 5).

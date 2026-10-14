@@ -17,17 +17,23 @@
 
 #pragma once
 #include "range.h"
+#include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item {
 
 class KeyRange final : public Range {
 public:
-	using Range::Range;
+	/// @param slot Which `FlashStorage::defaultRanges` entry this item's `lower`/`upper` name --
+	///             see `IntegerRange`'s constructor and `storage/flash_storage.h`.
+	KeyRange(l10n::String newName, l10n::String title, FlashStorage::DefaultRangeSlot slot)
+	    : Range(newName, title), lower(FlashStorage::defaultRanges[slot].lower),
+	      upper(FlashStorage::defaultRanges[slot].upper) {}
 	void getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) override;
 	void selectEncoderAction(int32_t offset) override;
 	int32_t getRandomValueInRange();
 
-	int32_t lower, upper;
+	int32_t& lower;
+	int32_t& upper;
 
 private:
 	bool isTotallyRandom();

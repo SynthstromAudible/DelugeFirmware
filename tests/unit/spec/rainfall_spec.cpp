@@ -1,4 +1,4 @@
-#include "hid/display/rainfall.h"
+#include "ui/oled/rainfall.h"
 
 #include "cppspec.hpp"
 #include <array>
@@ -8,15 +8,15 @@
 #include <utility>
 #include <vector>
 
-using deluge::hid::display::Rainfall;
+using deluge::ui::oled::Rainfall;
 
 namespace {
 
 /// @brief Every panel pixel a drop currently lights, clipped to the visible rows.
 std::set<std::pair<int32_t, int32_t>> painted(const Rainfall& field, size_t drop) {
 	std::set<std::pair<int32_t, int32_t>> pixels;
-	for (size_t cell = 0; cell < field.lengthOf(drop); cell++) {
-		const Rainfall::Block block = field.cellAt(drop, cell);
+	for (size_t cell = 0; cell < field.length_of(drop); cell++) {
+		const Rainfall::Block block = field.cell_at(drop, cell);
 		for (int32_t dy = 0; dy < block.size; dy++) {
 			for (int32_t dx = 0; dx < block.size; dx++) {
 				const int32_t x = block.x + dx;
@@ -40,7 +40,7 @@ describe rainfall("Rainfall", $ {
 			// and differ by dt = 8, so the true distance is 8/sqrt(2) and its square is 32.
 			const Rainfall::Streak a{.x = 0.0f, .y = 0.0f, .size = 3, .length = 3};
 			const Rainfall::Streak b{.x = 4.0f, .y = -4.0f, .size = 3, .length = 3};
-			expect(std::abs(Rainfall::separationSquared(a, b) - 32.0f) < 0.01f).to_be_true();
+			expect(std::abs(Rainfall::separation_squared(a, b) - 32.0f) < 0.01f).to_be_true();
 		});
 
 		it("adds the gap along travel when two streaks do not overlap along it", _ {
@@ -49,17 +49,17 @@ describe rainfall("Rainfall", $ {
 			// (8, 8), which are sqrt(128) apart.
 			const Rainfall::Streak a{.x = 0.0f, .y = 0.0f, .size = 1, .length = 3};
 			const Rainfall::Streak b{.x = 10.0f, .y = 10.0f, .size = 1, .length = 3};
-			expect(std::abs(Rainfall::separationSquared(a, b) - 128.0f) < 0.01f).to_be_true();
+			expect(std::abs(Rainfall::separation_squared(a, b) - 128.0f) < 0.01f).to_be_true();
 		});
 
 		it("reports no distance between a streak and itself", _ {
 			const Rainfall::Streak a{.x = 12.0f, .y = 7.0f, .size = 2, .length = 4};
-			expect(Rainfall::separationSquared(a, a)).to_equal(0.0f);
+			expect(Rainfall::separation_squared(a, a)).to_equal(0.0f);
 		});
 
 		it("demands more room between larger blocks", _ {
-			expect(Rainfall::minGapFor(3)).to_be_greater_than(Rainfall::minGapFor(2));
-			expect(Rainfall::minGapFor(2)).to_be_greater_than(Rainfall::minGapFor(1));
+			expect(Rainfall::min_gap_for(3)).to_be_greater_than(Rainfall::min_gap_for(2));
+			expect(Rainfall::min_gap_for(2)).to_be_greater_than(Rainfall::min_gap_for(1));
 		});
 	});
 
@@ -67,14 +67,14 @@ describe rainfall("Rainfall", $ {
 		Rainfall field;
 		for (int32_t frame = 0; frame < 500; frame++) {
 			for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
-				const size_t length = field.lengthOf(drop);
+				const size_t length = field.length_of(drop);
 				expect(length >= 3 && length <= 4).to_be_true();
 
-				const Rainfall::Block head = field.cellAt(drop, 0);
+				const Rainfall::Block head = field.cell_at(drop, 0);
 				expect(head.size >= 1 && head.size <= 3).to_be_true();
 
 				for (size_t cell = 1; cell < length; cell++) {
-					const Rainfall::Block block = field.cellAt(drop, cell);
+					const Rainfall::Block block = field.cell_at(drop, cell);
 					const int32_t step = static_cast<int32_t>(cell) * head.size;
 					expect(block.size).to_equal(head.size);
 					expect(block.x).to_equal(head.x - step);
@@ -91,7 +91,7 @@ describe rainfall("Rainfall", $ {
 		// different increments to x and y. This checks the thing that test cannot: that a drop's
 		// head actually travels the same distance on both axes, across time.
 		//
-		// Exact equality, not a tolerance: cellAt() derives both axes from the same floored x, so a
+		// Exact equality, not a tolerance: cell_at() derives both axes from the same floored x, so a
 		// drop cannot accumulate any offset between them however long it runs. A per-axis speed
 		// asymmetry would grow with the window and show up here immediately.
 		//
@@ -107,7 +107,7 @@ describe rainfall("Rainfall", $ {
 		std::array<int32_t, Rainfall::kNumDrops> prevY{};
 		std::array<int32_t, Rainfall::kNumDrops> sinceBase{};
 		for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
-			const Rainfall::Block head = field.cellAt(drop, 0);
+			const Rainfall::Block head = field.cell_at(drop, 0);
 			baseX[drop] = head.x;
 			baseY[drop] = head.y;
 			prevX[drop] = head.x;
@@ -118,7 +118,7 @@ describe rainfall("Rainfall", $ {
 		for (int32_t frame = 0; frame < kFrames; frame++) {
 			field.advance();
 			for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
-				const Rainfall::Block head = field.cellAt(drop, 0);
+				const Rainfall::Block head = field.cell_at(drop, 0);
 				// A respawn teleports the drop backwards (up and/or left) rather than down-right;
 				// restart the window there instead of letting the teleport masquerade as skid.
 				if (head.x < prevX[drop] || head.y < prevY[drop]) {
@@ -160,7 +160,7 @@ describe rainfall("Rainfall", $ {
 		Rainfall field;
 		for (int32_t frame = 0; frame < 3000; frame++) {
 			for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
-				const float speed = field.speedOf(drop);
+				const float speed = field.speed_of(drop);
 				const float steps = speed / Rainfall::kSpeedStep;
 				expect(steps == std::floor(steps)).to_be_true();
 				expect(speed).to_be_greater_than(0.0f);
@@ -176,7 +176,7 @@ describe rainfall("Rainfall", $ {
 		// oscillating about its 45 degree axis rather than travelling along it -- net travel still
 		// comes out equal, but on a 3x3 block the motion reads as a wiggle.
 		//
-		// cellAt() derives both axes from the same floored x, so they cannot cross on different
+		// cell_at() derives both axes from the same floored x, so they cannot cross on different
 		// frames whatever the float arithmetic does. The requirement is therefore absolute, not
 		// statistical: every frame a drop moves at all, it moves equally on both axes.
 		constexpr int32_t kFrames = 4000;
@@ -184,8 +184,8 @@ describe rainfall("Rainfall", $ {
 		std::array<int32_t, Rainfall::kNumDrops> prevX{};
 		std::array<int32_t, Rainfall::kNumDrops> prevY{};
 		for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
-			prevX[drop] = field.cellAt(drop, 0).x;
-			prevY[drop] = field.cellAt(drop, 0).y;
+			prevX[drop] = field.cell_at(drop, 0).x;
+			prevY[drop] = field.cell_at(drop, 0).y;
 		}
 
 		int32_t moved = 0;
@@ -193,7 +193,7 @@ describe rainfall("Rainfall", $ {
 		for (int32_t frame = 0; frame < kFrames; frame++) {
 			field.advance();
 			for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
-				const Rainfall::Block head = field.cellAt(drop, 0);
+				const Rainfall::Block head = field.cell_at(drop, 0);
 				const int32_t dx = head.x - prevX[drop];
 				const int32_t dy = head.y - prevY[drop];
 				prevX[drop] = head.x;
@@ -223,15 +223,15 @@ describe rainfall("Rainfall", $ {
 			// shape they make: exactly seven runs stepping down-right, each 3 or 4 cells long --
 			// which is what lets the logo be built from the rain's own vocabulary.
 			Rainfall field;
-			field.forceLogo();
+			field.force_logo();
 			field.advance();
-			expect(field.logoActive()).to_be_true();
+			expect(field.logo_active()).to_be_true();
 
-			const int32_t scale = field.logoScale();
+			const int32_t scale = field.logo_scale();
 			std::set<std::pair<int32_t, int32_t>> cells;
-			const Rainfall::Block origin = field.logoCellAt(0);
+			const Rainfall::Block origin = field.logo_cell_at(0);
 			for (size_t cell = 0; cell < Rainfall::kLogoCells; cell++) {
-				const Rainfall::Block block = field.logoCellAt(cell);
+				const Rainfall::Block block = field.logo_cell_at(cell);
 				expect(block.size).to_equal(scale);
 				// Recover the grid coordinate this cell sits at.
 				const int32_t gx = (block.x - origin.x) / scale;
@@ -266,19 +266,19 @@ describe rainfall("Rainfall", $ {
 			// correct parallax, and it is the reason every scale is allowed.
 			Rainfall field;
 			for (int32_t emission = 0; emission < 60; emission++) {
-				field.forceLogo();
-				while (!field.logoActive()) {
+				field.force_logo();
+				while (!field.logo_active()) {
 					field.advance();
 				}
-				const int32_t scale = field.logoScale();
-				const float speed = field.logoSpeed();
+				const int32_t scale = field.logo_scale();
+				const float speed = field.logo_speed();
 				expect(scale >= 1 && scale <= 3).to_be_true();
 				expect(speed).to_be_greater_than(0.0f);
 				const float steps = speed / Rainfall::kSpeedStep;
 				expect(steps == std::floor(steps)).to_be_true();
 				// Larger scale is nearer, so never slower.
 				expect(speed >= Rainfall::kSpeedFar && speed <= Rainfall::kSpeedNear).to_be_true();
-				while (field.logoActive()) {
+				while (field.logo_active()) {
 					field.advance();
 				}
 			}
@@ -289,28 +289,28 @@ describe rainfall("Rainfall", $ {
 			// falls; and the whole logo obeys the same equal-step invariant the drops do, since it
 			// shares their mechanism -- one integrated axis, the other derived.
 			Rainfall field;
-			field.forceLogo();
-			while (!field.logoActive()) {
+			field.force_logo();
+			while (!field.logo_active()) {
 				field.advance();
 			}
 
 			std::array<int32_t, Rainfall::kLogoCells> offsetX{};
 			std::array<int32_t, Rainfall::kLogoCells> offsetY{};
-			const Rainfall::Block first = field.logoCellAt(0);
+			const Rainfall::Block first = field.logo_cell_at(0);
 			for (size_t cell = 0; cell < Rainfall::kLogoCells; cell++) {
-				offsetX[cell] = field.logoCellAt(cell).x - first.x;
-				offsetY[cell] = field.logoCellAt(cell).y - first.y;
+				offsetX[cell] = field.logo_cell_at(cell).x - first.x;
+				offsetY[cell] = field.logo_cell_at(cell).y - first.y;
 			}
 
 			int32_t prevX = first.x;
 			int32_t prevY = first.y;
 			int32_t moved = 0;
-			while (field.logoActive()) {
+			while (field.logo_active()) {
 				field.advance();
-				if (!field.logoActive()) {
+				if (!field.logo_active()) {
 					break;
 				}
-				const Rainfall::Block head = field.logoCellAt(0);
+				const Rainfall::Block head = field.logo_cell_at(0);
 				const int32_t dx = head.x - prevX;
 				const int32_t dy = head.y - prevY;
 				expect(dx).to_equal(dy);
@@ -320,8 +320,8 @@ describe rainfall("Rainfall", $ {
 				prevX = head.x;
 				prevY = head.y;
 				for (size_t cell = 0; cell < Rainfall::kLogoCells; cell++) {
-					expect(field.logoCellAt(cell).x - head.x).to_equal(offsetX[cell]);
-					expect(field.logoCellAt(cell).y - head.y).to_equal(offsetY[cell]);
+					expect(field.logo_cell_at(cell).x - head.x).to_equal(offsetX[cell]);
+					expect(field.logo_cell_at(cell).y - head.y).to_equal(offsetY[cell]);
 				}
 			}
 			expect(moved).to_be_greater_than(10);
@@ -339,7 +339,7 @@ describe rainfall("Rainfall", $ {
 			bool wasActive = false;
 			for (int32_t frame = 0; frame < kFrames; frame++) {
 				field.advance();
-				const bool isActive = field.logoActive();
+				const bool isActive = field.logo_active();
 				if (isActive && !wasActive) {
 					emissions++;
 					if (lastEnd > 0) {
@@ -364,12 +364,12 @@ describe rainfall("Rainfall", $ {
 			Rainfall field;
 			std::array<int32_t, 4> counts{};
 			for (int32_t emission = 0; emission < 300; emission++) {
-				field.forceLogo();
-				while (!field.logoActive()) {
+				field.force_logo();
+				while (!field.logo_active()) {
 					field.advance();
 				}
-				counts[field.logoScale()]++;
-				while (field.logoActive()) {
+				counts[field.logo_scale()]++;
+				while (field.logo_active()) {
 					field.advance();
 				}
 			}
@@ -382,9 +382,9 @@ describe rainfall("Rainfall", $ {
 
 		it("does not emit one on activation, so a sighting stays a surprise", _ {
 			Rainfall field;
-			expect(field.logoActive()).to_be_false();
+			expect(field.logo_active()).to_be_false();
 			field.scatter();
-			expect(field.logoActive()).to_be_false();
+			expect(field.logo_active()).to_be_false();
 		});
 	});
 
@@ -396,7 +396,7 @@ describe rainfall("Rainfall", $ {
 		for (int32_t frame = 0; frame < 10000; frame++) {
 			field.advance();
 			for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
-				const Rainfall::Block head = field.cellAt(drop, 0);
+				const Rainfall::Block head = field.cell_at(drop, 0);
 				expect(head.x).to_be_less_than(Rainfall::kWidth + 16);
 				expect(head.y).to_be_less_than(Rainfall::kHeight + 16);
 				expect(head.x).to_be_greater_than(-16);
@@ -410,10 +410,10 @@ describe rainfall("Rainfall", $ {
 		Rainfall b;
 		for (int32_t frame = 0; frame < 200; frame++) {
 			for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
-				expect(a.lengthOf(drop)).to_equal(b.lengthOf(drop));
-				expect(a.cellAt(drop, 0).x).to_equal(b.cellAt(drop, 0).x);
-				expect(a.cellAt(drop, 0).y).to_equal(b.cellAt(drop, 0).y);
-				expect(a.cellAt(drop, 0).size).to_equal(b.cellAt(drop, 0).size);
+				expect(a.length_of(drop)).to_equal(b.length_of(drop));
+				expect(a.cell_at(drop, 0).x).to_equal(b.cell_at(drop, 0).x);
+				expect(a.cell_at(drop, 0).y).to_equal(b.cell_at(drop, 0).y);
+				expect(a.cell_at(drop, 0).size).to_equal(b.cell_at(drop, 0).size);
 			}
 			a.advance();
 			b.advance();
@@ -424,14 +424,14 @@ describe rainfall("Rainfall", $ {
 		Rainfall field;
 		int32_t firstX[Rainfall::kNumDrops];
 		for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
-			firstX[drop] = field.cellAt(drop, 0).x;
+			firstX[drop] = field.cell_at(drop, 0).x;
 		}
 
 		field.scatter();
 
 		bool anyDifferent = false;
 		for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
-			if (field.cellAt(drop, 0).x != firstX[drop]) {
+			if (field.cell_at(drop, 0).x != firstX[drop]) {
 				anyDifferent = true;
 			}
 		}
@@ -514,7 +514,7 @@ describe rainfall("Rainfall", $ {
 			int32_t overlap = 0;
 			for (size_t a = 0; a < Rainfall::kNumDrops; a++) {
 				for (size_t b = a + 1; b < Rainfall::kNumDrops; b++) {
-					if (field.cellAt(a, 0).size != field.cellAt(b, 0).size) {
+					if (field.cell_at(a, 0).size != field.cell_at(b, 0).size) {
 						continue;
 					}
 					for (const auto& pixel : pixels[b]) {
@@ -544,7 +544,7 @@ describe rainfall("Rainfall", $ {
 		field.scatter();
 		size_t onDiagonal = 0;
 		for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
-			const Rainfall::Block lead = field.cellAt(drop, 0);
+			const Rainfall::Block lead = field.cell_at(drop, 0);
 			if (lead.x == lead.y) {
 				onDiagonal++;
 			}

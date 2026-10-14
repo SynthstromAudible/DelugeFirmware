@@ -17,6 +17,7 @@
 
 #pragma once
 #include "gui/menu_item/selection.h"
+#include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item {
 
@@ -35,7 +36,10 @@ public:
 		PINK,
 	};
 
-	using Selection::Selection;
+	/// @param slot Which of `FlashStorage::padColours` this item edits -- see the note on `value`.
+	Colour(l10n::String newName, FlashStorage::PadColourSlot slot)
+	    : Selection(newName), value(FlashStorage::padColours[slot]) {}
+
 	void readCurrentValue() override { this->setValue(value); }
 	void writeCurrentValue() override {
 		value = static_cast<Option>(this->getValue());
@@ -51,7 +55,15 @@ public:
 		};
 	}
 	[[nodiscard]] RGB getRGB() const;
-	Option value;
+
+	/// @brief This item's colour, as an `Option`.
+	///
+	/// A **reference onto `FlashStorage::padColours`**, not a member of its own: the byte is a
+	/// persisted setting that `flash_storage.cpp` and `src/scenes`'s port of this page both address,
+	/// and neither can reach a member of a `gui/` class. Every legacy spelling
+	/// (`activeColourMenu.value = Colour::GREEN`, `buffer[74] = activeColourMenu.value`) is
+	/// unchanged; it now reads and writes the shared byte.
+	uint8_t& value;
 };
 
 extern Colour activeColourMenu;

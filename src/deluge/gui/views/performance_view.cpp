@@ -46,11 +46,13 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "scenes/menu/action.h" // set_performance_editing_mode -- see syncEditingModeMirror below
 #include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include "util/functions.h"
+#include "util/shell_menu_entry.h"
 
 extern "C" {}
 
@@ -59,6 +61,45 @@ using deluge::modulation::params::Kind;
 using deluge::modulation::params::kNoParamID;
 using namespace deluge;
 using namespace gui;
+
+namespace {
+
+/// @brief Push this view's `defaultEditingMode`/`editingParam` onto the ported menu's mirror of
+///        them, under `EditingMode::readCurrentValue`'s own rule.
+///
+/// **What the mirror is.** `performance_session_view::EditingMode` -- the legacy menu item -- has no
+/// state: `readCurrentValue` (`gui/menu_item/performance_session_view/editing_mode.h:35-46`) reads
+/// these two bools straight off `performanceView` every time it is asked. The port cannot: the two
+/// are plain members of a `gui/views/` class, `src/scenes` may not include `gui/`
+/// (`scenes-includes-gui`, `scripts/check_layer_rules.py`), and there is no bare-`extern` escape
+/// from a class member. So `scenes/menu/action.h` keeps a mirror and `PerformEditorItem::on_focus`
+/// seeds its cursor from that (`scenes/menu/nodes/actions.cpp:121`). The mirror is authoritative for
+/// what the menu SHOWS; it is not authoritative for the view. Every place this file moves the two
+/// bools has to push, or the ported menu shows a mode the view left behind.
+///
+/// **Why the mapping is transcribed here rather than each caller passing a literal.** Three of the
+/// four call sites end at `DISABLED` and could spell it, but a literal at a call site goes stale
+/// silently the day the write above it changes. Deriving from the pair cannot: it is
+/// `readCurrentValue`'s three-way test (`editing_mode.h:36-45`), and if it and legacy ever disagree
+/// the spec that runs both on the real `performanceView`
+/// (`sim/scenes_spec/menu_actions_spec.cpp`, `menu_action_perform`) reddens.
+///
+/// **Why this is unconditional, when `RuntimeFeatureSettingType::ShellMenu` is Off by default.**
+/// Nothing may change with the toggle off, and this call is not gated. It is safe because of what it writes: a single
+/// `static` inside `libdeluge_scenes` (`g_perform_mode`, `scenes/menu/nodes/actions.cpp:45`) whose
+/// only readers are `performance_editing_mode()` and, through it, `PerformEditorItem` -- a node in
+/// the ported menu, which nothing opens while the toggle is off (`openShellMenu`,
+/// `gui/ui/shell_menu_entry.cpp`). It reads nothing, calls nothing else, touches no legacy state and
+/// cannot fail. With the toggle off it is a store to a byte no one loads.
+void syncEditingModeMirror(const PerformanceView& v) {
+	PerformanceEditingMode mode = PerformanceEditingMode::DISABLED;
+	if (v.defaultEditingMode) {
+		mode = v.editingParam ? PerformanceEditingMode::PARAM : PerformanceEditingMode::VALUE;
+	}
+	deluge::scenes::menu::set_performance_editing_mode(mode);
+}
+
+} // namespace
 
 #define SETTINGS_FOLDER "SETTINGS"
 #define PERFORM_DEFAULTS_XML "SETTINGS/PerformanceView.XML"
@@ -189,6 +230,9 @@ PerformanceView::PerformanceView() {
 
 	anyChangesToSave = false;
 
+	// No `syncEditingModeMirror(*this)` here: this runs at static init, and the mirror's constant
+	// initialiser, `PerformanceEditingMode::DISABLED`, is already what `readCurrentValue` makes of
+	// `defaultEditingMode == false`.
 	defaultEditingMode = false;
 
 	layoutVariant = 1;
@@ -787,6 +831,9 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on) {
 		if (on) {
 			defaultEditingMode = false;
 			editingParam = false;
+			// Ungated: writes only the port's mirror of the two lines above (see
+			// `syncEditingModeMirror`), which nothing reads while the shell menu is off.
+			syncEditingModeMirror(*this);
 			indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 			close();
 		}
@@ -821,8 +868,24 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on) {
 			}
 
 			if (!defaultEditingMode) {
-				if (soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)) {
-					openUI(&soundEditor);
+				// One of the shell menu's entry sites (`gui/ui/shell_menu_entry.cpp`'s table). The `else`
+				// is the legacy path.
+				if (deluge::gui::ui::shellMenuEnabled()) {
+					// Legacy names the root by pointer here; the port names it by the fact that
+					// picks it. They agree because this arm is `SELECT_ENC && !shift` inside
+					// `PerformanceView`, which is exactly `setup()`'s
+					// `currentUI == &performanceView && !Buttons::isShiftButtonPressed()`
+					// (`gui/ui/sound_editor.cpp:1799-1801`) and `context_for`'s `performance_view`
+					// (`scenes/menu/context.cpp:365-367`).
+					(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
+					                                     /*performanceView=*/true,
+					                                     /*sessionOrArrangerRoot=*/false,
+					                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
+				}
+				else {
+					if (soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)) {
+						openUI(&soundEditor);
+					}
 				}
 			}
 		}
@@ -849,6 +912,8 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on) {
 				if (defaultEditingMode && editingParam) {
 					defaultEditingMode = false;
 					editingParam = false;
+					// Ungated, for `syncEditingModeMirror`'s reason.
+					syncEditingModeMirror(*this);
 					indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 
 					close();
@@ -859,6 +924,10 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on) {
 						editingParam = true;
 					}
 					defaultEditingMode = true;
+					// Ungated, for `syncEditingModeMirror`'s reason. The one site whose answer is not
+					// fixed: VALUE when this press entered editing mode, PARAM when it cycled within
+					// it, which is why it is placed after BOTH writes rather than after either.
+					syncEditingModeMirror(*this);
 					if (!editingParam) {
 						// reset performance view when you switch modes
 						// but not when in param editing mode cause that would reset param assignments to FX columns
@@ -1323,6 +1392,11 @@ void PerformanceView::releaseViewOnExit(ModelStackWithThreeMainThings* modelStac
 	resetPadPressInfo();
 	defaultEditingMode = false;
 	editingParam = false;
+	// Ungated, for `syncEditingModeMirror`'s reason. The site that matters most: four callers reach
+	// it (`buttonAction`'s CLIP_VIEW arm, its KEYBOARD press and KEYBOARD release exits, and
+	// `padAction`'s grid-mode pad), and it is a private helper rather than a button arm, so it is
+	// also the easiest of the four to overlook.
+	syncEditingModeMirror(*this);
 }
 
 /// initialize pad press info structs

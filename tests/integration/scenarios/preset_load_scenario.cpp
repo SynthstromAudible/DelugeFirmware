@@ -1230,6 +1230,14 @@ void checkLeg() {
 	case Leg::AqNavStall:
 	case Leg::AqChangeStall:
 	case Leg::AqSlotStall:
+	case Leg::BlankBoot:
+	case Leg::WalkMachine:
+	case Leg::RevertCard:
+	case Leg::RevertMemory:
+	case Leg::RevertStall:
+	case Leg::MidiDef:
+	case Leg::BlankClear:
+	case Leg::BlankEdited:
 	case Leg::Done:
 		break;
 	}

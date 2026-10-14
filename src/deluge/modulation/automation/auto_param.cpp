@@ -47,6 +47,7 @@
 #include "storage/storage_manager.h"
 #include "util/exceptions.h"
 #include "util/functions.h"
+#include "util/notify.h"
 #include <algorithm>
 #include <cstdint>
 #include <math.h>
@@ -194,8 +195,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 					Action* action =
 					    actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 					deleteAutomation(action, modelStack);
-					display->displayPopup(
-					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_AUTOMATION_DELETED));
+					deluge::notify::notice(deluge::l10n::String::STRING_FOR_PARAMETER_AUTOMATION_DELETED);
 				}
 				return;
 			}
@@ -1781,7 +1781,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 
 		if (!copiedParamAutomation->nodes) {
 			copiedParamAutomation->numNodes = 0;
-			display->displayError(Error::INSUFFICIENT_RAM);
+			deluge::notify::notice(Error::INSUFFICIENT_RAM);
 			return;
 		}
 

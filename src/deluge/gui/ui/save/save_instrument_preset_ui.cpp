@@ -111,7 +111,7 @@ bool SaveInstrumentPresetUI::opened() {
 	// The listing dispatches asynchronously; return optimistically here. onBrowserOpened() runs
 	// the blinkLed tail once the listing succeeds. Failure goes through the base
 	// Browser::onListingFailed() (displayError + close()).
-	beginListing(
+	beginListingOrRetryLater(
 	    {.action = ListingAction::Open, .direction = 0, .filenameToStartAt = enteredText, .defaultDir = defaultDir});
 
 	/*

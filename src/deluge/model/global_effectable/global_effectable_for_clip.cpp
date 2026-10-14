@@ -25,6 +25,7 @@
 #include "model/action/action_logger.h"
 #include "model/edits/change_effect.h"
 #include "processing/engines/audio_engine.h"
+#include "util/notify.h"
 #include <limits>
 #include <string.h>
 // #include <algorithm>
@@ -183,7 +184,7 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 					displaySidechainAndReverbSettings(on);
 				}
 				else {
-					display->displayPopup(getSidechainDisplayName());
+					deluge::notify::notice(std::string_view(getSidechainDisplayName()));
 				}
 				return true;
 			}
@@ -196,7 +197,8 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 					displaySidechainAndReverbSettings(on);
 				}
 				else {
-					display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+					deluge::notify::notice(
+					    std::string_view(view.getReverbPresetDisplayName(view.getCurrentReverbPreset())));
 				}
 				return true;
 			}

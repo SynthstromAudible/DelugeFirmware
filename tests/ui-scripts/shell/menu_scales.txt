@@ -1,0 +1,30 @@
+# Level-2 acceptance (E2 task 12): a preset-scale checklist (nodes::active_scales), entered from the
+# SONG root the way a user reaches it.
+#
+# `nodes::ActiveScalesItem` (E2 task 11b) is the port of `ActiveScaleMenu`
+# (`gui/menu_item/active_scales.cpp:62-99` drawSubmenuItemsForOled): one row per preset scale, a
+# checked/unchecked box where a submenu would draw its arrow, and a select press that flips the row's
+# bit and STAYS PUT (`:108-112` selectButtonPress returns NO_NAVIGATION).
+#
+# The staying-put half is why this script descends from the root instead of opening the item
+# directly: at depth 0 an unwanted `ascend()` is a silent no-op, so a golden there could not tell
+# "the item consumed the press" from "the item let it through and the ascend did nothing". One level
+# down it can, and `after_toggle` is that frame.
+0     snapshot idle                  # SONG root list, cursor on row 0
+100   encoder Select +4
+120   snapshot after_root_turn       # cursor on ACTIVE SCALES (row 4 of kSongRootChildren)
+200   button SelectEnc down
+220   button SelectEnc up
+240   snapshot entered               # the checklist, cursor on row 0, every box checked
+300   encoder Select +2
+320   snapshot after_select_turn     # cursor walked to row 2; no box changed
+400   button SelectEnc down
+420   button SelectEnc up
+440   snapshot after_toggle          # row 2's box is unchecked AND the page did not ascend
+500   button SelectEnc down
+520   button SelectEnc up
+540   snapshot after_toggle_back     # pressed again: the same box is checked again
+600   button Back down
+620   button Back up
+640   snapshot after_back            # ascended to the SONG root list, cursor still on row 4
+700   quit

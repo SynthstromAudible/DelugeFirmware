@@ -24,7 +24,6 @@
 #include "engines/deluge/words.h"
 #include "engines/effects/settings.h"
 #include "engines/effects/words.h"
-#include "hid/display/display.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -36,6 +35,7 @@
 #include "serialization/tree.h"
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "util/comparison.h"
+#include "util/notify.h"
 
 namespace deluge::bridge {
 
@@ -261,7 +261,7 @@ bool applyEffectValue(ModControllableAudio& owner, std::string_view path, const 
 	const bool on = number != 0;
 	if (path == "modFXType") {
 		if (!owner.setModFXType(fx::parse_mod_fx_type(text))) {
-			display->displayError(Error::INSUFFICIENT_RAM);
+			deluge::notify::notice(Error::INSUFFICIENT_RAM);
 		}
 	}
 	else if (path == "lpfMode") {

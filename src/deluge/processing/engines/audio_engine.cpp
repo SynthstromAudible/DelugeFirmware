@@ -17,6 +17,7 @@
 
 #include "processing/engines/audio_engine.h"
 #include "model/fx/chain_inputs.h"
+#include "util/notify.h"
 
 #include "chrono"
 #include "definitions.h"
@@ -38,7 +39,6 @@
 #include "hid/display/display.h"
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
-#include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_queue.h"
@@ -809,9 +809,11 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 	// blink LED to alert the user
 	if (culled && FlashStorage::highCPUUsageIndicator) {
-		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
-			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
-		}
+		// [audio] The UI tick owns the LED blink, not the render loop; this only sets the flag for it
+		// to consume. No dirty bit is raised here: the drain polls this flag outside its d.any() gate,
+		// and a dirty bit would make PlaybackState schedule a full main+sidebar+OLED repaint once per
+		// render period, exactly when the CPU is already over budget.
+		cull_alert_pending = true;
 	}
 }
 
@@ -1029,7 +1031,6 @@ void midiGateOutputTimerFired() {
 }
 
 void scheduleMidiGateOutISR(size_t numSamples);
-void setMonitoringMode();
 /// The output stage's volume while no song is current: 134217728 made a bit bigger, as a song master's filters start.
 constexpr int32_t kMasterVolumeWithoutSong = 167763968;
 
@@ -1559,9 +1560,33 @@ void renderSamplePreview(size_t numSamples) { // Previewing sample
 	}
 }
 void setMonitoringMode() { // Monitoring setup
+	// **The read half of the foreground-recording seam, and the fence below is the other end of
+	// `setForegroundRecording`'s** (`audio_engine.h`, and the writer a few lines down). This
+	// function runs from `renderAudio` on the priority-0 audio task, which the Rust scheduler routes
+	// onto the preemptive SGI interrupt-executor -- so it can land between the writer's two stores,
+	// and it must not re-read either member afterwards. Both are loaded exactly once, channel first,
+	// with an `acquire` signal fence pairing the writer's `release`:
+	//
+	//   publish: recorder = r; [release]; recordingSource = src;
+	//   clear:   recordingSource = NONE; [release]; recorder = nullptr;
+	//   read:    src = recordingSource; [acquire]; rec = recorder;
+	//
+	// so a reader that saw the channel naming a live capture has already been able to see the
+	// pointer that was published before it, and a reader that sees the cleared channel never
+	// dereferences the pointer at all. Fencing only the writer -- which is what shipped first --
+	// left the invariant enforced in one direction: the compiler was still free to reload
+	// `audioRecorder.recorder` after the `doMonitoring &&` branch below had already tested it, which
+	// is precisely the dereference the "double-check" exists to prevent.
+	//
+	// `std::atomic_signal_fence`, not `atomic_thread_fence`, and no `dmb`, for the writer's reason:
+	// the two contexts are a handler and a thread on the SAME core, so what can reorder these
+	// dependency-free loads is the compiler. It emits no instructions.
+	const AudioInputChannel recordingSource = audioRecorder.recordingSource;
+	std::atomic_signal_fence(std::memory_order_acquire);
+	SampleRecorder* const recorder = audioRecorder.recorder;
+
 	doMonitoring = false;
-	if (audioRecorder.recordingSource == AudioInputChannel::STEREO
-	    || audioRecorder.recordingSource == AudioInputChannel::LEFT) {
+	if (recordingSource == AudioInputChannel::STEREO || recordingSource == AudioInputChannel::LEFT) {
 		if (inputMonitoringMode == InputMonitoringMode::SMART) {
 			doMonitoring = (lineInPluggedIn || headphonesPluggedIn);
 		}
@@ -1571,18 +1596,18 @@ void setMonitoringMode() { // Monitoring setup
 	}
 
 	monitoringAction = MonitoringAction::NONE;
-	if (doMonitoring && audioRecorder.recorder) { // Double-check
-		if (lineInPluggedIn) {                    // Line input
-			if (audioRecorder.recorder->inputLooksDifferential()) {
+	if (doMonitoring && recorder != nullptr) { // Double-check, now over the local
+		if (lineInPluggedIn) {                 // Line input
+			if (recorder->inputLooksDifferential()) {
 				monitoringAction = MonitoringAction::SUBTRACT_RIGHT_CHANNEL;
 			}
-			else if (audioRecorder.recorder->inputHasNoRightChannel()) {
+			else if (recorder->inputHasNoRightChannel()) {
 				monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
 			}
 		}
 
 		else if (micPluggedIn) { // External mic
-			if (audioRecorder.recorder->inputHasNoRightChannel()) {
+			if (recorder->inputHasNoRightChannel()) {
 				monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
 			}
 		}
@@ -1592,6 +1617,50 @@ void setMonitoringMode() { // Monitoring setup
 		}
 	}
 }
+
+// The foreground-recording seam. See the doc comment on these two in audio_engine.h: they exist so
+// a recorder UI that is not `AudioRecorder` can publish the pair `setMonitoringMode()` above -- and
+// eight other subsystems -- read. They live in this file because this file already names
+// `audioRecorder`; a new one would add a `model-includes-ui` row to the layer baseline.
+void setForegroundRecording(SampleRecorder* recorder, AudioInputChannel source) {
+	// The invariant, and the two fences that hold it: **the pointer's visible window strictly
+	// contains the channel's.** Publishing writes the pointer first; clearing writes the channel
+	// first. Either way a reader that finds `recordingSource` naming a live capture has already
+	// been able to see a non-null `recorder`, so `setMonitoringMode`'s branch (`:1037`) can never
+	// dereference a pointer that is about to be freed. Legacy nulls the pointer first in
+	// `finishRecording` (`gui/ui/audio_recorder.cpp:250-251`) and gets away with it only because of
+	// that line's `&& audioRecorder.recorder` double-check; this seam does not lean on it.
+	//
+	// `std::atomic_signal_fence` and not `atomic_thread_fence`, and no `dmb`: the reader is
+	// `setMonitoringMode()` called from `renderAudio`, i.e. the priority-0 audio task, which
+	// `registerTask` routes onto the preemptive SGI interrupt-executor
+	// (`src/bsp/rust/src/scheduler.rs:536-548`, `deluge.cpp:542`) -- a handler on the SAME core.
+	// A PE observes its own memory accesses in program order and exception entry is a context
+	// synchronisation point, so no hardware barrier is needed; what can reorder two plain,
+	// dependency-free stores is the COMPILER, and a signal fence is exactly the "ordered against a
+	// handler that interrupts this thread" tool. It emits no instructions.
+	//
+	// The house convention for state genuinely shared with the audio side is `std::atomic`
+	// (`SampleRecorder::status`, `AudioEngine::cull_alert_pending`, both with their reasoning at
+	// the declaration). These two are `AudioRecorder` members written from five other places in
+	// legacy, so retyping them is a change this seam is not entitled to make; the fences give the
+	// seam the ordering it needs without touching the type.
+	if (source > AudioInputChannel::NONE) {
+		audioRecorder.recorder = recorder;
+		std::atomic_signal_fence(std::memory_order_release);
+		audioRecorder.recordingSource = source;
+	}
+	else {
+		audioRecorder.recordingSource = source;
+		std::atomic_signal_fence(std::memory_order_release);
+		audioRecorder.recorder = recorder;
+	}
+}
+
+AudioInputChannel foregroundRecordingSource() {
+	return audioRecorder.recordingSource;
+}
+
 void scheduleMidiGateOutISR(size_t numSamples) {
 	CriticalSectionGuard guard;
 
@@ -2146,7 +2215,7 @@ void doRecorderCardRoutines() {
 
 		Error error = recorder->cardRoutine();
 		if (error != Error::NONE) {
-			display->displayError(error);
+			deluge::notify::notice(error);
 		}
 
 		// If, while in the card routine, a new Recorder was added, then our linked list traversal state thing will
@@ -2170,7 +2239,7 @@ void doRecorderCardRoutines() {
 	}
 
 	if (ALPHA_OR_BETA_VERSION && ENABLE_CLIP_CUTTING_DIAGNOSTICS && count >= 10 && !display->hasPopup()) {
-		display->displayPopup("MORE");
+		deluge::notify::notice("MORE");
 	}
 }
 
@@ -2301,6 +2370,10 @@ errorAfterAllocation:
 	return newRecorder;
 }
 
+bool sdRoutineBusy() {
+	return deluge::sync::sd_busy();
+}
+
 // PLEASE don't call this if there's any chance you might be in the SD card routine...
 // ...because the recorder may be suspended part-way through its own cardRoutine(), and freeing it there leaves that
 // cardRoutine() operating on freed memory before handing it back to doRecorderCardRoutines() to be freed a second
@@ -2313,7 +2386,7 @@ errorAfterAllocation:
 // this recorder is the one suspended, so log it rather than freeze a beta build on what may be an unrelated
 // operation.
 void discardRecorder(SampleRecorder* recorder) {
-	if (ALPHA_OR_BETA_VERSION && deluge::sync::sd_busy()) {
+	if (ALPHA_OR_BETA_VERSION && sdRoutineBusy()) {
 		D_PRINTLN("discardRecorder: sd_busy() was true on entry");
 	}
 

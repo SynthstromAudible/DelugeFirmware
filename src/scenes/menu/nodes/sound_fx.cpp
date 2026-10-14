@@ -1,0 +1,475 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/// @file
+/// @brief The FX pages' `get`/`set` hooks and the exported root span. The `Node` literals are in
+///        `sound_fx.h`.
+
+#include "scenes/menu/nodes/sound_fx.h"
+
+#include "scenes/l10n_bridge.h"
+#include "scenes/menu/bindings.h"
+#include "scenes/menu/context.h"
+
+#include "definitions_cxx.hpp"
+#include "dsp/reverb/reverb.hpp"
+#include "engine-api/types/sync.h"
+#include "engines/effects/state.h"
+#include "engines/effects/words.h"
+#include "model/edits/setting_edit.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/mod_controllable/mod_fx_names.h" // modfx::getModNames
+#include "model/song/song.h"
+#include "modulation/sync.h"
+#include "processing/engines/audio_engine.h"
+#include "scenes/menu/nodes/sound_sidechain.h"
+#include "serialization/value.h"
+
+#include <cmath>
+#include <string>
+
+namespace deluge::scenes::menu::nodes {
+
+using deluge::l10n::String;
+
+namespace {
+
+/// @brief The four float-backed reverb settings share one shape: `round(x * kMaxMenuValue)` on the
+///        way out, `value / kMaxMenuValue` on the way back (`reverb/room_size.h:28 readCurrentValue` and
+///        siblings).
+int32_t reverb_float_to_menu(float value) {
+	return static_cast<int32_t>(std::lround(value * kMaxMenuValue));
+}
+float menu_to_reverb_float(int32_t value) {
+	return static_cast<float>(value) / kMaxMenuValue;
+}
+
+/// @brief `stutter::StutterDirection`'s own enumerators (`stutter/direction.h:29`).
+enum StutterOption : uint8_t { kUseSong = 0, kForward, kReversed, kForwardPingPong, kReversedPingPong };
+
+/// @brief `StutterDirection::showUseSongOption()` (`stutter/direction.h:105`): the song's own
+///        stutter config has nothing to inherit from, so it does not offer "use song".
+bool show_use_song(const MenuContext& ctx) {
+	return ctx.mod != nullptr && !ctx.mod->isSong();
+}
+
+/// @brief @p v as a numeric effect setting.
+deluge::serialization::Value number_value(int32_t v) {
+	return deluge::serialization::Value::makeNumber(v);
+}
+
+/// @brief @p word as the effect setting's file form, as the legacy menus write it.
+template <typename Word>
+deluge::serialization::Value word_value(Word word) {
+	return deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(word)));
+}
+
+} // namespace
+
+// ---------------------------------------------------------------------------------------------
+// Delay
+//
+// Each write is an effect setting on the target, as the legacy items (`gui/menu_item/delay/`)
+// write it.
+
+int32_t get_delay_ping_pong(const MenuContext& ctx) {
+	return (ctx.mod != nullptr && ctx.mod->effects().delay.ping_pong) ? 1 : 0; // `delay/ping_pong.h`
+}
+void set_delay_ping_pong(const MenuContext& ctx, int32_t value) {
+	bindings::apply_to_targets(
+	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
+		    if (t.mod != nullptr) {
+			    deluge::edits::effectSettingFor(*t.mod, "delay/pingPong", number_value(v != 0 ? 1 : 0));
+		    }
+	    });
+}
+
+int32_t get_delay_sync(const MenuContext& ctx) {
+	if (ctx.mod == nullptr) {
+		return 0;
+	}
+	// `delay::Sync::readCurrentValue` (`delay/sync.h`).
+	const auto& delay = ctx.mod->effects().delay;
+	return static_cast<int32_t>(delay.sync_type)
+	       + (static_cast<int32_t>(delay.sync_level) - (delay.sync_type != SYNC_TYPE_EVEN ? 1 : 0));
+}
+void set_delay_sync(const MenuContext& ctx, int32_t value) {
+	bindings::apply_to_targets(
+	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
+		    if (t.mod != nullptr) {
+			    deluge::edits::effectSettingFor(*t.mod, "delay/syncType",
+			                                    number_value(static_cast<int32_t>(syncValueToSyncType(v))));
+			    deluge::edits::effectSettingFor(*t.mod, "delay/syncLevel",
+			                                    number_value(deluge::engine::index_of(syncValueToSyncLevel(v))));
+		    }
+	    });
+}
+
+int32_t get_delay_type(const MenuContext& ctx) {
+	return ctx.mod != nullptr ? static_cast<int32_t>(ctx.mod->effects().delay.type) : 0; // `delay/type.h`
+}
+void set_delay_type(const MenuContext& ctx, int32_t value) {
+	bindings::apply_to_targets(
+	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
+		    if (t.mod != nullptr) {
+			    deluge::edits::effectSettingFor(*t.mod, "delay/type",
+			                                    word_value(static_cast<deluge::effects::DelayType>(v)));
+		    }
+	    });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Reverb -- engine-wide: the context gives only the song (see `sound_fx.h`'s note)
+//
+// As the legacy items (`gui/menu_item/reverb/`): the song's `project.reverb` is authoritative, and
+// each write updates it and then the engine's projected copy.
+
+int32_t get_reverb_room_size(const MenuContext& ctx) {
+	if (ctx.song == nullptr) {
+		return 0;
+	}
+	return reverb_float_to_menu(ctx.song->project.reverb.room_size);
+}
+void set_reverb_room_size(const MenuContext& ctx, int32_t value) {
+	if (ctx.song == nullptr) {
+		return;
+	}
+	const float v = menu_to_reverb_float(value);
+	ctx.song->project.reverb.room_size = v;
+	AudioEngine::reverb.setRoomSize(v);
+}
+
+int32_t get_reverb_damping(const MenuContext& ctx) {
+	if (ctx.song == nullptr) {
+		return 0;
+	}
+	return reverb_float_to_menu(ctx.song->project.reverb.damping);
+}
+void set_reverb_damping(const MenuContext& ctx, int32_t value) {
+	if (ctx.song == nullptr) {
+		return;
+	}
+	const float v = menu_to_reverb_float(value);
+	ctx.song->project.reverb.damping = v;
+	AudioEngine::reverb.setDamping(v);
+}
+
+int32_t get_reverb_width(const MenuContext& ctx) {
+	if (ctx.song == nullptr) {
+		return 0;
+	}
+	return reverb_float_to_menu(ctx.song->project.reverb.width);
+}
+void set_reverb_width(const MenuContext& ctx, int32_t value) {
+	if (ctx.song == nullptr) {
+		return;
+	}
+	const float v = menu_to_reverb_float(value);
+	ctx.song->project.reverb.width = v;
+	AudioEngine::reverb.setWidth(v);
+}
+
+int32_t get_reverb_model(const MenuContext& ctx) {
+	if (ctx.song == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(ctx.song->model); // `reverb/model.cpp`
+}
+void set_reverb_model(const MenuContext& ctx, int32_t value) {
+	if (ctx.song == nullptr) {
+		return;
+	}
+	ctx.song->model = static_cast<deluge::dsp::Reverb::Model>(value);
+	AudioEngine::reverb.setModel(ctx.song->model);
+}
+
+int32_t get_reverb_pan(const MenuContext& ctx) {
+	if (ctx.song == nullptr) {
+		return 0;
+	}
+	return bindings::pan_to_menu(ctx.song->project.reverb.pan); // `reverb/pan.h`
+}
+void set_reverb_pan(const MenuContext& ctx, int32_t value) {
+	if (ctx.song == nullptr) {
+		return;
+	}
+	const int32_t v = bindings::menu_to_pan(value);
+	ctx.song->project.reverb.pan = v;
+	AudioEngine::reverbPan = v;
+}
+
+int32_t get_reverb_hpf(const MenuContext& ctx) {
+	if (ctx.song == nullptr) {
+		return 0;
+	}
+	return reverb_float_to_menu(ctx.song->project.reverb.hpf); // `reverb/hpf.h`
+}
+void set_reverb_hpf(const MenuContext& ctx, int32_t value) {
+	if (ctx.song == nullptr) {
+		return;
+	}
+	const float v = menu_to_reverb_float(value);
+	ctx.song->project.reverb.hpf = v;
+	AudioEngine::reverb.setHPF(v);
+}
+
+int32_t get_reverb_lpf(const MenuContext& ctx) {
+	if (ctx.song == nullptr) {
+		return 0;
+	}
+	return reverb_float_to_menu(ctx.song->project.reverb.lpf); // `reverb/lpf.h`
+}
+void set_reverb_lpf(const MenuContext& ctx, int32_t value) {
+	if (ctx.song == nullptr) {
+		return;
+	}
+	const float v = menu_to_reverb_float(value);
+	ctx.song->project.reverb.lpf = v;
+	AudioEngine::reverb.setLPF(v);
+}
+
+int32_t get_reverb_sidechain_volume(const MenuContext& ctx) {
+	if (ctx.song == nullptr) {
+		return 0;
+	}
+	return ctx.song->project.reverb.sidechain_volume / 21474836; // `reverb/sidechain/volume.h`
+}
+void set_reverb_sidechain_volume(const MenuContext& ctx, int32_t value) {
+	if (ctx.song == nullptr) {
+		return;
+	}
+	const int32_t v = value * 21474836;
+	ctx.song->project.reverb.sidechain_volume = v;
+	AudioEngine::reverbSidechainVolume = v;
+	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+}
+
+int32_t get_reverb_sidechain_shape(const MenuContext& ctx) {
+	if (ctx.song == nullptr) {
+		return 0;
+	}
+	// `reverb::sidechain::Shape::readCurrentValue` -- the same arithmetic as the standard scaling.
+	return bindings::standard_to_menu(ctx.song->project.reverb.sidechain_shape);
+}
+void set_reverb_sidechain_shape(const MenuContext& ctx, int32_t value) {
+	if (ctx.song == nullptr) {
+		return;
+	}
+	// Deliberately NOT `bindings::menu_to_standard`: legacy's write here is the plain formula with
+	// no endpoint special cases, so at 0 and 50 the two differ by one LSB. Transcribed as written.
+	const int32_t v = static_cast<int32_t>(static_cast<uint32_t>(value) * 85899345 - 2147483648u);
+	ctx.song->project.reverb.sidechain_shape = v;
+	AudioEngine::reverbSidechainShape = v;
+	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+}
+
+// The reverb's sidechain is the engine's own (`sidechain::Attack` and its siblings with
+// `is_reverb_sidechain_`), with no affect-entire loop: there is one reverb sidechain, not one per drum.
+
+int32_t get_reverb_sidechain_attack(const MenuContext& ctx) {
+	if (ctx.song == nullptr) {
+		return 0;
+	}
+	return sidechain_attack_to_menu(ctx.song->project.reverb.sidechain_attack);
+}
+void set_reverb_sidechain_attack(const MenuContext& ctx, int32_t value) {
+	if (ctx.song == nullptr) {
+		return;
+	}
+	const int32_t v = sidechain_attack_from_menu(value);
+	AudioEngine::reverbSidechainSettings.attack = v;
+	ctx.song->project.reverb.sidechain_attack = v;
+	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+}
+
+int32_t get_reverb_sidechain_release(const MenuContext& ctx) {
+	if (ctx.song == nullptr) {
+		return 0;
+	}
+	return sidechain_release_to_menu(ctx.song->project.reverb.sidechain_release);
+}
+void set_reverb_sidechain_release(const MenuContext& ctx, int32_t value) {
+	if (ctx.song == nullptr) {
+		return;
+	}
+	const int32_t v = sidechain_release_from_menu(value);
+	AudioEngine::reverbSidechainSettings.release = v;
+	ctx.song->project.reverb.sidechain_release = v;
+	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+}
+
+int32_t get_reverb_sidechain_sync(const MenuContext& ctx) {
+	if (ctx.song == nullptr) {
+		return 0;
+	}
+	// The sync type is runtime-only for the reverb; the level is the song's.
+	return sidechain_sync_to_menu(AudioEngine::reverbSidechainSettings.sync_type,
+	                              ctx.song->project.reverb.sidechain_sync);
+}
+void set_reverb_sidechain_sync(const MenuContext& ctx, int32_t value) {
+	if (ctx.song == nullptr) {
+		return;
+	}
+	AudioEngine::reverbSidechainSettings.sync_type = syncValueToSyncType(value);
+	AudioEngine::reverbSidechainSettings.sync_level = syncValueToSyncLevel(value);
+	ctx.song->project.reverb.sidechain_sync = syncValueToSyncLevel(value);
+	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Stutter
+
+size_t stutter_direction_names(const MenuContext& ctx, std::span<std::string_view> out) {
+	// `StutterDirection::getOptions` (`stutter/direction.h:22-40`), FULL spelling.
+	size_t n = 0;
+	const auto emit = [&](String s) {
+		if (n < out.size()) {
+			out[n++] = deluge::scenes::text_lookup(sid(s));
+		}
+	};
+	if (show_use_song(ctx)) {
+		emit(String::STRING_FOR_USE_SONG);
+	}
+	emit(String::STRING_FOR_FORWARD);
+	emit(String::STRING_FOR_REVERSED);
+	emit(String::STRING_FOR_FORWARD_PING_PONG);
+	emit(String::STRING_FOR_REVERSED_PING_PONG);
+	return n;
+}
+
+int32_t get_stutter_direction(const MenuContext& ctx) {
+	// `StutterDirection::readCurrentValue` (`stutter/direction.h`) and its private `setValue`
+	// shift: the option index drops by one when "use song" is not offered.
+	if (ctx.mod == nullptr) {
+		return 0;
+	}
+	const auto& sc = ctx.mod->effects().stutter;
+	StutterOption option = kForward;
+	if (show_use_song(ctx) && sc.use_song_stutter) {
+		option = kUseSong;
+	}
+	else if (sc.reversed && sc.ping_pong) {
+		option = kReversedPingPong;
+	}
+	else if (sc.reversed) {
+		option = kReversed;
+	}
+	else if (sc.ping_pong) {
+		option = kForwardPingPong;
+	}
+	return static_cast<int32_t>(option) - (show_use_song(ctx) ? 0 : 1);
+}
+
+void set_stutter_direction(const MenuContext& ctx, int32_t value) {
+	// The private `getValue()` shift, then `applyOptionToStutter` over the affect-entire sweep
+	// (`stutter/direction.h`).
+	const int32_t option = value + (show_use_song(ctx) ? 0 : 1);
+	bindings::apply_to_targets(
+	    ctx, option, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext& ctx) {
+		    if (t.mod == nullptr) {
+			    return;
+		    }
+		    deluge::edits::effectSettingFor(*t.mod, "stutter/useSongStutter", number_value(v == kUseSong ? 1 : 0));
+		    deluge::edits::effectSettingFor(*t.mod, "stutter/reverse",
+		                                    number_value(v == kReversed || v == kReversedPingPong ? 1 : 0));
+		    deluge::edits::effectSettingFor(*t.mod, "stutter/pingPong",
+		                                    number_value(v == kForwardPingPong || v == kReversedPingPong ? 1 : 0));
+		    if (t.mod->effects().stutter.use_song_stutter && ctx.song != nullptr) {
+			    // Inherit the song's settings wholesale.
+			    const auto& song_sc = ctx.song->live.global_effectable.effects().stutter;
+			    deluge::edits::effectSettingFor(*t.mod, "stutter/quantized", number_value(song_sc.quantized ? 1 : 0));
+			    deluge::edits::effectSettingFor(*t.mod, "stutter/reverse", number_value(song_sc.reversed ? 1 : 0));
+			    deluge::edits::effectSettingFor(*t.mod, "stutter/pingPong", number_value(song_sc.ping_pong ? 1 : 0));
+		    }
+	    });
+}
+
+int32_t get_stutter_quantize(const MenuContext& ctx) {
+	// `stutter/quantized.h`'s `readCurrentValue`
+	return (ctx.mod != nullptr && ctx.mod->effects().stutter.quantized) ? 1 : 0;
+}
+void set_stutter_quantize(const MenuContext& ctx, int32_t value) {
+	// `QuantizedStutter::writeCurrentValue` (`stutter/quantized.h`). The affect-entire sweep tests
+	// the *context's* `use_song_stutter`, not each drum's, as legacy does.
+	const bool blocked_by_song =
+	    ctx.mod != nullptr && ctx.mod->effects().stutter.use_song_stutter && bindings::writes_whole_kit(ctx);
+	if (blocked_by_song) {
+		return;
+	}
+	bindings::apply_to_targets(
+	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
+		    if (t.mod != nullptr) {
+			    deluge::edits::effectSettingFor(*t.mod, "stutter/quantized", number_value(v != 0 ? 1 : 0));
+		    }
+	    });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Mod FX
+
+size_t mod_fx_type_names(const MenuContext& /*ctx*/, std::span<std::string_view> out) {
+	// `mod_fx::Type::getOptions` (`mod_fx/type.h:64-67`) -> `modfx::getModNames()`
+	// (`model/global_effectable/global_effectable.cpp:1152`). The strings are l10n views, so the
+	// spans they hand back outlive this call.
+	const auto names = modfx::getModNames();
+	size_t n = 0;
+	for (std::string_view name : names) {
+		if (n < out.size()) {
+			out[n++] = name;
+		}
+	}
+	return n;
+}
+
+int32_t get_mod_fx_type(const MenuContext& ctx) {
+	// `mod_fx/type.h`'s `readCurrentValue`
+	return ctx.mod != nullptr ? static_cast<int32_t>(ctx.mod->modControllableSnapshot().effects.mod_fx.type) : 0;
+}
+void set_mod_fx_type(const MenuContext& ctx, int32_t value) {
+	// `Type::writeCurrentValue` (`mod_fx/type.h`): a ring type whose ring cannot be allocated keeps
+	// its type and passes the audio through; the next effects edit retries.
+	bindings::apply_to_targets(
+	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
+		    if (t.mod != nullptr) {
+			    deluge::edits::effectSettingFor(*t.mod, "modFXType", word_value(static_cast<ModFXType>(v)));
+		    }
+	    });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Distortion
+
+int32_t get_saturation(const MenuContext& ctx) {
+	// `fx/clipping.h`'s `readCurrentValue`
+	return ctx.mod != nullptr ? ctx.mod->modControllableSnapshot().effects.saturation.clipping_amount : 0;
+}
+void set_saturation(const MenuContext& ctx, int32_t value) {
+	bindings::apply_to_targets(ctx, value, 0,
+	                           [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
+		                           if (t.mod != nullptr) {
+			                           deluge::edits::effectSettingFor(*t.mod, "clippingAmount", number_value(v));
+		                           }
+	                           });
+}
+
+namespace {
+constexpr const Node* kRoots[] = {&sound_fx};
+} // namespace
+
+const std::span<const Node* const> kSoundFxChildren{kRoots};
+
+} // namespace deluge::scenes::menu::nodes

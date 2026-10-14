@@ -1,0 +1,18 @@
+led AffectEntire on
+led Back on
+led Clip on
+led Kit on
+led Mod1 on
+pad 16 0 6 65 8
+pad 16 1 6 65 8
+pad 16 2 6 65 8
+pad 16 3 6 65 8
+pad 16 4 6 65 8
+pad 16 5 6 65 8
+pad 16 6 6 65 8
+pad 16 7 6 65 8
+pad 17 0 6 17 54
+pad 17 7 6 58 13
+pad 2 4 255 255 0
+indicator lower 72 0 0 0
+indicator upper 255 255 36 0

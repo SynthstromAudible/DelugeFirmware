@@ -1,4 +1,7 @@
-cmake_minimum_required(VERSION 3.23)
+# 3.27: src/scenes/CMakeLists.txt links deluge_app via $<COMPILE_ONLY:...> (fix round 1,
+# spec E1 task 1) to take its usage requirements without archiving its objects into
+# libdeluge_scenes.a -- that generator expression needs CMake >= 3.27.
+cmake_minimum_required(VERSION 3.27)
 cmake_policy(SET CMP0135 NEW)
 
 # Default to the GCC toolchain, but let -DCMAKE_TOOLCHAIN_FILE=... win. An
@@ -258,38 +261,10 @@ add_compile_options(
 # Add libraries
 add_subdirectory(lib)
 
-option(MAINTAINER_MODE "Enables all warnings and errors" OFF)
-
-# Project-only compile options (warnings, etc.)
-set(DELUGE_C_STANDARD 23)
-set(DELUGE_CXX_STANDARD 26)
-list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
-    $<$<AND:$<BOOL:${MAINTAINER_MODE}>,$<CXX_COMPILER_ID:GNU>>:-fanalyzer> # static analysis
-
-    # Warnings
-    -Warray-bounds=1
-    -Wnull-dereference
-    -Wparentheses
-    -Wsequence-point
-    -Werror=switch
-    $<$<BOOL:${MAINTAINER_MODE}>:-Wextra>
-    $<$<BOOL:${MAINTAINER_MODE}>:-Wall>
-    $<$<BOOL:${MAINTAINER_MODE}>:-Wabi>
-    $<$<BOOL:${MAINTAINER_MODE}>:-Wpedantic>
-    $<$<CONFIG:DEBUG>:-Wno-psabi>
-    $<$<CONFIG:DEBUG>:-Wno-unused-parameter>
-
-    $<$<CONFIG:DEBUG>:-Werror=write-strings>
-
-    # Offsetof for non standard types is supported in GCC,
-    # if another compiler does not support it they are obligated to error
-
-    # Stack usage
-    # tracked for diagnostic usage. We have a 32k stack so it's not that important
-    # primarily concerned with unbounded stack use
-    $<$<CONFIG:DEBUG>:-Wstack-usage=2000>
-    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-Wstack-usage=2000>
-)
+# MAINTAINER_MODE, DELUGE_C_STANDARD / DELUGE_CXX_STANDARD and DELUGE_COMMON_COMPILE_OPTIONS.
+# Also included by sim/CMakeLists.txt and tests/CMakeLists.txt so the leaf libraries
+# (deluge_gfx_*, deluge_ui_*, deluge_notify) get the same warning set in all three projects.
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/deluge_common_options.cmake)
 
 # Freestanding UndefinedBehaviorSanitizer layer (see src/deluge/io/debug/ubsan_handlers.cpp). Off by default; enable
 # with -DDELUGE_UBSAN=ON. We compile with -fsanitize=undefined but do NOT add it to link options - there is no libubsan

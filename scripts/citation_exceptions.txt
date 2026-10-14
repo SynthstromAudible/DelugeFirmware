@@ -1,0 +1,33 @@
+# Known false positives of scripts/check_citations.py, one `<citing file>:<cited token>` per line.
+#
+# An entry here says "the predicate is wrong, not the citation". It is NOT a way to silence a
+# citation you have not checked: every line below names a citation that was read and verified
+# correct against the file it actually means.
+#
+# Provenance. E2 task 13's audit ran this predicate by hand over 2008 citations, found 251
+# certainly-wrong ones and corrected 238, leaving 17 named false positives -- 10 genuinely-correct
+# citations into boilerplate (a `#define` is not boilerplate when the claim is about the `#define`)
+# and 7 `integer.cpp` resolver artefacts. The list is two entries rather than seventeen because
+# the fix wave closed the gap from both ends:
+#
+#   * this script's resolver is better than the audit's one-off. It prefers a candidate long
+#     enough to contain the cited line (so `colour.h:43` resolves to `gui/menu_item/colour.h`,
+#     75 lines, not `gui/colour/colour.h`, which is a four-line re-export) and then the shallowest
+#     path. That alone removed most of the audit's boilerplate false positives, because they were
+#     resolving to the wrong file rather than to the wrong line.
+#   * the 7 `integer.cpp` artefacts are gone because the citations were made unambiguous instead
+#     of excepted: `src/scenes/menu/bindings.cpp`'s 16 bare `integer.cpp:` citations now say
+#     `patched_param/integer.cpp:`, which is the file they always meant. Qualifying a path beats
+#     excepting it -- the exception helps this script, the qualification helps the reader.
+#
+# So: prefer fixing the citation, then qualifying its path, and only then adding a line here.
+
+# `sidechain/shape.h:6` is `class Shape final : public unpatched_param::UpdatingReverbParams` in
+# `src/deluge/gui/menu_item/sidechain/shape.h`, a 12-line header with no licence block -- exactly
+# what both comments claim. The resolver reaches `gui/menu_item/reverb/sidechain/shape.h` instead,
+# whose line 6 is inside its GPL header. Both candidates are long enough and the "shallowest path"
+# tie-break is overridden by the recently-cited-directory one, which has seen `reverb/` on a
+# nearby line. Left as an exception rather than papered over by dropping that tie-break, which
+# resolves more citations correctly than it breaks.
+src/scenes/menu/bindings.cpp:sidechain/shape.h:6
+sim/scenes_spec/tables_2_spec.cpp:sidechain/shape.h:6

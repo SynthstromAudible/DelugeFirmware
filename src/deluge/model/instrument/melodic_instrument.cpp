@@ -33,6 +33,7 @@
 #include "modulation/arpeggiator.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include "util/notify.h"
 #include <cstdint>
 #include <cstring>
 #include <ranges>
@@ -200,7 +201,8 @@ doRecord:
 								instrumentClip->recordNoteOn(modelStackWithNoteRow, velocity, forcePos0,
 								                             mpeValuesOrNull, midiChannel);
 								if (getRootUI()) {
-									getRootUI()->noteRowChanged(instrumentClip, noteRow);
+									instrumentClip->notify_content_changed();
+									deluge::notify::raise(deluge::notify::Dirty::NoteRows);
 								}
 							}
 
@@ -254,7 +256,8 @@ justAuditionNote:
 						else {
 							instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
 							if (getRootUI()) {
-								getRootUI()->noteRowChanged(instrumentClip, noteRow);
+								instrumentClip->notify_content_changed();
+								deluge::notify::raise(deluge::notify::Dirty::NoteRows);
 							}
 						}
 					}
@@ -411,7 +414,8 @@ void MelodicInstrument::possiblyRefreshAutomationEditorGrid(int32_t ccNumber) {
 	if (type == OutputType::MIDI_OUT) {
 		if (getRootUI() == &automationView) {
 			if (activeClip->lastSelectedParamID == ccNumber) {
-				uiNeedsRendering(&automationView);
+				deluge::notify::raise(deluge::notify::Dirty::GridMain);
+				deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 			}
 		}
 	}

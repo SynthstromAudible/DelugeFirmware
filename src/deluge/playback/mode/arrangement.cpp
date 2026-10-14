@@ -20,10 +20,8 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
@@ -35,6 +33,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
+#include "util/notify.h"
 #include <iterator>
 
 extern "C" {}
@@ -95,8 +94,10 @@ bool Arrangement::endPlayback() {
 	// Some Clips might have been reset to "disabled", so need their mute-square redrawn if we're actually viewing the
 	// session view
 
-	// use root UI in case this is called from performance view
-	sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
+	// Main rows too: in grid session layout the clip pads are the main pads, so both need
+	// invalidating together.
+	deluge::notify::raise(deluge::notify::Dirty::GridMain);
+	deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 
 	// Work-around. Our caller, PlaybackHandler::endPlayback(), sets this next anyway, and can't do it earlier,
 	// but we need it before reassessing sessionView's greyout.
@@ -285,7 +286,7 @@ notRecording:
 						}
 
 						if (getCurrentUI() == &arrangerView) {
-							arrangerView.notifyActiveClipChangedOnOutput(output);
+							deluge::notify::raise(deluge::notify::Dirty::OutputChanged);
 						}
 
 						// Make sure we come back here when the clipInstance ends
@@ -386,7 +387,7 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 
 				Error error = output->possiblyBeginArrangementRecording(currentSong, newPos);
 				if (error != Error::NONE) {
-					display->displayError(error);
+					deluge::notify::notice(error);
 				}
 			}
 		}
@@ -558,7 +559,7 @@ int32_t Arrangement::getLivePos(uint32_t* timeRemainder) {
 
 void Arrangement::stopOutputRecordingAtLoopEnd() {
 	playbackHandler.stopOutputRecordingAtLoopEnd = true;
-	renderUIsForOled();
+	deluge::notify::raise(deluge::notify::Dirty::Oled);
 }
 
 int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* modelStack) {
@@ -665,5 +666,5 @@ void Arrangement::endAnyLinearRecording() {
 
 	arrangerView.mustRedrawTickSquares = true; // Tick square shouldn't be red anymore
 
-	uiNeedsRendering(&arrangerView, 0xFFFFFFFF, 0);
+	deluge::notify::raise(deluge::notify::Dirty::GridMain);
 }

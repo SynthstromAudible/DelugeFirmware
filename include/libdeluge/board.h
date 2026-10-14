@@ -38,6 +38,15 @@ typedef enum DelugeDisplayKind : uint8_t {
 	DELUGE_DISPLAY_SEVEN_SEGMENT = 2 ///< 4-digit numeric display
 } DelugeDisplayKind;
 
+/// Geometry of one OLED panel. `visible_top` is the number of top rows hidden by
+/// the faceplate (5 on the Deluge); the application draws below it. Distinct
+/// from any controller-side page offset, which stays inside the BSP.
+typedef struct DelugeDisplayDesc {
+	uint16_t width;      ///< pixels
+	uint16_t height;     ///< pixels, multiple of 8
+	uint8_t visible_top; ///< rows hidden at the top
+} DelugeDisplayDesc;
+
 /// Static description of one board's capabilities.
 typedef struct DelugeBoard {
 	const char* name; ///< e.g. "Synthstrom Deluge (144-pad, OLED)"
@@ -57,6 +66,11 @@ typedef struct DelugeBoard {
 	DelugeDisplayKind display_kind;
 	uint16_t display_width;  ///< pixels, OLED only
 	uint16_t display_height; ///< pixels, OLED only
+
+	/// Multi-display extension. `display_count` OLED panels; `displays[0]` mirrors
+	/// `display_width`/`display_height` so single-display callers need not change.
+	uint8_t display_count;
+	const DelugeDisplayDesc* displays;
 
 	/// Audio.
 	uint32_t audio_sample_rate_hz; ///< nominal codec rate (e.g. 44100)

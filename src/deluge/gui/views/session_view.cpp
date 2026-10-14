@@ -68,6 +68,7 @@
 #include "model/project_bridge/controls_bridge.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
+#include "model/sample/waveform_scan.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
@@ -84,6 +85,7 @@
 #include "util/etl_string.h"
 #include "util/finally.h"
 #include "util/functions.h"
+#include "util/shell_menu_entry.h"
 #include "util/try.h"
 #include <algorithm>
 #include <cstdint>
@@ -533,8 +535,25 @@ moveAfterClipInstance:
 					}
 				}
 				// open Song FX menu
-				soundEditor.setup();
-				openUI(&soundEditor);
+				//
+				// F1 task 9, site 2 of 14 (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the
+				// two legacy statements unchanged.
+				if (deluge::gui::ui::shellMenuEnabled()) {
+					// No shift (`:506`) and the session view is the root, so `setup()` picks
+					// `soundEditorRootMenuSongView` (`gui/ui/sound_editor.cpp:1802-1805`) and
+					// `!rootUIIsClipMinderScreen()` is true -- the two legacy expressions
+					// `sessionOrArrangerRoot` fuses agree here by construction. `sessionViewRoot` is
+					// the narrower fact, and it is what the two `getRootUI() == &sessionView` items
+					// in that root read (`MenuContext::is_session_view`).
+					(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
+					                                     /*performanceView=*/false,
+					                                     /*sessionOrArrangerRoot=*/true,
+					                                     /*sessionViewRoot=*/true, /*kitGlobalFx=*/false);
+				}
+				else {
+					soundEditor.setup();
+					openUI(&soundEditor);
+				}
 			}
 		}
 	}
@@ -4740,8 +4759,8 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 			                                currentSong->persistentView.xZoom[NAVIGATION_CLIP], &xScrollSamples,
 			                                &xZoomSamples);
 
-			waveformRenderer.findPeaksPerCol((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
-			                                 xZoomSamples, &((AudioClip*)clip)->renderData);
+			deluge::sample::find_peaks_per_col((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
+			                                   xZoomSamples, &((AudioClip*)clip)->renderData);
 
 			PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)clip);
 		}

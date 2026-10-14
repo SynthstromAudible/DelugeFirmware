@@ -186,6 +186,45 @@ public:
 	std::optional<std::span<deluge::gui::menu_item::HorizontalMenu* const>>
 	getCurrentHorizontalMenusChain(bool checkNavigationDepth = true);
 
+	/// @brief The nine facts `setup()` resolves before it opens anything, as a value.
+	///
+	/// Field-for-field the resolved half of the ported `menu::MenuContext`, but spelled in legacy's
+	/// own types: `check_layer_rules.py`'s `legacy-names-port` row forbids this header naming a
+	/// `src/scenes` type, and it is right to -- this header is included across the whole legacy tree
+	/// and the value is that the dependency runs one way. The caller translates
+	/// (`gui/ui/shell_choice_dispatch.cpp`), which is the layer whose job is translating.
+	struct ResolvedContext {
+		Sound* sound;
+		ModControllableAudio* mod;
+		ParamManagerForTimeline* params;
+		ArpeggiatorSettings* arp;
+		::MultiRange* range;
+		int16_t rangeIndex;
+		int8_t sourceIndex;
+		Source* source;
+		SampleControls* sampleControls;
+	};
+
+	/// @brief Point the resolved `current*` members at what @p resolved names -- `setup()`'s
+	///        own tail, for a caller that never ran `setup()`.
+	///
+	/// **Why this exists.** A sample claim (`gui/ui/browser/sample_claim.h`) reads `currentSound`,
+	/// `currentSource`, `currentSourceIndex` and `currentMultiRange` throughout, and
+	/// `Source::setOscType` consults `currentMultiRangeIndex`. Legacy reaches the browser only from
+	/// `FileSelector::beginSession`, inside a `SoundEditor` that `setup()` resolved. **Under the
+	/// ShellMenu toggle nothing calls `setup()` at all**, so `currentSound` is whatever the last legacy
+	/// menu left, which on a fresh boot is `nullptr`.
+	///
+	/// The write lives on the class that owns the members rather than in the wiring layer that has
+	/// the values.
+	///
+	/// What it deliberately does NOT touch: `allowsNoteTails` (a twelfth value `setup()` computes,
+	/// never read by a claim), `navigationDepth` / `menuItemNavigationRecord` (the ported walk lives
+	/// in `MenuState`, and `shellSampleClaimDone` re-roots that instead), and every UI member. This
+	/// makes `soundEditor` a correct *model* accessor for the duration of the claim; it does not
+	/// make it an open UI.
+	void adoptResolvedContext(const ResolvedContext& resolved);
+
 private:
 	/// Setup shortcut blinking by finding the given menu item in the provided item map
 	void setupShortcutsBlinkFromTable(MenuItem const* currentItem,

@@ -10,12 +10,12 @@
 /// `--logo` forces a logo emission immediately. Without it you would wait out the real interval,
 /// which is minutes long by design, so the feature would be effectively uninspectable here.
 
-#include "hid/display/rainfall.h"
+#include "ui/oled/rainfall.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
-using deluge::hid::display::Rainfall;
+using deluge::ui::oled::Rainfall;
 
 namespace {
 
@@ -44,10 +44,10 @@ void plot(char canvas[Rainfall::kHeight][Rainfall::kWidth], const Rainfall::Bloc
 
 int main(int argc, char** argv) {
 	int32_t numFrames = 40;
-	bool forceLogo = false;
+	bool force_logo = false;
 	for (int32_t arg = 1; arg < argc; arg++) {
 		if (strcmp(argv[arg], "--logo") == 0) {
-			forceLogo = true;
+			force_logo = true;
 		}
 		else {
 			numFrames = atoi(argv[arg]);
@@ -55,8 +55,8 @@ int main(int argc, char** argv) {
 	}
 
 	Rainfall field;
-	if (forceLogo) {
-		field.forceLogo();
+	if (force_logo) {
+		field.force_logo();
 	}
 
 	for (int32_t frame = 0; frame < numFrames; frame++) {
@@ -68,21 +68,21 @@ int main(int argc, char** argv) {
 		}
 
 		for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
-			for (size_t cell = 0; cell < field.lengthOf(drop); cell++) {
-				const Rainfall::Block block = field.cellAt(drop, cell);
+			for (size_t cell = 0; cell < field.length_of(drop); cell++) {
+				const Rainfall::Block block = field.cell_at(drop, cell);
 				plot(canvas, block, glyphFor(block.size, false));
 			}
 		}
 
 		// Drawn last so the mark reads over the rain, matching how the panel composites it.
-		if (field.logoActive()) {
+		if (field.logo_active()) {
 			for (size_t cell = 0; cell < Rainfall::kLogoCells; cell++) {
-				const Rainfall::Block block = field.logoCellAt(cell);
+				const Rainfall::Block block = field.logo_cell_at(cell);
 				plot(canvas, block, glyphFor(block.size, true));
 			}
 		}
 
-		printf("--- frame %d%s ---\n", frame, field.logoActive() ? "  [logo]" : "");
+		printf("--- frame %d%s ---\n", frame, field.logo_active() ? "  [logo]" : "");
 		for (int32_t y = Rainfall::kTopmost; y < Rainfall::kHeight; y++) {
 			fwrite(canvas[y], 1, Rainfall::kWidth, stdout);
 			putchar('\n');

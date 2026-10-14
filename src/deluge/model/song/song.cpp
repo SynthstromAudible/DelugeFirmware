@@ -91,6 +91,7 @@
 #include "storage/value_tree_deserializer.h"
 #include "util/etl_string.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/notify.h"
 #include "util/string.h"
 #include "util/try.h"
 #include <algorithm>
@@ -511,6 +512,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 
 	// If that failed (really unlikely) we're really screwed
 	if (!newInstrument) {
+		// NOTIFY-DEFERRED: fatal path, never returns to the tick
 		display->displayError(Error::INSUFFICIENT_RAM);
 		while (1) {}
 	}
@@ -887,7 +889,7 @@ void Song::changeFillMode(bool on) {
 	UI* root_ui = getRootUI();
 	if (root_ui == &instrumentClipView) {
 		// we peek fill notes when fill is held so need to re render rows
-		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+		deluge::notify::raise(deluge::notify::Dirty::GridMain);
 	}
 
 	if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
@@ -2087,7 +2089,7 @@ loadOutput:
 
 				if (lookingForIndex >= static_cast<int32_t>(clips->size())) {
 #if ALPHA_OR_BETA_VERSION
-					display->displayPopup("E248");
+					deluge::notify::notice("E248");
 #endif
 skipInstance:
 					thisOutput->clipInstances.erase(thisOutput->clipInstances.begin() + i);
@@ -2100,7 +2102,7 @@ skipInstance:
 				// If Instrument mismatch somehow...
 				if (thisInstance->clip->output != thisOutput) {
 #if ALPHA_OR_BETA_VERSION
-					display->displayPopup("E451"); // Changed from E041 - was a duplicate.
+					deluge::notify::notice("E451"); // Changed from E041 - was a duplicate.
 #endif
 					goto skipInstance;
 				}
@@ -2109,7 +2111,7 @@ skipInstance:
 				if (isArrangementClip && thisInstance->clip->gotInstanceYet) {
 
 #if ALPHA_OR_BETA_VERSION
-					display->displayPopup("E042");
+					deluge::notify::notice("E042");
 #endif
 					goto skipInstance;
 				}
@@ -2137,7 +2139,7 @@ skipInstance:
 
 		if (!clip->gotInstanceYet) {
 #if ALPHA_OR_BETA_VERSION
-			display->displayPopup("E043");
+			deluge::notify::notice("E043");
 #endif
 			if (runtimeView.currentClip == clip) {
 				runtimeView.currentClip = nullptr;
@@ -3154,7 +3156,7 @@ void Song::clearTempoAutomation() {
 	deluge::edits::DeleteParamAutomation edit{deluge::edits::addressFor(*tempoParam), tempoParam,
 	                                          ActionAddition::ALLOWED};
 	deluge::edits::apply(editCtx, edit);
-	display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
+	deluge::notify::notice(l10n::String::STRING_FOR_AUTOMATION_CLEARED);
 }
 
 void Song::setBPMInner(float tempoBPM, bool shouldLogAction) {
@@ -3479,6 +3481,8 @@ void Song::moveOutput(Output* output, int32_t direction) {
 void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool keepNoteRowsWithMIDIInput) {
 	for (Output* thisOutput = live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput == newOutput) {
+			// NOTIFY-DEFERRED: FREEZE_WITH_ERROR() on the next line never returns to the UI tick, so a
+			// queued cancel would never drain.
 			display->cancelPopup();
 			FREEZE_WITH_ERROR("i009");
 		}
@@ -4307,7 +4311,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 				if (!live.param_backup.getPreferablyWithClip((ModControllableAudio*)output->toModControllable(),
 				                                             nullptr)) {
 #if ALPHA_OR_BETA_VERSION
-					display->displayPopup("E044");
+					deluge::notify::notice("E044");
 #endif
 					deleteOutputThatIsInMainList(output,
 					                             false); // Do *not* try to stop any auditioning first. There is
@@ -4783,7 +4787,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 				newChannel = CVInstrument::navigateChannels(newChannel, offset);
 
 				if (newChannel == oldChannel) {
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
+					deluge::notify::notice(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG);
 					return output;
 				}
 				if (newChannel == CVInstrumentMode::both) {
@@ -4828,7 +4832,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 
 				if (newChannel == oldChannel && newChannelSuffix == oldChannelSuffix) {
 					oldNonAudioInstrument->setChannel(oldChannel); // Put it back
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
+					deluge::notify::notice(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG);
 					return output;
 				}
 
@@ -4867,7 +4871,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 Output* Song::applyNavigateThroughPresets(Instrument* oldInstrument, const deluge::storage::AcquireResult& acquired) {
 	if (acquired.error != Error::NONE) {
 		if (acquired.error != Error::NO_ERROR_BUT_GET_OUT) {
-			display->displayError(acquired.error);
+			deluge::notify::notice(acquired.error);
 		}
 		auto oled = static_cast<deluge::hid::display::OLED*>(display);
 		oled->consoleTimerEvent();
@@ -4880,7 +4884,7 @@ Output* Song::applyNavigateThroughPresets(Instrument* oldInstrument, const delug
 	}
 
 	replaceInstrument(oldInstrument, newInstrument);
-	display->removeLoadingAnimation();
+	deluge::notify::notice_clear_working();
 
 	instrumentSwapped(newInstrument);
 
@@ -4972,7 +4976,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 
 			// If we've searched all channels...
 			if (newSlot == oldSlot) {
-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_AVAILABLE_CHANNELS));
+				deluge::notify::notice(deluge::l10n::String::STRING_FOR_NO_AVAILABLE_CHANNELS);
 				return nullptr;
 			}
 		}
@@ -4985,7 +4989,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 		}
 		newInstrument = StorageManager::createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
 		if (!newInstrument) {
-			display->displayError(Error::INSUFFICIENT_RAM);
+			deluge::notify::notice(Error::INSUFFICIENT_RAM);
 			return nullptr;
 		}
 
@@ -5006,7 +5010,7 @@ gotAnInstrument: {}
 
 Instrument* Song::applyChangeOutputType(Instrument* oldInstrument, const deluge::storage::AcquireResult& acquired) {
 	if (acquired.error != Error::NONE) {
-		display->displayError(acquired.error);
+		deluge::notify::notice(acquired.error);
 		return nullptr;
 	}
 	Instrument* newInstrument = acquired.instrument;
@@ -5247,7 +5251,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Avai
 
 		// If we've searched all channels...
 		if (newSlot == oldSlot) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS_AVAILABLE));
+			deluge::notify::notice(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS_AVAILABLE);
 			return nullptr;
 		}
 	}
@@ -5265,7 +5269,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Avai
 		}
 		newInstrument = StorageManager::createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
 		if (!newInstrument) {
-			display->displayError(Error::INSUFFICIENT_RAM);
+			deluge::notify::notice(Error::INSUFFICIENT_RAM);
 			return nullptr;
 		}
 	}
@@ -5884,7 +5888,7 @@ void Song::displayCurrentRootNoteAndScaleName() {
 			return;
 		}
 	}
-	display->displayPopup(popupMsg.c_str());
+	deluge::notify::notice(std::string_view(popupMsg));
 }
 
 void Song::commandTranspose(int32_t interval) {
@@ -5905,7 +5909,7 @@ void Song::transpose(int32_t interval) {
 		displayCurrentRootNoteAndScaleName();
 	}
 	else {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_TRANSPOSE));
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_CANT_TRANSPOSE);
 	}
 }
 
@@ -5928,7 +5932,7 @@ void Song::displayMasterTransposeInterval() {
 		deluge::string::appendInt(popupMsg, masterTransposeInterval);
 		popupMsg.append(" Semitones");
 	}
-	display->displayPopup(popupMsg.c_str());
+	deluge::notify::notice(std::string_view(popupMsg));
 }
 
 ModelStackWithThreeMainThings* Song::setupModelStackWithSongAsTimelineCounter(void* memory) {

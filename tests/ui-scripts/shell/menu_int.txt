@@ -1,0 +1,40 @@
+# **This script runs with the three REAL services installed, UNSEEDED** -- `svc.song` set,
+# `svc.mod_target` left null (F1 task 11 fix round 2). It used to run with `Services{}`, three
+# `NullService`s, and so did every other menu script here; twelve of them moved, and the twelve that
+# drive no gold turn did not. What the install cost these goldens is exactly two lines per frame,
+# `indicator lower 0 0 0 0` and `indicator upper 0 0 0 0` -- `ModKnobs::leds` declaring both rings
+# dark because there is no target. No pixel moved and no assertion changed.
+#
+# **Rewritten for note-family task 1's fix.** `int_value` used to read the gold pair to edit, under
+# a comment that (wrongly) called that a port of `Integer::selectEncoderAction`; it now reads the
+# select turn instead (`ui/oled/values.cpp`'s `select_delta`), which is what legacy's own
+# `Integer::selectEncoderAction` actually is the port of. This script's two turns below are both
+# `Select` now -- the first used to be a claimed-and-ignored no-op, the second used to be a
+# `GoldUpper` turn -- and both now genuinely move `nodes::saturation`.
+#
+# This file used to carry a long, dense essay on the gold-knob wiggle debounce here, keyed to a
+# `GoldUpper` step this leaf no longer reads at all: `int_value` claims no gold input any more, so
+# there is no debounce question left to ask about a turn it never sees. That story now belongs
+# entirely to `menu_gold_turn.txt`, which drives this exact node (`nodes::saturation`) with a SEEDED
+# `ModKnobs` and shows what a gold turn does now that it reaches the service instead of the widget:
+# it moves a real, unrelated param and pushes a popup, because `nodes::saturation` -- built with
+# `int_item()` -- has no `bind.param` of its own for `ModKnobs::popup_suppressed` to match against.
+#
+# Level-2 acceptance (task-11 brief): an Int leaf (nodes::saturation), opened directly at depth 0.
+# The generic recipe every menu_* script drives; the C++ spec pins the node and the model asserts.
+0     snapshot idle
+100   encoder Select +1
+# Genuinely edits now: 0 -> 1. No snapshot here -- the next step's snapshot already carries this
+# one's effect, and "+1, then immediately +2 more, while still focused" is the generic recipe's own
+# shape, unchanged from before this fix; only what the turns DO changed.
+200   button SelectEnc down
+220   button SelectEnc up
+# A leaf's select press ascends (`MenuScene::ascend`), and this scene was opened directly at depth
+# 0 -- `ascend`'s own `if (st_.depth == 0) return;` makes the press a pure no-op, so this snapshot's
+# `.pbm` would be byte-identical to `idle`; no snapshot is kept for it, for that reason.
+300   encoder Select +2
+320   snapshot after_select_edit  # 1 + 2 = 3: both select turns landed on this leaf, in order
+400   button Back down
+420   button Back up
+440   snapshot after_back
+500   quit

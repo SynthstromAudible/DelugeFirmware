@@ -1,6 +1,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
+#include "hid/display/oled_canvas/canvas.h"
 #include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::defaults {
@@ -10,6 +11,8 @@ public:
 	void readCurrentValue() override { this->setValue(FlashStorage::accessibilityMenuHighlighting); }
 	void writeCurrentValue() override {
 		FlashStorage::accessibilityMenuHighlighting = this->getValue<MenuHighlighting>();
+		deluge::hid::display::oled_canvas::Canvas::menuHighlightingInverts =
+		    (FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION);
 	}
 	vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;

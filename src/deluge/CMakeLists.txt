@@ -2,7 +2,6 @@ configure_file(util/firmware_version.h.in util/firmware_version.h @ONLY)
 add_subdirectory(dsp)
 add_subdirectory(dsp-next)
 add_subdirectory(gui/l10n)
-add_subdirectory(gui/menu_item/generate)
 add_subdirectory(version)
 
 # Add the sources to the target
@@ -65,7 +64,7 @@ add_library(deluge_app OBJECT
   # clean nukes them and the source glob would not find them.
   ${deluge_strings_SOURCES}
 )
-add_dependencies(deluge_app deluge_strings deluge_version deluge_menus)
+add_dependencies(deluge_app deluge_strings deluge_version)
 
 # The UI, input, file and project-edit code, and stem export, are built for size: none runs per sample.
 # Excluded: storage's sample streaming, cluster cache and multisample ranges, which voices read while they
@@ -104,6 +103,13 @@ target_link_libraries(deluge_app PUBLIC
     deluge_global_effectable # the provisional shared-effect param table
     deluge_serialization # the document tree and its XML and JSON parsers
     deluge_music_theory # note sets, scales, keys and scale mapping
+    deluge_gfx_oled # pure drawing primitives
+    deluge_gfx_grid
+    deluge_ui_core # the immediate-mode UI toolkit
+    deluge_ui_oled
+    deluge_ui_grid
+    deluge_ui_shell # surfaces, scene stack, input lowering, services, tick, flush
+    deluge_notify # the model->UI notification channel
 )
 
 target_compile_definitions(deluge_app PUBLIC

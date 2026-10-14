@@ -1,0 +1,25 @@
+# Level-2 acceptance (E2 task 12): a `nodes::ContextMenuItem` (the five reset items, E2 task 7)
+# opening `context_menu::ContextMenuScene` over the menu, and the menu's own `go_up_on_resume`
+# behaviour when that scene closes.
+#
+# Legacy is `reset_settings::Reset::selectButtonPress` (`gui/menu_item/reset_settings/reset.h:29-33`):
+# `openUI(&contextMenu)` plus `soundEditor.shouldGoUpOneLevelOnBegin = true`. The port spells the two
+# as `MenuState::pending_scene` + `MenuState::go_up_on_resume`, drained in `MenuScene::after_render`.
+#
+# The script DISMISSES the context menu rather than accepting it. Accepting `RESET FLASH` runs
+# `FlashStorage::resetSettings` over process-wide globals every other spec in this executable also
+# reads; the accept path already has end-to-end coverage in `tables_3_spec` (task 7's group), and a
+# level-2 script's job here is the navigation, not the side effect.
+0     snapshot idle                  # RESET SETTINGS list, five rows, cursor on RESET FLASH
+100   button SelectEnc down
+120   button SelectEnc up
+140   snapshot after_select_press    # the context-menu window over the list underneath
+200   encoder Select +1
+# No snapshot: `ResetFlash`'s descriptor has exactly ONE option (task 6's correction -- the options
+# are {OK} under the title "Are you sure?", not {NO,YES}), so `step()` clamps the turn to a no-op and
+# the frame is byte-identical to `after_select_press`. The step stays because the spec asserts the
+# selection did not move.
+300   button Back down
+320   button Back up
+340   snapshot after_back            # the menu again, one level UP -- go_up_on_resume, not a redraw
+400   quit

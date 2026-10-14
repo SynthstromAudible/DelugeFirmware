@@ -20,7 +20,6 @@
 #include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
-#include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "io/file.hpp"
@@ -35,7 +34,9 @@
 #include "libdeluge/system.h" // deluge_in_interrupt
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
+#include "model/sample/waveform_scan.h"
 #include "storage/audio/card_reinsert.h"
+#include "util/notify.h"
 
 #include "deluge_resource.h" // resource manager: unlease manager-owned SAMPLE clusters
 #include "libdeluge/sample_reader.h"
@@ -177,7 +178,7 @@ void AudioFileManager::cardReinserted() {
 
 		D_PRINTLN("cluster size increased and we're in trouble");
 		cardDisabled = true;
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_REBOOT_TO_USE_THIS_SD_CARD));
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_REBOOT_TO_USE_THIS_SD_CARD);
 	}
 
 	// If cluster size decreased, we have to stop all current samples from ever sounding again. Pretty big trouble
@@ -1647,7 +1648,7 @@ void AudioFileManager::backgroundWaveformOverviewScan() {
 	}
 
 	// Can we scan at all right now? (The finer-grained "is card I/O safe this instant?" busy-check lives in
-	// advanceOverviewScan, which guards each individual cluster load - see waveform_renderer.cpp.)
+	// advance_overview_scan, which guards each individual cluster load - see model/sample/waveform_scan.cpp.)
 	if (cardEjected || cardDisabled) {
 		return;
 	}
@@ -1677,7 +1678,7 @@ void AudioFileManager::backgroundWaveformOverviewScan() {
 		}
 
 		// Advance this sample by a small budget. If there was real work to do, stop here for this call.
-		if (waveformRenderer.advanceOverviewScan(sample, kOverviewScanClustersPerCall)) {
+		if (deluge::sample::advance_overview_scan(sample, kOverviewScanClustersPerCall)) {
 			return;
 		}
 	}

@@ -19,8 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_view.h"
-#include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -51,6 +49,7 @@
 #include "playback/mode/arrangement.h"
 #include "storage/storage_manager.h"
 #include "util/containers.h"
+#include "util/notify.h"
 
 Session session{};
 
@@ -216,7 +215,7 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 	if (begun) {
 
 		if (getRootUI() == &sessionView) {
-			sessionView.clipNeedsReRendering(clip); // Necessary for InstrumentClips
+			clip->notify_content_changed(); // Necessary for InstrumentClips
 		}
 
 		// if we're creating a new recording based on a previous clip on the same
@@ -226,7 +225,8 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 			currentSong->setCurrentClip(clip);
 			getCurrentUI()->focusRegained(); // A bit shifty...
 
-			uiNeedsRendering(getCurrentUI());
+			deluge::notify::raise(deluge::notify::Dirty::GridMain);
+			deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 		}
 
 		if (clip->overdubNature != OverDubType::Normal && playbackHandler.isEitherClockActive()) {
@@ -808,7 +808,7 @@ void Session::showLaunchRepeatsRemaining() {
 	}
 	else if ((rootUI == &sessionView || rootUI == &performanceView)
 	         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-		renderUIsForOled();
+		deluge::notify::raise(deluge::notify::Dirty::Oled);
 	}
 }
 
@@ -821,7 +821,7 @@ void Session::launchSchedulingMightNeedCancelling() {
 		}
 		else if ((rootUI == &sessionView || rootUI == &performanceView)
 		         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-			renderUIsForOled();
+			deluge::notify::raise(deluge::notify::Dirty::Oled);
 		}
 	}
 }
@@ -1072,7 +1072,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 					playbackHandler.finishTempolessRecording(true, buttonPressLatency);
 					RootUI* rootUI = getRootUI();
 					if (rootUI == &sessionView || rootUI == &performanceView) {
-						uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
+						deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 					}
 					return;
 				}
@@ -1120,13 +1120,13 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 							                           false); // Tell it not to resync
 							armClipToStopAction(clip);
 
-							sessionView.clipNeedsReRendering(clip);
+							clip->notify_content_changed();
 							if (getCurrentClip()) {
 								if (getCurrentClip()->onAutomationClipView) {
-									uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
+									deluge::notify::raise(deluge::notify::Dirty::GridMain);
 								}
 								else {
-									uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+									deluge::notify::raise(deluge::notify::Dirty::GridMain);
 								}
 							}
 						}
@@ -1314,7 +1314,7 @@ void Session::armingChanged() {
 		if (getCurrentUI()->canSeeViewUnderneath()) {
 			if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
 			    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-				renderUIsForOled();
+				deluge::notify::raise(deluge::notify::Dirty::Oled);
 			}
 probablyDoFlashPlayEnable:
 			if (hasPlaybackActive()) {
@@ -1324,7 +1324,7 @@ probablyDoFlashPlayEnable:
 	}
 	else {
 		// TODO: only if sidebar visible!
-		uiNeedsRendering(getCurrentUI(), 0x00000000, 0xFFFFFFFF);
+		deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 	}
 }
 

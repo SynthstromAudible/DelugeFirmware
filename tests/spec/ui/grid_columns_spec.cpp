@@ -1,0 +1,545 @@
+#include "../gfx/support/golden.h"
+#include "support/frames.h"
+#include "ui/grid/columns.h"
+
+#include "cppspec.hpp"
+
+#include "../support/spec_main.h"
+#include <array>
+#include <cstdint>
+#include <span>
+#include <string>
+
+using namespace deluge::ui;
+using namespace deluge::ui::grid;
+using deluge::gfx::grid::Rect;
+namespace uitest = deluge::ui::test;
+namespace palette = deluge::gui::colours;
+
+// The five grid column components: the VU meter, the macro column, the velocity and automation
+// bars, and the tick-square overlay. Every one is a port of a legacy routine, so
+// wherever legacy computes rather than tabulates -- the dBFS conversion, the macro brightnesses,
+// the muted-tick transform -- this spec transcribes *legacy's* expression and compares the port
+// against that, rather than against literals the port could drift from together with the spec.
+
+namespace {
+
+// --- View::getMaxYDisplayForVUMeter, transcribed -----------------------------------------------
+const float legacy_dbfs_for_row[8] = {-30.8, -26.4, -22.0, -17.6, -13.2, -8.8, -4.4, -0.2};
+
+int32_t legacy_vu_max_row(float level) {
+	float dBFS = (level - 16.7) * 4;
+	int32_t maxYDisplay = 255;
+	for (int32_t y = 0; y < 8; y++) {
+		if (dBFS >= legacy_dbfs_for_row[y]) {
+			maxYDisplay = y;
+		}
+		else {
+			break;
+		}
+	}
+	return maxYDisplay;
+}
+
+// --- View::renderMacros' colour body, transcribed ----------------------------------------------
+RGB legacy_macro_colour(MacroKind kind, bool clip_active, bool clip_armed, bool arm_flash, bool held, int32_t selected,
+                        int32_t y) {
+	bool is_active = selected == y;
+	bool is_other_active = selected >= 0 && !is_active;
+	uint8_t dark = is_active ? 32 : 0;
+	uint8_t light = is_other_active ? 208 : 255;
+
+	RGB image{0, 0, 0};
+	switch (kind) {
+	case MacroKind::ClipLaunch:
+		image = clip_active ? RGB{0, light, 0} : RGB{light, 0, 0};
+		if (clip_armed && arm_flash) {
+			image = RGB{0, 0, 0};
+		}
+		break;
+	case MacroKind::OutputCycle:
+		image = RGB{0, 64, light};
+		break;
+	case MacroKind::Section:
+		image = RGB{light, 0, 128};
+		break;
+	case MacroKind::None:
+		image = RGB{dark, dark, dark};
+		break;
+	}
+	return image.adjust(255, (held ? 1 : 8));
+}
+
+constexpr RGB kBlack = RGB{0, 0, 0};
+
+} // namespace
+
+// clang-format off
+describe grid_columns("ui::grid columns", $ {
+
+	// -----------------------------------------------------------------------------------------
+	// VU meter -- View::renderVUMeter / getMaxYDisplayForVUMeter
+	// -----------------------------------------------------------------------------------------
+
+	it("lights every row on a clipping channel, and the bottom row alone at the audibility floor", _ {
+		uitest::GridRig r;
+		// `vu_meter(x, 16.7, 9)`, on the two sidebar columns legacy uses. 16.7 is "log(2^24) ...
+		// the approxRMSLevel at which clipping begins" and 9 is the level "at which the sound
+		// becomes inaudible".
+		vu_meter(r.frame, 16, 16.7f, 9.0f);
+
+		// Left: all eight rows, in legacy's three colour bands.
+		for (int32_t y = 0; y < 5; y++) {
+			expect(r.grid.at(16, y)).to_equal(palette::green);
+		}
+		expect(r.grid.at(16, 5)).to_equal(palette::orange);
+		expect(r.grid.at(16, 6)).to_equal(palette::orange);
+		expect(r.grid.at(16, 7)).to_equal(palette::red);
+
+		// Right: legacy actually lights row 0 at level 9, not none: `(9 - 16.7) * 4` is computed
+		// in `double` and narrowed to `float`, which lands on exactly -30.8f, and legacy's
+		// threshold test is `>=`. Legacy's own comment agrees -- "any approxRMSLevel value
+		// *below* 9 doesn't get rendered".
+		expect(legacy_vu_max_row(9.0f)).to_equal(0);
+		expect(r.grid.at(17, 0)).to_equal(palette::green);
+		for (int32_t y = 1; y < 8; y++) {
+			expect(r.grid.at(17, y)).to_equal(kBlack);
+		}
+	});
+
+	it("puts the meter's top on the row the dBFS table names, one level per threshold", _ {
+		// One level comfortably inside each of the eight bands, plus one below the
+		// bottom threshold. Levels convert as `level = dBFS / 4 + 16.7`.
+		struct Case { float level; int32_t top; };
+		constexpr Case cases[] = {
+		    {8.0f, 255},  // below -30.8 dBFS: `maxYDisplay` stays 255, nothing is drawn
+		    {9.5f, 0},    // -30.8 .. -26.5
+		    {10.6f, 1},   // -26.4 .. -22.1
+		    {11.7f, 2},   // -22.0 .. -17.7
+		    {12.8f, 3},   // -17.6 .. -13.3
+		    {13.9f, 4},   // -13.2 ..  -8.9
+		    {15.0f, 5},   //  -8.8 ..  -4.5
+		    {16.0f, 6},   //  -4.4 ..  -0.3
+		    {16.7f, 7},   // clipping (-0.2 or higher)
+		};
+		for (const Case& c : cases) {
+			uitest::GridRig r;
+			expect(vu_max_row(c.level)).to_equal(legacy_vu_max_row(c.level));
+			expect(vu_max_row(c.level)).to_equal(c.top);
+			vu_meter(r.frame, 16, c.level, 0.0f);
+			for (int32_t y = 0; y < 8; y++) {
+				// `kVuSilent` (255) is legacy's "nothing to draw" sentinel, not a row index.
+				const bool lit = (c.top != kVuSilent) && (y <= c.top);
+				expect(r.grid.at(16, y)).to_equal(lit ? vu_row_colour(y) : kBlack);
+			}
+			// A silent right channel is left black, whatever the left one does.
+			for (int32_t y = 0; y < 8; y++) {
+				expect(r.grid.at(17, y)).to_equal(kBlack);
+			}
+		}
+	});
+
+	it("erases both columns before drawing, so a falling meter loses its top pads", _ {
+		uitest::GridRig r;
+		vu_meter(r.frame, 16, 16.7f, 16.7f);
+		expect(r.grid.at(16, 7)).to_equal(palette::red);
+		// "erase current image as it will be refreshed", per legacy's own comment.
+		vu_meter(r.frame, 16, 9.5f, 8.0f);
+		expect(r.grid.at(16, 0)).to_equal(palette::green);
+		for (int32_t y = 1; y < 8; y++) {
+			expect(r.grid.at(16, y)).to_equal(kBlack);
+		}
+		for (int32_t y = 0; y < 8; y++) {
+			expect(r.grid.at(17, y)).to_equal(kBlack);
+		}
+	});
+
+	it("matches the legacy VU colour bands exactly", _ {
+		// Legacy's colour bands, spelled out: rows 0-4 green, 5-6 orange, 7 red.
+		expect(vu_row_colour(0)).to_equal(palette::green);
+		expect(vu_row_colour(4)).to_equal(palette::green);
+		expect(vu_row_colour(5)).to_equal(palette::orange);
+		expect(vu_row_colour(6)).to_equal(palette::orange);
+		expect(vu_row_colour(7)).to_equal(palette::red);
+	});
+
+	// -----------------------------------------------------------------------------------------
+	// Macro column -- View::renderMacros
+	// -----------------------------------------------------------------------------------------
+
+	it("paints every macro kind the colour renderMacros paints it", _ {
+		uitest::GridRig r;
+		// One kind per row, nothing selected, nothing armed or held: the plain palette.
+		const MacroCell rows[] = {
+		    {.kind = MacroKind::None},
+		    {.kind = MacroKind::ClipLaunch, .clip_active = false},
+		    {.kind = MacroKind::ClipLaunch, .clip_active = true},
+		    {.kind = MacroKind::OutputCycle},
+		    {.kind = MacroKind::Section},
+		};
+		macros(r.frame, 16, rows, -1);
+
+		// `adjust(255, 8)` is an integer eighth of each channel: 255 -> 31, 128 -> 16,
+		// 64 -> 8, 0 -> 0. Spelled as literals here so the dimming is pinned, not just re-derived.
+		expect(r.grid.at(16, 0)).to_equal(RGB{0, 0, 0});    // None, unselected: dark = 0
+		expect(r.grid.at(16, 1)).to_equal(RGB{31, 0, 0});   // ClipLaunch stopped: {light, 0, 0}
+		expect(r.grid.at(16, 2)).to_equal(RGB{0, 31, 0});   // ClipLaunch active:  {0, light, 0}
+		expect(r.grid.at(16, 3)).to_equal(RGB{0, 8, 31});   // OutputCycle:        {0, 64, light}
+		expect(r.grid.at(16, 4)).to_equal(RGB{31, 0, 16});  // Section:            {light, 0, 128}
+	});
+
+	it("blacks out an armed clip-launch macro on the flash's on phase, and only then", _ {
+		uitest::GridRig r;
+		const MacroCell rows[] = {
+		    {.kind = MacroKind::ClipLaunch, .clip_active = true, .clip_armed = true, .arm_flash = true},
+		    {.kind = MacroKind::ClipLaunch, .clip_active = true, .clip_armed = true, .arm_flash = false},
+		    {.kind = MacroKind::ClipLaunch, .clip_active = true, .clip_armed = false, .arm_flash = true},
+		    // The flash blacks out clip-launch macros only -- legacy's black assignment is inside
+		    // that case.
+		    {.kind = MacroKind::Section, .clip_armed = true, .arm_flash = true},
+		};
+		macros(r.frame, 16, rows, -1);
+		expect(r.grid.at(16, 0)).to_equal(kBlack);
+		expect(r.grid.at(16, 1)).to_equal(RGB{0, 31, 0});
+		expect(r.grid.at(16, 2)).to_equal(RGB{0, 31, 0});
+		expect(r.grid.at(16, 3)).to_equal(RGB{31, 0, 16});
+
+		// The `armed` legacy returns.
+		expect(macro_wants_arm_flash(rows[0])).to_be_true();
+		expect(macro_wants_arm_flash(rows[1])).to_be_true();   // armed clip, flash phase off
+		expect(macro_wants_arm_flash(rows[2])).to_be_true();   // flash already on
+		expect(macro_wants_arm_flash(MacroCell{.kind = MacroKind::ClipLaunch})).to_be_false();
+	});
+
+	it("brightens a held macro to its full colour and dims the rest, per issue #3244", _ {
+		uitest::GridRig r;
+		const MacroCell rows[] = {
+		    {.kind = MacroKind::Section, .held = true},
+		    {.kind = MacroKind::Section, .held = false},
+		};
+		macros(r.frame, 16, rows, -1);
+		// `adjust(255, 1)` is the colour itself; `adjust(255, 8)` an eighth of it.
+		expect(r.grid.at(16, 0)).to_equal(RGB{255, 0, 128});
+		expect(r.grid.at(16, 1)).to_equal(RGB{31, 0, 16});
+	});
+
+	it("knocks the other macros back while one is selected, and greys the selected empty slot", _ {
+		uitest::GridRig r;
+		const MacroCell rows[] = {
+		    {.kind = MacroKind::None},
+		    {.kind = MacroKind::Section},
+		};
+		// Row 0 selected: `dark = 32` for it, `light = 208` for every other row.
+		macros(r.frame, 16, rows, 0);
+		expect(r.grid.at(16, 0)).to_equal(RGB{4, 4, 4});     // {32,32,32} / 8
+		expect(r.grid.at(16, 1)).to_equal(RGB{26, 0, 16});   // {208,0,128} / 8
+
+		// Nothing selected: the empty slot is black and the section keeps full `light`.
+		macros(r.frame, 16, rows, -1);
+		expect(r.grid.at(16, 0)).to_equal(kBlack);
+		expect(r.grid.at(16, 1)).to_equal(RGB{31, 0, 16});
+	});
+
+	it("agrees with renderMacros on every kind x active x armed x flash x held x selection", _ {
+		constexpr MacroKind kinds[] = {MacroKind::None, MacroKind::ClipLaunch, MacroKind::OutputCycle,
+		                               MacroKind::Section};
+		constexpr int32_t selections[] = {-1, 0, 3};
+		for (MacroKind kind : kinds) {
+			for (bool active : {false, true}) {
+				for (bool armed : {false, true}) {
+					for (bool flash : {false, true}) {
+						for (bool held : {false, true}) {
+							for (int32_t selected : selections) {
+								uitest::GridRig r;
+								const MacroCell cell{.kind = kind, .clip_active = active, .clip_armed = armed,
+								                     .arm_flash = flash, .held = held};
+								const MacroCell rows[] = {cell, cell, cell, cell, cell, cell, cell, cell};
+								macros(r.frame, 16, rows, selected);
+								for (int32_t y = 0; y < 8; y++) {
+									expect(r.grid.at(16, y))
+									    .to_equal(legacy_macro_colour(kind, active, armed, flash, held, selected, y));
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	});
+
+	// -----------------------------------------------------------------------------------------
+	// Velocity column -- renderNoteSquare
+	// -----------------------------------------------------------------------------------------
+
+	it("grows the velocity bar by the minPadDisplayValues table, not by a division", _ {
+		// Not a division: legacy tests `value >= minPadDisplayValues[yDisplay]` with
+		// {0, 17, 33, 49, 65, 81, 97, 113}. Velocity 1 gets one row rather than none, because
+		// row 0's minimum is 0.
+		struct Case { uint8_t velocity; int32_t top; };
+		constexpr Case cases[] = {{0, 0}, {1, 0}, {64, 3}, {127, 7}};
+		for (const Case& c : cases) {
+			uitest::GridRig r;
+			velocity_column(r.frame, 4, VelocityData{.velocity = c.velocity, .square = NoteSquare::Head});
+			for (int32_t y = 0; y < 8; y++) {
+				expect(r.grid.at(4, y)).to_equal(y <= c.top ? kVelocityRow[y] : kBlack);
+			}
+		}
+	});
+
+	it("picks the head, tail and blur ramps by square type, and erases an empty square", _ {
+		uitest::GridRig r;
+		velocity_column(r.frame, 0, VelocityData{.velocity = 127, .square = NoteSquare::Head});
+		velocity_column(r.frame, 1, VelocityData{.velocity = 127, .square = NoteSquare::Tail});
+		velocity_column(r.frame, 2, VelocityData{.velocity = 127, .square = NoteSquare::Blurred});
+		velocity_column(r.frame, 3, VelocityData{.velocity = 127, .square = NoteSquare::None});
+		for (int32_t y = 0; y < 8; y++) {
+			expect(r.grid.at(0, y)).to_equal(kVelocityRow[y]);      // the head ramp
+			expect(r.grid.at(1, y)).to_equal(kVelocityRowTail[y]);  // the tail ramp
+			expect(r.grid.at(2, y)).to_equal(kVelocityRowBlur[y]);  // the blur ramp
+			expect(r.grid.at(3, y)).to_equal(kBlack);               // "erase pad"
+		}
+		// The ramp runs blue at the bottom to red at the top.
+		expect(kVelocityRow[0]).to_equal(RGB{0, 0, 255});
+		expect(kVelocityRow[7]).to_equal(RGB{255, 0, 0});
+	});
+
+	// -----------------------------------------------------------------------------------------
+	// Automation column -- renderAutomationUnipolarSquare / renderAutomationBipolarSquare
+	// -----------------------------------------------------------------------------------------
+
+	it("fills a unipolar column from the bottom, and leaves it empty at the parameter's floor", _ {
+		// min / mid / max, where "min" is legacy's `if (knobPos)` guard: a knob position of
+		// 0 draws nothing even though row 0's minimum is also 0.
+		struct Case { int32_t knob_pos; int32_t top; };
+		constexpr Case cases[] = {{0, -1}, {64, 3}, {128, 7}};
+		for (const Case& c : cases) {
+			uitest::GridRig r;
+			automation_column(r.frame, 5, AutomationData{.knob_pos = c.knob_pos, .automated = true});
+			for (int32_t y = 0; y < 8; y++) {
+				expect(r.grid.at(5, y)).to_equal(y <= c.top ? kAutomationRow[y] : kBlack);
+			}
+		}
+	});
+
+	it("uses the tail ramp when the parameter is not automated", _ {
+		uitest::GridRig r;
+		automation_column(r.frame, 5, AutomationData{.knob_pos = 128, .automated = false}); // not automated: tail ramp
+		automation_column(r.frame, 6, AutomationData{.knob_pos = 128, .automated = true});  // automated: normal ramp
+		for (int32_t y = 0; y < 8; y++) {
+			expect(r.grid.at(5, y)).to_equal(kAutomationRowTail[y]);
+			expect(r.grid.at(6, y)).to_equal(kAutomationRow[y]);
+		}
+		// "VU meter style colours": green at the bottom, red at the top.
+		expect(kAutomationRow[0]).to_equal(RGB{0, 255, 0});
+		expect(kAutomationRow[7]).to_equal(RGB{255, 0, 0});
+	});
+
+	it("draws a bipolar column outward from the middle, in the four-entry ramp", _ {
+		// A non-patch-cable bipolar parameter: middle 64.
+		uitest::GridRig r;
+		// Positive (above the middle): the top half only, ramp indexed `7 - y`.
+		automation_column(r.frame, 0, AutomationData{.knob_pos = 128, .bipolar = true, .automated = true});
+		for (int32_t y = 0; y < 4; y++) {
+			expect(r.grid.at(0, y)).to_equal(kBlack);                       // the bottom half stays dark
+		}
+		for (int32_t y = 4; y < 8; y++) {
+			expect(r.grid.at(0, y)).to_equal(kAutomationBipolar[7 - y]);
+		}
+		// Zero (at the middle): nothing at all (`doRender` never set).
+		automation_column(r.frame, 1, AutomationData{.knob_pos = 64, .bipolar = true, .automated = true});
+		for (int32_t y = 0; y < 8; y++) {
+			expect(r.grid.at(1, y)).to_equal(kBlack);
+		}
+		// Negative (below the middle): the bottom half only, ramp indexed `y`.
+		automation_column(r.frame, 2, AutomationData{.knob_pos = 0, .bipolar = true, .automated = true});
+		for (int32_t y = 0; y < 4; y++) {
+			expect(r.grid.at(2, y)).to_equal(kAutomationBipolar[y]);
+		}
+		for (int32_t y = 4; y < 8; y++) {
+			expect(r.grid.at(2, y)).to_equal(kBlack);
+		}
+		// Partway below the middle: 32 clears rows 1, 2 and 3's maxima (32, 48, 64) but not row 0's
+		// (16), so the bottom pad stays dark -- the arm that reads `kUnipolarRowMax`.
+		automation_column(r.frame, 3, AutomationData{.knob_pos = 32, .bipolar = true, .automated = true});
+		expect(r.grid.at(3, 0)).to_equal(kBlack);
+		for (int32_t y = 1; y < 4; y++) {
+			expect(r.grid.at(3, y)).to_equal(kAutomationBipolar[y]);
+		}
+		// Rows 3 and 4 both take the ramp's last entry -- green, nearest the middle.
+		expect(kAutomationBipolar[3]).to_equal(RGB{0, 255, 0});
+		expect(kAutomationBipolar[0]).to_equal(RGB{255, 0, 0});
+	});
+
+	it("moves a patch cable's middle to zero and reads the patch-cable tables", _ {
+		uitest::GridRig r;
+		// -128 is the patch cable's floor: the whole bottom half lights.
+		automation_column(r.frame, 0, AutomationData{.knob_pos = -128, .patch_cable = true, .bipolar = true,
+		                                             .automated = true});
+		for (int32_t y = 0; y < 4; y++) {
+			expect(r.grid.at(0, y)).to_equal(kAutomationBipolar[y]);
+		}
+		// -30 sits in row 3's range (-32 .. -1): only the row nearest
+		// the middle lights.
+		automation_column(r.frame, 1, AutomationData{.knob_pos = -30, .patch_cable = true, .bipolar = true,
+		                                             .automated = true});
+		expect(r.grid.at(1, 3)).to_equal(kAutomationBipolar[3]);
+		for (int32_t y = 0; y < 3; y++) {
+			expect(r.grid.at(1, y)).to_equal(kBlack);
+		}
+		// Above the middle: 60 clears row 4's minimum (1) and row 5's (33) but not row 6's (65),
+		// so the bar stops two rows up -- the arm that reads `kPatchCableRowMin`.
+		automation_column(r.frame, 3, AutomationData{.knob_pos = 60, .patch_cable = true, .bipolar = true,
+		                                             .automated = true});
+		expect(r.grid.at(3, 4)).to_equal(kAutomationBipolar[3]);
+		expect(r.grid.at(3, 5)).to_equal(kAutomationBipolar[2]);
+		expect(r.grid.at(3, 6)).to_equal(kBlack);
+		expect(r.grid.at(3, 7)).to_equal(kBlack);
+		// 0 is the middle for a patch cable, so the column is empty.
+		automation_column(r.frame, 2, AutomationData{.knob_pos = 0, .patch_cable = true, .bipolar = true,
+		                                             .automated = true});
+		for (int32_t y = 0; y < 8; y++) {
+			expect(r.grid.at(2, y)).to_equal(kBlack);
+		}
+	});
+
+	it("draws the pad-selection cursor in the blur ramp, and greys the rows it did not light", _ {
+		uitest::GridRig r;
+		automation_column(r.frame, 5, AutomationData{.knob_pos = 64, .automated = true, .pad_selected = true});
+		for (int32_t y = 0; y < 4; y++) {
+			expect(r.grid.at(5, y)).to_equal(kAutomationRowBlur[y]); // the pad-selection cursor's blur ramp
+		}
+		for (int32_t y = 4; y < 8; y++) {
+			expect(r.grid.at(5, y)).to_equal(palette::grey);         // rows the cursor did not light
+		}
+		// On a bipolar column the unused half returns before the cursor is considered, so
+		// those pads stay black rather than going grey.
+		automation_column(r.frame, 6, AutomationData{.knob_pos = 128, .bipolar = true, .automated = true,
+		                                             .pad_selected = true});
+		for (int32_t y = 0; y < 4; y++) {
+			expect(r.grid.at(6, y)).to_equal(kBlack);
+		}
+		expect(r.grid.at(6, 7)).to_equal(kAutomationBipolarBlur[0]);
+	});
+
+	// -----------------------------------------------------------------------------------------
+	// Tick squares -- the colour half of PadLEDs::setTickSquares as it reaches a pixel:
+	// `flashColours` and `prepareColour`
+	// -----------------------------------------------------------------------------------------
+
+	it("overlays the playhead on the rows that have one, leaving the rest of the grid alone", _ {
+		uitest::GridRig r;
+		// Paint something first: tick squares substitute for the square's own colour rather than
+		// clearing anything (`prepareColour`).
+		for (int32_t y = 0; y < 8; y++) {
+			for (int32_t x = 0; x < 16; x++) {
+				r.frame.pad(x, y, RGB{9, 9, 9});
+			}
+		}
+		const TickSquare per_row[] = {
+		    {.col = kNoTickSquare},                                  // no playhead in this row
+		    {.col = 2, .colour = TickColour::Normal},
+		    {.col = 4, .colour = TickColour::Muted},
+		    {.col = 6, .colour = TickColour::Red},
+		};
+		constexpr RGB kMuted = RGB{255, 160, 0}; // colours::yellow_orange, the factory muted colour
+		tick_squares(r.frame, per_row, kMuted);
+
+		expect(r.grid.at(0, 0)).to_equal(RGB{9, 9, 9});
+		expect(r.grid.at(2, 1)).to_equal(kPlayheadColour);       // flashColours[0]
+		expect(r.grid.at(2, 1)).to_equal(RGB{130, 120, 130});
+		expect(r.grid.at(4, 2)).to_equal(kMuted);                // `prepareColour`
+		expect(r.grid.at(6, 3)).to_equal(palette::red);          // flashColours[2]
+		// Untouched columns keep what the view painted.
+		expect(r.grid.at(3, 1)).to_equal(RGB{9, 9, 9});
+		expect(r.grid.at(4, 4)).to_equal(RGB{9, 9, 9});
+	});
+
+	it("paints a muted tick square the menu colour itself, with no channel transform", _ {
+		// The live pixel path is `prepareColour`, which substitutes `mutedColourMenu.getRGB()`
+		// untransformed; `FLASH_CURSOR_SLOW`, the mode that goes through it, is the factory
+		// default. The channel transform in the fast-cursor branch computes a local that legacy
+		// never passes on -- `colour` stays `0`, and `flashMainPad` sends a colour only when it
+		// is `> 0`.
+		constexpr RGB kFactoryMuted = RGB{255, 160, 0}; // YELLOW
+		expect(tick_colour(TickColour::Muted, kFactoryMuted)).to_equal(kFactoryMuted);
+		// Specifically *not* {0, 162, 0}: the transform's unclamped `uint8_t` arithmetic wraps that
+		// 255 and would turn the device's orange playhead green.
+		expect(tick_colour(TickColour::Muted, kFactoryMuted) == RGB{0, 162, 0}).to_be_false();
+		// Any menu colour, including ones the transform would have left alone.
+		expect(tick_colour(TickColour::Muted, RGB{64, 64, 64})).to_equal(RGB{64, 64, 64});
+		expect(tick_colour(TickColour::Muted, RGB{63, 63, 63})).to_equal(RGB{63, 63, 63});
+		// The other two kinds come from `flashColours`.
+		expect(tick_colour(TickColour::Normal, kFactoryMuted)).to_equal(kPlayheadColour);
+		expect(tick_colour(TickColour::Red, kFactoryMuted)).to_equal(palette::red);
+	});
+
+	// -----------------------------------------------------------------------------------------
+	// Goldens
+	// -----------------------------------------------------------------------------------------
+
+	it("records the whole grid for each component", _ {
+		uitest::GridRig r;
+		vu_meter(r.frame, 16, 16.7f, 12.8f);
+		expect_golden(self, "../ui/widgets/vu_meter.state", r.state());
+	});
+
+	it("records the macro column", _ {
+		uitest::GridRig r;
+		const MacroCell rows[] = {
+		    {.kind = MacroKind::None},
+		    {.kind = MacroKind::None},
+		    {.kind = MacroKind::ClipLaunch, .clip_active = false},
+		    {.kind = MacroKind::ClipLaunch, .clip_active = true},
+		    {.kind = MacroKind::ClipLaunch, .clip_active = true, .clip_armed = true, .arm_flash = true},
+		    {.kind = MacroKind::OutputCycle},
+		    {.kind = MacroKind::Section},
+		    {.kind = MacroKind::Section, .held = true},
+		};
+		macros(r.frame, 16, rows, 1);
+		expect_golden(self, "../ui/widgets/macros.state", r.state());
+	});
+
+	it("records the velocity and automation bars side by side", _ {
+		uitest::GridRig r;
+		r.frame.region(Rect{0, 0, 16, 8}, [&](GridFrame& main) {
+			velocity_column(main, 0, VelocityData{.velocity = 0, .square = NoteSquare::Head});
+			velocity_column(main, 1, VelocityData{.velocity = 64, .square = NoteSquare::Head});
+			velocity_column(main, 2, VelocityData{.velocity = 127, .square = NoteSquare::Head});
+			velocity_column(main, 3, VelocityData{.velocity = 127, .square = NoteSquare::Tail});
+			velocity_column(main, 4, VelocityData{.velocity = 127, .square = NoteSquare::Blurred});
+			automation_column(main, 6, AutomationData{.knob_pos = 0, .automated = true});
+			automation_column(main, 7, AutomationData{.knob_pos = 64, .automated = true});
+			automation_column(main, 8, AutomationData{.knob_pos = 128, .automated = true});
+			automation_column(main, 9, AutomationData{.knob_pos = 128, .automated = false});
+			automation_column(main, 10, AutomationData{.knob_pos = 128, .bipolar = true, .automated = true});
+			automation_column(main, 11, AutomationData{.knob_pos = 64, .bipolar = true, .automated = true});
+			automation_column(main, 12, AutomationData{.knob_pos = 0, .bipolar = true, .automated = true});
+			automation_column(main, 13, AutomationData{.knob_pos = -128, .patch_cable = true, .bipolar = true,
+			                                           .automated = true});
+			automation_column(main, 14, AutomationData{.knob_pos = 64, .automated = true, .pad_selected = true});
+		});
+		expect_golden(self, "../ui/widgets/columns_bars.state", r.state());
+	});
+
+	it("records the tick-square overlay over a painted grid", _ {
+		uitest::GridRig r;
+		for (int32_t y = 0; y < 8; y++) {
+			for (int32_t x = 0; x < 16; x++) {
+				r.frame.pad(x, y, RGB{9, 9, 9});
+			}
+		}
+		const TickSquare per_row[] = {
+		    {.col = kNoTickSquare},
+		    {.col = 2, .colour = TickColour::Normal},
+		    {.col = 4, .colour = TickColour::Muted},
+		    {.col = 6, .colour = TickColour::Red},
+		    {.col = 8, .colour = TickColour::Normal},
+		    {.col = kNoTickSquare},
+		    {.col = 12, .colour = TickColour::Muted},
+		    {.col = 14, .colour = TickColour::Red},
+		};
+		tick_squares(r.frame, per_row, RGB{255, 160, 0});
+		expect_golden(self, "../ui/widgets/tick_squares.state", r.state());
+	});
+});
+DELUGE_SPEC(ui_grid_columns_spec, grid_columns)

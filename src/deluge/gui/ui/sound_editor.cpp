@@ -51,6 +51,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
+#include "scenes/menu/shortcuts.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/comparison.h"
@@ -302,6 +303,15 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 
 	shortcutsVersion = newVersion;
+
+	// Keep the ported menu's copy of this setting in step. `deluge::scenes::menu` selects between two `constexpr`
+	// shortcut layers and keeps its own `ShortcutsVersion` beside them; it may not name `SoundEditor`. This is the sole
+	// writer of `shortcutsVersion` -- boot, factory reset (legacy and ported reset menus) and both settings items all
+	// reach it -- so mirroring here covers every path. V1 for `SHORTCUTS_VERSION_1`, V3 for everything else, as the
+	// `switch` below reads it.
+	deluge::scenes::menu::set_shortcuts_version(newVersion == SHORTCUTS_VERSION_1
+	                                                ? deluge::scenes::menu::ShortcutsVersion::V1
+	                                                : deluge::scenes::menu::ShortcutsVersion::V3);
 
 	switch (newVersion) {
 
@@ -1252,8 +1262,6 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 		bool hadNoteTails;
 		SynthMode oldMode;
 		OscType oldOscTypes[kNumSources];
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
 		if (currentSound) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -2341,3 +2349,24 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 char modelStackMemory[MODEL_STACK_MAX_SIZE];
 ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 */
+
+void SoundEditor::adoptResolvedContext(const ResolvedContext& resolved) {
+	// `setup()`'s tail, assigned unconditionally: the caller (the ported `menu::context_for`) has already applied
+	// the guards `setup()` applies.
+	currentParamManager = resolved.params;
+	currentModControllable = resolved.mod;
+	currentSound = resolved.sound;
+	currentArpSettings = resolved.arp;
+	currentMultiRange = resolved.range;
+	// The sidechain is derived from the ModControllable, exactly as `setup()` derives it.
+	if (currentModControllable != nullptr) {
+		currentSidechain = &currentModControllable->core().sidechain();
+	}
+	currentSourceIndex = resolved.sourceIndex;
+	currentSource = resolved.source;
+
+	// `setup()` never writes this, but a sample claim reads it through `Source::setOscType`, which picks the range
+	// the new type applies to by it. Left unwritten, a stale index from an earlier legacy session would select the
+	// wrong range.
+	currentMultiRangeIndex = resolved.rangeIndex;
+}

@@ -13,8 +13,6 @@ add_library(deluge_spec STATIC
 ../../../src/foundation/string_format.c
 ../../../src/deluge/util/c_string.cpp
 ../../../src/deluge/util/lookuptables/lookuptables.cpp
-../../../src/deluge/hid/display/starfield.cpp
-../../../src/deluge/hid/display/rainfall.cpp
 ../../support/mocks/mock_display.cpp
 ../../support/mocks/mock_print.cpp
 ../../support/mocks/mock_firmware_version.cpp
@@ -24,7 +22,8 @@ add_library(deluge_spec STATIC
 # The pad-grid crash pattern, against fault_pattern_spec.cpp's recording board.
 ../../../src/deluge/io/debug/fault_pattern.c
 )
-target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_serialization)
+# deluge_ui_oled: the starfield and rainfall animations the specs and previews drive.
+target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_serialization deluge_ui_oled)
 
 # audio_file_format.cpp's header parse IS the Rust decoder (crates/deluge_audio_format, reached through
 # include/libdeluge/audio_format.h), so these specs need its C ABI on the link line. `deluge_rust_rs` is

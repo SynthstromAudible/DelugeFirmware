@@ -1,0 +1,106 @@
+# Level-2 acceptance (E4 task 13): `audio_clip::AudioClipScene` (E4 tasks 11-12), the first ROOT
+# scene in the registry -- and the first script anywhere on this stack to run with the three REAL
+# shell services (`services::ModKnobs`, `GlobalControls`, `MidiLearn`) rather than `Services{}`.
+#
+# **How the scene gets on the stack:** `RunOptions::initial_scene`. It is a root
+# (`AudioClipScene::is_root()`), and a root is exactly what a shell is booted onto; the fixture
+# calls `audio_clip_scene().open(clip, song)` first, which is the order `AudioClipView::focusRegained`
+# has too.
+#
+# **Why the fixture's zoom and length are 48 and 768, and why that is not decoration.**
+# `find_peaks_per_col` only takes its cached whole-cluster arm when a display column spans two or
+# more clusters (`model/sample/waveform_scan.cpp:220-230`); on any other arm it opens a
+# `SampleFrameReader`, which fails with no card and makes the whole scan return false -- and then
+# BOTH the pads and the OLED go black and a golden records nothing. `audio_clip_scene_spec.cpp`'s
+# `Sentinel` docstring carries the arithmetic; the pair used here is its own (48 ticks per column,
+# 768 ticks of clip = 32768 frames = two clusters per column). Every edit below preserves it: the
+# length edit takes 768 -> 288 and the sample's end with it (196608 frames), which is 32768 frames
+# per column again, and the scroll moves by exactly one column.
+#
+# **The real services are visible in every `.state` here.** `led Mod0 on` and the two `indicator`
+# lines are `ModKnobs::leds`; `led Record on` and `led Play on`, from `after_record` onwards, are
+# `GlobalControls::leds` (`services/global_controls.cpp:601-616`, the port of
+# `PlaybackHandler::setLedStates`). A run with `Services{}` has none of them -- and that is no longer
+# every other script here: `menu_scripts_spec.cpp`'s twelve gold-turn scripts install the real three
+# UNSEEDED (F1 task 11 fix round 2), so they carry the two `indicator` lines but no `led Mod*` line,
+# because an unseeded `ModKnobs` declares both rings dark and lights no mod LED. **An LED declared `Off` is not written to `.state` at all**
+# (`script_runner.h`'s `state_text`), which is why TAP TEMPO, SYNC SCALING, SAVE, LOAD and CLIP do
+# not appear: this fixture has no metronome, no sync-scaling clip and nothing held. `MidiLearn`
+# contributes nothing here either -- LEARN is off unless learn mode is entered, which no script on
+# this stack does.
+0     snapshot idle              # the audio clip view: the output name on the OLED, the waveform on
+                                 # the pads, and the service LEDs/indicators in `.state`
+# `end_square` is `(loopLength - xScroll - 1) / xZoom` = (768 - 0 - 1) / 48 = 15
+# (`AudioClipScene::pad_action`, `audio_clip_scene.cpp:539`; legacy's `AudioClipView::padAction`,
+# `audio_clip_view.cpp:520-525`).
+100   pad 15 3 down 64
+120   pad 15 3 up
+200   snapshot end_marker        # `:548-555`: the end column, tapped with no marker up, raises the
+                                 # blinking end marker
+300   pad 5 3 down 64
+320   pad 5 3 up
+400   snapshot after_length_edit # `:518-525`: with the end marker up, any other column becomes the
+                                 # new length -- (5 + 1) * 48 = 288 ticks, and the underlying
+                                 # sample's end moves with it (524288 frames -> 196608, which is
+                                 # still 32768 frames per column, so the scan still hits its cache).
+                                 # The clip is six columns wide now: the waveform is the first third
+                                 # of the sample, drawn small because `cluster_peak` grows with the
+                                 # cluster index, and the greyed "past the end" region fills the
+                                 # rest. The end marker is in its blink-off phase in this frame --
+                                 # `scroll_popup` below catches it lit
+500   encoder Horizontal +1
+600   snapshot scroll_popup      # **A scroll that MOVES NOTHING, and still pops up.** After the edit
+                                 # above the clip is 288 ticks -- six columns at this zoom -- so it
+                                 # is shorter than the sixteen-column screen and
+                                 # `TimelineState::scroll` refuses to move (`max_length()` is the
+                                 # gate). `displayScrollPos()` fires anyway, because legacy's call
+                                 # sits OUTSIDE the `if (newXScroll != ...)` guard --
+                                 # `TimelineView::horizontalEncoderAction` puts the guard at
+                                 # `timeline_view.cpp:217` and the call at `:221`; the port
+                                 # transcribes the placement and argues it at
+                                 # `AudioClipScene::nav_horizontal_encoder_action`
+                                 # (`audio_clip_scene.cpp:749-756`). So the
+                                 # pads are `after_length_edit`'s and the popup reads "1 : 1 : 1" --
+                                 # bar 1, beat 1, tick 1, i.e. still at the top. Nothing else in the
+                                 # tree pins that placement, and getting it wrong would silently
+                                 # delete a popup the device shows.
+# ---- the transport, which is what makes the REAL services worth passing -------------------------
+# Deliberately after t = 1400, so the bars-and-beats popup raised at 600 ms has timed out
+# (`kPopupTimeoutMs`, `shell/notices.cpp`) and these two frames show the clip view itself with the
+# LED lines as their only difference -- rather than three frames sharing one popup box.
+#
+# `services::GlobalControls` only gets a look at these two buttons because the top scene is a ROOT
+# scene: `GlobalControls::handle` gates its whole `View::buttonAction` group on
+# `stack_.input_top().is_root()` (`services/global_controls.cpp:580`), which is legacy's own
+# reachability rule (`View::buttonAction` has exactly two callers, both `RootUI` subclasses). The
+# slicer, the popups and the count-in are all non-root, so `audio_clip` is the only script on this
+# stack where the transport is reachable at all.
+1500  button Record down
+1600  button Record up
+1700  snapshot after_record       # a SHORT press on the RECORD *release* toggles recording on
+                                  # (`hid/buttons.cpp:193-194`, ported through
+                                  # `InputLowering::was_short_press`), and `GlobalControls::leds`
+                                  # declares RECORD lit from `playbackHandler.recording == NORMAL`
+                                  # (`playback_handler.cpp:2505`). `.state` gains `led Record on`
+1800  button Play down
+1900  button Play up
+2000  snapshot after_play         # `playbackHandler.playButtonPressed` really runs -- the fixture
+                                  # holds `spec::QuietAudio`, which is the disarm for
+                                  # `AudioEngine::routineWithClusterLoading` in a spec process, not
+                                  # a stub of the transport. `.state` gains `led Play on`
+                                  # (`playback_handler.cpp:2501`). RECORD is still lit and the
+                                  # panel is unchanged: nothing about the clip view depends on
+                                  # transport state until a play cursor moves, and nothing moves it
+                                  # here (no audio thread)
+2100  button XEnc down
+2150  button Back down
+2170  button Back up
+2250  snapshot after_clear       # `audio_clip_view.cpp:435-465`: BACK while the horizontal encoder
+                                 # is held clears the clip -- the sample is detached, so the pads go
+                                 # dark -- and files the CLEARED popup
+# Snapshotted BEFORE the X-encoder is released, deliberately: the release arm takes the popup down
+# again (`audio_clip_view.cpp:86-88`'s `display->cancelPopup()`, ported as a `CancelPopup` notice),
+# so a frame taken after it records the clear with no popup and says nothing about the popup at all.
+# Written the other way round first, and the golden is what showed it.
+2300  button XEnc up
+2400  quit

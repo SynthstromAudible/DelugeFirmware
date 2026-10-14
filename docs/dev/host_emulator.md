@@ -72,3 +72,8 @@ rate, recorded with `--audio-out`, and frames the app delivered late are reporte
 3000  snapshot playing      # playing.png (the OLED) and playing.state (LEDs, pads, MIDI sent since the last one)
 3500  quit
 ```
+
+<!-- TODO(ui-integration): multi-display panels (DELUGE_HOST_DISPLAYS, the UpdateDisplayN panel frame) and
+scripted UI runs with snapshots (DELUGE_HOST_SCRIPT / _SNAPSHOT_DIR / _DETERMINISTIC, level 3 of the UI test
+harness, the ui_app_scripts tests and their two deadlines), re-hosted on golden_vt_render. The C host BSP
+version is documented in clean/ui-perf-1:docs/dev/host_emulator.md. -->

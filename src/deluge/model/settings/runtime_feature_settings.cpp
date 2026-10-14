@@ -17,13 +17,13 @@
 
 #include "runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
-#include "hid/display/display.h"
 #include "io/file.hpp"
 #include "model/song/song.h"
 #include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
+#include "util/notify.h"
 #include <cstring>
 #include <string_view>
 
@@ -176,11 +176,16 @@ void RuntimeFeatureSettings::init() {
 	// Shortcut Overlay
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShortcutOverlay],
 	                  STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY, "shortcutOverlay", RuntimeFeatureStateToggle::On);
+
+	// Shell Menu: gates whether `ShellHostUI` (the ported menu tree's guest) is reachable at all.
+	// Default Off, so the guest changes nothing a user sees until they opt in.
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShellMenu], STRING_FOR_COMMUNITY_FEATURE_SHELL_MENU,
+	                  "shellMenu", RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::factoryReset(bool showPopup) {
 	if (showPopup) {
-		display->displayPopup(l10n::get(l10n::String::STRING_FOR_RESET_COMMUNITY_FEATURES));
+		deluge::notify::notice(l10n::String::STRING_FOR_RESET_COMMUNITY_FEATURES);
 	}
 
 	// May give an error (e.g. no such file), but there is no real consequence from that.
@@ -277,7 +282,7 @@ void RuntimeFeatureSettings::parseSettings(Deserializer& reader) {
 			// Read name
 			currentTag = reader.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME) != 0) {
-				display->displayPopup("Community file err");
+				deluge::notify::notice("Community file err");
 				break;
 			}
 			reader.readTagOrAttributeValueString(currentName);
@@ -286,7 +291,7 @@ void RuntimeFeatureSettings::parseSettings(Deserializer& reader) {
 			// Read value
 			currentTag = reader.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE) != 0) {
-				display->displayPopup("Community file err");
+				deluge::notify::notice("Community file err");
 				break;
 			}
 

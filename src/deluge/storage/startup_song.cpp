@@ -22,7 +22,6 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
-#include "hid/display/display.h"
 #include "hid/display/oled_canvas/canvas.h"
 #include "io/file.hpp"
 #include "io/midi/midi_device_manager.h"
@@ -40,6 +39,7 @@
 #include "storage/startup_song_policy.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include "util/notify.h"
 
 #include <cstring>
 #include <expected>
@@ -526,7 +526,7 @@ void armStartupSong() {
 	// The messages we show to the user are mostly plain language, but for non-user facing errors we
 	// use codes. All messages are < 20 chars.
 	if (strlen(filename) + 1 > 2048) {
-		display->consoleText("Startup path too long");
+		deluge::notify::notice("Startup path too long", deluge::notify::Notice::Kind::Console);
 		enter(StartupPhase::Done);
 		return;
 	}
@@ -579,7 +579,7 @@ void advanceStartup() {
 		}
 		if (*answer == StartupPresence::Confirmed) {
 			// canary exists, previous boot failed?
-			display->consoleText("Startup fault F1");
+			deluge::notify::notice("Startup fault F1", deluge::notify::Notice::Kind::Console);
 		}
 		auto step = nextStartupPhase(StartupPhase::CheckCanary, *answer, g_usingTemplate);
 		g_usingTemplate = step.usingTemplate;
@@ -596,7 +596,7 @@ void advanceStartup() {
 			g_songPath = kTemplatePaths[g_templateProbe];
 		}
 		if (*answer == StartupPresence::Missing) {
-			display->consoleText("Creating template");
+			deluge::notify::notice("Creating template", deluge::notify::Notice::Kind::Console);
 			// The write itself is StartupPhase::WriteTemplate below. Done inline here, it would be a
 			// blocking card write on whatever tier this routine was ticking on -- confirmed by
 			// measurement to freeze the startup fail-safe.
@@ -619,7 +619,7 @@ void advanceStartup() {
 		if (!*landed) {
 			// Not fatal, and deliberately so: the machine carries on to the canary regardless of a
 			// failed create. The canary is what protects the load.
-			display->consoleText("Startup fault F3");
+			deluge::notify::notice("Startup fault F3", deluge::notify::Notice::Kind::Console);
 		}
 		// The presence argument is unused for this phase -- see nextStartupPhase -- so any value does.
 		auto step = nextStartupPhase(StartupPhase::WriteTemplate, StartupPresence::Confirmed, g_usingTemplate);
@@ -640,7 +640,7 @@ void advanceStartup() {
 		if (!*landed) {
 			// Could not create canary, not a user-facing error so code is fine. We're going to skip
 			// the startup song to avoid any issues.
-			display->consoleText("Startup fault F2");
+			deluge::notify::notice("Startup fault F2", deluge::notify::Notice::Kind::Console);
 			enter(StartupPhase::Done); // no canary, no cleanup
 			return;
 		}
@@ -663,11 +663,11 @@ void advanceStartup() {
 				// we tried to create it earlier, but didn't happen? Handled here rather than in
 				// `nextStartupPhase` because it is a MESSAGE difference, not a policy one: the
 				// destination is the same cleanup either way, and the policy's job is the third state.
-				display->consoleText("Startup fault F3");
+				deluge::notify::notice("Startup fault F3", deluge::notify::Notice::Kind::Console);
 				enter(StartupPhase::UnlinkCanary);
 				return;
 			}
-			display->consoleText("Song missing");
+			deluge::notify::notice("Song missing", deluge::notify::Notice::Kind::Console);
 		}
 		auto step = nextStartupPhase(StartupPhase::CheckSong, *answer, g_usingTemplate);
 		g_usingTemplate = step.usingTemplate;
@@ -682,7 +682,7 @@ void advanceStartup() {
 		}
 		if (*answer == StartupPresence::Confirmed) {
 			// user didn't ask for the template, but if it exists let's use it instead
-			display->consoleText("Using template");
+			deluge::notify::notice("Using template", deluge::notify::Notice::Kind::Console);
 			g_songPath = kTemplatePaths[g_templateProbe];
 		}
 		auto step = nextStartupPhase(StartupPhase::CheckFallbackTemplate, *answer, g_usingTemplate);
@@ -708,7 +708,7 @@ void advanceStartup() {
 			return;
 		}
 		// what just failed??
-		display->consoleText("Startup fault F4");
+		deluge::notify::notice("Startup fault F4", deluge::notify::Notice::Kind::Console);
 		enter(StartupPhase::UnlinkCanary);
 		return;
 	}

@@ -29,6 +29,9 @@
 #include "gui/ui/reversion.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/save/save_song_ui.h"
+#include "gui/ui/shell_guest_services.h"
+#include "gui/ui/shell_note_bridge.h"
+#include "gui/ui/shell_notification_sink.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -76,6 +79,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/stem_export/stem_export.h"
 #include "runtime/app_loop.h"
+#include "scenes/registry.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/flash_storage.h"
@@ -83,6 +87,7 @@
 #include "storage/startup_song.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
+#include "util/notify.h"
 #include <libdeluge/scheduler.h>
 #include <stdlib.h>
 
@@ -132,7 +137,7 @@ void inputRoutine() {
 	if (micNow != AudioEngine::micPluggedIn) {
 		D_PRINT("mic %d", micNow);
 		AudioEngine::micPluggedIn = micNow;
-		renderUIsForOled();
+		deluge::notify::raise(deluge::notify::Dirty::Oled);
 	}
 
 	bool speakerOn = (!AudioEngine::headphonesPluggedIn && !outputPluggedInR && !outputPluggedInL);
@@ -145,7 +150,7 @@ void inputRoutine() {
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
 		D_PRINTLN("line in %d", lineInNow);
 		AudioEngine::lineInPluggedIn = lineInNow;
-		renderUIsForOled();
+		deluge::notify::raise(deluge::notify::Dirty::Oled);
 	}
 
 	// Battery voltage
@@ -226,7 +231,7 @@ bool picSaysOLEDPresent = false;
 
 namespace Deluge {
 void factoryReset() {
-	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+	deluge::notify::notice(deluge::l10n::String::STRING_FOR_FACTORY_RESET);
 	FlashStorage::factoryReset(false);
 	runtimeFeatureSettings.factoryReset(false);
 	midiFollow.factoryReset(false);
@@ -323,7 +328,7 @@ void setUIForLoadedSong(Song* song) {
 	setRootUILowLevel(newUI);
 
 	getCurrentUI()->opened();
-	renderUIsForOled();
+	deluge::notify::raise(deluge::notify::Dirty::Oled);
 }
 
 void setupBlankSong() {
@@ -646,7 +651,48 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
-	// Settings have been read and the UI is up: start the idle countdown.
+	// ---- Boot wiring for the ported UI (`src/scenes/registry.h`'s boot-wiring note) -------------
+	//
+	// Three settings the ported tree and the guest's `Shell` cannot read for themselves, and none of
+	// them is a call here: a boot call covers boot and goes stale the moment the user changes the
+	// setting, so each one belongs beside legacy's own writer instead.
+	//
+	//   * **The screensaver timeout** is pushed from `Screensaver::settingsChanged()`
+	//     (`hid/display/screensaver.cpp`), where all its writers funnel, including the call below.
+	//   * **The shortcut layout** (flash byte 60) is pushed from inside
+	//     `SoundEditor::setShortcutsVersion`, the sole writer of `shortcutsVersion`, which every
+	//     change path goes through: boot, the legacy settings item, and both factory-reset menus via
+	//     `FlashStorage::resetSettings`.
+	//   * **The play-cursor flash** (flash byte 36, `AudioClipScene::set_flash_cursor`) is unwired in
+	//     either direction: `FlashStorage::readSettings` writes `PadLEDs::flashCursor` directly and
+	//     the scene keeps its own copy defaulting to the factory value, so a user who turns the
+	//     cursor off still sees it in the ported audio clip view. See `src/scenes/README.md`'s
+	//     boot-wiring section; the shortcut-layout wiring above is the shape to copy.
+
+	// Number the ported menu tree. Idempotent (a function-local static), and normally already done by
+	// `shellHostUI`'s construction through `scenes::scene_registry()`; called anyway because that is
+	// static-initialisation order rather than a guarantee, and `MenuScene::save_state`,
+	// `restore_state` and the shortcut-pad jump silently do nothing on an unnumbered tree.
+	(void)deluge::scenes::assigned_node_ids();
+
+	// Install the note bridge: function pointers onto `instrumentClipView`'s note and note-row
+	// state, so `src/scenes` reaches it without an include. It holds no `Song`, so it has no
+	// ordering constraint of its own (see `shell_note_bridge.h`).
+	deluge::gui::ui::wireShellNoteBridge();
+
+	// Install the notification sink: the shell's `Notice::Kind::Notification` consumer, pointed at
+	// the same `display->displayNotification` call legacy's `drain_notifications` makes for that
+	// kind, so whichever of the two pops a horizontal-menu notification, legacy's popup slot holds it.
+	deluge::gui::ui::wireShellNotificationSink();
+
+	// Build the three real services over the guest's `Shell` and install them. After
+	// `setupBlankSong()` above: all three take `currentSong`, and `ModKnobs` also mirrors `View`'s
+	// active mod controllable, neither of which exists earlier. `ShellHostUI::opened()` calls it
+	// again on every open, to re-read both.
+	deluge::gui::ui::wireShellGuestServices();
+
+	// The UI is up: start the idle countdown. This also supplies the ported screensaver service's
+	// timeout for the first time (see `settingsChanged` itself).
 	deluge::hid::display::Screensaver::settingsChanged();
 
 	D_PRINTLN("going into main loop");

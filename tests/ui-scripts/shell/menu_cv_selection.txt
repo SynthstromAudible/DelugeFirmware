@@ -1,0 +1,20 @@
+# Level-2 acceptance (E2 task 12): a runtime-list page (nodes::cv_selection, E2 task 10) and the
+# chain that carries the picked row into the page it opens.
+#
+# `cv::Selection` (`gui/menu_item/cv/selection.h:41-46` selectButtonPress) does two things at once:
+# it assigns `soundEditor.currentSourceIndex` and it navigates to `cvSubmenu`. A `SelectChainFn` is
+# handed a `const MenuContext&` and cannot write the first half, so the port splits it --
+# `CvSelectionItem` records the cursor in `MenuState::source_choice` and `MenuScene::after_render`
+# applies it to its own `MenuContext` BEFORE the same tick's select press consults `select_chain`
+# (`nodes/dynamic.h`). This script is that ordering, end to end: pick row 1, press, and the page that
+# opens must be CV OUTPUT 2's, not CV OUTPUT 1's.
+0     snapshot idle                  # CV OUTPUTS: two rows, cursor on CV OUTPUT 1
+100   encoder Select +1
+120   snapshot after_select_turn     # cursor on CV OUTPUT 2
+200   button SelectEnc down
+220   button SelectEnc up
+240   snapshot after_select_press    # the CV OUTPUT submenu (VOLTS / TRANSPOSE) for output 2
+300   button Back down
+320   button Back up
+340   snapshot after_back            # the two-row selector again, cursor still on row 1
+400   quit

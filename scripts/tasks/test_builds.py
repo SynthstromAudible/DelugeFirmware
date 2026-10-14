@@ -62,6 +62,14 @@ HOST_APP_TARGETS = [
     "deluge_instrument",
     "deluge_effects",
     "deluge_midi",
+    "deluge_gfx_oled",
+    "deluge_gfx_grid",
+    "deluge_ui_core",
+    "deluge_ui_oled",
+    "deluge_ui_grid",
+    "deluge_ui_shell",
+    "deluge_notify",
+    "deluge_scenes",
 ]
 
 

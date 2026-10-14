@@ -31,6 +31,7 @@
 #include <expected>
 #include <optional>
 #include <string>
+#include <utility>
 
 class Instrument;
 class FileItem;
@@ -478,6 +479,9 @@ protected:
 	/// @param req The listing to run.
 	/// @return Always true: a listing can no longer be dropped. Kept for the callers that test it.
 	bool beginListing(ListingRequest req);
+	/// @brief `beginListing`, at a call site that does not test its result.
+	/// @param req The listing to run.
+	void beginListingOrRetryLater(ListingRequest req) { (void)beginListing(std::move(req)); }
 	/// @brief Whether a directory open made here goes through the directory channel rather than opening directly.
 	/// @return True once boot has finished. False before it (boot, and the unit tests, which link no BSP and
 	///         never finish booting), where a direct open is legal.

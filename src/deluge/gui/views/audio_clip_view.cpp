@@ -53,6 +53,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
+#include "util/shell_menu_entry.h"
 
 extern "C" {}
 
@@ -397,10 +398,25 @@ dontDeactivateMarker:
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (!soundEditor.setup(getCurrentClip())) {
-				return ActionResult::DEALT_WITH;
+			// One of the shell menu's entry sites (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the legacy
+			// refusal and open.
+			if (deluge::gui::ui::shellMenuEnabled()) {
+				// An `AudioClip` under a clip-minder root: `setup()` lands on `soundEditorRootMenuAudioClip` and
+				// `context_for` on `Root::AudioClip`. `openShellMenu` returning false stands in for `setup()`
+				// returning false.
+				if (!deluge::gui::ui::openShellMenu(getCurrentClip(), /*sourceIndex=*/0,
+				                                    /*performanceView=*/false,
+				                                    /*sessionOrArrangerRoot=*/false,
+				                                    /*sessionViewRoot=*/false, /*kitGlobalFx=*/false)) {
+					return ActionResult::DEALT_WITH;
+				}
 			}
-			openUI(&soundEditor);
+			else {
+				if (!soundEditor.setup(getCurrentClip())) {
+					return ActionResult::DEALT_WITH;
+				}
+				openUI(&soundEditor);
+			}
 
 			result = ActionResult::DEALT_WITH;
 			goto deactivateMarkerIfNecessary;

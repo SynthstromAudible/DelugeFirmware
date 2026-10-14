@@ -20,7 +20,12 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_audio_clip.h"
 #include "dsp/timestretch/time_stretcher.h"
-#include "gui/views/automation_view.h"
+// The one `gui/` include this file still needs after the scan/navigator moved down to
+// `model/sample/` (E3 task 4): `AudioClip::renderAsSingleRow` below really does call
+// `waveformRenderer.renderAsSingleRow`, which writes into an `RGB*` and so stayed on the `gui/`
+// side. The inversion is this method, not the include -- a `model/` class that renders. Its
+// extracted form is `ui::grid::waveform_row`, which takes a `GridFrame` that `model/` cannot
+// build, so closing this belongs to whoever moves clip-row rendering into the scene layer.
 #include "gui/waveform/waveform_renderer.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -44,6 +49,7 @@
 #include "storage/audio/blocking_sample_load.h"
 #include "storage/storage_manager.h"
 #include "util/fixedpoint.h"
+#include "util/notify.h"
 #include <new>
 
 namespace params = deluge::modulation::params;
@@ -156,9 +162,7 @@ void AudioClip::abortRecording() {
 
 	session.justAbortedSomeLinearRecording();
 
-	if (getRootUI()) {
-		getRootUI()->clipNeedsReRendering(this);
-	}
+	notify_content_changed();
 
 	actionLogger.notifyClipRecordingAborted(this);
 }
@@ -246,9 +250,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	// SampleRecorder will also call sampleNeedsReRendering() when "capturing" is finished, but in plenty of cases, that
 	// will have happened in the above call to endSyncedRecording(), and our sample hasn't been set yet, so that won't
 	// have been effective. So, we have to call this here too, to cover our bases.
-	if (getRootUI()) {
-		getRootUI()->clipNeedsReRendering(this);
-	}
+	notify_content_changed();
 
 	if (!isEmpty()) {
 		clear(nullptr, modelStack, true, true);
@@ -289,7 +291,7 @@ Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldC
 	void* clipMemory = deluge::memory::alloc_fast(sizeof(AudioClip));
 	if (!clipMemory) {
 ramError:
-		display->displayError(Error::INSUFFICIENT_RAM);
+		deluge::notify::notice(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 

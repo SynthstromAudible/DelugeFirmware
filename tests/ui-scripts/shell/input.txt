@@ -1,0 +1,13 @@
+# Level 2: the three lowerings boot.txt and popup.txt never exercise -- pad, encoder, model.
+0     snapshot idle                # T0 M0, no held pad
+100   pad 2 3 down 100
+120   snapshot pad-held            # (2,3) lit white
+200   pad 2 3 up
+220   snapshot pad-released        # back to idle
+300   encoder Select +1
+320   snapshot turn-up             # T1
+400   encoder Select -2
+420   snapshot turn-down           # T-1
+500   model ClipContent 3
+540   snapshot model-changed       # M1, one tick after the after_render repaint request
+600   quit

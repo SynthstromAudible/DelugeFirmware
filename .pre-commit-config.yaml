@@ -104,6 +104,27 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/deluge/gui/|scripts/check_setting_menus\.py)
+      - id: check-layer-rules
+        name: UI layer-rule ratchet
+        description: model/playback/storage/io/etc. must not reach into gui/hid directly (shrink-only baseline)
+        entry: python3 scripts/check_layer_rules.py
+        language: system
+        pass_filenames: false
+        # src/scenes/ is in this list because five of the rules are scoped to `src/scenes/**`
+        # (scenes-includes-gui, scenes-includes-outside, scenes-no-frame-primitives,
+        # scenes-no-root-ui, scenes-no-display) and without it a scenes-only commit never ran them.
+        files: ^(src/deluge/|src/notify/|src/gfx/|src/ui/|src/scenes/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
+      - id: check-citations
+        name: legacy citations resolve (warning only here; CI is strict)
+        description: warn when a `foo.h:NN` citation points past EOF, into the licence header, at nothing but braces, or at a range that no longer contains the symbol written beside it
+        # Warning-only HERE, on purpose, and not because the predicate is weak: CI runs the same
+        # script with `--strict` (`.github/workflows/tests.yml`) and that is the gate. A commit is
+        # routinely made mid-edit with a citation still being written, and a hook that refused it
+        # would be disabled rather than obeyed. `--strict` is also the spelling for a local sweep.
+        entry: python3 scripts/check_citations.py
+        language: system
+        pass_filenames: false
+        files: ^(src/scenes/|src/ui/|sim/scenes_spec/|tests/spec/|src/deluge/|scripts/(check_citations\.py|citation_exceptions\.txt))
 # - repo: local
 
 #   hooks:

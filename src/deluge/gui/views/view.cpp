@@ -96,6 +96,8 @@
 #include "util/etl_string.h"
 #include "util/functions.h"
 #include "util/lookuptables/preset_tables.h"
+#include "util/note_editor_open.h"
+#include "util/shell_menu_entry.h"
 #include <iterator>
 
 namespace params = deluge::modulation::params;
@@ -321,7 +323,7 @@ doEndMidiLearnPressSession:
 		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
 			// If currently in the sound editor note editor / note row editor, keep this button as the global
 			// fill mode toggle rather than changing note fill values.
-			if (getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())) {
+			if (deluge::gui::ui::noteEditorOpen() || deluge::gui::ui::noteRowEditorOpen()) {
 				currentSong->changeFillMode(on);
 				return ActionResult::DEALT_WITH;
 			}
@@ -435,8 +437,21 @@ possiblyRevert:
 				return ActionResult::DEALT_WITH;
 			}
 
-			soundEditor.setup();
-			openUI(&soundEditor);
+			// One of the shell menu's entry sites (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the legacy
+			// path.
+			if (deluge::gui::ui::shellMenuEnabled()) {
+				// SHIFT is held, so both of `setup()`'s view tests (`&& !shift`) are false and the root is
+				// `settingsRootMenu` whatever is on screen. All four UI facts therefore go in false -- the same
+				// reading `services::GlobalControls::handle_settings_menu` makes of this arm.
+				(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
+				                                     /*performanceView=*/false,
+				                                     /*sessionOrArrangerRoot=*/false,
+				                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
+			}
+			else {
+				soundEditor.setup();
+				openUI(&soundEditor);
+			}
 		}
 	}
 	else {

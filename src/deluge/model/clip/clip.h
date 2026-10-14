@@ -21,12 +21,12 @@
 #include "deluge-project/doc_clip.h"
 #include "gui/colour/colour.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/waveform/waveform_render_data.h"
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip.h"
 #include "model/sample/sample_controls.h"
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
+#include "model/sample/waveform_render_data.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
 #include "util/c_string.h"
@@ -180,6 +180,12 @@ public:
 	TimelineCounter* getTimelineCounterToRecordTo() override;
 	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack) override;
 	void expectEvent() override;
+
+	/// @brief Notify observers that this clip's content changed.
+	///
+	/// Raises the clip's session index when it has one, or the coarse ClipContent bit otherwise
+	/// (arrangement-only clips). [any]
+	void notify_content_changed();
 
 	Output* output;
 

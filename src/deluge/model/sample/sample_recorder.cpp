@@ -42,6 +42,7 @@
 #include "util/exceptions.h"
 #include "util/fixedpoint.h"
 #include "util/functions.h"
+#include "util/notify.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -1855,7 +1856,7 @@ void SampleRecorder::finishCapturing() {
 	// the background scan, which may have gone idle after all previously-loaded samples were scanned (#4460).
 	audioFileManager.overviewScanAllDone = false;
 	if (getRootUI()) {
-		getRootUI()->sampleNeedsReRendering(sample);
+		deluge::notify::raise(deluge::notify::Dirty::SampleReady);
 	}
 	if (outputRecordingFrom) {
 		outputRecordingFrom->removeRecorder();

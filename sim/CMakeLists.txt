@@ -6,7 +6,10 @@
 # product, built into build/host-app). Nothing links here: the harnesses' build
 # scripts archive these objects.
 
-cmake_minimum_required(VERSION 3.24)
+# 3.27: src/scenes/CMakeLists.txt (add_subdirectory'd below) links deluge_app via
+# $<COMPILE_ONLY:...> to take its usage requirements without archiving its objects into
+# libdeluge_scenes.a -- that generator expression needs CMake >= 3.27.
+cmake_minimum_required(VERSION 3.27)
 
 # ---------------------------------------------------------------------------
 # Compiler selection — MUST precede project(), which is where CMake probes and
@@ -96,6 +99,11 @@ endif()
 # Char signedness matches the firmware (ARM default is unsigned; be explicit).
 set(DELUGE_COMMON_COMPILE_OPTIONS -fsigned-char)
 add_compile_options(-fsigned-char)
+
+# ...then append the project's shared warning set (MAINTAINER_MODE, DELUGE_C_STANDARD /
+# DELUGE_CXX_STANDARD, DELUGE_COMMON_COMPILE_OPTIONS), the same file the device and tests
+# projects include. list(APPEND) inside, so -fsigned-char above survives.
+include(${REPO_ROOT}/cmake/deluge_common_options.cmake)
 
 # Debug info — this is a host debug / CI harness; -g makes the inevitable runtime
 # triage (gdb backtraces, member inspection) tractable.
@@ -245,8 +253,22 @@ add_subdirectory(${REPO_ROOT}/src/engines/deluge ${CMAKE_BINARY_DIR}/engines-del
 add_subdirectory(${REPO_ROOT}/src/music-theory ${CMAKE_BINARY_DIR}/music-theory) # deluge_music_theory
 add_subdirectory(${REPO_ROOT}/src/deluge-project ${CMAKE_BINARY_DIR}/deluge-project) # deluge_project (model)
 add_subdirectory(${REPO_ROOT}/src/midi       ${CMAKE_BINARY_DIR}/midi)       # deluge_midi
+add_subdirectory(${REPO_ROOT}/src/gfx        ${CMAKE_BINARY_DIR}/gfx)        # deluge_gfx_oled / deluge_gfx_grid
+add_subdirectory(${REPO_ROOT}/src/ui         ${CMAKE_BINARY_DIR}/ui)         # deluge_ui_core / deluge_ui_oled / deluge_ui_grid
+add_subdirectory(${REPO_ROOT}/src/notify     ${CMAKE_BINARY_DIR}/notify)     # deluge_notify
+add_subdirectory(${REPO_ROOT}/src/shell      ${CMAKE_BINARY_DIR}/shell)      # deluge_ui_shell
 add_subdirectory(${REPO_ROOT}/src/lib        ${CMAKE_BINARY_DIR}/printf)     # eyalroz_printf
 add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # deluge_scheduler
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
 add_subdirectory(${REPO_ROOT}/tests/integration/scenarios ${CMAKE_BINARY_DIR}/scenarios) # deluge_scenarios: host only
+# deluge_scenes: the first UI layer allowed to include the model. Links deluge_app, so it comes after it.
+add_subdirectory(${REPO_ROOT}/src/scenes     ${CMAKE_BINARY_DIR}/scenes)     # deluge_scenes
 
+# TODO(ui-integration): the UI targets that ran on the C host BSP, re-hosted on golden_vt_render:
+#   deluge_host's scripted headless runs (DELUGE_HOST_SCRIPT, the level-3 UI harness),
+#   deluge_loadcheck, deluge_menu_dump with its menu_dump_matches_committed test
+#   (scripts/menu_dump_check.sh), the deluge_scenes_spec suite (sim/scenes_spec, CppSpec via
+#   cmake/deluge_specs.cmake, support library tests/harness/ui_script.cpp + snapshot.cpp), the
+#   DELUGE_HOST_DISPLAYS `--board-info` tests, and the ui_app_scripts_<name> snapshot tests with
+#   their menu A/B leg (scripts/ui_snapshot_diff.py, scripts/ui_app_ab_check.py).
+#   The C host BSP versions are in clean/ui-perf-1:sim/CMakeLists.txt.

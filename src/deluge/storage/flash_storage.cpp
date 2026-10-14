@@ -21,6 +21,7 @@
 #include "gui/menu_item/colour.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
+#include "hid/display/oled_canvas/canvas.h"
 #include "hid/led/pad_leds.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
@@ -33,6 +34,7 @@
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/misc.h"
+#include "util/notify.h"
 #include <cstdint>
 #include <modulation/patch/patch_cable.h>
 
@@ -282,6 +284,11 @@ GlobalMIDICommand defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUO
 
 bool defaultUseSharps = true;
 
+/// The six pad colours (`flash_storage.h`). Zero-initialised here and given real defaults by
+/// `resetSettings`; `gui::menu_item::Colour::value` is a reference onto one of these.
+uint8_t padColours[NUM_PAD_COLOUR_SLOTS] = {};
+DefaultRange defaultRanges[NUM_DEFAULT_RANGE_SLOTS] = {};
+
 void resetSettings() {
 
 	cvEngine.setCVVoltsPerOctave(0, 100);
@@ -382,6 +389,8 @@ void resetSettings() {
 
 	accessibilityShortcuts = false;
 	accessibilityMenuHighlighting = MenuHighlighting::PARTIAL_INVERSION;
+	deluge::hid::display::oled_canvas::Canvas::menuHighlightingInverts =
+	    (FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION);
 
 	defaultNewClipType = OutputType::SYNTH;
 	defaultUseLastClipType = true;
@@ -395,7 +404,7 @@ void resetSettings() {
 
 void factoryReset(bool showPopup) {
 	if (showPopup) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RESET_FLASH));
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_RESET_FLASH);
 	}
 	resetSettings();
 	writeSettings();
@@ -595,10 +604,21 @@ void readSettings() {
 		defaultVelocity = 64;
 	}
 
-	gui::menu_item::activeColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[74]);
-	gui::menu_item::stoppedColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[75]);
-	gui::menu_item::mutedColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[76]);
-	gui::menu_item::soloColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[77]);
+	// Range-guarded the same way bytes 165/166 (FILL and ONCE) are, falling back to each slot's
+	// `resetSettings` default. This was missing: the four bytes were cast straight into
+	// `Colour::Option` however far out of range they were, where the two below have always been
+	// checked. Harmless while `Colour::getRGB()` was the only consumer -- its `switch` has a
+	// `default` arm -- but `src/scenes`' COLOURS page now formats a colour *name* off the same
+	// storage (`menu/nodes/settings.cpp`, `bindings::names` over a nine-entry table), so an
+	// out-of-range byte reaches a second consumer that indexes rather than switches.
+	const auto pad_colour = [](uint8_t stored, gui::menu_item::Colour::Option fallback) {
+		return stored >= gui::menu_item::kNumPadColours ? fallback
+		                                                : static_cast<gui::menu_item::Colour::Option>(stored);
+	};
+	gui::menu_item::activeColourMenu.value = pad_colour(buffer[74], gui::menu_item::Colour::GREEN);
+	gui::menu_item::stoppedColourMenu.value = pad_colour(buffer[75], gui::menu_item::Colour::RED);
+	gui::menu_item::mutedColourMenu.value = pad_colour(buffer[76], gui::menu_item::Colour::YELLOW);
+	gui::menu_item::soloColourMenu.value = pad_colour(buffer[77], gui::menu_item::Colour::BLUE);
 
 	defaultMagnitude = buffer[78];
 
@@ -742,11 +762,15 @@ void readSettings() {
 	else {
 		gui::menu_item::fillColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[165]);
 	}
+	// `onceColourMenu`, not `fillColourMenu`: byte 166 is the ONCE colour (`writeSettings` below
+	// writes it from `onceColourMenu.value`), and both arms of this branch used to assign it to
+	// `fillColourMenu` -- so the ONCE colour never survived a reboot and the FILL colour was
+	// immediately overwritten by ONCE's byte.
 	if (buffer[166] >= gui::menu_item::kNumPadColours) {
-		gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::MAGENTA;
+		gui::menu_item::onceColourMenu.value = gui::menu_item::Colour::MAGENTA;
 	}
 	else {
-		gui::menu_item::fillColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[166]);
+		gui::menu_item::onceColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[166]);
 	}
 	if (gui::menu_item::fillColourMenu.value == gui::menu_item::Colour::RED
 	    && gui::menu_item::onceColourMenu.value == gui::menu_item::Colour::RED) {
@@ -800,6 +824,8 @@ void readSettings() {
 	else {
 		accessibilityMenuHighlighting = static_cast<MenuHighlighting>(buffer[175]);
 	}
+	deluge::hid::display::oled_canvas::Canvas::menuHighlightingInverts =
+	    (FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION);
 
 	if (buffer[176] < 0 && buffer[176] > util::to_underlying(OutputType::AUDIO)) {
 		defaultNewClipType = OutputType::SYNTH;
