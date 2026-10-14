@@ -37,6 +37,8 @@ on:
         - dev
         - nightly
         - beta
+        - rc
+        - release
 
 permissions:
   contents: write #required to update release tags
