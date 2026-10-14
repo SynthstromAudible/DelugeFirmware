@@ -190,16 +190,19 @@ public:
 	[[gnu::always_inline]] Lanes() = default;
 
 	/// @brief Configured from @p settings, with State{} in every lane.
+	/// @param settings The kernel's settings, turned into Coefficients once.
 	[[gnu::always_inline]] explicit Lanes(const typename K::Settings& settings)
 	    : coefficients_{K::coefficients(settings)} {}
 
 	/// @brief Store the coefficients for @p settings, computed once for every lane; they apply from the next block,
 	/// every State untouched.
+	/// @param settings The kernel's settings.
 	[[gnu::always_inline]] void configure(const typename K::Settings& settings) {
 		coefficients_ = K::coefficients(settings);
 	}
 
 	/// @brief The coefficients from the last configure, including any owner-facing values the kernel exposes.
+	/// @return The current Coefficients, shared by every lane.
 	[[nodiscard]] [[gnu::always_inline]] const Coefficients& coefficients() const { return coefficients_; }
 
 	/// @brief Return every lane to the reset State: State{}, or whatever K's `static void reset(State&)` quirk sets
@@ -219,6 +222,8 @@ public:
 	/// @brief A snapshot of lane @p lane's state between blocks. @p lane is less than N.
 	/// @details By value in both forms, so a caller never holds a view into state the next block rewrites. Op-major,
 	/// it is read out of the packed state: member m is N q31 lanes, so lane @p lane's word m sits at m × N + @p lane.
+	/// @param lane The lane, less than N.
+	/// @return A copy of the lane's State.
 	[[nodiscard]] [[gnu::always_inline]] State state(std::size_t lane) const {
 		if constexpr (kOpMajor) {
 			return unpackLane(lane);
@@ -256,6 +261,7 @@ public:
 	/// @brief Generate one frame: a one-frame block, so one `prepare(…, 1)` per lane and one mode dispatch per call.
 	/// @details A convenience for tests and control rate, not for per-frame use in shipping code (see **Single
 	/// samples** in the class documentation).
+	/// @return The next frame.
 	[[nodiscard]] [[gnu::always_inline]] value_type render()
 	requires generator_kernel<K>
 	{
@@ -265,6 +271,7 @@ public:
 	}
 
 	/// @brief Fill @p out with the next `out.size()` frames, lane 0 first in every frame.
+	/// @param out The block to fill, every frame of it.
 	[[gnu::always_inline]] void renderBlock(Buffer<value_type> out)
 	requires generator_kernel<K>
 	{
@@ -274,6 +281,8 @@ public:
 	/// @brief Process one frame: a one-frame block, so one `prepare(…, 1)` per lane and one mode dispatch per call.
 	/// @details A convenience for tests and control rate, not for per-frame use in shipping code (see **Single
 	/// samples** in the class documentation).
+	/// @param x The input frame.
+	/// @return The output frame.
 	[[nodiscard]] [[gnu::always_inline]] value_type render(value_type x)
 	requires processor_kernel<K>
 	{
@@ -332,6 +341,8 @@ public:
 	/// call.
 	/// @details A convenience for tests and control rate, not for per-frame use in shipping code (see **Single
 	/// samples** in the class documentation).
+	/// @param a,b The pair of input frames.
+	/// @return The mixed frame.
 	[[nodiscard]] [[gnu::always_inline]] value_type render(value_type a, value_type b)
 	requires mixer_kernel<K>
 	{

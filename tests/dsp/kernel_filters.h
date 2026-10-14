@@ -17,7 +17,7 @@
 
 /// @file
 /// @brief The filter kernels as a workload family (filter_workloads.h): each kernel in its wrapper, behind the
-/// interface the verbatim references have, so a @ref filter_workloads::FilterRun plays it block by block and
+/// interface the references have, so a @ref filter_workloads::FilterRun plays it block by block and
 /// @ref filter_workloads::first_parting compares it with the reference.
 ///
 /// A family is mono or stereo, as the workloads it plays: a kernel's mono and stereo forms are different wrappers

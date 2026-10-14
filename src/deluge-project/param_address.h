@@ -24,14 +24,14 @@
 
 namespace deluge::project {
 
-/// Stable, engine-pointer-free identity of an automation lane's OWNER. This is the substrate for
-/// id-addressable DOM param resolution (`Song::resolveParam`): an op names *what* it acts on by stable ids
-/// instead of a threaded `ParamCollection*`/`AutoParam*` pointer chain — the first step toward retiring the
-/// ModelStack's param-resolution role.
+/// @brief Stable, engine-pointer-free identity of an automation lane's OWNER.
+///
+/// The substrate for id-addressable DOM param resolution (`Song::resolveParam`): an op names *what* it acts on by
+/// stable ids instead of a threaded `ParamCollection*`/`AutoParam*` pointer chain.
 struct OwnerId {
 	enum class Kind : uint8_t {
 		SONG,       // song-global params (the master effect chain's)
-		CLIP,       // a clip's own params, identified by its Clip::id (audio clips; S2b)
+		CLIP,       // a clip's own params, identified by its Clip::id (audio clips)
 		INSTRUMENT, // an instrument-shared owner (SoundInstrument / Kit), identified by its Output::id
 		DRUM,       // a per-drum owner (SoundDrum), identified by its Drum::id
 	};
@@ -52,8 +52,9 @@ struct OwnerId {
 /// spaces (an MPE expression dimension, a MIDI CC number). A patch cable's depth is an engine param.
 enum class ParamSpace : uint8_t { ENGINE, EXPRESSION, MIDI_CC };
 
-/// Names one automation lane: which owner, which space, which param in it. `Song::resolveParam` maps this to the live
-/// `DocAutoParam` in the persistent tree. An engine param's id is its engine's (the owner's slot names the engine).
+/// @brief Names one automation lane: which owner, which space, which param in it. `Song::resolveParam` maps this to the
+/// live `DocAutoParam` in the persistent tree. An engine param's id is its engine's (the owner's slot names the
+/// engine).
 struct ParamAddress {
 	OwnerId owner{};
 	ParamSpace space{ParamSpace::ENGINE};

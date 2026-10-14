@@ -9,8 +9,8 @@
 namespace deluge::edits {
 
 Error SetNoteRowLength::apply(Context& /*ctx*/) {
-	// Faithful reification of the NOTEROW_LENGTH_EDIT new-action branch: open the Action, build a
-	// ConsequenceNoteRowLength keyed by the note-row id, and let performChange apply the change + record undo.
+	// Open the Action, build a ConsequenceNoteRowLength keyed by the note-row id, and let performChange apply the
+	// change + record undo.
 	Action* action = actionLogger.getNewAction(ActionType::NOTEROW_LENGTH_EDIT, ActionAddition::NOT_ALLOWED);
 	if (action == nullptr) {
 		return Error::INSUFFICIENT_RAM;

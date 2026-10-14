@@ -31,7 +31,8 @@ namespace deluge::dsp::fixed {
 
 /// @brief The synth's one shared noise stream: the only shared state dsp-next touches.
 /// @details Every consumer (the app's CONG sites and any component holding a SharedNoise) draws from the single
-/// jcong state in call order, which is what keeps the output bit-exact against the legacy draws.
+/// jcong state in call order, so the noise each consumer gets depends on that order: reordering or adding draws
+/// changes the output.
 class SharedNoise {
 public:
 	using value_type = q31; ///< q31 noise samples.

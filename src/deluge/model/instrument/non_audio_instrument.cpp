@@ -28,8 +28,8 @@
 #include "util/functions.h"
 #include <cstring>
 
-// DO3: reseed the record's channel field from the current native value. Called (via virtual dispatch) from
-// adoptOutput's load-bridge seed and the clone/replace blocks in song.cpp/view.cpp.
+// Called (via virtual dispatch) from adoptOutput's load-bridge seed and the clone/replace blocks in
+// song.cpp/view.cpp.
 void NonAudioInstrument::seedDocOutputIdentity() {
 	Instrument::seedDocOutputIdentity();
 	if (docOutput_ != nullptr) {
@@ -37,8 +37,8 @@ void NonAudioInstrument::seedDocOutputIdentity() {
 	}
 }
 
-// DO3: channel is DOM-authoritative at save. Every forward write funnels through this setter (write native cache +
-// record; guarded, no FREEZE — mirrors Output::set*()/Instrument::set*() from DO1/DO2).
+// Every write funnels through this setter (native cache + record; guarded, no FREEZE), like
+// Output::set*()/Instrument::set*().
 void NonAudioInstrument::setChannel(int newChannel) {
 	channel = newChannel;
 	if (docOutput_ != nullptr) {

@@ -347,11 +347,10 @@ extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
 extern gui::menu_item::KeyRange defaultKeyMenu;
 
 namespace {
-// Option I (Slice S): relocate a ParamSet's read-populated OWN DOM store into the project tree `dest`, then re-bind
-// the engine set to the tree copy. initParams + the DOM-first read already put the authoritative scalar + nodes in
-// the own store, so this MOVES them into the tree with NO engine->store copy — unlike toDocParamSet, which reads
-// the engine cursor for current_value. Behaviour/golden-neutral (engine == store), but honours the single-store
-// policy (the engine is never the source of the persisted scalar). The set's kind picks its store in `mgr`.
+// Relocate a ParamSet's read-populated own DOM store into the project tree `dest`, then re-bind the engine set to the
+// tree copy. initParams and the DOM-first read already put the authoritative scalar and nodes in the own store, so
+// this moves them into the tree with no engine-to-store copy (unlike toDocParamSet, which reads the engine cursor for
+// current_value): the engine is never the source of the persisted scalar. The set's kind picks its store in `mgr`.
 void relocateParamStoreToTree(ParamSet* set, deluge::project::DocParamManager& mgr) {
 	std::optional<deluge::project::DocParamSet>& dest = *deluge::bridge::storeFor(mgr, set->getParamKind());
 	set->bindDomStore(); // ensure the own store exists (the read normally created it) before relocating
@@ -497,7 +496,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 	InstrumentClip* firstClip = new (memory) InstrumentClip(*this);
 
 	(void)live.clips.session_clips.insertClipAt(firstClip,
-	                                            0); // OOM impossible-in-practice this early; ignored as before
+	                                            0); // OOM impossible-in-practice this early; ignored
 
 	firstClip->setLoopLength(kDefaultClipLength << project.transport.inside_world_tick_magnitude);
 
@@ -1176,12 +1175,11 @@ weAreInArrangementEditorOrInClipInstance:
 
 	int32_t* valuesForOverride = runtimeView.paramsInAutomationMode ? live.unautomated_param_values.data() : nullptr;
 
-	// Flip Phase 2: serialize the song-global param block DIRECTLY from the DOM store — the singleton
-	// project.master_params' global-effectable block — fully decoupling this block's save from the engine paramManager.
-	// Byte-identical: the store holds the authoritative nodes (the engine set borrows them via docForParam) and,
-	// since flip Phase 1, its current_value tracks user edits (and load seeds it from the file). valuesForOverride
-	// still applies (writeDocAutoParam checks the store's nodes for automated-ness). A never-loaded song whose
-	// store is still empty falls back to projecting the engine (first-save).
+	// Serialize the song-global param block directly from the DOM store (the singleton project.master_params'
+	// global-effectable block), independent of the engine paramManager. The store holds the authoritative nodes (the
+	// engine set resolves to them via docForParam), its current_value tracks user edits, and load seeds it from the
+	// file. valuesForOverride still applies (writeDocAutoParam checks the store's nodes for automated-ness). A
+	// never-loaded song whose store is still empty falls back to projecting the engine (first save).
 	writer.writeOpeningTagBeginning("songParams");
 	if (const std::optional<deluge::project::DocParamSet>& songStore =
 	        *deluge::bridge::storeFor(project.master_params, params::Kind::UNPATCHED_GLOBAL)) {
@@ -1267,32 +1265,32 @@ weAreInArrangementEditorOrInClipInstance:
 
 void Song::assignMissingIds() {
 	// Give every song-member output/drum a durable id if it lacks one (a runtime owner never saved/loaded). Loaded
-	// owners already have file ids -> no-op. Clips always have an id from their ctor. This guarantees param addressing
-	// (OwnerId) can always resolve by durable id -- the durable-id program's replacement for transient session ids.
+	// owners already have file ids, so this is a no-op for them. Clips always have an id from their ctor. This
+	// guarantees param addressing (OwnerId) can always resolve by durable id.
 	for (Output* o = live.media.first_output; o != nullptr; o = o->next) {
 		if (!o->id()) {
 			o->setId(generateNewOutputId());
 		}
-		// M3 owner-5: the output already has its id (file-restored or just minted above), so adoptOutput sees it and
-		// binds without minting again — the id lifecycle is unchanged.
+		// The output already has its id (file-restored or just minted above), so adoptOutput binds without minting
+		// again.
 		adoptOutput(o);
 		if (o->type == OutputType::KIT) {
 			for (Drum* d = static_cast<Kit*>(o)->firstDrum; d != nullptr; d = d->next) {
 				if (!d->id()) {
 					d->setId(generateNewDrumId());
 				}
-				// M3 owner-3: the drum already has its id (file-restored or just minted above), so adoptDrum sees it
-				// and binds without minting again — the id lifecycle is unchanged.
+				// The drum already has its id (file-restored or just minted above), so adoptDrum binds without
+				// minting again.
 				adoptDrum(d);
 			}
 		}
 	}
 }
 
-// M3 owner-3 (drum structure): bind a drum to its DOM-owned DocDrum in project.drum_structure (mint an id only if it
-// lacks one, mirroring assignMissingIds's own mint via generateNewDrumId), seed the record from the engine drum, and
-// point docDrum_ at it. Idempotent: a drum already bound returns immediately, so the assignMissingIds and Kit::addDrum
-// call sites compose without double-binding or double-minting.
+// Bind a drum to its DOM-owned DocDrum in project.drum_structure (mint an id only if it lacks one, as
+// assignMissingIds does via generateNewDrumId), seed the record from the engine drum, and point docDrum_ at it.
+// Idempotent: a drum already bound returns immediately, so the assignMissingIds and Kit::addDrum call sites compose
+// without double-binding or double-minting.
 void Song::adoptDrum(Drum* drum) {
 	if (drum->docDrum_ != nullptr) {
 		return;
@@ -1311,16 +1309,15 @@ void Song::adoptDrum(Drum* drum) {
 	}
 	deluge::project::DocDrum& d = project.drum_structure.getOrCreate(*drum->id());
 	d.drum_type = drum->type;
-	// M3 owner-3: the DocDrum is the authoritative store for name/channel/note. Bind it (below) BEFORE the drum's tags
-	// are read (Kit::readDrumFromFile adopts first), so the name/channel/note tag reads write straight in — no engine
-	// seed. DocDrum's member initializers supply the MIDI/Sound defaults (channel 0, note 0); a GateDrum's ctor default
-	// of channel 2 is reproduced here now that its engine channel field is gone (the file's channel tag overwrites it
-	// for loaded gate drums; a runtime-created gate drum keeps 2).
+	// The DocDrum is the authoritative store for name/channel/note. Bind it (below) before the drum's tags are read
+	// (Kit::readDrumFromFile adopts first), so the name/channel/note tag reads write straight in. DocDrum's member
+	// initializers supply the MIDI/Sound defaults (channel 0, note 0); a gate drum's default of channel 2 is set here
+	// (the file's channel tag overwrites it for loaded gate drums; a runtime-created gate drum keeps 2).
 	if (drum->type == DrumType::GATE) {
 		d.channel = 2;
 	}
 	drum->bindDocDrum(&d);
-	// A sound drum binds its own state now that it is part of the song. The double static_cast lands on the Sound base
+	// A sound drum binds its own state once it is part of the song. The double static_cast lands on the Sound base
 	// subobject of the SoundDrum.
 	if (drum->type == DrumType::SOUND) {
 		Sound* sound = static_cast<Sound*>(static_cast<SoundDrum*>(drum));
@@ -1329,15 +1326,15 @@ void Song::adoptDrum(Drum* drum) {
 		                         *this); // a drum read from a file refills it once read
 		if (!readingFromFile_) {
 			// A drum added to a running song (a preset loaded into a kit row) had its samples loaded first: its slot
-			// takes what the runtime now holds.
+			// takes what the runtime holds.
 			deluge::bridge::syncSlotState(*sound, *d.instrument, *this);
 		}
 		d.controls = deluge::bridge::controlsOf(*sound); // its knobs are its record's from now on
 	}
 }
 
-// M3 owner-3: drop a drum's structural record on genuine destruction. Callers guard on currentSong && drum->docDrum_
-// (mirroring removeDocClip): during whole-song teardown currentSong is nulled first and the whole project — the
+// Drop a drum's structural record on genuine destruction. Callers guard on currentSong && drum->docDrum_
+// (as removeDocClip does): during whole-song teardown currentSong is nulled first and the whole project — the
 // drum_structure with it — is destroyed wholesale, so no per-drum removal is needed then.
 void Song::removeDocDrum(Drum* drum) {
 	// Only the drum's own record: a drum of another song (the outgoing one, torn down after a swap while this song is
@@ -1347,10 +1344,10 @@ void Song::removeDocDrum(Drum* drum) {
 	}
 }
 
-// M3 owner-5 (output identity): bind an output to its DOM-owned DocOutput in project.output_structure (mint an id only
-// if it lacks one, mirroring assignMissingIds's own mint via generateNewOutputId), seed the record from the engine
-// output via seedDocOutputIdentity(), and point docOutput_ at it. Idempotent: an output already bound returns
-// immediately, so the assignMissingIds call site composes without double-binding or double-minting.
+// Bind an output to its DOM-owned DocOutput in project.output_structure (mint an id only if it lacks one, as
+// assignMissingIds does via generateNewOutputId), seed the record from the engine output via
+// seedDocOutputIdentity(), and point docOutput_ at it. Idempotent: an output already bound returns immediately, so
+// the assignMissingIds call site composes without double-binding or double-minting.
 // A sound's bound state points at its own member, so a copy would point at the original's.
 static_assert(!std::is_copy_constructible_v<SoundInstrument> && !std::is_copy_assignable_v<SoundInstrument>);
 static_assert(!std::is_copy_constructible_v<SoundDrum> && !std::is_copy_assignable_v<SoundDrum>);
@@ -1364,10 +1361,10 @@ void Song::adoptOutput(Output* output) {
 	}
 	deluge::project::DocOutput& d = project.output_structure.getOrCreate(*output->id());
 	output->bindDocOutput(&d);
-	// DO4: all 15 Output-hierarchy identity fields are DOM-owned now, seeded here so the record is correct at save
-	// for a freshly-loaded, never-edited output.
+	// All 15 Output-hierarchy identity fields are DOM-owned, seeded here so the record is correct at save for a
+	// freshly-loaded, never-edited output.
 	output->seedDocOutputIdentity();
-	// A synth track's sound binds its own state now that it is part of the song. The double static_cast lands on the
+	// A synth track's sound binds its own state once it is part of the song. The double static_cast lands on the
 	// Sound base subobject.
 	if (output->type == OutputType::SYNTH) {
 		Sound* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(output));
@@ -1375,9 +1372,9 @@ void Song::adoptOutput(Output* output) {
 		deluge::bridge::fillSlot(*sound, d.instrument.emplace(), false, *this);
 	}
 	// A preset's samples load before it is added, and a kit's drums were bound while it was read: the record and the
-	// slot take what the runtime now holds.
+	// slot take what the runtime holds.
 	deluge::bridge::recordLoadedOutput(*output, *this);
-	// The output's knobs are its record's from now on.
+	// The output's knobs are its record's.
 	switch (output->type) {
 	case OutputType::SYNTH:
 		d.controls = deluge::bridge::controlsOf(*static_cast<SoundInstrument*>(output));
@@ -1394,8 +1391,8 @@ void Song::adoptOutput(Output* output) {
 	deluge::bridge::recordOutputChain(*output, *this); // a kit's or an audio track's effects are its record's too
 }
 
-// M3 owner-5: drop an output's identity record on genuine destruction. Callers guard on currentSong && docOutput_
-// (mirroring removeDocDrum): during whole-song teardown currentSong is nulled first and the whole project — the
+// Drop an output's identity record on genuine destruction. Callers guard on currentSong && docOutput_
+// (as removeDocDrum does): during whole-song teardown currentSong is nulled first and the whole project — the
 // output_structure with it — is destroyed wholesale, so no per-output removal is needed then.
 void Song::removeDocOutput(Output* output) {
 	// Only the output's own record: an output of another song may share its id.
@@ -1819,9 +1816,8 @@ loadOutput:
 
 			else if (!strcmp(tagName, "songParams")) {
 				reader.match('{');
-				// Phase 2 (Option B): read the song-global params INTO the DOM store, then project the store to
-				// the engine paramManager (fromDocParamManager). The store is the authority; the engine unpatched
-				// set is its projection. (Clips still read straight into the engine — a later phase.)
+				// Read the song-global params into the DOM store, then project the store to the engine paramManager
+				// (fromDocParamManager). The store is the authority; the engine unpatched set is its projection.
 				if (!paramManager.containsAnyMainParamCollections()) {
 					Error error = paramManager.setupUnpatched();
 					if (error != Error::NONE) {
@@ -1829,11 +1825,10 @@ loadOutput:
 					}
 					GlobalEffectable::initParams(&paramManager);
 				}
-				// Option I (read-authority): initParams wrote each default straight into the set's own DOM store (via
-				// docForParam) — so it holds the authoritative defaults with NO engine->store copy. Relocate that
-				// store into the project tree and re-bind the engine set to the tree copy; the reader then lands the
-				// present params on top of the defaults, and nodes are never copied out (avoids a projection
-				// self-copy).
+				// initParams wrote each default straight into the set's own DOM store (via docForParam), so it holds
+				// the authoritative defaults with no engine-to-store copy. Relocate that store into the project tree
+				// and re-bind the engine set to the tree copy; the reader then lands the present params on top of
+				// the defaults, and nodes are never copied out (avoids a projection self-copy).
 				UnpatchedParamSet* songUnpatched = paramManager.getUnpatchedParamSet();
 				songUnpatched->bindDomStore(); // ensure a store exists (init normally created it) before relocating
 				std::optional<deluge::project::DocParamSet>& songSlot =
@@ -1940,44 +1935,41 @@ loadOutput:
 		}
 	}
 
-	// Give every no-id output/drum a durable id BEFORE the relocation, so the relocation (and the loop-length
+	// Give every no-id output/drum a durable id before the relocation, so the relocation (and the loop-length
 	// load-binding pass below) resolve by an id that already exists. Loaded owners keep their file ids (no-op).
 	assignMissingIds();
 
-	// Phase C (DOM single-store): borrow-point each AudioClip's unpatched automation node storage at a
-	// DOM-owned DocParamSet anchored on the ParamSet (Model A), mirroring the song-global borrow below. Every
-	// edit + undo then operates on DOM-owned data and save reads it directly. The store lives on the heap-stable,
-	// never-relocating ParamSet, so it survives the clip through ParamBackup steal/restore. AudioClips carry a
-	// single unpatched set (GlobalEffectableForClip); InstrumentClips/kits are later Movement-1 steps.
+	// Bind each AudioClip's unpatched automation node storage to a DOM-owned store, like the song-global one below.
+	// Every edit and undo then operates on DOM-owned data and save reads it directly. The store lives on the
+	// heap-stable, never-relocating ParamSet, so it survives the clip through ParamBackup steal/restore. AudioClips
+	// carry a single unpatched set (GlobalEffectableForClip); instrument clips are bound further below.
 	for (ClipArray* clipArray : arrays) {
 		for (int32_t c = 0; c < std::ssize(*clipArray); c++) {
 			Clip* thisClip = (*clipArray)[c];
 			if (thisClip->type == ClipType::AUDIO && thisClip->paramManager.containsAnyMainParamCollections()) {
 				UnpatchedParamSet* unpatched = thisClip->paramManager.getUnpatchedParamSet();
-				// M2-G S2b: relocate the audio clip's unpatched automation into the persistent project tree, keyed
-				// by the clip's stable id, and bind the engine set to that tree store (so doc() id-resolves
-				// it and docForParam/save read the same nodes). A clip with no id (never saved) keeps its
-				// engine-owned store. Seed the tree store from what the file read into the engine set first.
-				// Clips always have a durable id (ctor-minted), so relocate keyed by it.
+				// Relocate the audio clip's unpatched automation into the persistent project tree, keyed by the
+				// clip's stable id, and bind the engine set to that tree store (so doc() id-resolves it and
+				// docForParam/save read the same nodes). The tree store is seeded from what the file read into the
+				// engine set. Clips always have a durable id (ctor-minted), so relocate keyed by it.
 				if (std::optional<uint32_t> id = thisClip->id()) {
 					deluge::project::DocParamManager& mgr = project.clip_params.getOrCreate(*id);
 					relocateParamStoreToTree(unpatched, mgr);
 				}
 			}
-			// M2-G S3c/S3d: relocate instrument-shared clip-level automation into the persistent tree, keyed by
-			// (instrument(output), clip) — the persistent form of ParamBackup. Synth = unpatched + patched; kit
-			// clip-level FX = unpatched only (GlobalEffectableForClip). Because stealParamCollectionsFrom moves only
-			// collection pointers, this external binding rides the ParamSet through every park / restore /
-			// clip-death re-key, so resolution survives all of it; the (owner, clip) key precision only matters for
-			// later id-addressing. A clip / instrument without a id (never saved) keeps its engine store.
-			// S4a relocates expression (MPE) too; patch cables / MIDI keep their M2-F inline stores for now.
+			// Relocate instrument-shared clip-level automation into the persistent tree, keyed by
+			// (instrument(output), clip), the persistent form of ParamBackup. Synth = unpatched + patched; kit
+			// clip-level FX = unpatched only (GlobalEffectableForClip). Expression (MPE) is relocated too. Because
+			// stealParamCollectionsFrom moves only collection pointers, this external binding rides the ParamSet
+			// through every park / restore / clip-death re-key, so resolution survives all of it. MIDI CC stores stay
+			// inline until the per-clip binding below.
 			else if (thisClip->type == ClipType::INSTRUMENT && thisClip->output != nullptr
 			         && (thisClip->output->type == OutputType::SYNTH || thisClip->output->type == OutputType::KIT)
 			         && thisClip->paramManager.containsAnyMainParamCollections()) {
 				std::optional<uint32_t> clipId = thisClip->id();
 				std::optional<uint32_t> outId = thisClip->output->id();
 				// Both clip and output always have durable ids (ctor / assignMissingIds), so relocate keyed by
-				// (instrument(output), clip). The mixed/no-id cases are gone with the session machinery.
+				// (instrument(output), clip).
 				deluge::project::OwnerId instrOwner{};
 				std::optional<uint32_t> clipKey{};
 				bool relocate = false;
@@ -1994,23 +1986,23 @@ loadOutput:
 						if (PatchedParamSet* patched = thisClip->paramManager.getPatchedParamSet()) {
 							relocateParamStoreToTree(patched, mgr);
 						}
-						// M2-G S4b: relocate the synth's patch-cable amount-automation into the tree's identity-keyed
-						// cable store (keyed (from, dest), NOT index — cables reorder at runtime). Seed from the
-						// loaded inline stores, then bind so save + edits share the persistent store.
+						// Relocate the synth's patch-cable amount-automation into the tree's identity-keyed cable
+						// store (keyed (from, dest), not index: cables reorder at runtime). Seed from the loaded
+						// inline stores, then bind so save and edits share the persistent store.
 						if (PatchCableSet* pcs = thisClip->paramManager.getPatchCableSet()) {
 							mgr.cables = deluge::bridge::toDocCables(*pcs);
 							pcs->bindDomCablesExternal(&mgr.cables);
 						}
 					}
-					// M2-G S4a: relocate this manager's expression (MPE) automation into the tree at the same
-					// (instrument, clip) key. ExpressionParamSet is a ParamSet, so it binds exactly like the main
-					// sets; getExpressionParamSet() is null when the manager holds no MPE collection.
+					// Relocate this manager's expression (MPE) automation into the tree at the same (instrument, clip)
+					// key. ExpressionParamSet is a ParamSet, so it binds exactly like the main sets;
+					// getExpressionParamSet() is null when the manager holds no MPE collection.
 					if (ExpressionParamSet* expression = thisClip->paramManager.getExpressionParamSet()) {
 						relocateParamStoreToTree(expression, mgr);
 					}
-					// M2-G S3e: per-drum (NoteRow) automation for a kit clip → keyed (drum(drum id), clip).
-					// Each SoundDrum NoteRow holds its own manager (independent automation per (drum, clip) pair),
-					// parked as (SoundDrum, clip) in ParamBackup. Same binding-rides-the-ParamSet safety as above.
+					// Per-drum (NoteRow) automation for a kit clip, keyed (drum(drum id), clip). Each SoundDrum NoteRow
+					// holds its own manager (independent automation per (drum, clip) pair), parked as (SoundDrum, clip)
+					// in ParamBackup. The binding rides the ParamSet, as above.
 					if (thisClip->output->type == OutputType::KIT) {
 						InstrumentClip* ic = static_cast<InstrumentClip*>(thisClip);
 						for (int32_t n = 0; n < std::ssize(ic->noteRows); n++) {
@@ -2031,11 +2023,11 @@ loadOutput:
 							if (PatchedParamSet* dp = nr.paramManager.getPatchedParamSet()) {
 								relocateParamStoreToTree(dp, dmgr);
 							}
-							// S4a: per-drum expression (MPE) automation → same (drum, clip) key.
+							// Per-drum expression (MPE) automation: same (drum, clip) key.
 							if (ExpressionParamSet* de = nr.paramManager.getExpressionParamSet()) {
 								relocateParamStoreToTree(de, dmgr);
 							}
-							// S4b: per-drum patch-cable amount-automation → same (drum, clip) key, identity-keyed.
+							// Per-drum patch-cable amount-automation: same (drum, clip) key, identity-keyed.
 							if (PatchCableSet* dpcs = nr.paramManager.getPatchCableSet()) {
 								dmgr.cables = deluge::bridge::toDocCables(*dpcs);
 								dpcs->bindDomCablesExternal(&dmgr.cables);
@@ -2046,9 +2038,6 @@ loadOutput:
 			}
 		}
 	}
-
-	// (Durable-id Step 3: the old M3 LOAD-FLIP passes that seeded + bound each clip's DocClip post-load are gone --
-	// every clip is now bound in its ctor under its file id, so nothing to do here.)
 
 	AudioEngine::logAction("matched up");
 
@@ -2182,11 +2171,11 @@ skipInstance:
 	deluge::model::settleLoadedDelays(*this);
 	AudioEngine::logAction("aaa4.3");
 
-	// Phase B (DOM single-store): the DOM is the sole owner of the song-global unpatched automation node storage
-	// (project.master_params' global-effectable block); the engine set owner-resolves to it, so every edit + undo
-	// operates on DOM-owned data and save reads it directly. The <songParams> read path above already created + bound
-	// the store; this handles the file-had-no-<songParams> case (seed from the engine defaults, then bind). M2-F: no
-	// moveNodesInto — the engine holds no ownDoc_ node data to move; reads/edits land in the store directly.
+	// The DOM is the sole owner of the song-global unpatched automation node storage (project.master_params'
+	// global-effectable block); the engine set owner-resolves to it, so every edit and undo operates on DOM-owned data
+	// and save reads it directly. The <songParams> read path above already created and bound the store; this handles
+	// the file-had-no-<songParams> case (seed from the engine defaults, then bind). The engine holds no node data to
+	// move; reads and edits land in the store directly.
 	{
 		UnpatchedParamSet* unpatchedEngine = paramManager.getUnpatchedParamSet();
 		std::optional<deluge::project::DocParamSet>& songSlot =
@@ -2203,12 +2192,12 @@ skipInstance:
 		unpatchedEngine->bindDomStoreExternal(&store); // idempotent if the <songParams> path already bound it
 	}
 
-	// Phase C (InstrumentClip): borrow-point each instrument clip's automation node storage at DOM-owned
-	// DocParamSets (Model A), like the AudioClip / song-global borrows above. setupPatchingForAllParamManagers
-	// has finalized every instrument clip's param manager by now. bindMainParamSetDomStores binds unpatched
-	// (always) + patched (synth/drum only) and no-ops for MIDI/CV. For KIT clips the drum params live
-	// per-NoteRow, so bind each row's manager too (the kit clip-level manager is its unpatched-only global FX).
-	// ParamSets are heap-allocated, so their stores survive NoteRow relocation / ParamBackup steal (Model A).
+	// Bind each instrument clip's automation node storage to DOM-owned DocParamSets, like the audio-clip and
+	// song-global bindings above. setupPatchingForAllParamManagers has finalized every instrument clip's param manager
+	// by now. bindMainParamSetDomStores binds unpatched (always) + patched (synth/drum only) and no-ops for MIDI/CV.
+	// For KIT clips the drum params live per-NoteRow, so bind each row's manager too (the kit clip-level manager is
+	// its unpatched-only global FX). ParamSets are heap-allocated, so their stores survive NoteRow relocation and
+	// ParamBackup steal.
 	{
 		std::array<ClipArray*, 2> const instClipArrays{&live.clips.session_clips, &live.clips.arrangement_only_clips};
 		for (ClipArray* clipArray : instClipArrays) {
@@ -2218,8 +2207,8 @@ skipInstance:
 					continue;
 				}
 				OutputType ot = thisClip->output->type;
-				// Only bind SOUND managers (unpatched ParamSet at summaries[0]). MIDI/CV clip managers hold a
-				// MIDIParamCollection there — NOT a ParamSet — so bindMainParamSetDomStores would corrupt them.
+				// Only bind sound managers (unpatched ParamSet at summaries[0]). MIDI/CV clip managers hold a
+				// MIDIParamCollection there, not a ParamSet, so bindMainParamSetDomStores would corrupt them.
 				if (ot == OutputType::SYNTH) {
 					thisClip->paramManager.bindMainParamSetDomStores(); // synth: unpatched + patched
 				}
@@ -2234,12 +2223,12 @@ skipInstance:
 					}
 				}
 				else if (ot == OutputType::MIDI_OUT) {
-					// M2-G S4c: a MIDI_OUT clip manager holds a MIDIParamCollection (variable per-CC AutoParams) at
-					// summaries[0], NOT a ParamSet. Relocate its CC automation into the clip's per-clip tree store —
-					// keyed by Clip::id, in project.clip_params like audio clips, because MIDI CC automation is
+					// A MIDI_OUT clip manager holds a MIDIParamCollection (variable per-CC AutoParams) at
+					// summaries[0], not a ParamSet. Relocate its CC automation into the clip's per-clip tree store,
+					// keyed by Clip::id in project.clip_params like audio clips, because MIDI CC automation is
 					// per-clip (each InstrumentClip owns it; never instrument-shared, never in ParamBackup). doc()
-					// already builds an OwnerId::clip(clip) / Kind::MIDI address for these. A clip with no id
-					// (never saved) keeps its engine-owned inline store. (CV has no MIDIParamCollection — skipped.)
+					// builds an OwnerId::clip(clip) / Kind::MIDI address for these. CV has no MIDIParamCollection and
+					// is skipped.
 					if (thisClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
 						MIDIParamCollection* midi = thisClip->paramManager.getMIDIParamCollection();
 						// Clips always have a durable id (ctor-minted), so relocate keyed by it.
@@ -2294,9 +2283,9 @@ readClip:
 				return Error::INSUFFICIENT_RAM;
 			}
 
-			// Durable-id Step 3: read the clip's shell (id + the three pure DocClip fields) tree-natively from the
-			// Value node, construct the clip WITH its file id (the ctor binds clip_structure[id]), then delegate the
-			// rest to the streaming readFromFile. The moved tags no longer have handlers there, so they are skipped.
+			// Read the clip's shell (id + the three pure DocClip fields) tree-natively from the Value node, construct
+			// the clip with its file id (the ctor binds clip_structure[id]), then delegate the rest to the streaming
+			// readFromFile, which has no handlers for the shell tags and skips them.
 			const deluge::storage::Value* clipNode = deluge::storage::treeReaderOf(reader).currentValue();
 			uint32_t loadedId = 0;
 			if (clipNode != nullptr) {
@@ -2313,9 +2302,7 @@ readClip:
 				newClip = new (memory) AudioClip(*this, loadedId);
 			}
 
-			// Shell fields (pure setters -> the bound store). length/loopLength stays in readFromFile (its handler also
-			// sets originalLength + readAutomationUpToPos, coupling it to the automation read; it writes the same
-			// store).
+			// Shell fields: pure setters on the bound store.
 			if (clipNode != nullptr) {
 				if (const deluge::storage::Value* n = clipNode->find("section")) {
 					newClip->setSection(
@@ -2328,8 +2315,8 @@ readClip:
 					newClip->setLaunchStyle(
 					    deluge::project::parse_launch_style(n->str()).value_or(LaunchStyle::DEFAULT));
 				}
-				// loopLength (durable-id readFromTree slice 2): "length" is the current attribute name, "trackLength"
-				// the legacy alias. Clamp to >=1 and seed originalLength, matching the old readTagFromFile handler.
+				// loopLength: "length" is the current attribute name, "trackLength" the legacy alias. Clamp to >=1 and
+				// seed originalLength.
 				const deluge::storage::Value* lenNode = clipNode->find("length");
 				if (lenNode == nullptr) {
 					lenNode = clipNode->find("trackLength");
@@ -2339,8 +2326,7 @@ readClip:
 					newClip->originalLength = newClip->loopLength();
 				}
 
-				// Plain base-clip attributes (readFromTree slice 3): pure field writes, same members the
-				// deleted Clip::readTagFromFile handlers wrote.
+				// Plain base-clip attributes: pure field writes.
 				if (const deluge::storage::Value* n = clipNode->find("isPlaying")) {
 					newClip->activeIfNoSolo = (stringToInt(n->str().c_str()) != 0);
 				}
@@ -2360,10 +2346,9 @@ readClip:
 					    deluge::project::parse_sequence_direction(n->str()).value_or(SequenceDirection::FORWARD);
 				}
 
-				// Selection / sync-scale hints (readFromTree slice 3): read the flag, then perform the same Song-state
-				// side effect the deleted handlers did. Clips are processed in file order, so these last-wins
-				// singletons resolve identically to firing mid-readFromFile. isSyncScaleClip is guarded by
-				// synthetic/syncscale.XML.
+				// Selection / sync-scale hints: read the flag, then perform the Song-state side effect. Clips are
+				// processed in file order, so these last-wins singletons resolve the same as if fired mid-readFromFile.
+				// isSyncScaleClip is guarded by synthetic/syncscale.XML.
 				if (const deluge::storage::Value* n = clipNode->find("beingEdited")) {
 					if (stringToInt(n->str().c_str())) {
 						setCurrentClip(newClip);
@@ -2390,7 +2375,7 @@ readClip:
 					newClip->muteMIDICommand.readNoteFromTree(*muteNode, reader);
 				}
 
-				// Per-type view-state (readFromTree slice 4): each clip type reads its own pure UI/view attributes.
+				// Per-type view-state: each clip type reads its own pure UI/view attributes.
 				newClip->readShellFromTree(*clipNode);
 			}
 
@@ -3198,7 +3183,7 @@ void Song::setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldL
 
 void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRemoval instrumentRemovalInstruction) {
 
-	// M2-G S2b: the clip's tree-resident param store (if any) is retired with the clip. Capture the key now while
+	// The clip's tree-resident param store (if any) is retired with the clip. Capture the key now while
 	// the clip is valid; erase the entry after the clip (and its bound ParamSets) are destructed below.
 	std::optional<uint32_t> treeParamId = clip->id();
 
@@ -3546,7 +3531,7 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 					new_mca.midi_knobs.clear();
 					std::swap(new_mca.midi_knobs, old_mca->midi_knobs);
 					old_mca->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
-					// Both owners' controls records follow the knobs they now have.
+					// Both owners' controls records follow the knobs they have after the swap.
 					deluge::bridge::recordOutputControls(*oldOutput, *this);
 					deluge::bridge::recordOutputControls(*newOutput, *this);
 				}
@@ -3627,8 +3612,8 @@ traverseClips:
 	newOutput->armedForRecording = oldOutput->armedForRecording;
 	oldOutput->armedForRecording = false;
 
-	// DO1: the field copies above (colour/mutedInArrangementMode/soloingInArrangementMode/armedForRecording) bypass
-	// the setters for a bulk cross-Output copy+reset — reseed both records from their now-final native values so
+	// The field copies above (colour/mutedInArrangementMode/soloingInArrangementMode/armedForRecording) bypass the
+	// setters for a bulk cross-Output copy and reset, so reseed both records from their final native values so
 	// neither is stale at save (oldOutput may only be hibernated, not destroyed, below).
 	newOutput->seedDocOutputIdentity();
 	oldOutput->seedDocOutputIdentity();
@@ -5214,8 +5199,8 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 	newOutput->armedForRecording = oldOutput->armedForRecording;
 	oldOutput->armedForRecording = false;
 
-	// DO1: reseed both records from their now-final native values (see the matching comment in
-	// swapInstrument/replaceOutput's sibling clone block above) — oldOutput may only be hibernated, not destroyed.
+	// Reseed both records from their final native values (see the matching comment in the sibling clone block
+	// above); oldOutput may only be hibernated, not destroyed.
 	newOutput->seedDocOutputIdentity();
 	oldOutput->seedDocOutputIdentity();
 

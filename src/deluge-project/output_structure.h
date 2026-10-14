@@ -23,23 +23,30 @@
 
 namespace deluge::project {
 
-/// Per-output identity records (M3 owner-5), owned by the persistent `project` tree and keyed by the output's stable
-/// `Output::id`. The output-identity analogue of `DrumStructure`: because it is keyed by the serial id — not by an
+/// @brief Per-output identity records, owned by the persistent `project` tree and keyed by the output's stable
+/// `Output::id`.
+///
+/// The output-identity analogue of `DrumStructure`: because it is keyed by the serial id — not by an
 /// `Output*` or list position — it is unaffected by output reorders. A component of `deluge::project::Song` (a single
 /// instance keyed by serial id; every output gets its id via `assignMissingIds`).
 struct OutputStructure {
 	model_map<uint32_t, DocOutput> by_id;
 
-	/// The output's DocOutput, or nullptr if this output has no tree-resident record.
+	/// @brief The output's DocOutput, or nullptr if this output has no tree-resident record.
+	/// @param id The output's stable id.
+	/// @return The output's DocOutput, or nullptr if it has no tree-resident record.
 	DocOutput* find(uint32_t id) {
 		auto it = by_id.find(id);
 		return it == by_id.end() ? nullptr : &it->second;
 	}
 
-	/// The output's DocOutput, creating an empty one if absent.
+	/// @brief The output's DocOutput, creating an empty one if absent.
+	/// @param id The output's stable id.
+	/// @return The output's DocOutput.
 	DocOutput& getOrCreate(uint32_t id) { return by_id[id]; }
 
-	/// Drop the output's record (on output destruction).
+	/// @brief Drop the output's record (on output destruction).
+	/// @param id The output's stable id.
 	void remove(uint32_t id) { by_id.erase(id); }
 };
 

@@ -28,23 +28,23 @@ ParamSnapshot::applyPatch(deluge::project::Song& model, const deluge::project::P
                           int32_t pos, int32_t length, const std::optional<RegionContext>& region) {
 	deluge::project::DocAutoParam* doc = model.resolveParam(address);
 	if (doc == nullptr) {
-		// Engine-only lane (never-saved owner not yet id-addressed) — nothing to patch in the model; the engine's
-		// own store still carries it. Coarse fallback (projectFromStoreAfterRead) covers the load path.
+		// Engine-only lane (owner not yet id-addressed): nothing to patch in the model; the engine's own store
+		// still carries it. The coarse rebuild (projectFromStoreAfterRead) covers the load path.
 		return std::nullopt;
 	}
 
 	if (!region.has_value()) {
-		// Scalar path (the length==0 / no-timeline route in setValuePossiblyForRegion): the in-line poke's
-		// characterized effect is a plain current_value sync (M4a Task 1). Nodes are untouched for an
-		// unautomated param, and an automated param's node array is likewise not rewritten by the scalar poke.
+		// Scalar path (the length==0 / no-timeline route in setValuePossiblyForRegion): the effect is a plain
+		// current_value sync. Nodes are untouched for an unautomated param, and an automated param's node array
+		// is likewise not rewritten by the scalar path.
 		doc->current_value = value;
 		return std::nullopt;
 	}
 
 	// Region path (nonzero length + a live timeline counter): reproduce AutoParam::setValueForRegion's node/value
-	// mutation exactly, via the DOM kernel proven bit-equivalent to it across the full engine==DOM matrix in
-	// tests/integration/scenarios/drivers/param_projection.cpp. The kernel writes doc->nodes and — when the playhead is
-	// inside the edited region, or playback is stopped — doc->current_value, and returns the engine's
+	// mutation exactly, via the DOM kernel, which is bit-equivalent to it (checked across the engine==DOM matrix in
+	// tests/integration/scenarios/drivers/param_projection.cpp). The kernel writes doc->nodes and — when the playhead
+	// is inside the edited region, or playback is stopped — doc->current_value, and returns the engine's
 	// `automationChanged` (nullopt when pos is at/past effectiveLength).
 	const RegionContext& r = *region;
 	return deluge::project::setValueForRegion(*doc, static_cast<uint32_t>(pos), static_cast<uint32_t>(length), value,

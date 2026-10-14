@@ -314,10 +314,9 @@ bool SampleClaim::stepDecideSample() {
 	if (claimingAudioClip()) {
 		AudioClip* audioClip = getCurrentAudioClip();
 
-		// M3 owner-4: the load derived filePath/startPos/endPos onto the sampleHolder cache but never touched the
-		// clip's record. Reflect the resolved window into the record now, so save (which reads the record) persists
-		// the loaded sample rather than the stale/empty record. The owner-4 twin of the ranges recorded through their
-		// Edit on the instrument path below.
+		// The load derives filePath/startPos/endPos onto the sampleHolder cache without touching the clip's record.
+		// Reflect the resolved window into the record, so save (which reads the record) persists the loaded sample
+		// rather than a stale/empty record. Instrument sources record their ranges through their Edit below.
 		audioClip->syncSampleRecordFromEngine();
 
 		// If there's a pre-margin, we want to set an attack-time
@@ -344,9 +343,9 @@ bool SampleClaim::stepDecideSample() {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		audioClip->lengthChanged(modelStack, oldLength);
 
-		audioClip->setSampleTranspose(0); // M3 owner-4: transpose/cents are DOM-owned — funnel through the setters
+		audioClip->setSampleTranspose(0); // transpose/cents are DOM-owned: go through the setters
 		audioClip->setSampleCents(0);
-		audioClip->setReversed(false); // M3 owner-4: reversed is DOM-owned — funnel through the setter (record + cache)
+		audioClip->setReversed(false); // reversed is DOM-owned: the setter updates record and cache
 		audioClip->sampleControls.invertReversed = false;
 
 		phase_ = Phase::Finish;

@@ -33,6 +33,8 @@
 namespace deluge::engine {
 
 /// @brief @p text as a whole decimal integer, or nothing.
+/// @param text The text to parse; it must be entirely a decimal integer.
+/// @return The parsed integer, or std::nullopt if @p text is not wholly one.
 [[nodiscard]] inline std::optional<int64_t> whole_number(std::string_view text) {
 	int64_t n = 0;
 	const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), n);
@@ -44,6 +46,10 @@ namespace deluge::engine {
 
 /// @brief Whether @p value is one @p table's row for @p path allows: a choice's name, an integer in the row's range, or
 /// 0 or 1 for a bool. False for a structured row or a path the table does not hold.
+/// @param table The engine's setting table.
+/// @param path The setting's slash path.
+/// @param value The candidate value; only a text value can match.
+/// @return Whether @p value is allowed.
 [[nodiscard]] inline bool check_setting(std::span<const SettingInfo> table, std::string_view path,
                                         const serialization::Value& value) {
 	const SettingInfo* row = find_setting(table, path);

@@ -479,9 +479,12 @@ bool writeInstrumentDocument(Instrument& instrument, const char* path, const cha
 	return error == Error::NONE || fail(legName(g_leg), "a preset file could not be closed");
 }
 
-/// A synth preset whose first oscillator plays @p samplePath (see deluge::harness::writeSampleSynthPreset()).
-/// @brief Rewrites the preset at @p path in the form a firmware without the delay type saves it: each delay's `type`
-/// back as the `analog` flag it replaced. Its delays' types are then worked out when it loads.
+/// @brief Rewrite the preset at @p path in the form a firmware without the delay type saves it.
+///
+/// Each delay's `type` becomes the `analog` flag it replaced, so the delays' types are worked out when the preset
+/// loads.
+/// @param path Preset file to rewrite in place.
+/// @return Whether the file was read back and rewritten; a failure is reported against the current leg.
 bool writeLegacyDelay(const char* path) {
 	std::string text;
 	{
@@ -516,11 +519,14 @@ bool writeLegacyDelay(const char* path) {
 	return (written.has_value() && *written == text.size()) || fail(legName(g_leg), "a preset could not be rewritten");
 }
 
-/// @return Whether @p owner's delay type was worked out at its load: OFF, its feedback unable to sound.
+/// @brief Whether @p owner's delay type was worked out at its load as OFF, its feedback unable to sound.
+/// @param owner The loaded sound, kit or drum to inspect.
+/// @return True if the type is resolved and OFF.
 bool delayResolvedOff(ModControllableAudio& owner) {
 	return !owner.delayTypePending && owner.effects().delay.type == deluge::effects::DelayType::OFF;
 }
 
+/// A synth preset whose first oscillator plays @p samplePath (see deluge::harness::writeSampleSynthPreset()).
 bool writeSampleSynthPreset(const char* path, const char* samplePath) {
 	return deluge::harness::writeSampleSynthPreset(path, samplePath)
 	       || fail(legName(g_leg), "a synth preset could not be written");

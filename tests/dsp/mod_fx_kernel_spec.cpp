@@ -18,7 +18,7 @@
 // The ModFx kernel: the mod FX as one moded frame kernel under Mono, rendered in place. Driven as its owner drives it
 // (TestModFx below: the ring handed over and taken back by event, the knobs configured each block, the post-FX volume
 // from the coefficients, one in-place block unless the effect is off, the block silent or a ring mode has no ring), it
-// must equal today's mod FX (reference_mod_fx.h) bit for bit on every workload (mod_fx_workloads.h): each block's
+// must equal the reference mod FX (reference_mod_fx.h) bit for bit on every workload (mod_fx_workloads.h): each block's
 // output, post-FX volume and ring, and at the end the ring's write index, both LFO phases and the phaser's memories.
 
 #include "dsp-next/core/kernel.h"

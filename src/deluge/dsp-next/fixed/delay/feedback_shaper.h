@@ -86,6 +86,8 @@ struct FeedbackShaper {
 	};
 
 	/// @brief The coefficients for @p s: the amount and the drive unchanged, and `analog` as the mode.
+	/// @param s What the owner sets.
+	/// @return The amount, drive and mode a step reads.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr Coefficients coefficients(const Settings& s) {
 		return {.feedback = s.feedback, .drive = s.drive, .mode = s.analog ? Mode::ANALOG : Mode::DIGITAL};
 	}

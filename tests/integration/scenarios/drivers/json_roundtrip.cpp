@@ -1,4 +1,4 @@
-// JSON round-trip fixture (deserializer step 2b): exercises the JSON side of the record-first
+// JSON round-trip fixture: exercises the JSON side of the record-first
 // deserializer end-to-end -- JsonSerializer output, parseJson, and ValueTreeDeserializer JSON mode. Run as the
 // json_roundtrip scenario (scenarios/drivers/driver.h):
 //

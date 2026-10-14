@@ -92,10 +92,8 @@ void init_heaps() {
 			g_sram_hi = g_sram_lo + r.size;
 		}
 		// One unified SDRAM heap over the whole LARGE_EXTERNAL region (which on both
-		// BSPs is exactly [__sdram_static_end, external_end) — the SDRAM after the static content
-		// the GMA used to split into stealable/external/external_small). Collapsing
-		// the partitions is the redesign's unified pool. The reclaim hook (cache
-		// eviction) is registered by the GeneralMemoryAllocator.
+		// BSPs is exactly [__sdram_static_end, external_end) — the SDRAM after the static content).
+		// The reclaim hook (cache eviction) is registered by the GeneralMemoryAllocator.
 		if (r.kind == DELUGE_MEM_LARGE_EXTERNAL && g_sdram == nullptr) {
 			size_t sdram_size = r.size;
 #ifdef DELUGE_DETERMINISTIC_ALLOC

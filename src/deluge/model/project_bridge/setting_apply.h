@@ -32,11 +32,20 @@ namespace deluge::bridge {
 
 /// @brief Change @p sound's setting at @p path (a path of the Deluge instrument's settings schema) to @p value, as the
 /// sound editor's menu for it does, side effects included: the runtime's own setter for the path.
+///
+/// @param sound The sound to change.
+/// @param path  A path of the Deluge instrument's settings schema.
+/// @param value The new value.
+/// @param song  The song the sound belongs to.
 /// @return Error::UNSPECIFIED when the schema does not allow @p value at @p path, or the path has no setter here.
 Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song);
 
 /// @brief Change @p owner's effect setting at @p path (a path of the effects' schema) to @p value, as its menu does:
 /// for a kit, an audio track or the song master, whose effects have no slot yet.
+///
+/// @param owner The effects' owner.
+/// @param path  A path of the effects' schema.
+/// @param value The new value.
 /// @return Error::UNSPECIFIED when the schema does not allow @p value at @p path.
 Error applyEffectSetting(ModControllableAudio& owner, std::string_view path, const deluge::serialization::Value& value);
 
@@ -45,6 +54,11 @@ Error applyEffectSetting(ModControllableAudio& owner, std::string_view path, con
 /// kind, sample or wavetable, and there is at least one; a DX7 has a patch) and its loop mode (stretching to note
 /// length makes pitch and speed independent, and leaving it gives that up), and the synth mode (into FM the filters go
 /// off; out of it, a filter that is off comes back on). Nothing for any other setting.
+///
+/// @param sound The sound the setting belongs to.
+/// @param path  The setting's path.
+/// @param value The new value.
+/// @return The reshaped state, or nullopt for any other setting.
 [[nodiscard]] std::optional<deluge::instrument::SoundState>
 stateWithSetting(const ::Sound& sound, std::string_view path, const deluge::serialization::Value& value);
 

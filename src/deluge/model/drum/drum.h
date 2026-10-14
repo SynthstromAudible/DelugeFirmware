@@ -57,20 +57,27 @@ public:
 
 	Kit* kit;
 
-	// M3 owner-3 (drum structure): the single write funnel for the drum name. All the scattered assignment sites route
-	// through here, writing the authoritative `DocDrum::name` (the drum is bound before any write — adopt precedes tag
-	// reads at load, runtime drums bind on addDrum). Overloads mirror the argument shapes at the call sites: string
-	// literals / `.c_str()` (const char*), `std::string_view` (rename UI), and `std::string` rvalues (move-preserving).
-	// Bodies live in drum.cpp so they can see the complete DocDrum type without pulling the doc header into this
-	// header.
+	/// @brief Set the drum's name; the single write funnel for it.
+	///
+	/// Writes the authoritative `DocDrum::name`.
+	/// @pre The drum is bound to its DocDrum (adopt precedes tag reads at load; runtime drums bind on addDrum).
+	/// @note Overloads mirror the call-site argument shapes: string literals / `.c_str()` (const char*),
+	///       `std::string_view` (rename UI), and `std::string` rvalues (move-preserving). Bodies live in drum.cpp so
+	///       they see the complete DocDrum type without pulling the doc header into this header.
+	/// @param newName The new drum name.
 	void setName(const char* newName);
+	/// @copydoc setName(const char*)
 	void setName(std::string_view newName);
+	/// @copydoc setName(const char*)
 	void setName(std::string&& newName);
 
-	// M3 owner-3: the read authority for the drum name — returns the authoritative DOM record's `name` (the drum is
-	// always bound before a read). Returns by reference into stable DocDrum storage — callers that need a stable
-	// pointer/view (SoundDrum::getName const char*, RenameDrumUI string_view) rely on this. Body in drum.cpp for the
-	// complete DocDrum type.
+	/// @brief The drum's name, read from the authoritative DocDrum record.
+	///
+	/// Returns a reference into stable DocDrum storage; callers that need a stable pointer/view
+	/// (SoundDrum::getName const char*, RenameDrumUI string_view) rely on this. Body lives in drum.cpp for the
+	/// complete DocDrum type.
+	/// @pre The drum is bound to its DocDrum.
+	/// @return The drum's name.
 	[[nodiscard]] const std::string& name() const;
 
 	const DrumType type;
@@ -122,9 +129,11 @@ public:
 	[[nodiscard]] std::optional<uint32_t> id() const { return id_; }
 	void setId(uint32_t id) { id_ = id; }
 
-	// M3 owner-3 (drum structure): non-owning pointer to this drum's DOM-owned structural record, held in the
-	// project's `drum_structure` keyed by id(). Bound via Song::adoptDrum once the drum has an id. Nothing reads it
-	// yet (shadow, dual-write only). Not carried across any drum copy path (drums aren't value-copied).
+	/// @brief Non-owning pointer to this drum's DOM-owned structural record, held in the project's `drum_structure`
+	///        keyed by id().
+	///
+	/// Bound via Song::adoptDrum once the drum has an id. Not carried across any drum copy path (drums aren't
+	/// value-copied).
 	deluge::project::DocDrum* docDrum_{nullptr};
 	void bindDocDrum(deluge::project::DocDrum* d) { docDrum_ = d; }
 

@@ -18,7 +18,9 @@ namespace deluge::gui::menu_item::audio_compressor {
 
 class CompressorValue : public DecimalWithoutScrolling {
 protected:
-	/// The compressor settings of the owner this menu shows.
+	/// @brief The compressor settings of the owner this menu shows.
+	///
+	/// @return The shown owner's compressor state.
 	[[nodiscard]] static const deluge::effects::CompressorState& shown() {
 		return soundEditor.currentModControllable->effects().compressor;
 	}

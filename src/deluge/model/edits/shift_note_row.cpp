@@ -13,8 +13,7 @@ Error ShiftNoteRow::apply(Context& /*ctx*/) {
 	auto* clip = static_cast<InstrumentClip*>(engineStack_->getTimelineCounter());
 	clip->shiftOnlyOneNoteRowHorizontally(engineStack_, shiftAmount_, shiftAutomation_, shiftSequenceAndMPE_);
 
-	// Undo record, verbatim from the call site: extend a matching open Action's Consequence amount, else open a
-	// new Action + Consequence. (Goto-free restatement of the original's four cases.)
+	// Undo record: extend a matching open Action's Consequence amount, else open a new Action + Consequence.
 	Action* action = actionLogger.firstAction[BEFORE];
 	const bool matchingAction = action != nullptr && action->type == ActionType::NOTEROW_HORIZONTAL_SHIFT
 	                            && action->openForAdditions && action->currentClip == clip;

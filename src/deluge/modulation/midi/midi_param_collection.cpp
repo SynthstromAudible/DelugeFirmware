@@ -44,13 +44,13 @@ MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
 	summary->whichParamsAreInterpolating[0] = 0;
 }
 
-// domStore_ / domMidiRef_ intentionally left null: a cloned collection starts UNBOUND (owns its nodes) until
+// domStore_ / domMidiRef_ are intentionally left null: a cloned collection starts unbound (owns its nodes) until
 // separately bound.
 MIDIParamCollection::MIDIParamCollection(MIDIParamCollection const& other)
     : ParamCollection(other), params(other.params) {
-	// S4c: if `other` reads its live nodes from an external tree store, its inline nodes_ is stale (edits went to
-	// the tree). Copy the current tree nodes so this clone starts self-owned with correct automation — mirroring
-	// PatchCableSet's copy-ctor.
+	// If `other` reads its live nodes from an external tree store, its inline nodes_ is stale (edits went to the
+	// tree). Copy the current tree nodes so this clone starts self-owned with correct automation, as
+	// PatchCableSet's copy-ctor does.
 	if (other.domMidiRef_ != nullptr) {
 		for (MIDIParam& midiParam : params) {
 			if (deluge::project::DocAutoParam* live = other.findDomMidiNodes(midiParam.cc)) {
@@ -64,10 +64,10 @@ MIDIParamCollection::~MIDIParamCollection() {
 	deleteAllParams(NULL, false);
 }
 
-// M2-E (E3): the MIDIParamVector is ordered by CC and reorders/relocates on insert, so an owner store resolved by
-// INDEX cannot stay in sync (a bound param would resolve to the wrong slot after a CC is learned). Each CC's nodes
-// therefore live inline in its AutoParam's ownDoc_, which rides with the param through the vector's moves. Binding
-// to a shared positional store is a no-op for this collection; owner-resolution returns the inline store.
+// The MIDIParamVector is ordered by CC and reorders/relocates on insert, so an owner store resolved by index cannot
+// stay in sync (a bound param would resolve to the wrong slot after a CC is learned). Each CC's nodes therefore
+// live inline in its MIDIParam's nodes_, which rides with the param through the vector's moves. Binding to a shared
+// positional store is a no-op for this collection; owner-resolution returns the inline store.
 void MIDIParamCollection::bindDomStore() {
 }
 
@@ -76,9 +76,9 @@ deluge::project::DocParamSet* MIDIParamCollection::domStore() {
 }
 
 deluge::project::DocAutoParam* MIDIParamCollection::docForParam(int32_t i) {
-	// S4c: when bound to the clip's project-tree CC store, resolve this CC's nodes from the tree entry matching its
-	// cc — so save + runtime edits share the persistent store (the inline nodes_ is then unused). Unbound (M2-F):
-	// the CC owns its store inline and rides with the MIDIParam through the vector's reorders.
+	// When bound to the clip's project-tree CC store, resolve this CC's nodes from the tree entry matching its cc,
+	// so save and runtime edits share the persistent store (the inline nodes_ is then unused). Unbound, the CC owns
+	// its store inline and rides with the MIDIParam through the vector's reorders.
 	if (domMidiRef_ != nullptr) {
 		return &findOrCreateDomMidi(params[i].cc).param;
 	}
@@ -141,8 +141,8 @@ void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollect
 
 Error MIDIParamCollection::clone(ParamCollection*& result, bool copyAutomation,
                                  int32_t reverseDirectionWithLength) const {
-	// params is a value member (MIDIParamVector), so the implicit copy ctor deep-copies it (and each
-	// embedded AutoParam) — no pointer re-pointing needed.
+	// params is a value member (MIDIParamVector), so the copy ctor deep-copies it (and each embedded AutoParam);
+	// no pointer re-pointing is needed.
 	void* mem = deluge::memory::alloc_fast(sizeof(MIDIParamCollection));
 	if (mem == nullptr) {
 		return Error::INSUFFICIENT_RAM;
@@ -170,9 +170,9 @@ Error MIDIParamCollection::clone(ParamCollection*& result, bool copyAutomation,
 	return Error::NONE;
 }
 
-// Every automation op below resolves the CC's node store via docForParam(i) — the bound tree entry when bound
+// Every automation op below resolves the CC's node store via docForParam(i): the bound tree entry when bound
 // (where doc()/playback also read/write), the inline nodes_ otherwise. Reading nodes_ directly would operate on the
-// stale inline store once the collection is bound (S4c), diverging from the live tree.
+// stale inline store once the collection is bound, diverging from the live tree.
 void MIDIParamCollection::stripAutomation() {
 	for (int32_t i = 0; i < std::ssize(params); i++) {
 		docForParam(i)->nodes.clear();
@@ -406,9 +406,8 @@ void MIDIParamCollection::notifyPingpongOccurred(ModelStackWithParamCollection* 
 }
 
 void MIDIParamCollection::writeToFile(Serializer& writer) {
-	// Serialize from the value DOM (deluge::project) — byte-identical to the former hand-written sequence
-	// (verified in the param-projection driver). toDocMidiParams reads each CC's live nodes via docForParam (the bound
-	// tree entry when bound), so this is the last owner block to move fully onto the DOM serializers.
+	// Serialize from the value DOM (deluge::project). toDocMidiParams reads each CC's live nodes via docForParam (the
+	// bound tree entry when bound).
 	deluge::bridge::serializeMidiParams(deluge::bridge::toDocMidiParams(*this), writer, true);
 }
 

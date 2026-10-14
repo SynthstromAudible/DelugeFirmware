@@ -7,8 +7,13 @@ class ModelStackWithNoteRow;
 
 namespace deluge::edits {
 
-/// The durable address of the melodic note-row a resolved ModelStack names. nullopt for a kit row (M2c) or a
-/// clip with no serial/session id (unaddressable). The structural analogue of addressFor().
+/// @brief The durable address of the note-row a resolved ModelStack names.
+///
+/// A melodic row is keyed by its y; a kit row by its SoundDrum's id. The structural analogue of addressFor().
+///
+/// @param modelStack A stack with a clip and note-row set.
+/// @return The row's address; nullopt if the clip or row is missing, or the clip, or a kit row's drum, has no id,
+///         or the drum is not a SoundDrum.
 std::optional<deluge::project::NoteRowAddress> noteRowAddressFor(const ModelStackWithNoteRow& modelStack);
 
 } // namespace deluge::edits

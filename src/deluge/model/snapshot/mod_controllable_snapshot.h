@@ -22,8 +22,9 @@
 
 namespace deluge::snapshot {
 
-/// The render's copy of a ModControllableAudio's effect settings: the render reads nothing else of them. Replaced
-/// whole, with the render excluded, whenever the owner's settings change (ModControllableAudio::setEffects).
+/// @brief The render's copy of a ModControllableAudio's effect settings: the render reads nothing else of them.
+///
+/// Replaced whole, with the render excluded, whenever the owner's settings change (ModControllableAudio::setEffects).
 struct ModControllableSnapshot {
 	deluge::effects::EffectStates effects;
 	/// A host chain's selected mod FX knob, which its soft off reads (GlobalEffectable::getActiveModFXType); set with

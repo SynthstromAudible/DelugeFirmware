@@ -16,7 +16,7 @@
  */
 
 // The dry/wet blend. dry_wet_blend is pinned on hand-computed values at full scale and the extremes, then against the
-// two expressions it replaces, copied here as their callers wrote them: the legacy fade's per-sample arithmetic and
+// the two expressions it serves, copied here as their callers write them: the legacy fade's per-sample arithmetic and
 // the compressor's, with its dry level ONE_Q31 − blend. Both run full-scale noise after the extremes, at fixed levels
 // across the callers' range [0, ONE_Q31]. The blend at ONE_Q31 is not the wet signal, so the kernel's FULL_WET mode,
 // which returns wet as the compressor's skip does, is pinned to differ from the blend there. Then Mono<DryWetBlend>
@@ -84,7 +84,7 @@ std::vector<q31> extremes_then_full_scale(std::size_t n, uint32_t seed, bool sec
 	return v;
 }
 
-/// The legacy fade's blend arithmetic for one sample, as it was written before calling dry_wet_blend:
+/// The legacy fade's blend arithmetic for one sample, written out without dry_wet_blend:
 ///     const q31 wet = multiply_32x32_rshift32(block[i], wet_);
 ///     block[i] = multiply_accumulate_32x32_rshift32_rounded(wet, scratch[i], ONE_Q31 - wet_) << 1;
 q31 fade_blend(q31 filtered, q31 dry_copy, q31 wet_level) {

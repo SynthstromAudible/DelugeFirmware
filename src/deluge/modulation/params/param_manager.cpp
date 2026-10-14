@@ -223,7 +223,7 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 	}
 
 	// Clone each collection into freshly-allocated memory via its virtual clone() (real copy construction
-	// where the subclass overrides it; the base clone() still byte-copies for any not yet converted). On
+	// where the subclass overrides it; otherwise the base clone() byte-copies). On
 	// failure, destruct + free the collections already cloned this pass.
 	while (otherSummary != otherStopAt) {
 		Error error = otherSummary->paramCollection->clone(newSummary->paramCollection, copyAutomation,

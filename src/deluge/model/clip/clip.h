@@ -146,8 +146,10 @@ public:
 	void writeMidiCommandsToFile(Serializer& writer, Song* song);
 	virtual char const* getXMLTag() = 0;
 	virtual Error readFromFile(Deserializer& reader, Song* song) = 0;
-	// Read this clip type's pure view-state from its Value node (durable-id readFromTree slice 4); called by
-	// Song::readClipsFromFile right after construction. Base reads the fields shared by both clip types.
+	/// @brief Read this clip type's pure view-state from its Value node.
+	///
+	/// Called by Song::readClipsFromFile right after construction. The base reads the fields shared by both clip types.
+	/// @param clipNode The clip's tree node.
 	virtual void readShellFromTree(const deluge::storage::Value& clipNode);
 
 	virtual void copyBasicsFrom(Clip const* otherClip);
@@ -181,12 +183,12 @@ public:
 
 	Output* output;
 
-	/// M3 owner-1: clip colour offset lives in the DOM DocClip (see loopLength()).
+	/// Clip colour offset lives in the DOM DocClip (see loopLength()).
 	[[nodiscard]] int16_t colourOffset() const { return docClip_->colour_offset; }
 	void setColourOffset(int32_t newOffset) { docClip_->colour_offset = static_cast<int16_t>(newOffset); }
 
 	const ClipType type;
-	/// M3 owner-1: clip section lives in the DOM DocClip (see loopLength()). 255 = arrangement-only.
+	/// Clip section lives in the DOM DocClip (see loopLength()). 255 = arrangement-only.
 	[[nodiscard]] uint8_t section() const { return docClip_->section; }
 	void setSection(uint8_t newSection) { docClip_->section = newSection; }
 	bool soloingInSessionMode;
@@ -204,15 +206,15 @@ public:
 
 	LearnedMIDI muteMIDICommand;
 
-	/// M3 owner-1: clip structure lives in a DOM `DocClip` (`Song::clip_structure`), never an engine field. Durable-id
-	/// Step 3: `docClip_` is bound in the Clip ctor under the clip's durable id and is authoritative for the clip's
-	/// whole life -- always non-null, so there is no fallback and no bind-at-creation step. It points into a std::map
-	/// (clip_structure), so it is address-stable across other clips' inserts; `~Clip` removes the entry.
+	/// Clip structure lives in a DOM `DocClip` (`Song::clip_structure`), never an engine field. `docClip_` is bound in
+	/// the Clip ctor under the clip's durable id and is authoritative for the clip's whole life (always non-null). It
+	/// points into a std::map (clip_structure), so it is address-stable across other clips' inserts; `~Clip` removes
+	/// the entry.
 	[[nodiscard]] int32_t loopLength() const { return docClip_->loop_length; }
 	void setLoopLength(int32_t newLength) { docClip_->loop_length = newLength; }
 	/// Repoint this clip's structure at a specific tree record (used by edit gestures that dual-write the store).
 	void bindDomClip(deluge::project::DocClip* d) { docClip_ = d; }
-	/// Whether this clip's structure is bound to a tree record. Always true post-ctor (kept for legacy call sites).
+	/// Whether this clip's structure is bound to a tree record. Always true after construction.
 	[[nodiscard]] bool isDomBound() const { return docClip_ != nullptr; }
 	deluge::project::DocClip* docClip_{nullptr};
 
@@ -228,11 +230,11 @@ public:
 	uint32_t indexForSaving{}; // For use only while saving song
 
 	/// Stable, persisted, per-song serial identity (the DOM reference foundation, distinct from the
-	/// transient positional indexForSaving). nullopt until assigned lazily on first save from the
-	/// song's counter (or restored on load); resolve via Song::clipForId.
+	/// transient positional indexForSaving). Assigned in the ctor from the song's counter (or the loaded id);
+	/// resolve via Song::clipForId.
 	[[nodiscard]] uint32_t id() const { return id_; }
 
-	/// M3 owner-1: clip launch style lives in the DOM DocClip (see loopLength()).
+	/// Clip launch style lives in the DOM DocClip (see loopLength()).
 	[[nodiscard]] LaunchStyle launchStyle() const { return docClip_->launch_style; }
 	void setLaunchStyle(LaunchStyle s) { docClip_->launch_style = s; }
 	int64_t fillEventAtTickCount;

@@ -163,7 +163,7 @@ void dispatch(Main main) {
 		Pinned thresholdMode(FlashStorage::defaultThresholdRecordingMode, ThresholdRecordingMode{});
 		Pinned cablePolarity(FlashStorage::defaultPatchCablePolarity, Polarity{});
 		Pinned recordQuantize(FlashStorage::recordQuantizeLevel, uint8_t{0});
-		// The doc() fallback tally counts from zero for a driver, as it did from its process start: a driver that
+		// The doc() fallback tally counts from zero for a driver: a driver that
 		// requires no fallback hits means none of its own, not none since boot.
 		Pinned fallbackHits(deluge::edits::docFallbackHits, uint32_t{0});
 		// Driven playback (param_record_diff's), which the booted app must not find still running afterwards.

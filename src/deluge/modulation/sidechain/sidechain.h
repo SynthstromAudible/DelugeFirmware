@@ -21,8 +21,11 @@
 
 namespace deluge::modulation {
 
-/// @return The settings an owner's sidechain starts with: the menus' default attack and release, and a sync level of an
-/// eighth of the song being loaded (or the current one) at its tick magnitude.
+/// @brief The settings an owner's sidechain starts with.
+///
+/// Attack and release are the menus' defaults; the sync level is an eighth note at the tick magnitude of the song
+/// being loaded (or the current one).
+/// @return The default sidechain settings.
 [[nodiscard]] effects::SidechainState default_sidechain_state();
 
 } // namespace deluge::modulation

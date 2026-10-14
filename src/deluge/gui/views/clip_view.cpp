@@ -210,8 +210,8 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 		// Always shift Notes and MPE when you're not in Automation View
 		bool shiftSequenceAndMPE = (currentUI != &automationView);
 
-		// Reify: ShiftClip does the engine shift then the coalesce/create-Consequence undo (goto-free restatement).
-		// shifted() preserves the "nothing moved → bail without rendering/recording" branch.
+		// ShiftClip does the engine shift then the coalesce/create-Consequence undo. shifted() reports
+		// "nothing moved", in which case we bail without rendering/recording.
 		deluge::edits::Context clipCtx{*currentSong, currentSong->project};
 		deluge::edits::ShiftClip shiftEdit{deluge::edits::clipAddressFor(*clip), shiftAmount, shiftAutomation,
 		                                   shiftSequenceAndMPE, modelStack};

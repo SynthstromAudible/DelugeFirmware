@@ -51,8 +51,8 @@ namespace params = deluge::modulation::params;
 extern "C" {}
 
 AudioClip::AudioClip(Song& song, uint32_t loadedId) : Clip(ClipType::AUDIO, song, loadedId) {
-	// M3 owner-4 (ctor-binding): the base Clip ctor has already minted/bound id_ and docClip_. Bind this clip's
-	// AudioClip-specific DOM record under the same durable id, mirroring how the Clip base ctor binds docClip_.
+	// The base Clip ctor has already minted/bound id_ and docClip_. Bind this clip's AudioClip-specific DOM record
+	// under the same durable id, as the Clip base ctor does for docClip_.
 	docAudioClip_ = &song.project.getOrCreateDocAudioClip({.clip_id = id()});
 	voiceSample = nullptr;
 	guide.audioFileHolder = &sampleHolder; // It needs to permanently point here
@@ -61,14 +61,14 @@ AudioClip::AudioClip(Song& song, uint32_t loadedId) : Clip(ClipType::AUDIO, song
 
 	renderData.xScroll = -1;
 
-	// M3 owner-4: the DocAudioClip (freshly created with its default descriptor values) is authoritative; derive the
-	// engine's runtime cache (sampleHolder / sampleControls / attack / voicePriority / overdubs) from it. Replaces the
-	// scattered engine-default assignments — the defaults now live in DocAudioClip's member initializers.
+	// The DocAudioClip (freshly created with its default descriptor values) is authoritative; derive the engine's
+	// runtime cache (sampleHolder / sampleControls / overdubs) from it. The defaults live in DocAudioClip's member
+	// initializers.
 	deriveEngineFromDoc();
 }
 
 AudioClip::~AudioClip() {
-	// M3 owner-4: drop this clip's DOM descriptor record so the store doesn't accumulate dead entries. Mirrors the
+	// Drop this clip's DOM descriptor record so the store doesn't accumulate dead entries. Mirrors the
 	// docClip_ removal in ~Clip: guarded on the clip being currentSong's (a whole song is torn down with currentSong
 	// null or already another song, and its entire project — audio_clip_structure included — goes with it) and on
 	// docAudioClip_ being bound.
@@ -108,8 +108,8 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 		return error;
 	}
 
-	// Phase C: the cloned params own their storage (unbound, per the ParamSet copy-ctor); bind them to a fresh
-	// DOM store so the clone's automation is DOM-backed like a loaded clip (Model A).
+	// The cloned params own their storage (unbound, per the ParamSet copy-ctor); bind them to a fresh DOM store so
+	// the clone's automation is DOM-backed like a loaded clip.
 	if (newClip->paramManager.containsAnyMainParamCollections()) {
 		newClip->paramManager.getUnpatchedParamSet()->bindDomStore();
 	}
@@ -267,7 +267,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	                                            // call this after endSyncedRecording(), which puts some final values
 	                                            // in the Sample
 
-	// M3 owner-4: setAudioFile (manuallySelected) just set startPos/endPos on the sampleHolder cache but not the
+	// setAudioFile (manuallySelected) just set startPos/endPos on the sampleHolder cache but not the
 	// record; reflect the resolved window into docAudioClip_ so save persists the recorded length, not a stale zone.
 	syncSampleRecordFromEngine();
 
@@ -1098,7 +1098,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	return success;
 }
 
-// M3 owner-4: attack is DOM-owned — the accessor reads/writes docAudioClip_ directly (no native engine copy).
+// Attack is DOM-owned: the accessor reads/writes docAudioClip_ directly (no engine copy).
 // Bound for the whole clip lifetime (ctor→dtor), so an unbound record here is a logic error, not a runtime state.
 int32_t AudioClip::attack() const {
 	if (docAudioClip_ == nullptr) {
@@ -1113,7 +1113,7 @@ void AudioClip::setAttack(int32_t value) {
 	docAudioClip_->attack = value;
 }
 
-// M3 owner-4: voice priority is DOM-owned — the accessor reads/writes docAudioClip_ directly (no native engine copy).
+// Voice priority is DOM-owned: the accessor reads/writes docAudioClip_ directly (no engine copy).
 // Bound for the whole clip lifetime (ctor→dtor), so an unbound record here is a logic error, not a runtime state.
 VoicePriority AudioClip::voicePriority() const {
 	if (docAudioClip_ == nullptr) {
@@ -1128,7 +1128,7 @@ void AudioClip::setVoicePriority(VoicePriority value) {
 	docAudioClip_->voice_priority = value;
 }
 
-// M3 owner-4: SampleControls descriptor fields are DOM-owned with `sampleControls` kept as a derived render cache.
+// SampleControls descriptor fields are DOM-owned with `sampleControls` kept as a derived render cache.
 // Each setter writes the authoritative record AND re-seeds the cache; render keeps reading the cache directly.
 void AudioClip::setInterpolationMode(InterpolationMode mode) {
 	if (docAudioClip_ == nullptr) {
@@ -1152,8 +1152,8 @@ void AudioClip::setReversed(bool reversed) {
 	sampleControls.reversed = reversed;
 }
 
-// M3 owner-4 prep (task A1): sampleHolder/overdubs model setters. Each writes the authoritative record AND the
-// engine cache; no reload here (callers that need a reload keep doing it themselves). Not yet called anywhere.
+// sampleHolder/overdubs model setters. Each writes the authoritative record AND the engine cache; no reload here
+// (callers that need a reload do it themselves).
 void AudioClip::setSampleStartPos(uint64_t value) {
 	if (docAudioClip_ == nullptr) {
 		FREEZE_WITH_ERROR("AC4H");
@@ -1197,11 +1197,10 @@ void AudioClip::setOverdubsShouldCloneOutput(bool value) {
 	overdubsShouldCloneOutput = value;
 }
 
-// M3 owner-4: reflect the resolved sample window from the engine cache into the record at the end of a sample-load
-// gesture. `loadFile`/`setAudioFile` derive filePath/startPos/endPos onto the sampleHolder cache but never touch
-// docAudioClip_; save reads the record (syncDocAudioClip retired), so without this reflection a browse-load or
-// recording-finish would persist a stale/empty sample. These are exactly the three fields the old syncDocAudioClip
-// rebuilt from the engine at save (file_path resolved as audioFile ? audioFile->filePath : filePath).
+// Reflect the resolved sample window from the engine cache into the record at the end of a sample-load gesture.
+// `loadFile`/`setAudioFile` derive filePath/startPos/endPos onto the sampleHolder cache but never touch
+// docAudioClip_; save reads the record, so without this reflection a browse-load or recording-finish would persist a
+// stale/empty sample. file_path is resolved as audioFile ? audioFile->filePath : filePath.
 void AudioClip::syncSampleRecordFromEngine() {
 	if (docAudioClip_ == nullptr) {
 		return;
@@ -1211,11 +1210,11 @@ void AudioClip::syncSampleRecordFromEngine() {
 	docAudioClip_->end_pos = sampleHolder.endPos;
 }
 
-// M3 owner-4: seed the engine's runtime caches from the authoritative DocAudioClip.
+// Seed the engine's runtime caches from the authoritative DocAudioClip.
 // Called at construction (from the model defaults) and after the DOM-first load parse. Seeds the sampleHolder +
 // SampleControls render caches; the DOM-owned cold scalars (attack, voice_priority) have no cache and read the record
-// directly via their accessors. As of owner-4 completion all AudioClip persistent fields are DOM-authoritative and
-// save reads the record directly (syncDocAudioClip retired); this is the load-side seed of the engine caches.
+// directly via their accessors. All AudioClip persistent fields are DOM-authoritative and save reads the record
+// directly.
 void AudioClip::deriveEngineFromDoc() {
 	if (docAudioClip_ == nullptr) {
 		return;
@@ -1229,25 +1228,22 @@ void AudioClip::deriveEngineFromDoc() {
 	sampleControls.interpolationMode = d.interpolation_mode;
 	sampleControls.pitchAndSpeedAreIndependent = d.pitch_and_speed_independent;
 	sampleControls.reversed = d.reversed;
-	// attack + voice_priority are DOM-owned (retired native fields) — read directly via attack()/voicePriority(),
-	// no engine cache to seed.
+	// attack + voice_priority are DOM-owned: read directly via attack()/voicePriority(), no engine cache to seed.
 	overdubsShouldCloneOutput = d.overdubs_should_clone;
 }
 
 void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 
-	// M3 owner-4 complete: every persistent AudioClip field is DOM-authoritative and read straight from docAudioClip_
-	// below — no rebuild-at-save sync remains.
+	// Every persistent AudioClip field is DOM-authoritative and read straight from docAudioClip_ below.
 	writer.writeAttribute("clipName", name.c_str());
 	writer.writeAttribute("trackName", output->name.c_str());
 
 	writer.writeAttribute("filePath", docAudioClip_->file_path.c_str());
 	writer.writeAttribute("startSamplePos", docAudioClip_->start_pos);
 	writer.writeAttribute("endSamplePos", docAudioClip_->end_pos);
-	// M3 owner-4 save-flip: the SampleControls descriptor fields read from the authoritative record, not the engine
-	// cache. `reversed` here is the stored value (docAudioClip_->reversed); for an AudioClip invertReversed is only
-	// ever false (Voice/Sound/arp toggle it for sound sources, never clips), so this equals the old
-	// isCurrentlyReversed().
+	// The SampleControls descriptor fields read from the authoritative record, not the engine cache. `reversed` here
+	// is the stored value (docAudioClip_->reversed); for an AudioClip invertReversed is only ever false
+	// (Voice/Sound/arp toggle it for sound sources, never clips), so this equals isCurrentlyReversed().
 	writer.writeAttribute("pitchSpeedIndependent", docAudioClip_->pitch_and_speed_independent);
 	if (docAudioClip_->interpolation_mode == InterpolationMode::LINEAR) {
 		writer.writeAttribute("linearInterpolation", 1);
@@ -1305,8 +1301,8 @@ someError:
 
 	char const* tagName;
 
-	// loopLength is read tree-natively (readClipsFromFile) before this runs; bound automation reads by it, exactly as
-	// the old <length> attribute handler did (length is always written before any automation). 0 (absent) -> the max.
+	// loopLength is read (readClipsFromFile) before this runs; bound automation reads by it (length is always
+	// written before any automation). 0 (absent) -> the max.
 	int32_t readAutomationUpToPos = loopLength() > 0 ? loopLength() : kMaxSequenceLength;
 
 	reader.match('{'); // descend into the clip object -- required for JSON (a no-op in XML, where the
@@ -1321,7 +1317,7 @@ someError:
 			reader.readTagOrAttributeValueString(outputNameWhileLoading);
 		}
 
-		// M3 owner-4: the descriptor is read DOM-first into the DocAudioClip; the engine runtime cache is derived from
+		// The descriptor is read DOM-first into the DocAudioClip; the engine runtime cache is derived from
 		// it after the parse loop (deriveEngineFromDoc, below). trackName stays an engine-side load local.
 		else if (!strcmp(tagName, "filePath")) {
 			reader.readTagOrAttributeValueString(docAudioClip_->file_path);
@@ -1372,15 +1368,15 @@ someError:
 		else if (!strcmp(tagName, "params")) {
 			paramManager.setupUnpatched();
 			GlobalEffectableForClip::initParams(&paramManager);
-			// Option I (read-authority): read the <params> block DOM-first so the store holds the authoritative
-			// current_value, not just the nodes (initParams wrote the defaults straight into the store).
+			// Read the <params> block DOM-first so the store holds the authoritative current_value, not just the
+			// nodes (initParams wrote the defaults straight into the store).
 			reader.match('{'); // descend into the params object (needed for JSON; no-op in XML), as InstrumentClip does
 			GlobalEffectableForClip::readParamsFromFileDomFirst(reader, &paramManager, readAutomationUpToPos);
 			reader.match('}');
 		}
 
-		// The shared view-state (onAutomationInstrumentClipView, lastSelectedParam*) is read tree-natively in
-		// Clip::readShellFromTree (readFromTree slice 4); base-clip tags in Song::readClipsFromFile (slice 3).
+		// The shared view-state (onAutomationInstrumentClipView, lastSelectedParam*) is read in
+		// Clip::readShellFromTree; base-clip tags in Song::readClipsFromFile.
 		// Anything not handled above falls through to the reader.exitTag() below.
 
 		reader.exitTag();
@@ -1388,7 +1384,7 @@ someError:
 
 	reader.match('}'); // close the clip object (balances the match('{') above; a no-op in XML).
 
-	deriveEngineFromDoc(); // M3 owner-4: the descriptor was read DOM-first; seed the engine runtime cache from it.
+	deriveEngineFromDoc(); // the descriptor was read DOM-first; seed the engine runtime cache from it.
 	return Error::NONE;
 }
 
@@ -1432,7 +1428,7 @@ Error AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* ne
 		return error;
 	}
 
-	// Phase C: bind the (freshly set up / cloned-from-favour) unpatched params to a DOM store. bindDomStore is
+	// Bind the (freshly set up / cloned-from-favour) unpatched params to a DOM store. bindDomStore is
 	// idempotent, so a manager restored from ParamBackup (already bound, its store travelled with the ParamSet)
 	// is left untouched.
 	if (paramManager.containsAnyMainParamCollections()) {

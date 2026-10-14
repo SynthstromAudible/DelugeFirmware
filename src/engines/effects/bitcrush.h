@@ -35,7 +35,10 @@ struct BitcrushParams {
 /// @brief Bit depth reduction and sample-rate reduction, with the down- and up-conversion memory the latter carries.
 class Bitcrush {
 public:
-	/// @brief Crushes @p block in place; a strong bitcrush lowers @p post_fx_volume (Q31), as it always has.
+	/// @brief Crushes @p block in place; a strong bitcrush lowers @p post_fx_volume.
+	/// @param block          The audio to crush.
+	/// @param params         The block's bitcrush and sample-rate-reduction values.
+	/// @param post_fx_volume The post-FX volume, Q31; lowered for a strong bitcrush.
 	void process(std::span<dsp::StereoSample> block, const BitcrushParams& params, int32_t& post_fx_volume);
 
 private:

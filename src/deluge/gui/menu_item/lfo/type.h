@@ -101,11 +101,17 @@ public:
 	}
 
 private:
-	/// This menu's LFO's setting @p name, as a settings path.
+	/// @brief This menu's LFO's setting @p name, as a settings path.
+	///
+	/// @param name The setting's name within the LFO.
+	/// @return The settings path, e.g. "lfo1/type".
 	[[nodiscard]] std::string lfoPath(std::string_view name) const {
 		return "lfo" + std::to_string(lfoId_ + 1) + "/" + std::string(name);
 	}
-	/// The file form of @p type: the name a sound's file writes for it.
+	/// @brief The file form of @p type: the name a sound's file writes for it.
+	///
+	/// @param type The LFO wave type.
+	/// @return A scalar value holding the type's file name.
 	static serialization::Value lfoTypeValue(LFOType type) {
 		return serialization::Value::makeScalar(std::string(deluge::instrument::to_string(type)));
 	}

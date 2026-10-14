@@ -1,6 +1,5 @@
-// Phase-0 round-trip driver: load a Deluge song XML, re-serialize it, and check the canonical fixed point. Safety
-// net for the project-model extraction (docs/dev/project_model_extraction.md, Phase 0). Run as the song_roundtrip
-// scenario (scenarios/drivers/driver.h):
+// Round-trip driver: load a Deluge song XML, re-serialize it, and check the canonical fixed point. Run as the
+// song_roundtrip scenario (scenarios/drivers/driver.h):
 //
 //   song_roundtrip <song.XML> [gen1_out_path]
 //
@@ -15,7 +14,6 @@
 // load<->execution couplings are gated, not faked:
 //   - AudioEngine yields gated via the active reader's shouldCallRoutines() (in-memory read).
 //   - View selection cleared before save (writeToFile serialises UI state).
-// See the design doc for the full list.
 
 #include "memory/general_memory_allocator.h"
 #include "model/global_effectable/global_effectable.h"
@@ -52,18 +50,18 @@ long load_then_save(char* xml, size_t xmlLen, deluge::storage::DocumentFormat fo
 	// (which setBPM triggers mid-load) inspects the old song's clips. Pointing currentSong
 	// at the half-loaded song instead makes getNewAction walk clips whose outputs aren't
 	// wired yet -> null deref. Set it only once the load is complete (writeToFile needs it).
-	// Load via the Value tree (record-first deserializer, step 2b): parse the whole XML to a Value,
-	// then replay it to the existing readFromFile through ValueTreeDeserializer instead of streaming
-	// the bytes. Must be bit-identical to the streaming load (the golden baselines are stream-made).
+	// Load via the Value tree: parse the whole document to a Value, then replay it to readFromFile through
+	// ValueTreeDeserializer instead of streaming the bytes. Must be bit-identical to the streaming load (the golden
+	// baselines are stream-made).
 	std::optional<deluge::storage::Value> tree =
 	    parseDocument(std::string_view(reinterpret_cast<const char*>(xml), static_cast<size_t>(xmlLen)), format);
 	Error e = Error::FILE_CORRUPTED;
 	if (tree) {
 		deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(format));
 		// Point the active-reader gate at the adapter: its shouldCallRoutines()==false gates the
-		// AudioEngine render off during load (the in-memory tree never yields), exactly as the streaming
-		// XMLDeserializer's callRoutines==false did. (Interior read sites like MIDIInstrument modKnobs now
-		// take the reader param, so activeDeserializer itself need not point here.)
+		// AudioEngine render off during load (the in-memory tree never yields), as the streaming
+		// XMLDeserializer's callRoutines==false does. (Interior read sites like MIDIInstrument modKnobs take the
+		// reader as a parameter, so activeDeserializer itself need not point here.)
 		activeReader = &adapter;
 		e = openTreeFile(adapter, "song", format);
 		if (e == Error::NONE) {

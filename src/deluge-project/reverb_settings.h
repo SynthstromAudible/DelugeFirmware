@@ -22,9 +22,9 @@
 
 namespace deluge::project {
 
-/// A song's reverb send settings (the reverb algorithm/`model` enum stays on the controller for
-/// now). A component of deluge::project::Song. The redundant `reverb` prefix is dropped now that the
-/// fields live inside the reverb component (access reads `project.reverb.room_size`).
+/// @brief A song's reverb send settings (the reverb algorithm/`model` enum is held by the controller).
+///
+/// A component of deluge::project::Song; fields are accessed as `project.reverb.room_size`.
 struct ReverbSettings {
 	float room_size{0};
 	float hpf{0};

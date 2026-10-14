@@ -25,10 +25,14 @@
 namespace deluge::project {
 
 /// @brief A device reference as a song holds it: a port, or a hosted device's name and USB ids.
+/// @param device The device reference to encode.
+/// @return The encoded reference.
 [[nodiscard]] serialization::Value encode_device(const MidiDeviceRef& device);
 
 /// @brief A device reference as the device manager reads one: a known port, else a hosted device if the reference
 /// names one or gives a vendor id, else none.
+/// @param node The device reference as stored in the song.
+/// @return The device, or nullopt when the reference names none.
 [[nodiscard]] std::optional<MidiDeviceRef> decode_device(const serialization::Value& node);
 
 } // namespace deluge::project

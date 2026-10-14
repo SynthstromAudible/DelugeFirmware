@@ -46,15 +46,20 @@ struct SoundChainInputs {
 /// patch source the sound renders before its voices.
 class SoundChain {
 public:
-	/// @param arena Where the delay's tapes come from. A sound's entry into GRAIN clears the granular, and its first
-	/// block ramps from its own post-reverb volume.
+	/// @brief Builds a sound's chain. A sound's entry into GRAIN clears the granular, and its first block ramps from
+	/// its own post-reverb volume.
+	/// @param mod_fx_allocator   Where the mod-FX unit's storage comes from.
+	/// @param granular_allocator Where the granular's storage comes from.
+	/// @param arena              Where the delay's tapes come from.
 	SoundChain(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, DelayArena& arena);
 
 	[[nodiscard]] ChainCore& core() { return core_; }
 	[[nodiscard]] const ChainCore& core() const { return core_; }
 
 	/// @brief Renders the chain over @p block (the voices' sum) in place.
-	/// @param send The reverb send, one value per frame.
+	/// @param block The voices' sum, rendered in place.
+	/// @param in    The block's resolved inputs.
+	/// @param send  The reverb send, one value per frame.
 	/// @return Whether the block fed the reverb.
 	bool process(std::span<dsp::StereoSample> block, const SoundChainInputs& in, ReverbSend send);
 

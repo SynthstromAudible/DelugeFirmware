@@ -171,6 +171,8 @@ struct Delay {
 	static constexpr bool kStateInPlace = true;
 
 	/// @brief The chain mode that matches @p shaper.
+	/// @param shaper How the feedback is saturated.
+	/// @return The feedback chain's mode.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr FeedbackChain::Mode feedback_mode(Shaper shaper) {
 		return {shaper == Shaper::ANALOG ? FeedbackShaper::Mode::ANALOG : FeedbackShaper::Mode::DIGITAL};
 	}
@@ -180,6 +182,8 @@ struct Delay {
 	/// chain's mode, so the two agree. The mix crosses when `ping_pong && render_in_stereo`. The tape form is the
 	/// primary's after this block's setup, by the rule the setup itself takes (DelayTape::resamplesAt). The
 	/// secondary's form is decided per block in @ref prepare, after its own setup.
+	/// @param s One block's settings and tapes.
+	/// @return The coefficients the block's steps read.
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& s) {
 		Coefficients c{
 		    .feedback = FeedbackChain::coefficients(FeedbackChain::Settings{
@@ -203,6 +207,9 @@ struct Delay {
 
 	/// @brief Sets each tape up for the block's rate, as the owner's block does: the primary whenever it is set, the
 	/// secondary while it grows. A native secondary steps once a frame, so its @p n steps are counted here, once.
+	/// @param c The block's coefficients.
+	/// @param s The State, whose `secondary_written` takes a native secondary's steps.
+	/// @param n The block's length in frames.
 	/// @return Where the primary's storage begins and how long it is, and whether the secondary resamples.
 	[[nodiscard]] [[gnu::always_inline]] static Block prepare(const Coefficients& c, State& s, std::size_t n) {
 		// The tape takes the rate's int32_t image.
@@ -226,6 +233,9 @@ struct Delay {
 	}
 
 	/// @brief One frame at mode @p M: read, feed back, mix, write; see the class documentation.
+	/// @param c The block's coefficients.
+	/// @param b The block's per-block values from @ref prepare.
+	/// @param s The feedback memories and block results.
 	/// @param dry The frame coming in, Q31.
 	/// @return The dry frame plus the feedback, Q31.
 	template <Mode M>
@@ -316,6 +326,7 @@ struct Delay {
 
 	/// @brief The high-pass's memory to 0 in both channels, as a new delay's is. The impulse response's history is
 	/// kept.
+	/// @param s The State whose high-pass memories are zeroed.
 	[[gnu::always_inline]] static void reset_high_pass(State& s) {
 		FeedbackChain::reset_part<1>(s.left);
 		FeedbackChain::reset_part<1>(s.right);
@@ -332,6 +343,9 @@ struct Delay {
 	/// @details Out of line and cold: a resampled secondary grows only for about one delay period after a rate change
 	/// (up to about 345 blocks at the longest), and this one shared copy keeps its advance and its sped-up and
 	/// slowed-down writes out of all eight loops.
+	/// @param secondary The growing secondary tape.
+	/// @param sample The frame to write, Q31 per channel.
+	/// @return Whether the read head wrapped, and its steps.
 	[[gnu::noinline, gnu::cold]] static SecondaryWrite writeSecondaryResampled(DelayTape& secondary,
 	                                                                           StereoSample sample) {
 		SecondaryWrite written{.wrapped = false, .steps = 0};

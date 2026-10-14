@@ -23,11 +23,12 @@
 
 class Clip;
 
-/// View/UI state that the Song carries and which **is** serialized to the song file (today inline
-/// in the song XML). This is the "persistent view state" bucket of the project-model separation
-/// (docs/dev/project_model_extraction.md): where the user was looking / how they were editing,
-/// saved with the document but distinct from project data. Serialization keeps the same XML tags
-/// (see Song::writeToFile / readFromFile), so the on-disk format is unchanged.
+/// @brief View/UI state that the Song carries and which is serialized to the song file.
+///
+/// This is the "persistent view state" bucket of the project-model separation
+/// (docs/dev/project_model_extraction.md): where the user was looking / how they were editing, saved with the
+/// document but distinct from project data. Serialized under the song's own tags (see Song::writeToFile /
+/// readFromFile).
 struct PersistentViewState {
 	uint32_t xZoom[2]{};  // per-navigation zoom (CLIP / ARRANGEMENT); ctor sets the max-zoom-out default
 	int32_t xScroll[2]{}; // per-navigation scroll (signed)
@@ -45,11 +46,12 @@ struct PersistentViewState {
 	bool arrangerAutoScrollModeActive{false};
 };
 
-/// View/UI state that the Song carries but which is **never** serialized to the song file.
+/// @brief View/UI state that the Song carries but which is never serialized to the song file.
+///
 /// This is the "runtime view state" bucket of the project-model separation
 /// (docs/dev/project_model_extraction.md): selection and transient edit/load flags that exist
 /// only while a song is loaded. Distinct from project data and from the saved (persistent) view
-/// state. Reached via Song for now; a later phase may relocate it into the UI layer.
+/// state. Reached via Song.
 struct RuntimeViewState {
 	/// The clip currently being edited / focused. Persisted indirectly via the per-clip
 	/// "selected"/"beingEdited" attributes, not as a song-level field.

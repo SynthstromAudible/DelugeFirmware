@@ -26,13 +26,21 @@ class ModControllableAudio;
 
 namespace deluge::edits {
 
-/// @brief A gesture's change of @p owner's effect setting at @p path (a path of the effects' schema) to @p value (its
-/// Edit form): for a sound bound in the current song, a SetEngineSetting on its slot, so the slot keeps holding its
-/// effects; for any other owner (a kit, an audio track, the song master, a sound outside the song), its setter.
+/// @brief Apply a gesture's change of an owner's effect setting.
+///
+/// For a sound bound in the current song, issues a SetEngineSetting on its slot, so the slot keeps holding its
+/// effects; for any other owner (a kit, an audio track, the song master, a sound outside the song), calls its setter.
+/// @param owner The effect owner being edited.
+/// @param path  Path of the setting within the effects' schema.
+/// @param value The new value, in its Edit form.
 void changeEffect(ModControllableAudio& owner, std::string_view path, deluge::serialization::Value value);
 
-/// @brief A gesture's change of which value @p owner's knobs edit (@p key `modFXCurrentParam` or `currentFilterType`)
-/// to @p word: a SetChainView on its chain when it has one in the current song, else its member.
+/// @brief Apply a gesture's change of which value an owner's knobs edit.
+///
+/// Issues a SetChainView on the owner's chain when it has one in the current song, else sets its member.
+/// @param owner The effect owner being edited.
+/// @param key   `modFXCurrentParam` or `currentFilterType`.
+/// @param word  The new selection, by name.
 void changeView(GlobalEffectable& owner, std::string_view key, std::string_view word);
 
 } // namespace deluge::edits

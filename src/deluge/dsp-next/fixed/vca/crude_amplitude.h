@@ -35,10 +35,10 @@ namespace deluge::dsp::fixed {
 /// legacy notes it as a ~20% saving there). Keeping both bit-exact for now means keeping both
 /// arithmetics; unifying them is a later, ear-validated step.
 ///
-/// The amplitude is **pre-incremented** each sample (`amplitude += increment; out = mac(...)`),
-/// matching the legacy crude loops, so substituting this mixer is bit-exact. It is a plain @ref block_mixer
-/// with no vptr. The arithmetic is per sample, but it keeps a hand-written block loop rather than a scalar
-/// `render(raw, mix)` under the @ref Mixer mixin; giving it `render` is a follow-up.
+/// The amplitude is **pre-incremented** each sample (`amplitude += increment; out = mac(...)`). It is a plain
+/// @ref block_mixer with no vptr; the arithmetic is per sample, but it keeps a hand-written block loop rather than a
+/// scalar `render(raw, mix)` under the @ref Mixer mixin.
+/// @todo Give it a scalar `render` under the @ref Mixer mixin.
 class CrudeAmplitude {
 	int32_t amplitude_;
 	int32_t increment_;

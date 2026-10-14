@@ -1,26 +1,21 @@
-// Differential edit/round-trip harness for the AudioClip descriptor (M3 owner-4).
+// Differential edit/round-trip harness for the AudioClip descriptor.
 //
 //   audio_clip_edit_diff <song.XML>
 //
 // The load->save golden (song_roundtrip) only proves an AudioClip's descriptor round-trips file->file. It sees
 // NEITHER the runtime edit path (the menus / waveform gestures that mutate startPos / attack / reversed / ...)
-// NOR the derive-at-load seeding of the render cache. Owner-4's inversion (make DocAudioClip authoritative:
-// load->Doc->derive engine, save<-Doc, retire the native cold fields) touches exactly those two uncovered
-// surfaces, so a golden-only gate is necessary but not sufficient. This harness closes the gap: it loads a real
-// song, drives a deterministic set of "menu-style" edits over the 11 descriptor fields, saves + reloads, and
-// dumps a canonical snapshot of each audio clip's engine-observable state (what render reads and what save
-// wrote). Because the inversion's contract is behaviour-preservation, the oracle is free: a baseline captured
-// from HEAD *before* the flip must be reproduced bit-for-bit after it (audio_clip_edit_run.py diffs stdout
-// against a committed baseline). It also asserts (to stderr) that the DocAudioClip matches the engine cache
-// after load -- an invariant satisfied trivially today (sync-at-load) and, after the flip, only if the
+// NOR the derive-at-load seeding of the render cache. This harness covers both: it loads a real song, drives a
+// deterministic set of "menu-style" edits over the 11 descriptor fields, saves + reloads, and dumps a canonical
+// snapshot of each audio clip's engine-observable state (what render reads and what save wrote).
+// audio_clip_edit_run.py diffs stdout against a committed baseline, so the scripted values stay fixed. It also
+// asserts (to stderr) that the DocAudioClip matches the engine cache after load, which holds only if the
 // derive-at-load seeding is correct.
 //
 // Exit: 0 = ran + dumped; 1 = load error; 2 = usage/IO; 3 = setup precondition failed (no audio clip / Doc
 // mismatch after load).
 //
-// No real audio scheduler or file IO is driven; edits poke the engine fields the way today's menus do. When the
-// owner-4 flip rewires those edits through the DocAudioClip, this file's edit section is updated to the new API
-// but the scripted VALUES -- and therefore the committed baseline -- stay fixed.
+// No real audio scheduler or file IO is driven; the edits go through the DocAudioClip setters (record + engine
+// cache), as the audio-clip menus and gestures do.
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_audio_clip.h"
@@ -107,10 +102,9 @@ static void dumpAllAudioClips(const char* label, Song* song) {
 	}
 }
 
-// The DocAudioClip descriptor must agree with the engine cache after a load. Today that holds because
-// syncDocAudioClip rebuilds the Doc from the engine at load; after the owner-4 flip it holds only if the
-// derive-at-load seeding of sampleHolder / sampleControls from the Doc is correct. Reported to stderr so the
-// stdout baseline is unaffected. Returns false on any mismatch.
+// The DocAudioClip descriptor must agree with the engine cache after a load, which holds only if the derive-at-load
+// seeding of sampleHolder / sampleControls from the Doc is correct. Reported to stderr so the stdout baseline is
+// unaffected. Returns false on any mismatch.
 static bool checkDocMatchesEngine(Song* song) {
 	ClipArray& arr = song->live.clips.session_clips;
 	bool ok = true;
@@ -125,7 +119,7 @@ static bool checkDocMatchesEngine(Song* song) {
 			ok = false;
 			continue;
 		}
-		// attack + voice_priority are DOM-owned (retired native fields) — no engine cache to disagree with, so they
+		// attack + voice_priority are DOM-owned (no native field) — no engine cache to disagree with, so they
 		// are not part of the doc-vs-engine cross-check. The remaining fields are still engine caches derived from the
 		// record, so they must match.
 		if (d->file_path != clipFilePath(c) || d->start_pos != c->sampleHolder.startPos
@@ -215,10 +209,9 @@ int audio_clip_edit_diff_main(int argc, char** argv, Io driverIo) {
 		return 3;
 	}
 
-	// --- Scripted "menu-style" edits over the 11 descriptor fields. The owner-4 flip rewired the audio-clip menus /
-	// gestures through the DocAudioClip setters (record + engine cache), so this harness now drives the same model
-	// API; the scripted VALUES -- and therefore the committed baseline -- stay fixed. Deliberately distinct,
-	// non-default values.
+	// --- Scripted "menu-style" edits over the 11 descriptor fields, through the DocAudioClip setters (record +
+	// engine cache), as the audio-clip menus / gestures do. The scripted VALUES are fixed by the committed baseline.
+	// Deliberately distinct, non-default values.
 	clip->setSampleStartPos(1000);
 	clip->setSampleEndPos(500000);
 	clip->setSampleTranspose(7);

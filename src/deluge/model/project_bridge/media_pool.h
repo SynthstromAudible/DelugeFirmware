@@ -23,7 +23,7 @@ class MIDIInstrument;
 
 namespace deluge::bridge {
 
-/// A song's outputs (the head of the intrusive output list) plus the hibernating-instrument pools.
+/// @brief A song's outputs (the head of the intrusive output list) plus the hibernating-instrument pools.
 struct MediaPool {
 	Output* first_output{nullptr};
 	/// All Instruments here have inValidState set to false when added to this list.

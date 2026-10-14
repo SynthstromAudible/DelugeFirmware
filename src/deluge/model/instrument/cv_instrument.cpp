@@ -29,7 +29,7 @@ CVInstrument::CVInstrument() : NonAudioInstrument(OutputType::CV) {
 	polyPitchBendValue = 0;
 }
 
-// DO3: reseed the record's cv2_source field (and, via the base, channel) from the current native values.
+// Reseeds the record's cv2_source field (and, via the base, channel) from the current native values.
 void CVInstrument::seedDocOutputIdentity() {
 	NonAudioInstrument::seedDocOutputIdentity();
 	if (docOutput_ != nullptr) {
@@ -37,7 +37,7 @@ void CVInstrument::seedDocOutputIdentity() {
 	}
 }
 
-// DO3: setMode (called below) mutates cvmode[1] (= cv2_source) as a side effect of a channel change, so reseed
+// setMode (called below) mutates cvmode[1] (= cv2_source) as a side effect of a channel change, so reseed
 // cv2_source here too — not just channel — after delegating to the base setter.
 void CVInstrument::setChannel(int channel) {
 	if (channel <= both) {
@@ -126,8 +126,8 @@ bool CVInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutput
 	// NonAudioInstrument::writeDataToFile(clipForSavingOutputOnly, song); // Nope, this gets called within the below
 	// call
 	writeMelodicInstrumentAttributesToFile(writer, clipForSavingOutputOnly, song);
-	// DO3: read the DOM identity record's cv2_source when bound (rebuild-at-save); fall back to the native field
-	// when unbound.
+	// Read the identity record's cv2_source when bound (rebuild-at-save); fall back to the native field when
+	// unbound.
 	writer.writeAttribute("cv2Source", std::to_underlying(docOutput_ != nullptr ? docOutput_->cv2_source : cvmode[1]));
 	if (clipForSavingOutputOnly || !midiInput.containsSomething()) {
 		return false; // If we don't need to write a "device" tag, opt not to end the opening tag

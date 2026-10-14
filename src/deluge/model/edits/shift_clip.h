@@ -9,10 +9,11 @@ class ModelStackWithTimelineCounter;
 
 namespace deluge::edits {
 
-/// Shift a whole clip horizontally (the reification of ClipView's CLIP_HORIZONTAL_SHIFT). apply() does the engine
-/// shift, then records/coalesces the undo exactly as the call site did: it extends an open same-clip shift Action's
+/// @brief Shift a whole clip horizontally (CLIP_HORIZONTAL_SHIFT).
+///
+/// apply() does the engine shift, then records/coalesces the undo: it extends an open same-clip shift Action's
 /// ConsequenceClipHorizontalShift amount, reuses a matching consequence-less Action, or opens a new Action +
-/// Consequence. shifted() exposes shiftHorizontally's result so the view keeps its "nothing moved → bail" branch
+/// Consequence. shifted() exposes shiftHorizontally's result so the caller can bail when nothing moved
 /// (cf. AddNote::added()). The clip-tier twin of ShiftNoteRow.
 class ShiftClip final : public Edit {
 public:
@@ -23,7 +24,8 @@ public:
 
 	Error apply(Context& ctx) override;
 
-	/// Whether the engine actually shifted (false = the view should bail without rendering/recording).
+	/// @brief Whether the engine actually shifted (false = the caller should bail without rendering/recording).
+	/// @return True if shiftHorizontally moved the clip.
 	[[nodiscard]] bool shifted() const { return shifted_; }
 
 private:
@@ -31,7 +33,7 @@ private:
 	int32_t shiftAmount_;
 	bool shiftAutomation_;
 	bool shiftSequenceAndMPE_;
-	ModelStackWithTimelineCounter* engineStack_; ///< Funnel-phase borrow.
+	ModelStackWithTimelineCounter* engineStack_; ///< Borrowed for the duration of apply().
 	bool shifted_ = false;
 };
 

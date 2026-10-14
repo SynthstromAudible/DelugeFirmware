@@ -240,7 +240,7 @@ deluge::serialization::Value effectWord(FilterMode mode) {
 	return deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(mode)));
 }
 
-/// @p owner's effect settings with @p change made to them, made its settings.
+/// Makes @p owner's effect settings its current ones with @p change applied to them.
 template <class Change>
 void changeEffects(ModControllableAudio& owner, Change change) {
 	deluge::effects::EffectStates next = owner.effects();
@@ -375,8 +375,7 @@ void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer) {
 
 void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager,
                                                       bool writeAutomation, int32_t* valuesForOverride) {
-	// Serialize from the value DOM (deluge::project). Byte-identical to the former hand-written sequence
-	// (param_automation.cpp, verified in the param-projection driver), the first production use of the param DOM.
+	// Serialize from the value DOM (deluge::project).
 	deluge::project::DocParamSet unpatched = deluge::bridge::toDocParamSet(*paramManager->getUnpatchedParamSet());
 	deluge::bridge::serializeModControllableParamAttributes(unpatched, writer, writeAutomation, valuesForOverride);
 }
@@ -389,9 +388,7 @@ void ModControllableAudio::writeParamTagsToFile(Serializer& writer, ParamManager
 
 bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const* tagName,
                                                 ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
-	// Read the shared param block from the value DOM (deluge::project). The MCA block has no legacy-only
-	// tag names, so this fully replaces the former hand-written dispatch; verified by the golden round-trip
-	// and the param-projection driver.
+	// Read the shared param block from the value DOM (deluge::project). The MCA block has no legacy-only tag names.
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 	return deluge::bridge::readModControllableParamTag(reader, tagName, *unpatchedParams, *unpatchedParamsSummary,
@@ -422,8 +419,8 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 	else if (!strcmp(tagName, "midiKnobs")) {
 		reader.match('[');
 		// Standard array-of-boxes idiom (mirrors the noteRows/clips loops): match('{') enters the box, the
-		// name is read, then the value object is entered. The previous readNext-before-match('{') ordering
-		// relied on XML implicit descent and read nothing in JSON mode. match('{')/match('}') are no-ops in XML.
+		// name is read, then the value object is entered. Reading the name before match('{') would rely on XML
+		// implicit descent and read nothing in JSON mode. match('{')/match('}') are no-ops in XML.
 		while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "midiKnob")) {
 

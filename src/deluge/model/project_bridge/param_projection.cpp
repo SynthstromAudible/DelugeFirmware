@@ -33,13 +33,12 @@ namespace deluge::bridge {
 
 using namespace deluge::project;
 
-// M2-F: projection operates on the OWNER-resolved DOM store. There is no bare-AutoParam form — an AutoParam holds
-// no node storage.
+// Projection operates on the owner-resolved DOM store. There is no bare-AutoParam form: an AutoParam holds no node
+// storage.
 DocParamSet toDocParamSet(ParamSet& paramSet) {
 	// Owner-resolve each param's node store (docForParam) so a bound set serialises the DOM store's nodes. The
-	// scalar comes from the engine cursor here; the SAVE path uses toDocParamSetFromStore (below) to read the
-	// store's authoritative scalar instead. (This engine-cursor form still backs the projection unit tests, which
-	// prove the DOM serializer matches the engine serializer for a given cursor value.)
+	// scalar comes from the engine cursor here; the save path uses toDocParamSetFromStore (below) to read the
+	// store's authoritative scalar instead.
 	DocParamSet doc;
 	doc.first = firstParamId(paramSet.getParamKind());
 	int32_t numParams = paramSet.getNumParams();
@@ -51,9 +50,9 @@ DocParamSet toDocParamSet(ParamSet& paramSet) {
 }
 
 DocParamSet toDocParamSetFromStore(ParamSet& paramSet) {
-	// Option I (save-flip): serialise BOTH value and nodes from the owner-resolved DOM store — the authoritative
-	// record. Every persistent value-setter (initParams, the DOM-first reads, edits, the setupAs*/initAmount preset
-	// builders) writes docForParam->current_value, so the store holds the value to persist with NO engine read.
+	// Serialise both value and nodes from the owner-resolved DOM store, the authoritative record. Every persistent
+	// value-setter (initParams, the DOM-first reads, edits, the setupAs*/initAmount preset builders) writes
+	// docForParam->current_value, so the store holds the value to persist with no engine read.
 	DocParamSet doc;
 	doc.first = firstParamId(paramSet.getParamKind());
 	int32_t numParams = paramSet.getNumParams();
@@ -66,7 +65,7 @@ DocParamSet toDocParamSetFromStore(ParamSet& paramSet) {
 }
 
 void fromDocParamSet(const DocParamSet& doc, ParamSet& paramSet) {
-	// M2-F: owner-resolve each param's node store (docForParam), so the projection lands in the set's DOM store
+	// Owner-resolve each param's node store (docForParam), so the projection lands in the set's DOM store
 	// (where the engine reads it) rather than the AutoParam's inline storage.
 	int32_t count = std::min(static_cast<int32_t>(doc.params.size()), paramSet.getNumParams());
 	for (int32_t p = 0; p < count; p++) {
@@ -78,9 +77,9 @@ namespace params = deluge::modulation::params;
 
 namespace {
 using deluge::modulation::params::Kind;
-// Slot 0 holds either the unpatched ParamSet or a MIDI-CC collection (the latter deferred to a later
-// sub-phase). The unpatched set's own `kind` is often still NONE here (the owner sets UNPATCHED_SOUND/
-// GLOBAL later), so identify it positionally: present and not the MIDI collection.
+// Slot 0 holds either the unpatched ParamSet or a MIDI-CC collection (which is not projected here). The unpatched
+// set's own `kind` is often still NONE here (the owner sets UNPATCHED_SOUND/GLOBAL later), so identify it
+// positionally: present and not the MIDI collection.
 bool isUnpatchedSetSlot(ParamCollection* c) {
 	return c != nullptr && c->getParamKind() != Kind::MIDI;
 }
@@ -103,7 +102,7 @@ void refreshAutomationFlags(ParamSet& set, ParamCollectionSummary& summary) {
 
 DocParamManager toDocParamManager(ParamManager& paramManager) {
 	DocParamManager doc;
-	// Fixed slot layout: [0] unpatched (or MIDI, deferred), [1] patched, [2] patch cables (deferred),
+	// Fixed slot layout: [0] unpatched (or MIDI, not projected here), [1] patched, [2] patch cables,
 	// expression at expressionParamSetOffset.
 	if (ParamCollection* c = paramManager.summaries[0].paramCollection; isUnpatchedSetSlot(c)) {
 		*storeFor(doc, c->getParamKind()) = toDocParamSet(*static_cast<ParamSet*>(c));
@@ -126,9 +125,9 @@ DocParamManager toDocParamManager(ParamManager& paramManager) {
 }
 
 DocParamManager toDocParamManagerFromStore(ParamManager& paramManager) {
-	// Option I save-flip variant: patched/unpatched/expression scalars from the DOM store (toDocParamSetFromStore);
-	// patch cables already source their scalar+nodes from the store (toDocCables via docForParam). Used by the
-	// Sound save path so the persisted values come from the authoritative store, never the engine cursor.
+	// Patched/unpatched/expression scalars from the DOM store (toDocParamSetFromStore); patch cables source their
+	// scalar and nodes from the store either way (toDocCables via docForParam). Used by the Sound save path so the
+	// persisted values come from the authoritative store, never the engine cursor.
 	DocParamManager doc;
 	if (ParamCollection* c = paramManager.summaries[0].paramCollection; isUnpatchedSetSlot(c)) {
 		*storeFor(doc, c->getParamKind()) = toDocParamSetFromStore(*static_cast<ParamSet*>(c));
@@ -156,9 +155,9 @@ std::vector<DocMidiParam> toDocMidiParams(MIDIParamCollection& midi) {
 	std::vector<DocMidiParam> out;
 	out.reserve(midi.params.size());
 	for (int32_t i = 0; i < std::ssize(midi.params); i++) {
-		// Option I (read-authority): value AND nodes both from the CC's CURRENT store via docForParam (the bound
-		// tree entry when bound — where the read seeds current_value and runtime edits land — else the inline
-		// nodes_). Reading param.currentValue (the engine cursor) would make the engine the source of the scalar.
+		// Value and nodes both come from the CC's current store via docForParam (the bound tree entry when bound,
+		// where the read seeds current_value and runtime edits land, else the inline nodes_). Reading
+		// param.currentValue (the engine cursor) would make the engine the source of the scalar.
 		deluge::project::DocAutoParam* d = midi.docForParam(i);
 		out.push_back(DocMidiParam{
 		    .cc = midi.params[i].cc,
@@ -169,16 +168,16 @@ std::vector<DocMidiParam> toDocMidiParams(MIDIParamCollection& midi) {
 }
 
 std::vector<DocCable> toDocCables(PatchCableSet& pcs) {
-	// Copy each cable's saved fields verbatim (the ParamDescriptor encodes the destination + any range-cable
+	// Copy each cable's saved fields (the ParamDescriptor encodes the destination + any range-cable
 	// nesting); rangeAdjustmentPointer is runtime and rebuilt on projection. Nodes come from the cable's current
 	// store — its inline amount_ pre-bind (seed time), which is exactly what the persistent store should hold.
 	std::vector<DocCable> out;
 	out.reserve(pcs.numPatchCables);
 	for (int32_t i = 0; i < pcs.numPatchCables; i++) {
 		PatchCable& cable = pcs.patchCables[i];
-		// Option I (read-authority): value AND nodes both from the cable's CURRENT store via docForParam (the bound
-		// tree entry when bound, where the read seeds current_value and runtime edits land — else the inline
-		// amount_). Reading cable.param.currentValue (the engine cursor) would make the engine the scalar's source.
+		// Value and nodes both come from the cable's current store via docForParam (the bound tree entry when
+		// bound, where the read seeds current_value and runtime edits land, else the inline amount_). Reading
+		// cable.param.currentValue (the engine cursor) would make the engine the scalar's source.
 		deluge::project::DocAutoParam* d = pcs.docForParam(i);
 		out.push_back(doc_cable(cable.from, cable.destinationParamDescriptor, cable.polarity,
 		                        toDocAutoParam(d->current_value, d->nodes)));
@@ -223,7 +222,7 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 			pcs->patchCables[i].from = source_of(dc);
 			pcs->patchCables[i].destinationParamDescriptor = destination_of(dc);
 			pcs->patchCables[i].polarity = polarity_of(dc);
-			// M2-F: project the value into the RT cursor and the nodes into the cable's own store.
+			// Project the value into the RT cursor and the nodes into the cable's own store.
 			fromDocAutoParam(dc.amount, pcs->patchCables[i].param.currentValue, pcs->patchCables[i].amount_.nodes);
 		}
 	}
@@ -235,8 +234,8 @@ bool setUnpatchedValueDomFirst(DocParamManager& store, int32_t p, int32_t value,
 		return false;
 	}
 	unpatched->params[p].current_value = value; // authoritative write (params[p] is the runtime's index p)
-	// M2-F: only the value changed (not nodes, which the engine owner-resolves from this same store); sync the
-	// engine's RT cursor. No projection into AutoParam storage (there is none).
+	// Only the value changed (not nodes, which the engine owner-resolves from this same store); sync the engine's
+	// RT cursor. There is no AutoParam storage to project into.
 	engineParam.currentValue = value;
 	return true;
 }

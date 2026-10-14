@@ -37,7 +37,8 @@ public:
 	/// An attack rate in position steps per sample on the envelope's 2^23 stage scale.
 	static constexpr int32_t kInstantAttack = 262144 << 2;
 
-	/// @return The duck envelope's settings for @p state at @p time_per_tick_inverse and @p shape.
+	/// @brief The duck envelope's settings for @p state at @p time_per_tick_inverse and @p shape.
+	/// @param state The sidechain's attack, release and sync.
 	/// @param time_per_tick_inverse The playback handler's getTimePerInternalTickInverse(): 2^31 ÷ (1.5 × the samples
 	/// per internal tick), so internal ticks per sample at Q31, divided by 1.5.
 	/// @param shape The shape param, Q31: the release's curve, passed through.
@@ -45,21 +46,30 @@ public:
 	/// Unsynced, the attack and release are the state's own. Synced, each is scaled by the tick inverse and shifted by
 	/// the sync level: the attack by 7 less the level's index (a left shift at the 1/128 and 1/256 levels), the
 	/// release by 9 less it.
+	/// @return The settings to configure the duck envelope with.
 	[[nodiscard]] static dsp::fixed::DuckEnvelope::Settings settings(const SidechainState& state,
 	                                                                 uint32_t time_per_tick_inverse, dsp::q31 shape);
 
 	/// @brief Records a hit of @p strength (Q31) for the next render, combined with any already pending.
+	/// @param strength The hit's strength, Q31.
 	void registerHit(int32_t strength) { duck_.on<&dsp::fixed::DuckEnvelope::hit>(strength); }
 
 	/// @brief Places the duck where a hit of @p strength (Q31) @p samples_ago would have put it, at @p state's rates
 	/// for @p time_per_tick_inverse.
 	/// @details The placement reads the rates alone: dsp::fixed::DuckEnvelope::hit_at takes no shape, and the next
 	/// render configures the shape it is given.
+	/// @param strength              The hit's strength, Q31.
+	/// @param samples_ago           How many samples before now the hit happened.
+	/// @param state                 The sidechain's attack, release and sync.
+	/// @param time_per_tick_inverse The playback handler's getTimePerInternalTickInverse().
 	void registerHitRetrospectively(int32_t strength, uint32_t samples_ago, const SidechainState& state,
 	                                uint32_t time_per_tick_inverse);
 
 	/// @brief Advances the duck by @p num_samples at @p state's rates for @p time_per_tick_inverse.
-	/// @param shape The shape param, Q31: the release's curve.
+	/// @param num_samples           The block's length in samples.
+	/// @param shape                 The shape param, Q31: the release's curve.
+	/// @param state                 The sidechain's attack, release and sync.
+	/// @param time_per_tick_inverse The playback handler's getTimePerInternalTickInverse().
 	/// @return The duck after the block, Q31: 0 is none, negative ducks.
 	[[nodiscard]] int32_t render(uint32_t num_samples, int32_t shape, const SidechainState& state,
 	                             uint32_t time_per_tick_inverse);

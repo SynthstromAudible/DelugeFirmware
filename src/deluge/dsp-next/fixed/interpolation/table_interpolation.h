@@ -79,8 +79,7 @@ public:
 	/// @brief @ref interpolate for a **signed** (`int16_t`) table, with a full 16-bit blend weight.
 	///
 	/// Kept inline (header) because the sine LUT it backs (@ref SineTable) is evaluated per-sample in the
-	/// oscillator-sync seam crossfade — the same hot path the old free `getSine`/`interpolateTableSigned`
-	/// were inlined for.
+	/// oscillator-sync seam crossfade, a hot path that needs it inlined.
 	/// @param input Fixed-point index with @p input_fractional_bits fractional bits.
 	/// @param input_fractional_bits Total bit-width of @p input.
 	/// @param table The signed lookup table; needs `2^table_size_log2 + 1` entries.

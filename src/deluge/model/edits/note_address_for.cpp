@@ -16,7 +16,7 @@ std::optional<deluge::project::NoteRowAddress> noteRowAddressFor(const ModelStac
 	}
 	deluge::project::NoteRowAddress addr{};
 
-	// Clip identity (durable id; clips always have one from their ctor).
+	// Clip identity (durable id; clips always have one from construction).
 	if (std::optional<uint32_t> serial = clip->id()) {
 		addr.clip_id = *serial;
 	}

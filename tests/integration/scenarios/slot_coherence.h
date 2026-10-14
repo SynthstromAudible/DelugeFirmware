@@ -25,7 +25,7 @@ class Sound;
 
 namespace deluge::harness {
 
-/// Which equations a coherence check holds a sound to.
+/// @brief Which equations a coherence check holds a sound to.
 struct CoherenceChecks {
 	bool runtime = true;  ///< the runtime's state == the record (dump_state of seededState() vs the bound state)
 	bool slot = true;     ///< the slot's instrument entries == encode(record), by key
@@ -35,16 +35,26 @@ struct CoherenceChecks {
 	bool chains = true;   ///< each host chain (a kit's, an audio track's, the master's) == its owner's encoding
 };
 
-/// @brief The first equation @p sound breaks, as "<check> at <where>", or empty. An unbound sound breaks none.
+/// @brief Find the first equation @p sound breaks. An unbound sound breaks none.
+/// @param sound  The sound to check.
+/// @param song   The song whose project holds the sound's slot and controls records.
+/// @param checks Which equations to hold the sound to.
+/// @return The break as "<check> at <where>", or empty if the sound is coherent.
 std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks checks = {});
 
-/// @brief The first host chain of @p song that is not its owner's runtime state encoded, as "output <id> effects:
-/// <where>" or "master effects: <where>", or empty.
+/// @brief Find the first host chain of @p song that is not its owner's runtime state encoded.
+/// @param song The song whose kit, audio-track and master chains are checked.
+/// @return The break as "output <id> effects: <where>" or "master effects: <where>", or empty if all agree.
 std::string chainIncoherence(::Song& song);
 
-/// @brief Every bound sound of @p song (its outputs', its hibernating instruments' and its kits' sound drums) checked;
-/// each break printed as `SLOT-COHERENT FAIL leg=<leg> <owner>: <what>`.
-/// @return How many broke.
+/// @brief Check every bound sound of @p song (its outputs', its hibernating instruments' and its kits' sound drums),
+/// and its controls and host chains as @p checks selects.
+///
+/// Each break is printed as `SLOT-COHERENT FAIL leg=<leg> <owner>: <what>`.
+/// @param song   The song to check.
+/// @param leg    Name of the scenario leg, printed with each break.
+/// @param checks Which equations to hold each sound to.
+/// @return How many breaks were found.
 int32_t expectSongCoherent(::Song& song, const char* leg, CoherenceChecks checks = {});
 
 } // namespace deluge::harness

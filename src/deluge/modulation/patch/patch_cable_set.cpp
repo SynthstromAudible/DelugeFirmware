@@ -140,9 +140,9 @@ void PatchCableSet::truncateCables(uint8_t count) {
 	(void)resizeCables(std::min(count, numPatchCables));
 }
 
-// M2-E (E3): cables are reordered by index at runtime — setupPatching() memcpy-swaps them into usable/unusable
+// Cables are reordered by index at runtime: setupPatching() memcpy-swaps them into usable/unusable
 // order and removal memcpy-moves the last cable over a deleted one. An owner store resolved by INDEX cannot stay
-// in sync with those shifts, so each cable's nodes live inline in its AutoParam's ownDoc_, which the byte-copy
+// in sync with those shifts, so each cable's nodes live inline in its amount_, which the byte-copy
 // carries with the cable. Binding to a shared positional store is a no-op; owner-resolution returns the inline store.
 void PatchCableSet::bindDomStore() {
 }
@@ -152,10 +152,10 @@ deluge::project::DocParamSet* PatchCableSet::domStore() {
 }
 
 deluge::project::DocAutoParam* PatchCableSet::docForParam(int32_t c) {
-	// S4b: when bound to the owner's project-tree cable store, resolve this cable's amount-nodes from the tree
-	// entry with its depth id (derived from its source and destination) — so save + runtime edits share the persistent
-	// store (the inline `amount_` is then unused). Unbound (M2-F): the cable owns its store inline and rides with it
-	// through the reorder/removal memcpy.
+	// When bound to the owner's project-tree cable store, resolve this cable's amount-nodes from the tree
+	// entry with its depth id (derived from its source and destination), so save + runtime edits share the
+	// persistent store (the inline `amount_` is then unused). Unbound: the cable owns its store inline and rides
+	// with it through the reorder/removal memcpy.
 	if (domCablesRef_ != nullptr) {
 		PatchCable& cable = patchCables[c];
 		return &findOrCreateDomCable(cable.from, cable.destinationParamDescriptor, cable.polarity).amount;
@@ -883,7 +883,7 @@ PatchCableSet::PatchCableSet(PatchCableSet const& other)
 	try {
 		for (; built < numUsablePatchCables; built++) {
 			PatchCable* cable = new (&patchCables[built]) PatchCable(other.patchCables[built]);
-			// S4b: if `other` reads its live nodes from an external tree store, its inline amount_ is stale (edits
+			// If `other` reads its live nodes from an external tree store, its inline amount_ is stale (edits
 			// went to the tree). Copy the current tree nodes so this clone starts self-owned (domCablesRef_ stays
 			// null) with correct automation — mirroring ParamSet's copy-ctor deep-copying its bound store.
 			if (deluge::project::DocAutoParam* live =
@@ -1195,7 +1195,7 @@ void PatchCableSet::grabVelocityToLevelFromMIDICable(MIDICable& cable) {
 		return;
 	}
 
-	// Option I: write the cable's inline store (amount_ — the persisted source when unbound) too, not just the cursor.
+	// Write the cable's inline store (amount_, the persisted source when unbound) too, not just the cursor.
 	patchCable->param.setCurrentValueBasicForSetup(patchCable->amount_, cable.defaultVelocityToLevel);
 }
 

@@ -9,7 +9,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h" // Clip::getCurrentlyRecordingLinearly (region context)
 #include "model/model_stack.h"
-#include "model/snapshot/param_snapshot.h" // ParamSnapshot::applyPatch (M4a event-patch)
+#include "model/snapshot/param_snapshot.h" // ParamSnapshot::applyPatch
 #include "model/song/song.h"               // engine Song (tc != song comparison)
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
@@ -18,12 +18,11 @@
 namespace deluge::edits {
 
 namespace {
-// Gather the timeline/playback context the region patch needs, reading it from the (still-borrowed, M4a) engine
-// stack at EXACTLY the sites AutoParam::setValueForRegion / homogenizeRegion read it — so applyPatch's region path
-// reproduces the in-line poke. The north-star read-side flip will source these from the model/snapshot instead.
+// Gather the timeline/playback context the region patch needs, reading it from the borrowed engine stack at exactly
+// the sites AutoParam::setValueForRegion / homogenizeRegion read it, so applyPatch's region path matches the engine's
+// in-line setter.
 // livePos/reversed are consulted by the kernel only when the clock is active (auto_param.cpp routes to
-// yesChangeCurrentValue otherwise), so they are gathered lazily — matching the engine and staying safe on a
-// stopped-transport stack.
+// yesChangeCurrentValue otherwise), so they are gathered lazily and stay safe on a stopped-transport stack.
 deluge::snapshot::RegionContext gatherRegionContext(ModelStackWithAutoParam* engineStack) {
 	deluge::snapshot::RegionContext r{};
 	r.effectiveLength = engineStack->getLoopLength();
@@ -48,24 +47,23 @@ deluge::snapshot::RegionContext gatherRegionContext(ModelStackWithAutoParam* eng
 } // namespace
 
 Error SetParamValue::apply(Context& ctx) {
-	// The Edit owns its undo record (migration plan M1: do-site == undo-record-site): snapshot the before-state into
-	// the open Action up front, replicating the guard at the interior log site (auto_param.cpp
-	// setCurrentValueInResponseToUserInput, "record value change") evaluated pre-mutation. The interior log then
-	// dedupes via Action::containsConsequenceParamChange — this pre-log is idempotent, and stays so until the M1c
-	// sweep retires the interior log (other callers still rely on it).
+	// The Edit owns its undo record: snapshot the before-state into the open Action up front, replicating the guard
+	// at the interior log site (auto_param.cpp setCurrentValueInResponseToUserInput, "record value change")
+	// evaluated pre-mutation. The interior log then dedupes via Action::containsConsequenceParamChange, so this
+	// pre-log is idempotent (other callers still rely on the interior log).
 	//
-	// Faithfulness: the interior log fires iff execution reaches its site AND (nodes.empty() || !isPlaying) AND
+	// The interior log fires iff execution reaches its site AND (nodes.empty() || !isPlaying) AND
 	// value != currentValue. It is reached on the SCALAR path only (a nonzero-length region edit goes to
 	// setValueForRegion, which manages its own Action). The recording-armed branch never yields an
 	// unautomated-value-change Action — it either early-exits (shift-delete / clip-too-short) or falls through with
-	// nodes now non-empty — so excluding every (isPlaying && recordingArmed) case reproduces it exactly.
+	// nodes now non-empty — so excluding every (isPlaying && recordingArmed) case matches it exactly.
 	// setValuePossiblyForRegion sends (length != 0 && timelineCounterIsSet) to setValueForRegion; everything else is
 	// the scalar path that reaches the interior unautomated-change log.
 	const bool scalarPath = length_ == 0 || !engineStack_->timelineCounterIsSet();
 
-	// Hoisted out of the pre-log so the commit-flip decision below can reuse them. recordingActive is the exact
+	// Hoisted out of the pre-log so the model-first decision below can reuse them. recordingActive is the exact
 	// condition under which the scalar poke RECORDS automation (setCurrentValueInResponseToUserInput's recording
-	// branch) — that case is NOT flipped (it writes nodes); everything else is the plain scalar tail.
+	// branch) — that case is not model-first (it writes nodes); everything else is the plain scalar tail.
 	bool isPlaying = false;
 	bool recordingActive = false;
 	if (scalarPath) {
@@ -83,11 +81,11 @@ Error SetParamValue::apply(Context& ctx) {
 		}
 	}
 
-	// M4a commit-flip: the persistent scalar store write is now model-first (ParamSnapshot::applyPatch is the sole
-	// writer), and the engine derives its RT state (cursor/interpolation/notify/latch) from the store. Taken only
-	// for a resolvable scalar lane that isn't recording automation. Region, recording-active scalar, and
-	// unaddressable/not-yet-relocated lanes keep the in-line poke as the writer (it resolves via doc() with the
-	// relocate/engine-store fallback, so no lane is dropped) — behaviour-identical to before for those.
+	// The persistent scalar store write is model-first (ParamSnapshot::applyPatch is the sole writer), and the engine
+	// derives its RT state (cursor/interpolation/notify/latch) from the store. Taken only for a resolvable scalar
+	// lane that isn't recording automation. Region, recording-active scalar, and unaddressable/not-yet-relocated
+	// lanes keep the in-line poke as the writer (it resolves via doc() with the relocate/engine-store fallback, so
+	// no lane is dropped).
 	if (scalarPath && !recordingActive && address_.has_value() && ctx.model.resolveParam(*address_) != nullptr) {
 		const int32_t oldValue = engineStack_->autoParam->getCurrentValue();
 		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, *address_, newValue_, 0, 0, std::nullopt);
@@ -95,16 +93,15 @@ Error SetParamValue::apply(Context& ctx) {
 		return Error::NONE;
 	}
 
-	// M4a region commit-flip: the region store write is model-first for EVERY clock state — applyPatch writes the
-	// nodes + current_value (via the proven DOM kernel), and projectRegionFromStore derives the engine RT tail
-	// (cursor + interpolation-reset / UI-notify + notify) from the branch the kernel took (RegionWriteResult). The
-	// undo snapshot is reordered AHEAD of the patch (the exact getNewAction + record call setValueForRegion makes at
-	// auto_param.cpp:1109-1112, so held-pad region drags coalesce identically). Only unresolvable / not-yet-relocated
-	// lanes keep the in-line poke below.
+	// The region store write is model-first for every clock state — applyPatch writes the nodes + current_value (via
+	// the DOM kernel), and projectRegionFromStore derives the engine RT tail (cursor + interpolation-reset /
+	// UI-notify + notify) from the branch the kernel took (RegionWriteResult). The undo snapshot is taken AHEAD of
+	// the patch, with the same getNewAction + record call setValueForRegion makes, so held-pad region drags
+	// coalesce identically. Only unresolvable / not-yet-relocated lanes keep the in-line poke below.
 	if (length_ != 0 && engineStack_->timelineCounterIsSet() && address_.has_value()
 	    && ctx.model.resolveParam(*address_) != nullptr) {
 		// Mirror setValueForRegion's pos>=effectiveLength early return (before any Action), so a held-pad edit beyond
-		// the loop is a true no-op — no undo step, exactly as the in-line path.
+		// the loop is a true no-op — no undo step.
 		if (pos_ >= engineStack_->getLoopLength()) {
 			return Error::NONE;
 		}
@@ -122,7 +119,7 @@ Error SetParamValue::apply(Context& ctx) {
 		return Error::NONE;
 	}
 
-	// Funnel phase: delegate to the exact engine mutation the call site used, behaviour-identical.
+	// Unaddressable / unresolvable lanes: delegate to the engine's own setter.
 	engineStack_->autoParam->setValuePossiblyForRegion(newValue_, engineStack_, pos_, length_,
 	                                                   mayDeleteNodesInLinearRun_);
 	return Error::NONE;
@@ -134,10 +131,9 @@ void SetParamValue::emitEvent(Context& ctx) {
 		return;
 	}
 #if ALPHA_OR_BETA_VERSION
-	// M4 event-feed pilot observation: verify the durable ParamAddress still resolves to a live DOM param, proving
-	// the feed's addressing end-to-end. The store WRITE is now owned by apply() (scalar + stopped-transport region
-	// are model-first via ParamSnapshot::applyPatch; clock-active region + unresolvable lanes keep the in-line poke),
-	// so emitEvent no longer patches — the M4a A/B toggle has been retired.
+	// Verify the durable ParamAddress still resolves to a live DOM param, proving the feed's addressing end-to-end.
+	// The store write is owned by apply() (model-first via ParamSnapshot::applyPatch where the lane resolves;
+	// unresolvable lanes keep the in-line poke), so emitEvent does not patch.
 	if (ctx.model.resolveParam(*address_) == nullptr) {
 		D_PRINTLN("M4 event feed: SetParamValue address did not resolve to a DOM param");
 	}

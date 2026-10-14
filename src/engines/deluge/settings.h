@@ -33,10 +33,16 @@ extern const std::span<const engine::SettingInfo> kSettings;
 
 /// @brief Whether @p value is one @p path's row allows: a non-structured row's choice, an integer in its range, or 0
 /// or 1 for a bool. False for a structured row or a path the schema does not hold.
+/// @param path  The setting's path.
+/// @param value The candidate value.
+/// @return True when the row allows the value.
 [[nodiscard]] bool check_setting(std::string_view path, const serialization::Value& value);
 
 /// @brief @p value as a file writes it at @p path (an integer without sign or leading zeros), or nothing where
 /// check_setting refuses it.
+/// @param path  The setting's path.
+/// @param value The value to canonicalize.
+/// @return The canonical value, or nullopt.
 [[nodiscard]] std::optional<serialization::Value> canonical_setting(std::string_view path,
                                                                     const serialization::Value& value);
 
@@ -44,15 +50,25 @@ extern const std::span<const engine::SettingInfo> kSettings;
 /// where the path does not apply to the state: sample playback off a sample source (interpolation off a sample or
 /// live-input one) or in FM; an oscillator's type in FM; an oscillator's own transpose and cents on a sample source
 /// outside FM; modulators outside FM; a structured path or one the schema does not hold; an unset drum note.
+/// @param state The sound's state.
+/// @param path  The setting's path.
+/// @return The value, or nullopt where the path does not apply.
 [[nodiscard]] std::optional<serialization::Value> setting_value(const SoundState& state, std::string_view path);
 
 /// @brief Whether a sound in @p state may take @p value at @p path, beyond what the schema allows: ring mod rings only
 /// the oscillators up to a wavetable, so it is not chosen while either oscillator is past one, nor such an oscillator
 /// while it is chosen.
+/// @param state The sound's state.
+/// @param path  The setting's path.
+/// @param value The candidate value.
+/// @return True when the sound may take the value.
 [[nodiscard]] bool allows_setting(const SoundState& state, std::string_view path, const serialization::Value& value);
 
 /// @brief Whether a sound in @p state takes a setting at @p path at all: where setting_value answers, or where the
 /// value is unset (a sound drum's MIDI note before one is chosen).
+/// @param state The sound's state.
+/// @param path  The setting's path.
+/// @return True when the sound takes a setting there.
 [[nodiscard]] bool takes_setting(const SoundState& state, std::string_view path);
 
 } // namespace deluge::instrument

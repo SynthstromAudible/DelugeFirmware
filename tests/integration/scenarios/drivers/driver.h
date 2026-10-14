@@ -31,12 +31,13 @@ class Song;
 /// line comes from the environment:
 ///
 ///     DRV_ARGS   its arguments, separated by US (0x1f); argv[0] is the scenario's name
-///     DRV_OUT    a host file to write what it prints to stdout; without it, each line goes to stdout as `DRV-OUT
-///     <line>` DRV_ERR    the same for stderr, as `DRV-ERR <line>` DRV_DIRECT set: both go straight to the process's
-///     stdout and stderr as printed, so they survive a crash
+///     DRV_OUT    a host file to write what it prints to stdout; without it, each line goes to stdout as
+///                `DRV-OUT <line>`
+///     DRV_ERR    the same for stderr, as `DRV-ERR <line>`
+///     DRV_DIRECT if set, both go straight to the process's stdout and stderr as printed, so they survive a crash
 ///
 /// It runs once, in one interaction-tier step, and the scenario then prints `DRV-EXIT code=<n>`: the value its main
-/// returned, which is the exit status its process used to have. tests/golden/driver.py turns a run back into that
+/// returned, which is the exit status of its process. tests/golden/driver.py turns a run back into that
 /// process's exit status, stdout and stderr, which is what the runners in tests/golden compare.
 ///
 /// A driver loads and saves songs of its own beside the booted one, and sets currentSong to them as it goes. The step

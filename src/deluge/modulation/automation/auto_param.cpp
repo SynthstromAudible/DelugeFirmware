@@ -18,7 +18,7 @@
 #include "modulation/automation/auto_param.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
-#include "deluge-project/param_edit.h" // M2-C: engine edit ops forward to these DOM kernels
+#include "deluge-project/param_edit.h" // the DOM kernels the engine edit ops forward to
 #include "gui/l10n/l10n.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
@@ -61,8 +61,8 @@
 #define UNINTERPOLATED_NODE_CANCELS_OVERRIDING_AFTER_SAMPLES                                                           \
 	6630 // 150ms. Only seems to have an effect for MIDI, which is confusing me...
 
-// M2-F: AutoParam is a pure interpolation cursor — it holds NO node storage. Node data lives in the DOM,
-// resolved per-op via the owner (ModelStackWithAutoParam::doc()). currentValue is the RT cursor.
+// AutoParam is a pure interpolation cursor: it holds no node storage. Node data lives in the DOM, resolved per-op via
+// the owner (ModelStackWithAutoParam::doc()). currentValue is the RT cursor.
 AutoParam::AutoParam() {
 	currentValue = 0;
 	resetInterpolationIncrement();
@@ -103,38 +103,34 @@ AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
 	return *this;
 }
 
-// The DOM node store is resolved from the OWNER, by paramId — no engine object holds node storage. Every saved
-// owner (song / audio clip / synth-kit clip-level / per-drum / expression / patch cables / MIDI CC) resolves via a
-// stable `ParamAddress` in the project tree (`Song::resolveParam`); `deluge::edits::addressFor` builds that address
-// from this ModelStack (the owner classification lives there now, shared with the Edit substrate). The engine
-// fallback below serves the only unaddressable case — a never-saved (no-id) owner, whose nodes live in the
-// engine collection's own store until first save relocates+binds them — and is behaviour-identical (it returns the
-// same store the address would). The `paramCollection` pointer is used here only to reach `docParamForId()`; it
-// stays for the collection's polymorphic-dispatch role across the engine, so node resolution is not decoupled from
-// it — that would require dissolving the ParamCollection hierarchy (separate work).
+// The DOM node store is resolved from the owner, by paramId; no engine object holds node storage. Every saved owner
+// (song / audio clip / synth-kit clip-level / per-drum / expression / patch cables / MIDI CC) resolves via a stable
+// `ParamAddress` in the project tree (`Song::resolveParam`); `deluge::edits::addressFor` builds that address from this
+// ModelStack (the owner classification is shared with the Edit substrate). The engine fallback below serves only an
+// unaddressable owner, whose nodes live in the engine collection's own store; it returns the same store the address
+// would. The `paramCollection` pointer is used here only to reach `docParamForId()`; it also serves the collection's
+// polymorphic dispatch across the engine, so node resolution is not decoupled from it.
 deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	if (std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*this)) {
 		if (deluge::project::DocAutoParam* resolved = song->project.resolveParam(*address)) {
 			return resolved;
 		}
 	}
-	// S5-b: the owner isn't tree-resident yet — a RUNTIME-created clip/instrument/drum (made after load, so it has
-	// neither a persisted id nor a session id). Mint session ids + relocate its store into the session tree so
-	// it id-resolves like a saved owner. After this, every real owner resolves through the project tree; the
-	// paramCollection fallback below is dead for them, surviving only as a non-bricking net for genuinely
-	// unclassifiable owners (e.g. non-Sound drums) until hardware sign-off lets it be deleted outright.
+	// The owner isn't tree-resident yet: a runtime-created instrument/drum made after load, with no id yet. Mint
+	// durable ids and relocate its store into the project tree so it id-resolves like a saved owner. After this, every
+	// real owner resolves through the project tree; the paramCollection fallback below is dead for them, surviving
+	// only as a non-bricking net for genuinely unclassifiable owners (e.g. non-Sound drums).
 	if (deluge::project::DocAutoParam* relocated = deluge::edits::relocateAndResolve(*this)) {
 		return relocated;
 	}
 #if ALPHA_OR_BETA_VERSION
-	// S5-b.5b: lazy relocation should now id-address every real owner, so this fallback is expected to be DEAD.
-	// Tally each hit (deluge::edits::docFallbackHits) and log the first (kind = the param collection's kind) so
-	// on-device smoke AND the host totality harness can confirm nothing residual reaches it — the gate for deleting
-	// this line outright. Not a FREEZE: a genuinely unclassifiable owner (e.g. a non-Sound drum) may legitimately
-	// land here, and bricking on it is unacceptable.
-	// Count as a real fallback ONLY when the collection is on engine-inline storage. A tree-BOUND MIDI/cable
-	// collection reaching docParamForId is legitimate lazy create-on-demand INTO the bound tree vector (a cc/cable
-	// not yet mirrored), not an engine fallback — so it does not count against the totality gate.
+	// Lazy relocation id-addresses every real owner, so this fallback is expected to be dead. Tally each hit
+	// (deluge::edits::docFallbackHits) and log the first (kind = the param collection's kind) so on-device smoke and
+	// the host totality harness can confirm nothing residual reaches it. Not a FREEZE: a genuinely unclassifiable
+	// owner (e.g. a non-Sound drum) may legitimately land here, and bricking on it is unacceptable.
+	// Count as a real fallback only when the collection is on engine-inline storage. A tree-bound MIDI/cable
+	// collection reaching docParamForId is legitimate lazy create-on-demand into the bound tree vector (a cc/cable
+	// not yet mirrored), not an engine fallback, so it does not count against the totality gate.
 	if (!paramCollection->domStoreIsExternal() && deluge::edits::docFallbackHits++ == 0) {
 		D_PRINTLN("doc() engine fallback hit (kind=%d) — an owner is not id-addressed",
 		          static_cast<int32_t>(paramCollection->getParamKind()));
@@ -174,7 +170,7 @@ void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoPara
 void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
                                                      bool shouldLogAction, int32_t livePos,
                                                      bool mayDeleteNodesInLinearRun, bool doMPEMode) {
-	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
+	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 	int32_t oldValue = currentValue;
 	bool automatedBefore = isAutomated(*modelStack->doc());
@@ -269,13 +265,13 @@ investigatePrevNode:
 				}
 			}
 
-			// M2-D.3: forward the recording node write to the recordLiveValue DOM kernel — it captures exactly
-			// this branch's node mutation (setNodeAtPos for the MPE / zero-clear shortcut, else homogenizeRegion
-			// + the reversed further-right-node fixup, then current_value=value). interpolateLeft is the engine's
+			// Forward the recording node write to the recordLiveValue DOM kernel, which captures exactly this
+			// branch's node mutation (setNodeAtPos for the MPE / zero-clear shortcut, else homogenizeRegion plus the
+			// reversed further-right-node fixup, then current_value=value). interpolateLeft is the engine's
 			// already-decided `reversed || shouldInterpolateRegionStart`. recordingLinearly is only consulted deep
 			// in homogenizeRegion's forward-wrap branch (Clip-recording context), so guard the Clip cast against a
-			// Song timeline (same reasoning + fix as AutoParam::homogenizeRegion). The engine's leftI==-1
-			// early-outs are dead here: the DOM container's inserts are infallible, so the kernel never returns -1.
+			// Song timeline (as AutoParam::homogenizeRegion does). The DOM container's inserts are infallible, so
+			// the kernel never returns -1.
 			bool shouldInterpolateLeft = reversed || shouldInterpolateRegionStart;
 			bool recordingLinearly = false;
 			if (TimelineCounter* tc = modelStack->getTimelineCounterAllowNull();
@@ -336,13 +332,11 @@ skipThat: {}
 		}
 	}
 
-	// RETAINED FOR RECORDED INPUT (M1c S6). Every UI-gesture producer of this log is now a
-	// deluge::edits::SetParamValue Edit whose idempotent pre-log records the consequence; this call then
-	// dedupes to a no-op for them (Action::containsConsequenceParamChange). The ONE remaining live
-	// producer is drum-MPE recorded input (drum.cpp's recording guard is commented out → note_row.cpp's
-	// recordPolyphonicExpressionEvent live-play branch reaches here when stopped). Deleting this line
-	// awaits M4's model/runtime split, which moves that live-sounding write off the undo path. See
-	// docs/superpowers/specs/2026-07-07-m1c-param-edit-sweep-design.md (Decisions 3 & 5).
+	// Needed for recorded input. Every UI-gesture producer of this log is a deluge::edits::SetParamValue Edit whose
+	// idempotent pre-log records the consequence; this call then dedupes to a no-op for them
+	// (Action::containsConsequenceParamChange). The one remaining live producer is drum-MPE recorded input
+	// (drum.cpp's recording guard is commented out, so note_row.cpp's recordPolyphonicExpressionEvent live-play
+	// branch reaches here when stopped).
 	//
 	// If still unautomated (or not currently playing), record value change
 	if (nodesRef.empty() || !isPlaying) {
@@ -362,10 +356,10 @@ getOut:
 }
 
 void AutoParam::projectScalarFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool isPlaying) {
-	// M4a commit-flip: the store's current_value was ALREADY written model-first (ParamSnapshot::applyPatch); this
-	// derives the engine's RT state from it, reproducing setCurrentValueInResponseToUserInput's non-recording scalar
-	// tail exactly. A scalar patch never touches nodes, so isAutomated is invariant across the write
-	// (automatedBefore == automatedNow) and the notify's automationChanged is false — matching the getOut: tail.
+	// The store's current_value was already written model-first (ParamSnapshot::applyPatch); this derives the
+	// engine's RT state from it, reproducing setCurrentValueInResponseToUserInput's non-recording scalar tail. A
+	// scalar patch never touches nodes, so isAutomated is invariant across the write (automatedBefore ==
+	// automatedNow) and the notify's automationChanged is false, matching the getOut: tail.
 	auto& nodesRef = modelStack->doc()->nodes;
 	resetInterpolationIncrement();
 	// The playing-non-recording latch (the else-branch of the recording check): held until we hit some nodes.
@@ -382,8 +376,8 @@ void AutoParam::projectScalarFromStore(ModelStackWithAutoParam const* modelStack
 
 void AutoParam::projectRegionFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
                                        bool automatedBefore, deluge::project::RegionWriteResult result) {
-	// M4a region commit-flip: the store (nodes + current_value) was ALREADY written model-first
-	// (ParamSnapshot::applyPatch's region kernel). Reproduce setValueForRegion's post-mutation tail from the branch
+	// The store (nodes + current_value) was already written model-first (ParamSnapshot::applyPatch's region
+	// kernel). Reproduce setValueForRegion's post-mutation tail from the branch
 	// the kernel took (result.currentValueEffect). currentValue = doc->current_value is uniform: the value-taking
 	// branches wrote the new value into the store; NotifyOnly left it unchanged.
 	using deluge::project::RegionCurrentValueEffect;
@@ -468,7 +462,7 @@ removeMiddleNodeInRun:
 
 // action is optional. If you don't supply it, consequences won't be recorded
 void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify) {
-	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
+	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
 	bool wasAutomated = isAutomated(*modelStack->doc());
@@ -501,7 +495,7 @@ void AutoParam::deleteAutomationBasicForSetup(deluge::project::DocAutoParam& doc
 
 int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,
                                      bool mayInterpolate, bool mustUpdateValueAtEveryNode) {
-	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
+	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
 	// If no automation...
@@ -1105,8 +1099,8 @@ void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam
 // For MPE when a note gets deleted, and we want to just simply delete nodes and let previous ones' value spill into
 // this area.
 void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length) {
-	// M2-C: keep the whole wiring seam (Action, whole-loop deleteAutomation, notify); forward only the partial
-	// region erase to the DOM kernel (value sync-bridge, since it may zero current_value when nothing remains).
+	// The wiring (Action, whole-loop deleteAutomation, notify) stays here; only the partial region erase is
+	// forwarded to the DOM kernel (with a value sync, since it may zero current_value when nothing remains).
 	if (!isAutomated(*modelStack->doc())) {
 		return;
 	}
@@ -1131,14 +1125,14 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 
 int32_t AutoParam::setNodeAtPos(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value,
                                 bool shouldInterpolate) {
-	// M2-C: forward the node mutation to the DOM kernel (oracle-proven identical). The kernel is infallible on
-	// this container (index-based insert), so unlike the old engine op it never returns -1.
+	// Forward the node mutation to the DOM kernel. The kernel is infallible on this container (index-based insert),
+	// so it never returns -1.
 	return deluge::project::setNodeAtPos(doc, pos, value, shouldInterpolate);
 }
 
 void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
                                   ModelStackWithAutoParam const* modelStack, ActionType actionType) {
-	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
+	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
 	int32_t oldValue = currentValue;
@@ -1234,14 +1228,12 @@ yesChangeCurrentValue:
 int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int32_t length,
                                     int32_t startValue, bool interpolateLeftNode, bool interpolateRightNode,
                                     int32_t effectiveLength, bool reversed, int32_t posAtWhichClipWillCut) {
-	// M2-C: forward to the DOM kernel. The engine read recordingLinearly by deref-ing the timeline counter as
-	// a Clip, but only inside the forward-wrap-no-cut branch, where the counter is a real *Clip* (recording
-	// context). getCurrentlyRecordingLinearly() is pure-virtual on Clip only — the Song (arrangement) as
-	// timeline counter is NOT a Clip, so the cast must be guarded: the song-as-timeline case never reaches that
-	// branch (its effectiveLength is 2147483647, so anyWrap is false and the flag goes unused), so false is
-	// correct there. Guard on `tc != song` (the codebase's own song-as-timeline test) to avoid an invalid
-	// Song->Clip cast + out-of-bounds read. (Bug caught by the param_record_diff harness — the oracle used a
-	// NoteRow stack and never hit a Song timeline.)
+	// Forward to the DOM kernel. recordingLinearly is read by casting the timeline counter to a Clip, but only inside
+	// the forward-wrap-no-cut branch, where the counter is a real Clip (recording context).
+	// getCurrentlyRecordingLinearly() is pure-virtual on Clip only; the Song (arrangement) as timeline counter is not
+	// a Clip, so the cast must be guarded: the song-as-timeline case never reaches that branch (its effectiveLength
+	// is 2147483647, so anyWrap is false and the flag goes unused), so false is correct there. Guard on `tc != song`
+	// (the codebase's own song-as-timeline test) to avoid an invalid Song->Clip cast and out-of-bounds read.
 	bool recordingLinearly = false;
 	TimelineCounter* tc = modelStack->getTimelineCounterAllowNull();
 	if (tc && tc != static_cast<TimelineCounter*>(modelStack->song)) {
@@ -1265,15 +1257,15 @@ int32_t AutoParam::getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* m
 // value abruptly changes, well whether we want the value to the left or the right depends on which direction we're
 // going.
 int32_t AutoParam::getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
-	// M2-D.1: forward to the DOM read kernel. getLoopLength() is safe to fetch eagerly (a length, not a
-	// null-deref; processCurrentPos already reads it unconditionally). The kernel special-cases the infinite
-	// length (2147483647) exactly as the engine did — the oracle covers both finite + infinite.
+	// Forward to the DOM read kernel. getLoopLength() is safe to fetch eagerly (a length, not a null-deref;
+	// processCurrentPos already reads it unconditionally). The kernel special-cases the infinite length
+	// (2147483647).
 	return deluge::project::getValueAtPos(*modelStack->doc(), pos, modelStack->getLoopLength(), reversed);
 }
 
 // Returns whether a change was made to currentValue
 bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack) {
-	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
+	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 	if (nodesRef.empty()) {
 		return false;
@@ -1285,7 +1277,7 @@ bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* mo
 }
 
 void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
-	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
+	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
 	resetInterpolationIncrement(); // We may calculate this, below
@@ -1322,23 +1314,23 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 }
 
 void AutoParam::flattenReverse(deluge::project::DocAutoParam& doc, int32_t reverseDirectionWithLength) {
-	deluge::project::flattenReverse(doc, reverseDirectionWithLength); // M2-C: forward to the DOM kernel
+	deluge::project::flattenReverse(doc, reverseDirectionWithLength); // forwards to the DOM kernel
 }
 
 // Wait, surely this should be undoable?
 void AutoParam::generateRepeats(deluge::project::DocAutoParam& doc, uint32_t oldLength, uint32_t newLength,
                                 bool shouldPingpong) {
-	deluge::project::generateRepeats(doc, oldLength, newLength, shouldPingpong); // M2-C: forward to DOM kernel
+	deluge::project::generateRepeats(doc, oldLength, newLength, shouldPingpong); // forwards to the DOM kernel
 }
 
 void AutoParam::appendParam(deluge::project::DocAutoParam& doc, deluge::project::DocAutoParam const& srcDoc,
                             int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
-	// M2-C: forward to the DOM kernel; the source param's nodes come from its DocAutoParam handle.
+	// Forward to the DOM kernel; the source param's nodes come from its DocAutoParam handle.
 	deluge::project::appendParam(doc, srcDoc, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
 }
 
 void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack) {
-	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
+	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
 	// If no nodes, nothing to do
@@ -1492,7 +1484,7 @@ Error AutoParam::readFromFile(deluge::project::DocAutoParam& doc, Deserializer& 
 		for (int32_t i = 2; i < 12 && (buffer[i] = reader.readNextCharOfTagOrAttributeValue()); i++) {}
 		buffer[11] = 0;
 		currentValue = stringToInt(buffer);
-		doc.current_value = currentValue; // Option I (read-authority): the store scalar is sourced from the file
+		doc.current_value = currentValue; // the store scalar is sourced from the file
 		return Error::NONE;
 	}
 
@@ -1504,7 +1496,7 @@ Error AutoParam::readFromFile(deluge::project::DocAutoParam& doc, Deserializer& 
 		return Error::NONE;
 	}
 	currentValue = hexToIntFixedLength(hexChars, 8);
-	doc.current_value = currentValue; // Option I (read-authority): the store scalar is sourced from the file
+	doc.current_value = currentValue; // the store scalar is sourced from the file
 
 	// And now read in the automation
 	int32_t numElementsToAllocateFor = 0;
@@ -1598,10 +1590,9 @@ bool AutoParam::containedSomethingBefore(bool wasAutomatedBefore, uint32_t value
 	return (wasAutomatedBefore || valueBefore != neutralValue);
 }
 
-// M2-C sync-bridge: the kernel mutates DocAutoParam::current_value (the DOM base), but the engine's live RT
-// cursor is the separate `currentValue` member (kept distinct until M2-E). So for value-touching ops we sync
-// currentValue → doc_->current_value, run the kernel, then read it back. (doc_->current_value is otherwise
-// engine-dead in M2-B, so this is a safe scratch use; the node vector is shared directly.)
+// Value sync: the kernel mutates DocAutoParam::current_value (the DOM base), but the engine's live RT cursor is the
+// separate `currentValue` member. So for value-touching ops we sync currentValue to doc.current_value, run the
+// kernel, then read it back.
 void AutoParam::shiftValues(deluge::project::DocAutoParam& doc, int32_t offset) {
 	doc.current_value = currentValue;
 	deluge::project::shiftValues(doc, offset);
@@ -1609,11 +1600,11 @@ void AutoParam::shiftValues(deluge::project::DocAutoParam& doc, int32_t offset) 
 }
 
 void AutoParam::shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t amount, int32_t effectiveLength) {
-	deluge::project::shiftHorizontally(doc, amount, effectiveLength); // M2-C: forward to the DOM kernel
+	deluge::project::shiftHorizontally(doc, amount, effectiveLength); // forwards to the DOM kernel
 }
 
 void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack) {
-	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
+	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 	bool automatedBefore = isAutomated(*modelStack->doc());
 
@@ -1630,7 +1621,7 @@ void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* 
 
 void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, ModelStackWithAutoParam const* modelStack,
                       CopiedParamAutomation* copiedParamAutomation, bool isPatchCable) {
-	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
+	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
 	bool automatedBefore = isAutomated(*modelStack->doc());
@@ -1758,7 +1749,7 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 
 void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* copiedParamAutomation, bool isPatchCable,
                      ModelStackWithAutoParam const* modelStack) {
-	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
+	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
 	// And if any of them are in the right zone...
@@ -1835,33 +1826,33 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 // Or it'd ideally be 18 for 14-bit pitch bend data, but that'd be a bit overkill.
 Error AutoParam::makeInterpolationGoodAgain(deluge::project::DocAutoParam& doc, int32_t clipLength,
                                             int32_t quantizationRShift) {
-	// M2-C: forward to the DOM kernel; it returns false only on the engine's INSUFFICIENT_RAM path.
+	// Forward to the DOM kernel; it returns false only on the INSUFFICIENT_RAM path.
 	return deluge::project::makeInterpolationGoodAgain(doc, clipLength, quantizationRShift) ? Error::NONE
 	                                                                                        : Error::INSUFFICIENT_RAM;
 }
 
 void AutoParam::transposeCCValuesToChannelPressureValues(deluge::project::DocAutoParam& doc) {
-	doc.current_value = currentValue; // M2-C sync-bridge (see shiftValues)
+	doc.current_value = currentValue; // value sync (see shiftValues)
 	deluge::project::transposeCCValuesToChannelPressure(doc);
 	currentValue = doc.current_value;
 }
 
 /// this is used in arranger view to delete time between automation nodes (shift + <>)
 void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackWithAutoParam* modelStack) {
-	// M2-C: forward to the DOM kernel (revertability Action is handled by the caller, per the original note).
+	// Forward to the DOM kernel (the revertability Action is handled by the caller).
 	deluge::project::deleteTime(*modelStack->doc(), startPos, lengthToDelete, modelStack->getLoopLength());
 }
 
 /// this is used in arranger view to insert time between automation nodes (shift + <>)
 void AutoParam::insertTime(deluge::project::DocAutoParam& doc, int32_t pos, int32_t lengthToInsert) {
-	deluge::project::insertTime(doc, pos, lengthToInsert); // M2-C: forward to the DOM kernel
+	deluge::project::insertTime(doc, pos, lengthToInsert); // forwards to the DOM kernel
 }
 
 // Offset must be either 1 or -1.
 void AutoParam::moveRegionHorizontally(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length,
                                        int32_t offset, int32_t lengthBeforeLoop, Action* action) {
-	// M2-C: keep the Action-snapshot wiring seam; forward the node mutation to the DOM kernel. The empty-gate
-	// stays here so we don't snapshot an Action when there's nothing to move (matching the engine order).
+	// The Action-snapshot wiring stays here; the node mutation is forwarded to the DOM kernel. The empty-gate stays
+	// here so we don't snapshot an Action when there's nothing to move.
 	if (modelStack->doc()->nodes.empty()) {
 		return;
 	}
@@ -1873,8 +1864,8 @@ void AutoParam::moveRegionHorizontally(ModelStackWithAutoParam const* modelStack
 
 void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
                                                 ModelStackWithAutoParam const* modelStack) {
-	// M2-C: the Action snapshot fires whenever a node exists at pos (engine gate), regardless of whether the
-	// node is interpolated; forward the node mutation to the DOM kernel, then keep the RT interpolation reset.
+	// The Action snapshot fires whenever a node exists at pos, regardless of whether the node is interpolated;
+	// forward the node mutation to the DOM kernel, then reset the RT interpolation.
 	if (action && modelStack->doc()->nodes.find_key(pos) != modelStack->doc()->nodes.end()) {
 		action->recordParamChangeDefinitely(modelStack, false);
 	}
@@ -1890,7 +1881,7 @@ void AutoParam::notifyPingpongOccurred() {
 
 void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
                            int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
-	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
+	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
 	int32_t stopAt = pos + regionLength;
@@ -1968,7 +1959,7 @@ goAgain:
 
 void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
                                   int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
-	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
+	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
 	bool wasAutomatedBefore = isAutomated(*modelStack->doc());
@@ -2011,7 +2002,7 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 // Disregards a node that's right at pos.
 // Maybe I ought to make this take cut-points into consideration... but I can't see a need yet...
 int32_t AutoParam::getDistanceToNextNode(ModelStackWithAutoParam const* modelStack, int32_t pos, bool reversed) {
-	// M2-C: forward to the DOM read kernel, supplying the timeline context (loop length) it takes explicitly.
+	// Forward to the DOM read kernel, supplying the timeline context (loop length) it takes explicitly.
 	return deluge::project::getDistanceToNextNode(*modelStack->doc(), pos, modelStack->getLoopLength(), reversed);
 }
 

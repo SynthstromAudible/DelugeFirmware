@@ -58,8 +58,10 @@ public:
 	virtual void setChannel(int newChannel);
 	inline int32_t getChannel() const { return channel; }
 
-	// DO3: channel is DOM-authoritative at save. Every forward write funnels through setChannel() (or, for the
-	// polymorphic/clone sites, seedDocOutputIdentity()).
+	/// @brief Reseeds the record's channel from the current native value.
+	///
+	/// The channel is record-authoritative at save: every write funnels through setChannel() (or, for the
+	/// polymorphic/clone sites, this).
 	void seedDocOutputIdentity() override;
 	// Cache these here just in case there's no ParamManager - because CVInstruments don't do backedUpParamManagers.
 	uint8_t cachedBendRanges[2]{};

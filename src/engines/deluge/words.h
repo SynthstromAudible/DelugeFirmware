@@ -74,6 +74,8 @@ enum class SampleRepeatMode {
 };
 
 /// @brief The file name of @p mode.
+/// @param mode The synth mode.
+/// @return The name a file writes.
 [[nodiscard]] constexpr std::string_view to_string(SynthMode mode) noexcept {
 	switch (mode) {
 	case SynthMode::FM:
@@ -87,6 +89,8 @@ enum class SampleRepeatMode {
 }
 
 /// @brief The synth mode @p text names; anything else reads as subtractive.
+/// @param text A synth mode name from a file.
+/// @return The named mode.
 [[nodiscard]] constexpr SynthMode parse_synth_mode(std::string_view text) noexcept {
 	if (text == "fm") {
 		return SynthMode::FM;
@@ -98,6 +102,8 @@ enum class SampleRepeatMode {
 }
 
 /// @brief The file name of @p type.
+/// @param type The oscillator type.
+/// @return The name a file writes.
 [[nodiscard]] constexpr std::string_view to_string(OscType type) noexcept {
 	switch (type) {
 	case OscType::SQUARE:
@@ -129,6 +135,8 @@ enum class SampleRepeatMode {
 }
 
 /// @brief The oscillator type @p text names; anything else reads as a triangle.
+/// @param text An oscillator type name from a file.
+/// @return The named type.
 [[nodiscard]] constexpr OscType parse_osc_type(std::string_view text) noexcept {
 	for (OscType t :
 	     {OscType::SQUARE, OscType::ANALOG_SQUARE, OscType::ANALOG_SAW_2, OscType::SAW, OscType::SINE, OscType::SAMPLE,
@@ -141,6 +149,8 @@ enum class SampleRepeatMode {
 }
 
 /// @brief The file name of @p type.
+/// @param type The LFO shape.
+/// @return The name a file writes.
 [[nodiscard]] constexpr std::string_view to_string(LFOType type) noexcept {
 	switch (type) {
 	case LFOType::SQUARE:
@@ -162,6 +172,8 @@ enum class SampleRepeatMode {
 }
 
 /// @brief The LFO shape @p text names; anything else reads as a triangle.
+/// @param text An LFO shape name from a file.
+/// @return The named shape.
 [[nodiscard]] constexpr LFOType parse_lfo_type(std::string_view text) noexcept {
 	for (LFOType t : {LFOType::SQUARE, LFOType::SAW, LFOType::SINE, LFOType::SAMPLE_AND_HOLD, LFOType::WARBLER,
 	                  LFOType::RANDOM_WALK}) {
@@ -173,6 +185,8 @@ enum class SampleRepeatMode {
 }
 
 /// @brief The file name of @p mode.
+/// @param mode The polyphony mode.
+/// @return The name a file writes.
 [[nodiscard]] constexpr std::string_view to_string(PolyphonyMode mode) noexcept {
 	switch (mode) {
 	case PolyphonyMode::MONO:
@@ -190,6 +204,8 @@ enum class SampleRepeatMode {
 }
 
 /// @brief The polyphony @p text names; anything else reads as poly.
+/// @param text A polyphony name from a file.
+/// @return The named mode.
 [[nodiscard]] constexpr PolyphonyMode parse_polyphony_mode(std::string_view text) noexcept {
 	if (text == "mono") {
 		return PolyphonyMode::MONO;

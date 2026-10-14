@@ -35,9 +35,13 @@ struct EqualizerParams {
 /// @brief Two shelving bands, each a one-pole split of the signal; a flat band neither processes nor moves its memory.
 class Equalizer {
 public:
+	/// @brief Applies the bass and treble shelves to @p block in place; does nothing while both bands are flat.
+	/// @param block The stereo block to process.
+	/// @param params The block's EQ settings.
 	void process(std::span<dsp::StereoSample> block, const EqualizerParams& params);
 
 	/// @brief Takes @p other's band coefficients, as a clone of its owner does; the filter memory starts afresh.
+	/// @param other The equalizer to copy the coefficients from.
 	void copy_coefficients_from(const Equalizer& other) {
 		bass_coefficient_ = other.bass_coefficient_;
 		treble_coefficient_ = other.treble_coefficient_;

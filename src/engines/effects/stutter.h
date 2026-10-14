@@ -51,6 +51,7 @@ public:
 	using Kernel = dsp::fixed::Stutter;
 
 	/// @brief Takes the allocator the tapes come from and go back to.
+	/// @param allocator The allocator for the tapes' storage.
 	explicit Stutter(RingAllocator allocator);
 	/// @brief Frees the tape held; the owner's teardown runs with the render excluded.
 	~Stutter();
@@ -59,20 +60,28 @@ public:
 
 	/// @brief Interaction tier, before the section: allocates storage for the tape a stutter at @p rate (8.24) records,
 	/// its size plus the write lag.
+	/// @param rate The stutter's rate, 8.24 on the delay's rate scale.
+	/// @return The allocated storage and its shape; `acquired` is null when allocation failed.
 	[[nodiscard]] StutterChange prepare(uint32_t rate);
 	/// @brief Inside the owner's AudioExcludedSection: starts recording over @p change's tape with @p settings'
 	/// direction and ping-pong. A tape already held moves to @p change's released.
+	/// @param change   The handover from prepare.
+	/// @param settings The stutter's direction and ping-pong.
 	/// @return False, and nothing changed, when @p change holds no storage.
 	[[nodiscard]] bool commit(StutterChange& change, const StutterState& settings);
 	/// @brief Inside the owner's AudioExcludedSection: stops the stutter and takes its tape back into @p change.
+	/// @param change The handover receiving the tape.
 	/// @pre @p change holds nothing released.
 	void commit_end(StutterChange& change);
 	/// @brief After the section: frees what commit or commit_end took back, and storage prepare allocated that commit
 	/// did not use.
+	/// @param change The handover to free; its pointers are null afterwards.
 	void finish(StutterChange& change);
 
 	/// @brief Render: records into or plays back the tape over @p block in place at @p rate (8.24), turning to play
 	/// after the block in which the recording ran out. Passes through while inactive.
+	/// @param block The frames to process, in place.
+	/// @param rate  The stutter's rate, 8.24 on the delay's rate scale.
 	void render(std::span<dsp::StereoSample> block, uint32_t rate);
 
 	/// @return Whether a stutter is recording or playing.

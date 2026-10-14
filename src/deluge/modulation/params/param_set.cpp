@@ -49,9 +49,9 @@ ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
     : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), topUintToRepParams(1) {
 }
 
-// M2-E (E3): a cloned set that was bound gets its OWN deep copy of the DOM store, so it carries the source's
+// A cloned set that was bound gets its OWN deep copy of the DOM store, so it carries the source's
 // automation without any AutoParam holding a cross-set pointer (the params' element-wise copy carries only their
-// now-empty inline ownDoc_; the nodes live in the store). No aliasing: the clone owns an independent DocParamSet.
+// empty inline ownDoc_; the nodes live in the store). No aliasing: the clone owns an independent DocParamSet.
 // An unbound source clones unbound (domStoreRef_ null via the default member init) and the params' ownDoc_ carry
 // the nodes. The subclass copy-ctors re-point `params` at their own array.
 ParamSet::ParamSet(ParamSet const& other)
@@ -67,8 +67,8 @@ ParamSet::ParamSet(ParamSet const& other)
 ParamSet::~ParamSet() = default;
 
 void ParamSet::bindDomStore() {
-	// M2-F: binding is now just "ensure a store exists" — docForParam lazily creates + binds the set's own store.
-	// (Node relocation from AutoParam::ownDoc_ is gone: deserialize + edits already land in the store directly.)
+	// Binding is just "ensure a store exists": docForParam lazily creates + binds the set's own store
+	// (deserialize and edits land in the store directly).
 	if (domStoreRef_ == nullptr && numParams_ > 0) {
 		(void)docForParam(0);
 	}
@@ -94,7 +94,7 @@ void ParamSet::projectFromStoreAfterRead(ParamCollectionSummary* summary) {
 }
 
 deluge::project::DocAutoParam* ParamSet::docForParam(int32_t p) {
-	// M2-F: a ParamSet ALWAYS resolves to a DOM store slot — never to inline AutoParam storage. If not yet bound
+	// A ParamSet ALWAYS resolves to a DOM store slot — never to inline AutoParam storage. If not yet bound
 	// (e.g. mid-deserialize, or a fresh runtime set), lazily create this set's own store here so the first node
 	// access binds it. Owner-resolution is then uniform and `AutoParam::ownDoc_` is unused by ParamSets.
 	if (domStoreRef_ == nullptr) {
@@ -455,10 +455,9 @@ UnpatchedParamSet::UnpatchedParamSet(ParamCollectionSummary* summary) : ParamSet
 	topUintToRepParams = (numParams_ - 1) >> 5;
 }
 
-// Real-copy clone(): the common copyAutomation=true / no-reverse path copy-constructs (deep-copying the
-// AutoParams); the rarer copyAutomation=false / reverse cases still delegate to the legacy byte-copy base
-// clone() (carved out before the idiom is fully removed). The copy ctor copy-constructs the inline params_
-// array and re-points `params` to it (the base ParamSet copy leaves `params` pointing at the source).
+// clone() copy-constructs (deep-copying the AutoParams), then strips or reverse-flattens the automation as
+// requested. The copy ctor copy-constructs the inline params_ array and re-points `params` to it (the base
+// ParamSet copy leaves `params` pointing at the source).
 
 UnpatchedParamSet::UnpatchedParamSet(UnpatchedParamSet const& other)
     : ParamSet(other), kind(other.kind), params_(other.params_) {
@@ -794,8 +793,7 @@ int32_t ExpressionParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWi
 char const* expressionParamNames[] = {"pitchBend", "yExpression", "pressure"};
 
 bool ExpressionParamSet::writeToFile(Serializer& writer, bool mustWriteOpeningTagEndFirst) {
-	// Serialize from the value DOM (deluge::project) — byte-identical to the former hand-written sequence
-	// (verified in the param-projection driver).
+	// Serialize from the value DOM (deluge::project).
 	deluge::project::DocParamSet doc = deluge::bridge::toDocParamSetFromStore(*this);
 	return deluge::bridge::serializeExpressionParams(doc, writer, mustWriteOpeningTagEndFirst,
 	                                                 /*writeAutomation=*/true);
@@ -804,7 +802,7 @@ bool ExpressionParamSet::writeToFile(Serializer& writer, bool mustWriteOpeningTa
 void ExpressionParamSet::readFromFile(Deserializer& reader, ParamCollectionSummary* summary,
                                       int32_t readAutomationUpToPos) {
 
-	// Option I (read-authority): read MPE params INTO the DOM store (defaults are zero, so an unwritten store slot
+	// Read MPE params INTO the DOM store (defaults are zero, so an unwritten store slot
 	// is already correct), then project each engine RT cursor from the store — the DOM holds the authoritative
 	// current_value, not just the nodes. The <channelPressure> legacy alias is folded into the DOM reader.
 	bindDomStore();

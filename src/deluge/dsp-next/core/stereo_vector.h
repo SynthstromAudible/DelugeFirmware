@@ -42,11 +42,15 @@ namespace detail {
 // interleaved buffers are int32 storage to begin with, so both views name the same int32 objects.
 
 /// @brief The interleaved q31 samples of a block of stereo frames (left, right, left, ...).
+/// @param frames The block.
+/// @return A pointer to its first sample.
 [[nodiscard, gnu::always_inline]] inline const q31* interleaved(std::span<const StereoSample> frames) {
 	return reinterpret_cast<const q31*>(frames.data());
 }
 
 /// @brief The interleaved q31 samples of a writable block of stereo frames (left, right, left, ...).
+/// @param frames The block.
+/// @return A pointer to its first sample.
 [[nodiscard, gnu::always_inline]] inline q31* interleaved(std::span<StereoSample> frames) {
 	return reinterpret_cast<q31*>(frames.data());
 }
@@ -55,6 +59,8 @@ namespace detail {
 /// StereoVector.
 /// @details A bit cast rather than element access or a structured binding: std::array's accessors and `std::get`
 /// are calls under `-fno-inline-functions`, and this runs once per step.
+/// @param channels The left and right vectors, in that order.
+/// @return The same two vectors as a StereoVector.
 [[nodiscard, gnu::always_inline]] inline StereoVector toStereo(const std::array<Argon<q31>, 2>& channels) {
 	static_assert(sizeof(StereoVector) == sizeof(channels));
 	return __builtin_bit_cast(StereoVector, channels);

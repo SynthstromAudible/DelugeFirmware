@@ -25,13 +25,16 @@
 
 namespace deluge::project {
 
-/// The DOM-owned descriptor record for one AudioClip (M3 owner-4). Keyed by Clip::id() in AudioClipStructure,
-/// separate from DocClip (which is shared with InstrumentClip). The sample is referenced by portable PATH + ranges,
-/// never a pointer. Enums stored as underlying values. Rebuilt from the engine AudioClip at load + save.
-/// Member initializers hold the AudioClip's construction defaults (owner-4 is model-first: the ctor derives the
-/// engine cache from a freshly-created record, so these values are the single source of the descriptor defaults).
-/// interpolation_mode=SMOOTH + pitch_and_speed_independent=true + attack=INT_MIN + voice_priority=MEDIUM +
-/// overdubs_should_clone=true mirror the old scattered AudioClip ctor assignments.
+/// @brief The DOM-owned descriptor record for one AudioClip.
+///
+/// Keyed by Clip::id() in AudioClipStructure, separate from DocClip (which is shared with InstrumentClip). The
+/// sample is referenced by portable PATH + ranges, never a pointer. Enums are stored as underlying values. Rebuilt
+/// from the engine AudioClip at load and save.
+///
+/// The member initializers are the AudioClip's construction defaults: the engine clip derives its cache from a
+/// freshly-created record, so these values are the single source of the descriptor defaults
+/// (interpolation_mode SMOOTH, pitch_and_speed_independent true, attack INT_MIN, voice_priority MEDIUM,
+/// overdubs_should_clone true).
 struct DocAudioClip {
 	std::string file_path;
 	uint64_t start_pos{0};

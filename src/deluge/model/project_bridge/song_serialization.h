@@ -27,14 +27,24 @@ namespace deluge::bridge {
 
 /// @brief Write the song through @p out, a JSON writer (a song is never written as XML); the model's parts are written
 /// as their codecs encode them, at their place among the engine's.
+///
+/// @param song The song to write.
+/// @param out  The JSON serializer to write through.
 void saveSong(::Song& song, Serializer& out);
 
 /// @brief Read a song from @p in, which must read a document tree (every song is opened as one): decode the model's
 /// song-level records and arrangement from the tree, read the engine's parts through @p in, then resolve what the
 /// model names by id or by position against the engine's clips, outputs and MIDI devices.
+///
+/// @param song The song to read into.
+/// @param in   The deserializer, reading a document tree.
+/// @return The first error met, else Error::NONE.
 Error loadSong(::Song& song, Deserializer& in);
 
 /// @brief Whether @p tagName is one of the song's tags the model decodes, which the engine's reader skips.
+///
+/// @param tagName The tag name.
+/// @return true if the model decodes it.
 [[nodiscard]] bool isDecodedSongTag(char const* tagName);
 
 } // namespace deluge::bridge

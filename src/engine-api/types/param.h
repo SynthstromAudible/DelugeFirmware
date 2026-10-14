@@ -61,12 +61,17 @@ struct ParamBlock {
 	uint32_t count{0};
 
 	/// @brief Whether @p id is one of this block's.
+	/// @param id The param id to test.
+	/// @return True if @p id lies in [first, first + count).
 	[[nodiscard]] constexpr bool contains(ParamId id) const {
 		return id.value >= first.value && id.value - first.value < count;
 	}
 };
 
 /// @brief The row of @p table with id @p id, or nullptr.
+/// @param table The engine's param table.
+/// @param id The param id to find.
+/// @return The matching row, or nullptr.
 [[nodiscard]] constexpr const ParamInfo* find_param(std::span<const ParamInfo> table, ParamId id) {
 	for (const ParamInfo& row : table) {
 		if (row.id == id) {
@@ -77,6 +82,9 @@ struct ParamBlock {
 }
 
 /// @brief The row of @p table named @p file_name, or nullptr. An empty name matches no row.
+/// @param table The engine's param table.
+/// @param file_name The name files give the param.
+/// @return The matching row, or nullptr.
 [[nodiscard]] constexpr const ParamInfo* find_param(std::span<const ParamInfo> table, std::string_view file_name) {
 	if (file_name.empty()) {
 		return nullptr;

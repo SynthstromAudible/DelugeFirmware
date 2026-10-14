@@ -9,10 +9,10 @@ class ModelStackWithNoteRow;
 
 namespace deluge::edits {
 
-/// Set a note-row's independent length (the reification of InstrumentClipView's NOTEROW_LENGTH_EDIT new-action
-/// branch). apply funnels getNewAction(NOTEROW_LENGTH_EDIT) + a ConsequenceNoteRowLength whose performChange both
-/// applies the length change and records its own undo. Returns Error::INSUFFICIENT_RAM on allocation failure so
-/// the call site keeps its ramError flow.
+/// @brief Set a note-row's independent length (the NOTEROW_LENGTH_EDIT new-action case).
+///
+/// apply() opens a NOTEROW_LENGTH_EDIT Action and adds a ConsequenceNoteRowLength whose performChange both applies
+/// the length change and records its own undo. Returns Error::INSUFFICIENT_RAM on allocation failure.
 class SetNoteRowLength final : public Edit {
 public:
 	SetNoteRowLength(std::optional<project::NoteRowAddress> address, int32_t newLength, int32_t oldPos,
@@ -27,7 +27,7 @@ private:
 	int32_t newLength_;
 	int32_t oldPos_;
 	bool hadIndependentPlayPosBefore_;
-	ModelStackWithNoteRow* engineStack_; ///< Funnel-phase borrow.
+	ModelStackWithNoteRow* engineStack_; ///< Borrowed for the duration of apply().
 };
 
 } // namespace deluge::edits

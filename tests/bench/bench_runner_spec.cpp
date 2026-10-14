@@ -475,7 +475,7 @@ q31 delay_high_pass(q31 x, q31& memory) {
 	return static_cast<q31>(static_cast<uint32_t>(x) - static_cast<uint32_t>(memory));
 }
 
-/// The delay's feedback as it shipped before it ran as one chain: the stereo impulse response (analog only), the
+/// The delay's feedback as separate stages: the stereo impulse response (analog only), the
 /// feedback amount and its saturation, then the high-pass, each a loop of its own over the block, every add wrapping
 /// as the hardware's does. @p blocks blocks of @p n frames from silence, from the lanes input's first @p n frames,
 /// filled as the delay cases fill it, at the delay cases' feedback and drive: in place, each block after the first

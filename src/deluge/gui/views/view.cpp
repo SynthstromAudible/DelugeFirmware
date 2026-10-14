@@ -909,7 +909,7 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 
 	int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
-	// Perform the actual change, reified as the pilot Edit (M1b, docs/dev/project_model_migration_plan.md).
+	// Perform the actual change as an Edit.
 	deluge::edits::Context editContext{*currentSong, currentSong->project};
 	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue,
 	                                  static_cast<int32_t>(modPos), static_cast<int32_t>(modLength),
@@ -1530,9 +1530,9 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 				// knows the mod button parameter context
 				uint8_t* modKnobModeSlot = activeModControllableModelStack.modControllable->getModKnobMode();
 				*modKnobModeSlot = whichButton;
-				// DO1 (DocOutput identity): getModKnobMode() is polymorphic — for SoundInstrument/MIDIInstrument/
+				// getModKnobMode() is polymorphic — for SoundInstrument/MIDIInstrument/
 				// AudioOutput/Kit it returns &(that Output's own) modKnobMode; for SoundDrum it returns
-				// &kit->modKnobMode (the enclosing Kit's own field, still an Output field); for
+				// &kit->modKnobMode (the enclosing Kit's own field, an Output field); for
 				// GlobalEffectableForSong it returns a private field that is NOT this record (the song-global gold
 				// knob). Reseed the DOM identity record only when the slot just written is genuinely the current
 				// output's own field — a pointer-identity check that's correct across every override without a

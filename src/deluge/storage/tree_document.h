@@ -48,7 +48,11 @@ public:
 	/// @p bytes are only read, and may be freed as soon as this returns: the tree owns its own copies. Any
 	/// document this one held is released first.
 	///
-	/// @param isJson `true` to parse as JSON, `false` as XML.
+	/// @param bytes                  The document text.
+	/// @param isJson                 `true` to parse as JSON, `false` as XML.
+	/// @param firstTagName           The root tag to enter.
+	/// @param altTagName             An alternative root tag to enter instead; empty or null for none.
+	/// @param ignoreIncorrectFirmware If true, a document needing newer firmware than this one is not rejected.
 	/// @return Error::NONE; Error::FILE_CORRUPTED if the bytes did not parse or held no root tag; or the
 	///         firmware-tag check's error. On failure nothing is held.
 	Error open(std::span<const uint8_t> bytes, bool isJson, char const* firstTagName, char const* altTagName = "",
@@ -57,6 +61,8 @@ public:
 	/// @brief Free the tree. Safe on a document that holds nothing.
 	void release();
 
+	/// @brief Whether a document is held.
+	/// @return True if a document is held.
 	[[nodiscard]] bool isOpen() const { return reader_.has_value(); }
 
 	/// @brief The reader, inside the root tag. Only while isOpen().
@@ -71,6 +77,7 @@ private:
 /// @brief Points `activeReader` at a reader for one parse, and puts the previous one back on every exit.
 class ActiveReaderScope {
 public:
+	/// @param reader The reader to make active for this scope's lifetime.
 	explicit ActiveReaderScope(Deserializer& reader) : previous_(activeReader) { activeReader = &reader; }
 	~ActiveReaderScope() { activeReader = previous_; }
 	ActiveReaderScope(const ActiveReaderScope&) = delete;

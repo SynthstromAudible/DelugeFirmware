@@ -20,7 +20,11 @@ std::string fixture() {
 } // namespace
 
 namespace {
-/// @p node with the first entry named @p key below it left out (@p dropped says whether one was).
+/// @brief @p node with the first entry named @p key below it left out.
+/// @param node    The tree to copy.
+/// @param key     The entry name to drop.
+/// @param dropped In/out: set once an entry has been dropped; later matches are kept.
+/// @return The copy of @p node without that entry.
 deluge::serialization::Value without_first(const deluge::serialization::Value& node, std::string_view key,
                                            bool& dropped) {
 	if (node.isMap()) {

@@ -137,7 +137,7 @@ void JsonSerializer::writeAttributeHexBytes(char const* name, uint8_t* data, int
 	else {
 		write(" ");
 	}
-	write("\""); // JSON keys must be quoted (this method previously wrote an unquoted name: "...")
+	write("\""); // JSON keys must be quoted
 	write(name);
 	write("\": \"");
 

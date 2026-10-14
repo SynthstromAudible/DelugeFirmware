@@ -1171,7 +1171,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 					oldSection = (oldSection + 1) % kMaxNumSections;
 				} while (!sectionUsed[oldSection]);
 
-				// Reify the persistent section write (the view keeps the next-available-section computation above).
+				// Persistent section write (the view keeps the next-available-section computation above).
 				deluge::edits::Context sectionCtx{*currentSong, currentSong->project};
 				deluge::edits::SetClipSection sectionEdit{clip, oldSection};
 				deluge::edits::apply(sectionCtx, sectionEdit);

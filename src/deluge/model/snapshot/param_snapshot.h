@@ -28,10 +28,11 @@ struct ParamAddress;
 
 namespace deluge::snapshot {
 
-/// Timeline/playback context the region patch needs — exactly what AutoParam::setValueForRegion reads off the
-/// engine ModelStack. In M4a it is gathered at the emission point from the still-borrowed engine stack (mirroring
-/// apply()'s own funnel-phase borrow); the north-star read-side flip (docs/dev/project_model_north_star.md) will
-/// source it from the model/snapshot instead. Every field is the value the engine reads at the same site:
+/// @brief Timeline/playback context the region patch needs: exactly what AutoParam::setValueForRegion reads off
+///        the engine ModelStack.
+///
+/// It is gathered at the emission point from the borrowed engine stack. Every field is the value the engine
+/// reads at the same site.
 struct RegionContext {
 	int32_t effectiveLength;       ///< ModelStackWithAutoParam::getLoopLength()
 	bool interpolateLeftNode;      ///< automation-view interpolation-before (false when not on the automation view)
@@ -42,22 +43,33 @@ struct RegionContext {
 	bool currentlyPlayingReversed; ///< ModelStackWithAutoParam::isCurrentlyPlayingReversed()
 };
 
-/// The engine-side read-view + patch protocol of the project-model migration's M4 read boundary (docs/dev/
-/// project_model_north_star.md § Snapshot). Its first instance is the param cursor: applyPatch is the incremental,
-/// model-first update of one param lane, keyed by its durable ParamAddress and driven by a SetParamValue event —
-/// equivalent to the in-line AutoParam poke but sourced from the model store rather than an engine poke. Depends on
-/// deluge-project only; the model never references this type, so the net dependency stays engine→model.
+/// @brief The engine-side read-view and patch protocol over the project model (docs/dev/project_model_north_star.md
+///        § Snapshot).
+///
+/// The param cursor: applyPatch is the incremental, model-first update of one param lane, keyed by its durable
+/// ParamAddress and driven by a SetParamValue event, equivalent to the in-line AutoParam poke but sourced from the
+/// model store.
+///
+/// @note Depends on deluge-project only; the model never references this type, so the dependency stays
+///       engine to model.
 class ParamSnapshot {
 public:
-	/// Patch one param lane in `model`, addressed by its durable id — the incremental alternative to a full
-	/// projectFromStoreAfterRead rebuild (which stays the fallback for load / coarse invalidation, never this
-	/// per-edit path). `region` absent → the scalar path: make the store's current_value authoritative (the in-line
-	/// poke's characterized scalar effect; nodes untouched). `region` present → the region path: reproduce
-	/// AutoParam::setValueForRegion's node/current_value mutation via the DOM kernel proven bit-equivalent to it
-	/// (the engine==DOM matrix in tests/integration/scenarios/drivers/param_projection.cpp).
+	/// @brief Patch one param lane in the model, addressed by its durable id.
 	///
-	/// Returns the region kernel's `automationChanged` (what the engine's notifyParamModifiedInSomeWay needs), or
-	/// `std::nullopt` for the scalar path and when the address does not resolve (no-op).
+	/// The incremental alternative to a full projectFromStoreAfterRead rebuild (which is the fallback for load and
+	/// coarse invalidation, never this per-edit path). With @p region absent this is the scalar path: it makes the
+	/// store's current_value authoritative and leaves nodes untouched. With @p region present it is the region
+	/// path: it reproduces AutoParam::setValueForRegion's node/current_value mutation via the DOM kernel, which is
+	/// bit-equivalent to it (the engine==DOM matrix in tests/integration/scenarios/drivers/param_projection.cpp).
+	///
+	/// @param model   The project model to patch.
+	/// @param address Durable address of the param lane.
+	/// @param value   The new param value.
+	/// @param pos     Start position of the edited region, in ticks.
+	/// @param length  Length of the edited region, in ticks.
+	/// @param region  Timeline context for the region path; absent selects the scalar path.
+	/// @return The region kernel's `automationChanged` (what the engine's notifyParamModifiedInSomeWay needs), or
+	///         `std::nullopt` for the scalar path and when the address does not resolve (no-op).
 	static std::optional<deluge::project::RegionWriteResult> applyPatch(deluge::project::Song& model,
 	                                                                    const deluge::project::ParamAddress& address,
 	                                                                    int32_t value, int32_t pos, int32_t length,

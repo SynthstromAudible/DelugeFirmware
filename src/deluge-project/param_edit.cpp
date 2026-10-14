@@ -169,12 +169,13 @@ void shiftHorizontally(DocAutoParam& p, int32_t amount, int32_t effectiveLength)
 
 namespace {
 
-// = util/const_functions.h's rshift_round_signed; param_edit is self-contained so it's replicated here.
+// Rounding arithmetic right shift (the same as util/const_functions.h's rshift_round_signed; param_edit is
+// self-contained).
 int32_t rshiftRoundSigned(int32_t value, uint32_t rshift) {
 	return (value + (1 << (rshift - 1))) >> rshift; // (Rohan) I never was quite 100% sure of this...
 }
-// = engine lshiftAndSaturate<1>: clamp to the signed 31-bit range, then <<1 (a saturating doubling). Used by
-// copyRegion/pasteRegion for the patch-cable node-range <-> parameter-range conversion.
+// Same as the engine's lshiftAndSaturate<1>: clamp to the signed 31-bit range, then <<1 (a saturating doubling). Used
+// by copyRegion/pasteRegion for the patch-cable node-range <-> parameter-range conversion.
 int32_t lshiftAndSaturateBy1(int32_t val) {
 	if (val > 1073741823) { // 2^30 - 1
 		val = 1073741823;
@@ -203,12 +204,12 @@ int32_t firstAtOrAfter(const ParamNodeVector& nodes, int32_t key) {
 	return static_cast<int32_t>(it - nodes.begin());
 }
 
-// Port of AutoParam::deleteNodesBeyondPos: drop every node at or after `pos`.
+// Drop every node at or after `pos`.
 void deleteNodesBeyond(ParamNodeVector& nodes, int32_t pos) {
 	nodes.erase(nodes.begin() + firstAtOrAfter(nodes, pos), nodes.end());
 }
 
-// Non-pingpong tiling — port of OrderedPosVector::generateRepeats. Tiles the contents (all before wrapPoint)
+// Non-pingpong tiling (as OrderedPosVector::generateRepeats). Tiles the contents (all before wrapPoint)
 // out to endPos.
 void tileRepeats(ParamNodeVector& nodes, int32_t wrapPoint, int32_t endPos) {
 	if (nodes.empty()) {
@@ -261,7 +262,7 @@ void generateRepeats(DocAutoParam& p, uint32_t oldLength, uint32_t newLength, bo
 	bool nothingAtZero = nodes[0].pos != 0;
 
 	// A pingpong reverses direction at pos 0; if there's no node there, synthesise one carrying the value at 0
-	// so the seam sounds continuous (always place it, matching the engine).
+	// so the seam sounds continuous (always place it).
 	if (nothingAtZero) {
 		const ParamNode& nodeBeforeWrap = nodes[nodes.size() - 1];
 		const ParamNode& nodeAfterWrap = nodes[0];
@@ -437,11 +438,8 @@ int32_t homogenizeRegion(DocAutoParam& p, int32_t startPos, int32_t length, int3
 		std::swap(edgePositions[0], edgePositions[1]);
 	}
 
-	// Which edges already have a node exactly at their position (the engine's edgeNodes[] non-null test,
-	// captured up-front). We keep indices rather than the engine's raw pointers: inserts below can reallocate
-	// std::vector, so a pointer form would dangle — the engine only gets away with pointers because its
-	// container rarely reallocates. Indices (which the engine already maintains for its re-fetches) are the
-	// equivalent robust translation.
+	// Which edges already have a node exactly at their position, captured up-front. Indices are kept rather than
+	// pointers: inserts below can reallocate the backing vector, so a pointer would dangle.
 	bool hasEdge[2] = {false, false};
 	for (int i = 0; i < 2; i++) {
 		if (edgeIndexes[i] < static_cast<int32_t>(nodes.size()) && nodes[edgeIndexes[i]].pos == edgePositions[i]) {
@@ -537,7 +535,7 @@ void deleteTime(DocAutoParam& p, int32_t startPos, int32_t lengthToDelete, int32
 			numToDelete--; // that's one node we're keeping after all
 			start++;
 			// If numToDelete is now 0 the erase below is a no-op and shouldAddNodeAtPos0 is false, so falling
-			// through is equivalent to the engine's `goto allDeleted`.
+			// through to the erase is correct.
 		}
 
 		nodes.erase(nodes.begin() + start, nodes.begin() + start + numToDelete);
@@ -555,7 +553,7 @@ void deleteTime(DocAutoParam& p, int32_t startPos, int32_t lengthToDelete, int32
 		nodes[i].pos -= lengthToDelete;
 	}
 
-	// A lone remaining node isn't meaningful automation — drop it (kept from the engine "safe" behaviour).
+	// A lone remaining node isn't meaningful automation — drop it.
 	if (nodes.size() == 1) {
 		nodes.erase(nodes.begin());
 	}
@@ -641,9 +639,8 @@ void moveRegionHorizontally(DocAutoParam& p, int32_t pos, int32_t length, int32_
 				}
 			}
 
-			// The decrement loops live INSIDE the move-left branch (unlike the pre-fix engine, which left them
-			// outside the offset if/else so they also cancelled the move-right increments — see the
-			// moveRegionHorizontally bug fix). Move-right increments above; move-left decrements here.
+			// The decrement loops live inside the move-left branch, so they don't cancel the move-right increments
+			// above.
 			for (int32_t i = 0; i < resultingIndexes[0]; i++) { // after wrap
 				nodes[i].pos--;
 			}
@@ -735,7 +732,7 @@ void deleteNodesWithinRegion(DocAutoParam& p, int32_t pos, int32_t length, int32
 
 	if (wrapping) {
 		// Tail (before-wrap) first, then front (after-wrap): erasing the front shifts later indices, so a
-		// front-first order would invalidate i1 (the engine's original bug). The ranges are disjoint.
+		// front-first order would invalidate i1. The ranges are disjoint.
 		nodes.erase(nodes.begin() + i1, nodes.end());
 		nodes.erase(nodes.begin(), nodes.begin() + i0);
 	}
@@ -744,7 +741,7 @@ void deleteNodesWithinRegion(DocAutoParam& p, int32_t pos, int32_t length, int32
 	}
 
 	if (nodes.empty()) {
-		p.current_value = 0; // MPE safety — the engine zeroes currentValue when no automation remains
+		p.current_value = 0; // MPE safety: zero the value when no automation remains
 	}
 }
 
@@ -959,11 +956,10 @@ void nudgeNonInterpolatingNodesAtPos(DocAutoParam& p, int32_t pos, int32_t offse
 
 	int32_t newNodePos = pos + offset;
 
-	// Shared handling for both wrap directions (the engine's "doWrap:" goto target): the node at `eraseIndex`
+	// Shared handling for both wrap directions: the node at `eraseIndex`
 	// has wrapped past a loop edge to `destPos` and may collide with whatever already sits at `neighborIndex`.
 	auto wrapNode = [&nodes](int32_t eraseIndex, int32_t neighborIndex, int32_t destPos) {
-		// There should never be just one node here — matches the engine's FREEZE_WITH_ERROR("E335") guard.
-		// The kernel just leaves the array untouched instead of freezing (see risks).
+		// There should never be just one node here; leave the array untouched if there is.
 		if (nodes.size() == 1) {
 			return;
 		}
@@ -1026,11 +1022,10 @@ std::optional<RegionWriteResult> setValueForRegion(DocAutoParam& p, uint32_t pos
 	}
 
 	// Special case: the region covers the whole loop/Clip/TimelineCounter — collapse to a flat value.
-	// (Faithful port of deleteAutomation's node mutation; Action snapshotting is engine wiring, not ported.)
 	if (length == static_cast<uint32_t>(effectiveLength)) {
 		nodes.clear();
 		p.current_value = value;
-		// automationChanged stays false on this path; the engine sets current_value with no interp reset / UI notify.
+		// automationChanged stays false on this path; current_value is set with no interp reset / UI notify.
 		return RegionWriteResult{false, RegionCurrentValueEffect::Set};
 	}
 
@@ -1038,7 +1033,7 @@ std::optional<RegionWriteResult> setValueForRegion(DocAutoParam& p, uint32_t pos
 	int32_t firstI = homogenizeRegion(p, static_cast<int32_t>(pos), static_cast<int32_t>(length), value,
 	                                  interpolateLeftNode, interpolateRightNode, effectiveLength,
 	                                  /*reversed=*/false, recordingLinearly);
-	if (firstI == -1) { // OOM in the engine; unreachable with this container's homogenizeRegion, kept for parity
+	if (firstI == -1) { // failure; unreachable with this container's homogenizeRegion
 		return std::nullopt;
 	}
 
@@ -1115,7 +1110,7 @@ void copyRegion(const DocAutoParam& p, int32_t startPos, int32_t endPos, int32_t
 void pasteRegion(DocAutoParam& p, int32_t startPos, int32_t endPos, float scaleFactor, int32_t loopLength,
                  bool isPatchCable, const CopiedAutomation& copied) {
 	if (copied.nodes.empty()) {
-		return; // engine FREEZE_WITH_ERRORs on this precondition in debug builds; the kernel just no-ops.
+		return; // nothing to paste
 	}
 
 	auto& nodes = p.nodes;
@@ -1222,26 +1217,6 @@ void pasteRegion(DocAutoParam& p, int32_t startPos, int32_t endPos, float scaleF
 	nodes.testSequentiality("E440");
 }
 
-/* -------------------------------------------------------------------------------------------------------------
- * Supporting additions (NOT to be appended standalone — merge into the existing anonymous-namespace helper
- * block and includes; see "risks" for exact placement):
- *
- * 1. Add `#include <cmath>` to the top of param_edit.cpp (for roundf), alongside the existing <algorithm>.
- *
- * 2. Add this helper into the existing anonymous namespace (next to addSaturating/firstAtOrAfter):
- *
- * // Port of lshiftAndSaturate<1>(val): clamp val to the signed 31-bit range ([-2^30, 2^30-1]) then shift left 1
- * // — the patch-cable convention for converting a patch-cable-range node value into the general parameter range.
- * // param_edit.cpp is self-contained and can't include util/functions.h (which has no ARM-vs-host split anyway
- * // for this op — signed_saturate<31> is the same plain clamp on both), so this is a local re-derivation.
- * int32_t lshiftAndSaturateBy1(int32_t val) {
- * 	constexpr int32_t hi = 1073741823;  // 2^30 - 1
- * 	constexpr int32_t lo = -1073741824; // -2^30
- * 	int32_t clamped = val > hi ? hi : (val < lo ? lo : val);
- * 	return clamped << 1;
- * }
- * ------------------------------------------------------------------------------------------------------------- */
-
 void stealNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32_t loopLength, StolenNodes* outStolen) {
 	auto& nodes = p.nodes;
 
@@ -1287,8 +1262,7 @@ void stealNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32_t loop
 	}
 
 	// Now actually delete the source nodes. Before-wrap first: that erase only ever touches indices at/after
-	// resultingIndex0, so it can't disturb the after-wrap front's indices (0..numNodesToStealAfterWrap), which
-	// is why the engine's order here (unlike deleteNodesWithinRegion's) was already safe.
+	// resultingIndex0, so it can't disturb the after-wrap front's indices (0..numNodesToStealAfterWrap).
 	if (numNodesToStealBeforeWrap > 0) {
 		nodes.erase(nodes.begin() + resultingIndex0, nodes.begin() + resultingIndex0 + numNodesToStealBeforeWrap);
 	}
@@ -1299,11 +1273,11 @@ void stealNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32_t loop
 
 void insertStolenNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32_t loopLength,
                        const StolenNodes& stolenNodes) {
-	// First, clear the destination area (an un-recorded steal, matching the engine's own call into itself).
+	// First, clear the destination area (an un-recorded steal).
 	stealNodes(p, pos, regionLength, loopLength);
 
 	auto& nodes = p.nodes;
-	// This is really inefficient. (Carried over from the engine's own comment.)
+	// This is really inefficient.
 	for (const ParamNode& stolenNode : stolenNodes) {
 		if (stolenNode.pos >= regionLength) {
 			break; // Our destination region is shorter than that of the stolen nodes.
@@ -1395,7 +1369,7 @@ bool makeInterpolationGoodAgain(DocAutoParam& p, int32_t clipLength, int32_t qua
 
 			auto inserted = nodes.insertSorted(thisNewPos);
 			if (!inserted.has_value()) {
-				return false; // out of RAM — matches AutoParam::Error::INSUFFICIENT_RAM
+				return false; // out of RAM
 			}
 			int32_t newNodeI = *inserted;
 			if (newNodeI <= i) {
@@ -1426,7 +1400,7 @@ int32_t recordLiveValue(DocAutoParam& p, int32_t livePos, int32_t value, int32_t
                         int32_t posAtWhichPlaybackWillCut) {
 	int32_t leftI;
 
-	// Special case (as in the engine): recording MPE linearly, or a zero-length region — insert one node.
+	// Special case: recording MPE linearly, or a zero-length region — insert one node.
 	if (doMPEMode || ticksToClear == 0) {
 		leftI = setNodeAtPos(p, livePos, value, interpolateLeft);
 	}
@@ -1445,7 +1419,7 @@ int32_t recordLiveValue(DocAutoParam& p, int32_t livePos, int32_t value, int32_t
 			if (iFurtherRight >= size) {
 				iFurtherRight -= size;
 			}
-			nodes[iFurtherRight].interpolated = true; // Imperfect, but sorta have to (per the engine comment).
+			nodes[iFurtherRight].interpolated = true; // Imperfect, but sorta have to.
 		}
 	}
 

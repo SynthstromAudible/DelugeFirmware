@@ -68,15 +68,18 @@ std::size_t sdram_size();
 /// @note The render must not allocate: it shares the heap with every other tier.
 /// @return Allocation count since boot.
 uint32_t audioTierAllocations();
-/// @brief Count an allocation if the render is making it (host-only; a no-op on the device), for
-/// audioTierAllocations().
+/// @brief Count an allocation if the render is making it, for audioTierAllocations().
+///
+/// Host-only; a no-op on the device.
 void countRenderAllocation();
 
 /// @brief Mark the calling thread as inside (or leaving) a render block, for audioTierAllocations() (host-only).
 /// @param entering True when entering the render block, false when leaving it.
 void noteRenderBlock(bool entering);
-/// @return Whether the calling thread is inside a render block (host-only; false on the device, where
-/// deluge_in_audio_context() answers).
+/// @brief Whether the calling thread is inside a render block.
+///
+/// Host-only; always false on the device, where deluge_in_audio_context() answers.
+/// @return True when inside a render block.
 bool inRenderBlock();
 
 #ifdef DELUGE_HOST

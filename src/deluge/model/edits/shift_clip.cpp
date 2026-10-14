@@ -14,11 +14,11 @@ Error ShiftClip::apply(Context& /*ctx*/) {
 
 	shifted_ = clip->shiftHorizontally(engineStack_, shiftAmount_, shiftAutomation_, shiftSequenceAndMPE_);
 	if (!shifted_) {
-		return Error::NONE; // Nothing moved; the view bails without rendering or recording.
+		return Error::NONE; // Nothing moved; the caller bails without rendering or recording.
 	}
 
-	// Undo record, verbatim from the call site (goto-free restatement): extend a matching open Action's Consequence
-	// amount; else reuse a matching consequence-less Action or open a new one, and add a fresh Consequence.
+	// Undo record: extend a matching open Action's Consequence amount; else reuse a matching consequence-less Action or
+	// open a new one, and add a fresh Consequence.
 	Action* action = actionLogger.firstAction[BEFORE];
 	const bool matchingAction = action != nullptr && action->type == ActionType::CLIP_HORIZONTAL_SHIFT
 	                            && action->openForAdditions && action->currentClip == clip;

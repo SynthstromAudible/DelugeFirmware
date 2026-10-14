@@ -7,8 +7,8 @@
 namespace deluge::edits {
 
 Error DeleteParamAutomation::apply(Context& /*ctx*/) {
-	// Funnel the site's getNewAction(AUTOMATION_DELETE)+deleteAutomation pair. deleteAutomation records the
-	// undo Consequence into the Action (recordParamChangeIfNotAlreadySnapshotted, stealData=true).
+	// Open the AUTOMATION_DELETE Action, then deleteAutomation, which records the undo Consequence into it
+	// (recordParamChangeIfNotAlreadySnapshotted, stealData=true).
 	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, addition_);
 	engineStack_->autoParam->deleteAutomation(action, engineStack_);
 	return Error::NONE;

@@ -29,15 +29,20 @@
 
 namespace deluge::gui::menu_item::voice {
 
-// Resolve-at-use seam for the voice-priority field, which is owned by either the current audio clip or the current
-// sound/drum (mirrors getCurrentSampleControls). By-value get/set, never a mutable reference to the native field, so
-// the owning class can route the access through its DOM record and retire the engine copy (project_model_menu_seam.md).
+/// @brief Read the voice priority of the current audio clip, or else of the current sound.
+///
+/// Resolve-at-use seam: the field is owned by either the current audio clip or the current sound/drum (mirrors
+/// getCurrentSampleControls). Access is by value, never a mutable reference to the native field, so the owning class
+/// can route it through its DOM record.
+/// @return The current owner's voice priority.
 inline VoicePriority getCurrentVoicePriority() {
 	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
-		return audioClip->voicePriority(); // DOM-owned accessor (owner-4 retired the native field)
+		return audioClip->voicePriority(); // DOM-owned accessor
 	}
-	return soundEditor.currentSound->snapshot().voicePriority; // owner-5: still a native Sound field
+	return soundEditor.currentSound->snapshot().voicePriority; // read from the sound's snapshot
 }
+/// @brief Write the voice priority of the current audio clip, or else of the current sound.
+/// @param value The priority to set on the current owner.
 inline void setCurrentVoicePriority(VoicePriority value) {
 	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
 		audioClip->setVoicePriority(value);

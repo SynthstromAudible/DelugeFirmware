@@ -1,4 +1,4 @@
-// Edit-aware round-trip driver (Phase 2 / DOM-live-authoritative automation): load a song, apply a DOM-first
+// Edit-aware round-trip driver (DOM-live-authoritative automation): load a song, apply a DOM-first
 // edit to a song-global unpatched param, save, reload, and assert the edit persisted through the DOM path.
 //
 //   song_edit_roundtrip <song.XML>
@@ -11,8 +11,7 @@
 //   4. load(gen1)                                                 -> reload
 //   5. require reloaded store[p] == SENTINEL AND reloaded engine[p] == SENTINEL
 //
-// It passes today with save reading the engine (the DOM-first edit reprojects into it) and will keep passing
-// after 5c-3 flips save to read the store — so it is the safety net for that flip.
+// It holds whether save reads the engine (the DOM-first edit reprojects into it) or the DOM store.
 //
 // Exit: 0 = edit persisted; 1 = load error; 2 = usage/IO; 3 = edit not applied / not persisted.
 
@@ -246,7 +245,7 @@ void forEachBoundSound(Song& song, F&& f) {
 	}
 }
 
-/// M4b: every bound Sound's snapshot must equal the projection of its SoundState record, and each snapshot setter must
+/// Every bound Sound's snapshot must equal the projection of its SoundState record, and each snapshot setter must
 /// write the record and reproject. @return the number of mismatches, each printed under @p label.
 int32_t checkSoundSnapshots(Song& song, const char* label) {
 	int32_t sounds = 0, bad = 0;
@@ -484,7 +483,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	char* orig = (char*)std::malloc(fileLen + 1);
 	char* gen1 = (char*)std::malloc(kCap);
 	char* gen1copy = (char*)std::malloc(kCap);
-	char* gen2 = (char*)std::malloc(kCap);     // S6-fix regression: 2nd-generation save buffer
+	char* gen2 = (char*)std::malloc(kCap);     // 2nd-generation save buffer
 	char* gen2copy = (char*)std::malloc(kCap); // ...and its reload copy
 	fileLen = (long)std::fread(orig, 1, fileLen, f);
 	orig[fileLen] = 0;
@@ -501,7 +500,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		return 3;
 	}
 
-	// Phase C gate: every loaded AudioClip's unpatched set must be BOUND to a DOM store (bindDomStore ran in
+	// Every loaded AudioClip's unpatched set must be BOUND to a DOM store (bindDomStore ran in
 	// the post-load loop), and the borrow must be live — engine nodes() aliases the store lane. Run against a
 	// song with audio clips (Sampling.XML) to exercise this; songs without audio clips just report seen=0.
 	{
@@ -511,16 +510,16 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		auto bothBound = [&](ParamManagerForTimeline& pm) {
 			return isLiveBound(pm.getUnpatchedParamSet()) && isLiveBound(pm.getPatchedParamSet());
 		};
-		// M2-F: patch cables are NOT bound to a shared positional store (they reorder by index at runtime); the
+		// Patch cables are NOT bound to a shared positional store (they reorder by index at runtime); the
 		// cable owns its node store inline (amount_) and owner-resolution returns it.
 		auto cablesBound = [](ParamManagerForTimeline& pm) {
 			PatchCableSet* pcs = pm.getPatchCableSet();
-			// A cable's node store is DOM-resident either INLINE (M2-F unbound: docForParam == amount_) or bound to
-			// the identity-keyed tree store (S4b id / S5-b.3 session relocate: domCables() != nullptr). Both OK.
+			// A cable's node store is DOM-resident either INLINE (unbound: docForParam == amount_) or bound to
+			// the identity-keyed tree store (domCables() != nullptr). Both OK.
 			return pcs->domCables() != nullptr || pcs->docForParam(0) == &pcs->patchCables[0].amount_;
 		};
-		// Option I (read-authority, Slice C): each cable's store current_value must equal the engine cursor — the
-		// read now sources the persisted scalar from the store (docForParam), not the engine.
+		// Each cable's store current_value must equal the engine cursor — the
+		// read sources the persisted scalar from the store (docForParam), not the engine.
 		auto cableScalarOk = [](ParamManagerForTimeline& pm) {
 			PatchCableSet* pcs = pm.getPatchCableSet();
 			for (int32_t c = 0; c < pcs->numPatchCables; c++) {
@@ -530,7 +529,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 			}
 			return true;
 		};
-		// Option I (read-authority): the DOM-first read makes the store's current_value authoritative — it must
+		// The DOM-first read makes the store's current_value authoritative — it must
 		// equal the engine cursor for every param. On a no-id song (e.g. Sampling for audio) the post-load
 		// engine-seed is skipped, so the store scalar comes ONLY from the read, isolating read-authority; on
 		// id songs it also guards the store<->engine consistency the seed/relocate must preserve.
@@ -552,10 +551,10 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		int32_t synthSeen = 0, synthBound = 0, synthScalarOk = 0;
 		int32_t kitSeen = 0, kitBound = 0, kitScalarOk = 0, drumSeen = 0, drumBound = 0, drumScalarOk = 0;
 		int32_t cableSeen = 0, cableBound = 0, cableScalarOkCount = 0;
-		// S5-b.3: synth/kit clip-level (INSTRUMENT) + per-drum (DRUM) owners must resolve by durable id
+		// Synth/kit clip-level (INSTRUMENT) + per-drum (DRUM) owners must resolve by durable id
 		// (resolveParam == docForParam), i.e. doc() id-resolves them, not the fallback.
 		int32_t instIdSeen = 0, instIdOk = 0, drumIdSeen = 0, drumIdOk = 0;
-		int32_t midiIdSeen = 0, midiIdOk = 0; // S5-b.2: MIDI clip CC automation
+		int32_t midiIdSeen = 0, midiIdOk = 0; // MIDI clip CC automation
 		auto instIdResolves = [&](Clip* clip, ParamSet* set) {
 			if (!clip->output->id()) {
 				return; // an output not yet given its id has no address to resolve
@@ -577,7 +576,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 					ParamSet* u = clip->paramManager.getUnpatchedParamSet();
 					audioBound += isLiveBound(u) ? 1 : 0;
 					audioScalarOk += scalarOkSet(u) ? 1 : 0;
-					// S5-b.1: an audio clip must be id-addressed — resolveParam(clip id) must return the SAME
+					// An audio clip must be id-addressed — resolveParam(clip id) must return the SAME
 					// store lane as docForParam, proving doc() id-resolves it (not the fallback).
 					audioIdSeen++;
 					deluge::project::ParamAddress addr = deluge::bridge::addressOf(
@@ -627,7 +626,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 					}
 				}
 				else if (clip->output != nullptr && clip->output->type == OutputType::MIDI_OUT) {
-					// S5-b.2: a MIDI clip's CC automation must id-resolve (Kind::MIDI, by cc).
+					// A MIDI clip's CC automation must id-resolve (Kind::MIDI, by cc).
 					MIDIParamCollection* midi = clip->paramManager.getMIDIParamCollection();
 					if (midi != nullptr) {
 						for (int32_t i = 0; i < std::ssize(midi->params); i++) {
@@ -691,11 +690,11 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		}
 	}
 
-	// Option I (save-flip gate): golden only LOADS songs, so it never exercises new-instrument creation
-	// (setupAsDefaultSynth / setupAsSample), which sets PERSISTENT params via the setup overload. With save now
-	// reading the DOM store (toDocParamSet), those setters MUST write the store or a freshly-created synth/sample
-	// would save wrong. Build fresh Sounds exactly as createNewInstrument does (setupWithPatching + initParams) and
-	// assert store == engine for every param (+ the setup()-created patch cable).
+	// Golden only LOADS songs, so it never exercises new-instrument creation
+	// (setupAsDefaultSynth / setupAsSample), which sets PERSISTENT params via the setup overload. Save
+	// reads the DOM store (toDocParamManagerFromStore), so those setters MUST write the store or a freshly-created
+	// synth/sample would save wrong. Build fresh Sounds exactly as createNewInstrument does (setupWithPatching +
+	// initParams) and assert store == engine for every param (+ the setup()-created patch cable).
 	{
 		auto setScalarOk = [](ParamManagerForTimeline& pm) {
 			auto ok = [](ParamSet* s) {
@@ -779,7 +778,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		return 3;
 	}
 
-	// Flip Phase 2 guard: DIVERGE the engine scalar from the store scalar for pVal, so that persistence PROVES the
+	// DIVERGE the engine scalar from the store scalar for pVal, so that persistence PROVES the
 	// song-global save read the STORE (the song's global-effectable block, holding kSentinel) — NOT the engine
 	// cursor. If save still projected the engine, the file would carry this distinct value and the reload assert
 	// below (reloaded store == engine == kSentinel) would fail.
@@ -958,7 +957,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		currentSong = reloaded;
 	}
 
-	// M2-G S2b: the save (gen1) assigns ids, so on reload every audio clip's unpatched params must be
+	// The save (gen1) assigns ids, so on reload every audio clip's unpatched params must be
 	// TREE-resident — its store is the project.clip_params entry keyed by id, not an engine-owned domStore_.
 	// (The corpus files carry no ids on first load, so this only fires post-save — proving the tree path is live.)
 	{
@@ -988,7 +987,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		}
 	}
 
-	// M2-G S3c/S3d: every reloaded instrument-shared clip (synth or kit clip-level FX) must have its unpatched
+	// Every reloaded instrument-shared clip (synth or kit clip-level FX) must have its unpatched
 	// automation TREE-resident — its store is the project.backed_params entry keyed by
 	// (OwnerId::instrument(output id), clip id), not an engine-owned domStore_. Proves the
 	// instrument-shared relocation is live (again only post-save, once ids exist).
@@ -1024,7 +1023,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		}
 	}
 
-	// M2-G S3e: every reloaded SoundDrum NoteRow's unpatched automation must be TREE-resident — keyed by
+	// Every reloaded SoundDrum NoteRow's unpatched automation must be TREE-resident — keyed by
 	// (OwnerId::drum(drum id), clip id) in project.backed_params. Per-drum params live per (drum, clip)
 	// pair (each kit clip's NoteRow has its own manager).
 	{
@@ -1066,7 +1065,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		}
 	}
 
-	// M2-G S4a: every reloaded manager that holds an expression (MPE) set — a synth/kit clip-level manager (keyed
+	// Every reloaded manager that holds an expression (MPE) set — a synth/kit clip-level manager (keyed
 	// (instrument(output), clip)) or a SoundDrum NoteRow (keyed (drum, clip)) — must have that set TREE-resident,
 	// proving the expression relocation binds at the same (owner, clip) key as unpatched/patched. Counted across
 	// both owner tiers; 0/0 on a song with no MPE data is a pass (nothing to relocate).
@@ -1119,7 +1118,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		}
 	}
 
-	// M2-G S3g: doc() must id-address kit clip-level FX and per-drum params to the SAME DocAutoParam the bound-store
+	// doc() must id-address kit clip-level FX and per-drum params to the SAME DocAutoParam the bound-store
 	// path (docForParam) returns — i.e. doc()'s owner classification (noteRow set ⇒ drum(OwnerId::drum); else
 	// synth/kit ⇒ OwnerId::instrument) is correct. Golden/save can't see this (they never resolve via doc()); a
 	// misclassification would silently resolve a drum param against the kit-FX entry. Build the REAL ModelStacks the
@@ -1172,7 +1171,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		std::fprintf(io.err, "kit/drum doc()==bound-store checks: %d\n", checked);
 	}
 
-	// M2-G S4b: every reloaded synth/drum manager's patch cables must be (a) tree-resident — the engine cable set
+	// Every reloaded synth/drum manager's patch cables must be (a) tree-resident — the engine cable set
 	// bound to the owner's project-tree `cables` — and (b) id-addressable: the address doc() builds for each
 	// cable (owner + PATCH_CABLE + the packed (dest,source) paramId) must resolve to the SAME DocAutoParam the
 	// engine bound-store path (docForParam) returns. Identity-matched, so this catches a mis-encoded/mis-owned
@@ -1243,7 +1242,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		}
 	}
 
-	// M2-G S4c: every reloaded MIDI_OUT clip's CC automation must be (a) tree-resident — the engine
+	// Every reloaded MIDI_OUT clip's CC automation must be (a) tree-resident — the engine
 	// MIDIParamCollection bound to the clip's per-clip project-tree midi_params (keyed by Clip::id, in
 	// clip_params like audio clips, since MIDI CC automation is per-clip) — and (b) id-addressable: the address
 	// doc() builds (OwnerId::clip + Kind::MIDI + cc) must resolve to the SAME DocAutoParam the engine bound-store
@@ -1291,7 +1290,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		}
 	}
 
-	// M2-G S6-fix (data-loss REGRESSION guard): a runtime automation edit routes through doc() -> the TREE store,
+	// Data-loss regression guard: a runtime automation edit routes through doc() -> the TREE store,
 	// leaving the engine's inline patch-cable `amount_` / MIDI `nodes_` STALE. The SAVE projection must read the
 	// tree (docForParam), not the inline store, or the edit is silently lost. Corpus files carry no ids on
 	// first load (nothing is bound then), so the bound tree exists only on the RELOADED song — plant a distinctive
@@ -1401,10 +1400,10 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		}
 	}
 
-	// M2-G S6-fix (ops REGRESSION guard): MIDIParamCollection's automation ops (stripAutomation/generateRepeats/
+	// Ops regression guard: MIDIParamCollection's automation ops (stripAutomation/generateRepeats/
 	// shiftHorizontally/...) must operate on the tree store (docForParam) when bound, not the stale inline nodes_.
 	// Representative check: plant a node in a bound MIDI CC's tree, call stripAutomation(), and require the TREE
-	// lane is cleared. Pre-fix stripAutomation cleared the inline nodes_ and left the tree untouched.
+	// lane is cleared. Clearing the inline nodes_ instead would leave the tree untouched.
 	{
 		std::array<ClipArray*, 2> arrs{&reloaded->live.clips.session_clips,
 		                               &reloaded->live.clips.arrangement_only_clips};

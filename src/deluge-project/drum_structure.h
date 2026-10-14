@@ -23,10 +23,12 @@
 
 namespace deluge::project {
 
-/// Per-drum structural records (M3 owner-3), owned by the persistent `project` tree and keyed by the drum's stable
-/// `Drum::id`. The drum-structure analogue of `ClipStructure`: because it is keyed by the serial id — not by a
-/// `Drum*` or list position — it is unaffected by drum reorders. A component of `deluge::project::Song` (a single
-/// instance keyed by serial id; unlike clips there is no session/serial twin, since every drum gets its id via
+/// @brief Per-drum structural records, owned by the persistent `project` tree and keyed by the drum's stable
+/// `Drum::id`.
+///
+/// The drum-structure analogue of `ClipStructure`: because it is keyed by the serial id -- not by a `Drum*` or list
+/// position -- it is unaffected by drum reorders. A component of `deluge::project::Song` (a single instance keyed
+/// by serial id; unlike clips there is no session/serial twin, since every drum gets its id via
 /// `assignMissingIds`).
 struct DrumStructure {
 	model_map<uint32_t, DocDrum> by_id;

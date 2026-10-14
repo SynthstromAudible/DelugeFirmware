@@ -5,8 +5,8 @@
 namespace deluge::edits {
 
 Error SetClipSection::apply(Context& /*ctx*/) {
-	// M3 owner-1: section lives in the clip's DocClip; setSection is the single writer (own store, or the tree store
-	// once adopted). Non-undoable, as today.
+	// Section lives in the clip's DocClip; setSection is the single writer (own store, or the tree store once
+	// adopted). Not undoable.
 	clip_->setSection(newSection_);
 	return Error::NONE;
 }

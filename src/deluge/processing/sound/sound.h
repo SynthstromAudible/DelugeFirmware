@@ -97,7 +97,8 @@ public:
 		releaseChainMemory();
 	}
 
-	/// The sound's effects after its voices.
+	/// @brief The sound's effects after its voices.
+	/// @return The sound's chain.
 	[[nodiscard]] deluge::effects::SoundChain& chain() { return chain_; }
 	[[nodiscard]] deluge::effects::ChainCore& core() final { return chain_.core(); }
 	[[nodiscard]] const deluge::effects::ChainCore& core() const final { return chain_.core(); }
@@ -114,37 +115,47 @@ public:
 	///        destroyed when the song is.
 	bool letGoWithSong = false;
 
-	/// The Deluge instrument's settings for this sound, once bound: &ownedState_ from Song::adoptOutput / adoptDrum on,
-	/// null before (a sound under preview or audition writes its runtime fields and snapshot directly).
+	/// @brief The Deluge instrument's settings for this sound, once bound: &ownedState_ from Song::adoptOutput /
+	/// adoptDrum on, null before (a sound under preview or audition writes its runtime fields and snapshot directly).
 	deluge::instrument::SoundState* state_{nullptr};
-	/// Bind this sound's own state and seed it from the runtime fields, which the reader filled before the state was
-	/// bound.
+	/// @brief Bind this sound's own state and seed it from the runtime fields, which the reader filled before the state
+	/// was bound.
 	void bindState();
-	/// The bound state, or null while unbound.
+	/// @brief The bound state.
+	/// @return The bound state, or null while unbound.
 	[[nodiscard]] const deluge::instrument::SoundState* boundState() const { return state_; }
-	/// Set this sound's runtime fields from @p state (the reader's work for the instrument's own settings).
+	/// @brief Set this sound's runtime fields from @p state (the reader's work for the instrument's own settings).
+	/// @param state The settings to apply.
 	/// @return INSUFFICIENT_RAM if a key-split range cannot be had.
 	Error applyState(const deluge::instrument::SoundState& state);
-	/// The state binding would seed from this sound's runtime fields now (bound or not), through the same seeds.
+	/// @brief The state binding would seed from this sound's runtime fields now (bound or not), through the same seeds.
+	/// @return The seeded state.
 	[[nodiscard]] deluge::instrument::SoundState seededState() const;
-	/// The element this sound was last read from, handed over once (to fill its instrument slot); empty if it was not
-	/// read from a document tree.
+	/// @brief The element this sound was last read from, handed over once (to fill its instrument slot).
+	/// @return The element; empty if the sound was not read from a document tree.
 	[[nodiscard]] std::optional<deluge::serialization::Value> takeLoadedElement() {
 		return std::exchange(loadedElement_, std::nullopt);
 	}
-	// Copy the DOM-owned scalars engine->record. Assumes state_ is bound. Used as the load-bridge from bindState
-	// AND re-run at doneReadingFromFile — a SoundDrum's adoptDrum binds the record BEFORE its fields are parsed, so the
-	// bind-time seed is stale for drums and must be refreshed once parsing has finished.
+	/// @brief Copy the DOM-owned scalars from the runtime fields into the record.
+	///
+	/// @pre state_ is bound.
+	/// @note Run from bindState and again at doneReadingFromFile: a SoundDrum's adoptDrum binds the record before its
+	///       fields are parsed, so the bind-time seed is stale for drums and must be refreshed once parsing has
+	///       finished.
 	void seedDocSoundScalars();
-	/// The scalars seedDocSoundScalars copies, into @p d.
+	/// @brief Copy the scalars seedDocSoundScalars copies, into @p d.
+	/// @param d The record to fill.
 	void seedScalarsInto(deluge::instrument::SoundState& d) const;
 
-	// M4b: the engine's derived read-view of the hot Sound render fields, PROJECTED from state_ by
-	// projectSnapshot() at bind / doneReadingFromFile / after edits; the render reads it (getTranspose() etc.).
-	// Always present — unbound sounds (no state_) write it directly, so the render never needs a null-fallback.
+	/// @brief The engine's derived read-view of the hot Sound render fields, projected from state_ by projectSnapshot()
+	/// at bind / doneReadingFromFile / after edits; the render reads it (getTranspose() etc.).
+	///
+	/// Always present: unbound sounds (no state_) write it directly, so the render never needs a null fallback.
 	deluge::snapshot::SoundSnapshot snapshot_{};
-	// Re-derive snapshot_ from state_ (no-op when unbound). Additive per-slice as fields move onto the snapshot.
+	/// @brief Re-derive snapshot_ from state_ (no-op when unbound).
 	void projectSnapshot();
+	/// @brief The derived read-view of the hot render fields.
+	/// @return The snapshot.
 	[[nodiscard]] const deluge::snapshot::SoundSnapshot& snapshot() const { return snapshot_; }
 
 	Patcher patcher;
@@ -177,7 +188,7 @@ public:
 	PolyphonyMode polyphonic = PolyphonyMode::POLY;
 	uint8_t maxVoiceCount = 8;
 
-	// M4b: `transpose` retired into the SoundSnapshot read-view (see snapshot_ / getTranspose()).
+	// The sound's transpose lives in the SoundSnapshot read-view (see snapshot_ / getTranspose()).
 
 	// For sending MIDI notes for SoundDrums
 	uint8_t outputMidiChannel = MIDI_CHANNEL_NONE;
@@ -187,21 +198,23 @@ public:
 
 	int32_t lastNoteCode = std::numeric_limits<int32_t>::min();
 
-	// M3 owner-5: voice priority is DOM-owned (`state_->voice_priority`). It is read per render block in
-	// Voice::getPriorityRating(), so this field is kept as a hot derived cache — the record is authoritative (seeded at
-	// bind, written via setVoicePriority, read at save); render keeps reading this field directly.
+	/// @brief Set the voice priority.
+	///
+	/// Voice priority is owned by the record (`state_->voice_priority`; seeded at bind, written here, read at save). It
+	/// is read per render block in Voice::getPriorityRating(), so render reads a hot derived cache instead.
+	/// @param value New priority.
 	void setVoicePriority(VoicePriority value);
 
-	// M3 owner-5: setters for the DOM-owned scalar batch (records in SoundState; native fields kept as caches, seeded
-	// at bind, so this recipe is uniform whether the field is hot like oscillatorSync or cold). Each writes the record
-	// (when bound) AND the cache; every runtime write site funnels through these, save reads the record.
+	// Setters for the scalar fields the record owns (SoundState). The native fields are kept as caches, seeded at
+	// bind, so the recipe is uniform whether the field is hot like oscillatorSync or cold. Each writes the record
+	// (when bound) and the cache; every runtime write site funnels through these, and save reads the record.
 	void setMaxVoiceCount(uint8_t value);
 	void setSideChainSendLevel(int32_t value);
 	void setOutputMidiChannel(uint8_t value);
 	void setOutputMidiNoteForDrum(uint8_t value);
 	void setOscillatorSync(bool value);
-	// Slice C top-level scalars — same recipe. setSynthMode / setNumUnison / setUnison* / setModulator{Transpose,Cents}
-	// already exist below (they do engine-side recalcs); those gained a record write too.
+	// The top-level scalars follow the same recipe; setSynthMode / setNumUnison / setUnison* /
+	// setModulator{Transpose,Cents} (below) also do engine-side recalcs.
 	void setPolyphonic(PolyphonyMode value);
 	void setTranspose(int16_t value);
 	[[nodiscard]] int16_t getTranspose() const { return snapshot_.transpose; }
@@ -219,8 +232,8 @@ public:
 	void assignNumUnison(uint8_t value);
 	void assignUnisonDetune(int8_t value);
 	void assignUnisonStereoSpread(uint8_t value);
-	// LFO config (lfoConfig[] kept as hot render cache; record authoritative). Sync writes both fields together to
-	// match the menu gesture (one sync value → type+level).
+	// LFO config: the record is authoritative, the render reads a hot cache. Sync writes both fields together to match
+	// the menu gesture (one sync value sets type and level).
 	void setLfoWaveType(int32_t lfoId, LFOType value);
 	void setLfoSync(int32_t lfoId, SyncType syncType, SyncLevel syncLevel);
 
@@ -325,7 +338,7 @@ public:
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) final;
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) final;
 	// The real body; the override above wraps it to re-seed the modKnobs record after any in-place reassignment,
-	// without having to touch this function's many early returns.
+	// so this function's many early returns need no re-seed of their own.
 	bool modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
 	static void writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation);
 	static void readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
@@ -341,8 +354,10 @@ public:
 	void recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* paramManager);
 	void doneReadingFromFile();
 	/// @brief Re-read the record from the runtime, every field a bound sound's record holds, as binding seeds it; then
-	/// reproject the snapshot. Nothing when unbound. For what a load makes of a sound after binding (an end clamped to
-	/// its sample's length, a path found in another folder).
+	/// reproject the snapshot. Does nothing when unbound.
+	///
+	/// For what a load makes of a sound after binding (an end clamped to its sample's length, a path found in
+	/// another folder).
 	void reseedRecord();
 	virtual void setupPatchingForAllParamManagers(Song* song) {}
 	// void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
@@ -413,9 +428,9 @@ public:
 	virtual const char* getName() { return nullptr; }
 
 private:
-	/// The Deluge instrument's settings for this sound, owned here and bound on adoption (bindState).
+	/// @brief The Deluge instrument's settings for this sound, owned here and bound on adoption (bindState).
 	deluge::instrument::SoundState ownedState_;
-	/// The element this sound was last read from (see takeLoadedElement).
+	/// @brief The element this sound was last read from (see takeLoadedElement).
 	std::optional<deluge::serialization::Value> loadedElement_;
 	/// @brief Count one destruction that found live voices (see soundsDestroyedWithLiveVoices()).
 	static void noteDestroyedWithLiveVoices();
@@ -444,7 +459,7 @@ private:
 	                                                      ModelStackWithThreeMainThings* modelStack,
 	                                                      bool allowCreation = true);
 
-	/// The sound's effects after its voices; outlives voices_, whose teardown reads its delay.
+	/// @brief The sound's effects after its voices; outlives voices_, whose teardown reads its delay.
 	deluge::effects::SoundChain chain_;
 
 	/// @brief the list of active voices for this sound

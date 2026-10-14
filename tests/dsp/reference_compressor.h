@@ -25,7 +25,7 @@
 /// host, takes the larger of the two magnitudes unsigned, so INT32_MIN measures 2^31 there, but nothing guarantees it.
 /// That function is marked @ref DELUGE_REFERENCE_LEGACY_ARITHMETIC.
 ///
-/// @ref compressor_reference::FixedReferenceRmsFeedbackCompressor is today's firmware compressor, on the one-pole and
+/// @ref compressor_reference::FixedReferenceRmsFeedbackCompressor is the firmware compressor, on the one-pole and
 /// antialiased tanh kernels, with only those two defects fixed: what a rewrite must match bit for bit.
 
 #pragma once
@@ -135,6 +135,9 @@ public:
 	}
 
 	/// @brief Compresses @p block in place.
+	/// @param volume_l, volume_r The channels' linear gain, 4.27 signed.
+	/// @param final_volume The peak-to-peak volume scale, 3.29.
+	/// @param scratch Holds the block as it came in, for the blend; read only when the blend is below fully wet.
 	void render(std::span<StereoSample> block, q31 volume_l, q31 volume_r, q31 final_volume,
 	            CompressorScratch scratch) {
 		if (wet_ != ONE_Q31) {
@@ -339,7 +342,7 @@ private:
 
 static_assert(std::is_trivially_copyable_v<ReferenceRmsFeedbackCompressor>);
 
-/// @brief Today's compressor (`RmsFeedbackCompressor`) with only its two level defects fixed: the target a rewrite
+/// @brief The firmware compressor (`RmsFeedbackCompressor`) with only its two level defects fixed: the target a rewrite
 /// matches bit for bit.
 ///
 /// The block's sum of squares is added in 64 bits, so it never wraps, and each detector output's magnitude is taken

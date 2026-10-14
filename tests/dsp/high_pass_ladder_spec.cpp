@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// HighPassLadder: the transistor-ladder high-pass as a processor kernel, `Mono` and `Stereo`. Against the verbatim
+// HighPassLadder: the transistor-ladder high-pass as a processor kernel, `Mono` and `Stereo`. Against the
 // reference (reference_filters.h) over every high-pass workload (filter_workloads.h): each block's output, the gain,
 // the CONG draws (none) and the whole state, the saturator's position included, at block lengths cycling 1–9, 24, 64
 // and 128; and what it renders must equal the record. Every coefficient equals the reference's configure across the

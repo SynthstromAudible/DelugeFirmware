@@ -400,8 +400,7 @@ Error StorageManager::parseMidiDeviceDefinitionDocument(deluge::storage::TreeDoc
 		return error;
 	}
 	else if (updateFileName) {
-		// DO3: resolved-path funnel (mirrors the AudioClip filePath-normalization lesson) — the record must hold the
-		// RESOLVED path this call computed, not just the native cache.
+		// The record must hold the RESOLVED path this call computed, not just the native cache.
 		midiInstrument->setDeviceDefinitionFileName(fileName->c_str());
 	}
 

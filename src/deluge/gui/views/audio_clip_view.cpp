@@ -613,7 +613,7 @@ void AudioClipView::changeUnderlyingSampleLength(AudioClip& clip, const Sample* 
 	// Change sample end-pos value. Must do this before calling setClipLength(), which will end
 	// up reading this value.
 	uint64_t oldValue = *valueToChange;
-	// M3 owner-4: funnel through the model setter (record + cache). oldValue captured above.
+	// Funnel through the model setter (record + cache). oldValue captured above.
 	if (valueToChange == &clip.sampleHolder.startPos) {
 		clip.setSampleStartPos(newEndPosSamples);
 	}

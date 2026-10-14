@@ -36,22 +36,30 @@ class Phasor {
 	uint32_t increment_;
 
 public:
+	/// @brief A phasor at @p phase advancing by @p increment per sample.
+	/// @param phase The starting phase, 0.32 unsigned: the full range is one cycle.
+	/// @param increment The per-sample phase step, 0.32 unsigned.
 	constexpr Phasor(uint32_t phase, uint32_t increment) : phase_{phase}, increment_{increment} {}
 
-	/// Step the phase by one increment and return the new value (pre-increment semantics).
+	/// @brief Step the phase by one increment and return the new value (pre-increment semantics).
+	/// @return The phase after the step, 0.32 unsigned.
 	[[gnu::always_inline]] constexpr uint32_t advance() {
 		phase_ += increment_;
 		return phase_;
 	}
 
-	/// The current phase.
+	/// @brief The current phase.
+	/// @return The phase, 0.32 unsigned.
 	[[nodiscard, gnu::always_inline]] constexpr uint32_t phase() const { return phase_; }
-	/// The per-sample phase step.
+	/// @brief The per-sample phase step.
+	/// @return The increment, 0.32 unsigned.
 	[[nodiscard, gnu::always_inline]] constexpr uint32_t increment() const { return increment_; }
 
-	/// Jump the phase to @p phase (e.g. a hard-sync reset). Leaves the increment unchanged.
+	/// @brief Jump the phase to @p phase (e.g. a hard-sync reset). Leaves the increment unchanged.
+	/// @param phase The new phase, 0.32 unsigned.
 	[[gnu::always_inline]] constexpr void seek(uint32_t phase) { phase_ = phase; }
-	/// Set the per-sample phase step, keeping the phase.
+	/// @brief Set the per-sample phase step, keeping the phase.
+	/// @param increment The new per-sample step, 0.32 unsigned.
 	[[gnu::always_inline]] constexpr void setIncrement(uint32_t increment) { increment_ = increment; }
 };
 

@@ -7,15 +7,19 @@ class Clip;
 
 namespace deluge::edits {
 
-/// Set a clip's section (the reification of session view's section-cycle gesture's persistent write). NON-UNDOABLE by
-/// design — no Consequence, matching today's behaviour (the gesture calls deleteAllLogs; undo deferred to the
-/// command/undo-tree substrate). Writes via `setSection` into the clip's authoritative `DocClip.section` (M3 owner-1
-/// — the DocClip is the sole storage; no engine shadow). The view keeps the "find next available section"
-/// computation; this reifies only the final write.
+/// @brief Set a clip's section (the persistent write of session view's section-cycle gesture).
+///
+/// Writes via `setSection` into the clip's `DocClip.section`, which is the sole storage of the section. The view
+/// owns the "find next available section" computation; this edit performs only the final write.
+///
+/// @note Not undoable: no Consequence is recorded (the gesture clears all undo logs).
 class SetClipSection final : public Edit {
 public:
+	/// @param clip       The clip to move.
+	/// @param newSection Section index to set.
 	SetClipSection(Clip* clip, uint8_t newSection) : clip_(clip), newSection_(newSection) {}
 
+	/// @copydoc Edit::apply
 	Error apply(Context& ctx) override;
 
 private:

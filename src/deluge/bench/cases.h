@@ -158,6 +158,7 @@ struct Gain {
 	};
 	/// @brief A gain is stateless.
 	struct State {};
+	/// @param s The settings.
 	/// @return The gain, unchanged.
 	static Coefficients coefficients(const Settings& s) { return {.gain = s.gain}; }
 	/// @return @p x · gain, Q31: the high word of the Q62 product is Q30, shifted up by one.
@@ -178,6 +179,7 @@ struct VecGain {
 	using Coefficients = Gain::Coefficients;
 	/// @brief A gain is stateless.
 	struct State {};
+	/// @param s The settings.
 	/// @return The gain, unchanged.
 	static Coefficients coefficients(const Settings& s) { return {.gain = s.gain}; }
 	/// @return Each lane of @p x · gain, Q31.
@@ -217,8 +219,10 @@ public:
 	static constexpr uint32_t kProductFactor = 3;
 
 	/// @brief Nothing to configure or fill.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Runs kIterationsPerSample · @p n iterations.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The iterations the last block ran.
 	[[nodiscard]] uint32_t last_iterations() const { return last_iterations_; }
@@ -241,8 +245,10 @@ public:
 	static constexpr dsp::Ramp kRamp{int32_t{1} << 29, 1024};
 
 	/// @brief Builds the VCA from kRamp, fills both inputs and takes the blocks' spans for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Mixes one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The ramp the VCA was built from.
 	[[nodiscard]] static constexpr dsp::Ramp ramp() { return kRamp; }
@@ -265,8 +271,10 @@ public:
 	static constexpr dsp::Ramp kRamp = AmplitudeCase::kRamp;
 
 	/// @brief Builds the VCA from kRamp, fills both inputs and takes the blocks' spans for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Mixes one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The ramp the VCA was built from.
 	[[nodiscard]] static constexpr dsp::Ramp ramp() { return kRamp; }
@@ -297,8 +305,10 @@ public:
 	static constexpr uint32_t kPhaseOffset = 0xC000'0000;
 
 	/// @brief Restarts the pulse at phase 0, and takes the output's span for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Renders one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The pulse's phase.
 	[[nodiscard]] uint32_t phase() const { return pulse_.phase(); }
@@ -318,8 +328,10 @@ public:
 	static constexpr uint32_t kIncrement = kA4Increment;
 
 	/// @brief Restarts the oscillator at phase 0, and takes the output's span for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Renders one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The oscillator's phase.
 	[[nodiscard]] uint32_t phase() const { return oscillator_.phase(); }
@@ -339,8 +351,10 @@ public:
 	static constexpr uint32_t kIncrement = kA1Increment;
 
 	/// @brief Restarts the saw at phase 0, and takes the output's span for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Renders one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The saw's phase.
 	[[nodiscard]] uint32_t phase() const { return saw_.phase(); }
@@ -363,8 +377,10 @@ public:
 	static constexpr uint32_t kPulseWidth = 0x8000'0000;
 
 	/// @brief Restarts the square at phase 0, and takes the output's span for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Renders one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The square's phase.
 	[[nodiscard]] uint32_t phase() const { return square_.phase(); }
@@ -383,8 +399,10 @@ public:
 	static constexpr uint32_t kIncrement = kA4Increment;
 
 	/// @brief Restarts the triangle at phase 0, and takes the output's span for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Renders one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The triangle's phase.
 	[[nodiscard]] uint32_t phase() const { return triangle_.phase(); }
@@ -415,8 +433,10 @@ public:
 	static constexpr uint32_t kPhaseOffset = PulseCase::kPhaseOffset;
 
 	/// @brief Restarts the master and the audible phase at 0, and takes the output's span for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Renders one block of the size it was set up for, then advances the master by it.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The master's phase.
 	[[nodiscard]] uint32_t master_phase() const { return master_.phase(); }
@@ -452,8 +472,10 @@ public:
 	static constexpr int32_t kWaveIndex = int32_t{1} << 30;
 
 	/// @brief Fills the wavetable and restarts the oscillator at phase 0, and takes the output's span for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Renders one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The oscillator's phase.
 	[[nodiscard]] uint32_t phase() const { return oscillator_.phase(); }
@@ -472,8 +494,10 @@ public:
 	static constexpr q31 kGain = 0x5A82'799A;
 
 	/// @brief Configures the gain, fills input_a and takes the blocks' spans for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Mono<Gain>& component() const { return mono_; }
@@ -491,8 +515,10 @@ public:
 	static constexpr q31 kGain = MonoGainCase::kGain;
 
 	/// @brief Configures the gain, fills input_a and takes the blocks' spans for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Mono<VecGain>& component() const { return mono_; }
@@ -513,8 +539,10 @@ public:
 	static constexpr q31 kGain = 0x7FFF'FFFF;
 
 	/// @brief Configures the gain, fills the stereo block and takes its span for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for, in place.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Stereo<Gain>& component() const { return stereo_; }
@@ -535,8 +563,10 @@ public:
 	using Tracker = dsp::fixed::ShiftTracker<11>;
 
 	/// @brief Configures the tracker in REMOVE from silence, fills input_a and takes the blocks' spans for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Mono<Tracker>& component() const { return mono_; }
@@ -559,8 +589,10 @@ public:
 	static constexpr q31 kMoveability = 1 << 29;
 
 	/// @brief Configures the pole in @p M from silence, fills input_a and takes the blocks' spans for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Mono<dsp::fixed::OnePole>& component() const { return mono_; }
@@ -585,8 +617,10 @@ public:
 	static constexpr uint32_t kDrive = 3;
 
 	/// @brief Configures the drive from the centre, fills input_a and takes the blocks' spans for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Mono<dsp::fixed::AntialiasedTanh>& component() const { return mono_; }
@@ -605,8 +639,10 @@ public:
 	using Kernel = dsp::fixed::Tanh<3>;
 
 	/// @brief Fills input_a and takes the blocks' spans for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Mono<Kernel>& component() const { return mono_; }
@@ -625,8 +661,10 @@ public:
 	static constexpr q31 kLevel = 1 << 30;
 
 	/// @brief Configures the level, fills the inputs and takes the blocks' spans for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Mixes one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Mono<dsp::fixed::DryWetBlend>& component() const { return mono_; }
@@ -651,8 +689,10 @@ public:
 	using Component = dsp::Lanes<dsp::fixed::OnePole, N>; ///< The component timed.
 
 	/// @brief Configures the pole from silence, fills the lanes input and takes the blocks' spans for @p n frames.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const Component& component() const { return lanes_; }
@@ -681,8 +721,10 @@ public:
 
 	/// @brief Configures the tracker in REMOVE from silence, fills the lanes input and takes the blocks' spans for @p n
 	/// frames.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const Component& component() const { return lanes_; }
@@ -709,8 +751,10 @@ public:
 	static constexpr uint32_t kDrive = AntialiasedTanhCase::kDrive;
 
 	/// @brief Configures the drive from the centre, fills the lanes input and takes the blocks' spans for @p n frames.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Stereo<dsp::fixed::AntialiasedTanh>& component() const { return stereo_; }
@@ -741,8 +785,10 @@ public:
 	static constexpr uint32_t kHitSamplesAgo = 4'665;
 
 	/// @brief Configures the duck, places the hit and takes the output block's first sample for the level.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Configures the duck and advances it by one block, writing its level to the output block's first sample.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Control<dsp::fixed::DuckEnvelope>& component() const { return duck_; }
@@ -802,8 +848,10 @@ public:
 
 	/// @brief Configures both passes from silence, fills the lanes input, copies its first @p n frames into the lanes
 	/// output and takes that block's span.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for, in place: the shaper's pass, then the high-pass's.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The shaper's component.
 	[[nodiscard]] const dsp::Stereo<dsp::fixed::FeedbackShaper>& shaper() const { return shaper_; }
@@ -838,8 +886,10 @@ public:
 
 	/// @brief Configures the chain from silence, fills the lanes input and takes the blocks' spans for @p n frames; in
 	/// place, copies the input's frames into the lanes output and takes that block's span alone.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Stereo<DelayFeedbackChain>& component() const { return chain_; }
@@ -874,9 +924,11 @@ public:
 
 	/// @brief Clears the response and the memories, fills the lanes input, copies its first @p n frames into the lanes
 	/// output and takes that block's span.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for, in place: the response's pass, the tanh's and the
 	/// high-pass's.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The left high-pass memory, Q31.
 	[[nodiscard]] int32_t high_pass_l() const { return high_pass_l_; }
@@ -909,8 +961,10 @@ using Chain3 = dsp::Chain<Tanh3Case::Kernel, Chain3LowPass, DelayHighPass>;
 class Chain3PassesCase {
 public:
 	/// @brief Configures the stages from silence, fills input_a and takes the blocks' spans for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for: each stage's pass in turn.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The low-pass's component.
 	[[nodiscard]] const dsp::Mono<Chain3LowPass>& low_pass() const { return low_pass_; }
@@ -930,8 +984,10 @@ private:
 class Chain3FusedCase {
 public:
 	/// @brief Configures the chain from silence, fills input_a and takes the blocks' spans for @p n.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The component.
 	[[nodiscard]] const dsp::Mono<Chain3>& component() const { return chain_; }
@@ -987,6 +1043,7 @@ struct DelayWholeConfig {
 
 /// @brief Fills a tape's storage with stereo noise at 2^-10 of full scale: a block's sum of its own input and every
 /// delayed sample the case's run adds to it stays inside q31.
+/// @param storage The tape's storage.
 void fill_delay_tape(std::span<StereoSample> storage);
 
 /// @brief What every delay whole case renders with: one processor and one pair of tapes, over the two storage blocks
@@ -1029,11 +1086,14 @@ public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
 
 	/// @brief A case of @p config.
+	/// @param config The case's configuration.
 	constexpr explicit DelayWholeCase(DelayWholeConfig config) : config_{config} {}
 
 	/// @brief Builds the rig for @p n frames: a fresh processor, the tapes and the block.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Renders one block of the size it was set up for, in place.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The case's configuration.
 	[[nodiscard]] constexpr const DelayWholeConfig& config() const { return config_; }
@@ -1043,6 +1103,10 @@ private:
 };
 
 /// @brief The configuration of `delay_whole_<tape>_<mix>_<shaper>`, with no secondary.
+/// @param tape How the primary tape plays.
+/// @param cross Ping-pong in a stereo render, so the feedback crosses; else straight.
+/// @param analog The analog shaper (impulse response and tanh); else the digital clip.
+/// @return The configuration.
 [[nodiscard]] constexpr DelayWholeConfig delay_whole_mode(DelayTapeForm tape, bool cross, bool analog) {
 	return {.tape = tape, .cross = cross, .analog = analog, .growing = false};
 }
@@ -1122,6 +1186,8 @@ inline constexpr FilterCaseConfig kFilterHigh{.low = {},
 
 /// @brief The configuration of `filterset_<hl|lh|par>_stereo`: the 24 dB ladder and the high-pass ladder (a sound's
 /// default modes) on @p route.
+/// @param route The filter set's route.
+/// @return The configuration.
 [[nodiscard]] constexpr FilterCaseConfig filter_set_case(dsp::fixed::FilterRoute route) {
 	return {.low = kFilterLow24.low,
 	        .high = kFilterHigh.high,
@@ -1143,6 +1209,7 @@ inline constexpr FilterCaseConfig kFilterLow24Fading = [] {
 void fill_filter_input();
 
 /// @brief Fills the lanes input (fill_filter_input()) and copies its first @p samples samples into the lanes output.
+/// @param samples How many samples to copy.
 /// @return Those output samples: the block a filter case renders first, in place.
 [[nodiscard]] std::span<q31> in_place_filter_block(std::size_t samples);
 
@@ -1178,11 +1245,14 @@ public:
 	static constexpr std::size_t kLanes = Stereo ? 2 : 1; ///< A frame's samples.
 
 	/// @brief A case of @p config.
+	/// @param config The case's configuration.
 	constexpr explicit FilterCase(const FilterCaseConfig& config) : config_{config} {}
 
 	/// @brief Resets the set, seeds the noise and fills the block for @p n frames.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Configures the set and filters one block of the size it was set up for, in place.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The case's configuration.
 	[[nodiscard]] constexpr const FilterCaseConfig& config() const { return config_; }
@@ -1223,6 +1293,7 @@ inline constexpr CompressorCaseConfig kCompressorBlendRender{.blend = kCompresso
 /// @brief `compressor_blend_neutral`: half blended, through `renderVolumeNeutral`.
 inline constexpr CompressorCaseConfig kCompressorBlendNeutral{.blend = kCompressorHalfBlend, .neutral = true};
 
+/// @param config The case's configuration.
 /// @return The knobs a compressor case configures: the defaults, with kCompressorThreshold and @p config's blend.
 [[nodiscard]] constexpr dsp::fixed::CompressorKnobs compressor_knobs(const CompressorCaseConfig& config) {
 	return {.threshold = kCompressorThreshold, .blend = config.blend};
@@ -1260,11 +1331,14 @@ public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
 
 	/// @brief A case of @p config.
+	/// @param config The case's configuration.
 	constexpr explicit CompressorCase(const CompressorCaseConfig& config) : config_{config} {}
 
 	/// @brief A fresh compressor at the cases' knobs, and the block for @p n frames.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Compresses one block of the size it was set up for, in place.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The case's configuration.
 	[[nodiscard]] constexpr const CompressorCaseConfig& config() const { return config_; }
@@ -1323,11 +1397,14 @@ public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
 
 	/// @brief A case of @p config.
+	/// @param config The case's configuration.
 	constexpr explicit ModFxCase(const ModFxConfig& config) : config_{config} {}
 
 	/// @brief A fresh component at the cases' knobs, and the block for @p n frames.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for, in place.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The case's configuration.
 	[[nodiscard]] constexpr const ModFxConfig& config() const { return config_; }
@@ -1391,11 +1468,14 @@ public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
 
 	/// @brief A case of @p config.
+	/// @param config The case's configuration.
 	constexpr explicit GranularCase(const GranularConfig& config) : config_{config} {}
 
 	/// @brief A fresh component run past one full ring, and the block for @p n frames.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for, in place.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The case's configuration.
 	[[nodiscard]] constexpr const GranularConfig& config() const { return config_; }
@@ -1433,11 +1513,14 @@ public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
 
 	/// @brief A case of @p config.
+	/// @param config The case's configuration.
 	constexpr explicit StutterCase(const StutterConfig& config) : config_{config} {}
 
 	/// @brief A stutter begun anew, and the block for @p n frames.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for, in place.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 
 private:
@@ -1468,12 +1551,15 @@ public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
 
 	/// @brief A case of @p config.
+	/// @param config The case's configuration.
 	constexpr explicit FxChainCase(const FxChainConfig& config) : config_{config} {}
 
 	/// @brief The home's chain anew, its settings handed over as an owner hands them over, and the block for @p n
 	/// frames.
+	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
 	void setup(std::size_t n);
 	/// @brief Processes one block of the size it was set up for, in place.
+	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 
 private:

@@ -132,9 +132,9 @@ private:
 	bool for_modulator_;
 	uint8_t source_id_;
 
-	// M3 owner-5: retrigger phases are DOM-owned (record authoritative, native kept as hot cache). Read the cache by
-	// value; route the write through the Sound setter so it updates both the record and the cache — no raw field
-	// pointer escapes the seam.
+	// Retrigger phases are owned by the record (authoritative; the native field is a hot cache). Reads take the
+	// snapshot value; writes go through the settings path so the record and the cache update together, and no raw
+	// field pointer escapes.
 	[[nodiscard]] uint32_t getCurrentPhase() const {
 		Sound* sound = soundEditor.currentSound;
 		return for_modulator_ ? sound->snapshot().modulatorRetriggerPhase[source_id_]

@@ -52,7 +52,7 @@ Error SetEngineSetting::apply(Context& ctx) {
 		return error;
 	}
 	// The slot cannot hold this value (a live input's interpolation, a sync level the magnitude cannot write): the
-	// runtime holds it, as within a session it always has, until a save and reload.
+	// runtime holds it until a save and reload.
 	error = deluge::bridge::applySetting(*sound, path_, *value, ctx.song);
 	deluge::bridge::syncSlotState(*sound, *slot, ctx.song);
 	return error;

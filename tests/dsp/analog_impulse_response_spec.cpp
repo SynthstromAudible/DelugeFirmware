@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The delay's analog impulse response as a kernel. Exact reference values recorded from the class the delay held pin an
+// The delay's analog impulse response as a kernel. Exact reference values recorded from the reference class pin an
 // impulse (each tap in order, halved and rounded) and a block of two sines through both channels, on both the kernel
 // and the stereo reference (bench/reference_impulse_response.h). Stereo<AnalogImpulseResponse> is pinned against that
 // reference sample by sample: over 4096 seeded stereo samples at a quarter of full scale, where the reference's plain
@@ -262,7 +262,7 @@ Run run(const std::vector<StereoSample>& input, std::size_t block) {
 }
 
 /// @p input(i) for @p count samples through a fresh Stereo<AnalogImpulseResponse>, one block, and through the
-/// verbatim class, interleaved.
+/// reference class, interleaved.
 Run run_recorded(auto&& input, int count) {
 	std::vector<StereoSample> in;
 	for (int i = 0; i < count; i++) {

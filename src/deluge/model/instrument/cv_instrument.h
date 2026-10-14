@@ -40,8 +40,10 @@ public:
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	bool readTagFromFile(Deserializer& reader, const char* tagName) override;
 
-	// DO3: channel/cv2_source are DOM-authoritative at save. Reseeds both this tier's fields (calls the
-	// NonAudioInstrument base first, which reseeds channel).
+	/// @brief Reseeds the record's channel and cv2_source from the current native values.
+	///
+	/// channel and cv2_source are record-authoritative at save. Calls the NonAudioInstrument base first, which
+	/// reseeds channel.
 	void seedDocOutputIdentity() override;
 	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDmiension) override;
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
@@ -69,9 +71,11 @@ public:
 	int32_t polyPitchBendValue;
 
 	char const* getXMLTag() override { return "cvChannel"; }
-	// DO3: setMode (called below) mutates cvmode[1] as a side effect, so this override must ALSO reseed cv2_source
-	// after the base channel write — defined in cv_instrument.cpp so it can reach the record without needing the
-	// complete DocOutput type in this header.
+	/// @brief Sets the channel and the matching CV mode.
+	///
+	/// setMode() mutates cvmode[1] as a side effect, so this also reseeds the record's cv2_source after the base
+	/// channel write. Defined in cv_instrument.cpp so the header does not need the complete DocOutput type.
+	/// @param channel The CV channel (a CVInstrumentMode value); out-of-range values fall back to channel 0.
 	void setChannel(int channel) override;
 	CVMode getCV2Mode() { return cvmode[1]; }
 

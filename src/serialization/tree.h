@@ -15,6 +15,8 @@ namespace deluge::serialization {
 /// @brief The children named @p name of @p container, in order, from either array encoding: XML gives a Map with one
 /// entry per child (`<sections><section/><section/></sections>`), JSON an Array of single-key boxes
 /// (`"sections": [{"section": {…}}, …]`).
+/// @param container A Map or Array node.
+/// @param name      The child name to match.
 /// @return The children, or none if @p container is a scalar.
 [[nodiscard]] inline std::vector<const Value*> elements_named(const Value& container, std::string_view name) {
 	std::vector<const Value*> found;
@@ -45,6 +47,8 @@ struct NamedChild {
 
 /// @brief Every child of @p container with its name, in order, from either array encoding (see elements_named): the
 /// lists whose elements are of several kinds, such as a song's outputs (`sound`, `kit`, `midi`…) or clips.
+/// @param container A Map or Array node.
+/// @return The named children; empty if @p container is a scalar.
 [[nodiscard]] inline std::vector<NamedChild> children(const Value& container) {
 	std::vector<NamedChild> found;
 	if (container.isMap()) {
@@ -63,11 +67,14 @@ struct NamedChild {
 }
 
 /// @brief A scalar's text, or nullptr if @p node is missing or not a scalar.
+/// @param node The node to read; may be null.
+/// @return The scalar's text, or nullptr.
 [[nodiscard]] inline const std::string* text_of(const Value* node) {
 	return (node != nullptr && node->isScalar()) ? &node->str() : nullptr;
 }
 
 /// @brief A scalar as a decimal int32, read as the song reader reads it: text it cannot parse reads as 0.
+/// @param node The node to read; may be null.
 /// @return The value, or nullopt if @p node is missing or not a scalar.
 [[nodiscard]] inline std::optional<int32_t> int_of(const Value* node) {
 	const std::string* text = text_of(node);
@@ -80,6 +87,7 @@ struct NamedChild {
 }
 
 /// @brief A `0x`-prefixed hexadecimal scalar.
+/// @param node The node to read; may be null.
 /// @return The value, or nullopt if @p node is missing, not a scalar, or not hex.
 [[nodiscard]] inline std::optional<uint32_t> hex_of(const Value* node) {
 	const std::string* text = text_of(node);
@@ -97,6 +105,10 @@ struct NamedChild {
 /// @brief The slash-separated path of the first entry where @p a and @p b differ (keys, their order, array lengths,
 /// scalar text), or empty when they are the same tree. Scalar kinds are ignored: every scalar an XML file holds is
 /// text. "/" means the roots themselves differ.
+/// @param a      The first tree.
+/// @param b      The second tree.
+/// @param prefix Path of @p a and @p b within the enclosing tree; empty at the root.
+/// @return The path of the first difference, or an empty string if the trees are equal.
 [[nodiscard]] inline std::string first_difference(const Value& a, const Value& b, const std::string& prefix = {}) {
 	if (a.type() != b.type()) {
 		return prefix.empty() ? "/" : prefix;

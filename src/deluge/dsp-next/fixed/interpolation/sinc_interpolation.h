@@ -70,7 +70,7 @@ struct SincWindow {
 /// @returns the interpolated sample (the dot product of @p kernel with @p samples).
 ///
 /// Split from @ref blend_sinc_kernel so a stereo consumer can blend the kernel once and apply it to
-/// both channels (the legacy sample Interpolator does exactly this). `MultiplyAddLong` is `vmlal`,
+/// both channels (as the sample-playback Interpolator does). `MultiplyAddLong` is `vmlal`,
 /// `ReduceAdd` the final horizontal add.
 [[gnu::always_inline]] inline int32_t windowed_sinc_dot(const SincWindow& kernel, const SincWindow& samples) {
 	Argon<int32_t> accumulated = 0;
@@ -89,7 +89,7 @@ struct SincWindow {
 /// @param samples the window to weight.
 /// @returns the interpolated sample.
 ///
-/// Bit-identical to the legacy hand-written NEON — a sinc_interpolation_spec pins it against a
+/// Bit-identical to a hand-written NEON implementation; sinc_interpolation_spec pins it against a
 /// raw-NEON reference.
 [[gnu::always_inline]] inline int32_t windowed_sinc_apply(const int16_t* kernel_row, int16_t row_blend,
                                                           const SincWindow& samples) {

@@ -22,7 +22,7 @@ namespace deluge::project {
 Song::Song() = default;
 
 namespace {
-/// Resolve a MIDI-CC lane within a tree-resident manager by IDENTITY (S4c). The address's id is the CC
+/// Resolve a MIDI-CC lane within a tree-resident manager by IDENTITY. The address's id is the CC
 /// number (the MIDIParamVector keys by cc); scan the manager's per-clip CC store for it. Identity, not index: a
 /// newly-learned CC reorders the engine vector, so only cc is stable.
 DocAutoParam* midiParamInManager(DocParamManager* mgr, uint32_t cc) {
@@ -105,8 +105,8 @@ FxChain* Song::resolveChain(ChainAddress address) {
 	return output != nullptr && output->effects ? &*output->effects : nullptr;
 }
 
-// M3 owner-1 (clip structure): a clip's structural record is tree-resident by its durable id (clip_structure),
-// always set at construction (durable-id Phase 0), so there is no transient session-keyed store.
+// A clip's structural record is tree-resident by its durable id (clip_structure), always set at construction, so
+// there is no transient session-keyed store.
 DocClip* Song::resolveClip(const ClipAddress& address) {
 	return clip_structure.find(address.clip_id);
 }
@@ -119,8 +119,8 @@ void Song::removeDocClip(const ClipAddress& address) {
 	clip_structure.remove(address.clip_id);
 }
 
-// M3 owner-4 (audio-clip descriptors): the AudioClip's descriptor record is tree-resident by its durable id, in a
-// store SEPARATE from clip_structure (DocClip is shared with InstrumentClip; DocAudioClip is AudioClip-only).
+// The AudioClip's descriptor record is tree-resident by its durable id, in a store separate from clip_structure
+// (DocClip is shared with InstrumentClip; DocAudioClip is AudioClip-only).
 DocAudioClip& Song::getOrCreateDocAudioClip(const ClipAddress& address) {
 	return audio_clip_structure.getOrCreate(address.clip_id);
 }

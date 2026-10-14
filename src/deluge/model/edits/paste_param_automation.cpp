@@ -8,8 +8,7 @@
 namespace deluge::edits {
 
 Error PasteParamAutomation::apply(Context& /*ctx*/) {
-	// Funnel pasteAutomation's exact sequence: open the Action, pre-snapshot the before-state (copy, not
-	// steal), then delegate to AutoParam::paste.
+	// Open the Action, pre-snapshot the before-state (copy, not steal), then delegate to AutoParam::paste.
 	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_PASTE);
 	if (action != nullptr) {
 		action->recordParamChangeIfNotAlreadySnapshotted(engineStack_, /*stealData=*/false);

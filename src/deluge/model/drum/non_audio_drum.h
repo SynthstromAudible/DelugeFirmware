@@ -47,10 +47,16 @@ public:
 
 	int8_t channelEncoderCurrentOffset = 0;
 
-	// M3 owner-3: read/write authority for the non-audio drum channel (MIDI channel for MIDIDrum, gate channel for
-	// GateDrum) — the authoritative store is `DocDrum::channel`. Bodies in non_audio_drum.cpp for the complete DocDrum
-	// type.
+	/// @brief The non-audio drum channel (MIDI channel for MIDIDrum, gate channel for GateDrum), read from the
+	///        authoritative store `DocDrum::channel`.
+	///
+	/// Body lives in non_audio_drum.cpp for the complete DocDrum type.
+	/// @pre The drum is bound to its DocDrum.
+	/// @return The channel.
 	[[nodiscard]] uint8_t channel() const;
+	/// @brief Set the non-audio drum channel, writing the authoritative `DocDrum::channel`.
+	/// @pre The drum is bound to its DocDrum.
+	/// @param newChannel The channel.
 	void setChannel(uint8_t newChannel);
 
 	ArpeggiatorBase* getArp() { return &arpeggiator; }

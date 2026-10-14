@@ -17,8 +17,8 @@
  */
 
 /// @file
-/// @brief Test-local reference for the granular effect: the app's `GranularProcessor` as it rendered before the
-/// kernel replaced it, copied line for line. The kernel is held bit-exact to it.
+/// @brief Test-local reference for the granular effect: the app's `GranularProcessor`, copied line for line. The
+/// kernel is held bit-exact to it.
 ///
 /// @ref deluge::dsp::test::ReferenceGranular differs from it only where the test has no firmware around it:
 ///  - the ring is an owned array with a `held` flag, where the firmware holds a heap block; every acquisition of the
@@ -29,7 +29,7 @@
 ///  - every add that can wrap is a wrapping one, so the spec's signed-overflow sanitizer sees the same two's-complement
 ///    result the target computes;
 ///  - `shouldDoPanning` and `quickLog` are the dsp-next functions they delegate to;
-///  - the unused tempo argument and `grainLastTickCountIsZero` are gone;
+///  - the unused tempo argument and `grainLastTickCountIsZero` are dropped;
 ///  - counters and read accessors the spec asserts through, which the output does not depend on.
 
 #pragma once

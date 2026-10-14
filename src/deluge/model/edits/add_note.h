@@ -10,8 +10,10 @@ class ModelStackWithNoteRow;
 
 namespace deluge::edits {
 
-/// Create a note in a melodic note-row — reifies the pad-tap note-add. apply funnels
-/// getNewAction(NOTE_EDIT)+NoteRow::attemptNoteAdd (which records the note-array undo into the Action).
+/// @brief Create a note in a melodic note-row (the pad-tap note-add).
+///
+/// apply() funnels getNewAction(NOTE_EDIT) + NoteRow::attemptNoteAdd, which records the note-array undo into the
+/// Action.
 class AddNote final : public Edit {
 public:
 	AddNote(std::optional<project::NoteRowAddress> address, int32_t pos, int32_t length, int32_t velocity,
@@ -21,8 +23,11 @@ public:
 
 	Error apply(Context& ctx) override;
 
-	/// Whether the note was actually added (false when the engine refused — e.g. an overlapping note). Valid
-	/// after apply(); mirrors NoteRow::attemptNoteAdd's return so call sites keep their existing success flow.
+	/// @brief Whether the note was actually added (false when the engine refused, e.g. an overlapping note).
+	///
+	/// Mirrors NoteRow::attemptNoteAdd's return.
+	/// @pre Valid only after apply().
+	/// @return True if the note was added.
 	[[nodiscard]] bool added() const { return added_; }
 
 private:

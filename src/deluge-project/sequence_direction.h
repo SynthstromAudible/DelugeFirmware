@@ -31,6 +31,7 @@ enum class SequenceDirection {
 };
 
 /// @brief The `sequenceDirection` attribute text for @p direction.
+/// @param direction The direction.
 /// @return A view of a string literal, so `.data()` is null-terminated.
 [[nodiscard]] constexpr std::string_view to_string(SequenceDirection direction) noexcept {
 	switch (direction) {
@@ -47,6 +48,7 @@ enum class SequenceDirection {
 }
 
 /// @brief The direction a `sequenceDirection` attribute names.
+/// @param text The attribute text.
 /// @return The direction, or empty for text that names none; songs read empty as `SequenceDirection::FORWARD`.
 [[nodiscard]] constexpr std::optional<SequenceDirection> parse_sequence_direction(std::string_view text) noexcept {
 	for (SequenceDirection d : {SequenceDirection::FORWARD, SequenceDirection::REVERSE, SequenceDirection::PINGPONG,

@@ -25,9 +25,11 @@
 
 namespace deluge::project {
 
-/// The DOM-owned structural record for one engine NoteRow (M3 owner-2). Owned by its DocClip's `note_rows` pool
-/// (stable address); the engine NoteRow holds a non-owning pointer back to it. Field values are seeded from the
-/// engine row at bind time (NoteRow's colourOffset is random() at creation), not from these defaults.
+/// @brief The DOM-owned structural record for one engine NoteRow.
+///
+/// Owned by its DocClip's `note_rows` pool (stable address); the engine NoteRow holds a non-owning pointer back to
+/// it. Field values are seeded from the engine row at bind time (NoteRow's colourOffset is random() at creation),
+/// not from these defaults.
 struct DocNoteRow {
 	int16_t y{0};
 	int32_t loop_length_if_independent{0}; ///< 0 = obeys the parent clip's loop length
@@ -35,15 +37,16 @@ struct DocNoteRow {
 	SequenceDirection sequence_direction{SequenceDirection::FORWARD};
 	bool muted{false};
 
-	/// M3 owner-2/3 join (dual-write phase): the durable id of this row's drum (`Drum::id()`), or nullopt if the row
-	/// has no drum. Dual-written from the engine NoteRow's `drum` member via `NoteRow::syncDrumId()` at every real
-	/// drum (re)assignment. Shadow only — nothing reads it yet and it is NOT serialized (the on-disk join is still
-	/// the positional `drumIndex`/`gateOutput`).
+	/// The durable id of this row's drum (`Drum::id()`), or nullopt if the row has no drum. Written from the engine
+	/// NoteRow's `drum` member via `NoteRow::syncDrumId()` at every real drum (re)assignment. Shadow only: nothing
+	/// reads it and it is NOT serialized (the on-disk join is the positional `drumIndex`/`gateOutput`).
+	// TODO: nothing reads drum_id; read it where a row's drum is looked up by id, or delete it and
+	// NoteRow::syncDrumId().
 	std::optional<uint32_t> drum_id;
 
-	/// M3 owner-2 Slice 2c: SAVE-time note representation, rebuilt from the engine note vector at write and freed
-	/// after (transient scratch — must not permanently double note RAM). Contiguous vector (no stable-address
-	/// requirement — nothing holds a pointer into it, unlike the note-row pool).
+	/// SAVE-time note representation, rebuilt from the engine note vector at write and freed after (transient
+	/// scratch -- must not permanently double note RAM). Contiguous vector (no stable-address requirement: nothing
+	/// holds a pointer into it, unlike the note-row pool).
 	std::vector<DocNote> notes;
 
 	/// Equal when the persistent fields are; drum_id is a shadow and notes are save-time scratch.

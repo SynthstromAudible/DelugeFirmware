@@ -110,7 +110,7 @@ void LearnedMIDI::readFromTree(const deluge::storage::Value& node, Deserializer&
 		channelOrZone = stringToInt(n->str().c_str());
 	}
 	if (const Value* n = node.find("mpeZone")) {
-		// mpeZone is a scalar "lower"/"upper" (the streaming readMPEZone, inlined for the tree path).
+		// mpeZone is a scalar "lower"/"upper".
 		if (n->str() == "lower") {
 			channelOrZone = MIDI_CHANNEL_MPE_LOWER_ZONE;
 		}

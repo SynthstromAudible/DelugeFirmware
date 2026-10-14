@@ -9,9 +9,10 @@ class ModelStackWithNoteRow;
 
 namespace deluge::edits {
 
-/// Shift a single note-row horizontally (the reification of InstrumentClipView's NOTEROW_HORIZONTAL_SHIFT). apply
-/// does the engine shift, then records/coalesces the undo the way the call site did: it extends an open
-/// same-note-row shift Action's ConsequenceNoteRowHorizontalShift amount, or opens a new Action + Consequence.
+/// @brief Shift a single note-row horizontally (NOTEROW_HORIZONTAL_SHIFT).
+///
+/// apply() does the engine shift, then records/coalesces the undo: it extends an open same-note-row shift Action's
+/// ConsequenceNoteRowHorizontalShift amount, or opens a new Action + Consequence.
 class ShiftNoteRow final : public Edit {
 public:
 	ShiftNoteRow(std::optional<project::NoteRowAddress> address, int32_t shiftAmount, bool shiftAutomation,
@@ -26,7 +27,7 @@ private:
 	int32_t shiftAmount_;
 	bool shiftAutomation_;
 	bool shiftSequenceAndMPE_;
-	ModelStackWithNoteRow* engineStack_; ///< Funnel-phase borrow.
+	ModelStackWithNoteRow* engineStack_; ///< Borrowed for the duration of apply().
 };
 
 } // namespace deluge::edits

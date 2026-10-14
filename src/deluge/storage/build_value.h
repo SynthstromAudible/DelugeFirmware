@@ -22,7 +22,7 @@
 
 namespace deluge::storage {
 
-/// Reconstructs a `Value` tree by generically, schema-free-ly, driving any `Deserializer`'s
+/// @brief Reconstructs a `Value` tree by generically, schema-free-ly, driving any `Deserializer`'s
 /// streaming interface.
 ///
 /// `reader` must already be positioned *inside* an object box -- i.e. a prior `match('{')` (the
@@ -38,10 +38,11 @@ namespace deluge::storage {
 ///   - otherwise              -> a scalar; `readTagOrAttributeValue()` then `exitTag()`.
 ///
 /// This is schema-free: it doesn't know or care what any name means, only whether the
-/// Deserializer says the next thing is an object, an array, or a scalar. That makes it the
-/// throwaway/generic path suitable for driving a real `XMLDeserializer` (deferred to Step 2's
-/// golden load/save); here it is validated by round-tripping through the `ValueTreeDeserializer`
-/// adapter, which needs no file.
+/// Deserializer says the next thing is an object, an array, or a scalar. That makes it a
+/// generic path suitable for driving any `Deserializer`, including a real `XMLDeserializer`; it is tested by
+/// round-tripping through the `ValueTreeDeserializer` adapter, which needs no file.
+/// @param reader The deserializer, positioned inside an object box.
+/// @return The tree of Map entries read from the object.
 [[nodiscard]] Value buildValue(Deserializer& reader);
 
 } // namespace deluge::storage

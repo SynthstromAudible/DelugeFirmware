@@ -26,13 +26,14 @@
 
 namespace deluge::snapshot {
 
-/// The engine's derived read-view of a Sound's HOT render fields (project-model migration M4b). The `deluge::project`
-/// DOM model (`SoundState`) is the authoritative source for save AND load; this snapshot is PROJECTED from it
-/// (`Sound::projectSnapshot()`) at the bind / doneReadingFromFile hooks and after each edit, and the per-render /
-/// per-voice audio path reads it — the north-star's "engine plays derived Snapshots" made real for Sound. The model
-/// never references this type (net dependency: engine→model). It gathers what were scattered native cache fields on
-/// `Sound` into one cohesive read-view; the fields grow slice-by-slice as M4b flips them. Unbound sounds (preview /
-/// GlobalEffectable, with no SoundState) write the snapshot directly and never save.
+/// @brief The engine's derived read-view of a Sound's hot render fields.
+///
+/// The `deluge::project` DOM model (`SoundState`) is the authoritative source for save and load; this snapshot is
+/// projected from it (`Sound::projectSnapshot()`) at the bind / doneReadingFromFile hooks and after each edit, and
+/// the per-render / per-voice audio path reads it.
+///
+/// @note The model never references this type (dependency: engine to model). Unbound sounds (preview /
+///       GlobalEffectable, with no SoundState) write the snapshot directly and never save.
 struct SoundSnapshot {
 	int16_t transpose{0}; ///< master semitone transpose (SoundState::transpose); read per-voice-start (Voice::render)
 	int8_t cents{0};      ///< master fine tune (SoundState::cents), cents

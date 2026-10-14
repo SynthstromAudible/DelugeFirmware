@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The one-pole section. The legacy one-pole class, as its verbatim copy (reference_filters.h), is pinned on 16 samples
-// of a ramp at moveability 0x20000000. The OnePole kernel is pinned against the class, sample by sample from equal
-// memories: LOW_PASS against lowPass, ALL_PASS against allPass, HIGH_PASS against the input less lowPass, as the
+// The one-pole section. The legacy one-pole class, as the reference (reference_filters.h) holds it, is pinned on 16
+// samples of a ramp at moveability 0x20000000. The OnePole kernel is pinned against the class, sample by sample from
+// equal memories: LOW_PASS against lowPass, ALL_PASS against allPass, HIGH_PASS against the input less lowPass, as the
 // high-pass ladder and the compressor write it, and the feedback reads against the class's. Full-scale and extreme
 // inputs, whose arithmetic overflows q31 in every mode's own operations, and the feedback reads at the memories they
 // leave and at the extremes, are pinned against the class's expressions computed through uint32_t, wrapping as the

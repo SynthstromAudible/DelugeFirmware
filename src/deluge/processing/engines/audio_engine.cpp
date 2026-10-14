@@ -521,7 +521,7 @@ void init() {
 	sampleForPreview->patcher.performInitialPatching(
 	    sampleForPreview->patchControlBlock(*paramManagerForSamplePreview));
 
-	sampleForPreview->setSideChainSendLevel(2147483647); // M3 owner-5: DOM-owned (unbound preview → cache only)
+	sampleForPreview->setSideChainSendLevel(2147483647); // DOM-owned (an unbound preview sets the cache only)
 
 	deluge_audio_start();
 	inputRingPos = (uintptr_t)inputRing;
@@ -708,8 +708,8 @@ void routineWithClusterLoading() {
 
 	// In-memory deserialization (FileReader::callRoutines == false) opts out of the cooperative
 	// audio yield: there is no SD cluster stream to service and no engine to pump. File-backed
-	// reads keep callRoutines == true, so firmware load behaviour is unchanged. This also lets a
-	// headless host harness load a Song without standing up the audio engine.
+	// reads keep callRoutines == true. This also lets a headless host harness load a Song without
+	// standing up the audio engine.
 	if (activeReader != nullptr && !activeReader->shouldCallRoutines()) {
 		return;
 	}

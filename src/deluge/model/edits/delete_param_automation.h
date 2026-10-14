@@ -9,23 +9,28 @@ class ModelStackWithAutoParam;
 
 namespace deluge::edits {
 
-/// Clear a param's automation — the reification of the AUTOMATION_DELETE call sites. apply() opens the
-/// AUTOMATION_DELETE Action and delegates to AutoParam::deleteAutomation, which snapshots the stolen
-/// before-nodes into that Action as the undo Consequence.
+/// @brief Clear a param's automation.
+///
+/// apply() opens the AUTOMATION_DELETE Action and delegates to AutoParam::deleteAutomation, which snapshots the
+/// stolen before-nodes into that Action as the undo Consequence.
 class DeleteParamAutomation final : public Edit {
 public:
+	/// @param address     Durable lane id; nullopt for a never-saved owner (engine-resolved). Not used by apply().
+	/// @param engineStack Borrowed engine stack naming the auto-param; must outlive apply().
+	/// @param addition    The Action-coalescing policy (tempo passes ALLOWED; others NOT_ALLOWED).
 	DeleteParamAutomation(std::optional<project::ParamAddress> address, ModelStackWithAutoParam* engineStack,
 	                      ActionAddition addition = ActionAddition::NOT_ALLOWED)
 	    : address_(address), engineStack_(engineStack), addition_(addition) {}
 
+	/// @copydoc Edit::apply
 	Error apply(Context& ctx) override;
 
 private:
-	/// Durable lane id (nullopt = never-saved owner, engine-resolved); unused by the funnel body.
+	/// Durable lane id (nullopt = never-saved owner, engine-resolved); unused by apply().
 	std::optional<project::ParamAddress> address_;
-	/// Funnel-phase borrow, like SetParamValue::engineStack_. Retired at the M3/M4 flip.
+	/// Borrowed engine stack, like SetParamValue::engineStack_.
 	ModelStackWithAutoParam* engineStack_;
-	/// Funnel-phase: the site's Action-coalescing policy (tempo passes ALLOWED; others NOT_ALLOWED).
+	/// The Action-coalescing policy (tempo passes ALLOWED; others NOT_ALLOWED).
 	ActionAddition addition_;
 };
 

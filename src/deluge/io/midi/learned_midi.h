@@ -84,9 +84,12 @@ public:
 		writeToFile(writer, commandName, MIDI_MESSAGE_NONE);
 	}
 
-	// Tree-native reader (readFromTree per-type conversion). Reads channel/mpeZone/note from `node`, and the nested
-	// <device> via the reader's readChildObject bridge. Supersedes readFromFile (retired). `reader` must be a
-	// ValueTreeDeserializer: songs and presets are opened as deluge::storage::TreeDocument.
+	/// @brief Read channel/mpeZone/note from @p node, and the nested <device> via the reader's readChildObject bridge.
+	///
+	/// @pre @p reader is a ValueTreeDeserializer: songs and presets are opened as deluge::storage::TreeDocument.
+	/// @param node            The tree node holding this command's fields.
+	/// @param reader          The deserializer the nested <device> object is read through.
+	/// @param midiMessageType MIDI_MESSAGE_* kind of the learned message.
 	void readFromTree(const deluge::storage::Value& node, Deserializer& reader, int32_t midiMessageType);
 	inline void readNoteFromTree(const deluge::storage::Value& node, Deserializer& reader) {
 		readFromTree(node, reader, MIDI_MESSAGE_NOTE);

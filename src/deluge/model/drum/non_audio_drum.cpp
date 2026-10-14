@@ -18,15 +18,15 @@
 #include "model/drum/non_audio_drum.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_drum.h"
-#include "foundation/panic.h" // FREEZE_WITH_ERROR (M3 owner-3 unbound-read guard)
+#include "foundation/panic.h" // FREEZE_WITH_ERROR (unbound-read guard)
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
-// M3 owner-3: read the channel from the authoritative DOM record (the drum is bound before any read — adopt precedes
-// tag reads at load; runtime drums bind on addDrum). The ALPHA guard makes any stray unbound read fail loudly.
+// Reads the channel from the authoritative DOM record (the drum is bound before any read — adopt precedes tag reads at
+// load; runtime drums bind on addDrum). The ALPHA guard makes any stray unbound read fail loudly.
 uint8_t NonAudioDrum::channel() const {
 	if (ALPHA_OR_BETA_VERSION && docDrum_ == nullptr) {
 		FREEZE_WITH_ERROR("Dr3C");
@@ -34,8 +34,8 @@ uint8_t NonAudioDrum::channel() const {
 	return docDrum_->channel;
 }
 
-// M3 owner-3: the write funnel for the channel — writes the authoritative `DocDrum::channel` (the drum is bound before
-// any write). modChange writes `docDrum_->channel` in place through a raw `uint8_t*`.
+// The write funnel for the channel — writes the authoritative `DocDrum::channel` (the drum is bound before any
+// write). modChange writes `docDrum_->channel` in place through a raw `uint8_t*`.
 void NonAudioDrum::setChannel(uint8_t newChannel) {
 	docDrum_->channel = newChannel;
 }
@@ -92,7 +92,7 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int32_t 
 		newValue -= numValues;
 	}
 
-	// M3 owner-3: `value` points straight at the authoritative DOM scalar (`&docDrum_->channel` from
+	// `value` points straight at the authoritative DOM scalar (`&docDrum_->channel` from
 	// NonAudioDrum::modEncoderAction, or `&docDrum_->note` from MIDIDrum), so writing it IS the model write.
 	*value = newValue;
 

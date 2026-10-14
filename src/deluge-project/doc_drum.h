@@ -27,11 +27,12 @@
 
 namespace deluge::project {
 
-/// The DOM-owned structural record for one engine Drum (M3 owner-3 — kit/drum structure). Kept in `DrumStructure`
-/// keyed by the drum's durable `Drum::id()`. `drum_type` is what the drum plays;
+/// @brief The DOM-owned structural record for one engine Drum.
+///
+/// Kept in `DrumStructure` keyed by the drum's durable `Drum::id()`. `drum_type` is what the drum plays;
 /// `channel`/`note` apply to the non-audio kinds (MIDI channel or gate channel; MIDI note) and are 0 for SOUND;
-/// `name` shadows the engine `Drum::drumName` (slice 2, write-only — dual-written via Drum::setName, seeded in
-/// Song::adoptDrum; nothing reads it yet). Engine-light: enums stored as underlying values, no engine includes.
+/// `name` is the drum's name, the only store for it: read and written through Drum::name() / setName(), seeded in
+/// Song::adoptDrum. Engine-light: enums stored as underlying values, no engine includes.
 struct DocDrum {
 	DrumType drum_type{DrumType::SOUND};
 	uint8_t channel{0};

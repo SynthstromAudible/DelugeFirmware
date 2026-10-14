@@ -1,14 +1,13 @@
-// Lean differential "record-playback" harness (Movement 2 M2-D/E gate-retirement).
+// Lean differential "record-playback" harness.
 //
 //   param_record_diff <song.XML>
 //
 // The load->save golden and song_edit_roundtrip cannot see the ENGINE's live recording path
-// (setCurrentValueInResponseToUserInput + processCurrentPos + undo) — the exact code M2-D.2/.3 forwards to the
+// (setCurrentValueInResponseToUserInput + processCurrentPos + undo) — the code that forwards to the
 // DOM kernels. This harness drives that path natively and deterministically, then dumps a canonical snapshot of
-// the resulting automation. Because the refactor's contract is behaviour-preservation, the oracle is free: a
-// baseline captured from HEAD *before* a forward must be reproduced bit-for-bit after it (param_record_run.py
-// diffs stdout against a committed baseline). No real audio scheduler is driven — "time" is controlled by
-// writing AudioEngine::audioSampleTimer and passing an explicit livePos.
+// the resulting automation. The oracle is a committed baseline: param_record_run.py diffs stdout against it, and the
+// dump must reproduce it bit-for-bit. No real audio scheduler is driven — "time" is controlled by writing
+// AudioEngine::audioSampleTimer and passing an explicit livePos.
 //
 // Target: the song-global unpatched param UNPATCHED_VOLUME (timelineCounter = the Song; the same param family
 // song_edit_roundtrip already exercises). Recording is armed via RecordingMode::ARRANGEMENT, which also makes
@@ -16,17 +15,11 @@
 //
 // Exit: 0 = ran + dumped; 1 = load error; 2 = usage/IO; 3 = setup precondition failed.
 //
-// The dump is deterministic, so param_record_run.py byte-compares stdout against a committed baseline. The
-// baseline is captured from engine-native recording; M2-D.3 (which forwards the recording node write to the
-// recordLiveValue kernel) must reproduce it exactly — that is how this harness retires the on-device gate for
-// the recording seam.
+// The dump is deterministic, so param_record_run.py byte-compares stdout against a committed baseline captured from
+// engine-native recording; the recording node write (the recordLiveValue kernel) must reproduce it exactly. Driving
+// a live Song timeline also covers what the param_projection oracle's NoteRow stack never does.
 //
-// PROVENANCE: this harness already earned its keep — driving a live Song timeline (which the
-// param_projection oracle's NoteRow stack never does) surfaced a real firmware bug in the M2-C
-// homogenizeRegion forward (an unconditional Song->Clip cast for recordingLinearly; ASan global-buffer-overflow),
-// fixed in 0ec566d82.
-//
-// SCOPE (current): a scripted live-record sequence on a song-global param, PLUS undo/redo (swapState) and
+// SCOPE: a scripted live-record sequence on a song-global param, PLUS undo/redo (swapState) and
 // save/reload persistence. Remaining follow-up — a finite-loop InstrumentClip target (the scenario that also
 // exercises homogenizeRegion's recordingLinearly forward-wrap branch; that branch's *logic* is already covered
 // by the param_projection homogenizeRegion oracle's finite-effLen + wrap cases, so this would add
@@ -81,14 +74,14 @@ static Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat
 	song->paramManager.setupUnpatched();
 	GlobalEffectable::initParams(&song->paramManager);
 
-	// Load via the record-first Value tree (deserializer step 2b): parse the whole XML to a Value, then
+	// Load via the record-first Value tree: parse the whole XML to a Value, then
 	// replay it to readFromFile through ValueTreeDeserializer -- bit-identical to the streaming load.
 	std::optional<deluge::storage::Value> tree =
 	    parseDocument(std::string_view(reinterpret_cast<const char*>(xml), static_cast<size_t>(xmlLen)), format);
 	Error e = Error::FILE_CORRUPTED;
 	if (tree) {
 		deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(format));
-		activeReader = &adapter; // in-memory: gates the AudioEngine render off during load (as the stream path did)
+		activeReader = &adapter; // in-memory: gates the AudioEngine render off during load (as the stream path does)
 		e = openTreeFile(adapter, "song", format);
 		if (e == Error::NONE) {
 			e = deluge::bridge::loadSong(*song, adapter);
@@ -107,8 +100,8 @@ static Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat
 // Print a canonical, deterministic snapshot of one AutoParam's automation state. Order + formatting are fixed so
 // the differ can byte-compare across builds/arches.
 static void dumpParam(const char* label, ModelStackWithAutoParam* msap) {
-	// M2-E: the nodes are owner-resolved via the ModelStack (the song-global param is bound to the DOM store), not
-	// read off the engine AutoParam — which no longer holds a pointer into DOM node data.
+	// The nodes are owner-resolved via the ModelStack (the song-global param is bound to the DOM store), not read
+	// off the engine AutoParam, which holds no pointer into DOM node data.
 	const auto& nodes = msap->doc()->nodes;
 	std::fprintf(io.out, "%s cv=%ld nodes=%d:", label, (long)msap->autoParam->getCurrentValue(),
 	             (int)std::ssize(nodes));
@@ -199,7 +192,7 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	}
 	AutoParam& ap = *msap->autoParam;
 
-	// S1 proof: the song-global param's node store is resolved through the id-addressable project tree
+	// The song-global param's node store is resolved through the id-addressable project tree
 	// (Song::resolveParam by ParamAddress), not the engine fallback. resolveParam must return the SAME lane doc()
 	// returns, and it must be non-null (i.e. the addressed path is actually live, not silently falling back).
 	{
@@ -242,9 +235,8 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	}
 	dumpParam("after-record", msap);
 
-	// Flip Phase 1 (value authority): the engine edit method now also writes the owner's DOM store scalar, so save
-	// can read the store. After the recorded edits, the store's current_value must equal the engine cursor. To
-	// stderr so the stdout baseline is unaffected.
+	// The engine edit method also writes the owner's DOM store scalar, so save can read the store. After the recorded
+	// edits, the store's current_value must equal the engine cursor. To stderr so the stdout baseline is unaffected.
 	if (msap->doc()->current_value != ap.getCurrentValue()) {
 		std::fprintf(io.err, "PHASE1 FAIL: store current_value=%ld != engine currentValue=%ld\n",
 		             (long)msap->doc()->current_value, (long)ap.getCurrentValue());

@@ -21,11 +21,11 @@ namespace deluge::edits {
 uint32_t docFallbackHits = 0;
 #endif
 
-// The owner classification of ModelStackWithAutoParam::doc(), extracted verbatim (behaviour-identical) so an Edit
-// can build the same stable ParamAddress at construction time, before it holds a resolved engine ModelStack. The
-// `kind` carried into the address is the ModelStack's threaded param Kind (S5-a); the ALPHA safety-net assert that
-// it matches the collection's own getParamKind() rides along with it, unchanged. The one unaddressable case — a
-// never-saved (no-id) owner — returns nullopt, exactly the fallthrough doc() takes to its engine store.
+// The owner classification of ModelStackWithAutoParam::doc(), so an Edit can build the same stable ParamAddress at
+// construction time, before it holds a resolved engine ModelStack. The `kind` carried into the address is the
+// ModelStack's threaded param Kind; an ALPHA safety-net assert checks it matches the collection's own
+// getParamKind(). The one unaddressable case, an owner with no id, returns nullopt, exactly the fallthrough doc()
+// takes to its engine store.
 std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAutoParam& modelStack) {
 	if (modelStack.song == nullptr) {
 		return std::nullopt;
@@ -40,16 +40,13 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 	}
 	else if (tc != nullptr) {
 		// Song and Clip are the only TimelineCounters, so a non-song tc is a Clip. Classify the owner by the
-		// ModelStack context (S3c-S3g): a set noteRow ⇒ a per-drum param (OwnerId::drum, keyed by the drum);
+		// ModelStack context: a set noteRow ⇒ a per-drum param (OwnerId::drum, keyed by the drum);
 		// else a synth/kit InstrumentClip ⇒ clip-level instrument-shared (OwnerId::instrument(output)); else an
 		// AudioClip / MIDI clip ⇒ its own params (OwnerId::clip). noteRow is a RELIABLE drum signal — the ModelStack
 		// builders always set it explicitly (addNoteRow(0, nullptr) for the no-noteRow path), never stale.
 		//
-		// S5-b: the OWNER dimension (clip / output / drum) and the CLIP dimension are each addressed by a persisted
-		// id when the object was saved, else by a transient session id (id-address a not-yet-saved owner so
-		// doc() resolves it instead of the paramCollection fallback). The two dimensions are INDEPENDENT — a saved
-		// instrument (id) can carry a runtime-added clip (session id): the "mixed" case, disambiguated by
-		// clip_is_session. A missing id in EITHER dimension (never relocated) leaves haveOwner false → the fallback.
+		// The OWNER dimension (clip / output / drum) and the CLIP dimension are each addressed by their durable id. A
+		// missing id in either dimension leaves haveOwner false → the fallback.
 		Clip* clip = static_cast<Clip*>(tc);
 		NoteRow* noteRow = modelStack.getNoteRowAllowNull();
 
@@ -111,7 +108,7 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 }
 
 namespace {
-// The DocParamManager for `address` in the session tree, creating an empty entry if absent. Only the CLIP /
+// The DocParamManager for `address` in the project tree, creating an empty entry if absent. Only the CLIP /
 // INSTRUMENT / DRUM owner kinds reach here (SONG is always resolvable, so relocateAndResolve returns early for it).
 deluge::project::DocParamManager* managerForAddress(deluge::project::Song& proj,
                                                     const deluge::project::ParamAddress& address) {
@@ -143,7 +140,7 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 	NoteRow* noteRow = modelStack.getNoteRowAllowNull();
 
 	// Ensure the owner chain this param belongs to has a durable id, minting one for a runtime owner never
-	// saved/loaded (clips always have one from their ctor). After this, addressFor can build a total ParamAddress.
+	// saved/loaded (clips always have one from construction). After this, addressFor can build a total ParamAddress.
 	if (noteRow != nullptr) {
 		if (noteRow->drum != nullptr && noteRow->drum->type == DrumType::SOUND && !noteRow->drum->id().has_value()) {
 			noteRow->drum->setId(modelStack.song->generateNewDrumId());
@@ -164,7 +161,7 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 		return nullptr;
 	}
 
-	// Relocate the TOUCHED collection's engine store into its tree slot, mirroring the load-time relocation. Only
+	// Relocate the TOUCHED collection's engine store into its tree slot, as load does. Only
 	// this collection moves; the owner's other collections relocate on their own first touch (each is an independent
 	// slot / seed of the same (owner, clip) DocParamManager). Guarded by the slot being empty (a fresh owner just
 	// created by getOrCreate) so an already-relocated collection is never double-moved.

@@ -53,40 +53,55 @@ public:
 	void writeAttributesToFile(Serializer& writer);
 	void writeTagsToFile(Serializer& writer);
 	/// @brief Writes @p states' effect attributes.
+	/// @param writer Destination.
+	/// @param states The effect settings to write.
 	void writeAttributesToFile(Serializer& writer, const deluge::effects::EffectStates& states);
 	/// @brief Writes @p states' effect tags, the learned MIDI knobs among them; @p compressorThreshold, when given, in
 	/// place of the state's threshold.
+	/// @param writer              Destination.
+	/// @param states              The effect settings to write.
+	/// @param compressorThreshold Threshold (Q31) to write instead of the state's, if given.
 	void writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states,
 	                     std::optional<q31_t> compressorThreshold = std::nullopt);
-	/// The learned MIDI knobs' tag, which a file writes between the delay and the other effect tags.
+	/// @brief Writes the learned MIDI knobs' tag, which a file writes between the delay and the other effect tags.
+	/// @param writer Destination.
 	void writeMidiKnobsToFile(Serializer& writer);
-	/// The codec context a file's effect entries are written in: the current song's tick magnitude.
+	/// @brief The codec context a file's effect entries are written in: the current song's tick magnitude.
+	/// @return The codec context.
 	[[nodiscard]] static deluge::engine::CodecContext effectsCodecContext();
-	/// The compressor threshold a sound's file saves: the one the render last applied, its param's.
+	/// @brief The compressor threshold a sound's file saves: the one the render last applied, its param's.
+	/// @return The threshold (Q31).
 	[[nodiscard]] q31_t savedCompressorThreshold() const { return core().compressor().dsp().threshold(); }
 
 	/// @brief This owner's effect settings: a bound sound's are its SoundState's, any other owner's its own.
+	/// @return The effect settings.
 	[[nodiscard]] const deluge::effects::EffectStates& effects() const {
 		return boundEffects_ != nullptr ? *boundEffects_ : ownEffects_;
 	}
 	/// @brief Make @p next this owner's effect settings, and the render's copy of them, which is replaced with the
 	/// render excluded.
+	/// @param next The new effect settings.
 	void setEffects(const deluge::effects::EffectStates& next);
 	/// @brief Keep this owner's effect settings in @p record (a sound's SoundState), which takes the settings held now;
 	/// nullptr keeps them here again.
+	/// @param record The record that holds the settings, or nullptr to hold them in this owner.
 	void bindEffects(deluge::effects::EffectStates* record);
-	/// The render's copy of the effect settings: it reads nothing else of them.
+	/// @brief The render's copy of the effect settings: it reads nothing else of them.
 	deluge::snapshot::ModControllableSnapshot modControllableSnapshot_{};
+	/// @brief The render's copy of the effect settings.
+	/// @return The render's copy.
 	[[nodiscard]] const deluge::snapshot::ModControllableSnapshot& modControllableSnapshot() const {
 		return modControllableSnapshot_;
 	}
-	/// Copy the settings into the render's copy, with the render excluded.
+	/// @brief Copy the settings into the render's copy, with the render excluded.
 	void projectModControllableSnapshot();
 	/// @brief Inside projectModControllableSnapshot's excluded section: the owner's view into @p copy, for a host chain
 	/// (its selected mod FX knob); nothing for a sound.
+	/// @param copy The render's copy being filled.
 	virtual void projectView(deluge::snapshot::ModControllableSnapshot& /*copy*/) {}
-	/// Store the mod-FX type; setModFXType() does the same and returns true. For the load path and
+	/// @brief Store the mod-FX type; setModFXType() does the same and returns true. For the load path and
 	/// cloneFrom().
+	/// @param value The mod FX type to store.
 	void assignModFXType(ModFXType value);
 	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
@@ -101,20 +116,23 @@ public:
 	void beginStutter(ParamManagerForTimeline* paramManager);
 	void endStutter(ParamManagerForTimeline* paramManager);
 	virtual ModFXType getModFXType() = 0;
-	/// This owner as a sound, or nullptr for a kit, an audio track or the song master.
+	/// @brief This owner as a sound.
+	/// @return The sound, or nullptr for a kit, an audio track or the song master.
 	[[nodiscard]] virtual ::Sound* asSound() { return nullptr; }
 	bool setModFXType(ModFXType newType);
-	/// Clear the mod FX's memory, as a sound cutting its tail does: a comb type's delay line or phaser memories, or the
-	/// grain's grains and first pass.
+	/// @brief Clear the mod FX's memory, as a sound cutting its tail does: a comb type's delay line or phaser memories,
+	/// or the grain's grains and first pass.
 	void clearModFXMemory();
-	// One effect setting each, through setEffects.
+	/// @name "Effect setters"
+	/// One effect setting each, through setEffects.
+	/// @{
 	void setClippingAmount(uint8_t value);
 	void setLpfMode(FilterMode value);
 	void setHpfMode(FilterMode value);
 	void setFilterRoute(FilterRoute value);
 	void setDelayPingPong(bool value);
 	void setDelayType(deluge::effects::DelayType value);
-	/// Set by a read whose element saves no delay type: the type is worked out once the owner's params are read
+	/// @brief Set by a read whose element saves no delay type: the type is worked out once the owner's params are read
 	/// (deluge::model::resolvePendingDelayTypes).
 	bool delayTypePending = false;
 	void setDelaySyncType(SyncType value);
@@ -128,13 +146,14 @@ public:
 	void setSidechainRelease(int32_t value);
 	void setSidechainSyncType(SyncType value);
 	void setSidechainSyncLevel(SyncLevel value);
-	/// The compressor's knob positions, each Q31 (the menu's 0–127 shifted up by 24).
+	// The compressor's knob positions, each Q31 (the menu's 0-127 shifted up by 24).
 	void setCompressorAttack(q31_t value);
 	void setCompressorRelease(q31_t value);
 	void setCompressorThreshold(q31_t value);
 	void setCompressorRatio(q31_t value);
 	void setCompressorSidechainHpf(q31_t value);
 	void setCompressorBlend(q31_t value);
+	/// @}
 	bool offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
 	bool offerReceivedCCToLearnedParamsForSong(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
@@ -150,7 +169,8 @@ public:
 	virtual void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {} // Song may be NULL
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) override;
 
-	/// The effect components every owner has, in its chain: a sound's, a clip chain's or the master's.
+	/// @brief The effect components every owner has, in its chain: a sound's, a clip chain's or the master's.
+	/// @return The chain's core.
 	[[nodiscard]] virtual deluge::effects::ChainCore& core() = 0;
 	[[nodiscard]] virtual const deluge::effects::ChainCore& core() const = 0;
 
@@ -165,7 +185,7 @@ protected:
 	/// calls it first in its destructor, while its chain still exists.
 	void releaseChainMemory();
 	void switchDelayPingPong();
-	/// One press of the delay's feedback knob: digital, analog, off, digital, by one Edit.
+	/// @brief One press of the delay's feedback knob: digital, analog, off, digital, by one Edit.
 	void cycleDelayType();
 	void switchDelaySyncType();
 	void switchDelaySyncLevel();

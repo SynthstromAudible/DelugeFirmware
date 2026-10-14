@@ -27,18 +27,22 @@
 
 namespace deluge::project {
 
-/// Value-typed document form of one `AutoParam` — the automation leaf of the param/automation DOM
-/// (docs/dev/param_automation_dom.md). `ParamNode` is already a `{pos, value, interpolated}` POD and is
-/// reused verbatim; an empty `nodes` means the parameter is unautomated and `current_value` applies.
-/// Patch-cable AutoParams store their node values in the patch-cable range — the projection copies the
-/// stored representation faithfully (no reinterpretation).
+/// @brief Value-typed document form of one `AutoParam` — the automation leaf of the param/automation DOM
+/// (docs/dev/param_automation_dom.md).
+///
+/// `ParamNode` is a `{pos, value, interpolated}` POD; an empty `nodes` means the parameter is unautomated and
+/// `current_value` applies. Patch-cable AutoParams store their node values in the patch-cable range — the projection
+/// copies the stored representation faithfully (no reinterpretation).
 struct DocAutoParam {
 	int32_t current_value{0};
-	ParamNodeVector nodes; // OrderedPosVector<ParamNode>: the single runtime store the engine borrows (Phase B)
+	ParamNodeVector nodes; // OrderedPosVector<ParamNode>: the single runtime store the engine borrows
 };
 
-/// Copy a value and its automation nodes into a DocAutoParam; works on the raw pieces so the model needs no engine
-/// AutoParam.
+/// @brief Copy a value and its automation nodes into a DocAutoParam; works on the raw pieces so the model needs no
+/// engine AutoParam.
+/// @param current_value The parameter's current value.
+/// @param nodes         Its automation nodes, ascending by position.
+/// @return The document form. If allocation fails part-way, it holds the nodes copied so far.
 inline DocAutoParam toDocAutoParam(int32_t current_value, const ParamNodeVector& nodes) {
 	DocAutoParam doc;
 	doc.current_value = current_value;
@@ -54,10 +58,14 @@ inline DocAutoParam toDocAutoParam(int32_t current_value, const ParamNodeVector&
 	return doc;
 }
 
+/// @brief Copy a DocAutoParam's value and nodes out into the raw pieces.
+/// @param doc           The document form.
+/// @param current_value Receives the current value.
+/// @param nodes         Receives the nodes; a no-op when it is @p doc's own node store (the engine borrows it).
 inline void fromDocAutoParam(const DocAutoParam& doc, int32_t& current_value, ParamNodeVector& nodes) {
 	current_value = doc.current_value;
 	if (&nodes == &doc.nodes) {
-		// Borrowed (Phase B): the engine's node store IS doc.nodes, so a copy would clear-then-read the same
+		// Borrowed: the engine's node store IS doc.nodes, so a copy would clear-then-read the same
 		// vector. The value is set above; the nodes are already current by construction — nothing to copy.
 		return;
 	}
@@ -73,13 +81,15 @@ inline void fromDocAutoParam(const DocAutoParam& doc, int32_t& current_value, Pa
 	}
 }
 
-/// Value-typed document form of one param collection: lanes for a dense run of ids, `params[i]` holding the param
-/// with id `first + i`.
+/// @brief Value-typed document form of one param collection: lanes for a dense run of ids, `params[i]` holding the
+/// param with id `first + i`.
 struct DocParamSet {
 	deluge::engine::ParamId first{};
 	std::vector<DocAutoParam> params;
 
-	/// The lane for @p id, or nullptr when this set does not hold it.
+	/// @brief The lane for @p id, or nullptr when this set does not hold it.
+	/// @param id The param id.
+	/// @return The lane, or nullptr.
 	[[nodiscard]] DocAutoParam* find(deluge::engine::ParamId id) {
 		auto i = indexOf(id);
 		return i ? &params[*i] : nullptr;
@@ -88,7 +98,9 @@ struct DocParamSet {
 		auto i = indexOf(id);
 		return i ? &params[*i] : nullptr;
 	}
-	/// Where @p id's lane is in `params`, or nullopt when this set does not hold it.
+	/// @brief Where @p id's lane is in `params`, or nullopt when this set does not hold it.
+	/// @param id The param id.
+	/// @return The index, or nullopt.
 	[[nodiscard]] std::optional<size_t> indexOf(deluge::engine::ParamId id) const {
 		if (id.value < first.value || id.value - first.value >= params.size()) {
 			return std::nullopt;
@@ -97,7 +109,7 @@ struct DocParamSet {
 	}
 };
 
-/// Value-typed document form of one patch cable: the engine's routing, named by the id of the cable's depth (the
+/// @brief Value-typed document form of one patch cable: the engine's routing, named by the id of the cable's depth (the
 /// engine derives it from the cable's source and destination), with its polarity (the engine's word, stored raw) and
 /// the depth's value and automation. Depths are stored in the patch-cable range [-2^30, 2^30).
 struct DocCable {
@@ -106,7 +118,7 @@ struct DocCable {
 	DocAutoParam amount;
 };
 
-/// Value-typed document form of one MIDI-CC automation lane: the CC number that identifies it (the ordered
+/// @brief Value-typed document form of one MIDI-CC automation lane: the CC number that identifies it (the ordered
 /// MIDIParamVector keys by cc) plus its automatable value. Keyed by identity (cc), like patch cables by
 /// (from,dest) — the CC vector reorders on every learn, so index is not stable.
 struct DocMidiParam {
@@ -114,11 +126,11 @@ struct DocMidiParam {
 	DocAutoParam param;
 };
 
-/// How many runs of ids an engine's params are stored in.
+/// @brief How many runs of ids an engine's params are stored in.
 inline constexpr std::size_t kEngineParamBlocks = 2;
 
-/// Value-typed document form of a `ParamManager`'s collections. An engine's params are held in the runs of ids its
-/// table declares, each present only when the live owner holds it, and the engine's cables, each with its depth;
+/// @brief Value-typed document form of a `ParamManager`'s collections. An engine's params are held in the runs of ids
+/// its table declares, each present only when the live owner holds it, and the engine's cables, each with its depth;
 /// `expression` (MPE) and `midi_params` (a MIDI_OUT clip's CC automation) are the host's own spaces.
 struct DocParamManager {
 	std::array<std::optional<DocParamSet>, kEngineParamBlocks> engine_params;
@@ -126,7 +138,10 @@ struct DocParamManager {
 	std::vector<DocCable> cables;
 	std::vector<DocMidiParam> midi_params;
 
-	/// The lane of the engine param @p id (a param in a block, or a cable's depth), or nullptr when none holds it.
+	/// @brief The lane of the engine param @p id (a param in a block, or a cable's depth), or nullptr when none holds
+	/// it.
+	/// @param id The engine param id.
+	/// @return The lane, or nullptr.
 	[[nodiscard]] DocAutoParam* findEngineParam(deluge::engine::ParamId id) {
 		for (std::optional<DocParamSet>& block : engine_params) {
 			if (block) {

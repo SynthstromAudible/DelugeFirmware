@@ -142,8 +142,8 @@ bool g_tempoDone = false;
 
 /// RENDER_STUTTER: `<begin block>:<end block>:<owner>`, comma-separated: a stutter begun and ended as the gold knob's
 /// press and release make them, on @c owner: `audio` (the first audio track), `kit` (the first kit), `synth` (the first
-/// synth's Sound) or `master`. In a
-/// block, ends are made before begins, as the performance view hands a stutter from one owner to the next.
+/// synth's Sound) or `master`. In a block,
+/// ends are made before begins, as the performance view hands a stutter from one owner to the next.
 struct StutterSpan {
 	uint64_t begin = 0;
 	uint64_t end = 0;

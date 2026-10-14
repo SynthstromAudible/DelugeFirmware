@@ -9,6 +9,10 @@ namespace util {
 /// @brief Calls `f.template operator()<i>()` for i = Start, Start + Inc, ... while i < End, unrolled at compile
 /// time. Always inlined, so an unrolled per-lane loop costs no calls in translation units built with
 /// `-fno-inline-functions`.
+/// @tparam Start First index.
+/// @tparam End Exclusive upper bound.
+/// @tparam Inc Step between indices.
+/// @param f Callable with a templated `operator()<i>()`.
 template <auto Start, auto End, auto Inc, class F>
 [[gnu::always_inline]] constexpr void constexpr_for(F&& f) {
 	if constexpr (Start < End) {

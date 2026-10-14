@@ -21,8 +21,9 @@
 
 namespace deluge::project {
 
-/// Tempo / internal-vs-external tick timing of a song. A component of deluge::project::Song.
-/// (Grouped struct for now; the controller still drives the clock — see Phase 3.)
+/// @brief Tempo / internal-vs-external tick timing of a song. A component of deluge::project::Song.
+///
+/// The controller drives the clock; this holds its persistent state.
 struct Transport {
 	/// Audio samples per timer tick, as a UQ32.32 fixed-point value ("big" = the 64-bit fixed form).
 	uint64_t samples_per_timer_tick_big{0};
@@ -33,7 +34,7 @@ struct Transport {
 	/// Sync-scaling offset to inside_world_tick_magnitude, kept out of the displayed BPM.
 	int32_t inside_world_tick_magnitude_offset_from_bpm{0};
 
-	/// Equal when the persistent fields are; the reciprocal is derived from the tick length.
+	/// @brief Equal when the persistent fields are; the reciprocal is derived from the tick length.
 	bool operator==(const Transport& other) const {
 		return samples_per_timer_tick_big == other.samples_per_timer_tick_big
 		       && inside_world_tick_magnitude == other.inside_world_tick_magnitude

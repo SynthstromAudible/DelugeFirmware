@@ -1,4 +1,4 @@
-// Unit harness for the Edit substrate (M1a/M1b, docs/dev/project_model_migration_plan.md):
+// Unit harness for the Edit substrate:
 // dispatcher wiring, then the SetParamValue pilot, its Consequence production, coalescence, and
 // undo. Runs as the edit_substrate scenario (scenarios/drivers/driver.h): the real UnpatchedParamSet,
 // ActionLogger and allocator, on x86 and, through the qemu-arm build of golden_vt_render, on ARM.
@@ -155,10 +155,10 @@ void testSetParamValuePilot(deluge::edits::Context& ctx) {
 	check(action->nextAction == nullptr, "pilot: still exactly one Action");
 	check(action->firstConsequence == firstCons, "pilot: before-state not re-snapshotted");
 	check(ms->autoParam->getCurrentValue() == newValue + 100, "pilot: second value applied");
-	// M1c S6 invariant: the Edit's pre-log recorded exactly one ConsequenceParamChange, and the
+	// Invariant: the Edit's pre-log recorded exactly one ConsequenceParamChange, and the
 	// interior log at auto_param.cpp did NOT add a second (containsConsequenceParamChange dedupe).
 	// This is why the interior log is redundant for every Edit path — only the recorded-input MPE
-	// producer still relies on it (see the M4 dependency at the interior log site).
+	// producer still relies on it (see the interior log site).
 	int32_t paramConsequences = 0;
 	for (Consequence* c = action->firstConsequence; c != nullptr; c = c->next) {
 		if (c->type == Consequence::PARAM_CHANGE) {
@@ -167,16 +167,14 @@ void testSetParamValuePilot(deluge::edits::Context& ctx) {
 	}
 	check(paramConsequences == 1, "pilot/S6: interior log did not double-record (dedupe holds)");
 
-	// 4. Undo restores the ORIGINAL value (the single snapshot is the pre-first-turn state). This
-	//    pilot is behaviour-preserving: undo runs the exact same ConsequenceParamChange::revert as
-	//    before, which swaps back the engine value + automation nodes. (Restoring the DOM store
-	//    scalar through undo is model-authority work — M3+, docs/dev/project_model_migration_plan.md —
-	//    not this funnel; step 1 already pins the forward store sync.)
+	// 4. Undo restores the ORIGINAL value (the single snapshot is the pre-first-turn state). Undo runs
+	// ConsequenceParamChange::revert, which swaps back the engine value + automation nodes; it does not
+	// restore the DOM store scalar (step 1 pins the forward store sync).
 	actionLogger.revert(BEFORE, /*updateVisually=*/false, /*doNavigation=*/false);
 	check(ms->autoParam->getCurrentValue() == oldValue, "pilot: undo restores engine value");
 	check(actionLogger.firstAction[BEFORE] == nullptr, "pilot: undo emptied the do-queue");
 
-	// 5. No-op guard: re-applying the (now restored) current value changes nothing, so no interior
+	// 5. No-op guard: re-applying the restored current value changes nothing, so no interior
 	//    log fires and no new Action opens. (No deleteAllLogs here: freeing an Action's consequences
 	//    pumps AudioEngine::routine, which this bare unit harness does not initialise; the redo-queue
 	//    Action is simply left to leak at process exit.)
@@ -187,7 +185,7 @@ void testSetParamValuePilot(deluge::edits::Context& ctx) {
 	check(actionLogger.firstAction[BEFORE] == nullptr, "pilot: value-unchanged apply opens no Action");
 }
 
-// M1c S2: the extended ctor (pos/length region args + the mayDelete funnel field). The song-less
+// The extended ctor (pos/length region args + the mayDelete funnel field). The song-less
 // standalone stack has no timeline counter, so setValuePossiblyForRegion routes to the scalar branch
 // regardless; this pins that the 6-arg ctor with mayDelete=false compiles, applies, and mutates.
 void testSetParamValueRegionAndFlag(deluge::edits::Context& ctx) {
@@ -208,7 +206,7 @@ void testSetParamValueRegionAndFlag(deluge::edits::Context& ctx) {
 	check(ms->autoParam->getCurrentValue() == target, "region/flag: value applied");
 }
 
-// M1c coda: DeleteParamAutomation funnels the AUTOMATION_DELETE sites. Seed automation, delete via the Edit,
+// DeleteParamAutomation funnels the AUTOMATION_DELETE sites. Seed automation, delete via the Edit,
 // assert the lane cleared and an AUTOMATION_DELETE Action holds the (stolen-nodes) undo Consequence.
 void testDeleteParamAutomation(deluge::edits::Context& ctx) {
 	constexpr int32_t kParam = 5;
@@ -234,7 +232,7 @@ void testDeleteParamAutomation(deluge::edits::Context& ctx) {
 	check(a != nullptr && a->firstConsequence != nullptr, "delete: undo Consequence recorded (stolen nodes)");
 }
 
-// M1c coda: PasteParamAutomation funnels the automation-paste site. Seed a clipboard, paste via the Edit,
+// PasteParamAutomation funnels the automation-paste site. Seed a clipboard, paste via the Edit,
 // assert nodes written and an AUTOMATION_PASTE Action opened.
 void testPasteParamAutomation(deluge::edits::Context& ctx) {
 	constexpr int32_t kParam = 6;
@@ -275,10 +273,10 @@ void testPasteParamAutomation(deluge::edits::Context& ctx) {
 	check(a != nullptr && a->type == ActionType::AUTOMATION_PASTE, "paste: AUTOMATION_PASTE Action opened");
 }
 
-// M4a Task 1 — characterize what the in-line poke does to the engine cursor AND the model store
+// Characterizes what the in-line poke does to the engine cursor AND the model store
 // (deluge-project DocAutoParam) for a SCALAR edit and a REGION edit, driven through the real
-// deluge::edits::apply. This PINS the {engine cursor, model current_value, model nodes} transition the
-// event-patch (Tasks 2-3) must reproduce. `regionTimelineCounter` is a real Clip (its
+// deluge::edits::apply. This PINS the {engine cursor, model current_value, model nodes} transition
+// ParamSnapshot::applyPatch must reproduce. `regionTimelineCounter` is a real Clip (its
 // getCurrentlyRecordingLinearly() cast in homogenizeRegion must be valid; the value is inert here).
 void testInlinePokeCharacterization(deluge::edits::Context& ctx, TimelineCounter* regionTimelineCounter) {
 	// Leak-reset (crash-safe: no consequence freeing -> no headless audio pump).
@@ -332,8 +330,8 @@ void testInlinePokeCharacterization(deluge::edits::Context& ctx, TimelineCounter
 	      "characterize/region: node1 = (96, pre-region value)");
 }
 
-// M4a Task 2/3 — ParamSnapshot::applyPatch (the model-first event-patch) must land the model store in the SAME
-// state Task 1 pinned for the in-line poke. `clipTC` is a real Clip with an id and a loop length, so the edit's
+// ParamSnapshot::applyPatch (the model-first event-patch) must land the model store in the SAME
+// state the in-line poke does. `clipTC` is a real Clip with an id and a loop length, so the edit's
 // ParamAddress resolves (song set) and doc() relocates the touched store into the model tree — the realistic
 // on-device situation where the engine cursor and the model store are the same DocAutoParam.
 void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSong, TimelineCounter* clipTC) {
@@ -355,7 +353,7 @@ void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSon
 	ms->paramManager = &pm;
 
 	// The edit's durable address, and the store it resolves to. First doc() touch relocates pm's store into the
-	// model's clip_params tree (the S5-b lazy relocation) so resolveParam and doc() return the same DocAutoParam.
+	// model's clip_params tree (the lazy relocation) so resolveParam and doc() return the same DocAutoParam.
 	std::optional<deluge::project::ParamAddress> addrOpt = deluge::edits::addressFor(*ms);
 	check(addrOpt.has_value(), "equivalence: audio-clip edit has a resolvable ParamAddress");
 	deluge::project::ParamAddress addr = *addrOpt;
@@ -363,13 +361,13 @@ void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSon
 	check(store != nullptr && ctx.model.resolveParam(addr) == store,
 	      "equivalence: address resolves to the same store doc() uses");
 
-	// SCALAR via applyPatch (region absent): reproduces Task 1's pinned scalar transition.
+	// SCALAR via applyPatch (region absent): reproduces the in-line poke's scalar transition.
 	deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, addr, 0x40000000, 0, 0, std::nullopt);
 	check(store->current_value == 0x40000000, "applyPatch scalar: model current_value == pinned");
 	check(store->nodes.empty(), "applyPatch scalar: no nodes created");
 
-	// REGION via applyPatch: context mirrors Task 1's region edit (effLen 128, no interpolation, clock inactive).
-	// Asserts the SAME {nodes, current_value} Task 1 pinned for the in-line region poke.
+	// REGION via applyPatch: context mirrors the in-line region edit (effLen 128, no interpolation, clock inactive).
+	// Asserts the SAME {nodes, current_value} as the in-line region poke.
 	deluge::snapshot::RegionContext rc{/*effectiveLength*/ 128,
 	                                   /*interpolateLeftNode*/ false,
 	                                   /*interpolateRightNode*/ false,
@@ -387,7 +385,7 @@ void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSon
 	check(store->nodes[1].pos == 96 && store->nodes[1].value == 0x40000000, "applyPatch region: node1 == pinned");
 	check(store->current_value == 0x20000000, "applyPatch region: model current_value == pinned");
 
-	// M4a commit-flip (Task 1): projectScalarFromStore derives the engine cursor from the store. Clear the nodes so
+	// projectScalarFromStore derives the engine cursor from the store. Clear the nodes so
 	// this is the scalar shape, write a fresh store current_value, then project — the engine cursor must track it.
 	store->nodes.erase(store->nodes.begin(), store->nodes.end());
 	int32_t prev = ms->autoParam->getCurrentValue();
@@ -396,10 +394,10 @@ void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSon
 	check(ms->autoParam->getCurrentValue() == 0x33333333, "projectScalarFromStore: engine cursor synced from store");
 }
 
-// M4a region commit-flip (Task 2) — SetParamValue::apply writes the STOPPED-TRANSPORT region store model-first: it
+// SetParamValue::apply writes the STOPPED-TRANSPORT region store model-first: it
 // opens the same Action + snapshots the pre-state, calls ParamSnapshot::applyPatch (nodes + current_value via the DOM
 // kernel), then projectRegionFromStore to sync the engine cursor. Asserts the homogenized node vector + synced
-// cursor, and that undo (the reordered snapshot) restores the pre-mutation state.
+// cursor, and that undo (the snapshot taken before applyPatch) restores the pre-mutation state.
 void testRegionFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, TimelineCounter* clipTC) {
 	// Leak-reset (crash-safe): orphan any prior actions rather than freeing them here.
 	actionLogger.firstAction[BEFORE] = nullptr;
@@ -437,16 +435,16 @@ void testRegionFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 	check(store->current_value == 0x20000000, "region-flip: model current_value synced");
 	check(ms->autoParam->getCurrentValue() == 0x20000000, "region-flip: engine cursor synced");
 
-	// Undo restores the pre-mutation state (the reordered snapshot captured it before applyPatch): nodes cleared.
+	// Undo restores the pre-mutation state (the snapshot was captured before applyPatch): nodes cleared.
 	actionLogger.revert(BEFORE, /*updateVisually=*/false, /*doNavigation=*/false);
 	check(store->nodes.empty(), "region-flip: undo cleared the nodes");
 	check(ms->autoParam->getCurrentValue() == 0x40000000, "region-flip: undo restored engine value");
 }
 
-// M4a commit-flip (Task 2) — SetParamValue::apply writes the SCALAR store model-first: on a resolvable lane it calls
-// ParamSnapshot::applyPatch (the sole scalar-store writer) then projectScalarFromStore to sync the engine cursor,
-// instead of the in-line poke. Asserts both the model store and the engine cursor track the edit, and undo (the
-// unchanged pre-log path) still restores the engine value.
+// SetParamValue::apply writes the SCALAR store model-first: on a resolvable lane it calls
+// ParamSnapshot::applyPatch (the sole scalar-store writer) then projectScalarFromStore to sync the engine cursor.
+// Asserts both the model store and the engine cursor track the edit, and undo (the
+// pre-log path) restores the engine value.
 void testScalarFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, TimelineCounter* clipTC) {
 	// Leak-reset (crash-safe): orphan any prior actions rather than freeing them here.
 	actionLogger.firstAction[BEFORE] = nullptr;
@@ -481,7 +479,7 @@ void testScalarFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 	check(ms->autoParam->getCurrentValue() == newValue, "scalar-flip: engine cursor synced (projectScalarFromStore)");
 	check(store->nodes.empty(), "scalar-flip: unautomated scalar -> no nodes");
 
-	// Undo path is unchanged (the Edit's pre-log recorded the before-state): revert restores the engine value.
+	// Undo path: the Edit's pre-log recorded the before-state, so revert restores the engine value.
 	actionLogger.revert(BEFORE, /*updateVisually=*/false, /*doNavigation=*/false);
 	check(ms->autoParam->getCurrentValue() == oldValue, "scalar-flip: undo restores engine value");
 }

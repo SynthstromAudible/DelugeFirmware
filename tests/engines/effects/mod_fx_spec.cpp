@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// effects::ModFx against today's mod FX (reference_mod_fx.h) over every workload (mod_fx_workloads.h), played as an
-// owner plays them, with a counting allocator over two static blocks: each block's frames and post-FX volume, the
-// ring following the type, a pass-through without a ring, and recovery from a failed allocation.
+// effects::ModFx against the reference mod FX (reference_mod_fx.h) over every workload (mod_fx_workloads.h), played
+// as an owner plays them, with a counting allocator over two static blocks: each block's frames and post-FX volume,
+// the ring following the type, a pass-through without a ring, and recovery from a failed allocation.
 
 #include "engines/effects/mod_fx.h"
 
@@ -187,7 +187,7 @@ private:
 
 // clang-format off
 describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
-	it("renders every workload as today's mod FX does: each block's frames and post-FX volume, and the write index "
+	it("renders every workload as the reference mod FX does: each block's frames and post-FX volume, and the write index "
 	   "and LFO phases at the end", _ {
 		for (const mw::ModFxWorkload& workload : mw::all_mod_fx_workloads()) {
 			heap.reset();
@@ -294,7 +294,7 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		expect(fx.holdsRing()).to_equal(false);
 	});
 
-	it("clears the phaser's memories in a soft off, as today's mod FX does once it has freed its ring", _ {
+	it("clears the phaser's memories in a soft off, as the reference mod FX does once it has freed its ring", _ {
 		heap.reset();
 		ReferenceModFx reference;
 		Owner owner;

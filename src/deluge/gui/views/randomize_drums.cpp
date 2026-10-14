@@ -78,7 +78,7 @@ void RandomizeDrums::cancelWalk() {
 	}
 	load_.cancel();
 	if (phase_ == Phase::AwaitLoad && rowDrum_ != nullptr) {
-		// The row was pointed at a file whose load is now dropped: its record says what it holds.
+		// The row was pointed at a file whose load is dropped: its record says what it holds.
 		deluge::gui::menu_item::recordRanges(*rowDrum_, 0);
 	}
 	// An OPEN is outstanding exactly when this row's collect has not answered yet.

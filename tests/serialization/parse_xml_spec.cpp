@@ -49,7 +49,7 @@ describe parse_xml("deluge::serialization::parseXml", ${
 		expect(parseXml("<n>unterminated").has_value()).to_be_false();
 	});
 	it("drops stray text alongside child elements (malformed but tolerated, matches XMLDeserializer)", _{
-		// issue #2514: a stray '>' turns <kitParams>'s attributes into text before its real children.
+		// A stray '>' turns <kitParams>'s attributes into text before its real children.
 		// XMLDeserializer skips inter-tag text once an element has structure; parseXml must drop it, keep
 		// the children, and not fail the whole parse.
 		auto v = parseXml(R"(<p>a="1" b="2"<c v="3"/></p>)");

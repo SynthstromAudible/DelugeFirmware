@@ -50,17 +50,24 @@ enum class SyncLevel : uint8_t {
 inline constexpr int32_t kMaxSyncLevel = std::to_underlying(SyncLevel::TWO_HUNDRED_FIFTY_SIXTH);
 
 /// @brief @p level as its index, 0 (NONE) to kMaxSyncLevel, for the arithmetic sync rates are computed with.
+/// @param level The sync level.
+/// @return The level's index.
 [[nodiscard]] constexpr int32_t index_of(SyncLevel level) noexcept {
 	return std::to_underlying(level);
 }
 
 /// @brief The SyncLevel at @p index, clamped to [NONE, TWO_HUNDRED_FIFTY_SIXTH].
+/// @param index A level index; out-of-range values are clamped.
+/// @return The level at the clamped index.
 [[nodiscard]] constexpr SyncLevel sync_level_from_index(int32_t index) noexcept {
 	return static_cast<SyncLevel>(std::clamp<int32_t>(index, 0, kMaxSyncLevel));
 }
 
 /// @brief A sync level as a file stores it, from the internal value (1–9, 0 = off), relative to
 /// @p input_tick_magnitude; never below 1 unless off.
+/// @param internal              The internal sync level, 1–9, or 0 for off.
+/// @param input_tick_magnitude  The song's input tick magnitude.
+/// @return The value a file stores: 0 for off, otherwise at least 1.
 [[nodiscard]] constexpr int32_t sync_level_to_file(int32_t internal, int32_t input_tick_magnitude) {
 	if (internal == 0) {
 		return 0;
@@ -70,6 +77,9 @@ inline constexpr int32_t kMaxSyncLevel = std::to_underlying(SyncLevel::TWO_HUNDR
 }
 
 /// @brief The internal sync level (1–9, 0 = off) from the value a file stores relative to @p input_tick_magnitude.
+/// @param file                  The value a file stores.
+/// @param input_tick_magnitude  The song's input tick magnitude.
+/// @return The internal level, clamped to 1–9, or 0 for off.
 [[nodiscard]] constexpr int32_t sync_level_from_file(int32_t file, int32_t input_tick_magnitude) {
 	if (file == 0) {
 		return 0;

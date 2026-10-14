@@ -6,7 +6,7 @@
 
 namespace deluge::serialization {
 
-/// Parses one Deluge-format XML document into a format-agnostic Value tree.
+/// @brief Parse one Deluge-format XML document into a format-agnostic Value tree.
 ///
 /// The document is a Map of its top-level elements, in order: the root, and in older files the
 /// firmwareVersion / earliestCompatibleFirmware elements written as its siblings ahead of it.
@@ -30,8 +30,9 @@ namespace deluge::serialization {
 /// interpreted. Comments (<!-- ... -->) are skipped wherever whitespace is
 /// permitted.
 ///
-/// Returns std::nullopt on any malformed input (unterminated tags, mismatched
-/// open/close names, non-element text between or after the top-level elements, etc).
+/// @param xml The XML text.
+/// @return The tree, or std::nullopt on any malformed input (unterminated tags, mismatched
+///         open/close names, non-element text between or after the top-level elements, etc).
 [[nodiscard]] std::optional<Value> parseXml(std::string_view xml);
 
 } // namespace deluge::serialization

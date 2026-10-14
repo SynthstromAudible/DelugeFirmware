@@ -11,9 +11,9 @@
 
 namespace deluge::edits {
 
-// Verbatim reification of InstrumentClipView::deleteDrum (non-undoable — no Consequence): end the drum's note and take
-// it out of the render's set, remove it, reassign the row to an unassigned drum (or delete an empty row), retire the
-// drum's automation stores, then hand the drum to the render to let go of and free.
+// Non-undoable (no Consequence): end the drum's note and take it out of the render's set, remove it, reassign the
+// row to an unassigned drum (or delete an empty row), retire the drum's automation stores, then hand the drum to the
+// render to let go of and free.
 Error RemoveKitRow::apply(Context& ctx) {
 	auto* clip = static_cast<InstrumentClip*>(engineStack_->getTimelineCounter());
 	auto* kit = static_cast<Kit*>(clip->output);
@@ -27,7 +27,7 @@ Error RemoveKitRow::apply(Context& ctx) {
 	// it, as the preset-replace path (LoadInstrumentPresetUI::swapKitRow) does. Its voices are ended by the render
 	// when it lets go of the retired drum, below.
 	// TODO: renderingDrums is the render's set, written here from the interaction tier (swapKitRow does
-	// the same). A pre-existing cross-tier write, left for the interaction-side voice/render-set commands.
+	// the same). A cross-tier write, left for the interaction-side voice/render-set commands.
 	ModelStackWithNoteRow* modelStackWithNoteRow =
 	    (noteRow != nullptr) ? engineStack_->addNoteRow(noteRowIndex, noteRow) : nullptr;
 	if (noteRow) {
@@ -60,7 +60,7 @@ Error RemoveKitRow::apply(Context& ctx) {
 	// Out of the kit for good: the render's let-go of the drum must not write back into the kit's
 	// renderingDrums, which may be freed by then (SoundDrum::setSkippingRendering skips a null kit). Erase
 	// again first: a sequencer note-on between the first erase and the note row's reassignment re-inserts the drum,
-	// and after this nothing can name it. The render will own this set in later work.
+	// and after this nothing can name it.
 	kit->renderingDrums.remove(drum_);
 	drum_->kit = nullptr;
 	AudioEngine::retire(drum_);

@@ -35,12 +35,12 @@ namespace deluge::dsp::fixed {
 /// each of the last 25 inputs times its tap. Each product is the rounded high word of the 32x32 multiply, so a Q31
 /// input comes out Q31 scaled by the tap.
 ///
-/// **Exactness.** The output is the sum of the same 26 rounded products, round(x[n − i] × tap_i >> 32), as a form
-/// that keeps running partial sums computes. The sums wrap modulo 2^32, and wrapping adds commute and associate, so
-/// the order the products are summed in does not change a bit. `smmlar` adds a product's rounded high word into an
-/// accumulator: (acc << 32 + a × b + 2^31) >> 32 is acc + round(a × b >> 32) modulo 2^32 exactly, because acc << 32 is
-/// a multiple of 2^32. The history carries the same information as 25 pending sums would: from State{} either form
-/// gives the same output for every input, silence after a long input included.
+/// **Exactness.** The output is the sum of the 26 rounded products round(x[n − i] × tap_i >> 32). The sums wrap modulo
+/// 2^32, and wrapping adds commute and associate, so the order the products are summed in does not change a bit.
+/// `smmlar` adds a product's rounded high word into an accumulator: (acc << 32 + a × b + 2^31) >> 32 is
+/// acc + round(a × b >> 32) modulo 2^32 exactly, because acc << 32 is a multiple of 2^32. The history carries the same
+/// information as 25 pending partial sums would, so from State{} this form and a running-partial-sums form give the
+/// same output for every input, silence after a long input included.
 ///
 /// **Wrapping.** Each product is half the tap times the input, and the taps' magnitudes sum to about 2.27, so a sum
 /// stays within about 1.13 of the input's peak: at full scale, an input whose signs follow the taps' takes a sum past
@@ -110,6 +110,7 @@ struct AnalogImpulseResponse {
 	};
 
 	/// @brief The coefficients: none.
+	/// @return An empty Coefficients.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr Coefficients coefficients(const Settings& /*s*/) {
 		return {};
 	}

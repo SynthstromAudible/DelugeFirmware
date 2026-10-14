@@ -36,57 +36,83 @@ namespace deluge::project {
 // drum), beside keys that are the engine's. Each encode returns a Map of the record's keys only; each decode reads
 // them from the element and keeps any value the element lacks.
 
-/// The MIDI channel value that sends a MIDI output's notes to the song's transpose instead of a channel.
+/// @brief The MIDI channel value that sends a MIDI output's notes to the song's transpose instead of a channel.
 inline constexpr int32_t kMidiChannelTranspose = 55;
-/// The MIDI channel values naming the lower and upper MPE zones.
+/// @brief The MIDI channel values naming the lower and upper MPE zones.
 inline constexpr int32_t kMidiChannelLowerZone = 16;
 inline constexpr int32_t kMidiChannelUpperZone = 17;
 
 /// @brief A clip's `length` (legacy `trackLength`; at least 1), `colourOffset`, `section` (at most 23 as read;
 /// 255, arranger-only, is not written) and `launchStyle`.
+/// @param clip The clip record to encode.
+/// @return The record's keys, as a Map.
 [[nodiscard]] serialization::Value encode(const DocClip& clip);
 [[nodiscard]] std::expected<void, LoadError> decode(const serialization::Value& clipElement, DocClip& clip);
 
 /// @brief A note row's `y` (not in kits, whose rows are placed by their drums), `muted`, `colourOffset` (kits
 /// only), `length` and `sequenceDirection`.
+/// @param row    The note row record to encode.
+/// @param in_kit True for a kit row, whose `y` is not written and whose `colourOffset` is.
+/// @return The record's keys, as a Map.
 [[nodiscard]] serialization::Value encode(const DocNoteRow& row, bool in_kit);
+/// @brief Read a note row's keys from its element, keeping any value the element lacks.
+/// @param rowElement The note row's element.
+/// @param row        The record to fill.
 /// @param min_y The lowest y this row may take, raised past it on return: a clip's rows rise strictly in file order.
+/// @return Nothing on success, or the LoadError.
 [[nodiscard]] std::expected<void, LoadError> decode(const serialization::Value& rowElement, DocNoteRow& row,
                                                     int32_t& min_y);
 
 /// @brief An audio clip's sample, its positions (as the int32 the file holds), pitch, playback and priority.
+/// @param clip The audio clip record to encode.
+/// @return The record's keys, as a Map.
 [[nodiscard]] serialization::Value encode(const DocAudioClip& clip);
 [[nodiscard]] std::expected<void, LoadError> decode(const serialization::Value& clipElement, DocAudioClip& clip);
 
-/// The CC a MIDI output sends MPE Y on until the user picks another (CC 74, MPE's timbre controller).
+/// @brief The CC a MIDI output sends MPE Y on until the user picks another (CC 74, MPE's timbre controller).
 inline constexpr uint8_t kMidiOutputMpeYDefault = 74;
 
 /// @brief A new output record of the type @p element names, holding the values the engine gives that type before
 /// reading a file: what a key the file lacks stays as.
+/// @param element The output's element name.
+/// @return The new record.
 [[nodiscard]] DocOutput new_output(std::string_view element);
 
 /// @brief An output's identity within its @p element (`sound`, `kit`, `audioTrack`, `midi`, `midiChannel`,
 /// `mpeZone` or `cvChannel`): arrangement state, colour, name, folder, velocity and the type's own channel words.
 /// A default velocity of 0 or 128 and above keeps the record's value.
+/// @param output  The output record to encode.
+/// @param element The output's element name.
+/// @return The record's keys, as a Map.
 [[nodiscard]] serialization::Value encode_identity(const DocOutput& output, std::string_view element);
 [[nodiscard]] std::expected<void, LoadError> decode_identity(const serialization::Value& outputElement,
                                                              std::string_view element, DocOutput& output);
 
 /// @brief A drum's identity within its @p element (`sound`, `sample`, `synth`, `midiOutput` or `gateOutput`,
 /// which gives its type): its name, and the channel and note of a MIDI or gate drum.
+/// @param drum The drum record to encode.
+/// @return The record's keys, as a Map.
 [[nodiscard]] serialization::Value encode_identity(const DocDrum& drum);
 [[nodiscard]] std::expected<void, LoadError> decode_identity(const serialization::Value& drumElement,
                                                              std::string_view element, DocDrum& drum);
 
 /// @brief The instrument of a synth track's `sound` element: the element's entries the model does not own (its id,
 /// identity keys and controls), in order, for the Deluge instrument, written at the song's @p tick_magnitude.
+/// @param element        The `sound` element.
+/// @param tick_magnitude The song's input tick magnitude.
+/// @return The slot.
 [[nodiscard]] InstrumentSlot slot_of_output(const serialization::Value& element, int32_t tick_magnitude);
 
 /// @brief The instrument of a sound kit row's element: its entries other than its id, name and controls, in order,
 /// written at the song's @p tick_magnitude.
+/// @param element        The kit row's element.
+/// @param tick_magnitude The song's input tick magnitude.
+/// @return The slot.
 [[nodiscard]] InstrumentSlot slot_of_drum(const serialization::Value& element, int32_t tick_magnitude);
 
 /// @brief The element a drum of @p type is written as.
+/// @param type The drum type.
+/// @return The element name.
 [[nodiscard]] std::string_view drum_element(DrumType type);
 
 } // namespace deluge::project

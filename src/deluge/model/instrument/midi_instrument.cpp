@@ -50,7 +50,8 @@ MIDIInstrument::MIDIInstrument()
 	modKnobCCAssignments.fill(CC_NUMBER_NONE);
 }
 
-// DO3: reseed the record's 5 tier fields (and, via the base, channel) from the current native values.
+// Reseeds the record's channelSuffix, device definition file name, collapse and MPE-Y fields (and, via the base,
+// channel) from the current native values.
 void MIDIInstrument::seedDocOutputIdentity() {
 	NonAudioInstrument::seedDocOutputIdentity();
 	if (docOutput_ != nullptr) {
@@ -408,8 +409,8 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		}
 		writer.writeClosingTag("modKnobs");
 
-		// DO3: read the DOM identity record's collapseAftertouch/collapseMPE/outputMPEY when bound (rebuild-at-save);
-		// fall back to the native fields when unbound. Stays inside the editedByUser||clipForSavingOutputOnly branch.
+		// Read the identity record's collapseAftertouch/collapseMPE/outputMPEY when bound (rebuild-at-save); fall back
+		// to the native fields when unbound. Stays inside the editedByUser||clipForSavingOutputOnly branch.
 		writer.writeOpeningTagBeginning("polyToMonoConversion");
 		writer.writeAttribute("aftertouch",
 		                      (int32_t)(docOutput_ != nullptr ? docOutput_->collapse_aftertouch : collapseAftertouch));
@@ -452,8 +453,8 @@ void MIDIInstrument::writeDeviceDefinitionFile(Serializer& writer, bool writeFil
 }
 
 void MIDIInstrument::writeDeviceDefinitionFileNameToPresetOrSong(Serializer& writer) {
-	// DO3: read the DOM identity record's device_definition_file_name when bound (rebuild-at-save); fall back to the
-	// native field when unbound. Preserve the empty-string emission.
+	// Read the identity record's device_definition_file_name when bound (rebuild-at-save); fall back to the native
+	// field when unbound. An empty name is still emitted.
 	std::string const& nameToSave =
 	    docOutput_ != nullptr ? docOutput_->device_definition_file_name : deviceDefinitionFileName;
 	writer.writeOpeningTagBeginning("definitionFile");
@@ -833,7 +834,7 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 		}
 #endif
 		{
-			// Option I: zero the store slot too (it's the persisted source), not just the engine cursor.
+			// Zero the store slot too (it's the persisted source), not just the engine cursor.
 			auto* eps = (ExpressionParamSet*)modelStackWithAutoParam->paramCollection;
 			int32_t pid = modelStackWithAutoParam->paramId;
 			eps->params[pid].setCurrentValueBasicForSetup(*eps->docForParam(pid), 0);

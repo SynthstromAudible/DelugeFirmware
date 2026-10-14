@@ -1,5 +1,5 @@
 // Projection round-trip test for the param/automation DOM leaf, DocAutoParam
-// (docs/dev/param_automation_dom.md, Phase 1).
+// (docs/dev/param_automation_dom.md).
 //
 // Runs as the param_projection scenario (scenarios/drivers/driver.h): the real AutoParam and the app's
 // allocator, so it exercises the projection against the actual firmware engine container, on x86 and,
@@ -77,7 +77,7 @@ void check(bool ok, const char* what) {
 	}
 }
 
-// M2-F5: a standalone oracle AutoParam has no real owner, so give it a minimal ParamCollection whose
+// A standalone oracle AutoParam has no real owner, so give it a minimal ParamCollection whose
 // docParamForId returns a caller-chosen DocAutoParam. This lets modelStack->doc() resolve through the normal
 // owner path (paramCollection->docParamForId) without any inline AutoParam storage. The other virtuals are never
 // exercised by the oracle (its ops only read doc()).
@@ -116,7 +116,7 @@ void bindOracle(ModelStackWithAutoParam* ms, AutoParam* ap, deluge::project::Doc
 }
 
 // Author a node directly into a DOM node store (the owner-resolved slot for a bound param, or a standalone
-// DocAutoParam). M2-E: node access is owner-resolved, so bound-param tests author through docForParam().
+// DocAutoParam). Node access is owner-resolved, so bound-param tests author through docForParam().
 void setNodeIn(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value, bool interpolated) {
 	int32_t i = doc.nodes.insertSorted(pos, /*isDefinitelyLast=*/true).value_or(-1);
 	if (i >= 0) {
@@ -131,7 +131,7 @@ bool cableMatches(const deluge::project::DocCable& a, const deluge::project::Doc
 	       && a.amount.nodes.size() == b.amount.nodes.size();
 }
 
-// M2-F5: an engine op mutates a DocAutoParam (the standalone oracle param's local store); diff it against the DOM
+// An engine op mutates a DocAutoParam (the standalone oracle param's local store); diff it against the DOM
 // kernel's DocAutoParam, element-wise.
 void expectDocMatchesEngine(const deluge::project::DocAutoParam& eng, const deluge::project::DocAutoParam& doc,
                             const char* name) {
@@ -143,7 +143,7 @@ void expectDocMatchesEngine(const deluge::project::DocAutoParam& eng, const delu
 	}
 }
 
-// M2-F: compare two owner-resolved DOM node stores (for params that live in a ParamSet — their nodes are in the
+// Compare two owner-resolved DOM node stores (for params that live in a ParamSet — their nodes are in the
 // set's store, not the AutoParam).
 void expectSameDoc(const deluge::project::DocAutoParam& a, const deluge::project::DocAutoParam& b, const char* name) {
 	check(a.nodes.size() == b.nodes.size(), name);
@@ -154,7 +154,7 @@ void expectSameDoc(const deluge::project::DocAutoParam& a, const deluge::project
 	}
 }
 
-// M2-F: compare a param at index `idx` across two ParamSets — the RT cursor (currentValue) plus the owner-resolved
+// Compare a param at index `idx` across two ParamSets — the RT cursor (currentValue) plus the owner-resolved
 // node store. Replaces expectSameNodes for params that live in a set.
 void expectSameParamInSet(ParamSet* a, ParamSet* b, int32_t idx, const char* name) {
 	check(a->params[idx].currentValue == b->params[idx].currentValue, name);
@@ -184,7 +184,7 @@ void roundTrip(const char* name, int32_t currentValue, const std::vector<Node>& 
 	}
 }
 
-// Option I save-flip: the engine save wrappers (Sound/GlobalEffectable/ExpressionParamSet::writeToFile) now read
+// The engine save wrappers (Sound/GlobalEffectable/ExpressionParamSet::writeToFile) read
 // the DOM store's scalar, not the engine cursor. A test that authors state via params[p].currentValue must seed
 // the store to match — exactly as a real read/edit does. (docForParam resolves the set's own store here.)
 void authorStoreFromEngine(ParamSet& s) {
@@ -222,7 +222,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// Phase 1 (DOM-live split): setNodeAtPos operates directly on DocAutoParam (pure data, no engine).
+	// setNodeAtPos operates directly on DocAutoParam (pure data, no engine).
 	{
 		using deluge::project::DocAutoParam;
 		DocAutoParam p{}; // current_value 0, empty nodes
@@ -237,7 +237,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		      "setNodeAtPos: modify existing");
 	}
 
-	// Phase 1 (DOM-live split): getValueAtPos interpolates through DocAutoParam nodes (pure data, no engine).
+	// getValueAtPos interpolates through DocAutoParam nodes (pure data, no engine).
 	{
 		using deluge::project::DocAutoParam;
 		DocAutoParam p{};
@@ -258,7 +258,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(deluge::project::getValueAtPos(ramp, 24, 96) == 2400, "getValueAtPos: linear ramp midpoint");
 	}
 
-	// Phase 1 fidelity guard: the DOM getValueAtPos must be bit-identical to the engine AutoParam::getValueAtPos
+	// Fidelity guard: the DOM getValueAtPos must be bit-identical to the engine AutoParam::getValueAtPos
 	// across the full position range and both directions, including the loop-wrap branches (which the engine
 	// reaches via ModelStack::getLoopLength). We build a live AutoParam with the same nodes and diff every
 	// position; getLoopLength is satisfied by a NoteRow with an independent loop length (no Song needed).
@@ -316,7 +316,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// Phase 1: getDistanceToNextNode (pure query) — functional + engine-oracle diff over the full position
+	// getDistanceToNextNode (pure query) — functional + engine-oracle diff over the full position
 	// range and both directions (the engine reads the loop length from the ModelStack as effectiveLength).
 	{
 		using deluge::project::DocAutoParam;
@@ -375,7 +375,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// Phase 1: insertTime + shiftHorizontally (pure structural ops) — functional + engine-oracle diff.
+	// insertTime + shiftHorizontally (pure structural ops) — functional + engine-oracle diff.
 	// Apply the same op to a live AutoParam and a DocAutoParam, then compare the resulting node arrays.
 	{
 		using deluge::project::DocAutoParam;
@@ -470,7 +470,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			}
 		}
 
-		// Movement 2 (M2-A): transposeCCValuesToChannelPressure — current_value + node values remap; oracle diff.
+		// transposeCCValuesToChannelPressure — current_value + node values remap; oracle diff.
 		{
 			const struct {
 				int32_t currentValue;
@@ -528,7 +528,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// Phase 1: homogenizeRegion (region collapse) — engine-oracle diff over forward non-wrap, forward clip-cut,
+	// homogenizeRegion (region collapse) — engine-oracle diff over forward non-wrap, forward clip-cut,
 	// and reversed (incl. wrap) via the NoteRow model-stack harness. The forward-wrap-no-cut sub-branch consults
 	// Clip::getCurrentlyRecordingLinearly (needs a Clip timeline-counter), so it's covered by DOM-only invariant
 	// checks below rather than the engine oracle.
@@ -648,7 +648,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// Phase 1: deleteTime + moveRegionHorizontally (pure region kernels) — engine-oracle diff. Both are callable
+	// deleteTime + moveRegionHorizontally (pure region kernels) — engine-oracle diff. Both are callable
 	// with the light NoteRow harness: deleteTime uses the model-stack only via getValueAtPos (→getLoopLength);
 	// moveRegionHorizontally touches it only through the guarded action snapshot, so action=nullptr keeps it away.
 	{
@@ -724,9 +724,9 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// Phase 1: deleteNodesWithinRegion (pure kernel) — diffed against the (now-fixed) engine node-erase logic,
-	// replicated here because the full engine method ends in notifyParamModifiedInSomeWay (UI/song globals) and
-	// isn't callable with the light harness. Includes the wrap case that exposed engine bug #3.
+	// deleteNodesWithinRegion (pure kernel) — diffed against the engine's node-erase logic, replicated here because
+	// the full engine method ends in notifyParamModifiedInSomeWay (UI/song globals) and isn't callable with the light
+	// harness. Includes the wrap case, which erases the tail past the wrap before the front so both edge groups go.
 	{
 		using deluge::project::DocAutoParam;
 		struct N {
@@ -815,11 +815,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	roundTrip("int32 extremes", 2147483647, {});
 	roundTrip("int32 min", -2147483647 - 1, {});
 
-	// Phase 2 DocParamSet kind + per-param round-trip is now covered by the Phase 3 block below (live
-	// ParamManager -> DocParamManager -> ParamManager); the old raw AutoParam[]-array projection helpers were
-	// retired with M2-F (no engine AutoParam holds node storage).
-
-	// Phase 3: a live ParamManager round-trips its present collections (patched + unpatched) through
+	// A live ParamManager round-trips its present collections (patched + unpatched) through
 	// DocParamManager and projects faithfully into another already-set-up manager.
 	{
 		ParamManagerForTimeline pm;
@@ -829,15 +825,15 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		setNodeIn(*pm.getPatchedParamSet()->docForParam(5), 32, -500, false);
 		pm.getUnpatchedParamSet()->params[2].currentValue = 678;
 
-		// A patch cable (Phase 3b): source -> destination param, with an automatable amount.
+		// A patch cable: source -> destination param, with an automatable amount.
 		PatchCableSet* pcs = pm.getPatchCableSet();
 		pcs->addCable();
 		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
 		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
 		pcs->patchCables[0].param.currentValue = 536870912;   // amount, patch-cable range (engine cursor)
-		pcs->docForParam(0)->current_value = 536870912;       // Option I: store holds the persisted scalar
-		setNodeIn(*pcs->docForParam(0), 0, -536870912, true); // M2-F: cable nodes live in the cable's own store
+		pcs->docForParam(0)->current_value = 536870912;       // store holds the persisted scalar
+		setNodeIn(*pcs->docForParam(0), 0, -536870912, true); // cable nodes live in the cable's own store
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
 		check(patchedStore(doc).has_value(), "pm patched present");
@@ -871,7 +867,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// Phase 5c-1: the DOM can *drive* the live manager — projecting a captured DocParamManager into a
+	// The DOM can *drive* the live manager — projecting a captured DocParamManager into a
 	// manager that holds DIFFERENT/stale state fully restores it, including the summary automation flags
 	// (set for newly-automated params, cleared for params that were automated only in the target).
 	{
@@ -904,7 +900,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(dst.getUnpatchedParamSet()->params[3].currentValue == 4242, "5c1 unpatched restored");
 	}
 
-	// Phase 4 brick: the generic patch-cable serializer must be byte-identical to the engine's
+	// The generic patch-cable serializer must be byte-identical to the engine's
 	// PatchCableSet::writePatchCablesToFile, including the range-cable (depthControlledBy) nesting.
 	{
 		ParamManagerForTimeline pm;
@@ -918,8 +914,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
 		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
 		pcs->patchCables[0].param.currentValue = 536870912;
-		pcs->docForParam(0)->current_value = 536870912;       // Option I: store holds the persisted scalar
-		setNodeIn(*pcs->docForParam(0), 0, -536870912, true); // M2-F: cable nodes live in the cable's own store
+		pcs->docForParam(0)->current_value = 536870912;       // store holds the persisted scalar
+		setNodeIn(*pcs->docForParam(0), 0, -536870912, true); // cable nodes live in the cable's own store
 		// flat cable 1: LFO_LOCAL_1 -> param 3
 		pcs->patchCables[1].from = PatchSource::LFO_LOCAL_1;
 		pcs->patchCables[1].destinationParamDescriptor.setToHaveParamOnly(3);
@@ -993,7 +989,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// Phase 4: writeDocParamAsAttribute (the owner-block building block) is byte-identical to
+	// writeDocParamAsAttribute (the owner-block building block) is byte-identical to
 	// ParamSet::writeParamAsAttribute — automated param, plain param, and the onlyIfContainsSomething
 	// skip (empty vs non-empty).
 	{
@@ -1030,7 +1026,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// Phase 4a: the ModControllableAudio shared param block (flat attrs + <equalizer>) serializes
+	// The ModControllableAudio shared param block (flat attrs + <equalizer>) serializes
 	// byte-identical to the engine's static writeParamAttributesToFile / writeParamTagsToFile.
 	{
 		ParamManagerForTimeline pm;
@@ -1069,7 +1065,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		      "ModControllableAudio tags byte-identical");
 	}
 
-	// Phase 5b-1: the ModControllableAudio block round-trips through the DOM reader — serialize via the DOM
+	// The ModControllableAudio block round-trips through the DOM reader — serialize via the DOM
 	// into a wrapped <params> element, DOM-read it back into a fresh manager, and confirm values + the
 	// automation summary flag match.
 	{
@@ -1120,7 +1116,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		    "mca-rt automation flag set");
 	}
 
-	// Phase 4b: the GlobalEffectable param block (global flat attrs wrapping the shared ModControllableAudio
+	// The GlobalEffectable param block (global flat attrs wrapping the shared ModControllableAudio
 	// attrs + the <delay>/<lpf>/<hpf> groups) serializes byte-identical to the engine's static
 	// GlobalEffectable::writeParamAttributesToFile / writeParamTagsToFile, including the conditional
 	// pitchAdjust / sidechainCompressorVolume attrs.
@@ -1136,7 +1132,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		unp->params[params::UNPATCHED_DELAY_RATE].currentValue = 222;                   // <delay> group
 		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333;                 // shared block
 		unp->params[params::UNPATCHED_LPF_MORPH].currentValue = 444;                    // community attr
-		authorStoreFromEngine(pm); // the flipped save wrapper reads the store
+		authorStoreFromEngine(pm); // the save wrapper reads the store
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
 
@@ -1166,7 +1162,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		      "GlobalEffectable tags byte-identical");
 	}
 
-	// Phase 5b-2: the GlobalEffectable param block round-trips through the DOM reader (flat attrs +
+	// The GlobalEffectable param block round-trips through the DOM reader (flat attrs +
 	// delay/lpf/hpf groups + shared MCA), and the read path still accepts the legacy nested <lpf morph>.
 	{
 		ParamManagerForTimeline pm;
@@ -1244,7 +1240,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(unp3->params[params::UNPATCHED_LPF_MORPH].currentValue != 0x5A5A, "ge-rt nested <lpf morph> is not read");
 	}
 
-	// Phase 4c: the ExpressionParamSet (MPE) block serializes byte-identical to the engine's
+	// The ExpressionParamSet (MPE) block serializes byte-identical to the engine's
 	// ExpressionParamSet::writeToFile (the <expressionData> group with pitchBend/yExpression/pressure).
 	{
 		ParamManagerForTimeline pm;
@@ -1254,7 +1250,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		e->params[0].currentValue = 12345;            // pitchBend
 		setNodeIn(*e->docForParam(2), 0, 6789, true); // pressure, automated
 		// yExpression (index 1) left neutral ⇒ exercises the per-dimension skip.
-		authorStoreFromEngine(*e); // the flipped ExpressionParamSet::writeToFile reads the store
+		authorStoreFromEngine(*e); // the ExpressionParamSet::writeToFile reads the store
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
 		check(doc.expression.has_value(), "expr present in doc");
@@ -1274,7 +1270,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "ExpressionParamSet byte-identical");
 	}
 
-	// Phase 5b-4: the ExpressionParamSet (MPE) block round-trips through the DOM reader, and the read path
+	// The ExpressionParamSet (MPE) block round-trips through the DOM reader, and the read path
 	// still accepts the legacy `channelPressure` alias (pressure / dimension 2).
 	{
 		ParamManagerForTimeline pm;
@@ -1337,7 +1333,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(e3->params[2].currentValue == 0x00001A2B, "expr-rt legacy channelPressure loads");
 	}
 
-	// Phase 4d: the Sound param block serializes byte-identical to the engine's Sound::writeParamsToFile
+	// The Sound param block serializes byte-identical to the engine's Sound::writeParamsToFile
 	// (patched + unpatched flat attrs, the shared ModControllableAudio attrs, the four <envelope*> groups,
 	// the <patchCables> block, and the shared tags — including the mid-block writeOpeningTagEnd).
 	{
@@ -1360,7 +1356,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
 		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
 		pcs->patchCables[0].param.currentValue = 268435456;
-		// The flipped Sound::writeParamsToFile reads the store for params AND the cable amount.
+		// The Sound::writeParamsToFile reads the store for params AND the cable amount.
 		authorStoreFromEngine(pm);
 		pcs->docForParam(0)->current_value = 268435456;
 
@@ -1383,7 +1379,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "Sound params byte-identical");
 	}
 
-	// Phase 5b-3: the Sound param block round-trips through the DOM reader (patched + unpatched flat attrs,
+	// The Sound param block round-trips through the DOM reader (patched + unpatched flat attrs,
 	// the <envelope*> groups, the shared MCA block). Patch cables are excluded here — they keep the engine
 	// reader (pre-V3.2 back-compat) — so no cables are set.
 	{
@@ -1439,7 +1435,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		      "sound-rt envelope automation flag set");
 	}
 
-	// Phase 4e: the Song value-override path. Song serializes its global-effectable block with a
+	// The Song value-override path. Song serializes its global-effectable block with a
 	// valuesForOverride array (the "params in automation mode" snapshot); for an automated param the
 	// override value is written in place of currentValue. The DOM serializer must match byte-for-byte.
 	{
@@ -1453,7 +1449,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		// first six MCA attrs honour valuesForOverride), so the override value must be ignored here.
 		setNodeIn(*up->docForParam(params::UNPATCHED_ARP_GATE), 0, 13, true);
 		setNodeIn(*up->docForParam(params::UNPATCHED_STUTTER_RATE), 0, 21, true); // override-eligible MCA attr
-		authorStoreFromEngine(pm); // the flipped GlobalEffectable::writeParamAttributesToFile reads the store
+		authorStoreFromEngine(pm); // the GlobalEffectable::writeParamAttributesToFile reads the store
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
 		check(unpatchedStore(doc).has_value(), "override unpatched present");
@@ -1497,9 +1493,9 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		      "GlobalEffectable override tags byte-identical");
 	}
 
-	// Phase 5c (Option B): the DOM-target reader lands the GlobalEffectable block in a DocParamSet (the
+	// The DOM-target reader lands the GlobalEffectable block in a DocParamSet (the
 	// persistent DOM store); projecting that store into an engine must be identical to reading the same XML
-	// straight into the engine (the 5b path). This proves the read-into-DOM → reproject-DOM→engine loop.
+	// straight into the engine. This proves the read-into-DOM → reproject-DOM→engine loop.
 	{
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "5cB setup");
@@ -1532,7 +1528,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		std::memcpy(bufA, rtBuf, rtLen + 1);
 		std::memcpy(bufB, rtBuf, rtLen + 1);
 
-		// Path A — engine reader (5b): XML -> engine.
+		// Path A — engine reader: XML -> engine.
 		ParamManagerForTimeline pmEng;
 		check(pmEng.setupWithPatching() == Error::NONE, "5cB engine setup");
 		UnpatchedParamSet* unpEng = pmEng.getUnpatchedParamSet();
@@ -1548,7 +1544,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			}
 		}
 
-		// Path B — DOM reader (Option B): XML -> DocParamSet store, then project store -> engine.
+		// Path B — DOM reader: XML -> DocParamSet store, then project store -> engine.
 		deluge::project::DocParamSet store = deluge::bridge::toDocParamSet(*pm.getUnpatchedParamSet());
 		for (auto& n : store.params) {
 			n = deluge::project::DocAutoParam{}; // start empty; the reader fills present tags
@@ -1577,7 +1573,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// Phase 2 (2b): the DOM-first value edit primitive writes the store lane (authoritative) and reprojects it
+	// The DOM-first value edit primitive writes the store lane (authoritative) and reprojects it
 	// into the engine runtime param, so both hold the new value; out-of-range is a safe no-op.
 	{
 		deluge::project::DocParamManager store;
@@ -1595,7 +1591,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		      "setUnpatchedValueDomFirst: unpopulated store is a no-op");
 	}
 
-	// M2-F (lazy owner store): a ParamSet ALWAYS resolves to a DOM store — the first owner-resolved access
+	// A ParamSet ALWAYS resolves to a DOM store — the first owner-resolved access
 	// (docForParam) lazily creates + binds the set's own store; the AutoParam's inline storage is never used. A
 	// copy of a bound set gets its OWN deep copy of the store (independent nodes; no aliasing).
 	{
@@ -1617,7 +1613,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		// A subsequent edit (owner-resolved) lands in the store.
 		setNodeIn(*unp->docForParam(2), 24, 999, false);
 		check(store->params[2].nodes.size() == 3, "lazy: edit lands in the store");
-		// bindDomStore is now just "ensure bound" — idempotent once resolved.
+		// bindDomStore is just "ensure bound" — idempotent once resolved.
 		unp->bindDomStore();
 		check(unp->domStore() == store, "lazy: bindDomStore idempotent (no realloc)");
 
@@ -1628,7 +1624,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(copy.docForParam(2)->nodes.size() == store->params[2].nodes.size(), "lazy: copy has same node count");
 	}
 
-	// Phase C: ParamManager::bindMainParamSetDomStores binds ALL of a sound manager's automatable collections in
+	// ParamManager::bindMainParamSetDomStores binds ALL of a sound manager's automatable collections in
 	// one call — unpatched + patched + expression (ParamSets) + patch cables (a non-ParamSet with its own store).
 	// The corpus has no MPE data, so this is where expression binding is exercised.
 	{
@@ -1652,7 +1648,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(liveBound(pm.getUnpatchedParamSet()), "helper: unpatched bound");
 		check(liveBound(pm.getPatchedParamSet()), "helper: patched bound");
 		check(liveBound(pm.getExpressionParamSet()), "helper: expression bound");
-		// M2-F: patch cables are reordered by index at runtime, so they are NOT bound to a positional store —
+		// Patch cables are reordered by index at runtime, so they are NOT bound to a positional store —
 		// the cable owns its node store inline (amount_) and owner-resolution returns it (with the authored node).
 		check(pcs->domStore() == nullptr, "helper: patch cable set is not bound to a shared store");
 		check(pcs->docForParam(0) == &pcs->patchCables[0].amount_, "helper: patch cable resolves to its inline store");
@@ -1660,7 +1656,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		      "helper: patch cable automation intact");
 	}
 
-	// M2-F (MIDI-CC): the MIDIParamVector reorders/relocates by CC on every learn, so it is NOT bound to a
+	// The MIDIParamVector reorders/relocates by CC on every learn, so it is NOT bound to a
 	// positional store — each CC owns its nodes inline (MIDIParam::nodes_) and they ride with the element through
 	// the vector's growth. Owner-resolution (docParamForId(cc)) finds the CC's inline store, and the automation
 	// survives learning a new CC. The corpus has no MIDI-CC automation, so this is the only coverage.
@@ -1688,7 +1684,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		      "midi: automation intact + owner-resolved after vector grow");
 	}
 
-	// M2-E (owner-resolution / C4): the DOM store survives a ParamBackup steal -> restore. The store is anchored
+	// The DOM store survives a ParamBackup steal -> restore. The store is anchored
 	// to the ParamSet (its RAII domStore_), and stealParamCollectionsFrom moves only the summary POINTER (the
 	// ParamSet object never relocates), so owner-resolution keeps resolving the same store slots while parked and
 	// after restore. This is the golden-blind lifetime the load/save harness cannot see.
@@ -1756,7 +1752,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	}
 
 	{
-		// Movement 2: flattenReverse oracle diff — reverses node positions within the loop; current_value is
+		// flattenReverse oracle diff — reverses node positions within the loop; current_value is
 		// left untouched (only the node array is rebuilt).
 		struct N {
 			int32_t pos;
@@ -1817,7 +1813,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	}
 
 	{
-		// Phase 1: trimToLength (pure node-trim kernel) — engine-oracle diff via the NoteRow model-stack harness.
+		// trimToLength (pure node-trim kernel) — engine-oracle diff via the NoteRow model-stack harness.
 		// trimToLength only touches the ModelStack through getValueAtPos(0) (→getLoopLength), so it's reachable
 		// with the same light harness as deleteTime; action=nullptr keeps the undo-snapshot wiring out of the
 		// way (same trick as moveRegionHorizontally's oracle) and drives the engine down its "basic trim" path —
@@ -1868,7 +1864,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	}
 
 	{
-		// Movement 2 (M2-B): appendParam — concatenate/tile src onto dest (straight, reversed, and pingponged),
+		// appendParam — concatenate/tile src onto dest (straight, reversed, and pingponged),
 		// incl. dest-side overflow trim and the pingpong seam-node synthesis. Engine-oracle diff; no ModelStack
 		// (AutoParam::appendParam doesn't take or consult one).
 		using deluge::project::DocAutoParam;
@@ -1929,7 +1925,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	}
 
 	{
-		// Phase 1: nudgeNonInterpolatingNodesAtPos (single-node nudge, pure kernel) — engine-oracle diff. `action`
+		// nudgeNonInterpolatingNodesAtPos (single-node nudge, pure kernel) — engine-oracle diff. `action`
 		// is nullptr at every call, and the engine only touches `modelStack` inside `if (action)`, so `modelStack`
 		// is never dereferenced either — no ModelStack/NoteRow harness needed here, unlike deleteTime /
 		// moveRegionHorizontally.
@@ -1986,7 +1982,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 				}
 				(void)(&apDoc)->nodes.reserveExtra(4);
 
-				// M2-E: nudge now resolves nodes via modelStack->doc(); with action=nullptr it uses no other
+				// Nudge resolves nodes via modelStack->doc(); with action=nullptr it uses no other
 				// modelStack field, so a minimal stack carrying only autoParam suffices.
 				alignas(ModelStackWithAutoParam) char nbuf[MODEL_STACK_MAX_SIZE]{};
 				auto* nms = reinterpret_cast<ModelStackWithAutoParam*>(nbuf);
@@ -1999,7 +1995,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	}
 
 	{
-		// Phase 1: setValueForRegion (region-write op) — engine-oracle diff. The real AutoParam::setValueForRegion
+		// setValueForRegion (region-write op) — engine-oracle diff. The real AutoParam::setValueForRegion
 		// unconditionally ends in modelStack->paramCollection->notifyParamModifiedInSomeWay(...), which needs a real
 		// ParamCollection the light NoteRow harness doesn't have (same reason the deleteNodesWithinRegion block above
 		// uses a hand replica instead of calling the engine method directly). So this block transcribes the method's
@@ -2151,17 +2147,12 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// Phase 4: copyRegion + pasteRegion (automation copy/paste) — engine-oracle diff. AutoParam::copy only
+	// copyRegion + pasteRegion (automation copy/paste) — engine-oracle diff. AutoParam::copy only
 	// touches the ModelStack via getValueAtPos (→getLoopLength), so it's callable with the light NoteRow
 	// harness (like deleteTime/moveRegionHorizontally above); AutoParam::paste additionally ends in
 	// notifyParamModifiedInSomeWay, which walks up through paramCollection/paramManager, so its destination
 	// AutoParam has to be a real slot inside a real ParamManagerForTimeline (paste's automationChanged is
 	// always true, but playbackHandler is idle in this harness, so the notify is a safe no-op).
-	//
-	// NOTE for the integrator: this block requires an added top-of-file include in
-	// param_projection.cpp:
-	//   #include "modulation/automation/copied_param_automation.h"
-	// (needed to construct a real ::CopiedParamAutomation on the stack; not transitively included today).
 	{
 		using deluge::project::CopiedAutomation;
 		using deluge::project::DocAutoParam;
@@ -2265,7 +2256,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 							ParamManagerForTimeline pm;
 							check(pm.setupWithPatching() == Error::NONE, "copy_paste: pm setup");
 							AutoParam& ap2 = pm.getUnpatchedParamSet()->params[kDstParamId];
-							// M2-F: ap2 lives in a ParamSet, so its nodes are owner-resolved (the paste op below runs
+							// ap2 lives in a ParamSet, so its nodes are owner-resolved (the paste op below runs
 							// on a real ModelStack). Author + inspect via the set's docForParam, not ap2's ownDoc_.
 							deluge::project::DocAutoParam* ap2Doc = pm.getUnpatchedParamSet()->docForParam(kDstParamId);
 							DocAutoParam doc2{};
@@ -2294,7 +2285,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// Phase 2: stealNodes + insertStolenNodes (region steal-out/splice-back with loop wrap) — engine-oracle
+	// stealNodes + insertStolenNodes (region steal-out/splice-back with loop wrap) — engine-oracle
 	// diff. stealNodes is invoked directly on the real AutoParam (action=nullptr keeps its undo-snapshot away,
 	// same as the deleteTime/moveRegionHorizontally block above). insertStolenNodes's real engine method ends in
 	// an UNCONDITIONAL notifyParamModifiedInSomeWay touching modelStack->paramCollection/paramManager, which the
@@ -2408,7 +2399,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// Movement 2 (M2-A): makeInterpolationGoodAgain — inserts gradient nodes; oracle diff over CC-style configs.
+	// makeInterpolationGoodAgain — inserts gradient nodes; oracle diff over CC-style configs.
 	// Non-pathological inputs (ascending positions < clipLength, no wrap collision) so both op + kernel do real
 	// insertion work and agree bit-for-bit. quantizationRShift 22 (pitch bend) + 25 (other MIDI), as the callers use.
 	{
@@ -2451,7 +2442,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// Movement 2 (M2-A): recordLiveValue — the recording branch's node mutation (setNodeAtPos OR homogenizeRegion
+	// recordLiveValue — the recording branch's node mutation (setNodeAtPos OR homogenizeRegion
 	// + reversed fixup, then current_value=value). No standalone engine method exists (it's inline in
 	// setCurrentValueInResponseToUserInput), so — as with setValueForRegion above — a local lambda transcribes the
 	// engine control flow (auto_param.cpp lines ~245-280 + the getOut currentValue=value) while calling the REAL
@@ -2547,7 +2538,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// S4.5b (retire-on-death): BackedParams::removeOwner must drop EXACTLY one owner's entries (every clip
+	// BackedParams::removeOwner must drop EXACTLY one owner's entries (every clip
 	// override + any shared default), contiguously, leaving other owners untouched — including an owner with the
 	// SAME serial number but a different kind (instrument(7) vs drum(7)), which must NOT collide because OwnerId
 	// orders by kind before serial.

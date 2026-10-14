@@ -5,8 +5,8 @@
 namespace deluge::edits {
 
 Error SetClipColour::apply(Context& /*ctx*/) {
-	// M3 owner-1: colour lives in the clip's DocClip (own store, or the tree store once adopted). setColourOffset
-	// writes it; no separate shadow write. Non-undoable, as today.
+	// Colour lives in the clip's DocClip (own store, or the tree store once adopted); setColourOffset writes it.
+	// Not undoable.
 	clip_->setColourOffset(clip_->colourOffset() + offset_);
 	return Error::NONE;
 }

@@ -37,6 +37,9 @@ struct SettingInfo {
 };
 
 /// @brief The row of @p table for @p path, or nullptr.
+/// @param table The rows to search.
+/// @param path  The slash path of the setting.
+/// @return The matching row, or `nullptr` when none has that path.
 [[nodiscard]] constexpr const SettingInfo* find_setting(std::span<const SettingInfo> table, std::string_view path) {
 	for (const SettingInfo& row : table) {
 		if (row.path == path) {

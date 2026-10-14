@@ -55,12 +55,8 @@ struct StolenParamNodes;
 class AutoParam {
 public:
 	AutoParam();
-	// Deep copy with clone semantics: deep-copies the (borrow-aware) nodes and resets the transient
-	// interpolation/override state. The store is reached via a redirectable `nodes_` pointer (default
-	// `&ownNodes_`, or a DOM-owned store when borrowed). Because `nodes_` is a SELF-pointer, all of copy/move
-	// must re-point it — a defaulted move would leave a moved-into param's `nodes_` pointing at the *source's*
-	// `ownNodes_` (a dangling read; MIDIParamVector growth move-constructs these). Copies own their storage
-	// (`nodes_ = &ownNodes_`); moves inherit an external borrow but re-anchor a self-borrow.
+	// Copies carry the current value and reset the transient interpolation/override state; moves carry all of it.
+	// No node storage is held here, so neither touches automation nodes.
 	AutoParam(AutoParam const& other);
 	AutoParam& operator=(AutoParam const& other);
 	AutoParam(AutoParam&& other) noexcept;
@@ -70,16 +66,27 @@ public:
 	void setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
 	                                          bool shouldLogAction = true, int32_t livePos = -1,
 	                                          bool mayDeleteNodesInLinearRun = true, bool isMPE = false);
-	/// M4a commit-flip: the model-first projection half of the scalar poke. The persistent store `current_value`
-	/// has ALREADY been written (ParamSnapshot::applyPatch); this derives the engine's RT state from it —
-	/// reproducing setCurrentValueInResponseToUserInput's NON-recording scalar tail (interpolation reset, the
-	/// playing latch, cursor sync, notify) exactly, but sourcing the value from the store rather than an in-line arg.
+	/// @brief Model-first projection half of the scalar poke.
+	///
+	/// The persistent store `current_value` has already been written (ParamSnapshot::applyPatch); this derives the
+	/// engine's RT state from it, reproducing setCurrentValueInResponseToUserInput's non-recording scalar tail
+	/// (interpolation reset, the playing latch, cursor sync, notify) but sourcing the value from the store.
+	///
+	/// @param modelStack The param's model stack.
+	/// @param oldValue   The value before the edit.
+	/// @param isPlaying  Whether playback is running.
 	void projectScalarFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool isPlaying);
-	/// M4a region commit-flip: the model-first projection half of the region poke, for EVERY clock state. The store
-	/// (nodes + current_value) has ALREADY been written (ParamSnapshot::applyPatch's region kernel); this reproduces
-	/// setValueForRegion's post-mutation tail — cursor sync + the interpolation-reset (clock-active, playhead in
-	/// region) or UI-notify (clock-active, playhead outside) + notify — from the branch `result.currentValueEffect`
-	/// names (the kernel decided it; the engine tail here just replays it).
+	/// @brief Model-first projection half of the region poke, for every clock state.
+	///
+	/// The store (nodes and current_value) has already been written (ParamSnapshot::applyPatch's region kernel); this
+	/// reproduces setValueForRegion's post-mutation tail: cursor sync, then the interpolation reset (clock active,
+	/// playhead in region) or UI notify (clock active, playhead outside), then notify. The branch is the one
+	/// `result.currentValueEffect` names; the kernel decides it and this tail replays it.
+	///
+	/// @param modelStack      The param's model stack.
+	/// @param oldValue        The value before the edit.
+	/// @param automatedBefore Whether the param was automated before the edit.
+	/// @param result          The region kernel's result.
 	void projectRegionFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool automatedBefore,
 	                            deluge::project::RegionWriteResult result);
 	int32_t processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,
@@ -97,9 +104,13 @@ public:
 	bool grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack);
 	void generateRepeats(deluge::project::DocAutoParam& doc, uint32_t oldLength, uint32_t newLength,
 	                     bool shouldPingpong);
-	/// Reverse this param's automation in place (used when flattening a reversed clip on clone). Operates on
-	/// already-owned nodes — moves them out, rebuilds reversed. reverseDirectionWithLength is the loop length.
-	/// Throws deluge::exception::BAD_ALLOC if it can't re-grow the node buffer.
+	/// @brief Reverse this param's automation in place (used when flattening a reversed clip on clone).
+	///
+	/// Moves the nodes out and rebuilds them reversed.
+	///
+	/// @param doc                         The param's node store.
+	/// @param reverseDirectionWithLength  The loop length to reverse within.
+	/// @throws deluge::exception::BAD_ALLOC if the node buffer cannot be re-grown.
 	void flattenReverse(deluge::project::DocAutoParam& doc, int32_t reverseDirectionWithLength);
 	void copyOverridingFrom(AutoParam* otherParam);
 	void trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack);
@@ -153,13 +164,14 @@ public:
 	int32_t getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* modelStack);
 	void notifyPingpongOccurred();
 
-	// Engine-only setter, kept for runtime re-setters (transient FX like stutter/slice — the store correctly holds
-	// the pre-FX base value, not the live FX value).
+	/// Engine-only setter for runtime re-setters (transient FX like stutter/slice): the store holds the pre-FX base
+	/// value, not the live FX value.
 	inline void setCurrentValueBasicForSetup(int32_t value) { currentValue = value; }
 
-	// DOM-authoritative default/setup setter: write the persisted scalar into the OWNER's store `doc` AND the RT
-	// cursor, from the same literal (the DOM is the source — no engine->store copy). Used by initParams so param
-	// defaults live in the DOM store directly. Pass the owner-resolved store slot: `set->docForParam(p)`.
+	/// Default/setup setter: write the persisted scalar into the owner's store @p doc and the RT cursor from the same
+	/// literal. Used by initParams so param defaults live in the DOM store directly.
+	/// @param doc   The owner-resolved store slot, e.g. `set->docForParam(p)`.
+	/// @param value The value to store.
 	inline void setCurrentValueBasicForSetup(deluge::project::DocAutoParam& doc, int32_t value) {
 		currentValue = value;
 		doc.current_value = value;
@@ -171,9 +183,9 @@ public:
 		renewedOverridingAtTime = 0;
 	}
 
-	/// M2-F: the AutoParam is a pure interpolation cursor — it holds NO node storage. Every node op receives a
-	/// `DocAutoParam&` resolved by the OWNER (ModelStackWithAutoParam::doc() -> paramCollection->docParamForId(),
-	/// or a per-owner docForParam). The DOM owns all automation node data.
+	// The AutoParam is a pure interpolation cursor: it holds no node storage. Every node operation receives a
+	// `DocAutoParam&` resolved by the owner (ModelStackWithAutoParam::doc(), or a per-owner docForParam). The DOM owns
+	// all automation node data. If a param has no nodes, currentValue is used.
 
 	/// Current value of the AutoParam. Updated by several functions.
 	int32_t currentValue;

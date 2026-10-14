@@ -36,9 +36,11 @@ public:
 		ITEMS,
 	};
 
+	/// @brief Begin a capture.
+	/// @param writes Whether the writes are an object's members or a list's items.
 	explicit ValueSerializer(Writes writes = Writes::MEMBERS);
-	/// @brief Everything written since construction or the last finish(): a Map of the members, or an Array of the
-	/// items; empty if it does not parse (a writer's bug). Starts the next capture.
+	/// @brief Parse everything written since construction or the last finish(), and start the next capture.
+	/// @return A Map of the members, or an Array of the items; empty if the text does not parse (a writer's bug).
 	[[nodiscard]] std::optional<deluge::serialization::Value> finish();
 
 private:

@@ -39,28 +39,47 @@ struct SlotEntries {
 };
 
 /// @brief The effects of @p home in processing order (the master's two non-processing slots last).
+/// @param home Where the chain runs.
+/// @return The effect ids in order.
 [[nodiscard]] std::span<const std::string_view> chain_effects(Home home);
 
 /// @brief The index of the master's first slot after the reverb returns; nothing for a clip chain.
+/// @param home Where the chain runs.
+/// @return The slot index, or nullopt for a clip chain.
 [[nodiscard]] std::optional<uint32_t> reverb_return(Home home);
 
 /// @brief Which effect owns the setting at @p path (a kEffectSettings path), or nothing.
+/// @param path A setting path.
+/// @return The effect's id, or nullopt.
 [[nodiscard]] std::optional<std::string_view> effect_of_setting(std::string_view path);
 
 /// @brief Each of @p home's slots as the owner element holds it, sync levels relative to @p context.
+/// @param states               The chain's effect settings.
+/// @param home                 Where the chain runs.
+/// @param context              The file context (tick magnitude).
 /// @param compressor_threshold As for encode_pieces; a host chain's record and file hold the state's.
+/// @return One SlotEntries per slot, in processing order.
 [[nodiscard]] std::vector<SlotEntries> encode_chain(const EffectStates& states, Home home,
                                                     const engine::CodecContext& context,
                                                     std::optional<int32_t> compressor_threshold = std::nullopt);
 
 /// @brief Reads one slot's entries onto @p states (the effect's part only).
+/// @param effect  The effect's id.
+/// @param entries The slot's entries.
+/// @param states  The settings read onto.
+/// @param context The file context.
 void decode_slot(std::string_view effect, const serialization::Value& entries, EffectStates& states,
                  const engine::CodecContext& context);
 
 /// @brief The view entries a host owner's element holds (modFXCurrentParam, currentFilterType), as a map.
+/// @param element The owner element.
+/// @return A map of the view entries it holds.
 [[nodiscard]] serialization::Value view_entries(const serialization::Value& element);
 
 /// @brief Writes @p view's entries, then @p slots' entries, into @p element in the order an owner element holds them.
+/// @param slots   The chain's slots.
+/// @param view    The view entries.
+/// @param element The owner element written into.
 void write_chain(const std::vector<SlotEntries>& slots, const serialization::Value& view,
                  serialization::Value& element);
 

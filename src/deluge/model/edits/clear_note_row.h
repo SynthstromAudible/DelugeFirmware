@@ -8,9 +8,11 @@ class ModelStackWithNoteRow;
 
 namespace deluge::edits {
 
-/// Clear a single note-row's contents (the note-row-scoped variant of the CLIP_CLEAR gesture — the automation-view
-/// note-editor "clear" acts on one row, not the whole clip). apply() opens the Action and calls noteRow->clear(),
-/// which self-records the undo. The view keeps the clear flags, the note-row-exists guard, and the popup.
+/// @brief Clear a single note-row's contents (the note-row-scoped variant of the CLIP_CLEAR gesture: the
+///        automation-view note-editor "clear" acts on one row, not the whole clip).
+///
+/// apply() opens the Action and calls noteRow->clear(), which self-records the undo. The view decides the clear
+/// flags and the note-row-exists guard, and handles the popup.
 class ClearNoteRow final : public Edit {
 public:
 	ClearNoteRow(std::optional<project::NoteRowAddress> address, bool clearAutomation, bool clearSequenceAndMPE,

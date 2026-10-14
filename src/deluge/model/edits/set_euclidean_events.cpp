@@ -15,8 +15,7 @@
 namespace deluge::edits {
 
 Error SetEuclideanEvents::apply(Context& /*ctx*/) {
-	// Faithful reification of InstrumentClipView::editNumEuclideanEvents' mutating tail. The view has already
-	// clamped newNumNotes and guaranteed a non-null note-row; here we reproduce its two paths exactly.
+	// The caller has already clamped newNumNotes and guaranteed a non-null note-row.
 	NoteRow* noteRow = engineStack_->getNoteRowAllowNull();
 	auto* clip = static_cast<InstrumentClip*>(engineStack_->getTimelineCounter());
 
@@ -33,7 +32,7 @@ Error SetEuclideanEvents::apply(Context& /*ctx*/) {
 		bool revertedWholeAction = actionLogger.undoJustOneConsequencePerNoteRow(modelStackWithJustSong);
 		if (!revertedWholeAction) {
 			// Only one Consequence was peeled — the note row changed, so play it. (When the whole Action reverted,
-			// the original fell straight through to the display with no expectEvent; preserve that.)
+			// there is no expectEvent.)
 			clip->expectEvent();
 		}
 		return Error::NONE;

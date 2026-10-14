@@ -30,11 +30,16 @@
 namespace deluge::dsp {
 
 /// @brief @p a + @p b, Q31, wrapping modulo 2^32 on overflow.
+/// @param a,b The addends, Q31.
+/// @return The sum, Q31.
 [[nodiscard]] [[gnu::always_inline]] constexpr q31 wrapping_add(q31 a, q31 b) {
 	return static_cast<q31>(static_cast<uint32_t>(a) + static_cast<uint32_t>(b));
 }
 
 /// @brief @p a − @p b, Q31, wrapping modulo 2^32 on overflow.
+/// @param a The minuend, Q31.
+/// @param b The subtrahend, Q31.
+/// @return The difference, Q31.
 [[nodiscard]] [[gnu::always_inline]] constexpr q31 wrapping_sub(q31 a, q31 b) {
 	return static_cast<q31>(static_cast<uint32_t>(a) - static_cast<uint32_t>(b));
 }

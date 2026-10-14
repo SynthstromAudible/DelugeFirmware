@@ -28,8 +28,11 @@ struct PanAmplitudes {
 	int32_t right;
 };
 
-/// @brief The amplitudes at @p pan (Q31: 0 is the centre, ±2^30 and beyond fully right or left): the channel the
-/// pan moves away from falls linearly to silence; the other stays at unity.
+/// @brief The amplitudes at @p pan: the channel the pan moves away from falls linearly to silence; the other stays
+/// at unity.
+///
+/// @param pan Pan position, Q31: 0 is the centre; +2^30 and beyond is fully right, -2^30 and beyond fully left.
+/// @return The left and right channel amplitudes, Q30.
 [[nodiscard]] constexpr PanAmplitudes pan_amplitudes(int32_t pan) {
 	constexpr int32_t kUnity = 1073741823;
 	constexpr int32_t kHalfRange = 1073741824;

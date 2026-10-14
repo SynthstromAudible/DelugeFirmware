@@ -15,7 +15,7 @@ Error SetTempo::apply(Context& ctx) {
 	uint64_t timePerBigBefore = ctx.model.transport.samples_per_timer_tick_big;
 
 	// shouldLogAction=false: setTempoFromNumSamples' own logging does "all this other stuff"; we record the plain
-	// Consequence ourselves, verbatim from the call site.
+	// Consequence ourselves.
 	ctx.song.setTempoFromNumSamples(timePerTick_, false);
 
 	if (action != nullptr) {

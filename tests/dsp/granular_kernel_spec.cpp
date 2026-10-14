@@ -18,7 +18,7 @@
 // The Granular kernel: the granular effect as one frame kernel under Mono, rendered in place. Driven as its owner
 // drives it (TestGranular below: the ring handed over once and kept, a release a restart, the shutdown armed, the
 // knobs configured and the reverb send set each rendered block), it must equal the reference granular
-// (reference_granular.h, the record of the former processor) bit for bit on every workload (granular_workloads.h): each
+// (reference_granular.h) bit for bit on every workload (granular_workloads.h): each
 // block's output, post-FX volume and reverb send, and at the end the State and the ring as the kernel reads it.
 
 #include "dsp-next/core/kernel.h"

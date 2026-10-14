@@ -71,7 +71,8 @@ class Granular {
 public:
 	using Kernel = dsp::fixed::Granular<dsp::fixed::CongNoise>;
 
-	/// @brief Takes the allocator the blocks come from and go back to.
+	/// @brief Builds an effect holding nothing yet.
+	/// @param allocator The allocator the State and ring come from and go back to.
 	/// @param enter What entering GRAIN does to the State: CLEAR for a sound, KEEP for a chain.
 	Granular(RingAllocator allocator, EnterGrain enter);
 	/// @brief Frees the State and the ring.
@@ -82,12 +83,17 @@ public:
 	/// @brief Interaction tier, before the section: allocates the State when the owner has none, and a ring (not
 	/// zeroed; the kernel reads it as silence) when @p type is GRAIN and none is held. A failed allocation leaves the
 	/// effect passing through.
+	/// @param type The mod FX type the owner is changing to.
+	/// @return The allocations made, for commit and finish.
 	[[nodiscard]] GranularBlockChange prepare(ModFXType type);
 	/// @brief Inside the owner's AudioExcludedSection: takes up the acquired State and ring, or restarts the effect and
 	/// hands the ring back when @p type is not GRAIN. An acquired ring is not taken while one is held: it moves to
 	/// released_ring.
+	/// @param type The mod FX type the owner is changing to.
+	/// @param change What prepare returned; receives the ring to free.
 	void commit(ModFXType type, GranularBlockChange& change);
 	/// @brief After the section: frees what commit took back, and what it did not take.
+	/// @param change What commit filled in.
 	void finish(GranularBlockChange& change);
 
 	/// @brief Render: the granular effect over @p block in place while sound comes in or the shutdown countdown runs.
@@ -95,6 +101,10 @@ public:
 	/// and restarts the effect when the countdown ends. Passes through when no ring is held.
 	/// @details The owner's chain calls this every rendered block while the type in effect is GRAIN, with all four
 	/// knobs (ChainCore::render_fx).
+	/// @param block The stereo block, processed in place.
+	/// @param in The knobs and sound flag for this block.
+	/// @param post_fx_volume The owner's post-FX volume (Q31); scaled in place.
+	/// @param reverb_send The reverb feed, one value per frame; the effect adds into it.
 	/// @pre @p reverb_send holds at least one value per frame of @p block.
 	void render(std::span<dsp::StereoSample> block, const GranularInputs& in, int32_t& post_fx_volume,
 	            std::span<dsp::q31> reverb_send);
@@ -103,22 +113,27 @@ public:
 	/// @brief The owner has gone idle or soft off: the ring is taken up afresh and grains wait until it is half full
 	/// again, those sounding going on. The ring is kept. No effect without a State.
 	void startSkippingRendering();
-	/// @return The frames left before the effect restarts: the laps left times the ring's length; 0 without a
-	/// State.
+	/// @brief The frames left before the effect restarts: the laps left times the ring's length.
+	/// @return The frame count; 0 without a State.
 	[[nodiscard]] int32_t samplesToShutdown() const;
-	/// @return Whether a ring is held.
+	/// @brief Whether a ring is held.
+	/// @return True while the type is GRAIN and the ring is allocated.
 	[[nodiscard]] bool holdsRing() const { return ring_ != nullptr; }
-	/// @return The kernel's state, or null before the first entry into GRAIN; for specs.
+	/// @brief The kernel's state, for specs.
+	/// @return The state, or null before the first entry into GRAIN.
 	[[nodiscard]] const Kernel::State* state() const;
 
 private:
 	using Mono = dsp::Mono<Kernel>;
 
 	/// @brief Ends @p state's life as a Mono and hands it back to @p allocator.
+	/// @param allocator The allocator the State came from.
+	/// @param state The State block.
 	static void destroy_state(RingAllocator allocator, void* state);
 
 	/// @brief Event: the effect waits for its first sound, rendering nothing, as a chain's processor, which does not
 	/// exist before it, does.
+	/// @param state The kernel state to idle.
 	static void idle(Kernel::State& state);
 
 	RingAllocator allocator_;

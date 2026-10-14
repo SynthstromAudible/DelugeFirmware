@@ -27,12 +27,11 @@ constexpr uint16_t kNoSlot = 32767;
 /// Sentinel for "no preset sub-slot assigned".
 constexpr int8_t kNoSubSlot = -1;
 
-/// Song file identity: display name, containing directory, and the legacy preset-slot numbering.
+/// @brief Song file identity: display name, containing directory, and the legacy preset-slot numbering.
 /// A component of deluge::project::Song.
 ///
-/// TODO(WS4): name/dir_path are still std::string (heap). Convert to a fixed-capacity etl::string
-/// (FAT-bounded) in a dedicated commit — it ripples into function signatures (the std::string* passed
-/// to the sample recorder, the caselessEquals/append call sites), so it is isolated from this rename.
+/// TODO: name/dir_path are std::string (heap); convert to a fixed-capacity (FAT-bounded) etl::string. It ripples
+/// into function signatures (the std::string* passed to the sample recorder, the caselessEquals/append call sites).
 struct Metadata {
 	std::string name;
 	std::string dir_path;

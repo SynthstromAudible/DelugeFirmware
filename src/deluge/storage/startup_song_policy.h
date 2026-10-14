@@ -66,8 +66,8 @@ struct StartupStep {
 /// @note Every `Unusable` answer routes to `Done` or `UnlinkCanary` — never to a phase that writes.
 StartupStep nextStartupPhase(StartupPhase current, StartupPresence answer, bool usingTemplate);
 
-/// @brief The template song's paths, in the order they are looked for: as songs are saved, then as songs were saved
-/// before they saved as JSON. A missing template is created at the first.
+/// @brief The template song's paths, in the order they are looked for: the JSON name songs are saved under, then the
+/// legacy XML name. A missing template is created at the first.
 inline constexpr std::array<const char*, 2> kTemplatePaths{"SONGS/DEFAULT.json", "SONGS/DEFAULT.XML"};
 
 /// @brief One step of looking for the template.

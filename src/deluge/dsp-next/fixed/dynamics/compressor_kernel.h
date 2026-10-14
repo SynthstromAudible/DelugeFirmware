@@ -45,15 +45,25 @@ struct CompressorKnobs {
 	bool operator==(const CompressorKnobs&) const = default;
 };
 
-/// @return The attack time in ms for a 3 dB change at knob @p attack.
+/// @brief The attack time in ms for a 3 dB change at knob @p attack.
+/// @param attack The knob position, Q31 of its travel.
+/// @return The attack time, in ms.
 [[nodiscard]] float compressor_attack_ms(q31 attack);
-/// @return The release time in ms for a 3 dB change at knob @p release.
+/// @brief The release time in ms for a 3 dB change at knob @p release.
+/// @param release The knob position, Q31 of its travel.
+/// @return The release time, in ms.
 [[nodiscard]] float compressor_release_ms(q31 release);
-/// @return The ratio at knob @p ratio.
+/// @brief The ratio at knob @p ratio.
+/// @param ratio The knob position, Q31 of its travel.
+/// @return The ratio (2 to 256).
 [[nodiscard]] float compressor_ratio(q31 ratio);
-/// @return The level detector's high-pass cutoff in Hz at knob @p sidechain_hpf.
+/// @brief The level detector's high-pass cutoff in Hz at knob @p sidechain_hpf.
+/// @param sidechain_hpf The knob position, Q31 of its travel.
+/// @return The cutoff, in Hz.
 [[nodiscard]] float compressor_sidechain_hz(q31 sidechain_hpf);
-/// @return 1 - 1/ratio at knob @p ratio: how far a level change past the threshold is cut, 0.5 (2:1) to 1 (256:1).
+/// @brief 1 - 1/ratio at knob @p ratio: how far a level change past the threshold is cut.
+/// @param ratio The knob position, Q31 of its travel.
+/// @return The fraction, 0.5 (2:1) to 1 (256:1).
 [[nodiscard]] float ratio_fraction(q31 ratio);
 
 /// @brief The RMS feedback compressor as a processor kernel of stereo frames: the gain for each block follows the RMS
@@ -171,7 +181,9 @@ struct Compressor {
 		q31 increment_r; ///< The right gain's step per frame, 5.26 signed.
 	};
 
-	/// @return The coefficients for @p s: the knobs' time constants, ratio, detector high-pass and blend.
+	/// @brief The coefficients for @p s: the knobs' time constants, ratio, detector high-pass and blend.
+	/// @param s What the owner sets.
+	/// @return The coefficients the kernel and its owner read.
 	[[nodiscard]] static Coefficients coefficients(const Settings& s);
 
 	/// @brief The block's envelopes and gain ramps, from the levels last set and the last block's level.
@@ -179,7 +191,10 @@ struct Compressor {
 	/// far the last level passed the threshold, and the gain they give (clamped to 31) sets each channel's target from
 	/// its volume; the increments reach the targets by the block's end. Sets `gain_reduction`, zeroes `sum`, records
 	/// @p n and sets `pending` to the detectors' memories.
+	/// @param c The coefficients.
+	/// @param s The State, whose envelopes and loop are updated for the block.
 	/// @param n The block's length in frames, at least 1: the compressor's owner skips empty blocks.
+	/// @return The gain ramps for the block.
 	[[nodiscard]] [[gnu::always_inline]] static Block prepare(const Coefficients& c, State& s, std::size_t n) {
 		const auto frames = static_cast<float>(n);
 
@@ -223,6 +238,9 @@ struct Compressor {
 	}
 
 	/// @brief One frame at mode @p M: ramp, gain, saturate, blend in BLEND, then measure the frame before.
+	/// @param c The coefficients.
+	/// @param b The block's gain ramps from @ref prepare.
+	/// @param s The loop state.
 	/// @param x The frame as it came in, Q31: the dry signal in BLEND.
 	/// @return The compressed frame, Q31.
 	template <Mode M>
@@ -252,16 +270,20 @@ struct Compressor {
 
 	/// @brief The reset quirk: no gain reduction or makeup at the start of the next block, the mean at 0, and the
 	/// saturation seeded again. The channel gains, the detectors and the last level carry on.
+	/// @param s The State to reset.
 	static void reset(State& s);
 
-	/// @return The threshold as a fraction of the final volume's level in nepers, from knob @p threshold (Q31 of its
-	/// travel): 1 at 0, 0.2 at 2^31.
+	/// @brief The threshold as a fraction of the final volume's level in nepers, from knob @p threshold.
+	/// @param threshold The knob position, Q31 of its travel.
+	/// @return The fraction: 1 at 0, 0.2 at 2^31.
 	[[nodiscard]] static float threshold_fraction(q31 threshold) {
 		return 1 - 0.8f * (static_cast<float>(threshold) / ONE_Q31f);
 	}
 
 	/// @brief Event: the block's levels, and the threshold @p l's knob gives as a fraction of the volume's level.
 	/// @details Inline: the owner calls it once per block, and its few instructions cost less than a call.
+	/// @param s The State to store the levels in.
+	/// @param l The block's levels.
 	[[gnu::always_inline]] static void set_levels(State& s, const Levels& l) {
 		s.levels = l;
 		s.threshold = threshold_fraction(l.threshold);
@@ -269,10 +291,14 @@ struct Compressor {
 
 	/// @brief Event: seeds both saturations from @p first, the block's first frame as it comes in, so it interpolates
 	/// against itself rather than against silence; marks the state seeded.
+	/// @param s The State to seed.
+	/// @param first The block's first frame, Q31.
 	static void seed(State& s, StereoSample first);
 
 	/// @brief Event, after the block: measures the block's last frame, then the block's mean square (never negative),
 	/// smoothed one-pole against the last block's, and its log RMS level (nepers), which the next block's gain follows.
+	/// @param c The coefficients.
+	/// @param s The State holding the block's running sum.
 	static void finish_level(const Coefficients& c, State& s);
 
 private:

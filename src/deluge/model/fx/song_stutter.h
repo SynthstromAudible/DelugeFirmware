@@ -44,18 +44,26 @@ public:
 
 	/// @brief [task] Begins @p owner's stutter at @p rate (8.24 on the delay's rate scale), playing as @p settings
 	/// say, ending another owner's in the same section.
+	/// @param owner    The owner whose chain renders the stutter.
+	/// @param settings How the stutter plays.
+	/// @param rate     Initial rate, 8.24 on the delay's rate scale.
 	/// @return INSUFFICIENT_RAM, and nothing changed, when the tape cannot be allocated.
 	[[nodiscard]] Error begin(ModControllableAudio& owner, const deluge::effects::StutterState& settings,
 	                          uint32_t rate);
 	/// @brief [task] Ends the stutter, if any, and frees its tape.
 	void end();
-	/// @return [render] The stutter, while @p owner is the one stuttering; else null.
+	/// @brief [render] The stutter, while @p owner is the one stuttering; else null.
+	/// @param owner The owner asking.
+	/// @return The song's stutter, or null.
 	[[nodiscard]] deluge::effects::Stutter* stutterFor(const ModControllableAudio& owner) {
 		return owner_ == &owner ? &fx_ : nullptr;
 	}
-	/// @return Whether @p owner is the one stuttering.
+	/// @brief Whether @p owner is the one stuttering.
+	/// @param owner The owner asking.
+	/// @return True if @p owner owns the stutter.
 	[[nodiscard]] bool isStuttering(const ModControllableAudio& owner) const { return owner_ == &owner; }
-	/// @return Whether any owner is stuttering.
+	/// @brief Whether any owner is stuttering.
+	/// @return True if a stutter is active.
 	[[nodiscard]] bool active() const { return owner_ != nullptr; }
 	/// @brief [task] Forgets the quantized snap, as every end of a stutter leaves it.
 	void clearSnap() {
@@ -86,14 +94,24 @@ struct StutterInput {
 
 /// @brief [render] The current song's stutter for @p owner's chain, at the rate @p paramManager's stutter param gives:
 /// none with no song current (a sample preview between songs) or while another owner stutters.
+/// @param owner        The owner whose chain is rendering.
+/// @param paramManager The owner's param manager, which holds its stutter-rate param.
+/// @return The stutter and its rate; a null stutter when @p owner is not stuttering.
 [[nodiscard]] StutterInput stutterInput(const ModControllableAudio& owner, ParamManager* paramManager);
 
 /// @brief Sets @p paramManager's stutter-rate param to its neutral value, as a new owner's params start.
+/// @param paramManager The param manager to initialise.
 void initStutterParams(ParamManager* paramManager);
 
-/// @return The stutter's rate, 8.24 on the delay's rate scale: the stutter-rate param in @p paramManager, moved by
+/// @brief The stutter's rate, 8.24 on the delay's rate scale: the stutter-rate param in @p paramManager, moved by
 /// @p knobDiff knob positions (a quantized stutter's note length), synced to the tempo by @p timePerTickInverse at
 /// the song's input tick @p magnitude.
+/// @param paramManager       The owner's param manager.
+/// @param knobDiff           Offset in knob positions added to the param's position (the sum is clamped to
+///                           -64..64); zero for a free stutter.
+/// @param magnitude          The song's input tick magnitude.
+/// @param timePerTickInverse Tempo scale from PlaybackHandler::getTimePerInternalTickInverse().
+/// @return The rate, 8.24 on the delay's rate scale.
 [[nodiscard]] int32_t stutterRate(ParamManager* paramManager, int32_t knobDiff, int32_t magnitude,
                                   uint32_t timePerTickInverse);
 

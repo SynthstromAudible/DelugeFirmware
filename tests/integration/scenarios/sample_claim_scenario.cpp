@@ -2103,7 +2103,7 @@ void tickRandomizeCancel() {
 }
 
 void nextLeg() {
-	// Whatever the leg did to a sound, its record, slot and snapshot say what it now plays.
+	// Whatever the leg did to a sound, its record, slot and snapshot say what it plays.
 	g_failures += deluge::harness::expectSongCoherent(*currentSong, legName(g_leg));
 	g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
 	g_step = Step::Prepare;

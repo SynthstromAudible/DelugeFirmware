@@ -408,7 +408,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on) {
 			range->sampleHolder.startPos = 0;
 			range->sampleHolder.endPos = sample->lengthInSamples;
 			range->sampleHolder.transpose = 0;
-			// M3 owner-5: the zone reset above changed the range — reflect into the record.
+			// The zone reset above changed the range: reflect it into the record.
 			deluge::gui::menu_item::recordRanges(*soundDrum, 0);
 		}
 
@@ -428,7 +428,7 @@ void Slicer::stopAnyPreviewing() {
 	if (std::ssize(drum->sources[0].ranges)) {
 		MultisampleRange* range = (MultisampleRange*)drum->sources[0].ranges.getElement(0);
 		range->sampleHolder.setAudioFile(nullptr);
-		// M3 owner-5: reflect the cleared audio file into the record.
+		// Reflect the cleared audio file into the record.
 		deluge::gui::menu_item::recordRanges(*drum, 0);
 	}
 }
@@ -492,8 +492,8 @@ void Slicer::soundAudition(const PreviewTarget& target) {
 			range->sampleHolder.endPos = target.endPoint;
 		}
 		range->sampleHolder.transpose = target.transpose;
-		// M3 owner-5: the preview-audition zone edits above changed the range's file/zone/transpose — reflect
-		// into the record.
+		// The preview-audition zone edits above changed the range's file/zone/transpose: reflect them into the
+		// record.
 		deluge::gui::menu_item::recordRanges(*drum, 0);
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -658,8 +658,7 @@ void Slicer::tickSlice() {
 				                                 ? waveformBasicNavigator.sample->lengthInSamples
 				                                 : target.manualPoints[i + 1].startPos;
 				range->sampleHolder.transpose = target.manualPoints[i].transpose;
-				// M3 owner-5: the manual-slice zone edits above overwrote this drum's range — reflect into the
-				// record.
+				// The manual-slice zone edits above overwrote this drum's range: reflect them into the record.
 				deluge::gui::menu_item::recordRanges(*soundDrum, 0);
 			}
 		}
@@ -787,7 +786,7 @@ Error Slicer::doSlice(int32_t sliceCount) {
 			// The drum is a sample drum before addDrum binds it, so its record starts as one.
 			newDrum->setupAsSample(&paramManager);
 			kit->addDrum(newDrum);
-			// M3 owner-3: name after addDrum binds the DocDrum (setName writes the model, which requires binding).
+			// Name after addDrum binds the DocDrum (setName writes the model, which requires binding).
 			newDrum->setName(deluge::string::fromInt(i + 1));
 
 			range->sampleHolder.startPos = nextDrumStart;
@@ -800,8 +799,7 @@ Error Slicer::doSlice(int32_t sliceCount) {
 			range->sampleHolder.filePath = sample->filePath;
 			// The first drum's load bound this sample already: every other slice binds the same one, from memory.
 			range->sampleHolder.setAudioFile(sample, false, false, CLUSTER_ENQUEUE);
-			// M3 owner-5: this new drum's slice range was just populated (zone + file) — reflect into the
-			// record.
+			// This new drum's slice range was just populated (zone + file): reflect it into the record.
 			deluge::gui::menu_item::recordRanges(*newDrum, 0);
 
 			if (doEnvelopes) {

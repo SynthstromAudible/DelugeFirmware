@@ -29,16 +29,16 @@
 
 namespace deluge::storage {
 
+/// @brief The format a Value tree was parsed from; the tree reader follows that format's reading conventions.
 enum class SourceFormat : uint8_t { Json, Xml };
 
-/// A `Deserializer` cursor that walks an in-memory `Value` tree instead of a byte stream.
+/// @brief A `Deserializer` cursor that walks an in-memory `Value` tree instead of a byte stream.
 ///
-/// This is the adapter half of the record-first deserializer design: it implements the same
-/// 14-method streaming interface that XMLDeserializer/JsonDeserializer implement over a file, but
-/// by walking a `Value` tree that some earlier stage (a format-specific parser) already built in
-/// full. That lets existing `readFromFile(Deserializer&)` code run, unmodified, against a tree.
+/// It implements the same 14-method streaming interface that XMLDeserializer/JsonDeserializer implement over a
+/// file, but by walking a `Value` tree that a format-specific parser already built in full. That lets
+/// `readFromFile(Deserializer&)` code run against a tree.
 ///
-/// Design: an explicit stack of `{node, index}` frames tracks "where we are" in the tree. At any
+/// An explicit stack of `{node, index}` frames tracks "where we are" in the tree. At any
 /// time there is at most one *pending* Value -- the entry/element most recently produced by
 /// readNextTagOrAttributeName() (or, for the very first call, the root itself) -- which
 /// match('{')/match('[') may descend into, and which the various readTagOrAttributeValue*()
@@ -52,6 +52,8 @@ enum class SourceFormat : uint8_t { Json, Xml };
 ///      pending. match() falls back to peeking the array's next unread element in that case.
 class ValueTreeDeserializer final : public Deserializer {
 public:
+	/// @param root   The tree to read; must outlive the reader.
+	/// @param format The format the tree was parsed from.
 	explicit ValueTreeDeserializer(const Value& root, SourceFormat format = SourceFormat::Json)
 	    : root_(&root), format_(format) {
 		reset();
@@ -75,21 +77,25 @@ public:
 
 	void reset() override;
 
-	// In-memory: the whole tree is already resident, so there is never anything to yield to. This
-	// gates the AudioEngine render loop off during a tree-backed load (via the active-reader gate).
+	/// @brief Always false: the whole tree is resident, so there is never anything to yield to. This gates the
+	///        AudioEngine render loop off during a tree-backed load (via the active-reader gate).
 	[[nodiscard]] bool shouldCallRoutines() const override { return false; }
 
 	[[nodiscard]] ValueTreeDeserializer* asTreeReader() override { return this; }
 
-	/// The Value node this cursor is currently positioned at -- the child element/value most recently
-	/// produced by readNextTagOrAttributeName() (null before the first read or once exhausted). Lets a
-	/// tree-native loader (readClipFromTree) read a node's fields directly while the streaming interface
-	/// still drives the rest. Read-only; does not advance the cursor.
+	/// @brief The Value node this cursor is currently positioned at.
+	///
+	/// This is the child element/value most recently produced by readNextTagOrAttributeName() (null before the
+	/// first read or once exhausted). Lets a tree-native loader read a node's fields directly while the streaming
+	/// interface still drives the rest. Read-only; does not advance the cursor.
+	/// @return The current node, or null.
 	[[nodiscard]] const Value* currentValue() const { return pending_; }
 
-	/// The element whose entries the reader is reading: the Map just named and not yet entered (as a reader is
-	/// handed an element: its tag read, its contents next), else the innermost element it has entered. Null when
-	/// there is none.
+	/// @brief The element whose entries the reader is reading.
+	///
+	/// That is the Map just named and not yet entered (as a reader is handed an element: its tag read, its
+	/// contents next), else the innermost element it has entered.
+	/// @return The element, or null when there is none.
 	[[nodiscard]] const Value* currentElement() const {
 		if (pending_ != nullptr && pending_->isMap()) {
 			return pending_;
@@ -97,20 +103,19 @@ public:
 		return (!stack_.empty() && stack_.back().node->isMap()) ? stack_.back().node : nullptr;
 	}
 
-	/// The whole document this reader reads: a song's version, in old files, sits beside the song rather than in it.
+	/// @brief The whole document this reader reads: a song's version, in old files, sits beside the song rather
+	///        than in it.
+	/// @return The root of the tree.
 	[[nodiscard]] const Value& root() const { return *root_; }
 
-	/// Run `body` against a specific child object node, then restore the cursor exactly. `body` drives the
-	/// ordinary streaming interface (readNextTagOrAttributeName / match / exitTag) over `childObject`'s
-	/// children -- exactly as a mid-stream readFromFile would -- letting a tree-native loader delegate a
-	/// nested object to a shared streaming sub-reader (e.g. Sound::readParamsFromFile, readDeviceReferenceFromFile)
-	/// without rewriting it.
-	/// Hermetic: the entire cursor state is saved and restored around `body`, so the sub-read can never
-	/// desync the parent stream regardless of format/depth subtleties.
-	/// Position the cursor at a scalar Value so the char-at-a-time value readers
-	/// (prepareToReadTagOrAttributeValueOneCharAtATime / readNextCharsOfTagOrAttributeValue / …) read from it,
-	/// run `body`, then restore the cursor exactly. Lets a tree-native reader hand a scalar (e.g. a hex noteData
-	/// blob) to existing char-decoding code without rewriting it. Hermetic (full save/restore).
+	/// @brief Position the cursor at a scalar Value so the char-at-a-time value readers
+	///        (prepareToReadTagOrAttributeValueOneCharAtATime / readNextCharsOfTagOrAttributeValue / …) read from
+	///        it, run @p body, then restore the cursor exactly.
+	///
+	/// Lets a tree-native reader hand a scalar (e.g. a hex noteData blob) to existing char-decoding code.
+	/// Hermetic: the entire cursor state is saved and restored around @p body.
+	/// @param scalarNode The scalar to read from.
+	/// @param body       Callable run with the cursor positioned at @p scalarNode.
 	template <typename F>
 	void readScalarValue(const Value& scalarNode, F&& body) {
 		auto savedStack = stack_;
@@ -128,6 +133,15 @@ public:
 		callerDepth_ = savedCallerDepth;
 	}
 
+	/// @brief Run @p body against a specific child object node, then restore the cursor exactly.
+	///
+	/// @p body drives the ordinary streaming interface (readNextTagOrAttributeName / match / exitTag) over
+	/// @p childObject's children -- exactly as a mid-stream readFromFile would -- letting a tree-native loader
+	/// delegate a nested object to a shared streaming sub-reader (e.g. Sound::readParamsFromFile,
+	/// readDeviceReferenceFromFile). Hermetic: the entire cursor state is saved and restored around @p body, so the
+	/// sub-read can never desync the parent stream regardless of format or depth.
+	/// @param childObject The object node whose children @p body reads.
+	/// @param body        Callable run with the cursor rooted at @p childObject.
 	template <typename F>
 	void readChildObject(const Value& childObject, F&& body) {
 		auto savedStack = stack_;
@@ -191,6 +205,8 @@ private:
 ///
 /// Every document whose readers call this is opened as a TreeDocument, so a streaming reader here is a caller
 /// that opened its document the wrong way: freeze rather than read a tree out of a byte stream.
+/// @param reader The reader handed to the loader.
+/// @return The tree reader behind @p reader.
 inline ValueTreeDeserializer& treeReaderOf(Deserializer& reader) {
 	ValueTreeDeserializer* tree = reader.asTreeReader();
 	if (tree == nullptr) {

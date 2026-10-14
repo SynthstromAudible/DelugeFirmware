@@ -979,8 +979,8 @@ ramError:
 
 	else {
 
-		// Reify: AddKitRow creates the drum, adds it to the kit, and sets it on the row. Non-undoable (the
-		// deleteAllLogs above stays) — undo arrives with the command/undo-tree substrate, not a Consequence.
+		// AddKitRow creates the drum, adds it to the kit, and sets it on the row. Not undoable (the
+		// deleteAllLogs above clears the undo history); no Consequence is recorded.
 		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
 		deluge::edits::Context kitCtx{*currentSong, currentSong->project};
 		deluge::edits::AddKitRow addEdit{kit, noteRow, drumType, modelStackWithNoteRow};
@@ -1650,8 +1650,8 @@ void InstrumentClipView::doubleClipLengthAction() {
 		return;
 	}
 
-	// Reify: MultiplyClip opens the Action, records the ConsequenceInstrumentClipMultiply before the mutation, and
-	// doubles the clip. action() gives us the Action back to stamp its AFTER zoom/scroll (Action view-state, M2h).
+	// MultiplyClip opens the Action, records the ConsequenceInstrumentClipMultiply before the mutation, and
+	// doubles the clip. action() gives us the Action back to stamp its AFTER zoom/scroll (Action view-state).
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
@@ -5519,7 +5519,7 @@ doDisplayError:
 	newDrum->nameIsDiscardable = true;
 
 	kit->addDrum(newDrum);
-	// M3 owner-3: name after addDrum binds the DocDrum (setName writes the model, which requires binding).
+	// Name after addDrum binds the DocDrum (setName writes the model, which requires binding).
 	newDrum->setName(soundName.c_str());
 	modelStack->getNoteRow()->setDrum(newDrum, kit,
 	                                  modelStack); // Sets noteRow->paramManager to newDrum->backedUpParamManager
@@ -5581,8 +5581,8 @@ ModControllableAudio* InstrumentClipView::getModControllableAudioOrNone() {
 
 void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 
-	// Reify: RemoveKitRow reproduces the delete (remove drum, reassign/prune the row, retire automation, dealloc).
-	// Non-undoable (the caller's deleteAllLogs stays) — no Consequence.
+	// RemoveKitRow removes the drum, reassigns/prunes the row, retires automation and deallocs.
+	// Not undoable (the caller's deleteAllLogs clears the undo history); no Consequence is recorded.
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	deluge::edits::Context kitCtx{*currentSong, currentSong->project};
@@ -6757,8 +6757,7 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 	else {
 		editPadPresses[i].isBlurredSquare = true; // It's (probably) blurred now - better remember that.
 
-		// Reify the mutation: RepeatNoteEdit reproduces the secret-undo and new-action paths (offset is non-zero
-		// here, so the original's redundant `offset &&` guard is dropped).
+		// RepeatNoteEdit covers both the secret-undo and new-action paths (offset is non-zero here).
 		deluge::edits::Context noteCtx{*currentSong, currentSong->project};
 		deluge::edits::RepeatNoteEdit repeatEdit{deluge::edits::noteRowAddressFor(*modelStackWithNoteRow),
 		                                         offset,
@@ -6820,10 +6819,9 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter;
 
-	// The shared NOTE_NUDGE Action is now owned by the NudgeNote Edit below: the first successfully-nudged pad opens
-	// it (getNewAction(NOTE_NUDGE, ALLOWED)) and the rest coalesce into it — same as the pre-loop creation this
-	// replaces, except an all-collision gesture no longer leaves an empty Action behind (a benign difference: an
-	// empty Action has nothing to undo).
+	// The shared NOTE_NUDGE Action is owned by the NudgeNote Edit below: the first successfully-nudged pad opens
+	// it (getNewAction(NOTE_NUDGE, ALLOWED)) and the rest coalesce into it. An all-collision gesture leaves no
+	// empty Action behind.
 
 	modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentClip);
 
@@ -6904,11 +6902,11 @@ doCompareNote:
 			}
 
 			if (!gotCollision) {
-				// Reify the per-pad mutation: NudgeNote nudges the notes across all screens then drags automation +
+				// NudgeNote nudges the notes across all screens then drags automation +
 				// MPE with them (note-row + clip level) under the shared NOTE_NUDGE Action; held pads coalesce into
 				// one Action via getNewAction(NOTE_NUDGE, ALLOWED). nudgeAutomation follows the flash setting, MPE
-				// always nudges. The Edit builds its own clip stack, so modelStackWithNoteRow stays valid below (this
-				// is why the note-row-editor square-info update — unchanged — can run after apply()).
+				// always nudges. The Edit builds its own clip stack, so modelStackWithNoteRow stays valid after
+				// apply() for the note-row-editor square-info update below.
 				deluge::edits::Context noteCtx{*currentSong, currentSong->project};
 				deluge::edits::NudgeNote nudgeEdit{deluge::edits::noteRowAddressFor(*modelStackWithNoteRow),
 				                                   static_cast<int32_t>(editPadPresses[i].intendedPos),
@@ -7452,8 +7450,8 @@ justDisplayOldNumNotes:
 				}
 			}
 
-			// Reify the mutation: SetEuclideanEvents reproduces both the partial-undo and rebuild paths (the view
-			// keeps the clamp/display logic above; newNumNotes arrives already clamped).
+			// SetEuclideanEvents covers both the partial-undo and rebuild paths (the view keeps the
+			// clamp/display logic above; newNumNotes arrives already clamped).
 			deluge::edits::Context noteCtx{*currentSong, currentSong->project};
 			deluge::edits::SetEuclideanEvents euclideanEdit{deluge::edits::noteRowAddressFor(*modelStack),
 			                                                offset,

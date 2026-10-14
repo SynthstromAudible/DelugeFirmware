@@ -1,12 +1,11 @@
-// Differential fidelity harness for ValueTreeDeserializer's XML replay mode (deserializer step 2a).
+// Differential fidelity harness for ValueTreeDeserializer's XML replay mode.
 //
 // Ground truth is the real XMLDeserializer reading the fragment's bytes. For each fragment a fixed
 // *script* -- the exact call sequence readFromFile would issue for that shape -- is run against both
 //   1. XMLDeserializer{fragmentBytes}, and
 //   2. ValueTreeDeserializer{*parseXml(fragmentBytes), SourceFormat::Xml},
-// and the two return-transcripts must match token-for-token. XML mode is developed by making these
-// pass. It runs as the xml_replay_diff scenario (scenarios/drivers/driver.h): XMLDeserializer is not
-// available to CppSpec.
+// and the two return-transcripts must match token-for-token. It runs as the xml_replay_diff scenario
+// (scenarios/drivers/driver.h): XMLDeserializer is not available to CppSpec.
 //
 // Run:  ./dbt test xml-replay-diff
 
@@ -319,7 +318,7 @@ int xml_replay_diff_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		exit_(r, t, nullptr, true);
 	});
 
-	// (11) STRAY TEXT alongside a child element. Malformed Deluge files (issue #2514's <kitParams> writes
+	// (11) STRAY TEXT alongside a child element. Malformed Deluge files (a <kitParams> that writes
 	// a stray '>' turning its attributes into text before the real children) carry non-whitespace text
 	// inside an element that also has children. XMLDeserializer ignores inter-tag text (skipUntilChar('<')
 	// between tags), so the text is skipped and the child read next; parseXml must drop it, not fail.

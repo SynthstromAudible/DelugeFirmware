@@ -224,7 +224,7 @@ private:
 	// elements) or a Scalar of the raw unescaped text (if there were
 	// neither) -- the Deluge format never mixes attributes/children with
 	// real text on one element, so any non-whitespace text alongside
-	// attributes or children is treated as malformed input.
+	// attributes or children is dropped (see below).
 	[[nodiscard]] std::optional<Value> parseContent(const std::string& name, bool hasAttributes, Value element) {
 		std::string text;
 		bool sawChildElement = false;

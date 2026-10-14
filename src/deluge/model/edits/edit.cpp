@@ -5,8 +5,8 @@ namespace deluge::edits {
 Error apply(Context& ctx, Edit& edit) {
 	Error error = edit.apply(ctx);
 	if (error == Error::NONE) {
-		// M4 snapshot boundary: emit the model-changed event. Per-Edit override (default no-op); additive during
-		// the pilot (apply() still pokes the engine in-line). This is the first real consumer of the emission hook.
+		// Snapshot boundary: emit the model-changed event. Per-Edit override (default no-op); apply() still pokes
+		// the engine in-line, so the event is a parallel consumer.
 		edit.emitEvent(ctx);
 	}
 	return error;

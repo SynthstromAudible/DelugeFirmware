@@ -27,7 +27,7 @@
 
 GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
 	// The gate channel default (2) is applied by adoptDrum when it binds the DocDrum — the ctor runs before the drum is
-	// bound, so it can't write the model here (M3 owner-3).
+	// bound, so it can't write the model here.
 	arpSettings.numOctaves = 1;
 }
 

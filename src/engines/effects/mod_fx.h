@@ -53,7 +53,9 @@ struct ModFxInputs {
 	bool sound;       ///< Whether any sound came in this block.
 };
 
-/// @return Whether @p type runs over a ring: chorus, stereo chorus, dimension, flanger or warble.
+/// @brief Whether @p type runs over a ring: chorus, stereo chorus, dimension, flanger or warble.
+/// @param type The mod FX type.
+/// @return True for a ring type.
 [[nodiscard]] constexpr bool is_ring_type(ModFXType type) {
 	switch (type) {
 	case ModFXType::CHORUS:
@@ -67,7 +69,10 @@ struct ModFxInputs {
 	}
 }
 
-/// @return The kernel mode for @p type (not NONE or GRAIN) in stereo or mono.
+/// @brief The kernel mode for @p type (not NONE or GRAIN) in stereo or mono.
+/// @param type The mod FX type.
+/// @param stereo Whether the render is in stereo.
+/// @return The kernel mode.
 [[nodiscard]] constexpr dsp::fixed::ModFx<dsp::fixed::CongNoise>::Mode mod_fx_mode(ModFXType type, bool stereo) {
 	using Mode = dsp::fixed::ModFx<dsp::fixed::CongNoise>::Mode;
 	switch (type) {
@@ -95,6 +100,7 @@ public:
 	using Kernel = dsp::fixed::ModFx<dsp::fixed::CongNoise>;
 
 	/// @brief Takes the allocator the ring comes from and goes back to.
+	/// @param allocator The allocator for the ring.
 	explicit ModFx(RingAllocator allocator);
 	/// @brief Frees the ring.
 	~ModFx();
@@ -103,23 +109,35 @@ public:
 
 	/// @brief Interaction tier, before the section: allocates and zeroes the ring @p type needs when none is held.
 	/// A failed allocation leaves no ring, and the type's effect then passes through.
+	/// @param type The mod FX type the owner is changing to.
+	/// @return The allocation made, for commit and finish.
 	[[nodiscard]] RingChange prepare(ModFXType type);
 	/// @brief Inside the owner's AudioExcludedSection: hands the kernel the acquired ring, or takes the held one back
 	/// when @p type needs none. An acquired ring is not taken while one is held: it moves to released.
+	/// @param type The mod FX type the owner is changing to.
+	/// @param change What prepare returned; receives the ring to free.
 	void commit(ModFXType type, RingChange& change);
 	/// @brief After the section: frees what commit took back, and an acquired ring commit did not take.
+	/// @param change What commit filled in.
 	void finish(RingChange& change);
 
 	/// @brief Render: the mod FX over @p block in place, multiplying @p post_fx_volume (Q31) by the type's gain
 	///        when a sound comes in and the type is an effect (not NONE or grain).
+	/// @param block The stereo block, processed in place.
+	/// @param in The type and knobs for this block.
+	/// @param post_fx_volume The owner's post-FX volume (Q31); scaled in place.
 	void render(std::span<dsp::StereoSample> block, const ModFxInputs& in, int32_t& post_fx_volume);
 	/// @brief Advances the LFO by @p frames at @p rate (UQ0.32 per frame) while the owner skips rendering.
+	/// @param frames How many frames to advance.
+	/// @param rate The LFO rate, UQ0.32 per frame.
 	void tick(int32_t frames, int32_t rate);
 	/// @brief Clears the ring when one is held and the owner is not in a soft off, otherwise the phaser's memories.
 	void clearMemory();
-	/// @return Whether a ring is held.
+	/// @brief Whether a ring is held.
+	/// @return True if a ring is held.
 	[[nodiscard]] bool holdsRing() const { return mono_.state().ring != nullptr; }
-	/// @return The kernel's state, for specs.
+	/// @brief The kernel's state, for specs.
+	/// @return The state.
 	[[nodiscard]] const Kernel::State& state() const { return mono_.state(); }
 
 private:
@@ -128,7 +146,7 @@ private:
 	std::optional<Kernel::Settings> settings_; ///< The last configured settings.
 	/// Whether the owner has rendered a type with no ring since the ring was last zeroed or handed over: set by such
 	/// a render, which includes a chain's soft off (the type unchanged, the ring kept), cleared by zeroing the ring or
-	/// by committing a freshly zeroed one. While set, the ring is treated as freed, as the old processor's was: a
+	/// by committing a freshly zeroed one. While set, the ring is treated as freed: a
 	/// ring type's render zeroes the ring first, and clearMemory clears the phaser's memories.
 	bool soft_off_ = false;
 };

@@ -23,23 +23,30 @@
 
 namespace deluge::project {
 
-/// Per-AudioClip descriptor records (M3 owner-4), owned by the persistent `project` tree and keyed by the clip's
-/// stable `Clip::id`. The audio-descriptor analogue of `ClipStructure`, held SEPARATELY from it (DocClip is shared
-/// with InstrumentClip; DocAudioClip is AudioClip-only). Because it is keyed by the serial id — not a `Clip*` or
-/// array index — it is unaffected by clip reorders.
+/// @brief Per-AudioClip descriptor records, owned by the persistent `project` tree and keyed by the clip's stable
+/// `Clip::id`.
+///
+/// The audio-descriptor analogue of `ClipStructure`, held separately from it (DocClip is shared with InstrumentClip;
+/// DocAudioClip is AudioClip-only). Because it is keyed by the serial id, not a `Clip*` or array index, it is
+/// unaffected by clip reorders.
 struct AudioClipStructure {
 	model_map<uint32_t, DocAudioClip> by_id;
 
-	/// The clip's DocAudioClip, or nullptr if this clip has no tree-resident record.
+	/// @brief Find the clip's record.
+	/// @param id The clip's stable `Clip::id`.
+	/// @return The clip's DocAudioClip, or nullptr if this clip has no tree-resident record.
 	DocAudioClip* find(uint32_t id) {
 		auto it = by_id.find(id);
 		return it == by_id.end() ? nullptr : &it->second;
 	}
 
-	/// The clip's DocAudioClip, creating an empty one if absent.
+	/// @brief Get the clip's record, creating an empty one if absent.
+	/// @param id The clip's stable `Clip::id`.
+	/// @return The clip's DocAudioClip.
 	DocAudioClip& getOrCreate(uint32_t id) { return by_id[id]; }
 
-	/// Drop the clip's record (on clip destruction).
+	/// @brief Drop the clip's record (on clip destruction).
+	/// @param id The clip's stable `Clip::id`.
 	void remove(uint32_t id) { by_id.erase(id); }
 };
 

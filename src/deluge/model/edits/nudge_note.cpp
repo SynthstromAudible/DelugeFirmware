@@ -15,7 +15,7 @@ Error NudgeNote::apply(Context& /*ctx*/) {
 	auto* clip = static_cast<InstrumentClip*>(engineStack_->getTimelineCounter());
 
 	// Shared NOTE_NUDGE Action: the first held pad's Edit opens it, subsequent pads coalesce into it via ALLOWED
-	// (matching the original, which created the Action once before its pad loop).
+	// (the caller applies one Edit per held pad).
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
 	if (action) {
 		action->offset = offset_;
@@ -29,7 +29,7 @@ Error NudgeNote::apply(Context& /*ctx*/) {
 		return error;
 	}
 
-	// Nudge automation + MPE at the NoteRow level (extends engineStack_ in place, as the original did).
+	// Nudge automation + MPE at the NoteRow level (extends engineStack_ in place).
 	{
 		ModelStackWithThreeMainThings* modelStackForNoteRow =
 		    engineStack_->addOtherTwoThingsAutomaticallyGivenNoteRow();
@@ -38,9 +38,9 @@ Error NudgeNote::apply(Context& /*ctx*/) {
 		    nudgeAutomation_, nudgeMPE_, distanceTilNext);
 	}
 
-	// Nudge automation + MPE at the Clip level. The original reused the caller's parent ModelStack here (its "a bit
-	// dodgy" comment) and so invalidated the caller's ModelStackWithNoteRow; build a fresh stack instead so the
-	// caller's stacks survive apply() unchanged.
+	// Nudge automation + MPE at the Clip level. Build a fresh stack rather than reusing the caller's parent
+	// ModelStack, which would invalidate the caller's ModelStackWithNoteRow; the caller's stacks survive apply()
+	// unchanged.
 	{
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =

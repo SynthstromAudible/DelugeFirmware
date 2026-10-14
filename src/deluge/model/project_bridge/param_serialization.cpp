@@ -41,7 +41,7 @@ using namespace deluge::project;
 
 namespace params = deluge::modulation::params;
 
-// --- Generic serialization (Phase 4) ---
+// --- Generic serialization ---
 
 void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutomation,
                        const int32_t* valueForOverride) {
@@ -427,7 +427,7 @@ void serializeMidiParams(const std::vector<DocMidiParam>& midiParams, Serializer
 
 DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos) {
 	// Reuse the engine's leaf parser (hex blob, node reading, back-compat) on a throwaway AutoParam, reading the
-	// nodes straight into a local DocAutoParam (M2-F: no AutoParam inline storage). readFromFile sets tmp's RT
+	// nodes straight into a local DocAutoParam (an AutoParam has no inline node storage). readFromFile sets tmp's RT
 	// cursor; the nodes land in `result`.
 	AutoParam tmp;
 	DocAutoParam result;
@@ -436,7 +436,7 @@ DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos) {
 	return result;
 }
 
-// --- DOM-native read of the owner param blocks (Phase 5b) ---
+// --- DOM-native read of the owner param blocks ---
 
 namespace {
 // Read one leaf into a live param + mark its automation flag (matching ParamSet::readParam). The leaf
@@ -447,7 +447,7 @@ void readLiveParam(Deserializer& in, ParamSet& set, ParamCollectionSummary& summ
 	// The live set holds the param at its runtime index, through its engine's map.
 	const int32_t p = *runtimeIndexOf(set.getParamKind(), id);
 	DocAutoParam doc = readDocAutoParam(in, readAutomationUpToPos);
-	// M2-F: land the value in the RT cursor and the nodes in the set's owner-resolved DOM store (not ownDoc_).
+	// Land the value in the RT cursor and the nodes in the set's owner-resolved DOM store.
 	fromDocAutoParam(doc, set.params[p].currentValue, set.docForParam(p)->nodes);
 	if (set.params[p].isAutomated(*set.docForParam(p))) {
 		set.paramHasAutomationNow(&summary, p);

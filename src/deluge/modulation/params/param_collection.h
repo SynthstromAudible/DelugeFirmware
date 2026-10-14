@@ -47,26 +47,41 @@ public:
 	ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary);
 	virtual ~ParamCollection();
 
-	/// M2-E: resolve the DOM node-store handle for the param identified by `paramId` (as carried on a
-	/// ModelStackWithAutoParam). Returns the owner's `DocParamSet` slot for a bound param, or the param's
-	/// `ownDocForFallback()` for an unbound one. Each concrete collection maps its own paramId -> store index.
+	/// @brief Resolve the DOM node-store handle for the param identified by @p paramId (as carried on a
+	///        ModelStackWithAutoParam).
+	///
+	/// Each concrete collection maps its own paramId to its store slot.
+	///
+	/// @param paramId The param id within this collection.
+	/// @return The param's node store; nullptr by default.
 	virtual deluge::project::DocAutoParam* docParamForId(int32_t paramId) { return nullptr; }
 
-	/// S5-b: does this collection resolve params against an EXTERNAL (project-tree) DOM store rather than its own
-	/// engine-inline storage? When true, reaching `docParamForId` is legitimate lazy create-on-demand INTO the tree
-	/// (a MIDI cc / patch cable not yet mirrored lands in the bound tree vector), NOT an engine fallback. The doc()
-	/// totality gate counts only the false case (an owner still on engine-inline storage). Default false.
+	/// @brief Whether this collection resolves params against an external (project-tree) DOM store rather than its
+	///        own engine-inline storage.
+	///
+	/// When true, reaching docParamForId is legitimate lazy create-on-demand into the tree (a MIDI cc / patch cable
+	/// not yet mirrored lands in the bound tree vector), not an engine fallback. The doc() totality gate counts only
+	/// the false case (an owner still on engine-inline storage).
+	///
+	/// @return True if bound to an external store; false by default.
 	[[nodiscard]] virtual bool domStoreIsExternal() const { return false; }
 
-	/// Deep-clone this collection into freshly-allocated memory (fallible; sets `result` on success). Each
-	/// concrete collection real-copy-constructs itself; copyAutomation=false drops automation (stripAutomation)
-	/// and reverseDirectionWithLength!=0 flatten-reverses it (flattenReverseAutomation).
+	/// @brief Deep-clone this collection into freshly-allocated memory (fallible).
+	///
+	/// Each concrete collection copy-constructs itself; @p copyAutomation false drops automation
+	/// (stripAutomation) and a nonzero @p reverseDirectionWithLength flatten-reverses it (flattenReverseAutomation).
+	///
+	/// @param result                     Set to the clone on success.
+	/// @param copyAutomation             Whether to keep the automation.
+	/// @param reverseDirectionWithLength Loop length to flatten-reverse within; 0 for no reversal.
+	/// @return Error::NONE on success, else the failure (e.g. Error::INSUFFICIENT_RAM).
 	virtual Error clone(ParamCollection*& result, bool copyAutomation,
 	                    int32_t reverseDirectionWithLength = 0) const = 0;
 
-	/// Empty every owned automation node vector (for a "copy structure, drop automation" clone). Default: no-op.
+	/// @brief Empty every owned automation node vector (for a "copy structure, drop automation" clone). Default: no-op.
 	virtual void stripAutomation() {}
-	/// Reverse every owned param's automation in place (flatten-reversing on clone). Default: no-op.
+	/// @brief Reverse every owned param's automation in place (flatten-reversing on clone). Default: no-op.
+	/// @param reverseDirectionWithLength The loop length to reverse within.
 	virtual void flattenReverseAutomation(int32_t reverseDirectionWithLength) {}
 
 	/// tick interpolation by a number of ticks

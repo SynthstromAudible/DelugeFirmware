@@ -63,12 +63,15 @@ public:
 	// Not including MPE params
 	inline bool containsAnyMainParamCollections() { return expressionParamSetOffset; }
 
-	/// Phase C (DOM single-store, Model A): borrow-point this manager's ParamSets — unpatched always, patched
-	/// if present, and expression (MPE) if present — at DOM-owned DocParamSets anchored on the sets. Idempotent.
-	/// Audio/kit clip-level managers bind their unpatched set only; synth/drum managers add patched (+ expression).
-	/// PRECONDITION: only call on a Sound / GlobalEffectable manager (summaries[0] is an UnpatchedParamSet).
-	/// A MIDI manager ALSO reports containsAnyMainParamCollections()==true but holds a MIDIParamCollection at
-	/// summaries[0] (not a ParamSet) — binding it would corrupt it. Callers gate on SYNTH/KIT clips + SoundDrum.
+	/// @brief Borrow-point this manager's ParamSets at DOM-owned DocParamSets anchored on the sets.
+	///
+	/// Binds unpatched always, patched if present, and expression (MPE) if present. Idempotent. Audio/kit
+	/// clip-level managers bind their unpatched set only; synth/drum managers add patched (+ expression).
+	///
+	/// @pre Only call on a Sound / GlobalEffectable manager (summaries[0] is an UnpatchedParamSet).
+	/// @warning A MIDI manager also reports containsAnyMainParamCollections()==true but holds a
+	///          MIDIParamCollection at summaries[0] (not a ParamSet) -- binding it would corrupt it. Callers gate
+	///          on SYNTH/KIT clips + SoundDrum.
 	void bindMainParamSetDomStores();
 
 	inline bool containsAnyParamCollectionsIncludingExpression() { return summaries[0].paramCollection; }
@@ -80,8 +83,11 @@ public:
 	void stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams = false);
 	Error cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation, bool cloneExpressionParams = false,
 	                                int32_t reverseDirectionWithLength = 0);
-	/// Reverse all collections' automation in place (used when a cloned NoteRow must flatten a reversed
-	/// sequence — the collections were copied reverse-agnostically). reverseDirectionWithLength is the loop length.
+	/// @brief Reverse all collections' automation in place.
+	///
+	/// Used when a cloned NoteRow must flatten a reversed sequence; the collections were copied
+	/// reverse-agnostically.
+	/// @param reverseDirectionWithLength The loop length.
 	void flattenReverseAutomation(int32_t reverseDirectionWithLength);
 	void forgetParamCollections();
 	void destructAndForgetParamCollections();

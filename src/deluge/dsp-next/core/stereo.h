@@ -35,6 +35,8 @@ namespace deluge::dsp {
 /// its two consecutive q31 samples, left first, which the layout assert in stereo_sample.h guarantees. The app's
 /// buffers are int32 storage, so no object of another type is created. A range that owns its storage must be an
 /// lvalue, since a view of a temporary would dangle.
+/// @param interleaved The interleaved samples, left first.
+/// @return A span of `size() / 2` frames over the same storage.
 template <std::ranges::contiguous_range R>
 requires std::same_as<std::remove_cvref_t<std::ranges::range_reference_t<R>>, q31> && std::ranges::sized_range<R>
          && (std::is_lvalue_reference_v<R> || std::ranges::borrowed_range<R>)
@@ -63,10 +65,12 @@ public:
 	using Base::Base;
 
 	/// @brief A snapshot of the left channel's state between blocks: lane 0's, by value, as @ref Lanes::state gives it.
+	/// @return The left channel's State.
 	[[nodiscard]] [[gnu::always_inline]] typename K::State left() const { return this->state(0); }
 
 	/// @brief A snapshot of the right channel's state between blocks: lane 1's, by value, as @ref Lanes::state gives
 	/// it.
+	/// @return The right channel's State.
 	[[nodiscard]] [[gnu::always_inline]] typename K::State right() const { return this->state(1); }
 };
 

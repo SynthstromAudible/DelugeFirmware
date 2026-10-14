@@ -38,9 +38,8 @@ Instrument::~Instrument() {
 }
 */
 
-// DO2: reseed this tier's two identity fields from the current native values. Called (via virtual dispatch, since
-// Output::seedDocOutputIdentity() is virtual) from adoptOutput's load-bridge seed and the clone/replace blocks in
-// song.cpp that bulk-copy fields between Outputs without going through a setter.
+// Called (via virtual dispatch, since Output::seedDocOutputIdentity() is virtual) from adoptOutput's load-bridge seed
+// and the clone/replace blocks in song.cpp that bulk-copy fields between Outputs without going through a setter.
 void Instrument::seedDocOutputIdentity() {
 	Output::seedDocOutputIdentity();
 	if (docOutput_ != nullptr) {
@@ -71,8 +70,8 @@ bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOn
 	// midi channels are always saved, either to the midi preset or the song
 	if (type == OutputType::MIDI_OUT) {
 		char const* slotXMLTag = getSlotXMLTag();
-		// DO3: read the DOM identity record's channel when bound (rebuild-at-save); fall back to the native field
-		// when unbound. Feed the record's channel into the same zone/internalDest/numeric branching (native and
+		// Read the identity record's channel when bound (rebuild-at-save); fall back to the native field when
+		// unbound. Feed the record's channel into the same zone/internalDest/numeric branching (native and
 		// record are always in sync when bound, since every write funnels through setChannel()).
 		int32_t channelToSave = docOutput_ != nullptr ? docOutput_->channel : ((NonAudioInstrument*)this)->getChannel();
 		if (((MIDIInstrument*)this)->sendsToMPE()) {
@@ -92,27 +91,26 @@ bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOn
 		}
 		char const* subSlotTag = getSubSlotXMLTag();
 		if (subSlotTag) {
-			// DO3: read the DOM identity record's channel_suffix when bound; fall back to the native field.
+			// Read the identity record's channel_suffix when bound; fall back to the native field.
 			writer.writeAttribute(subSlotTag, docOutput_ != nullptr ? docOutput_->channel_suffix
 			                                                        : ((MIDIInstrument*)this)->channelSuffix);
 		}
 	}
 	// saving song
 	if (!clipForSavingOutputOnly) {
-		// DO1: read the DOM identity record's name when bound (rebuild-at-save); fall back to the native field when
-		// unbound.
+		// Read the identity record's name when bound (rebuild-at-save); fall back to the native field when unbound.
 		bool hasPresetName = docOutput_ != nullptr ? !docOutput_->name.empty() : !name.empty();
 		if (hasPresetName) {
 			writer.writeAttribute("presetName", docOutput_ != nullptr ? docOutput_->name.c_str() : name.c_str());
 		}
 		if (type == OutputType::CV) {
 			char const* slotXMLTag = getSlotXMLTag();
-			// DO3: read the DOM identity record's channel when bound; fall back to the native field.
+			// Read the identity record's channel when bound; fall back to the native field.
 			writer.writeAttribute(slotXMLTag, docOutput_ != nullptr ? docOutput_->channel
 			                                                        : ((NonAudioInstrument*)this)->getChannel());
 		}
-		// DO2: read the DOM identity record's dir_path/default_velocity when bound (rebuild-at-save); fall back to the
-		// native field when unbound.
+		// Read the identity record's dir_path/default_velocity when bound (rebuild-at-save); fall back to the native
+		// field when unbound.
 		bool hasDirPath = docOutput_ != nullptr ? !docOutput_->dir_path.empty() : !dirPath.empty();
 		if (hasDirPath && (type == OutputType::SYNTH || type == OutputType::KIT)) {
 			writer.writeAttribute("presetFolder",

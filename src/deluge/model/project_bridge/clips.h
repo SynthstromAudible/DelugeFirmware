@@ -21,7 +21,7 @@
 
 namespace deluge::bridge {
 
-/// A song's clips: the session grid and the arrangement-only clips.
+/// @brief A song's clips: the session grid and the arrangement-only clips.
 struct Clips {
 	ClipArray session_clips;
 	ClipArray arrangement_only_clips;

@@ -18,8 +18,8 @@ public:
 
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		// M3 owner-4: interpolation is DOM-owned — funnel through the setter (record + render cache), not the cache
-		// ref.
+		// interpolation is DOM-owned: write it through the setter (records the edit and updates the render cache),
+		// not through the cache reference.
 		getCurrentAudioClip()->setInterpolationMode(getValue<InterpolationMode>());
 	}
 

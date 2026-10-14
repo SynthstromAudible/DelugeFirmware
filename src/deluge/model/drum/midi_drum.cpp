@@ -17,7 +17,7 @@
 
 #include "model/drum/midi_drum.h"
 #include "deluge-project/doc_drum.h"
-#include "foundation/panic.h" // FREEZE_WITH_ERROR (M3 owner-3 unbound-read guard)
+#include "foundation/panic.h" // FREEZE_WITH_ERROR (unbound-read guard)
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
@@ -33,8 +33,8 @@
 MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 }
 
-// M3 owner-3: read the note from the authoritative DOM record (the drum is bound before any read — adopt precedes tag
-// reads at load; runtime drums bind on addDrum). The ALPHA guard makes any stray unbound read fail loudly.
+// Reads the note from the authoritative DOM record (the drum is bound before any read — adopt precedes tag reads at
+// load; runtime drums bind on addDrum). The ALPHA guard makes any stray unbound read fail loudly.
 uint8_t MIDIDrum::note() const {
 	if (ALPHA_OR_BETA_VERSION && docDrum_ == nullptr) {
 		FREEZE_WITH_ERROR("Dr3T");
@@ -42,8 +42,8 @@ uint8_t MIDIDrum::note() const {
 	return docDrum_->note;
 }
 
-// M3 owner-3: the write funnel for the note — writes the authoritative `DocDrum::note` (the drum is bound before any
-// write). modChange writes `docDrum_->note` in place through a raw `uint8_t*`.
+// The write funnel for the note — writes the authoritative `DocDrum::note` (the drum is bound before any write).
+// modChange writes `docDrum_->note` in place through a raw `uint8_t*`.
 void MIDIDrum::setNote(uint8_t newNote) {
 	docDrum_->note = newNote;
 }
@@ -161,7 +161,7 @@ int8_t MIDIDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int
 
 	if ((getCurrentUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) && (currentUIMode == UI_MODE_AUDITIONING)) {
 		if (whichModEncoder == 1) {
-			// M3 owner-3: modChange writes the authoritative DOM scalar in place (`value` points at docDrum_->note).
+			// modChange writes the authoritative DOM scalar in place (`value` points at docDrum_->note).
 			modChange(modelStack, offset, &noteEncoderCurrentOffset, &docDrum_->note, 128);
 		}
 	}

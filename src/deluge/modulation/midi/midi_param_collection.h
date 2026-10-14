@@ -38,8 +38,12 @@ struct DocAutoParam;
 class MIDIParamCollection final : public ParamCollection {
 public:
 	MIDIParamCollection(ParamCollectionSummary* summary);
-	/// Copy (used by clone()) deep-copies `params` (and each embedded AutoParam, which becomes self-owning) and
-	/// leaves the clone UNBOUND (domStore_ null) — a cloned collection owns its nodes until separately bound.
+	/// @brief Copy constructor (used by clone()).
+	///
+	/// Deep-copies `params` (each MIDIParam with its inline nodes_, the tree's live nodes when the source is bound) and
+	/// leaves the clone unbound (domStore_ null): a cloned collection owns its nodes until separately bound.
+	///
+	/// @param other The collection to copy.
 	MIDIParamCollection(MIDIParamCollection const& other);
 	~MIDIParamCollection() override;
 	/// to avoid spamming midi we interpolate in ticks instead of in samples like internal synths. This is mostly
@@ -68,6 +72,7 @@ public:
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = true) override;
 	static int32_t autoparamValueToCC(int32_t newValue);
 
+	/// @copydoc ParamCollection::clone
 	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
 	void stripAutomation() override;
 	void flattenReverseAutomation(int32_t reverseDirectionWithLength) override;
@@ -85,42 +90,55 @@ public:
 
 	MIDIParamVector params;
 
-	/// Phase C (DOM single-store, Model A): borrow-point each present CC param's automation nodes at a DOM store
-	/// anchored on this (heap-stable) collection. Sized once to the current CC count; CCs learned LATER stay
-	/// unbound (self-owned) — the AutoParam's borrow travels through the MIDIParamVector's grow/relocation
-	/// (implicit move), so existing bindings stay valid. Idempotent.
+	/// @brief No-op: each CC's nodes live inline in its MIDIParam (see MIDIParam::nodes_), because the
+	///        MIDIParamVector reorders by CC and a positional shared store could not stay in sync.
+	// TODO: bindDomStore() does nothing and domStore() always returns nullptr; delete both and their callers.
 	void bindDomStore();
-	/// The bound DOM store, or nullptr if unbound. (Test / inspection accessor.)
+	/// @brief The bound DOM store (test / inspection accessor).
+	/// @return Always nullptr: this collection is never bound to a shared positional store.
 	deluge::project::DocParamSet* domStore();
 
-	/// S4c: bind this collection's CC automation to an external, identity-keyed (by cc) persistent store (the
-	/// clip's project-tree `DocParamManager::midi_params`). Once bound, docForParam resolves a CC's nodes from the
-	/// tree entry matching its cc — save + runtime edits share it — instead of the CC's inline `nodes_`. Matched by
-	/// identity, not index, so a newly-learned CC's reorder of the MIDIParamVector is transparent.
+	/// @brief Bind this collection's CC automation to an external, identity-keyed (by cc) persistent store (the
+	///        clip's project-tree `DocParamManager::midi_params`).
+	///
+	/// Once bound, docForParam resolves a CC's nodes from the tree entry matching its cc (save and runtime edits
+	/// share it) instead of the CC's inline `nodes_`. Matched by identity, not index, so a newly-learned CC's
+	/// reorder of the MIDIParamVector is transparent.
+	///
+	/// @param ext The project-tree CC store; non-owning, must outlive this collection.
 	void bindDomMidiExternal(std::vector<deluge::project::DocMidiParam>* ext) { domMidiRef_ = ext; }
-	/// The bound external CC store, or nullptr if unbound. (Test / inspection accessor.)
+	/// @brief The bound external CC store (test / inspection accessor).
+	/// @return The store, or nullptr if unbound.
 	std::vector<deluge::project::DocMidiParam>* domMidi() { return domMidiRef_; }
 	[[nodiscard]] bool domStoreIsExternal() const override { return domMidiRef_ != nullptr; }
 
+	/// @brief Resolve the node store of the CC at vector index @p i.
+	/// @param i Index into `params`.
+	/// @return The bound tree entry when bound to an external store, else the CC's inline `nodes_`.
 	deluge::project::DocAutoParam* docForParam(int32_t i);
+	/// @copydoc ParamCollection::docParamForId
+	/// @note The paramId is the CC number.
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override;
 
 private:
-	/// DOM-owned node store this collection's CC AutoParams borrow (nullptr = unbound). RAII-freed with the
-	/// collection (which is heap-allocated at a stable address, so the store address never moves).
+	/// DOM-owned node store (nullptr = unbound). RAII-freed with the collection.
 	std::unique_ptr<deluge::project::DocParamSet> domStore_;
 
-	/// S4c: external, identity-keyed (by cc) persistent CC store (the clip's project-tree `midi_params` vector), or
+	/// External, identity-keyed (by cc) persistent CC store (the clip's project-tree `midi_params` vector), or
 	/// nullptr when this collection resolves its CCs inline. Non-owning — the project tree owns it and outlives
 	/// this engine collection. See bindDomMidiExternal().
 	std::vector<deluge::project::DocMidiParam>* domMidiRef_ = nullptr;
 
-	/// S4c: the tree entry for `cc` in the bound external store, creating one (growable — the AutoParam is a pure
-	/// cursor holding no pointer into the store) if this is a runtime-learned CC not yet mirrored. PRECONDITION:
-	/// domMidiRef_ != nullptr.
+	/// @brief The tree entry for @p cc in the bound external store, created (growable; the AutoParam is a pure
+	///        cursor holding no pointer into the store) if this is a runtime-learned CC not yet mirrored.
+	/// @pre domMidiRef_ != nullptr.
+	/// @param cc The CC number.
+	/// @return The entry.
 	deluge::project::DocMidiParam& findOrCreateDomMidi(uint8_t cc);
-	/// S4c: the current nodes for `cc` in the bound external store, or nullptr if unbound or absent. Read-only
-	/// (used to copy live nodes when cloning a bound collection).
+	/// @brief The current nodes for @p cc in the bound external store; read-only use (copying live nodes when
+	///        cloning a bound collection).
+	/// @param cc The CC number.
+	/// @return The nodes, or nullptr if unbound or absent.
 	deluge::project::DocAutoParam* findDomMidiNodes(uint8_t cc) const;
 
 	void deleteAllParams(Action* action = NULL, bool deleteStorageToo = true);

@@ -79,10 +79,16 @@ inline constexpr std::array<engine::SettingInfo, 23> kEffectSettings{{
 }};
 
 /// @brief Whether @p value is one kEffectSettings allows at @p path.
+/// @param path  The setting's path in an owner's element.
+/// @param value The value to check.
+/// @return True if kEffectSettings holds @p path and allows @p value there.
 [[nodiscard]] bool check_effect_setting(std::string_view path, const serialization::Value& value);
 
 /// @brief Path @p path's value in @p states in an Edit's form (a sync level as the level itself), or nothing for a path
 /// kEffectSettings does not hold.
+/// @param states The effect settings to read.
+/// @param path   The setting's path in an owner's element.
+/// @return The value, or nullopt for a path kEffectSettings does not hold.
 [[nodiscard]] std::optional<serialization::Value> effect_setting_value(const EffectStates& states,
                                                                        std::string_view path);
 

@@ -27,29 +27,46 @@ class ParamManagerForTimeline;
 
 namespace deluge::bridge {
 
-/// Parked ParamManagers, keyed by (ModControllableAudio, Clip). When a Clip or ModControllable is not
-/// currently holding its ParamManager live, the manager is stashed here so its automation/state
-/// survives. An engine runtime cache, held by the engine Song (`::Song::live`).
+/// @brief Parked ParamManagers, keyed by (ModControllableAudio, Clip).
+///
+/// When a Clip or ModControllable is not currently holding its ParamManager live, the manager is stashed here so its
+/// automation/state survives. An engine runtime cache, held by the engine Song (`::Song::live`).
 ///
 /// The bulk-delete operations that cooperatively yield to the audio engine (`deleteBackedUpParamManagersForClip` and
 /// the two `deleteAll…`) are on the ::Song controller.
 struct ParamBackup {
 	deluge::fast_map<std::pair<ModControllableAudio*, Clip*>, ParamManager> map;
 
-	/// The backed-up ParamManager for exactly (modControllable, clip), or nullptr. If `stealInto` is
-	/// given, the entry's collections are moved into it and the entry erased.
+	/// @brief The backed-up ParamManager for exactly (modControllable, clip), or nullptr.
+	///
+	/// If @p stealInto is given, the entry's collections are moved into it and the entry erased.
+	/// @param modControllable The owner.
+	/// @param clip            The clip.
+	/// @param stealInto       Optional destination to move the entry's collections into.
+	/// @return The entry (or @p stealInto when stolen into), or nullptr if none.
 	ParamManager* getForExactClip(ModControllableAudio* modControllable, Clip* clip, ParamManager* stealInto = nullptr);
 
-	/// A backed-up ParamManager for `modControllable`, preferring the null-clip entry, then the exact
-	/// clip; nullptr if none. If `stealInto` is given, the entry is moved into it and erased.
+	/// @brief A backed-up ParamManager for @p modControllable: the entry for exactly @p clip if there is one, else the
+	///        owner's first entry (its null-clip entry when present).
+	///
+	/// If @p stealInto is given, the entry is moved into it and erased.
+	/// @param modControllable The owner.
+	/// @param clip            The clip whose own entry is preferred; may be null.
+	/// @param stealInto       Optional destination to move the entry into.
+	/// @return The entry (or @p stealInto when stolen into), or nullptr if none.
 	ParamManager* getPreferablyWithClip(ModControllableAudio* modControllable, Clip* clip,
 	                                    ParamManager* stealInto = nullptr);
 
-	/// Stash `paramManager` under (modControllable, clip), stealing its param collections.
+	/// @brief Stash @p paramManager under (modControllable, clip), stealing its param collections.
+	/// @param modControllable                The owner.
+	/// @param clip                           The clip.
+	/// @param paramManager                   The manager whose collections are stolen.
+	/// @param shouldStealExpressionParamsToo Whether to steal the expression params as well.
 	void backUp(ModControllableAudio* modControllable, Clip* clip, ParamManagerForTimeline* paramManager,
 	            bool shouldStealExpressionParamsToo = false);
 
-	/// Erase every entry belonging to `modControllable`.
+	/// @brief Erase every entry belonging to @p modControllable.
+	/// @param modControllable The owner.
 	void deleteForModControllable(ModControllableAudio* modControllable);
 };
 

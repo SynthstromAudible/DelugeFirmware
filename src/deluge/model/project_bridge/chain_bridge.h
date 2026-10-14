@@ -31,30 +31,46 @@ class Song;
 namespace deluge::bridge {
 
 /// @brief The ChainCodec the app gives the model: the effects library's chain codec.
+/// @return The codec.
 [[nodiscard]] const deluge::project::ChainCodec& chainCodec();
 
 /// @brief The owner whose effects @p address names (a kit, an audio output, or the song's global effectable), or null.
+/// @param address Which chain.
+/// @param song    The song to look in.
+/// @return The owner, or null if @p address names none.
 [[nodiscard]] ::GlobalEffectable* chainOwnerAt(deluge::project::ChainAddress address, ::Song& song);
 
 /// @brief The address of @p owner's chain in @p song, or nothing (a sound, or an owner not in the song).
+/// @param owner The effects owner.
+/// @param song  The song to look in.
+/// @return The chain's address, or nullopt.
 [[nodiscard]] std::optional<deluge::project::ChainAddress> chainAddressOf(const ::ModControllableAudio& owner,
                                                                           ::Song& song);
 
 /// @brief @p state as a chain record encodes it, at @p tick_magnitude: its effects and its view. The compressor
 /// threshold is the state's setting: a clip chain's render takes its threshold from its param each block, which the
 /// setting does not follow.
+/// @param state          The host chain state to encode.
+/// @param home           Whether the chain is a clip's or the master's.
+/// @param tick_magnitude The tick magnitude to write the slots at.
+/// @return The chain record.
 [[nodiscard]] deluge::project::FxChain encodeChainOf(const deluge::model::HostChainState& state,
                                                      deluge::project::ChainHome home, int32_t tick_magnitude);
 
 /// @brief What @p chain decodes to: each slot onto the default settings, at its own tick magnitude, then the view.
+/// @param chain The chain record.
+/// @return The decoded state.
 [[nodiscard]] deluge::model::HostChainState chainStateOf(const deluge::project::FxChain& chain);
 
 /// @brief After a song read: every kit's, audio track's and the master's chain record made from what the owner loaded
 /// (its element decoded onto the owner's defaults), then its state set from the record.
+/// @param song The song just read.
 void fillChains(::Song& song);
 
 /// @brief A host owner that joined or was rebuilt natively (adopted, created, cloned, a preset read over it): its chain
 /// record made from what it holds, then its state set from the record.
+/// @param output The host owner's output.
+/// @param song   The song it belongs to.
 void recordOutputChain(::Output& output, ::Song& song);
 
 } // namespace deluge::bridge

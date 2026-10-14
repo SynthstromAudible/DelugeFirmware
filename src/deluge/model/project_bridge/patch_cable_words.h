@@ -29,29 +29,55 @@
 namespace deluge::bridge {
 
 /// @brief The runtime's packed word of the cable from @p from to @p destination (its destination with its source).
+///
+/// @param from        The cable's source.
+/// @param destination The cable's destination descriptor.
+/// @return The packed cable word.
 [[nodiscard]] inline uint32_t cable_word(PatchSource from, ParamDescriptor destination) noexcept {
 	destination.addSource(from);
 	return destination.data;
 }
 
 /// @brief The depth id of the cable from @p from to @p destination.
+///
+/// @param from        The cable's source.
+/// @param destination The cable's destination descriptor.
+/// @return The cable's depth id.
 [[nodiscard]] inline deluge::engine::ParamId cable_depth(PatchSource from, ParamDescriptor destination) {
 	return cableDepthIdOf(cable_word(from, destination));
 }
 
+/// @brief The runtime source of a model patch cable.
+///
+/// @param cable The model cable.
+/// @return The cable's bottom-level source.
 [[nodiscard]] inline PatchSource source_of(const deluge::project::DocCable& cable) {
 	return ParamDescriptor(static_cast<int32_t>(cableWordOf(cable.depth))).getBottomLevelSource();
 }
 
+/// @brief The runtime destination descriptor of a model patch cable.
+///
+/// @param cable The model cable.
+/// @return The cable's destination.
 [[nodiscard]] inline ParamDescriptor destination_of(const deluge::project::DocCable& cable) {
 	return ParamDescriptor(static_cast<int32_t>(cableWordOf(cable.depth))).getDestination();
 }
 
+/// @brief The runtime polarity of a model patch cable.
+///
+/// @param cable The model cable.
+/// @return The cable's polarity.
 [[nodiscard]] constexpr Polarity polarity_of(const deluge::project::DocCable& cable) noexcept {
 	return static_cast<Polarity>(cable.polarity);
 }
 
 /// @brief A model patch cable from the runtime's words and its amount.
+///
+/// @param from        The cable's source.
+/// @param destination The cable's destination descriptor.
+/// @param polarity    The cable's polarity.
+/// @param amount      The cable's amount param.
+/// @return The model cable.
 [[nodiscard]] inline deluge::project::DocCable doc_cable(PatchSource from, ParamDescriptor destination,
                                                          Polarity polarity, deluge::project::DocAutoParam amount) {
 	return {.depth = cable_depth(from, destination),

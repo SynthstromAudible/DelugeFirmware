@@ -20,10 +20,12 @@
 
 namespace deluge::project {
 
-/// The DOM-owned save representation of one engine Note (M3 owner-2 Slice 2c). A flat mirror of the fields the
-/// note serializer emits. `iterance` is the packed `Iterance::toInt()` form (reconstruct via `Iterance::fromInt`
-/// on the engine side) so this header stays portable (no engine includes). Rebuilt from the engine note vector
-/// at save; the engine `Note` stays authoritative at runtime.
+/// @brief The DOM-owned save representation of one engine Note: a flat mirror of the fields the note serializer
+/// emits.
+///
+/// `iterance` is the packed `Iterance::toInt()` form (reconstruct via `Iterance::fromInt` on the engine side) so
+/// this header stays portable (no engine includes). Rebuilt from the engine note vector at save; the engine `Note`
+/// stays authoritative at runtime.
 struct DocNote {
 	int32_t pos{0};
 	int32_t length{0};

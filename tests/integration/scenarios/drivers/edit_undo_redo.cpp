@@ -1,4 +1,4 @@
-// Self-checking Edit undo/redo hook (M1d, docs/dev/project_model_migration_plan.md).
+// Self-checking Edit undo/redo hook.
 //
 //   edit_undo_redo <song.XML>
 //
@@ -10,7 +10,7 @@
 // Undo is feasible headless here (unlike edit_substrate's empty song): a loaded song has real clips, so getNewAction's
 // clip snapshot allocates and the Action opens; revert only MOVES Actions between queues (no consequence free ->
 // no audio-engine pump). recording=OFF so the pre-log opens the Action. Assertions compare currentValue + nodes,
-// NOT doc()->current_value (store-scalar undo is M3+).
+// NOT doc()->current_value (undo does not restore the store scalar).
 
 #include "deluge-project/doc_audio_clip.h"
 #include "deluge-project/param_address.h"
@@ -110,14 +110,14 @@ Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat format
 	song->paramManager.setupUnpatched();
 	GlobalEffectable::initParams(&song->paramManager);
 
-	// Load via the record-first Value tree (deserializer step 2b): parse the whole XML to a Value, then
+	// Load via the record-first Value tree: parse the whole XML to a Value, then
 	// replay it to readFromFile through ValueTreeDeserializer -- bit-identical to the streaming load.
 	std::optional<deluge::storage::Value> tree =
 	    parseDocument(std::string_view(reinterpret_cast<const char*>(xml), static_cast<size_t>(xmlLen)), format);
 	Error e = Error::FILE_CORRUPTED;
 	if (tree) {
 		deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(format));
-		activeReader = &adapter; // in-memory: gates the AudioEngine render off during load (as the stream path did)
+		activeReader = &adapter; // in-memory: gates the AudioEngine render off during load (as the stream path does)
 		e = openTreeFile(adapter, "song", format);
 		if (e == Error::NONE) {
 			e = deluge::bridge::loadSong(*song, adapter);
@@ -206,7 +206,7 @@ bool noteAtPos(NoteRow* noteRow, int32_t pos) {
 
 // Drive RemoveNote+undo/redo on a real note and AddNote+undo/redo re-inserting it into the (now clear) slot
 // with its own length — robust against attemptNoteAdd's overlap rules (no guessing a free pos). Shared by the
-// melodic (M2b) and kit (M2c) targets.
+// melodic and kit targets.
 void driveNoteEdits(Song* song, InstrumentClip* clip, NoteRow* noteRow, int32_t rowIndex, const char* label) {
 	char mem[MODEL_STACK_MAX_SIZE]{};
 	int32_t noteRowId = clip->getNoteRowId(noteRow, rowIndex);
@@ -249,7 +249,7 @@ bool clipIsAddressable(InstrumentClip* ic) {
 	return ic->id() != 0;
 }
 
-// M2b: first MELODIC (synth/MIDI) InstrumentClip note-row with a note.
+// First MELODIC (synth/MIDI) InstrumentClip note-row with a note.
 void noteTarget(Song* song) {
 	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips); c++) {
 		Clip* cl = song->live.clips.session_clips[c];
@@ -272,7 +272,7 @@ void noteTarget(Song* song) {
 	std::fprintf(io.out, "# no-addressable-melodic-notes\n");
 }
 
-// M2c: first KIT InstrumentClip SOUND-drum note-row with a note (row keyed by drum id).
+// First KIT InstrumentClip SOUND-drum note-row with a note (row keyed by drum id).
 void kitNoteTarget(Song* song) {
 	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips); c++) {
 		Clip* cl = song->live.clips.session_clips[c];
@@ -296,7 +296,7 @@ void kitNoteTarget(Song* song) {
 	std::fprintf(io.out, "# no-addressable-kit-notes\n");
 }
 
-// M2c: set a melodic note-row's independent length via SetNoteRowLength, undo/redo. ConsequenceNoteRowLength's
+// Set a melodic note-row's independent length via SetNoteRowLength, undo/redo. ConsequenceNoteRowLength's
 // revert re-resolves the clip via song->getCurrentClip(), so the harness sets the current clip first (the
 // coverage that lets these getCurrentClip-dependent ops be tested headless at all).
 void lengthTarget(Song* song) {
@@ -351,7 +351,7 @@ std::vector<int32_t> notePositions(NoteRow* nr) {
 	return v;
 }
 
-// M2c: shift a melodic note-row horizontally via ShiftNoteRow, undo/redo (position restoration is the invariant).
+// Shift a melodic note-row horizontally via ShiftNoteRow, undo/redo (position restoration is the invariant).
 void shiftTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
 	NoteRow* noteRow = nullptr;
@@ -402,7 +402,7 @@ void shiftTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
-// M2c: rebuild a melodic note-row as a Euclidean pattern via SetEuclideanEvents, undo/redo (the old note array is
+// Rebuild a melodic note-row as a Euclidean pattern via SetEuclideanEvents, undo/redo (the old note array is
 // stolen into the undo Consequence and restored). The view keeps its clamp/display; we feed already-clamped inputs.
 void euclideanTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
@@ -469,7 +469,7 @@ void euclideanTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
-// M2c: split one note in a square into two repeats via RepeatNoteEdit, undo/redo. We synthesise a single-screen
+// Split one note in a square into two repeats via RepeatNoteEdit, undo/redo. We synthesise a single-screen
 // square (wrapEditLevel == effectiveLength) around a note that has room after it, so the repeat adds exactly one
 // note (no cross-screen fan-out, no position collisions).
 void repeatTarget(Song* song) {
@@ -544,7 +544,7 @@ void repeatTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
-// M2c: nudge one note right by +1 via NudgeNote, undo/redo. We pick a note with a free slot at pos+1 (gap >= 2) and
+// Nudge one note right by +1 via NudgeNote, undo/redo. We pick a note with a free slot at pos+1 (gap >= 2) and
 // one screen (wrapEditLevel == effectiveLength) so exactly that note moves.
 void nudgeTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
@@ -612,7 +612,7 @@ void nudgeTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
-// M2d pilot: shift a whole clip horizontally via ShiftClip, undo/redo (position restoration is the invariant). The
+// Shift a whole clip horizontally via ShiftClip, undo/redo (position restoration is the invariant). The
 // clip-tier twin of shiftTarget; exercises ClipAddress + clipAddressFor.
 void clipShiftTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
@@ -671,7 +671,7 @@ int32_t totalNotes(InstrumentClip* ic) {
 	return total;
 }
 
-// M2d: clear a whole clip via ClearClip, undo/redo (note count 0 after clear, restored after undo).
+// Clear a whole clip via ClearClip, undo/redo (note count 0 after clear, restored after undo).
 void clipClearTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
 	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
@@ -714,7 +714,7 @@ void clipClearTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
-// M2d: double a clip's length (duplicating content) via MultiplyClip, undo/redo.
+// Double a clip's length (duplicating content) via MultiplyClip, undo/redo.
 void clipMultiplyTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
 	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
@@ -762,7 +762,7 @@ void clipMultiplyTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
-// M2d: set the song-global swing amount via SetSwing, undo/redo. Every song has a groove, so this always runs.
+// Set the song-global swing amount via SetSwing, undo/redo. Every song has a groove, so this always runs.
 void swingTarget(Song* song) {
 	std::fprintf(io.out, "# target swing\n");
 	int8_t before = song->project.groove.swing_amount;
@@ -780,7 +780,7 @@ void swingTarget(Song* song) {
 	check(song->project.groove.swing_amount == target, "swing: redo re-applies");
 }
 
-// M2d: set a clip's loop length via SetClipLength (mutation-only Edit; the harness supplies the Action the way the
+// Set a clip's loop length via SetClipLength (mutation-only Edit; the harness supplies the Action the way the
 // call site's action-management would), undo/redo.
 void clipLengthTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
@@ -816,8 +816,7 @@ void clipLengthTarget(Song* song) {
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "set-length: apply succeeds");
 	check(clip->loopLength() == newLength, "set-length: length set");
 
-	// M3 owner-1 slice 1: the additive DOM shadow store matches the engine field after the dual-write. (The shadow is
-	// intentionally NOT reverted on undo — nothing reads it yet; shadow undo lands with the later read/save/load flip.)
+	// The DocClip holds the length the accessor returns.
 	std::optional<deluge::project::ClipAddress> clipAddr = deluge::edits::clipAddressFor(*clip);
 	check(clipAddr.has_value(), "set-length: clip is addressable (for the shadow store)");
 	if (clipAddr) {
@@ -833,7 +832,7 @@ void clipLengthTarget(Song* song) {
 	actionLogger.revert(AFTER, false, false);
 	check(clip->loopLength() == newLength, "set-length: redo re-applies");
 
-	// M3 owner-1 slice 3b (READ FLIP): the clip is now bound to its DOM record. Poke the DocClip directly (bypassing
+	// The clip is bound to its DOM record. Poke the DocClip directly (bypassing
 	// setLoopLength) and confirm loopLength() reflects it — proving the read resolves through the DOM store, not the
 	// engine field. (loopLength_ is still newLength here, so a different result can only come from the DOM.)
 	deluge::project::DocClip* boundDoc = song->project.resolveClip(*clipAddr);
@@ -847,11 +846,11 @@ void clipLengthTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
-// A0 (task-A0-brief.md): AudioClip end-marker drag, guarding ConsequenceClipLength's marker-revert path ahead of
-// Phase A's rewrite. Unlike clipLengthTarget (InstrumentClip, excludes AUDIO), an AudioClip end-marker drag also
+// AudioClip end-marker drag, guarding ConsequenceClipLength's marker-revert path.
+// Unlike clipLengthTarget (InstrumentClip, excludes AUDIO), an AudioClip end-marker drag also
 // mutates sampleHolder.endPos directly and back-patches the Consequence's marker discriminator (audioClip + marker) /
-// markerValueToRevertTo -- replicating AudioClipView::changeUnderlyingSampleLength exactly
-// (audio_clip_view.cpp:635-654), which is private and not otherwise reachable from here.
+// markerValueToRevertTo -- replicating AudioClipView::changeUnderlyingSampleLength exactly, which is private and not
+// otherwise reachable from here.
 //
 // "Loaded sample" here means the clip's DocAudioClip/sampleHolder descriptor references a sample file (filePath
 // set, so startPos/endPos are real parsed values, not just-constructed zeros) -- NOT that the underlying WAV was
@@ -869,7 +868,7 @@ void audioClipMarkerTarget(Song* song) {
 		}
 		auto* ac = (AudioClip*)cl;
 		// A sample-referencing, forward-playing clip: reversed clips drag sampleHolder.startPos instead, and this
-		// target asserts endPos specifically (matching the brief's exact assertion). Mirrors clipLengthTarget's
+		// target asserts endPos specifically. Mirrors clipLengthTarget's
 		// kMaxSequenceLength guard (this target always lengthens -- see the newLength comment below).
 		if (ac->sampleHolder.filePath.empty() || ac->sampleControls.isCurrentlyReversed()) {
 			continue;
@@ -954,8 +953,8 @@ void audioClipMarkerTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
-// A6 (task-A6-brief.md): AudioClip set-sample undo, guarding ConsequenceAudioClipSetSample::revert's model-setter
-// routing (setSampleFilePath/setSampleEndPos) added ahead of Phase A's rework.
+// AudioClip set-sample undo, guarding ConsequenceAudioClipSetSample::revert's model-setter
+// routing (setSampleFilePath/setSampleEndPos).
 //
 // revert() unconditionally runs those two setters, then branches: filePathToRevertTo.empty() skips loadFile()
 // entirely, but the non-empty branch calls sampleHolder.loadFile() -- which needs a real file on disk. As
@@ -967,7 +966,7 @@ void audioClipMarkerTarget(Song* song) {
 // filePath/endPos, then set them) -- i.e. simulate "a sample got set onto a blank clip". Undoing that action makes
 // filePathToRevertTo == "" at revert time, landing in the empty branch, which still round-trips filePath/endPos
 // through setSampleFilePath/setSampleEndPos back to docAudioClip_ + sampleHolder. That's a genuine regression
-// guard on the reworked revert: if the setter routing broke (e.g. reverted to the wrong record, or stopped writing
+// guard on the revert: if the setter routing broke (e.g. reverted to the wrong record, or stopped writing
 // docAudioClip_), this fails.
 void audioClipSetSampleTarget(Song* song) {
 	AudioClip* clip = nullptr;
@@ -1024,7 +1023,7 @@ void audioClipSetSampleTarget(Song* song) {
 	check(clip->docAudioClip_->end_pos == oldEndPos, "set-sample: undo restores endPos (docAudioClip_ round-trip)");
 }
 
-// M2d: set the song tempo via SetTempo (the grab-from-clip structural path), undo/redo. Song-global, always runs.
+// Set the song tempo via SetTempo (the grab-from-clip structural path), undo/redo. Song-global, always runs.
 void tempoTarget(Song* song) {
 	std::fprintf(io.out, "# target tempo\n");
 	uint64_t before = song->project.transport.samples_per_timer_tick_big;
@@ -1043,7 +1042,7 @@ void tempoTarget(Song* song) {
 	check(song->project.transport.samples_per_timer_tick_big != before, "tempo: redo re-applies");
 }
 
-// M2d: paste one synthetic copied note into an empty target row via PasteNoteRow, undo/redo. paste() records into the
+// Paste one synthetic copied note into an empty target row via PasteNoteRow, undo/redo. paste() records into the
 // shared Action; the copy buffer is view state, so we build a minimal CopiedNoteRow here.
 void pasteTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
@@ -1123,7 +1122,7 @@ int32_t drumCount(Kit* kit) {
 	return n;
 }
 
-// M2e: add a GATE drum + row via AddKitRow (apply-only — non-undoable by design).
+// Add a GATE drum + row via AddKitRow (apply-only — non-undoable by design).
 void kitAddTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
 	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
@@ -1159,7 +1158,7 @@ void kitAddTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
-// M2e: delete a SOUND-drum kit row via RemoveKitRow (apply-only — non-undoable by design).
+// Delete a SOUND-drum kit row via RemoveKitRow (apply-only — non-undoable by design).
 void kitRemoveTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
 	SoundDrum* drum = nullptr;
@@ -1199,7 +1198,7 @@ void kitRemoveTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
-// M2f: change an arrangement clip-instance's length via EditClipInstance, undo/redo (reuses
+// Change an arrangement clip-instance's length via EditClipInstance, undo/redo (reuses
 // ConsequenceClipInstanceChange). Skips songs with no arrangement clip instances.
 void arrangementTarget(Song* song) {
 	Output* output = nullptr;
@@ -1245,7 +1244,7 @@ InstrumentClip* firstAddressableClip(Song* song) {
 	return nullptr;
 }
 
-// M3 owner-1 slice 2: set a clip's launch style via SetClipLaunchStyle (apply-only, non-undoable) + shadow check.
+// Set a clip's launch style via SetClipLaunchStyle (apply-only, non-undoable) + shadow check.
 void launchStyleTarget(Song* song) {
 	InstrumentClip* clip = firstAddressableClip(song);
 	if (clip == nullptr) {
@@ -1265,7 +1264,7 @@ void launchStyleTarget(Song* song) {
 	check(doc != nullptr && doc->launch_style == target, "launch-style: DocClip matches accessor");
 }
 
-// M3 owner-1 slice 2: nudge a clip's colour via SetClipColour (apply-only, non-undoable) + shadow check.
+// Nudge a clip's colour via SetClipColour (apply-only, non-undoable) + shadow check.
 void colourTarget(Song* song) {
 	InstrumentClip* clip = firstAddressableClip(song);
 	if (clip == nullptr) {
@@ -1284,7 +1283,7 @@ void colourTarget(Song* song) {
 	check(doc != nullptr && doc->colour_offset == clip->colourOffset(), "colour: DocClip matches accessor");
 }
 
-// Plan A: after load + assignSessionIds + the M3 load-binding pass, EVERY clip is id-addressable and bound to a
+// After load + assignMissingIds + the load-binding pass, EVERY clip is id-addressable and bound to a
 // DocClip.
 void universalIdsTarget(Song* song) {
 	std::fprintf(io.out, "# target universal-ids\n");
@@ -1309,7 +1308,7 @@ void universalIdsTarget(Song* song) {
 	check(bound == clips, "universal-ids: EVERY clip is bound to a DocClip (load flip is total)");
 }
 
-// M3 owner-1 slice 2b: set a clip's section via SetClipSection (apply-only, non-undoable) + shadow check.
+// Set a clip's section via SetClipSection (apply-only, non-undoable) + shadow check.
 void sectionTarget(Song* song) {
 	InstrumentClip* clip = firstAddressableClip(song);
 	if (clip == nullptr) {
@@ -1383,8 +1382,8 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 		actionLogger.firstAction[BEFORE]->openForAdditions = false;
 	}
 
-	// Target 2 — first synth/kit InstrumentClip's unpatched param (OwnerId::instrument[Session]()). S5-b's
-	// post-load relocation mints session ids and moves clip-level instrument params into the tree, so a freshly
+	// Target 2 — first synth/kit InstrumentClip's unpatched param (OwnerId::instrument[Session]()). The
+	// post-load relocation gives owners durable ids and moves clip-level instrument params into the tree, so a freshly
 	// loaded (never-saved) song resolves them. Defensive: skip if no such clip, or if no unpatched param on it
 	// resolves to a live instrument address (still nothing to assert then; song-global is the guaranteed coverage).
 	{

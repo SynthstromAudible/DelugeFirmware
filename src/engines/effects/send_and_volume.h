@@ -41,15 +41,21 @@ struct SendAndVolumeParams {
 class SendAndVolume {
 public:
 	/// @brief Ramps first from @p last_post_reverb_volume; -1 is "unset", which prime() fills in.
+	/// @param last_post_reverb_volume The volume to ramp from, Q31, or -1 for unset.
 	constexpr explicit SendAndVolume(int32_t last_post_reverb_volume = 0)
 	    : last_post_reverb_volume_{last_post_reverb_volume} {}
 
 	/// @brief Adds the send to @p reverb and applies the volumes to @p block in place; returns whether anything was
 	/// sent (the engine notes when reverb last ran).
+	/// @param block  The frames to apply the volumes to, in place.
+	/// @param reverb The reverb input the send is added to, one value per frame of @p block.
+	/// @param params The block's volumes, send and pan.
+	/// @return True if anything was sent to the reverb.
 	[[nodiscard]] bool process(std::span<dsp::StereoSample> block, std::span<int32_t> reverb,
 	                           const SendAndVolumeParams& params);
 
 	/// @brief Before a first block: ramp from @p post_reverb_volume, if nothing has been ramped from yet.
+	/// @param post_reverb_volume The volume to ramp from, Q31.
 	void prime(int32_t post_reverb_volume) {
 		if (last_post_reverb_volume_ == -1) {
 			last_post_reverb_volume_ = post_reverb_volume;

@@ -101,10 +101,11 @@ public:
 	Error readFromFile(Deserializer& reader, Song* song) override;
 	void writeDataToFile(Serializer& writer, Song* song) override;
 
-	/// M3 owner-4: seed the engine runtime cache from the authoritative DocAudioClip. Called at
-	/// construction (model defaults) and after the DOM-first load parse. Seeds the sampleHolder + SampleControls caches
-	/// (the DOM-owned cold scalars attack/voice_priority have no cache — they read the record directly). Self-guards on
-	/// a null docAudioClip_.
+	/// @brief Seed the engine runtime cache from the authoritative DocAudioClip.
+	///
+	/// Called at construction (model defaults) and after the DOM-first load parse. Seeds the sampleHolder +
+	/// SampleControls caches (the DOM-owned cold scalars attack/voice_priority have no cache; they read the record
+	/// directly). Does nothing when docAudioClip_ is null.
 	void deriveEngineFromDoc();
 	char const* getXMLTag() override { return "audioClip"; }
 	int32_t nextSampleRestartPos{};
@@ -122,54 +123,84 @@ public:
 	// TODO: For looping without monitoring we'll need a second recorder plus maybe a second sample player?
 	SampleRecorder* recorder; // Will be set to NULL right at the end of the loop's recording, even though the
 	                          // SampleRecorder itself will usually persist slightly longer
-	/// M3 owner-4: attack is DOM-owned (`docAudioClip_->attack`); the native engine field is retired. A cold field —
-	/// read only at note-on/per-render-block envelope setup (AudioOutput::resetEnvelope +
-	/// renderGlobalEffectableForClip) and save — so the accessor reads the record directly rather than keeping a
+	/// @brief Attack, DOM-owned (`docAudioClip_->attack`).
+	///
+	/// A cold field, read only at note-on/per-render-block envelope setup (AudioOutput::resetEnvelope +
+	/// renderGlobalEffectableForClip) and save, so the accessor reads the record directly rather than keeping a
 	/// derived cache.
+	/// @return The attack value held in the record.
 	int32_t attack() const;
+	/// @brief Set the attack in the record.
+	/// @param value New attack value.
 	void setAttack(int32_t value);
 
-	/// M3 owner-4: voice priority is DOM-owned (`docAudioClip_->voice_priority`); the native engine field is retired.
-	/// A cold field — read only at voice-cull time (getCullImmunity) and save — so the accessor reads the record
+	/// @brief Voice priority, DOM-owned (`docAudioClip_->voice_priority`).
+	///
+	/// A cold field, read only at voice-cull time (getCullImmunity) and save, so the accessor reads the record
 	/// directly rather than keeping a derived cache. Written by the menu via the priority.h by-value seam.
+	/// @return The voice priority held in the record.
 	VoicePriority voicePriority() const;
+	/// @brief Set the voice priority in the record.
+	/// @param value New voice priority.
 	void setVoicePriority(VoicePriority value);
 
-	/// M3 owner-4: the SampleControls descriptor fields (interpolation / pitch-speed-independence / reversed) are
-	/// DOM-owned (`docAudioClip_->{interpolation_mode,pitch_and_speed_independent,reversed}`). Unlike the cold scalars
-	/// these are HOT — read per render sample via `sampleControls` — so `sampleControls` is retained as a derived
-	/// cache: the record is authoritative (save reads it, load seeds the cache in deriveEngineFromDoc), and every
-	/// write goes through these setters which update the record AND re-seed the cache. `sampleControls.invertReversed`
-	/// is pure runtime playback state and has no record slot. Menu writes funnel here via the sample/utils by-value
-	/// seam; render/read sites keep reading `sampleControls` directly.
+	/// @name SampleControls descriptor setters
+	/// The descriptor fields (interpolation / pitch-speed-independence / reversed) are DOM-owned
+	/// (`docAudioClip_->{interpolation_mode,pitch_and_speed_independent,reversed}`). Unlike the cold scalars these
+	/// are HOT (read per render sample via `sampleControls`), so `sampleControls` is a derived cache: the record is
+	/// authoritative (save reads it, load seeds the cache in deriveEngineFromDoc), and every write goes through these
+	/// setters, which update the record AND re-seed the cache. `sampleControls.invertReversed` is pure runtime
+	/// playback state and has no record slot. Menu writes funnel here via the sample/utils by-value seam; render/read
+	/// sites keep reading `sampleControls` directly.
+	/// @{
+	/// @brief Set the interpolation mode.
+	/// @param mode New interpolation mode.
 	void setInterpolationMode(InterpolationMode mode);
+	/// @brief Set whether pitch and speed are independent.
+	/// @param independent True for independent pitch and speed.
 	void setPitchAndSpeedIndependent(bool independent);
+	/// @brief Set whether playback is reversed.
+	/// @param reversed True for reversed playback.
 	void setReversed(bool reversed);
+	/// @}
 
-	/// M3 owner-4 prep (task A1): sampleHolder/overdubs model setters. These write `docAudioClip_->*` AND the engine
-	/// cache (sampleHolder / overdubsShouldCloneOutput) but do NOT perform a reload — callers that need a reload
-	/// (e.g. re-pointing the sample) keep doing that themselves; this only adds the record write. Not yet called
-	/// anywhere (behavior-neutral until a later task wires call sites).
+	/// @name sampleHolder / overdubs model setters
+	/// Each writes `docAudioClip_->*` AND the engine cache (sampleHolder / overdubsShouldCloneOutput) but does NOT
+	/// perform a reload: callers that need a reload (e.g. re-pointing the sample) do that themselves.
+	/// @{
+	/// @brief Set the sample start position.
+	/// @param value Start position, in samples.
 	void setSampleStartPos(uint64_t value);
+	/// @brief Set the sample end position.
+	/// @param value End position, in samples.
 	void setSampleEndPos(uint64_t value);
+	/// @brief Set the sample file path.
+	/// @param value Null-terminated path.
 	void setSampleFilePath(const char* value);
+	/// @brief Set the sample transpose.
+	/// @param value Transpose, in semitones.
 	void setSampleTranspose(int32_t value);
+	/// @brief Set the sample fine tune.
+	/// @param value Fine tune, in cents.
 	void setSampleCents(int32_t value);
+	/// @brief Set whether overdubbing clones the output.
+	/// @param value True to clone the output on overdub.
 	void setOverdubsShouldCloneOutput(bool value);
+	/// @}
 
-	/// M3 owner-4: reflect the resolved sample window (file_path/start_pos/end_pos) from the engine cache into the
-	/// record at the completion of a sample-load gesture (browser claim, linear-recording finish). This is the
-	/// targeted inverse of `deriveEngineFromDoc` for the load-derived window: `loadFile`/`setAudioFile` set those
-	/// three on the `sampleHolder` cache but never touch `docAudioClip_`, so without this the record would drift and
-	/// save (which reads the record since `syncDocAudioClip` was deleted) would persist a stale/empty sample. Matches
-	/// exactly what the retired `syncDocAudioClip` wrote for these three fields. Guarded on `docAudioClip_`.
+	/// @brief Reflect the resolved sample window (file_path/start_pos/end_pos) from the engine cache into the record.
+	///
+	/// Call at the completion of a sample-load gesture (browser claim, linear-recording finish). It is the targeted
+	/// inverse of `deriveEngineFromDoc` for the load-derived window: `loadFile`/`setAudioFile` set those three on the
+	/// `sampleHolder` cache but never touch `docAudioClip_`, so without this the record would drift and save (which
+	/// reads the record) would persist a stale/empty sample. Does nothing when `docAudioClip_` is null.
 	void syncSampleRecordFromEngine();
 
-	/// M3 owner-4: this AudioClip's DOM-owned descriptor record, held in the project's `audio_clip_structure` keyed
-	/// by id(). Bound in the AudioClip ctor under the clip's durable id (mirroring how the Clip base ctor binds
-	/// `docClip_`); erased in ~AudioClip. The load path parses into it and derives the engine cache
-	/// (deriveEngineFromDoc); all persistent fields read it directly and the save path (writeDataToFile) reads it
-	/// straight — owner-4 complete, no engine→record rebuild remains.
+	/// @brief This AudioClip's DOM-owned descriptor record, held in the project's `audio_clip_structure` keyed by id().
+	///
+	/// Bound in the AudioClip ctor under the clip's durable id (as the Clip base ctor binds `docClip_`); erased in
+	/// ~AudioClip. The load path parses into it and derives the engine cache (deriveEngineFromDoc); all persistent
+	/// fields read it directly, and the save path (writeDataToFile) reads it straight.
 	deluge::project::DocAudioClip* docAudioClip_{nullptr};
 	void bindDocAudioClip(deluge::project::DocAudioClip* d) { docAudioClip_ = d; }
 

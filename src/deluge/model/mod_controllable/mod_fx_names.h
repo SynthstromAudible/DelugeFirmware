@@ -25,14 +25,20 @@
 /// @brief The mod FX types' and their knobs' display names, for the menus and the OLED.
 namespace modfx {
 
-/// @return Each mod FX type's name, indexed by its ModFXType value.
+/// @brief Each mod FX type's name.
+/// @return The names, indexed by ModFXType value.
 deluge::vector<std::string_view> getModNames();
 
-/// @return The name of @p type's knob @p param: the grain names its knobs apart from the delay-line types.
+/// @brief The name of @p type's knob @p param: the grain names its knobs apart from the delay-line types.
+/// @param type      The mod FX type.
+/// @param param     The knob to name.
 /// @param shortName Whether to give the short form, for a column label.
+/// @return The knob's name.
 const char* getParamName(ModFXType type, ModFXParam param, bool shortName = false);
 
-/// @return @p type's name.
+/// @brief @p type's name.
+/// @param type The mod FX type.
+/// @return The type's name.
 const char* modFXToString(ModFXType type);
 
 } // namespace modfx

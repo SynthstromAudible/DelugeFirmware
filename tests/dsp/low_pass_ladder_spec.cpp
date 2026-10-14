@@ -16,7 +16,7 @@
  */
 
 // LowPassLadder: the transistor-ladder low-pass as a processor kernel, `Mono` and `Stereo`, with its noise a policy.
-// Against the verbatim reference (reference_filters.h) over every ladder workload (filter_workloads.h): each block's
+// Against the reference (reference_filters.h) over every ladder workload (filter_workloads.h): each block's
 // output, the gain, the CONG draws (count and end state per block) and the whole state, at block lengths cycling 1–9,
 // 24, 64 and 128, and what it renders must equal the record. Every mode change between the four modes carries the
 // state, and a seeded stream shows the draws are left before right in every frame.

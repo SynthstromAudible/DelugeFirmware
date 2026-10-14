@@ -65,9 +65,8 @@ void Source::bindState(deluge::instrument::SourceState* d) {
 	seedDocRanges();
 }
 
-// Copy the DOM-owned scalars native->record (guarded). Load-bridge: run at bind and re-run at doneReadingFromFile (a
-// SoundDrum binds before its fields are parsed, so the bind-time seed is stale for drums). dxPatch + ranges are later
-// slices — not seeded here.
+// Copy the DOM-owned scalars native->record. Run at bind and again at doneReadingFromFile (a SoundDrum binds before
+// its fields are parsed, so the bind-time seed is stale for drums). dxPatch and ranges are seeded separately.
 void Source::seedScalarsInto(deluge::instrument::SourceState& d) const {
 	d.osc_type = oscType;
 	d.transpose = transpose;
@@ -246,7 +245,7 @@ void Source::setReversed(bool newReversed) {
 			holder->claimClusterReasons(sampleControls.isCurrentlyReversed());
 		}
 	}
-	// M3 owner-5: the endPos fixups above changed range zones — reflect into the record
+	// The endPos fixups above changed range zones: reflect them into the record.
 	seedDocRanges();
 }
 
@@ -289,8 +288,8 @@ MultiRange* Source::getOrCreateFirstRange() {
 		}
 
 		newRange->topNote = 32767;
-		// M3 owner-5: the range collection just grew from empty — reflect into the record. Self-guards when unbound
-		// (e.g. a Source being built before adoption); bind/doneReadingFromFile will seed it later in that case.
+		// The range collection just grew from empty: reflect it into the record. Self-guards when unbound (e.g. a
+		// Source being built before adoption); bind/doneReadingFromFile seed it later in that case.
 		seedDocRanges();
 		return newRange;
 	}
@@ -402,9 +401,9 @@ doChangeType:
 		ensureDxPatch();
 	}
 	seedDocDxPatch(); // reflect the (possibly newly-created) patch into the record
-	// M3 owner-5: changeType() (above, when the element size actually changed) rebuilds every range as the new
-	// variant type, preserving only topNote — reflect the whole list into the record. Also covers the
-	// getOrCreateFirstRange() insert-from-empty path (redundant with its own reseed, but harmless).
+	// changeType() (above, when the element size actually changed) rebuilds every range as the new variant type,
+	// preserving only topNote: reflect the whole list into the record. Also covers the getOrCreateFirstRange()
+	// insert-from-empty path (redundant with its own reseed, but harmless).
 	seedDocRanges();
 }
 

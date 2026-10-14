@@ -295,11 +295,14 @@ private:
 	void prepareToEnterKitMode(Song* song);
 	Error readMIDIParamsFromFile(Deserializer& reader, int32_t readAutomationUpToPos);
 
-	/// M3 owner-2 (dual-write phase): create a fresh DocNoteRow in this clip's DocClip.note_rows pool, seed it from
-	/// the engine row's current scalar fields, and bind the row to it. No-op if the clip isn't DOM-bound. Called at
-	/// every note-row create/clone/load site; nothing reads the shadow yet.
+	/// @brief Create a fresh DocNoteRow in this clip's DocClip.note_rows pool, seed it from the engine row's current
+	///        scalar fields, and bind the row to it.
+	///
+	/// No-op if the clip isn't DOM-bound. Called at every note-row create/clone/load site.
+	/// @param nr The engine note row to bind.
 	void bindNoteRowStructure(NoteRow& nr);
-	/// M3 owner-2 slice 2a: erase a removed engine row's DocNoteRow from the DocClip pool and clear its back-pointer.
+	/// @brief Erase a removed engine row's DocNoteRow from the DocClip pool and clear its back-pointer.
+	/// @param nr The engine note row being removed.
 	void unbindNoteRowStructure(NoteRow& nr);
 
 	bool lastProbabilities[kNumProbabilityValues]{};

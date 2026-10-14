@@ -74,7 +74,7 @@ Song* freshSong() {
 	return song;
 }
 
-/// One sound of the document: what to call it, the sound, its element as the app writes it now, and the element it
+/// One sound of the document: what to call it, the sound, its element as the app writes it, and the element it
 /// was read from.
 struct SoundEntry {
 	std::string name;
@@ -193,7 +193,7 @@ std::string valueAt(const Value& tree, std::string_view path) {
 	return node != nullptr && node->isScalar() ? node->str() : std::string("(none)");
 }
 
-/// The state today's reader left in @p sound.
+/// The state the app's reader left in @p sound.
 deluge::instrument::SoundState loadedState(Sound& sound) {
 	return sound.boundState() != nullptr ? *sound.boundState() : sound.seededState();
 }

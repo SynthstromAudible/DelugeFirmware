@@ -59,7 +59,7 @@ static void check(bool ok, const char* what) {
 	}
 }
 
-// Option I (Slice K): a clone's DOM store carries the source's authoritative current_value verbatim (ParamSet
+// A clone's DOM store carries the source's authoritative current_value verbatim (ParamSet
 // copy-ctor deep-copies domStore_), and its engine cursors are copied too — so store scalar must equal engine
 // cursor for every param, exactly as post-load. Locks that clone preserves scalar read-authority.
 static bool scalarOk(ParamSet* s) {
@@ -74,11 +74,11 @@ static bool scalarOk(ParamSet* s) {
 	return true;
 }
 
-// S5-b.5b totality sweep: drive doc() over EVERY live automatable owner (clip-level synth/kit/audio unpatched +
+// Totality sweep: drive doc() over EVERY live automatable owner (clip-level synth/kit/audio unpatched +
 // synth patched, and each SoundDrum row's unpatched+patched). doc() lazily relocates any not-yet-tree-resident
 // owner (relocateAndResolve), so after the sweep deluge::edits::docFallbackHits must still be 0 — no owner reached
-// the engine fallback. This turns the fallback-is-dead claim into an exhaustive, corpus-wide host assertion (42
-// songs via the runner), covering the runtime-created owners the clone phases produce as well as every loaded one.
+// the engine fallback. This makes the fallback-is-dead claim an exhaustive, corpus-wide host assertion (every
+// song via the runner), covering the runtime-created owners the clone phases produce as well as every loaded one.
 // Returns the number of (owner, collection) pairs swept, so a vacuous run is visible.
 static int32_t sweepDoc(Song* song) {
 	int32_t swept = 0;
@@ -205,7 +205,7 @@ int clip_clone_roundtrip_main(int argc, char** argv, Io driverIo) {
 	std::fprintf(io.out, "LOADED\n");
 	std::fflush(io.out);
 
-	// Phase C: if the song has an AudioClip, clone it and assert the clone's unpatched params are DOM-bound
+	// If the song has an AudioClip, clone it and assert the clone's unpatched params are DOM-bound
 	// (AudioClip::clone runs bindDomStore) with a live borrow — the golden-blind audio-clip clone path. Run
 	// before the InstrumentClip section so songs with audio clips but no note-clips still exercise it; exit
 	// non-zero immediately on failure so the later SKIP can't mask it.
@@ -248,7 +248,7 @@ int clip_clone_roundtrip_main(int argc, char** argv, Io driverIo) {
 		}
 	}
 
-	// Phase C (kit): if the song has a kit clip, clone it and assert the clone's clip-level FX set and each
+	// If the song has a kit clip, clone it and assert the clone's clip-level FX set and each
 	// cloned SoundDrum row's manager are DOM-bound with a live borrow (InstrumentClip::clone binds them).
 	{
 		InstrumentClip* srcKit = nullptr;
@@ -294,7 +294,7 @@ int clip_clone_roundtrip_main(int argc, char** argv, Io driverIo) {
 				// from kits that DO have live drum rows (e.g. Kitchen Clave: 17).
 				std::fprintf(io.err, "kit clone: sound-drum rows=%d\n", drumRows);
 
-				// S5-b (runtime relocation): the clone is a RUNTIME-created clip, so its clip-level FX still live in
+				// Runtime relocation: the clone is a RUNTIME-created clip, so its clip-level FX still live in
 				// an engine-owned INLINE store — doc() must relocate that store into the tree (relocateAndResolve),
 				// keyed by the clone's durable id, making the owner id-addressable instead of hitting the
 				// paramCollection fallback. Distinguish relocation from the fallback by asserting the store became
@@ -343,7 +343,7 @@ int clip_clone_roundtrip_main(int argc, char** argv, Io driverIo) {
 		}
 	}
 
-	// S5-b.5b totality gate: after loading AND the runtime clone mutations above, doc() must id-resolve EVERY live
+	// Totality gate: after loading AND the runtime clone mutations above, doc() must id-resolve EVERY live
 	// owner — none may reach the engine fallback. Placed before the note-clone SKIP so it runs for every corpus song.
 	{
 		int32_t swept = sweepDoc(song);
@@ -394,7 +394,7 @@ int clip_clone_roundtrip_main(int argc, char** argv, Io driverIo) {
 		if (hasMainParams) {
 			check(clone->paramManager.getUnpatchedParamSet() != srcUnpatched,
 			      "plain clone: unpatched param set is a distinct object");
-			// Phase C (InstrumentClip, synth): a cloned synth clip's unpatched + patched sets are DOM-bound
+			// A cloned synth clip's unpatched + patched sets are DOM-bound
 			// (InstrumentClip::clone runs bindDomStore) with a live borrow.
 			if (src->output != nullptr && src->output->type == OutputType::SYNTH) {
 				UnpatchedParamSet* cu = clone->paramManager.getUnpatchedParamSet();

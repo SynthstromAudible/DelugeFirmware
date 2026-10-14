@@ -24,10 +24,10 @@
 
 namespace deluge::project {
 
-/// The number of launchable sections a song has.
+/// @brief The number of launchable sections a song has.
 inline constexpr int32_t kMaxNumSections = 24;
 
-/// A launchable song section: how many times it repeats and an optional MIDI-learned launch command.
+/// @brief A launchable song section: how many times it repeats and an optional MIDI-learned launch command.
 struct Section {
 	MidiCommand launch_midi_command;
 	int16_t num_repetitions{0};
@@ -35,7 +35,7 @@ struct Section {
 	bool operator==(const Section&) const = default;
 };
 
-/// What one of the assignable session macros does when triggered.
+/// @brief What one of the assignable session macros does when triggered.
 enum class SessionMacroKind : int8_t {
 	NO_MACRO = 0,
 	CLIP_LAUNCH,
@@ -44,8 +44,8 @@ enum class SessionMacroKind : int8_t {
 	NUM_KINDS,
 };
 
-/// One assignable session macro: its kind plus the clip, output and section it targets. The clip and output are named
-/// by their stable song ids, so a macro survives reordering; empty means no target.
+/// @brief One assignable session macro: its kind plus the clip, output and section it targets. The clip and output are
+/// named by their stable song ids, so a macro survives reordering; empty means no target.
 struct SessionMacro {
 	SessionMacroKind kind{SessionMacroKind::NO_MACRO};
 	std::optional<uint32_t> clip_id;
@@ -55,7 +55,8 @@ struct SessionMacro {
 	bool operator==(const SessionMacro&) const = default;
 };
 
-/// Song arrangement structure: the launch sections and the eight assignable session macros.
+/// @brief Song arrangement structure: the launch sections and the eight assignable session macros.
+///
 /// A component of deluge::project::Song.
 struct Arrangement {
 	std::array<Section, kMaxNumSections> sections{};

@@ -40,6 +40,8 @@ struct CableState {
 	const serialization::Value* amount{nullptr};
 
 	/// @brief The id of this cable's depth.
+	/// @return The depth id, or a default-constructed id when the destination already carries three sources or is
+	///         not a valid destination (neither a cable depth nor a param id below 256).
 	[[nodiscard]] engine::ParamId depth() const;
 };
 
@@ -52,6 +54,9 @@ using AmountTest = std::function<bool(const serialization::Value& amount)>;
 /// Drops what the runtime drops: a cable with no known source, no destination or an empty amount, `x` → `pitch`
 /// (a 3.2.0-alpha mistake), a cable repeating an earlier cable's source and destination, and a depth-controlling
 /// cable repeating a source among its siblings. An AFTERTOUCH cable defaults to unipolar.
+/// @param patchCables         The file's `patchCables` node.
+/// @param contains_something The host's test of whether an `amount` leaf holds something.
+/// @return The kept cables, depth controllers before the cable they control.
 [[nodiscard]] std::vector<CableState> decode_cables(const serialization::Value& patchCables,
                                                     const AmountTest& contains_something);
 

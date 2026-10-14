@@ -1,4 +1,4 @@
 #pragma once
 
-// SemVer is the document-format library's (deluge_serialization); this keeps the app's existing includes working.
+// SemVer is defined by the document-format library (deluge_serialization); this header re-exports it to the app.
 #include "serialization/semver.h"

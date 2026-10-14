@@ -23,25 +23,31 @@
 
 namespace deluge::project {
 
-/// Per-clip automation node storage, owned by the persistent `project` tree and keyed by the clip's stable
-/// `Clip::id`. This is what makes a clip's params tree-resident and id-addressable (`Song::resolveParam`
-/// with a `Clip` owner), instead of engine-owned on the live `ParamSet::domStore_`. Because it is keyed by the
-/// serial id — not by a `Clip*` or array index — it is unaffected by clip reorders and by
-/// `stealParamCollectionsFrom`/`ParamBackup` moving the engine cursor-holder (the nodes stay here, resolved by
-/// id). A component of `deluge::project::Song`.
+/// @brief Per-clip automation node storage, owned by the persistent `project` tree and keyed by the clip's stable
+/// `Clip::id`.
+///
+/// This makes a clip's params tree-resident and id-addressable (`Song::resolveParam` with a `Clip` owner). Because it
+/// is keyed by the serial id, not by a `Clip*` or array index, it is unaffected by clip reorders and by
+/// `stealParamCollectionsFrom`/`ParamBackup` moving the engine cursor-holder (the nodes stay here, resolved by id).
+/// A component of `deluge::project::Song`.
 struct ClipParams {
 	model_map<uint32_t, DocParamManager> by_id;
 
-	/// The clip's DocParamManager, or nullptr if this clip has no tree-resident store.
+	/// @brief Find the clip's store.
+	/// @param id The clip's stable `Clip::id`.
+	/// @return The clip's DocParamManager, or nullptr if this clip has no tree-resident store.
 	DocParamManager* find(uint32_t id) {
 		auto it = by_id.find(id);
 		return it == by_id.end() ? nullptr : &it->second;
 	}
 
-	/// The clip's DocParamManager, creating an empty one if absent.
+	/// @brief Get the clip's store, creating an empty one if absent.
+	/// @param id The clip's stable `Clip::id`.
+	/// @return The clip's DocParamManager.
 	DocParamManager& getOrCreate(uint32_t id) { return by_id[id]; }
 
-	/// Drop the clip's store (on clip destruction).
+	/// @brief Drop the clip's store (on clip destruction).
+	/// @param id The clip's stable `Clip::id`.
 	void remove(uint32_t id) { by_id.erase(id); }
 };
 

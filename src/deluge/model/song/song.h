@@ -199,24 +199,24 @@ public:
 		       + project.transport.inside_world_tick_magnitude_offset_from_bpm;
 	}
 
-	// The project model (deluge::project::Song). Project data migrates into this group by group
-	// (docs/dev/project_model_extraction.md); ::Song is the controller that owns it. Empty for now.
-	// (Named `project` rather than `model` — `model` is already the reverb-model enum member.)
+	// The project model (deluge::project::Song), which ::Song, the controller, owns
+	// (docs/dev/project_model_extraction.md). Named `project` rather than `model` because `model` is already the
+	// reverb-model member.
 	deluge::project::Song project;
 	/// The parts of the song the engine still holds as live objects.
 	SongLive live;
 
-	// View/UI state that IS serialized to the song file (scroll/zoom/layout/triplets/etc.).
+	// View/UI state that is serialized to the song file (scroll/zoom/layout/triplets/etc.).
 	PersistentViewState persistentView;
 
-	// How many orders of magnitude faster internal ticks are going than input ticks. Used in combination with
-	// inputTickScale, which is usually 1, but is different if there's an inputTickScaleClip. So, e.g. if
-	// insideWorldTickMagnitude is 1, this means the inside world is spinning twice as fast as the external world, so
+	// project.transport.inside_world_tick_magnitude is how many orders of magnitude faster internal ticks are going
+	// than input ticks. Used in combination with inputTickScale, which is usually 1, but is different if there's an
+	// inputTickScaleClip. So, e.g. if it is 1, the inside world is spinning twice as fast as the external world, so
 	// MIDI sync coming in representing an 8th-note would be interpreted internally as a quarter-note (because two
-	// internal 8th-notes would have happened, twice as fast, making a quarter-note)
-
-	// Sometimes, we'll do weird stuff to insideWorldTickMagnitude for sync-scaling, which would make BPM values look
-	// weird. So, we keep insideWorldTickMagnitudeOffsetFromBPM
+	// internal 8th-notes would have happened, twice as fast, making a quarter-note).
+	//
+	// Sometimes we do weird stuff to the magnitude for sync-scaling, which would make BPM values look weird. So we
+	// keep project.transport.inside_world_tick_magnitude_offset_from_bpm separately.
 
 	uint8_t sectionToReturnToAfterSongEnd{};
 
@@ -245,31 +245,48 @@ public:
 	void setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
 	void doubleClipLength(InstrumentClip* clip, Action* action = nullptr);
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = nullptr);
-	/// Read the engine's part of a song document; the model's parts are decoded before (bridge::loadSong).
+	/// @brief Read the engine's part of a song document; the model's parts are decoded before (bridge::loadSong).
+	/// @param reader           The song file reader.
 	/// @param timePerTimerTick The tempo the model decoded, applied once the song is read.
+	/// @return Error::NONE on success, else the read failure.
 	Error readFromFile(Deserializer& reader, uint64_t timePerTimerTick);
 
-	/// M3: mint a transient session id for every clip / output / drum that lacks a durable id, so every entity
-	/// is id-addressable. Called at load before the param relocation; idempotent (skips entities that already have an
-	/// id). Session ids are never serialized → golden-neutral.
+	/// @brief Give every output and kit drum of the song that lacks one a durable id, then bind each to its DOM record
+	///        (adoptOutput / adoptDrum).
+	///
+	/// Clips already have an id from construction. Called at load before the param relocation; idempotent.
 	void assignMissingIds();
 
-	/// M3 owner-3 (drum structure): bind a song-resident drum to the persistent DOM structural store. Idempotent —
-	/// early-returns if already bound; mints a durable id via generateNewDrumId() only if the drum has none; then
-	/// getOrCreates the drum's DocDrum in project.drum_structure, seeds it from the engine drum, and points
-	/// docDrum_ at it. Called per drum from assignMissingIds (load) and Kit::addDrum (runtime).
+	/// @brief Bind a song-resident drum to the persistent DOM structural store.
+	///
+	/// Idempotent: returns early if already bound. Mints a durable id via generateNewDrumId() only if the drum has
+	/// none, then gets or creates the drum's DocDrum in project.drum_structure, seeds it from the engine drum, and
+	/// points docDrum_ at it. Called per drum from assignMissingIds (load) and Kit::addDrum (runtime).
+	///
+	/// @param drum The drum to bind.
 	void adoptDrum(Drum* drum);
-	/// Drop a drum's structural record when the drum is genuinely destroyed, so the store doesn't accumulate dead
-	/// entries. Guarded like removeDocClip: skipped during whole-song teardown.
+	/// @brief Drop a drum's structural record when the drum is genuinely destroyed, so the store doesn't accumulate
+	///        dead entries.
+	///
+	/// Guarded like removeDocClip: skipped during whole-song teardown.
+	///
+	/// @param drum The destroyed drum.
 	void removeDocDrum(Drum* drum);
 
-	/// M3 owner-5 (output identity): bind a song-resident output to the persistent DOM identity store. Idempotent —
-	/// early-returns if already bound; mints a durable id via generateNewOutputId() only if the output has none; then
-	/// getOrCreates the output's DocOutput in project.output_structure, seeds it via Output::seedDocOutputIdentity(),
-	/// and points docOutput_ at it. Called per output from assignMissingIds (load) — reuses the loop's existing mint.
+	/// @brief Bind a song-resident output to the persistent DOM identity store.
+	///
+	/// Idempotent: returns early if already bound. Mints a durable id via generateNewOutputId() only if the output
+	/// has none, then gets or creates the output's DocOutput in project.output_structure, seeds it via
+	/// Output::seedDocOutputIdentity(), and points docOutput_ at it. Called per output from assignMissingIds (load).
+	///
+	/// @param output The output to bind.
 	void adoptOutput(Output* output);
-	/// Drop an output's identity record when the output is genuinely destroyed, so the store doesn't accumulate dead
-	/// entries. Guarded like removeDocDrum: skipped during whole-song teardown.
+	/// @brief Drop an output's identity record when the output is genuinely destroyed, so the store doesn't
+	///        accumulate dead entries.
+	///
+	/// Guarded like removeDocDrum: skipped during whole-song teardown.
+	///
+	/// @param output The destroyed output.
 	void removeDocOutput(Output* output);
 
 	void writeToFile(Serializer& writer);
@@ -278,6 +295,9 @@ public:
 	///        clip's, with a checkpoint before every clip. Loads nothing.
 	void walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor);
 	/// @brief Renders every output into @p outputBuffer and feeds the mix recorders, then ticks the song's own params.
+	/// @param outputBuffer        Stereo mix buffer to render into.
+	/// @param reverbBuffer        Reverb send buffer.
+	/// @param sideChainHitPending Pending sidechain hit.
 	/// @return The master chain's inputs for the half before the reverb, read before that tick.
 	deluge::effects::MasterChainInputs renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer,
 	                                               int32_t sideChainHitPending);
@@ -333,11 +353,11 @@ public:
 	bool isOutputActiveInArrangement(Output* output);
 	Output* getOutputFromIndex(int32_t index);
 
-	// --- Stable per-song serial identity for clips/outputs (the DOM reference foundation) ---
-	// Each clip/output carries a persisted serial id (Clip::id / Output::id), assigned
-	// lazily on first save from these per-song monotonic counters and restored on load. Unlike the
-	// transient positional index, the id survives reorders and reloads, so DOM references (e.g.
-	// session macros) can resolve by id instead of position.
+	// --- Stable per-song serial identity for clips/outputs ---
+	// Each clip/output carries a persisted serial id (Clip::id / Output::id) from these per-song monotonic counters:
+	// a clip takes one at construction, outputs and drums at load (assignMissingIds) or adoption; loaded ids are kept.
+	// Unlike the transient positional index, the id survives reorders and reloads, so references (e.g. session macros)
+	// can resolve by id instead of position.
 	uint32_t generateNewClipId() { return clipIdCounter_++; }
 	/// A new output id: past every id the counter has seen, and one no output record of the song holds (a hibernating
 	/// instrument's id is not walked when the counter catches up after a load).

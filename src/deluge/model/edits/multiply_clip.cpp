@@ -14,7 +14,7 @@ Error MultiplyClip::apply(Context& ctx) {
 	action_ = actionLogger.getNewAction(ActionType::CLIP_MULTIPLY, ActionAddition::NOT_ALLOWED);
 
 	// Record the multiply Consequence BEFORE the mutation: on redo, the note changes/deletions doubleClipLength adds
-	// must run after it (they end up no-ops, but ordering matters). Verbatim from the call site.
+	// must run after it (they end up no-ops, but ordering matters).
 	if (action_ != nullptr) {
 		void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceInstrumentClipMultiply));
 		if (consMemory != nullptr) {

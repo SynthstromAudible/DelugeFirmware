@@ -39,6 +39,8 @@ namespace deluge::gui::menu_item {
 
 /// @brief @p sound's slot when it is bound in the current song, so an Edit on that slot reaches it; nullopt for a
 /// sound with no slot or one outside the song (a preview, a preset's sound still being built).
+/// @param sound The sound to look up.
+/// @return The sound's slot address in the current song, or `std::nullopt`.
 inline std::optional<deluge::project::SlotAddress> songSlotOf(::Sound& sound) {
 	const std::optional<deluge::project::SlotAddress> slot = deluge::bridge::slotAddressOf(sound);
 	if (slot && deluge::bridge::soundAt(*currentSong, *slot) == &sound) {
@@ -48,6 +50,9 @@ inline std::optional<deluge::project::SlotAddress> songSlotOf(::Sound& sound) {
 }
 
 /// @brief The settings path of oscillator @p source's (0 or 1) setting @p name: `oscN/name`.
+/// @param source Oscillator index (0 or 1).
+/// @param name   Setting name within the oscillator.
+/// @return The path string, with `N` = @p source + 1.
 inline std::string oscSettingPath(int32_t source, std::string_view name) {
 	return "osc" + std::to_string(source + 1) + "/" + std::string(name);
 }
@@ -55,6 +60,9 @@ inline std::string oscSettingPath(int32_t source, std::string_view name) {
 /// @brief A sound editor menu's change of @p sound's setting at @p path to @p value (its file form): an Edit on the
 /// sound's slot when the sound is bound in the current song, so the slot keeps holding its state; the runtime's setter
 /// alone for a sound with no slot in it.
+/// @param sound The sound being edited.
+/// @param path  Settings path of the setting.
+/// @param value The new value, in its file form.
 inline void settingFor(::Sound& sound, std::string_view path, deluge::serialization::Value value) {
 	if (const std::optional<deluge::project::SlotAddress> slot = songSlotOf(sound)) {
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
@@ -71,12 +79,18 @@ inline void settingFor(::Sound& sound, std::string_view path, deluge::serializat
 }
 
 /// @brief A menu's change of @p owner's effect setting at @p path to @p value (its Edit form): see changeEffect.
+/// @param owner The effect owner being edited.
+/// @param path  Settings path of the effect setting.
+/// @param value The new value.
 inline void effectSettingFor(ModControllableAudio& owner, std::string_view path, deluge::serialization::Value value) {
 	deluge::edits::changeEffect(owner, path, std::move(value));
 }
 
 /// @brief A gesture's change of source @p s of @p sound to @p ranges: an Edit on the sound's slot when it is bound,
 /// the in-place change alone for a sound with no slot.
+/// @param sound  The sound being edited.
+/// @param s      Source (oscillator) index.
+/// @param ranges The source's new ranges.
 inline void rangesFor(::Sound& sound, int32_t s, std::vector<deluge::instrument::RangeState> ranges) {
 	if (const std::optional<deluge::project::SlotAddress> slot = songSlotOf(sound)) {
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
@@ -92,12 +106,17 @@ inline void rangesFor(::Sound& sound, int32_t s, std::vector<deluge::instrument:
 }
 
 /// @brief Record source @p s's ranges as a gesture left them, after it loaded files or reshaped the list itself.
+/// @param sound The sound whose source changed.
+/// @param s     Source (oscillator) index.
 inline void recordRanges(::Sound& sound, int32_t s) {
 	rangesFor(sound, s, deluge::bridge::rangesOf(sound.sources[s]));
 }
 
 /// @brief A gesture's change of source @p s of @p sound to the DX7 patch @p patch: an Edit on the sound's slot when it
 /// is bound in the current song, the patch alone for a sound with no slot in it.
+/// @param sound The sound being edited.
+/// @param s     Source (oscillator) index.
+/// @param patch The new DX7 patch state.
 inline void dxPatchFor(::Sound& sound, int32_t s, const deluge::instrument::DxPatchState& patch) {
 	if (const std::optional<deluge::project::SlotAddress> slot = songSlotOf(sound)) {
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
@@ -115,6 +134,7 @@ inline void dxPatchFor(::Sound& sound, int32_t s, const deluge::instrument::DxPa
 /// @brief Record @p owner's knobs as a gesture left them (a learn, an unlearn, a knob cycled to its next param): an
 /// Edit on its controller mappings when it is one of the current song's owners; nothing for one outside it (a MIDI or
 /// CV track's, which has no knob mappings).
+/// @param owner The mod-controllable whose knob mappings changed.
 inline void recordControlsOf(::ModControllable& owner) {
 	const std::optional<deluge::project::ControlsAddress> address =
 	    deluge::bridge::controlsAddressOf(owner, *currentSong);

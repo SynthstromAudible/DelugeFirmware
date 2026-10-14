@@ -8,9 +8,11 @@ class ModelStackWithTimelineCounter;
 
 namespace deluge::edits {
 
-/// Clear a whole clip's contents (the reification of the CLIP_CLEAR gesture, shared by instrument and audio clips —
-/// clear() is virtual). apply() opens the Action and calls clip->clear(), which self-records the undo. The view keeps
-/// the clearAutomation/clearSequenceAndMPE decision, the popup, and the render.
+/// @brief Clear a whole clip's contents (the CLIP_CLEAR gesture), for instrument and audio clips alike (clear() is
+///        virtual).
+///
+/// apply() opens the Action and calls clip->clear(), which self-records the undo. The view decides the
+/// clearAutomation/clearSequenceAndMPE flags and handles the popup and the render.
 class ClearClip final : public Edit {
 public:
 	ClearClip(std::optional<project::ClipAddress> address, bool clearAutomation, bool clearSequenceAndMPE,

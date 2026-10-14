@@ -1,12 +1,12 @@
-// M4a Task 4 — host cost microbench, run as the param_snapshot_bench scenario. Compares the two snapshot-update
+// Host cost microbench, run as the param_snapshot_bench scenario. Compares the two snapshot-update
 // granularities on the param cursor:
 //   A. incremental patch — ParamSnapshot::applyPatch, which touches ONE addressed lane (resolveParam + write);
 //   B. full rebuild      — write the store then ParamSet::projectFromStoreAfterRead, which re-derives the WHOLE
-//                          owner's param set (getNumParams() lanes), the fallback the north-star says the
-//                          incremental patch replaces.
+//                          owner's param set (getNumParams() lanes), the fallback the incremental
+//                          patch replaces.
 // It prints a comparison table (total_ms / per_edit_ns / ratio) at several automation densities. This is a
-// MEASUREMENT artifact, not a pass/fail gate — main() always returns 0. The table feeds the north-star's open
-// incremental-vs-rebuild granularity question (docs/dev/m4a_snapshot_measurement.md).
+// MEASUREMENT artifact, not a pass/fail gate — main() always returns 0. The table informs the incremental-vs-rebuild
+// snapshot granularity choice (docs/dev/m4a_snapshot_measurement.md).
 //
 // std::chrono is fine here: the Date.now/Math.random restriction is a Workflow-script rule, not a C++ one.
 

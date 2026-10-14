@@ -94,8 +94,8 @@ effects::ClipChainInputs clipChainInputs(GlobalEffectableForClip& owner, ParamMa
                                          OutputType outputType) {
 	UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
 
-	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall. Kits keep the fudged
-	// number they first had; audio tracks the exact one.
+	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall. Kits add a quarter of the
+	// volume; audio tracks add the exact factor 471633397 / 2^32.
 	int32_t volumePostFX = volumeAdjustment;
 	volumePostFX += (outputType == OutputType::AUDIO) ? multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397)
 	                                                  : (volumeAdjustment >> 2);

@@ -250,6 +250,10 @@ struct LanePack {
 
 /// @brief @p a if @p mask, else @p b: the scalar form of a pack's select, so that a clamp written over V compiles for
 /// a scalar too. A ternary, which inlines where `std::` algorithms are out-of-line calls.
+/// @param mask The condition.
+/// @param a    The result when @p mask is true.
+/// @param b    The result when @p mask is false.
+/// @return @p a or @p b.
 template <class T>
 requires std::is_arithmetic_v<T>
 [[nodiscard]] [[gnu::always_inline]] constexpr T select(bool mask, T a, T b) {
@@ -257,6 +261,9 @@ requires std::is_arithmetic_v<T>
 }
 
 /// @brief The larger of @p a and @p b, as `a < b ? b : a`: the scalar form of a pack's max.
+/// @param a The first value.
+/// @param b The second value.
+/// @return The larger value.
 template <class T>
 requires std::is_arithmetic_v<T>
 [[nodiscard]] [[gnu::always_inline]] constexpr T max(T a, T b) {
@@ -264,6 +271,9 @@ requires std::is_arithmetic_v<T>
 }
 
 /// @brief The smaller of @p a and @p b, as `a > b ? b : a`: the scalar form of a pack's min.
+/// @param a The first value.
+/// @param b The second value.
+/// @return The smaller value.
 template <class T>
 requires std::is_arithmetic_v<T>
 [[nodiscard]] [[gnu::always_inline]] constexpr T min(T a, T b) {

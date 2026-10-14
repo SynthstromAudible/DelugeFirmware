@@ -43,7 +43,7 @@ struct DelayArenaMemory {
 	void (*request_maintenance)();                       ///< Asks for the arena's job to run; safe from any tier.
 };
 
-/// The most regions the arena holds.
+/// @brief The most regions the arena holds.
 inline constexpr std::size_t kArenaMaxRegions = 32;
 
 /// @brief A change to the arena's regions: the region prepare lent before the owner's audio-excluded section, the
@@ -61,69 +61,98 @@ struct ArenaChange {
 /// While any owner is counted on (its delay type not OFF), the arena holds a margin: room for two tapes of the
 /// largest size, and for each owner on the reserve its slot holds (the tape its settings or its largest take need; a
 /// neutral-rate tape for an owner with no slot), packed largest first into the regions' free space; the two largest
-/// are confirmed by a trial. A take that leaves
-/// the margin short asks for maintenance; the job (or an owner's projection) then lends a region. Regions are kept
-/// while their owners stay on, so a delay starting and ringing out again and again takes nothing new from the general
-/// heap; they are returned when owners are counted out and what remains holds the margin, all of them when none is
-/// on.
+/// are confirmed by a trial. A take that leaves the margin short asks for maintenance; the job (or an owner's
+/// projection) then lends a region. Regions are kept while their owners stay on, so a delay starting and ringing out
+/// again and again takes nothing new from the general heap; they are returned when owners are counted out and what
+/// remains holds the margin, all of them when none is on.
 class DelayArena {
 public:
-	/// A region's size: room for one largest-size pair and its heap's own control block.
+	/// @brief A region's size: room for one largest-size pair and its heap's own control block.
 	static constexpr std::size_t kRegionBytes = std::size_t{1536} * 1024;
-	/// The largest tape's storage: 88,200 frames plus the 20-frame write lag, 8 bytes a frame.
+	/// @brief The largest tape's storage: 88,200 frames plus the 20-frame write lag, 8 bytes a frame.
 	static constexpr std::size_t kMaxTapeBytes =
 	    (dsp::fixed::DelayTape::kMaxSize + dsp::fixed::DelayTape::kWriteLag) * sizeof(dsp::StereoSample);
-	/// A tape's storage at the neutral rate: 16,384 frames plus the write lag.
+	/// @brief A tape's storage at the neutral rate: 16,384 frames plus the write lag.
 	static constexpr std::size_t kNeutralTapeBytes =
 	    (dsp::fixed::DelayTape::kNeutralSize + dsp::fixed::DelayTape::kWriteLag) * sizeof(dsp::StereoSample);
-	/// Each tape's heap overhead, counted against a region's free bytes.
+	/// @brief Each tape's heap overhead, counted against a region's free bytes.
 	static constexpr std::size_t kTapeOverheadBytes = 64;
-	/// How many largest-size tapes the margin holds room for.
+	/// @brief How many largest-size tapes the margin holds room for.
 	static constexpr std::size_t kMarginMaxTapes = 2;
 
+	/// @brief Build an arena over the app's memory hooks, holding no regions yet.
+	/// @param memory What the arena needs from the app.
+	/// @param region_bytes The size of each region lent.
 	explicit DelayArena(DelayArenaMemory memory, std::size_t region_bytes = kRegionBytes);
-	/// Returns every region. No tape may be live.
+	/// @brief Returns every region.
+	/// @pre No tape is live.
 	~DelayArena();
 	DelayArena(const DelayArena&) = delete;
 	DelayArena& operator=(const DelayArena&) = delete;
 
 	/// @brief [render] A tape's storage of @p frames frames, from the first region with room; null when none has
 	/// room (a shortfall). Asks for maintenance when it leaves the margin short.
+	/// @param frames The tape's length in frames.
+	/// @return The tape's storage, or null on a shortfall.
 	[[nodiscard]] dsp::StereoSample* take(std::size_t frames);
 	/// @brief [render] Gives back @p storage, @p frames frames, as take gave it.
+	/// @param storage The storage take returned.
+	/// @param frames The length passed to take.
 	void give_back(dsp::StereoSample* storage, std::size_t frames);
 
 	/// @brief [task] Before the section: lends a region when the change counts no owner out, owners will be on after
 	/// it, and the margin was last found short.
+	/// @param on_delta How many owners the change counts in (+) or out (-).
+	/// @return The change, for commit and finish.
 	[[nodiscard]] ArenaChange prepare(int on_delta);
 	/// @brief [task] Inside the section: counts the change's owners in or out, attaches the lent region if the margin
 	/// is short without it, and, when the change counts owners out, detaches every empty region not needed for the
 	/// margin (every one when none is on).
+	/// @param change What prepare returned; receives the detached regions.
 	void commit(ArenaChange& change);
 	/// @brief [task] After the section: returns the lent region commit did not attach, and the detached ones.
+	/// @param change What commit filled in.
 	void finish(ArenaChange& change);
 
 	/// @brief [task, inside the section] Whether the arena holds the margin. Takes and gives back two trial tapes.
+	/// @return True if the margin holds.
 	[[nodiscard]] bool holds_margin();
 
 	/// @brief [task, inside the section] Opens a slot reserving @p frames frames for one owner's next tape.
+	/// @param frames The reserve, in frames.
 	/// @return The slot, for set_reserve, raise_reserve and close_slot.
 	[[nodiscard]] std::size_t open_slot(std::size_t frames);
 	/// @brief [task, inside the section] Sets @p slot's reserve to @p frames frames.
+	/// @param slot A slot open_slot returned.
+	/// @param frames The reserve, in frames.
 	void set_reserve(std::size_t slot, std::size_t frames);
 	/// @brief [render] Raises @p slot's reserve to @p frames frames when that is larger, asking for maintenance when
 	/// the margin no longer holds.
+	/// @param slot A slot open_slot returned.
+	/// @param frames The reserve to raise to, in frames.
 	void raise_reserve(std::size_t slot, std::size_t frames);
 	/// @brief [task, inside the section] Closes @p slot.
+	/// @param slot A slot open_slot returned.
 	void close_slot(std::size_t slot);
-	/// @return @p slot's reserve, in frames.
+	/// @brief @p slot's reserve, in frames (0 for a closed or unknown slot).
+	/// @param slot The slot to query.
+	/// @return The reserve, in frames.
 	[[nodiscard]] std::size_t reserve(std::size_t slot) const { return slot < slots_.size() ? slots_[slot] : 0; }
 
+	/// @brief How many regions the arena holds.
+	/// @return The region count.
 	[[nodiscard]] std::size_t regions() const { return count_; }
-	/// @return Whether the margin was last found to hold.
+	/// @brief Whether the margin was last found to hold.
+	/// @return True if it held.
 	[[nodiscard]] bool margin_holds() const { return margin_ok_.load(std::memory_order_relaxed); }
+	/// @brief How many tapes are taken and not given back.
+	/// @return The live tape count.
 	[[nodiscard]] std::size_t live_tapes() const;
+	/// @brief How many owners are counted on.
+	/// @return The owner count.
 	[[nodiscard]] int owners_on() const { return on_; }
+	/// @brief How many takes found no room.
+	/// @return The shortfall count.
 	[[nodiscard]] uint32_t shortfalls() const { return shortfalls_.load(std::memory_order_relaxed); }
 
 private:

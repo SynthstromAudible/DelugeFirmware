@@ -9,19 +9,24 @@ class ModelStackWithNoteRow;
 
 namespace deluge::edits {
 
-/// Delete the note at `pos` in a melodic note-row — reifies the pad-tap note-remove. apply funnels
-/// getNewAction(NOTE_EDIT)+NoteRow::deleteNoteByPos (which records the note-array undo into the Action).
+/// @brief Delete the note at `pos` in a melodic note-row (a pad-tap note removal).
+///
+/// apply() opens a NOTE_EDIT Action and calls NoteRow::deleteNoteByPos, which records the note-array undo into it.
 class RemoveNote final : public Edit {
 public:
+	/// @param address     Model address of the note-row, if it has one.
+	/// @param pos         Tick position of the note to remove.
+	/// @param engineStack Stack for the note-row (borrowed for the duration of apply()).
 	RemoveNote(std::optional<project::NoteRowAddress> address, int32_t pos, ModelStackWithNoteRow* engineStack)
 	    : address_(address), pos_(pos), engineStack_(engineStack) {}
 
+	/// @copydoc Edit::apply
 	Error apply(Context& ctx) override;
 
 private:
 	std::optional<project::NoteRowAddress> address_;
 	int32_t pos_;
-	ModelStackWithNoteRow* engineStack_; ///< Funnel-phase borrow.
+	ModelStackWithNoteRow* engineStack_; ///< Borrowed for the duration of apply().
 };
 
 } // namespace deluge::edits

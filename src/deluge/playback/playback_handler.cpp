@@ -2623,8 +2623,8 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 
 	double timePerTick = (double)loopLengthSamples / clip->loopLength();
 
-	// Reify: SetTempo opens the TEMPO_CHANGE Action, applies the tempo (setTempoFromNumSamples with logging off), and
-	// records the ConsequenceTempoChange itself — verbatim from what this site did inline.
+	// SetTempo opens the TEMPO_CHANGE Action, applies the tempo (setTempoFromNumSamples with logging off), and
+	// records the ConsequenceTempoChange itself.
 	deluge::edits::Context tempoCtx{*currentSong, currentSong->project};
 	deluge::edits::SetTempo tempoEdit{timePerTick};
 	deluge::edits::apply(tempoCtx, tempoEdit);

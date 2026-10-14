@@ -40,7 +40,7 @@
 class ModControllableAudio;
 
 namespace deluge::modulation::params {
-/// Which parameter collection a parameter id belongs to (the host–engine contract's word).
+/// @brief Which parameter collection a parameter id belongs to (the host-engine contract's term).
 using Kind = deluge::engine::ParamKind;
 
 /// Integer type used for all Param enumerations.

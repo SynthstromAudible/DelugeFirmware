@@ -47,13 +47,13 @@ protected:
 	/// Number of parameters in the params array
 	int32_t numParams_;
 
-	/// DOM-owned node store this set's AutoParams borrow (Phase C / Model A). nullptr = unbound (params use
-	/// their own inline storage, exactly as before). RAII-freed with the set; because the set is heap-allocated
-	/// and never relocates — a ParamBackup steal moves only the owning pointer — the store outlives the clip and
-	/// follows the params through backup/restore. See docs/superpowers/specs §5.1 (accessor/projection design).
+	/// DOM-owned node store this set's AutoParams borrow. nullptr = not created yet (docForParam() creates it
+	/// on first access) or externally owned (see domStoreRef_). RAII-freed with the set; because the set is
+	/// heap-allocated and never relocates (a ParamBackup steal moves only the owning pointer), the store outlives
+	/// the clip and follows the params through backup/restore.
 	std::unique_ptr<deluge::project::DocParamSet> domStore_;
 
-	/// M2-E: non-owning pointer to the ACTIVE DOM store this set resolves params against — either `domStore_.get()`
+	/// Non-owning pointer to the ACTIVE DOM store this set resolves params against: either `domStore_.get()`
 	/// (clip/drum: this set owns it) or an externally-owned store (song-global: the song's `master_params` block,
 	/// owned by the DOM project at a stable address). The owner-resolution path (`docForParam`) reads this, so both
 	/// binding regimes resolve identically without the AutoParam holding a pointer. nullptr = unbound.
@@ -62,29 +62,41 @@ protected:
 public:
 	AutoParam* params;
 	ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary);
-	/// Copy leaves the clone UNBOUND (domStore_ null): a cloned set owns its own nodes until separately bound, so
-	/// two sets never alias one DOM store. Out-of-line so DocParamSet can stay incomplete in this header.
+	/// @brief Copy-construct a set; a bound source's DOM store is deep-copied, so two sets never alias one store.
+	///
+	/// An unbound source yields an unbound clone. Out-of-line so DocParamSet can stay incomplete in this header.
+	/// @param other The set to copy.
 	ParamSet(ParamSet const& other);
 	~ParamSet() override;
 
-	/// Bind this set's node storage to a DOM-owned DocParamSet (allocated here, RAII-freed with the set): each
-	/// AutoParam borrows its nodes from domStore_->params[p].nodes. Idempotent — a no-op if already bound.
+	/// @brief Ensure this set owns a DOM-owned DocParamSet (RAII-freed with the set).
+	///
+	/// Each AutoParam borrows its nodes from domStore_->params[p].nodes. Idempotent: a no-op if already bound.
 	void bindDomStore();
-	/// Bind this set's owner-resolution to an EXTERNALLY-owned DOM store (song-global: the store lives in the DOM
-	/// project, not here). Sets only the non-owning `domStoreRef_`; `domStore_` stays null so this set never frees
-	/// a store it does not own. The caller is responsible for having moved the params' nodes into `ext` already.
+	/// @brief Bind this set's owner-resolution to an EXTERNALLY-owned DOM store (song-global: the store lives in
+	///        the DOM project, not here).
+	///
+	/// Sets only the non-owning `domStoreRef_`; `domStore_` stays null so this set never frees a store it does
+	/// not own.
+	/// @param ext The externally-owned store; must outlive this set's use of it.
 	void bindDomStoreExternal(deluge::project::DocParamSet* ext);
-	/// The bound DOM store (owned or external), or nullptr if unbound. (Test / inspection accessor.)
+	/// @brief The bound DOM store (owned or external), or nullptr if unbound. Test / inspection accessor.
+	/// @return The bound store, or nullptr.
 	deluge::project::DocParamSet* domStore();
 
-	/// Option I (read-authority): after a DOM-first read populated `domStore()`, project every engine RT cursor
-	/// from the store's current_value and set the summary's automated bit exactly as the engine reader
-	/// (readLiveParam) would — the nodes live in the store, but playback iterates the summary cache. Requires a
-	/// bound store.
+	/// @brief After a DOM-first read populated `domStore()`, project every engine RT cursor from the store's
+	///        current_value and set the summary's automated bit exactly as the engine reader (readLiveParam) would.
+	///
+	/// The nodes live in the store, but playback iterates the summary cache.
+	/// @pre A store is bound.
+	/// @param summary The collection summary whose automated bits are updated.
 	void projectFromStoreAfterRead(ParamCollectionSummary* summary);
 
-	// M2-E: resolve a param's DOM node-store handle from this set (owner-rooted). docForParam takes the array
-	// index; docParamForId takes the ModelStack paramId (== index for a ParamSet).
+	/// @brief Resolve a param's DOM node-store handle from this set (owner-rooted).
+	///
+	/// docForParam takes the array index; docParamForId takes the ModelStack paramId (== index for a ParamSet).
+	/// @param p Index into the set's params array.
+	/// @return The param's DOM store slot (never null; the store is created on first use).
 	deluge::project::DocAutoParam* docForParam(int32_t p);
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override { return docForParam(paramId); }
 	[[nodiscard]] bool domStoreIsExternal() const override { return domStore_ == nullptr && domStoreRef_ != nullptr; }

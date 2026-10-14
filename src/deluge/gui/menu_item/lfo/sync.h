@@ -60,7 +60,10 @@ public:
 	}
 
 private:
-	/// Set @p sound's LFO to the menu's @p option (a sync type and level together) as two setting Edits.
+	/// @brief Set @p sound's LFO to the menu's @p option (a sync type and level together) as two setting Edits.
+	///
+	/// @param sound  The sound whose LFO is set.
+	/// @param option The menu option, encoding sync type and level together.
 	void setSync(Sound& sound, int32_t option) const {
 		const std::string prefix = "lfo" + std::to_string(lfoId_ + 1) + "/";
 		settingFor(sound, prefix + "syncType",

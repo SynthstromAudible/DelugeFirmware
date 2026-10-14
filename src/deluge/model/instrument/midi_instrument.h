@@ -47,17 +47,34 @@ public:
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
-	// DO3: override of the virtual seedDocOutputIdentity() chain — calls the base (channel), then reseeds this
-	// tier's 5 fields from the current native values.
+	/// @brief Reseeds the record's identity fields from the current native values.
+	///
+	/// Calls the base (channel), then reseeds channelSuffix, deviceDefinitionFileName, collapseAftertouch,
+	/// collapseMPE and outputMPEY.
 	void seedDocOutputIdentity() override;
-	// DO3: channelSuffix/deviceDefinitionFileName/collapseAftertouch/collapseMPE/outputMPEY are DOM-authoritative at
-	// save. Every forward write funnels through these setters (write native cache + record; guarded, no FREEZE —
-	// mirrors Output::set*()/Instrument::set*() from DO1/DO2).
+
+	/// @name "Record-authoritative fields"
+	/// channelSuffix, deviceDefinitionFileName, collapseAftertouch, collapseMPE and outputMPEY are
+	/// record-authoritative at save: every write funnels through these setters, which update the native cache and the
+	/// record together (guarded, no FREEZE), like Output::set*() and Instrument::set*().
+	/// @{
+
+	/// @brief Sets the channel suffix.
+	/// @param v The new channel suffix.
 	void setChannelSuffix(int32_t v);
+	/// @brief Sets the device definition file name.
+	/// @param v The new file name.
 	void setDeviceDefinitionFileName(std::string_view v);
+	/// @brief Sets whether aftertouch is collapsed.
+	/// @param v True to collapse aftertouch.
 	void setCollapseAftertouch(bool v);
+	/// @brief Sets whether MPE is collapsed.
+	/// @param v True to collapse MPE.
 	void setCollapseMPE(bool v);
+	/// @brief Sets the CC number used for MPE Y output.
+	/// @param v The new CC number.
 	void setOutputMPEY(CCNumber v);
+	/// @}
 	Error readModKnobAssignmentsFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
 	                                     ParamManagerForTimeline* paramManager = nullptr);
 

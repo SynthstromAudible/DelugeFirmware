@@ -36,13 +36,21 @@ struct LegacyMacroTargets {
 };
 
 /// @brief The `sections` list: every section, with its launch command and the command's device.
+/// @param arrangement The arrangement to encode.
+/// @return The `sections` array value.
 [[nodiscard]] serialization::Value encode_sections(const Arrangement& arrangement);
 
 /// @brief The `sessionMacros` list, up to the last macro that does something; empty when none does.
+/// @param arrangement The arrangement to encode.
+/// @return The `sessionMacros` array value.
 [[nodiscard]] serialization::Value encode_macros(const Arrangement& arrangement);
 
 /// @brief Read the song's `sections` and `sessionMacros`. A macro names its clip and output by the id the file
 /// holds (the host checks the song holds them); a positional target goes to @p legacy if given, keeping the macro.
+/// @param song The song map to read.
+/// @param arrangement The arrangement to fill.
+/// @param legacy Receives positional macro targets from pre-id files; may be null.
+/// @return Nothing on success; LoadError::NOT_A_MAP if @p song is not a map.
 [[nodiscard]] std::expected<void, LoadError> decode(const serialization::Value& song, Arrangement& arrangement,
                                                     LegacyMacroTargets* legacy = nullptr);
 

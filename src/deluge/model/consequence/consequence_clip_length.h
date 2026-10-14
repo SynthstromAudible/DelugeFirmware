@@ -31,10 +31,10 @@ public:
 	Clip* clip;
 	int32_t lengthToRevertTo;
 
-	// M3 owner-4: which AudioClip sample marker (if any) this length change also moved, reverted through the model
-	// setter — replaces the former raw uint64_t* into sampleHolder. NONE for non-audio clips (length only).
+	/// @brief Which AudioClip sample marker a length change moved.
 	enum class Marker : uint8_t { NONE, START, END };
-	Marker marker{Marker::NONE};
+	Marker marker{Marker::NONE}; ///< The marker this length change also moved (reverted through the AudioClip's
+	                             ///< setter); NONE for non-audio clips.
 	AudioClip* audioClip{nullptr};
 	uint64_t markerValueToRevertTo{};
 };

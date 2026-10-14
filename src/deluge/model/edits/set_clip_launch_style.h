@@ -7,14 +7,18 @@ class Clip;
 
 namespace deluge::edits {
 
-/// Set a clip's launch style (the reification of LaunchStyleMenu::selectEncoderAction). NON-UNDOABLE by design — no
-/// Consequence, matching today's behaviour (undo deferred to the command/undo-tree substrate, not Action/Consequence).
-/// Writes via `setLaunchStyle` into the clip's authoritative `DocClip.launch_style` (M3 owner-1 — the DocClip is the
-/// sole storage; no engine shadow).
+/// @brief Set a clip's launch style.
+///
+/// Writes via `setLaunchStyle` into the clip's `DocClip.launch_style`, which is the sole storage of the style.
+///
+/// @note Not undoable: no Consequence is recorded.
 class SetClipLaunchStyle final : public Edit {
 public:
+	/// @param clip     The clip to change.
+	/// @param newStyle The launch style to set.
 	SetClipLaunchStyle(Clip* clip, LaunchStyle newStyle) : clip_(clip), newStyle_(newStyle) {}
 
+	/// @copydoc Edit::apply
 	Error apply(Context& ctx) override;
 
 private:

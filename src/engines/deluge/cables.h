@@ -54,11 +54,15 @@ inline constexpr std::array<std::string_view, 16> kSourceNames{
 } // namespace detail
 
 /// @brief The name a file gives @p source.
+/// @param source The patch source.
+/// @return The source's file name.
 [[nodiscard]] constexpr std::string_view to_string(PatchSource source) {
 	return detail::kSourceNames[static_cast<size_t>(source)];
 }
 
 /// @brief The source a file's @p name names; NONE when it names none the instrument knows.
+/// @param name A source name from a file.
+/// @return The named source, or NONE.
 [[nodiscard]] constexpr PatchSource parse_patch_source(std::string_view name) {
 	for (size_t s = 0; s < detail::kSourceNames.size(); ++s) {
 		if (detail::kSourceNames[s] == name) {
@@ -72,11 +76,15 @@ inline constexpr std::array<std::string_view, 16> kSourceNames{
 enum class Polarity : uint8_t { UNIPOLAR, BIPOLAR };
 
 /// @brief The name a file gives @p polarity.
+/// @param polarity The polarity.
+/// @return The polarity's file name.
 [[nodiscard]] constexpr std::string_view to_string(Polarity polarity) {
 	return polarity == Polarity::UNIPOLAR ? "unipolar" : "bipolar";
 }
 
 /// @brief The polarity a file's @p name names; BIPOLAR for any other name.
+/// @param name A polarity name from a file.
+/// @return The named polarity.
 [[nodiscard]] constexpr Polarity parse_polarity(std::string_view name) {
 	return name == "unipolar" ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
 }
@@ -115,12 +123,17 @@ inline constexpr uint32_t kSourceShift[3] = {8, 14, 20};
 } // namespace detail
 
 /// @brief Whether @p id is a cable's depth.
+/// @param id A param id.
+/// @return True when the id carries kCableDepthFlag.
 [[nodiscard]] constexpr bool is_cable_depth(engine::ParamId id) {
 	return (id.value & kCableDepthFlag) != 0;
 }
 
 /// @brief The depth id of the cable from @p source to @p destination; nullopt when the destination already carries
 /// three sources or is neither a cable depth nor a param id below 256.
+/// @param source      The cable's source.
+/// @param destination The param, or the depth of the cable this one controls.
+/// @return The depth id, or nullopt.
 [[nodiscard]] constexpr std::optional<engine::ParamId> cable_depth_id(PatchSource source, engine::ParamId destination) {
 	const uint32_t field = static_cast<uint32_t>(source) + 1;
 	if (!is_cable_depth(destination)) {
@@ -137,6 +150,8 @@ inline constexpr uint32_t kSourceShift[3] = {8, 14, 20};
 }
 
 /// @brief The source and destination of the cable whose depth is @p depth; nullopt when @p depth is not a cable's.
+/// @param depth A cable depth id.
+/// @return The cable's route, or nullopt.
 [[nodiscard]] constexpr std::optional<CableRoute> cable_route(engine::ParamId depth) {
 	if (!is_cable_depth(depth)) {
 		return std::nullopt;

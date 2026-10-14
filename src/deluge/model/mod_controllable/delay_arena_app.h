@@ -23,8 +23,9 @@
 
 namespace deluge::model {
 
-/// @return The app's one delay arena: regions from the general SDRAM heap, each a BSP heap, maintained by the
+/// @brief The app's one delay arena: regions from the general SDRAM heap, each a BSP heap, maintained by the
 /// "delay arena" app-loop job.
+/// @return The delay arena.
 deluge::effects::DelayArena& delayArena();
 
 /// @brief Adds the "delay arena" job to the app loop: no timer, woken by the render after it takes or gives back a
@@ -35,6 +36,7 @@ void registerDelayArenaJob();
 /// counting no owner in or out.
 void maintainDelayArena();
 
+/// @brief The number of maintenance runs so far.
 /// @return How many times the arena has been maintained.
 uint32_t delayArenaMaintenanceRuns();
 

@@ -28,7 +28,9 @@
 
 namespace deluge::gui::menu_item {
 
-/// The file form of @p mode: the name a sound's file writes for it.
+/// @brief The file form of @p mode: the name a sound's file writes for it.
+/// @param mode The mode to encode.
+/// @return A scalar serialization value holding the mode's file name.
 inline serialization::Value synthModeValue(::SynthMode mode) {
 	return serialization::Value::makeScalar(std::string(deluge::instrument::to_string(mode)));
 }

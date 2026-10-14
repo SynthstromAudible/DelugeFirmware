@@ -192,9 +192,9 @@ struct HighPassLadder {
 			a = AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturator, a);
 		}
 		else {
-			// The saturator is placed at shift 2 although it saturates at drive 1 (shift 1): the legacy placement is
-			// kept bit-exact, so switching ANTIALIASED in interpolates its first sample from a position twice as far
-			// from the centre (short of saturation).
+			// The saturator is placed at shift 2 although it saturates at drive 1 (shift 1): this placement is
+			// part of the output contract, so switching ANTIALIASED in interpolates its first sample from a position
+			// twice as far from the centre (short of saturation).
 			AntialiasedTanh::place(s.saturator, static_cast<uint32_t>(lshiftAndSaturate<kPlaceShift>(a)) + kTanhCentre);
 			if constexpr (M == Mode::TANH) {
 				a = tanh<kTanhDrive>(a);

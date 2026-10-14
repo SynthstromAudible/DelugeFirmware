@@ -49,7 +49,7 @@ Output::Output(OutputType newType) : type(newType) {
 }
 
 Output::~Output() {
-	// M3 owner-5: drop this output's DOM identity record on genuine destruction. Guarded on currentSong && docOutput_
+	// Drop this output's DOM identity record on genuine destruction. Guarded on currentSong && docOutput_
 	// so whole-song teardown (currentSong nulled first, the project destroyed wholesale) does no per-output removal.
 	if (currentSong != nullptr && docOutput_ != nullptr) {
 		currentSong->removeDocOutput(this);
@@ -63,7 +63,7 @@ Output::~Output() {
 	}
 }
 
-// DO1: reseed the record's 6 base identity fields from the current native values. Load-bridge (called from
+// Reseeds the record's 6 base identity fields from the current native values. Load bridge (called from
 // Song::adoptOutput at bind time) plus reseed helper for sites that can't call a single setter (the polymorphic
 // modKnobMode write in View::modButtonAction; the clone/replace families in song.cpp).
 void Output::seedDocOutputIdentity() {
@@ -331,7 +331,7 @@ void Output::writeToFile(Clip* clipForSavingOutputOnly, Song* song) {
 bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 
 	if (!clipForSavingOutputOnly) {
-		// DO1: read the DOM identity record when bound (rebuild-at-save); fall back to the native field when
+		// Read the DOM identity record when bound (rebuild-at-save); fall back to the native field when
 		// unbound (standalone preset save before adoption, if that's even reachable here).
 		if (docOutput_ != nullptr ? docOutput_->muted_in_arrangement : mutedInArrangementMode) {
 			writer.writeAttribute("isMutedInArrangement", 1);

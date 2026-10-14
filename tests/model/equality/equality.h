@@ -35,17 +35,28 @@ struct EqualityFaults {
 
 /// @brief The model-equality check for one song: parse @p songText, decode the model's parts (A), encode them, write
 /// JSON, parse it and decode again (B); require A == B and that B encodes to the same JSON as A.
+/// @param songText The song document.
+/// @param isJson   True when @p songText is JSON, false when it is XML.
+/// @param faults   Faults to inject into the round trip; none by default.
 /// @return Nothing, or what differed, naming the first record that did.
 [[nodiscard]] std::expected<void, std::string> check_equality(std::string_view songText, bool isJson,
                                                               const EqualityFaults& faults = {});
 
 /// @brief Whether two saves of a song hold the same song: parse each (@p aIsJson, @p bIsJson say how), decode the
 /// model's parts and require them equal.
+/// @param a      The first song document.
+/// @param aIsJson True when @p a is JSON, false when it is XML.
+/// @param b      The second song document.
+/// @param bIsJson True when @p b is JSON, false when it is XML.
 /// @return Nothing, or what differed, naming the first record that did.
 [[nodiscard]] std::expected<void, std::string> compare_songs(std::string_view a, bool aIsJson, std::string_view b,
                                                              bool bIsJson);
 
 /// @brief Whether two documents hold the same tree (keys, order, scalar text); whitespace and layout are ignored.
+/// @param a      The first document.
+/// @param aIsJson True when @p a is JSON, false when it is XML.
+/// @param b      The second document.
+/// @param bIsJson True when @p b is JSON, false when it is XML.
 /// @return Nothing, or the path of the first entry that differs.
 [[nodiscard]] std::expected<void, std::string> compare_trees(std::string_view a, bool aIsJson, std::string_view b,
                                                              bool bIsJson);

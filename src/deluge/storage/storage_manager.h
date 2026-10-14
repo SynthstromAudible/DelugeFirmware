@@ -116,8 +116,12 @@ public:
 	/// @brief Bytes the buffer can currently hold. GROWS as a memory-backed document outgrows it.
 	[[nodiscard]] uint32_t bufferCapacity() const { return bufferSize; }
 
-	/// Redirect writes into a caller-owned buffer (for in-memory serialization, e.g. a host
-	/// round-trip harness). Writes truncate at `len`, so size it to the largest expected output.
+	/// @brief Redirect writes into a caller-owned buffer (for in-memory serialization, e.g. a host round-trip
+	///        harness).
+	///
+	/// Writes truncate at @p len, so size it to the largest expected output.
+	/// @param buf The buffer to write into.
+	/// @param len Its size in bytes.
 	void setMemoryBuffer(char* buf, uint32_t len) {
 		writeClusterBuffer = buf;
 		bufferSize = len;
@@ -165,11 +169,15 @@ public:
 	virtual void writeArrayStart(char const* tag, bool startNewLineAfter = true, bool box = false) = 0;
 	virtual void writeArrayEnding(char const* tag, bool shouldPrintIndents = true, bool box = false) = 0;
 
-	/// A text-content leaf element whose value is written incrementally between the two calls (e.g. an
-	/// auto-param "0x…" hex blob). XML writes it as an element (<tag>…</tag>); JSON overrides to a string
-	/// ("tag": "…"), since JSON has no text-content-element concept and the reader consumes it
-	/// char-at-a-time as a scalar. The default (element) keeps XMLSerializer byte-identical.
+	/// @brief Open a text-content leaf element whose value is written incrementally between the opening and
+	///        closing calls (e.g. an auto-param "0x…" hex blob).
+	///
+	/// XML writes it as an element (<tag>…</tag>); JSON overrides it to a string ("tag": "…"), since JSON has no
+	/// text-content-element concept and the reader consumes it char-at-a-time as a scalar.
+	/// @param tag The element's name.
 	virtual void writeOpeningTextTag(char const* tag) { writeOpeningTag(tag, false); }
+	/// @brief Close the leaf opened by writeOpeningTextTag().
+	/// @param tag The element's name.
 	virtual void writeClosingTextTag(char const* tag) { writeClosingTag(tag, false); }
 	virtual void printIndents() = 0;
 	virtual void insertCommaIfNeeded() = 0;
@@ -180,6 +188,7 @@ public:
 	virtual void reset() = 0;
 	/// @brief Writes each entry of the Map @p members as a member of the object being written.
 	/// @details Only a JSON writer takes a Value; an XML document is written by the streaming calls.
+	/// @param members The Map whose entries are written.
 	virtual void writeValue(const deluge::serialization::Value& members);
 	/// @brief The format this serializer writes.
 	[[nodiscard]] virtual deluge::storage::DocumentFormat format() const = 0;
@@ -220,7 +229,8 @@ public:
 	void writeArrayEnding(char const* tag, bool shouldPrintIndents = true, bool box = true) override;
 	void insertCommaIfNeeded() override {}
 	void printIndents() override;
-	/// Write @p text as an attribute value or element text, escaping `"` and `<`.
+	/// @brief Write @p text as an attribute value or element text, escaping `"` and `<`.
+	/// @param text The NUL-terminated text.
 	void writeEscaped(char const* text);
 	void write(char const* output) override;
 	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
@@ -229,10 +239,13 @@ public:
 	/// @brief Write @p members at the current element: each scalar as an attribute (the element's opening tag must
 	/// still be open), each Map as a child element and each Array as a list of its boxed elements (after
 	/// writeOpeningTagEnd()). Every scalar comes before every child; a scalar after a child freezes "SV02".
+	/// @param members The Map whose entries are written.
 	void writeValue(const deluge::serialization::Value& members) override;
 
 private:
-	/// Write @p value, a Map or an Array, as the element or list @p name.
+	/// @brief Write @p value, a Map or an Array, as the element or list @p name.
+	/// @param name  The element or list name.
+	/// @param value The Map or Array to write.
 	void writeElement(char const* name, const deluge::serialization::Value& value);
 
 	uint8_t indentAmount{};
@@ -340,7 +353,8 @@ public:
 	void writeArrayEnding(char const* tag, bool shouldPrintIndents = true, bool box = false) override;
 	void printIndents() override;
 	void insertCommaIfNeeded() override;
-	/// Write @p text as the inside of a JSON string, escaping `"`, `\\` and control characters.
+	/// @brief Write @p text as the inside of a JSON string, escaping `"`, `\\` and control characters.
+	/// @param text The NUL-terminated text.
 	void writeEscaped(char const* text);
 	void write(char const* output) override;
 	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
@@ -350,7 +364,9 @@ public:
 	// Begin Json-only API
 
 private:
-	/// Writes @p value as the member @p name, or as an array item when @p name is null.
+	/// @brief Write @p value as the member @p name, or as an array item when @p name is null.
+	/// @param name  The member name, or null for an array item.
+	/// @param value The value to write.
 	void writeMember(char const* name, const deluge::serialization::Value& value);
 
 	uint8_t indentAmount{};
@@ -427,6 +443,7 @@ FileWriter& fileWriterFor(deluge::storage::DocumentFormat format);
 /// @brief Makes @p writer the one GetSerializer() returns while a document is written through it; scopes nest.
 class ActiveWriterScope {
 public:
+	/// @param writer The serializer GetSerializer() returns for this scope's lifetime.
 	explicit ActiveWriterScope(Serializer& writer);
 	~ActiveWriterScope();
 	ActiveWriterScope(const ActiveWriterScope&) = delete;
@@ -620,9 +637,11 @@ Error openDocumentTreeSynchronously(char const* path, char const* firstTagName, 
 
 /// @brief Whether @p path names a JSON document rather than an XML one.
 ///
-/// The extension rule the file-backed opener used, in one place now that three call sites need it: a
-/// buffer has no filename to infer from, so whoever stages one has to decide before parsing. Getting
-/// it wrong routes an XML song to the JSON parser and the failure reads as a corrupt file.
+/// The single extension rule for staged documents: a buffer has no filename to infer from, so whoever stages one
+/// has to decide before parsing. Getting it wrong routes an XML song to the JSON parser and the failure reads as a
+/// corrupt file.
+/// @param path The document's path.
+/// @return True if the path's extension is `json`.
 bool documentIsJson(char const* path);
 
 /// @brief Release the shared slot filled by openDocumentSynchronously(). Safe to call twice.

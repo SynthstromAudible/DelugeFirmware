@@ -22,7 +22,9 @@
 
 namespace deluge::effects {
 
-/// @return @p state's knobs as the dsp-next compressor takes them.
+/// @brief @p state's knobs as the dsp-next compressor takes them.
+/// @param state The compressor state to read.
+/// @return The knobs for the dsp-next compressor.
 [[nodiscard]] constexpr dsp::fixed::CompressorKnobs compressor_knobs(const CompressorState& state) {
 	return {
 	    .attack = state.attack,
@@ -41,6 +43,7 @@ namespace deluge::effects {
 class Compressor {
 public:
 	/// @brief Takes @p state's knobs (cheap when unchanged: the dsp-next compressor recomputes only on a change).
+	/// @param state The compressor state to take the knobs from.
 	void configure(const CompressorState& state);
 
 	/// @brief The dsp-next compressor, for the owner's threshold, base gain, reset, render and LED reads.

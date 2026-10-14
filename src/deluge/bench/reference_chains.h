@@ -39,7 +39,17 @@ namespace chain_reference {
 using deluge::dsp::StereoSample;
 namespace fx = deluge::effects;
 
-/// The mod FX (or the grain), the EQ and the delay: a sound passes its mod FX type, a host chain its type in effect.
+/// @brief The mod FX (or the grain), the EQ and the delay.
+///
+/// A sound passes its mod FX type, a host chain the type in effect.
+/// @param c                The chain components.
+/// @param buffer           The block, processed in place.
+/// @param modFXType        The mod FX type to run.
+/// @param in               The effect inputs.
+/// @param postFXVolume     The post-FX volume, which the mod FX may adjust.
+/// @param anySoundComingIn Whether the block carries sound, for the mod FX.
+/// @param verbAmount       The grain's reverb feed amount.
+/// @param reverbBuffer     The reverb send the grain feeds.
 inline void process_fx(fx::ChainCore& c, std::span<StereoSample> buffer, fx::ModFXType modFXType,
                        const fx::FxInputs& in, int32_t* postFXVolume, bool anySoundComingIn, q31_t verbAmount,
                        fx::ReverbSend reverbBuffer) {
@@ -70,7 +80,17 @@ inline void process_fx(fx::ChainCore& c, std::span<StereoSample> buffer, fx::Mod
 	c.delay().process(buffer, in.delay, in.stereo);
 }
 
-/// The reverb send, then the volumes and pan. @return Whether anything was sent (the engine notes the reverb's time).
+/// @brief The reverb send, then the volumes and pan.
+/// @param c                    The chain components.
+/// @param buffer               The block, processed in place.
+/// @param reverbBuffer         The reverb send.
+/// @param postFXVolume         The volume before the reverb.
+/// @param postReverbVolume     The volume after the reverb.
+/// @param reverbSendAmount     The reverb send amount.
+/// @param pan                  The pan.
+/// @param doAmplitudeIncrement Whether the volume ramps across the block.
+/// @param stereo               Whether the block is stereo.
+/// @return Whether anything was sent (the engine notes the reverb's time).
 inline bool process_reverb_send_and_volume(fx::ChainCore& c, std::span<StereoSample> buffer,
                                            fx::ReverbSend reverbBuffer, int32_t postFXVolume, int32_t postReverbVolume,
                                            int32_t reverbSendAmount, int32_t pan, bool doAmplitudeIncrement,
@@ -84,7 +104,12 @@ inline bool process_reverb_send_and_volume(fx::ChainCore& c, std::span<StereoSam
 	                                    .stereo = stereo});
 }
 
-/// A sound's chain, from the prime to the compressor.
+/// @brief A sound's chain, from the prime to the compressor.
+/// @param c            The chain components.
+/// @param in           The sound chain inputs.
+/// @param sound_stereo The sound's block, processed in place.
+/// @param reverbBuffer The reverb send.
+/// @return Whether anything was sent to the reverb.
 inline bool sound(fx::ChainCore& c, const fx::SoundChainInputs& in, std::span<StereoSample> sound_stereo,
                   fx::ReverbSend reverbBuffer) {
 	const fx::EffectStates& settings = *in.fx.settings;
@@ -114,8 +139,18 @@ inline bool sound(fx::ChainCore& c, const fx::SoundChainInputs& in, std::span<St
 	return sent;
 }
 
-/// A kit's or an audio track's chain, from the filter's settings to the compressor, the content render left out (its
-/// block arrives already rendered, @p renderedLastTime saying whether it rendered); @p tap is the recorder.
+/// @brief A kit's or an audio track's chain, from the filter's settings to the compressor, the content render left out.
+///
+/// The block arrives already rendered.
+/// @param c                         The chain components.
+/// @param filter_                   The clip's filter.
+/// @param saturation_               The clip's saturation.
+/// @param in                        The clip chain inputs.
+/// @param global_effectable_audio   The block, processed in place.
+/// @param renderedLastTime          Whether the content rendered this time.
+/// @param reverbBuffer              The reverb send.
+/// @param tap                       The recorder, called with the block before the reverb send.
+/// @return Whether anything was sent to the reverb.
 template <typename Tap>
 bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, const fx::ClipChainInputs& in,
           std::span<StereoSample> global_effectable_audio, bool renderedLastTime, fx::ReverbSend reverbBuffer,
@@ -177,8 +212,18 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 	return sent;
 }
 
-/// The song master: its mod FX, EQ, delay and send and volume, then @p between with whether it sent (the reverb, the
-/// sample preview, and the post-reverb inputs), then its filter, bitcrush, stutter, pan and compressor.
+/// @brief The song master: its mod FX, EQ, delay and send and volume, then @p between, then its filter, bitcrush,
+/// stutter, pan and compressor.
+///
+/// @p between is called with whether the send sent; it runs the reverb and the sample preview and returns the
+/// post-reverb inputs, or nothing to end the chain there.
+/// @param c               The chain components.
+/// @param filter_         The master's filter.
+/// @param in              The master chain inputs.
+/// @param renderingBuffer The block, processed in place.
+/// @param reverbBuffer    The reverb send.
+/// @param between         The caller's step between the two halves.
+/// @return Whether anything was sent to the reverb.
 template <typename Between>
 bool master(fx::ChainCore& c, fx::Filter& filter_, const fx::MasterChainInputs& in,
             std::span<StereoSample> renderingBuffer, fx::ReverbSend reverbBuffer, Between&& between) {

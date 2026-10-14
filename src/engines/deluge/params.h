@@ -298,6 +298,8 @@ struct RuntimeSlot {
 
 /// @brief Where the runtime keeps the param @p id, or nullopt when the instrument has no such param. This map is
 /// the only way the runtime's numbering may change.
+/// @param id A param id.
+/// @return The runtime slot, or nullopt.
 [[nodiscard]] constexpr std::optional<RuntimeSlot> runtime_slot(engine::ParamId id) {
 	if (kParamBlocks[0].contains(id)) {
 		return RuntimeSlot{RuntimeSet::PATCHED, static_cast<uint8_t>(id.value)};
@@ -309,6 +311,8 @@ struct RuntimeSlot {
 }
 
 /// @brief The id of the param the runtime keeps at @p slot.
+/// @param slot A runtime slot.
+/// @return The param's id.
 [[nodiscard]] constexpr engine::ParamId param_id(RuntimeSlot slot) {
 	return engine::ParamId{slot.set == RuntimeSet::PATCHED ? slot.index : kUnpatchedFirstId + slot.index};
 }

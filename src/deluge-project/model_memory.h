@@ -19,12 +19,16 @@
 
 #include <cstddef>
 
-/// @brief Where the model's memory comes from, supplied by the host at link time: the device gives the model the heap
-/// its containers have always used, a host tool the ordinary heap.
+/// @brief Where the model's memory comes from, supplied by the host at link time: the device gives the model the
+/// general heap its containers draw on, a host tool the ordinary heap.
+/// @param bytes     Size of the request in bytes.
+/// @param alignment Required alignment in bytes.
 /// @return The memory, or nullptr when the request cannot be met.
 extern "C" void* deluge_model_alloc(std::size_t bytes, std::size_t alignment) noexcept;
 
 /// @brief Return memory from deluge_model_alloc made with this @p alignment.
+/// @param p         Memory returned by deluge_model_alloc.
+/// @param alignment The alignment passed to the matching deluge_model_alloc.
 extern "C" void deluge_model_free(void* p, std::size_t alignment) noexcept;
 
 namespace deluge::project {

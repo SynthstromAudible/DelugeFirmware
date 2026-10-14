@@ -25,7 +25,7 @@
 
 namespace deluge::project {
 
-/// Scale/key settings of a song: the current key (root note + mode notes), which preset scales are
+/// @brief Scale/key settings of a song: the current key (root note + mode notes), which preset scales are
 /// disabled, the user-defined scale, and the mapper that computes note remappings on a scale change.
 /// A component of deluge::project::Song.
 struct ScaleSettings {
@@ -36,10 +36,10 @@ struct ScaleSettings {
 	/// Computes per-note remappings when the scale changes; effectively private state of that path.
 	deluge::music::ScaleMapper scale_mapper;
 
-	/// Whether a user scale is currently defined.
+	/// @brief Whether a user scale is currently defined.
 	[[nodiscard]] bool hasUserScale() const { return !user_scale_notes.isEmpty(); }
 
-	/// Equal when the persistent fields are; the mapper's transition state is runtime.
+	/// @brief Equal when the persistent fields are; the mapper's transition state is runtime.
 	bool operator==(const ScaleSettings& other) const {
 		return key == other.key && disabled_preset_scales == other.disabled_preset_scales
 		       && user_scale_notes == other.user_scale_notes;

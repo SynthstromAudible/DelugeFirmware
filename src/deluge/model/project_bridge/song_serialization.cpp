@@ -63,7 +63,7 @@ constexpr std::array<std::string_view, 10> kDecodedSongTags{
     "sections",         "sessionMacros",
 };
 
-/// Points the session macros at the clips and outputs the song holds, as reading them always has: an id the song does
+/// Points the session macros at the clips and outputs the song holds, as reading them does: an id the song does
 /// not hold names nothing, a position names the session clip or output at that position, and a macro left naming
 /// nothing it needs does nothing.
 void resolveMacros(Arrangement& arrangement, const LegacyMacroTargets& legacy, ::Song& song) {
@@ -97,7 +97,7 @@ void resolveMacros(Arrangement& arrangement, const LegacyMacroTargets& legacy, :
 }
 
 /// Makes the device list know every hosted device a section's launch command names, and records the reference as the
-/// list then holds it, as reading a device reference always has.
+/// list then holds it, as reading a device reference does.
 void registerSectionDevices(Arrangement& arrangement) {
 	for (Section& section : arrangement.sections) {
 		std::optional<MidiDeviceRef>& device = section.launch_midi_command.device;

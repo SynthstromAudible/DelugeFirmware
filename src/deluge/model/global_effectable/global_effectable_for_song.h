@@ -35,7 +35,7 @@ public:
 	uint8_t modKnobMode;
 
 private:
-	/// The song's master: its effects around the reverb.
+	/// @brief The song's master: its effects around the reverb.
 	deluge::effects::MasterChain chain_;
 
 protected:

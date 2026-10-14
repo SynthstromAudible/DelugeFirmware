@@ -27,9 +27,12 @@ class Sound;
 /// @brief A sound's post-voice chain inputs for one block: its patcher's finals and its unpatched params as
 /// Sound::render resolves them, its render copy of its settings, and the song's stutter while the sound is the one
 /// stuttering.
+/// @param sound The sound whose chain inputs are gathered.
+/// @param paramManager The sound's param manager (its unpatched params are read).
 /// @param delay The block's delay working state, which the sound set up on its chain's delay before its voices.
 /// @param anyVoices Whether the sound has voices.
 /// @param reverbSendAmount The sound's reverb send amount, Q31.
+/// @return The inputs for the sound's chain for this block.
 [[nodiscard]] deluge::effects::SoundChainInputs soundChainInputs(Sound& sound, ParamManager& paramManager,
                                                                  const deluge::effects::Delay::State& delay,
                                                                  bool anyVoices, int32_t reverbSendAmount);

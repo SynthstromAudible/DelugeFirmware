@@ -48,9 +48,9 @@ namespace params = deluge::modulation::params;
 uint32_t loopRecordingCandidateRecentnessNextValue = 1;
 
 Clip::Clip(ClipType newType, Song& song, uint32_t loadedId) : type(newType) {
-	// Durable-id Step 3 (ctor-binding): use the loaded file id when known (id-first construction), else mint from the
-	// per-song counter. Bind the DOM structure record under that id IN the ctor -- docClip_ is authoritative and never
-	// null hereafter, so the clip works immediately with no bind-at-creation pass and no ownDoc_ fallback.
+	// Use the loaded file id when known (id-first construction), else mint from the per-song counter. Bind the DOM
+	// structure record under that id in the ctor: docClip_ is authoritative and never null, so the clip works
+	// immediately.
 	id_ = loadedId != 0 ? loadedId : song.generateNewClipId();
 	docClip_ = &song.project.getOrCreateDocClip({.clip_id = id_});
 	soloingInSessionMode = false;
@@ -150,7 +150,7 @@ Clip::~Clip() {
 		FREEZE_WITH_ERROR("E457");
 	}
 #endif
-	// M3 owner-1: drop this clip's DOM structural record so the tree store doesn't accumulate dead entries. Guarded on
+	// Drop this clip's DOM structural record so the tree store doesn't accumulate dead entries. Guarded on
 	// the record being currentSong's: a whole song is torn down with currentSong null or already another song (whose
 	// clip ids may collide with this one's), and its entire project (clip_structure included) goes with it, so no
 	// per-clip removal is needed then. An undoable delete keeps the Clip object alive in its
@@ -737,7 +737,7 @@ void Clip::writeToFile(Serializer& writer, Song* song) {
 	writer.writeOpeningTagBeginning(xmlTag, true);
 
 	// Stable per-song id (see Clip::id). Written in the non-virtual wrapper so it's emitted exactly once for both clip
-	// subtypes. Always set at construction (durable-id Phase 0), so no lazy mint here.
+	// subtypes. Always set at construction, so no lazy mint here.
 	writer.writeAttribute("id", id());
 
 	writeDataToFile(writer, song);
@@ -783,14 +783,13 @@ void Clip::writeMidiCommandsToFile(Serializer& writer, Song* song) {
 	muteMIDICommand.writeNoteToFile(writer, "muteMidiCommand");
 }
 
-// Clip::readTagFromFile is gone (durable-id readFromTree slice 3): every base-clip tag -- the shell
-// (id/section/colourOffset/launchStyle/length), the plain attributes + selection/sync hints, and the nested
-// muteMidiCommand -- is now read tree-natively in Song::readClipsFromFile. Unrecognized tags in the subclass
-// readFromFile loops fall straight through to reader.exitTag().
+// Every base-clip tag -- the shell (id/section/colourOffset/launchStyle/length), the plain attributes +
+// selection/sync hints, and the nested muteMidiCommand -- is read in Song::readClipsFromFile. Unrecognized tags in
+// the subclass readFromFile loops fall straight through to reader.exitTag().
 
-// Reads the pure per-type view-state from the clip's Value node (durable-id readFromTree slice 4): the fields
-// below have no construction/song coupling, so readClipsFromFile calls this right after construction and the
-// subclass readFromFile loops no longer handle them. Base reads the fields shared by both clip types.
+// Reads the pure per-type view-state from the clip's Value node: the fields below have no construction/song
+// coupling, so readClipsFromFile calls this right after construction and the subclass readFromFile loops do not
+// handle them. Base reads the fields shared by both clip types.
 void Clip::readShellFromTree(const deluge::storage::Value& clipNode) {
 	using deluge::storage::Value;
 	if (const Value* n = clipNode.find("onAutomationInstrumentClipView")) {

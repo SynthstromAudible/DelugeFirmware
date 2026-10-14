@@ -46,6 +46,9 @@ struct ParamNaming {
 };
 
 /// @brief The naming of @p engine in @p namings, or nullptr.
+/// @param namings The available namings.
+/// @param engine The engine to look up.
+/// @return The matching naming, or nullptr.
 [[nodiscard]] constexpr const ParamNaming* naming_for(std::span<const ParamNaming> namings, EngineId engine) {
 	for (const ParamNaming& naming : namings) {
 		if (naming.engine == engine) {

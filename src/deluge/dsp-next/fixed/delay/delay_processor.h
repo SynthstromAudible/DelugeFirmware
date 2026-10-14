@@ -86,8 +86,11 @@ public:
 	/// feedback is written back to the tapes, frame by frame.
 	/// @details The kernel is configured from @p settings and the tapes right before the block, since its tape form
 	/// and whether it reads and grows come from the tapes' state, which the owner's lifecycle changes between blocks.
-	/// @param primary the tape read and written back; null or inactive reads silence and writes nothing.
-	/// @param secondary null when the delay has a single tape.
+	/// @param block The frames to process in place, Q31.
+	/// @param primary The tape read and written back; null or inactive reads silence and writes nothing.
+	/// @param secondary Null when the delay has a single tape.
+	/// @param settings The block's settings as the owner resolved them.
+	/// @return What the block did to the tapes.
 	[[nodiscard]] DelayBlockResult process(std::span<StereoSample> block, DelayTape* primary, DelayTape* secondary,
 	                                       const DelayBlock& settings);
 
@@ -95,8 +98,9 @@ public:
 	/// is kept.
 	void resetHighPass();
 
-	/// @return The kernel's State between blocks: each channel's impulse response history and high-pass memory. Its
-	/// block results are cleared after every block.
+	/// @brief The kernel's State between blocks.
+	/// @return Each channel's impulse response history and high-pass memory. Its block results are cleared after every
+	/// block.
 	[[nodiscard]] const Delay::State& state() const { return delay_.state(); }
 
 private:

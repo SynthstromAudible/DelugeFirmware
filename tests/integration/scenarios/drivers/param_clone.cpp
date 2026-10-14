@@ -1,5 +1,4 @@
-// Clone/undo deep-independence harness for the sequencer clone-idiom retirement
-// (docs/superpowers/plans/2026-07-02-sequencer-clone-idiom-retirement.md, Task A0).
+// Clone/undo deep-independence harness.
 //
 // The golden harness is BLIND to cloning — it does load->save and never duplicates a clip / kit row or
 // runs undo. This test is the safety net: it clones the real engine containers (AutoParam,
@@ -8,8 +7,7 @@
 // clone). It runs as the param_clone scenario (scenarios/drivers/driver.h), on x86 and, through the qemu-arm
 // build of golden_vt_render, on ARM.
 //
-// It is written to pass on the CURRENT byte-copy clone idiom, then guards the retirement to real copy
-// semantics: any task in the retirement that breaks deep independence fails here.
+// Any change to the clone paths that breaks deep independence fails here.
 //
 // Exit: 0 = all clones deep-independent, 1 = a failure.
 
@@ -56,7 +54,7 @@ void setNodeIn(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value, b
 
 int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	io = driverIo;
-	// (a) M2-F: AutoParam is a pure cursor — copy carries only currentValue (node storage lives in the DOM, and
+	// (a) AutoParam is a pure cursor — copy carries only currentValue (node storage lives in the DOM, and
 	// is exercised by the ParamManager/ParamSet clone blocks below).
 	{
 		AutoParam src;
@@ -69,7 +67,7 @@ int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	}
 
 	// (b) ParamManager clone: exercises the polymorphic per-collection clone chain
-	//     (ParamManager::cloneParamCollectionsFrom -> the memcpy@217 -> each collection's beenCloned).
+	//     (ParamManager::cloneParamCollectionsFrom -> each collection's beenCloned).
 	{
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "pm setupWithPatching");
@@ -105,8 +103,8 @@ int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		      "pm clone: patch-cable node independent");
 	}
 
-	// (b2) ParamCollection::clone() direct (A3): base impl now, overridden per-subclass later; the harness
-	//      re-verifies deep independence through each override.
+	// (b2) ParamCollection::clone() direct: the base implementation and each
+	//      per-subclass override are held to deep independence.
 	{
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "clone(): pm setup");

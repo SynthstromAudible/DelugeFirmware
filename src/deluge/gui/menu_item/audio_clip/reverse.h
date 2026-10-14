@@ -40,15 +40,15 @@ public:
 
 		clip->unassignVoiceSample(false);
 
-		// M3 owner-4: reversed is DOM-owned — funnel through the setter (record + render cache). The endPos clamp +
-		// cluster-reason side effects below still act on the sampleHolder cache (its owner-4 slice is separate).
+		// reversed is DOM-owned: write it through the setter (records the edit and updates the render cache). The
+		// endPos clamp + cluster-reason side effects below act on the sampleHolder cache.
 		clip->setReversed(this->getValue());
 
 		if (clip->sampleHolder.audioFile != nullptr) {
 			if (clip->sampleControls.isCurrentlyReversed()) {
 				uint64_t lengthInSamples = (static_cast<Sample*>(clip->sampleHolder.audioFile))->lengthInSamples;
 				if (clip->sampleHolder.endPos > lengthInSamples) {
-					// M3 owner-4: endPos is DOM-owned — funnel the defensive clamp through the setter (record + cache).
+					// endPos is DOM-owned: clamp through the setter (records the edit and updates the cache).
 					// Writing sampleHolder.endPos raw would leave docAudioClip_->end_pos stale at save.
 					clip->setSampleEndPos(lengthInSamples);
 				}

@@ -27,10 +27,11 @@
 
 namespace deluge::project {
 
-/// The DOM-owned identity record for one engine Output (M3 owner-5, Output-base fields). Keyed by Output::id() in
-/// OutputStructure, mirroring DocDrum/DrumStructure. Covers the fields common to every output type (instruments,
-/// kits, audio outputs); per-instrument-type + Sound structure are later owner-5 slices. Rebuilt from the engine
-/// at load + save.
+/// @brief The DOM-owned identity record for one engine Output.
+///
+/// Keyed by Output::id() in OutputStructure, mirroring DocDrum/DrumStructure. Covers the fields common to every
+/// output type (instruments, kits, audio outputs) plus per-instrument-type descriptors. Rebuilt from the engine at
+/// load and save.
 struct DocOutput {
 	std::string name;
 	int16_t colour{0};
@@ -38,7 +39,7 @@ struct DocOutput {
 	bool muted_in_arrangement{false};
 	bool soloing_in_arrangement{false};
 	bool armed_for_recording{false};
-	// Owner-5 Slice E: per-instrument-type descriptors (populated only for the relevant OutputType; 0/empty otherwise).
+	// Per-instrument-type descriptors (populated only for the relevant OutputType; 0/empty otherwise).
 	std::string dir_path;                    ///< Instrument (non-AUDIO)
 	uint8_t default_velocity{0};             ///< Instrument
 	int32_t channel{0};                      ///< NonAudioInstrument (MIDI_OUT/CV)

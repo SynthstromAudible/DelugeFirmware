@@ -9,12 +9,12 @@ class ModelStackWithNoteRow;
 
 namespace deluge::edits {
 
-/// Set the number of Euclidean events on a note-row (the reification of InstrumentClipView's
-/// EUCLIDEAN_NUM_EVENTS_EDIT gesture). apply reproduces the call site's two paths exactly: a "partial undo" when the
-/// last open Action was the equal-and-opposite euclidean edit, else a fresh Action that rebuilds the note pattern,
-/// steals the MPE automation + old note array into undo Consequences, and swaps the new notes in. The view keeps the
-/// clamp/display logic; newNumNotes arrives already clamped. Returns the NoteVector-preallocation error so the call
-/// site keeps its displayError flow.
+/// @brief Set the number of Euclidean events on a note-row (the EUCLIDEAN_NUM_EVENTS_EDIT gesture).
+///
+/// apply() takes one of two paths: a "partial undo" when the last open Action was the equal-and-opposite euclidean
+/// edit, else a fresh Action that rebuilds the note pattern, steals the MPE automation + old note array into undo
+/// Consequences, and swaps the new notes in. The caller owns clamping and display; newNumNotes must arrive already
+/// clamped. apply() returns the NoteVector-preallocation error so the caller can show it.
 class SetEuclideanEvents final : public Edit {
 public:
 	SetEuclideanEvents(std::optional<project::NoteRowAddress> address, int32_t offset, int32_t newNumNotes,
@@ -32,7 +32,7 @@ private:
 	int32_t numStepsAvailable_;
 	int32_t effectiveLength_;
 	uint32_t squareWidth_;
-	ModelStackWithNoteRow* engineStack_; ///< Funnel-phase borrow.
+	ModelStackWithNoteRow* engineStack_; ///< Borrowed for the duration of apply().
 };
 
 } // namespace deluge::edits

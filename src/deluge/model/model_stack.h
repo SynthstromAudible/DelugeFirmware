@@ -279,9 +279,12 @@ public:
 	/// (e.g. the paramcollection, summary, or paramId)
 	AutoParam* autoParam;
 
-	/// M2-E: the DOM node-store handle for this param's edit/read ops. In E1 it resolves to `autoParam`'s stored
-	/// `doc_` (behaviour-identical); in E3 it will resolve from the owner (`paramCollection`) by `paramId`,
-	/// letting the engine `AutoParam` drop its stored pointer. Defined out-of-line in auto_param.cpp.
+	/// @brief The DOM node-store handle for this param's edit/read ops.
+	///
+	/// Resolves by the lane's ParamAddress in the project tree (deluge::project::Song::resolveParam), relocating a
+	/// runtime owner's store into the tree on first touch (relocateAndResolve); an owner that cannot be addressed falls
+	/// back to paramCollection->docParamForId(paramId). Defined out-of-line in auto_param.cpp.
+	/// @return The param's DocAutoParam.
 	deluge::project::DocAutoParam* doc() const;
 };
 
@@ -409,8 +412,12 @@ ModelStackWithModControllable::addParamManager(ParamManagerForTimeline* newParam
 	return toReturn;
 }
 
-/// The Kind a builder carries for @p paramCollection. A null collection is the "no param" answer (a MIDI knob on no
-/// valid CC, an output with no ParamManager), which has no kind.
+/// @brief The Kind a builder carries for @p paramCollection.
+///
+/// A null collection is the "no param" answer (a MIDI knob on no valid CC, an output with no ParamManager), which has
+/// no kind.
+/// @param paramCollection The collection to query; may be null.
+/// @return The collection's Kind, or Kind::NONE for a null collection.
 inline deluge::modulation::params::Kind paramKindOf(ParamCollection* paramCollection) {
 	return (paramCollection != nullptr) ? paramCollection->getParamKind() : deluge::modulation::params::Kind::NONE;
 }

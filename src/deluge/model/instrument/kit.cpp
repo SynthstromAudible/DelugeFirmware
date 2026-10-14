@@ -243,7 +243,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 					if (thisDrum->type == DrumType::SOUND) {
 						auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 						song->live.param_backup.deleteForModControllable(soundDrum);
-						if (std::optional<uint32_t> drumId = thisDrum->id()) { // S4.5b: retire its tree stores
+						if (std::optional<uint32_t> drumId = thisDrum->id()) { // retire its tree stores
 							song->project.backed_params.removeOwner(deluge::project::OwnerId::drum(*drumId));
 						}
 
@@ -407,12 +407,11 @@ Error Kit::readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumTy
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	// M3 owner-3: bind the drum to its DOM record BEFORE reading its tags, so the name/channel/note tag reads write
-	// straight into the bound DocDrum (the step that lets the engine fallback fields be retired). Peek the durable id
-	// from the tree node id-first (mirroring Song::readClipsFromFile) so adoptDrum keys the record by the file id
-	// rather than minting a throwaway that the later "id" tag would orphan; the element is the one a JSON reader has
-	// entered as well as the one an XML reader has just named. A drum with no id (old song / standalone) mints in
-	// adoptDrum exactly as before.
+	// Bind the drum to its DOM record BEFORE reading its tags, so the name/channel/note tag reads write straight into
+	// the bound DocDrum. Peek the durable id from the tree node id-first (mirroring Song::readClipsFromFile) so
+	// adoptDrum keys the record by the file id rather than minting a throwaway that the later "id" tag would orphan;
+	// the element is the one a JSON reader has entered as well as the one an XML reader has just named. A drum with
+	// no id (old song / standalone) mints one in adoptDrum.
 	if (song != nullptr) {
 		if (const deluge::storage::Value* drumNode = deluge::storage::treeReaderOf(reader).currentElement()) {
 			if (const deluge::storage::Value* idNode = drumNode->find("id")) {
@@ -434,7 +433,7 @@ Error Kit::readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumTy
 		delugeDealloc(toDealloc);
 		return error;
 	}
-	addDrum(newDrum, song); // linked-list + kit assignment; the adoptDrum() inside is now an idempotent no-op
+	addDrum(newDrum, song); // linked-list + kit assignment; the adoptDrum() inside is an idempotent no-op
 
 	return Error::NONE;
 }
@@ -484,7 +483,7 @@ void Kit::addDrum(Drum* newDrum, Song* adoptSong) {
 
 	newDrum->kit = this;
 
-	// M3 owner-3: bind the drum to its DOM structural record. Idempotent — during load the drum is (re)bound by
+	// Bind the drum to its DOM structural record. Idempotent — during load the drum is (re)bound by
 	// assignMissingIds against the loading song, so this hook is for runtime-created drums. Bind into the song that
 	// owns this kit (`adoptSong`, threaded through by the load callers) rather than the ambient `currentSong`, which
 	// during a load-while-another-song-plays is still the *previous* song. Runtime callers pass nullptr and fall back
@@ -519,7 +518,7 @@ void Kit::removeDrumFromLinkedList(Drum* drum) {
 }
 
 void Kit::drumRemoved(Drum* drum) {
-	// M3 owner-3: drop the drum's DOM structural record on genuine removal. Guarded on currentSong && docDrum_ so
+	// Drop the drum's DOM structural record on genuine removal. Guarded on currentSong && docDrum_ so
 	// whole-song teardown (currentSong nulled first, the project destroyed wholesale) does no per-drum removal.
 	if (currentSong != nullptr && drum->docDrum_ != nullptr) {
 		currentSong->removeDocDrum(drum);
@@ -1163,7 +1162,7 @@ void Kit::prepareForHibernationOrDeletion() {
 
 void Kit::deleteBackedUpParamManagers(Song* song) {
 	song->live.param_backup.deleteForModControllable(this);
-	// M2-G S4.5b: retire the kit's clip-level-FX tree stores (keyed by Output::id) and, below, each
+	// Retire the kit's clip-level-FX tree stores (keyed by Output::id) and, below, each
 	// SoundDrum's per-drum stores (keyed by Drum::id), mirroring the param_backup purges. See
 	// SoundInstrument::deleteBackedUpParamManagers for the safety rationale. No-op when never saved (no id).
 	if (std::optional<uint32_t> ownId = id()) {

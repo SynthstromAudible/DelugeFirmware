@@ -39,7 +39,8 @@ struct FirmwareVersion {
 	/**
 	 * @brief Parse a Deluge firmware version string such as "4.1.4-beta" or "c1.1.0-alpha"
 	 * @note This uses the first character to determine the @ref Type ('c' means @ref Type::COMMUNITY)
-	 * @return FirmwareVersion The parsed firmware version
+	 * @param string The version string to parse
+	 * @return FirmwareVersion The parsed firmware version; Type::UNKNOWN with version 0.0.0 if the string is malformed
 	 */
 	static FirmwareVersion parse(std::string_view string);
 

@@ -90,12 +90,15 @@ public:
 	/// place.
 	/// @param post_fx_volume The post-FX volume, Q31: the mod FX and the granular scale it.
 	/// @param sound Whether any sound came in this block.
+	/// @param block The audio to process in place.
+	/// @param in The block's resolved effect inputs.
 	/// @param send The granular's reverb feed is added into it.
 	void render_fx(std::span<dsp::StereoSample> block, const FxInputs& in, int32_t& post_fx_volume, bool sound,
 	               ReverbSend send);
 
 	/// @brief A host chain's soft off of a GRAIN it holds (its selected knob at its minimum): the grain's ring is taken
 	/// up afresh while the type stays GRAIN.
+	/// @param in The block's resolved effect inputs.
 	void soft_off_grain(const FxInputs& in);
 
 private:

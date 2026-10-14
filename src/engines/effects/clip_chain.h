@@ -63,6 +63,9 @@ struct ClipBlock {
 /// and pan, then the compressor.
 class ClipChain {
 public:
+	/// @brief Build a chain whose mod FX and granular buffers come from the given allocators.
+	/// @param mod_fx_allocator The ring allocator for the mod FX's buffers.
+	/// @param granular_allocator The ring allocator for the granular effect's buffers.
 	/// @param arena Where the delay's tapes come from. A host chain keeps its grains on entering GRAIN.
 	/// @param post_reverb_volume_neutral The post-reverb volume the first block ramps from, Q31.
 	ClipChain(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, DelayArena& arena,
@@ -77,18 +80,22 @@ public:
 
 	/// @brief Before the content renders: the filter's settings (which compensate the post-FX volume), the sidechain's
 	/// duck of the post-reverb volume, and the compressor's settings.
+	/// @param in What the chain reads for this block.
 	/// @param frames The block's length.
+	/// @return The volumes process applies.
 	[[nodiscard]] ClipBlock begin_block(const ClipChainInputs& in, std::size_t frames);
 
+	// TODO(c++26): take std::function_ref<void(std::span<const dsp::StereoSample>)> once the device's libstdc++
+	// provides it (arm-none-eabi GCC 16; 15.2.1 does not).
 	/// @brief After the content rendered into @p block: the chain over it in place.
+	/// @param block The block the content rendered into; processed in place.
+	/// @param in What the chain reads for this block.
 	/// @param levels What begin_block returned; the bitcrush, mod FX and grain scale its post-FX volume.
 	/// @param rendered Whether the content rendered this block; when not, the filter and bitcrush are skipped and the
 	/// mod FX, grain and delay see no sound coming in.
 	/// @param send The reverb send, one value per frame.
 	/// @param tap Called with the block after the stutter, before the send and volume: the owner's recorder.
 	/// @return Whether the block fed the reverb.
-	// TODO(c++26): take std::function_ref<void(std::span<const dsp::StereoSample>)> once the device's libstdc++
-	// provides it (arm-none-eabi GCC 16; 15.2.1 does not).
 	template <typename Tap>
 	bool process(std::span<dsp::StereoSample> block, const ClipChainInputs& in, ClipBlock& levels, bool rendered,
 	             ReverbSend send, Tap&& tap) {
@@ -97,15 +104,17 @@ public:
 		return post_tap(block, in, levels, send);
 	}
 
-	/// @return The effects process renders, in order (chain.h's names); the sidechain's duck comes before them, in
+	/// @brief The effects process renders, in order (chain.h's names); the sidechain's duck comes before them, in
 	/// begin_block.
+	/// @return The effects' names, in render order.
 	[[nodiscard]] static std::span<const std::string_view> order();
 
 private:
-	/// Saturation to the stutter.
+	/// @brief Saturation to the stutter.
 	void pre_tap(std::span<dsp::StereoSample> block, const ClipChainInputs& in, ClipBlock& levels, bool rendered,
 	             ReverbSend send);
-	/// Send, volume and pan, then the compressor. @return Whether the block fed the reverb.
+	/// @brief Send, volume and pan, then the compressor.
+	/// @return Whether the block fed the reverb.
 	bool post_tap(std::span<dsp::StereoSample> block, const ClipChainInputs& in, const ClipBlock& levels,
 	              ReverbSend send);
 

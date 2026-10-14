@@ -13,9 +13,8 @@ Error RepeatNoteEdit::apply(Context& /*ctx*/) {
 	Action* lastAction = actionLogger.firstAction[BEFORE];
 	if (lastAction != nullptr && lastAction->type == ActionType::NOTE_REPEAT_EDIT && lastAction->openForAdditions
 	    && lastAction->offset == -offset_) {
-		// The original passed the ModelStackWithTimelineCounter's toWithSong() here; undoJustOneConsequencePerNoteRow
-		// only reads ->song (the note-array reverts resolve the clip via song->getCurrentClip()), so a fresh
-		// song-only stack is equivalent (ModelStackWithNoteRow doesn't inherit toWithSong()).
+		// undoJustOneConsequencePerNoteRow only reads ->song (the note-array reverts resolve the clip via
+		// song->getCurrentClip()), so a song-only stack suffices (ModelStackWithNoteRow doesn't inherit toWithSong()).
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* songStack = setupModelStackWithSong(modelStackMemory, engineStack_->song);
 		actionLogger.undoJustOneConsequencePerNoteRow(songStack);

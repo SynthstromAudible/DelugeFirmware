@@ -132,7 +132,7 @@ private:
 };
 
 class NoteRow {
-	// M3 owner-2 slice 2b: the container sorts by (and raw-writes at insert) the private y_ key.
+	// The container sorts by (and raw-writes at insert) the private y_ key.
 	friend class NoteRowVector;
 
 public:
@@ -142,7 +142,7 @@ public:
 	// Movable (so NoteRowVector can shuffle rows) and copyable via an explicit deep-copy ctor: the param
 	// manager and notes are deep-copied, the old-drum-name list is NOT shared (reset to empty on the copy),
 	// and transient playback state is reset. firstOldDrumName being move-only forces the ctor to be explicit
-	// (no defaulted copy). Copy-assignment stays deleted — clones construct fresh rows.
+	// (no defaulted copy).
 	NoteRow(NoteRow&& other) noexcept = default;
 	NoteRow& operator=(NoteRow&& other) noexcept = default;
 	NoteRow(NoteRow const& other);
@@ -163,8 +163,9 @@ public:
 	bool hasNoNotes();
 	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound);
 	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip);
-	/// M3 owner-2 Slice 2c: rebuild the DOM note pool from the engine note vector (SAVE-time scratch). No-op when
-	/// this row is not bound to a DocNoteRow.
+	/// @brief Rebuild the DOM note pool from the engine note vector (save-time scratch).
+	///
+	/// No-op when this row is not bound to a DocNoteRow.
 	void rebuildDocNotes();
 	Error readFromTree(Deserializer& reader, const deluge::storage::Value& node, int32_t* minY,
 	                   InstrumentClip* parentClip, Song* song, int32_t readAutomationUpToPos);
@@ -176,9 +177,11 @@ public:
 	             InstrumentClip* favourClipForCloningParamManager = nullptr, ParamManager* paramManager = nullptr,
 	             bool backupOldParamManager = true);
 
-	/// M3 owner-2/3 join: dual-write this row's DocNoteRow.drum_id from the CURRENT `drum` member (nullopt if null).
-	/// No-op until bound. The caller MUST guarantee `drum` holds a real pointer (or nullptr), NEVER a load-time
-	/// sentinel int — call it only after a real drum (re)assignment, never from readFromTree.
+	/// @brief Write this row's DocNoteRow.drum_id from the current `drum` member (nullopt if null).
+	///
+	/// No-op until bound.
+	/// @pre `drum` holds a real pointer (or nullptr), never a load-time sentinel int: call it only after a real drum
+	///      (re)assignment, never from readFromTree.
 	void syncDrumId();
 
 	int32_t getDistanceToNextNote(int32_t pos, ModelStackWithNoteRow const* modelStack, bool reversed = false);
@@ -187,10 +190,10 @@ private:
 	int16_t y_{0}; // This has to be at the top (first data member; the NoteRowVector sort key)
 
 public:
-	// M3 owner-2 scalars (y/muted/loopLengthIfIndependent/sequenceDirection/colourOffset): the DocNoteRow is the
-	// authoritative persistence store (save/load go through these accessors/setters); the engine `*_` fields are
-	// synced derived caches, kept — NOT retired — because NoteRow is a moved-by-value container element (an inline
-	// owner-1-style ownDoc_ would dangle) and y_/colourOffset_ must stay engine-side anyway. See [[m1-edit-substrate]].
+	// Scalars y/muted/loopLengthIfIndependent/sequenceDirection/colourOffset: the DocNoteRow is the authoritative
+	// persistence store (save/load go through these accessors/setters); the engine `*_` fields are synced derived
+	// caches. They stay because NoteRow is a moved-by-value container element (an inline owned doc would dangle) and
+	// y_/colourOffset_ must stay engine-side anyway.
 	int16_t y() const { return docNoteRow_ != nullptr ? docNoteRow_->y : y_; }
 	void setY(int16_t v) {
 		y_ = v;
@@ -199,7 +202,7 @@ public:
 		}
 	}
 
-	// muted (see the owner-2 cache-doctrine note above).
+	// muted (see the scalar-store note above).
 	bool muted() const { return docNoteRow_ != nullptr ? docNoteRow_->muted : muted_; }
 	void setMuted(bool v) {
 		muted_ = v;
@@ -210,7 +213,7 @@ public:
 	bool mutedBeforeStemExport{}; // Used by stem export to restore previous state
 	bool exportStem;              // Used by stem export to flag if this note row should be exported
 
-	// loopLengthIfIndependent (see the owner-2 cache-doctrine note above). 0 means obeying parent.
+	// loopLengthIfIndependent (see the scalar-store note above). 0 means obeying parent.
 	int32_t loopLengthIfIndependent() const {
 		return docNoteRow_ != nullptr ? docNoteRow_->loop_length_if_independent : loopLengthIfIndependent_;
 	}
@@ -226,9 +229,8 @@ public:
 	// Valid only if not obeying parent, or if obeyed parent is pingponging and we have independent length
 	bool currentlyPlayingReversedIfIndependent{};
 
-	// M3 owner-2 slice 2a: read-flip onto the DOM shadow when bound; the engine field is a synced fallback. The
-	// public setSequenceDirectionMode(ModelStack*, ...) below routes its field write through
-	// setSequenceDirectionModeRaw.
+	// Reads the DOM record when bound; the engine field is a synced fallback. The public
+	// setSequenceDirectionMode(ModelStack*, ...) below routes its field write through setSequenceDirectionModeRaw.
 	SequenceDirection sequenceDirectionMode() const {
 		return docNoteRow_ != nullptr ? docNoteRow_->sequence_direction : sequenceDirectionMode_;
 	}
@@ -246,9 +248,9 @@ public:
 	OldDrumNameHead firstOldDrumName;
 	NoteVector notes{};
 
-	/// M3 owner-2: non-owning pointer to this row's authoritative DOM record in its clip's DocClip.note_rows pool
-	/// (the persistence store for the owner-2 scalars). Bound at create/clone/load by InstrumentClip; nullptr until
-	/// bound, when the scalar accessors fall back to the engine caches.
+	/// Non-owning pointer to this row's authoritative DOM record in its clip's DocClip.note_rows pool (the
+	/// persistence store for the scalars above). Bound at create/clone/load by InstrumentClip; nullptr until bound,
+	/// when the scalar accessors fall back to the engine caches.
 	deluge::project::DocNoteRow* docNoteRow_{nullptr};
 	void bindDocNoteRow(deluge::project::DocNoteRow* d) { docNoteRow_ = d; }
 	// values for whole row
@@ -259,7 +261,7 @@ public:
 	LearnedMIDI muteMIDICommand;
 	LearnedMIDI midiInput;
 
-	// M3 owner-2 slice 2a: read-flip onto the DOM shadow when bound; the engine field is a synced fallback.
+	// Reads the DOM record when bound; the engine field is a synced fallback.
 	int8_t colourOffset() const { return docNoteRow_ != nullptr ? docNoteRow_->colour_offset : colourOffset_; }
 	void setColourOffset(int8_t v) {
 		colourOffset_ = v;
@@ -319,8 +321,11 @@ public:
 	void deleteOldDrumNames(bool shouldUpdatePointer = true);
 	Error appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
 	                    int32_t whichRepeatThisIs, int32_t otherClipLength);
-	/// Flatten a reversed sequence after a plain clone: reverse this row's notes and automation in place.
+	/// @brief Flatten a reversed sequence after a plain clone: reverse this row's notes and automation in place.
+	///
 	/// Call only when the row's effective direction is REVERSE and flattening was requested.
+	/// @param modelStack The model stack for this row.
+	/// @return Error::NONE on success, otherwise the failure.
 	Error flattenReverse(ModelStackWithNoteRow* modelStack);
 	void resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelStackOriginal,
 	                                        ModelStackWithNoteRow* modelStackClone);
@@ -358,7 +363,7 @@ public:
 	bool isDroning(int32_t effectiveLength);
 
 private:
-	// M3 owner-2 slice 2a: DOM-shadowed scalars. Read through the public accessors (bound → DOM record, unbound →
+	// DOM-shadowed scalars. Read through the public accessors (bound → DOM record, unbound →
 	// these engine fields); written through the setters, which keep both stores in sync.
 	bool muted_{false};
 	int8_t colourOffset_{0};

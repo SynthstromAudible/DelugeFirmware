@@ -24,23 +24,22 @@
 
 namespace deluge::project {
 
-/// The DOM-owned structural record for one clip (M3 owner-1 — the clip-structure ownership inversion, mirroring the
-/// param/automation tier's DocAutoParam). Kept in `ClipStructure`, keyed by the clip's stable `Clip::id` — never
-/// by a `Clip*` or array index.
+/// @brief The DOM-owned structural record for one clip.
 ///
-/// AUTHORITATIVE: the `Clip` has no own copies of these fields — its accessors (`loopLength()`/`colourOffset()`/
-/// `section()`/`launchStyle()`) read and write this record directly through the clip's bound `docClip_` (durable-id
-/// Step 3). Save reads it (via those accessors), load writes it (`readShellFromTree` + setters); the ownership
-/// inversion for clip structure is complete.
+/// Kept in `ClipStructure`, keyed by the clip's stable `Clip::id` -- never by a `Clip*` or array index.
+///
+/// @note Authoritative: the `Clip` has no copies of these fields. Its accessors (`loopLength()`/`colourOffset()`/
+/// `section()`/`launchStyle()`) read and write this record directly through the clip's bound `docClip_`. Save
+/// reads it via those accessors; load writes it (`readShellFromTree` + setters).
 struct DocClip {
 	int32_t loop_length{0};
 	int16_t colour_offset{-60}; ///< matches the engine Clip default
 	LaunchStyle launch_style{LaunchStyle::DEFAULT};
 	uint8_t section{0};
 
-	/// M3 owner-2: per-note-row structural records, one per engine NoteRow. A std::list for STABLE element
-	/// addresses (each engine NoteRow holds a raw pointer into this pool). Order within the list is irrelevant —
-	/// note-row order is a function of `y`, reproduced at save from the engine's y-ordered noteRows.
+	/// Per-note-row structural records, one per engine NoteRow. A std::list for STABLE element addresses (each
+	/// engine NoteRow holds a raw pointer into this pool). Order within the list is irrelevant -- note-row order is
+	/// a function of `y`, reproduced at save from the engine's y-ordered noteRows.
 	std::list<DocNoteRow> note_rows;
 
 	bool operator==(const DocClip&) const = default;

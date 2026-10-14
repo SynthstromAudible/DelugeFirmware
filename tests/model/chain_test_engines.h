@@ -39,6 +39,7 @@ inline void encode_chain(const FxChain& chain, serialization::Value& element, in
 } // namespace detail
 
 /// @brief The chain codec built on the effects library.
+/// @return A ChainCodec whose decode and encode go through the effects library's chain codec.
 inline ChainCodec test_chain_codec() {
 	return ChainCodec{.decode = &detail::decode_chain, .encode = &detail::encode_chain};
 }

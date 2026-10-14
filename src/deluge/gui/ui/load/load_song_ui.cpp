@@ -642,10 +642,9 @@ void LoadSongUI::runBeginSegment() {
 	// STAGE read the song on the interaction tier before this phase began, and parsed it into a Value tree.
 	// Bytes that never arrived end the load the way a corrupt file does.
 	//
-	// stagingPrevious_ is what `activeDeserializer` gets put back to at every exit. Nothing here points it
-	// anywhere else -- the song is read through a Value tree, not a memory reader -- but code downstream
-	// writes through that global (SaveSongUI's sample collection reads Cluster::size, 32 KiB, into it), so
-	// every exit restores it all the same.
+	// stagingPrevious_ is what `activeDeserializer` is put back to at every exit. Nothing here points it elsewhere
+	// (the song is read through a Value tree, not a memory reader), but code downstream writes through that global
+	// (SaveSongUI's sample collection reads Cluster::size, 32 KiB, into it), so every exit restores it regardless.
 	Error error = Error::NONE;
 	if (songStaging_.buffer == nullptr) {
 		songDocument_.release();

@@ -58,6 +58,9 @@ struct MasterPostInputs {
 /// the song volume. Its saturation and sidechain are saved with the song and not rendered.
 class MasterChain {
 public:
+	/// @brief Build a master chain whose mod FX and granular buffers come from the given allocators.
+	/// @param mod_fx_allocator The ring allocator for the mod FX's buffers.
+	/// @param granular_allocator The ring allocator for the granular effect's buffers.
 	/// @param arena Where the delay's tapes come from. A host chain keeps its grains on entering GRAIN.
 	MasterChain(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, DelayArena& arena);
 
@@ -66,14 +69,16 @@ public:
 	[[nodiscard]] Filter& filter() { return filter_; }
 	[[nodiscard]] const Filter& filter() const { return filter_; }
 
+	// TODO(c++26): take std::function_ref<std::optional<MasterPostInputs>(bool)> once the device's libstdc++ provides
+	// it (arm-none-eabi GCC 16; 15.2.1 does not).
 	/// @brief The half before the reverb over @p block in place, then @p between, then the half after it.
+	/// @param block The stereo block, processed in place.
+	/// @param in What the half before the reverb reads.
 	/// @param send The reverb send, one value per frame.
 	/// @param between Called with whether the half before fed the reverb (the engine notes it before the reverb
 	/// renders); renders what the engine mixes in between the halves, then returns the half after's inputs, or
 	/// nothing to skip that half (a stem export without the song's effects).
 	/// @return Whether the block fed the reverb.
-	// TODO(c++26): take std::function_ref<std::optional<MasterPostInputs>(bool)> once the device's libstdc++ provides
-	// it (arm-none-eabi GCC 16; 15.2.1 does not).
 	template <typename Between>
 	bool render(std::span<dsp::StereoSample> block, const MasterChainInputs& in, ReverbSend send, Between&& between) {
 		const bool sent = pre_reverb(block, in, send);
@@ -84,12 +89,21 @@ public:
 		return sent;
 	}
 
-	/// @return The effects render renders, in order (chain.h's names): the reverb returns before the reverb_return'th.
+	/// @brief The effects render renders, in order (chain.h's names): the reverb returns before the reverb_return'th.
+	/// @return The effects' names, in render order.
 	[[nodiscard]] static std::span<const std::string_view> order();
 
 private:
+	/// @brief The half before the reverb.
+	/// @param block The stereo block, processed in place.
+	/// @param in What the half before the reverb reads.
+	/// @param send The reverb send, one value per frame.
 	/// @return Whether the block fed the reverb.
 	bool pre_reverb(std::span<dsp::StereoSample> block, const MasterChainInputs& in, ReverbSend send);
+	/// @brief The half after the reverb: filter, bitcrush, stutter, pan and the compressor.
+	/// @param block The stereo block, processed in place.
+	/// @param settings The song's effect states.
+	/// @param post What the half after the reverb reads.
 	void post_reverb(std::span<dsp::StereoSample> block, const EffectStates& settings, const MasterPostInputs& post);
 
 	ChainCore core_;

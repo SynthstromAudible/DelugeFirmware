@@ -1,6 +1,6 @@
 #pragma once
 
-// The sorted container is the model's (deluge_project); this keeps the app's existing includes and name working, and
+// The sorted container is defined by the model (deluge_project); this header exposes it under the app's name and
 // translates its failures into the app's Error.
 #include "definitions_cxx.hpp"
 #include "deluge-project/ordered_pos_vector.h"

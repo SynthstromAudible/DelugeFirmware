@@ -30,8 +30,8 @@
 
 namespace deluge::project {
 
-/// A sorted vector on the host's model memory (ModelAllocator); the (ascending) sort key is projected by `keyMember` -
-/// by default the data member T::pos. Replaces the old OrderedResizeableArray(With32bitKey).
+/// @brief A sorted vector on the host's model memory (ModelAllocator); the (ascending) sort key is projected by
+/// `keyMember` - by default the data member T::pos.
 ///
 /// `keyMember` may be a pointer-to-DATA-member (the usual case, e.g. `&T::pos`, which is also assignable so the
 /// key-*writing* batch ops work) OR a pointer-to-const-GETTER (e.g. `&NoteRow::y`, when the key lives behind an
@@ -62,9 +62,10 @@ public:
 		elements_ = std::move(other.elements_);
 		return *this;
 	}
-	// Deep copy (element-wise, via the backing vector). May throw the host's out-of-memory exception, like the
-	// container's other allocating ops; the fallible clone factories that call it catch and convert to
-	// std::expected.
+	/// @brief Deep copy (element-wise, via the backing vector).
+	///
+	/// May throw the host's out-of-memory exception, like the container's other allocating ops; the fallible clone
+	/// factories that call it catch and convert to std::expected.
 	OrderedPosVector(OrderedPosVector const& other) : elements_(other.elements_) {}
 	/// @brief The copy is made outside the section, and the old elements destroyed outside it: only the handover is
 	/// masked.
@@ -77,8 +78,9 @@ public:
 		return *this;
 	}
 
-	/// Forget the current contents *without* freeing them. Only for use when this object is a byte-copy of
-	/// another instance and so doesn't own what it points at (the legacy cloning idiom).
+	/// @brief Forget the current contents *without* freeing them.
+	///
+	/// Only for use when this object is a byte-copy of another instance and so doesn't own what it points at.
 	void init() {
 		EditGuard guard;
 		new (&elements_) model_vector<T>();
@@ -87,14 +89,21 @@ public:
 	using iterator = typename model_vector<T>::iterator;
 	using const_iterator = typename model_vector<T>::const_iterator;
 
-	/// Index of the first element whose key is >= the given key (size() if none). The index-returning
-	/// counterpart of lower_bound(), for the many call sites that do index arithmetic around the result.
+	/// @brief Index of the first element whose key is >= the given key (size() if none).
+	///
+	/// The index-returning counterpart of lower_bound(), for call sites that do index arithmetic around the result.
+	/// @param key        The key to search for.
+	/// @param searchFrom Index to start the search from.
+	/// @return The index of the first element with key >= @p key, or size() if none.
 	[[nodiscard]] int32_t firstAtOrAfter(int32_t key, int32_t searchFrom = 0) const {
 		auto it = std::ranges::lower_bound(elements_.begin() + searchFrom, elements_.end(), key, {}, keyMember);
 		return static_cast<int32_t>(it - elements_.begin());
 	}
 
-	/// Inserts numToInsert default-constructed elements at index i.
+	/// @brief Inserts numToInsert default-constructed elements at index i.
+	/// @param i           Index to insert at.
+	/// @param numToInsert Number of elements to insert.
+	/// @return Success, or AllocError::OUT_OF_MEMORY (the vector is then unchanged).
 	std::expected<void, AllocError> insertAt(int32_t i, int32_t numToInsert = 1) {
 		EditGuard guard;
 		try {
@@ -114,13 +123,17 @@ public:
 		return {};
 	}
 
-	/// Raw resize — caller maintains the sort invariant, like insertAt.
+	/// @brief Raw resize; the caller maintains the sort invariant, as with insertAt.
+	/// @param newSize The new element count.
 	void resize(size_t newSize) {
 		EditGuard guard;
 		elements_.resize(newSize);
 	}
 
-	/// Inserts a default-constructed element with the given key at its sorted position; returns its index.
+	/// @brief Inserts a default-constructed element with the given key at its sorted position.
+	/// @param key            The key of the new element.
+	/// @param isDefinitelyLast True if @p key is known to sort after every existing element (skips the search).
+	/// @return The new element's index, or AllocError::OUT_OF_MEMORY.
 	std::expected<int32_t, AllocError> insertSorted(int32_t key, bool isDefinitelyLast = false) {
 		static_assert(keyIsWritable, "insertSorted writes the key; needs a data-member key, not a getter");
 		int32_t i = isDefinitelyLast ? static_cast<int32_t>(elements_.size()) : firstAtOrAfter(key);
@@ -132,7 +145,9 @@ public:
 		return i;
 	}
 
-	/// Reserves room for this many elements beyond the current size.
+	/// @brief Reserves room for this many elements beyond the current size.
+	/// @param numAdditionalElementsNeeded Number of extra elements to make room for.
+	/// @return Success, or AllocError::OUT_OF_MEMORY.
 	std::expected<void, AllocError> reserveExtra(int32_t numAdditionalElementsNeeded) {
 		EditGuard guard;
 		try {
@@ -153,8 +168,10 @@ public:
 	const_iterator begin() const { return elements_.begin(); }
 	const_iterator end() const { return elements_.end(); }
 
-	/// The element at this index, or nullptr if the index is out of range (including the -1 that "none"
+	/// @brief The element at this index, or nullptr if the index is out of range (including the -1 that "none"
 	/// search results produce).
+	/// @param index Element index.
+	/// @return The element, or nullptr.
 	[[nodiscard]] T* tryGet(int32_t index) {
 		if (index < 0 || index >= static_cast<int32_t>(elements_.size())) {
 			return nullptr;
@@ -162,22 +179,29 @@ public:
 		return &elements_[index];
 	}
 
-	/// The last element, or nullptr if empty
+	/// @brief The last element, or nullptr if empty.
 	[[nodiscard]] T* tryGetLast() { return elements_.empty() ? nullptr : &elements_.back(); }
 
-	/// First element whose key is >= the given key
+	/// @brief Iterator to the first element whose key is >= the given key.
+	/// @param key The key to search for.
+	/// @return The iterator, or end() if none.
 	[[nodiscard]] iterator lower_bound(int32_t key) { return std::ranges::lower_bound(elements_, key, {}, keyMember); }
 	[[nodiscard]] const_iterator lower_bound(int32_t key) const {
 		return std::ranges::lower_bound(elements_, key, {}, keyMember);
 	}
 
-	/// Iterator to the element with exactly this key, or end()
+	/// @brief Iterator to the element with exactly this key, or end().
+	/// @param key The key to find.
+	/// @return The iterator, or end() if no element has this key.
 	[[nodiscard]] iterator find_key(int32_t key) {
 		auto it = lower_bound(key);
 		return (it != elements_.end() && std::invoke(keyMember, *it) == key) ? it : elements_.end();
 	}
 
-	/// Erases by iterator (returns the iterator following the removed range, as std containers do)
+	/// @brief Erases by iterator.
+	/// @param first First element to erase.
+	/// @param last  One past the last element to erase.
+	/// @return The iterator following the removed range, as std containers do.
 	iterator erase(iterator first, iterator last) {
 		EditGuard guard;
 		return elements_.erase(first, last);
@@ -187,8 +211,12 @@ public:
 		return elements_.erase(at);
 	}
 
-	/// Batch lower-bound search: each term is replaced with the index of the first element whose key is >= it.
+	/// @brief Batch lower-bound search: each term is replaced with the index of the first element whose key is >= it.
+	///
 	/// The terms must be in ascending order.
+	/// @param searchTerms    In: ascending keys. Out: the corresponding indexes.
+	/// @param numSearchTerms Number of terms.
+	/// @param rangeEnd       Index to stop searching at, or -1 for the end of the vector.
 	void searchMultiple(int32_t* __restrict__ searchTerms, int32_t numSearchTerms, int32_t rangeEnd = -1) const {
 		auto last = (rangeEnd == -1) ? elements_.end() : elements_.begin() + rangeEnd;
 		auto from = elements_.begin();
@@ -198,13 +226,17 @@ public:
 		}
 	}
 
-	/// Like searchMultiple(), for exactly 2 ascending search terms.
+	/// @brief Like searchMultiple(), for exactly 2 ascending search terms.
+	/// @param searchTerms      The two ascending keys.
+	/// @param resultingIndexes Receives the two corresponding indexes.
 	void searchDual(int32_t const* __restrict__ searchTerms, int32_t* __restrict__ resultingIndexes) const {
 		resultingIndexes[0] = firstAtOrAfter(searchTerms[0]);
 		resultingIndexes[1] = firstAtOrAfter(searchTerms[1], resultingIndexes[0]);
 	}
 
-	/// Moves the element at iFrom so it sits at iTo, shuffling those in between along by one.
+	/// @brief Moves the element at iFrom so it sits at iTo, shuffling those in between along by one.
+	/// @param iFrom Current index.
+	/// @param iTo   Destination index.
 	void repositionElement(int32_t iFrom, int32_t iTo) {
 		EditGuard guard;
 		if (iFrom < iTo) {
@@ -240,8 +272,10 @@ public:
 	T& back() { return elements_.back(); }
 	T* data() { return elements_.data(); }
 
-	/// Rotates all keys forward by `amount` (which may be negative) within a span of `effectiveLength`,
+	/// @brief Rotates all keys forward by `amount` (which may be negative) within a span of `effectiveLength`,
 	/// keeping the array sorted by rotating the elements correspondingly.
+	/// @param amount          Shift, in key units; may be negative.
+	/// @param effectiveLength Length of the span the keys wrap within.
 	void shiftHorizontal(int32_t amount, int32_t effectiveLength) {
 		static_assert(keyIsWritable, "shiftHorizontal writes keys; needs a data-member key, not a getter");
 		EditGuard guard;
@@ -280,8 +314,12 @@ public:
 		std::rotate(elements_.begin(), elements_.begin() + cutoffIndex, elements_.end());
 	}
 
-	/// @brief Tiles the contents (all of which must lie before wrapPoint) out to endPos. Returns false on OOM.
+	/// @brief Tiles the contents (all of which must lie before wrapPoint) out to endPos.
+	///
 	/// The tiled contents are built in a new buffer outside the section; only the handover is masked.
+	/// @param wrapPoint Length of one repeat.
+	/// @param endPos    Key position to tile out to.
+	/// @return false on out-of-memory (the vector is then unchanged).
 	bool generateRepeats(int32_t wrapPoint, int32_t endPos) {
 		static_assert(keyIsWritable, "generateRepeats writes keys; needs a data-member key, not a getter");
 		if (elements_.empty()) {
@@ -321,7 +359,8 @@ public:
 		return true;
 	}
 
-	/// Test that the keys in this array are sorted in ascending order. Used in assert-like fashion.
+	/// @brief Test that the keys in this array are sorted in ascending order. Used in assert-like fashion.
+	/// @param errorCode Code passed to FREEZE_WITH_ERROR when the order is broken (debug builds only).
 	void testSequentiality(char const* errorCode) const {
 #if !defined(NDEBUG)
 		int32_t lastKey = -2147483648;

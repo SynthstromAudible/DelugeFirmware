@@ -10,7 +10,9 @@ using deluge::project::test::both_shapes;
 using deluge::serialization::Value;
 
 namespace {
-/// encode, wrap the Map as a song, write it as JSON and parse it back: what decode sees after a save.
+/// @brief What decode sees after a save: wrap @p encoded as a song, write it as JSON and parse it back.
+/// @param encoded The Map an encode produced.
+/// @return The song element read back from the written JSON.
 Value as_song(const Value& encoded) {
 	auto root = Value::makeMap();
 	root.set("song", encoded);

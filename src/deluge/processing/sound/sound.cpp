@@ -370,7 +370,7 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 	assignNumUnison(4);
 	assignUnisonDetune(10);
 
-	setTranspose(-12); // M4b: unbound at this setup point → writes the snapshot
+	setTranspose(-12); // unbound at this setup point → writes the snapshot
 
 	doneReadingFromFile();
 }
@@ -2383,10 +2383,9 @@ void Sound::doneReadingFromFile() {
 		recalculateModulatorTransposer(m, nullptr);
 	}
 
-	// M3 owner-5: parsing is complete, so refresh the DOM-owned scalars from the now-final engine fields. This is the
-	// load-bridge for a SoundDrum, whose adoptDrum bound the record with default values BEFORE its fields were parsed.
-	// A SoundInstrument/fresh Sound isn't bound yet here (state_ == nullptr) — bindState seeds it later,
-	// post-parse.
+	// Parsing is complete, so refresh the DOM-owned scalars from the now-final engine fields. This is what a SoundDrum
+	// needs: its adoptDrum bound the record with default values before its fields were parsed. A
+	// SoundInstrument/fresh Sound isn't bound yet here (state_ == nullptr); bindState seeds it later, post-parse.
 	reseedRecord();
 }
 
@@ -2642,9 +2641,9 @@ bool Sound::hasFilters() {
 
 void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
                                int32_t readAutomationUpToPos) {
-	// Option I (read-authority): read the sound param block DOM-first into BOTH the patched and unpatched DOM
-	// stores (initParams wrote each default straight into them via docForParam), then project each engine RT cursor
-	// from its store — the DOM holds the authoritative current_value, not just the nodes. <patchCables> is the Deluge
+	// Read the sound param block DOM-first into both the patched and unpatched DOM stores (initParams wrote each
+	// default straight into them via docForParam), then project each engine RT cursor from its store: the DOM holds
+	// the authoritative current_value, not just the nodes. <patchCables> is the Deluge
 	// instrument's to decode (older formats included); the bridge fills the cable set from it.
 	UnpatchedParamSet* unpatched = paramManager->getUnpatchedParamSet();
 	PatchedParamSet* patched = paramManager->getPatchedParamSet();
@@ -2749,8 +2748,7 @@ Error Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager)
 }
 
 void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
-	// Serialize from the value DOM (deluge::project) — byte-identical to the former hand-written sequence
-	// (verified in the param-projection driver). serializeSoundParams emits the patched + unpatched flat attrs,
+	// Serialize from the value DOM (deluge::project). serializeSoundParams emits the patched + unpatched flat attrs,
 	// the shared ModControllableAudio block, the mid-block writeOpeningTagEnd, the <envelope*> groups, the
 	// <patchCables> block and the shared tags.
 	deluge::project::DocParamManager doc = deluge::bridge::toDocParamManagerFromStore(*paramManager);
@@ -2759,9 +2757,8 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	                                     writer, writeAutomation);
 }
 
-// M3 owner-5: copy the DOM-owned scalars engine->record (the load-bridge). Assumes state_ is bound. Run from
-// bindState and re-run at doneReadingFromFile (see those for the bind-vs-parse ordering that makes the re-run
-// necessary for SoundDrums).
+// Copy the DOM-owned scalars engine->record. Assumes state_ is bound. Run from bindState and re-run at
+// doneReadingFromFile (see those for the bind-vs-parse ordering that makes the re-run necessary for SoundDrums).
 void Sound::seedScalarsInto(deluge::instrument::SoundState& d) const {
 	d.voice_priority = snapshot_.voicePriority;
 	d.max_voice_count = maxVoiceCount;
@@ -2769,12 +2766,12 @@ void Sound::seedScalarsInto(deluge::instrument::SoundState& d) const {
 	d.output_midi_channel = outputMidiChannel;
 	d.output_midi_note_for_drum = outputMidiNoteForDrum;
 	d.oscillator_sync = snapshot_.oscillatorSync;
-	// Slice C top-level scalars (native fields kept as hot caches; record is authoritative for save). SoundDrums bind
-	// before parse, so this re-seed at doneReadingFromFile is what captures their loaded values into the record.
+	// Top-level scalars (native fields kept as hot caches; record is authoritative for save). SoundDrums bind before
+	// parse, so the re-seed at doneReadingFromFile is what captures their loaded values into the record.
 	d.polyphonic = polyphonic;
 	d.synth_mode = snapshot_.synthMode;
 	d.transpose = snapshot_.transpose;
-	d.cents = snapshot_.cents; // M4b: transpose lives on the snapshot; the record seeds from it (bind-time)
+	d.cents = snapshot_.cents; // transpose lives on the snapshot; the record seeds from it (bind-time)
 	d.num_unison = snapshot_.numUnison;
 	d.unison_detune = snapshot_.unisonDetune;
 	d.unison_stereo_spread = snapshot_.unisonStereoSpread;
@@ -2799,8 +2796,8 @@ void Sound::seedDocSoundScalars() {
 }
 
 void Sound::projectSnapshot() {
-	// M4b: re-derive the engine's hot-field read-view from the authoritative SoundState. No-op when unbound (preview /
-	// GlobalEffectable) — those sounds write snapshot_ directly and have no record to project from. Grows per slice.
+	// Re-derive the engine's hot-field read-view from the authoritative SoundState. No-op when unbound (preview /
+	// GlobalEffectable): those sounds write snapshot_ directly and have no record to project from.
 	if (state_ == nullptr) {
 		return;
 	}
@@ -2888,7 +2885,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 			DxPatch* patch = source.ensureDxPatch();
 			std::ranges::copy(from.dx_patch->params, patch->params);
 			// A file names an engine only when it is not "auto" (0), and only then is the engine chosen again: an auto
-			// patch keeps the engine its new patch was given, as reading a patch has always left it.
+			// patch keeps the engine its new patch was given.
 			if (from.dx_patch->engine_mode != 0) {
 				patch->setEngineMode(from.dx_patch->engine_mode);
 			}
@@ -2943,16 +2940,16 @@ void Sound::bindState() {
 	// after its fields are parsed) and for a freshly-created Sound. A SoundDrum is bound BEFORE parse (adoptDrum runs
 	// first), so this seed is stale for drums — doneReadingFromFile re-runs it once parsing is done.
 	seedDocSoundScalars();
-	projectSnapshot(); // M4b: derive the render read-view from the now-seeded record
+	projectSnapshot(); // derive the render read-view from the now-seeded record
 	bindEffects(&d->effects);
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sources[s].bindState(&d->sources[s]);
 	}
 }
 
-// M3 owner-5: DOM-owned scalars — each setter writes the authoritative record (when bound) AND the native cache. Render
-// / note-on / MIDI-send read the cache; save reads the record. Guard on state_ so pre-bind writes (load, preview)
-// land in the cache and get picked up by the bind-time seed.
+// DOM-owned scalars: each setter writes the authoritative record (when bound) and the native cache. Render / note-on /
+// MIDI-send read the cache; save reads the record. Guard on state_ so pre-bind writes (load, preview) land in the
+// cache and get picked up by the bind-time seed.
 void Sound::setVoicePriority(VoicePriority value) {
 	if (state_ != nullptr) {
 		state_->voice_priority = value;
@@ -3012,7 +3009,7 @@ void Sound::assignSynthMode(SynthMode value) {
 }
 
 void Sound::setTranspose(int16_t value) {
-	// M4b: bound → write the authoritative record then reproject the read-view (a derivation, not a dual-write);
+	// Bound → write the authoritative record then reproject the read-view (a derivation, not a dual-write);
 	// unbound (preview / GlobalEffectable) → write the snapshot directly (no record).
 	if (state_ != nullptr) {
 		state_->transpose = value;
@@ -3151,7 +3148,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.closeTag();
 	}
 
-	// Mod knobs (M3 owner-5: read the authoritative record; cache fallback only for an unbound Sound)
+	// Mod knobs (read the authoritative record; cache fallback only for an unbound Sound)
 	writer.writeArrayStart("modKnobs");
 	for (int32_t k = 0; k < kNumModButtons; k++) {
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
@@ -3679,7 +3676,7 @@ void Sound::deleteMultiRange(int32_t s, int32_t r) {
 	AudioExcludedSection section;
 	killAllVoices();
 	sources[s].ranges.erase(sources[s].ranges.begin() + r); // Destructs the range
-	// M3 owner-5: the range collection just shrank — reflect into the record.
+	// The range collection just shrank: reflect it into the record.
 	sources[s].seedDocRanges();
 }
 

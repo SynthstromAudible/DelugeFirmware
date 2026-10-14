@@ -9,9 +9,10 @@
 
 namespace deluge::edits {
 
-/// Set the ranges of one source of a sound's instrument. apply() resolves the slot @c slot names in the model and the
-/// sound playing it, changes the source's ranges in place (bridge::applyRanges), then makes the slot hold the sound's
-/// state again. Records no undo.
+/// @brief Set the ranges of one source of a sound's instrument.
+///
+/// apply() resolves the slot @c slot names in the model and the sound playing it, changes the source's ranges in
+/// place (bridge::applyRanges), then makes the slot hold the sound's state again. Records no undo.
 class SetSourceRanges final : public Edit {
 public:
 	SetSourceRanges(deluge::project::SlotAddress slot, uint8_t source,

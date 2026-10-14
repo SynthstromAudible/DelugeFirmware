@@ -101,12 +101,15 @@ public:
 	Mono() = default;
 
 	/// @brief Configured from @p settings, with State{}.
+	/// @param settings The kernel's settings, turned into Coefficients once.
 	explicit Mono(const typename K::Settings& settings) : coefficients_{K::coefficients(settings)} {}
 
 	/// @brief Store the coefficients for @p settings; they apply from the next block, State untouched.
+	/// @param settings The kernel's settings.
 	void configure(const typename K::Settings& settings) { coefficients_ = K::coefficients(settings); }
 
 	/// @brief The coefficients from the last configure, including any owner-facing values the kernel exposes.
+	/// @return The current Coefficients.
 	[[nodiscard]] const Coefficients& coefficients() const { return coefficients_; }
 
 	/// @brief Return to the reset State: State{}, or whatever K's `static void reset(State&)` quirk sets when K
@@ -114,6 +117,7 @@ public:
 	void reset() { detail::reset_state<K>(state_); }
 
 	/// @brief The kernel's state between blocks.
+	/// @return The current State.
 	[[nodiscard]] const State& state() const { return state_; }
 
 	/// @brief Run the event @p Event on the state: with the coefficients when it takes them, else without.
@@ -131,6 +135,7 @@ public:
 	/// samples** in the class documentation); a vector kernel renders it as the partial step of a block of one,
 	/// so a stateful vector kernel that does not declare kPartialStepAdvancesByCount advances by a whole vector on
 	/// every call.
+	/// @return The next sample.
 	[[gnu::always_inline]] value_type render()
 	requires generator_kernel<K>
 	{
@@ -140,6 +145,7 @@ public:
 	}
 
 	/// @brief Fill @p out with the next `out.size()` samples.
+	/// @param out The block to fill, every sample of it.
 	[[gnu::always_inline]] void renderBlock(Buffer<value_type> out)
 	requires generator_kernel<K>
 	{
@@ -151,6 +157,8 @@ public:
 	/// samples** in the class documentation); a vector kernel renders it as the partial step of a block of one,
 	/// so a stateful vector kernel that does not declare kPartialStepAdvancesByCount advances by a whole vector on
 	/// every call.
+	/// @param x The input sample.
+	/// @return The output sample.
 	[[gnu::always_inline]] value_type render(value_type x)
 	requires processor_kernel<K>
 	{
@@ -180,6 +188,8 @@ public:
 	/// samples** in the class documentation); a vector kernel renders it as the partial step of a block of one.
 	/// A mixer kernel cannot declare kPartialStepAdvancesByCount, so a stateful vector mixer advances a whole vector
 	/// on every call.
+	/// @param a,b The pair of input samples.
+	/// @return The mixed sample.
 	[[gnu::always_inline]] value_type render(value_type a, value_type b)
 	requires mixer_kernel<K>
 	{

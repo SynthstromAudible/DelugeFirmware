@@ -24,6 +24,8 @@ namespace deluge::effects {
 
 /// @brief What a filter set's low-pass slot runs for @p mode: a ladder for the three ladder modes, an SVF for the two
 /// SVF modes, and nothing for OFF or for HPLADDER (a high-pass mode, which no low-pass runs).
+/// @param mode The owner's low-pass filter mode.
+/// @return The slot configuration.
 [[nodiscard]] constexpr dsp::fixed::LowPassSlot low_pass_slot(FilterMode mode) noexcept {
 	using dsp::fixed::LowPassLadderMode;
 	using dsp::fixed::LowPassSlot;
@@ -48,6 +50,8 @@ namespace deluge::effects {
 
 /// @brief What a filter set's high-pass slot runs for @p mode: the ladder for HPLADDER, an SVF for the two SVF modes,
 /// and nothing for OFF or for the three low-pass ladder modes (which no high-pass runs).
+/// @param mode The owner's high-pass filter mode.
+/// @return The slot configuration.
 [[nodiscard]] constexpr dsp::fixed::HighPassSlot high_pass_slot(FilterMode mode) noexcept {
 	using dsp::fixed::HighPassSlot;
 	using dsp::fixed::SvfMode;
@@ -68,6 +72,8 @@ namespace deluge::effects {
 }
 
 /// @brief The filter set's route for @p route (the same three orders).
+/// @param route The owner's filter route.
+/// @return The dsp-next route.
 [[nodiscard]] constexpr dsp::fixed::FilterRoute filter_route(FilterRoute route) noexcept {
 	switch (route) {
 	case FilterRoute::HIGH_TO_LOW:

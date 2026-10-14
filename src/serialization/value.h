@@ -32,14 +32,24 @@ class Value {
 public:
 	enum class Type : uint8_t { Scalar, Map, Array };
 
+	/// @brief Make a scalar holding @p s as written.
+	/// @param s    The scalar's text.
+	/// @param kind How a writer should emit it.
+	/// @return The value.
 	[[nodiscard]] static Value makeScalar(std::string s, ScalarKind kind = ScalarKind::TEXT) {
 		Value v{std::move(s)};
 		v.kind_ = kind;
 		return v;
 	}
-	/// A NUMBER scalar holding @p n in decimal.
+	/// @brief A NUMBER scalar holding @p n in decimal.
+	/// @param n The number.
+	/// @return The value.
 	[[nodiscard]] static Value makeNumber(int64_t n) { return makeScalar(std::to_string(n), ScalarKind::NUMBER); }
+	/// @brief An empty Map.
+	/// @return The value.
 	[[nodiscard]] static Value makeMap() { return Value{std::vector<std::pair<std::string, Value>>{}}; }
+	/// @brief An empty Array.
+	/// @return The value.
 	[[nodiscard]] static Value makeArray() { return Value{std::vector<Value>{}}; }
 
 	// Relies on Type's enumerator order matching data_'s alternative order (Scalar=string,

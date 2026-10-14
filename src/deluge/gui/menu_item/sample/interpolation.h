@@ -51,7 +51,7 @@ public:
 				}
 			}
 		}
-		// Or, the normal case of just one sound (or audio clip — funnels to the DOM record for owner-4)
+		// Or, the normal case of just one sound (or audio clip, whose change reaches the DOM record)
 		else {
 			setCurrentInterpolationMode(source_id_, current_value);
 		}

@@ -23,23 +23,29 @@
 
 namespace deluge::project {
 
-/// Per-clip structural records (M3 owner-1), owned by the persistent `project` tree and keyed by the clip's stable
-/// `Clip::id`. The clip-structure analogue of `ClipParams`: because it is keyed by the serial id — not by a
-/// `Clip*` or array index — it is unaffected by clip reorders. A component of `deluge::project::Song` (one instance
-/// keyed by serial id, a transient twin keyed by session id for not-yet-saved clips).
+/// @brief Per-clip structural records, owned by the persistent `project` tree and keyed by the clip's stable
+/// `Clip::id`.
+///
+/// The clip-structure analogue of `ClipParams`: because it is keyed by the serial id, not by a `Clip*` or array
+/// index, it is unaffected by clip reorders. A component of `deluge::project::Song`, keyed by serial id.
 struct ClipStructure {
 	model_map<uint32_t, DocClip> by_id;
 
-	/// The clip's DocClip, or nullptr if this clip has no tree-resident record.
+	/// @brief Find the clip's record.
+	/// @param id The clip's stable `Clip::id`.
+	/// @return The clip's DocClip, or nullptr if this clip has no tree-resident record.
 	DocClip* find(uint32_t id) {
 		auto it = by_id.find(id);
 		return it == by_id.end() ? nullptr : &it->second;
 	}
 
-	/// The clip's DocClip, creating an empty one if absent.
+	/// @brief Get the clip's record, creating an empty one if absent.
+	/// @param id The clip's stable `Clip::id`.
+	/// @return The clip's DocClip.
 	DocClip& getOrCreate(uint32_t id) { return by_id[id]; }
 
-	/// Drop the clip's record (on clip destruction).
+	/// @brief Drop the clip's record (on clip destruction).
+	/// @param id The clip's stable `Clip::id`.
 	void remove(uint32_t id) { by_id.erase(id); }
 };
 

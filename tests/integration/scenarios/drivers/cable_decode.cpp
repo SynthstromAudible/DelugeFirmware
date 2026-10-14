@@ -17,8 +17,8 @@
 
 // cable_decode <file> <SONG|SYNTH|KIT> — every patchCables element of the file, loaded as the app loads it (the Deluge
 // instrument's decoder, then the bridge) into a cable set. One line per cable is printed (path, depth id, polarity,
-// value, node count); the runner compares each file's lines with the fingerprint recorded from the reader the app used
-// before. Exit: 0 loaded; 1 the file does not parse; 2 usage/IO.
+// value, node count); the runner compares each file's lines with the fingerprint recorded from the app's reader.
+// Exit: 0 loaded; 1 the file does not parse; 2 usage/IO.
 
 #include "model/project_bridge/cable_bridge.h"
 #include "model/project_bridge/param_ids.h"

@@ -114,35 +114,40 @@ public:
 
 	uint8_t modKnobMode;
 
-	/// Stable, persisted, per-song serial identity (the DOM reference foundation). nullopt until
-	/// assigned lazily on first save from the song's counter (or restored on load); resolve via
-	/// Song::outputForId.
+	/// @brief Stable, persisted, per-song serial identity (the basis for DOM references).
+	///
+	/// nullopt until restored on load or minted from the song's counter at load (assignMissingIds) or adoption; resolve
+	/// via Song::outputForId.
+	/// @return The output's id, or nullopt if unassigned.
 	[[nodiscard]] std::optional<uint32_t> id() const { return id_; }
 	void setId(uint32_t id) { id_ = id; }
 
-	// M3 owner-5 (output identity): non-owning pointer to this output's DOM-owned DocOutput in
-	// project.output_structure, bound via Song::adoptOutput. Null until adopted. seedDocOutputIdentity() copies the
-	// Output-base identity fields engine->record at load (and at the clone/replace bulk-copy sites); saves read the
-	// record directly.
+	/// Non-owning pointer to this output's DOM-owned DocOutput in project.output_structure, bound via
+	/// Song::adoptOutput. Null until adopted. seedDocOutputIdentity() copies the Output-base identity fields
+	/// engine->record at load (and at the clone/replace bulk-copy sites); saves read the record directly.
 	deluge::project::DocOutput* docOutput_{nullptr};
 	void bindDocOutput(deluge::project::DocOutput* d) { docOutput_ = d; }
 
-	// M3 owner-5 (DocOutput identity, DO1): the base 6 Output identity scalars (name/colour/modKnobMode/
-	// mutedInArrangementMode/soloingInArrangementMode/armedForRecording) are now DOM-authoritative at save. Every
-	// forward write funnels through these setters (write native cache + record; guarded, no FREEZE — Output may be
-	// momentarily unbound, a pre-bind write lands in the cache and the bind-time seed picks it up).
+	/// @name "Record-authoritative identity"
+	/// The 6 base Output identity scalars (name/colour/modKnobMode/mutedInArrangementMode/
+	/// soloingInArrangementMode/armedForRecording) are DOM-authoritative at save. Every write funnels through these
+	/// setters (write native cache + record; guarded, no FREEZE — Output may be momentarily unbound, a pre-bind write
+	/// lands in the cache and the bind-time seed picks it up).
+	/// @{
 	void setName(std::string_view newName);
 	void setColour(int16_t newColour);
 	void setModKnobMode(uint8_t newMode);
 	void setMutedInArrangement(bool v);
 	void setSoloingInArrangement(bool v);
 	void setArmedForRecording(bool v);
-	// Reseed the record's 6 base identity fields from the current native values (load-bridge + reseed helper for
-	// sites that can't call a single setter directly: the polymorphic modKnobMode write in View::modButtonAction,
-	// and the clone/replace families in song.cpp that bulk-copy fields between Outputs).
-	// Virtual (DO2): Instrument overrides to also reseed its own tier (dir_path/default_velocity), so every existing
-	// polymorphic call site (adoptOutput, the clone/replace blocks in song.cpp) covers those fields too, without
-	// having to touch each call site again.
+	/// @}
+
+	/// @brief Reseed the record's 6 base identity fields from the current native values.
+	///
+	/// The load bridge, and the reseed helper for sites that can't call a single setter directly: the polymorphic
+	/// modKnobMode write in View::modButtonAction, and the clone/replace families in song.cpp that bulk-copy fields
+	/// between Outputs. Virtual so Instrument can also reseed its own tier (dir_path/default_velocity), and every
+	/// polymorphic call site covers those fields too.
 	virtual void seedDocOutputIdentity();
 
 	// Temp stuff for doLaunch()

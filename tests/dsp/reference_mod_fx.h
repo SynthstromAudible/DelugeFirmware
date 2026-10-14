@@ -17,8 +17,8 @@
 
 /// @file
 /// @brief Test-local reference for the comb-filter mod FX (flanger, chorus, phaser, stereo chorus, warble and
-/// dimension): the app's mod FX processor as it rendered before the kernel replaced it, copied line for line. The
-/// kernel is held bit-exact to it.
+/// dimension): the app's mod FX processor, copied line for line. The kernel is
+/// held bit-exact to it.
 ///
 /// @ref deluge::dsp::test::ReferenceModFx differs from it only where the test has no firmware around it:
 ///  - the two unpatched param reads (offset, feedback) are arguments, and `AudioEngine::renderInStereo` is the

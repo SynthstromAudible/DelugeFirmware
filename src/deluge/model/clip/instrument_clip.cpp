@@ -189,9 +189,9 @@ deleteClipAndGetOut:
 	newClip->soloingInSessionMode = false;
 	newClip->output = output;
 
-	// Phase C: bind the freshly-cloned (unbound) clip-level param sets to fresh DOM stores (Model A), like
-	// AudioClip::clone. Synth = unpatched + patched; kit clip-level = unpatched FX. Only SOUND managers (the
-	// helper's precondition — MIDI/CV skipped). Per-drum kit rows are bound after the noteRows copy below.
+	// Bind the freshly-cloned (unbound) clip-level param sets to fresh DOM stores, like AudioClip::clone.
+	// Synth = unpatched + patched; kit clip-level = unpatched FX. Only SOUND managers (the helper's precondition --
+	// MIDI/CV skipped). Per-drum kit rows are bound after the noteRows copy below.
 	if (output->type == OutputType::SYNTH || output->type == OutputType::KIT) {
 		newClip->paramManager.bindMainParamSetDomStores();
 	}
@@ -203,18 +203,15 @@ deleteClipAndGetOut:
 		goto deleteClipAndGetOut;
 	}
 
-	// M3 owner-2: the copied engine rows are unbound (NoteRow's copy ctor drops docNoteRow_). Rebuild the clone's own
-	// note-row pool by copying each SOURCE row's DocNoteRow (the authoritative field values) in vector order, then
-	// binding the cloned row to it. Copying the source's DOM record — rather than re-seeding from the copied engine
-	// row's native fields — is what lets those native scalars be retired: a clone's values flow model→model, never
-	// through an engine field. Source model values equal the source's native fields (kept in sync by the dual-write),
-	// so this is bit-identical to the previous re-seed.
+	// The copied engine rows are unbound (NoteRow's copy ctor drops docNoteRow_). Rebuild the clone's own note-row
+	// pool by copying each SOURCE row's DocNoteRow (the authoritative field values) in vector order, then binding the
+	// cloned row to it. A clone's values flow model->model, never through an engine field.
 	if (newClip->docClip_ != nullptr && docClip_ != nullptr) {
 		newClip->docClip_->note_rows.clear();
 		for (int32_t n = 0; n < std::ssize(newClip->noteRows); n++) {
 			deluge::project::DocNoteRow* src = noteRows[n].docNoteRow_;
 			if (src == nullptr) {
-				// Invariant: a live source row is always bound. Post-retirement its values live only in the DOM, so an
+				// Invariant: a live source row is always bound. Its values live only in the DOM, so an
 				// unbound source is unrecoverable — loudly flag it (beta) and skip rather than emit wrong clone data.
 				if (ALPHA_OR_BETA_VERSION) {
 					D_PRINTLN("M3 clone: source note row unbound; cannot copy its DOM record");
@@ -226,7 +223,7 @@ deleteClipAndGetOut:
 		}
 	}
 
-	// Phase C (kit): each cloned SoundDrum row's param manager is a fresh, unbound deep copy — bind them too.
+	// Kit: each cloned SoundDrum row's param manager is a fresh, unbound deep copy — bind them too.
 	if (output->type == OutputType::KIT) {
 		for (int32_t i = 0; i < std::ssize(newClip->noteRows); i++) {
 			NoteRow& noteRow = newClip->noteRows[i];
@@ -240,14 +237,14 @@ deleteClipAndGetOut:
 
 	// The copy-assign above deep-copied each row (param manager + notes). Only flatten-reversing needs a
 	// per-row pass — flattenReverse() reverses notes/automation for effectively-reversed rows and collapses
-	// every row's direction mode (matching the old beenCloned() tail).
+	// every row's direction mode.
 	if (shouldFlattenReversing) {
 		for (int32_t i = 0; i < std::ssize(newClip->noteRows); i++) {
 			NoteRow* noteRow = &newClip->noteRows[i];
 			int32_t noteRowId = newClip->getNoteRowId(noteRow, i);
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
 			noteRow->flattenReverse(modelStackWithNoteRow);
-			// On failure we keep going, matching the old tolerance (a row's notes must not be left half-done).
+			// On failure we keep going (a row's notes must not be left half-done).
 		}
 	}
 
@@ -1270,7 +1267,7 @@ void InstrumentClip::stopAllNotesPlaying(ModelStackWithTimelineCounter* modelSta
 	}
 }
 
-// M3 owner-2 (dual-write phase): seed a fresh DocNoteRow from this engine row's current scalars and bind it.
+// Seed a fresh DocNoteRow from this engine row's current scalars and bind it.
 void InstrumentClip::bindNoteRowStructure(NoteRow& nr) {
 	if (docClip_ == nullptr) {
 		return;
@@ -1281,13 +1278,13 @@ void InstrumentClip::bindNoteRowStructure(NoteRow& nr) {
 	d.colour_offset = nr.colourOffset();
 	d.sequence_direction = nr.sequenceDirectionMode();
 	d.muted = nr.muted();
-	// M3 owner-2/3 join: seed the drum_id shadow. `nr.drum` is a real pointer/nullptr here (bind runs at create/clone
+	// Seed the drum_id shadow. `nr.drum` is a real pointer/nullptr here (bind runs at create/clone
 	// or pre-readFromTree, never while a load sentinel is stashed); a later setDrum/reconnection corrects it.
 	d.drum_id = (nr.drum != nullptr) ? nr.drum->id() : std::nullopt;
 	nr.bindDocNoteRow(&d);
 }
 
-// M3 owner-2 slice 2a: on note-row delete, erase its DocNoteRow from the pool and unbind, keeping the pool size ==
+// On note-row delete, erase its DocNoteRow from the pool and unbind, keeping the pool size ==
 // live-row count. O(n) address scan by pointer is fine (per-clip pools are small; std::list addresses are stable).
 void InstrumentClip::unbindNoteRowStructure(NoteRow& nr) {
 	if (docClip_ == nullptr || nr.docNoteRow_ == nullptr) {
@@ -2439,7 +2436,7 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 		((Instrument*)output)->setupPatching(modelStack);
 	}
 
-	// Phase C: bind the (freshly set up / cloned-from-favour) clip-level param sets to DOM stores (Model A).
+	// Bind the (freshly set up / cloned-from-favour) clip-level param sets to DOM stores.
 	// Synth = unpatched + patched; kit clip-level = unpatched FX. Idempotent, so a ParamBackup-restored manager
 	// (whose store travelled with the ParamSet) is left untouched. Per-drum kit rows are bound in NoteRow::setDrum.
 	if (newInstrument->type == OutputType::SYNTH || newInstrument->type == OutputType::KIT) {
@@ -2565,9 +2562,9 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	if (!noteRows.empty()) {
 #if ALPHA_OR_BETA_VERSION
-		// M3 owner-2 slice 2a invariant: every engine note-row must have a bound shadow by save time, AND — now that
-		// delete sites erase the shadow — the pool holds exactly one DocNoteRow per live row (no orphans). Non-fatal:
-		// surfaces a missed create/clone/load bind or a missed delete-erase during the golden run without crashing.
+		// Invariant: every engine note-row must have a bound shadow by save time, and the pool holds exactly one
+		// DocNoteRow per live row (no orphans). Non-fatal: surfaces a missed create/clone/load bind or a missed
+		// delete-erase without crashing.
 		if (docClip_ != nullptr) {
 			for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 				if (noteRows[i].docNoteRow_ == nullptr) {
@@ -2683,8 +2680,8 @@ someError:
 	std::string instrumentPresetDirPath;
 	bool dirPathHasBeenSpecified = false;
 
-	// loopLength is read tree-natively (readClipsFromFile) before this runs; bound automation reads by it, exactly as
-	// the old <length> attribute handler did (length is always written before any automation). 0 (absent) -> the max.
+	// loopLength is read (readClipsFromFile) before this runs; bound automation reads by it (length is always
+	// written before any automation). 0 (absent) -> the max.
 	int32_t readAutomationUpToPos = loopLength() > 0 ? loopLength() : kMaxSequenceLength;
 
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -2692,7 +2689,7 @@ someError:
 
 		int32_t temp;
 
-		// clipName/inKeyMode + the view-state group below are read tree-natively in readShellFromTree (slice 4).
+		// clipName/inKeyMode + the view-state group below are read in readShellFromTree.
 		if (!strcmp(tagName, "instrumentPresetSlot")) {
 			int32_t slotHere = reader.readTagOrAttributeValueInt();
 			std::string slotChars;
@@ -2752,7 +2749,7 @@ someError:
 
 		// The view-state group (yScroll, keyboard*/drums*/inKey*, crossScreenEditLevel, onKeyboardScreen,
 		// onAutomationInstrumentClipView, lastSelectedParam*, lastSelectedInstrumentType/PatchSource, affectEntire)
-		// is read tree-natively in InstrumentClip::readShellFromTree (readFromTree slice 4).
+		// is read in InstrumentClip::readShellFromTree.
 
 		else if (!strcmp(tagName, "soundMidiCommand")) { // Only for pre V2.0 song files
 			soundMidiCommand.readChannelFromTree(*deluge::storage::treeReaderOf(reader).currentValue(), reader);
@@ -2909,8 +2906,8 @@ loadInstrument:
 
 			GlobalEffectableForClip::initParams(&paramManager);
 			reader.match('{');
-			// Option I (read-authority): read the kit clip-level FX block DOM-first so the store holds the
-			// authoritative current_value, not just the nodes (initParams wrote the defaults into the store).
+			// Read the kit clip-level FX block DOM-first so the store holds the authoritative current_value, not
+			// just the nodes (initParams wrote the defaults into the store).
 			GlobalEffectableForClip::readParamsFromFileDomFirst(reader, &paramManager, readAutomationUpToPos);
 			reader.match('}');
 		}
@@ -2929,7 +2926,7 @@ loadInstrument:
 		}
 
 		else if (!strcmp(tagName, "noteRows")) {
-			// readFromTree slice: drive NoteRow::readFromTree per row over the tree node. parseXml gives a Map with
+			// Drive NoteRow::readFromTree per row over the tree node. parseXml gives a Map with
 			// repeated "noteRow" keys; parseJson gives an Array of {noteRow:{…}} boxes -- handle both. The trailing
 			// reader.exitTag() below skips the streaming noteRows element.
 			int32_t minY = -32768;
@@ -2954,7 +2951,7 @@ loadInstrument:
 					if (!newNoteRow) {
 						goto ramError;
 					}
-					// Bind before readFromTree so its trailing dual-write mirrors the loaded scalars into the shadow.
+					// Bind before readFromTree so it mirrors the loaded scalars into the shadow.
 					bindNoteRowStructure(*newNoteRow);
 					error = newNoteRow->readFromTree(reader, *rowNode, &minY, this, song, readAutomationUpToPos);
 					if (error != Error::NONE) {
@@ -3011,7 +3008,7 @@ doReadBendRange:
 		else if (!strcmp(tagName, "columnControls")) {
 			keyboardState.columnControl.readFromFile(reader);
 		}
-		// Base-clip tags are read tree-natively in Song::readClipsFromFile (readFromTree slice 3); anything not
+		// Base-clip tags are read in Song::readClipsFromFile; anything not
 		// handled above falls through to the reader.exitTag() below.
 
 		reader.exitTag();
@@ -3138,8 +3135,8 @@ Error InstrumentClip::readMIDIParamsFromFile(Deserializer& reader, int32_t readA
 			char const* tagName;
 			int32_t paramId = CC_NUMBER_NONE;
 			AutoParam* param = nullptr;
-			// M2-F: the DOM node store to read into — the expression param's own storage, or (for MIDI) the
-			// MIDIParam's inline nodes_ store, which owner-resolution reads at runtime.
+			// The DOM node store to read into: the expression param's own storage, or (for MIDI) the MIDIParam's
+			// inline nodes_ store, which owner-resolution reads at runtime.
 			deluge::project::DocAutoParam* readTarget = nullptr;
 			ParamCollectionSummary* summary;
 			ExpressionParamSet* expressionParams = nullptr;
@@ -3159,7 +3156,7 @@ expressionParam:
 						summary = paramManager.getExpressionParamSetSummary();
 						expressionParams = (ExpressionParamSet*)summary->paramCollection;
 						param = &expressionParams->params[paramId];
-						readTarget = expressionParams->docForParam(paramId); // M2-F: owner-resolved store, not ownDoc_
+						readTarget = expressionParams->docForParam(paramId); // owner-resolved store
 					}
 					else if (!strcasecmp(contents, "aftertouch")) {
 						paramId = Z_PRESSURE;
@@ -3186,7 +3183,7 @@ expressionParam:
 								return Error::INSUFFICIENT_RAM;
 							}
 							param = &midiParam->param;
-							readTarget = &midiParam->nodes_; // M2-F: MIDI nodes live in the MIDIParam's inline store
+							readTarget = &midiParam->nodes_; // MIDI nodes live in the MIDIParam's inline store
 						}
 					}
 					reader.exitTag("cc");
@@ -4071,7 +4068,7 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 					GateDrum* newDrum = new (drumMemory) GateDrum();
 
 					kit->addDrum(newDrum, modelStack->song);
-					// M3 owner-3: set the channel after addDrum binds the DocDrum (setChannel writes the model).
+					// Set the channel after addDrum binds the DocDrum (setChannel writes the model).
 					newDrum->setChannel(gateChannel);
 					thisNoteRow->drum = newDrum;
 					thisNoteRow->syncDrumId(); // freshly-created real gate drum — safe to mirror

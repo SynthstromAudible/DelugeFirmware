@@ -33,7 +33,7 @@ public:
 		int32_t transpose, cents;
 		computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
 
-		// M3 owner-4: transpose/cents are DOM-owned — funnel through the setters (record + cache).
+		// transpose/cents are DOM-owned: write them through the setters (record the edit and update the cache).
 		AudioClip* clip = getCurrentAudioClip();
 		clip->setSampleTranspose(transpose);
 		clip->setSampleCents(cents);

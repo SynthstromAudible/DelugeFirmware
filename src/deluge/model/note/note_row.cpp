@@ -128,7 +128,7 @@ void NoteRow::deleteOldDrumNames(bool shouldUpdatePointer) {
 
 // Post-clone flatten of a reversed sequence. The row was already deep-copied (copy ctor) reverse-agnostically;
 // here we reverse the notes + automation in place (only if this row effectively plays reversed) and collapse
-// the direction mode to OBEY_PARENT (matching the old beenCloned() tail). Owned-move semantics: the notes are
+// the direction mode to OBEY_PARENT. Owned-move semantics: the notes are
 // moved out and rebuilt reversed (no aliasing).
 Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 	int32_t effectiveLength = modelStack->getLoopLength();
@@ -3521,8 +3521,7 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 		}
 	}
 
-	// M3 owner-2 (dual-write phase): mirror the fully-read scalar fields into the DOM shadow (bound at the load
-	// insert site). Guarded on non-null; nothing reads the shadow yet, so this is purely additive.
+	// Mirror the fully-read scalar fields into the DOM record (bound at the load insert site). Guarded on non-null.
 	if (docNoteRow_ != nullptr) {
 		docNoteRow_->y = y_;
 	}
@@ -3530,7 +3529,7 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 }
 
 namespace {
-/// Emit one `noteDataWithSplitProb` hex record (current format). Widths must match the legacy loop exactly:
+/// Emit one `noteDataWithSplitProb` hex record (current format). Field widths:
 /// pos/length default 8, velocity/lift/probability/fill 2, iterance 4.
 void writeSplitProbRecord(Serializer& writer, int32_t pos, int32_t length, uint8_t velocity, uint8_t lift,
                           uint8_t probability, uint16_t iteranceInt, uint8_t fill) {
@@ -3604,7 +3603,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 	}
 
 	if (!notes.empty()) {
-		// M3 owner-2 Slice 2c: rebuild the DOM note pool from the engine vector, then write from it (the DOM is
+		// Rebuild the DOM note pool from the engine vector, then write from it (the DOM is
 		// the note SAVE-authority). Rows not yet bound to a DocNoteRow fall back to the engine vector directly.
 		rebuildDocNotes();
 
@@ -3799,8 +3798,8 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 			patchCableSet->setupPatching(modelStackWithParamCollection);
 		}
 
-		// Phase C (kit): the SoundDrum's param manager is now fully sourced (steal / clone / restore / fresh) —
-		// borrow-point its unpatched + patched sets at DOM stores (Model A). Idempotent, so a manager restored
+		// The SoundDrum's param manager is fully sourced here (steal / clone / restore / fresh): borrow-point its
+		// unpatched + patched sets at DOM stores. Idempotent, so a manager restored
 		// from ParamBackup (already bound; its store travelled with the ParamSet) is left untouched.
 		paramManager.bindMainParamSetDomStores();
 
@@ -3847,7 +3846,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 	}
 }
 
-// M3 owner-2/3 join: dual-write the DOM shadow's drum_id from the CURRENT `drum` member. Reads `drum` directly, so
+// Writes the DOM record's drum_id from the current `drum` member. Reads `drum` directly, so
 // callers MUST ensure it is a real pointer or nullptr (never a load-time sentinel int stashed by readFromTree).
 void NoteRow::syncDrumId() {
 	if (docNoteRow_ == nullptr) {

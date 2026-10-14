@@ -10,11 +10,12 @@ class ModelStackWithNoteRow;
 
 namespace deluge::edits {
 
-/// Add a new (MIDI/GATE) drum + attach it to a note-row — the reification of the synchronous branch of
-/// InstrumentClipView::createDrumForAuditionedNoteRow. apply() creates the drum, adds it to the kit, and sets it on the
-/// row. NON-UNDOABLE by design (the view keeps deleteAllLogs) — undo arrives with the command/undo-tree substrate, not
-/// a Consequence. drum() exposes the created drum for the view's drawDrumName. The async SOUND-drum path stays in the
-/// view.
+/// @brief Add a new (MIDI/GATE) drum and attach it to a note-row.
+///
+/// Covers the synchronous branch of InstrumentClipView::createDrumForAuditionedNoteRow. apply() creates the drum, adds
+/// it to the kit, and sets it on the row. drum() exposes the created drum for the view's drawDrumName.
+///
+/// @note Not undoable: the view keeps deleteAllLogs. The async SOUND-drum path is handled by the view, not here.
 class AddKitRow final : public Edit {
 public:
 	AddKitRow(Kit* kit, NoteRow* noteRow, DrumType drumType, ModelStackWithNoteRow* engineStack)
