@@ -30,6 +30,9 @@ What the scenario's own lines cover:
                 cancelled, so giving up on it only releases the serialiser it is still copying from. Its line carries
                 heldUs, how long after the save began the write landed; the scenario fails the leg unless that is
                 past the stall bound, since a write that was never held proves nothing.
+  SS-UPGRADE    saving a song loaded from NAME.XML under the same name writes NAME.json beside it without asking to
+                overwrite, leaves NAME.XML as it was, and leaves the song naming NAME.json -- the path a startup
+                setting records.
 
 What this module checks, from SS-SUMMARY, SS-GREW and the mid-save lines:
   SS-CHANNEL    the steps were SERVED by the channels, and the document write by the byte channel's write-from.

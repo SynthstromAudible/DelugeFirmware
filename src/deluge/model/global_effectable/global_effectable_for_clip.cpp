@@ -23,22 +23,38 @@
 #include "gui/views/view.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/edits/change_effect.h"
 #include "processing/engines/audio_engine.h"
 #include <limits>
 #include <string.h>
 // #include <algorithm>
 #include "hid/buttons.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/stack_guard.h"
 #include "model/clip/clip.h"
+#include "model/fx/chain_inputs.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/delay_arena_app.h"
+#include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 
 namespace params = deluge::modulation::params;
 
-GlobalEffectableForClip::GlobalEffectableForClip() {
-	this->postReverbVolumeLastTime = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
+GlobalEffectableForClip::GlobalEffectableForClip()
+    : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena(),
+             paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND]} {
+	// A new owner's settings live in its chain state, and its filter mode and mod FX type are set, once its chain
+	// exists.
+	bindChainState();
+	setLpfMode(FilterMode::TRANSISTOR_24DB);
+	filter().reset();
+	assignModFXType(ModFXType::NONE);
+}
+
+GlobalEffectableForClip::~GlobalEffectableForClip() {
+	releaseChainMemory();
 }
 
 // Beware - unlike usual, modelStack might have a NULL timelineCounter.
@@ -56,53 +72,22 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	int32_t a = cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
 	int32_t volumeAdjustment = getFinalParameterValueVolume(134217728, a) >> 1;
 
-	int32_t volumePostFX = volumeAdjustment;
-
-	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall.
-	// Unfortunately when I first implemented this for Kits, I just fudged a number which didn't give the 100% accuracy
-	// that I need for AudioOutputs, and I now have to maintain both for backwards compatibility
-	volumePostFX += (outputType == OutputType::AUDIO) ? multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397)
-	                                                  : (volumeAdjustment >> 2);
-
 	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(reverbAmountAdjust, volumeAdjustment) << 5;
 
 	int32_t pitchAdjust =
 	    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
 
-	Delay::State delayWorkingState =
+	// The delay starts or stops on whether the content rendered last block.
+	deluge::effects::Delay::State delayWorkingState =
 	    createDelayWorkingState(*paramManagerForClip, shouldLimitDelayFeedback, renderedLastTime);
 	if (outputType == OutputType::AUDIO) {
 		delayWorkingState.analog_saturation = 5;
 	}
 
-	setupFilterSetConfig(&volumePostFX, paramManagerForClip);
-
-	int32_t reverbSendAmount = getFinalParameterValueVolume(
-	    reverbAmountAdjust,
-	    cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT)));
-
-	int32_t pan = unpatchedParams->getValue(params::UNPATCHED_PAN) >> 1;
-
-	// Render sidechain
-	int32_t sidechainVolumeParam = unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_VOLUME);
-	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
-	if (sidechainVolumeParam != std::numeric_limits<q31_t>::min()) {
-		if (sideChainHitPending != 0) {
-			sidechain.registerHit(sideChainHitPending);
-		}
-		int32_t sidechainOutput =
-		    sidechain.render(output.size(), unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
-
-		int32_t positivePatchedValue =
-		    multiply_32x32_rshift32(sidechainOutput, getSidechainVolumeAmountAsPatchCableDepth(paramManagerForClip))
-		    + 536870912;
-
-		// This is tied to getParamNeutralValue(params::GLOBAL_VOLUME_POST_REVERB_SEND) returning 134217728
-		postReverbVolume = (positivePatchedValue >> 15) * (positivePatchedValue >> 16);
-	}
-
-	const q31_t compThreshold = unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
-	compressor.setThreshold(compThreshold);
+	const deluge::effects::ClipChainInputs in =
+	    deluge::model::clipChainInputs(*this, *paramManagerForClip, volumeAdjustment, reverbAmountAdjust,
+	                                   sideChainHitPending, delayWorkingState, outputType);
+	deluge::effects::ClipBlock levels = chain_.begin_block(in, output.size());
 
 	alignas(CACHE_LINE_SIZE) StereoSample global_effectable_memory[SSI_TX_BUFFER_NUM_SAMPLES];
 	memset(global_effectable_memory, 0, sizeof(StereoSample) * output.size());
@@ -113,46 +98,21 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	    modelStack, global_effectable_audio, nullptr, reverbBuffer, reverbAmountAdjustForDrums, sideChainHitPending,
 	    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
-	// Render saturation
-	if (clippingAmount != 0u) {
-		int32_t shiftAmount = getShiftAmountForSaturation();
-		for (StereoSample& sample : global_effectable_audio) {
-			sample.l = saturate(sample.l, &lastSaturationTanHWorkingValue[0], shiftAmount);
-			sample.r = saturate(sample.r, &lastSaturationTanHWorkingValue[1], shiftAmount);
+	checkStack("delay");
+	// The recorder takes the block after the stutter, before pan, volume and compression, so its level is the clip's.
+	auto record = [&](std::span<const StereoSample> /*block*/) {
+		if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+			// we need to double it because for reasons I don't understand audio clips max volume is half the sample
+			// volume
+			recorder->feedAudio(global_effectable_audio, true, 2);
 		}
-	}
-
-	if (renderedLastTime) {
-		// Render filters
-		processFilters(global_effectable_audio);
-
-		// Render FX
-		processSRRAndBitcrushing(global_effectable_audio, &volumePostFX, paramManagerForClip);
-	}
-
-	processFXForGlobalEffectable(global_effectable_audio, &volumePostFX, paramManagerForClip, delayWorkingState,
-	                             renderedLastTime, reverbSendAmount);
-	processStutter(global_effectable_audio, paramManagerForClip);
-	// record before pan/compression/volume to keep volumes consistent
-	if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
-		recorder->feedAudio(global_effectable_audio, true, 2);
-	}
-
-	processReverbSendAndVolume(global_effectable_audio, reverbBuffer, volumePostFX, postReverbVolume, reverbSendAmount,
-	                           pan, true);
-
-	if (compThreshold > 0) {
-		compressor.renderVolNeutral(global_effectable_audio, volumePostFX);
-	}
-	else {
-		compressor.reset();
+	};
+	if (chain_.process(global_effectable_audio, in, levels, renderedLastTime, {reverbBuffer, output.size()}, record)) {
+		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
 	}
 
 	// Add the global effectable data to the output
 	std::ranges::transform(global_effectable_audio, output, output.begin(), std::plus{});
-
-	postReverbVolumeLastTime = postReverbVolume;
 
 	if (playbackHandler.isEitherClockActive() && (playbackHandler.ticksLeftInCountIn == 0) && isClipActive) {
 		auto& interpolating_params = paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating;
@@ -205,17 +165,17 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 				int32_t insideWorldTickMagnitude;
 				if (currentSong) { // Bit of a hack just referring to currentSong in here...
 					insideWorldTickMagnitude =
-					    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
+					    (currentSong->project.transport.inside_world_tick_magnitude
+					     + currentSong->project.transport.inside_world_tick_magnitude_offset_from_bpm);
 				}
 				else {
 					insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 				}
-				if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
-					sidechain.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
-				}
-				else {
-					sidechain.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
-				}
+				const int32_t level = effects().sidechain.sync_level == (SyncLevel)(7 - insideWorldTickMagnitude)
+				                          ? 9 - insideWorldTickMagnitude
+				                          : 7 - insideWorldTickMagnitude;
+				deluge::edits::changeEffect(*this, "sidechain/syncLevel",
+				                            deluge::serialization::Value::makeNumber(level));
 
 				// if mod button is pressed, update mod button pop up
 				if (Buttons::isButtonPressed(
@@ -259,8 +219,10 @@ void GlobalEffectableForClip::getThingWithMostReverb(Clip* activeClip, Sound** s
 
 		UnpatchedParamSet* unpatchedParams = activeParamManager->getUnpatchedParamSet();
 
-		if (!unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].isAutomated()
-		    && unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].containsSomething(-2147483648)) {
+		if (!unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].isAutomated(
+		        *unpatchedParams->docForParam(params::UNPATCHED_REVERB_SEND_AMOUNT))
+		    && unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].containsSomething(
+		        *unpatchedParams->docForParam(params::UNPATCHED_REVERB_SEND_AMOUNT), -2147483648)) {
 
 			int32_t reverbHere = unpatchedParams->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
 			if (*highestReverbAmountFound < reverbHere) {

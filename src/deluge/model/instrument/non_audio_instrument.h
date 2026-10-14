@@ -55,8 +55,14 @@ public:
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
 	ModControllable* toModControllable() override { return this; }
-	virtual void setChannel(int newChannel) { channel = newChannel; }
+	virtual void setChannel(int newChannel);
 	inline int32_t getChannel() const { return channel; }
+
+	/// @brief Reseeds the record's channel from the current native value.
+	///
+	/// The channel is record-authoritative at save: every write funnels through setChannel() (or, for the
+	/// polymorphic/clone sites, this).
+	void seedDocOutputIdentity() override;
 	// Cache these here just in case there's no ParamManager - because CVInstruments don't do backedUpParamManagers.
 	uint8_t cachedBendRanges[2]{};
 	bool needsEarlyPlayback() const override;

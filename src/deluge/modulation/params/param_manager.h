@@ -63,6 +63,17 @@ public:
 	// Not including MPE params
 	inline bool containsAnyMainParamCollections() { return expressionParamSetOffset; }
 
+	/// @brief Borrow-point this manager's ParamSets at DOM-owned DocParamSets anchored on the sets.
+	///
+	/// Binds unpatched always, patched if present, and expression (MPE) if present. Idempotent. Audio/kit
+	/// clip-level managers bind their unpatched set only; synth/drum managers add patched (+ expression).
+	///
+	/// @pre Only call on a Sound / GlobalEffectable manager (summaries[0] is an UnpatchedParamSet).
+	/// @warning A MIDI manager also reports containsAnyMainParamCollections()==true but holds a
+	///          MIDIParamCollection at summaries[0] (not a ParamSet) -- binding it would corrupt it. Callers gate
+	///          on SYNTH/KIT clips + SoundDrum.
+	void bindMainParamSetDomStores();
+
 	inline bool containsAnyParamCollectionsIncludingExpression() { return summaries[0].paramCollection; }
 
 	Error setupWithPatching();
@@ -72,7 +83,12 @@ public:
 	void stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams = false);
 	Error cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation, bool cloneExpressionParams = false,
 	                                int32_t reverseDirectionWithLength = 0);
-	Error beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
+	/// @brief Reverse all collections' automation in place.
+	///
+	/// Used when a cloned NoteRow must flatten a reversed sequence; the collections were copied
+	/// reverse-agnostically.
+	/// @param reverseDirectionWithLength The loop length.
+	void flattenReverseAutomation(int32_t reverseDirectionWithLength);
 	void forgetParamCollections();
 	void destructAndForgetParamCollections();
 	void destructAndForgetMainParamCollections(); // Retains expression params, like forgetParamCollections()
@@ -177,7 +193,6 @@ public:
 	inline ParamManagerForTimeline* toForTimeline() { return (ParamManagerForTimeline*)this; }
 #endif
 
-	bool resonanceBackwardsCompatibilityProcessed{};
 	uint8_t expressionParamSetOffset{};
 
 	// This list should be terminated by an object whose values are all zero. Yes, all of them must be zero, because if
@@ -186,7 +201,6 @@ public:
 
 private:
 	void moveFrom(ParamManager& other) noexcept {
-		resonanceBackwardsCompatibilityProcessed = other.resonanceBackwardsCompatibilityProcessed;
 		expressionParamSetOffset = other.expressionParamSetOffset;
 		for (auto i = 0; i < PARAM_COLLECTIONS_STORAGE_NUM; i++) {
 			summaries[i] = other.summaries[i];

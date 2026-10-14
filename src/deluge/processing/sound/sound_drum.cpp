@@ -24,6 +24,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/instrument/kit.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "processing/engines/audio_engine.h"
@@ -132,7 +133,7 @@ void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramMana
 
 void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("sound", true);
-	writeDrumTagsToFile(writer);
+	writeDrumTagsToFile(writer, savingSong);
 
 	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, path.c_str());
 
@@ -148,7 +149,13 @@ Error SoundDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int3
 	ModelStackWithModControllable* modelStack =
 	    setupModelStackWithSong(modelStackMemory, song)->addTimelineCounter(clip)->addModControllableButNoNoteRow(this);
 
-	return Sound::readFromFile(reader, modelStack, readAutomationUpToPos, &arpSettings);
+	const Error error = Sound::readFromFile(reader, modelStack, readAutomationUpToPos, &arpSettings);
+	if (error == Error::NONE && docDrum_ != nullptr) {
+		// Adopted before it was read, so its slot is filled now that the element has been.
+		deluge::bridge::fillSlot(*this, docDrum_->instrument ? *docDrum_->instrument : docDrum_->instrument.emplace(),
+		                         true, *song);
+	}
+	return error;
 }
 
 // modelStack may be NULL
@@ -198,5 +205,5 @@ void SoundDrum::drumWontBeRenderedForAWhile() {
 }
 
 std::string SoundDrum::getDrumName() {
-	return drumName;
+	return name();
 }

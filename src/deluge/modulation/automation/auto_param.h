@@ -17,7 +17,9 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
-#include "modulation/action/action_type.h" // ActionType (used as a default-argument value below)
+#include "deluge-project/param_automation.h" // deluge::project::DocAutoParam (held by value)
+#include "deluge-project/param_edit.h"       // deluge::project::RegionWriteResult (projectRegionFromStore)
+#include "modulation/action/action_type.h"   // ActionType (used as a default-argument value below)
 #include "modulation/params/param_node_vector.h"
 #include <cstdint>
 
@@ -27,7 +29,10 @@
 // auto_param.cpp. This keeps AutoParam (and the synth core, which reaches it via ParamSet) off model/ and
 // storage/.
 class InstrumentClip;
-class ParamNode;
+namespace deluge::project {
+struct ParamNode;
+}
+using deluge::project::ParamNode;
 class Action;
 class Serializer;
 class Deserializer;
@@ -50,11 +55,40 @@ struct StolenParamNodes;
 class AutoParam {
 public:
 	AutoParam();
-	void init();
+	// Copies carry the current value and reset the transient interpolation/override state; moves carry all of it.
+	// No node storage is held here, so neither touches automation nodes.
+	AutoParam(AutoParam const& other);
+	AutoParam& operator=(AutoParam const& other);
+	AutoParam(AutoParam&& other) noexcept;
+	AutoParam& operator=(AutoParam&& other) noexcept;
+	void init(deluge::project::DocAutoParam& doc);
 
 	void setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
 	                                          bool shouldLogAction = true, int32_t livePos = -1,
 	                                          bool mayDeleteNodesInLinearRun = true, bool isMPE = false);
+	/// @brief Model-first projection half of the scalar poke.
+	///
+	/// The persistent store `current_value` has already been written (ParamSnapshot::applyPatch); this derives the
+	/// engine's RT state from it, reproducing setCurrentValueInResponseToUserInput's non-recording scalar tail
+	/// (interpolation reset, the playing latch, cursor sync, notify) but sourcing the value from the store.
+	///
+	/// @param modelStack The param's model stack.
+	/// @param oldValue   The value before the edit.
+	/// @param isPlaying  Whether playback is running.
+	void projectScalarFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool isPlaying);
+	/// @brief Model-first projection half of the region poke, for every clock state.
+	///
+	/// The store (nodes and current_value) has already been written (ParamSnapshot::applyPatch's region kernel); this
+	/// reproduces setValueForRegion's post-mutation tail: cursor sync, then the interpolation reset (clock active,
+	/// playhead in region) or UI notify (clock active, playhead outside), then notify. The branch is the one
+	/// `result.currentValueEffect` names; the kernel decides it and this tail replays it.
+	///
+	/// @param modelStack      The param's model stack.
+	/// @param oldValue        The value before the edit.
+	/// @param automatedBefore Whether the param was automated before the edit.
+	/// @param result          The region kernel's result.
+	void projectRegionFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool automatedBefore,
+	                            deluge::project::RegionWriteResult result);
 	int32_t processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,
 	                          bool mayInterpolate = true, bool mustUpdateValueAtEveryNode = false);
 	void setValueForRegion(uint32_t pos, uint32_t length, int32_t value, ModelStackWithAutoParam const* modelStack,
@@ -68,31 +102,39 @@ public:
 	bool tickTicks(int32_t numTicks);
 	void setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed);
 	bool grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack);
-	void generateRepeats(uint32_t oldLength, uint32_t newLength, bool shouldPingpong);
-	void cloneFrom(AutoParam* otherParam, bool copyAutomation);
-	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
+	void generateRepeats(deluge::project::DocAutoParam& doc, uint32_t oldLength, uint32_t newLength,
+	                     bool shouldPingpong);
+	/// @brief Reverse this param's automation in place (used when flattening a reversed clip on clone).
+	///
+	/// Moves the nodes out and rebuilds them reversed.
+	///
+	/// @param doc                         The param's node store.
+	/// @param reverseDirectionWithLength  The loop length to reverse within.
+	/// @throws deluge::exception::BAD_ALLOC if the node buffer cannot be re-grown.
+	void flattenReverse(deluge::project::DocAutoParam& doc, int32_t reverseDirectionWithLength);
 	void copyOverridingFrom(AutoParam* otherParam);
 	void trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack);
 	void deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify = true);
-	void deleteAutomationBasicForSetup();
-	void writeToFile(Serializer& writer, bool writeAutomation, int32_t* valueForOverride = nullptr);
-	Error readFromFile(Deserializer& reader, int32_t readAutomationUpToPos);
-	bool containsSomething(uint32_t neutralValue = 0);
+	void deleteAutomationBasicForSetup(deluge::project::DocAutoParam& doc);
+	void writeToFile(deluge::project::DocAutoParam const& doc, Serializer& writer, bool writeAutomation,
+	                 int32_t* valueForOverride = nullptr);
+	Error readFromFile(deluge::project::DocAutoParam& doc, Deserializer& reader, int32_t readAutomationUpToPos);
+	bool containsSomething(const deluge::project::DocAutoParam& doc, uint32_t neutralValue = 0);
 	static bool containedSomethingBefore(bool wasAutomatedBefore, uint32_t valueBefore, uint32_t neutralValue = 0);
-	void shiftValues(int32_t offset);
-	void shiftParamVolumeByDB(float offset);
-	void shiftHorizontally(int32_t amount, int32_t effectiveLength);
+	void shiftValues(deluge::project::DocAutoParam& doc, int32_t offset);
+	void shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t amount, int32_t effectiveLength);
 	void swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack);
 	void copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* copiedParamAutomation, bool isPatchCable,
 	          ModelStackWithAutoParam const* modelStack);
 	void paste(int32_t startPos, int32_t endPos, float scaleFactor, ModelStackWithAutoParam const* modelStack,
 	           CopiedParamAutomation* copiedParamAutomation, bool isPatchCable);
-	Error makeInterpolationGoodAgain(int32_t clipLength, int32_t quantizationRShift);
-	void transposeCCValuesToChannelPressureValues();
+	Error makeInterpolationGoodAgain(deluge::project::DocAutoParam& doc, int32_t clipLength,
+	                                 int32_t quantizationRShift);
+	void transposeCCValuesToChannelPressureValues(deluge::project::DocAutoParam& doc);
 	void deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackWithAutoParam* modelStack);
-	void insertTime(int32_t pos, int32_t lengthToInsert);
-	void appendParam(AutoParam* otherParam, int32_t oldLength, int32_t reverseThisRepeatWithLength,
-	                 bool pingpongingGenerally);
+	void insertTime(deluge::project::DocAutoParam& doc, int32_t pos, int32_t lengthToInsert);
+	void appendParam(deluge::project::DocAutoParam& doc, deluge::project::DocAutoParam const& srcDoc, int32_t oldLength,
+	                 int32_t reverseThisRepeatWithLength, bool pingpongingGenerally);
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithAutoParam const* modelStack);
 	void stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength, int32_t loopLength,
@@ -111,7 +153,7 @@ public:
 	/// @param[in] shouldInterpolate Sets \ref "ParamNode::interpolated" on the created or modified node.
 	///
 	/// @return the index in to \ref nodes of the modified node.
-	int32_t setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate);
+	int32_t setNodeAtPos(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value, bool shouldInterpolate);
 	int32_t homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int32_t length,
 	                         int32_t startValue, bool interpolateLeftNode, bool interpolateRightNode,
 	                         int32_t effectiveLength, bool reversed, int32_t posAtWhichClipWillCut = 2147483647);
@@ -122,16 +164,28 @@ public:
 	int32_t getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* modelStack);
 	void notifyPingpongOccurred();
 
+	/// Engine-only setter for runtime re-setters (transient FX like stutter/slice): the store holds the pre-FX base
+	/// value, not the live FX value.
 	inline void setCurrentValueBasicForSetup(int32_t value) { currentValue = value; }
 
-	inline bool isAutomated() { return (std::ssize(nodes)); }
+	/// Default/setup setter: write the persisted scalar into the owner's store @p doc and the RT cursor from the same
+	/// literal. Used by initParams so param defaults live in the DOM store directly.
+	/// @param doc   The owner-resolved store slot, e.g. `set->docForParam(p)`.
+	/// @param value The value to store.
+	inline void setCurrentValueBasicForSetup(deluge::project::DocAutoParam& doc, int32_t value) {
+		currentValue = value;
+		doc.current_value = value;
+	}
+
+	inline bool isAutomated(const deluge::project::DocAutoParam& doc) { return std::ssize(doc.nodes) != 0; }
 
 	inline void cancelOverriding() { // Will also cancel "latching".
 		renewedOverridingAtTime = 0;
 	}
 
-	/// The nodes that make up this parameter. If empty, \ref currentValue should be used.
-	ParamNodeVector nodes{};
+	// The AutoParam is a pure interpolation cursor: it holds no node storage. Every node operation receives a
+	// `DocAutoParam&` resolved by the owner (ModelStackWithAutoParam::doc(), or a per-owner docForParam). The DOM owns
+	// all automation node data. If a param has no nodes, currentValue is used.
 
 	/// Current value of the AutoParam. Updated by several functions.
 	int32_t currentValue;
@@ -149,13 +203,10 @@ public:
 	// it only works in empty stretches of time.
 
 private:
-	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
-	                                    bool mayLoopAroundBackToEnd = true);
+	bool deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,
+	                                    int32_t effectiveLength, bool mayLoopAroundBackToEnd = true);
 	void setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNode, int32_t effectiveLength,
 	                        int32_t currentPos, bool reversed);
-	void homogenizeRegionTestSuccess(int32_t pos, int32_t regionEnd, int32_t startValue, bool interpolateStart,
-	                                 bool interpolateEnd);
-	void deleteNodesBeyondPos(int32_t pos);
 
 	// interpolation to calculate current value
 	bool useFloatInterpolation(ModelStackWithAutoParam const* modelStack);

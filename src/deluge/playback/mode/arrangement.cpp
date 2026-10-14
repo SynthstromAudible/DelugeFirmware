@@ -53,8 +53,8 @@ void Arrangement::setupPlayback() {
 	// so maybe extra unneeded here - but that's not the only place that calls us, so have left it in for now
 	playbackHandler.swungTicksTilNextEvent = 0;
 
-	for (int32_t c = 0; c < std::ssize(currentSong->sessionClips); c++) {
-		Clip* clip = currentSong->sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(currentSong->live.clips.session_clips); c++) {
+		Clip* clip = currentSong->live.clips.session_clips[c];
 
 		clip->wasActiveBefore = clip->activeIfNoSolo;
 
@@ -66,8 +66,8 @@ void Arrangement::setupPlayback() {
 
 	// Got to deactiveate all arrangement-only Clips too! Especially cos some of them might be muted or something (this
 	// made stuff look very buggy!) For each Clip in arrangement
-	for (int32_t c = 0; c < std::ssize(currentSong->arrangementOnlyClips); c++) {
-		Clip* clip = currentSong->arrangementOnlyClips[c];
+	for (int32_t c = 0; c < std::ssize(currentSong->live.clips.arrangement_only_clips); c++) {
+		Clip* clip = currentSong->live.clips.arrangement_only_clips[c];
 		clip->activeIfNoSolo = false;
 	}
 }
@@ -82,7 +82,7 @@ bool Arrangement::endPlayback() {
 
 	currentSong->paramManager.expectNoFurtherTicks(modelStack);
 
-	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output; output = output->next) {
 		if (!currentSong->isOutputActiveInArrangement(output)) {
 			continue;
 		}
@@ -123,7 +123,8 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 	if (songParamManagerMightContainAutomation) {
 		ModelStackWithThreeMainThings* modelStackStackWithThreeMainThing =
 		    modelStack->addTimelineCounter(modelStack->song)
-		        ->addOtherTwoThingsButNoNoteRow(&modelStack->song->globalEffectable, &modelStack->song->paramManager);
+		        ->addOtherTwoThingsButNoNoteRow(&modelStack->song->live.global_effectable,
+		                                        &modelStack->song->paramManager);
 
 		currentSong->paramManager.processCurrentPos(modelStackStackWithThreeMainThing, posIncrement, false);
 		currentSong->updateBPMFromAutomation();
@@ -133,7 +134,7 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 
 	for (uint8_t iPass = 0; iPass < 2; iPass++) {
 		// Go through all Outputs
-		for (Output* output = currentSong->firstOutput; output; output = output->next) {
+		for (Output* output = currentSong->live.media.first_output; output; output = output->next) {
 
 			if (output->needsEarlyPlayback() == (iPass == 1)) {
 				continue; // First time through, skip anything but priority clips, which must take effect first
@@ -351,7 +352,7 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 
 	playbackStartedAtPos = newPos;
 	lastProcessedPos = newPos;
-	arrangerView.xScrollWhenPlaybackStarted = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+	arrangerView.xScrollWhenPlaybackStarted = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 	// if you were holding a clip pad and doing a reset,
 	// it can be easy to accidentally delete or enter the clip
 	// setting this to false prevents that
@@ -365,7 +366,7 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 		currentSong->paramManager.setPlayPos(newPos, modelStack, false);
 	}
 
-	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output; output = output->next) {
 		if (!currentSong->isOutputActiveInArrangement(output)) {
 			continue;
 		}
@@ -455,7 +456,7 @@ void Arrangement::reversionDone() {
 
 	int32_t actualPos = getLivePos();
 
-	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output; output = output->next) {
 		if (!currentSong->isOutputActiveInArrangement(output)) {
 			continue;
 		}
@@ -510,7 +511,7 @@ void Arrangement::rowEdited(Output* output, int32_t startPos, int32_t endPos, Cl
 
 // First, be sure the clipInstance has a Clip
 Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength, bool shouldCloneRepeats) {
-	if (!currentSong->arrangementOnlyClips.reserveExtra(1)) {
+	if (!currentSong->live.clips.arrangement_only_clips.reserveExtra(1)) {
 		return Error::INSUFFICIENT_RAM;
 	}
 	Clip* oldClip = clipInstance->clip;
@@ -526,7 +527,7 @@ Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32
 
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
-	newClip->section = 255;
+	newClip->setSection(255);
 	newClip->activeIfNoSolo = false; // Always need to set arrangement-only Clips like this on create
 
 	if (shouldCloneRepeats && newLength != -1) {
@@ -536,7 +537,7 @@ Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32
 	}
 
 	// Add to Song
-	(void)currentSong->arrangementOnlyClips.insertClipAt(newClip, 0);
+	(void)currentSong->live.clips.arrangement_only_clips.insertClipAt(newClip, 0);
 
 	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, clipInstance->clip,
 	          nullptr);
@@ -570,8 +571,8 @@ int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter cons
 		return clip->currentlyPlayingReversed ? (-2147483648) : 2147483647; // This shouldn't normally happen right?
 	}
 
-	int32_t cutPos = clipInstance->length - clip->loopLength * clip->repeatCount;
-	if (cutPos == clip->loopLength) { // If cutting right at the end of the current repeat...
+	int32_t cutPos = clipInstance->length - clip->loopLength() * clip->repeatCount;
+	if (cutPos == clip->loopLength()) { // If cutting right at the end of the current repeat...
 
 		if (clip->currentlyPlayingReversed) {
 			cutPos = 0; // Since we already knew it was loopLength.
@@ -598,7 +599,7 @@ int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter cons
 		}
 
 		else {
-			if (cutPos < clip->loopLength
+			if (cutPos < clip->loopLength()
 			    && cutPos <= clip->getLivePos()) { // We first check that cutPos is less than the loopLength, so as not
 				                                   // to waste time on the calculations in getLivePos if not necessary
 				cutPos = 2147483647;
@@ -619,7 +620,7 @@ bool Arrangement::willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter con
 		return (cutPos < 0);
 	}
 	else {
-		return (cutPos > clip->loopLength);
+		return (cutPos > clip->loopLength());
 	}
 }
 
@@ -639,7 +640,7 @@ bool Arrangement::willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* m
 	// If we're still not too near the end of this Instance, it'll loop
 	int32_t instanceEndPos = clipInstance->pos + clipInstance->length;
 	int32_t distanceFromInstanceEnd = instanceEndPos - lastProcessedPos;
-	if (distanceFromInstanceEnd > clip->loopLength) {
+	if (distanceFromInstanceEnd > clip->loopLength()) {
 		return true;
 	}
 
@@ -652,11 +653,11 @@ bool Arrangement::willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* m
 	}
 
 	// Ok, we're near the end of the ClipInstance, but perhaps the last remaining bit contains a Clip loop-end-point?
-	return (clipInstance->length > clip->loopLength * (clip->repeatCount + 1));
+	return (clipInstance->length > clip->loopLength() * (clip->repeatCount + 1));
 }
 
 void Arrangement::endAnyLinearRecording() {
-	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output; output = output->next) {
 		uint32_t timeRemainder;
 		int32_t actualPos = getLivePos(&timeRemainder);
 		output->endAnyArrangementRecording(currentSong, actualPos, timeRemainder);

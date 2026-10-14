@@ -18,8 +18,9 @@ public:
 
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		auto& sampleControls = getCurrentAudioClip()->sampleControls;
-		sampleControls.interpolationMode = getValue<InterpolationMode>();
+		// interpolation is DOM-owned: write it through the setter (records the edit and updates the render cache),
+		// not through the cache reference.
+		getCurrentAudioClip()->setInterpolationMode(getValue<InterpolationMode>());
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

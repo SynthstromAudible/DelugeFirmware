@@ -36,6 +36,8 @@
 #include "libdeluge/file_prefix.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/project_bridge/slot_bridge.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -141,7 +143,7 @@ bool LoadSongUI::opened() {
 	favouritesManager.setCategory("SONG");
 	favouritesChanged();
 	outputTypeToLoad = OutputType::NONE;
-	currentDir = currentSong->dirPath;
+	currentDir = currentSong->project.metadata.dir_path;
 
 	Error error = beginSlotSession(false, true);
 	if (error != Error::NONE) {
@@ -162,10 +164,10 @@ bool LoadSongUI::opened() {
 	PadLEDs::clearTickSquares();
 
 	std::string searchFilename;
-	searchFilename = currentSong->name;
+	searchFilename = currentSong->project.metadata.name;
 
-	if (!searchFilename.empty() && !searchFilename.contains(".XML")) {
-		searchFilename.append(".XML");
+	if (!searchFilename.empty()) {
+		searchFilename.append(currentSong->project.metadata.file_extension);
 	}
 
 	// The listing happens async: dispatch it and return optimistically. Failure goes through the
@@ -356,7 +358,7 @@ void LoadSongUI::queueLoadNextSongIfAvailable(int8_t offset) {
 // This method actually executes the loading of next song (by offset)
 void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 	outputTypeToLoad = OutputType::NONE;
-	currentDir = currentSong->dirPath;
+	currentDir = currentSong->project.metadata.dir_path;
 
 	int32_t currentFileIndexSelected = fileIndexSelected;
 
@@ -410,6 +412,7 @@ void LoadSongUI::endLoad(SongLoadOutcome outcome) {
 	// The backstop for the staged song: every way a load can end passes through here, so a buffer that
 	// survived an early return is freed exactly once and the next load starts from a clear path.
 	releaseSongStaging();
+	songDocument_.release();
 	stagingPath_.clear();
 	stagingPrevious_ = nullptr;
 	stagingWait_.reset();
@@ -490,7 +493,7 @@ void LoadSongUI::runStageSegment() {
 		stagingPrevious_ = activeDeserializer;
 	}
 
-	switch (StorageManager::openDocumentStaged(stagingPath_.c_str(), "song", "", &songStaging_)) {
+	switch (StorageManager::stageDocument(stagingPath_.c_str(), &songStaging_)) {
 	case StorageManager::StagedOpen::Deferred:
 		return; // Ask again next pass.
 
@@ -504,6 +507,17 @@ void LoadSongUI::runStageSegment() {
 		return;
 
 	case StorageManager::StagedOpen::Opened:
+		// Record-first load: parse the whole document into a Value tree now, while nothing has been destroyed,
+		// so a corrupt file still leaves the browser open. BEGIN replays the tree to readFromFile.
+		if (songDocument_.open(std::span<const uint8_t>(songStaging_.buffer, songStaging_.size),
+		                       StorageManager::documentIsJson(stagingPath_.c_str()), "song")
+		    != Error::NONE) {
+			activeDeserializer = stagingPrevious_;
+			releaseSongStaging();
+			display->displayError(Error::FILE_CORRUPTED);
+			endLoad(SongLoadOutcome::NotLoaded);
+			return;
+		}
 		loadPhase_ = LoadPhase::BEGIN;
 		return;
 	}
@@ -625,23 +639,25 @@ void LoadSongUI::runBeginSegment() {
 		playbackHandler.switchToSession();
 	}
 
-	// Open over songStaging_'s bytes: STAGE read them on the interaction tier before this phase began, and
-	// the parse below runs over memory with `activeDeserializer` pointing at the memory reader. Nothing
-	// re-opens the document here, so bytes that never arrived end the load the way
-	// a corrupt file does (checked below).
+	// STAGE read the song on the interaction tier before this phase began, and parsed it into a Value tree.
+	// Bytes that never arrived end the load the way a corrupt file does.
 	//
-	// stagingPrevious_ is what that global gets put back to at every exit. Not hygiene: the memory
-	// reader's fileClusterBuffer IS the staged buffer, and code downstream writes through the global
-	// without opening a document of its own (SaveSongUI's sample collection reads Cluster::size,
-	// 32 KiB, into it), so leaving it pointing at released bytes is heap corruption, not a stale read.
+	// stagingPrevious_ is what `activeDeserializer` is put back to at every exit. Nothing here points it elsewhere
+	// (the song is read through a Value tree, not a memory reader), but code downstream writes through that global
+	// (SaveSongUI's sample collection reads Cluster::size, 32 KiB, into it), so every exit restores it regardless.
 	Error error = Error::NONE;
 	if (songStaging_.buffer == nullptr) {
+		songDocument_.release();
 		activeDeserializer = stagingPrevious_;
 		releaseSongStaging();
 		display->displayError(Error::FILE_CORRUPTED);
 		endLoad(SongLoadOutcome::NotLoaded);
 		return;
 	}
+
+	// STAGE parsed those bytes into the Value tree the read below replays; the tree owns its own copies, so
+	// the staged bytes can go now.
+	releaseSongStaging();
 
 	// Every UI is about to be taken down, and none will hear the releases of pads still held: end each held gesture
 	// now, through the UIs that started it, while the song it plays is still alive. Before the mode below, which
@@ -682,7 +698,7 @@ ramError:
 
 someError:
 		display->displayError(error);
-		activeDeserializer->closeWriter();
+		songDocument_.release();
 		releaseSongStaging();
 		activeDeserializer = stagingPrevious_;
 fail:
@@ -694,7 +710,7 @@ fail:
 		// reallocate that very freed block as the new currentSong, so reconstructing into (and later freeing)
 		// songMemory left currentSong dangling, crashing the next load.
 		if (preLoadedSong && preLoadedSong != currentSong) {
-			// A half-loaded song may still occupy songMemory (e.g. we arrived from a closeWriter failure) - free it.
+			// A half-loaded song may still occupy songMemory (e.g. we arrived from a read failure) - free it.
 			void* toDealloc = dynamic_cast<void*>(preLoadedSong);
 			preLoadedSong->~Song(); // Will also delete paramManager
 			delugeDealloc(toDealloc);
@@ -739,23 +755,20 @@ gotErrorAfterCreatingSong:
 
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	error = preLoadedSong->readFromFile(*activeDeserializer);
+	{
+		deluge::storage::ActiveReaderScope reading(songDocument_.reader());
+		error = deluge::bridge::loadSong(*preLoadedSong, songDocument_.reader());
+	}
+	// The tree is only needed during the read.
+	songDocument_.release();
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
 	AudioEngine::logAction("read new song from file");
 
-	bool success = activeDeserializer->closeWriter();
-	// Nothing reads the staged bytes once the reader is closed, and the global must not be left
-	// pointing into them.
-	releaseSongStaging();
 	activeDeserializer = stagingPrevious_;
-	if (!success) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
-		goto fail;
-	}
 
-	preLoadedSong->dirPath = listing.dir();
+	preLoadedSong->project.metadata.dir_path = listing.dir();
 
 	// Taken from the path that was actually STAGED rather than from the browser's cursor. The cursor
 	// is rebuilt by other tiers and may since have moved to a different song, or off the list
@@ -765,6 +778,9 @@ gotErrorAfterCreatingSong:
 	const std::string_view leaf = (lastSlash == std::string_view::npos) ? stagedPath : stagedPath.substr(lastSlash + 1);
 	const auto lastDot = leaf.rfind('.');
 	std::string currentFilenameWithoutExtension{(lastDot == std::string_view::npos) ? leaf : leaf.substr(0, lastDot)};
+	if (lastDot != std::string_view::npos) {
+		preLoadedSong->project.metadata.file_extension = leaf.substr(lastDot);
+	}
 
 	sampleLoadContext_ =
 	    deluge::storage::AudioLoadContext::forSong(listing.dir().c_str(), currentFilenameWithoutExtension.c_str());
@@ -799,6 +815,7 @@ void LoadSongUI::tickEssential() {
 		DELUGE_LOAD_TRACE("crucial end");
 	}
 	essentialLoad_.reset();
+	deluge::bridge::recordLoadedSounds(*preLoadedSong);
 
 	// The new song's essential clusters still have to finish arriving before the swap. Park here and let
 	// loadRoutine() watch for it: the fill task that does the arriving only runs once we return to the run loop.
@@ -807,7 +824,7 @@ void LoadSongUI::tickEssential() {
 }
 
 void LoadSongUI::runArmSegment() {
-	preLoadedSong->name = enteredText;
+	preLoadedSong->project.metadata.name = enteredText;
 
 	loadToDelete_ = currentSong;
 
@@ -902,6 +919,7 @@ void LoadSongUI::tickFinish() {
 		return; // still walking
 	}
 	AudioEngine::logAction("done loading new song");
+	deluge::bridge::recordLoadedSounds(*currentSong);
 	currentSong->markAllInstrumentsAsEdited();
 
 	sampleLoadContext_ = {};

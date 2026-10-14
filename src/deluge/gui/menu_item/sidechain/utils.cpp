@@ -1,11 +1,11 @@
 #include "utils.h"
-#include "model/song/song.h"
+#include "gui/ui/sound_editor.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/sound/sound.h"
 
-SideChain* getSidechain(bool forReverb) {
+const deluge::effects::SidechainState& sidechainSettings(bool forReverb) {
 	if (forReverb) {
-		return &AudioEngine::reverbSidechain;
+		return AudioEngine::reverbSidechainSettings;
 	}
-	return &soundEditor.currentModControllable->sidechain;
+	return soundEditor.currentModControllable->effects().sidechain;
 }

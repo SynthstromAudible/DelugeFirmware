@@ -1,0 +1,20 @@
+
+build/RelWithDebInfo/deluge.elf:	file format elf32-littlearm
+
+Disassembly of section .text:
+
+200f3598 <deluge::bench::CalibrationLoop::block(unsigned int)>:
+200f3598: 008a         	lsls	r2, r1, #0x2
+200f359a: 6002         	str	r2, [r0]
+200f359c: d009         	beq	0x200f35b2 <deluge::bench::CalibrationLoop::block(unsigned int)+0x1a> @ imm = #0x12
+200f359e: 2303         	movs	r3, #0x3
+200f35a0: 2101         	movs	r1, #0x1
+200f35a2: fb01 f103    	mul	r1, r1, r3
+200f35a6: fb01 f103    	mul	r1, r1, r3
+200f35aa: 1e52         	subs	r2, r2, #0x1
+200f35ac: d1f9         	bne	0x200f35a2 <deluge::bench::CalibrationLoop::block(unsigned int)+0xa> @ imm = #-0xe
+200f35ae: 6041         	str	r1, [r0, #0x4]
+200f35b0: 4770         	bx	lr
+200f35b2: 2101         	movs	r1, #0x1
+200f35b4: 6041         	str	r1, [r0, #0x4]
+200f35b6: 4770         	bx	lr

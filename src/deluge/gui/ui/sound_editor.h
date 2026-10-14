@@ -35,7 +35,6 @@ class Sound;
 class Source;
 class ParamManagerForTimeline;
 class InstrumentClip;
-class SideChain;
 class Arpeggiator;
 class MultisampleRange;
 class Clip;
@@ -44,6 +43,9 @@ class SampleControls;
 class ModControllableAudio;
 class ModelStackWithThreeMainThings;
 class AudioFileHolder;
+namespace deluge::effects {
+class Sidechain;
+}
 class MIDICable;
 
 namespace deluge::gui::menu_item {
@@ -65,11 +67,9 @@ public:
 	int8_t currentSourceIndex{};
 	Source* currentSource{};
 	ParamManagerForTimeline* currentParamManager{};
-	SideChain* currentSidechain{};
+	deluge::effects::Sidechain* currentSidechain{};
 	ArpeggiatorSettings* currentArpSettings{};
 	::MultiRange* currentMultiRange{};
-	SampleControls* currentSampleControls{};
-	VoicePriority* currentPriority{};
 	int16_t currentMultiRangeIndex{};
 	MIDICable* currentMIDICable{};
 	deluge::gui::menu_item::RangeEdit editingRangeEdge;

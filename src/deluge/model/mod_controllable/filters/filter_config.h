@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "engines/effects/words.h"
 #include "util/misc.h"
 #include <cstddef>
 
@@ -28,16 +29,7 @@ namespace deluge::l10n {
 enum class String : size_t;
 }
 
-// non namespaced
-enum class FilterMode {
-	TRANSISTOR_12DB,
-	TRANSISTOR_24DB,
-	TRANSISTOR_24DB_DRIVE, // filter logic relies on ladders being first and contiguous
-	SVF_BAND,              // first HPF mode
-	SVF_NOTCH,             // last LPF mode
-	HPLADDER,
-	OFF, // Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
-};
+using deluge::effects::FilterMode;
 constexpr int32_t kNumFilterModes = util::to_underlying(FilterMode::OFF) + 1;
 constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
 constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::SVF_NOTCH) + 1;
@@ -45,11 +37,7 @@ constexpr FilterMode lastLpfMode = FilterMode::SVF_NOTCH;
 constexpr FilterMode firstHPFMode = FilterMode::SVF_BAND;
 constexpr int32_t kFirstHPFMode = util::to_underlying(FilterMode::SVF_BAND);
 constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kFirstHPFMode;
-enum class FilterRoute {
-	HIGH_TO_LOW,
-	LOW_TO_HIGH,
-	PARALLEL,
-};
+using deluge::effects::FilterRoute;
 
 constexpr int32_t kNumFilterRoutes = util::to_underlying(FilterRoute::PARALLEL) + 1;
 
@@ -59,7 +47,7 @@ char const* filterRouteToString(FilterRoute route);
 char const* lpfTypeToString(FilterMode lpfType);
 FilterMode stringToLPFType(char const* string);
 
-namespace deluge::dsp::filter {
+namespace deluge::model::filter {
 
 enum class FilterFamily { LP_LADDER, SVF, HP_LADDER, NONE };
 constexpr uint8_t kNumFamilies = 3;
@@ -139,4 +127,4 @@ private:
 	specificFilterType type;
 };
 
-} // namespace deluge::dsp::filter
+} // namespace deluge::model::filter

@@ -65,6 +65,13 @@
 #include "model/consequence/consequence_note_row_mute.h"
 #include "model/drum/drum.h"
 #include "model/drum/midi_drum.h"
+#include "model/edits/clear_clip.h"
+#include "model/edits/clear_note_row.h"
+#include "model/edits/clip_address_for.h"
+#include "model/edits/delete_param_automation.h"
+#include "model/edits/edit.h"
+#include "model/edits/note_address_for.h"
+#include "model/edits/param_address_for.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/instrument/midi_instrument.h"
@@ -469,7 +476,7 @@ void AutomationView::focusRegained() {
 	if (onArrangerView) {
 		indicator_leds::setLedState(IndicatorLED::BACK, false);
 		indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
-		currentSong->affectEntire = true;
+		currentSong->persistentView.affectEntire = true;
 		view.focusRegained();
 		view.setActiveModControllableTimelineCounter(currentSong);
 	}
@@ -654,8 +661,9 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 	// erase current occupancy mask as it will be refreshed
 	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
-	performActualRender(image, occupancyMask, currentSong->xScroll[navSysId], currentSong->xZoom[navSysId],
-	                    kDisplayWidth, kDisplayWidth + kSideBarWidth, drawUndefinedArea);
+	performActualRender(image, occupancyMask, currentSong->persistentView.xScroll[navSysId],
+	                    currentSong->persistentView.xZoom[navSysId], kDisplayWidth, kDisplayWidth + kSideBarWidth,
+	                    drawUndefinedArea);
 
 	PadLEDs::renderingLock = false;
 
@@ -713,7 +721,7 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 	// calls below
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		kind = modelStackWithParam->paramCollection->getParamKind();
-		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
+		isBipolar = deluge::modulation::params::isParamBipolar(kind, modelStackWithParam->paramId);
 	}
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
@@ -856,7 +864,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				// highlight pad white if the parameter it represents is currently automated
-				if (modelStackWithParam->autoParam->isAutomated()) {
+				if (modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc())) {
 					pixel = {
 					    .r = 130,
 					    .g = 120,
@@ -1302,10 +1310,12 @@ void AutomationView::handleCrossScreenButtonAction(bool on) {
 		// if another button wasn't pressed while cross screen was held
 		if (Buttons::considerCrossScreenReleaseForCrossScreenMode) {
 			if (onArrangerView) {
-				currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
-				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
+				currentSong->persistentView.arrangerAutoScrollModeActive =
+				    !currentSong->persistentView.arrangerAutoScrollModeActive;
+				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT,
+				                            currentSong->persistentView.arrangerAutoScrollModeActive);
 
-				if (currentSong->arrangerAutoScrollModeActive) {
+				if (currentSong->persistentView.arrangerAutoScrollModeActive) {
 					arrangerView.reassessWhetherDoingAutoScroll();
 				}
 				else {
@@ -1319,9 +1329,9 @@ void AutomationView::handleCrossScreenButtonAction(bool on) {
 						clip->wrapEditing = false;
 					}
 					else {
-						clip->wrapEditLevel = currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
+						clip->wrapEditLevel = currentSong->persistentView.xZoom[NAVIGATION_CLIP] * kDisplayWidth;
 						// Ensure that there are actually multiple screens to edit across
-						if (clip->wrapEditLevel < clip->loopLength) {
+						if (clip->wrapEditLevel < clip->loopLength()) {
 							clip->wrapEditing = true;
 						}
 						// If in we're in the note editor, we can check if the note row has multiple screens
@@ -1416,8 +1426,8 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 			}
 			int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 
-			int32_t xScroll = currentSong->xScroll[navSysId];
-			int32_t xZoom = currentSong->xZoom[navSysId];
+			int32_t xScroll = currentSong->persistentView.xScroll[navSysId];
+			int32_t xZoom = currentSong->persistentView.xZoom[navSysId];
 
 			if (Buttons::isShiftButtonPressed()) {
 				// paste within Automation Editor
@@ -1492,16 +1502,15 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 			}
 			// clear all audio clip automation
 			else {
-				Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
-
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithTimelineCounter* modelStack =
 				    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
 				// clear automation, don't clear sample and mpe
-				bool clearAutomation = true;
-				bool clearSequenceAndMPE = false;
-				clip->clear(action, modelStack, clearAutomation, clearSequenceAndMPE);
+				deluge::edits::Context clipCtx{*currentSong, currentSong->project};
+				deluge::edits::ClearClip clearEdit{deluge::edits::clipAddressFor(*clip), /*clearAutomation=*/true,
+				                                   /*clearSequenceAndMPE=*/false, modelStack};
+				deluge::edits::apply(clipCtx, clearEdit);
 			}
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_CLEARED));
 
@@ -1528,8 +1537,10 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		}
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
-			Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
-			modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+			deluge::edits::Context editCtx{*currentSong, currentSong->project};
+			deluge::edits::DeleteParamAutomation edit{deluge::edits::addressFor(*modelStackWithParam),
+			                                          modelStackWithParam};
+			deluge::edits::apply(editCtx, edit);
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
@@ -1537,8 +1548,6 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		}
 	}
 	else if (on && inNoteEditor()) {
-		Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
-
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
@@ -1548,9 +1557,12 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		    ((InstrumentClip*)clip)->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, modelStack);
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-			NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
 			// don't clear automation, do clear notes and mpe
-			noteRow->clear(action, modelStackWithNoteRow, false, true);
+			deluge::edits::Context clearCtx{*currentSong, currentSong->project};
+			deluge::edits::ClearNoteRow clearEdit{deluge::edits::noteRowAddressFor(*modelStackWithNoteRow),
+			                                      /*clearAutomation=*/false, /*clearSequenceAndMPE=*/true,
+			                                      modelStackWithNoteRow};
+			deluge::edits::apply(clearCtx, clearEdit);
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTES_CLEARED));
 		}
@@ -1733,8 +1745,8 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 		return ActionResult::DEALT_WITH;
 	}
 
-	int32_t xScroll = currentSong->xScroll[navSysId];
-	int32_t xZoom = currentSong->xZoom[navSysId];
+	int32_t xScroll = currentSong->persistentView.xScroll[navSysId];
+	int32_t xZoom = currentSong->persistentView.xZoom[navSysId];
 
 	// if the user wants to change the parameter they are editing using Shift + Pad shortcut
 	// or change the parameter they are editing by press on a shortcut pad on automation overview
@@ -2167,8 +2179,8 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	        || (isUIModeActiveExclusively(UI_MODE_AUDITIONING | UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)))) {
 
 		if (inAutomationEditor()) {
-			int32_t xScroll = currentSong->xScroll[navSysId];
-			int32_t xZoom = currentSong->xZoom[navSysId];
+			int32_t xScroll = currentSong->persistentView.xScroll[navSysId];
+			int32_t xZoom = currentSong->persistentView.xZoom[navSysId];
 			int32_t squareSize = getPosFromSquare(1, xScroll, xZoom) - getPosFromSquare(0, xScroll, xZoom);
 			int32_t shiftAmount = offset * squareSize;
 
@@ -2243,7 +2255,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 void AutomationView::shiftAutomationHorizontally(ModelStackWithAutoParam* modelStackWithParam, int32_t offset,
                                                  int32_t effectiveLength) {
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		modelStackWithParam->autoParam->shiftHorizontally(offset, effectiveLength);
+		modelStackWithParam->autoParam->shiftHorizontally(*modelStackWithParam->doc(), offset, effectiveLength);
 	}
 
 	uiNeedsRendering(&automationView);
@@ -2463,8 +2475,8 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 
-	int32_t xScroll = currentSong->xScroll[navSysId];
-	int32_t xZoom = currentSong->xZoom[navSysId];
+	int32_t xScroll = currentSong->persistentView.xScroll[navSysId];
+	int32_t xZoom = currentSong->persistentView.xZoom[navSysId];
 
 	// if they want to copy automation...
 	if (is_copy_action) {
@@ -2477,8 +2489,9 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 	// if they want to delete automation
 	else if (is_delete_action) {
-		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
-		modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+		deluge::edits::Context editCtx{*currentSong, currentSong->project};
+		deluge::edits::DeleteParamAutomation edit{deluge::edits::addressFor(*modelStackWithParam), modelStackWithParam};
+		deluge::edits::apply(editCtx, edit);
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
@@ -2583,8 +2596,8 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 			modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 		}
 		int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
-		int32_t xScroll = currentSong->xScroll[navSysId];
-		int32_t xZoom = currentSong->xZoom[navSysId];
+		int32_t xScroll = currentSong->persistentView.xScroll[navSysId];
+		int32_t xZoom = currentSong->persistentView.xZoom[navSysId];
 		automationEditorLayoutModControllable.renderAutomationDisplayForMultiPadPress(modelStackWithParam, clip,
 		                                                                              effectiveLength, xScroll, xZoom);
 	}
@@ -3057,7 +3070,7 @@ int32_t AutomationView::getEffectiveLength(ModelStackWithTimelineCounter* modelS
 	}
 	else {
 		// this will differ for a kit when in note row mode
-		effectiveLength = clip->loopLength;
+		effectiveLength = clip->loopLength();
 	}
 
 	return effectiveLength;

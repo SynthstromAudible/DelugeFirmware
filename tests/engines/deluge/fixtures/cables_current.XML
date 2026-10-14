@@ -1,0 +1,10 @@
+<patchCables>
+	<patchCable source="lfo1" destination="lpfFrequency" amount="0x20000000" polarity="bipolar">
+		<depthControlledBy>
+			<patchCable source="envelope2" amount="0x10000000" polarity="unipolar" />
+			<patchCable source="envelope2" amount="0x08000000" polarity="bipolar" />
+		</depthControlledBy>
+	</patchCable>
+	<patchCable source="aftertouch" destination="pitch" amount="0x10000000" />
+	<patchCable source="velocity" destination="volume" amount="0x3FFFFFE8" polarity="unipolar" />
+</patchCables>

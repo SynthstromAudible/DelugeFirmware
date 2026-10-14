@@ -44,7 +44,7 @@ bool OverwriteFile::acceptCurrentOption() {
 	    .consumer = deluge::storage::SaveConsumer::OverwriteAccept,
 	    .mayOverwrite = true,
 	    .collectingSamples = currentSaveUI->collectingSamplesForDispatch(),
-	    .filePath = currentSaveUI->getCurrentFilePath(),
+	    .filePath = currentSaveUI->getSaveFilePath(),
 	    .enteredText = Browser::enteredText,
 	    .dirPath = Browser::currentDir,
 	});
@@ -56,7 +56,7 @@ ActionResult OverwriteFile::padAction(int32_t x, int32_t y, int32_t on) {
 		    .consumer = deluge::storage::SaveConsumer::OverwritePad,
 		    .mayOverwrite = true,
 		    .collectingSamples = currentSaveUI->collectingSamplesForDispatch(),
-		    .filePath = currentSaveUI->getCurrentFilePath(),
+		    .filePath = currentSaveUI->getSaveFilePath(),
 		    .enteredText = Browser::enteredText,
 		    .dirPath = Browser::currentDir,
 		});

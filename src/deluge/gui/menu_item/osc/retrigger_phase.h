@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -37,7 +38,7 @@ public:
 	[[nodiscard]] int32_t getDefaultEditPos() const override { return 1; }
 
 	void readCurrentValue() override {
-		uint32_t value = *getValueAddress();
+		uint32_t value = getCurrentPhase();
 		if (value == 0xFFFFFFFF) {
 			this->setValue(-1);
 		}
@@ -54,7 +55,7 @@ public:
 		else {
 			value = this->getValue() * 11930464;
 		}
-		*getValueAddress() = value;
+		setCurrentPhase(value);
 	}
 
 	void drawPixelsForOled() override {
@@ -131,11 +132,19 @@ private:
 	bool for_modulator_;
 	uint8_t source_id_;
 
-	[[nodiscard]] uint32_t* getValueAddress() const {
-		if (for_modulator_) {
-			return &soundEditor.currentSound->modulatorRetriggerPhase[source_id_];
-		}
-		return &soundEditor.currentSound->oscRetriggerPhase[source_id_];
+	// Retrigger phases are owned by the record (authoritative; the native field is a hot cache). Reads take the
+	// snapshot value; writes go through the settings path so the record and the cache update together, and no raw
+	// field pointer escapes.
+	[[nodiscard]] uint32_t getCurrentPhase() const {
+		Sound* sound = soundEditor.currentSound;
+		return for_modulator_ ? sound->snapshot().modulatorRetriggerPhase[source_id_]
+		                      : sound->snapshot().oscRetriggerPhase[source_id_];
+	}
+	void setCurrentPhase(uint32_t value) const {
+		Sound* sound = soundEditor.currentSound;
+		const std::string path =
+		    std::string(for_modulator_ ? "modulator" : "osc") + std::to_string(source_id_ + 1) + "/retrigPhase";
+		settingFor(*sound, path, serialization::Value::makeNumber(static_cast<int32_t>(value)));
 	}
 };
 } // namespace deluge::gui::menu_item::osc

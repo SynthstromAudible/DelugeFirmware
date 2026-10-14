@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "hid/display/oled.h"
+#include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 
 namespace deluge::gui::menu_item::reverb::sidechain {
@@ -24,9 +25,12 @@ namespace deluge::gui::menu_item::reverb::sidechain {
 class Volume final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(AudioEngine::reverbSidechainVolume / 21474836); }
+	// project.reverb is authoritative; AudioEngine::reverbSidechainVolume is the projected cache.
+	void readCurrentValue() override { this->setValue(currentSong->project.reverb.sidechain_volume / 21474836); }
 	void writeCurrentValue() override {
-		AudioEngine::reverbSidechainVolume = this->getValue() * 21474836;
+		int32_t value = this->getValue() * 21474836;
+		currentSong->project.reverb.sidechain_volume = value;
+		AudioEngine::reverbSidechainVolume = value;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }

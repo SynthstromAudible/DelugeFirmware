@@ -32,13 +32,13 @@ file(GLOB_RECURSE deluge_SOURCES
         # For value scaling
         ../../../src/deluge/gui/menu_item/value_scaling.cpp
         # For scale tests
-        ../../../src/deluge/model/scale/musical_key.cpp
-        ../../../src/deluge/model/scale/note_set.cpp
-        ../../../src/deluge/model/scale/preset_scales.cpp
-        ../../../src/deluge/model/scale/utils.cpp
-        ../../../src/deluge/model/scale/preset_scales.cpp
-        ../../../src/deluge/model/scale/scale_change.cpp
-        ../../../src/deluge/model/scale/scale_mapper.cpp
+        ../../../src/music-theory/musical_key.cpp
+        ../../../src/music-theory/note_set.cpp
+        ../../../src/music-theory/preset_scales.cpp
+        ../../../src/music-theory/utils.cpp
+        ../../../src/music-theory/preset_scales.cpp
+        ../../../src/music-theory/scale_change.cpp
+        ../../../src/music-theory/scale_mapper.cpp
         # For clip iterator tests
         ../../../src/deluge/model/song/clip_iterators.cpp
         # For sync tests
@@ -74,8 +74,8 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../../src/deluge/storage/JsonDeserializer.cpp
         ../../../src/deluge/io/file.cpp
         ../../../src/deluge/util/c_string.cpp
-        ../../../src/deluge/util/firmware_version.cpp
-        ../../../src/deluge/util/semver.cpp
+        ../../../src/serialization/firmware_version.cpp
+        ../../../src/serialization/semver.cpp
         ../io/mock_file_io.cpp
         # For the slicer audition specs: the REAL UI translation unit, so the specs drive the
         # shipped preview()/graphicsRoutine() instead of a restatement of them. Its world is

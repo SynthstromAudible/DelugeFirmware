@@ -23,8 +23,10 @@ public:
 	PhaseIncrementFineTuner();
 
 	void setup(int32_t detuneScaled);
-	int32_t detune(int32_t phaseIncrement);
+	int32_t detune(int32_t phaseIncrement) const;
 	void setNoDetune();
+
+	bool operator==(const PhaseIncrementFineTuner&) const = default;
 
 private:
 	int32_t multiplier{};

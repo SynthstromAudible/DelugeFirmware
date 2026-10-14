@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/audio_interpolation.h"
 #include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/setting_edit.h"
 #include "model/sample/sample_controls.h"
 #include "processing/sound/sound.h"
 #include "utils.h"
@@ -45,16 +46,14 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					// Note: we need to apply the same filtering as stated in the isRelevant() function
-					Source* source = &soundDrum->sources[source_id_];
-					source->sampleControls.interpolationMode = current_value;
+					settingFor(*soundDrum, oscSettingPath(source_id_, "linearInterpolation"),
+					           serialization::Value::makeNumber(current_value == InterpolationMode::LINEAR));
 				}
 			}
 		}
-		// Or, the normal case of just one sound
+		// Or, the normal case of just one sound (or audio clip, whose change reaches the DOM record)
 		else {
-			auto& sampleControls = getCurrentSampleControls(source_id_);
-			sampleControls.interpolationMode = current_value;
+			setCurrentInterpolationMode(source_id_, current_value);
 		}
 	}
 

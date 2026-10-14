@@ -42,6 +42,9 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence.h"
+#include "model/edits/clear_clip.h"
+#include "model/edits/clip_address_for.h"
+#include "model/edits/edit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
@@ -210,7 +213,7 @@ gotError:
 	}
 
 	// Set dirPath.
-	newInstrument->dirPath = getInstrumentFolder(newOutputType);
+	newInstrument->setDirPath(getInstrumentFolder(newOutputType));
 
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
@@ -241,8 +244,8 @@ gotError:
 	if (shouldReplaceWholeInstrument) {
 		// newInstrument->loadAllSamples(true); // There'll be no samples cos it's new and blank
 		//  This is how we feed a ParamManager into the replaceInstrument() function
-		currentSong->backUpParamManager((ModControllableAudio*)newInstrument->toModControllable(), nullptr,
-		                                &newParamManager, true);
+		currentSong->live.param_backup.backUp((ModControllableAudio*)newInstrument->toModControllable(), nullptr,
+		                                      &newParamManager, true);
 		currentSong->replaceInstrument((Instrument*)clip->output, newInstrument, false);
 	}
 
@@ -281,7 +284,7 @@ gotError:
 	// acquisition's own logic, so it stays on the established live-read exception those share.
 	setLedStates();
 
-	newInstrument->name = newName;
+	newInstrument->setName(newName);
 
 	if (is_dx) {
 		soundEditor.setup(clip, &dxMenu, 0);
@@ -450,8 +453,6 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			// Clear Clip
-			Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
-
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
@@ -468,7 +469,10 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 			bool clearSequenceAndMPE =
 			    ((currentUI != &automationView) || (currentUI == &automationView && automationView.inNoteEditor()));
 
-			getCurrentInstrumentClip()->clear(action, modelStack, clearAutomation, clearSequenceAndMPE);
+			deluge::edits::Context clipCtx{*currentSong, currentSong->project};
+			deluge::edits::ClearClip clearEdit{deluge::edits::clipAddressFor(*getCurrentClip()), clearAutomation,
+			                                   clearSequenceAndMPE, modelStack};
+			deluge::edits::apply(clipCtx, clearEdit);
 
 			// New default as part of Automation Clip View Implementation
 			// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing
@@ -541,12 +545,13 @@ bool InstrumentClipMinder::changeOutputType(OutputType newOutputType, deluge::st
 void InstrumentClipMinder::calculateDefaultRootNote() {
 	// If there are any other Clips in scale-mode, we use their root note
 	if (currentSong->anyScaleModeClips()) {
-		defaultRootNote = currentSong->key.rootNote;
+		defaultRootNote = currentSong->project.scale.key.rootNote;
 
 		// Otherwise, intelligently guess the root note
 	}
 	else {
-		defaultRootNote = getCurrentInstrumentClip()->guessRootNote(currentSong, currentSong->key.rootNote);
+		defaultRootNote =
+		    getCurrentInstrumentClip()->guessRootNote(currentSong, currentSong->project.scale.key.rootNote);
 	}
 }
 
@@ -588,7 +593,7 @@ void InstrumentClipMinder::displayScaleName(Scale scale) {
 }
 
 void InstrumentClipMinder::displayCurrentScaleName() {
-	displayScaleName(currentSong->getCurrentScale());
+	displayScaleName(currentSong->project.scale.key.getCurrentScale());
 }
 
 // Returns whether currentClip is now active on Output / Instrument

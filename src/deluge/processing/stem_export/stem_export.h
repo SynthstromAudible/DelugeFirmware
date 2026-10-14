@@ -30,6 +30,7 @@
 
 class Output;
 class Clip;
+class NoteRow;
 class SoundDrum;
 
 class StemExport {
@@ -89,6 +90,9 @@ public:
 		bool* muteState = nullptr;
 		bool exportStem = false;
 		SoundDrum* drum = nullptr;
+		/// @brief A DRUM element's note row. Its mute is model-backed (NoteRow::setMuted), so it has no
+		/// flag to point @ref muteState at; @ref startElement and @ref finishElement write it back instead.
+		NoteRow* noteRow = nullptr;
 	};
 
 	/// @brief Counts the elements this export type walks and disarms them for recording.

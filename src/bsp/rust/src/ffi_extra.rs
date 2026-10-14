@@ -1,6 +1,6 @@
 //! Link symbols outside the libdeluge headers: the device's C-runtime shims (`_sbrk`, `_fini`),
-//! which glibc provides on host, and the host app's stand-ins for the linker-script boundary
-//! symbols `rza1l.x` provides on the device.
+//! which glibc provides on host, the device's replacements for libstdc++'s failure reporters, and
+//! the host app's stand-ins for the linker-script boundary symbols `rza1l.x` provides on the device.
 #![allow(non_upper_case_globals, unused_variables)]
 
 // newlib's malloc, which libgcc's emulated TLS needs (e.g. the C++ exception runtime's
@@ -32,6 +32,54 @@ pub extern "C" fn _sbrk(incr: isize) -> *mut core::ffi::c_void {
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn _fini() {}
+
+/// Replaces libstdc++'s default terminate handler, `__gnu_cxx::__verbose_terminate_handler`.
+///
+/// The stock handler demangles the active exception's type name and writes it to stderr, which
+/// links libiberty's demangler and newlib's stdio (about 36 KB of SRAM) only to print to a stream
+/// nothing reads. Panicking instead reports through the panic handler: RTT plus the fault pattern
+/// on the pads.
+#[cfg(target_os = "none")]
+#[unsafe(export_name = "_ZN9__gnu_cxx27__verbose_terminate_handlerEv")]
+pub extern "C" fn verbose_terminate_handler() -> ! {
+    panic!("C++ std::terminate");
+}
+
+/// Replaces `std::__glibcxx_assert_fail(file, line, function, condition)`, which libstdc++ calls
+/// when a `__glibcxx_assert` fails.
+///
+/// The stock one prints with `fprintf`, which links newlib's full floating-point printf. Panicking
+/// reports the same four facts through the panic handler.
+///
+/// # Safety
+///
+/// Each non-null pointer must be a NUL-terminated string, as libstdc++ passes.
+#[cfg(target_os = "none")]
+#[unsafe(export_name = "_ZSt21__glibcxx_assert_failPKciS0_S0_")]
+pub unsafe extern "C" fn glibcxx_assert_fail(
+    file: *const core::ffi::c_char,
+    line: core::ffi::c_int,
+    function: *const core::ffi::c_char,
+    condition: *const core::ffi::c_char,
+) -> ! {
+    // SAFETY: the caller passes NUL-terminated strings or null.
+    let text = |p: *const core::ffi::c_char| {
+        if p.is_null() {
+            "?"
+        } else {
+            unsafe { core::ffi::CStr::from_ptr(p) }
+                .to_str()
+                .unwrap_or("?")
+        }
+    };
+    panic!(
+        "libstdc++ assertion `{}` failed in {} ({}:{})",
+        text(condition),
+        text(function),
+        text(file),
+        line
+    );
+}
 
 // The app takes only the addresses of these `extern uint32_t` boundary symbols
 // (memory/stack_guard.cpp, memory/heaps.cpp). On host they are `.set` aliases onto the edges of

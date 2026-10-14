@@ -19,6 +19,7 @@
 
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/shaping/tanh.h"
 #include "libdeluge/file_io.h"
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
 #include "util/c_string.h"
@@ -133,11 +134,6 @@ ArpMpeModSource stringToArpMpeModSource(char const* string);
 char const* inputChannelToString(AudioInputChannel inputChannel);
 AudioInputChannel stringToInputChannel(char const* string);
 
-char const* sequenceDirectionModeToString(SequenceDirection sequenceDirectionMode);
-SequenceDirection stringToSequenceDirectionMode(char const* string);
-char const* launchStyleToString(LaunchStyle launchStyle);
-LaunchStyle stringToLaunchStyle(char const* string);
-
 char const* getInstrumentFolder(OutputType outputType);
 
 bool isAudioFilename(char const* filename);
@@ -148,8 +144,6 @@ char const* getFileNameFromEndOfPath(char const* filePathChars);
 int32_t getParamFromUserValue(uint8_t p, int8_t userValue);
 int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t maxIndex);
 int32_t instantTan(int32_t input);
-
-int32_t combineHitStrengths(int32_t strength1, int32_t strength2);
 
 int32_t cableToLinearParamShortcut(int32_t sourceValue);
 int32_t cableToExpParamShortcut(int32_t sourceValue);
@@ -168,67 +162,13 @@ char const* sourceToStringShort(PatchSource source);
 
 int32_t quickLog(uint32_t input);
 
-// input must not have any extra bits set than numBitsInInput specifies
-// Output of this function (unlike the regular 1d one) is only +- 1073741824
-[[gnu::always_inline]] inline int32_t interpolateTableSigned2d(uint32_t inputX, uint32_t inputY,
-                                                               int32_t numBitsInInputX, int32_t numBitsInInputY,
-                                                               const int16_t* table, int32_t numBitsInTableSizeX,
-                                                               int32_t numBitsInTableSizeY) {
-
-	int32_t whichValue = inputY >> (numBitsInInputY - numBitsInTableSizeY);
-
-	int32_t tableSizeOneRow = (1 << numBitsInTableSizeX) + 1;
-
-	int32_t value1 =
-	    interpolateTableSigned(inputX, numBitsInInputX, &table[whichValue * tableSizeOneRow], numBitsInTableSizeX);
-	int32_t value2 = interpolateTableSigned(inputX, numBitsInInputX, &table[(whichValue + 1) * tableSizeOneRow],
-	                                        numBitsInTableSizeX);
-
-	int32_t lshiftAmount = 31 + numBitsInTableSizeY - numBitsInInputY;
-
-	uint32_t strength2;
-
-	if (lshiftAmount >= 0)
-		strength2 = (inputY << lshiftAmount) & 2147483647;
-	else
-		strength2 = (inputY >> (0 - lshiftAmount)) & 2147483647;
-
-	uint32_t strength1 = 2147483647 - strength2;
-	return multiply_32x32_rshift32(value1, strength1) + multiply_32x32_rshift32(value2, strength2);
-}
-
 template <unsigned saturationAmount>
 [[gnu::always_inline]] inline int32_t getTanH(int32_t input) {
-	uint32_t workingValue;
-
-	if (saturationAmount)
-		workingValue = (uint32_t)lshiftAndSaturate<saturationAmount>(input) + 2147483648u;
-	else
-		workingValue = (uint32_t)input + 2147483648u;
-
-	return interpolateTableSigned(workingValue, 32, tanHSmall, 8) >> (saturationAmount + 2);
+	return deluge::dsp::fixed::tanh<saturationAmount>(input);
 }
 
 [[gnu::always_inline]] inline int32_t getTanHUnknown(int32_t input, uint32_t saturationAmount) {
-	uint32_t workingValue;
-
-	if (saturationAmount)
-		workingValue = (uint32_t)lshiftAndSaturateUnknown(input, saturationAmount) + 2147483648u;
-	else
-		workingValue = (uint32_t)input + 2147483648u;
-
-	return interpolateTableSigned(workingValue, 32, tanHSmall, 8) >> (saturationAmount + 2);
-}
-
-[[gnu::always_inline]] inline int32_t getTanHAntialiased(int32_t input, uint32_t* lastWorkingValue,
-                                                         uint32_t saturationAmount) {
-
-	uint32_t workingValue = (uint32_t)lshiftAndSaturateUnknown(input, saturationAmount) + 2147483648u;
-
-	int32_t toReturn = interpolateTableSigned2d(workingValue, *lastWorkingValue, 32, 32, &tanH2d[0][0], 7, 6)
-	                   >> (saturationAmount + 1);
-	*lastWorkingValue = workingValue;
-	return toReturn;
+	return deluge::dsp::fixed::tanh(input, saturationAmount);
 }
 
 #define znew (z = 36969 * (z & 65535) + (z >> 16))

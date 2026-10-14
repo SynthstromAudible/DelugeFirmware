@@ -49,7 +49,8 @@ build_one() { # SRC BIN [extra include dir]
 build_one "${SRC}" "${BIN}" & p1=$!
 build_one "${SRC2}" "${BIN2}" & p2=$!
 build_one "${SRC3}" "${BIN3}" & p3=$!
-# The real OrderedPosVector: its firmware headers resolve from src/deluge; the allocator is stubbed in the source.
+# The real OrderedPosVector with the app's real model hooks (model_hooks.cpp: the render exclusion and the heap, whose
+# allocator is stubbed in the source); its firmware headers resolve from src/deluge.
 # ... and the real RenderingDrums, compiled against a stub SoundDrum (stubs/ comes first on the include path). ETL comes
 # from a configured host tree's _deps when there is one; otherwise (a fresh CI checkout) the firmware's pinned ETL tag
 # from cmake/deps.cmake is cloned into build-harness-deps/.
@@ -69,7 +70,8 @@ fi
 build_one4() {
     ${LAUNCHER} "${CXX}" -std=c++23 -fsanitize=thread -O1 -g \
         -I "${SCRIPT_DIR}/stubs" -I "${REPO_ROOT}/src" -I "${REPO_ROOT}/src/deluge" -I "${REPO_ROOT}/include" -I "${ETL_INCLUDE}" -pthread \
-        "${SRC4}" "${REPO_ROOT}/src/deluge/model/instrument/rendering_drums.cpp" -o "${BIN4}"
+        "${SRC4}" "${REPO_ROOT}/src/deluge/model/instrument/rendering_drums.cpp" \
+        "${REPO_ROOT}/src/deluge/model/project_bridge/model_hooks.cpp" -o "${BIN4}"
 }
 build_one4 & p4=$!
 build_failed=0

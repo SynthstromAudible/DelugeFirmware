@@ -78,7 +78,25 @@ public:
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
-	virtual void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {}
+	/// @name "Record-authoritative fields"
+	/// dirPath and defaultVelocity are record-authoritative at save: every write funnels through these setters, which
+	/// update the native cache and the record together (guarded, no FREEZE), like Output::set*().
+	/// @{
+
+	/// @brief Sets the instrument's directory path.
+	/// @param newPath The new directory path.
+	void setDirPath(std::string_view newPath);
+	/// @brief Sets the default note velocity.
+	/// @param v The new default velocity.
+	void setDefaultVelocity(uint8_t v);
+	/// @}
+
+	/// @brief Reseeds the record's identity fields from the current native values.
+	///
+	/// Calls the base (which covers the base fields), then reseeds dir_path and default_velocity, so every
+	/// polymorphic seedDocOutputIdentity() call site (adoptOutput, the song clone/replace blocks) covers them.
+	void seedDocOutputIdentity() override;
+
 	virtual bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) = 0;
 	virtual void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
 	                                              ModelStackWithTimelineCounter* modelStack) = 0;

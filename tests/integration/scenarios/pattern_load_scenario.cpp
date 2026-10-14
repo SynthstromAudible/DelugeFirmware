@@ -107,7 +107,7 @@ std::vector<std::string> notesOf(InstrumentClip* clip) {
 	std::vector<std::string> out;
 	for (NoteRow& row : clip->noteRows) {
 		for (Note& note : row.notes) {
-			out.push_back(std::to_string(row.y) + ":" + std::to_string(note.pos) + ":" + std::to_string(note.length)
+			out.push_back(std::to_string(row.y()) + ":" + std::to_string(note.pos) + ":" + std::to_string(note.length)
 			              + ":" + std::to_string(note.getVelocity()));
 		}
 	}
@@ -323,7 +323,8 @@ void report() {
 void runTick() {
 	switch (g_stage) {
 	case Stage::Setup: {
-		Clip* first = (std::ssize(currentSong->sessionClips) > 0) ? currentSong->sessionClips[0] : nullptr;
+		Clip* first = (std::ssize(currentSong->live.clips.session_clips) > 0) ? currentSong->live.clips.session_clips[0]
+		                                                                      : nullptr;
 		if (first == nullptr || first->type != ClipType::INSTRUMENT || first->output == nullptr
 		    || first->output->type != OutputType::SYNTH) {
 			fail("the boot song has no synth clip");

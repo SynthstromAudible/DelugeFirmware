@@ -16,6 +16,8 @@
  */
 
 #include "model/drum/midi_drum.h"
+#include "deluge-project/doc_drum.h"
+#include "foundation/panic.h" // FREEZE_WITH_ERROR (unbound-read guard)
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
@@ -26,9 +28,24 @@
 
 #include <string.h>
 
+// The channel (0) and note (0) defaults come from DocDrum's member initializers, applied when adoptDrum binds the
+// record (the ctor runs before the drum is bound, so it can't write the model here).
 MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
-	channel = 0;
-	note = 0;
+}
+
+// Reads the note from the authoritative DOM record (the drum is bound before any read — adopt precedes tag reads at
+// load; runtime drums bind on addDrum). The ALPHA guard makes any stray unbound read fail loudly.
+uint8_t MIDIDrum::note() const {
+	if (ALPHA_OR_BETA_VERSION && docDrum_ == nullptr) {
+		FREEZE_WITH_ERROR("Dr3T");
+	}
+	return docDrum_->note;
+}
+
+// The write funnel for the note — writes the authoritative `DocDrum::note` (the drum is bound before any write).
+// modChange writes `docDrum_->note` in place through a raw `uint8_t*`.
+void MIDIDrum::setNote(uint8_t newNote) {
+	docDrum_->note = newNote;
 }
 
 void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
@@ -36,7 +53,7 @@ void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocit
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction instruction;
 	// Run everything by the Arp...
-	arpeggiator.noteOn(arpSettings, note, velocity, &instruction, fromMIDIChannel, mpeValues);
+	arpeggiator.noteOn(arpSettings, note(), velocity, &instruction, fromMIDIChannel, mpeValues);
 	if (instruction.arpNoteOn != nullptr) {
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
@@ -52,7 +69,7 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction instruction;
 	// Run everything by the Arp...
-	arpeggiator.noteOff(arpSettings, note, &instruction);
+	arpeggiator.noteOff(arpSettings, note(), &instruction);
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
@@ -70,12 +87,12 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 void MIDIDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
 	NonAudioDrum::noteOnPostArp(noteCodePostArp, arpNote, noteIndex);
 	lastVelocity = arpNote->velocity;
-	midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, channel, kMIDIOutputFilterNoMPE);
+	midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, channel(), kMIDIOutputFilterNoMPE);
 }
 
 void MIDIDrum::noteOffPostArp(int32_t noteCodePostArp) {
 	NonAudioDrum::noteOffPostArp(noteCodePostArp);
-	midiEngine.sendNote(this, false, noteCodePostArp, kDefaultNoteOffVelocity, channel, kMIDIOutputFilterNoMPE);
+	midiEngine.sendNote(this, false, noteCodePostArp, kDefaultNoteOffVelocity, channel(), kMIDIOutputFilterNoMPE);
 }
 
 void MIDIDrum::killAllVoices() {
@@ -87,9 +104,9 @@ void MIDIDrum::killAllVoices() {
 
 void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("midiOutput", true);
-	writeDrumTagsToFile(writer);
-	writer.writeAttribute("channel", channel, false);
-	writer.writeAttribute("note", note, false);
+	writeDrumTagsToFile(writer, savingSong);
+	writer.writeAttribute("channel", channel(), false);
+	writer.writeAttribute("note", note(), false);
 	writer.writeOpeningTagEnd();
 
 	NonAudioDrum::writeArpeggiatorToFile(writer);
@@ -105,7 +122,7 @@ Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32
 
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "note")) {
-			note = reader.readTagOrAttributeValueInt();
+			setNote(reader.readTagOrAttributeValueInt());
 			reader.exitTag("note");
 		}
 		else if (NonAudioDrum::readDrumTagFromFile(reader, tagName)) {}
@@ -118,20 +135,20 @@ Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32
 }
 
 std::string MIDIDrum::getDrumName() {
-	int32_t channelToDisplay = channel + 1;
+	int32_t channelToDisplay = channel() + 1;
 	std::string buffer;
 
-	if (!drumName.empty()) {
-		buffer.append(drumName);
+	if (!name().empty()) {
+		buffer.append(name());
 		buffer.append("\n");
 	}
 	buffer.append("MIDI CH");
 	buffer.append(deluge::string::fromInt(channelToDisplay));
 	buffer.append(": ");
-	buffer.append(deluge::string::fromInt(note));
+	buffer.append(deluge::string::fromInt(note()));
 	buffer.append(" (");
 	char noteLabel[5];
-	noteCodeToString(note, noteLabel);
+	noteCodeToString(note(), noteLabel);
 	buffer.append(noteLabel);
 	buffer.append(")");
 
@@ -144,7 +161,8 @@ int8_t MIDIDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int
 
 	if ((getCurrentUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) && (currentUIMode == UI_MODE_AUDITIONING)) {
 		if (whichModEncoder == 1) {
-			modChange(modelStack, offset, &noteEncoderCurrentOffset, &note, 128);
+			// modChange writes the authoritative DOM scalar in place (`value` points at docDrum_->note).
+			modChange(modelStack, offset, &noteEncoderCurrentOffset, &docDrum_->note, 128);
 		}
 	}
 
@@ -158,7 +176,7 @@ void MIDIDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
 		int32_t value7 = newValue >> 24;
 		// Note: use the note code currently on post-arp, because this drum supports "Chord Simulator" and "Octaves" and
 		// the note code could be different
-		midiEngine.sendPolyphonicAftertouch(this, channel, value7, arpeggiator.active_note.noteCodeOnPostArp[0],
+		midiEngine.sendPolyphonicAftertouch(this, channel(), value7, arpeggiator.active_note.noteCodeOnPostArp[0],
 		                                    kMIDIOutputFilterNoMPE);
 	}
 }

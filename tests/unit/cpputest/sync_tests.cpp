@@ -16,27 +16,27 @@ TEST(SyncTests, wrapSwingIntervalSyncLevel) {
 }
 
 TEST(SyncTests, syncValueToSyncType) {
-	for (int32_t i = 0; i < SYNC_TYPE_TRIPLET; i++) {
-		CHECK_EQUAL(SYNC_TYPE_EVEN, syncValueToSyncType(i));
+	for (int32_t i = 0; i < std::to_underlying(SYNC_TYPE_TRIPLET); i++) {
+		CHECK_EQUAL(std::to_underlying(SYNC_TYPE_EVEN), std::to_underlying(syncValueToSyncType(i)));
 	}
-	for (int32_t i = SYNC_TYPE_TRIPLET + 1; i < SYNC_TYPE_DOTTED; i++) {
-		CHECK_EQUAL(SYNC_TYPE_TRIPLET, syncValueToSyncType(i));
+	for (int32_t i = std::to_underlying(SYNC_TYPE_TRIPLET) + 1; i < std::to_underlying(SYNC_TYPE_DOTTED); i++) {
+		CHECK_EQUAL(std::to_underlying(SYNC_TYPE_TRIPLET), std::to_underlying(syncValueToSyncType(i)));
 	}
-	for (int32_t i = SYNC_TYPE_DOTTED + 1; i < NUM_SYNC_VALUES; i++) {
-		CHECK_EQUAL(SYNC_TYPE_DOTTED, syncValueToSyncType(i));
+	for (int32_t i = std::to_underlying(SYNC_TYPE_DOTTED) + 1; i < NUM_SYNC_VALUES; i++) {
+		CHECK_EQUAL(std::to_underlying(SYNC_TYPE_DOTTED), std::to_underlying(syncValueToSyncType(i)));
 	}
 }
 
 TEST(SyncTests, syncValueToSyncLevel) {
 	// Zero is off
 	for (int32_t i = 0; i <= MAX_SYNC_LEVEL; i++) {
-		CHECK_EQUAL(i, syncValueToSyncLevel(i));
+		CHECK_EQUAL(i, deluge::engine::index_of(syncValueToSyncLevel(i)));
 	}
 	// Zero as level doesn't exist for triplets and dotted
 	for (int32_t i = 0; i < MAX_SYNC_LEVEL; i++) {
-		CHECK_EQUAL(i + 1, syncValueToSyncLevel(i + SYNC_TYPE_TRIPLET));
+		CHECK_EQUAL(i + 1, deluge::engine::index_of(syncValueToSyncLevel(i + std::to_underlying(SYNC_TYPE_TRIPLET))));
 	}
 	for (int32_t i = 0; i < MAX_SYNC_LEVEL; i++) {
-		CHECK_EQUAL(i + 1, syncValueToSyncLevel(i + SYNC_TYPE_DOTTED));
+		CHECK_EQUAL(i + 1, deluge::engine::index_of(syncValueToSyncLevel(i + std::to_underlying(SYNC_TYPE_DOTTED))));
 	}
 }

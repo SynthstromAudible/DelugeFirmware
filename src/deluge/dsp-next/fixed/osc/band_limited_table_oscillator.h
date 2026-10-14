@@ -16,11 +16,13 @@
  */
 #pragma once
 
+#include "dsp-next/core/concepts.h"
 #include "dsp-next/core/generator.h"
 #include "dsp-next/fixed/bandlimited/band_limited_table.h"
 #include "dsp-next/fixed/osc/table_oscillator.h"
 #include <argon.hpp>
 #include <cstdint>
+#include <type_traits>
 
 namespace deluge::dsp::fixed {
 
@@ -79,5 +81,8 @@ public:
 
 	[[gnu::always_inline]] Argon<q31> render() { return oscillator_.render(); }
 };
+static_assert(block_generator<BandLimitedTableOscillator>, "a band-limited oscillator fills a block");
+static_assert(!std::is_polymorphic_v<BandLimitedTableOscillator>,
+              "a band-limited oscillator fills a block without a vptr");
 
 } // namespace deluge::dsp::fixed

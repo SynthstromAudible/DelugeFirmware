@@ -18,6 +18,7 @@
 #include "libdeluge/system.h"
 #include "model/instrument/rendering_drums.h"
 #include "processing/sound/sound_drum.h" // the stub in stubs/: a link and a magic
+#include "util/structural_edit_probe.h"
 
 #include <atomic>
 #include <cstdint>

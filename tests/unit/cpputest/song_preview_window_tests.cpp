@@ -87,7 +87,7 @@ TEST(SongPreviewWindow, everyCorpusSongCarriesItsPreviewInsideTheWindow) {
 			continue;
 		}
 		const auto ext = entry.path().extension().string();
-		if (ext != ".XML" && ext != ".xml" && ext != ".Json") {
+		if (ext != ".XML" && ext != ".xml" && ext != ".json" && ext != ".JSON") {
 			continue;
 		}
 		const long end = previewPayloadEnd(entry.path());
@@ -100,7 +100,7 @@ TEST(SongPreviewWindow, everyCorpusSongCarriesItsPreviewInsideTheWindow) {
 	CHECK_TEXT(checked > 0, "corpus mounted but no song with a preview was examined");
 }
 
-/// The committed JSON fixture pins the format the corpus cannot: the corpus is entirely XML.
+/// The committed JSON fixture pins the format where no corpus is mounted.
 TEST(SongPreviewWindow, theJsonFixtureCarriesItsPreviewInsideTheWindow) {
 	const long end = previewPayloadEnd("tests/support/data/songs/JsonPreview.Json");
 	CHECK_TEXT(end >= 0, "fixture must contain a preview");

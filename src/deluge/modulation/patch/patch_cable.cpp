@@ -82,12 +82,12 @@ void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 	setDefaultPolarity();
 }
 
-bool PatchCable::isActive() {
-	return param.containsSomething(0);
-}
-
 void PatchCable::initAmount(int32_t value) {
-	param.nodes.clear();
+	// The cable's automation lives in its own inline store (amount_); the RT cursor is param.currentValue.
+	// Write the persisted scalar into the store too (the cable is unbound at creation, so amount_ IS the
+	// owner-resolved store), so save reads the store, not the engine cursor.
+	amount_.nodes.clear();
+	amount_.current_value = value;
 	param.currentValue = value;
 }
 

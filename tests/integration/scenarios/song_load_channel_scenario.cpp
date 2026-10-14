@@ -96,7 +96,10 @@ namespace {
 
 constexpr const char* kSaveDir = "SONGS";
 constexpr const char* kSaveName = "SLTEST01";
-constexpr const char* kSavePath = "SONGS/SLTEST01.XML";
+/// Where the setup's save lands: songs save in kSongSaveFormat.
+const std::string kSavePathString =
+    std::string{"SONGS/SLTEST01"} + std::string{deluge::storage::extensionOf(deluge::storage::kSongSaveFormat)};
+const char* const kSavePath = kSavePathString.c_str();
 /// The one sample the gate's song carries. Without it the load's sample passes walk a song that demands nothing,
 /// and every leg about them would pass by having nothing asked of it (measured: the boot song is one instrument
 /// clip and no audio clips at all).
@@ -185,6 +188,7 @@ void runTick() {
 		if (auto* clip = static_cast<AudioClip*>(sessionView.createNewAudioClipForHarness(0)); clip != nullptr) {
 			clip->sampleHolder.filePath = kSongSample;
 			(void)clip->sampleHolder.loadFile(false, false, true);
+			clip->syncSampleRecordFromEngine(); // the save writes the clip's record, not the holder
 			g_fixtureBound = clip->sampleHolder.audioFile != nullptr;
 		}
 		(void)SongLoadChannelProbe::openOn(kSaveDir);
@@ -199,7 +203,7 @@ void runTick() {
 	}
 	case Stage::Mark: {
 		// Stamp the value, then save through the REAL ENTER gesture.
-		currentSong->insideWorldTickMagnitude = kProbeMagnitude;
+		currentSong->project.transport.inside_world_tick_magnitude = kProbeMagnitude;
 		g_expectedMagnitude = currentSong->getInputTickMagnitude();
 		SongLoadChannelProbe::typeName(kSaveName);
 		SongLoadChannelProbe::pressEnter();
@@ -236,7 +240,7 @@ void runTick() {
 	}
 	case Stage::Decoy: {
 		// Overwrite the value in memory. From here, reading it back correctly REQUIRES a real parse.
-		currentSong->insideWorldTickMagnitude = kDecoyMagnitude;
+		currentSong->project.transport.inside_world_tick_magnitude = kDecoyMagnitude;
 		g_stage = Stage::LoadBack;
 		break;
 	}
@@ -308,7 +312,8 @@ void runTick() {
 		(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, false);
 		const bool dropped = !loadSongUI.loadInFlight();
 		const bool browserStayed = getCurrentUI() == &loadSongUI && currentUIMode == UI_MODE_NONE;
-		const bool songKept = currentSong == g_songBefore && currentSong->insideWorldTickMagnitude == kDecoyMagnitude;
+		const bool songKept = currentSong == g_songBefore
+		                      && currentSong->project.transport.inside_world_tick_magnitude == kDecoyMagnitude;
 		const bool playing = playbackHandler.isEitherClockActive();
 		const bool animation = deluge::hid::display::OLED::isWorkingAnimationPresent();
 		const int32_t parked = StorageManager::orphanedStagingCount() - g_orphansBefore;
@@ -336,7 +341,8 @@ void runTick() {
 		if (++g_cancelTicks < kAfterTicks) {
 			break;
 		}
-		const bool songKept = currentSong == g_songBefore && currentSong->insideWorldTickMagnitude == kDecoyMagnitude;
+		const bool songKept = currentSong == g_songBefore
+		                      && currentSong->project.transport.inside_world_tick_magnitude == kDecoyMagnitude;
 		const bool playing = playbackHandler.isEitherClockActive();
 		const bool browserStayed = getCurrentUI() == &loadSongUI;
 		const int32_t parked = StorageManager::orphanedStagingCount() - g_orphansBefore;

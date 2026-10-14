@@ -23,6 +23,10 @@
 #include "memory/memory_allocator_interface.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/paste_param_automation.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -98,11 +102,12 @@ void AutomationEditorLayoutModControllable::renderAutomationEditor(
     int32_t effectiveLength, int32_t xDisplay, bool drawUndefinedArea, params::Kind kind, bool isBipolar) {
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		renderAutomationColumn(modelStackWithParam, image, occupancyMask, effectiveLength, xDisplay,
-		                       modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom, kind, isBipolar);
+		                       modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc()), xScroll, xZoom,
+		                       kind, isBipolar);
 	}
 	if (drawUndefinedArea) {
 		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth,
-		                    getAutomationView()->toTimelineView(), currentSong->tripletsOn, xDisplay);
+		                    getAutomationView()->toTimelineView(), currentSong->persistentView.tripletsOn, xDisplay);
 	}
 }
 
@@ -287,7 +292,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay(
 	// check if Parameter is currently automated so that the automation status can be drawn on
 	// the screen with the Parameter Name
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		if (modelStackWithParam->autoParam->isAutomated()) {
+		if (modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc())) {
 			isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_ON);
 		}
 	}
@@ -356,9 +361,9 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 			    lastSelectedParamID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
 		}
 		else {
-			parameterName.append(
-			    getParamDisplayName(lastSelectedParamKind, lastSelectedParamID,
-			                        (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
+			parameterName.append(deluge::modulation::params::getParamDisplayName(
+			    lastSelectedParamKind, lastSelectedParamID,
+			    (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
 		}
 	}
 	else {
@@ -611,8 +616,8 @@ bool AutomationEditorLayoutModControllable::automationModEncoderActionForSelecte
 
 		uint32_t squareStart = 0;
 
-		int32_t xScroll = currentSong->xScroll[getNavSysId()];
-		int32_t xZoom = currentSong->xZoom[getNavSysId()];
+		int32_t xScroll = currentSong->persistentView.xScroll[getNavSysId()];
+		int32_t xZoom = currentSong->persistentView.xZoom[getNavSysId()];
 
 		// for the second pad pressed in a long press, the square start position is set to the very last
 		// nodes position
@@ -675,14 +680,18 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 			// use default interpolation settings
 			initInterpolation();
 
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, view.modPos,
-			                                                          view.modLength);
+			deluge::edits::Context editCtx{*currentSong, currentSong->project};
+			deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue,
+			                                  static_cast<int32_t>(view.modPos), static_cast<int32_t>(view.modLength),
+			                                  modelStackWithParam};
+			deluge::edits::apply(editCtx, edit);
 
 			if (!getOnArrangerView()) {
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();
 			}
 
-			if (!playbackHandler.isEitherClockActive() || !modelStackWithParam->autoParam->isAutomated()) {
+			if (!playbackHandler.isEitherClockActive()
+			    || !modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc())) {
 				int32_t knobPos = newKnobPos + kKnobPosOffset;
 				renderDisplay(knobPos, kNoSelection, true);
 				setAutomationKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
@@ -749,20 +758,21 @@ void AutomationEditorLayoutModControllable::pasteAutomation(ModelStackWithAutoPa
 	float scaleFactor = (float)pastedAutomationWidth / getCopiedParamAutomation()->width;
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_PASTE);
-
-		if (action) {
-			action->recordParamChangeIfNotAlreadySnapshotted(modelStackWithParam, false);
-		}
-
 		bool isPatchCable = (modelStackWithParam->paramCollection
 		                     == modelStackWithParam->paramManager->getPatchCableSetAllowJibberish());
 		// Ok this is cursed, but will work fine so long as
 		// the possibly invalid memory here doesn't accidentally
 		// equal modelStack->paramCollection.
 
-		modelStackWithParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithParam,
-		                                      getCopiedParamAutomation(), isPatchCable);
+		deluge::edits::Context editCtx{*currentSong, currentSong->project};
+		deluge::edits::PasteParamAutomation edit{deluge::edits::addressFor(*modelStackWithParam),
+		                                         startPos,
+		                                         endPos,
+		                                         scaleFactor,
+		                                         getCopiedParamAutomation(),
+		                                         isPatchCable,
+		                                         modelStackWithParam};
+		deluge::edits::apply(editCtx, edit);
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_PASTED));
 
@@ -831,21 +841,21 @@ int32_t AutomationEditorLayoutModControllable::getAutomationParameterKnobPos(Mod
 bool AutomationEditorLayoutModControllable::getAutomationNodeInterpolation(ModelStackWithAutoParam* modelStack,
                                                                            int32_t pos, bool reversed) {
 
-	if (modelStack->autoParam->nodes.empty()) {
+	if (modelStack->doc()->nodes.empty()) {
 		return false;
 	}
 
-	int32_t rightI = modelStack->autoParam->nodes.firstAtOrAfter(pos + (int32_t)!reversed);
-	if (rightI >= std::ssize(modelStack->autoParam->nodes)) {
+	int32_t rightI = modelStack->doc()->nodes.firstAtOrAfter(pos + (int32_t)!reversed);
+	if (rightI >= std::ssize(modelStack->doc()->nodes)) {
 		rightI = 0;
 	}
-	ParamNode* rightNode = &modelStack->autoParam->nodes[rightI];
+	ParamNode* rightNode = &modelStack->doc()->nodes[rightI];
 
 	int32_t leftI = rightI - 1;
 	if (leftI < 0) {
-		leftI += std::ssize(modelStack->autoParam->nodes);
+		leftI += std::ssize(modelStack->doc()->nodes);
 	}
-	ParamNode* leftNode = &modelStack->autoParam->nodes[leftI];
+	ParamNode* leftNode = &modelStack->doc()->nodes[leftI];
 
 	if (reversed) {
 		return leftNode->interpolated;
@@ -888,16 +898,20 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 	int32_t squareNodeLeftStart = squareStart - kParamNodeWidth;
 	if (squareNodeLeftStart >= 0) {
 		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeLeftStart, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeLeftStart,
-		                                                 kParamNodeWidth);
+		deluge::edits::Context leftEditCtx{*currentSong, currentSong->project};
+		deluge::edits::SetParamValue leftEdit{deluge::edits::addressFor(*modelStack), currentValue, squareNodeLeftStart,
+		                                      kParamNodeWidth, modelStack};
+		deluge::edits::apply(leftEditCtx, leftEdit);
 	}
 
 	// create a node to the right with the current interpolation status
 	int32_t squareNodeRightStart = squareStart + kParamNodeWidth;
 	if (squareNodeRightStart < effectiveLength) {
 		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeRightStart, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeRightStart,
-		                                                 kParamNodeWidth);
+		deluge::edits::Context rightEditCtx{*currentSong, currentSong->project};
+		deluge::edits::SetParamValue rightEdit{deluge::edits::addressFor(*modelStack), currentValue,
+		                                       squareNodeRightStart, kParamNodeWidth, modelStack};
+		deluge::edits::apply(rightEditCtx, rightEdit);
 	}
 
 	// reset interpolation to false for the single pad we're changing (so that the nodes around it don't
@@ -907,8 +921,13 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 	// called twice because there was a weird bug where for some reason the first call wasn't taking
 	// effect on one pad (and whatever pad it was changed every time)...super weird...calling twice
 	// fixed it...
-	modelStack->autoParam->setValuePossiblyForRegion(newValue, modelStack, squareStart, squareWidth);
-	modelStack->autoParam->setValuePossiblyForRegion(newValue, modelStack, squareStart, squareWidth);
+	deluge::edits::Context padEditCtx{*currentSong, currentSong->project};
+	deluge::edits::SetParamValue padEdit1{deluge::edits::addressFor(*modelStack), newValue, squareStart,
+	                                      static_cast<int32_t>(squareWidth), modelStack};
+	deluge::edits::apply(padEditCtx, padEdit1);
+	deluge::edits::SetParamValue padEdit2{deluge::edits::addressFor(*modelStack), newValue, squareStart,
+	                                      static_cast<int32_t>(squareWidth), modelStack};
+	deluge::edits::apply(padEditCtx, padEdit2);
 
 	if (!getOnArrangerView()) {
 		modelStack->getTimelineCounter()->instrumentBeenEdited();
@@ -933,7 +952,7 @@ void AutomationEditorLayoutModControllable::setAutomationKnobIndicatorLevels(Mod
                                                                              int32_t knobPosLeft,
                                                                              int32_t knobPosRight) {
 	params::Kind kind = modelStack->paramCollection->getParamKind();
-	bool isBipolar = isParamBipolar(kind, modelStack->paramId);
+	bool isBipolar = deluge::modulation::params::isParamBipolar(kind, modelStack->paramId);
 
 	// if you're dealing with a patch cable which has a -128 to +128 range
 	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
@@ -1215,10 +1234,13 @@ void AutomationEditorLayoutModControllable::handleAutomationMultiPadPress(
 			// set value for pads in between
 			int32_t newValue =
 			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart,
-			                                                          squareWidth);
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart,
-			                                                          squareWidth);
+			deluge::edits::Context fillEditCtx{*currentSong, currentSong->project};
+			deluge::edits::SetParamValue fillEdit1{deluge::edits::addressFor(*modelStackWithParam), newValue,
+			                                       squareStart, static_cast<int32_t>(squareWidth), modelStackWithParam};
+			deluge::edits::apply(fillEditCtx, fillEdit1);
+			deluge::edits::SetParamValue fillEdit2{deluge::edits::addressFor(*modelStackWithParam), newValue,
+			                                       squareStart, static_cast<int32_t>(squareWidth), modelStackWithParam};
+			deluge::edits::apply(fillEditCtx, fillEdit2);
 
 			if (!getOnArrangerView()) {
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();

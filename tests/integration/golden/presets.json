@@ -773,6 +773,18 @@
   "rms_db": -27.34,
   "sha256": "3c7487724f56bc7378f42e5aba58dd8dbac6366200237fc02386ebede2d5f201"
  },
+ "compressor_blend_hpf": {
+  "frames": 88200,
+  "peak": 581788160,
+  "rms_db": -23.27,
+  "sha256": "4028d21f5c2c481438e689b55652bfc498954ea89dc545cb13fe50cb78580e1a"
+ },
+ "delay_rate_sweep": {
+  "frames": 88200,
+  "peak": 1232993280,
+  "rms_db": -15.08,
+  "sha256": "ae27a966510b4079b63240ae2418f890970d5ff77c04d12f1a14c27386366ecb"
+ },
  "env_shape": {
   "frames": 132300,
   "peak": 173365504,
@@ -1787,6 +1799,30 @@
   "rms_db": -25.16,
   "sha256": "6160d1a7b68c50f815dead4b62619a1063b62498b7e4b9fff7f3768a63d5c436"
  },
+ "filter_fade_lpf_ladder_hpf_svf": {
+  "frames": 88200,
+  "peak": 506604032,
+  "rms_db": -28.49,
+  "sha256": "46442ece71df2672c09cf6231bab9f16aa57084c0076fffa859501b71f83f56e"
+ },
+ "filter_fade_lpf_svf_hpf_ladder": {
+  "frames": 88200,
+  "peak": 499931904,
+  "rms_db": -21.54,
+  "sha256": "3ecad2772ed49c1ad04e802bdaeda8a2046f1532b0e80e9a0002dfe947da2daf"
+ },
+ "filter_parallel_lpf_only": {
+  "frames": 88200,
+  "peak": 428670208,
+  "rms_db": -23.02,
+  "sha256": "140bd91047c4a90567286c5da52244ec34ef02c1c9517cd9baf4a16ab9e49bc2"
+ },
+ "filter_svf_notch": {
+  "frames": 88200,
+  "peak": 381075200,
+  "rms_db": -25.11,
+  "sha256": "cded4ae066f3421c7dbc8753e78c4b0e1f3de5e52a490d86b114f2ed5290a07d"
+ },
  "fm_2op": {
   "frames": 88200,
   "peak": 567516160,
@@ -1798,6 +1834,12 @@
   "peak": 567669504,
   "rms_db": -17.28,
   "sha256": "c2eb24c89bb515f613ceb01a2b3f8a92e206ebc7c231a4413f715265b79e7473"
+ },
+ "hpf_ladder_resonance_sweep_parallel": {
+  "frames": 88200,
+  "peak": 412395776,
+  "rms_db": -20.91,
+  "sha256": "f109e4ad1a172b578781dbae10150fd28ad0377f690577f4eafe14435b66a544"
  },
  "input_mono": {
   "frames": 88200,
@@ -1816,6 +1858,18 @@
   "peak": 245172224,
   "rms_db": -24.72,
   "sha256": "1a8f432abc1d1bf0a5b64e8073ca1744da6bd01bf3fca3b1872208fce84f135c"
+ },
+ "json/A Fm Pad": {
+  "frames": 88200,
+  "peak": 578738688,
+  "rms_db": -24.52,
+  "sha256": "c947ed8f85bd4edc3a845014bc08b8ae828858d020e5c98277f6c10a4ef1972b"
+ },
+ "json/Basic Bass": {
+  "frames": 88200,
+  "peak": 448747776,
+  "rms_db": -24.41,
+  "sha256": "45c89a7a8195ef45adef5eb315ab8016b47a1bb3bcb7055769ea47d9d8522482"
  },
  "lfo_vibrato": {
   "frames": 88200,
@@ -1901,6 +1955,24 @@
   "rms_db": -26.78,
   "sha256": "2e57b3ded626af2d3879b3ef7bdc978746735ceb2bcb7bf30f490253796f3851"
  },
+ "sidechain_duck": {
+  "frames": 88200,
+  "peak": 517005056,
+  "rms_db": -25.15,
+  "sha256": "7de287e5a6ce40a01d3c7b8371e6adb2bbc643a642a3810c43f67fec60c0617c"
+ },
+ "sidechain_instant_attack": {
+  "frames": 88200,
+  "peak": 517005056,
+  "rms_db": -25.55,
+  "sha256": "5f05b9bdb7217fdcf0c7f417939f57821699c21c43ba4aa850846c054daf3294"
+ },
+ "sidechain_synced": {
+  "frames": 88200,
+  "peak": 517005056,
+  "rms_db": -24.6,
+  "sha256": "b783a3a372345e91af3b9bb1c0f18afcb439e456889f8460e22460dc1dd76b44"
+ },
  "sine_basic": {
   "frames": 88200,
   "peak": 173302016,
@@ -1925,6 +1997,108 @@
   "rms_db": -27.26,
   "sha256": "dd2422993cf63e017b3094c751c3224200ebf462d02a3209f9bcf9b9d137e890"
  },
+ "stamped/community_1_2_1": {
+  "frames": 88200,
+  "peak": 448747776,
+  "rms_db": -24.41,
+  "sha256": "45c89a7a8195ef45adef5eb315ab8016b47a1bb3bcb7055769ea47d9d8522482"
+ },
+ "stamped/official_4_1_4_fm": {
+  "frames": 88200,
+  "peak": 306485504,
+  "rms_db": -26.8,
+  "sha256": "ac14b17638de3251b0f7cc070b8651752576e53f3185cbc597ffe5c458053185"
+ },
+ "stereo/clipping_1": {
+  "frames": 88200,
+  "peak": 163280640,
+  "rms_db": -27.83,
+  "sha256": "946c5af443c877df40fc872cd785151db1190be84e168b84013b8a1c4e060f2b"
+ },
+ "stereo/clipping_2": {
+  "frames": 88200,
+  "peak": 140240128,
+  "rms_db": -28.85,
+  "sha256": "59501cba7ff62286271987998a0d004da7763c7c7f308d7ab6283ed7c3fb7b8d"
+ },
+ "stereo/clipping_5": {
+  "frames": 88200,
+  "peak": 200881664,
+  "rms_db": -23.71,
+  "sha256": "eb7af7f7446e1778bbc4e9a555cc21f7d535afaf590fc0c30a5677ba77542b72"
+ },
+ "stereo/delay_pingpong": {
+  "frames": 88200,
+  "peak": 488827392,
+  "rms_db": -24.32,
+  "sha256": "3e1e2f8e5b397b7f909eed293db468ad2d186af0cd260c937da8272aa7e198f0"
+ },
+ "stereo/filter_fade_lpf_ladder_hpf_svf": {
+  "frames": 88200,
+  "peak": 467419904,
+  "rms_db": -29.07,
+  "sha256": "d387775a3c367188522aa48b4ccf97f18ebb4f701702de55bbbfa15c337e175d"
+ },
+ "stereo/hpf_ladder_resonance_sweep_parallel": {
+  "frames": 88200,
+  "peak": 418182400,
+  "rms_db": -21.89,
+  "sha256": "af2e4449e9df40b49a78391ddece6cedc09ba79740a326bcb77b581f21bf10cf"
+ },
+ "stereo/lpf_12db_hpf_ladder_h2l": {
+  "frames": 88200,
+  "peak": 436834048,
+  "rms_db": -25.36,
+  "sha256": "646f248e41c40007c532df0ce85865badef177c103a536013db89c7b7c4002e3"
+ },
+ "stereo/lpf_24db_hpf_svf_band_l2h": {
+  "frames": 88200,
+  "peak": 207424000,
+  "rms_db": -31.91,
+  "sha256": "3fab4a3fd4783ae8769312c1f47a81c4925f602cc1a0b64bb4898f4913c110ea"
+ },
+ "stereo/lpf_drive_oversampled": {
+  "frames": 88200,
+  "peak": 204940544,
+  "rms_db": -32.92,
+  "sha256": "1864d4a197d47f207106a492600c251bca32be20ea2751a7e66f06e10f3d7dad"
+ },
+ "stereo/lpf_svf_band_hpf_svf_notch_parallel": {
+  "frames": 88200,
+  "peak": 698751744,
+  "rms_db": -20.23,
+  "sha256": "02a26d59500d8e5d973416acfe6777b38086808bdf139e5df11ab118418d9575"
+ },
+ "stereo/lpf_svf_notch_parallel": {
+  "frames": 88200,
+  "peak": 668317440,
+  "rms_db": -20.48,
+  "sha256": "a17b1f050df97d25a8aba26cca61a9ab3b148baae6650309f021fdb6b6c33b84"
+ },
+ "stereo/modfx_chorus": {
+  "frames": 88200,
+  "peak": 245145344,
+  "rms_db": -27.29,
+  "sha256": "e0d00e5de470609290ef55c05ad64cbe8d4d61135077987355e246aa4b45f548"
+ },
+ "stereo/modfx_flanger": {
+  "frames": 88200,
+  "peak": 1061489152,
+  "rms_db": -22.49,
+  "sha256": "76af0fe0923d3b1231e0628765f4154bf7a4771c4439d475859622076fed86e3"
+ },
+ "stereo/modfx_grain": {
+  "frames": 88200,
+  "peak": 310294016,
+  "rms_db": -29.44,
+  "sha256": "636894764e1ad8509afbe354832b4405d164f255aab813d7901816d5c108e6d1"
+ },
+ "stereo/modfx_warble": {
+  "frames": 88200,
+  "peak": 336116992,
+  "rms_db": -23.19,
+  "sha256": "0a4605edc948f1814cc40275961c00fa0ce68d50fffe31ba96d5ff9e24e0f045"
+ },
  "svf_band": {
   "frames": 88200,
   "peak": 381075200,
@@ -1948,6 +2122,36 @@
   "peak": 173387008,
   "rms_db": -27.59,
   "sha256": "f8cd3faada0ae6c1800d14860f1e12b3f1c3c9b2e5a2e116548011abd299e8c0"
+ },
+ "upgrade/ms_zone": {
+  "frames": 88200,
+  "peak": 366039552,
+  "rms_db": -23.28,
+  "sha256": "89c63d4f8efa597a3e0cc811900adba69fb62b3dba3e55586b57461e830781ac"
+ },
+ "upgrade/ms_zone_end_only": {
+  "frames": 88200,
+  "peak": 346655744,
+  "rms_db": -21.85,
+  "sha256": "668e8c7efdb8bed590d4a6d2a5e70da58d0e0a48c095e8d8f1d7ce7caa18d2f3"
+ },
+ "upgrade/ms_zone_far_overshoot": {
+  "frames": 88200,
+  "peak": 365797376,
+  "rms_db": -21.88,
+  "sha256": "fac4b6bff4f5a0ab4f20d9803baf0267cdfba4c44561743ff2e528ceae70ed3c"
+ },
+ "upgrade/ms_zone_overshoot": {
+  "frames": 88200,
+  "peak": 365797376,
+  "rms_db": -21.88,
+  "sha256": "fac4b6bff4f5a0ab4f20d9803baf0267cdfba4c44561743ff2e528ceae70ed3c"
+ },
+ "upgrade/ms_zone_reversed": {
+  "frames": 88200,
+  "peak": 358596352,
+  "rms_db": -22.58,
+  "sha256": "15ab62097c42abaaecf63c88c75fddffbbd9013c31f4590d6e09b038fb5be53d"
  },
  "velocity_dynamics": {
   "frames": 88200,

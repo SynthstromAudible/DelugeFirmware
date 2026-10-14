@@ -44,6 +44,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -96,7 +97,9 @@ constexpr int32_t kAppendY = 1000;
 /// The song SONGLOAD and SONGSWAP load: the song current at the leg's setup, written through the song save's own
 /// serialiser (Song::writeToFile()) -- a fixture is never hand-written XML.
 constexpr const char* kSongDir = "SONGS";
-constexpr const char* kSongPath = "SONGS/CLLOAD.XML";
+/// The fixture song's path, in the format songs are saved in.
+const std::string kSongPath =
+    std::string{"SONGS/CLLOAD"} + deluge::storage::extensionOf(deluge::storage::kSongSaveFormat);
 /// Stamped over the old song's swing after the fixture is written, so the loaded song can be told from the old one by
 /// value: the new Song may land at the address the old one freed.
 constexpr int8_t kSwingDecoy = 5;
@@ -292,8 +295,8 @@ InstrumentClip* makeSynthClip() {
 	}
 	auto* synth = static_cast<SoundInstrument*>(instrument);
 	synth->setupAsBlankSynth(&paramManager, false);
-	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
-	                                &paramManager, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
+	                                      &paramManager, true);
 
 	deluge::storage::AcquireResult acquired;
 	acquired.instrument = synth;
@@ -339,7 +342,7 @@ SoundDrum* makeDrum(Kit* kit) {
 	Sound::initParams(&paramManager);
 	kit->addDrum(drum);
 	drum->setupAsBlankSynth(&paramManager);
-	currentSong->backUpParamManager(drum, nullptr, &paramManager, true);
+	currentSong->live.param_backup.backUp(drum, nullptr, &paramManager, true);
 	return drum;
 }
 
@@ -353,8 +356,8 @@ InstrumentClip* makeKitClip() {
 		return nullptr;
 	}
 	auto* kit = static_cast<Kit*>(instrument);
-	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr, &kitParams,
-	                                true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
+	                                      &kitParams, true);
 	SoundDrum* drum = makeDrum(kit);
 	if (drum == nullptr) {
 		return nullptr;
@@ -388,40 +391,47 @@ bool soundDrum(SoundDrum* drum, InstrumentClip* clip, ParamManager* paramManager
 
 /// SAVEKIT's drum's ParamManager: it has no note row, so the one backed up in the song.
 ParamManager* orphanParamManager() {
-	return currentSong->getBackedUpParamManagerPreferablyWithClip(g_drum, nullptr);
+	return currentSong->live.param_backup.getPreferablyWithClip(g_drum, nullptr);
 }
 
 /// Write the current song to kSongPath through the song save's own serialiser: Song::writeToFile() over a file the
 /// storage manager created, as the preset fixtures elsewhere are written.
 bool writeFixtureSong() {
 	(void)deluge::io::mkdir(kSongDir);
-	(void)deluge::io::unlink(kSongPath);
-	g_fixtureSwing = currentSong->swingAmount;
-	Error error =
-	    StorageManager::createXMLFile(kSongPath, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
+	(void)deluge::io::unlink(kSongPath.c_str());
+	g_fixtureSwing = currentSong->project.groove.swing_amount;
+	Serializer& serializer = serializerFor(deluge::storage::kSongSaveFormat);
+	Error error = serializer.format() == deluge::storage::DocumentFormat::JSON
+	                  ? StorageManager::createJsonFile(kSongPath.c_str(), smJsonSerializer, /*mayOverwrite=*/true,
+	                                                   /*displayErrors=*/false)
+	                  : StorageManager::createXMLFile(kSongPath.c_str(), smSerializer, /*mayOverwrite=*/true,
+	                                                  /*displayErrors=*/false);
 	if (error != Error::NONE) {
 		return fail("the fixture song could not be created");
 	}
-	currentSong->writeToFile();
-	error = GetSerializer().closeFileAfterWriting(kSongPath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", nullptr);
+	deluge::bridge::saveSong(*currentSong, serializer);
+	const char* head = serializer.format() == deluge::storage::DocumentFormat::JSON
+	                       ? "{\"song\": {"
+	                       : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+	error = serializer.closeFileAfterWriting(kSongPath.c_str(), head, nullptr);
 	if (error != Error::NONE) {
 		return fail("the fixture song could not be closed");
 	}
 	// The old song now differs from the file, so a real load can be told from none.
-	currentSong->swingAmount = static_cast<int8_t>(g_fixtureSwing + kSwingDecoy);
+	currentSong->project.groove.swing_amount = static_cast<int8_t>(g_fixtureSwing + kSwingDecoy);
 	return true;
 }
 
 /// SAVEKIT's save: the song save's serialisation, into memory as SaveSongUI::serializeSongToBuffer() does it. Saving
 /// a song (not a kit) is what reaches Kit::writeDataToFile()'s destroy of a drum no note row has. Returns the bytes.
 int32_t serializeSong() {
-	auto& writer = static_cast<FileWriter&>(smSerializer);
+	FileWriter& writer = fileWriterFor(deluge::storage::kSongSaveFormat);
 	writer.setMemoryBased();
 	g_step = "writeToFile";
-	currentSong->writeToFile();
+	deluge::bridge::saveSong(*currentSong, serializerFor(deluge::storage::kSongSaveFormat));
 	const int32_t written = writer.bytesWritten();
 	writer.clearMemoryBased();
-	GetSerializer().reset();
+	serializerFor(deluge::storage::kSongSaveFormat).reset();
 	return written;
 }
 
@@ -435,7 +445,8 @@ Clip* cloneIntoSession(Clip* source) {
 		return nullptr;
 	}
 	Clip* clone = static_cast<Clip*>(ms->getTimelineCounter());
-	if (!currentSong->sessionClips.insertClipAt(clone, static_cast<int32_t>(currentSong->sessionClips.size()))) {
+	if (!currentSong->live.clips.session_clips.insertClipAt(
+	        clone, static_cast<int32_t>(currentSong->live.clips.session_clips.size()))) {
 		fail("no room for a cloned clip");
 		return nullptr;
 	}
@@ -472,12 +483,12 @@ bool buildBurstSong(InstrumentClip* first) {
 		}
 	}
 	int32_t outputs = 0;
-	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		outputs++;
 	}
 	const auto sounds = AudioEngine::sounds.walk([](const auto& all) { return static_cast<int32_t>(all.size()); });
-	printf("CL-BURST outputs=%d clips=%d sounds=%d\n", outputs, static_cast<int32_t>(currentSong->sessionClips.size()),
-	       sounds);
+	printf("CL-BURST outputs=%d clips=%d sounds=%d\n", outputs,
+	       static_cast<int32_t>(currentSong->live.clips.session_clips.size()), sounds);
 	fflush(stdout);
 	return true;
 }
@@ -594,10 +605,11 @@ bool setupLeg() {
 			return fail("no room for a clip instance");
 		}
 		ClipInstance& instance = output->clipInstances[i];
-		instance.length = clip->loopLength;
+		instance.length = clip->loopLength();
 		instance.clip = clip;
-		currentSong->removeSessionClip(clip, currentSong->sessionClips.getIndexForClip(clip));
-		if (!clip->isArrangementOnlyClip() || currentSong->arrangementOnlyClips.getIndexForClip(clip) < 0) {
+		currentSong->removeSessionClip(clip, currentSong->live.clips.session_clips.getIndexForClip(clip));
+		if (!clip->isArrangementOnlyClip()
+		    || currentSong->live.clips.arrangement_only_clips.getIndexForClip(clip) < 0) {
 			return fail("the clip did not become arrangement-only");
 		}
 		// The user entered the clip from the arranger and came back out: it is still the current clip and the view's.
@@ -619,8 +631,8 @@ bool setupLeg() {
 	}
 	case Leg::SyncScale:
 		// Only the sync-scaling reference points at the victim.
-		g_magnitudeBefore = currentSong->insideWorldTickMagnitude;
-		g_magnitudeOffsetBefore = currentSong->insideWorldTickMagnitudeOffsetFromBPM;
+		g_magnitudeBefore = currentSong->project.transport.inside_world_tick_magnitude;
+		g_magnitudeOffsetBefore = currentSong->project.transport.inside_world_tick_magnitude_offset_from_bpm;
 		currentSong->setInputTickScaleClip(clip);
 		break;
 	case Leg::SongClear: {
@@ -799,7 +811,7 @@ void deleteLeg() {
 		// SessionView::removeClip() refuses the sync-scaling clip; removeSessionClip() itself does not.
 		clip->stopAllNotesPlaying(currentSong);
 		g_step = "removeSessionClip";
-		currentSong->removeSessionClip(clip, currentSong->sessionClips.getIndexForClip(clip));
+		currentSong->removeSessionClip(clip, currentSong->live.clips.session_clips.getIndexForClip(clip));
 		break;
 	case Leg::SaveKit: {
 		// The kit's render kills the voices of a drum its clip has no row for, so the note held since the setup is
@@ -827,7 +839,7 @@ void deleteLeg() {
 		// The load browser on the fixture song, as song_load_channel_scenario.cpp opens it. The load itself begins
 		// once its listing has landed (Stage::Listing).
 		g_step = "openLoadSongUI";
-		currentSong->setSongFullPath(kSongPath);
+		currentSong->setSongFullPath(kSongPath.c_str());
 		(void)openUI(&loadSongUI);
 		break;
 	case Leg::Epoch0:
@@ -870,15 +882,16 @@ void printDrumDangling() {
 void printDangling() {
 	const void* clip = g_victim;
 	bool recordSource = false;
-	for (ClipArray const* array : {&currentSong->sessionClips, &currentSong->arrangementOnlyClips}) {
+	for (ClipArray const* array :
+	     {&currentSong->live.clips.session_clips, &currentSong->live.clips.arrangement_only_clips}) {
 		for (Clip const* other : *array) {
 			recordSource = recordSource || other->beingRecordedFromClip == clip;
 		}
 	}
-	const bool inSong = currentSong->sessionClips.getIndexForClip(g_victim) >= 0
-	                    || currentSong->arrangementOnlyClips.getIndexForClip(g_victim) >= 0;
+	const bool inSong = currentSong->live.clips.session_clips.getIndexForClip(g_victim) >= 0
+	                    || currentSong->live.clips.arrangement_only_clips.getIndexForClip(g_victim) >= 0;
 	printf("CL-DANGLING leg=%s current=%d sync=%d view=%d recordSource=%d inSong=%d\n", legName(g_leg),
-	       currentSong->getCurrentClip() == clip ? 1 : 0, currentSong->syncScalingClip == clip ? 1 : 0,
+	       currentSong->getCurrentClip() == clip ? 1 : 0, currentSong->live.sync_scaling_clip == clip ? 1 : 0,
 	       view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip ? 1 : 0, recordSource ? 1 : 0,
 	       inSong ? 1 : 0);
 }
@@ -894,10 +907,12 @@ void cleanUpSongLeg() {
 	}
 	if (isLoadLeg(g_leg)) {
 		// The image is this run's own, but a later load leg writes the same path.
-		(void)deluge::io::unlink(kSongPath);
+		(void)deluge::io::unlink(kSongPath.c_str());
 	}
 	changeRootUI(&sessionView);
-	g_home = (currentSong != nullptr && !currentSong->sessionClips.empty()) ? currentSong->sessionClips[0] : nullptr;
+	g_home = (currentSong != nullptr && !currentSong->live.clips.session_clips.empty())
+	             ? currentSong->live.clips.session_clips[0]
+	             : nullptr;
 	if (g_home == nullptr) {
 		fail("the new song has no clip");
 		return;
@@ -918,14 +933,14 @@ void cleanUpLeg() {
 	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == victim) {
 		view.setActiveModControllableTimelineCounter(g_home);
 	}
-	if (currentSong->syncScalingClip == victim) {
+	if (currentSong->live.sync_scaling_clip == victim) {
 		// Not setInputTickScaleClip(): that reads the old clip's length.
-		currentSong->syncScalingClip = nullptr;
+		currentSong->live.sync_scaling_clip = nullptr;
 	}
 	if (g_leg == Leg::SyncScale) {
 		// Whether the leg or the render dropped the sync-scaling clip, the tick scale it set is still in place.
-		currentSong->insideWorldTickMagnitude = g_magnitudeBefore;
-		currentSong->insideWorldTickMagnitudeOffsetFromBPM = g_magnitudeOffsetBefore;
+		currentSong->project.transport.inside_world_tick_magnitude = g_magnitudeBefore;
+		currentSong->project.transport.inside_world_tick_magnitude_offset_from_bpm = g_magnitudeOffsetBefore;
 	}
 	if (g_recorder != nullptr && g_recorder->beingRecordedFromClip == victim) {
 		g_recorder->beingRecordedFromClip = nullptr;
@@ -942,7 +957,7 @@ void cleanUpLeg() {
 
 /// Whether the arranger holds the victim again: in arrangementOnlyClips, with an instance on its output.
 bool victimRestoredToArranger() {
-	if (currentSong->arrangementOnlyClips.getIndexForClip(g_victim) < 0) {
+	if (currentSong->live.clips.arrangement_only_clips.getIndexForClip(g_victim) < 0) {
 		return false;
 	}
 	for (ClipInstance const& instance : g_victim->output->clipInstances) {
@@ -1096,7 +1111,7 @@ void runTick() {
 		if (isClipLeg(g_leg)) {
 			printf("CL-PROBE leg=%s playing=%d ticks=%d voices=%d current=%d sync=%d view=%d recordSource=%d\n",
 			       legName(g_leg), playing ? 1 : 0, ticks, voices, currentSong->getCurrentClip() == g_victim ? 1 : 0,
-			       currentSong->syncScalingClip == g_victim ? 1 : 0,
+			       currentSong->live.sync_scaling_clip == g_victim ? 1 : 0,
 			       view.activeModControllableModelStack.getTimelineCounterAllowNull() == g_victim ? 1 : 0,
 			       (g_recorder != nullptr && g_recorder->beingRecordedFromClip == g_victim) ? 1 : 0);
 		}
@@ -1196,12 +1211,13 @@ void runTick() {
 			fail("the clear or load never finished");
 		}
 		if (isLoadLeg(g_leg)) {
-			const bool loaded = currentSong != nullptr && currentSong->swingAmount == g_fixtureSwing;
+			const bool loaded = currentSong != nullptr && currentSong->project.groove.swing_amount == g_fixtureSwing;
 			printf("CL-LOADED leg=%s loaded=%d steps=%d\n", legName(g_leg), loaded ? 1 : 0, g_awaitSteps);
 		}
 		else {
 			printf("CL-CLEARED leg=%s clips=%d steps=%d\n", legName(g_leg),
-			       currentSong != nullptr ? static_cast<int32_t>(currentSong->sessionClips.size()) : -1, g_awaitSteps);
+			       currentSong != nullptr ? static_cast<int32_t>(currentSong->live.clips.session_clips.size()) : -1,
+			       g_awaitSteps);
 		}
 		fflush(stdout);
 		if (isStoppedSongLeg(g_leg)) {
@@ -1375,7 +1391,7 @@ void deluge_scenario_clip_lifetime_begin(void) {
 	// Every leg's gesture is made from the session view. The root UI has to be it: the clip view the harness boots
 	// into dereferences getCurrentInstrumentClip() unconditionally, and a leg moves the current clip away from it.
 	changeRootUI(&sessionView);
-	g_home = currentSong->sessionClips.size() > 0 ? currentSong->sessionClips[0] : nullptr;
+	g_home = currentSong->live.clips.session_clips.size() > 0 ? currentSong->live.clips.session_clips[0] : nullptr;
 	if (g_home == nullptr) {
 		fail("the boot song has no clip");
 		g_stage = Stage::Summary;

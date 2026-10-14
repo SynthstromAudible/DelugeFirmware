@@ -16,6 +16,7 @@
  */
 
 #include "model/consequence/consequence_clip_length.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -25,19 +26,23 @@ ConsequenceClipLength::ConsequenceClipLength(Clip* newClip, int32_t oldLength) {
 
 	clip = newClip;
 	lengthToRevertTo = oldLength;
-	pointerToMarkerValue = nullptr;
 }
 
 Error ConsequenceClipLength::revert(TimeType time, ModelStack* modelStack) {
 
-	uint64_t markerValueBeforeRevert;
-	if (pointerToMarkerValue) {
-		markerValueBeforeRevert = *pointerToMarkerValue;
-		*pointerToMarkerValue = markerValueToRevertTo;
+	if (marker != Marker::NONE && audioClip != nullptr) {
+		uint64_t markerValueBeforeRevert =
+		    (marker == Marker::START) ? audioClip->sampleHolder.startPos : audioClip->sampleHolder.endPos;
+		if (marker == Marker::START) {
+			audioClip->setSampleStartPos(markerValueToRevertTo);
+		}
+		else {
+			audioClip->setSampleEndPos(markerValueToRevertTo);
+		}
 		markerValueToRevertTo = markerValueBeforeRevert;
 	}
 
-	int32_t lengthBeforeRevert = clip->loopLength;
+	int32_t lengthBeforeRevert = clip->loopLength();
 
 	modelStack->song->setClipLength(clip, lengthToRevertTo, nullptr);
 

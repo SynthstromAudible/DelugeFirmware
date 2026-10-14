@@ -134,8 +134,9 @@ async fn stream_bootstrap() {
 /// Called from the binary's `main`, which the HAL reset handler enters with the caches and MMU
 /// off and the stacks set up.
 pub fn start() -> ! {
-    // RTT logger first, so every boot step is visible over the probe. The ring
-    // buffer + control block live in uncached SRAM (.rtt_buffer / rza1l_rtt.x).
+    // The RTT channel first, so the fault reporter can write to the probe from the first
+    // instruction. The ring buffer + control block live in uncached SRAM (.rtt_buffer /
+    // rza1l_rtt.x).
     #[cfg(feature = "rtt")]
     {
         let channels = rtt_target::rtt_init! {
@@ -143,9 +144,7 @@ pub fn start() -> ! {
             section_cb: ".rtt_buffer"
         };
         rtt_target::set_print_channel(channels.up.0);
-        rtt_target::init_logger_with_level(log::LevelFilter::Debug);
     }
-    log::info!("deluge-rust: boot — Rust/Embassy BSP for RZ/A1L");
 
     // No Rust SRAM heap: any static pool would come out of the C++ app's fast on-chip heap, which
     // starts at the image end. `deluge_alloc::SRAM` stays uninitialised, so an allocation from it
@@ -153,6 +152,14 @@ pub fn start() -> ! {
 
     // CPG/PLL, MMU, L1+L2 caches, SDRAM controller, GIC, and the embassy-time (OSTM) driver.
     unsafe { deluge_bsp::system::init_clocks() };
+
+    // The logger only now, with the MMU on. Until then all memory is strongly ordered and an
+    // unaligned access faults, and formatting may read unaligned: built for size, LLVM lowers
+    // `core::fmt`'s template reads to `__aeabi_uread4`, a plain `ldr`. With no logger set, the
+    // `log` macros return before formatting, so the HAL's own pre-MMU lines are dropped, not run.
+    #[cfg(feature = "rtt")]
+    rtt_target::init_logger_with_level(log::LevelFilter::Debug);
+    log::info!("deluge-rust: boot — Rust/Embassy BSP for RZ/A1L");
     log::info!("deluge-rust: clocks/MMU/cache/SDRAM/GIC up");
 
     // Zero the app's SDRAM .bss and copy .sdram_init from its SRAM load address (a debugger
@@ -172,6 +179,15 @@ pub fn start() -> ! {
     // Run C++ global constructors before any application code touches globals.
     unsafe { boot_mem::run_init_array() };
     log::info!("deluge-rust: C++ global constructors done");
+
+    // Clocks, caches, SDRAM and the static constructors are up, and IRQs are still masked.
+    // Only a `DELUGE_DSP_BENCH` tree has a bench to run, so a normal image carries neither the call
+    // nor the `bench_park` task.
+    // SAFETY: C ABI with no arguments; called once, before `deluge_app_init`.
+    #[cfg(dsp_bench)]
+    let bench_ran = unsafe { sys::deluge_app_bench() };
+    #[cfg(not(dsp_bench))]
+    let bench_ran = false;
 
     // GIC source registration, before the global interrupt enable below. The PIC UART starts at
     // 31250 bps; `control::pic_pump` runs the handshake up to 200000 bps.
@@ -228,8 +244,6 @@ pub fn start() -> ! {
         spawner.spawn(control::pic_pump().unwrap());
         // The sole PIC transmitter: drains the LED/pad output queue.
         spawner.spawn(control::pad_render().unwrap());
-        // SSD1309 init and frame streaming over RSPI0.
-        spawner.spawn(display::oled_render().unwrap());
         // CV DAC writer (shares RSPI0 with the OLED).
         spawner.spawn(cv_gate::cv_writer().unwrap());
         // Calls the app's clock-in handler once per captured edge.
@@ -238,9 +252,18 @@ pub fn start() -> ! {
         spawner.spawn(usb::device_task(usb_midi.device).unwrap());
         spawner.spawn(usb::midi_rx_task(usb_midi.ep_out).unwrap());
         spawner.spawn(usb::midi_tx_task(usb_midi.ep_in).unwrap());
-        spawner.spawn(app_task().unwrap());
-        // Runs the app's jobs once boot has finished.
-        spawner.spawn(crate::app_loop::app_loop().unwrap());
+        if bench_ran {
+            // A bench image never starts the app: this task blanks the panel and the pads, then
+            // parks. It owns the panel, so `oled_render` is not spawned.
+            #[cfg(dsp_bench)]
+            spawner.spawn(bench_park().unwrap());
+        } else {
+            // SSD1309 init and frame streaming over RSPI0.
+            spawner.spawn(display::oled_render().unwrap());
+            spawner.spawn(app_task().unwrap());
+            // Runs the app's jobs once boot has finished.
+            spawner.spawn(crate::app_loop::app_loop().unwrap());
+        }
         // Re-identifies the card after a swap. Its own task because `sd::init()` needs
         // embassy-time timers, which a blocking storage call cannot run.
         spawner.spawn(sd::card_service().unwrap());
@@ -277,8 +300,11 @@ async fn app_task() {
     // Give `FS_ALLOCATOR` its arena and mount the filesystem before `deluge_app_init`, for the
     // first sample load. A failed mount does not stop boot, but streamed samples then won't load.
     {
-        // For LFN scan scratch and handle-table strings. Plain `.bss`, in on-chip SRAM.
+        // For LFN scan scratch and handle-table strings. In SDRAM (`.sdram_bss`, zeroed at boot before
+        // any task runs): the file system's metadata work runs on the loader tier, never in a render, and
+        // never as a DMA target, so it does not need on-chip SRAM, which the image fills.
         const EFATFS_ARENA_SIZE: usize = 96 * 1024;
+        #[unsafe(link_section = ".sdram_bss")]
         static mut EFATFS_ARENA: [u8; EFATFS_ARENA_SIZE] = [0; EFATFS_ARENA_SIZE];
 
         // SAFETY: only this block touches the function-local `EFATFS_ARENA`, and `app_task` runs
@@ -314,4 +340,78 @@ async fn app_task() {
     log::info!("deluge-rust: boot finished");
 
     core::future::pending::<()>().await
+}
+
+/// Turns off everything a bench image would otherwise leave lit, then parks without starting the
+/// app.
+///
+/// The PIC (pads, button LEDs, gold-knob rings) and the OLED controller keep their state across a
+/// CPU reset, so after a bench boot they would hold whatever the previous boot left, for as long
+/// as the device stays powered. This task blanks them all. It is the panel's sole owner in a bench
+/// image ([`display::oled_render`] is not spawned), so its OLED commands cannot interleave with a
+/// frame.
+#[cfg(dsp_bench)]
+#[embassy_executor::task]
+async fn bench_park() {
+    use deluge_bsp::{oled, pic, rgb};
+
+    /// Column pairs the PIC drives: the 16 main columns, then the sidebar as pair 8.
+    const COLUMN_PAIRS: u8 = (rgb::COLS / 2) as u8;
+    /// Button LEDs: `NUM_LED_COLS` × `NUM_LED_ROWS` (`board_config.h`), ids 0–35.
+    const BUTTON_LEDS: u8 = 9 * 4;
+    /// Gold knobs with an indicator ring: `NUM_LEVEL_INDICATORS` (`board_config.h`).
+    const GOLD_KNOBS: u8 = 2;
+
+    // A command sent mid-handshake would go out at the wrong baud rate.
+    pic::wait_ready().await;
+
+    let black = [[0u8; 3]; 16];
+    for pair in 0..COLUMN_PAIRS {
+        pic::set_column_pair_rgb(pair, &black).await;
+    }
+    pic::done_sending_rows().await;
+    for id in 0..BUTTON_LEDS {
+        pic::led_off(id).await;
+    }
+    for knob in 0..GOLD_KNOBS {
+        pic::set_gold_knob_indicators(knob, [0; 4]).await;
+    }
+
+    // `init` powers and configures the panel and clears its RAM. The blank frame leaves the
+    // visible window dark should anything turn the display back on, then the panel goes off.
+    oled::init().await;
+    let mut fb = oled::FrameBuffer::new();
+    fb.fill(0x00);
+    oled::send_frame(&fb).await;
+    oled_display_off().await;
+
+    // Raw, like the bench's own lines: `log` prefixes a level and module path, and the host tools
+    // match this line from its start.
+    #[cfg(feature = "rtt")]
+    rtt_target::rprintln!("bench: parked, pads/LEDs/OLED off");
+    core::future::pending::<()>().await
+}
+
+/// Sends the SSD1309 DISPLAY OFF command, which puts the panel to sleep with every pixel dark.
+///
+/// Follows `oled::send_frame`'s bus discipline: RSPI0 is held from before the PIC asserts the
+/// OLED's chip-select until it confirms the deselect, so no CV write can clock into the panel.
+/// DC goes low for the command and back high, the data mode `oled::send_frame` expects.
+async fn oled_display_off() {
+    use deluge_bsp::{bus, pic};
+
+    /// SSD1309 DISPLAY OFF (sleep mode).
+    const SSD1309_DISPLAY_OFF: u8 = 0xAE;
+
+    let mut bus = bus::lock_rspi0().await;
+    bus.reconfigure_8bit();
+    // The PIC handles its commands in order, so the select echo also confirms DC is low.
+    pic::oled_dc_low().await;
+    pic::oled_select().await;
+    pic::wait_oled_selected().await;
+    bus.send8(SSD1309_DISPLAY_OFF);
+    bus.wait_end();
+    pic::oled_dc_high().await;
+    pic::oled_deselect().await;
+    pic::wait_oled_deselected().await;
 }

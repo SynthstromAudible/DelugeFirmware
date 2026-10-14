@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
+#include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 
@@ -25,11 +26,15 @@ namespace deluge::gui::menu_item::reverb::sidechain {
 class Shape final : public Integer {
 public:
 	using Integer::Integer;
+	// project.reverb is authoritative; AudioEngine::reverbSidechainShape is the projected cache.
 	void readCurrentValue() override {
-		this->setValue((((int64_t)AudioEngine::reverbSidechainShape + 2147483648) * kMaxMenuValue + 2147483648) >> 32);
+		this->setValue(
+		    (((int64_t)currentSong->project.reverb.sidechain_shape + 2147483648) * kMaxMenuValue + 2147483648) >> 32);
 	}
 	void writeCurrentValue() override {
-		AudioEngine::reverbSidechainShape = (uint32_t)this->getValue() * 85899345 - 2147483648;
+		int32_t value = (uint32_t)this->getValue() * 85899345 - 2147483648;
+		currentSong->project.reverb.sidechain_shape = value;
+		AudioEngine::reverbSidechainShape = value;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }

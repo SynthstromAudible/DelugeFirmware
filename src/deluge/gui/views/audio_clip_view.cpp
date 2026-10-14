@@ -38,6 +38,10 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_minder.h"
 #include "model/consequence/consequence_clip_length.h"
+#include "model/edits/clear_clip.h"
+#include "model/edits/clip_address_for.h"
+#include "model/edits/edit.h"
+#include "model/edits/set_clip_length.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_playback_guide.h"
@@ -125,17 +129,18 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 	SampleRecorder* recorder = clip.recorder;
 
 	// end marker column
-	int32_t endSquareDisplay = divide_round_negative(clip.loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
-	                                                 currentSong->xZoom[NAVIGATION_CLIP]);
+	int32_t endSquareDisplay =
+	    divide_round_negative(clip.loopLength() - currentSong->persistentView.xScroll[NAVIGATION_CLIP] - 1,
+	                          currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 
 	// start marker column
-	int32_t startSquareDisplay =
-	    divide_round_negative(0 - currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);
+	int32_t startSquareDisplay = divide_round_negative(0 - currentSong->persistentView.xScroll[NAVIGATION_CLIP],
+	                                                   currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 
 	int64_t xScrollSamples;
 	int64_t xZoomSamples;
-	clip.getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
-	                               &xScrollSamples, &xZoomSamples);
+	clip.getScrollAndZoomInSamples(currentSong->persistentView.xScroll[NAVIGATION_CLIP],
+	                               currentSong->persistentView.xZoom[NAVIGATION_CLIP], &xScrollSamples, &xZoomSamples);
 
 	RGB rgb = clip.getColour();
 
@@ -406,13 +411,14 @@ dontDeactivateMarker:
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			// Clear Clip
-			Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
-
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
 
-			getCurrentAudioClip()->clear(action, modelStack, !FlashStorage::automationClear, true);
+			deluge::edits::Context clipCtx{*currentSong, currentSong->project};
+			deluge::edits::ClearClip clearEdit{deluge::edits::clipAddressFor(*getCurrentClip()),
+			                                   !FlashStorage::automationClear, true, modelStack};
+			deluge::edits::apply(clipCtx, clearEdit);
 
 			// New default as part of Automation Clip View Implementation
 			// If this is enabled, then when you are in Audio Clip View, clearing
@@ -477,12 +483,13 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 				}
 				AudioClip& clipRef = *clip;
 
-				int32_t endSquareDisplay =
-				    divide_round_negative(clipRef.loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
-				                          currentSong->xZoom[NAVIGATION_CLIP]);
+				int32_t endSquareDisplay = divide_round_negative(
+				    clipRef.loopLength() - currentSong->persistentView.xScroll[NAVIGATION_CLIP] - 1,
+				    currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 
-				int32_t startSquareDisplay = divide_round_negative(0 - currentSong->xScroll[NAVIGATION_CLIP],
-				                                                   currentSong->xZoom[NAVIGATION_CLIP]);
+				int32_t startSquareDisplay =
+				    divide_round_negative(0 - currentSong->persistentView.xScroll[NAVIGATION_CLIP],
+				                          currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 
 				// =========== Handling END marker =============
 				if (endMarkerVisible) {
@@ -495,9 +502,9 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 					else {
 						Sample* sample = getSample();
 						if (sample) {
-							int32_t newLength =
-							    (x + 1) * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
-							int32_t oldLength = clipRef.loopLength;
+							int32_t newLength = (x + 1) * currentSong->persistentView.xZoom[NAVIGATION_CLIP]
+							                    + currentSong->persistentView.xScroll[NAVIGATION_CLIP];
+							int32_t oldLength = clipRef.loopLength();
 							uint64_t oldLengthSamples = clipRef.sampleHolder.getDurationInSamples(true);
 							changeUnderlyingSampleLength(clipRef, sample, newLength, oldLength, oldLengthSamples);
 							uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -514,9 +521,9 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 					else {
 						Sample* sample = getSample();
 						if (sample) {
-							int32_t newStartTicks =
-							    x * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
-							int32_t oldLength = clipRef.loopLength;
+							int32_t newStartTicks = x * currentSong->persistentView.xZoom[NAVIGATION_CLIP]
+							                        + currentSong->persistentView.xScroll[NAVIGATION_CLIP];
+							int32_t oldLength = clipRef.loopLength();
 							uint64_t oldLengthSamples = clipRef.sampleHolder.getDurationInSamples(true);
 							changeUnderlyingSampleStart(clipRef, sample, newStartTicks, oldLength, oldLengthSamples);
 							uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -606,14 +613,24 @@ void AudioClipView::changeUnderlyingSampleLength(AudioClip& clip, const Sample* 
 	// Change sample end-pos value. Must do this before calling setClipLength(), which will end
 	// up reading this value.
 	uint64_t oldValue = *valueToChange;
-	*valueToChange = newEndPosSamples;
+	// Funnel through the model setter (record + cache). oldValue captured above.
+	if (valueToChange == &clip.sampleHolder.startPos) {
+		clip.setSampleStartPos(newEndPosSamples);
+	}
+	else {
+		clip.setSampleEndPos(newEndPosSamples);
+	}
 
 	Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
-	currentSong->setClipLength(&clip, newLength, action);
+	deluge::edits::Context clipLenCtx{*currentSong, currentSong->project};
+	deluge::edits::SetClipLength lengthEdit{deluge::edits::clipAddressFor(clip), (uint32_t)newLength, action, &clip};
+	deluge::edits::apply(clipLenCtx, lengthEdit);
 	if (action) {
 		if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 			ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
-			consequence->pointerToMarkerValue = valueToChange;
+			consequence->audioClip = &clip;
+			consequence->marker = (valueToChange == &clip.sampleHolder.startPos) ? ConsequenceClipLength::Marker::START
+			                                                                     : ConsequenceClipLength::Marker::END;
 			consequence->markerValueToRevertTo = oldValue;
 		}
 		actionLogger.closeAction(actionType);
@@ -637,16 +654,20 @@ void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* s
 		if (newEndPos > sample->lengthInSamples) {
 			newEndPos = sample->lengthInSamples;
 		}
-		clip.sampleHolder.endPos = newEndPos;
+		clip.setSampleEndPos(newEndPos);
 
 		ActionType actionType =
 		    (newLengthTicks < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;
 		Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
-		currentSong->setClipLength(&clip, newLengthTicks, action);
+		deluge::edits::Context clipLenCtx{*currentSong, currentSong->project};
+		deluge::edits::SetClipLength lengthEdit{deluge::edits::clipAddressFor(clip), (uint32_t)newLengthTicks, action,
+		                                        &clip};
+		deluge::edits::apply(clipLenCtx, lengthEdit);
 		if (action) {
 			if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 				ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
-				consequence->pointerToMarkerValue = &clip.sampleHolder.endPos;
+				consequence->audioClip = &clip;
+				consequence->marker = ConsequenceClipLength::Marker::END;
 				consequence->markerValueToRevertTo = oldValue;
 			}
 			actionLogger.closeAction(actionType);
@@ -658,16 +679,20 @@ void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* s
 		if ((int64_t)newStartPos < 0) {
 			newStartPos = 0;
 		}
-		clip.sampleHolder.startPos = newStartPos;
+		clip.setSampleStartPos(newStartPos);
 
 		ActionType actionType =
 		    (newLengthTicks < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;
 		Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
-		currentSong->setClipLength(&clip, newLengthTicks, action);
+		deluge::edits::Context clipLenCtx{*currentSong, currentSong->project};
+		deluge::edits::SetClipLength lengthEdit{deluge::edits::clipAddressFor(clip), (uint32_t)newLengthTicks, action,
+		                                        &clip};
+		deluge::edits::apply(clipLenCtx, lengthEdit);
 		if (action) {
 			if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 				ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
-				consequence->pointerToMarkerValue = &clip.sampleHolder.startPos;
+				consequence->audioClip = &clip;
+				consequence->marker = ConsequenceClipLength::Marker::START;
 				consequence->markerValueToRevertTo = oldValue;
 			}
 			actionLogger.closeAction(actionType);
@@ -683,7 +708,7 @@ void AudioClipView::clipNeedsReRendering(Clip* c) {
 	if (c == getCurrentAudioClip()) {
 		// Scroll back left if we need to - it's possible that the length just reverted, if recording got aborted.
 		// Ok, coming back to this, it seems it was a bit hacky that I put this in this function...
-		if (currentSong->xScroll[NAVIGATION_CLIP] >= c->loopLength) {
+		if (currentSong->persistentView.xScroll[NAVIGATION_CLIP] >= c->loopLength()) {
 			horizontalScrollForLinearRecording(0);
 		}
 		else {
@@ -726,7 +751,7 @@ void AudioClipView::setClipLengthEqualToSampleLength() {
 }
 
 void AudioClipView::adjustLoopLength(int32_t newLength) {
-	int32_t oldLength = getCurrentClip()->loopLength;
+	int32_t oldLength = getCurrentClip()->loopLength();
 
 	if (oldLength != newLength) {
 		Action* action = nullptr;
@@ -752,9 +777,9 @@ doReRender:
 			}
 		}
 
-		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
+		displayNumberOfBarsAndBeats(newLength, currentSong->persistentView.xZoom[NAVIGATION_CLIP], false, "LONG");
 		if (action) {
-			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+			action->xScrollClip[AFTER] = currentSong->persistentView.xScroll[NAVIGATION_CLIP];
 		}
 	}
 }
@@ -779,11 +804,11 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 	}
 
 	// If we're not scrolled all the way to the right, go there now
-	if (scrollRightToEndOfLengthIfNecessary(getCurrentClip()->loopLength)) {
+	if (scrollRightToEndOfLengthIfNecessary(getCurrentClip()->loopLength())) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	int32_t oldLength = getCurrentClip()->loopLength;
+	int32_t oldLength = getCurrentClip()->loopLength();
 	uint64_t oldLengthSamples = getCurrentAudioClip()->sampleHolder.getDurationInSamples(true);
 
 	Action* action = nullptr;
@@ -799,9 +824,9 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 		}
 	}
 
-	displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
+	displayNumberOfBarsAndBeats(newLength, currentSong->persistentView.xZoom[NAVIGATION_CLIP], false, "LONG");
 	if (action) {
-		action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+		action->xScrollClip[AFTER] = currentSong->persistentView.xScroll[NAVIGATION_CLIP];
 	}
 	return ActionResult::DEALT_WITH;
 }
@@ -810,7 +835,7 @@ ActionResult AudioClipView::verticalEncoderAction(int32_t offset) {
 	stopShortcutOverview();
 	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		// Shift colour spectrum
-		getCurrentAudioClip()->colourOffset += offset;
+		getCurrentAudioClip()->setColourOffset(getCurrentAudioClip()->colourOffset() + offset);
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 	return ActionResult::DEALT_WITH;
@@ -825,9 +850,9 @@ bool AudioClipView::setupScroll(uint32_t oldScroll) {
 
 uint32_t AudioClipView::getMaxLength() {
 	if (endMarkerVisible) {
-		return getCurrentClip()->loopLength + 1;
+		return getCurrentClip()->loopLength() + 1;
 	}
-	return getCurrentClip()->loopLength;
+	return getCurrentClip()->loopLength();
 }
 
 uint32_t AudioClipView::getMaxZoom() {

@@ -12,9 +12,11 @@ pub fn link(repo_root: &Path, manifest_dir: &Path, out_dir: &Path) {
     setup_linker_script(manifest_dir, out_dir);
     emit_forced_link_roots();
     let (build_dir, cfg, ar) = resolve_build_dir(repo_root);
+    emit_bench_cfg(&build_dir);
     let app_objs_archive = archive_app_objects(repo_root, &build_dir, &cfg, &ar, out_dir);
     link_app_closure(&build_dir, &cfg, &app_objs_archive);
     emit_runtime_link_args();
+    emit_size_link_args();
 }
 
 /// Copies the memory layout for the active `rtt` feature and the SDRAM fragment into `out_dir`,
@@ -37,8 +39,11 @@ fn setup_linker_script(manifest_dir: &Path, out_dir: &Path) {
     )
     .unwrap();
     println!("cargo:rustc-link-search={}", out_dir.display());
-    println!("cargo:rustc-link-arg=-Wl,-T,{linker_script}");
+    // The fragment goes first. lld assigns each input section to the first matching output
+    // section in command-line script order, before applying the fragment's INSERTs, and the
+    // fragment's patterns that move statics to SDRAM must win over `rza1l.x`'s `*(.bss.*)`.
     println!("cargo:rustc-link-arg=-Wl,-T,sdram_sections.x");
+    println!("cargo:rustc-link-arg=-Wl,-T,{linker_script}");
     println!("cargo:rerun-if-changed=linker/memory.x");
     println!("cargo:rerun-if-changed=linker/memory_rtt.x");
     println!("cargo:rerun-if-changed=linker/sdram_sections.x");
@@ -76,6 +81,29 @@ fn resolve_build_dir(repo_root: &Path) -> (PathBuf, String, PathBuf) {
     (build_dir, cfg, ar)
 }
 
+/// Sets `cfg(dsp_bench)` when the C++ tree at `build_dir` was configured with `DELUGE_DSP_BENCH`,
+/// so a normal image carries none of the bench's boot path.
+fn emit_bench_cfg(build_dir: &Path) {
+    let cache = build_dir.join("CMakeCache.txt");
+    println!("cargo:rerun-if-changed={}", cache.display());
+    let on = fs::read_to_string(&cache).is_ok_and(|text| {
+        text.lines()
+            .filter_map(|line| line.strip_prefix("DELUGE_DSP_BENCH:"))
+            .filter_map(|rest| rest.split_once('=').map(|(_, value)| value))
+            .any(cmake_true)
+    });
+    if on {
+        println!("cargo::rustc-cfg=dsp_bench");
+    }
+}
+
+/// CMake's true constants: `1`, `ON`, `YES`, `TRUE`, `Y`, case-insensitive.
+fn cmake_true(value: &str) -> bool {
+    ["1", "ON", "YES", "TRUE", "Y"]
+        .iter()
+        .any(|t| value.trim().eq_ignore_ascii_case(t))
+}
+
 /// Archives `deluge_app`'s objects (an OBJECT library, so CMake makes no `.a`) into
 /// `libdeluge_app_objs.a`.
 ///
@@ -96,7 +124,7 @@ fn archive_app_objects(
         panic!(
             "C++ app objects not found at {}. Build them first:\n  \
              cmake --build {} --target deluge_app NE10 eyalroz_printf \
-             deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_foundation deluge_midi",
+             deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_foundation deluge_serialization deluge_music_theory deluge_project deluge_instrument deluge_effects deluge_midi",
             app_objs_dir.display(),
             build_dir.display()
         );
@@ -131,13 +159,18 @@ fn archive_app_objects(
 /// Emits the app archive and its static libraries as one `--start-group`, because the references
 /// are mutual: the C++ app calls the `deluge_*` services, and this crate calls `deluge_app_init`.
 fn link_app_closure(build_dir: &Path, cfg: &str, app_objs_archive: &Path) {
-    let deps: [(&str, &str); 7] = [
+    let deps: [(&str, &str); 12] = [
         ("src/NE10", "libNE10.a"),
         ("src/lib", "libeyalroz_printf.a"),
         ("src/deluge/dsp", "libdeluge_dsp.a"),
         ("src/deluge/dsp-next", "libdeluge-dsp-fixed.a"),
         ("src/deluge/dsp-next", "libdeluge-dsp-float.a"),
         ("src/foundation", "libdeluge_foundation.a"),
+        ("src/serialization", "libdeluge_serialization.a"),
+        ("src/music-theory", "libdeluge_music_theory.a"),
+        ("src/deluge-project", "libdeluge_project.a"),
+        ("src/engines/deluge", "libdeluge_instrument.a"),
+        ("src/engines/effects", "libdeluge_effects.a"),
         ("src/midi", "libdeluge_midi.a"),
     ];
 
@@ -147,6 +180,8 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_objs_archive: &Path) {
         let p = build_dir.join(dir).join(cfg).join(lib);
         assert!(p.is_file(), "missing dep archive {}", p.display());
         println!("cargo:rustc-link-arg={}", p.display());
+        // A change confined to one of these libraries must relink: cargo tracks only what it is told to.
+        println!("cargo:rerun-if-changed={}", p.display());
     }
     println!("cargo:rustc-link-arg=-Wl,--end-group");
 }
@@ -159,4 +194,17 @@ fn emit_runtime_link_args() {
         println!("cargo:rustc-link-arg={l}");
     }
     println!("cargo:rustc-link-arg=-Wl,--end-group");
+}
+
+/// Link options that shrink the image, which must fit in on-chip SRAM (docs/dev/image_size.md).
+///
+/// - `--icf=safe` folds functions whose code is identical, such as one template instantiated for
+///   types of the same layout. `safe` folds only functions whose address is never taken, so
+///   function-pointer comparisons keep their meaning. Folded functions share one address, so a
+///   backtrace may name a sibling of the function that really ran.
+/// - `snprintf` resolves to `eyalroz_printf`'s `snprintf_`, which the app already links, instead of
+///   newlib's, whose floating-point formatter is far larger. It supports every format the app uses.
+fn emit_size_link_args() {
+    println!("cargo:rustc-link-arg=-Wl,--icf=safe");
+    println!("cargo:rustc-link-arg=-Wl,--defsym=snprintf=snprintf_");
 }

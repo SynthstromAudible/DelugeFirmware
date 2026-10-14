@@ -22,8 +22,13 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "model/clip/clip.h"
+#include "model/edits/set_engine_setting.h"
+#include "model/edits/set_source_ranges.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/setting_apply.h"
+#include "model/project_bridge/slot_bridge.h"
+#include "model/project_bridge/source_bridge.h"
 #include "model/sample/sample.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
@@ -75,7 +80,9 @@ public:
 		return withAutoParam;
 	}
 
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override {}
+	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength) const override {
+		return Error::INSUFFICIENT_RAM;
+	}
 	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) override {}
 	void tickTicks(int32_t numSamples, ModelStackWithParamCollection* modelStack) override {}
 	void playbackHasEnded(ModelStackWithParamCollection* modelStack) override {}
@@ -125,7 +132,6 @@ void resetSlicerEnv() {
 	g_paramCollection = &collection;
 
 	// The std::string members are the only ones that cannot be left as zeroed bytes.
-	new (&g_drum.get()->drumName) std::string();
 	new (&g_range.get()->sampleHolder.filePath) std::string();
 	new (&g_sample.get()->filePath) std::string("SAMPLES/SLICE.WAV");
 
@@ -319,6 +325,10 @@ DELUGE_STUB_RET(stub_waveformRendererRenderFullScreen,
                 bool, false)
 DELUGE_STUB_FN(stub_instrumentClipViewRecalculateColours, "_ZN18InstrumentClipView18recalculateColoursEv")
 DELUGE_STUB_FN(stub_modControllableAudioDtor, "_ZN20ModControllableAudioD2Ev")
+// ~Sound gives its delay's tapes back and destroys its chain, whose mod FX and granular free their blocks.
+DELUGE_STUB_FN(stub_modControllableAudioReleaseChainMemory, "_ZN20ModControllableAudio18releaseChainMemoryEv")
+DELUGE_STUB_FN(stub_modFxDtor, "_ZN6deluge7effects5ModFxD1Ev")
+DELUGE_STUB_FN(stub_granularDtor, "_ZN6deluge7effects8GranularD1Ev")
 DELUGE_STUB_FN(stub_sampleHolderForVoiceClaimClusterReasons, "_ZN20SampleHolderForVoice19claimClusterReasonsEbi")
 DELUGE_STUB_FN(stub_paramManagerForTimelineCtor, "_ZN23ParamManagerForTimelineC1Ev")
 DELUGE_STUB_FN(stub_uiModButtonAction, "_ZN2UI15modButtonActionEhb")
@@ -329,10 +339,15 @@ DELUGE_STUB_FN(stub_uiClose, "_ZN2UI5closeEv")
 DELUGE_STUB_FN(stub_uiCtor, "_ZN2UIC2Ev")
 DELUGE_STUB_RET(stub_kitGetDrumFromIndex, "_ZN3Kit16getDrumFromIndexEi", Drum*, reinterpret_cast<Drum*>(g_drum.get()))
 DELUGE_STUB_FN(stub_kitResetDrumTempValues, "_ZN3Kit19resetDrumTempValuesEv")
-DELUGE_STUB_FN(stub_kitAddDrum, "_ZN3Kit7addDrumEP4Drum")
-DELUGE_STUB_FN(stub_drumCtor, "_ZN4DrumC2E8DrumType")
-DELUGE_STUB_FN(stub_songBackUpParamManager,
-               "_ZN4Song18backUpParamManagerEP20ModControllableAudioP4ClipP23ParamManagerForTimelineb")
+DELUGE_STUB_FN(stub_kitAddDrum, "_ZN3Kit7addDrumEP4DrumP4Song")
+DELUGE_STUB_FN(stub_drumCtor, "_ZN4DrumC2EN6deluge7project8DrumTypeE")
+DELUGE_STUB_FN(stub_paramBackupBackUp,
+               "_ZN6deluge6bridge11ParamBackup6backUpEP20ModControllableAudioP4ClipP23ParamManagerForTimelineb")
+DELUGE_STUB_FN(stub_drumSetNameCString, "_ZN4Drum7setNameEPKc")
+DELUGE_STUB_FN(stub_drumSetNameString, "_ZN4Drum7setNameEONSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE")
+DELUGE_STUB_RET(stub_paramSetDocForParam, "_ZN8ParamSet11docForParamEi", deluge::project::DocAutoParam*, nullptr)
+DELUGE_STUB_RET(stub_modelStackWithAutoParamDoc, "_ZNK23ModelStackWithAutoParam3docEv", deluge::project::DocAutoParam*,
+                nullptr)
 DELUGE_STUB_FN(stub_soundInitParams, "_ZN5Sound10initParamsEP12ParamManager")
 DELUGE_STUB_FN(stub_soundSetupAsSample, "_ZN5Sound13setupAsSampleEP23ParamManagerForTimeline")
 DELUGE_STUB_FN(stub_soundCtor, "_ZN5SoundC2Ev")
@@ -351,7 +366,11 @@ DELUGE_STUB_RET(stub_stringFromInt, "_ZN6deluge6string7fromIntB5cxx11Eij", std::
 DELUGE_STUB_FN(stub_soundEditorCutSound, "_ZN11SoundEditor8cutSoundEv")
 DELUGE_STUB_RET(stub_soundEditorGetCurrentAudioFileHolder, "_ZN11SoundEditor25getCurrentAudioFileHolderEv",
                 AudioFileHolder*, &g_range.get()->sampleHolder)
-DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN6Source10setOscTypeE7OscType")
+DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN6Source10setOscTypeEN6deluge10instrument7OscTypeE")
+DELUGE_STUB_FN(stub_sourceSetRepeatMode, "_ZN6Source13setRepeatModeEN6deluge10instrument16SampleRepeatModeE")
+DELUGE_STUB_FN(stub_sourceSetReversed, "_ZN6Source11setReversedEb")
+// Re-seeds the source's DOM range records from its engine ranges; the mock source has no DOM to seed.
+DELUGE_STUB_FN(stub_sourceSeedDocRanges, "_ZN6Source13seedDocRangesEv")
 DELUGE_STUB_FN(stub_sourceDtor, "_ZN6SourceD1Ev")
 DELUGE_STUB_RET(stub_buttonsIsShiftButtonPressed, "_ZN7Buttons20isShiftButtonPressedEv", bool, false)
 DELUGE_STUB_RET(stub_sampleControlsIsCurrentlyReversed, "_ZNK14SampleControls19isCurrentlyReversedEv", bool, false)
@@ -404,3 +423,36 @@ int32_t ParamCollection::knobPosToParamValue(int32_t knobPos, ModelStackWithAuto
 }
 void ParamCollection::notifyPingpongOccurred(ModelStackWithParamCollection* modelStack) {
 }
+
+// The setting and range Edits the slicer issues through settingFor()/recordRanges(). A sound here has no slot, so the
+// helpers apply directly, and the applies do nothing: the slicer's state is the mocks', and nothing reads a record.
+namespace deluge::bridge {
+std::optional<deluge::project::SlotAddress> slotAddressOf(::Sound& /*sound*/) {
+	return std::nullopt;
+}
+::Sound* soundAt(::Song& /*song*/, deluge::project::SlotAddress /*address*/) {
+	return nullptr;
+}
+std::vector<deluge::instrument::RangeState> rangesOf(const ::Source& /*source*/) {
+	return {};
+}
+Error applyRanges(::Sound& /*sound*/, int32_t /*s*/, const std::vector<deluge::instrument::RangeState>& /*ranges*/) {
+	return Error::NONE;
+}
+Error applySetting(::Sound& /*sound*/, std::string_view /*path*/, const deluge::serialization::Value& /*value*/,
+                   ::Song& /*song*/) {
+	return Error::NONE;
+}
+} // namespace deluge::bridge
+
+namespace deluge::edits {
+Error apply(Context& /*ctx*/, Edit& /*edit*/) {
+	return Error::NONE;
+}
+Error SetEngineSetting::apply(Context& /*ctx*/) {
+	return Error::NONE;
+}
+Error SetSourceRanges::apply(Context& /*ctx*/) {
+	return Error::NONE;
+}
+} // namespace deluge::edits

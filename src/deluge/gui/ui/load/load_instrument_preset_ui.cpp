@@ -38,6 +38,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/mod_controllable/delay_type.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -85,7 +86,7 @@ bool LoadInstrumentPresetUI::opened() {
 	if (loadingSynthToKitRow) {
 		initialOutputType = outputTypeToLoad = OutputType::SYNTH;
 		if (soundDrumToReplace) {
-			initialName = soundDrumToReplace->drumName;
+			initialName = soundDrumToReplace->name();
 		}
 		else {
 			initialName = "";
@@ -223,9 +224,9 @@ std::string LoadInstrumentPresetUI::setupForOutputType() {
 	else {
 		if (loadingSynthToKitRow && soundDrumToReplace) {
 
-			if (!soundDrumToReplace->drumName.empty()) {
-				enteredText = soundDrumToReplace->drumName;
-				searchFilename = soundDrumToReplace->drumName;
+			if (!soundDrumToReplace->name().empty()) {
+				enteredText = soundDrumToReplace->name();
+				searchFilename = soundDrumToReplace->name();
 			}
 
 			if (&soundDrumToReplace->path) {
@@ -530,8 +531,8 @@ void LoadInstrumentPresetUI::deliverAcquisition(const deluge::storage::PresetReq
                                                 const deluge::storage::AcquireResult& acquired) {
 	runAcquisitionFollowUp(request, acquired);
 	if (acquired.loadedFromFile && acquired.instrument != nullptr
-	    && !isInstrumentInList(acquired.instrument, currentSong->firstOutput)
-	    && !isInstrumentInList(acquired.instrument, currentSong->firstHibernatingInstrument)) {
+	    && !isInstrumentInList(acquired.instrument, currentSong->live.media.first_output)
+	    && !isInstrumentInList(acquired.instrument, currentSong->live.media.first_hibernating_instrument)) {
 		currentSong->deleteOutput(acquired.instrument); // parsed for this gesture, never taken into the song
 	}
 }
@@ -630,6 +631,8 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		}
 		break;
 	}
+	// The loaded preset's delays: types a file saved without worked out, reserves set, now it is in the song.
+	deluge::model::settleLoadedDelays(*currentSong);
 }
 
 ActionResult LoadInstrumentPresetUI::buttonAction(deluge::hid::Button b, bool on) {
@@ -970,7 +973,7 @@ void LoadInstrumentPresetUI::swapRevert(const deluge::gui::RevertTarget& target,
 	else {
 
 		// If that Instrument wasn't already in use in the Song, copy default velocity over
-		initialInstrument->defaultVelocity = target.instrumentToReplace->defaultVelocity;
+		initialInstrument->setDefaultVelocity(target.instrumentToReplace->defaultVelocity);
 
 		// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
@@ -1002,7 +1005,7 @@ bool LoadInstrumentPresetUI::isInstrumentInList(Instrument* searchInstrument, Ou
 
 // See the header doc for why this exists: a currency check, not a lifetime one.
 bool LoadInstrumentPresetUI::isRequestInstrumentStillLive(Instrument* instrument) {
-	return isInstrumentInList(instrument, currentSong->firstOutput);
+	return isInstrumentInList(instrument, currentSong->live.media.first_output);
 }
 
 // Returns whether it was in fact an unused one that it was able to return
@@ -1128,7 +1131,7 @@ LoadInstrumentPresetUI::decideLoad(const deluge::gui::InstrumentLoadRequest& req
 	// If we found an already existing Instrument object...
 	if (!request.clone && target.existingInstrument != nullptr) {
 		const bool wasHibernating =
-		    isInstrumentInList(target.existingInstrument, currentSong->firstHibernatingInstrument);
+		    isInstrumentInList(target.existingInstrument, currentSong->live.media.first_hibernating_instrument);
 
 		if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
 			if (!wasHibernating) {
@@ -1194,7 +1197,7 @@ Error LoadInstrumentPresetUI::swapInstrument(const deluge::gui::InstrumentLoadRe
 	else {
 
 		// If that Instrument wasn't already in use in the Song, copy default velocity over
-		newInstrument->defaultVelocity = instrumentToReplace->defaultVelocity;
+		newInstrument->setDefaultVelocity(instrumentToReplace->defaultVelocity);
 
 		// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
@@ -1210,8 +1213,8 @@ Error LoadInstrumentPresetUI::swapInstrument(const deluge::gui::InstrumentLoadRe
 	}
 
 	// Check if old Instrument has been deleted, in which case need to update the appropriate FileItem.
-	if (!isInstrumentInList(instrumentToReplace, currentSong->firstOutput)
-	    && !isInstrumentInList(instrumentToReplace, currentSong->firstHibernatingInstrument)) {
+	if (!isInstrumentInList(instrumentToReplace, currentSong->live.media.first_output)
+	    && !isInstrumentInList(instrumentToReplace, currentSong->live.media.first_hibernating_instrument)) {
 		for (int32_t f = listing.size() - 1; f >= 0; f--) {
 			FileItem* fileItem = &listing.item(f);
 			if (fileItem->instrument == instrumentToReplace) {
@@ -1240,6 +1243,8 @@ Error LoadInstrumentPresetUI::swapInstrument(const deluge::gui::InstrumentLoadRe
 	}
 
 	instrumentToReplace = newInstrument;
+	// The loaded preset's delays: types a file saved without worked out, reserves set, now it is in the song.
+	deluge::model::settleLoadedDelays(*currentSong);
 	display->removeWorkingAnimation();
 	return Error::NONE;
 }
@@ -1250,23 +1255,23 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 	Kit* kitToLoadFor = static_cast<Kit*>(instrumentToReplace);
 	SoundDrum* oldDrum = soundDrumToReplace;
 
-	// The name is the real on-card name (display-agnostic), taken from the snapshot, so it can't pick up whatever the
-	// user has since scrolled onto.
-	newDrum->drumName = request.target.name;
 	newDrum->path = request.target.dirPath.c_str();
 
 	// Steal the ParamManager that loading backed up, so its (now empty) backup entry is removed from the Song. Take it
 	// out of the backups first - setDrum() backs up the old ParamManager, which can move the backups around
 	ParamManagerForTimeline paramManager;
-	if (currentSong->getBackedUpParamManagerPreferablyWithClip(newDrum, instrumentClipToLoadFor, &paramManager)
+	if (currentSong->live.param_backup.getPreferablyWithClip(newDrum, instrumentClipToLoadFor, &paramManager)
 	    == nullptr) {
 		// The old drum stays where it was; the new one never reached the kit.
-		currentSong->deleteBackedUpParamManagersForModControllable(newDrum);
+		currentSong->live.param_backup.deleteForModControllable(newDrum);
 		AudioEngine::retire(newDrum);
 		return Error::FILE_CORRUPTED;
 	}
 
 	kitToLoadFor->addDrum(newDrum);
+	// The name lives in the DocDrum addDrum just bound. It is the real on-card name (display-agnostic), taken from the
+	// snapshot, so it can't pick up whatever the user has since scrolled onto.
+	newDrum->setName(request.target.name);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
@@ -1301,7 +1306,7 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 		// Nothing references the old drum now, so it can go
 		kitToLoadFor->renderingDrums.remove(oldDrum);
 		kitToLoadFor->removeDrum(oldDrum);
-		currentSong->deleteBackedUpParamManagersForModControllable(oldDrum);
+		currentSong->live.param_backup.deleteForModControllable(oldDrum);
 		oldDrum->wontBeRenderedForAWhile();
 		// Out of the kit for good: the render's let-go of the drum must not write back into the kit's
 		// renderingDrums, which may be freed by then (SoundDrum::setSkippingRendering skips a null kit).
@@ -1315,6 +1320,8 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 	soundDrumToReplace = newDrum;
 	kitToLoadFor->selectedDrum = newDrum;
 	kitToLoadFor->beenEdited();
+	// The loaded preset's delays: types a file saved without worked out, reserves set, now it is in the song.
+	deluge::model::settleLoadedDelays(*currentSong);
 	// The view may still have the old drum cached as its active ModControllable, and gold knobs turned while this
 	// browser is open go straight to it
 	view.setActiveModControllableTimelineCounter(instrumentClipToLoadFor);

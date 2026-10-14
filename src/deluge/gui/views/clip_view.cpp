@@ -27,6 +27,10 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/consequence/consequence_clip_horizontal_shift.h"
+#include "model/edits/clip_address_for.h"
+#include "model/edits/edit.h"
+#include "model/edits/set_clip_length.h"
+#include "model/edits/shift_clip.h"
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"
@@ -92,9 +96,9 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 
 	// Only if that didn't get us directly to the correct length, manually set length. This will do a resync if playback
 	// active
-	if (getCurrentClip()->loopLength != newLength) {
-		ActionType actionType = (newLength < getCurrentClip()->loopLength) ? ActionType::CLIP_LENGTH_DECREASE
-		                                                                   : ActionType::CLIP_LENGTH_INCREASE;
+	if (getCurrentClip()->loopLength() != newLength) {
+		ActionType actionType = (newLength < getCurrentClip()->loopLength()) ? ActionType::CLIP_LENGTH_DECREASE
+		                                                                     : ActionType::CLIP_LENGTH_INCREASE;
 
 		// If we are in middle of PATTERN_PASTE Action -> Resize need to be part of preview Pattern
 		if (actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
@@ -106,7 +110,10 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 			action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
 		}
 
-		currentSong->setClipLength(getCurrentClip(), newLength, action);
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		deluge::edits::SetClipLength edit{deluge::edits::clipAddressFor(*getCurrentClip()), (uint32_t)newLength, action,
+		                                  getCurrentClip()};
+		deluge::edits::apply(ctx, edit);
 	}
 
 	// Otherwise, do the resync that we missed out on doing
@@ -138,10 +145,12 @@ Action* ClipView::shortenClip(int32_t newLength) {
 		}
 	}
 
-	currentSong->setClipLength(
-	    getCurrentClip(), newLength,
-	    action); // Subsequently shortening by more squares won't cause additional Consequences to be added to the same
-	// Action - it checks, and only stores the data (snapshots and original length) once
+	// Subsequently shortening by more squares won't cause additional Consequences to be added to the same Action - it
+	// checks, and only stores the data (snapshots and original length) once.
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetClipLength edit{deluge::edits::clipAddressFor(*getCurrentClip()), (uint32_t)newLength, action,
+	                                  getCurrentClip()};
+	deluge::edits::apply(ctx, edit);
 	return action;
 }
 
@@ -158,7 +167,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 			return ActionResult::DEALT_WITH;
 		}
 
-		uint32_t oldLength = getCurrentClip()->loopLength;
+		uint32_t oldLength = getCurrentClip()->loopLength();
 
 		// If we're not scrolled all the way to the right, go there now
 		if (scrollRightToEndOfLengthIfNecessary(oldLength)) {
@@ -171,10 +180,10 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 		uint32_t newLength = changeClipLength(offset, oldLength, action);
 
-		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
+		displayNumberOfBarsAndBeats(newLength, currentSong->persistentView.xZoom[NAVIGATION_CLIP], false, "LONG");
 
 		if (action) {
-			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+			action->xScrollClip[AFTER] = currentSong->persistentView.xScroll[NAVIGATION_CLIP];
 		}
 		return ActionResult::DEALT_WITH;
 	}
@@ -201,47 +210,18 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 		// Always shift Notes and MPE when you're not in Automation View
 		bool shiftSequenceAndMPE = (currentUI != &automationView);
 
-		bool wasShifted = clip->shiftHorizontally(modelStack, shiftAmount, shiftAutomation, shiftSequenceAndMPE);
-		if (!wasShifted) {
+		// ShiftClip does the engine shift then the coalesce/create-Consequence undo. shifted() reports
+		// "nothing moved", in which case we bail without rendering/recording.
+		deluge::edits::Context clipCtx{*currentSong, currentSong->project};
+		deluge::edits::ShiftClip shiftEdit{deluge::edits::clipAddressFor(*clip), shiftAmount, shiftAutomation,
+		                                   shiftSequenceAndMPE, modelStack};
+		deluge::edits::apply(clipCtx, shiftEdit);
+		if (!shiftEdit.shifted()) {
 			// No need to show the user why it didnt succeed, usually these cases are fairly trivial
 			return ActionResult::DEALT_WITH;
 		}
 
 		uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
-
-		// If possible, just modify a previous Action to add this new shift amount to it.
-		Action* action = actionLogger.firstAction[BEFORE];
-		if (action && action->type == ActionType::CLIP_HORIZONTAL_SHIFT && action->openForAdditions
-		    && action->currentClip == clip) {
-
-			// If there's no Consequence in the Action, that's probably because we deleted it a previous time with the
-			// code just below. Or possibly because the Action was created but there wasn't enough RAM to create the
-			// Consequence. Anyway, just go add a consequence now.
-			if (!action->firstConsequence)
-				goto addConsequenceToAction;
-
-			ConsequenceClipHorizontalShift* consequence = (ConsequenceClipHorizontalShift*)action->firstConsequence;
-			consequence->amount += shiftAmount;
-
-			// It might look tempting that if we've completed one whole loop, we could delete the Consequence because
-			// everything would be back the same - but no! Remember different NoteRows might have different lengths.
-		}
-
-		// Or if no previous Action, go create a new one now.
-		else {
-
-			action = actionLogger.getNewAction(ActionType::CLIP_HORIZONTAL_SHIFT, ActionAddition::NOT_ALLOWED);
-			if (action) {
-addConsequenceToAction:
-				void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceClipHorizontalShift));
-
-				if (consMemory) {
-					ConsequenceClipHorizontalShift* newConsequence = new (consMemory)
-					    ConsequenceClipHorizontalShift(shiftAmount, shiftAutomation, shiftSequenceAndMPE);
-					action->addConsequence(newConsequence);
-				}
-			}
-		}
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -315,13 +295,13 @@ int32_t ClipView::getLengthChopAmount(int32_t square) {
 		square--;
 	}
 
-	uint32_t xZoom = currentSong->xZoom[getNavSysId()];
+	uint32_t xZoom = currentSong->persistentView.xZoom[getNavSysId()];
 
 	if (inTripletsView()) {
-		if (xZoom < currentSong->tripletsLevel) {
+		if (xZoom < currentSong->persistentView.tripletsLevel) {
 			return xZoom * 4 / 3;
 		}
-		else if (xZoom < currentSong->tripletsLevel * 2) {
+		else if (xZoom < currentSong->persistentView.tripletsLevel * 2) {
 			return xZoom * 2 / 3 * (((square + 1) % 2) + 1);
 		}
 	}
@@ -334,13 +314,13 @@ int32_t ClipView::getLengthExtendAmount(int32_t square) {
 		square++;
 	}
 
-	uint32_t xZoom = currentSong->xZoom[getNavSysId()];
+	uint32_t xZoom = currentSong->persistentView.xZoom[getNavSysId()];
 
 	if (inTripletsView()) {
-		if (xZoom < currentSong->tripletsLevel) {
+		if (xZoom < currentSong->persistentView.tripletsLevel) {
 			return xZoom * 4 / 3;
 		}
-		else if (xZoom < currentSong->tripletsLevel * 2) {
+		else if (xZoom < currentSong->persistentView.tripletsLevel * 2) {
 			return xZoom * 2 / 3 * (((square + 1) % 2) + 1);
 		}
 	}
@@ -359,11 +339,12 @@ int32_t ClipView::getTickSquare() {
 		    (getCurrentClip()->armState == ArmState::OFF || xScrollBeforeFollowingAutoExtendingLinearRecording != -1)) {
 
 			if (xScrollBeforeFollowingAutoExtendingLinearRecording == -1) {
-				xScrollBeforeFollowingAutoExtendingLinearRecording = currentSong->xScroll[NAVIGATION_CLIP];
+				xScrollBeforeFollowingAutoExtendingLinearRecording =
+				    currentSong->persistentView.xScroll[NAVIGATION_CLIP];
 			}
 
-			int32_t newXScroll =
-			    currentSong->xScroll[NAVIGATION_CLIP] + currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
+			int32_t newXScroll = currentSong->persistentView.xScroll[NAVIGATION_CLIP]
+			                     + currentSong->persistentView.xZoom[NAVIGATION_CLIP] * kDisplayWidth;
 
 			horizontalScrollForLinearRecording(newXScroll);
 		}
@@ -375,7 +356,7 @@ int32_t ClipView::getTickSquare() {
 			int32_t newXScroll = xScrollBeforeFollowingAutoExtendingLinearRecording;
 			xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 
-			if (newXScroll != currentSong->xZoom[NAVIGATION_CLIP]) {
+			if (newXScroll != currentSong->persistentView.xZoom[NAVIGATION_CLIP]) {
 				horizontalScrollForLinearRecording(newXScroll);
 			}
 		}

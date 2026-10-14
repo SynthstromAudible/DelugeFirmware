@@ -1,0 +1,5 @@
+<patchCables>
+	<patchCable source="lfo1" destination="pitch" amount="0x10000000" rangeAdjustable="1" />
+	<patchCable source="envelope2" destination="range" amount="0x08000000" />
+	<patchCable source="velocity" destination="range" amount="0x04000000" />
+</patchCables>

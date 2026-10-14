@@ -17,13 +17,14 @@
 
 #pragma once
 
+#include "deluge-project/cv_mode.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/non_audio_instrument.h"
 
 class ParamManagerForTimeline;
 class ModelStackWithThreeMainThings;
 class ModelStackWithSoundFlags;
-enum class CVMode : uint8_t { off, pitch, mod, aftertouch, velocity };
+using deluge::project::CVMode;
 enum class GateMode : uint8_t { off, gate, trigger };
 enum CVInstrumentMode { one, two, both };
 constexpr int32_t kNumCVInstrumentChannels = both + 1;
@@ -38,6 +39,12 @@ public:
 	                                              int32_t noteIndex) override;
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	bool readTagFromFile(Deserializer& reader, const char* tagName) override;
+
+	/// @brief Reseeds the record's channel and cv2_source from the current native values.
+	///
+	/// channel and cv2_source are record-authoritative at save. Calls the NonAudioInstrument base first, which
+	/// reseeds channel.
+	void seedDocOutputIdentity() override;
 	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDmiension) override;
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
 	void setupWithoutActiveClip(ModelStack* modelStack) override;
@@ -64,16 +71,12 @@ public:
 	int32_t polyPitchBendValue;
 
 	char const* getXMLTag() override { return "cvChannel"; }
-	void setChannel(int channel) override {
-		if (channel <= both) {
-			NonAudioInstrument::setChannel(channel);
-			setMode(static_cast<CVInstrumentMode>(channel));
-		}
-		else {
-			NonAudioInstrument::setChannel(0);
-			setMode(static_cast<CVInstrumentMode>(0));
-		}
-	}
+	/// @brief Sets the channel and the matching CV mode.
+	///
+	/// setMode() mutates cvmode[1] as a side effect, so this also reseeds the record's cv2_source after the base
+	/// channel write. Defined in cv_instrument.cpp so the header does not need the complete DocOutput type.
+	/// @param channel The CV channel (a CVInstrumentMode value); out-of-range values fall back to channel 0.
+	void setChannel(int channel) override;
 	CVMode getCV2Mode() { return cvmode[1]; }
 
 	void setCV2Mode(CVMode mode);
@@ -93,18 +96,18 @@ private:
 		switch (channel) {
 		case CVInstrumentMode::one: {
 			gateMode[0] = GateMode::gate;
-			cvmode[0] = CVMode::pitch;
+			cvmode[0] = CVMode::PITCH;
 		}
 		case CVInstrumentMode::two: {
 			gateMode[1] = GateMode::gate;
-			cvmode[1] = CVMode::pitch;
+			cvmode[1] = CVMode::PITCH;
 		}
 		case CVInstrumentMode::both: {
 			gateMode[0] = GateMode::gate;
 			gateMode[1] = GateMode::trigger;
-			cvmode[0] = CVMode::pitch;
-			if (cvmode[1] == CVMode::off) {
-				cvmode[1] = CVMode::aftertouch;
+			cvmode[0] = CVMode::PITCH;
+			if (cvmode[1] == CVMode::OFF) {
+				cvmode[1] = CVMode::AFTERTOUCH;
 			}
 		}
 		}
@@ -112,11 +115,11 @@ private:
 	void clearModes() {
 		gateMode[0] = GateMode::off;
 		gateMode[1] = GateMode::off;
-		cvmode[0] = CVMode::off;
-		cvmode[1] = CVMode::off;
+		cvmode[0] = CVMode::OFF;
+		cvmode[1] = CVMode::OFF;
 	}
 
 	GateMode gateMode[2]{GateMode::off, GateMode::off};
-	CVMode cvmode[2]{CVMode::off, CVMode::off};
+	CVMode cvmode[2]{CVMode::OFF, CVMode::OFF};
 	void sendMonophonicExpressionEvent(int32_t dimension);
 };

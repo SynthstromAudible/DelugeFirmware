@@ -18,6 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/song.h"
+#include "engines/effects/master_chain.h"
 #include "gui/menu_item/reverb/model.h"
 #include "gui/ui/browser/file_listing.h"
 #include "io/midi/learned_midi.h"
@@ -26,11 +28,13 @@
 #include "model/global_effectable/global_effectable_for_song.h"
 #include "model/instrument/instrument.h"
 #include "model/output.h"
+#include "model/project_bridge/song_live.h"
 #include "model/scale/musical_key.h"
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
 #include "model/scale/scale_mapper.h"
+#include "model/song/song_view_state.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
@@ -76,30 +80,7 @@ Kit* getCurrentKit();
 Instrument* getCurrentInstrument();
 OutputType getCurrentOutputType();
 
-class Section {
-public:
-	LearnedMIDI launchMIDICommand;
-	int16_t numRepetitions;
-
-	Section() { numRepetitions = 0; }
-};
-
 #define MAX_NOTES_CHORD_MEM 10
-
-enum SessionMacroKind : int8_t {
-	NO_MACRO = 0,
-	CLIP_LAUNCH,
-	OUTPUT_CYCLE,
-	SECTION,
-	NUM_KINDS,
-};
-
-struct SessionMacro {
-	SessionMacroKind kind{NO_MACRO};
-	Clip* clip{nullptr};
-	Output* output{nullptr};
-	uint8_t section{0};
-};
 
 class Song final : public TimelineCounter {
 public:
@@ -147,14 +128,6 @@ public:
 	void changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change);
 	void rotateMusicalMode(int8_t change);
 	void replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose);
-	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode);
-	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKey& key);
-	int32_t incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave, bool inKey) const;
-	static int32_t incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave, const MusicalKey& key);
-	static int32_t incrementYNoteNoKey(int32_t yNote, int32_t increment, bool inOctave, const MusicalKey& key);
-	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode);
-	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, const MusicalKey& key);
-	bool mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset);
 	ParamManagerForTimeline* findParamManagerForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = nullptr);
 	void setupPatchingForAllParamManagersForDrum(SoundDrum* drum);
 	void setupPatchingForAllParamManagersForInstrument(SoundInstrument* sound);
@@ -171,7 +144,6 @@ public:
 	/// Changes to next applicable scale.
 	Scale cycleThroughScales();
 	/// Returns current scale
-	Scale getCurrentScale();
 	/// Changes to requested scale, will return the scale if successfull, or NO_SCALE if change
 	/// could not be completed.
 	Scale setScale(Scale newScale);
@@ -179,9 +151,7 @@ public:
 	/// scale, defines the scale as the new user scale.
 	bool setScaleNotes(NoteSet newScale);
 	/// Learns a user scale from notes in scale mode clips.
-	void learnScaleFromCurrentNotes();
 	/// Returns true if the song has a user scale.
-	bool hasUserScale();
 	/// Sets root note of key. If the previous scale no longer fits, changes to a new implied scale, which
 	/// can result in a new user scale being set.
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = nullptr);
@@ -224,109 +194,114 @@ public:
 	int32_t convertSyncLevelFromInternalValueToFileValue(int32_t internalValue);
 	std::string getSongFullPath();
 	void setSongFullPath(const char* fullPath);
-	int32_t getInputTickMagnitude() const { return insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM; }
+	int32_t getInputTickMagnitude() const {
+		return project.transport.inside_world_tick_magnitude
+		       + project.transport.inside_world_tick_magnitude_offset_from_bpm;
+	}
 
-	GlobalEffectableForSong globalEffectable;
+	// The project model (deluge::project::Song), which ::Song, the controller, owns
+	// (docs/dev/project_model_extraction.md). Named `project` rather than `model` because `model` is already the
+	// reverb-model member.
+	deluge::project::Song project;
+	/// The parts of the song the engine still holds as live objects.
+	SongLive live;
 
-	ClipArray sessionClips;
-	ClipArray arrangementOnlyClips;
+	// View/UI state that is serialized to the song file (scroll/zoom/layout/triplets/etc.).
+	PersistentViewState persistentView;
 
-	Output* firstOutput;
-	Instrument*
-	    firstHibernatingInstrument; // All Instruments have inValidState set to false when they're added to this list
-
-	// Backed-up ParamManagers, keyed by (ModControllable, Clip). For a given ModControllable, the entry with a
-	// null Clip (if any) sorts first. Node-based so ParamManagers never move in memory.
-	deluge::fast_map<std::pair<ModControllableAudio*, Clip*>, ParamManager> backedUpParamManagers;
-
-	uint32_t xZoom[2]{};  // Set default zoom at max zoom-out;
-	int32_t xScroll[2]{}; // Leave this as signed
-	int32_t xScrollForReturnToSongView;
-	int32_t xZoomForReturnToSongView;
-	bool tripletsOn;
-	uint32_t tripletsLevel{}; // The number of ticks in one of the three triplets
-
-	uint64_t timePerTimerTickBig{};
-	int32_t divideByTimePerTimerTick{};
-
-	// How many orders of magnitude faster internal ticks are going than input ticks. Used in combination with
-	// inputTickScale, which is usually 1, but is different if there's an inputTickScaleClip. So, e.g. if
-	// insideWorldTickMagnitude is 1, this means the inside world is spinning twice as fast as the external world, so
+	// project.transport.inside_world_tick_magnitude is how many orders of magnitude faster internal ticks are going
+	// than input ticks. Used in combination with inputTickScale, which is usually 1, but is different if there's an
+	// inputTickScaleClip. So, e.g. if it is 1, the inside world is spinning twice as fast as the external world, so
 	// MIDI sync coming in representing an 8th-note would be interpreted internally as a quarter-note (because two
-	// internal 8th-notes would have happened, twice as fast, making a quarter-note)
-	int32_t insideWorldTickMagnitude;
-
-	// Sometimes, we'll do weird stuff to insideWorldTickMagnitude for sync-scaling, which would make BPM values look
-	// weird. So, we keep insideWorldTickMagnitudeOffsetFromBPM
-	int32_t insideWorldTickMagnitudeOffsetFromBPM;
-
-	int8_t swingAmount;
-	uint8_t swingInterval;
-
-	Section sections[kMaxNumSections];
-
-	MusicalKey key;
-	std::bitset<NUM_PRESET_SCALES> disabledPresetScales{};
-
-	std::string name{};
-
-	bool affectEntire;
-
-	SessionLayoutType sessionLayout = FlashStorage::defaultSessionLayout;
-	int32_t songGridScrollX = 0;
-	int32_t songGridScrollY = 0;
-	int32_t songViewYScroll;
-	int32_t arrangementYScroll;
+	// internal 8th-notes would have happened, twice as fast, making a quarter-note).
+	//
+	// Sometimes we do weird stuff to the magnitude for sync-scaling, which would make BPM values look weird. So we
+	// keep project.transport.inside_world_tick_magnitude_offset_from_bpm separately.
 
 	uint8_t sectionToReturnToAfterSongEnd{};
 
 	bool wasLastInArrangementEditor{};
-	int32_t lastClipInstanceEnteredStartPos; // -1 means we are not "inside" an arrangement. While we're in the
-	                                         // ArrangementEditor, it's 0
-
-	bool arrangerAutoScrollModeActive;
-
-	MIDIInstrument* hibernatingMIDIInstrument;
 
 	bool outputClipInstanceListIsCurrentlyInvalid; // Set to true during scenarios like replaceInstrument(), to warn
 	                                               // other functions not to look at Output::clipInstances
 
-	bool paramsInAutomationMode;
-
-	bool inClipMinderViewOnLoad{}; // Temp variable only valid while loading Song
-
-	int32_t unautomatedParamValues[deluge::modulation::params::kMaxNumUnpatchedParams]{};
-
-	std::string dirPath{};
-
-	std::array<SessionMacro, 8> sessionMacros{};
+	// View/UI state used at runtime but never serialized (selection, transient flags).
+	RuntimeViewState runtimeView;
 
 	bool getAnyClipsSoloing() const;
 	Clip* getCurrentClip();
 	void setCurrentClip(Clip* clip) {
-		if (currentClip != nullptr) {
-			previousClip = currentClip;
+		if (runtimeView.currentClip != nullptr) {
+			runtimeView.previousClip = runtimeView.currentClip;
 		}
-		currentClip = clip;
+		runtimeView.currentClip = clip;
 	}
 	uint32_t getInputTickScale();
 	Clip* getSyncScalingClip();
 	void setInputTickScaleClip(Clip* clip);
-	inline bool isFillModeActive() { return fillModeActive; }
+	inline bool isFillModeActive() { return runtimeView.fillModeActive; }
 	void changeFillMode(bool on);
 	void loadNextSong();
 	void setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
 	void doubleClipLength(InstrumentClip* clip, Action* action = nullptr);
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = nullptr);
-	Error readFromFile(Deserializer& reader);
-	void writeToFile();
+	/// @brief Read the engine's part of a song document; the model's parts are decoded before (bridge::loadSong).
+	/// @param reader           The song file reader.
+	/// @param timePerTimerTick The tempo the model decoded, applied once the song is read.
+	/// @return Error::NONE on success, else the read failure.
+	Error readFromFile(Deserializer& reader, uint64_t timePerTimerTick);
+
+	/// @brief Give every output and kit drum of the song that lacks one a durable id, then bind each to its DOM record
+	///        (adoptOutput / adoptDrum).
+	///
+	/// Clips already have an id from construction. Called at load before the param relocation; idempotent.
+	void assignMissingIds();
+
+	/// @brief Bind a song-resident drum to the persistent DOM structural store.
+	///
+	/// Idempotent: returns early if already bound. Mints a durable id via generateNewDrumId() only if the drum has
+	/// none, then gets or creates the drum's DocDrum in project.drum_structure, seeds it from the engine drum, and
+	/// points docDrum_ at it. Called per drum from assignMissingIds (load) and Kit::addDrum (runtime).
+	///
+	/// @param drum The drum to bind.
+	void adoptDrum(Drum* drum);
+	/// @brief Drop a drum's structural record when the drum is genuinely destroyed, so the store doesn't accumulate
+	///        dead entries.
+	///
+	/// Guarded like removeDocClip: skipped during whole-song teardown.
+	///
+	/// @param drum The destroyed drum.
+	void removeDocDrum(Drum* drum);
+
+	/// @brief Bind a song-resident output to the persistent DOM identity store.
+	///
+	/// Idempotent: returns early if already bound. Mints a durable id via generateNewOutputId() only if the output
+	/// has none, then gets or creates the output's DocOutput in project.output_structure, seeds it via
+	/// Output::seedDocOutputIdentity(), and points docOutput_ at it. Called per output from assignMissingIds (load).
+	///
+	/// @param output The output to bind.
+	void adoptOutput(Output* output);
+	/// @brief Drop an output's identity record when the output is genuinely destroyed, so the store doesn't
+	///        accumulate dead entries.
+	///
+	/// Guarded like removeDocDrum: skipped during whole-song teardown.
+	///
+	/// @param output The destroyed output.
+	void removeDocOutput(Output* output);
+
+	void writeToFile(Serializer& writer);
 	void loadAllSamples(bool mayActuallyReadFiles = true, deluge::storage::AudioLoadContext* context = nullptr);
 	/// @brief Report every audio file the song names to @p visitor, in load order: each output's, then each audio
 	///        clip's, with a checkpoint before every clip. Loads nothing.
 	void walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor);
-	void renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending);
+	/// @brief Renders every output into @p outputBuffer and feeds the mix recorders, then ticks the song's own params.
+	/// @param outputBuffer        Stereo mix buffer to render into.
+	/// @param reverbBuffer        Reverb send buffer.
+	/// @param sideChainHitPending Pending sidechain hit.
+	/// @return The master chain's inputs for the half before the reverb, read before that tick.
+	deluge::effects::MasterChainInputs renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer,
+	                                               int32_t sideChainHitPending);
 	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);
-	Clip* syncScalingClip;
 	void setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction = false);
 	bool hasAnySwing();
 	void resyncLFOs();
@@ -341,12 +316,6 @@ public:
 	Clip* getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* prevClip);
 	bool anyClipsSoloing;
 
-	ParamManager* getBackedUpParamManagerForExactClip(ModControllableAudio* modControllable, Clip* clip,
-	                                                  ParamManager* stealInto = nullptr);
-	ParamManager* getBackedUpParamManagerPreferablyWithClip(ModControllableAudio* modControllable, Clip* clip,
-	                                                        ParamManager* stealInto = nullptr);
-	void backUpParamManager(ModControllableAudio* modControllable, Clip* clip, ParamManagerForTimeline* paramManager,
-	                        bool shouldStealExpressionParamsToo = false);
 	void moveInstrumentToHibernationList(Instrument* instrument);
 	void deleteOrHibernateOutputIfNoClips(Output* output);
 	void removeInstrumentFromHibernationList(Instrument* instrument);
@@ -355,7 +324,6 @@ public:
 	bool doesNonAudioSlotHaveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot);
 	bool doesOutputHaveAnyClips(Output* output);
 	void deleteBackedUpParamManagersForClip(Clip* clip);
-	void deleteBackedUpParamManagersForModControllable(ModControllableAudio* modControllable);
 	void deleteHibernatingInstrumentWithSlot(OutputType outputType, char const* name);
 	void loadCrucialSamplesOnly(deluge::storage::AudioLoadContext* context = nullptr);
 	/// @brief As walkSampleDemands(), but only what the active clips need to sound, with no clip checkpoints.
@@ -384,6 +352,46 @@ public:
 	void reassessWhetherAnyOutputsSoloingInArrangement();
 	bool isOutputActiveInArrangement(Output* output);
 	Output* getOutputFromIndex(int32_t index);
+
+	// --- Stable per-song serial identity for clips/outputs ---
+	// Each clip/output carries a persisted serial id (Clip::id / Output::id) from these per-song monotonic counters:
+	// a clip takes one at construction, outputs and drums at load (assignMissingIds) or adoption; loaded ids are kept.
+	// Unlike the transient positional index, the id survives reorders and reloads, so references (e.g. session macros)
+	// can resolve by id instead of position.
+	uint32_t generateNewClipId() { return clipIdCounter_++; }
+	/// A new output id: past every id the counter has seen, and one no output record of the song holds (a hibernating
+	/// instrument's id is not walked when the counter catches up after a load).
+	uint32_t generateNewOutputId() {
+		while (project.output_structure.find(outputIdCounter_) != nullptr) {
+			outputIdCounter_++;
+		}
+		return outputIdCounter_++;
+	}
+	/// The durable id of @p output, a member of this song, minting one first if it has none yet (an output made
+	/// since the load gets one only when something needs to name it).
+	uint32_t outputIdFor(Output& output) {
+		if (!output.id()) {
+			output.setId(generateNewOutputId());
+		}
+		return *output.id();
+	}
+	/// A new drum id: past every id the counter has seen, and one no drum record of the song holds, so a new drum never
+	/// shares a record with a drum the counter has not passed (a hibernating kit's).
+	uint32_t generateNewDrumId() {
+		while (project.drum_structure.find(drumIdCounter_) != nullptr) {
+			drumIdCounter_++;
+		}
+		return drumIdCounter_++;
+	}
+	/// Advance the counters past every id seen in the just-loaded song, so newly created objects can't
+	/// collide with restored ids. Called once after a load completes.
+	void syncSerialIdCountersFromLoaded();
+	/// Resolve a serial id to its live object, or nullptr if no object carries that id.
+	[[nodiscard]] Clip* clipForId(uint32_t id);
+	[[nodiscard]] Output* outputForId(uint32_t id);
+	/// Resolve a drum serial id to its live Drum (scanning every Kit's drums), or nullptr if unassigned/absent.
+	[[nodiscard]] Drum* drumForId(uint32_t id);
+
 	void ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* errorMessageNormal,
 	                                                         char const* errorMessageHibernating);
 	Error placeFirstInstancesOfActiveClips(int32_t pos);
@@ -458,17 +466,6 @@ public:
 
 	// Reverb params to be stored here between loading and song being made the active one
 	dsp::Reverb::Model model;
-	float reverbRoomSize;
-	float reverbHPF;
-	float reverbLPF;
-	float reverbDamp;
-	float reverbWidth;
-	int32_t reverbPan;
-	int32_t reverbSidechainVolume;
-	int32_t reverbSidechainShape;
-	int32_t reverbSidechainAttack{};
-	int32_t reverbSidechainRelease{};
-	SyncLevel reverbSidechainSync;
 
 	// START ~ new Automation Arranger View Variables
 	int32_t lastSelectedParamID; // last selected Parameter to be edited in Automation Arranger View
@@ -506,12 +503,12 @@ public:
 	}
 	float calculateBPM(float timePerTimerTick) {
 
-		if (insideWorldTickMagnitude > 0) {
-			timePerTimerTick *= ((uint32_t)1 << (insideWorldTickMagnitude));
+		if (project.transport.inside_world_tick_magnitude > 0) {
+			timePerTimerTick *= ((uint32_t)1 << (project.transport.inside_world_tick_magnitude));
 		}
 		float tempoBPM = (float)110250 / timePerTimerTick;
-		if (insideWorldTickMagnitude < 0) {
-			tempoBPM *= ((uint32_t)1 << (-insideWorldTickMagnitude));
+		if (project.transport.inside_world_tick_magnitude < 0) {
+			tempoBPM *= ((uint32_t)1 << (-project.transport.inside_world_tick_magnitude));
 		}
 		return tempoBPM;
 	}
@@ -524,11 +521,6 @@ public:
 	ThresholdRecordingMode thresholdRecordingMode;
 
 private:
-	ScaleMapper scaleMapper;
-	NoteSet userScaleNotes;
-	bool fillModeActive;
-	Clip* currentClip = nullptr;
-	Clip* previousClip = nullptr; // for future use, maybe finding an instrument clip or something
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
 	Error readClipsFromFile(Deserializer& reader, ClipArray* clipArray);
 	void addInstrumentToHibernationList(Instrument* instrument);
@@ -539,6 +531,16 @@ private:
 	void setBPMInner(float tempoBPM, bool shouldLogAction);
 	void clearTempoAutomation(float tempoBPM);
 	int32_t intBPM{0};
+
+	// Per-song monotonic serial-id counters (see generateNewClipId). First assigned id is 1; the
+	// unassigned state is std::nullopt (Clip/Output::id), not a reserved id value.
+	uint32_t clipIdCounter_{1};
+	uint32_t outputIdCounter_{1};
+	/// While a file is read: outputs added then are adopted once ids are known, not as they are added.
+	bool readingFromFile_{false};
+	/// The drum ids this song's read has given out so far: a second drum the file names with one gets its own.
+	std::vector<uint32_t> drumIdsRead_;
+	uint32_t drumIdCounter_{1};
 };
 
 extern Song* currentSong;

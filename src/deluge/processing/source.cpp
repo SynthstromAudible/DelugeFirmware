@@ -18,6 +18,7 @@
 #include "processing/source.h"
 #include "definitions_cxx.hpp"
 #include "dsp/dx/engine.h"
+#include "engines/deluge/sound_state.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "memory/memory_allocator_interface.h"
@@ -57,6 +58,116 @@ Source::~Source() {
 	}
 }
 
+void Source::bindState(deluge::instrument::SourceState* d) {
+	state_ = d;
+	seedDocSourceScalars();
+	seedDocDxPatch();
+	seedDocRanges();
+}
+
+// Copy the DOM-owned scalars native->record. Run at bind and again at doneReadingFromFile (a SoundDrum binds before
+// its fields are parsed, so the bind-time seed is stale for drums). dxPatch and ranges are seeded separately.
+void Source::seedScalarsInto(deluge::instrument::SourceState& d) const {
+	d.osc_type = oscType;
+	d.transpose = transpose;
+	d.cents = cents;
+	d.repeat_mode = repeatMode;
+	d.time_stretch_amount = timeStretchAmount;
+	d.interpolation_mode = sampleControls.interpolationMode;
+	d.pitch_and_speed_independent = sampleControls.pitchAndSpeedAreIndependent;
+	d.reversed = sampleControls.reversed;
+}
+
+void Source::seedDocSourceScalars() {
+	if (state_ != nullptr) {
+		seedScalarsInto(*state_);
+	}
+}
+
+void Source::seedDxPatchInto(deluge::instrument::SourceState& d) const {
+	if (dxPatch != nullptr) {
+		deluge::instrument::DxPatchState p;
+		for (int32_t b = 0; b < 156; b++) {
+			p.params[b] = dxPatch->params[b];
+		}
+		p.engine_mode = dxPatch->engineMode;
+		p.random_detune = dxPatch->random_detune;
+		d.dx_patch = p;
+	}
+	else {
+		d.dx_patch.reset();
+	}
+}
+
+void Source::seedDocDxPatch() {
+	if (state_ != nullptr) {
+		seedDxPatchInto(*state_);
+	}
+}
+
+void Source::seedRangesInto(deluge::instrument::SourceState& d) const {
+	d.ranges.clear();
+	int32_t numRanges = std::ssize(ranges);
+	d.ranges.reserve(numRanges);
+	for (int32_t e = 0; e < numRanges; e++) {
+		const auto* range = static_cast<const MultisampleRange*>(ranges.getElement(e));
+		deluge::instrument::RangeState dr;
+		dr.top_note = range->topNote;
+		dr.file_path =
+		    range->sampleHolder.audioFile ? range->sampleHolder.audioFile->filePath : range->sampleHolder.filePath;
+		if (ranges.currentElementSize() == sizeof(MultisampleRange)) {
+			dr.start_pos = range->sampleHolder.startPos;
+			dr.end_pos = range->sampleHolder.endPos;
+			dr.loop_start_pos = range->sampleHolder.loopStartPos;
+			dr.loop_end_pos = range->sampleHolder.loopEndPos;
+			dr.transpose = range->sampleHolder.transpose;
+			dr.cents = range->sampleHolder.cents;
+		}
+		d.ranges.push_back(std::move(dr));
+	}
+}
+
+void Source::seedDocRanges() {
+	if (state_ != nullptr) {
+		seedRangesInto(*state_);
+	}
+}
+
+void Source::setTranspose(int16_t newTranspose) {
+	transpose = newTranspose;
+	if (state_ != nullptr) {
+		state_->transpose = newTranspose;
+	}
+}
+
+void Source::setRepeatMode(SampleRepeatMode newMode) {
+	repeatMode = newMode;
+	if (state_ != nullptr) {
+		state_->repeat_mode = newMode;
+	}
+}
+
+void Source::setTimeStretchAmount(int8_t newAmount) {
+	timeStretchAmount = newAmount;
+	if (state_ != nullptr) {
+		state_->time_stretch_amount = newAmount;
+	}
+}
+
+void Source::setInterpolationMode(InterpolationMode newMode) {
+	sampleControls.interpolationMode = newMode;
+	if (state_ != nullptr) {
+		state_->interpolation_mode = newMode;
+	}
+}
+
+void Source::setPitchAndSpeedIndependent(bool independent) {
+	sampleControls.pitchAndSpeedAreIndependent = independent;
+	if (state_ != nullptr) {
+		state_->pitch_and_speed_independent = independent;
+	}
+}
+
 // Only to be called if already determined that oscType == OscType::SAMPLE
 int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching) {
 	MultiRange* range = getRange(note);
@@ -68,6 +179,9 @@ int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeS
 
 void Source::setCents(int32_t newCents) {
 	cents = newCents;
+	if (state_ != nullptr) {
+		state_->cents = newCents;
+	}
 	recalculateFineTuner();
 }
 
@@ -117,6 +231,9 @@ deluge::storage::Walk Source::walkSampleDemands(deluge::storage::SampleLoadVisit
 // Only to be called if already determined that oscType == OscType::SAMPLE
 void Source::setReversed(bool newReversed) {
 	sampleControls.reversed = newReversed;
+	if (state_ != nullptr) {
+		state_->reversed = newReversed;
+	}
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		MultiRange* range = (MultisampleRange*)ranges.getElement(e);
 		SampleHolder* holder = (SampleHolder*)range->getAudioFileHolder();
@@ -128,6 +245,8 @@ void Source::setReversed(bool newReversed) {
 			holder->claimClusterReasons(sampleControls.isCurrentlyReversed());
 		}
 	}
+	// The endPos fixups above changed range zones: reflect them into the record.
+	seedDocRanges();
 }
 
 MultiRange* Source::getRange(int32_t note) {
@@ -169,6 +288,9 @@ MultiRange* Source::getOrCreateFirstRange() {
 		}
 
 		newRange->topNote = 32767;
+		// The range collection just grew from empty: reflect it into the record. Self-guards when unbound (e.g. a
+		// Source being built before adoption); bind/doneReadingFromFile seed it later in that case.
+		seedDocRanges();
 		return newRange;
 	}
 
@@ -272,9 +394,17 @@ doChangeType:
 	}
 
 	oscType = newType;
+	if (state_ != nullptr) {
+		state_->osc_type = newType;
+	}
 	if (oscType == OscType::DX7) {
 		ensureDxPatch();
 	}
+	seedDocDxPatch(); // reflect the (possibly newly-created) patch into the record
+	// changeType() (above, when the element size actually changed) rebuilds every range as the new variant type,
+	// preserving only topNote: reflect the whole list into the record. Also covers the getOrCreateFirstRange()
+	// insert-from-empty path (redundant with its own reseed, but harmless).
+	seedDocRanges();
 }
 
 DxPatch* Source::ensureDxPatch() {

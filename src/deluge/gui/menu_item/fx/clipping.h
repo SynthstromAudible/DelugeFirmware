@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -30,7 +31,10 @@ class Clipping final : public IntegerWithOff {
 public:
 	using IntegerWithOff::IntegerWithOff;
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->clippingAmount); }
+	void readCurrentValue() override {
+		this->setValue(
+		    soundEditor.currentModControllable->modControllableSnapshot().effects.saturation.clipping_amount);
+	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();
@@ -43,13 +47,15 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->clippingAmount = current_value;
+					effectSettingFor(*soundDrum, "clippingAmount",
+					                 deluge::serialization::Value::makeNumber(current_value));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->clippingAmount = current_value;
+			effectSettingFor(*soundEditor.currentModControllable, "clippingAmount",
+			                 deluge::serialization::Value::makeNumber(current_value));
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return 15; }

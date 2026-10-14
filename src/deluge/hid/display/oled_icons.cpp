@@ -114,6 +114,14 @@ const uint8_t OLED::downArrowIcon[] = {
     0b00010000, //<
 };
 
+const uint8_t OLED::upgradedIcon[] = {
+    0b00000100, //<
+    0b00000010, //<
+    0b01111111, //<
+    0b00000010, //<
+    0b00000100, //<
+};
+
 const uint8_t OLED::rightArrowIcon[] = {
     0b00010101, //<
     0b00001110, //<

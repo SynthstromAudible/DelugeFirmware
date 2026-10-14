@@ -92,10 +92,8 @@ void init_heaps() {
 			g_sram_hi = g_sram_lo + r.size;
 		}
 		// One unified SDRAM heap over the whole LARGE_EXTERNAL region (which on both
-		// BSPs is exactly [__sdram_bss_end, external_end) — the post-BSS usable SDRAM
-		// the GMA used to split into stealable/external/external_small). Collapsing
-		// the partitions is the redesign's unified pool. The reclaim hook (cache
-		// eviction) is registered by the GeneralMemoryAllocator.
+		// BSPs is exactly [__sdram_static_end, external_end) — the SDRAM after the static content).
+		// The reclaim hook (cache eviction) is registered by the GeneralMemoryAllocator.
 		if (r.kind == DELUGE_MEM_LARGE_EXTERNAL && g_sdram == nullptr) {
 			size_t sdram_size = r.size;
 #ifdef DELUGE_DETERMINISTIC_ALLOC
@@ -213,8 +211,14 @@ void countIfAudioTier() {
 uint32_t audioTierAllocations() {
 	return g_audioTierAllocations.load(std::memory_order_relaxed);
 }
+void countRenderAllocation() {
+	countIfAudioTier();
+}
 void noteRenderBlock(bool entering) {
 	g_renderBlockDepth += entering ? 1 : -1;
+}
+bool inRenderBlock() {
+	return g_renderBlockDepth > 0 || deluge_tier_current() == DELUGE_TIER_AUDIO;
 }
 namespace {
 std::atomic<std::size_t> g_failNextSize{0};
@@ -232,12 +236,17 @@ bool allocationFailurePending() {
 #else
 void noteRenderBlock(bool) {
 }
+bool inRenderBlock() {
+	return false;
+}
 namespace {
 inline void countIfAudioTier() {
 }
 } // namespace
 uint32_t audioTierAllocations() {
 	return 0;
+}
+void countRenderAllocation() {
 }
 #endif
 
@@ -263,6 +272,11 @@ void* alloc_sdram(std::size_t size, std::size_t align) {
 }
 void* alloc_external(std::size_t size, std::size_t align) {
 	countIfAudioTier();
+#ifdef DELUGE_HOST
+	if (injectedAllocationFailure(size)) {
+		return nullptr;
+	}
+#endif
 	init_heaps();
 	// external collapsed into the one SDRAM heap
 	return track_alloc(finalize(deluge_alloc(g_sdram, size, align), size), size, __builtin_return_address(0));

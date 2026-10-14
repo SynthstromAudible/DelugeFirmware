@@ -1,0 +1,8 @@
+<patchCables>
+	<patchCable source="x" destination="pitch" amount="0x10000000" />
+	<patchCable source="wobble" destination="pan" amount="0x10000000" />
+	<patchCable source="lfo1" destination="pan" amount="0x00000000" />
+	<patchCable source="lfo1" destination="nosuchparam" amount="0x10000000" />
+	<patchCable source="note" destination="pan" amount="0x10000000" />
+	<patchCable source="note" destination="pan" amount="0x08000000" />
+</patchCables>

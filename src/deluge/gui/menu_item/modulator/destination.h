@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -28,7 +29,7 @@ namespace deluge::gui::menu_item::modulator {
 class Destination final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->modulator1ToModulator0); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->snapshot().modulator1ToModulator0); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();
@@ -43,15 +44,17 @@ public:
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
-					if (soundDrum->synthMode == SynthMode::FM) {
-						soundDrum->modulator1ToModulator0 = current_value;
+					if (soundDrum->getSynthMode() == SynthMode::FM) {
+						settingFor(*soundDrum, "modulator2/toModulator1",
+						           serialization::Value::makeNumber(current_value));
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->modulator1ToModulator0 = current_value;
+			settingFor(*soundEditor.currentSound, "modulator2/toModulator1",
+			           serialization::Value::makeNumber(current_value));
 		}
 	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
@@ -64,7 +67,7 @@ public:
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return sound->synthMode == SynthMode::FM;
+		return sound->getSynthMode() == SynthMode::FM;
 	}
 };
 

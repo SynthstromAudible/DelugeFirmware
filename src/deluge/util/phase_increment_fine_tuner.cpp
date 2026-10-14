@@ -33,6 +33,6 @@ void PhaseIncrementFineTuner::setNoDetune() {
 	multiplier = 1073741824;
 }
 
-int32_t PhaseIncrementFineTuner::detune(int32_t phaseIncrement) {
+int32_t PhaseIncrementFineTuner::detune(int32_t phaseIncrement) const {
 	return multiply_32x32_rshift32(phaseIncrement, multiplier) << 2;
 }

@@ -29,10 +29,53 @@ class WaveTable;
 class SampleHolder;
 class DxPatch;
 
+#include "engines/deluge/sound_state.h"
+
 class Source {
 public:
 	Source();
 	~Source();
+
+	/// @brief Non-owning pointer into the owning Sound's SoundState (state_->sources[s]); null while unbound.
+	///
+	/// A Source is never copied by value (it lives as a fixed member of its Sound), so this pointer has no clone
+	/// hazard. The Sound binds it at bindState and re-seeds it at doneReadingFromFile. Save reads the record via the
+	/// Sound's state_.
+	deluge::instrument::SourceState* state_{nullptr};
+
+	/// @brief Bind this Source to its record and seed the record from the native fields.
+	/// @param d The SourceState record to bind (state_->sources[s] of the owning Sound).
+	void bindState(deluge::instrument::SourceState* d);
+
+	/// @brief Copy the scalar fields into the bound record; no-op while unbound.
+	void seedDocSourceScalars();
+
+	/// @brief Copy the scalars seedDocSourceScalars copies, into @p d.
+	/// @param d The record to fill.
+	void seedScalarsInto(deluge::instrument::SourceState& d) const;
+
+	/// @brief Re-seed the bound record's DX7 patch from the native patch; no-op while unbound.
+	///
+	/// The DX7 patch is mutated in place (per-param edits, engine mode, cartridge load) rather than through one
+	/// setter, so the whole optional<DxPatchState> record is re-seeded after any mutation (bind,
+	/// doneReadingFromFile, the dx/ menus, setOscType via ensureDxPatch).
+	void seedDocDxPatch();
+
+	/// @brief Copy the DX7 patch into @p d: the 156 params, engineMode and random_detune, or clear it when the
+	/// engine patch is absent (non-DX7 osc).
+	/// @param d The record to fill.
+	void seedDxPatchInto(deluge::instrument::SourceState& d) const;
+
+	/// @brief Re-seed the bound record's whole range list from the native ranges; no-op while unbound.
+	///
+	/// Called after any range mutation (zone edit, add/remove, sample-set, reverse). The engine's
+	/// sampleHolder/ranges stay the working structure; this mirrors them into the record.
+	void seedDocRanges();
+
+	/// @brief Copy the ranges into @p d: each one's top note and file, and while they are sample ranges (whatever the
+	/// type now) their zones and tuning, which a type change and back keeps.
+	/// @param d The record to fill.
+	void seedRangesInto(deluge::instrument::SourceState& d) const;
 
 	SampleControls sampleControls;
 
@@ -58,6 +101,26 @@ public:
 	static bool renderInStereo(OscType oscType, uint8_t unisonStereoSpread, uint8_t numUnison,
 	                           SampleHolder* sampleHolder);
 	void setCents(int32_t newCents);
+	/// @name "Record-writing setters"
+	/// Each writes the SourceState record (when bound) alongside the native cache. Every menu / runtime write site
+	/// funnels through these; save reads the record.
+	/// @{
+	/// @brief Set the transpose, in semitones.
+	/// @param newTranspose New transpose.
+	void setTranspose(int16_t newTranspose);
+	/// @brief Set the sample repeat mode.
+	/// @param newMode New mode.
+	void setRepeatMode(SampleRepeatMode newMode);
+	/// @brief Set the time-stretch amount.
+	/// @param newAmount New amount.
+	void setTimeStretchAmount(int8_t newAmount);
+	/// @brief Set the sample interpolation mode.
+	/// @param newMode New mode.
+	void setInterpolationMode(InterpolationMode newMode);
+	/// @brief Set whether pitch and speed are independent.
+	/// @param independent True for independent.
+	void setPitchAndSpeedIndependent(bool independent);
+	/// @}
 	void recalculateFineTuner();
 	int32_t getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching = false);
 	void detachAllAudioFiles();

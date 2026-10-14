@@ -16,6 +16,11 @@
  */
 
 #include "scenarios/sample_load_tree_scenario.h"
+#include "extern.h"
+#include "model/edits/set_source_ranges.h"
+#include "model/project_bridge/slot_bridge.h"
+#include "model/project_bridge/source_bridge.h"
+#include "scenarios/slot_coherence.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
@@ -102,7 +107,9 @@ namespace {
 
 constexpr const char* kSongDir = "SONGS";
 constexpr const char* kSongName = "SLTSONG1";
-constexpr const char* kSongPath = "SONGS/SLTSONG1.XML";
+const std::string kSongPathString =
+    std::string{"SONGS/SLTSONG1"} + std::string{deluge::storage::extensionOf(deluge::storage::kSongSaveFormat)};
+const char* const kSongPath = kSongPathString.c_str();
 /// Where a collect-media save puts the song's samples, under their flattened names.
 constexpr const char* kSongFolder = "SONGS/SLTSONG1";
 
@@ -133,7 +140,9 @@ constexpr const char* kKitPresetResolvedB = "KITS/SLTPKIT/SLTPKB.WAV";
 // three drums cover the kit filter, a second synth whose clip is not playing, and a second audio clip that is not
 // playing but is still its track's active clip.
 constexpr const char* kCrucialSongName = "SLTSONG2";
-constexpr const char* kCrucialSongPath = "SONGS/SLTSONG2.XML";
+const std::string kCrucialSongPathString =
+    std::string{"SONGS/SLTSONG2"} + std::string{deluge::storage::extensionOf(deluge::storage::kSongSaveFormat)};
+const char* const kCrucialSongPath = kCrucialSongPathString.c_str();
 constexpr const char* kCrucialSongFolder = "SONGS/SLTSONG2";
 /// The kit preset the new-kit-track gesture picks up for the second kit: it sorts before every other kit preset.
 constexpr const char* kCrucialKitPath = "KITS/SLTCKIT.XML";
@@ -333,9 +342,9 @@ SoundDrum* addSampleDrum(Kit& kit, Clip* clip, const char* name, const char* sam
 		return nullptr;
 	}
 	auto* drum = new (memory) SoundDrum();
-	drum->drumName = name;
 	Sound::initParams(&paramManager);
 	kit.addDrum(drum);
+	drum->setName(name);
 	drum->setupAsSample(&paramManager);
 	drum->sources[0].setOscType(OscType::SAMPLE);
 	AudioFileHolder* holder = firstHolder(drum->sources[0]);
@@ -347,7 +356,9 @@ SoundDrum* addSampleDrum(Kit& kit, Clip* clip, const char* name, const char* sam
 	if (load) {
 		(void)holder->loadFile(false, false, true);
 	}
-	currentSong->backUpParamManager(drum, clip, &paramManager, true);
+	// A bound source saves its ranges from its record: reseed it, as the sample browser's claim does.
+	drum->sources[0].seedDocRanges();
+	currentSong->live.param_backup.backUp(drum, clip, &paramManager, true);
 	return drum;
 }
 
@@ -355,7 +366,7 @@ SoundDrum* addSampleDrum(Kit& kit, Clip* clip, const char* name, const char* sam
 /// clip. Every holder is loaded, so a collect-media save copies every file.
 bool buildSong() {
 	SoundInstrument* synth = nullptr;
-	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		if (output->type == OutputType::SYNTH) {
 			synth = static_cast<SoundInstrument*>(output);
 			break;
@@ -374,6 +385,13 @@ bool buildSong() {
 	sampleHolder->filePath = kSynthSample;
 	waveTableHolder->filePath = kWaveTable;
 	(void)synth->loadAllAudioFiles(true);
+	// The synth's sample ends where a file from older firmware puts an unset end: loading the song clamps it to the
+	// sample's length, and the record and slot must say so.
+	static_cast<SampleHolder*>(sampleHolder)->endPos = 9999999;
+	// The song's synth is bound to its slot, so its sources save their ranges from their records: reseed them, as the
+	// sample browser's claim does.
+	synth->sources[0].seedDocRanges();
+	synth->sources[1].seedDocRanges();
 
 	// The new-kit-track gesture, which loads kSongKitPath.
 	Clip* kitClipBase = deluge::harness::createNewInstrumentClip(OutputType::KIT, 1, kSongKitPath);
@@ -382,7 +400,7 @@ bool buildSong() {
 	}
 	AudioFileHolder* kitHolder = nullptr;
 	for (Drum* drum = static_cast<Kit*>(kitClipBase->output)->firstDrum; drum != nullptr; drum = drum->next) {
-		if (drum->type == DrumType::SOUND && static_cast<SoundDrum*>(drum)->drumName == kKitDrumName) {
+		if (drum->type == DrumType::SOUND && static_cast<SoundDrum*>(drum)->name() == kKitDrumName) {
 			kitHolder = firstHolder(static_cast<SoundDrum*>(drum)->sources[0]);
 		}
 	}
@@ -397,6 +415,7 @@ bool buildSong() {
 	auto* audioClip = static_cast<AudioClip*>(audioClipBase);
 	audioClip->sampleHolder.filePath = kClipSample;
 	audioClip->loadSample(true);
+	audioClip->syncSampleRecordFromEngine(); // the save writes the clip's record, not the holder
 
 	printf("SLT-SETUP built synth=%d wavetable=%d kitDrum=%d audioClip=%d\n",
 	       sampleHolder->audioFile != nullptr ? 1 : 0, waveTableHolder->audioFile != nullptr ? 1 : 0,
@@ -408,7 +427,7 @@ bool buildSong() {
 /// card, so the song load can only find them among the collected copies. The audio clip's file stays resident and
 /// is claimed by the load's memory-only pass.
 void releaseSongFiles() {
-	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		if (output->type == OutputType::SYNTH) {
 			auto* synth = static_cast<SoundInstrument*>(output);
 			for (int32_t s = 0; s < kNumSources; s++) {
@@ -458,8 +477,8 @@ bool writeKitPreset(const char* path, std::initializer_list<std::pair<const char
 		return fail("no kit for a preset");
 	}
 	auto* kit = static_cast<Kit*>(kitBase);
-	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr, &kitParams,
-	                                true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
+	                                      &kitParams, true);
 	for (const auto& [name, sample] : drums) {
 		if (addSampleDrum(*kit, nullptr, name, sample, /*load=*/false) == nullptr) {
 			return false;
@@ -484,8 +503,8 @@ bool writePresets() {
 		return fail("the preset synth has no sample range");
 	}
 	holder->filePath = kSynthPresetSample;
-	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
-	                                &synthParams, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
+	                                      &synthParams, true);
 	if (!writeInstrumentDocument(*synth, kSynthPresetPath, "\n</sound>\n")) {
 		return false;
 	}
@@ -577,11 +596,52 @@ std::string collected(const char* samplePath) {
 	return std::string(kSongFolder) + "/" + (samplePath + std::strlen("SAMPLES/"));
 }
 
+/// A zone moved under a sounding note: the song's synth sounds a note through its clip, its first range's start moves
+/// through an Edit, and the note keeps sounding with the sound coherent.
+void checkLiveZoneMove() {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
+		auto* clip = static_cast<InstrumentClip*>(output->getActiveClip());
+		if (output->type != OutputType::SYNTH || clip == nullptr) {
+			continue;
+		}
+		auto* synth = static_cast<SoundInstrument*>(output);
+		const auto address = deluge::bridge::slotAddressOf(*synth);
+		if (!address || synth->sources[0].oscType != OscType::SAMPLE || synth->sources[0].ranges.empty()) {
+			continue;
+		}
+		char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* ms =
+		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, clip, &clip->paramManager);
+		synth->Sound::noteOn(ms, &synth->arpeggiator, 60, zeroMPEValues);
+		const size_t sounding = synth->numActiveVoices();
+		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(synth->sources[0]);
+		if (ranges[0].start_pos + 1000 < ranges[0].end_pos) {
+			ranges[0].start_pos += 1000;
+		}
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		deluge::edits::SetSourceRanges edit{*address, 0, ranges};
+		const bool applied = deluge::edits::apply(ctx, edit) == Error::NONE;
+		const bool kept = synth->numActiveVoices() == sounding;
+		printf("SLT-LIVE-ZONE sounding=%zu applied=%d kept=%d\n", sounding, applied ? 1 : 0, kept ? 1 : 0);
+		if (sounding == 0 || !applied || !kept) {
+			printf("SLT-LIVE-ZONE FAIL a zone moved under a sounding note must keep it sounding\n");
+			g_failures++;
+		}
+		g_failures += deluge::harness::expectSongCoherent(*currentSong, "live-zone");
+		synth->killAllVoices();
+		return;
+	}
+	printf("SLT-LIVE-ZONE FAIL the song has no sample synth with a clip\n");
+	g_failures++;
+}
+
 void checkSong() {
+	// What loading made of each sound (a clamped end, a path found elsewhere) is what its record and slot say.
+	g_failures += deluge::harness::expectSongCoherent(*currentSong, "song");
 	bool sawSynth = false;
 	bool sawKit = false;
 	bool sawClip = false;
-	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		if (output->type == OutputType::SYNTH) {
 			auto* synth = static_cast<SoundInstrument*>(output);
 			if (synth->sources[0].oscType != OscType::SAMPLE) {
@@ -599,7 +659,7 @@ void checkSong() {
 					continue;
 				}
 				auto* soundDrum = static_cast<SoundDrum*>(drum);
-				const bool fixture = soundDrum->drumName == kKitDrumName;
+				const bool fixture = soundDrum->name() == kKitDrumName;
 				sawKit = sawKit || fixture;
 				const std::string alt = collected(kKitSample);
 				reportHolder("song", fixture ? "kit-drum" : "kit-other", firstHolder(soundDrum->sources[0]),
@@ -607,8 +667,8 @@ void checkSong() {
 			}
 		}
 	}
-	for (int32_t c = 0; c < std::ssize(currentSong->sessionClips); c++) {
-		Clip* clip = currentSong->sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(currentSong->live.clips.session_clips); c++) {
+		Clip* clip = currentSong->live.clips.session_clips[c];
 		if (clip->type != ClipType::AUDIO) {
 			continue;
 		}
@@ -712,7 +772,7 @@ bool g_crucialSnapshotTaken = false;
 /// Visit every sample holder of @p song: each synth's source ranges, each kit's sound drums, each session audio clip.
 template <typename Visit>
 void forEachSongHolder(Song& song, Visit visit) {
-	for (Output* output = song.firstOutput; output != nullptr; output = output->next) {
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
 		if (output->type == OutputType::SYNTH) {
 			auto* synth = static_cast<SoundInstrument*>(output);
 			for (int32_t s = 0; s < kNumSources; s++) {
@@ -733,7 +793,7 @@ void forEachSongHolder(Song& song, Visit visit) {
 			}
 		}
 	}
-	for (Clip* clip : song.sessionClips) {
+	for (Clip* clip : song.live.clips.session_clips) {
 		if (clip->type == ClipType::AUDIO) {
 			visit(&static_cast<AudioClip*>(clip)->sampleHolder);
 		}
@@ -776,7 +836,7 @@ bool buildCrucialSong() {
 		if (drum->type != DrumType::SOUND) {
 			continue;
 		}
-		const std::string& name = static_cast<SoundDrum*>(drum)->drumName;
+		const std::string& name = static_cast<SoundDrum*>(drum)->name();
 		if (name != kCrucialDrumA && name != kCrucialDrumB && name != kCrucialDrumC) {
 			continue;
 		}
@@ -794,7 +854,7 @@ bool buildCrucialSong() {
 		    == 0) {
 			return fail("a note could not be added to a crucial kit row");
 		}
-		row->muted = (name == kCrucialDrumB);
+		row->setMuted(name == kCrucialDrumB);
 	}
 	if (drums != 3) {
 		return fail("the crucial kit clip does not have its three drums");
@@ -816,6 +876,7 @@ bool buildCrucialSong() {
 	synthBHolder->setAudioFile(nullptr);
 	synthBHolder->filePath = kCrucialSynthSample;
 	(void)synthBHolder->loadFile(false, false, true);
+	synthB->sources[0].seedDocRanges(); // the save writes the source's record, not the holder
 
 	// A second audio clip, on a track of its own: its track's active clip, but not playing.
 	Clip* audioClipBase = sessionView.createNewClip(OutputType::AUDIO, 5);
@@ -826,13 +887,14 @@ bool buildCrucialSong() {
 	audioClipB->activeIfNoSolo = false;
 	audioClipB->sampleHolder.filePath = kCrucialClipSample;
 	audioClipB->loadSample(true);
+	audioClipB->syncSampleRecordFromEngine(); // the save writes the clip's record, not the holder
 
 	int32_t playing = 0;
-	for (Clip* clip : currentSong->sessionClips) {
+	for (Clip* clip : currentSong->live.clips.session_clips) {
 		playing += currentSong->isClipActive(clip) ? 1 : 0;
 	}
 	printf("SLT-CRUCIAL setup clips=%d playing=%d kitDrums=%d synthB=%d audioB=%d audioBActiveOnTrack=%d\n",
-	       static_cast<int>(currentSong->sessionClips.size()), playing, drums,
+	       static_cast<int>(currentSong->live.clips.session_clips.size()), playing, drums,
 	       synthBHolder->audioFile != nullptr ? 1 : 0, audioClipB->sampleHolder.audioFile != nullptr ? 1 : 0,
 	       audioClipB->isActiveOnOutput() ? 1 : 0);
 	return true;
@@ -863,6 +925,8 @@ void renderWhileArmed() {
 }
 
 void checkCrucialLoad() {
+	// What loading made of each sound (a clamped end, a path found elsewhere) is what its record and slot say.
+	g_failures += deluge::harness::expectSongCoherent(*currentSong, "crucial");
 	printf("SLT-CRUCIAL-SUMMARY clockAtLoad=%d swapAfterTicks=%d renderedBlocks=%d routines=%d snapshot=%d\n",
 	       g_crucialClockAtLoad ? 1 : 0, g_crucialSwapTick, g_crucialRendered, g_crucialRoutines,
 	       g_crucialSnapshotTaken ? 1 : 0);
@@ -1756,6 +1820,8 @@ void checkOrphan() {
 }
 
 void checkAsyncLeg() {
+	// What loading made of each sound (a clamped end, a path found elsewhere) is what its record and slot say.
+	g_failures += deluge::harness::expectSongCoherent(*currentSong, "async");
 	using deluge::storage::AsyncSampleLoad;
 	const char* leg = asyncLegName(g_asyncLeg);
 	if (!g_asyncLoad.has_value() && g_asyncLeg != AsyncLeg::Kit) {
@@ -1969,6 +2035,7 @@ void runTick() {
 		break;
 	case Stage::SongCheck:
 		checkSong();
+		checkLiveZoneMove();
 		g_stage = Stage::Presets;
 		break;
 	case Stage::Presets:

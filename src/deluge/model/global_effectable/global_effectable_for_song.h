@@ -17,15 +17,26 @@
 
 #pragma once
 
+#include "engines/effects/master_chain.h"
 #include "model/global_effectable/global_effectable.h"
 
 class GlobalEffectableForSong final : public GlobalEffectable {
 public:
 	GlobalEffectableForSong();
+	~GlobalEffectableForSong() override;
+
+	[[nodiscard]] deluge::effects::MasterChain& chain() { return chain_; }
+	[[nodiscard]] deluge::effects::ChainCore& core() override { return chain_.core(); }
+	[[nodiscard]] const deluge::effects::ChainCore& core() const override { return chain_.core(); }
+	[[nodiscard]] deluge::effects::Filter& filter() override { return chain_.filter(); }
 
 	uint8_t* getModKnobMode() override { return &modKnobMode; }
 
 	uint8_t modKnobMode;
+
+private:
+	/// @brief The song's master: its effects around the reverb.
+	deluge::effects::MasterChain chain_;
 
 protected:
 	bool isSong() override { return true; }

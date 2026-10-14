@@ -83,6 +83,27 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/deluge/synth/|scripts/(check_synth_boundary\.py|synth_boundary_allowlist\.txt))
+      - id: library-boundary
+        name: library boundaries
+        description: each standalone library may include only the standard library, itself and its declared dependencies
+        entry: python3 scripts/check_library_boundary.py
+        language: system
+        pass_filenames: false
+        files: ^(src/(engine-api|engines|serialization|music-theory|deluge-project)/|scripts/(check|test_check)_library_boundary\.py)
+      - id: model-words
+        name: the model names no engine's state
+        description: no file of the model may name a sound record or one of the Deluge instrument's words
+        entry: python3 scripts/check_model_words.py
+        language: system
+        pass_filenames: false
+        files: ^(src/deluge-project/|scripts/check_model_words\.py)
+      - id: setting-menus
+        name: no gesture sets a sound's instrument state without its Edit
+        description: no gesture under src/deluge/gui calls a setter, a record reseed or writes a source field a setting Edit owns
+        entry: python3 scripts/check_setting_menus.py
+        language: system
+        pass_filenames: false
+        files: ^(src/deluge/gui/|scripts/check_setting_menus\.py)
 # - repo: local
 
 #   hooks:

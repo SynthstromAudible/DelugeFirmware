@@ -1,0 +1,19 @@
+Deluge Rust BSP up
+bench: reading debug authentication
+BENCH-INFO dbgauthstatus=0x000000bf
+BENCH case=calibration n=32 k=64 cycles=1210 cps=0.59 l1d_refill=0 inst=1030 dc_stall=2 issue_empty=310 neon=0
+BENCH case=gain n=32 k=64 cycles=9876 cps=4.82 l1d_refill=3 inst=14336 dc_stall=40 issue_empty=2100 neon=4096
+BENCH case=duck n=32 k=64 cycles=31204 cps=15.24 l1d_refill=12 inst=40960 dc_stall=311 issue_empty=9020 neon=0
+BENCH case=calibration_loop n=32 k=64 cycles=66000 cps=32.23 l1d_refill=0 inst=32790 dc_stall=0 issue_empty=33100 neon=0
+0.052 loaded settings
+BENCH case=calibration n=64 k=64 cycles=1208 cps=0.29 l1d_refill=0 inst=1030 dc_stall=1 issue_empty=309 neon=0
+BENCH case=gain n=64 k=64 cycles=19702 cps=4.81 l1d_refill=5 inst=28672 dc_stall=66 issue_empty=4180 neon=8192
+BENCH case=duck n=64 k=64 cycles=62011 cps=15.14 l1d_refill=20 inst=81920 dc_stall=602 issue_empty=17950 neon=0
+BENCH case=calibration_loop n=64 k=64 cycles=132000 cps=32.23 l1d_refill=0 inst=65560 dc_stall=0 issue_empty=66200 neon=0
+0.011 audio engine ready
+BENCH case=calibration n=128 k=64 cycles=1215 cps=0.15 l1d_refill=0 inst=1030 dc_stall=2 issue_empty=312 neon=0
+BENCH case=gain n=128 k=64 cycles=39411 cps=4.81 l1d_refill=9 inst=57344 dc_stall=131 issue_empty=8350 neon=16384
+BENCH case=duck n=128 k=64 cycles=124873 cps=15.24 l1d_refill=41 inst=163840 dc_stall=1190 issue_empty=35700 neon=0
+BENCH case=calibration_loop n=128 k=64 cycles=264000 cps=32.23 l1d_refill=0 inst=131100 dc_stall=0 issue_empty=132400 neon=0
+BENCH-DONE cases=12
+bench: parked, pads/LEDs/OLED off

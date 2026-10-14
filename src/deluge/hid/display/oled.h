@@ -106,6 +106,8 @@ public:
 	static const uint8_t midiIcon[];
 	static const uint8_t midiIconPt2[];
 	static const uint8_t downArrowIcon[];
+	/// A song saved as JSON beside its older XML save, in the browser. Five columns wide.
+	static const uint8_t upgradedIcon[];
 	static const uint8_t rightArrowIcon[];
 	static const uint8_t lockIcon[];
 	static const uint8_t checkedBoxIcon[];

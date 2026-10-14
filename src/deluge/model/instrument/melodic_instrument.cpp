@@ -25,6 +25,9 @@
 #include "io/midi/midi_follow.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "modulation/arpeggiator.h"
@@ -476,7 +479,7 @@ void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDICable& 
 				// If existing automation, don't do it.
 				if (activeClip) {
 					if (whichBendRange == BEND_RANGE_MAIN) {
-						if (expressionParams->params[0].isAutomated()) {
+						if (expressionParams->params[0].isAutomated(*expressionParams->docForParam(0))) {
 							return;
 						}
 					}
@@ -500,7 +503,7 @@ bool MelodicInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack,
 }
 
 bool MelodicInstrument::isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) {
-	return notesAuditioned.contains(noteRow->y) && !earlyNotes.contains(noteRow->y);
+	return notesAuditioned.contains(noteRow->y()) && !earlyNotes.contains(noteRow->y());
 }
 
 void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
@@ -658,9 +661,15 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 	    getParamToControlFromInputMIDIChannel(cc, modelStackWithThreeMainThings);
 
 	if (modelStackWithParam->autoParam) {
-		modelStackWithParam->autoParam->setValuePossiblyForRegion(
-		    newValue, modelStackWithParam, modPos, modLength,
-		    false); // Don't delete nodes in linear run, cos this might need to be outputted as MIDI again
+		// mayDelete=false: this value may need to be re-output as MIDI, so don't prune nodes in a linear run.
+		deluge::edits::Context editCtx{*currentSong, currentSong->project};
+		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam),
+		                                  newValue,
+		                                  modPos,
+		                                  modLength,
+		                                  modelStackWithParam,
+		                                  /*mayDelete=*/false};
+		deluge::edits::apply(editCtx, edit);
 	}
 }
 

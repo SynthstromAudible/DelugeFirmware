@@ -24,6 +24,7 @@
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "storage/byte_channel.h"
 #include "util/containers.h"
+#include <string>
 class Serializer;
 class Deserializer;
 class MIDICableUSBHosted;
@@ -80,6 +81,15 @@ void init();
 
 void slowRoutine();
 MIDICable* readDeviceReferenceFromFile(Deserializer& reader);
+/// @brief Find the hosted cable a device reference names by @p name (if any) and USB ids, creating and listing it if
+///        the Deluge has not seen the device before.
+///
+/// A known device takes the ids or name it is given.
+/// @param name      Device name, or null if the reference carries none.
+/// @param vendorId  USB vendor id.
+/// @param productId USB product id.
+/// @return The hosted cable; `nullptr` if it cannot be made.
+MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, uint16_t vendorId, uint16_t productId);
 void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const* memory);
 void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory);
 void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory);

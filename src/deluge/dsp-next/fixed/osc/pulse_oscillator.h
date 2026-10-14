@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "dsp-next/core/concepts.h"
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/bandlimited/table.h"
@@ -25,6 +26,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <type_traits>
 
 namespace deluge::dsp::fixed {
 
@@ -78,7 +80,7 @@ public:
 		// half the time, and an alignment-qualified NEON load of it faults on ARM (see TableOscillator).
 		Argon<uint32_t> pair_a{0U};
 		Argon<uint32_t> pair_b{0U};
-		util::constexpr_for<0, 4, 1>([&]<int i>() {
+		util::constexpr_for<0, 4, 1>([&]<int i> [[gnu::always_inline]] () {
 			uint32_t here = phase + increment * (i + 1);
 			uint32_t index_a = here >> (32 - magnitude_);
 			uint32_t word_a;
@@ -114,5 +116,7 @@ public:
 		return output;
 	}
 };
+static_assert(block_generator<PulseOscillator>, "a pulse oscillator fills a block");
+static_assert(!std::is_polymorphic_v<PulseOscillator>, "a pulse oscillator fills a block without a vptr");
 
 } // namespace deluge::dsp::fixed

@@ -40,13 +40,17 @@ public:
 
 		clip->unassignVoiceSample(false);
 
-		clip->sampleControls.reversed = this->getValue();
+		// reversed is DOM-owned: write it through the setter (records the edit and updates the render cache). The
+		// endPos clamp + cluster-reason side effects below act on the sampleHolder cache.
+		clip->setReversed(this->getValue());
 
 		if (clip->sampleHolder.audioFile != nullptr) {
 			if (clip->sampleControls.isCurrentlyReversed()) {
 				uint64_t lengthInSamples = (static_cast<Sample*>(clip->sampleHolder.audioFile))->lengthInSamples;
 				if (clip->sampleHolder.endPos > lengthInSamples) {
-					clip->sampleHolder.endPos = lengthInSamples;
+					// endPos is DOM-owned: clamp through the setter (records the edit and updates the cache).
+					// Writing sampleHolder.endPos raw would leave docAudioClip_->end_pos stale at save.
+					clip->setSampleEndPos(lengthInSamples);
 				}
 			}
 

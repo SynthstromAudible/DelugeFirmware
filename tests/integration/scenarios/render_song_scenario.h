@@ -32,6 +32,19 @@
 ///     be scheduled, and how long each chunk's read takes. Both 0 by default.
 ///   - `RENDER_FILL_BURST`: `<start block>:<blocks>:<ms>`, a window of playback in which the fill task waits `ms`
 ///     instead: a song load or a large listing competing for the storage tier.
+///   - `RENDER_STEREO`: `1` plugs headphones in from the scenario's start, so the app renders in stereo as the device
+///     does through them (ping-pong delay alternates, panning applies). Mono otherwise, as through the device's
+///     speaker.
+///   - `RENDER_DELAY_SWITCH`: `<block>,<block>,...`, ascending: at each block, counted from playback's start, every
+///     audio track's delay switches between analog and digital by the Edit a press of the gold knob on its delay
+///     makes. None by default.
+///   - `RENDER_MODFX_SWITCH`: `<block>:<type>[:<owner>],...`, ascending, each type as a file writes it: at each block,
+///     counted from playback's start, the mod FX type of every audio track, or of the owner named (`master`, or the
+///     outputs of that name: a synth, a kit, an audio track), is set to it by the Edit the mod FX type menu makes. None
+///     by default.
+///   - `RENDER_MODFX_CLEAR`: `<block>[:<owner>],...`, ascending: at each block, the mod FX memory of every audio
+///     track, or of the owner named as for the switch, is cleared by ModControllableAudio::clearModFXMemory, as a
+///     sound's cut tail clears it (a chain's grain only once the render has made its processor). None by default.
 ///
 /// Lines:
 ///   - `RS-LOADED name=<n> outputs=<k> view=<v> playing_clips=<c> notes=<m>`: the song that loaded, the view it
@@ -45,7 +58,30 @@
 ///   - `RS-TIER-SYNC-AUDIO total=<n>`: synchronous card calls the render made; the audio tier must make none.
 ///   - `RS-STREAM reads=<n>`: card reads while playing, which is the sample data streaming in.
 ///   - `RS-UNDERRUN wait=<n> unassign=<n>`: sample data playback needed and did not have.
-///   - `RS-CAPTURE frames=<n>`: frames captured.
+///   - `RS-DELAY-OFF silenced=<n>`: blocks in which a delay that is OFF had feedback enough to sound and sound coming
+///     in (deluge::effects::delay_off_silenced_blocks); the check requires none.
+///   - `RS-DELAY-ARENA shortfalls=<n> regions=<r> jobs=<j>`: tapes the render could not take from the delay arena
+///     (the check requires none), the regions it holds at the end, and how often its job maintained it.
+///   - `RS-STUTTER block=<b> begin|end owner=<o>` and `RS-STUTTER block=<b> rate=<v> owner=<o>`: a stutter begun or
+///     ended, or its rate turned (RENDER_STUTTER, RENDER_STUTTER_RATE). After the run,
+///     `RS-STUTTER applied=<n> asked=<m> stuttered=<k>`: a failure unless every begin and end was made, an owner
+///     stuttered in some scenario tick, and the rate change asked for was made.
+///   - `RS-TEMPO block=<b> bpm=<t>`: the song's tempo set at block @c b (RENDER_TEMPO).
+///   - `RS-DELAY-SWITCH block=<b> analog=<0|1>`: one audio track's delay switched at block @c b, and its mode after.
+///     Then, after the run, `RS-DELAY-SWITCH switches=<n> asked=<m> tracks=<k>`: a failure unless every switch asked
+///     for switched exactly one audio track's delay.
+///   - `RS-MODFX-SWITCH block=<b> type=<t> ring=<0|1> owner=<o>`: one owner's mod FX set to type @c t at block @c b,
+///     and whether it holds a ring after. After the run, `RS-MODFX-SWITCH applied=<n> asked=<m> types=<t,...> ring=<r>
+///     noring=<k>`: the track switches made, the switches asked for, the type each set in order, and how many left the
+///     track holding a ring and how many holding none; a failure unless each switch set exactly one track's.
+///   - `RS-MODFX-CLEAR block=<b> type=<t> ring=<0|1> owner=<o>`: one owner's comb mod FX memory cleared at block
+///     @c b, its type @c t, and whether it held a ring, which the clear zeroes (otherwise it zeroes the phaser's
+///     memories); `RS-MODFX-CLEAR block=<b> type=grainFX grain=1 owner=<o>` for a grain's. After the run,
+///     `RS-MODFX-CLEAR applied=<n> asked=<m> ring=<r> noring=<k> grain=<g>`: the track clears made, the clears asked
+///     for, how many comb clears cleared a ring and how many none, and how many cleared a grain; a failure unless each
+///     clear cleared exactly one track's.
+///   - `RS-CAPTURE frames=<n> stereo=<0|1>`: frames captured, and whether headphones were plugged in. A failure if
+///     the app rendered in the other width at any tick while playing.
 ///   - `RS-MODEL fill_delay_ms=<n> fill_read_us=<n> burst=<start>:<blocks>:<ms>`: the storage model it ran under.
 ///   - `RS-RESULT failures=<n>`.
 extern "C" {

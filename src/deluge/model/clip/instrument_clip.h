@@ -55,7 +55,7 @@ enum class VerticalNudgeType { ROW, OCTAVE };
 
 class InstrumentClip final : public Clip {
 public:
-	explicit InstrumentClip(Song* song = nullptr);
+	InstrumentClip(Song& song, bool initViewFromSong = true, uint32_t loadedId = 0);
 	~InstrumentClip() override;
 	void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
 	                               IndependentNoteRowLengthIncrease independentNoteRowInstruction,
@@ -163,6 +163,7 @@ public:
 	                                  bool shouldRetainLinksToSounds, bool shouldGrabMidiCommands,
 	                                  bool shouldBackUpExpressionParamsToo);
 	Error readFromFile(Deserializer& reader, Song* song) override;
+	void readShellFromTree(const deluge::storage::Value& clipNode) override;
 	void writeDataToFile(Serializer& writer, Song* song) override;
 	void prepNoteRowsForExitingKitMode(Song* song);
 	void deleteNoteRow(ModelStackWithTimelineCounter* modelStack, int32_t i);
@@ -197,7 +198,6 @@ public:
 	void backupPresetSlot();
 	void setPosForParamManagers(ModelStackWithTimelineCounter* modelStack, bool useActualPos = true) override;
 	ModelStackWithNoteRow* getNoteRowForDrumName(ModelStackWithTimelineCounter* modelStack, char const* name);
-	void compensateVolumeForResonance(ModelStackWithTimelineCounter* modelStack);
 	Error undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) override;
 	Error setNonAudioInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager = nullptr);
 	Error setInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager,
@@ -244,6 +244,7 @@ public:
 	void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager,
 	                              Sound* sound) override;
 	ParamManagerForTimeline* getCurrentParamManager() override;
+
 	Error claimOutput(ModelStackWithTimelineCounter* modelStack) override;
 	char const* getXMLTag() override { return "instrumentClip"; }
 	void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,
@@ -293,6 +294,16 @@ private:
 	void actuallyDeleteEmptyNoteRow(ModelStackWithNoteRow* modelStack);
 	void prepareToEnterKitMode(Song* song);
 	Error readMIDIParamsFromFile(Deserializer& reader, int32_t readAutomationUpToPos);
+
+	/// @brief Create a fresh DocNoteRow in this clip's DocClip.note_rows pool, seed it from the engine row's current
+	///        scalar fields, and bind the row to it.
+	///
+	/// No-op if the clip isn't DOM-bound. Called at every note-row create/clone/load site.
+	/// @param nr The engine note row to bind.
+	void bindNoteRowStructure(NoteRow& nr);
+	/// @brief Erase a removed engine row's DocNoteRow from the DocClip pool and clear its back-pointer.
+	/// @param nr The engine note row being removed.
+	void unbindNoteRowStructure(NoteRow& nr);
 
 	bool lastProbabilities[kNumProbabilityValues]{};
 	int32_t lastProbabiltyPos[kNumProbabilityValues]{};

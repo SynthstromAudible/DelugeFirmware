@@ -17,6 +17,7 @@
 
 #include "model/instrument/non_audio_instrument.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "dsp/stereo_sample.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -26,6 +27,24 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <cstring>
+
+// Called (via virtual dispatch) from adoptOutput's load-bridge seed and the clone/replace blocks in
+// song.cpp/view.cpp.
+void NonAudioInstrument::seedDocOutputIdentity() {
+	Instrument::seedDocOutputIdentity();
+	if (docOutput_ != nullptr) {
+		docOutput_->channel = getChannel();
+	}
+}
+
+// Every write funnels through this setter (native cache + record; guarded, no FREEZE), like
+// Output::set*()/Instrument::set*().
+void NonAudioInstrument::setChannel(int newChannel) {
+	channel = newChannel;
+	if (docOutput_ != nullptr) {
+		docOutput_->channel = getChannel();
+	}
+}
 
 void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
                                       int32_t reverbAmountAdjust, int32_t sideChainHitPending,

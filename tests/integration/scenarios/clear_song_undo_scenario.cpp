@@ -117,10 +117,10 @@ int32_t g_runsBefore = 0;
 
 /// The clip a song starts with: its first session clip. Null while a clear is between songs.
 InstrumentClip* firstClip() {
-	if (currentSong == nullptr || currentSong->sessionClips.empty()) {
+	if (currentSong == nullptr || currentSong->live.clips.session_clips.empty()) {
 		return nullptr;
 	}
-	return static_cast<InstrumentClip*>(currentSong->sessionClips[0]);
+	return static_cast<InstrumentClip*>(currentSong->live.clips.session_clips[0]);
 }
 
 /// The Instrument that clip plays.
@@ -161,8 +161,8 @@ bool writeSampleSynthPreset(const char* path, const char* samplePath) {
 		return false;
 	}
 	holder->filePath = samplePath;
-	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(instrument->toModControllable()), nullptr,
-	                                &paramManager, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(instrument->toModControllable()), nullptr,
+	                                      &paramManager, true);
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
 		return false;
@@ -264,7 +264,8 @@ void checkTier() {
 void checkSong() {
 	Instrument* instrument = firstInstrument();
 	const std::string name = (instrument != nullptr) ? instrument->name : "";
-	const int32_t clips = (currentSong != nullptr) ? static_cast<int32_t>(currentSong->sessionClips.size()) : 0;
+	const int32_t clips =
+	    (currentSong != nullptr) ? static_cast<int32_t>(currentSong->live.clips.session_clips.size()) : 0;
 	const int32_t runs = LoadInstrumentPresetUI::presetAcquisitionsRun() - g_runsBefore;
 	printf("CS-SONG clips=%d name=%s bound=%d acquisitions=%d ticks=%d\n", clips, name.c_str(), clipBound() ? 1 : 0,
 	       runs, g_ticks);
@@ -313,8 +314,9 @@ void checkUndoLeg() {
 		break;
 	case UnLeg::Plain:
 		printf("UN-PLAIN landedInPress=%d swing=%d wanted=%d ticks=%d\n", g_unLandedInPress ? 1 : 0,
-		       static_cast<int>(currentSong->swingAmount), static_cast<int>(g_unSwingBefore), g_unTicks);
-		if (!g_unLandedInPress || currentSong->swingAmount != g_unSwingBefore) {
+		       static_cast<int>(currentSong->project.groove.swing_amount), static_cast<int>(g_unSwingBefore),
+		       g_unTicks);
+		if (!g_unLandedInPress || currentSong->project.groove.swing_amount != g_unSwingBefore) {
 			printf("UN-PLAIN FAIL an undo with no sample in it did not land in the tick it was asked for\n");
 			g_failures++;
 		}
@@ -337,9 +339,10 @@ void checkUndoLeg() {
 		}
 		break;
 	case UnLeg::Midi:
-		printf("UN-MIDI swing=%d wanted=%d commands=%d ticks=%d\n", static_cast<int>(currentSong->swingAmount),
-		       static_cast<int>(g_unSwingBefore), g_unAcceptedCommands, g_unTicks);
-		if (currentSong->swingAmount != g_unSwingBefore) {
+		printf("UN-MIDI swing=%d wanted=%d commands=%d ticks=%d\n",
+		       static_cast<int>(currentSong->project.groove.swing_amount), static_cast<int>(g_unSwingBefore),
+		       g_unAcceptedCommands, g_unTicks);
+		if (currentSong->project.groove.swing_amount != g_unSwingBefore) {
 			printf("UN-MIDI FAIL a MIDI UNDO left waiting by the midi routine was never actioned\n");
 			g_failures++;
 		}
@@ -360,10 +363,10 @@ bool setupUndoLeg() {
 	case UnLeg::Midi: {
 		// An action with no sample in it at all: a swing change reads no card on either tier, and the song's swing
 		// is what the undo has to put back.
-		g_unSwingBefore = currentSong->swingAmount;
+		g_unSwingBefore = currentSong->project.groove.swing_amount;
 		const int8_t after = static_cast<int8_t>(g_unSwingBefore + 8);
 		actionLogger.recordSwingChange(g_unSwingBefore, after);
-		currentSong->swingAmount = after;
+		currentSong->project.groove.swing_amount = after;
 		return true;
 	}
 	case UnLeg::Refuse:
@@ -473,7 +476,7 @@ void runTick() {
 		// "Landed in the press" means the model had already moved when the press returned: the swing restored for
 		// the plain leg, the clip's file changed for the others.
 		g_unLandedInPress = (g_unLeg == UnLeg::Plain || g_unLeg == UnLeg::Midi)
-		                        ? (currentSong->swingAmount == g_unSwingBefore)
+		                        ? (currentSong->project.groove.swing_amount == g_unSwingBefore)
 		                        : (boundPath() != before);
 		printf("UN-PROBE leg=%d pressed commands=%d landedInPress=%d\n", static_cast<int>(g_unLeg),
 		       g_unAcceptedCommands, g_unLandedInPress ? 1 : 0);

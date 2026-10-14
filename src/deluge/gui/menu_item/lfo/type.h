@@ -16,6 +16,8 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "engines/deluge/words.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -46,7 +48,9 @@ public:
 		};
 	}
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->lfoConfig[lfoId_].waveType); }
+	void readCurrentValue() override {
+		this->setValue(soundEditor.currentSound->snapshot().lfoConfig[lfoId_].waveType);
+	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<LFOType>();
@@ -58,21 +62,13 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->lfoConfig[lfoId_].waveType = current_value;
-					// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
-					// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
-					// would be enough?
-					soundDrum->resyncGlobalLFOs();
+					settingFor(*soundDrum, lfoPath("type"), lfoTypeValue(current_value));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->lfoConfig[lfoId_].waveType = current_value;
-			// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
-			// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
-			// would be enough?
-			soundEditor.currentSound->resyncGlobalLFOs();
+			settingFor(*soundEditor.currentSound, lfoPath("type"), lfoTypeValue(current_value));
 		}
 	}
 
@@ -82,7 +78,7 @@ public:
 		oled_canvas::Canvas& image = OLED::main;
 
 		const Icon& icon = [&] {
-			switch (soundEditor.currentSound->lfoConfig[lfoId_].waveType) {
+			switch (soundEditor.currentSound->snapshot().lfoConfig[lfoId_].waveType) {
 			case LFOType::SINE:
 				return OLED::sineIcon;
 			case LFOType::TRIANGLE:
@@ -105,6 +101,21 @@ public:
 	}
 
 private:
+	/// @brief This menu's LFO's setting @p name, as a settings path.
+	///
+	/// @param name The setting's name within the LFO.
+	/// @return The settings path, e.g. "lfo1/type".
+	[[nodiscard]] std::string lfoPath(std::string_view name) const {
+		return "lfo" + std::to_string(lfoId_ + 1) + "/" + std::string(name);
+	}
+	/// @brief The file form of @p type: the name a sound's file writes for it.
+	///
+	/// @param type The LFO wave type.
+	/// @return A scalar value holding the type's file name.
+	static serialization::Value lfoTypeValue(LFOType type) {
+		return serialization::Value::makeScalar(std::string(deluge::instrument::to_string(type)));
+	}
+
 	uint8_t lfoId_;
 };
 

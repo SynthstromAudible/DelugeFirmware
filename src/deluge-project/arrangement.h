@@ -1,0 +1,68 @@
+/*
+ * Copyright © 2024 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "deluge-project/midi_command.h"
+#include <array>
+#include <cstdint>
+#include <optional>
+
+namespace deluge::project {
+
+/// @brief The number of launchable sections a song has.
+inline constexpr int32_t kMaxNumSections = 24;
+
+/// @brief A launchable song section: how many times it repeats and an optional MIDI-learned launch command.
+struct Section {
+	MidiCommand launch_midi_command;
+	int16_t num_repetitions{0};
+
+	bool operator==(const Section&) const = default;
+};
+
+/// @brief What one of the assignable session macros does when triggered.
+enum class SessionMacroKind : int8_t {
+	NO_MACRO = 0,
+	CLIP_LAUNCH,
+	OUTPUT_CYCLE,
+	SECTION,
+	NUM_KINDS,
+};
+
+/// @brief One assignable session macro: its kind plus the clip, output and section it targets. The clip and output are
+/// named by their stable song ids, so a macro survives reordering; empty means no target.
+struct SessionMacro {
+	SessionMacroKind kind{SessionMacroKind::NO_MACRO};
+	std::optional<uint32_t> clip_id;
+	std::optional<uint32_t> output_id;
+	uint8_t section{0};
+
+	bool operator==(const SessionMacro&) const = default;
+};
+
+/// @brief Song arrangement structure: the launch sections and the eight assignable session macros.
+///
+/// A component of deluge::project::Song.
+struct Arrangement {
+	std::array<Section, kMaxNumSections> sections{};
+	std::array<SessionMacro, 8> session_macros{};
+
+	bool operator==(const Arrangement&) const = default;
+};
+
+} // namespace deluge::project

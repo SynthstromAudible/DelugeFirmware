@@ -303,10 +303,27 @@ option(DELUGE_UBSAN "Enable the freestanding UndefinedBehaviorSanitizer layer" O
 set(DELUGE_UBSAN_SOURCE_DIRS "memory;util/container"
     CACHE STRING "Semicolon-separated subdirs under src/deluge to instrument when DELUGE_UBSAN is ON")
 
+# The DSP benchmarks (src/deluge/bench). Off by default; enable with -DDELUGE_DSP_BENCH=ON. A device image built with
+# it runs every DSP case once at boot, before the app starts, and prints its BENCH lines over RTT; without it the
+# benchmark is not compiled into the app, and its boot hook is empty. src/deluge/CMakeLists.txt applies it.
+option(DELUGE_DSP_BENCH "Run the DSP benchmarks at boot (device builds)" OFF)
+# Which case list a bench image runs: "kernels" (one case per component), "lanes" (the Lanes cases beside their mono
+# kernels), "chain" (stages as separate passes beside the same stages as one Chain), "delay" (the whole delay block,
+# fused, over real tapes), "filters" (each filter and the filter set, as a voice runs them), "compressor" (fully wet
+# and blended, as its owners call it), "mod_fx" (each mod FX type as its owners render it through effects::ModFx) or
+# "granular" (the granular kernel with sparse and dense grains, with and without pitch randomness),
+# "stutter" (the stutter recording and playing over a native and a resampled tape), or "fx_chains" (each home's effect
+# chain runtime beside the same sequence written out over its components).
+# The device prints about 70 lines over RTT before it drops some, so the cases come in lists that fit.
+set(DELUGE_DSP_BENCH_CASES "kernels" CACHE STRING
+    "The DSP bench's case list: kernels, lanes, chain, delay, filters, compressor, mod_fx, granular, stutter or fx_chains")
+set_property(CACHE DELUGE_DSP_BENCH_CASES PROPERTY STRINGS kernels lanes chain delay filters compressor mod_fx granular stutter
+                                                           fx_chains)
+
 # GCC static analyzer (-fanalyzer). Off by default; enable with -DDELUGE_ANALYZER=ON. This is a compile-time (not
 # runtime) pass: it walks each function's paths looking for leaks, use-after-free, double-free, mismatched alloc/dealloc
-# and similar. Thanks to the [[gnu::malloc(delugeDealloc, 1)]] annotation on delugeAlloc it follows ownership through the
-# Deluge allocator, not just libc malloc/free. It does NOT change codegen, so the resulting binary is unaffected.
+# and similar. Thanks to the [[gnu::malloc(delugeDealloc, 1)]] annotation on delugeAlloc it follows ownership through
+# the Deluge allocator, not just libc malloc/free. It does NOT change codegen, so the resulting binary is unaffected.
 #
 # -fanalyzer is slow and, on C++, prone to false positives, so it is scoped to a configurable set of subdirs (same idea
 # as DELUGE_UBSAN) and is NOT wired into -Werror. Read its warnings as leads to investigate, not hard failures. Point

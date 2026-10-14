@@ -25,6 +25,7 @@
 #include "gui/context_menu/clip_settings/clip_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -61,6 +62,10 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence.h"
 #include "model/drum/drum.h"
+#include "model/edits/delete_param_automation.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
@@ -68,6 +73,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/midi_command.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
@@ -96,6 +102,8 @@ namespace params = deluge::modulation::params;
 namespace encoders = deluge::hid::encoders;
 using namespace deluge;
 using namespace gui;
+using deluge::project::SessionMacro;
+using deluge::project::SessionMacroKind;
 
 View view{};
 
@@ -488,14 +496,23 @@ void View::sectionMidiLearnPadPressed(bool on, uint8_t section) {
 	if (on) {
 		endMidiLearnPressSession(MidiLearn::SECTION);
 		deleteMidiCommandOnRelease = true;
-		learnedThing = &currentSong->sections[section].launchMIDICommand;
+		sectionPressedForMidiLearn = section;
+		sectionLearnScratch =
+		    deluge::bridge::learned_of(currentSong->project.arrangement.sections[section].launch_midi_command);
+		learnedThing = &sectionLearnScratch;
 	}
 	else if (thingPressedForMidiLearn == MidiLearn::SECTION) {
 		if (deleteMidiCommandOnRelease) {
 			learnedThing->clear();
+			commitSectionMidiLearn();
 		}
 		endMidiLearnPressSession();
 	}
+}
+
+void View::commitSectionMidiLearn() {
+	currentSong->project.arrangement.sections[sectionPressedForMidiLearn].launch_midi_command =
+	    deluge::bridge::command_of(sectionLearnScratch);
 }
 
 void View::clipStatusMidiLearnPadPressed(bool on, Clip* whichClip) {
@@ -614,7 +631,7 @@ void View::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, i
 				if (noteRow) {
 					ExpressionParamSet* expressionParams = noteRow->paramManager.getOrCreateExpressionParamSet(true);
 					if (expressionParams) {
-						if (!expressionParams->params[0].isAutomated()) {
+						if (!expressionParams->params[0].isAutomated(*expressionParams->docForParam(0))) {
 							expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = newBendRange;
 						}
 					}
@@ -641,6 +658,9 @@ recordDetailsOfLearnedThing:
 			learnedThing->cable = &cable;
 			learnedThing->channelOrZone = channelOrZone;
 			learnedThing->noteOrCC = note;
+			if (thingPressedForMidiLearn == MidiLearn::SECTION) {
+				commitSectionMidiLearn();
+			}
 			break;
 
 		case MidiLearn::INSTRUMENT_INPUT:
@@ -684,7 +704,8 @@ isMPEZone:
 			if (newBendRanges[BEND_RANGE_MAIN]) {
 				if (paramManager) { // Could be NULL, e.g. for CVInstruments with no Clips
 					ExpressionParamSet* expressionParams = paramManager->getOrCreateExpressionParamSet();
-					if (expressionParams && !expressionParams->params[0].isAutomated()) {
+					if (expressionParams
+					    && !expressionParams->params[0].isAutomated(*expressionParams->docForParam(0))) {
 						expressionParams->bendRanges[BEND_RANGE_MAIN] = newBendRanges[BEND_RANGE_MAIN];
 					}
 				}
@@ -888,8 +909,12 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 
 	int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
-	// Perform the actual change
-	modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
+	// Perform the actual change as an Edit.
+	deluge::edits::Context editContext{*currentSong, currentSong->project};
+	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue,
+	                                  static_cast<int32_t>(modPos), static_cast<int32_t>(modLength),
+	                                  modelStackWithParam};
+	deluge::edits::apply(editContext, edit);
 
 	if (activeModControllableModelStack.timelineCounterIsSet()) {
 		bool noteTailsAllowedAfter =
@@ -1014,8 +1039,9 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 		}
 		else {
 			strncpy(parameterName,
-			        getParamDisplayName(kind, modelStackWithParam->paramId,
-			                            (ModControllableAudio*)activeModControllableModelStack.modControllable),
+			        deluge::modulation::params::getParamDisplayName(
+			            kind, modelStackWithParam->paramId,
+			            (ModControllableAudio*)activeModControllableModelStack.modControllable),
 			        29);
 		}
 	}
@@ -1038,7 +1064,7 @@ void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStack
 	    modelStackWithParam->paramCollection->shouldParamIndicateMiddleValue(modelStackWithParam);
 
 	if (newKnobPos == 0 && shouldParamIndicateMiddleValue) {
-		bool isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
+		bool isBipolar = deluge::modulation::params::isParamBipolar(kind, modelStackWithParam->paramId);
 
 		indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar);
 
@@ -1114,7 +1140,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			}
 		}
 		else {
-			const char* name = getParamDisplayName(
+			const char* name = deluge::modulation::params::getParamDisplayName(
 			    kind, paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable);
 			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
 				parameter_name.append(name);
@@ -1126,8 +1152,8 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	// display stutter quantization instead of knob position
 	// int32_t quantization_level = 0;
 	int32_t current_display_value = 0;
-	if (isParamQuantizedStutter(kind, paramID,
-	                            (ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+	if (deluge::modulation::params::isParamQuantizedStutter(
+	        kind, paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 	    && !isUIModeActive(UI_MODE_STUTTERING)) {
 		if (newKnobPos < -39) { // 4ths stutter: no leds turned on
 			current_display_value = 4;
@@ -1151,7 +1177,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		}
 	}
 	// if turning arpeggiator rhythm mod encoder
-	else if (isParamArpRhythm(kind, paramID)) {
+	else if (deluge::modulation::params::isParamArpRhythm(kind, paramID)) {
 		current_display_value = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
 		char name[12];
 		// Index: Name
@@ -1284,7 +1310,8 @@ int32_t View::calculateKnobPosForDisplay(params::Kind kind, int32_t paramID, int
 	valueForDisplayFloat = (knobPosFloat / maxKnobPosFloat) * maxMenuValueFloat;
 
 	// check if parameter is pan or pitch, in which case, further adjust range from 0 - 50 to -25 to +25
-	if (isParamPan(kind, paramID) || isParamPitch(kind, paramID)) {
+	if (deluge::modulation::params::isParamPan(kind, paramID)
+	    || deluge::modulation::params::isParamPitch(kind, paramID)) {
 		valueForDisplayFloat = valueForDisplayFloat - maxMenuRelativeValueFloat;
 	}
 
@@ -1323,8 +1350,9 @@ void View::modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder) {
 	                                                                            &activeModControllableModelStack);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
-		modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+		deluge::edits::Context editCtx{*currentSong, currentSong->project};
+		deluge::edits::DeleteParamAutomation edit{deluge::edits::addressFor(*modelStackWithParam), modelStackWithParam};
+		deluge::edits::apply(editCtx, edit);
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
 	}
 }
@@ -1336,6 +1364,8 @@ void View::modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder,
 
 	bool anyEditingDone =
 	    activeModControllableModelStack.modControllable->modEncoderButtonAction(whichModEncoder, on, modelStack);
+	// A press may cycle a knob to its next param (LPF, HPF, EQ): its owner's mappings are the record's.
+	deluge::gui::menu_item::recordControlsOf(*activeModControllableModelStack.modControllable);
 	if (anyEditingDone) {
 		instrumentBeenEdited();
 	}
@@ -1383,7 +1413,7 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 		ParamCollection* paramCollection = modelStackWithParam->paramCollection;
 		params::Kind kind = paramCollection->getParamKind();
-		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
+		isBipolar = deluge::modulation::params::isParamBipolar(kind, modelStackWithParam->paramId);
 		knobPos = paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 		int32_t lowerLimit;
 
@@ -1394,8 +1424,8 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 			lowerLimit = std::min(-64_i32, knobPos);
 		}
 		knobPos = std::clamp(knobPos, lowerLimit, 64_i32);
-		if (isParamQuantizedStutter(kind, modelStackWithParam->paramId,
-		                            (ModControllableAudio*)modelStackWithParam->modControllable)
+		if (deluge::modulation::params::isParamQuantizedStutter(
+		        kind, modelStackWithParam->paramId, (ModControllableAudio*)modelStackWithParam->modControllable)
 		    && !isUIModeActive(UI_MODE_STUTTERING)) {
 			if (knobPos < -39) { // 4ths stutter: no leds turned on
 				knobPos = -64;
@@ -1498,7 +1528,19 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 
 				// change the button selection before calling mod button action so that mod button action
 				// knows the mod button parameter context
-				*activeModControllableModelStack.modControllable->getModKnobMode() = whichButton;
+				uint8_t* modKnobModeSlot = activeModControllableModelStack.modControllable->getModKnobMode();
+				*modKnobModeSlot = whichButton;
+				// getModKnobMode() is polymorphic — for SoundInstrument/MIDIInstrument/
+				// AudioOutput/Kit it returns &(that Output's own) modKnobMode; for SoundDrum it returns
+				// &kit->modKnobMode (the enclosing Kit's own field, an Output field); for
+				// GlobalEffectableForSong it returns a private field that is NOT this record (the song-global gold
+				// knob). Reseed the DOM identity record only when the slot just written is genuinely the current
+				// output's own field — a pointer-identity check that's correct across every override without a
+				// downcast.
+				Output* currentOutputForModKnob = getCurrentOutput();
+				if (currentOutputForModKnob != nullptr && modKnobModeSlot == &currentOutputForModKnob->modKnobMode) {
+					currentOutputForModKnob->seedDocOutputIdentity();
+				}
 
 				activeModControllableModelStack.modControllable->modButtonAction(
 				    whichButton, true, (ParamManagerForTimeline*)activeModControllableModelStack.paramManager);
@@ -1937,13 +1979,18 @@ void View::cycleThroughReverbPresets() {
 		newPreset = 0;
 	}
 
-	AudioEngine::reverb.setRoomSize((float)presetReverbRoomSize[newPreset] / 50);
-	AudioEngine::reverb.setDamping((float)presetReverbDamping[newPreset] / 50);
+	// project.reverb is authoritative; AudioEngine::reverb is the projected DSP cache kept in sync.
+	float roomSize = (float)presetReverbRoomSize[newPreset] / 50;
+	float damping = (float)presetReverbDamping[newPreset] / 50;
+	currentSong->project.reverb.room_size = roomSize;
+	currentSong->project.reverb.damping = damping;
+	AudioEngine::reverb.setRoomSize(roomSize);
+	AudioEngine::reverb.setDamping(damping);
 }
 
 int32_t View::getCurrentReverbPreset() {
-	int32_t currentRoomSize = AudioEngine::reverb.getRoomSize() * 50;
-	int32_t currentDamping = AudioEngine::reverb.getDamping() * 50;
+	int32_t currentRoomSize = currentSong->project.reverb.room_size * 50;
+	int32_t currentDamping = currentSong->project.reverb.damping * 50;
 
 	// See which preset we're the closest to currently
 	int32_t lowestDifferentness = 1000;
@@ -2031,8 +2078,8 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 			setLedState(LED::CV, false);
 		}
 
-		bool isGridView =
-		    (getCurrentUI() == &sessionView && currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid);
+		bool isGridView = (getCurrentUI() == &sessionView
+		                   && currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeGrid);
 
 		if (outputType != OutputType::AUDIO) {
 			blinkLed(led);
@@ -2104,10 +2151,10 @@ oledDrawString:
 				std::string info;
 				if (clip->name.empty()) {
 					info.append("Section ");
-					info += deluge::string::fromInt(clip->section + 1);
+					info += deluge::string::fromInt(clip->section() + 1);
 				}
 				else {
-					info += deluge::string::fromInt(clip->section + 1);
+					info += deluge::string::fromInt(clip->section() + 1);
 					info.append(": ");
 					info.append(clip->name.c_str());
 				}
@@ -2394,7 +2441,7 @@ void View::completeNavigateThroughPresetsForInstrumentClip(int32_t offset, Instr
 			// the existing Instrument object!
 			oldNonAudioInstrument->setChannel(newChannel);
 			if (outputType == OutputType::MIDI_OUT) {
-				((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
+				((MIDIInstrument*)oldNonAudioInstrument)->setChannelSuffix(newChannelSuffix);
 			}
 
 			newInstrument = oldNonAudioInstrument;
@@ -2430,7 +2477,7 @@ void View::completeNavigateThroughPresetsForInstrumentClip(int32_t offset, Instr
 				}
 
 				// And, we'd better copy the default velocity too
-				newInstrument->defaultVelocity = oldNonAudioInstrument->defaultVelocity;
+				newInstrument->setDefaultVelocity(oldNonAudioInstrument->defaultVelocity);
 			}
 gotAnInstrument:
 
@@ -2492,7 +2539,7 @@ getOut:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
-					if (!modelStack->song->getBackedUpParamManagerPreferablyWithClip(
+					if (!modelStack->song->live.param_backup.getPreferablyWithClip(
 					        soundDrum, NULL)) { // If no backedUpParamManager...
 						if (!modelStack->song->findParamManagerForDrum(
 						        kit, soundDrum)) { // If no ParamManager with a NoteRow somewhere...
@@ -2527,7 +2574,7 @@ getOut:
 		else {
 
 			// If that Instrument wasn't already in use in the Song, copy default velocity over
-			newInstrument->defaultVelocity = oldInstrument->defaultVelocity;
+			newInstrument->setDefaultVelocity(oldInstrument->defaultVelocity);
 
 			// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in
 			// there)
@@ -2763,7 +2810,7 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool allowMIDIFlas
 	// Or if not soloing...
 	else {
 		if (!clip->activeIfNoSolo) {
-			switch (clip->launchStyle) {
+			switch (clip->launchStyle()) {
 			case LaunchStyle::FILL:
 				thisColour = menu_item::fillColourMenu.getRGB(); // colours::red_orange;
 				break;
@@ -2810,13 +2857,13 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 			if (!clip->armedForRecording) {
 				clip->armedForRecording = true;
 				if (clip->type == ClipType::AUDIO) {
-					((AudioClip*)clip)->overdubsShouldCloneOutput = false;
+					((AudioClip*)clip)->setOverdubsShouldCloneOutput(false);
 					currentSong->defaultAudioClipOverdubOutputCloning = 0;
 				}
 			}
 			else {
 				if (clip->type == ClipType::AUDIO && !((AudioClip*)clip)->overdubsShouldCloneOutput) {
-					((AudioClip*)clip)->overdubsShouldCloneOutput = true;
+					((AudioClip*)clip)->setOverdubsShouldCloneOutput(true);
 					currentSong->defaultAudioClipOverdubOutputCloning = 1;
 					break; // No need to reassess greyout
 				}
@@ -2909,6 +2956,17 @@ void View::flashPlayDisable() {
 #endif
 }
 
+namespace {
+/// The clip a session macro names, or nullptr if it names none the song holds.
+Clip* macroClip(const SessionMacro& m) {
+	return m.clip_id ? currentSong->clipForId(*m.clip_id) : nullptr;
+}
+/// The output a session macro names, or nullptr if it names none the song holds.
+Output* macroOutput(const SessionMacro& m) {
+	return m.output_id ? currentSong->outputForId(*m.output_id) : nullptr;
+}
+} // namespace
+
 bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB image[][kDisplayWidth + kSideBarWidth],
                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	uint8_t brightness = 1;
@@ -2921,16 +2979,21 @@ bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB i
 
 	bool armed = view.clipArmFlashOn;
 
-	SessionMacro& m = currentSong->sessionMacros[y];
+	SessionMacro& m = currentSong->project.arrangement.session_macros[y];
 	switch (m.kind) {
-	case CLIP_LAUNCH:
-		if (m.clip->activeIfNoSolo) {
+	case SessionMacroKind::CLIP_LAUNCH: {
+		Clip* clip = macroClip(m);
+		if (clip == nullptr) {
+			image[y][column] = {dark, dark, dark};
+			break;
+		}
+		if (clip->activeIfNoSolo) {
 			image[y][column] = {0, light, 0};
 		}
 		else {
 			image[y][column] = {light, 0, 0};
 		}
-		if (m.clip->armState != ArmState::OFF) {
+		if (clip->armState != ArmState::OFF) {
 			armed = true;
 			if (view.clipArmFlashOn) {
 				image[y][column] = {0, 0, 0};
@@ -2938,17 +3001,18 @@ bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB i
 		}
 
 		break;
-	case OUTPUT_CYCLE:
+	}
+	case SessionMacroKind::OUTPUT_CYCLE:
 		image[y][column] = {0, 64, light};
 		break;
-	case SECTION:
+	case SessionMacroKind::SECTION:
 		image[y][column] = {light, 0, 128};
 		break;
-	case NO_MACRO:
+	case SessionMacroKind::NO_MACRO:
 		image[y][column] = {dark, dark, dark};
 		break;
 	// explicit fallthrough
-	case NUM_KINDS:;
+	case SessionMacroKind::NUM_KINDS:;
 	}
 
 	if (occupancyMask) {
@@ -2968,28 +3032,33 @@ void View::activateMacro(uint32_t y) {
 		return;
 	}
 
-	SessionMacro& m = currentSong->sessionMacros[y];
+	SessionMacro& m = currentSong->project.arrangement.session_macros[y];
 	switch (m.kind) {
-	case CLIP_LAUNCH:
+	case SessionMacroKind::CLIP_LAUNCH: {
+		Clip* clip = macroClip(m);
+		if (clip == nullptr) {
+			break;
+		}
 		if (Buttons::isButtonPressed(deluge::hid::button::AFFECT_ENTIRE)) {
-			if (getCurrentClip() != m.clip) {
-				sessionView.transitionToViewForClip(m.clip);
+			if (getCurrentClip() != clip) {
+				sessionView.transitionToViewForClip(clip);
 			}
 		}
 		else {
-			session.toggleClipStatus(m.clip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
+			session.toggleClipStatus(clip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		break;
+	}
 
-	case OUTPUT_CYCLE: {
-		Clip* nextClip = findNextClipForOutput(m.output);
+	case SessionMacroKind::OUTPUT_CYCLE: {
+		Clip* nextClip = findNextClipForOutput(macroOutput(m));
 		if (nextClip) {
 			session.toggleClipStatus(nextClip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		break;
 	}
 
-	case SECTION:
+	case SessionMacroKind::SECTION:
 		session.armSection(m.section, kInternalButtonPressLatency);
 		break;
 
@@ -3000,8 +3069,8 @@ void View::activateMacro(uint32_t y) {
 
 Clip* View::findNextClipForOutput(Output* output) {
 	int last_active = -1;
-	for (int i = 0; i < std::ssize(currentSong->sessionClips); i++) {
-		Clip* clip = currentSong->sessionClips[i];
+	for (int i = 0; i < std::ssize(currentSong->live.clips.session_clips); i++) {
+		Clip* clip = currentSong->live.clips.session_clips[i];
 		if (clip->output == output) {
 			if (last_active == -1) {
 				if (clip->activeIfNoSolo) {
@@ -3015,12 +3084,12 @@ Clip* View::findNextClipForOutput(Output* output) {
 	}
 
 	if (last_active == -1) {
-		last_active = std::ssize(currentSong->sessionClips);
+		last_active = std::ssize(currentSong->live.clips.session_clips);
 	}
 
 	// might need to cycle around to find the next clip
 	for (int i = 0; i < last_active; i++) {
-		Clip* clip = currentSong->sessionClips[i];
+		Clip* clip = currentSong->live.clips.session_clips[i];
 		if (clip->output == output) {
 			return clip;
 		}

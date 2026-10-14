@@ -16,18 +16,23 @@
  */
 
 #include "unpatched_param.h"
+#include "deluge-project/param_automation.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 
@@ -61,13 +66,20 @@ void UnpatchedParam::writeCurrentValue() {
 				ModelStackWithAutoParam* modelStackForSoundDrum =
 				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
 				        ->getUnpatchedAutoParamFromId(getP());
-				modelStackForSoundDrum->autoParam->setCurrentValueInResponseToUserInput(value, modelStackForSoundDrum);
+				deluge::edits::Context drumEditCtx{*currentSong, currentSong->project};
+				deluge::edits::SetParamValue drumEdit{deluge::edits::addressFor(*modelStackForSoundDrum), value, 0, 0,
+				                                      modelStackForSoundDrum};
+				deluge::edits::apply(drumEditCtx, drumEdit);
 			}
 		}
 	}
-	// Or, the normal case of just one sound
+	// Or, the normal case of just one sound. setCurrentValueInResponseToUserInput writes the owner's DOM store
+	// scalar itself, so there is a single edit path for every owner — no song-global special case.
 	else {
-		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+		deluge::edits::Context editCtx{*currentSong, currentSong->project};
+		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), value, 0, 0,
+		                                  modelStackWithParam};
+		deluge::edits::apply(editCtx, edit);
 	}
 
 	// send midi follow feedback

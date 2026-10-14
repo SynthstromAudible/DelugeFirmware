@@ -53,6 +53,10 @@ public:
 	/// @brief Whether any save -- a staged document or the song save -- is still running.
 	[[nodiscard]] static bool anySaveInFlight();
 
+	/// @brief The file a save under the entered name writes, which is not always the selected file: a song saves as
+	/// JSON whatever the selected song was saved as. Presets save as XML.
+	[[nodiscard]] virtual std::string getSaveFilePath();
+
 protected:
 	/// @brief Note that the machine being run ends this run waiting: on the channel's DELUGE_WAKE_STORAGE, and at the
 	///        latest at @p deadlineUs (a stall bound's deadline, or a write-from's re-check).

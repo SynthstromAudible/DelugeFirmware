@@ -67,9 +67,9 @@ bool isParamStutter(Kind kind, int32_t paramID) {
 bool isParamQuantizedStutter(Kind kind, int32_t paramID, ModControllableAudio* modControllableAudio) {
 	return (kind == Kind::UNPATCHED_GLOBAL || kind == Kind::UNPATCHED_SOUND)
 	       && static_cast<UnpatchedShared>(paramID) == UNPATCHED_STUTTER_RATE && modControllableAudio
-	       && (modControllableAudio->stutterConfig.useSongStutter
-	               ? currentSong->globalEffectable.stutterConfig.quantized
-	               : modControllableAudio->stutterConfig.quantized);
+	       && (modControllableAudio->effects().stutter.use_song_stutter
+	               ? currentSong->live.global_effectable.effects().stutter.quantized
+	               : modControllableAudio->effects().stutter.quantized);
 }
 
 bool isVibratoPatchCableShortcut(int32_t xDisplay, int32_t yDisplay) {
@@ -184,13 +184,15 @@ char const* getPatchedParamShortName(ParamType type, ModControllableAudio* modCo
 	if (modControllable != nullptr) {
 		// See getParamDisplayName: the ladder filters rename morph after what it actually does.
 		if (type == LOCAL_LPF_MORPH
-		    && dsp::filter::SpecificFilter(modControllable->lpfMode).getFamily()
-		           == dsp::filter::FilterFamily::LP_LADDER) {
+		    && model::filter::SpecificFilter(modControllable->modControllableSnapshot().effects.filter.lpf_mode)
+		               .getFamily()
+		           == model::filter::FilterFamily::LP_LADDER) {
 			return "LPF Drive";
 		}
 		if (type == LOCAL_HPF_MORPH
-		    && dsp::filter::SpecificFilter(modControllable->hpfMode).getFamily()
-		           == dsp::filter::FilterFamily::HP_LADDER) {
+		    && model::filter::SpecificFilter(modControllable->modControllableSnapshot().effects.filter.hpf_mode)
+		               .getFamily()
+		           == model::filter::FilterFamily::HP_LADDER) {
 			return "HPF FM";
 		}
 	}
@@ -365,14 +367,16 @@ char const* getParamDisplayName(Kind kind, int32_t p, ModControllableAudio* modC
 		// The ladder filters repurpose morph, so they name it after what it actually does. The SVF modes really do
 		// morph, and a filter which is off has no morph param at all, so both keep the default name.
 		if (isLPFMorph) {
-			if (dsp::filter::SpecificFilter(modControllable->lpfMode).getFamily()
-			    == dsp::filter::FilterFamily::LP_LADDER) {
+			if (model::filter::SpecificFilter(modControllable->modControllableSnapshot().effects.filter.lpf_mode)
+			        .getFamily()
+			    == model::filter::FilterFamily::LP_LADDER) {
 				return l10n::get(STRING_FOR_LPF_DRIVE);
 			}
 		}
 		else if (isHPFMorph) {
-			if (dsp::filter::SpecificFilter(modControllable->hpfMode).getFamily()
-			    == dsp::filter::FilterFamily::HP_LADDER) {
+			if (model::filter::SpecificFilter(modControllable->modControllableSnapshot().effects.filter.hpf_mode)
+			        .getFamily()
+			    == model::filter::FilterFamily::HP_LADDER) {
 				return l10n::get(STRING_FOR_HPF_FM);
 			}
 		}

@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -50,18 +51,18 @@ public:
 	}
 
 	void readCurrentValue() override {
-		const auto* stutter = &soundEditor.currentModControllable->stutterConfig;
+		const auto* stutter = &soundEditor.currentModControllable->effects().stutter;
 
-		if (showUseSongOption() && stutter->useSongStutter) {
+		if (showUseSongOption() && stutter->use_song_stutter) {
 			setValue(USE_SONG_STUTTER);
 		}
-		else if (stutter->reversed && stutter->pingPong) {
+		else if (stutter->reversed && stutter->ping_pong) {
 			setValue(REVERSED_PING_PONG);
 		}
 		else if (stutter->reversed) {
 			setValue(REVERSED);
 		}
-		else if (stutter->pingPong) {
+		else if (stutter->ping_pong) {
 			setValue(FORWARD_PING_PONG);
 		}
 		else {
@@ -80,13 +81,13 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					applyOptionToStutterConfig(value, soundDrum->stutterConfig);
+					applyOptionToStutter(value, soundDrum);
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			applyOptionToStutterConfig(value, soundEditor.currentModControllable->stutterConfig);
+			applyOptionToStutter(value, soundEditor.currentModControllable);
 		}
 	}
 
@@ -104,15 +105,24 @@ private:
 
 	static bool showUseSongOption() { return !soundEditor.currentModControllable->isSong(); }
 
-	static void applyOptionToStutterConfig(const Direction value, StutterConfig& stutter) {
-		stutter.useSongStutter = value == USE_SONG_STUTTER;
-		stutter.reversed = value == REVERSED || value == REVERSED_PING_PONG;
-		stutter.pingPong = value == FORWARD_PING_PONG || value == REVERSED_PING_PONG;
+	static void applyOptionToStutter(const Direction value, ModControllableAudio* mc) {
+		effectSettingFor(*mc, "stutter/useSongStutter",
+		                 deluge::serialization::Value::makeNumber(value == USE_SONG_STUTTER ? 1 : 0));
+		effectSettingFor(
+		    *mc, "stutter/reverse",
+		    deluge::serialization::Value::makeNumber(value == REVERSED || value == REVERSED_PING_PONG ? 1 : 0));
+		effectSettingFor(*mc, "stutter/pingPong",
+		                 deluge::serialization::Value::makeNumber(
+		                     value == FORWARD_PING_PONG || value == REVERSED_PING_PONG ? 1 : 0));
 
-		if (stutter.useSongStutter) {
-			stutter.quantized = currentSong->globalEffectable.stutterConfig.quantized;
-			stutter.reversed = currentSong->globalEffectable.stutterConfig.reversed;
-			stutter.pingPong = currentSong->globalEffectable.stutterConfig.pingPong;
+		if (mc->effects().stutter.use_song_stutter) {
+			const auto& songStutter = currentSong->live.global_effectable.effects().stutter;
+			effectSettingFor(*mc, "stutter/quantized",
+			                 deluge::serialization::Value::makeNumber(songStutter.quantized ? 1 : 0));
+			effectSettingFor(*mc, "stutter/reverse",
+			                 deluge::serialization::Value::makeNumber(songStutter.reversed ? 1 : 0));
+			effectSettingFor(*mc, "stutter/pingPong",
+			                 deluge::serialization::Value::makeNumber(songStutter.ping_pong ? 1 : 0));
 		}
 	}
 

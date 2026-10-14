@@ -21,15 +21,16 @@
 #include "libdeluge/system.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
+#include "model/snapshot/sound_snapshot.h"
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
-#include "modulation/sidechain/sidechain.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
+#include "serialization/value.h"
 #include "synth/lfo.h"
 #include "synth/param_plane.h"
 #include "synth/patcher.h"
@@ -51,6 +52,11 @@ class GlobalEffectableForClip;
 class ModelStackWithThreeMainThings;
 class ModelStackWithSoundFlags;
 class ModelStackWithModControllable;
+
+#include "engines/deluge/sound_state.h"
+#include "engines/effects/sound_chain.h"
+#include <optional>
+#include <utility>
 
 #define PARAM_LPF_OFF (-1)
 
@@ -88,7 +94,14 @@ public:
 			noteDestroyedWithLiveVoices();
 		}
 		AudioEngine::sounds.remove(this);
+		releaseChainMemory();
 	}
+
+	/// @brief The sound's effects after its voices.
+	/// @return The sound's chain.
+	[[nodiscard]] deluge::effects::SoundChain& chain() { return chain_; }
+	[[nodiscard]] deluge::effects::ChainCore& core() final { return chain_.core(); }
+	[[nodiscard]] const deluge::effects::ChainCore& core() const final { return chain_.core(); }
 
 	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
 	/// @note A destruction that finds live voices does not survive itself: once this body returns, the voices_
@@ -101,6 +114,49 @@ public:
 	///        takes every Sound so marked out of AudioEngine::sounds in one pass. Never cleared: the Sound is
 	///        destroyed when the song is.
 	bool letGoWithSong = false;
+
+	/// @brief The Deluge instrument's settings for this sound, once bound: &ownedState_ from Song::adoptOutput /
+	/// adoptDrum on, null before (a sound under preview or audition writes its runtime fields and snapshot directly).
+	deluge::instrument::SoundState* state_{nullptr};
+	/// @brief Bind this sound's own state and seed it from the runtime fields, which the reader filled before the state
+	/// was bound.
+	void bindState();
+	/// @brief The bound state.
+	/// @return The bound state, or null while unbound.
+	[[nodiscard]] const deluge::instrument::SoundState* boundState() const { return state_; }
+	/// @brief Set this sound's runtime fields from @p state (the reader's work for the instrument's own settings).
+	/// @param state The settings to apply.
+	/// @return INSUFFICIENT_RAM if a key-split range cannot be had.
+	Error applyState(const deluge::instrument::SoundState& state);
+	/// @brief The state binding would seed from this sound's runtime fields now (bound or not), through the same seeds.
+	/// @return The seeded state.
+	[[nodiscard]] deluge::instrument::SoundState seededState() const;
+	/// @brief The element this sound was last read from, handed over once (to fill its instrument slot).
+	/// @return The element; empty if the sound was not read from a document tree.
+	[[nodiscard]] std::optional<deluge::serialization::Value> takeLoadedElement() {
+		return std::exchange(loadedElement_, std::nullopt);
+	}
+	/// @brief Copy the DOM-owned scalars from the runtime fields into the record.
+	///
+	/// @pre state_ is bound.
+	/// @note Run from bindState and again at doneReadingFromFile: a SoundDrum's adoptDrum binds the record before its
+	///       fields are parsed, so the bind-time seed is stale for drums and must be refreshed once parsing has
+	///       finished.
+	void seedDocSoundScalars();
+	/// @brief Copy the scalars seedDocSoundScalars copies, into @p d.
+	/// @param d The record to fill.
+	void seedScalarsInto(deluge::instrument::SoundState& d) const;
+
+	/// @brief The engine's derived read-view of the hot Sound render fields, projected from state_ by projectSnapshot()
+	/// at bind / doneReadingFromFile / after edits; the render reads it (getTranspose() etc.).
+	///
+	/// Always present: unbound sounds (no state_) write it directly, so the render never needs a null fallback.
+	deluge::snapshot::SoundSnapshot snapshot_{};
+	/// @brief Re-derive snapshot_ from state_ (no-op when unbound).
+	void projectSnapshot();
+	/// @brief The derived read-view of the hot render fields.
+	/// @return The snapshot.
+	[[nodiscard]] const deluge::snapshot::SoundSnapshot& snapshot() const { return snapshot_; }
 
 	Patcher patcher;
 
@@ -116,7 +172,6 @@ public:
 
 	LFO globalLFO1;
 	LFO globalLFO3;
-	LFOConfig lfoConfig[LFO_COUNT];
 
 	bool invertReversed{}; // Used by the arpeggiator to invert the reverse flag just for the current voice
 
@@ -133,36 +188,54 @@ public:
 	PolyphonyMode polyphonic = PolyphonyMode::POLY;
 	uint8_t maxVoiceCount = 8;
 
-	int16_t transpose = 0;
-	int8_t cents = 0;
-	PhaseIncrementFineTuner fineTuner;
-
-	uint8_t numUnison = 1;
-	int8_t unisonDetune = 8;
-	uint8_t unisonStereoSpread = 0;
+	// The sound's transpose lives in the SoundSnapshot read-view (see snapshot_ / getTranspose()).
 
 	// For sending MIDI notes for SoundDrums
 	uint8_t outputMidiChannel = MIDI_CHANNEL_NONE;
 	uint8_t outputMidiNoteForDrum = MIDI_NOTE_NONE;
 
-	int16_t modulatorTranspose[kNumModulators] = {0, -12};
-	int8_t modulatorCents[kNumModulators] = {0, 0};
-
-	PhaseIncrementFineTuner modulatorTransposers[kNumModulators];
-
-	PhaseIncrementFineTuner unisonDetuners[kMaxNumVoicesUnison];
-	int32_t unisonPan[kMaxNumVoicesUnison]{};
-
-	SynthMode synthMode = SynthMode::SUBTRACTIVE;
-	bool modulator1ToModulator0 = false;
-
 	int32_t volumeNeutralValueForUnison{0};
 
 	int32_t lastNoteCode = std::numeric_limits<int32_t>::min();
 
-	bool oscillatorSync = false;
+	/// @brief Set the voice priority.
+	///
+	/// Voice priority is owned by the record (`state_->voice_priority`; seeded at bind, written here, read at save). It
+	/// is read per render block in Voice::getPriorityRating(), so render reads a hot derived cache instead.
+	/// @param value New priority.
+	void setVoicePriority(VoicePriority value);
 
-	VoicePriority voicePriority = VoicePriority::MEDIUM;
+	// Setters for the scalar fields the record owns (SoundState). The native fields are kept as caches, seeded at
+	// bind, so the recipe is uniform whether the field is hot like oscillatorSync or cold. Each writes the record
+	// (when bound) and the cache; every runtime write site funnels through these, and save reads the record.
+	void setMaxVoiceCount(uint8_t value);
+	void setSideChainSendLevel(int32_t value);
+	void setOutputMidiChannel(uint8_t value);
+	void setOutputMidiNoteForDrum(uint8_t value);
+	void setOscillatorSync(bool value);
+	// The top-level scalars follow the same recipe; setSynthMode / setNumUnison / setUnison* /
+	// setModulator{Transpose,Cents} (below) also do engine-side recalcs.
+	void setPolyphonic(PolyphonyMode value);
+	void setTranspose(int16_t value);
+	[[nodiscard]] int16_t getTranspose() const { return snapshot_.transpose; }
+	void setModulator1ToModulator0(bool value);
+	void setOscRetriggerPhase(int32_t s, uint32_t value);
+	void setModulatorRetriggerPhase(int32_t m, uint32_t value);
+	// Store a modulator's transpose without setModulatorTranspose()'s phase-increment recalculation — for the load
+	// path.
+	void assignModulatorTranspose(int32_t m, int16_t value);
+	// Store a modulator's cents without setModulatorCents()'s tuner and phase-increment recalculation — for the load
+	// path.
+	void assignModulatorCents(int32_t m, int8_t value);
+	// Store the unison settings without recomputing the unison tables — for the load path and default setup;
+	// doneReadingFromFile() and projectSnapshot() compute the tables.
+	void assignNumUnison(uint8_t value);
+	void assignUnisonDetune(int8_t value);
+	void assignUnisonStereoSpread(uint8_t value);
+	// LFO config: the record is authoritative, the render reads a hot cache. Sync writes both fields together to match
+	// the menu gesture (one sync value sets type and level).
+	void setLfoWaveType(int32_t lfoId, LFOType value);
+	void setLfoSync(int32_t lfoId, SyncType syncType, SyncLevel syncLevel);
 
 	bool skippingRendering = true;
 
@@ -172,9 +245,6 @@ public:
 	// 0 for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the
 	// "polyphonic" bit, and we don't want it to get referred to twice. These get manually refreshed in setActiveClip().
 	std::array<int32_t, kNumExpressionDimensions> monophonicExpressionValues{};
-
-	std::array<uint32_t, kNumSources> oscRetriggerPhase{}; // 4294967295 means "off"
-	std::array<uint32_t, kNumModulators> modulatorRetriggerPhase{};
 
 	uint32_t timeStartedSkippingRenderingModFX{0};
 	uint32_t timeStartedSkippingRenderingLFO{0};
@@ -186,7 +256,7 @@ public:
 	virtual void setSkippingRendering(bool newSkipping);
 
 	ModFXType getModFXType() override;
-	bool setModFXType(ModFXType newType) final;
+	[[nodiscard]] ::Sound* asSound() override { return this; }
 
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
 	                                    int32_t newValue);
@@ -246,7 +316,10 @@ public:
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
 	void setSynthMode(SynthMode value, Song* song);
-	[[nodiscard]] SynthMode getSynthMode() const { return synthMode; }
+	[[nodiscard]] SynthMode getSynthMode() const { return snapshot_.synthMode; }
+	// Store the synth mode (bound: record, then reproject; unbound: the snapshot) without setSynthMode()'s gesture side
+	// effects (voice kill, mod-knob and filter swaps) — for the load path.
+	void assignSynthMode(SynthMode value);
 
 	virtual bool isDrum() { return false; }
 	void setupAsSample(ParamManagerForTimeline* paramManager);
@@ -264,11 +337,12 @@ public:
 	void setupAsDefaultSynth(ParamManager* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) final;
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) final;
+	// The real body; the override above wraps it to re-seed the modKnobs record after any in-place reassignment,
+	// so this function's many early returns need no re-seed of their own.
+	bool modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
 	static void writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation);
 	static void readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
 	                               int32_t readAutomationUpToPos);
-	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-	                                 int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);
 	static Error createParamManagerForLoading(ParamManagerForTimeline* paramManager);
 	int32_t hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength = false,
@@ -279,8 +353,13 @@ public:
 	void fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack);
 	void recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* paramManager);
 	void doneReadingFromFile();
+	/// @brief Re-read the record from the runtime, every field a bound sound's record holds, as binding seeds it; then
+	/// reproject the snapshot. Does nothing when unbound.
+	///
+	/// For what a load makes of a sound after binding (an end clamped to its sample's length, a path found in
+	/// another folder).
+	void reseedRecord();
 	virtual void setupPatchingForAllParamManagers(Song* song) {}
-	void compensateVolumeForResonance(ModelStackWithThreeMainThings* modelStack);
 	// void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation = true) final;
@@ -311,17 +390,7 @@ public:
 	void wontBeRenderedForAWhile() override;
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) final;
 	virtual ArpeggiatorBase* getArp() = 0;
-	void possiblySetupDefaultExpressionPatching(ParamManager* paramManager);
 
-	int32_t getShiftAmountForSaturation() const { return (clippingAmount >= 2) ? (clippingAmount - 2) : 0; }
-
-	///	clipping amount must be greater than 0! Check before calling
-	/// Shift amount is givben by getShiftAmountForSaturation
-	[[gnu::always_inline]] void saturate(int32_t* data, uint32_t* workingValue, int32_t shiftAmount) {
-		// Clipping
-		//*data = getTanHUnknown(*data, 5 + clippingAmount) << (shiftAmount);
-		*data = getTanHAntialiased(*data, workingValue, 5 + clippingAmount) << (shiftAmount);
-	}
 	uint32_t getSyncedLFOPhaseIncrement(const LFOConfig& config);
 
 	/// @brief Does this sound have any active voices?
@@ -359,6 +428,10 @@ public:
 	virtual const char* getName() { return nullptr; }
 
 private:
+	/// @brief The Deluge instrument's settings for this sound, owned here and bound on adoption (bindState).
+	deluge::instrument::SoundState ownedState_;
+	/// @brief The element this sound was last read from (see takeLoadedElement).
+	std::optional<deluge::serialization::Value> loadedElement_;
 	/// @brief Count one destruction that found live voices (see soundsDestroyedWithLiveVoices()).
 	static void noteDestroyedWithLiveVoices();
 
@@ -367,14 +440,12 @@ private:
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
 	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);
 	void setupUnisonStereoSpread();
+	void computeUnisonDetuners();
 	void calculateEffectiveVolume();
 	void ensureKnobReferencesCorrectVolume(Knob& knob);
 	Error readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                             int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 
-	void writeSourceToFile(Serializer& writer, int32_t s, char const* tagName);
-	Error readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerForTimeline* paramManager,
-	                         int32_t readAutomationUpToPos);
 	void stopSkippingRendering(ArpeggiatorSettings* arpSettings);
 	void startSkippingRendering(ModelStackWithSoundFlags* modelStack);
 	void getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSettings);
@@ -387,6 +458,9 @@ private:
 	ModelStackWithAutoParam* getParamFromModEncoderDeeper(int32_t whichModEncoder,
 	                                                      ModelStackWithThreeMainThings* modelStack,
 	                                                      bool allowCreation = true);
+
+	/// @brief The sound's effects after its voices; outlives voices_, whose teardown reads its delay.
+	deluge::effects::SoundChain chain_;
 
 	/// @brief the list of active voices for this sound
 	// O(n) lookup is fine when most of the time we're iterating over all voices anyways.

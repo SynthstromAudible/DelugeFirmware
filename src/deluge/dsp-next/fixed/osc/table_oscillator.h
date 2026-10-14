@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "dsp-next/core/concepts.h"
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/bandlimited/table.h"
@@ -24,6 +25,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
 
 namespace deluge::dsp::fixed {
 
@@ -68,7 +70,7 @@ public:
 		Argon<uint32_t> value_pair = 0U;
 		ArgonHalf<uint16_t> fraction = 0U;
 
-		util::constexpr_for<0, 4, 1>([&]<int i>() {
+		util::constexpr_for<0, 4, 1>([&]<int i> [[gnu::always_inline]] () {
 			uint32_t phase = phasor_.advance();
 			fraction[i] = phase >> (32 - 16 - magnitude_);
 			uint32_t index = phase >> (32 - magnitude_);
@@ -93,5 +95,7 @@ public:
 		return entry_wide.MultiplyDoubleAddSaturateLong(slope, fraction.As<int16_t>());
 	}
 };
+static_assert(block_generator<TableOscillator>, "a table oscillator fills a block");
+static_assert(!std::is_polymorphic_v<TableOscillator>, "a table oscillator fills a block without a vptr");
 
 } // namespace deluge::dsp::fixed

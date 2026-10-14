@@ -57,7 +57,7 @@ bool SaveKitRowUI::opened() {
 		return false;
 	}
 
-	enteredText = soundDrumToSave->drumName;
+	enteredText = soundDrumToSave->name();
 	enteredTextEditPos = enteredText.size();
 	currentFolderIsEmpty = false;
 
@@ -104,7 +104,7 @@ bool SaveKitRowUI::beforeStagedWrite(const deluge::storage::SaveRequest& request
 void SaveKitRowUI::afterStagedSave(const deluge::storage::SaveRequest& request) {
 	display->removeWorkingAnimation();
 	// Give the Instrument in memory its new slot
-	soundDrumToSave->drumName = request.enteredText.c_str();
+	soundDrumToSave->setName(request.enteredText.c_str());
 	soundDrumToSave->path = request.dirPath.c_str();
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the
 	// user to select such a slot

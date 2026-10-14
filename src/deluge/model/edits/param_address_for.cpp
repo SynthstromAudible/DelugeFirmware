@@ -1,0 +1,195 @@
+#include "model/edits/param_address_for.h"
+
+#include "definitions_cxx.hpp" // ALPHA_OR_BETA_VERSION
+#include "foundation/panic.h"  // FREEZE_WITH_ERROR
+#include "model/clip/clip.h"
+#include "model/drum/drum.h"
+#include "model/model_stack.h"
+#include "model/note/note_row.h"
+#include "model/output.h"
+#include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/param_projection.h"
+#include "model/song/song.h"
+#include "modulation/midi/midi_param_collection.h"
+#include "modulation/params/param_collection.h"
+#include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
+
+namespace deluge::edits {
+
+#if ALPHA_OR_BETA_VERSION
+uint32_t docFallbackHits = 0;
+#endif
+
+// The owner classification of ModelStackWithAutoParam::doc(), so an Edit can build the same stable ParamAddress at
+// construction time, before it holds a resolved engine ModelStack. The `kind` carried into the address is the
+// ModelStack's threaded param Kind; an ALPHA safety-net assert checks it matches the collection's own
+// getParamKind(). The one unaddressable case, an owner with no id, returns nullopt, exactly the fallthrough doc()
+// takes to its engine store.
+std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAutoParam& modelStack) {
+	if (modelStack.song == nullptr) {
+		return std::nullopt;
+	}
+	TimelineCounter* tc = modelStack.getTimelineCounterAllowNull();
+	deluge::project::OwnerId owner{};
+	std::optional<uint32_t> clipSerial{}; // for INSTRUMENT/DRUM owners: which clip's override this lane is
+	bool haveOwner = false;
+	if (tc == static_cast<TimelineCounter*>(modelStack.song)) {
+		owner = deluge::project::OwnerId::song();
+		haveOwner = true;
+	}
+	else if (tc != nullptr) {
+		// Song and Clip are the only TimelineCounters, so a non-song tc is a Clip. Classify the owner by the
+		// ModelStack context: a set noteRow ⇒ a per-drum param (OwnerId::drum, keyed by the drum);
+		// else a synth/kit InstrumentClip ⇒ clip-level instrument-shared (OwnerId::instrument(output)); else an
+		// AudioClip / MIDI clip ⇒ its own params (OwnerId::clip). noteRow is a RELIABLE drum signal — the ModelStack
+		// builders always set it explicitly (addNoteRow(0, nullptr) for the no-noteRow path), never stale.
+		//
+		// The OWNER dimension (clip / output / drum) and the CLIP dimension are each addressed by their durable id. A
+		// missing id in either dimension leaves haveOwner false → the fallback.
+		Clip* clip = static_cast<Clip*>(tc);
+		NoteRow* noteRow = modelStack.getNoteRowAllowNull();
+
+		// Clip dimension: the clip's durable id. Used as the (owner, clip) key for INSTRUMENT/DRUM owners, and as
+		// the CLIP owner's own id for audio/MIDI.
+		std::optional<uint32_t> clipSerialOpt = clip->id();
+		bool haveClip = false;
+		uint32_t clipKey = 0;
+		if (clipSerialOpt.has_value()) {
+			clipKey = *clipSerialOpt;
+			haveClip = true;
+		}
+
+		if (!haveClip) {
+			// clip not relocated → fallback (haveOwner stays false)
+		}
+		else if (noteRow != nullptr) {
+			// Per-drum (DRUM owner): resolve the drum dimension independently of the clip dimension.
+			if (noteRow->drum != nullptr && noteRow->drum->type == DrumType::SOUND) {
+				Drum* drum = noteRow->drum;
+				if (std::optional<uint32_t> drumId = drum->id()) {
+					owner = deluge::project::OwnerId::drum(*drumId);
+					clipSerial = clipKey;
+					haveOwner = true;
+				}
+			}
+		}
+		else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
+		         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT)) {
+			// Synth/kit clip-level instrument-shared (INSTRUMENT owner): resolve the output dimension independently.
+			Output* out = clip->output;
+			if (std::optional<uint32_t> outId = out->id()) {
+				owner = deluge::project::OwnerId::instrument(*outId);
+				clipSerial = clipKey;
+				haveOwner = true;
+			}
+		}
+		else if (clip->type == ClipType::AUDIO
+		         || (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
+		             && clip->output->type == OutputType::MIDI_OUT)) {
+			// An audio clip's own params, or a MIDI_OUT clip's per-clip CC automation (Kind::MIDI resolves by cc
+			// within the per-clip store) — both are CLIP owners keyed by the clip's durable id.
+			owner = deluge::project::OwnerId::clip(clipKey);
+			haveOwner = true;
+		}
+	}
+	if (!haveOwner) {
+		return std::nullopt;
+	}
+#if ALPHA_OR_BETA_VERSION
+	// Safety net for the threaded `kind`: every ModelStack builder that sets paramCollection must set kind to
+	// match. A mismatch means a builder (or the oracle stub) missed it — catch it loudly before it mis-resolves a
+	// ParamAddress against the wrong tree entry.
+	if (modelStack.kind != modelStack.paramCollection->getParamKind()) {
+		FREEZE_WITH_ERROR("DkND");
+	}
+#endif
+	return deluge::bridge::addressOf(owner, modelStack.kind, modelStack.paramId, clipSerial);
+}
+
+namespace {
+// The DocParamManager for `address` in the project tree, creating an empty entry if absent. Only the CLIP /
+// INSTRUMENT / DRUM owner kinds reach here (SONG is always resolvable, so relocateAndResolve returns early for it).
+deluge::project::DocParamManager* managerForAddress(deluge::project::Song& proj,
+                                                    const deluge::project::ParamAddress& address) {
+	switch (address.owner.kind) {
+	case deluge::project::OwnerId::Kind::CLIP:
+		return &proj.clip_params.getOrCreate(address.owner.id);
+	case deluge::project::OwnerId::Kind::INSTRUMENT:
+	case deluge::project::OwnerId::Kind::DRUM:
+		return &proj.backed_params.getOrCreate(address.owner, address.clip_id);
+	case deluge::project::OwnerId::Kind::SONG:
+		return nullptr;
+	}
+	return nullptr;
+}
+} // namespace
+
+deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam& modelStack) {
+	if (modelStack.song == nullptr) {
+		return nullptr;
+	}
+	TimelineCounter* tc = modelStack.getTimelineCounterAllowNull();
+	// A runtime owner is always a Clip (or its NoteRow's drum). The song-global tier is bound at load and never
+	// reaches here; a null tc has no owner to relocate.
+	if (tc == nullptr || tc == static_cast<TimelineCounter*>(modelStack.song)) {
+		return nullptr;
+	}
+	deluge::project::Song& proj = modelStack.song->project;
+	Clip* clip = static_cast<Clip*>(tc);
+	NoteRow* noteRow = modelStack.getNoteRowAllowNull();
+
+	// Ensure the owner chain this param belongs to has a durable id, minting one for a runtime owner never
+	// saved/loaded (clips always have one from construction). After this, addressFor can build a total ParamAddress.
+	if (noteRow != nullptr) {
+		if (noteRow->drum != nullptr && noteRow->drum->type == DrumType::SOUND && !noteRow->drum->id().has_value()) {
+			noteRow->drum->setId(modelStack.song->generateNewDrumId());
+		}
+	}
+	else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
+	         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT)
+	         && !clip->output->id().has_value()) {
+		clip->output->setId(modelStack.song->generateNewOutputId());
+	}
+
+	std::optional<deluge::project::ParamAddress> address = addressFor(modelStack);
+	if (!address.has_value()) {
+		return nullptr; // still unclassifiable (e.g. a non-Sound drum) — caller's fallback
+	}
+	deluge::project::DocParamManager* mgr = managerForAddress(proj, *address);
+	if (mgr == nullptr) {
+		return nullptr;
+	}
+
+	// Relocate the TOUCHED collection's engine store into its tree slot, as load does. Only
+	// this collection moves; the owner's other collections relocate on their own first touch (each is an independent
+	// slot / seed of the same (owner, clip) DocParamManager). Guarded by the slot being empty (a fresh owner just
+	// created by getOrCreate) so an already-relocated collection is never double-moved.
+	ParamCollection* pc = modelStack.paramCollection;
+	if (modelStack.kind == deluge::modulation::params::Kind::PATCH_CABLE) {
+		auto* pcs = static_cast<PatchCableSet*>(pc);
+		if (pcs->domCables() == nullptr) {
+			mgr->cables = deluge::bridge::toDocCables(*pcs);
+			pcs->bindDomCablesExternal(&mgr->cables);
+		}
+	}
+	else if (address->space == deluge::project::ParamSpace::MIDI_CC) {
+		auto* midi = static_cast<MIDIParamCollection*>(pc);
+		if (midi->domMidi() == nullptr) {
+			mgr->midi_params = deluge::bridge::toDocMidiParams(*midi);
+			midi->bindDomMidiExternal(&mgr->midi_params);
+		}
+	}
+	else {
+		auto* set = static_cast<ParamSet*>(pc);
+		std::optional<deluge::project::DocParamSet>& slot = *deluge::bridge::storeFor(*mgr, set->getParamKind());
+		if (!slot.has_value()) {
+			set->bindDomStore();                // ensure an own store exists (idempotent if already inline)
+			slot = std::move(*set->domStore()); // move the engine set's own store into the tree slot
+			set->bindDomStoreExternal(&*slot);  // rebind the engine set at the tree copy
+		}
+	}
+	return modelStack.song->project.resolveParam(*address);
+}
+
+} // namespace deluge::edits

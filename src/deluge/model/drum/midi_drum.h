@@ -43,6 +43,16 @@ public:
 	                                              int32_t channelOrNoteNumber,
 	                                              MIDICharacteristic whichCharacteristic) override;
 
-	uint8_t note;
 	int8_t noteEncoderCurrentOffset{};
+
+	/// @brief The MIDI drum note, read from the authoritative store `DocDrum::note`.
+	///
+	/// Body lives in midi_drum.cpp for the complete DocDrum type.
+	/// @pre The drum is bound to its DocDrum.
+	/// @return The MIDI note number.
+	[[nodiscard]] uint8_t note() const;
+	/// @brief Set the MIDI drum note, writing the authoritative `DocDrum::note`.
+	/// @pre The drum is bound to its DocDrum.
+	/// @param newNote The MIDI note number.
+	void setNote(uint8_t newNote);
 };

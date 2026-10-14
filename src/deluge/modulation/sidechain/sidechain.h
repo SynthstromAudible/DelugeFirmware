@@ -17,38 +17,15 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
-#include "modulation/sync.h"
-#include "synth/envelope.h" // Envelope::Stage
+#include "engines/effects/state.h"
 
-#include <cstdint>
+namespace deluge::modulation {
 
-class Song;
+/// @brief The settings an owner's sidechain starts with.
+///
+/// Attack and release are the menus' defaults; the sync level is an eighth note at the tick magnitude of the song
+/// being loaded (or the current one).
+/// @return The default sidechain settings.
+[[nodiscard]] effects::SidechainState default_sidechain_state();
 
-class SideChain {
-public:
-	SideChain();
-	void cloneFrom(SideChain* other);
-
-	Envelope::Stage status;
-	uint32_t pos;
-	int32_t lastValue;
-	int32_t pendingHitStrength;
-
-	int32_t envelopeOffset{};
-	int32_t envelopeHeight{};
-
-	int32_t attack;
-	int32_t release;
-
-	SyncType syncType;
-	SyncLevel syncLevel; // Basically, 0 is off, max value is 9. Higher numbers are shorter intervals (higher speed).
-
-	int32_t render(uint16_t numSamples, int32_t shapeValue);
-	void registerHit(int32_t strength);
-	void registerHitRetrospectively(int32_t strength, uint32_t numSamplesAgo);
-
-private:
-	int32_t getActualAttackRate();
-	int32_t getActualReleaseRate();
-};
+} // namespace deluge::modulation

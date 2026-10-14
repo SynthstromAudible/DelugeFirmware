@@ -24,6 +24,9 @@
 #include "storage/audio/audio_load_context.h"
 #include "storage/audio/sample_load_walk.h"
 #include <cstdint>
+#include <optional>
+#include <string>
+#include <string_view>
 
 class Clip;
 class Kit;
@@ -34,6 +37,10 @@ class ModelStackWithTimelineCounter;
 class ParamManager;
 class ParamManagerForTimeline;
 class Song;
+
+namespace deluge::project {
+struct DocDrum;
+}
 
 /*
  * Kits are made up of multiple Drums. Even when they are not drum sounds, the class is called Drum, for better or
@@ -48,8 +55,30 @@ public:
 	Drum(DrumType newType);
 	~Drum() override = default;
 
-	std::string drumName{};
 	Kit* kit;
+
+	/// @brief Set the drum's name; the single write funnel for it.
+	///
+	/// Writes the authoritative `DocDrum::name`.
+	/// @pre The drum is bound to its DocDrum (adopt precedes tag reads at load; runtime drums bind on addDrum).
+	/// @note Overloads mirror the call-site argument shapes: string literals / `.c_str()` (const char*),
+	///       `std::string_view` (rename UI), and `std::string` rvalues (move-preserving). Bodies live in drum.cpp so
+	///       they see the complete DocDrum type without pulling the doc header into this header.
+	/// @param newName The new drum name.
+	void setName(const char* newName);
+	/// @copydoc setName(const char*)
+	void setName(std::string_view newName);
+	/// @copydoc setName(const char*)
+	void setName(std::string&& newName);
+
+	/// @brief The drum's name, read from the authoritative DocDrum record.
+	///
+	/// Returns a reference into stable DocDrum storage; callers that need a stable pointer/view
+	/// (SoundDrum::getName const char*, RenameDrumUI string_view) rely on this. Body lives in drum.cpp for the
+	/// complete DocDrum type.
+	/// @pre The drum is bound to its DocDrum.
+	/// @return The drum's name.
+	[[nodiscard]] const std::string& name() const;
 
 	const DrumType type;
 	bool noteRowAssignedTemp{};
@@ -63,6 +92,8 @@ public:
 
 	Drum* next;
 
+	std::optional<uint32_t> id_; // Stable per-song identity; see id(). nullopt = standalone / unassigned.
+
 	LearnedMIDI midiInput;
 	LearnedMIDI muteMIDICommand;
 
@@ -74,10 +105,6 @@ public:
 	                    int32_t ticksLate = 0, uint32_t samplesLate = 0) = 0;
 	virtual void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) = 0;
 
-	/// @brief Load every audio file this drum's sound names, on this tier, before returning.
-	/// @param mayActuallyReadFiles false confines every lookup to files already in memory.
-	/// @param context The load this belongs to, or null for none.
-	void loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr);
 	/// @brief Report every audio file this drum's sound names to @p visitor, in load order. Loads nothing.
 	/// @param visitor Receives each demand.
 	/// @return Walk::Continue, or Walk::Stop if @p visitor asked to stop early.
@@ -93,8 +120,23 @@ public:
 	virtual void choke(ModelStackWithSoundFlags* modelStack) {} // modelStack can be NULL if you really insist
 
 	void writeMIDICommandsToFile(Serializer& writer);
-	void writeDrumTagsToFile(Serializer& writer);
+	void writeDrumTagsToFile(Serializer& writer, bool savingSong);
 	bool readDrumTagFromFile(Deserializer& reader, char const* tagName);
+
+	// --- Stable per-song serial identity (see Clip/Output::id). Assigned lazily on first song-save from
+	// Song::generateNewDrumId, restored on load, and used to address this drum's automation lane in the
+	// persistent tree (OwnerId::Drum) independent of its transient linked-list position. nullopt = unassigned. ---
+	[[nodiscard]] std::optional<uint32_t> id() const { return id_; }
+	void setId(uint32_t id) { id_ = id; }
+
+	/// @brief Non-owning pointer to this drum's DOM-owned structural record, held in the project's `drum_structure`
+	///        keyed by id().
+	///
+	/// Bound via Song::adoptDrum once the drum has an id. Not carried across any drum copy path (drums aren't
+	/// value-copied).
+	deluge::project::DocDrum* docDrum_{nullptr};
+	void bindDocDrum(deluge::project::DocDrum* d) { docDrum_ = d; }
+
 	void recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed);
 	void expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
 	                                     int32_t expressionDimension, int32_t level);

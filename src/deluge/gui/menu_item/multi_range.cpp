@@ -17,6 +17,7 @@
 
 #include "multi_range.h"
 #include "gui/l10n/l10n.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
@@ -51,6 +52,7 @@ void MultiRange::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	this->setValue(soundEditor.currentSource->defaultRangeI);
 	soundEditor.currentSource->getOrCreateFirstRange(); // TODO: deal with error
+	recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
 	soundEditor.setCurrentMultiRange(this->getValue());
 
 	currentScroll = this->getValue() - 1;
@@ -73,81 +75,50 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 	// If editing the range itself...
 	if (soundEditor.editingRangeEdge != RangeEdit::OFF) {
 
+		// The new boundaries, built from the source's ranges and issued as one Edit.
+		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(*soundEditor.currentSource);
+		const int32_t i = this->getValue();
+		const int32_t count = std::ssize(ranges);
+
 		// Editing left
 		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
-
-			::MultiRange* lowerRange = soundEditor.currentSource->ranges.getElement(this->getValue() - 1);
-
+			deluge::instrument::RangeState& lowerRange = ranges[i - 1];
 			// Raising
 			if (offset >= 0) {
-				int32_t maximum;
-				if (this->getValue() < std::ssize(soundEditor.currentSource->ranges) - 1) {
-					::MultiRange* currentRange = soundEditor.currentSource->ranges.getElement(this->getValue());
-					maximum = currentRange->topNote - 1;
-				}
-				else {
-					maximum = 127;
-				}
-
-				if (lowerRange->topNote < maximum) {
-					lowerRange->topNote++;
+				const int32_t maximum = i < count - 1 ? ranges[i].top_note - 1 : 127;
+				if (lowerRange.top_note < maximum) {
+					lowerRange.top_note++;
 				}
 			}
-
 			// Lowering
 			else {
-				int32_t minimum;
-				if (this->getValue() >= 2) {
-					::MultiRange* lowerLowerRange = soundEditor.currentSource->ranges.getElement(this->getValue() - 2);
-					minimum = lowerLowerRange->topNote + 1;
-				}
-				else {
-					minimum = 0;
-				}
-
-				if (lowerRange->topNote > minimum) {
-					lowerRange->topNote--;
+				const int32_t minimum = i >= 2 ? ranges[i - 2].top_note + 1 : 0;
+				if (lowerRange.top_note > minimum) {
+					lowerRange.top_note--;
 				}
 			}
 		}
 
 		// Editing right
 		else {
-
-			::MultiRange* currentRange = soundEditor.currentSource->ranges.getElement(this->getValue());
-
+			deluge::instrument::RangeState& currentRange = ranges[i];
 			// Raising
 			if (offset >= 0) {
-				int32_t maximum;
-				if (this->getValue() < std::ssize(soundEditor.currentSource->ranges) - 2) {
-					::MultiRange* higherRange = soundEditor.currentSource->ranges.getElement(this->getValue() + 1);
-					maximum = higherRange->topNote - 1;
-				}
-				else {
-					maximum = 126;
-				}
-
-				if (currentRange->topNote < maximum) {
-					currentRange->topNote++;
+				const int32_t maximum = i < count - 2 ? ranges[i + 1].top_note - 1 : 126;
+				if (currentRange.top_note < maximum) {
+					currentRange.top_note++;
 				}
 			}
-
 			// Lowering
 			else {
-				int32_t minimum;
-				if (this->getValue() >= 1) {
-					::MultiRange* lowerRange = soundEditor.currentSource->ranges.getElement(this->getValue() - 1);
-					minimum = lowerRange->topNote + 1;
-				}
-				else {
-					minimum = 1;
-				}
-
-				if (currentRange->topNote > minimum) {
-					currentRange->topNote--;
+				const int32_t minimum = i >= 1 ? ranges[i - 1].top_note + 1 : 1;
+				if (currentRange.top_note > minimum) {
+					currentRange.top_note--;
 				}
 			}
 		}
+
+		rangesFor(*soundEditor.currentSound, soundEditor.currentSourceIndex, std::move(ranges));
 
 		renderUIsForOled();
 	}
@@ -216,6 +187,8 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 				// And can leave old range alone
 				currentScroll++; // Won't go past end of list, cos list just grew.
 			}
+
+			recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
 
 			this->setValue(newI);
 			display->consoleText(l10n::get(l10n::String::STRING_FOR_RANGE_INSERTED));
@@ -304,6 +277,7 @@ void MultiRange::deletePress() {
 			soundEditor.currentMultiRange->topNote = (soundEditor.currentMultiRange->topNote + oldTopNote) >> 1;
 		}
 	}
+	recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
 
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_RANGE_DELETED));
 	soundEditor.possibleChangeToCurrentRangeDisplay();

@@ -38,8 +38,6 @@ ParamManager::ParamManager() {
 	summaries[4] = {0};
 #endif
 	expressionParamSetOffset = 0;
-
-	resonanceBackwardsCompatibilityProcessed = false;
 }
 
 ParamManager::~ParamManager() {
@@ -176,6 +174,28 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	other->expressionParamSetOffset = 0;
 }
 
+void ParamManager::bindMainParamSetDomStores() {
+	if (!containsAnyMainParamCollections()) {
+		return; // MIDI / expression-only: no main ParamSet to bind
+	}
+	// summaries[0] is the unpatched set for every main-collection manager (GlobalEffectable + Sound).
+	static_cast<ParamSet*>(summaries[0].paramCollection)->bindDomStore();
+	// summaries[1] (patched) exists only for full-synth managers (setupWithPatching), not the unpatched-only
+	// GlobalEffectable managers (audio clip / kit clip-level FX).
+	if (summaries[1].paramCollection != nullptr) {
+		static_cast<ParamSet*>(summaries[1].paramCollection)->bindDomStore();
+	}
+	// Expression (MPE) set, if present — also a ParamSet (at expressionParamSetOffset, not a fixed slot).
+	if (ExpressionParamSet* expression = getExpressionParamSet()) {
+		expression->bindDomStore();
+	}
+	// Patch cables (summaries[2]) — NOT a ParamSet (its AutoParams live in patchCables[].param), so it has its
+	// own store/bind. Present only for full-synth managers (setupWithPatching), null for GlobalEffectable ones.
+	if (summaries[2].paramCollection != nullptr) {
+		static_cast<PatchCableSet*>(summaries[2].paramCollection)->bindDomStore();
+	}
+}
+
 Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation,
                                               bool cloneExpressionParams, int32_t reverseDirectionWithLength) {
 
@@ -202,15 +222,16 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 		otherStopAt++;
 	}
 
+	// Clone each collection into freshly-allocated memory via its virtual clone() (real copy construction
+	// where the subclass overrides it; otherwise the base clone() byte-copies). On
+	// failure, destruct + free the collections already cloned this pass.
 	while (otherSummary != otherStopAt) {
-		// To cut corners, we store this currently blank/undefined memory in our array of type ParamCollectionSummary
-		newSummary->paramCollection =
-		    (ParamCollection*)deluge::memory::alloc_fast(otherSummary->paramCollection->objectSize);
-
-		// If that failed, deallocate all the previous memories
-		if (!newSummary->paramCollection) {
+		Error error = otherSummary->paramCollection->clone(newSummary->paramCollection, copyAutomation,
+		                                                   reverseDirectionWithLength);
+		if (error != Error::NONE) {
 			while (newSummary != newSummaries) {
 				newSummary--;
+				newSummary->paramCollection->~ParamCollection();
 				delugeDealloc(newSummary->paramCollection);
 			}
 
@@ -219,20 +240,6 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 			summaries[1] = {0};
 			return Error::INSUFFICIENT_RAM;
 		}
-
-		newSummary++;
-		otherSummary++;
-	}
-
-	// Now the memories have been allocated, go through and do the cloning
-	newSummary = newSummaries;
-	otherSummary = other->summaries;
-	while (otherSummary != otherStopAt) {
-
-		memcpy(newSummary->paramCollection, otherSummary->paramCollection, otherSummary->paramCollection->objectSize);
-
-		newSummary->paramCollection->beenCloned(
-		    copyAutomation, reverseDirectionWithLength); // Ignore error - just means automation doesn't get cloned.
 
 		newSummary->cloneFlagsFrom(otherSummary);
 
@@ -271,8 +278,10 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 }
 
 // This is only called once - for NoteRows after cloning an InstrumentClip.
-Error ParamManager::beenCloned(int32_t reverseDirectionWithLength) {
-	return cloneParamCollectionsFrom(this, true, true, reverseDirectionWithLength); // *Does* clone expression params
+void ParamManager::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+	for (ParamCollectionSummary* summary = summaries; summary->paramCollection; summary++) {
+		summary->paramCollection->flattenReverseAutomation(reverseDirectionWithLength);
+	}
 }
 
 // Does *not* forget MPE params

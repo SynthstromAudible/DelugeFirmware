@@ -1,0 +1,230 @@
+{
+	"firmwareVersion": "c1.3.0",
+	"earliestCompatibleFirmware": "2.0.0-beta",
+	"sound": {
+		"osc1": {
+			"type": "saw",
+			"transpose": 0,
+			"cents": 0,
+			"retrigPhase": 0
+		},
+		"osc2": {
+			"type": "square",
+			"transpose": 7,
+			"cents": -3,
+			"retrigPhase": 0
+		},
+		"polyphonic": "auto",
+		"clippingAmount": 0,
+		"voicePriority": 1,
+		"lfo1": {
+			"type": "sine",
+			"syncLevel": 0
+		},
+		"lfo2": {
+			"type": "sine"
+		},
+		"mode": "ringmod",
+		"transpose": -24,
+		"unison": {
+			"num": 2,
+			"detune": 8
+		},
+		"compressor": {
+			"syncLevel": 6,
+			"attack": 327244,
+			"release": 936
+		},
+		"lpfMode": "24dBDrive",
+		"modFXType": "none",
+		"delay": {
+			"pingPong": 0,
+			"analog": 1,
+			"syncLevel": 7
+		},
+		"defaultParams": {
+			"arpeggiatorGate": "0x00000000",
+			"portamento": "0x80000000",
+			"compressorShape": "0xDC28F5B2",
+			"oscAVolume": "0x7FFFFFD2",
+			"oscAPulseWidth": "0x00000000",
+			"oscBVolume": "0x4CCCCCA8",
+			"oscBPulseWidth": "0x49000000",
+			"noiseVolume": "0x80000000",
+			"volume": "0x7FFFFFD2",
+			"pan": "0x00000000",
+			"lpfFrequency": "0x14000000",
+			"lpfResonance": "0x58000000",
+			"hpfFrequency": "0x80000000",
+			"hpfResonance": "0x80000000",
+			"envelope1": {
+				"attack": "0xAA000000",
+				"decay": "0xF0A3D6F6",
+				"sustain": "0x6666663D",
+				"release": "0x8A3D70A2"
+			},
+			"envelope2": {
+				"attack": "0xCCCCCCBF",
+				"decay": "0x9EB851E6",
+				"sustain": "0xFFFFFFE9",
+				"release": "0xB851EB7B"
+			},
+			"lfo1Rate": "0x28000000",
+			"lfo2Rate": "0x7FFFFFD2",
+			"modulator1Amount": "0xA8F5C288",
+			"modulator1Feedback": "0x80000000",
+			"modulator2Amount": "0xA3D70A37",
+			"modulator2Feedback": "0x80000000",
+			"carrier1Feedback": "0x80000000",
+			"carrier2Feedback": "0x80000000",
+			"modFXRate": "0xEB851EA5",
+			"modFXDepth": "0xC7AE146E",
+			"delayRate": "0xFFFFFFE9",
+			"delayFeedback": "0x80000000",
+			"reverbAmount": "0x80000000",
+			"arpeggiatorRate": "0x00000000",
+			"patchCables": [
+				{
+					"patchCable": {
+						"source": "velocity",
+						"destination": "volume",
+						"amount": "0x3FFFFFE8"
+					}
+				},
+				{
+					"patchCable": {
+						"source": "envelope2",
+						"destination": "lpfFrequency",
+						"amount": "0x1C28F5B8"
+					}
+				},
+				{
+					"patchCable": {
+						"source": "note",
+						"destination": "lpfFrequency",
+						"amount": "0x0E147ADC"
+					}
+				},
+				{
+					"patchCable": {
+						"source": "velocity",
+						"destination": "lpfFrequency",
+						"amount": "0x0A3D70A0"
+					}
+				},
+				{
+					"patchCable": {
+						"source": "aftertouch",
+						"destination": "volume",
+						"polarity": "unipolar",
+						"amount": "0x2A3D7094"
+					}
+				},
+				{
+					"patchCable": {
+						"source": "y",
+						"destination": "lpfFrequency",
+						"polarity": "bipolar",
+						"amount": "0x19999990"
+					}
+				}
+			],
+			"stutterRate": "0x00000000",
+			"sampleRateReduction": "0x80000000",
+			"bitCrush": "0x80000000",
+			"equalizer": {
+				"bass": "0x00000000",
+				"treble": "0x00000000",
+				"bassFrequency": "0x00000000",
+				"trebleFrequency": "0x00000000"
+			},
+			"modFXOffset": "0xFFC00000",
+			"modFXFeedback": "0xFFFFFFAA"
+		},
+		"midiKnobs": [],
+		"modKnobs": [
+			{
+				"modKnob": {
+					"controlsParam": "pan"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "volumePostFX"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "lpfResonance"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "lpfFrequency"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "env1Release"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "env1Attack"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "delayFeedback"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "delayRate"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "reverbAmount"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "volumePostReverbSend",
+					"patchAmountFromSource": "compressor"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "pitch",
+					"patchAmountFromSource": "lfo1"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "lfo1Rate"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "portamento"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "stutterRate"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "noiseVolume"
+				}
+			},
+			{
+				"modKnob": {
+					"controlsParam": "oscBPhaseWidth"
+				}
+			}
+		]
+	}
+}

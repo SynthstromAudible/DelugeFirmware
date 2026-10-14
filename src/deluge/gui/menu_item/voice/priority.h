@@ -17,7 +17,9 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
+#include "model/clip/audio_clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
@@ -26,14 +28,37 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::voice {
+
+/// @brief Read the voice priority of the current audio clip, or else of the current sound.
+///
+/// Resolve-at-use seam: the field is owned by either the current audio clip or the current sound/drum (mirrors
+/// getCurrentSampleControls). Access is by value, never a mutable reference to the native field, so the owning class
+/// can route it through its DOM record.
+/// @return The current owner's voice priority.
+inline VoicePriority getCurrentVoicePriority() {
+	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
+		return audioClip->voicePriority(); // DOM-owned accessor
+	}
+	return soundEditor.currentSound->snapshot().voicePriority; // read from the sound's snapshot
+}
+/// @brief Write the voice priority of the current audio clip, or else of the current sound.
+/// @param value The priority to set on the current owner.
+inline void setCurrentVoicePriority(VoicePriority value) {
+	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
+		audioClip->setVoicePriority(value);
+		return;
+	}
+	settingFor(*soundEditor.currentSound, "voicePriority", serialization::Value::makeNumber(std::to_underlying(value)));
+}
+
 class Priority final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(*soundEditor.currentPriority); }
+	void readCurrentValue() override { this->setValue(getCurrentVoicePriority()); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<VoicePriority>();
-		*soundEditor.currentPriority = current_value;
+		setCurrentVoicePriority(current_value);
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 
@@ -42,13 +67,10 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->voicePriority = current_value;
+					settingFor(*soundDrum, "voicePriority",
+					           serialization::Value::makeNumber(std::to_underlying(current_value)));
 				}
 			}
-		}
-		// Or, the normal case of just one sound (or audio clip)
-		else {
-			*soundEditor.currentPriority = current_value;
 		}
 	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

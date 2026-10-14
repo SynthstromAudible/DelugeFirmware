@@ -17,17 +17,23 @@
 
 #include "modulation/midi/midi_param_collection.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/param_automation.h"
 #include "gui/views/automation_view.h"
 #include "io/midi/midi_engine.h"
+#include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_projection.h"
+#include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
+#include "util/exceptions.h"
+#include <new>
 
 MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
     : ParamCollection(sizeof(MIDIParamCollection), summary) {
@@ -38,14 +44,81 @@ MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
 	summary->whichParamsAreInterpolating[0] = 0;
 }
 
+// domStore_ / domMidiRef_ are intentionally left null: a cloned collection starts unbound (owns its nodes) until
+// separately bound.
+MIDIParamCollection::MIDIParamCollection(MIDIParamCollection const& other)
+    : ParamCollection(other), params(other.params) {
+	// If `other` reads its live nodes from an external tree store, its inline nodes_ is stale (edits went to the
+	// tree). Copy the current tree nodes so this clone starts self-owned with correct automation, as
+	// PatchCableSet's copy-ctor does.
+	if (other.domMidiRef_ != nullptr) {
+		for (MIDIParam& midiParam : params) {
+			if (deluge::project::DocAutoParam* live = other.findDomMidiNodes(midiParam.cc)) {
+				midiParam.nodes_ = *live;
+			}
+		}
+	}
+}
+
 MIDIParamCollection::~MIDIParamCollection() {
 	deleteAllParams(NULL, false);
 }
 
+// The MIDIParamVector is ordered by CC and reorders/relocates on insert, so an owner store resolved by index cannot
+// stay in sync (a bound param would resolve to the wrong slot after a CC is learned). Each CC's nodes therefore
+// live inline in its MIDIParam's nodes_, which rides with the param through the vector's moves. Binding to a shared
+// positional store is a no-op for this collection; owner-resolution returns the inline store.
+void MIDIParamCollection::bindDomStore() {
+}
+
+deluge::project::DocParamSet* MIDIParamCollection::domStore() {
+	return nullptr; // never bound to a shared store (see bindDomStore)
+}
+
+deluge::project::DocAutoParam* MIDIParamCollection::docForParam(int32_t i) {
+	// When bound to the clip's project-tree CC store, resolve this CC's nodes from the tree entry matching its cc,
+	// so save and runtime edits share the persistent store (the inline nodes_ is then unused). Unbound, the CC owns
+	// its store inline and rides with the MIDIParam through the vector's reorders.
+	if (domMidiRef_ != nullptr) {
+		return &findOrCreateDomMidi(params[i].cc).param;
+	}
+	return &params[i].nodes_;
+}
+
+deluge::project::DocMidiParam& MIDIParamCollection::findOrCreateDomMidi(uint8_t cc) {
+	for (deluge::project::DocMidiParam& entry : *domMidiRef_) {
+		if (entry.cc == cc) {
+			return entry;
+		}
+	}
+	domMidiRef_->push_back(deluge::project::DocMidiParam{cc, {}});
+	return domMidiRef_->back();
+}
+
+deluge::project::DocAutoParam* MIDIParamCollection::findDomMidiNodes(uint8_t cc) const {
+	if (domMidiRef_ == nullptr) {
+		return nullptr;
+	}
+	for (deluge::project::DocMidiParam& entry : *domMidiRef_) {
+		if (entry.cc == cc) {
+			return &entry.param;
+		}
+	}
+	return nullptr;
+}
+
+deluge::project::DocAutoParam* MIDIParamCollection::docParamForId(int32_t paramId) {
+	int32_t i = params.firstAtOrAfter(paramId); // paramId == CC; the vector is ordered by CC
+	if (i < std::ssize(params) && params[i].cc == paramId) {
+		return docForParam(i);
+	}
+	return nullptr;
+}
+
 void MIDIParamCollection::deleteAllParams(Action* action, bool deleteStorageToo) {
 	if (action) {
-		for (MIDIParam& midiParam : params) {
-			midiParam.param.deleteAutomationBasicForSetup();
+		for (int32_t i = 0; i < std::ssize(params); i++) {
+			params[i].param.deleteAutomationBasicForSetup(*docForParam(i));
 		}
 	}
 	params.clear(); // Destructs the params (the deleteStorageToo distinction is moot now this does both)
@@ -66,12 +139,49 @@ void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollect
 	}
 }
 
-void MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
-	params.beenCloned(); // Copies memory for all of params
+Error MIDIParamCollection::clone(ParamCollection*& result, bool copyAutomation,
+                                 int32_t reverseDirectionWithLength) const {
+	// params is a value member (MIDIParamVector), so the copy ctor deep-copies it (and each embedded AutoParam);
+	// no pointer re-pointing is needed.
+	void* mem = deluge::memory::alloc_fast(sizeof(MIDIParamCollection));
+	if (mem == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	MIDIParamCollection* clone;
+	try {
+		clone = new (mem) MIDIParamCollection(*this);
+	} catch (deluge::exception&) {
+		delugeDealloc(mem);
+		return Error::INSUFFICIENT_RAM;
+	}
+	if (!copyAutomation) {
+		clone->stripAutomation();
+	}
+	else if (reverseDirectionWithLength != 0) {
+		try {
+			clone->flattenReverseAutomation(reverseDirectionWithLength);
+		} catch (deluge::exception&) {
+			clone->~MIDIParamCollection();
+			delugeDealloc(mem);
+			return Error::INSUFFICIENT_RAM;
+		}
+	}
+	result = clone;
+	return Error::NONE;
+}
 
-	// And now, copy the memory for the automation data that each member of params references
-	for (MIDIParam& midiParam : params) {
-		midiParam.param.beenCloned(copyAutomation, reverseDirectionWithLength);
+// Every automation op below resolves the CC's node store via docForParam(i): the bound tree entry when bound
+// (where doc()/playback also read/write), the inline nodes_ otherwise. Reading nodes_ directly would operate on the
+// stale inline store once the collection is bound, diverging from the live tree.
+void MIDIParamCollection::stripAutomation() {
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		docForParam(i)->nodes.clear();
+	}
+}
+
+void MIDIParamCollection::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		params[i].param.flattenReverse(*docForParam(i), reverseDirectionWithLength);
 	}
 }
 
@@ -92,8 +202,8 @@ void MIDIParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection
 
 void MIDIParamCollection::generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength,
                                           uint32_t newLength, bool shouldPingpong) {
-	for (MIDIParam& midiParam : params) {
-		midiParam.param.generateRepeats(oldLength, newLength, shouldPingpong);
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		params[i].param.generateRepeats(*docForParam(i), oldLength, newLength, shouldPingpong);
 	}
 }
 
@@ -102,12 +212,13 @@ void MIDIParamCollection::appendParamCollection(ModelStackWithParamCollection* m
                                                 int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
 
 	MIDIParamCollection* otherMIDIParamCollection = (MIDIParamCollection*)otherModelStack->paramCollection;
-	for (MIDIParam& otherMidiParam : otherMIDIParamCollection->params) {
-		// Find param in *this* collection for the same CC. There should be one
-		MIDIParam* midiParam = params.getParamFromCC(otherMidiParam.cc);
-		if (midiParam != nullptr) {
-			midiParam->param.appendParam(&otherMidiParam.param, oldLength, reverseThisRepeatWithLength,
-			                             pingpongingGenerally);
+	for (int32_t oi = 0; oi < std::ssize(otherMIDIParamCollection->params); oi++) {
+		uint8_t cc = otherMIDIParamCollection->params[oi].cc;
+		// Find the param in *this* collection for the same CC. There should be one.
+		int32_t ti = params.firstAtOrAfter(cc);
+		if (ti < std::ssize(params) && params[ti].cc == cc) {
+			params[ti].param.appendParam(*docForParam(ti), *otherMIDIParamCollection->docForParam(oi), oldLength,
+			                             reverseThisRepeatWithLength, pingpongingGenerally);
 		}
 	}
 
@@ -127,8 +238,8 @@ void MIDIParamCollection::trimToLength(uint32_t newLength, ModelStackWithParamCo
 
 void MIDIParamCollection::shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount,
                                             int32_t effectiveLength) {
-	for (MIDIParam& midiParam : params) {
-		midiParam.param.shiftHorizontally(amount, effectiveLength);
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		params[i].param.shiftHorizontally(*docForParam(i), amount, effectiveLength);
 	}
 }
 
@@ -172,11 +283,10 @@ void MIDIParamCollection::remotelySwapParamState(AutoParamState* state, ModelSta
 
 void MIDIParamCollection::deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) {
 
-	for (MIDIParam& midiParam : params) {
-
-		if (midiParam.param.isAutomated()) {
-			ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(midiParam.cc, &midiParam.param);
-			midiParam.param.deleteAutomation(action, modelStackWithParam, false);
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		if (params[i].param.isAutomated(*docForParam(i))) {
+			ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(params[i].cc, &params[i].param);
+			params[i].param.deleteAutomation(action, modelStackWithParam, false);
 		}
 	}
 }
@@ -214,12 +324,11 @@ void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int
 // Returns error code
 Error MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 
-	for (MIDIParam& midiParam : params) {
-
-		if (midiParam.cc >= 120) {
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		if (params[i].cc >= 120) {
 			return Error::NONE;
 		}
-		Error error = midiParam.param.makeInterpolationGoodAgain(clipLength, 25);
+		Error error = params[i].param.makeInterpolationGoodAgain(*docForParam(i), clipLength, 25);
 		if (error != Error::NONE) {
 			return error;
 		}
@@ -229,16 +338,16 @@ Error MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 }
 
 void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) {
-	for (MIDIParam& midiParam : params) {
+	for (int32_t i = 0; i < std::ssize(params); i++) {
 
-		AutoParam* param = &midiParam.param;
+		AutoParam* param = &params[i].param;
 
 		// With MIDI, we only want to send these out if the param is actually automated and the value is
 		// actually different
-		if (param->isAutomated()) {
+		if (param->isAutomated(*docForParam(i))) {
 
 			int32_t oldValue = param->getCurrentValue();
-			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam.cc, param);
+			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(params[i].cc, param);
 			bool shouldSend = param->grabValueFromPos(pos, modelStackWithAutoParam);
 
 			if (shouldSend) {
@@ -297,30 +406,9 @@ void MIDIParamCollection::notifyPingpongOccurred(ModelStackWithParamCollection* 
 }
 
 void MIDIParamCollection::writeToFile(Serializer& writer) {
-	if (!params.empty()) {
-
-		writer.writeOpeningTag("midiParams");
-
-		for (MIDIParam& midiParam : params) {
-			int32_t cc = midiParam.cc;
-
-			writer.writeOpeningTag("param");
-			if (cc == CC_NUMBER_NONE) { // Why would I have put this in here?
-				writer.writeTag("cc", "none");
-			}
-			else {
-				writer.writeTag("cc", cc);
-			}
-
-			writer.writeOpeningTag("value", false);
-			midiParam.param.writeToFile(writer, true);
-			writer.writeClosingTag("value", false);
-
-			writer.writeClosingTag("param");
-		}
-
-		writer.writeClosingTag("midiParams");
-	}
+	// Serialize from the value DOM (deluge::project). toDocMidiParams reads each CC's live nodes via docForParam (the
+	// bound tree entry when bound).
+	deluge::bridge::serializeMidiParams(deluge::bridge::toDocMidiParams(*this), writer, true);
 }
 
 /*

@@ -99,11 +99,10 @@ at the end. Migration order:
    `std::span`, with the VCA separated from generation and the `OscType`
    megaswitch broken into a kernel registry. **This is the active thread after
    S2** — detailed plan: [synth_oscillator_plan.md](synth_oscillator_plan.md).
-3. **Filters** (SVF, lp/hp ladders) — `cpuDireness` injected; per-filter mode
-   enums (not the `gui/l10n`-dragging app `FilterMode`); global `blendBuffer`
-   → injected scratch. **Deferred to a later cohesive arc**: it's a coupled
-   subsystem (`union{ladder,svf}` in `FilterSet`, shared tan/tanh LUTs), best
-   migrated as one unit, not interleaved with the oscillator work.
+3. **Filters** (SVF, lp/hp ladders) — **done**: they live in `fixed/filter/`
+   with `cpuDireness` injected, per-filter mode enums (not the
+   `gui/l10n`-dragging app `FilterMode`) and the scratch injected
+   (`deluge::render::filter_scratch()`).
 4. **Wavetable** — `core::WaveTableView` POD (band descriptors + cycle
    metadata); the band-limited render kernel (today a *method of
    `storage::WaveTable`*) moves into `fixed/` operating on the view;
@@ -221,9 +220,7 @@ change.
 |---|---|---|
 | `oscillators/oscillator.*` | `render_wave.h`, `audio_engine.h` (`cpuDireness`×5), `wave_table.h` | `fixed/` osc + wavetable view |
 | `oscillators/basic_waves.cpp`, `processing/render_wave.h` + `vector_rendering_function.h` | dsp code under `processing/` | rewritten into `fixed/` over spans |
-| `filter/lpladder.cpp` | `audio_engine.h` (`cpuDireness`) | injected quality arg |
-| `filter/filter*.h` | `model/.../filter_config.h` (drags `gui/l10n`) | POD config in `core/` |
-| `delay/delay.*` | `audio_engine.h` (`renderInStereo`), `model/sync.h`, `spareRenderingBuffer` | injected scratch/flag/rate |
+| `delay/delay.*` | `modulation/sync.h` (sync level and type), `engines/effects/state.h` (`DelayState`), `io/debug/log.h`, `memory/stack_guard.h` | the synced rate resolved by the owner; logging and the stack check dropped |
 | `delay_buffer.cpp`, `dx/engine.cpp` | `memory/general_memory_allocator.h` | the `memory_allocator_interface.h` seam |
 | `util/functions.h`, `util/lookuptables/` | export `gui/colour`, `gui/l10n`, `model/iterance` | wave LUTs move into `dsp-next` |
 | `granular/`, `timestretch/` | sample path | **deferred to Phase 3**, not migrated |

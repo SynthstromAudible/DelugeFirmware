@@ -51,7 +51,7 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 		    .consumer = deluge::storage::SaveConsumer::SaveSongOrInstrumentAccept,
 		    .mayOverwrite = false,
 		    .collectingSamples = true,
-		    .filePath = saveSongUI.getCurrentFilePath(),
+		    .filePath = saveSongUI.getSaveFilePath(),
 		    .enteredText = Browser::enteredText,
 		    .dirPath = Browser::currentDir,
 		});

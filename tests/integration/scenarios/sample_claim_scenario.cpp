@@ -21,6 +21,7 @@
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
 #include "gui/menu_item/file_selector.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -60,6 +61,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 #include "scenarios/preset_fixture_loader.h"
+#include "scenarios/slot_coherence.h"
 #include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
@@ -252,6 +254,7 @@ enum class Leg : uint8_t {
 	Gate,
 	Supersede,
 	SupersedeLoading,
+	CancelLoading,
 	Pitch,
 	Kit,
 	AudioClip,
@@ -350,6 +353,8 @@ const char* legName(Leg leg) {
 		return "supersede";
 	case Leg::SupersedeLoading:
 		return "supersede-loading";
+	case Leg::CancelLoading:
+		return "cancel-loading";
 	case Leg::Kit:
 		return "kit";
 	case Leg::AudioClip:
@@ -476,9 +481,9 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 		return nullptr;
 	}
 	auto* drum = new (memory) SoundDrum();
-	drum->drumName = name;
 	Sound::initParams(&paramManager);
 	kit.addDrum(drum);
+	drum->setName(name);
 	drum->setupAsSample(&paramManager);
 	drum->sources[0].setOscType(OscType::SAMPLE);
 	AudioFileHolder* holder = firstHolder(drum->sources[0]);
@@ -487,7 +492,9 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 		return nullptr;
 	}
 	holder->filePath = samplePath;
-	currentSong->backUpParamManager(drum, nullptr, &paramManager, true);
+	// The fixture stands in for a claim, and records the drum's ranges as a claim does.
+	deluge::gui::menu_item::recordRanges(*drum, 0);
+	currentSong->live.param_backup.backUp(drum, nullptr, &paramManager, true);
 	return drum;
 }
 
@@ -505,8 +512,8 @@ bool writeKitPreset(const char* path, const KitPresetDrum* drums, int32_t count)
 		return fail("kit", "no kit for the preset");
 	}
 	auto* kit = static_cast<Kit*>(kitBase);
-	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr, &kitParams,
-	                                true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
+	                                      &kitParams, true);
 	for (int32_t i = 0; i < count; i++) {
 		if (addSampleDrum(*kit, drums[i].name, drums[i].samplePath) == nullptr) {
 			return false;
@@ -531,8 +538,8 @@ bool writeSynthPreset(const char* path) {
 		return fail("import-multi", "no synth for the preset");
 	}
 	static_cast<SoundInstrument*>(instrument)->setupAsBlankSynth(&paramManager, false);
-	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(instrument->toModControllable()), nullptr,
-	                                &paramManager, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(instrument->toModControllable()), nullptr,
+	                                      &paramManager, true);
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
 		return fail("import-multi", "the synth preset file could not be created");
@@ -648,7 +655,8 @@ bool openBrowserOnKitDrum(const char* leg) {
 
 /// The boot song's synth clip current, its first oscillator set to @p osc, and the browser opened on it.
 bool openBrowserOnSynth(const char* leg, OscType osc) {
-	for (Output* output = currentSong->firstOutput; output != nullptr && g_synth == nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr && g_synth == nullptr;
+	     output = output->next) {
 		if (output->type == OutputType::SYNTH) {
 			g_synth = static_cast<SoundInstrument*>(output);
 		}
@@ -795,7 +803,7 @@ void prepareLeg() {
 					}
 					rowsWithNotes++;
 				}
-				row->muted = kRandomizeDrums[drumIndex].muted;
+				row->setMuted(kRandomizeDrums[drumIndex].muted);
 			}
 			// The gesture is refused outright while the community feature is off.
 			runtimeFeatureSettings.set(RuntimeFeatureSettingType::DrumRandomizer, RuntimeFeatureStateToggle::On);
@@ -816,7 +824,8 @@ void prepareLeg() {
 			}
 			holder->setAudioFile(nullptr);
 			holder->filePath = kRandomizeFirstSample;
-			drum->drumName = kRandomizeDrums[0].name;
+			deluge::gui::menu_item::recordRanges(*drum, 0);
+			drum->setName(kRandomizeDrums[0].name);
 		});
 		break;
 	case Leg::RandomizeGate:
@@ -829,6 +838,7 @@ void prepareLeg() {
 			}
 			holder->setAudioFile(nullptr);
 			holder->filePath = kRandomizeGateSample;
+			deluge::gui::menu_item::recordRanges(*drum, 0);
 		});
 		break;
 	case Leg::RandomizeStall:
@@ -864,7 +874,11 @@ void prepareLeg() {
 			after->filePath = kRandomizeStallKept;
 			const Error afterError =
 			    after->loadFile(/*reversed=*/false, /*manuallySelected=*/true, /*mayActuallyReadFile=*/true);
-			afterRow->muted = false;
+			// The fixture stands in for three claims, and records each row's ranges as a claim does.
+			for (Drum* row : {first, second, third}) {
+				deluge::gui::menu_item::recordRanges(*static_cast<SoundDrum*>(row), 0);
+			}
+			afterRow->setMuted(false);
 			printf("SC-PROBE leg=randomize-stall prepared keptBound=%d error=%d afterBound=%d afterError=%d\n",
 			       kept->audioFile != nullptr ? 1 : 0, static_cast<int>(error), after->audioFile != nullptr ? 1 : 0,
 			       static_cast<int>(afterError));
@@ -944,7 +958,7 @@ void prepareLeg() {
 				}
 			}
 			printf("SC-PROBE leg=slice-manual prepared kitClip=%d drums=%d name=%s\n", g_kitClip != nullptr ? 1 : 0,
-			       drums, drum != nullptr ? drum->drumName.c_str() : "");
+			       drums, drum != nullptr ? drum->name().c_str() : "");
 		});
 		break;
 	default:
@@ -979,6 +993,9 @@ bool openLeg() {
 	case Leg::SupersedeLoading:
 		armPitchLeg(kPitchHoldMs);
 		return openBrowserOnSynth("supersede-loading", OscType::SAMPLE);
+	case Leg::CancelLoading:
+		deluge_audio_load_set_latency_ms(kGateHoldMs);
+		return openBrowserOnSynth("cancel-loading", OscType::SAMPLE);
 	case Leg::Pitch:
 		armPitchLeg(kPitchHoldMs);
 		return openBrowserOnSynth("pitch", OscType::SAMPLE);
@@ -1069,6 +1086,8 @@ const char* legFile() {
 		return kSupersedeFirstLanded;
 	case Leg::SupersedeLoading:
 		return kSupersedeFirstLoading;
+	case Leg::CancelLoading:
+		return kStallSample; // not in memory yet: the stall leg is the first to ask for it
 	case Leg::Pitch:
 		return kPitchSample;
 	case Leg::PitchStall:
@@ -1107,6 +1126,12 @@ bool isRandomize() {
 	return g_leg == Leg::RandomizeOne || g_leg == Leg::RandomizeAll || g_leg == Leg::RandomizeGate
 	       || g_leg == Leg::RandomizeStall || g_leg == Leg::RandomizeCancelScan;
 }
+
+/// What the cancel-loading leg saw: whether the exit was pressed, whether the claim was still loading then, and the
+/// ticks before it.
+bool g_cancelLoadingFired = false;
+bool g_cancelLoadingInFlight = false;
+int32_t g_cancelLoadingTicks = 0;
 
 /// Whether the current leg is one of the two supersede legs.
 bool isSupersede() {
@@ -1277,6 +1302,15 @@ void actLeg() {
 		sampleBrowser.previewFile(legFile(), 0);
 		return;
 	}
+	if (g_leg == Leg::CancelLoading) {
+		// An auto-load claim of a file not in memory, held by the loader: the browser's exit cancels it mid-load.
+		g_cancelLoadingFired = false;
+		g_cancelLoadingInFlight = false;
+		g_cancelLoadingTicks = 0;
+		deluge::gui::sampleClaim.request(
+		    {.path = legFile(), .loadWithoutExiting = true, .origin = deluge::gui::ClaimOrigin::AutoLoad});
+		return;
+	}
 	if (g_leg == Leg::Gate) {
 		const auto selected = [] {
 			const FileItem* item = sampleBrowser.getCurrentFileItem();
@@ -1343,6 +1377,15 @@ void actLeg() {
 		slicer.currentSlice = 0;
 		printf("SC-SETUP leg=slice-manual slicerOpened=%d slicerOnTop=%d manual=%d\n", opened ? 1 : 0,
 		       getCurrentUI() == &slicer ? 1 : 0, slicer.slicerMode == SLICER_MODE_MANUAL ? 1 : 0);
+		// A slice auditioned and released before its load lands: the row named the slicer's file for the audition,
+		// and its record and slot say what it holds once the release drops the load.
+		const int32_t failuresBefore = g_failures;
+		deluge_audio_load_set_latency_ms(kGateHoldMs);
+		slicer.preview(0, -1, 0, 1);
+		slicer.preview(0, -1, 0, 0);
+		deluge_audio_load_set_latency_ms(0);
+		g_failures += deluge::harness::expectSongCoherent(*currentSong, "slice-audition-release");
+		printf("SC-PROBE leg=slice-manual auditionReleased coherent=%d\n", g_failures == failuresBefore ? 1 : 0);
 		(void)slicer.buttonAction(SELECT_ENC, true);
 		// The live points change before the slice runs, as an encoder turn or a pad press can while its load is out:
 		// the drums must still be painted from the points as they were when Select was pressed.
@@ -1365,6 +1408,9 @@ void actLeg() {
 
 /// Whether the leg's claim or slice has ended: a claim that succeeds closes the browser, and a slice closes the slicer.
 bool legEnded() {
+	if (g_leg == Leg::CancelLoading) {
+		return g_cancelLoadingFired && !deluge::gui::sampleClaim.inFlight();
+	}
 	if (g_leg == Leg::ImportGate) {
 		return g_imGateTried && currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	}
@@ -1464,6 +1510,15 @@ void checkLeg() {
 		}
 		break;
 	}
+	case Leg::CancelLoading:
+		deluge_audio_load_set_latency_ms(0);
+		printf("SC-CANCEL-LOADING inFlightWhenCancelled=%d ticks=%d\n", g_cancelLoadingInFlight ? 1 : 0, g_waitTicks);
+		if (!g_cancelLoadingInFlight) {
+			printf("SC-CANCEL-LOADING FAIL the auto-load claim had ended before the browser's exit could cancel it\n");
+			g_failures++;
+		}
+		sampleBrowser.exitAndNeverDeleteDrum();
+		break;
 	case Leg::Supersede:
 	case Leg::SupersedeLoading: {
 		deluge_audio_load_set_latency_ms(0);
@@ -1583,7 +1638,7 @@ void checkLeg() {
 		printf("SC-KIT bound=%d path=%s repeat=%d name=%s sideChain=%d ticks=%d\n", bound ? 1 : 0,
 		       holder != nullptr ? holder->filePath.c_str() : "",
 		       drum != nullptr ? static_cast<int>(drum->sources[0].repeatMode) : -1,
-		       drum != nullptr ? drum->drumName.c_str() : "", drum != nullptr ? drum->sideChainSendLevel : 0,
+		       drum != nullptr ? drum->name().c_str() : "", drum != nullptr ? drum->sideChainSendLevel : 0,
 		       g_waitTicks);
 		if (!bound) {
 			printf("SC-KIT FAIL the claim bound no file\n");
@@ -1595,7 +1650,7 @@ void checkLeg() {
 		auto* clip = static_cast<AudioClip*>(g_audioClip);
 		const bool bound = clip->sampleHolder.audioFile != nullptr;
 		printf("SC-AUDIOCLIP bound=%d path=%s loopLength=%d attack=%d ticks=%d\n", bound ? 1 : 0,
-		       clip->sampleHolder.filePath.c_str(), clip->loopLength, clip->attack, g_waitTicks);
+		       clip->sampleHolder.filePath.c_str(), clip->loopLength(), clip->attack(), g_waitTicks);
 		if (!bound) {
 			printf("SC-AUDIOCLIP FAIL the claim bound no file\n");
 			g_failures++;
@@ -1760,11 +1815,11 @@ void checkLeg() {
 				auto* soundDrum = static_cast<SoundDrum*>(drum);
 				AudioFileHolder* holder = firstHolder(soundDrum->sources[0]);
 				printf("SC-PROBE leg=import-kit drum=%d name=%s path=%s bound=%d repeat=%d sideChain=%d\n", drums,
-				       soundDrum->drumName.c_str(), holder != nullptr ? holder->filePath.c_str() : "",
+				       soundDrum->name().c_str(), holder != nullptr ? holder->filePath.c_str() : "",
 				       (holder != nullptr && holder->audioFile != nullptr) ? 1 : 0,
 				       static_cast<int>(soundDrum->sources[0].repeatMode), soundDrum->sideChainSendLevel);
 				if (drums < kImportKitCount && holder != nullptr && holder->audioFile != nullptr
-				    && soundDrum->drumName == kImportKitNames[drums]
+				    && soundDrum->name() == kImportKitNames[drums]
 				    && holder->filePath == std::string{kImportKitFolder} + "/IMK_" + kImportKitNames[drums] + ".WAV") {
 					matched++;
 				}
@@ -1851,10 +1906,10 @@ void checkLeg() {
 		AudioFileHolder* kept = firstHolder(first->sources[0]);
 		AudioFileHolder* held = firstHolder(second->sources[0]);
 		const bool keptFirst = kept != nullptr && kept->audioFile != nullptr && kept->filePath == kRandomizeStallKept
-		                       && first->drumName == kRandomizeStallKeptName;
+		                       && first->name() == kRandomizeStallKeptName;
 		const bool secondUnbound = held != nullptr && held->audioFile == nullptr;
 		// Untouched: still named as the preset named it, which a randomize would have replaced with its file's name.
-		const bool thirdUntouched = third->drumName == kRandomizeDrums[2].name;
+		const bool thirdUntouched = third->name() == kRandomizeDrums[2].name;
 		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 		// How the walk ended: on the async sample load's stall bound, not on some other failure.
 		printf("SC-PROBE leg=randomize-stall giveUps=%d\n", deluge::gui::randomizeDrums.giveUps());
@@ -1935,7 +1990,7 @@ void checkLeg() {
 			const bool eligible = (g_leg == Leg::RandomizeAll) ? (index < kRandomizeEligible) : (index == 0);
 			const bool inFolder =
 			    holder != nullptr && holder->audioFile != nullptr && holder->filePath.rfind(kRandomizeFolder, 0) == 0;
-			const std::string& name = static_cast<SoundDrum*>(drum)->drumName;
+			const std::string& name = static_cast<SoundDrum*>(drum)->name();
 			const bool namedAfterFile =
 			    inFolder && holder->filePath.rfind(name.c_str()) != std::string::npos && !name.empty();
 			printf("SC-PROBE leg=%s drum=%d path=%s name=%s\n", legName(g_leg), index,
@@ -1996,6 +2051,16 @@ void tickSupersede() {
 	}
 }
 
+/// One tick of the cancel-loading leg: a few ticks into the held load, the browser's exit cancels the auto-load claim.
+void tickCancelLoading() {
+	if (g_cancelLoadingFired || ++g_cancelLoadingTicks < 3) {
+		return;
+	}
+	g_cancelLoadingInFlight = deluge::gui::sampleClaim.inFlight();
+	sampleBrowser.cancelPreview();
+	g_cancelLoadingFired = true;
+}
+
 /// One tick of the cancel leg.
 ///
 /// A round lets the row's open reach the held directory channel, cancels the walk through the real user action --
@@ -2031,13 +2096,15 @@ void tickRandomizeCancel() {
 	SoundDrum* drum = kitDrum();
 	AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
 	g_rdCancelRowUntouched = holder != nullptr && holder->audioFile == nullptr
-	                         && holder->filePath == kRandomizeFirstSample && drum->drumName == kRandomizeDrums[0].name;
+	                         && holder->filePath == kRandomizeFirstSample && drum->name() == kRandomizeDrums[0].name;
 	deluge_file_directory_set_latency_ms(0);
 	pressRandomize(/*affectEntire=*/false);
 	g_rdCancelFinalPressed = true;
 }
 
 void nextLeg() {
+	// Whatever the leg did to a sound, its record, slot and snapshot say what it plays.
+	g_failures += deluge::harness::expectSongCoherent(*currentSong, legName(g_leg));
 	g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
 	g_step = Step::Prepare;
 	g_waitTicks = 0;
@@ -2154,6 +2221,9 @@ void runTick() {
 	case Step::Wait:
 		if (isSupersede()) {
 			tickSupersede();
+		}
+		if (g_leg == Leg::CancelLoading) {
+			tickCancelLoading();
 		}
 		if (g_leg == Leg::ImportGate) {
 			tickImportGate();

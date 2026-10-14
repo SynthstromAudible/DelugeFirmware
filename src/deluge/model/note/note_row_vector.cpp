@@ -17,8 +17,6 @@
 
 #include "model/note/note_row_vector.h"
 #include "libdeluge/system.h"
-#include <cstring>
-#include <new>
 #include <utility>
 
 NoteRow* NoteRowVector::insertNoteRowAtIndex(int32_t index) {
@@ -35,8 +33,7 @@ void NoteRowVector::deleteNoteRowAtIndex(int32_t startIndex, int32_t numToDelete
 void NoteRowVector::swapRows(int32_t a, int32_t b) {
 	// One section for the whole swap: each row's move-assign is its own section, but between them one row would be
 	// in both places and the other in neither.
-	AudioExcludedSection section;
-	noteEdit();
+	deluge::project::EditGuard guard;
 	std::swap((*this)[a], (*this)[b]);
 }
 
@@ -47,22 +44,7 @@ NoteRow* NoteRowVector::insertNoteRowAtY(int32_t y, int32_t* getIndex) {
 		if (getIndex) {
 			*getIndex = i;
 		}
-		noteRow->y = y;
+		noteRow->setY(y); // row not yet bound → writes only the engine field y_
 	}
 	return noteRow;
-}
-
-bool NoteRowVector::cloneFrom(NoteRowVector const* other) {
-	clear();
-	int32_t numToClone = static_cast<int32_t>(other->size());
-	if (!reserveExtra(numToClone)) {
-		return false;
-	}
-	for (int32_t i = 0; i < numToClone; i++) {
-		(void)insertAt(static_cast<int32_t>(size())); // Can't fail; space reserved above
-		// Byte-copy over the freshly default-constructed row. The default row owns nothing, so nothing leaks;
-		// the copy aliases the source row's guts until beenCloned() gives it its own.
-		std::memcpy(static_cast<void*>(&(*this)[i]), static_cast<void const*>(&(*other)[i]), sizeof(NoteRow));
-	}
-	return true;
 }

@@ -33,10 +33,10 @@
 bool View::activeModControllableNamesSong(Song* song) const {
 	ModelStackWithThreeMainThings const& stack = activeModControllableModelStack;
 	TimelineCounter const* counter = stack.getTimelineCounterAllowNull();
-	if (counter == song || stack.modControllable == &song->globalEffectable) {
+	if (counter == song || stack.modControllable == &song->live.global_effectable) {
 		return true;
 	}
-	for (ClipArray const* array : {&song->sessionClips, &song->arrangementOnlyClips}) {
+	for (ClipArray const* array : {&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips}) {
 		for (Clip const* clip : *array) {
 			if (counter == clip) {
 				return true;
@@ -44,7 +44,8 @@ bool View::activeModControllableNamesSong(Song* song) const {
 		}
 	}
 	if (stack.modControllable != nullptr) {
-		for (Output* first : {song->firstOutput, static_cast<Output*>(song->firstHibernatingInstrument)}) {
+		for (Output* first :
+		     {song->live.media.first_output, static_cast<Output*>(song->live.media.first_hibernating_instrument)}) {
 			for (Output* output = first; output != nullptr; output = output->next) {
 				if (stack.modControllable == output->toModControllable()) {
 					return true;

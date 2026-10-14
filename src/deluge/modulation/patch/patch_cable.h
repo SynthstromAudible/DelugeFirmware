@@ -42,7 +42,6 @@ public:
 	static bool hasPolarity(PatchSource source);
 	static Polarity getDefaultPolarity(PatchSource source);
 	void setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount);
-	bool isActive();
 	void initAmount(int32_t value);
 	void makeUnusable();
 	/// @brief Converts a patch cable source to the correct polarity.
@@ -71,4 +70,10 @@ public:
 	ParamDescriptor destinationParamDescriptor;
 	AutoParam param; // Amounts have to be within +1073741824 and -1073741824
 	int32_t const* rangeAdjustmentPointer = nullptr;
+
+	/// The cable's automation node storage, owned inline by the cable (a cable's automation dies with the
+	/// cable, matching the DOM's own `DocCable{..., amount}` bundling). The `param` above is just the RT
+	/// interpolation cursor; owner-resolution (PatchCableSet::docForParam -> `&amount_`) hands ops this store.
+	/// Rides with the cable through the array's memcpy swaps/removal.
+	deluge::project::DocAutoParam amount_{};
 };

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
@@ -26,7 +27,7 @@ namespace deluge::gui::menu_item::osc {
 class Sync final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->oscillatorSync); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->snapshot().oscillatorSync); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		bool current_value = this->getValue();
@@ -41,21 +42,22 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
-					if (soundDrum->synthMode != SynthMode::FM && soundDrum->sources[0].oscType != OscType::SAMPLE
+					if (soundDrum->getSynthMode() != SynthMode::FM && soundDrum->sources[0].oscType != OscType::SAMPLE
 					    && soundDrum->sources[1].oscType != OscType::SAMPLE) {
-						soundDrum->oscillatorSync = current_value;
+						settingFor(*soundDrum, "osc2/oscillatorSync", serialization::Value::makeNumber(current_value));
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->oscillatorSync = current_value;
+			settingFor(*soundEditor.currentSound, "osc2/oscillatorSync",
+			           serialization::Value::makeNumber(current_value));
 		}
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return sound->synthMode != SynthMode::FM && sound->sources[0].oscType != OscType::SAMPLE
+		return sound->getSynthMode() != SynthMode::FM && sound->sources[0].oscType != OscType::SAMPLE
 		       && sound->sources[1].oscType != OscType::SAMPLE;
 	}
 

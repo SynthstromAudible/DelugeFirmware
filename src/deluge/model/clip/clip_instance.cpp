@@ -33,7 +33,7 @@ RGB ClipInstance::getColour() {
 		return RGB::monochrome(128);
 	}
 
-	return defaultClipSectionColours[clip->section];
+	return defaultClipSectionColours[clip->section()];
 }
 
 void ClipInstance::change(Action* action, Output* output, int32_t newPos, int32_t newLength, Clip* newClip) {

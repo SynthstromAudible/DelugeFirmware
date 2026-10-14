@@ -25,7 +25,7 @@ using namespace deluge::gui::ui::keyboard::layout;
 namespace deluge::gui::ui::keyboard::controls {
 
 void ScaleModeColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
-	Scale currentScale = currentSong->getCurrentScale();
+	Scale currentScale = currentSong->project.scale.key.getCurrentScale();
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		bool mode_selected = scaleModes[y] == currentScale;
@@ -49,11 +49,11 @@ bool ScaleModeColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 		// This is a bit awkward as we need to keep USER_SCALE from indexing the preset
 		// disabled vector by accident, that would be OOB.
 		if (newScale == USER_SCALE) {
-			if (!currentSong->hasUserScale()) {
+			if (!currentSong->project.scale.hasUserScale()) {
 				continue;
 			}
 		}
-		else if (currentSong->disabledPresetScales[newScale]) {
+		else if (currentSong->project.scale.disabled_preset_scales[newScale]) {
 			continue;
 		}
 		bool scaleFoundInPads = false;
@@ -94,7 +94,7 @@ void ScaleModeColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTim
 		if (!layout->supportsScale(scaleModes[pad.y])) {
 			return;
 		}
-		previousScale = currentSong->getCurrentScale();
+		previousScale = currentSong->project.scale.key.getCurrentScale();
 		if (keyboardScreen.setScale(scaleModes[pad.y])) {
 			currentScalePad = pad.y;
 		}

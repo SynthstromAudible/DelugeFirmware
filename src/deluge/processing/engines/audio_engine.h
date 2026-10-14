@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/compressor/rms_feedback.h"
 #include "dsp/envelope_follower/absolute_value.h"
+#include "engines/effects/state.h"
 #include "memory/fast_allocator.h"
 #include "memory/object_pool.h"
 #include "model/output.h"
@@ -48,11 +48,9 @@ class Voice;
 class VoiceSample;
 class TimeStretcher;
 #include <string>
-class SideChain;
 class VoiceVector;
 class Freeverb;
 class Metronome;
-class RMSFeedbackCompressor;
 enum class Polarity : uint8_t;
 struct CriticalSectionGuard;
 class ModelStackWithSoundFlags;
@@ -60,6 +58,9 @@ class SoundDrum;
 class Clip;
 class AbsValueFollower;
 
+namespace deluge::effects {
+class Sidechain;
+}
 namespace deluge::dsp {
 class Reverb;
 }
@@ -269,7 +270,10 @@ extern InputMonitoringMode inputMonitoringMode;
 extern bool audioRoutineLocked;
 extern bool routineBeenCalled;
 extern uint8_t numHopsEndedThisRoutineCall;
-extern SideChain reverbSidechain;
+extern deluge::effects::Sidechain reverbSidechain;
+/// The reverb sidechain's settings: the song's (project.reverb), or, on auto, those of the owner with the most
+/// reverb. Its sync type is set only from the menu.
+extern deluge::effects::SidechainState reverbSidechainSettings;
 extern uint32_t timeThereWasLastSomeReverb;
 /// Every live Sound. Changed only by Sound's constructor and destructor, walked by the render: see AudioOwnedList.
 extern deluge::AudioOwnedList<Sound, deluge::fast_vector<Sound*>> sounds;
@@ -281,7 +285,6 @@ extern int32_t reverbSidechainShape;
 extern int32_t reverbPan;
 extern SampleRecorder* firstRecorder;
 extern Metronome metronome;
-extern RMSFeedbackCompressor mastercompressor;
 extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
 extern StereoFloatSample approxRMSLevel;
@@ -289,7 +292,6 @@ extern AbsValueFollower envelopeFollower;
 /// Set once the BSP's audio tier drives the render (at the end of deluge_app_init). From then on
 /// runRoutine() leaves rendering to the tier, which preempts its caller.
 extern std::atomic<bool> renderDrivenByTier;
-void feedReverbBackdoorForGrain(int index, q31_t value);
 /// Remove these gate channels from any output waiting to be sent by the MIDI/gate output timer, because they've been
 /// superseded by a newer state which is being output now
 void cancelScheduledGates(uint8_t gateMask, const CriticalSectionGuard&);

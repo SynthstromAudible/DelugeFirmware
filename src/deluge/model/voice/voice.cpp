@@ -21,9 +21,9 @@
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4
 #include "dsp-next/fixed/osc/sine.h"
 #include "dsp/dx/engine.h"
-#include "dsp/filter/filter_set.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "dsp/util.hpp"
+#include "engines/effects/filter_slots.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -40,6 +40,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/render_scratch.h"
 #include "processing/sound/sound.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
@@ -50,7 +51,6 @@
 #include "synth/source/live/live_pitch_shifter.h"
 
 #include "dsp/oscillators/oscillator.h"
-#include "util/functions.h" // getTanHAntialiased (output-stage saturation)
 #include "util/misc.h"
 #include <cstring>
 #include <new>
@@ -60,22 +60,10 @@ using namespace deluge;
 using deluge::dsp::fixed::getDecay4;
 namespace params = deluge::modulation::params;
 
-PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[4][SSI_TX_BUFFER_NUM_SAMPLES]
+PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[deluge::render::kSpareRenderingRows][SSI_TX_BUFFER_NUM_SAMPLES]
     __attribute__((aligned(CACHE_LINE_SIZE)));
 
 using namespace deluge::voice;
-
-namespace {
-// Output-stage tanh clipping/saturation — the body of the former Sound::saturate + getShiftAmountForSaturation,
-// relocated here as the voice render decouples from Sound (Phase 4). Driven by the snapshotted clippingAmount.
-[[gnu::always_inline]] inline int32_t shiftForSaturation(uint8_t clippingAmount) {
-	return (clippingAmount >= 2) ? (clippingAmount - 2) : 0;
-}
-[[gnu::always_inline]] inline void saturateSample(int32_t* data, uint32_t* workingValue, int32_t shiftAmount,
-                                                  uint8_t clippingAmount) {
-	*data = getTanHAntialiased(*data, workingValue, 5 + clippingAmount) << shiftAmount;
-}
-} // namespace
 
 // Hopefully I could make this use the spareRenderingBuffer instead...
 
@@ -111,7 +99,7 @@ void Voice::setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingS
 
 void Voice::unassignStuff(bool deletingSong) {
 	for (int32_t s = 0; s < kNumSources; s++) {
-		for (int32_t u = 0; u < this->sound.numUnison; u++) {
+		for (int32_t u = 0; u < this->sound.snapshot().numUnison; u++) {
 			unisonParts[u].sources[s].unassign(deletingSong);
 		}
 	}
@@ -164,10 +152,12 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 	}
 
 	// Setup and render local LFO
-	lfo2.setLocalInitialPhase(sound.lfoConfig[LFO2_ID]);
-	params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] = lfo2.render(0, sound.lfoConfig[LFO2_ID], 0);
-	lfo4.setLocalInitialPhase(sound.lfoConfig[LFO4_ID]);
-	params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] = lfo4.render(0, sound.lfoConfig[LFO4_ID], 0);
+	lfo2.setLocalInitialPhase(sound.snapshot().lfoConfig[LFO2_ID]);
+	params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] =
+	    lfo2.render(0, sound.snapshot().lfoConfig[LFO2_ID], 0);
+	lfo4.setLocalInitialPhase(sound.snapshot().lfoConfig[LFO4_ID]);
+	params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] =
+	    lfo4.render(0, sound.snapshot().lfoConfig[LFO4_ID], 0);
 
 	// Setup some sources which won't change for the duration of this note
 	params.sourceValues[util::to_underlying(PatchSource::VELOCITY)] =
@@ -189,8 +179,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 		doneFirstRender = false;
 		filterSet.reset();
 
-		lastSaturationTanHWorkingValue[0] = 2147483648;
-		lastSaturationTanHWorkingValue[1] = 2147483648;
+		saturation_.reset();
 	}
 
 	// Porta
@@ -247,7 +236,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 			    && (sound.sources[s].oscType == OscType::SAMPLE || sound.sources[s].oscType == OscType::WAVETABLE)) {
 
 				// Set up MultiRange
-				MultiRange* range = sound.sources[s].getRange(noteCodeAfterArpeggiation + sound.transpose);
+				MultiRange* range = sound.sources[s].getRange(noteCodeAfterArpeggiation + sound.getTranspose());
 				if (!range) { // There could be no Range for a SAMPLE or WAVETABLE Source that just hasn't had a file
 					          // loaded, like how OSC2 very often would be sitting
 					goto gotInactive;
@@ -284,7 +273,7 @@ gotInactive:
 		}
 
 activenessDetermined:
-		for (int32_t u = 0; u < sound.numUnison; u++) {
+		for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 			unisonParts[u].sources[s].active = sourceEverActive;
 		}
 	}
@@ -320,14 +309,14 @@ activenessDetermined:
 			// if (source->repeatMode == SampleRepeatMode::STRETCH) samplesLateHere = 0;
 		}
 
-		for (int32_t u = 0; u < sound.numUnison; u++) {
+		for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 
 			// Check that we already marked this unison-part-source as active. Among other things, this ensures that if
 			// the osc is set to SAMPLE, there actually is a sample loaded.
 			if (unisonParts[u].sources[s].active) {
-				bool success =
-				    unisonParts[u].sources[s].noteOn(this, source, &guides[s], samplesLate, sound.oscRetriggerPhase[s],
-				                                     resetEnvelopes, sound.synthMode, velocity);
+				bool success = unisonParts[u].sources[s].noteOn(this, source, &guides[s], samplesLate,
+				                                                sound.snapshot().oscRetriggerPhase[s], resetEnvelopes,
+				                                                sound.getSynthMode(), velocity);
 				if (!success) [[unlikely]] {
 					return false; // This shouldn't really ever happen I don't think really...
 				}
@@ -337,10 +326,10 @@ activenessDetermined:
 
 	if (sound.getSynthMode() == SynthMode::FM) {
 		uint32_t initialPhase = getOscInitialPhaseForZero(OscType::SINE);
-		for (int32_t u = 0; u < sound.numUnison; u++) {
+		for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 			for (int32_t m = 0; m < kNumModulators; m++) {
-				if (sound.modulatorRetriggerPhase[m] != 0xFFFFFFFF) {
-					fmEngine.modulatorPhase[u][m] = initialPhase + sound.modulatorRetriggerPhase[m];
+				if (sound.snapshot().modulatorRetriggerPhase[m] != 0xFFFFFFFF) {
+					fmEngine.modulatorPhase[u][m] = initialPhase + sound.snapshot().modulatorRetriggerPhase[m];
 				}
 				if (resetEnvelopes) {
 					fmEngine.modulatorFeedback[u][m] = 0;
@@ -417,7 +406,7 @@ void Voice::setupPorta(const Sound& sound) {
 }
 
 void Voice::randomizeOscPhases(const Sound& sound) {
-	for (int32_t u = 0; u < sound.numUnison; u++) {
+	for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			unisonParts[u].sources[s].oscPos = getNoise();
 			// TODO: we should do sample play pos, too
@@ -436,14 +425,14 @@ void Voice::calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack) {
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
 
-	int32_t noteCodeWithMasterTranspose = noteCodeAfterArpeggiation + sound.transpose;
+	int32_t noteCodeWithMasterTranspose = noteCodeAfterArpeggiation + sound.getTranspose();
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 
 		if (!modelStack->checkSourceEverActive(s)) { // Sets all unison parts inactive by default
 
 makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
-			for (int32_t u = 0; u < sound.numUnison; u++) {
+			for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 				unisonParts[u].sources[s].active = false;
 			}
 			continue;
@@ -527,17 +516,18 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 		else {
 			phaseIncrement = source->fineTuner.detune(phaseIncrement);
 		}
-		phaseIncrement = sound.fineTuner.detune(phaseIncrement); // master transpose
+		phaseIncrement = sound.snapshot().fineTuner.detune(phaseIncrement); // master transpose
 
 		// If only one unison
-		if (sound.numUnison == 1) {
+		if (sound.snapshot().numUnison == 1) {
 			unisonParts[0].sources[s].phaseIncrementStoredValue = phaseIncrement;
 		}
 
 		// Or if multiple unison
 		else {
-			for (int32_t u = 0; u < sound.numUnison; u++) {
-				unisonParts[u].sources[s].phaseIncrementStoredValue = sound.unisonDetuners[u].detune(phaseIncrement);
+			for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
+				unisonParts[u].sources[s].phaseIncrementStoredValue =
+				    sound.snapshot().unisonDetuners[u].detune(phaseIncrement);
 			}
 		}
 	}
@@ -551,7 +541,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 				continue; // Only if modulator active
 			}
 
-			int32_t transposedNoteCode = noteCodeWithMasterTranspose + sound.modulatorTranspose[m];
+			int32_t transposedNoteCode = noteCodeWithMasterTranspose + sound.snapshot().modulatorTranspose[m];
 			int32_t noteWithinOctave = (transposedNoteCode + 120 - 4) % 12;
 			int32_t octave = (transposedNoteCode + 120 - 4) / 12;
 			int32_t shiftRightAmount = 20 - octave;
@@ -564,25 +554,25 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
 			else {
 				// Frequency too high to render! (Higher than 22.05kHz)
-				for (int32_t u = 0; u < sound.numUnison; u++) {
+				for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 					fmEngine.modulatorPhaseIncrement[u][m] = 0xFFFFFFFF; // Means "inactive"
 				}
 				continue;
 			}
 
 			// Cents
-			phaseIncrement = sound.modulatorTransposers[m].detune(phaseIncrement);
-			phaseIncrement = sound.fineTuner.detune(phaseIncrement); // master transpose
+			phaseIncrement = sound.snapshot().modulatorTransposers[m].detune(phaseIncrement);
+			phaseIncrement = sound.snapshot().fineTuner.detune(phaseIncrement); // master transpose
 
 			// If only one unison
-			if (sound.numUnison == 1) {
+			if (sound.snapshot().numUnison == 1) {
 				fmEngine.modulatorPhaseIncrement[0][m] = phaseIncrement;
 			}
 
 			// Or if multiple unison
 			else {
-				for (int32_t u = 0; u < sound.numUnison; u++) {
-					fmEngine.modulatorPhaseIncrement[u][m] = sound.unisonDetuners[u].detune(phaseIncrement);
+				for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
+					fmEngine.modulatorPhaseIncrement[u][m] = sound.snapshot().unisonDetuners[u].detune(phaseIncrement);
 				}
 			}
 		}
@@ -624,10 +614,10 @@ void Voice::noteOff(ParamManagerForTimeline* paramManager, bool noteTailsAllowed
 		previouslyIgnoredNoteOff = true;
 	}
 
-	if (sound.synthMode != SynthMode::FM) {
+	if (sound.getSynthMode() != SynthMode::FM) {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			if (sound.sources[s].oscType == OscType::SAMPLE && guides[s].loopEndPlaybackAtByte) {
-				for (int32_t u = 0; u < sound.numUnison; u++) {
+				for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 					if (unisonParts[u].sources[s].active) {
 
 						bool success = unisonParts[u].sources[s].sampleVoiceAdapter.noteOffAtLoopEnd(this, &guides[s]);
@@ -639,7 +629,7 @@ void Voice::noteOff(ParamManagerForTimeline* paramManager, bool noteTailsAllowed
 				}
 			}
 			else if (sound.sources[s].oscType == OscType::DX7) {
-				for (int u = 0; u < sound.numUnison; u++) {
+				for (int u = 0; u < sound.snapshot().numUnison; u++) {
 					unisonParts[u].sources[s].dx7Source.keyup();
 				}
 			}
@@ -679,7 +669,7 @@ bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, M
 
 	bool anyStillActive = false;
 
-	for (int32_t u = 0; u < sound.numUnison; u++) {
+	for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 		VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
 		if (voiceUnisonPartSource->active) {
@@ -698,7 +688,8 @@ bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, M
 
 	// If none of this source still active, and no noise, see if the other source still has any...
 	if (!anyStillActive
-	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
+	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
+	        *paramManager->getPatchedParamSet()->docForParam(params::LOCAL_NOISE_VOLUME), -2147483648)) {
 
 		s = 1 - s;
 
@@ -706,7 +697,7 @@ bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, M
 			return false;
 		}
 		else {
-			for (int32_t u = 0; u < sound.numUnison; u++) {
+			for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
 				VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 				if (voiceUnisonPartSource->active) {
 					return true;
@@ -997,17 +988,24 @@ skipAutoRelease: {}
 	// This is the gain which gets applied to compensate for any change in gain that the filter is going to cause
 	int32_t filterGain;
 
-	// Prepare the filters
-	// Checking if filters should run now happens within the filterset
-	FilterMode lpfMode = doLPF ? cfg.lpfMode : FilterMode::OFF;
-	FilterMode hpfMode = doHPF ? cfg.hpfMode : FilterMode::OFF;
-	filterGain = filterSet.setConfig(
-	    params.paramFinalValues[params::LOCAL_LPF_FREQ], params.paramFinalValues[params::LOCAL_LPF_RESONANCE], lpfMode,
-	    params.paramFinalValues[params::LOCAL_LPF_MORPH], params.paramFinalValues[params::LOCAL_HPF_FREQ],
-	    (params
-	         .paramFinalValues[params::LOCAL_HPF_RESONANCE]), // >> StorageManager::devVarA) << StorageManager::devVarA,
-	    hpfMode, params.paramFinalValues[params::LOCAL_HPF_MORPH], cfg.volumeNeutralValueForUnison << 1,
-	    cfg.filterRoute, false, nullptr); // Level adjustment for unison now happens *before* the filter!
+	// Prepare the filters. Level adjustment for unison happens before the filters, so the gain going in is neutral.
+	const bool allow_oversampling = AudioEngine::cpuDireness < 14;
+	filterGain = filterSet.configure(cfg.volumeNeutralValueForUnison << 1,
+	                                 {
+	                                     .frequency = params.paramFinalValues[params::LOCAL_LPF_FREQ],
+	                                     .resonance = params.paramFinalValues[params::LOCAL_LPF_RESONANCE],
+	                                     .morph = params.paramFinalValues[params::LOCAL_LPF_MORPH],
+	                                     .allow_oversampling = allow_oversampling,
+	                                 },
+	                                 doLPF ? effects::low_pass_slot(cfg.lpfMode) : dsp::fixed::LowPassSlot{},
+	                                 {
+	                                     .frequency = params.paramFinalValues[params::LOCAL_HPF_FREQ],
+	                                     .resonance = params.paramFinalValues[params::LOCAL_HPF_RESONANCE],
+	                                     .morph = params.paramFinalValues[params::LOCAL_HPF_MORPH],
+	                                     .allow_oversampling = allow_oversampling,
+	                                 },
+	                                 doHPF ? effects::high_pass_slot(cfg.hpfMode) : dsp::fixed::HighPassSlot{},
+	                                 effects::filter_route(cfg.filterRoute));
 
 	SynthMode synthMode = cfg.synthMode;
 
@@ -1213,7 +1211,7 @@ skipAutoRelease: {}
 			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, params.paramFinalValues[params::LOCAL_FOLD]);
 		}
 		// Filters
-		filterSet.renderLongStereo(oscBuffer, oscBufferEnd);
+		filterSet.renderStereo({oscBuffer, oscBufferEnd}, deluge::render::filter_scratch());
 
 		// No clipping
 		if (!cfg.clippingAmount) {
@@ -1250,7 +1248,8 @@ skipAutoRelease: {}
 			int32_t const* __restrict__ oscBufferPos = oscBuffer; // For traversal
 			StereoSample* __restrict__ outputSample = (StereoSample*)soundBuffer;
 			int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
-			int32_t shiftAmount = shiftForSaturation(cfg.clippingAmount);
+			const deluge::effects::SaturationParams saturation{.clipping_amount = cfg.clippingAmount,
+			                                                   .variant = deluge::effects::SaturationVariant::VOICE};
 
 			do {
 				int32_t outputSampleL = *(oscBufferPos++);
@@ -1262,8 +1261,8 @@ skipAutoRelease: {}
 					outputSampleR = multiply_32x32_rshift32_rounded(outputSampleR, overallOscAmplitudeNow) << 1;
 				}
 
-				saturateSample(&outputSampleL, &lastSaturationTanHWorkingValue[0], shiftAmount, cfg.clippingAmount);
-				saturateSample(&outputSampleR, &lastSaturationTanHWorkingValue[1], shiftAmount, cfg.clippingAmount);
+				outputSampleL = saturation_.saturate(outputSampleL, 0, saturation);
+				outputSampleR = saturation_.saturate(outputSampleR, 1, saturation);
 
 				// Write to the output buffer, panning or not
 				if (doPanning) {
@@ -1297,7 +1296,7 @@ skipAutoRelease: {}
 			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, foldAmount);
 		}
 
-		filterSet.renderLong(oscBuffer, oscBufferEnd, numSamples);
+		filterSet.renderMono({oscBuffer, oscBufferEnd}, deluge::render::filter_scratch());
 
 		// No clipping
 		if (!cfg.clippingAmount) {
@@ -1335,7 +1334,8 @@ skipAutoRelease: {}
 			int32_t* __restrict__ outputSample = soundBuffer;
 			int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
 
-			int32_t shiftAmount = shiftForSaturation(cfg.clippingAmount);
+			const deluge::effects::SaturationParams saturation{.clipping_amount = cfg.clippingAmount,
+			                                                   .variant = deluge::effects::SaturationVariant::VOICE};
 			do {
 				int32_t output = *oscBufferPos;
 
@@ -1344,7 +1344,7 @@ skipAutoRelease: {}
 					output = multiply_32x32_rshift32_rounded(output, overallOscAmplitudeNow) << 1;
 				}
 
-				saturateSample(&output, &lastSaturationTanHWorkingValue[0], shiftAmount, cfg.clippingAmount);
+				output = saturation_.saturate(output, 0, saturation);
 
 				if (soundRenderingInStereo) {
 					if (doPanning) {
@@ -1674,7 +1674,7 @@ static_assert(kNumVoicePriorities < 4, "Too many priority options");
 uint32_t Voice::getPriorityRating() const {
 	return
 	    // Bits 30-31 - manual priority setting
-	    ((uint32_t)(3 - util::to_underlying(sound.voicePriority)) << 30)
+	    ((uint32_t)(3 - util::to_underlying(sound.snapshot().voicePriority)) << 30)
 
 	    // Bits 27-29 - how many voices that Sound has
 	    // - that one really does need to go above state, otherwise "once" samples can still cut out synth drones.

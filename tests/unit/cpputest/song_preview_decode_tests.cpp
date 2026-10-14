@@ -75,7 +75,7 @@ TEST(SongPreviewDecode, theBufferWalkMatchesTheFileWalkAcrossTheCorpus) {
 			continue;
 		}
 		const auto ext = entry.path().extension().string();
-		const bool isJson = (ext == ".Json");
+		const bool isJson = (ext == ".json" || ext == ".JSON");
 		if (ext != ".XML" && ext != ".xml" && !isJson) {
 			continue;
 		}

@@ -256,8 +256,8 @@ void SaveInstrumentPresetUI::afterStagedSave(const deluge::storage::SaveRequest&
 	display->removeWorkingAnimation();
 	// Give the Instrument in memory its new slot
 	if (Instrument* instrumentToSave = getCurrentInstrument(); instrumentToSave != nullptr) {
-		instrumentToSave->name = request.enteredText;
-		instrumentToSave->dirPath = request.dirPath;
+		instrumentToSave->setName(request.enteredText);
+		instrumentToSave->setDirPath(request.dirPath);
 		instrumentToSave->mightExistOnCard = true;
 	}
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the

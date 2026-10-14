@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
+#include "engines/effects/clip_chain.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/sample/sample_recorder.h"
 
@@ -33,6 +34,12 @@ class ModelStackWithTimelineCounter;
 class GlobalEffectableForClip : public GlobalEffectable {
 public:
 	GlobalEffectableForClip();
+	~GlobalEffectableForClip() override;
+
+	[[nodiscard]] deluge::effects::ClipChain& chain() { return chain_; }
+	[[nodiscard]] deluge::effects::ChainCore& core() final { return chain_.core(); }
+	[[nodiscard]] const deluge::effects::ChainCore& core() const final { return chain_.core(); }
+	[[nodiscard]] deluge::effects::Filter& filter() final { return chain_.filter(); }
 
 	int32_t getSidechainVolumeAmountAsPatchCableDepth(ParamManager* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) final;
@@ -43,16 +50,8 @@ public:
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
 	                            int32_t* highestReverbAmountFound);
 
-	int32_t getShiftAmountForSaturation() { return (clippingAmount >= 3) ? (clippingAmount - 3) : 0; }
-
-	/// clipping amount must be greater than 0! Check before calling
-	/// Shift amount is givben by getShiftAmountForSaturation
-	[[gnu::always_inline]] q31_t saturate(q31_t data, uint32_t* workingValue, int32_t shiftAmount) {
-		// Clipping
-		return getTanHAntialiased(data, workingValue, 3 + clippingAmount) << (shiftAmount);
-	}
-
-	std::array<uint32_t, 2> lastSaturationTanHWorkingValue = {2147483648u, 2147483648u};
+	/// @brief The bus's effects: its saturation after its drums or audio clip render, then its filters and the rest.
+	deluge::effects::ClipChain chain_;
 
 protected:
 	int32_t getParameterFromKnob(int32_t whichModEncoder) final;

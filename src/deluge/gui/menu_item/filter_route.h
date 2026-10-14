@@ -17,6 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -27,7 +28,10 @@ namespace deluge::gui::menu_item {
 class FilterRouting final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue<::FilterRoute>(soundEditor.currentModControllable->filterRoute); }
+	void readCurrentValue() override {
+		this->setValue<::FilterRoute>(
+		    soundEditor.currentModControllable->modControllableSnapshot().effects.filter.route);
+	}
 
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
@@ -42,15 +46,20 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
-					if (soundDrum->lpfMode != FilterMode::OFF && soundDrum->hpfMode != FilterMode::OFF) {
-						soundDrum->filterRoute = current_value;
+					if (soundDrum->modControllableSnapshot().effects.filter.lpf_mode != FilterMode::OFF
+					    && soundDrum->modControllableSnapshot().effects.filter.hpf_mode != FilterMode::OFF) {
+						effectSettingFor(*soundDrum, "filterRoute",
+						                 deluge::serialization::Value::makeScalar(
+						                     std::string(deluge::effects::to_string(current_value))));
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->filterRoute = current_value;
+			effectSettingFor(
+			    *soundEditor.currentModControllable, "filterRoute",
+			    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(current_value))));
 		}
 	}
 

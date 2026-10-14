@@ -1064,8 +1064,9 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 				else {
 					name = inputChannelToString(mode);
 				}
-				error = audioFileManager.getUnusedAudioRecordingFilePath(
-				    createFilePath_, &createTempFilePath_, folderID, &audioFileNumber, name, &currentSong->name);
+				error = audioFileManager.getUnusedAudioRecordingFilePath(createFilePath_, &createTempFilePath_,
+				                                                         folderID, &audioFileNumber, name,
+				                                                         &currentSong->project.metadata.name);
 			}
 			// ACQUIRE: cardRoutine() decision read.
 			if (status.load(std::memory_order_acquire) == RecorderStatus::ABORTED) {

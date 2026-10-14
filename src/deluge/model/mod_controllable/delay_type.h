@@ -1,0 +1,92 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+
+class AutoParam;
+class ModelStackWithAutoParam;
+class ModControllableAudio;
+class ParamManager;
+class Song;
+
+namespace deluge::model {
+
+/// @brief One param's value and automation as they were before a change, so a caller can ask what could sound
+/// before it. For a patch cable's amount, only the value is read: a cable counts unless it is the changed one and its
+/// amount was 0.
+struct ParamBefore {
+	const AutoParam* param = nullptr; ///< the changed param; null when nothing is overridden
+	int32_t value = 0;                ///< its value before the change
+	bool automated = false;           ///< whether it was automated before the change
+};
+
+/// @brief Whether a delay whose feedback lives in @p paramManager could sound.
+/// @param paramManager The param manager holding the delay's feedback.
+/// @param sound Whether the manager is a Sound's: GLOBAL_DELAY_FEEDBACK is above its minimum (INT32_MIN), automated,
+/// or has a patch cable reaching it. Otherwise (a kit's, an audio track's or the master's) UNPATCHED_DELAY_AMOUNT is
+/// above its minimum or automated.
+/// @param before One param's earlier value and automation, used in place of its current ones.
+/// @return True if the delay could sound.
+[[nodiscard]] bool delayCouldSound(ParamManager& paramManager, bool sound, const ParamBefore& before = {});
+
+/// @brief Visits every (owner, param manager) pair of @p song that holds a delay's feedback: each instrument clip's
+/// synth or kit and its kit's sound drums' note rows, each audio clip's track, the master with the song's param
+/// manager, and every backed-up param manager.
+/// @param song  The song to walk.
+/// @param visit Called once per (owner, param manager) pair.
+void forEachDelayParamManager(Song& song, const std::function<void(ModControllableAudio&, ParamManager&)>& visit);
+
+/// @brief [task] After an interaction-tier change to a param: when it is an owner's delay feedback, or a patch cable
+/// reaching it, and the change took the delay from unable to sound to able while its type is OFF, steps the type by
+/// the Edit a press of the feedback knob makes, OFF to DIGITAL; when it is the delay's rate, refreshes its reserve.
+/// @param modelStack The changed param.
+/// @param oldValue The param's value before the change.
+/// @param automatedBefore Whether it was automated before the change.
+void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t oldValue, bool automatedBefore);
+
+/// @brief The tape, in frames, @p owner's delay settings need: its rate param in each of its param managers in
+/// @p song (the largest tape), synced to its sync settings at the playback's tempo.
+/// @param song  The song the owner belongs to.
+/// @param owner The delay's owner.
+/// @return The tape length in frames; 0 when its type is OFF.
+[[nodiscard]] std::size_t delayReserveFrames(Song& song, ModControllableAudio& owner);
+
+/// @brief [task] Sets @p owner's reserve in the delay arena from its settings, then maintains the arena.
+/// @param song  The song the owner belongs to.
+/// @param owner The delay's owner.
+void refreshDelayReserve(Song& song, ModControllableAudio& owner);
+
+/// @brief [task] Sets every delay of @p song that is on its reserve from its settings, then maintains the arena: on
+/// a load, and when the tempo changes.
+/// @param song The song whose delays are refreshed.
+void refreshDelayReserves(Song& song);
+
+/// @brief [task] What a load does once the loaded owners' param managers are in @p song: works out the delay types
+/// files saved without (resolvePendingDelayTypes), then refreshes every delay's reserve.
+/// @param song The loaded song.
+void settleLoadedDelays(Song& song);
+
+/// @brief Gives every owner of @p song whose file saved no delay type its type: OFF where no param manager of it could
+/// sound; otherwise the type its file's `analog` gave, or DIGITAL where its file had no delay.
+/// @param song The loaded song.
+void resolvePendingDelayTypes(Song& song);
+
+} // namespace deluge::model

@@ -1,5 +1,6 @@
 #include "gui/menu_item/sample/utils.h"
 
+#include "gui/menu_item/setting_edit.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 
@@ -21,4 +22,24 @@ SampleControls& getCurrentSampleControls(int32_t whichThing) {
 
 	Source& source = soundEditor.currentSound->sources[whichThing];
 	return source.sampleControls;
+}
+
+void setCurrentInterpolationMode(int32_t whichThing, InterpolationMode mode) {
+	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
+		audioClip->setInterpolationMode(mode); // DOM-owned (record + cache)
+		return;
+	}
+	deluge::gui::menu_item::settingFor(*soundEditor.currentSound,
+	                                   deluge::gui::menu_item::oscSettingPath(whichThing, "linearInterpolation"),
+	                                   deluge::serialization::Value::makeNumber(mode == InterpolationMode::LINEAR));
+}
+
+void setCurrentPitchAndSpeedIndependent(int32_t whichThing, bool independent) {
+	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
+		audioClip->setPitchAndSpeedIndependent(independent); // DOM-owned (record + cache)
+		return;
+	}
+	deluge::gui::menu_item::settingFor(*soundEditor.currentSound,
+	                                   deluge::gui::menu_item::oscSettingPath(whichThing, "timeStretchEnable"),
+	                                   deluge::serialization::Value::makeNumber(independent));
 }

@@ -4,8 +4,9 @@ add_subdirectory(../../../src/midi deluge_midi)
 add_library(deluge_spec STATIC
 # Audio-file header parser + its dependency-free byte/format helpers (file-loading regression net).
 ../../../src/deluge/storage/audio/audio_file_format.cpp
+../../../src/deluge/storage/build_value.cpp
+../../../src/deluge/storage/value_tree_deserializer.cpp
 ../../../src/deluge/util/audio_format_helpers.cpp
-../../../src/deluge/util/semver.cpp
 ../../../src/deluge/util/string.cpp
 # intToString/floatToString moved out of util/cfunctions.c into the dep-free
 # foundation library; cfunctions.c now only holds the clock-coupled delays.
@@ -16,13 +17,14 @@ add_library(deluge_spec STATIC
 ../../../src/deluge/hid/display/rainfall.cpp
 ../../support/mocks/mock_display.cpp
 ../../support/mocks/mock_print.cpp
+../../support/mocks/mock_firmware_version.cpp
 # ObjectPool guards its free list with CriticalSectionGuard, whose C ABI the BSP owns; the
 # specs have no BSP, and single-threaded drivers have nothing to mask.
 ../../support/mocks/mock_critical_section.cpp
 # The pad-grid crash pattern, against fault_pattern_spec.cpp's recording board.
 ../../../src/deluge/io/debug/fault_pattern.c
 )
-target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi)
+target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_serialization)
 
 # audio_file_format.cpp's header parse IS the Rust decoder (crates/deluge_audio_format, reached through
 # include/libdeluge/audio_format.h), so these specs need its C ABI on the link line. `deluge_rust_rs` is

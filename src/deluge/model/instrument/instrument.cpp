@@ -17,6 +17,7 @@
 
 #include "model/instrument/instrument.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip_instance.h"
@@ -37,6 +38,29 @@ Instrument::~Instrument() {
 }
 */
 
+// Called (via virtual dispatch, since Output::seedDocOutputIdentity() is virtual) from adoptOutput's load-bridge seed
+// and the clone/replace blocks in song.cpp that bulk-copy fields between Outputs without going through a setter.
+void Instrument::seedDocOutputIdentity() {
+	Output::seedDocOutputIdentity();
+	if (docOutput_ != nullptr) {
+		docOutput_->dir_path = dirPath;
+		docOutput_->default_velocity = defaultVelocity;
+	}
+}
+
+void Instrument::setDirPath(std::string_view newPath) {
+	dirPath = newPath;
+	if (docOutput_ != nullptr) {
+		docOutput_->dir_path = dirPath;
+	}
+}
+void Instrument::setDefaultVelocity(uint8_t v) {
+	defaultVelocity = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->default_velocity = v;
+	}
+}
+
 // Returns whether subslot changed
 void Instrument::beenEdited(bool shouldMoveToEmptySlot) {
 	editedByUser = true;
@@ -46,42 +70,54 @@ bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOn
 	// midi channels are always saved, either to the midi preset or the song
 	if (type == OutputType::MIDI_OUT) {
 		char const* slotXMLTag = getSlotXMLTag();
+		// Read the identity record's channel when bound (rebuild-at-save); fall back to the native field when
+		// unbound. Feed the record's channel into the same zone/internalDest/numeric branching (native and
+		// record are always in sync when bound, since every write funnels through setChannel()).
+		int32_t channelToSave = docOutput_ != nullptr ? docOutput_->channel : ((NonAudioInstrument*)this)->getChannel();
 		if (((MIDIInstrument*)this)->sendsToMPE()) {
-			writer.writeAttribute(slotXMLTag, (((NonAudioInstrument*)this)->getChannel() == MIDI_CHANNEL_MPE_LOWER_ZONE)
-			                                      ? "lower"
-			                                      : "upper");
+			writer.writeAttribute(slotXMLTag, (channelToSave == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper");
 		}
 		else if (((MIDIInstrument*)this)->sendsToInternal()) {
-			switch (((NonAudioInstrument*)this)->getChannel()) {
+			switch (channelToSave) {
 			case MIDI_CHANNEL_TRANSPOSE:
 				writer.writeAttribute(slotXMLTag, "transpose");
 				break;
 			default:
-				writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->getChannel());
+				writer.writeAttribute(slotXMLTag, channelToSave);
 			}
 		}
 		else {
-			writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->getChannel());
+			writer.writeAttribute(slotXMLTag, channelToSave);
 		}
 		char const* subSlotTag = getSubSlotXMLTag();
 		if (subSlotTag) {
-			writer.writeAttribute(subSlotTag, ((MIDIInstrument*)this)->channelSuffix);
+			// Read the identity record's channel_suffix when bound; fall back to the native field.
+			writer.writeAttribute(subSlotTag, docOutput_ != nullptr ? docOutput_->channel_suffix
+			                                                        : ((MIDIInstrument*)this)->channelSuffix);
 		}
 	}
 	// saving song
 	if (!clipForSavingOutputOnly) {
-		if (!name.empty()) {
-			writer.writeAttribute("presetName", name.c_str());
+		// Read the identity record's name when bound (rebuild-at-save); fall back to the native field when unbound.
+		bool hasPresetName = docOutput_ != nullptr ? !docOutput_->name.empty() : !name.empty();
+		if (hasPresetName) {
+			writer.writeAttribute("presetName", docOutput_ != nullptr ? docOutput_->name.c_str() : name.c_str());
 		}
 		if (type == OutputType::CV) {
 			char const* slotXMLTag = getSlotXMLTag();
-
-			writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->getChannel());
+			// Read the identity record's channel when bound; fall back to the native field.
+			writer.writeAttribute(slotXMLTag, docOutput_ != nullptr ? docOutput_->channel
+			                                                        : ((NonAudioInstrument*)this)->getChannel());
 		}
-		if (!dirPath.empty() && (type == OutputType::SYNTH || type == OutputType::KIT)) {
-			writer.writeAttribute("presetFolder", dirPath.c_str());
+		// Read the identity record's dir_path/default_velocity when bound (rebuild-at-save); fall back to the native
+		// field when unbound.
+		bool hasDirPath = docOutput_ != nullptr ? !docOutput_->dir_path.empty() : !dirPath.empty();
+		if (hasDirPath && (type == OutputType::SYNTH || type == OutputType::KIT)) {
+			writer.writeAttribute("presetFolder",
+			                      docOutput_ != nullptr ? docOutput_->dir_path.c_str() : dirPath.c_str());
 		}
-		writer.writeAttribute("defaultVelocity", defaultVelocity);
+		writer.writeAttribute("defaultVelocity",
+		                      docOutput_ != nullptr ? docOutput_->default_velocity : defaultVelocity);
 	}
 
 	return Output::writeDataToFile(writer, clipForSavingOutputOnly, song);
@@ -159,7 +195,7 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 		}
 	}
 
-	InstrumentClip* newInstrumentClip = new (clipMemory) InstrumentClip(modelStack->song);
+	InstrumentClip* newInstrumentClip = new (clipMemory) InstrumentClip(*modelStack->song);
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(newInstrumentClip);
 

@@ -17,6 +17,8 @@
 
 #include "model/note/note_row.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_note.h"
+#include "deluge-project/doc_note_row.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -29,6 +31,9 @@
 #include "model/consequence/consequence_note_existence.h"
 #include "model/drum/drum_name.h"
 #include "model/drum/gate_drum.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/kit.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
@@ -42,6 +47,9 @@
 #include "processing/sound/sound_instrument.h"
 #include "sequence/iterance_migration.h"
 #include "storage/storage_manager.h"
+#include "storage/value.h"
+#include "storage/value_tree_deserializer.h"
+#include "util/exceptions.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/lookuptables/preset_tables.h"
@@ -50,9 +58,9 @@
 #include <string.h>
 
 NoteRow::NoteRow(int16_t newY) {
-	y = newY;
-	muted = false;
-	colourOffset = random(71);
+	y_ = newY;
+	muted_ = false;
+	colourOffset_ = random(71);
 	drum = nullptr;
 	firstOldDrumName = nullptr;
 	sequenced = false;
@@ -60,9 +68,40 @@ NoteRow::NoteRow(int16_t newY) {
 	probabilityValue = kNumProbabilityValues;
 	iteranceValue = kDefaultIteranceValue;
 	fillValue = FillMode::OFF;
-	loopLengthIfIndependent = 0;
-	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
+	loopLengthIfIndependent_ = 0;
+	sequenceDirectionMode_ = SequenceDirection::OBEY_PARENT;
 	exportStem = false;
+}
+
+// Deep-copy ctor. Every data member of NoteRow is handled here — audit against note_row.h when adding members:
+//  - value/POD members: copied directly
+//  - paramManager: default-constructed then deep-cloned through the clone()-dispatched path (fallible → throw)
+//  - notes: NoteVector deep copy (may throw)
+//  - drum: pointer shared by design (the clone points at the same Drum)
+//  - firstOldDrumName: NOT copied — a clone starts with no owned drum-name list
+//  - ignoreNoteOnsBefore_ / ignoreUntil / ignoredTicks: transient playback state, reset
+NoteRow::NoteRow(NoteRow const& other)
+    : y_(other.y_), muted_(other.muted_), mutedBeforeStemExport(other.mutedBeforeStemExport),
+      exportStem(other.exportStem), loopLengthIfIndependent_(other.loopLengthIfIndependent_),
+      lastProcessedPosIfIndependent(other.lastProcessedPosIfIndependent),
+      repeatCountIfIndependent(other.repeatCountIfIndependent),
+      currentlyPlayingReversedIfIndependent(other.currentlyPlayingReversedIfIndependent),
+      sequenceDirectionMode_(other.sequenceDirectionMode_), drum(other.drum), notes(other.notes),
+      probabilityValue(other.probabilityValue), iteranceValue(other.iteranceValue), fillValue(other.fillValue),
+      muteMIDICommand(other.muteMIDICommand), midiInput(other.midiInput), colourOffset_(other.colourOffset_),
+      sequenced(other.sequenced), ignoreNoteOnsBefore_(0) {
+	// firstOldDrumName defaults to nullptr (OldDrumNameHead default ctor) — clones own no drum-name list.
+	// Deep-clone the automation/param collections through the clone()-dispatched path.
+	Error error = paramManager.cloneParamCollectionsFrom(&other.paramManager, true, true);
+	if (error != Error::NONE) {
+		throw deluge::exception::BAD_ALLOC;
+	}
+}
+
+NoteRow& NoteRow::operator=(NoteRow const& other) {
+	NoteRow tmp(other);     // deep copy (may throw)
+	*this = std::move(tmp); // defaulted move-assign frees this row's old resources
+	return *this;
 }
 
 NoteRow::~NoteRow() {
@@ -87,52 +126,63 @@ void NoteRow::deleteOldDrumNames(bool shouldUpdatePointer) {
 	}
 }
 
-Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing) {
-	// No need to clone much stuff - it's been automatically copied already as a block of memory.
-
-	firstOldDrumName = nullptr;
-	ignoreNoteOnsBefore_ = 0;
-	// sequenced = false;
-
+// Post-clone flatten of a reversed sequence. The row was already deep-copied (copy ctor) reverse-agnostically;
+// here we reverse the notes + automation in place (only if this row effectively plays reversed) and collapse
+// the direction mode to OBEY_PARENT. Owned-move semantics: the notes are
+// moved out and rebuilt reversed (no aliasing).
+Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 	int32_t effectiveLength = modelStack->getLoopLength();
-
 	int32_t numNotes = std::ssize(notes);
-	bool flatteningReversingNow =
-	    (shouldFlattenReversing && getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::REVERSE);
+	bool flatteningReversingNow = (getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::REVERSE);
 
-	int32_t reverseWithLength = flatteningReversingNow ? effectiveLength : 0;
+	Error error = Error::NONE;
 
-	Error error = paramManager.beenCloned(reverseWithLength); // TODO: flatten reversing here too
+	if (flatteningReversingNow) {
+		// Reverse the automation (nodes were copied reverse-agnostically by the copy ctor).
+		try {
+			paramManager.flattenReverseAutomation(effectiveLength);
+		} catch (deluge::exception&) {
+			return Error::INSUFFICIENT_RAM;
+		}
 
-	if (error != Error::NONE) {
-		notes.init(); // Abandon non-yet-cloned stuff
-		return error;
-	}
+		if (numNotes) {
+			// Move the owned notes out, then rebuild them reversed into a fresh buffer.
+			NoteVector oldNotes = std::move(notes);
+			notes.clear();
+			error = deluge::error_of(notes.insertAt(0, numNotes));
+			if (error == Error::NONE) {
 
-	// If we want to reverse the sequence, do that.
-	if (flatteningReversingNow && numNotes) {
-		// 'notes' is currently a byte-copy aliasing the old NoteRow's buffer. Deep-copy the data out (reading
-		// through the alias is safe), then detach and rebuild reversed.
-		NoteVector oldNotes;
-		bool cloned = oldNotes.cloneFrom(&notes);
-		notes.init(); // Detach from the old NoteRow's buffer, which it still owns
-		error = cloned ? notes.insertAt(0, numNotes).error_or(Error::NONE) : Error::INSUFFICIENT_RAM;
-		if (error == Error::NONE) {
+				InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-			InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+				// If yes note tails...
+				if (clip->allowNoteTails(modelStack)) {
+					int32_t numNotesBesidesWrapping = numNotes;
 
-			// If yes note tails...
-			if (clip->allowNoteTails(modelStack)) {
-				int32_t numNotesBesidesWrapping = numNotes;
+					// Look at the final note, to see if it's wrapping and deal with that.
+					{
+						Note* oldNote = &oldNotes[numNotes - 1];
+						int32_t finalNoteOvershoot = oldNote->pos + oldNote->length - effectiveLength;
+						if (finalNoteOvershoot > 0) {
+							numNotesBesidesWrapping--;
+							Note* newNote = &notes[numNotesBesidesWrapping];
+							newNote->pos = effectiveLength - finalNoteOvershoot;
+							newNote->setLength(oldNote->getLength());
+							newNote->setProbability(oldNote->getProbability());
+							newNote->setVelocity(oldNote->getVelocity());
+							newNote->setLift(oldNote->getLift());
+							newNote->setIterance(oldNote->getIterance());
+							newNote->setFill(oldNote->getFill());
+						}
+					}
 
-				// Look at the final note, to see if it's wrapping and deal with that.
-				{
-					Note* oldNote = &oldNotes[numNotes - 1];
-					int32_t finalNoteOvershoot = oldNote->pos + oldNote->length - effectiveLength;
-					if (finalNoteOvershoot > 0) {
-						numNotesBesidesWrapping--;
-						Note* newNote = (Note*)&notes[numNotesBesidesWrapping];
-						newNote->pos = effectiveLength - finalNoteOvershoot;
+					for (int32_t iOld = 0; iOld < numNotesBesidesWrapping; iOld++) {
+						int32_t iNew = numNotesBesidesWrapping - 1 - iOld;
+
+						Note* oldNote = &oldNotes[iOld];
+						Note* newNote = &notes[iNew];
+
+						int32_t newPos = effectiveLength - oldNote->pos - oldNote->length;
+						newNote->pos = newPos;
 						newNote->setLength(oldNote->getLength());
 						newNote->setProbability(oldNote->getProbability());
 						newNote->setVelocity(oldNote->getVelocity());
@@ -142,62 +192,40 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					}
 				}
 
-				for (int32_t iOld = 0; iOld < numNotesBesidesWrapping; iOld++) {
-					int32_t iNew = numNotesBesidesWrapping - 1 - iOld;
+				// No-tails (e.g. one-shot samples):
+				else {
 
-					Note* oldNote = &oldNotes[iOld];
-					Note* newNote = (Note*)&notes[iNew];
+					Note* firstNote = &oldNotes[0];
+					bool anythingAtZero = (firstNote->pos == 0);
 
-					int32_t newPos = effectiveLength - oldNote->pos - oldNote->length;
-					newNote->pos = newPos;
-					newNote->setLength(oldNote->getLength());
-					newNote->setProbability(oldNote->getProbability());
-					newNote->setVelocity(oldNote->getVelocity());
-					newNote->setLift(oldNote->getLift());
-					newNote->setIterance(oldNote->getIterance());
-					newNote->setFill(oldNote->getFill());
+					for (int32_t iOld = 0; iOld < numNotes; iOld++) {
+						int32_t iNew = -iOld - !anythingAtZero;
+						if (iNew < 0) {
+							iNew += numNotes;
+						}
+						Note* oldNote = &oldNotes[iOld];
+						Note* newNote = &notes[iNew];
+
+						int32_t newPos = -oldNote->pos;
+						if (newPos < 0) {
+							newPos += effectiveLength;
+						}
+						newNote->pos = newPos;
+						newNote->setLength(1);
+						newNote->setProbability(oldNote->getProbability());
+						newNote->setVelocity(oldNote->getVelocity());
+						newNote->setLift(oldNote->getLift());
+						newNote->setIterance(oldNote->getIterance());
+						newNote->setFill(oldNote->getFill());
+					}
 				}
 			}
-
-			// No-tails (e.g. one-shot samples):
-			else {
-
-				Note* firstNote = &oldNotes[0];
-				bool anythingAtZero = (firstNote->pos == 0);
-
-				for (int32_t iOld = 0; iOld < numNotes; iOld++) {
-					int32_t iNew = -iOld - !anythingAtZero;
-					if (iNew < 0) {
-						iNew += numNotes;
-					}
-					Note* oldNote = &oldNotes[iOld];
-					Note* newNote = (Note*)&notes[iNew];
-
-					int32_t newPos = -oldNote->pos;
-					if (newPos < 0) {
-						newPos += effectiveLength;
-					}
-					newNote->pos = newPos;
-					newNote->setLength(1);
-					newNote->setProbability(oldNote->getProbability());
-					newNote->setVelocity(oldNote->getVelocity());
-					newNote->setLift(oldNote->getLift());
-					newNote->setIterance(oldNote->getIterance());
-					newNote->setFill(oldNote->getFill());
-				}
-			}
+			// oldNotes owns a real deep copy now and frees it on destruction.
 		}
-
-		// oldNotes owns a real deep copy now and frees it on destruction.
 	}
 
-	// Or if not reversing the sequence, we can just make a simple call.
-	else {
-		error = notes.beenCloned();
-	}
-
-	if (shouldFlattenReversing && sequenceDirectionMode != SequenceDirection::PINGPONG) {
-		sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
+	if (sequenceDirectionMode() != SequenceDirection::PINGPONG) {
+		setSequenceDirectionModeRaw(SequenceDirection::OBEY_PARENT);
 	}
 	// Pingponging won't have been flattened by a single clone. And we may be about to flatten it with a
 	// generateRepeats(), so need to keep this designation for now.
@@ -252,8 +280,8 @@ void NoteRow::getRowSquareInfo(int32_t effectiveLength, SquareInfo rowSquareInfo
 		int32_t lastNoteSquareEndPos = std::min(instrumentClipView.getPosFromSquare(kDisplayWidth), effectiveLength);
 
 		// find the last square that we will iterate from
-		int32_t lastSquare =
-		    instrumentClipView.getSquareFromPos(lastNoteSquareEndPos - 1, NULL, currentSong->xScroll[NAVIGATION_CLIP]);
+		int32_t lastSquare = instrumentClipView.getSquareFromPos(lastNoteSquareEndPos - 1, NULL,
+		                                                         currentSong->persistentView.xScroll[NAVIGATION_CLIP]);
 
 		// Start by finding the last note to begin *before the right-edge* of the note row displayed
 		int32_t i = notes.firstAtOrAfter(lastNoteSquareEndPos) - 1;
@@ -420,7 +448,7 @@ addNewNote:
 			                                  newNote, ExistenceChangeType::CREATE);
 		}
 
-		if (clipCurrentlyPlaying && !muted) {
+		if (clipCurrentlyPlaying && !muted()) {
 			((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
 			if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
@@ -556,7 +584,7 @@ Error NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, 
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = std::ssize(notes) + numScreensToAddNoteOn;
-	Error error = newNotes.insertAt(0, newNotesInitialSize).error_or(Error::NONE);
+	Error error = deluge::error_of(newNotes.insertAt(0, newNotesInitialSize));
 	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
@@ -765,7 +793,7 @@ int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, i
 		length = 1; // Special case where note added at the end of linear record must temporarily be allowed to eat into
 		            // note at position 0
 	}
-	Error error = notes.insertAt(i).error_or(Error::NONE);
+	Error error = deluge::error_of(notes.insertAt(i));
 	if (error != Error::NONE) {
 		return 0;
 	}
@@ -825,7 +853,7 @@ int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32
 		// Ok, there was no Note there, so let's make one
 	}
 
-	Error error = notes.insertAt(i).error_or(Error::NONE);
+	Error error = deluge::error_of(notes.insertAt(i));
 	if (error != Error::NONE) {
 		return 0;
 	}
@@ -869,7 +897,7 @@ Error NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNot
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = std::ssize(notes);
-	Error error = newNotes.insertAt(0, newNotesInitialSize).error_or(Error::NONE);
+	Error error = deluge::error_of(newNotes.insertAt(0, newNotesInitialSize));
 	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
@@ -1174,7 +1202,7 @@ Error NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWid
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = numSourceNotes + (newNumNotes - 1) * numScreens;
-	Error error = newNotes.insertAt(0, newNotesInitialSize).error_or(Error::NONE);
+	Error error = deluge::error_of(newNotes.insertAt(0, newNotesInitialSize));
 	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
@@ -1373,7 +1401,7 @@ Error NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = numSourceNotes;
-	Error error = newNotes.insertAt(0, newNotesInitialSize).error_or(Error::NONE);
+	Error error = deluge::error_of(newNotes.insertAt(0, newNotesInitialSize));
 	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
@@ -2026,11 +2054,11 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 }
 
 SequenceDirection NoteRow::getEffectiveSequenceDirectionMode(ModelStackWithNoteRow const* modelStack) {
-	if (sequenceDirectionMode == SequenceDirection::OBEY_PARENT) {
+	if (sequenceDirectionMode() == SequenceDirection::OBEY_PARENT) {
 		return ((Clip*)modelStack->getTimelineCounter())->sequenceDirectionMode;
 	}
 	else {
-		return sequenceDirectionMode;
+		return sequenceDirectionMode();
 	}
 }
 
@@ -2050,8 +2078,8 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 		// Remember, lastProcessedPosIfIndependent has already been incremented during call to Clip::incrementPos().
 
 		// Deal with recording from session to arrangement.
-		if (loopLengthIfIndependent // Only if independent *length* - which isn't always the case when we have
-		                            // independent play pos.
+		if (loopLengthIfIndependent() // Only if independent *length* - which isn't always the case when we have
+		                              // independent play pos.
 		    && playbackHandler.recording == RecordingMode::ARRANGEMENT
 		    && lastProcessedPosIfIndependent
 		           == (playingReversedNow ? 0 : effectiveLength) // If reached end (or start) of row length.
@@ -2065,13 +2093,14 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 
 			if (otherNoteRow) {
 
-				int32_t whichRepeatThisIs = (uint32_t)effectiveLength / (uint32_t)otherNoteRow->loopLengthIfIndependent;
+				int32_t whichRepeatThisIs =
+				    (uint32_t)effectiveLength / (uint32_t)otherNoteRow->loopLengthIfIndependent();
 
 				appendNoteRow(modelStack, otherModelStackWithNoteRow, effectiveLength, whichRepeatThisIs,
-				              otherNoteRow->loopLengthIfIndependent);
+				              otherNoteRow->loopLengthIfIndependent());
 
-				loopLengthIfIndependent += otherNoteRow->loopLengthIfIndependent;
-				effectiveLength = loopLengthIfIndependent; // Re-get, since we changed it.
+				setLoopLengthIfIndependent(loopLengthIfIndependent() + otherNoteRow->loopLengthIfIndependent());
+				effectiveLength = loopLengthIfIndependent(); // Re-get, since we changed it.
 			}
 		}
 
@@ -2154,18 +2183,18 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 		ignoreNoteOnsBefore_ = 0;
 	}
 
-	if (muted) {
+	if (muted()) {
 noFurtherNotes:
 		// If this NoteRow has independent length set, make sure we come back at its end. Otherwise, the Clip
 		// handles this.
-		if (loopLengthIfIndependent) {
+		if (loopLengthIfIndependent()) {
 			ticksTilNextNoteEvent = effectiveCurrentPos;
 			if (!playingReversedNow) {
-				ticksTilNextNoteEvent = loopLengthIfIndependent - ticksTilNextNoteEvent;
+				ticksTilNextNoteEvent = loopLengthIfIndependent() - ticksTilNextNoteEvent;
 			}
 			else if (!ticksTilNextNoteEvent) {
 				ticksTilNextNoteEvent =
-				    loopLengthIfIndependent; // Wrap from 0 up to length. Need to do this when playing reversed.
+				    loopLengthIfIndependent(); // Wrap from 0 up to length. Need to do this when playing reversed.
 			}
 		}
 	}
@@ -2410,7 +2439,7 @@ bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
 		return drum && drum->auditioned;
 	}
 	else {
-		return ((MelodicInstrument*)output)->notesAuditioned.contains(y);
+		return ((MelodicInstrument*)output)->notesAuditioned.contains(y());
 	}
 }
 
@@ -2659,7 +2688,7 @@ void NoteRow::setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, Ac
 		oldPos = (uint32_t)oldPos % (uint32_t)newLength;
 	}
 
-	loopLengthIfIndependent = (newLength == clip->loopLength) ? 0 : newLength;
+	setLoopLengthIfIndependent((newLength == clip->loopLength()) ? 0 : newLength);
 
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {
 		lastProcessedPosIfIndependent = oldPos;
@@ -2742,7 +2771,7 @@ basicTrim:
 			else {
 
 				NoteVector newNotes;
-				Error error = newNotes.insertAt(0, newNumNotes).error_or(Error::NONE);
+				Error error = deluge::error_of(newNotes.insertAt(0, newNumNotes));
 				if (error != Error::NONE) {
 					goto basicTrim;
 				}
@@ -2792,12 +2821,12 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-	if (sequenceDirectionMode == SequenceDirection::PINGPONG) {
+	if (sequenceDirectionMode() == SequenceDirection::PINGPONG) {
 		// Pingponging is being flattened out, and although there are arguments either way, I think removing
 		// that setting now is best.
-		sequenceDirectionMode = (clip->sequenceDirectionMode == SequenceDirection::REVERSE)
-		                            ? SequenceDirection::FORWARD
-		                            : SequenceDirection::OBEY_PARENT;
+		setSequenceDirectionModeRaw((clip->sequenceDirectionMode == SequenceDirection::REVERSE)
+		                                ? SequenceDirection::FORWARD
+		                                : SequenceDirection::OBEY_PARENT);
 	}
 
 	int32_t numNotesBefore = std::ssize(notes);
@@ -2844,7 +2873,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		// This is crude and lazy, but the amount of elements I'll create is rounded way up, and we'll delete
 		// any extras, below.
 		int32_t maxNewNumNotes = numNotesBefore * numRepeatsRoundedUp;
-		Error error = notes.insertAt(numNotesBefore, maxNewNumNotes - numNotesBefore).error_or(Error::NONE);
+		Error error = deluge::error_of(notes.insertAt(numNotesBefore, maxNewNumNotes - numNotesBefore));
 		if (error != Error::NONE) {
 			return false;
 		}
@@ -3124,11 +3153,11 @@ next:
 }
 
 void NoteRow::toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAndPlaybackIsOn) {
-	muted = !muted;
+	setMuted(!muted());
 
 	if (clipIsActiveAndPlaybackIsOn) {
 		// If we just muted it, make sure we're not playing a note
-		if (muted) {
+		if (muted()) {
 			stopCurrentlyPlayingNote(modelStack);
 		}
 
@@ -3203,312 +3232,64 @@ bool NoteRow::hasNoNotes() {
 }
 
 bool NoteRow::noteRowMayMakeSound(bool clipMayMakeSound) {
-	return clipMayMakeSound && !muted;
+	return clipMayMakeSound && !muted();
 }
 
 uint32_t NoteRow::getNumNotes() {
 	return std::ssize(notes);
 }
 
-Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip* parentClip, Song* song,
-                            int32_t readAutomationUpToPos) {
+Error NoteRow::readSoundParams(Deserializer& reader, InstrumentClip* parentClip, Song* song,
+                               int32_t readAutomationUpToPos) {
+
+	paramManager.setupWithPatching();
+	Sound::initParams(&paramManager);
+	Sound::readParamsFromFile(reader, &paramManager, readAutomationUpToPos);
+	return Error::NONE;
+}
+
+Error NoteRow::readLegacyNotes(Deserializer& reader) {
 	char const* tagName;
-
-	drum = (Drum*)0xFFFFFFFF; // Code for "no drum". We swap this for a real value soon
-
-	int32_t newBendRange = -1; // Temp variable for this because we can't actually create the expressionParams
-	                           // before we know what kind of Drum (if any) we have.
-
-	reader.match('{');
+	// Read each Note
+	uint32_t minPos = 0;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		// D_PRINTLN(tagName); delayMS(50);
 
-		uint16_t noteHexLength;
+		if (!strcmp(tagName, "note")) {
+			// Set defaults for this Note
+			uint8_t velocity = 64;
+			uint32_t pos = 0;
+			uint32_t length = 1;
 
-		if (!strcmp(tagName, "muted")) {
-			muted = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "y")) {
-			y = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "colourOffset")) {
-			colourOffset = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "drumIndex")) {
-			drum = (Drum*)reader.readTagOrAttributeValueInt(); // Sneaky - we store an integer in place of this pointer,
-			                                                   // then swap it back to something meaningful later
-		}
-
-		else if (!strcmp(tagName, "gateOutput")) {
-			int32_t gateChannel = reader.readTagOrAttributeValueInt();
-			gateChannel = std::clamp<int32_t>(gateChannel, 0, NUM_GATE_CHANNELS - 1);
-
-			drum = (Drum*)(0xFFFFFFFE - gateChannel);
-		}
-
-		else if (!strcmp(tagName, "muteMidiCommand")) {
-			muteMIDICommand.readNoteFromFile(reader);
-		}
-
-		else if (!strcmp(tagName, "soundMidiCommand")) {
-			midiInput.readNoteFromFile(reader);
-		}
-
-		else if (!strcmp(tagName, "length")) {
-			loopLengthIfIndependent = reader.readTagOrAttributeValueInt();
-			readAutomationUpToPos = loopLengthIfIndependent; // So we can read automation right up to the actual
-			                                                 // length of this NoteRow.
-		}
-
-		else if (!strcmp(tagName, "sequenceDirection")) {
-			sequenceDirectionMode = stringToSequenceDirectionMode(reader.readTagOrAttributeValue());
-		}
-
-		else if (!strcmp(tagName, "bendRange")) {
-			newBendRange = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "soundParams")) {
-
-			// Sneaky sorta hack for 2016 files - allow more params to be loaded into a ParamManager that
-			// already had some loading done by the Drum
-			if (song_firmware_version < FirmwareVersion::official({1, 2, 0}) && parentClip->output) {
-
-				SoundDrum* actualDrum =
-				    (SoundDrum*)((Kit*)parentClip->output)->getDrumFromIndex((int32_t)(uintptr_t)drum);
-
-				if (actualDrum) {
-					ParamManager* existingParamManager =
-					    song->getBackedUpParamManagerPreferablyWithClip(actualDrum, parentClip);
-					if (existingParamManager) {
-						Error error = paramManager.cloneParamCollectionsFrom(existingParamManager, false);
-						if (error != Error::NONE) {
-							return error;
-						}
-						goto finishedNormalStuff;
-					}
-				}
-			}
-
-			paramManager.setupWithPatching();
-			Sound::initParams(&paramManager);
-
-finishedNormalStuff:
-			Sound::readParamsFromFile(reader, &paramManager, readAutomationUpToPos);
-		}
-
-		// Notes stored as XML (before V1.4) - NOT CONVERTED TO ALSO WORK WITH JSON.
-		else if (!strcmp(tagName, "notes")) {
-			// Read each Note
-			uint32_t minPos = 0;
+			// Read in this note's data
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
-
-				if (!strcmp(tagName, "note")) {
-					// Set defaults for this Note
-					uint8_t velocity = 64;
-					uint32_t pos = 0;
-					uint32_t length = 1;
-
-					// Read in this note's data
-					while (*(tagName = reader.readNextTagOrAttributeName())) {
-						if (!strcmp(tagName, "velocity")) {
-							velocity = reader.readTagOrAttributeValueInt();
-							velocity = std::min((uint8_t)127, (uint8_t)std::max((uint8_t)1, (uint8_t)velocity));
-							reader.exitTag("velocity");
-						}
-
-						else if (!strcmp(tagName, "pos")) {
-							pos = reader.readTagOrAttributeValueInt();
-							pos = std::max(minPos, pos);
-							reader.exitTag("pos");
-						}
-
-						else if (!strcmp(tagName, "length")) {
-							length = reader.readTagOrAttributeValueInt();
-							length = std::max((uint32_t)1, (uint32_t)length);
-							reader.exitTag("length");
-						}
-
-						else {
-							reader.exitTag(tagName);
-						}
-					}
-
-					if (!(pos < minPos || length < 0 || pos > kMaxSequenceLength - length)) {
-
-						minPos = pos + length;
-
-						// Make this Note
-						int32_t i = notes.insertSorted(pos, true).value_or(-1);
-						if (i == -1) {
-							return Error::INSUFFICIENT_RAM;
-						}
-						Note* newNote = &notes[i];
-						newNote->setLength(length);
-						newNote->setVelocity(velocity);
-						newNote->setLift(kDefaultLiftValue);
-						newNote->setProbability(kNumProbabilityValues);
-						newNote->setIterance(kDefaultIteranceValue);
-						newNote->setFill(FillMode::OFF);
-					}
-
-					reader.exitTag("note");
+				if (!strcmp(tagName, "velocity")) {
+					velocity = reader.readTagOrAttributeValueInt();
+					velocity = std::min((uint8_t)127, (uint8_t)std::max((uint8_t)1, (uint8_t)velocity));
+					reader.exitTag("velocity");
 				}
+
+				else if (!strcmp(tagName, "pos")) {
+					pos = reader.readTagOrAttributeValueInt();
+					pos = std::max(minPos, pos);
+					reader.exitTag("pos");
+				}
+
+				else if (!strcmp(tagName, "length")) {
+					length = reader.readTagOrAttributeValueInt();
+					length = std::max((uint32_t)1, (uint32_t)length);
+					reader.exitTag("length");
+				}
+
 				else {
 					reader.exitTag(tagName);
 				}
 			}
-		}
 
-		// Notes stored as hex data (V1.4 onwards)
-		else if (!strcmp(tagName, "noteData")) {
-			noteHexLength = 20;
-doReadNoteData:
-			int32_t minPos = 0;
-
-			int32_t numElementsToAllocateFor = 0;
-
-			if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
-				goto getOut;
-			}
-
-			{
-				char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-				if (!firstChars || *(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) {
-					goto getOut;
-				}
-			}
-
-			while (true) {
-
-				// Every time we've reached the end of a cluster...
-				if (numElementsToAllocateFor <= 0) {
-
-					// See how many more chars before the end of the cluster. If there are any...
-					uint32_t charsRemaining = reader.getNumCharsRemainingInValueBeforeEndOfCluster();
-					if (charsRemaining) {
-
-						// Allocate space for the right number of notes, and remember how long it'll be before
-						// we need to do this check again
-						numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / noteHexLength + 1;
-						notes.reserveExtra(numElementsToAllocateFor)
-						    .has_value(); // If it returns false... oh well. We'll fail later
-					}
-				}
-
-				char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(noteHexLength);
-				if (!hexChars) {
-					goto getOut;
-				}
-
-				int32_t pos = hexToIntFixedLength(hexChars, 8);
-				int32_t length = hexToIntFixedLength(&hexChars[8], 8);
-				uint8_t velocity = hexToIntFixedLength(&hexChars[16], 2);
-				uint8_t lift, probability, fill;
-				Iterance iterance;
-
-				if (noteHexLength == 28) { // if reading custom iterance and fill
-					fill = hexToIntFixedLength(&hexChars[26], 2);
-					iterance = Iterance::fromInt(hexToIntFixedLength(&hexChars[22], 4));
-					probability = hexToIntFixedLength(&hexChars[20], 2);
-					lift = hexToIntFixedLength(&hexChars[18], 2);
-					if (lift == 0 || lift > 127) {
-						goto useDefaultLift;
-					}
-				}
-				else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
-					fill = hexToIntFixedLength(&hexChars[24], 2);
-					iterance = iteranceFromLegacyPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
-					probability = hexToIntFixedLength(&hexChars[20], 2);
-					lift = hexToIntFixedLength(&hexChars[18], 2);
-					if (lift == 0 || lift > 127) {
-						goto useDefaultLift;
-					}
-				}
-				else if (noteHexLength == 22) { // If reading lift...
-					probability = hexToIntFixedLength(&hexChars[20], 2);
-
-					if (probability == kOldFillProbabilityValue || probability == kOldNotFillProbabilityValue) {
-						if (probability == kOldFillProbabilityValue) {
-							fill = FillMode::FILL;
-						}
-						else {
-							fill = FillMode::NOT_FILL;
-						}
-						iterance = kDefaultIteranceValue;    // iterance off
-						probability = kNumProbabilityValues; // 100% probability
-					}
-					else if (probability > kNumProbabilityValues
-					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
-						fill = FillMode::OFF;
-						iterance = iteranceFromLegacyProbabilityByte(probability);
-						probability = kNumProbabilityValues; // 100% probability
-					}
-					else {
-						fill = FillMode::OFF;
-						iterance = kDefaultIteranceValue; // iterance off
-					}
-					lift = hexToIntFixedLength(&hexChars[18], 2);
-					if (lift == 0 || lift > 127) {
-						goto useDefaultLift;
-					}
-				}
-				else { // Or if no lift here to read
-					probability = hexToIntFixedLength(&hexChars[18], 2);
-
-					if (probability == kOldFillProbabilityValue || probability == kOldNotFillProbabilityValue) {
-						if (probability == kOldFillProbabilityValue) {
-							fill = FillMode::FILL;
-						}
-						else {
-							fill = FillMode::NOT_FILL;
-						}
-						iterance = kDefaultIteranceValue;    // iterance off
-						probability = kNumProbabilityValues; // 100% probability
-					}
-					else if (probability > kNumProbabilityValues
-					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
-						fill = FillMode::OFF;
-						iterance = iteranceFromLegacyProbabilityByte(probability);
-						probability = kNumProbabilityValues; // 100% probability
-					}
-					else {
-						fill = FillMode::OFF;
-						iterance = kDefaultIteranceValue; // iterance off
-					}
-
-					lift = hexToIntFixedLength(&hexChars[18], 2);
-					if (lift == 0 || lift > 127) {
-						goto useDefaultLift;
-					}
-
-useDefaultLift:
-					lift = kDefaultLiftValue;
-				}
-
-				// See if that's all allowed
-				if (length <= 0) {
-					length = 1; // This happened somehow in Simon Wollwage's song, May 2020
-				}
-				if (pos < minPos || pos > kMaxSequenceLength - length) {
-					continue;
-				}
-				if (velocity == 0 || velocity > 127) {
-					velocity = 64;
-				}
-				if ((probability & 127) > kNumProbabilityValues || probability >= (kNumProbabilityValues | 128)) {
-					probability = kNumProbabilityValues;
-				}
-				if (fill < FillMode::OFF || fill > FillMode::FILL) {
-					fill = FillMode::OFF;
-				}
+			if (!(pos < minPos || length < 0 || pos > kMaxSequenceLength - length)) {
 
 				minPos = pos + length;
 
-				// Ok, make the note
+				// Make this Note
 				int32_t i = notes.insertSorted(pos, true).value_or(-1);
 				if (i == -1) {
 					return Error::INSUFFICIENT_RAM;
@@ -3516,59 +3297,286 @@ useDefaultLift:
 				Note* newNote = &notes[i];
 				newNote->setLength(length);
 				newNote->setVelocity(velocity);
-				newNote->setLift(lift);
-				newNote->setProbability(probability);
-				newNote->setIterance(iterance);
-				newNote->setFill(fill);
-
-				numElementsToAllocateFor--;
+				newNote->setLift(kDefaultLiftValue);
+				newNote->setProbability(kNumProbabilityValues);
+				newNote->setIterance(kDefaultIteranceValue);
+				newNote->setFill(FillMode::OFF);
 			}
+
+			reader.exitTag("note");
+		}
+		else {
+			reader.exitTag(tagName);
+		}
+	}
+	return Error::NONE;
+}
+
+Error NoteRow::readNoteDataHex(Deserializer& reader, uint16_t noteHexLength) {
+	int32_t minPos = 0;
+
+	int32_t numElementsToAllocateFor = 0;
+
+	if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+		goto getOut;
+	}
+
+	{
+		char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+		if (!firstChars || *(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) {
+			goto getOut;
+		}
+	}
+
+	while (true) {
+
+		// Every time we've reached the end of a cluster...
+		if (numElementsToAllocateFor <= 0) {
+
+			// See how many more chars before the end of the cluster. If there are any...
+			uint32_t charsRemaining = reader.getNumCharsRemainingInValueBeforeEndOfCluster();
+			if (charsRemaining) {
+
+				// Allocate space for the right number of notes, and remember how long it'll be before
+				// we need to do this check again
+				numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / noteHexLength + 1;
+				notes.reserveExtra(numElementsToAllocateFor)
+				    .has_value(); // If it returns false... oh well. We'll fail later
+			}
+		}
+
+		char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(noteHexLength);
+		if (!hexChars) {
+			goto getOut;
+		}
+
+		int32_t pos = hexToIntFixedLength(hexChars, 8);
+		int32_t length = hexToIntFixedLength(&hexChars[8], 8);
+		uint8_t velocity = hexToIntFixedLength(&hexChars[16], 2);
+		uint8_t lift, probability, fill;
+		Iterance iterance;
+
+		if (noteHexLength == 28) { // if reading custom iterance and fill
+			fill = hexToIntFixedLength(&hexChars[26], 2);
+			iterance = Iterance::fromInt(hexToIntFixedLength(&hexChars[22], 4));
+			probability = hexToIntFixedLength(&hexChars[20], 2);
+			lift = hexToIntFixedLength(&hexChars[18], 2);
+		}
+		else { // the lift form, before community 1.3: its probability byte also held fill and iterance presets
+			probability = hexToIntFixedLength(&hexChars[20], 2);
+
+			if (probability == kOldFillProbabilityValue || probability == kOldNotFillProbabilityValue) {
+				if (probability == kOldFillProbabilityValue) {
+					fill = FillMode::FILL;
+				}
+				else {
+					fill = FillMode::NOT_FILL;
+				}
+				iterance = kDefaultIteranceValue;    // iterance off
+				probability = kNumProbabilityValues; // 100% probability
+			}
+			else if (probability > kNumProbabilityValues
+			         && probability <= kNumProbabilityValues + kNumIterancePresets) {
+				fill = FillMode::OFF;
+				iterance = iteranceFromLegacyProbabilityByte(probability);
+				probability = kNumProbabilityValues; // 100% probability
+			}
+			else {
+				fill = FillMode::OFF;
+				iterance = kDefaultIteranceValue; // iterance off
+			}
+			lift = hexToIntFixedLength(&hexChars[18], 2);
+		}
+		if (lift == 0 || lift > 127) {
+			lift = kDefaultLiftValue;
+		}
+
+		// See if that's all allowed
+		if (length <= 0) {
+			length = 1; // This happened somehow in Simon Wollwage's song, May 2020
+		}
+		if (pos < minPos || pos > kMaxSequenceLength - length) {
+			continue;
+		}
+		if (velocity == 0 || velocity > 127) {
+			velocity = 64;
+		}
+		if ((probability & 127) > kNumProbabilityValues || probability >= (kNumProbabilityValues | 128)) {
+			probability = kNumProbabilityValues;
+		}
+		if (fill < FillMode::OFF || fill > FillMode::FILL) {
+			fill = FillMode::OFF;
+		}
+
+		minPos = pos + length;
+
+		// Ok, make the note
+		int32_t i = notes.insertSorted(pos, true).value_or(-1);
+		if (i == -1) {
+			return Error::INSUFFICIENT_RAM;
+		}
+		Note* newNote = &notes[i];
+		newNote->setLength(length);
+		newNote->setVelocity(velocity);
+		newNote->setLift(lift);
+		newNote->setProbability(probability);
+		newNote->setIterance(iterance);
+		newNote->setFill(fill);
+
+		numElementsToAllocateFor--;
+	}
 getOut: {}
-		}
+	return Error::NONE;
+}
 
-		// Notes stored as hex data including lift (V3.2 onwards)
-		else if (song_firmware_version < FirmwareVersion::community({1, 3, 0})
-		         && !strcmp(tagName, "noteDataWithLift")) {
-			noteHexLength = 22;
-			goto doReadNoteData;
-		}
-#if ALPHA_OR_BETA_VERSION
-		// Notes stored as hex data in nightly firmware 1.3 previous to the addition of custom iterances
-		else if (song_firmware_version < FirmwareVersion::community({1, 3, 0})
-		         && !strcmp(tagName, "noteDataWithIteranceAndFill")) {
-			noteHexLength = 26;
-			goto doReadNoteData;
-		}
-#endif
-		// Notes stored as hex data including custom iterance and fill (community firmware 1.3 onwards)
-		else if (!strcmp(tagName, "noteDataWithSplitProb")) {
-			noteHexLength = 28;
-			goto doReadNoteData;
-		}
+Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& node, int32_t* minY,
+                            InstrumentClip* parentClip, Song* song, int32_t readAutomationUpToPos) {
+	using deluge::storage::Value;
+	auto& treeReader = deluge::storage::treeReaderOf(reader);
+	drum = (Drum*)0xFFFFFFFF; // "no drum" sentinel, resolved to a real drum later
+	int32_t newBendRange = -1;
+	Error error = Error::NONE;
 
-		else if (!strcmp(tagName, "expressionData")) {
+	// length first: it bounds readAutomationUpToPos for the param/note reads below.
+	if (const Value* n = node.find("length")) {
+		setLoopLengthIfIndependent(stringToInt(n->str().c_str()));
+		readAutomationUpToPos = loopLengthIfIndependent();
+	}
+	if (const Value* n = node.find("muted")) {
+		setMuted(stringToInt(n->str().c_str()));
+	}
+	if (const Value* n = node.find("y")) {
+		y_ = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = node.find("colourOffset")) {
+		setColourOffset(stringToInt(n->str().c_str()));
+	}
+	if (const Value* n = node.find("drumIndex")) {
+		drum = (Drum*)stringToInt(n->str().c_str());
+	}
+	if (const Value* n = node.find("gateOutput")) {
+		int32_t gateChannel = std::clamp<int32_t>(stringToInt(n->str().c_str()), 0, NUM_GATE_CHANNELS - 1);
+		drum = (Drum*)(0xFFFFFFFE - gateChannel);
+	}
+	if (const Value* n = node.find("sequenceDirection")) {
+		setSequenceDirectionModeRaw(
+		    deluge::project::parse_sequence_direction(n->str()).value_or(SequenceDirection::FORWARD));
+	}
+	if (const Value* n = node.find("bendRange")) {
+		newBendRange = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = node.find("muteMidiCommand")) {
+		muteMIDICommand.readNoteFromTree(*n, reader);
+	}
+	if (const Value* n = node.find("soundMidiCommand")) {
+		midiInput.readNoteFromTree(*n, reader);
+	}
+	if (const Value* n = node.find("soundParams")) {
+		treeReader.readChildObject(*n,
+		                           [&] { error = readSoundParams(reader, parentClip, song, readAutomationUpToPos); });
+		if (error != Error::NONE) {
+			return error;
+		}
+	}
+	if (const Value* n = node.find("expressionData")) {
+		treeReader.readChildObject(*n, [&] {
 			paramManager.ensureExpressionParamSetExists();
 			ParamCollectionSummary* summary = paramManager.getExpressionParamSetSummary();
 			ExpressionParamSet* expressionParams = (ExpressionParamSet*)summary->paramCollection;
 			if (expressionParams) {
 				expressionParams->readFromFile(reader, summary, readAutomationUpToPos);
 			}
+		});
+	}
+	// Hex note data, one variant per row: before community 1.3 the lift form the releases wrote, then split
+	// probability.
+	const Value* nd = nullptr;
+	uint16_t noteHexLength = 28;
+	if (song_firmware_version < FirmwareVersion::community({1, 3, 0})
+	    && (nd = node.find("noteDataWithLift")) != nullptr) {
+		noteHexLength = 22;
+	}
+	else {
+		nd = node.find("noteDataWithSplitProb");
+	}
+	if (nd != nullptr) {
+		treeReader.readScalarValue(*nd, [&] { error = readNoteDataHex(reader, noteHexLength); });
+		if (error != Error::NONE) {
+			return error;
 		}
-
-		reader.exitTag();
+	}
+	if (const Value* n = node.find("notes")) {
+		treeReader.readChildObject(*n, [&] { error = readLegacyNotes(reader); });
+		if (error != Error::NONE) {
+			return error;
+		}
 	}
 
-	y = std::max(y, (int16_t)*minY);
-	*minY = y + 1;
-
+	y_ = std::max(y_, (int16_t)*minY);
+	*minY = y_ + 1;
 	if (newBendRange != -1) {
 		ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet();
 		if (expressionParams) {
 			expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = newBendRange;
 		}
 	}
-	reader.match('}');
+
+	// Mirror the fully-read scalar fields into the DOM record (bound at the load insert site). Guarded on non-null.
+	if (docNoteRow_ != nullptr) {
+		docNoteRow_->y = y_;
+	}
 	return Error::NONE;
+}
+
+namespace {
+/// Emit one `noteDataWithSplitProb` hex record (current format). Field widths:
+/// pos/length default 8, velocity/lift/probability/fill 2, iterance 4.
+void writeSplitProbRecord(Serializer& writer, int32_t pos, int32_t length, uint8_t velocity, uint8_t lift,
+                          uint8_t probability, uint16_t iteranceInt, uint8_t fill) {
+	char buffer[9];
+
+	intToHex(pos, buffer);
+	writer.write(buffer);
+
+	intToHex(length, buffer);
+	writer.write(buffer);
+
+	intToHex(velocity, buffer, 2);
+	writer.write(buffer);
+
+	intToHex(lift, buffer, 2);
+	writer.write(buffer);
+
+	intToHex(probability, buffer, 2);
+	writer.write(buffer);
+
+	intToHex(iteranceInt, buffer, 4);
+	writer.write(buffer);
+
+	intToHex(fill, buffer, 2);
+	writer.write(buffer);
+}
+} // namespace
+
+void NoteRow::rebuildDocNotes() {
+	if (docNoteRow_ == nullptr) {
+		return;
+	}
+	auto& pool = docNoteRow_->notes;
+	pool.clear();
+	pool.reserve(notes.size());
+	for (int32_t n = 0; n < std::ssize(notes); n++) {
+		Note& note = notes[n];
+		pool.push_back(deluge::project::DocNote{
+		    .pos = note.pos,
+		    .length = note.getLength(),
+		    .velocity = static_cast<uint8_t>(note.getVelocity()),
+		    .probability = static_cast<uint8_t>(note.getProbability()),
+		    .iterance = note.getIterance().toInt(),
+		    .fill = static_cast<uint8_t>(note.getFill()),
+		    .lift = static_cast<uint8_t>(note.getLift()),
+		});
+	}
 }
 
 void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip) {
@@ -3577,56 +3585,52 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 	bool forKit = (clip->output->type == OutputType::KIT);
 
 	if (!forKit) {
-		writer.writeAttribute("y", y);
+		writer.writeAttribute("y", y());
 	}
-	if (muted) {
-		writer.writeAttribute("muted", muted);
+	if (muted()) {
+		writer.writeAttribute("muted", muted());
 	}
 
 	if (forKit) {
 		writer.writeAttribute("colourOffset", getColourOffset(clip));
 	}
 
-	if (loopLengthIfIndependent) {
-		writer.writeAttribute("length", loopLengthIfIndependent);
+	if (loopLengthIfIndependent()) {
+		writer.writeAttribute("length", loopLengthIfIndependent());
 	}
-	if (sequenceDirectionMode != SequenceDirection::OBEY_PARENT) {
-		writer.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
+	if (sequenceDirectionMode() != SequenceDirection::OBEY_PARENT) {
+		writer.writeAttribute("sequenceDirection", deluge::project::to_string(sequenceDirectionMode()).data());
 	}
 
 	if (!notes.empty()) {
+		// Rebuild the DOM note pool from the engine vector, then write from it (the DOM is
+		// the note SAVE-authority). Rows not yet bound to a DocNoteRow fall back to the engine vector directly.
+		rebuildDocNotes();
+
 		writer.insertCommaIfNeeded();
 		writer.write("\n");
 		writer.printIndents();
 		writer.writeTagNameAndSeperator("noteDataWithSplitProb");
 		writer.write("\"0x");
-		for (int32_t n = 0; n < std::ssize(notes); n++) {
-			Note* thisNote = &notes[n];
-
-			char buffer[9];
-
-			intToHex(thisNote->pos, buffer);
-			writer.write(buffer);
-
-			intToHex(thisNote->getLength(), buffer);
-			writer.write(buffer);
-
-			intToHex(thisNote->getVelocity(), buffer, 2);
-			writer.write(buffer);
-
-			intToHex(thisNote->getLift(), buffer, 2);
-			writer.write(buffer);
-
-			intToHex(thisNote->getProbability(), buffer, 2);
-			writer.write(buffer);
-
-			intToHex(thisNote->getIterance().toInt(), buffer, 4);
-			writer.write(buffer);
-
-			intToHex(thisNote->getFill(), buffer, 2);
-			writer.write(buffer);
+		if (docNoteRow_ != nullptr) {
+			for (const auto& d : docNoteRow_->notes) {
+				writeSplitProbRecord(writer, d.pos, d.length, d.velocity, d.lift, d.probability, d.iterance, d.fill);
+			}
+		}
+		else {
+			for (int32_t n = 0; n < std::ssize(notes); n++) {
+				Note& note = notes[n];
+				writeSplitProbRecord(writer, note.pos, note.getLength(), note.getVelocity(), note.getLift(),
+				                     note.getProbability(), note.getIterance().toInt(), note.getFill());
+			}
 		}
 		writer.write("\"");
+
+		// Free the SAVE-time scratch so it does not permanently double note RAM (swap releases capacity,
+		// unlike clear()).
+		if (docNoteRow_ != nullptr) {
+			std::vector<deluge::project::DocNote>().swap(docNoteRow_->notes);
+		}
 	}
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
@@ -3665,7 +3669,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 
 int8_t NoteRow::getColourOffset(InstrumentClip* clip) {
 	if (clip->output->type == OutputType::KIT) {
-		return colourOffset;
+		return colourOffset();
 	}
 	else {
 		return 0;
@@ -3675,7 +3679,7 @@ int8_t NoteRow::getColourOffset(InstrumentClip* clip) {
 /*
 void NoteRow::setDrumToNull(ModelStackWithTimelineCounter const* modelStack) {
     if (paramManager.containsAnyParamCollections()) {
-        modelStack->song->backUpParamManager((SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(),
+        modelStack->song->live.param_backup.backUp((SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(),
 &paramManager);
 
         paramManager.forgetParamCollections();
@@ -3693,7 +3697,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
                       bool backupOldParamManager) {
 
 	if (backupOldParamManager && paramManager.containsAnyMainParamCollections()) {
-		modelStack->song->backUpParamManager(
+		modelStack->song->live.param_backup.backUp(
 		    (SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(), &paramManager,
 		    false); // Don't steal expression params - we'll keep them here with this NoteRow.
 	}
@@ -3737,7 +3741,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 				drum = soundDrum; // Better set this temporarily for this call. See comment above for why we
 				                  // can't set it permanently yet
-				bool success = modelStack->song->getBackedUpParamManagerPreferablyWithClip(
+				bool success = modelStack->song->live.param_backup.getPreferablyWithClip(
 				    soundDrum, (Clip*)modelStack->getTimelineCounter(), &paramManager);
 				if (success) {
 					trimParamManager(modelStack);
@@ -3794,6 +3798,11 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 			patchCableSet->setupPatching(modelStackWithParamCollection);
 		}
 
+		// The SoundDrum's param manager is fully sourced here (steal / clone / restore / fresh): borrow-point its
+		// unpatched + patched sets at DOM stores. Idempotent, so a manager restored
+		// from ParamBackup (already bound; its store travelled with the ParamSet) is left untouched.
+		paramManager.bindMainParamSetDomStores();
+
 		Clip* clip = (Clip*)modelStack->getTimelineCounter();
 
 		if (playbackHandler.isEitherClockActive() && paramManager.mightContainAutomation()
@@ -3808,6 +3817,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 	}
 
 	drum = newDrum;
+	syncDrumId(); // `drum` is now the real newDrum (or nullptr) — mirror it into the DOM shadow.
 
 	if (drum) {
 		drum->noteRowAssignedTemp = true;
@@ -3827,13 +3837,22 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 			if (newBendRange) {
 				ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet(true);
 				if (expressionParams) {
-					if (!expressionParams->params[0].isAutomated()) {
+					if (!expressionParams->params[0].isAutomated(*expressionParams->docForParam(0))) {
 						expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = newBendRange;
 					}
 				}
 			}
 		}
 	}
+}
+
+// Writes the DOM record's drum_id from the current `drum` member. Reads `drum` directly, so
+// callers MUST ensure it is a real pointer or nullptr (never a load-time sentinel int stashed by readFromTree).
+void NoteRow::syncDrumId() {
+	if (docNoteRow_ == nullptr) {
+		return;
+	}
+	docNoteRow_->drum_id = (drum != nullptr) ? drum->id() : std::nullopt;
 }
 
 void NoteRow::rememberDrumName() {
@@ -3843,7 +3862,7 @@ void NoteRow::rememberDrumName() {
 		SoundDrum* soundDrum = (SoundDrum*)drum;
 
 		// If it's all numeric (most likely meaning it's a slice), don't store it
-		if (stringIsNumericChars(soundDrum->drumName)) {
+		if (stringIsNumericChars(soundDrum->name())) {
 			return;
 		}
 
@@ -3852,7 +3871,7 @@ void NoteRow::rememberDrumName() {
 		while (*prevPointer) {
 
 			// If we'd already stored the name we were gonna store now, no need to do anything
-			if (deluge::string::caselessEquals((*prevPointer)->name.c_str(), soundDrum->drumName)) {
+			if (deluge::string::caselessEquals((*prevPointer)->name.c_str(), soundDrum->name())) {
 				return;
 			}
 
@@ -3863,7 +3882,7 @@ void NoteRow::rememberDrumName() {
 		// to the end of the list now Paul: Might make sense to put these into Internal?
 		void* drumNameMemory = deluge::memory::alloc_sdram(sizeof(DrumName));
 		if (drumNameMemory) {
-			*prevPointer = new (drumNameMemory) DrumName(soundDrum->drumName);
+			*prevPointer = new (drumNameMemory) DrumName(soundDrum->name());
 		}
 	}
 }
@@ -4063,8 +4082,8 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 
 		Note* noteSource = &copiedNoteRow->notes[n];
 
-		int32_t newPos =
-		    modelStack->song->xScroll[NAVIGATION_CLIP] + (int32_t)roundf((float)noteSource->pos * scaleFactor);
+		int32_t newPos = modelStack->song->persistentView.xScroll[NAVIGATION_CLIP]
+		                 + (int32_t)roundf((float)noteSource->pos * scaleFactor);
 
 		// Make sure that with dividing and rounding, we're not overlapping the previous note - or past the end
 		// of the screen / Clip
@@ -4171,7 +4190,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 	int32_t insertIndex = std::ssize(notes);
 
 	// Pre-emptively insert space for all the notes.
-	Error error = notes.insertAt(insertIndex, numToInsert).error_or(Error::NONE);
+	Error error = deluge::error_of(notes.insertAt(insertIndex, numToInsert));
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -4294,16 +4313,16 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 void NoteRow::resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelStackOriginal,
                                                  ModelStackWithNoteRow* modelStackClone) {
 
-	bool wasSounding = (!muted && sequenced);
+	bool wasSounding = (!muted() && sequenced);
 
 	NoteRow* originalNoteRow =
 	    modelStackOriginal->getNoteRowAllowNull(); // It might be NULL - we'll check for that below.
 
-	if (originalNoteRow && !originalNoteRow->muted) {
+	if (originalNoteRow && !originalNoteRow->muted()) {
 		originalNoteRow->silentlyResumePlayback(modelStackOriginal);
 	}
 
-	bool stillSounding = (originalNoteRow && !originalNoteRow->muted && originalNoteRow->sequenced);
+	bool stillSounding = (originalNoteRow && !originalNoteRow->muted() && originalNoteRow->sequenced);
 
 	bool shouldSoundNoteOffNow = (wasSounding && !stillSounding);
 
@@ -4345,7 +4364,7 @@ uint32_t NoteRow::getLivePos(ModelStackWithNoteRow const* modelStack) {
 }
 
 bool NoteRow::hasIndependentPlayPos() {
-	return (loopLengthIfIndependent || sequenceDirectionMode != SequenceDirection::OBEY_PARENT);
+	return (loopLengthIfIndependent() || sequenceDirectionMode() != SequenceDirection::OBEY_PARENT);
 }
 
 void NoteRow::getMPEValues(ModelStackWithNoteRow* modelStack, int16_t* mpeValues) {
@@ -4377,7 +4396,7 @@ void NoteRow::clearMPEUpUntilNextNote(ModelStackWithNoteRow* modelStack, int32_t
 
 	/*
 	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-	    if (mpeParams->params[i].isAutomated()) goto needToDoIt;
+	    if (mpeParams->params[i].isAutomated(*mpeParams->docForParam(i))) goto needToDoIt;
 	}
 	return;
 	*/
@@ -4444,7 +4463,11 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 
 		// And also, set the values now, for in case they're instead gonna stop editing the note before
 		// releasing this MIDI note.
-		param->setValueForRegion(view.modPos, view.modLength, newValueBig, modelStackWithAutoParam);
+		deluge::edits::Context editCtx{*currentSong, currentSong->project};
+		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithAutoParam), newValueBig,
+		                                  static_cast<int32_t>(view.modPos), static_cast<int32_t>(view.modLength),
+		                                  modelStackWithAutoParam};
+		deluge::edits::apply(editCtx, edit);
 	}
 	else {
 		int32_t distanceToNextNote =
@@ -4466,7 +4489,7 @@ void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, Sequen
 	int32_t lastProcessedPosBefore = modelStack->getLastProcessedPos();
 
 	bool reversedBefore = modelStack->isCurrentlyPlayingReversed();
-	sequenceDirectionMode = newMode;
+	setSequenceDirectionModeRaw(newMode);
 	lastProcessedPosIfIndependent = lastProcessedPosBefore; // We might change this, below.
 
 	// If now pingponging...
@@ -4483,7 +4506,7 @@ void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, Sequen
 		if (reversedBefore != modelStack->isCurrentlyPlayingReversed()) {
 			lastProcessedPosIfIndependent =
 			    modelStack->getLoopLength() - lastProcessedPosIfIndependent; // Again, might have no effect.
-			if (!muted && playbackHandler.isEitherClockActive()
+			if (!muted() && playbackHandler.isEitherClockActive()
 			    && modelStack->song->isClipActive((Clip*)modelStack->getTimelineCounter())) {
 				resumePlayback(modelStack, true);
 			}

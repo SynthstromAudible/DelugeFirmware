@@ -19,6 +19,7 @@
 
 #include "hid/display/display.h"
 #include "modulation/params/param.h"
+#include "modulation/params/param_collection.h" // ParamCollection::getParamKind() — called by the builders below
 #include "modulation/params/param_manager.h"
 
 class Song;
@@ -27,6 +28,9 @@ class TimelineCounter;
 class ParamManagerForTimeline;
 class ParamCollection;
 class AutoParam;
+namespace deluge::project {
+struct DocAutoParam;
+}
 class ModelStackWithAutoParam;
 class ModelStackWithParamId;
 class ModelStackWithParamCollection;
@@ -252,6 +256,9 @@ class ModelStackWithParamCollection : public ModelStackWithThreeMainThings {
 public:
 	ParamCollection* paramCollection;
 	ParamCollectionSummary* summary;
+	// The collection's param Kind, carried so DOM resolution (doc()) can build a ParamAddress without a per-op
+	// virtual paramCollection->getParamKind() call. Set by every builder that sets paramCollection (below).
+	deluge::modulation::params::Kind kind;
 
 	ModelStackWithParamId* addParamId(int32_t newParamId) const;
 	ModelStackWithAutoParam* addAutoParam(int32_t newParamId, AutoParam* newAutoParam) const;
@@ -271,6 +278,14 @@ public:
 	/// AutoParam attached to the ParamID. If this is null, none of the other param related members can be trusted
 	/// (e.g. the paramcollection, summary, or paramId)
 	AutoParam* autoParam;
+
+	/// @brief The DOM node-store handle for this param's edit/read ops.
+	///
+	/// Resolves by the lane's ParamAddress in the project tree (deluge::project::Song::resolveParam), relocating a
+	/// runtime owner's store into the tree on first touch (relocateAndResolve); an owner that cannot be addressed falls
+	/// back to paramCollection->docParamForId(paramId). Defined out-of-line in auto_param.cpp.
+	/// @return The param's DocAutoParam.
+	deluge::project::DocAutoParam* doc() const;
 };
 
 #define SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE 0
@@ -397,6 +412,16 @@ ModelStackWithModControllable::addParamManager(ParamManagerForTimeline* newParam
 	return toReturn;
 }
 
+/// @brief The Kind a builder carries for @p paramCollection.
+///
+/// A null collection is the "no param" answer (a MIDI knob on no valid CC, an output with no ParamManager), which has
+/// no kind.
+/// @param paramCollection The collection to query; may be null.
+/// @return The collection's Kind, or Kind::NONE for a null collection.
+inline deluge::modulation::params::Kind paramKindOf(ParamCollection* paramCollection) {
+	return (paramCollection != nullptr) ? paramCollection->getParamKind() : deluge::modulation::params::Kind::NONE;
+}
+
 // Although the ParamCollection is referenced inside the Summary, this is to call when you've already grabbed that
 // pointer out, to avoid the CPU having to go and look at it again.
 inline ModelStackWithParamCollection*
@@ -405,6 +430,7 @@ ModelStackWithThreeMainThings::addParamCollection(ParamCollection* newParamColle
 	ModelStackWithParamCollection* toReturn = (ModelStackWithParamCollection*)this;
 	toReturn->paramCollection = newParamCollection;
 	toReturn->summary = newSummary;
+	toReturn->kind = paramKindOf(newParamCollection);
 	return toReturn;
 }
 
@@ -414,6 +440,7 @@ ModelStackWithThreeMainThings::addParamCollectionSummary(ParamCollectionSummary*
 	ModelStackWithParamCollection* toReturn = (ModelStackWithParamCollection*)this;
 	toReturn->summary = newSummary;
 	toReturn->paramCollection = newSummary->paramCollection;
+	toReturn->kind = paramKindOf(newSummary->paramCollection);
 	return toReturn;
 }
 
@@ -423,6 +450,7 @@ ModelStackWithThreeMainThings::addParamCollectionAndId(ParamCollection* newParam
 	ModelStackWithParamId* toReturn = (ModelStackWithParamId*)this;
 	toReturn->paramCollection = newParamCollection;
 	toReturn->summary = newSummary;
+	toReturn->kind = paramKindOf(newParamCollection);
 	toReturn->paramId = newParamId;
 	return toReturn;
 }
@@ -434,6 +462,7 @@ inline ModelStackWithAutoParam* ModelStackWithThreeMainThings::addParam(ParamCol
 	ModelStackWithAutoParam* toReturn = (ModelStackWithAutoParam*)this;
 	toReturn->paramCollection = newParamCollection;
 	toReturn->summary = newSummary;
+	toReturn->kind = paramKindOf(newParamCollection);
 	toReturn->paramId = newParamId;
 	toReturn->autoParam = newAutoParam;
 	return toReturn;

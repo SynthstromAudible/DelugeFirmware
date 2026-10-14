@@ -31,6 +31,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
+#include "storage/document_format.h"
 #include "storage/storage_manager.h"
 #include "util/boot.h"
 
@@ -290,6 +291,19 @@ uint64_t StorageManager::stagingNextRunUs(const StagingState& state) {
 StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, char const* firstTagName,
                                                               char const* altTagName, StagingState* state) {
 	AudioEngine::logAction("openDocumentStaged");
+	const StagedOpen staged = stageDocument(path, state);
+	if (staged != StagedOpen::Opened) {
+		return staged;
+	}
+	if (openDelugeBuffer(std::span<uint8_t>(state->buffer, state->size), documentIsJson(path), firstTagName, altTagName)
+	    != Error::NONE) {
+		releaseStaging(state);
+		return StagedOpen::Failed;
+	}
+	return StagedOpen::Opened;
+}
+
+StorageManager::StagedOpen StorageManager::stageDocument(char const* path, StagingState* state) {
 	reapOrphanedStaging();
 
 	// During boot the buffer is filled synchronously, which is legal then and needs no channel task
@@ -385,12 +399,6 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 		++stagingServedOps;
 	}
 
-	// One parse entry point, whichever arm filled the buffer.
-	if (openDelugeBuffer(std::span<uint8_t>(state->buffer, state->size), documentIsJson(path), firstTagName, altTagName)
-	    != Error::NONE) {
-		releaseStaging(state);
-		return StagedOpen::Failed;
-	}
 	return StagedOpen::Opened;
 }
 
@@ -407,7 +415,7 @@ int32_t StorageManager::stagingChannelServedOps() {
 }
 
 bool StorageManager::documentIsJson(char const* path) {
-	return strstr(path, ".Json") != nullptr;
+	return deluge::storage::formatOfPath(path) == deluge::storage::DocumentFormat::JSON;
 }
 
 Error StorageManager::openDocumentSynchronously(char const* path, char const* firstTagName, char const* altTagName) {
@@ -438,10 +446,9 @@ void StorageManager::releaseDocumentStaging() {
 // re-point one of these at a new buffer without duplicating that constructor's initialisation here.
 // Both start disengaged, so they are constant-initialised: no static constructor, no allocation. They
 // do still GROW .sdram_bss by their own size, and the Rust BSP derives the device's external heap base
-// from &__sdram_bss_end (services.rs, deluge_memory_region) -- so the device heap base shifts down and
+// from &__sdram_static_end (services.rs, deluge_memory_region) -- so the device heap base shifts up and
 // the heap shrinks by that much. Harmless at this size, and invisible to the goldens, which run on the Embassy host,
-// where
-// __sdram_bss_end is `.set` to a fixed host array the linker never moves.
+// where the region is a fixed host array the linker never moves.
 //
 // These are the first std::optionals in .sdram_bss, and being disengaged at boot is a fact they INHERIT
 // from the boot's zeroing of [__sdram_bss_start, __sdram_bss_end) (src/bsp/rust/src/boot_mem.rs,

@@ -43,7 +43,7 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
 	Output* output = clip->output;
 	bool isKit = (output->type == OutputType::KIT);
-	toReturn->noteRowId = isKit ? noteRowIndex : newNoteRow->y;
+	toReturn->noteRowId = isKit ? noteRowIndex : newNoteRow->y();
 	toReturn->setNoteRow(newNoteRow);
 	toReturn->modControllable =
 	    (isKit && newNoteRow->drum) ? newNoteRow->drum->toModControllable() : output->toModControllable();
@@ -65,8 +65,8 @@ ModelStackWithNoteRow* ModelStackWithNoteRowId::automaticallyAddNoteRowFromId() 
 bool ModelStackWithNoteRow::isCurrentlyPlayingReversed() const {
 	// Under a few different conditions, we just use the Song's or the parent Clip's reversing status.
 	if (!noteRow
-	    || (noteRow->sequenceDirectionMode == SequenceDirection::OBEY_PARENT
-	        && (!noteRow->loopLengthIfIndependent
+	    || (noteRow->sequenceDirectionMode() == SequenceDirection::OBEY_PARENT
+	        && (!noteRow->loopLengthIfIndependent()
 	            || getTimelineCounter()->sequenceDirectionMode != SequenceDirection::PINGPONG))) {
 		return getTimelineCounter()->currentlyPlayingReversed;
 	}
@@ -78,8 +78,8 @@ bool ModelStackWithNoteRow::isCurrentlyPlayingReversed() const {
 }
 
 int32_t ModelStackWithNoteRow::getLoopLength() const {
-	if (noteRow && noteRow->loopLengthIfIndependent) {
-		return noteRow->loopLengthIfIndependent;
+	if (noteRow && noteRow->loopLengthIfIndependent()) {
+		return noteRow->loopLengthIfIndependent();
 	}
 	else {
 		return getTimelineCounter()->getLoopLength();
@@ -216,7 +216,7 @@ bool ModelStackWithSoundFlags::checkSourceEverActive(int32_t s) {
 		if (flagValue) { // Does an &&
 			Sound* sound = (Sound*)modControllable;
 			flagValue =
-			    sound->synthMode == SynthMode::FM
+			    sound->getSynthMode() == SynthMode::FM
 			    || (sound->sources[s].oscType != OscType::SAMPLE && sound->sources[s].oscType != OscType::WAVETABLE)
 			    || sound->sources[s].hasAtLeastOneAudioFileLoaded();
 		}

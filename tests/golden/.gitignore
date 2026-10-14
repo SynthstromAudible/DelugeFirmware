@@ -1,0 +1,5 @@
+# BYO song corpus — songs stay out-of-repo (privacy/licensing).
+# Only songs_fixtures.json (hashes) is committed. Point the runner at your
+# corpus via DELUGE_SONG_CORPUS=/path or --corpus, or drop songs here locally.
+/songs/
+__pycache__/

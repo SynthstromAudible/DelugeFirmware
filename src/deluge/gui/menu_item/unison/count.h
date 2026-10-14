@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
@@ -31,7 +32,7 @@ class Count : public Integer {
 public:
 	using Integer::Integer;
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->numUnison); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->snapshot().numUnison); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();
@@ -45,20 +46,13 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
-					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
-					ModelStackWithSoundFlags* modelStackForSoundDrum =
-					    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
-
-					soundDrum->setNumUnison(current_value, modelStackForSoundDrum);
+					settingFor(*soundDrum, "unison/num", serialization::Value::makeNumber(current_value));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
-
-			soundEditor.currentSound->setNumUnison(current_value, modelStack);
+			settingFor(*soundEditor.currentSound, "unison/num", serialization::Value::makeNumber(current_value));
 		}
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return 1; }

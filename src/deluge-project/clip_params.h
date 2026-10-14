@@ -1,0 +1,54 @@
+/*
+ * Copyright © 2016-2023 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "deluge-project/containers.h"
+#include "deluge-project/param_automation.h" // DocParamManager
+#include <cstdint>
+
+namespace deluge::project {
+
+/// @brief Per-clip automation node storage, owned by the persistent `project` tree and keyed by the clip's stable
+/// `Clip::id`.
+///
+/// This makes a clip's params tree-resident and id-addressable (`Song::resolveParam` with a `Clip` owner). Because it
+/// is keyed by the serial id, not by a `Clip*` or array index, it is unaffected by clip reorders and by
+/// `stealParamCollectionsFrom`/`ParamBackup` moving the engine cursor-holder (the nodes stay here, resolved by id).
+/// A component of `deluge::project::Song`.
+struct ClipParams {
+	model_map<uint32_t, DocParamManager> by_id;
+
+	/// @brief Find the clip's store.
+	/// @param id The clip's stable `Clip::id`.
+	/// @return The clip's DocParamManager, or nullptr if this clip has no tree-resident store.
+	DocParamManager* find(uint32_t id) {
+		auto it = by_id.find(id);
+		return it == by_id.end() ? nullptr : &it->second;
+	}
+
+	/// @brief Get the clip's store, creating an empty one if absent.
+	/// @param id The clip's stable `Clip::id`.
+	/// @return The clip's DocParamManager.
+	DocParamManager& getOrCreate(uint32_t id) { return by_id[id]; }
+
+	/// @brief Drop the clip's store (on clip destruction).
+	/// @param id The clip's stable `Clip::id`.
+	void remove(uint32_t id) { by_id.erase(id); }
+};
+
+} // namespace deluge::project

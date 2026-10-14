@@ -275,8 +275,8 @@ int32_t staleFollowClips() {
 		if (stored == nullptr) {
 			continue;
 		}
-		const bool ofCurrentSong = std::ranges::contains(currentSong->sessionClips, stored)
-		                           || std::ranges::contains(currentSong->arrangementOnlyClips, stored);
+		const bool ofCurrentSong = std::ranges::contains(currentSong->live.clips.session_clips, stored)
+		                           || std::ranges::contains(currentSong->live.clips.arrangement_only_clips, stored);
 		stale += ofCurrentSong ? 0 : 1;
 	}
 	return stale;
@@ -307,7 +307,7 @@ std::string writeNextSongScript() {
 
 /// The clip view in front of the song's first clip.
 Clip* frontClip(const char* marker) {
-	Clip* clip = currentSong->sessionClips.empty() ? nullptr : currentSong->sessionClips[0];
+	Clip* clip = currentSong->live.clips.session_clips.empty() ? nullptr : currentSong->live.clips.session_clips[0];
 	if (clip == nullptr || clip->output == nullptr || clip->output->type != OutputType::SYNTH) {
 		fail(marker, "the song has no synth clip");
 		return nullptr;
@@ -490,7 +490,7 @@ void stepInertRun() {
 /// The song NEXT_SONG brought in has no clips; give it the built-in default synth clip a new song starts with. The
 /// preset that would replace that synth is not asked for: its arrival would swap the clip's output mid-leg.
 void stepEditorSetup() {
-	if (currentSong->sessionClips.empty()) {
+	if (currentSong->live.clips.session_clips.empty()) {
 		(void)currentSong->ensureAtLeastOneSessionClip();
 		currentSong->blankPresetPending = false;
 	}
@@ -607,7 +607,7 @@ void stepEditorRun() {
 
 /// An audition pad held on the clip view, on a playing song, when NEXT_SONG arrives.
 void stepAuditionSetup() {
-	if (currentSong->sessionClips.empty()) {
+	if (currentSong->live.clips.session_clips.empty()) {
 		(void)currentSong->ensureAtLeastOneSessionClip();
 		currentSong->blankPresetPending = false;
 	}
@@ -689,7 +689,7 @@ void stepAuditionRun() {
 /// A note on the clip, then a tap on it that NEXT_SONG arrives in the middle of: the load's release of that pad is a
 /// short tap on an existing note, which deletes it and records an undo action against the outgoing song.
 void stepNoteSetup() {
-	if (currentSong->sessionClips.empty()) {
+	if (currentSong->live.clips.session_clips.empty()) {
 		(void)currentSong->ensureAtLeastOneSessionClip();
 		currentSong->blankPresetPending = false;
 	}
@@ -826,7 +826,7 @@ void stepArrangeSetup() {
 	if (playbackHandler.isEitherClockActive()) {
 		playbackHandler.endPlayback();
 	}
-	if (currentSong->sessionClips.empty()) {
+	if (currentSong->live.clips.session_clips.empty()) {
 		(void)currentSong->ensureAtLeastOneSessionClip();
 		currentSong->blankPresetPending = false;
 	}

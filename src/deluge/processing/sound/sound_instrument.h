@@ -70,7 +70,6 @@ public:
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
 	void prepareForHibernationOrDeletion() override;
-	void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) override;
 	bool isSkippingRendering() override { return skippingRendering; }
 	deluge::storage::Walk walkCrucialSampleDemands(deluge::storage::SampleLoadVisitor& visitor) override;
 	void beenEdited(bool shouldMoveToEmptySlot = true) override;

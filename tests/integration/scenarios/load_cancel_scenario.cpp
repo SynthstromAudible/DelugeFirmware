@@ -168,7 +168,7 @@ bool listingBusy() {
 
 int32_t countOutputs() {
 	int32_t outputs = 0;
-	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		outputs++;
 	}
 	return outputs;
@@ -177,7 +177,8 @@ int32_t countOutputs() {
 /// Every instrument in the song, active or hibernating, named @p name.
 int32_t instrumentsNamed(const char* name) {
 	int32_t found = 0;
-	for (Output* list : {currentSong->firstOutput, static_cast<Output*>(currentSong->firstHibernatingInstrument)}) {
+	for (Output* list : {currentSong->live.media.first_output,
+	                     static_cast<Output*>(currentSong->live.media.first_hibernating_instrument)}) {
 		for (Output* output = list; output != nullptr; output = output->next) {
 			found += (output->name == name) ? 1 : 0;
 		}
@@ -187,7 +188,8 @@ int32_t instrumentsNamed(const char* name) {
 
 /// Whether @p owner is the song's: one of its outputs, active or hibernating, or a drum of one of its kits.
 bool ownedBySong(const ModControllableAudio* owner) {
-	for (Output* list : {currentSong->firstOutput, static_cast<Output*>(currentSong->firstHibernatingInstrument)}) {
+	for (Output* list : {currentSong->live.media.first_output,
+	                     static_cast<Output*>(currentSong->live.media.first_hibernating_instrument)}) {
 		for (Output* output = list; output != nullptr; output = output->next) {
 			if (static_cast<ModControllableAudio*>(output->toModControllable()) == owner) {
 				return true;
@@ -209,7 +211,7 @@ bool ownedBySong(const ModControllableAudio* owner) {
 /// without being deleted leaves behind.
 int32_t orphanedParamManagers() {
 	int32_t orphans = 0;
-	for (const auto& [key, paramManager] : currentSong->backedUpParamManagers) {
+	for (const auto& [key, paramManager] : currentSong->live.param_backup.map) {
 		orphans += ownedBySong(key.first) ? 0 : 1;
 	}
 	return orphans;
@@ -343,7 +345,9 @@ void stepLoading() {
 }
 
 void stepFixture() {
-	g_clip = currentSong->sessionClips.empty() ? nullptr : static_cast<InstrumentClip*>(currentSong->sessionClips[0]);
+	g_clip = currentSong->live.clips.session_clips.empty()
+	             ? nullptr
+	             : static_cast<InstrumentClip*>(currentSong->live.clips.session_clips[0]);
 	bool written = true;
 	for (int32_t i = 0; written && i < kPresets; i++) {
 		written = deluge::harness::writeSampleSynthPreset(kPresetPaths[i], kSamplePaths[i]);

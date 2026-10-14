@@ -17,6 +17,7 @@
 
 #include "hid/led/pad_leds.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/curves/exp_curve.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "dsp-next/fixed/osc/sine_table.h"
 #include "gui/colour/colour.h"
@@ -326,7 +327,7 @@ void clearTransitionStoreOffScreenRows() {
 }
 
 void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder) {
-	clipLength = getCurrentClip()->loopLength;
+	clipLength = getCurrentClip()->loopLength();
 	morphKeyboardSidebar = false;
 
 	if (collapsingOutOfClipMinder) {
@@ -390,7 +391,8 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 	uint16_t keyboardSessionBlend = keyboardSidebarMorphing ? smoothProgress(65535 - clippedProgress) : 0;
 
 	int32_t greyStart =
-	    instrumentClipView.getSquareFromPos(clipLength - 1, NULL, currentSong->xScroll[NAVIGATION_CLIP]) + 1;
+	    instrumentClipView.getSquareFromPos(clipLength - 1, NULL, currentSong->persistentView.xScroll[NAVIGATION_CLIP])
+	    + 1;
 	int32_t xEnd = std::min(kDisplayWidth, greyStart);
 
 	int32_t greyTop, greyBottom;
@@ -431,7 +433,7 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 			}
 
 			// Or if it's greyed out cos of triplets...
-			if (!instrumentClipView.isSquareDefined(col, currentSong->xScroll[NAVIGATION_CLIP])) {
+			if (!instrumentClipView.isSquareDefined(col, currentSong->persistentView.xScroll[NAVIGATION_CLIP])) {
 				for (int32_t yDisplay = greyBottom; yDisplay < greyTop; yDisplay++) {
 					PadLEDs::image[yDisplay][col] = gui::colours::grey;
 				}
@@ -527,7 +529,7 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 }
 
 void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
-	clipLength = clip->loopLength;
+	clipLength = clip->loopLength();
 	audioClipColour = clip->getColour();
 
 	sampleReversed = clip->sampleControls.isCurrentlyReversed();
@@ -549,8 +551,9 @@ void renderAudioClipCollapseAnimation(int32_t progress) {
 	memset(image, 0, sizeof(image));
 
 	int32_t endSquareDisplay = divide_round_negative(
-	    clipLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
-	    currentSong->xZoom[NAVIGATION_CLIP]); // Rounds it well down, so we get the "final square" kinda...
+	    clipLength - currentSong->persistentView.xScroll[NAVIGATION_CLIP] - 1,
+	    currentSong->persistentView
+	        .xZoom[NAVIGATION_CLIP]); // Rounds it well down, so we get the "final square" kinda...
 	int32_t greyStart = endSquareDisplay + 1;
 	int32_t xEnd = std::min(kDisplayWidth, greyStart);
 
@@ -1206,8 +1209,8 @@ void renderZoom() {
 	// images are to appear. E.g. when fully zoomed out, the out-image would be "1" (65536), and the in-image would be
 	// "0.5" (32768). And so on.
 
-	uint32_t inImageTimesBiggerThanNormal =
-	    linear_table_interpolator.interpolate(fine, 10, expTableSmall); // could run on more input bits
+	uint32_t inImageTimesBiggerThanNormal = linear_table_interpolator.interpolate(
+	    fine, 10, deluge::dsp::fixed::kExpTable.data()); // could run on more input bits
 	inImageTimesBiggerThanNormal = increaseMagnitude(inImageTimesBiggerThanNormal, coarse - 14);
 
 	renderZoomWithProgress(inImageTimesBiggerThanNormal, sineValue, &imageStore[0][0][0],

@@ -202,9 +202,14 @@ TEST(DefaultNameTests, numberPartSkipsZeroPadding) {
 // --- Extensions -------------------------------------------------------------------------
 
 TEST(DefaultNameTests, aJsonFileAlsoTakesTheName) {
-	// The browser lists .XML and .Json alike, and saving picks between them via writeJsonFlag. Probing only .XML would
-	// hand back SONG185A when SONG185A.Json already exists on the card.
+	// The browser lists .XML and .json alike (any case), and songs save as either. Probing only .XML would hand back
+	// SONG185A when SONG185A.json already exists on the card, or the older SONG185A.Json.
 	Names files{"SONG185.XML", "SONG185A.Json"};
+	CHECK_EQUAL(std::string{"SONG185B"}, nextIn("SONG185", "SONG", files));
+}
+
+TEST(DefaultNameTests, aLowercaseJsonFileAlsoTakesTheName) {
+	Names files{"SONG185.XML", "SONG185A.json"};
 	CHECK_EQUAL(std::string{"SONG185B"}, nextIn("SONG185", "SONG", files));
 }
 

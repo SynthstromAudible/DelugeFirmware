@@ -18,6 +18,8 @@
 #include "model/drum/drum.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_drum.h" // complete DocDrum type — the authoritative store for the drum name
+#include "foundation/panic.h"        // FREEZE_WITH_ERROR (unbound-read guard)
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -26,8 +28,9 @@
 #include "model/note/note_row.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
-#include "storage/audio/blocking_sample_load.h"
 #include "storage/storage_manager.h"
+#include "storage/value.h"
+#include "storage/value_tree_deserializer.h"
 #include "util/functions.h"
 #include <string.h>
 
@@ -45,9 +48,37 @@ Drum::Drum(DrumType newType) : type(newType), arpeggiator(), arpSettings() {
 	memset(lastExpressionInputsReceived, 0, sizeof(lastExpressionInputsReceived));
 }
 
-void Drum::writeDrumTagsToFile(Serializer& writer) {
+// The single write funnel for the drum name — writes the authoritative `DocDrum::name`. The drum is always bound
+// before any name write (Kit::readDrumFromFile adopts before reading tags; runtime drums bind on addDrum).
+void Drum::setName(const char* newName) {
+	docDrum_->name = newName;
+}
+void Drum::setName(std::string_view newName) {
+	docDrum_->name.assign(newName);
+}
+void Drum::setName(std::string&& newName) {
+	docDrum_->name = std::move(newName);
+}
+
+// Reads the drum name from the authoritative DOM record. The drum is bound before any read (adopt precedes tag reads
+// at load; runtime drums bind on addDrum) — the ALPHA guard makes any stray unbound read fail loudly rather than
+// deref null.
+const std::string& Drum::name() const {
+	if (ALPHA_OR_BETA_VERSION && docDrum_ == nullptr) {
+		FREEZE_WITH_ERROR("Dr3N");
+	}
+	return docDrum_->name;
+}
+
+void Drum::writeDrumTagsToFile(Serializer& writer, bool savingSong) {
 	// Called by subclasses to handle all the shared tags (except for MIDI commands).
-	writer.writeAttribute("name", drumName.c_str());
+	writer.writeAttribute("name", name().c_str());
+	// Stable per-song serial identity, written only as part of a song (an intra-song reference; meaningless in a
+	// standalone kit/preset file). Lazily assigned in Kit::writeDrumToFile before this call, so a value present here
+	// under savingSong is always song-scoped.
+	if (savingSong && id().has_value()) {
+		writer.writeAttribute("id", *id());
+	}
 }
 
 void Drum::writeMIDICommandsToFile(Serializer& writer) {
@@ -57,16 +88,28 @@ void Drum::writeMIDICommandsToFile(Serializer& writer) {
 
 bool Drum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {
 	if (!strcmp(tagName, "name")) {
-		reader.readTagOrAttributeValueString(drumName);
+		std::string name;
+		reader.readTagOrAttributeValueString(name);
+		setName(std::move(name)); // funnel the load write straight into the bound DocDrum (adoptDrum ran first)
 		reader.exitTag("name");
 	}
 	else if (!strcmp(tagName, "midiMuteCommand")) {
-		muteMIDICommand.readNoteFromFile(reader);
+		muteMIDICommand.readNoteFromTree(*deluge::storage::treeReaderOf(reader).currentValue(), reader);
 		reader.exitTag();
 	}
 	else if (!strcmp(tagName, "midiInput")) {
-		midiInput.readNoteFromFile(reader);
+		midiInput.readNoteFromTree(*deluge::storage::treeReaderOf(reader).currentValue(), reader);
 		reader.exitTag();
+	}
+	else if (!strcmp(tagName, "id")) {
+		// Stable per-song serial identity (see Drum::id). Song::syncSerialIdCountersFromLoaded advances the
+		// drum id counter past all loaded ids after the load completes. A drum already bound took its id when it was
+		// adopted (from this tag, or a fresh one where this tag's id was another drum's), so the tag leaves it.
+		const int32_t id = reader.readTagOrAttributeValueInt();
+		if (docDrum_ == nullptr) {
+			setId(id);
+		}
+		reader.exitTag("id");
 	}
 	else {
 		return false;
@@ -134,9 +177,4 @@ justSend:
 	}
 
 	expressionValueChangesMustBeDoneSmoothly = false;
-}
-
-void Drum::loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
-	deluge::storage::BlockingSampleLoad load{mayActuallyReadFiles, context};
-	(void)walkSampleDemands(load);
 }

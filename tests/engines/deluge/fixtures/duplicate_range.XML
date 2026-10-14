@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sound mode="subtractive" polyphonic="poly">
+	<osc1 type="sample">
+		<sampleRanges>
+			<sampleRange rangeTopNote="60" fileName="SAMPLES/A.WAV" />
+			<sampleRange rangeTopNote="60" fileName="SAMPLES/B.WAV" />
+		</sampleRanges>
+	</osc1>
+	<defaultParams volume="0x50000000" />
+</sound>

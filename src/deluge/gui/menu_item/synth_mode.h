@@ -16,7 +16,9 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "engines/deluge/words.h"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
 #include "model/instrument/kit.h"
@@ -25,10 +27,17 @@
 #include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item {
+
+/// @brief The file form of @p mode: the name a sound's file writes for it.
+/// @param mode The mode to encode.
+/// @return A scalar serialization value holding the mode's file name.
+inline serialization::Value synthModeValue(::SynthMode mode) {
+	return serialization::Value::makeScalar(std::string(deluge::instrument::to_string(mode)));
+}
 class SynthModeSelection final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->synthMode); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->getSynthMode()); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<::SynthMode>();
@@ -45,14 +54,14 @@ public:
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
 					if (soundDrum->sources[0].oscType <= kLastRingmoddableOscType
 					    && soundDrum->sources[1].oscType <= kLastRingmoddableOscType) {
-						soundDrum->setSynthMode(current_value, currentSong);
+						settingFor(*soundDrum, "mode", synthModeValue(current_value));
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->setSynthMode(current_value, currentSong);
+			settingFor(*soundEditor.currentSound, "mode", synthModeValue(current_value));
 		}
 		view.setKnobIndicatorLevels();
 	}

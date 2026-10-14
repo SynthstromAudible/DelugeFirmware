@@ -1,0 +1,6 @@
+# Hold C4; switch the low-pass filter on (CC 74, its frequency, down from fully open) at 0.5 s and the high-pass
+# on (CC 81, its frequency, up from fully closed) at 0.75 s, each mid-note.
+4608 90 3C 64
+22050 B0 4A 30
+33075 B0 51 40
+70000 80 3C 40

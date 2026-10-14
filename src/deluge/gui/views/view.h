@@ -67,6 +67,7 @@ public:
 	void drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit);
 	void instrumentMidiLearnPadPressed(bool on, Instrument* instrument);
 	void sectionMidiLearnPadPressed(bool on, uint8_t section);
+	void commitSectionMidiLearn();
 	void midiLearnFlash();
 	void setModLedStates();
 	int32_t getModKnobMode();
@@ -181,6 +182,15 @@ public:
 	bool shouldSaveSettingsAfterMidiLearn{};
 
 	LearnedMIDI* learnedThing;
+	/// While a section's pad is held for MIDI learn: the section, and its launch command as learn edits it (the
+	/// command itself is model data; commitSectionMidiLearn() writes the edit back).
+	uint8_t sectionPressedForMidiLearn{};
+	LearnedMIDI sectionLearnScratch;
+	/// Whether MIDI learn is editing @p section's launch command.
+	[[nodiscard]] bool isLearningSection(int32_t section) const {
+		return thingPressedForMidiLearn == MidiLearn::SECTION && learnedThing == &sectionLearnScratch
+		       && sectionPressedForMidiLearn == section;
+	}
 	Instrument* instrumentPressedForMIDILearn{};
 	Drum* drumPressedForMIDILearn{};
 

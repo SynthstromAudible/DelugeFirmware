@@ -43,7 +43,7 @@ public:
 	Drum* getNextDrum(Drum* fromSoundSource);
 	Drum* getPrevDrum(Drum* fromSoundSource);
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
-	void addDrum(Drum* newDrum);
+	void addDrum(Drum* newDrum, Song* adoptSong = nullptr);
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	Drum* getFirstUnassignedDrum(InstrumentClip* clip);
 	~Kit() override;
@@ -115,7 +115,6 @@ public:
 	Error makeDrumNameUnique(std::string* name, int32_t startAtNumber);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
 	void setupPatching(ModelStackWithTimelineCounter* modelStack) override;
-	void compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song);
 	void deleteBackedUpParamManagers(Song* song) override;
 	void prepareForHibernationOrDeletion() override;
 	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) override;

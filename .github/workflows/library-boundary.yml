@@ -1,0 +1,36 @@
+name: Library Boundary
+
+# Each standalone library (the engine API and its types, the Deluge instrument, serialization, music theory, the model)
+# may include only the standard library, itself and the dependencies it declares; no allowlist. See
+# scripts/check_library_boundary.py. The model also names no engine's state (scripts/check_model_words.py).
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "main"
+      - "release/**"
+  merge_group:
+  workflow_dispatch:
+
+jobs:
+  library-boundary-check:
+    name: library boundary check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check each library includes only what it declares
+        run: python3 scripts/check_library_boundary.py
+
+      - name: Self-test the checker
+        run: cd scripts && python3 -m unittest test_check_library_boundary
+
+      - name: Check the model names no engine's state
+        run: python3 scripts/check_model_words.py

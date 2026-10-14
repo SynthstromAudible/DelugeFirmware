@@ -254,8 +254,8 @@ void KeyboardScreen::updateActiveNotes() {
 			if (currentNotesState.count == 1 && !currentNotesState.notes[idx].generatedNote
 			    && activeInstrument->type == OutputType::SYNTH) {
 				if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-					menu_item::multiRangeMenu.noteOnToChangeRange(newNote
-					                                              + ((SoundInstrument*)activeInstrument)->transpose);
+					menu_item::multiRangeMenu.noteOnToChangeRange(
+					    newNote + ((SoundInstrument*)activeInstrument)->getTranspose());
 				}
 			}
 		}
@@ -442,7 +442,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on) {
 					exitScaleMode();
 				}
 				else {
-					enterScaleMode(currentSong->key.rootNote);
+					enterScaleMode(currentSong->project.scale.key.rootNote);
 				}
 			}
 		}
@@ -587,7 +587,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on) {
 
 ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset) {
 	if (Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
-		getCurrentInstrumentClip()->colourOffset += offset;
+		getCurrentInstrumentClip()->setColourOffset(getCurrentInstrumentClip()->colourOffset() + offset);
 		layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 	}
 	else {
@@ -670,7 +670,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 		    layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->requiredScaleMode();
 		if (requiredScaleMode == RequiredScaleMode::Enabled && !getCurrentInstrumentClip()->inScaleMode) {
 			getCurrentInstrumentClip()->yScroll =
-			    instrumentClipView.setupForEnteringScaleMode(currentSong->key.rootNote);
+			    instrumentClipView.setupForEnteringScaleMode(currentSong->project.scale.key.rootNote);
 			setLedStates();
 		}
 		else if (requiredScaleMode == RequiredScaleMode::Disabled) {
@@ -699,7 +699,7 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 
 		bool useSharps = FlashStorage::defaultUseSharps;
 		toggleScaleModeOnButtonRelease = false;
-		int32_t newRootNote = ((currentSong->key.rootNote + kOctaveSize) + offset) % kOctaveSize;
+		int32_t newRootNote = ((currentSong->project.scale.key.rootNote + kOctaveSize) + offset) % kOctaveSize;
 		instrumentClipView.setupChangingOfRootNote(newRootNote);
 
 		char noteName[3] = {0};
@@ -893,7 +893,7 @@ void KeyboardScreen::graphicsRoutine() {
 	else {
 		newTickSquare = (uint64_t)(getCurrentClip()->lastProcessedPos
 		                           + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick())
-		                * kDisplayWidth / getCurrentClip()->loopLength;
+		                * kDisplayWidth / getCurrentClip()->loopLength();
 		if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
 			newTickSquare = 255;
 		}

@@ -16,6 +16,7 @@
  */
 
 #include "model/instrument/cv_instrument.h"
+#include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "model/model_stack.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param_set.h"
@@ -28,6 +29,30 @@ CVInstrument::CVInstrument() : NonAudioInstrument(OutputType::CV) {
 	polyPitchBendValue = 0;
 }
 
+// Reseeds the record's cv2_source field (and, via the base, channel) from the current native values.
+void CVInstrument::seedDocOutputIdentity() {
+	NonAudioInstrument::seedDocOutputIdentity();
+	if (docOutput_ != nullptr) {
+		docOutput_->cv2_source = getCV2Mode();
+	}
+}
+
+// setMode (called below) mutates cvmode[1] (= cv2_source) as a side effect of a channel change, so reseed
+// cv2_source here too — not just channel — after delegating to the base setter.
+void CVInstrument::setChannel(int channel) {
+	if (channel <= both) {
+		NonAudioInstrument::setChannel(channel);
+		setMode(static_cast<CVInstrumentMode>(channel));
+	}
+	else {
+		NonAudioInstrument::setChannel(0);
+		setMode(static_cast<CVInstrumentMode>(0));
+	}
+	if (docOutput_ != nullptr) {
+		docOutput_->cv2_source = getCV2Mode();
+	}
+}
+
 void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
 	// First update pitch bend for the new note
 	polyPitchBendValue = (int32_t)arpNote->mpeValues[0] << 16;
@@ -36,7 +61,7 @@ void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int3
 	arpNote->outputMemberChannel[noteIndex] = channel;
 
 	cvEngine.sendNote(true, channel, noteCodePostArp);
-	if (cvmode[1] == CVMode::velocity) {
+	if (cvmode[1] == CVMode::VELOCITY) {
 		cvEngine.sendVoltageOut(1, arpNote->velocity << 8);
 	}
 }
@@ -101,7 +126,9 @@ bool CVInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutput
 	// NonAudioInstrument::writeDataToFile(clipForSavingOutputOnly, song); // Nope, this gets called within the below
 	// call
 	writeMelodicInstrumentAttributesToFile(writer, clipForSavingOutputOnly, song);
-	writer.writeAttribute("cv2Source", static_cast<int32_t>(cvmode[1]));
+	// Read the identity record's cv2_source when bound (rebuild-at-save); fall back to the native field when
+	// unbound.
+	writer.writeAttribute("cv2Source", std::to_underlying(docOutput_ != nullptr ? docOutput_->cv2_source : cvmode[1]));
 	if (clipForSavingOutputOnly || !midiInput.containsSomething()) {
 		return false; // If we don't need to write a "device" tag, opt not to end the opening tag
 	}
@@ -165,24 +192,27 @@ void CVInstrument::sendMonophonicExpressionEvent(int32_t dimension) {
 	int32_t new_value = add_saturate(lastCombinedPolyExpression[dimension], lastMonoExpression[dimension]) >> 16;
 	switch (cvmode[1]) {
 
-	case CVMode::off:
+	case CVMode::OFF:
 		break;
-	case CVMode::pitch:
+	case CVMode::PITCH:
 		break;
-	case CVMode::mod:
+	case CVMode::MOD:
 		if (dimension == Expression::Y_SLIDE_TIMBRE) {
 			cvEngine.sendVoltageOut(1, std::max<int32_t>(new_value, 0));
 		}
 		break;
-	case CVMode::aftertouch:
+	case CVMode::AFTERTOUCH:
 		if (dimension == Expression::Z_PRESSURE) {
 			cvEngine.sendVoltageOut(1, new_value);
 		}
 		break;
-	case CVMode::velocity:
+	case CVMode::VELOCITY:
 		break;
 	}
 }
 void CVInstrument::setCV2Mode(CVMode mode) {
 	cvmode[1] = mode;
+	if (docOutput_ != nullptr) {
+		docOutput_->cv2_source = mode;
+	}
 }

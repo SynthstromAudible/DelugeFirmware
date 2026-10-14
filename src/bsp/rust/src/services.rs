@@ -14,12 +14,13 @@ use crate::sys::{
     DelugeStatus_DELUGE_ERR_PARAM as DELUGE_ERR_PARAM, DelugeStatus_DELUGE_OK as DELUGE_OK,
 };
 
-// Linker boundary symbols (rza1l.x): the internal SRAM heap and the end of the SDRAM .bss.
+// Linker boundary symbols: the internal SRAM heap (rza1l.x) and the end of the static SDRAM
+// content (sdram_sections.x).
 #[cfg(target_os = "none")]
 unsafe extern "C" {
     static __sram_heap_start: u8;
     static __sram_heap_end: u8;
-    static __sdram_bss_end: u8;
+    static __sdram_static_end: u8;
 }
 
 // ── system.h ────────────────────────────────────────────────────────────────
@@ -27,6 +28,13 @@ unsafe extern "C" {
 /// The critical-section nesting depth; only the outermost pair toggles the CPU interrupt mask.
 #[cfg(target_os = "none")]
 static CS_DEPTH: AtomicU32 = AtomicU32::new(0);
+
+/// Whether IRQs were unmasked when the outermost critical section opened, so closing it restores
+/// that state instead of unmasking: a section opened with IRQs already masked (at boot, or inside a
+/// Rust `critical_section`) must leave them masked.
+#[cfg(target_os = "none")]
+static CS_IRQS_WERE_ENABLED: core::sync::atomic::AtomicBool =
+    core::sync::atomic::AtomicBool::new(false);
 
 // Host: a per-thread depth. Each thread takes the global `critical-section` mutex on its
 // outermost enter, so the host's executor threads exclude each other; a process-global depth
@@ -43,8 +51,12 @@ std::thread_local! {
 pub extern "C" fn ENTER_CRITICAL_SECTION() {
     #[cfg(target_os = "none")]
     {
+        // CPSR.I is set while IRQs are masked (cortex-ar's `i()` is the raw bit).
+        let irqs_enabled = !cortex_ar::register::Cpsr::read().i();
         cortex_ar::interrupt::disable();
-        CS_DEPTH.fetch_add(1, Ordering::Relaxed);
+        if CS_DEPTH.fetch_add(1, Ordering::Relaxed) == 0 {
+            CS_IRQS_WERE_ENABLED.store(irqs_enabled, Ordering::Relaxed);
+        }
     }
     #[cfg(not(target_os = "none"))]
     CS_DEPTH_TL.with(|depth| {
@@ -58,12 +70,13 @@ pub extern "C" fn ENTER_CRITICAL_SECTION() {
     });
 }
 
-/// Unmasks interrupts when this closes the outermost critical section. `[task]` `[isr]`
+/// Restores the interrupt mask the outermost critical section found when this closes it. `[task]` `[isr]`
 #[unsafe(no_mangle)]
 pub extern "C" fn EXIT_CRITICAL_SECTION() {
     #[cfg(target_os = "none")]
-    if CS_DEPTH.fetch_sub(1, Ordering::Relaxed) <= 1 {
-        // SAFETY: balanced with ENTER_CRITICAL_SECTION; re-enabling at depth 0.
+    if CS_DEPTH.fetch_sub(1, Ordering::Relaxed) <= 1 && CS_IRQS_WERE_ENABLED.load(Ordering::Relaxed)
+    {
+        // SAFETY: balanced with ENTER_CRITICAL_SECTION; IRQs were unmasked when it opened.
         unsafe { cortex_ar::interrupt::enable() };
     }
     #[cfg(not(target_os = "none"))]
@@ -198,7 +211,7 @@ pub extern "C" fn deluge_memory_region_count() -> u8 {
 pub extern "C" fn deluge_memory_region(index: u8, out: *mut DelugeMemoryRegion) -> DelugeStatus {
     let (base, size, kind) = match index {
         0 => {
-            let b = core::ptr::addr_of!(__sdram_bss_end) as usize;
+            let b = core::ptr::addr_of!(__sdram_static_end) as usize;
             (b, crate::boot_mem::RUST_SDRAM_BASE - b, KIND_EXTERNAL)
         }
         1 => {

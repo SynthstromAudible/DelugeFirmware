@@ -26,7 +26,8 @@
 #include <cstring>
 
 GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
-	channel = 2;
+	// The gate channel default (2) is applied by adoptDrum when it binds the DocDrum — the ctor runs before the drum is
+	// bound, so it can't write the model here.
 	arpSettings.numOctaves = 1;
 }
 
@@ -75,8 +76,8 @@ void GateDrum::killAllVoices() {
 
 void GateDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("gateOutput", true);
-	writeDrumTagsToFile(writer);
-	writer.writeAttribute("channel", channel, false);
+	writeDrumTagsToFile(writer, savingSong);
+	writer.writeAttribute("channel", channel(), false);
 	writer.writeOpeningTagEnd();
 
 	NonAudioDrum::writeArpeggiatorToFile(writer);
@@ -102,13 +103,13 @@ Error GateDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32
 
 std::string GateDrum::getDrumName() {
 	std::string buffer;
-	if (!drumName.empty()) {
-		buffer.append(drumName);
+	if (!name().empty()) {
+		buffer.append(name());
 		buffer.append("\n");
 	}
 	buffer.append("GATE ");
 
-	buffer.append(deluge::string::fromInt(channel + 1));
+	buffer.append(deluge::string::fromInt(channel() + 1));
 
 	return buffer;
 }
@@ -119,10 +120,10 @@ int32_t GateDrum::getNumChannels() {
 
 void GateDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
 	NonAudioDrum::noteOnPostArp(noteCodePostArp, arpNote, noteIndex);
-	cvEngine.sendNote(true, channel, ALL_NOTES_OFF); // Gate only - a gate drum doesn't drive a CV output
+	cvEngine.sendNote(true, channel(), ALL_NOTES_OFF); // Gate only - a gate drum doesn't drive a CV output
 }
 
 void GateDrum::noteOffPostArp(int32_t noteCodePostArp) {
 	NonAudioDrum::noteOffPostArp(noteCodePostArp);
-	cvEngine.sendNote(false, channel, ALL_NOTES_OFF);
+	cvEngine.sendNote(false, channel(), ALL_NOTES_OFF);
 }

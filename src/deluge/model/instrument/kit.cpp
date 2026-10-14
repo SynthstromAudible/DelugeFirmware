@@ -46,6 +46,9 @@
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
+#include "storage/value.h"
+#include "storage/value_tree_deserializer.h"
+#include "util/functions.h" // stringToInt (id-first drum peek)
 #include "util/structural_edit_probe.h"
 #include <cstring>
 
@@ -125,7 +128,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 		// If no activeClip, that means no Clip has this Instrument, so there should be a backedUpParamManager that we
 		// should use
 		if (!activeClip) {
-			paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
+			paramManager = song->live.param_backup.getPreferablyWithClip(this, NULL);
 		}
 	}
 
@@ -217,7 +220,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 			if (!activeClip) {
 				D_PRINTLN("nah, !activeClip");
 				if (thisDrum->type == DrumType::SOUND) {
-					paramManagerForDrum = song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)thisDrum, NULL);
+					paramManagerForDrum = song->live.param_backup.getPreferablyWithClip((SoundDrum*)thisDrum, NULL);
 					if (!paramManagerForDrum) {
 						goto moveOn;
 					}
@@ -239,7 +242,10 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 
 					if (thisDrum->type == DrumType::SOUND) {
 						auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-						song->deleteBackedUpParamManagersForModControllable(soundDrum);
+						song->live.param_backup.deleteForModControllable(soundDrum);
+						if (std::optional<uint32_t> drumId = thisDrum->id()) { // retire its tree stores
+							song->project.backed_params.removeOwner(deluge::project::OwnerId::drum(*drumId));
+						}
 
 						// No NoteRow has this drum, so there is no note to stop. The render only ever reaches a drum
 						// in this kit's renderingDrums: take it out before removing it, as
@@ -299,11 +305,21 @@ void Kit::writeDrumToFile(Serializer& writer, Drum* thisDrum, ParamManager* para
 		*selectedDrumIndex = *drumIndex;
 	}
 
+	// Lazily assign the drum's stable per-song serial identity on first song-save (see Drum::id), before it
+	// writes its tags. Only within a song — a standalone kit/preset save carries no intra-song ids.
+	if (savingSong && song != nullptr && !thisDrum->id().has_value()) {
+		thisDrum->setId(song->generateNewDrumId());
+	}
+
 	thisDrum->writeToFile(writer, savingSong, paramManagerForDrum);
 	(*drumIndex)++;
 }
 
 Error Kit::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+	const deluge::storage::Value* element = deluge::storage::treeReaderOf(reader).currentElement();
+	if (element == nullptr) {
+		return Error::FILE_CORRUPTED;
+	}
 
 	int32_t selectedDrumIndex = -1;
 
@@ -348,7 +364,7 @@ doReadDrum:
 			reader.exitTag("selectedDrumIndex");
 		}
 		else if (!strcmp(tagName, "MIDIInput")) {
-			midiInput.readNoteFromFile(reader);
+			midiInput.readNoteFromTree(*deluge::storage::treeReaderOf(reader).currentValue(), reader);
 			reader.exitTag();
 		}
 		else {
@@ -374,10 +390,10 @@ doReadDrum:
 	if (selectedDrumIndex != -1) {
 		selectedDrum = getDrumFromIndex(selectedDrumIndex);
 	}
+	readEffectsFromElement(*element, song->getInputTickMagnitude());
 
 	if (paramManager.containsAnyMainParamCollections()) {
-		compensateInstrumentVolumeForResonance(&paramManager, song);
-		song->backUpParamManager(this, clip, &paramManager, true);
+		song->live.param_backup.backUp(this, clip, &paramManager, true);
 	}
 
 	return Error::NONE;
@@ -391,16 +407,33 @@ Error Kit::readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumTy
 		return Error::INSUFFICIENT_RAM;
 	}
 
+	// Bind the drum to its DOM record BEFORE reading its tags, so the name/channel/note tag reads write straight into
+	// the bound DocDrum. Peek the durable id from the tree node id-first (mirroring Song::readClipsFromFile) so
+	// adoptDrum keys the record by the file id rather than minting a throwaway that the later "id" tag would orphan;
+	// the element is the one a JSON reader has entered as well as the one an XML reader has just named. A drum with
+	// no id (old song / standalone) mints one in adoptDrum.
+	if (song != nullptr) {
+		if (const deluge::storage::Value* drumNode = deluge::storage::treeReaderOf(reader).currentElement()) {
+			if (const deluge::storage::Value* idNode = drumNode->find("id")) {
+				newDrum->setId(static_cast<uint32_t>(stringToInt(idNode->str().c_str())));
+			}
+		}
+		song->adoptDrum(newDrum);
+	}
+
 	Error error = newDrum->readFromFile(
 	    reader, song, clip,
 	    readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it
 	if (error != Error::NONE) {
+		if (song != nullptr) {
+			song->removeDocDrum(newDrum); // drop the DOM record adoptDrum created before freeing the drum
+		}
 		void* toDealloc = dynamic_cast<void*>(newDrum);
 		newDrum->~Drum();
 		delugeDealloc(toDealloc);
 		return error;
 	}
-	addDrum(newDrum);
+	addDrum(newDrum, song); // linked-list + kit assignment; the adoptDrum() inside is an idempotent no-op
 
 	return Error::NONE;
 }
@@ -428,7 +461,7 @@ deluge::storage::Walk Kit::walkCrucialSampleDemands(deluge::storage::SampleLoadV
 	AudioEngine::logAction("Kit::loadCrucialSamplesOnly");
 	for (int32_t i = 0; i < std::ssize(((InstrumentClip*)activeClip)->noteRows); i++) {
 		NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[i];
-		if (!thisNoteRow->muted && !thisNoteRow->hasNoNotes() && thisNoteRow->drum) {
+		if (!thisNoteRow->muted() && !thisNoteRow->hasNoNotes() && thisNoteRow->drum) {
 			(void)thisNoteRow->drum->walkSampleDemands(visitor); // Why don't we deal with the error?
 		}
 	}
@@ -437,7 +470,7 @@ deluge::storage::Walk Kit::walkCrucialSampleDemands(deluge::storage::SampleLoadV
 	return deluge::storage::Walk::Continue;
 }
 
-void Kit::addDrum(Drum* newDrum) {
+void Kit::addDrum(Drum* newDrum, Song* adoptSong) {
 	Drum** prevPointer = &firstDrum;
 	while (*prevPointer != nullptr) {
 		prevPointer = &((*prevPointer)->next);
@@ -449,6 +482,17 @@ void Kit::addDrum(Drum* newDrum) {
 	}
 
 	newDrum->kit = this;
+
+	// Bind the drum to its DOM structural record. Idempotent — during load the drum is (re)bound by
+	// assignMissingIds against the loading song, so this hook is for runtime-created drums. Bind into the song that
+	// owns this kit (`adoptSong`, threaded through by the load callers) rather than the ambient `currentSong`, which
+	// during a load-while-another-song-plays is still the *previous* song. Runtime callers pass nullptr and fall back
+	// to `currentSong` (correct at runtime). Guarded for null (early boot / whole-song teardown), mirroring the DOM
+	// binding's other call sites.
+	Song* songForAdopt = (adoptSong != nullptr) ? adoptSong : currentSong;
+	if (songForAdopt != nullptr) {
+		songForAdopt->adoptDrum(newDrum);
+	}
 }
 
 void Kit::removeDrumFromKitArpeggiator(int32_t drumIndex) {
@@ -474,6 +518,13 @@ void Kit::removeDrumFromLinkedList(Drum* drum) {
 }
 
 void Kit::drumRemoved(Drum* drum) {
+	// Drop the drum's DOM structural record on genuine removal. Guarded on currentSong && docDrum_ so
+	// whole-song teardown (currentSong nulled first, the project destroyed wholesale) does no per-drum removal.
+	if (currentSong != nullptr && drum->docDrum_ != nullptr) {
+		currentSong->removeDocDrum(drum);
+		drum->docDrum_ = nullptr;
+	}
+
 	if (selectedDrum == drum) {
 		selectedDrum = nullptr;
 	}
@@ -535,7 +586,7 @@ Drum* Kit::getDrumFromName(std::string_view name, bool onlyIfNoNoteRow) {
 			continue;
 		}
 
-		if (deluge::string::caselessEquals(name, thisDrum->drumName)) {
+		if (deluge::string::caselessEquals(name, thisDrum->name())) {
 			return thisDrum;
 		}
 	}
@@ -587,7 +638,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		}
 
 		else {
-			drumParamManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL);
+			drumParamManager = modelStack->song->live.param_backup.getPreferablyWithClip(soundDrum, NULL);
 		}
 
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -977,7 +1028,7 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 
 			SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
-			ParamManager* paramManager = modelStackWithTimelineCounter->song->getBackedUpParamManagerPreferablyWithClip(
+			ParamManager* paramManager = modelStackWithTimelineCounter->song->live.param_backup.getPreferablyWithClip(
 			    (ModControllableAudio*)soundDrum, nullptr);
 			if (!paramManager) {
 				FREEZE_WITH_ERROR("E174");
@@ -1035,7 +1086,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 				SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
-				ParamManager* paramManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip(
+				ParamManager* paramManager = modelStack->song->live.param_backup.getPreferablyWithClip(
 				    (ModControllableAudio*)soundDrum, nullptr);
 				if (!paramManager) {
 					FREEZE_WITH_ERROR("E172");
@@ -1109,37 +1160,22 @@ void Kit::prepareForHibernationOrDeletion() {
 	}
 }
 
-void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song) {
-
-	// If it was a pre-V1.2.0 firmware file, we need to compensate for resonance
-	if (song_firmware_version < FirmwareVersion::official({1, 2, 0})
-	    && !paramManager->resonanceBackwardsCompatibilityProcessed) {
-
-		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-		int32_t compensation = interpolateTableSigned(unpatchedParams->getValue(params::UNPATCHED_LPF_RES) + 2147483648,
-		                                              32, oldResonanceCompensation, 3);
-		float compensationDB = (float)compensation / (1024 << 16);
-
-		if (compensationDB > 0.1) {
-			unpatchedParams->shiftParamVolumeByDB(params::UNPATCHED_VOLUME, compensationDB);
-		}
-
-		// The SoundDrums, like all Sounds, will have already had resonance compensation done on their default
-		// ParamManagers if and when any were in fact loaded. Or, if we're going through a Song doing this to all
-		// ParamManagers within Clips, the Clip will automatically do all NoteRows / Drums next.
-
-		GlobalEffectableForClip::compensateVolumeForResonance(paramManager);
-	}
-}
-
 void Kit::deleteBackedUpParamManagers(Song* song) {
-	song->deleteBackedUpParamManagersForModControllable(this);
+	song->live.param_backup.deleteForModControllable(this);
+	// Retire the kit's clip-level-FX tree stores (keyed by Output::id) and, below, each
+	// SoundDrum's per-drum stores (keyed by Drum::id), mirroring the param_backup purges. See
+	// SoundInstrument::deleteBackedUpParamManagers for the safety rationale. No-op when never saved (no id).
+	if (std::optional<uint32_t> ownId = id()) {
+		song->project.backed_params.removeOwner(deluge::project::OwnerId::instrument(*ownId));
+	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DrumType::SOUND) {
 			AudioEngine::routineWithClusterLoading();
-			song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
+			song->live.param_backup.deleteForModControllable((SoundDrum*)thisDrum);
+			if (std::optional<uint32_t> drumId = thisDrum->id()) {
+				song->project.backed_params.removeOwner(deluge::project::OwnerId::drum(*drumId));
+			}
 		}
 	}
 }
@@ -1390,7 +1426,7 @@ GateDrum* Kit::getGateDrumForChannel(int32_t gateChannel) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DrumType::GATE) {
 			GateDrum* gateDrum = (GateDrum*)thisDrum;
-			if (gateDrum->channel == gateChannel) {
+			if (gateDrum->channel() == gateChannel) {
 				return gateDrum;
 			}
 		}
@@ -1441,8 +1477,8 @@ void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICab
 	                                                                // there are some special cases below where
 	                                                                // we might insist on making it true
 	// If MIDIDrum, outputting same note, then don't additionally do thru
-	if (doingMidiThru && thisDrum->type == DrumType::MIDI && ((MIDIDrum*)thisDrum)->channel == channel
-	    && ((MIDIDrum*)thisDrum)->note == note) {
+	if (doingMidiThru && thisDrum->type == DrumType::MIDI && ((MIDIDrum*)thisDrum)->channel() == channel
+	    && ((MIDIDrum*)thisDrum)->note() == note) {
 		*doingMidiThru = false;
 	}
 
@@ -1884,14 +1920,14 @@ void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t
 				if (noteRow) {
 					ExpressionParamSet* expressionParams = noteRow->paramManager.getOrCreateExpressionParamSet();
 					if (expressionParams) {
-						if (!expressionParams->params[0].isAutomated()) {
+						if (!expressionParams->params[0].isAutomated(*expressionParams->docForParam(0))) {
 							expressionParams->bendRanges[whichBendRange] = bendSemitones;
 						}
 					}
 				}
 			}
 			else {
-				// ParamManager* paramManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip(thisDrum,
+				// ParamManager* paramManager = modelStack->song->live.param_backup.getPreferablyWithClip(thisDrum,
 				// NULL); // TODO...
 			}
 		}
@@ -1950,7 +1986,7 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 	}
 	else {
 		if (drum->type == DrumType::SOUND) {
-			paramManagerForDrum = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)drum, NULL);
+			paramManagerForDrum = modelStack->song->live.param_backup.getPreferablyWithClip((SoundDrum*)drum, NULL);
 			if (!paramManagerForDrum) {
 				// Ron got this, June 2020, while "dragging" a row vertically in arranger
 				FREEZE_WITH_ERROR("E314");
@@ -1995,7 +2031,7 @@ void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, i
 		}
 
 		// If still here, haven't found paramManager yet
-		paramManagerForDrum = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)drum, NULL);
+		paramManagerForDrum = modelStack->song->live.param_backup.getPreferablyWithClip((SoundDrum*)drum, NULL);
 		if (!paramManagerForDrum) {
 			FREEZE_WITH_ERROR("E312"); // Should make ALPHA_OR_BETA_VERSION after V3.0.0 release
 		}

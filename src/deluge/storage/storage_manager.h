@@ -22,6 +22,7 @@
 #include "io/file.hpp"
 #include "io/stall_bound.h"
 #include "modulation/sync.h"
+#include "storage/document_format.h"
 #include "util/firmware_version.h"
 
 #include <cstdint>
@@ -30,6 +31,10 @@
 #include <span>
 
 extern void deleteOldSongBeforeLoadingNew();
+
+namespace deluge::serialization {
+class Value;
+}
 
 class Instrument;
 class PlaybackMode;
@@ -111,6 +116,18 @@ public:
 	/// @brief Bytes the buffer can currently hold. GROWS as a memory-backed document outgrows it.
 	[[nodiscard]] uint32_t bufferCapacity() const { return bufferSize; }
 
+	/// @brief Redirect writes into a caller-owned buffer (for in-memory serialization, e.g. a host round-trip
+	///        harness).
+	///
+	/// Writes truncate at @p len, so size it to the largest expected output.
+	/// @param buf The buffer to write into.
+	/// @param len Its size in bytes.
+	void setMemoryBuffer(char* buf, uint32_t len) {
+		writeClusterBuffer = buf;
+		bufferSize = len;
+		setMemoryBased();
+	}
+
 protected:
 	void resetWriter();
 	Error writeBufferToFile();
@@ -151,6 +168,17 @@ public:
 	virtual void writeClosingTag(char const* tag, bool shouldPrintIndents = true, bool box = false) = 0;
 	virtual void writeArrayStart(char const* tag, bool startNewLineAfter = true, bool box = false) = 0;
 	virtual void writeArrayEnding(char const* tag, bool shouldPrintIndents = true, bool box = false) = 0;
+
+	/// @brief Open a text-content leaf element whose value is written incrementally between the opening and
+	///        closing calls (e.g. an auto-param "0x…" hex blob).
+	///
+	/// XML writes it as an element (<tag>…</tag>); JSON overrides it to a string ("tag": "…"), since JSON has no
+	/// text-content-element concept and the reader consumes it char-at-a-time as a scalar.
+	/// @param tag The element's name.
+	virtual void writeOpeningTextTag(char const* tag) { writeOpeningTag(tag, false); }
+	/// @brief Close the leaf opened by writeOpeningTextTag().
+	/// @param tag The element's name.
+	virtual void writeClosingTextTag(char const* tag) { writeClosingTag(tag, false); }
 	virtual void printIndents() = 0;
 	virtual void insertCommaIfNeeded() = 0;
 	virtual void write(char const* output) = 0;
@@ -158,6 +186,12 @@ public:
 	                                    char const* endString = nullptr) = 0;
 
 	virtual void reset() = 0;
+	/// @brief Writes each entry of the Map @p members as a member of the object being written.
+	/// @details Only a JSON writer takes a Value; an XML document is written by the streaming calls.
+	/// @param members The Map whose entries are written.
+	virtual void writeValue(const deluge::serialization::Value& members);
+	/// @brief The format this serializer writes.
+	[[nodiscard]] virtual deluge::storage::DocumentFormat format() const = 0;
 	void writeFirmwareVersion();
 
 	void writeEarliestCompatibleFirmwareVersion(char const* versionString) {
@@ -175,6 +209,9 @@ class XMLSerializer : public Serializer, public FileWriter {
 public:
 	XMLSerializer();
 	~XMLSerializer() override = default;
+	[[nodiscard]] deluge::storage::DocumentFormat format() const override {
+		return deluge::storage::DocumentFormat::XML;
+	}
 
 	void writeAttribute(char const* name, int32_t number, bool onNewLine = true) override;
 	void writeAttribute(char const* name, char const* value, bool onNewLine = true) override;
@@ -192,35 +229,29 @@ public:
 	void writeArrayEnding(char const* tag, bool shouldPrintIndents = true, bool box = true) override;
 	void insertCommaIfNeeded() override {}
 	void printIndents() override;
+	/// @brief Write @p text as an attribute value or element text, escaping `"` and `<`.
+	/// @param text The NUL-terminated text.
+	void writeEscaped(char const* text);
 	void write(char const* output) override;
 	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                            char const* endString = nullptr) override;
 	void reset() override;
+	/// @brief Write @p members at the current element: each scalar as an attribute (the element's opening tag must
+	/// still be open), each Map as a child element and each Array as a list of its boxed elements (after
+	/// writeOpeningTagEnd()). Every scalar comes before every child; a scalar after a child freezes "SV02".
+	/// @param members The Map whose entries are written.
+	void writeValue(const deluge::serialization::Value& members) override;
 
 private:
+	/// @brief Write @p value, a Map or an Array, as the element or list @p name.
+	/// @param name  The element or list name.
+	/// @param value The Map or Array to write.
+	void writeElement(char const* name, const deluge::serialization::Value& value);
+
 	uint8_t indentAmount{};
 };
 
-class Deserializer {
-public:
-	virtual bool prepareToReadTagOrAttributeValueOneCharAtATime() = 0;
-	virtual char readNextCharOfTagOrAttributeValue() = 0;
-	virtual int32_t getNumCharsRemainingInValueBeforeEndOfCluster() = 0;
-
-	virtual char const* readNextTagOrAttributeName() = 0;
-	virtual char const* readTagOrAttributeValue() = 0;
-	virtual int32_t readTagOrAttributeValueInt() = 0;
-	virtual int32_t readTagOrAttributeValueHex(int32_t errorValue) = 0;
-	virtual int readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) = 0;
-	virtual Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false) = 0;
-
-	virtual char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) = 0;
-	virtual Error readTagOrAttributeValueString(std::string& string) = 0;
-	virtual bool match(char const ch) = 0;
-	virtual void exitTag(char const* exitTagName = NULL, bool closeObject = false) = 0;
-
-	virtual void reset() = 0;
-};
+#include "storage/deserializer.h"
 
 class FileDeserializer : public Deserializer, public FileReader {
 public:
@@ -287,6 +318,24 @@ class JsonSerializer : public Serializer, public FileWriter {
 public:
 	JsonSerializer();
 	~JsonSerializer() override = default;
+	[[nodiscard]] deluge::storage::DocumentFormat format() const override {
+		return deluge::storage::DocumentFormat::JSON;
+	}
+
+	// A text-content leaf as a JSON string ("tag": "…") rather than an object box, so the auto-param
+	// <value> hex round-trips (the reader reads it char-at-a-time as a scalar). See Serializer base.
+	void writeOpeningTextTag(char const* tag) override {
+		insertCommaIfNeeded();
+		write("\n");
+		printIndents();
+		write("\"");
+		write(tag);
+		write("\": \"");
+	}
+	void writeClosingTextTag(char const* /*tag*/) override {
+		write("\"");
+		firstItemHasBeenWritten = true;
+	}
 
 	void writeAttribute(char const* name, int32_t number, bool onNewLine = true) override;
 	void writeAttribute(char const* name, char const* value, bool onNewLine = true) override;
@@ -304,13 +353,22 @@ public:
 	void writeArrayEnding(char const* tag, bool shouldPrintIndents = true, bool box = false) override;
 	void printIndents() override;
 	void insertCommaIfNeeded() override;
+	/// @brief Write @p text as the inside of a JSON string, escaping `"`, `\\` and control characters.
+	/// @param text The NUL-terminated text.
+	void writeEscaped(char const* text);
 	void write(char const* output) override;
 	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                            char const* endString = nullptr) override;
 	void reset() override;
+	void writeValue(const deluge::serialization::Value& members) override;
 	// Begin Json-only API
 
 private:
+	/// @brief Write @p value as the member @p name, or as an array item when @p name is null.
+	/// @param name  The member name, or null for an array item.
+	/// @param value The value to write.
+	void writeMember(char const* name, const deluge::serialization::Value& value);
+
 	uint8_t indentAmount{};
 	bool firstItemHasBeenWritten = false;
 };
@@ -374,8 +432,35 @@ extern XMLSerializer smSerializer;
 extern XMLDeserializer smDeserializer;
 extern JsonSerializer smJsonSerializer;
 extern JsonDeserializer smJsonDeserializer;
+/// @brief The serializer the document being written goes through: the writer of the innermost ActiveWriterScope, else
+/// the XML serializer. Writers nested inside a document (an output's, a drum's) take theirs from here.
 extern Serializer& GetSerializer();
+/// @brief The shared serializer for @p format.
+Serializer& serializerFor(deluge::storage::DocumentFormat format);
+/// @brief The shared serializer for @p format, as the FileWriter that holds its memory-based surface.
+FileWriter& fileWriterFor(deluge::storage::DocumentFormat format);
+
+/// @brief Makes @p writer the one GetSerializer() returns while a document is written through it; scopes nest.
+class ActiveWriterScope {
+public:
+	/// @param writer The serializer GetSerializer() returns for this scope's lifetime.
+	explicit ActiveWriterScope(Serializer& writer);
+	~ActiveWriterScope();
+	ActiveWriterScope(const ActiveWriterScope&) = delete;
+	ActiveWriterScope& operator=(const ActiveWriterScope&) = delete;
+
+private:
+	Serializer* previous_;
+};
 extern FileDeserializer* activeDeserializer;
+// The reader readFromFile is currently consuming: a streaming reader, or a TreeDocument's tree reader for the
+// span of its parse (deluge::storage::ActiveReaderScope). The audio-yield gate consults this to decide whether
+// to pump the engine.
+extern Deserializer* activeReader;
+
+namespace deluge::storage {
+class TreeDocument;
+}
 
 namespace StorageManager {
 
@@ -488,6 +573,24 @@ Error readWholeFileSynchronously(char const* path, StagingState* out);
 ///       openDelugeBuffer()'s caveats about saving and restoring it.
 StagedOpen openDocumentStaged(char const* path, char const* firstTagName, char const* altTagName, StagingState* state);
 
+/// @brief Stage @p path in memory without parsing it: openDocumentStaged() minus the open.
+///
+/// Same arms, same Deferred/Failed answers and the same StagingState contract; Opened here means only that all of
+/// the file's bytes are in `state->buffer`, untouched -- for a caller that parses them some other way
+/// (deluge::storage::TreeDocument::open()).
+StagedOpen stageDocument(char const* path, StagingState* state);
+
+/// @brief Stage @p path and open it as a Value tree in @p document: stageDocument() plus TreeDocument::open().
+///
+/// The opener for every document whose readers take tags from the tree (presets, kit rows, MIDI device
+/// definitions). Same Deferred/Failed answers as stageDocument(); on Opened the staged bytes are already freed,
+/// since the tree holds its own copies, and @p document is positioned inside @p firstTagName (or @p altTagName).
+/// A file that does not parse fails here, before the caller has changed anything.
+/// @param state    Caller-owned staging, as for stageDocument().
+/// @param document Caller-owned; release it once the parse is done.
+StagedOpen openDocumentStagedTree(char const* path, char const* firstTagName, char const* altTagName,
+                                  StagingState* state, deluge::storage::TreeDocument& document);
+
 /// @brief When a caller that runs only when woken asks again after openDocumentStaged() answered Deferred, on the app
 ///        loop's clock (µs).
 ///
@@ -524,11 +627,21 @@ void reapOrphanedStaging();
 /// @return Error::NONE, Error::FILE_NOT_FOUND if it could not be staged, or Error::FILE_CORRUPTED.
 Error openDocumentSynchronously(char const* path, char const* firstTagName, char const* altTagName = "");
 
+/// @brief openDocumentStagedTree()'s blocking arm: read @p path whole and open it as a Value tree in @p document.
+///
+/// For the inline readers that need a tree (the harness's preset fixtures). Uses no shared slot: the bytes are
+/// freed before this returns.
+/// @return Error::NONE, the read's error, or Error::FILE_CORRUPTED.
+Error openDocumentTreeSynchronously(char const* path, char const* firstTagName, char const* altTagName,
+                                    deluge::storage::TreeDocument& document);
+
 /// @brief Whether @p path names a JSON document rather than an XML one.
 ///
-/// The extension rule the file-backed opener used, in one place now that three call sites need it: a
-/// buffer has no filename to infer from, so whoever stages one has to decide before parsing. Getting
-/// it wrong routes an XML song to the JSON parser and the failure reads as a corrupt file.
+/// The single extension rule for staged documents: a buffer has no filename to infer from, so whoever stages one
+/// has to decide before parsing. Getting it wrong routes an XML song to the JSON parser and the failure reads as a
+/// corrupt file.
+/// @param path The document's path.
+/// @return True if the path's extension is `json`.
 bool documentIsJson(char const* path);
 
 /// @brief Release the shared slot filled by openDocumentSynchronously(). Safe to call twice.
@@ -577,11 +690,12 @@ bool checkSDPresent();
 bool checkSDInitialized();
 
 Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParamManager = nullptr);
-/// @brief Read an Instrument from the document `activeDeserializer` has open, and close it.
+/// @brief Read an Instrument from @p document.
 ///
-/// The parse half of a staged read: it opens nothing and frees no staging, so a caller that staged the document itself
-/// (openDocumentStaged(), or the harness's own fixture loader) parses it on its own tier. On any failure the Instrument
-/// it made is deleted again.
+/// The parse half of a staged read: it opens nothing and releases nothing, so a caller that opened the document itself
+/// (openDocumentStagedTree(), or the harness's own fixture loader) parses it on its own tier and releases it after. On
+/// any failure the Instrument it made is deleted again.
+/// @param document               The preset, opened as a Value tree inside its root tag.
 /// @param song                   The song the Instrument will belong to.
 /// @param clip                   The clip it is being loaded for, if any.
 /// @param outputType             Which kind of Instrument the document must hold.
@@ -590,8 +704,9 @@ Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParam
 /// @param name          The Instrument's name.
 /// @param dirPath       The folder the preset is in.
 /// @return Error::NONE, or why the document could not be read into an Instrument.
-Error parseInstrumentDocument(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
-                              Instrument** getInstrument, std::string* name, std::string* dirPath);
+Error parseInstrumentDocument(deluge::storage::TreeDocument& document, Song* song, InstrumentClip* clip,
+                              OutputType outputType, bool mayReadSamplesFromFiles, Instrument** getInstrument,
+                              std::string* name, std::string* dirPath);
 /// @brief The root tag, and its accepted alternative, of an @p outputType preset document.
 /// @param outputType   Which kind of Instrument the document must hold.
 /// @param firstTagName Set to the expected root tag.
@@ -599,13 +714,15 @@ Error parseInstrumentDocument(Song* song, InstrumentClip* clip, OutputType outpu
 void instrumentDocumentTags(OutputType outputType, char const** firstTagName, char const** altTagName);
 Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
 
-/// @brief Read a device definition into @p midiInstrument from the document `activeDeserializer` has open, and close
-///        it. The parse half of a staged definition read; it opens nothing and frees no staging.
+/// @brief Read a device definition into @p midiInstrument from @p document. The parse half of a staged definition
+///        read; it opens nothing and releases nothing.
+/// @param document       The definition, opened as a Value tree inside its root tag.
 /// @param midiInstrument The instrument to read the definition into.
 /// @param fileName       Set to the definition's file name.
 /// @param updateFileName Whether @p fileName should be updated.
 /// @return Error::NONE, or why the definition could not be read.
-Error parseMidiDeviceDefinitionDocument(MIDIInstrument* midiInstrument, std::string* fileName, bool updateFileName);
+Error parseMidiDeviceDefinitionDocument(deluge::storage::TreeDocument& document, MIDIInstrument* midiInstrument,
+                                        std::string* fileName, bool updateFileName);
 
 /// @brief Paste the pattern the document `activeDeserializer` has open into the current clip, and close it. The parse
 ///        half of a staged pattern read; it opens nothing and frees no staging.
@@ -619,21 +736,22 @@ Error parsePatternDocument(bool overwriteExisting, bool noScaling, bool previewO
 Error openFavouriteFile(char const* path);
 
 Drum* createNewDrum(DrumType drumType);
-/// @brief Read a synth preset into a new SoundDrum from the document `activeDeserializer` has open, and close it.
+/// @brief Read a synth preset into a new SoundDrum from @p document.
 ///
-/// The parse half of a staged synth-to-row read; it opens nothing and frees no staging. On success a drum already in
+/// The parse half of a staged synth-to-row read; it opens nothing and releases nothing. On success a drum already in
 /// @p getInstrument is deleted and replaced by the new one; on failure the new drum is deleted.
+/// @param document      The synth preset, opened as a Value tree inside its root tag.
 /// @param song          The song the drum will belong to.
 /// @param clip          The clip it is being loaded for.
 /// @param getInstrument The drum slot to fill.
 /// @return Error::NONE, or why the document could not be read into a drum.
-Error parseSynthDrumDocument(Song* song, InstrumentClip* clip, SoundDrum** getInstrument);
+Error parseSynthDrumDocument(deluge::storage::TreeDocument& document, Song* song, InstrumentClip* clip,
+                             SoundDrum** getInstrument);
 
 Error checkSpaceOnCard();
 } // namespace StorageManager
 
 extern FirmwareVersion song_firmware_version;
-extern const bool writeJsonFlag;
 
 inline bool isCardReady() {
 	return Error::NONE == StorageManager::initSD();

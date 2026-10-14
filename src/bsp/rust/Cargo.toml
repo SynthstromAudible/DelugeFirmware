@@ -149,12 +149,35 @@ embassy-executor = { git = "https://github.com/stellar-aria/embassy", branch = "
 embassy-executor-timer-queue = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
 embassy-time-queue-utils = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
 
+# Built for size: the image must fit in on-chip SRAM (docs/dev/image_size.md). The crates the audio
+# render and sample streaming run, the allocator and the executor keep "s" below. Under the
+# whole-graph LTO that "s" holds as each function's `optsize` attribute, while the shared pass
+# pipeline follows this crate's "z".
 [profile.release]
-opt-level = "s"
+opt-level = "z"
 lto = true
 codegen-units = 1
 debug = true
 panic = "abort"
+
+[profile.release.package.deluge_sample_fill]
+opt-level = "s"
+[profile.release.package.deluge_sample_reader]
+opt-level = "s"
+[profile.release.package.deluge_sample_stream]
+opt-level = "s"
+[profile.release.package.deluge_sample_source]
+opt-level = "s"
+[profile.release.package.deluge_resource]
+opt-level = "s"
+[profile.release.package.deluge_alloc]
+opt-level = "s"
+[profile.release.package.deluge-alloc]
+opt-level = "s"
+[profile.release.package.rza1l-hal]
+opt-level = "s"
+[profile.release.package.embassy-executor]
+opt-level = "s"
 
 [profile.dev]
 opt-level = 1

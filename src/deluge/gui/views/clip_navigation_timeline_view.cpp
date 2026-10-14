@@ -41,7 +41,7 @@ void ClipNavigationTimelineView::horizontalScrollForLinearRecording(int32_t newX
 			initiateXScroll(newXScroll);
 		}
 		else {
-			currentSong->xScroll[NAVIGATION_CLIP] = newXScroll;
+			currentSong->persistentView.xScroll[NAVIGATION_CLIP] = newXScroll;
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 		if (!display->hasPopup()) {

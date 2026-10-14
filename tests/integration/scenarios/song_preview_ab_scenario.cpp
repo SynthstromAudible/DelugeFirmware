@@ -296,7 +296,7 @@ public:
 	/// @return Whether the coordinates really do resolve back to `clip` -- false means the gesture
 	///         would act on nothing and the step must fail rather than pass vacuously.
 	static bool aimGridPressAt(Clip* clip) {
-		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
+		currentSong->persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
 		const Cartesian xy = sessionView.gridXYFromClip(*clip);
 		sessionView.gridFirstPressedX = xy.x;
 		sessionView.gridFirstPressedY = xy.y;
@@ -329,8 +329,8 @@ public:
 	/// layout. Restores Rows layout first: the Grid steps above leave the song in Grid, where padAction
 	/// hands straight over to gridHandlePads() and this branch is unreachable.
 	static void pressEmptyPad(int32_t xDisplay, int32_t yDisplay) {
-		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
-		currentSong->songViewYScroll = 0;
+		currentSong->persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+		currentSong->persistentView.songViewYScroll = 0;
 		currentUIMode = UI_MODE_NONE;
 		// What the gesture creates: it reads lastTypeCreated when defaultUseLastClipType is set, and
 		// SYNTH is the only type the SYNTHS fixture can satisfy.
@@ -352,7 +352,7 @@ public:
 	/// completeNewTrackGridEnter() -> gridNewTrackClipEntered() -- so the pending state the picker
 	/// would have set is written directly and the funnel is entered for real.
 	static void beginGridNewTrackEnter(int32_t x, int32_t y) {
-		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
+		currentSong->persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
 		currentUIMode = UI_MODE_NONE;
 		sessionView.gridFirstPressedX = x;
 		sessionView.gridFirstPressedY = y;
@@ -472,7 +472,7 @@ constexpr std::array<Case, 6> kCases{{
 constexpr const char* kWindowLabel = "window";
 constexpr const char* kWindowFilename = "LATE.XML";
 
-/// Corpus songs, staged by the packer as `SONGS/CORPUS/C%02u.XML` when `DELUGE_SONG_CORPUS` names a
+/// Corpus songs, staged by the packer as `SONGS/CORPUS/C%02u.XML` or `.json` when `DELUGE_SONG_CORPUS` names a
 /// directory.
 ///
 /// They carry no absolute expectation -- their artwork is whatever their author made -- so the
@@ -577,6 +577,8 @@ size_t g_corpusRan = 0;
 size_t g_corpusRendered = 0;
 /// How many corpus songs the packer says it staged. Read from the card, never discovered.
 size_t g_corpusExpected = 0;
+/// Whether each staged corpus song is JSON (else XML), as `kCorpusCountPath` says.
+std::array<bool, kMaxCorpusCases> g_corpusIsJson{};
 bool g_corpusCountDispatched = false;
 bool g_corpusCountFailed = false;
 bool g_caseStarted = false;
@@ -911,13 +913,13 @@ void runWindowTick() {
 	g_stage = Stage::CorpusCount;
 }
 
-/// `C00.XML`, `C01.XML`, ... -- built by hand rather than with snprintf, which `src/lib/printf.h`
-/// soft-aliases the same way it aliases printf (see this file's #undef).
+/// `C00.XML`, `C01.json`, ... as the packer staged each -- built by hand rather than with snprintf, which
+/// `src/lib/printf.h` soft-aliases the same way it aliases printf (see this file's #undef).
 std::string corpusFilename(size_t index) {
 	std::string name = "C";
 	name += static_cast<char>('0' + (index / 10) % 10);
 	name += static_cast<char>('0' + index % 10);
-	name += ".XML";
+	name += g_corpusIsJson[index] ? ".json" : ".XML";
 	return name;
 }
 
@@ -936,7 +938,8 @@ void readCorpusCount(void*) {
 		g_corpusCountFailed = true;
 		return;
 	}
-	std::array<std::byte, 16> buffer{};
+	// The count, a newline, then one letter a staged song: `X` for XML, `J` for JSON.
+	std::array<std::byte, 8 + kMaxCorpusCases> buffer{};
 	const auto read = opened->read(buffer);
 	if (!read.has_value()) {
 		printf("FAIL [songPreviewAB/corpus]: '%s' could not be read\n", kCorpusCountPath);
@@ -946,8 +949,10 @@ void readCorpusCount(void*) {
 	}
 	size_t count = 0;
 	bool anyDigit = false;
-	for (std::byte b : read.value()) {
-		const auto c = static_cast<char>(b);
+	const auto bytes = read.value();
+	size_t at = 0;
+	for (; at < bytes.size(); at++) {
+		const auto c = static_cast<char>(bytes[at]);
 		if (c < '0' || c > '9') {
 			break;
 		}
@@ -970,6 +975,18 @@ void readCorpusCount(void*) {
 		g_failures++;
 		g_corpusCountFailed = true;
 		return;
+	}
+	at++; // the newline
+	for (size_t i = 0; i < count; i++, at++) {
+		const char kind = at < bytes.size() ? static_cast<char>(bytes[at]) : '\0';
+		if (kind != 'X' && kind != 'J') {
+			printf("FAIL [songPreviewAB/corpus]: '%s' does not say whether staged song %zu is XML or JSON\n",
+			       kCorpusCountPath, i);
+			g_failures++;
+			g_corpusCountFailed = true;
+			return;
+		}
+		g_corpusIsJson[i] = kind == 'J';
 	}
 	g_corpusExpected = count;
 }
@@ -1835,8 +1852,8 @@ bool writeBlankSynthPresetFile(const char* path) {
 		return false;
 	}
 	static_cast<SoundInstrument*>(instrument)->setupAsBlankSynth(&paramManager, false);
-	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(instrument->toModControllable()), nullptr,
-	                                &paramManager, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(instrument->toModControllable()), nullptr,
+	                                      &paramManager, true);
 
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
@@ -2415,11 +2432,11 @@ void runAcquireTick() {
 		// padAction() -- the riskiest of these gestures, since createNewTrackForInstrumentClip()'s
 		// bool answer feeds three different abandon paths. Those are synchronous; what defers is the
 		// gesture ABOVE them, so this drives the gesture.
-		g_acqNewTrackClipsBefore = std::ssize(currentSong->sessionClips);
+		g_acqNewTrackClipsBefore = std::ssize(currentSong->live.clips.session_clips);
 		g_acqViewBefore = acqDispatches();
 		BrowserListingAbProbe::pressEmptyPad(kAcqNewTrackX, kAcqNewTrackY);
 		// Nothing may have been created yet: the op is only ENQUEUED here.
-		if (std::ssize(currentSong->sessionClips) != g_acqNewTrackClipsBefore) {
+		if (std::ssize(currentSong->live.clips.session_clips) != g_acqNewTrackClipsBefore) {
 			printf("SP-ACQUIRE FAIL the empty-pad gesture created a clip synchronously; it reads the card\n");
 			g_failures++;
 		}
@@ -2428,7 +2445,8 @@ void runAcquireTick() {
 	}
 	case AcquireStep::SessionNewTrackCheck: {
 		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
-		const int32_t added = static_cast<int32_t>(std::ssize(currentSong->sessionClips)) - g_acqNewTrackClipsBefore;
+		const int32_t added =
+		    static_cast<int32_t>(std::ssize(currentSong->live.clips.session_clips)) - g_acqNewTrackClipsBefore;
 		printf("SP-ACQUIRE session-newtrack dispatches=%d clipsAdded=%d uiMode=%d\n", dispatched, added,
 		       static_cast<int>(currentUIMode));
 		if (dispatched != 1) {
@@ -2444,7 +2462,8 @@ void runAcquireTick() {
 			g_failures++;
 		}
 		else {
-			Clip* created = currentSong->sessionClips[std::ssize(currentSong->sessionClips) - 1];
+			Clip* created =
+			    currentSong->live.clips.session_clips[std::ssize(currentSong->live.clips.session_clips) - 1];
 			g_acqNewTrackClip = created;
 			const std::string name = acquiredName(created->output);
 			printf("SP-ACQUIRE session-newtrack name=%s\n", name.c_str());
@@ -2524,10 +2543,10 @@ void runAcquireTick() {
 		// exitTrackCreation() returns -- so with the acquisition deferred, an ENTER gesture reads "pad
 		// released" and transitions INTO the clip instead of holding it, unless the caller's tail guards
 		// against it. The check below asserts the held outcome the synchronous version produced.
-		g_acqNewTrackClipsBefore = std::ssize(currentSong->sessionClips);
+		g_acqNewTrackClipsBefore = std::ssize(currentSong->live.clips.session_clips);
 		g_acqViewBefore = acqDispatches();
 		BrowserListingAbProbe::beginGridNewTrackEnter(kAcqEnterX, kAcqEnterY);
-		if (std::ssize(currentSong->sessionClips) != g_acqNewTrackClipsBefore) {
+		if (std::ssize(currentSong->live.clips.session_clips) != g_acqNewTrackClipsBefore) {
 			printf("SP-ACQUIRE FAIL the grid ENTER gesture created a clip synchronously; it reads the card\n");
 			g_failures++;
 		}
@@ -2538,7 +2557,8 @@ void runAcquireTick() {
 	}
 	case AcquireStep::SessionNewTrackEnterCheck: {
 		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
-		const int32_t added = static_cast<int32_t>(std::ssize(currentSong->sessionClips)) - g_acqNewTrackClipsBefore;
+		const int32_t added =
+		    static_cast<int32_t>(std::ssize(currentSong->live.clips.session_clips)) - g_acqNewTrackClipsBefore;
 		printf("SP-ACQUIRE session-newtrack-enter dispatches=%d clipsAdded=%d uiMode=%d\n", dispatched, added,
 		       static_cast<int>(currentUIMode));
 		if (dispatched != 1) {
@@ -3566,6 +3586,7 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_corpusRan = 0;
 	g_corpusRendered = 0;
 	g_corpusExpected = 0;
+	g_corpusIsJson = {};
 	g_corpusCountDispatched = false;
 	g_corpusCountFailed = false;
 	g_caseStarted = false;

@@ -17,6 +17,8 @@
 
 #include "modulation/automation/auto_param.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h" // the DOM kernels the engine edit ops forward to
 #include "gui/l10n/l10n.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
@@ -28,20 +30,27 @@
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
+#include "model/edits/param_address_for.h"
 #include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_collection.h"
+#include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
+#include "modulation/params/param_set.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
+#include "util/exceptions.h"
 #include "util/functions.h"
 #include <algorithm>
 #include <cstdint>
 #include <math.h>
+#include <utility>
 
 #define SAMPLES_TO_CLEAR_AFTER_RECORD 8820          // 200ms
 #define SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE 9200 // 200ms + a bit
@@ -52,27 +61,86 @@
 #define UNINTERPOLATED_NODE_CANCELS_OVERRIDING_AFTER_SAMPLES                                                           \
 	6630 // 150ms. Only seems to have an effect for MIDI, which is confusing me...
 
+// AutoParam is a pure interpolation cursor: it holds no node storage. Node data lives in the DOM, resolved per-op via
+// the owner (ModelStackWithAutoParam::doc()). currentValue is the RT cursor.
 AutoParam::AutoParam() {
-	init();
 	currentValue = 0;
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 }
 
-void AutoParam::init() {
-	nodes.init();
-}
-
-void AutoParam::cloneFrom(AutoParam* otherParam, bool copyAutomation) {
-	if (copyAutomation) {
-		nodes.cloneFrom(&otherParam->nodes);
-	}
-	else {
-		nodes.init();
-	}
-	currentValue = otherParam->currentValue;
+AutoParam::AutoParam(AutoParam const& other) : currentValue(other.currentValue) {
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
+}
+
+AutoParam& AutoParam::operator=(AutoParam const& other) {
+	if (this == &other) {
+		return *this;
+	}
+	currentValue = other.currentValue;
+	resetInterpolationIncrement();
+	renewedOverridingAtTime = 0;
+	return *this;
+}
+
+AutoParam::AutoParam(AutoParam&& other) noexcept
+    : currentValue(other.currentValue), valueIncrementPerHalfTick(other.valueIncrementPerHalfTick),
+      value_increment_per_half_tick_float(other.value_increment_per_half_tick_float),
+      interpolation_increment_remainder_float(other.interpolation_increment_remainder_float),
+      renewedOverridingAtTime(other.renewedOverridingAtTime) {
+}
+
+AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
+	if (this == &other) {
+		return *this;
+	}
+	currentValue = other.currentValue;
+	valueIncrementPerHalfTick = other.valueIncrementPerHalfTick;
+	value_increment_per_half_tick_float = other.value_increment_per_half_tick_float;
+	interpolation_increment_remainder_float = other.interpolation_increment_remainder_float;
+	renewedOverridingAtTime = other.renewedOverridingAtTime;
+	return *this;
+}
+
+// The DOM node store is resolved from the owner, by paramId; no engine object holds node storage. Every saved owner
+// (song / audio clip / synth-kit clip-level / per-drum / expression / patch cables / MIDI CC) resolves via a stable
+// `ParamAddress` in the project tree (`Song::resolveParam`); `deluge::edits::addressFor` builds that address from this
+// ModelStack (the owner classification is shared with the Edit substrate). The engine fallback below serves only an
+// unaddressable owner, whose nodes live in the engine collection's own store; it returns the same store the address
+// would. The `paramCollection` pointer is used here only to reach `docParamForId()`; it also serves the collection's
+// polymorphic dispatch across the engine, so node resolution is not decoupled from it.
+deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
+	if (std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*this)) {
+		if (deluge::project::DocAutoParam* resolved = song->project.resolveParam(*address)) {
+			return resolved;
+		}
+	}
+	// The owner isn't tree-resident yet: a runtime-created instrument/drum made after load, with no id yet. Mint
+	// durable ids and relocate its store into the project tree so it id-resolves like a saved owner. After this, every
+	// real owner resolves through the project tree; the paramCollection fallback below is dead for them, surviving
+	// only as a non-bricking net for genuinely unclassifiable owners (e.g. non-Sound drums).
+	if (deluge::project::DocAutoParam* relocated = deluge::edits::relocateAndResolve(*this)) {
+		return relocated;
+	}
+#if ALPHA_OR_BETA_VERSION
+	// Lazy relocation id-addresses every real owner, so this fallback is expected to be dead. Tally each hit
+	// (deluge::edits::docFallbackHits) and log the first (kind = the param collection's kind) so on-device smoke and
+	// the host totality harness can confirm nothing residual reaches it. Not a FREEZE: a genuinely unclassifiable
+	// owner (e.g. a non-Sound drum) may legitimately land here, and bricking on it is unacceptable.
+	// Count as a real fallback only when the collection is on engine-inline storage. A tree-bound MIDI/cable
+	// collection reaching docParamForId is legitimate lazy create-on-demand into the bound tree vector (a cc/cable
+	// not yet mirrored), not an engine fallback, so it does not count against the totality gate.
+	if (!paramCollection->domStoreIsExternal() && deluge::edits::docFallbackHits++ == 0) {
+		D_PRINTLN("doc() engine fallback hit (kind=%d) — an owner is not id-addressed",
+		          static_cast<int32_t>(paramCollection->getParamKind()));
+	}
+#endif
+	return paramCollection->docParamForId(paramId);
+}
+
+void AutoParam::init(deluge::project::DocAutoParam& doc) {
+	doc.nodes.init();
 }
 
 void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
@@ -88,7 +156,8 @@ void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
 void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t value) {
 	int32_t oldValue = currentValue;
 	currentValue = value;
-	bool automatedNow = isAutomated();
+	modelStack->doc()->current_value = value; // value authority: sync the owner's DOM store scalar
+	bool automatedNow = isAutomated(*modelStack->doc());
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
 }
 
@@ -101,8 +170,10 @@ void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoPara
 void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
                                                      bool shouldLogAction, int32_t livePos,
                                                      bool mayDeleteNodesInLinearRun, bool doMPEMode) {
+	// Resolve the DOM node store via the ModelStack.
+	auto& nodesRef = modelStack->doc()->nodes;
 	int32_t oldValue = currentValue;
-	bool automatedBefore = isAutomated();
+	bool automatedBefore = isAutomated(*modelStack->doc());
 	bool automationChanged = false;
 	resetInterpolationIncrement();
 
@@ -119,7 +190,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 			// If in record mode and shift button held down, delete automation
 			if (Buttons::isShiftButtonPressed()) {
 
-				if (isAutomated()) {
+				if (isAutomated(*modelStack->doc())) {
 					Action* action =
 					    actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 					deleteAutomation(action, modelStack);
@@ -162,14 +233,13 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 			// maybe even insert a note to interpolate from.
 			bool shouldInterpolateRegionStart = false;
 
-			if (!reversed
-			    && std::ssize(nodes)) { // Yeah turns out we just don't need the result from this if we're
-				                        // reversed. RIP the work I put into making this code reverse-compatible.
+			if (!reversed && std::ssize(nodesRef)) { // Yeah turns out we just don't need the result from this if we're
+				// reversed. RIP the work I put into making this code reverse-compatible.
 				// The old GREATER_OR_EQUAL/LESS comparison arg was literally an offset added to the lower bound
-				int32_t prevNodeI = nodes.firstAtOrAfter(livePos + (int32_t)reversed) - (reversed ? 0 : 1);
-				if (prevNodeI >= 0 && prevNodeI < std::ssize(nodes)) { // If there was a Node before livePos...
+				int32_t prevNodeI = nodesRef.firstAtOrAfter(livePos + (int32_t)reversed) - (reversed ? 0 : 1);
+				if (prevNodeI >= 0 && prevNodeI < std::ssize(nodesRef)) { // If there was a Node before livePos...
 investigatePrevNode:
-					ParamNode* prevNode = (ParamNode*)&nodes[prevNodeI];
+					ParamNode* prevNode = (ParamNode*)&nodesRef[prevNodeI];
 					int32_t ticksAgo = livePos - prevNode->pos;
 					if (reversed) {
 						ticksAgo = -ticksAgo;
@@ -189,61 +259,33 @@ investigatePrevNode:
 					// If livePos was close enough to 0 that we need to look at wrapped Nodes back around on the
 					// right...
 					if (timeSinceLoopPoint * timePerInternalTick < TIME_TO_INTERPOLATE_WITHIN) {
-						prevNodeI = reversed ? 0 : (std::ssize(nodes) - 1);
+						prevNodeI = reversed ? 0 : (std::ssize(nodesRef) - 1);
 						goto investigatePrevNode;
 					}
 				}
 			}
 
-			int32_t leftI;
-
-			// Special case (though I feel like this could maybe be used more...)
-			// - recording MPE (not mono expression) *linearly*. Just insert one node, and that can change the value
-			// everywhere from here to the next node - we don't need to preserve the "original" value in any part of
-			// that region because it's going to get overridden any time another note is inserted into it, anyway. And
-			// we want our value to last as long as possible, for the note's release-tail.
-			// might as well do this for when the ticks are longer than 0.2s too
-			if (doMPEMode || ticksToClear == 0) {
-				leftI = setNodeAtPos(livePos, value, reversed || shouldInterpolateRegionStart);
-				if (leftI == -1) {
-					goto getOut;
-				}
+			// Forward the recording node write to the recordLiveValue DOM kernel, which captures exactly this
+			// branch's node mutation (setNodeAtPos for the MPE / zero-clear shortcut, else homogenizeRegion plus the
+			// reversed further-right-node fixup, then current_value=value). interpolateLeft is the engine's
+			// already-decided `reversed || shouldInterpolateRegionStart`. recordingLinearly is only consulted deep
+			// in homogenizeRegion's forward-wrap branch (Clip-recording context), so guard the Clip cast against a
+			// Song timeline (as AutoParam::homogenizeRegion does). The DOM container's inserts are infallible, so
+			// the kernel never returns -1.
+			bool shouldInterpolateLeft = reversed || shouldInterpolateRegionStart;
+			bool recordingLinearly = false;
+			if (TimelineCounter* tc = modelStack->getTimelineCounterAllowNull();
+			    tc && tc != static_cast<TimelineCounter*>(modelStack->song)) {
+				recordingLinearly = static_cast<Clip*>(tc)->getCurrentlyRecordingLinearly();
 			}
-
-			// Or, normal case.
-			else {
-
-				bool shouldInterpolateLeft = reversed || shouldInterpolateRegionStart;
-
-#if ENABLE_SEQUENTIALITY_TESTS
-				// drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from.
-				// March 2022.
-				nodes.testSequentiality("E435");
-#endif
-
-				leftI = homogenizeRegion(modelStack, livePos, ticksToClear, value, shouldInterpolateLeft, true,
-				                         effectiveLength, reversed, posAtWhichPlaybackWillCut);
-				if (leftI == -1) {
-					goto getOut;
-				}
-
-				if (reversed) {
-					int32_t iFurtherRight = leftI + 2;
-					if (iFurtherRight >= std::ssize(nodes)) {
-						iFurtherRight -= std::ssize(nodes);
-					}
-					if (iFurtherRight >= std::ssize(nodes)) {
-						iFurtherRight -= std::ssize(nodes);
-					}
-					ParamNode* nodeFurtherRight = &nodes[iFurtherRight];
-					nodeFurtherRight->interpolated = true; // Imperfect, but sorta have to.
-				}
-			}
+			int32_t leftI = deluge::project::recordLiveValue(*modelStack->doc(), livePos, value, ticksToClear,
+			                                                 doMPEMode, shouldInterpolateLeft, effectiveLength,
+			                                                 reversed, recordingLinearly, posAtWhichPlaybackWillCut);
 
 			// Now that we've definitely left any previous nodes alone, see if they form a linear run and we can delete
 			// some of them? We'll just not bother with this if reversed, for now... or ever...
 			if (mayDeleteNodesInLinearRun && !reversed
-			    && modelStack->paramCollection->mayParamInterpolate(modelStack->paramId) && std::ssize(nodes) >= 3) {
+			    && modelStack->paramCollection->mayParamInterpolate(modelStack->paramId) && std::ssize(nodesRef) >= 3) {
 				bool backtrackingCouldLoopBackToEnd =
 				    modelStack->getTimelineCounter()
 				        ->backtrackingCouldLoopBackToEnd(); // Wait, I can no longer see why this matters...
@@ -252,15 +294,16 @@ investigatePrevNode:
 					if (!backtrackingCouldLoopBackToEnd) {
 						goto skipThat;
 					}
-					prevI = std::ssize(nodes) - 1;
+					prevI = std::ssize(nodesRef) - 1;
 				}
-				deleteRedundantNodeInLinearRun(prevI, effectiveLength, backtrackingCouldLoopBackToEnd);
+				deleteRedundantNodeInLinearRun(*modelStack->doc(), prevI, effectiveLength,
+				                               backtrackingCouldLoopBackToEnd);
 
 skipThat: {}
 			}
 
 #if ENABLE_SEQUENTIALITY_TESTS
-			nodes.testSequentiality("ffff");
+			nodesRef.testSequentiality("ffff");
 #endif
 
 			if (!doMPEMode) {
@@ -269,8 +312,8 @@ skipThat: {}
 			automationChanged = true;
 
 #if ALPHA_OR_BETA_VERSION
-			if (!nodes.empty()) {
-				ParamNode* rightmostNode = &nodes[std::ssize(nodes) - 1];
+			if (!nodesRef.empty()) {
+				ParamNode* rightmostNode = &nodesRef[std::ssize(nodesRef) - 1];
 				if (rightmostNode->pos >= effectiveLength) {
 					FREEZE_WITH_ERROR("llll");
 				}
@@ -280,7 +323,7 @@ skipThat: {}
 
 		// Or if not recording...
 		else {
-			if (!nodes.empty()) {
+			if (!nodesRef.empty()) {
 				renewedOverridingAtTime = AudioEngine::audioSampleTimer;
 				if (renewedOverridingAtTime <= 1) {
 					renewedOverridingAtTime = 0xFFFFFFFF;
@@ -289,8 +332,14 @@ skipThat: {}
 		}
 	}
 
+	// Needed for recorded input. Every UI-gesture producer of this log is a deluge::edits::SetParamValue Edit whose
+	// idempotent pre-log records the consequence; this call then dedupes to a no-op for them
+	// (Action::containsConsequenceParamChange). The one remaining live producer is drum-MPE recorded input
+	// (drum.cpp's recording guard is commented out, so note_row.cpp's recordPolyphonicExpressionEvent live-play
+	// branch reaches here when stopped).
+	//
 	// If still unautomated (or not currently playing), record value change
-	if (nodes.empty() || !isPlaying) {
+	if (nodesRef.empty() || !isPlaying) {
 		if (value != currentValue) {
 			actionLogger.recordUnautomatedParamChange(modelStack);
 		}
@@ -298,19 +347,62 @@ skipThat: {}
 
 getOut:
 	currentValue = value;
-	bool automatedNow = isAutomated();
+	// Value authority: keep the owner's DOM store scalar in sync with this user edit, so save can read the store
+	// (doc() resolves the tree store when bound, the engine-inline fallback otherwise).
+	modelStack->doc()->current_value = value;
+	bool automatedNow = isAutomated(*modelStack->doc());
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          automatedNow);
 }
 
-bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
-                                               bool mayLoopAroundBackToEnd) {
+void AutoParam::projectScalarFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool isPlaying) {
+	// The store's current_value was already written model-first (ParamSnapshot::applyPatch); this derives the
+	// engine's RT state from it, reproducing setCurrentValueInResponseToUserInput's non-recording scalar tail. A
+	// scalar patch never touches nodes, so isAutomated is invariant across the write (automatedBefore ==
+	// automatedNow) and the notify's automationChanged is false, matching the getOut: tail.
+	auto& nodesRef = modelStack->doc()->nodes;
+	resetInterpolationIncrement();
+	// The playing-non-recording latch (the else-branch of the recording check): held until we hit some nodes.
+	if (isPlaying && !nodesRef.empty()) {
+		renewedOverridingAtTime = AudioEngine::audioSampleTimer;
+		if (renewedOverridingAtTime <= 1) {
+			renewedOverridingAtTime = 0xFFFFFFFF;
+		}
+	}
+	currentValue = modelStack->doc()->current_value;
+	bool automatedNow = isAutomated(*modelStack->doc());
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
+}
 
-	if (std::ssize(nodes) < 3) {
+void AutoParam::projectRegionFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
+                                       bool automatedBefore, deluge::project::RegionWriteResult result) {
+	// The store (nodes + current_value) was already written model-first (ParamSnapshot::applyPatch's region
+	// kernel). Reproduce setValueForRegion's post-mutation tail from the branch
+	// the kernel took (result.currentValueEffect). currentValue = doc->current_value is uniform: the value-taking
+	// branches wrote the new value into the store; NotifyOnly left it unchanged.
+	using deluge::project::RegionCurrentValueEffect;
+	if (result.currentValueEffect == RegionCurrentValueEffect::SetAndResetInterp) {
+		// clock-active, playhead inside the edited region: the engine resets the interpolation cursor here.
+		resetInterpolationIncrement();
+	}
+	else if (result.currentValueEffect == RegionCurrentValueEffect::NotifyOnly) {
+		// clock-active, playhead outside: the engine leaves current_value alone and notifies the UI of automation.
+		view.notifyParamAutomationOccurred(modelStack->paramManager);
+	}
+	currentValue = modelStack->doc()->current_value;
+	bool automatedNow = isAutomated(*modelStack->doc());
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, result.automationChanged,
+	                                                          automatedBefore, automatedNow);
+}
+
+bool AutoParam::deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,
+                                               int32_t effectiveLength, bool mayLoopAroundBackToEnd) {
+
+	if (std::ssize(doc.nodes) < 3) {
 		return false;
 	}
 
-	ParamNode* lastNodeInRun = &nodes[lastNodeInRunI];
+	ParamNode* lastNodeInRun = &doc.nodes[lastNodeInRunI];
 
 	// But first, now that we've moved on from prevNode, see if prevNode concluded a linear run of nodes for which we
 	// can now delete the middle node
@@ -319,9 +411,9 @@ bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t e
 		if (!mayLoopAroundBackToEnd) {
 			return false;
 		}
-		middleNodeInRunI = std::ssize(nodes) - 1;
+		middleNodeInRunI = std::ssize(doc.nodes) - 1;
 	}
-	ParamNode* middleNodeInRun = &nodes[middleNodeInRunI];
+	ParamNode* middleNodeInRun = &doc.nodes[middleNodeInRunI];
 
 	if (lastNodeInRun->interpolated || !middleNodeInRun->interpolated) {
 
@@ -330,14 +422,14 @@ bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t e
 			if (!mayLoopAroundBackToEnd) {
 				return false;
 			}
-			firstNodeInRunI = std::ssize(nodes) - 1;
+			firstNodeInRunI = std::ssize(doc.nodes) - 1;
 		}
-		ParamNode* firstNodeInRun = &nodes[firstNodeInRunI];
+		ParamNode* firstNodeInRun = &doc.nodes[firstNodeInRunI];
 
 		if (middleNodeInRun->value == firstNodeInRun->value
 		    && (middleNodeInRun->value == lastNodeInRun->value || !middleNodeInRun->interpolated)) {
 removeMiddleNodeInRun:
-			nodes.erase(nodes.begin() + middleNodeInRunI);
+			doc.nodes.erase(doc.nodes.begin() + middleNodeInRunI);
 			return true;
 		}
 
@@ -370,15 +462,17 @@ removeMiddleNodeInRun:
 
 // action is optional. If you don't supply it, consequences won't be recorded
 void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify) {
+	// Resolve the DOM node store via the ModelStack.
+	auto& nodesRef = modelStack->doc()->nodes;
 
-	bool wasAutomated = isAutomated();
+	bool wasAutomated = isAutomated(*modelStack->doc());
 
 	if (action) {
 		action->recordParamChangeIfNotAlreadySnapshotted(modelStack, true);
 	}
 
 	else {
-		nodes.clear();
+		nodesRef.clear();
 	}
 
 	resetInterpolationIncrement();
@@ -391,8 +485,8 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 
 // Beware. As this will do no notifying, the caller must ensure that any required notification is done.
 // I.e. a ParamSet must be notified if automation is deleted.
-void AutoParam::deleteAutomationBasicForSetup() {
-	nodes.clear();
+void AutoParam::deleteAutomationBasicForSetup(deluge::project::DocAutoParam& doc) {
+	doc.nodes.clear();
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 }
@@ -401,9 +495,11 @@ void AutoParam::deleteAutomationBasicForSetup() {
 
 int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,
                                      bool mayInterpolate, bool mustUpdateValueAtEveryNode) {
+	// Resolve the DOM node store via the ModelStack.
+	auto& nodesRef = modelStack->doc()->nodes;
 
 	// If no automation...
-	if (nodes.empty()) {
+	if (nodesRef.empty()) {
 		return 2147483647;
 	}
 
@@ -414,15 +510,15 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 	// The search "direction" is an offset on the lower-bound index: -1 when reversed (the old LESS), else 0
 	int32_t searchDirection = -(int32_t)reversed;
 	int32_t searchPos = currentPos + (int32_t)reversed;
-	int32_t iJustReached = nodes.firstAtOrAfter(searchPos) + searchDirection;
+	int32_t iJustReached = nodesRef.firstAtOrAfter(searchPos) + searchDirection;
 	if (iJustReached < 0) {
-		iJustReached += std::ssize(nodes);
+		iJustReached += std::ssize(nodesRef);
 	}
-	else if (iJustReached >= std::ssize(nodes)) {
+	else if (iJustReached >= std::ssize(nodesRef)) {
 		iJustReached = 0;
 	}
 
-	ParamNode* nodeJustReached = &nodes[iJustReached];
+	ParamNode* nodeJustReached = &nodesRef[iJustReached];
 	int32_t howFarUntilThisNode = nodeJustReached->pos - currentPos;
 
 	// If we haven't reached the next node yet...
@@ -458,7 +554,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 
 	// Now start thinking about the *next* node, which we'll get to in a while
 	int32_t iRight = iJustReached + 1;
-	if (iRight >= std::ssize(nodes)) {
+	if (iRight >= std::ssize(nodesRef)) {
 		iRight = 0;
 	}
 
@@ -467,9 +563,9 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 	if (reversed) {
 		int32_t iLeft = iJustReached - 1;
 		if (iLeft < 0) {
-			iLeft += std::ssize(nodes);
+			iLeft += std::ssize(nodesRef);
 		}
-		ParamNode* nodeToLeft = &nodes[iLeft];
+		ParamNode* nodeToLeft = &nodesRef[iLeft];
 
 		if (!noNeedToJumpToValue) {
 			valueJustReached = nodeToLeft->value; // At the time of this condition, weInterpolatedHere still means the
@@ -482,7 +578,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 		nextNodeInOurDirection = nodeToLeft;
 	}
 	else {
-		ParamNode* nodeToRight = &nodes[iRight];
+		ParamNode* nodeToRight = &nodesRef[iRight];
 		nextNodeInOurDirection = nodeToRight;
 	}
 
@@ -594,7 +690,7 @@ recordOverNodeJustReached:
 					    && modelStack->getTimelineCounter() == modelStack->song) {
 
 						// If there's already a node at 0, we don't need to do anything
-						if (nodes.firstAtOrAfter(1) - 1 >= 0) {
+						if (nodesRef.firstAtOrAfter(1) - 1 >= 0) {
 							insertingNodeAtEndOfClearing = false; // Set this to false, but that doesn't mean we want to
 							                                      // do the "else" condition below, so skip past it
 							goto adjustNodeJustReached;
@@ -685,15 +781,16 @@ adjustNodeJustReached:
 				// Having changed that node's value, there's a chance it may have made the node before it redundant
 				if (!reversed) {
 					needToReGetNextNode = deleteRedundantNodeInLinearRun(
-					    iJustReached, effectiveLength); // Shouldn't I make it so this doesn't get called for MPE?
+					    *modelStack->doc(), iJustReached,
+					    effectiveLength); // Shouldn't I make it so this doesn't get called for MPE?
 				}
 
 				if (insertingNodeAtEndOfClearing) {
-					int32_t iNew = nodes.insertSorted(posOverridingEnds)
+					int32_t iNew = nodesRef.insertSorted(posOverridingEnds)
 					                   .value_or(-1); // Can only do this now, after updating nodeJustReached, above
 					if (iNew != -1) {
 						iRight = iNew;
-						nextNodeInOurDirection = &nodes[iRight];
+						nextNodeInOurDirection = &nodesRef[iRight];
 						nextNodeInOurDirection->value = valueOverridingEnds;
 						nextNodeInOurDirection->interpolated = newNodeShouldBeInterpolated;
 
@@ -702,7 +799,7 @@ adjustNodeJustReached:
 						*/
 						if (!reversed) {
 							needToReGetNextNode = deleteRedundantNodeInLinearRun(
-							    iRight,
+							    *modelStack->doc(), iRight,
 							    effectiveLength); // If returns false, storage wasn't changed, and we've got the next
 							                      // node right here! Shouldn't I make it so this doesn't get called for
 							                      // MPE?
@@ -713,15 +810,15 @@ adjustNodeJustReached:
 				// Figure out what's the next node, again - because we just possibly deleted a node, and that's possibly
 				// changed the storage
 				if (needToReGetNextNode) { // Not doing this if reversed.
-					iRight = nodes.firstAtOrAfter(currentPos + 1);
-					if (iRight == std::ssize(nodes)) {
+					iRight = nodesRef.firstAtOrAfter(currentPos + 1);
+					if (iRight == std::ssize(nodesRef)) {
 						iRight = 0;
 					}
-					nextNodeInOurDirection = &nodes[iRight];
+					nextNodeInOurDirection = &nodesRef[iRight];
 				}
 
 #if ENABLE_SEQUENTIALITY_TESTS
-				nodes.testSequentiality("eeee");
+				nodesRef.testSequentiality("eeee");
 #endif
 			}
 		}
@@ -737,7 +834,7 @@ adjustNodeJustReached:
 		// The call to notifyParamModifiedInSomeWay() below normally has the ability to delete this AutoParam, which we
 		// want it not to. It won't if we still contain automation, which I think we have to... Let's just verify that.
 #if ALPHA_OR_BETA_VERSION
-		if (!isAutomated()) {
+		if (!isAutomated(*modelStack->doc())) {
 			FREEZE_WITH_ERROR("E372");
 		}
 #endif
@@ -762,11 +859,11 @@ getOut:
 	// Ok, no node should be at or past the effectiveLength. Sometimes somehow this is still happening - see
 	// https://forums.synthstrom.com/discussion/4499/v4-0-0-beta8-freeze-while-recording-long-mpe-clips-jjjj I'm so
 	// sorry, but I'm going to just make it manually fix itself, here.
-	if (!nodes.empty()) {
-		int32_t i = std::ssize(nodes) - 1;
-		ParamNode* rightmostNode = &nodes[i];
+	if (!nodesRef.empty()) {
+		int32_t i = std::ssize(nodesRef) - 1;
+		ParamNode* rightmostNode = &nodesRef[i];
 		if (rightmostNode->pos >= effectiveLength) {
-			nodes.erase(nodes.begin() + i);
+			nodesRef.erase(nodesRef.begin() + i);
 			// FREEZE_WITH_ERROR("jjjj"); // drbourbon got! And Quixotic7, on V4.0.0-beta8.
 		}
 	}
@@ -1002,98 +1099,44 @@ void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam
 // For MPE when a note gets deleted, and we want to just simply delete nodes and let previous ones' value spill into
 // this area.
 void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length) {
-	if (!isAutomated()) {
+	// The wiring (Action, whole-loop deleteAutomation, notify) stays here; only the partial region erase is
+	// forwarded to the DOM kernel (with a value sync, since it may zero current_value when nothing remains).
+	if (!isAutomated(*modelStack->doc())) {
 		return;
 	}
-
 	int32_t oldValue = currentValue;
-
 	int32_t effectiveLength = modelStack->getLoopLength();
-
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-
 	if (length >= effectiveLength) {
-		deleteAutomation(action, modelStack);
+		deleteAutomation(action, modelStack); // whole loop — keep the engine's own snapshot/notify path
 	}
 	else {
-
 		if (action) {
 			action->recordParamChangeIfNotAlreadySnapshotted(modelStack, false);
 		}
-
-		bool wrapping;
-		int32_t resultingIndexes[2];
-
-		{
-			int32_t searchTerms[2];
-			searchTerms[0] = pos;
-			searchTerms[1] = pos + length;
-			wrapping = (searchTerms[1] >= effectiveLength);
-			if (wrapping) {
-				searchTerms[0] = searchTerms[1] - effectiveLength;
-				searchTerms[1] = pos;
-			}
-
-			nodes.searchDual(searchTerms, resultingIndexes);
-		}
-
-		if (wrapping) {
-			if (resultingIndexes[0]) {
-				nodes.erase(nodes.begin() + 0, nodes.begin() + 0 + resultingIndexes[0]);
-			}
-			int32_t numAtEnd = std::ssize(nodes) - resultingIndexes[1];
-			if (numAtEnd) {
-				nodes.erase(nodes.begin() + resultingIndexes[1], nodes.begin() + resultingIndexes[1] + numAtEnd);
-			}
-		}
-
-		else {
-			int32_t numToDelete = resultingIndexes[1] - resultingIndexes[0];
-			if (numToDelete) {
-				nodes.erase(nodes.begin() + resultingIndexes[0], nodes.begin() + resultingIndexes[0] + numToDelete);
-			}
-		}
-
-		if (!isAutomated()) {
-			currentValue = 0; // For safety, with MPE. Actually very necessary.
-		}
+		deluge::project::DocAutoParam* doc = modelStack->doc();
+		doc->current_value = currentValue;
+		deluge::project::deleteNodesWithinRegion(*doc, pos, length, effectiveLength);
+		currentValue = doc->current_value;
 	}
-
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, true, true, isAutomated());
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, true, true,
+	                                                          isAutomated(*modelStack->doc()));
 }
 
-int32_t AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate) {
-	int32_t i = nodes.firstAtOrAfter(pos);
-	ParamNode* ourNode;
-
-	// Check there's not already a node there
-	if (i < std::ssize(nodes)) {
-		ourNode = &nodes[i];
-		if (ourNode->pos == pos) {
-			goto setupNode;
-		}
-	}
-
-	{
-		Error error = nodes.insertAt(i).error_or(Error::NONE);
-		if (error != Error::NONE) {
-			return -1;
-		}
-	}
-	ourNode = &nodes[i];
-	ourNode->pos = pos;
-setupNode:
-	ourNode->value = value;
-	ourNode->interpolated = shouldInterpolate;
-
-	return i;
+int32_t AutoParam::setNodeAtPos(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value,
+                                bool shouldInterpolate) {
+	// Forward the node mutation to the DOM kernel. The kernel is infallible on this container (index-based insert),
+	// so it never returns -1.
+	return deluge::project::setNodeAtPos(doc, pos, value, shouldInterpolate);
 }
 
 void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
                                   ModelStackWithAutoParam const* modelStack, ActionType actionType) {
+	// Resolve the DOM node store via the ModelStack.
+	auto& nodesRef = modelStack->doc()->nodes;
 
 	int32_t oldValue = currentValue;
-	bool automatedBefore = isAutomated();
+	bool automatedBefore = isAutomated(*modelStack->doc());
 	bool automationChanged = false;
 
 	int32_t firstI, mostRecentI;
@@ -1115,7 +1158,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 
 	// First, special case if our region covers the whole NoteRow / Clip / TimelineCounter
 	if (length == effectiveLength) {
-		if (isAutomated()) {
+		if (isAutomated(*modelStack->doc())) {
 			deleteAutomation(action, modelStack);
 		}
 		else {
@@ -1124,6 +1167,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 			}
 		}
 		currentValue = value;
+		modelStack->doc()->current_value = value; // value authority: sync the owner's DOM store scalar
 	}
 
 	// Or, normal case
@@ -1132,7 +1176,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 #if ENABLE_SEQUENTIALITY_TESTS
 		// drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from.
 		// March 2022. Sven got, oddly while editing note velocity. Then again by "Adding some snares while playing".
-		nodes.testSequentiality("E441");
+		nodesRef.testSequentiality("E441");
 #endif
 
 		// automation interpolation
@@ -1158,14 +1202,15 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		}
 
 		// If we're in the region right now...
-		mostRecentI = nodes.firstAtOrAfter(modelStack->getLivePos() + !modelStack->isCurrentlyPlayingReversed()) - 1;
+		mostRecentI = nodesRef.firstAtOrAfter(modelStack->getLivePos() + !modelStack->isCurrentlyPlayingReversed()) - 1;
 		if (mostRecentI == -1) {
-			mostRecentI = std::ssize(nodes) - 1;
+			mostRecentI = std::ssize(nodesRef) - 1;
 		}
 		if (mostRecentI == firstI) {
 			resetInterpolationIncrement();
 yesChangeCurrentValue:
 			currentValue = value;
+			modelStack->doc()->current_value = value; // value authority: sync the owner's DOM store scalar
 		}
 		else {
 			view.notifyParamAutomationOccurred(modelStack->paramManager);
@@ -1173,7 +1218,7 @@ yesChangeCurrentValue:
 	}
 
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
-	                                                          isAutomated());
+	                                                          isAutomated(*modelStack->doc()));
 }
 
 #define REGION_EDGE_LEFT 0
@@ -1183,274 +1228,20 @@ yesChangeCurrentValue:
 int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int32_t length,
                                     int32_t startValue, bool interpolateLeftNode, bool interpolateRightNode,
                                     int32_t effectiveLength, bool reversed, int32_t posAtWhichClipWillCut) {
-
-#if ALPHA_OR_BETA_VERSION
-	// Chasing "E433" / "GGGG" error (probably now largely solved - except got E435, see below).
-	if (length <= 0) {
-		FREEZE_WITH_ERROR("E427");
+	// Forward to the DOM kernel. recordingLinearly is read by casting the timeline counter to a Clip, but only inside
+	// the forward-wrap-no-cut branch, where the counter is a real Clip (recording context).
+	// getCurrentlyRecordingLinearly() is pure-virtual on Clip only; the Song (arrangement) as timeline counter is not
+	// a Clip, so the cast must be guarded: the song-as-timeline case never reaches that branch (its effectiveLength
+	// is 2147483647, so anyWrap is false and the flag goes unused), so false is correct there. Guard on `tc != song`
+	// (the codebase's own song-as-timeline test) to avoid an invalid Song->Clip cast and out-of-bounds read.
+	bool recordingLinearly = false;
+	TimelineCounter* tc = modelStack->getTimelineCounterAllowNull();
+	if (tc && tc != static_cast<TimelineCounter*>(modelStack->song)) {
+		recordingLinearly = static_cast<Clip*>(tc)->getCurrentlyRecordingLinearly();
 	}
-	if (startPos < 0) {
-		FREEZE_WITH_ERROR("E437");
-	}
-
-	// #if ENABLE_SEQUENTIALITY_TESTS
-	//	// nodes.testSequentiality("E435"); // drbourbon got! March 2022. Now moved check to each caller.
-	// #endif
-
-	if (std::ssize(nodes) && nodes.tryGet(0)->pos < 0) {
-		FREEZE_WITH_ERROR("E436");
-	}
-	// Should probably also check that stuff doesn't exist too far right - but that's a bit more complicated.
-#endif
-
-	int32_t edgePositions[2];
-	bool anyWrap;
-
-	// Playing forwards...
-	if (!reversed) {
-		edgePositions[REGION_EDGE_LEFT] = startPos;
-
-		// First, limit the length if we're coming up to a cut-point.
-		int32_t maxLength = posAtWhichClipWillCut - edgePositions[REGION_EDGE_LEFT];
-		if (length >= maxLength) {
-			length = maxLength;
-#if ALPHA_OR_BETA_VERSION
-			if (length <= 0) {
-				FREEZE_WITH_ERROR("E428"); // Chasing Leo's GGGG error (probably now solved).
-			}
-#endif
-			interpolateRightNode = false;
-			edgePositions[REGION_EDGE_RIGHT] = posAtWhichClipWillCut;
-			anyWrap = (edgePositions[REGION_EDGE_RIGHT] >= effectiveLength);
-			if (anyWrap) {
-				edgePositions[REGION_EDGE_RIGHT] =
-				    0; // Gotta wrap it - we're not allowed a node right at e.g. the Clip length point.
-			}
-		}
-
-		// Or if we didn't do that, there could be a loop-point, which we treat almost the same - except we don't let it
-		// limit our region length - we just wrap our region end around.
-		else {
-			edgePositions[REGION_EDGE_RIGHT] = edgePositions[REGION_EDGE_LEFT] + length;
-			anyWrap = (edgePositions[REGION_EDGE_RIGHT] >= effectiveLength);
-			if (anyWrap) {
-				// But wait - if we're linearly recording, then it's not so much a "loop" point, because the Clip will
-				// extend. So ensure we don't wrap back to the start, past the current loopLength.
-				if (((Clip*)modelStack->getTimelineCounter())->getCurrentlyRecordingLinearly()) {
-					length = effectiveLength - edgePositions[REGION_EDGE_LEFT];
-					edgePositions[REGION_EDGE_RIGHT] = 0;
-				}
-				else {
-					edgePositions[REGION_EDGE_RIGHT] -= effectiveLength;
-				}
-			}
-		}
-	}
-
-	// Or, playing reversed...
-	else {
-		if constexpr (ALPHA_OR_BETA_VERSION) {
-			if (startPos < posAtWhichClipWillCut) {
-				// Sean: potentially solved by PR https://github.com/SynthstromAudible/DelugeFirmware/pull/4445
-				FREEZE_WITH_ERROR("E445");
-			}
-		}
-		edgePositions[REGION_EDGE_RIGHT] = startPos;
-		edgePositions[REGION_EDGE_LEFT] = edgePositions[REGION_EDGE_RIGHT] - length;
-
-		// First, limit the length if we're coming up to a cut-point.
-		if (edgePositions[REGION_EDGE_LEFT] < posAtWhichClipWillCut) {
-			edgePositions[REGION_EDGE_LEFT] = posAtWhichClipWillCut;
-			length = edgePositions[REGION_EDGE_RIGHT] - edgePositions[REGION_EDGE_LEFT];
-			if constexpr (ALPHA_OR_BETA_VERSION) {
-				if (edgePositions[REGION_EDGE_LEFT] >= edgePositions[REGION_EDGE_RIGHT]) {
-					FREEZE_WITH_ERROR("HHHH");
-				}
-			}
-
-			interpolateLeftNode = false; // Maybe not really perfect
-			anyWrap = false;
-		}
-
-		// Or if we didn't do that, there could be a loop-point, which we treat almost the same - except we don't let it
-		// limit our region length - we just wrap our region end around.
-		else {
-			anyWrap = (edgePositions[REGION_EDGE_LEFT] < 0);
-			if (anyWrap) {
-				edgePositions[REGION_EDGE_LEFT] += effectiveLength;
-			}
-		}
-	}
-
-	if (anyWrap) { // Temporarily swap edge positions
-		int32_t temp = edgePositions[0];
-		edgePositions[0] = edgePositions[1];
-		edgePositions[1] = temp;
-	}
-
-	int32_t edgeIndexes[2];
-	nodes.searchDual(edgePositions, edgeIndexes);
-
-	if (anyWrap) { // Swap edge positions and indexes back
-		int32_t temp = edgeIndexes[0];
-		edgeIndexes[0] = edgeIndexes[1];
-		edgeIndexes[1] = temp;
-
-		temp = edgePositions[0];
-		edgePositions[0] = edgePositions[1];
-		edgePositions[1] = temp;
-	}
-	// Ok, edgeIndexes and edgePositions are now ordered so as to be accessible with REGION_EDGE_LEFT (0) and
-	// REGION_EDGE_RIGHT (1)
-
-	ParamNode* edgeNodes[2];
-	edgeNodes[REGION_EDGE_LEFT] = nullptr;
-	edgeNodes[REGION_EDGE_RIGHT] = nullptr;
-
-	for (int32_t i = 0; i < 2; i++) {
-		if (edgeIndexes[i] < std::ssize(nodes)) {
-			ParamNode* potentialEdgeNode = &nodes[edgeIndexes[i]];
-			if (potentialEdgeNode->pos == edgePositions[i]) {
-				edgeNodes[i] = potentialEdgeNode;
-			}
-		}
-	}
-
-	int32_t valueAtLateEdge;
-	if (edgeNodes[!reversed]) {
-		if (reversed && !edgeNodes[!reversed]->interpolated) {
-			goto getValueNormalWay; // If reversed, and the node isn't interpolated, we'd actually need the value of the
-			                        // further-left node.
-		}
-
-		valueAtLateEdge = edgeNodes[!reversed]->value;
-	}
-	else {
-getValueNormalWay:
-		valueAtLateEdge = getValueAtPos(edgePositions[!reversed], modelStack, reversed);
-	}
-
-	// Sort out rightmost node
-	if (!edgeNodes[REGION_EDGE_RIGHT]) { // If we don't have a rightmost node yet...
-
-		// If there's a further-left node we can just grab and repurpose...
-		if (edgeIndexes[REGION_EDGE_RIGHT]
-		    && (anyWrap || edgeIndexes[REGION_EDGE_RIGHT] > edgeIndexes[REGION_EDGE_LEFT] + 1)) {
-
-			edgeIndexes[REGION_EDGE_RIGHT]--;
-		}
-
-		// Otherwise, insert one
-		else {
-			Error error = nodes.insertAt(edgeIndexes[REGION_EDGE_RIGHT]).error_or(Error::NONE);
-			if (error != Error::NONE) {
-				return -1;
-			}
-			edgeIndexes[REGION_EDGE_LEFT] += (int32_t)anyWrap;
-			// Note: a pre-existing left edgeNode pointer captured above may now dangle if this insert relocated the
-			// backing store. We re-fetch it unconditionally before writing it, below.
-		}
-
-		edgeNodes[REGION_EDGE_RIGHT] = &nodes[edgeIndexes[REGION_EDGE_RIGHT]];
-		edgeNodes[REGION_EDGE_RIGHT]->pos = edgePositions[REGION_EDGE_RIGHT];
-	}
-	edgeNodes[REGION_EDGE_RIGHT]->value = reversed ? startValue : valueAtLateEdge;
-	edgeNodes[REGION_EDGE_RIGHT]->interpolated = interpolateRightNode;
-
-	// And sort out leftmost node
-	if (!edgeNodes[REGION_EDGE_LEFT]) { // If we don't have a leftmost node yet...
-
-		// If there's a further-right node we can just grab and repurpose...
-		if (edgeIndexes[REGION_EDGE_RIGHT] != edgeIndexes[REGION_EDGE_LEFT]
-		    && edgeIndexes[REGION_EDGE_LEFT] < std::ssize(nodes)) {
-			// Cool, we can just update the "pos" of that node.
-		}
-
-		// Otherwise, insert one
-		else {
-			Error error = nodes.insertAt(edgeIndexes[REGION_EDGE_LEFT]).error_or(Error::NONE);
-			if (error != Error::NONE) {
-				return -1;
-			}
-			edgeIndexes[REGION_EDGE_RIGHT] += (int32_t)(!anyWrap);
-			// Theoretically we'd re-get the other edgeNode here - but in fact, if it already existed, we won't access
-			// it again anyway.
-		}
-
-		edgeNodes[REGION_EDGE_LEFT] = &nodes[edgeIndexes[REGION_EDGE_LEFT]];
-		edgeNodes[REGION_EDGE_LEFT]->pos = edgePositions[REGION_EDGE_LEFT];
-	}
-	// Re-fetch unconditionally: if the left node pre-existed, the above block was skipped, but the right-edge
-	// insertAtIndex may have relocated the backing store - which would dangle the pointer captured earlier.
-	// edgeIndexes[REGION_EDGE_LEFT] is kept correct through both blocks, so it's safe to re-derive from it.
-	edgeNodes[REGION_EDGE_LEFT] = &nodes[edgeIndexes[REGION_EDGE_LEFT]];
-	edgeNodes[REGION_EDGE_LEFT]->value = reversed ? valueAtLateEdge : startValue;
-	edgeNodes[REGION_EDGE_LEFT]->interpolated = interpolateLeftNode;
-
-	// Now delete extra nodes. This first bit will delete all of them if no wrap, or the before-wrap bit if there is a
-	// wrap.
-	int32_t indexToDeleteFrom = edgeIndexes[REGION_EDGE_LEFT] + 1;
-	int32_t indexToDeleteTo = anyWrap ? std::ssize(nodes) : edgeIndexes[REGION_EDGE_RIGHT];
-	int32_t numToDelete = indexToDeleteTo - indexToDeleteFrom;
-	if (numToDelete) {
-		nodes.erase(nodes.begin() + indexToDeleteFrom, nodes.begin() + indexToDeleteFrom + numToDelete);
-		// Theoretically we'd decrease edgeIndexes[REGION_EDGE_RIGHT] if no wrap, but it never gets used again in that
-		// case of no-wrap.
-	}
-
-	// And now delete the nodes after the wrap if necessary.
-	if (anyWrap && edgeIndexes[REGION_EDGE_RIGHT]) {
-		nodes.erase(nodes.begin() + 0, nodes.begin() + 0 + edgeIndexes[REGION_EDGE_RIGHT]);
-		edgeIndexes[REGION_EDGE_LEFT] -= edgeIndexes[REGION_EDGE_RIGHT];
-	}
-
-#if ENABLE_SEQUENTIALITY_TESTS
-	nodes.testSequentiality(
-	    "E433"); // Was "GGGG". Leo got. Sven got. (Probably now solved). (Nope, Michael got on V4.1.0-alpha10 (OLED)!)
-#endif
-#if ALPHA_OR_BETA_VERSION
-	if (!nodes.empty()) {
-		ParamNode* rightmostNode = &nodes[std::ssize(nodes) - 1];
-		if (rightmostNode->pos >= effectiveLength) {
-			FREEZE_WITH_ERROR("iiii");
-		}
-	}
-#endif
-
-	return edgeIndexes[REGION_EDGE_LEFT];
-}
-
-void AutoParam::homogenizeRegionTestSuccess(int32_t pos, int32_t regionEnd, int32_t startValue, bool interpolateStart,
-                                            bool interpolateEnd) {
-
-	nodes.testSequentiality("E317");
-
-	int32_t startI = nodes.firstAtOrAfter(pos);
-	int32_t endI = nodes.firstAtOrAfter(regionEnd);
-
-	if (endI == startI + 1 || (endI == 0 && startI == std::ssize(nodes) - 1)) {
-		// Fine
-	}
-	else {
-		FREEZE_WITH_ERROR("E119");
-	}
-
-	ParamNode* startNode = nodes.tryGet(startI);
-	ParamNode* endNode = nodes.tryGet(endI);
-
-	if (!startNode || !endNode) {
-		FREEZE_WITH_ERROR("E118");
-	}
-
-	if (startNode->value != startValue) {
-		FREEZE_WITH_ERROR("E120");
-	}
-	if (startNode->interpolated != interpolateStart) {
-		FREEZE_WITH_ERROR("E121");
-	}
-	if (endNode->interpolated != interpolateEnd) {
-		FREEZE_WITH_ERROR("E122");
-	}
+	return deluge::project::homogenizeRegion(*modelStack->doc(), startPos, length, startValue, interpolateLeftNode,
+	                                         interpolateRightNode, effectiveLength, reversed, recordingLinearly,
+	                                         posAtWhichClipWillCut);
 }
 
 int32_t AutoParam::getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* modelStack) {
@@ -1466,58 +1257,17 @@ int32_t AutoParam::getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* m
 // value abruptly changes, well whether we want the value to the left or the right depends on which direction we're
 // going.
 int32_t AutoParam::getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
-
-	if (nodes.empty()) {
-		return currentValue;
-	}
-
-	int32_t rightI = nodes.firstAtOrAfter(pos + (int32_t)!reversed);
-	if (rightI >= std::ssize(nodes)) {
-		rightI = 0;
-	}
-	ParamNode* rightNode = &nodes[rightI];
-
-	int32_t leftI = rightI - 1;
-	if (leftI < 0) {
-		leftI += std::ssize(nodes);
-	}
-	ParamNode* leftNode = &nodes[leftI];
-	if (!rightNode->interpolated) {
-returnLeftNodeValue:
-		return leftNode->value;
-	}
-
-	int32_t ticksSinceLeftNode = pos - leftNode->pos;
-	if (!ticksSinceLeftNode) {
-		goto returnLeftNodeValue;
-	}
-
-	if (ticksSinceLeftNode < 0) { // If pos we're looking at is left of leftmost...
-		int32_t lengthBeforeLoop = modelStack->getLoopLength();
-		if (lengthBeforeLoop == 2147483647) { // If infinite length - and we know we're interpolating - well we'd have
-			                                  // arrived at the next node value
-			return rightNode->value;
-		}
-		ticksSinceLeftNode += lengthBeforeLoop;
-	}
-
-	int32_t ticksBetweenNodes = rightNode->pos - leftNode->pos;
-	if (ticksBetweenNodes <= 0) { // If pos we're looking at is right of rightmost...
-		int32_t lengthBeforeLoop = modelStack->getLoopLength();
-		if (lengthBeforeLoop
-		    == 2147483647) { // If infinite length, we'll still be on prev node's value, despite us interpolating
-			goto returnLeftNodeValue;
-		}
-		ticksBetweenNodes += lengthBeforeLoop;
-	}
-
-	int64_t valueDistance = (int64_t)rightNode->value - (int64_t)leftNode->value;
-	return leftNode->value + (valueDistance * ticksSinceLeftNode / ticksBetweenNodes);
+	// Forward to the DOM read kernel. getLoopLength() is safe to fetch eagerly (a length, not a null-deref;
+	// processCurrentPos already reads it unconditionally). The kernel special-cases the infinite length
+	// (2147483647).
+	return deluge::project::getValueAtPos(*modelStack->doc(), pos, modelStack->getLoopLength(), reversed);
 }
 
 // Returns whether a change was made to currentValue
 bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack) {
-	if (nodes.empty()) {
+	// Resolve the DOM node store via the ModelStack.
+	auto& nodesRef = modelStack->doc()->nodes;
+	if (nodesRef.empty()) {
 		return false;
 	}
 
@@ -1527,30 +1277,32 @@ bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* mo
 }
 
 void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
+	// Resolve the DOM node store via the ModelStack.
+	auto& nodesRef = modelStack->doc()->nodes;
 
 	resetInterpolationIncrement(); // We may calculate this, below
 	renewedOverridingAtTime = 0;
-	if (!nodes.empty()) {
+	if (!nodesRef.empty()) {
 		int32_t oldValue = currentValue;
 		currentValue = getValueAtPos(pos, modelStack, reversed);
 
 		// Get next node
-		int32_t rightI = nodes.firstAtOrAfter(pos + (int32_t)!reversed);
-		if (rightI == std::ssize(nodes)) {
+		int32_t rightI = nodesRef.firstAtOrAfter(pos + (int32_t)!reversed);
+		if (rightI == std::ssize(nodesRef)) {
 			rightI = 0;
 		}
 		ParamNode* nextNodeOurDirection =
-		    &nodes[rightI]; // This will initially point to the node to the right, regardless of direction;
-		                    // it'll be corrected to left if we're reversed below.
+		    &nodesRef[rightI]; // This will initially point to the node to the right, regardless of direction;
+		                       // it'll be corrected to left if we're reversed below.
 
 		if (nextNodeOurDirection->interpolated) {
 
 			if (reversed) {
 				int32_t leftI = rightI - 1;
 				if (leftI < 0) {
-					leftI += std::ssize(nodes);
+					leftI += std::ssize(nodesRef);
 				}
-				nextNodeOurDirection = &nodes[leftI];
+				nextNodeOurDirection = &nodesRef[leftI];
 			}
 
 			// Setup interpolation from the pos we're at now
@@ -1561,345 +1313,33 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 	}
 }
 
-Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
-
-	Error error = Error::NONE;
-
-	if (copyAutomation) {
-
-		int32_t numNodes = std::ssize(nodes);
-
-		if (reverseDirectionWithLength && numNodes) {
-			// 'nodes' is currently a byte-copy aliasing the old AutoParam's buffer. Deep-copy the data out
-			// (reading through the alias is safe), then detach and rebuild reversed.
-			ParamNodeVector oldNodes;
-			bool cloned = oldNodes.cloneFrom(&nodes);
-			nodes.init(); // Detach from the old AutoParam's buffer, which it still owns
-			error = cloned ? nodes.insertAt(0, numNodes).error_or(Error::NONE) : Error::INSUFFICIENT_RAM;
-
-			if (error == Error::NONE) {
-				ParamNode* rightmostNode = &oldNodes[numNodes - 1];
-				int32_t oldNodeToLeftValue = rightmostNode->value;
-
-				ParamNode* leftmostNode = &oldNodes[0];
-				bool anythingAtZero = !leftmostNode->pos;
-
-				for (int32_t iOld = 0; iOld < numNodes; iOld++) {
-					int32_t iNew = -iOld - !anythingAtZero;
-					if (iNew < 0) {
-						iNew += numNodes;
-					}
-
-					ParamNode* oldNode = &oldNodes[iOld];
-					ParamNode* newNode = (ParamNode*)&nodes[iNew];
-
-					int32_t iOldToRight = iOld + 1;
-					if (iOldToRight == numNodes) {
-						iOldToRight = 0;
-					}
-					ParamNode* oldNodeToRight = &oldNodes[iOldToRight];
-
-					int32_t newPos = -oldNode->pos;
-					if (newPos < 0) {
-						newPos += reverseDirectionWithLength;
-					}
-
-					int32_t newValue = oldNode->interpolated ? oldNode->value : oldNodeToLeftValue;
-
-					newNode->pos = newPos;
-					newNode->value = newValue;
-					newNode->interpolated = oldNodeToRight->interpolated;
-
-					oldNodeToLeftValue = oldNode->value;
-				}
-			}
-
-			// oldNodes owns a real deep copy now and frees it on destruction.
-		}
-
-		else {
-			error = nodes.beenCloned();
-		}
-	}
-	else {
-		nodes.init();
-	}
-
-	renewedOverridingAtTime = 0;
-	return error;
+void AutoParam::flattenReverse(deluge::project::DocAutoParam& doc, int32_t reverseDirectionWithLength) {
+	deluge::project::flattenReverse(doc, reverseDirectionWithLength); // forwards to the DOM kernel
 }
 
 // Wait, surely this should be undoable?
-void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool shouldPingpong) {
-
-	if (nodes.empty()) {
-		return;
-	}
-
-	// When recording session to arranger, you may occasionally end up with nodes beyond the Clip's length. These need
-	// to be removed now
-	ParamNode* firstNode = nodes.tryGet(0);
-	deleteNodesBeyondPos(oldLength + firstNode->pos);
-
-	// If pingponging, we have to do our own complicated thing.
-	if (shouldPingpong) {
-
-		ParamNode* nodeAfterWrap = (ParamNode*)&nodes[0];
-		bool nothingAtZero = nodeAfterWrap->pos;
-
-		// We may have to create a new node at pos 0 to represent the fact that a pingpong would suddenly occur in the
-		// middle of an interpolating bit between nodes. Actually let's just always put it there, so the beginning
-		// doesn't suddenly sound different if we have an odd number of repeats or something.
-		if (nothingAtZero) {
-
-			// This block is a quick simple alternative to calling getValueAtPos(), which would also require a
-			// modelStack and check for a bunch of unnecessary stuff.
-			ParamNode* nodeBeforeWrap = (ParamNode*)&nodes[std::ssize(nodes) - 1];
-
-			bool nodeAfterWrapIsInterpolated =
-			    nodeAfterWrap->interpolated; // Make copy, cos we need this even after our pointer is no longer valid,
-			                                 // cos we insert below.
-
-			int32_t valueAtZero;
-
-			if (nodeAfterWrapIsInterpolated) {
-				int64_t valueDistance = (int64_t)nodeAfterWrap->value - (int64_t)nodeBeforeWrap->value;
-				int32_t ticksSinceLeftNode = oldLength - nodeBeforeWrap->pos;
-				int32_t ticksBetweenNodes = ticksSinceLeftNode + nodeAfterWrap->pos;
-				valueAtZero = nodeBeforeWrap->value + (valueDistance * ticksSinceLeftNode / ticksBetweenNodes);
-			}
-			else {
-				valueAtZero = nodeBeforeWrap->value;
-			}
-
-			Error error = nodes.insertAt(0).error_or(Error::NONE);
-			if (error != Error::NONE) {
-				return;
-			}
-
-			ParamNode* zeroNode = (ParamNode*)&nodes[0];
-			zeroNode->pos = 0;
-			zeroNode->value = valueAtZero;
-			zeroNode->interpolated = nodeAfterWrapIsInterpolated;
-
-			nothingAtZero = false;
-		}
-
-		int32_t numRepeats =
-		    (uint32_t)(newLength - 1) / oldLength + 1; // Rounded up. Including first "repeat", which already exists.
-
-		int32_t numNodesBefore = std::ssize(nodes);
-
-		int32_t numToInsert = (numRepeats - 1) * numNodesBefore;
-		if (numToInsert) { // Should always be true?
-			Error error = nodes.insertAt(numNodesBefore, numToInsert).error_or(Error::NONE);
-			if (error != Error::NONE) {
-				return;
-			}
-		}
-
-		int32_t highestNodeIndex = numNodesBefore - 1;
-
-		for (int32_t r = 1; r < numRepeats; r++) {
-
-			for (int32_t iNewWithinRepeat = 0; iNewWithinRepeat < numNodesBefore; iNewWithinRepeat++) {
-				int32_t iOld = iNewWithinRepeat;
-
-				if (r & 1) {
-					iOld = -iOld - nothingAtZero;
-					if (iOld < 0) {
-						iOld += numNodesBefore;
-					}
-				}
-
-				ParamNode* oldNode = (ParamNode*)&nodes[iOld];
-				int32_t newPos = oldNode->pos;
-
-				if (r & 1) {
-					newPos = -newPos;
-					if (newPos < 0) {
-						newPos += oldLength;
-					}
-				}
-
-				newPos += oldLength * r;
-				if (newPos >= newLength) {
-					break; // Crude way of stopping part-way through the final repeat if it was only a partial one.
-				}
-
-				int32_t newValue = oldNode->value;
-				bool newInterpolated = oldNode->interpolated;
-
-				// If reversing, we have to change the characteristics given to this node.
-				if (r & 1) {
-
-					if (!oldNode->interpolated) {
-						int32_t iOldToLeft = iOld - 1;
-						if (iOldToLeft < 0) {
-							iOldToLeft += numNodesBefore;
-						}
-						ParamNode* oldNodeToLeft = (ParamNode*)&nodes[iOldToLeft];
-						newValue = oldNodeToLeft->value;
-					}
-
-					int32_t iOldToRight = iOld + 1;
-					if (iOldToRight >= numNodesBefore) {
-						iOldToRight = 0;
-					}
-					ParamNode* oldNodeToRight = (ParamNode*)&nodes[iOldToRight];
-					newInterpolated = oldNodeToRight->interpolated;
-				}
-
-				int32_t iNew = iNewWithinRepeat + numNodesBefore * r;
-				ParamNode* newNode = (ParamNode*)&nodes[iNew];
-
-				newNode->pos = newPos;
-				newNode->value = newValue;
-				newNode->interpolated = newInterpolated;
-
-				highestNodeIndex = iNew;
-			}
-		}
-
-		int32_t newNumNodes = highestNodeIndex + 1;
-		int32_t numToDelete = std::ssize(nodes) - newNumNodes;
-		if (numToDelete) {
-			nodes.erase(nodes.begin() + newNumNodes, nodes.begin() + newNumNodes + numToDelete);
-		}
-	}
-
-	// Or if not pingponging, we just do a simple call.
-	else {
-		nodes.generateRepeats(oldLength, newLength);
-	}
+void AutoParam::generateRepeats(deluge::project::DocAutoParam& doc, uint32_t oldLength, uint32_t newLength,
+                                bool shouldPingpong) {
+	deluge::project::generateRepeats(doc, oldLength, newLength, shouldPingpong); // forwards to the DOM kernel
 }
 
-void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t reverseThisRepeatWithLength,
-                            bool pingpongingGenerally) {
-
-	int32_t numToInsert = std::ssize(otherParam->nodes);
-	if (!numToInsert) {
-		return;
-	}
-
-	// When recording session to arranger, you may occasionally end up with nodes beyond the Clip's length. These need
-	// to be removed now
-	ParamNode* firstNode = otherParam->nodes.tryGet(0);
-	deleteNodesBeyondPos(oldLength + firstNode->pos);
-
-	ParamNode* nodeAfterWrap = &otherParam->nodes[0];
-	bool nothingAtZero = nodeAfterWrap->pos;
-
-	// We may have to create a new node at pos 0 (of the new repeat) to represent the fact that a pingpong would
-	// suddenly occur in the middle of an interpolating bit between nodes. Hopefully the note at actual pos 0 got
-	// created back when generateRepeats got called initially for this, at the start of recording etc.
-	if (pingpongingGenerally && nothingAtZero && nodeAfterWrap->interpolated) {
-
-		// This block is a quick simple alternative to calling getValueAtPos(), which would also require a modelStack
-		// and check for a bunch of unnecessary stuff.
-		ParamNode* nodeBeforeWrap = &otherParam->nodes[numToInsert - 1];
-		int64_t valueDistance = (int64_t)nodeAfterWrap->value - (int64_t)nodeBeforeWrap->value;
-		int32_t ticksSinceLeftNode = oldLength - nodeBeforeWrap->pos;
-		int32_t ticksBetweenNodes = ticksSinceLeftNode + nodeAfterWrap->pos;
-		int32_t valueAtZero = nodeBeforeWrap->value + (valueDistance * ticksSinceLeftNode / ticksBetweenNodes);
-
-		int32_t newZeroNodeI = std::ssize(nodes);
-
-		Error error = nodes.insertAt(newZeroNodeI).error_or(Error::NONE);
-		if (error != Error::NONE) {
-			return;
-		}
-
-		ParamNode* zeroNode = (ParamNode*)&nodes[newZeroNodeI];
-		zeroNode->pos = oldLength;
-		zeroNode->value = valueAtZero;
-		zeroNode->interpolated = true;
-
-		// nothingAtZero = false; // Unlike in generateRepeats(), above, the node we've added is not a part of the same
-		// array that represents our source material.
-	}
-
-	int32_t oldNumNodes = std::ssize(nodes);
-	Error error = nodes.insertAt(oldNumNodes, numToInsert).error_or(Error::NONE);
-	if (error != Error::NONE) {
-		return;
-	}
-
-	if (reverseThisRepeatWithLength) {
-
-		for (int32_t iNewWithinRepeat = 0; iNewWithinRepeat < numToInsert; iNewWithinRepeat++) {
-			int32_t iOld = -iNewWithinRepeat - nothingAtZero;
-			if (iOld < 0) {
-				iOld += numToInsert;
-			}
-
-			ParamNode* oldNode = &otherParam->nodes[iOld];
-			int32_t newPos = oldNode->pos;
-
-			newPos = -newPos;
-			if (newPos < 0) {
-				newPos += reverseThisRepeatWithLength;
-			}
-
-			newPos += oldLength;
-
-			int32_t newValue = oldNode->value;
-			bool newInterpolated = oldNode->interpolated;
-
-			if (!oldNode->interpolated) {
-				int32_t iOldToLeft = iOld - 1;
-				if (iOldToLeft < 0) {
-					iOldToLeft += numToInsert;
-				}
-				ParamNode* oldNodeToLeft = &otherParam->nodes[iOldToLeft];
-				newValue = oldNodeToLeft->value;
-			}
-
-			int32_t iOldToRight = iOld + 1;
-			if (iOldToRight >= numToInsert) {
-				iOldToRight = 0;
-			}
-			ParamNode* oldNodeToRight = &otherParam->nodes[iOldToRight];
-			newInterpolated = oldNodeToRight->interpolated;
-
-			int32_t iNew = iNewWithinRepeat + oldNumNodes;
-			ParamNode* newNode = (ParamNode*)&nodes[iNew];
-
-			newNode->pos = newPos;
-			newNode->value = newValue;
-			newNode->interpolated = newInterpolated;
-		}
-	}
-
-	else {
-
-		for (int32_t i = 0; i < numToInsert; i++) {
-			ParamNode* oldNode = &otherParam->nodes[i];
-			ParamNode* newNode = &nodes[oldNumNodes + i];
-			newNode->pos = oldNode->pos + oldLength;
-			newNode->interpolated = oldNode->interpolated;
-			newNode->value = oldNode->value;
-		}
-	}
-}
-
-void AutoParam::deleteNodesBeyondPos(int32_t pos) {
-	int32_t i = nodes.firstAtOrAfter(pos);
-	int32_t numToDelete = std::ssize(nodes) - i;
-	if (numToDelete) {
-		nodes.erase(nodes.begin() + i, nodes.begin() + i + numToDelete);
-	}
+void AutoParam::appendParam(deluge::project::DocAutoParam& doc, deluge::project::DocAutoParam const& srcDoc,
+                            int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
+	// Forward to the DOM kernel; the source param's nodes come from its DocAutoParam handle.
+	deluge::project::appendParam(doc, srcDoc, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
 }
 
 void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack) {
+	// Resolve the DOM node store via the ModelStack.
+	auto& nodesRef = modelStack->doc()->nodes;
 
 	// If no nodes, nothing to do
-	if (nodes.empty()) {
+	if (nodesRef.empty()) {
 		return;
 	}
 
 	// If final node is within new length, also nothing to do
-	ParamNode* lastNode = nodes.tryGetLast();
+	ParamNode* lastNode = nodesRef.tryGetLast();
 	if (lastNode) { // Should always be one...
 		if (lastNode->pos < newLength) {
 			return;
@@ -1908,16 +1348,16 @@ void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithA
 
 	// To ensure that the effective value at pos 0 remains the same even after earlier nodes deleted, we might need to
 	// add a new, non-interpolating node there.
-	bool needNewNodeAt0 = nodes.tryGet(0)->pos; // Deactivated for now, but I'm going to enable in the ModelStacks
-	                                            // branch, where we have a TimelineCounter here.
+	bool needNewNodeAt0 = nodesRef.tryGet(0)->pos; // Deactivated for now, but I'm going to enable in the ModelStacks
+	                                               // branch, where we have a TimelineCounter here.
 	int32_t oldValueAt0;
 	if (needNewNodeAt0) {
 		oldValueAt0 = getValueAtPos(0, modelStack);
 	}
 
-	int32_t newNumNodes = nodes.firstAtOrAfter(newLength);
+	int32_t newNumNodes = nodesRef.firstAtOrAfter(newLength);
 
-	if (ALPHA_OR_BETA_VERSION && newNumNodes >= std::ssize(nodes)) {
+	if (ALPHA_OR_BETA_VERSION && newNumNodes >= std::ssize(nodesRef)) {
 		FREEZE_WITH_ERROR("E315");
 	}
 
@@ -1928,15 +1368,15 @@ void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithA
 		// If no action, just basic trim
 		if (!action) {
 basicTrim: {
-	int32_t numToDelete = std::ssize(nodes) - newNumNodes; // Will always be >= 1
-	nodes.erase(nodes.begin() + newNumNodes, nodes.begin() + newNumNodes + numToDelete);
+	int32_t numToDelete = std::ssize(nodesRef) - newNumNodes; // Will always be >= 1
+	nodesRef.erase(nodesRef.begin() + newNumNodes, nodesRef.begin() + newNumNodes + numToDelete);
 }
 
 addNewNodeAt0IfNecessary:
 			if (needNewNodeAt0) {
-				Error error = nodes.insertAt(0).error_or(Error::NONE);
+				Error error = deluge::error_of(nodesRef.insertAt(0));
 				if (error == Error::NONE) { // Should be fine cos we just deleted some, so some free RAM
-					ParamNode* newNode = &nodes[0];
+					ParamNode* newNode = &nodesRef[0];
 					newNode->pos = 0;
 					newNode->value = oldValueAt0;
 					newNode->interpolated = false;
@@ -1955,13 +1395,13 @@ addNewNodeAt0IfNecessary:
 			}
 			else {
 				ParamNodeVector newNodes;
-				Error error = newNodes.insertAt(0, newNumNodes).error_or(Error::NONE);
+				Error error = deluge::error_of(newNodes.insertAt(0, newNumNodes));
 				if (error != Error::NONE) {
 					goto basicTrim;
 				}
 
 				for (int32_t i = 0; i < newNumNodes; i++) {
-					ParamNode* __restrict__ sourceNode = &nodes[i];
+					ParamNode* __restrict__ sourceNode = &nodesRef[i];
 					ParamNode* __restrict__ destNode = &newNodes[i];
 
 					*destNode = *sourceNode;
@@ -1971,7 +1411,7 @@ addNewNodeAt0IfNecessary:
 				action->recordParamChangeDefinitely(modelStack, true); // Steal
 
 				// And, need to swap the new Nodes in
-				nodes.swap(newNodes);
+				nodesRef.swap(newNodes);
 
 				goto addNewNodeAt0IfNecessary;
 			}
@@ -1983,25 +1423,26 @@ addNewNodeAt0IfNecessary:
 		if (action) {
 			action->recordParamChangeIfNotAlreadySnapshotted(modelStack, true); // Steal
 		}
-		nodes.clear();                 // Delete them - either if no action, or if the above chose not to steal them.
+		nodesRef.clear();              // Delete them - either if no action, or if the above chose not to steal them.
 		resetInterpolationIncrement(); // In case we were interpolating.
 	}
 }
 
-void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, int32_t* valueForOverride) {
+void AutoParam::writeToFile(deluge::project::DocAutoParam const& doc, Serializer& writer, bool writeAutomation,
+                            int32_t* valueForOverride) {
 	char buffer[9];
 
 	writer.write("0x");
 
-	int32_t valueNow = (valueForOverride && isAutomated()) ? *valueForOverride : currentValue;
+	int32_t valueNow = (valueForOverride && isAutomated(doc)) ? *valueForOverride : currentValue;
 
 	intToHex(valueNow, buffer);
 	writer.write(buffer);
 
 	if (writeAutomation) {
 
-		for (int32_t i = 0; i < std::ssize(nodes); i++) {
-			ParamNode* thisNode = &nodes[i];
+		for (int32_t i = 0; i < std::ssize(doc.nodes); i++) {
+			const ParamNode* thisNode = &doc.nodes[i];
 			intToHex(thisNode->value, buffer);
 			writer.write(buffer);
 
@@ -2018,11 +1459,11 @@ void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, int32_t* v
 // Returns error code.
 // If you're gonna call this, you probably need to tell the ParamSet that this Param has automation now, if it does.
 // Or, to make things easier, you should just call the ParamSet instead, if possible.
-Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
+Error AutoParam::readFromFile(deluge::project::DocAutoParam& doc, Deserializer& reader, int32_t readAutomationUpToPos) {
 
 	// Must first delete any automation because sometimes, due to that annoying support I have to do for late-2016
 	// files, we'll be overwriting a cloned ParamManager, which might have had automation.
-	deleteAutomationBasicForSetup();
+	deleteAutomationBasicForSetup(doc);
 
 	if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 		return Error::NONE;
@@ -2043,6 +1484,7 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 		for (int32_t i = 2; i < 12 && (buffer[i] = reader.readNextCharOfTagOrAttributeValue()); i++) {}
 		buffer[11] = 0;
 		currentValue = stringToInt(buffer);
+		doc.current_value = currentValue; // the store scalar is sourced from the file
 		return Error::NONE;
 	}
 
@@ -2054,6 +1496,7 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 		return Error::NONE;
 	}
 	currentValue = hexToIntFixedLength(hexChars, 8);
+	doc.current_value = currentValue; // the store scalar is sourced from the file
 
 	// And now read in the automation
 	int32_t numElementsToAllocateFor = 0;
@@ -2074,7 +1517,8 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 					// Allocate space for the right number of notes, and remember how long it'll be before we need to do
 					// this check again
 					numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / 16 + 1;
-					(void)nodes.reserveExtra(numElementsToAllocateFor); // If this fails... oh well. We'll fail later
+					(void)doc.nodes.reserveExtra(
+					    numElementsToAllocateFor); // If this fails... oh well. We'll fail later
 				}
 			}
 
@@ -2102,13 +1546,13 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 				// If there's a node actually right on the end-point - well, firmware <= 3.1.5 sometimes put one there
 				// when it should have been at pos 0. So, reinterpret that data to make it right.
 				if (pos == readAutomationUpToPos) {
-					ParamNode* firstNode = nodes.tryGet(0);
+					ParamNode* firstNode = doc.nodes.tryGet(0);
 					if (!firstNode || firstNode->pos) {
-						Error error = nodes.insertAt(0).error_or(Error::NONE);
+						Error error = deluge::error_of(doc.nodes.insertAt(0));
 						if (error != Error::NONE) {
 							return error;
 						}
-						firstNode = &nodes[0];
+						firstNode = &doc.nodes[0];
 						firstNode->pos = 0;
 						firstNode->value = value;
 						firstNode->interpolated = interpolated;
@@ -2119,11 +1563,11 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 
 			prevPos = pos;
 
-			int32_t nodeI = nodes.insertSorted(pos, true).value_or(-1);
+			int32_t nodeI = doc.nodes.insertSorted(pos, true).value_or(-1);
 			if (nodeI == -1) {
 				return Error::INSUFFICIENT_RAM;
 			}
-			ParamNode* node = &nodes[nodeI];
+			ParamNode* node = &doc.nodes[nodeI];
 			node->value = value;
 			node->interpolated = interpolated;
 
@@ -2134,8 +1578,8 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 	return Error::NONE;
 }
 
-bool AutoParam::containsSomething(uint32_t neutralValue) {
-	if (isAutomated()) {
+bool AutoParam::containsSomething(const deluge::project::DocAutoParam& doc, uint32_t neutralValue) {
+	if (isAutomated(doc)) {
 		return true;
 	}
 	uint32_t* a = (uint32_t*)&currentValue;
@@ -2146,55 +1590,30 @@ bool AutoParam::containedSomethingBefore(bool wasAutomatedBefore, uint32_t value
 	return (wasAutomatedBefore || valueBefore != neutralValue);
 }
 
-void AutoParam::shiftValues(int32_t offset) {
-	int64_t newValue = (int64_t)currentValue + offset;
-	if (newValue >= (int64_t)2147483648u) {
-		currentValue = 2147483647;
-	}
-	else if (newValue < (int64_t)2147483648u * -1) {
-		currentValue = -2147483648;
-	}
-	else {
-		currentValue = newValue;
-	}
-
-	for (int32_t i = 0; i < std::ssize(nodes); i++) {
-		ParamNode* thisNode = &nodes[i];
-		int64_t newValue = (int64_t)thisNode->value + offset;
-		if (newValue >= (int64_t)2147483648u) {
-			thisNode->value = 2147483647;
-		}
-		else if (newValue < (int64_t)2147483648u * -1) {
-			thisNode->value = -2147483648;
-		}
-		else {
-			thisNode->value = newValue;
-		}
-	}
+// Value sync: the kernel mutates DocAutoParam::current_value (the DOM base), but the engine's live RT cursor is the
+// separate `currentValue` member. So for value-touching ops we sync currentValue to doc.current_value, run the
+// kernel, then read it back.
+void AutoParam::shiftValues(deluge::project::DocAutoParam& doc, int32_t offset) {
+	doc.current_value = currentValue;
+	deluge::project::shiftValues(doc, offset);
+	currentValue = doc.current_value;
 }
 
-void AutoParam::shiftParamVolumeByDB(float offset) {
-	currentValue = shiftVolumeByDB(currentValue, offset);
-
-	for (int32_t i = 0; i < std::ssize(nodes); i++) {
-		ParamNode* thisNode = &nodes[i];
-		thisNode->value = shiftVolumeByDB(thisNode->value, offset);
-	}
-}
-
-void AutoParam::shiftHorizontally(int32_t amount, int32_t effectiveLength) {
-	nodes.shiftHorizontal(amount, effectiveLength);
+void AutoParam::shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t amount, int32_t effectiveLength) {
+	deluge::project::shiftHorizontally(doc, amount, effectiveLength); // forwards to the DOM kernel
 }
 
 void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack) {
-	bool automatedBefore = isAutomated();
+	// Resolve the DOM node store via the ModelStack.
+	auto& nodesRef = modelStack->doc()->nodes;
+	bool automatedBefore = isAutomated(*modelStack->doc());
 
 	int32_t oldValueHere = currentValue;
 	currentValue = state->value;
 	state->value = oldValueHere;
-	nodes.swap(state->nodes);
+	nodesRef.swap(state->nodes);
 
-	bool automatedNow = isAutomated();
+	bool automatedNow = isAutomated(*modelStack->doc());
 
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValueHere, true, automatedBefore,
 	                                                          automatedNow);
@@ -2202,8 +1621,10 @@ void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* 
 
 void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, ModelStackWithAutoParam const* modelStack,
                       CopiedParamAutomation* copiedParamAutomation, bool isPatchCable) {
+	// Resolve the DOM node store via the ModelStack.
+	auto& nodesRef = modelStack->doc()->nodes;
 
-	bool automatedBefore = isAutomated();
+	bool automatedBefore = isAutomated(*modelStack->doc());
 	int32_t effectiveLength = modelStack->getLoopLength();
 	int32_t wrappedEndPos = endPos % effectiveLength;
 	bool overwrittingEntireRegion = startPos == 0 && endPos >= effectiveLength;
@@ -2219,11 +1640,11 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 	int32_t endValue = getValueAtPos(wrappedEndPos, modelStack);
 
 	// Clear out any nodes that already exiset in the region we're pasting in to
-	int32_t iDeleteBegin = nodes.firstAtOrAfter(startPos);
-	int32_t iDeleteEnd = nodes.firstAtOrAfter(endPos);
+	int32_t iDeleteBegin = nodesRef.firstAtOrAfter(startPos);
+	int32_t iDeleteEnd = nodesRef.firstAtOrAfter(endPos);
 	int32_t numToDelete = iDeleteEnd - iDeleteBegin;
 	if (numToDelete > 0) {
-		nodes.erase(nodes.begin() + iDeleteBegin, nodes.begin() + iDeleteBegin + numToDelete);
+		nodesRef.erase(nodesRef.begin() + iDeleteBegin, nodesRef.begin() + iDeleteBegin + numToDelete);
 	}
 
 	// Make sure that automation data before the paste region starts and after it ends aligns with what we're about to
@@ -2235,17 +1656,17 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 			int32_t ticksBeforeStart = 1;
 			int32_t resetPos = (ticksBeforeStart > startPos) ? (effectiveLength + startPos) - ticksBeforeStart
 			                                                 : (startPos - ticksBeforeStart);
-			int32_t resetI = nodes.firstAtOrAfter(resetPos);
-			ParamNode* resetNode = nodes.tryGet(resetI);
+			int32_t resetI = nodesRef.firstAtOrAfter(resetPos);
+			ParamNode* resetNode = nodesRef.tryGet(resetI);
 
 			if (resetNode == nullptr || resetNode->pos != resetPos) {
 				bool previousNodeInterpolated = resetNode != nullptr ? resetNode->interpolated : true;
-				auto error = nodes.insertAt(resetI).error_or(Error::NONE);
+				auto error = deluge::error_of(nodesRef.insertAt(resetI));
 				if (error != Error::NONE) {
 					return;
 				}
 
-				resetNode = &nodes[resetI];
+				resetNode = &nodesRef[resetI];
 				resetNode->pos = resetPos;
 				resetNode->interpolated = previousNodeInterpolated;
 			}
@@ -2267,16 +1688,16 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 				resetPos = wrappedEndPos;
 			}
 
-			int32_t resetI = nodes.firstAtOrAfter(resetPos);
-			ParamNode* resetNode = nodes.tryGet(resetI);
+			int32_t resetI = nodesRef.firstAtOrAfter(resetPos);
+			ParamNode* resetNode = nodesRef.tryGet(resetI);
 
 			if (!resetNode || resetNode->pos != resetPos) {
-				auto error = nodes.insertAt(resetI).error_or(Error::NONE);
+				auto error = deluge::error_of(nodesRef.insertAt(resetI));
 				if (error != Error::NONE) {
 					return;
 				}
 
-				resetNode = &nodes[resetI];
+				resetNode = &nodesRef[resetI];
 				resetNode->pos = resetPos;
 				resetNode->interpolated = finalNode.interpolated;
 			}
@@ -2302,8 +1723,8 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 			continue;
 		}
 
-		int32_t nodeDestI = nodes.insertSorted(newPos).value_or(-1);
-		ParamNode* nodeDest = nodes.tryGet(nodeDestI);
+		int32_t nodeDestI = nodesRef.insertSorted(newPos).value_or(-1);
+		ParamNode* nodeDest = nodesRef.tryGet(nodeDestI);
 		if (!nodeDest) {
 			return;
 		}
@@ -2320,18 +1741,20 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 
 	// TODO: should currentValue instantly change if we're playing?
 
-	nodes.testSequentiality("E440");
+	nodesRef.testSequentiality("E440");
 
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, currentValue, true, automatedBefore,
-	                                                          isAutomated());
+	                                                          isAutomated(*modelStack->doc()));
 }
 
 void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* copiedParamAutomation, bool isPatchCable,
                      ModelStackWithAutoParam const* modelStack) {
+	// Resolve the DOM node store via the ModelStack.
+	auto& nodesRef = modelStack->doc()->nodes;
 
 	// And if any of them are in the right zone...
-	int32_t startI = nodes.firstAtOrAfter(startPos);
-	int32_t endI = nodes.firstAtOrAfter(endPos);
+	int32_t startI = nodesRef.firstAtOrAfter(startPos);
+	int32_t endI = nodesRef.firstAtOrAfter(endPos);
 
 	copiedParamAutomation->width = endPos - startPos;
 
@@ -2340,7 +1763,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 	bool insertingExtraNodeAtStart = false;
 
 	if (copiedParamAutomation->numNodes) {
-		ParamNode* firstNode = &nodes[startI];
+		ParamNode* firstNode = &nodesRef[startI];
 		if (firstNode->pos != startPos) {
 			insertingExtraNodeAtStart = true;
 			copiedParamAutomation->numNodes++;
@@ -2381,7 +1804,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 		int32_t readingNodeI = startI;
 
 		for (; n < copiedParamAutomation->numNodes; n++) {
-			ParamNode* nodeToCopy = &nodes[readingNodeI];
+			ParamNode* nodeToCopy = &nodesRef[readingNodeI];
 			ParamNode* newNode = &copiedParamAutomation->nodes[n];
 
 			*newNode = *nodeToCopy;
@@ -2401,493 +1824,55 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 // Returns error code.
 // quantizationRShift would be 25 for 7-bit CC values (cos 32 - 25 == 7).
 // Or it'd ideally be 18 for 14-bit pitch bend data, but that'd be a bit overkill.
-Error AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int32_t quantizationRShift) {
-
-	if (std::ssize(nodes) <= 1) {
-		return Error::NONE;
-	}
-
-	int32_t stopAtElement = std::ssize(nodes);
-
-	for (int32_t i = 0; i < stopAtElement; i++) {
-		ParamNode* thisNode = &nodes[i];
-
-		if (thisNode->interpolated) {
-			int32_t prevI = i - 1;
-			if (prevI == -1) {
-				prevI = std::ssize(nodes) - 1;
-			}
-			ParamNode* prevNode = &nodes[prevI];
-
-			// This function deals with "small" values, which for CCs will be between -64 and 64. Yup, they're
-			// bidirectional.
-
-			int32_t thisSmallValue = rshift_round_signed(thisNode->value >> 1, quantizationRShift - 1);
-			int32_t lastSmallValue = rshift_round_signed(prevNode->value >> 1, quantizationRShift - 1);
-
-			int32_t smallValueChange = thisSmallValue - lastSmallValue;
-
-			int32_t absoluteSmallValueChange = smallValueChange;
-			int32_t gradientDirection = 1;
-			if (absoluteSmallValueChange < 0) {
-				absoluteSmallValueChange = -absoluteSmallValueChange;
-				gradientDirection = -1;
-			}
-			if (absoluteSmallValueChange < 2) {
-				continue;
-			}
-
-			int32_t prevNodePos = prevNode->pos;
-			int32_t distance = thisNode->pos - prevNodePos;
-			if (distance < 0) {
-				distance += clipLength;
-			}
-
-			if (distance < 2) {
-				continue;
-			}
-
-			bool isSteep = (distance < absoluteSmallValueChange);
-			int32_t maxJ = isSteep ? distance : absoluteSmallValueChange;
-			for (int32_t j = 1; j < maxJ; j++) {
-
-				int32_t thisPos;
-				int32_t newSmallValue;
-
-				if (isSteep) {
-					thisPos = prevNodePos + j;
-					newSmallValue = lastSmallValue + smallValueChange * j / distance;
-				}
-				else {
-					thisPos = prevNodePos + (uint64_t)distance * j / absoluteSmallValueChange;
-					newSmallValue = lastSmallValue + j * gradientDirection;
-				}
-
-				if (thisPos >= clipLength) {
-					thisPos -= clipLength;
-				}
-
-				int32_t newNodeI = nodes.insertSorted(thisPos).value_or(-1);
-				if (newNodeI == -1) {
-					return Error::INSUFFICIENT_RAM;
-				}
-				if (newNodeI <= i) {
-					i++;
-					stopAtElement++;
-				}
-				ParamNode* newNode = &nodes[newNodeI];
-				newNode->interpolated = true;
-
-				int32_t newBigValue;
-				if (newSmallValue == (1 << (31 - quantizationRShift))) {
-					newBigValue = 2147483647; // E.g. if a CC value has come out as high as 64, make sure it fits into
-					                          // the 32-bit signed number when we left-shift.
-				}
-				else {
-					newBigValue = newSmallValue << quantizationRShift;
-				}
-				newNode->value = newBigValue;
-			}
-		}
-	}
-
-	nodes.testSequentiality("E414");
-
-	return Error::NONE;
+Error AutoParam::makeInterpolationGoodAgain(deluge::project::DocAutoParam& doc, int32_t clipLength,
+                                            int32_t quantizationRShift) {
+	// Forward to the DOM kernel; it returns false only on the INSUFFICIENT_RAM path.
+	return deluge::project::makeInterpolationGoodAgain(doc, clipLength, quantizationRShift) ? Error::NONE
+	                                                                                        : Error::INSUFFICIENT_RAM;
 }
 
-void AutoParam::transposeCCValuesToChannelPressureValues() {
-	for (int32_t i = 0; i < std::ssize(nodes); i++) {
-		ParamNode* thisNode = &nodes[i];
-		thisNode->value = (thisNode->value >> 1) + (1 << 30);
-	}
-
-	currentValue = (currentValue >> 1) + (1 << 30);
+void AutoParam::transposeCCValuesToChannelPressureValues(deluge::project::DocAutoParam& doc) {
+	doc.current_value = currentValue; // value sync (see shiftValues)
+	deluge::project::transposeCCValuesToChannelPressure(doc);
+	currentValue = doc.current_value;
 }
 
 /// this is used in arranger view to delete time between automation nodes (shift + <>)
 void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackWithAutoParam* modelStack) {
-
-	// No need to do any revertability with an Action here - ParamCollection::backUpAllAutomatedParamsToAction() should
-	// have already been called.
-
-	int32_t endPos = startPos + lengthToDelete;
-
-	int32_t start = nodes.firstAtOrAfter(startPos);
-	int32_t end = nodes.firstAtOrAfter(endPos);
-
-	int32_t numToDelete = end - start;
-	if (numToDelete > 0) {
-
-		// We might want to put a new node right at the cut-point if not already one there
-
-		bool shouldAddNodeAtPos0 = false;
-		int32_t oldValue;
-
-		// If we're chopping off the final node, we'll want to put one at pos 0 if none there
-		if (end >= std::ssize(nodes)) {
-			shouldAddNodeAtPos0 = nodes.tryGet(0)->pos;
-			if (shouldAddNodeAtPos0) {
-				oldValue = getValueAtPos(0, modelStack);
-			}
-		}
-
-		// Or, if we're not chopping off the final node, we'll want to put one at end of deleted region (which becomes
-		// the same as the start), if none there
-		else if (nodes[end].pos > endPos) {
-
-			// We'll use the first node we were going to delete as the new one
-			ParamNode* cutNode = &nodes[start];
-			cutNode->value = getValueAtPos(endPos, modelStack);
-			cutNode->pos = startPos;
-			cutNode->interpolated = false;
-
-			// Ok, that's one node we're not doing to delete after all
-			numToDelete--;
-			start++;
-			if (!numToDelete) {
-				goto allDeleted;
-			}
-		}
-
-		nodes.erase(nodes.begin() + start, nodes.begin() + start + numToDelete);
-
-		if (shouldAddNodeAtPos0) {
-			// Shouldn't ever fail, as erase never shrinks the capacity we just freed up
-			if (nodes.insertAt(0)) {
-				ParamNode* newNode = &nodes[0];
-				newNode->value = oldValue;
-				newNode->pos = 0;
-				newNode->interpolated = false;
-				start++; // Cos we've shifted everything along in the list by inserting at index 0
-			}
-		}
-	}
-
-allDeleted:
-	for (int32_t i = start; i < std::ssize(nodes); i++) {
-		ParamNode* node = &nodes[i];
-		node->pos -= lengthToDelete;
-	}
-
-	// If only one node left, that's not allowed, so delete that too. Actually it is allowed now, but let's keep this
-	// safe
-	if (std::ssize(nodes) == 1) {
-		nodes.erase(nodes.begin() + 0);
-	}
+	// Forward to the DOM kernel (the revertability Action is handled by the caller).
+	deluge::project::deleteTime(*modelStack->doc(), startPos, lengthToDelete, modelStack->getLoopLength());
 }
 
 /// this is used in arranger view to insert time between automation nodes (shift + <>)
-void AutoParam::insertTime(int32_t pos, int32_t lengthToInsert) {
-	int32_t start = nodes.firstAtOrAfter(pos);
-
-	for (int32_t i = start; i < std::ssize(nodes); i++) {
-		ParamNode* node = &nodes[i];
-		node->pos += lengthToInsert;
-	}
+void AutoParam::insertTime(deluge::project::DocAutoParam& doc, int32_t pos, int32_t lengthToInsert) {
+	deluge::project::insertTime(doc, pos, lengthToInsert); // forwards to the DOM kernel
 }
 
 // Offset must be either 1 or -1.
 void AutoParam::moveRegionHorizontally(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length,
                                        int32_t offset, int32_t lengthBeforeLoop, Action* action) {
-
-	if (nodes.empty()) {
+	// The Action-snapshot wiring stays here; the node mutation is forwarded to the DOM kernel. The empty-gate stays
+	// here so we don't snapshot an Action when there's nothing to move.
+	if (modelStack->doc()->nodes.empty()) {
 		return;
 	}
-
 	if (action) {
 		action->recordParamChangeDefinitely(modelStack, false);
 	}
-
-	if (length == lengthBeforeLoop) {
-justShiftEverything:
-		shiftHorizontally(offset, lengthBeforeLoop);
-		return;
-	}
-
-	int32_t endPos = pos + length;
-	if (endPos > lengthBeforeLoop) { // Wrap
-
-		endPos -= lengthBeforeLoop;
-		int32_t resultingIndexes[2];
-		{
-			int32_t searchTerms[2];
-			searchTerms[0] = endPos;
-			searchTerms[1] = pos;
-			nodes.searchDual(searchTerms, resultingIndexes);
-		}
-
-		if (resultingIndexes[0] == resultingIndexes[1]) {
-			goto justShiftEverything;
-		}
-
-		// Moving right...
-		if (offset == 1) {
-
-			// If anything after wrap...
-			if (resultingIndexes[0]) {
-				// If rightmost node collides with endPos, delete it
-				int32_t rightMostIndex = resultingIndexes[0] - 1;
-				ParamNode* rightMost = &nodes[rightMostIndex];
-				if (rightMost->pos >= endPos - 1) {
-					nodes.erase(nodes.begin() + rightMostIndex);
-					resultingIndexes[0]--;
-					resultingIndexes[1]--;
-				}
-			}
-
-			// And if anything before wrap...
-			if (resultingIndexes[1] < std::ssize(nodes)) {
-				int32_t indexBeforeWrap = std::ssize(nodes) - 1;
-				ParamNode* nodeBeforeWrap = &nodes[indexBeforeWrap];
-
-				// If that needs to move right and wrap around...
-				if (nodeBeforeWrap->pos >= lengthBeforeLoop - 1) {
-					ParamNode tempNode = *nodeBeforeWrap;
-					nodes.erase(nodes.begin() + indexBeforeWrap, nodes.begin() + indexBeforeWrap + 1);
-					(void)nodes.insertAt(0); // Shouldn't be able to fail....
-					ParamNode* nodeAfterWrap = &nodes[0];
-					*nodeAfterWrap = tempNode;
-					nodeAfterWrap->pos = -1; // It'll get incremented below
-					resultingIndexes[0]++;
-					resultingIndexes[1]++;
-				}
-			}
-
-			for (int32_t i = 0; i < resultingIndexes[0]; i++) { // After wrap
-				nodes[i].pos++;
-			}
-			for (int32_t i = resultingIndexes[1]; i < std::ssize(nodes); i++) { // Before wrap
-				nodes[i].pos++;
-			}
-		}
-
-		// Moving left
-		else {
-			// If there's anything after the wrap...
-			if (resultingIndexes[0]) {
-				ParamNode* nodeAfterWrap = &nodes[0];
-				// If we need to wrap it around to the end...
-				if (nodeAfterWrap->pos == 0) {
-					ParamNode tempNode = *nodeAfterWrap;
-					int32_t rightMostIndex = std::ssize(nodes) - 1;
-					nodes.erase(nodes.begin() + 0, nodes.begin() + 0 + 1);
-					(void)nodes.insertAt(rightMostIndex); // Surely can't fail
-					ParamNode* rightMostNode = &nodes[rightMostIndex];
-					*rightMostNode = tempNode;
-					rightMostNode->pos = lengthBeforeLoop; // It'll get decremented below.
-					resultingIndexes[0]--;
-					resultingIndexes[1]--;
-				}
-			}
-
-			// And now if our left edge is going to eat into anything...
-			if (resultingIndexes[1] && resultingIndexes[1] < std::ssize(nodes)) {
-				int32_t prevNodeIndex = resultingIndexes[1] - 1;
-				ParamNode* prevNode = &nodes[prevNodeIndex];
-				if (prevNode->pos >= pos - 1) {
-					nodes.erase(nodes.begin() + prevNodeIndex);
-					resultingIndexes[1]--;
-				}
-			}
-		}
-
-		for (int32_t i = 0; i < resultingIndexes[0]; i++) { // After wrap
-			nodes[i].pos--;
-		}
-		for (int32_t i = resultingIndexes[1]; i < std::ssize(nodes); i++) { // Before wrap
-			nodes[i].pos--;
-		}
-	}
-
-	else { // No wrap
-		int32_t resultingIndexes[2];
-		{
-			int32_t searchTerms[2];
-			searchTerms[0] = pos;
-			searchTerms[1] = endPos;
-			nodes.searchDual(searchTerms, resultingIndexes);
-		}
-
-		if (!resultingIndexes[0] && resultingIndexes[1] == std::ssize(nodes)) {
-			goto justShiftEverything;
-		}
-
-		if (resultingIndexes[1] != resultingIndexes[0]) { // Hmm I don't think we quite want to do this check...
-
-			// If moving them right, that's pretty easy. Nothing can even wrap because our moving bit slams into a brick
-			// wall to the right.
-			if (offset == 1) {
-
-				// If rightmost node collides with endPos, delete it
-				int32_t rightMostIndex = resultingIndexes[1] - 1;
-				ParamNode* rightMost = &nodes[rightMostIndex];
-				if (rightMost->pos >= endPos - 1) {
-					nodes.erase(nodes.begin() + rightMostIndex);
-					resultingIndexes[1]--;
-				}
-
-				for (int32_t i = resultingIndexes[0]; i < resultingIndexes[1]; i++) {
-					nodes[i].pos++;
-				}
-			}
-
-			// Moving left
-			else {
-
-				// If there's anything to the left that we'll eat into...
-				if (resultingIndexes[0] > 0) {
-
-					int32_t prevNodeIndex = resultingIndexes[0] - 1;
-					ParamNode* prevNode = &nodes[prevNodeIndex];
-					if (prevNode->pos >= pos - 1) {
-						nodes.erase(nodes.begin() + prevNodeIndex);
-						resultingIndexes[0]--;
-						resultingIndexes[1]--;
-					}
-				}
-
-				// Or if we don't have space to the left...
-				else {
-					ParamNode* leftMostNode = &nodes[resultingIndexes[0]];
-					if (leftMostNode->pos) {} // All good - it can go left
-					else {
-						// Ok, we have to wrap it.
-						// Delete any node at the far right of the loop
-						int32_t lastNodeIndex = std::ssize(nodes) - 1;
-						ParamNode* lastNode = &nodes[lastNodeIndex];
-
-						// Well actually, if it's right there, we'll just reuse it and delete our old one
-						if (lastNode->pos == lengthBeforeLoop - 1) {
-							*lastNode = *leftMostNode;
-						}
-
-						// Otherwise, have to delete our old one and put a new one at the end.
-						else {
-							ParamNode tempNode = *leftMostNode;
-							nodes.erase(nodes.begin() + 0, nodes.begin() + 0 + 1);
-							(void)nodes.insertAt(lastNodeIndex); // Yes, lastNodeIndex is still correct. And, this
-							                                     // really shouldn't be able to give an error...
-							lastNode = &nodes[lastNodeIndex];
-							*lastNode = tempNode;
-						}
-
-						lastNode->pos = lengthBeforeLoop - 1;
-						resultingIndexes[1]--; // There's one less node we'll have to move below
-					}
-				}
-
-				for (int32_t i = resultingIndexes[0]; i < resultingIndexes[1]; i++) {
-					nodes[i].pos--;
-				}
-			}
-		}
-	}
+	deluge::project::moveRegionHorizontally(*modelStack->doc(), pos, length, offset, lengthBeforeLoop);
 }
 
 void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
                                                 ModelStackWithAutoParam const* modelStack) {
-	auto nodeIt = nodes.find_key(pos);
-	if (nodeIt != nodes.end()) {
-		int32_t nodeI = static_cast<int32_t>(nodeIt - nodes.begin());
-
-		if (action) {
-			action->recordParamChangeDefinitely(modelStack, false);
-		}
-
-		ParamNode* node = (ParamNode*)&nodes[nodeI];
-		if (!node->interpolated) {
-
-			int32_t newNodePos = pos + offset;
-			int32_t nextNodeI;
-
-			// If that's caused wrapping left...
-			if (newNodePos < 0) {
-				newNodePos += lengthBeforeLoop;
-				nextNodeI = std::ssize(nodes) - 2; // Subtract 2 instead of the normal 1 cos we're about to delete
-				                                   // one element before doing anything with this index number
-
-doWrap:
-				// There should never be just one node
-				if (ALPHA_OR_BETA_VERSION && std::ssize(nodes) == 1) {
-					FREEZE_WITH_ERROR("E335");
-				}
-				int32_t ourValue = node->value; // Grab this before deleting stuff
-
-				// Delete the old node
-				nodes.erase(nodes.begin() + nodeI);
-
-				ParamNode* nextNode = (ParamNode*)&nodes[nextNodeI];
-
-				// If that next node is at the pos we're wanting to nudge to, and would hence get deleted, we can just
-				// copy to it
-				if (nextNode->pos == newNodePos) {
-
-					// But if that would all mean that we'd actually end up with only 1 node, well that's not allowed.
-					// (Actually it is now, but let's be safe.)
-					if (std::ssize(nodes) == 1) {
-						nodes.clear();
-					}
-
-					// But yeah normally that'll be fine - just go copy to that node we've collided with
-					else {
-						goto setNodeValue;
-					}
-				}
-
-				// Otherwise, create a new node
-				else {
-					nextNodeI = std::ssize(nodes);
-					{
-						Error error = nodes.insertAt(nextNodeI).error_or(
-						    Error::NONE); // This shouldn't be able to fail, cos we just deleted a node
-						if (ALPHA_OR_BETA_VERSION && error != Error::NONE) {
-							FREEZE_WITH_ERROR("E333");
-						}
-					}
-
-					nextNode = (ParamNode*)&nodes[nextNodeI];
-					nextNode->pos = newNodePos;
-
-setNodeValue:
-					nextNode->value = ourValue;
-					nextNode->interpolated = false;
-				}
-			}
-
-			// Or if wrapping right...
-			else if (newNodePos >= lengthBeforeLoop) {
-				newNodePos -= lengthBeforeLoop;
-				nextNodeI = 0;
-				goto doWrap;
-			}
-
-			// Or if no wrapping
-			else {
-
-				// Nudge our node
-				nextNodeI = nodeI + offset;
-				node->pos = newNodePos;
-
-				// If no previously existing nodes further in that direction at all, that's easy
-				if (nextNodeI < 0 || nextNodeI >= std::ssize(nodes)) {}
-
-				// Or if some node, have a look at it, and delete it if it's been collided with
-				else {
-					ParamNode* nextNode = (ParamNode*)&nodes[nextNodeI];
-					if (nextNode->pos == newNodePos) {
-						nodes.erase(nodes.begin() + nextNodeI);
-					}
-				}
-			}
-		}
+	// The Action snapshot fires whenever a node exists at pos, regardless of whether the node is interpolated;
+	// forward the node mutation to the DOM kernel, then reset the RT interpolation.
+	if (action && modelStack->doc()->nodes.find_key(pos) != modelStack->doc()->nodes.end()) {
+		action->recordParamChangeDefinitely(modelStack, false);
 	}
-
-	if (nodes.empty()) {
+	deluge::project::nudgeNonInterpolatingNodesAtPos(*modelStack->doc(), pos, offset, lengthBeforeLoop);
+	if (modelStack->doc()->nodes.empty()) {
 		resetInterpolationIncrement(); // In case we were interpolating.
 	}
-
-	nodes.testSequentiality("E334");
 }
 
 void AutoParam::notifyPingpongOccurred() {
@@ -2896,6 +1881,8 @@ void AutoParam::notifyPingpongOccurred() {
 
 void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
                            int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
+	// Resolve the DOM node store via the ModelStack.
+	auto& nodesRef = modelStack->doc()->nodes;
 
 	int32_t stopAt = pos + regionLength;
 	int32_t durationAfterWrap = (stopAt - loopLength);
@@ -2905,14 +1892,14 @@ void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t po
 	searchTerms[1] = stopAt;
 	int32_t resultingIndexes[2];
 
-	nodes.searchDual(searchTerms, resultingIndexes);
+	nodesRef.searchDual(searchTerms, resultingIndexes);
 
 	int32_t numNodesToStealBeforeWrap = resultingIndexes[1] - resultingIndexes[0];
 
 	int32_t numNodesToStealAfterWrap = 0;
 
 	if (durationAfterWrap > 0) {
-		numNodesToStealAfterWrap = nodes.firstAtOrAfter(durationAfterWrap);
+		numNodesToStealAfterWrap = nodesRef.firstAtOrAfter(durationAfterWrap);
 	}
 
 	if (stolenNodeRecord) {
@@ -2936,7 +1923,7 @@ void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t po
 
 goAgain:
 				while (sourceI < stopAtI) {
-					memcpy(&stolenNodes[destI], &nodes[sourceI], sizeof(ParamNode));
+					memcpy(&stolenNodes[destI], &nodesRef[sourceI], sizeof(ParamNode));
 					// stolenNodes[destI] = *(ParamNode*)&nodes[sourceI];
 
 					stolenNodes[destI].pos -= pos;
@@ -2959,21 +1946,23 @@ goAgain:
 
 	// Now actually delete the source Nodes
 	if (numNodesToStealBeforeWrap) {
-		nodes.erase(nodes.begin() + resultingIndexes[0],
-		            nodes.begin() + resultingIndexes[0] + numNodesToStealBeforeWrap);
+		nodesRef.erase(nodesRef.begin() + resultingIndexes[0],
+		               nodesRef.begin() + resultingIndexes[0] + numNodesToStealBeforeWrap);
 	}
 
 	if (numNodesToStealAfterWrap) {
-		nodes.erase(nodes.begin() + 0, nodes.begin() + 0 + numNodesToStealAfterWrap);
+		nodesRef.erase(nodesRef.begin() + 0, nodesRef.begin() + 0 + numNodesToStealAfterWrap);
 	}
 
-	nodes.testSequentiality("E424");
+	nodesRef.testSequentiality("E424");
 }
 
 void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
                                   int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
+	// Resolve the DOM node store via the ModelStack.
+	auto& nodesRef = modelStack->doc()->nodes;
 
-	bool wasAutomatedBefore = isAutomated();
+	bool wasAutomatedBefore = isAutomated(*modelStack->doc());
 
 	if (action) {
 		action->recordParamChangeIfNotAlreadySnapshotted(modelStack);
@@ -2993,11 +1982,11 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 			destPos -= loopLength;
 		}
 
-		int32_t destI = nodes.insertSorted(destPos).value_or(-1);
+		int32_t destI = nodesRef.insertSorted(destPos).value_or(-1);
 		if (destI == -1) {
 			break;
 		}
-		ParamNode* destNode = (ParamNode*)&nodes[destI];
+		ParamNode* destNode = (ParamNode*)&nodesRef[destI];
 
 		memcpy(destNode, stolenNode, sizeof(ParamNode));
 		//*destNode = *stolenNode;
@@ -3005,40 +1994,16 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 	}
 
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, currentValue, true, wasAutomatedBefore,
-	                                                          isAutomated());
+	                                                          isAutomated(*modelStack->doc()));
 
-	nodes.testSequentiality("E423");
+	nodesRef.testSequentiality("E423");
 }
 
 // Disregards a node that's right at pos.
 // Maybe I ought to make this take cut-points into consideration... but I can't see a need yet...
 int32_t AutoParam::getDistanceToNextNode(ModelStackWithAutoParam const* modelStack, int32_t pos, bool reversed) {
-
-	int32_t effectiveLength = modelStack->getLoopLength();
-
-	if (nodes.empty()) {
-		return effectiveLength;
-	}
-
-	int32_t i = nodes.firstAtOrAfter(pos + !reversed) - reversed;
-	if (i == -1) {
-		i = std::ssize(nodes) - 1;
-	}
-	else if (i == std::ssize(nodes)) {
-		i = 0;
-	}
-
-	ParamNode* node = (ParamNode*)&nodes[i];
-
-	int32_t distance = node->pos - pos;
-	if (reversed) {
-		distance = -distance;
-	}
-	if (distance <= 0) {
-		distance += effectiveLength;
-	}
-
-	return distance;
+	// Forward to the DOM read kernel, supplying the timeline context (loop length) it takes explicitly.
+	return deluge::project::getDistanceToNextNode(*modelStack->doc(), pos, modelStack->getLoopLength(), reversed);
 }
 
 /*

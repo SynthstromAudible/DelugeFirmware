@@ -17,6 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
 #include "model/drum/drum.h"
@@ -59,13 +60,13 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->outputMidiChannel = value;
+					settingFor(*soundDrum, "midiOutput/channel", serialization::Value::makeNumber(value));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->outputMidiChannel = value;
+			settingFor(*soundEditor.currentSound, "midiOutput/channel", serialization::Value::makeNumber(value));
 		}
 	}
 

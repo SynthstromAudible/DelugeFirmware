@@ -18,6 +18,7 @@
 #include "engine_select.h"
 #include "dsp/dx/engine.h"
 #include "gui/menu_item/dx/param.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
@@ -54,7 +55,11 @@ void DxEngineSelect::selectEncoderAction(int32_t offset) {
 		return;
 	}
 
-	patch->setEngineMode(newValue);
+	if (std::optional<deluge::instrument::DxPatchState> changed =
+	        deluge::bridge::dxPatchOf(*soundEditor.currentSource)) {
+		changed->engine_mode = static_cast<uint8_t>(newValue);
+		dxPatchFor(*soundEditor.currentSound, soundEditor.currentSourceIndex, *changed);
+	}
 	currentValue = newValue;
 	renderUIsForOled();
 }

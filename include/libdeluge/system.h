@@ -90,6 +90,25 @@ inline int32_t deluge_audio_excluded_depth() noexcept {
 	return g_delugeAudioExcludedDepth;
 }
 
+/// @brief Begin excluding the audio render, unless the caller is the render itself. [task] [isr]
+/// @return Whether it excluded, and so must be ended with deluge_audio_exclude_exit().
+inline bool deluge_audio_exclude_enter() noexcept {
+	if (deluge_in_audio_context()) {
+		return false;
+	}
+	ENTER_CRITICAL_SECTION();
+	g_delugeAudioExcludedDepth++;
+	return true;
+}
+
+/// @brief End an exclusion begun by deluge_audio_exclude_enter(), if @p entered. [task] [isr]
+inline void deluge_audio_exclude_exit(bool entered) noexcept {
+	if (entered) {
+		g_delugeAudioExcludedDepth--;
+		EXIT_CRITICAL_SECTION();
+	}
+}
+
 /// @brief RAII asymmetric critical section: enters iff the caller is NOT the audio render
 /// (`!deluge_in_audio_context()`).
 ///
@@ -99,18 +118,8 @@ inline int32_t deluge_audio_excluded_depth() noexcept {
 /// deluge_in_audio_context() is always false, so every thread takes the one global lock, which is what excludes the
 /// audio thread's walks from another thread's changes. Its depth is deluge_audio_excluded_depth().
 struct AudioExcludedSection {
-	AudioExcludedSection() : entered_(!deluge_in_audio_context()) {
-		if (entered_) {
-			ENTER_CRITICAL_SECTION();
-			g_delugeAudioExcludedDepth++;
-		}
-	}
-	~AudioExcludedSection() {
-		if (entered_) {
-			g_delugeAudioExcludedDepth--;
-			EXIT_CRITICAL_SECTION();
-		}
-	}
+	AudioExcludedSection() : entered_(deluge_audio_exclude_enter()) {}
+	~AudioExcludedSection() { deluge_audio_exclude_exit(entered_); }
 	AudioExcludedSection(const AudioExcludedSection&) = delete;
 	AudioExcludedSection& operator=(const AudioExcludedSection&) = delete;
 

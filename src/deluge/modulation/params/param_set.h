@@ -22,6 +22,11 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include <array>
+#include <memory>
+
+namespace deluge::project {
+struct DocParamSet;
+}
 
 // storage/storage_manager.h is deliberately NOT included: Serializer / Deserializer appear only as
 // method-parameter types below, so forward declarations suffice and the heavy storage include lives in
@@ -42,9 +47,59 @@ protected:
 	/// Number of parameters in the params array
 	int32_t numParams_;
 
+	/// DOM-owned node store this set's AutoParams borrow. nullptr = not created yet (docForParam() creates it
+	/// on first access) or externally owned (see domStoreRef_). RAII-freed with the set; because the set is
+	/// heap-allocated and never relocates (a ParamBackup steal moves only the owning pointer), the store outlives
+	/// the clip and follows the params through backup/restore.
+	std::unique_ptr<deluge::project::DocParamSet> domStore_;
+
+	/// Non-owning pointer to the ACTIVE DOM store this set resolves params against: either `domStore_.get()`
+	/// (clip/drum: this set owns it) or an externally-owned store (song-global: the song's `master_params` block,
+	/// owned by the DOM project at a stable address). The owner-resolution path (`docForParam`) reads this, so both
+	/// binding regimes resolve identically without the AutoParam holding a pointer. nullptr = unbound.
+	deluge::project::DocParamSet* domStoreRef_ = nullptr;
+
 public:
 	AutoParam* params;
 	ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary);
+	/// @brief Copy-construct a set; a bound source's DOM store is deep-copied, so two sets never alias one store.
+	///
+	/// An unbound source yields an unbound clone. Out-of-line so DocParamSet can stay incomplete in this header.
+	/// @param other The set to copy.
+	ParamSet(ParamSet const& other);
+	~ParamSet() override;
+
+	/// @brief Ensure this set owns a DOM-owned DocParamSet (RAII-freed with the set).
+	///
+	/// Each AutoParam borrows its nodes from domStore_->params[p].nodes. Idempotent: a no-op if already bound.
+	void bindDomStore();
+	/// @brief Bind this set's owner-resolution to an EXTERNALLY-owned DOM store (song-global: the store lives in
+	///        the DOM project, not here).
+	///
+	/// Sets only the non-owning `domStoreRef_`; `domStore_` stays null so this set never frees a store it does
+	/// not own.
+	/// @param ext The externally-owned store; must outlive this set's use of it.
+	void bindDomStoreExternal(deluge::project::DocParamSet* ext);
+	/// @brief The bound DOM store (owned or external), or nullptr if unbound. Test / inspection accessor.
+	/// @return The bound store, or nullptr.
+	deluge::project::DocParamSet* domStore();
+
+	/// @brief After a DOM-first read populated `domStore()`, project every engine RT cursor from the store's
+	///        current_value and set the summary's automated bit exactly as the engine reader (readLiveParam) would.
+	///
+	/// The nodes live in the store, but playback iterates the summary cache.
+	/// @pre A store is bound.
+	/// @param summary The collection summary whose automated bits are updated.
+	void projectFromStoreAfterRead(ParamCollectionSummary* summary);
+
+	/// @brief Resolve a param's DOM node-store handle from this set (owner-rooted).
+	///
+	/// docForParam takes the array index; docParamForId takes the ModelStack paramId (== index for a ParamSet).
+	/// @param p Index into the set's params array.
+	/// @return The param's DOM store slot (never null; the store is created on first use).
+	deluge::project::DocAutoParam* docForParam(int32_t p);
+	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override { return docForParam(paramId); }
+	[[nodiscard]] bool domStoreIsExternal() const override { return domStore_ == nullptr && domStoreRef_ != nullptr; }
 
 	inline int32_t getValue(int32_t p) { return params[p].getCurrentValue(); }
 	int32_t getValueAtPos(int32_t p, uint32_t pos, TimelineCounter* playPositionCounter);
@@ -63,8 +118,8 @@ public:
 	void appendParamCollection(ModelStackWithParamCollection* modelStack,
 	                           ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
 	                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) final;
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
-	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
+	void stripAutomation() override;
+	void flattenReverseAutomation(int32_t reverseDirectionWithLength) override;
 	void copyOverridingFrom(ParamSet* otherParamSet);
 	void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
 	                  bool maySetupPatching) final;
@@ -74,7 +129,6 @@ public:
 	void paramHasNoAutomationNow(ModelStackWithParamCollection const* modelStack, int32_t p);
 
 	void shiftParamValues(int32_t p, int32_t offset);
-	void shiftParamVolumeByDB(int32_t p, float offset);
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) final;
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) override;
 	void deleteAutomationForParamBasicForSetup(ModelStackWithParamCollection* modelStack, int32_t p);
@@ -102,7 +156,9 @@ private:
 class UnpatchedParamSet final : public ParamSet {
 public:
 	UnpatchedParamSet(ParamCollectionSummary* summary);
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
+	// Deep copy: copy-constructs the inline params_ array (real AutoParam copies) and re-points params.
+	UnpatchedParamSet(UnpatchedParamSet const& other);
+	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
 	bool shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) override;
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
 	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) override;
@@ -120,7 +176,8 @@ private:
 class PatchedParamSet final : public ParamSet {
 public:
 	PatchedParamSet(ParamCollectionSummary* summary);
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
+	PatchedParamSet(PatchedParamSet const& other);
+	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
@@ -135,7 +192,8 @@ private:
 class ExpressionParamSet final : public ParamSet {
 public:
 	ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum = false);
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
+	ExpressionParamSet(ExpressionParamSet const& other);
+	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
 	bool mayParamInterpolate(int32_t paramId) override { return false; }

@@ -15,9 +15,12 @@ And once per run:
 
 The corpus is tests/integration/golden/presets/: `<case>.xml` (or `.XML`), optionally `<case>.notes` (default.notes
 otherwise), `<case>.wav` and `<case>.2.wav` (staged as SAMPLES/WT.WAV and WT2.WAV, which the preset names). A case is
-named by its path under the corpus without the extension, e.g. `factory/000 Rich Saw Bass`.
+named by its path under the corpus without the extension, e.g. `factory/000 Rich Saw Bass`. The cases under `stereo/`
+render with headphones plugged in, so in stereo (RENDER_STEREO); the rest render in mono, as through the speaker.
 
 RENDER_PRESET_FILTER takes a comma-separated list of substrings, and runs the cases whose name holds any of them.
+RENDER_PRESET_CORPUS=<dir> renders the cases of another copy of the corpus (e.g. its presets upgraded) against the same
+records.
 RENDER_PRESET_KEEP=<dir> keeps each case's output there, as `<case>.pcm` (interleaved little-endian i32, the case's
 length exactly), for tests/integration/golden/compare_renders.py.
 RENDER_RANDOM_SEED seeds the synth's random stream at each case's first note instead of its boot seed, to measure how
@@ -42,6 +45,9 @@ DEFAULT_SECONDS = 2.0
 SECONDS = {"env_shape": 3.0}
 # Cases whose sources read the audio input: fed the harness's test signal instead of silence.
 INPUT = {"input_mono", "input_stereo", "input_pitchshift"}
+# Cases under this directory render with headphones plugged in, so the app renders in stereo; every other case renders
+# in mono, as through the device's speaker.
+STEREO_DIR = "stereo/"
 # The loudest sample of silence: 16 in 16-bit terms, the C-host harness's threshold. The render's dither floor sits
 # far below it.
 SILENCE_PEAK = 16 << 16
@@ -62,23 +68,30 @@ def cases(corpus: Path) -> list[str]:
     """Every case in the corpus, by name."""
     return sorted(
         str(p.relative_to(corpus).with_suffix(""))
-        for pattern in ("*.xml", "*.XML")
+        for pattern in ("*.xml", "*.XML", "*.json")
         for p in corpus.rglob(pattern)
     )
 
 
 def _preset(corpus: Path, name: str) -> Path:
-    for suffix in (".xml", ".XML"):
+    for suffix in (".xml", ".XML", ".json"):
         path = corpus / f"{name}{suffix}"
         if path.exists():
             return path
     raise FileNotFoundError(name)
 
 
-# A preset's saved MIDI learn, in the attribute format and the old tag format.
+# A preset's saved MIDI learn, in the attribute format, the old tag format and JSON.
 LEARNED_INPUT = re.compile(
     r'\s*inputMidiChannel="[^"]*"|\s*<inputMidiChannel>[^<]*</inputMidiChannel>'
 )
+LEARNED_INPUT_JSON = re.compile(r'\s*"inputMidiChannel":\s*[^,}\n]*\s*,')
+LEARNED_INPUT_JSON_LAST = re.compile(r',?\s*"inputMidiChannel":\s*[^,}\n]*(?=\s*\})')
+
+
+def without_learned_input_json(text: str) -> str:
+    """A JSON preset without its MIDI learn member, and without the comma that joined it to its neighbours."""
+    return LEARNED_INPUT_JSON_LAST.sub("", LEARNED_INPUT_JSON.sub("", text))
 
 
 def _staged_preset_text(preset: Path) -> str:
@@ -87,6 +100,8 @@ def _staged_preset_text(preset: Path) -> str:
     The note scripts reach the preset through MIDI follow. A learn on the same channel would deliver every note a second
     time, starting a second voice for it, so a case's sound would depend on whether the preset happens to be learned.
     """
+    if preset.suffix == ".json":
+        return without_learned_input_json(preset.read_text())
     return LEARNED_INPUT.sub("", preset.read_text())
 
 
@@ -95,7 +110,8 @@ def _stage(corpus: Path, name: str, where: Path) -> dict[str, str]:
     preset = _preset(corpus, name)
     card = where / "card"
     (card / "SYNTHS").mkdir(parents=True)
-    (card / "SYNTHS" / "PRESET.XML").write_text(_staged_preset_text(preset))
+    staged = "PRESET.json" if preset.suffix == ".json" else "PRESET.XML"
+    (card / "SYNTHS" / staged).write_text(_staged_preset_text(preset))
     samples = [
         s
         for s in (preset.with_suffix(".wav"), preset.with_suffix(".2.wav"))
@@ -116,6 +132,8 @@ def _stage(corpus: Path, name: str, where: Path) -> dict[str, str]:
     }
     if name in INPUT:
         env["RENDER_INPUT"] = "1"
+    if name.startswith(STEREO_DIR):
+        env["RENDER_STEREO"] = "1"
     return env
 
 
@@ -128,10 +146,13 @@ def _check_learn(gate, corpus: Path, pcm_record) -> None:
     listen, so only the preset's own learn can reach it."""
     where = gate.tmp / "learn"
     env = _stage(corpus, "sine_basic", where)
-    preset = where / "card" / "SYNTHS" / "PRESET.XML"
-    preset.write_text(
-        preset.read_text().replace("<sound", '<sound inputMidiChannel="1"', 1)
+    preset = next((where / "card" / "SYNTHS").glob("PRESET.*"))
+    learn = (
+        ('"sound": {', '"sound": {"inputMidiChannel": 1,')
+        if preset.suffix == ".json"
+        else ("<sound", '<sound inputMidiChannel="1"')
     )
+    preset.write_text(preset.read_text().replace(*learn, 1))
     notes = where / "channel2.notes"
     notes.write_text("4608 91 3C 64\n52000 81 3C 40\n")
     env["RENDER_MIDI"] = str(notes)
@@ -149,7 +170,11 @@ def _check_learn(gate, corpus: Path, pcm_record) -> None:
 
 
 def run(gate):
-    corpus = gate.root / "tests/integration/golden/presets"
+    # RENDER_PRESET_CORPUS renders another copy of the corpus (e.g. its files upgraded) against the same records.
+    corpus = Path(
+        gate.env.get("RENDER_PRESET_CORPUS")
+        or gate.root / "tests/integration/golden/presets"
+    )
     records_path = gate.root / "tests/integration/golden/presets.json"
     update = os.environ.get("RENDER_PRESET_UPDATE") == "1"
     keep = (

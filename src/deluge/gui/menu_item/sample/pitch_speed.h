@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/sample/utils.h"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -50,15 +51,14 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					Source* source = &soundDrum->sources[source_id_];
-					source->sampleControls.pitchAndSpeedAreIndependent = this->getValue();
+					settingFor(*soundDrum, oscSettingPath(source_id_, "timeStretchEnable"),
+					           serialization::Value::makeNumber(this->getValue()));
 				}
 			}
 		}
-		// Or, the normal case of just one sound
+		// Or, the normal case of just one sound (or audio clip, whose change reaches the DOM record)
 		else {
-			auto& sampleControls = getCurrentSampleControls(source_id_);
-			sampleControls.pitchAndSpeedAreIndependent = this->getValue();
+			setCurrentPitchAndSpeedIndependent(source_id_, this->getValue());
 		}
 	}
 

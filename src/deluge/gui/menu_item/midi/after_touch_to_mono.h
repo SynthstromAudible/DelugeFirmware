@@ -28,7 +28,7 @@ public:
 	// this is safe since it's only shown in midi clips
 	void readCurrentValue() override { this->setValue(((MIDIInstrument*)getCurrentOutput())->collapseAftertouch); }
 	void writeCurrentValue() override {
-		((MIDIInstrument*)getCurrentOutput())->collapseAftertouch = this->getValue();
+		((MIDIInstrument*)getCurrentOutput())->setCollapseAftertouch(this->getValue());
 		getCurrentInstrument()->editedByUser = true;
 	}
 };

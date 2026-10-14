@@ -1,0 +1,262 @@
+// Clone/undo deep-independence harness.
+//
+// The golden harness is BLIND to cloning — it does load->save and never duplicates a clip / kit row or
+// runs undo. This test is the safety net: it clones the real engine containers (AutoParam,
+// ParamManager with patched + unpatched + patch-cable collections) against the host allocator, mutates
+// the source, and asserts the clone is DEEP-INDEPENDENT (the source mutation does not leak into the
+// clone). It runs as the param_clone scenario (scenarios/drivers/driver.h), on x86 and, through the qemu-arm
+// build of golden_vt_render, on ARM.
+//
+// Any change to the clone paths that breaks deep independence fails here.
+//
+// Exit: 0 = all clones deep-independent, 1 = a failure.
+
+#include "definitions_cxx.hpp"
+#include "memory/general_memory_allocator.h"
+#include "model/note/note.h"
+#include "model/note/note_row.h"
+#include "modulation/automation/auto_param.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
+#include "storage/storage_manager.h"
+
+#include <cstdint>
+#include <cstdio>
+
+#include "scenarios/drivers/driver.h"
+
+namespace {
+
+using deluge::scenarios::driver::Io;
+
+/// Where this driver's prints go: what its process wrote to stdout and stderr.
+Io io{};
+
+int failures = 0;
+
+void check(bool ok, const char* what) {
+	if (!ok) {
+		std::fprintf(io.err, "FAIL: %s\n", what);
+		failures++;
+	}
+}
+
+// Author a node into a DOM node store (owner-resolved slot, or a standalone DocAutoParam).
+void setNodeIn(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value, bool interpolated) {
+	int32_t i = doc.nodes.insertSorted(pos, /*isDefinitelyLast=*/true).value_or(-1);
+	if (i >= 0) {
+		doc.nodes[i].pos = pos;
+		doc.nodes[i].value = value;
+		doc.nodes[i].interpolated = interpolated;
+	}
+}
+
+int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
+	io = driverIo;
+	// (a) AutoParam is a pure cursor — copy carries only currentValue (node storage lives in the DOM, and
+	// is exercised by the ParamManager/ParamSet clone blocks below).
+	{
+		AutoParam src;
+		src.currentValue = 555;
+		AutoParam dst;
+		dst = src; // copy assign
+		check(dst.currentValue == 555, "autoparam copy assign: currentValue copied");
+		AutoParam ctor(src); // copy ctor
+		check(ctor.currentValue == 555, "autoparam copy ctor: currentValue copied");
+	}
+
+	// (b) ParamManager clone: exercises the polymorphic per-collection clone chain
+	//     (ParamManager::cloneParamCollectionsFrom -> each collection's beenCloned).
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "pm setupWithPatching");
+
+		pm.getUnpatchedParamSet()->params[2].currentValue = 678;
+		setNodeIn(*pm.getUnpatchedParamSet()->docForParam(2), 16, 321, false);
+		setNodeIn(*pm.getPatchedParamSet()->docForParam(5), 0, 100, true);
+
+		PatchCableSet* pcs = pm.getPatchCableSet();
+		pcs->addCable();
+		pcs->numUsablePatchCables = 1; // beenCloned() only fixes up cables < numUsablePatchCables; the rest it init()s
+		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
+		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
+		pcs->patchCables[0].param.currentValue = 536870912;
+		setNodeIn(*pcs->docForParam(0), 0, -536870912, true);
+
+		ParamManagerForTimeline clone;
+		check(clone.cloneParamCollectionsFrom(&pm, /*copyAutomation=*/true) == Error::NONE,
+		      "pm clone: cloneParamCollectionsFrom");
+		check(clone.getUnpatchedParamSet()->docForParam(2)->nodes.size() == 1, "pm clone: unpatched node copied");
+		check(clone.getPatchedParamSet()->docForParam(5)->nodes.size() == 1, "pm clone: patched node copied");
+		check(clone.getPatchCableSet()->docForParam(0)->nodes.size() == 1, "pm clone: patch-cable node copied");
+
+		// Mutate every collection in the source; the clone must not move.
+		pm.getUnpatchedParamSet()->docForParam(2)->nodes[0].value = 999;
+		pm.getPatchedParamSet()->docForParam(5)->nodes[0].value = 999;
+		pcs->docForParam(0)->nodes[0].value = 999;
+
+		check(clone.getUnpatchedParamSet()->docForParam(2)->nodes[0].value == 321,
+		      "pm clone: unpatched node independent");
+		check(clone.getPatchedParamSet()->docForParam(5)->nodes[0].value == 100, "pm clone: patched node independent");
+		check(clone.getPatchCableSet()->docForParam(0)->nodes[0].value == -536870912,
+		      "pm clone: patch-cable node independent");
+	}
+
+	// (b2) ParamCollection::clone() direct: the base implementation and each
+	//      per-subclass override are held to deep independence.
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "clone(): pm setup");
+		setNodeIn(*pm.getUnpatchedParamSet()->docForParam(2), 16, 321, false);
+
+		ParamCollection* cloned = nullptr;
+		Error e = pm.getUnpatchedParamSet()->clone(cloned, /*copyAutomation=*/true);
+		check(e == Error::NONE && cloned != nullptr, "clone(): unpatched clone ok");
+		if (cloned != nullptr) {
+			ParamSet* clonedSet = static_cast<ParamSet*>(cloned);
+			check(clonedSet->docForParam(2)->nodes.size() == 1, "clone(): unpatched node copied");
+			pm.getUnpatchedParamSet()->docForParam(2)->nodes[0].value = 999;
+			check(clonedSet->docForParam(2)->nodes[0].value == 321, "clone(): unpatched node independent");
+		}
+	}
+
+	// (b3) clone(copyAutomation=false): the clone copies structure/values but drops automation (stripAutomation).
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "clone(strip): pm setup");
+		pm.getUnpatchedParamSet()->params[2].currentValue = 678;
+		setNodeIn(*pm.getUnpatchedParamSet()->docForParam(2), 16, 321, false);
+
+		ParamCollection* cloned = nullptr;
+		Error e = pm.getUnpatchedParamSet()->clone(cloned, /*copyAutomation=*/false);
+		check(e == Error::NONE && cloned != nullptr, "clone(strip): clone ok");
+		if (cloned != nullptr) {
+			ParamSet* clonedSet = static_cast<ParamSet*>(cloned);
+			check(clonedSet->docForParam(2)->nodes.size() == 0, "clone(strip): automation dropped");
+			check(pm.getUnpatchedParamSet()->docForParam(2)->nodes.size() == 1,
+			      "clone(strip): source automation intact");
+		}
+	}
+
+	// (b4) clone(reverse): the clone's nodes are the reversed image of the source; source unchanged.
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "clone(reverse): pm setup");
+		// Two nodes: pos 0 and pos 48 in a length-96 loop.
+		setNodeIn(*pm.getUnpatchedParamSet()->docForParam(2), 0, 111, false);
+		setNodeIn(*pm.getUnpatchedParamSet()->docForParam(2), 48, 222, true);
+
+		ParamCollection* cloned = nullptr;
+		Error e = pm.getUnpatchedParamSet()->clone(cloned, /*copyAutomation=*/true, /*reverseWithLength=*/96);
+		check(e == Error::NONE && cloned != nullptr, "clone(reverse): clone ok");
+		if (cloned != nullptr) {
+			ParamSet* clonedSet = static_cast<ParamSet*>(cloned);
+			// Reversed: newPos = -oldPos (+96 if <0). Node at 0 stays 0; node at 48 -> 48.
+			check(clonedSet->docForParam(2)->nodes.size() == 2, "clone(reverse): node count preserved");
+			int32_t p0 = clonedSet->docForParam(2)->nodes[0].pos;
+			int32_t p1 = clonedSet->docForParam(2)->nodes[1].pos;
+			check(p0 == 0 && p1 == 48, "clone(reverse): node positions reflected");
+			// Source untouched by the clone's reverse.
+			check(pm.getUnpatchedParamSet()->docForParam(2)->nodes[0].pos == 0
+			          && pm.getUnpatchedParamSet()->docForParam(2)->nodes[1].pos == 48,
+			      "clone(reverse): source unchanged");
+		}
+	}
+
+	// (b5) PatchCableSet::clone() deep-copies the destinations[] pointer arrays (distinct heap, equal contents).
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "pcs clone: pm setup");
+		PatchCableSet* pcs = pm.getPatchCableSet();
+		pcs->addCable();
+		pcs->numUsablePatchCables = 1;
+		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
+		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
+
+		// Build a sentinel-terminated (sources==0) Destination array on the allocator so the dtor can free it.
+		auto* dests = static_cast<Destination*>(deluge::memory::alloc_fast(sizeof(Destination) * 2));
+		check(dests != nullptr, "pcs clone: dests alloc");
+		if (dests != nullptr) {
+			dests[0].sources = 0b101;
+			dests[0].firstCable = 0;
+			dests[0].endCable = 1;
+			dests[1].sources = 0; // terminator
+			pcs->destinations[0 /*GLOBALITY_LOCAL*/] = dests;
+
+			ParamCollection* cloned = nullptr;
+			Error e = pcs->clone(cloned, /*copyAutomation=*/true);
+			check(e == Error::NONE && cloned != nullptr, "pcs clone: clone ok");
+			if (cloned != nullptr) {
+				PatchCableSet* clonedPcs = static_cast<PatchCableSet*>(cloned);
+				check(clonedPcs->destinations[0 /*GLOBALITY_LOCAL*/] != nullptr, "pcs clone: dests present");
+				check(clonedPcs->destinations[0 /*GLOBALITY_LOCAL*/] != pcs->destinations[0 /*GLOBALITY_LOCAL*/],
+				      "pcs clone: dests distinct pointer");
+				check(clonedPcs->destinations[0 /*GLOBALITY_LOCAL*/][0].sources == 0b101,
+				      "pcs clone: dests contents copied");
+				// Mutate source; clone must not move.
+				pcs->destinations[0 /*GLOBALITY_LOCAL*/][0].sources = 0b111;
+				check(clonedPcs->destinations[0 /*GLOBALITY_LOCAL*/][0].sources == 0b101,
+				      "pcs clone: dests independent");
+			}
+		}
+	}
+
+	// (d) NoteRow deep-copy ctor: notes + param manager deep-copied and independent; drum pointer shared;
+	//     the owned drum-name list is NOT shared (reset to empty). This guards the highest-risk conversion.
+	{
+		NoteRow src(5);
+		check(src.paramManager.setupWithPatching() == Error::NONE, "noterow copy: pm setup");
+		setNodeIn(*src.paramManager.getUnpatchedParamSet()->docForParam(2), 16, 321, false);
+
+		(void)src.notes.insertAt(0);
+		src.notes[0].pos = 10;
+
+		Drum* fakeDrum = reinterpret_cast<Drum*>(0xDEAD0000); // pointer is only copied, never dereferenced
+		src.drum = fakeDrum;
+
+		NoteRow dst(src); // copy ctor
+		check(dst.y() == 5, "noterow copy: y copied");
+		check(dst.drum == fakeDrum, "noterow copy: drum pointer shared");
+		check(static_cast<DrumName*>(dst.firstOldDrumName) == nullptr, "noterow copy: drum-name list reset");
+		check(dst.notes.size() == 1 && dst.notes[0].pos == 10, "noterow copy: notes copied");
+		check(dst.paramManager.getUnpatchedParamSet()->docForParam(2)->nodes.size() == 1,
+		      "noterow copy: param automation copied");
+
+		// Mutate the source; the copy must not move.
+		src.notes[0].pos = 20;
+		src.paramManager.getUnpatchedParamSet()->docForParam(2)->nodes[0].value = 999;
+		check(dst.notes[0].pos == 10, "noterow copy: notes independent");
+		check(dst.paramManager.getUnpatchedParamSet()->docForParam(2)->nodes[0].value == 321,
+		      "noterow copy: param automation independent");
+	}
+
+	// (c) Undo swap round-trip: the undo path swaps two DOM node stores (AutoParamState vs the live store).
+	{
+		deluge::project::DocAutoParam a, b;
+		setNodeIn(a, 0, 10, false);
+		setNodeIn(b, 0, 20, false);
+		setNodeIn(b, 8, 30, false);
+
+		a.nodes.swap(b.nodes);
+		check(a.nodes.size() == 2 && a.nodes[1].value == 30, "swap: a took b's nodes");
+		check(b.nodes.size() == 1 && b.nodes[0].value == 10, "swap: b took a's nodes");
+
+		a.nodes.swap(b.nodes); // swap back
+		check(a.nodes.size() == 1 && a.nodes[0].value == 10, "swap back: a restored");
+		check(b.nodes.size() == 2 && b.nodes[1].value == 30, "swap back: b restored");
+	}
+
+	if (failures == 0) {
+		std::fprintf(io.out, "param_clone: OK\n");
+		std::fflush(io.out);
+		return 0;
+	}
+	std::fprintf(io.err, "param_clone: %d failure(s)\n", failures);
+	std::fflush(io.err);
+	return 1;
+}
+
+} // namespace
+
+DELUGE_DRIVER_SCENARIO(param_clone, param_clone_main)

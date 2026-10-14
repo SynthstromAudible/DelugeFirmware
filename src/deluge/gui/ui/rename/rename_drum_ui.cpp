@@ -35,7 +35,7 @@ std::string_view RenameDrumUI::getCurrentName() const {
 		FREEZE_WITH_ERROR("RN01");
 		return "NONE";
 	}
-	return kit->selectedDrum->drumName;
+	return kit->selectedDrum->name();
 }
 
 bool RenameDrumUI::trySetName(std::string_view name) {
@@ -50,6 +50,6 @@ bool RenameDrumUI::trySetName(std::string_view name) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 		return false;
 	}
-	kit->selectedDrum->drumName = name;
+	kit->selectedDrum->setName(name);
 	return true;
 }

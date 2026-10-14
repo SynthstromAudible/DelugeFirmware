@@ -16,12 +16,17 @@
  */
 #pragma once
 
-#include "dsp-next/core/generator.h"
+#include "dsp-next/core/concepts.h"
 #include "dsp-next/core/phasor.h"
+#include "dsp-next/core/types.h"
+#include "dsp-next/fixed/osc/band_limited_table_oscillator.h"
+#include "dsp-next/fixed/osc/pulse_oscillator.h"
+#include "dsp-next/fixed/osc/table_oscillator.h"
 #include "dsp-next/fixed/sync/sync_windower.h" // Resetter, SyncWindower
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <type_traits>
 
 namespace deluge::dsp::fixed {
 
@@ -33,10 +38,10 @@ namespace deluge::dsp::fixed {
 /// that owns a seekable @ref deluge::dsp::Phasor — it must expose `seek(uint32_t)` and
 /// `renderBlock(Buffer)` — e.g. @ref TableOscillator.
 ///
-/// The node owns the wrapped oscillator, the resetter, and the audible phase; it is itself a
-/// @ref BlockGenerator, so it composes into the oscillator registry / signal chains like any
-/// other generator. renderBlock() is overridden rather than synthesised from a per-lane
-/// render(), because sync windows are irregular and inherently block-level. It composes a shared
+/// The node owns the wrapped oscillator (by value, called directly), the resetter, and the audible
+/// phase; it is itself a plain @ref block_generator with no vptr, reaching runtime selection through
+/// @ref AsBlock like any other generator. renderBlock() is written out rather than synthesised from a
+/// per-lane render(), because sync windows are irregular and inherently block-level. It composes a shared
 /// @ref SyncWindower (which owns the window split + seam crossfade) and, for each window it yields,
 /// just restarts the wrapped oscillator at the window's phase (it carries no position-indexed
 /// state, so the window offset is ignored).
@@ -46,7 +51,7 @@ namespace deluge::dsp::fixed {
 /// @ref SyncWindower, is transcribed verbatim → bit-identical; the only change is each window is
 /// filled to its precise length instead of overshooting into a padded scratch buffer).
 template <typename Osc>
-class [[gnu::hot]] SyncedOscillator : public BlockGenerator<q31> {
+class [[gnu::hot]] SyncedOscillator {
 	Osc oscillator_;
 	Resetter resetter_;
 	uint32_t phase_; ///< audible oscillator phase; reset to the seam fade position at each crossover
@@ -54,6 +59,8 @@ class [[gnu::hot]] SyncedOscillator : public BlockGenerator<q31> {
 	uint32_t retrigger_phase_;
 
 public:
+	using value_type = q31; ///< q31 wave samples.
+
 	SyncedOscillator(Osc oscillator, uint32_t phase, uint32_t phase_increment, Resetter resetter,
 	                 uint32_t retrigger_phase)
 	    : oscillator_{oscillator}, resetter_{resetter}, phase_{phase}, phase_increment_{phase_increment},
@@ -70,7 +77,8 @@ public:
 		oscillator_.setIncrement(phase_increment);
 	}
 
-	void renderBlock(Buffer output) override {
+	/// @brief Fill @p output with the synced wave, one wrapped-oscillator block per sync window.
+	void renderBlock(Buffer output) {
 		// Each sync window is just the wrapped oscillator restarted at the window's phase; the
 		// shared windower owns the split + seam crossfade. The wrapped oscillator carries no
 		// position-indexed state, so the window offset is ignored.
@@ -82,5 +90,15 @@ public:
 		phase_ = windower.phase();
 	}
 };
+static_assert(block_generator<SyncedOscillator<TableOscillator>>, "a synced table oscillator fills a block");
+static_assert(!std::is_polymorphic_v<SyncedOscillator<TableOscillator>>,
+              "a synced table oscillator fills a block without a vptr");
+static_assert(block_generator<SyncedOscillator<BandLimitedTableOscillator>>,
+              "a synced band-limited oscillator fills a block");
+static_assert(!std::is_polymorphic_v<SyncedOscillator<BandLimitedTableOscillator>>,
+              "a synced band-limited oscillator fills a block without a vptr");
+static_assert(block_generator<SyncedOscillator<PulseOscillator>>, "a synced pulse oscillator fills a block");
+static_assert(!std::is_polymorphic_v<SyncedOscillator<PulseOscillator>>,
+              "a synced pulse oscillator fills a block without a vptr");
 
 } // namespace deluge::dsp::fixed

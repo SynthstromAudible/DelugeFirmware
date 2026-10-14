@@ -16,6 +16,7 @@
  */
 
 #include "scenarios/preset_load_scenario.h"
+#include "scenarios/slot_coherence.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clear_song.h"
@@ -61,7 +62,11 @@
 #include <algorithm>
 #include <cstdio>
 #include <iterator>
+#include <span>
 #include <string>
+#include <string_view>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 // The GUI headers above reach `src/lib/printf.h`, which soft-aliases printf to an implementation this harness has no
@@ -81,8 +86,8 @@ public:
 
 	/// An empty pad pressed in Rows layout: the new-track gesture, making a track of @p type.
 	static void pressEmptyRow(int32_t yDisplay, OutputType type = OutputType::SYNTH, int32_t velocity = 1) {
-		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
-		currentSong->songViewYScroll = 0;
+		currentSong->persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+		currentSong->persistentView.songViewYScroll = 0;
 		currentUIMode = UI_MODE_NONE;
 		FlashStorage::defaultUseLastClipType = true;
 		sessionView.lastTypeCreated = type;
@@ -97,12 +102,12 @@ public:
 		sessionView.clipPressEnded();
 		sessionView.gridResetPresses(true, true);
 		currentUIMode = UI_MODE_NONE;
-		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+		currentSong->persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 	}
 
 	/// @p source's grid pad copied into the first empty track column, in its own section.
 	static bool cloneIntoEmptyColumn(Clip* source) {
-		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
+		currentSong->persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
 		currentUIMode = UI_MODE_NONE;
 		const Cartesian from = sessionView.gridXYFromClip(*source);
 		const auto column = static_cast<int32_t>(sessionView.gridTrackCount());
@@ -115,7 +120,7 @@ public:
 
 	/// The select encoder turned while @p clip's grid pad is held.
 	static bool turnInGrid(Clip* clip, int8_t offset) {
-		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
+		currentSong->persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
 		const Cartesian xy = sessionView.gridXYFromClip(*clip);
 		sessionView.gridFirstPressedX = xy.x;
 		sessionView.gridFirstPressedY = xy.y;
@@ -455,7 +460,7 @@ AudioFileHolder* firstHolder(Source& source) {
 
 int32_t countOutputs() {
 	int32_t outputs = 0;
-	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		outputs++;
 	}
 	return outputs;
@@ -472,6 +477,53 @@ bool writeInstrumentDocument(Instrument& instrument, const char* path, const cha
 	instrument.writeToFile(nullptr, currentSong);
 	error = GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", closingTag);
 	return error == Error::NONE || fail(legName(g_leg), "a preset file could not be closed");
+}
+
+/// @brief Rewrite the preset at @p path in the form a firmware without the delay type saves it.
+///
+/// Each delay's `type` becomes the `analog` flag it replaced, so the delays' types are worked out when the preset
+/// loads.
+/// @param path Preset file to rewrite in place.
+/// @return Whether the file was read back and rewritten; a failure is reported against the current leg.
+bool writeLegacyDelay(const char* path) {
+	std::string text;
+	{
+		auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
+		if (!opened.has_value()) {
+			return fail(legName(g_leg), "a preset could not be read back");
+		}
+		auto size = opened->size();
+		if (!size.has_value() || *size == 0) {
+			return fail(legName(g_leg), "a preset could not be read back");
+		}
+		text.resize(*size);
+		auto read = opened->read(std::as_writable_bytes(std::span{text}));
+		std::ignore = opened->close();
+		if (!read.has_value() || read->size() != *size) {
+			return fail(legName(g_leg), "a preset could not be read back");
+		}
+	}
+	for (const auto& [word, flag] :
+	     {std::pair{"type=\"off\"", "analog=\"0\""}, std::pair{"type=\"digital\"", "analog=\"0\""},
+	      std::pair{"type=\"analog\"", "analog=\"1\""}}) {
+		for (std::size_t at = text.find(word); at != std::string::npos; at = text.find(word, at)) {
+			text.replace(at, std::string_view{word}.size(), flag);
+		}
+	}
+	auto opened = deluge::io::File::open(path, DELUGE_FILE_WRITE_CREATE);
+	if (!opened.has_value()) {
+		return fail(legName(g_leg), "a preset could not be rewritten");
+	}
+	auto written = opened->write(std::as_bytes(std::span{text}));
+	std::ignore = opened->close();
+	return (written.has_value() && *written == text.size()) || fail(legName(g_leg), "a preset could not be rewritten");
+}
+
+/// @brief Whether @p owner's delay type was worked out at its load as OFF, its feedback unable to sound.
+/// @param owner The loaded sound, kit or drum to inspect.
+/// @return True if the type is resolved and OFF.
+bool delayResolvedOff(ModControllableAudio& owner) {
+	return !owner.delayTypePending && owner.effects().delay.type == deluge::effects::DelayType::OFF;
 }
 
 /// A synth preset whose first oscillator plays @p samplePath (see deluge::harness::writeSampleSynthPreset()).
@@ -493,9 +545,9 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 		return nullptr;
 	}
 	auto* drum = new (memory) SoundDrum();
-	drum->drumName = name;
 	Sound::initParams(&paramManager);
 	kit.addDrum(drum);
+	drum->setName(name);
 	drum->setupAsSample(&paramManager);
 	drum->sources[0].setOscType(OscType::SAMPLE);
 	AudioFileHolder* holder = firstHolder(drum->sources[0]);
@@ -504,7 +556,9 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 		return nullptr;
 	}
 	holder->filePath = samplePath;
-	currentSong->backUpParamManager(drum, nullptr, &paramManager, true);
+	// A bound source saves its ranges from its record: reseed it, as the sample browser's claim does.
+	drum->sources[0].seedDocRanges();
+	currentSong->live.param_backup.backUp(drum, nullptr, &paramManager, true);
 	return drum;
 }
 
@@ -516,8 +570,8 @@ bool writeKitPreset(const char* path, const char* const* names, const char* cons
 		return fail(legName(g_leg), "no kit for a preset");
 	}
 	auto* kit = static_cast<Kit*>(kitBase);
-	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr, &kitParams,
-	                                true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
+	                                      &kitParams, true);
 	for (int32_t i = 0; i < count; i++) {
 		if (addSampleDrum(*kit, names[i], samples[i]) == nullptr) {
 			return false;
@@ -711,6 +765,8 @@ void prepareLeg() {
 		bool ok = writeSampleSynthPreset(kSynthPreset, kSynthSample) && writeSampleSynthPreset(kRowPreset, kRowSample)
 		          && writeSampleSynthPreset(kClonePreset, kCloneSample)
 		          && writeKitPreset(kKitPreset, kKitDrumNames, kKitSamples, kKitDrumCount);
+		// The synth, the kit and the row load as files from a firmware without the delay type do.
+		ok = ok && writeLegacyDelay(kSynthPreset) && writeLegacyDelay(kKitPreset) && writeLegacyDelay(kRowPreset);
 		const char* baseName = "PLBASE";
 		const char* liteName = kLiteName;
 		ok = ok && writeKitPreset(kBaseKitPreset, &baseName, &kBaseKitSample, 1)
@@ -722,7 +778,7 @@ void prepareLeg() {
 			// The new-kit-track gesture, which loads kBaseKitPreset.
 			g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 1, kBaseKitPreset);
 		}
-		for (Output* output = currentSong->firstOutput; output != nullptr && g_synth == nullptr;
+		for (Output* output = currentSong->live.media.first_output; output != nullptr && g_synth == nullptr;
 		     output = output->next) {
 			if (output->type == OutputType::SYNTH) {
 				g_synth = static_cast<SoundInstrument*>(output);
@@ -744,10 +800,11 @@ bool actsWithoutSettling() {
 /// Every instrument in the song, active or hibernating, named @p name.
 int32_t instrumentsNamed(const char* name) {
 	int32_t found = 0;
-	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		found += (output->name == name) ? 1 : 0;
 	}
-	for (Output* output = currentSong->firstHibernatingInstrument; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_hibernating_instrument; output != nullptr;
+	     output = output->next) {
 		found += (output->name == name) ? 1 : 0;
 	}
 	return found;
@@ -755,7 +812,8 @@ int32_t instrumentsNamed(const char* name) {
 
 /// Whether @p owner is the song's: one of its outputs, active or hibernating, or a drum of one of its kits.
 bool ownedBySong(const ModControllableAudio* owner) {
-	for (Output* list : {currentSong->firstOutput, static_cast<Output*>(currentSong->firstHibernatingInstrument)}) {
+	for (Output* list : {currentSong->live.media.first_output,
+	                     static_cast<Output*>(currentSong->live.media.first_hibernating_instrument)}) {
 		for (Output* output = list; output != nullptr; output = output->next) {
 			if (static_cast<ModControllableAudio*>(output->toModControllable()) == owner) {
 				return true;
@@ -777,7 +835,7 @@ bool ownedBySong(const ModControllableAudio* owner) {
 /// without being deleted leaves behind.
 int32_t orphanedParamManagers() {
 	int32_t orphans = 0;
-	for (const auto& [key, paramManager] : currentSong->backedUpParamManagers) {
+	for (const auto& [key, paramManager] : currentSong->live.param_backup.map) {
 		orphans += ownedBySong(key.first) ? 0 : 1;
 	}
 	return orphans;
@@ -950,6 +1008,8 @@ void checkMidiDefinition() {
 }
 
 void checkLeg() {
+	// What loading made of each sound is what its record and slot say.
+	g_failures += deluge::harness::expectSongCoherent(*currentSong, "preset");
 	if (g_leg == Leg::MidiDef) {
 		// Nothing of the preset kind is read: a definition carries no samples.
 		checkMidiDefinition();
@@ -1065,6 +1125,12 @@ void checkLeg() {
 				    "is still open\n");
 				g_failures++;
 			}
+			const bool off = isSynth && delayResolvedOff(*static_cast<SoundInstrument*>(instrument));
+			printf("PL-DELAY leg=synth off=%d\n", off ? 1 : 0);
+			if (!off) {
+				printf("PL-DELAY FAIL the loaded synth's delay type was not worked out as OFF at its load\n");
+				g_failures++;
+			}
 		}
 		else {
 			// A clone takes an unused variation of the preset's name, never the name itself.
@@ -1091,10 +1157,10 @@ void checkLeg() {
 			}
 			auto* soundDrum = static_cast<SoundDrum*>(drum);
 			AudioFileHolder* holder = firstHolder(soundDrum->sources[0]);
-			printf("PL-PROBE leg=kit drum=%d name=%s path=%s bound=%d\n", drums, soundDrum->drumName.c_str(),
+			printf("PL-PROBE leg=kit drum=%d name=%s path=%s bound=%d\n", drums, soundDrum->name().c_str(),
 			       holder != nullptr ? holder->filePath.c_str() : "",
 			       (holder != nullptr && holder->audioFile != nullptr) ? 1 : 0);
-			if (soundDrum->drumName == kKitDrumNames[drums] && boundTo(holder, kKitSamples[drums])) {
+			if (soundDrum->name() == kKitDrumNames[drums] && boundTo(holder, kKitSamples[drums])) {
 				matched++;
 			}
 		}
@@ -1114,6 +1180,15 @@ void checkLeg() {
 			       "NoteRow, or the browser is still open\n");
 			g_failures++;
 		}
+		bool off = isKit && delayResolvedOff(*kit);
+		for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
+			off = off && (drum->type != DrumType::SOUND || delayResolvedOff(*static_cast<SoundDrum*>(drum)));
+		}
+		printf("PL-DELAY leg=kit off=%d\n", off ? 1 : 0);
+		if (!off) {
+			printf("PL-DELAY FAIL the loaded kit's or a drum's delay type was not worked out as OFF at its load\n");
+			g_failures++;
+		}
 		break;
 	}
 	case Leg::Row: {
@@ -1123,15 +1198,21 @@ void checkLeg() {
 		SoundDrum* drum =
 		    (rowDrum != nullptr && rowDrum->type == DrumType::SOUND) ? static_cast<SoundDrum*>(rowDrum) : nullptr;
 		AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
-		const bool named = drum != nullptr && drum->drumName == kRowName;
+		const bool named = drum != nullptr && drum->name() == kRowName;
 		const bool bound = boundTo(holder, kRowSample);
-		printf("PL-PROBE leg=row name=%s path=%s\n", drum != nullptr ? drum->drumName.c_str() : "",
+		printf("PL-PROBE leg=row name=%s path=%s\n", drum != nullptr ? drum->name().c_str() : "",
 		       holder != nullptr ? holder->filePath.c_str() : "");
 		printf("PL-ROW named=%d bound=%d browserClosed=%d ticks=%d\n", named ? 1 : 0, bound ? 1 : 0,
 		       browserClosed ? 1 : 0, g_waitTicks);
 		if (!named || !bound || !browserClosed) {
 			printf("PL-ROW FAIL the kit row's drum is not the loaded synth, named after it with its sample bound, or "
 			       "the browser is still open\n");
+			g_failures++;
+		}
+		const bool off = drum != nullptr && delayResolvedOff(*drum);
+		printf("PL-DELAY leg=row off=%d\n", off ? 1 : 0);
+		if (!off) {
+			printf("PL-DELAY FAIL the loaded row drum's delay type was not worked out as OFF at its load\n");
 			g_failures++;
 		}
 		break;
@@ -1260,8 +1341,8 @@ TierMark markAcquireTier() {
 
 std::vector<Clip*> sessionClipList() {
 	std::vector<Clip*> clips;
-	for (int32_t i = 0; i < std::ssize(currentSong->sessionClips); i++) {
-		clips.push_back(currentSong->sessionClips[i]);
+	for (int32_t i = 0; i < std::ssize(currentSong->live.clips.session_clips); i++) {
+		clips.push_back(currentSong->live.clips.session_clips[i]);
 	}
 	return clips;
 }
@@ -1295,7 +1376,7 @@ void checkListingEdgeTrim() {
 	deluge::gui::browser::FileListing listing;
 	listing.beginRead("PLEDGE", "", deluge::gui::browser::CatalogSearch::Right, FILE_ITEMS_MAX_NUM_ELEMENTS, {});
 	// Any Instrument will do: the filter reads only whether the pointer is set, and the in-song flag.
-	auto* inSong = static_cast<Instrument*>(currentSong->firstOutput);
+	auto* inSong = static_cast<Instrument*>(currentSong->live.media.first_output);
 	for (int32_t i = 0; i < FILE_ITEMS_MAX_NUM_ELEMENTS + 5; i++) {
 		FileItem* item = listing.newItem();
 		if (item == nullptr) {
@@ -1320,7 +1401,7 @@ void checkListingEdgeTrim() {
 
 void prepareAcquire() {
 	g_aqAct = 0;
-	if (g_leg == Leg::AqNew && currentSong->firstOutput != nullptr) {
+	if (g_leg == Leg::AqNew && currentSong->live.media.first_output != nullptr) {
 		checkListingEdgeTrim();
 	}
 	if (g_leg == Leg::AqSlotStall || g_leg == Leg::AqNavStall || g_leg == Leg::AqChangeStall) {
@@ -1366,7 +1447,7 @@ void prepareAcquire() {
 
 /// The first Rows-layout pad with no clip on it.
 int32_t emptyRow() {
-	return static_cast<int32_t>(std::ssize(currentSong->sessionClips));
+	return static_cast<int32_t>(std::ssize(currentSong->live.clips.session_clips));
 }
 
 /// The browser's list, by name: what a slot scan must leave exactly as it found it.
@@ -1548,7 +1629,8 @@ bool actAcquire() {
 	}
 	case Leg::AqChangeStall: {
 		using namespace deluge::hid::button;
-		g_aqClip = (std::ssize(currentSong->sessionClips) > 0) ? currentSong->sessionClips[0] : nullptr;
+		g_aqClip = (std::ssize(currentSong->live.clips.session_clips) > 0) ? currentSong->live.clips.session_clips[0]
+		                                                                   : nullptr;
 		if (!focusClip(g_aqClip) || g_aqClip->output->type != OutputType::SYNTH) {
 			return fail(leg, "the song has no synth clip to change to a kit");
 		}
@@ -1566,7 +1648,8 @@ bool actAcquire() {
 		// The blank song's default synth, placed in a folder no other leg asks for, and turned with every directory
 		// open held past the browser's bound. A folder of its own because answers are keyed by path: SYNTHS would
 		// have this navigate collect AqSlotStall's held open when that hold ended, inside this leg's bound.
-		g_aqClip = (std::ssize(currentSong->sessionClips) > 0) ? currentSong->sessionClips[0] : nullptr;
+		g_aqClip = (std::ssize(currentSong->live.clips.session_clips) > 0) ? currentSong->live.clips.session_clips[0]
+		                                                                   : nullptr;
 		if (!focusClip(g_aqClip)) {
 			return fail(leg, "the song has no session clip to navigate");
 		}
@@ -1582,7 +1665,8 @@ bool actAcquire() {
 	case Leg::AqSlotStall: {
 		// The blank-song legs have just run: the song's first session clip is its default synth's. Made g_aqClip so
 		// checkAcquireAct's `output`/`name` read this clip.
-		g_aqClip = (std::ssize(currentSong->sessionClips) > 0) ? currentSong->sessionClips[0] : nullptr;
+		g_aqClip = (std::ssize(currentSong->live.clips.session_clips) > 0) ? currentSong->live.clips.session_clips[0]
+		                                                                   : nullptr;
 		if (!focusClip(g_aqClip)) {
 			return fail(leg, "the song has no session clip to press Shift+SYNTH on");
 		}
@@ -2161,10 +2245,10 @@ void runWalkMachineTick() {
 
 /// The clip a blank song starts with: its first session clip. Null while a clear is between songs.
 InstrumentClip* blankClip() {
-	if (currentSong == nullptr || currentSong->sessionClips.empty()) {
+	if (currentSong == nullptr || currentSong->live.clips.session_clips.empty()) {
 		return nullptr;
 	}
-	return static_cast<InstrumentClip*>(currentSong->sessionClips[0]);
+	return static_cast<InstrumentClip*>(currentSong->live.clips.session_clips[0]);
 }
 
 /// The Instrument that clip plays.

@@ -1,0 +1,23 @@
+---
+# Stricter clang-tidy for the project-model library (deluge::project).
+#
+# This is greenfield, idiomatic-C++26 code (the boundary the project-model
+# extraction is building), so it holds itself to a higher bar than the legacy
+# tree. It inherits the repo-root .clang-tidy (naming conventions — lower_case
+# variables/members, kCamelCase constants — and the bulk of the checks) and adds
+# the checks the root leaves off for the legacy code but which new code here can
+# and should satisfy:
+#
+#   * modernize-avoid-c-arrays            — prefer std::array/std::span (the
+#       cppcoreguidelines twin is already on repo-wide; this is the modernize one).
+#   * cppcoreguidelines-special-member-functions — rule of 0/5 for the value types.
+#   * cppcoreguidelines-avoid-non-const-global-variables — no mutable globals in
+#       the model library.
+#
+# Naming (lower_case variables/members, kCamelCase constants) is inherited from
+# root and is the target for new code in this library.
+InheritParentConfig: true
+Checks: >
+  modernize-avoid-c-arrays,
+  cppcoreguidelines-special-member-functions,
+  cppcoreguidelines-avoid-non-const-global-variables,

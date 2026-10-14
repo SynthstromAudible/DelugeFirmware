@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -31,8 +32,10 @@ public:
 	    : Integer(newName, newTitle), is_reverb_sidechain_{isReverbSidechain} {}
 
 	void readCurrentValue() override {
-		const auto sidechain = getSidechain(is_reverb_sidechain_);
-		this->setValue(getLookupIndexFromValue(sidechain->release >> 3, releaseRateTable, 50));
+		// For the reverb sidechain, project.reverb is the document of record (the engine is its cache).
+		int32_t release =
+		    is_reverb_sidechain_ ? currentSong->project.reverb.sidechain_release : sidechainSettings(false).release;
+		this->setValue(getLookupIndexFromValue(release >> 3, releaseRateTable, 50));
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
@@ -48,14 +51,22 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
-					soundDrum->sidechain.release = current_value;
+					effectSettingFor(*soundDrum, "sidechain/release",
+					                 deluge::serialization::Value::makeNumber(current_value));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			const auto sidechain = getSidechain(is_reverb_sidechain_);
-			sidechain->release = current_value;
+			// The reverb's sidechain is the engine's own, saved in project.reverb.
+			if (is_reverb_sidechain_) {
+				AudioEngine::reverbSidechainSettings.release = current_value;
+				currentSong->project.reverb.sidechain_release = current_value;
+			}
+			else {
+				effectSettingFor(*soundEditor.currentModControllable, "sidechain/release",
+				                 deluge::serialization::Value::makeNumber(current_value));
+			}
 		}
 
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;

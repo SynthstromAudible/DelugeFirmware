@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_clip.h"
 #include "gui/colour/colour.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/waveform/waveform_render_data.h"
@@ -30,6 +31,7 @@
 #include "modulation/params/param.h"
 #include "util/c_string.h"
 #include <cstdint>
+#include <optional>
 
 class Song;
 class ParamManagerForTimeline;
@@ -43,10 +45,17 @@ class ModelStackWithTimelineCounter;
 class Serializer;
 class Deserializer;
 
+namespace deluge::serialization {
+class Value;
+}
+namespace deluge::storage {
+using deluge::serialization::Value;
+}
+
 class Clip : public TimelineCounter {
 
 public:
-	Clip(ClipType newType);
+	Clip(ClipType newType, Song& song, uint32_t loadedId = 0);
 	~Clip() override;
 
 	/// @brief How many Clips have been destroyed while something the render reads between blocks still pointed at
@@ -137,7 +146,11 @@ public:
 	void writeMidiCommandsToFile(Serializer& writer, Song* song);
 	virtual char const* getXMLTag() = 0;
 	virtual Error readFromFile(Deserializer& reader, Song* song) = 0;
-	void readTagFromFile(Deserializer& reader, char const* tagName, Song* song, int32_t* readAutomationUpToPos);
+	/// @brief Read this clip type's pure view-state from its Value node.
+	///
+	/// Called by Song::readClipsFromFile right after construction. The base reads the fields shared by both clip types.
+	/// @param clipNode The clip's tree node.
+	virtual void readShellFromTree(const deluge::storage::Value& clipNode);
 
 	virtual void copyBasicsFrom(Clip const* otherClip);
 	void setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDubType newOverdubNature);
@@ -170,10 +183,14 @@ public:
 
 	Output* output;
 
-	int16_t colourOffset;
+	/// Clip colour offset lives in the DOM DocClip (see loopLength()).
+	[[nodiscard]] int16_t colourOffset() const { return docClip_->colour_offset; }
+	void setColourOffset(int32_t newOffset) { docClip_->colour_offset = static_cast<int16_t>(newOffset); }
 
 	const ClipType type;
-	uint8_t section;
+	/// Clip section lives in the DOM DocClip (see loopLength()). 255 = arrangement-only.
+	[[nodiscard]] uint8_t section() const { return docClip_->section; }
+	void setSection(uint8_t newSection) { docClip_->section = newSection; }
 	bool soloingInSessionMode;
 	ArmState armState;
 	bool activeIfNoSolo;
@@ -189,7 +206,17 @@ public:
 
 	LearnedMIDI muteMIDICommand;
 
-	int32_t loopLength{};
+	/// Clip structure lives in a DOM `DocClip` (`Song::clip_structure`), never an engine field. `docClip_` is bound in
+	/// the Clip ctor under the clip's durable id and is authoritative for the clip's whole life (always non-null). It
+	/// points into a std::map (clip_structure), so it is address-stable across other clips' inserts; `~Clip` removes
+	/// the entry.
+	[[nodiscard]] int32_t loopLength() const { return docClip_->loop_length; }
+	void setLoopLength(int32_t newLength) { docClip_->loop_length = newLength; }
+	/// Repoint this clip's structure at a specific tree record (used by edit gestures that dual-write the store).
+	void bindDomClip(deluge::project::DocClip* d) { docClip_ = d; }
+	/// Whether this clip's structure is bound to a tree record. Always true after construction.
+	[[nodiscard]] bool isDomBound() const { return docClip_ != nullptr; }
+	deluge::project::DocClip* docClip_{nullptr};
 
 	// Before linear recording of this Clip began, and this Clip started getting extended to multiples of this
 	int32_t originalLength;
@@ -202,7 +229,14 @@ public:
 
 	uint32_t indexForSaving{}; // For use only while saving song
 
-	LaunchStyle launchStyle;
+	/// Stable, persisted, per-song serial identity (the DOM reference foundation, distinct from the
+	/// transient positional indexForSaving). Assigned in the ctor from the song's counter (or the loaded id);
+	/// resolve via Song::clipForId.
+	[[nodiscard]] uint32_t id() const { return id_; }
+
+	/// Clip launch style lives in the DOM DocClip (see loopLength()).
+	[[nodiscard]] LaunchStyle launchStyle() const { return docClip_->launch_style; }
+	void setLaunchStyle(LaunchStyle s) { docClip_->launch_style = s; }
 	int64_t fillEventAtTickCount;
 	bool overdubsShouldCloneOutput{};
 
@@ -235,4 +269,8 @@ protected:
 	Error solicitParamManager(Song* song, ParamManager* newParamManager = nullptr,
 	                          Clip* favourClipForCloningParamManager = nullptr);
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {}
+
+private:
+	/// Stable per-song serial identity; see id(). Minted in the ctor.
+	uint32_t id_{0};
 };

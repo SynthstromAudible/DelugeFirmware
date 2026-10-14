@@ -16,9 +16,21 @@
  */
 
 #include "model/global_effectable/global_effectable_for_song.h"
+#include "model/mod_controllable/delay_arena_app.h"
+#include "model/mod_controllable/mod_fx_allocator.h"
 
-GlobalEffectableForSong::GlobalEffectableForSong() {
+GlobalEffectableForSong::GlobalEffectableForSong()
+    : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
+	// A new owner's settings live in its chain state; its filter mode and mod FX type are set once its chain exists.
+	bindChainState();
+	setLpfMode(FilterMode::TRANSISTOR_24DB);
+	filter().reset();
+	assignModFXType(ModFXType::NONE);
 	modKnobMode = 1;
 	// UI for kit compressors is TBD so they can only be accessed in song
 	maxCompParam = util::to_underlying(CompParam::LAST);
+}
+
+GlobalEffectableForSong::~GlobalEffectableForSong() {
+	releaseChainMemory();
 }

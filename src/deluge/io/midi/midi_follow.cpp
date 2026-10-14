@@ -34,6 +34,9 @@
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/drum/drum.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/note/note_row.h"
@@ -439,7 +442,7 @@ Clip* MidiFollow::getSelectedClip() {
 		break;
 	case UIType::PERFORMANCE:
 		// if you're in the arranger performance view, check if you're holding audition pad
-		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+		if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
 			clip = arrangerView.getClipForSelection();
 		}
 		break;
@@ -477,7 +480,7 @@ Clip* MidiFollow::getActiveClip(ModelStack* modelStack) {
 /// used to forward midi messages to specific tracks
 const size_t MidiFollow::getTrackCount() const {
 	size_t count = 0;
-	Output* currentTrack = currentSong->firstOutput;
+	Output* currentTrack = currentSong->live.media.first_output;
 	while (currentTrack != nullptr) {
 		if (currentTrack->getActiveClip() != nullptr) {
 			++count;
@@ -491,7 +494,7 @@ const size_t MidiFollow::getTrackCount() const {
 /// used to forward midi messages to specific tracks
 Output* MidiFollow::getTrackFromIndex(uint32_t track_index, uint32_t maxTrack) {
 	uint32_t count = 0;
-	Output* currentTrack = currentSong->firstOutput;
+	Output* currentTrack = currentSong->live.media.first_output;
 	while (currentTrack != nullptr) {
 		if (currentTrack->getActiveClip() != nullptr) {
 			if (((maxTrack - 1) - count) == track_index) {
@@ -653,7 +656,7 @@ void MidiFollow::displayParamControlError(int32_t soundParamId, int32_t globalPa
 	if (paramID != PARAM_ID_NONE) {
 		etl::string<40> popupMsg;
 
-		const char* name = getParamDisplayName(paramKind, paramID);
+		const char* name = deluge::modulation::params::getParamDisplayName(paramKind, paramID);
 		if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
 			popupMsg.append("Can't control: \n");
 			popupMsg.append(name);
@@ -717,9 +720,10 @@ void MidiFollow::forgetClipsNotOfCurrentSong() {
 		if (stored == nullptr) {
 			continue;
 		}
-		const bool ofCurrentSong = currentSong != nullptr
-		                           && (std::ranges::contains(currentSong->sessionClips, stored)
-		                               || std::ranges::contains(currentSong->arrangementOnlyClips, stored));
+		const bool ofCurrentSong =
+		    currentSong != nullptr
+		    && (std::ranges::contains(currentSong->live.clips.session_clips, stored)
+		        || std::ranges::contains(currentSong->live.clips.arrangement_only_clips, stored));
 		if (!ofCurrentSong) {
 			stored = nullptr;
 		}
@@ -1113,7 +1117,10 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 			// Set the new Parameter Value for the MIDI Learned Parameter
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
+			deluge::edits::Context editCtx{*currentSong, currentSong->project};
+			deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue, modPos,
+			                                  modLength, modelStackWithParam};
+			deluge::edits::apply(editCtx, edit);
 
 			// check if you're currently editing the same learned param in automation view or
 			// performance view if so, you will need to refresh the automation editor grid or the
@@ -1337,7 +1344,8 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 			    getModelStackWithParam(modelStackWithTimelineCounter, clip, soundParamId, globalParamId, false);
 			// check that model stack is valid
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				if (!isAutomation || (isAutomation && modelStackWithParam->autoParam->isAutomated())) {
+				if (!isAutomation
+				    || (isAutomation && modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc()))) {
 					int32_t currentValue;
 					// obtain current value of the learned parameter
 					if (isStepEditing) {

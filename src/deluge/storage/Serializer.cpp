@@ -33,6 +33,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "serialization/value.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 #include "util/firmware_version.h"
@@ -48,7 +49,62 @@
 ********************************************************************************/
 
 void Serializer::writeAbsoluteSyncLevelToFile(Song* song, char const* name, SyncLevel internalValue, bool onNewLine) {
-	writeAttribute(name, song->convertSyncLevelFromInternalValueToFileValue(internalValue), onNewLine);
+	writeAttribute(name, song->convertSyncLevelFromInternalValueToFileValue(deluge::engine::index_of(internalValue)),
+	               onNewLine);
+}
+
+void Serializer::writeValue(const deluge::serialization::Value& /*members*/) {
+	FREEZE_WITH_ERROR("SV01");
+}
+
+void XMLSerializer::writeValue(const deluge::serialization::Value& members) {
+	bool sawChild = false;
+	for (const auto& [name, value] : members.entries()) {
+		if (value.isScalar()) {
+			if (sawChild) {
+				FREEZE_WITH_ERROR("SV02");
+				return;
+			}
+			writeAttribute(name.c_str(), value.str().c_str());
+			continue;
+		}
+		sawChild = true;
+		writeElement(name.c_str(), value);
+	}
+}
+
+void XMLSerializer::writeElement(char const* name, const deluge::serialization::Value& value) {
+	if (value.isArray()) {
+		writeArrayStart(name);
+		for (const auto& item : value.items()) {
+			for (const auto& [itemName, itemValue] : item.entries()) {
+				writeElement(itemName.c_str(), itemValue);
+			}
+		}
+		writeArrayEnding(name);
+		return;
+	}
+	writeOpeningTagBeginning(name);
+	bool hasChildren = false;
+	for (const auto& [key, member] : value.entries()) {
+		if (member.isScalar()) {
+			writeAttribute(key.c_str(), member.str().c_str());
+		}
+		else {
+			hasChildren = true;
+		}
+	}
+	if (!hasChildren) {
+		closeTag();
+		return;
+	}
+	writeOpeningTagEnd();
+	for (const auto& [key, member] : value.entries()) {
+		if (!member.isScalar()) {
+			writeElement(key.c_str(), member);
+		}
+	}
+	writeClosingTag(name);
 }
 
 void Serializer::writeFirmwareVersion() {
@@ -81,7 +137,7 @@ void XMLSerializer::writeTag(char const* tag, char const* contents, bool box, bo
 	write("<");
 	write(tag);
 	write(">");
-	write(contents);
+	writeEscaped(contents);
 	write("</");
 	write(tag);
 	write(">\n");
@@ -139,8 +195,37 @@ void XMLSerializer::writeAttribute(char const* name, char const* value, bool onN
 
 	write(name);
 	write("=\"");
-	write(value);
+	writeEscaped(value);
 	write("\"");
+}
+
+void XMLSerializer::writeEscaped(char const* text) {
+	// Only what would end the value early is escaped: a quote, and a '<'. Everything else, a bare '&' included, goes
+	// out as it is, which every reader of these files (this firmware's and older) reads back unchanged.
+	char chunk[64];
+	size_t used = 0;
+	const auto flush = [&] {
+		chunk[used] = 0;
+		write(chunk);
+		used = 0;
+	};
+	for (char const* c = text; *c != 0; c++) {
+		char const* escape = *c == '"' ? "&quot;" : *c == '<' ? "&lt;" : nullptr;
+		if (escape == nullptr) {
+			chunk[used++] = *c;
+			if (used == sizeof chunk - 1) {
+				flush();
+			}
+			continue;
+		}
+		if (used > 0) {
+			flush();
+		}
+		write(escape);
+	}
+	if (used > 0) {
+		flush();
+	}
 }
 
 void XMLSerializer::writeTagNameAndSeperator(char const* tag) {

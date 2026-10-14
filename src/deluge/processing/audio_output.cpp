@@ -18,6 +18,7 @@
 #include "processing/audio_output.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_output.h" // complete DocOutput type for the identity record
 #include "dsp/stereo_sample.h"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
@@ -31,6 +32,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file.h"
 #include "storage/storage_manager.h"
+#include "storage/value_tree_deserializer.h"
 #include "util/lookuptables/lookuptables.h"
 #include <algorithm>
 #include <new>
@@ -103,7 +105,7 @@ void AudioOutput::resetEnvelope() {
 	if (activeClip) {
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
 
-		bool directlyToDecay = (activeAudioClip->attack == -2147483648);
+		bool directlyToDecay = (activeAudioClip->attack() == -2147483648);
 		envelope.noteOn(directlyToDecay, 2147483647);
 	}
 	amplitudeLastTime = 0;
@@ -143,7 +145,7 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 		if (activeAudioClip.voiceSample) {
 
 			int32_t attackNeutralValue = paramNeutralValues[params::LOCAL_ENV_0_ATTACK];
-			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip.attack / 4));
+			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip.attack() / 4));
 
 renderEnvelope:
 			int32_t amplitudeLocal =
@@ -303,7 +305,9 @@ void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb,
 // be NULL
 bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 
-	writer.writeAttribute("name", name.c_str());
+	// Read the DOM identity record's name when bound (rebuilt at save); fall back to the native field when
+	// unbound.
+	writer.writeAttribute("name", docOutput_ != nullptr ? docOutput_->name.c_str() : name.c_str());
 
 	writer.writeAttribute("mode", aoModeToString(mode));
 
@@ -319,7 +323,7 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 	// If no activeClip, that means no Clip has this Instrument, so there should be a backedUpParamManager that we
 	// should use / save
 	if (!activeClip) {
-		paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
+		paramManager = song->live.param_backup.getPreferablyWithClip(this, NULL);
 	}
 
 	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, true);
@@ -329,6 +333,10 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 
 // clip will always be NULL and is of no consequence - see note in parent output.h
 Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+	const deluge::storage::Value* element = deluge::storage::treeReaderOf(reader).currentElement();
+	if (element == nullptr) {
+		return Error::FILE_CORRUPTED;
+	}
 	char const* tagName;
 
 	ParamManagerForTimeline paramManager;
@@ -372,15 +380,17 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 		}
 	}
 
+	readEffectsFromElement(*element, song->getInputTickMagnitude());
+
 	if (paramManager.containsAnyMainParamCollections()) {
-		song->backUpParamManager(this, NULL, &paramManager);
+		song->live.param_backup.backUp(this, NULL, &paramManager);
 	}
 
 	return Error::NONE;
 }
 
 void AudioOutput::deleteBackedUpParamManagers(Song* song) {
-	song->deleteBackedUpParamManagersForModControllable(this);
+	song->live.param_backup.deleteForModControllable(this);
 }
 
 Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) {
@@ -391,7 +401,7 @@ Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) 
 		return nullptr;
 	}
 
-	AudioClip* newClip = new (clipMemory) AudioClip();
+	AudioClip* newClip = new (clipMemory) AudioClip(*modelStack->song);
 	newClip->setOutput(modelStack->addTimelineCounter(newClip), this);
 
 #if ALPHA_OR_BETA_VERSION

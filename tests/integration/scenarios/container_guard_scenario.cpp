@@ -18,6 +18,12 @@
 #include "scenarios/container_guard_scenario.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/param_automation.h"
+#include "engines/effects/delay.h"
+#include "engines/effects/granular.h"
+#include "engines/effects/mod_fx.h"
+#include "engines/effects/words.h"
+#include "gui/context_menu/clear_song.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
@@ -30,9 +36,19 @@
 #include "memory/heaps.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/change_effect.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
+#include "model/fx/chain_inputs.h"
+#include "model/fx/song_stutter.h"
+#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/delay_arena_app.h"
+#include "model/mod_controllable/delay_type.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
@@ -43,22 +59,30 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
+#include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
+#include "serialization/value.h"
 #include "storage/preset_acquisition.h"
 #include "storage/storage_manager.h"
 #include "util/structural_edit_probe.h"
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <new>
+#include <tuple>
 #include <unistd.h>
+#include <vector>
+
+extern void setUIForLoadedSong(Song* song);
 
 // The firmware headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded `printf_`. This
 // harness links the Rust BSP, which has no `putchar_` provider, and every line this file writes IS the gate's output.
@@ -90,6 +114,15 @@ constexpr int32_t kVelocity = 100;
 constexpr int32_t kBigRowCount = 128;
 /// RENDERALLOC renders this many blocks with its drum starting and stopping, counting the render's heap allocations.
 constexpr int32_t kRenderAllocBlocks = 1500;
+/// RENDERALLOC then renders this many blocks of a synth's delay starting, resizing and abandoning its tapes.
+constexpr int32_t kRenderAllocDelayBlocks = 2500;
+/// The mod FX legs' knobs when they render a block through an owner's mod FX themselves: a moderate rate (UQ0.32 per
+/// frame) and half depth (Q31).
+constexpr int32_t kModFxRate = 0x00a00000;
+constexpr int32_t kModFxDepth = 0x40000000;
+/// Blocks of a ramp the mod FX legs render through an owner's mod FX: more frames than its ring holds, so a delay-line
+/// effect reads back what it wrote.
+constexpr int32_t kModFxBlocks = 8;
 
 enum class Leg : uint8_t {
 	NoteAdd,
@@ -121,6 +154,19 @@ enum class Leg : uint8_t {
 	Heap,
 	Slab,
 	ModFxOom,
+	ModFxClone,
+	ModFxSwap,
+	GrainOom,
+	GrainSwap,
+	DelayKnob,
+	DelayOom,
+	DelayMargin,
+	DelayOff,
+	StutterHandoff,
+	StutterOom,
+	StutterDelete,
+	StutterSwap,  ///< Swaps the scenario's song for a new one; the legs after it run in that one.
+	StutterClear, ///< Swaps the song again.
 	Done,
 };
 
@@ -134,6 +180,7 @@ int32_t g_failures = 0;
 int32_t g_blocks = 0;
 uint32_t g_timerAtStart = 0;
 Clip* g_home = nullptr;
+AudioClip* g_audio = nullptr;
 InstrumentClip* g_clip = nullptr;
 NoteRow* g_row = nullptr;
 int32_t g_rowIndex = -1;
@@ -203,6 +250,32 @@ const char* legName(Leg leg) {
 		return "SLAB";
 	case Leg::ModFxOom:
 		return "MODFXOOM";
+	case Leg::ModFxClone:
+		return "MODFXCLONE";
+	case Leg::ModFxSwap:
+		return "MODFXSWAP";
+	case Leg::GrainOom:
+		return "GRAINOOM";
+	case Leg::GrainSwap:
+		return "GRAINSWAP";
+	case Leg::DelayKnob:
+		return "DELAYKNOB";
+	case Leg::DelayOom:
+		return "DELAYOOM";
+	case Leg::DelayMargin:
+		return "DELAYMARGIN";
+	case Leg::DelayOff:
+		return "DELAYOFF";
+	case Leg::StutterHandoff:
+		return "STUTTERHANDOFF";
+	case Leg::StutterOom:
+		return "STUTTEROOM";
+	case Leg::StutterDelete:
+		return "STUTTERDELETE";
+	case Leg::StutterSwap:
+		return "STUTTERSWAP";
+	case Leg::StutterClear:
+		return "STUTTERCLEAR";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -231,6 +304,14 @@ const char* kindName(StructuralContainer kind) {
 		return "memguard";
 	case StructuralContainer::PATCH_CABLES:
 		return "patchcables";
+	case StructuralContainer::MOD_FX_RING:
+		return "modfxring";
+	case StructuralContainer::GRAIN_BLOCK:
+		return "grainblock";
+	case StructuralContainer::DELAY_TAPE:
+		return "delaytape";
+	case StructuralContainer::STUTTER_TAPE:
+		return "stuttertape";
 	case StructuralContainer::COUNT_:
 		break;
 	}
@@ -251,6 +332,94 @@ void renderBlocks(int32_t count) {
 	}
 }
 
+/// The bytes of a mod FX ring, the allocation the mod FX legs make fail.
+constexpr std::size_t kModFxRingBytes = deluge::effects::ModFx::Kernel::kRingFrames * sizeof(deluge::dsp::StereoSample);
+
+/// @return Whether @p owner's mod FX holds its ring.
+bool holdsRing(ModControllableAudio& owner) {
+	return owner.core().mod_fx().holdsRing();
+}
+
+/// @return The ring index @p owner's mod FX writes next: it moves each block the render runs the effect.
+int32_t ringWrite(ModControllableAudio& owner) {
+	return owner.core().mod_fx().state().write;
+}
+
+/// @return Whether @p owner's mod FX, run as @p type over kModFxBlocks blocks of a ramp, changed any of them: the
+/// owner's block as its render makes it, with @p params' offset and feedback.
+bool changesBlock(ModControllableAudio& owner, ParamManager& params, ModFXType type) {
+	static StereoSample block[kRenderBlockFrames]{};
+	UnpatchedParamSet* unpatched = params.getUnpatchedParamSet();
+	const deluge::effects::ModFxInputs in{
+	    .active = type,
+	    .rate = kModFxRate,
+	    .depth = kModFxDepth,
+	    .offset = unpatched->getValue(deluge::modulation::params::UNPATCHED_MOD_FX_OFFSET),
+	    .feedback = unpatched->getValue(deluge::modulation::params::UNPATCHED_MOD_FX_FEEDBACK),
+	    .stereo = AudioEngine::renderInStereo,
+	    .sound = true,
+	};
+	bool changed = false;
+	int32_t volume = ONE_Q31 >> 1;
+	for (int32_t b = 0; b < kModFxBlocks; b++) {
+		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
+			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
+			block[i] = {v, -v};
+		}
+		owner.core().mod_fx().render(block, in, volume);
+		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
+			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
+			changed = changed || block[i].l != v || block[i].r != -v;
+		}
+	}
+	return changed;
+}
+
+/// The bytes of the grain's ring, the allocation the grain legs make fail.
+constexpr std::size_t kGrainRingBytes =
+    deluge::effects::Granular::Kernel::kRingFrames * sizeof(deluge::dsp::StereoSample);
+
+/// What the song master's effects stage made of kModFxBlocks blocks of a ramp: each block's frames.
+struct MasterFxRender {
+	std::vector<StereoSample> frames; ///< kModFxBlocks blocks, one after the other.
+
+	/// @return Whether this render's audio differs from @p other's in any frame. The post-FX volume is not compared: a
+	/// mod FX type scales the post-FX volume for the filters' headroom whether or not it holds a ring.
+	[[nodiscard]] bool differsFrom(const MasterFxRender& other) const {
+		return !std::equal(frames.begin(), frames.end(), other.frames.begin(), other.frames.end(),
+		                   [](const StereoSample& a, const StereoSample& b) { return a.l == b.l && a.r == b.r; });
+	}
+};
+
+/// @return The blocks of a ramp as the song master's real effects stage makes them, under @p params' knobs and the
+/// master's current type: its chain's soft off and mod FX, EQ and delay, as its chain renders the master's mix each
+/// block before the reverb, over kModFxBlocks blocks.
+MasterFxRender renderMasterFx(GlobalEffectable& master, ParamManager& params) {
+	static q31_t send[kRenderBlockFrames]{};
+	MasterFxRender made;
+	const deluge::effects::Delay::State delayState = master.createDelayWorkingState(params);
+	const deluge::effects::FxInputs fx = deluge::model::hostFxInputs(master, params, delayState, 0);
+	for (int32_t b = 0; b < kModFxBlocks; b++) {
+		StereoSample block[kRenderBlockFrames]{};
+		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
+			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
+			block[i] = {v, -v};
+		}
+		int32_t volume = ONE_Q31 >> 1;
+		master.core().soft_off_grain(fx);
+		master.core().render_fx(block, fx, volume, true, send);
+		made.frames.insert(made.frames.end(), std::begin(block), std::end(block));
+	}
+	return made;
+}
+
+/// @return The ring index @p owner's grain writes next, or -1 before its State is taken: it moves each block the
+/// render runs the effect.
+int64_t grainWrite(ModControllableAudio& owner) {
+	const auto* state = owner.core().granular().state();
+	return state == nullptr ? -1 : static_cast<int64_t>(state->write);
+}
+
 /// A playing-ready session clip on a blank synth of its own, made through the new-clip gesture (as
 /// clip_lifetime_scenario.cpp makes one), appended after every other clip and marked active so playback starts it.
 InstrumentClip* makeSynthClip() {
@@ -262,8 +431,8 @@ InstrumentClip* makeSynthClip() {
 	}
 	auto* synth = static_cast<SoundInstrument*>(instrument);
 	synth->setupAsBlankSynth(&paramManager, false);
-	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
-	                                &paramManager, true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
+	                                      &paramManager, true);
 	deluge::storage::AcquireResult acquired;
 	acquired.instrument = synth;
 	acquired.loadedFromFile = true;
@@ -292,7 +461,7 @@ SoundDrum* makeDrum(Kit* kit) {
 	Sound::initParams(&paramManager);
 	kit->addDrum(drum);
 	drum->setupAsBlankSynth(&paramManager);
-	currentSong->backUpParamManager(drum, nullptr, &paramManager, true);
+	currentSong->live.param_backup.backUp(drum, nullptr, &paramManager, true);
 	return drum;
 }
 
@@ -305,8 +474,8 @@ InstrumentClip* makeKitClip() {
 		return nullptr;
 	}
 	auto* kit = static_cast<Kit*>(instrument);
-	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr, &kitParams,
-	                                true);
+	currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr,
+	                                      &kitParams, true);
 	if (makeDrum(kit) == nullptr) {
 		return nullptr;
 	}
@@ -321,6 +490,91 @@ InstrumentClip* makeKitClip() {
 	clip->activeIfNoSolo = true;
 	g_kit = kit;
 	return static_cast<InstrumentClip*>(clip);
+}
+
+/// @brief Turns param @p id of @p owner to @p value as the gold knob does, by its SetParamValue Edit: a Sound's patched
+/// param, or a chain's unpatched one, in @p paramManager.
+void turnParam(ModelStackWithThreeMainThings* ms, int32_t id, int32_t value) {
+	ParamManager& paramManager = *ms->paramManager;
+	ParamCollectionSummary* summary = static_cast<ModControllableAudio*>(ms->modControllable)->asSound() != nullptr
+	                                      ? paramManager.getPatchedParamSetSummary()
+	                                      : paramManager.getUnpatchedParamSetSummary();
+	ModelStackWithParamId* withId = ms->addParamCollectionAndId(summary->paramCollection, summary, id);
+	ModelStackWithAutoParam* withParam = withId->paramCollection->getAutoParamFromId(withId);
+	deluge::edits::Context context{*currentSong, currentSong->project};
+	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*withParam), value, 0, 0, withParam};
+	deluge::edits::apply(context, edit);
+}
+
+/// @brief turnParam on @p owner with no note row: a synth's sound or a chain, its params in @p paramManager.
+void turnParam(ModControllableAudio& owner, TimelineCounter* clip, ParamManager& paramManager, int32_t id,
+               int32_t value) {
+	char memory[MODEL_STACK_MAX_SIZE];
+	turnParam(setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, &owner, clip, &paramManager), id,
+	          value);
+}
+
+/// The delay feedback param of @p owner: a Sound's patched GLOBAL_DELAY_FEEDBACK, or a chain's unpatched
+/// UNPATCHED_DELAY_AMOUNT.
+int32_t delayFeedbackId(ModControllableAudio& owner) {
+	return owner.asSound() != nullptr ? static_cast<int32_t>(deluge::modulation::params::GLOBAL_DELAY_FEEDBACK)
+	                                  : static_cast<int32_t>(deluge::modulation::params::UNPATCHED_DELAY_AMOUNT);
+}
+
+/// @brief Turns @p owner's delay feedback to @p value as the gold knob does.
+void turnDelayFeedback(ModControllableAudio& owner, TimelineCounter* clip, ParamManager& paramManager, int32_t value) {
+	turnParam(owner, clip, paramManager, delayFeedbackId(owner), value);
+}
+
+/// @brief Sets @p owner's delay type by the Edit the delay type menu makes.
+void setDelayType(ModControllableAudio& owner, deluge::effects::DelayType type) {
+	deluge::edits::changeEffect(
+	    owner, "delay/type", deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(type))));
+}
+
+/// @brief Plays @p note on @p clip's synth from the interaction tier, as a pad audition does (@p on), or ends it.
+void auditionOn(InstrumentClip* clip, int32_t note, bool on) {
+	auto* synth = static_cast<SoundInstrument*>(clip->output);
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* ms =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, clip, &clip->paramManager);
+	if (on) {
+		synth->Sound::noteOn(ms, &synth->arpeggiator, note, zeroMPEValues);
+	}
+	else {
+		synth->Sound::noteOff(ms, &synth->arpeggiator, note);
+	}
+}
+
+/// @brief Gives @p clip's synth a digital delay at feedback knob @p feedback and rate @p rate, by the menu's and the
+/// gold knob's Edits.
+void setUpDelay(InstrumentClip* clip, int32_t feedback, int32_t rate) {
+	auto* synth = static_cast<SoundInstrument*>(clip->output);
+	setDelayType(*synth, deluge::effects::DelayType::DIGITAL);
+	turnDelayFeedback(*synth, clip, clip->paramManager, feedback);
+	turnParam(*synth, clip, clip->paramManager, static_cast<int32_t>(deluge::modulation::params::GLOBAL_DELAY_RATE),
+	          rate);
+}
+
+/// @brief Ends @p clip's synth's delay: its note off, its feedback at the minimum, its type OFF.
+void tearDownDelay(InstrumentClip* clip) {
+	auto* synth = static_cast<SoundInstrument*>(clip->output);
+	auditionOn(clip, kRowNote, false);
+	turnDelayFeedback(*synth, clip, clip->paramManager, std::numeric_limits<int32_t>::min());
+	setDelayType(*synth, deluge::effects::DelayType::OFF);
+}
+
+/// @return How many owners of the song have a delay that is not OFF.
+int32_t ownersWithDelayOn() {
+	std::vector<ModControllableAudio*> owners;
+	deluge::model::forEachDelayParamManager(*currentSong, [&](ModControllableAudio& owner, ParamManager&) {
+		if (std::ranges::find(owners, &owner) == owners.end()) {
+			owners.push_back(&owner);
+		}
+	});
+	return static_cast<int32_t>(std::ranges::count_if(owners, [](ModControllableAudio* owner) {
+		return owner->effects().delay.type != deluge::effects::DelayType::OFF;
+	}));
 }
 
 /// The note row for @p note on g_clip, made if it is not there, with its index.
@@ -371,19 +625,49 @@ bool setupLeg() {
 	g_rowIndex = -1;
 	g_kit = nullptr;
 	g_drum = nullptr;
+	g_audio = nullptr;
 	if (g_leg == Leg::ClipNew) {
 		// The edit is the clip's creation; the clip already playing is the home clip.
 		return true;
 	}
+	if (g_leg == Leg::ModFxClone) {
+		// An audio track whose chain runs chorus with its depth above minimum, so the chorus is on.
+		Clip* clip = sessionView.createNewAudioClipForHarness(kAppendY);
+		if (clip == nullptr || clip->type != ClipType::AUDIO) {
+			return fail("no audio clip");
+		}
+		clip->activeIfNoSolo = true;
+		g_audio = static_cast<AudioClip*>(clip);
+		auto* output = static_cast<AudioOutput*>(clip->output);
+		clip->paramManager.getUnpatchedParamSet()
+		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
+		    .setCurrentValueBasicForSetup(0);
+		deluge::edits::changeView(*output, "modFXCurrentParam", modFXParamToString(ModFXParam::DEPTH));
+		deluge::edits::changeEffect(
+		    *output, "modFXType",
+		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(ModFXType::CHORUS))));
+		return (output->effects().mod_fx.type == ModFXType::CHORUS) ? true : fail("the audio track took no chorus");
+	}
 	// A note row is deleted only from a kit clip (InstrumentClip::deleteNoteRow() treats the output as a Kit).
 	g_clip = (g_leg == Leg::Drum || g_leg == Leg::RowDel || g_leg == Leg::RenderSet || g_leg == Leg::RenderAlloc
-	          || g_leg == Leg::Choke)
+	          || g_leg == Leg::Choke || g_leg == Leg::StutterHandoff || g_leg == Leg::StutterOom
+	          || g_leg == Leg::StutterSwap || g_leg == Leg::StutterClear)
 	             ? makeKitClip()
 	             : makeSynthClip();
 	if (g_clip == nullptr) {
 		return false;
 	}
 	switch (g_leg) {
+	case Leg::StutterHandoff: {
+		// An audio track to stutter before the kit takes the stutter over.
+		Clip* clip = sessionView.createNewAudioClipForHarness(kAppendY);
+		if (clip == nullptr || clip->type != ClipType::AUDIO) {
+			return fail("no audio clip");
+		}
+		clip->activeIfNoSolo = true;
+		g_audio = static_cast<AudioClip*>(clip);
+		return true;
+	}
 	case Leg::RowDrag:
 		// Two rows to swap, straight into the row vector (scale mode discards empty out-of-scale rows).
 		return (g_clip->noteRows.insertNoteRowAtY(kRowNote) != nullptr
@@ -402,7 +686,7 @@ bool setupLeg() {
 			char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(memory, currentSong, g_clip);
 			ModelStackWithNoteRow* rowStack = ms->addNoteRow(g_rowIndex, g_row);
-			(void)g_row->attemptNoteAdd(n * (g_clip->loopLength / 4), 1, kVelocity, g_row->getDefaultProbability(),
+			(void)g_row->attemptNoteAdd(n * (g_clip->loopLength() / 4), 1, kVelocity, g_row->getDefaultProbability(),
 			                            g_row->getDefaultIterance(), g_row->getDefaultFill(rowStack), rowStack,
 			                            nullptr);
 		}
@@ -512,15 +796,15 @@ void editLeg() {
 		break;
 	case Leg::ClipDel: {
 		g_step = "removeSessionClip";
-		const int32_t index = currentSong->sessionClips.getIndexForClip(g_clip);
+		const int32_t index = currentSong->live.clips.session_clips.getIndexForClip(g_clip);
 		currentSong->removeSessionClip(g_clip, index);
 		g_clip = nullptr;
 		break;
 	}
 	case Leg::ClipDup: {
 		g_step = "cloneClip";
-		const int32_t index = currentSong->sessionClips.getIndexForClip(g_clip);
-		const int32_t y = index - currentSong->songViewYScroll;
+		const int32_t index = currentSong->live.clips.session_clips.getIndexForClip(g_clip);
+		const int32_t y = index - currentSong->persistentView.songViewYScroll;
 		sessionView.cloneClip(static_cast<uint8_t>(y), static_cast<uint8_t>(y + 1));
 		break;
 	}
@@ -529,7 +813,7 @@ void editLeg() {
 		Output* output = g_clip->output;
 		const int32_t i = output->clipInstances.insertSorted(0).value_or(-1);
 		if (i >= 0) {
-			output->clipInstances[i].length = g_clip->loopLength;
+			output->clipInstances[i].length = g_clip->loopLength();
 			output->clipInstances[i].clip = g_clip;
 			output->clipInstances.erase(output->clipInstances.begin() + i);
 		}
@@ -539,10 +823,14 @@ void editLeg() {
 		g_step = "automationNode";
 		ParamCollectionSummary* summary = g_clip->paramManager.getPatchedParamSetSummary();
 		auto* params = static_cast<ParamSet*>(summary->paramCollection);
-		AutoParam& param = params->params[deluge::modulation::params::LOCAL_VOLUME];
-		const int32_t i = param.nodes.insertSorted(kNotePos).value_or(-1);
+		// The node store the render walks is the DocAutoParam's, which the engine param borrows.
+		deluge::project::DocAutoParam* doc = params->docForParam(deluge::modulation::params::LOCAL_VOLUME);
+		if (doc == nullptr) {
+			break;
+		}
+		const int32_t i = doc->nodes.insertSorted(kNotePos).value_or(-1);
 		if (i >= 0) {
-			param.nodes.erase(param.nodes.begin() + i);
+			doc->nodes.erase(doc->nodes.begin() + i);
 		}
 		break;
 	}
@@ -595,8 +883,8 @@ void editLeg() {
 		}
 		auto* synth = static_cast<SoundInstrument*>(fresh);
 		synth->setupAsBlankSynth(&paramManager, false);
-		currentSong->backUpParamManager(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
-		                                &paramManager, true);
+		currentSong->live.param_backup.backUp(static_cast<ModControllableAudio*>(synth->toModControllable()), nullptr,
+		                                      &paramManager, true);
 		currentSong->replaceInstrument(static_cast<Instrument*>(g_clip->output), fresh);
 		break;
 	}
@@ -626,8 +914,8 @@ void editLeg() {
 	case Leg::ClipMove: {
 		g_step = "swapClips";
 		// The session view's clip drag: the clip swaps places with the one above it.
-		const int32_t index = currentSong->sessionClips.getIndexForClip(g_clip);
-		currentSong->sessionClips.swapClips(index, index - 1);
+		const int32_t index = currentSong->live.clips.session_clips.getIndexForClip(g_clip);
+		currentSong->live.clips.session_clips.swapClips(index, index - 1);
 		break;
 	}
 	case Leg::OutputMove:
@@ -724,9 +1012,44 @@ void editLeg() {
 		g_step = "render";
 		const uint32_t before = deluge::memory::audioTierAllocations();
 		renderBlocks(kRenderAllocBlocks);
-		printf("CG-RENDERALLOC renderAllocs=%u\n",
-		       static_cast<unsigned>(deluge::memory::audioTierAllocations() - before));
+		// Then the drum's own delay, sounding with each of its notes: it starts, has its rate stepped past double, down
+		// and below half (each a new tape grown and swapped in), and abandons its tapes between the notes.
+		constexpr int32_t kRate = static_cast<int32_t>(deluge::modulation::params::GLOBAL_DELAY_RATE);
+		auto* drum = static_cast<SoundDrum*>(g_kit->firstDrum);
+		const auto turnDrum = [&](int32_t id, int32_t value) {
+			char memory[MODEL_STACK_MAX_SIZE];
+			turnParam(setupModelStackWithTimelineCounter(memory, currentSong, g_clip)
+			              ->addNoteRow(g_rowIndex, g_row)
+			              ->addOtherTwoThings(drum, &g_row->paramManager),
+			          id, value);
+		};
+		setDelayType(*drum, deluge::effects::DelayType::DIGITAL);
+		turnDrum(delayFeedbackId(*drum), -0x60000000);
+		turnDrum(kRate, 0);
+		int32_t starts = 0;
+		int32_t stops = 0;
+		bool was = drum->core().delay().isActive();
+		for (int32_t b = 0; b < kRenderAllocDelayBlocks; b++) {
+			if (b == 400) {
+				turnDrum(kRate, 0x30000000);
+			}
+			else if (b == 800) {
+				turnDrum(kRate, -0x40000000);
+			}
+			renderBlocks(1);
+			const bool now = drum->core().delay().isActive();
+			starts += (!was && now) ? 1 : 0;
+			stops += (was && !now) ? 1 : 0;
+			was = now;
+		}
+		printf("CG-RENDERALLOC renderAllocs=%u delayStarts=%d delayStops=%d\n",
+		       static_cast<unsigned>(deluge::memory::audioTierAllocations() - before), static_cast<int>(starts),
+		       static_cast<int>(stops));
 		fflush(stdout);
+		turnDrum(delayFeedbackId(*drum), std::numeric_limits<int32_t>::min());
+		turnDrum(kRate, 0);
+		setDelayType(*drum, deluge::effects::DelayType::OFF);
+		renderBlocks(1);
 		break;
 	}
 	case Leg::Heap: {
@@ -756,25 +1079,442 @@ void editLeg() {
 		break;
 	}
 	case Leg::ModFxOom: {
-		g_step = "render";
-		// The song master's chorus sets its buffer up inside the render. Make that allocation fail once: the block must
-		// pass the signal through, and the next block's retry must bring the effect back.
-		auto& fx = currentSong->globalEffectable;
+		g_step = "modFXType";
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::MOD_FX_RING);
+		// The song master's chorus with its ring's allocation made to fail: the type is set and its blocks pass the
+		// signal through. A change to the dimension then takes a ring, and the master's render runs the effect over it.
+		auto& fx = currentSong->live.global_effectable;
 		currentSong->paramManager.getUnpatchedParamSet()
 		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
 		    .setCurrentValueBasicForSetup(0);
 		// Which mod FX parameter gates the effect on: the song's default names feedback, which sits at its minimum.
-		const ModFXParam paramBefore = fx.currentModFXParam;
-		fx.currentModFXParam = ModFXParam::DEPTH;
-		fx.setModFXType(ModFXType::CHORUS);
-		deluge::memory::failNextAllocationOfSize(kModFXBufferSize * sizeof(StereoSample));
-		renderBlocks(4);
+		const ModFXParam paramBefore = fx.modFXParam();
+		deluge::edits::changeView(fx, "modFXCurrentParam", modFXParamToString(ModFXParam::DEPTH));
+		if (fx.effects().mod_fx.type != ModFXType::NONE) {
+			fail("the master's mod FX is not off");
+			break;
+		}
+		// The master's dry render: its effects stage over a ramp with no mod FX.
+		const MasterFxRender dry = renderMasterFx(fx, currentSong->paramManager);
+		deluge::memory::failNextAllocationOfSize(kModFxRingBytes);
+		deluge::edits::changeEffect(
+		    fx, "modFXType",
+		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(ModFXType::CHORUS))));
 		const bool injected = !deluge::memory::allocationFailurePending();
-		const bool recovered = fx.modfx.modFXBuffer != nullptr;
-		fx.setModFXType(ModFXType::NONE);
-		fx.currentModFXParam = paramBefore;
+		renderBlocks(4);
+		const bool passthrough = !holdsRing(fx) && !renderMasterFx(fx, currentSong->paramManager).differsFrom(dry);
+		deluge::edits::changeEffect(
+		    fx, "modFXType",
+		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(ModFXType::DIMENSION))));
+		const int32_t writeBefore = ringWrite(fx);
 		renderBlocks(1);
-		printf("CG-MODFXOOM injected=%d recovered=%d\n", injected ? 1 : 0, recovered ? 1 : 0);
+		const bool recovered = holdsRing(fx) && ringWrite(fx) != writeBefore
+		                       && renderMasterFx(fx, currentSong->paramManager).differsFrom(dry);
+		deluge::edits::changeEffect(
+		    fx, "modFXType",
+		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(ModFXType::NONE))));
+		deluge::edits::changeView(fx, "modFXCurrentParam", modFXParamToString(paramBefore));
+		renderBlocks(1);
+		const bool noted = deluge::notedStructuralEdits(StructuralContainer::MOD_FX_RING) > notedBefore;
+		printf("CG-MODFXOOM injected=%d passthrough=%d recovered=%d noted=%d\n", injected ? 1 : 0, passthrough ? 1 : 0,
+		       recovered ? 1 : 0, noted ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::ModFxClone: {
+		g_step = "cloneFrom";
+		// The audio track's clone, as its clip's overdub clone and the session view's clone into a new track make one:
+		// a new audio track whose chain is a copy of the chorus one. It holds its own ring from the clone on, before
+		// any block renders, and runs the chorus over it.
+		auto* source = static_cast<AudioOutput*>(g_audio->output);
+		AudioOutput* clone = currentSong->createNewAudioOutput();
+		if (clone != nullptr) {
+			clone->cloneFrom(source);
+		}
+		const bool ring = clone != nullptr && clone->effects().mod_fx.type == ModFXType::CHORUS && holdsRing(*clone);
+		const bool renders = clone != nullptr && changesBlock(*clone, g_audio->paramManager, ModFXType::CHORUS);
+		printf("CG-MODFXCLONE ring=%d renders=%d\n", ring ? 1 : 0, renders ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::ModFxSwap: {
+		g_step = "modFXType";
+		// The mod FX type menu's Edit on a synth's chain while the song plays: each change to a delay-line type holds
+		// a ring and each change away from one gives it back.
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::MOD_FX_RING);
+		bool matched = true;
+		for (const ModFXType type : {ModFXType::CHORUS, ModFXType::FLANGER, ModFXType::PHASER, ModFXType::CHORUS}) {
+			deluge::edits::changeEffect(
+			    *synth, "modFXType",
+			    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(type))));
+			renderBlocks(2);
+			matched = matched && synth->effects().mod_fx.type == type
+			          && holdsRing(*synth) == deluge::effects::is_ring_type(type);
+		}
+		const bool noted = deluge::notedStructuralEdits(StructuralContainer::MOD_FX_RING) > notedBefore;
+		printf("CG-MODFXSWAP rings=%d noted=%d\n", matched ? 1 : 0, noted ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::GrainOom: {
+		g_step = "modFXType";
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::GRAIN_BLOCK);
+		// The song master's grain with its ring's allocation made to fail: the type is set and its blocks pass the
+		// signal through. Setting the grain again takes a ring, and the master's render runs the effect over it.
+		auto& fx = currentSong->live.global_effectable;
+		currentSong->paramManager.getUnpatchedParamSet()
+		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
+		    .setCurrentValueBasicForSetup(0);
+		const ModFXParam paramBefore = fx.modFXParam();
+		deluge::edits::changeView(fx, "modFXCurrentParam", modFXParamToString(ModFXParam::DEPTH));
+		if (fx.effects().mod_fx.type != ModFXType::NONE) {
+			fail("the master's mod FX is not off");
+			break;
+		}
+		// The master's dry render: its effects stage over a ramp with no mod FX.
+		const MasterFxRender dry = renderMasterFx(fx, currentSong->paramManager);
+		deluge::memory::failNextAllocationOfSize(kGrainRingBytes);
+		deluge::edits::changeEffect(
+		    fx, "modFXType",
+		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(ModFXType::GRAIN))));
+		const bool injected = !deluge::memory::allocationFailurePending();
+		renderBlocks(4);
+		const bool passthrough =
+		    !fx.core().granular().holdsRing() && !renderMasterFx(fx, currentSong->paramManager).differsFrom(dry);
+		deluge::edits::changeEffect(
+		    fx, "modFXType",
+		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(ModFXType::GRAIN))));
+		const int64_t writeBefore = grainWrite(fx);
+		renderBlocks(1);
+		const bool recovered = fx.core().granular().holdsRing() && grainWrite(fx) != writeBefore
+		                       && renderMasterFx(fx, currentSong->paramManager).differsFrom(dry);
+		deluge::edits::changeEffect(
+		    fx, "modFXType",
+		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(ModFXType::NONE))));
+		deluge::edits::changeView(fx, "modFXCurrentParam", modFXParamToString(paramBefore));
+		renderBlocks(1);
+		const bool noted = deluge::notedStructuralEdits(StructuralContainer::GRAIN_BLOCK) > notedBefore;
+		printf("CG-GRAINOOM injected=%d passthrough=%d recovered=%d noted=%d\n", injected ? 1 : 0, passthrough ? 1 : 0,
+		       recovered ? 1 : 0, noted ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::DelayKnob: {
+		g_step = "delayFeedback";
+		// A knob lifting an OFF delay's feedback off its minimum turns it on, digital; one already on, or set OFF
+		// with its feedback up, keeps its type. On a synth's sound, then on the song master's chain.
+		using deluge::effects::DelayType;
+		constexpr int32_t kMinimum = std::numeric_limits<int32_t>::min();
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		ParamManager& synthParams = g_clip->paramManager;
+		turnDelayFeedback(*synth, g_clip, synthParams, kMinimum);
+		setDelayType(*synth, DelayType::OFF);
+		turnDelayFeedback(*synth, g_clip, synthParams, 0);
+		const bool lifted = synth->effects().delay.type == DelayType::DIGITAL;
+		setDelayType(*synth, DelayType::ANALOG);
+		turnDelayFeedback(*synth, g_clip, synthParams, kMinimum);
+		turnDelayFeedback(*synth, g_clip, synthParams, 0);
+		const bool analogKept = synth->effects().delay.type == DelayType::ANALOG;
+		setDelayType(*synth, DelayType::OFF);
+		turnDelayFeedback(*synth, g_clip, synthParams, 0x20000000);
+		const bool offKept = synth->effects().delay.type == DelayType::OFF;
+		turnDelayFeedback(*synth, g_clip, synthParams, kMinimum);
+
+		auto& master = currentSong->live.global_effectable;
+		turnDelayFeedback(master, nullptr, currentSong->paramManager, kMinimum);
+		setDelayType(master, DelayType::OFF);
+		turnDelayFeedback(master, nullptr, currentSong->paramManager, 0);
+		const bool chain = master.effects().delay.type == DelayType::DIGITAL;
+		turnDelayFeedback(master, nullptr, currentSong->paramManager, kMinimum);
+		setDelayType(master, DelayType::OFF);
+		renderBlocks(1);
+		printf("CG-DELAYKNOB lifted=%d analogKept=%d offKept=%d chain=%d\n", lifted ? 1 : 0, analogKept ? 1 : 0,
+		       offKept ? 1 : 0, chain ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::DelayOom: {
+		g_step = "delayType";
+		// The arena's region made to fail when a synth's delay is set on: the delay cannot start and the audio passes
+		// through. The arena's next maintenance lends a region, and the delay starts on the next block.
+		auto& arena = deluge::model::delayArena();
+		deluge::model::maintainDelayArena();
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::DELAY_TAPE);
+		if (arena.regions() != 0) {
+			fail("the delay arena holds a region with no delay on");
+			break;
+		}
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		// The rate set while the delay is OFF reserves nothing; lifting the feedback then turns it on, and the
+		// region its projection lends is the one made to fail.
+		turnParam(*synth, g_clip, g_clip->paramManager,
+		          static_cast<int32_t>(deluge::modulation::params::GLOBAL_DELAY_RATE), 0);
+		deluge::memory::failNextAllocationOfSize(deluge::effects::DelayArena::kRegionBytes);
+		turnDelayFeedback(*synth, g_clip, g_clip->paramManager, 0);
+		const bool injected = !deluge::memory::allocationFailurePending()
+		                      && synth->effects().delay.type == deluge::effects::DelayType::DIGITAL;
+		auditionOn(g_clip, kRowNote, true);
+		renderBlocks(8);
+		const bool passthrough = !synth->core().delay().isActive() && arena.regions() == 0;
+		deluge::model::maintainDelayArena();
+		renderBlocks(8);
+		const bool recovered = synth->core().delay().isActive() && arena.regions() >= 1;
+		tearDownDelay(g_clip);
+		renderBlocks(1);
+		deluge::model::maintainDelayArena();
+		const bool noted = deluge::notedStructuralEdits(StructuralContainer::DELAY_TAPE) > notedBefore;
+		printf("CG-DELAYOOM injected=%d passthrough=%d recovered=%d noted=%d\n", injected ? 1 : 0, passthrough ? 1 : 0,
+		       recovered ? 1 : 0, noted ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::DelayMargin: {
+		g_step = "delayStart";
+		// Five synths' delays at their slowest rate, the largest tapes, starting on the same block: their reserves,
+		// worked out from their settings as each is set up, are in the arena before the downbeat, so every one starts
+		// on that block.
+		auto& arena = deluge::model::delayArena();
+		std::array<InstrumentClip*, 5> clips{g_clip, makeSynthClip(), makeSynthClip(), makeSynthClip(),
+		                                     makeSynthClip()};
+		if (std::ranges::find(clips, nullptr) != clips.end()) {
+			break;
+		}
+		for (InstrumentClip* clip : clips) {
+			setUpDelay(clip, 0, std::numeric_limits<int32_t>::min());
+		}
+		const uint32_t shortfallsBefore = arena.shortfalls();
+		for (InstrumentClip* clip : clips) {
+			auditionOn(clip, kRowNote, true);
+		}
+		renderBlocks(1);
+		const bool shortfall = arena.shortfalls() > shortfallsBefore;
+		const bool started = std::ranges::all_of(clips, [](InstrumentClip* clip) {
+			return static_cast<SoundInstrument*>(clip->output)->core().delay().isActive();
+		});
+		for (InstrumentClip* clip : clips) {
+			tearDownDelay(clip);
+		}
+		renderBlocks(1);
+		deluge::model::maintainDelayArena();
+		printf("CG-DELAYMARGIN shortfall=%d started=%d\n", shortfall ? 1 : 0, started ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::DelayOff: {
+		g_step = "delayOff";
+		// A ringing synth delay set OFF gives its tapes back and leaves the margin; set on again it starts again; a
+		// hibernating owner gives its tapes back; a clone is counted; a destroyed owner leaves the count; and with
+		// every delay OFF the arena returns its regions.
+		using deluge::effects::DelayType;
+		auto& arena = deluge::model::delayArena();
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::DELAY_TAPE);
+		setUpDelay(g_clip, 0, 0);
+		auditionOn(g_clip, kRowNote, true);
+		renderBlocks(20);
+		const std::size_t liveRinging = arena.live_tapes();
+		setDelayType(*synth, DelayType::OFF);
+		const bool off = synth->core().delay().isActive() == false && !synth->core().delay().counted()
+		                 && arena.live_tapes() < liveRinging;
+		setDelayType(*synth, DelayType::DIGITAL);
+		renderBlocks(20);
+		const bool on = synth->core().delay().isActive() && synth->core().delay().counted();
+		synth->wontBeRenderedForAWhile();
+		const bool hibernate = !synth->core().delay().isActive();
+
+		InstrumentClip* other = makeSynthClip();
+		bool clone = false;
+		if (other != nullptr) {
+			auto* second = static_cast<SoundInstrument*>(other->output);
+			second->cloneFrom(synth);
+			clone = second->core().delay().counted() && second->effects().delay.type == DelayType::DIGITAL;
+		}
+		const bool count = arena.owners_on() == ownersWithDelayOn();
+
+		// A synth outside the song with its delay on, retired as a deleted output is: once destroyed it is not counted.
+		ParamManagerForTimeline paramManager;
+		auto* lone =
+		    static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager));
+		bool destroyed = false;
+		if (lone != nullptr) {
+			setDelayType(*lone, DelayType::DIGITAL);
+			const int32_t withLone = arena.owners_on();
+			AudioEngine::retire(static_cast<Output*>(lone));
+			renderBlocks(3);
+			AudioEngine::reclaimRetired();
+			destroyed = arena.owners_on() == withLone - 1;
+		}
+
+		tearDownDelay(g_clip);
+		if (other != nullptr) {
+			setDelayType(*static_cast<SoundInstrument*>(other->output), DelayType::OFF);
+		}
+		renderBlocks(1);
+		deluge::model::maintainDelayArena();
+		const bool released = arena.owners_on() != 0 || arena.regions() == 0;
+		const bool noted = deluge::notedStructuralEdits(StructuralContainer::DELAY_TAPE) > notedBefore;
+		printf("CG-DELAYOFF off=%d on=%d hibernate=%d clone=%d count=%d destroyed=%d released=%d noted=%d\n",
+		       off ? 1 : 0, on ? 1 : 0, hibernate ? 1 : 0, clone ? 1 : 0, count ? 1 : 0, destroyed ? 1 : 0,
+		       released ? 1 : 0, noted ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::StutterHandoff: {
+		g_step = "stutter";
+		// While the song plays: the gold knob's press stutters the audio track; the song's stutter then begins the
+		// kit's, which ends the track's in the same section; the kit's release ends it.
+		deluge::model::SongStutter& stutter = currentSong->live.stutter;
+		auto* track = static_cast<AudioOutput*>(g_audio->output);
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE);
+		track->beginStutter(&g_audio->paramManager);
+		const bool first = stutter.isStuttering(*track) && isUIModeActive(UI_MODE_STUTTERING);
+		renderBlocks(20);
+		const auto rate = static_cast<uint32_t>(
+		    deluge::model::stutterRate(&g_clip->paramManager, 0, currentSong->getInputTickMagnitude(),
+		                               playbackHandler.getTimePerInternalTickInverse()));
+		const bool handed = stutter.begin(*g_kit, g_kit->effects().stutter, rate) == Error::NONE;
+		const bool second = handed && stutter.isStuttering(*g_kit) && !stutter.isStuttering(*track);
+		renderBlocks(20);
+		g_kit->endStutter(&g_clip->paramManager);
+		renderBlocks(5);
+		const bool ended = !stutter.active() && !isUIModeActive(UI_MODE_STUTTERING);
+		const bool noted = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE) >= notedBefore + 3;
+		printf("CG-STUTTERHANDOFF first=%d second=%d ended=%d noted=%d\n", first ? 1 : 0, second ? 1 : 0, ended ? 1 : 0,
+		       noted ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::StutterOom: {
+		g_step = "stutter";
+		// The kit's quantized stutter (the song's settings, quantized by default) with its tape made to fail: no
+		// stutter, no stutter UI mode, and the snap of the stutter-rate param undone.
+		deluge::model::SongStutter& stutter = currentSong->live.stutter;
+		UnpatchedParamSet* unpatched = g_clip->paramManager.getUnpatchedParamSet();
+		auto& rateParam = unpatched->params[deluge::modulation::params::UNPATCHED_STUTTER_RATE];
+		// A knob position of 20 snaps to 32nds: the param to 0, the knob offset to 8.
+		const int32_t before = unpatched->knobPosToParamValue(20, nullptr);
+		rateParam.setCurrentValueBasicForSetup(0);
+		const auto rate = static_cast<uint32_t>(
+		    deluge::model::stutterRate(&g_clip->paramManager, 8, currentSong->getInputTickMagnitude(),
+		                               playbackHandler.getTimePerInternalTickInverse()));
+		rateParam.setCurrentValueBasicForSetup(before);
+		const bool quantized = currentSong->live.global_effectable.effects().stutter.quantized
+		                       && g_kit->effects().stutter.use_song_stutter;
+		deluge::memory::failNextAllocationOfSize(deluge::effects::tape_shape(rate, true).frames
+		                                         * sizeof(deluge::dsp::StereoSample));
+		g_kit->beginStutter(&g_clip->paramManager);
+		const bool injected = quantized && !deluge::memory::allocationFailurePending();
+		const bool stuttering = stutter.active();
+		const bool uiMode = isUIModeActive(UI_MODE_STUTTERING);
+		const bool restored = unpatched->getValue(deluge::modulation::params::UNPATCHED_STUTTER_RATE) == before
+		                      && stutter.lastQuantizedKnobDiff == 0;
+		renderBlocks(2);
+		printf("CG-STUTTEROOM injected=%d stuttering=%d uiMode=%d restored=%d\n", injected ? 1 : 0, stuttering ? 1 : 0,
+		       uiMode ? 1 : 0, restored ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::StutterDelete: {
+		g_step = "stutter";
+		// A synth outside the song, quantized-stuttering, retired as a deleted output is: its destruction ends the
+		// stutter and clears the snap memory, so the next free stutter is not offset by its note length.
+		deluge::model::SongStutter& stutter = currentSong->live.stutter;
+		ParamManagerForTimeline paramManager;
+		auto* lone =
+		    static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager));
+		if (lone == nullptr) {
+			fail("no synth");
+			break;
+		}
+		UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
+		// A knob position of 20 snaps to 32nds: the knob offset to 8.
+		unpatched->params[deluge::modulation::params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(
+		    unpatched->knobPosToParamValue(20, nullptr));
+		lone->beginStutter(&paramManager);
+		const bool began = stutter.isStuttering(*lone) && stutter.lastQuantizedKnobDiff == 8;
+		AudioEngine::retire(static_cast<Output*>(lone));
+		renderBlocks(3);
+		AudioEngine::reclaimRetired();
+		const bool ended = !stutter.active() && !isUIModeActive(UI_MODE_STUTTERING);
+		const bool cleared = stutter.lastQuantizedKnobDiff == 0 && stutter.valueBeforeStuttering == 0;
+		printf("CG-STUTTERDELETE began=%d ended=%d cleared=%d\n", began ? 1 : 0, ended ? 1 : 0, cleared ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::StutterSwap: {
+		g_step = "songSwap";
+		// The kit stuttering when a song swap with the clock running makes a new song current, as a load or a launch
+		// does: the swap's interaction side ends the outgoing song's stutter and gives its tape back, which is read
+		// from the outgoing song before it is retired.
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE);
+		g_kit->beginStutter(&g_clip->paramManager);
+		const bool began = currentSong->live.stutter.isStuttering(*g_kit) && isUIModeActive(UI_MODE_STUTTERING);
+		renderBlocks(20);
+		Song* const outgoing = currentSong;
+		AudioEngine::songSwapAboutToHappen();
+		preLoadedSong = new (deluge::memory::alloc_fast(sizeof(Song))) Song();
+		std::ignore = preLoadedSong->paramManager.setupUnpatched();
+		GlobalEffectable::initParams(&preLoadedSong->paramManager);
+		preLoadedSong->setupDefault();
+		std::ignore = preLoadedSong->ensureAtLeastOneSessionClip();
+		const bool playing = playbackHandler.isEitherClockActive();
+		playbackHandler.doSongSwap(true);
+		const bool ended = !outgoing->live.stutter.active();
+		const bool freed = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE) >= notedBefore + 2;
+		AudioEngine::retire(outgoing);
+		AudioEngine::awaitRetired();
+		setUIForLoadedSong(currentSong);
+		currentUIMode = UI_MODE_NONE;
+		// The scenario goes on in the new song.
+		g_kit = nullptr;
+		g_clip = nullptr;
+		g_home = currentSong->live.clips.session_clips.size() > 0 ? currentSong->live.clips.session_clips[0] : nullptr;
+		renderBlocks(5);
+		printf("CG-STUTTERSWAP began=%d playing=%d ended=%d freed=%d\n", began ? 1 : 0, playing ? 1 : 0, ended ? 1 : 0,
+		       freed ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::StutterClear: {
+		g_step = "clearSong";
+		// The kit stuttering when the clear-song menu's accept swaps the song for a new one, the clock stopped first:
+		// the old song's stutter ends and gives its tape back before the song is let go. The old song is freed inside
+		// the accept, so only the hand-over it notes can be read.
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE);
+		g_kit->beginStutter(&g_clip->paramManager);
+		const bool began = currentSong->live.stutter.isStuttering(*g_kit) && isUIModeActive(UI_MODE_STUTTERING);
+		renderBlocks(20);
+		std::ignore = deluge::gui::context_menu::clearSong.acceptCurrentOption();
+		// The begin noted one hand-over and the end, before the old song was let go, another.
+		const bool freed = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE) >= notedBefore + 2;
+		// The scenario goes on in the new song.
+		g_kit = nullptr;
+		g_clip = nullptr;
+		g_home = currentSong->live.clips.session_clips.size() > 0 ? currentSong->live.clips.session_clips[0] : nullptr;
+		renderBlocks(5);
+		printf("CG-STUTTERCLEAR began=%d freed=%d\n", began ? 1 : 0, freed ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::GrainSwap: {
+		g_step = "modFXType";
+		// The mod FX type menu's Edit on a synth's chain while the song plays: the grain holds its ring exactly while
+		// its type is the grain, and the chorus between holds the mod FX ring.
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::GRAIN_BLOCK);
+		bool matched = true;
+		for (const ModFXType type : {ModFXType::GRAIN, ModFXType::CHORUS, ModFXType::GRAIN, ModFXType::NONE}) {
+			deluge::edits::changeEffect(
+			    *synth, "modFXType",
+			    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(type))));
+			renderBlocks(2);
+			matched = matched && synth->effects().mod_fx.type == type
+			          && synth->core().granular().holdsRing() == (type == ModFXType::GRAIN)
+			          && holdsRing(*synth) == deluge::effects::is_ring_type(type);
+		}
+		const bool noted = deluge::notedStructuralEdits(StructuralContainer::GRAIN_BLOCK) > notedBefore;
+		printf("CG-GRAINSWAP blocks=%d noted=%d\n", matched ? 1 : 0, noted ? 1 : 0);
 		fflush(stdout);
 		break;
 	}
@@ -923,7 +1663,7 @@ void deluge_scenario_container_guard_begin(void) {
 	// Every leg's gesture is made from the session view (the clip view the harness boots into dereferences
 	// getCurrentInstrumentClip() unconditionally).
 	changeRootUI(&sessionView);
-	g_home = currentSong->sessionClips.size() > 0 ? currentSong->sessionClips[0] : nullptr;
+	g_home = currentSong->live.clips.session_clips.size() > 0 ? currentSong->live.clips.session_clips[0] : nullptr;
 	if (g_home == nullptr) {
 		fail("the boot song has no clip");
 		g_stage = Stage::Summary;

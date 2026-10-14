@@ -1,8 +1,9 @@
 #pragma once
 
+#include "dsp-next/fixed/noise/congruential_step.h"
 #include "util/lookuptables/lookuptables.h"
 
-#define CONG (jcong = 69069 * jcong + 1234567)
+#define CONG (jcong = deluge::dsp::fixed::CongruentialStep::next(jcong))
 
 extern uint32_t z, w, jcong;
 

@@ -17,6 +17,8 @@
 #pragma once
 
 #include "util/fixedpoint.h" // q31_t, multiply_32x32_rshift32
+#include <cstddef>
+#include <type_traits>
 
 namespace deluge::dsp {
 
@@ -43,6 +45,10 @@ struct StereoSample {
 		return *this;
 	}
 };
+
+static_assert(std::is_standard_layout_v<StereoSample> && sizeof(StereoSample) == 2 * sizeof(q31_t)
+                  && offsetof(StereoSample, l) == 0 && offsetof(StereoSample, r) == sizeof(q31_t),
+              "a block of StereoSample frames is an interleaved array of q31, left first");
 
 /// @brief A mono sample panned to a stereo frame: each channel is @p mono scaled by its amplitude.
 /// @param ampL,ampR per-channel amplitudes (~Q2.29 — the `<< 2` restores unity headroom). Accumulate with `+=`.

@@ -23,6 +23,7 @@
 #include "storage/byte_channel.h"
 #include "storage/flash_storage.h"
 #include "storage/startup_song.h"
+#include "storage/startup_song_policy.h"
 
 #include <cstdio>
 
@@ -36,9 +37,15 @@
 
 namespace {
 
-/// The template the fail-safe falls back to. Removed before the run so the song-missing path is
-/// reached rather than the load.
-constexpr const char* kDefaultSong = "SONGS/DEFAULT.XML";
+/// The template the fail-safe falls back to, and creates when there is none. Every path it is looked for at is removed
+/// before the run so the song-missing path is reached rather than the load.
+constexpr const char* kDefaultSong = deluge::storage::kTemplatePaths[0];
+
+void unlinkTemplates() {
+	for (const char* path : deluge::storage::kTemplatePaths) {
+		(void)deluge::io::unlink(path);
+	}
+}
 
 /// Every stage has a `*Check` successor that runs one tick later.
 ///
@@ -134,7 +141,7 @@ void runTick() {
 		// reaches the canary creation, every existence check and the cleanup unlink, and returns
 		// before `openUI` -- which this harness cannot survive, having no UI stack.
 		FlashStorage::defaultStartupSongMode = StartupSongMode::LASTOPENED;
-		(void)deluge::io::unlink(kDefaultSong);
+		unlinkTemplates();
 		g_stage = Stage::FixtureCheck;
 		break;
 
@@ -278,7 +285,7 @@ void runTick() {
 		// CheckTemplate is skipped entirely -- the template write was never reached by this gate without
 		// this leg.
 		FlashStorage::defaultStartupSongMode = StartupSongMode::TEMPLATE;
-		(void)deluge::io::unlink(kDefaultSong);
+		unlinkTemplates();
 		(void)deluge::io::unlink(deluge::storage::startupSongCanaryPath());
 		g_templateTierBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Startup);
 		g_templateTicks = 0;

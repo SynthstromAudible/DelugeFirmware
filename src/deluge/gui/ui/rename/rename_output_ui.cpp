@@ -38,6 +38,6 @@ bool RenameOutputUI::trySetName(std::string_view name) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 		return false;
 	}
-	output->name = name;
+	output->setName(name);
 	return true;
 }

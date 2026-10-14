@@ -1,0 +1,190 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "model/project_bridge/chain_bridge.h"
+
+#include "model/mod_controllable/delay_type.h"
+
+#include "engines/effects/chain.h"
+#include "engines/effects/codec.h"
+#include "model/global_effectable/global_effectable.h"
+#include "model/instrument/kit.h"
+#include "model/output.h"
+#include "model/song/song.h"
+#include "processing/audio_output.h"
+#include "util/functions.h"
+
+namespace deluge::bridge {
+
+using deluge::project::ChainAddress;
+using deluge::project::ChainHome;
+using deluge::project::FxChain;
+using deluge::project::FxSlot;
+
+namespace {
+
+deluge::effects::Home homeOf(ChainHome home) {
+	return home == ChainHome::MASTER ? deluge::effects::Home::MASTER : deluge::effects::Home::CLIP;
+}
+
+/// @p chain's slots and view from @p slots, written at @p tick_magnitude.
+FxChain chainFrom(std::vector<deluge::effects::SlotEntries> slots, ChainHome home, int32_t tick_magnitude,
+                  deluge::serialization::Value view) {
+	FxChain chain{.reverb_return = deluge::effects::reverb_return(homeOf(home)), .view = std::move(view)};
+	for (deluge::effects::SlotEntries& slot : slots) {
+		chain.slots.push_back(FxSlot{
+		    .effect = std::string(slot.effect), .state = std::move(slot.entries), .tick_magnitude = tick_magnitude});
+	}
+	return chain;
+}
+
+FxChain decodeChain(const deluge::serialization::Value& element, ChainHome home, int32_t tick_magnitude) {
+	const deluge::engine::CodecContext context{.input_tick_magnitude = tick_magnitude};
+	deluge::effects::EffectStates states;
+	deluge::effects::decode(element, states, context);
+	return chainFrom(deluge::effects::encode_chain(states, homeOf(home), context), home, tick_magnitude,
+	                 deluge::effects::view_entries(element));
+}
+
+void encodeChain(const FxChain& chain, deluge::serialization::Value& element, int32_t tick_magnitude) {
+	deluge::effects::EffectStates states;
+	for (const FxSlot& slot : chain.slots) {
+		deluge::effects::decode_slot(slot.effect, slot.state, states, {.input_tick_magnitude = slot.tick_magnitude});
+	}
+	const deluge::effects::Home home =
+	    chain.reverb_return ? deluge::effects::Home::MASTER : deluge::effects::Home::CLIP;
+	deluge::effects::write_chain(deluge::effects::encode_chain(states, home, {.input_tick_magnitude = tick_magnitude}),
+	                             chain.view, element);
+}
+
+/// The output's own effects owner, when it runs a host chain (a kit, an audio track).
+::GlobalEffectable* ownerOf(::Output& output) {
+	switch (output.type) {
+	case OutputType::KIT:
+		return static_cast<::Kit*>(&output);
+	case OutputType::AUDIO:
+		return static_cast<::AudioOutput*>(&output);
+	default:
+		return nullptr;
+	}
+}
+
+/// @brief @p owner's state set from @p record, when the record decodes to anything else (it does not when the codec
+/// round-trips, so a load sets no state twice).
+void projectRecord(::GlobalEffectable& owner, const FxChain& record) {
+	const deluge::model::HostChainState decoded = chainStateOf(record);
+	if (decoded != owner.chainState()) {
+		owner.setChainState(decoded);
+	}
+}
+
+template <class F>
+void forEachOutput(::Song& song, F&& f) {
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		f(*output);
+	}
+	for (Output* sleeping = song.live.media.first_hibernating_instrument; sleeping != nullptr;
+	     sleeping = sleeping->next) {
+		f(*sleeping);
+	}
+}
+
+} // namespace
+
+const deluge::project::ChainCodec& chainCodec() {
+	static const deluge::project::ChainCodec codec{.decode = &decodeChain, .encode = &encodeChain};
+	return codec;
+}
+
+::GlobalEffectable* chainOwnerAt(ChainAddress address, ::Song& song) {
+	if (address.kind == ChainAddress::Kind::SONG) {
+		return &song.live.global_effectable;
+	}
+	::GlobalEffectable* found = nullptr;
+	forEachOutput(song, [&](::Output& output) {
+		if (found == nullptr && output.id() == address.id) {
+			found = ownerOf(output);
+		}
+	});
+	return found;
+}
+
+std::optional<ChainAddress> chainAddressOf(const ::ModControllableAudio& owner, ::Song& song) {
+	if (&owner == &song.live.global_effectable) {
+		return ChainAddress{.kind = ChainAddress::Kind::SONG};
+	}
+	std::optional<ChainAddress> found;
+	forEachOutput(song, [&](::Output& output) {
+		const ::GlobalEffectable* own = ownerOf(output);
+		if (!found && own != nullptr && own == &owner && output.id()) {
+			found = ChainAddress{.kind = ChainAddress::Kind::OUTPUT, .id = *output.id()};
+		}
+	});
+	return found;
+}
+
+FxChain encodeChainOf(const deluge::model::HostChainState& state, ChainHome home, int32_t tick_magnitude) {
+	auto view = deluge::serialization::Value::makeMap();
+	view.set("modFXCurrentParam", deluge::serialization::Value::makeScalar(modFXParamToString(state.mod_fx_param)));
+	view.set("currentFilterType", deluge::serialization::Value::makeScalar(filterTypeToString(state.filter_type)));
+	return chainFrom(
+	    deluge::effects::encode_chain(state.effects, homeOf(home), {.input_tick_magnitude = tick_magnitude}), home,
+	    tick_magnitude, std::move(view));
+}
+
+deluge::model::HostChainState chainStateOf(const FxChain& chain) {
+	deluge::model::HostChainState state;
+	for (const FxSlot& slot : chain.slots) {
+		deluge::effects::decode_slot(slot.effect, slot.state, state.effects,
+		                             {.input_tick_magnitude = slot.tick_magnitude});
+	}
+	if (const deluge::serialization::Value* param = chain.view.find("modFXCurrentParam");
+	    param != nullptr && param->isScalar()) {
+		state.mod_fx_param = stringToModFXParam(param->str().c_str());
+	}
+	if (const deluge::serialization::Value* type = chain.view.find("currentFilterType");
+	    type != nullptr && type->isScalar()) {
+		state.filter_type = stringToFilterType(type->str().c_str());
+	}
+	return state;
+}
+
+void fillChains(::Song& song) {
+	const int32_t magnitude = song.getInputTickMagnitude();
+	forEachOutput(song, [&](::Output& output) { recordOutputChain(output, song); });
+	::GlobalEffectable& master = song.live.global_effectable;
+	song.project.master_effects = encodeChainOf(master.chainState(), ChainHome::MASTER, magnitude);
+	projectRecord(master, song.project.master_effects);
+	// Setting a state reserves each delay's tape in the current song, which during a load is not yet this one: the
+	// reserves are worked out again in this song.
+	deluge::model::refreshDelayReserves(song);
+}
+
+void recordOutputChain(::Output& output, ::Song& song) {
+	::GlobalEffectable* owner = ownerOf(output);
+	if (owner == nullptr || !output.id()) {
+		return;
+	}
+	deluge::project::DocOutput* record = song.project.output_structure.find(*output.id());
+	if (record == nullptr) {
+		return;
+	}
+	record->effects = encodeChainOf(owner->chainState(), ChainHome::CLIP, song.getInputTickMagnitude());
+	projectRecord(*owner, *record->effects);
+}
+
+} // namespace deluge::bridge

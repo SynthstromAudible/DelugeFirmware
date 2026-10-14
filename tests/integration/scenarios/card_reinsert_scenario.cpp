@@ -145,7 +145,7 @@ bool runPendingFixture() {
 /// Put the two referenced samples in the song, and leave the third resident but unheld.
 bool buildFixture() {
 	SoundInstrument* synth = nullptr;
-	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		if (output->type == OutputType::SYNTH) {
 			synth = static_cast<SoundInstrument*>(output);
 			break;

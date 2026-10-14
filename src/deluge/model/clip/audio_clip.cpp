@@ -18,6 +18,7 @@
 #include "model/clip/audio_clip.h"
 #include "clip.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_audio_clip.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "gui/views/automation_view.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -26,7 +27,10 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
 #include "model/consequence/consequence_output_existence.h"
+#include "model/edits/clip_address_for.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/chain_bridge.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
@@ -46,22 +50,35 @@ namespace params = deluge::modulation::params;
 
 extern "C" {}
 
-AudioClip::AudioClip() : Clip(ClipType::AUDIO) {
-	overdubsShouldCloneOutput = true;
+AudioClip::AudioClip(Song& song, uint32_t loadedId) : Clip(ClipType::AUDIO, song, loadedId) {
+	// The base Clip ctor has already minted/bound id_ and docClip_. Bind this clip's AudioClip-specific DOM record
+	// under the same durable id, as the Clip base ctor does for docClip_.
+	docAudioClip_ = &song.project.getOrCreateDocAudioClip({.clip_id = id()});
 	voiceSample = nullptr;
 	guide.audioFileHolder = &sampleHolder; // It needs to permanently point here
-
-	sampleControls.pitchAndSpeedAreIndependent = true;
 
 	recorder = nullptr;
 
 	renderData.xScroll = -1;
 
-	voicePriority = VoicePriority::MEDIUM;
-	attack = -2147483648;
+	// The DocAudioClip (freshly created with its default descriptor values) is authoritative; derive the engine's
+	// runtime cache (sampleHolder / sampleControls / overdubs) from it. The defaults live in DocAudioClip's member
+	// initializers.
+	deriveEngineFromDoc();
 }
 
 AudioClip::~AudioClip() {
+	// Drop this clip's DOM descriptor record so the store doesn't accumulate dead entries. Mirrors the
+	// docClip_ removal in ~Clip: guarded on the clip being currentSong's (a whole song is torn down with currentSong
+	// null or already another song, and its entire project — audio_clip_structure included — goes with it) and on
+	// docAudioClip_ being bound.
+	if (currentSong && docAudioClip_ != nullptr) {
+		std::optional<deluge::project::ClipAddress> addr = deluge::edits::clipAddressFor(*this);
+		if (addr && currentSong->project.resolveClip(*addr) == docClip_) {
+			currentSong->project.removeDocAudioClip(*addr);
+		}
+	}
+
 	if (recorder) {
 		FREEZE_WITH_ERROR("E278");
 	}
@@ -81,7 +98,7 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	auto newClip = new (clipMemory) AudioClip();
+	auto newClip = new (clipMemory) AudioClip(*modelStack->song);
 
 	newClip->copyBasicsFrom(this);
 	Error error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
@@ -91,16 +108,27 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 		return error;
 	}
 
+	// The cloned params own their storage (unbound, per the ParamSet copy-ctor); bind them to a fresh DOM store so
+	// the clone's automation is DOM-backed like a loaded clip.
+	if (newClip->paramManager.containsAnyMainParamCollections()) {
+		newClip->paramManager.getUnpatchedParamSet()->bindDomStore();
+	}
+
 	modelStack->setTimelineCounter(newClip);
 
 	newClip->activeIfNoSolo = false;
 	newClip->soloingInSessionMode = false;
 	newClip->output = output;
 
-	newClip->attack = attack;
+	newClip->setAttack(attack());
 
 	memcpy(&newClip->sampleControls, &sampleControls, sizeof(sampleControls));
-	newClip->voicePriority = voicePriority;
+	// The memcpy copied the sampleControls render cache (incl. the runtime invertReversed); the DOM-owned descriptor
+	// fields still need copying into the clone's record via their setters (save reads the record directly).
+	newClip->setInterpolationMode(sampleControls.interpolationMode);
+	newClip->setPitchAndSpeedIndependent(sampleControls.pitchAndSpeedAreIndependent);
+	newClip->setReversed(sampleControls.reversed);
+	newClip->setVoicePriority(voicePriority());
 
 	newClip->sampleHolder.beenClonedFrom(&sampleHolder, sampleControls.isCurrentlyReversed());
 
@@ -109,7 +137,7 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 
 void AudioClip::copyBasicsFrom(Clip const* otherClip) {
 	Clip::copyBasicsFrom(otherClip);
-	overdubsShouldCloneOutput = ((AudioClip*)otherClip)->overdubsShouldCloneOutput;
+	setOverdubsShouldCloneOutput(((AudioClip*)otherClip)->overdubsShouldCloneOutput);
 }
 
 void AudioClip::abortRecording() {
@@ -230,8 +258,8 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	// if (ao->mode == AudioOutputMode::sampler) {
 	// 	ao->mode = AudioOutputMode::player;
 	// }
-	originalLength = loopLength;
-	sampleHolder.filePath = recorder->sample->filePath;
+	originalLength = loopLength();
+	setSampleFilePath(recorder->sample->filePath.c_str());
 	sampleHolder.setAudioFile(recorder->sample, sampleControls.isCurrentlyReversed(), true,
 	                          CLUSTER_ENQUEUE); // Enqueues a fetch of the first Cluster(s) - the recorder's private
 	                                            // capture buffers aren't shared residency, so cluster 0 is cold at
@@ -239,10 +267,14 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	                                            // call this after endSyncedRecording(), which puts some final values
 	                                            // in the Sample
 
+	// setAudioFile (manuallySelected) just set startPos/endPos on the sampleHolder cache but not the
+	// record; reflect the resolved window into docAudioClip_ so save persists the recorded length, not a stale zone.
+	syncSampleRecordFromEngine();
+
 	renderData.xScroll = -1; // Force re-render - though this would surely happen anyway
 
 	if (recorder->recordingExtraMargins) {
-		attack = kAudioClipDefaultAttackIfPreMargin; // TODO: make these undoable?
+		setAttack(kAudioClipDefaultAttackIfPreMargin); // TODO: make these undoable?
 	}
 
 	isUnfinishedAutoOverdub = false;
@@ -261,7 +293,7 @@ ramError:
 		return nullptr;
 	}
 
-	AudioClip* newClip = new (clipMemory) AudioClip();
+	AudioClip* newClip = new (clipMemory) AudioClip(*modelStackOldClip->song);
 
 	newClip->setupForRecordingAsAutoOverdub(this, modelStackOldClip->song, newOverdubNature);
 
@@ -298,6 +330,8 @@ bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
 	}
 
 	newOutput->cloneFrom((AudioOutput*)output);
+	deluge::bridge::recordOutputControls(*newOutput, *modelStack->song); // the learned knobs it cloned
+	deluge::bridge::recordOutputChain(*newOutput, *modelStack->song);    // and the effects
 
 	newOutput->wasCreatedForAutoOverdub = true;
 	changeOutput(modelStack, newOutput);
@@ -487,7 +521,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 		}
 		sequenceSyncStartedNumTicksAgo = 0; // The show must go on
 	}
-	sequenceSyncStartedNumTicksAgo = (uint32_t)sequenceSyncStartedNumTicksAgo % (uint32_t)loopLength; // Wrapping
+	sequenceSyncStartedNumTicksAgo = (uint32_t)sequenceSyncStartedNumTicksAgo % (uint32_t)loopLength(); // Wrapping
 	guide.sequenceSyncStartedAtTick =
 	    currentInternalTickCount - sequenceSyncStartedNumTicksAgo; // Finally, we've got our value
 
@@ -535,7 +569,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 
 void AudioClip::setupPlaybackBounds() {
 	if (sampleHolder.audioFile) {
-		int32_t length = getCurrentlyRecordingLinearly() ? originalLength : loopLength;
+		int32_t length = getCurrentlyRecordingLinearly() ? originalLength : loopLength();
 		guide.sequenceSyncLengthTicks = length;
 		guide.setupPlaybackBounds(sampleControls.isCurrentlyReversed());
 	}
@@ -556,7 +590,7 @@ int64_t AudioClip::getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStac
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
 
 	int32_t cutPos = modelStackWithNoteRow->getPosAtWhichPlaybackWillCut();
-	int32_t loopPosWithinClip = std::min(cutPos, loopLength);
+	int32_t loopPosWithinClip = std::min(cutPos, loopLength());
 
 	int32_t ticksTilLoop = loopPosWithinClip - lastProcessedPos;
 	uint32_t loopTime = playbackHandler.getInternalTickTime(playbackHandler.lastSwungTickActioned + ticksTilLoop);
@@ -598,7 +632,7 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 
 	uint32_t sampleLengthInSamples = sampleHolder.getDurationInSamples(true); // In the sample rate of the file!
 	uint32_t clipLengthInSamples =
-	    (playbackHandler.getTimePerInternalTickBig() * loopLength) >> 32; // We haven't rounded... should we?
+	    (playbackHandler.getTimePerInternalTickBig() * loopLength()) >> 32; // We haven't rounded... should we?
 
 	// To stop things getting insane, limit to 32x speed
 	// if ((sampleLengthInSamples >> 5) > clipLengthInSamples) return false;
@@ -874,7 +908,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		D_PRINTLN("");
 		D_PRINTLN("AudioClip::posReachedEnd, at pos:  %d", playbackHandler.getActualArrangementRecordPos());
 
-		if (!modelStack->song->arrangementOnlyClips.reserveExtra(1)) {
+		if (!modelStack->song->live.clips.arrangement_only_clips.reserveExtra(1)) {
 			return;
 		}
 		if (!output->clipInstances.reserveExtra(1)) {
@@ -902,13 +936,14 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		newClip->beingRecordedFromClip = beingRecordedFromClip;
 		beingRecordedFromClip = nullptr;
 
-		newClip->section = 255;
+		newClip->setSection(255);
 
-		(void)modelStack->song->arrangementOnlyClips.insertClipAt(newClip, 0); // Can't fail - checked above
+		(void)modelStack->song->live.clips.arrangement_only_clips.insertClipAt(newClip,
+		                                                                       0); // Can't fail - checked above
 
 		clipInstanceI++;
 
-		error = output->clipInstances.insertAt(clipInstanceI).error_or(Error::NONE); // Shouldn't be able to fail...
+		error = deluge::error_of(output->clipInstances.insertAt(clipInstanceI)); // Shouldn't be able to fail...
 		if (error != Error::NONE) {
 			return;
 		}
@@ -916,7 +951,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		ClipInstance* clipInstance = &output->clipInstances[clipInstanceI];
 		clipInstance->clip = newClip;
 		clipInstance->pos = arrangementRecordPos;
-		clipInstance->length = loopLength;
+		clipInstance->length = loopLength();
 
 		newClip->activeIfNoSolo = false; // And now, we want it to actually be false
 		output->setActiveClip(modelStack, PgmChangeSend::NEVER);
@@ -947,14 +982,14 @@ void AudioClip::detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOu
 	// Normal case, where we're leaving ParamManager behind with old Output
 	if (!shouldTakeParamManagerWith) {
 doNormal:
-		song->backUpParamManager((ModControllableAudio*)output->toModControllable(), this, &paramManager);
+		song->live.param_backup.backUp((ModControllableAudio*)output->toModControllable(), this, &paramManager);
 	}
 
 	// Or, special case where we're keeping the ParamManager
 	else {
 
 		// If our ParamManager was the only one that the old Output had, we have to clone it
-		if (!song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)output->toModControllable(), this)
+		if (!song->live.param_backup.getPreferablyWithClip((ModControllableAudio*)output->toModControllable(), this)
 		    && !song->getClipWithOutput(output, false, this)) {
 
 			ParamManagerForTimeline newParamManager;
@@ -963,7 +998,8 @@ doNormal:
 				goto doNormal; // If out of RAM, leave ParamManager behind
 			}
 
-			song->backUpParamManager((ModControllableAudio*)output->toModControllable(), nullptr, &newParamManager);
+			song->live.param_backup.backUp((ModControllableAudio*)output->toModControllable(), nullptr,
+			                               &newParamManager);
 			// Obscure bug fixed, Oct 2022. Previously, we filed it away under not just the ModControllable, but also
 			// this Clip. Perhaps that's still theoretically what we'd like to do? But, it caused an E170 because when
 			// we do a song swap and call Song::deleteSoundsWhichWontSound(), that calls
@@ -982,7 +1018,7 @@ int64_t AudioClip::getSamplesFromTicks(int32_t ticks) {
 		return playbackHandler.getTimePerInternalTickFloat() * ticks;
 	}
 	else {
-		int32_t length = getCurrentlyRecordingLinearly() ? originalLength : loopLength;
+		int32_t length = getCurrentlyRecordingLinearly() ? originalLength : loopLength();
 		return (int64_t)ticks * sampleHolder.getDurationInSamples(true)
 		       / length; // Yup, ticks could be negative, and so could the result
 	}
@@ -1056,39 +1092,176 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	}
 
 	if (addUndefinedArea) {
-		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, kDisplayWidth, editorScreen, false);
+		drawUndefinedArea(xScroll, xZoom, loopLength(), image, occupancyMask, kDisplayWidth, editorScreen, false);
 	}
 
 	return success;
 }
 
+// Attack is DOM-owned: the accessor reads/writes docAudioClip_ directly (no engine copy).
+// Bound for the whole clip lifetime (ctor→dtor), so an unbound record here is a logic error, not a runtime state.
+int32_t AudioClip::attack() const {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4A");
+	}
+	return docAudioClip_->attack;
+}
+void AudioClip::setAttack(int32_t value) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4A");
+	}
+	docAudioClip_->attack = value;
+}
+
+// Voice priority is DOM-owned: the accessor reads/writes docAudioClip_ directly (no engine copy).
+// Bound for the whole clip lifetime (ctor→dtor), so an unbound record here is a logic error, not a runtime state.
+VoicePriority AudioClip::voicePriority() const {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4P");
+	}
+	return docAudioClip_->voice_priority;
+}
+void AudioClip::setVoicePriority(VoicePriority value) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4P");
+	}
+	docAudioClip_->voice_priority = value;
+}
+
+// SampleControls descriptor fields are DOM-owned with `sampleControls` kept as a derived render cache.
+// Each setter writes the authoritative record AND re-seeds the cache; render keeps reading the cache directly.
+void AudioClip::setInterpolationMode(InterpolationMode mode) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4S");
+	}
+	docAudioClip_->interpolation_mode = mode;
+	sampleControls.interpolationMode = mode;
+}
+void AudioClip::setPitchAndSpeedIndependent(bool independent) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4S");
+	}
+	docAudioClip_->pitch_and_speed_independent = independent;
+	sampleControls.pitchAndSpeedAreIndependent = independent;
+}
+void AudioClip::setReversed(bool reversed) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4S");
+	}
+	docAudioClip_->reversed = reversed;
+	sampleControls.reversed = reversed;
+}
+
+// sampleHolder/overdubs model setters. Each writes the authoritative record AND the engine cache; no reload here
+// (callers that need a reload do it themselves).
+void AudioClip::setSampleStartPos(uint64_t value) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4H");
+	}
+	docAudioClip_->start_pos = value;
+	sampleHolder.startPos = value;
+}
+void AudioClip::setSampleEndPos(uint64_t value) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4H");
+	}
+	docAudioClip_->end_pos = value;
+	sampleHolder.endPos = value;
+}
+void AudioClip::setSampleFilePath(const char* value) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4H");
+	}
+	docAudioClip_->file_path = value;
+	sampleHolder.filePath = value;
+}
+void AudioClip::setSampleTranspose(int32_t value) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4H");
+	}
+	docAudioClip_->transpose = value;
+	sampleHolder.transpose = value;
+}
+void AudioClip::setSampleCents(int32_t value) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4H");
+	}
+	docAudioClip_->cents = value;
+	sampleHolder.cents = value;
+}
+void AudioClip::setOverdubsShouldCloneOutput(bool value) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4H");
+	}
+	docAudioClip_->overdubs_should_clone = value;
+	overdubsShouldCloneOutput = value;
+}
+
+// Reflect the resolved sample window from the engine cache into the record at the end of a sample-load gesture.
+// `loadFile`/`setAudioFile` derive filePath/startPos/endPos onto the sampleHolder cache but never touch
+// docAudioClip_; save reads the record, so without this reflection a browse-load or recording-finish would persist a
+// stale/empty sample. file_path is resolved as audioFile ? audioFile->filePath : filePath.
+void AudioClip::syncSampleRecordFromEngine() {
+	if (docAudioClip_ == nullptr) {
+		return;
+	}
+	docAudioClip_->file_path = sampleHolder.audioFile ? sampleHolder.audioFile->filePath : sampleHolder.filePath;
+	docAudioClip_->start_pos = sampleHolder.startPos;
+	docAudioClip_->end_pos = sampleHolder.endPos;
+}
+
+// Seed the engine's runtime caches from the authoritative DocAudioClip.
+// Called at construction (from the model defaults) and after the DOM-first load parse. Seeds the sampleHolder +
+// SampleControls render caches; the DOM-owned cold scalars (attack, voice_priority) have no cache and read the record
+// directly via their accessors. All AudioClip persistent fields are DOM-authoritative and save reads the record
+// directly.
+void AudioClip::deriveEngineFromDoc() {
+	if (docAudioClip_ == nullptr) {
+		return;
+	}
+	const deluge::project::DocAudioClip& d = *docAudioClip_;
+	sampleHolder.filePath = d.file_path;
+	sampleHolder.startPos = d.start_pos;
+	sampleHolder.endPos = d.end_pos;
+	sampleHolder.transpose = d.transpose;
+	sampleHolder.cents = d.cents;
+	sampleControls.interpolationMode = d.interpolation_mode;
+	sampleControls.pitchAndSpeedAreIndependent = d.pitch_and_speed_independent;
+	sampleControls.reversed = d.reversed;
+	// attack + voice_priority are DOM-owned: read directly via attack()/voicePriority(), no engine cache to seed.
+	overdubsShouldCloneOutput = d.overdubs_should_clone;
+}
+
 void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 
+	// Every persistent AudioClip field is DOM-authoritative and read straight from docAudioClip_ below.
 	writer.writeAttribute("clipName", name.c_str());
 	writer.writeAttribute("trackName", output->name.c_str());
 
-	writer.writeAttribute("filePath", sampleHolder.audioFile ? sampleHolder.audioFile->filePath.c_str()
-	                                                         : sampleHolder.filePath.c_str());
-	writer.writeAttribute("startSamplePos", sampleHolder.startPos);
-	writer.writeAttribute("endSamplePos", sampleHolder.endPos);
-	writer.writeAttribute("pitchSpeedIndependent", sampleControls.pitchAndSpeedAreIndependent);
-	if (sampleControls.interpolationMode == InterpolationMode::LINEAR) {
+	writer.writeAttribute("filePath", docAudioClip_->file_path.c_str());
+	writer.writeAttribute("startSamplePos", docAudioClip_->start_pos);
+	writer.writeAttribute("endSamplePos", docAudioClip_->end_pos);
+	// The SampleControls descriptor fields read from the authoritative record, not the engine cache. `reversed` here
+	// is the stored value (docAudioClip_->reversed); for an AudioClip invertReversed is only ever false
+	// (Voice/Sound/arp toggle it for sound sources, never clips), so this equals isCurrentlyReversed().
+	writer.writeAttribute("pitchSpeedIndependent", docAudioClip_->pitch_and_speed_independent);
+	if (docAudioClip_->interpolation_mode == InterpolationMode::LINEAR) {
 		writer.writeAttribute("linearInterpolation", 1);
 	}
-	if (sampleControls.isCurrentlyReversed()) {
+	if (docAudioClip_->reversed) {
 		writer.writeAttribute("reversed", 1);
 	}
-	writer.writeAttribute("attack", attack);
-	writer.writeAttribute("priority", util::to_underlying(voicePriority));
+	writer.writeAttribute("attack", attack());
+	writer.writeAttribute("priority", util::to_underlying(voicePriority()));
 
-	if (sampleHolder.transpose) {
-		writer.writeAttribute("transpose", sampleHolder.transpose);
+	if (docAudioClip_->transpose) {
+		writer.writeAttribute("transpose", docAudioClip_->transpose);
 	}
-	if (sampleHolder.cents) {
-		writer.writeAttribute("cents", sampleHolder.cents);
+	if (docAudioClip_->cents) {
+		writer.writeAttribute("cents", docAudioClip_->cents);
 	}
 
-	writer.writeAttribute("overdubsShouldCloneAudioTrack", overdubsShouldCloneOutput);
+	writer.writeAttribute("overdubsShouldCloneAudioTrack", docAudioClip_->overdubs_should_clone);
 
 	if (onAutomationClipView) {
 		writer.writeAttribute("onAutomationInstrumentClipView", 1);
@@ -1128,10 +1301,13 @@ someError:
 
 	char const* tagName;
 
-	int32_t readAutomationUpToPos = kMaxSequenceLength;
+	// loopLength is read (readClipsFromFile) before this runs; bound automation reads by it (length is always
+	// written before any automation). 0 (absent) -> the max.
+	int32_t readAutomationUpToPos = loopLength() > 0 ? loopLength() : kMaxSequenceLength;
 
+	reader.match('{'); // descend into the clip object -- required for JSON (a no-op in XML, where the
+	                   // element is entered implicitly); mirrors InstrumentClip::readFromFile.
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		// D_PRINTLN(tagName); delayMS(30);
 
 		if (!strcmp(tagName, "clipName")) {
 			reader.readTagOrAttributeValueString(name);
@@ -1141,89 +1317,74 @@ someError:
 			reader.readTagOrAttributeValueString(outputNameWhileLoading);
 		}
 
+		// The descriptor is read DOM-first into the DocAudioClip; the engine runtime cache is derived from
+		// it after the parse loop (deriveEngineFromDoc, below). trackName stays an engine-side load local.
 		else if (!strcmp(tagName, "filePath")) {
-			reader.readTagOrAttributeValueString(sampleHolder.filePath);
+			reader.readTagOrAttributeValueString(docAudioClip_->file_path);
 		}
 
 		else if (!strcmp(tagName, "overdubsShouldCloneAudioTrack")) {
-			overdubsShouldCloneOutput = reader.readTagOrAttributeValueInt();
+			docAudioClip_->overdubs_should_clone = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "startSamplePos")) {
-			sampleHolder.startPos = reader.readTagOrAttributeValueInt();
+			docAudioClip_->start_pos = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "endSamplePos")) {
-			sampleHolder.endPos = reader.readTagOrAttributeValueInt();
+			docAudioClip_->end_pos = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "pitchSpeedIndependent")) {
-			sampleControls.pitchAndSpeedAreIndependent = reader.readTagOrAttributeValueInt();
+			docAudioClip_->pitch_and_speed_independent = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "linearInterpolation")) {
 			if (reader.readTagOrAttributeValueInt()) {
-				sampleControls.interpolationMode = InterpolationMode::LINEAR;
+				docAudioClip_->interpolation_mode = InterpolationMode::LINEAR;
 			}
 		}
 
 		else if (!strcmp(tagName, "attack")) {
-			attack = reader.readTagOrAttributeValueInt();
+			docAudioClip_->attack = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "priority")) {
-			voicePriority = static_cast<VoicePriority>(reader.readTagOrAttributeValueInt());
+			docAudioClip_->voice_priority = static_cast<VoicePriority>(reader.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "reversed")) {
-			sampleControls.reversed = reader.readTagOrAttributeValueInt();
+			docAudioClip_->reversed = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "transpose")) {
-			sampleHolder.transpose = reader.readTagOrAttributeValueInt();
+			docAudioClip_->transpose = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "cents")) {
-			sampleHolder.cents = reader.readTagOrAttributeValueInt();
+			docAudioClip_->cents = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "params")) {
 			paramManager.setupUnpatched();
 			GlobalEffectableForClip::initParams(&paramManager);
-			GlobalEffectableForClip::readParamsFromFile(reader, &paramManager, readAutomationUpToPos);
+			// Read the <params> block DOM-first so the store holds the authoritative current_value, not just the
+			// nodes (initParams wrote the defaults straight into the store).
+			reader.match('{'); // descend into the params object (needed for JSON; no-op in XML), as InstrumentClip does
+			GlobalEffectableForClip::readParamsFromFileDomFirst(reader, &paramManager, readAutomationUpToPos);
+			reader.match('}');
 		}
 
-		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
-			onAutomationClipView = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamID")) {
-			lastSelectedParamID = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamKind")) {
-			lastSelectedParamKind = static_cast<params::Kind>(reader.readTagOrAttributeValueInt());
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
-			lastSelectedParamShortcutX = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
-			lastSelectedParamShortcutY = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
-			lastSelectedParamArrayPosition = reader.readTagOrAttributeValueInt();
-		}
-
-		else {
-			readTagFromFile(reader, tagName, song, &readAutomationUpToPos);
-		}
+		// The shared view-state (onAutomationInstrumentClipView, lastSelectedParam*) is read in
+		// Clip::readShellFromTree; base-clip tags in Song::readClipsFromFile.
+		// Anything not handled above falls through to the reader.exitTag() below.
 
 		reader.exitTag();
 	}
 
+	reader.match('}'); // close the clip object (balances the match('{') above; a no-op in XML).
+
+	deriveEngineFromDoc(); // the descriptor was read DOM-first; seed the engine runtime cache from it.
 	return Error::NONE;
 }
 
@@ -1267,13 +1428,20 @@ Error AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* ne
 		return error;
 	}
 
+	// Bind the (freshly set up / cloned-from-favour) unpatched params to a DOM store. bindDomStore is
+	// idempotent, so a manager restored from ParamBackup (already bound, its store travelled with the ParamSet)
+	// is left untouched.
+	if (paramManager.containsAnyMainParamCollections()) {
+		paramManager.getUnpatchedParamSet()->bindDomStore();
+	}
+
 	outputChanged(modelStack, newOutput);
 
 	return Error::NONE;
 }
 
 RGB AudioClip::getColour() {
-	return RGB::fromHuePastel(colourOffset * -8 / 3);
+	return RGB::fromHuePastel(colourOffset() * -8 / 3);
 }
 
 void AudioClip::quantizeLengthForArrangementRecording(ModelStackWithTimelineCounter* modelStack,
@@ -1285,11 +1453,11 @@ void AudioClip::quantizeLengthForArrangementRecording(ModelStackWithTimelineCoun
 
 	double samplesPerTick = (double)sampleHolder.getDurationInSamples(true) / numTicksDone;
 
-	sampleHolder.endPos = sampleHolder.startPos + samplesPerTick * suggestedLength + 0.5; // Rounds it
+	setSampleEndPos(sampleHolder.startPos + samplesPerTick * suggestedLength + 0.5); // Rounds it
 
-	int32_t oldLength = loopLength;
-	loopLength = suggestedLength;
-	originalLength = loopLength;
+	int32_t oldLength = loopLength();
+	setLoopLength(suggestedLength);
+	originalLength = loopLength();
 	lengthChanged(modelStack, oldLength, nullptr);
 }
 
@@ -1322,7 +1490,7 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack,
 				action->recordAudioClipSampleChange(this);
 			}
 
-			sampleHolder.filePath.clear();
+			setSampleFilePath("");
 			sampleHolder.setAudioFile(nullptr);
 			name = "";
 
@@ -1373,14 +1541,14 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 			if (i == paramManager.getExpressionParamSetOffset()) {
 				if (shiftSequenceAndMPE) {
 					((ExpressionParamSet*)summary->paramCollection)
-					    ->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
+					    ->shiftHorizontally(modelStackWithParamCollection, amount, loopLength());
 				}
 			}
 
 			// Normal case (non MPE automation)
 			else {
 				if (shiftAutomation) {
-					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
+					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, loopLength());
 				}
 			}
 			summary++;
@@ -1413,8 +1581,8 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 		bool active = (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this) && voiceSample);
 		unassignVoiceSample(false);
 
-		sampleHolder.startPos = newStartPos;
-		sampleHolder.endPos = newStartPos + length;
+		setSampleStartPos(newStartPos);
+		setSampleEndPos(newStartPos + length);
 
 		// Clip-shift prefetch must never block the UI on a card read — enqueue and let the loader
 		// fill it. Playback tolerates a not-yet-loaded cluster (same as the realtime path).
@@ -1433,10 +1601,10 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 }
 
 uint64_t AudioClip::getCullImmunity() {
-	uint32_t distanceFromEnd = loopLength - getLivePos();
+	uint32_t distanceFromEnd = loopLength() - getLivePos();
 	// We're gonna cull time-stretching ones first
 	bool doingTimeStretching = (voiceSample && voiceSample->timeStretcher);
-	return ((uint64_t)voicePriority << 33) + ((uint64_t)!doingTimeStretching << 32) + distanceFromEnd;
+	return ((uint64_t)voicePriority() << 33) + ((uint64_t)!doingTimeStretching << 32) + distanceFromEnd;
 }
 
 ParamManagerForTimeline* AudioClip::getCurrentParamManager() {

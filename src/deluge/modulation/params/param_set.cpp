@@ -16,9 +16,11 @@
  */
 
 #include "modulation/params/param_set.h"
+#include "deluge-project/param_automation.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
+#include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
@@ -26,6 +28,9 @@
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/param_projection.h"
+#include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
@@ -34,7 +39,9 @@
 #include "processing/sound/sound.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "util/exceptions.h"
 #include "util/functions.h"
+#include <new>
 
 namespace params = deluge::modulation::params;
 
@@ -42,10 +49,74 @@ ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
     : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), topUintToRepParams(1) {
 }
 
-void ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
+// A cloned set that was bound gets its OWN deep copy of the DOM store, so it carries the source's
+// automation without any AutoParam holding a cross-set pointer (the params' element-wise copy carries only their
+// empty inline ownDoc_; the nodes live in the store). No aliasing: the clone owns an independent DocParamSet.
+// An unbound source clones unbound (domStoreRef_ null via the default member init) and the params' ownDoc_ carry
+// the nodes. The subclass copy-ctors re-point `params` at their own array.
+ParamSet::ParamSet(ParamSet const& other)
+    : ParamCollection(other), numParams_(other.numParams_), params(other.params),
+      topUintToRepParams(other.topUintToRepParams) {
+	if (other.domStoreRef_ != nullptr) {
+		domStore_ = std::make_unique<deluge::project::DocParamSet>(*other.domStoreRef_);
+		domStoreRef_ = domStore_.get();
+	}
+}
+
+// Out-of-line so the unique_ptr<DocParamSet> member is destroyed where DocParamSet is complete.
+ParamSet::~ParamSet() = default;
+
+void ParamSet::bindDomStore() {
+	// Binding is just "ensure a store exists": docForParam lazily creates + binds the set's own store
+	// (deserialize and edits land in the store directly).
+	if (domStoreRef_ == nullptr && numParams_ > 0) {
+		(void)docForParam(0);
+	}
+}
+
+void ParamSet::bindDomStoreExternal(deluge::project::DocParamSet* ext) {
+	domStore_.reset();  // drop any lazily-created own store — we resolve against the external one now
+	domStoreRef_ = ext; // owner-resolution points at the externally-owned store (not ours to free)
+}
+
+deluge::project::DocParamSet* ParamSet::domStore() {
+	return domStoreRef_;
+}
+
+void ParamSet::projectFromStoreAfterRead(ParamCollectionSummary* summary) {
+	deluge::project::DocParamSet* store = domStoreRef_;
+	for (int32_t p = 0; p < getNumParams() && p < (int32_t)store->params.size(); p++) {
+		params[p].currentValue = store->params[p].current_value;
+		if (params[p].isAutomated(store->params[p])) {
+			paramHasAutomationNow(summary, p);
+		}
+	}
+}
+
+deluge::project::DocAutoParam* ParamSet::docForParam(int32_t p) {
+	// A ParamSet ALWAYS resolves to a DOM store slot — never to inline AutoParam storage. If not yet bound
+	// (e.g. mid-deserialize, or a fresh runtime set), lazily create this set's own store here so the first node
+	// access binds it. Owner-resolution is then uniform and `AutoParam::ownDoc_` is unused by ParamSets.
+	if (domStoreRef_ == nullptr) {
+		domStore_ = std::make_unique<deluge::project::DocParamSet>();
+		domStore_->first = deluge::bridge::firstParamId(getParamKind());
+		domStore_->params.resize(numParams_);
+		domStoreRef_ = domStore_.get();
+	}
+	return &domStoreRef_->params[p];
+}
+
+void ParamSet::stripAutomation() {
 	int32_t numParams = getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
-		params[p].beenCloned(copyAutomation, reverseDirectionWithLength);
+		docForParam(p)->nodes.clear();
+	}
+}
+
+void ParamSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+	int32_t numParams = getNumParams();
+	for (int32_t p = 0; p < numParams; p++) {
+		params[p].flattenReverse(*docForParam(p), reverseDirectionWithLength);
 	}
 }
 
@@ -72,11 +143,7 @@ void ParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* model
 }
 
 void ParamSet::shiftParamValues(int32_t p, int32_t offset) {
-	params[p].shiftValues(offset);
-}
-
-void ParamSet::shiftParamVolumeByDB(int32_t p, float offset) {
-	params[p].shiftParamVolumeByDB(offset);
+	params[p].shiftValues(*docForParam(p), offset);
 }
 
 void ParamSet::paramHasAutomationNow(ParamCollectionSummary* summary, int32_t p) {
@@ -183,7 +250,7 @@ void ParamSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStac
 
 void ParamSet::writeParamAsAttribute(Serializer& writer, char const* name, int32_t p, bool writeAutomation,
                                      bool onlyIfContainsSomething, int32_t* valuesForOverride) {
-	if (onlyIfContainsSomething && !params[p].containsSomething()) {
+	if (onlyIfContainsSomething && !params[p].containsSomething(*docForParam(p))) {
 		return;
 	}
 
@@ -193,14 +260,14 @@ void ParamSet::writeParamAsAttribute(Serializer& writer, char const* name, int32
 	writer.printIndents();
 	writer.writeTagNameAndSeperator(name);
 	writer.write("\"");
-	params[p].writeToFile(writer, writeAutomation, valueForOverride);
+	params[p].writeToFile(*docForParam(p), writer, writeAutomation, valueForOverride);
 	writer.write("\"");
 }
 
 void ParamSet::readParam(Deserializer& reader, ParamCollectionSummary* summary, int32_t p,
                          int32_t readAutomationUpToPos) {
-	params[p].readFromFile(reader, readAutomationUpToPos);
-	if (params[p].isAutomated()) {
+	params[p].readFromFile(*docForParam(p), reader, readAutomationUpToPos);
+	if (params[p].isAutomated(*docForParam(p))) {
 		paramHasAutomationNow(summary, p);
 	}
 }
@@ -233,7 +300,7 @@ void ParamSet::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* mo
 void ParamSet::generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,
                                bool shouldPingpong) {
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
-	params[p].generateRepeats(oldLength, newLength, shouldPingpong);
+	params[p].generateRepeats(*docForParam(p), oldLength, newLength, shouldPingpong);
 	FOR_EACH_PARAM_END
 }
 
@@ -244,7 +311,8 @@ void ParamSet::appendParamCollection(ModelStackWithParamCollection* modelStack,
 
 	FOR_EACH_FLAGGED_PARAM(
 	    otherModelStack->summary->whichParamsAreAutomated); // Iterate through the *other* ParamManager's stuff
-	params[p].appendParam(&otherParamSet->params[p], oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+	params[p].appendParam(*docForParam(p), *otherParamSet->docForParam(p), oldLength, reverseThisRepeatWithLength,
+	                      pingpongingGenerally);
 	FOR_EACH_PARAM_END
 
 	ticksTilNextEvent = 0;
@@ -259,7 +327,7 @@ void ParamSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* m
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 
 	params[p].trimToLength(newLength, action, modelStackWithAutoParam);
-	if (!params[p].isAutomated()) {
+	if (!params[p].isAutomated(*docForParam(p))) {
 		paramHasNoAutomationNow(modelStack, p);
 	}
 
@@ -269,7 +337,7 @@ void ParamSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* m
 }
 
 void ParamSet::deleteAutomationForParamBasicForSetup(ModelStackWithParamCollection* modelStack, int32_t p) {
-	params[p].deleteAutomationBasicForSetup();
+	params[p].deleteAutomationBasicForSetup(*docForParam(p));
 	paramHasNoAutomationNow(modelStack, p);
 }
 
@@ -277,7 +345,7 @@ void ParamSet::shiftHorizontally(ModelStackWithParamCollection* modelStack, int3
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
-	params[p].shiftHorizontally(amount, effectiveLength);
+	params[p].shiftHorizontally(*docForParam(p), amount, effectiveLength);
 
 	FOR_EACH_PARAM_END
 }
@@ -313,7 +381,7 @@ void ParamSet::insertTime(ModelStackWithParamCollection* modelStack, int32_t pos
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
-	params[p].insertTime(pos, lengthToInsert);
+	params[p].insertTime(*docForParam(p), pos, lengthToInsert);
 
 	FOR_EACH_PARAM_END
 }
@@ -325,7 +393,7 @@ void ParamSet::deleteTime(ModelStackWithParamCollection* modelStack, int32_t sta
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, &params[p]);
 	params[p].deleteTime(startPos, lengthToDelete, modelStackWithAutoParam);
-	if (!params[p].isAutomated()) {
+	if (!params[p].isAutomated(*docForParam(p))) {
 		paramHasNoAutomationNow(modelStack, p);
 	}
 
@@ -342,7 +410,7 @@ void ParamSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int3
 
 	param->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action, modelStackWithAutoParam);
 
-	if (!params[p].isAutomated()) {
+	if (!params[p].isAutomated(*docForParam(p))) {
 		paramHasNoAutomationNow(modelStack, p);
 	}
 
@@ -387,12 +455,108 @@ UnpatchedParamSet::UnpatchedParamSet(ParamCollectionSummary* summary) : ParamSet
 	topUintToRepParams = (numParams_ - 1) >> 5;
 }
 
-void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
-	params = params_.data();
-	numParams_ = static_cast<int32_t>(params_.size());
-	topUintToRepParams = (numParams_ - 1) >> 5;
+// clone() copy-constructs (deep-copying the AutoParams), then strips or reverse-flattens the automation as
+// requested. The copy ctor copy-constructs the inline params_ array and re-points `params` to it (the base
+// ParamSet copy leaves `params` pointing at the source).
 
-	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
+UnpatchedParamSet::UnpatchedParamSet(UnpatchedParamSet const& other)
+    : ParamSet(other), kind(other.kind), params_(other.params_) {
+	params = params_.data();
+}
+
+Error UnpatchedParamSet::clone(ParamCollection*& result, bool copyAutomation,
+                               int32_t reverseDirectionWithLength) const {
+	void* mem = deluge::memory::alloc_fast(sizeof(UnpatchedParamSet));
+	if (mem == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	UnpatchedParamSet* clone;
+	try {
+		clone = new (mem) UnpatchedParamSet(*this);
+	} catch (deluge::exception&) {
+		delugeDealloc(mem);
+		return Error::INSUFFICIENT_RAM;
+	}
+	if (!copyAutomation) {
+		clone->stripAutomation();
+	}
+	else if (reverseDirectionWithLength != 0) {
+		try {
+			clone->flattenReverseAutomation(reverseDirectionWithLength);
+		} catch (deluge::exception&) {
+			clone->~UnpatchedParamSet();
+			delugeDealloc(mem);
+			return Error::INSUFFICIENT_RAM;
+		}
+	}
+	result = clone;
+	return Error::NONE;
+}
+
+PatchedParamSet::PatchedParamSet(PatchedParamSet const& other) : ParamSet(other), params_(other.params_) {
+	params = params_.data();
+}
+
+Error PatchedParamSet::clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength) const {
+	void* mem = deluge::memory::alloc_fast(sizeof(PatchedParamSet));
+	if (mem == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	PatchedParamSet* clone;
+	try {
+		clone = new (mem) PatchedParamSet(*this);
+	} catch (deluge::exception&) {
+		delugeDealloc(mem);
+		return Error::INSUFFICIENT_RAM;
+	}
+	if (!copyAutomation) {
+		clone->stripAutomation();
+	}
+	else if (reverseDirectionWithLength != 0) {
+		try {
+			clone->flattenReverseAutomation(reverseDirectionWithLength);
+		} catch (deluge::exception&) {
+			clone->~PatchedParamSet();
+			delugeDealloc(mem);
+			return Error::INSUFFICIENT_RAM;
+		}
+	}
+	result = clone;
+	return Error::NONE;
+}
+
+ExpressionParamSet::ExpressionParamSet(ExpressionParamSet const& other)
+    : ParamSet(other), bendRanges{other.bendRanges[0], other.bendRanges[1]}, params_(other.params_) {
+	params = params_.data();
+}
+
+Error ExpressionParamSet::clone(ParamCollection*& result, bool copyAutomation,
+                                int32_t reverseDirectionWithLength) const {
+	void* mem = deluge::memory::alloc_fast(sizeof(ExpressionParamSet));
+	if (mem == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	ExpressionParamSet* clone;
+	try {
+		clone = new (mem) ExpressionParamSet(*this);
+	} catch (deluge::exception&) {
+		delugeDealloc(mem);
+		return Error::INSUFFICIENT_RAM;
+	}
+	if (!copyAutomation) {
+		clone->stripAutomation();
+	}
+	else if (reverseDirectionWithLength != 0) {
+		try {
+			clone->flattenReverseAutomation(reverseDirectionWithLength);
+		} catch (deluge::exception&) {
+			clone->~ExpressionParamSet();
+			delugeDealloc(mem);
+			return Error::INSUFFICIENT_RAM;
+		}
+	}
+	result = clone;
+	return Error::NONE;
 }
 
 bool UnpatchedParamSet::shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) {
@@ -410,9 +574,9 @@ bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId con
 	// Shared
 	switch (modelStack->paramId) {
 	case params::UNPATCHED_STUTTER_RATE:
-		return !(((ModControllableAudio*)modelStack->modControllable)->stutterConfig.useSongStutter
-		             ? currentSong->globalEffectable.stutterConfig.quantized
-		             : ((ModControllableAudio*)modelStack->modControllable)->stutterConfig.quantized)
+		return !(((ModControllableAudio*)modelStack->modControllable)->effects().stutter.use_song_stutter
+		             ? currentSong->live.global_effectable.effects().stutter.quantized
+		             : ((ModControllableAudio*)modelStack->modControllable)->effects().stutter.quantized)
 		       || isUIModeActive(UI_MODE_STUTTERING);
 	case params::UNPATCHED_BASS:
 	case params::UNPATCHED_TREBLE:
@@ -468,14 +632,6 @@ PatchedParamSet::PatchedParamSet(ParamCollectionSummary* summary) : ParamSet(siz
 	topUintToRepParams = (numParams_ - 1) >> 5;
 }
 
-void PatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
-	params = params_.data();
-	numParams_ = static_cast<int32_t>(params_.size());
-	topUintToRepParams = (numParams_ - 1) >> 5;
-
-	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
-}
-
 void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
                                                    bool automationChanged, bool automatedBefore, bool automatedNow) {
 	ParamSet::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore, automatedNow);
@@ -509,7 +665,7 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 	case params::LOCAL_CARRIER_1_FEEDBACK:
 	case params::LOCAL_MODULATOR_0_FEEDBACK:
 	case params::LOCAL_MODULATOR_1_FEEDBACK:
-		bool containsSomethingNow = modelStack->autoParam->containsSomething(-2147483648);
+		bool containsSomethingNow = modelStack->autoParam->containsSomething(*modelStack->doc(), -2147483648);
 		bool containedSomethingBefore = AutoParam::containedSomethingBefore(automatedBefore, oldValue, -2147483648);
 		if (containedSomethingBefore != containsSomethingNow) {
 
@@ -583,14 +739,6 @@ ExpressionParamSet::ExpressionParamSet(ParamCollectionSummary* summary, bool for
 	    forDrum ? bendRanges[BEND_RANGE_MAIN] : FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
 }
 
-void ExpressionParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
-	params = params_.data();
-	numParams_ = static_cast<int32_t>(params_.size());
-	topUintToRepParams = (numParams_ - 1) >> 5;
-
-	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
-}
-
 void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
                                                       bool automationChanged, bool automatedBefore, bool automatedNow) {
 	ParamSet::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore, automatedNow);
@@ -607,7 +755,7 @@ void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam co
 
 			if (noteRow) {
 				modelStack->modControllable->polyphonicExpressionEventOnChannelOrNote(
-				    current_value, modelStack->paramId, modelStack->getNoteRow()->y, MIDICharacteristic::NOTE);
+				    current_value, modelStack->paramId, modelStack->getNoteRow()->y(), MIDICharacteristic::NOTE);
 			}
 			else {
 				modelStack->modControllable->monophonicExpressionEvent(current_value, modelStack->paramId);
@@ -645,56 +793,30 @@ int32_t ExpressionParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWi
 char const* expressionParamNames[] = {"pitchBend", "yExpression", "pressure"};
 
 bool ExpressionParamSet::writeToFile(Serializer& writer, bool mustWriteOpeningTagEndFirst) {
-
-	bool writtenAnyYet = false;
-
-	for (int32_t p = 0; p < kNumExpressionDimensions; p++) {
-		if (params[p].containsSomething()) {
-			if (!writtenAnyYet) {
-				writtenAnyYet = true;
-				if (mustWriteOpeningTagEndFirst) {
-					writer.writeOpeningTagEnd();
-				}
-
-				writer.writeOpeningTagBeginning("expressionData");
-			}
-
-			writeParamAsAttribute(writer, expressionParamNames[p], p, true);
-		}
-	}
-
-	if (writtenAnyYet) {
-		writer.closeTag();
-	}
-
-	return writtenAnyYet;
+	// Serialize from the value DOM (deluge::project).
+	deluge::project::DocParamSet doc = deluge::bridge::toDocParamSetFromStore(*this);
+	return deluge::bridge::serializeExpressionParams(doc, writer, mustWriteOpeningTagEndFirst,
+	                                                 /*writeAutomation=*/true);
 }
 
 void ExpressionParamSet::readFromFile(Deserializer& reader, ParamCollectionSummary* summary,
                                       int32_t readAutomationUpToPos) {
 
+	// Read MPE params INTO the DOM store (defaults are zero, so an unwritten store slot
+	// is already correct), then project each engine RT cursor from the store — the DOM holds the authoritative
+	// current_value, not just the nodes. The <channelPressure> legacy alias is folded into the DOM reader.
+	bindDomStore();
+	deluge::project::DocParamSet* store = domStore();
 	char const* tagName;
-
+	reader.match('{'); // descend into <expressionData> (needed for JSON; a no-op in XML)
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		int32_t p;
-		for (p = 0; p < kNumExpressionDimensions; p++) {
-			if (!strcmp(tagName, expressionParamNames[p])) {
-doReadParam:
-				readParam(reader, summary, p, readAutomationUpToPos);
-				goto finishedTag;
-			}
+		if (deluge::bridge::readExpressionParamTagToDoc(reader, tagName, *store, readAutomationUpToPos)) {}
+		else {
+			reader.exitTag();
 		}
-
-		if (!strcmp(tagName,
-		            "channelPressure")) { // Alpha testers had 2 weeks or so to create files like this - not sure if
-			                              // anyone even did.
-			p = 2;
-			goto doReadParam;
-		}
-
-finishedTag:
-		reader.exitTag();
 	}
+	reader.match('}');
+	projectFromStoreAfterRead(summary);
 }
 
 void ExpressionParamSet::moveRegionHorizontally(ModelStackWithParamCollection* modelStack, int32_t pos, int32_t length,
@@ -757,7 +879,7 @@ void ExpressionParamSet::deleteAllAutomation(Action* action, ModelStackWithParam
             if (whichParamHasAutomation >= 128) {
                 int32_t endAutomatedParams = (whichParamHasAutomation & 127);
                 for (int32_t p = 0; p <= endAutomatedParams; p++) {
-                    if (params[p].isAutomated()) {
+                    if (params[p].isAutomated(*docForParam(p))) {
 
                         params[p].
 

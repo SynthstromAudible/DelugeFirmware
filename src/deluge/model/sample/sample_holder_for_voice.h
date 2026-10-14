@@ -31,7 +31,6 @@ public:
 	SampleHolderForVoice(SampleHolderForVoice&& other) noexcept
 	    : SampleHolder(std::move(other)), loopStartPos(other.loopStartPos), loopEndPos(other.loopEndPos),
 	      transpose(other.transpose), cents(other.cents), loopLocked(other.loopLocked), fineTuner(other.fineTuner),
-	      startMSec(other.startMSec), endMSec(other.endMSec),
 	      clustersForLoopStart_(std::exchange(other.clustersForLoopStart_, nullptr)) {}
 	SampleHolderForVoice& operator=(SampleHolderForVoice&& other) noexcept {
 		SampleHolder::operator=(std::move(other));
@@ -41,8 +40,6 @@ public:
 		cents = other.cents;
 		loopLocked = other.loopLocked;
 		fineTuner = other.fineTuner;
-		startMSec = other.startMSec;
-		endMSec = other.endMSec;
 		clustersForLoopStart_ = std::exchange(other.clustersForLoopStart_, nullptr);
 		return *this;
 	}
@@ -74,10 +71,6 @@ public:
 	/// of cluster residency around the loop point, mirroring SampleHolder::clustersForStart_.
 	/// `nullptr` when not yet opened (or after being released).
 	DelugeSampleReservation* clustersForLoopStart_ = nullptr;
-
-	// These two now only exist for loading in data from old files
-	uint32_t startMSec;
-	uint32_t endMSec;
 
 	[[nodiscard]] uint32_t loopLength() const { return loopEndPos - loopStartPos; }
 

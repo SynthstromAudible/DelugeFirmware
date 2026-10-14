@@ -26,6 +26,7 @@
 #include "io/file.hpp"
 #include "libdeluge/file_bytes.h"
 #include "libdeluge/file_io.h"
+#include "model/project_bridge/song_serialization.h"
 #include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -73,16 +74,10 @@ doReturnFalse:
 	Error error;
 
 	std::string searchFilename;
-	searchFilename = currentSong->name;
+	searchFilename = currentSong->project.metadata.name;
 	if (!searchFilename.empty()) {
-		if (writeJsonFlag) {
-			searchFilename.append(".Json");
-			error = Error::NONE;
-		}
-		else {
-			searchFilename.append(".XML");
-			error = Error::NONE;
-		}
+		searchFilename.append(currentSong->project.metadata.file_extension);
+		error = Error::NONE;
 		if (error != Error::NONE) {
 			display->displayError(error);
 			goto doReturnFalse;
@@ -90,7 +85,7 @@ doReturnFalse:
 	}
 	currentFolderIsEmpty = false;
 
-	currentDir = currentSong->dirPath;
+	currentDir = currentSong->project.metadata.dir_path;
 
 	// TODO: create folder if doesn't exist.
 
@@ -156,8 +151,8 @@ bool SaveSongUI::planTransfers(std::vector<PlannedTransfer>& into, bool collecti
 			// Saving under the same name and folder, collecting, and it already came from the alternate
 			// location: there is nothing to do.
 			if (collectingSamples && !audioFile->loadedFromAlternatePath.empty()
-			    && deluge::string::caselessEquals(currentDir, currentSong->dirPath)
-			    && deluge::string::caselessEquals(enteredText, currentSong->name)) {
+			    && deluge::string::caselessEquals(currentDir, currentSong->project.metadata.dir_path)
+			    && deluge::string::caselessEquals(enteredText, currentSong->project.metadata.name)) {
 				if (entry.renameTemp) {
 					into.push_back(std::move(entry)); // the move above still has to happen
 				}
@@ -279,6 +274,14 @@ bool SaveSongUI::beginUnstagedSave(const deluge::storage::SaveRequest& request) 
 	collectPhase_ = CollectPhase::EXISTS;
 	deluge::runtime::appLoop.request(saveJob);
 	return true;
+}
+
+std::string SaveSongUI::getSaveFilePath() {
+	std::string path = currentDir;
+	path.append("/");
+	path.append(enteredText);
+	path.append(deluge::storage::extensionOf(deluge::storage::kSongSaveFormat));
+	return path;
 }
 
 void SaveSongUI::runExistsPhase() {
@@ -741,7 +744,7 @@ void SaveSongUI::runTempNamePhase() {
 
 	docWritePath_ = "SONGS/TEMP";
 	docWritePath_.append(deluge::string::fromInt(docTempNumber_, 4));
-	docWritePath_.append(writeJsonFlag ? ".Json" : ".XML");
+	docWritePath_.append(deluge::storage::extensionOf(deluge::storage::kSongSaveFormat));
 
 	if (docInline()) {
 		(void)runOneDocStep();
@@ -970,12 +973,21 @@ void SaveSongUI::runDocFinishPhase() {
 	// `anyErrorMovingTempFiles_` is not surfaced as a popup; nothing displays it, as upstream.
 	// The name and folder the save was STARTED with, not whatever the browser holds now: the save spans
 	// many ticks, and reading the live values would record something typed while it ran.
-	currentSong->name = existsRequest_.enteredText;
-	currentSong->dirPath = existsRequest_.dirPath;
+	deluge::project::Metadata& metadata = currentSong->project.metadata;
+	// A song opened from NAME.XML and saved under its own name now lives in NAME.json; the XML beside it is the
+	// older state, so "last opened" moves to the copy.
+	const bool upgradedInPlace =
+	    deluge::string::caselessEquals(metadata.name, existsRequest_.enteredText)
+	    && deluge::string::caselessEquals(metadata.dir_path, existsRequest_.dirPath)
+	    && metadata.file_extension != deluge::storage::extensionOf(deluge::storage::kSongSaveFormat);
+	metadata.name = existsRequest_.enteredText;
+	metadata.dir_path = existsRequest_.dirPath;
+	metadata.file_extension = deluge::storage::extensionOf(deluge::storage::kSongSaveFormat);
 
 	// Both of these choose their own arm: they use the byte channel when it is running and write
 	// inline only before boot finishes, so calling them from here does not block this tier.
-	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED) {
+	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED
+	    || (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED && upgradedInPlace)) {
 		runtimeFeatureSettings.writeSettingsToFile();
 	}
 	// While we're at it, save MIDI devices if there's anything new to save.
@@ -1062,21 +1074,19 @@ deluge::storage::ReadBackExpectation SaveSongUI::songReadBackExpectation() const
 	// JSON has no closing string to compare: JsonSerializer::closeFileAfterWriting passed NULL for it.
 	return {.staged = stagedDocument_,
 	        .length = stagedLength_,
-	        .head = writeJsonFlag ? kSongHeadJson : kSongHeadXml,
-	        .tail = writeJsonFlag ? nullptr : kSongTailXml};
+	        .head = deluge::storage::kSongSaveFormat == deluge::storage::DocumentFormat::JSON ? kSongHeadJson
+	                                                                                          : kSongHeadXml,
+	        .tail = deluge::storage::kSongSaveFormat == deluge::storage::DocumentFormat::JSON ? nullptr : kSongTailXml};
 }
 
 FileWriter& SaveSongUI::activeSongWriter() {
-	if (writeJsonFlag) {
-		return static_cast<FileWriter&>(smJsonSerializer);
-	}
-	return static_cast<FileWriter&>(smSerializer);
+	return fileWriterFor(deluge::storage::kSongSaveFormat);
 }
 
 bool SaveSongUI::serializeSongToBuffer() {
 	FileWriter& writer = activeSongWriter();
 
-	// No prologue and no closing tag here. Song::writeToFile() calls GetSerializer().reset() itself,
+	// No prologue and no closing tag here. Song::writeToFile() calls the serializer's reset() itself,
 	// writes the XML declaration, and closes with writeClosingTag("song") -- writing either here
 	// would duplicate it. This differs from the staged PRESET saves, whose serialisers write no header
 	// of their own: opening a file with createXMLFile() writes it for them instead.
@@ -1084,7 +1094,7 @@ bool SaveSongUI::serializeSongToBuffer() {
 	// setMemoryBased() survives that internal reset(): reset() clears the buffer position, the byte
 	// count and the failure flag, and nothing else.
 	writer.setMemoryBased();
-	currentSong->writeToFile();
+	deluge::bridge::saveSong(*currentSong, serializerFor(deluge::storage::kSongSaveFormat));
 
 	const int32_t written = writer.bytesWritten();
 	if (written <= 0) {
@@ -1101,10 +1111,9 @@ void SaveSongUI::releaseSongWriter() {
 	stagedDocument_ = nullptr;
 	stagedLength_ = 0;
 	// The two halves come from different bases: XMLSerializer inherits Serializer AND FileWriter, and
-	// the memory-based surface is on the FileWriter side while reset() is virtual on the Serializer
-	// side. GetSerializer() reaches only the latter, which is why activeSongWriter() exists at all.
+	// the memory-based surface is on the FileWriter side while reset() is virtual on the Serializer side.
 	activeSongWriter().clearMemoryBased();
-	GetSerializer().reset();
+	serializerFor(deluge::storage::kSongSaveFormat).reset();
 }
 
 bool SaveSongUI::finishSaveAfterCollection() {

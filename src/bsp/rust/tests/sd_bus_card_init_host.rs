@@ -17,13 +17,33 @@ use deluge_bsp::sd as card;
 /// Serializes the tests: the card state and `SD_BUS` are process-global.
 static TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+/// The card image's path: an unlinked file reached through `/proc/self/fd`, so nothing is left in
+/// the temp dir however the test process ends. The host card opens its backing file once per
+/// process, so one image serves every test; the fd stays open for the process's lifetime.
+fn card_image() -> &'static std::path::Path {
+    static IMAGE: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+    IMAGE.get_or_init(|| {
+        use std::os::fd::IntoRawFd;
+        let named = std::env::temp_dir().join(format!(
+            "deluge-sd-bus-card-init-{}.img",
+            std::process::id()
+        ));
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&named)
+            .expect("the card image is created");
+        std::fs::remove_file(&named).expect("the card image is unlinked");
+        std::path::PathBuf::from(format!("/proc/self/fd/{}", file.into_raw_fd()))
+    })
+}
+
 fn fresh_card() {
-    let img = std::env::temp_dir().join(format!(
-        "deluge-sd-bus-card-init-{}.img",
-        std::process::id()
-    ));
+    let img = card_image();
     // SAFETY: set under TEST_LOCK, before this test starts any thread.
-    unsafe { std::env::set_var("DELUGE_SD_IMAGE", &img) };
+    unsafe { std::env::set_var("DELUGE_SD_IMAGE", img) };
     sim_block::block_on(card::init()).expect("the host card initializes");
 }
 

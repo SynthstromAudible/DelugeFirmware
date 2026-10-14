@@ -18,6 +18,7 @@
 #include "scenarios/render_song_scenario.h"
 
 #include "definitions_cxx.hpp"
+#include "engines/effects/words.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
@@ -26,14 +27,27 @@
 #include "harness/streaming_underrun.h"
 #include "libdeluge/tier.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/change_effect.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
+#include "model/fx/song_stutter.h"
+#include "model/mod_controllable/delay_arena_app.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/model_stack.h"
+#include "model/output.h"
 #include "model/song/song.h"
+#include "modulation/params/param.h"
+#include "modulation/params/param_manager.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
+#include <vector>
 
 // The app's printf.h aliases printf to an implementation that writes through putchar_, which the Rust BSP builds do not
 // define; this harness links the Rust BSP, so the alias would leave every line below an undefined symbol.
@@ -47,10 +61,14 @@ void deluge_host_capture_start(void);
 uint64_t deluge_host_capture_stop(void);
 uint64_t deluge_host_render_count(void);
 uint64_t deluge_sim_card_reads(void);
+void deluge_host_headphones(bool on);
 // The fill task's modelled latencies (streaming_loader.rs).
 void deluge_streaming_set_fill_latency_ms(uint32_t ms);
 void deluge_streaming_set_fill_read_latency_us(uint32_t us);
 }
+
+// The app's input routine (deluge.cpp): reads the sockets, among them headphone detect, into the audio engine.
+void inputRoutine();
 
 namespace {
 
@@ -65,6 +83,7 @@ int32_t g_ticks = 0;
 
 std::string g_songPath;
 uint64_t g_blocksWanted = 3000;
+bool g_stereo = false;
 
 /// The storage model while playing (RENDER_FILL_DELAY_MS, RENDER_FILL_READ_US, RENDER_FILL_BURST): the fill task's
 /// wait to be scheduled, each chunk's read time, and a window of blocks, counted from playback's start, in which the
@@ -97,6 +116,315 @@ void readBurst(StorageModel& model) {
 	}
 }
 
+/// RENDER_DELAY_SWITCH: the blocks, counted from playback's start, at which every audio track's delay switches between
+/// analog and digital, ascending and comma-separated; empty by default. Each switch is the `delay/type` Edit the delay
+/// type menu makes, so the same delay is switched while it rings.
+std::vector<uint64_t> g_switchAt;
+std::size_t g_switchesDone = 0;
+int32_t g_tracksSwitched = 0;
+
+void readSwitches() {
+	g_switchAt.clear();
+	const char* list = std::getenv("RENDER_DELAY_SWITCH");
+	for (const char* at = list; at != nullptr && *at != '\0';) {
+		char* end = nullptr;
+		g_switchAt.push_back(std::strtoull(at, &end, 10));
+		at = (end != nullptr && *end == ',') ? end + 1 : nullptr;
+	}
+}
+
+/// RENDER_TEMPO: `<block>:<bpm>`, the render block at which the song's tempo is set to @c bpm, as the tempo encoder
+/// sets it; empty by default.
+uint64_t g_tempoAt = 0;
+float g_tempoBpm = 0;
+bool g_tempoAsked = false;
+bool g_tempoDone = false;
+
+/// RENDER_STUTTER: `<begin block>:<end block>:<owner>`, comma-separated: a stutter begun and ended as the gold knob's
+/// press and release make them, on @c owner: `audio` (the first audio track), `kit` (the first kit), `synth` (the first
+/// synth's Sound) or `master`. In a block,
+/// ends are made before begins, as the performance view hands a stutter from one owner to the next.
+struct StutterSpan {
+	uint64_t begin = 0;
+	uint64_t end = 0;
+	std::string owner;
+	bool begun = false;
+	bool ended = false;
+};
+std::vector<StutterSpan> g_stutterAt;
+int32_t g_stutterApplied = 0;
+uint64_t g_stutteredTicks = 0;
+
+/// RENDER_STUTTER_RATE: `<block>:<value>`, the stuttering owner's stutter-rate param set to @c value (signed Q31) by
+/// the gold knob's SetParamValue Edit.
+uint64_t g_stutterRateAt = 0;
+int32_t g_stutterRateValue = 0;
+bool g_stutterRateAsked = false;
+bool g_stutterRateDone = false;
+
+void readStutter() {
+	g_stutterAt.clear();
+	const char* list = std::getenv("RENDER_STUTTER");
+	for (const char* at = list; at != nullptr && *at != '\0';) {
+		StutterSpan span;
+		char* end = nullptr;
+		span.begin = std::strtoull(at, &end, 10);
+		span.end = (end != nullptr && *end == ':') ? std::strtoull(end + 1, &end, 10) : 0;
+		const char* name = (end != nullptr && *end == ':') ? end + 1 : nullptr;
+		const char* stop = name != nullptr ? std::strchr(name, ',') : nullptr;
+		span.owner = name != nullptr ? std::string(name, stop != nullptr ? stop - name : std::strlen(name)) : "";
+		g_stutterAt.push_back(span);
+		at = stop != nullptr ? stop + 1 : nullptr;
+	}
+	const char* rate = std::getenv("RENDER_STUTTER_RATE");
+	if (rate != nullptr && *rate != '\0') {
+		char* end = nullptr;
+		g_stutterRateAt = std::strtoull(rate, &end, 10);
+		g_stutterRateValue =
+		    (end != nullptr && *end == ':') ? static_cast<int32_t>(std::strtoll(end + 1, nullptr, 0)) : 0;
+		g_stutterRateAsked = end != nullptr && *end == ':';
+	}
+}
+
+/// @return The stutter owner @p name names, and its param manager and timeline counter in @p params and @p clip.
+ModControllableAudio* stutterOwner(const std::string& name, ParamManagerForTimeline*& params, TimelineCounter*& clip) {
+	if (name == "master") {
+		params = &currentSong->paramManager;
+		clip = nullptr;
+		return &currentSong->live.global_effectable;
+	}
+	const OutputType type = name == "kit" ? OutputType::KIT : name == "synth" ? OutputType::SYNTH : OutputType::AUDIO;
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
+		if (output->type != type || output->getActiveClip() == nullptr) {
+			continue;
+		}
+		Clip* active = output->getActiveClip();
+		params = &active->paramManager;
+		clip = active;
+		return static_cast<ModControllableAudio*>(output->toModControllable());
+	}
+	return nullptr;
+}
+
+/// @brief Sets @p owner's stutter-rate param to @p value as the gold knob does, by its SetParamValue Edit.
+void turnStutterRate(ModControllableAudio& owner, TimelineCounter* clip, ParamManagerForTimeline& params,
+                     int32_t value) {
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* ms =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, &owner, clip, &params);
+	ParamCollectionSummary* summary = params.getUnpatchedParamSetSummary();
+	ModelStackWithParamId* withId = ms->addParamCollectionAndId(
+	    summary->paramCollection, summary, static_cast<int32_t>(deluge::modulation::params::UNPATCHED_STUTTER_RATE));
+	ModelStackWithAutoParam* withParam = withId->paramCollection->getAutoParamFromId(withId);
+	deluge::edits::Context context{*currentSong, currentSong->project};
+	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*withParam), value, 0, 0, withParam};
+	deluge::edits::apply(context, edit);
+}
+
+/// @brief This block's stutter ends, then begins, then the rate change; and a scenario tick counted if an owner is
+/// stuttering.
+void runStutters(uint64_t block) {
+	ParamManagerForTimeline* params = nullptr;
+	TimelineCounter* clip = nullptr;
+	for (StutterSpan& span : g_stutterAt) {
+		if (span.begun && !span.ended && block >= span.end) {
+			if (ModControllableAudio* owner = stutterOwner(span.owner, params, clip)) {
+				owner->endStutter(params);
+				g_stutterApplied++;
+				printf("RS-STUTTER block=%llu end owner=%s\n", static_cast<unsigned long long>(block),
+				       span.owner.c_str());
+			}
+			span.ended = true;
+		}
+	}
+	for (StutterSpan& span : g_stutterAt) {
+		if (!span.begun && block >= span.begin) {
+			if (ModControllableAudio* owner = stutterOwner(span.owner, params, clip)) {
+				owner->beginStutter(params);
+				g_stutterApplied++;
+				printf("RS-STUTTER block=%llu begin owner=%s\n", static_cast<unsigned long long>(block),
+				       span.owner.c_str());
+			}
+			span.begun = true;
+		}
+	}
+	bool stuttering = false;
+	for (StutterSpan& span : g_stutterAt) {
+		ModControllableAudio* owner = stutterOwner(span.owner, params, clip);
+		const bool now = owner != nullptr && currentSong->live.stutter.isStuttering(*owner);
+		if (now && g_stutterRateAsked && !g_stutterRateDone && block >= g_stutterRateAt) {
+			turnStutterRate(*owner, clip, *params, g_stutterRateValue);
+			g_stutterRateDone = true;
+			printf("RS-STUTTER block=%llu rate=%d owner=%s\n", static_cast<unsigned long long>(block),
+			       static_cast<int>(g_stutterRateValue), span.owner.c_str());
+		}
+		stuttering = stuttering || now;
+	}
+	g_stutteredTicks += stuttering ? 1 : 0;
+}
+
+void readTempo() {
+	const char* spec = std::getenv("RENDER_TEMPO");
+	if (spec == nullptr || *spec == '\0') {
+		return;
+	}
+	char* end = nullptr;
+	g_tempoAt = std::strtoull(spec, &end, 10);
+	g_tempoBpm = (end != nullptr && *end == ':') ? std::strtof(end + 1, nullptr) : 0;
+	g_tempoAsked = g_tempoBpm > 0;
+}
+
+/// Switch every audio track's delay between analog and digital, as a press of the gold knob on its delay does, at
+/// render block @p block.
+void switchDelays(uint64_t block) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
+		if (output->type != OutputType::AUDIO) {
+			continue;
+		}
+		auto* owner = static_cast<ModControllableAudio*>(output->toModControllable());
+		if (owner == nullptr) {
+			continue;
+		}
+		const bool analog = owner->effects().delay.type == deluge::effects::DelayType::ANALOG;
+		deluge::edits::changeEffect(
+		    *owner, "delay/type",
+		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(
+		        analog ? deluge::effects::DelayType::DIGITAL : deluge::effects::DelayType::ANALOG))));
+		g_tracksSwitched++;
+		printf("RS-DELAY-SWITCH block=%llu analog=%d\n", static_cast<unsigned long long>(block),
+		       owner->effects().delay.type == deluge::effects::DelayType::ANALOG ? 1 : 0);
+	}
+}
+
+/// The mod FX owners a hook entry names: @p name empty for every audio track, `master` for the song's master chain,
+/// and otherwise every output of that name (a synth's sound, a kit's chain, an audio track's chain).
+template <typename Visit>
+void forEachModFxOwner(const std::string& name, Visit visit) {
+	if (name == "master") {
+		visit(static_cast<ModControllableAudio&>(currentSong->live.global_effectable), name);
+		return;
+	}
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
+		if (name.empty() ? output->type != OutputType::AUDIO : output->name != name) {
+			continue;
+		}
+		auto* owner = static_cast<ModControllableAudio*>(output->toModControllable());
+		if (owner != nullptr) {
+			visit(*owner, output->name);
+		}
+	}
+}
+
+/// RENDER_MODFX_SWITCH: `<block>:<type>[:<owner>],...`, ascending, each type as a file writes it (`chorus`,
+/// `TapeWarble`); empty by default. At each block, counted from playback's start, the mod FX type of every audio track
+/// (or of the owner named, see forEachModFxOwner) is set to that type by the Edit the mod FX type menu makes, which
+/// reaches the owner's setModFXType, so the same mod FX switches type while it plays.
+struct ModFxSwitch {
+	uint64_t block;
+	std::string type;
+	std::string owner;
+};
+std::vector<ModFxSwitch> g_modFxSwitchAt;
+std::size_t g_modFxSwitchesDone = 0;
+int32_t g_tracksModFxSwitched = 0;
+/// The type each track switch set, as a file writes it, comma-separated in the order they were made.
+std::string g_modFxSwitchedTypes;
+/// Switches after which the owner's mod FX holds a ring, after which its granular effect holds a ring, and after which
+/// it holds neither. Each is the owner's own state, as the per-switch marker reports it.
+int32_t g_modFxSwitchedRing = 0;
+int32_t g_modFxSwitchedGrain = 0;
+int32_t g_modFxSwitchedNoRing = 0;
+
+void readModFxSwitches() {
+	g_modFxSwitchAt.clear();
+	const char* list = std::getenv("RENDER_MODFX_SWITCH");
+	for (const char* at = list; at != nullptr && *at != '\0';) {
+		char* end = nullptr;
+		const uint64_t block = std::strtoull(at, &end, 10);
+		if (end == nullptr || *end != ':') {
+			break;
+		}
+		const char* type = end + 1;
+		const char* comma = std::strchr(type, ',');
+		const std::string item = comma != nullptr ? std::string(type, comma) : std::string(type);
+		const std::size_t colon = item.find(':');
+		g_modFxSwitchAt.push_back(
+		    {block, item.substr(0, colon), colon == std::string::npos ? std::string() : item.substr(colon + 1)});
+		at = comma != nullptr ? comma + 1 : nullptr;
+	}
+}
+
+/// Set the mod FX type of the owners @p switched names to its type, as the mod FX type menu does, at render block
+/// @p block.
+void switchModFx(uint64_t block, const ModFxSwitch& switched) {
+	forEachModFxOwner(switched.owner, [&](ModControllableAudio& owner, const std::string& name) {
+		deluge::edits::changeEffect(owner, "modFXType", deluge::serialization::Value::makeScalar(switched.type));
+		g_tracksModFxSwitched++;
+		const std::string now(deluge::effects::to_string(owner.effects().mod_fx.type));
+		const bool ring = owner.core().mod_fx().holdsRing();
+		const bool grain = owner.core().granular().holdsRing();
+		g_modFxSwitchedTypes += (g_modFxSwitchedTypes.empty() ? "" : ",") + now;
+		(ring ? g_modFxSwitchedRing : grain ? g_modFxSwitchedGrain : g_modFxSwitchedNoRing)++;
+		printf("RS-MODFX-SWITCH block=%llu type=%s ring=%d grain=%d owner=%s\n", static_cast<unsigned long long>(block),
+		       now.c_str(), ring ? 1 : 0, grain ? 1 : 0, name.c_str());
+	});
+}
+
+/// RENDER_MODFX_CLEAR: `<block>[:<owner>],...`, ascending; empty by default. At each block, counted from playback's
+/// start, the mod FX memory of every audio track (or of the owner named, see forEachModFxOwner) is cleared by
+/// ModControllableAudio::clearModFXMemory, which a sound's cut tail calls: for a comb type the mod FX component's
+/// clearMemory, which zeroes the ring when one is held and the phaser's memories otherwise; for the grain the granular
+/// component's clear, which stops its grains and starts its ring over. An owner whose type is none is not cleared, nor
+/// is a grain with no State (one whose allocation failed).
+struct ModFxClear {
+	uint64_t block;
+	std::string owner;
+};
+std::vector<ModFxClear> g_modFxClearAt;
+std::size_t g_modFxClearsDone = 0;
+int32_t g_tracksModFxCleared = 0;
+/// Comb track clears that zeroed a ring, and those of a track holding none, which zero the phaser's memories.
+int32_t g_modFxClearedRing = 0;
+int32_t g_modFxClearedNoRing = 0;
+/// Grain clears.
+int32_t g_modFxClearedGrain = 0;
+
+void readModFxClears() {
+	g_modFxClearAt.clear();
+	const char* list = std::getenv("RENDER_MODFX_CLEAR");
+	for (const char* at = list; at != nullptr && *at != '\0';) {
+		const char* comma = std::strchr(at, ',');
+		const std::string item = comma != nullptr ? std::string(at, comma) : std::string(at);
+		const std::size_t colon = item.find(':');
+		g_modFxClearAt.push_back({std::strtoull(item.c_str(), nullptr, 10),
+		                          colon == std::string::npos ? std::string() : item.substr(colon + 1)});
+		at = comma != nullptr ? comma + 1 : nullptr;
+	}
+}
+
+/// Clear the mod FX memory of the owners @p cleared names at render block @p block.
+void clearModFx(uint64_t block, const ModFxClear& cleared) {
+	forEachModFxOwner(cleared.owner, [&](ModControllableAudio& owner, const std::string& name) {
+		const ModFXType type = owner.effects().mod_fx.type;
+		if (type == ModFXType::NONE || (type == ModFXType::GRAIN && owner.core().granular().state() == nullptr)) {
+			return;
+		}
+		const bool ring = owner.core().mod_fx().holdsRing();
+		owner.clearModFXMemory();
+		g_tracksModFxCleared++;
+		const std::string word(deluge::effects::to_string(type));
+		if (type == ModFXType::GRAIN) {
+			g_modFxClearedGrain++;
+			printf("RS-MODFX-CLEAR block=%llu type=%s grain=1 owner=%s\n", static_cast<unsigned long long>(block),
+			       word.c_str(), name.c_str());
+			return;
+		}
+		(ring ? g_modFxClearedRing : g_modFxClearedNoRing)++;
+		printf("RS-MODFX-CLEAR block=%llu type=%s ring=%d owner=%s\n", static_cast<unsigned long long>(block),
+		       word.c_str(), ring ? 1 : 0, name.c_str());
+	});
+}
+
 uint64_t g_renderBase = 0;
 uint64_t g_voiceBase[3] = {};
 uint64_t g_waitBase = 0;
@@ -111,6 +439,8 @@ int64_t g_firstStop = -1;
 bool g_wasPlaying = false;
 int32_t g_direnessMax = 0;
 int32_t g_voicesMax = 0;
+/// Playing ticks whose output was not in the channel count the run asked for.
+int32_t g_wrongWidthTicks = 0;
 uint64_t g_captured = 0;
 
 void fail(const char* marker, const char* what) {
@@ -167,13 +497,13 @@ void stepLoading() {
 		return;
 	}
 	const std::string want = expectedName(g_songPath);
-	const std::string got = currentSong->name.c_str();
+	const std::string got = currentSong->project.metadata.name.c_str();
 	const char* view = getRootUI() == &sessionView ? "session" : getRootUI() == &arrangerView ? "arranger" : "other";
 	// The session clips set to play, and the notes they hold: a song whose clips hold nothing plays silence.
 	int32_t playingClips = 0;
 	int32_t notes = 0;
-	for (int32_t c = 0; c < std::ssize(currentSong->sessionClips); c++) {
-		Clip* clip = currentSong->sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(currentSong->live.clips.session_clips); c++) {
+		Clip* clip = currentSong->live.clips.session_clips[c];
 		if (!clip->activeIfNoSolo) {
 			continue;
 		}
@@ -186,6 +516,9 @@ void stepLoading() {
 	}
 	printf("RS-LOADED name=%s outputs=%d view=%s playing_clips=%d notes=%d\n", got.c_str(),
 	       static_cast<int>(currentSong->getNumOutputs()), view, playingClips, notes);
+	// Which of the song's own params play automation: the master's, which play in the arranger.
+	printf("RS-SONGPARAMS automated=%d\n",
+	       currentSong->paramManager.getUnpatchedParamSetSummary()->containsAutomation() ? 1 : 0);
 	if (got != want) {
 		printf("RS-LOADED listing_failures=%d last_listing_error=%d\n", static_cast<int>(Browser::listingFailures()),
 		       static_cast<int>(Browser::lastListingFailure()));
@@ -210,6 +543,11 @@ void stepPlay() {
 	deluge_streaming_set_fill_latency_ms(g_model.delayMs);
 	deluge_streaming_set_fill_read_latency_us(g_model.readUs);
 	g_inBurst = false;
+	if (g_stereo) {
+		// The app reads its sockets in its input routine, on a UI timer the harness does not tick; read them now, so
+		// the headphones plugged in at the start count from the first captured block.
+		inputRoutine();
+	}
 	deluge_host_capture_start();
 	playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 	g_wasPlaying = false;
@@ -227,7 +565,32 @@ void stepPlaying() {
 	g_wasPlaying = playing;
 	g_direnessMax = std::max(g_direnessMax, static_cast<int32_t>(AudioEngine::cpuDireness));
 	g_voicesMax = std::max(g_voicesMax, static_cast<int32_t>(AudioEngine::getNumVoices()));
+	if (AudioEngine::renderInStereo != g_stereo) {
+		g_wrongWidthTicks++;
+	}
 	g_blocksRendered = deluge_host_render_count() - g_renderBase;
+	if (!g_stutterAt.empty()) {
+		runStutters(g_blocksRendered);
+	}
+	if (g_tempoAsked && !g_tempoDone && g_blocksRendered >= g_tempoAt) {
+		currentSong->setBPM(g_tempoBpm, false);
+		g_tempoDone = true;
+		printf("RS-TEMPO block=%llu bpm=%.1f\n", static_cast<unsigned long long>(g_blocksRendered),
+		       static_cast<double>(g_tempoBpm));
+	}
+	while (g_switchesDone < g_switchAt.size() && g_blocksRendered >= g_switchAt[g_switchesDone]) {
+		switchDelays(g_blocksRendered);
+		g_switchesDone++;
+	}
+	while (g_modFxSwitchesDone < g_modFxSwitchAt.size()
+	       && g_blocksRendered >= g_modFxSwitchAt[g_modFxSwitchesDone].block) {
+		switchModFx(g_blocksRendered, g_modFxSwitchAt[g_modFxSwitchesDone]);
+		g_modFxSwitchesDone++;
+	}
+	while (g_modFxClearsDone < g_modFxClearAt.size() && g_blocksRendered >= g_modFxClearAt[g_modFxClearsDone].block) {
+		clearModFx(g_blocksRendered, g_modFxClearAt[g_modFxClearsDone]);
+		g_modFxClearsDone++;
+	}
 	const bool burst = g_model.burstBlocks != 0 && g_blocksRendered >= g_model.burstStart
 	                   && g_blocksRendered < g_model.burstStart + g_model.burstBlocks;
 	if (burst != g_inBurst) {
@@ -281,7 +644,49 @@ void report() {
 	printf("RS-UNDERRUN wait=%llu unassign=%llu\n",
 	       static_cast<unsigned long long>(deluge_sim_underrun_wait_count() - g_waitBase),
 	       static_cast<unsigned long long>(deluge_sim_underrun_unassign_count() - g_unassignBase));
-	printf("RS-CAPTURE frames=%llu\n", static_cast<unsigned long long>(g_captured));
+	if (g_tempoAsked && !g_tempoDone) {
+		fail("RS-TEMPO", "the tempo change asked for never happened");
+	}
+	if (!g_stutterAt.empty()) {
+		printf("RS-STUTTER applied=%d asked=%zu stuttered=%llu\n", g_stutterApplied, g_stutterAt.size() * 2,
+		       static_cast<unsigned long long>(g_stutteredTicks));
+		if (g_stutterApplied != static_cast<int32_t>(g_stutterAt.size() * 2) || g_stutteredTicks == 0
+		    || (g_stutterRateAsked && !g_stutterRateDone)) {
+			fail("RS-STUTTER", "a stutter asked for did not begin and end, never stuttered, or missed its rate change");
+		}
+	}
+	if (!g_switchAt.empty()) {
+		printf("RS-DELAY-SWITCH switches=%zu asked=%zu tracks=%d\n", g_switchesDone, g_switchAt.size(),
+		       g_tracksSwitched);
+		if (g_switchesDone != g_switchAt.size() || g_tracksSwitched != static_cast<int32_t>(g_switchAt.size())) {
+			fail("RS-DELAY-SWITCH", "a switch asked for did not switch exactly one audio track's delay");
+		}
+	}
+	if (!g_modFxSwitchAt.empty()) {
+		printf("RS-MODFX-SWITCH applied=%d asked=%zu types=%s ring=%d noring=%d grain=%d\n", g_tracksModFxSwitched,
+		       g_modFxSwitchAt.size(), g_modFxSwitchedTypes.empty() ? "-" : g_modFxSwitchedTypes.c_str(),
+		       g_modFxSwitchedRing, g_modFxSwitchedNoRing, g_modFxSwitchedGrain);
+		if (g_modFxSwitchesDone != g_modFxSwitchAt.size()
+		    || g_tracksModFxSwitched != static_cast<int32_t>(g_modFxSwitchAt.size())) {
+			fail("RS-MODFX-SWITCH", "a switch asked for did not switch exactly one audio track's mod FX");
+		}
+	}
+	if (!g_modFxClearAt.empty()) {
+		printf("RS-MODFX-CLEAR applied=%d asked=%zu ring=%d noring=%d grain=%d\n", g_tracksModFxCleared,
+		       g_modFxClearAt.size(), g_modFxClearedRing, g_modFxClearedNoRing, g_modFxClearedGrain);
+		if (g_modFxClearsDone != g_modFxClearAt.size()
+		    || g_tracksModFxCleared != static_cast<int32_t>(g_modFxClearAt.size())) {
+			fail("RS-MODFX-CLEAR", "a clear asked for did not clear exactly one audio track's mod FX");
+		}
+	}
+	printf("RS-DELAY-OFF silenced=%u\n", deluge::effects::delay_off_silenced_blocks());
+	printf("RS-DELAY-ARENA shortfalls=%u regions=%zu jobs=%u\n", deluge::model::delayArena().shortfalls(),
+	       deluge::model::delayArena().regions(), deluge::model::delayArenaMaintenanceRuns());
+	printf("RS-CAPTURE frames=%llu stereo=%d\n", static_cast<unsigned long long>(g_captured), g_stereo ? 1 : 0);
+	if (g_wrongWidthTicks != 0) {
+		fail("RS-CAPTURE", g_stereo ? "the app rendered in mono with headphones plugged in"
+		                            : "the app rendered in stereo with nothing plugged in");
+	}
 	printf("RS-RESULT failures=%d\n", g_failures);
 	g_stage = Stage::Done;
 }
@@ -299,13 +704,37 @@ void deluge_scenario_render_song_begin(void) {
 	g_firstStop = -1;
 	g_direnessMax = 0;
 	g_voicesMax = 0;
+	g_wrongWidthTicks = 0;
 	g_captured = 0;
+	// Headphones plugged in from boot make the app render in stereo, as the device does through them; otherwise it
+	// renders in mono, as through the speaker.
+	const char* stereo = std::getenv("RENDER_STEREO");
+	g_stereo = stereo != nullptr && std::strcmp(stereo, "1") == 0;
+	deluge_host_headphones(g_stereo);
 	const char* song = std::getenv("RENDER_SONG");
 	g_songPath = song != nullptr ? song : "";
 	g_model = StorageModel{};
 	g_model.delayMs = envU32("RENDER_FILL_DELAY_MS");
 	g_model.readUs = envU32("RENDER_FILL_READ_US");
 	readBurst(g_model);
+	readSwitches();
+	readTempo();
+	readStutter();
+	g_switchesDone = 0;
+	g_tracksSwitched = 0;
+	readModFxSwitches();
+	g_modFxSwitchesDone = 0;
+	g_tracksModFxSwitched = 0;
+	g_modFxSwitchedTypes.clear();
+	g_modFxSwitchedRing = 0;
+	g_modFxSwitchedNoRing = 0;
+	g_modFxSwitchedGrain = 0;
+	readModFxClears();
+	g_modFxClearsDone = 0;
+	g_tracksModFxCleared = 0;
+	g_modFxClearedRing = 0;
+	g_modFxClearedNoRing = 0;
+	g_modFxClearedGrain = 0;
 	if (const char* blocks = std::getenv("RENDER_BLOCKS")) {
 		g_blocksWanted = std::strtoull(blocks, nullptr, 10);
 	}

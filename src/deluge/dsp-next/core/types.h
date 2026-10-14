@@ -16,7 +16,8 @@
  */
 #pragma once
 
-#include "dsp-next/core/sample.h" // q31, f32, SampleType
+#include "dsp-next/core/sample.h"        // q31, f32, SampleType
+#include "dsp-next/core/stereo_sample.h" // StereoSample
 #include <span>
 
 /// @file
@@ -25,7 +26,7 @@
 /// A @ref Buffer is a writable block a component fills; a @ref Signal is a read-only
 /// block it consumes. Per decision Q1 the concrete sample type at component interfaces
 /// is q31 (= int32_t) — zero friction with the app's buffers; FixedPoint<31> is a
-/// later, layout-compatible type-safety layer.
+/// later, layout-compatible type-safety layer. Stereo blocks are spans of the app's @ref StereoSample frame.
 namespace deluge::dsp {
 
 /// @brief A single audio/control sample of type @p T.
@@ -40,17 +41,16 @@ using Buffer = std::span<T>;
 template <typename T>
 using Signal = std::span<const T>;
 
-// NOTE: a stereo sample type is deliberately *not* defined here yet — the app already
-// has a concrete `deluge::dsp::StereoSample`, and a second (templated) one in this
-// namespace would clash. dsp-next's stereo vocabulary lands when stereo components are
-// built, reconciled with the app's type. The current (oscillator/VCA) path is mono.
-
 /// @brief Concrete aliases for the bit-exact q31 backend (the Deluge core) — the same
 /// namespace its kernels live in (deluge::dsp::fixed::sine, ::TableOscillator, ...).
 namespace fixed {
 using Sample = dsp::Sample<q31>;
 using Buffer = dsp::Buffer<q31>;
 using Signal = dsp::Signal<q31>;
+/// @brief A read-only block of interleaved stereo frames (q31 left, q31 right).
+using StereoSignal = std::span<const StereoSample>;
+/// @brief A writable block of interleaved stereo frames (q31 left, q31 right).
+using StereoBuffer = std::span<StereoSample>;
 } // namespace fixed
 
 /// @brief Concrete aliases for the float32 edge backend (engines/CLAP, later). `fp`

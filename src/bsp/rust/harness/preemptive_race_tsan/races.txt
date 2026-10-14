@@ -55,6 +55,7 @@ open	src/deluge/modulation/arpeggiator.cpp	^ArpeggiatorSettings::cloneFrom\(Arpe
 open	src/deluge/gui/ui_timer_manager.cpp	^UITimerManager::routine\(\)$	audio×interaction	state: AudioEngine::audioSampleTimer read by the UI timer routine while audio writes it (2026-09-26 probe; not in the 10-run triage)
 
 open	src/deluge/deluge.cpp	^inputRoutine\(\)$	audio×interaction	state: global 'AudioEngine::renderInStereo' (render-routine global read by the input routine; first seen in the C1 gate run)
+open	src/deluge/model/mod_controllable/mod_controllable_audio.cpp	^ModControllableAudio::processFX\(std::span<(deluge::dsp::)?StereoSample, 18446744073709551615ul>, deluge::effects::ModFXType, int, int, (deluge::effects::)?Delay::State const&, int\*, ParamManager\*, bool, int, int\*\)$	audio×interaction	state: global 'AudioEngine::renderInStereo' (render-routine global, read per delay block to choose the ping-pong routing)
 open	src/deluge/gui/ui/load/load_song_ui.cpp	^LoadSongUI::isLoadingSong\(\)$	audio×interaction	state: global 'loadSongUI' (load state polled across tiers; first seen in the C1 gate run)
 open	library/core/src/str/validations.rs	^core::str::validations::run_utf8_validation$	-	state: a string validated while another tier writes it (its tiers are not recorded)
 open	src/deluge/model/song/song.cpp	^Song::renderAudio\(std::span<(deluge::dsp::)?StereoSample, 18446744073709551615ul>, int\*, int\)$	audio×interaction	state: global 'AudioEngine::firstRecorder' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
@@ -83,16 +84,16 @@ open	src/deluge/playback/mode/arrangement.cpp	^Arrangement::getLivePos\(unsigned
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::getNumSwungTicksInSinceLastActionedSwungTick\(unsigned int\*\)$	audio×interaction	state: global 'currentlyActioningSwungTickOrResettingPlayPos' (first seen in catalogue convergence batch 1, 2026-09-27)
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::getNumSwungTicksInSinceLastTimerTick\(unsigned int\*\)$	audio×interaction	state: global 'playbackHandler' (first seen in catalogue convergence batch 1, 2026-09-27)
 open	src/deluge/modulation/automation/auto_param.cpp	^AutoParam::AutoParam\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
-open	src/deluge/dsp/compressor/rms_feedback.h	^RMSFeedbackCompressor::RMSFeedbackCompressor\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
+open	src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.h	^deluge::dsp::fixed::RmsFeedbackCompressor::RmsFeedbackCompressor\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
 open	src/deluge/model/mod_controllable/mod_controllable_audio.cpp	^ModControllableAudio::ModControllableAudio\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
 open	src/deluge/model/mod_controllable/mod_controllable_audio.h	^ModControllableAudio::ModControllableAudio\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
 open	src/deluge/deluge.cpp	^readButtonsAndPads\(\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer' (first seen in catalogue convergence batch 2, 2026-09-27)
-open	src/deluge/dsp/compressor/rms_feedback.cpp	^RMSFeedbackCompressor::RMSFeedbackCompressor\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
-open	src/deluge/dsp/compressor/rms_feedback.h	^RMSFeedbackCompressor::setBlend\(int\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
-open	src/deluge/dsp/delay/delay_buffer.h	^DelayBuffer::DelayBuffer\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
-open	src/deluge/dsp/filter/filter_set.h	^deluge::dsp::filter::FilterSet::FilterSet\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
-open	src/deluge/dsp/filter/ladder_components.h	^deluge::dsp::filter::BasicFilterComponent::BasicFilterComponent\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
-open	src/deluge/model/mod_controllable/ModFXProcessor.h	^ModFXProcessor::ModFXProcessor\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
+open	src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp	^deluge::dsp::fixed::RmsFeedbackCompressor::RmsFeedbackCompressor\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
+open	src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp	^deluge::dsp::fixed::RmsFeedbackCompressor::setBlend\(int\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
+open	src/deluge/dsp-next/fixed/delay/delay_tape.h	^deluge::dsp::fixed::DelayTape::DelayTape\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (the DelayBuffer constructor's writes, made by the tape it holds)
+open	src/deluge/dsp-next/fixed/filter/filter_set.h	^deluge::dsp::fixed::FilterSet::FilterSet\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
+open	src/deluge/dsp-next/fixed/filter/low_pass_ladder.h	^deluge::dsp::Lanes<deluge::dsp::fixed::LowPassLadder<.*>, 2ul, deluge::dsp::StereoSample>::Lanes\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27, as the legacy one-pole's constructor; the sections are now OnePole::State member initialisers, zeroed in the inlined Lanes<K, 2>::Lanes() under Stereo<K>::Stereo(), from std::construct_at in FilterSet::reset, holdLowPass and holdHighPass; the compressor's detectors moved into RmsFeedbackCompressor's constructor, whose rows are above)
+open	src/deluge/dsp-next/fixed/filter/high_pass_ladder.h	^deluge::dsp::Lanes<deluge::dsp::fixed::HighPassLadder, 2ul, deluge::dsp::StereoSample>::Lanes\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27, as the legacy one-pole's constructor; the sections are now OnePole::State member initialisers, zeroed in the inlined Lanes<K, 2>::Lanes() under Stereo<K>::Stereo(), from std::construct_at in FilterSet::reset, holdLowPass and holdHighPass; the compressor's detectors moved into RmsFeedbackCompressor's constructor, whose rows are above)
 open	src/deluge/model/song/song.h	^Song::Song\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::setupPlaybackUsingInternalClock\(int, bool, bool, bool\)$	audio×interaction	state: global 'playbackHandler' (first seen after the sound retirement, 2026-09-27)
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::routine_task\(\)$	audio×interaction	state: global 'AudioEngine::audioRoutineLocked' (first seen after the sound retirement, 2026-09-27)
@@ -111,7 +112,7 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock
 #   Render-routine globals (audioSampleTimer, routineBeenCalled, renderingBufferOutputPos, renderInStereo,
 #     bypassCulling, audioRoutineLocked): deluge_app_render, AudioEngine::renderAppBlock, AudioEngine::routine, routine_task, routineWithClusterLoading,
 #     getNumSamplesLeftToOutputFromPreviousRender, UITimerManager::workOutNextEventTime, deluge_debug_now_frames, PadLEDs::reassessGreyout,
-#     Sound::renderingVoicesInStereo, inputRoutine, AudioRecorder::beginOutputRecording, PlaybackHandler::doSongSwap,
+#     Sound::renderingVoicesInStereo, ModControllableAudio::processFX, inputRoutine, AudioRecorder::beginOutputRecording, PlaybackHandler::doSongSwap,
 #     WaveformRenderer::advanceOverviewScan
 #   Reverb (AudioEngine::reverb, reverbSidechainVolume, mustUpdateReverbParamsBeforeNextRender):
 #     updateReverbParams, getReverbParamsFromSong, renderReverb, freeverb Comb::process, Freeverb::ProcessOne
@@ -123,8 +124,8 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock
 #     Song::renderAudio, SampleRecorder::feedAudio, AudioRecorder::setupRecordingToFile, AudioEngine::outputStage
 #   Debug log buffer (logDebug::buffer): printf _out_buffer
 #   Memory the render read, freed and reused by the interaction tier (heap arena; TSan sees a constructor writing
-#     where audio last read): Song::Song, ModControllableAudio, AutoParam, FilterSet, BasicFilterComponent,
-#     DelayBuffer, ModFXProcessor, RMSFeedbackCompressor (ctor, setBlend), readButtonsAndPads — the cross-tier
+#     where audio last read): Song::Song, ModControllableAudio, AutoParam, FilterSet, the ladders' Lanes, DelayBuffer,
+#     DelayTape, RmsFeedbackCompressor (ctor, setBlend), readButtonsAndPads — the cross-tier
 #     lifetime class: objects freed with no handover from the render. Candidate fix: retire + epoch reclamation.
 #   Arpeggiator settings: ArpeggiatorSettings::updateParamsFromUnpatchedParamSet, cloneFrom
 #   UI timers (audioSampleTimer read by the timer routine): UITimerManager::routine, workOutNextEventTime,

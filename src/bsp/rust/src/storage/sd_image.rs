@@ -6,15 +6,15 @@
 //! clusters.
 #![cfg(feature = "host_app")]
 
-use crate::storage::sd_image_path::Plan;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Returns a FAT32 image of `fixture`'s project tree, reconstructing the tree and packing the image
-/// as needed.
+/// Returns the read-only template image of `fixture`'s project tree, reconstructing the tree and
+/// packing the image as needed.
 ///
-/// The image is cached in the temp dir by content (see [`crate::storage::sd_image_path`]). The
-/// caller points `DELUGE_SD_IMAGE` at it before any SD access.
+/// The template is cached in the temp dir by content (see [`crate::storage::sd_image_path`]) and
+/// must never be mounted: a run points `DELUGE_SD_IMAGE` at a
+/// [`private_copy`](crate::storage::sd_image_path::private_copy) of it, before any SD access.
 ///
 /// # Panics
 ///
@@ -67,75 +67,58 @@ pub fn golden_fixture_tree(repo_root: &Path, fixture: &str) -> PathBuf {
     proj
 }
 
-/// Returns a sparse FAT32 image of `project_dir`, reusing a cached one for the same contents.
+/// Returns the read-only template image of `project_dir`, packing it unless a cached one for the
+/// same contents exists.
 ///
 /// Uses `mformat -c 64` for 32 KB clusters: mtools' size-based default picks 2 KB clusters, which
 /// would make the firmware stream in far smaller clusters than on a real card.
 ///
 /// # Panics
 ///
-/// Panics if mtools fails or the image cannot be moved into place.
+/// Panics if mtools fails or the image cannot be installed.
 pub(crate) fn pack_image(project_dir: &Path) -> PathBuf {
     let fingerprint = crate::storage::sd_image_path::fingerprint_dir(project_dir);
-    let (staging, img) =
-        match crate::storage::sd_image_path::scenario_plan(&std::env::temp_dir(), &fingerprint) {
-            Plan::Reuse(img) => {
-                log::info!(
-                    "streaming-scenario: reusing cached image for '{}' -> {}",
-                    project_dir.display(),
-                    img.display()
-                );
-                return img;
+    let mut packed = false;
+    let img = crate::storage::sd_image_path::ensure_template(
+        &std::env::temp_dir(),
+        &fingerprint,
+        |staging| {
+            packed = true;
+            let dir_bytes = dir_size_bytes(project_dir);
+            let mut bytes = dir_bytes.saturating_mul(2) + (64u64 << 20);
+            let min_bytes = 2560u64 << 20; // 2.5 GB: comfortably over FAT32's 65,525 32 KB clusters
+            if bytes < min_bytes {
+                bytes = min_bytes;
             }
-            Plan::Pack {
-                staging,
-                final_path,
-            } => (staging, final_path),
-        };
+            bytes = (bytes + 511) & !511u64;
 
-    let dir_bytes = dir_size_bytes(project_dir);
-    let mut bytes = dir_bytes.saturating_mul(2) + (64u64 << 20);
-    let min_bytes = 2560u64 << 20; // 2.5 GB: comfortably over FAT32's 65,525 32 KB clusters
-    if bytes < min_bytes {
-        bytes = min_bytes;
-    }
-    bytes = (bytes + 511) & !511u64;
-
-    // Run through `sh` so the shell expands `mcopy`'s `*`.
-    let script = format!(
-        "set -e; truncate -s {bytes} '{staging}'; mformat -i '{staging}' -F -c 64 ::; \
-         mcopy -s -Q -i '{staging}' '{proj}'/* ::/",
-        bytes = bytes,
-        staging = staging.display(),
-        proj = project_dir.display(),
-    );
-    let status = Command::new("sh")
-        .arg("-c")
-        .arg(&script)
-        .status()
-        .expect("run the mtools pack script (sh)");
-    if !status.success() {
-        // Don't leak the half-packed staging file.
-        let _ = std::fs::remove_file(&staging);
+            // Run through `sh` so the shell expands `mcopy`'s `*`.
+            let script = format!(
+                "set -e; truncate -s {bytes} '{staging}'; mformat -i '{staging}' -F -c 64 ::; \
+                 mcopy -s -Q -i '{staging}' '{proj}'/* ::/",
+                bytes = bytes,
+                staging = staging.display(),
+                proj = project_dir.display(),
+            );
+            let status = Command::new("sh").arg("-c").arg(&script).status()?;
+            if status.success() {
+                Ok(())
+            } else {
+                Err(std::io::Error::other(format!(
+                    "is mtools (mformat/mcopy) installed? script: {script}"
+                )))
+            }
+        },
+    )
+    .unwrap_or_else(|e| {
         panic!(
-            "packing '{}' into a FAT image failed — is mtools (mformat/mcopy) installed? script: {script}",
+            "packing '{}' into a FAT image failed: {e}",
             project_dir.display()
-        );
-    }
-
-    // Atomic publish: no process sees a partial image at the shared path. A concurrent pack of
-    // the same corpus renames its equivalent file over ours, which is harmless.
-    std::fs::rename(&staging, &img).unwrap_or_else(|e| {
-        let _ = std::fs::remove_file(&staging);
-        panic!(
-            "installing packed image {} -> {} failed: {e}",
-            staging.display(),
-            img.display()
         )
     });
-
     log::info!(
-        "streaming-scenario: packed '{}' -> {} ({bytes} bytes, fingerprint {fingerprint})",
+        "streaming-scenario: {} template for '{}' -> {} (fingerprint {fingerprint})",
+        if packed { "packed" } else { "reusing cached" },
         project_dir.display(),
         img.display()
     );

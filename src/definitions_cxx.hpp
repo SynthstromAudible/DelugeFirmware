@@ -18,6 +18,14 @@
 #pragma once
 #include "board_layout.hpp" // board pad/indicator/numeric dimensions (HAL-free, shared with the BSP)
 #include "definitions.h"
+#include "deluge-project/arrangement.h"
+#include "deluge-project/drum_type.h"
+#include "deluge-project/launch_style.h"
+#include "deluge-project/sequence_direction.h"
+#include "engine-api/types/interpolation_mode.h"
+#include "engine-api/types/voice_priority.h"
+#include "engines/deluge/words.h"
+#include "engines/effects/words.h"
 #include "sequence/iterance.h"
 #include "util/misc.h"
 
@@ -257,9 +265,6 @@ constexpr int32_t kModFXBufferSize = 512;
 constexpr int32_t kModFXBufferIndexMask = (kModFXBufferSize - 1);
 constexpr int32_t kModFXMaxDelay = ((kModFXBufferSize - 1) << 16);
 
-constexpr int32_t kModFXGrainBufferSize = 65536;
-constexpr int32_t kModFXGrainBufferIndexMask = (kModFXGrainBufferSize - 1);
-
 constexpr int32_t kFlangerMinTime = (3 << 16);
 constexpr int32_t kFlangerAmplitude = (kModFXMaxDelay - kFlangerMinTime);
 constexpr int32_t kFlangerOffset = ((kModFXMaxDelay + kFlangerMinTime) >> 1);
@@ -278,11 +283,7 @@ constexpr int32_t kMaxNumPatchCables = (kNumUnsignedIntegersToRepPatchCables * 3
 // The envelope stage enum now lives inside the Envelope class (Envelope::Stage), as it is owned by
 // that component; see modulation/envelope.h.
 
-enum class VoicePriority : uint8_t {
-	LOW,
-	MEDIUM,
-	HIGH,
-};
+using deluge::engine::VoicePriority;
 
 constexpr size_t kNumVoicePriorities = util::to_underlying(VoicePriority::HIGH) + 1;
 
@@ -346,20 +347,7 @@ enum class PerformanceEditingMode : uint8_t {
 	PARAM,
 };
 
-enum class OscType : uint8_t {
-	SINE,
-	TRIANGLE,
-	SQUARE,
-	ANALOG_SQUARE,
-	SAW,
-	ANALOG_SAW_2,
-	WAVETABLE,
-	SAMPLE,
-	DX7,
-	INPUT_L,
-	INPUT_R,
-	INPUT_STEREO,
-};
+using deluge::instrument::OscType;
 
 constexpr OscType kLastRingmoddableOscType = OscType::WAVETABLE;
 constexpr int32_t kNumOscTypesRingModdable = util::to_underlying(kLastRingmoddableOscType) + 1;
@@ -385,35 +373,14 @@ enum LFO_ID {
 	LFO_COUNT = 4,
 };
 
-enum class LFOType : uint8_t {
-	SINE,
-	TRIANGLE,
-	SQUARE,
-	SAW,
-	SAMPLE_AND_HOLD,
-	RANDOM_WALK,
-	WARBLER,
-};
+using deluge::instrument::LFOType;
 
 constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::WARBLER) + 1;
 
-enum class ModFXType : uint8_t {
-	NONE,
-	FLANGER,
-	CHORUS,
-	PHASER,
-	CHORUS_STEREO,
-	WARBLE,
-	DIMENSION,
-	GRAIN, // Look below if you want to add another one
-};
+using deluge::effects::ModFXType;
 constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
 
-enum class SynthMode : uint8_t {
-	SUBTRACTIVE,
-	FM,
-	RINGMOD,
-};
+using deluge::instrument::SynthMode;
 constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
 
 constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
@@ -424,19 +391,13 @@ enum WavFormat : uint8_t {
 	WAV_FORMAT_FLOAT = 3,
 };
 
-enum class PolyphonyMode : uint8_t {
-	AUTO,
-	POLY,
-	MONO,
-	LEGATO,
-	CHOKE,
-};
+using deluge::instrument::PolyphonyMode;
 
 constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 1;
 
 constexpr int32_t kMaxGoldKnobIndicatorLEDValue = kMaxKnobPos / 4;
 
-constexpr int32_t kMaxNumSections = 24;
+using deluge::project::kMaxNumSections;
 
 constexpr int32_t kNumPhysicalModKnobs = 2;
 
@@ -506,12 +467,7 @@ enum class Error {
 	LISTING_DEFERRED,
 };
 
-enum class SampleRepeatMode {
-	CUT,
-	ONCE,
-	LOOP,
-	STRETCH,
-};
+using deluge::instrument::SampleRepeatMode;
 constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
 
 enum class FilterType {
@@ -789,11 +745,7 @@ enum class InstrumentRemoval {
 	DELETE,
 };
 
-enum class DrumType {
-	SOUND,
-	MIDI,
-	GATE,
-};
+using deluge::project::DrumType;
 
 enum class PgmChangeSend {
 	NEVER,
@@ -810,10 +762,7 @@ enum class MarkerType {
 };
 constexpr int32_t kNumMarkerTypes = util::to_underlying(MarkerType::END) + 1;
 
-enum class InterpolationMode {
-	LINEAR,
-	SMOOTH,
-};
+using deluge::engine::InterpolationMode;
 constexpr int32_t kNumInterpolationModes = 2;
 
 constexpr int32_t kCacheByteDepth = 3;
@@ -931,12 +880,7 @@ enum class LoopType {
 	TIMESTRETCHER_LEVEL_IF_ACTIVE, // Will cause low-level looping if no time-stretching;
 };
 
-enum class SequenceDirection {
-	FORWARD,
-	REVERSE,
-	PINGPONG,
-	OBEY_PARENT,
-};
+using deluge::project::SequenceDirection;
 constexpr auto kNumSequenceDirections = util::to_underlying(SequenceDirection::OBEY_PARENT);
 
 enum class AudioFileType {
@@ -1116,7 +1060,7 @@ enum class ClipType {
 	AUDIO,
 };
 
-enum class LaunchStyle { DEFAULT, FILL, ONCE };
+using deluge::project::LaunchStyle;
 
 enum class StartupSongMode { BLANK, TEMPLATE, LASTOPENED, LASTSAVED };
 constexpr auto kNumStartupSongMode = util::to_underlying(StartupSongMode::LASTSAVED) + 1;

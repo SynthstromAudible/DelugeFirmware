@@ -33,10 +33,14 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/string.h"
 #include <cstdio>
+#include <cstring>
+#include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // The GUI headers reach `src/lib/printf.h`, which soft-aliases printf to an implementation this
@@ -82,13 +86,30 @@ namespace {
 
 constexpr const char* kSaveDir = "SONGS";
 constexpr const char* kSaveName = "SSTEST01";
-constexpr const char* kSavePath = "SONGS/SSTEST01.XML";
+/// A song's path in the save directory, in the format songs are saved in.
+std::string songPath(const char* name) {
+	return std::string{"SONGS/"} + name + std::string{deluge::storage::extensionOf(deluge::storage::kSongSaveFormat)};
+}
+const std::string kSavePathString = songPath("SSTEST01");
+const char* const kSavePath = kSavePathString.c_str();
 /// The held leg's saves, both to new names so each takes the direct path and its file is the whole of what it wrote:
 /// the reference, saved without a hold, and the held save of the same song, which must write the same bytes.
 constexpr const char* kReferenceName = "SSTEST03";
-constexpr const char* kReferencePath = "SONGS/SSTEST03.XML";
+const std::string kReferencePathString = songPath("SSTEST03");
+const char* const kReferencePath = kReferencePathString.c_str();
 constexpr const char* kHeldName = "SSTEST02";
-constexpr const char* kHeldPath = "SONGS/SSTEST02.XML";
+const std::string kHeldPathString = songPath("SSTEST02");
+const char* const kHeldPath = kHeldPathString.c_str();
+/// The upgrade leg's song: loaded from an XML file saved before songs saved as JSON, then saved under the same name.
+constexpr const char* kUpgradeName = "SSTEST04";
+constexpr const char* kUpgradeXmlPath = "SONGS/SSTEST04.XML";
+const std::string kUpgradePath = songPath(kUpgradeName);
+/// What the XML file holds. The leg never loads it, only checks it is still there, unchanged.
+constexpr std::string_view kUpgradeXmlBytes = "<song></song>\n";
+/// Where "last opened" is recorded; the upgrade leg runs in that mode and requires the JSON copy recorded.
+constexpr const char* kSettingsPath = "SETTINGS/CommunityFeatures.XML";
+/// How long the settings write handed to the byte channel at the end of the save gets to land.
+constexpr int32_t kSettingsTicks = 200;
 /// How long the byte channel holds the document write in the held leg, in virtual milliseconds. The save's own stall
 /// bound is `SaveSongUI::documentStallLimitUs()`; the check measures how long the save actually spent on the held
 /// write and requires more than that, rather than assuming it. Applied to document writes only
@@ -99,8 +120,9 @@ constexpr uint32_t kHeldLatencyMs = 10000;
 /// runs on its own job, as soon as the channel answers, so without a hold it can finish before the next scenario tick.
 constexpr uint32_t kBackLatencyMs = 20;
 
-/// Notes per row. Sized so the document clears 65536 bytes -- two doublings of the 32768-byte
-/// staging buffer -- with the default song's own ~11.5 KB underneath it.
+/// Rows and notes per row. Sized so the document clears 65536 bytes -- two doublings of the 32768-byte
+/// staging buffer -- with the default song's own ~11.5 KB underneath it: a note saves as about 30 bytes.
+constexpr int32_t kNoteRows = 16;
 constexpr int32_t kNotesPerRow = 220;
 
 enum class Stage : uint8_t {
@@ -130,6 +152,11 @@ enum class Stage : uint8_t {
 	HeldSave,
 	HeldWait,
 	HeldCheck,
+	UpgradeOpen,
+	UpgradeSave,
+	UpgradeWait,
+	UpgradeCheck,
+	UpgradeSettingsCheck,
 	Report,
 	Done,
 };
@@ -156,6 +183,8 @@ uint32_t g_crcReference = 0;
 size_t g_bytesReference = 0;
 /// Whether the load a wait stage is driving has started, or is still waiting on the load browser's own listing.
 bool g_loadBegun = false;
+/// The startup-song mode before the upgrade leg set LASTOPENED, put back after it.
+StartupSongMode g_startupModeBefore = StartupSongMode::BLANK;
 
 constexpr int32_t kMaxWaitTicks = 200000;
 
@@ -204,7 +233,7 @@ void inflateSong() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	const int32_t clipLength = clip->loopLength;
+	const int32_t clipLength = clip->loopLength();
 	if (clipLength <= 0) {
 		printf("SS-SETUP FAIL the clip has no length to place notes in\n");
 		g_failures++;
@@ -216,7 +245,7 @@ void inflateSong() {
 	const int32_t noteLength = 1;
 	const int32_t step = clipLength / kNotesPerRow > 0 ? clipLength / kNotesPerRow : 1;
 
-	for (int32_t y = 0; y < 8; y++) {
+	for (int32_t y = 0; y < kNoteRows; y++) {
 		ModelStackWithNoteRow* rowStack = clip->getOrCreateNoteRowForYNote(60 + y, modelStack, nullptr);
 		if (rowStack == nullptr) {
 			continue;
@@ -290,7 +319,7 @@ void runTick() {
 		for (int32_t t = 0; t < 16; t++) {
 			std::string temp = "SONGS/TEMP";
 			temp.append(deluge::string::fromInt(t, 4));
-			temp.append(writeJsonFlag ? ".Json" : ".XML");
+			temp.append(deluge::storage::extensionOf(deluge::storage::kSongSaveFormat));
 			(void)deluge::io::unlink(temp);
 		}
 		inflateSong();
@@ -631,6 +660,101 @@ void runTick() {
 			g_failures++;
 		}
 		(void)deluge::io::unlink(kHeldPath);
+		g_stage = Stage::UpgradeOpen;
+		break;
+	}
+	case Stage::UpgradeOpen: {
+		// SS-UPGRADE. The song in memory was loaded from an XML file; saving it under the same name writes the JSON
+		// copy beside it and leaves the XML file as it was, and the song is then the JSON copy.
+		(void)deluge::io::unlink(kUpgradePath);
+		auto file = deluge::io::File::open(kUpgradeXmlPath, DELUGE_FILE_WRITE_CREATE);
+		const bool written =
+		    file.has_value()
+		    && file->write(std::as_bytes(std::span{kUpgradeXmlBytes.data(), kUpgradeXmlBytes.size()})).has_value()
+		    && file->close().has_value();
+		if (!written) {
+			printf("SS-UPGRADE FAIL the XML song could not be written\n");
+			g_failures++;
+			g_stage = Stage::Report;
+			break;
+		}
+		currentSong->setSongFullPath(kUpgradeXmlPath);
+		g_startupModeBefore = FlashStorage::defaultStartupSongMode;
+		FlashStorage::defaultStartupSongMode = StartupSongMode::LASTOPENED;
+		(void)deluge::io::unlink(kSettingsPath);
+		changeRootUI(&arrangerView);
+		(void)SongSaveChannelProbe::openOn(kSaveDir);
+		g_stage = Stage::UpgradeSave;
+		break;
+	}
+	case Stage::UpgradeSave: {
+		SongSaveChannelProbe::typeName(kUpgradeName);
+		SongSaveChannelProbe::pressEnter();
+		g_waitTicks = 0;
+		g_stage = Stage::UpgradeWait;
+		break;
+	}
+	case Stage::UpgradeWait: {
+		if (saveMachineryIdle()) {
+			g_stage = Stage::UpgradeCheck;
+			break;
+		}
+		if (++g_waitTicks > kMaxWaitTicks) {
+			printf("SS-UPGRADE FAIL the save never finished (%d ticks)\n", g_waitTicks);
+			g_failures++;
+			g_stage = Stage::Report;
+		}
+		break;
+	}
+	case Stage::UpgradeCheck: {
+		const bool prompted = SongSaveChannelProbe::overwritePromptOpen();
+		std::vector<uint8_t> xml;
+		std::vector<uint8_t> json;
+		const bool kept = readWholeFile(kUpgradeXmlPath, xml) && xml.size() == kUpgradeXmlBytes.size()
+		                  && std::memcmp(xml.data(), kUpgradeXmlBytes.data(), xml.size()) == 0;
+		const bool saved = readWholeFile(kUpgradePath.c_str(), json);
+		const std::string path = currentSong->getSongFullPath();
+		printf("SS-UPGRADE prompted=%d kept=%d saved=%d path=%s\n", (int)prompted, (int)kept, (int)saved, path.c_str());
+		if (prompted) {
+			printf("SS-UPGRADE FAIL saving over a song loaded from XML asked to overwrite\n");
+			g_failures++;
+			SongSaveChannelProbe::pressBack();
+		}
+		if (!kept) {
+			printf("SS-UPGRADE FAIL the XML song is gone or changed\n");
+			g_failures++;
+		}
+		if (!saved) {
+			printf("SS-UPGRADE FAIL nothing was saved at %s\n", kUpgradePath.c_str());
+			g_failures++;
+		}
+		if (path != kUpgradePath) {
+			printf("SS-UPGRADE FAIL the song is now %s, not %s\n", path.c_str(), kUpgradePath.c_str());
+			g_failures++;
+		}
+		g_waitTicks = 0;
+		g_stage = Stage::UpgradeSettingsCheck;
+		break;
+	}
+	case Stage::UpgradeSettingsCheck: {
+		// With LASTOPENED, the song recorded must be the copy the save wrote: the XML beside it no longer has the
+		// song's latest state.
+		if (++g_waitTicks < kSettingsTicks) {
+			break;
+		}
+		std::vector<uint8_t> settings;
+		const bool read = readWholeFile(kSettingsPath, settings);
+		const std::string text(settings.begin(), settings.end());
+		const bool recorded = read && text.find(kUpgradePath) != std::string::npos;
+		printf("SS-UPGRADE lastOpened recorded=%d\n", (int)recorded);
+		if (!recorded) {
+			printf("SS-UPGRADE FAIL with LASTOPENED, the settings do not name %s after the save\n",
+			       kUpgradePath.c_str());
+			g_failures++;
+		}
+		FlashStorage::defaultStartupSongMode = g_startupModeBefore;
+		(void)deluge::io::unlink(kUpgradePath);
+		(void)deluge::io::unlink(kUpgradeXmlPath);
 		g_stage = Stage::Report;
 		break;
 	}

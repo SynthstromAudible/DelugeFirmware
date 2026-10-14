@@ -17,6 +17,7 @@
 
 #include "model/output.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
@@ -24,6 +25,8 @@
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_existence.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/chain_bridge.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -46,11 +49,69 @@ Output::Output(OutputType newType) : type(newType) {
 }
 
 Output::~Output() {
+	// Drop this output's DOM identity record on genuine destruction. Guarded on currentSong && docOutput_
+	// so whole-song teardown (currentSong nulled first, the project destroyed wholesale) does no per-output removal.
+	if (currentSong != nullptr && docOutput_ != nullptr) {
+		currentSong->removeDocOutput(this);
+		docOutput_ = nullptr;
+	}
 	removeRecorder();
 	// if another output is recording this one, we need to tell the other output to clear the pointer since we don't
 	// exist
 	if (outputRecordingThisOutput) {
 		outputRecordingThisOutput->clearRecordingFrom();
+	}
+}
+
+// Reseeds the record's 6 base identity fields from the current native values. Load bridge (called from
+// Song::adoptOutput at bind time) plus reseed helper for sites that can't call a single setter (the polymorphic
+// modKnobMode write in View::modButtonAction; the clone/replace families in song.cpp).
+void Output::seedDocOutputIdentity() {
+	if (docOutput_ == nullptr) {
+		return;
+	}
+	docOutput_->name = name;
+	docOutput_->colour = colour;
+	docOutput_->mod_knob_mode = modKnobMode;
+	docOutput_->muted_in_arrangement = mutedInArrangementMode;
+	docOutput_->soloing_in_arrangement = soloingInArrangementMode;
+	docOutput_->armed_for_recording = armedForRecording;
+}
+
+void Output::setName(std::string_view newName) {
+	name = newName;
+	if (docOutput_ != nullptr) {
+		docOutput_->name = name;
+	}
+}
+void Output::setColour(int16_t newColour) {
+	colour = newColour;
+	if (docOutput_ != nullptr) {
+		docOutput_->colour = newColour;
+	}
+}
+void Output::setModKnobMode(uint8_t newMode) {
+	modKnobMode = newMode;
+	if (docOutput_ != nullptr) {
+		docOutput_->mod_knob_mode = newMode;
+	}
+}
+void Output::setMutedInArrangement(bool v) {
+	mutedInArrangementMode = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->muted_in_arrangement = v;
+	}
+}
+void Output::setSoloingInArrangement(bool v) {
+	soloingInArrangementMode = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->soloing_in_arrangement = v;
+	}
+}
+void Output::setArmedForRecording(bool v) {
+	armedForRecording = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->armed_for_recording = v;
 	}
 }
 
@@ -207,7 +268,7 @@ void Output::clipLengthChanged(Clip* clip, int32_t oldLength) {
 		if (instance->clip == clip) {
 			if (instance->length == oldLength) {
 
-				int32_t newLength = clip->loopLength;
+				int32_t newLength = clip->loopLength();
 
 				ClipInstance* nextInstance = clipInstances.tryGet(i + 1);
 				if (nextInstance) {
@@ -230,7 +291,7 @@ ParamManager* Output::getParamManager(Song* song) {
 	}
 	else {
 		ParamManager* paramManager =
-		    song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)toModControllable(), nullptr);
+		    song->live.param_backup.getPreferablyWithClip((ModControllableAudio*)toModControllable(), nullptr);
 		if (!paramManager) {
 			FREEZE_WITH_ERROR("E170");
 		}
@@ -248,6 +309,14 @@ void Output::writeToFile(Clip* clipForSavingOutputOnly, Song* song) {
 		writer.writeFirmwareVersion();
 		writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 	}
+	else {
+		// Stable per-song serial identity, written only when saving as part of the song (an intra-song
+		// reference; meaningless in a standalone preset file). Assigned lazily here on first save.
+		if (!id().has_value()) {
+			setId(song->generateNewOutputId());
+		}
+		writer.writeAttribute("id", *id());
+	}
 
 	bool endedOpeningTag = writeDataToFile(writer, clipForSavingOutputOnly, song);
 
@@ -262,14 +331,17 @@ void Output::writeToFile(Clip* clipForSavingOutputOnly, Song* song) {
 bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 
 	if (!clipForSavingOutputOnly) {
-		if (mutedInArrangementMode) {
+		// Read the DOM identity record when bound (rebuild-at-save); fall back to the native field when
+		// unbound (standalone preset save before adoption, if that's even reachable here).
+		if (docOutput_ != nullptr ? docOutput_->muted_in_arrangement : mutedInArrangementMode) {
 			writer.writeAttribute("isMutedInArrangement", 1);
 		}
-		if (soloingInArrangementMode) {
+		if (docOutput_ != nullptr ? docOutput_->soloing_in_arrangement : soloingInArrangementMode) {
 			writer.writeAttribute("isSoloingInArrangement", 1);
 		}
-		writer.writeAttribute("isArmedForRecording", armedForRecording);
-		writer.writeAttribute("activeModFunction", modKnobMode);
+		writer.writeAttribute("isArmedForRecording",
+		                      docOutput_ != nullptr ? docOutput_->armed_for_recording : armedForRecording);
+		writer.writeAttribute("activeModFunction", docOutput_ != nullptr ? docOutput_->mod_knob_mode : modKnobMode);
 
 		if (!clipInstances.empty()) {
 			writer.insertCommaIfNeeded();
@@ -295,7 +367,7 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 				}
 				else {
 					clipCode = thisInstance->clip->indexForSaving;
-					if (thisInstance->clip->section == 255) {
+					if (thisInstance->clip->section() == 255) {
 						clipCode |= (1 << 31);
 					}
 				}
@@ -306,7 +378,7 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 			writer.write("\"");
 		}
 
-		writer.writeAttribute("colour", colour);
+		writer.writeAttribute("colour", docOutput_ != nullptr ? docOutput_->colour : colour);
 	}
 
 	return false;
@@ -348,6 +420,12 @@ bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	else if (!strcmp(tagName, "colour")) {
 		colour = reader.readTagOrAttributeValueInt();
+	}
+
+	else if (!strcmp(tagName, "id")) {
+		// Stable per-song serial identity (see Output::id). The song advances its id counter
+		// past all loaded ids after the load completes (Song::syncSerialIdCountersFromLoaded).
+		setId(reader.readTagOrAttributeValueInt());
 	}
 
 	else if (!strcmp(tagName, "trackInstances") || !strcmp(tagName, "clipInstances")) {
@@ -430,7 +508,7 @@ getOut:
 
 Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
-	if (!song->arrangementOnlyClips.reserveExtra(1)) {
+	if (!song->live.clips.arrangement_only_clips.reserveExtra(1)) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
@@ -456,10 +534,10 @@ Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 	ClipInstance* clipInstance = &clipInstances[i];
 
 	clipInstance->clip = newClip;
-	newClip->section = 255;
-	newClip->loopLength = kMaxSequenceLength;
+	newClip->setSection(255);
+	newClip->setLoopLength(kMaxSequenceLength);
 
-	(void)song->arrangementOnlyClips.insertClipAt(newClip, 0); // Will succeed - we checked above
+	(void)song->live.clips.arrangement_only_clips.insertClipAt(newClip, 0); // Will succeed - we checked above
 
 	// Set the ClipInstance's length to just 1, which kinda is how long it logically "is" at this point in time before
 	// recording has started. This leaves space directly after it, which the user might choose to suddenly to create
@@ -468,7 +546,8 @@ Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
 	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 	if (action) {
-		action->recordClipExistenceChange(song, &song->arrangementOnlyClips, newClip, ExistenceChangeType::CREATE);
+		action->recordClipExistenceChange(song, &song->live.clips.arrangement_only_clips, newClip,
+		                                  ExistenceChangeType::CREATE);
 		action->recordClipInstanceExistenceChange(this, clipInstance, ExistenceChangeType::CREATE);
 	}
 
@@ -509,7 +588,7 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 		activeClip->expectNoFurtherTicks(song);
 		activeClip->activeIfNoSolo = false;
 
-		uint32_t xZoom = song->xZoom[NAVIGATION_ARRANGEMENT];
+		uint32_t xZoom = song->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 
 		int32_t alternativeLongerLength = 0;
 
@@ -567,7 +646,7 @@ skipThat: {}
 
 		// Set the ClipInstance's length to match the Clip's new length
 		Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
-		clipInstance->change(action, this, clipInstance->pos, activeClip->loopLength, activeClip);
+		clipInstance->change(action, this, clipInstance->pos, activeClip->loopLength(), activeClip);
 
 		recordingInArrangement = false;
 	}
@@ -607,4 +686,8 @@ for (int32_t i = 0; i < std::ssize(clipInstances); i++) {
 void Output::loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
 	deluge::storage::BlockingSampleLoad load{mayActuallyReadFiles, context};
 	(void)walkSampleDemands(load);
+	if (docOutput_ != nullptr && currentSong != nullptr) {
+		deluge::bridge::recordLoadedOutput(*this, *currentSong); // what the load made of its sounds
+		deluge::bridge::recordOutputChain(*this, *currentSong);
+	}
 }

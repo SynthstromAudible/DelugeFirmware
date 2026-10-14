@@ -29,6 +29,7 @@
 #include "storage/storage_manager.h"
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 #include <utility>
 #include <vector>
@@ -83,7 +84,10 @@ namespace {
 
 constexpr const char* kSaveDir = "SONGS";
 constexpr const char* kSaveName = "SVTEST01";
-constexpr const char* kSavePath = "SONGS/SVTEST01.XML";
+/// Where the save lands: songs save in kSongSaveFormat.
+const std::string kSavePathString =
+    std::string{"SONGS/SVTEST01"} + std::string{deluge::storage::extensionOf(deluge::storage::kSongSaveFormat)};
+const char* const kSavePath = kSavePathString.c_str();
 
 enum class Stage : uint8_t {
 	Fixture,
@@ -192,7 +196,9 @@ std::pair<size_t, size_t> previewValueRange(const std::vector<uint8_t>& bytes) {
 	if (tag == std::string::npos) {
 		return {0, 0};
 	}
-	const size_t open = hay.find('"', tag);
+	// Past the character after the name -- XML's `=`, or the quote closing a JSON member's name -- to the value's
+	// opening quote.
+	const size_t open = hay.find('"', tag + std::char_traits<char>::length(kPreviewTag) + 1);
 	if (open == std::string::npos) {
 		return {0, 0};
 	}
@@ -210,11 +216,12 @@ int32_t attrValue(const std::vector<uint8_t>& bytes, const char* name) {
 	if (at == std::string::npos) {
 		return -9999;
 	}
-	const size_t open = hay.find('"', at);
-	if (open == std::string::npos) {
+	// The value starts at the first digit or sign after the name: `name="7"` in XML, `"name": 7` in JSON.
+	const size_t value = hay.find_first_of("-0123456789", at + std::strlen(name));
+	if (value == std::string::npos) {
 		return -9999;
 	}
-	return std::atoi(hay.c_str() + open + 1);
+	return std::atoi(hay.c_str() + value);
 }
 
 /// Compare two saves ignoring only the preview artwork. Reports what it found either way.

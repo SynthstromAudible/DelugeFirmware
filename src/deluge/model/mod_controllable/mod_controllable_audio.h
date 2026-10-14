@@ -18,22 +18,23 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "deluge/dsp/granular/GranularProcessor.h"
-#include "dsp/compressor/rms_feedback.h"
-#include "dsp/delay/delay.h"
 #include "dsp/stereo_sample.h"
+#include "engines/effects/delay.h"
 #include "hid/button.h"
-#include "model/fx/stutterer.h"
-#include "model/mod_controllable/ModFXProcessor.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
+#include "model/snapshot/mod_controllable_snapshot.h"
 #include "modulation/knob.h"
 #include "modulation/params/param_descriptor.h"
 #include "modulation/params/param_set.h"
-#include "modulation/sidechain/sidechain.h"
 #include "synth/lfo.h"
 
+#include "engine-api/engine.h"
+#include "engines/effects/chain_core.h"
+#include "engines/effects/state.h"
+
 class Clip;
+class Sound;
 class Knob;
 class MIDICable;
 class ModelStack;
@@ -49,15 +50,61 @@ public:
 	virtual ~ModControllableAudio();
 	virtual void cloneFrom(ModControllableAudio* other);
 
-	void processStutter(std::span<StereoSample> buffer, ParamManager* paramManager);
-	void processReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* reverbBuffer, int32_t postFXVolume,
-	                                int32_t postReverbVolume, int32_t reverbSendAmount, int32_t pan = 0,
-	                                bool doAmplitudeIncrement = false);
 	void writeAttributesToFile(Serializer& writer);
 	void writeTagsToFile(Serializer& writer);
+	/// @brief Writes @p states' effect attributes.
+	/// @param writer Destination.
+	/// @param states The effect settings to write.
+	void writeAttributesToFile(Serializer& writer, const deluge::effects::EffectStates& states);
+	/// @brief Writes @p states' effect tags, the learned MIDI knobs among them; @p compressorThreshold, when given, in
+	/// place of the state's threshold.
+	/// @param writer              Destination.
+	/// @param states              The effect settings to write.
+	/// @param compressorThreshold Threshold (Q31) to write instead of the state's, if given.
+	void writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states,
+	                     std::optional<q31_t> compressorThreshold = std::nullopt);
+	/// @brief Writes the learned MIDI knobs' tag, which a file writes between the delay and the other effect tags.
+	/// @param writer Destination.
+	void writeMidiKnobsToFile(Serializer& writer);
+	/// @brief The codec context a file's effect entries are written in: the current song's tick magnitude.
+	/// @return The codec context.
+	[[nodiscard]] static deluge::engine::CodecContext effectsCodecContext();
+	/// @brief The compressor threshold a sound's file saves: the one the render last applied, its param's.
+	/// @return The threshold (Q31).
+	[[nodiscard]] q31_t savedCompressorThreshold() const { return core().compressor().dsp().threshold(); }
+
+	/// @brief This owner's effect settings: a bound sound's are its SoundState's, any other owner's its own.
+	/// @return The effect settings.
+	[[nodiscard]] const deluge::effects::EffectStates& effects() const {
+		return boundEffects_ != nullptr ? *boundEffects_ : ownEffects_;
+	}
+	/// @brief Make @p next this owner's effect settings, and the render's copy of them, which is replaced with the
+	/// render excluded.
+	/// @param next The new effect settings.
+	void setEffects(const deluge::effects::EffectStates& next);
+	/// @brief Keep this owner's effect settings in @p record (a sound's SoundState), which takes the settings held now;
+	/// nullptr keeps them here again.
+	/// @param record The record that holds the settings, or nullptr to hold them in this owner.
+	void bindEffects(deluge::effects::EffectStates* record);
+	/// @brief The render's copy of the effect settings: it reads nothing else of them.
+	deluge::snapshot::ModControllableSnapshot modControllableSnapshot_{};
+	/// @brief The render's copy of the effect settings.
+	/// @return The render's copy.
+	[[nodiscard]] const deluge::snapshot::ModControllableSnapshot& modControllableSnapshot() const {
+		return modControllableSnapshot_;
+	}
+	/// @brief Copy the settings into the render's copy, with the render excluded.
+	void projectModControllableSnapshot();
+	/// @brief Inside projectModControllableSnapshot's excluded section: the owner's view into @p copy, for a host chain
+	/// (its selected mod FX knob); nothing for a sound.
+	/// @param copy The render's copy being filled.
+	virtual void projectView(deluge::snapshot::ModControllableSnapshot& /*copy*/) {}
+	/// @brief Store the mod-FX type; setModFXType() does the same and returns true. For the load path and
+	/// cloneFrom().
+	/// @param value The mod FX type to store.
+	void assignModFXType(ModFXType value);
 	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
-	void processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume, ParamManager* paramManager);
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = nullptr);
 	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -69,7 +116,44 @@ public:
 	void beginStutter(ParamManagerForTimeline* paramManager);
 	void endStutter(ParamManagerForTimeline* paramManager);
 	virtual ModFXType getModFXType() = 0;
-	virtual bool setModFXType(ModFXType newType);
+	/// @brief This owner as a sound.
+	/// @return The sound, or nullptr for a kit, an audio track or the song master.
+	[[nodiscard]] virtual ::Sound* asSound() { return nullptr; }
+	bool setModFXType(ModFXType newType);
+	/// @brief Clear the mod FX's memory, as a sound cutting its tail does: a comb type's delay line or phaser memories,
+	/// or the grain's grains and first pass.
+	void clearModFXMemory();
+	/// @name "Effect setters"
+	/// One effect setting each, through setEffects.
+	/// @{
+	void setClippingAmount(uint8_t value);
+	void setLpfMode(FilterMode value);
+	void setHpfMode(FilterMode value);
+	void setFilterRoute(FilterRoute value);
+	void setDelayPingPong(bool value);
+	void setDelayType(deluge::effects::DelayType value);
+	/// @brief Set by a read whose element saves no delay type: the type is worked out once the owner's params are read
+	/// (deluge::model::resolvePendingDelayTypes).
+	bool delayTypePending = false;
+	void setDelaySyncType(SyncType value);
+	void setDelaySyncLevel(SyncLevel value);
+	void setStutterQuantized(bool value);
+	void setStutterReversed(bool value);
+	void setStutterPingPong(bool value);
+	void setUseSongStutter(bool value);
+	// The reverb's sidechain (AudioEngine::reverbSidechain) is the engine's own, not an owner's.
+	void setSidechainAttack(int32_t value);
+	void setSidechainRelease(int32_t value);
+	void setSidechainSyncType(SyncType value);
+	void setSidechainSyncLevel(SyncLevel value);
+	// The compressor's knob positions, each Q31 (the menu's 0-127 shifted up by 24).
+	void setCompressorAttack(q31_t value);
+	void setCompressorRelease(q31_t value);
+	void setCompressorThreshold(q31_t value);
+	void setCompressorRatio(q31_t value);
+	void setCompressorSidechainHpf(q31_t value);
+	void setCompressorBlend(q31_t value);
+	/// @}
 	bool offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
 	bool offerReceivedCCToLearnedParamsForSong(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
@@ -83,59 +167,30 @@ public:
 	                       uint8_t midiChannel, Song* song);
 	bool unlearnKnobs(ParamDescriptor paramDescriptor, Song* song);
 	virtual void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {} // Song may be NULL
-	bool isBitcrushingEnabled(ParamManager* paramManager);
-	bool isSRREnabled(ParamManager* paramManager);
-	bool hasBassAdjusted(ParamManager* paramManager);
-	bool hasTrebleAdjusted(ParamManager* paramManager);
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) override;
 
-	// EQ
-	int32_t bassFreq{}; // These two should eventually not be variables like this
-	int32_t trebleFreq{};
-
-	int32_t withoutTrebleL;
-	int32_t bassOnlyL;
-	int32_t withoutTrebleR;
-	int32_t bassOnlyR;
-
-	// Delay
-	Delay delay;
-	StutterConfig stutterConfig;
-
-	bool sampleRateReductionOnLastTime;
-	uint8_t clippingAmount; // Song probably doesn't currently use this?
-	FilterMode lpfMode;
-	FilterMode hpfMode;
-	FilterRoute filterRoute;
-
-	// Mod FX
-	ModFXType modFXType_;
-	ModFXProcessor modfx{};
-	RMSFeedbackCompressor compressor;
-	GranularProcessor* grainFX{nullptr};
-
-	uint32_t lowSampleRatePos{};
-	uint32_t highSampleRatePos{};
-	StereoSample lastSample{};
-	StereoSample grabbedSample{};
-	StereoSample lastGrabbedSample{};
-
-	SideChain sidechain; // Song doesn't use this, despite extending this class
+	/// @brief The effect components every owner has, in its chain: a sound's, a clip chain's or the master's.
+	/// @return The chain's core.
+	[[nodiscard]] virtual deluge::effects::ChainCore& core() = 0;
+	[[nodiscard]] virtual const deluge::effects::ChainCore& core() const = 0;
 
 	deluge::fast_vector<MIDIKnob> midi_knobs{};
-	int32_t postReverbVolumeLastTime{};
+
+private:
+	deluge::effects::EffectStates ownEffects_{};
+	deluge::effects::EffectStates* boundEffects_{nullptr};
 
 protected:
-	void processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
-	               const Delay::State& delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
-	               bool anySoundComingIn, q31_t reverbSendAmount);
+	/// @brief Gives the delay's tapes back to the arena and leaves its margin, as a change to OFF does. Each owner
+	/// calls it first in its destructor, while its chain still exists.
+	void releaseChainMemory();
 	void switchDelayPingPong();
-	void switchDelayAnalog();
+	/// @brief One press of the delay's feedback knob: digital, analog, off, digital, by one Edit.
+	void cycleDelayType();
 	void switchDelaySyncType();
 	void switchDelaySyncLevel();
 	void switchLPFMode();
 	void switchHPFMode();
-	void clearModFXMemory();
 
 	/// What kind of unpatched parameters this ModControllable uses.
 	///
@@ -158,18 +213,9 @@ protected:
 	void displaySidechainAndReverbSettings(bool on);
 	void displayOtherModKnobSettings(uint8_t whichModButton, bool on);
 
-protected:
-	// returns whether it succeeded
-	bool enableGrain();
-	void disableGrain();
-
 private:
-	void doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount, int32_t trebleAmount);
 	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
 	                                                       int32_t noteRowIndex);
 	void switchHPFModeWithOff();
 	void switchLPFModeWithOff();
-
-	void processGrainFX(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
-	                    UnpatchedParamSet* unpatchedParams, bool anySoundComingIn, q31_t verbAmount);
 };

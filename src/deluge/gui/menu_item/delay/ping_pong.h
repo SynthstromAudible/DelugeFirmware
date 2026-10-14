@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
@@ -28,7 +29,7 @@ class PingPong final : public Selection {
 public:
 	using Selection::Selection;
 	bool isToggle() override { return true; }
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.pingPong); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->effects().delay.ping_pong); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();
@@ -41,13 +42,15 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->delay.pingPong = current_value;
+					effectSettingFor(*soundDrum, "delay/pingPong",
+					                 deluge::serialization::Value::makeNumber(current_value ? 1 : 0));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->delay.pingPong = current_value;
+			effectSettingFor(*soundEditor.currentModControllable, "delay/pingPong",
+			                 deluge::serialization::Value::makeNumber(current_value ? 1 : 0));
 		}
 	}
 

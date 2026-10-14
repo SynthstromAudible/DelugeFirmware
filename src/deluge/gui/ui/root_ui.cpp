@@ -19,5 +19,5 @@
 #include "model/song/song.h"
 
 bool RootUI::getAffectEntire() {
-	return currentSong->affectEntire;
+	return currentSong->persistentView.affectEntire;
 }

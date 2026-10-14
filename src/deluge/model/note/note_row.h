@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_note_row.h"
 #include "gui/colour/colour.h"
 #include "io/midi/learned_midi.h"
 #include "model/note/note_vector.h"
@@ -51,9 +52,18 @@ class Kit;
 class DrumName;
 class Action;
 class NoteRow;
+class NoteRowVector;
 class CopiedNoteRow;
 class Sound;
 class TimelineView;
+
+namespace deluge::serialization {
+class Value;
+}
+namespace deluge::storage {
+using deluge::serialization::Value;
+}
+
 class ModelStackWithTimelineCounter;
 class ModelStackWithNoteRow;
 class ParamManagerForTimeline;
@@ -122,16 +132,24 @@ private:
 };
 
 class NoteRow {
+	// The container sorts by (and raw-writes at insert) the private y_ key.
+	friend class NoteRowVector;
+
 public:
 	NoteRow(int16_t newY = -32768);
 	~NoteRow();
 
-	// Movable (so NoteRowVector can shuffle rows) but not copyable - cloning goes through the explicit
-	// byte-copy + beenCloned() idiom. The destructor frees the old-drum-name list, so moves null it out.
+	// Movable (so NoteRowVector can shuffle rows) and copyable via an explicit deep-copy ctor: the param
+	// manager and notes are deep-copied, the old-drum-name list is NOT shared (reset to empty on the copy),
+	// and transient playback state is reset. firstOldDrumName being move-only forces the ctor to be explicit
+	// (no defaulted copy).
 	NoteRow(NoteRow&& other) noexcept = default;
 	NoteRow& operator=(NoteRow&& other) noexcept = default;
-	NoteRow(NoteRow const&) = delete;
-	NoteRow& operator=(NoteRow const&) = delete;
+	NoteRow(NoteRow const& other);
+	// Copy-and-move assignment (copy-construct a temporary, then move it in): reuses the audited copy ctor and
+	// the defaulted move-assign, which correctly frees the old param manager / notes / drum-name list. Needed
+	// because OrderedPosVector::insertAt inserts via vector::insert(pos, n, value), requiring CopyAssignable.
+	NoteRow& operator=(NoteRow const& other);
 	void renderRow(TimelineView* editorScreen, RGB, RGB, RGB, RGB* image, uint8_t[], bool, uint32_t,
 	               bool allowNoteTails, int32_t imageWidth, int32_t xScroll, uint32_t xZoom, int32_t xStart = 0,
 	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false);
@@ -145,8 +163,13 @@ public:
 	bool hasNoNotes();
 	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound);
 	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip);
-	Error readFromFile(Deserializer& reader, int32_t*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
-	inline int32_t getNoteCode() { return y; }
+	/// @brief Rebuild the DOM note pool from the engine note vector (save-time scratch).
+	///
+	/// No-op when this row is not bound to a DocNoteRow.
+	void rebuildDocNotes();
+	Error readFromTree(Deserializer& reader, const deluge::storage::Value& node, int32_t* minY,
+	                   InstrumentClip* parentClip, Song* song, int32_t readAutomationUpToPos);
+	inline int32_t getNoteCode() { return y(); }
 	void writeToFlash();
 	void readFromFlash(InstrumentClip* parentClip);
 	uint32_t getNumNotes();
@@ -154,21 +177,69 @@ public:
 	             InstrumentClip* favourClipForCloningParamManager = nullptr, ParamManager* paramManager = nullptr,
 	             bool backupOldParamManager = true);
 
+	/// @brief Write this row's DocNoteRow.drum_id from the current `drum` member (nullopt if null).
+	///
+	/// No-op until bound.
+	/// @pre `drum` holds a real pointer (or nullptr), never a load-time sentinel int: call it only after a real drum
+	///      (re)assignment, never from readFromTree.
+	void syncDrumId();
+
 	int32_t getDistanceToNextNote(int32_t pos, ModelStackWithNoteRow const* modelStack, bool reversed = false);
 
-	int16_t y; // This has to be at the top
-	bool muted;
+private:
+	int16_t y_{0}; // This has to be at the top (first data member; the NoteRowVector sort key)
+
+public:
+	// Scalars y/muted/loopLengthIfIndependent/sequenceDirection/colourOffset: the DocNoteRow is the authoritative
+	// persistence store (save/load go through these accessors/setters); the engine `*_` fields are synced derived
+	// caches. They stay because NoteRow is a moved-by-value container element (an inline owned doc would dangle) and
+	// y_/colourOffset_ must stay engine-side anyway.
+	int16_t y() const { return docNoteRow_ != nullptr ? docNoteRow_->y : y_; }
+	void setY(int16_t v) {
+		y_ = v;
+		if (docNoteRow_ != nullptr) {
+			docNoteRow_->y = v; // plain write-through; NO sort assertion (transpose loops mutate y in place)
+		}
+	}
+
+	// muted (see the scalar-store note above).
+	bool muted() const { return docNoteRow_ != nullptr ? docNoteRow_->muted : muted_; }
+	void setMuted(bool v) {
+		muted_ = v;
+		if (docNoteRow_ != nullptr) {
+			docNoteRow_->muted = v;
+		}
+	}
 	bool mutedBeforeStemExport{}; // Used by stem export to restore previous state
 	bool exportStem;              // Used by stem export to flag if this note row should be exported
 
-	int32_t loopLengthIfIndependent; // 0 means obeying parent
+	// loopLengthIfIndependent (see the scalar-store note above). 0 means obeying parent.
+	int32_t loopLengthIfIndependent() const {
+		return docNoteRow_ != nullptr ? docNoteRow_->loop_length_if_independent : loopLengthIfIndependent_;
+	}
+	void setLoopLengthIfIndependent(int32_t v) {
+		loopLengthIfIndependent_ = v;
+		if (docNoteRow_ != nullptr) {
+			docNoteRow_->loop_length_if_independent = v;
+		}
+	}
 	int32_t lastProcessedPosIfIndependent{};
 	int32_t repeatCountIfIndependent{};
 
 	// Valid only if not obeying parent, or if obeyed parent is pingponging and we have independent length
 	bool currentlyPlayingReversedIfIndependent{};
 
-	SequenceDirection sequenceDirectionMode;
+	// Reads the DOM record when bound; the engine field is a synced fallback. The public
+	// setSequenceDirectionMode(ModelStack*, ...) below routes its field write through setSequenceDirectionModeRaw.
+	SequenceDirection sequenceDirectionMode() const {
+		return docNoteRow_ != nullptr ? docNoteRow_->sequence_direction : sequenceDirectionMode_;
+	}
+	void setSequenceDirectionModeRaw(SequenceDirection v) {
+		sequenceDirectionMode_ = v;
+		if (docNoteRow_ != nullptr) {
+			docNoteRow_->sequence_direction = v;
+		}
+	}
 	uint32_t getLivePos(ModelStackWithNoteRow const* modelStack);
 	bool hasIndependentPlayPos();
 
@@ -176,6 +247,12 @@ public:
 	Drum* drum;
 	OldDrumNameHead firstOldDrumName;
 	NoteVector notes{};
+
+	/// Non-owning pointer to this row's authoritative DOM record in its clip's DocClip.note_rows pool (the
+	/// persistence store for the scalars above). Bound at create/clone/load by InstrumentClip; nullptr until bound,
+	/// when the scalar accessors fall back to the engine caches.
+	deluge::project::DocNoteRow* docNoteRow_{nullptr};
+	void bindDocNoteRow(deluge::project::DocNoteRow* d) { docNoteRow_ = d; }
 	// values for whole row
 	uint8_t probabilityValue;
 	Iterance iteranceValue;
@@ -184,7 +261,14 @@ public:
 	LearnedMIDI muteMIDICommand;
 	LearnedMIDI midiInput;
 
-	int8_t colourOffset;
+	// Reads the DOM record when bound; the engine field is a synced fallback.
+	int8_t colourOffset() const { return docNoteRow_ != nullptr ? docNoteRow_->colour_offset : colourOffset_; }
+	void setColourOffset(int8_t v) {
+		colourOffset_ = v;
+		if (docNoteRow_ != nullptr) {
+			docNoteRow_->colour_offset = v;
+		}
+	}
 
 	// External classes aren't really supposed to set this to OFF. Call something like cancelAutitioning() instead -
 	// which calls Clip::expectEvent(), which is needed
@@ -237,7 +321,12 @@ public:
 	void deleteOldDrumNames(bool shouldUpdatePointer = true);
 	Error appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
 	                    int32_t whichRepeatThisIs, int32_t otherClipLength);
-	Error beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing);
+	/// @brief Flatten a reversed sequence after a plain clone: reverse this row's notes and automation in place.
+	///
+	/// Call only when the row's effective direction is REVERSE and flattening was requested.
+	/// @param modelStack The model stack for this row.
+	/// @return Error::NONE on success, otherwise the failure.
+	Error flattenReverse(ModelStackWithNoteRow* modelStack);
 	void resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelStackOriginal,
 	                                        ModelStackWithNoteRow* modelStackClone);
 	void silentlyResumePlayback(ModelStackWithNoteRow* modelStack);
@@ -274,6 +363,22 @@ public:
 	bool isDroning(int32_t effectiveLength);
 
 private:
+	// DOM-shadowed scalars. Read through the public accessors (bound → DOM record, unbound →
+	// these engine fields); written through the setters, which keep both stores in sync.
+	bool muted_{false};
+	int8_t colourOffset_{0};
+	int32_t loopLengthIfIndependent_{0};
+	SequenceDirection sequenceDirectionMode_{SequenceDirection::OBEY_PARENT};
+
+	// Decode a hex noteData value (V1.4+) into notes[]. noteHexLength selects the format variant (20/22/26/28).
+	// Reads the value char-at-a-time from the reader's current scalar. Returns INSUFFICIENT_RAM on alloc failure.
+	Error readNoteDataHex(Deserializer& reader, uint16_t noteHexLength);
+	// Read the pre-1.4 <notes> element (an array of <note> with velocity/pos/length) into notes[].
+	Error readLegacyNotes(Deserializer& reader);
+	// Set up this NoteRow's paramManager for a <soundParams> block (incl. the pre-2016 backup-clone hack) and read
+	// the sound params. Returns any error from the clone/read.
+	Error readSoundParams(Deserializer& reader, InstrumentClip* parentClip, Song* song, int32_t readAutomationUpToPos);
+
 	void playNote(bool, ModelStackWithNoteRow* modelStack, Note*, int32_t ticksLate = 0, uint32_t samplesLate = 0,
 	              bool noteMightBeConstant = false, PendingNoteOnList* pendingNoteOnList = nullptr);
 	void playNextNote(InstrumentClip*, bool, bool noteMightBeConstant = false,

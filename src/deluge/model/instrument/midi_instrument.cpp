@@ -17,6 +17,7 @@
 
 #include "model/instrument/midi_instrument.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
@@ -47,6 +48,50 @@ MIDIInstrument::MIDIInstrument()
       modKnobCCAssignments() {
 	modKnobMode = 0;
 	modKnobCCAssignments.fill(CC_NUMBER_NONE);
+}
+
+// Reseeds the record's channelSuffix, device definition file name, collapse and MPE-Y fields (and, via the base,
+// channel) from the current native values.
+void MIDIInstrument::seedDocOutputIdentity() {
+	NonAudioInstrument::seedDocOutputIdentity();
+	if (docOutput_ != nullptr) {
+		docOutput_->channel_suffix = channelSuffix;
+		docOutput_->device_definition_file_name = deviceDefinitionFileName;
+		docOutput_->collapse_aftertouch = collapseAftertouch;
+		docOutput_->collapse_mpe = collapseMPE;
+		docOutput_->output_mpe_y = static_cast<uint8_t>(outputMPEY);
+	}
+}
+
+void MIDIInstrument::setChannelSuffix(int32_t v) {
+	channelSuffix = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->channel_suffix = v;
+	}
+}
+void MIDIInstrument::setDeviceDefinitionFileName(std::string_view v) {
+	deviceDefinitionFileName = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->device_definition_file_name = deviceDefinitionFileName;
+	}
+}
+void MIDIInstrument::setCollapseAftertouch(bool v) {
+	collapseAftertouch = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->collapse_aftertouch = v;
+	}
+}
+void MIDIInstrument::setCollapseMPE(bool v) {
+	collapseMPE = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->collapse_mpe = v;
+	}
+}
+void MIDIInstrument::setOutputMPEY(CCNumber v) {
+	outputMPEY = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->output_mpe_y = static_cast<uint8_t>(v);
+	}
 }
 
 // Returns whether any change made. For MIDI Instruments, this has no consequence
@@ -90,7 +135,7 @@ bool MIDIInstrument::doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThing
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = getParamToControlFromInputMIDIChannel(cc, modelStack);
 	if (modelStackWithAutoParam->autoParam) {
-		automationExists = modelStackWithAutoParam->autoParam->isAutomated();
+		automationExists = modelStackWithAutoParam->autoParam->isAutomated(*modelStackWithAutoParam->doc());
 	}
 
 	return automationExists;
@@ -364,10 +409,14 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		}
 		writer.writeClosingTag("modKnobs");
 
+		// Read the identity record's collapseAftertouch/collapseMPE/outputMPEY when bound (rebuild-at-save); fall back
+		// to the native fields when unbound. Stays inside the editedByUser||clipForSavingOutputOnly branch.
 		writer.writeOpeningTagBeginning("polyToMonoConversion");
-		writer.writeAttribute("aftertouch", (int32_t)collapseAftertouch);
-		writer.writeAttribute("mpe", (int32_t)collapseMPE);
-		writer.writeAttribute("yCC", (int32_t)outputMPEY);
+		writer.writeAttribute("aftertouch",
+		                      (int32_t)(docOutput_ != nullptr ? docOutput_->collapse_aftertouch : collapseAftertouch));
+		writer.writeAttribute("mpe", (int32_t)(docOutput_ != nullptr ? docOutput_->collapse_mpe : collapseMPE));
+		writer.writeAttribute(
+		    "yCC", (int32_t)(docOutput_ != nullptr ? docOutput_->output_mpe_y : static_cast<uint8_t>(outputMPEY)));
 		writer.closeTag();
 
 		writeDeviceDefinitionFile(writer, true);
@@ -404,12 +453,16 @@ void MIDIInstrument::writeDeviceDefinitionFile(Serializer& writer, bool writeFil
 }
 
 void MIDIInstrument::writeDeviceDefinitionFileNameToPresetOrSong(Serializer& writer) {
+	// Read the identity record's device_definition_file_name when bound (rebuild-at-save); fall back to the native
+	// field when unbound. An empty name is still emitted.
+	std::string const& nameToSave =
+	    docOutput_ != nullptr ? docOutput_->device_definition_file_name : deviceDefinitionFileName;
 	writer.writeOpeningTagBeginning("definitionFile");
-	if (deviceDefinitionFileName.empty()) {
+	if (nameToSave.empty()) {
 		writer.writeAttribute("name", "");
 	}
 	else {
-		writer.writeAttribute("name", deviceDefinitionFileName.c_str());
+		writer.writeAttribute("name", nameToSave.c_str());
 	}
 	writer.closeTag();
 }
@@ -438,8 +491,8 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 
 	if (!strcmp(tagName, "modKnobs")) {
 		readModKnobAssignmentsFromFile(
-		    kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get
-		                         // it. I think it'd only be relevant for pre-V2.0 song file... maybe?
+		    reader, kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get
+		                                 // it. I think it'd only be relevant for pre-V2.0 song file... maybe?
 	}
 	else if (!strcmp(tagName, "polyToMonoConversion")) {
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -497,11 +550,11 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 
 // paramManager is sometimes NULL (when called from the above function), for reasons I've kinda forgotten, yet
 // everything seems to still work...
-Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
+Error MIDIInstrument::readModKnobAssignmentsFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
                                                      ParamManagerForTimeline* paramManager) {
 	int32_t m = 0;
 	char const* tagName;
-	Deserializer& reader = *activeDeserializer;
+	reader.match('{'); // descend into the <modKnobs> object (needed for JSON; a no-op in XML)
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "modKnob")) {
 			MIDIParamCollection* midiParamCollection = nullptr;
@@ -521,6 +574,7 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToP
 			break;
 		}
 	}
+	reader.match('}');
 
 	editedByUser = true;
 	return Error::NONE;
@@ -610,6 +664,7 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 
 	char const* tagName;
 	int32_t cc = CC_NUMBER_NONE;
+	reader.match('{'); // descend into the modKnob/param object (needed for JSON; a no-op in XML)
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "cc")) {
 			char const* contents = reader.readTagOrAttributeValue();
@@ -640,7 +695,7 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 					return Error::INSUFFICIENT_RAM;
 				}
 
-				Error error = midiParam->param.readFromFile(reader, readAutomationUpToPos);
+				Error error = midiParam->param.readFromFile(midiParam->nodes_, reader, readAutomationUpToPos);
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -651,6 +706,7 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 			reader.exitTag(tagName);
 		}
 	}
+	reader.match('}');
 
 	if (getCC) {
 		*getCC = cc;
@@ -731,7 +787,8 @@ int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelSta
 	while (true) {
 		ModelStackWithAutoParam* modelStackWithAutoParam =
 		    getParamToControlFromInputMIDIChannel(proposedCC, modelStack);
-		if (!modelStackWithAutoParam->autoParam || !modelStackWithAutoParam->autoParam->isAutomated()) {
+		if (!modelStackWithAutoParam->autoParam
+		    || !modelStackWithAutoParam->autoParam->isAutomated(*modelStackWithAutoParam->doc())) {
 			return proposedCC;
 		}
 
@@ -776,9 +833,12 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 			FREEZE_WITH_ERROR("E416");
 		}
 #endif
-		((ExpressionParamSet*)modelStackWithAutoParam->paramCollection)
-		    ->params[modelStackWithAutoParam->paramId]
-		    .setCurrentValueBasicForSetup(0);
+		{
+			// Zero the store slot too (it's the persisted source), not just the engine cursor.
+			auto* eps = (ExpressionParamSet*)modelStackWithAutoParam->paramCollection;
+			int32_t pid = modelStackWithAutoParam->paramId;
+			eps->params[pid].setCurrentValueBasicForSetup(*eps->docForParam(pid), 0);
+		}
 	}
 
 	modelStackWithAutoParam = getParamToControlFromInputMIDIChannel(newCC, modelStack);
@@ -805,14 +865,14 @@ int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t offset, int32_t whic
 
 	// Need to pick a new cc which is blank on all Clips' ParamManagers with this Instrument
 	// For each Clip in session and arranger for specific Output (that Output is "this")
-	int32_t numElements = std::ssize(modelStack->song->sessionClips);
+	int32_t numElements = std::ssize(modelStack->song->live.clips.session_clips);
 	bool doingArrangementClips = false;
 	// TODO: Should use AllClips, but less obvious so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = modelStack->song->sessionClips[c];
+			clip = modelStack->song->live.clips.session_clips[c];
 			if (clip->output != this) {
 				continue;
 			}
@@ -841,13 +901,13 @@ traverseClips:
 
 	// And then tell all Clips' ParamManagers with this Instrument to change that CC
 	// For each Clip in session and arranger for specific Output (that Output is "this")
-	numElements = std::ssize(modelStack->song->sessionClips);
+	numElements = std::ssize(modelStack->song->live.clips.session_clips);
 	doingArrangementClips = false;
 traverseClips2:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = modelStack->song->sessionClips[c];
+			clip = modelStack->song->live.clips.session_clips[c];
 			if (clip->output != this) {
 				continue;
 			}

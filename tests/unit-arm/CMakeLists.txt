@@ -17,7 +17,13 @@ add_link_options(${CPU_OPTIONS})
 include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/specs.cmake)
 
 enable_testing()
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../serialization serialization)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../music-theory music-theory)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../bench bench)
 add_subdirectory(spec)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../engine-api engine-api)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../engines engines)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../model model)
 
 # dsp-next specs on real ARM NEON (run via qemu). DSP_SPEC_ARM tells the shared
 # tests/dsp build to skip the x86/SIMDe setup. Same specs as the x86 test project.

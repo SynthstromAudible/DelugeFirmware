@@ -1,0 +1,142 @@
+{
+  "upgrade/cables/default_expression.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "ff3fcd44521185bf956b7a05dd3777972c1e9418104cf10ca1d1bbca34bb845b"
+  },
+  "upgrade/cables/default_expression_fm.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "ed81328e5a3ff437b5a89695905b742e2207e321c5ef1667605024aef070cc6d"
+  },
+  "upgrade/cables/default_expression_with_own.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "416caa6b2c4921129f46d8069e57ab0c7b054d68255582ec0bfa5f13704b7729"
+  },
+  "upgrade/cables/default_expression_with_x.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "e8df0238b3807a7d4b0c7b5e1b60111e74347bc857911a6d6fc8b1f71cdb404f"
+  },
+  "upgrade/cables/range_cables.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "60be6e3853e3b2145aba9e1d7b77ec9a03b1dd6f5bbafb1200851ff0a937df92"
+  },
+  "upgrade/cables/range_cables_none_adjustable.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "819d5d8a8501ad5c9722386f9305705f7d0d51b496fd3a265ddbb8b9a12ddad6"
+  },
+  "upgrade/cables/range_midi_knob.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "416caa6b2c4921129f46d8069e57ab0c7b054d68255582ec0bfa5f13704b7729"
+  },
+  "upgrade/cables/range_mod_knob.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "b3ca0b347e959e024c74822596f8ef275f28561c2a31c771f670b17558379c26"
+  },
+  "upgrade/songs/learned_knobs_1_1_0.song.XML": {
+    "kind": "song",
+    "sha256": "427251fef4f99a44ef9a7443d8725b0f76932ac3c9260853d28b29d64f50eef9"
+  },
+  "upgrade/songs/learned_knobs_1_4_0.song.XML": {
+    "kind": "song",
+    "sha256": "b4ee3d62f04c55b5e7c67ddc734f5cfb3387639df8faf40227a67dcc891e0f66"
+  },
+  "upgrade/songs/stutter_own_1_1_0.song.XML": {
+    "kind": "song",
+    "sha256": "35478c5d8e58e866c9d76913d0c27229da52a9ce158935faf7e3cb3c9d881b35"
+  },
+  "upgrade/songs/stutter_own_1_4_0.song.XML": {
+    "kind": "song",
+    "sha256": "d0336601d786ea99be028131e196dc5adc697756d750d78e5f6eaa08a3ed5d19"
+  },
+  "upgrade/songs/syncscale_1_1_0.song.XML": {
+    "kind": "song",
+    "sha256": "4caf785f3f3d8dd4bd346a6c5595d329b8efdbd283fec65f050dc224788d0fc4"
+  },
+  "upgrade/songs/syncscale_1_4_0.song.XML": {
+    "kind": "song",
+    "sha256": "7cb8125561ca7829d6cd9cfd7351ee45ac7aa65066a63d7059b188b68f11776e"
+  },
+  "upgrade/sound/delay_feedback_then_rate.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "b36b6d9469e91203b654533c7a19df604f6dda15b1630038cdcf5e70fab8355e"
+  },
+  "upgrade/sound/delay_rate_then_feedback.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "1315cace482d66869026173de2c8e11b05838d0d2c3c6a3e420d885812c485ab"
+  },
+  "upgrade/sound/early_sample.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "2f08cc4f839bca3b4dd1cb4077b81119cd58f25aa1b145f34849cc928c8f10a5"
+  },
+  "upgrade/sound/early_sample_then_params.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "715736008281a73f8e8fa5ce9f7440604c617a81cdd5512394599659624c456a"
+  },
+  "upgrade/sound/filter_status_off.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "9ca7b4cb14d758c3f0f9aabc7aa2158fc5e2f9fcffff9f968e83f4787fd06fd5"
+  },
+  "upgrade/sound/lpf_mode_fx_type.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "d6b10638e92db288eaa274fa388978da8914389402aebd2a9377c8b556300c7a"
+  },
+  "upgrade/sound/lpf_mode_fx_type_with_keys.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "416caa6b2c4921129f46d8069e57ab0c7b054d68255582ec0bfa5f13704b7729"
+  },
+  "upgrade/sound/mode_then_ringmod.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "eac847d6da047f1bd6bc71deeeddf25682b83a851606ef662819483242aa6498"
+  },
+  "upgrade/sound/old_fx.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "8cdf1549b6f8f954ef3941dbc30e7c219b4a29084f9874789c49b1e93967271d"
+  },
+  "upgrade/sound/old_oscillators_after_params.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "23ed66f02e5201a56fc75ebd021ee81fea93a4cbe3857cfae9d743b898ebbdef"
+  },
+  "upgrade/sound/old_oscillators_before_params.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "c46180bfbb39b1f3549e8634354d0e88084cc5ad1d44c6b85b229cf753e6e29d"
+  },
+  "upgrade/sound/oscillator_reset_off.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "86ba877b68b12da8f2e2b1101e6e7b638746c55ab5134d27bf8eb234d8a5590d"
+  },
+  "upgrade/sound/oscillator_reset_on.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "416caa6b2c4921129f46d8069e57ab0c7b054d68255582ec0bfa5f13704b7729"
+  },
+  "upgrade/sound/oscillator_reset_then_phase.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "416caa6b2c4921129f46d8069e57ab0c7b054d68255582ec0bfa5f13704b7729"
+  },
+  "upgrade/sound/polyphony_0.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "b403994ce8352d94f12cf29d5f5d0e62b3ee27055b527198f38b99ccb299562e"
+  },
+  "upgrade/sound/polyphony_1.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "f71ed3a6a178d8ad0735eb991773e84de2bbfd3c35a761423df09d83d55d356e"
+  },
+  "upgrade/sound/polyphony_2.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "d468eb40d6f140e8208fcd67411a70c33b71f3705a19acd9e89a885a7652a34a"
+  },
+  "upgrade/sound/ringmod_off.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "416caa6b2c4921129f46d8069e57ab0c7b054d68255582ec0bfa5f13704b7729"
+  },
+  "upgrade/sound/ringmod_then_mode.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "eac847d6da047f1bd6bc71deeeddf25682b83a851606ef662819483242aa6498"
+  },
+  "upgrade/sound/sound_level_params.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "796b6424529657c57d46ead9c3af87cc4005f3d06faa17581ac7d26ec953a1b6"
+  },
+  "upgrade/sound/sound_level_params_before_params.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "416caa6b2c4921129f46d8069e57ab0c7b054d68255582ec0bfa5f13704b7729"
+  }
+}

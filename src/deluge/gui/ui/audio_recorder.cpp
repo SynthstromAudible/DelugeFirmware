@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
@@ -98,7 +99,7 @@ bool AudioRecorder::opened() {
 			return false;
 		}
 
-		drum->drumName = newName.c_str();
+		drum->setName(newName.c_str());
 	}
 
 	PadLEDs::clearTickSquares(true);
@@ -232,15 +233,15 @@ bool AudioRecorder::targetStillHeld() const {
 		return false;
 	}
 	// Addresses only until each is found among the song's own: the clip, then its output.
-	if (currentSong->sessionClips.getIndexForClip(t.clip) < 0
-	    && currentSong->arrangementOnlyClips.getIndexForClip(t.clip) < 0) {
+	if (currentSong->live.clips.session_clips.getIndexForClip(t.clip) < 0
+	    && currentSong->live.clips.arrangement_only_clips.getIndexForClip(t.clip) < 0) {
 		return false;
 	}
 	if (t.clip->output != t.output) {
 		return false;
 	}
 	bool outputInSong = false;
-	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		if (output == t.output) {
 			outputInSong = true;
 			break;
@@ -332,10 +333,13 @@ void AudioRecorder::finishInputTake() {
 	if (recorder->status != RecorderStatus::ABORTED && !recorder->hadCardError && targetStillHeld()) {
 		// Attach the Sample to the Source right away.
 		soundEditor.currentSound->killAllVoices();
-		soundEditor.currentSource->setOscType(OscType::SAMPLE);
+		deluge::gui::menu_item::settingFor(
+		    *soundEditor.currentSound, deluge::gui::menu_item::oscSettingPath(soundEditor.currentSourceIndex, "type"),
+		    deluge::serialization::Value::makeScalar("sample"));
 		soundEditor.currentMultiRange->getAudioFileHolder()->filePath = recorder->sample->filePath;
 		soundEditor.currentMultiRange->getAudioFileHolder()->setAudioFile(
 		    recorder->sample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true);
+		deluge::gui::menu_item::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
 	}
 	finishRecording();
 	target_ = {};

@@ -15,6 +15,29 @@ set(_repo_root ${CMAKE_CURRENT_LIST_DIR}/../..)
 # dsp-next is header-light, so building the few sources directly is simpler than
 # pulling in the whole library target here).
 set(sine_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/osc/sine.cpp)
+# The component framework spec needs no sources: the mixins, AsBlock and the concepts are header-only.
+set(component_framework_spec_DEPS)
+# The mode-dispatch spec needs no sources: ModeList and with_mode are header-only.
+set(mode_spec_DEPS)
+# The kernel-concept spec needs no sources: the concepts are header-only, and its reference kernels use only
+# util/fixedpoint.h's inline arithmetic.
+set(kernel_spec_DEPS)
+# The frame and lane-pack specs need no sources: Frame and LanePack are header-only, and the kernels the lane-pack spec
+# writes generically are header-only too.
+set(frame_spec_DEPS)
+set(lane_pack_spec_DEPS)
+# The Lanes spec needs no sources: Lanes, its reference kernels and the kernels it runs against Mono are header-only.
+set(lanes_spec_DEPS)
+# The Mono spec needs no sources: Mono and its reference kernels are header-only.
+set(mono_spec_DEPS)
+# The Control spec needs no sources: Control and its reference kernels are header-only.
+set(control_spec_DEPS)
+# The Chain spec needs no sources: Chain, Pinned and the kernels it chains are header-only.
+set(chain_spec_DEPS)
+# The noise spec shares jcong, which waves.cpp defines.
+set(noise_spec_DEPS ${_repo_root}/src/deluge/util/waves.cpp)
+# The stereo spec draws from the shared noise stream, which waves.cpp defines.
+set(stereo_spec_DEPS ${_repo_root}/src/deluge/util/waves.cpp)
 # The stateful-oscillator spec drives the band-limited saw + square bands (BandLimitedTableOscillator / pulse).
 set(stateful_oscillator_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/saw.cpp
@@ -54,6 +77,93 @@ set(reverb_spec_DEFS DELUGE_DSP_BOUNDS_CHECK=1)
 # The reverbs reach util/functions.h, which reaches the libdeluge headers.
 set(reverb_spec_INCLUDES ${_repo_root}/include)
 
+# The shift tracker needs no sources: the kernel is header-only, and its noise inputs come from SeededNoise.
+set(shift_tracker_spec_DEPS)
+# The dry/wet blend needs no sources: the kernel is header-only, and its noise inputs come from SeededNoise.
+set(dry_wet_spec_DEPS)
+# The filters are header-only kernels: their specs build the noise stream the low-pass ladder draws (the jcong
+# generator in waves.cpp) and the table lookups the ladders' coefficients and the verbatim references read.
+set(_filter_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp
+  ${_repo_root}/src/deluge/util/waves.cpp)
+set(low_pass_ladder_spec_DEPS ${_filter_DEPS})
+set(high_pass_ladder_spec_DEPS ${_filter_DEPS})
+set(svf_spec_DEPS ${_filter_DEPS})
+set(fade_in_spec_DEPS ${_filter_DEPS})
+# The filter set runs the three filters.
+set(filter_set_spec_DEPS ${_filter_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp)
+
+# The filters' verbatim references against the firmware's filters over the recorded workloads, and what both render
+# pinned (reference_filters.h, filter_workloads.h and filter_workload_records.h, header-only): the set.
+set(filters_reference_spec_DEPS
+  ${_filter_DEPS}
+  ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp)
+# The compressor's references against the firmware's compressor over its recorded workloads, and what they render
+# pinned (reference_compressor.h, compressor_workloads.h and compressor_workload_records.h, header-only): the
+# compressor, with its tanh table's interpolator.
+set(compressor_reference_spec_DEPS
+  ${_filter_DEPS}
+  ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/compressor_kernel.cpp)
+# The Compressor kernel against the fixed reference over the same workloads: the same sources.
+set(compressor_kernel_spec_DEPS ${compressor_reference_spec_DEPS})
+
+# The mod FX reference (reference_mod_fx.h, mod_fx_workloads.h, header-only) reads the sine table and draws the
+# warbler's noise from jcong.
+set(mod_fx_reference_spec_DEPS
+  ${_repo_root}/src/deluge/util/waves.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+set(mod_fx_kernel_spec_DEPS ${mod_fx_reference_spec_DEPS})
+
+# The granular reference (reference_granular.h, granular_workloads.h, header-only) draws its grains from jcong; its
+# quick_log, pan and wet low-pass are header-only.
+set(granular_reference_spec_DEPS ${_repo_root}/src/deluge/util/waves.cpp)
+# The Granular kernel against the reference over the same workloads: the same sources, the kernel being header-only.
+set(granular_kernel_spec_DEPS ${granular_reference_spec_DEPS})
+
+# The decay-curve lookups read the decay tables.
+set(table_interpolation_spec_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The compressor against its exact values and against the fixed reference over the recorded workloads: the same
+# sources as the reference spec.
+set(rms_feedback_compressor_spec_DEPS ${compressor_reference_spec_DEPS})
+# The duck envelope's attack and release curves read the decay tables.
+set(duck_envelope_spec_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/dynamics/duck_envelope.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The delay's tape: its resampling setup and its native-rate arithmetic.
+set(delay_tape_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/delay/delay_tape.cpp)
+# The analog impulse response kernel and its stereo reference (src/deluge/bench) are header-only.
+set(analog_impulse_response_spec_DEPS)
+# The feedback shaper: the analog mode's tanh through the table interpolator.
+set(feedback_shaper_spec_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# One block of the delay: the tape, and the analog feedback's tanh through the table interpolator. The two reference
+# orders, staged and frame by frame (reference_delay_processor.h), and the recorded workloads (delay_workloads.h)
+# beside the spec are header-only.
+set(delay_processor_spec_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/delay/delay_processor.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/delay/delay_tape.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The delay's frame order, checked on the staged reference over the recorded workloads: the same sources.
+set(delay_frame_order_spec_DEPS ${delay_processor_spec_DEPS})
+# Where the delay's echoes land at the shortest delays, through both reference orders: the same sources.
+set(delay_echo_spec_DEPS ${delay_processor_spec_DEPS})
+# The fused Delay kernel against the frame-order reference over the recorded workloads: the same sources, the kernel
+# being header-only.
+set(delay_kernel_spec_DEPS ${delay_processor_spec_DEPS})
+# The delay over storage it hasn't written, through the recorded workloads: the same sources.
+set(delay_poisoned_storage_spec_DEPS ${delay_processor_spec_DEPS})
+# The stutter reference (reference_stutter.h, stutter_workloads.h, header-only) over the delay's tape: the same sources.
+set(reference_stutter_spec_DEPS ${delay_processor_spec_DEPS})
+# The Stutter kernel against the reference over the same workloads: the same sources, the kernel being header-only.
+set(stutter_kernel_spec_DEPS ${reference_stutter_spec_DEPS})
+
 # ETL for the synth headers that reach util/etl_string.h (modulation/sync.h, through the LFO). The x86 unit tree links it
 # everywhere; the ARM tree does not, so the specs link it themselves.
 FetchContent_MakeAvailable(etl)
@@ -73,6 +183,9 @@ foreach(_spec_path IN LISTS _specs)
   deluge_test_neon(${_name})
   target_include_directories(${_name} PRIVATE ${_repo_root}/src/deluge ${_repo_root}/src)
   set_target_properties(${_name} PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED YES)
+  # Every spec checks the standard library's preconditions (span bounds among them), so that a span or container
+  # read past its end fails the spec rather than going unseen at the trees' optimisation levels.
+  target_compile_definitions(${_name} PRIVATE _GLIBCXX_ASSERTIONS)
 
   add_test(NAME ${_name} COMMAND ${_name} --verbose)
 endforeach()

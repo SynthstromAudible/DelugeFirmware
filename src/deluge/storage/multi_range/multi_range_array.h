@@ -34,10 +34,14 @@ public:
 	static MultiRange* variantToRange(RangeVariant& variant) {
 		return std::visit([](auto& range) -> MultiRange* { return &range; }, variant);
 	}
+	static const MultiRange* variantToRange(const RangeVariant& variant) {
+		return std::visit([](const auto& range) -> const MultiRange* { return &range; }, variant);
+	}
 
 	auto begin() { return ranges_.begin(); }
 	auto end() { return ranges_.end(); }
 	MultiRange* getElement(int32_t i) { return variantToRange(ranges_[i]); }
+	[[nodiscard]] const MultiRange* getElement(int32_t i) const { return variantToRange(ranges_[i]); }
 
 	/// The size of the elements currently stored, as a stand-in for a type tag (mirrors the old elementSize field)
 	[[nodiscard]] int32_t currentElementSize() const {

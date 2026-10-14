@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
@@ -29,7 +30,9 @@ namespace deluge::gui::menu_item::stutter {
 class QuantizedStutter final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.quantized); }
+	void readCurrentValue() override {
+		this->setValue(soundEditor.currentModControllable->effects().stutter.quantized);
+	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		bool current_value = this->getValue();
@@ -43,20 +46,22 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
-					if (!soundEditor.currentModControllable->stutterConfig.useSongStutter) {
-						soundDrum->stutterConfig.quantized = current_value;
+					if (!soundEditor.currentModControllable->effects().stutter.use_song_stutter) {
+						effectSettingFor(*soundDrum, "stutter/quantized",
+						                 deluge::serialization::Value::makeNumber(current_value ? 1 : 0));
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->stutterConfig.quantized = current_value;
+			effectSettingFor(*soundEditor.currentModControllable, "stutter/quantized",
+			                 deluge::serialization::Value::makeNumber(current_value ? 1 : 0));
 		}
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return soundEditor.currentModControllable->isSong()
-		       || !soundEditor.currentModControllable->stutterConfig.useSongStutter;
+		       || !soundEditor.currentModControllable->effects().stutter.use_song_stutter;
 	}
 };
 

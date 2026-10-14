@@ -16,10 +16,14 @@
  */
 #pragma once
 
-#include "dsp-next/core/generator.h"
-#include "dsp-next/fixed/bandlimited/waves.h" // square, triangle_half_scale
-#include "dsp-next/fixed/osc/sine_table.h"    // sine_table
+#include "dsp-next/core/concepts.h"
+#include "dsp-next/core/phasor.h"
+#include "dsp-next/core/types.h"
+#include "dsp-next/fixed/bandlimited/waves.h"  // square, triangle_half_scale
+#include "dsp-next/fixed/osc/sine_table.h"     // sine_table
+#include "dsp-next/fixed/sync/synced_phasor.h" // SyncedPhasor
 #include <cstdint>
+#include <type_traits>
 
 namespace deluge::dsp::fixed {
 
@@ -37,13 +41,19 @@ namespace deluge::dsp::fixed {
 /// value the crude VCA, @ref CrudeAmplitude, consumes); the un-amplified path scales it by a
 /// single per-wave shift (saw/square >> 1, triangle << 1). phase() reads the phase back (for
 /// the synced arms to store per voice).
+///
+/// Each is a plain @ref block_generator with no vptr. The arithmetic is per sample, but each keeps a hand-written
+/// block loop rather than a scalar `render()` under the @ref Generator mixin; giving them `render()` is a
+/// follow-up. Runtime selection goes through @ref AsBlock.
 
 /// @brief Crude sawtooth: the phase ramp itself is the wave.
 template <typename Phase>
-class [[gnu::hot]] CrudeSaw : public BlockGenerator<q31> {
+class [[gnu::hot]] CrudeSaw {
 	Phase phasor_;
 
 public:
+	using value_type = q31; ///< Full-scale q31 wave samples.
+
 	explicit CrudeSaw(Phase phasor) : phasor_{phasor} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
@@ -54,7 +64,8 @@ public:
 		phasor_.setIncrement(increments...);
 	}
 
-	void renderBlock(Buffer output) override {
+	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
+	void renderBlock(Buffer output) {
 		for (q31& sample : output) {
 			sample = static_cast<int32_t>(phasor_.advance());
 		}
@@ -62,15 +73,21 @@ public:
 };
 template <typename Phase>
 CrudeSaw(Phase) -> CrudeSaw<Phase>;
+static_assert(block_generator<CrudeSaw<Phasor>>, "a crude saw fills a block");
+static_assert(!std::is_polymorphic_v<CrudeSaw<Phasor>>, "a crude saw fills a block without a vptr");
+static_assert(block_generator<CrudeSaw<SyncedPhasor>>, "a crude saw fills a block");
+static_assert(!std::is_polymorphic_v<CrudeSaw<SyncedPhasor>>, "a crude saw fills a block without a vptr");
 
 /// @brief Crude square: a hard switch at the pulse-width threshold (the width also makes it a
 /// (non-band-limited) pulse wave). @p pulse_width is the threshold phase passed to square().
 template <typename Phase>
-class [[gnu::hot]] CrudeSquare : public BlockGenerator<q31> {
+class [[gnu::hot]] CrudeSquare {
 	Phase phasor_;
 	uint32_t pulse_width_;
 
 public:
+	using value_type = q31; ///< Full-scale q31 wave samples.
+
 	CrudeSquare(Phase phasor, uint32_t pulse_width) : phasor_{phasor}, pulse_width_{pulse_width} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
@@ -81,7 +98,8 @@ public:
 		phasor_.setIncrement(increments...);
 	}
 
-	void renderBlock(Buffer output) override {
+	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
+	void renderBlock(Buffer output) {
 		for (q31& sample : output) {
 			sample = square(phasor_.advance(), pulse_width_);
 		}
@@ -89,13 +107,19 @@ public:
 };
 template <typename Phase>
 CrudeSquare(Phase, uint32_t) -> CrudeSquare<Phase>;
+static_assert(block_generator<CrudeSquare<Phasor>>, "a crude square fills a block");
+static_assert(!std::is_polymorphic_v<CrudeSquare<Phasor>>, "a crude square fills a block without a vptr");
+static_assert(block_generator<CrudeSquare<SyncedPhasor>>, "a crude square fills a block");
+static_assert(!std::is_polymorphic_v<CrudeSquare<SyncedPhasor>>, "a crude square fills a block without a vptr");
 
 /// @brief Crude triangle.
 template <typename Phase>
-class [[gnu::hot]] CrudeTriangle : public BlockGenerator<q31> {
+class [[gnu::hot]] CrudeTriangle {
 	Phase phasor_;
 
 public:
+	using value_type = q31; ///< Full-scale q31 wave samples.
+
 	explicit CrudeTriangle(Phase phasor) : phasor_{phasor} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
@@ -106,7 +130,8 @@ public:
 		phasor_.setIncrement(increments...);
 	}
 
-	void renderBlock(Buffer output) override {
+	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
+	void renderBlock(Buffer output) {
 		for (q31& sample : output) {
 			sample = triangle_half_scale(phasor_.advance());
 		}
@@ -114,14 +139,20 @@ public:
 };
 template <typename Phase>
 CrudeTriangle(Phase) -> CrudeTriangle<Phase>;
+static_assert(block_generator<CrudeTriangle<Phasor>>, "a crude triangle fills a block");
+static_assert(!std::is_polymorphic_v<CrudeTriangle<Phasor>>, "a crude triangle fills a block without a vptr");
+static_assert(block_generator<CrudeTriangle<SyncedPhasor>>, "a crude triangle fills a block");
+static_assert(!std::is_polymorphic_v<CrudeTriangle<SyncedPhasor>>, "a crude triangle fills a block without a vptr");
 
 /// @brief Crude sine: the @ref sine_table LUT evaluated at the running phase. The cheap, non-band-limited
 /// sine — full-scale, the same value the LFO/envelope read, but here as a free-running owned-phasor oscillator.
 template <typename Phase>
-class [[gnu::hot]] CrudeSine : public BlockGenerator<q31> {
+class [[gnu::hot]] CrudeSine {
 	Phase phasor_;
 
 public:
+	using value_type = q31; ///< Full-scale q31 wave samples.
+
 	explicit CrudeSine(Phase phasor) : phasor_{phasor} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
@@ -132,7 +163,8 @@ public:
 		phasor_.setIncrement(increments...);
 	}
 
-	void renderBlock(Buffer output) override {
+	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
+	void renderBlock(Buffer output) {
 		for (q31& sample : output) {
 			sample = sine_table.value(phasor_.advance());
 		}
@@ -140,5 +172,9 @@ public:
 };
 template <typename Phase>
 CrudeSine(Phase) -> CrudeSine<Phase>;
+static_assert(block_generator<CrudeSine<Phasor>>, "a crude sine fills a block");
+static_assert(!std::is_polymorphic_v<CrudeSine<Phasor>>, "a crude sine fills a block without a vptr");
+static_assert(block_generator<CrudeSine<SyncedPhasor>>, "a crude sine fills a block");
+static_assert(!std::is_polymorphic_v<CrudeSine<SyncedPhasor>>, "a crude sine fills a block without a vptr");
 
 } // namespace deluge::dsp::fixed

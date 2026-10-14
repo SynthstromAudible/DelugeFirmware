@@ -18,7 +18,6 @@
 
 #include "definitions_cxx.hpp" // kInterpolationMaxNumSamples
 #include <argon.hpp>
-#include <array>
 #include <cstddef>
 #include <cstdint>
 
@@ -27,8 +26,21 @@ namespace deluge::dsp::fixed {
 /// Number of 8-lane int16 vectors that hold one interpolation window (kInterpolationMaxNumSamples taps).
 inline constexpr std::size_t kSincWindowVectors = kInterpolationMaxNumSamples / Argon<int16_t>::lanes;
 
-/// One interpolation window — the @ref kInterpolationMaxNumSamples samples to weight, as int16 vectors.
-using SincWindow = std::array<Argon<int16_t>, kSincWindowVectors>;
+/// @brief One interpolation window: the @ref kInterpolationMaxNumSamples samples to weight, as int16 vectors.
+/// @details A built-in array behind an always-inline `operator[]`, not `std::array`: the window is indexed on the
+/// per-sample path of the wavetable oscillators, which build in app translation units, and there
+/// `std::array::operator[]` is an out-of-line call under `-fno-inline-functions`. Built by aggregate initialisation,
+/// vector 0 first.
+struct SincWindow {
+	// A built-in array, not std::array: see the @details above.
+	// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+	Argon<int16_t> vectors[kSincWindowVectors];
+
+	/// @brief Vector @p i, less than @ref kSincWindowVectors.
+	[[nodiscard, gnu::always_inline]] Argon<int16_t>& operator[](std::size_t i) { return vectors[i]; }
+	/// @brief Vector @p i, less than @ref kSincWindowVectors.
+	[[nodiscard, gnu::always_inline]] const Argon<int16_t>& operator[](std::size_t i) const { return vectors[i]; }
+};
 
 /// @brief Position a windowed-sinc kernel to sub-sample accuracy (argon).
 ///
@@ -58,7 +70,7 @@ using SincWindow = std::array<Argon<int16_t>, kSincWindowVectors>;
 /// @returns the interpolated sample (the dot product of @p kernel with @p samples).
 ///
 /// Split from @ref blend_sinc_kernel so a stereo consumer can blend the kernel once and apply it to
-/// both channels (the legacy sample Interpolator does exactly this). `MultiplyAddLong` is `vmlal`,
+/// both channels (as the sample-playback Interpolator does). `MultiplyAddLong` is `vmlal`,
 /// `ReduceAdd` the final horizontal add.
 [[gnu::always_inline]] inline int32_t windowed_sinc_dot(const SincWindow& kernel, const SincWindow& samples) {
 	Argon<int32_t> accumulated = 0;
@@ -77,7 +89,7 @@ using SincWindow = std::array<Argon<int16_t>, kSincWindowVectors>;
 /// @param samples the window to weight.
 /// @returns the interpolated sample.
 ///
-/// Bit-identical to the legacy hand-written NEON — a sinc_interpolation_spec pins it against a
+/// Bit-identical to a hand-written NEON implementation; sinc_interpolation_spec pins it against a
 /// raw-NEON reference.
 [[gnu::always_inline]] inline int32_t windowed_sinc_apply(const int16_t* kernel_row, int16_t row_blend,
                                                           const SincWindow& samples) {

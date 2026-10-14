@@ -16,6 +16,7 @@
  */
 
 #include "scenarios/recorder_take_scenario.h"
+#include "scenarios/slot_coherence.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
@@ -183,7 +184,7 @@ int64_t leasesOn(const std::string& path) {
 
 /// The clip view in front of the song's first clip, with the clip's synth set back to an oscillator.
 bool frontClip(const char* marker) {
-	g_clip = currentSong->sessionClips.empty() ? nullptr : currentSong->sessionClips[0];
+	g_clip = currentSong->live.clips.session_clips.empty() ? nullptr : currentSong->live.clips.session_clips[0];
 	if (g_clip == nullptr || g_clip->output == nullptr || g_clip->output->type != OutputType::SYNTH) {
 		fail(marker, "the song has no synth clip to record into");
 		return false;
@@ -384,6 +385,8 @@ void stepMidiEnding() {
 	else if (frames == 0 || sample->filePath.rfind("SAMPLES/RECORD/", 0) != 0) {
 		fail("RT-ATTACH", "the attached sample is empty or not a recording");
 	}
+	// The take is the source's sample now, in its record and slot as well as at runtime.
+	g_failures += deluge::harness::expectSongCoherent(*currentSong, "take");
 	if (playbackHandler.isEitherClockActive()) {
 		playbackHandler.endPlayback();
 	}
@@ -543,7 +546,7 @@ void stepReplacedRun() {
 
 /// Whether @p output is on the song's hibernation list: alive, and out of the song.
 bool hibernating(const Output* output) {
-	for (Output* o = currentSong->firstHibernatingInstrument; o != nullptr; o = o->next) {
+	for (Output* o = currentSong->live.media.first_hibernating_instrument; o != nullptr; o = o->next) {
 		if (o == output) {
 			return true;
 		}

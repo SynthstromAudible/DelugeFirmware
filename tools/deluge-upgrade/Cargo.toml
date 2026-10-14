@@ -1,0 +1,16 @@
+# The Deluge file upgrader: converts a song or preset any firmware wrote into the firmware's current JSON form, so the
+# firmware reads only what the latest releases write.
+[package]
+name = "deluge-upgrade"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "GPL-3.0-or-later"
+
+[dependencies]
+thiserror = "2"
+# The firmware's own WAV/AIFF header decoding, for the sample lengths and rates a zone in milliseconds needs.
+deluge_audio_format = { path = "../../crates/deluge_audio_format" }
+
+# A desktop tool, built on its own: not a member of the firmware's Rust workspaces.
+[workspace]

@@ -33,6 +33,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/multi_range.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -1028,7 +1029,8 @@ void SampleBrowser::autoDetectSideChainSending(SoundDrum* drum, Source* source, 
 
 	// If this looks like a kick, make it send to sidechain. Otherwise, no change
 	if (source->repeatMode == SampleRepeatMode::ONCE && (strcasestr(fileName, "kick") || strcasestr(fileName, "bd"))) {
-		drum->sideChainSendLevel = 2147483647;
+		deluge::gui::menu_item::settingFor(*drum, "sideChainSend",
+		                                   deluge::serialization::Value::makeNumber(2147483647));
 	}
 }
 
@@ -1044,7 +1046,7 @@ void SampleBrowser::audioFileIsNowSet() {
 
 	// Reset osc volume, if it's not automated and was at 0. Wait but that will only do it for the current
 	// ParamManager... there could be other ones...
-	if (!modelStackWithParam->autoParam->containsSomething(-2147483648)) {
+	if (!modelStackWithParam->autoParam->containsSomething(*modelStackWithParam->doc(), -2147483648)) {
 		modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
 
 		// Hmm crap, we probably still do need to notify...

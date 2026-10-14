@@ -44,7 +44,7 @@ public:
 		// if you want to unlink a definition file, just clear the definition file name
 		else {
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
-			midiInstrument->deviceDefinitionFileName.clear();
+			midiInstrument->setDeviceDefinitionFileName("");
 		}
 	}
 

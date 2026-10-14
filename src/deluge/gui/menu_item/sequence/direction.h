@@ -68,7 +68,7 @@ public:
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			this->setValue(modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode);
+			this->setValue(modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode());
 		}
 		else {
 			this->setValue(getCurrentInstrumentClip()->sequenceDirectionMode);

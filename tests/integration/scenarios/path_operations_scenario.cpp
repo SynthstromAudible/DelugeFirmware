@@ -59,7 +59,7 @@ public:
 	/// that finds the exact file swaps in a new name and leaves nothing selected.
 	static bool openSaveBrowserOn(const char* dir) {
 		changeRootUI(&arrangerView);
-		currentSong->dirPath = dir;
+		currentSong->project.metadata.dir_path = dir;
 		return openUI(&saveSongUI);
 	}
 	/// Tick the browser while its listing runs, and say whether it still is. Nothing else in the headless harness ticks
@@ -547,7 +547,7 @@ void runTick() {
 
 	case Stage::DeleteOpen:
 		g_deleteTicks = 0;
-		g_songDirBefore = currentSong->dirPath;
+		g_songDirBefore = currentSong->project.metadata.dir_path;
 		if (!PathOperationsBrowserProbe::openSaveBrowserOn(kDeleteDir)) {
 			printf("PO-DELETE FAIL fixture: the save browser did not open\n");
 			g_failures++;
@@ -759,7 +759,7 @@ void runTick() {
 		if (getCurrentUI() == &saveSongUI) {
 			saveSongUI.close();
 		}
-		currentSong->dirPath = g_songDirBefore;
+		currentSong->project.metadata.dir_path = g_songDirBefore;
 		g_stage = Stage::Report;
 		break;
 

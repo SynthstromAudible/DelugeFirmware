@@ -16,11 +16,12 @@
  */
 
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include "ModFXProcessor.h"
 #include "definitions_cxx.hpp"
-#include "deluge/dsp/granular/GranularProcessor.h"
+#include "deluge-project/param_automation.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "dsp/stereo_sample.h"
+#include "engines/deluge/sound_state.h"
+#include "engines/effects/codec.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
@@ -32,400 +33,310 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_takeover.h"
 #include "mem_functions.h"
+#include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
+#include "memory/stack_guard.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/change_effect.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
+#include "model/fx/song_stutter.h"
+#include "model/mod_controllable/delay_arena_app.h"
+#include "model/mod_controllable/delay_type.h"
+#include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/param_projection.h"
+#include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
 #include "modulation/knob.h"
 #include "modulation/params/param_set.h"
+#include "modulation/sidechain/sidechain.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
+#include "util/structural_edit_probe.h"
 #include <algorithm>
 
 namespace params = deluge::modulation::params;
 
-extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
-
 ModControllableAudio::ModControllableAudio() {
-
-	// Grain
-
-	// EQ
-	withoutTrebleL = 0;
-	bassOnlyL = 0;
-	withoutTrebleR = 0;
-	bassOnlyR = 0;
-
-	// Filters
-	lpfMode = FilterMode::TRANSISTOR_24DB;
-	hpfMode = FilterMode::HPLADDER;
-	filterRoute = FilterRoute::HIGH_TO_LOW;
-
-	// Sample rate reduction
-	sampleRateReductionOnLastTime = false;
-
-	// Saturation
-	clippingAmount = 0;
-
 	SyncLevel syncLevel;
 	Song* song = preLoadedSong;
 	if (!song) {
 		song = currentSong;
 	}
 	if (song) {
-		syncLevel = (SyncLevel)(8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
+		syncLevel = (SyncLevel)(8
+		                        - (song->project.transport.inside_world_tick_magnitude
+		                           + song->project.transport.inside_world_tick_magnitude_offset_from_bpm));
 	}
 	else {
 		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
 	}
-	delay.syncLevel = syncLevel;
+	ownEffects_.delay.sync_level = syncLevel;
+	ownEffects_.sidechain = deluge::modulation::default_sidechain_state();
+	modControllableSnapshot_.effects = ownEffects_; // nothing renders this owner yet
 }
 
 ModControllableAudio::~ModControllableAudio() {
-	// delay.discardBuffers(); // No! The DelayBuffers will themselves destruct and do this
-	delete grainFX;
+	// An owner deleted while it stutters ends the stutter, so no later owner at its address plays the tape.
+	if (currentSong != nullptr && currentSong->live.stutter.isStuttering(*this)) {
+		currentSong->live.stutter.end();
+		currentSong->live.stutter.clearSnap();
+		exitUIMode(UI_MODE_STUTTERING);
+	}
+}
+
+void ModControllableAudio::releaseChainMemory() {
+	deluge::effects::Delay& delay = core().delay();
+	deluge::effects::DelayChange change = delay.prepare(deluge::effects::DelayType::OFF);
+	{
+		AudioExcludedSection section; // the render takes from the arena
+		delay.commit(deluge::effects::DelayType::OFF, change);
+		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
+	}
+	delay.finish(change);
 }
 
 void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
-	lpfMode = other->lpfMode;
-	hpfMode = other->hpfMode;
-	clippingAmount = other->clippingAmount;
-	modFXType_ = other->modFXType_;
-	bassFreq = other->bassFreq; // Eventually, these shouldn't be variables like this
-	trebleFreq = other->trebleFreq;
-	filterRoute = other->filterRoute;
-	sidechain.cloneFrom(&other->sidechain);
+	// A clone takes the other's filters, saturation, mod-FX, sidechain, delay and stutter; it keeps its own
+	// compressor.
+	const deluge::effects::EffectStates& from = other->effects();
+	deluge::effects::EffectStates next = effects();
+	next.filter = from.filter;
+	next.saturation = from.saturation;
+	next.mod_fx = from.mod_fx;
+	next.sidechain = from.sidechain;
+	next.delay = from.delay;
+	next.stutter = from.stutter;
+	setEffects(next);
+	core().equalizer().copy_coefficients_from(other->core().equalizer());
 	midi_knobs = other->midi_knobs; // Could fail if no RAM... not too big a concern
-	delay = other->delay;
-	stutterConfig = other->stutterConfig;
 }
 
 void ModControllableAudio::initParams(ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->params[params::UNPATCHED_BASS].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_TREBLE].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_BASS_FREQ].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_TREBLE_FREQ].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_BASS].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_BASS), 0);
+	unpatchedParams->params[params::UNPATCHED_TREBLE].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_TREBLE), 0);
+	unpatchedParams->params[params::UNPATCHED_BASS_FREQ].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_BASS_FREQ), 0);
+	unpatchedParams->params[params::UNPATCHED_TREBLE_FREQ].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_TREBLE_FREQ), 0);
 
-	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_NOTE_PROBABILITY].setCurrentValueBasicForSetup(2147483647);
-	unpatchedParams->params[params::UNPATCHED_ARP_BASS_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SWAP_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_GLIDE_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_REVERSE_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_POLYPHONY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RHYTHM].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_SPREAD_VELOCITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_GATE].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_GATE), 0);
+	unpatchedParams->params[params::UNPATCHED_NOTE_PROBABILITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_NOTE_PROBABILITY), 2147483647);
+	unpatchedParams->params[params::UNPATCHED_ARP_BASS_PROBABILITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_BASS_PROBABILITY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SWAP_PROBABILITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SWAP_PROBABILITY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_GLIDE_PROBABILITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_GLIDE_PROBABILITY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_REVERSE_PROBABILITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_REVERSE_PROBABILITY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_PROBABILITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_CHORD_PROBABILITY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_RATCHET_PROBABILITY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_RATCHET_AMOUNT), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SEQUENCE_LENGTH), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_POLYPHONY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_CHORD_POLYPHONY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_RHYTHM].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_RHYTHM), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_SPREAD_VELOCITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_SPREAD_VELOCITY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_GATE].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SPREAD_GATE), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SPREAD_OCTAVE), -2147483648);
 
-	Stutterer::initParams(paramManager);
+	deluge::model::initStutterParams(paramManager);
 
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_OFFSET].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_MOD_FX_OFFSET].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_OFFSET), 0);
+	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_FEEDBACK), 0);
 
-	unpatchedParams->params[params::UNPATCHED_SAMPLE_RATE_REDUCTION].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_SAMPLE_RATE_REDUCTION].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_SAMPLE_RATE_REDUCTION), -2147483648);
 
-	unpatchedParams->params[params::UNPATCHED_BITCRUSHING].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_BITCRUSHING].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_BITCRUSHING), -2147483648);
 
-	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(-601295438);
-	unpatchedParams->params[params::UNPATCHED_COMPRESSOR_THRESHOLD].setCurrentValueBasicForSetup(0);
-}
-
-bool ModControllableAudio::hasBassAdjusted(ParamManager* paramManager) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(params::UNPATCHED_BASS) != 0);
-}
-
-bool ModControllableAudio::hasTrebleAdjusted(ParamManager* paramManager) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(params::UNPATCHED_TREBLE) != 0);
-}
-
-void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate,
-                                     int32_t modFXDepth, const Delay::State& delayWorkingState, int32_t* postFXVolume,
-                                     ParamManager* paramManager, bool anySoundComingIn, q31_t reverbSendAmount) {
-
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	// Mod FX -----------------------------------------------------------------------------------
-	if (modFXType == ModFXType::GRAIN) {
-		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, anySoundComingIn,
-		               reverbSendAmount);
-	}
-	else {
-		modfx.processModFX(buffer, modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams, anySoundComingIn);
-	}
-
-	// EQ -------------------------------------------------------------------------------------
-	bool thisDoBass = hasBassAdjusted(paramManager);
-	bool thisDoTreble = hasTrebleAdjusted(paramManager);
-
-	// Bass. No-change represented by 0. Off completely represented by -536870912
-	int32_t positive = (unpatchedParams->getValue(params::UNPATCHED_BASS) >> 1) + 1073741824;
-	int32_t bassAmount = (multiply_32x32_rshift32_rounded(positive, positive) << 1) - 536870912;
-
-	// Treble. No-change represented by 536870912
-	positive = (unpatchedParams->getValue(params::UNPATCHED_TREBLE) >> 1) + 1073741824;
-	int32_t trebleAmount = multiply_32x32_rshift32_rounded(positive, positive) << 1;
-
-	if (thisDoBass || thisDoTreble) {
-
-		if (thisDoBass) {
-			bassFreq = getExp(120000000, (unpatchedParams->getValue(params::UNPATCHED_BASS_FREQ) >> 5) * 6);
-		}
-
-		if (thisDoTreble) {
-			trebleFreq = getExp(700000000, (unpatchedParams->getValue(params::UNPATCHED_TREBLE_FREQ) >> 5) * 6);
-		}
-
-		for (StereoSample& sample : buffer) {
-			doEQ(thisDoBass, thisDoTreble, &sample.l, &sample.r, bassAmount, trebleAmount);
-		}
-	}
-
-	// Delay ----------------------------------------------------------------------------------
-	delay.process(buffer, delayWorkingState);
-}
-void ModControllableAudio::processGrainFX(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth,
-                                          int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-                                          bool anySoundComingIn, q31_t verbAmount) {
-	// this shouldn't be possible but just in case
-	if (anySoundComingIn && !grainFX) [[unlikely]] {
-		enableGrain();
-	}
-
-	if (grainFX) {
-		int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(*postFXVolume, verbAmount) << 5;
-		grainFX->processGrainFX(buffer, modFXRate, modFXDepth,
-		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET),
-		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK), postFXVolume,
-		                        anySoundComingIn, currentSong->calculateBPM(), reverbSendAmountAndPostFXVolume);
-	}
-}
-
-void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* reverbBuffer,
-                                                      int32_t postFXVolume, int32_t postReverbVolume,
-                                                      int32_t reverbSendAmount, int32_t pan,
-                                                      bool doAmplitudeIncrement) {
-
-	int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(postFXVolume, reverbSendAmount) << 5;
-
-	int32_t postFXAndReverbVolumeL, postFXAndReverbVolumeR, amplitudeIncrementL, amplitudeIncrementR;
-	postFXAndReverbVolumeL = postFXAndReverbVolumeR = (multiply_32x32_rshift32(postReverbVolume, postFXVolume) << 5);
-
-	// The amplitude increment applies to the post-FX volume. We want to have it just so that we can respond better to
-	// sidechain volume ducking, which is done through post-FX volume.
-	if (doAmplitudeIncrement) {
-		auto postReverbSendVolumeIncrement =
-		    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)buffer.size());
-		amplitudeIncrementL = amplitudeIncrementR =
-		    (multiply_32x32_rshift32(postFXVolume, postReverbSendVolumeIncrement) << 5);
-	}
-
-	if (pan != 0 && AudioEngine::renderInStereo) {
-		// Set up panning
-		int32_t amplitudeL;
-		int32_t amplitudeR;
-		shouldDoPanning(pan, &amplitudeL, &amplitudeR);
-
-		postFXAndReverbVolumeL = multiply_32x32_rshift32(postFXAndReverbVolumeL, amplitudeL) << 2;
-		postFXAndReverbVolumeR = multiply_32x32_rshift32(postFXAndReverbVolumeR, amplitudeR) << 2;
-
-		amplitudeIncrementL = multiply_32x32_rshift32(amplitudeIncrementL, amplitudeL) << 2;
-		amplitudeIncrementR = multiply_32x32_rshift32(amplitudeIncrementR, amplitudeR) << 2;
-	}
-
-	for (StereoSample& sample : buffer) {
-		// Send to reverb
-		if (reverbSendAmount != 0) {
-			*(reverbBuffer++) += multiply_32x32_rshift32(sample.l + sample.r, reverbSendAmountAndPostFXVolume) << 1;
-		}
-
-		if (doAmplitudeIncrement) {
-			postFXAndReverbVolumeL += amplitudeIncrementL;
-			postFXAndReverbVolumeR += amplitudeIncrementR;
-		}
-
-		// Apply post-fx and post-reverb-send volume
-		sample.l = multiply_32x32_rshift32(sample.l, postFXAndReverbVolumeL) << 5;
-		sample.r = multiply_32x32_rshift32(sample.r, postFXAndReverbVolumeR) << 5;
-	}
-
-	// We've generated some sound. If reverb is happening, make note
-	if (reverbSendAmount != 0) {
-		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
-	}
-	postReverbVolumeLastTime = postReverbVolume;
-}
-
-bool ModControllableAudio::isBitcrushingEnabled(ParamManager* paramManager) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(params::UNPATCHED_BITCRUSHING) >= -2113929216);
-}
-
-bool ModControllableAudio::isSRREnabled(ParamManager* paramManager) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION) != -2147483648);
-}
-
-void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume,
-                                                    ParamManager* paramManager) {
-	uint32_t bitCrushMaskForSRR = 0xFFFFFFFF;
-
-	bool srrEnabled = isSRREnabled(paramManager);
-
-	// Bitcrushing ------------------------------------------------------------------------------
-	if (isBitcrushingEnabled(paramManager)) {
-		uint32_t positivePreset =
-		    (paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_BITCRUSHING) + 2147483648) >> 29;
-		if (positivePreset > 4) {
-			*postFXVolume >>= (positivePreset - 4);
-		}
-
-		// If not also doing SRR
-		if (!srrEnabled) {
-			uint32_t mask = 0xFFFFFFFF << (19 + (positivePreset));
-			for (StereoSample& sample : buffer) {
-				sample.l &= mask;
-				sample.r &= mask;
-			}
-		}
-
-		else {
-			bitCrushMaskForSRR = 0xFFFFFFFF << (18 + (positivePreset));
-		}
-	}
-
-	// Sample rate reduction -------------------------------------------------------------------------------------
-	if (srrEnabled) {
-
-		// Set up for first time
-		if (!sampleRateReductionOnLastTime) {
-			sampleRateReductionOnLastTime = true;
-			lastSample.l = lastSample.r = 0;
-			grabbedSample.l = grabbedSample.r = 0;
-			lowSampleRatePos = 0;
-		}
-
-		// This function, slightly unusually, uses 22 bits to represent "1". That's 4194304. I tried using 24, but stuff
-		// started clipping off where I needed it if sample rate too low
-
-		uint32_t positivePreset =
-		    paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION) + 2147483648;
-		int32_t lowSampleRateIncrement = getExp(4194304, (positivePreset >> 3));
-		int32_t highSampleRateIncrement = ((uint32_t)0xFFFFFFFF / (lowSampleRateIncrement >> 6)) << 6;
-		// int32_t highSampleRateIncrement = getExp(4194304, -(int32_t)(positivePreset >> 3)); // This would work too
-
-		for (StereoSample& sample : buffer) {
-			// Convert down.
-			// If time to "grab" another sample for down-conversion...
-			if (lowSampleRatePos < 4194304) {
-				int32_t strength2 = lowSampleRatePos;
-				int32_t strength1 = 4194303 - strength2;
-
-				lastGrabbedSample = grabbedSample; // What was current is now last
-				grabbedSample.l = multiply_32x32_rshift32_rounded(lastSample.l, strength1 << 9)
-				                  + multiply_32x32_rshift32_rounded(sample.l, strength2 << 9);
-				grabbedSample.r = multiply_32x32_rshift32_rounded(lastSample.r, strength1 << 9)
-				                  + multiply_32x32_rshift32_rounded(sample.r, strength2 << 9);
-				grabbedSample.l &= bitCrushMaskForSRR;
-				grabbedSample.r &= bitCrushMaskForSRR;
-
-				// Set the "time" at which we want to "grab" our next sample for down-conversion.
-				lowSampleRatePos += lowSampleRateIncrement;
-
-				// "Re-sync" the up-conversion spinner.
-				// I previously had it using strength2 instead of "lowSampleRatePos & 16777215", but that just works
-				// better. Ah, writing the massive explanation would take ages.
-				highSampleRatePos =
-				    multiply_32x32_rshift32_rounded(lowSampleRatePos & 4194303, highSampleRateIncrement << 8) << 2;
-			}
-			lowSampleRatePos -= 4194304; // We're one step closer to grabbing our next sample for down-conversion
-			lastSample = sample;
-
-			// Convert up
-			// Would only overshoot if we raised the sample rate during playback
-			int32_t strength2 = std::min(highSampleRatePos, (uint32_t)4194303);
-			int32_t strength1 = 4194303 - strength2;
-			sample.l = (multiply_32x32_rshift32_rounded(lastGrabbedSample.l, strength1 << 9)
-			            + multiply_32x32_rshift32_rounded(grabbedSample.l, strength2 << 9))
-			           << 2;
-			sample.r = (multiply_32x32_rshift32_rounded(lastGrabbedSample.r, strength1 << 9)
-			            + multiply_32x32_rshift32_rounded(grabbedSample.r, strength2 << 9))
-			           << 2;
-
-			highSampleRatePos += highSampleRateIncrement;
-		}
-	}
-	else {
-		sampleRateReductionOnLastTime = false;
-	}
-}
-
-inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount,
-                                       int32_t trebleAmount) {
-	int32_t trebleOnlyL;
-	int32_t trebleOnlyR;
-
-	if (doTreble) {
-		int32_t distanceToGoL = *inputL - withoutTrebleL;
-		int32_t distanceToGoR = *inputR - withoutTrebleR;
-		withoutTrebleL += multiply_32x32_rshift32(distanceToGoL, trebleFreq) << 1;
-		withoutTrebleR += multiply_32x32_rshift32(distanceToGoR, trebleFreq) << 1;
-		trebleOnlyL = *inputL - withoutTrebleL;
-		trebleOnlyR = *inputR - withoutTrebleR;
-		*inputL = withoutTrebleL; // Input now has had the treble removed. Or is this bad?
-		*inputR = withoutTrebleR; // Input now has had the treble removed. Or is this bad?
-	}
-
-	if (doBass) {
-		int32_t distanceToGoL = *inputL - bassOnlyL;
-		int32_t distanceToGoR = *inputR - bassOnlyR;
-		bassOnlyL += multiply_32x32_rshift32(distanceToGoL, bassFreq); // 33554432
-		bassOnlyR += multiply_32x32_rshift32(distanceToGoR, bassFreq); // 33554432
-	}
-
-	if (doTreble) {
-		*inputL += (multiply_32x32_rshift32(trebleOnlyL, trebleAmount) << 3);
-		*inputR += (multiply_32x32_rshift32(trebleOnlyR, trebleAmount) << 3);
-	}
-	if (doBass) {
-		*inputL += (multiply_32x32_rshift32(bassOnlyL, bassAmount) << 3);
-		*inputR += (multiply_32x32_rshift32(bassOnlyR, bassAmount) << 3);
-	}
+	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_SIDECHAIN_SHAPE), -601295438);
+	unpatchedParams->params[params::UNPATCHED_COMPRESSOR_THRESHOLD].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_COMPRESSOR_THRESHOLD), 0);
 }
 
 void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
-	writer.writeAttribute("modFXType", (char*)fxTypeToString(modFXType_));
-	writer.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
-	writer.writeAttribute("filterRoute", (char*)filterRouteToString(filterRoute));
-	if (clippingAmount) {
-		writer.writeAttribute("clippingAmount", clippingAmount);
+	writeAttributesToFile(writer, effects());
+}
+
+void ModControllableAudio::writeAttributesToFile(Serializer& writer, const deluge::effects::EffectStates& states) {
+	writer.writeValue(deluge::effects::encode_pieces(states, effectsCodecContext()).attributes);
+}
+
+void ModControllableAudio::setEffects(const deluge::effects::EffectStates& next) {
+	if (boundEffects_ != nullptr) {
+		*boundEffects_ = next;
 	}
+	else {
+		ownEffects_ = next;
+	}
+	projectModControllableSnapshot();
+}
+
+void ModControllableAudio::bindEffects(deluge::effects::EffectStates* record) {
+	if (record != nullptr) {
+		*record = effects();
+	}
+	else if (boundEffects_ != nullptr) {
+		ownEffects_ = *boundEffects_;
+	}
+	boundEffects_ = record;
+	projectModControllableSnapshot();
+}
+
+void ModControllableAudio::projectModControllableSnapshot() {
+	const ModFXType type = effects().mod_fx.type;
+	deluge::effects::RingChange ring = core().mod_fx().prepare(type);
+	deluge::effects::GranularBlockChange grain = core().granular().prepare(type);
+	const deluge::effects::DelayType delayType = effects().delay.type;
+	const std::size_t delayReserve = (delayType != deluge::effects::DelayType::OFF && currentSong != nullptr)
+	                                     ? deluge::model::delayReserveFrames(*currentSong, *this)
+	                                     : 0;
+	deluge::effects::DelayChange delayChange = core().delay().prepare(delayType);
+	{
+		AudioExcludedSection section; // the render reads the copy, the ring, the grain's blocks and the delay's arena
+		modControllableSnapshot_.effects = effects();
+		projectView(modControllableSnapshot_);
+		core().mod_fx().commit(modControllableSnapshot_.effects.mod_fx.type, ring);
+		deluge::noteStructuralEdit(deluge::StructuralContainer::MOD_FX_RING);
+		core().granular().commit(modControllableSnapshot_.effects.mod_fx.type, grain);
+		deluge::noteStructuralEdit(deluge::StructuralContainer::GRAIN_BLOCK);
+		core().delay().commit(delayType, delayChange, delayReserve);
+		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
+	}
+	core().delay().finish(delayChange);
+	core().granular().finish(grain);
+	core().mod_fx().finish(ring);
+}
+
+namespace {
+/// @p mode as a filter mode setting's Edit form: its file name.
+deluge::serialization::Value effectWord(FilterMode mode) {
+	return deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(mode)));
+}
+
+/// Makes @p owner's effect settings its current ones with @p change applied to them.
+template <class Change>
+void changeEffects(ModControllableAudio& owner, Change change) {
+	deluge::effects::EffectStates next = owner.effects();
+	change(next);
+	owner.setEffects(next);
+}
+} // namespace
+
+void ModControllableAudio::assignModFXType(ModFXType value) {
+	changeEffects(*this, [&](auto& e) { e.mod_fx.type = value; });
+}
+void ModControllableAudio::setClippingAmount(uint8_t value) {
+	changeEffects(*this, [&](auto& e) { e.saturation.clipping_amount = value; });
+}
+void ModControllableAudio::setLpfMode(FilterMode value) {
+	changeEffects(*this, [&](auto& e) { e.filter.lpf_mode = value; });
+}
+void ModControllableAudio::setHpfMode(FilterMode value) {
+	changeEffects(*this, [&](auto& e) { e.filter.hpf_mode = value; });
+}
+void ModControllableAudio::setFilterRoute(FilterRoute value) {
+	changeEffects(*this, [&](auto& e) { e.filter.route = value; });
+}
+void ModControllableAudio::setDelayPingPong(bool value) {
+	changeEffects(*this, [&](auto& e) { e.delay.ping_pong = value; });
+}
+void ModControllableAudio::setDelayType(deluge::effects::DelayType value) {
+	changeEffects(*this, [&](auto& e) { e.delay.type = value; });
+}
+void ModControllableAudio::setDelaySyncType(SyncType value) {
+	changeEffects(*this, [&](auto& e) { e.delay.sync_type = value; });
+}
+void ModControllableAudio::setDelaySyncLevel(SyncLevel value) {
+	changeEffects(*this, [&](auto& e) { e.delay.sync_level = value; });
+}
+void ModControllableAudio::setStutterQuantized(bool value) {
+	changeEffects(*this, [&](auto& e) { e.stutter.quantized = value; });
+}
+void ModControllableAudio::setStutterReversed(bool value) {
+	changeEffects(*this, [&](auto& e) { e.stutter.reversed = value; });
+}
+void ModControllableAudio::setStutterPingPong(bool value) {
+	changeEffects(*this, [&](auto& e) { e.stutter.ping_pong = value; });
+}
+void ModControllableAudio::setUseSongStutter(bool value) {
+	changeEffects(*this, [&](auto& e) { e.stutter.use_song_stutter = value; });
+}
+void ModControllableAudio::setSidechainAttack(int32_t value) {
+	changeEffects(*this, [&](auto& e) { e.sidechain.attack = value; });
+}
+void ModControllableAudio::setSidechainRelease(int32_t value) {
+	changeEffects(*this, [&](auto& e) { e.sidechain.release = value; });
+}
+void ModControllableAudio::setSidechainSyncType(SyncType value) {
+	changeEffects(*this, [&](auto& e) { e.sidechain.sync_type = value; });
+}
+void ModControllableAudio::setSidechainSyncLevel(SyncLevel value) {
+	changeEffects(*this, [&](auto& e) { e.sidechain.sync_level = value; });
+}
+void ModControllableAudio::setCompressorAttack(q31_t value) {
+	changeEffects(*this, [&](auto& e) { e.compressor.attack = value; });
+}
+void ModControllableAudio::setCompressorRelease(q31_t value) {
+	changeEffects(*this, [&](auto& e) { e.compressor.release = value; });
+}
+void ModControllableAudio::setCompressorThreshold(q31_t value) {
+	changeEffects(*this, [&](auto& e) { e.compressor.threshold = value; });
+}
+void ModControllableAudio::setCompressorRatio(q31_t value) {
+	changeEffects(*this, [&](auto& e) { e.compressor.ratio = value; });
+}
+void ModControllableAudio::setCompressorSidechainHpf(q31_t value) {
+	changeEffects(*this, [&](auto& e) { e.compressor.sidechain_hpf = value; });
+}
+void ModControllableAudio::setCompressorBlend(q31_t value) {
+	changeEffects(*this, [&](auto& e) { e.compressor.blend = value; });
 }
 
 void ModControllableAudio::writeTagsToFile(Serializer& writer) {
-	// Delay
-	writer.writeOpeningTagBeginning("delay");
-	writer.writeAttribute("pingPong", delay.pingPong);
-	writer.writeAttribute("analog", delay.analog);
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel, true);
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(currentSong, "syncType", delay.syncType, true);
-	writer.closeTag();
+	writeTagsToFile(writer, effects(), savedCompressorThreshold());
+}
 
+void ModControllableAudio::writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states,
+                                           std::optional<q31_t> compressorThreshold) {
+	const deluge::effects::EffectPieces pieces =
+	    deluge::effects::encode_pieces(states, effectsCodecContext(), compressorThreshold);
+	writer.writeValue(pieces.delay);
+	writeMidiKnobsToFile(writer);
+	writer.writeValue(pieces.tags);
+}
+
+deluge::engine::CodecContext ModControllableAudio::effectsCodecContext() {
+	return {.input_tick_magnitude = currentSong->getInputTickMagnitude()};
+}
+
+void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer) {
 	// MIDI knobs
 	if (midi_knobs.size() > 0) {
 		writer.writeArrayStart("midiKnobs");
@@ -455,264 +366,33 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 				writer.writeClosingTag("midiKnob", true, true);
 			}
 			else {
-				writer.closeTag();
+				writer.closeTag(true); // the knob is a boxed list item
 			}
 		}
 		writer.writeArrayEnding("midiKnobs");
 	}
-
-	// Sidechain (renamed from "compressor" from the official firmware)
-	writer.writeOpeningTagBeginning("sidechain");
-	writer.writeAttribute("attack", sidechain.attack);
-	writer.writeAttribute("release", sidechain.release);
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel, true);
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType, true);
-	writer.closeTag();
-
-	// Audio compressor (this section is all new so we write it at the end)
-	writer.writeOpeningTagBeginning("audioCompressor");
-	writer.writeAttribute("attack", compressor.getAttack());
-	writer.writeAttribute("release", compressor.getRelease());
-	writer.writeAttribute("thresh", compressor.getThreshold());
-	writer.writeAttribute("ratio", compressor.getRatio());
-	writer.writeAttribute("compHPF", compressor.getSidechain());
-	writer.writeAttribute("compBlend", compressor.getBlend());
-	writer.closeTag();
-
-	// Stutter
-	writer.writeOpeningTagBeginning("stutter");
-	writer.writeAttribute("quantized", stutterConfig.quantized);
-	writer.writeAttribute("reverse", stutterConfig.reversed);
-	writer.writeAttribute("pingPong", stutterConfig.pingPong);
-	writer.closeTag();
 }
 
 void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager,
                                                       bool writeAutomation, int32_t* valuesForOverride) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	unpatchedParams->writeParamAsAttribute(writer, "stutterRate", params::UNPATCHED_STUTTER_RATE, writeAutomation,
-	                                       false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "sampleRateReduction", params::UNPATCHED_SAMPLE_RATE_REDUCTION,
-	                                       writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "bitCrush", params::UNPATCHED_BITCRUSHING, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "modFXOffset", params::UNPATCHED_MOD_FX_OFFSET, writeAutomation,
-	                                       false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation,
-	                                       false, valuesForOverride);
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	unpatchedParams->writeParamAsAttribute(writer, "compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD,
-	                                       writeAutomation, false, valuesForOverride);
-
-	unpatchedParams->writeParamAsAttribute(writer, "arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "noteProbability", params::UNPATCHED_NOTE_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "bassProbability", params::UNPATCHED_ARP_BASS_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "swapProbability", params::UNPATCHED_ARP_SWAP_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "glideProbability", params::UNPATCHED_ARP_GLIDE_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "reverseProbability", params::UNPATCHED_REVERSE_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "chordProbability", params::UNPATCHED_ARP_CHORD_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "chordPolyphony", params::UNPATCHED_ARP_CHORD_POLYPHONY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "spreadVelocity", params::UNPATCHED_SPREAD_VELOCITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "spreadGate", params::UNPATCHED_ARP_SPREAD_GATE, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "spreadOctave", params::UNPATCHED_ARP_SPREAD_OCTAVE,
-	                                       writeAutomation);
+	// Serialize from the value DOM (deluge::project).
+	deluge::project::DocParamSet unpatched = deluge::bridge::toDocParamSet(*paramManager->getUnpatchedParamSet());
+	deluge::bridge::serializeModControllableParamAttributes(unpatched, writer, writeAutomation, valuesForOverride);
 }
 
 void ModControllableAudio::writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
                                                 int32_t* valuesForOverride) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	writer.writeOpeningTagBeginning("equalizer");
-	unpatchedParams->writeParamAsAttribute(writer, "bass", params::UNPATCHED_BASS, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "treble", params::UNPATCHED_TREBLE, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "bassFrequency", params::UNPATCHED_BASS_FREQ, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "trebleFrequency", params::UNPATCHED_TREBLE_FREQ, writeAutomation,
-	                                       false, valuesForOverride);
-	writer.closeTag();
+	deluge::project::DocParamSet unpatched = deluge::bridge::toDocParamSet(*paramManager->getUnpatchedParamSet());
+	deluge::bridge::serializeModControllableParamTags(unpatched, writer, writeAutomation, valuesForOverride);
 }
 
 bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const* tagName,
                                                 ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
+	// Read the shared param block from the value DOM (deluge::project). The MCA block has no legacy-only tag names.
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
-
-	if (!strcmp(tagName, "equalizer")) {
-		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "bass")) {
-				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_BASS,
-				                           readAutomationUpToPos);
-				reader.exitTag("bass");
-			}
-			else if (!strcmp(tagName, "treble")) {
-				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_TREBLE,
-				                           readAutomationUpToPos);
-				reader.exitTag("treble");
-			}
-			else if (!strcmp(tagName, "bassFrequency")) {
-				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_BASS_FREQ,
-				                           readAutomationUpToPos);
-				reader.exitTag("bassFrequency");
-			}
-			else if (!strcmp(tagName, "trebleFrequency")) {
-				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_TREBLE_FREQ,
-				                           readAutomationUpToPos);
-				reader.exitTag("trebleFrequency");
-			}
-		}
-		reader.exitTag("equalizer", true);
-	}
-
-	else if (!strcmp(tagName, "stutterRate")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_STUTTER_RATE,
-		                           readAutomationUpToPos);
-		reader.exitTag("stutterRate");
-	}
-
-	else if (!strcmp(tagName, "sampleRateReduction")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_SAMPLE_RATE_REDUCTION,
-		                           readAutomationUpToPos);
-		reader.exitTag("sampleRateReduction");
-	}
-
-	else if (!strcmp(tagName, "bitCrush")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_BITCRUSHING,
-		                           readAutomationUpToPos);
-		reader.exitTag("bitCrush");
-	}
-
-	else if (!strcmp(tagName, "modFXOffset")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_OFFSET,
-		                           readAutomationUpToPos);
-		reader.exitTag("modFXOffset");
-	}
-
-	else if (!strcmp(tagName, "modFXFeedback")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_FEEDBACK,
-		                           readAutomationUpToPos);
-		reader.exitTag("modFXFeedback");
-	}
-	else if (!strcmp(tagName, "compressorThreshold")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_COMPRESSOR_THRESHOLD,
-		                           readAutomationUpToPos);
-		reader.exitTag("compressorThreshold");
-	}
-
-	// Arpeggiator stuff
-
-	else if (!strcmp(tagName, "arpeggiatorGate")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_GATE, readAutomationUpToPos);
-		reader.exitTag("arpeggiatorGate");
-	}
-
-	else if (!strcmp(tagName, "ratchetAmount")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_AMOUNT,
-		                           readAutomationUpToPos);
-		reader.exitTag("ratchetAmount");
-	}
-
-	else if (!strcmp(tagName, "ratchetProbability")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("ratchetProbability");
-	}
-
-	else if (!strcmp(tagName, "chordPolyphony")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_CHORD_POLYPHONY,
-		                           readAutomationUpToPos);
-		reader.exitTag("chordPolyphony");
-	}
-
-	else if (!strcmp(tagName, "chordProbability")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_CHORD_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("chordProbability");
-	}
-
-	else if (!strcmp(tagName, "reverseProbability")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_REVERSE_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("reverseProbability");
-	}
-
-	else if (!strcmp(tagName, "bassProbability")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_BASS_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("bassProbability");
-	}
-
-	else if (!strcmp(tagName, "swapProbability")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SWAP_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("swapProbability");
-	}
-
-	else if (!strcmp(tagName, "glideProbability")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_GLIDE_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("glideProbability");
-	}
-
-	else if (!strcmp(tagName, "noteProbability")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_NOTE_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("noteProbability");
-	}
-
-	else if (!strcmp(tagName, "sequenceLength")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
-		                           readAutomationUpToPos);
-		reader.exitTag("sequenceLength");
-	}
-
-	else if (!strcmp(tagName, "rhythm")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
-		reader.exitTag("rhythm");
-	}
-
-	else if (!strcmp(tagName, "spreadVelocity")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_SPREAD_VELOCITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("spreadVelocity");
-	}
-
-	else if (!strcmp(tagName, "spreadGate")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_GATE,
-		                           readAutomationUpToPos);
-		reader.exitTag("spreadGate");
-	}
-
-	else if (!strcmp(tagName, "spreadOctave")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_OCTAVE,
-		                           readAutomationUpToPos);
-		reader.exitTag("spreadOctave");
-	}
-
-	else {
-		return false;
-	}
-
-	return true;
+	return deluge::bridge::readModControllableParamTag(reader, tagName, *unpatchedParams, *unpatchedParamsSummary,
+	                                                   readAutomationUpToPos);
 }
 
 // paramManager is optional
@@ -720,29 +400,8 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
                                             ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
                                             ArpeggiatorSettings* arpSettings, Song* song) {
 
-	int32_t p;
-
-	if (!strcmp(tagName, "lpfMode")) {
-		lpfMode = stringToLPFType(reader.readTagOrAttributeValue());
-		reader.exitTag("lpfMode");
-	}
-	else if (!strcmp(tagName, "hpfMode")) {
-		hpfMode = stringToLPFType(reader.readTagOrAttributeValue());
-		reader.exitTag("hpfMode");
-	}
-	else if (!strcmp(tagName, "filterRoute")) {
-		filterRoute = stringToFilterRoute(reader.readTagOrAttributeValue());
-		reader.exitTag("filterRoute");
-	}
-
-	else if (!strcmp(tagName, "clippingAmount")) {
-		clippingAmount = reader.readTagOrAttributeValueInt();
-		reader.exitTag("clippingAmount");
-	}
-
-	// Arpeggiator
-
-	else if (!strcmp(tagName, "arpeggiator") && arpSettings != nullptr) {
+	// An owner's effects are read from its element (the effects library's codec), not here.
+	if (!strcmp(tagName, "arpeggiator") && arpSettings != nullptr) {
 		// Set default values in case they are not configured
 		arpSettings->syncType = SYNC_TYPE_EVEN;
 		arpSettings->syncLevel = SYNC_LEVEL_NONE;
@@ -757,182 +416,38 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 		reader.exitTag("arpeggiator", true);
 	}
 
-	// Stutter
-
-	else if (!strcmp(tagName, "stutter")) {
-		// Set default values in case they are not configured
-		stutterConfig.useSongStutter = true;
-		stutterConfig.quantized = true;
-		stutterConfig.reversed = false;
-		stutterConfig.pingPong = false;
-		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "quantized")) {
-				int32_t contents = reader.readTagOrAttributeValueInt();
-				stutterConfig.quantized = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
-				reader.exitTag("quantized");
-			}
-			else if (!strcmp(tagName, "reverse")) {
-				int32_t contents = reader.readTagOrAttributeValueInt();
-				stutterConfig.reversed = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
-				reader.exitTag("reverse");
-			}
-			else if (!strcmp(tagName, "pingPong")) {
-				int32_t contents = reader.readTagOrAttributeValueInt();
-				stutterConfig.pingPong = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
-				reader.exitTag("pingPong");
-			}
-		}
-		reader.exitTag("stutter", true);
-	}
-
-	else if (!strcmp(tagName, "delay")) {
-		// Set default values in case they are not configured
-		delay.syncType = SYNC_TYPE_EVEN;
-		delay.syncLevel = SYNC_LEVEL_NONE;
-		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-
-			// These first two ensure compatibility with old files (pre late 2016 I think?)
-			if (!strcmp(tagName, "feedback")) {
-				p = params::GLOBAL_DELAY_FEEDBACK;
-doReadPatchedParam:
-				if (paramManager) {
-					if (!paramManager->containsAnyMainParamCollections()) {
-						Error error = Sound::createParamManagerForLoading(paramManager);
-						if (error != Error::NONE) {
-							return error;
-						}
-					}
-					ParamCollectionSummary* patchedParamsSummary = paramManager->getPatchedParamSetSummary();
-					PatchedParamSet* patchedParams = (PatchedParamSet*)patchedParamsSummary->paramCollection;
-					patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_DELAY_FEEDBACK,
-					                         readAutomationUpToPos);
-				}
-				reader.exitTag();
-			}
-			else if (!strcmp(tagName, "rate")) {
-				p = params::GLOBAL_DELAY_RATE;
-				goto doReadPatchedParam;
-			}
-
-			else if (!strcmp(tagName, "pingPong")) {
-				int32_t contents = reader.readTagOrAttributeValueInt();
-				delay.pingPong = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
-				reader.exitTag("pingPong");
-			}
-			else if (!strcmp(tagName, "analog")) {
-				int32_t contents = reader.readTagOrAttributeValueInt();
-				delay.analog = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
-				reader.exitTag("analog");
-			}
-			else if (!strcmp(tagName, "syncType")) {
-				delay.syncType = (SyncType)reader.readTagOrAttributeValueInt();
-				reader.exitTag("syncType");
-			}
-			else if (!strcmp(tagName, "syncLevel")) {
-				delay.syncLevel =
-				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
-				reader.exitTag("syncLevel");
-			}
-			else {
-				reader.exitTag(tagName);
-			}
-		}
-		reader.exitTag("delay", true);
-	}
-
-	else if (!strcmp(tagName, "audioCompressor")) {
-		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "attack")) {
-				q31_t masterCompressorAttack = reader.readTagOrAttributeValueInt();
-				compressor.setAttack(masterCompressorAttack);
-				reader.exitTag("attack");
-			}
-			else if (!strcmp(tagName, "release")) {
-				q31_t masterCompressorRelease = reader.readTagOrAttributeValueInt();
-				compressor.setRelease(masterCompressorRelease);
-				reader.exitTag("release");
-			}
-			else if (!strcmp(tagName, "thresh")) {
-				q31_t masterCompressorThresh = reader.readTagOrAttributeValueInt();
-				compressor.setThreshold(masterCompressorThresh);
-				reader.exitTag("thresh");
-			}
-			else if (!strcmp(tagName, "ratio")) {
-				q31_t masterCompressorRatio = reader.readTagOrAttributeValueInt();
-				compressor.setRatio(masterCompressorRatio);
-				reader.exitTag("ratio");
-			}
-			else if (!strcmp(tagName, "compHPF")) {
-				q31_t masterCompressorSidechain = reader.readTagOrAttributeValueInt();
-				compressor.setSidechain(masterCompressorSidechain);
-				reader.exitTag("compHPF");
-			}
-			else if (!strcmp(tagName, "compBlend")) {
-				q31_t masterCompressorBlend = reader.readTagOrAttributeValueInt();
-				compressor.setBlend(masterCompressorBlend);
-				reader.exitTag("compBlend");
-			}
-			else {
-				reader.exitTag(tagName);
-			}
-		}
-		reader.exitTag("audioCompressor", true);
-	}
-	// this is actually the sidechain but pre c1.1 songs save it as compressor
-	else if (!strcmp(tagName, "compressor") || !strcmp(tagName, "sidechain")) { // Remember, Song doesn't use this
-		// Set default values in case they are not configured
-		const char* name = tagName;
-		sidechain.syncType = SYNC_TYPE_EVEN;
-		sidechain.syncLevel = SYNC_LEVEL_NONE;
-
-		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "attack")) {
-				sidechain.attack = reader.readTagOrAttributeValueInt();
-				reader.exitTag("attack");
-			}
-			else if (!strcmp(tagName, "release")) {
-				sidechain.release = reader.readTagOrAttributeValueInt();
-				reader.exitTag("release");
-			}
-			else if (!strcmp(tagName, "syncType")) {
-				sidechain.syncType = (SyncType)reader.readTagOrAttributeValueInt();
-				reader.exitTag("syncType");
-			}
-			else if (!strcmp(tagName, "syncLevel")) {
-				sidechain.syncLevel =
-				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
-				reader.exitTag("syncLevel");
-			}
-			else {
-				reader.exitTag(tagName);
-			}
-		}
-		reader.exitTag(name, true);
-	}
-
 	else if (!strcmp(tagName, "midiKnobs")) {
 		reader.match('[');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (reader.match('{') && !strcmp(tagName, "midiKnob")) {
+		// Standard array-of-boxes idiom (mirrors the noteRows/clips loops): match('{') enters the box, the
+		// name is read, then the value object is entered. Reading the name before match('{') would rely on XML
+		// implicit descent and read nothing in JSON mode. match('{')/match('}') are no-ops in XML.
+		while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "midiKnob")) {
 
 				MIDICable* cable = nullptr;
-				uint8_t channel;
-				uint8_t ccNumber;
-				bool relative;
+				uint8_t channel = 0;
+				uint8_t ccNumber = 0;
+				bool relative = false;
 				uint8_t p = params::GLOBAL_NONE;
 				PatchSource s = PatchSource::NOT_AVAILABLE;
 				PatchSource s2 = PatchSource::NOT_AVAILABLE;
 
+				reader.match('{'); // enter the midiKnob value object
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "device")) {
 						cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
 					}
 					else if (!strcmp(tagName, "channel")) {
 						channel = reader.readTagOrAttributeValueInt();
+					}
+					else if (!strcmp(tagName, "mpeZone")) { // a knob learned on an MPE zone
+						const std::string_view zone = reader.readTagOrAttributeValue();
+						if (zone == "lower") {
+							channel = MIDI_CHANNEL_MPE_LOWER_ZONE;
+						}
+						else if (zone == "upper") {
+							channel = MIDI_CHANNEL_MPE_UPPER_ZONE;
+						}
 					}
 					else if (!strcmp(tagName, "ccNumber")) {
 						ccNumber = reader.readTagOrAttributeValueInt();
@@ -956,8 +471,7 @@ doReadPatchedParam:
 					}
 					reader.exitTag();
 				}
-				reader.match('}'); // close value object.
-				reader.match('}'); // close box.
+				reader.match('}'); // close the midiKnob value object.
 
 				if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
 					try {
@@ -988,7 +502,8 @@ doReadPatchedParam:
 					}
 				}
 			}
-			reader.exitTag();
+			reader.match('}'); // close the box.
+			reader.exitTag(nullptr, true);
 		}
 		reader.match(']'); // close array.
 		reader.exitTag("midiKnobs");
@@ -1039,7 +554,7 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 			paramManager = &modelStack->getTimelineCounter()->paramManager;
 		}
 		else {
-			paramManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip(
+			paramManager = modelStack->song->live.param_backup.getPreferablyWithClip(
 			    this,
 			    nullptr); // Could be NULL if a NonAudioInstrument - those don't back up any paramManagers (when they
 			              // even have them).
@@ -1126,8 +641,10 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 				// Set the new Parameter Value for the MIDI Learned Parameter
-				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-				                                                          modLength);
+				deluge::edits::Context editCtx{*currentSong, currentSong->project};
+				deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue, modPos,
+				                                  modLength, modelStackWithParam};
+				deluge::edits::apply(editCtx, edit);
 
 				// if you're in automation view and editing the same parameter that was just updated
 				// by a learned midi knob, then re-render the pads on the automation editor grid
@@ -1216,8 +733,10 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 				// Set the new Parameter Value for the MIDI Learned Parameter
-				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-				                                                          modLength);
+				deluge::edits::Context editCtx{*currentSong, currentSong->project};
+				deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue, modPos,
+				                                  modLength, modelStackWithParam};
+				deluge::edits::apply(editCtx, edit);
 
 				// check if you're currently editing the same learned param in automation view or
 				// performance view if so, you will need to refresh the automation editor grid or the
@@ -1286,8 +805,10 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cabl
 
 				int32_t newValue = (value14 << 18) - 2147483648;
 
-				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-				                                                          modLength);
+				deluge::edits::Context editCtx{*currentSong, currentSong->project};
+				deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue, modPos,
+				                                  modLength, modelStackWithParam};
+				deluge::edits::apply(editCtx, edit);
 				return true;
 			}
 		}
@@ -1302,27 +823,79 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	if (!isUIModeWithinRange(stutterUIModes)) {
 		return;
 	}
-	if (Error::NONE
-	    == stutterer.beginStutter(
-	        this, paramManager,
-	        stutterConfig.useSongStutter ? currentSong->globalEffectable.stutterConfig : stutterConfig,
-	        currentSong->getInputTickMagnitude(), playbackHandler.getTimePerInternalTickInverse())) {
-		// Redraw the LEDs. Really only for quantized stutter, but doing it for unquantized won't hurt.
-		view.notifyParamAutomationOccurred(paramManager);
-		enterUIMode(UI_MODE_STUTTERING);
-	}
-}
+	deluge::model::SongStutter& stutter = currentSong->live.stutter;
+	const deluge::effects::StutterState& settings =
+	    effects().stutter.use_song_stutter ? currentSong->live.global_effectable.effects().stutter : effects().stutter;
+	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+	const int32_t paramValue = unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE);
+	const int32_t knobDiffBefore = stutter.lastQuantizedKnobDiff;
+	if (settings.quantized) {
+		int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, nullptr);
+		if (knobPos < -39) {
+			knobPos = -16; // 4ths
+		}
+		else if (knobPos < -14) {
+			knobPos = -8; // 8ths
+		}
+		else if (knobPos < 14) {
+			knobPos = 0; // 16ths
+		}
+		else if (knobPos < 39) {
+			knobPos = 8; // 32nds
+		}
+		else {
+			knobPos = 16; // 64ths
+		}
+		// Save current values for later recovering them
+		stutter.valueBeforeStuttering = paramValue;
+		stutter.lastQuantizedKnobDiff = knobPos;
 
-void ModControllableAudio::processStutter(std::span<StereoSample> buffer, ParamManager* paramManager) {
-	if (stutterer.isStuttering(this)) {
-		stutterer.processStutter(buffer, paramManager, currentSong->getInputTickMagnitude(),
-		                         playbackHandler.getTimePerInternalTickInverse());
+		// When stuttering, we center the value at 0, so the center is the reference for the stutter rate that we
+		// selected just before pressing the knob and we use the lastQuantizedKnobDiff value to calculate the relative
+		// (real) value
+		unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
 	}
+
+	const auto rate = static_cast<uint32_t>(
+	    deluge::model::stutterRate(paramManager, stutter.lastQuantizedKnobDiff, currentSong->getInputTickMagnitude(),
+	                               playbackHandler.getTimePerInternalTickInverse()));
+	if (stutter.begin(*this, settings, rate) != Error::NONE) {
+		// No stutter: the param and the snap memory go back to how they were.
+		if (settings.quantized) {
+			unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(paramValue);
+			stutter.lastQuantizedKnobDiff = knobDiffBefore;
+		}
+		return;
+	}
+	// Redraw the LEDs. Really only for quantized stutter, but doing it for unquantized won't hurt.
+	view.notifyParamAutomationOccurred(paramManager);
+	enterUIMode(UI_MODE_STUTTERING);
 }
 
 // paramManager is optional - if you don't send it, it won't restore the stutter rate and we won't redraw the LEDs
 void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
-	stutterer.endStutter(paramManager);
+	// A song being read (none is current yet) has no stutter to end.
+	if (currentSong != nullptr) {
+		deluge::model::SongStutter& stutter = currentSong->live.stutter;
+		stutter.end();
+		if (paramManager) {
+			UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+			if (stutter.playing.quantized) {
+				// Set back the value it had just before stuttering so orange LEDs are redrawn.
+				unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(
+				    stutter.valueBeforeStuttering);
+			}
+			else {
+				// Regular Stutter FX (if below middle value, reset it back to middle)
+				// Normally we shouldn't call this directly, but it's ok because automation isn't allowed for stutter
+				// anyway
+				if (unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE) < 0) {
+					unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
+				}
+			}
+		}
+		stutter.clearSnap();
+	}
 	if (paramManager) {
 		// Redraw the LEDs.
 		view.notifyParamAutomationOccurred(paramManager);
@@ -1331,40 +904,47 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 }
 
 void ModControllableAudio::switchDelayPingPong() {
-	delay.pingPong = !delay.pingPong;
+	deluge::edits::changeEffect(*this, "delay/pingPong",
+	                            deluge::serialization::Value::makeNumber(effects().delay.ping_pong ? 0 : 1));
 }
 
-void ModControllableAudio::switchDelayAnalog() {
-	delay.analog = !delay.analog;
+void ModControllableAudio::cycleDelayType() {
+	deluge::edits::changeEffect(*this, "delay/type",
+	                            deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(
+	                                deluge::effects::next_delay_type(effects().delay.type)))));
 }
 
 char const* ModControllableAudio::getDelayTypeDisplayName() {
-	switch (delay.analog) {
-		using enum deluge::l10n::String;
-	case 0:
-		return l10n::get(STRING_FOR_DIGITAL_DELAY);
-	default:
+	using enum deluge::l10n::String;
+	switch (effects().delay.type) {
+	case deluge::effects::DelayType::OFF:
+		return l10n::get(STRING_FOR_DELAY_OFF);
+	case deluge::effects::DelayType::ANALOG:
 		return l10n::get(STRING_FOR_ANALOG_DELAY);
+	case deluge::effects::DelayType::DIGITAL:
+		break;
 	}
+	return l10n::get(STRING_FOR_DIGITAL_DELAY);
 }
 
 void ModControllableAudio::switchDelaySyncType() {
-	switch (delay.syncType) {
+	SyncType next = SYNC_TYPE_TRIPLET; // after even
+	switch (effects().delay.sync_type) {
 	case SYNC_TYPE_TRIPLET:
-		delay.syncType = SYNC_TYPE_DOTTED;
+		next = SYNC_TYPE_DOTTED;
 		break;
 	case SYNC_TYPE_DOTTED:
-		delay.syncType = SYNC_TYPE_EVEN;
+		next = SYNC_TYPE_EVEN;
 		break;
-
-	default: // SYNC_TYPE_EVEN
-		delay.syncType = SYNC_TYPE_TRIPLET;
+	default:
 		break;
 	}
+	deluge::edits::changeEffect(*this, "delay/syncType",
+	                            deluge::serialization::Value::makeNumber(util::to_underlying(next)));
 }
 
 char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
-	switch (delay.syncType) {
+	switch (effects().delay.sync_type) {
 	case SYNC_TYPE_TRIPLET:
 		return "Triplet";
 	case SYNC_TYPE_DOTTED:
@@ -1376,14 +956,22 @@ char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
 
 void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); // cycle from 1 to 9 (omit 0)
+	deluge::edits::changeEffect(
+	    *this, "delay/syncLevel",
+	    deluge::serialization::Value::makeNumber(deluge::engine::index_of(effects().delay.sync_level)
+	                                                 % deluge::engine::index_of(SYNC_LEVEL_256TH)
+	                                             + 1)); // cycle from 1 to 9 (omit 0)
 }
 
 void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	delay.syncLevel = (SyncLevel)(delay.syncLevel % SyncLevel::SYNC_LEVEL_256TH); // cycle from 1 to 9 (omit 0)
+	deluge::edits::changeEffect(*this, "delay/syncLevel",
+	                            deluge::serialization::Value::makeNumber(
+	                                deluge::engine::index_of(effects().delay.sync_level)
+	                                % deluge::engine::index_of(SYNC_LEVEL_256TH))); // cycle from 1 to 9 (omit 0)
 	etl::string<kShortStringBufferSize> buffer;
-	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
+	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (deluge::engine::index_of(SYNC_LEVEL_256TH)
+	                                                       - deluge::engine::index_of(effects().delay.sync_level)));
 	strncpy(displayName, buffer.data(), 29);
 }
 
@@ -1402,22 +990,25 @@ char const* ModControllableAudio::getFilterTypeDisplayName(FilterType currentFil
 }
 
 void ModControllableAudio::switchLPFMode() {
-	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
+	deluge::edits::changeEffect(
+	    *this, "lpfMode",
+	    effectWord(static_cast<FilterMode>((util::to_underlying(effects().filter.lpf_mode) + 1) % kNumLPFModes)));
 }
 
 // for future use with FM
 void ModControllableAudio::switchLPFModeWithOff() {
-	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
-	switch (lpfMode) {
+	FilterMode mode = static_cast<FilterMode>((util::to_underlying(effects().filter.lpf_mode) + 1) % kNumLPFModes);
+	switch (mode) {
 	case FilterMode::OFF:
-		lpfMode = FilterMode::TRANSISTOR_12DB;
+		mode = FilterMode::TRANSISTOR_12DB;
 		break;
 	case lastLpfMode:
-		lpfMode = FilterMode::OFF;
+		mode = FilterMode::OFF;
 		break;
 	default:
-		lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1));
+		mode = static_cast<FilterMode>((util::to_underlying(mode) + 1));
 	}
+	deluge::edits::changeEffect(*this, "lpfMode", effectWord(mode));
 }
 
 char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFilterType) {
@@ -1434,7 +1025,7 @@ char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFil
 char const* ModControllableAudio::getLPFModeDisplayName() {
 
 	using enum deluge::l10n::String;
-	switch (lpfMode) {
+	switch (effects().filter.lpf_mode) {
 	case FilterMode::TRANSISTOR_12DB:
 		return l10n::get(STRING_FOR_12DB_LADDER);
 	case FilterMode::TRANSISTOR_24DB:
@@ -1452,23 +1043,28 @@ char const* ModControllableAudio::getLPFModeDisplayName() {
 
 void ModControllableAudio::switchHPFMode() {
 	// this works fine, the offset to the first hpf doesn't matter with the modulus
-	hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
+	deluge::edits::changeEffect(
+	    *this, "hpfMode",
+	    effectWord(static_cast<FilterMode>((util::to_underlying(effects().filter.hpf_mode) + 1) % kNumHPFModes
+	                                       + kFirstHPFMode)));
 }
 
 // for future use with FM
 void ModControllableAudio::switchHPFModeWithOff() {
-	switch (hpfMode) {
+	switch (effects().filter.hpf_mode) {
 	case FilterMode::OFF:
-		hpfMode = firstHPFMode;
+		deluge::edits::changeEffect(*this, "hpfMode", effectWord(firstHPFMode));
 		break;
 	default:
-		hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1));
+		deluge::edits::changeEffect(
+		    *this, "hpfMode",
+		    effectWord(static_cast<FilterMode>((util::to_underlying(effects().filter.hpf_mode) + 1))));
 	}
 }
 
 char const* ModControllableAudio::getHPFModeDisplayName() {
 	using enum deluge::l10n::String;
-	switch (hpfMode) {
+	switch (effects().filter.hpf_mode) {
 	case FilterMode::HPLADDER:
 		return l10n::get(STRING_FOR_HPLADDER);
 	case FilterMode::SVF_BAND:
@@ -1482,23 +1078,28 @@ char const* ModControllableAudio::getHPFModeDisplayName() {
 
 // This can get called either for hibernation, or because drum now has no active noteRow
 void ModControllableAudio::wontBeRenderedForAWhile() {
-	delay.discardBuffers();
+	{
+		AudioExcludedSection section; // the render gives tapes back to the same arena
+		core().delay().discardBuffers();
+		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
+	}
 	endStutter(nullptr);
 }
 
 void ModControllableAudio::clearModFXMemory() {
-	if (modFXType_ == ModFXType::GRAIN) {
-		grainFX->clearGrainFXBuffer();
+	if (modControllableSnapshot_.effects.mod_fx.type == ModFXType::GRAIN) {
+		core().granular().clear();
 	}
-	else if (modFXType_ != ModFXType::NONE) {
-		modfx.resetMemory();
+	else if (modControllableSnapshot_.effects.mod_fx.type != ModFXType::NONE) {
+		core().mod_fx().clearMemory();
 	}
 }
 
 bool ModControllableAudio::setModFXType(ModFXType newType) {
-	// For us ModControllableAudios, this is really simple. Memory gets allocated in
-	// GlobalEffectable::processFXForGlobalEffectable(). This function is overridden in Sound
-	modFXType_ = newType;
+	// The mod FX ring, and the grain's State and ring, are taken where the type reaches the render, in
+	// projectModControllableSnapshot(). When that allocation fails the type is kept and the audio passes through until
+	// the next effects edit.
+	assignModFXType(newType);
 	return true;
 }
 
@@ -1592,7 +1193,7 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 
 char const* ModControllableAudio::getDelayPingPongStatusDisplayName() {
 	using enum deluge::l10n::String;
-	switch (delay.pingPong) {
+	switch (effects().delay.ping_pong) {
 	case 0:
 		return l10n::get(STRING_FOR_DISABLED);
 	default:
@@ -1623,14 +1224,14 @@ void ModControllableAudio::displaySidechainAndReverbSettings(bool on) {
 char const* ModControllableAudio::getSidechainDisplayName() {
 	int32_t insideWorldTickMagnitude;
 	if (currentSong) { // Bit of a hack just referring to currentSong in here...
-		insideWorldTickMagnitude =
-		    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
+		insideWorldTickMagnitude = (currentSong->project.transport.inside_world_tick_magnitude
+		                            + currentSong->project.transport.inside_world_tick_magnitude_offset_from_bpm);
 	}
 	else {
 		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 	}
 	using enum deluge::l10n::String;
-	if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+	if (effects().sidechain.sync_level == (SyncLevel)(7 - insideWorldTickMagnitude)) {
 		return l10n::get(STRING_FOR_SLOW);
 	}
 	else {
@@ -1686,32 +1287,5 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 	}
 	else {
 		display->cancelPopup();
-	}
-}
-bool ModControllableAudio::enableGrain() {
-
-	if (grainFX == nullptr) {
-		// Plain SDRAM allocation via the typed-allocator surface (NOT allocStealable,
-		// and not GeneralMemoryAllocator::get()): GranularProcessor is not a Stealable
-		// (only its GrainBuffer member is), so marking its block stealable was a latent
-		// hazard — the neighbour-grab could cast it to Stealable* and call steal() on a
-		// non-Stealable. (Strangle taxonomy cleanup, step 1; clean-API call site.)
-		void* grainMemory = deluge::memory::alloc_external(sizeof(GranularProcessor), alignof(GranularProcessor));
-		if (grainMemory) {
-			grainFX = new (grainMemory) GranularProcessor;
-			return true;
-		}
-	}
-	else {
-		grainFX->clearGrainFXBuffer();
-		return false;
-	}
-	return false;
-}
-void ModControllableAudio::disableGrain() {
-	// grainFX is lazily allocated (null until GRAIN mod-FX is first used), but this is called whenever
-	// mod-FX is *not* grain — so null is the common case. Guard it like every other grainFX access.
-	if (grainFX) {
-		grainFX->startSkippingRendering();
 	}
 }

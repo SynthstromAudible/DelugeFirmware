@@ -17,6 +17,9 @@
 
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/curves/instant_tan.h"
+#include "dsp-next/fixed/curves/quick_log.h"
+#include "dsp-next/fixed/vca/pan.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -229,11 +232,7 @@ char const* sourceToStringShort(PatchSource source) {
 // getExp moved to util/param_functions.cpp.
 
 int32_t quickLog(uint32_t input) {
-
-	uint32_t magnitude = getMagnitudeOld(input);
-	uint32_t inputLSBs = increaseMagnitude(input, 26 - magnitude);
-
-	return (magnitude << 25) + (inputLSBs & ~((uint32_t)1 << 26));
+	return deluge::dsp::fixed::quick_log(input);
 }
 
 bool memIsNumericChars(char const* mem, int32_t size) {
@@ -354,253 +353,42 @@ void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, i
 }
 
 char const* oscTypeToString(OscType oscType) {
-	switch (oscType) {
-	case OscType::SQUARE:
-		return "square";
-
-	case OscType::SAW:
-		return "saw";
-
-	case OscType::ANALOG_SAW_2:
-		return "analogSaw";
-
-	case OscType::ANALOG_SQUARE:
-		return "analogSquare";
-
-	case OscType::SINE:
-		return "sine";
-
-	case OscType::TRIANGLE:
-		return "triangle";
-
-	case OscType::SAMPLE:
-		return "sample";
-
-	case OscType::WAVETABLE:
-		return "wavetable";
-
-	case OscType::INPUT_L:
-		return "inLeft";
-
-	case OscType::INPUT_R:
-		return "inRight";
-
-	case OscType::INPUT_STEREO:
-		return "inStereo";
-
-	case OscType::DX7:
-		return "dx7";
-
-	default:
-		__builtin_unreachable();
-	}
+	return deluge::instrument::to_string(oscType).data();
 }
 
 OscType stringToOscType(char const* string) {
-
-	if (!strcmp(string, "square")) {
-		return OscType::SQUARE;
-	}
-	else if (!strcmp(string, "analogSquare")) {
-		return OscType::ANALOG_SQUARE;
-	}
-	else if (!strcmp(string, "analogSaw")) {
-		return OscType::ANALOG_SAW_2;
-	}
-	else if (!strcmp(string, "saw")) {
-		return OscType::SAW;
-	}
-	else if (!strcmp(string, "sine")) {
-		return OscType::SINE;
-	}
-	else if (!strcmp(string, "sample")) {
-		return OscType::SAMPLE;
-	}
-	else if (!strcmp(string, "wavetable")) {
-		return OscType::WAVETABLE;
-	}
-	else if (!strcmp(string, "inLeft")) {
-		return OscType::INPUT_L;
-	}
-	else if (!strcmp(string, "inRight")) {
-		return OscType::INPUT_R;
-	}
-	else if (!strcmp(string, "inStereo")) {
-		return OscType::INPUT_STEREO;
-	}
-	else if (!strcmp(string, "dx7")) {
-		return OscType::DX7;
-	}
-	else {
-		return OscType::TRIANGLE;
-	}
+	return deluge::instrument::parse_osc_type(string);
 }
 
 char const* lfoTypeToString(LFOType oscType) {
-	switch (oscType) {
-	case LFOType::SQUARE:
-		return "square";
-
-	case LFOType::SAW:
-		return "saw";
-
-	case LFOType::SINE:
-		return "sine";
-
-	case LFOType::SAMPLE_AND_HOLD:
-		return "sah";
-
-	case LFOType::RANDOM_WALK:
-		return "rwalk";
-	case LFOType::WARBLER:
-		return "warbler";
-	default:
-		return "triangle";
-	}
+	return deluge::instrument::to_string(oscType).data();
 }
 
 LFOType stringToLFOType(char const* string) {
-	if (!strcmp(string, "square")) {
-		return LFOType::SQUARE;
-	}
-	else if (!strcmp(string, "saw")) {
-		return LFOType::SAW;
-	}
-	else if (!strcmp(string, "sine")) {
-		return LFOType::SINE;
-	}
-	else if (!strcmp(string, "sah")) {
-		return LFOType::SAMPLE_AND_HOLD;
-	}
-	else if (!strcmp(string, "warbler")) {
-		return LFOType::WARBLER;
-	}
-	else if (!strcmp(string, "rwalk")) {
-		return LFOType::RANDOM_WALK;
-	}
-	else {
-		return LFOType::TRIANGLE;
-	}
+	return deluge::instrument::parse_lfo_type(string);
 }
 
 char const* synthModeToString(SynthMode synthMode) {
-	switch (synthMode) {
-	case SynthMode::FM:
-		return "fm";
-
-	case SynthMode::RINGMOD:
-		return "ringmod";
-
-	default:
-		return "subtractive";
-	}
+	return deluge::instrument::to_string(synthMode).data();
 }
 
 SynthMode stringToSynthMode(char const* string) {
-	if (!strcmp(string, "fm")) {
-		return SynthMode::FM;
-	}
-	else if (!strcmp(string, "ringmod")) {
-		return SynthMode::RINGMOD;
-	}
-	else {
-		return SynthMode::SUBTRACTIVE;
-	}
+	return deluge::instrument::parse_synth_mode(string);
 }
 
 char const* polyphonyModeToString(PolyphonyMode synthMode) {
-	switch (synthMode) {
-	case PolyphonyMode::MONO:
-		return "mono";
-
-	case PolyphonyMode::AUTO:
-		return "auto";
-
-	case PolyphonyMode::LEGATO:
-		return "legato";
-
-	case PolyphonyMode::CHOKE:
-		return "choke";
-
-	default: // case PolyphonyMode::POLY:
-		return "poly";
-	}
+	return deluge::instrument::to_string(synthMode).data();
 }
 
 PolyphonyMode stringToPolyphonyMode(char const* string) {
-	if (!strcmp(string, "mono")) {
-		return PolyphonyMode::MONO;
-	}
-	else if (!strcmp(string, "auto")) {
-		return PolyphonyMode::AUTO;
-	}
-	else if (!strcmp(string, "0")) {
-		return PolyphonyMode::AUTO; // Old firmware, pre June 2017
-	}
-	else if (!strcmp(string, "legato")) {
-		return PolyphonyMode::LEGATO;
-	}
-	else if (!strcmp(string, "choke")) {
-		return PolyphonyMode::CHOKE;
-	}
-	else if (!strcmp(string, "2")) {
-		return PolyphonyMode::CHOKE; // Old firmware, pre June 2017
-	}
-	else {
-		return PolyphonyMode::POLY;
-	}
+	return deluge::instrument::parse_polyphony_mode(string);
 }
 
 char const* fxTypeToString(ModFXType fxType) {
-	switch (fxType) {
-	case ModFXType::FLANGER:
-		return "flanger";
-	case ModFXType::WARBLE:
-		return "TapeWarble";
-	case ModFXType::DIMENSION:
-		return "dimension";
-
-	case ModFXType::CHORUS:
-		return "chorus";
-
-	case ModFXType::CHORUS_STEREO:
-		return "StereoChorus";
-	case ModFXType::GRAIN:
-		return "grainFX";
-
-	case ModFXType::PHASER:
-		return "phaser";
-
-	default:
-		return "none";
-	}
+	return deluge::effects::to_string(fxType).data(); // a view of a string literal
 }
-
 ModFXType stringToFXType(char const* string) {
-	if (!strcmp(string, "flanger")) {
-		return ModFXType::FLANGER;
-	}
-	else if (!strcmp(string, "TapeWarble")) {
-		return ModFXType::WARBLE;
-	}
-	else if (!strcmp(string, "dimension")) {
-		return ModFXType::DIMENSION;
-	}
-	else if (!strcmp(string, "chorus")) {
-		return ModFXType::CHORUS;
-	}
-	else if (!strcmp(string, "StereoChorus")) {
-		return ModFXType::CHORUS_STEREO;
-	}
-	else if (!strcmp(string, "grainFX")) {
-		return ModFXType::GRAIN;
-	}
-	else if (!strcmp(string, "phaser")) {
-		return ModFXType::PHASER;
-	}
-	else {
-		return ModFXType::NONE;
-	}
+	return deluge::effects::parse_mod_fx_type(string);
 }
 
 char const* modFXParamToString(ModFXParam fxType) {
@@ -921,70 +709,6 @@ AudioInputChannel stringToInputChannel(char const* string) {
 	}
 }
 
-char const* sequenceDirectionModeToString(SequenceDirection sequenceDirectionMode) {
-	switch (sequenceDirectionMode) {
-	case SequenceDirection::FORWARD:
-		return "forward";
-
-	case SequenceDirection::REVERSE:
-		return "reverse";
-
-	case SequenceDirection::PINGPONG:
-		return "pingpong";
-
-	case SequenceDirection::OBEY_PARENT:
-		return "none";
-
-	default:
-		__builtin_unreachable();
-		return "";
-	}
-}
-
-SequenceDirection stringToSequenceDirectionMode(char const* string) {
-	if (!strcmp(string, "reverse")) {
-		return SequenceDirection::REVERSE;
-	}
-	else if (!strcmp(string, "pingpong")) {
-		return SequenceDirection::PINGPONG;
-	}
-	else if (!strcmp(string, "obeyParent")) {
-		return SequenceDirection::OBEY_PARENT;
-	}
-	else {
-		return SequenceDirection::FORWARD;
-	}
-}
-
-char const* launchStyleToString(LaunchStyle launchStyle) {
-	switch (launchStyle) {
-	case LaunchStyle::DEFAULT:
-		return "default";
-
-	case LaunchStyle::FILL:
-		return "fill";
-
-	case LaunchStyle::ONCE:
-		return "once";
-
-	default:
-		__builtin_unreachable();
-		return "";
-	}
-}
-
-LaunchStyle stringToLaunchStyle(char const* string) {
-	if (!strcmp(string, "fill")) {
-		return LaunchStyle::FILL;
-	}
-	else if (!strcmp(string, "once")) {
-		return LaunchStyle::ONCE;
-	}
-	else {
-		return LaunchStyle::DEFAULT;
-	}
-}
-
 char const* getInstrumentFolder(OutputType outputType) {
 	if (outputType == OutputType::SYNTH) {
 		return "SYNTHS";
@@ -1067,22 +791,7 @@ int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t max
 }
 
 int32_t instantTan(int32_t input) {
-	int32_t whichValue = input >> 25;                   // 25
-	int32_t howMuchFurther = (input << 6) & 2147483647; // 6
-	int32_t value1 = tanTable[whichValue];
-	int32_t value2 = tanTable[whichValue + 1];
-	return (multiply_32x32_rshift32(value2, howMuchFurther)
-	        + multiply_32x32_rshift32(value1, 2147483647 - howMuchFurther))
-	       << 1;
-}
-
-int32_t combineHitStrengths(int32_t strength1, int32_t strength2) {
-	// Ideally, we'd do pythagoras on these. But to save computation time, we'll just go half way between the biggest
-	// one and the sum
-	uint32_t sum = (uint32_t)strength1 + (uint32_t)strength2;
-	sum = std::min(sum, (uint32_t)2147483647);
-	int32_t maxOne = std::max(strength1, strength2);
-	return (maxOne >> 1) + (sum >> 1);
+	return deluge::dsp::fixed::instant_tan(input);
 }
 
 uint32_t z = 362436069, w = 521288629;
@@ -1092,16 +801,10 @@ int32_t random(int32_t upperLimit) {
 }
 
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR) {
-	if (panAmount == 0) {
-		*amplitudeR = 1073741823;
-		*amplitudeL = 1073741823;
-		return false;
-	}
-
-	int32_t panOffset = std::max((int32_t)-1073741824, (int32_t)(std::min((int32_t)1073741824, (int32_t)panAmount)));
-	*amplitudeR = (panAmount >= 0) ? 1073741823 : (1073741824 + panOffset);
-	*amplitudeL = (panAmount <= 0) ? 1073741823 : (1073741824 - panOffset);
-	return true;
+	const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(panAmount);
+	*amplitudeL = amplitudes.left;
+	*amplitudeR = amplitudes.right;
+	return panAmount != 0;
 }
 
 uint32_t getOscInitialPhaseForZero(OscType waveType) {

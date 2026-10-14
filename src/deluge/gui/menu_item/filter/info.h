@@ -17,6 +17,7 @@
 #pragma once
 
 #include "gui/menu_item/number.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -41,34 +42,43 @@ public:
 	FilterInfo(FilterSlot slot_, FilterParamType type_) : slot{slot_}, type{type_} {}
 	::FilterMode getMode() const {
 		if (slot == FilterSlot::LPF) {
-			return soundEditor.currentModControllable->lpfMode;
+			return soundEditor.currentModControllable->modControllableSnapshot().effects.filter.lpf_mode;
 		}
 		else {
-			return soundEditor.currentModControllable->hpfMode;
+			return soundEditor.currentModControllable->modControllableSnapshot().effects.filter.hpf_mode;
 		}
 	}
 	int32_t getModeValue() const {
 		if (slot == FilterSlot::HPF) {
-			return util::to_underlying(soundEditor.currentModControllable->hpfMode) - kFirstHPFMode;
+			return util::to_underlying(
+			           soundEditor.currentModControllable->modControllableSnapshot().effects.filter.hpf_mode)
+			       - kFirstHPFMode;
 		}
 		else {
 			// Off is located past the HPFLadder, which isn't an option for the low pass filter (should it be?)
-			int32_t selection = util::to_underlying(soundEditor.currentModControllable->lpfMode);
+			int32_t selection = util::to_underlying(
+			    soundEditor.currentModControllable->modControllableSnapshot().effects.filter.lpf_mode);
 			return std::min(selection, kNumLPFModes);
 		}
 	}
 	void setMode(int32_t value) const { setModeForModControllable(value, soundEditor.currentModControllable); }
 	void setModeForModControllable(int32_t value, ModControllableAudio* modControllable) const {
 		if (slot == FilterSlot::HPF) {
-			modControllable->hpfMode = static_cast<FilterMode>(value + kFirstHPFMode);
+			effectSettingFor(*modControllable, "hpfMode",
+			                 deluge::serialization::Value::makeScalar(std::string(
+			                     deluge::effects::to_string(static_cast<FilterMode>(value + kFirstHPFMode)))));
 		}
 		else {
 			// num lpf modes counts off but there's HPF modes in the middle
 			if (value >= kNumLPFModes) {
-				modControllable->lpfMode = FilterMode::OFF;
+				effectSettingFor(
+				    *modControllable, "lpfMode",
+				    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(FilterMode::OFF))));
 			}
 			else {
-				modControllable->lpfMode = static_cast<FilterMode>(value);
+				effectSettingFor(*modControllable, "lpfMode",
+				                 deluge::serialization::Value::makeScalar(
+				                     std::string(deluge::effects::to_string(static_cast<FilterMode>(value)))));
 			}
 		}
 	}
@@ -78,14 +88,14 @@ public:
 	[[nodiscard]] std::string_view getMorphNameOr(std::string_view alt, bool shortName = false) const {
 		if (type == FilterParamType::MORPH) {
 			using enum l10n::String;
-			auto filt = dsp::filter::SpecificFilter(getMode());
+			auto filt = model::filter::SpecificFilter(getMode());
 			return l10n::getView(filt.getMorphName(shortName));
 		}
 		return alt;
 	}
 	[[nodiscard]] bool isMorphable() const {
-		auto filter = dsp::filter::SpecificFilter(getMode());
-		return filter.getFamily() == dsp::filter::FilterFamily::SVF;
+		auto filter = model::filter::SpecificFilter(getMode());
+		return filter.getFamily() == model::filter::FilterFamily::SVF;
 	}
 
 	bool isOn() const { return getMode() != ::FilterMode::OFF; }

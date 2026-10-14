@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
@@ -29,8 +30,8 @@ public:
 	using SyncLevel::SyncLevel;
 
 	void readCurrentValue() override {
-		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentModControllable->delay.syncType,
-		                                            soundEditor.currentModControllable->delay.syncLevel));
+		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentModControllable->effects().delay.sync_type,
+		                                            soundEditor.currentModControllable->effects().delay.sync_level));
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
@@ -43,15 +44,23 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->delay.syncType = syncValueToSyncType(current_value);
-					soundDrum->delay.syncLevel = syncValueToSyncLevel(current_value);
+					effectSettingFor(*soundDrum, "delay/syncType",
+					                 deluge::serialization::Value::makeNumber(
+					                     util::to_underlying(syncValueToSyncType(current_value))));
+					effectSettingFor(*soundDrum, "delay/syncLevel",
+					                 deluge::serialization::Value::makeNumber(
+					                     deluge::engine::index_of(syncValueToSyncLevel(current_value))));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->delay.syncType = syncValueToSyncType(current_value);
-			soundEditor.currentModControllable->delay.syncLevel = syncValueToSyncLevel(current_value);
+			effectSettingFor(
+			    *soundEditor.currentModControllable, "delay/syncType",
+			    deluge::serialization::Value::makeNumber(util::to_underlying(syncValueToSyncType(current_value))));
+			effectSettingFor(*soundEditor.currentModControllable, "delay/syncLevel",
+			                 deluge::serialization::Value::makeNumber(
+			                     deluge::engine::index_of(syncValueToSyncLevel(current_value))));
 		}
 	}
 };

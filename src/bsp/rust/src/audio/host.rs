@@ -200,6 +200,24 @@ pub extern "C" fn deluge_host_test_input(on: bool) {
     TEST_INPUT_ORIGIN.store(origin, Ordering::Relaxed);
 }
 
+/// Whether the headphone socket reads as occupied ([`deluge_host_headphones`]).
+static HEADPHONES: AtomicBool = AtomicBool::new(false);
+
+/// Plugs (or unplugs) headphones: the headphone-detect signal reads `on` from now on.
+///
+/// The app renders in stereo while headphones are plugged in (`AudioEngine::renderInStereo`, set by
+/// its input routine), and in mono, as through the device's speaker, while they are not. Unplugged
+/// at boot, so a harness renders mono unless it asks for stereo.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_host_headphones(on: bool) {
+    HEADPHONES.store(on, Ordering::Relaxed);
+}
+
+/// What the headphone-detect signal reads.
+pub fn headphones() -> bool {
+    HEADPHONES.load(Ordering::Relaxed)
+}
+
 /// Fills `INPUT_BLOCK` for the block starting at `block_start`: the test signal while armed, else
 /// `live` (the emulator's captured input, as `[-1, 1]` frames), else silence.
 fn fill_input_block(block_start: u64, live: Option<&[[f32; 2]]>) {

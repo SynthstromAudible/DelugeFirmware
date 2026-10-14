@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/source/transpose.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
@@ -75,13 +76,14 @@ public:
 
 					if (!source.ranges.empty() && soundDrum->getSynthMode() != SynthMode::FM
 					    && source.oscType == OscType::SAMPLE) {
-						auto* multi_sample_range = static_cast<MultisampleRange*>(source.ranges.getElement(0));
-						multi_sample_range->sampleHolder.transpose = transpose;
-						multi_sample_range->sampleHolder.setCents(cents);
+						std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(source);
+						ranges[0].transpose = static_cast<int16_t>(transpose);
+						ranges[0].cents = static_cast<int8_t>(cents);
+						rangesFor(*soundDrum, source_id_, std::move(ranges));
 					}
 					else {
-						source.transpose = transpose;
-						source.setCents(cents);
+						settingFor(*soundDrum, oscPath("transpose"), serialization::Value::makeNumber(transpose));
+						settingFor(*soundDrum, oscPath("cents"), serialization::Value::makeNumber(cents));
 					}
 
 					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
@@ -98,16 +100,19 @@ public:
 
 			if (!source.ranges.empty() && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 			    && source.oscType == OscType::SAMPLE) {
-				auto* multi_sample_range =
+				const size_t r =
 				    soundEditor.currentSourceIndex == source_id_ && soundEditor.currentMultiRange != nullptr
-				        ? static_cast<MultisampleRange*>(soundEditor.currentMultiRange)
-				        : static_cast<MultisampleRange*>(source.ranges.getElement(0));
-				multi_sample_range->sampleHolder.transpose = transpose;
-				multi_sample_range->sampleHolder.setCents(cents);
+				        ? static_cast<size_t>(soundEditor.currentMultiRangeIndex)
+				        : 0;
+				std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(source);
+				ranges[r].transpose = static_cast<int16_t>(transpose);
+				ranges[r].cents = static_cast<int8_t>(cents);
+				rangesFor(*soundEditor.currentSound, source_id_, std::move(ranges));
 			}
 			else {
-				source.transpose = transpose;
-				source.setCents(cents);
+				settingFor(*soundEditor.currentSound, oscPath("transpose"),
+				           serialization::Value::makeNumber(transpose));
+				settingFor(*soundEditor.currentSound, oscPath("cents"), serialization::Value::makeNumber(cents));
 			}
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -115,6 +120,11 @@ public:
 
 			soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 		}
+	}
+
+	/// This menu's oscillator's setting @p name, as a settings path.
+	[[nodiscard]] std::string oscPath(std::string_view name) const {
+		return "osc" + std::to_string(source_id_ + 1) + "/" + std::string(name);
 	}
 
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t,

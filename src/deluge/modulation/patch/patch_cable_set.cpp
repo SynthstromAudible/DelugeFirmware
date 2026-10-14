@@ -17,18 +17,21 @@
 
 #include "modulation/patch/patch_cable_set.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/param_automation.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/patch_cable_words.h"
 #include "modulation/patch/patch_cable.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
 #include "util/algorithm/quick_sorter.h"
+#include "util/exceptions.h"
 #include "util/misc.h"
 #include "util/structural_edit_probe.h"
 #include <algorithm>
@@ -135,6 +138,62 @@ PatchCable* PatchCableSet::addCable() {
 void PatchCableSet::truncateCables(uint8_t count) {
 	// Shrinking only frees memory, so it can't fail for want of it: keep the cables where they are if it does.
 	(void)resizeCables(std::min(count, numPatchCables));
+}
+
+// Cables are reordered by index at runtime: setupPatching() memcpy-swaps them into usable/unusable
+// order and removal memcpy-moves the last cable over a deleted one. An owner store resolved by INDEX cannot stay
+// in sync with those shifts, so each cable's nodes live inline in its amount_, which the byte-copy
+// carries with the cable. Binding to a shared positional store is a no-op; owner-resolution returns the inline store.
+void PatchCableSet::bindDomStore() {
+}
+
+deluge::project::DocParamSet* PatchCableSet::domStore() {
+	return nullptr; // never bound to a shared store (see bindDomStore)
+}
+
+deluge::project::DocAutoParam* PatchCableSet::docForParam(int32_t c) {
+	// When bound to the owner's project-tree cable store, resolve this cable's amount-nodes from the tree
+	// entry with its depth id (derived from its source and destination), so save + runtime edits share the
+	// persistent store (the inline `amount_` is then unused). Unbound: the cable owns its store inline and rides
+	// with it through the reorder/removal memcpy.
+	if (domCablesRef_ != nullptr) {
+		PatchCable& cable = patchCables[c];
+		return &findOrCreateDomCable(cable.from, cable.destinationParamDescriptor, cable.polarity).amount;
+	}
+	return &patchCables[c].amount_;
+}
+
+deluge::project::DocCable& PatchCableSet::findOrCreateDomCable(PatchSource from, ParamDescriptor dest,
+                                                               Polarity polarity) {
+	const deluge::engine::ParamId depth = deluge::bridge::cable_depth(from, dest);
+	for (deluge::project::DocCable& entry : *domCablesRef_) {
+		if (entry.depth == depth) {
+			return entry;
+		}
+	}
+	domCablesRef_->push_back(deluge::bridge::doc_cable(from, dest, polarity, {}));
+	return domCablesRef_->back();
+}
+
+deluge::project::DocAutoParam* PatchCableSet::findDomCableAmount(PatchSource from, ParamDescriptor dest) const {
+	if (domCablesRef_ == nullptr) {
+		return nullptr;
+	}
+	const deluge::engine::ParamId depth = deluge::bridge::cable_depth(from, dest);
+	for (deluge::project::DocCable& entry : *domCablesRef_) {
+		if (entry.depth == depth) {
+			return &entry.amount;
+		}
+	}
+	return nullptr;
+}
+
+deluge::project::DocAutoParam* PatchCableSet::docParamForId(int32_t paramId) {
+	PatchSource s;
+	ParamDescriptor desc;
+	dissectParamId(paramId, &desc, &s);
+	uint8_t c = getPatchCableIndex(s, desc, nullptr, false);
+	return (c == 255) ? nullptr : docForParam(c);
 }
 
 bool PatchCableSet::isSourcePatchedToSomething(PatchSource s) {
@@ -393,7 +452,7 @@ goAgainWithoutIncrement:
 
 	for (int32_t c = 0; c < numUsablePatchCables; c++) {
 
-		if (patchCables[c].param.isAutomated()) {
+		if (patchCables[c].param.isAutomated(*docForParam(c))) {
 			flagCable(modelStack->summary->whichParamsAreAutomated, c);
 
 			if (patchCables[c].param.hasInterpolationIncrement()) {
@@ -523,8 +582,9 @@ void PatchCableSet::deletePatchCable(ModelStackWithParamCollection const* modelS
 	if (c >= numPatchCables) {
 		return; // Could probably happen. (Still?)
 	}
-	patchCables[c].param.deleteAutomationBasicForSetup(); // No need to record what's happening - we kind of know that
-	                                                      // there's no automation left anyway...
+	patchCables[c].param.deleteAutomationBasicForSetup(
+	    *docForParam(c)); // No need to record what's happening - we kind of know that
+	                      // there's no automation left anyway...
 	patchCables[c].makeUnusable();
 	setupPatching(modelStack);
 
@@ -535,7 +595,7 @@ void PatchCableSet::deletePatchCable(ModelStackWithParamCollection const* modelS
 			patchCables[c].~PatchCable();
 			memcpy(static_cast<void*>(&patchCables[c]), &patchCables[numPatchCables - 1], sizeof(PatchCable));
 			// The moved cable's automation now belongs to slot c - don't let the old slot free it too
-			patchCables[numPatchCables - 1].param.nodes.init();
+			patchCables[numPatchCables - 1].amount_.nodes.init();
 			break;
 		}
 	}
@@ -549,7 +609,7 @@ bool PatchCableSet::patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings 
 		return false; // When would this ever be the case?
 	}
 
-	// An unresolved range placeholder: readPatchCablesFromFile() rewrites these into
+	// An unresolved range placeholder: loading rewrites these into
 	// (param, source) form when it can identify the range-adjusted cable; a leftover
 	// bare PLACEHOLDER_RANGE (e.g. from old-firmware files whose "range" cables can't
 	// be resolved) must never reach the patcher — PLACEHOLDER_RANGE (89) classifies as
@@ -665,7 +725,7 @@ void PatchCableSet::generateRepeats(ModelStackWithParamCollection* modelStack, u
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 
-	patchCables[c].param.generateRepeats(oldLength, newLength, shouldPingpong);
+	patchCables[c].param.generateRepeats(*docForParam(c), oldLength, newLength, shouldPingpong);
 
 	FOR_EACH_PARAM_END
 }
@@ -682,7 +742,7 @@ void PatchCableSet::appendParamCollection(ModelStackWithParamCollection* modelSt
 	int32_t i = getPatchCableIndex(s, otherPatchCableSet->patchCables[c].destinationParamDescriptor);
 
 	if (i != 255) {
-		patchCables[i].param.appendParam(&otherPatchCableSet->patchCables[c].param, oldLength,
+		patchCables[i].param.appendParam(*docForParam(i), *otherPatchCableSet->docForParam(c), oldLength,
 		                                 reverseThisRepeatWithLength, pingpongingGenerally);
 	}
 
@@ -707,7 +767,7 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 	if (!param->hasInterpolationIncrement()) {
 		unflagCable(modelStack->summary->whichParamsAreInterpolating, c);
 
-		bool stillAutomated = param->isAutomated();
+		bool stillAutomated = param->isAutomated(*docForParam(c));
 		if (!stillAutomated) {
 			anyStoppedBeingAutomated = true;
 			unflagCable(modelStack->summary->whichParamsAreAutomated, c);
@@ -728,7 +788,7 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 void PatchCableSet::shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount,
                                       int32_t effectiveLength) {
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
-	patchCables[c].param.shiftHorizontally(amount, effectiveLength);
+	patchCables[c].param.shiftHorizontally(*docForParam(c), amount, effectiveLength);
 	FOR_EACH_PARAM_END
 }
 
@@ -777,243 +837,121 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 	}
 }
 
-void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
-	// This object was memcpy'd from another, so the cable storage is still the other's: give this one its own.
-	PatchCable* const source = patchCables;
-	patchCables = nullptr;
+Destination* PatchCableSet::cloneDestinations(Destination const* src) {
+	if (src == nullptr) {
+		return nullptr;
+	}
+	// Sized to the list, including its terminator
+	int32_t numEntries = 1;
+	while (src[numEntries - 1].sources) {
+		numEntries++;
+	}
+	auto* dst = static_cast<Destination*>(deluge::memory::alloc_fast(sizeof(Destination) * numEntries));
+	if (dst == nullptr) {
+		throw deluge::exception::BAD_ALLOC;
+	}
+	Destination* to = dst;
+	Destination const* from = src;
+	while (true) {
+		*to = *from; // Destination is trivially copyable.
+		if (!from->sources) {
+			break; // copied the terminating "0" entry
+		}
+		from++;
+		to++;
+	}
+	return dst;
+}
+
+PatchCableSet::PatchCableSet(PatchCableSet const& other)
+    : ParamCollection(other), numUsablePatchCables(other.numUsablePatchCables), numPatchCables(other.numPatchCables) {
+	sourcesPatchedToAnything[GLOBALITY_LOCAL] = other.sourcesPatchedToAnything[GLOBALITY_LOCAL];
+	sourcesPatchedToAnything[GLOBALITY_GLOBAL] = other.sourcesPatchedToAnything[GLOBALITY_GLOBAL];
+
+	// This set's own cable storage, sized to fit. Nothing renders a set under construction, so no exclusion.
 	if (numPatchCables != 0) {
 		patchCables = static_cast<PatchCable*>(
 		    deluge::memory::alloc_fast(sizeof(PatchCable) * numPatchCables, alignof(PatchCable)));
 		if (patchCables == nullptr) {
-			// No room for the cables: this clone has none, and so no patching either.
-			numPatchCables = 0;
-			numUsablePatchCables = 0;
-			sourcesPatchedToAnything[GLOBALITY_LOCAL] = 0;
-			sourcesPatchedToAnything[GLOBALITY_GLOBAL] = 0;
-			destinations[GLOBALITY_LOCAL] = nullptr;
-			destinations[GLOBALITY_GLOBAL] = nullptr;
-			return;
+			throw deluge::exception::BAD_ALLOC;
 		}
-		memcpy(static_cast<void*>(patchCables), source, sizeof(PatchCable) * numPatchCables);
 	}
 
-	int32_t c;
-	for (c = 0; c < numUsablePatchCables; c++) {
-		patchCables[c].param.beenCloned(copyAutomation, reverseDirectionWithLength);
-	}
-
-	// The unusable cables keep no automation. Their node storage is still the source's, so forget it rather than free
-	// it.
-	for (; c < numPatchCables; c++) {
-		patchCables[c].param.init();
-	}
-
-	// These pointers to allocated memory need that memory cloned.
-	// If we knew we'd be calling setupPatching() again for this new clone, we wouldn't need to do this - we could just
-	// set these pointers to NULL. But this doesn't always happen.
-
-	Destination* newDestinations[2];
-	newDestinations[GLOBALITY_LOCAL] = nullptr;
-	newDestinations[GLOBALITY_GLOBAL] = nullptr;
-
-	// Allocate new memory, sized to the list including its terminator
-	for (int32_t g = 0; g < 2; g++) {
-		if (!destinations[g]) {
-			continue;
-		}
-
-		int32_t numEntries = 1;
-		while (destinations[g][numEntries - 1].sources) {
-			numEntries++;
-		}
-		newDestinations[g] = (Destination*)deluge::memory::alloc_fast(sizeof(Destination) * numEntries);
-
-		// If couldn't...
-		if (!newDestinations[g]) {
-
-			// If we'd got the first one successfully, deallocate it again
-			if (g == 1) {
-				delugeDealloc(newDestinations[0]);
-				newDestinations[0] = nullptr;
+	// Real-copy the live cables (deep-copies each cable's AutoParam nodes — may throw); the rest start empty, keeping
+	// no automation. A throw destroys what was built, as the destructor won't run for a constructor that throws.
+	int32_t built = 0;
+	try {
+		for (; built < numUsablePatchCables; built++) {
+			PatchCable* cable = new (&patchCables[built]) PatchCable(other.patchCables[built]);
+			// If `other` reads its live nodes from an external tree store, its inline amount_ is stale (edits
+			// went to the tree). Copy the current tree nodes so this clone starts self-owned (domCablesRef_ stays
+			// null) with correct automation — mirroring ParamSet's copy-ctor deep-copying its bound store.
+			if (deluge::project::DocAutoParam* live =
+			        other.findDomCableAmount(cable->from, cable->destinationParamDescriptor)) {
+				cable->amount_ = *live;
 			}
-
-			// And get out
-			goto done;
+		}
+		for (; built < numPatchCables; built++) {
+			new (&patchCables[built]) PatchCable();
+			patchCables[built].param.init(*docForParam(built));
 		}
 
-		// Copy the memory
-		Destination* from = destinations[g];
-		Destination* to = newDestinations[g];
-		while (true) {
-			*to = *from;
-			if (!from->sources) {
-				break; // Stop *after* copying the terminating "0".
+		// Deep-copy the destination arrays last, so a throw leaves only the cables to clean up.
+		destinations[GLOBALITY_LOCAL] = cloneDestinations(other.destinations[GLOBALITY_LOCAL]);
+		try {
+			destinations[GLOBALITY_GLOBAL] = cloneDestinations(other.destinations[GLOBALITY_GLOBAL]);
+		} catch (deluge::exception&) {
+			if (destinations[GLOBALITY_LOCAL]) {
+				delugeDealloc(destinations[GLOBALITY_LOCAL]);
 			}
-
-			from++;
-			to++;
+			throw;
 		}
+	} catch (deluge::exception&) {
+		for (int32_t c = 0; c < built; c++) {
+			patchCables[c].~PatchCable();
+		}
+		deluge::memory::dealloc(patchCables);
+		throw;
 	}
-
-done:
-	destinations[GLOBALITY_LOCAL] = newDestinations[GLOBALITY_LOCAL];
-	destinations[GLOBALITY_GLOBAL] = newDestinations[GLOBALITY_GLOBAL];
 }
 
-void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
-	truncateCables(0);
-
-	// These are for loading in old-format presets, back when only one "range adjustable cable" was allowed.
-	PatchSource rangeAdjustableCableS = PatchSource::NOT_AVAILABLE;
-	int32_t rangeAdjustableCableP = 255;
-
-	char const* tagName;
-	reader.match('[');
-	while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())
-	       && numPatchCables < kMaxNumPatchCables) { // box and name.
-		if (!strcmp(tagName, "patchCable")) {
-			reader.match('{'); // inner object value.
-			int32_t numCablesAtStartOfThing = numPatchCables;
-
-			PatchSource source = PatchSource::NONE;
-			ParamDescriptor destinationParamDescriptor;
-			destinationParamDescriptor.setToNull();
-			AutoParam tempParam;
-			Polarity polarity = Polarity::BIPOLAR;
-			bool rangeAdjustable = false;
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
-				if (!strcmp(tagName, "source")) {
-					source = stringToSource(reader.readTagOrAttributeValue());
-					if (source == PatchSource::AFTERTOUCH) {
-						polarity = Polarity::UNIPOLAR;
-					}
-				}
-				else if (!strcmp(tagName, "destination")) {
-					destinationParamDescriptor.setToHaveParamOnly(params::fileStringToParam(
-					    params::Kind::UNPATCHED_SOUND, reader.readTagOrAttributeValue(), true));
-				}
-				else if (!strcmp(tagName, "amount")) {
-					tempParam.readFromFile(reader, readAutomationUpToPos);
-				}
-				else if (!strcmp(tagName, "rangeAdjustable")) { // Files before V3.2 had this
-					rangeAdjustable = reader.readTagOrAttributeValueInt();
-				}
-				else if (!strcmp(tagName, "polarity")) {
-					polarity = stringToPolarity(reader.readTagOrAttributeValue());
-				}
-				else if (!strcmp(tagName, "depthControlledBy")) {
-					reader.match('[');
-					while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())
-					       && numPatchCables < kMaxNumPatchCables - 1) {
-						if (!strcmp(tagName, "patchCable")) {
-							reader.match('{');
-							PatchSource rangeSource = PatchSource::NONE;
-							AutoParam tempRangeParam;
-							Polarity rangePolarity = Polarity::BIPOLAR;
-							while (*(tagName = reader.readNextTagOrAttributeName())) {
-								if (!strcmp(tagName, "source")) {
-									rangeSource = stringToSource(reader.readTagOrAttributeValue());
-								}
-								else if (!strcmp(tagName, "amount")) {
-									tempRangeParam.readFromFile(reader, readAutomationUpToPos);
-								}
-								else if (!strcmp(tagName, "polarity")) {
-									rangePolarity = stringToPolarity(reader.readTagOrAttributeValue());
-								}
-								reader.exitTag();
-							}
-							reader.match('}'); // leave value
-							reader.match('}'); // leave box.
-							if (rangeSource != PatchSource::NONE && tempRangeParam.containsSomething(0)) {
-								// Ensure no previous patch cable matches this combination
-								for (int32_t c = numCablesAtStartOfThing; c < numPatchCables; c++) {
-									if (patchCables[c].from == rangeSource) {
-										goto doneWithThisRangeCable;
-									}
-								}
-
-								// And write this range-adjusting cable's details
-								PatchCable* cable = addCable();
-								if (cable != nullptr) {
-									cable->from = rangeSource;
-									cable->param.cloneFrom(&tempRangeParam, true);
-									cable->polarity = rangePolarity;
-								}
-							}
-						} // end of patchcable
-doneWithThisRangeCable:
-						reader.exitTag();
-					} // end of inner patchCable array
-
-				} // end of DepthControlledBy kvp handler
-				reader.match(']');
-				reader.exitTag();
-			}
-			if (source != PatchSource::NONE && !destinationParamDescriptor.isNull() && tempParam.containsSomething(0)) {
-				// Just make sure this cable is allowed in some capacity
-				// Deactivated because maySourcePatchToParam() is a Sound function, and this probably isn't really
-				// necessary anyway
-				// if (maySourcePatchToParam(patchCables[numPatchCables].from, patchCables[numPatchCables].to) ==
-				// PatchCableAcceptance::DISALLOWED) goto loadNextPatchCable;
-
-				if (source == PatchSource::X
-				    && destinationParamDescriptor.isSetToParamWithNoSource(
-				        params::LOCAL_PITCH_ADJUST)) { // Because I briefly made this possible in a 3.2.0 alpha.
-					goto abandonThisCable;
-				}
-
-				// Ensure no previous patch cable matches this combination
-				for (int32_t c = 0; c < numCablesAtStartOfThing; c++) {
-					if (patchCables[c].from == source
-					    && patchCables[c].destinationParamDescriptor == destinationParamDescriptor) {
-						goto abandonThisCable;
-					}
-				}
-
-				if (rangeAdjustable) {
-					rangeAdjustableCableS = source;
-					rangeAdjustableCableP = destinationParamDescriptor.getJustTheParam();
-				}
-
-				// Any other cables we just found which control the range/depth of this cable - we need to write their
-				// destination, because that wasn't necessarily known before.
-				for (int32_t c = numCablesAtStartOfThing; c < numPatchCables; c++) {
-					patchCables[c].destinationParamDescriptor = destinationParamDescriptor;
-					patchCables[c].destinationParamDescriptor.addSource(source);
-				}
-
-				// And write this cable's details
-				PatchCable* cable = addCable();
-				if (cable == nullptr) {
-					goto abandonThisCable;
-				}
-				cable->from = source;
-				cable->destinationParamDescriptor = destinationParamDescriptor;
-				cable->param.cloneFrom(&tempParam, true);
-				cable->polarity = polarity;
-			}
-			else {
-abandonThisCable:
-				// Discard any range-adjusting ones we'd just done above
-				for (int32_t c = numCablesAtStartOfThing; c < numPatchCables; c++) {
-					patchCables[c].param.deleteAutomationBasicForSetup();
-				}
-				truncateCables(numCablesAtStartOfThing);
-			}
-		}
-
-		reader.exitTag(nullptr, true); // exit outer patchCable element.
-		reader.match('}');             // leave box.
+Error PatchCableSet::clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength) const {
+	void* mem = deluge::memory::alloc_fast(sizeof(PatchCableSet));
+	if (mem == nullptr) {
+		return Error::INSUFFICIENT_RAM;
 	}
-	reader.match(']');
-
-	if (rangeAdjustableCableP != 255) {
-		for (int32_t c = 0; c < numPatchCables; c++) {
-			if (patchCables[c].destinationParamDescriptor.isSetToParamWithNoSource(params::PLACEHOLDER_RANGE)) {
-				patchCables[c].destinationParamDescriptor.setToHaveParamAndSource(rangeAdjustableCableP,
-				                                                                  rangeAdjustableCableS);
-			}
+	PatchCableSet* clone;
+	try {
+		clone = new (mem) PatchCableSet(*this);
+	} catch (deluge::exception&) {
+		delugeDealloc(mem);
+		return Error::INSUFFICIENT_RAM;
+	}
+	if (!copyAutomation) {
+		clone->stripAutomation();
+	}
+	else if (reverseDirectionWithLength != 0) {
+		try {
+			clone->flattenReverseAutomation(reverseDirectionWithLength);
+		} catch (deluge::exception&) {
+			clone->~PatchCableSet();
+			delugeDealloc(mem);
+			return Error::INSUFFICIENT_RAM;
 		}
+	}
+	result = clone;
+	return Error::NONE;
+}
+
+void PatchCableSet::stripAutomation() {
+	for (int32_t c = 0; c < numUsablePatchCables; c++) {
+		docForParam(c)->nodes.clear();
+	}
+}
+
+void PatchCableSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+	for (int32_t c = 0; c < numUsablePatchCables; c++) {
+		patchCables[c].param.flattenReverse(*docForParam(c), reverseDirectionWithLength);
 	}
 }
 
@@ -1042,7 +980,7 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 		writer.printIndents();
 		writer.writeTagNameAndSeperator("amount");
 		writer.write("\"");
-		patchCables[c].param.writeToFile(writer, writeAutomation);
+		patchCables[c].param.writeToFile(*docForParam(c), writer, writeAutomation);
 		writer.write("\"");
 
 		// See if another cable(s) controls the range/depth of this cable
@@ -1065,7 +1003,7 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 				writer.printIndents();
 				writer.writeTagNameAndSeperator("amount");
 				writer.write("\"");
-				patchCables[d].param.writeToFile(writer, writeAutomation);
+				patchCables[d].param.writeToFile(*docForParam(d), writer, writeAutomation);
 				writer.write("\"");
 				writer.closeTag(true);
 			}
@@ -1114,7 +1052,7 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 
 		// Delete the patch cable if its value is now 0 and no automation. This is a bit "dangerous" - it will probably
 		// delete the AutoParam that called us!
-		if (!modelStack->autoParam->containsSomething(0)) {
+		if (!modelStack->autoParam->containsSomething(*modelStack->doc(), 0)) {
 			int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
 			if (c != 255) {
 
@@ -1203,7 +1141,7 @@ void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset,
 	if (!param->hasInterpolationIncrement()) {
 		unflagCable(modelStack->summary->whichParamsAreInterpolating, c);
 
-		bool stillAutomated = param->isAutomated();
+		bool stillAutomated = param->isAutomated(*docForParam(c));
 		if (!stillAutomated) {
 			anyStoppedBeingAutomated = true;
 			unflagCable(modelStack->summary->whichParamsAreAutomated, c);
@@ -1257,7 +1195,8 @@ void PatchCableSet::grabVelocityToLevelFromMIDICable(MIDICable& cable) {
 		return;
 	}
 
-	patchCable->param.setCurrentValueBasicForSetup(cable.defaultVelocityToLevel);
+	// Write the cable's inline store (amount_, the persisted source when unbound) too, not just the cursor.
+	patchCable->param.setCurrentValueBasicForSetup(patchCable->amount_, cable.defaultVelocityToLevel);
 }
 
 PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {

@@ -16,13 +16,16 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "model/fx/chain_inputs.h"
 
 #include "chrono"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
-#include "deluge_resource.h" // deluge_resource_stats (loader instrumentation)
+#include "deluge_resource.h"                      // deluge_resource_stats (loader instrumentation)
+#include "dsp-next/fixed/dynamics/hit_strength.h" // combine_hit_strengths
 #include "dsp/reverb/reverb.hpp"
 #include "dsp/timestretch/time_stretcher.h"
+#include "engines/effects/sidechain.h"
 #include "extern.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
@@ -58,6 +61,7 @@
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "modulation/sidechain/sidechain.h"
 #include "playback/render_requests.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
@@ -194,10 +198,11 @@ void letGoOfClip(Clip* clip) {
 		if (currentSong->getCurrentClip() == clip) {
 			currentSong->setCurrentClip(nullptr);
 		}
-		if (currentSong->syncScalingClip == clip) {
-			currentSong->syncScalingClip = nullptr;
+		if (currentSong->live.sync_scaling_clip == clip) {
+			currentSong->live.sync_scaling_clip = nullptr;
 		}
-		for (ClipArray* array : {&currentSong->sessionClips, &currentSong->arrangementOnlyClips}) {
+		for (ClipArray* array :
+		     {&currentSong->live.clips.session_clips, &currentSong->live.clips.arrangement_only_clips}) {
 			for (Clip* other : *array) {
 				if (other->beingRecordedFromClip == clip) {
 					other->beingRecordedFromClip = nullptr;
@@ -222,7 +227,8 @@ void letGoOfSong(Song* song) {
 		sound.letGoWithSong = true;
 		anyMarked = true;
 	};
-	for (Output* first : {song->firstOutput, static_cast<Output*>(song->firstHibernatingInstrument)}) {
+	for (Output* first :
+	     {song->live.media.first_output, static_cast<Output*>(song->live.media.first_hibernating_instrument)}) {
 		for (Output* output = first; output != nullptr; output = output->next) {
 			if (output->type == OutputType::SYNTH) {
 				mark(*static_cast<SoundInstrument*>(output));
@@ -387,7 +393,8 @@ constexpr int32_t direnessThreshold = numSamplesLimit - 30;
 constexpr int MIN_VOICES = 7;
 
 dsp::Reverb reverb{};
-PLACE_INTERNAL_FRUNK SideChain reverbSidechain{};
+PLACE_INTERNAL_FRUNK deluge::effects::Sidechain reverbSidechain{};
+deluge::effects::SidechainState reverbSidechainSettings = deluge::modulation::default_sidechain_state();
 int32_t reverbSidechainVolume;
 int32_t reverbSidechainShape;
 int32_t reverbPan = 0;
@@ -514,7 +521,7 @@ void init() {
 	sampleForPreview->patcher.performInitialPatching(
 	    sampleForPreview->patchControlBlock(*paramManagerForSamplePreview));
 
-	sampleForPreview->sideChainSendLevel = 2147483647;
+	sampleForPreview->setSideChainSendLevel(2147483647); // DOM-owned (an unbound preview sets the cache only)
 
 	deluge_audio_start();
 	inputRingPos = (uintptr_t)inputRing;
@@ -536,7 +543,7 @@ void killAllVoices(bool deletingSong) {
 	// But if there's no currentSong, that's fine - it's already been deleted, and this has already been called for it
 	// before then.
 	if (currentSong != nullptr) {
-		for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+		for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 			if (output->type == OutputType::AUDIO) {
 				static_cast<AudioOutput*>(output)->cutAllSound();
 			}
@@ -698,6 +705,14 @@ int32_t getNumVoices() {
 void routineWithClusterLoading() {
 	logAction("AudioDriver::routineWithClusterLoading");
 	DELUGE_LOAD_TRACE("routine");
+
+	// In-memory deserialization (FileReader::callRoutines == false) opts out of the cooperative
+	// audio yield: there is no SD cluster stream to service and no engine to pump. File-backed
+	// reads keep callRoutines == true. This also lets a headless host harness load a Song without
+	// standing up the audio engine.
+	if (activeReader != nullptr && !activeReader->shouldCallRoutines()) {
+		return;
+	}
 
 	routineBeenCalled = false;
 
@@ -1015,7 +1030,32 @@ void midiGateOutputTimerFired() {
 
 void scheduleMidiGateOutISR(size_t numSamples);
 void setMonitoringMode();
-void renderSongFX(size_t numSamples);
+/// The output stage's volume while no song is current: 134217728 made a bit bigger, as a song master's filters start.
+constexpr int32_t kMasterVolumeWithoutSong = 167763968;
+
+/// @brief The current song's master over @p renderingBuffer: its half before the reverb with @p master (noting a send
+/// to the reverb), then @p between (which renders the reverb, and the sample preview, and returns the half after's
+/// inputs, or nothing to skip that half), then that half. The output stage's volume is unity after it; without it, it
+/// is left as it was.
+template <typename Between>
+void renderMaster(std::span<StereoSample> renderingBuffer, const deluge::effects::MasterChainInputs& master,
+                  Between&& between) {
+	bool post = false;
+	auto tracked = [&](bool sent) -> std::optional<deluge::effects::MasterPostInputs> {
+		if (sent) {
+			timeThereWasLastSomeReverb = audioSampleTimer; // the reverb renders only within a while of a send
+		}
+		std::optional<deluge::effects::MasterPostInputs> inputs = between();
+		post = inputs.has_value();
+		return inputs;
+	};
+	currentSong->live.global_effectable.chain().render(renderingBuffer, master,
+	                                                   {reverbMemory.data(), renderingBuffer.size()}, tracked);
+	if (post) {
+		masterVolumeAdjustmentL = ONE_Q31;
+		masterVolumeAdjustmentR = ONE_Q31;
+	}
+}
 void renderSamplePreview(size_t numSamples);
 void renderReverb(size_t numSamples);
 void tickSongFinalizeWindows(size_t& numSamples);
@@ -1268,16 +1308,22 @@ void renderAudio(size_t numSamples) {
 
 	numHopsEndedThisRoutineCall = 0;
 
-	// Render audio for song
+	// Render audio for song: its outputs, then its master around the reverb and the sample preview.
 	if (currentSong != nullptr) {
-		currentSong->renderAudio(renderingBuffer, reverbBuffer.data(), sideChainHitPending);
+		const deluge::effects::MasterChainInputs master =
+		    currentSong->renderAudio(renderingBuffer, reverbBuffer.data(), sideChainHitPending);
+		renderMaster(renderingBuffer, master, [&]() -> std::optional<deluge::effects::MasterPostInputs> {
+			renderReverb(numSamples);
+			renderSamplePreview(numSamples);
+			return deluge::model::masterPostInputs(*currentSong);
+		});
 	}
-
-	renderReverb(numSamples);
-
-	renderSamplePreview(numSamples);
-
-	renderSongFX(numSamples);
+	else {
+		renderReverb(numSamples);
+		renderSamplePreview(numSamples);
+		masterVolumeAdjustmentL = kMasterVolumeWithoutSong;
+		masterVolumeAdjustmentR = kMasterVolumeWithoutSong;
+	}
 
 	metronome.render(renderingBuffer);
 
@@ -1303,14 +1349,23 @@ void renderAudioForStemExport(size_t numSamples) {
 
 	numHopsEndedThisRoutineCall = 0;
 
-	// Render audio for song
+	// Render audio for song: its outputs, then its master, around the reverb when the export takes the song's effects;
+	// without them, only the master's half before the reverb.
 	if (currentSong != nullptr) {
-		currentSong->renderAudio(renderingBuffer, reverbBuffer.data(), sideChainHitPending);
+		const deluge::effects::MasterChainInputs master =
+		    currentSong->renderAudio(renderingBuffer, reverbBuffer.data(), sideChainHitPending);
+		renderMaster(renderingBuffer, master, [&]() -> std::optional<deluge::effects::MasterPostInputs> {
+			if (!stemExport.includeSongFX) {
+				return std::nullopt;
+			}
+			renderReverb(numSamples);
+			return deluge::model::masterPostInputs(*currentSong);
+		});
 	}
-
-	if (stemExport.includeSongFX) {
+	else if (stemExport.includeSongFX) {
 		renderReverb(numSamples);
-		renderSongFX(numSamples);
+		masterVolumeAdjustmentL = kMasterVolumeWithoutSong;
+		masterVolumeAdjustmentR = kMasterVolumeWithoutSong;
 	}
 
 	// Feed the just-rendered block to the offline stem recorder. Two recorder channels
@@ -1438,9 +1493,6 @@ startAgain:
 	}
 }
 
-void feedReverbBackdoorForGrain(int index, q31_t value) {
-	reverbMemory[index] += value;
-}
 void renderReverb(size_t numSamples) {
 	std::span renderingBuffer{renderingMemory.data(), numSamples};
 	std::span reverbBuffer{reverbMemory.data(), numSamples};
@@ -1457,7 +1509,8 @@ void renderReverb(size_t numSamples) {
 			reverbSidechain.registerHit(sideChainHitPending);
 		}
 
-		sidechainOutput = reverbSidechain.render(numSamples, reverbSidechainShapeInEffect);
+		sidechainOutput = reverbSidechain.render(numSamples, reverbSidechainShapeInEffect, reverbSidechainSettings,
+		                                         playbackHandler.getTimePerInternalTickInverse());
 	}
 
 	int32_t reverbAmplitudeL;
@@ -1503,56 +1556,6 @@ void renderSamplePreview(size_t numSamples) { // Previewing sample
 		    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
 
 		sampleForPreview->render(modelStack, renderingBuffer, reverbBuffer.data(), sideChainHitPending);
-	}
-}
-void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen after reverb mixed in, which is why it's
-	                                   // happening all the way out here
-	std::span renderingBuffer{renderingMemory.data(), numSamples};
-	std::span reverbBuffer{reverbMemory.data(), numSamples};
-
-	masterVolumeAdjustmentL = 167763968; // getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
-	masterVolumeAdjustmentR = 167763968; // getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
-	// 167763968 is 134217728 made a bit bigger so that default filter resonance doesn't reduce volume overall
-
-	if (currentSong) {
-		currentSong->globalEffectable.setupFilterSetConfig(&masterVolumeAdjustmentL, &currentSong->paramManager);
-		currentSong->globalEffectable.processFilters(renderingBuffer);
-		currentSong->globalEffectable.processSRRAndBitcrushing(renderingBuffer, &masterVolumeAdjustmentL,
-		                                                       &currentSong->paramManager);
-
-		masterVolumeAdjustmentR = masterVolumeAdjustmentL; // This might have changed in the above function calls
-
-		currentSong->globalEffectable.processStutter(renderingBuffer, &currentSong->paramManager);
-
-		// And we do panning for song here too - must be post reverb, and we had to do a volume adjustment below
-		// anyway
-		int32_t pan = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_PAN) >> 1;
-
-		if (pan != 0) {
-			// Set up panning
-			int32_t amplitudeL;
-			int32_t amplitudeR;
-			bool doPanning = (renderInStereo && shouldDoPanning(pan, &amplitudeL, &amplitudeR));
-
-			if (doPanning) {
-				masterVolumeAdjustmentL = multiply_32x32_rshift32(masterVolumeAdjustmentL, amplitudeL) << 2;
-				masterVolumeAdjustmentR = multiply_32x32_rshift32(masterVolumeAdjustmentR, amplitudeR) << 2;
-			}
-		}
-		logAction("mastercomp start");
-
-		int32_t songVolume =
-		    getFinalParameterValueVolume(
-		        134217728, cableToLinearParamShortcut(
-		                       currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
-		    >> 1;
-		// there used to be a static subtraction of 2 nepers (natural log based dB), this is the multiplicative
-		// equivalent
-		currentSong->globalEffectable.compressor.render(renderingBuffer, masterVolumeAdjustmentL >> 1,
-		                                                masterVolumeAdjustmentR >> 1, songVolume >> 3);
-		masterVolumeAdjustmentL = ONE_Q31;
-		masterVolumeAdjustmentR = ONE_Q31;
-		logAction("mastercomp end");
 	}
 }
 void setMonitoringMode() { // Monitoring setup
@@ -1933,7 +1936,7 @@ void updateReverbParams() {
 		int32_t highestReverbAmountFound =
 		    currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
 
-		for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+		for (Output* thisOutput = currentSong->live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 			thisOutput->getThingWithMostReverb(&soundWithMostReverb, &paramManagerWithMostReverb,
 			                                   &globalEffectableWithMostReverb, &highestReverbAmountFound);
 		}
@@ -1967,9 +1970,11 @@ void updateReverbParams() {
 sidechainFound:
 			reverbSidechainShapeInEffect =
 			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE);
-			reverbSidechain.attack = modControllable->sidechain.attack;
-			reverbSidechain.release = modControllable->sidechain.release;
-			reverbSidechain.syncLevel = modControllable->sidechain.syncLevel;
+			const deluge::effects::SidechainState& from =
+			    modControllable->modControllableSnapshot().effects.sidechain; // the render's copy
+			reverbSidechainSettings.attack = from.attack;
+			reverbSidechainSettings.release = from.release;
+			reverbSidechainSettings.sync_level = from.sync_level;
 			return;
 		}
 
@@ -1986,7 +1991,7 @@ sidechainFound:
 }
 
 void registerSideChainHit(int32_t strength) {
-	sideChainHitPending = combineHitStrengths(strength, sideChainHitPending);
+	sideChainHitPending = deluge::dsp::fixed::combine_hit_strengths(strength, sideChainHitPending);
 }
 
 PreviewVolume PreviewVolume::neutral() {
@@ -2048,16 +2053,17 @@ void stopAnyPreviewing() {
 
 void getReverbParamsFromSong(Song* song) {
 	reverb.setModel(song->model);
-	reverb.setRoomSize(song->reverbRoomSize);
-	reverb.setLPF(song->reverbLPF);
-	reverb.setDamping(song->reverbDamp);
-	reverb.setWidth(song->reverbWidth);
-	reverbPan = song->reverbPan;
-	reverbSidechainVolume = song->reverbSidechainVolume;
-	reverbSidechainShape = song->reverbSidechainShape;
-	reverbSidechain.attack = song->reverbSidechainAttack;
-	reverbSidechain.release = song->reverbSidechainRelease;
-	reverbSidechain.syncLevel = song->reverbSidechainSync;
+	reverb.setRoomSize(song->project.reverb.room_size);
+	reverb.setHPF(song->project.reverb.hpf);
+	reverb.setLPF(song->project.reverb.lpf);
+	reverb.setDamping(song->project.reverb.damping);
+	reverb.setWidth(song->project.reverb.width);
+	reverbPan = song->project.reverb.pan;
+	reverbSidechainVolume = song->project.reverb.sidechain_volume;
+	reverbSidechainShape = song->project.reverb.sidechain_shape;
+	reverbSidechainSettings.attack = song->project.reverb.sidechain_attack;
+	reverbSidechainSettings.release = song->project.reverb.sidechain_release;
+	reverbSidechainSettings.sync_level = song->project.reverb.sidechain_sync;
 }
 
 bool allowedToStartVoice() {
@@ -2387,8 +2393,8 @@ void retire(Clip* clip) {
 		if (currentSong->getCurrentClip() == clip) {
 			currentSong->setCurrentClip(nullptr);
 		}
-		if (currentSong->syncScalingClip == clip) {
-			currentSong->syncScalingClip = nullptr;
+		if (currentSong->live.sync_scaling_clip == clip) {
+			currentSong->live.sync_scaling_clip = nullptr;
 		}
 	}
 	clearViewIfClip(clip);
@@ -2416,7 +2422,8 @@ void retire(Song* song) {
 	}
 	handOver(RetireRequest{.song = song}, song, [](void* p) {
 		auto* s = static_cast<Song*>(p);
-		for (Output* first : {s->firstOutput, static_cast<Output*>(s->firstHibernatingInstrument)}) {
+		for (Output* first :
+		     {s->live.media.first_output, static_cast<Output*>(s->live.media.first_hibernating_instrument)}) {
 			for (Output* output = first; output != nullptr; output = output->next) {
 				checkLetGoBeforeDestroy(output, nullptr);
 			}

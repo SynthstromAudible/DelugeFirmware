@@ -41,6 +41,9 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
+#include "storage/tree_document.h"
+#include "storage/value.h"
+#include "storage/value_tree_deserializer.h"
 
 #include "etl/string.h"
 #include "util/firmware_version.h"
@@ -55,22 +58,42 @@ extern "C" {
 #include <libdeluge/scheduler.h>
 }
 
-FirmwareVersion song_firmware_version = FirmwareVersion::current();
+FirmwareVersion song_firmware_version = current_firmware_version();
 PLACE_SDRAM_BSS XMLSerializer smSerializer;
 PLACE_SDRAM_BSS XMLDeserializer smDeserializer;
 PLACE_SDRAM_BSS JsonSerializer smJsonSerializer;
 PLACE_SDRAM_BSS JsonDeserializer smJsonDeserializer;
 FileDeserializer* activeDeserializer = &smDeserializer;
+Deserializer* activeReader = &smDeserializer;
 
-const bool writeJsonFlag = false;
+namespace {
+Serializer* activeWriter = &smSerializer;
+} // namespace
 
 Serializer& GetSerializer() {
-	if (writeJsonFlag) {
+	return *activeWriter;
+}
+
+Serializer& serializerFor(deluge::storage::DocumentFormat format) {
+	if (format == deluge::storage::DocumentFormat::JSON) {
 		return smJsonSerializer;
 	}
-	else {
-		return smSerializer;
+	return smSerializer;
+}
+
+FileWriter& fileWriterFor(deluge::storage::DocumentFormat format) {
+	if (format == deluge::storage::DocumentFormat::JSON) {
+		return smJsonSerializer;
 	}
+	return smSerializer;
+}
+
+ActiveWriterScope::ActiveWriterScope(Serializer& writer) : previous_(activeWriter) {
+	activeWriter = &writer;
+}
+
+ActiveWriterScope::~ActiveWriterScope() {
+	activeWriter = previous_;
 }
 
 extern void initialiseConditions();
@@ -177,9 +200,7 @@ Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer,
 	}
 	writer.file = std::move(created.value());
 	writer.reset();
-	if (!writeJsonFlag) {
-		writer.write(kXmlDocumentHead);
-	}
+	writer.write(kXmlDocumentHead);
 	return Error::NONE;
 }
 
@@ -291,33 +312,32 @@ void StorageManager::instrumentDocumentTags(OutputType outputType, char const** 
 	}
 }
 
-Error StorageManager::parseInstrumentDocument(Song* song, InstrumentClip* clip, OutputType outputType,
-                                              bool mayReadSamplesFromFiles, Instrument** getInstrument,
-                                              std::string* name, std::string* dirPath) {
+Error StorageManager::parseInstrumentDocument(deluge::storage::TreeDocument& document, Song* song, InstrumentClip* clip,
+                                              OutputType outputType, bool mayReadSamplesFromFiles,
+                                              Instrument** getInstrument, std::string* name, std::string* dirPath) {
 	AudioEngine::logAction("loadInstrumentFromFile");
 	Instrument* newInstrument = createNewInstrument(outputType);
 
 	if (!newInstrument) {
-		activeDeserializer->closeWriter();
 		D_PRINTLN("Allocating instrument file failed -  %d", name->c_str());
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	Error error = newInstrument->readFromFile(*activeDeserializer, song, clip, 0);
-
-	bool fileSuccess = activeDeserializer->closeWriter();
+	Error error;
+	{
+		deluge::storage::ActiveReaderScope reading(document.reader());
+		document.reader().match('{'); // into the instrument's object: needed for JSON, a no-op in XML
+		error = newInstrument->readFromFile(document.reader(), song, clip, 0);
+	}
 
 	// If that somehow didn't work...
-	if (error != Error::NONE || !fileSuccess) {
+	if (error != Error::NONE) {
 		D_PRINTLN("reading instrument file failed -  %s", name->c_str());
-		if (fileSuccess) {
-			error = Error::SD_CARD;
-		}
 
 deleteInstrumentAndGetOut:
 		D_PRINTLN("abandoning load -  %s", name->c_str());
 		newInstrument->deleteBackedUpParamManagers(song);
-		void* toDealloc = static_cast<void*>(newInstrument);
+		void* toDealloc = dynamic_cast<void*>(newInstrument); // the allocation's start, not the Instrument base
 		newInstrument->~Instrument();
 		delugeDealloc(toDealloc);
 
@@ -325,23 +345,10 @@ deleteInstrumentAndGetOut:
 	}
 
 	// Check that a ParamManager was actually loaded for the Instrument, cos if not, that'd spell havoc
-	if (!song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
-	                                                     nullptr)) {
+	if (!song->live.param_backup.getPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
+	                                                   nullptr)) {
 
-		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
-		// paramManager to be created when we read the Kit just now. So, just make one.
-		if (song_firmware_version < FirmwareVersion::official({2, 2, 0, "beta"}) && outputType == OutputType::KIT) {
-			ParamManagerForTimeline paramManager;
-			error = paramManager.setupUnpatched();
-			if (error != Error::NONE) {
-				goto deleteInstrumentAndGetOut;
-			}
-
-			GlobalEffectableForClip::initParams(&paramManager);
-			((Kit*)newInstrument)->compensateInstrumentVolumeForResonance(&paramManager, song); // Necessary?
-			song->backUpParamManager(((Kit*)newInstrument), clip, &paramManager, true);
-		}
-		else if (outputType == OutputType::MIDI_OUT) {
+		if (outputType == OutputType::MIDI_OUT) {
 			// midi instruments make the param manager later
 		}
 		else {
@@ -360,15 +367,15 @@ paramManagersMissing:
 				SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
 				// If no backedUpParamManager...
-				if (!currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL)) {
+				if (!currentSong->live.param_backup.getPreferablyWithClip(soundDrum, NULL)) {
 					goto paramManagersMissing;
 				}
 			}
 		}
 	}
 
-	newInstrument->name = *name;
-	newInstrument->dirPath = *dirPath;
+	newInstrument->setName(*name);
+	newInstrument->setDirPath(*dirPath);
 	newInstrument->mightExistOnCard = true;
 	newInstrument->loadAllAudioFiles(mayReadSamplesFromFiles); // Needs name, directory and slots set first, above.
 
@@ -376,25 +383,25 @@ paramManagersMissing:
 	return Error::NONE;
 }
 
-Error StorageManager::parseMidiDeviceDefinitionDocument(MIDIInstrument* midiInstrument, std::string* fileName,
+Error StorageManager::parseMidiDeviceDefinitionDocument(deluge::storage::TreeDocument& document,
+                                                        MIDIInstrument* midiInstrument, std::string* fileName,
                                                         bool updateFileName) {
 	AudioEngine::logAction("readMidiDeviceDefinitionFile");
 
-	Error error = midiInstrument->readDeviceDefinitionFile(*activeDeserializer);
-
-	bool fileSuccess = activeDeserializer->closeWriter();
+	Error error;
+	{
+		deluge::storage::ActiveReaderScope reading(document.reader());
+		error = midiInstrument->readDeviceDefinitionFile(document.reader());
+	}
 
 	// If that somehow didn't work...
-	if (error != Error::NONE || !fileSuccess) {
+	if (error != Error::NONE) {
 		D_PRINTLN("reading midi device definition file failed -  %s", fileName->c_str());
-		if (fileSuccess) {
-			error = Error::SD_CARD;
-		}
-
 		return error;
 	}
 	else if (updateFileName) {
-		midiInstrument->deviceDefinitionFileName = fileName->c_str();
+		// The record must hold the RESOLVED path this call computed, not just the native cache.
+		midiInstrument->setDeviceDefinitionFileName(fileName->c_str());
 	}
 
 	return Error::NONE;
@@ -435,31 +442,28 @@ Error StorageManager::parsePatternDocument(bool overwriteExisting, bool noScalin
 /**
  * Special function to read a synth preset into a sound drum
  */
-Error StorageManager::parseSynthDrumDocument(Song* song, InstrumentClip* clip, SoundDrum** getInstrument) {
+Error StorageManager::parseSynthDrumDocument(deluge::storage::TreeDocument& document, Song* song, InstrumentClip* clip,
+                                             SoundDrum** getInstrument) {
 	SoundDrum* newDrum = (SoundDrum*)createNewDrum(DrumType::SOUND);
 	if (!newDrum) {
-		activeDeserializer->closeWriter();
 		return Error::INSUFFICIENT_RAM;
 	}
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
-	Error error = newDrum->readFromFile(*activeDeserializer, song, clip, 0);
-
-	bool fileSuccess = activeDeserializer->closeWriter();
+	Error error;
+	{
+		deluge::storage::ActiveReaderScope reading(document.reader());
+		document.reader().match('{'); // into the preset's object: needed for JSON, a no-op in XML
+		error = newDrum->readFromFile(document.reader(), song, clip, 0);
+	}
 
 	// If that somehow didn't work...
-	if (error != Error::NONE || !fileSuccess) {
-
+	if (error != Error::NONE) {
 		void* toDealloc = static_cast<void*>(newDrum);
 		newDrum->~SoundDrum();
 		deluge::memory::dealloc(toDealloc);
 		return error;
-
-		if (!fileSuccess) {
-			error = Error::SD_CARD;
-			return error;
-		}
 	}
 	// The caller owns whatever drum this replaces - it may still be referenced by NoteRows in several Clips, so it's up
 	// to the caller to move those over before deleting it
@@ -575,6 +579,36 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 		newDrum = new (drumMemory) GateDrum();
 
 	return newDrum;
+}
+
+StorageManager::StagedOpen StorageManager::openDocumentStagedTree(char const* path, char const* firstTagName,
+                                                                  char const* altTagName, StagingState* state,
+                                                                  deluge::storage::TreeDocument& document) {
+	AudioEngine::logAction("openDocumentStagedTree");
+	const StagedOpen staged = stageDocument(path, state);
+	if (staged != StagedOpen::Opened) {
+		return staged;
+	}
+	const Error error = document.open(std::span<const uint8_t>(state->buffer, state->size), documentIsJson(path),
+	                                  firstTagName, altTagName);
+	// The tree holds its own copies.
+	releaseStaging(state);
+	return (error == Error::NONE) ? StagedOpen::Opened : StagedOpen::Failed;
+}
+
+Error StorageManager::openDocumentTreeSynchronously(char const* path, char const* firstTagName, char const* altTagName,
+                                                    deluge::storage::TreeDocument& document) {
+	AudioEngine::logAction("openDocumentTreeSynchronously");
+	StagingState staging{};
+	const Error staged = readWholeFileSynchronously(path, &staging);
+	if (staged != Error::NONE) {
+		return staged;
+	}
+	const Error error = document.open(std::span<const uint8_t>(staging.buffer, staging.size), documentIsJson(path),
+	                                  firstTagName, altTagName);
+	// The tree holds its own copies.
+	releaseStaging(&staging);
+	return (error == Error::NONE) ? Error::NONE : Error::FILE_CORRUPTED;
 }
 
 bool StorageManager::buildPathToFile(const char* fileName) {

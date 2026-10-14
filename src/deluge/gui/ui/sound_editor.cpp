@@ -10,6 +10,7 @@
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/menu_item/multi_range.h"
+#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -412,7 +413,6 @@ bool SoundEditor::editingGateDrumRow() {
 void SoundEditor::setCurrentSource(int32_t sourceIndex) {
 	currentSource = &currentSound->sources[sourceIndex];
 	currentSourceIndex = sourceIndex;
-	currentSampleControls = &currentSource->sampleControls;
 
 	if (currentMultiRange == nullptr && std::ssize(currentSource->ranges)) {
 		currentMultiRange = static_cast<MultisampleRange*>(currentSource->ranges.getElement(0));
@@ -762,7 +762,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on) {
 	else if (b == SESSION_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			exitCompletely();
-			if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+			if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
 				changeRootUI(&arrangerView);
 			}
 			else {
@@ -2072,25 +2072,18 @@ doMIDIOrCV:
 	currentMultiRange = newRange;
 
 	if (currentModControllable) {
-		currentSidechain = &currentModControllable->sidechain;
+		currentSidechain = &currentModControllable->core().sidechain();
 	}
 
 	if (currentSound) {
 		currentSourceIndex = sourceIndex;
 		currentSource = &currentSound->sources[currentSourceIndex];
-		currentSampleControls = &currentSource->sampleControls;
-		currentPriority = &currentSound->voicePriority;
 
 		if (result == MenuPermission::YES && currentMultiRange == nullptr) {
 			if (!currentSource->ranges.empty()) {
 				currentMultiRange = (MultisampleRange*)currentSource->ranges.getElement(0); // Is this good?
 			}
 		}
-	}
-	else if (clip->type == ClipType::AUDIO) {
-		AudioClip* audioClip = (AudioClip*)clip;
-		currentSampleControls = &audioClip->sampleControls;
-		currentPriority = &audioClip->voicePriority;
 	}
 
 	// end current menu item session before beginning new menu item session
@@ -2173,7 +2166,7 @@ void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
 	return (std::ssize(soundEditor.currentSource->ranges) > 1
-	        && soundEditor.currentSource->getRange(noteCode + soundEditor.currentSound->transpose)
+	        && soundEditor.currentSource->getRange(noteCode + soundEditor.currentSound->getTranspose())
 	               == soundEditor.currentMultiRange);
 }
 
@@ -2192,6 +2185,7 @@ MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(S
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return MenuPermission::NO;
 	}
+	deluge::gui::menu_item::recordRanges(*sound, whichThing);
 
 	// NOTE: This function used to have automaticallySelectIfOnlyOne-parameter, for which FileSelector
 	// and AudioRecorder passed false, and and which was checked in the second half of the OR below.

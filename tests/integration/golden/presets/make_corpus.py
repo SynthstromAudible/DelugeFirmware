@@ -13,6 +13,8 @@ center/neutral, 0x4CCCCCA8 = the default synth volume.
 """
 
 import pathlib
+import subprocess
+import tempfile
 
 CORPUS = pathlib.Path(__file__).parent
 
@@ -83,6 +85,7 @@ BASE_OSC1 = {"type": "saw", "transpose": "0", "cents": "0", "retrigPhase": "-1"}
 BASE_OSC2 = {"type": "square", "transpose": "0", "cents": "0", "retrigPhase": "-1"}
 BASE_LFO1 = {"type": "triangle", "syncLevel": "0"}
 BASE_UNISON = {"num": "1", "detune": "8"}
+BASE_DELAY = {"pingPong": "1", "analog": "0", "syncLevel": "7"}
 
 
 def case(
@@ -97,6 +100,9 @@ def case(
     env2=None,
     cables=None,
     modulators=None,  # (mod1_attrs, mod2_attrs) — FM-mode cases only
+    delay=None,
+    extra=(),  # further child elements of <sound>, each a line of XML
+    json=False,  # write the case as the firmware's JSON, through the upgrader
 ):
     def merged(base, over):
         return {**base, **(over or {})}
@@ -119,7 +125,8 @@ def case(
             f"\t<modulator2 {attrs(merged({'transpose': '0', 'cents': '0', 'retrigPhase': '-1', 'toModulator1': '0'}, mod2))} />"
         )
     lines.append(f"\t<unison {attrs(merged(BASE_UNISON, unison))} />")
-    lines.append('\t<delay pingPong="1" analog="0" syncLevel="7" />')
+    lines.append(f"\t<delay {attrs(merged(BASE_DELAY, delay))} />")
+    lines.extend(f"\t{element}" for element in extra)
     lines.append(f"\t<defaultParams {attrs(merged(BASE_PARAMS, params))}>")
     lines.append(f"\t\t<envelope1 {attrs(merged(BASE_ENV1, env1))} />")
     lines.append(f"\t\t<envelope2 {attrs(merged(BASE_ENV2, env2))} />")
@@ -134,7 +141,25 @@ def case(
     )
     lines.append("\t</defaultParams>")
     lines.append("</sound>")
-    (CORPUS / f"{name}.xml").write_text("\n".join(lines) + "\n")
+    text = "\n".join(lines) + "\n"
+    if not json:
+        (CORPUS / f"{name}.xml").write_text(text)
+        return
+    # The firmware saves presets as JSON. The upgrader (tools/deluge-upgrade) writes a document exactly as the firmware
+    # would, so the case is authored here in the same terms as the others and converted.
+    target = (CORPUS / name).parent
+    target.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory() as scratch:
+        source = pathlib.Path(scratch) / f"{pathlib.Path(name).name}.xml"
+        source.write_text(text)
+        subprocess.run([str(upgrader()), str(source), "--out", str(target)], check=True)
+
+
+def upgrader() -> pathlib.Path:
+    """The upgrader, built if it is not current."""
+    tool = CORPUS.resolve().parents[3] / "tools" / "deluge-upgrade"
+    subprocess.run(["cargo", "build", "--release", "--quiet"], cwd=tool, check=True)
+    return tool / "target" / "release" / "deluge-upgrade"
 
 
 # --- basic waveforms ---------------------------------------------------------
@@ -224,6 +249,190 @@ case(
     cables=BASE_CABLES + [("lfo1", "pitch", "0x08000000")],
 )
 case("velocity_dynamics", cables=[("velocity", "volume", "0x50000000")])
+
+# --- filter modes, routes and transitions (JSON, as the firmware saves) -------
+# The SVF's notch in the low-pass slot.
+case(
+    "filter_svf_notch",
+    sound={"lpfMode": "SVF_Notch"},
+    params={"lpfFrequency": "0x20000000", "lpfResonance": "0x28000000"},
+    json=True,
+)
+# The parallel route with only its low-pass filter on: the dry signal is summed with the filtered one.
+case(
+    "filter_parallel_lpf_only",
+    sound={"lpfMode": "12dB", "filterRoute": "PARA"},
+    params={"lpfFrequency": "0x18000000", "lpfResonance": "0x30000000"},
+    json=True,
+)
+# Each filter starts off (the low-pass fully open, the high-pass fully closed) and is switched on mid-note by its
+# frequency's MIDI-follow CC (74, 81) in the case's note script, so it fades in from dry over its first blocks. The
+# filter never ran before it fades in, so it starts from the cleared state of a new voice.
+case(
+    "filter_fade_lpf_ladder_hpf_svf",
+    sound={"lpfMode": "24dB", "hpfMode": "SVF_Notch"},
+    params={"lpfResonance": "0x30000000", "hpfResonance": "0x20000000"},
+    json=True,
+)
+case(
+    "filter_fade_lpf_svf_hpf_ladder",
+    sound={"lpfMode": "SVF_Band", "hpfMode": "HPLadder"},
+    params={"lpfResonance": "0x30000000", "hpfResonance": "0x20000000"},
+    json=True,
+)
+# The high-pass ladder alone in the parallel route (the low-pass fully open, so off), its resonance swept by the LFO
+# across the levels where the ladder saturates: unsaturated, through the tanh, and anti-aliased, entering and leaving
+# the saturator mid-note. The dry signal is summed with it.
+HPF_RESONANCE_SWEEP = {
+    "sound": {"hpfMode": "HPLadder", "filterRoute": "PARA"},
+    "params": {
+        "lpfFrequency": "0x7FFFFFFF",
+        "lpfResonance": "0x80000000",
+        "hpfFrequency": "0xC0000000",
+        "hpfResonance": "0x00000000",
+        "lfo1Rate": "0x30000000",
+    },
+    "cables": BASE_CABLES + [("lfo1", "hpfResonance", "0x3FFFFFE8")],
+}
+case("hpf_ladder_resonance_sweep_parallel", **HPF_RESONANCE_SWEEP, json=True)
+
+# --- stereo voices -------------------------------------------------------------
+# The cases under stereo/ render with headphones plugged in, so the app renders in stereo. A voice renders (and
+# filters) both channels when a source of it is stereo: here, two unison voices spread across the field.
+STEREO_UNISON = {"num": "2", "detune": "10", "spread": "40"}
+
+
+def stereo_case(name, sound=None, params=None, **rest):
+    case(
+        f"stereo/{name}",
+        sound=sound,
+        params=params,
+        unison=STEREO_UNISON,
+        json=True,
+        **rest,
+    )
+
+
+# Each route with both filters on, between them every ladder and SVF in each slot.
+stereo_case(
+    "lpf_12db_hpf_ladder_h2l",
+    sound={"lpfMode": "12dB", "hpfMode": "HPLadder", "filterRoute": "H2L"},
+    params={
+        "lpfFrequency": "0x18000000",
+        "lpfResonance": "0x30000000",
+        "hpfFrequency": "0xC0000000",
+        "hpfResonance": "0x20000000",
+    },
+)
+stereo_case(
+    "lpf_24db_hpf_svf_band_l2h",
+    sound={"lpfMode": "24dB", "hpfMode": "SVF_Band", "filterRoute": "L2H"},
+    params={
+        "lpfFrequency": "0x18000000",
+        "lpfResonance": "0x30000000",
+        "hpfFrequency": "0xC0000000",
+        "hpfResonance": "0x20000000",
+    },
+)
+stereo_case(
+    "lpf_svf_band_hpf_svf_notch_parallel",
+    sound={"lpfMode": "SVF_Band", "hpfMode": "SVF_Notch", "filterRoute": "PARA"},
+    params={
+        "lpfFrequency": "0x20000000",
+        "lpfResonance": "0x28000000",
+        "hpfFrequency": "0xC0000000",
+        "hpfResonance": "0x20000000",
+    },
+)
+# The SVF notch alone in the parallel route: the dry signal is summed with it.
+stereo_case(
+    "lpf_svf_notch_parallel",
+    sound={"lpfMode": "SVF_Notch", "filterRoute": "PARA"},
+    params={"lpfFrequency": "0x20000000", "lpfResonance": "0x28000000"},
+)
+# The drive filter high and resonant enough to oversample.
+stereo_case(
+    "lpf_drive_oversampled",
+    sound={"lpfMode": "24dBDrive"},
+    params={"lpfFrequency": "0x60000000", "lpfResonance": "0x60000000"},
+)
+# Both filters switched on mid-note by the note script (the mono case's), so each fades in from dry.
+stereo_case(
+    "filter_fade_lpf_ladder_hpf_svf",
+    sound={"lpfMode": "24dB", "hpfMode": "SVF_Notch"},
+    params={"lpfResonance": "0x30000000", "hpfResonance": "0x20000000"},
+)
+# The high-pass ladder's resonance sweep (the mono case's), on both channels.
+stereo_case("hpf_ladder_resonance_sweep_parallel", **HPF_RESONANCE_SWEEP)
+# The delay in ping-pong, which alternates its echoes between the channels only in stereo.
+stereo_case(
+    "delay_pingpong",
+    params={"delayRate": "0x00000000", "delayFeedback": "0x00000000"},
+)
+# The voice's output saturation on both channels, in each of its regimes: below 2 (no shift back up), at 2 (where the
+# shift starts, still 0) and above (shifted back up by the amount less 2).
+for amount in (1, 2, 5):
+    stereo_case(f"clipping_{amount}", sound={"clippingAmount": str(amount)})
+
+# --- dynamics and delay (JSON, as the firmware saves) ---------------------------
+# Each sidechain case sends hits of its own (sideChainSend) and ducks itself through the sidechain → post-reverb volume
+# cable. Its note script (sidechain_duck.notes, sidechain_instant_attack.notes, sidechain_synced.notes; the same
+# events in each) plays a two-note chord, whose hits combine into a stronger one, then a single
+# note inside the duck that chord made: that weaker hit is ignored. A last note after a silence wakes the sound from
+# skipping rendering, long after the last hit.
+SIDECHAIN_SEND = {"sideChainSend": "1073741824"}
+SIDECHAIN_CABLES = BASE_CABLES + [("compressor", "volumePostReverbSend", "0x1D800000")]
+
+
+def sidechain_case(name, sidechain, params=None):
+    settings = " ".join(f'{key}="{value}"' for key, value in sidechain.items())
+    case(
+        name,
+        sound=SIDECHAIN_SEND,
+        params=params,
+        cables=SIDECHAIN_CABLES,
+        extra=[f"<sidechain {settings} />"],
+        json=True,
+    )
+
+
+# The default attack and release (user values 7 and 28), unsynced.
+sidechain_case(
+    "sidechain_duck", {"attack": "327244", "release": "992", "syncLevel": "0"}
+)
+# The attack at its minimum, which skips the attack stage; the shape at its maximum, which flattens the release's
+# curve at its start.
+sidechain_case(
+    "sidechain_instant_attack",
+    {"attack": "1048576", "release": "992", "syncLevel": "0"},
+    params={"compressorShape": "0x7FFFFFFF"},
+)
+# Synced at the 256th-note level, finer than the 64th, where the attack rate is shifted left instead of right. The
+# attack is slow (user value 45), so that even shifted left it lasts several blocks.
+sidechain_case(
+    "sidechain_synced", {"attack": "588", "release": "992", "syncLevel": "9"}
+)
+# The compressor blended half wet, with its sidechain high-pass up.
+case(
+    "compressor_blend_hpf",
+    params={"compressorThreshold": "0x40000000"},
+    extra=[
+        (
+            '<audioCompressor attack="83886080" release="83886080" thresh="0" ratio="1073741824" '
+            'compHPF="1073741824" compBlend="1073741824" />'
+        )
+    ],
+    json=True,
+)
+# A digital delay whose rate the note script steps with MIDI-follow CC 53 (delay rate) mid-note: past double its buffer's
+# native rate, a little down (resampling until the rate settles), and below half, each growing a new buffer that is
+# swapped in once written. Unsynced, so the rates are the param's own.
+case(
+    "delay_rate_sweep",
+    params={"delayRate": "0x00000000", "delayFeedback": "0x00000000"},
+    delay={"pingPong": "0", "syncLevel": "0"},
+    json=True,
+)
 
 # --- note-event behaviours (paired with dedicated .notes scripts) -------------
 case("poly_chord")
