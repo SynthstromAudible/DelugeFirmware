@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <ranges>
 
 using Priority = uint32_t;
@@ -98,6 +99,21 @@ public:
 			std::ranges::make_heap(this->c, this->comp);
 		}
 		return raised;
+	}
+
+	/// @brief Takes @p cluster out of the queue, e.g. to load it right away.
+	/// @return The priority it was queued at, so it can be put back if loading fails, or nullopt if it wasn't queued.
+	std::optional<Priority> take(const Cluster* cluster) {
+		std::optional<Priority> taken;
+		for (auto& [priority, val] : this->c) {
+			if (val == cluster) {
+				if (!taken || priority < *taken) {
+					taken = priority;
+				}
+				val = nullptr;
+			}
+		}
+		return taken;
 	}
 
 	bool erase(const Cluster* cluster) {

@@ -90,6 +90,12 @@ public:
 	                                    AudioFileType type, bool makeWaveTableWorkAtAllCosts = false);
 	bool loadCluster(Cluster& cluster, int32_t minNumReasonsAfter = 0);
 	void loadAnyEnqueuedClusters(int32_t maxNum = 128, bool mayProcessUserActionsBetween = false);
+
+	/// @brief Loads @p cluster right now if it's in the loading queue, without loading what's ahead of it.
+	///
+	/// The caller must hold a reason on it. If it can't be loaded now, it's left in the queue as it was.
+	/// @return Whether it's loaded now.
+	bool loadEnqueuedClusterNow(Cluster& cluster);
 	void removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong = false);
 
 	/// @brief Holds a Cluster that's likely to be requested soon, loading it first if need be.

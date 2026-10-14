@@ -17,6 +17,7 @@
 
 #include "model/sample/sample_cluster.h"
 #include "definitions_cxx.hpp"
+#include "extern.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
@@ -124,6 +125,12 @@ justEnqueue:
 			}
 		}
 
+		// Inside routineForSD() or similar, waiting for the card busy-waits rather than letting the audio routine run,
+		// so if enqueuing is fine, don't load it here
+		else if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && sdRoutineLock) {
+			goto justEnqueue;
+		}
+
 		// Or if want to try to load now...
 		else { // CLUSTER_LOAD_IMMEDIATELY or CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE
 
@@ -177,22 +184,27 @@ justEnqueue:
 			audioFileManager.loadingQueue.raisePriority(cluster, priorityRating);
 		}
 
-		// If they'd prefer it loaded immediately and it's not loaded, try speeding loading along
-		if ((loadInstruction == CLUSTER_LOAD_IMMEDIATELY || loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE)
-		    && !cluster->loaded) {
-			audioFileManager.loadAnyEnqueuedClusters();
+		// Our reason has to be held before loading it below, so it can't be let go of meanwhile
+		cluster->addReason();
 
-			// If it's still not loaded and it was a must-load-now...
-			if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY && !cluster->loaded) {
+		// If they'd prefer it loaded immediately and it's not loaded, load just it - not everything ahead of it in the
+		// queue. Unless enqueuing is fine and we're inside routineForSD() or similar, where waiting for the card
+		// busy-waits rather than letting the audio routine run.
+		bool wantItNow = loadInstruction == CLUSTER_LOAD_IMMEDIATELY
+		                 || (loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && !sdRoutineLock);
+		if (wantItNow && !cluster->loaded) {
+			bool loaded = audioFileManager.loadEnqueuedClusterNow(*cluster);
+
+			// If it was a must-load-now...
+			if (!loaded && loadInstruction == CLUSTER_LOAD_IMMEDIATELY) {
 				D_PRINTLN("hurrying loading along failed for index:  %d", clusterIndex);
 				if (error != nullptr) {
 					*error = Error::UNSPECIFIED; // TODO: get actual error
 				}
+				audioFileManager.removeReasonFromCluster(*cluster, "4462"); // May delete it
 				return nullptr;
 			}
 		}
-
-		cluster->addReason();
 
 		if (cluster && cluster->numReasonsToBeLoaded <= 0) {
 			FREEZE_WITH_ERROR("i025"); // Diversifying Ron R's i004, which was diversifying Qui's E341

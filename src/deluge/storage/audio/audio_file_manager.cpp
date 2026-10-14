@@ -1283,6 +1283,11 @@ void AudioFileManager::loadAnyEnqueuedClusters(int32_t maxNum, bool mayProcessUs
 	if (AudioEngine::audioRoutineLocked) {
 		return; // Not sure if this should be neccesary?
 	}
+	if (sdRoutineLock) {
+		// We're inside routineForSD() or similar, where waiting for the card busy-waits rather than letting the audio
+		// routine run. Loading up to maxNum Clusters in there starves the audio, so leave it to the loading task.
+		return;
+	}
 
 	// Cannot call any functions in here which will read the SD card, other than loadCluster(), otherwise that'll
 	// re-call this function!
@@ -1374,6 +1379,28 @@ performActionsAndGetOut:
 #if REPORT_AWAY_TIME
 	timeLastFinish = MTU2.TCNT_0;
 #endif
+}
+
+bool AudioFileManager::loadEnqueuedClusterNow(Cluster& cluster) {
+	if (currentlyAccessingCard || clusterBeingLoaded != nullptr || AudioEngine::audioRoutineLocked) {
+		return false;
+	}
+
+	// If it's not in the queue, it's not for us to load - e.g. a SampleRecorder may be writing into it
+	std::optional<Priority> priority = loadingQueue.take(&cluster);
+	if (!priority.has_value()) {
+		return false;
+	}
+
+	allowSomeUserActionsEvenWhenInCardRoutine = true; // As for loadAnyEnqueuedClusters()
+	bool success = loadCluster(cluster, 1);
+	allowSomeUserActionsEvenWhenInCardRoutine = false;
+
+	// The caller's reason means it can't have been let go of meanwhile, so it's safe to put back
+	if (!success) {
+		loadingQueue.enqueueCluster(cluster, *priority);
+	}
+	return success;
 }
 
 void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong) {
