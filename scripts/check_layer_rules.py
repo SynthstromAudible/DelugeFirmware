@@ -356,9 +356,8 @@ LEGACY_PORT_SEAMS = (
     # (`:617-623`, `:1047-1052`, `:1593-1598`, `:749-756`). That is the same pair of names
     # `shell_pad_forward.cpp` above is listed for, and the same side of the wall.
     #
-    # Note-family Task 7a widened what it names on both sides. Legacy side: `soundEditor` (the legacy
-    # half of `util/note_editor_open.h`'s two predicates, defined here), `closePortedMenu()`
-    # (`gui/ui/shell_action_dispatch.h`) and `runtimeFeatureSettings` (the toggle's `HorizontalMenus`
+    # Note-family Task 7a widened what it names on both sides. Legacy side: `soundEditor`,
+    # `closePortedMenu()` (`gui/ui/shell_action_dispatch.h`) and `runtimeFeatureSettings` (the toggle's `HorizontalMenus`
     # read). Port side: the `deluge::scenes::menu::nodes::*` note and row nodes plus
     # `sequence_direction` (`scenes/menu/nodes/note.h`), and `MenuScene::focused`, `read_value_again`,
     # `go_up_one_level` and `enter_submenu` -- the ports of the note-mode handlers' own

@@ -177,10 +177,12 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShortcutOverlay],
 	                  STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY, "shortcutOverlay", RuntimeFeatureStateToggle::On);
 
+#if DELUGE_UI_SHELL
 	// Shell Menu: gates whether `ShellHostUI` (the ported menu tree's guest) is reachable at all.
 	// Default Off, so the guest changes nothing a user sees until they opt in.
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShellMenu], STRING_FOR_COMMUNITY_FEATURE_SHELL_MENU,
 	                  "shellMenu", RuntimeFeatureStateToggle::Off);
+#endif
 }
 
 void RuntimeFeatureSettings::factoryReset(bool showPopup) {

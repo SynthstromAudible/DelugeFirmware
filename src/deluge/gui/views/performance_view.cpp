@@ -46,13 +46,16 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "scenes/menu/action.h" // set_performance_editing_mode -- see syncEditingModeMirror below
 #include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include "util/functions.h"
 #include "util/shell_menu_entry.h"
+
+#if DELUGE_UI_SHELL
+#include "scenes/menu/action.h" // set_performance_editing_mode -- see syncEditingModeMirror below
+#endif
 
 extern "C" {}
 
@@ -90,13 +93,16 @@ namespace {
 /// only readers are `performance_editing_mode()` and, through it, `PerformEditorItem` -- a node in
 /// the ported menu, which nothing opens while the toggle is off (`openShellMenu`,
 /// `gui/ui/shell_menu_entry.cpp`). It reads nothing, calls nothing else, touches no legacy state and
-/// cannot fail. With the toggle off it is a store to a byte no one loads.
-void syncEditingModeMirror(const PerformanceView& v) {
+/// cannot fail. With the toggle off it is a store to a byte no one loads. Built without the UI shell
+/// (`DELUGE_UI_SHELL`, the device image) there is no mirror, and this does nothing.
+void syncEditingModeMirror([[maybe_unused]] const PerformanceView& v) {
+#if DELUGE_UI_SHELL
 	PerformanceEditingMode mode = PerformanceEditingMode::DISABLED;
 	if (v.defaultEditingMode) {
 		mode = v.editingParam ? PerformanceEditingMode::PARAM : PerformanceEditingMode::VALUE;
 	}
 	deluge::scenes::menu::set_performance_editing_mode(mode);
+#endif
 }
 
 } // namespace

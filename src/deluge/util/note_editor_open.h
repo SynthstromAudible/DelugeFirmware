@@ -36,7 +36,9 @@
 /// inside `check_layer_rules.py`'s `NON_UI` glob, each already at its `model-includes-ui` baseline
 /// (10 and 3). A `gui/ui/` header there would raise a ratchet that may only shrink. This header
 /// includes nothing, so it passes that rule on its own terms, and the definitions -- which name
-/// `soundEditor` and read the ported menu -- stay in `gui/ui/shell_note_mode.cpp`.
+/// `soundEditor` and read the ported menu -- are in `gui/ui/note_editor_open.cpp`. That file is
+/// built with or without the UI shell; without it (`DELUGE_UI_SHELL`, the device image) each
+/// function is exactly legacy's expression.
 
 namespace deluge::gui::ui {
 

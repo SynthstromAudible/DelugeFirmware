@@ -58,6 +58,7 @@ enum class NoteModeKind : uint8_t {
 	NoteRowEditor,
 };
 
+#if DELUGE_UI_SHELL
 /// @brief The port of `inNoteEditor()` / `inNoteRowEditor()` for input: the ported menu's root, while
 ///        the ported menu is on the guest's scene stack.
 ///
@@ -65,6 +66,12 @@ enum class NoteModeKind : uint8_t {
 /// UI, so a popup or an input-taking scene over the menu leaves the mode on. Off the stack it is
 /// `None`, whatever `menu_context().root` still says.
 NoteModeKind activeNoteMode();
+#else
+/// @brief Without the UI shell (`DELUGE_UI_SHELL`, the device image) no guest hosts a note mode.
+constexpr NoteModeKind activeNoteMode() {
+	return NoteModeKind::None;
+}
+#endif
 
 /// @brief Site 2: `SoundEditor::buttonAction`'s two note arms (`gui/ui/sound_editor.cpp:617-623`).
 /// @return `std::nullopt` for a button that is not the note mode's, else the handler's own result.
@@ -109,6 +116,7 @@ enum class NoteModeMenuItem : uint8_t {
 	SequenceDirection,
 };
 
+#if DELUGE_UI_SHELL
 /// @brief `soundEditor.getCurrentMenuItem() == &item`, asked of the ported menu's focused node.
 bool noteModeCurrentMenuItemIs(NoteModeMenuItem item);
 
@@ -120,6 +128,18 @@ void noteModeGoUpOneLevel();
 
 /// @brief `soundEditor.toggleNoteEditorParamMenu(on)` (`gui/ui/sound_editor.cpp:1925-1975`), ported.
 void noteModeToggleNoteEditorParamMenu(int32_t on);
+#else
+// Without the UI shell `activeNoteMode()` is always `None`, so no caller reaches these.
+constexpr bool noteModeCurrentMenuItemIs(NoteModeMenuItem /*item*/) {
+	return false;
+}
+inline void noteModeReadValueAgain() {
+}
+inline void noteModeGoUpOneLevel() {
+}
+inline void noteModeToggleNoteEditorParamMenu(int32_t /*on*/) {
+}
+#endif
 
 /// @}
 
