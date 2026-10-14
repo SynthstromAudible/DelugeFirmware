@@ -57,13 +57,9 @@ waveRenderingFunctionPulse(uint32_t phase, int32_t phaseIncrement, uint32_t phas
 	Argon<uint32_t> phaseVector = Argon<uint32_t>{phase}.MultiplyAdd(Argon<uint32_t>{1U, 2U, 3U, 4U}, phaseIncrement);
 	Argon<uint32_t> phaseLater = phaseVector + phaseToAdd;
 
-	Argon<uint32_t> indicesA = phaseVector >> (32 - tableSizeMagnitude);
-	ArgonHalf<int16_t> rshiftedA =
-	    indicesA.ShiftRightNarrow<16>().BitwiseAnd(std::numeric_limits<int16_t>::max()).As<int16_t>();
-
-	Argon<uint32_t> indicesB = phaseLater >> (32 - tableSizeMagnitude);
-	ArgonHalf<int16_t> rshiftedB =
-	    indicesB.ShiftRightNarrow<16>().BitwiseAnd(std::numeric_limits<int16_t>::max()).As<int16_t>();
+	// Keep the fractional phase bits below the table index for interpolation.
+	ArgonHalf<int16_t> rshiftedA = (phaseVector >> rshiftAmount).Narrow().As<int16_t>();
+	ArgonHalf<int16_t> rshiftedB = (phaseLater >> rshiftAmount).Narrow().As<int16_t>();
 
 	// Load the {table[i], table[i+1]} interpolation pairs as single u32 lane loads,
 	// the same pattern as waveRenderingFunctionGeneral above.
