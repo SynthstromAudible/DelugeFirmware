@@ -97,8 +97,13 @@ jobs:
           END
           sed -i "s/\$TAG/$TAG/; s/\$GITHUB_SHA/$GITHUB_SHA/" README.txt
           zip -j "./$TAG.zip" README.txt *.bin *.elf
-      - name: Create draft release
+      - name: Create draft release or attach to existing one
         run: |
-          flags=(--draft --generate-notes --title "Deluge $TAG" --target "$GITHUB_SHA")
-          [ "$TYPE" = rc ] && flags+=(--prerelease)
-          gh release create "$TAG" "./$TAG.zip" --repo "$GITHUB_REPOSITORY" "${flags[@]}"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # Release was created in the UI: keep its title and notes, just attach the firmware
+            gh release upload "$TAG" "./$TAG.zip" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            flags=(--draft --generate-notes --title "Deluge $TAG" --target "$GITHUB_SHA")
+            [ "$TYPE" = rc ] && flags+=(--prerelease)
+            gh release create "$TAG" "./$TAG.zip" --repo "$GITHUB_REPOSITORY" "${flags[@]}"
+          fi
