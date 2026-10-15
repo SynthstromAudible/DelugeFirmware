@@ -118,7 +118,8 @@ justEnqueue:
 			}
 
 			// TODO: If that fails, it'll just get awkwardly forgotten about
-			audioFileManager.loadingQueue.enqueueCluster(*cluster, priorityRating);
+			CriticalSectionGuard guard;
+			audioFileManager.loadingQueue.enqueueCluster(*cluster, priorityRating, guard);
 
 			if (cluster && cluster->numReasonsToBeLoaded <= 0) {
 				FREEZE_WITH_ERROR("i027"); // Diversifying Ron R's i004, which was diversifying Qui's E341
@@ -181,7 +182,8 @@ justEnqueue:
 		// If it's still waiting to load, it may have been enqueued at a lower priority than we need now - e.g. if it
 		// was prefetched, or enqueued for drawing a waveform
 		if (!cluster->loaded) {
-			audioFileManager.loadingQueue.raisePriority(cluster, priorityRating);
+			CriticalSectionGuard guard;
+			audioFileManager.loadingQueue.raisePriority(cluster, priorityRating, guard);
 		}
 
 		// Our reason has to be held before loading it below, so it can't be let go of meanwhile

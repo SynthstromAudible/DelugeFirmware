@@ -389,13 +389,28 @@ int sd_read_sect(int sd_port, unsigned char *buff,unsigned long psn,long cnt)
 
 ErrExit_DMA:
 ErrExit:
+	return _sd_read_abort(hndl, mode);
+}
+
+/*****************************************************************************
+ * Summary      : put the host and card back in a usable state after a multiple
+ *              : block read failed partway
+ * Argument     : SDHNDL *hndl : SD handle
+ *              : int mode : data transfer mode the read was using
+ * Return       : hndl->error as it was on entry
+ * Remark       : waits for the card, so can't be called from an interrupt
+ *****************************************************************************/
+int _sd_read_abort(SDHNDL *hndl, int mode)
+{
+	int error;
+
 	if(mode == SD_MODE_DMA){
-		sddev_disable_dma(sd_port);	/* disable DMA */
+		sddev_disable_dma(hndl->sd_port);	/* disable DMA */
 	}
 	sd_outp(hndl,CC_EXT_MODE,(unsigned short)(sd_inp(hndl,CC_EXT_MODE) 
 			& ~CC_EXT_MODE_DMASDRW));	/* disable DMA */
 
-	mode = hndl->error;
+	error = hndl->error;
 
 	/* ---- clear error bits ---- */
 	_sd_clear_info(hndl,SD_INFO1_MASK_TRNS_RESP,0x837f);
@@ -412,11 +427,11 @@ ErrExit:
 		/* ---- wait All end ---- */
 		logAudioAction("0b");
 
-		sddev_int_wait(sd_port, SD_TIMEOUT_RESP);
+		sddev_int_wait(hndl->sd_port, SD_TIMEOUT_RESP);
 		_sd_clear_info(hndl,SD_INFO1_MASK_TRNS_RESP,0x837f);
 		_sd_clear_int_mask(hndl,SD_INFO1_MASK_DATA_TRNS,0);
 
-		sddev_loc_cpu(sd_port);
+		sddev_loc_cpu(hndl->sd_port);
 		sd_option = sd_inp(hndl,SD_OPTION);
 		sd_clk_ctrl = sd_inp(hndl,SD_CLK_CTRL);
 		#if		(TARGET_RZ_A1 == 1)
@@ -429,7 +444,7 @@ ErrExit:
 		sd_outp(hndl,SD_STOP,0x0000);
 		sd_outp(hndl,SD_OPTION,sd_option);
 		sd_outp(hndl,SD_CLK_CTRL,sd_clk_ctrl);
-		sddev_unl_cpu(sd_port);
+		sddev_unl_cpu(hndl->sd_port);
 
 	}
 
@@ -446,7 +461,7 @@ ErrExit:
 		}
 	}
 
-	hndl->error = mode;
+	hndl->error = error;
 	
 	_sd_clear_int_mask(hndl,SD_INFO1_MASK_TRNS_RESP,0x837f);
 

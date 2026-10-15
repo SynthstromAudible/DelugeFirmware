@@ -56,6 +56,12 @@ Cluster* Cluster::create(Cluster::Type type, bool shouldAddReasons, void* dontSt
 	return cluster;
 }
 
+Cluster::~Cluster() {
+	if (type == Type::SAMPLE) {
+		audioFileManager.forgetClusterRead(this); // DMA mustn't carry on writing into it
+	}
+}
+
 void Cluster::destroy() {
 	this->~Cluster(); // Removes reasons, and / or from stealable list
 	delugeDealloc(this);

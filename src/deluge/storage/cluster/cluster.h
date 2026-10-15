@@ -55,6 +55,7 @@ public:
 	/// Warning! do not call this constructor directly! It must be called via placement `new`
 	/// after allocating a region with the General Memory Allocator!
 	Cluster() = default;
+	~Cluster() override;
 	void convertDataIfNecessary();
 	bool mayBeStolen(void* thingNotToStealFrom) override;
 	void steal(char const* errorCode) override;

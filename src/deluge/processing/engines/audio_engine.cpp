@@ -405,7 +405,7 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 
 	routineBeenCalled = false;
 
-	audioFileManager.loadAnyEnqueuedClusters(128, mayProcessUserActionsBetween);
+	audioFileManager.loadAnyEnqueuedClusters(mayProcessUserActionsBetween);
 
 	if (!routineBeenCalled) {
 		// bypassCulling = true; // yolo? Sean: not sure if this is necessary
@@ -1242,7 +1242,7 @@ void routine() {
 				// Rendering offline runs much faster than real time, so without this, time-stretch hops keep
 				// failing to start on unloaded clusters and synced samples play back unstretched (issue #4912).
 				// If the card's gone, nothing will drain the queue, so carry on rather than stall forever.
-				if (!audioFileManager.loadingQueue.empty() && audioFileManager.canLoadClusters()) {
+				if (audioFileManager.hasClusterLoadsPending() && audioFileManager.canLoadClusters()) {
 					break;
 				}
 

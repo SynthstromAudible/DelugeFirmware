@@ -89,22 +89,28 @@ enum UartItemType {
 // DMA --------------------------------------------------------------------------
 /*
 DMA channels:
-0:
-1:
+0: free - would be USB0 TX if USB_CFG_DMA were enabled (r_usb_basic_config.h)
+1: free - would be USB0 RX if USB_CFG_DMA were enabled
 2: SD host - defined in sd_cfg.h
-3:
+3: free - sd_cfg.h names it SD0_DMA_CHANNEL, but SDHI port 0 isn't used
 4: OLED and CV SPI (if OLED supported) - defined below
-5:
+5: free
 6: audio TX - defined below
 7: audio RX - defined below
-8: SD SPI TX for 40-pad Deluge - defined in mmc.c
-9: SD SPI RX for 40-pad Deluge
+8: free - was SD SPI TX for 40-pad Deluge, but mmc.c no longer exists
+9: free - was SD SPI RX for 40-pad Deluge
 10: PIC UART TX - defined below
 11: MIDI UART TX - defined below
 12: PIC UART RX - defined below
 13: MIDI UART RX - defined below
 14: MIDI UART RX timing - defined below
-15:
+15: free
+
+USB DMA is off because it only covers two pipes, and USB MIDI is too little data to benefit. If it's ever enabled, its
+channels can only be 0-3, so it'd need moving off 2 (SD host).
+
+Each DMARSn register selects the request source for a pair of channels (0/1, 2/3, ...), so when setting one up, only
+modify its half - don't disturb its partner. Only 0/1 and 8/9 are free pairs that don't share with anything in use.
 */
 
 #define OLED_SPI_DMA_CHANNEL 4

@@ -549,7 +549,10 @@ int _sdio_software_trans2(SDHNDL *hndl,unsigned char *buff,long cnt,int dir);
 int _sdio_dma_trans(SDHNDL *hndl,long cnt,unsigned short blocklen);
 
 /* ---- sd_read.c ---- */
- /* no function */
+int _sd_read_abort(SDHNDL *hndl, int mode);
+
+/* ---- sd_read_async.c ---- */
+int sd_async_handle_int(SDHNDL *hndl);
 
 /* ---- sd_write.c ---- */
 int _sd_write_sect(SDHNDL *hndl,unsigned char const *buff,unsigned long psn, long cnt,int writemode);

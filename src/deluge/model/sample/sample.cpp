@@ -163,7 +163,8 @@ void Sample::markAsUnloadable() {
 		Cluster* cluster = clusters.getElement(c)->cluster;
 		if (cluster != nullptr) {
 			cluster->unloadable = true;
-			audioFileManager.loadingQueue.erase(cluster);
+			CriticalSectionGuard guard;
+			audioFileManager.loadingQueue.erase(cluster, guard);
 		}
 	}
 }

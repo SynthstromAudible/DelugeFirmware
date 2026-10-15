@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "cluster.h"
 #include "util/containers.h"
 #include <algorithm>
@@ -51,34 +52,39 @@ class Compare {
 public:
 	bool operator()(const qcluster& first, const qcluster& second) const { return first.first > second.first; }
 };
-class ClusterPriorityQueue : public std::priority_queue<qcluster, deluge::fast_vector<qcluster>, Compare> {
+
+/// Clusters waiting to be read from the card. The main thread adds them, and the SD interrupt takes them off the front
+/// with popForLoading() as it gets to them - so everything here has to be done with interrupts disabled.
+class ClusterPriorityQueue : private std::priority_queue<qcluster, deluge::fast_vector<qcluster>, Compare> {
 
 public:
-	Error enqueueCluster(Cluster& cluster, uint32_t priorityRating) {
+	Error enqueueCluster(Cluster& cluster, uint32_t priorityRating, const InterruptsDisabled&) {
 		this->push(std::pair(priorityRating, &cluster));
 		return Error::NONE;
 	}
-	[[nodiscard]] constexpr Cluster* front() const { return this->top().second; }
-	[[nodiscard]] Cluster* getNext() {
-		Cluster* cluster = nullptr;
-		while (!this->empty()) {
-			cluster = this->front();
+
+	/// Not exact unless interrupts are disabled, as the SD interrupt may be taking one off
+	[[nodiscard]] bool empty() const { return this->c.empty(); }
+
+	/// @brief Takes the highest priority Cluster that still wants loading off the queue. For the SD interrupt, so
+	/// doesn't allocate or free anything - unwanted ones are just dropped, as they've already been taken care of by
+	/// whatever made them unwanted.
+	/// @return It and its priority, or nullopt if there's nothing to load.
+	std::optional<qcluster> popForLoading(const InterruptsDisabled&) {
+		while (!this->c.empty()) {
+			qcluster entry = this->top();
 			this->pop();
-			if (cluster != nullptr) {
-				// if this cluster is still wanted then we'll return it
-				if ((!cluster->unloadable) && cluster->numReasonsToBeLoaded > 0) {
-					return cluster;
-				}
-				// otherwise get rid of it and continue to the next one
-				cluster->destroy();
+			Cluster* cluster = entry.second;
+			if (cluster != nullptr && !cluster->unloadable && cluster->numReasonsToBeLoaded > 0) {
+				return entry;
 			}
 		}
-		return nullptr;
+		return std::nullopt;
 	}
 
 	/// @brief Whether any Cluster is queued at exactly @p priority. Has to check every entry, as the heap only keeps
 	/// the front in order.
-	[[nodiscard]] bool hasAnyWithPriority(Priority priority) const {
+	[[nodiscard]] bool hasAnyWithPriority(Priority priority, const InterruptsDisabled&) const {
 		return std::ranges::any_of(
 		    this->c, [priority](const qcluster& entry) { return entry.second != nullptr && entry.first == priority; });
 	}
@@ -87,7 +93,7 @@ public:
 	///
 	/// Enqueuing it again instead would get it loaded twice, which corrupts any data that gets converted on load.
 	/// @return Whether it was queued at a lower priority.
-	bool raisePriority(const Cluster* cluster, Priority priorityRating) {
+	bool raisePriority(const Cluster* cluster, Priority priorityRating, const InterruptsDisabled&) {
 		bool raised = false;
 		for (auto& [priority, val] : this->c) {
 			if (val == cluster && priorityRating < priority) {
@@ -103,7 +109,7 @@ public:
 
 	/// @brief Takes @p cluster out of the queue, e.g. to load it right away.
 	/// @return The priority it was queued at, so it can be put back if loading fails, or nullopt if it wasn't queued.
-	std::optional<Priority> take(const Cluster* cluster) {
+	std::optional<Priority> take(const Cluster* cluster, const InterruptsDisabled&) {
 		std::optional<Priority> taken;
 		for (auto& [priority, val] : this->c) {
 			if (val == cluster) {
@@ -116,7 +122,7 @@ public:
 		return taken;
 	}
 
-	bool erase(const Cluster* cluster) {
+	bool erase(const Cluster* cluster, const InterruptsDisabled&) {
 		for (auto& val : this->c | std::views::values) {
 			if (val == cluster) {
 				val = nullptr;
