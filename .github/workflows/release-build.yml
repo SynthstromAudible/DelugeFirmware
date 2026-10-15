@@ -1,0 +1,109 @@
+name: Release Build
+
+# Builds firmware for a release candidate or final release and attaches it to a *draft*
+# GitHub release for review. Two ways to start it:
+#   * push a tag like v1.3.0-rc1 or v1.3.0 (tags containing "-rc" build as `rc`, others as `release`)
+#   * run it manually from the Actions tab on the branch to build (e.g. release/1.3)
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+  workflow_dispatch:
+    inputs:
+      release-type:
+        type: choice
+        description: Firmware version tag
+        options:
+          - rc
+          - release
+      publish:
+        type: boolean
+        default: false
+        description: Also create a draft GitHub release (otherwise only the build artifact is kept)
+      tag-name:
+        type: string
+        description: Release tag to create, e.g. v1.3.0-rc1 (required when publishing)
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      release-type: ${{ steps.vars.outputs.release-type }}
+      publish: ${{ steps.vars.outputs.publish }}
+      tag-name: ${{ steps.vars.outputs.tag-name }}
+    steps:
+      - name: Resolve parameters
+        id: vars
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          IN_TYPE: ${{ inputs.release-type }}
+          IN_PUBLISH: ${{ inputs.publish }}
+          IN_TAG: ${{ inputs.tag-name }}
+        run: |
+          if [ "$EVENT" = "push" ]; then
+            tag="$REF_NAME"; publish=true
+            case "$tag" in *-rc*) type=rc ;; *-*) echo "Unrecognised pre-release suffix in $tag"; exit 1 ;; *) type=release ;; esac
+          else
+            tag="$IN_TAG"; publish="$IN_PUBLISH"; type="$IN_TYPE"
+            if [ "$publish" = true ] && ! echo "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]*)?$'; then
+              echo "tag-name must look like v1.3.0 or v1.3.0-rc1 to publish"; exit 1
+            fi
+          fi
+          echo "release-type=$type" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "tag-name=$tag" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: write # build.yml declares write, so the caller must allow it
+    with:
+      firmware-retention-days: 90
+      build-type: "Release"
+      build-tag: ${{ needs.prepare.outputs.release-type }}
+      branch: ${{ github.sha }}
+
+  release:
+    name: Draft release
+    needs: [prepare, build]
+    if: needs.prepare.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release (and tag, for manual runs)
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ needs.prepare.outputs.tag-name }}
+      TYPE: ${{ needs.prepare.outputs.release-type }}
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ env.TYPE }}_Release_build_bundle
+      - name: Create archive
+        run: |
+          cat <<'END' > README.txt
+          Deluge Community Firmware ($TAG)
+          Git revision $GITHUB_SHA
+          =====================================================
+
+          Read the update guide before installing, and back up your SD card first:
+          https://github.com/SynthstromAudible/DelugeFirmware/wiki/Update-guide
+          END
+          sed -i "s/\$TAG/$TAG/; s/\$GITHUB_SHA/$GITHUB_SHA/" README.txt
+          zip -j "./$TAG.zip" README.txt *.bin *.elf
+      - name: Create draft release or attach to existing one
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # Release was created in the UI: keep its title and notes, just attach the firmware
+            gh release upload "$TAG" "./$TAG.zip" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            flags=(--draft --generate-notes --title "Deluge $TAG" --target "$GITHUB_SHA")
+            [ "$TYPE" = rc ] && flags+=(--prerelease)
+            gh release create "$TAG" "./$TAG.zip" --repo "$GITHUB_REPOSITORY" "${flags[@]}"
+          fi
