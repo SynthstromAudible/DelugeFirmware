@@ -59,14 +59,14 @@ void EXIT_CRITICAL_SECTION() {
 	}
 	// if that fails we're still in a critical section so just decrement the count
 	else {
-		atomic_fetch_sub_explicit(&critical_section_depth, 1, memory_order_relaxed);
+		int32_t previous_depth = atomic_fetch_sub_explicit(&critical_section_depth, 1, memory_order_relaxed);
+		// More exits than enters. Left negative, every later ENTER would go -1 -> 0 without disabling interrupts, so
+		// critical sections would silently stop working. Freeze in every build - and if resumed, reset the depth.
+		if (previous_depth <= 0) {
+			atomic_store_explicit(&critical_section_depth, 0, memory_order_relaxed);
+			FREEZE_WITH_ERROR("CS01");
+		}
 	}
-
-#if ALPHA_OR_BETA_VERSTION
-	if (atomic_load_explicit(&critical_section_depth, memory_order_relaxed) < 0) {
-		FREEZE_WITH_ERROR("OH NO");
-	}
-#endif
 }
 
 void clearIRQInterrupt(int irqNumber) {

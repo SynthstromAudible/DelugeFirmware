@@ -134,8 +134,12 @@ void AudioRecorder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas
 bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels,
                                          AudioRecordingFolder folderID, bool writeLoopPoints, bool shouldNormalize) {
 
-	if (ALPHA_OR_BETA_VERSION && recordingSource > AudioInputChannel::NONE) {
+	// Already recording - don't orphan the running recorder by overwriting it
+	if (recordingSource > AudioInputChannel::NONE) {
+#if ALPHA_OR_BETA_VERSION
 		FREEZE_WITH_ERROR("E242");
+#endif
+		return false;
 	}
 
 	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, false, writeLoopPoints,

@@ -607,9 +607,12 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 					int32_t noteRowIndex = yDisplay + clip->yScroll;
 
-					if (ALPHA_OR_BETA_VERSION
-					    && (noteRowIndex < 0 || noteRowIndex >= clip->noteRows.getNumElements())) {
-						FREEZE_WITH_ERROR("E323");
+					// Deleting a NoteRow outside the array would corrupt memory - skip this press instead
+					if (noteRowIndex < 0 || noteRowIndex >= clip->noteRows.getNumElements()) {
+						if (ALPHA_OR_BETA_VERSION) {
+							FREEZE_WITH_ERROR("E323");
+						}
+						continue;
 					}
 
 					if (clip->isActiveOnOutput()) {
@@ -7663,8 +7666,10 @@ void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offse
 
 		if (kit->selectedDrum && kit->selectedDrum->type != DrumType::SOUND) {
 
-			if (ALPHA_OR_BETA_VERSION && !kit->getActiveClip()) {
+			// The active Clip gets dereferenced below
+			if (!kit->getActiveClip()) {
 				FREEZE_WITH_ERROR("E381");
+				return;
 			}
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =

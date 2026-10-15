@@ -1312,11 +1312,9 @@ Error NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWid
 	if (numToDelete > 0) {
 		newNotes.deleteAtIndex(nextIndexToCopyTo, numToDelete);
 	}
-#if ALPHA_OR_BETA_VERSION
 	else if (numToDelete < 0) { // If we overshot somehow
 		FREEZE_WITH_ERROR("E329");
 	}
-#endif
 
 	// Record change, stealing the old note data
 	if (action) {
@@ -3526,14 +3524,12 @@ getOut: {}
 			noteHexLength = 22;
 			goto doReadNoteData;
 		}
-#if ALPHA_OR_BETA_VERSION
 		// Notes stored as hex data in nightly firmware 1.3 previous to the addition of custom iterances
 		else if (song_firmware_version < FirmwareVersion::community({1, 3, 0})
 		         && !strcmp(tagName, "noteDataWithIteranceAndFill")) {
 			noteHexLength = 26;
 			goto doReadNoteData;
 		}
-#endif
 		// Notes stored as hex data including custom iterance and fill (community firmware 1.3 onwards)
 		else if (!strcmp(tagName, "noteDataWithSplitProb")) {
 			noteHexLength = 28;
@@ -3762,9 +3758,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 						Sound::initParams(&paramManager);
 
 						// This is at least not ideal, so we'd better tell the user
-						if (ALPHA_OR_BETA_VERSION) {
-							display->displayPopup("E073");
-						}
+						display->displayPopup("E073");
 					}
 				}
 			}

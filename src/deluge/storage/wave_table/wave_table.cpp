@@ -1102,8 +1102,11 @@ startRenderingACycle:
 			numSamplesThisCycle =
 			    numIncrementsWeCanDoNow + 1; // +1 because we can only have to increment *between* the samples we're
 			                                 // rendering. If can only do 1 increment, we can still render 2 samples.
-			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle > numSamplesLeftToDo) {
+			if (numSamplesThisCycle > numSamplesLeftToDo) {
+#if ALPHA_OR_BETA_VERSION
 				FREEZE_WITH_ERROR("E386");
+#endif
+				numSamplesThisCycle = numSamplesLeftToDo; // Don't render past the end of the buffer
 			}
 		}
 
@@ -1198,11 +1201,12 @@ void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
 	for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
 		if (band->data) {
-#if ALPHA_OR_BETA_VERSION
 			if (band->data->list) {
+#if ALPHA_OR_BETA_VERSION
 				FREEZE_WITH_ERROR("E388");
-			}
 #endif
+				band->data->remove(); // addToEnd() doesn't unlink first, so re-queueing would corrupt both lists
+			}
 			GeneralMemoryAllocator::get().putStealableInQueue(band->data, StealableQueue::NO_SONG_WAVETABLE_BAND_DATA);
 		}
 	}

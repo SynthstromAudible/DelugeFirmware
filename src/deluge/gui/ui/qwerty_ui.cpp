@@ -196,10 +196,15 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	uint8_t encodedAddition[kNumericDisplayLength];
 	memset(encodedAddition, 0, kNumericDisplayLength);
 	if (totalTextLength == enteredTextEditPos || enteredText.get()[enteredTextEditPos] == ' ') {
-		if (ALPHA_OR_BETA_VERSION && (editPosOnscreen < 0 || editPosOnscreen >= kNumericDisplayLength)) {
-			FREEZE_WITH_ERROR("E292");
+		// Only cosmetic, but writing outside encodedAddition would corrupt the stack - just skip the '_'
+		if (editPosOnscreen < 0 || editPosOnscreen >= kNumericDisplayLength) {
+			if (ALPHA_OR_BETA_VERSION) {
+				FREEZE_WITH_ERROR("E292");
+			}
 		}
-		encodedAddition[editPosOnscreen] = 0x08;
+		else {
+			encodedAddition[editPosOnscreen] = 0x08;
+		}
 		encodedEditPosAndAHalf = false; // Hard to put into words why this is needed, but without it, the blinking _
 		                                // after a . just won't blink
 	}

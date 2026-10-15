@@ -2046,6 +2046,15 @@ int32_t Session::getCurrentSection() {
 	for (int32_t l = 0; l < currentSong->sessionClips.getNumElements(); l++) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(l);
 
+		// section indexes both sections[] and anyUnlaunchedLoopablesInSection[] below. Loading clamps it, so this
+		// shouldn't happen - but if it does, skip the Clip rather than read or write out of bounds
+		if (clip->section >= kMaxNumSections) {
+			if (ALPHA_OR_BETA_VERSION) {
+				FREEZE_WITH_ERROR("E243");
+			}
+			continue;
+		}
+
 		// Launch exclusively section
 		if (currentSong->sections[clip->section].numRepetitions == LAUNCH_EXCLUSIVE) {
 			continue;
@@ -2060,11 +2069,13 @@ int32_t Session::getCurrentSection() {
 			}
 		}
 		else {
-			if (ALPHA_OR_BETA_VERSION && clip->section > kMaxNumSections) {
-				FREEZE_WITH_ERROR("E243");
-			}
 			anyUnlaunchedLoopablesInSection[clip->section] = true;
 		}
+	}
+
+	// No active Clips - section is still REALLY_OUT_OF_RANGE, which isn't a valid index
+	if (section == REALLY_OUT_OF_RANGE) {
+		return REALLY_OUT_OF_RANGE;
 	}
 
 	if (anyUnlaunchedLoopablesInSection[section]) {

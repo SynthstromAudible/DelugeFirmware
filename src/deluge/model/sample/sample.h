@@ -28,7 +28,7 @@
 #include <bit>
 #include <cstdint>
 
-#define SAMPLE_DO_LOCKS (ALPHA_OR_BETA_VERSION)
+#define SAMPLE_DO_LOCKS 1 // Re-entrancy would corrupt percCacheZones, so this is on in all builds
 
 enum class RawDataFormat : uint8_t {
 	NATIVE = 0,

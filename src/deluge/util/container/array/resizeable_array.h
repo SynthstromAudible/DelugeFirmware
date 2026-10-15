@@ -23,7 +23,8 @@
 #define GREATER_OR_EQUAL 0
 #define LESS (-1)
 
-#define RESIZEABLE_ARRAY_DO_LOCKS (ALPHA_OR_BETA_VERSION)
+// Re-entrancy means concurrent mutation (heap corruption), so this is on in all builds
+#define RESIZEABLE_ARRAY_DO_LOCKS 1
 
 class ResizeableArray {
 public:

@@ -938,10 +938,12 @@ bool AudioFileManager::loadCluster(Cluster& cluster, int32_t minNumReasonsAfter)
 		FREEZE_WITH_ERROR("E204");
 	}
 	// it'd only be in the loading queue if it had a "reason".
+#endif
 	if (!sample) {
 		FREEZE_WITH_ERROR("E206");
+		clusterBeingLoaded = nullptr;
+		return false; // sample is dereferenced below
 	}
-#endif
 
 	// So that it can't accidentally hit 0 reasons while we're loading it,
 	// cos then it might get deallocated.
@@ -985,11 +987,13 @@ getOutEarly:
 	uint16_t startTime = MTU2.TCNT_0;
 #endif
 
-#if ALPHA_OR_BETA_VERSION
+	// The Cluster has been repurposed, so don't read sample data into its memory
 	if (cluster.type != Cluster::Type::SAMPLE) {
 		FREEZE_WITH_ERROR("i023"); // Happened to me while thrash testing with reduced RAM
+		goto getOutEarly;
 	}
 
+#if ALPHA_OR_BETA_VERSION
 	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i039"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
@@ -1007,14 +1011,18 @@ getOutEarly:
 	}
 #endif
 
-#if ALPHA_OR_BETA_VERSION
+	// The Cluster got repurposed during the read. Don't go on to convert its data, copy into its neighbours, or
+	// mark it as loaded
 	if (cluster.type != Cluster::Type::SAMPLE) {
 		FREEZE_WITH_ERROR("E207");
+		goto getOutEarly;
 	}
 	if (cluster.sample == nullptr) {
 		FREEZE_WITH_ERROR("E208");
+		goto getOutEarly;
 	}
 
+#if ALPHA_OR_BETA_VERSION
 	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i038"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
