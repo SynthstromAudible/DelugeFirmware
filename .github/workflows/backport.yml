@@ -22,6 +22,11 @@ jobs:
        startsWith(github.event.label.name, 'backport: release/'))
     runs-on: ubuntu-latest
     steps:
+      # The action cherry-picks in this working tree. pull_request_target checks out
+      # the base branch, so no PR code runs here; the action fetches the PR commits itself.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: korthout/backport-action@v3
         id: backport
         with:
