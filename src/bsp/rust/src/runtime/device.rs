@@ -74,14 +74,18 @@ const AUDIO_SGI_PRIORITY: u8 = 20;
 
 /// Drives [`AUDIO_EXEC`] from [`AUDIO_SGI`]. The HAL dispatch acks and EOIs around it, with IRQs
 /// re-enabled for nesting.
-fn audio_sgi_handler() {
-    // Mark the audio context for `deluge_in_audio_context()`, which the resource manager's
-    // asymmetric critical section keys off. It must wrap the whole poll, or the manager masks on
-    // the one path that must not.
-    let prev = crate::services::audio_context_enter();
-    // SAFETY: only called from the SGI handler, after AUDIO_EXEC.start().
-    unsafe { AUDIO_EXEC.on_interrupt() };
-    crate::services::audio_context_exit(prev);
+struct AudioSgi;
+
+impl rza1l_hal::interrupt::Handler<rza1l_hal::interrupt::typelevel::SGI8> for AudioSgi {
+    unsafe fn on_interrupt() {
+        // Mark the audio context for `deluge_in_audio_context()`, which the resource manager's
+        // asymmetric critical section keys off. It must wrap the whole poll, or the manager masks
+        // on the one path that must not.
+        let prev = crate::services::audio_context_enter();
+        // SAFETY: only called from the SGI handler, after AUDIO_EXEC.start().
+        unsafe { AUDIO_EXEC.on_interrupt() };
+        crate::services::audio_context_exit(prev);
+    }
 }
 
 /// The preemptive executor for the storage tasks, between audio and thread mode in priority.
@@ -98,15 +102,32 @@ const STREAM_SGI_PRIORITY: u8 = 24;
 
 /// Drives [`STREAM_EXEC`] from [`STREAM_SGI`]. The HAL dispatch acks and EOIs around it.
 ///
-/// Unlike [`audio_sgi_handler`] it does not mark the audio context: audio preempts this context,
+/// Unlike [`AudioSgi`] it does not mark the audio context: audio preempts this context,
 /// so its resource-manager accesses must keep masking.
-fn stream_sgi_handler() {
-    // Mark the storage tier for `tier::current()` across the poll. The CPU mode cannot tell: the
-    // shared IRQ entry has already switched to SYS mode, the mode thread code runs in.
-    let _storage = crate::tier::storage_isr();
-    // SAFETY: only called from the SGI handler, after STREAM_EXEC.start().
-    unsafe { STREAM_EXEC.on_interrupt() };
+struct StreamSgi;
+
+impl rza1l_hal::interrupt::Handler<rza1l_hal::interrupt::typelevel::SGI9> for StreamSgi {
+    unsafe fn on_interrupt() {
+        // Mark the storage tier for `tier::current()` across the poll. The CPU mode cannot tell:
+        // the shared IRQ entry has already switched to SYS mode, the mode thread code runs in.
+        let _storage = crate::tier::storage_isr();
+        // SAFETY: only called from the SGI handler, after STREAM_EXEC.start().
+        unsafe { STREAM_EXEC.on_interrupt() };
+    }
 }
+
+rza1l_hal::bind_interrupts!(struct SgiIrqs {
+    SGI8 => AudioSgi;
+    SGI9 => StreamSgi;
+});
+
+// The SGI numbers the executors start on are the ones `SgiIrqs` binds.
+const _: () = assert!(
+    AUDIO_SGI as u16
+        == <rza1l_hal::interrupt::typelevel::SGI8 as rza1l_hal::interrupt::Interrupt>::ID
+        && STREAM_SGI as u16
+            == <rza1l_hal::interrupt::typelevel::SGI9 as rza1l_hal::interrupt::Interrupt>::ID
+);
 
 /// Spawns the storage tasks onto [`STREAM_EXEC`] from inside it.
 ///
@@ -194,6 +215,8 @@ pub fn start() -> ! {
     // 31250 bps; `control::pic_pump` runs the handshake up to 200000 bps.
     deluge_bsp::uart::init_pic(board.pic_uart, board.dma.pic_rx, board.dma.pic_tx, 31_250);
     deluge_bsp::uart::init_midi(board.midi_uart, board.dma.midi_rx, 31_250);
+    // The SD slot's controller, once; `sd::init` identifies the card when it is needed.
+    deluge_bsp::sd::init_hw(board.sd_card, board.dma.sd_tx, board.dma.sd_rx);
     // The encoders' A-pin interrupts, and their 1 ms pin poll on MTU2 ch3.
     unsafe { deluge_bsp::encoder::irq_init(board.encoder_poll_timer) };
     // The sample-accurate MIDI/gate one-shot timer (MTU2 ch2), armed at render time through
@@ -209,16 +232,18 @@ pub fn start() -> ! {
     // Trigger clock in: P1_14 → IRQ6 on the falling edge (an on-board transistor inverts the
     // input). The app's handler runs from the cooperative `trigger_clock_task`, between app ticks.
     unsafe { deluge_bsp::trigger_clock::irq_init() };
-    // USB-MIDI device (USB0): builds the device and registers its GIC handler; the driver enables
+    // USB-MIDI device (USB0): builds the device and binds its GIC handler; the driver enables
     // the line when `device.run()` starts.
-    let usb_midi = unsafe { usb::build() };
+    let usb_midi = unsafe { usb::build(board.usb0) };
+    // SSI0 waits for the C++ init sequence's `deluge_board_init_audio`.
+    board::stash_audio(board.audio_ssi, board.dma.ssi_tx, board.dma.ssi_rx);
 
     // Each SGI line is enabled only after its executor has started, below, so a handler never
     // runs before the executor it drives exists.
     unsafe {
-        rza1l_hal::gic::register(AUDIO_SGI as u16, audio_sgi_handler);
+        rza1l_hal::interrupt::bind::<rza1l_hal::interrupt::typelevel::SGI8, AudioSgi>(SgiIrqs);
         rza1l_hal::gic::set_priority(AUDIO_SGI as u16, AUDIO_SGI_PRIORITY);
-        rza1l_hal::gic::register(STREAM_SGI as u16, stream_sgi_handler);
+        rza1l_hal::interrupt::bind::<rza1l_hal::interrupt::typelevel::SGI9, StreamSgi>(SgiIrqs);
         rza1l_hal::gic::set_priority(STREAM_SGI as u16, STREAM_SGI_PRIORITY);
     }
 

@@ -8,9 +8,7 @@ use core::mem::MaybeUninit;
 use core::ptr::addr_of_mut;
 
 use embassy_usb::{Builder, Config, UsbDevice};
-use rza1l_hal::usb::{
-    self, Rusb1Driver, Rusb1EndpointIn, Rusb1EndpointOut, dcd_int_handler, init_device_mode,
-};
+use rza1l_hal::usb::{Rusb1Driver, Rusb1EndpointIn, Rusb1EndpointOut, init_device_mode};
 use usb_classes::midi::{self, MidiClassHandler};
 
 // Descriptor and control buffers for the embassy-usb builder, sized generously for a MIDI-only
@@ -27,27 +25,29 @@ static mut MIDI_HANDLER: MaybeUninit<MidiClassHandler> = MaybeUninit::uninit();
 const USB_VID: u16 = 0x16D0;
 const USB_PID: u16 = 0x0EDA;
 
+rza1l_hal::bind_interrupts!(struct UsbIrqs {
+    USB0 => rza1l_hal::usb::DeviceInterruptHandler<rza1l_hal::peripherals::USB0>;
+});
+
 /// The built USB device and its MIDI 1.0 bulk endpoints, to be spawned as background tasks.
 pub struct UsbMidi {
-    pub device: UsbDevice<'static, Rusb1Driver>,
+    pub device: UsbDevice<'static, Rusb1Driver<'static>>,
     pub ep_out: Rusb1EndpointOut,
     pub ep_in: Rusb1EndpointIn,
 }
 
 /// Brings up USB0 in device mode and builds the USB-MIDI 1.0 device.
 ///
-/// Registers the USB0 GIC handler; the driver enables the GIC line later, from `device.run()`.
+/// Binds the USB0 GIC handler; the driver enables the GIC line later, from `device.run()`.
 ///
 /// # Safety
 ///
 /// Touches USB and GIC registers and the static USB buffers: call exactly once, during
 /// single-threaded startup, before interrupts are unmasked.
-pub unsafe fn build() -> UsbMidi {
-    // Device-mode dispatch only: host mode is not implemented.
-    unsafe { rza1l_hal::gic::register(usb::USB0_IRQ, || dcd_int_handler(0)) };
-
-    // init_device_mode ungates the USB module clock and yields the driver.
-    let (_port, driver) = unsafe { init_device_mode(0) };
+pub unsafe fn build(usb0: rza1l_hal::Peri<'static, rza1l_hal::peripherals::USB0>) -> UsbMidi {
+    // init_device_mode binds the device-mode handler (host mode is not implemented), ungates the
+    // USB module clock and yields the driver.
+    let (_port, driver) = init_device_mode(usb0, UsbIrqs);
 
     let mut config = Config::new(USB_VID, USB_PID);
     config.manufacturer = Some("Synthstrom Audible");
@@ -78,19 +78,19 @@ pub unsafe fn build() -> UsbMidi {
 
 /// Background task: runs the embassy-usb device state machine (enumeration, control requests).
 #[embassy_executor::task]
-pub async fn device_task(mut device: UsbDevice<'static, Rusb1Driver>) {
+pub async fn device_task(mut device: UsbDevice<'static, Rusb1Driver<'static>>) {
     device.run().await;
 }
 
 /// Background task: pumps the MIDI 1.0 OUT endpoint (computer → Deluge) into the class RX queue.
 #[embassy_executor::task]
 pub async fn midi_rx_task(ep_out: Rusb1EndpointOut) {
-    midi::run_rx_midi1::<Rusb1Driver>(ep_out).await;
+    midi::run_rx_midi1::<Rusb1Driver<'static>>(ep_out).await;
 }
 
 /// Background task: pumps the class TX byte queue out the MIDI 1.0 IN endpoint (Deluge →
 /// computer).
 #[embassy_executor::task]
 pub async fn midi_tx_task(ep_in: Rusb1EndpointIn) {
-    midi::run_tx_midi1::<Rusb1Driver>(ep_in).await;
+    midi::run_tx_midi1::<Rusb1Driver<'static>>(ep_in).await;
 }
