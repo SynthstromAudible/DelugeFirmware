@@ -108,12 +108,38 @@ pub extern "C" fn deluge_board_init_early(_have_oled: bool) {
     }
 }
 
+/// SSI0 and its DMA channels, from `runtime::device::start` until the app's
+/// `deluge_board_init_audio` brings the codec up (its place in the C++ init sequence).
+#[cfg(target_os = "none")]
+static AUDIO_PARTS: embassy_sync::blocking_mutex::Mutex<
+    embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
+    core::cell::RefCell<
+        Option<(
+            rza1l_hal::Peri<'static, deluge_bsp::board::AudioSsi>,
+            rza1l_hal::Peri<'static, deluge_bsp::board::SsiTxDma>,
+            rza1l_hal::Peri<'static, deluge_bsp::board::SsiRxDma>,
+        )>,
+    >,
+> = embassy_sync::blocking_mutex::Mutex::new(core::cell::RefCell::new(None));
+
+/// Keep the audio parts for [`deluge_board_init_audio`].
+#[cfg(target_os = "none")]
+pub(crate) fn stash_audio(
+    ssi: rza1l_hal::Peri<'static, deluge_bsp::board::AudioSsi>,
+    tx: rza1l_hal::Peri<'static, deluge_bsp::board::SsiTxDma>,
+    rx: rza1l_hal::Peri<'static, deluge_bsp::board::SsiRxDma>,
+) {
+    AUDIO_PARTS.lock(|p| *p.borrow_mut() = Some((ssi, tx, rx)));
+}
+
 /// Brings up the audio serial port (SSI0).
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board_init_audio() {
-    // SAFETY: called once after init_early; clocks/STB up.
-    unsafe { deluge_bsp::audio::init() };
+    let (ssi, tx, rx) = AUDIO_PARTS
+        .lock(|p| p.borrow_mut().take())
+        .expect("deluge_board_init_audio runs once, after runtime::device::start");
+    deluge_bsp::audio::init(ssi, tx, rx);
 }
 
 /// Host stand-in: there is no SSI0 to bring up. Logs once so the boot trace shows the call.
