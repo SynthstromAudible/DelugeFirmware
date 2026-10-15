@@ -8,7 +8,9 @@
 //! masked) or from FREEZE_WITH_ERROR, whose freeze the user can resume. The transport is therefore
 //! a bare FIFO poll, under its own critical section; [`control`](super::control)'s queue and
 //! `deluge_bsp::pic`'s async senders need a live executor and would hang. It leaves the PIC's TX
-//! DMA channel set up, so those senders work again after a resumed freeze.
+//! DMA channel set up, so those senders work again after a resumed freeze, unless a wedged transfer
+//! had to be stopped: that releases the channel's request route, and the PIC transmitter stays
+//! down until reboot.
 
 use crate::sys::DelugeFaultRanges;
 

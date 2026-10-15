@@ -114,10 +114,12 @@ pub extern "C" fn deluge_display_freeze(pixels: *const u8) {
     // keeps a freeze triggered by a select press from being dismissed by its own release.
     #[cfg(target_os = "none")]
     {
-        // SAFETY: a freeze runs with the executor blocked in this call, or from a fault with
-        // interrupts masked, so the PIC task (suspended mid-read, holding its receiver) can't read
-        // the ring meanwhile. The stolen receiver shares its read position, so the bytes read
-        // here, the resume press included, don't reach the app afterwards.
+        // SAFETY: a freeze runs with the thread executor blocked in this call, from an
+        // interrupt-priority executor (the audio render on SGI 8) that preempted it, or from a fault
+        // with interrupts masked. Either way the PIC task (suspended mid-read, holding its
+        // receiver) can't read the ring meanwhile, and its `try_read` masks interrupts across its
+        // update, so it can't be preempted halfway. The stolen receiver shares its read position,
+        // so the bytes read here, the resume press included, don't reach the app afterwards.
         let mut pic_rx = unsafe { deluge_bsp::uart::steal_pic_rx() };
         let mut next_is_release = false;
         loop {

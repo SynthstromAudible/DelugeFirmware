@@ -1,6 +1,6 @@
 //! `libdeluge/board.h` — the capability descriptor and the ordered one-time board bring-up (GPIO
-//! for LEDs, codec and jack detects, the CV DAC SPI, the audio SSI). Pin and port numbers stay
-//! BSP-internal.
+//! for LEDs, codec and jack detects, the audio SSI). Pin and port numbers stay BSP-internal. The CV
+//! DAC and its SPI bus come up earlier, in `runtime::device::start`, before the executor runs.
 //!
 //! OLED bring-up is not here: [`display`](super::display) and `deluge_bsp::oled` own the panel.
 //!
