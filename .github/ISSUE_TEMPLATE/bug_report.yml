@@ -41,21 +41,6 @@ body:
         - 7SEG
     validations:
       required: true
-  - type: dropdown
-    id: build_type
-    attributes:
-      label: What firmware did you reproduce it with?
-      multiple: true
-      options:
-        - Release 1.2/Chopin
-        - Release 1.1/Beethoven
-        - Release 1.0/Amadeus
-        - Nightly
-        - Beta
-        - Built from community
-        - other
-    validations:
-      required: true
   - type: input
     id: firmware_name
     attributes:
@@ -100,3 +85,19 @@ body:
         - Other / not sure
     validations:
       required: false
+  - type: dropdown
+    id: build_type
+    attributes:
+      label: What firmware did you reproduce it with?
+      multiple: true
+      options:
+        - Release 1.3/Derbyshire
+        - Release 1.2/Chopin
+        - Release 1.1/Beethoven
+        - Release 1.0/Amadeus
+        - Nightly
+        - Beta
+        - Built from community
+        - other
+    validations:
+      required: true

@@ -41,8 +41,8 @@ namespace deluge::dsp::fixed {
 /// frame passes through unchanged.
 ///
 /// **Play.** Each frame the head steps forward, or back when reversed, and the frame becomes the tape's sample under
-/// it; a resampled tape advances or retreats by the spin and weighs the sample under the head with its neighbour in the
-/// direction of travel by the strengths. With ping-pong, the direction turns when the head reaches either end of the
+/// it; a resampled tape advances or retreats by the spin and weighs the sample under the head with the next one by the
+/// strengths, whichever way it travels. With ping-pong, the direction turns when the head reaches either end of the
 /// tape.
 ///
 /// **Per block.** The owner configures each block with the rate, the tape and whether the stutter plays; @ref prepare
@@ -160,21 +160,13 @@ struct Stutter {
 				out = tape.current();
 			}
 			else {
-				int32_t strength2 = 0;
-				StereoSample* other = nullptr;
-				if (s.reverse) {
-					strength2 = tape.retreat([&] [[gnu::always_inline]] { tape.moveBack(); });
-					other = &tape.current() - 1;
-					if (other < tape.begin()) {
-						other = tape.end() - 1;
-					}
-				}
-				else {
-					strength2 = tape.advance([&] [[gnu::always_inline]] { tape.moveOn(); });
-					other = &tape.current() + 1;
-					if (other == tape.end()) {
-						other = tape.begin();
-					}
+				// Both directions give the strength toward the next sample, so the head interpolates the same positions
+				// either way.
+				const int32_t strength2 = s.reverse ? tape.retreat([&] [[gnu::always_inline]] { tape.moveBack(); })
+				                                    : tape.advance([&] [[gnu::always_inline]] { tape.moveOn(); });
+				StereoSample* other = &tape.current() + 1;
+				if (other == tape.end()) {
+					other = tape.begin();
 				}
 				const int32_t strength1 = 65536 - strength2;
 				out = {.l = mix(tape.current().l, other->l, strength1, strength2),

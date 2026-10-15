@@ -54,9 +54,7 @@ SampleCache::SampleCache(Sample* newSample, int32_t newNumClusters, int32_t newW
 	phaseIncrement = newPhaseIncrement;
 	timeStretchRatio = newTimeStretchRatio;
 	writeBytePos = 0;
-#if ALPHA_OR_BETA_VERSION
 	numClusters = newNumClusters;
-#endif
 	waveformLengthBytes = newWaveformLengthBytes;
 	skipSamplesAtStart = newSkipSamplesAtStart;
 	reversed = newReversed;
@@ -135,9 +133,9 @@ void SampleCache::clusterStolen(int32_t clusterIndex) {
 	if (numExistentClusters != clusterIndex) {
 		FREEZE_WITH_ERROR("E295");
 	}
+#endif
 	clusters[clusterIndex] = nullptr; // No need to remove this first Cluster from a queue or anything - that's already
 	                                  // all done by the thing that's stealing it
-#endif
 }
 
 // Resource-manager on_evict: the manager has chosen this cluster (always the highest-index,
@@ -159,7 +157,7 @@ void SampleCache::unlinkClusters(int32_t startAtIndex, bool beingDestructed) {
 	int32_t numExistentClusters = getNumExistentClusters(writeBytePos);
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 	for (int32_t i = startAtIndex; i < numExistentClusters; i++) {
-		if (ALPHA_OR_BETA_VERSION && !clusters[i]) {
+		if (!clusters[i]) {
 			FREEZE_WITH_ERROR("E167");
 		}
 
@@ -175,7 +173,6 @@ void SampleCache::unlinkClusters(int32_t startAtIndex, bool beingDestructed) {
 // You must be sure before calling this that newWriteBytePos is a multiple of (sample->numChannels * CACHE_BYTE_DEPTH)
 void SampleCache::setWriteBytePos(int32_t newWriteBytePos) {
 
-#if ALPHA_OR_BETA_VERSION
 	if (newWriteBytePos < 0) {
 		FREEZE_WITH_ERROR("E300");
 	}
@@ -183,6 +180,7 @@ void SampleCache::setWriteBytePos(int32_t newWriteBytePos) {
 		FREEZE_WITH_ERROR("E301");
 	}
 
+#if ALPHA_OR_BETA_VERSION
 	uint32_t bytesPerSample = sample->numChannels * kCacheByteDepth;
 	if (newWriteBytePos != (uint32_t)newWriteBytePos / bytesPerSample * bytesPerSample) {
 		FREEZE_WITH_ERROR("E302");
@@ -207,14 +205,12 @@ void SampleCache::setWriteBytePos(int32_t newWriteBytePos) {
 bool SampleCache::setupNewCluster(int32_t clusterIndex) {
 	// D_PRINTLN("writing cache to new Cluster");
 
-#if ALPHA_OR_BETA_VERSION
 	if (clusterIndex >= numClusters) {
 		FREEZE_WITH_ERROR("E126");
 	}
 	if (clusterIndex > getNumExistentClusters(writeBytePos)) {
 		FREEZE_WITH_ERROR("E293");
 	}
-#endif
 
 	// Manager-owned: request constructs the Cluster (sampleCacheConstruct sets type/cache/index)
 	// + leases it; release immediately so it's resident-but-unleased (evictable from birth).
@@ -249,10 +245,10 @@ int32_t SampleCache::getNumExistentClusters(int32_t thisWriteBytePos) {
 	if (numExistentClusters < 0) {
 		FREEZE_WITH_ERROR("E303");
 	}
+#endif
 	if (numExistentClusters > numClusters) {
 		FREEZE_WITH_ERROR("E304");
 	}
-#endif
 
 	return numExistentClusters;
 }

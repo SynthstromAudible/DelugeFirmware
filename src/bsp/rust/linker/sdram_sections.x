@@ -1,19 +1,19 @@
-/* Supplementary linker fragment, added to rza1l.x by its own -T: places the Deluge
+/* Supplementary linker fragment, added to rza1-rt's link.x by its own -T: places the Deluge
  * application's custom memory sections and the C++ .init_array, and defines the boundary symbols
  * the boot (boot_mem.rs) and the memory regions (services.rs) read:
  *
  *   SDRAM heap   = [__sdram_static_end, RUST_SDRAM_BASE)                  -- region 0
  *   internal_sml = [__frunk_bss_end,    __frunk_slack_end)                -- SRAM (frunk)
  *
- * The SRAM heap (region 1) is rza1l.x's [__sram_heap_start, __sram_heap_end).
+ * The SRAM heap (region 1) is rza1-rt's link.x's [__sram_heap_start, __sram_heap_end).
  *
  * Loadable SDRAM content (.sdram_init) gets a VMA in SDRAM but an LMA in SRAM (`> SDRAM AT> RAM`),
- * since the debugger can't write SDRAM at download; the Rust boot copies it after init_clocks.
+ * since the debugger can't write SDRAM at download; the Rust boot copies it after Board::new.
  * NOLOAD bss is zeroed by the boot.
  *
  * An input section goes to the FIRST output section whose pattern matches it, in command-line
- * script order and before the INSERTs are applied. rza1l.x's `.bss` takes every `.bss.*` and its
- * `.data` every `.data.*`, so this fragment is passed before rza1l.x (build/device.rs) for its
+ * script order and before the INSERTs are applied. rza1-rt's link.x's `.bss` takes every `.bss.*` and its
+ * `.data` every `.data.*`, so this fragment is passed before rza1-rt's link.x (build/device.rs) for its
  * patterns that move statics to SDRAM to win. The INSERTs then place the sections: `.sdram_bss`
  * before `.bss`, `.frunk_bss` after it, and the boot-only tail after `.ARM.exidx`.
  */
@@ -64,7 +64,7 @@ SECTIONS {
  * The SDRAM content's load copy and the C++ constructor list end the image, after .ARM.exidx. The
  * boot copies the one to SDRAM and runs the other (boot_mem.rs) before the app creates its heaps,
  * and neither is read again, so the SRAM heap starts where this tail does (`__sram_heap_base`,
- * which rza1l.x honours). Placing them here also keeps the vector table the image's first
+ * which rza1-rt's link.x honours). Placing them here also keeps the vector table the image's first
  * loadable byte, where the bootloader reads its header. */
 SECTIONS {
     /* Initialised SDRAM content: VMA in SDRAM, LMA in SRAM (copied at boot). */
@@ -84,7 +84,7 @@ SECTIONS {
     __sdram_static_end = MAX(__sdram_bss_end, ADDR(.sdram_init) + SIZEOF(.sdram_init));
 
     /* C++ global constructors, iterated by the Rust boot. Last, and `> RAM`, so the location
-     * counter leaves this block tracking SRAM rather than the SDRAM VMA: rza1l.x takes the
+     * counter leaves this block tracking SRAM rather than the SDRAM VMA: rza1-rt's link.x takes the
      * image's end from it. */
     .init_array : ALIGN(4) {
         PROVIDE(__init_array_start = .);

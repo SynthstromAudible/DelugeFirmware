@@ -32,7 +32,7 @@
 #include <array>
 #include <cstdint>
 
-#define SAMPLE_DO_LOCKS (ALPHA_OR_BETA_VERSION)
+#define SAMPLE_DO_LOCKS 1 // Re-entrancy would corrupt percCacheZones, so this is on in all builds
 
 // RawDataFormat now lives in storage/audio/audio_file_format.h (a file-format facet, not a Sample one);
 // it reaches here via sample.h's include of audio_file.h.

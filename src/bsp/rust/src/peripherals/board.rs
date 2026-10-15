@@ -1,6 +1,6 @@
 //! `libdeluge/board.h` — the capability descriptor and the ordered one-time board bring-up (GPIO
-//! for LEDs, codec and jack detects, the CV DAC SPI, the audio SSI). Pin and port numbers stay
-//! BSP-internal.
+//! for LEDs, codec and jack detects, the audio SSI). Pin and port numbers stay BSP-internal. The CV
+//! DAC and its SPI bus come up earlier, in `runtime::device::start`, before the executor runs.
 //!
 //! OLED bring-up is not here: [`display`](super::display) and `deluge_bsp::oled` own the panel.
 //!
@@ -73,7 +73,7 @@ pub extern "C" fn deluge_board_probe_oled() -> bool {
 }
 
 /// Early bring-up: GPIO direction and initial state for the status LEDs, codec/speaker enables,
-/// jack detects, analog sense and trigger-clock input, and the CV DAC SPI.
+/// jack detects, analog sense and trigger-clock input.
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board_init_early(have_oled: bool) {
@@ -99,8 +99,8 @@ pub extern "C" fn deluge_board_init_early(have_oled: bool) {
         gpio::set_pin_mux(1, 13, 1); // VOLT_SENSE
         gpio::set_pin_mux(1, 14, 2); // ANALOG_CLOCK_IN
 
-        // CV DAC over RSPI0 (the BSP driver sets up the SPI peripheral + pins).
-        deluge_bsp::cv_gate::init();
+        // The CV DAC over RSPI0 is already up: `runtime::device::start` brings up the bus and the
+        // DAC before the executor runs, so the OLED can't hold RSPI0 when it does.
 
         // OLED shares RSPI0 (manual SSL, handled in display.rs / deluge_bsp::oled);
         // only the 7-segment path needs the pin muxed to hardware SSL here.
@@ -121,12 +121,38 @@ pub extern "C" fn deluge_board_init_early(_have_oled: bool) {
     }
 }
 
+/// SSI0 and its DMA channels, from `runtime::device::start` until the app's
+/// `deluge_board_init_audio` brings the codec up (its place in the C++ init sequence).
+#[cfg(target_os = "none")]
+static AUDIO_PARTS: embassy_sync::blocking_mutex::Mutex<
+    embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
+    core::cell::RefCell<
+        Option<(
+            rza1l_hal::Peri<'static, deluge_bsp::board::AudioSsi>,
+            rza1l_hal::Peri<'static, deluge_bsp::board::SsiTxDma>,
+            rza1l_hal::Peri<'static, deluge_bsp::board::SsiRxDma>,
+        )>,
+    >,
+> = embassy_sync::blocking_mutex::Mutex::new(core::cell::RefCell::new(None));
+
+/// Keep the audio parts for [`deluge_board_init_audio`].
+#[cfg(target_os = "none")]
+pub(crate) fn stash_audio(
+    ssi: rza1l_hal::Peri<'static, deluge_bsp::board::AudioSsi>,
+    tx: rza1l_hal::Peri<'static, deluge_bsp::board::SsiTxDma>,
+    rx: rza1l_hal::Peri<'static, deluge_bsp::board::SsiRxDma>,
+) {
+    AUDIO_PARTS.lock(|p| *p.borrow_mut() = Some((ssi, tx, rx)));
+}
+
 /// Brings up the audio serial port (SSI0).
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board_init_audio() {
-    // SAFETY: called once after init_early; clocks/STB up.
-    unsafe { deluge_bsp::audio::init() };
+    let (ssi, tx, rx) = AUDIO_PARTS
+        .lock(|p| p.borrow_mut().take())
+        .expect("deluge_board_init_audio runs once, after runtime::device::start");
+    deluge_bsp::audio::init(ssi, tx, rx);
 }
 
 /// Host stand-in: there is no SSI0 to bring up. Logs once so the boot trace shows the call.

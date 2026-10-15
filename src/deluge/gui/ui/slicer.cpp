@@ -738,11 +738,9 @@ Error Slicer::doSlice(int32_t sliceCount) {
 		deluge::gui::menu_item::settingFor(*firstDrum, "osc1/reversed", deluge::serialization::Value::makeNumber(0));
 		firstDrum->sources[0].sampleControls.invertReversed = false;
 
-#if 1 || ALPHA_OR_BETA_VERSION
 		if (!firstRange->sampleHolder.audioFile) {
 			FREEZE_WITH_ERROR("i032"); // Trying to narrow down E368 that Kevin F got
 		}
-#endif
 
 		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].sampleControls.isCurrentlyReversed(),
 		                                             CLUSTER_ENQUEUE);

@@ -420,7 +420,7 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
     }
 
     #[cfg(feature = "sim")]
-    if deluge_bsp::sim::panel().is_some() {
+    if crate::sim_panel::panel().is_some() {
         return drive_simulator();
     }
 
@@ -434,7 +434,7 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
 fn drive_simulator() -> u32 {
     let mut renders = 0;
     while renders < 2
-        && deluge_bsp::sim::render_block(|frames| {
+        && crate::sim_panel::render_block(|frames| {
             render_block(Some(frames));
             // SAFETY: the render that wrote RENDER_BLOCK has returned.
             let out = unsafe { &*addr_of!(RENDER_BLOCK) };

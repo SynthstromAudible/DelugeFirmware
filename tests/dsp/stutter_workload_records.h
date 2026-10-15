@@ -41,17 +41,17 @@ inline const std::array<WorkloadRecord, kWorkloadCount> kRecordedReference{{
     // PLAY_REVERSED_NATIVE
     {.outputs = 0x859e9f5c46683a64ULL, .lifecycle = 0x13591ba094dfb733ULL, .tape = 0x439ba3e453f7f060ULL},
     // PLAY_REVERSED_RESAMPLED
-    {.outputs = 0x5b2863ecd17fff6dULL, .lifecycle = 0x21d553c44bd38d9dULL, .tape = 0xfbda2dda90521003ULL},
+    {.outputs = 0x3624c7d3ac1acd09ULL, .lifecycle = 0x21d553c44bd38d9dULL, .tape = 0xfbda2dda90521003ULL},
     // PING_PONG_NATIVE
     {.outputs = 0x86d831954ba16a06ULL, .lifecycle = 0x4099c7684c7a369eULL, .tape = 0x439ba3e453f7f060ULL},
     // PING_PONG_RESAMPLED
-    {.outputs = 0x8beed4fdd50293d4ULL, .lifecycle = 0x6976644ab30ad355ULL, .tape = 0x11e23d2f6a84317dULL},
+    {.outputs = 0x13918184c15283e4ULL, .lifecycle = 0x6976644ab30ad355ULL, .tape = 0x11e23d2f6a84317dULL},
     // RATE_MOVES
-    {.outputs = 0x8258b653a971d118ULL, .lifecycle = 0x8e1c6fc4739971aaULL, .tape = 0x45b450819ee24691ULL},
+    {.outputs = 0x8390d04a1980603cULL, .lifecycle = 0x8e1c6fc4739971aaULL, .tape = 0x45b450819ee24691ULL},
     // BLOCKS_1_TO_9
-    {.outputs = 0xeb2ab33b9eceac1fULL, .lifecycle = 0x733f7cd26f936f7eULL, .tape = 0x5ec6cd281afc7501ULL},
+    {.outputs = 0x48c021f4a8f96a2bULL, .lifecycle = 0x733f7cd26f936f7eULL, .tape = 0x5ec6cd281afc7501ULL},
     // FULL_SCALE
-    {.outputs = 0x95302607a1606a83ULL, .lifecycle = 0x6b132dff6eb9a843ULL, .tape = 0x4b423bff15217d45ULL},
+    {.outputs = 0x12008ec54fad7803ULL, .lifecycle = 0x6b132dff6eb9a843ULL, .tape = 0x4b423bff15217d45ULL},
     // CLAMPED
     {.outputs = 0x1647eb0331204911ULL, .lifecycle = 0xad9ec3a27f65a6a9ULL, .tape = 0x56febf11a0e1ba19ULL},
 }};

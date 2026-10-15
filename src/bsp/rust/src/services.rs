@@ -14,7 +14,7 @@ use crate::sys::{
     DelugeStatus_DELUGE_ERR_PARAM as DELUGE_ERR_PARAM, DelugeStatus_DELUGE_OK as DELUGE_OK,
 };
 
-// Linker boundary symbols: the internal SRAM heap (rza1l.x) and the end of the static SDRAM
+// Linker boundary symbols: the internal SRAM heap (rza1-rt's link.x) and the end of the static SDRAM
 // content (sdram_sections.x).
 #[cfg(target_os = "none")]
 unsafe extern "C" {
@@ -74,10 +74,18 @@ pub extern "C" fn ENTER_CRITICAL_SECTION() {
 #[unsafe(no_mangle)]
 pub extern "C" fn EXIT_CRITICAL_SECTION() {
     #[cfg(target_os = "none")]
-    if CS_DEPTH.fetch_sub(1, Ordering::Relaxed) <= 1 && CS_IRQS_WERE_ENABLED.load(Ordering::Relaxed)
-    {
-        // SAFETY: balanced with ENTER_CRITICAL_SECTION; IRQs were unmasked when it opened.
-        unsafe { cortex_ar::interrupt::enable() };
+    match CS_DEPTH.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |d| d.checked_sub(1)) {
+        Ok(1) if CS_IRQS_WERE_ENABLED.load(Ordering::Relaxed) => {
+            // SAFETY: balanced with ENTER_CRITICAL_SECTION; IRQs were unmasked when it opened.
+            unsafe { cortex_ar::interrupt::enable() };
+        }
+        Ok(_) => {}
+        // An unbalanced exit, outside any critical section. Decrementing would wrap the depth, and then no later exit
+        // would close the outermost section, leaving IRQs masked for good, so leave it at 0.
+        Err(_) => debug_assert!(
+            false,
+            "CS01: EXIT_CRITICAL_SECTION outside a critical section"
+        ),
     }
     #[cfg(not(target_os = "none"))]
     CS_TOKEN_TL.with(|t| {

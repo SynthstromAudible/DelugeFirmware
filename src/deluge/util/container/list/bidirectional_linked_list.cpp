@@ -148,12 +148,11 @@ void BidirectionalLinkedListNode::remove() {
 }
 
 void BidirectionalLinkedListNode::insertOtherNodeBefore(BidirectionalLinkedListNode* otherNode) {
-	if constexpr (ALPHA_OR_BETA_VERSION) {
-		// If we're not already in a list, that means we also don't have a valid prevPointer, so everything's about to
-		// break. This happened!
-		if (!list) {
-			FREEZE_WITH_ERROR("E443");
-		}
+	// If we're not already in a list, that means we also don't have a valid prevPointer, so everything's about to
+	// break. This happened!
+	if (!list) {
+		FREEZE_WITH_ERROR("E443");
+		return; // Writing through our invalid prevPointer would corrupt memory
 	}
 	otherNode->list = list;
 
@@ -166,10 +165,9 @@ void BidirectionalLinkedListNode::insertOtherNodeBefore(BidirectionalLinkedListN
 
 // Ok this is a little bit dangerous - you'd better make damn sure list is set before calling this!
 bool BidirectionalLinkedListNode::isLast() {
-	if constexpr (ALPHA_OR_BETA_VERSION) {
-		if (!list) {
-			FREEZE_WITH_ERROR("E444");
-		}
+	if (!list) {
+		FREEZE_WITH_ERROR("E444");
+		return true; // Not in any list, so nothing comes after us
 	}
 	return (next == &list->endNode);
 }

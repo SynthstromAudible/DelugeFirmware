@@ -78,7 +78,10 @@ void BlockingSampleLoad::demand(const SampleDemand& demand) {
 		demand.holder->setAudioFile(file, demand.reversed, /*manuallySelected=*/false, demand.clusterLoadInstruction);
 	}
 	if (demand.clipToName != nullptr) {
-		demand.clipToName->name = demand.holder->filePath.c_str();
+		// A Clip the user named keeps its name; only an unnamed one is named after its sample
+		if (demand.clipToName->name.empty()) {
+			demand.clipToName->name = demand.holder->filePath.c_str();
+		}
 		if (error != Error::NONE) {
 			display->displayError(error);
 		}

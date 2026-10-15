@@ -783,16 +783,19 @@ bool SampleRecorder::advanceAbort() {
 
 			detachSample(); // Does not set sample to NULL - we do that below
 
-#if ALPHA_OR_BETA_VERSION
 			// It should be impossible that anyone else still holds a "reason" to this Sample, as we can only be
 			// "aborted" before AudioClip::finishLinearRecording() is called, and it's only then at the AudioClip
 			// becomes a "reason".
-			if (sample->isProjectReferenced()) {
+			bool sampleStillInUse = sample->isProjectReferenced();
+#if ALPHA_OR_BETA_VERSION
+			if (sampleStillInUse) {
 				FREEZE_WITH_ERROR("E282");
 			}
 #endif
 
-			if (haveAddedSampleToArray) { // We only add it to the array when the file is created.
+			// If something does still hold a reason, don't delete the Sample out from under it - it'll get freed
+			// through the normal stealable path once its last reason is removed.
+			if (haveAddedSampleToArray && !sampleStillInUse) { // We only add it to the array when the file is created.
 				audioFileManager.deleteUnusedAudioFileFromMemoryIndexUnknown(*sample);
 			}
 
@@ -1893,8 +1896,9 @@ doFinishCapturing:
 
 				numSamplesThisCycle = std::min(numSamplesThisCycle, samplesLeft);
 			}
-			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle <= 0) {
+			if (numSamplesThisCycle <= 0) {
 				FREEZE_WITH_ERROR("bbbb");
+				return; // Otherwise numSamples never decreases and we loop forever
 			}
 
 			int32_t bytesPerSample = recordingNumChannels * 3;
@@ -1924,8 +1928,9 @@ doFinishCapturing:
 				numSamplesThisCycle = std::min(numSamplesThisCycle, samplesTilClusterEnd);
 			}
 
-			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle <= 0) {
+			if (numSamplesThisCycle <= 0) {
 				FREEZE_WITH_ERROR("aaaa");
+				return; // Otherwise numSamples never decreases and we loop forever
 			}
 
 			std::byte* __restrict__ writePosNow = reinterpret_cast<std::byte*>(writePos);
@@ -2046,25 +2051,29 @@ doFinishCapturing:
 }
 
 void SampleRecorder::endSyncedRecording(int32_t buttonLatencyForTempolessRecording) {
+	// Already ending / ended (and once aborted, sample is null), so there's nothing for us to do.
+	// RELAXED: audio-thread-owned (this function only runs on the audio side, before the release hand-off in
+	// finishCapturing()/abort()).
+	if (status.load(std::memory_order_relaxed) != RecorderStatus::CAPTURING_DATA) {
 #if ALPHA_OR_BETA_VERSION
-	// RELAXED: audio-thread-owned debug assertions (this function only runs on the audio side, before the
-	// release hand-off in finishCapturing()/abort()).
-	if (status.load(std::memory_order_relaxed) == RecorderStatus::CAPTURING_DATA_WAITING_TO_STOP) {
-		FREEZE_WITH_ERROR("E272");
-	}
-	else if (status.load(std::memory_order_relaxed) == RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		FREEZE_WITH_ERROR("E288");
-	}
-	else if (status.load(std::memory_order_relaxed) == RecorderStatus::COMPLETE) {
-		FREEZE_WITH_ERROR("E289");
-	}
-	else if (status.load(std::memory_order_relaxed) == RecorderStatus::ABORTED) {
-		FREEZE_WITH_ERROR("E290");
-	}
-	else if (status.load(std::memory_order_relaxed) == RecorderStatus::AWAITING_DELETION) {
-		FREEZE_WITH_ERROR("E291");
-	}
+		if (status.load(std::memory_order_relaxed) == RecorderStatus::CAPTURING_DATA_WAITING_TO_STOP) {
+			FREEZE_WITH_ERROR("E272");
+		}
+		else if (status.load(std::memory_order_relaxed) == RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+			FREEZE_WITH_ERROR("E288");
+		}
+		else if (status.load(std::memory_order_relaxed) == RecorderStatus::COMPLETE) {
+			FREEZE_WITH_ERROR("E289");
+		}
+		else if (status.load(std::memory_order_relaxed) == RecorderStatus::ABORTED) {
+			FREEZE_WITH_ERROR("E290");
+		}
+		else if (status.load(std::memory_order_relaxed) == RecorderStatus::AWAITING_DELETION) {
+			FREEZE_WITH_ERROR("E291");
+		}
 #endif
+		return;
+	}
 
 	if (numSamplesCaptured) {
 		int32_t numMoreSamplesTilEndLoopPoint =
@@ -2116,8 +2125,9 @@ void SampleRecorder::totalSampleLengthNowKnown(uint32_t totalLengthSamples, uint
 	// is still ours (not yet flushed/recycled), so patch it in place -- the (now-correct) header goes to
 	// disk when this buffer is flushed normally, with nothing left to repatch at finalize.
 	if (firstUnwrittenClusterIndex == 0) {
-		if (ALPHA_OR_BETA_VERSION && (bufferTable_.size() == 0 || bufferTable_[0] == nullptr)) {
+		if (bufferTable_.size() == 0 || bufferTable_[0] == nullptr) {
 			FREEZE_WITH_ERROR("E274");
+			return; // updateDataLengthInHeader() would dereference it
 		}
 
 		audioDataLengthBytesAsWrittenToFile = sample->audioDataLengthBytes;

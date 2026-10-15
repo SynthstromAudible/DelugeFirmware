@@ -76,8 +76,11 @@ int32_t LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t num
                                  int32_t interpolationBufferSize, AudioInputPort& port) {
 
 	LiveInputBuffer* liveInputBuffer = port.bufferForChannel(inputType, false);
-	if (ALPHA_OR_BETA_VERSION && !liveInputBuffer) {
-		FREEZE_WITH_ERROR("E165");
+	if (!liveInputBuffer) {
+		if (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("E165");
+		}
+		return 0; // Render nothing rather than dereference null
 	}
 
 	liveInputBuffer->giveInput(numSamplesThisFunctionCall, port, inputType);

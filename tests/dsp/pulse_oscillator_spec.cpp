@@ -23,6 +23,7 @@
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>
+#include <vector>
 
 namespace {
 using deluge::dsp::fixed::PulseOscillator;
@@ -33,6 +34,22 @@ constexpr uint32_t kInc = 0x08000000; // phase increment
 // A bipolar square over one cycle (8 cells + a wrap neighbour); the pulse kernel ring-mods
 // two copies of it, so it needs real square-like (large, bipolar) values to be non-degenerate.
 constexpr std::array<int16_t, 9> kTable{-30000, -30000, -30000, -30000, 30000, 30000, 30000, 30000, -30000};
+
+// Scalar reference for the pulse math: each square interpolated between its table entry and the next by the 15 phase
+// bits just below the index, A with flipped polarity, then ring-modulated. The test table stays below saturation, so
+// the NEON multiply/add operations reduce to ordinary arithmetic.
+int32_t referencePulse(uint32_t phase, uint32_t offset, const int16_t* table, int magnitude) {
+	auto interpolate = [&](uint32_t position, bool inverted) -> int64_t {
+		uint32_t index = position >> (32 - magnitude);
+		int32_t fraction = (position >> (32 - magnitude - 16)) & 0x7FFF;
+		if (inverted) {
+			return 2LL * ((fraction - 32768LL) * table[index] - int64_t(fraction) * table[index + 1]);
+		}
+		return 2LL * ((32767LL - fraction) * table[index] + int64_t(fraction) * table[index + 1]);
+	};
+	int64_t product = interpolate(phase, true) * interpolate(phase + offset, false);
+	return static_cast<int32_t>(((product + (1LL << 30)) >> 31) * 2);
+}
 
 std::array<int32_t, 4> renderOnce(uint32_t offset) {
 	PulseOscillator osc{Table{kTable, kMag}, 0u, kInc, offset};
@@ -55,6 +72,32 @@ describe pulse_oscillator("deluge::dsp::fixed PulseOscillator", ${
 			b.renderBlock(deluge::dsp::fixed::Buffer{buf});
 
 			expect(buf).to_equal(expected);
+		});
+	});
+
+	context("interpolation", _ {
+		it("interpolates between table entries across table sizes and phase wraparound", _ {
+			for (int32_t magnitude = 6; magnitude <= 13; ++magnitude) {
+				std::vector<int16_t> table((1U << magnitude) + 1);
+				for (size_t i = 0; i + 1 < table.size(); ++i) {
+					table[i] = static_cast<int16_t>(static_cast<int32_t>((i * 7919U) % 20001U) - 10000);
+				}
+				table.back() = table.front();
+				for (uint32_t phase : {0U, 0x12345678U, 0xFFFF1234U}) {
+					for (uint32_t increment : {0x12345U, 0x1020304U}) {
+						for (uint32_t offset : {0U, 0x13579BDFU, 0xF0001234U}) {
+							PulseOscillator osc{Table{table, magnitude}, phase, increment, offset};
+							std::array<int32_t, 4> actual{};
+							osc.render().StoreTo(actual.data());
+							for (uint32_t lane = 0; lane < 4; ++lane) {
+								expect(actual[lane]).to_equal(
+								    referencePulse(phase + increment * (lane + 1), offset, table.data(), magnitude));
+							}
+							expect(osc.phase()).to_equal(phase + increment * 4);
+						}
+					}
+				}
+			}
 		});
 	});
 

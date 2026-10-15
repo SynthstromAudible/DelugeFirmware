@@ -1338,11 +1338,9 @@ Error NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWid
 	if (numToDelete > 0) {
 		newNotes.erase(newNotes.begin() + nextIndexToCopyTo, newNotes.begin() + nextIndexToCopyTo + numToDelete);
 	}
-#if ALPHA_OR_BETA_VERSION
 	else if (numToDelete < 0) { // If we overshot somehow
 		FREEZE_WITH_ERROR("E329");
 	}
-#endif
 
 	// Record change, stealing the old note data
 	if (action) {
@@ -3773,9 +3771,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 						Sound::initParams(&paramManager);
 
 						// This is at least not ideal, so we'd better tell the user
-						if (ALPHA_OR_BETA_VERSION) {
-							deluge::notify::notice("E073");
-						}
+						deluge::notify::notice("E073");
 					}
 				}
 			}

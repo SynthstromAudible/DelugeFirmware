@@ -2395,9 +2395,6 @@ void discardRecorder(SampleRecorder* recorder) {
 	while (*prevPointer) {
 
 		count++;
-		if (ALPHA_OR_BETA_VERSION && !*prevPointer) {
-			FREEZE_WITH_ERROR("E264");
-		}
 		if (*prevPointer == recorder) {
 			*prevPointer = recorder->next;
 			break;

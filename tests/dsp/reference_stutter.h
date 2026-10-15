@@ -143,18 +143,10 @@ public:
 
 					strength1 = 65536 - strength2;
 
-					StereoSample* other = nullptr;
-					if (current_reverse_) {
-						other = &tape.current() - 1;
-						if (other < tape.begin()) {
-							other = tape.end() - 1;
-						}
-					}
-					else {
-						other = &tape.current() + 1;
-						if (other == tape.end()) {
-							other = tape.begin();
-						}
+					// Both cursor directions return a fraction toward the next sample.
+					StereoSample* other = &tape.current() + 1;
+					if (other == tape.end()) {
+						other = tape.begin();
 					}
 					const StereoSample& from_delay1 = tape.current();
 					const StereoSample& from_delay2 = *other;

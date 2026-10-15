@@ -111,6 +111,32 @@ fn old_probability_bytes_become_fill_and_iterance() {
 }
 
 #[test]
+fn nightly_iterance_and_fill_data_becomes_split_probability() {
+    // Three notes: lift 0x30, probability 5, iterance preset 1 (1 of 2), fill 2; lift 0 (default), probability 0x14,
+    // preset 36 (custom), fill 0; preset 0 (off), fill 1.
+    same(
+        &run(
+            r#"<noteRow noteDataWithIteranceAndFill="0x000000100000002040300501020000002000000020400014240000000030000000204040140001"/>"#,
+            "c1.2.1",
+            old_note_data,
+        ),
+        r#"<noteRow noteDataWithSplitProb="0x000000100000002040300502010200000020000000204040140101000000003000000020404014000001"/>"#,
+    );
+}
+
+#[test]
+fn from_1_3_nightly_data_beside_split_probability_is_dropped() {
+    same(
+        &run(
+            r#"<noteRow noteDataWithIteranceAndFill="0x1" noteDataWithSplitProb="0x2"/>"#,
+            "c1.3.0",
+            old_note_data,
+        ),
+        r#"<noteRow noteDataWithSplitProb="0x2"/>"#,
+    );
+}
+
+#[test]
 fn plain_note_data_wins_and_takes_the_default_lift() {
     same(
         &run(

@@ -569,8 +569,9 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	currentPlaybackMode = &session;
 
-	// One-time board bring-up: GPIO directions + initial state, the CV DAC SPI,
-	// and (when an OLED is fitted) its shared-SPI plumbing.
+	// One-time board bring-up: GPIO directions + initial state, and (on the
+	// 7-segment variant) the SPI chip-select. The CV DAC and its shared SPI bus are
+	// already up: the Rust runtime starts them before the executor runs.
 	deluge_board_init_early(true);
 
 	deluge_display_init(); // Set up OLED now

@@ -2,8 +2,9 @@
 //!
 //! Gates are plain GPIO. CV outputs drive the MAX5136 DAC over RSPI0, which is shared with the
 //! OLED, so CV writes funnel through [`cv_writer`], which acquires the bus asynchronously: a
-//! synchronous send from an app task could deadlock against the OLED task holding the bus. Board
-//! bring-up already ran `deluge_bsp::cv_gate::init()`, so the init hooks here are no-ops.
+//! synchronous send from an app task could deadlock against the OLED task holding the bus. The
+//! runtime's start-up (`runtime::device::start`) already ran `deluge_bsp::cv_gate::init()`, so the
+//! init hooks here are no-ops.
 #![allow(non_upper_case_globals)]
 
 use core::future::poll_fn;
@@ -40,7 +41,7 @@ pub async fn cv_writer() {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_cv_init(_display_shares_spi: bool) {
-    // The board's cv_gate::init() already did pins + MAX5136 linearity + zeroing.
+    // `runtime::device::start` already ran cv_gate::init(): pins, MAX5136 linearity, zeroing.
 }
 
 #[unsafe(no_mangle)]
@@ -58,7 +59,7 @@ pub extern "C" fn deluge_cv_sent_count() -> u32 {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_gate_init() {
-    // Gate GPIOs were configured by the board's cv_gate::init().
+    // Gate GPIOs were configured by cv_gate::init() in `runtime::device::start`.
 }
 
 #[unsafe(no_mangle)]

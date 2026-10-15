@@ -28,8 +28,7 @@ public:
 	SampleMarkerEditor(l10n::String newName, MarkerType newWhichMarker = MarkerType::START)
 	    : MenuItem(newName), whichMarker(newWhichMarker) {}
 
-	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-	                                             ::MultiRange** currentRange) override;
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
 	void renderInHorizontalMenu(const SlotPosition& slot) override;

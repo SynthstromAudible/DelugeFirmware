@@ -26,12 +26,12 @@ extern uint32_t program_stack_end;
 // NOLINTEND
 
 namespace {
+#if ALPHA_OR_BETA_VERSION
 int32_t closestDistance = 2147483647;
+#endif
 } // namespace
 
 void checkStack(char const* caller) {
-#if ALPHA_OR_BETA_VERSION
-
 	// The stack-collision guard measures headroom between the live stack pointer and
 	// `program_stack_start` — valid only where the stack sits in a known region just past
 	// the heap (the SoC's SRAM layout). A build whose BSP can't describe such a region
@@ -58,15 +58,20 @@ void checkStack(char const* caller) {
 	}
 
 	int32_t distance = (int32_t)((uintptr_t)&a - (uintptr_t)&program_stack_start);
+
+	// A stack collision silently corrupts whatever lives below the stack, so this freezes in every build. Kept to a
+	// single compare since it's called from the audio render path.
+	if (distance < 200) {
+		D_PRINTLN("COLLISION at %s", caller);
+		FREEZE_WITH_ERROR("E338");
+	}
+
+#if ALPHA_OR_BETA_VERSION
 	if (distance < closestDistance) {
 		closestDistance = distance;
 
 		D_PRINTLN("%d bytes in stack %d free bytes in stack at %s",
 		          (int32_t)((uintptr_t)&program_stack_end - (uintptr_t)&a), distance, caller);
-		if (distance < 200) {
-			FREEZE_WITH_ERROR("E338");
-			D_PRINTLN("COLLISION");
-		}
 	}
 #endif
 }

@@ -162,6 +162,36 @@ void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoPara
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
 }
 
+namespace {
+// The regions deluge::project::homogenizeRegion() rejects. It bails on them in all builds; alpha/beta also freezes.
+void freezeOnRejectedRegion([[maybe_unused]] const deluge::project::DocAutoParam& p, [[maybe_unused]] int32_t startPos,
+                            [[maybe_unused]] int32_t length, [[maybe_unused]] bool reversed,
+                            [[maybe_unused]] int32_t posAtWhichClipWillCut) {
+#if ALPHA_OR_BETA_VERSION
+	// Chasing "E433" / "GGGG" error (probably now largely solved - except got E435).
+	if (length <= 0) {
+		FREEZE_WITH_ERROR("E427");
+	}
+	else if (startPos < 0) {
+		FREEZE_WITH_ERROR("E437");
+	}
+	else if (!p.nodes.empty() && p.nodes[0].pos < 0) {
+		FREEZE_WITH_ERROR("E436");
+	}
+	else if (!reversed && posAtWhichClipWillCut <= startPos) {
+		FREEZE_WITH_ERROR("E428"); // Chasing Leo's GGGG error (probably now solved).
+	}
+	else if (reversed && startPos < posAtWhichClipWillCut) {
+		// Sean: potentially solved by PR https://github.com/SynthstromAudible/DelugeFirmware/pull/4445
+		FREEZE_WITH_ERROR("E445");
+	}
+	else if (reversed && startPos == posAtWhichClipWillCut) {
+		FREEZE_WITH_ERROR("HHHH");
+	}
+#endif
+}
+} // namespace
+
 // Clip not required, but if you don't supply it, you can't record anything.
 // You can assume that this will always change the currentValue.
 // livePos may be supplied as -1, meaning get it live. Or, you can override this by specifying one.
@@ -270,17 +300,22 @@ investigatePrevNode:
 			// reversed further-right-node fixup, then current_value=value). interpolateLeft is the engine's
 			// already-decided `reversed || shouldInterpolateRegionStart`. recordingLinearly is only consulted deep
 			// in homogenizeRegion's forward-wrap branch (Clip-recording context), so guard the Clip cast against a
-			// Song timeline (as AutoParam::homogenizeRegion does). The DOM container's inserts are infallible, so
-			// the kernel never returns -1.
+			// Song timeline (as AutoParam::homogenizeRegion does).
 			bool shouldInterpolateLeft = reversed || shouldInterpolateRegionStart;
 			bool recordingLinearly = false;
 			if (TimelineCounter* tc = modelStack->getTimelineCounterAllowNull();
 			    tc && tc != static_cast<TimelineCounter*>(modelStack->song)) {
 				recordingLinearly = static_cast<Clip*>(tc)->getCurrentlyRecordingLinearly();
 			}
+			if (!doMPEMode && ticksToClear != 0) {
+				freezeOnRejectedRegion(*modelStack->doc(), livePos, ticksToClear, reversed, posAtWhichPlaybackWillCut);
+			}
 			int32_t leftI = deluge::project::recordLiveValue(*modelStack->doc(), livePos, value, ticksToClear,
 			                                                 doMPEMode, shouldInterpolateLeft, effectiveLength,
 			                                                 reversed, recordingLinearly, posAtWhichPlaybackWillCut);
+			if (leftI == -1) {
+				goto getOut;
+			}
 
 			// Now that we've definitely left any previous nodes alone, see if they form a linear run and we can delete
 			// some of them? We'll just not bother with this if reversed, for now... or ever...
@@ -1239,6 +1274,7 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 	if (tc && tc != static_cast<TimelineCounter*>(modelStack->song)) {
 		recordingLinearly = static_cast<Clip*>(tc)->getCurrentlyRecordingLinearly();
 	}
+	freezeOnRejectedRegion(*modelStack->doc(), startPos, length, reversed, posAtWhichClipWillCut);
 	return deluge::project::homogenizeRegion(*modelStack->doc(), startPos, length, startValue, interpolateLeftNode,
 	                                         interpolateRightNode, effectiveLength, reversed, recordingLinearly,
 	                                         posAtWhichClipWillCut);
@@ -1629,11 +1665,13 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 	int32_t wrappedEndPos = endPos % effectiveLength;
 	bool overwrittingEntireRegion = startPos == 0 && endPos >= effectiveLength;
 
-#if defined(ALPHA_OR_BETA_VERSION)
+	// Nothing to paste - and nodes[0] is dereferenced below.
 	if (copiedParamAutomation->nodes == nullptr || copiedParamAutomation->numNodes == 0) {
-		FREEZE_WITH_ERROR("E453");
+		if constexpr (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("E453");
+		}
+		return;
 	}
-#endif
 
 	// Save the current value at the start and end of the region w'ere pasting in to, before we start messing with it.
 	int32_t startValue = getValueAtPos(startPos, modelStack);

@@ -41,17 +41,16 @@ int32_t synced_delay_rate(int32_t userDelayRate, const DelayState& settings, uin
 	if (syncLevel == engine::SyncLevel::NONE) {
 		return userDelayRate;
 	}
-	int32_t rate = multiply_32x32_rshift32_rounded(userDelayRate, static_cast<int32_t>(timePerInternalTickInverse));
-	// Limit to the biggest number we can store.
-	const int32_t limit = 2147483647 >> (engine::index_of(syncLevel) + 5);
-	rate = std::min(rate, limit);
+	int64_t rate = multiply_32x32_rshift32_rounded(userDelayRate, static_cast<int32_t>(timePerInternalTickInverse));
 	if (settings.sync_type == engine::SyncType::TRIPLET) {
 		rate = rate * 3 / 2;
 	}
 	else if (settings.sync_type == engine::SyncType::DOTTED) {
 		rate = rate * 2 / 3;
 	}
-	return rate << (engine::index_of(syncLevel) + 5);
+	// Limit to the biggest number we can store, after the sync type's scaling, so the shift below can't overflow.
+	const int32_t limit = 2147483647 >> (engine::index_of(syncLevel) + 5);
+	return static_cast<int32_t>(std::min<int64_t>(rate, limit)) << (engine::index_of(syncLevel) + 5);
 }
 
 uint32_t delay_off_silenced_blocks() {

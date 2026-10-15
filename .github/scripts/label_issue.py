@@ -55,9 +55,11 @@ def labels_for(
         return []  # not submitted through the form: a form always renders every field
     labels: list[str] = []
     for field, options in mapping.items():
-        label = options.get(answers.get(field))
-        if label and label not in labels:
-            labels.append(label)
+        # Multi-select answers arrive as "a, b"; none of the options contain a comma.
+        for choice in answers.get(field, "").split(","):
+            label = options.get(choice.strip())
+            if label and label not in labels:
+                labels.append(label)
     return labels
 
 

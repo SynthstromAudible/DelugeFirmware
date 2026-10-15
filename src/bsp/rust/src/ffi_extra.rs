@@ -1,6 +1,6 @@
 //! Link symbols outside the libdeluge headers: the device's C-runtime shims (`_sbrk`, `_fini`),
 //! which glibc provides on host, the device's replacements for libstdc++'s failure reporters, and
-//! the host app's stand-ins for the linker-script boundary symbols `rza1l.x` provides on the device.
+//! the host app's stand-ins for the linker-script boundary symbols `rza1-rt's link.x` provides on the device.
 #![allow(non_upper_case_globals, unused_variables)]
 
 // newlib's malloc, which libgcc's emulated TLS needs (e.g. the C++ exception runtime's

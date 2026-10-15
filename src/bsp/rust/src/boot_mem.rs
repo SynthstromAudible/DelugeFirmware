@@ -1,7 +1,7 @@
 //! C++ memory bring-up: zero the SDRAM `.bss` regions, copy `.sdram_init` from its SRAM load
 //! address, and run the C++ global constructors.
 //!
-//! Runs after `init_clocks` (SDRAM up) and before any application code. The section symbols come
+//! Runs after `Board::new` (SDRAM up) and before any application code. The section symbols come
 //! from `linker/sdram_sections.x`.
 
 unsafe extern "C" {

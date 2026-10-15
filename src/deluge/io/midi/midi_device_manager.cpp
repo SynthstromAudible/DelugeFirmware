@@ -310,11 +310,14 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 
 extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 
+	// Not one of ours (e.g. hmidi_detach() didn't find it) - indexing connectedUSBMIDIDevices with it would write out
+	// of bounds
+	if (midiDeviceNum < 0 || midiDeviceNum >= MAX_NUM_USB_MIDI_DEVICES) {
 #if ALPHA_OR_BETA_VERSION
-	if (midiDeviceNum == MAX_NUM_USB_MIDI_DEVICES) {
 		FREEZE_WITH_ERROR("E367");
-	}
 #endif
+		return;
+	}
 
 	D_PRINTLN("detached MIDI device: %d", midiDeviceNum);
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
