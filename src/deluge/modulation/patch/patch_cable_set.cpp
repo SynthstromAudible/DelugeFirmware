@@ -299,19 +299,23 @@ goAgainWithoutIncrement:
 				// cable we're looking at right now) also cause the cable whose range/depth we're adjusting (and so also
 				// the param that that goes to) to recompute.
 				Destination* thatDestination = destination + 1;
-				while (thatDestination->destinationParamDescriptor != cableDestination) {
+				Destination* const destinationsEnd = &destinations[globality][numDestinations[globality]];
+				while (thatDestination < destinationsEnd
+				       && thatDestination->destinationParamDescriptor != cableDestination) {
 					thatDestination++;
+				}
 
-#if ALPHA_OR_BETA_VERSION
-					// If getting crashes here, well I previously fixed a bug where sometimes the range-adjust*ed* cable
-					// was not "allowed", so was not present here, but the adjust*ing* cable still was here, which this
-					// code can't handle. So check that again?
-					if (thatDestination >= (&destinations[globality][numDestinations[globality]])) {
+				// If getting here, well I previously fixed a bug where sometimes the range-adjust*ed* cable was not
+				// "allowed", so was not present here, but the adjust*ing* cable still was here, which this code can't
+				// handle. Don't write past the end of the array - just skip linking it.
+				if (thatDestination >= destinationsEnd) {
+					if constexpr (ALPHA_OR_BETA_VERSION) {
 						FREEZE_WITH_ERROR("E434");
 					}
-#endif
 				}
-				thatDestination->sources |= destination->sources;
+				else {
+					thatDestination->sources |= destination->sources;
+				}
 
 				// And, any time the cable whose range we're adjusting recomputes, we need to also recompute its range
 				// so that that value is handy.

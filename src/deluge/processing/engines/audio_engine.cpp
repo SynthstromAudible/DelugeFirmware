@@ -1818,8 +1818,12 @@ errorAfterAllocation:
 // time. That's a double free, and it surfaces as M123 from the allocator, a long way from here - so rather than
 // leaving the rule as a comment for each caller to honour, enforce it.
 void discardRecorder(SampleRecorder* recorder) {
-	if (ALPHA_OR_BETA_VERSION && (sdRoutineLock || currentlyAccessingCard)) {
+	if (sdRoutineLock || currentlyAccessingCard) {
 		FREEZE_WITH_ERROR("E251");
+		// Freeing it now would be the double free described above. Instead leave it in the list and let
+		// doRecorderCardRoutines() free it once its suspended cardRoutine() has returned.
+		recorder->status = RecorderStatus::AWAITING_DELETION;
+		return;
 	}
 
 	int32_t count = 0;
@@ -1827,9 +1831,6 @@ void discardRecorder(SampleRecorder* recorder) {
 	while (*prevPointer) {
 
 		count++;
-		if (ALPHA_OR_BETA_VERSION && !*prevPointer) {
-			FREEZE_WITH_ERROR("E264");
-		}
 		if (*prevPointer == recorder) {
 			*prevPointer = recorder->next;
 			break;

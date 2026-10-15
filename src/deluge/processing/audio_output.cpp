@@ -396,13 +396,20 @@ Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) 
 	}
 
 	AudioClip* newClip = new (clipMemory) AudioClip();
-	newClip->setOutput(modelStack->addTimelineCounter(newClip), this);
+	Error error = newClip->setOutput(modelStack->addTimelineCounter(newClip), this);
 
-#if ALPHA_OR_BETA_VERSION
-	if (!newClip->paramManager.summaries[0].paramCollection) {
-		FREEZE_WITH_ERROR("E422"); // Trying to diversify Leo's E410
+	// A Clip without param collections would crash as soon as its params are accessed. Bail in all builds - the
+	// caller handles NULL as insufficient RAM.
+	if (error != Error::NONE || !newClip->paramManager.summaries[0].paramCollection) {
+		if constexpr (ALPHA_OR_BETA_VERSION) {
+			if (error == Error::NONE) {
+				FREEZE_WITH_ERROR("E422"); // Trying to diversify Leo's E410
+			}
+		}
+		newClip->~AudioClip();
+		delugeDealloc(clipMemory);
+		return nullptr;
 	}
-#endif
 
 	return newClip;
 }
