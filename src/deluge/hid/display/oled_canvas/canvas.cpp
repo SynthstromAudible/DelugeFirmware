@@ -555,7 +555,11 @@ void Canvas::drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, int32_t s
 
 	int32_t bytesPerCol = ((textHeight - 1) >> 3) + 1;
 
-	int32_t textWidth = descriptor->w_px - scrollPos;
+	// Clip glyphs to the same exclusive right edge that the side scroller clears.
+	int32_t textWidth = std::min<int32_t>(descriptor->w_px - scrollPos, endX - pixelX);
+	if (textWidth <= 0) {
+		return;
+	}
 	drawGraphicMultiLine(&font[descriptor->glyph_index + scrollPos * bytesPerCol], pixelX, pixelY, textWidth,
 	                     textHeight, bytesPerCol);
 }
