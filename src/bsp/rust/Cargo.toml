@@ -34,15 +34,15 @@ deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = [
 # The `flash` feature enables `deluge_bsp::flash`, which the settings sector reads need.
 # `app-fault-reporter`: every CPU fault vector calls the app's `rza1_cpu_fault_report` (rza1-rt).
 # Default features off: the image links its own memory layout (linker/memory*.x), not the BSP's.
-deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "28bc21cebe6d473a5e23a45e31c09f028c740675", default-features = false, features = [
+deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "e1a96c044cbaed7537e01ea6fda0c7f88c9f1dbe", default-features = false, features = [
     "flash",
     "app-fault-reporter",
 ] }
 # The USB-MIDI device class (moved out of deluge-bsp into the board-agnostic `usb-classes`).
-usb-classes = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "28bc21cebe6d473a5e23a45e31c09f028c740675", features = [
+usb-classes = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "e1a96c044cbaed7537e01ea6fda0c7f88c9f1dbe", features = [
     "device-midi",
 ] }
-rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "28bc21cebe6d473a5e23a45e31c09f028c740675" }
+rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "e1a96c044cbaed7537e01ea6fda0c7f88c9f1dbe" }
 
 # The filesystem `storage::efatfs::portable` drives on every build. The 0.7 `embedded-io-async` is
 # the one whose `Read`/`Seek`/`Write` `embedded_fatfs::File` implements (the block-device crates
@@ -53,7 +53,7 @@ embedded-io-async = "0.7.0"
 # Device (armv7a-none-eabihf). `platform-cortex-ar` here and `platform-std` on host are mutually
 # exclusive in embassy-executor, so the two executors live in disjoint `[target]` sections.
 [target.'cfg(target_os = "none")'.dependencies]
-rza1-alloc = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "28bc21cebe6d473a5e23a45e31c09f028c740675" }
+rza1-alloc = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "e1a96c044cbaed7537e01ea6fda0c7f88c9f1dbe" }
 
 # The device storage stack under the filesystem: `BlockDevice` over the SD driver, `BufStream`.
 block-device-driver = { path = "../../../crates/block-device-driver" }
@@ -101,9 +101,9 @@ block-device-driver = { path = "../../../crates/block-device-driver", optional =
 block-device-adapters = { path = "../../../crates/block-device-adapters", optional = true }
 aligned = { version = "0.4", optional = true }
 # The desktop simulator window for `sim`.
-deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "28bc21cebe6d473a5e23a45e31c09f028c740675", optional = true }
+deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "e1a96c044cbaed7537e01ea6fda0c7f88c9f1dbe", optional = true }
 # The simulator's panel/audio link, which `sim_panel` plugs into deluge-bsp's host-panel hook.
-deluge-sim-link = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "28bc21cebe6d473a5e23a45e31c09f028c740675", optional = true }
+deluge-sim-link = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "e1a96c044cbaed7537e01ea6fda0c7f88c9f1dbe", optional = true }
 
 [features]
 default = ["host-runtime"]
