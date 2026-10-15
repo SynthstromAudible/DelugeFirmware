@@ -167,7 +167,6 @@
 #include "gui/menu_item/randomizer/randomizer_lock.h"
 #include "gui/menu_item/randomizer/randomizer_unpatched_param.h"
 #include "gui/menu_item/record/countin.h"
-#include "gui/menu_item/record/loop_command.h"
 #include "gui/menu_item/record/quantize.h"
 #include "gui/menu_item/record/threshold_mode.h"
 #include "gui/menu_item/reset_settings/reset.h"
@@ -1031,8 +1030,6 @@ PLACE_SDRAM_BSS Submenu defaultThresholdRecordingSubmenu{
     },
 };
 
-PLACE_SDRAM_BSS record::LoopCommand defaultLoopCommandMenu{STRING_FOR_LOOP_COMMAND, STRING_FOR_LOOP_COMMAND};
-
 PLACE_SDRAM_BSS Submenu recordSubmenu{
     STRING_FOR_RECORDING,
     {
@@ -1041,7 +1038,6 @@ PLACE_SDRAM_BSS Submenu recordSubmenu{
         &recordMarginsMenu,
         &monitorModeMenu,
         &defaultThresholdRecordingSubmenu,
-        &defaultLoopCommandMenu,
     },
 };
 
