@@ -210,7 +210,7 @@ enum Entries {
 180: GlobalMIDICommand::NEXT_SONG noteCode + 1
 181-184: GlobalMIDICommand::NEXT_SONG product / vendor ids
 185: defaultFavouritesLayout
-186: defaultLoopRecordingCommand
+186: unused (formerly defaultLoopRecordingCommand)
 188: defaultUseSharps
 189: default patch cable polarity
 190: GlobalMIDICommand::SHIFT channel + 1
@@ -282,8 +282,6 @@ bool defaultUseLastClipType = true;
 ThresholdRecordingMode defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 
 Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
-
-GlobalMIDICommand defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
 
 bool defaultUseSharps = true;
 
@@ -392,8 +390,6 @@ void resetSettings() {
 	defaultUseLastClipType = true;
 
 	defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
-
-	defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
 
 	defaultUseSharps = true;
 }
@@ -836,14 +832,6 @@ void readSettings() {
 		defaultFavouritesLayout = static_cast<FavouritesDefaultLayout>(buffer[185]);
 	}
 
-	if (buffer[186] != util::to_underlying(GlobalMIDICommand::LOOP)
-	    && buffer[186] != util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)) {
-		defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
-	}
-	else {
-		defaultLoopRecordingCommand = static_cast<GlobalMIDICommand>(buffer[186]);
-	}
-
 	if (buffer[188] != 0 && buffer[188] != 1) {
 		defaultUseSharps = true;
 	}
@@ -1141,8 +1129,6 @@ void writeSettings() {
 	buffer[178] = util::to_underlying(defaultThresholdRecordingMode);
 
 	buffer[185] = util::to_underlying(defaultFavouritesLayout);
-
-	buffer[186] = util::to_underlying(defaultLoopRecordingCommand);
 
 	buffer[188] = defaultUseSharps;
 
