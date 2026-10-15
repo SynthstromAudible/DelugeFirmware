@@ -57,15 +57,17 @@ void EXIT_CRITICAL_SECTION() {
 		__asm volatile("ISB");
 		__asm volatile("CPSIE i" ::: "memory");
 	}
-	// if that fails we're still in a critical section so just decrement the count
+	// A failed exchange leaves the current depth in expected. If we're not in a critical section at all, this is an
+	// unbalanced exit: don't decrement, or every later ENTER would go -1 -> 0 without disabling interrupts and critical
+	// sections would silently stop working.
+	else if (expected <= 0) {
+#if ALPHA_OR_BETA_VERSION
+		FREEZE_WITH_ERROR("CS01");
+#endif
+	}
+	// otherwise we're still in a critical section so just decrement the count
 	else {
-		int32_t previous_depth = atomic_fetch_sub_explicit(&critical_section_depth, 1, memory_order_relaxed);
-		// More exits than enters. Left negative, every later ENTER would go -1 -> 0 without disabling interrupts, so
-		// critical sections would silently stop working. Freeze in every build - and if resumed, reset the depth.
-		if (previous_depth <= 0) {
-			atomic_store_explicit(&critical_section_depth, 0, memory_order_relaxed);
-			FREEZE_WITH_ERROR("CS01");
-		}
+		atomic_fetch_sub_explicit(&critical_section_depth, 1, memory_order_relaxed);
 	}
 }
 
