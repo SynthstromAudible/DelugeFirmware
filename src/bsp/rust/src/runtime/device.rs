@@ -3,8 +3,8 @@
 use core::mem::MaybeUninit;
 use core::panic::PanicInfo;
 
-use deluge_alloc as allocator;
 use embassy_executor::{Executor, InterruptExecutor, Spawner};
+use rza1_alloc as allocator;
 
 use crate::channel::{audio_loader, file_bytes, file_directory, file_prefix, file_stream};
 use crate::peripherals::{board, control, cv_gate, display, signals, usb};
@@ -136,7 +136,7 @@ async fn stream_bootstrap() {
 pub fn start() -> ! {
     // The RTT channel first, so the fault reporter can write to the probe from the first
     // instruction. The ring buffer + control block live in uncached SRAM (.rtt_buffer /
-    // rza1l_rtt.x).
+    // rza1-rt's link_rtt.x).
     #[cfg(feature = "rtt")]
     {
         let channels = rtt_target::rtt_init! {
@@ -147,7 +147,7 @@ pub fn start() -> ! {
     }
 
     // No Rust SRAM heap: any static pool would come out of the C++ app's fast on-chip heap, which
-    // starts at the image end. `deluge_alloc::SRAM` stays uninitialised, so an allocation from it
+    // starts at the image end. `rza1_alloc::SRAM` stays uninitialised, so an allocation from it
     // fails; give it an arena before anything needs one.
 
     // CPG/PLL, MMU, L1+L2 caches, SDRAM controller, GIC, and the embassy-time (OSTM) driver.

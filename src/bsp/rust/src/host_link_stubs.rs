@@ -134,7 +134,7 @@ pub extern "C" fn deluge_midi_read_timed(
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_write(port: DelugeMidiPort, src: *const u8, len: u32) -> u32 {
     #[cfg(feature = "sim")]
-    if let (DIN_PORT, Some(panel)) = (port, deluge_bsp::sim::panel()) {
+    if let (DIN_PORT, Some(panel)) = (port, crate::sim_panel::panel()) {
         // SAFETY: the app passes `len` valid bytes.
         panel.push_midi_out(unsafe { core::slice::from_raw_parts(src, len as usize) });
         return len;
@@ -161,7 +161,7 @@ pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_stamp: *mut 
     // A scenario's note script, else (under `sim`) the simulator's MIDI input.
     let script = crate::audio::host::din_script_read();
     #[cfg(feature = "sim")]
-    let script = script.or_else(|| deluge_bsp::sim::panel().and_then(|panel| panel.pop_midi_in()));
+    let script = script.or_else(|| crate::sim_panel::panel().and_then(|panel| panel.pop_midi_in()));
     let Some(b) = script else {
         return false;
     };

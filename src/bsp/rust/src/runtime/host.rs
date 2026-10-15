@@ -104,7 +104,7 @@ pub fn main() {
     {
         let card = insert_sim_card();
         deluge_simulator::run_brain(|panel, audio| {
-            deluge_bsp::sim::install(panel, audio);
+            crate::sim_panel::install(panel, audio);
             start_threaded_host(|_| {});
         });
         if card.is_some_and(|path| path.is_dir()) {

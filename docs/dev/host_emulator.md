@@ -17,16 +17,17 @@ is on the device), and the BSP's host arms talk to deluge-sdk's desktop simulato
 
 | On the device | In the emulator |
 |---|---|
-| The PIC (pads, buttons, LEDs, gold knobs) | `deluge_bsp::sim`'s virtual PIC: the pad framebuffer, scrolls and LEDs the simulator draws; pad and button presses come back as PIC bytes |
+| The PIC (pads, buttons, LEDs, gold knobs) | `src/bsp/rust/src/sim_panel.rs`'s virtual PIC: the pad framebuffer, scrolls and LEDs the simulator draws; pad and button presses come back as PIC bytes |
 | The OLED | Each frame goes to the window |
 | The encoders | Turns land as quadrature edges, two a detent |
-| The codec | `deluge_bsp::sim::render_block`: a block is rendered whenever the simulator's audio output has room, so the audio device paces the app in real time |
+| The codec | `sim_panel::render_block`: a block is rendered whenever the simulator's audio output has room, so the audio device paces the app in real time |
 | DIN MIDI | The simulator's virtual ports, "Deluge Sim In" and "Deluge Sim Out" |
 | The SD card | A memory disk (`deluge_bsp::sd`), formatted FAT32, or an image file |
 
-The window, the panel contract and the audio bridge live in deluge-sdk (`deluge-simulator`, `deluge-sim-link`,
-`deluge_bsp::sim`), so any program on the Deluge's hardware can use them. This repository keeps its glue: the `sim`
-feature of `src/bsp/rust` (`main.rs`'s `insert_sim_card` and `start_threaded_host`, `audio_host.rs`'s
+The window, the panel contract and the audio bridge live in deluge-sdk (`deluge-simulator`, `deluge-sim-link`, and
+the `deluge_bsp::host_panel` hook the BSP's peripherals call on the host), so any program on the Deluge's hardware
+can use them. This repository keeps its glue: the `sim` feature of `src/bsp/rust` (`sim_panel.rs`, the panel behind
+`deluge_bsp::host_panel`, adapted from deluge-sdk's own; `main.rs`'s `insert_sim_card` and `start_threaded_host`, `audio_host.rs`'s
 `drive_simulator`, `host_link_stubs.rs`'s DIN MIDI) and the card loader, `src/bsp/rust/src/memory_card.rs`, which
 golden_vt_render uses too. The design is `docs/superpowers/specs/2026-09-29-embassy-emulator-design.md`.
 

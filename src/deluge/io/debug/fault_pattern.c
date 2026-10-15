@@ -307,7 +307,7 @@ extern void fault_handler_print_freeze_pointers(uint32_t lr, uint32_t sp) {
 	deluge_fault_pattern_draw(0, DELUGE_CPU_FAULT_FREEZE, lr, sp);
 }
 
-extern void deluge_cpu_fault_report(uint32_t fault_pc, DelugeCpuFault fault_type, uint32_t sys_lr, uint32_t sys_sp) {
+extern void rza1_cpu_fault_report(uint32_t fault_pc, DelugeCpuFault fault_type, uint32_t sys_lr, uint32_t sys_sp) {
 	// Re-entry guard. Drawing the pattern touches the pad transport, so a fault raised
 	// from inside that path (or a second fault while reporting the first) would recurse
 	// straight back to here and never draw anything at all. First one in wins; anyone

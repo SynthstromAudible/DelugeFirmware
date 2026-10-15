@@ -9,7 +9,7 @@
 #![allow(non_upper_case_globals)]
 
 use deluge_bsp::uart;
-use deluge_bsp::usb::classes::midi as usb_midi;
+use usb_classes::midi as usb_midi;
 
 use crate::sys::{
     DelugeMidiPort, DelugeUsbHostEvent, DelugeUsbHostEvent_DELUGE_USB_HOST_NONE as USB_HOST_NONE,

@@ -7,11 +7,11 @@
 use core::mem::MaybeUninit;
 use core::ptr::addr_of_mut;
 
-use deluge_bsp::usb::classes::midi::{self, MidiClassHandler};
 use embassy_usb::{Builder, Config, UsbDevice};
 use rza1l_hal::usb::{
     self, Rusb1Driver, Rusb1EndpointIn, Rusb1EndpointOut, dcd_int_handler, init_device_mode,
 };
+use usb_classes::midi::{self, MidiClassHandler};
 
 // Descriptor and control buffers for the embassy-usb builder, sized generously for a MIDI-only
 // device.

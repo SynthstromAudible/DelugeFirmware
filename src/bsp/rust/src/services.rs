@@ -14,7 +14,7 @@ use crate::sys::{
     DelugeStatus_DELUGE_ERR_PARAM as DELUGE_ERR_PARAM, DelugeStatus_DELUGE_OK as DELUGE_OK,
 };
 
-// Linker boundary symbols: the internal SRAM heap (rza1l.x) and the end of the static SDRAM
+// Linker boundary symbols: the internal SRAM heap (rza1-rt's link.x) and the end of the static SDRAM
 // content (sdram_sections.x).
 #[cfg(target_os = "none")]
 unsafe extern "C" {

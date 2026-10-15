@@ -20,14 +20,12 @@ pub fn link(repo_root: &Path, manifest_dir: &Path, out_dir: &Path) {
 }
 
 /// Copies the memory layout for the active `rtt` feature and the SDRAM fragment into `out_dir`,
-/// and points the linker at them. rza1l-hal's build script puts `rza1l.x` on the search path.
+/// and points the linker at them. rza1-rt's build script puts `link.x` (its RTT form with `rtt`) on
+/// the search path; deluge-bsp's own `memory.x` is off (`default-features = false`), so this
+/// image's layout is the one `link.x` INCLUDEs.
 fn setup_linker_script(manifest_dir: &Path, out_dir: &Path) {
     let rtt = env::var("CARGO_FEATURE_RTT").is_ok();
-    let (memory_src, linker_script) = if rtt {
-        ("memory_rtt.x", "rza1l_rtt.x")
-    } else {
-        ("memory.x", "rza1l.x")
-    };
+    let memory_src = if rtt { "memory_rtt.x" } else { "memory.x" };
     // Not in the crate root: the linker resolves `INCLUDE memory.x` from its working directory
     // before the -L path, so a memory.x there would shadow this one.
     let linker_src = manifest_dir.join("linker");
@@ -41,9 +39,9 @@ fn setup_linker_script(manifest_dir: &Path, out_dir: &Path) {
     println!("cargo:rustc-link-search={}", out_dir.display());
     // The fragment goes first. lld assigns each input section to the first matching output
     // section in command-line script order, before applying the fragment's INSERTs, and the
-    // fragment's patterns that move statics to SDRAM must win over `rza1l.x`'s `*(.bss.*)`.
+    // fragment's patterns that move statics to SDRAM must win over `link.x`'s `*(.bss.*)`.
     println!("cargo:rustc-link-arg=-Wl,-T,sdram_sections.x");
-    println!("cargo:rustc-link-arg=-Wl,-T,{linker_script}");
+    println!("cargo:rustc-link-arg=-Wl,-T,link.x");
     println!("cargo:rerun-if-changed=linker/memory.x");
     println!("cargo:rerun-if-changed=linker/memory_rtt.x");
     println!("cargo:rerun-if-changed=linker/sdram_sections.x");
@@ -187,7 +185,7 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_objs_archive: &Path) {
 }
 
 /// Re-adds the C and C++ runtime the app needs, which rustc's `-nodefaultlibs` drops, grouped
-/// for their circular references. rza1l.x keeps `.ARM.exidx`, so C++ unwinding works.
+/// for their circular references. rza1-rt's `link.x` keeps `.ARM.exidx`, so C++ unwinding works.
 fn emit_runtime_link_args() {
     println!("cargo:rustc-link-arg=-Wl,--start-group");
     for l in ["-lstdc++", "-lsupc++", "-lc", "-lm", "-lgcc", "-lnosys"] {

@@ -1,6 +1,6 @@
 /* Board memory layout for the Synthstrom Deluge (RZ/A1L) — RTT enabled.
- * INCLUDE'd by rza1l_rtt.x (from rza1l-hal) when built with --features rtt
- * (the default). Mirrors deluge-sdk's controller-firmware/memory_rtt.x. */
+ * INCLUDE'd by rza1-rt's link.x (its RTT form) when built with --features rtt
+ * (the default). Mirrors deluge-sdk's deluge-bsp/memory_rtt.x, with a smaller RTT reserve. */
 
 MEMORY {
     /* 2.875 MB on-chip SRAM, minus the RTT region carved out below. */
@@ -49,3 +49,7 @@ ABT_STACK_SIZE     = 0x2000;   /*  8 KB */
 
 /* Top byte address of on-chip SRAM (anchors stack sections) */
 INTERNAL_RAM_END = 0x20300000;
+
+/* The status LED rza1-rt's startup blinks to report a boot fault: P6_7 on the Deluge. */
+RZA1_STATUS_LED_PORT = 6;
+RZA1_STATUS_LED_PIN  = 7;

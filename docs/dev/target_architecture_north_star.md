@@ -101,7 +101,7 @@ is stable. The dashed seams are where C ABIs live.
   carved off the hardware (the libdeluge boundary) and off the `Song` monolith (project
   model).
 - **`deluge-sdk`** — the Rust platform: `rza1l-hal` (registers, MMU, GIC, cache),
-  `deluge-bsp` (drivers), `deluge-alloc` (arenas), the Embassy runtime, the app-loader, and
+  `deluge-bsp` (drivers), `rza1-alloc` (arenas), the Embassy runtime, the app-loader, and
   (planned) the supervisor. Already runs the C++ app via the libdeluge C ABI on real
   hardware.
 

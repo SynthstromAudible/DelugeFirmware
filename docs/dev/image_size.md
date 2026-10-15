@@ -116,7 +116,7 @@ addresses.
 
 Worked out from the linker scripts, not built:
 
-- **The heap start is rounded up to 64 KB.** `rza1l_rtt.x` (deluge-sdk) does `. = ALIGN(0x10000); end = .;
+- **The heap start is rounded up to 64 KB.** rza1-rt's `link_rtt.x` (deluge-sdk) does `. = ALIGN(0x10000); end = .;
   __sram_heap_start = end;`. The rounding exists so the bootloader's copy length is a whole 64 KB, and the heap does
   not need it. Starting the heap at the unrounded image end returns 0–64 KB (41 KB at `10e2f7133`). It also moves the
   image ceiling from `0x202E0000` to the RTT reserve at `0x202EB000`. The `code_end` metadata can keep the rounded
@@ -214,7 +214,7 @@ steps 1 and 2 below except moving the sample-stream `REGISTRY`:
   the fault pattern on the pads.
 - `bench_park` compiled only into `DELUGE_DSP_BENCH` images (`cfg(dsp_bench)`, read from the CMake cache).
 - The storage channels' state and the efatfs mount's tables in SDRAM, by v0-mangled module path in
-  `linker/sdram_sections.x`. The fragment is passed before `rza1l.x`, so its patterns win.
+  `linker/sdram_sections.x`. The fragment is passed before rza1-rt's `link.x`, so its patterns win.
 - The SDRAM heap starts at `__sdram_static_end`, the end of all static SDRAM content, whatever the section order.
 - The image ends with its boot-only tail, which `__sram_heap_base` hands to the heap. rza1l-hal starts the heap at
   that hook, or at the unrounded image end.
@@ -356,7 +356,7 @@ fill); `std::function` (0.3 KB).
 ## Suggested order
 
 1. Cheap and contained:
-   - `--icf=safe`, the runtime shims and the heap-start fix in `rza1l_rtt.x`.
+   - `--icf=safe`, the runtime shims and the heap-start fix in rza1-rt's `link_rtt.x`.
    - A `cfg` gate on `bench_park`.
    - The storage-only Rust buffers to SDRAM: the channel task pools and staging buffers (~47 KB) and the efatfs
      `HANDLES` table (10 KB). Only the storage tasks touch them and none are DMA targets. Zero-initialising them alone

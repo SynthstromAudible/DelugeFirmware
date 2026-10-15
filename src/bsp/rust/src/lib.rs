@@ -128,6 +128,9 @@ mod ffi_extra;
 mod host_link_stubs;
 pub mod scheduler;
 mod services;
+/// The emulator's panel, plugged into deluge-bsp's host-panel hook.
+#[cfg(feature = "sim")]
+mod sim_panel;
 pub mod tier;
 pub mod tier_meter;
 

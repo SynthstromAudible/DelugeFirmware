@@ -72,7 +72,7 @@ pub extern "C" fn deluge_fault_data_address() -> usize {
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_fault_pad_write(byte: u8) {
-    // SAFETY: one reporter at a time: `deluge_cpu_fault_report` admits one and parks every later
+    // SAFETY: one reporter at a time: `rza1_cpu_fault_report` admits one and parks every later
     // arrival, and a freeze runs on the app's task with nothing else drawing a pattern.
     unsafe {
         let n = STAGED;

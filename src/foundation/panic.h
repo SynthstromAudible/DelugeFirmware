@@ -31,7 +31,7 @@
 ///   - freezeWithError(): the terminal handler — report the message and halt. The
 ///     Deluge application provides the rich OLED renderer (hid/display); a
 ///     host-sim/other board provides its own.
-///   - fault_handler_print_freeze_pointers() / deluge_cpu_fault_report(): draw the
+///   - fault_handler_print_freeze_pointers() / rza1_cpu_fault_report(): draw the
 ///     freeze's or fault's call chain on the pads (io/debug/fault_pattern.c), through
 ///     the board's libdeluge/fault.h hooks. The board's fault vectors call the latter.
 
@@ -67,8 +67,7 @@ void fault_handler_print_freeze_pointers(uint32_t lr, uint32_t sp);
 /// @param fault_type Which exception it was.
 /// @param sys_lr     The interrupted code's link register: the return address of the call that went wrong.
 /// @param sys_sp     The interrupted code's stack pointer, where the call chain is walked from.
-[[noreturn]] void deluge_cpu_fault_report(uint32_t fault_pc, DelugeCpuFault fault_type, uint32_t sys_lr,
-                                          uint32_t sys_sp);
+[[noreturn]] void rza1_cpu_fault_report(uint32_t fault_pc, DelugeCpuFault fault_type, uint32_t sys_lr, uint32_t sys_sp);
 
 #ifdef __cplusplus
 }
