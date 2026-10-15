@@ -99,7 +99,8 @@ void generateRepeats(DocAutoParam& p, uint32_t oldLength, uint32_t newLength, bo
 /// @param recordingLinearly   The clip's getCurrentlyRecordingLinearly(); only consulted on a forward wrap with no
 ///                            cut.
 /// @param posAtWhichClipWillCut Bounds the region; 2147483647 = no cut.
-/// @return The index of the region's leftmost node, or -1 on failure.
+/// @return The index of the region's leftmost node, or -1 for a region that can't be homogenized: a non-positive
+///         length, a negative start or first node, or a region the cut point leaves empty or puts before the start.
 int32_t homogenizeRegion(DocAutoParam& p, int32_t startPos, int32_t length, int32_t startValue,
                          bool interpolateLeftNode, bool interpolateRightNode, int32_t effectiveLength, bool reversed,
                          bool recordingLinearly, int32_t posAtWhichClipWillCut = 2147483647);
@@ -350,7 +351,8 @@ bool makeInterpolationGoodAgain(DocAutoParam& p, int32_t clipLength, int32_t qua
 /// @param recordingLinearly         The clip's getCurrentlyRecordingLinearly() (consulted only by homogenizeRegion on
 ///                                  a forward wrap with no cut).
 /// @param posAtWhichPlaybackWillCut Bounds a non-looping clip (2147483647 = no cut).
-/// @return The leftmost affected node index.
+/// @return The leftmost affected node index, or -1 if homogenizeRegion() rejected the region (then nothing is
+///         written, current_value included).
 int32_t recordLiveValue(DocAutoParam& p, int32_t livePos, int32_t value, int32_t ticksToClear, bool doMPEMode,
                         bool interpolateLeft, int32_t effectiveLength, bool reversed, bool recordingLinearly,
                         int32_t posAtWhichPlaybackWillCut = 2147483647);

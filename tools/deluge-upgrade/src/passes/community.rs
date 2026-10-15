@@ -136,8 +136,24 @@ fn old_probability(byte: u8) -> (u8, u16, u8) {
     }
 }
 
-/// Rewrites old note data (`noteData`, 20 hex digits a note; `noteDataWithLift`, 22) as `noteDataWithSplitProb` (28:
-/// position 8, length 8, velocity 2, lift 2, probability 2, iterance 4, fill 2).
+/// A 1.3-nightly iterance preset index: 0 off, then the presets after first and last, then custom (1 of 1). Anything
+/// past custom is off.
+fn nightly_iterance(index: u8) -> u16 {
+    let index = usize::from(index);
+    if index == 0 {
+        0
+    } else if index + 1 < ITERANCE_PRESETS.len() {
+        let (divisor, steps) = ITERANCE_PRESETS[index + 1];
+        u16::from(divisor) << 8 | u16::from(steps)
+    } else if index + 1 == ITERANCE_PRESETS.len() {
+        0x0101
+    } else {
+        0
+    }
+}
+
+/// Rewrites old note data (`noteData`, 20 hex digits a note; `noteDataWithLift`, 22; `noteDataWithIteranceAndFill`,
+/// 26) as `noteDataWithSplitProb` (28: position 8, length 8, velocity 2, lift 2, probability 2, iterance 4, fill 2).
 fn split_probability(hex: &str, width: usize) -> Option<String> {
     let digits = hex.strip_prefix("0x")?;
     let mut out = String::from("0x");
@@ -147,20 +163,20 @@ fn split_probability(hex: &str, width: usize) -> Option<String> {
         }
         let note = std::str::from_utf8(note).ok()?;
         let byte = |at: usize| u8::from_str_radix(&note[at..at + 2], 16).ok();
-        let (lift, probability_at) = if width == 22 {
-            let lift = byte(18)?;
-            (
-                if lift == 0 || lift > 127 {
-                    DEFAULT_LIFT
-                } else {
-                    lift
-                },
-                20,
-            )
+        let lift = if width >= 22 {
+            match byte(18)? {
+                0 | 128.. => DEFAULT_LIFT,
+                lift => lift,
+            }
         } else {
-            (DEFAULT_LIFT, 18)
+            DEFAULT_LIFT
         };
-        let (probability, iterance, fill) = old_probability(byte(probability_at)?);
+        let (probability, iterance, fill) = match width {
+            // The nightly encoding: probability, iterance preset index and fill, each as written.
+            26 => (byte(20)?, nightly_iterance(byte(22)?), byte(24)?),
+            22 => old_probability(byte(20)?),
+            _ => old_probability(byte(18)?),
+        };
         out.push_str(&format!(
             "{}{lift:02X}{probability:02X}{iterance:04X}{fill:02X}",
             &note[..18]
@@ -182,7 +198,8 @@ fn for_each_note_row(node: &mut Node, f: &mut dyn FnMut(&mut Node)) {
 }
 
 /// A row's notes as the firmware chose among its encodings: plain `noteData` always; else, before community 1.3,
-/// `noteDataWithLift`; else `noteDataWithSplitProb`. The chosen one is rewritten as split probability.
+/// `noteDataWithLift`, then the 1.3-nightly `noteDataWithIteranceAndFill`; else `noteDataWithSplitProb`. The chosen
+/// one is rewritten as split probability.
 pub fn old_note_data(doc: &mut Node, ctx: &mut Context) {
     let before_1_3 = ctx.version < crate::version::FirmwareVersion::community(1, 3, 0);
     let mut unreadable = 0usize;
@@ -191,6 +208,10 @@ pub fn old_note_data(doc: &mut Node, ctx: &mut Context) {
             Some((plain.to_string(), 20))
         } else if before_1_3 && let Some(lift) = row.get("noteDataWithLift").and_then(Node::text) {
             Some((lift.to_string(), 22))
+        } else if before_1_3
+            && let Some(nightly) = row.get("noteDataWithIteranceAndFill").and_then(Node::text)
+        {
+            Some((nightly.to_string(), 26))
         } else {
             None
         };
@@ -198,6 +219,7 @@ pub fn old_note_data(doc: &mut Node, ctx: &mut Context) {
             // Not read: an encoding the firmware passed over.
             if !before_1_3 {
                 row.remove("noteDataWithLift");
+                row.remove("noteDataWithIteranceAndFill");
             }
             return;
         };

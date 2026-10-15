@@ -309,11 +309,16 @@ ramError:
 		goto ramError;
 	}
 
-#if ALPHA_OR_BETA_VERSION
+	// A Clip without param collections would crash as soon as its params are accessed, so treat it like the failure
+	// above in all builds.
 	if (!newClip->paramManager.summaries[0].paramCollection) {
-		FREEZE_WITH_ERROR("E421"); // Trying to diversify Leo's E410
+		if constexpr (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("E421"); // Trying to diversify Leo's E410
+		}
+		newClip->~AudioClip();
+		delugeDealloc(clipMemory);
+		goto ramError;
 	}
-#endif
 
 	return newClip;
 }

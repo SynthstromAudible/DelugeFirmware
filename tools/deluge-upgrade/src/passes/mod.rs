@@ -110,7 +110,8 @@ pub static ALL: &[Pass] = &[
         before: Some(FirmwareVersion::official_tagged(3, 2, 0, "alpha\u{0}")),
         run: params::bend_range,
     },
-    // Note data: plain noteData is read whatever the stamp, noteDataWithLift before community 1.3.
+    // Note data: plain noteData is read whatever the stamp, noteDataWithLift and noteDataWithIteranceAndFill before
+    // community 1.3.
     Pass {
         name: "old note data",
         before: None,

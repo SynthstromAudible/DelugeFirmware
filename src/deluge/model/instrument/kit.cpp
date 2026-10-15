@@ -529,11 +529,14 @@ void Kit::drumRemoved(Drum* drum) {
 		selectedDrum = nullptr;
 	}
 
-#if ALPHA_OR_BETA_VERSION
+	// The Drum is usually about to be deallocated, so it must not stay in the render list, or
+	// renderGlobalEffectableForClip() would use it after it's freed. Remove it in all builds.
 	if (drum->type == DrumType::SOUND && renderingDrums.contains(static_cast<SoundDrum*>(drum))) {
-		FREEZE_WITH_ERROR("E321");
+		if constexpr (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("E321");
+		}
+		renderingDrums.remove(static_cast<SoundDrum*>(drum));
 	}
-#endif
 }
 
 Drum* Kit::getFirstUnassignedDrum(InstrumentClip* clip) {
@@ -612,8 +615,12 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 	renderingDrums.walk([&](SoundDrum* soundDrum) {
 		Drum* thisDrum = soundDrum;
 
-		if (ALPHA_OR_BETA_VERSION && thisDrum->type != DrumType::SOUND) {
-			FREEZE_WITH_ERROR("E253");
+		// Only SoundDrums may be in this list - don't render anything else as one
+		if (thisDrum->type != DrumType::SOUND) {
+			if constexpr (ALPHA_OR_BETA_VERSION) {
+				FREEZE_WITH_ERROR("E253");
+			}
+			return;
 		}
 
 		if (ALPHA_OR_BETA_VERSION && soundDrum->skippingRendering) {

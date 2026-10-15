@@ -1168,8 +1168,9 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 				modelStack->song->setRootNote(modelStack->song->project.scale.key.rootNote);
 
 				thisNoteRow = getNoteRowForYNote(yNote); // Must re-get it
-				if (ALPHA_OR_BETA_VERSION && !thisNoteRow) {
+				if (!thisNoteRow) {
 					FREEZE_WITH_ERROR("E -1");
+					return modelStackWithNoteRow; // Still has no NoteRow - same as the out-of-RAM case
 				}
 
 				thisNoteRow->notes.clear(); // Undo our "total hack", above
@@ -3552,11 +3553,10 @@ int32_t InstrumentClip::getDistanceToNextNote(Note* givenNote, ModelStackWithNot
 
 // Make sure noteRow not NULL before you call!
 int32_t InstrumentClip::getNoteRowId(NoteRow* noteRow, int32_t noteRowIndex) {
-#if ALPHA_OR_BETA_VERSION
 	if (!noteRow) {
 		FREEZE_WITH_ERROR("E380");
+		return noteRowIndex; // If resumed, don't dereference NULL below
 	}
-#endif
 	if (output->type == OutputType::KIT) {
 		return noteRowIndex;
 	}

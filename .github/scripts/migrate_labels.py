@@ -42,7 +42,7 @@ MERGES = {
 }
 
 # Labels removed with nothing to fold into.
-DROPPED = {"bug", "dependencies", "javascript", "spam", "question"}
+DROPPED = {"bug", "cherry-pick", "dependencies", "javascript", "spam", "question"}
 
 DELETE = set(MERGES) | DROPPED
 

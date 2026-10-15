@@ -5,7 +5,10 @@
 #include <stddef.h>           // IWYU pragma: export
 #include <stdint.h>           // IWYU pragma: export
 
-#define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
+// Whether to compile with additional error-checking. The build sets this to 0 for rc/release builds.
+#ifndef ALPHA_OR_BETA_VERSION
+#define ALPHA_OR_BETA_VERSION 1
+#endif
 
 // Runtime heap-corruption / use-after-free detector built into the custom allocator. Gated separately from
 // ALPHA_OR_BETA_VERSION so it can be toggled (or compiled out entirely) independently of other beta checks. When 0, all

@@ -31,11 +31,10 @@ KEPT_UNPREFIXED = {
     "beta-blocker",
     "good first issue",
     "help wanted",
-    "cherry-pick",
-    "cherry-picked",
 }
 
 REMOVED = {
+    "cherry-pick",
     "sound",
     "new-feature",
     "proof of concept",
@@ -53,6 +52,8 @@ GROUP_COLORS = {
     "area": "0075ca",
     "status": "fbca04",
     "impact": "d93f0b",
+    "backport": "f57b73",
+    "affects": "e99695",
 }
 
 
@@ -113,6 +114,7 @@ class LabelsFileTests(unittest.TestCase):
         self.assertEqual(renames["github workflow"], "area: ci")
         self.assertEqual(renames["ui-undesireable"], "impact: ux-undesirable")
         self.assertEqual(renames["Code Review wanted"], "status: needs-review")
+        self.assertEqual(renames["cherry-picked"], "backport: pr")
 
     def test_new_labels_exist(self):
         for name in [

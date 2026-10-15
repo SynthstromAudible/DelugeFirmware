@@ -1404,7 +1404,7 @@ bool Voice::areAllUnisonPartsInactive(const VoiceConfig& cfg) const {
 bool Voice::adjustPitch(uint32_t& phaseIncrement, int32_t adjustment) {
 	if (adjustment != kMaxSampleValue) {
 		int32_t output = multiply_32x32_rshift32_rounded(phaseIncrement, adjustment);
-		if (output >= (1 << 24)) {
+		if (output >= (1 << 23)) {
 			return false;
 		}
 		phaseIncrement = output << 8;

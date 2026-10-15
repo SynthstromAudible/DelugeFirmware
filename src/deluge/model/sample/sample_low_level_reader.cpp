@@ -431,11 +431,11 @@ RegionOutcome SampleLowLevelReader::assignClusters(SamplePlaybackGuide* guide, S
 
 bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sample* sample, int32_t priorityRating) {
 
-#if ALPHA_OR_BETA_VERSION
 	if (!hasCurrentRegion()) {
 		FREEZE_WITH_ERROR("i019");
+		currentPlayPos = nullptr;
+		return false;
 	}
-#endif
 
 	// Read the exhausted cluster's index and base from the retained region BEFORE releasing its lease.
 	int32_t oldClusterIndex = static_cast<int32_t>(region_.region_index);
@@ -505,9 +505,7 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, Sample* sample, bool loopingAtLowLevel,
                                                     int32_t priorityRating) {
 
-#if ALPHA_OR_BETA_VERSION
 	int32_t count = 0;
-#endif
 
 	while (true) {
 		int32_t byteOvershoot = (currentPlayPos - reassessmentLocation) * guide->playDirection;
@@ -539,14 +537,15 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 			}
 		}
 
-#if ALPHA_OR_BETA_VERSION
 		count++;
 		if (count >= 1024) {
 			// This happened one time! When stopping AudioClips from playing back, after recording and mucking around
-			// with SD card reaching full
+			// with SD card reaching full. Without this bound the audio routine would hang forever.
 			FREEZE_WITH_ERROR("E227");
+			unassignAllReasons(false);
+			currentPlayPos = nullptr;
+			return false;
 		}
-#endif
 	}
 	return true;
 }
@@ -961,17 +960,19 @@ doZeroes:
 			bytesLeftWhichMayBeRead = 0;
 		}
 
-		if (ALPHA_OR_BETA_VERSION && bytesLeftWhichMayBeRead <= 0) {
+		if (bytesLeftWhichMayBeRead <= 0) {
 			FREEZE_WITH_ERROR("E001");
+			return false; // Would otherwise give a zero or huge numSamples and overrun the output buffer
 		}
 
 		// If there are actually less bytes remaining than we ideally wanted for this window...
 		if (*numSamples * bytesPerSample > bytesLeftWhichMayBeRead) {
 			*numSamples = (uint32_t)bytesLeftWhichMayBeRead / (uint8_t)bytesPerSample;
 
-			if (ALPHA_OR_BETA_VERSION && *numSamples <= 0) {
+			if (*numSamples <= 0) {
 				D_PRINTLN("bytesLeftWhichMayBeRead:  %d", bytesLeftWhichMayBeRead);
 				FREEZE_WITH_ERROR("E147"); // Crazily, Michael B got in Nov 2022, when "closing" a recorded loop.
+				return false;              // Rendering 0 samples would overrun the output buffer
 			}
 		}
 	}

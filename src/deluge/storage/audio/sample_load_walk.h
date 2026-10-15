@@ -52,8 +52,8 @@ struct SampleDemand {
 	int32_t clusterLoadInstruction = CLUSTER_ENQUEUE;
 	/// Interpret the file as a wavetable even without the tag or length that normally identify one.
 	bool makeWaveTableWorkAtAllCosts = false;
-	/// The after-bind step. Non-null for an audio clip's sample: the clip takes the holder's path as its name, and a
-	/// failed lookup is shown.
+	/// The after-bind step. Non-null for an audio clip's sample: an unnamed clip takes the holder's path as its name,
+	/// and a failed lookup is shown.
 	AudioClip* clipToName = nullptr;
 };
 

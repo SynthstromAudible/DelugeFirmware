@@ -66,13 +66,13 @@ public:
 		const uint32_t phase = phasor_.phase();
 		const uint32_t increment = phasor_.increment();
 
-		// Interpolation fractions for the two squares: A at the phase, B at the offset phase.
+		// Interpolation fractions for the two squares: A at the phase, B at the offset phase. Each is the 16 phase bits
+		// just below the table index; the strengths below take the 15 they need.
 		Argon<uint32_t> phase_vector = Argon<uint32_t>{phase}.MultiplyAdd(Argon<uint32_t>{1U, 2U, 3U, 4U}, increment);
 		Argon<uint32_t> offset_vector = phase_vector + phase_offset_;
-		ArgonHalf<int16_t> fraction_a =
-		    (phase_vector >> (32 - magnitude_)).ShiftRightNarrow<16>().BitwiseAnd(kMax).As<int16_t>();
-		ArgonHalf<int16_t> fraction_b =
-		    (offset_vector >> (32 - magnitude_)).ShiftRightNarrow<16>().BitwiseAnd(kMax).As<int16_t>();
+		const int32_t fraction_shift = 32 - magnitude_ - 16;
+		ArgonHalf<int16_t> fraction_a = (phase_vector >> fraction_shift).Narrow().As<int16_t>();
+		ArgonHalf<int16_t> fraction_b = (offset_vector >> fraction_shift).Narrow().As<int16_t>();
 
 		// Read the {entry, next-entry} interpolation pairs for both squares as single-word lane
 		// loads (the same pattern as TableOscillator; a strided gather reads the wrong samples). Each

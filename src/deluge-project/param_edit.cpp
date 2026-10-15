@@ -372,6 +372,12 @@ int32_t homogenizeRegion(DocAutoParam& p, int32_t startPos, int32_t length, int3
 	constexpr int kLeft = 0;  // REGION_EDGE_LEFT
 	constexpr int kRight = 1; // REGION_EDGE_RIGHT
 
+	// Proceeding with any of these would produce out-of-order nodes, so bail with the error return. The engine
+	// wrapper (AutoParam::homogenizeRegion) freezes on them in alpha/beta builds.
+	if (length <= 0 || startPos < 0 || (!nodes.empty() && nodes[0].pos < 0)) {
+		return -1;
+	}
+
 	int32_t edgePositions[2];
 	bool anyWrap;
 
@@ -382,6 +388,9 @@ int32_t homogenizeRegion(DocAutoParam& p, int32_t startPos, int32_t length, int3
 		int32_t maxLength = posAtWhichClipWillCut - edgePositions[kLeft];
 		if (length >= maxLength) {
 			length = maxLength;
+			if (length <= 0) {
+				return -1;
+			}
 			interpolateRightNode = false;
 			edgePositions[kRight] = posAtWhichClipWillCut;
 			anyWrap = (edgePositions[kRight] >= effectiveLength);
@@ -406,6 +415,9 @@ int32_t homogenizeRegion(DocAutoParam& p, int32_t startPos, int32_t length, int3
 		}
 	}
 	else { // Playing reversed
+		if (startPos < posAtWhichClipWillCut) {
+			return -1;
+		}
 		edgePositions[kRight] = startPos;
 		edgePositions[kLeft] = edgePositions[kRight] - length;
 
@@ -413,6 +425,9 @@ int32_t homogenizeRegion(DocAutoParam& p, int32_t startPos, int32_t length, int3
 		if (edgePositions[kLeft] < posAtWhichClipWillCut) {
 			edgePositions[kLeft] = posAtWhichClipWillCut;
 			length = edgePositions[kRight] - edgePositions[kLeft];
+			if (edgePositions[kLeft] >= edgePositions[kRight]) {
+				return -1;
+			}
 			interpolateLeftNode = false;
 			anyWrap = false;
 		}
@@ -959,11 +974,6 @@ void nudgeNonInterpolatingNodesAtPos(DocAutoParam& p, int32_t pos, int32_t offse
 	// Shared handling for both wrap directions: the node at `eraseIndex`
 	// has wrapped past a loop edge to `destPos` and may collide with whatever already sits at `neighborIndex`.
 	auto wrapNode = [&nodes](int32_t eraseIndex, int32_t neighborIndex, int32_t destPos) {
-		// There should never be just one node here; leave the array untouched if there is.
-		if (nodes.size() == 1) {
-			return;
-		}
-
 		int32_t ourValue = nodes[eraseIndex].value; // grab this before deleting stuff
 
 		nodes.erase(nodes.begin() + eraseIndex);
@@ -979,9 +989,10 @@ void nudgeNonInterpolatingNodesAtPos(DocAutoParam& p, int32_t pos, int32_t offse
 				nodes[neighborIndex].interpolated = false;
 			}
 		}
-		// Otherwise, create a new node at the destination.
+		// Otherwise, create a new node at the destination, at its sorted position: wrapping left lands it at the
+		// end, but wrapping right lands it at the start.
 		else {
-			int32_t insertI = static_cast<int32_t>(nodes.size());
+			int32_t insertI = firstAtOrAfter(nodes, destPos);
 			(void)nodes.insertAt(insertI); // can't fail: we just erased one
 			nodes[insertI].pos = destPos;
 			nodes[insertI].value = ourValue;
@@ -989,7 +1000,18 @@ void nudgeNonInterpolatingNodesAtPos(DocAutoParam& p, int32_t pos, int32_t offse
 		}
 	};
 
-	if (newNodePos < 0) { // Wrapped left
+	// A single node has nothing to collide with or order against, so it just moves (wrapping if needed); the wrap
+	// handling below assumes at least one other node.
+	if (nodes.size() == 1) {
+		if (newNodePos < 0) {
+			newNodePos += lengthBeforeLoop;
+		}
+		else if (newNodePos >= lengthBeforeLoop) {
+			newNodePos -= lengthBeforeLoop;
+		}
+		nodes[nodeI].pos = newNodePos;
+	}
+	else if (newNodePos < 0) { // Wrapped left
 		newNodePos += lengthBeforeLoop;
 		// Subtract 2 instead of the normal 1: we're about to delete one element before using this index.
 		wrapNode(nodeI, static_cast<int32_t>(nodes.size()) - 2, newNodePos);
@@ -1033,7 +1055,7 @@ std::optional<RegionWriteResult> setValueForRegion(DocAutoParam& p, uint32_t pos
 	int32_t firstI = homogenizeRegion(p, static_cast<int32_t>(pos), static_cast<int32_t>(length), value,
 	                                  interpolateLeftNode, interpolateRightNode, effectiveLength,
 	                                  /*reversed=*/false, recordingLinearly);
-	if (firstI == -1) { // failure; unreachable with this container's homogenizeRegion
+	if (firstI == -1) { // invalid region (see homogenizeRegion)
 		return std::nullopt;
 	}
 
@@ -1408,6 +1430,9 @@ int32_t recordLiveValue(DocAutoParam& p, int32_t livePos, int32_t value, int32_t
 	else {
 		leftI = homogenizeRegion(p, livePos, ticksToClear, value, interpolateLeft, /*interpolateRightNode=*/true,
 		                         effectiveLength, reversed, recordingLinearly, posAtWhichPlaybackWillCut);
+		if (leftI == -1) {
+			return -1;
+		}
 
 		if (reversed) {
 			auto& nodes = p.nodes;

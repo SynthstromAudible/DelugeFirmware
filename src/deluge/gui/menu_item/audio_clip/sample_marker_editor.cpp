@@ -25,19 +25,8 @@
 
 namespace deluge::gui::menu_item::audio_clip {
 
-MenuPermission SampleMarkerEditor::checkPermissionToBeginSession(ModControllableAudio* modControllable,
-                                                                 int32_t whichThing, ::MultiRange** currentRange) {
-
-	if (!isRelevant(modControllable, whichThing)) {
-		return MenuPermission::NO;
-	}
-
-	// Before going ahead, make sure a Sample is loaded
-	if (getCurrentAudioClip()->sampleHolder.audioFile == nullptr) {
-		return MenuPermission::NO;
-	}
-
-	return MenuPermission::YES;
+bool SampleMarkerEditor::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const {
+	return getCurrentAudioClip()->sampleHolder.audioFile != nullptr;
 }
 
 void SampleMarkerEditor::beginSession(MenuItem* navigatedBackwardFrom) {

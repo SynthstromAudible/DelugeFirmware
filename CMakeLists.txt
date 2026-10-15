@@ -74,6 +74,12 @@ endif(ENABLE_VERSIONED_OUTPUT)
 # UNMEASURED; see the use site for what is and is not known.
 set(DELUGE_DEBUG_OPT_LEVEL "-Og" CACHE STRING "Optimization flag for the Debug config (e.g. -Og, -O2)")
 
+# Beta/alpha builds compile in extra error-checking (see ALPHA_OR_BETA_VERSION in
+# src/definitions.h). Release candidates and final releases turn it off.
+if(RELEASE_TYPE STREQUAL "rc" OR RELEASE_TYPE STREQUAL "release")
+    add_compile_definitions(ALPHA_OR_BETA_VERSION=0)
+endif()
+
 # SYSEX Load option
 
 # MATRIX DRIVER pad logging
