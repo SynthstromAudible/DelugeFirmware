@@ -1322,7 +1322,9 @@ void AudioFileManager::loadAnyEnqueuedClusters(bool mayProcessUserActionsBetween
 
 	sd_async_check_timeout();
 	sd_async_recover(); // If the last read failed
+	AudioEngine::logAction("kick cluster reads");
 	sd_async_kick();
+	AudioEngine::logAction("/kick cluster reads");
 }
 
 bool AudioFileManager::nextClusterRead(SdAsyncRead& read, const InterruptsDisabled& guard) {
@@ -1439,7 +1441,9 @@ void AudioFileManager::finishClusterRead(Cluster& cluster, Priority priority, in
 		return;
 	}
 
+	AudioEngine::logAction("finish cluster");
 	finishLoadingCluster(cluster);
+	AudioEngine::logAction("/finish cluster");
 }
 
 void AudioFileManager::recycleUnwantedCluster(Cluster& cluster) {

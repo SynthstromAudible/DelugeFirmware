@@ -69,9 +69,14 @@ void L2CacheInit(void);
 void L2CacheFlushAll(void);
 void L2CacheEnable(void);
 void L2CacheUnlockData(void);
+void L2CacheMapRegistersAsDevice(void);
 void L2CacheDisable(void);
 void L2CacheCleanInvalidateRange(uintptr_t start, uintptr_t end);
 void invalidate_range_all_caches(uintptr_t start, uintptr_t end);
+/* For buffers DMA writes into. Faster than invalidate_range_all_caches(), as they don't write back the buffer's old
+ * contents, but so the buffer mustn't share cache lines with anything written during the DMA */
+void invalidate_range_before_dma_read(uintptr_t start, uintptr_t end);
+void invalidate_range_after_dma_read(uintptr_t start, uintptr_t end);
 
 extern void R_CACHE_L1Init(void);
 #ifdef __cplusplus

@@ -248,6 +248,41 @@ void L2CacheEnable(void)
     L2C.REG1_CONTROL = 0x00000001uL; /* Enable L2 cache */
 }
 
+extern uint32_t ttb_mmu1_base[]; /* The first level translation table - see ttb_init.S and the linker script */
+
+/* As TTB_PARA_STRGLY in ttb_init.S - full access, domain 15 - but with B set, making it Device memory */
+#define TTB_PARA_DEVICE 0x0DE6uL
+
+/******************************************************************************
+ * Function Name: L2CacheMapRegistersAsDevice
+ * Description  : Remaps the 1MB section holding the L2 controller's registers from strongly-ordered to Device
+ *                memory. Strongly-ordered accesses each stall until the controller has answered, which made
+ *                invalidating a 32kB Cluster's lines take hundreds of us. Device writes can be buffered, so a run of
+ *                line operations doesn't stall on each one. They still reach the controller in order, and never
+ *                speculatively.
+ *
+ *                Device accesses aren't ordered against Normal memory accesses though, unlike strongly-ordered ones,
+ *                so code relying on that needs a DSB. This section also holds the BSC (0x3FFFC000), which configures
+ *                SDRAM - so this must only be done once that's set up and the SDRAM is in use, as resetprg.c relies
+ *                on BSC writes landing before it touches SDRAM.
+ ******************************************************************************/
+void L2CacheMapRegistersAsDevice(void)
+{
+    uint32_t section       = (uint32_t)&L2C >> 20;
+    ttb_mmu1_base[section] = (section << 20) | TTB_PARA_DEVICE;
+
+    /* TTBR0 marks table walks as cacheable, so make sure the walk sees the new descriptor */
+    uintptr_t entry = (uintptr_t)&ttb_mmu1_base[section];
+    v7_dma_flush_range(entry, entry + sizeof(uint32_t));
+    L2CacheCleanInvalidateRange(entry, entry + sizeof(uint32_t));
+
+    __asm volatile("dsb" ::: "memory");
+    __asm volatile("mcr p15, 0, %0, c8, c7, 0" ::"r"(0) : "memory"); /* TLBIALL */
+    __asm volatile("mcr p15, 0, %0, c7, c5, 6" ::"r"(0) : "memory"); /* BPIALL */
+    __asm volatile("dsb" ::: "memory");
+    __asm volatile("isb" ::: "memory");
+}
+
 void L2CacheUnlockData(void)
 {
     L2CacheFlushAll();
@@ -340,6 +375,55 @@ void invalidate_range_all_caches(uintptr_t start, uintptr_t end)
 {
     v7_dma_flush_range(start, end);
     L2CacheCleanInvalidateRange(start, end);
+    v7_dma_inv_range(start, end);
+}
+
+/* Like L2CacheInvalidateRange(), but lines only partly inside [start, end), which might also hold something else, get
+ * cleaned too rather than just discarded - as v7_dma_inv_range() does for L1.
+ *
+ * Register accesses dominate the time this takes - especially if the L2 controller's registers are still strongly-
+ * ordered, as each access then stalls until the controller's answered (see L2CacheMapRegistersAsDevice()). So unlike
+ * the functions above, this doesn't poll each operation for completion.
+ * On the L2C-310, operations on a line by PA are atomic - the controller doesn't accept another register access until
+ * it's finished - so there's nothing to wait for. Only background operations by way need polling. Linux's driver
+ * (arch/arm/mm/cache-l2x0.c) likewise only waits on line operations for the older L2C-220. The cache sync at the end
+ * makes sure they've all taken effect before DMA starts. */
+static void L2CacheInvalidateRangeKeepingEdges(uintptr_t start, uintptr_t end)
+{
+    uintptr_t addr = start & ~31uL;
+    while (addr < end)
+    {
+        if (addr < start || addr + 32 > end)
+        {
+            L2C.REG7_CLEAN_INV_PA = addr;
+        }
+        else
+        {
+            L2C.REG7_INV_PA = addr;
+        }
+        addr += 32;
+    }
+    L2C.REG7_CACHE_SYNC = 0;
+    /* Device accesses reach the controller in order, so once this read's answered, everything above has finished */
+    while (L2C.REG7_CACHE_SYNC & 1uL)
+    {
+    }
+}
+
+/* Before DMA writes into [start, end). Whatever's there now is about to be overwritten, so unlike
+ * invalidate_range_all_caches() it isn't written back to memory first - which for a dirty 32kB Cluster would mean
+ * writing the whole thing out. Inner then outer, so L1's partial lines are cleaned into L2 before L2 cleans them. */
+void invalidate_range_before_dma_read(uintptr_t start, uintptr_t end)
+{
+    v7_dma_inv_range(start, end);
+    L2CacheInvalidateRangeKeepingEdges(start, end);
+}
+
+/* After DMA has written into [start, end), to drop anything speculatively cached meanwhile. Outer then inner, so L1
+ * can't refill from a stale L2 line after being invalidated. */
+void invalidate_range_after_dma_read(uintptr_t start, uintptr_t end)
+{
+    L2CacheInvalidateRangeKeepingEdges(start, end);
     v7_dma_inv_range(start, end);
 }
 

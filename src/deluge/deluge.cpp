@@ -905,6 +905,8 @@ extern "C" int32_t deluge_main(void) {
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
 	D_PRINTLN("going into main loop");
+	// Long after resetprg.c has used the BSC to set up SDRAM, which shares this mapping
+	L2CacheMapRegistersAsDevice();
 	L2CacheUnlockData();
 	sdRoutineLock = false; // Allow SD routine to start happening
 

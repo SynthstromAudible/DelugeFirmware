@@ -610,8 +610,13 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 			timeStretchRatio = ((uint64_t)timeStretchRatio << 24) / (uint32_t)phaseIncrement;
 		}
 
+		// If only the file's sample rate is changing phaseIncrement, playing it back at that speed already keeps it in
+		// time, so like an unadjusted 44100kHz file, it doesn't need time-stretching unless it's drifted out of sync.
+		// Otherwise every non-44100kHz file would always be time-stretched, even at its original tempo.
+		bool pitchManuallyAdjusted = pitchAdjust != kMaxSampleValue || sampleHolder.transpose || sampleHolder.cents;
+
 		// Or if no manual pitch adjustment...
-		else {
+		if (phaseIncrement == kMaxSampleValue || !pitchManuallyAdjusted) {
 
 			// If we'd only be time-stretching a tiiiny bit (+/- 1 cent)...
 			if (timeStretchRatio >= 16661327 && timeStretchRatio < 16893911) {

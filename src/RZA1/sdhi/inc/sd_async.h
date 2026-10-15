@@ -33,7 +33,9 @@ extern "C" {
 /// sd_async_recover() in case the last read failed.
 
 typedef struct {
-	unsigned char* buff; ///< Must be 4-byte aligned, for DMA
+	/// Must be 4-byte aligned, for DMA, and mustn't share a cache line with anything written during the read - see
+	/// invalidate_range_before_dma_read()
+	unsigned char* buff;
 	unsigned long sector;
 	long count;
 	void* user; ///< Passed back to the SdAsyncDoneFn
