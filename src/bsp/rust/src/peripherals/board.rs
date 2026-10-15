@@ -60,7 +60,7 @@ pub extern "C" fn deluge_board_probe_oled() -> bool {
 }
 
 /// Early bring-up: GPIO direction and initial state for the status LEDs, codec/speaker enables,
-/// jack detects, analog sense and trigger-clock input, and the CV DAC SPI.
+/// jack detects, analog sense and trigger-clock input.
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board_init_early(have_oled: bool) {
@@ -86,8 +86,8 @@ pub extern "C" fn deluge_board_init_early(have_oled: bool) {
         gpio::set_pin_mux(1, 13, 1); // VOLT_SENSE
         gpio::set_pin_mux(1, 14, 2); // ANALOG_CLOCK_IN
 
-        // CV DAC over RSPI0 (the BSP driver sets up the SPI peripheral + pins).
-        deluge_bsp::cv_gate::init();
+        // The CV DAC over RSPI0 is already up: `runtime::device::start` brings up the bus and the
+        // DAC before the executor runs, so the OLED can't hold RSPI0 when it does.
 
         // OLED shares RSPI0 (manual SSL, handled in display.rs / deluge_bsp::oled);
         // only the 7-segment path needs the pin muxed to hardware SSL here.

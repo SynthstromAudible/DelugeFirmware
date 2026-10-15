@@ -150,8 +150,9 @@ pub fn start() -> ! {
     // starts at the image end. `rza1_alloc::SRAM` stays uninitialised, so an allocation from it
     // fails; give it an arena before anything needs one.
 
-    // CPG/PLL, MMU, L1+L2 caches, SDRAM controller, GIC, and the embassy-time (OSTM) driver.
-    unsafe { deluge_bsp::system::init_clocks() };
+    // The chip (CPG/PLL, module clocks, GIC), then the board (MMU, L1+L2 caches, SDRAM controller,
+    // the embassy-time OSTM driver). The board's peripherals come back by role.
+    let board = deluge_bsp::Board::new(rza1l_hal::init(deluge_bsp::system::BOARD_CONFIG));
 
     // The logger only now, with the MMU on. Until then all memory is strongly ordered and an
     // unaligned access faults, and formatting may read unaligned: built for size, LLVM lowers
@@ -191,14 +192,20 @@ pub fn start() -> ! {
 
     // GIC source registration, before the global interrupt enable below. The PIC UART starts at
     // 31250 bps; `control::pic_pump` runs the handshake up to 200000 bps.
-    unsafe { deluge_bsp::uart::init_pic(31_250) };
-    unsafe { deluge_bsp::uart::init_midi(31_250) };
+    deluge_bsp::uart::init_pic(board.pic_uart, board.dma.pic_rx, board.dma.pic_tx, 31_250);
+    deluge_bsp::uart::init_midi(board.midi_uart, board.dma.midi_rx, 31_250);
     // The encoders' A-pin interrupts, and their 1 ms pin poll on MTU2 ch3.
-    unsafe { deluge_bsp::encoder::irq_init() };
+    unsafe { deluge_bsp::encoder::irq_init(board.encoder_poll_timer) };
     // The sample-accurate MIDI/gate one-shot timer (MTU2 ch2), armed at render time through
-    // `deluge_midi_gate_timer_arm_at`. Its module clock is already ungated by `init_clocks`.
-    unsafe { rza1l_hal::mtu2::enable_write() };
-    unsafe { signals::gate_timer_setup() };
+    // `deluge_midi_gate_timer_arm_at`.
+    signals::gate_timer_setup(board.gate_timer);
+    // RSPI0, shared by the OLED and the CV DAC, then the DAC's linearity sequence on it. Both run
+    // before the executor: `display::oled_render` draws as soon as the PIC is ready, and the DAC
+    // bring-up must not find RSPI0 mid-frame.
+    deluge_bsp::bus::init(board.shared_spi, board.dma.oled);
+    // SAFETY: once, at startup, with interrupts masked and the time driver running (the DAC's
+    // settle delay polls OSTM0).
+    unsafe { deluge_bsp::cv_gate::init() };
     // Trigger clock in: P1_14 → IRQ6 on the falling edge (an on-board transistor inverts the
     // input). The app's handler runs from the cooperative `trigger_clock_task`, between app ticks.
     unsafe { deluge_bsp::trigger_clock::irq_init() };
@@ -281,7 +288,7 @@ async fn app_task() {
     // Sign of life: blink the SYNC LED (P6.7), which exercises the executor, time driver and GPIO.
     const SYNC_LED_PORT: u8 = 6;
     const SYNC_LED_BIT: u8 = 7;
-    // SAFETY: we own this pin; GPIO clocks are up after init_clocks.
+    // SAFETY: we own this pin; GPIO clocks are up after Board::new.
     unsafe { gpio::set_as_output(SYNC_LED_PORT, SYNC_LED_BIT) };
     for i in 0..6 {
         unsafe { gpio::write(SYNC_LED_PORT, SYNC_LED_BIT, true) };

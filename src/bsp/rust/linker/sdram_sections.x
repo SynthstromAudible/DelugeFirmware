@@ -8,7 +8,7 @@
  * The SRAM heap (region 1) is rza1-rt's link.x's [__sram_heap_start, __sram_heap_end).
  *
  * Loadable SDRAM content (.sdram_init) gets a VMA in SDRAM but an LMA in SRAM (`> SDRAM AT> RAM`),
- * since the debugger can't write SDRAM at download; the Rust boot copies it after init_clocks.
+ * since the debugger can't write SDRAM at download; the Rust boot copies it after Board::new.
  * NOLOAD bss is zeroed by the boot.
  *
  * An input section goes to the FIRST output section whose pattern matches it, in command-line

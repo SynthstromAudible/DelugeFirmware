@@ -221,7 +221,7 @@ steps 1 and 2 below except moving the sample-stream `REGISTRY`:
   - This also fixed the `.bin`, which used to begin with the `.sdram_init` load copy instead of the vector table and
     the bootloader header. A probe loading the ELF never noticed.
 - `-Oz` on the cold C++ (`cmake/optimise_for_size.cmake`, device builds only).
-- The logger is installed only after `init_clocks()` turns the MMU on.
+- The logger is installed only after `Board::new` turns the MMU on.
 - Rust `opt-level = "z"`, with the sample-streaming crates, the resource manager, both allocators, the HAL and the
   executor at `"s"`: +31 KB, against +42 KB for `"z"` everywhere.
 

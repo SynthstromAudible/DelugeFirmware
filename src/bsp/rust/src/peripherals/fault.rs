@@ -10,8 +10,6 @@
 //! `deluge_bsp::pic`'s async senders need a live executor and would hang. It leaves the PIC's TX
 //! DMA channel set up, so those senders work again after a resumed freeze.
 
-use deluge_bsp::uart::PIC_CH;
-
 use crate::sys::DelugeFaultRanges;
 
 /// Capacity of the static staging buffer that [`deluge_fault_pad_write`] fills until the flush.
@@ -99,7 +97,6 @@ pub extern "C" fn deluge_fault_pad_flush() {
     /// even at the PIC's 31 250 baud power-on rate, and this allows several times that.
     const DMA_DRAIN_LIMIT: u32 = 16 * SPIN_LIMIT;
 
-    let channel = deluge_bsp::system::PIC_DMA_TX_CH;
     // A freeze arrives with interrupts on. Mask them for the flush, so no sender starts a DMA
     // transfer between the drain and the FIFO writes; a fault vector has them masked already, and
     // this restores whichever state it found.
@@ -107,13 +104,14 @@ pub extern "C" fn deluge_fault_pad_flush() {
         // SAFETY: interrupts are masked, so nothing else drives the PIC's TX DMA channel or the
         // SCIF FIFO until this returns.
         unsafe {
+            let mut tx_dma = rza1l_hal::dmac::Dma::steal::<deluge_bsp::board::PicTxDma>();
             let mut spins = 0u32;
-            while rza1l_hal::dmac::transfer_in_flight(channel) {
+            while tx_dma.transfer_in_flight() {
                 spins += 1;
                 if spins >= DMA_DRAIN_LIMIT {
                     // The transfer is wedged: stop it rather than wait forever, and accept that
                     // the PIC may misread the start of the pattern.
-                    rza1l_hal::dmac::stop(channel);
+                    tx_dma.stop();
                     break;
                 }
                 core::hint::spin_loop();
@@ -123,7 +121,7 @@ pub extern "C" fn deluge_fault_pad_flush() {
             let mut sent = 0usize;
             let mut spins = 0u32;
             while sent < staged {
-                let wrote = rza1l_hal::uart::try_write_fifo(PIC_CH, &STAGE[sent..staged]);
+                let wrote = deluge_bsp::uart::try_write_pic(&STAGE[sent..staged]);
                 if wrote == 0 {
                     spins += 1;
                     if spins >= SPIN_LIMIT {
