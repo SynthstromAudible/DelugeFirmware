@@ -392,6 +392,10 @@ Error Browser::finishPendingListing() {
 	}
 
 	case ListingAction::Open:
+		// The listing arrives ticks after the browser drew itself around an empty one.
+		renderUIsForOled();
+		return Error::NONE;
+
 	case ListingAction::Reload:
 		return Error::NONE;
 	}
