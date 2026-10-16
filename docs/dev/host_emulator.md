@@ -90,3 +90,21 @@ python3 scripts/ui_snapshot_diff.py /tmp/got tests/golden/ui/app/menu
 A snapshot writes `<name>.oled0.pbm` and `<name>.state`; it shows the surface as the app last drew it, so a press due
 in the snapshot's own millisecond shows in the next one. A detent is 4 quadrature edges. Only the Deluge's one panel
 exists here: a script with a `board` step is skipped.
+
+## Scenes specs
+
+The scenes' CppSpec files (`sim/scenes_spec`) link into the host app and run on `golden_vt_render`, one file per
+process, from the app's own init, as the `ui-scenes-spec` gate does. A file's card is installed before boot: the
+fixture card unless `tests/integration/checks/scenes_spec_cards.txt` names another (`none` for no card). To run one by
+hand, or list them:
+
+```sh
+./dbt test -n ui-scenes-spec
+GOLDEN_SCENARIO=scenes_spec SCENES_SPEC=menu_scene_spec build/cargo-harness/release/golden_vt_render
+GOLDEN_SCENARIO=scenes_spec SCENES_SPEC=browser_scene_spec SCENES_SPEC_CARD=tests/fixtures/scenes_spec/browser_scene \
+    build/cargo-harness/release/golden_vt_render
+GOLDEN_SCENARIO=scenes_spec SCENES_SPEC=--list build/cargo-harness/release/golden_vt_render
+```
+
+`GFX_GOLDEN_UPDATE=1` re-records a file's goldens. The net is temporary: as each scene moves onto model addresses and
+Edits, its specs move down to unit specs.

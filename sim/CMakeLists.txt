@@ -266,7 +266,5 @@ add_subdirectory(${REPO_ROOT}/tests/integration/scenarios ${CMAKE_BINARY_DIR}/sc
 add_subdirectory(${REPO_ROOT}/src/scenes     ${CMAKE_BINARY_DIR}/scenes)     # deluge_scenes
 add_subdirectory(${REPO_ROOT}/sim/scenes_spec ${CMAKE_BINARY_DIR}/scenes_spec) # deluge_scenes_spec: the scenes' specs
 
-# The UI's level-3 scripts and the menu dump run as golden_vt_render scenarios (the ui-scripts and
-# ui-menu-dump gates); the UI layers' BSP-free specs run with the unit specs.
-# TODO(ui-integration): sim/scenes_spec is not built: its specs drive the card synchronously and
-# exercise code the merge replaced, so each is triaged against next before it is hosted (its own plan).
+# The UI's level-3 scripts, the menu dump and the scenes' specs run as golden_vt_render scenarios (the ui-scripts,
+# ui-menu-dump and ui-scenes-spec gates); the UI layers' BSP-free specs run with the unit specs.
