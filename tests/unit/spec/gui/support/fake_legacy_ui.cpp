@@ -378,9 +378,9 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 // `fake_legacy_ui.h` names rather than a fixed one. The real ones read
 // `deluge::scenes::menu_scene()` and call `instrumentClipView` -- which arm they take is
 // `sim/scenes_spec/note_mode_spec.cpp`'s.
-std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on, bool inCardRoutine) {
+std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on) {
 	fakelegacyui::note_button_forwards++;
-	fakelegacyui::last_note_button = fakelegacyui::NoteButtonCall{b, on, inCardRoutine};
+	fakelegacyui::last_note_button = fakelegacyui::NoteButtonCall{b, on};
 	return fakelegacyui::note_button_answer;
 }
 
@@ -390,9 +390,9 @@ std::optional<ActionResult> forwardNoteHorizontalEncoder(int32_t offset) {
 	return fakelegacyui::note_horizontal_answer;
 }
 
-std::optional<ActionResult> forwardNoteVerticalEncoder(int32_t offset, bool inCardRoutine) {
+std::optional<ActionResult> forwardNoteVerticalEncoder(int32_t offset) {
 	fakelegacyui::note_vertical_forwards++;
-	fakelegacyui::last_note_vertical = fakelegacyui::NoteVerticalCall{offset, inCardRoutine};
+	fakelegacyui::last_note_vertical = fakelegacyui::NoteVerticalCall{offset};
 	return fakelegacyui::note_vertical_answer;
 }
 

@@ -209,7 +209,7 @@ describe shell_action_dispatch("gui::ui::dispatchShellActions -- the poll in the
 		// Fed, not actioned: the guest's input hooks only queue, and `Shell::pump_input` -- which
 		// only `Shell::tick` calls -- is what routes (`shell/shell.cpp:332`). So at this point the
 		// scene has seen nothing.
-		(void)r.guest.buttonAction(deluge::hid::button::BACK, true, false);
+		(void)r.guest.buttonAction(deluge::hid::button::BACK, true);
 		expect(r.base.events).to_equal(0);
 		expect(r.base.after_renders).to_equal(0);
 
@@ -234,7 +234,7 @@ describe shell_action_dispatch("gui::ui::dispatchShellActions -- the poll in the
 		expect(r.open()).to_be_true();
 		r.base.remove_self_on_event = true;
 
-		(void)r.guest.buttonAction(deluge::hid::button::BACK, true, false);
+		(void)r.guest.buttonAction(deluge::hid::button::BACK, true);
 		expect(r.guest.shell().stack().depth()).to_equal(size_t(1));
 
 		// Reset AFTER the press and before the tick, so both counts below are about the tick alone:
@@ -263,10 +263,10 @@ describe shell_action_dispatch("gui::ui::dispatchShellActions -- the poll in the
 		expect(r.open()).to_be_true();
 		fakelegacyui::action_dispatches = 0;
 
-		(void)r.guest.buttonAction(deluge::hid::button::BACK, true, false);
+		(void)r.guest.buttonAction(deluge::hid::button::BACK, true);
 		(void)r.guest.padAction(0, 0, 64);
 		(void)r.guest.horizontalEncoderAction(1);
-		(void)r.guest.verticalEncoderAction(1, false);
+		(void)r.guest.verticalEncoderAction(1);
 		r.guest.selectEncoderAction(1);
 
 		expect(fakelegacyui::action_dispatches).to_equal(0);

@@ -49,12 +49,12 @@ describe text_widgets("ui::oled text & title", $ {
 		// height leaves the width untouched.
 		expect(measure("C", FontId::Apple7).w).to_equal(6);
 		expect(measure("C", FontId::Apple7).h).to_equal(9);
-		expect(measure("SOUND", FontId::MetricBold9).w).to_equal(45);
+		expect(measure("SOUND", FontId::MetricBold9).w).to_equal(44);
 		// MetricBold9 is *selected* by height 10 (kTextTitleSizeY) though it draws 9 rows;
 		// 10 is the number the legacy layout code spaces by, so it is what measure reports.
 		expect(measure("SOUND", FontId::MetricBold9).h).to_equal(10);
-		expect(measure("SOUND", FontId::MetricBold13).w).to_equal(67);
-		expect(measure("SOUND", FontId::MetricBold20).w).to_equal(96);
+		expect(measure("SOUND", FontId::MetricBold13).w).to_equal(66);
+		expect(measure("SOUND", FontId::MetricBold20).w).to_equal(95);
 	});
 	it("draws a title at the legacy position with its separator", _ {
 		uitest::Rig48 r;
@@ -122,15 +122,15 @@ describe text_widgets("ui::oled text & title", $ {
 		expect_golden(self, "../ui/widgets/text_align_48.pbm", r.pbm());
 	});
 	it("centres an odd-width string the way drawStringCentred rounds it", _ {
-		// "SOUND" in MetricBold9 is 45px, an odd width -- the case where `centre - (w >> 1)`
+		// "SYNTH" in MetricBold9 is 45px, an odd width -- the case where `centre - (w >> 1)`
 		// (x = 42) and `(rect.w - w) / 2` (x = 41) disagree. The 'S' glyph's own first column
 		// is blank, so the leftmost ink lands at 43, not 42.
 		uitest::Rig48 r;
-		text(r.frame, Rect{0, 30, 128, 10}, "SOUND", {FontId::MetricBold9, Align::Centre});
+		text(r.frame, Rect{0, 30, 128, 10}, "SYNTH", {FontId::MetricBold9, Align::Centre});
 		expect(r.lit(43, 37)).to_be_true();
 		expect(r.lit(42, 37)).to_be_false();
 
-		r.reference.draw_string_centred("SOUND", 35, 9, 10);
+		r.reference.draw_string_centred("SYNTH", 35, 9, 10);
 		expect(r.pbm()).to_equal(r.reference_pbm());
 	});
 	it("shrinks a long centred string like drawStringCentredShrinkIfNecessary", _ {
@@ -176,9 +176,9 @@ describe text_widgets("ui::oled text & title", $ {
 
 		// The 24-character cap is the other half. 30 characters of the 5px font
 		// would fit a 128px rect without trimming, so only the cap can shorten this one:
-		// 24 chars start at x = 16, all 30 would start near x = 4.
+		// 24 chars ink from x = 17, all 30 would start near x = 4.
 		text(r.frame, Rect{0, 5, 128, 5}, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123", {FontId::Px5, Align::Centre, false, true});
-		expect(r.lit(16, 11)).to_be_true();
+		expect(r.lit(17, 11)).to_be_true();
 		expect(r.lit(8, 11)).to_be_false();
 
 		r.reference.draw_string_centered("PORTAMENTO ON THE SLOT", 10, 25, 6, 9, 60);

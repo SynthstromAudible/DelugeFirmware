@@ -21,9 +21,27 @@ add_library(deluge_spec STATIC
 ../../support/mocks/mock_critical_section.cpp
 # The pad-grid crash pattern, against fault_pattern_spec.cpp's recording board.
 ../../../src/deluge/io/debug/fault_pattern.c
+# The UI layers' code under test that is not in their own libraries: the guest's surfaces and host UI against fakes of
+# the legacy symbols they touch, the hid button decode, the menu node ids and validator (model-free), and the level-0
+# and level-3 harness writers and tables.
+../../../src/deluge/hid/display/oled_canvas/canvas.cpp
+../../../src/deluge/gui/ui/notify_drain_mapping.cpp
+../../../src/deluge/gui/ui/shell_guest_surfaces.cpp
+gui/support/fake_legacy_hid.cpp
+../../../src/deluge/gui/ui/shell_host_ui.cpp
+gui/support/fake_legacy_ui.cpp
+../../../src/deluge/hid/button.cpp
+../../../src/scenes/menu/node_id.cpp
+../../../src/scenes/menu/validate.cpp
+scenes/support/fake_shortcuts.cpp
+../../harness/ui_script.cpp
+../../harness/snapshot.cpp
+../../harness/level3/host_script_tables.c
+../../harness/level3/host_snapshot.c
 )
 # deluge_ui_oled: the starfield and rainfall animations the specs and previews drive.
-target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_serialization deluge_ui_oled)
+target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_serialization deluge_ui_oled
+  deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_grid deluge_ui_shell deluge_notify)
 
 # audio_file_format.cpp's header parse IS the Rust decoder (crates/deluge_audio_format, reached through
 # include/libdeluge/audio_format.h), so these specs need its C ABI on the link line. `deluge_rust_rs` is
@@ -45,7 +63,19 @@ set_target_properties(deluge_spec PROPERTIES
   C_STANDARD_REQUIRED YES
 )
 
-deluge_specs_driver(all_specs)
+# The trees the UI specs read and write: gfx and level-2 goldens, the level-2 scripts, and the scratch the runner writes
+# its snapshots into before diffing them.
+target_compile_definitions(deluge_spec PUBLIC
+  GFX_GOLDEN_DIR="${CMAKE_CURRENT_LIST_DIR}/../../golden/gfx"
+  DELUGE_REPO_ROOT="${CMAKE_CURRENT_LIST_DIR}/../../.."
+  UI_SCRIPTS_DIR="${CMAKE_CURRENT_LIST_DIR}/../../ui-scripts/shell"
+  UI_GOLDEN_DIR="${CMAKE_CURRENT_LIST_DIR}/../../golden/ui/shell"
+  UI_GOT_DIR="${CMAKE_CURRENT_BINARY_DIR}/got"
+)
+# tests/ for "harness/..." and tests/unit/ for "spec/support/...".
+target_include_directories(deluge_spec PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../.. ${CMAKE_CURRENT_LIST_DIR}/..)
+
+deluge_specs_driver(all_specs INCLUDES ${CMAKE_CURRENT_LIST_DIR}/../.. ${CMAKE_CURRENT_LIST_DIR}/..)
 target_link_libraries(all_specs PUBLIC deluge_spec deluge_midi)
 deluge_apply_test_sanitizers(all_specs)
 

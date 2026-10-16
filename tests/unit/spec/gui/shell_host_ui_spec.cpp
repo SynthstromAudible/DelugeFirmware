@@ -815,8 +815,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// `closeUI(this)`, the same thing `RenameUI::exitUI` and `SampleMarkerEditor::exitUI` do
 		// (`gui/ui/rename/rename_ui.cpp:88-91`, `gui/ui/sample_marker_editor.cpp:680-683`) and the
 		// same thing `SoundEditor::exitCompletely` does at `gui/ui/sound_editor.cpp:761`. Without
-		// it the user is trapped: neither reader of the return value closes anything --
-		// `gui/ui_timer_manager.cpp:149-155` tests only `REMIND_ME_OUTSIDE_CARD_ROUTINE`.
+		// it the user is trapped: neither reader of the return value closes anything.
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		expect(fakelegacyui::closed[0] == static_cast<::UI*>(&r.guest)).to_be_true();
 		// **`ACTIONED_AND_CAUSED_CHANGE`, changed from `NOT_DEALT_WITH` by F1 task 6.** `ui.h`'s
@@ -853,7 +852,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// The button is fed, not actioned: routing happens in `Shell::tick`, which only
 		// `timerCallback` calls. So nothing has closed yet at this point...
-		(void)r.guest.buttonAction(deluge::hid::button::BACK, true, false);
+		(void)r.guest.buttonAction(deluge::hid::button::BACK, true);
 		expect(r.guest.shell().stack().depth()).to_equal(size_t(1));
 		expect(fakelegacyui::closed.empty()).to_be_true();
 
@@ -1046,9 +1045,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(static_cast<int>(r.base.seen[0].ev.y)).to_equal(3);
 		expect(static_cast<int>(r.base.seen[0].ev.velocity)).to_equal(137);
 		expect(r.base.seen[0].ev.on).to_be_true();
-		// `MatrixDriver::padAction` collapses every value but `REMIND_ME_OUTSIDE_CARD_ROUTINE` to
-		// `DEALT_WITH` before its caller sees it (`hid/matrix/matrix_driver.cpp:79-83`), and the
-		// guest never produces that one -- it defers instead.
+		// A fed pad is dealt with: the shell routes it on its next tick.
 		expect(result == ActionResult::DEALT_WITH).to_be_true();
 	});
 
@@ -1211,45 +1208,39 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.base.seen.clear();
 		fakelegacyui::reset();
 
-		const ActionResult result = r.guest.buttonAction(deluge::hid::button::LOAD, true, false);
+		const ActionResult result = r.guest.buttonAction(deluge::hid::button::LOAD, true);
 		r.guest.shell().tick(1);
 
 		expect(fakelegacyui::note_button_forwards).to_equal(1);
 		expect(fakelegacyui::last_note_button
-		       == fakelegacyui::NoteButtonCall{deluge::hid::button::LOAD, true, false})
+		       == fakelegacyui::NoteButtonCall{deluge::hid::button::LOAD, true})
 		    .to_be_true();
 		expect(r.base.seen.size()).to_equal(size_t(1));
 		expect(result == ActionResult::NOT_DEALT_WITH).to_be_true();
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
 	});
 
-	it("returns the note mode's own answer for a button and feeds nothing -- "
-	   "REMIND_ME_OUTSIDE_CARD_ROUTINE included", _ {
-		// Spec §4's re-entrancy rule: the handler's own `ActionResult`, and
-		// `REMIND_ME_OUTSIDE_CARD_ROUTINE` in particular, which `Buttons::buttonAction` acts on
-		// (`hid/buttons.cpp:136-138`). The same press as the example above, varying only the answer.
+	it("returns the note mode's own answer for a button and feeds nothing", _ {
+		// Spec §4's re-entrancy rule: the handler's own `ActionResult`, whichever it is. The same
+		// press as the example above, varying only the answer.
 		Rig r;
 		expect(r.open()).to_be_true();
 		r.base.seen.clear();
 		fakelegacyui::reset();
 
 		fakelegacyui::note_button_answer = ActionResult::DEALT_WITH;
-		expect(r.guest.buttonAction(deluge::hid::button::LOAD, true, false) == ActionResult::DEALT_WITH)
+		expect(r.guest.buttonAction(deluge::hid::button::LOAD, true) == ActionResult::DEALT_WITH)
 		    .to_be_true();
-		fakelegacyui::note_button_answer = ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		expect(r.guest.buttonAction(deluge::hid::button::LOAD, false, false)
-		       == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE)
+		fakelegacyui::note_button_answer = ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+		expect(r.guest.buttonAction(deluge::hid::button::LOAD, false)
+		       == ActionResult::ACTIONED_AND_CAUSED_CHANGE)
 		    .to_be_true();
 		r.guest.shell().tick(1);
 		expect(r.base.seen.empty()).to_be_true();
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
 
-		// `inCardRoutine` reaches the forward as legacy passed it: the handlers take it
-		// (`gui/views/instrument_clip_view.h:288`, `:330`).
-		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true, true);
-		expect(fakelegacyui::note_button_forwards).to_equal(3);
-		expect(fakelegacyui::last_note_button
-		       == fakelegacyui::NoteButtonCall{deluge::hid::button::LOAD, true, true})
+		expect(fakelegacyui::note_button_forwards).to_equal(2);
+		expect(fakelegacyui::last_note_button == fakelegacyui::NoteButtonCall{deluge::hid::button::LOAD, false})
 		    .to_be_true();
 	});
 
@@ -1259,10 +1250,10 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		fakelegacyui::reset();
 		fakelegacyui::note_button_answer = ActionResult::DEALT_WITH;
 
-		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_0, true, false)
+		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_0, true)
 		       == ActionResult::NOT_DEALT_WITH)
 		    .to_be_true();
-		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_1, false, false)
+		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_1, false)
 		       == ActionResult::NOT_DEALT_WITH)
 		    .to_be_true();
 		expect(fakelegacyui::note_button_forwards).to_equal(0);
@@ -1284,33 +1275,32 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(turn != nullptr && turn->ev.encoder == deluge::ui::EncoderRole::Horizontal).to_be_true();
 
 		r.base.seen.clear();
-		fakelegacyui::note_horizontal_answer = ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		expect(r.guest.horizontalEncoderAction(-2) == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE).to_be_true();
+		fakelegacyui::note_horizontal_answer = ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+		expect(r.guest.horizontalEncoderAction(-2) == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
 		r.guest.shell().tick(2);
 		expect(fakelegacyui::note_horizontal_forwards).to_equal(2);
 		expect(fakelegacyui::last_note_horizontal_offset).to_equal(int32_t(-2));
 		expect(r.base.seen.empty()).to_be_true();
 	});
 
-	it("consults the note mode for a vertical turn, passing inCardRoutine through, the same way", _ {
+	it("consults the note mode for a vertical turn the same way", _ {
 		Rig r;
 		expect(r.open()).to_be_true();
 		r.base.seen.clear();
 		fakelegacyui::reset();
 
-		expect(r.guest.verticalEncoderAction(-2, false) == ActionResult::DEALT_WITH).to_be_true();
+		expect(r.guest.verticalEncoderAction(-2) == ActionResult::DEALT_WITH).to_be_true();
 		r.guest.shell().tick(1);
-		expect(fakelegacyui::last_note_vertical == fakelegacyui::NoteVerticalCall{-2, false}).to_be_true();
+		expect(fakelegacyui::last_note_vertical == fakelegacyui::NoteVerticalCall{-2}).to_be_true();
 		const PatternScene::Seen* turn = first_of(r.base, UiEvent::Kind::Encoder);
 		expect(turn != nullptr && turn->ev.encoder == deluge::ui::EncoderRole::Vertical).to_be_true();
 
 		r.base.seen.clear();
-		fakelegacyui::note_vertical_answer = ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		expect(r.guest.verticalEncoderAction(4, true) == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE).to_be_true();
-		expect(fakelegacyui::last_note_vertical == fakelegacyui::NoteVerticalCall{4, true}).to_be_true();
-		// With the lock released, so an empty scene means "not fed" rather than "deferred".
+		fakelegacyui::note_vertical_answer = ActionResult::DEALT_WITH;
+		expect(r.guest.verticalEncoderAction(4) == ActionResult::DEALT_WITH).to_be_true();
+		expect(fakelegacyui::last_note_vertical == fakelegacyui::NoteVerticalCall{4}).to_be_true();
 		fakelegacyui::note_vertical_answer = ActionResult::ACTIONED_AND_CAUSED_CHANGE;
-		expect(r.guest.verticalEncoderAction(5, false) == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		expect(r.guest.verticalEncoderAction(5) == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
 		r.guest.shell().tick(2);
 		expect(fakelegacyui::note_vertical_forwards).to_equal(3);
 		expect(r.base.seen.empty()).to_be_true();
@@ -1330,9 +1320,9 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		OtherUI someone_else;
 		fakelegacyui::current_ui = &someone_else;
-		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true, false);
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true);
 		(void)r.guest.horizontalEncoderAction(1);
-		(void)r.guest.verticalEncoderAction(1, false);
+		(void)r.guest.verticalEncoderAction(1);
 		expect(fakelegacyui::note_button_forwards).to_equal(1);
 		expect(fakelegacyui::note_horizontal_forwards).to_equal(1);
 		expect(fakelegacyui::note_vertical_forwards).to_equal(1);
@@ -1340,90 +1330,36 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// Control: the guest current again, the same three calls, one arm each.
 		fakelegacyui::current_ui = &r.guest;
-		(void)r.guest.buttonAction(deluge::hid::button::LOAD, false, false);
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, false);
 		expect(fakelegacyui::timer_arms.size()).to_equal(size_t(1));
 		(void)r.guest.horizontalEncoderAction(1);
 		expect(fakelegacyui::timer_arms.size()).to_equal(size_t(2));
-		(void)r.guest.verticalEncoderAction(1, false);
+		(void)r.guest.verticalEncoderAction(1);
 		expect(fakelegacyui::timer_arms.size()).to_equal(size_t(3));
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
 	});
 
-	// ---- input: the card routine ---------------------------------------------------------------
+	// ---- input: a busy card ----------------------------------------------------------------------
 
-	it("defers a press that arrives during the card routine, and replays it in order when it ends", _ {
+	it("feeds and forwards input as it arrives, whatever the scheduler says of the card", _ {
+		// No card routine runs re-entrantly under an input handler, so nothing is deferred: a press
+		// that arrives while the scheduler reports the card busy is fed, and one a claim forwards is
+		// forwarded, both straight away.
 		Rig r;
 		expect(r.open()).to_be_true();
 		r.base.seen.clear();
-
-		// Legacy's answer here is `REMIND_ME_OUTSIDE_CARD_ROUTINE`
-		// (`gui/ui/sound_editor.cpp:1460-1463`), which `dispatchInputEvent` turns into one stashed
-		// event replayed after the routine (`deluge.cpp:248-251`, `:299-309`). The port is
-		// `InputLowering::set_sd_busy`, so the press must be **deferred, not dropped**.
-		fakelegacyui::sd_routine_active = true;
-		(void)r.guest.padAction(4, 2, 255);
-		r.guest.shell().tick(10);
-		expect(r.base.seen.empty()).to_be_true();
-
-		// Vary **only** the flag: the same shape of press, on the same open guest, with the routine
-		// over. If this second press were the thing that made it work, the first would still be
-		// missing below.
-		fakelegacyui::sd_routine_active = false;
-		(void)r.guest.padAction(6, 1, 255);
-		r.guest.shell().tick(20);
-
-		expect(r.base.seen.size()).to_equal(size_t(2));
-		// Arrival order, the deferred one first (`shell/input_lowering.cpp:142-160`).
-		expect(static_cast<int>(r.base.seen[0].ev.x)).to_equal(4);
-		expect(static_cast<int>(r.base.seen[0].ev.y)).to_equal(2);
-		expect(static_cast<int>(r.base.seen[1].ev.x)).to_equal(6);
-		expect(static_cast<int>(r.base.seen[1].ev.y)).to_equal(1);
-	});
-
-	it("refuses to forward during the card routine -- REMIND_ME_OUTSIDE_CARD_ROUTINE, not a forward (C1)", _ {
-		// The example above covers the **fed** path, where `InputLowering::set_sd_busy` is the
-		// port and the press is deferred rather than dropped. The **forwarded** path is different:
-		// `performForward` calls straight into a legacy view's `padAction`
-		// (`gui/ui/shell_pad_forward.cpp:101-133`) and discards whatever it returns, so a target's
-		// own `REMIND_ME_OUTSIDE_CARD_ROUTINE` (`keyboard_screen.cpp:101-102`,
-		// `automation_view.cpp:1639-1640`, `instrument_clip_view.cpp:5187-5188`) never reaches this
-		// caller -- the exact shape `SoundEditor::padAction`'s own opening statement
-		// (`gui/ui/sound_editor.cpp:1461-1463`) exists to prevent. So a claim that would forward
-		// must answer `REMIND_ME_OUTSIDE_CARD_ROUTINE` **before** `forwardGridPad` is ever called,
-		// not after.
-		Rig r;
-		expect(r.open()).to_be_true();
 		fakelegacyui::reset();
-		r.base.claim = GridPadClaim::None;
-
 		fakelegacyui::sd_routine_active = true;
-		const ActionResult result = r.guest.padAction(3, 4, 64);
 
-		expect(result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE).to_be_true();
-		expect(fakelegacyui::pad_forwards).to_equal(0);
-		// Not armed either -- legacy's own statement is a bare `return`, before anything else runs.
-		expect(fakelegacyui::timer_arms.empty()).to_be_true();
-	});
-
-	it("defers a button press during the card routine too, from the parameter legacy passed", _ {
-		Rig r;
-		expect(r.open()).to_be_true();
-		r.base.seen.clear();
-
-		// `buttonAction` takes `inCardRoutine` rather than reading the scheduler, because that is
-		// the caller's own answer (`deluge.cpp:258`). So the *parameter* is what must gate this,
-		// and `sd_routine_active` is left false to prove the parameter is being read.
-		expect(fakelegacyui::sd_routine_active).to_be_false();
-		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true, true);
+		expect(r.guest.padAction(4, 2, 255) == ActionResult::DEALT_WITH).to_be_true();
 		r.guest.shell().tick(10);
-		expect(r.base.seen.empty()).to_be_true();
+		expect(r.base.seen.size()).to_equal(size_t(1));
+		expect(static_cast<int>(r.base.seen[0].ev.x)).to_equal(4);
 
-		(void)r.guest.buttonAction(deluge::hid::button::LOAD, false, false);
-		r.guest.shell().tick(20);
-		expect(r.base.seen.size()).to_equal(size_t(2));
-		expect(r.base.seen[0].ev.button == ButtonId::Load).to_be_true();
-		expect(r.base.seen[0].ev.on).to_be_true();
-		expect(r.base.seen[1].ev.on).to_be_false();
+		r.base.claim = GridPadClaim::None;
+		(void)r.guest.padAction(3, 4, 64);
+		expect(fakelegacyui::pad_forwards).to_equal(1);
+		fakelegacyui::sd_routine_active = false;
 	});
 
 	// ---- input: buttons ------------------------------------------------------------------------
@@ -1435,8 +1371,8 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// LOAD is matrix (6, 1) and SAVE is (6, 3): the same column, so a decode that dropped the
 		// row would give both the same id.
-		const ActionResult result = r.guest.buttonAction(deluge::hid::button::LOAD, true, false);
-		(void)r.guest.buttonAction(deluge::hid::button::SAVE, true, false);
+		const ActionResult result = r.guest.buttonAction(deluge::hid::button::LOAD, true);
+		(void)r.guest.buttonAction(deluge::hid::button::SAVE, true);
 		r.guest.shell().tick(1);
 
 		expect(r.base.seen.size()).to_equal(size_t(2));
@@ -1455,7 +1391,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 		r.base.seen.clear();
 
-		(void)r.guest.buttonAction(deluge::hid::button::SELECT_ENC, true, false);
+		(void)r.guest.buttonAction(deluge::hid::button::SELECT_ENC, true);
 		r.guest.shell().tick(1);
 
 		// `InputLowering::on_button` splits on `is_encoder_button` (`shell/input_lowering.cpp:300-303`),
@@ -1491,9 +1427,9 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
 		expect(sticky.open()).to_be_true();
 		fakelegacyui::system_time_s = 1.000;
-		(void)sticky.guest.buttonAction(deluge::hid::button::SHIFT, true, false);
+		(void)sticky.guest.buttonAction(deluge::hid::button::SHIFT, true);
 		fakelegacyui::system_time_s = 1.010; // a 10 ms tap
-		(void)sticky.guest.buttonAction(deluge::hid::button::SHIFT, false, false);
+		(void)sticky.guest.buttonAction(deluge::hid::button::SHIFT, false);
 		sticky.guest.shell().tick(10);
 		sticky.base.seen.clear();
 		(void)sticky.guest.padAction(3, 3, 255);
@@ -1510,9 +1446,9 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::Off);
 		expect(plain.open()).to_be_true();
 		fakelegacyui::system_time_s = 1.000;
-		(void)plain.guest.buttonAction(deluge::hid::button::SHIFT, true, false);
+		(void)plain.guest.buttonAction(deluge::hid::button::SHIFT, true);
 		fakelegacyui::system_time_s = 1.010;
-		(void)plain.guest.buttonAction(deluge::hid::button::SHIFT, false, false);
+		(void)plain.guest.buttonAction(deluge::hid::button::SHIFT, false);
 		plain.guest.shell().tick(10);
 		plain.base.seen.clear();
 		(void)plain.guest.padAction(3, 3, 255);
@@ -1563,9 +1499,9 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		FlashStorage::holdTime = (10 * kSampleRate) / 20; // the ported item writes 500 ms
 		fakelegacyui::system_time_s = 1.000;
-		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, true, false);
+		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, true);
 		fakelegacyui::system_time_s = 1.200; // a 200 ms tap: a hold at 100 ms, a tap at 500
-		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, false, false);
+		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, false);
 		expect(r.guest.shell().lowering().hold_time_ms()).to_equal(uint16_t(500));
 		r.guest.shell().tick(200);
 		r.base.seen.clear();
@@ -1590,9 +1526,9 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 			runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
 			(void)r.open();
 			fakelegacyui::system_time_s = 1.000;
-			(void)r.guest.buttonAction(deluge::hid::button::SHIFT, true, false);
+			(void)r.guest.buttonAction(deluge::hid::button::SHIFT, true);
 			fakelegacyui::system_time_s = 1.200; // a 200 ms tap, the same every time
-			(void)r.guest.buttonAction(deluge::hid::button::SHIFT, false, false);
+			(void)r.guest.buttonAction(deluge::hid::button::SHIFT, false);
 			r.guest.shell().tick(200);
 			r.base.seen.clear();
 			(void)r.guest.padAction(3, 3, 255);
@@ -1682,7 +1618,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 			Rig r;
 			expect(r.open()).to_be_true();
 			r.base.remove_self_on_event = true;
-			(void)r.guest.buttonAction(deluge::hid::button::BACK, true, false);
+			(void)r.guest.buttonAction(deluge::hid::button::BACK, true);
 			fakelegacyui::reset();
 			expect(fakelegacyui::note_mode_exits).to_equal(0);
 
@@ -1715,22 +1651,20 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// `DEALT_WITH` would `goto dealtWith` (`hid/buttons.cpp:139-141`) and skip the tail at
 		// `:226-231`, so `view` would never see the push either and the gesture would be lost
 		// outright rather than handed to legacy.
-		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_0, true, false)
+		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_0, true)
 		       == ActionResult::NOT_DEALT_WITH)
 		    .to_be_true();
-		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_1, true, false)
+		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_1, true)
 		       == ActionResult::NOT_DEALT_WITH)
 		    .to_be_true();
 		r.guest.shell().tick(10);
 		expect(r.base.seen.empty()).to_be_true();
 
-		// **A dropped press is still a re-arm**, and this is asserted before anything else arms the
-		// timer: `set_sd_busy(inCardRoutine)` ran above it and may have released a lock, which
-		// replays the deferred queue into the ordinary one -- so the guest must still ask for a tick
-		// even though it fed nothing itself.
+		// **A dropped press is still a re-arm**, asserted before anything else arms the timer: the
+		// guest asks for a tick even though it fed nothing itself.
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
 
-		(void)r.guest.buttonAction(deluge::hid::button::SAVE, true, false);
+		(void)r.guest.buttonAction(deluge::hid::button::SAVE, true);
 		r.guest.shell().tick(20);
 		expect(r.base.seen.size()).to_equal(size_t(1));
 	});
@@ -1739,7 +1673,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		Rig r;
 		expect(r.open()).to_be_true();
 
-		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, true, false);
+		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, true);
 		r.guest.shell().tick(1);
 		r.base.seen.clear();
 		(void)r.guest.padAction(2, 2, 255);
@@ -1753,7 +1687,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(withShift->sticky).to_be_false();
 
 		// Vary only the shift state, on the same pad.
-		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, false, false);
+		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, false);
 		r.guest.shell().tick(3);
 		r.base.seen.clear();
 		(void)r.guest.padAction(2, 2, 255);
@@ -1782,8 +1716,6 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(turn != nullptr).to_be_true();
 		expect(turn->ev.encoder == deluge::ui::EncoderRole::Horizontal).to_be_true();
 		expect(static_cast<int>(turn->ev.delta)).to_equal(3);
-		// `interpretEncoders` tests this for `REMIND_ME_OUTSIDE_CARD_ROUTINE` alone
-		// (`hid/encoder_input.cpp:129-132`); the deferral replaces it.
 		expect(result == ActionResult::DEALT_WITH).to_be_true();
 	});
 
@@ -1792,7 +1724,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 		r.base.seen.clear();
 
-		(void)r.guest.verticalEncoderAction(-2, false);
+		(void)r.guest.verticalEncoderAction(-2);
 		r.guest.shell().tick(1);
 		const PatternScene::Seen* vertical = first_of(r.base, UiEvent::Kind::Encoder);
 		expect(vertical != nullptr).to_be_true();
@@ -1819,14 +1751,14 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// `DetentedEncoder::pos` across every pass `interpretEncoders` skips during the SD routine
 		// (`hid/encoder_input.cpp:96-106`) or a stem export (`:66-68`).
 		r.base.seen.clear();
-		(void)r.guest.verticalEncoderAction(63, false);
+		(void)r.guest.verticalEncoderAction(63);
 		r.guest.shell().tick(1);
 		const PatternScene::Seen* atCeiling = first_of(r.base, UiEvent::Kind::Encoder);
 		expect(atCeiling != nullptr).to_be_true();
 		expect(static_cast<int>(atCeiling->ev.delta)).to_equal(63);
 
 		r.base.seen.clear();
-		(void)r.guest.verticalEncoderAction(64, false);
+		(void)r.guest.verticalEncoderAction(64);
 		r.guest.shell().tick(2);
 		const PatternScene::Seen* past = first_of(r.base, UiEvent::Kind::Encoder);
 		expect(past != nullptr).to_be_true();
@@ -1835,7 +1767,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(static_cast<int>(past->ev.delta)).to_equal(63);
 
 		r.base.seen.clear();
-		(void)r.guest.verticalEncoderAction(-500, false);
+		(void)r.guest.verticalEncoderAction(-500);
 		r.guest.shell().tick(3);
 		const PatternScene::Seen* negative = first_of(r.base, UiEvent::Kind::Encoder);
 		expect(negative != nullptr).to_be_true();
@@ -1869,7 +1801,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(first_of(r.base, UiEvent::Kind::Encoder) == nullptr).to_be_true();
 
 		// Vary the role, not the board: vertical is in this table and still arrives.
-		(void)r.guest.verticalEncoderAction(5, false);
+		(void)r.guest.verticalEncoderAction(5);
 		r.guest.shell().tick(2);
 		const PatternScene::Seen* vertical = first_of(r.base, UiEvent::Kind::Encoder);
 		expect(vertical != nullptr).to_be_true();
@@ -1892,7 +1824,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.base.seen.clear();
 
 		fakelegacyui::system_time_s = 1.5; // nowMs() == 1500
-		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true, false);
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true);
 		// `end_tick` re-stamps the snapshot with the tick's own clock, which is what a scene reads
 		// as `ctx.now_ms` (`shell/shell.cpp:570-580`, `:582-592`). The **feed's** clock is what the
 		// press keeps, and that one comes from `nowMs()` -- so the two numbers being different is
@@ -1910,12 +1842,12 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		Rig r;
 		expect(r.open()).to_be_true();
 		fakelegacyui::system_time_s = 0.037; // 37 ms
-		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true, false);
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true);
 		expect(r.guest.shell().lowering().held_since(ButtonId::Load)).to_equal(uint32_t(37));
 
-		(void)r.guest.buttonAction(deluge::hid::button::LOAD, false, false);
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, false);
 		fakelegacyui::system_time_s = 9.001; // 9001 ms
-		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true, false);
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true);
 		expect(r.guest.shell().lowering().held_since(ButtonId::Load)).to_equal(uint32_t(9001));
 	});
 
@@ -2167,37 +2099,11 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::timer_arms.empty()).to_be_true();
 	});
 
-	// ---- the tick: the SD-routine release, made time-driven ---------------------------------------
+	// ---- the tick: its answer -------------------------------------------------------------------------
 
-	it("keeps polling while the SD lock is held, so a deferred press is not stranded", _ {
+	it("answers its timer DEALT_WITH whatever the scheduler says of the card", _ {
 		Rig r;
 		expect(r.open()).to_be_true();
-		uint32_t now = 0;
-		(void)run_quiet(r.guest, now, 3);
-
-		fakelegacyui::sd_routine_active = true;
-		expect(r.guest.padAction(3, 4, 200)).to_equal(ActionResult::DEALT_WITH);
-		(void)run_quiet(r.guest, now, 3);
-		// Nothing routed -- the press is in the lowering's deferred queue
-		// (`shell/input_lowering.cpp:120-131`) -- and yet the chain is still alive, because the
-		// lock itself is the thing being waited on and no scene can express it as a deadline.
-		expect(r.base.seen.empty()).to_be_true();
-		expect(r.guest.shell().lowering().sd_busy()).to_be_true();
-		expect(r.guest.shell().next_wake().has_value()).to_be_false();
-		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
-
-		// The routine ends. NO further input: the release is time-driven now.
-		fakelegacyui::sd_routine_active = false;
-		(void)run_quiet(r.guest, now, 2);
-		expect(first_of(r.base, UiEvent::Kind::Pad) != nullptr).to_be_true();
-	});
-
-	it("never answers REMIND_ME_OUTSIDE_CARD_ROUTINE, which would re-fire on a past triggerTime", _ {
-		Rig r;
-		expect(r.open()).to_be_true();
-		// The value the `UI_SPECIFIC` arm acts on: it sets `active` back to true WITHOUT touching
-		// `triggerTime` (`gui/ui_timer_manager.cpp:144-146`), which is already past -- so the timer
-		// re-fires on the manager's very next pass, for ever.
 		fakelegacyui::sd_routine_active = true;
 		set_clock_ms(10);
 		expect(r.guest.timerCallback()).to_equal(ActionResult::DEALT_WITH);

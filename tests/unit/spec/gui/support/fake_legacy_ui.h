@@ -196,7 +196,6 @@ extern PadCall last_pad_forward;
 struct NoteButtonCall {
 	deluge::hid::Button b = 0;
 	bool on = false;
-	bool in_card_routine = false;
 	bool operator==(const NoteButtonCall&) const = default;
 };
 /// How many times `forwardNoteButton()` was called.
@@ -216,7 +215,6 @@ extern std::optional<ActionResult> note_horizontal_answer;
 /// @brief The arguments of one `forwardNoteVerticalEncoder()` call.
 struct NoteVerticalCall {
 	int32_t offset = 0;
-	bool in_card_routine = false;
 	bool operator==(const NoteVerticalCall&) const = default;
 };
 /// How many times `forwardNoteVerticalEncoder()` was called.

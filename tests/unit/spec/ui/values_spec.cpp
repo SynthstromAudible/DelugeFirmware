@@ -130,12 +130,12 @@ describe values_w("ui::oled::values", $ {
 		for (bool row : any_row) {
 			expect(row).to_be_true();          // every one of the 20 rows carries ink
 		}
-		// get_string_width_in_pixels("42", 20) is 35, so drawStringCentred starts it at
-		// 64 - (35 >> 1) = 47; the '4' inks from column 48 and the '2' ends at column 79.
+		// drawStringCentred starts "42" at 64 - (width >> 1) = 47; the '4' inks from column 48 and,
+		// kerned one pixel away from it, the '2' ends at column 80.
 		expect(r.lit(56, 23)).to_be_true();
 		expect(r.lit(48, 38)).to_be_true();
-		expect(r.lit(79, 42)).to_be_true();
-		expect(r.lit(80, 42)).to_be_false();
+		expect(r.lit(80, 42)).to_be_true();
+		expect(r.lit(81, 42)).to_be_false();
 
 		r.reference.draw_string_centred("42", 18 + 5, 18, 20);
 		expect(r.pbm()).to_equal(r.reference_pbm());

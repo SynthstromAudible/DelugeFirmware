@@ -92,11 +92,11 @@ void setLedState(LED led, bool newState, bool allowContinuedBlinking) {
 // ---------------------------------------------------------------------------
 extern "C" {
 
-uint32_t deluge_control_pad_output_space(void) {
+uint32_t deluge_control_pad_output_space(void) DELUGE_NOEXCEPT {
 	return fakelegacy::pad_output_space;
 }
 
-void deluge_control_set_indicator(uint8_t which, const uint8_t* levels, uint8_t count) {
+void deluge_control_set_indicator(uint8_t which, const uint8_t* levels, uint8_t count) DELUGE_NOEXCEPT {
 	fakelegacy::IndicatorWrite w{which, {}, count};
 	for (uint8_t i = 0; i < count && i < 4; i++) {
 		w.levels[i] = levels[i];
@@ -104,7 +104,7 @@ void deluge_control_set_indicator(uint8_t which, const uint8_t* levels, uint8_t 
 	fakelegacy::indicator_writes.push_back(w);
 }
 
-void deluge_control_flush(void) {
+void deluge_control_flush(void) DELUGE_NOEXCEPT {
 	fakelegacy::control_flushes++;
 }
 

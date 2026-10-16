@@ -58,6 +58,9 @@ function(deluge_specs_driver name)
   endif()
   foreach(spec IN LISTS spec_sources)
     cmake_path(GET spec STEM LAST_ONLY spec_name)
-    add_test(NAME ${spec_name} COMMAND ${name} ${spec_name} --verbose)
+    # create_test_sourcelist registers a spec in a subdirectory under its relative path minus extension
+    # ("gfx/canvas_spec"), so that is what the driver is asked for; the ctest name stays the bare stem.
+    cmake_path(REMOVE_EXTENSION spec OUTPUT_VARIABLE spec_id)
+    add_test(NAME ${spec_name} COMMAND ${name} ${spec_id} --verbose)
   endforeach()
 endfunction()
