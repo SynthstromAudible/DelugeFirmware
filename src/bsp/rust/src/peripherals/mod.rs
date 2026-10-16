@@ -14,5 +14,7 @@ pub(crate) mod flash;
 pub(crate) mod midi;
 #[cfg(target_os = "none")]
 pub(crate) mod signals;
+#[cfg(not(target_os = "none"))]
+pub mod ui_harness;
 #[cfg(target_os = "none")]
 pub(crate) mod usb;

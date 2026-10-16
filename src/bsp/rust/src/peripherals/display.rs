@@ -62,11 +62,11 @@ pub extern "C" fn deluge_display_blit_oled(
     let n = (width as usize * height as usize / 8).min(oled::FRAME_BYTES);
     // SAFETY: the app passes `n` valid framebuffer bytes; FRAME is only touched
     // here and in oled_render, which cannot run concurrently with this copy.
-    unsafe {
-        let src = core::slice::from_raw_parts(pixels, n);
-        let dst = &mut *core::ptr::addr_of_mut!(FRAME);
-        dst[..n].copy_from_slice(src);
-    }
+    let src = unsafe { core::slice::from_raw_parts(pixels, n) };
+    // SAFETY: as above, nothing else touches FRAME during this copy.
+    unsafe { (&mut *core::ptr::addr_of_mut!(FRAME))[..n].copy_from_slice(src) };
+    #[cfg(not(target_os = "none"))]
+    crate::peripherals::ui_harness::record_oled(src, width, height);
     FRAME_VALID.store(true, Ordering::Release);
     oled::notify_redraw();
     DELUGE_OK

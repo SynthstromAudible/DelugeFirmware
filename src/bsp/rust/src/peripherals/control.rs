@@ -199,6 +199,23 @@ pub extern "C" fn deluge_encoder_take_quadrature_edges(encoder: u8) -> i8 {
     encoder::ENCODER_DELTAS[ENC_REMAP[i]].swap(0, Ordering::Relaxed)
 }
 
+/// Adds `edges` to the app's encoder `index` (its ordinal, as `deluge_encoder_take_quadrature_edges` takes
+/// it), saturating at the accumulator's range, and wakes the app's encoder wait.
+#[cfg(not(target_os = "none"))]
+pub fn add_encoder_edges_for_harness(index: u8, edges: i32) {
+    let i = index as usize;
+    if i >= encoder::NUM_ENCODERS {
+        return;
+    }
+    let add = edges.clamp(i8::MIN as i32, i8::MAX as i32) as i8;
+    let _ = encoder::ENCODER_DELTAS[ENC_REMAP[i]].try_update(
+        Ordering::Relaxed,
+        Ordering::Relaxed,
+        |v| Some(v.saturating_add(add)),
+    );
+    encoder::ENCODER_WAKER.wake();
+}
+
 // Control-surface output (LEDs, pads)
 //
 // Every PIC transmit goes through one task, `pad_render`, draining a command queue. The PIC TX
@@ -338,6 +355,8 @@ pub extern "C" fn deluge_control_set_pad_columns(idx: u8, colours: *const Deluge
     for (dst, c) in buf.iter_mut().zip(src) {
         *dst = [c.r, c.g, c.b];
     }
+    #[cfg(not(target_os = "none"))]
+    crate::peripherals::ui_harness::record_pad_columns(idx, src);
     enqueue(PicOut::Columns { idx, colours: buf });
 }
 
@@ -394,6 +413,8 @@ pub extern "C" fn deluge_control_scroll_vertical(
 /// Sets an indicator LED (board-defined index) on or off.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_set_led(led: u8, on: bool) {
+    #[cfg(not(target_os = "none"))]
+    crate::peripherals::ui_harness::record_led(led, on);
     enqueue(PicOut::Led { id: led, on });
 }
 
@@ -406,6 +427,8 @@ pub extern "C" fn deluge_control_set_indicator(which: u8, levels: *const u8, cou
     // SAFETY: the app passes `count` valid brightness bytes.
     let src = unsafe { core::slice::from_raw_parts(levels, n) };
     ring[..n].copy_from_slice(&src[..n]);
+    #[cfg(not(target_os = "none"))]
+    crate::peripherals::ui_harness::record_ring(which, &ring[..n]);
     enqueue(PicOut::Indicator {
         knob: (which != 0) as u8,
         levels: ring,
