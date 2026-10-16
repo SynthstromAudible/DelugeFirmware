@@ -19,6 +19,7 @@
 /// @brief The `Target` table and the scene. See `rename_scene.h`.
 
 #include "scenes/rename/rename_scene.h"
+#include "model/edits/setting_edit.h"
 
 #include "scenes/profile.h"
 
@@ -110,7 +111,7 @@ bool output_write(const menu::MenuContext& ctx, std::string_view name) {
 	if (other != nullptr && other != ctx.output) {
 		return false;
 	}
-	ctx.output->setName(name);
+	deluge::edits::trackSettingFor(*ctx.output, "name", deluge::serialization::Value::makeScalar(std::string{name}));
 	return true;
 }
 

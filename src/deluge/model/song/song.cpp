@@ -53,6 +53,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
+#include "model/edits/setting_edit.h"
 #include "model/fx/chain_inputs.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
@@ -4814,9 +4815,11 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 
 		// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change
 		// the existing Instrument object!
-		oldNonAudioInstrument->setChannel(newChannel);
+		deluge::edits::trackSettingFor(*oldNonAudioInstrument, "channel",
+		                               deluge::serialization::Value::makeNumber(newChannel));
 		if (outputType == OutputType::MIDI_OUT) {
-			((MIDIInstrument*)oldNonAudioInstrument)->setChannelSuffix(newChannelSuffix);
+			deluge::edits::trackSettingFor(*oldNonAudioInstrument, "channelSuffix",
+			                               deluge::serialization::Value::makeNumber(newChannelSuffix));
 		}
 
 		view.displayOutputName(oldNonAudioInstrument);

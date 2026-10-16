@@ -7,6 +7,8 @@
 #include "dsp/reverb/reverb.hpp"
 #include "model/edits/set_setting.h"
 #include "model/edits/setting_edit.h"
+#include "model/instrument/cv_instrument.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -34,6 +36,11 @@ const SettingAddress kSong{SettingGroupId::SONG, SongAddress{}};
 std::string recorded(::Song& song, const SettingAddress& address, std::string_view path) {
 	const auto value = deluge::project::read_setting(song.project, address, path);
 	return value ? value->str() : std::string{"<none>"};
+}
+
+/// @brief @p output's address in its track (@p path "name") or instrument-device group.
+SettingAddress track_of(::Song& song, ::Output& output, std::string_view path) {
+	return {deluge::bridge::trackGroupOf(path), *deluge::bridge::trackAddressOf(output, song)};
 }
 
 /// @brief The engine copy's value at @p path, as text.
@@ -106,6 +113,45 @@ describe song_settings_edit("SetSetting", $ {
 		expect(f.song->project.scale.disabled_preset_scales.test(3)).to_be_true();
 		deluge::edits::songSettingFor("scales/disabled/3", Value::makeNumber(0));
 		expect(f.song->project.scale.disabled_preset_scales.test(3)).to_be_false();
+	});
+	it("writes every instrument-device path into the record and onto the MIDI instrument", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		auto& midi = *static_cast<MIDIInstrument*>(f.instrument);
+		const std::pair<std::string_view, Value> writes[] = {
+		    {"channelSuffix", Value::makeNumber(3)},          {"deviceDefinitionFileName", Value::makeScalar("A.XML")},
+		    {"outputMpeY", Value::makeScalar("1")},           {"collapseAftertouch", Value::makeNumber(1)},
+		    {"collapseMpe", Value::makeNumber(0)},            {"name", Value::makeScalar("KEYS")},
+		};
+		for (const auto& [path, value] : writes) {
+			deluge::edits::trackSettingFor(midi, path, value);
+			const SettingAddress address = track_of(*f.song, midi, path);
+			expect(std::string{path} + "=" + recorded(*f.song, address, path)).to_equal(std::string{path} + "=" + value.str());
+			expect(std::string{path} + "=" + projected(*f.song, address, path)).to_equal(std::string{path} + "=" + value.str());
+		}
+		expect(static_cast<int>(midi.outputMPEY)).to_equal(static_cast<int>(CC_EXTERNAL_MOD_WHEEL));
+	});
+
+	it("re-channels a MIDI instrument in place", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		auto& midi = *static_cast<MIDIInstrument*>(f.instrument);
+		deluge::edits::trackSettingFor(midi, "channel", Value::makeNumber(4));
+		expect(recorded(*f.song, track_of(*f.song, midi, "channel"), "channel")).to_equal(std::string{"4"});
+		expect(midi.getChannel()).to_equal(4);
+	});
+
+	it("writes a CV instrument's second source", _ {
+		spec::SongFixture f = spec::make_cv_song();
+		auto& cv = *static_cast<CVInstrument*>(f.instrument);
+		deluge::edits::trackSettingFor(cv, "cv2Source", Value::makeNumber(2));
+		expect(recorded(*f.song, track_of(*f.song, cv, "cv2Source"), "cv2Source")).to_equal(std::string{"2"});
+		expect(static_cast<int>(cv.getCV2Mode())).to_equal(2);
+	});
+
+	it("renames a track outside the song with the setter alone", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		MIDIInstrument loose; // not in the song: no record to write
+		deluge::edits::trackSettingFor(loose, "name", Value::makeScalar("LOOSE"));
+		expect(loose.name).to_equal(std::string{"LOOSE"});
 	});
 });
 // clang-format on

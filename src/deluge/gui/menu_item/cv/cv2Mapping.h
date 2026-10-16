@@ -19,6 +19,7 @@
 #include "gui/menu_item/cv/submenu.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/song/song.h"
 
@@ -43,7 +44,8 @@ public:
 		}
 		auto newSetting = static_cast<CVMode>(current_value);
 
-		((CVInstrument*)getCurrentOutput())->setCV2Mode(newSetting);
+		deluge::edits::trackSettingFor(*getCurrentOutput(), "cv2Source",
+		                               deluge::serialization::Value::makeNumber(std::to_underlying(newSetting)));
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

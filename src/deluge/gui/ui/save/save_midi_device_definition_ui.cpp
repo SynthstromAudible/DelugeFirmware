@@ -23,6 +23,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "storage/storage_manager.h"
@@ -133,7 +134,8 @@ void SaveMidiDeviceDefinitionUI::afterStagedSave(const deluge::storage::SaveRequ
 	// Link the instrument with the definition file saved
 	if (auto* midiInstrumentToSave = static_cast<MIDIInstrument*>(getCurrentInstrument());
 	    midiInstrumentToSave != nullptr) {
-		midiInstrumentToSave->setDeviceDefinitionFileName(request.filePath.c_str());
+		deluge::edits::trackSettingFor(*midiInstrumentToSave, "deviceDefinitionFileName",
+		                               deluge::serialization::Value::makeScalar(std::string{request.filePath.c_str()}));
 	}
 	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_SAVED));
 	close();

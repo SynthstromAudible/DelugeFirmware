@@ -25,6 +25,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "memory/general_memory_allocator.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
@@ -587,7 +588,8 @@ bool InstrumentLoad::stepParse() {
 		return finish(error);
 	}
 	if (active_.clone) {
-		newInstrument_->setName(decision_.clonedName);
+		deluge::edits::trackSettingFor(*newInstrument_, "name",
+		                               deluge::serialization::Value::makeScalar(std::string{decision_.clonedName}));
 		newInstrument_->editedByUser = true;
 	}
 

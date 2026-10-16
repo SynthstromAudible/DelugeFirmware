@@ -45,6 +45,7 @@
 #include "model/edits/clear_clip.h"
 #include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
@@ -285,7 +286,8 @@ gotError:
 	// acquisition's own logic, so it stays on the established live-read exception those share.
 	setLedStates();
 
-	newInstrument->setName(newName);
+	deluge::edits::trackSettingFor(*newInstrument, "name",
+	                               deluge::serialization::Value::makeScalar(std::string{newName}));
 
 	if (is_dx) {
 		// F1 task 9, site 11 of 14: **not gated, and it stays that way until `dxMenu` has a port.**

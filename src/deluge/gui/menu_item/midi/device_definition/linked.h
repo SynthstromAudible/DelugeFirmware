@@ -20,6 +20,7 @@
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/load/load_midi_device_definition_ui.h"
 #include "gui/ui/sound_editor.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/output.h"
 #include "model/song/song.h"
@@ -43,8 +44,8 @@ public:
 		}
 		// if you want to unlink a definition file, just clear the definition file name
 		else {
-			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
-			midiInstrument->setDeviceDefinitionFileName("");
+			deluge::edits::trackSettingFor(*getCurrentOutput(), "deviceDefinitionFileName",
+			                               deluge::serialization::Value::makeScalar(""));
 		}
 	}
 

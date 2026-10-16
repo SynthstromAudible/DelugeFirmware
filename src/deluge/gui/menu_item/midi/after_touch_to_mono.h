@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/toggle.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/midi_instrument.h"
 
 extern Output* getCurrentOutput();
@@ -28,7 +29,8 @@ public:
 	// this is safe since it's only shown in midi clips
 	void readCurrentValue() override { this->setValue(((MIDIInstrument*)getCurrentOutput())->collapseAftertouch); }
 	void writeCurrentValue() override {
-		((MIDIInstrument*)getCurrentOutput())->setCollapseAftertouch(this->getValue());
+		deluge::edits::trackSettingFor(*getCurrentOutput(), "collapseAftertouch",
+		                               deluge::serialization::Value::makeNumber(this->getValue() ? 1 : 0));
 		getCurrentInstrument()->editedByUser = true;
 	}
 };

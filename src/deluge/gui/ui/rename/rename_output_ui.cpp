@@ -22,6 +22,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
+#include "model/edits/setting_edit.h"
 #include "model/output.h"
 #include "model/song/song.h"
 
@@ -38,6 +39,6 @@ bool RenameOutputUI::trySetName(std::string_view name) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 		return false;
 	}
-	output->setName(name);
+	deluge::edits::trackSettingFor(*output, "name", deluge::serialization::Value::makeScalar(std::string{name}));
 	return true;
 }

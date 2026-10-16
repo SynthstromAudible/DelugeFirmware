@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/toggle.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 
@@ -32,8 +33,9 @@ public:
 		this->setValue(((MIDIInstrument*)getCurrentOutput())->outputMPEY == CC_EXTERNAL_MOD_WHEEL);
 	}
 	void writeCurrentValue() override {
-		((MIDIInstrument*)getCurrentOutput())
-		    ->setOutputMPEY(this->getValue() ? CC_EXTERNAL_MOD_WHEEL : CC_EXTERNAL_MPE_Y);
+		deluge::edits::trackSettingFor(*getCurrentOutput(), "outputMpeY",
+		                               deluge::serialization::Value::makeNumber(static_cast<int32_t>(
+		                                   this->getValue() ? CC_EXTERNAL_MOD_WHEEL : CC_EXTERNAL_MPE_Y)));
 		getCurrentInstrument()->editedByUser = true;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {

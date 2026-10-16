@@ -2449,9 +2449,11 @@ void View::completeNavigateThroughPresetsForInstrumentClip(int32_t offset, Instr
 
 			// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change
 			// the existing Instrument object!
-			oldNonAudioInstrument->setChannel(newChannel);
+			deluge::edits::trackSettingFor(*oldNonAudioInstrument, "channel",
+			                               deluge::serialization::Value::makeNumber(newChannel));
 			if (outputType == OutputType::MIDI_OUT) {
-				((MIDIInstrument*)oldNonAudioInstrument)->setChannelSuffix(newChannelSuffix);
+				deluge::edits::trackSettingFor(*oldNonAudioInstrument, "channelSuffix",
+				                               deluge::serialization::Value::makeNumber(newChannelSuffix));
 			}
 
 			newInstrument = oldNonAudioInstrument;

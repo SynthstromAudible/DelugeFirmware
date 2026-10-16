@@ -28,6 +28,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
+#include "model/edits/setting_edit.h"
 #include "model/favourite/favourite_manager.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
@@ -401,7 +402,8 @@ Error StorageManager::parseMidiDeviceDefinitionDocument(deluge::storage::TreeDoc
 	}
 	else if (updateFileName) {
 		// The record must hold the RESOLVED path this call computed, not just the native cache.
-		midiInstrument->setDeviceDefinitionFileName(fileName->c_str());
+		deluge::edits::trackSettingFor(*midiInstrument, "deviceDefinitionFileName",
+		                               deluge::serialization::Value::makeScalar(std::string{fileName->c_str()}));
 	}
 
 	return Error::NONE;

@@ -173,7 +173,7 @@ void set_cv2_source(const MenuContext& ctx, int32_t value) {
 	if (stored != 0) {
 		stored += 1;
 	}
-	static_cast<CVInstrument*>(ctx.output)->setCV2Mode(static_cast<CVMode>(stored));
+	deluge::edits::trackSettingFor(*ctx.output, "cv2Source", deluge::serialization::Value::makeNumber(stored));
 }
 
 int32_t get_mpe_y_to_mod_wheel(const MenuContext& ctx) {
@@ -183,7 +183,9 @@ int32_t get_mpe_y_to_mod_wheel(const MenuContext& ctx) {
 }
 void set_mpe_y_to_mod_wheel(const MenuContext& ctx, int32_t value) {
 	if (MIDIInstrument* instrument = midi_instrument(ctx); instrument != nullptr) { // `y_axis_to_cc1.h:28-32`
-		instrument->setOutputMPEY(value != 0 ? CC_EXTERNAL_MOD_WHEEL : CC_EXTERNAL_MPE_Y);
+		deluge::edits::trackSettingFor(*instrument, "outputMpeY",
+		                               deluge::serialization::Value::makeNumber(static_cast<int32_t>(
+		                                   value != 0 ? CC_EXTERNAL_MOD_WHEEL : CC_EXTERNAL_MPE_Y)));
 		mark_edited(ctx);
 	}
 }
@@ -194,7 +196,8 @@ int32_t get_aftertouch_to_mono(const MenuContext& ctx) {
 }
 void set_aftertouch_to_mono(const MenuContext& ctx, int32_t value) {
 	if (MIDIInstrument* instrument = midi_instrument(ctx); instrument != nullptr) { // `after_touch_to_mono.h:24-28`
-		instrument->setCollapseAftertouch(value != 0);
+		deluge::edits::trackSettingFor(*instrument, "collapseAftertouch",
+		                               deluge::serialization::Value::makeNumber(value != 0 ? 1 : 0));
 		mark_edited(ctx);
 	}
 }
@@ -205,7 +208,8 @@ int32_t get_mpe_to_mono(const MenuContext& ctx) {
 }
 void set_mpe_to_mono(const MenuContext& ctx, int32_t value) {
 	if (MIDIInstrument* instrument = midi_instrument(ctx); instrument != nullptr) { // `mpe_to_mono.h:24-28`
-		instrument->setCollapseMPE(value != 0);
+		deluge::edits::trackSettingFor(*instrument, "collapseMpe",
+		                               deluge::serialization::Value::makeNumber(value != 0 ? 1 : 0));
 		mark_edited(ctx);
 	}
 }

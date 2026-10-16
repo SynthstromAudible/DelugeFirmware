@@ -6,8 +6,11 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/instrument/cv_instrument.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
+#include "model/instrument/midi_instrument.h"
+#include "model/instrument/non_audio_instrument.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/clip_iterators.h"
@@ -202,8 +205,51 @@ Error applySongSetting(::Song& song, std::string_view path, const Value& value) 
 	return Error::UNSPECIFIED;
 }
 
-Error applyTrackSetting(::Output& /*output*/, std::string_view /*path*/, const Value& /*value*/) {
-	return Error::UNSPECIFIED;
+Error applyTrackSetting(::Output& output, std::string_view path, const Value& value) {
+	if (path == "name") {
+		output.setName(value.str());
+		return Error::NONE;
+	}
+	const std::optional<int32_t> v = integer_of(value);
+	const bool non_audio = output.type == OutputType::MIDI_OUT || output.type == OutputType::CV;
+	if (path == "channel" && non_audio && v) {
+		static_cast<::NonAudioInstrument&>(output).setChannel(*v);
+		return Error::NONE;
+	}
+	if (output.type == OutputType::CV) {
+		if (path == "cv2Source" && v) {
+			static_cast<::CVInstrument&>(output).setCV2Mode(static_cast<CVMode>(*v));
+			return Error::NONE;
+		}
+		return Error::UNSPECIFIED;
+	}
+	if (output.type != OutputType::MIDI_OUT) {
+		return Error::UNSPECIFIED;
+	}
+	auto& midi = static_cast<::MIDIInstrument&>(output);
+	if (path == "deviceDefinitionFileName") {
+		midi.setDeviceDefinitionFileName(value.str());
+		return Error::NONE;
+	}
+	if (!v) {
+		return Error::UNSPECIFIED;
+	}
+	if (path == "channelSuffix") {
+		midi.setChannelSuffix(*v);
+	}
+	else if (path == "outputMpeY") {
+		midi.setOutputMPEY(static_cast<CCNumber>(*v));
+	}
+	else if (path == "collapseAftertouch") {
+		midi.setCollapseAftertouch(*v != 0);
+	}
+	else if (path == "collapseMpe") {
+		midi.setCollapseMPE(*v != 0);
+	}
+	else {
+		return Error::UNSPECIFIED;
+	}
+	return Error::NONE;
 }
 
 Error applyLaneSetting(::Drum& /*drum*/, std::string_view /*path*/, const Value& /*value*/) {
@@ -256,7 +302,51 @@ Error projectSetting(::Song& song, const project::SettingAddress& address, std::
 	return Error::UNSPECIFIED;
 }
 
+/// @brief @p output's engine copy at track or instrument-device path @p path, in the record's form.
+std::optional<Value> engineTrackValue(::Output& output, std::string_view path) {
+	if (path == "name") {
+		return Value::makeScalar(output.name);
+	}
+	if (output.type == OutputType::CV) {
+		auto& cv = static_cast<::CVInstrument&>(output);
+		if (path == "channel") {
+			return Value::makeNumber(cv.getChannel());
+		}
+		if (path == "cv2Source") {
+			return Value::makeNumber(std::to_underlying(cv.getCV2Mode()));
+		}
+		return std::nullopt;
+	}
+	if (output.type != OutputType::MIDI_OUT) {
+		return std::nullopt;
+	}
+	auto& midi = static_cast<::MIDIInstrument&>(output);
+	if (path == "channel") {
+		return Value::makeNumber(midi.getChannel());
+	}
+	if (path == "channelSuffix") {
+		return Value::makeNumber(midi.channelSuffix);
+	}
+	if (path == "deviceDefinitionFileName") {
+		return Value::makeScalar(midi.deviceDefinitionFileName);
+	}
+	if (path == "outputMpeY") {
+		return Value::makeNumber(static_cast<int32_t>(midi.outputMPEY));
+	}
+	if (path == "collapseAftertouch") {
+		return Value::makeNumber(midi.collapseAftertouch ? 1 : 0);
+	}
+	if (path == "collapseMpe") {
+		return Value::makeNumber(midi.collapseMPE ? 1 : 0);
+	}
+	return std::nullopt;
+}
+
 std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddress& address, std::string_view path) {
+	if (address.group == SettingGroupId::TRACK || address.group == SettingGroupId::INSTRUMENT_DEVICE) {
+		::Output* output = findOutput(song, std::get<project::TrackAddress>(address.owner).output_id);
+		return output != nullptr ? engineTrackValue(*output, path) : std::nullopt;
+	}
 	if (address.group == SettingGroupId::SONG) {
 		if (path == "swingInterval") {
 			return Value::makeNumber(deluge::engine::index_of(song.project.groove.swing_interval));

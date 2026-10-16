@@ -2478,11 +2478,14 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	Instrument* instrument = (Instrument*)output;
 
+	// The output's channel is its record's; an output not adopted into a song has only its own.
+	const deluge::project::DocOutput* record = output->docOutput_;
 	if (output->type == OutputType::MIDI_OUT) {
-		writer.writeAttribute("midiChannel", ((MIDIInstrument*)instrument)->getChannel());
+		const auto* midi = static_cast<const MIDIInstrument*>(instrument);
+		writer.writeAttribute("midiChannel", record != nullptr ? record->channel : midi->getChannel());
 
-		if (((MIDIInstrument*)instrument)->channelSuffix != -1) {
-			writer.writeAttribute("midiChannelSuffix", ((MIDIInstrument*)instrument)->channelSuffix);
+		if (const int32_t suffix = record != nullptr ? record->channel_suffix : midi->channelSuffix; suffix != -1) {
+			writer.writeAttribute("midiChannelSuffix", suffix);
 		}
 
 		// MIDI PGM
@@ -2497,7 +2500,8 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		}
 	}
 	else if (output->type == OutputType::CV) {
-		writer.writeAttribute("cvChannel", ((CVInstrument*)instrument)->getChannel());
+		writer.writeAttribute("cvChannel",
+		                      record != nullptr ? record->channel : ((CVInstrument*)instrument)->getChannel());
 	}
 	else {
 		writer.writeAttribute("instrumentPresetName", output->name.c_str());

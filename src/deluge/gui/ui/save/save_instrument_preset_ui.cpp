@@ -28,6 +28,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -256,7 +257,8 @@ void SaveInstrumentPresetUI::afterStagedSave(const deluge::storage::SaveRequest&
 	display->removeWorkingAnimation();
 	// Give the Instrument in memory its new slot
 	if (Instrument* instrumentToSave = getCurrentInstrument(); instrumentToSave != nullptr) {
-		instrumentToSave->setName(request.enteredText);
+		deluge::edits::trackSettingFor(*instrumentToSave, "name",
+		                               deluge::serialization::Value::makeScalar(std::string{request.enteredText}));
 		instrumentToSave->setDirPath(request.dirPath);
 		instrumentToSave->mightExistOnCard = true;
 	}

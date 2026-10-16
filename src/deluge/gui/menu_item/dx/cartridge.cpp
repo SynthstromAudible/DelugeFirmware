@@ -25,6 +25,7 @@
 #include "io/file.hpp"
 #include "memory/allocate_unique.h"
 #include "memory/sdram_allocator.h"
+#include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
@@ -115,7 +116,7 @@ void DxCartridge::loadPatch() {
 		char name[11];
 		pd->getProgramName(currentValue, name);
 		if (name[0] != 0) {
-			instrument->setName(name);
+			deluge::edits::trackSettingFor(*instrument, "name", deluge::serialization::Value::makeScalar(name));
 		}
 	}
 }

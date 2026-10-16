@@ -19,6 +19,7 @@
 /// @brief The members of the two output items. See `output_items.h`.
 
 #include "scenes/menu/nodes/output_items.h"
+#include "model/edits/setting_edit.h"
 
 #include "scenes/browser/browser_scene.h" // MidiDeviceLinkedItem's link arm opens this
 #include "scenes/menu/context.h"
@@ -205,7 +206,8 @@ void MidiDeviceLinkedItem::on_focus(const MenuContext& ctx, MenuState& state) co
 		// Unlinking (`:45-48`): the new value is false, so just clear the file name. No UI is
 		// opened, so nothing is filed and `render` is what takes the user back out.
 		if (MIDIInstrument* instrument = midi_instrument_of(ctx); instrument != nullptr) {
-			instrument->setDeviceDefinitionFileName("");
+			deluge::edits::trackSettingFor(*instrument, "deviceDefinitionFileName",
+			                               deluge::serialization::Value::makeScalar(""));
 		}
 		return;
 	}
