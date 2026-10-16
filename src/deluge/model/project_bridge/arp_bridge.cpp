@@ -21,6 +21,7 @@
 #include "modulation/arpeggiator.h"
 #include "storage/storage_manager.h"
 
+#include <string>
 #include <utility>
 
 namespace deluge::bridge {
@@ -40,23 +41,26 @@ project::ArpRecord arpRecordOf(const ArpeggiatorSettings& settings, bool hostVal
 	    .kit_arp = settings.includeInKitArp,
 	};
 	if (hostValues) {
-		const auto held = [](uint32_t value) { return std::optional<int32_t>{static_cast<int32_t>(value)}; };
-		record.gate = settings.gate;
-		record.rate = settings.rate;
-		record.rhythm = held(settings.rhythm);
-		record.sequence_length = held(settings.sequenceLength);
-		record.chord_polyphony = held(settings.chordPolyphony);
-		record.ratchet_amount = held(settings.ratchetAmount);
-		record.note_probability = held(settings.noteProbability);
-		record.bass_probability = held(settings.bassProbability);
-		record.swap_probability = held(settings.swapProbability);
-		record.glide_probability = held(settings.glideProbability);
-		record.reverse_probability = held(settings.reverseProbability);
-		record.chord_probability = held(settings.chordProbability);
-		record.ratchet_probability = held(settings.ratchetProbability);
-		record.spread_velocity = held(settings.spreadVelocity);
-		record.spread_gate = held(settings.spreadGate);
-		record.spread_octave = held(settings.spreadOctave);
+		const auto hold = [&](std::string_view name, uint32_t value) {
+			project::set_host_value(record, std::string{"arpeggiator/"} + std::string{name},
+			                        static_cast<int32_t>(value));
+		};
+		hold("gate", static_cast<uint32_t>(settings.gate));
+		hold("rate", static_cast<uint32_t>(settings.rate));
+		hold("rhythm", settings.rhythm);
+		hold("sequenceLength", settings.sequenceLength);
+		hold("chordPolyphony", settings.chordPolyphony);
+		hold("ratchetAmount", settings.ratchetAmount);
+		hold("noteProbability", settings.noteProbability);
+		hold("bassProbability", settings.bassProbability);
+		hold("swapProbability", settings.swapProbability);
+		hold("glideProbability", settings.glideProbability);
+		hold("reverseProbability", settings.reverseProbability);
+		hold("chordProbability", settings.chordProbability);
+		hold("ratchetProbability", settings.ratchetProbability);
+		hold("spreadVelocity", settings.spreadVelocity);
+		hold("spreadGate", settings.spreadGate);
+		hold("spreadOctave", settings.spreadOctave);
 	}
 	return record;
 }
@@ -69,8 +73,9 @@ void seedArpRecord(std::optional<project::ArpRecord>& record, const ArpeggiatorS
 	if (hostValues) {
 		const project::ArpRecord engine = arpRecordOf(settings, true);
 		for (const engine::SettingInfo& row : engine::kArpHostRows) {
-			std::optional<int32_t>& value = *project::host_value_at(*record, row.path);
-			value = value.has_value() ? value : *project::host_value_at(engine, row.path);
+			if (!project::host_value(*record, row.path)) {
+				project::set_host_value(*record, row.path, project::host_value(engine, row.path));
+			}
 		}
 	}
 }
@@ -81,8 +86,9 @@ void writeArpAttributes(Serializer& writer, const ArpeggiatorSettings& settings,
 	if (hostValues) {
 		const project::ArpRecord engine = arpRecordOf(settings, true);
 		for (const engine::SettingInfo& row : engine::kArpHostRows) {
-			std::optional<int32_t>& value = *project::host_value_at(written, row.path);
-			value = value.has_value() ? value : *project::host_value_at(engine, row.path);
+			if (!project::host_value(written, row.path)) {
+				project::set_host_value(written, row.path, project::host_value(engine, row.path));
+			}
 		}
 	}
 	writer.writeValue(project::encode_settings(written, tickMagnitude));

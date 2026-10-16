@@ -204,7 +204,7 @@ describe setting_groups_owners("the owner setting groups", $ {
 		expect(holds_setting(song, arp, "arpeggiator/rate")).to_be_false();
 		expect(write_setting(song, arp, "arpeggiator/rate", Value::makeScalar("12"))).to_be_true();
 		expect(holds_setting(song, arp, "arpeggiator/rate")).to_be_true();
-		expect(song.clip_structure.find(7)->values.arp->rate).to_equal(std::optional<int32_t>{12});
+		expect(host_value(*song.clip_structure.find(7)->values.arp, "arpeggiator/rate")).to_equal(std::optional<int32_t>{12});
 	});
 
 	it("encodes an arp's record and decodes it back, absolute and relative to a tick magnitude", _ {
@@ -220,9 +220,9 @@ describe setting_groups_owners("the owner setting groups", $ {
 		record.sync_type = 10;
 		record.randomizer_lock = true;
 		record.kit_arp = false;
-		record.rate = -5;
-		record.note_probability = -1;
-		record.spread_octave = 1234;
+		set_host_value(record, "arpeggiator/rate", -5);
+		set_host_value(record, "arpeggiator/noteProbability", -1);
+		set_host_value(record, "arpeggiator/spreadOctave", 1234);
 		for (const std::optional<int32_t> magnitude : {std::optional<int32_t>{}, std::optional<int32_t>{2}}) {
 			ArpRecord back;
 			decode(encode(record, magnitude), back, magnitude);
@@ -230,6 +230,17 @@ describe setting_groups_owners("the owner setting groups", $ {
 		}
 		expect(encode(record, 2).find("syncLevel")->str()).to_equal(std::string{"7"});
 		expect(encode(record, std::nullopt).find("syncLevel")->str()).to_equal(std::string{"6"});
+	});
+
+	it("keeps an arp record small, its host values packed beside a mask of those it holds", _ {
+		// Every drum and instrument clip carries one, in the model's fast heap.
+		expect(sizeof(ArpRecord) <= size_t{84}).to_be_true();
+		ArpRecord record;
+		set_host_value(record, "arpeggiator/gate", 0);
+		expect(host_value(record, "arpeggiator/gate")).to_equal(std::optional<int32_t>{0});
+		expect(host_value(record, "arpeggiator/rate").has_value()).to_be_false();
+		set_host_value(record, "arpeggiator/gate", std::nullopt);
+		expect(record == ArpRecord{}).to_be_true();
 	});
 
 	it("decodes an arp's mode from the single mode word of older files", _ {

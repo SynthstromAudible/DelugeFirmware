@@ -85,6 +85,26 @@ struct SettingAddress {
 /// @return The value; a host value the record does not hold reads as its row's default. Nullopt for any other path.
 [[nodiscard]] std::optional<serialization::Value> arp_setting_value(const ArpRecord& record, std::string_view path);
 
+/// @brief A record as it was before a write that may reshape it beyond the written path: an arp's, whose preset writes
+///        three fields and whose first write creates it. Empty for every other group, whose writes touch their path
+///        alone.
+struct SettingRecordSnapshot {
+	std::optional<std::optional<ArpRecord>> arp; ///< the arp record slot, when the address names one
+};
+
+/// @brief @p address's record as it is now, for restore_setting_record.
+/// @param song    The song whose records hold it.
+/// @param address The group and owner.
+/// @return The snapshot; empty for a group whose writes touch their path alone, or an owner that does not resolve.
+[[nodiscard]] SettingRecordSnapshot snapshot_setting_record(Song& song, const SettingAddress& address);
+
+/// @brief Put @p address's record back as @p snapshot took it.
+/// @param song     The song whose records hold it.
+/// @param address  The group and owner the snapshot was taken at.
+/// @param snapshot What snapshot_setting_record returned.
+/// @return True when the snapshot held a record and it was put back; false for an empty snapshot.
+bool restore_setting_record(Song& song, const SettingAddress& address, const SettingRecordSnapshot& snapshot);
+
 /// @brief Whether @p group's value at @p path is a command its record derives rather than holds: an arp's preset, which
 ///        writes the modes it stands for and reads back as the preset those modes make (so "custom" reads as "up").
 /// @param group The group.

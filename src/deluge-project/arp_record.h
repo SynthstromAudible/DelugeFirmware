@@ -9,6 +9,8 @@
 
 #include "engine-api/types/arp.h"
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string_view>
@@ -33,90 +35,51 @@ struct ArpRecord {
 	/// @}
 
 	/// @name Host values, held where they are settings
-	/// File form: a signed 32-bit number.
+	/// File form: a signed 32-bit number, one per row of kArpHostRows in that order; read and written through
+	/// host_value and set_host_value.
 	/// @{
-	std::optional<int32_t> gate;
-	std::optional<int32_t> rate;
-	std::optional<int32_t> rhythm;
-	std::optional<int32_t> sequence_length;
-	std::optional<int32_t> chord_polyphony;
-	std::optional<int32_t> ratchet_amount;
-	std::optional<int32_t> note_probability;
-	std::optional<int32_t> bass_probability;
-	std::optional<int32_t> swap_probability;
-	std::optional<int32_t> glide_probability;
-	std::optional<int32_t> reverse_probability;
-	std::optional<int32_t> chord_probability;
-	std::optional<int32_t> ratchet_probability;
-	std::optional<int32_t> spread_velocity;
-	std::optional<int32_t> spread_gate;
-	std::optional<int32_t> spread_octave;
+	uint16_t host_held{0};                                          ///< bit i: the record holds host value i
+	std::array<int32_t, engine::kArpHostRows.size()> host_values{}; ///< 0 where not held
 	/// @}
 
 	bool operator==(const ArpRecord&) const = default;
 };
 
-/// @brief The slot of the host value at @p path.
-/// @param record The record (const or not).
+static_assert(engine::kArpHostRows.size() <= 16, "ArpRecord::host_held has a bit per host value");
+
+/// @brief The index of host value @p path among kArpHostRows.
+/// @param path A path of kArpHostRows.
+/// @return Its index, or nullopt for a path that is not a host row.
+[[nodiscard]] constexpr std::optional<size_t> host_index(std::string_view path) {
+	for (size_t i = 0; i < engine::kArpHostRows.size(); ++i) {
+		if (engine::kArpHostRows[i].path == path) {
+			return i;
+		}
+	}
+	return std::nullopt;
+}
+
+/// @brief The host value @p record holds at @p path.
+/// @param record The record.
 /// @param path   A path of kArpHostRows.
-/// @return Its slot, or nullptr for a path that is not a host row.
-template <typename Record>
-[[nodiscard]] auto* host_value_at(Record& record, std::string_view path) {
-	using Slot = decltype(&record.gate);
-	constexpr std::string_view kPrefix = "arpeggiator/";
-	if (!path.starts_with(kPrefix)) {
-		return Slot{nullptr};
+/// @return The value, or nullopt where the record holds none (or @p path is not a host row).
+[[nodiscard]] constexpr std::optional<int32_t> host_value(const ArpRecord& record, std::string_view path) {
+	const std::optional<size_t> i = host_index(path);
+	return i && (record.host_held & (1u << *i)) != 0 ? std::optional<int32_t>{record.host_values[*i]} : std::nullopt;
+}
+
+/// @brief Hold @p value as @p record's host value at @p path, or forget it.
+/// @param record The record.
+/// @param path   A path of kArpHostRows; any other path changes nothing.
+/// @param value  The value, or nullopt to hold none.
+constexpr void set_host_value(ArpRecord& record, std::string_view path, std::optional<int32_t> value) {
+	const std::optional<size_t> i = host_index(path);
+	if (!i) {
+		return;
 	}
-	const std::string_view name = path.substr(kPrefix.size());
-	if (name == "gate") {
-		return &record.gate;
-	}
-	if (name == "rate") {
-		return &record.rate;
-	}
-	if (name == "rhythm") {
-		return &record.rhythm;
-	}
-	if (name == "sequenceLength") {
-		return &record.sequence_length;
-	}
-	if (name == "chordPolyphony") {
-		return &record.chord_polyphony;
-	}
-	if (name == "ratchetAmount") {
-		return &record.ratchet_amount;
-	}
-	if (name == "noteProbability") {
-		return &record.note_probability;
-	}
-	if (name == "bassProbability") {
-		return &record.bass_probability;
-	}
-	if (name == "swapProbability") {
-		return &record.swap_probability;
-	}
-	if (name == "glideProbability") {
-		return &record.glide_probability;
-	}
-	if (name == "reverseProbability") {
-		return &record.reverse_probability;
-	}
-	if (name == "chordProbability") {
-		return &record.chord_probability;
-	}
-	if (name == "ratchetProbability") {
-		return &record.ratchet_probability;
-	}
-	if (name == "spreadVelocity") {
-		return &record.spread_velocity;
-	}
-	if (name == "spreadGate") {
-		return &record.spread_gate;
-	}
-	if (name == "spreadOctave") {
-		return &record.spread_octave;
-	}
-	return Slot{nullptr};
+	const auto bit = static_cast<uint16_t>(1u << *i);
+	record.host_held = value ? record.host_held | bit : record.host_held & ~bit;
+	record.host_values[*i] = value.value_or(0);
 }
 
 /// @brief The slot of the setting at @p path, other than the preset (which the record derives).

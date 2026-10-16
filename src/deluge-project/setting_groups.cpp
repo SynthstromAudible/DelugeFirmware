@@ -563,8 +563,8 @@ std::optional<Value> read_arp(const ArpRecord& record, std::string_view path) {
 	if (path == "arpeggiator/preset") {
 		return word(engine::kArpPresetWords, preset_of(record));
 	}
-	if (const std::optional<int32_t>* host = host_value_at(record, path)) {
-		return number(host->value_or(engine::find_setting(engine::kArpHostRows, path)->default_value));
+	if (const engine::SettingInfo* host = engine::find_setting(engine::kArpHostRows, path)) {
+		return number(host_value(record, path).value_or(host->default_value));
 	}
 	if (const bool* flag = arp_flag_at(record, path)) {
 		return number(*flag ? 1 : 0);
@@ -593,8 +593,8 @@ void write_arp(ArpRecord& record, std::string_view path, const Value& value) {
 		return;
 	}
 	const int32_t v = integer_of(value).value_or(0);
-	if (std::optional<int32_t>* host = host_value_at(record, path)) {
-		*host = v;
+	if (host_index(path)) {
+		set_host_value(record, path, v);
 	}
 	else if (bool* flag = arp_flag_at(record, path)) {
 		*flag = v != 0;
@@ -605,6 +605,26 @@ void write_arp(ArpRecord& record, std::string_view path, const Value& value) {
 }
 
 } // namespace
+
+SettingRecordSnapshot snapshot_setting_record(Song& song, const SettingAddress& address) {
+	if (!is_arp_group(address.group)) {
+		return {};
+	}
+	const std::optional<ArpRecord>* record = arp_record_of(song, address);
+	return record != nullptr ? SettingRecordSnapshot{.arp = *record} : SettingRecordSnapshot{};
+}
+
+bool restore_setting_record(Song& song, const SettingAddress& address, const SettingRecordSnapshot& snapshot) {
+	if (!snapshot.arp || !is_arp_group(address.group)) {
+		return false;
+	}
+	std::optional<ArpRecord>* record = arp_record_of(song, address);
+	if (record == nullptr) {
+		return false;
+	}
+	*record = *snapshot.arp;
+	return true;
+}
 
 bool is_derived_setting(SettingGroupId group, std::string_view path) {
 	return is_arp_group(group) && path == "arpeggiator/preset";
@@ -820,11 +840,16 @@ std::optional<int32_t>* own_slot(Song& song, const SettingAddress& address, std:
 		DocNoteRow* row = row_address != nullptr ? resolve_note_row(song, *row_address) : nullptr;
 		return row != nullptr ? &row->bend_range : nullptr;
 	}
-	if (is_arp_group(address.group)) {
-		std::optional<ArpRecord>* record = arp_record_of(song, address);
-		return record != nullptr && record->has_value() ? host_value_at(**record, path) : nullptr;
-	}
 	return nullptr;
+}
+
+/// The arp record whose host value at @p path @p address names, or nullptr.
+ArpRecord* arp_host_owner(Song& song, const SettingAddress& address, std::string_view path) {
+	if (!is_arp_group(address.group) || !host_index(path)) {
+		return nullptr;
+	}
+	std::optional<ArpRecord>* record = arp_record_of(song, address);
+	return record != nullptr && record->has_value() ? &**record : nullptr;
 }
 
 bool leavable(const SettingAddress& address, std::string_view path) {
@@ -839,12 +864,19 @@ bool holds_setting(Song& song, const SettingAddress& address, std::string_view p
 	if (!leavable(address, path)) {
 		return read_setting(song, address, path).has_value();
 	}
+	if (is_arp_group(address.group)) {
+		const ArpRecord* record = arp_host_owner(song, address, path);
+		return record != nullptr && host_value(*record, path).has_value();
+	}
 	const std::optional<int32_t>* slot = own_slot(song, address, path);
 	return slot != nullptr && slot->has_value();
 }
 
 void forget_setting(Song& song, const SettingAddress& address, std::string_view path) {
-	if (std::optional<int32_t>* slot = own_slot(song, address, path)) {
+	if (ArpRecord* record = arp_host_owner(song, address, path)) {
+		set_host_value(*record, path, std::nullopt);
+	}
+	else if (std::optional<int32_t>* slot = own_slot(song, address, path)) {
 		slot->reset();
 	}
 }

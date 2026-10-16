@@ -624,6 +624,31 @@ describe song_settings_edit("SetSetting", $ {
 		const SettingAddress arp{SettingGroupId::LANE_ARP, *deluge::bridge::laneAddressOf(*gate, *f.song)};
 		expect(recorded(*f.song, arp, "arpeggiator/numOctaves")).to_equal(std::string{"1"});
 	});
+
+	it("leaves a clip with no arp record without one when its arp refuses a value", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		f.clip->docClip_->values.arp.reset();
+		const SettingAddress arp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*f.clip, *f.song)};
+		deluge::edits::Context ctx{*f.song, f.song->project};
+		deluge::edits::SetSetting edit{arp, "arpeggiator/rate", Value::makeNumber(5)}; // a param on a synth
+		expect(static_cast<int>(deluge::edits::apply(ctx, edit))).to_equal(static_cast<int>(Error::UNSPECIFIED));
+		expect(f.clip->docClip_->values.arp.has_value()).to_be_false();
+	});
+
+	it("keeps an arp's modes when a refused preset is rolled back", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		deluge::project::DocClip& orphan = f.song->project.clip_structure.getOrCreate(4242); // no engine clip
+		deluge::project::ArpRecord& record = orphan.values.arp.emplace();
+		record.mode = 1;
+		record.octave_mode = 2;
+		record.note_mode = 4;
+		const deluge::project::ArpRecord before = record;
+		deluge::edits::Context ctx{*f.song, f.song->project};
+		deluge::edits::SetSetting edit{{SettingGroupId::CLIP_ARP, deluge::project::ClipAddress{.clip_id = 4242}},
+		                               "arpeggiator/preset", Value::makeScalar("down")};
+		expect(static_cast<int>(deluge::edits::apply(ctx, edit))).to_equal(static_cast<int>(Error::UNSPECIFIED));
+		expect(*orphan.values.arp == before).to_be_true();
+	});
 });
 // clang-format on
 

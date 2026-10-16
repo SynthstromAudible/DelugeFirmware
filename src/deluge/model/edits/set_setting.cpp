@@ -11,6 +11,7 @@ Error SetSetting::apply(Context& ctx) {
 	const std::optional<deluge::serialization::Value> previous =
 	    deluge::project::read_setting(ctx.model, address_, path_);
 	const bool held = deluge::project::holds_setting(ctx.model, address_, path_);
+	const deluge::project::SettingRecordSnapshot before = deluge::project::snapshot_setting_record(ctx.model, address_);
 	if (!deluge::project::write_setting(ctx.model, address_, path_, value_)) {
 		return Error::UNSPECIFIED;
 	}
@@ -18,8 +19,10 @@ Error SetSetting::apply(Context& ctx) {
 	    deluge::bridge::projectSetting(ctx.song, address_, path_, previous ? &*previous : nullptr, &value_);
 	if (projected != Error::NONE) {
 		// The engine took nothing (an owner of a kind the setting is not for): the record keeps what it held, and a
-		// value it left to the track stays left.
-		if (!held) {
+		// value it left to the track stays left. A record a write may reshape past its path (an arp's) is put back
+		// whole.
+		if (deluge::project::restore_setting_record(ctx.model, address_, before)) {}
+		else if (!held) {
 			deluge::project::forget_setting(ctx.model, address_, path_);
 		}
 		else if (previous) {

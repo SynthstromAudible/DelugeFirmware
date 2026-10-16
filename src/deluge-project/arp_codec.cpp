@@ -86,8 +86,8 @@ Value encode_settings(const ArpRecord& record, std::optional<int32_t> tick_magni
 Value encode_host(const ArpRecord& record) {
 	Value map = Value::makeMap();
 	for (std::string_view attribute : kHostOrder) {
-		if (const std::optional<int32_t>* value = host_value_at(record, path_of(attribute)); value->has_value()) {
-			map.set(std::string{attribute}, Value::makeNumber(**value));
+		if (const std::optional<int32_t> value = host_value(record, path_of(attribute))) {
+			map.set(std::string{attribute}, Value::makeNumber(*value));
 		}
 	}
 	return map;
@@ -144,7 +144,7 @@ void decode(const Value& arpElement, ArpRecord& record, std::optional<int32_t> t
 	}
 	for (std::string_view attribute : kHostOrder) {
 		if (const auto v = integer(attribute)) {
-			*host_value_at(record, path_of(attribute)) = static_cast<int32_t>(*v);
+			set_host_value(record, path_of(attribute), static_cast<int32_t>(*v));
 		}
 	}
 }
