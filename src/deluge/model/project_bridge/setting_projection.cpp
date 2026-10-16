@@ -1011,9 +1011,13 @@ std::optional<project::LaneAddress> laneAddressOf(::Drum& drum, ::Song& song) {
 	if (!drum_id || song.project.drum_structure.find(*drum_id) == nullptr) {
 		return std::nullopt;
 	}
-	for (::Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
-		if (output->type == OutputType::KIT && output->id() && findDrum(song, *output->id(), *drum_id) == &drum) {
-			return project::LaneAddress{.kit_id = *output->id(), .drum_id = *drum_id};
+	// A hibernating kit keeps its rows' records, as a playing one does.
+	for (::Output* first :
+	     {song.live.media.first_output, static_cast<::Output*>(song.live.media.first_hibernating_instrument)}) {
+		for (::Output* output = first; output != nullptr; output = output->next) {
+			if (output->type == OutputType::KIT && output->id() && findDrum(song, *output->id(), *drum_id) == &drum) {
+				return project::LaneAddress{.kit_id = *output->id(), .drum_id = *drum_id};
+			}
 		}
 	}
 	return std::nullopt;

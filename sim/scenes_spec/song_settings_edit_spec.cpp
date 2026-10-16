@@ -649,6 +649,17 @@ describe song_settings_edit("SetSetting", $ {
 		expect(static_cast<int>(deluge::edits::apply(ctx, edit))).to_equal(static_cast<int>(Error::UNSPECIFIED));
 		expect(*orphan.values.arp == before).to_be_true();
 	});
+
+	it("records a hibernating kit row's arp", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		MIDIDrum* drum = spec::add_drum<MIDIDrum>(f);
+		f.song->moveInstrumentToHibernationList(f.instrument);
+		deluge::edits::laneArpSettingFor(*drum, "arpeggiator/numOctaves", Value::makeNumber(4));
+		const auto lane = deluge::bridge::laneAddressOf(*drum, *f.song);
+		expect(lane.has_value()).to_be_true();
+		expect(static_cast<int>(drum->docDrum_->arp->num_octaves)).to_equal(4);
+		expect(static_cast<int>(drum->arpSettings.numOctaves)).to_equal(4);
+	});
 });
 // clang-format on
 
