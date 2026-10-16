@@ -44,6 +44,7 @@
 #include "scenarios/sample_collect_scenario.h"
 #include "scenarios/sample_load_tree_scenario.h"
 #include "scenarios/save_roundtrip_scenario.h"
+#include "scenarios/scenes_spec_scenario.h"
 #include "scenarios/settings_channel_scenario.h"
 #include "scenarios/song_load_channel_scenario.h"
 #include "scenarios/song_preview_ab_scenario.h"
@@ -230,6 +231,9 @@ constexpr DelugeScenario kScenarios[] = {
     {"menu_dump", nullptr, &deluge_scenario_menu_dump_begin, &deluge_scenario_menu_dump_complete,
      &deluge_scenario_menu_dump_dispatch_step, &deluge_scenario_menu_dump_step_done,
      &deluge_scenario_menu_dump_failures},
+    {"scenes_spec", &deluge_scenario_scenes_spec_on_app_init, &deluge_scenario_scenes_spec_begin,
+     &deluge_scenario_scenes_spec_complete, &deluge_scenario_scenes_spec_dispatch_step,
+     &deluge_scenario_scenes_spec_step_done, &deluge_scenario_scenes_spec_failures},
     {"ui_script", nullptr, &deluge_scenario_ui_script_begin, &deluge_scenario_ui_script_complete,
      &deluge_scenario_ui_script_dispatch_step, &deluge_scenario_ui_script_step_done,
      &deluge_scenario_ui_script_failures},

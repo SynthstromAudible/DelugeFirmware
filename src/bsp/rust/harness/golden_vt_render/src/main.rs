@@ -1419,6 +1419,12 @@ fn main() {
                 )))
             }
             // The card tree run.py stages for one preset case; there is no fixture to fall back on.
+            // A scenes spec file's card: SCENES_SPEC_CARD ("none" for an empty card), or the fixture.
+            "scenes_spec" => match std::env::var("SCENES_SPEC_CARD").as_deref() {
+                Ok("none") => memory_card::install(None),
+                Ok(dir) => memory_card::install(Some(std::path::Path::new(dir))),
+                Err(_) => memory_card::install(Some(&repo_root.join("tests/fixtures/card"))),
+            },
             // The card a UI script plays on: UI_CARD, or the scripts' own fixture.
             "ui_script" => memory_card::install(Some(&std::env::var_os("UI_CARD").map_or_else(
                 || repo_root.join("tests/fixtures/card"),

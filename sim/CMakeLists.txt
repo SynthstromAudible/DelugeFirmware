@@ -264,6 +264,7 @@ add_subdirectory(${REPO_ROOT}/tests/harness/level3 ${CMAKE_BINARY_DIR}/level3) #
 add_subdirectory(${REPO_ROOT}/tests/integration/scenarios ${CMAKE_BINARY_DIR}/scenarios) # deluge_scenarios: host only
 # deluge_scenes: the first UI layer allowed to include the model. Links deluge_app, so it comes after it.
 add_subdirectory(${REPO_ROOT}/src/scenes     ${CMAKE_BINARY_DIR}/scenes)     # deluge_scenes
+add_subdirectory(${REPO_ROOT}/sim/scenes_spec ${CMAKE_BINARY_DIR}/scenes_spec) # deluge_scenes_spec: the scenes' specs
 
 # The UI's level-3 scripts and the menu dump run as golden_vt_render scenarios (the ui-scripts and
 # ui-menu-dump gates); the UI layers' BSP-free specs run with the unit specs.

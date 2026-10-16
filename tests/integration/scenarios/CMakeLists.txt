@@ -8,6 +8,6 @@ file(GLOB deluge_scenarios_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*
 add_library(deluge_scenarios OBJECT ${deluge_scenarios_SOURCES})
 
 # The app's include paths, definitions and options: scenarios drive the app's own code.
-target_link_libraries(deluge_scenarios PRIVATE deluge_app deluge_ui_level3)
+target_link_libraries(deluge_scenarios PRIVATE deluge_app deluge_ui_level3 deluge_scenes_spec)
 # <scenarios/...> for the scenarios themselves and for the host executables that call them.
 target_include_directories(deluge_scenarios PUBLIC ${CMAKE_CURRENT_LIST_DIR}/..)

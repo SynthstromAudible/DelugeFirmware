@@ -1,0 +1,46 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+// Generated from sim/scenes_spec/entries.cpp.in by sim/scenes_spec/CMakeLists.txt: one row per ported spec file.
+
+#include "entries.h"
+
+#include <cstring>
+#include <iterator>
+
+@_decls@
+namespace {
+const DelugeSceneSpecEntry kEntries[] = {
+@_rows@};
+} // namespace
+
+extern "C" const DelugeSceneSpecEntry* deluge_scenes_spec_find(const char* id) {
+	for (const DelugeSceneSpecEntry& entry : kEntries) {
+		if (std::strcmp(entry.id, id) == 0) {
+			return &entry;
+		}
+	}
+	return nullptr;
+}
+
+extern "C" size_t deluge_scenes_spec_count(void) {
+	return std::size(kEntries);
+}
+
+extern "C" const char* deluge_scenes_spec_id(size_t i) {
+	return i < std::size(kEntries) ? kEntries[i].id : nullptr;
+}
