@@ -4,13 +4,13 @@
 /// @brief The per-device MIDI page -- the subtree `midi_devices` chains to -- and the MPE
 ///        direction/zone selectors that hang off it.
 ///
-/// The port of `midi::Device midiDeviceMenu` (`gui/ui/menus.cpp:1444-1453`), the five-child submenu
+/// The port of `midi::Device midiDeviceMenu` (`gui/ui/menus.cpp:1444-1453`), the six-child submenu
 /// `midi::Devices::selectButtonPress` returns (`gui/menu_item/midi/devices.cpp:154-156`). E2 task 10
 /// declared the device *list* and recorded this page as owed (`nodes/dynamic.h`, "What is still
 /// owed"); this file is that debt, and `settings.h`'s `midi_devices` gains its `select_chain` with
 /// it, so the page is reachable, numbered, validated and dumped.
 ///
-/// ## The five children, each with its legacy item
+/// ## The six children, each with its legacy item
 ///
 ///   | node | legacy item | legacy write |
 ///   |---|---|---|
@@ -22,19 +22,20 @@
 ///   `MIDICable::sendClock` | | `device_receive_clock` | `midi::DeviceReceiveClock device_receive_clock_menu`
 ///   (`menus.cpp:1442`, `midi/device_receive_clock.h:24-32`) | `MIDICable::receiveClock` | | `device_is_relative` |
 ///   `midi::DeviceIsRelative device_is_relative_menu` (`menus.cpp:1443`, `midi/device_is_relative.h:24-32`) |
-///   `MIDICable::is_relative` |
+///   `MIDICable::is_relative` | | `device_send_thru` | `midi::DeviceSendThru device_send_thru_menu` (`menus.cpp:1447`)
+///   | `MIDICable::midi_thru` |
 ///
 /// ## The per-cable binding family
 ///
-/// Four of the five are ordinary data nodes -- a `Kind::Int` and three `Kind::Toggle` -- whose
+/// Five of the six are ordinary data nodes -- a `Kind::Int` and four `Kind::Toggle` -- whose
 /// `get`/`set` hooks read and write **`MenuContext::midi_cable`**. That field is new territory for a
 /// binding: every hook shipped before this one reads a device-wide global (`FlashStorage`,
 /// `midiEngine`, `playbackHandler`, `cvEngine`) or the context's song/sound. `midi_cable` is the
 /// one `MenuContext` member `context_for()` never assigns -- the device list publishes it, through
 /// `MenuState::midi_cable_choice` and `MenuScene::after_render` (`menu_scene.h`, mailbox 3) -- so
-/// these four are the first nodes in the tree whose value depends on a *selection the user made two
+/// these five are the first nodes in the tree whose value depends on a *selection the user made two
 /// pages up*. Legacy spells the same dependency as `soundEditor.currentMIDICable->...` in each of
-/// the four `readCurrentValue`/`writeCurrentValue` pairs.
+/// the five `readCurrentValue`/`writeCurrentValue` pairs.
 ///
 /// A null `ctx.midi_cable` reads 0 and writes nothing. Legacy dereferences unconditionally, because
 /// its own navigation cannot reach the page without `Devices::beginSession` having assigned the
@@ -158,6 +159,11 @@ void set_device_receive_clock(const MenuContext& ctx, int32_t value);
 int32_t get_device_is_relative(const MenuContext& ctx);
 /// `midi::DeviceIsRelative::writeCurrentValue` (`:28-31`).
 void set_device_is_relative(const MenuContext& ctx, int32_t value);
+
+/// `midi::DeviceSendThru::readCurrentValue` (`midi/device_send_thru.h`).
+int32_t get_device_send_thru(const MenuContext& ctx);
+/// `midi::DeviceSendThru::writeCurrentValue`.
+void set_device_send_thru(const MenuContext& ctx, int32_t value);
 /// @}
 
 /// @name The member-channel page's two model reads, exposed rather than file-local.
@@ -274,10 +280,14 @@ inline constexpr Node device_receive_clock =
     toggle_item(sid(deluge::l10n::String::STRING_FOR_CLOCK_IN), get_device_receive_clock, set_device_receive_clock);
 inline constexpr Node device_is_relative =
     toggle_item(sid(deluge::l10n::String::STRING_FOR_IS_RELATIVE), get_device_is_relative, set_device_is_relative);
+inline constexpr Node device_send_thru =
+    toggle_item(sid(deluge::l10n::String::STRING_FOR_MIDI_THRU), get_device_send_thru, set_device_send_thru);
 
-/// `midiDeviceMenu`'s children, in the literal's own order (`gui/ui/menus.cpp:1447-1451`).
+/// `midiDeviceMenu`'s children, in the literal's own order (`gui/ui/menus.cpp`).
 inline constexpr const Node* kMidiDeviceChildren[] = {
-    &mpe_direction, &device_default_velocity_to_level, &device_send_clock, &device_receive_clock, &device_is_relative,
+    &mpe_direction,      &device_default_velocity_to_level,
+    &device_send_clock,  &device_receive_clock,
+    &device_is_relative, &device_send_thru,
 };
 
 /// `midi::Device midiDeviceMenu` (`gui/ui/menus.cpp:1444-1453`). See the file note on its title.

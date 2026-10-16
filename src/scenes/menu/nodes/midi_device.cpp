@@ -227,6 +227,18 @@ void set_device_is_relative(const MenuContext& ctx, int32_t value) {
 	MIDIDeviceManager::anyChangesToSave = true;
 }
 
+int32_t get_device_send_thru(const MenuContext& ctx) {
+	return ctx.midi_cable != nullptr && ctx.midi_cable->midi_thru ? 1 : 0;
+}
+
+void set_device_send_thru(const MenuContext& ctx, int32_t value) {
+	if (ctx.midi_cable == nullptr) {
+		return;
+	}
+	ctx.midi_cable->midi_thru = value != 0;
+	MIDIDeviceManager::anyChangesToSave = true;
+}
+
 // ---------------------------------------------------------------------------------------------
 // `mpe::DirectionSelector` (`gui/menu_item/mpe/direction_selector.{h,cpp}`)
 

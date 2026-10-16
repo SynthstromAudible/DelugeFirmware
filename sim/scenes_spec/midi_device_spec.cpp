@@ -9,13 +9,13 @@
 ///
 /// ## The trap this spec is shaped against
 ///
-/// Five near-identical per-cable leaves is exactly the shape where a positional test pins nothing:
-/// `sendClock`, `receiveClock` and `is_relative` are three `bool`s on the same object, and a
+/// Six near-identical per-cable leaves is exactly the shape where a positional test pins nothing:
+/// `sendClock`, `receiveClock`, `is_relative` and `midi_thru` are four `bool`s on the same object, and a
 /// `get`/`set` pair wired to the wrong one of them reads back perfectly from its own hook. So:
 ///
 ///   * **the mapping is proved by mutation, and asserted by identity.** Every comparison captures
 ///     the *whole* observable state of *both* cables as one string (`CableState::describe`) -- all
-///     four per-cable fields and all four MPE member-channel numbers, on both -- so a swapped pair
+///     five per-cable fields and all four MPE member-channel numbers, on both -- so a swapped pair
 ///     of hooks changes the string even though every individual read still round-trips.
 ///   * **the fixture has two cables**, and every write is checked to leave the other one exactly
 ///     where it was. `MenuContext::midi_cable` is the first binding input that is a *selection*
@@ -54,6 +54,7 @@
 #include "gui/menu_item/midi/device_is_relative.h"
 #include "gui/menu_item/midi/device_receive_clock.h"
 #include "gui/menu_item/midi/device_send_clock.h"
+#include "gui/menu_item/midi/device_send_thru.h"
 #include "gui/menu_item/midi/devices.h"
 #include "gui/menu_item/mpe/direction_selector.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
@@ -96,6 +97,7 @@ extern legacy::midi::DefaultVelocityToLevel defaultVelocityToLevelMenu;
 extern legacy::midi::DeviceSendClock device_send_clock_menu;
 extern legacy::midi::DeviceReceiveClock device_receive_clock_menu;
 extern legacy::midi::DeviceIsRelative device_is_relative_menu;
+extern legacy::midi::DeviceSendThru device_send_thru_menu;
 /// @}
 
 using namespace deluge::scenes;
@@ -163,7 +165,7 @@ protected:
 
 /// @brief Every field the page can touch, on both cables, as one string.
 ///
-/// The identity table this spec turns on: four per-cable settings and both `MIDIPort`s' two
+/// The identity table this spec turns on: five per-cable settings and both `MIDIPort`s' two
 /// member-channel numbers, for cable A **and** cable B. A hook wired to the wrong field, the wrong
 /// port or the wrong cable moves this string; a hook that merely round-trips through itself does
 /// not.
@@ -175,6 +177,7 @@ struct CableState {
 		s += " sendClock=" + std::to_string(int(c.sendClock));
 		s += " recvClock=" + std::to_string(int(c.receiveClock));
 		s += " relative=" + std::to_string(int(c.is_relative));
+		s += " thru=" + std::to_string(int(c.midi_thru));
 		for (int32_t p = 0; p < 2; p++) {
 			s += (p == 0 ? " in[" : " out[");
 			s += std::to_string(c.ports[p].mpeLowerZoneLastMemberChannel) + ","
@@ -194,6 +197,7 @@ void baseline(SpecCable& a, SpecCable& b) {
 	a.sendClock = true;
 	a.receiveClock = false;
 	a.is_relative = false;
+	a.midi_thru = true;
 	a.ports[0].mpeLowerZoneLastMemberChannel = 3;
 	a.ports[0].mpeUpperZoneLastMemberChannel = 12;
 	a.ports[1].mpeLowerZoneLastMemberChannel = 5;
@@ -204,6 +208,7 @@ void baseline(SpecCable& a, SpecCable& b) {
 	b.sendClock = false;
 	b.receiveClock = true;
 	b.is_relative = true;
+	b.midi_thru = false;
 	b.ports[0].mpeLowerZoneLastMemberChannel = 1;
 	b.ports[0].mpeUpperZoneLastMemberChannel = 14;
 	b.ports[1].mpeLowerZoneLastMemberChannel = 2;
@@ -334,12 +339,12 @@ std::string text_of(uint16_t id) {
 // clang-format off
 describe midi_device_shape("scenes::menu E3 task 8: the per-device MIDI page's shape and chain", $ {
 
-	it("declares midiDeviceMenu's five children, in the literal's own order and with its names", _ {
+	it("declares midiDeviceMenu's six children, in the literal's own order and with its names", _ {
 		// `midi::Device midiDeviceMenu{EMPTY_STRING, {...}}` (`gui/ui/menus.cpp:1444-1453`), read off
 		// the live legacy object rather than restated here.
 		select_language();
 		const auto& legacy_items = SubmenuPeek::items_of(midiDeviceMenu);
-		expect(legacy_items.size()).to_equal(size_t(5));
+		expect(legacy_items.size()).to_equal(size_t(6));
 		expect(nodes::midi_device.children.size()).to_equal(legacy_items.size());
 		expect(nodes::midi_device.kind == menu::Kind::Submenu).to_be_true();
 
@@ -350,7 +355,7 @@ describe midi_device_shape("scenes::menu E3 task 8: the per-device MIDI page's s
 		}
 	});
 
-	it("points each of the five at the item it is, and at no other -- by identity", _ {
+	it("points each of the six at the item it is, and at no other -- by identity", _ {
 		// The positional check above would pass with two leaves swapped, because a swap moves both
 		// names together. This names each node's own identity: which `CustomItem` (or which pair of
 		// hooks) it carries. A hook table shuffled between two of the three `Kind::Toggle` leaves is
@@ -370,6 +375,8 @@ describe midi_device_shape("scenes::menu E3 task 8: the per-device MIDI page's s
 		expect(nodes::device_receive_clock.bind.set == &nodes::set_device_receive_clock).to_be_true();
 		expect(nodes::device_is_relative.bind.get == &nodes::get_device_is_relative).to_be_true();
 		expect(nodes::device_is_relative.bind.set == &nodes::set_device_is_relative).to_be_true();
+		expect(nodes::device_send_thru.bind.get == &nodes::get_device_send_thru).to_be_true();
+		expect(nodes::device_send_thru.bind.set == &nodes::set_device_send_thru).to_be_true();
 
 		// The three toggles are `Kind::Toggle` because their legacy items are `Toggle`s
 		// (`midi/device_send_clock.h:24`, `device_receive_clock.h:24`, `device_is_relative.h:24`);
@@ -378,6 +385,7 @@ describe midi_device_shape("scenes::menu E3 task 8: the per-device MIDI page's s
 		expect(nodes::device_send_clock.kind == menu::Kind::Toggle).to_be_true();
 		expect(nodes::device_receive_clock.kind == menu::Kind::Toggle).to_be_true();
 		expect(nodes::device_is_relative.kind == menu::Kind::Toggle).to_be_true();
+		expect(nodes::device_send_thru.kind == menu::Kind::Toggle).to_be_true();
 		expect(nodes::device_default_velocity_to_level.kind == menu::Kind::Int).to_be_true();
 		expect(nodes::device_default_velocity_to_level.bind.style.off_at_zero).to_be_true();
 		expect(bindings::range(nodes::device_default_velocity_to_level, fixture().ctx).max).to_equal(kMaxMenuValue);
@@ -429,12 +437,13 @@ describe midi_device_shape("scenes::menu E3 task 8: the per-device MIDI page's s
 	it("declares the page and its three chain-only MPE nodes with ids, and validates them clean", _ {
 		// The reachability half: `assign_node_ids` and `validate_tree` follow `chain_targets`, so a
 		// page reachable only through a chain is still numbered (addressable by `SceneId::arg`) and
-		// still checked. Without `midi_devices`' `select_chain` none of these eight had an id at all.
+		// still checked. Without `midi_devices`' `select_chain` none of these nine had an id at all.
 		select_language();
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		for (const Node* n : {&nodes::midi_device, &nodes::mpe_direction, &nodes::mpe_zone,
 		                      &nodes::mpe_zone_num_member_channels, &nodes::device_default_velocity_to_level,
-		                      &nodes::device_send_clock, &nodes::device_receive_clock, &nodes::device_is_relative}) {
+		                      &nodes::device_send_clock, &nodes::device_receive_clock, &nodes::device_is_relative,
+		                      &nodes::device_send_thru}) {
 			expect(text_of(n->name) + " id != 0").to_equal(text_of(n->name) + (menu::node_id(*n) != 0 ? " id != 0"
 			                                                                                          : " UNNUMBERED"));
 		}
@@ -478,10 +487,10 @@ describe midi_device_per_cable("scenes::menu E3 task 8: the per-cable binding fa
 		}
 	});
 
-	it("writes each of the three per-device clock/relative toggles to its own field, and only it", _ {
-		// The mutation the identity table exists for: three `bool`s on the same object. A `set` hook
+	it("writes each of the four per-device clock/relative/thru toggles to its own field, and only it", _ {
+		// The mutation the identity table exists for: four `bool`s on the same object. A `set` hook
 		// pointed at the wrong one round-trips perfectly through its own `get`, and is caught here
-		// only because the capture covers all three on both cables.
+		// only because the capture covers all four on both cables.
 		select_language();
 		Fixture& f = fixture();
 		MenuContext ctx = f.ctx;
@@ -496,6 +505,7 @@ describe midi_device_per_cable("scenes::menu E3 task 8: the per-cable binding fa
 		    {&nodes::device_send_clock, &device_send_clock_menu, "sendClock"},
 		    {&nodes::device_receive_clock, &device_receive_clock_menu, "receiveClock"},
 		    {&nodes::device_is_relative, &device_is_relative_menu, "is_relative"},
+		    {&nodes::device_send_thru, &device_send_thru_menu, "midi_thru"},
 		};
 
 		for (const Row& row : rows) {
@@ -555,7 +565,7 @@ describe midi_device_per_cable("scenes::menu E3 task 8: the per-cable binding fa
 		expect(bindings::read(nodes::device_is_relative, on_b)).to_equal(1);
 	});
 
-	it("raises MIDIDeviceManager::anyChangesToSave on every one of the four, as legacy does", _ {
+	it("raises MIDIDeviceManager::anyChangesToSave on every one of the five, as legacy does", _ {
 		// Assert-then-clear, not defensive-clear: the flag is a process global shared with every
 		// other example in this binary, so each iteration asserts the state it needs *before*
 		// setting up, rather than quietly forcing it.
@@ -566,7 +576,7 @@ describe midi_device_per_cable("scenes::menu E3 task 8: the per-cable binding fa
 		const bool saved = MIDIDeviceManager::anyChangesToSave;
 
 		for (const Node* n : {&nodes::device_default_velocity_to_level, &nodes::device_send_clock,
-		                      &nodes::device_receive_clock, &nodes::device_is_relative}) {
+		                      &nodes::device_receive_clock, &nodes::device_is_relative, &nodes::device_send_thru}) {
 			baseline(*f.a, *f.b);
 			MIDIDeviceManager::anyChangesToSave = false;
 			expect(MIDIDeviceManager::anyChangesToSave).to_be_false();
@@ -588,7 +598,7 @@ describe midi_device_per_cable("scenes::menu E3 task 8: the per-cable binding fa
 		baseline(*f.a, *f.b);
 		const std::string before = CableState::capture(*f.a, *f.b);
 		for (const Node* n : {&nodes::device_default_velocity_to_level, &nodes::device_send_clock,
-		                      &nodes::device_receive_clock, &nodes::device_is_relative}) {
+		                      &nodes::device_receive_clock, &nodes::device_is_relative, &nodes::device_send_thru}) {
 			expect(bindings::read(*n, none)).to_equal(0);
 			bindings::write(*n, none, 1);
 		}
@@ -803,7 +813,7 @@ describe midi_device_pixels("scenes::menu E3 task 8: the per-device page's pixel
 		}
 	};
 
-	it("renders the per-device page's five rows", _ { shoot(self, nodes::midi_device, "menu_midi_device_page", 0); });
+	it("renders the per-device page's six rows", _ { shoot(self, nodes::midi_device, "menu_midi_device_page", 0); });
 
 	it("renders the MPE direction selector, titled MPE INPUT on IN and MPE OUTPUT on OUT", _ {
 		// The pair that shows the runtime title (`DirectionSelector::getTitle`,
