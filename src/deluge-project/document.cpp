@@ -18,6 +18,7 @@
 #include "deluge-project/document.h"
 #include "deluge-project/audio_input.h"
 
+#include "deluge-project/arp_codec.h"
 #include "deluge-project/controls_codec.h"
 #include "deluge-project/song_codec.h"
 #include "deluge-project/structure_codec.h"
@@ -206,6 +207,11 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 				const uint32_t id = drumIds.id_of(*drum.node);
 				DocDrum& drumRecord = document.drums[id];
 				(void)decode_identity(*drum.node, drum.name, drumRecord);
+				if (const Value* arp = drum.node->find("arpeggiator")) {
+					// A sound's element holds the arp's sync level relative to the song's tick magnitude.
+					decode(*arp, drumRecord.arp.emplace(),
+					       drumRecord.drum_type == DrumType::SOUND ? std::optional<int32_t>{magnitude} : std::nullopt);
+				}
 				if (drumRecord.drum_type == DrumType::SOUND) {
 					drumRecord.instrument = slot_of_drum(*drum.node, magnitude);
 					if (const deluge::engine::ParamNaming* naming = naming_of("sound", engines)) {
@@ -347,6 +353,9 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 					if (const deluge::engine::ParamNaming* naming = naming_of("sound", engines)) {
 						encode_controls(drumRecord.controls, *naming, drumElement);
 					}
+				}
+				if (drumRecord.arp && drumRecord.drum_type != DrumType::SOUND) {
+					drumElement.set("arpeggiator", encode(*drumRecord.arp, std::nullopt));
 				}
 				if (drumRecord.instrument) {
 					append_entries(drumElement, drumRecord.instrument->state);

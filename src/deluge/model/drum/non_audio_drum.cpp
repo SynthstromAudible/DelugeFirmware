@@ -22,6 +22,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "model/project_bridge/arp_bridge.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
@@ -131,6 +132,9 @@ bool NonAudioDrum::readDrumTagFromFile(Deserializer& reader, char const* tagName
 			}
 		}
 		reader.match('}'); // End arpeggiator value object.
+		if (docDrum_ != nullptr) {
+			docDrum_->arp = deluge::bridge::arpRecordOf(arpSettings, true);
+		}
 	}
 	else if (Drum::readDrumTagFromFile(reader, tagName)) {}
 	else {

@@ -16,6 +16,8 @@
  */
 
 #include "deluge-project/structure_codec.h"
+
+#include "deluge-project/arp_codec.h"
 #include "deluge-project/audio_input.h"
 #include "engine-api/types/setting.h"
 
@@ -60,6 +62,9 @@ Value encode(const DocClip& clip) {
 			map.set(std::string{path}, Value::makeNumber(**value));
 		}
 	}
+	if (clip.values.arp) {
+		map.set("arpeggiator", encode(*clip.values.arp, std::nullopt));
+	}
 	map.set("length", Value::makeNumber(clip.loop_length));
 	map.set("colourOffset", Value::makeNumber(clip.colour_offset));
 	if (clip.section != 255) {
@@ -91,6 +96,9 @@ std::expected<void, LoadError> decode(const Value& clipElement, DocClip& clip) {
 		if (auto value = int_of(clipElement.find(path))) {
 			*value_at(clip.values, path) = *value;
 		}
+	}
+	if (const Value* arp = clipElement.find("arpeggiator")) {
+		decode(*arp, clip.values.arp.emplace(), std::nullopt);
 	}
 	if (const std::string* style = text_of(clipElement.find("launchStyle"))) {
 		clip.launch_style = parse_launch_style(*style).value_or(LaunchStyle::DEFAULT);

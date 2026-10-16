@@ -23,6 +23,7 @@
 //
 // Exit: 0 = equal; 1 = load error; 2 = usage/IO; 3 = a record differs (printed).
 
+#include "deluge-project/arp_codec.h"
 #include "deluge-project/document.h"
 #include "memory/general_memory_allocator.h"
 #include "model/global_effectable/global_effectable.h"
@@ -89,6 +90,24 @@ std::string what_differs(const Record&, const Record&) {
 	return "";
 }
 
+/// Where two arp records differ, for the report: the first attribute of their elements, or which is missing.
+std::string arp_differs(const std::optional<deluge::project::ArpRecord>& e,
+                        const std::optional<deluge::project::ArpRecord>& d) {
+	if (e == d) {
+		return "";
+	}
+	if (!e || !d) {
+		return std::string(" arp engine=") + (e ? "a record" : "none") + " decoded=" + (d ? "a record" : "none");
+	}
+	return " arp at "
+	       + deluge::serialization::first_difference(deluge::project::encode(*d, std::nullopt),
+	                                                 deluge::project::encode(*e, std::nullopt));
+}
+
+std::string what_differs(const deluge::project::DocDrum& e, const deluge::project::DocDrum& d) {
+	return arp_differs(e.arp, d.arp);
+}
+
 std::string what_differs(const deluge::project::DocClip& e, const deluge::project::DocClip& d) {
 	std::string out;
 	const auto field = [&](const char* name, long engine, long decoded) {
@@ -106,7 +125,7 @@ std::string what_differs(const deluge::project::DocClip& e, const deluge::projec
 	}
 	field("sequence_direction", static_cast<long>(e.sequence_direction), static_cast<long>(d.sequence_direction));
 	if (!(e.values == d.values)) {
-		out += " values";
+		out += " values" + arp_differs(e.values.arp, d.values.arp);
 	}
 	field("note_rows", static_cast<long>(e.note_rows.size()), static_cast<long>(d.note_rows.size()));
 	auto er = e.note_rows.begin();

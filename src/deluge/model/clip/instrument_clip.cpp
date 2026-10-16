@@ -38,6 +38,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/note/note.h"
 #include "model/output.h"
+#include "model/project_bridge/arp_bridge.h"
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
@@ -2813,6 +2814,9 @@ someError:
 				}
 			}
 			reader.match('}'); // End arpeggiator value object.
+			docClip_->values.arp =
+			    deluge::bridge::arpRecordOf(arpSettings, outputTypeWhileLoading == OutputType::MIDI_OUT
+			                                                 || outputTypeWhileLoading == OutputType::CV);
 		}
 
 		// For song files from before V2.0, where Instruments were stored within the Clip.

@@ -24,6 +24,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/instrument/kit.h"
+#include "model/project_bridge/arp_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "model/voice/voice.h"
@@ -154,6 +155,7 @@ Error SoundDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int3
 		// Adopted before it was read, so its slot is filled now that the element has been.
 		deluge::bridge::fillSlot(*this, docDrum_->instrument ? *docDrum_->instrument : docDrum_->instrument.emplace(),
 		                         true, *song);
+		docDrum_->arp = deluge::bridge::arpRecordOf(arpSettings, false);
 	}
 	return error;
 }

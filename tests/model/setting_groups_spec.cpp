@@ -1,3 +1,4 @@
+#include "deluge-project/arp_codec.h"
 #include "deluge-project/clip_values.h"
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
@@ -204,6 +205,53 @@ describe setting_groups_owners("the owner setting groups", $ {
 		expect(write_setting(song, arp, "arpeggiator/rate", Value::makeScalar("12"))).to_be_true();
 		expect(holds_setting(song, arp, "arpeggiator/rate")).to_be_true();
 		expect(song.clip_structure.find(7)->values.arp->rate).to_equal(std::optional<int32_t>{12});
+	});
+
+	it("encodes an arp's record and decodes it back, absolute and relative to a tick magnitude", _ {
+		ArpRecord record;
+		record.mode = 1;
+		record.octave_mode = 3;
+		record.note_mode = 8;
+		record.mpe_velocity = 2;
+		record.num_octaves = 4;
+		record.step_repeat = 3;
+		record.chord_type = 5;
+		record.sync_level = 6;
+		record.sync_type = 10;
+		record.randomizer_lock = true;
+		record.kit_arp = false;
+		record.rate = -5;
+		record.note_probability = -1;
+		record.spread_octave = 1234;
+		for (const std::optional<int32_t> magnitude : {std::optional<int32_t>{}, std::optional<int32_t>{2}}) {
+			ArpRecord back;
+			decode(encode(record, magnitude), back, magnitude);
+			expect(back == record).to_be_true();
+		}
+		expect(encode(record, 2).find("syncLevel")->str()).to_equal(std::string{"7"});
+		expect(encode(record, std::nullopt).find("syncLevel")->str()).to_equal(std::string{"6"});
+	});
+
+	it("decodes an arp's mode from the single mode word of older files", _ {
+		Value element = Value::makeMap();
+		element.set("mode", Value::makeScalar("both"));
+		ArpRecord back;
+		decode(element, back, std::nullopt);
+		expect(static_cast<int>(back.mode)).to_equal(1);
+		expect(static_cast<int>(back.octave_mode)).to_equal(3);
+		expect(static_cast<int>(back.note_mode)).to_equal(0);
+	});
+
+	it("reads a clip's and a sound kit row's arp from the document", _ {
+		DocClip clip;
+		Value clipElement = Value::makeMap();
+		Value arp = Value::makeMap();
+		arp.set("arpMode", Value::makeScalar("arp"));
+		arp.set("numOctaves", Value::makeScalar("3"));
+		clipElement.set("arpeggiator", arp);
+		expect(decode(clipElement, clip).has_value()).to_be_true();
+		expect(clip.values.arp.has_value()).to_be_true();
+		expect(static_cast<int>(clip.values.arp->num_octaves)).to_equal(3);
 	});
 
 	it("round-trips the audio clip group through a clip's descriptor", _ {
