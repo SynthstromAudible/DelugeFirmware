@@ -25,6 +25,7 @@
 #include "io/midi/midi_follow.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/bend_range_for.h"
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
@@ -493,7 +494,8 @@ void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDICable& 
 						}
 					}
 				}
-				expressionParams->bendRanges[whichBendRange] = bendSemitones;
+				deluge::edits::bendRangeFor(static_cast<InstrumentClip*>(activeClip), *paramManager, whichBendRange,
+				                            bendSemitones);
 			}
 		}
 	}

@@ -3637,7 +3637,9 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
 	if (expressionParams && forKit) {
-		writer.writeAttribute("bendRange", expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]);
+		writer.writeAttribute("bendRange", docNoteRow_ != nullptr && docNoteRow_->bend_range
+		                                       ? *docNoteRow_->bend_range
+		                                       : expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]);
 	}
 
 	bool closedOurTagYet = false;
@@ -3839,6 +3841,9 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 				if (expressionParams) {
 					if (!expressionParams->params[0].isAutomated(*expressionParams->docForParam(0))) {
 						expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = newBendRange;
+						if (docNoteRow_ != nullptr) {
+							docNoteRow_->bend_range = newBendRange;
+						}
 					}
 				}
 			}

@@ -62,6 +62,7 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence.h"
 #include "model/drum/drum.h"
+#include "model/edits/bend_range_for.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
@@ -647,7 +648,8 @@ void View::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, i
 					ExpressionParamSet* expressionParams = noteRow->paramManager.getOrCreateExpressionParamSet(true);
 					if (expressionParams) {
 						if (!expressionParams->params[0].isAutomated(*expressionParams->docForParam(0))) {
-							expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = newBendRange;
+							deluge::edits::bendRangeFor(getCurrentInstrumentClip(), noteRow->paramManager,
+							                            BEND_RANGE_FINGER_LEVEL, newBendRange);
 						}
 					}
 				}
@@ -701,8 +703,8 @@ isMPEZone:
 						if (paramManager) { // Could be NULL, e.g. for CVInstruments with no Clips
 							ExpressionParamSet* expressionParams = paramManager->getOrCreateExpressionParamSet();
 							if (expressionParams) {
-								expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] =
-								    newBendRanges[BEND_RANGE_FINGER_LEVEL];
+								deluge::edits::bendRangeFor(clip, *paramManager, BEND_RANGE_FINGER_LEVEL,
+								                            newBendRanges[BEND_RANGE_FINGER_LEVEL]);
 							}
 						}
 					}
@@ -721,7 +723,9 @@ isMPEZone:
 					ExpressionParamSet* expressionParams = paramManager->getOrCreateExpressionParamSet();
 					if (expressionParams
 					    && !expressionParams->params[0].isAutomated(*expressionParams->docForParam(0))) {
-						expressionParams->bendRanges[BEND_RANGE_MAIN] = newBendRanges[BEND_RANGE_MAIN];
+						deluge::edits::bendRangeFor(
+						    static_cast<InstrumentClip*>(instrumentPressedForMIDILearn->getActiveClip()), *paramManager,
+						    BEND_RANGE_MAIN, newBendRanges[BEND_RANGE_MAIN]);
 					}
 				}
 			}

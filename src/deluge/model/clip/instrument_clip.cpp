@@ -1965,6 +1965,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 						if (expressionParams) {
 							expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] =
 							    newBendRanges[BEND_RANGE_FINGER_LEVEL];
+							docClip_->values.bend_range_mpe = newBendRanges[BEND_RANGE_FINGER_LEVEL];
 						}
 					}
 				}
@@ -1984,6 +1985,7 @@ probablyApplyBendRangeMain:
 					if (expressionParams
 					    && !expressionParams->params[0].isAutomated(*expressionParams->docForParam(0))) {
 						expressionParams->bendRanges[BEND_RANGE_MAIN] = newBendRanges[BEND_RANGE_MAIN];
+						docClip_->values.bend_range = newBendRanges[BEND_RANGE_MAIN];
 					}
 				}
 			}
@@ -2554,8 +2556,12 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		if (expressionParams) {
 			expressionParams->writeToFile(writer);
 
-			writer.writeTag("bendRange", expressionParams->bendRanges[BEND_RANGE_MAIN]);
-			writer.writeTag("bendRangeMPE", expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]);
+			// The ranges are the clip's values; a clip that holds none plays (and saves) its expression set's.
+			writer.writeTag("bendRange", deluge::project::resolve(docClip_->values, "bendRange",
+			                                                      expressionParams->bendRanges[BEND_RANGE_MAIN]));
+			writer.writeTag("bendRangeMPE",
+			                deluge::project::resolve(docClip_->values, "bendRangeMPE",
+			                                         expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]));
 		}
 	}
 

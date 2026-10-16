@@ -24,6 +24,8 @@
 #include "scenes/menu/context.h"
 
 #include "definitions_cxx.hpp"
+#include "model/clip/instrument_clip.h"
+#include "model/edits/bend_range_for.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "storage/flash_storage.h"
@@ -51,10 +53,9 @@ void set_bend_range(const MenuContext& ctx, int32_t which, int32_t value) {
 	if (ctx.params == nullptr) {
 		return;
 	}
-	ExpressionParamSet* expression = ctx.params->getOrCreateExpressionParamSet(ctx.is_kit);
-	if (expression != nullptr) {
-		expression->bendRanges[which] = static_cast<uint8_t>(value);
-	}
+	auto* clip = ctx.clip != nullptr && ctx.clip->type == ClipType::INSTRUMENT ? static_cast<InstrumentClip*>(ctx.clip)
+	                                                                           : nullptr;
+	deluge::edits::bendRangeFor(clip, *ctx.params, which, value);
 }
 
 } // namespace

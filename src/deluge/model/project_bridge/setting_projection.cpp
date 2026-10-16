@@ -18,6 +18,8 @@
 #include "model/sample/sample.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "serialization/tree.h"
@@ -272,6 +274,15 @@ Error applyLaneSetting(::Drum& drum, std::string_view path, const Value& value) 
 
 Error applyNoteRowSetting(::NoteRow& row, ::InstrumentClip& clip, ::Song& song, std::string_view path,
                           const Value& value, const Value* previous) {
+	if (path == "bendRange") {
+		const std::optional<int32_t> v = integer_of(value);
+		ExpressionParamSet* expression = row.paramManager.getOrCreateExpressionParamSet(true);
+		if (!v || expression == nullptr) {
+			return Error::UNSPECIFIED;
+		}
+		expression->bendRanges[BEND_RANGE_FINGER_LEVEL] = static_cast<uint8_t>(*v);
+		return Error::NONE;
+	}
 	const std::optional<SequenceDirection> direction = project::parse_sequence_direction(value.str());
 	if (path != "sequenceDirection" || !direction) {
 		return Error::UNSPECIFIED;
@@ -330,6 +341,26 @@ Error applyClipValueSetting(::InstrumentClip& clip, ::Song& /*song*/, std::strin
 	const std::optional<int32_t> v = integer_of(value);
 	if (!v) {
 		return Error::UNSPECIFIED;
+	}
+	if (path == "bendRange" || path == "bendRangeMPE") {
+		const int32_t which = path == "bendRange" ? BEND_RANGE_MAIN : BEND_RANGE_FINGER_LEVEL;
+		ExpressionParamSet* expression = clip.paramManager.getOrCreateExpressionParamSet();
+		if (expression == nullptr) {
+			return Error::UNSPECIFIED;
+		}
+		expression->bendRanges[which] = static_cast<uint8_t>(*v);
+		// A MIDI or CV instrument bends with the ranges it cached from its active clip.
+		if (clip.output != nullptr && clip.isActiveOnOutput()
+		    && (clip.output->type == OutputType::MIDI_OUT || clip.output->type == OutputType::CV)) {
+			auto& instrument = static_cast<::NonAudioInstrument&>(*clip.output);
+			instrument.cachedBendRanges[which] = expression->bendRanges[which];
+			if (clip.output->type == OutputType::MIDI_OUT) {
+				auto& midi = static_cast<::MIDIInstrument&>(instrument);
+				midi.ratio = float(midi.cachedBendRanges[BEND_RANGE_FINGER_LEVEL])
+				             / float(midi.cachedBendRanges[BEND_RANGE_MAIN]);
+			}
+		}
+		return Error::NONE;
 	}
 	if (path == "midiBank") {
 		clip.midiBank = static_cast<uint8_t>(*v);
@@ -549,6 +580,13 @@ std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddr
 		if (path == "midiPGM") {
 			return Value::makeNumber(clip->midiPGM);
 		}
+		if (path == "bendRange" || path == "bendRangeMPE") {
+			const bool main = path == "bendRange";
+			const ExpressionParamSet* expression = clip->paramManager.getExpressionParamSet();
+			return expression != nullptr
+			           ? Value::makeNumber(expression->bendRanges[main ? BEND_RANGE_MAIN : BEND_RANGE_FINGER_LEVEL])
+			           : Value::makeNumber(main ? 2 : 48); // the factory ranges, as the record's
+		}
 		return std::nullopt;
 	}
 	if (address.group == SettingGroupId::CLIP) {
@@ -577,6 +615,10 @@ std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddr
 		const auto& row_address = std::get<project::NoteRowAddress>(address.owner);
 		auto* clip = static_cast<::InstrumentClip*>(findClip(song, row_address.clip_id, ClipType::INSTRUMENT));
 		::NoteRow* row = clip != nullptr ? findNoteRow(*clip, row_address) : nullptr;
+		if (row != nullptr && path == "bendRange") {
+			const ExpressionParamSet* expression = row->paramManager.getExpressionParamSet();
+			return Value::makeNumber(expression != nullptr ? expression->bendRanges[BEND_RANGE_FINGER_LEVEL] : 48);
+		}
 		return row != nullptr && path == "sequenceDirection" ? std::optional<Value>{Value::makeScalar(std::string{
 		                                                           project::to_string(row->sequenceDirectionMode())})}
 		                                                     : std::nullopt;

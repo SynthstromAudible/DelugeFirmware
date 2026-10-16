@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/bend_range.h"
 #include "gui/ui/sound_editor.h"
+#include "model/edits/bend_range_for.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "storage/flash_storage.h"
@@ -32,11 +33,8 @@ public:
 		                                           : FlashStorage::defaultBendRange[BEND_RANGE_MAIN]);
 	}
 	void writeCurrentValue() override {
-		ExpressionParamSet* expressionParams =
-		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
-		if (expressionParams != nullptr) {
-			expressionParams->bendRanges[BEND_RANGE_MAIN] = this->getValue();
-		}
+		deluge::edits::bendRangeFor(getCurrentInstrumentClip(), *soundEditor.currentParamManager, BEND_RANGE_MAIN,
+		                            this->getValue());
 	}
 };
 } // namespace deluge::gui::menu_item::bend_range

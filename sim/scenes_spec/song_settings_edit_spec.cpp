@@ -9,6 +9,7 @@
 #include "io/midi/midi_engine.h"
 #include "libdeluge/system.h"
 #include "model/clip/audio_clip.h"
+#include "model/edits/bend_range_for.h"
 #include "model/edits/set_setting.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/cv_instrument.h"
@@ -294,6 +295,27 @@ describe song_settings_edit("SetSetting", $ {
 		copy.copyBasicsFrom(f.clip);
 		expect(copy.docClip_->values.midi_pgm.value_or(-1)).to_equal(9);
 		expect(static_cast<int>(copy.midiPGM)).to_equal(9);
+	});
+	it("changes an active MIDI clip's bend range so its outgoing bends use it at once", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		char memory[MODEL_STACK_MAX_SIZE];
+		f.instrument->setActiveClip(setupModelStackWithTimelineCounter(memory, f.song, f.clip));
+		const SettingAddress values{SettingGroupId::CLIP_VALUES, *deluge::bridge::clipAddressOf(*f.clip, *f.song)};
+		deluge::edits::clipValueSettingFor(*f.clip, "bendRange", Value::makeNumber(12));
+		expect(recorded(*f.song, values, "bendRange")).to_equal(std::string{"12"});
+		expect(projected(*f.song, values, "bendRange")).to_equal(std::string{"12"});
+		expect(static_cast<int>(static_cast<MIDIInstrument*>(f.instrument)->cachedBendRanges[BEND_RANGE_MAIN])).to_equal(12);
+	});
+
+	it("keeps a kit row's finger bend range on its note row", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
+		NoteRow* row = f.clip->getNoteRowForDrum(drum);
+		expect(row != nullptr).to_be_true();
+		deluge::edits::bendRangeFor(*f.clip, row->paramManager, BEND_RANGE_FINGER_LEVEL, 24);
+		const auto address = deluge::bridge::noteRowAddressOf(*row, *f.clip, *f.song);
+		expect(recorded(*f.song, {SettingGroupId::NOTE_ROW, *address}, "bendRange")).to_equal(std::string{"24"});
+		expect(projected(*f.song, {SettingGroupId::NOTE_ROW, *address}, "bendRange")).to_equal(std::string{"24"});
 	});
 });
 // clang-format on

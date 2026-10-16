@@ -33,6 +33,7 @@
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
 #include "model/drum/non_audio_drum.h"
+#include "model/edits/bend_range_for.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
@@ -1930,7 +1931,8 @@ void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t
 					ExpressionParamSet* expressionParams = noteRow->paramManager.getOrCreateExpressionParamSet();
 					if (expressionParams) {
 						if (!expressionParams->params[0].isAutomated(*expressionParams->docForParam(0))) {
-							expressionParams->bendRanges[whichBendRange] = bendSemitones;
+							deluge::edits::bendRangeFor(static_cast<InstrumentClip*>(activeClip), noteRow->paramManager,
+							                            whichBendRange, bendSemitones);
 						}
 					}
 				}
