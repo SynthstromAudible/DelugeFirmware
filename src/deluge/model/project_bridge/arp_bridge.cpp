@@ -61,6 +61,20 @@ project::ArpRecord arpRecordOf(const ArpeggiatorSettings& settings, bool hostVal
 	return record;
 }
 
+void seedArpRecord(std::optional<project::ArpRecord>& record, const ArpeggiatorSettings& settings, bool hostValues) {
+	if (!record) {
+		record = arpRecordOf(settings, hostValues);
+		return;
+	}
+	if (hostValues) {
+		const project::ArpRecord engine = arpRecordOf(settings, true);
+		for (const engine::SettingInfo& row : engine::kArpHostRows) {
+			std::optional<int32_t>& value = *project::host_value_at(*record, row.path);
+			value = value.has_value() ? value : *project::host_value_at(engine, row.path);
+		}
+	}
+}
+
 void writeArpAttributes(Serializer& writer, const ArpeggiatorSettings& settings, const project::ArpRecord* record,
                         bool hostValues, std::optional<int32_t> tickMagnitude) {
 	project::ArpRecord written = record != nullptr ? *record : arpRecordOf(settings, hostValues);

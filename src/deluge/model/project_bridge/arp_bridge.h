@@ -34,6 +34,13 @@ namespace deluge::bridge {
 /// @return The record.
 [[nodiscard]] project::ArpRecord arpRecordOf(const ArpeggiatorSettings& settings, bool hostValues);
 
+/// @brief Make @p record hold @p settings where it holds nothing yet, and, where the host values are settings, each
+///        host value it lacks: an Edit then changes one setting of the arp that plays, not of a default record.
+/// @param record     The owner's record slot.
+/// @param settings   The engine's arp.
+/// @param hostValues Whether the host values are settings (see arpRecordOf).
+void seedArpRecord(std::optional<project::ArpRecord>& record, const ArpeggiatorSettings& settings, bool hostValues);
+
 /// @brief Write an arp element's attributes: its settings from @p record, what the arp generated (the randomizer's
 ///        locked values, the note pattern) from @p settings, then, where they are settings, its host values.
 /// @param writer        The serializer, inside the element's opening tag.

@@ -110,6 +110,7 @@ InstrumentClip::InstrumentClip(Song& song, bool initViewFromSong, uint32_t loade
 	}
 
 	outputTypeWhileLoading = OutputType::SYNTH; // NOTE: (Kate) was 0, should probably be NONE
+	docClip_->values.arp = deluge::bridge::arpRecordOf(arpSettings, false);
 }
 
 // You must call prepareForDestruction() before this, preferably by calling Song::deleteClipObject()
@@ -2435,6 +2436,7 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 	else if (newInstrument->type == OutputType::KIT) {
 		arpSettings.cloneFrom(&((Kit*)newInstrument)->defaultArpSettings);
 	}
+	docClip_->values.arp = deluge::bridge::arpRecordOf(arpSettings, false);
 
 	if (shouldSetupPatching) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -2842,6 +2844,7 @@ someError:
 						else if (outputTypeWhileLoading == OutputType::KIT) {
 							arpSettings.cloneFrom(&((Kit*)output)->defaultArpSettings);
 						}
+						docClip_->values.arp = deluge::bridge::arpRecordOf(arpSettings, false);
 					}
 					reader.exitTag("referToTrackId");
 				}
@@ -2876,6 +2879,7 @@ loadInstrument:
 				else if (outputTypeWhileLoading == OutputType::KIT) {
 					arpSettings.cloneFrom(&((Kit*)output)->defaultArpSettings);
 				}
+				docClip_->values.arp = deluge::bridge::arpRecordOf(arpSettings, false);
 
 				// Add the Instrument to the Song
 				song->addOutput(output);

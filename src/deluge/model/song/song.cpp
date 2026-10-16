@@ -60,6 +60,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/delay_type.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/project_bridge/arp_bridge.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
@@ -1336,6 +1337,9 @@ void Song::adoptDrum(Drum* drum) {
 		d.channel = 2;
 	}
 	drum->bindDocDrum(&d);
+	if (!d.arp) {
+		d.arp = deluge::bridge::arpRecordOf(drum->arpSettings, drum->type != DrumType::SOUND);
+	}
 	// A sound drum binds its own state once it is part of the song. The double static_cast lands on the Sound base
 	// subobject of the SoundDrum.
 	if (drum->type == DrumType::SOUND) {

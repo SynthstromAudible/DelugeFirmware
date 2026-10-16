@@ -4,6 +4,7 @@
 #include "model/drum/drum.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
+#include "model/project_bridge/arp_bridge.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/song/clip_iterators.h"
 #include "modulation/arpeggiator.h"
@@ -20,6 +21,8 @@ void clipArpSettingFor(::InstrumentClip& clip, std::string_view path, serializat
 		return;
 	}
 	if (const std::optional<deluge::project::ClipAddress> address = deluge::bridge::clipAddressOf(clip, *currentSong)) {
+		deluge::bridge::seedArpRecord(clip.docClip_->values.arp, clip.arpSettings,
+		                              deluge::bridge::arpHostValuesAreSettings({.clip = &clip}));
 		applySettingEdit({SettingGroupId::CLIP_ARP, *address}, path, std::move(value));
 		return;
 	}
@@ -37,6 +40,9 @@ void laneArpSettingFor(::Drum& drum, std::string_view path, serialization::Value
 		return;
 	}
 	if (const std::optional<deluge::project::LaneAddress> lane = deluge::bridge::laneAddressOf(drum, *currentSong)) {
+		if (drum.docDrum_ != nullptr) {
+			deluge::bridge::seedArpRecord(drum.docDrum_->arp, drum.arpSettings, drum.type != DrumType::SOUND);
+		}
 		applySettingEdit({SettingGroupId::LANE_ARP, *lane}, path, std::move(value));
 		return;
 	}

@@ -12,6 +12,7 @@
 #include "io/midi/midi_engine.h"
 #include "libdeluge/system.h"
 #include "model/clip/audio_clip.h"
+#include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
 #include "model/edits/arp_setting_for.h"
 #include "model/edits/bend_range_for.h"
@@ -581,6 +582,47 @@ describe song_settings_edit("SetSetting", $ {
 		const SettingAddress arp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*f.clip, *f.song)};
 		expect(recorded(*f.song, arp, "arpeggiator/rate")).to_equal(std::to_string(f.clip->arpSettings.rate));
 		expect(deluge::project::holds_setting(f.song->project, arp, "arpeggiator/rate")).to_be_true();
+	});
+
+	it("gives a cloned clip its arp, in its record and on the clip", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/numOctaves", Value::makeNumber(6));
+		InstrumentClip copy(*f.song);
+		copy.copyBasicsFrom(f.clip);
+		expect(copy.docClip_->values.arp.has_value()).to_be_true();
+		expect(static_cast<int>(copy.docClip_->values.arp->num_octaves)).to_equal(6);
+		expect(static_cast<int>(copy.arpSettings.numOctaves)).to_equal(6);
+	});
+
+	it("records the default arp of the instrument a clip is given", _ {
+		Song* song = spec::detail::make_bare_song();
+		InstrumentClip* clip = spec::detail::make_session_clip(song);
+		ParamManagerForTimeline params;
+		auto* synth = static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &params));
+		synth->setupAsDefaultSynth(&params);
+		synth->defaultArpSettings.mode = ArpMode::ARP;
+		synth->defaultArpSettings.numOctaves = 5;
+		spec::detail::attach(song, clip, synth, params);
+		const SettingAddress arp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*clip, *song)};
+		expect(recorded(*song, arp, "arpeggiator/arpMode")).to_equal(std::string{"arp"});
+		expect(recorded(*song, arp, "arpeggiator/numOctaves")).to_equal(std::string{"5"});
+	});
+
+	it("keeps an arp's other settings when one changes on a clip whose arp was never recorded", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		f.clip->docClip_->values.arp.reset();
+		f.clip->arpSettings.syncLevel = SyncLevel::SIXTY_FOURTH;
+		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/numOctaves", Value::makeNumber(3));
+		const SettingAddress arp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*f.clip, *f.song)};
+		expect(recorded(*f.song, arp, "arpeggiator/syncLevel")).to_equal(std::string{"7"});
+		expect(f.clip->arpSettings.syncLevel == SyncLevel::SIXTY_FOURTH).to_be_true();
+	});
+
+	it("records a new kit row's arp as the row holds it", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		GateDrum* gate = spec::add_drum<GateDrum>(f);
+		const SettingAddress arp{SettingGroupId::LANE_ARP, *deluge::bridge::laneAddressOf(*gate, *f.song)};
+		expect(recorded(*f.song, arp, "arpeggiator/numOctaves")).to_equal(std::string{"1"});
 	});
 });
 // clang-format on
