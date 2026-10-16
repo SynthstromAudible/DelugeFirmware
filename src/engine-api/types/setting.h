@@ -18,6 +18,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string_view>
 
@@ -27,13 +28,41 @@ namespace deluge::engine {
 /// own Edit changes.
 enum class SettingKind : uint8_t { CHOICE, INTEGER, BOOL, STRUCTURED };
 
-/// @brief One non-param setting of an engine, named by its slash path in the engine's state element.
+/// @brief A menu value that stands for a stored value outside the linear mapping: max voices' "off" is user 0, stored
+/// 127.
+struct SettingSentinel {
+	int32_t user{0};   ///< the value a menu shows
+	int32_t stored{0}; ///< the value the setting stores
+};
+
+/// @brief How a menu's value maps onto the stored one: linearly from [user_min, user_max] onto [stored_min,
+/// stored_max], except for the sentinels. All zero, with no sentinels, means the menu shows the stored value itself.
+struct UserScale {
+	int32_t user_min{0};
+	int32_t user_max{0};
+	int32_t stored_min{0};
+	int32_t stored_max{0};
+	std::span<const SettingSentinel> sentinels{};
+
+	/// @brief Whether a menu shows the stored value itself.
+	[[nodiscard]] constexpr bool identity() const { return user_min == 0 && user_max == 0 && sentinels.empty(); }
+};
+
+/// @brief What a setting's menu value counts.
+enum class SettingUnits : uint8_t { NONE, SEMITONES, CENTS, MILLISECONDS, SYNC_LEVEL };
+
+/// @brief One non-param setting of an engine or a model record, named by its slash path in the owner's state
+/// element, with what a menu needs to show and edit it.
 struct SettingInfo {
 	std::string_view path;
 	SettingKind kind{SettingKind::INTEGER};
-	std::span<const std::string_view> choices; ///< CHOICE: the names a file writes
-	int32_t min{0};                            ///< INTEGER: the least value
-	int32_t max{0};                            ///< INTEGER: the greatest value
+	std::span<const std::string_view> choices;   ///< CHOICE: the names a file writes
+	int32_t min{0};                              ///< INTEGER: the least stored value
+	int32_t max{0};                              ///< INTEGER: the greatest stored value
+	UserScale user{};                            ///< INTEGER: how a menu's value maps onto the stored one
+	std::span<const uint16_t> display_choices{}; ///< CHOICE: a menu's name for each choice, as the firmware's l10n ids
+	int32_t default_value{0};                    ///< the stored value a new owner starts with
+	SettingUnits units{SettingUnits::NONE};      ///< what a menu's value counts
 };
 
 /// @brief The row of @p table for @p path, or nullptr.
@@ -47,6 +76,51 @@ struct SettingInfo {
 		}
 	}
 	return nullptr;
+}
+
+/// @brief @p stored as a menu shows it.
+/// @param row    The setting's row.
+/// @param stored A value within the row's stored range.
+/// @return The menu's value: a sentinel's user value, the linear mapping's, or @p stored itself with no user scale.
+[[nodiscard]] constexpr int32_t to_user(const SettingInfo& row, int32_t stored) {
+	for (const SettingSentinel& sentinel : row.user.sentinels) {
+		if (sentinel.stored == stored) {
+			return sentinel.user;
+		}
+	}
+	const int64_t span_stored = int64_t{row.user.stored_max} - row.user.stored_min;
+	if (row.user.identity() || span_stored == 0) {
+		return stored;
+	}
+	const int64_t span_user = int64_t{row.user.user_max} - row.user.user_min;
+	const int64_t offset = int64_t{stored} - row.user.stored_min;
+	return static_cast<int32_t>(row.user.user_min + (offset * span_user + span_stored / 2) / span_stored);
+}
+
+/// @brief A menu's @p user value as the row stores it.
+/// @param row  The setting's row.
+/// @param user The menu's value.
+/// @return The stored value, or nullopt where @p user is outside the row's user range (with no user scale, its stored
+///         range).
+[[nodiscard]] constexpr std::optional<int32_t> to_stored(const SettingInfo& row, int32_t user) {
+	for (const SettingSentinel& sentinel : row.user.sentinels) {
+		if (sentinel.user == user) {
+			return sentinel.stored;
+		}
+	}
+	if (row.user.identity()) {
+		return (user >= row.min && user <= row.max) ? std::optional<int32_t>{user} : std::nullopt;
+	}
+	if (user < row.user.user_min || user > row.user.user_max) {
+		return std::nullopt;
+	}
+	const int64_t span_user = int64_t{row.user.user_max} - row.user.user_min;
+	if (span_user == 0) {
+		return row.user.stored_min;
+	}
+	const int64_t span_stored = int64_t{row.user.stored_max} - row.user.stored_min;
+	return static_cast<int32_t>(row.user.stored_min
+	                            + (int64_t{user - row.user.user_min} * span_stored + span_user / 2) / span_user);
 }
 
 } // namespace deluge::engine
