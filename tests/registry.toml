@@ -717,6 +717,23 @@ tier = "pr"
 runtime = "~5s"
 
 [[harness]]
+name = "ui-scripts"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "regression"
+status = "gate"
+gates = "the level-3 UI scripts drive the whole app through the BSP's own input path on the virtual clock. Every script in tests/ui-scripts/app runs, and each snapshot (the OLED panel as .pbm; the LEDs, pads and knob rings as .state) must match its golden in tests/golden/ui/app. The menu script runs again with ShellMenu on (tests/fixtures/card-shell-menu): the two legs must show the same panels and differ in at least one .state, so a toggle that stops taking fails. The runner's self-tests pin a press due in a snapshot's own millisecond (shown in the next snapshot, not that one), a snapshot before the first frame (exit 2) and a script that never reaches its quit (exit 2 at its last step plus five seconds). A script with a board step needs more than one panel and is skipped by name."
+scenario = "ui_script"
+check = "tests/integration/checks/ui_scripts.py"
+markers = ["UI-SCRIPT"]
+result = "UI-SCRIPT-RESULT failures=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~60s"
+
+[[harness]]
 name = "load-cancel"
 path = "."
 level = "integration"

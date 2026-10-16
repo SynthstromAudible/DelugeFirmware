@@ -153,12 +153,12 @@ describe level3_runner(
 	        });
 
 	    it(
-	        "turns detents into two edges each", _ {
+	        "turns detents into four edges each", _ {
 		        g_blitted = false;
 		        expect(start("0 encoder Select +3\n10 quit\n")).to_equal(-1);
 		        expect(run_until(20)).to_equal(0);
 		        expect(g_edges.size()).to_equal(size_t(1));
-		        expect(g_edges[0].second).to_equal(6);
+		        expect(g_edges[0].second).to_equal(12);
 	        });
 
 	    it(

@@ -70,13 +70,12 @@
 // linking this file's BSP statics. See `host_script_tables.h`.
 // ===========================================================================
 
-/// Quadrature edges the legacy encoder task consumes per detent click.
+/// Quadrature edges per detent click: every edge of one quadrature cycle, as the BSP counts them.
 ///
-/// `DetentedEncoder::applyEdges` accumulates edges and divides by 2 to get clicks
-/// ("Two A-pin edges per quadrature cycle, one quadrature cycle per detent click",
-/// `hid/encoders.cpp:28-34`); the gold `ContinuousEncoder`s take edges raw, which matches the
-/// same 2 units per detent the hardware produces.
-#define HOST_SCRIPT_EDGES_PER_DETENT 2
+/// `DetentedEncoder::applyEdges` (`hid/encoders.cpp`) turns edges into clicks with hysteresis --
+/// 3 for the first click, 4 for another in the same direction, 2 on a reversal -- which nets one
+/// click per 4 edges either way; the gold `ContinuousEncoder`s take the same edges raw.
+#define HOST_SCRIPT_EDGES_PER_DETENT 4
 
 // ===========================================================================
 // Snapshot writers — host_snapshot.{h,c}. See that header and this file's own header comment.
@@ -311,8 +310,8 @@ static int apply_step(const UiScriptStep* step) {
 			script_fail("unknown encoder role");
 		}
 		// Computed wide and range-checked, never narrowed on faith: the accumulator is an
-		// `int8_t`, so at 2 edges/detent a +64 would wrap to -128 and turn a script asking for 64
-		// detents clockwise into 64 anticlockwise (the same reasoning as the level-2 runner's).
+		// `int8_t`, so at 4 edges/detent a +32 would wrap to -128 and turn a script asking for 32
+		// detents clockwise into 32 anticlockwise (the same reasoning as the level-2 runner's).
 		const int32_t edges = step->a * (int32_t)HOST_SCRIPT_EDGES_PER_DETENT;
 		if (edges < -128 || edges > 127) {
 			script_fail("too many detents for one encoder step");

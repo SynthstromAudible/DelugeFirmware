@@ -33,8 +33,8 @@ pad 16 4 0 255 6
 pad 16 5 0 255 6
 pad 16 6 0 255 6
 pad 16 7 0 255 6
-pad 17 0 0 46 209
-pad 17 7 0 226 29
+pad 17 0 51 0 204
+pad 17 7 0 25 230
 pad 2 2 6 6 65
 pad 3 2 3 3 3
 pad 3 3 19 19 19
@@ -70,4 +70,4 @@ pad 9 3 48 48 48
 pad 9 4 3 3 3
 pad 9 5 19 19 19
 indicator lower 72 0 0 0
-indicator upper 255 255 36 0
+indicator upper 255 255 64 0
