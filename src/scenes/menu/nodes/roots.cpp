@@ -41,6 +41,7 @@
 #include "definitions_cxx.hpp"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/arp_setting_for.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/instrument.h"
@@ -210,15 +211,16 @@ void set_mpe_to_mono(const MenuContext& ctx, int32_t value) {
 //
 // `ArpNonSoundInteger`'s two derivatives store straight onto `ArpeggiatorSettings` rather than into
 // a param collection, and neither sweeps the kit (`arpeggiator/midi_cv/gate.h:22-30`,
-// `rate.h:22-30`), which is why these are plain `ctx.arp` writes and not
-// `apply_to_arp_settings` sweeps.
+// `rate.h:22-30`), which is why these write the one `ctx.arp` and are not
+// `apply_to_arp` sweeps.
 
 int32_t get_arp_gate_midi(const MenuContext& ctx) {
 	return ctx.arp != nullptr ? bindings::standard_to_menu(ctx.arp->gate) : 0; // `midi_cv/gate.h:30-32`
 }
 void set_arp_gate_midi(const MenuContext& ctx, int32_t value) {
-	if (ctx.arp != nullptr) {
-		ctx.arp->gate = bindings::menu_to_standard(value); // `midi_cv/gate.h:27-30`
+	if (ctx.arp != nullptr) { // `midi_cv/gate.h:27-30`
+		deluge::edits::arpSettingFor(*ctx.arp, "arpeggiator/gate",
+		                             deluge::serialization::Value::makeNumber(bindings::menu_to_standard(value)));
 	}
 }
 
@@ -226,8 +228,9 @@ int32_t get_arp_rate_midi(const MenuContext& ctx) {
 	return ctx.arp != nullptr ? bindings::standard_to_menu(ctx.arp->rate) : 0; // `midi_cv/rate.h:24-26`
 }
 void set_arp_rate_midi(const MenuContext& ctx, int32_t value) {
-	if (ctx.arp != nullptr) {
-		ctx.arp->rate = bindings::menu_to_standard(value); // `midi_cv/rate.h:27-30`
+	if (ctx.arp != nullptr) { // `midi_cv/rate.h:27-30`
+		deluge::edits::arpSettingFor(*ctx.arp, "arpeggiator/rate",
+		                             deluge::serialization::Value::makeNumber(bindings::menu_to_standard(value)));
 	}
 }
 

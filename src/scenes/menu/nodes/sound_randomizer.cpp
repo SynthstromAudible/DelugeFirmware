@@ -29,6 +29,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/drum/drum.h"
+#include "model/edits/arp_setting_for.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "modulation/arpeggiator.h"
@@ -42,15 +43,15 @@ int32_t get_randomizer_lock(const MenuContext& ctx) {
 void set_randomizer_lock(const MenuContext& ctx, int32_t value) {
 	// `RandomizerLock::writeCurrentValue` (`randomizer_lock.h:16-32`): the affect-entire sweep
 	// covers every `Drum`, not just the sound ones -- the same loop `sound_arp.cpp` explains.
-	const bool on = value != 0;
+	const auto on = deluge::serialization::Value::makeNumber(value != 0 ? 1 : 0);
 	if (bindings::writes_whole_kit(ctx) && ctx.output != nullptr) {
 		for (Drum* drum = static_cast<Kit*>(ctx.output)->firstDrum; drum != nullptr; drum = drum->next) {
-			drum->arpSettings.randomizerLock = on;
+			deluge::edits::laneArpSettingFor(*drum, "arpeggiator/randomizerLock", on);
 		}
 		return;
 	}
 	if (ctx.arp != nullptr) {
-		ctx.arp->randomizerLock = on;
+		deluge::edits::arpSettingFor(*ctx.arp, "arpeggiator/randomizerLock", on);
 	}
 }
 
@@ -58,14 +59,16 @@ void set_randomizer_lock(const MenuContext& ctx, int32_t value) {
 ///
 /// Every one is the same three lines against a different `uint32_t` field of `ArpeggiatorSettings`
 /// (`modulation/arpeggiator.h:139-147`), through the unsigned value scaling
-/// (`randomizer/midi_cv/spread_gate.h:27-32` and its ten siblings).
+/// (`randomizer/midi_cv/spread_gate.h:27-32` and its ten siblings); each write is the field's arp setting Edit.
 #define DELUGE_RANDOMIZER_MIDI_HOOKS(node_name, field)                                                                 \
 	int32_t get_##node_name(const MenuContext& ctx) {                                                                  \
 		return ctx.arp != nullptr ? bindings::unsigned_to_menu(ctx.arp->field) : 0;                                    \
 	}                                                                                                                  \
 	void set_##node_name(const MenuContext& ctx, int32_t value) {                                                      \
 		if (ctx.arp != nullptr) {                                                                                      \
-			ctx.arp->field = bindings::menu_to_unsigned(value);                                                        \
+			deluge::edits::arpSettingFor(                                                                              \
+			    *ctx.arp, "arpeggiator/" #field,                                                                       \
+			    deluge::serialization::Value::makeNumber(static_cast<int32_t>(bindings::menu_to_unsigned(value))));    \
 		}                                                                                                              \
 	}
 
