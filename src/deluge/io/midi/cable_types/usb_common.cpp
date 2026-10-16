@@ -17,7 +17,6 @@
 
 #include "usb_common.h"
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
-#include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "timers_interrupts/timers_interrupts.h"
 

@@ -20,6 +20,16 @@
 
 #define MAX_DIR_LINES 25
 
+// A ^dir reply is sent as one SysEx, and a USB send drops any message that can't fit in an empty
+// send ring, so a page of long filenames could never be delivered. getDirEntries() therefore ends a
+// page early once the next entry might not fit. Budget = the whole ring, minus the 0x7D-compat
+// header event and room for the list ending, "err" and the closing F7.
+constexpr size_t kDirReplyBudget = (MIDI_SEND_BUFFER_LEN_RING - 1) * 3 - 32;
+// Upper bound on one serialized entry besides its name:
+// ,{ "name": "", "size": 4294967295, "date": 65535, "time": 65535, "attr": 255}
+constexpr size_t kDirEntryOverhead = 80;
+static_assert(kDirReplyBudget > 64 + FF_LFN_BUF + kDirEntryOverhead, "a ^dir page must fit at least one entry");
+
 extern "C" {
 extern uint8_t currentlyAccessingCard;
 }
@@ -483,6 +493,13 @@ errorFound:;
 			break;
 		if (fno.altname[0] == 0)
 			break;
+
+		if (jWriter.bytesWritten() + strlen(fno.fname) + kDirEntryOverhead > kDirReplyBudget) {
+			// This entry has been read but not sent. Forget the open directory so the next request
+			// (offset == entries sent so far) reopens it and skips forward to this entry again.
+			activeDirName.clear();
+			break;
+		}
 
 		jWriter.writeOpeningTag(NULL, true);
 		jWriter.writeAttribute("name", fno.fname);
