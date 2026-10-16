@@ -25,6 +25,9 @@
 #include "model/song/song.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
+#include "scenes/menu/context.h"
+#include "scenes/menu/nodes/roots.h"
+#include "scenes/menu/nodes/sound_arp.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
 #include "support/song_fixture.h"
@@ -456,6 +459,13 @@ describe song_settings_edit("SetSetting", $ {
 		expect(recorded(*f.song, arp, "arpeggiator/noteMode")).to_equal(std::string{"down"});
 	});
 
+	it("shows the custom preset a clip's arp was given, so its menu chains to the mode pages", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/preset", Value::makeScalar("custom"));
+		expect(f.clip->arpSettings.preset == ArpPreset::CUSTOM).to_be_true();
+		expect(f.clip->arpSettings.mode == ArpMode::ARP).to_be_true();
+	});
+
 	it("re-derives the preset a clip's arp shows when its note mode changes", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/preset", Value::makeScalar("up"));
@@ -548,6 +558,29 @@ describe song_settings_edit("SetSetting", $ {
 			expect(recorded(*f.song, arp, "arpeggiator/arpMode")).to_equal(std::string{"arp"});
 			expect(drum->arpSettings.mode == ArpMode::ARP).to_be_true();
 		}
+	});
+
+	it("turning a playing MIDI clip's arp off from the scenes sends its notes off, and records it", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		activate(f);
+		f.song->setCurrentClip(f.clip);
+		const auto ctx = deluge::scenes::menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		deluge::scenes::menu::nodes::set_arp_mode(ctx, 1);
+		(void)midiQueued();
+		deluge::scenes::menu::nodes::set_arp_mode(ctx, 0);
+		expect(midiQueued()).to_be_true();
+		const SettingAddress arp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*f.clip, *f.song)};
+		expect(recorded(*f.song, arp, "arpeggiator/arpMode")).to_equal(std::string{"off"});
+	});
+
+	it("records a MIDI clip's arp rate set from the scenes", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		f.song->setCurrentClip(f.clip);
+		const auto ctx = deluge::scenes::menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		deluge::scenes::menu::nodes::set_arp_rate_midi(ctx, 40);
+		const SettingAddress arp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*f.clip, *f.song)};
+		expect(recorded(*f.song, arp, "arpeggiator/rate")).to_equal(std::to_string(f.clip->arpSettings.rate));
+		expect(deluge::project::holds_setting(f.song->project, arp, "arpeggiator/rate")).to_be_true();
 	});
 });
 // clang-format on

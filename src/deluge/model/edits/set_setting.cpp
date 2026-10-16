@@ -14,7 +14,8 @@ Error SetSetting::apply(Context& ctx) {
 	if (!deluge::project::write_setting(ctx.model, address_, path_, value_)) {
 		return Error::UNSPECIFIED;
 	}
-	const Error projected = deluge::bridge::projectSetting(ctx.song, address_, path_, previous ? &*previous : nullptr);
+	const Error projected =
+	    deluge::bridge::projectSetting(ctx.song, address_, path_, previous ? &*previous : nullptr, &value_);
 	if (projected != Error::NONE) {
 		// The engine took nothing (an owner of a kind the setting is not for): the record keeps what it held, and a
 		// value it left to the track stays left.

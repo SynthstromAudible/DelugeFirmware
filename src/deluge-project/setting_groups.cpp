@@ -606,6 +606,10 @@ void write_arp(ArpRecord& record, std::string_view path, const Value& value) {
 
 } // namespace
 
+bool is_derived_setting(SettingGroupId group, std::string_view path) {
+	return is_arp_group(group) && path == "arpeggiator/preset";
+}
+
 std::optional<Value> arp_setting_value(const ArpRecord& record, std::string_view path) {
 	return read_arp(record, path);
 }

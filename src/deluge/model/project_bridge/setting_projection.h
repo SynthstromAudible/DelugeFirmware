@@ -38,9 +38,12 @@ namespace deluge::bridge {
 /// @param path    A path of the group's table.
 /// @param previous The record's value before the change, when there was one: what an engine that reads the record
 ///                 itself held before it (a note row's direction).
+/// @param requested The value the change asked for. A derived command row (project::is_derived_setting) projects it,
+///                  since its record reads back what the command made (an arp preset of "custom" reads as "up");
+///                  every other row projects its record.
 /// @return Error::UNSPECIFIED when the record or the engine owner does not resolve.
 Error projectSetting(::Song& song, const project::SettingAddress& address, std::string_view path,
-                     const serialization::Value* previous = nullptr);
+                     const serialization::Value* previous = nullptr, const serialization::Value* requested = nullptr);
 
 /// @brief The engine copy's value at @p path, in the record's form: what the coherence check holds equal to the record.
 /// @param song    The song whose engine objects the address names.

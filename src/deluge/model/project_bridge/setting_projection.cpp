@@ -719,9 +719,11 @@ Error applyAudioClipSetting(::AudioClip& clip, ::Song& song, std::string_view pa
 // ---------------------------------------------------------------------------------------------
 // Projecting and reading back
 
-Error projectSetting(::Song& song, const project::SettingAddress& address, std::string_view path,
-                     const Value* previous) {
-	const std::optional<Value> value = project::read_setting(song.project, address, path);
+Error projectSetting(::Song& song, const project::SettingAddress& address, std::string_view path, const Value* previous,
+                     const Value* requested) {
+	const std::optional<Value> value = requested != nullptr && project::is_derived_setting(address.group, path)
+	                                       ? std::optional<Value>{*requested}
+	                                       : project::read_setting(song.project, address, path);
 	if (!value) {
 		return Error::UNSPECIFIED;
 	}

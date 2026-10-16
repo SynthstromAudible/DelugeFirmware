@@ -85,6 +85,13 @@ struct SettingAddress {
 /// @return The value; a host value the record does not hold reads as its row's default. Nullopt for any other path.
 [[nodiscard]] std::optional<serialization::Value> arp_setting_value(const ArpRecord& record, std::string_view path);
 
+/// @brief Whether @p group's value at @p path is a command its record derives rather than holds: an arp's preset, which
+///        writes the modes it stands for and reads back as the preset those modes make (so "custom" reads as "up").
+/// @param group The group.
+/// @param path  A path of the group's table.
+/// @return True for a derived command row.
+[[nodiscard]] bool is_derived_setting(SettingGroupId group, std::string_view path);
+
 /// @brief Whether @p address holds its own value at @p path. Every setting does but a clip value (and a kit row's bend
 ///        range) a clip leaves to its track, and an arp's host value where it is a param.
 /// @param song    The song whose records hold it.
