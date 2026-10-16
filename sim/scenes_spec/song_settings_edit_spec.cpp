@@ -199,6 +199,26 @@ describe song_settings_edit("SetSetting", $ {
 			    .to_equal(std::string{row.path} + "=" + std::to_string(v));
 		}
 	});
+	it("turns a row obeying its clip to reverse from the mirror of the clip's position, as the row's setter does", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* stack = f.song->setupModelStackWithCurrentClip(memory);
+		NoteRow* row = instrumentClipView.createNoteRowForYDisplay(stack, 0)->getNoteRowAllowNull();
+		expect(deluge::bridge::noteRowAddressOf(*row, *f.clip, *f.song).has_value()).to_be_true();
+		f.clip->lastProcessedPos = 10;
+		row->lastProcessedPosIfIndependent = 999; // stale: the row has been following its clip
+		deluge::edits::noteRowSettingFor(*row, *f.clip, "sequenceDirection", Value::makeScalar("reverse"));
+		expect(row->lastProcessedPosIfIndependent).to_equal(f.clip->loopLength() - 10);
+	});
+	it("refuses, outside the song too, a value the setting's row refuses", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		MIDIInstrument loose; // not in the song: the setter alone would take it
+		loose.setChannel(2);
+		deluge::edits::trackSettingFor(loose, "channel", Value::makeNumber(99));
+		expect(loose.getChannel()).to_equal(2);
+		deluge::edits::trackSettingFor(loose, "channelSuffix", Value::makeScalar("x"));
+		expect(loose.channelSuffix).to_equal(-1);
+	});
 });
 // clang-format on
 

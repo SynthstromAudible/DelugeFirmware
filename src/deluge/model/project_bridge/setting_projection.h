@@ -14,6 +14,7 @@
 #include "deluge-project/setting_group.h"
 #include "serialization/value.h"
 
+#include <functional>
 #include <optional>
 #include <string_view>
 
@@ -31,8 +32,11 @@ namespace deluge::bridge {
 /// @param song    The song whose records and engine objects the address names.
 /// @param address The group and owner.
 /// @param path    A path of the group's table.
+/// @param previous The record's value before the change, when there was one: what an engine that reads the record
+///                 itself held before it (a note row's direction).
 /// @return Error::UNSPECIFIED when the record or the engine owner does not resolve.
-Error projectSetting(::Song& song, const project::SettingAddress& address, std::string_view path);
+Error projectSetting(::Song& song, const project::SettingAddress& address, std::string_view path,
+                     const serialization::Value* previous = nullptr);
 
 /// @brief The engine copy's value at @p path, in the record's form: what the coherence check holds equal to the record.
 /// @param song    The song whose engine objects the address names.
@@ -47,10 +51,20 @@ std::optional<serialization::Value> engineSettingValue(::Song& song, const proje
 Error applySongSetting(::Song& song, std::string_view path, const serialization::Value& value);
 Error applyTrackSetting(::Output& output, std::string_view path, const serialization::Value& value);
 Error applyLaneSetting(::Drum& drum, std::string_view path, const serialization::Value& value);
+/// A bound row reads its direction from the record, so a projection passes the direction the record held before
+/// (@p previous): the row's setter works out the play position from the direction it is leaving.
 Error applyNoteRowSetting(::NoteRow& row, ::InstrumentClip& clip, ::Song& song, std::string_view path,
-                          const serialization::Value& value);
+                          const serialization::Value& value, const serialization::Value* previous = nullptr);
 Error applyAudioClipSetting(::AudioClip& clip, ::Song& song, std::string_view path, const serialization::Value& value);
 /// @}
+
+/// @brief Run @p change, which moves the part of @p clip's sample it plays (a marker, the direction), with the clip's
+///        voice taken off the sample around it: the clusters the new part needs are claimed (enqueued, never a card
+///        read on the UI's time), and a clip that was playing resumes from its play position.
+/// @param clip   The audio clip.
+/// @param song   The song it plays in.
+/// @param change The change, typically an audio clip setting's Edit.
+void withVoiceReseated(::AudioClip& clip, ::Song& song, const std::function<void()>& change);
 
 /// @name An engine owner's address in @p song, or nullopt when it is not one of the song's
 /// @{

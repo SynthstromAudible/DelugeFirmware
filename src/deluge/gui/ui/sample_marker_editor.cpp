@@ -154,12 +154,15 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 	ClipType clipType = getCurrentClip()->type;
 
 	if (clipType == ClipType::AUDIO) {
-		// An audio clip's markers are its own descriptor's. The projection takes the voice off the sample, claims the
-		// moved part's clusters and resumes a playing clip.
+		// An audio clip's markers are its own descriptor's, moved with the voice taken off the sample, the moved part's
+		// clusters claimed and a playing clip resumed.
 		if (markerTypeNow == MarkerType::START || markerTypeNow == MarkerType::END) {
-			deluge::edits::audioClipSettingFor(*getCurrentAudioClip(),
-			                                   markerTypeNow == MarkerType::START ? "startSamplePos" : "endSamplePos",
-			                                   deluge::serialization::Value::makeNumber(value));
+			AudioClip& clip = *getCurrentAudioClip();
+			deluge::bridge::withVoiceReseated(clip, *currentSong, [&] {
+				deluge::edits::audioClipSettingFor(
+				    clip, markerTypeNow == MarkerType::START ? "startSamplePos" : "endSamplePos",
+				    deluge::serialization::Value::makeNumber(value));
+			});
 		}
 	}
 	else {

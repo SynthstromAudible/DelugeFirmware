@@ -265,7 +265,7 @@ Error applyLaneSetting(::Drum& drum, std::string_view path, const Value& value) 
 }
 
 Error applyNoteRowSetting(::NoteRow& row, ::InstrumentClip& clip, ::Song& song, std::string_view path,
-                          const Value& value) {
+                          const Value& value, const Value* previous) {
 	const std::optional<SequenceDirection> direction = project::parse_sequence_direction(value.str());
 	if (path != "sequenceDirection" || !direction) {
 		return Error::UNSPECIFIED;
@@ -281,17 +281,16 @@ Error applyNoteRowSetting(::NoteRow& row, ::InstrumentClip& clip, ::Song& song, 
 	char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithNoteRow* stack =
 	    setupModelStackWithTimelineCounter(memory, &song, &clip)->addNoteRow(clip.getNoteRowId(&row, index), &row);
+	if (previous != nullptr) {
+		if (const auto before = project::parse_sequence_direction(previous->str())) {
+			row.setSequenceDirectionModeRaw(*before);
+		}
+	}
 	row.setSequenceDirectionMode(stack, *direction);
 	return Error::NONE;
 }
 
-namespace {
-
-/// @brief Run @p change, which moves the part of @p clip's sample it plays (a marker, the direction), with the clip's
-///        voice taken off the sample around it: the clusters the new part needs are claimed (enqueued, never a card
-///        read on the UI's time), and a clip that was playing resumes from its play position.
-template <typename Change>
-void reseated(::AudioClip& clip, ::Song& song, Change change) {
+void withVoiceReseated(::AudioClip& clip, ::Song& song, const std::function<void()>& change) {
 	const bool active =
 	    playbackHandler.isEitherClockActive() && song.isClipActive(&clip) && clip.voiceSample != nullptr;
 	clip.unassignVoiceSample(false);
@@ -306,22 +305,22 @@ void reseated(::AudioClip& clip, ::Song& song, Change change) {
 	}
 }
 
-} // namespace
-
 Error applyAudioClipSetting(::AudioClip& clip, ::Song& song, std::string_view path, const Value& value) {
 	const std::optional<int32_t> found = integer_of(value);
 	if (!found) {
 		return Error::UNSPECIFIED;
 	}
 	const int32_t v = *found;
+	// A marker is copied alone: a gesture that moves one while the clip plays re-seats the voice around its Edit
+	// (withVoiceReseated), and a clip-length change resumes the clip itself.
 	if (path == "startSamplePos") {
-		reseated(clip, song, [&] { clip.setSampleStartPos(static_cast<uint64_t>(v)); });
+		clip.setSampleStartPos(static_cast<uint64_t>(v));
 	}
 	else if (path == "endSamplePos") {
-		reseated(clip, song, [&] { clip.setSampleEndPos(static_cast<uint64_t>(v)); });
+		clip.setSampleEndPos(static_cast<uint64_t>(v));
 	}
 	else if (path == "reversed") {
-		reseated(clip, song, [&] {
+		withVoiceReseated(clip, song, [&] {
 			clip.setReversed(v != 0);
 			// Played backwards, the clip starts at its end marker, which must lie within the sample.
 			if (clip.sampleHolder.audioFile != nullptr && clip.sampleControls.isCurrentlyReversed()) {
@@ -365,7 +364,8 @@ Error applyAudioClipSetting(::AudioClip& clip, ::Song& song, std::string_view pa
 // ---------------------------------------------------------------------------------------------
 // Projecting and reading back
 
-Error projectSetting(::Song& song, const project::SettingAddress& address, std::string_view path) {
+Error projectSetting(::Song& song, const project::SettingAddress& address, std::string_view path,
+                     const Value* previous) {
 	const std::optional<Value> value = project::read_setting(song.project, address, path);
 	if (!value) {
 		return Error::UNSPECIFIED;
@@ -387,7 +387,7 @@ Error projectSetting(::Song& song, const project::SettingAddress& address, std::
 		const auto& row_address = std::get<project::NoteRowAddress>(address.owner);
 		auto* clip = static_cast<::InstrumentClip*>(findClip(song, row_address.clip_id, ClipType::INSTRUMENT));
 		::NoteRow* row = clip != nullptr ? findNoteRow(*clip, row_address) : nullptr;
-		return row != nullptr ? applyNoteRowSetting(*row, *clip, song, path, *value) : Error::UNSPECIFIED;
+		return row != nullptr ? applyNoteRowSetting(*row, *clip, song, path, *value, previous) : Error::UNSPECIFIED;
 	}
 	case SettingGroupId::AUDIO_CLIP: {
 		auto* clip = static_cast<::AudioClip*>(

@@ -31,6 +31,7 @@
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "serialization/tree.h"
 #include "serialization/value.h"
 
 #include <optional>
@@ -174,6 +175,18 @@ inline void applySettingEdit(const deluge::project::SettingAddress& address, std
 	}
 }
 
+/// @brief Whether @p group's row at @p path refuses @p value, as writing the record would: checked before an owner
+///        outside the song takes the value through its setter alone. Logs a refusal.
+inline bool settingRefused(deluge::project::SettingGroupId group, std::string_view path,
+                           const deluge::serialization::Value& value) {
+	const std::string* text = deluge::serialization::text_of(&value);
+	if (text != nullptr && deluge::engine::check_setting_text(deluge::project::table_of(group), path, *text)) {
+		return false;
+	}
+	D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
+	return true;
+}
+
 /// @brief A gesture's change of the current song's own setting at @p path (reverb, swing interval, disabled scales).
 /// @param path  The setting's path in the song group.
 /// @param value The new value, in its file form.
@@ -209,6 +222,9 @@ inline void trackSettingFor(::Output& output, std::string_view path, deluge::ser
 		applySettingEdit({deluge::bridge::trackGroupOf(path), *track}, path, std::move(value));
 		return;
 	}
+	if (settingRefused(deluge::bridge::trackGroupOf(path), path, value)) {
+		return;
+	}
 	if (deluge::bridge::applyTrackSetting(output, path, value) != Error::NONE) {
 		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
 	}
@@ -222,6 +238,9 @@ inline void trackSettingFor(::Output& output, std::string_view path, deluge::ser
 inline void laneSettingFor(::Drum& drum, std::string_view path, deluge::serialization::Value value) {
 	if (const std::optional<deluge::project::LaneAddress> lane = deluge::bridge::laneAddressOf(drum, *currentSong)) {
 		applySettingEdit({deluge::project::SettingGroupId::LANE, *lane}, path, std::move(value));
+		return;
+	}
+	if (settingRefused(deluge::project::SettingGroupId::LANE, path, value)) {
 		return;
 	}
 	if (deluge::bridge::applyLaneSetting(drum, path, value) != Error::NONE) {
@@ -242,6 +261,9 @@ inline void noteRowSettingFor(::NoteRow& row, ::InstrumentClip& clip, std::strin
 		applySettingEdit({deluge::project::SettingGroupId::NOTE_ROW, *address}, path, std::move(value));
 		return;
 	}
+	if (settingRefused(deluge::project::SettingGroupId::NOTE_ROW, path, value)) {
+		return;
+	}
 	if (deluge::bridge::applyNoteRowSetting(row, clip, *currentSong, path, value) != Error::NONE) {
 		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
 	}
@@ -256,6 +278,9 @@ inline void audioClipSettingFor(::AudioClip& clip, std::string_view path, deluge
 	if (const std::optional<deluge::project::ClipAddress> address =
 	        deluge::bridge::audioClipAddressOf(clip, *currentSong)) {
 		applySettingEdit({deluge::project::SettingGroupId::AUDIO_CLIP, *address}, path, std::move(value));
+		return;
+	}
+	if (settingRefused(deluge::project::SettingGroupId::AUDIO_CLIP, path, value)) {
 		return;
 	}
 	if (deluge::bridge::applyAudioClipSetting(clip, *currentSong, path, value) != Error::NONE) {

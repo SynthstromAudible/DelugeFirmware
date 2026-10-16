@@ -302,12 +302,20 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 	}
 
 	if (ctx_.is_audio_clip) {
-		// An audio clip's markers are its own descriptor's. The projection takes the voice off the sample, claims the
-		// moved part's clusters and resumes a playing clip.
+		// An audio clip's markers are its own descriptor's, moved with the voice taken off the sample, the moved part's
+		// clusters claimed and a playing clip resumed.
 		if (which == MarkerType::START || which == MarkerType::END) {
-			deluge::edits::audioClipSettingFor(*static_cast<AudioClip*>(ctx_.clip),
-			                                   which == MarkerType::START ? "startSamplePos" : "endSamplePos",
-			                                   deluge::serialization::Value::makeNumber(value));
+			auto& clip = *static_cast<AudioClip*>(ctx_.clip);
+			auto move = [&] {
+				deluge::edits::audioClipSettingFor(clip, which == MarkerType::START ? "startSamplePos" : "endSamplePos",
+				                                   deluge::serialization::Value::makeNumber(value));
+			};
+			if (ctx_.song != nullptr) {
+				deluge::bridge::withVoiceReseated(clip, *ctx_.song, move);
+			}
+			else {
+				move();
+			}
 		}
 	}
 	else {

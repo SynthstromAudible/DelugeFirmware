@@ -6,10 +6,14 @@
 namespace deluge::edits {
 
 Error SetSetting::apply(Context& ctx) {
+	// The value it replaces: a projection whose follow-ups start from the engine's state before the change (a row's
+	// play position) reads it there, since an engine that reads the record would already see the new one.
+	const std::optional<deluge::serialization::Value> previous =
+	    deluge::project::read_setting(ctx.model, address_, path_);
 	if (!deluge::project::write_setting(ctx.model, address_, path_, value_)) {
 		return Error::UNSPECIFIED;
 	}
-	return deluge::bridge::projectSetting(ctx.song, address_, path_);
+	return deluge::bridge::projectSetting(ctx.song, address_, path_, previous ? &*previous : nullptr);
 }
 
 } // namespace deluge::edits

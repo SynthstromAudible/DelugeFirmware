@@ -355,6 +355,10 @@ DELUGE_STUB_RET(stub_applyLaneSetting,
                 "13serialization5ValueE",
                 Error, Error::NONE)
 void* stub_setSettingVtable[8] asm("_ZTVN6deluge5edits10SetSettingE") = {};
+// No setting group's table: a lane name the slicer gives its drums is refused before the drum, as the drum's own
+// setName stub drops it.
+DELUGE_STUB_RET(stub_tableOf, "_ZN6deluge7project8table_ofENS0_14SettingGroupIdE",
+                std::span<const deluge::engine::SettingInfo>, {})
 DELUGE_STUB_RET(stub_paramSetDocForParam, "_ZN8ParamSet11docForParamEi", deluge::project::DocAutoParam*, nullptr)
 DELUGE_STUB_RET(stub_modelStackWithAutoParamDoc, "_ZNK23ModelStackWithAutoParam3docEv", deluge::project::DocAutoParam*,
                 nullptr)

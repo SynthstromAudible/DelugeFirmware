@@ -57,9 +57,11 @@
 #include "hid/button.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "model/edits/setting_edit.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/song/song.h"
+#include "model/voice/voice_sample.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
@@ -618,6 +620,28 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(r.played().first > before).to_be_true();
 		expect(r.recorded() == r.played()).to_be_true();
 		expect(r.f.clip->voiceSample != nullptr).to_be_true();
+
+		r.f.clip->unassignVoiceSample(false);
+		r.f.clip->activeIfNoSolo = false;
+		playbackHandler.playbackState = saved_playback_state;
+	});
+
+	it("moves a playing clip's marker through SetSetting alone without taking its voice off the sample", _ {
+		// A clip-length drag moves the marker this way and then SetClipLength resumes the clip itself.
+		AudioRig r;
+		const uint8_t saved_playback_state = playbackHandler.playbackState;
+		playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+		r.f.clip->activeIfNoSolo = true;
+		char memory[MODEL_STACK_MAX_SIZE];
+		r.f.clip->resumePlayback(setupModelStackWithTimelineCounter(memory, r.f.song, r.f.clip), true);
+		VoiceSample* const voice = r.f.clip->voiceSample;
+		expect(voice != nullptr).to_be_true();
+		voice->oscPos = 0x5EED; // a re-seat takes the voice off the sample, which loses this
+
+		deluge::edits::audioClipSettingFor(*r.f.clip, "endSamplePos",
+		                                   deluge::serialization::Value::makeNumber(kSampleLength - 100));
+		expect(r.recorded() == r.played()).to_be_true();
+		expect(r.f.clip->voiceSample == voice && voice->oscPos == 0x5EEDU).to_be_true();
 
 		r.f.clip->unassignVoiceSample(false);
 		r.f.clip->activeIfNoSolo = false;
