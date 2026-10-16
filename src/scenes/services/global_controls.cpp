@@ -302,7 +302,7 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 	}
 
 	actionLogger.deleteAllLogs(); // can't undo past this
-	                              // `:399` `setTimeBaseScaleLedState()` -- `leds()` recomputes it every tick.
+	                              // `setTimeBaseScaleLedState()` has no port: `leds()` recomputes it every tick.
 }
 
 void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) {

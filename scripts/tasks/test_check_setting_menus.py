@@ -39,6 +39,7 @@ PLANTED = {
     "audio source cleared": "audioOutput->clearRecordingFrom();",
     "audio channel": "audioOutput->inputChannel = AudioInputChannel::LEFT;",
     "audio mode": "ao->mode = AudioOutputMode::looper;",
+    "audio mode cast": "ao->mode = static_cast<AudioOutputMode>(value);",
     "cable polarity": "set->patchCables[i].polarity = Polarity::BIPOLAR;",
     "hide unlabeled": "instrument->hideUnlabeledCC = true;",
     "cc label": "instrument->setNameForCC(cc, name);",

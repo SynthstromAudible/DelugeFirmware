@@ -163,7 +163,9 @@ SONG_STATE_WRITES = (
     #: An audio track's input.
     re.compile(r"(?:->|\.)\s*(?:setOutputRecordingFrom|clearRecordingFrom)\s*\("),
     re.compile(r"(?:->|\.)\s*inputChannel\s*=(?!=)"),
-    re.compile(r"(?:->|\.)\s*mode\s*=\s*AudioOutputMode"),
+    re.compile(
+        r"(?:->|\.)\s*mode\s*=\s*(?:AudioOutputMode|static_cast<AudioOutputMode>)"
+    ),
     #: A patch cable's polarity, written past its record (PatchCableSet::setPolarity writes both).
     re.compile(r"(?:->|\.)\s*polarity\s*=(?!=)"),
     #: A MIDI device's labels and hide flag.

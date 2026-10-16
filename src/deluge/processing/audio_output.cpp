@@ -19,7 +19,6 @@
 #include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/audio_input.h"
-#include "deluge-project/doc_output.h"
 #include "deluge-project/doc_output.h" // complete DocOutput type for the identity record
 #include "dsp/stereo_sample.h"
 #include "gui/views/view.h"
@@ -124,8 +123,12 @@ void AudioOutput::cloneFrom(ModControllableAudio* other) {
 			mode = AudioOutputMode::player;
 		}
 		else {
-			// otherwise we'll become the new sampler/looper and the og will become a player
-			ao->setMode(AudioOutputMode::player);
+			// otherwise we'll become the new sampler/looper and the og will become a player; the clone takes the
+			// monitoring over below
+			ao->mode = AudioOutputMode::player;
+			if (ao->docOutput_ != nullptr) {
+				ao->docOutput_->audio_mode = static_cast<uint8_t>(util::to_underlying(AudioOutputMode::player));
+			}
 		}
 	}
 	setMode(mode);

@@ -174,9 +174,14 @@ void PatchCableSet::setPolarity(int32_t i, Polarity polarity) {
 
 Polarity PatchCableSet::recordedPolarity(int32_t i) {
 	PatchCable& cable = patchCables[i];
+	// A read creates no record: a cable the store does not hold yet reads as the cable's own.
 	if (domCablesRef_ != nullptr) {
-		return deluge::bridge::polarity_of(
-		    findOrCreateDomCable(cable.from, cable.destinationParamDescriptor, cable.polarity));
+		const deluge::engine::ParamId depth = deluge::bridge::cable_depth(cable.from, cable.destinationParamDescriptor);
+		for (const deluge::project::DocCable& entry : *domCablesRef_) {
+			if (entry.depth == depth) {
+				return deluge::bridge::polarity_of(entry);
+			}
+		}
 	}
 	return cable.polarity;
 }

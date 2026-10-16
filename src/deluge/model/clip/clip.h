@@ -213,10 +213,6 @@ public:
 
 	LearnedMIDI muteMIDICommand;
 
-	/// Clip structure lives in a DOM `DocClip` (`Song::clip_structure`), never an engine field. `docClip_` is bound in
-	/// the Clip ctor under the clip's durable id and is authoritative for the clip's whole life (always non-null). It
-	/// points into a std::map (clip_structure), so it is address-stable across other clips' inserts; `~Clip` removes
-	/// the entry.
 	/// @brief Rename the clip: its record, which a save writes, and the name the UI shows.
 	/// @param newName The new name; uniqueness within the track is the caller's to check.
 	void setName(std::string_view newName) {
@@ -235,6 +231,10 @@ public:
 	void bindDomClip(deluge::project::DocClip* d) { docClip_ = d; }
 	/// Whether this clip's structure is bound to a tree record. Always true after construction.
 	[[nodiscard]] bool isDomBound() const { return docClip_ != nullptr; }
+	/// Clip structure lives in a DOM `DocClip` (`Song::clip_structure`), never an engine field. `docClip_` is bound in
+	/// the Clip ctor under the clip's durable id and is authoritative for the clip's whole life (always non-null). It
+	/// points into a std::map (clip_structure), so it is address-stable across other clips' inserts; `~Clip` removes
+	/// the entry.
 	deluge::project::DocClip* docClip_{nullptr};
 
 	// Before linear recording of this Clip began, and this Clip started getting extended to multiples of this

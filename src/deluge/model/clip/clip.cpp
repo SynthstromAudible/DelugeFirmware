@@ -71,6 +71,10 @@ Clip::Clip(ClipType newType, Song& song, uint32_t loadedId) : type(newType) {
 	originalLength = 0;
 	armedForRecording = true;
 	setLaunchStyle(LaunchStyle::DEFAULT);
+	// A record reused under this id starts as a new clip's: no name, forward, holding no values of its own.
+	docClip_->name.clear();
+	docClip_->sequence_direction = SequenceDirection::FORWARD;
+	docClip_->values = {};
 	fillEventAtTickCount = 0;
 
 	// initialize automation clip view variables

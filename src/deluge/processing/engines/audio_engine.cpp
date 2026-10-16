@@ -198,8 +198,10 @@ void letGoOfClip(Clip* clip) {
 		if (currentSong->getCurrentClip() == clip) {
 			currentSong->setCurrentClip(nullptr);
 		}
+		// The render lets go of the live pointer only: the record is the interaction tier's, and retire() has already
+		// cleared it there.
 		if (currentSong->live.sync_scaling_clip == clip) {
-			currentSong->setSyncScalingClipRaw(nullptr);
+			currentSong->live.sync_scaling_clip = nullptr;
 		}
 		for (ClipArray* array :
 		     {&currentSong->live.clips.session_clips, &currentSong->live.clips.arrangement_only_clips}) {
