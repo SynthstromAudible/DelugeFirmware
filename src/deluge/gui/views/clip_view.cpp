@@ -101,7 +101,7 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 		                                                                     : ActionType::CLIP_LENGTH_INCREASE;
 
 		// If we are in middle of PATTERN_PASTE Action -> Resize need to be part of preview Pattern
-		if (actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
+		if (actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
 			actionType = ActionType::PATTERN_PASTE;
 		}
 
@@ -135,7 +135,7 @@ Action* ClipView::shortenClip(int32_t newLength) {
 	Action* action = nullptr;
 
 	// If we are in middle of pasting Pattern ACtion -> Resize is part of preview Pattern
-	if (actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
+	if (actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
 		action = actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	}
 	else {
