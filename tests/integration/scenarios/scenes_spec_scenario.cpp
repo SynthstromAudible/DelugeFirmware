@@ -20,10 +20,12 @@
 #include "entries.h"
 
 #include "gui/ui/ui.h"
+#include "processing/engines/audio_engine.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 
 namespace {
 /// The file's exit code: 0 when every example passed; -1 before it has run.
@@ -55,6 +57,10 @@ void deluge_scenario_scenes_spec_on_app_init(void) {
 	// The specs were written against an app with no UI open: each one installs what it drives. deluge_app_init has
 	// already opened the root UI, so it goes first.
 	nullifyUIs();
+	// Nor did they run under a live audio tier: a render between an example's write and its check would consume state
+	// it set (an arpeggiator's restart flag, a voice). Held for the whole file, as `QuietAudio` holds it per example.
+	const bool audio_was_locked = AudioEngine::audioRoutineLocked;
+	AudioEngine::audioRoutineLocked = true;
 	std::printf("SCENES-SPEC %s start\n", id);
 	std::fflush(stdout);
 	char program[] = "scenes_spec";
@@ -62,10 +68,15 @@ void deluge_scenario_scenes_spec_on_app_init(void) {
 	char* argv[] = {program, verbose, nullptr};
 	try {
 		g_exit = entry->run(2, argv);
-	} catch (...) {
+	} catch (const std::exception& e) {
 		// An exception out of a spec is a failure of that file, whatever it was.
+		std::printf("SCENES-SPEC %s threw: %s\n", id, e.what());
+		g_exit = 99;
+	} catch (...) {
+		std::printf("SCENES-SPEC %s threw a non-standard exception\n", id);
 		g_exit = 99;
 	}
+	AudioEngine::audioRoutineLocked = audio_was_locked;
 	std::printf("SCENES-SPEC %s exit=%d\n", id, g_exit);
 	std::fflush(stdout);
 }
