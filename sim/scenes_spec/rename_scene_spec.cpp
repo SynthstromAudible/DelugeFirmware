@@ -932,14 +932,5 @@ describe rename_goldens("scenes::rename::RenameScene pixels", $ {
 });
 // clang-format on
 
-/// Seven `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
-/// here with `add_specs` instead -- as `menu_scene_spec.cpp` does.
-int rename_scene_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(rename_targets, rename_composition, rename_open, rename_typing, rename_rejection,
-	                          rename_exits, rename_from_menu, rename_goldens)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(rename_scene_spec, rename_targets, rename_composition, rename_open, rename_typing, rename_rejection,
+            rename_exits, rename_from_menu, rename_goldens)

@@ -808,13 +808,5 @@ describe cm_pixels("scenes::context_menu::ContextMenuScene pixels", $ {
 });
 // clang-format on
 
-/// Seven `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out here
-/// with `add_specs` instead -- as `rename_scene_spec.cpp` does.
-int context_menu_scene_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(cm_descriptors, cm_window, cm_composition, cm_open, cm_input, cm_actions, cm_pixels)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(context_menu_scene_spec, cm_descriptors, cm_window, cm_composition, cm_open, cm_input, cm_actions,
+            cm_pixels)

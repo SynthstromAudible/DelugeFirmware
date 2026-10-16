@@ -430,12 +430,5 @@ describe note_roots_undo_log("pre-review fix: openShellMenu's NoteMode must not 
 });
 // clang-format on
 
-int note_roots_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(note_roots_table, note_roots_sequence_direction, note_roots_open_shell_menu,
-	                          note_roots_undo_log)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(note_roots_spec, note_roots_table, note_roots_sequence_direction, note_roots_open_shell_menu,
+            note_roots_undo_log)

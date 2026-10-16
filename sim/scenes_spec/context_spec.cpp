@@ -329,10 +329,4 @@ describe menu_permission("scenes::menu::permission_for", $ {
 });
 // clang-format on
 
-/// Three `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
-/// here with `add_specs` instead.
-int context_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_specs(menu_context, menu_model_stack, menu_permission).exec().is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(context_spec, menu_context, menu_model_stack, menu_permission)

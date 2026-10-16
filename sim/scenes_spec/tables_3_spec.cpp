@@ -590,14 +590,14 @@ bool legacy_write_needs_ui(const Node& node) {
 /// @brief The one node whose value does **not** live in shared storage, so the value comparisons
 ///        below have nothing to compare and would fail on the divergence by construction.
 ///
-/// `shortcuts_version` is the exception among E2 task 11's nine items. The other eight address a
-/// byte both sides read -- `FlashStorage::padColours` for the six colours, `PadLEDs::flashCursor`
-/// for the play cursor, `runtimeFeatureSettings` for dev sysex -- so the generic loops cross-check
-/// them for free. This one cannot: legacy keeps the setting on `soundEditor`
+/// `shortcuts_version` is the exception among the `tables_4_items` group's eight items. The other
+/// seven address a byte both sides read -- `FlashStorage::padColours` for the six colours and
+/// `PadLEDs::flashCursor` for the play cursor -- so the generic loops cross-check them for free. This one cannot:
+/// legacy keeps the setting on `soundEditor`
 /// (`shortcuts/version.h:26-27`) and `src/scenes` may not name `soundEditor`, so the port keeps it
 /// in `menu/shortcuts.cpp` beside the tables it selects. Two independent copies read back
 /// independently, which is exactly what these loops are built to catch, so it is excluded here and
-/// proved on its own terms in the batch-4 group: the round trip, and -- the thing that actually
+/// proved on its own terms in the `tables_4_items` group: the round trip, and -- the thing that actually
 /// matters -- that the layer it selects matches the one legacy's `setShortcutsVersion` produces,
 /// cell for cell.
 bool value_is_port_owned(const Node& node) {
@@ -642,7 +642,7 @@ const Root& installed_root(std::string_view name) {
 ///
 /// The pairing is `walk`'s, not a hand-written table: an example that names a legacy global directly
 /// would be asserting against its *own* idea of which item a node replaces, which is the thing under
-/// test. Several of the items the batch-4 group needs (`flashStatusMenu`, `shortcutsVersionMenu`)
+/// test. Several of the items the `tables_4_items` group needs (`flashStatusMenu`, `shortcutsVersionMenu`)
 /// are file-scope in `menus.cpp` and named in
 /// no header, so this is also the only way to reach them without a bare `extern` per item.
 ::MenuItem* legacy_item_for(const Node& node);
@@ -1026,6 +1026,31 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 		const auto& kids = SubmenuPeek::items_of(settingsRootMenu);
 		expect(kids.size()).to_equal(size_t(14));
 		expect(nodes::root_settings.children.size()).to_equal(size_t(13));
+	});
+
+	it("parks the reverb width and room size titles: legacy renames them under MUTABLE, the port does not yet", _ {
+		// `reverb::Width` and `reverb::RoomSize` answer Diffusion and Time under the MUTABLE and DIGITAL
+		// models; the port's node names are fixed ids (`src/scenes/README.md`, "Legacy features not yet
+		// ported"). Porting the dynamic titles fails the MUTABLE half here until this example goes.
+		const dsp::Reverb::Model saved = AudioEngine::reverb.getModel();
+		for (const Node* node : {&nodes::reverb_width, &nodes::reverb_room_size}) {
+			::MenuItem* item = nullptr;
+			for (const Pair& pair : tree().pairs) {
+				if (pair.node == node) {
+					item = pair.item;
+				}
+			}
+			expect(item != nullptr).to_be_true();
+			if (item == nullptr) {
+				continue;
+			}
+			const std::string port = text_of(node->name);
+			AudioEngine::reverb.setModel(dsp::Reverb::Model::FREEVERB);
+			expect(std::string{item->getName()}).to_equal(port);
+			AudioEngine::reverb.setModel(dsp::Reverb::Model::MUTABLE);
+			expect(std::string{item->getName()} == port).to_be_false();
+		}
+		AudioEngine::reverb.setModel(saved);
 	});
 
 	it("parks exactly the legacy items the scenes have not ported: Voice Usage (#5005)", _ {
@@ -3284,7 +3309,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 
 // clang-format off
 describe tables_4_items("scenes::menu batch-4 items: the last placeholders that were only placeholders", $ {
-	/// The eight E2 task 11 retires. Named once, here, and every example below inserts into `covered`
+	/// The group's eight items. Named once, here, and every example below inserts into `covered`
 	/// so the closing example can assert the set by identity -- a node dropped from a root, or an
 	/// example that quietly stopped driving one, fails rather than shrinking a count with slack in it.
 	static const std::set<const Node*> kBatch4 = {
@@ -3509,14 +3534,5 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 });
 // clang-format on
 
-/// Ten `describe` groups in one TU, so `DELUGE_SPEC` is spelled out here with `add_specs`.
-int tables_3_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(tables_3_shape, tables_3_values, tables_3_validation, tables_3_writes, tables_3_chaining,
-	                          tables_3_reset_items, tables_3_midi_commands, tables_3_dynamic, tables_3_pixels,
-	                          tables_4_items)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(tables_3_spec, tables_3_shape, tables_3_values, tables_3_validation, tables_3_writes, tables_3_chaining,
+            tables_3_reset_items, tables_3_midi_commands, tables_3_dynamic, tables_3_pixels, tables_4_items)

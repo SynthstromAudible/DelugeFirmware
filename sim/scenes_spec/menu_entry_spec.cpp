@@ -666,14 +666,5 @@ describe menu_entry_midi_learn("the guest's two MIDI-learn hooks reach the porte
 });
 // clang-format on
 
-/// Eight `describe` groups in one TU, so `DELUGE_SPEC` is spelled out here with `add_specs`, the way
-/// `boot_wiring_spec.cpp` does.
-int menu_entry_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(menu_entry_toggle, menu_entry_roots, menu_entry_node_arg, menu_entry_refusal,
-	                          menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate, menu_entry_midi_learn)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(menu_entry_spec, menu_entry_toggle, menu_entry_roots, menu_entry_node_arg, menu_entry_refusal,
+            menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate, menu_entry_midi_learn)

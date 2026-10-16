@@ -598,11 +598,4 @@ describe note_mode_exit("gui::ui::exitNoteModeBeforeClose -- SoundEditor::exitCo
 });
 // clang-format on
 
-int note_mode_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(note_mode_active, note_mode_buttons, note_mode_encoders, note_mode_exit)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(note_mode_spec, note_mode_active, note_mode_buttons, note_mode_encoders, note_mode_exit)

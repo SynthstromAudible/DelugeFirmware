@@ -970,13 +970,5 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 });
 // clang-format on
 
-/// Five `describe` groups in one TU, so `DELUGE_SPEC` is spelled out here with `add_specs`.
-int shortcuts_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(shortcuts_transcription, shortcuts_shape, shortcuts_validation, shortcuts_profile,
-	                          shortcuts_version_1)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(shortcuts_spec, shortcuts_transcription, shortcuts_shape, shortcuts_validation, shortcuts_profile,
+            shortcuts_version_1)

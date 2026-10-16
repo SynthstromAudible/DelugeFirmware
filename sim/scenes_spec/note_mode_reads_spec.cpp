@@ -404,8 +404,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		expect(menu_scene().state().edit_int).to_equal(int32_t{kNumProbabilityValues});
 
 		// Release the first pad -- the note editor remembers it -- then press the other: a fresh press
-		// replaces the remembered selection, and the item re-reads for the note now held. (With both
-		// held, the item reads the leftmost, as `note::Probability` does.)
+		// replaces the remembered selection, and the item re-reads for the note now held.
 		guest::noteModeLegacyCalls().noteEditorEditPad(0, 0, 0);
 		legacy.pressed.clear();
 		guest::noteModeLegacyCalls().noteEditorEditPad(1, 0, 1);
@@ -415,6 +414,23 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		                            [](const EditPadPress& p) { return p.xDisplay == 1; }))
 		    .to_be_true();
 		expect(menu_scene().state().edit_int).to_equal(int32_t{10});
+	});
+
+	it("with two pads held, re-reads the focused item for the leftmost note, as note::Probability does", _ {
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.add_square_note(1, 0, 10);
+		legacy.press(0, 0);
+		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
+		menu_scene().enter_submenu(nodes::note_editor_probability);
+
+		// The second press is the later one and the rightmost; the item still reads the leftmost.
+		guest::noteModeLegacyCalls().noteEditorEditPad(1, 0, 1);
+		legacy.pressed.push_back({1, 0});
+		expect(menu_scene().state().edit_int).to_equal(int32_t{kNumProbabilityValues});
 	});
 });
 
@@ -881,12 +897,5 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the port
 });
 // clang-format on
 
-int note_mode_reads_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(note_mode_reads_predicates, note_mode_reads_note_editor, note_mode_reads_note_row_editor,
-	                          note_mode_reads_menu_entries, note_mode_reads_legacy_leg)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(note_mode_reads_spec, note_mode_reads_predicates, note_mode_reads_note_editor,
+            note_mode_reads_note_row_editor, note_mode_reads_menu_entries, note_mode_reads_legacy_leg)

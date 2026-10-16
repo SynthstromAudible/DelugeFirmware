@@ -566,14 +566,5 @@ describe note_nodes_validation("scenes::menu note editor/note-row editor: valida
 });
 // clang-format on
 
-/// Eight `describe` groups in one TU, so `DELUGE_SPEC` is spelled out here with `add_specs`
-/// (`tables_3_spec.cpp`'s own precedent).
-int note_nodes_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(note_nodes_bridge, note_nodes_guards, note_nodes_value_text, note_nodes_custom_iterance,
-	                          note_nodes_no_bridge, note_nodes_select_chain, note_nodes_shape, note_nodes_validation)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(note_nodes_spec, note_nodes_bridge, note_nodes_guards, note_nodes_value_text, note_nodes_custom_iterance,
+            note_nodes_no_bridge, note_nodes_select_chain, note_nodes_shape, note_nodes_validation)

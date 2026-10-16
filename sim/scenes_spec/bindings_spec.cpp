@@ -597,14 +597,5 @@ describe menu_bindings_range_names("scenes::menu::bindings range/names/learn", $
 });
 // clang-format on
 
-/// Six `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
-/// here with `add_specs` instead.
-int bindings_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(menu_bindings_value, menu_bindings_scaling, menu_bindings_guards, menu_bindings_notify,
-	                          menu_bindings_affect_entire, menu_bindings_range_names)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(bindings_spec, menu_bindings_value, menu_bindings_scaling, menu_bindings_guards, menu_bindings_notify,
+            menu_bindings_affect_entire, menu_bindings_range_names)

@@ -993,14 +993,5 @@ describe browser_choice_reroot(
 	        });
     });
 
-/// `browser_choice_target` first: it touches no scene, no card and no song, so it runs before
-/// anything can have left a singleton in a state it would have to survive.
-int browser_choice_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(browser_choice_target, browser_choice_dispatch, browser_choice_claim,
-	                          browser_choice_reroot)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(browser_choice_spec, browser_choice_target, browser_choice_dispatch, browser_choice_claim,
+            browser_choice_reroot)

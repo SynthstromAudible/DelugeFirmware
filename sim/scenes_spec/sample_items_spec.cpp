@@ -765,13 +765,4 @@ describe sample_items_relevance("scenes::menu the sample items: relevance agains
 });
 // clang-format on
 
-/// Three `describe` groups in one TU, so `DELUGE_SPEC` is spelled out with `add_specs`
-/// (`audio_source_spec.cpp`'s shape).
-int sample_items_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(sample_items_mapping, sample_items_opening, sample_items_relevance)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(sample_items_spec, sample_items_mapping, sample_items_opening, sample_items_relevance)

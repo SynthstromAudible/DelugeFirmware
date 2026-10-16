@@ -866,14 +866,5 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 });
 // clang-format on
 
-/// Four `describe` groups in one TU, so `DELUGE_SPEC` is spelled out with `add_specs`
-/// (`sample_items_spec.cpp`'s shape).
-int output_items_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(output_items_mapping, output_items_milestone, midi_device_linked_item,
-	                          specific_output_item)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(output_items_spec, output_items_mapping, output_items_milestone, midi_device_linked_item,
+            specific_output_item)

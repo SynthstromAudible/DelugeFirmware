@@ -1938,14 +1938,5 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 });
 // clang-format on
 
-/// Eight `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
-/// here with `add_specs` instead -- as `context_spec.cpp` does.
-int menu_scene_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(menu_scene_composition, menu_scene_navigation, menu_scene_editing, menu_scene_claims,
-	                          menu_scene_grid, menu_scene_columns, menu_scene_goldens, menu_scene_info_and_custom)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(menu_scene_spec, menu_scene_composition, menu_scene_navigation, menu_scene_editing, menu_scene_claims,
+            menu_scene_grid, menu_scene_columns, menu_scene_goldens, menu_scene_info_and_custom)

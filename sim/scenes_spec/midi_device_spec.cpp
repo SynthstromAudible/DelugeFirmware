@@ -833,12 +833,4 @@ describe midi_device_pixels("scenes::menu E3 task 8: the per-device page's pixel
 });
 // clang-format on
 
-/// Four `describe` groups in one TU, so `DELUGE_SPEC` is spelled out here with `add_specs`.
-int midi_device_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(midi_device_shape, midi_device_per_cable, midi_device_mpe, midi_device_pixels)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(midi_device_spec, midi_device_shape, midi_device_per_cable, midi_device_mpe, midi_device_pixels)

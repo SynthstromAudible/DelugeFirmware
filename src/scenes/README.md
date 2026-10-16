@@ -247,8 +247,8 @@ kit, MIDI/CV, song, settings, …), gathered by `MenuScene::roots()`
 
 Legacy's menus are the truth the tree transcribes. Small legacy changes are followed as they land; a
 feature-level one the scenes have not caught up with is listed here, and the specs that walk the two
-trees in lockstep step over it by identity (`tables_3_spec.cpp`'s `unported_legacy`), so porting it
-fails that spec until it leaves both lists.
+trees in lockstep step over it by identity (`tables_3_spec.cpp`'s `unported_legacy`), or pin the divergence (the
+reverb titles), so porting it fails that spec until it leaves both lists.
 
 | legacy | change | what porting it takes |
 |---|---|---|

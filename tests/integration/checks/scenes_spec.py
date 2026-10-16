@@ -5,7 +5,8 @@ selftest/ aside: the table is generated from the files, so a mismatch means a st
 own process on its card (tests/integration/checks/scenes_spec_cards.txt; the fixture card otherwise) and passes only
 on exit 0 and its own SCENES-SPEC-RESULT failures=0 line, so a crash or a file that never reaches its result line
 fails by name, as does one still running after RUN_TIMEOUT_S. The runner's self-specs pin that a passing file and the
-card checks pass and that a failing and a crashing one do not, and one back-to-back pair shows that a file leaving a stack song in currentSong cannot reach the next file.
+card checks pass and that a failing, a crashing and an empty one (no examples) do not. Every file runs in a fresh process, so no file's leftover
+state (a stack song in currentSong, a guard it left open) can reach another.
 """
 
 from pathlib import Path
@@ -105,6 +106,7 @@ def run(gate) -> None:
         # SdRoot/NoSdRoot confirm the installed card, so a card spec cannot silently list the wrong one.
         ("selftest/card_access_spec", True),
         ("selftest/fail_spec", False),
+        ("selftest/empty_spec", False),
         ("selftest/crash_spec", False),
     ):
         run = _run_spec(gate, spec_id, cards)
@@ -113,10 +115,3 @@ def run(gate) -> None:
                 f"{spec_id}: the runner reported it {'passing' if _passes(run) else 'failing'}"
             )
             gate.show(run)
-
-    # note_bridge_spec leaves a stack-allocated song's pointers behind in currentSong's world; the file after it
-    # runs in a fresh process, so menu_scene_spec still passes.
-    for spec_id in ("note_bridge_spec", "menu_scene_spec"):
-        run = _run_spec(gate, spec_id, cards)
-        if not _passes(run):
-            _report(gate, f"{spec_id} (back-to-back pair)", run)

@@ -401,7 +401,7 @@ struct PerformViewGuard {
 /// instead of null, while `getRootUI()` still answers null -- it is a different function, at
 /// `ui.cpp:145-150`, and it reads only `numUIsOpen` (`:146-147`), never the residue. It is
 /// benign for this file on two counts, both checkable: nothing in `sim/scenes_spec/menu_actions_spec.cpp`
-/// reads `getCurrentUI()`, and `menu_action_open_perform` is registered LAST in `add_specs` below,
+/// reads `getCurrentUI()`, and `menu_action_open_perform` is registered LAST in `DELUGE_SPEC` below,
 /// after the three groups that drive the port. An example added to this file that needs a null
 /// `getCurrentUI()` must say so itself.
 struct UiStackGuard {
@@ -2847,49 +2847,6 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 
 // clang-format on
 
-/// Ten `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
-/// here with `add_specs` instead -- exactly as `context_spec.cpp` does.
-///
-/// **`menu_action_screensaver` (F2 task 7) is registered sixth, immediately after the group it is a
-/// second instance of, and by that group's argument rather than a new one.** It opens no UI (no
-/// `setRootUILowLevel`, no `openUI`, no `changeRootUI`), touches neither `currentUIMode` nor shift,
-/// and everything it moves -- two `FlashStorage` fields, the global `shellHostUI`'s
-/// `screensaver_idle_ms`, and `TimerName::SCREENSAVER` -- is put back by `ScreensaverGuard` on every
-/// example. Its `GuestRig` leg is the same local `ShellHostUI` `menu_action_dispatch` already ticks.
-/// It reads the global guest's shell where the shortcut-version group reads `soundEditor`, which is
-/// the only global either of them shares with `boot_wiring_spec.cpp`, and both restore it.
-///
-/// **`menu_action_shortcuts_version` (F2 task 6) is registered fifth, before the UI-stack groups,
-/// and that is the ordering question rather than a default.** It is the only group added since this
-/// note was written that could have gone at the end and does not, because it leaves no residue for
-/// the end to be protecting: it opens no UI (no `setRootUILowLevel`, no `openUI`, no
-/// `changeRootUI`), touches neither `currentUIMode` nor shift, and everything it *does* move --
-/// `soundEditor.shortcutsVersion` and twelve cells of the legacy shortcut tables -- is put back by
-/// `ShortcutsVersionGuard` on every example. Its `GuestRig` leg is the same local `ShellHostUI`
-/// `menu_action_dispatch` above already ticks, not the global one. So it belongs with the groups
-/// that are about the seam, ahead of the three that are about the stack.
-///
-/// `menu_action_open_perform`, `menu_action_stem_export` and `menu_action_three_verbs` are LAST on
-/// purpose, and `UiStackGuard`'s note says why: they are the groups that put something on
-/// `uiNavigationHierarchy`, and the one residue their teardown cannot undo is
-/// `lastUIBeforeNullifying`. `menu_action_stem_export` is after `menu_action_open_perform` because it
-/// is also the only group that opens the global guest; it reads neither `getCurrentUI()` nor that
-/// residue, and `GlobalGuestGuard` returns the global to the depth 0 it was constructed at.
-/// `menu_action_three_verbs` is after both because it is the only group that leaves a `SessionView`
-/// mode moved -- `gridModeActive`, which is private and so cannot be put back from here (see
-/// `MidiLearnGuard`).
-///
-/// `menu_action_perform_mirror` (F2 task 5) is last of all: it is the only group that reaches
-/// `changeRootUI`, which runs a real root view's `opened()` and so leaves more behind than
-/// `setRootUILowLevel` does, and the only one that moves shift and `AudioEngine::audioSampleTimer`.
-/// `PerformGestureGuard` puts back everything it can name; being last is what covers what it cannot.
-int menu_actions_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(menu_action_seam, menu_action_items, menu_action_perform, menu_action_dispatch,
-	                          menu_action_shortcuts_version, menu_action_screensaver, menu_action_open_perform,
-	                          menu_action_stem_export, menu_action_three_verbs, menu_action_perform_mirror)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(menu_actions_spec, menu_action_seam, menu_action_items, menu_action_perform, menu_action_dispatch,
+            menu_action_shortcuts_version, menu_action_screensaver, menu_action_open_perform, menu_action_stem_export,
+            menu_action_three_verbs, menu_action_perform_mirror)

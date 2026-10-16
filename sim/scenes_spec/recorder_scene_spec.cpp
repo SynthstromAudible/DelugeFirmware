@@ -17,8 +17,8 @@
 /// `endSyncedRecording` (`:1195`) is arithmetic over `numSamplesCaptured`, and `abort()` (`:367`) is
 /// a single status store -- the file deletion that follows an abort is, again, in `cardRoutine()`.
 /// The file runs with no card installed (`NoSdRoot`), and the card is in memory, so a future change
-/// that *did* create a file could reach no committed fixture; `QuietAudio` is `card_access.h`'s
-/// standing disarm for the un-booted audio engine.
+/// that *did* create a file could reach no committed fixture; `QuietAudio` keeps the audio routine
+/// from running inside an example.
 ///
 /// @par The legacy oracle
 ///

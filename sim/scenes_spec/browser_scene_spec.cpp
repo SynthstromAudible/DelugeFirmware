@@ -268,9 +268,9 @@ public:
 
 	/// @brief `Browser::backButtonAction`'s ascend (`browser.cpp:1283-1300`).
 	///
-	/// The two gates that arm wraps -- `listingInProgress_` and `isSDRoutineActive()` -- are both
-	/// false here (the host runs the listing inline), and `exitAction()` on the root-level refusal
-	/// is `close()`, which the ascend example never reaches.
+	/// The gate that arm wraps, `listingInProgress_`, is false here because every entry point settles
+	/// its listing, and `exitAction()` on the root-level refusal is `close()`, which the ascend example
+	/// never reaches.
 	void back() {
 		(void)goUpOneDirectoryLevel();
 		settle();
@@ -284,6 +284,10 @@ public:
 	void settle() {
 		for (int32_t pass = 0; pass < 64 && isListingInProgress(); pass++) {
 			runPendingListing();
+		}
+		if (isListingInProgress()) {
+			std::fprintf(stderr, "browser_scene_spec: a legacy listing was still running after 64 passes\n");
+			std::abort();
 		}
 	}
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override {
@@ -1645,15 +1649,5 @@ describe browser_goldens("scenes::browser::BrowserScene pixels", $ {
 });
     // clang-format on
 
-    /// Eight `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
-    /// here with `add_specs` instead -- as `rename_scene_spec.cpp` does.
-    int browser_scene_spec(int argc, char** const argv) {
-	    return CppSpec::parse(argc, argv)
-	                   .add_specs(browser_descriptors, browser_composition, browser_open, browser_in_flight,
-	                              browser_navigation, browser_typing, browser_accept, browser_legacy_pixels,
-	                              browser_goldens)
-	                   .exec()
-	                   .is_success()
-	               ? EXIT_SUCCESS
-	               : EXIT_FAILURE;
-    }
+    DELUGE_SPEC(browser_scene_spec, browser_descriptors, browser_composition, browser_open, browser_in_flight,
+                browser_navigation, browser_typing, browser_accept, browser_legacy_pixels, browser_goldens)

@@ -686,12 +686,4 @@ describe menu_range_pixels("scenes::menu Kind::Range -- pixels, against legacy",
 });
 // clang-format on
 
-/// Four `describe` groups in one TU, so `DELUGE_SPEC` is spelled out here with `add_specs`.
-int menu_ranges_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(menu_range_tables, menu_range_text, menu_range_edit, menu_range_pixels)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(menu_ranges_spec, menu_range_tables, menu_range_text, menu_range_edit, menu_range_pixels)

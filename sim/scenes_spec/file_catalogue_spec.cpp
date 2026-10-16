@@ -2,13 +2,10 @@
 /// @brief Characterisation of `deluge::storage::FileCatalogue`, the scenes' listing backend: the
 ///        listing, sort, search and cull machinery that was extracted from `Browser`.
 ///
-/// **This spec was written and made to pass against the legacy `Browser` statics first**, before the
-/// extraction existed, and was re-run unchanged afterwards: every number asserted below (entry
-/// counts, orders, indices, cull windows) is what `Browser::readFileItemsForFolder` /
-/// `sortFileItems` / `searchFileItems` / `cullSomeFileItems` produced at `a6b915f92`, and is the
-/// invariant the catalogue keeps. Legacy's `Browser` now keeps its own per-instance listing, so this
-/// file drives the catalogue directly, through `SpecBrowser` (`support/catalogue_rig.h`), which
-/// carries the note-name flag a browser passes it.
+/// Every number asserted below (entry counts, orders, indices, cull windows) is what legacy's
+/// `Browser` listing produces for the same folder and flags, so the catalogue lists, sorts, searches
+/// and culls exactly as the browser it serves expects. The examples drive the catalogue through
+/// `SpecBrowser` (`support/catalogue_rig.h`), which carries the note-name flag a browser passes it.
 ///
 /// **Known gap.** The listing->cull composite is covered only in its narrowest deterministic form
 /// (three files, a cap of two, one cull -- `file_catalogue_trio_spec.cpp`, which needs its own card).

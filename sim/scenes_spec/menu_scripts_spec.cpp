@@ -1463,6 +1463,4 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 });
 // clang-format on
 
-int menu_scripts_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_specs(menu_scripts).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(menu_scripts_spec, menu_scripts)

@@ -867,14 +867,5 @@ describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
 });
 // clang-format on
 
-/// Six `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
-/// here with `add_specs` instead.
-int tables_1_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(tables_1_shape, tables_1_values, tables_1_validation, tables_1_pixels, tables_1_writes,
-	                          tables_1_range_picker)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(tables_1_spec, tables_1_shape, tables_1_values, tables_1_validation, tables_1_pixels, tables_1_writes,
+            tables_1_range_picker)

@@ -273,12 +273,4 @@ describe boot_services("the three services, installed into the guest's own Shell
 });
 // clang-format on
 
-/// Four `describe` groups in one TU, so `DELUGE_SPEC` is spelled out here with `add_specs`.
-int boot_wiring_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(boot_node_ids, boot_shortcuts_version, boot_screensaver, boot_services)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(boot_wiring_spec, boot_node_ids, boot_shortcuts_version, boot_screensaver, boot_services)

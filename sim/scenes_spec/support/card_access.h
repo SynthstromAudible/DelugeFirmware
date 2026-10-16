@@ -134,21 +134,16 @@ struct NoSdRoot {
 /// @brief Hold `AudioEngine`'s own re-entrancy latch for the scope, so the catalogue's yield points
 ///        are no-ops.
 ///
-/// @warning **Without this, a spec that drives a listing does not fail -- it segfaults.**
-///
 /// `emptyFileItems()` and `deleteSomeFileItems()` pump `AudioEngine::routineWithClusterLoading()`
-/// between chunks (`storage/file_catalogue.cpp:85 emptyFileItems`, `:101 deleteSomeFileItems`) --
-/// they can be erasing thousands of entries, and the audio must keep running. A spec process never
-/// boots the audio engine: `AudioEngine::init()` (`processing/engines/audio_engine.cpp:226`) builds
-/// a preview `SoundDrum` off `currentSong` and only then sets `inputRingPos` (`:246`), so an
-/// un-booted process walks into `fillInputRing` (`:179`) with a cursor of 0 and dies on the first
-/// non-empty erase.
+/// between chunks -- they can be erasing thousands of entries, and the audio must keep running. A
+/// spec asserts on the catalogue a listing leaves, so a render run from inside one of those pumps
+/// would interleave with the example it is part of. `audioRoutineLocked` is the engine's own answer
+/// to "do not run the routine right now": `routine()` returns at once while it is set. It changes
+/// nothing about the catalogue: the pump is a yield point, not part of the listing, sort, search or
+/// cull contract.
 ///
-/// `audioRoutineLocked` is the engine's *own* answer to "do not run the routine right now"
-/// (`:1122` -- `routine()` returns immediately while it is set, and `runRoutine()` reaches
-/// `routine()` directly here because no scheduler task is registered). Holding it makes every pump
-/// call a documented no-op. It changes nothing about the catalogue: the pump is a yield point, not
-/// part of the listing, sort, search or cull contract.
+/// The scenes-spec runner already holds the latch for a whole file; this guard keeps a spec correct
+/// on its own, and restores whatever it found.
 ///
 /// @note This is a **spec-side** guard, and it stays spec-side on purpose. The shipped seam
 ///       (`src/scenes/browser/listing.cpp`) must never hold this latch: on the device the pump is

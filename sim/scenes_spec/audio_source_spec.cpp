@@ -522,12 +522,4 @@ describe audio_source_pixels("scenes::context_menu the audio-source descriptor: 
 });
 // clang-format on
 
-/// Four `describe` groups in one TU, so `DELUGE_SPEC` is spelled out with `add_specs`.
-int audio_source_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv)
-	               .add_specs(audio_source_table, audio_source_seed, audio_source_move, audio_source_pixels)
-	               .exec()
-	               .is_success()
-	           ? EXIT_SUCCESS
-	           : EXIT_FAILURE;
-}
+DELUGE_SPEC(audio_source_spec, audio_source_table, audio_source_seed, audio_source_move, audio_source_pixels)

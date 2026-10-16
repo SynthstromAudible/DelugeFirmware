@@ -4,7 +4,7 @@
 /// @brief The per-device MIDI page -- the subtree `midi_devices` chains to -- and the MPE
 ///        direction/zone selectors that hang off it.
 ///
-/// The port of `midi::Device midiDeviceMenu` (`gui/ui/menus.cpp:1444-1453`), the six-child submenu
+/// The port of `midi::Device midiDeviceMenu` (`gui/ui/menus.cpp:1448-1458`), the six-child submenu
 /// `midi::Devices::selectButtonPress` returns (`gui/menu_item/midi/devices.cpp:154-156`). E2 task 10
 /// declared the device *list* and recorded this page as owed (`nodes/dynamic.h`, "What is still
 /// owed"); this file is that debt, and `settings.h`'s `midi_devices` gains its `select_chain` with
@@ -14,14 +14,14 @@
 ///
 ///   | node | legacy item | legacy write |
 ///   |---|---|---|
-///   | `mpe_direction` | `mpe::DirectionSelector directionSelectorMenu` (`menus.cpp:1470`,
+///   | `mpe_direction` | `mpe::DirectionSelector directionSelectorMenu` (`menus.cpp:1475`,
 ///   `gui/menu_item/mpe/direction_selector.h:25-43`) | its own `whichDirection` (`:37`) | |
-///   `device_default_velocity_to_level` | `midi::DefaultVelocityToLevel defaultVelocityToLevelMenu` (`menus.cpp:1440`,
+///   `device_default_velocity_to_level` | `midi::DefaultVelocityToLevel defaultVelocityToLevelMenu` (`menus.cpp:1443`,
 ///   `midi/default_velocity_to_level.h:24-37`) | `MIDICable::defaultVelocityToLevel` | | `device_send_clock` |
-///   `midi::DeviceSendClock device_send_clock_menu` (`menus.cpp:1441`, `midi/device_send_clock.h:24-32`) |
+///   `midi::DeviceSendClock device_send_clock_menu` (`menus.cpp:1444`, `midi/device_send_clock.h:24-32`) |
 ///   `MIDICable::sendClock` | | `device_receive_clock` | `midi::DeviceReceiveClock device_receive_clock_menu`
-///   (`menus.cpp:1442`, `midi/device_receive_clock.h:24-32`) | `MIDICable::receiveClock` | | `device_is_relative` |
-///   `midi::DeviceIsRelative device_is_relative_menu` (`menus.cpp:1443`, `midi/device_is_relative.h:24-32`) |
+///   (`menus.cpp:1445`, `midi/device_receive_clock.h:24-32`) | `MIDICable::receiveClock` | | `device_is_relative` |
+///   `midi::DeviceIsRelative device_is_relative_menu` (`menus.cpp:1446`, `midi/device_is_relative.h:24-32`) |
 ///   `MIDICable::is_relative` | | `device_send_thru` | `midi::DeviceSendThru device_send_thru_menu` (`menus.cpp:1447`)
 ///   | `MIDICable::midi_thru` |
 ///
@@ -116,7 +116,7 @@
 ///   * **`zoneSelectorMenu`'s empty name.** `ZoneSelector` is default-constructed
 ///     (`zone_selector.cpp:23`), so both its name and title are `EMPTY_STRING` and legacy draws a
 ///     blank title bar over it. `MissingTitle` again, so the port names it `STRING_FOR_MPE` --
-///     the name its own parent selector carries (`menus.cpp:1470`), which is what the page is
+///     the name its own parent selector carries (`menus.cpp:1475`), which is what the page is
 ///     about. `mpe_zone_num_member_channels` needs no such invention: it is default-constructed
 ///     too, but overrides `getTitle()` to `STRING_FOR_NUM_MEMBER_CH_MENU_TITLE`
 ///     (`zone_num_member_channels.h:34-36`).
@@ -290,7 +290,7 @@ inline constexpr const Node* kMidiDeviceChildren[] = {
     &device_is_relative, &device_send_thru,
 };
 
-/// `midi::Device midiDeviceMenu` (`gui/ui/menus.cpp:1444-1453`). See the file note on its title.
+/// `midi::Device midiDeviceMenu` (`gui/ui/menus.cpp:1448-1458`). See the file note on its title.
 inline constexpr Node midi_device = submenu(sid(deluge::l10n::String::STRING_FOR_MIDI_DEVICES), kMidiDeviceChildren);
 
 /// `Devices::selectButtonPress` (`gui/menu_item/midi/devices.cpp:154-156`) -- unconditional.
