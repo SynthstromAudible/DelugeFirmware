@@ -88,10 +88,10 @@
                                   # holds `spec::QuietAudio`, which is the disarm for
                                   # `AudioEngine::routineWithClusterLoading` in a spec process, not
                                   # a stub of the transport. `.state` gains `led Play on`
-                                  # (`playback_handler.cpp:2501`). RECORD is still lit and the
-                                  # panel is unchanged: nothing about the clip view depends on
-                                  # transport state until a play cursor moves, and nothing moves it
-                                  # here (no audio thread)
+                                  # (`playback_handler.cpp:2501`). RECORD is still lit, and the
+                                  # playhead appears at column 0: the booted app's clock runs, so
+                                  # `AudioClipView::graphicsRoutine`'s `getTickSquare()` arm draws it
+                                  # (`audio_clip_view.cpp:293-313`), as it does through the clear below
 2100  button XEnc down
 2150  button Back down
 2170  button Back up

@@ -38,6 +38,16 @@ set(SCENES_SPEC_PORTED
     count_in_spec
     timeline_spec
     midi_device_spec
+    audio_clip_scene_spec
+    marker_scene_spec
+    rename_scene_spec
+    screensaver_scene_spec
+    scene_scripts_spec
+    boot_wiring_spec
+    notification_sink_spec
+    profile_spec
+    l10n_bridge_spec
+    audio_source_spec
 )
 set(_ported_sources "")
 set(_decls "")
@@ -54,7 +64,13 @@ foreach(_spec IN LISTS _scenes_specs)
 endforeach()
 configure_file(${CMAKE_CURRENT_LIST_DIR}/entries.cpp.in ${CMAKE_CURRENT_BINARY_DIR}/entries.cpp @ONLY)
 
-add_library(deluge_scenes_spec STATIC ${_ported_sources} ${CMAKE_CURRENT_BINARY_DIR}/entries.cpp)
+# The examples' shared support: the screensaver oracles and the harness's state-line writer.
+set(_support_sources
+    support/oracle_rainfall.cpp
+    support/oracle_starfield.cpp
+    ${REPO_ROOT}/tests/harness/snapshot.cpp)
+
+add_library(deluge_scenes_spec STATIC ${_ported_sources} ${_support_sources} ${CMAKE_CURRENT_BINARY_DIR}/entries.cpp)
 target_link_libraries(deluge_scenes_spec PRIVATE deluge_app deluge_scenes c++spec)
 target_include_directories(deluge_scenes_spec PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 target_include_directories(deluge_scenes_spec PRIVATE ${REPO_ROOT}/tests ${REPO_ROOT}/tests/unit)

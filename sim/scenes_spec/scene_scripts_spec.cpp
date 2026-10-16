@@ -161,6 +161,7 @@
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/flash_storage.h"
 
@@ -250,9 +251,13 @@ int8_t cluster_peak(int32_t i) {
 
 Sample* make_sample() {
 	Cluster::set_size(kClusterSize);
-	// Placed in the deluge heap and never freed -- `song_fixture.h`'s own rule, and for its reason.
-	void* memory = deluge::memory::alloc_fast(sizeof(Sample));
+	// Allocated and adopted as `AudioFileManager` adopts a loaded sample, so the holder's lease checks
+	// see a real resource. The one lease taken here is never released: the sample is never evicted or
+	// freed -- `song_fixture.h`'s own rule, and for its reason.
+	void* memory = deluge::memory::alloc_external(sizeof(Sample), 16);
 	auto* s = new (memory) Sample();
+	audioFileManager.adoptAudioFileObject(s);
+	s->addReason();
 	s->byteDepth = 2;
 	s->numChannels = 1;
 	s->sampleRate = 44100;
@@ -485,6 +490,7 @@ uitest::RunOptions opts_for_64(SceneId id) {
 ///          two review rounds that produced it; this is that fixture's own pair.
 void attach_audio_sample(spec::AudioSongFixture& f, Sample* sample) {
 	f.clip->sampleHolder.audioFile = sample;
+	sample->addReason(); // the lease `SampleHolder::setAudioFile` takes
 	f.clip->sampleHolder.startPos = 0;
 	f.clip->sampleHolder.endPos = static_cast<int64_t>(kSampleLength);
 	// `SampleHolder::setAudioFile` normally computes this; `kMaxSampleValue` is the identity, and
@@ -497,12 +503,12 @@ void attach_audio_sample(spec::AudioSongFixture& f, Sample* sample) {
 	f.clip->activeIfNoSolo = true;
 	f.clip->soloingInSessionMode = false;
 	f.clip->armState = ArmState::OFF;
-	f.clip->loopLength = 768;
+	f.clip->setLoopLength(768);
 	f.clip->originalLength = 768;
 	f.clip->lastProcessedPos = 0;
-	f.song->xScroll[NAVIGATION_CLIP] = 0;
-	f.song->xZoom[NAVIGATION_CLIP] = 48;
-	f.song->tripletsOn = false;
+	f.song->persistentView.xScroll[NAVIGATION_CLIP] = 0;
+	f.song->persistentView.xZoom[NAVIGATION_CLIP] = 48;
+	f.song->persistentView.tripletsOn = false;
 	playbackHandler.playbackState = 0;
 	playbackHandler.recording = RecordingMode::OFF;
 	playbackHandler.metronomeOn = false;

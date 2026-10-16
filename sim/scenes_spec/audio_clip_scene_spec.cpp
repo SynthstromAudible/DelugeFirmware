@@ -15,7 +15,7 @@
 ///     `xScroll`/`xZoom`/`loopLength` the spec sets and **both** sides then read for themselves.
 ///
 /// Nothing the port computed is ever handed to legacy: the port reads scroll and zoom through
-/// `TimelineState::adopt(song)` and legacy reads them through `currentSong->xScroll[NAVIGATION_CLIP]`,
+/// `TimelineState::adopt(song)` and legacy reads them through `currentSong->persistentView.xScroll[NAVIGATION_CLIP]`,
 /// so the two derive the same view independently from the one place the spec wrote.
 ///
 /// @par The pad comparison composes legacy the way the DEVICE does, not the way `renderMainPads` does
@@ -89,6 +89,7 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/flash_storage.h"
 
@@ -175,9 +176,13 @@ int8_t cluster_peak(int32_t i) {
 Sample* make_sample() {
 	Cluster::set_size(kClusterSize);
 
-	// Placed in the deluge heap and never freed -- `song_fixture.h`'s own rule, and for its reason.
-	void* memory = deluge::memory::alloc_fast(sizeof(Sample));
+	// Allocated and adopted as `AudioFileManager` adopts a loaded sample, so the holder's lease checks
+	// see a real resource. The one lease taken here is never released: the sample is never evicted or
+	// freed -- `song_fixture.h`'s own rule, and for its reason.
+	void* memory = deluge::memory::alloc_external(sizeof(Sample), 16);
 	auto* s = new (memory) Sample();
+	audioFileManager.adoptAudioFileObject(s);
+	s->addReason();
 	s->byteDepth = 2;
 	s->numChannels = 1;
 	s->sampleRate = 44100;
@@ -327,6 +332,7 @@ struct Rig {
 		// The clip's sample, attached the way `AudioClip::setupPlaybackBounds` leaves it: the whole
 		// file, forwards.
 		f.clip->sampleHolder.audioFile = sample;
+		sample->addReason(); // the lease `SampleHolder::setAudioFile` takes
 		f.clip->sampleHolder.startPos = 0;
 		f.clip->sampleHolder.endPos = static_cast<int64_t>(kSampleLength);
 		// `SampleHolder::setAudioFile` is what normally computes this (`sample_holder.cpp:110`); the
@@ -366,10 +372,10 @@ struct Rig {
 
 	/// @brief Write @p s into the model. It is the ONE place either side's view comes from.
 	void seed(const Sentinel& s) const {
-		f.song->xScroll[NAVIGATION_CLIP] = s.x_scroll;
-		f.song->xZoom[NAVIGATION_CLIP] = static_cast<uint32_t>(s.x_zoom);
-		f.song->tripletsOn = false;
-		f.clip->loopLength = s.loop_length;
+		f.song->persistentView.xScroll[NAVIGATION_CLIP] = s.x_scroll;
+		f.song->persistentView.xZoom[NAVIGATION_CLIP] = static_cast<uint32_t>(s.x_zoom);
+		f.song->persistentView.tripletsOn = false;
+		f.clip->setLoopLength(s.loop_length);
 		f.clip->originalLength = s.loop_length;
 		f.clip->lastProcessedPos = s.last_processed_pos;
 		f.clip->activeIfNoSolo = true;
@@ -418,8 +424,8 @@ struct Rig {
 		// 120 BPM, through `Song::setBPMInner`'s own arithmetic (`song.cpp:3072-3081`) rather than
 		// by calling it: `setTempoFromNumSamples` reaches `playbackHandler`, and this process has
 		// no transport.
-		const double bpm = 120.0 * static_cast<double>(1u << f.song->insideWorldTickMagnitude);
-		f.song->timePerTimerTickBig = static_cast<uint64_t>((110250.0 / bpm) * 4294967296.0);
+		const double bpm = 120.0 * static_cast<double>(1u << f.song->project.transport.inside_world_tick_magnitude);
+		f.song->project.transport.samples_per_timer_tick_big = static_cast<uint64_t>((110250.0 / bpm) * 4294967296.0);
 	}
 
 	/// @brief Open the port's scene on the fixture's clip.
@@ -679,8 +685,8 @@ struct ModelSnapshot {
 
 /// @param r The rig.
 /// @return The three fields, read straight off the model both sides share.
-ModelSnapshot snapshot(const Rig& r) {
-	return ModelSnapshot{r.f.clip->loopLength, r.f.clip->sampleHolder.startPos, r.f.clip->sampleHolder.endPos};
+ModelSnapshot model_snapshot(const Rig& r) {
+	return ModelSnapshot{r.f.clip->loopLength(), r.f.clip->sampleHolder.startPos, r.f.clip->sampleHolder.endPos};
 }
 
 /// @brief Assert @p port and @p legacy agree AND that both actually moved off @p seeded.
@@ -874,24 +880,26 @@ struct NavProbe : ClipNavigationTimelineView {
 /// @param r The rig.
 /// @return The column.
 int32_t end_square_of(const Rig& r) {
-	return divide_round_negative(r.f.clip->loopLength - r.f.song->xScroll[NAVIGATION_CLIP] - 1,
-	                             static_cast<int32_t>(r.f.song->xZoom[NAVIGATION_CLIP]));
+	return divide_round_negative(r.f.clip->loopLength() - r.f.song->persistentView.xScroll[NAVIGATION_CLIP] - 1,
+	                             static_cast<int32_t>(r.f.song->persistentView.xZoom[NAVIGATION_CLIP]));
 }
 
 bool raise_legacy_end_marker(Rig& r) {
 	// `padAction`'s `x == endSquareDisplay` arm (`:550-556`). `endSquareDisplay` is computed by
 	// legacy itself inside `padAction`; the column handed in is the one the SENTINEL implies, and
 	// the return value is what says the two agreed.
-	const int32_t end_square = divide_round_negative(r.f.clip->loopLength - r.f.song->xScroll[NAVIGATION_CLIP] - 1,
-	                                                 static_cast<int32_t>(r.f.song->xZoom[NAVIGATION_CLIP]));
+	const int32_t end_square =
+	    divide_round_negative(r.f.clip->loopLength() - r.f.song->persistentView.xScroll[NAVIGATION_CLIP] - 1,
+	                          static_cast<int32_t>(r.f.song->persistentView.xZoom[NAVIGATION_CLIP]));
 	(void)legacy_view.padAction(end_square, 0, 1);
-	return legacy_view.getMaxLength() == static_cast<uint32_t>(r.f.clip->loopLength) + 1;
+	return legacy_view.getMaxLength() == static_cast<uint32_t>(r.f.clip->loopLength()) + 1;
 }
 
 /// @brief Put legacy's END marker back down, through the same gesture.
 void lower_legacy_end_marker(Rig& r) {
-	const int32_t end_square = divide_round_negative(r.f.clip->loopLength - r.f.song->xScroll[NAVIGATION_CLIP] - 1,
-	                                                 static_cast<int32_t>(r.f.song->xZoom[NAVIGATION_CLIP]));
+	const int32_t end_square =
+	    divide_round_negative(r.f.clip->loopLength() - r.f.song->persistentView.xScroll[NAVIGATION_CLIP] - 1,
+	                          static_cast<int32_t>(r.f.song->persistentView.xZoom[NAVIGATION_CLIP]));
 	// `:510-516`: tapping the marker's own column toggles it off.
 	(void)legacy_view.padAction(end_square, 0, 1);
 }
@@ -912,10 +920,10 @@ void lower_legacy_end_marker(Rig& r) {
 bool reset_legacy_markers(Rig& r) {
 	const int32_t end = end_square_of(r);
 	(void)legacy_view.padAction(end, 0, 1);
-	if (legacy_view.getMaxLength() == static_cast<uint32_t>(r.f.clip->loopLength) + 1) {
+	if (legacy_view.getMaxLength() == static_cast<uint32_t>(r.f.clip->loopLength()) + 1) {
 		(void)legacy_view.padAction(end, 0, 1);
 	}
-	return legacy_view.getMaxLength() == static_cast<uint32_t>(r.f.clip->loopLength);
+	return legacy_view.getMaxLength() == static_cast<uint32_t>(r.f.clip->loopLength());
 }
 
 } // namespace
@@ -975,14 +983,14 @@ describe audio_clip_scene_spec_body(
 		        // Markers down on both sides.
 		        expect(r.scene().max_length()).to_equal(legacy_view.getMaxLength());
 		        expect(r.scene().max_zoom()).to_equal(legacy_view.getMaxZoom());
-		        expect(r.scene().max_length()).to_equal(static_cast<uint32_t>(r.f.clip->loopLength));
+		        expect(r.scene().max_length()).to_equal(static_cast<uint32_t>(r.f.clip->loopLength()));
 
 		        // End marker up on both sides, each through its own front door.
 		        expect(raise_legacy_end_marker(r)).to_be_true();
 		        r.scene().set_end_marker_visible(true);
 		        expect(r.scene().max_length()).to_equal(legacy_view.getMaxLength());
 		        expect(r.scene().max_zoom()).to_equal(legacy_view.getMaxZoom());
-		        expect(r.scene().max_length()).to_equal(static_cast<uint32_t>(r.f.clip->loopLength) + 1);
+		        expect(r.scene().max_length()).to_equal(static_cast<uint32_t>(r.f.clip->loopLength()) + 1);
 		        lower_legacy_end_marker(r);
 	        });
 
@@ -1004,11 +1012,11 @@ describe audio_clip_scene_spec_body(
 		        expect(static_cast<int32_t>(r.scene().timeline().x_zoom)).to_equal(24);
 		        // `AudioClipView::supportsTriplets()` returns false (`audio_clip_view.h:38`), and `adopt`
 		        // must not overwrite it with the song's `tripletsOn`.
-		        r.f.song->tripletsOn = true;
+		        r.f.song->persistentView.tripletsOn = true;
 		        r.open();
 		        expect(r.scene().timeline().supports_triplets).to_be_false();
 		        expect(r.scene().timeline().in_triplets_view()).to_be_false();
-		        r.f.song->tripletsOn = false;
+		        r.f.song->persistentView.tripletsOn = false;
 	        });
 
 	    // --- the render, against legacy, at both geometries ------------------------------------------
@@ -1280,7 +1288,7 @@ describe audio_clip_scene_spec_body(
 		        Rig r;
 		        r.f.output->name = "TAPE";
 		        r.f.clip->name.clear();
-		        r.f.clip->section = 2;
+		        r.f.clip->setSection(2);
 		        r.seed(Sentinel{});
 		        r.open();
 		        r.tick(0);
@@ -1292,7 +1300,7 @@ describe audio_clip_scene_spec_body(
 		        Rig r;
 		        r.f.output->name = "TAPE";
 		        r.f.clip->name = "VERSE";
-		        r.f.clip->section = 0;
+		        r.f.clip->setSection(0);
 		        r.seed(Sentinel{});
 		        r.open();
 		        r.tick(0);
@@ -1333,7 +1341,7 @@ describe audio_clip_scene_spec_body(
 		        Rig r;
 		        r.f.output->name = "TAPE";
 		        r.f.clip->name.clear();
-		        r.f.clip->section = 2;
+		        r.f.clip->setSection(2);
 		        r.seed(Sentinel{});
 		        r.open();
 		        r.tick(0);
@@ -1345,7 +1353,7 @@ describe audio_clip_scene_spec_body(
 		        Rig r{board_64(), profile_64()};
 		        r.f.output->name = "TAPE";
 		        r.f.clip->name.clear();
-		        r.f.clip->section = 2;
+		        r.f.clip->setSection(2);
 		        r.seed(Sentinel{});
 		        r.open();
 		        r.tick(0);
@@ -1365,13 +1373,13 @@ describe audio_clip_scene_spec_body(
 		        // Press: both sides reach `TimelineView::buttonAction`'s X_ENC arm
 		        // (`gui/views/timeline_view.cpp:73-90`) and enter the mode.
 		        (void)in.press(ButtonId::XEnc, true);
-		        (void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), true, false);
+		        (void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), true);
 		        expect(r.scene().ui_mode()).to_equal(currentUIMode);
 		        expect(r.scene().ui_mode()).to_equal(deluge::scenes::audio_clip::kUiModeHoldingHorizontalEncoder);
 
 		        // Release: both leave it.
 		        (void)in.press(ButtonId::XEnc, false);
-		        (void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), false, false);
+		        (void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), false);
 		        expect(r.scene().ui_mode()).to_equal(currentUIMode);
 		        expect(r.scene().ui_mode()).to_equal(deluge::scenes::audio_clip::kUiModeNone);
 		        currentUIMode = UI_MODE_NONE;
@@ -1393,7 +1401,7 @@ describe audio_clip_scene_spec_body(
 		        (void)in.press(ButtonId::Shift, true);
 		        legacy_hold(ButtonId::Shift, true);
 		        (void)in.press(ButtonId::XEnc, true);
-		        (void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), true, false);
+		        (void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), true);
 
 		        expect(r.scene().ui_mode()).to_equal(currentUIMode);
 		        expect(r.scene().ui_mode()).to_equal(deluge::scenes::audio_clip::kUiModeNone);
@@ -1460,7 +1468,7 @@ describe audio_clip_scene_spec_body(
 		        r.reseed(Sentinel{});
 		        r.f.clip->name = "TAKE";
 		        currentUIMode = UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON;
-		        (void)legacy_view.buttonAction(legacy_button(ButtonId::Back), true, false);
+		        (void)legacy_view.buttonAction(legacy_button(ButtonId::Back), true);
 		        currentUIMode = UI_MODE_NONE;
 		        const bool legacy_sample_gone = r.f.clip->sampleHolder.audioFile == nullptr;
 		        const bool legacy_name_gone = r.f.clip->name.empty();
@@ -1502,7 +1510,7 @@ describe audio_clip_scene_spec_body(
 
 		        r.reseed(Sentinel{});
 		        currentUIMode = UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON | UI_MODE_HOLDING_SONG_BUTTON;
-		        (void)legacy_view.buttonAction(legacy_button(ButtonId::Back), true, false);
+		        (void)legacy_view.buttonAction(legacy_button(ButtonId::Back), true);
 		        currentUIMode = UI_MODE_NONE;
 		        expect(r.f.clip->sampleHolder.audioFile != nullptr).to_be_true(); // legacy did NOT clear
 
@@ -1541,8 +1549,8 @@ describe audio_clip_scene_spec_body(
 		        (void)legacy_view.horizontalEncoderAction(1);
 		        currentUIMode = UI_MODE_NONE;
 		        const int32_t legacy_follow = NavProbe::remembered_scroll();
-		        const int32_t legacy_scroll = r.f.song->xScroll[NAVIGATION_CLIP];
-		        const uint32_t legacy_zoom = r.f.song->xZoom[NAVIGATION_CLIP];
+		        const int32_t legacy_scroll = r.f.song->persistentView.xScroll[NAVIGATION_CLIP];
+		        const uint32_t legacy_zoom = r.f.song->persistentView.xZoom[NAVIGATION_CLIP];
 
 		        // --- the port ---
 		        r.reseed(Sentinel{});
@@ -1581,7 +1589,7 @@ describe audio_clip_scene_spec_body(
 		        (void)legacy_view.horizontalEncoderAction(1);
 		        legacy_hold(ButtonId::Shift, false);
 		        const int32_t legacy_follow = NavProbe::remembered_scroll();
-		        const int32_t legacy_length = r.f.clip->loopLength;
+		        const int32_t legacy_length = r.f.clip->loopLength();
 		        expect(legacy_follow).to_equal(480); // legacy really does keep it
 
 		        // --- the port ---
@@ -1594,8 +1602,8 @@ describe audio_clip_scene_spec_body(
 
 		        expect(r.scene().timeline().scroll_before_following).to_equal(legacy_follow);
 		        // ...and the edit itself happened, so this is not passing because the turn did nothing.
-		        expect(r.f.clip->loopLength).to_equal(legacy_length);
-		        expect(r.f.clip->loopLength > 768).to_be_true();
+		        expect(r.f.clip->loopLength()).to_equal(legacy_length);
+		        expect(r.f.clip->loopLength() > 768).to_be_true();
 	        });
 
 	    // --- the edits ---------------------------------------------------------------------------------
@@ -1613,20 +1621,20 @@ describe audio_clip_scene_spec_body(
 		        // --- legacy: raise its marker through its own gesture, then drag through it too ---
 		        r.reseed(s);
 		        expect(reset_legacy_markers(r)).to_be_true();
-		        const ModelSnapshot seeded = snapshot(r);
+		        const ModelSnapshot seeded = model_snapshot(r);
 		        expect(raise_legacy_end_marker(r)).to_be_true();
 		        (void)legacy_view.padAction(kColumn, 0, 1);
-		        const ModelSnapshot legacy = snapshot(r);
+		        const ModelSnapshot legacy = model_snapshot(r);
 		        lower_legacy_end_marker(r);
 
 		        // --- the port, from the same re-seeded start ---
 		        r.reseed(s);
 		        r.open_scene_only();
-		        expect(snapshot(r) == seeded).to_be_true(); // the re-seed really put it back
-		        (void)in.pad(end_square_of(r), 0, true);    // raise, through the port's own gesture
+		        expect(model_snapshot(r) == seeded).to_be_true(); // the re-seed really put it back
+		        (void)in.pad(end_square_of(r), 0, true);          // raise, through the port's own gesture
 		        expect(r.scene().end_marker_visible()).to_be_true();
 		        (void)in.pad(kColumn, 0, true);
-		        const ModelSnapshot port = snapshot(r);
+		        const ModelSnapshot port = model_snapshot(r);
 
 		        expect_edit_matches(self, legacy, port, seeded);
 		        expect(port.loop_length).to_equal(480);
@@ -1650,10 +1658,10 @@ describe audio_clip_scene_spec_body(
 		        // --- legacy ---
 		        r.reseed(s);
 		        expect(reset_legacy_markers(r)).to_be_true();
-		        const ModelSnapshot seeded = snapshot(r);
+		        const ModelSnapshot seeded = model_snapshot(r);
 		        (void)legacy_view.padAction(0, 0, 1); // start square at scroll 0 is column 0
 		        (void)legacy_view.padAction(kColumn, 0, 1);
-		        const ModelSnapshot legacy = snapshot(r);
+		        const ModelSnapshot legacy = model_snapshot(r);
 
 		        // --- the port ---
 		        r.reseed(s);
@@ -1661,7 +1669,7 @@ describe audio_clip_scene_spec_body(
 		        (void)in.pad(0, 0, true);
 		        expect(r.scene().start_marker_visible()).to_be_true();
 		        (void)in.pad(kColumn, 0, true);
-		        const ModelSnapshot port = snapshot(r);
+		        const ModelSnapshot port = model_snapshot(r);
 
 		        expect_edit_matches(self, legacy, port, seeded);
 		        // `oldEndTick - newStartTicks` = `768 - 192` (`audio_clip_view.cpp:670-671`).
@@ -1688,10 +1696,10 @@ describe audio_clip_scene_spec_body(
 		        r.reseed(s);
 		        r.f.clip->sampleControls.reversed = true;
 		        expect(reset_legacy_markers(r)).to_be_true();
-		        const ModelSnapshot seeded = snapshot(r);
+		        const ModelSnapshot seeded = model_snapshot(r);
 		        expect(raise_legacy_end_marker(r)).to_be_true();
 		        (void)legacy_view.padAction(kColumn, 0, 1);
-		        const ModelSnapshot legacy = snapshot(r);
+		        const ModelSnapshot legacy = model_snapshot(r);
 		        lower_legacy_end_marker(r);
 
 		        r.reseed(s);
@@ -1699,7 +1707,7 @@ describe audio_clip_scene_spec_body(
 		        r.open_scene_only();
 		        (void)in.pad(end_square_of(r), 0, true);
 		        (void)in.pad(kColumn, 0, true);
-		        const ModelSnapshot port = snapshot(r);
+		        const ModelSnapshot port = model_snapshot(r);
 
 		        expect_edit_matches(self, legacy, port, seeded);
 		        // Reversed, it is the START pos that moved and the END pos that did not.
@@ -1722,7 +1730,7 @@ describe audio_clip_scene_spec_body(
 			        const Sentinel s{};
 
 			        r.reseed(s);
-			        const ModelSnapshot seeded = snapshot(r);
+			        const ModelSnapshot seeded = model_snapshot(r);
 			        currentUIMode = UI_MODE_NONE;
 			        legacy_hold(ButtonId::Shift, true);
 			        legacy_hold(ButtonId::XEnc, true);
@@ -1730,7 +1738,7 @@ describe audio_clip_scene_spec_body(
 			        legacy_hold(ButtonId::XEnc, false);
 			        legacy_hold(ButtonId::Shift, false);
 			        currentUIMode = UI_MODE_NONE;
-			        const ModelSnapshot legacy = snapshot(r);
+			        const ModelSnapshot legacy = model_snapshot(r);
 
 			        r.reseed(s);
 			        r.open_scene_only();
@@ -1740,7 +1748,7 @@ describe audio_clip_scene_spec_body(
 			        (void)in.turn(deluge::ui::EncoderRole::Horizontal, static_cast<int8_t>(offset));
 			        (void)in.press(ButtonId::XEnc, false);
 			        (void)in.press(ButtonId::Shift, false);
-			        const ModelSnapshot port = snapshot(r);
+			        const ModelSnapshot port = model_snapshot(r);
 
 			        expect_edit_matches(self, legacy, port, seeded);
 			        // `ClipView::changeClipLength` moves by ONE SQUARE, not one screen
@@ -1765,15 +1773,15 @@ describe audio_clip_scene_spec_body(
 		        const Sentinel s{};
 
 		        r.reseed(s);
-		        const ModelSnapshot seeded = snapshot(r);
+		        const ModelSnapshot seeded = model_snapshot(r);
 		        legacy_view.setClipLengthEqualToSampleLength();
-		        const ModelSnapshot legacy = snapshot(r);
+		        const ModelSnapshot legacy = model_snapshot(r);
 
 		        r.reseed(s);
 		        r.open_scene_only();
-		        expect(snapshot(r) == seeded).to_be_true();
+		        expect(model_snapshot(r) == seeded).to_be_true();
 		        r.scene().set_clip_length_equal_to_sample_length();
-		        const ModelSnapshot port = snapshot(r);
+		        const ModelSnapshot port = model_snapshot(r);
 
 		        expect_edit_matches(self, legacy, port, seeded);
 	        });
@@ -1788,13 +1796,13 @@ describe audio_clip_scene_spec_body(
 		        const Sentinel s{};
 
 		        r.reseed(s);
-		        const ModelSnapshot seeded = snapshot(r);
+		        const ModelSnapshot seeded = model_snapshot(r);
 		        currentUIMode = UI_MODE_NONE;
 		        legacy_hold(ButtonId::YEnc, true);
-		        (void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), true, false);
+		        (void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), true);
 		        legacy_hold(ButtonId::YEnc, false);
 		        currentUIMode = UI_MODE_NONE;
-		        const ModelSnapshot legacy = snapshot(r);
+		        const ModelSnapshot legacy = model_snapshot(r);
 
 		        r.reseed(s);
 		        r.open_scene_only();
@@ -1802,7 +1810,7 @@ describe audio_clip_scene_spec_body(
 		        (void)in.press(ButtonId::XEnc, true);
 		        (void)in.press(ButtonId::XEnc, false);
 		        (void)in.press(ButtonId::YEnc, false);
-		        const ModelSnapshot port = snapshot(r);
+		        const ModelSnapshot port = model_snapshot(r);
 
 		        expect_edit_matches(self, legacy, port, seeded);
 	        });
@@ -1840,21 +1848,21 @@ describe audio_clip_scene_spec_body(
 		        r.reseed(Sentinel{});
 		        currentUIMode = UI_MODE_NONE;
 
-		        const int16_t start = r.f.clip->colourOffset;
+		        const int16_t start = r.f.clip->colourOffset();
 		        legacy_hold(ButtonId::Shift, true);
-		        (void)legacy_view.verticalEncoderAction(3, false);
+		        (void)legacy_view.verticalEncoderAction(3);
 		        legacy_hold(ButtonId::Shift, false);
-		        const int16_t after_legacy = r.f.clip->colourOffset;
+		        const int16_t after_legacy = r.f.clip->colourOffset();
 		        expect(after_legacy == start).to_be_false();
 
-		        r.f.clip->colourOffset = start;
+		        r.f.clip->setColourOffset(start);
 		        r.open_scene_only();
 		        (void)in.press(ButtonId::Shift, true);
 		        (void)in.turn(deluge::ui::EncoderRole::Vertical, 3);
 		        (void)in.press(ButtonId::Shift, false);
-		        expect(r.f.clip->colourOffset).to_equal(after_legacy);
+		        expect(r.f.clip->colourOffset()).to_equal(after_legacy);
 
-		        r.f.clip->colourOffset = start;
+		        r.f.clip->setColourOffset(start);
 	        });
 
 	    it(
@@ -1870,7 +1878,7 @@ describe audio_clip_scene_spec_body(
 		        r.reseed(Sentinel{.loop_length = 4096});
 		        currentUIMode = UI_MODE_NONE;
 		        (void)legacy_view.horizontalEncoderAction(1);
-		        const int32_t legacy_scroll_long = r.f.song->xScroll[NAVIGATION_CLIP];
+		        const int32_t legacy_scroll_long = r.f.song->persistentView.xScroll[NAVIGATION_CLIP];
 
 		        r.reseed(Sentinel{.loop_length = 4096});
 		        r.open_scene_only();
@@ -1883,7 +1891,7 @@ describe audio_clip_scene_spec_body(
 		        currentUIMode = UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON;
 		        (void)legacy_view.horizontalEncoderAction(-1);
 		        currentUIMode = UI_MODE_NONE;
-		        const uint32_t legacy_zoom = r.f.song->xZoom[NAVIGATION_CLIP];
+		        const uint32_t legacy_zoom = r.f.song->persistentView.xZoom[NAVIGATION_CLIP];
 		        expect(legacy_zoom).to_equal(96u); // zoomed OUT one step
 
 		        r.reseed(Sentinel{.loop_length = 4096});
@@ -1908,9 +1916,9 @@ describe audio_clip_scene_spec_body(
 		        expect(r.scene().timeline().x_scroll).to_equal(768);
 
 		        // Legacy's own answer, from legacy's own function, over the same model.
-		        r.f.song->xScroll[NAVIGATION_CLIP] = 768;
+		        r.f.song->persistentView.xScroll[NAVIGATION_CLIP] = 768;
 		        legacy_view.clipNeedsReRendering(r.f.clip);
-		        const int32_t legacy_scroll = r.f.song->xScroll[NAVIGATION_CLIP];
+		        const int32_t legacy_scroll = r.f.song->persistentView.xScroll[NAVIGATION_CLIP];
 		        expect(legacy_scroll).to_equal(0);
 
 		        deluge::notify::DirtySet dirty;
@@ -1928,9 +1936,9 @@ describe audio_clip_scene_spec_body(
 		        r.reseed(Sentinel{.x_scroll = 384, .loop_length = 4096});
 		        r.open_scene_only();
 
-		        r.f.song->xScroll[NAVIGATION_CLIP] = 384;
+		        r.f.song->persistentView.xScroll[NAVIGATION_CLIP] = 384;
 		        legacy_view.clipNeedsReRendering(r.f.clip);
-		        expect(r.f.song->xScroll[NAVIGATION_CLIP]).to_equal(384);
+		        expect(r.f.song->persistentView.xScroll[NAVIGATION_CLIP]).to_equal(384);
 
 		        deluge::notify::DirtySet dirty;
 		        dirty.raise(deluge::notify::Dirty::ClipContent);

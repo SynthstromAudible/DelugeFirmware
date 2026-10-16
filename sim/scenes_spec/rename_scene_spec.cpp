@@ -324,7 +324,7 @@ describe rename_open("scenes::rename::RenameScene opening", $ {
 	it("seeds the editor with the target's current name, cursor at the start", _ {
 		select_language();
 		spec::SongFixture f = kit_fixture();
-		kit_of(f)->selectedDrum->drumName = "Snare";
+		kit_of(f)->selectedDrum->setName("Snare");
 		Rig r;
 		r.open_rename(context_of(f), TargetId::Drum);
 
@@ -337,7 +337,7 @@ describe rename_open("scenes::rename::RenameScene opening", $ {
 	it("forgets its context on exit, so a re-entry without open() refuses", _ {
 		select_language();
 		spec::SongFixture f = kit_fixture();
-		kit_of(f)->selectedDrum->drumName = "Snare";
+		kit_of(f)->selectedDrum->setName("Snare");
 		Rig r;
 		r.open_rename(context_of(f), TargetId::Drum);
 		r.tick(0);
@@ -386,7 +386,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Kick"});
 
 		const Result done = commit(rename_scene());
-		expect(std::string{kit_of(f)->selectedDrum->drumName}).to_equal(std::string{"Kick"});
+		expect(std::string{kit_of(f)->selectedDrum->name()}).to_equal(std::string{"Kick"});
 		// `RenameUI::exitUI` -> `close()`: the editor leaves, and it names itself rather than
 		// blindly popping whatever is on top.
 		const ShellAction* removal = find_action(done, ShellAction::Kind::Remove);
@@ -397,7 +397,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 	it("steps over a character that already matches the one under the cursor", _ {
 		select_language();
 		spec::SongFixture f = kit_fixture();
-		kit_of(f)->selectedDrum->drumName = "Snare";
+		kit_of(f)->selectedDrum->setName("Snare");
 		Rig r;
 		r.open_rename(context_of(f), TargetId::Drum);
 		r.tick(0);
@@ -576,7 +576,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 	it("blinks the end-of-string cursor and asks to be woken for it", _ {
 		select_language();
 		spec::SongFixture f = kit_fixture();
-		kit_of(f)->selectedDrum->drumName = "Snare";
+		kit_of(f)->selectedDrum->setName("Snare");
 		Rig r;
 		r.open_rename(context_of(f), TargetId::Drum);
 		r.tick(0);
@@ -603,7 +603,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 	it("walks the cursor with the horizontal encoder and stops at both ends", _ {
 		select_language();
 		spec::SongFixture f = kit_fixture();
-		kit_of(f)->selectedDrum->drumName = "Snare";
+		kit_of(f)->selectedDrum->setName("Snare");
 		Rig r;
 		r.open_rename(context_of(f), TargetId::Drum);
 		r.tick(0);
@@ -633,7 +633,7 @@ describe rename_rejection("scenes::rename::RenameScene rejection", $ {
 		spec::SongFixture f = spec::make_kit_song();
 		Drum* other = spec::add_drum<SoundDrum>(f);
 		Drum* being_renamed = spec::add_drum<SoundDrum>(f);
-		other->drumName = "Snare";
+		other->setName("Snare");
 		expect(kit_of(f)->selectedDrum == being_renamed).to_be_true();
 
 		Rig r;
@@ -647,7 +647,7 @@ describe rename_rejection("scenes::rename::RenameScene rejection", $ {
 
 		// `RenameDrumUI::trySetName` returns false, so `enterKeyPress` does nothing at all: no
 		// write, no close, and the typed text is still there to be edited.
-		expect(std::string{being_renamed->drumName}).to_equal(std::string{""});
+		expect(std::string{being_renamed->name()}).to_equal(std::string{""});
 		expect(has_action(rejected, ShellAction::Kind::Remove)).to_be_false();
 		expect(has_action(rejected, ShellAction::Kind::Pop)).to_be_false();
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Snare"});
@@ -665,7 +665,7 @@ describe rename_rejection("scenes::rename::RenameScene rejection", $ {
 		spec::SongFixture f = spec::make_kit_song();
 		Drum* other = spec::add_drum<SoundDrum>(f);
 		Drum* being_renamed = spec::add_drum<SoundDrum>(f);
-		other->drumName = "Snare";
+		other->setName("Snare");
 
 		Rig r;
 		r.open_rename(context_of(f), TargetId::Drum);
@@ -688,7 +688,7 @@ describe rename_rejection("scenes::rename::RenameScene rejection", $ {
 			popup_stacked = popup_stacked || scene->kind() == SceneKind::Popup;
 		}
 		expect(popup_stacked).to_be_true();
-		expect(std::string{being_renamed->drumName}).to_equal(std::string{""});
+		expect(std::string{being_renamed->name()}).to_equal(std::string{""});
 		// Still the scene taking input: a popup is drawn over it, never instead of it.
 		expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
 	});
@@ -697,7 +697,7 @@ describe rename_rejection("scenes::rename::RenameScene rejection", $ {
 		select_language();
 		spec::SongFixture f = kit_fixture();
 		Kit* kit = kit_of(f);
-		kit->selectedDrum->drumName = "Snare";
+		kit->selectedDrum->setName("Snare");
 		Rig r;
 		r.open_rename(context_of(f), TargetId::Drum);
 		r.tick(0);
@@ -705,7 +705,7 @@ describe rename_rejection("scenes::rename::RenameScene rejection", $ {
 		// `other != kit->selectedDrum` is the whole guard: re-committing a drum's own name is fine.
 		const Result done = commit(rename_scene());
 		expect(has_action(done, ShellAction::Kind::Remove)).to_be_true();
-		expect(std::string{kit->selectedDrum->drumName}).to_equal(std::string{"Snare"});
+		expect(std::string{kit->selectedDrum->name()}).to_equal(std::string{"Snare"});
 	});
 
 	it("refuses an empty drum name silently, and accepts an empty clip name", _ {
@@ -714,7 +714,7 @@ describe rename_rejection("scenes::rename::RenameScene rejection", $ {
 			// `RenameUI::enterKeyPress`: "if (enteredText.empty() && !allowEmpty()) return;" --
 			// no popup, no close, nothing written.
 			spec::SongFixture f = kit_fixture();
-			kit_of(f)->selectedDrum->drumName = "Snare";
+			kit_of(f)->selectedDrum->setName("Snare");
 			Rig r;
 			r.open_rename(context_of(f), TargetId::Drum);
 			r.tick(0);
@@ -728,7 +728,7 @@ describe rename_rejection("scenes::rename::RenameScene rejection", $ {
 
 			const Result refused = commit(rename_scene());
 			expect(refused.actions.empty()).to_be_true();
-			expect(std::string{kit_of(f)->selectedDrum->drumName}).to_equal(std::string{"Snare"});
+			expect(std::string{kit_of(f)->selectedDrum->name()}).to_equal(std::string{"Snare"});
 		}
 		{
 			// Every other target takes the base `allowEmpty() == true`.
@@ -753,7 +753,7 @@ describe rename_exits("scenes::rename::RenameScene exits", $ {
 		select_language();
 		{
 			spec::SongFixture f = kit_fixture();
-			kit_of(f)->selectedDrum->drumName = "Snare";
+			kit_of(f)->selectedDrum->setName("Snare");
 			Rig r;
 			r.open_rename(context_of(f), TargetId::Drum);
 			r.tick(0);
@@ -764,19 +764,19 @@ describe rename_exits("scenes::rename::RenameScene exits", $ {
 			// `RenameUI::buttonAction`'s BACK arm -> `exitUI()`; the typed text is discarded.
 			r.button(kBackX, kBackY, true, 100);
 			r.tick(100);
-			expect(std::string{kit_of(f)->selectedDrum->drumName}).to_equal(std::string{"Snare"});
+			expect(std::string{kit_of(f)->selectedDrum->name()}).to_equal(std::string{"Snare"});
 			expect(r.shell.stack().depth()).to_equal(size_t(0));
 		}
 		{
 			spec::SongFixture f = kit_fixture();
-			kit_of(f)->selectedDrum->drumName = "Snare";
+			kit_of(f)->selectedDrum->setName("Snare");
 			Rig r;
 			r.open_rename(context_of(f), TargetId::Drum);
 			r.tick(0);
 			// `RenameUI::padAction`: a pad outside the keyboard's columns exits.
 			r.pad(deluge::ui::grid::kTextKeyboardCols, 0, 64, 100);
 			r.tick(100);
-			expect(std::string{kit_of(f)->selectedDrum->drumName}).to_equal(std::string{"Snare"});
+			expect(std::string{kit_of(f)->selectedDrum->name()}).to_equal(std::string{"Snare"});
 			expect(r.shell.stack().depth()).to_equal(size_t(0));
 		}
 	});
@@ -787,7 +787,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		select_language();
 		deluge::notify::dirty().drain();
 		spec::SongFixture f = kit_fixture();
-		kit_of(f)->selectedDrum->drumName = "Snare";
+		kit_of(f)->selectedDrum->setName("Snare");
 		const MenuContext ctx = context_of(f);
 		expect(static_cast<int>(ctx.root)).to_equal(static_cast<int>(MenuContext::Root::Drum));
 
@@ -827,7 +827,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		select_language();
 		deluge::notify::dirty().drain();
 		spec::SongFixture f = kit_fixture();
-		kit_of(f)->selectedDrum->drumName = "Snare";
+		kit_of(f)->selectedDrum->setName("Snare");
 
 		Rig r;
 		r.open_menu(nodes::drum_actions, nodes::drum_actions, context_of(f));

@@ -3,6 +3,14 @@ scene app25
 led Mod0 on
 led Play on
 led Record on
+pad 0 0 130 120 130
+pad 0 1 130 120 130
+pad 0 2 130 120 130
+pad 0 3 130 120 130
+pad 0 4 130 120 130
+pad 0 5 130 120 130
+pad 0 6 130 120 130
+pad 0 7 130 120 130
 indicator lower 0 0 0 0
 indicator upper 255 255 0 0
 notice Text Sample cleared

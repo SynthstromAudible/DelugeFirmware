@@ -289,7 +289,7 @@ struct HolderState {
 	int32_t view_zoom{};
 };
 
-HolderState snapshot(Rig& r) {
+HolderState holder_snapshot(Rig& r) {
 	const SampleHolderForVoice& h = r.range->sampleHolder;
 	return HolderState{h.startPos,           h.endPos,          h.loopStartPos, h.loopEndPos, h.loopLocked,
 	                   h.waveformViewScroll, h.waveformViewZoom};
@@ -461,7 +461,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("writes the same position legacy's selectEncoderAction writes, for the same turns", _ {
 		Rig r;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 
@@ -491,7 +491,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// (`sample_marker_editor.cpp:281-288`) refuses it outright.
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
 		r.range->sampleHolder.endPos = 6 * kZoomMax;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.turn_select(1, 10);
@@ -511,7 +511,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
 		r.range->sampleHolder.endPos = 8 * kZoomMax; // END now at column 7
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.turn_select(1, 10);
@@ -738,7 +738,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 6 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 10 * kZoomMax;
 		r.range->sampleHolder.endPos = 14 * kZoomMax;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_START);
 		r.tick(0);
 
@@ -760,7 +760,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax + 1;
 		r.range->sampleHolder.loopEndPos = 4 * kZoomMax + 2;
 		r.range->sampleHolder.endPos = 4 * kZoomMax + 3;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_END);
 		r.tick(0);
 
@@ -778,7 +778,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax + 1;
 		r.range->sampleHolder.loopEndPos = 4 * kZoomMax + 2;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_START);
 		r.tick(0);
 
@@ -797,7 +797,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax + 1;
 		r.range->sampleHolder.loopEndPos = 9 * kZoomMax;
 		r.range->sampleHolder.endPos = 13 * kZoomMax;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_START);
 		for (int32_t phase = 0; phase < 4; phase++) {
 			r.tick(static_cast<uint32_t>(phase) * marker::kBlinkPhaseMs);
@@ -820,7 +820,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("moves the marker to the column legacy's padAction moves it to", _ {
 		Rig r;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.pad(6, 3, true, 10);
@@ -838,7 +838,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 10 * kZoomMax;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.pad(9, 3, true, 10); // column 9 is END's
@@ -861,7 +861,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.pad(2, 3, true, 10); // hold START's own column
@@ -887,7 +887,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 6 * kZoomMax;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_START);
 		r.tick(0);
 		r.pad(6, 3, true, 10); // hold LOOP_START
@@ -917,7 +917,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_END);
 		r.tick(0);
 		r.pad(7, 3, true, 10); // hold LOOP_END (`(pos - 1) / zoom` floors to 7)
@@ -945,7 +945,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_START);
 		r.tick(0);
 		r.pad(4, 3, true, 10); // hold LOOP_START
@@ -976,7 +976,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.x_enc_button(true, 10);
@@ -988,7 +988,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 		restore(r, before);
 		open_legacy(r, MarkerType::START);
-		sampleMarkerEditor.buttonAction(deluge::hid::button::X_ENC, true, false);
+		sampleMarkerEditor.buttonAction(deluge::hid::button::X_ENC, true);
 		sampleMarkerEditor.horizontalEncoderAction(1);
 		expect(ported_zoom).to_equal(static_cast<int32_t>(waveformBasicNavigator.xZoom));
 		expect(ported_scroll).to_equal(static_cast<int32_t>(waveformBasicNavigator.xScroll));
@@ -1013,7 +1013,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// finish. The suite ran 6 seconds; that probe was killed at 600. The ceiling is the
 		// animation, not the gate.
 		expect((currentUIMode & UI_MODE_HORIZONTAL_ZOOM) != 0).to_be_true();
-		sampleMarkerEditor.buttonAction(deluge::hid::button::X_ENC, false, false);
+		sampleMarkerEditor.buttonAction(deluge::hid::button::X_ENC, false);
 		currentUIMode = UI_MODE_NONE;
 	});
 
@@ -1024,7 +1024,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = kSampleLength;
 		r.range->sampleHolder.waveformViewZoom = kZoomMax / 4;
 		r.range->sampleHolder.waveformViewScroll = 8 * (kZoomMax / 4);
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.turn_horizontal(1, 10);
@@ -1042,7 +1042,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 3 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		const std::string ported = r.oled();
@@ -1064,7 +1064,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 5 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 9 * kZoomMax;
 		r.range->sampleHolder.loopLocked = true;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_END);
 		r.tick(0);
 		const std::string ported = r.oled();
@@ -1081,7 +1081,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.source->sampleControls.reversed = true;
 		r.range->sampleHolder.startPos = 3 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		const HolderState before = snapshot(r);
+		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		const std::string ported = r.oled();
