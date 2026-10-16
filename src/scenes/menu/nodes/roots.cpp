@@ -182,7 +182,7 @@ int32_t get_mpe_y_to_mod_wheel(const MenuContext& ctx) {
 }
 void set_mpe_y_to_mod_wheel(const MenuContext& ctx, int32_t value) {
 	if (MIDIInstrument* instrument = midi_instrument(ctx); instrument != nullptr) { // `y_axis_to_cc1.h:28-32`
-		instrument->outputMPEY = value != 0 ? CC_EXTERNAL_MOD_WHEEL : CC_EXTERNAL_MPE_Y;
+		instrument->setOutputMPEY(value != 0 ? CC_EXTERNAL_MOD_WHEEL : CC_EXTERNAL_MPE_Y);
 		mark_edited(ctx);
 	}
 }
@@ -193,7 +193,7 @@ int32_t get_aftertouch_to_mono(const MenuContext& ctx) {
 }
 void set_aftertouch_to_mono(const MenuContext& ctx, int32_t value) {
 	if (MIDIInstrument* instrument = midi_instrument(ctx); instrument != nullptr) { // `after_touch_to_mono.h:24-28`
-		instrument->collapseAftertouch = value != 0;
+		instrument->setCollapseAftertouch(value != 0);
 		mark_edited(ctx);
 	}
 }
@@ -204,7 +204,7 @@ int32_t get_mpe_to_mono(const MenuContext& ctx) {
 }
 void set_mpe_to_mono(const MenuContext& ctx, int32_t value) {
 	if (MIDIInstrument* instrument = midi_instrument(ctx); instrument != nullptr) { // `mpe_to_mono.h:24-28`
-		instrument->collapseMPE = value != 0;
+		instrument->setCollapseMPE(value != 0);
 		mark_edited(ctx);
 	}
 }

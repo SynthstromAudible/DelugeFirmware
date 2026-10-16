@@ -28,6 +28,7 @@
 
 #include "scenes/browser/browser_scene.h"
 #include "scenes/l10n_bridge.h"
+#include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -864,7 +865,31 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		expect(menu::relevance::audio_source_is_specific(midi.ctx())).to_be_false();
 	});
 });
+
+describe midi_instrument_records("scenes::menu MIDI instrument writes reach the record a save writes", $ {
+	// A MIDI instrument saves these fields from its output record (`DocOutput`), so a write that reaches only the
+	// engine's copy is lost on save.
+	it("writes the Y-axis, aftertouch and MPE toggles into the instrument's record", _ {
+		MidiRig rig;
+		const MenuContext ctx = rig.ctx();
+		menu::bindings::write(nodes::mpe_y_to_mod_wheel, ctx, 1);
+		menu::bindings::write(nodes::midi_aftertouch_collapse, ctx, 1);
+		menu::bindings::write(nodes::midi_mpe_collapse, ctx, 0);
+		const deluge::project::DocOutput& record = *rig.instrument()->docOutput_;
+		expect(static_cast<int32_t>(record.output_mpe_y)).to_equal(static_cast<int32_t>(CC_EXTERNAL_MOD_WHEEL));
+		expect(record.collapse_aftertouch).to_be_true();
+		expect(record.collapse_mpe).to_be_false();
+	});
+
+	it("clears a linked definition from the instrument's record when it unlinks", _ {
+		MidiRig rig;
+		rig.instrument()->setDeviceDefinitionFileName("MIDI_DEVICES/DEFINITION/DEVICE1.XML");
+		menu::MenuState state{};
+		nodes::kMidiDeviceLinked.on_focus(rig.ctx(), state);
+		expect(rig.instrument()->docOutput_->device_definition_file_name).to_equal(std::string{});
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(output_items_spec, output_items_mapping, output_items_milestone, midi_device_linked_item,
-            specific_output_item)
+            specific_output_item, midi_instrument_records)

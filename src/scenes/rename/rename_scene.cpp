@@ -110,7 +110,7 @@ bool output_write(const menu::MenuContext& ctx, std::string_view name) {
 	if (other != nullptr && other != ctx.output) {
 		return false;
 	}
-	ctx.output->name = name;
+	ctx.output->setName(name);
 	return true;
 }
 

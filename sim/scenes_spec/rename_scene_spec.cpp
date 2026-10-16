@@ -394,6 +394,19 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		expect(static_cast<int>(removal->pop_to)).to_equal(static_cast<int>(rename::kRenameSceneKind));
 	});
 
+	it("commits a track name into the output's record, which a save writes", _ {
+		select_language();
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Output);
+		r.tick(0);
+		r.clock = 10;
+		r.type(std::string_view{"PAD"});
+		(void)commit(rename_scene());
+		expect(std::string{f.instrument->name}).to_equal(std::string{"Pad"});
+		expect(f.instrument->docOutput_->name).to_equal(std::string{"Pad"});
+	});
+
 	it("steps over a character that already matches the one under the cursor", _ {
 		select_language();
 		spec::SongFixture f = kit_fixture();

@@ -205,7 +205,7 @@ void MidiDeviceLinkedItem::on_focus(const MenuContext& ctx, MenuState& state) co
 		// Unlinking (`:45-48`): the new value is false, so just clear the file name. No UI is
 		// opened, so nothing is filed and `render` is what takes the user back out.
 		if (MIDIInstrument* instrument = midi_instrument_of(ctx); instrument != nullptr) {
-			instrument->deviceDefinitionFileName.clear();
+			instrument->setDeviceDefinitionFileName("");
 		}
 		return;
 	}
