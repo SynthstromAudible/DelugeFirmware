@@ -280,6 +280,12 @@ int32_t expectSongCoherent(::Song& song, const char* leg, CoherenceChecks checks
 			failures++;
 		}
 	}
+	if (checks.song_settings) {
+		if (const std::string what = songSettingsIncoherence(song); !what.empty()) {
+			std::printf("SLOT-COHERENT FAIL leg=%s song-settings: %s\n", leg, what.c_str());
+			failures++;
+		}
+	}
 	return failures;
 }
 

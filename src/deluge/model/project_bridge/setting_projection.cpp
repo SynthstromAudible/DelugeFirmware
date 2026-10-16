@@ -141,19 +141,19 @@ std::optional<Value> engineReverbValue(std::string_view path) {
 	using project::q31_of;
 	auto number = [](int64_t v) { return Value::makeNumber(v); };
 	if (path == "reverb/roomSize") {
-		return number(q31_of(AudioEngine::reverb.getRoomSize()));
+		return number(q31_of(AudioEngine::reverb.settings().room_size));
 	}
 	if (path == "reverb/dampening") {
-		return number(q31_of(AudioEngine::reverb.getDamping()));
+		return number(q31_of(AudioEngine::reverb.settings().damping));
 	}
 	if (path == "reverb/width") {
-		return number(q31_of(AudioEngine::reverb.getWidth()));
+		return number(q31_of(AudioEngine::reverb.settings().width));
 	}
 	if (path == "reverb/hpf") {
-		return number(q31_of(AudioEngine::reverb.getHPF()));
+		return number(q31_of(AudioEngine::reverb.settings().hpf));
 	}
 	if (path == "reverb/lpf") {
-		return number(q31_of(AudioEngine::reverb.getLPF()));
+		return number(q31_of(AudioEngine::reverb.settings().lpf));
 	}
 	if (path == "reverb/pan") {
 		return number(AudioEngine::reverbPan);

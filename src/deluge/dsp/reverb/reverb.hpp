@@ -63,6 +63,19 @@ public:
 
 	Model getModel() { return model_; }
 
+	/// @brief The values the reverb was last set to, which a model change re-applies.
+	///
+	/// The getters below report the active model's own reading, which can differ: a model without filters reads its
+	/// HPF and LPF as zero, and one may quantise the room size.
+	struct Settings {
+		float room_size;
+		float damping;
+		float width;
+		float hpf;
+		float lpf;
+	};
+	[[nodiscard]] Settings settings() const { return {room_size_, damping_, width_, hpf_, lpf_}; }
+
 	/// @brief Mixes the reverb into @p output. Audio-tier entry point.
 	///
 	/// Dispatches through the variant's own discriminant rather than `model_`: the two are separate

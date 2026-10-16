@@ -32,6 +32,7 @@ RUNNERS = {
     "serializer_check": "serializer_check_run",
     "song_edit_roundtrip": "song_edit_roundtrip_run",
     "song_roundtrip": "songs_run",
+    "song_settings": "song_settings_run",
 }
 
 

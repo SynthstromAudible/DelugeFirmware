@@ -2126,6 +2126,21 @@ tier = "nightly"
 runtime = "~30s"
 
 [[harness]]
+name = "song-settings"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a song's settings go through SetSetting: over every corpus song, for every setting group of every owner (the song, each track and MIDI or CV instrument device, each kit lane, each note row, each audio clip) and every legal value of every path of the group's table, the Edit is applied and every record then equals its engine copy"
+scenario = "song_settings"
+check = "tests/integration/checks/host_driver.py"
+builds = ["golden-vt-render"]
+requires = ["song-xml-corpus"]
+tier = "nightly"
+runtime = "~30s"
+
+[[harness]]
 name = "instrument-codec-decode"
 path = "."
 level = "integration"

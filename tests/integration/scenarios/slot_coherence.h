@@ -17,8 +17,13 @@
 
 #pragma once
 
+#include "deluge-project/setting_group.h"
 #include <cstdint>
+#include <functional>
+#include <span>
 #include <string>
+#include <string_view>
+#include <vector>
 
 class Song;
 class Sound;
@@ -27,12 +32,13 @@ namespace deluge::harness {
 
 /// @brief Which equations a coherence check holds a sound to.
 struct CoherenceChecks {
-	bool runtime = true;  ///< the runtime's state == the record (dump_state of seededState() vs the bound state)
-	bool slot = true;     ///< the slot's instrument entries == encode(record), by key
-	bool snapshot = true; ///< the snapshot == projectSnapshot() of the record
-	bool controls = true; ///< the owner's controls record == the runtime's knobs
-	bool decode = true;   ///< the slot decoded onto the record == the record (the flip would change nothing)
-	bool chains = true;   ///< each host chain (a kit's, an audio track's, the master's) == its owner's encoding
+	bool runtime = true;       ///< the runtime's state == the record (dump_state of seededState() vs the bound state)
+	bool slot = true;          ///< the slot's instrument entries == encode(record), by key
+	bool snapshot = true;      ///< the snapshot == projectSnapshot() of the record
+	bool controls = true;      ///< the owner's controls record == the runtime's knobs
+	bool decode = true;        ///< the slot decoded onto the record == the record (the flip would change nothing)
+	bool chains = true;        ///< each host chain (a kit's, an audio track's, the master's) == its owner's encoding
+	bool song_settings = true; ///< every setting group's record == its engine copy (songSettingsIncoherence)
 };
 
 /// @brief Find the first equation @p sound breaks. An unbound sound breaks none.
@@ -46,6 +52,19 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 /// @param song The song whose kit, audio-track and master chains are checked.
 /// @return The break as "output <id> effects: <where>" or "master effects: <where>", or empty if all agree.
 std::string chainIncoherence(::Song& song);
+
+/// @brief Visit every setting group of every owner @p song addresses: the song, each output's track and (MIDI and CV)
+///        instrument device, each kit lane, each note row and each audio clip.
+/// @param song  The song.
+/// @param visit Called with the address, the owner's durable id (0 for the song) and the paths of the group's table
+///              this owner has an engine copy of.
+void forEachSettingAddress(::Song& song, const std::function<void(const deluge::project::SettingAddress&, uint32_t,
+                                                                  std::span<const std::string_view>)>& visit);
+
+/// @brief Find the first song setting whose record differs from its engine copy.
+/// @param song The song; its reverb is checked against the engine's, so it must be the current song.
+/// @return The break as "<group> <owner id> <path>: record=<a> engine=<b>", or empty if every setting agrees.
+std::string songSettingsIncoherence(::Song& song);
 
 /// @brief Check every bound sound of @p song (its outputs', its hibernating instruments' and its kits' sound drums),
 /// and its controls and host chains as @p checks selects.
