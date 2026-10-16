@@ -265,11 +265,7 @@ add_subdirectory(${REPO_ROOT}/tests/integration/scenarios ${CMAKE_BINARY_DIR}/sc
 # deluge_scenes: the first UI layer allowed to include the model. Links deluge_app, so it comes after it.
 add_subdirectory(${REPO_ROOT}/src/scenes     ${CMAKE_BINARY_DIR}/scenes)     # deluge_scenes
 
-# TODO(ui-integration): the UI targets that ran on the C host BSP, re-hosted on golden_vt_render:
-#   deluge_host's scripted headless runs (DELUGE_HOST_SCRIPT, the level-3 UI harness),
-#   deluge_loadcheck, deluge_menu_dump with its menu_dump_matches_committed test
-#   (scripts/menu_dump_check.sh), the deluge_scenes_spec suite (sim/scenes_spec, CppSpec via
-#   cmake/deluge_specs.cmake, support library tests/harness/ui_script.cpp + snapshot.cpp), the
-#   DELUGE_HOST_DISPLAYS `--board-info` tests, and the ui_app_scripts_<name> snapshot tests with
-#   their menu A/B leg (scripts/ui_snapshot_diff.py, scripts/ui_app_ab_check.py).
-#   The C host BSP versions are in clean/ui-perf-1:sim/CMakeLists.txt.
+# The UI's level-3 scripts and the menu dump run as golden_vt_render scenarios (the ui-scripts and
+# ui-menu-dump gates); the UI layers' BSP-free specs run with the unit specs.
+# TODO(ui-integration): sim/scenes_spec is not built: its specs drive the card synchronously and
+# exercise code the merge replaced, so each is triaged against next before it is hosted (its own plan).

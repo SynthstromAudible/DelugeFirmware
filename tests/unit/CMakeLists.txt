@@ -178,11 +178,6 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/ui ui)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/shell shell)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/notify notify)
 
-# TODO(ui-integration): the UI spec suite under tests/spec (gfx, ui, shell, notify, scenes, gui,
-# harness specs; CppSpec via cmake/deluge_specs.cmake) is not wired into this project. Its library
-# compiled src/bsp/host/host_script_tables.c and host_snapshot.c for the level-3 harness
-# cross-checks; those halves are re-hosted on golden_vt_render, and the BSP-free specs join here.
-# The C host BSP version is clean/ui-perf-1:tests/spec/CMakeLists.txt.
 add_subdirectory(spec)
 add_subdirectory(level3)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../engine-api engine-api)

@@ -74,7 +74,19 @@ rate, recorded with `--audio-out`, and frames the app delivered late are reporte
 3500  quit
 ```
 
-<!-- TODO(ui-integration): multi-display panels (DELUGE_HOST_DISPLAYS, the UpdateDisplayN panel frame) and
-scripted UI runs with snapshots (DELUGE_HOST_SCRIPT / _SNAPSHOT_DIR / _DETERMINISTIC, level 3 of the UI test
-harness, the ui_app_scripts tests and their two deadlines), re-hosted on golden_vt_render. The C host BSP
-version is documented in clean/ui-perf-1:docs/dev/host_emulator.md. -->
+## UI scripts
+
+The headless sim above runs on the wall clock, so its snapshots are not reproducible. The UI test harness's level-3
+scripts (`tests/ui-scripts/app`, the grammar in `tests/harness/ui_script.h`) run instead on `golden_vt_render`'s
+virtual clock, through the BSP's own input path, as the `ui-scripts` gate does. To run one by hand:
+
+```sh
+./dbt test -n ui-scripts
+GOLDEN_SCENARIO=ui_script UI_SCRIPT=tests/ui-scripts/app/menu.txt UI_SNAPSHOT_DIR=/tmp/got \
+    UI_CARD=tests/fixtures/card build/cargo-harness/release/golden_vt_render
+python3 scripts/ui_snapshot_diff.py /tmp/got tests/golden/ui/app/menu
+```
+
+A snapshot writes `<name>.oled0.pbm` and `<name>.state`; it shows the surface as the app last drew it, so a press due
+in the snapshot's own millisecond shows in the next one. A detent is 4 quadrature edges. Only the Deluge's one panel
+exists here: a script with a `board` step is skipped.
