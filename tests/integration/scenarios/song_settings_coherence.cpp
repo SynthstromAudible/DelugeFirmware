@@ -81,6 +81,9 @@ void forEachSettingAddress(
 		}
 		visitGroup({SettingGroupId::TRACK, *track}, track->output_id, &output);
 		visitGroup({SettingGroupId::INSTRUMENT_DEVICE, *track}, track->output_id, &output);
+		if (output.type == OutputType::AUDIO) {
+			visitGroup({SettingGroupId::AUDIO_INPUT, *track}, track->output_id, nullptr);
+		}
 		if (output.type == OutputType::KIT) {
 			for (::Drum* drum = static_cast<::Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
 				if (const auto lane = deluge::bridge::laneAddressOf(*drum, song)) {
@@ -97,6 +100,12 @@ void forEachSettingAddress(
 		visitOutput(*sleeping);
 	}
 	for (::Clip* clip : AllClips::everywhere(&song)) {
+		if (const auto address = deluge::bridge::clipAddressOf(*clip, song)) {
+			visitGroup({SettingGroupId::CLIP, *address}, address->clip_id, nullptr);
+			if (clip->type == ClipType::INSTRUMENT) {
+				visitGroup({SettingGroupId::CLIP_VALUES, *address}, address->clip_id, nullptr);
+			}
+		}
 		if (clip->type == ClipType::AUDIO) {
 			if (const auto address = deluge::bridge::audioClipAddressOf(*static_cast<::AudioClip*>(clip), song)) {
 				visitGroup({SettingGroupId::AUDIO_CLIP, *address}, address->clip_id, nullptr);
@@ -112,6 +121,33 @@ void forEachSettingAddress(
 	}
 }
 
+/// @brief Whether @p address holds its own bend range at @p path. A clip or kit row that holds none plays its device's
+///        default, which the record cannot name, so there is nothing to compare.
+bool holdsOwnBendRange(::Song& song, const SettingAddress& address, std::string_view path) {
+	if (address.group == SettingGroupId::CLIP_VALUES && path.starts_with("bendRange")) {
+		const auto* record =
+		    song.project.clip_structure.find(std::get<deluge::project::ClipAddress>(address.owner).clip_id);
+		return record != nullptr
+		       && (path == "bendRange" ? record->values.bend_range : record->values.bend_range_mpe).has_value();
+	}
+	if (address.group == SettingGroupId::NOTE_ROW && path == "bendRange") {
+		const auto& row = std::get<deluge::project::NoteRowAddress>(address.owner);
+		const auto* clip = song.project.clip_structure.find(row.clip_id);
+		if (clip == nullptr) {
+			return false;
+		}
+		for (const auto& docRow : clip->note_rows) {
+			const bool matches = row.is_kit ? docRow.drum_id && *docRow.drum_id == static_cast<uint32_t>(row.row_key)
+			                                : docRow.y == row.row_key;
+			if (matches) {
+				return docRow.bend_range.has_value();
+			}
+		}
+		return false;
+	}
+	return true;
+}
+
 std::string songSettingsIncoherence(::Song& song) {
 	std::string found;
 	forEachSettingAddress(song,
@@ -119,6 +155,9 @@ std::string songSettingsIncoherence(::Song& song) {
 		                      for (std::string_view path : paths) {
 			                      if (!found.empty()) {
 				                      return;
+			                      }
+			                      if (!holdsOwnBendRange(song, address, path)) {
+				                      continue;
 			                      }
 			                      const auto record = deluge::project::read_setting(song.project, address, path);
 			                      const auto engine = deluge::bridge::engineSettingValue(song, address, path);

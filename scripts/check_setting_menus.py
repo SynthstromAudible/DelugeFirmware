@@ -155,6 +155,20 @@ SONG_STATE_WRITES = (
     re.compile(
         r"(?i:clip)\w*\s*(?:\(\s*\))?\s*(?:->|\.)\s*sampleHolder\s*\.\s*(?:startPos|endPos)\s*=(?!=)"
     ),
+    #: A clip's name, MIDI program and bend ranges; the sync-scaling clip.
+    re.compile(r"(?i:clip|target)\w*\s*(?:\(\s*\))?\s*(?:->|\.)\s*name\s*=(?!=)"),
+    re.compile(r"(?:->|\.)\s*(?:midiBank|midiSub|midiPGM)\s*=(?!=)"),
+    re.compile(r"bendRanges\s*\[[^\]]*\]\s*=(?!=)"),
+    re.compile(r"(?<!\w)setInputTickScaleClip\s*\("),
+    #: An audio track's input.
+    re.compile(r"(?:->|\.)\s*(?:setOutputRecordingFrom|clearRecordingFrom)\s*\("),
+    re.compile(r"(?:->|\.)\s*inputChannel\s*=(?!=)"),
+    re.compile(r"(?:->|\.)\s*mode\s*=\s*AudioOutputMode"),
+    #: A patch cable's polarity, written past its record (PatchCableSet::setPolarity writes both).
+    re.compile(r"(?:->|\.)\s*polarity\s*=(?!=)"),
+    #: A MIDI device's labels and hide flag.
+    re.compile(r"(?:->|\.)\s*hideUnlabeledCC\s*=(?!=)"),
+    re.compile(r"(?:->|\.)\s*setNameForCC\s*\("),
 )
 #: Song-state writes under the roots that are allowed, by file (relative to src/) and the text the write's line holds,
 #: each with its reason. An empty text allows the whole file.

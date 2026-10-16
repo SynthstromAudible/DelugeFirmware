@@ -101,6 +101,13 @@ std::string what_differs(const deluge::project::DocClip& e, const deluge::projec
 	field("colour_offset", e.colour_offset, d.colour_offset);
 	field("launch_style", static_cast<long>(e.launch_style), static_cast<long>(d.launch_style));
 	field("section", e.section, d.section);
+	if (e.name != d.name) {
+		out += " name engine='" + e.name + "' decoded='" + d.name + "'";
+	}
+	field("sequence_direction", static_cast<long>(e.sequence_direction), static_cast<long>(d.sequence_direction));
+	if (!(e.values == d.values)) {
+		out += " values";
+	}
 	field("note_rows", static_cast<long>(e.note_rows.size()), static_cast<long>(d.note_rows.size()));
 	auto er = e.note_rows.begin();
 	auto dr = d.note_rows.begin();
@@ -147,6 +154,12 @@ std::string what_differs(const deluge::project::DocOutput& e, const deluge::proj
 	num("collapse_mpe", e.collapse_mpe, d.collapse_mpe);
 	num("output_mpe_y", e.output_mpe_y, d.output_mpe_y);
 	num("cv2_source", static_cast<long>(e.cv2_source), static_cast<long>(d.cv2_source));
+	num("hide_unlabeled_cc", e.hide_unlabeled_cc, d.hide_unlabeled_cc);
+	num("cc_labels", static_cast<long>(e.cc_labels.size()), static_cast<long>(d.cc_labels.size()));
+	num("input_channel", e.input_channel, d.input_channel);
+	num("audio_mode", e.audio_mode, d.audio_mode);
+	num("recording_from", e.recording_from_output_id ? long(*e.recording_from_output_id) : -1,
+	    d.recording_from_output_id ? long(*d.recording_from_output_id) : -1);
 	if (!(e.controls == d.controls)) {
 		out += " controls (engine " + std::to_string(e.controls.size()) + ", decoded "
 		       + std::to_string(d.controls.size()) + ")";

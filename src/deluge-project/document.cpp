@@ -16,6 +16,7 @@
  */
 
 #include "deluge-project/document.h"
+#include "deluge-project/audio_input.h"
 
 #include "deluge-project/controls_codec.h"
 #include "deluge-project/song_codec.h"
@@ -183,7 +184,9 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 		SongDocument::OutputEntry entry{.id = outputIds.id_of(*output.node), .element = std::string(output.name)};
 		DocOutput& record = document.outputs[entry.id] = new_output(output.name);
 		(void)decode_identity(*output.node, output.name, record);
-		if (auto index = int_of(output.node->find("outputRecordingIndex")); index && output.name == "audioTrack") {
+		// The source is read only for a track whose channel is a specific track: the file writes an index either way.
+		if (auto index = int_of(output.node->find("outputRecordingIndex"));
+		    index && output.name == "audioTrack" && record.input_channel == kInputChannelSpecificTrack) {
 			recordingFrom.emplace_back(entry.id, *index);
 		}
 		if (output.name == "sound") {
@@ -316,7 +319,7 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 		const DocOutput& output = song.outputs.at(entry.id);
 		append_entries(element, encode_identity(output, entry.element));
 		if (entry.element == "audioTrack") {
-			int64_t index = -1;
+			int64_t index = 0; // the engine writes the first output's place when there is no source
 			for (size_t i = 0; i < song.output_order.size(); i++) {
 				if (output.recording_from_output_id == song.output_order[i].id) {
 					index = static_cast<int64_t>(i);
@@ -363,6 +366,9 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 		auto element = Value::makeMap();
 		element.set("id", Value::makeNumber(entry.id));
 		append_entries(element, encode(record));
+		if (song.transport.sync_scaling_clip_id == entry.id) {
+			element.set("isSyncScaleClip", Value::makeNumber(1));
+		}
 		if (entry.audio) {
 			append_entries(element, encode(song.audio_clips.at(entry.id)));
 		}

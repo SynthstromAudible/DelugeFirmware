@@ -407,11 +407,19 @@ Error applyClipValueSetting(::InstrumentClip& clip, ::Song& /*song*/, std::strin
 	}
 	if (path == "bendRange" || path == "bendRangeMPE") {
 		const int32_t which = path == "bendRange" ? BEND_RANGE_MAIN : BEND_RANGE_FINGER_LEVEL;
+		const bool created = clip.paramManager.getExpressionParamSet() == nullptr;
 		ExpressionParamSet* expression = clip.paramManager.getOrCreateExpressionParamSet();
 		if (expression == nullptr) {
 			return Error::UNSPECIFIED;
 		}
 		expression->bendRanges[which] = static_cast<uint8_t>(*v);
+		// A set made for this range gives the other one the device's default, which a save writes; the clip's values
+		// hold it too.
+		if (created) {
+			const int32_t other = which == BEND_RANGE_MAIN ? BEND_RANGE_FINGER_LEVEL : BEND_RANGE_MAIN;
+			(other == BEND_RANGE_MAIN ? clip.docClip_->values.bend_range : clip.docClip_->values.bend_range_mpe) =
+			    expression->bendRanges[other];
+		}
 		// A MIDI or CV instrument bends with the ranges it cached from its active clip.
 		if (clip.output != nullptr && clip.isActiveOnOutput()
 		    && (clip.output->type == OutputType::MIDI_OUT || clip.output->type == OutputType::CV)) {

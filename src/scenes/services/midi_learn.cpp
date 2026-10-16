@@ -23,6 +23,7 @@
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/bend_range_for.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/note/note_row.h"
@@ -323,7 +324,8 @@ void MidiLearn::commit_drum_extras(::MIDICable& cable, int32_t channel_or_zone) 
 			ExpressionParamSet* const expression_params = note_row->paramManager.getOrCreateExpressionParamSet(true);
 			if (expression_params != nullptr
 			    && !expression_params->params[0].isAutomated(*expression_params->docForParam(0))) {
-				expression_params->bendRanges[BEND_RANGE_FINGER_LEVEL] = new_bend_range; // `:649`
+				deluge::edits::bendRangeFor(instrument_clip, note_row->paramManager, BEND_RANGE_FINGER_LEVEL,
+				                            new_bend_range); // `:649`
 			}
 		}
 	}
@@ -362,8 +364,8 @@ void MidiLearn::commit_instrument_extras(::MIDICable& cable, int32_t channel_or_
 				if (param_manager != nullptr) {                                             // `:697`
 					ExpressionParamSet* const expression_params = param_manager->getOrCreateExpressionParamSet();
 					if (expression_params != nullptr) { // `:699`
-						expression_params->bendRanges[BEND_RANGE_FINGER_LEVEL] =
-						    new_bend_ranges[BEND_RANGE_FINGER_LEVEL]; // `:700-701`
+						deluge::edits::bendRangeFor(clip, *param_manager, BEND_RANGE_FINGER_LEVEL,
+						                            new_bend_ranges[BEND_RANGE_FINGER_LEVEL]); // `:700-701`
 					}
 				}
 			}
@@ -378,7 +380,8 @@ void MidiLearn::commit_instrument_extras(::MIDICable& cable, int32_t channel_or_
 		ExpressionParamSet* const expression_params = param_manager->getOrCreateExpressionParamSet(); // `:717`
 		if (expression_params != nullptr
 		    && !expression_params->params[0].isAutomated(*expression_params->docForParam(0))) {
-			expression_params->bendRanges[BEND_RANGE_MAIN] = new_bend_ranges[BEND_RANGE_MAIN]; // `:719`
+			deluge::edits::bendRangeFor(static_cast<::InstrumentClip*>(instrument->getActiveClip()), *param_manager,
+			                            BEND_RANGE_MAIN, new_bend_ranges[BEND_RANGE_MAIN]); // `:719`
 		}
 	}
 	// `:723-724`: in a perfect world we would also update `CVInstrument::cachedBendRanges[]`.

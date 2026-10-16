@@ -16,7 +16,7 @@ import driver
 
 # Every group the corpus must reach. A MIDI or CV device is not in every corpus, so the instrument device is reported
 # but not required.
-REQUIRED = ("SONG", "TRACK", "LANE", "NOTE_ROW", "AUDIO_CLIP")
+REQUIRED = ("SONG", "TRACK", "LANE", "NOTE_ROW", "AUDIO_CLIP", "CLIP", "CLIP_VALUES")
 
 
 def main(argv=None):

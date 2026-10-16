@@ -30,6 +30,18 @@ PLANTED = {
     "direction": "row->setSequenceDirectionMode(s, d);",
     "audio clip setter": "clip->setSampleStartPos(0);",
     "audio clip holder": "clip->sampleHolder.endPos = 5;",
+    "clip name": 'clip->name = "X";',
+    "clip direction": "clip->setSequenceDirectionMode(stack, mode);",
+    "midi program": "clip->midiPGM = 5;",
+    "bend range": "expression->bendRanges[0] = 12;",
+    "sync scaling clip": "song->setInputTickScaleClip(clip);",
+    "audio source": "audioOutput->setOutputRecordingFrom(track);",
+    "audio source cleared": "audioOutput->clearRecordingFrom();",
+    "audio channel": "audioOutput->inputChannel = AudioInputChannel::LEFT;",
+    "audio mode": "ao->mode = AudioOutputMode::looper;",
+    "cable polarity": "set->patchCables[i].polarity = Polarity::BIPOLAR;",
+    "hide unlabeled": "instrument->hideUnlabeledCC = true;",
+    "cc label": "instrument->setNameForCC(cc, name);",
 }
 
 
@@ -53,7 +65,8 @@ class SongStateWrites(unittest.TestCase):
             "const float size = AudioEngine::reverb.getRoomSize();",
             "if (output->name == other) {}",
             "PresetRequest r{.name = initial};",
-            "midi->setNameForCC(cc, text);",
+            "set->setPolarity(index, polarity);",
+            "const auto mode = ao->scrolledMode(offset);",
         ):
             with self.subTest(line):
                 self.assertEqual(self.check(line), [])

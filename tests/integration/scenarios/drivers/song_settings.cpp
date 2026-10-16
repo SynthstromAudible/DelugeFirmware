@@ -11,10 +11,13 @@
 #include "engine-api/types/setting.h"
 #include "extern.h"
 #include "memory/general_memory_allocator.h"
+#include "model/clip/clip.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_setting.h"
 #include "model/global_effectable/global_effectable.h"
+#include "model/output.h"
 #include "model/project_bridge/song_serialization.h"
+#include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "scenarios/drivers/driver.h"
@@ -95,6 +98,28 @@ std::vector<Value> valuesOf(Song& song, const SettingAddress& address, const Set
 		values = {Value::makeScalar("SONG SETTINGS")};
 		break;
 	case SettingKind::INTEGER: {
+		// An id names another clip or track: none, or one the song holds.
+		if (row.path == "syncScalingClip") {
+			values.push_back(Value::makeNumber(-1));
+			for (::Clip* clip : AllClips::everywhere(&song)) {
+				if (!clip->isArrangementOnlyClip()) {
+					values.push_back(Value::makeNumber(clip->id()));
+					break;
+				}
+			}
+			break;
+		}
+		if (row.path == "outputRecordingFrom") {
+			values.push_back(Value::makeNumber(-1));
+			const auto owner = std::get<deluge::project::TrackAddress>(address.owner).output_id;
+			for (::Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+				if (output->type == OutputType::AUDIO && output->id() && *output->id() != owner) {
+					values.push_back(Value::makeNumber(*output->id()));
+					break;
+				}
+			}
+			break;
+		}
 		if (row.path.ends_with("SamplePos")) {
 			if (auto current = deluge::project::read_setting(song.project, address, row.path)) {
 				values.push_back(*current);
