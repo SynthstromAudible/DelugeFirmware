@@ -464,9 +464,6 @@ public:
 	void expectEvent() override;
 	TimelineCounter* getTimelineCounterToRecordTo() override;
 
-	// Reverb params to be stored here between loading and song being made the active one
-	dsp::Reverb::Model model;
-
 	// START ~ new Automation Arranger View Variables
 	int32_t lastSelectedParamID; // last selected Parameter to be edited in Automation Arranger View
 	deluge::modulation::params::Kind

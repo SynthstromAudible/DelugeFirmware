@@ -48,14 +48,10 @@ using deluge::l10n::String;
 
 namespace {
 
-/// @brief The four float-backed reverb settings share one shape: `round(x * kMaxMenuValue)` on the
-///        way out, `value / kMaxMenuValue` on the way back (`reverb/room_size.h:28 readCurrentValue` and
-///        siblings).
+/// @brief A float-backed reverb setting as its menu shows it: `round(x * kMaxMenuValue)`
+///        (`reverb/room_size.h` readCurrentValue and siblings). Writes go through the row's user scale.
 int32_t reverb_float_to_menu(float value) {
 	return static_cast<int32_t>(std::lround(value * kMaxMenuValue));
-}
-float menu_to_reverb_float(int32_t value) {
-	return static_cast<float>(value) / kMaxMenuValue;
 }
 
 /// @brief `stutter::StutterDirection`'s own enumerators (`stutter/direction.h:29`).
@@ -135,8 +131,8 @@ void set_delay_type(const MenuContext& ctx, int32_t value) {
 // ---------------------------------------------------------------------------------------------
 // Reverb -- engine-wide: the context gives only the song (see `sound_fx.h`'s note)
 //
-// As the legacy items (`gui/menu_item/reverb/`): the song's `project.reverb` is authoritative, and
-// each write updates it and then the engine's projected copy.
+// As the legacy items (`gui/menu_item/reverb/`): the song's `project.reverb` is the truth, and each write is a
+// SetSetting that projects it onto the engine.
 
 int32_t get_reverb_room_size(const MenuContext& ctx) {
 	if (ctx.song == nullptr) {
@@ -148,9 +144,7 @@ void set_reverb_room_size(const MenuContext& ctx, int32_t value) {
 	if (ctx.song == nullptr) {
 		return;
 	}
-	const float v = menu_to_reverb_float(value);
-	ctx.song->project.reverb.room_size = v;
-	AudioEngine::reverb.setRoomSize(v);
+	deluge::edits::songSettingFromMenu("reverb/roomSize", value);
 }
 
 int32_t get_reverb_damping(const MenuContext& ctx) {
@@ -163,9 +157,7 @@ void set_reverb_damping(const MenuContext& ctx, int32_t value) {
 	if (ctx.song == nullptr) {
 		return;
 	}
-	const float v = menu_to_reverb_float(value);
-	ctx.song->project.reverb.damping = v;
-	AudioEngine::reverb.setDamping(v);
+	deluge::edits::songSettingFromMenu("reverb/dampening", value);
 }
 
 int32_t get_reverb_width(const MenuContext& ctx) {
@@ -178,23 +170,20 @@ void set_reverb_width(const MenuContext& ctx, int32_t value) {
 	if (ctx.song == nullptr) {
 		return;
 	}
-	const float v = menu_to_reverb_float(value);
-	ctx.song->project.reverb.width = v;
-	AudioEngine::reverb.setWidth(v);
+	deluge::edits::songSettingFromMenu("reverb/width", value);
 }
 
 int32_t get_reverb_model(const MenuContext& ctx) {
 	if (ctx.song == nullptr) {
 		return 0;
 	}
-	return static_cast<int32_t>(ctx.song->model); // `reverb/model.cpp`
+	return static_cast<int32_t>(ctx.song->project.reverb.model); // `reverb/model.cpp`
 }
 void set_reverb_model(const MenuContext& ctx, int32_t value) {
 	if (ctx.song == nullptr) {
 		return;
 	}
-	ctx.song->model = static_cast<deluge::dsp::Reverb::Model>(value);
-	AudioEngine::reverb.setModel(ctx.song->model);
+	deluge::edits::songSettingFor("reverb/model", deluge::serialization::Value::makeNumber(value));
 }
 
 int32_t get_reverb_pan(const MenuContext& ctx) {
@@ -207,9 +196,7 @@ void set_reverb_pan(const MenuContext& ctx, int32_t value) {
 	if (ctx.song == nullptr) {
 		return;
 	}
-	const int32_t v = bindings::menu_to_pan(value);
-	ctx.song->project.reverb.pan = v;
-	AudioEngine::reverbPan = v;
+	deluge::edits::songSettingFor("reverb/pan", deluge::serialization::Value::makeNumber(bindings::menu_to_pan(value)));
 }
 
 int32_t get_reverb_hpf(const MenuContext& ctx) {
@@ -222,9 +209,7 @@ void set_reverb_hpf(const MenuContext& ctx, int32_t value) {
 	if (ctx.song == nullptr) {
 		return;
 	}
-	const float v = menu_to_reverb_float(value);
-	ctx.song->project.reverb.hpf = v;
-	AudioEngine::reverb.setHPF(v);
+	deluge::edits::songSettingFromMenu("reverb/hpf", value);
 }
 
 int32_t get_reverb_lpf(const MenuContext& ctx) {
@@ -237,9 +222,7 @@ void set_reverb_lpf(const MenuContext& ctx, int32_t value) {
 	if (ctx.song == nullptr) {
 		return;
 	}
-	const float v = menu_to_reverb_float(value);
-	ctx.song->project.reverb.lpf = v;
-	AudioEngine::reverb.setLPF(v);
+	deluge::edits::songSettingFromMenu("reverb/lpf", value);
 }
 
 int32_t get_reverb_sidechain_volume(const MenuContext& ctx) {
@@ -252,10 +235,8 @@ void set_reverb_sidechain_volume(const MenuContext& ctx, int32_t value) {
 	if (ctx.song == nullptr) {
 		return;
 	}
-	const int32_t v = value * 21474836;
-	ctx.song->project.reverb.sidechain_volume = v;
-	AudioEngine::reverbSidechainVolume = v;
-	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	deluge::edits::songSettingFor("reverb/compressor/volume",
+	                              deluge::serialization::Value::makeNumber(value * 21474836));
 }
 
 int32_t get_reverb_sidechain_shape(const MenuContext& ctx) {
@@ -272,9 +253,7 @@ void set_reverb_sidechain_shape(const MenuContext& ctx, int32_t value) {
 	// Deliberately NOT `bindings::menu_to_standard`: legacy's write here is the plain formula with
 	// no endpoint special cases, so at 0 and 50 the two differ by one LSB. Transcribed as written.
 	const int32_t v = static_cast<int32_t>(static_cast<uint32_t>(value) * 85899345 - 2147483648u);
-	ctx.song->project.reverb.sidechain_shape = v;
-	AudioEngine::reverbSidechainShape = v;
-	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	deluge::edits::songSettingFor("reverb/compressor/shape", deluge::serialization::Value::makeNumber(v));
 }
 
 // The reverb's sidechain is the engine's own (`sidechain::Attack` and its siblings with
@@ -290,10 +269,8 @@ void set_reverb_sidechain_attack(const MenuContext& ctx, int32_t value) {
 	if (ctx.song == nullptr) {
 		return;
 	}
-	const int32_t v = sidechain_attack_from_menu(value);
-	AudioEngine::reverbSidechainSettings.attack = v;
-	ctx.song->project.reverb.sidechain_attack = v;
-	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	deluge::edits::songSettingFor("reverb/compressor/attack",
+	                              deluge::serialization::Value::makeNumber(sidechain_attack_from_menu(value)));
 }
 
 int32_t get_reverb_sidechain_release(const MenuContext& ctx) {
@@ -306,10 +283,8 @@ void set_reverb_sidechain_release(const MenuContext& ctx, int32_t value) {
 	if (ctx.song == nullptr) {
 		return;
 	}
-	const int32_t v = sidechain_release_from_menu(value);
-	AudioEngine::reverbSidechainSettings.release = v;
-	ctx.song->project.reverb.sidechain_release = v;
-	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	deluge::edits::songSettingFor("reverb/compressor/release",
+	                              deluge::serialization::Value::makeNumber(sidechain_release_from_menu(value)));
 }
 
 int32_t get_reverb_sidechain_sync(const MenuContext& ctx) {
@@ -324,10 +299,11 @@ void set_reverb_sidechain_sync(const MenuContext& ctx, int32_t value) {
 	if (ctx.song == nullptr) {
 		return;
 	}
+	// The sync type is the engine's alone; the level is the song's record.
 	AudioEngine::reverbSidechainSettings.sync_type = syncValueToSyncType(value);
-	AudioEngine::reverbSidechainSettings.sync_level = syncValueToSyncLevel(value);
-	ctx.song->project.reverb.sidechain_sync = syncValueToSyncLevel(value);
-	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	deluge::edits::songSettingFor(
+	    "reverb/compressor/syncLevel",
+	    deluge::serialization::Value::makeNumber(deluge::engine::index_of(syncValueToSyncLevel(value))));
 }
 
 // ---------------------------------------------------------------------------------------------

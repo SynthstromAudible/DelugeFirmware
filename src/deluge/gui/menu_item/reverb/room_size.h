@@ -18,6 +18,7 @@
 
 #include "dsp/reverb/reverb.hpp"
 #include "gui/menu_item/integer.h"
+#include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include <cmath>
@@ -26,15 +27,11 @@ namespace deluge::gui::menu_item::reverb {
 class RoomSize final : public Integer {
 public:
 	using Integer::Integer;
-	// project.reverb is authoritative; AudioEngine::reverb is the projected DSP cache kept in sync.
+	// The song's reverb record is the truth; SetSetting projects it onto AudioEngine::reverb.
 	void readCurrentValue() override {
 		this->setValue(std::round(currentSong->project.reverb.room_size * kMaxMenuValue));
 	}
-	void writeCurrentValue() override {
-		float value = (float)this->getValue() / kMaxMenuValue;
-		currentSong->project.reverb.room_size = value;
-		AudioEngine::reverb.setRoomSize(value);
-	}
+	void writeCurrentValue() override { deluge::edits::songSettingFromMenu("reverb/roomSize", this->getValue()); }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 
 	[[nodiscard]] std::string_view getName() const override {

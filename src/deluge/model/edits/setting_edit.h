@@ -181,6 +181,23 @@ inline void songSettingFor(std::string_view path, deluge::serialization::Value v
 	applySettingEdit({deluge::project::SettingGroupId::SONG, deluge::project::SongAddress{}}, path, std::move(value));
 }
 
+/// @brief A menu's change of the current song's setting at @p path, in the menu's units: the row's user scale
+///        (`engine::to_stored`) gives the value the record holds.
+/// @param path The setting's path in the song group.
+/// @param user The menu's value.
+inline void songSettingFromMenu(std::string_view path, int32_t user) {
+	for (const deluge::engine::SettingInfo& row : deluge::project::table_of(deluge::project::SettingGroupId::SONG)) {
+		if (row.path == path) {
+			if (const std::optional<int32_t> stored = deluge::engine::to_stored(row, user)) {
+				songSettingFor(path, deluge::serialization::Value::makeNumber(*stored));
+				return;
+			}
+			break;
+		}
+	}
+	D_PRINTLN("setting refused: %.*s = %d", static_cast<int>(path.size()), path.data(), static_cast<int>(user));
+}
+
 /// @brief A gesture's change of @p output's setting at @p path (its name, or its MIDI or CV instrument's fields): an
 ///        Edit when the output is the current song's, its setter alone for one outside it.
 /// @param output The track's output.

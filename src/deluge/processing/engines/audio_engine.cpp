@@ -2121,7 +2121,7 @@ void stopAnyPreviewing() {
 }
 
 void getReverbParamsFromSong(Song* song) {
-	reverb.setModel(song->model);
+	reverb.setModel(static_cast<dsp::Reverb::Model>(song->project.reverb.model));
 	reverb.setRoomSize(song->project.reverb.room_size);
 	reverb.setHPF(song->project.reverb.hpf);
 	reverb.setLPF(song->project.reverb.lpf);

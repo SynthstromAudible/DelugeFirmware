@@ -58,10 +58,10 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			// The reverb's sidechain is the engine's own, saved in project.reverb.
+			// The reverb's sidechain is the engine's own, its record the song's.
 			if (is_reverb_sidechain_) {
-				AudioEngine::reverbSidechainSettings.attack = current_value;
-				currentSong->project.reverb.sidechain_attack = current_value;
+				deluge::edits::songSettingFor("reverb/compressor/attack",
+				                              deluge::serialization::Value::makeNumber(current_value));
 			}
 			else {
 				effectSettingFor(*soundEditor.currentModControllable, "sidechain/attack",

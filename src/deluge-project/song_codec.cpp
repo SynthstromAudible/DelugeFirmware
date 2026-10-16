@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <bitset>
+#include <utility>
 
 namespace deluge::project {
 
@@ -132,6 +133,7 @@ Value encode(const ReverbSettings& reverb, int32_t input_tick_magnitude) {
 	map.set("hpf", Value::makeNumber(q31_of(reverb.hpf)));
 	map.set("lpf", Value::makeNumber(q31_of(reverb.lpf)));
 	map.set("pan", Value::makeNumber(reverb.pan));
+	map.set("model", Value::makeNumber(std::to_underlying(reverb.model)));
 	auto compressor = Value::makeMap();
 	compressor.set("attack", Value::makeNumber(reverb.sidechain_attack));
 	compressor.set("release", Value::makeNumber(reverb.sidechain_release));
@@ -165,6 +167,12 @@ std::expected<void, LoadError> decode(const Value& reverb, ReverbSettings& setti
 	}
 	if (auto pan = int_of(reverb.find("pan"))) {
 		settings.pan = *pan;
+	}
+	// A song saved before the reverb had a choice of algorithm plays freeverb, the only one there was.
+	settings.model = ReverbModel::FREEVERB;
+	if (auto model = int_of(reverb.find("model"));
+	    model && *model >= 0 && *model <= std::to_underlying(ReverbModel::DIGITAL)) {
+		settings.model = static_cast<ReverbModel>(*model);
 	}
 	if (const Value* compressor = reverb.find("compressor"); compressor != nullptr && compressor->isMap()) {
 		if (auto v = int_of(compressor->find("attack"))) {

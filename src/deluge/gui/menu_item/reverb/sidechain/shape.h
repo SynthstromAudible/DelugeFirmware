@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
+#include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -26,16 +27,14 @@ namespace deluge::gui::menu_item::reverb::sidechain {
 class Shape final : public Integer {
 public:
 	using Integer::Integer;
-	// project.reverb is authoritative; AudioEngine::reverbSidechainShape is the projected cache.
+	// The song's reverb record is the truth; SetSetting projects it onto AudioEngine::reverbSidechainShape.
 	void readCurrentValue() override {
 		this->setValue(
 		    (((int64_t)currentSong->project.reverb.sidechain_shape + 2147483648) * kMaxMenuValue + 2147483648) >> 32);
 	}
 	void writeCurrentValue() override {
 		int32_t value = (uint32_t)this->getValue() * 85899345 - 2147483648;
-		currentSong->project.reverb.sidechain_shape = value;
-		AudioEngine::reverbSidechainShape = value;
-		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+		deluge::edits::songSettingFor("reverb/compressor/shape", deluge::serialization::Value::makeNumber(value));
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 

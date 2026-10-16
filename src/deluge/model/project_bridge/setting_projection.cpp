@@ -1,5 +1,7 @@
 #include "model/project_bridge/setting_projection.h"
 
+#include "deluge-project/fraction.h"
+#include "dsp/reverb/reverb.hpp"
 #include "engine-api/types/sync.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -10,7 +12,10 @@
 #include "model/output.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
 #include "serialization/tree.h"
+
+#include <utility>
 
 namespace deluge::bridge {
 
@@ -76,6 +81,97 @@ std::optional<int32_t> integer_of(const Value& value) {
 	return serialization::int_of(&value);
 }
 
+/// @brief Copy reverb path @p path's value @p v onto the engine's one reverb, and have the render re-read its
+///        parameters.
+/// @return Error::UNSPECIFIED when @p path is not a reverb path.
+Error applyReverbSetting(::Song& song, std::string_view path, int32_t v) {
+	using project::fraction_of;
+	if (path == "reverb/roomSize") {
+		AudioEngine::reverb.setRoomSize(fraction_of(v));
+	}
+	else if (path == "reverb/dampening") {
+		AudioEngine::reverb.setDamping(fraction_of(v));
+	}
+	else if (path == "reverb/width") {
+		AudioEngine::reverb.setWidth(fraction_of(v));
+	}
+	else if (path == "reverb/hpf") {
+		AudioEngine::reverb.setHPF(fraction_of(v));
+	}
+	else if (path == "reverb/lpf") {
+		AudioEngine::reverb.setLPF(fraction_of(v));
+	}
+	else if (path == "reverb/pan") {
+		AudioEngine::reverbPan = v;
+	}
+	else if (path == "reverb/model") {
+		AudioEngine::reverb.setModel(static_cast<dsp::Reverb::Model>(v));
+	}
+	else if (path == "reverb/compressor/attack") {
+		AudioEngine::reverbSidechainSettings.attack = v;
+	}
+	else if (path == "reverb/compressor/release") {
+		AudioEngine::reverbSidechainSettings.release = v;
+	}
+	else if (path == "reverb/compressor/volume") {
+		AudioEngine::reverbSidechainVolume = v;
+	}
+	else if (path == "reverb/compressor/shape") {
+		AudioEngine::reverbSidechainShape = v;
+	}
+	else if (path == "reverb/compressor/syncLevel") {
+		AudioEngine::reverbSidechainSettings.sync_level = song.project.reverb.sidechain_sync;
+	}
+	else {
+		return Error::UNSPECIFIED;
+	}
+	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	return Error::NONE;
+}
+
+/// @brief The engine reverb's value at reverb path @p path, in the record's form.
+std::optional<Value> engineReverbValue(std::string_view path) {
+	using project::q31_of;
+	auto number = [](int64_t v) { return Value::makeNumber(v); };
+	if (path == "reverb/roomSize") {
+		return number(q31_of(AudioEngine::reverb.getRoomSize()));
+	}
+	if (path == "reverb/dampening") {
+		return number(q31_of(AudioEngine::reverb.getDamping()));
+	}
+	if (path == "reverb/width") {
+		return number(q31_of(AudioEngine::reverb.getWidth()));
+	}
+	if (path == "reverb/hpf") {
+		return number(q31_of(AudioEngine::reverb.getHPF()));
+	}
+	if (path == "reverb/lpf") {
+		return number(q31_of(AudioEngine::reverb.getLPF()));
+	}
+	if (path == "reverb/pan") {
+		return number(AudioEngine::reverbPan);
+	}
+	if (path == "reverb/model") {
+		return number(std::to_underlying(AudioEngine::reverb.getModel()));
+	}
+	if (path == "reverb/compressor/attack") {
+		return number(AudioEngine::reverbSidechainSettings.attack);
+	}
+	if (path == "reverb/compressor/release") {
+		return number(AudioEngine::reverbSidechainSettings.release);
+	}
+	if (path == "reverb/compressor/volume") {
+		return number(AudioEngine::reverbSidechainVolume);
+	}
+	if (path == "reverb/compressor/shape") {
+		return number(AudioEngine::reverbSidechainShape);
+	}
+	if (path == "reverb/compressor/syncLevel") {
+		return number(deluge::engine::index_of(AudioEngine::reverbSidechainSettings.sync_level));
+	}
+	return std::nullopt;
+}
+
 } // namespace
 
 project::SettingGroupId trackGroupOf(std::string_view path) {
@@ -93,6 +189,11 @@ Error applySongSetting(::Song& song, std::string_view path, const Value& value) 
 	if (path == "swingInterval") {
 		song.changeSwingInterval(*v);
 		return Error::NONE;
+	}
+	if (path.starts_with("reverb/")) {
+		// The engine has one reverb, the current song's; another song's reaches it when that song becomes current
+		// (`AudioEngine::getReverbParamsFromSong`).
+		return &song == currentSong ? applyReverbSetting(song, path, *v) : Error::NONE;
 	}
 	return Error::UNSPECIFIED;
 }
@@ -155,6 +256,9 @@ std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddr
 	if (address.group == SettingGroupId::SONG) {
 		if (path == "swingInterval") {
 			return Value::makeNumber(deluge::engine::index_of(song.project.groove.swing_interval));
+		}
+		if (path.starts_with("reverb/")) {
+			return engineReverbValue(path);
 		}
 	}
 	return std::nullopt;

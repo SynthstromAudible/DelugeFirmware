@@ -19,6 +19,7 @@
 #include <cstring>
 
 #include "gui/menu_item/integer.h"
+#include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "util/cfunctions.h"
@@ -28,11 +29,10 @@ class Pan final : public Integer {
 public:
 	using Integer::Integer;
 
-	// project.reverb is authoritative; AudioEngine::reverbPan is the projected DSP cache kept in sync.
+	// The song's reverb record is the truth; SetSetting projects it onto AudioEngine::reverbPan.
 	void writeCurrentValue() override {
-		int32_t value = computeFinalValueForPan(this->getValue());
-		currentSong->project.reverb.pan = value;
-		AudioEngine::reverbPan = value;
+		deluge::edits::songSettingFor(
+		    "reverb/pan", deluge::serialization::Value::makeNumber(computeFinalValueForPan(this->getValue())));
 	}
 
 	void readCurrentValue() override { this->setValue(computeCurrentValueForPan(currentSong->project.reverb.pan)); }

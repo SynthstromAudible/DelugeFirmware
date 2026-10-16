@@ -19,6 +19,7 @@
 #include "dsp/reverb/reverb.hpp"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/integer.h"
+#include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include <cmath>
@@ -27,13 +28,9 @@ namespace deluge::gui::menu_item::reverb {
 class LPF final : public Integer {
 public:
 	using Integer::Integer;
-	// project.reverb is authoritative; AudioEngine::reverb is the projected DSP cache kept in sync.
+	// The song's reverb record is the truth; SetSetting projects it onto AudioEngine::reverb.
 	void readCurrentValue() override { this->setValue(std::round(currentSong->project.reverb.lpf * kMaxMenuValue)); }
-	void writeCurrentValue() override {
-		float value = (float)this->getValue() / kMaxMenuValue;
-		currentSong->project.reverb.lpf = value;
-		AudioEngine::reverb.setLPF(value);
-	}
+	void writeCurrentValue() override { deluge::edits::songSettingFromMenu("reverb/lpf", this->getValue()); }
 
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return RenderingStyle::LPF; }

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "gui/menu_item/reverb/model.h"
+#include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 
@@ -24,12 +25,11 @@ namespace deluge::gui::menu_item::reverb {
 // projected DSP cache kept in sync. Out-of-line because reading currentSong needs song.h, which
 // includes this header.
 void Model::readCurrentValue() {
-	this->setValue(util::to_underlying(currentSong->model));
+	this->setValue(util::to_underlying(currentSong->project.reverb.model));
 }
 
 void Model::writeCurrentValue() {
-	currentSong->model = static_cast<dsp::Reverb::Model>(this->getValue());
-	AudioEngine::reverb.setModel(currentSong->model);
+	deluge::edits::songSettingFor("reverb/model", deluge::serialization::Value::makeNumber(this->getValue()));
 }
 
 } // namespace deluge::gui::menu_item::reverb

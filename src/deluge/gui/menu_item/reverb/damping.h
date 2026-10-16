@@ -17,6 +17,7 @@
 #pragma once
 #include "dsp/reverb/reverb.hpp"
 #include "gui/menu_item/integer.h"
+#include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include <cmath>
@@ -25,15 +26,11 @@ namespace deluge::gui::menu_item::reverb {
 class Damping final : public Integer {
 public:
 	using Integer::Integer;
-	// project.reverb is authoritative; AudioEngine::reverb is the projected DSP cache kept in sync.
+	// The song's reverb record is the truth; SetSetting projects it onto AudioEngine::reverb.
 	void readCurrentValue() override {
 		this->setValue(std::round(currentSong->project.reverb.damping * kMaxMenuValue));
 	}
-	void writeCurrentValue() override {
-		float value = (float)this->getValue() / kMaxMenuValue;
-		currentSong->project.reverb.damping = value;
-		AudioEngine::reverb.setDamping(value);
-	}
+	void writeCurrentValue() override { deluge::edits::songSettingFromMenu("reverb/dampening", this->getValue()); }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 };
 } // namespace deluge::gui::menu_item::reverb

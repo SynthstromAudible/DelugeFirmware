@@ -57,10 +57,18 @@ void saveSong(::Song& song, Serializer& out) {
 namespace {
 
 /// The song's tags the model decodes; Song::readFromFile skips them.
-constexpr std::array<std::string_view, 10> kDecodedSongTags{
-    "timePerTimerTick", "timerTickFraction", "inputTickMagnitude", "swingAmount",
-    "swingInterval",    "rootNote",          "modeNotes",          "scales",
-    "sections",         "sessionMacros",
+constexpr std::array<std::string_view, 11> kDecodedSongTags{
+    "timePerTimerTick",
+    "timerTickFraction",
+    "inputTickMagnitude",
+    "swingAmount",
+    "swingInterval",
+    "rootNote",
+    "modeNotes",
+    "scales",
+    "sections",
+    "sessionMacros",
+    "reverb",
 };
 
 /// Points the session macros at the clips and outputs the song holds, as reading them does: an id the song does
@@ -138,6 +146,8 @@ Error loadSong(::Song& song, Deserializer& in) {
 	context.input_tick_magnitude = song.getInputTickMagnitude();
 	(void)decode(*songNode, song.project.groove, context);
 	(void)decode(*songNode, song.project.scale);
+	// A song saved before the reverb had a choice of algorithm plays freeverb, even with no reverb element at all.
+	song.project.reverb.model = deluge::project::ReverbModel::FREEVERB;
 	if (const deluge::serialization::Value* reverb = songNode->find("reverb")) {
 		(void)decode(*reverb, song.project.reverb, context);
 	}

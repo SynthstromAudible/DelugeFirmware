@@ -65,11 +65,13 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			// The reverb's sidechain is the engine's own, its sync level saved in project.reverb.
+			// The reverb's sidechain is the engine's own: its sync level is the song's record, its sync type the
+			// engine's alone.
 			if (is_reverb_sidechain_) {
 				AudioEngine::reverbSidechainSettings.sync_type = syncValueToSyncType(current_value);
-				AudioEngine::reverbSidechainSettings.sync_level = syncValueToSyncLevel(current_value);
-				currentSong->project.reverb.sidechain_sync = syncValueToSyncLevel(current_value);
+				deluge::edits::songSettingFor("reverb/compressor/syncLevel",
+				                              deluge::serialization::Value::makeNumber(
+				                                  deluge::engine::index_of(syncValueToSyncLevel(current_value))));
 			}
 			else {
 				effectSettingFor(

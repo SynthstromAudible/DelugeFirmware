@@ -239,7 +239,7 @@ Song::Song() {
 	project.reverb.sidechain_volume = getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1);
 	project.reverb.sidechain_shape = -601295438;
 	project.reverb.sidechain_sync = SYNC_LEVEL_8TH;
-	model = deluge::dsp::Reverb::Model::MUTABLE;
+	project.reverb.model = deluge::project::ReverbModel::MUTABLE;
 
 	// setup base compressor gain to match 1.0
 	live.global_effectable.core().compressor().dsp().setBaseGain(0.85f);
@@ -1160,17 +1160,8 @@ weAreInArrangementEditorOrInClipInstance:
 	// Attributes end
 
 	writer.writeValue(deluge::project::encode(project.scale));
-	// The reverb's algorithm is the engine's; it rides in the model's reverb record ahead of the compressor.
-	const deluge::serialization::Value reverb = deluge::project::encode(project.reverb, getInputTickMagnitude());
-	auto withModel = deluge::serialization::Value::makeMap();
-	for (const auto& [name, value] : reverb.entries()) {
-		if (name == "compressor") {
-			withModel.set("model", deluge::serialization::Value::makeNumber(util::to_underlying(model)));
-		}
-		withModel.set(name, value);
-	}
 	auto members = deluge::serialization::Value::makeMap();
-	members.set("reverb", std::move(withModel));
+	members.set("reverb", deluge::project::encode(project.reverb, getInputTickMagnitude()));
 	writer.writeValue(members);
 
 	live.global_effectable.writeTagsToFile(writer, NULL, false);
@@ -1457,10 +1448,6 @@ Error Song::readFromFile(Deserializer& reader, uint64_t timePerTimerTick) {
 
 	char const* tagName;
 
-	// reverb mode is freeverb for songs that predate having multiple options. New songs will set it to mutable anyway
-	// so this is only used as a fallback
-	model = deluge::dsp::Reverb::Model::FREEVERB;
-
 	const deluge::storage::Value* element = deluge::storage::treeReaderOf(reader).currentElement();
 	if (element == nullptr || !reader.match('{')) {
 		return Error::FILE_CORRUPTED;
@@ -1468,27 +1455,6 @@ Error Song::readFromFile(Deserializer& reader, uint64_t timePerTimerTick) {
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(30);
 		switch (*(uint32_t*)tagName) {
-
-		// "reve" -> reverb
-		case 0x65766572:
-			if (!strcmp(tagName, "reverb")) {
-				// The reverb send settings are the model's (decoded by loadSong); the algorithm is the engine's.
-				reader.match('{');
-				while (*(tagName = reader.readNextTagOrAttributeName())) {
-					if (!strcmp(tagName, "model")) {
-						model = static_cast<deluge::dsp::Reverb::Model>(reader.readTagOrAttributeValueInt());
-						reader.exitTag("model");
-					}
-					else {
-						reader.exitTag(tagName);
-					}
-				}
-			}
-			else {
-				goto unknownTag;
-			}
-			reader.exitTag(nullptr, true); // exit value object
-			break;
 
 		case charsToIntegerConstant('x', 'S', 'c', 'r'):
 
