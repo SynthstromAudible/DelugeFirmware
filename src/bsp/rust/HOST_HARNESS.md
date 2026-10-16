@@ -52,7 +52,7 @@ cmake -B build-embassy-hostapp-tsan -S sim -G Ninja \
   -DCMAKE_C_FLAGS="-fsanitize=thread" -DCMAKE_CXX_FLAGS="-fsanitize=thread"
 ninja -C build-embassy-hostapp-tsan deluge_app deluge_scenarios NE10 eyalroz_printf \
   deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_foundation deluge_serialization deluge_music_theory deluge_project deluge_instrument deluge_effects deluge_midi \
-  deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_ui_shell deluge_notify deluge_scenes
+  deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_ui_shell deluge_notify deluge_scenes deluge_ui_level3
 ```
 
 ### Build and run the host app against it

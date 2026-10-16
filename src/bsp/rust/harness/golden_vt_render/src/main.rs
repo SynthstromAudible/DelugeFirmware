@@ -1387,6 +1387,7 @@ fn main() {
         || scenario == "idle_job_rates"
         || scenario == "recorder_take"
         || scenario == "stale_ui"
+        || scenario == "ui_script"
     {
         audio_host::set_realtime_render(true);
         render::set_period_override_us(2902, 0);
@@ -1418,6 +1419,11 @@ fn main() {
                 )))
             }
             // The card tree run.py stages for one preset case; there is no fixture to fall back on.
+            // The card a UI script plays on: UI_CARD, or the scripts' own fixture.
+            "ui_script" => memory_card::install(Some(&std::env::var_os("UI_CARD").map_or_else(
+                || repo_root.join("tests/fixtures/card"),
+                std::path::PathBuf::from,
+            ))),
             "render_preset" => memory_card::install(Some(&std::path::PathBuf::from(
                 std::env::var_os("RENDER_TREE").expect("render_preset needs RENDER_TREE"),
             ))),
@@ -1510,6 +1516,18 @@ fn main() {
     log::info!("golden_vt_render: boot + mount succeeded; exiting cleanly");
 
     hard_exit(0);
+}
+
+/// The UI script runner's clock: virtual milliseconds since boot, the clock the app's timers run on here.
+#[unsafe(no_mangle)]
+pub extern "C" fn host_script_now_ms() -> u32 {
+    Instant::now().as_millis() as u32
+}
+
+/// Ends the run for the UI script runner: 0 when its script quit, 2 when the script failed.
+#[unsafe(no_mangle)]
+pub extern "C" fn host_script_exit(code: i32) -> ! {
+    hard_exit(code)
 }
 
 /// Prints the exit reports, flushes stdout and stderr, and ends the process with `code` without

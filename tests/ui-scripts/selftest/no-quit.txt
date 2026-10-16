@@ -1,0 +1,2 @@
+# A script that never quits fails at its deadline.
+3000 snapshot booted

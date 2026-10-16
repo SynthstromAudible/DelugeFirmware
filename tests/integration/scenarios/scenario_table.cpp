@@ -51,6 +51,7 @@
 #include "scenarios/staging_release_scenario.h"
 #include "scenarios/stale_ui_scenario.h"
 #include "scenarios/startup_failsafe_scenario.h"
+#include "scenarios/ui_script_scenario.h"
 #include "scenarios/ui_timer_deadline_scenario.h"
 
 #include "playback/render_requests.h"
@@ -225,6 +226,9 @@ constexpr DelugeScenario kScenarios[] = {
      &deluge_scenario_staging_release_failures},
     {"stale_ui", nullptr, &deluge_scenario_stale_ui_begin, &deluge_scenario_stale_ui_complete,
      &deluge_scenario_stale_ui_dispatch_step, &deluge_scenario_stale_ui_step_done, &deluge_scenario_stale_ui_failures},
+    {"ui_script", nullptr, &deluge_scenario_ui_script_begin, &deluge_scenario_ui_script_complete,
+     &deluge_scenario_ui_script_dispatch_step, &deluge_scenario_ui_script_step_done,
+     &deluge_scenario_ui_script_failures},
     {"startup_failsafe", nullptr, &deluge_scenario_startup_failsafe_begin, &deluge_scenario_startup_failsafe_complete,
      &deluge_scenario_startup_failsafe_dispatch_step, &deluge_scenario_startup_failsafe_step_done,
      &deluge_scenario_startup_failsafe_failures},

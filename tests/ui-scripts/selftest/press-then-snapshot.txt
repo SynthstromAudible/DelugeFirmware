@@ -1,0 +1,8 @@
+# A snapshot shows the surface as the app last drew it: a press due in the snapshot's own millisecond is
+# applied first but not yet handled, so it shows in the next snapshot (the Play LED), not that one.
+2990 snapshot before
+3000 button Play down
+3000 snapshot same
+3020 button Play up
+3100 snapshot later
+3200 quit
