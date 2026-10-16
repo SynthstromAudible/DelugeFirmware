@@ -422,8 +422,9 @@ constexpr std::array<std::string_view, 11> kSoundOutputKeys{
     "id",       "isMutedInArrangement", "isSoloingInArrangement", "isArmedForRecording", "activeModFunction",
     "colour",   "presetName",           "presetFolder",           "defaultVelocity",     "modKnobs",
     "midiKnobs"};
-/// The keys of a sound kit row's element the model reads (decode_song's id, decode_identity's name, its controls).
-constexpr std::array<std::string_view, 4> kSoundDrumKeys{"id", "name", "modKnobs", "midiKnobs"};
+/// The keys of a sound kit row's element the model reads (decode_song's id, decode_identity's name, its controls, its
+/// arp, which its lane record holds).
+constexpr std::array<std::string_view, 5> kSoundDrumKeys{"id", "name", "modKnobs", "midiKnobs", "arpeggiator"};
 
 template <size_t N>
 InstrumentSlot slot_without(const Value& element, const std::array<std::string_view, N>& ownKeys) {

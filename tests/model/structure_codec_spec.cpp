@@ -136,6 +136,14 @@ describe structure_codec("the structure records", ${
 		expect(slot.state.find("id")).to_be_null();
 		expect(slot.state.find("osc1")).not_().to_be_null();
 	});
+
+	it("leaves a sound drum's arp out of its sound, which its lane record holds", _ {
+		auto doc = deluge::serialization::parseXml(
+		    R"(<sound id="9" name="KICK" mode="subtractive"><osc1 type="sample"/><arpeggiator arpMode="arp"/></sound>)");
+		InstrumentSlot slot = slot_of_drum(*doc->find("sound"), 3);
+		expect(slot.state.find("arpeggiator")).to_be_null();
+		expect(slot.state.find("osc1")).not_().to_be_null();
+	});
 });
 
 CPPSPEC_SPEC(structure_codec)

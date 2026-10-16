@@ -360,6 +360,10 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 				if (drumRecord.instrument) {
 					append_entries(drumElement, drumRecord.instrument->state);
 				}
+				if (drumRecord.arp && drumRecord.drum_type == DrumType::SOUND) {
+					// A sound's element holds the arp's sync level relative to the song's tick magnitude.
+					drumElement.set("arpeggiator", encode(*drumRecord.arp, magnitude));
+				}
 				sources.append(boxed(drum.element, std::move(drumElement)));
 			}
 			element.set("soundSources", std::move(sources));
