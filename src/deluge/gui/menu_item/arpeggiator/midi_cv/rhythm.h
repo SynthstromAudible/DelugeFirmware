@@ -20,6 +20,7 @@
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
+#include "model/edits/arp_setting_for.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator_rhythms.h"
 
@@ -35,7 +36,8 @@ public:
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->rhythm = value;
+		deluge::edits::arpSettingFor(*soundEditor.currentArpSettings, "arpeggiator/rhythm",
+		                             deluge::serialization::Value::makeNumber(value));
 	}
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {

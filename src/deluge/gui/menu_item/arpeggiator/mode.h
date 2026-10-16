@@ -21,6 +21,7 @@
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/arp_setting_for.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -34,56 +35,17 @@ public:
 
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		auto current_value = this->getValue<ArpMode>();
+		const deluge::serialization::Value value = deluge::edits::arpChoice("arpeggiator/arpMode", this->getValue());
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
-
-			Kit* kit = getCurrentKit();
-
-			// If was off, or is now becoming off...
-			if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpMode::OFF) {
-				if (getCurrentClip()->isActiveOnOutput() && !soundEditor.editingKitAffectEntire()) {
-					kit->cutAllSound();
-				}
-			}
-
-			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
-				thisDrum->arpSettings.mode = current_value;
-				thisDrum->arpSettings.updatePresetFromCurrentSettings();
+			for (Drum* thisDrum = getCurrentKit()->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				deluge::edits::laneArpSettingFor(*thisDrum, "arpeggiator/arpMode", value);
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			// If was off, or is now becoming off...
-			if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpMode::OFF) {
-				if (getCurrentClip()->isActiveOnOutput() && !soundEditor.editingKitAffectEntire()) {
-					char modelStackMemory[MODEL_STACK_MAX_SIZE];
-					ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-
-					if (soundEditor.editingKit()) {
-						// Drum
-						Drum* currentDrum = ((Kit*)getCurrentClip()->output)->selectedDrum;
-						if (currentDrum != nullptr) {
-							currentDrum->killAllVoices();
-						}
-					}
-					else if (soundEditor.editingCVOrMIDIClip()) {
-						getCurrentInstrumentClip()->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
-					}
-					else {
-						ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
-						soundEditor.currentSound->allNotesOff(
-						    modelStackWithSoundFlags,
-						    soundEditor.currentSound
-						        ->getArp()); // Must switch off all notes when switching arp on / off
-						soundEditor.currentSound->reassessRenderSkippingStatus(modelStackWithSoundFlags);
-					}
-				}
-			}
-
-			soundEditor.currentArpSettings->mode = current_value;
-			soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
+			deluge::edits::arpSettingFor(*soundEditor.currentArpSettings, "arpeggiator/arpMode", value);
 		}
 	}
 

@@ -21,6 +21,7 @@
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
 
+#include "model/edits/arp_setting_for.h"
 #include <hid/display/oled.h>
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
@@ -31,8 +32,9 @@ public:
 		this->setValue(computeCurrentValueForStandardMenuItem(soundEditor.currentArpSettings->gate));
 	}
 	void writeCurrentValue() override {
-		int32_t value = computeFinalValueForStandardMenuItem(this->getValue());
-		soundEditor.currentArpSettings->gate = value;
+		deluge::edits::arpSettingFor(
+		    *soundEditor.currentArpSettings, "arpeggiator/gate",
+		    deluge::serialization::Value::makeNumber(computeFinalValueForStandardMenuItem(this->getValue())));
 	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return LENGTH_SLIDER; }
 };

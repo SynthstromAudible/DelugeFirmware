@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
+#include "model/edits/arp_setting_for.h"
 #include "randomizer_integer.h"
 
 namespace deluge::gui::menu_item::randomizer::midi_cv {
@@ -29,7 +30,8 @@ public:
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->spreadVelocity = value;
+		deluge::edits::arpSettingFor(*soundEditor.currentArpSettings, "arpeggiator/spreadVelocity",
+		                             deluge::serialization::Value::makeNumber(value));
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow();

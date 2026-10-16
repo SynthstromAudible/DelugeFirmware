@@ -18,6 +18,7 @@
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
+#include "model/edits/arp_setting_for.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
@@ -33,23 +34,24 @@ public:
 
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		int32_t current_value = this->getValue();
+		const int32_t current_value = this->getValue();
+		const deluge::serialization::Value type =
+		    deluge::serialization::Value::makeNumber(std::to_underlying(syncValueToSyncType(current_value)));
+		const deluge::serialization::Value level =
+		    deluge::serialization::Value::makeNumber(deluge::engine::index_of(syncValueToSyncLevel(current_value)));
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
-
-			Kit* kit = getCurrentKit();
-
-			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
-				thisDrum->arpSettings.syncType = syncValueToSyncType(current_value);
-				thisDrum->arpSettings.syncLevel = syncValueToSyncLevel(current_value);
+			for (Drum* thisDrum = getCurrentKit()->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				deluge::edits::laneArpSettingFor(*thisDrum, "arpeggiator/syncType", type);
+				deluge::edits::laneArpSettingFor(*thisDrum, "arpeggiator/syncLevel", level);
 			}
 		}
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentArpSettings->syncType = syncValueToSyncType(current_value);
-			soundEditor.currentArpSettings->syncLevel = syncValueToSyncLevel(current_value);
+			deluge::edits::arpSettingFor(*soundEditor.currentArpSettings, "arpeggiator/syncType", type);
+			deluge::edits::arpSettingFor(*soundEditor.currentArpSettings, "arpeggiator/syncLevel", level);
 		}
 	}
 };

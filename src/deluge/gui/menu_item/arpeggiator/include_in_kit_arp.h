@@ -19,6 +19,7 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
+#include "model/edits/arp_setting_for.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
@@ -38,7 +39,8 @@ public:
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		auto current_value = this->getValue();
+		const deluge::serialization::Value value =
+		    deluge::serialization::Value::makeNumber(this->getValue() != 0 ? 1 : 0);
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
@@ -57,14 +59,14 @@ public:
 				}
 
 				if (allowsNoteTails) {
-					thisDrum->arpSettings.includeInKitArp = current_value != 0;
+					deluge::edits::laneArpSettingFor(*thisDrum, "arpeggiator/kitArp", value);
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
 			if (soundEditor.allowsNoteTails) {
-				soundEditor.currentArpSettings->includeInKitArp = current_value != 0;
+				deluge::edits::arpSettingFor(*soundEditor.currentArpSettings, "arpeggiator/kitArp", value);
 			}
 		}
 	}

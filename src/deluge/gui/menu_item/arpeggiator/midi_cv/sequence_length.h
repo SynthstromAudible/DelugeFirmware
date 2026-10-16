@@ -19,6 +19,7 @@
 #include "gui/menu_item/arpeggiator/midi_cv/arp_integer.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
+#include "model/edits/arp_setting_for.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
@@ -30,7 +31,8 @@ public:
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->sequenceLength = value;
+		deluge::edits::arpSettingFor(*soundEditor.currentArpSettings, "arpeggiator/sequenceLength",
+		                             deluge::serialization::Value::makeNumber(value));
 	}
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }

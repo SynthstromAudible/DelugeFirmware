@@ -19,6 +19,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "model/edits/arp_setting_for.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
@@ -27,12 +28,8 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->noteMode); }
 	void writeCurrentValue() override {
-		soundEditor.currentArpSettings->noteMode = this->getValue<ArpNoteMode>();
-		soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
-		if (soundEditor.currentArpSettings->noteMode == ArpNoteMode::PATTERN) {
-			soundEditor.currentArpSettings->generateNewNotePattern();
-		}
-		soundEditor.currentArpSettings->flagForceArpRestart = true;
+		deluge::edits::arpSettingFor(*soundEditor.currentArpSettings, "arpeggiator/noteMode",
+		                             deluge::edits::arpChoice("arpeggiator/noteMode", this->getValue()));
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return !soundEditor.editingKitRow();

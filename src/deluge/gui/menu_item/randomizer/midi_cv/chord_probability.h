@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
+#include "model/edits/arp_setting_for.h"
 #include "model/song/song.h"
 #include "randomizer_integer.h"
 
@@ -30,7 +31,8 @@ public:
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->chordProbability = value;
+		deluge::edits::arpSettingFor(*soundEditor.currentArpSettings, "arpeggiator/chordProbability",
+		                             deluge::serialization::Value::makeNumber(value));
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return soundEditor.editingCVOrMIDIClip() && soundEditor.currentArpSettings->mode != ArpMode::OFF;

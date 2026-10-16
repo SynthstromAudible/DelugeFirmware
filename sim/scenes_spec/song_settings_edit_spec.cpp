@@ -6,6 +6,8 @@
 #include "deluge-project/song_codec.h"
 #include "dsp/reverb/reverb.hpp"
 #include "extern.h"
+#include "gui/menu_item/arpeggiator/mode.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "io/midi/midi_engine.h"
 #include "libdeluge/system.h"
@@ -34,6 +36,8 @@
 #include "spec/support/spec_main.h"
 
 namespace spec = deluge::scenes::spec;
+
+extern deluge::gui::menu_item::arpeggiator::Mode arpModeMenu;
 using deluge::project::SettingAddress;
 using deluge::project::SettingGroupId;
 using deluge::project::SongAddress;
@@ -59,6 +63,13 @@ std::string projected(::Song& song, const SettingAddress& address, std::string_v
 	const auto value = deluge::bridge::engineSettingValue(song, address, path);
 	return value ? value->str() : std::string{"<none>"};
 }
+
+/// @brief Call a legacy item's own `writeCurrentValue()`, which is protected: the pointer-to-member is formed inside a
+///        class derived from `Value<T>`.
+template <typename T>
+struct ValuePeek : deluge::gui::menu_item::Value<T> {
+	static void write(deluge::gui::menu_item::Value<T>& value) { (value.*(&ValuePeek::writeCurrentValue))(); }
+};
 
 /// @brief Make @p f's clip the one its instrument plays.
 void activate(spec::SongFixture& f) {
@@ -519,6 +530,24 @@ describe song_settings_edit("SetSetting", $ {
 		holdNote(drum->arpeggiator, drum->arpSettings);
 		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/arpMode", Value::makeScalar("off"));
 		expect(static_cast<ArpeggiatorBase&>(drum->arpeggiator).hasAnyInputNotesActive()).to_be_false();
+	});
+
+	it("sets every kit row's arp, sound and MIDI alike, from the legacy mode item with affect-entire held", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		SoundDrum* sound = spec::add_drum<SoundDrum>(f);
+		MIDIDrum* midi = spec::add_drum<MIDIDrum>(f);
+		f.song->setCurrentClip(f.clip);
+		soundEditor.currentArpSettings = &midi->arpSettings;
+		soundEditor.setupKitGlobalFXMenu = false;
+		currentUIMode = UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR;
+		arpModeMenu.setValue(1);
+		ValuePeek<int32_t>::write(arpModeMenu);
+		currentUIMode = UI_MODE_NONE;
+		for (Drum* drum : {static_cast<Drum*>(sound), static_cast<Drum*>(midi)}) {
+			const SettingAddress arp{SettingGroupId::LANE_ARP, *deluge::bridge::laneAddressOf(*drum, *f.song)};
+			expect(recorded(*f.song, arp, "arpeggiator/arpMode")).to_equal(std::string{"arp"});
+			expect(drum->arpSettings.mode == ArpMode::ARP).to_be_true();
+		}
 	});
 });
 // clang-format on

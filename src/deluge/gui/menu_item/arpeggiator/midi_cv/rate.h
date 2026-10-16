@@ -19,6 +19,7 @@
 #include "gui/menu_item/arpeggiator/midi_cv/arp_integer.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
+#include "model/edits/arp_setting_for.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
@@ -29,8 +30,9 @@ public:
 		this->setValue(computeCurrentValueForStandardMenuItem(soundEditor.currentArpSettings->rate));
 	}
 	void writeCurrentValue() override {
-		int32_t value = computeFinalValueForStandardMenuItem(this->getValue());
-		soundEditor.currentArpSettings->rate = value;
+		deluge::edits::arpSettingFor(
+		    *soundEditor.currentArpSettings, "arpeggiator/rate",
+		    deluge::serialization::Value::makeNumber(computeFinalValueForStandardMenuItem(this->getValue())));
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv
