@@ -2,3 +2,7 @@ allowBuilds:
   canvas: true
   esbuild: true
   sharp: true
+
+patchedDependencies:
+  # Normalize page URLs when matching exclusions on sites without trailing slashes.
+  starlight-to-pdf@1.4.0: patches/starlight-to-pdf@1.4.0.patch

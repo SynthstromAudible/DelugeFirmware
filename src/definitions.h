@@ -3,7 +3,10 @@
 #include "RZA1/cpu_specific.h"
 #include "RZA1/system/r_typedefs.h"
 
-#define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
+// Whether to compile with additional error-checking. The build sets this to 0 for rc/release builds.
+#ifndef ALPHA_OR_BETA_VERSION
+#define ALPHA_OR_BETA_VERSION 1
+#endif
 
 #if !defined(NDEBUG)
 #define ENABLE_SEQUENTIALITY_TESTS 1
@@ -26,7 +29,7 @@ extern void freezeWithError(char const* errmsg);
 		uint32_t regSP = 0;                                                                                            \
 		asm volatile("MOV %0, LR\n" : "=r"(regLR));                                                                    \
 		asm volatile("MOV %0, SP\n" : "=r"(regSP));                                                                    \
-		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);                                                       \
+		fault_handler_print_freeze_pointers(regLR, regSP);                                                             \
 		freezeWithError(error);                                                                                        \
 	})
 #else

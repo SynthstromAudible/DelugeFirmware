@@ -37,6 +37,7 @@
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_queue.h"
 #include "memory/general_memory_allocator.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -63,10 +64,13 @@
 #include "util/functions.h"
 #include "util/misc.h"
 #include <algorithm>
+#include <array>
 #include <bits/ranges_algo.h>
 #include <cstdint>
 #include <cstring>
+#include <etl/vector.h>
 #include <execution>
+#include <limits>
 #include <new>
 #include <numeric>
 #include <ranges>
@@ -168,6 +172,11 @@ bool renderInStereo = true;
 bool bypassCulling = false;
 bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
+bool inputMonitoringWarmedUp = false;
+// ~500ms after power-on for the codec ADC to settle before we start monitoring its input (see inputMonitoringWarmedUp),
+// then ~50ms to fade it in so monitoring doesn't switch on with a click.
+constexpr uint32_t kInputMonitoringWarmupSamples = kSampleRate / 2;
+constexpr uint32_t kInputMonitoringFadeInSamples = kSampleRate / 20;
 uint32_t i2sTXBufferPos;
 uint32_t i2sRXBufferPos;
 volatile int voices_started_this_render = 0;
@@ -273,7 +282,7 @@ int32_t numAudioLogItems = 0;
 #endif
 
 /// Force a voice to stop within this render window. Will click slightly, especially if multiple are stopped in the
-/// same render. Will stop an audio clip if there are no voices to  kill
+/// same render. Will stop an audio clip if there are no voices to kill
 void killOneVoice(size_t num_samples) {
 	logAction("kill");
 	auto lowest_priority_voices = sounds //<
@@ -282,10 +291,14 @@ void killOneVoice(size_t num_samples) {
 	auto it = std::ranges::max_element(lowest_priority_voices, [](const auto& a, const auto& b) {
 		return a->getPriorityRating() < b->getPriorityRating();
 	});
+	// are there any active voices to kill?
 	if (it == lowest_priority_voices.end()) {
+		// no active voices found, try to cull an audio clip instead
 		if (currentSong) {
 			currentSong->cullAudioClipVoice();
 		}
+		// return early since there are no active voices to kill
+		return;
 	}
 
 	const Sound::ActiveVoice& voice = *it;
@@ -546,13 +559,170 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	}
 }
 
-void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSamplesBeforeLappingPlayHead,
-                            int32_t timeWithinWindowAtWhichMIDIOrGateOccurs);
+// MIDI / gate output scheduling. Gates changed while finalizing the render window are captured along with their sample
+// offset within the window, then converted to a system timer time once rendering is done and we know where the
+// playhead is. MIDI is queued by the MidiEngine with its due time already worked out from where the playhead was at
+// the start of the window (see setMIDIDueAtWindowOffset()). The MIDI/gate timer ISR sends only what's due each time it
+// fires and re-arms itself for anything else.
+namespace {
+struct WindowOutput {
+	int32_t offset; ///< samples from the start of the render window
+	GateOutputs gates;
+};
+
+struct ScheduledOutput {
+	uint32_t due; ///< system timer ticks, see getSystemTicks()
+	GateOutputs gates;
+};
+
+constexpr size_t kMaxWindowOutputs = 8;
+constexpr size_t kMaxScheduledOutputs = 16;
+
+etl::vector<WindowOutput, kMaxWindowOutputs> windowOutputs;
+
+// Sorted by due time. Shared with the ISR, so only access it with interrupts disabled - functions using it take an
+// InterruptsDisabled to enforce that
+etl::vector<ScheduledOutput, kMaxScheduledOutputs> scheduledOutputs;
+// A flush from the ISR left something in the MIDI output buffer - USB was busy/locked, or UART was still sending - so
+// the timer's been re-armed to flush again. Same access rules as scheduledOutputs
+bool midiFlushIncomplete = false;
+
+// Anything due within a sample of now gets sent rather than re-arming the timer for it
+constexpr int32_t kOutputTimeTolerance = kSystemTicksPerSampleQ8 >> 8;
+// The MIDI/gate output timer runs with a prescaler of 64 (see main.c)
+constexpr int32_t kOutputTimerPrescaleMagnitude = 6;
+// If a flush couldn't send everything, try again after 0.1ms
+constexpr int32_t kMIDIRetryTicks = DELUGE_CLOCKS_PER / 10000;
+
+// System timer time at the start of the current render window, and how many samples the playhead was then from lapping
+// the start of the window - together these give the time each sample in the window will be played
+uint32_t windowStartTicks = 0;
+int32_t windowSamplesBeforeLappingPlayHead = 0;
+
+/// MIDI sent from now on is due when the playhead reaches this offset in the current render window
+void setMIDIDueAtWindowOffset(int32_t offset) {
+	midiEngine.setMIDIDue(dueAtWindowOffset(windowStartTicks, windowSamplesBeforeLappingPlayHead, offset));
+}
+
+void mergeGateOutputs(GateOutputs& into, const GateOutputs& from) {
+	into.levels = (into.levels & ~from.mask) | from.levels;
+	into.cvWaitMask = (into.cvWaitMask & ~from.mask) | from.cvWaitMask;
+	into.mask |= from.mask;
+	into.needsMinOffTime |= from.needsMinOffTime;
+}
+
+void removeGateOutputs(GateOutputs& gates, uint8_t gateMask) {
+	gates.mask &= ~gateMask;
+	gates.levels &= ~gateMask;
+	gates.cvWaitMask &= ~gateMask;
+}
+
+/// Take any gates changed since the last call, to be output at this offset in the window
+void captureWindowOutputs(int32_t offset) {
+	if (offset < 0) {
+		D_PRINTLN("negative offset");
+	}
+	GateOutputs gates = cvEngine.takePendingGateOutputs(true);
+	if (gates.mask == 0) {
+		return;
+	}
+
+	auto output = std::find_if(windowOutputs.begin(), windowOutputs.end(),
+	                           [offset](const WindowOutput& o) { return o.offset == offset; });
+	if (output == windowOutputs.end()) {
+		if (!windowOutputs.full()) {
+			windowOutputs.push_back(WindowOutput{.offset = offset, .gates = {}});
+		}
+		// Otherwise (shouldn't happen) merge into the latest one rather than losing it
+		output = &windowOutputs.back();
+	}
+	mergeGateOutputs(output->gates, gates);
+}
+
+/// Send everything which is due
+void sendDueOutputs(uint32_t now, const InterruptsDisabled& guard) {
+	auto firstNotDue = scheduledOutputs.begin();
+	while (firstNotDue != scheduledOutputs.end() && (int32_t)(firstNotDue->due - now) <= kOutputTimeTolerance) {
+		cvEngine.outputGates(firstNotDue->gates, guard);
+		firstNotDue++;
+	}
+	scheduledOutputs.erase(scheduledOutputs.begin(), firstNotDue);
+
+	// The output buffers only hold MIDI which is already due so a retry can't send anything early anymore
+	midiFlushIncomplete = midiEngine.flushDueMIDI(now + kOutputTimeTolerance, guard);
+}
+
+/// Arm the timer for the earliest scheduled output or MIDI retry, or stop it if there's nothing left
+void armMidiGateOutputTimer(uint32_t now, const InterruptsDisabled&) {
+	disableTimer(TIMER_MIDI_GATE_OUTPUT);
+	uint32_t midiDue = 0;
+	bool midiQueued = midiEngine.nextMIDIDue(midiDue);
+	if (scheduledOutputs.empty() && !midiQueued && !midiFlushIncomplete) {
+		return;
+	}
+	int32_t ticksTilDue = midiFlushIncomplete ? kMIDIRetryTicks : INT32_MAX;
+	if (!scheduledOutputs.empty()) {
+		ticksTilDue = std::min(ticksTilDue, (int32_t)(scheduledOutputs[0].due - now));
+	}
+	if (midiQueued) {
+		ticksTilDue = std::min(ticksTilDue, (int32_t)(midiDue - now));
+	}
+	// If it's further away than the timer can count, it'll just fire early, send nothing and re-arm
+	ticksTilDue = std::clamp<int32_t>(ticksTilDue >> kOutputTimerPrescaleMagnitude, 1, UINT16_MAX);
+
+	*TCNT[TIMER_MIDI_GATE_OUTPUT] = 0;
+	*TGRA[TIMER_MIDI_GATE_OUTPUT] = ticksTilDue;
+	timerClearCompareMatchTGRA(TIMER_MIDI_GATE_OUTPUT);
+	R_INTC_Enable(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT]);
+	enableTimer(TIMER_MIDI_GATE_OUTPUT);
+}
+
+void insertScheduledOutput(const ScheduledOutput& output, uint32_t now, const InterruptsDisabled& guard) {
+	if (scheduledOutputs.full()) [[unlikely]] {
+		// Shouldn't happen - but if it does, send the earliest one now to make room
+		scheduledOutputs.front().due = now;
+		sendDueOutputs(now, guard);
+	}
+	// After any already scheduled for the same time, so they keep their order
+	auto position = std::upper_bound(
+	    scheduledOutputs.begin(), scheduledOutputs.end(), output,
+	    [](const ScheduledOutput& a, const ScheduledOutput& b) { return (int32_t)(a.due - b.due) < 0; });
+	scheduledOutputs.insert(position, output);
+}
+
+/// When not rendering in real time there's no playhead to schedule against, so just send everything now
+void sendWindowOutputsNow() {
+	CriticalSectionGuard guard;
+	for (const WindowOutput& output : windowOutputs) {
+		cvEngine.outputGates(output.gates, guard);
+	}
+	windowOutputs.clear();
+	midiEngine.flushAllQueuedMIDI(guard);
+}
+} // namespace
+
+void cancelScheduledGates(uint8_t gateMask, const InterruptsDisabled&) {
+	for (WindowOutput& output : windowOutputs) {
+		removeGateOutputs(output.gates, gateMask);
+	}
+	for (ScheduledOutput& output : scheduledOutputs) {
+		removeGateOutputs(output.gates, gateMask);
+	}
+}
+
+void midiGateOutputTimerFired() {
+	ISRCriticalSectionGuard guard;
+	uint32_t now = getSystemTicks();
+	sendDueOutputs(now, guard);
+	armMidiGateOutputTimer(now, guard);
+}
+
+void scheduleMidiGateOutISR(size_t numSamples);
 void setMonitoringMode();
 void renderSongFX(size_t numSamples);
 void renderSamplePreview(size_t numSamples);
 void renderReverb(size_t numSamples);
-int32_t tickSongFinalizeWindows(size_t& numSamples);
+void tickSongFinalizeWindows(size_t& numSamples);
 void flushMIDIGateBuffers();
 void renderAudio(size_t numSamples);
 void renderAudioForStemExport(size_t numSamples);
@@ -579,7 +749,6 @@ bool calledFromScheduler = false;
 	GeneralMemoryAllocator::get().checkStack("AudioDriver::routine");
 
 	saddr = (uint32_t)(getTxBufferCurrentPlace());
-	uint32_t saddrPosAtStart = saddr >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE);
 	size_t numSamples = ((uint32_t)(saddr - i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
 	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 
@@ -589,14 +758,19 @@ bool calledFromScheduler = false;
 		}
 		return;
 	}
+
+	// From here on, MIDI is due when the playhead reaches the start of this window, until a MIDI tick in the window
+	// moves that along
+	windowStartTicks = getSystemTicks();
+	windowSamplesBeforeLappingPlayHead = numSamples;
+	setMIDIDueAtWindowOffset(0);
+
 	flushMIDIGateBuffers();
 	setDireness(numSamples);
 
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
 	constexpr size_t maxAdjustedNumSamples = SSI_TX_BUFFER_NUM_SAMPLES;
-
-	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 
 	if (numSamples < maxAdjustedNumSamples) {
 		int32_t samplesOverThreshold = numSamples - sampleThreshold;
@@ -614,14 +788,13 @@ bool calledFromScheduler = false;
 	}
 	voices_started_this_render = 0;
 
-	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs = tickSongFinalizeWindows(numSamples);
+	tickSongFinalizeWindows(numSamples);
 
 	numSamplesLastTime = numSamples;
 
 	renderAudio(numSamples);
 
-	scheduleMidiGateOutISR(saddrPosAtStart, unadjustedNumSamplesBeforeLappingPlayHead,
-	                       timeWithinWindowAtWhichMIDIOrGateOccurs);
+	scheduleMidiGateOutISR(numSamples);
 
 #if DO_AUDIO_LOG
 	dumpAudioLog();
@@ -630,8 +803,30 @@ bool calledFromScheduler = false;
 	sideChainHitPending = 0;
 	audioSampleTimer += numSamples;
 
+	// Once the codec has had time to settle after power-on and monitoring has faded in, allow full input monitoring.
+	// Latches true and stays true, so audioSampleTimer wrapping around can't mute monitoring again.
+	if (!inputMonitoringWarmedUp && audioSampleTimer >= kInputMonitoringWarmupSamples + kInputMonitoringFadeInSamples) {
+		inputMonitoringWarmedUp = true;
+	}
+
 	bypassCulling = false;
 }
+q31_t getInputMonitoringGain(uint32_t offset) {
+	if (inputMonitoringWarmedUp) {
+		return std::numeric_limits<q31_t>::max();
+	}
+	uint32_t time = audioSampleTimer + offset;
+	if (time <= kInputMonitoringWarmupSamples) {
+		return 0;
+	}
+	uint32_t elapsed = time - kInputMonitoringWarmupSamples;
+	if (elapsed >= kInputMonitoringFadeInSamples) {
+		return std::numeric_limits<q31_t>::max();
+	}
+	return static_cast<q31_t>((static_cast<uint64_t>(elapsed) * std::numeric_limits<q31_t>::max())
+	                          / kInputMonitoringFadeInSamples);
+}
+
 void renderAudio(size_t numSamples) {
 	std::span renderingBuffer{renderingMemory.data(), numSamples};
 	std::span reverbBuffer{reverbMemory.data(), numSamples};
@@ -710,33 +905,25 @@ void renderAudioForStemExport(size_t numSamples) {
 	renderingBufferOutputEnd = renderingMemory.begin() + numSamples;
 }
 
-void flushMIDIGateBuffers() { // Flush everything out of the MIDI buffer now. At this stage, it would only really have
-	                          // live user-triggered
-	// output and MIDI THRU in it. We want any messages like "start" to go out before we send any clocks below, and
-	// also want to give them a head-start being sent and out of the way so the clock messages can be sent on-time
+void flushMIDIGateBuffers() {
 	CriticalSectionGuard guard;
-	bool anythingInMidiOutputBufferNow = midiEngine.anythingInOutputBuffer();
-	bool anythingInGateOutputBufferNow = cvEngine.isAnythingButRunPending();
-	if (anythingInMidiOutputBufferNow || anythingInGateOutputBufferNow) {
+	// Gates (other than run, which has to respect the minimum gate off time) are newer than anything already scheduled
+	// for those channels, so they supersede it
+	GateOutputs gates = cvEngine.takePendingGateOutputs(false);
+	if (gates.mask != 0) {
+		cancelScheduledGates(gates.mask, guard);
+		cvEngine.outputGates(gates, guard);
+	}
 
-		// We're only allowed to do this if the timer ISR isn't pending (i.e. we haven't enabled to timer to trigger
-		// it)
-		// - otherwise this will all get called soon anyway. I thiiiink this is 100% immune to any synchronization
-		// problems?
-		if (!isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
-			if (anythingInGateOutputBufferNow) {
-				cvEngine.updateGateOutputs();
-			}
-			if (anythingInMidiOutputBufferNow) {
-				midiEngine.flushMIDI();
-			}
-		}
+	captureWindowOutputs(0);
+
+	// The output buffers only hold MIDI which is already due (or sysex, which isn't queued), so they can go now
+	if (midiEngine.anythingInOutputBuffer()) {
+		midiEngine.flushMIDI();
 	}
 }
 
-int32_t tickSongFinalizeWindows(size_t& numSamples) {
-	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs = -1; // -1 means none
-
+void tickSongFinalizeWindows(size_t& numSamples) {
 	// If a timer-tick is due during or directly after this window of audio samples...
 	if (playbackHandler.isEitherClockActive()) {
 
@@ -770,10 +957,9 @@ startAgain:
 				                                     // already been called, but fortunately this doesn't break anything
 			}
 
-			// Those could have outputted clock or other MIDI / gate
-			if (midiEngine.anythingInOutputBuffer() || cvEngine.isAnythingButRunPending()) {
-				timeWithinWindowAtWhichMIDIOrGateOccurs = 0;
-			}
+			// Those could have outputted clock or gates, which need to go at the start of the window. MIDI's already
+			// due then
+			captureWindowOutputs(0);
 
 			goto startAgain;
 		}
@@ -794,9 +980,7 @@ startAgain:
 						playbackHandler.doTriggerClockOutTick();
 						playbackHandler.scheduleTriggerClockOutTick(); // Schedules another one
 
-						if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
-							timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilTriggerClockOutTick;
-						}
+						captureWindowOutputs(timeTilTriggerClockOutTick);
 					}
 				}
 				else {
@@ -809,12 +993,10 @@ startAgain:
 				if (playbackHandler.midiClockOutTickScheduled) {
 					int32_t timeTilMIDIClockOutTick = playbackHandler.timeNextMIDIClockOutTick - audioSampleTimer;
 					if (std::cmp_less(timeTilMIDIClockOutTick, numSamples)) {
+						// The clock, and any MIDI after it (it's sent in order), is due at this point in the window
+						setMIDIDueAtWindowOffset(timeTilMIDIClockOutTick);
 						playbackHandler.doMIDIClockOutTick();
 						playbackHandler.scheduleMIDIClockOutTick(); // Schedules another one
-
-						if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
-							timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilMIDIClockOutTick;
-						}
 					}
 				}
 				else {
@@ -823,7 +1005,6 @@ startAgain:
 			}
 		}
 	}
-	return timeWithinWindowAtWhichMIDIOrGateOccurs;
 }
 
 void feedReverbBackdoorForGrain(int index, q31_t value) {
@@ -977,59 +1158,42 @@ void setMonitoringMode() { // Monitoring setup
 		}
 	}
 }
-void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSamplesBeforeLappingPlayHead,
-                            int32_t timeWithinWindowAtWhichMIDIOrGateOccurs) {
-	bool anyGateOutputPending = cvEngine.isAnythingPending();
-
+void scheduleMidiGateOutISR(size_t numSamples) {
 	CriticalSectionGuard guard;
-	// guard against timer firing mid check
-	if ((midiEngine.anythingInOutputBuffer() || anyGateOutputPending) && !isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
 
-		// I don't think this actually could still get left at -1, but just in case...
-		if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
-			timeWithinWindowAtWhichMIDIOrGateOccurs = 0;
-		}
+	// Gates output since the window was finalized (e.g. during rendering) go at the start of the window
+	captureWindowOutputs(0);
 
-		uint32_t saddrAtEnd = (uint32_t)(getTxBufferCurrentPlace());
-		uint32_t saddrPosAtEnd = saddrAtEnd >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE);
-		uint32_t saddrMovementSinceStart =
-		    saddrPosAtEnd - saddrPosAtStart; // You'll need to &(SSI_TX_BUFFER_NUM_SAMPLES - 1) this anytime it's used
+	// Set the due time for any midi that comes in while this window is being output (e.g. live playing, external
+	// sequencer)
+	setMIDIDueAtWindowOffset(numSamples);
 
-		int32_t samplesTilMIDIOrGate = (timeWithinWindowAtWhichMIDIOrGateOccurs - saddrMovementSinceStart
-		                                - unadjustedNumSamplesBeforeLappingPlayHead)
-		                               & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
+	// If a gate note-on was processed at the same time as a gate note-off, the note-off will have already
+	// been sent, but we need to make sure that the note-on now doesn't happen until a set amount of time
+	// after the note-off.
+	int32_t gateMinDelayInSamples =
+	    ((uint32_t)cvEngine.minGateOffTime * 289014) >> 16; // That's *4.41 (derived from 44100)
+	int32_t samplesTilAllowedToSend =
+	    cvEngine.mostRecentSwitchOffTimeOfPendingNoteOn + gateMinDelayInSamples - audioSampleTimer;
 
-		if (!samplesTilMIDIOrGate) {
-			samplesTilMIDIOrGate = SSI_TX_BUFFER_NUM_SAMPLES;
-		}
+	uint32_t now = getSystemTicks();
+
+	// Gates are scheduled the same way as MIDI (see setMIDIDueAtWindowOffset()), so the two stay lined up
+	for (const WindowOutput& windowOutput : windowOutputs) {
+		int32_t samplesTilGate = samplesTilWindowOffsetPlays(windowSamplesBeforeLappingPlayHead, windowOutput.offset);
 
 		// samplesTilMIDI += 10; This gets the start of stuff perfectly lined up. About 10 for MIDI, 12 for gate
 
-		if (anyGateOutputPending) {
-			// If a gate note-on was processed at the same time as a gate note-off, the note-off will have already
-			// been sent, but we need to make sure that the note-on now doesn't happen until a set amount of time
-			// after the note-off.
-			int32_t gateMinDelayInSamples =
-			    ((uint32_t)cvEngine.minGateOffTime * 289014) >> 16; // That's *4.41 (derived from 44100)
-			int32_t samplesTilAllowedToSend =
-			    cvEngine.mostRecentSwitchOffTimeOfPendingNoteOn + gateMinDelayInSamples - audioSampleTimer;
-
-			if (samplesTilAllowedToSend > 0) {
-
-				samplesTilAllowedToSend -= (saddrMovementSinceStart & (SSI_TX_BUFFER_NUM_SAMPLES - 1));
-
-				if (samplesTilMIDIOrGate < samplesTilAllowedToSend) {
-					samplesTilMIDIOrGate = samplesTilAllowedToSend;
-				}
-			}
+		if (windowOutput.gates.needsMinOffTime) {
+			samplesTilGate = std::max(samplesTilGate, samplesTilAllowedToSend);
 		}
 
-		R_INTC_Enable(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT]);
-
-		// Set delay time. This is samplesTilMIDIOrGate * 515616 / kSampleRate.
-		*TGRA[TIMER_MIDI_GATE_OUTPUT] = ((uint32_t)samplesTilMIDIOrGate * 766245) >> 16;
-		enableTimer(TIMER_MIDI_GATE_OUTPUT);
+		uint32_t due = windowStartTicks + (((uint32_t)samplesTilGate * kSystemTicksPerSampleQ8) >> 8);
+		insertScheduledOutput(ScheduledOutput{.due = due, .gates = windowOutput.gates}, now, guard);
 	}
+	windowOutputs.clear();
+
+	armMidiGateOutputTimer(now, guard);
 }
 
 void routine_task() {
@@ -1073,8 +1237,22 @@ void routine() {
 		if (!sdRoutineLock) {
 			auto timeNow = getSystemTime();
 			while (getSystemTime() < timeNow + 32 / 44100.) {
+				// Don't render ahead of sample loading. We can't load clusters from in here - audioRoutineLocked
+				// makes loadAnyEnqueuedClusters() a no-op - so hand back to the scheduler's cluster loading task.
+				// Rendering offline runs much faster than real time, so without this, time-stretch hops keep
+				// failing to start on unloaded clusters and synced samples play back unstretched (issue #4912).
+				// If the card's gone, nothing will drain the queue, so carry on rather than stall forever.
+				if (!audioFileManager.loadingQueue.empty() && audioFileManager.canLoadClusters()) {
+					break;
+				}
+
 				size_t numSamples = 32;
+				// routine_() resets this every render, but it never runs while we render offline. Without resetting it
+				// here, allowedToStartVoice() refuses every voice after the first few, so notes stay pending for the
+				// rest of the export and stems come out silent (issue #5010).
+				voices_started_this_render = 0;
 				tickSongFinalizeWindows(numSamples);
+				sendWindowOutputsNow();
 
 				numSamplesLastTime = numSamples;
 				renderAudioForStemExport(numSamples);
@@ -1108,8 +1286,6 @@ void routine() {
 						}
 					}
 				}
-
-				audioFileManager.loadAnyEnqueuedClusters(128, false);
 			}
 		}
 	}
@@ -1373,7 +1549,16 @@ void registerSideChainHit(int32_t strength) {
 	sideChainHitPending = combineHitStrengths(strength, sideChainHitPending);
 }
 
-void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound) {
+PreviewVolume PreviewVolume::neutral() {
+	return {
+	    .volumePostFX = getParamFromUserValue(params::GLOBAL_VOLUME_POST_FX, kDefaultSoundVolumeUserValue),
+	    .localVolume = 0,
+	    .velocityCableDepth = getParamFromUserValue(params::PATCH_CABLE, kSampleDrumVelocityCableUserValue),
+	    .velocityCablePolarity = PatchCable::getDefaultPolarity(PatchSource::VELOCITY),
+	};
+}
+
+void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound, PreviewVolume const& volume) {
 	stopAnyPreviewing();
 	MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].getOrCreateFirstRange();
 	if (!range) {
@@ -1387,6 +1572,22 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 	}
 
 	if (shouldActuallySound) {
+		// Adopt the volume of the instrument / kit-row the sample will be loaded into, so the preview sounds the same
+		// before and after selecting it (issue #1591). The song master volume is applied downstream in renderSongFX().
+		PatchedParamSet* previewParams = paramManagerForSamplePreview->getPatchedParamSet();
+		previewParams->params[params::GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(volume.volumePostFX);
+		previewParams->params[params::LOCAL_VOLUME].setCurrentValueBasicForSetup(volume.localVolume);
+
+		// setupAsSample() gives the preview drum exactly one patch cable: VELOCITY -> LOCAL_VOLUME.
+		PatchCable& velocityCable = paramManagerForSamplePreview->getPatchCableSet()->patchCables[0];
+		velocityCable.param.setCurrentValueBasicForSetup(volume.velocityCableDepth);
+		velocityCable.polarity = volume.velocityCablePolarity;
+
+		// GLOBAL_VOLUME_POST_FX is a Sound-level param with no patch cables on the preview drum, so its final value
+		// won't update on its own - recompute it before we note-on. LOCAL_VOLUME is per-voice and is picked up when
+		// the new voice is patched during noteOn().
+		sampleForPreview->recalculatePatchingToParam(params::GLOBAL_VOLUME_POST_FX, paramManagerForSamplePreview);
+
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
 		    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
@@ -1617,8 +1818,12 @@ errorAfterAllocation:
 // time. That's a double free, and it surfaces as M123 from the allocator, a long way from here - so rather than
 // leaving the rule as a comment for each caller to honour, enforce it.
 void discardRecorder(SampleRecorder* recorder) {
-	if (ALPHA_OR_BETA_VERSION && (sdRoutineLock || currentlyAccessingCard)) {
+	if (sdRoutineLock || currentlyAccessingCard) {
 		FREEZE_WITH_ERROR("E251");
+		// Freeing it now would be the double free described above. Instead leave it in the list and let
+		// doRecorderCardRoutines() free it once its suspended cardRoutine() has returned.
+		recorder->status = RecorderStatus::AWAITING_DELETION;
+		return;
 	}
 
 	int32_t count = 0;
@@ -1626,9 +1831,6 @@ void discardRecorder(SampleRecorder* recorder) {
 	while (*prevPointer) {
 
 		count++;
-		if (ALPHA_OR_BETA_VERSION && !*prevPointer) {
-			FREEZE_WITH_ERROR("E264");
-		}
 		if (*prevPointer == recorder) {
 			*prevPointer = recorder->next;
 			break;

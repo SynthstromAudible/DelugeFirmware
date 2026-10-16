@@ -90,6 +90,7 @@
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
 #include "util/comparison.h"
+#include "util/finally.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/try.h"
@@ -122,9 +123,6 @@ InstrumentClipView::InstrumentClipView() : numEditPadPresses(0) {
 
 	noteRowBlinking = false;
 	noteRowFlashOn = false;
-
-	lastSelectedNoteXDisplay = kNoSelection;
-	lastSelectedNoteYDisplay = kNoSelection;
 }
 
 bool InstrumentClipView::opened() {
@@ -609,9 +607,12 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 					int32_t noteRowIndex = yDisplay + clip->yScroll;
 
-					if (ALPHA_OR_BETA_VERSION
-					    && (noteRowIndex < 0 || noteRowIndex >= clip->noteRows.getNumElements())) {
-						FREEZE_WITH_ERROR("E323");
+					// Deleting a NoteRow outside the array would corrupt memory - skip this press instead
+					if (noteRowIndex < 0 || noteRowIndex >= clip->noteRows.getNumElements()) {
+						if (ALPHA_OR_BETA_VERSION) {
+							FREEZE_WITH_ERROR("E323");
+						}
+						continue;
 					}
 
 					if (clip->isActiveOnOutput()) {
@@ -2342,8 +2343,9 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 			paramManager = &noteRow->paramManager;
 		}
 
-		// If this is a note-length-edit press...
-		if (numEditPadPressesPerNoteRowOnScreen[yDisplay] == 1
+		// If this is a note-length-edit press...and you're not in the note editor
+		if (!(getCurrentUI() == &soundEditor && soundEditor.inNoteEditor())
+		    && numEditPadPressesPerNoteRowOnScreen[yDisplay] == 1
 		    && (int32_t)(timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0
 		    && clip->allowNoteTails(modelStackWithNoteRow) && getEditPadPressXDisplayOnScreen(yDisplay) < xDisplay) {
 
@@ -2433,8 +2435,6 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					}
 
 					noteRow->getRowSquareInfo(effectiveLength, gridSquareInfo[yDisplay]);
-					lastSelectedNoteXDisplay = xDisplay;
-					lastSelectedNoteYDisplay = yDisplay;
 				}
 			}
 		}
@@ -2626,8 +2626,6 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					reassessAuditionStatus(yDisplay);
 
 					noteRow->getRowSquareInfo(effectiveLength, gridSquareInfo[yDisplay]);
-					lastSelectedNoteXDisplay = xDisplay;
-					lastSelectedNoteYDisplay = yDisplay;
 				}
 
 				// Might need to re-render row, if it was changed
@@ -2728,6 +2726,7 @@ Sound* InstrumentClipView::getSoundForNoteRow(NoteRow* noteRow, ParamManagerForT
 }
 
 void InstrumentClipView::endEditPadPress(uint8_t i) {
+	gridSquareInfo[editPadPresses[i].yDisplay][editPadPresses[i].xDisplay].isValid = false;
 	editPadPresses[i].isActive = false;
 	numEditPadPresses--;
 	numEditPadPressesPerNoteRowOnScreen[editPadPresses[i].yDisplay]--;
@@ -2758,17 +2757,14 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 		exitUIMode(UI_MODE_NOTES_PRESSED);
 		actionLogger.closeAction(ActionType::NOTE_EDIT);
 		quantizeAmount = 0;
-		if (lastSelectedNoteXDisplay != kNoSelection && lastSelectedNoteYDisplay != kNoSelection) {
-			gridSquareInfo[lastSelectedNoteYDisplay][lastSelectedNoteXDisplay].isValid = false;
-			lastSelectedNoteXDisplay = kNoSelection;
-			lastSelectedNoteYDisplay = kNoSelection;
-		}
 	}
 }
 
 // adjust a note's velocity when pressing and holding a pad with a note in it and turning the horizontal encoder <>
 // this function is also called from the automation velocity editing view
-void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
+void InstrumentClipView::adjustVelocity(int32_t velocityChange, bool display_value) {
+	// adjust velocity of note's pressed or remembered (if you're in note editor menu)
+	auto edit_targets = get_note_edit_targets();
 	int32_t velocityValue = 0;
 
 	UI* currentUI = getCurrentUI();
@@ -2789,26 +2785,22 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-		if (editPadPresses[i].isActive) {
-			editPadPresses[i].deleteOnDepress = false;
+	for (int32_t i = 0; i < edit_targets.size(); i++) {
+		if (edit_targets[i].isActive) {
+			edit_targets[i].deleteOnDepress = false;
 
-			int32_t noteRowIndex;
-			NoteRow* noteRow =
-			    getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
-			int32_t noteRowId = getCurrentInstrumentClip()->getNoteRowId(noteRow, noteRowIndex);
-
-			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
+			ModelStackWithNoteRow* modelStackWithNoteRow = get_note_edit_row(modelStack, edit_targets[i]);
+			NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
 
 			// Multiple notes in square
-			if (editPadPresses[i].isBlurredSquare) {
+			if (edit_targets[i].isBlurredSquare) {
 
 				uint32_t velocitySumThisSquare = 0;
 				uint32_t numNotesThisSquare = 0;
 
-				int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
+				int32_t noteI = noteRow->notes.search(edit_targets[i].intendedPos, GREATER_OR_EQUAL);
 				Note* note = noteRow->notes.getElement(noteI);
-				while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
+				while (note && note->pos - edit_targets[i].intendedPos < edit_targets[i].intendedLength) {
 					// Sean: check for pop-up so that you don't change encoder turn (cause you may just want to see the
 					// value) in automation view we change it right away because you see the value on the display when
 					// pressing pad
@@ -2828,7 +2820,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 
 				// Sean: We're adjusting the intendedVelocity here because this is the velocity that is used to audition
 				// the pad press note so you can hear the velocity changes as you're holding the note down
-				editPadPresses[i].intendedVelocity = velocitySumThisSquare / numNotesThisSquare;
+				edit_targets[i].intendedVelocity = velocitySumThisSquare / numNotesThisSquare;
 			}
 
 			// Only one note in square
@@ -2836,25 +2828,57 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 				if (display->hasPopup() || inAutomationView || inSoundEditor) {
 					// Sean: We're adjusting the intendedVelocity here because this is the velocity that is used to
 					// audition the pad press note so you can hear the velocity changes as you're holding the note down
-					editPadPresses[i].intendedVelocity =
-					    std::clamp<int32_t>((int32_t)editPadPresses[i].intendedVelocity + velocityChange, 1, 127);
-					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
+					edit_targets[i].intendedVelocity =
+					    std::clamp<int32_t>((int32_t)edit_targets[i].intendedVelocity + velocityChange, 1, 127);
+					noteRow->changeNotesAcrossAllScreens(edit_targets[i].intendedPos, modelStackWithNoteRow, action,
 					                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);
 				}
 
-				updateVelocityValue(velocityValue, editPadPresses[i].intendedVelocity);
+				updateVelocityValue(velocityValue, edit_targets[i].intendedVelocity);
 			}
 
-			gridSquareInfo[editPadPresses[i].yDisplay][editPadPresses[i].xDisplay].averageVelocity =
-			    editPadPresses[i].intendedVelocity;
-			uiNeedsRendering(this, 1 << editPadPresses[i].yDisplay, 0);
+			// grid square info is only valid when we're pressing pads
+			if (numEditPadPresses) {
+				gridSquareInfo[edit_targets[i].yDisplay][edit_targets[i].xDisplay].averageVelocity =
+				    edit_targets[i].intendedVelocity;
+			}
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 	}
 
-	bool inNoteEditor = inSoundEditor && soundEditor.inNoteEditor();
+	// the only time this is false is if you're calling this function from the note editor
+	// so we don't want to refresh menu twice
+	if (display_value) {
+		bool velocity_menu_displayed = false; // default is to show velocity change as a popup
 
-	if (!inNoteEditor) {
-		displayVelocity(velocityValue, velocityChange);
+		// check if we're currently in the sound editor
+		if (inSoundEditor) {
+			// check if we're in the note editor menu or note velocity menu
+
+			// get the current menu item
+			MenuItem* current_item = soundEditor.getCurrentMenuItem();
+
+			// is the velocity menu currently displayed?
+			// it is displayed if the current item is the note editor velocity menu or the note editor horizontal menu
+			velocity_menu_displayed = (current_item == &noteVelocityMenu)
+			                          || (current_item == &noteEditorRootMenu
+			                              && noteEditorRootMenu.renderingStyle() == menu_item::Submenu::HORIZONTAL);
+
+			if (velocity_menu_displayed) {
+				current_item->readValueAgain();
+			}
+		}
+
+		// if velocity menu is not displayed, then you're on 7seg or in oled vertical menu
+		// so display popup
+		if (!velocity_menu_displayed) {
+			displayVelocity(velocityValue, velocityChange);
+		}
+	}
+
+	// update instrument default velocity value
+	if (velocityValue != 255) {
+		getCurrentInstrument()->defaultVelocity = velocityValue;
 	}
 
 	reassessAllAuditionStatus();
@@ -2901,11 +2925,10 @@ void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocity
 			// updated when user releases last press.
 		}
 		else {
-			UI* currentUI = getCurrentUI();
-			bool inAutomationView = currentUI == &automationView;
-			bool inNoteEditor = currentUI == &soundEditor && soundEditor.inNoteEditor();
-			getCurrentInstrument()->defaultVelocity = velocityValue;
-			if (!inAutomationView && !inNoteEditor) {
+			// if we're not in automation view, show popup
+			// automation view is currently only used in this context with velocity view
+			// which takes care of drawing velocity changes on the display
+			if (getCurrentUI() != &automationView) {
 				if (display->haveOLED()) {
 					strcpy(buffer, "Velocity: ");
 					intToString(velocityValue, buffer + strlen(buffer));
@@ -2952,16 +2975,21 @@ void InstrumentClipView::adjustNoteFillWithOffset(int32_t offset) {
 // used with the note probability, iterance and fill note editing menu
 // when adjusting multiple notes, the value displayed is the value of the left most note
 Note* InstrumentClipView::getLeftMostNotePressed() {
+	// if we're not currently pressing notes and we're in note editor, get remembered note instead
+	if (numEditPadPresses == 0 && getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
+		return get_remembered_note();
+	}
 	Note* leftMostNote = nullptr;
+	// are we pressing any notes
 	if (numEditPadPresses != 0) {
 		int32_t leftMostPos = 2147483647;
 		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 			if (editPadPresses[i].isActive) {
-				int32_t xDisplay = editPadPresses[i].xDisplay;
 				int32_t yDisplay = editPadPresses[i].yDisplay;
-				bool isValid = gridSquareInfo[yDisplay][xDisplay].isValid;
-				if (isValid) {
-					Note* firstNote = gridSquareInfo[yDisplay][xDisplay].firstNote;
+				NoteRow* row = getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong);
+				if (row) {
+					int32_t index = row->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
+					Note* firstNote = row->notes.getElement(index);
 					if (firstNote && firstNote->pos < leftMostPos) {
 						leftMostPos = firstNote->pos;
 						leftMostNote = firstNote;
@@ -2983,6 +3011,17 @@ Note* InstrumentClipView::getLeftMostNotePressed() {
 void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t withFinalValue, int32_t changeType,
                                                   int32_t parameterMinValue, int32_t parameterMaxValue,
                                                   bool allowTogglingBetweenPresetsAndCustom) {
+	// check if we're pressing any notes or, if we're in the note editor, have any remembered note presses
+	auto edit_targets = get_note_edit_targets();
+	int32_t num_edit_targets = 0;
+	// count the number of active presses (either physical or remembered)
+	for (const auto& target : edit_targets) {
+		num_edit_targets += target.isActive;
+	}
+	// if we don't have any active targets, then return early
+	if (!num_edit_targets) {
+		return;
+	}
 	// ensure offset is valid (offset acceleration not permitted here)
 	if (withOffset < 0) {
 		withOffset = -1;
@@ -3003,13 +3042,13 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 	                || display->hasPopupOfType(PopupType::FILL);
 
 	// If just one press...
-	if (numEditPadPresses == 1) {
+	if (num_edit_targets == 1) {
 		// Find it
-		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-			if (editPadPresses[i].isActive) {
-				editPadPresses[i].deleteOnDepress = false;
+		for (int32_t i = 0; i < edit_targets.size(); i++) {
+			if (edit_targets[i].isActive) {
+				edit_targets[i].deleteOnDepress = false;
 
-				if (editPadPresses[i].isBlurredSquare) {
+				if (edit_targets[i].isBlurredSquare) {
 					goto multiplePresses;
 				}
 
@@ -3018,30 +3057,30 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 
 				if (withOffset != 0) {
 					if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
-						originalParameter = editPadPresses[i].intendedProbability;
+						originalParameter = edit_targets[i].intendedProbability;
 						parameterValue = originalParameter & 127; // probability param is 8 bits
 						prevBase = (originalParameter & 128);
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-						originalParameter = editPadPresses[i].intendedIterance.toInt();
+						originalParameter = edit_targets[i].intendedIterance.toInt();
 						parameterValue = originalParameter; // iterance param is 16 bits
 						// transform into preset index temporarily, to inc/dec offset
 						parameterValue = Iterance::fromInt(parameterValue).toPresetIndex();
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
-						originalParameter = editPadPresses[i].intendedFill;
+						originalParameter = edit_targets[i].intendedFill;
 						parameterValue = originalParameter & 127; // fill param is 8 bits
 					}
 				}
 				else if (withFinalValue >= 0) {
 					if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
-						originalParameter = editPadPresses[i].intendedProbability;
+						originalParameter = edit_targets[i].intendedProbability;
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-						originalParameter = editPadPresses[i].intendedIterance.toInt();
+						originalParameter = edit_targets[i].intendedIterance.toInt();
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
-						originalParameter = editPadPresses[i].intendedFill;
+						originalParameter = edit_targets[i].intendedFill;
 					}
 					parameterValue = withFinalValue;
 					parameterHasBeenEdited = originalParameter != withFinalValue;
@@ -3070,7 +3109,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 										// previous notes with the same probability
 										if (parameterValue < parameterMaxValue
 										    && getCurrentInstrumentClip()->doesProbabilityExist(
-										        editPadPresses[i].intendedPos, parameterValue,
+										        edit_targets[i].intendedPos, parameterValue,
 										        parameterMaxValue - parameterValue)) {
 											prevBase = true;
 											parameterHasBeenEdited = true;
@@ -3114,7 +3153,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 										// previous notes with the same probability
 										prevBase = (parameterValue < parameterMaxValue
 										            && getCurrentInstrumentClip()->doesProbabilityExist(
-										                editPadPresses[i].intendedPos, parameterValue,
+										                edit_targets[i].intendedPos, parameterValue,
 										                parameterMaxValue - parameterValue));
 										parameterHasBeenEdited = true;
 									}
@@ -3137,7 +3176,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 							if (prevBase) {
 								parameterValue |= 128;
 							}
-							editPadPresses[i].intendedProbability = parameterValue;
+							edit_targets[i].intendedProbability = parameterValue;
 						}
 						else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 							// transform back from preset to real value (only if not CUSTOM)
@@ -3148,10 +3187,10 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 								// Respect the original iterance (could be a Custom one)
 								parameterValue = originalParameter;
 							}
-							editPadPresses[i].intendedIterance = Iterance::fromInt(parameterValue);
+							edit_targets[i].intendedIterance = Iterance::fromInt(parameterValue);
 						}
 						else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
-							editPadPresses[i].intendedFill = parameterValue;
+							edit_targets[i].intendedFill = parameterValue;
 						}
 					}
 					// Covers probability, iterance, and fill (set based on final value)
@@ -3160,28 +3199,26 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 							if (prevBase) {
 								parameterValue |= 128;
 							}
-							editPadPresses[i].intendedProbability = parameterValue;
+							edit_targets[i].intendedProbability = parameterValue;
 						}
 						else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-							editPadPresses[i].intendedIterance = Iterance::fromInt(parameterValue);
+							edit_targets[i].intendedIterance = Iterance::fromInt(parameterValue);
 						}
 						else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
-							editPadPresses[i].intendedFill = parameterValue;
+							edit_targets[i].intendedFill = parameterValue;
 						}
 					}
 
-					int32_t noteRowIndex;
-					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay,
-					                                                                  currentSong, &noteRowIndex);
-					int32_t noteRowId = getCurrentInstrumentClip()->getNoteRowId(noteRow, noteRowIndex);
-					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
+					ModelStackWithNoteRow* modelStackWithNoteRow = get_note_edit_row(modelStack, edit_targets[i]);
+					NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
 
-					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
+					noteRow->changeNotesAcrossAllScreens(edit_targets[i].intendedPos, modelStackWithNoteRow, action,
 					                                     changeType, parameterValue);
 
-					// if we're in the note editor, refresh grid to show edited note
+					// if we're in the note editor, refresh grid to show edited note(s)
 					if (getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
-						uiNeedsRendering(this, 1 << editPadPresses[i].yDisplay, 0);
+						// we may have edited multiple notes across multiple rows, so refresh the whole grid
+						uiNeedsRendering(this, 0xFFFFFFFF, 0);
 					}
 				}
 				else {
@@ -3203,26 +3240,25 @@ multiplePresses:
 		int32_t leftMostPos = 2147483647;
 		int32_t leftMostIndex;
 		// Find the leftmost one. There may be more than one...
-		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-			if (editPadPresses[i].isActive) {
-				editPadPresses[i].deleteOnDepress = false;
+		for (int32_t i = 0; i < edit_targets.size(); i++) {
+			if (edit_targets[i].isActive) {
+				edit_targets[i].deleteOnDepress = false;
 
 				// "blurred square" with multiple notes
-				if (editPadPresses[i].isBlurredSquare) {
-					NoteRow* noteRow =
-					    getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong);
-					int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
+				if (edit_targets[i].isBlurredSquare) {
+					NoteRow* noteRow = get_note_edit_row(modelStack, edit_targets[i])->getNoteRow();
+					int32_t noteI = noteRow->notes.search(edit_targets[i].intendedPos, GREATER_OR_EQUAL);
 					Note* note = noteRow->notes.getElement(noteI);
 					if (note) {
 						// re-get parameters as they might not have been grabbed properly initially
 						if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
-							editPadPresses[i].intendedProbability = note->getProbability();
+							edit_targets[i].intendedProbability = note->getProbability();
 						}
 						else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-							editPadPresses[i].intendedIterance = note->getIterance();
+							edit_targets[i].intendedIterance = note->getIterance();
 						}
 						else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
-							editPadPresses[i].intendedFill = note->getFill();
+							edit_targets[i].intendedFill = note->getFill();
 						}
 
 						if (note->pos < leftMostPos) {
@@ -3235,8 +3271,8 @@ multiplePresses:
 				// Or, just 1 note in square
 				else {
 
-					if (editPadPresses[i].intendedPos < leftMostPos) {
-						leftMostPos = editPadPresses[i].intendedPos;
+					if (edit_targets[i].intendedPos < leftMostPos) {
+						leftMostPos = edit_targets[i].intendedPos;
 						leftMostIndex = i;
 					}
 				}
@@ -3249,30 +3285,30 @@ multiplePresses:
 		// decide the parameter value, based on the existing parameter value of the leftmost note
 		if (withOffset != 0) {
 			if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
-				originalParameter = editPadPresses[leftMostIndex].intendedProbability;
+				originalParameter = edit_targets[leftMostIndex].intendedProbability;
 				parameterValue = originalParameter & 127; // probability param is 8 bits
 				prevBase = (originalParameter & 128);
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-				originalParameter = editPadPresses[leftMostIndex].intendedIterance.toInt();
+				originalParameter = edit_targets[leftMostIndex].intendedIterance.toInt();
 				parameterValue = originalParameter; // iterance param is 16 bits
 				// transform into preset index temporarily, to inc/dec offset
 				parameterValue = Iterance::fromInt(parameterValue).toPresetIndex();
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
-				originalParameter = editPadPresses[leftMostIndex].intendedFill;
+				originalParameter = edit_targets[leftMostIndex].intendedFill;
 				parameterValue = originalParameter & 127; // fill param is 8 bits
 			}
 		}
 		else if (withFinalValue >= 0) {
 			if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
-				originalParameter = editPadPresses[leftMostIndex].intendedProbability;
+				originalParameter = edit_targets[leftMostIndex].intendedProbability;
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-				originalParameter = editPadPresses[leftMostIndex].intendedIterance.toInt();
+				originalParameter = edit_targets[leftMostIndex].intendedIterance.toInt();
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
-				originalParameter = editPadPresses[leftMostIndex].intendedFill;
+				originalParameter = edit_targets[leftMostIndex].intendedFill;
 			}
 			parameterValue = withFinalValue;
 			parameterHasBeenEdited = originalParameter != withFinalValue;
@@ -3360,38 +3396,34 @@ multiplePresses:
 			}
 
 			// Set the parameter value of the other presses, and update all parameter values with the actual notes
-			for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-				if (editPadPresses[i].isActive) {
+			for (int32_t i = 0; i < edit_targets.size(); i++) {
+				if (edit_targets[i].isActive) {
 					if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
-						editPadPresses[i].intendedProbability = parameterValueForMultipleNotes;
+						edit_targets[i].intendedProbability = parameterValueForMultipleNotes;
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-						editPadPresses[i].intendedIterance = Iterance::fromInt(parameterValueForMultipleNotes);
+						edit_targets[i].intendedIterance = Iterance::fromInt(parameterValueForMultipleNotes);
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
-						editPadPresses[i].intendedFill = parameterValueForMultipleNotes;
+						edit_targets[i].intendedFill = parameterValueForMultipleNotes;
 					}
 
-					int32_t noteRowIndex;
-					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay,
-					                                                                  currentSong, &noteRowIndex);
-					int32_t noteRowId = getCurrentInstrumentClip()->getNoteRowId(noteRow, noteRowIndex);
-
-					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
+					ModelStackWithNoteRow* modelStackWithNoteRow = get_note_edit_row(modelStack, edit_targets[i]);
+					NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
 
 					// "blurred square" with multiple notes
-					if (editPadPresses[i].isBlurredSquare) {
+					if (edit_targets[i].isBlurredSquare) {
 
-						int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
+						int32_t noteI = noteRow->notes.search(edit_targets[i].intendedPos, GREATER_OR_EQUAL);
 						Note* note = noteRow->notes.getElement(noteI);
-						while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
+						while (note && note->pos - edit_targets[i].intendedPos < edit_targets[i].intendedLength) {
 							int32_t changeValue = parameterValueForMultipleNotes;
 							if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
 								// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual
 								// percentage probabilities
 								if (parameterValue < parameterMaxValue && note->pos != leftMostPos) {
-									editPadPresses[i].intendedProbability |= 128;
-									changeValue = editPadPresses[i].intendedProbability;
+									edit_targets[i].intendedProbability |= 128;
+									changeValue = edit_targets[i].intendedProbability;
 								}
 							}
 							noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action, changeType,
@@ -3407,13 +3439,13 @@ multiplePresses:
 						if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
 							// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual
 							// percentage probabilities
-							if (parameterValue < parameterMaxValue && editPadPresses[i].intendedPos != leftMostPos) {
-								editPadPresses[i].intendedProbability |= 128;
-								changeValue = editPadPresses[i].intendedProbability;
+							if (parameterValue < parameterMaxValue && edit_targets[i].intendedPos != leftMostPos) {
+								edit_targets[i].intendedProbability |= 128;
+								changeValue = edit_targets[i].intendedProbability;
 							}
 						}
-						noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
-						                                     action, changeType, changeValue);
+						noteRow->changeNotesAcrossAllScreens(edit_targets[i].intendedPos, modelStackWithNoteRow, action,
+						                                     changeType, changeValue);
 					}
 				}
 			}
@@ -3512,14 +3544,153 @@ const char* InstrumentClipView::getFillString(uint8_t fill) {
 
 #pragma gcc pop
 
-// if you've selected a single note and pressed the select encoder, you can enter the note editor menu
+/// used with note editor to get remembered notes
+Note* InstrumentClipView::get_remembered_note(int32_t selection_index) {
+	// if we're not looking for a specific remembered note
+	// return the left most remembered one
+	if (selection_index < 0) {
+		Note* leftmost_note = nullptr;
+		// iterate through all remembered notes
+		for (int32_t index = 0; index < remembered_note_count; ++index) {
+			Note* note = get_remembered_note(index);
+			// is this note left of the previous note found?
+			if (note && (!leftmost_note || note->pos < leftmost_note->pos)) {
+				// note is further left, store it
+				leftmost_note = note;
+			}
+		}
+		// return leftmost remembered note found
+		return leftmost_note;
+	}
+
+	// if we're trying to get a note at an index which is greater than number of notes remembered
+	// return nullptr (no remembered note found)
+	if (selection_index >= remembered_note_count) {
+		return nullptr;
+	}
+
+	// if we're here we're trying to get a specific remembered square
+	// get the remembered square and its corresponding note row id
+	auto& remembered_note = remembered_notes[selection_index];
+	int32_t remembered_note_row_id = remembered_note_row_ids[selection_index];
+
+	auto* clip = getCurrentInstrumentClip();
+	NoteRow* row = nullptr;
+	// get note row for the remembered note
+	if (clip->output->type == OutputType::KIT) {
+		// make sure that the remembered note row id is valid
+		if (remembered_note_row_id >= 0 && remembered_note_row_id < clip->noteRows.getNumElements()) {
+			row = clip->noteRows.getElement(remembered_note_row_id);
+		}
+	}
+	else {
+		row = clip->getNoteRowForYNote(remembered_note_row_id);
+	}
+
+	// if we don't have a valid note row, return nullptr
+	if (!row) {
+		return nullptr;
+	}
+
+	// check if any note still exists starting from the remembered squares position
+	int32_t index = row->notes.search(remembered_note.intendedPos, GREATER_OR_EQUAL);
+	Note* note = row->notes.getElement(index);
+	// no note found, return nullptr
+	if (!note) {
+		return nullptr;
+	}
+
+	// ok we found a note either at the started of the remembered note square or somewhere ahead
+	// now we want to check if the note we found falls within the square we pressed
+
+	// if it's a blurred square, it means there could be one or more notes within the square pressed
+	// check if this note falls within the remembered note square's length
+	if (remembered_note.isBlurredSquare) {
+		// if note we found doesn't fall within the remembered square, return nullptr
+		// it means the note is passed the remembered notes square
+		return note->pos - remembered_note.intendedPos < remembered_note.intendedLength ? note : nullptr;
+	}
+	// if it's not a blurred square, it means there's a single note
+	// so check that the note we found is that note (e.g. position is the same)
+	return note->pos == remembered_note.intendedPos ? note : nullptr;
+}
+
+/// used with
+std::span<EditPadPress> InstrumentClipView::get_note_edit_targets() {
+	// if no note pads are currently being pressed and we're in the note editor, return the remembered note edit targets
+	if (!numEditPadPresses && getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
+		// iterate through all the remember note pad presses
+		for (int32_t selection_index = 0; selection_index < remembered_note_count; ++selection_index) {
+			auto& remembered_note = remembered_notes[selection_index];
+			int32_t remembered_note_row_id = remembered_note_row_ids[selection_index];
+			// try to find a note within the remembered note pad square
+			Note* note = get_remembered_note(selection_index);
+			// if we didn't find a note, mark the remembered ntoe pad square is inactive
+			remembered_note.isActive = note != nullptr;
+			// if we didn't find a note, continue
+			if (!note) {
+				continue;
+			}
+			// ok we found a left most note within the remembered note square
+			// now store parameter info about that note
+
+			// for velocity, if there's just one note, get that notes velocity,
+			// but if there's more than one note with a square, calculate the average
+			remembered_note.intendedVelocity = note->getVelocity();
+			if (remembered_note.isBlurredSquare) {
+				NoteRow* row = getCurrentInstrumentClip()->getNoteRowFromId(remembered_note_row_id);
+				int32_t index = row->notes.search(remembered_note.intendedPos, GREATER_OR_EQUAL);
+				uint32_t velocity_sum = 0;
+				uint32_t note_count = 0;
+				while (note && note->pos - remembered_note.intendedPos < remembered_note.intendedLength) {
+					velocity_sum += note->getVelocity();
+					++note_count;
+					note = row->notes.getElement(++index);
+				}
+				// calculate average velocity
+				remembered_note.intendedVelocity = velocity_sum / note_count;
+				// restore left most remembered note
+				note = get_remembered_note(selection_index);
+			}
+			// for other note parameters we just store the left most notes parameters
+			remembered_note.intendedProbability = note->getProbability();
+			remembered_note.intendedIterance = note->getIterance();
+			remembered_note.intendedFill = note->getFill();
+		}
+		// return the remembered note pad press info
+		return {remembered_notes, static_cast<size_t>(remembered_note_count)};
+	}
+	// if we're actively pressing note pads, return edit pad presses so we can edit notes corresponding with those
+	// presses
+	return editPadPresses;
+}
+
+ModelStackWithNoteRow* InstrumentClipView::get_note_edit_row(ModelStackWithTimelineCounter* model_stack,
+                                                             const EditPadPress& target) {
+	// if we have remembered any note presses, get the note row corresponding to that press
+	// that note row may be off screen now so we need to use the note row index
+	for (int32_t index = 0; index < remembered_note_count; ++index) {
+		if (&target == &remembered_notes[index]) {
+			int32_t remembered_note_row_id = remembered_note_row_ids[index];
+			return model_stack->addNoteRow(remembered_note_row_id,
+			                               getCurrentInstrumentClip()->getNoteRowFromId(remembered_note_row_id));
+		}
+	}
+	// no remembered note presses, so we're getting a note row corresponding with an active press
+	// so that note row will be on screen, get it
+	return getCurrentInstrumentClip()->getNoteRowOnScreen(target.yDisplay, model_stack);
+}
+
 bool InstrumentClipView::enterNoteEditor() {
-	if (numEditPadPresses == 1 && lastSelectedNoteXDisplay != kNoSelection
-	    && lastSelectedNoteYDisplay != kNoSelection) {
+	// check if you're holding one or more notes and we have a valid left-most note pressed
+	if (numEditPadPresses > 0 && getLeftMostNotePressed()) {
 		dontDeleteNotesOnDepress();
 		display->setNextTransitionDirection(1);
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		if (soundEditor.setup(clip, &noteEditorRootMenu)) {
+			// if you're entering the note editor, you're currently holding one or more notes
+			// so there are no note pad selections to "remember" yet
+			remembered_note_count = 0;
 			// if it's a kit with affect entire enabled, toggle it off when entering note editor
 			if (clip->output->type == OutputType::KIT) {
 				if (clip->affectEntire) {
@@ -3528,85 +3699,113 @@ bool InstrumentClipView::enterNoteEditor() {
 				}
 			}
 			openUI(&soundEditor);
-			blinkSelectedNote();
+			stopSelectedNotePulsing();
 			// refresh grid to potentially highlight already edited notes
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 			return true;
 		}
 	}
 	else {
-		display->displayPopup("Please select only one note");
+		display->displayPopup("Select Note");
 	}
 	return false;
 }
 
 void InstrumentClipView::exitNoteEditor() {
-	noteEditorAuditionMuted = false;
-	if (lastSelectedNoteXDisplay != kNoSelection && lastSelectedNoteYDisplay != kNoSelection) {
-		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-			editPadAction(0, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay, currentSong->xZoom[NAVIGATION_CLIP]);
-		}
-		gridSquareInfo[lastSelectedNoteYDisplay][lastSelectedNoteXDisplay].isValid = false;
-		lastSelectedNoteXDisplay = kNoSelection;
-		lastSelectedNoteYDisplay = kNoSelection;
-	}
-	resetSelectedNoteBlinking();
+	// if you're exiting the note editor, clear all remembered note edit targets
+	remembered_note_count = 0;
+	// also end all edit pad presses to avoid any stuck notes
+	endAllEditPadPresses();
+	// stop selected note pulsing timer
+	stopSelectedNotePulsing();
 	// refresh grid to potentially unhighlight edited notes
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
 void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on) {
+	char model_stack_memory[MODEL_STACK_MAX_SIZE];
+	auto* model_stack = currentSong->setupModelStackWithCurrentClip(model_stack_memory);
+	auto* row_stack = getCurrentInstrumentClip()->getNoteRowOnScreen(y, model_stack);
+	NoteRow* row = row_stack->getNoteRowAllowNull();
+	// when pressing down, check if we're pressing on a valid note pad square
 	if (on) {
-		// did you press a different pad?
-		// if no, we'll toggle auditioning the note on / off
-		if (x != lastSelectedNoteXDisplay || y != lastSelectedNoteYDisplay) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-			    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    getCurrentInstrumentClip()->getNoteRowOnScreen(y,
-			                                                   modelStackWithTimelineCounter); // don't create
-			// does note row exist?
-			// if it doesn't exist, ignore press because there's no notes there
-			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-				int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
-				NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
-				SquareInfo squareInfo;
-				noteRow->getSquareInfo(x, effectiveLength, squareInfo);
-				// are there any notes where we are pressing?
-				// if no, ignore press
-				if (squareInfo.numNotes) {
-					// if there are notes, update note selection and refresh menu
-					// but first, release previous press and make new press
-					exitNoteEditor();
-
-					// now make new press for new note selection
-					editPadAction(1, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
-					dontDeleteNotesOnDepress();
-
-					// update menu selection
-					soundEditor.getCurrentMenuItem()->readValueAgain();
-					blinkSelectedNote();
-				}
-			}
+		// did we press in a valid note row?
+		if (!row) {
+			// there can't be any notes if there's no note row, so return
+			return;
 		}
-		// pressing the same pad as the note selected toggles auditioning on / off
-		else {
-			// Switch note off if it was on
-			if (lastAuditionedVelocityOnScreen[y] != 255) {
-				sendAuditionNote(false, y, 127, 0);
-				lastAuditionedVelocityOnScreen[y] = 255;
-				// Remember that we've deliberately silenced this note, so that if reassessAuditionStatus()
-				// gets called elsewhere it won't send another note on for it.
-				noteEditorAuditionMuted = true;
-			}
-			// Switch note on if it was off
-			else {
-				noteEditorAuditionMuted = false;
-				reassessAuditionStatus(y);
+		// ok there's a note row, so there's notes somewhere
+		// check if we're pressing on a square that has notes in it
+		SquareInfo square;
+		row->getSquareInfo(x, row_stack->getLoopLength(), square);
+		if (!square.numNotes) {
+			// we pressed on a square which as no notes, so no selection return
+			return;
+		}
+		// ok we're pressing on a valid note square
+		// if we previously selected that square and it is pulsing,
+		// stop pulsing while holding down on that square
+		stopSelectedNotePulsing();
+	}
+	// on release, we want to release previous presses but remember them so we can continue editing
+	else if (row) {
+		// find the presses we are releasing
+		for (const auto& press : editPadPresses) {
+			// does this press we found corresponding to the pad we are letting go of?
+			if (press.isActive && press.xDisplay == x && press.yDisplay == y) {
+				// we found the edit pad press we're releasing
+				// now find the note's within that square
+				int32_t index = row->notes.search(press.intendedPos, GREATER_OR_EQUAL);
+				Note* note = row->notes.getElement(index);
+				int32_t selection_index = 0;
+				// find an existing or unused slot to save this released note pad info into
+				while (selection_index < remembered_note_count) {
+					const auto& target = remembered_notes[selection_index];
+					if (remembered_note_row_ids[selection_index] == row_stack->noteRowId
+					    && target.intendedPos == press.intendedPos && target.intendedLength == press.intendedLength
+					    && target.isBlurredSquare == press.isBlurredSquare) {
+						break;
+					}
+					++selection_index;
+				}
+				// if we have a note and we haven't maxed out the number of remembered notes
+				// then we'll store info about the note pad we're releasing
+				if (note && selection_index < kEditPadPressBufferSize) {
+					auto& remembered_note = remembered_notes[selection_index];
+					remembered_note = {};
+					remembered_note.isActive = true;
+					remembered_note.intendedPos = press.intendedPos;
+					remembered_note.intendedLength = press.intendedLength;
+					remembered_note.isBlurredSquare = press.isBlurredSquare;
+					remembered_note_row_ids[selection_index] = row_stack->noteRowId;
+					remembered_note_count = std::max(remembered_note_count, selection_index + 1);
+					note_pulse_progress = 1;
+					note_pulse_increasing = true;
+				}
+				// exit out of the edit pad press search
+				// we either stored the remembered note info or we didn't
+				break;
 			}
 		}
 	}
+	// remember if this is a new note pad selection press
+	bool starting_selection = on && !numEditPadPresses;
+	// forward edit pad press to instrument clip view
+	editPadAction(on, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
+	// if we just selected a note, initialize the remember note count
+	// because we'll want to refresh it entirely when we let go of current selection
+	if (starting_selection && numEditPadPresses) {
+		remembered_note_count = 0;
+	}
+	// because we're forwarding note presses to instrument clip view
+	// we want to make sure notes don't get deleted
+	// the note editor is used for quickly selecting notes and not for deleting them
+	dontDeleteNotesOnDepress();
+	// after updating note selection, we want to update the parameter values shown in the menu
+	soundEditor.getCurrentMenuItem()->readValueAgain();
+	// refresh grid in case selection has changed
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	pulseSelectedNote();
 }
 
 // before scrolling, we need to reset the note selection
@@ -3619,18 +3818,10 @@ void InstrumentClipView::deselectNoteAndGoUpOneLevel() {
 }
 
 ActionResult InstrumentClipView::handleNoteEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	// if you're holding down vertical encoder, don't de-select because that lets you edit
-	// note repeats
-	if (!Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
-		deselectNoteAndGoUpOneLevel();
-	}
-
 	return verticalEncoderAction(offset, inCardRoutine);
 }
 
 ActionResult InstrumentClipView::handleNoteEditorHorizontalEncoderAction(int32_t offset) {
-	deselectNoteAndGoUpOneLevel();
-
 	return horizontalEncoderAction(offset);
 }
 
@@ -3752,8 +3943,17 @@ bool InstrumentClipView::handleNoteRowEditorMainPadAction(int32_t x, int32_t y, 
 	// if we selected a note / created a note
 	// update the row selection
 	// so that menu can be potentially refreshed
-	if (lastSelectedNoteYDisplay != kNoSelection) {
-		handleNoteRowEditorAuditionPadAction(lastSelectedNoteYDisplay);
+	int32_t selected_y = kNoSelection;
+	int32_t preferred_y = on ? y : lastAuditionedYDisplay;
+	for (const auto& press : editPadPresses) {
+		if (press.isActive) {
+			if (selected_y == kNoSelection || press.yDisplay == preferred_y) {
+				selected_y = press.yDisplay;
+			}
+		}
+	}
+	if (selected_y != kNoSelection) {
+		handleNoteRowEditorAuditionPadAction(selected_y);
 	}
 
 	if (toggleMenu) {
@@ -4761,17 +4961,11 @@ uint8_t InstrumentClipView::getVelocityForAudition(uint8_t yDisplay, uint32_t* s
 
 		if (makeCurrentClipActiveOnInstrumentIfPossible(modelStack)) { // Should always be true, cos playback is stopped
 
-			// While the Note Editor has this row's note deliberately muted, don't let it contribute
-			// a velocity here - that's what tells reassessAuditionStatus() to keep it switched off.
-			bool rowMutedByNoteEditor = noteEditorAuditionMuted && yDisplay == lastSelectedNoteYDisplay;
-
-			if (!rowMutedByNoteEditor) {
-				for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-					if (editPadPresses[i].isActive && editPadPresses[i].yDisplay == yDisplay) {
-						sum += editPadPresses[i].intendedVelocity;
-						numInstances++;
-						*sampleSyncLength = editPadPresses[i].intendedLength;
-					}
+			for (const auto& press : editPadPresses) {
+				if (press.isActive && press.yDisplay == yDisplay) {
+					sum += press.intendedVelocity;
+					numInstances++;
+					*sampleSyncLength = press.intendedLength;
 				}
 			}
 		}
@@ -7370,6 +7564,7 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 	performActualRender(whichRows, image[0], occupancyMask, currentSong->xScroll[NAVIGATION_CLIP],
 	                    currentSong->xZoom[NAVIGATION_CLIP], kDisplayWidth, kDisplayWidth + kSideBarWidth,
 	                    drawUndefinedArea);
+	render_selected_note_pulse(whichRows, image);
 	PadLEDs::renderingLock = false;
 
 	return true;
@@ -7471,8 +7666,10 @@ void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offse
 
 		if (kit->selectedDrum && kit->selectedDrum->type != DrumType::SOUND) {
 
-			if (ALPHA_OR_BETA_VERSION && !kit->getActiveClip()) {
+			// The active Clip gets dereferenced below
+			if (!kit->getActiveClip()) {
 				FREEZE_WITH_ERROR("E381");
+				return;
 			}
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
@@ -8029,14 +8226,148 @@ void InstrumentClipView::resetSelectedNoteRowBlinking() {
 	noteRowFlashOn = false;
 }
 
-void InstrumentClipView::blinkSelectedNote(int32_t whichMainRows) {
-	soundEditor.setupShortcutBlink(lastSelectedNoteXDisplay, lastSelectedNoteYDisplay, 10);
-	soundEditor.blinkShortcut();
+void InstrumentClipView::pulseSelectedNote() {
+	auto setup_timer = util::finally([] { uiTimerManager.setTimer(TimerName::SELECTED_NOTE_PULSE, 50); });
+
+	// check if we should stop pulsing
+	if (getCurrentUI() != &soundEditor || !soundEditor.inNoteEditor() || numEditPadPresses || !get_remembered_note()) {
+		stopSelectedNotePulsing();
+		setup_timer.disable();
+		return;
+	}
+
+	// don't pulse when UI is already rendering or you're in an incompatible UI mode
+	if (PadLEDs::renderingLock || isUIModeActive(UI_MODE_HORIZONTAL_SCROLL)
+	    || isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)
+	    || isUIModeActive(UI_MODE_EXPLODE_ANIMATION)) {
+		return;
+	}
+
+	// calculate pulse progression, direction and colour for rendering
+	constexpr int32_t max_progress = (65535 / 100) * 60;
+	note_pulse_progress =
+	    std::clamp<int32_t>(note_pulse_progress + (note_pulse_increasing ? 3000 : -3000), 1, max_progress);
+	if (note_pulse_progress == 1 || note_pulse_progress == max_progress) {
+		note_pulse_increasing = !note_pulse_increasing;
+	}
+	updating_note_pulse_directly = true;
+	render_selected_note_pulse(0xFFFFFFFF, PadLEDs::image);
+	updating_note_pulse_directly = false;
+
+	PadLEDs::sendOutMainPadColours();
+}
+
+void InstrumentClipView::render_selected_note_pulse(uint32_t which_rows, RGB image[][kDisplayWidth + kSideBarWidth]) {
+	// this function also gets called from renderMainPads
+	// so make sure we're actually in the note editor
+	if (getCurrentUI() != &soundEditor || !soundEditor.inNoteEditor()) {
+		return;
+	}
+
+	// if we're not updating the note pulse directly, store the current image as the base colours
+	if (!updating_note_pulse_directly) {
+		for (int32_t row = 0; row < kDisplayHeight; ++row) {
+			if (which_rows & (1u << row)) {
+				std::copy_n(image[row], kDisplayWidth, note_pulse_base_colours[row]);
+			}
+		}
+	}
+
+	uint32_t pulsed_columns[kDisplayHeight]{};
+
+	// are we pressing any note pads?
+	if (numEditPadPresses) {
+		// iterate through all pressed pads
+		for (const auto& press : editPadPresses) {
+			// find the active pressed pads
+			if (!press.isActive || press.yDisplay >= kDisplayHeight || press.xDisplay >= kDisplayWidth
+			    || !(which_rows & (1u << press.yDisplay))) {
+				continue;
+			}
+			// if we're pressing notes, render them as blurred squares to indicate selection on press
+			image[press.yDisplay][press.xDisplay] = rowColour[press.yDisplay].forBlur();
+		}
+		// when we're pressing notes, we don't pulse, so just return
+		return;
+	}
+
+	// we're not pressing any notes, so now we'll pulse the previously pressed and remembered
+	// selected note squares
+	for (int32_t index = 0; index < remembered_note_count; ++index) {
+		render_selected_square_pulse(index, which_rows, image, pulsed_columns);
+	}
+}
+
+void InstrumentClipView::render_selected_square_pulse(int32_t selection_index, uint32_t which_rows,
+                                                      RGB image[][kDisplayWidth + kSideBarWidth],
+                                                      uint32_t* pulsed_columns) {
+	// if we don't have any remembered notes, then we don't pulse
+	if (!get_remembered_note(selection_index)) {
+		return;
+	}
+
+	// get remembered note and note row id
+	auto& remembered_note = remembered_notes[selection_index];
+	int32_t remembered_note_row_id = remembered_note_row_ids[selection_index];
+
+	// is the remembered note on screen?
+	auto* clip = getCurrentInstrumentClip();
+
+	// calculate y display corresponding with current screen
+	int32_t y_display =
+	    (clip->output->type == OutputType::KIT ? remembered_note_row_id
+	                                           : clip->getYVisualFromYNote(remembered_note_row_id, currentSong))
+	    - clip->yScroll;
+
+	// if remembered note is off screen, then we don't pulse
+	if (y_display < 0 || y_display >= kDisplayHeight || !(which_rows & (1u << y_display))) {
+		return;
+	}
+
+	// remembered note is on screen, find it
+	NoteRow* row = clip->getNoteRowFromId(remembered_note_row_id);
+	int32_t index = row->notes.search(remembered_note.intendedPos, GREATER_OR_EQUAL);
+	Note* note = row->notes.getElement(index);
+	int32_t previous_column = -1;
+
+	// while we have a valid note on screen, pulse it
+	while (note) {
+		// if it's a blurred square, check if the note we found is within it
+		if (remembered_note.isBlurredSquare) {
+			// is the note within our remembered note square?
+			if (note->pos - remembered_note.intendedPos >= remembered_note.intendedLength) {
+				// note is not in our remembered square, don't pulse, exit
+				break;
+			}
+		}
+		// if we're looking for a single note, does it align with our remembered note square?
+		else if (note->pos != remembered_note.intendedPos) {
+			// note doesn't align, don't pulse, exit
+			break;
+		}
+
+		// note falls within our remembered square
+		// get the square on screen from the note position
+		int32_t column = getSquareFromPos(note->pos);
+
+		// is the square on screen and is it a square we haven't already blended for pulsing?
+		if (column >= 0 && column < kDisplayWidth && column != previous_column
+		    && !(pulsed_columns[y_display] & (1u << column))) {
+			pulsed_columns[y_display] |= 1u << column;
+			RGB base_colour = note_pulse_base_colours[y_display][column];
+			int32_t brightness_adjustment = rowColour[y_display] == colours::red ? 4 : 3;
+			image[y_display][column] = RGB::blend(base_colour.adjust(255, brightness_adjustment),
+			                                      rowColour[y_display].forBlur(), 65536 - note_pulse_progress);
+			previous_column = column;
+		}
+		// get next note
+		note = row->notes.getElement(++index);
+	}
 }
 
 // used to blink selected note when using the note menu
-void InstrumentClipView::resetSelectedNoteBlinking() {
-	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
+void InstrumentClipView::stopSelectedNotePulsing() {
+	uiTimerManager.unsetTimer(TimerName::SELECTED_NOTE_PULSE);
 }
 
 void InstrumentClipView::blinkSelectedNoteRow(int32_t whichMainRows) {

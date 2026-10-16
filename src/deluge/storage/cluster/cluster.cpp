@@ -39,7 +39,8 @@ void Cluster::setSize(size_t size) {
 
 Cluster* Cluster::create(Cluster::Type type, bool shouldAddReasons, void* dontStealFromThing) {
 	audioFileManager.setCardRead(); // even if it hasn't been we're now commited to the cluster size
-	void* memory = GeneralMemoryAllocator::get().allocStealable(sizeof(Cluster) + Cluster::size, dontStealFromThing);
+	void* memory =
+	    GeneralMemoryAllocator::get().allocStealable<Cluster>(sizeof(Cluster) + Cluster::size, dontStealFromThing);
 	if (memory == nullptr) {
 		return nullptr;
 	}
@@ -193,15 +194,17 @@ void Cluster::steal(char const* errorCode) {
 	switch (type) {
 
 	case Type::SAMPLE:
-		if (ALPHA_OR_BETA_VERSION && sample == nullptr) {
+		if (sample == nullptr) {
 			FREEZE_WITH_ERROR("E181");
+			break; // No owner to notify
 		}
 		sample->clusters.getElement(clusterIndex)->cluster = nullptr;
 		break;
 
 	case Type::SAMPLE_CACHE:
-		if (ALPHA_OR_BETA_VERSION && sampleCache == nullptr) {
+		if (sampleCache == nullptr) {
 			FREEZE_WITH_ERROR("E183");
+			break; // No owner to notify
 		}
 		sampleCache->clusterStolen(clusterIndex);
 
@@ -215,8 +218,9 @@ void Cluster::steal(char const* errorCode) {
 
 	case Type::PERC_CACHE_FORWARDS:
 	case Type::PERC_CACHE_REVERSED:
-		if (ALPHA_OR_BETA_VERSION && sample == nullptr) {
+		if (sample == nullptr) {
 			FREEZE_WITH_ERROR("E184");
+			break; // No owner to notify
 		}
 		sample->percCacheClusterStolen(this);
 		break;

@@ -99,8 +99,8 @@ bool sdRoutineLock = false;
 bool allowSomeUserActionsEvenWhenInCardRoutine = false;
 
 extern "C" void midiAndGateTimerGoneOff(void) {
-	cvEngine.updateGateOutputs();
-	midiEngine.flushMIDI();
+	// only sends what's due now, and re-arms the timer for anything still to come
+	AudioEngine::midiGateOutputTimerFired();
 }
 
 uint32_t timeNextGraphicsTick = 0;
@@ -552,7 +552,7 @@ void registerTasks() {
 	                                                128 / 44100., "audio  routine", RESOURCE_NONE);
 	addRepeatingTask(MidiEngine::check_incoming_usb, p++, 0.0005, 0.0005, 0.001, "check usb midi", RESOURCE_USB);
 
-	// this will block itself unless an encoder is actually moved so can have a fast rate
+	// Polling both phases catches slow B-only transitions; A-edge IRQs still capture fast movement promptly.
 	encoders::EncoderTaskID = addRepeatingTask(&(encoders::interpretEncodersTask), p++, 0.001, 0.001, 0.002,
 	                                           "interpret encoders fast", RESOURCE_NONE);
 	// formerly part of audio routine, updates midi and clock
@@ -690,10 +690,11 @@ extern "C" int32_t deluge_main(void) {
 	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
 	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
-	// SPI for CV
+	// SPI for CV / OLED
 	R_RSPI_Create(SPI_CHANNEL_CV,
-	              have_oled ? 10000000 // Higher than this would probably work... but let's stick to the OLED
-	                                   // datasheet's spec of 100ns (10MHz).
+	              have_oled ? 4000000 // We used to use 10MHz, which is what the OEL9M0087-W-E OLED datasheet specified
+	                                  // (well, 100ns). But as of the 2026 batch of OLEDs, despite them being the same
+	                                  // model, 8.5MHz and higher causes glitching. 4MHz appears safe.
 	                        : 30000000,
 	              0, 32);
 	R_RSPI_Start(SPI_CHANNEL_CV);

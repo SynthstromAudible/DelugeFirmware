@@ -9,6 +9,7 @@
 #include "gui/menu_item/note/iterance_preset.h"
 #include "gui/menu_item/note/iterance_step_toggle.h"
 #include "gui/menu_item/note/probability.h"
+#include "gui/menu_item/note/velocity.h"
 #include "gui/menu_item/note_row/fill.h"
 #include "gui/menu_item/note_row/iterance_divisor.h"
 #include "gui/menu_item/note_row/iterance_preset.h"
@@ -77,6 +78,7 @@ extern gui::menu_item::randomizer::midi_cv::NoteProbability randomizerNoteProbab
 
 // note editor menu's
 extern gui::menu_item::HorizontalMenu noteEditorRootMenu;
+extern gui::menu_item::note::Velocity noteVelocityMenu;
 extern gui::menu_item::note::Probability noteProbabilityMenu;
 extern gui::menu_item::note::IterancePreset noteIteranceMenu;
 extern gui::menu_item::note::IteranceDivisor noteCustomIteranceDivisor;

@@ -276,11 +276,16 @@ ramError:
 		goto ramError;
 	}
 
-#if ALPHA_OR_BETA_VERSION
+	// A Clip without param collections would crash as soon as its params are accessed, so treat it like the failure
+	// above in all builds.
 	if (!newClip->paramManager.summaries[0].paramCollection) {
-		FREEZE_WITH_ERROR("E421"); // Trying to diversify Leo's E410
+		if constexpr (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("E421"); // Trying to diversify Leo's E410
+		}
+		newClip->~AudioClip();
+		delugeDealloc(clipMemory);
+		goto ramError;
 	}
-#endif
 
 	return newClip;
 }
@@ -1003,7 +1008,7 @@ void AudioClip::getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_
 	}
 }
 
-// Returns false if can't because in card routine
+// Returns false if some of the waveform is still waiting on the card, so the row should be rendered again later
 bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
                                   int32_t xScroll, uint32_t xZoom, RGB* image, uint8_t occupancyMask[],
                                   bool addUndefinedArea, int32_t noteRowIndexStart, int32_t noteRowIndexEnd,
@@ -1020,6 +1025,8 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 		sample = ((Sample*)sampleHolder.audioFile);
 	}
 
+	bool success = true;
+
 	if (sample) {
 
 		int64_t xScrollSamples;
@@ -1029,14 +1036,8 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 
 		RGB rgb = getColour();
 
-		bool success =
-		    waveformRenderer.renderAsSingleRow(sample, xScrollSamples, xZoomSamples, image, &renderData, recorder, rgb,
-		                                       sampleControls.isCurrentlyReversed(), xStart, xEnd);
-
-		if (!success) {
-			// If card being accessed and waveform would have to be re-examined, come back later
-			return false;
-		}
+		success = waveformRenderer.renderAsSingleRow(sample, xScrollSamples, xZoomSamples, image, &renderData, recorder,
+		                                             rgb, sampleControls.isCurrentlyReversed(), xStart, xEnd);
 	}
 
 	else {
@@ -1048,7 +1049,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, kDisplayWidth, editorScreen, false);
 	}
 
-	return true;
+	return success;
 }
 
 void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
@@ -1090,7 +1091,6 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 
-	Clip::writeDataToFile(writer, song);
 	Clip::writeDataToFile(writer, song);
 
 	writer.writeOpeningTagEnd();
@@ -1231,7 +1231,12 @@ Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 void AudioClip::loadSample(bool mayActuallyReadFile) {
 	Error error = sampleHolder.loadFile(sampleControls.isCurrentlyReversed(), false, mayActuallyReadFile);
 
-	name.set(sampleHolder.filePath.get());
+	// if we have an audio clip name, don't replace it with the sample file path
+	if (name.isEmpty()) {
+		// we don't have an audio clip name, so set the sample file path
+		name.set(sampleHolder.filePath.get());
+	}
+
 	if (error != Error::NONE) {
 		display->displayError(error);
 	}

@@ -20,13 +20,21 @@
 #include "definitions_cxx.hpp"
 #include <cstdint>
 
-#define COL_STATUS_INVESTIGATED 1
-#define COL_STATUS_INVESTIGATED_BUT_BEYOND_WAVEFORM 2
+/// @brief What WaveformRenderData holds for one column.
+enum class ColumnStatus : uint8_t {
+	NOT_INVESTIGATED, ///< Nothing yet. Needs working out.
+	INVESTIGATED,     ///< minPerCol / maxPerCol hold this column's peaks.
+	BEYOND_WAVEFORM,  ///< Nothing to draw: the column is past either end of the waveform.
+	/// minPerCol / maxPerCol hold an estimate carried over from before a zoom or scroll. Fine to draw while waiting
+	/// on the card, but still needs working out.
+	PLACEHOLDER,
+};
 
 struct WaveformRenderData {
 	int64_t xScroll;
 	int64_t xZoom;
+	int64_t num_samples; ///< Waveform length at the last render. If it changes, the cached columns are stale.
 	int32_t maxPerCol[kDisplayWidth];
 	int32_t minPerCol[kDisplayWidth];
-	uint8_t colStatus[kDisplayWidth];
+	ColumnStatus colStatus[kDisplayWidth];
 };

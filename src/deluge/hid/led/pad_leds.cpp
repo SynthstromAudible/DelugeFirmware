@@ -528,8 +528,17 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 
 	Sample* sample = (Sample*)clip->sampleHolder.audioFile;
 
-	if (ALPHA_OR_BETA_VERSION && !sample) {
-		FREEZE_WITH_ERROR("E311");
+	// No Sample (e.g. an empty AudioClip) - animate a flat waveform rather than dereference null
+	if (!sample) {
+		if (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("E311");
+		}
+		// Peak and span are divisors in the waveform renderer, so must not be 0
+		sampleMaxPeakFromZero = 1;
+		sampleValueCentrePoint = 0;
+		sampleValueSpan = 1;
+		waveformRenderData = clip->renderData;
+		return;
 	}
 
 	sampleMaxPeakFromZero = sample->getMaxPeakFromZero();

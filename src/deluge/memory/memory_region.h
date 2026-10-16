@@ -66,9 +66,7 @@ public:
 		throw deluge::exception::NO_CACHE_FOR_REGION;
 	}
 
-#if ALPHA_OR_BETA_VERSION
 	char const* name; // For debugging messages only.
-#endif
 	OrderedResizeableArrayWithMultiWordKey emptySpaces;
 
 private:

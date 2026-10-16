@@ -41,6 +41,13 @@ import RecentMainChanges from "../../../components/RecentMainChanges.astro"
 - Added the ability to trim from the start of an audio clip without reversing it (enable in Community Features menu).
 - Added `Edit Name` menu to Actions > menu which allows you to rename the Audio Clips Track Name and Clip Name. :key[Shift] + `NAME` :key[pad] will now open the `Actions > Edit Name` menu.
 
+#### <ins>Arranger View</ins>
+
+- You can now record tempo automation in arranger view.
+  - With playback and record enabled, :key[turn tempo] or :key[press turn tempo] to record tempo in the arrangement.
+  - You can also record / edit tempo at specific positions in the arrangement by holding a specific arrangement pad + :key[turn tempo] or :key[press turn tempo]
+    - Note: when you hold a specific position in the arrangement and turn the tempo encoder for the first time, it will display a popup with the current tempo at that position.
+
 #### <ins>Session View</ins>
 
 ##### Creating New Clips
@@ -85,6 +92,10 @@ import RecentMainChanges from "../../../components/RecentMainChanges.astro"
   - `STUTTER RATE`: cycles between `STUTTER RATE` and `STUTTER DIRECTION`
 
 ### Sound Engine
+
+#### <ins>General</ins>
+
+- Master transpose menu has been updated to support decimal editing of the transpose "cents" for finer tuning. UI is the same as with Oscillator and Modulate transpose menus.
 
 #### <ins>Mod FX</ins>
 
@@ -223,11 +234,6 @@ Added main grid pad shortcuts for the following parameters:
   - Note: `THRESHOLD RECORDING` only applies to audio recorded to kit rows and to the first “tempoless” audio clip
     - For the first "tempoless" audio clip, the tempo will be set from the time the recorded audio first exceeds the threshold to the time the recording is ended.
 
-##### Loop Recording
-
-- Easier loop recording in `Session View` (similar to Kit Row sampling working). Added ability to trigger a loop recording for a specific clip in `Session View` by holding a `CLIP` and pressing `RECORD`. By default this will trigger the Global MIDI Command `LAYERING LOOP`, however this can be changed in the `SETTINGS > RECORDING > LOOP COMMAND (LOOP)` submenu.
-  - Note: to end a recording, you will send to send the Global MIDI Command again, which can be done by holding a clip and pressing record again.
-
 #### <ins>Audio Export</ins>
 
 - Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
@@ -270,6 +276,11 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 - The selected clip in `Session Grid View` (which is the last clip you interacted with), now shows a `pulsing / breathing` animation whereby the clip pad will fade in and out between the clip's normal colour and a blurred colour.
 - This will help you keep track of what clip midi follow is currently controlling and what clip is selected for loop recording.
+
+#### <ins>Performance View</ins>
+
+- Performance view layouts are now persisted to and loaded from your song file.
+- Each song can now have a different performance view layout with different held pad settings.
 
 #### <ins>Instrument Clip View</ins>
 
@@ -423,6 +434,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
   - `SHIFT` to toggle the deluge's :key[shift] button. It can also be used to toggle sticky shift.
     - Shift down: Note On or CC Value > 0
     - Shift up: Note Off or CC Value = 0
+- Fixed command for toggling Clip launch status so that it respects the Deluge's `SHIFT` status. If `SHIFT` is active, either by physically pressing it on the Deluge or by sending the `SHIFT` global midi command, then sending the Clip launch status command will toggle the Clip status immediately instead of arming it. Matching the behaviour on the Deluge and with MIDI Follow.
 
 #### <ins>Follow</ins>
 

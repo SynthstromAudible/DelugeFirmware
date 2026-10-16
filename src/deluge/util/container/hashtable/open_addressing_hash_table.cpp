@@ -86,11 +86,13 @@ void* OpenAddressingHashTable::secondaryMemoryGetBucketAddress(int32_t b) {
 
 void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresent) {
 
-#if ALPHA_OR_BETA_VERSION
+	// The empty-bucket sentinel can't be stored - it'd look like a free bucket and get handed out again
 	if (doesKeyIndicateEmptyBucket(key)) {
+#if ALPHA_OR_BETA_VERSION
 		FREEZE_WITH_ERROR("E330");
-	}
 #endif
+		return nullptr;
+	}
 
 	// If no memory, get some
 	if (!memory) {
@@ -195,11 +197,13 @@ justReturnAddress:
 
 void* OpenAddressingHashTable::lookup(uint32_t key) {
 
-#if ALPHA_OR_BETA_VERSION
+	// The empty-bucket sentinel can never have been stored
 	if (doesKeyIndicateEmptyBucket(key)) {
+#if ALPHA_OR_BETA_VERSION
 		FREEZE_WITH_ERROR("E331");
-	}
 #endif
+		return nullptr;
+	}
 
 	if (!memory) {
 		return nullptr;
@@ -236,11 +240,13 @@ void* OpenAddressingHashTable::lookup(uint32_t key) {
 // Returns whether it found the element
 bool OpenAddressingHashTable::remove(uint32_t key) {
 
-#if ALPHA_OR_BETA_VERSION
+	// The empty-bucket sentinel can never have been stored
 	if (doesKeyIndicateEmptyBucket(key)) {
+#if ALPHA_OR_BETA_VERSION
 		FREEZE_WITH_ERROR("E332");
-	}
 #endif
+		return false;
+	}
 
 	if (!memory) {
 		return false;

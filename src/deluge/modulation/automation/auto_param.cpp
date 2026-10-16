@@ -775,22 +775,28 @@ getOut:
 
 /// identifies if a parameter is currently interpolating
 /// the value increment is used to increment / decrement the parameters current value
-bool AutoParam::hasInterpolationIncrement() {
-	return valueIncrementPerHalfTick != 0 || value_increment_per_half_tick_float != 0.0f;
+bool AutoParam::hasInterpolationIncrement(bool use_float_interpolation) {
+	if (use_float_interpolation) [[unlikely]] {
+		return value_increment_per_half_tick_float != 0.0f;
+	}
+	return valueIncrementPerHalfTick != 0;
 }
 
 /// resets interpolation increment to zero (can happen if we reached parameter value limits)
 /// or if we've reached another node in which case we'll be re-calculating the increment
 void AutoParam::resetInterpolationIncrement() {
 	valueIncrementPerHalfTick = 0;
-	value_increment_per_half_tick_float = 0.0f;
 	interpolation_increment_remainder_float = 0.0f;
 }
 
 /// reverse the interpolation increment in case we're now interpolating backwards to the previous node
-void AutoParam::reverseInterpolationIncrement() {
-	valueIncrementPerHalfTick = -valueIncrementPerHalfTick;
-	value_increment_per_half_tick_float = -value_increment_per_half_tick_float;
+void AutoParam::reverseInterpolationIncrement(bool use_float_interpolation) {
+	if (use_float_interpolation) [[unlikely]] {
+		value_increment_per_half_tick_float = -value_increment_per_half_tick_float;
+	}
+	else {
+		valueIncrementPerHalfTick = -valueIncrementPerHalfTick;
+	}
 	interpolation_increment_remainder_float = -interpolation_increment_remainder_float;
 }
 
@@ -939,16 +945,16 @@ static int32_t saturatingIncrement(int32_t incrementPerHalfTick, int64_t halfTic
 	return (int32_t)std::clamp<int64_t>(increment, INT32_MIN, INT32_MAX);
 }
 
-bool AutoParam::tickSamples(int32_t numSamples) {
+bool AutoParam::tickSamples(int32_t numSamples, bool use_float_interpolation) {
 	// if we don't have any interpolation to apply, return false
-	if (!hasInterpolationIncrement()) {
+	if (!hasInterpolationIncrement(use_float_interpolation)) {
 		return false;
 	}
 
 	int32_t value_increment = 0;
 
 	// non-float interpolation
-	if (valueIncrementPerHalfTick != 0) [[likely]] {
+	if (!use_float_interpolation) [[likely]] {
 		value_increment = saturatingIncrement(
 		    multiply_32x32_rshift32_rounded(valueIncrementPerHalfTick, playbackHandler.getTimePerInternalTickInverse()),
 		    (int64_t)6 * numSamples);
@@ -965,9 +971,9 @@ bool AutoParam::tickSamples(int32_t numSamples) {
 	return applyValueIncrement(value_increment);
 }
 
-bool AutoParam::tickTicks(int32_t numTicks) {
+bool AutoParam::tickTicks(int32_t numTicks, bool use_float_interpolation) {
 	// if we don't have any interpolation to apply, return false
-	if (!hasInterpolationIncrement()) {
+	if (!hasInterpolationIncrement(use_float_interpolation)) {
 		return false;
 	}
 
@@ -975,7 +981,7 @@ bool AutoParam::tickTicks(int32_t numTicks) {
 	int64_t half_ticks = (int64_t)numTicks * 2;
 
 	// non-float interpolation
-	if (valueIncrementPerHalfTick != 0) [[likely]] {
+	if (!use_float_interpolation) [[likely]] {
 		value_increment = saturatingIncrement(valueIncrementPerHalfTick, half_ticks);
 	}
 	// float interpolation
@@ -1183,13 +1189,20 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
                                     int32_t startValue, bool interpolateLeftNode, bool interpolateRightNode,
                                     int32_t effectiveLength, bool reversed, int32_t posAtWhichClipWillCut) {
 
-#if ALPHA_OR_BETA_VERSION
 	// Chasing "E433" / "GGGG" error (probably now largely solved - except got E435, see below).
+	// Proceeding with any of these would produce out-of-order nodes / a negative delete count below, so bail with the
+	// usual error return (callers handle -1) in all builds. Only freeze in alpha/beta.
 	if (length <= 0) {
-		FREEZE_WITH_ERROR("E427");
+		if constexpr (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("E427");
+		}
+		return -1;
 	}
 	if (startPos < 0) {
-		FREEZE_WITH_ERROR("E437");
+		if constexpr (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("E437");
+		}
+		return -1;
 	}
 
 	// #if ENABLE_SEQUENTIALITY_TESTS
@@ -1197,10 +1210,12 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 	// #endif
 
 	if (nodes.getNumElements() && nodes.getFirst()->pos < 0) {
-		FREEZE_WITH_ERROR("E436");
+		if constexpr (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("E436");
+		}
+		return -1;
 	}
 	// Should probably also check that stuff doesn't exist too far right - but that's a bit more complicated.
-#endif
 
 	int32_t edgePositions[2];
 	bool anyWrap;
@@ -1213,11 +1228,12 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 		int32_t maxLength = posAtWhichClipWillCut - edgePositions[REGION_EDGE_LEFT];
 		if (length >= maxLength) {
 			length = maxLength;
-#if ALPHA_OR_BETA_VERSION
 			if (length <= 0) {
-				FREEZE_WITH_ERROR("E428"); // Chasing Leo's GGGG error (probably now solved).
+				if constexpr (ALPHA_OR_BETA_VERSION) {
+					FREEZE_WITH_ERROR("E428"); // Chasing Leo's GGGG error (probably now solved).
+				}
+				return -1;
 			}
-#endif
 			interpolateRightNode = false;
 			edgePositions[REGION_EDGE_RIGHT] = posAtWhichClipWillCut;
 			anyWrap = (edgePositions[REGION_EDGE_RIGHT] >= effectiveLength);
@@ -1248,11 +1264,12 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 
 	// Or, playing reversed...
 	else {
-		if constexpr (ALPHA_OR_BETA_VERSION) {
-			if (startPos < posAtWhichClipWillCut) {
-				// Sean: potentially solved by PR https://github.com/SynthstromAudible/DelugeFirmware/pull/4445
+		if (startPos < posAtWhichClipWillCut) {
+			// Sean: potentially solved by PR https://github.com/SynthstromAudible/DelugeFirmware/pull/4445
+			if constexpr (ALPHA_OR_BETA_VERSION) {
 				FREEZE_WITH_ERROR("E445");
 			}
+			return -1;
 		}
 		edgePositions[REGION_EDGE_RIGHT] = startPos;
 		edgePositions[REGION_EDGE_LEFT] = edgePositions[REGION_EDGE_RIGHT] - length;
@@ -1261,10 +1278,11 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 		if (edgePositions[REGION_EDGE_LEFT] < posAtWhichClipWillCut) {
 			edgePositions[REGION_EDGE_LEFT] = posAtWhichClipWillCut;
 			length = edgePositions[REGION_EDGE_RIGHT] - edgePositions[REGION_EDGE_LEFT];
-			if constexpr (ALPHA_OR_BETA_VERSION) {
-				if (edgePositions[REGION_EDGE_LEFT] >= edgePositions[REGION_EDGE_RIGHT]) {
+			if (edgePositions[REGION_EDGE_LEFT] >= edgePositions[REGION_EDGE_RIGHT]) {
+				if constexpr (ALPHA_OR_BETA_VERSION) {
 					FREEZE_WITH_ERROR("HHHH");
 				}
+				return -1;
 			}
 
 			interpolateLeftNode = false; // Maybe not really perfect
@@ -1569,8 +1587,8 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 		int32_t numNodes = nodes.getNumElements();
 
 		if (reverseDirectionWithLength && numNodes) {
-			// Sneakily and temporarily clone this - still pointing to the old AutoParam's nodes' memory.
-			ParamNodeVector oldNodes = nodes;
+			// Still belongs to the AutoParam we were cloned from, so we mustn't modify or free it.
+			ParamNodeVector& oldNodes = *nodes.get();
 			nodes.init();
 
 			error = nodes.insertAtIndex(0, numNodes);
@@ -1611,10 +1629,6 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 					oldNodeToLeftValue = oldNode->value;
 				}
 			}
-
-			// Because this is about to get destructed, we need to stop it pointing to the old
-			// AutoParam's nodes' memory, cos we don't want that getting deallocated.
-			oldNodes.init();
 		}
 
 		else {
@@ -1954,7 +1968,7 @@ addNewNodeAt0IfNecessary:
 				// Or, if we need to snapshot, work with that
 			}
 			else {
-				ParamNodeVector newNodes;
+				LazyParamNodeVector newNodes;
 				Error error = newNodes.insertAtIndex(0, newNumNodes);
 				if (error != Error::NONE) {
 					goto basicTrim;
@@ -2209,11 +2223,13 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 	int32_t wrappedEndPos = endPos % effectiveLength;
 	bool overwrittingEntireRegion = startPos == 0 && endPos >= effectiveLength;
 
-#if defined(ALPHA_OR_BETA_VERSION)
+	// Nothing to paste - and nodes[0] is dereferenced below.
 	if (copiedParamAutomation->nodes == nullptr || copiedParamAutomation->numNodes == 0) {
-		FREEZE_WITH_ERROR("E453");
+		if constexpr (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("E453");
+		}
+		return;
 	}
-#endif
 
 	// Save the current value at the start and end of the region w'ere pasting in to, before we start messing with it.
 	int32_t startValue = getValueAtPos(startPos, modelStack);
@@ -2802,14 +2818,26 @@ void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int
 			int32_t newNodePos = pos + offset;
 			int32_t nextNodeI;
 
+			// A single node is legal. With nothing else to collide with or order against, just move it (wrapping if
+			// needed) - the wrap logic below assumes at least one other node and would index out of bounds.
+			if (nodes.getNumElements() == 1) {
+				if (newNodePos < 0) {
+					newNodePos += lengthBeforeLoop;
+				}
+				else if (newNodePos >= lengthBeforeLoop) {
+					newNodePos -= lengthBeforeLoop;
+				}
+				node->pos = newNodePos;
+			}
+
 			// If that's caused wrapping left...
-			if (newNodePos < 0) {
+			else if (newNodePos < 0) {
 				newNodePos += lengthBeforeLoop;
 				nextNodeI = nodes.getNumElements() - 2; // Subtract 2 instead of the normal 1 cos we're about to delete
 				                                        // one element before doing anything with this index number
 
 doWrap:
-				// There should never be just one node
+				// The single-node case is handled above, so there must be at least 2 nodes here
 				if (ALPHA_OR_BETA_VERSION && nodes.getNumElements() == 1) {
 					FREEZE_WITH_ERROR("E335");
 				}
@@ -2836,14 +2864,16 @@ doWrap:
 					}
 				}
 
-				// Otherwise, create a new node
+				// Otherwise, create a new node - at its sorted position. Wrapping left lands it at the end, but
+				// wrapping right lands it at the start, so it can't just go on the end.
 				else {
-					nextNodeI = nodes.getNumElements();
+					nextNodeI = nodes.search(newNodePos, GREATER_OR_EQUAL);
 					{
 						Error error = nodes.insertAtIndex(
 						    nextNodeI); // This shouldn't be able to fail, cos we just deleted a node
-						if (ALPHA_OR_BETA_VERSION && error != Error::NONE) {
+						if (error != Error::NONE) {
 							FREEZE_WITH_ERROR("E333");
+							goto finishedNudging; // Don't write to the element that wasn't created
 						}
 					}
 
@@ -2884,6 +2914,7 @@ setNodeValue:
 		}
 	}
 
+finishedNudging:
 	if (!nodes.getNumElements()) {
 		resetInterpolationIncrement(); // In case we were interpolating.
 	}
@@ -2891,8 +2922,8 @@ setNodeValue:
 	nodes.testSequentiality("E334");
 }
 
-void AutoParam::notifyPingpongOccurred() {
-	reverseInterpolationIncrement();
+void AutoParam::notifyPingpongOccurred(bool use_float_interpolation) {
+	reverseInterpolationIncrement(use_float_interpolation);
 }
 
 void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,

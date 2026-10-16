@@ -64,6 +64,14 @@ file(GLOB_RECURSE deluge_SOURCES
         # For name comparison / default naming tests
         ../../src/deluge/util/name_compare.cpp
         ../../src/deluge/gui/ui/browser/default_name.cpp
+        # For iterance migration tests (links against the real iterancePresets[]
+        # from lookuptables.cpp, already included above)
+        ../../src/deluge/model/iterance/iterance_migration.cpp
+        # For waveform peak math tests
+        ../../src/deluge/gui/waveform/waveform_peak_math.cpp
+        # For MIDI message / queue tests
+        ../../src/deluge/model/midi/message.cpp
+        ../../src/deluge/io/midi/midi_queue.cpp
 )
 
 add_executable(UnitTests
@@ -74,14 +82,20 @@ add_executable(UnitTests
         value_scaling_tests.cpp
         clip_iterator_tests.cpp
         function_tests.cpp
+        volume_param_gain_tests.cpp
+        db_shift_tests.cpp
         sync_tests.cpp
         chord_tests.cpp
         time_tests.cpp
         clock_output_scheduler_tests.cpp
         name_compare_tests.cpp
         default_name_tests.cpp
+        encoder_acceleration_tests.cpp
         rgb_tests.cpp
         notes_state_tests.cpp
+        iterance_migration_tests.cpp
+        waveform_peak_math_tests.cpp
+        midi_queue_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

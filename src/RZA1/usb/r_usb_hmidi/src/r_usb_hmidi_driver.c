@@ -827,6 +827,14 @@ void hmidi_detach(usb_utr_t* ptr, uint16_t devadr, uint16_t data2)
             break;
     }
 
+    // Not found - there's no table entry to clear, and indexing with d would write out of bounds. Still report it, so
+    // hostedDeviceDetached() can flag it (E367) in beta builds - it ignores out-of-range device numbers.
+    if (d == MAX_NUM_USB_MIDI_DEVICES)
+    {
+        hostedDeviceDetached(USB_CFG_USE_USBIP, d);
+        return;
+    }
+
     // Clear endpoint table
     g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][1] &= (uint16_t)(USB_BFREON | USB_CFG_SHTNAKON); /* PIPECFG */
     g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][3] = (uint16_t)(USB_NULL);                       /* PIPEMAXP */

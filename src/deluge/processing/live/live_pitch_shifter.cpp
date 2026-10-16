@@ -73,8 +73,11 @@ void LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t numSam
                               int32_t interpolationBufferSize) {
 
 	LiveInputBuffer* liveInputBuffer = AudioEngine::getOrCreateLiveInputBuffer(inputType, false);
-	if (ALPHA_OR_BETA_VERSION && !liveInputBuffer) {
-		FREEZE_WITH_ERROR("E165");
+	if (!liveInputBuffer) {
+		if (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("E165");
+		}
+		return; // Render nothing rather than dereference null
 	}
 
 	liveInputBuffer->giveInput(numSamplesThisFunctionCall, AudioEngine::audioSampleTimer, inputType);

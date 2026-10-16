@@ -138,6 +138,9 @@ public:
 	// - A "launch" event
 	// - Start of playback, including if count-in ends
 	int64_t lastSwungTickActioned; // Will be set to a phony-ish "0" while playback being set up
+	// True between setupPlayback() and the first actionSwungTick(): tick 0 is due but hasn't been actioned yet, so a
+	// swungTicksTilNextEvent of 0 legitimately means "action tick 0" rather than "re-action the current tick".
+	bool firstSwungTickPending;
 
 	// Trigger-clock-out ticks
 	bool triggerClockOutTickScheduled;
@@ -202,6 +205,8 @@ public:
 	bool subModeAllowsRecording();
 
 	float calculateBPM(float timePerInternalTick);
+	float getTempoBPMAtArrangementPos(int32_t pos);
+	void getTempoParamsAtArrangementPos(int32_t pos, int32_t* magnitude, int8_t* whichValue);
 	void switchToArrangement();
 	void switchToSession();
 	void finishTempolessRecording(bool startPlaybackAgain, int32_t buttonLatencyForTempolessRecord,
@@ -260,6 +265,7 @@ private:
 
 	void resetTimePerInternalTickMovingAverage();
 	void getCurrentTempoParams(int32_t* magnitude, int8_t* whichValue);
+	void getTempoParamsFromTimePer(uint64_t timePer, int32_t* magnitude, int8_t* whichValue);
 	void displayTempoFromParams(int32_t magnitude, int8_t whichValue);
 	void displayTempoBPM(float tempoBPM);
 	void getAnalogOutTicksToInternalTicksRatio(uint32_t* internalTicksPer, uint32_t* analogOutTicksPer);

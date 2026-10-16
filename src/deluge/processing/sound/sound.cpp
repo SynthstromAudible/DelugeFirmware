@@ -142,7 +142,7 @@ void Sound::initParams(ParamManager* paramManager) {
 	patchedParams->params[params::LOCAL_OSC_A_VOLUME].setCurrentValueBasicForSetup(2147483647);
 	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(2147483647);
 	patchedParams->params[params::GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(params::GLOBAL_VOLUME_POST_FX, 40));
+	    getParamFromUserValue(params::GLOBAL_VOLUME_POST_FX, kDefaultSoundVolumeUserValue));
 	patchedParams->params[params::GLOBAL_VOLUME_POST_REVERB_SEND].setCurrentValueBasicForSetup(0);
 	patchedParams->params[params::LOCAL_FOLD].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[params::LOCAL_HPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
@@ -212,8 +212,9 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 	modKnobs[6][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_PITCH_ADJUST);
 
 	paramManager->getPatchCableSet()->numPatchCables = 1;
-	paramManager->getPatchCableSet()->patchCables[0].setup(PatchSource::VELOCITY, params::LOCAL_VOLUME,
-	                                                       getParamFromUserValue(params::PATCH_CABLE, 50));
+	paramManager->getPatchCableSet()->patchCables[0].setup(
+	    PatchSource::VELOCITY, params::LOCAL_VOLUME,
+	    getParamFromUserValue(params::PATCH_CABLE, kSampleDrumVelocityCableUserValue));
 
 	setupDefaultExpressionPatching(paramManager);
 
@@ -578,6 +579,10 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 	else if (!strcmp(tagName, "transpose")) {
 		transpose = reader.readTagOrAttributeValueInt();
 		reader.exitTag("transpose");
+	}
+	else if (!strcmp(tagName, "cents")) {
+		cents = reader.readTagOrAttributeValueInt();
+		reader.exitTag("cents");
 	}
 
 	else if (!strcmp(tagName, "noiseVolume")) {
@@ -2350,11 +2355,18 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
                                   ArpReturnInstruction instruction) {
 	if (instruction.arpNoteOn) {
-		instruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PENDING;
-
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			// do we have a note to start? if no, exit early
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 				break;
+			}
+			// has the note already started? if yes, skip it
+			if (instruction.arpNoteOn->noteStatus[n] != ArpNoteStatus::PENDING) {
+				continue;
+			}
+			// note is pending, are we allowing to start it? if no, exit early
+			if (!AudioEngine::allowedToStartVoice()) {
+				break; // Leave the remaining notes pending for the next render.
 			}
 			invertReversed = instruction.invertReversed;
 
@@ -2961,6 +2973,7 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 
 void Sound::doneReadingFromFile() {
 	calculateEffectiveVolume();
+	recalculateFineTuner();
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sources[s].doneReadingFromFile(this);
@@ -2972,6 +2985,17 @@ void Sound::doneReadingFromFile() {
 	for (int32_t m = 0; m < kNumModulators; m++) {
 		recalculateModulatorTransposer(m, nullptr);
 	}
+}
+
+// Set cents for master transpose
+void Sound::set_cents(int8_t new_cents) {
+	cents = new_cents;
+	recalculateFineTuner();
+}
+
+// Setup master transpose
+void Sound::recalculateFineTuner() {
+	fineTuner.setup((int32_t)cents * 42949672);
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
@@ -4152,6 +4176,9 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	if (transpose != 0) {
 		writer.writeAttribute("transpose", transpose);
+	}
+	if (cents != 0) {
+		writer.writeAttribute("cents", cents);
 	}
 
 	ModControllableAudio::writeAttributesToFile(writer);

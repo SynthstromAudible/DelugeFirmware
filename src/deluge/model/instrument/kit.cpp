@@ -455,12 +455,15 @@ void Kit::drumRemoved(Drum* drum) {
 		selectedDrum = nullptr;
 	}
 
-#if ALPHA_OR_BETA_VERSION
+	// The Drum is usually about to be deallocated, so it must not stay in the render list, or
+	// renderGlobalEffectableForClip() would use it after it's freed. Remove it in all builds.
 	int32_t i = drumsWithRenderingActive.searchExact((int32_t)drum);
 	if (i != -1) {
-		FREEZE_WITH_ERROR("E321");
+		if constexpr (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("E321");
+		}
+		drumsWithRenderingActive.deleteAtIndex(i);
 	}
-#endif
 }
 
 Drum* Kit::getFirstUnassignedDrum(InstrumentClip* clip) {
@@ -538,8 +541,12 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 	for (int32_t d = drumsWithRenderingActive.getNumElements() - 1; d >= 0; d--) {
 		Drum* thisDrum = (Drum*)drumsWithRenderingActive.getKeyAtIndex(d);
 
-		if (ALPHA_OR_BETA_VERSION && thisDrum->type != DrumType::SOUND) {
-			FREEZE_WITH_ERROR("E253");
+		// Only SoundDrums may be in this list - don't render anything else as one
+		if (thisDrum->type != DrumType::SOUND) {
+			if constexpr (ALPHA_OR_BETA_VERSION) {
+				FREEZE_WITH_ERROR("E253");
+			}
+			continue;
 		}
 
 		SoundDrum* soundDrum = (SoundDrum*)thisDrum;
@@ -831,8 +838,8 @@ void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 					if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
-					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 					nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 				}
 			}
 		}

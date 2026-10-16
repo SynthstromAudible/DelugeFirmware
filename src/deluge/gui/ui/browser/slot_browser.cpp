@@ -92,6 +92,15 @@ nonNumeric:
 		if (display->haveOLED()) { // Maintain consistency with before - don't do this on numeric
 			qwertyVisible = true;
 		}
+		else if (showsTextCursorOn7Seg() && !arrivedAtFileByTyping) {
+			// Until the text view is up, 7SEG shows the name without a cursor, so turning would walk an invisible
+			// cursor through the name (including its hidden prefix) and it would only appear once it hit the far end.
+			// Bring the text view up instead, with the cursor at the end, so the turn has visible feedback.
+			arrivedAtFileByTyping = true;
+			enteredTextEditPos = enteredText.getLength();
+			displayText();
+			return ActionResult::DEALT_WITH;
+		}
 		return Browser::horizontalEncoderAction(offset);
 	}
 }

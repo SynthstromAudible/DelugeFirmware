@@ -169,8 +169,6 @@ void SoundEditor::renderMainShortcutsOnly(ModControllableAudio* forThing, RGB im
                                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool doKitAffectEntire)
 {
 
-	D_PRINTLN("rendering with kit affect entire? %b ", doKitAffectEntire);
-
 	// Draw the static shortcut colour map first, so that the shortcut blink (handled separately via
 	// PadLEDs::flashMainPad on the PIC) gets overlaid on top of it, instead of replacing the whole display.
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
@@ -192,11 +190,39 @@ void SoundEditor::renderMainShortcutsOnly(ModControllableAudio* forThing, RGB im
 	}
 }
 
+bool SoundEditor::should_render_shortcut_overlay()
+{
+	// don't render overlay if feature is turned off
+	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay)) {
+		return false;
+	}
+	
+	// don't render overlay if you're not holding shift
+	if (!Buttons::isShiftButtonPressed()) {
+		return false;
+	}
+	
+	// don't render overlay if you're not in sound editor (e.g. you're in settings menu or note/note row editors)
+	return in_sound_editor();
+}
+
+// check if we're really in a sound editing menu (e.g. grid shortcut relevant)
+// sound editor class is also used to render settings menu, note editor menu and note row editor menu
+bool SoundEditor::in_sound_editor() {
+	return getCurrentUI() == &soundEditor && !inSettingsMenu() && !inNoteEditor() && !inNoteRowEditor();;
+}
+
 bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea)
 {
-	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay)
-		|| !Buttons::isShiftButtonPressed())
+	
+	if (!image)
+	{
+		D_PRINTLN("no image");
+
+		return should_render_shortcut_overlay();
+	}
+	if (!should_render_shortcut_overlay())
 	{
 		if (haveRenderedPads)
 		{
@@ -215,15 +241,10 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 			haveRenderedPads = false;
 		}
 
-		D_PRINTLN("shift not pressed");
-		return false;
+		D_PRINTLN("shortcut overlay not rendered");
+		return false; // show root UI
 	}
 
-	if (!image) {
-		D_PRINTLN("no image");
-
-		return true;
-	}
 
 	D_PRINTLN("rendering pad colours");
 
@@ -234,9 +255,14 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 	if (item)
 	{
 		auto param = item->getParamIndex();
-
-		auto patchable = item->getParamKind() == params::Kind::PATCHED;
-
+		auto kind = item->getParamKind();
+		auto patchable = kind == params::Kind::PATCHED;
+		if (kind == params::Kind::PATCH_CABLE)
+		{
+			param = soundEditor.patchingParamSelected;
+			kind = params::Kind::PATCHED;
+			patchable = true;
+		}
 		if (patchable)
 		{
 			D_PRINTLN("it's patchable");
@@ -529,11 +555,13 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		}
 	}
 
-	// Encoder button
+	// Potentially render shortcut overlay / refresh root UI pads
 	if (b == SHIFT)
 	{
 		uiNeedsRendering(this, 0xFFFFFFFF,0xFFFFFFFF);
 	}
+
+	// Encoder button
 	if (b == SELECT_ENC) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
 		    || currentUIMode == UI_MODE_NOTES_PRESSED || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
@@ -828,6 +856,10 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool inCardRoutine, MenuItem* previousItem,
                                                  MenuItem* currentItem, bool isHorizontalMenu) {
 	using namespace deluge::hid::button;
+	// currentItem is null once the sound editor has closed entirely (see exitCompletely()).
+	if (currentItem == nullptr) {
+		return;
+	}
 	if (previousItem != currentItem) {
 		bool previousMenuIsParam = (isHorizontalMenu == false || previousItem->isSubmenu() == false)
 		                           && (previousItem->getParamKind() != deluge::modulation::params::Kind::NONE);
@@ -911,7 +943,9 @@ ActionResult SoundEditor::exitCompletely() {
 
 	// end current menu item session before exiting
 	endScreen();
-
+	navigationDepth = 0;
+	shouldGoUpOneLevelOnBegin = false;
+	menuItemNavigationRecord[navigationDepth] = nullptr;
 	display->setNextTransitionDirection(-1);
 	close();
 	possibleChangeToCurrentRangeDisplay();
@@ -1451,7 +1485,6 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 			// Shortcut to patch a modulation source to the parameter we're already looking at
 			if (getCurrentUI() == &soundEditor && ((x == 14 && y >= 5) || x == 15)) {
-
 				const int32_t modSourceX = x - 14;
 				PatchSource source = modSourceShortcuts[modSourceX][y];
 
@@ -1524,6 +1557,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 							endScreen();
 
 							modulationItemFound = true;
+							item = nullptr; // don't open another shortcut on top of this
 							navigationDepth = newNavigationDepth + 1;
 							menuItemNavigationRecord[navigationDepth] = newMenuItem;
 							if (!wentBack) {
@@ -2353,8 +2387,10 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		}
 		currentMenuItem = menuItemNavigationRecord[navigationDepth - 1];
 	}
-
-	currentMenuItem->renderOLED();
+	if (currentMenuItem)
+	{
+		currentMenuItem->renderOLED();
+	}
 }
 
 /*

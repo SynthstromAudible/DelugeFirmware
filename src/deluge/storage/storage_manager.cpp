@@ -591,15 +591,8 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 			return error;
 		}
 	}
-	// these have to get cleared, otherwise we keep creating drums that aren't attached to note rows
-	if (*getInstrument) {
-		song->deleteBackedUpParamManagersForModControllable(*getInstrument);
-		(*getInstrument)->wontBeRenderedForAWhile();
-		void* toDealloc = static_cast<void*>(*getInstrument);
-		(*getInstrument)->~SoundDrum();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
-	}
-
+	// The caller owns whatever drum this replaces - it may still be referenced by NoteRows in several Clips, so it's up
+	// to the caller to move those over before deleting it
 	*getInstrument = newDrum;
 	return error;
 }

@@ -415,6 +415,14 @@ noEmptySpace:
 		}
 	}
 
+	// Check before writing the header/footer, which would otherwise land outside our region
+	if (allocatedAddress < start || allocatedAddress > end) {
+		// trying to allocate outside our region
+		D_PRINTLN("Memory region out of bounds at %x, start is %x and end is %x", allocatedAddress, start, end);
+		FREEZE_WITH_ERROR("M002");
+		return nullptr; // Our empty-space records are corrupt - report allocation failure rather than hand this out
+	}
+
 	uint32_t* __restrict__ header = (uint32_t*)(allocatedAddress - 4);
 	uint32_t* __restrict__ footer = (uint32_t*)(allocatedAddress + allocatedSize);
 
@@ -424,13 +432,6 @@ noEmptySpace:
 
 	numAllocations_++;
 
-#if ALPHA_OR_BETA_VERSION
-	if (allocatedAddress < start || allocatedAddress > end) {
-		// trying to allocate outside our region
-		D_PRINTLN("Memory region out of bounds at %x, start is %x and end is %x", allocatedAddress, start, end);
-		FREEZE_WITH_ERROR("M002");
-	}
-#endif
 	return (void*)allocatedAddress;
 }
 
@@ -833,16 +834,16 @@ void MemoryRegion::dealloc(void* address) {
 
 	uint32_t spaceSize = (*header & SPACE_SIZE_MASK);
 
-#if ALPHA_OR_BETA_VERSION
 	if ((uint32_t)address < start || (uint32_t)address > end) {
 		// deallocating outside our region
 		FREEZE_WITH_ERROR("M001");
+		return; // Not ours - marking it empty would corrupt our empty-space records
 	}
 	if ((*header & SPACE_TYPE_MASK) == SPACE_HEADER_EMPTY) {
 		// double free
 		FREEZE_WITH_ERROR("M000");
+		return; // Already empty - freeing again would corrupt our empty-space records
 	}
-#endif
 
 	markSpaceAsEmpty((uint32_t)address, spaceSize);
 

@@ -162,6 +162,20 @@ bool Output::clipHasInstance(Clip* clip) {
 	return false;
 }
 
+void Output::deleteAnyInstancesOfClip(Clip* clip) {
+	int32_t i = 0;
+
+	while (i < clipInstances.getNumElements()) {
+		ClipInstance* instance = clipInstances.getElement(i);
+		if (instance->clip == clip) {
+			clipInstances.deleteAtIndex(i);
+		}
+		else {
+			i++;
+		}
+	}
+}
+
 // check all instrument clip instances belonging to an output to see if they have any notes (for instrument clip) or
 // audio file (for audio clip) if so, then we need to check if there are other clip's assigned to that output which have
 // notes or audio files because we don't want to change the output type for all the clips assigned to that output if
@@ -476,12 +490,27 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 
 		int32_t i = clipInstances.search(actualEndPosInternalTicks, LESS);
 		ClipInstance* clipInstance = clipInstances.getElement(i);
-		if (ALPHA_OR_BETA_VERSION && !clipInstance) {
-			FREEZE_WITH_ERROR("E261");
-		}
-		if (ALPHA_OR_BETA_VERSION && clipInstance->clip != activeClip) {
-			// Michael B got, in 3.2.0-alpha10. Possibly a general memory corruption thing?
-			FREEZE_WITH_ERROR("E262");
+		if (!clipInstance || clipInstance->clip != activeClip) {
+			if (!clipInstance) {
+				FREEZE_WITH_ERROR("E261");
+			}
+			else {
+				// Michael B got, in 3.2.0-alpha10. Possibly a general memory corruption thing?
+				FREEZE_WITH_ERROR("E262");
+			}
+
+			// If resumed, don't touch (or dereference) the ClipInstance - that would corrupt the arrangement. Just stop
+			// the recording.
+			if (activeClip) {
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithTimelineCounter* modelStack =
+				    setupModelStackWithTimelineCounter(modelStackMemory, song, activeClip);
+				activeClip->finishLinearRecording(modelStack);
+				activeClip->expectNoFurtherTicks(song);
+				activeClip->activeIfNoSolo = false;
+			}
+			recordingInArrangement = false;
+			return;
 		}
 
 		int32_t lengthSoFarInternalTicks = actualEndPosInternalTicks - clipInstance->pos;

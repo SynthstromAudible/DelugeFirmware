@@ -28,6 +28,8 @@
 #include <cstdint>
 #include <memory>
 
+struct InterruptsDisabled;
+
 extern "C" {
 #include "fatfs/ff.h"
 }
@@ -51,6 +53,7 @@ class RMSFeedbackCompressor;
 class ModelStackWithSoundFlags;
 class SoundDrum;
 class AbsValueFollower;
+enum class Polarity : uint8_t;
 
 namespace deluge::dsp {
 class Reverb;
@@ -145,7 +148,20 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
 void runRoutine();
 
 void init();
-void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound);
+/// The volume context for a sample preview: the params the preview drum should adopt so that it sounds like the
+/// instrument or kit-row the sample will be loaded into (issue #1591). Values are already fully resolved - any kit
+/// output volume has been folded in by the caller.
+struct PreviewVolume {
+	int32_t volumePostFX;           ///< params::GLOBAL_VOLUME_POST_FX
+	int32_t localVolume;            ///< params::LOCAL_VOLUME
+	int32_t velocityCableDepth;     ///< depth of the VELOCITY -> LOCAL_VOLUME patch cable
+	Polarity velocityCablePolarity; ///< polarity of the VELOCITY -> LOCAL_VOLUME patch cable
+
+	/// The defaults the preview drum is built with, from Sound::initParams() and Sound::setupAsSample().
+	static PreviewVolume neutral();
+};
+
+void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound, PreviewVolume const& volume);
 void stopAnyPreviewing();
 
 void songSwapAboutToHappen();
@@ -191,6 +207,10 @@ extern bool micPluggedIn;
 extern bool lineInPluggedIn;
 extern bool renderInStereo;
 extern uint32_t audioSampleTimer;
+// Latches true once enough samples have elapsed since power-on for the codec ADC to settle and input monitoring to
+// fade in. Until then, input monitoring (Looper/Sampler) is suppressed and then faded in, so the codec's power-on
+// transient isn't passed through to the output. See getInputMonitoringGain().
+extern bool inputMonitoringWarmedUp;
 extern bool mustUpdateReverbParamsBeforeNextRender;
 extern bool bypassCulling;
 extern uint32_t i2sTXBufferPos;
@@ -218,7 +238,16 @@ extern StereoFloatSample approxRMSLevel;
 extern AbsValueFollower envelopeFollower;
 extern TaskID routine_task_id;
 void feedReverbBackdoorForGrain(int index, q31_t value);
+/// Gain to apply to monitored codec input, `offset` samples into the buffer currently being rendered. 0 until the
+/// codec has settled after power-on, then ramps up to full scale.
+q31_t getInputMonitoringGain(uint32_t offset);
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
 bool allowedToStartVoice();
+
+/// Remove these gate channels from any output waiting to be sent by the MIDI/gate timer, because they've been
+/// superseded by a newer state which is being output now
+void cancelScheduledGates(uint8_t gateMask, const InterruptsDisabled&);
+/// Called from the MIDI/gate timer ISR. Sends any MIDI/gate output which is due and re-arms the timer for the rest
+void midiGateOutputTimerFired();
 } // namespace AudioEngine

@@ -244,10 +244,14 @@ char const* XMLDeserializer::readNextTagOrAttributeName() {
 		// Can happen with invalid files, though I'm implementing error checks whenever a user alerts me to a scenario.
 		// Fraser got this, Nov 2021.
 		FREEZE_WITH_ERROR("E365");
-#else
-		__builtin_unreachable();
 #endif
-		break;
+		// PAST_ATTRIBUTE_NAME / PAST_EQUALS_SIGN: the caller read an attribute name but never consumed its value.
+		// IN_ATTRIBUTE_NAME: the file ended part-way through an attribute name.
+		// Either way, an attribute has no children: skip its value if there is one, and report no more contents.
+		if (xmlArea == PAST_ATTRIBUTE_NAME || xmlArea == PAST_EQUALS_SIGN) {
+			readAttributeValue();
+		}
+		return "";
 
 	case IN_ATTRIBUTE_VALUE: // Could have been left here during a char-at-a-time read
 		skipUntilChar(charAtEndOfValue);
@@ -606,7 +610,7 @@ char const* XMLDeserializer::readTagOrAttributeValue() {
 
 	default:
 		FREEZE_WITH_ERROR("BBBB");
-		__builtin_unreachable();
+		return ""; // Not in a value - if resumed, report an empty one
 	}
 }
 
@@ -628,7 +632,7 @@ int32_t XMLDeserializer::readTagOrAttributeValueInt() {
 
 	default:
 		FREEZE_WITH_ERROR("BBBB");
-		__builtin_unreachable();
+		return 0; // Not in a value - if resumed, report an empty one
 	}
 }
 
@@ -661,7 +665,7 @@ int XMLDeserializer::readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t max
 
 	default:
 		FREEZE_WITH_ERROR("BBBB");
-		__builtin_unreachable();
+		return 0; // Not in a value - if resumed, report an empty one
 	}
 }
 
@@ -734,7 +738,7 @@ Error XMLDeserializer::readTagOrAttributeValueString(String* string) {
 		if (ALPHA_OR_BETA_VERSION) {
 			FREEZE_WITH_ERROR("BBBB");
 		}
-		__builtin_unreachable();
+		return Error::FILE_CORRUPTED; // Not in a value - treat like the IN_TAG_PAST_NAME case above
 	}
 }
 
@@ -765,7 +769,7 @@ bool XMLDeserializer::prepareToReadTagOrAttributeValueOneCharAtATime() {
 		if (ALPHA_OR_BETA_VERSION) {
 			FREEZE_WITH_ERROR("CCCC");
 		}
-		__builtin_unreachable();
+		return false; // Not somewhere a value can be read from
 	}
 }
 
@@ -812,7 +816,9 @@ void XMLDeserializer::exitTag(char const* exitTagName, bool closeObject) {
 			if (ALPHA_OR_BETA_VERSION) {
 				FREEZE_WITH_ERROR("AAAA"); // Really shouldn't be possible anymore, I feel fairly certain...
 			}
-			__builtin_unreachable();
+			// Only IN_ATTRIBUTE_NAME gets here, which means the file ended mid-name. No way to make progress, so
+			// bail like the reachedBufferEnd case above
+			return;
 		}
 	}
 	// It is possible for caller and file tag depths to get out of sync due to faulty error handling

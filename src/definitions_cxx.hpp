@@ -677,6 +677,7 @@ enum class MIDITransposeControlMethod : uint8_t {
 constexpr auto kNumMIDITransposeControlMethods = util::to_underlying(MIDITransposeControlMethod::CHORD) + 1;
 
 constexpr int32_t kNumClustersLoadedAhead = 2;
+constexpr int32_t kMaxNumClustersLoadedAhead = 8;
 
 enum class InputMonitoringMode : uint8_t {
 	SMART,

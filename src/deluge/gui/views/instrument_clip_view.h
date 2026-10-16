@@ -26,6 +26,7 @@
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_node.h"
 #include "util/d_string.h"
+#include <span>
 
 class InstrumentClip;
 class NoteRow;
@@ -272,6 +273,7 @@ public:
 
 	// note editor
 	bool enterNoteEditor();
+	std::span<EditPadPress> get_note_edit_targets();
 	void exitNoteEditor();
 	void handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on);
 	void deselectNoteAndGoUpOneLevel();
@@ -280,14 +282,9 @@ public:
 	ActionResult handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 
 	SquareInfo gridSquareInfo[kDisplayHeight][kDisplayWidth]{};
-	int32_t lastSelectedNoteXDisplay;
-	int32_t lastSelectedNoteYDisplay;
-	// True while the currently-selected Note Editor note has had its audition explicitly silenced by
-	// pressing its pad a second time.
-	bool noteEditorAuditionMuted = false;
 
 	// adjust note parameters
-	void adjustVelocity(int32_t velocityChange);
+	void adjustVelocity(int32_t velocityChange, bool display_value = true);
 	void updateVelocityValue(int32_t& velocityValue, int32_t newVelocity);
 	void displayVelocity(int32_t velocityValue, int32_t velocityChange);
 	void popupVelocity(char const* displayString);
@@ -305,9 +302,8 @@ public:
 	// other note functions
 	void editNoteRepeat(int32_t offset);
 
-	// blink selected note
-	void blinkSelectedNote(int32_t whichMainRows = 0);
-	void resetSelectedNoteBlinking();
+	// pulse selected note
+	void pulseSelectedNote();
 
 	// note row editor
 	bool enterNoteRowEditor();
@@ -381,6 +377,24 @@ private:
 	void displayProbability(uint8_t probability, bool prevBase);
 	void displayIterance(Iterance iterance);
 	void displayFill(uint8_t mode);
+
+	// note editor functions
+	// note editor selected / remembered note targets
+	Note* get_remembered_note(int32_t selection_index = -1);
+	ModelStackWithNoteRow* get_note_edit_row(ModelStackWithTimelineCounter* model_stack, const EditPadPress& target);
+	EditPadPress remembered_notes[kEditPadPressBufferSize]{};
+	int32_t remembered_note_row_ids[kEditPadPressBufferSize]{};
+	int32_t remembered_note_count = 0;
+
+	// note editor selected note pulsing
+	void render_selected_note_pulse(uint32_t which_rows, RGB image[][kDisplayWidth + kSideBarWidth]);
+	void render_selected_square_pulse(int32_t selection_index, uint32_t which_rows,
+	                                  RGB image[][kDisplayWidth + kSideBarWidth], uint32_t* pulsed_columns);
+	void stopSelectedNotePulsing();
+	int32_t note_pulse_progress = 1;
+	bool note_pulse_increasing = true;
+	RGB note_pulse_base_colours[kDisplayHeight][kDisplayWidth]{};
+	bool updating_note_pulse_directly = false;
 
 	// note row functions
 	void copyNotes(Serializer* writer, bool selectedDrumOnly = false);

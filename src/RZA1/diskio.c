@@ -195,11 +195,10 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber to
 
     if (currentlyAccessingCard)
     {
-        if (ALPHA_OR_BETA_VERSION)
-        {
-            // Operatricks got! But I think I fixed.
-            FREEZE_WITH_ERROR("E259");
-        }
+        // Operatricks got! But I think I fixed.
+        FREEZE_WITH_ERROR("E259");
+        // A nested transfer would clobber the one in progress - fail this read instead
+        return RES_ERROR;
     }
 
     // uint16_t startTime = MTU2.TCNT_0;
@@ -245,10 +244,9 @@ DRESULT disk_write(BYTE pdrv, /* Physical drive nmuber to identify the drive */
 
     if (currentlyAccessingCard)
     {
-        if (ALPHA_OR_BETA_VERSION)
-        {
-            FREEZE_WITH_ERROR("E258");
-        }
+        FREEZE_WITH_ERROR("E258");
+        // A nested transfer would clobber the one in progress - fail this write instead
+        return RES_ERROR;
     }
 
     currentlyAccessingCard = 1;

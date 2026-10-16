@@ -59,9 +59,19 @@
 extern "C" {
 #endif
 
-extern void fault_handler_print_freeze_pointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR,
-                                                uint32_t addrUSRSP);
-extern void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR, uint32_t addrUSRSP);
+typedef enum : uint32_t {
+	// ARM fault types
+	UNDEFINED = 0,
+	PREFETCH = 1,
+	ABORT = 2,
+	RESERVED = 3,
+	// others
+	SOFT_FAULT = 0xE, // freeze_with_error
+	SVC = 0xF,        // theoretically this is only possible by deliberately making a syscall
+} cpu_fault_type;
+
+extern void fault_handler_print_freeze_pointers(uint32_t addrUSRLR, uint32_t addrUSRSP);
+extern void handle_cpu_fault(uint32_t exception_lr, cpu_fault_type exception_type, uint32_t sys_lr, uint32_t sys_sp);
 
 #ifdef __cplusplus
 }

@@ -41,20 +41,6 @@ void Instrument::beenEdited(bool shouldMoveToEmptySlot) {
 	editedByUser = true;
 }
 
-void Instrument::deleteAnyInstancesOfClip(InstrumentClip* clip) {
-	int32_t i = 0;
-
-	while (i < clipInstances.getNumElements()) {
-		ClipInstance* instance = clipInstances.getElement(i);
-		if (instance->clip == clip) {
-			clipInstances.deleteAtIndex(i);
-		}
-		else {
-			i++;
-		}
-	}
-}
-
 bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 	// midi channels are always saved, either to the midi preset or the song
 	if (type == OutputType::MIDI_OUT) {
@@ -86,7 +72,7 @@ bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOn
 		if (!name.isEmpty()) {
 			writer.writeAttribute("presetName", name.get());
 		}
-		else if (type == OutputType::CV) {
+		if (type == OutputType::CV) {
 			char const* slotXMLTag = getSlotXMLTag();
 
 			writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->getChannel());

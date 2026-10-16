@@ -29,6 +29,7 @@
 #include "model/drum/drum_name.h"
 #include "model/drum/gate_drum.h"
 #include "model/instrument/kit.h"
+#include "model/iterance/iterance_migration.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -1311,11 +1312,9 @@ Error NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWid
 	if (numToDelete > 0) {
 		newNotes.deleteAtIndex(nextIndexToCopyTo, numToDelete);
 	}
-#if ALPHA_OR_BETA_VERSION
 	else if (numToDelete < 0) { // If we overshot somehow
 		FREEZE_WITH_ERROR("E329");
 	}
-#endif
 
 	// Record change, stealing the old note data
 	if (action) {
@@ -2993,9 +2992,12 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		Iterance iterance = note->iterance;
 		int32_t pos = note->pos;
 
-		// If it's iteration dependent...
+		// If it's iteration dependent
 		if (iterance != kDefaultIteranceValue) {
 			int32_t divisor = iterance.divisor;
+			bool first = iterance == kFirstIteranceValue;
+			bool last = iterance == kLastIteranceValue;
+			divisor = std::max<int32_t>(divisor, 1);
 
 			int32_t newNumFullLoops = numRepeatsRounded ? newLoopLength / (uint32_t)(oldLoopLength * divisor) : 1;
 
@@ -3038,13 +3040,25 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 				}
 
 				int32_t iterationWithinDivisor = -1;
-				for (int32_t iteration = 0; iteration < 8; iteration++) {
-					if (iterance.iteranceStep[iteration]) {
-						int32_t iterationWithinDivisorWithinRepeat =
-						    numRepeatsRounded ? ((uint32_t)iteration % (uint32_t)numRepeatsRounded) : iteration;
-						if (whichRepeatWithinLoop == iterationWithinDivisorWithinRepeat) {
-							iterationWithinDivisor = iteration;
-							break;
+				// if we're first or last then check that first
+				if ((first and whichFullLoop == 0) or (last and whichFullLoop == newNumFullLoops - 1)) {
+					// condition is matched so keep this one
+					iterationWithinDivisor = 0;
+				}
+				else if (first or last) {
+					// in this case the first/last condition is not matched so delete it
+					iterationWithinDivisor = -1;
+				}
+				else {
+					// otherwise check through the divisor for a match
+					for (int32_t iteration = 0; iteration < 8; iteration++) {
+						if (iterance.iteranceStep[iteration]) {
+							int32_t iterationWithinDivisorWithinRepeat =
+							    numRepeatsRounded ? ((uint32_t)iteration % (uint32_t)numRepeatsRounded) : iteration;
+							if (whichRepeatWithinLoop == iterationWithinDivisorWithinRepeat) {
+								iterationWithinDivisor = iteration;
+								break;
+							}
 						}
 					}
 				}
@@ -3064,7 +3078,11 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 				else {
 
 					Iterance newIterance;
-					if (newNumFullLoops == 0) {
+					// in this case just keep the iterance as is - first stays first, last still last no matter what
+					if (first or last) {
+						newIterance = iterance;
+					}
+					else if (newNumFullLoops == 0) {
 						// I think this bit is for, like, if we had a note doing 1of6, and we're doing two
 						// repeats total on this Clip, well then to keep it sounding the same, we'd now need the
 						// note to be a 1of3.
@@ -3084,7 +3102,7 @@ switchOff:
 
 					thisRepeatedNote->setIterance(newIterance);
 				}
-
+next:
 				whichRepeatWithinLoop++;
 				if (whichRepeatWithinLoop >= divisor) {
 					whichRepeatWithinLoop = 0;
@@ -3395,7 +3413,7 @@ doReadNoteData:
 				}
 				else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
 					fill = hexToIntFixedLength(&hexChars[24], 2);
-					iterance = Iterance::fromPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
+					iterance = iteranceFromLegacyPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {
@@ -3418,7 +3436,7 @@ doReadNoteData:
 					else if (probability > kNumProbabilityValues
 					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
 						fill = FillMode::OFF;
-						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
+						iterance = iteranceFromLegacyProbabilityByte(probability);
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
@@ -3446,7 +3464,7 @@ doReadNoteData:
 					else if (probability > kNumProbabilityValues
 					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
 						fill = FillMode::OFF;
-						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
+						iterance = iteranceFromLegacyProbabilityByte(probability);
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
@@ -3506,14 +3524,12 @@ getOut: {}
 			noteHexLength = 22;
 			goto doReadNoteData;
 		}
-#if ALPHA_OR_BETA_VERSION
 		// Notes stored as hex data in nightly firmware 1.3 previous to the addition of custom iterances
 		else if (song_firmware_version < FirmwareVersion::community({1, 3, 0})
 		         && !strcmp(tagName, "noteDataWithIteranceAndFill")) {
 			noteHexLength = 26;
 			goto doReadNoteData;
 		}
-#endif
 		// Notes stored as hex data including custom iterance and fill (community firmware 1.3 onwards)
 		else if (!strcmp(tagName, "noteDataWithSplitProb")) {
 			noteHexLength = 28;
@@ -3601,63 +3617,6 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			writer.write(buffer);
 		}
 		writer.write("\"");
-
-#if ALPHA_OR_BETA_VERSION
-		// TODO: once we go out of beta, this piece of code can be deleted
-		{
-			writer.insertCommaIfNeeded();
-			writer.write("\n");
-			writer.printIndents();
-			writer.write("noteDataWithLift=\"0x");
-			for (int32_t n = 0; n < notes.getNumElements(); n++) {
-				Note* thisNote = notes.getElement(n);
-
-				char buffer[9];
-
-				intToHex(thisNote->pos, buffer);
-				writer.write(buffer);
-
-				intToHex(thisNote->getLength(), buffer);
-				writer.write(buffer);
-
-				intToHex(thisNote->getVelocity(), buffer, 2);
-				writer.write(buffer);
-
-				intToHex(thisNote->getLift(), buffer, 2);
-				writer.write(buffer);
-
-				// Do here an attempt to keep the most significant information, in order of priority
-				// 1st - Iterance preset
-				// 2nd - Fill/NotFill
-				// 3rd - Probability
-				// 4th - Custom iterance (since this does not exist in 1.2 it will be always discarded)
-				int32_t oldProbability = kNumProbabilityValues; // Defaults to 100% probability
-				int32_t iterancePresetIndex = thisNote->getIterance().toPresetIndex();
-				int32_t fill = thisNote->getFill();
-				int32_t probability = thisNote->getProbability();
-				if (iterancePresetIndex > 0 && iterancePresetIndex != kCustomIterancePreset) {
-					// We found the note has an iterance preset compatible with 1.2 and backwards, use it
-					oldProbability = kNumProbabilityValues + iterancePresetIndex;
-				}
-				else if (fill != FillMode::OFF) {
-					// We found the note has a fill mode, use it
-					if (fill == FillMode::FILL) {
-						oldProbability = 0; // 0 means FILL
-					}
-					else {
-						oldProbability = 128; // 128 means NOT_FILL
-					}
-				}
-				else if (probability != kNumProbabilityValues) {
-					// we found the note has a probability different than 100%, use it
-					oldProbability = probability;
-				}
-				intToHex(oldProbability, buffer, 2);
-				writer.write(buffer);
-			}
-			writer.write("\"");
-		}
-#endif
 	}
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
@@ -3728,6 +3687,10 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		    (SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(), &paramManager,
 		    false); // Don't steal expression params - we'll keep them here with this NoteRow.
 	}
+	else if (!backupOldParamManager) {
+		// Not backing up, so nothing else owns the main collections - free them rather than leaking them
+		paramManager.destructAndForgetMainParamCollections();
+	}
 	paramManager.forgetParamCollections();
 
 	drum = (SoundDrum*)newDrum; // Better set this temporarily for this call. See comment above for why we can't
@@ -3795,9 +3758,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 						Sound::initParams(&paramManager);
 
 						// This is at least not ideal, so we'd better tell the user
-						if (ALPHA_OR_BETA_VERSION) {
-							display->displayPopup("E073");
-						}
+						display->displayPopup("E073");
 					}
 				}
 			}

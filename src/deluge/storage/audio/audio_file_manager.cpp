@@ -20,6 +20,7 @@
 #include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
+#include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
@@ -204,6 +205,9 @@ clusterSizeChangedButItsOk:
 // memory listed with their would-be real permanent filenames. Also, we won't be needing to play them back again. You
 // must not call this during the card or audio routines.
 void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
+
+	// The waveform renderer may hold reasons on Samples we're about to delete regardless of their reasons
+	waveformRenderer.releaseAllLoads();
 
 	// Also though, in case any of these Samples were still being recorded before the Song-delete, we need to make sure
 	// SampleRecorder::cardRoutine() gets called first to "detach" the Sample from the recorder. So, do this:
@@ -543,7 +547,7 @@ notLoadableAsWaveTable:
 				}
 			}
 
-			void* waveTableMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(WaveTable));
+			void* waveTableMemory = GeneralMemoryAllocator::get().allocStealable<WaveTable>();
 			if (!waveTableMemory) {
 				*error = Error::INSUFFICIENT_RAM;
 				return NULL;
@@ -779,7 +783,7 @@ cantLoadFile:
 
 	int32_t memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
 
-	void* audioFileMemory = GeneralMemoryAllocator::get().allocStealable(memorySizeNeeded);
+	void* audioFileMemory = GeneralMemoryAllocator::get().allocStealable<AudioFile>(memorySizeNeeded);
 	if (!audioFileMemory) {
 ramError:
 		*error = Error::INSUFFICIENT_RAM;
@@ -934,10 +938,12 @@ bool AudioFileManager::loadCluster(Cluster& cluster, int32_t minNumReasonsAfter)
 		FREEZE_WITH_ERROR("E204");
 	}
 	// it'd only be in the loading queue if it had a "reason".
+#endif
 	if (!sample) {
 		FREEZE_WITH_ERROR("E206");
+		clusterBeingLoaded = nullptr;
+		return false; // sample is dereferenced below
 	}
-#endif
 
 	// So that it can't accidentally hit 0 reasons while we're loading it,
 	// cos then it might get deallocated.
@@ -981,11 +987,13 @@ getOutEarly:
 	uint16_t startTime = MTU2.TCNT_0;
 #endif
 
-#if ALPHA_OR_BETA_VERSION
+	// The Cluster has been repurposed, so don't read sample data into its memory
 	if (cluster.type != Cluster::Type::SAMPLE) {
 		FREEZE_WITH_ERROR("i023"); // Happened to me while thrash testing with reduced RAM
+		goto getOutEarly;
 	}
 
+#if ALPHA_OR_BETA_VERSION
 	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i039"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
@@ -1003,14 +1011,18 @@ getOutEarly:
 	}
 #endif
 
-#if ALPHA_OR_BETA_VERSION
+	// The Cluster got repurposed during the read. Don't go on to convert its data, copy into its neighbours, or
+	// mark it as loaded
 	if (cluster.type != Cluster::Type::SAMPLE) {
 		FREEZE_WITH_ERROR("E207");
+		goto getOutEarly;
 	}
 	if (cluster.sample == nullptr) {
 		FREEZE_WITH_ERROR("E208");
+		goto getOutEarly;
 	}
 
+#if ALPHA_OR_BETA_VERSION
 	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i038"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
@@ -1245,6 +1257,9 @@ void AudioFileManager::slowRoutine() {
 	// see
 	// https://github.com/SynthstromAudible/DelugeFirmware/blob/866a71d0394e259a5b3db9d4fde605511bd1c67d/src/deluge/storage/audio/audio_file_manager.cpp#L1238
 	// for a copy if ever needed
+
+	// Even if no waveform is being rendered any more, don't sit on Clusters it enqueued once they've loaded
+	waveformRenderer.releaseFinishedLoads();
 }
 
 #define REPORT_AWAY_TIME 0
@@ -1399,8 +1414,8 @@ void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* err
 		}
 		FREEZE_WITH_ERROR(errorCode);
 #else
-		display->displayPopup(errorCode);  // For non testers, just display the error code without freezing
-		cluster->numReasonsToBeLoaded = 0; // Save it from crashing or anything
+		display->displayPopup(errorCode); // For non testers, just display the error code without freezing
+		cluster.numReasonsToBeLoaded = 0; // Save it from crashing or anything
 #endif
 	}
 }

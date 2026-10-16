@@ -72,10 +72,23 @@ void setupRunningClock(int timer, int preScale);
 void setupAndEnableInterrupt(void (*handler)(uint32_t), uint16_t interruptID, uint8_t priority);
 #ifdef __cplusplus
 
-struct CriticalSectionGuard {
+/// Proof that interrupts are disabled. Functions which must only be called with interrupts disabled should take one of
+/// these by reference, so callers have to hold a CriticalSectionGuard (or be in an ISR) to call them
+struct InterruptsDisabled {
+	InterruptsDisabled(const InterruptsDisabled&) = delete;
+	InterruptsDisabled& operator=(const InterruptsDisabled&) = delete;
+
+protected:
+	InterruptsDisabled() = default;
+};
+
+struct CriticalSectionGuard : InterruptsDisabled {
 	CriticalSectionGuard() { ENTER_CRITICAL_SECTION(); }
 	~CriticalSectionGuard() { EXIT_CRITICAL_SECTION(); }
 };
+
+/// Does nothing - for use from within an ISR, where interrupts are already disabled
+struct ISRCriticalSectionGuard : InterruptsDisabled {};
 }
 #endif
 
