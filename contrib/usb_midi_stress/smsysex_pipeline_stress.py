@@ -241,6 +241,10 @@ class Pipeliner:
                     size = rr.get("size", 0)
                     if rr.get("err", -1) != 0 or size <= 0:
                         retries += 1
+                        if retries > max_retries:
+                            raise RuntimeError(
+                                f"exceeded {max_retries} retries, aborting pass"
+                            )
                         to_send.append(addr)
                     else:
                         chunks[addr] = payload[:size]

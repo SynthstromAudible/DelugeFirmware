@@ -790,9 +790,12 @@ void smSysex::handleNextSysEx() {
 	// encoded plus JSON header) is guaranteed to fit in the cable's send buffer, so pipelined
 	// clients self-throttle to the buffer's capacity instead of forcing reply drops and retries.
 	// The defer cap lets a wedged link fall through to the send-side guard (drop + client retry).
+	// USB only: the DIN UART buffer is smaller than this threshold, so it could never be satisfied and
+	// every DIN request (and the USB requests queued behind it) would sit out the whole defer cap.
 	constexpr size_t kWorstCaseReplyBytes = sysexBufferMax + sysexBufferMax / 7 + 64;
 	static uint32_t deferCount = 0;
-	if (de.cable.sendBufferSpace() < kWorstCaseReplyBytes && deferCount < 4000) {
+	bool isDIN = &de.cable == &MIDIDeviceManager::dinMIDIPorts;
+	if (!isDIN && de.cable.sendBufferSpace() < kWorstCaseReplyBytes && deferCount < 4000) {
 		deferCount++;
 		return;
 	}
