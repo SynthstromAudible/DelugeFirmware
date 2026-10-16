@@ -258,6 +258,16 @@ describe song_settings_edit("SetSetting", $ {
 		expect(f.clip->lastProcessedPos).to_equal(f.clip->loopLength() - 10);
 		expect(f.clip->sequenceDirectionMode == SequenceDirection::REVERSE).to_be_true();
 	});
+	it("writes a clip value into the clip's layer and onto the clip", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		const auto clip = deluge::bridge::clipAddressOf(*f.clip, *f.song);
+		expect(clip.has_value()).to_be_true();
+		const SettingAddress values{SettingGroupId::CLIP_VALUES, *clip};
+		expect(recorded(*f.song, values, "midiPGM")).to_equal(std::string{"128"}); // none, until the clip holds one
+		deluge::edits::clipValueSettingFor(*f.clip, "midiPGM", Value::makeNumber(5));
+		expect(recorded(*f.song, values, "midiPGM")).to_equal(std::string{"5"});
+		expect(projected(*f.song, values, "midiPGM")).to_equal(std::string{"5"});
+	});
 });
 // clang-format on
 

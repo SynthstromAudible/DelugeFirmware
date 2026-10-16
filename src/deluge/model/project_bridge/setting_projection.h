@@ -58,6 +58,8 @@ Error applyNoteRowSetting(::NoteRow& row, ::InstrumentClip& clip, ::Song& song, 
                           const serialization::Value& value, const serialization::Value* previous = nullptr);
 Error applyAudioClipSetting(::AudioClip& clip, ::Song& song, std::string_view path, const serialization::Value& value);
 Error applyClipSetting(::Clip& clip, ::Song& song, std::string_view path, const serialization::Value& value);
+Error applyClipValueSetting(::InstrumentClip& clip, ::Song& song, std::string_view path,
+                            const serialization::Value& value);
 /// @}
 
 /// @brief Run @p change, which moves the part of @p clip's sample it plays (a marker, the direction), with the clip's
@@ -75,6 +77,7 @@ std::optional<project::LaneAddress> laneAddressOf(::Drum& drum, ::Song& song);
 std::optional<project::NoteRowAddress> noteRowAddressOf(::NoteRow& row, ::InstrumentClip& clip, ::Song& song);
 std::optional<project::ClipAddress> audioClipAddressOf(::AudioClip& clip, ::Song& song);
 std::optional<project::ClipAddress> clipAddressOf(::Clip& clip, ::Song& song);
+std::optional<project::ClipAddress> clipAddressOf(::InstrumentClip& clip, ::Song& song);
 /// @}
 
 /// @brief Which of a track's two groups holds @p path: its identity (the name) or its instrument device.

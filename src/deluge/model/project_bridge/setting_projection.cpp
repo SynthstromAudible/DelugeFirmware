@@ -326,6 +326,26 @@ Error applyClipSetting(::Clip& clip, ::Song& song, std::string_view path, const 
 	return Error::NONE;
 }
 
+Error applyClipValueSetting(::InstrumentClip& clip, ::Song& /*song*/, std::string_view path, const Value& value) {
+	const std::optional<int32_t> v = integer_of(value);
+	if (!v) {
+		return Error::UNSPECIFIED;
+	}
+	if (path == "midiBank") {
+		clip.midiBank = static_cast<uint8_t>(*v);
+	}
+	else if (path == "midiSub") {
+		clip.midiSub = static_cast<uint8_t>(*v);
+	}
+	else if (path == "midiPGM") {
+		clip.midiPGM = static_cast<uint8_t>(*v);
+	}
+	else {
+		return Error::UNSPECIFIED;
+	}
+	return Error::NONE;
+}
+
 Error applyAudioClipSetting(::AudioClip& clip, ::Song& song, std::string_view path, const Value& value) {
 	const std::optional<int32_t> found = integer_of(value);
 	if (!found) {
@@ -419,8 +439,11 @@ Error projectSetting(::Song& song, const project::SettingAddress& address, std::
 		::Clip* clip = findAnyClip(song, std::get<project::ClipAddress>(address.owner).clip_id);
 		return clip != nullptr ? applyClipSetting(*clip, song, path, *value) : Error::UNSPECIFIED;
 	}
-	case SettingGroupId::CLIP_VALUES:
-		return Error::UNSPECIFIED;
+	case SettingGroupId::CLIP_VALUES: {
+		auto* clip = static_cast<::InstrumentClip*>(
+		    findClip(song, std::get<project::ClipAddress>(address.owner).clip_id, ClipType::INSTRUMENT));
+		return clip != nullptr ? applyClipValueSetting(*clip, song, path, *value) : Error::UNSPECIFIED;
+	}
 	}
 	return Error::UNSPECIFIED;
 }
@@ -506,6 +529,23 @@ std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddr
 	if (address.group == SettingGroupId::TRACK || address.group == SettingGroupId::INSTRUMENT_DEVICE) {
 		::Output* output = findOutput(song, std::get<project::TrackAddress>(address.owner).output_id);
 		return output != nullptr ? engineTrackValue(*output, path) : std::nullopt;
+	}
+	if (address.group == SettingGroupId::CLIP_VALUES) {
+		auto* clip = static_cast<::InstrumentClip*>(
+		    findClip(song, std::get<project::ClipAddress>(address.owner).clip_id, ClipType::INSTRUMENT));
+		if (clip == nullptr) {
+			return std::nullopt;
+		}
+		if (path == "midiBank") {
+			return Value::makeNumber(clip->midiBank);
+		}
+		if (path == "midiSub") {
+			return Value::makeNumber(clip->midiSub);
+		}
+		if (path == "midiPGM") {
+			return Value::makeNumber(clip->midiPGM);
+		}
+		return std::nullopt;
 	}
 	if (address.group == SettingGroupId::CLIP) {
 		::Clip* clip = findAnyClip(song, std::get<project::ClipAddress>(address.owner).clip_id);
@@ -601,6 +641,10 @@ std::optional<project::ClipAddress> clipAddressOf(::Clip& clip, ::Song& song) {
 		return std::nullopt;
 	}
 	return project::ClipAddress{.clip_id = clip.id()};
+}
+
+std::optional<project::ClipAddress> clipAddressOf(::InstrumentClip& clip, ::Song& song) {
+	return clipAddressOf(static_cast<::Clip&>(clip), song);
 }
 
 std::optional<project::ClipAddress> audioClipAddressOf(::AudioClip& clip, ::Song& song) {

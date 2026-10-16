@@ -338,4 +338,26 @@ inline void clipSettingFor(::Clip& clip, std::string_view path, deluge::serializ
 	}
 }
 
+/// @brief A gesture's change of the value @p clip holds at @p path over its track's (its MIDI program, its bend
+///        ranges): an Edit when the clip is the current song's, its setter alone otherwise.
+/// @param clip  The instrument clip.
+/// @param path  The setting's path in the clip-value group.
+/// @param value The new value, in its file form.
+inline void clipValueSettingFor(::InstrumentClip& clip, std::string_view path, deluge::serialization::Value value) {
+	if (currentSong == nullptr) {
+		D_PRINTLN("setting refused, no song: %.*s", static_cast<int>(path.size()), path.data());
+		return;
+	}
+	if (const std::optional<deluge::project::ClipAddress> address = deluge::bridge::clipAddressOf(clip, *currentSong)) {
+		applySettingEdit({deluge::project::SettingGroupId::CLIP_VALUES, *address}, path, std::move(value));
+		return;
+	}
+	if (settingRefused(deluge::project::SettingGroupId::CLIP_VALUES, path, value)) {
+		return;
+	}
+	if (deluge::bridge::applyClipValueSetting(clip, *currentSong, path, value) != Error::NONE) {
+		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
+	}
+}
+
 } // namespace deluge::edits
