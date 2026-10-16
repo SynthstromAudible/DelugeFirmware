@@ -5,10 +5,12 @@
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song_codec.h"
 #include "dsp/reverb/reverb.hpp"
+#include "extern.h"
 #include "gui/views/instrument_clip_view.h"
 #include "io/midi/midi_engine.h"
 #include "libdeluge/system.h"
 #include "model/clip/audio_clip.h"
+#include "model/drum/midi_drum.h"
 #include "model/edits/arp_setting_for.h"
 #include "model/edits/bend_range_for.h"
 #include "model/edits/set_setting.h"
@@ -56,6 +58,27 @@ SettingAddress track_of(::Song& song, ::Output& output, std::string_view path) {
 std::string projected(::Song& song, const SettingAddress& address, std::string_view path) {
 	const auto value = deluge::bridge::engineSettingValue(song, address, path);
 	return value ? value->str() : std::string{"<none>"};
+}
+
+/// @brief Make @p f's clip the one its instrument plays.
+void activate(spec::SongFixture& f) {
+	char memory[MODEL_STACK_MAX_SIZE];
+	f.instrument->setActiveClip(setupModelStackWithTimelineCounter(memory, f.song, f.clip));
+}
+
+/// @brief Hold a note in @p arp, as a key held into a playing arp does.
+void holdNote(ArpeggiatorBase& arp, ArpeggiatorSettings& settings) {
+	ArpReturnInstruction instruction;
+	arp.noteOn(&settings, 60, 100, &instruction, MIDI_CHANNEL_NONE, zeroMPEValues);
+}
+
+/// @brief Whether MIDI is queued to go out, emptying the queue.
+bool midiQueued() {
+	uint32_t due = 0;
+	CriticalSectionGuard guard;
+	const bool queued = midiEngine.nextMIDIDue(due, guard);
+	midiEngine.flushAllQueuedMIDI(guard);
+	return queued;
 }
 
 } // namespace
@@ -451,6 +474,51 @@ describe song_settings_edit("SetSetting", $ {
 		const SettingAddress synthArp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*synth.clip, *synth.song)};
 		expect(deluge::project::holds_setting(synth.song->project, synthArp, "arpeggiator/rate")).to_be_false();
 		expect(synth.clip->arpSettings.rate).to_equal(before);
+	});
+
+	it("turning a playing MIDI clip's arp on or off sends its notes off", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		activate(f);
+		(void)midiQueued();
+		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/arpMode", Value::makeScalar("arp"));
+		expect(midiQueued()).to_be_true();
+		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/numOctaves", Value::makeNumber(4));
+		expect(midiQueued()).to_be_false(); // only turning the arp on or off silences it
+		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/preset", Value::makeScalar("off"));
+		expect(midiQueued()).to_be_true();
+	});
+
+	it("turning a playing synth's arp off lets go of the notes it held", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		activate(f);
+		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/arpMode", Value::makeScalar("arp"));
+		ArpeggiatorBase& arp = *static_cast<SoundInstrument*>(f.instrument)->getArp();
+		holdNote(arp, f.clip->arpSettings);
+		expect(arp.hasAnyInputNotesActive()).to_be_true();
+		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/arpMode", Value::makeScalar("off"));
+		expect(arp.hasAnyInputNotesActive()).to_be_false();
+	});
+
+	it("turning a playing kit row's arp off lets go of the notes it held", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		MIDIDrum* drum = spec::add_drum<MIDIDrum>(f);
+		activate(f);
+		deluge::edits::laneArpSettingFor(*drum, "arpeggiator/arpMode", Value::makeScalar("arp"));
+		holdNote(drum->arpeggiator, drum->arpSettings);
+		expect(static_cast<ArpeggiatorBase&>(drum->arpeggiator).hasAnyInputNotesActive()).to_be_true();
+		deluge::edits::laneArpSettingFor(*drum, "arpeggiator/arpMode", Value::makeScalar("off"));
+		expect(static_cast<ArpeggiatorBase&>(drum->arpeggiator).hasAnyInputNotesActive()).to_be_false();
+	});
+
+	it("turning a playing kit's whole-kit arp off silences every row", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		MIDIDrum* drum = spec::add_drum<MIDIDrum>(f);
+		activate(f);
+		deluge::edits::laneArpSettingFor(*drum, "arpeggiator/arpMode", Value::makeScalar("arp"));
+		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/arpMode", Value::makeScalar("arp"));
+		holdNote(drum->arpeggiator, drum->arpSettings);
+		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/arpMode", Value::makeScalar("off"));
+		expect(static_cast<ArpeggiatorBase&>(drum->arpeggiator).hasAnyInputNotesActive()).to_be_false();
 	});
 });
 // clang-format on

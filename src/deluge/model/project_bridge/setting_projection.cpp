@@ -27,6 +27,7 @@
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_instrument.h"
 #include "serialization/tree.h"
 
 #include <utility>
@@ -522,6 +523,42 @@ std::optional<int32_t> arpChoice(std::string_view path, const Value& value) {
 	return at == row->choices.end() ? std::nullopt : std::optional<int32_t>{at - row->choices.begin()};
 }
 
+/// @brief Silence what @p owner's arp plays, as its menu does when the arp turns on or off: a kit row's voices, a whole
+///        kit's every row, a MIDI or CV clip's notes, a synth's notes and its arp. Only an owner that is playing: a
+///        clip active on its output, a kit row whose kit plays a clip.
+void silenceArp(const ArpOwner& owner, ::Song& song) {
+	if (owner.drum != nullptr) {
+		if (owner.kit != nullptr && owner.kit->getActiveClip() != nullptr) {
+			owner.drum->killAllVoices();
+		}
+		return;
+	}
+	::InstrumentClip* clip = owner.clip;
+	if (clip == nullptr || clip->output == nullptr || !clip->isActiveOnOutput()) {
+		return;
+	}
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, &song, clip);
+	switch (clip->output->type) {
+	case OutputType::KIT:
+		static_cast<::Kit*>(clip->output)->cutAllSound();
+		break;
+	case OutputType::MIDI_OUT:
+	case OutputType::CV:
+		clip->stopAllNotesForMIDIOrCV(stack);
+		break;
+	case OutputType::SYNTH: {
+		auto* sound = static_cast<::SoundInstrument*>(clip->output);
+		ModelStackWithThreeMainThings* three = stack->addOtherTwoThingsButNoNoteRow(sound, &clip->paramManager);
+		sound->allNotesOff(three, sound->getArp());
+		sound->reassessRenderSkippingStatus(three->addSoundFlags());
+		break;
+	}
+	default:
+		break;
+	}
+}
+
 } // namespace
 
 bool arpHostValuesAreSettings(const ArpOwner& owner) {
@@ -532,7 +569,7 @@ bool arpHostValuesAreSettings(const ArpOwner& owner) {
 	       && (owner.clip->output->type == OutputType::MIDI_OUT || owner.clip->output->type == OutputType::CV);
 }
 
-Error applyArpSetting(::ArpeggiatorSettings& arp, const ArpOwner& owner, ::Song& /*song*/, std::string_view path,
+Error applyArpSetting(::ArpeggiatorSettings& arp, const ArpOwner& owner, ::Song& song, std::string_view path,
                       const Value& value) {
 	if (uint32_t* host = hostField(arp, path)) {
 		const std::optional<int32_t> v = integer_of(value);
@@ -546,6 +583,9 @@ Error applyArpSetting(::ArpeggiatorSettings& arp, const ArpOwner& owner, ::Song&
 		const std::optional<int32_t> preset = arpChoice(path, value);
 		if (!preset) {
 			return Error::UNSPECIFIED;
+		}
+		if (arp.mode == ArpMode::OFF || *preset == util::to_underlying(ArpPreset::OFF)) {
+			silenceArp(owner, song);
 		}
 		arp.preset = static_cast<ArpPreset>(*preset);
 		arp.updateSettingsFromCurrentPreset();
@@ -563,6 +603,9 @@ Error applyArpSetting(::ArpeggiatorSettings& arp, const ArpOwner& owner, ::Song&
 			return Error::NONE;
 		}
 		if (path == "arpeggiator/arpMode") {
+			if (arp.mode == ArpMode::OFF || *choice == util::to_underlying(ArpMode::OFF)) {
+				silenceArp(owner, song);
+			}
 			arp.mode = static_cast<ArpMode>(*choice);
 		}
 		else if (path == "arpeggiator/octaveMode") {
