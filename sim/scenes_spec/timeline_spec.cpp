@@ -8,7 +8,7 @@
 ///
 /// Every example declares a `Sentinel` -- scroll, zoom, triplets, clip length -- and seeds it into
 /// the **`Song`** twice: once before the port runs (which reaches it through `TimelineState::adopt`)
-/// and once again before legacy runs (which reads `currentSong->xScroll[NAVIGATION_CLIP]` itself).
+/// and once again before legacy runs (which reads `currentSong->persistentView.xScroll[NAVIGATION_CLIP]` itself).
 /// Neither side is ever handed the other's numbers. The limits legacy asks its own virtuals for
 /// (`AudioClipView::getMaxZoom`/`getMaxLength`, `audio_clip_view.cpp:875-880`/`:882-888`) reach the port as
 /// `Clip::getMaxZoom()`/`Clip::getMaxLength()` (`model/clip/clip.cpp:142-149`, `:1066-1068`) --
@@ -179,11 +179,11 @@ struct Rig {
 	/// example, so no transition is ever handed a jumped clock.
 	void seed(const Sentinel& s) const {
 		AudioEngine::audioSampleTimer += 2 * kShortPressTime;
-		f.song->xScroll[NAVIGATION_CLIP] = s.x_scroll;
-		f.song->xZoom[NAVIGATION_CLIP] = s.x_zoom;
-		f.song->tripletsOn = s.triplets_on;
-		f.song->tripletsLevel = s.triplets_level;
-		f.clip->loopLength = s.loop_length;
+		f.song->persistentView.xScroll[NAVIGATION_CLIP] = s.x_scroll;
+		f.song->persistentView.xZoom[NAVIGATION_CLIP] = s.x_zoom;
+		f.song->persistentView.tripletsOn = s.triplets_on;
+		f.song->persistentView.tripletsLevel = s.triplets_level;
+		f.clip->setLoopLength(s.loop_length);
 		currentUIMode = UI_MODE_NONE;
 	}
 
@@ -208,12 +208,12 @@ struct Rig {
 	[[nodiscard]] uint32_t max_zoom() const { return static_cast<uint32_t>(f.clip->getMaxZoom()); }
 	[[nodiscard]] uint32_t max_length() const { return static_cast<uint32_t>(f.clip->getMaxLength()); }
 
-	[[nodiscard]] int32_t song_scroll() const { return f.song->xScroll[NAVIGATION_CLIP]; }
-	[[nodiscard]] uint32_t song_zoom() const { return f.song->xZoom[NAVIGATION_CLIP]; }
+	[[nodiscard]] int32_t song_scroll() const { return f.song->persistentView.xScroll[NAVIGATION_CLIP]; }
+	[[nodiscard]] uint32_t song_zoom() const { return f.song->persistentView.xZoom[NAVIGATION_CLIP]; }
 
 	/// @brief `TimelineView::buttonAction`'s X_ENC arm (`timeline_view.cpp:73-89`), which is how
 	///        legacy is told the horizontal encoder's button is held.
-	static void hold_x_enc(bool on) { audioClipView.buttonAction(deluge::hid::button::X_ENC, on, false); }
+	static void hold_x_enc(bool on) { audioClipView.buttonAction(deluge::hid::button::X_ENC, on); }
 
 	/// @brief Clear the transition mode `initiateXZoom` left behind (`timeline_view.cpp:325`),
 	///        keeping the held-button mode, so legacy will consider a second detent.
@@ -405,16 +405,16 @@ describe timeline_spec_body(
 
 		        r.seed(s);
 		        instrumentClipView.tripletsButtonPressed();
-		        expect(port.triplets_on).to_equal(r.f.song->tripletsOn);
-		        expect(port.triplets_level).to_equal(r.f.song->tripletsLevel);
+		        expect(port.triplets_on).to_equal(r.f.song->persistentView.tripletsOn);
+		        expect(port.triplets_level).to_equal(r.f.song->persistentView.tripletsLevel);
 		        expect(port.triplets_level).to_equal(32U);
 
 		        port.toggle_triplets();
 		        instrumentClipView.tripletsButtonPressed();
-		        expect(port.triplets_on).to_equal(r.f.song->tripletsOn);
+		        expect(port.triplets_on).to_equal(r.f.song->persistentView.tripletsOn);
 		        expect(port.triplets_on).to_be_false();
 		        // Legacy leaves the level behind when switching off (`timeline_view.cpp:357-361`).
-		        expect(port.triplets_level).to_equal(r.f.song->tripletsLevel);
+		        expect(port.triplets_level).to_equal(r.f.song->persistentView.tripletsLevel);
 	        });
 
 	    // ---- the scroll gesture --------------------------------------------------------------------
@@ -896,9 +896,9 @@ describe timeline_spec_body(
 	    it(
 	        "restores the remembered scroll when the follow stops, legacy's xZoom comparison and all", _ {
 		        // `clip_view.cpp:376-386`, the arm that stops following. Its `if (newXScroll !=
-		        // currentSong->xZoom[NAVIGATION_CLIP])` compares a scroll against the ZOOM -- see the note
-		        // at the top of `timeline.cpp`. Both sides are given the same remembered scroll (6, which
-		        // is deliberately NOT the zoom) and both must restore it.
+		        // currentSong->persistentView.xZoom[NAVIGATION_CLIP])` compares a scroll against the ZOOM -- see the
+		        // note at the top of `timeline.cpp`. Both sides are given the same remembered scroll (6, which is
+		        // deliberately NOT the zoom) and both must restore it.
 		        StoppedTransport stopped;
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;
@@ -955,12 +955,12 @@ describe timeline_spec_body(
 	    it(
 	        "adopts and publishes the clip navigation slot, and only that slot", _ {
 		        Rig r;
-		        r.f.song->xScroll[NAVIGATION_CLIP] = 96;
-		        r.f.song->xZoom[NAVIGATION_CLIP] = 6;
-		        r.f.song->xScroll[NAVIGATION_ARRANGEMENT] = 4242;
-		        r.f.song->xZoom[NAVIGATION_ARRANGEMENT] = 99;
-		        r.f.song->tripletsOn = true;
-		        r.f.song->tripletsLevel = 8;
+		        r.f.song->persistentView.xScroll[NAVIGATION_CLIP] = 96;
+		        r.f.song->persistentView.xZoom[NAVIGATION_CLIP] = 6;
+		        r.f.song->persistentView.xScroll[NAVIGATION_ARRANGEMENT] = 4242;
+		        r.f.song->persistentView.xZoom[NAVIGATION_ARRANGEMENT] = 99;
+		        r.f.song->persistentView.tripletsOn = true;
+		        r.f.song->persistentView.tripletsLevel = 8;
 
 		        TimelineState port;
 		        port.adopt(*r.f.song);
@@ -972,10 +972,10 @@ describe timeline_spec_body(
 		        port.x_scroll = 192;
 		        port.x_zoom = 12;
 		        port.publish(*r.f.song);
-		        expect(r.f.song->xScroll[NAVIGATION_CLIP]).to_equal(192);
-		        expect(static_cast<int32_t>(r.f.song->xZoom[NAVIGATION_CLIP])).to_equal(12);
-		        expect(r.f.song->xScroll[NAVIGATION_ARRANGEMENT]).to_equal(4242);
-		        expect(static_cast<int32_t>(r.f.song->xZoom[NAVIGATION_ARRANGEMENT])).to_equal(99);
+		        expect(r.f.song->persistentView.xScroll[NAVIGATION_CLIP]).to_equal(192);
+		        expect(static_cast<int32_t>(r.f.song->persistentView.xZoom[NAVIGATION_CLIP])).to_equal(12);
+		        expect(r.f.song->persistentView.xScroll[NAVIGATION_ARRANGEMENT]).to_equal(4242);
+		        expect(static_cast<int32_t>(r.f.song->persistentView.xZoom[NAVIGATION_ARRANGEMENT])).to_equal(99);
 	        });
 
 	    it(

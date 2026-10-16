@@ -926,9 +926,9 @@ public:
 	/// @brief One level up the path -- `SoundEditor::goUpOneLevel` (`gui/ui/sound_editor.cpp:710-729`), for a
 	///        caller outside the scene.
 	///
-	/// Added by note-family Task 7a, for the note-mode handlers that call `soundEditor.goUpOneLevel()`
-	/// themselves (`gui/views/instrument_clip_view.cpp`'s `deselectNoteAndGoUpOneLevel` and `nudgeNotes`,
-	/// and `SoundEditor::toggleNoteEditorParamMenu`'s release arm). The step is `ascend()`, which is
+	/// For the note-mode handlers that call `soundEditor.goUpOneLevel()` themselves
+	/// (`gui/views/instrument_clip_view.cpp`'s `nudgeNotes`, and `SoundEditor::toggleNoteEditorParamMenu`'s
+	/// release arm). The step is `ascend()`, which is
 	/// already this scene's port of the loop at `:714-722` and of `beginScreen(oldItem)` at `:728`.
 	///
 	/// @return **false where legacy exits completely instead**, having moved nothing in the first case:

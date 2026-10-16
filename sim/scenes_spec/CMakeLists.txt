@@ -28,6 +28,16 @@ set(SCENES_SPEC_PORTED
     output_items_spec
     sample_items_spec
     param_popup_spec
+    note_mode_spec
+    note_mode_reads_spec
+    note_nodes_spec
+    note_roots_spec
+    note_bridge_spec
+    pad_forward_spec
+    global_controls_spec
+    count_in_spec
+    timeline_spec
+    midi_device_spec
 )
 set(_ported_sources "")
 set(_decls "")

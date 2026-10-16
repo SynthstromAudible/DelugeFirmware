@@ -139,8 +139,8 @@ describe note_nodes_bridge("scenes::menu note editor/note-row editor: bridge wir
 		guard.fake.note_iterance_value = 0; // OFF
 		expect(bindings::read(nodes::note_iterance, ctx)).to_equal(int32_t(0));
 
-		guard.fake.note_iterance_value = Iterance{2, 0b1}.toInt(); // preset 1, "1of2"
-		expect(bindings::read(nodes::note_iterance, ctx)).to_equal(int32_t(1));
+		guard.fake.note_iterance_value = Iterance{2, 0b1}.toInt(); // preset 3, "1of2" (after FIRST and LAST)
+		expect(bindings::read(nodes::note_iterance, ctx)).to_equal(int32_t(3));
 
 		guard.fake.note_iterance_value = Iterance{1, 1}.toInt(); // "1of1" is not itself a preset row
 		expect(bindings::read(nodes::note_iterance, ctx)).to_equal(int32_t(kCustomIterancePreset));
@@ -168,8 +168,8 @@ describe note_nodes_bridge("scenes::menu note editor/note-row editor: bridge wir
 		bindings::adjust(nodes::note_row_probability, ctx, 6);
 		expect(guard.fake.adjust_row_probability_last_offset).to_equal(int32_t(6));
 
-		guard.fake.row_iterance_value = Iterance{3, 0b100}.toInt(); // preset 5, "3of3"
-		expect(bindings::read(nodes::note_row_iterance, ctx)).to_equal(int32_t(5));
+		guard.fake.row_iterance_value = Iterance{3, 0b100}.toInt(); // preset 7, "3of3"
+		expect(bindings::read(nodes::note_row_iterance, ctx)).to_equal(int32_t(7));
 		bindings::adjust(nodes::note_row_iterance, ctx, -2);
 		expect(guard.fake.adjust_row_iterance_last_offset).to_equal(int32_t(-2));
 

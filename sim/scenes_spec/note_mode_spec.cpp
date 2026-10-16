@@ -116,7 +116,6 @@ struct Recorder {
 	std::array<int, static_cast<size_t>(Call::Count)> counts{};
 	deluge::hid::Button b = 0;
 	bool on = false;
-	bool in_card_routine = false;
 	int32_t offset = 0;
 	/// What every recording handler returns.
 	ActionResult answer = ActionResult::DEALT_WITH;
@@ -132,30 +131,26 @@ struct Recorder {
 };
 Recorder g_rec{};
 
-ActionResult record_button(Call c, deluge::hid::Button b, bool on, bool in_card_routine) {
+ActionResult record_button(Call c, deluge::hid::Button b, bool on) {
 	g_rec.counts[static_cast<size_t>(c)]++;
 	g_rec.b = b;
 	g_rec.on = on;
-	g_rec.in_card_routine = in_card_routine;
 	return g_rec.answer;
 }
 
-ActionResult record_turn(Call c, int32_t offset, bool in_card_routine) {
+ActionResult record_turn(Call c, int32_t offset) {
 	g_rec.counts[static_cast<size_t>(c)]++;
 	g_rec.offset = offset;
-	g_rec.in_card_routine = in_card_routine;
 	return g_rec.answer;
 }
 
 const guest::NoteModeLegacyCalls kRecording{
-    .noteEditorButton = [](deluge::hid::Button b, bool on,
-                           bool icr) { return record_button(Call::EditorButton, b, on, icr); },
-    .noteRowEditorButton = [](deluge::hid::Button b, bool on,
-                              bool icr) { return record_button(Call::RowButton, b, on, icr); },
-    .noteEditorHorizontal = [](int32_t offset) { return record_turn(Call::EditorHorizontal, offset, false); },
-    .noteRowEditorHorizontal = [](int32_t offset) { return record_turn(Call::RowHorizontal, offset, false); },
-    .noteEditorVertical = [](int32_t offset, bool icr) { return record_turn(Call::EditorVertical, offset, icr); },
-    .noteRowEditorVertical = [](int32_t offset, bool icr) { return record_turn(Call::RowVertical, offset, icr); },
+    .noteEditorButton = [](deluge::hid::Button b, bool on) { return record_button(Call::EditorButton, b, on); },
+    .noteRowEditorButton = [](deluge::hid::Button b, bool on) { return record_button(Call::RowButton, b, on); },
+    .noteEditorHorizontal = [](int32_t offset) { return record_turn(Call::EditorHorizontal, offset); },
+    .noteRowEditorHorizontal = [](int32_t offset) { return record_turn(Call::RowHorizontal, offset); },
+    .noteEditorVertical = [](int32_t offset) { return record_turn(Call::EditorVertical, offset); },
+    .noteRowEditorVertical = [](int32_t offset) { return record_turn(Call::RowVertical, offset); },
     .noteEditorEditPad = [](int32_t, int32_t, int32_t) { g_rec.counts[static_cast<size_t>(Call::EditorEditPad)]++; },
     .noteRowEditorPad =
         [](int32_t, int32_t, int32_t) {
@@ -273,7 +268,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		expect(open_menu_on_global_guest_at(fx, Root::Sound)).to_be_true();
 
 		for (deluge::hid::Button b : kAllButtons) {
-			expect(guest::forwardNoteButton(b, true, false).has_value()).to_be_false();
+			expect(guest::forwardNoteButton(b, true).has_value()).to_be_false();
 		}
 		expect(g_rec.total()).to_equal(0);
 	});
@@ -289,8 +284,8 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
 			for (deluge::hid::Button b : {button::SELECT_ENC, button::BACK, button::SAVE, button::LEARN,
 			                              button::KEYBOARD, button::SESSION_VIEW}) {
-				expect(guest::forwardNoteButton(b, true, false).has_value()).to_be_false();
-				expect(guest::forwardNoteButton(b, false, false).has_value()).to_be_false();
+				expect(guest::forwardNoteButton(b, true).has_value()).to_be_false();
+				expect(guest::forwardNoteButton(b, false).has_value()).to_be_false();
 			}
 		}
 		expect(g_rec.total()).to_equal(0);
@@ -307,7 +302,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 			GlobalGuestGuard::empty_guest_stack();
 			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
 			for (deluge::hid::Button b : {button::SYNTH, button::KIT, button::MIDI, button::CV}) {
-				expect(guest::forwardNoteButton(b, true, false).has_value()).to_be_false();
+				expect(guest::forwardNoteButton(b, true).has_value()).to_be_false();
 			}
 		}
 		expect(g_rec.total()).to_equal(0);
@@ -323,7 +318,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 			GlobalGuestGuard::empty_guest_stack();
 			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
 			for (deluge::hid::Button b : {button::PLAY, button::SHIFT, button::MOD_ENCODER_0, button::MOD_ENCODER_1}) {
-				expect(guest::forwardNoteButton(b, true, false).has_value()).to_be_false();
+				expect(guest::forwardNoteButton(b, true).has_value()).to_be_false();
 			}
 		}
 		expect(g_rec.total()).to_equal(0);
@@ -331,7 +326,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 
 	it("forwards X_ENC and SYNC_SCALING to the mode's own handler with the press's arguments, and "
 	   "returns its result", _ {
-		// Both handlers' `:3752-3754` / `:4039-4041` arm is `return buttonAction(b, on, inCardRoutine)`
+		// Both handlers' `:3752-3754` / `:4039-4041` arm is `return buttonAction(b, on)`
 		// -- `InstrumentClipView::buttonAction`, whose answer is the handler's answer. Seam only: see
 		// the file's note on `view.cpp:340`.
 		RecordingCalls recording;
@@ -342,22 +337,20 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
 			for (deluge::hid::Button b : {button::X_ENC, button::SYNC_SCALING}) {
 				g_rec = Recorder{};
-				g_rec.answer = ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				const std::optional<ActionResult> pressed = guest::forwardNoteButton(b, true, true);
-				expect(pressed.value_or(ActionResult::DEALT_WITH) == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE)
+				g_rec.answer = ActionResult::NOT_DEALT_WITH;
+				const std::optional<ActionResult> pressed = guest::forwardNoteButton(b, true);
+				expect(pressed.value_or(ActionResult::DEALT_WITH) == ActionResult::NOT_DEALT_WITH)
 				    .to_be_true();
 				expect(g_rec.count(button_call_for(root))).to_equal(1);
 				expect(g_rec.total()).to_equal(1);
 				expect(g_rec.b == b).to_be_true();
 				expect(g_rec.on).to_be_true();
-				expect(g_rec.in_card_routine).to_be_true();
 
 				g_rec.answer = ActionResult::ACTIONED_AND_CAUSED_CHANGE;
-				const std::optional<ActionResult> released = guest::forwardNoteButton(b, false, false);
+				const std::optional<ActionResult> released = guest::forwardNoteButton(b, false);
 				expect(released.value_or(ActionResult::DEALT_WITH) == ActionResult::ACTIONED_AND_CAUSED_CHANGE)
 				    .to_be_true();
 				expect(g_rec.on).to_be_false();
-				expect(g_rec.in_card_routine).to_be_false();
 			}
 		}
 	});
@@ -377,7 +370,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 			                              button::CLIP_VIEW, button::LOAD, button::TAP_TEMPO, button::TRIPLETS,
 			                              button::RECORD, button::Y_ENC, button::TEMPO_ENC}) {
 				g_rec = Recorder{};
-				expect(guest::forwardNoteButton(b, true, false).has_value()).to_be_true();
+				expect(guest::forwardNoteButton(b, true).has_value()).to_be_true();
 				expect(g_rec.count(button_call_for(root))).to_equal(1);
 				expect(g_rec.total()).to_equal(1);
 				expect(g_rec.b == b).to_be_true();
@@ -394,7 +387,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		fx.clip->affectEntire = false;
 		expect(open_menu_on_global_guest_at(fx, Root::NoteEditor)).to_be_true();
 
-		const std::optional<ActionResult> result = guest::forwardNoteButton(button::AFFECT_ENTIRE, true, false);
+		const std::optional<ActionResult> result = guest::forwardNoteButton(button::AFFECT_ENTIRE, true);
 		expect(result.has_value() && *result == ActionResult::DEALT_WITH).to_be_true();
 		expect(fx.clip->affectEntire).to_be_false();
 	});
@@ -408,15 +401,15 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		fx.clip->affectEntire = false;
 		expect(open_menu_on_global_guest_at(fx, Root::NoteRowEditor)).to_be_true();
 
-		std::optional<ActionResult> result = guest::forwardNoteButton(button::AFFECT_ENTIRE, true, false);
+		std::optional<ActionResult> result = guest::forwardNoteButton(button::AFFECT_ENTIRE, true);
 		expect(result.has_value() && *result == ActionResult::DEALT_WITH).to_be_true();
 		expect(fx.clip->affectEntire).to_be_true();
 
-		result = guest::forwardNoteButton(button::AFFECT_ENTIRE, false, false);
+		result = guest::forwardNoteButton(button::AFFECT_ENTIRE, false);
 		expect(result.has_value() && *result == ActionResult::DEALT_WITH).to_be_true();
 		expect(fx.clip->affectEntire).to_be_true();
 
-		result = guest::forwardNoteButton(button::AFFECT_ENTIRE, true, false);
+		result = guest::forwardNoteButton(button::AFFECT_ENTIRE, true);
 		expect(result.has_value() && *result == ActionResult::DEALT_WITH).to_be_true();
 		expect(fx.clip->affectEntire).to_be_false();
 	});
@@ -428,7 +421,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		fx.clip->affectEntire = false;
 		expect(open_menu_on_global_guest_at(fx, Root::NoteRowEditor)).to_be_true();
 
-		const std::optional<ActionResult> result = guest::forwardNoteButton(button::AFFECT_ENTIRE, true, false);
+		const std::optional<ActionResult> result = guest::forwardNoteButton(button::AFFECT_ENTIRE, true);
 		expect(result.has_value() && *result == ActionResult::DEALT_WITH).to_be_true();
 		expect(fx.clip->affectEntire).to_be_false();
 	});
@@ -444,7 +437,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 			for (deluge::hid::Button b : {button::CROSS_SCREEN_EDIT, button::SCALE_MODE, button::CLIP_VIEW,
 			                              button::LOAD, button::TAP_TEMPO, button::TRIPLETS, button::RECORD,
 			                              button::Y_ENC, button::TEMPO_ENC}) {
-				const std::optional<ActionResult> result = guest::forwardNoteButton(b, true, false);
+				const std::optional<ActionResult> result = guest::forwardNoteButton(b, true);
 				expect(result.has_value() && *result == ActionResult::DEALT_WITH).to_be_true();
 			}
 		}
@@ -459,7 +452,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		fx.clip->affectEntire = false;
 		expect(open_menu_on_global_guest_at(fx, Root::NoteRowEditor)).to_be_true();
 
-		expect(shellHostUI.buttonAction(button::AFFECT_ENTIRE, true, false) == ActionResult::DEALT_WITH).to_be_true();
+		expect(shellHostUI.buttonAction(button::AFFECT_ENTIRE, true) == ActionResult::DEALT_WITH).to_be_true();
 		expect(fx.clip->affectEntire).to_be_true();
 	});
 });
@@ -473,12 +466,12 @@ describe note_mode_encoders("gui::ui::forwardNote*Encoder -- SoundEditor's two e
 		expect(open_menu_on_global_guest_at(fx, Root::Sound)).to_be_true();
 
 		expect(guest::forwardNoteHorizontalEncoder(1).has_value()).to_be_false();
-		expect(guest::forwardNoteVerticalEncoder(-1, false).has_value()).to_be_false();
+		expect(guest::forwardNoteVerticalEncoder(-1).has_value()).to_be_false();
 		expect(g_rec.total()).to_equal(0);
 	});
 
 	it("forwards a horizontal turn to the mode's own handler and returns its result, "
-	   "REMIND_ME_OUTSIDE_CARD_ROUTINE included", _ {
+	   "whichever it is", _ {
 		RecordingCalls recording;
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
@@ -486,10 +479,10 @@ describe note_mode_encoders("gui::ui::forwardNote*Encoder -- SoundEditor's two e
 			GlobalGuestGuard::empty_guest_stack();
 			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
 			g_rec = Recorder{};
-			g_rec.answer = ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			g_rec.answer = ActionResult::NOT_DEALT_WITH;
 
 			const std::optional<ActionResult> result = guest::forwardNoteHorizontalEncoder(-3);
-			expect(result.value_or(ActionResult::DEALT_WITH) == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE)
+			expect(result.value_or(ActionResult::DEALT_WITH) == ActionResult::NOT_DEALT_WITH)
 			    .to_be_true();
 			expect(g_rec.count(root == Root::NoteEditor ? Call::EditorHorizontal : Call::RowHorizontal)).to_equal(1);
 			expect(g_rec.total()).to_equal(1);
@@ -507,20 +500,18 @@ describe note_mode_encoders("gui::ui::forwardNote*Encoder -- SoundEditor's two e
 			const Call call = root == Root::NoteEditor ? Call::EditorVertical : Call::RowVertical;
 
 			g_rec = Recorder{};
-			g_rec.answer = ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			std::optional<ActionResult> result = guest::forwardNoteVerticalEncoder(2, true);
-			expect(result.value_or(ActionResult::DEALT_WITH) == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE)
+			g_rec.answer = ActionResult::NOT_DEALT_WITH;
+			std::optional<ActionResult> result = guest::forwardNoteVerticalEncoder(2);
+			expect(result.value_or(ActionResult::DEALT_WITH) == ActionResult::NOT_DEALT_WITH)
 			    .to_be_true();
 			expect(g_rec.count(call)).to_equal(1);
 			expect(g_rec.total()).to_equal(1);
 			expect(g_rec.offset).to_equal(int32_t(2));
-			expect(g_rec.in_card_routine).to_be_true();
 
 			g_rec.answer = ActionResult::ACTIONED_AND_CAUSED_CHANGE;
-			result = guest::forwardNoteVerticalEncoder(-1, false);
+			result = guest::forwardNoteVerticalEncoder(-1);
 			expect(result.value_or(ActionResult::DEALT_WITH) == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
 			expect(g_rec.count(call)).to_equal(2);
-			expect(g_rec.in_card_routine).to_be_false();
 		}
 	});
 });

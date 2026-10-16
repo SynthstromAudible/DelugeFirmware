@@ -227,13 +227,13 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 
 		bool from_note_row = false;
 		const int32_t read = menu::bindings::read_sequence_direction(ctx, &from_note_row);
-		expect(read).to_equal(static_cast<int32_t>(row->sequenceDirectionMode));
+		expect(read).to_equal(static_cast<int32_t>(row->sequenceDirectionMode()));
 		expect(from_note_row).to_be_true(); // the kit-row arm's own note row, not the bridge's
 		expect(bridge.fake.row_sequence_direction_calls).to_equal(0);
 
 		menu::bindings::write_sequence_direction(ctx, static_cast<int32_t>(SequenceDirection::PINGPONG));
 		expect(bridge.fake.set_row_sequence_direction_calls).to_equal(0);
-		expect(static_cast<int32_t>(row->sequenceDirectionMode))
+		expect(static_cast<int32_t>(row->sequenceDirectionMode()))
 		    .to_equal(static_cast<int32_t>(SequenceDirection::PINGPONG));
 	});
 
@@ -347,7 +347,7 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 			closeGuest();
 			return;
 		}
-		row->sequenceDirectionMode = SequenceDirection::PINGPONG;
+		row->setSequenceDirectionModeRaw(SequenceDirection::PINGPONG);
 		fx.clip->sequenceDirectionMode = SequenceDirection::REVERSE; // must NOT be what gets read
 
 		expect(entry::openShellMenu(fx.clip, 0, false, false, false, /*kitGlobalFx=*/false,

@@ -102,13 +102,13 @@ NotePadSeen g_row_pad{};
 /// What the recording `noteRowEditorPad` answers -- legacy's `handled`.
 bool g_row_pad_handled = true;
 
-ActionResult unused_button(deluge::hid::Button, bool, bool) {
+ActionResult unused_button(deluge::hid::Button, bool) {
 	return ActionResult::DEALT_WITH;
 }
 ActionResult unused_horizontal(int32_t) {
 	return ActionResult::DEALT_WITH;
 }
-ActionResult unused_vertical(int32_t, bool) {
+ActionResult unused_vertical(int32_t) {
 	return ActionResult::DEALT_WITH;
 }
 void unused_exit() {

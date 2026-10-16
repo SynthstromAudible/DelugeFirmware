@@ -206,9 +206,7 @@ StubDisplay& stub_display() {
 ///          scene that declares it.
 class StubUI final : public UI {
 public:
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override {
-		return view.buttonAction(b, on, inCardRoutine);
-	}
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override { return view.buttonAction(b, on); }
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas&) override {}
 	UIType getUIType() override { return UIType::NONE; }
 };
@@ -369,7 +367,7 @@ void release_all_legacy_buttons() {
 	for (ButtonId b : {ButtonId::Play, ButtonId::Record, ButtonId::Shift, ButtonId::TapTempo, ButtonId::Save,
 	                   ButtonId::Load, ButtonId::SyncScaling, ButtonId::SelectEnc, ButtonId::TempoEnc}) {
 		if (Buttons::isButtonPressed(legacy_button(b))) {
-			(void)Buttons::buttonAction(legacy_button(b), false, false);
+			(void)Buttons::buttonAction(legacy_button(b), false);
 		}
 	}
 }
@@ -423,8 +421,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		// --- Legacy, from its own reset ---------------------------------------------------
 		release_all_legacy_buttons();
 		expect(reset_transport(100'000)).to_be_true();
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true, false);
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
 		const RecordingMode legacy_result = playbackHandler.recording;
 		// Legacy moved: `PlaybackHandler::recordButtonPressed` (`playback_handler.cpp:318-323`).
 		expect(legacy_result != RecordingMode::OFF).to_be_true();
@@ -455,10 +453,10 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		// --- Legacy -----------------------------------------------------------------------
 		release_all_legacy_buttons();
 		expect(reset_transport(100'000)).to_be_true();
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true, false);
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Play), true, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Play), true);
 		expect(Buttons::recordButtonPressUsedUp).to_be_true(); // `:165`
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
 		const RecordingMode legacy_result = playbackHandler.recording;
 		// The whole point: the release did NOT toggle recording on.
 		expect(legacy_result == RecordingMode::OFF).to_be_true();
@@ -501,9 +499,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		release_all_legacy_buttons();
 		expect(reset_transport(100'000)).to_be_true();
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true);
 		AudioEngine::audioSampleTimer += kSampleRate; // two short-press windows
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
 		const RecordingMode legacy_result = playbackHandler.recording;
 		expect(legacy_result == RecordingMode::OFF).to_be_true();
 
@@ -628,7 +626,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(reset_transport(100'000)).to_be_true();
 		Buttons::commandToggleShift(true);
 		expect(Buttons::isShiftButtonPressed()).to_be_true();
-		(void)Buttons::buttonAction(legacy_button(ButtonId::TapTempo), true, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::TapTempo), true);
 		const bool legacy_result = playbackHandler.metronomeOn;
 		// The LED half of the same comparison, read out of legacy's own shadow array.
 		// `PlaybackHandler::toggleMetronomeStatus` (`playback/playback_handler.cpp:2514-2520`) calls
@@ -841,9 +839,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		// so legacy takes the alert arm instead. That arm IS the comparison here: it is the
 		// one `:373-376` decision this spec can drive on both sides, and the two model writes
 		// below are driven on the port alone with `Song` asserted directly.
-		(void)Buttons::buttonAction(legacy_button(ButtonId::SyncScaling), true, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::SyncScaling), true);
 		expect(legacy_fixture.song->getSyncScalingClip() == nullptr).to_be_true(); // refused
-		(void)Buttons::buttonAction(legacy_button(ButtonId::SyncScaling), false, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::SyncScaling), false);
 
 		release_all_legacy_buttons();
 		GcRig rig;
@@ -903,9 +901,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		                           RuntimeFeatureStateSyncScalingAction::Fill);
 		fixture.song->changeFillMode(false);
 
-		(void)Buttons::buttonAction(legacy_button(ButtonId::SyncScaling), true, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::SyncScaling), true);
 		const bool legacy_result = fixture.song->isFillModeActive();
-		(void)Buttons::buttonAction(legacy_button(ButtonId::SyncScaling), false, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::SyncScaling), false);
 		expect(legacy_result).to_be_true();
 
 		fixture.song->changeFillMode(false);
@@ -951,9 +949,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		constexpr int32_t kPoison = 0x5EED;
 		pending_global_midi_clusters() = kPoison;
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Back), true, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Back), true);
 		const int32_t legacy_result = pending_global_midi_clusters();
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Back), false, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Back), false);
 		expect(legacy_result == 0).to_be_true(); // `view.cpp:417` ran
 
 		// Re-poison, so a port that writes nothing cannot inherit legacy's zero.

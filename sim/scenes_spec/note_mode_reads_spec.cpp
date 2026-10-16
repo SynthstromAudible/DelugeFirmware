@@ -58,6 +58,7 @@
 
 #include "cppspec.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -196,11 +197,10 @@ struct LegacyViewGuard {
 	~LegacyViewGuard() {
 		for (const Square& sq : pressed) {
 			if (instrumentClipView.numEditPadPresses > 0) {
-				instrumentClipView.editPadAction(false, sq.y, sq.x, currentSong->xZoom[NAVIGATION_CLIP]);
+				instrumentClipView.editPadAction(false, sq.y, sq.x, currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 			}
 		}
-		instrumentClipView.lastSelectedNoteXDisplay = kNoSelection;
-		instrumentClipView.lastSelectedNoteYDisplay = kNoSelection;
+		instrumentClipView.exitNoteEditor(); // clears the note editor's remembered selection
 		instrumentClipView.lastAuditionedYDisplay = saved_last_auditioned_y;
 		currentUIMode = UI_MODE_NONE;
 		// `closeAction`, not `deleteAllLogs()` -- see `note_bridge_spec.cpp`'s `ActionLogGuard`.
@@ -241,13 +241,13 @@ struct LegacyViewGuard {
 
 	/// @brief A note filling square (@p x, @p y) at the clip's zoom.
 	void add_square_note(int32_t x, int32_t y, int32_t probability) {
-		const int32_t zoom = currentSong->xZoom[NAVIGATION_CLIP];
+		const int32_t zoom = currentSong->persistentView.xZoom[NAVIGATION_CLIP];
 		add_note(y, x * zoom, zoom, probability);
 	}
 
 	/// @brief Press (@p x, @p y) the way `InstrumentClipView` presses a pad, and remember to release it.
 	void press(int32_t x, int32_t y) {
-		instrumentClipView.editPadAction(true, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
+		instrumentClipView.editPadAction(true, y, x, currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 		pressed.push_back({x, y});
 	}
 
@@ -335,8 +335,8 @@ describe note_mode_reads_predicates("util/note_editor_open.h -- legacy's questio
 describe note_mode_reads_note_editor("the note editor's handlers' own menu calls, ported", $ {
 	before_all([] { deluge::gui::ui::wireShellNoteBridge(); });
 
-	it("a vertical turn off a note item deselects the note and goes up one level to the root, the menu still open "
-	   "-- deselectNoteAndGoUpOneLevel", _ {
+	it("a vertical turn off a note item keeps the selection and the focused item -- the note editor remembers its "
+	   "selection across a scroll (handleNoteEditorVerticalEncoderAction is verticalEncoderAction)", _ {
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
@@ -347,16 +347,15 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		menu_scene().enter_submenu(nodes::note_editor_probability);
 		expect(menu_scene().state().depth).to_equal(uint8_t{1});
 
-		(void)guest::forwardNoteVerticalEncoder(0, false);
+		(void)guest::forwardNoteVerticalEncoder(0);
 
-		expect(menu_scene().state().depth).to_equal(uint8_t{0});
-		expect(menu_scene().focused() == &nodes::note_editor_root).to_be_true();
+		expect(menu_scene().state().depth).to_equal(uint8_t{1});
+		expect(menu_scene().focused() == &nodes::note_editor_probability).to_be_true();
 		expect(menu_on_guest_stack()).to_be_true();
-		expect(instrumentClipView.lastSelectedNoteXDisplay).to_equal(int32_t{kNoSelection}); // `exitNoteEditor()` ran
+		expect(std::ranges::any_of(instrumentClipView.get_note_edit_targets(), &EditPadPress::isActive)).to_be_true();
 	});
 
-	it("a vertical turn at the root deselects the note and neither goes up nor closes -- the `!= "
-	   "&noteEditorRootMenu` test", _ {
+	it("a vertical turn at the root neither goes up nor closes", _ {
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
@@ -365,7 +364,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
 
-		(void)guest::forwardNoteVerticalEncoder(0, false);
+		(void)guest::forwardNoteVerticalEncoder(0);
 
 		expect(menu_scene().state().depth).to_equal(uint8_t{0});
 		expect(menu_scene().focused() == &nodes::note_editor_root).to_be_true();
@@ -404,10 +403,17 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		menu_scene().enter_submenu(nodes::note_editor_probability);
 		expect(menu_scene().state().edit_int).to_equal(int32_t{kNumProbabilityValues});
 
+		// Release the first pad -- the note editor remembers it -- then press the other: a fresh press
+		// replaces the remembered selection, and the item re-reads for the note now held. (With both
+		// held, the item reads the leftmost, as `note::Probability` does.)
+		guest::noteModeLegacyCalls().noteEditorEditPad(0, 0, 0);
+		legacy.pressed.clear();
 		guest::noteModeLegacyCalls().noteEditorEditPad(1, 0, 1);
 		legacy.pressed.push_back({1, 0});
 
-		expect(instrumentClipView.lastSelectedNoteXDisplay).to_equal(int32_t{1});
+		expect(std::ranges::any_of(instrumentClipView.get_note_edit_targets(),
+		                            [](const EditPadPress& p) { return p.xDisplay == 1; }))
+		    .to_be_true();
 		expect(menu_scene().state().edit_int).to_equal(int32_t{10});
 	});
 });
@@ -510,7 +516,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 		menu_scene().enter_submenu(nodes::note_row_probability);
-		expect(instrumentClipView.lastSelectedNoteXDisplay).to_equal(int32_t{kNoSelection});
+		expect(std::ranges::none_of(instrumentClipView.get_note_edit_targets(), &EditPadPress::isActive)).to_be_true();
 		(void)drain_last_notice();
 
 		// The port directly, not through the pad handler: every real press that holds a note also selects
@@ -585,10 +591,10 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		(void)fx.clip->getNoteRowOnScreen(0, currentSong, &row_index);
 		row->setSequenceDirectionMode(stack->addNoteRow(fx.clip->getNoteRowId(row, row_index), row),
 		                              SequenceDirection::PINGPONG);
-		expect(static_cast<int32_t>(row->sequenceDirectionMode) == before).to_be_false();
+		expect(static_cast<int32_t>(row->sequenceDirectionMode()) == before).to_be_false();
 
 		instrumentClipView.potentiallyRefreshNoteRowMenu();
-		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(row->sequenceDirectionMode));
+		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(row->sequenceDirectionMode()));
 	});
 
 	it("a vertical turn off the row root re-reads the focused item -- "
@@ -605,7 +611,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		expect(menu_scene().state().edit_int).to_equal(int32_t{5});
 
 		row->probabilityValue = 7; // behind the menu's back
-		(void)guest::forwardNoteVerticalEncoder(0, false);
+		(void)guest::forwardNoteVerticalEncoder(0);
 		expect(menu_scene().state().edit_int).to_equal(int32_t{7});
 	});
 
@@ -666,7 +672,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		LegacyViewGuard::audition_row(1);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 
-		(void)guest::forwardNoteVerticalEncoder(1, false);
+		(void)guest::forwardNoteVerticalEncoder(1);
 		expect(fx.clip->yScroll).to_equal(int32_t{0});
 	});
 
@@ -679,11 +685,11 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		SongFixture fx = deluge::scenes::spec::make_synth_song();
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
-		const auto colour = fx.clip->colourOffset;
+		const auto colour = fx.clip->colourOffset();
 		HeldShift shift;
 
-		(void)guest::forwardNoteVerticalEncoder(1, false);
-		expect(fx.clip->colourOffset == colour).to_be_true();
+		(void)guest::forwardNoteVerticalEncoder(1);
+		expect(fx.clip->colourOffset() == colour).to_be_true();
 	});
 
 	it("an audition on another drum's row gives the gold knobs that drum -- setSelectedDrum's "
@@ -852,7 +858,7 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the port
 		LegacyViewGuard::audition_row(0);
 		currentSong->changeFillMode(false);
 
-		(void)view.buttonAction(deluge::hid::button::SYNC_SCALING, true, false);
+		(void)view.buttonAction(deluge::hid::button::SYNC_SCALING, true);
 		expect(currentSong->isFillModeActive()).to_be_false();
 		expect(display->hasPopupOfType(PopupType::FILL)).to_be_true();
 	});
@@ -867,7 +873,7 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the port
 		currentSong->changeFillMode(false);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 
-		(void)view.buttonAction(deluge::hid::button::SYNC_SCALING, true, false);
+		(void)view.buttonAction(deluge::hid::button::SYNC_SCALING, true);
 		expect(currentSong->isFillModeActive()).to_be_true();
 		expect(display->hasPopup()).to_be_false();
 		currentSong->changeFillMode(false);
