@@ -18,11 +18,13 @@
 #include <optional>
 #include <string_view>
 
+class ArpeggiatorSettings;
 class AudioClip;
 class AudioOutput;
 class Clip;
 class Drum;
 class InstrumentClip;
+class Kit;
 class NoteRow;
 class Output;
 class Song;
@@ -64,6 +66,32 @@ Error applyAudioInputSetting(::AudioOutput& output, ::Song& song, std::string_vi
 Error applyClipValueSetting(::InstrumentClip& clip, ::Song& song, std::string_view path,
                             const serialization::Value& value);
 /// @}
+
+/// @brief Whose arp an arp setting changes: a clip's (a synth's, a MIDI or CV clip's, or a kit's whole-kit arp), or a
+///        kit row's.
+struct ArpOwner {
+	::InstrumentClip* clip{nullptr}; ///< the clip, for a clip's arp
+	::Drum* drum{nullptr};           ///< the kit row, for a kit row's arp
+	::Kit* kit{nullptr};             ///< the kit row's kit
+};
+
+/// @brief Whether @p owner's arp holds its host values (rate, gate, rhythm, …) as settings: a MIDI or CV clip's, a MIDI
+///        or gate kit row's. Elsewhere they are params.
+/// @param owner The arp's owner.
+/// @return True where they are settings.
+[[nodiscard]] bool arpHostValuesAreSettings(const ArpOwner& owner);
+
+/// @brief Copy an arp setting's value onto @p arp, with the follow-ups its menu runs: the preset shown re-derived from
+///        the modes, a chosen preset's modes set, the arp restarted when its pattern changes, a new note pattern for
+///        the pattern note mode.
+/// @param arp   The owner's arp.
+/// @param owner Whose arp it is.
+/// @param song  The song it plays in.
+/// @param path  A path of the arp groups' table.
+/// @param value The new value, in its file form.
+/// @return Error::UNSPECIFIED for a host value where it is a param, or a value the path does not take.
+Error applyArpSetting(::ArpeggiatorSettings& arp, const ArpOwner& owner, ::Song& song, std::string_view path,
+                      const serialization::Value& value);
 
 /// @brief Run @p change, which moves the part of @p clip's sample it plays (a marker, the direction), with the clip's
 ///        voice taken off the sample around it: the clusters the new part needs are claimed (enqueued, never a card

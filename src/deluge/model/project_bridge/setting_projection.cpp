@@ -4,6 +4,7 @@
 #include "deluge-project/fraction.h"
 #include "deluge-project/sequence_direction.h"
 #include "dsp/reverb/reverb.hpp"
+#include "engine-api/types/arp.h"
 #include "engine-api/types/sync.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -16,9 +17,11 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/arp_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "modulation/arpeggiator.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
@@ -452,6 +455,168 @@ Error applyClipValueSetting(::InstrumentClip& clip, ::Song& /*song*/, std::strin
 	return Error::NONE;
 }
 
+namespace {
+
+/// @brief The engine field of host value @p path, as the 32 bits a file holds; nullptr for any other path.
+uint32_t* hostField(::ArpeggiatorSettings& arp, std::string_view path) {
+	constexpr std::string_view kPrefix = "arpeggiator/";
+	const std::string_view name = path.substr(std::min(path.size(), kPrefix.size()));
+	if (name == "gate") {
+		return reinterpret_cast<uint32_t*>(&arp.gate);
+	}
+	if (name == "rate") {
+		return reinterpret_cast<uint32_t*>(&arp.rate);
+	}
+	if (name == "rhythm") {
+		return &arp.rhythm;
+	}
+	if (name == "sequenceLength") {
+		return &arp.sequenceLength;
+	}
+	if (name == "chordPolyphony") {
+		return &arp.chordPolyphony;
+	}
+	if (name == "ratchetAmount") {
+		return &arp.ratchetAmount;
+	}
+	if (name == "noteProbability") {
+		return &arp.noteProbability;
+	}
+	if (name == "bassProbability") {
+		return &arp.bassProbability;
+	}
+	if (name == "swapProbability") {
+		return &arp.swapProbability;
+	}
+	if (name == "glideProbability") {
+		return &arp.glideProbability;
+	}
+	if (name == "reverseProbability") {
+		return &arp.reverseProbability;
+	}
+	if (name == "chordProbability") {
+		return &arp.chordProbability;
+	}
+	if (name == "ratchetProbability") {
+		return &arp.ratchetProbability;
+	}
+	if (name == "spreadVelocity") {
+		return &arp.spreadVelocity;
+	}
+	if (name == "spreadGate") {
+		return &arp.spreadGate;
+	}
+	if (name == "spreadOctave") {
+		return &arp.spreadOctave;
+	}
+	return nullptr;
+}
+
+/// @brief The index of @p value among the choices of arp row @p path, or nullopt.
+std::optional<int32_t> arpChoice(std::string_view path, const Value& value) {
+	const engine::SettingInfo* row = engine::find_setting(engine::kArpSettingRows, path);
+	if (row == nullptr || row->kind != engine::SettingKind::CHOICE) {
+		return std::nullopt;
+	}
+	const auto at = std::ranges::find(row->choices, value.str());
+	return at == row->choices.end() ? std::nullopt : std::optional<int32_t>{at - row->choices.begin()};
+}
+
+} // namespace
+
+bool arpHostValuesAreSettings(const ArpOwner& owner) {
+	if (owner.drum != nullptr) {
+		return owner.drum->type != DrumType::SOUND;
+	}
+	return owner.clip != nullptr && owner.clip->output != nullptr
+	       && (owner.clip->output->type == OutputType::MIDI_OUT || owner.clip->output->type == OutputType::CV);
+}
+
+Error applyArpSetting(::ArpeggiatorSettings& arp, const ArpOwner& owner, ::Song& /*song*/, std::string_view path,
+                      const Value& value) {
+	if (uint32_t* host = hostField(arp, path)) {
+		const std::optional<int32_t> v = integer_of(value);
+		if (!v || !arpHostValuesAreSettings(owner)) {
+			return Error::UNSPECIFIED;
+		}
+		*host = static_cast<uint32_t>(*v);
+		return Error::NONE;
+	}
+	if (path == "arpeggiator/preset") {
+		const std::optional<int32_t> preset = arpChoice(path, value);
+		if (!preset) {
+			return Error::UNSPECIFIED;
+		}
+		arp.preset = static_cast<ArpPreset>(*preset);
+		arp.updateSettingsFromCurrentPreset();
+		arp.flagForceArpRestart = true;
+		return Error::NONE;
+	}
+	if (path == "arpeggiator/arpMode" || path == "arpeggiator/octaveMode" || path == "arpeggiator/noteMode"
+	    || path == "arpeggiator/mpeVelocity") {
+		const std::optional<int32_t> choice = arpChoice(path, value);
+		if (!choice) {
+			return Error::UNSPECIFIED;
+		}
+		if (path == "arpeggiator/mpeVelocity") {
+			arp.mpeVelocity = static_cast<ArpMpeModSource>(*choice);
+			return Error::NONE;
+		}
+		if (path == "arpeggiator/arpMode") {
+			arp.mode = static_cast<ArpMode>(*choice);
+		}
+		else if (path == "arpeggiator/octaveMode") {
+			arp.octaveMode = static_cast<ArpOctaveMode>(*choice);
+			arp.flagForceArpRestart = true;
+		}
+		else {
+			arp.noteMode = static_cast<ArpNoteMode>(*choice);
+			// A clip's arp draws a new pattern for the pattern mode; a kit row's keeps its own.
+			if (arp.noteMode == ArpNoteMode::PATTERN && owner.drum == nullptr) {
+				arp.generateNewNotePattern();
+			}
+			arp.flagForceArpRestart = true;
+		}
+		arp.updatePresetFromCurrentSettings();
+		return Error::NONE;
+	}
+	if (path == "arpeggiator/syncType") {
+		const std::optional<int32_t> v = integer_of(value);
+		if (!v) {
+			return Error::UNSPECIFIED;
+		}
+		arp.syncType = static_cast<SyncType>(*v);
+		return Error::NONE;
+	}
+	const std::optional<int32_t> v = integer_of(value);
+	if (!v) {
+		return Error::UNSPECIFIED;
+	}
+	if (path == "arpeggiator/numOctaves") {
+		arp.numOctaves = static_cast<uint8_t>(*v);
+	}
+	else if (path == "arpeggiator/stepRepeat") {
+		arp.numStepRepeats = static_cast<uint8_t>(*v);
+	}
+	else if (path == "arpeggiator/chordType") {
+		arp.chordTypeIndex = static_cast<uint8_t>(*v);
+		arp.flagForceArpRestart = true;
+	}
+	else if (path == "arpeggiator/syncLevel") {
+		arp.syncLevel = static_cast<SyncLevel>(*v);
+	}
+	else if (path == "arpeggiator/randomizerLock") {
+		arp.randomizerLock = *v != 0;
+	}
+	else if (path == "arpeggiator/kitArp") {
+		arp.includeInKitArp = *v != 0;
+	}
+	else {
+		return Error::UNSPECIFIED;
+	}
+	return Error::NONE;
+}
+
 Error applyAudioClipSetting(::AudioClip& clip, ::Song& song, std::string_view path, const Value& value) {
 	const std::optional<int32_t> found = integer_of(value);
 	if (!found) {
@@ -556,9 +721,21 @@ Error projectSetting(::Song& song, const project::SettingAddress& address, std::
 		    findClip(song, std::get<project::ClipAddress>(address.owner).clip_id, ClipType::INSTRUMENT));
 		return clip != nullptr ? applyClipValueSetting(*clip, song, path, *value) : Error::UNSPECIFIED;
 	}
-	case SettingGroupId::CLIP_ARP:
-	case SettingGroupId::LANE_ARP:
-		return Error::UNSPECIFIED; // no engine arp takes a record's value yet
+	case SettingGroupId::CLIP_ARP: {
+		auto* clip = static_cast<::InstrumentClip*>(
+		    findClip(song, std::get<project::ClipAddress>(address.owner).clip_id, ClipType::INSTRUMENT));
+		return clip != nullptr ? applyArpSetting(clip->arpSettings, {.clip = clip}, song, path, *value)
+		                       : Error::UNSPECIFIED;
+	}
+	case SettingGroupId::LANE_ARP: {
+		const auto& lane = std::get<project::LaneAddress>(address.owner);
+		::Drum* drum = findDrum(song, lane.kit_id, lane.drum_id);
+		if (drum == nullptr) {
+			return Error::UNSPECIFIED;
+		}
+		auto* kit = static_cast<::Kit*>(findOutput(song, lane.kit_id));
+		return applyArpSetting(drum->arpSettings, {.drum = drum, .kit = kit}, song, path, *value);
+	}
 	}
 	return Error::UNSPECIFIED;
 }
@@ -649,6 +826,25 @@ std::optional<Value> engineAudioClipValue(::AudioClip& clip, std::string_view pa
 }
 
 std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddress& address, std::string_view path) {
+	if (address.group == SettingGroupId::CLIP_ARP || address.group == SettingGroupId::LANE_ARP) {
+		::ArpeggiatorSettings* arp = nullptr;
+		ArpOwner owner;
+		if (address.group == SettingGroupId::CLIP_ARP) {
+			owner.clip = static_cast<::InstrumentClip*>(
+			    findClip(song, std::get<project::ClipAddress>(address.owner).clip_id, ClipType::INSTRUMENT));
+			arp = owner.clip != nullptr ? &owner.clip->arpSettings : nullptr;
+		}
+		else {
+			const auto& lane = std::get<project::LaneAddress>(address.owner);
+			owner.drum = findDrum(song, lane.kit_id, lane.drum_id);
+			arp = owner.drum != nullptr ? &owner.drum->arpSettings : nullptr;
+		}
+		const bool host = engine::find_setting(engine::kArpHostRows, path) != nullptr;
+		if (arp == nullptr || (host && !arpHostValuesAreSettings(owner))) {
+			return std::nullopt; // no engine arp, or a host value that is a param here
+		}
+		return project::arp_setting_value(arpRecordOf(*arp, arpHostValuesAreSettings(owner)), path);
+	}
 	if (address.group == SettingGroupId::TRACK || address.group == SettingGroupId::INSTRUMENT_DEVICE) {
 		::Output* output = findOutput(song, std::get<project::TrackAddress>(address.owner).output_id);
 		return output != nullptr ? engineTrackValue(*output, path) : std::nullopt;

@@ -9,6 +9,7 @@
 #include "io/midi/midi_engine.h"
 #include "libdeluge/system.h"
 #include "model/clip/audio_clip.h"
+#include "model/edits/arp_setting_for.h"
 #include "model/edits/bend_range_for.h"
 #include "model/edits/set_setting.h"
 #include "model/edits/setting_edit.h"
@@ -397,6 +398,59 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::edits::SetSetting edit{{SettingGroupId::CLIP_VALUES, *clip}, "midiPGM", Value::makeNumber(5)};
 		expect(static_cast<int>(deluge::edits::apply(ctx, edit))).to_equal(static_cast<int>(Error::UNSPECIFIED));
 		expect(f.clip->docClip_->values.midi_pgm.has_value()).to_be_false();
+	});
+
+	it("sets a clip's arp in its record and on the clip", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/numOctaves", Value::makeNumber(3));
+		const SettingAddress arp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*f.clip, *f.song)};
+		expect(recorded(*f.song, arp, "arpeggiator/numOctaves")).to_equal(std::string{"3"});
+		expect(static_cast<int>(f.clip->arpSettings.numOctaves)).to_equal(3);
+		expect(projected(*f.song, arp, "arpeggiator/numOctaves")).to_equal(std::string{"3"});
+	});
+
+	it("chooses a preset as its three fields, and flags the arp to restart", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		f.clip->arpSettings.flagForceArpRestart = false;
+		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/preset", Value::makeScalar("down"));
+		expect(f.clip->arpSettings.mode == ArpMode::ARP).to_be_true();
+		expect(f.clip->arpSettings.octaveMode == ArpOctaveMode::DOWN).to_be_true();
+		expect(f.clip->arpSettings.noteMode == ArpNoteMode::DOWN).to_be_true();
+		expect(f.clip->arpSettings.preset == ArpPreset::DOWN).to_be_true();
+		expect(f.clip->arpSettings.flagForceArpRestart).to_be_true();
+		const SettingAddress arp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*f.clip, *f.song)};
+		expect(recorded(*f.song, arp, "arpeggiator/noteMode")).to_equal(std::string{"down"});
+	});
+
+	it("re-derives the preset a clip's arp shows when its note mode changes", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/preset", Value::makeScalar("up"));
+		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/noteMode", Value::makeScalar("upDown"));
+		expect(f.clip->arpSettings.preset == ArpPreset::CUSTOM).to_be_true();
+	});
+
+	it("sets a kit row's arp in its lane record", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
+		deluge::edits::laneArpSettingFor(*drum, "arpeggiator/arpMode", Value::makeScalar("arp"));
+		const SettingAddress arp{SettingGroupId::LANE_ARP, *deluge::bridge::laneAddressOf(*drum, *f.song)};
+		expect(recorded(*f.song, arp, "arpeggiator/arpMode")).to_equal(std::string{"arp"});
+		expect(drum->arpSettings.mode == ArpMode::ARP).to_be_true();
+	});
+
+	it("holds a MIDI clip's arp rate, and refuses one on a synth clip, where the rate is a param", _ {
+		spec::SongFixture midi = spec::make_midi_song();
+		deluge::edits::clipArpSettingFor(*midi.clip, "arpeggiator/rate", Value::makeNumber(12345));
+		const SettingAddress midiArp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*midi.clip, *midi.song)};
+		expect(recorded(*midi.song, midiArp, "arpeggiator/rate")).to_equal(std::string{"12345"});
+		expect(midi.clip->arpSettings.rate).to_equal(12345);
+
+		spec::SongFixture synth = spec::make_synth_song();
+		const int32_t before = synth.clip->arpSettings.rate;
+		deluge::edits::clipArpSettingFor(*synth.clip, "arpeggiator/rate", Value::makeNumber(12345));
+		const SettingAddress synthArp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*synth.clip, *synth.song)};
+		expect(deluge::project::holds_setting(synth.song->project, synthArp, "arpeggiator/rate")).to_be_false();
+		expect(synth.clip->arpSettings.rate).to_equal(before);
 	});
 });
 // clang-format on

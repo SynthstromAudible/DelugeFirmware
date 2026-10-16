@@ -10,6 +10,7 @@
 /// changes nothing when the owner, the path or the value is refused; the engine side follows through the bridge's
 /// projection (`model/project_bridge/setting_projection.h`).
 
+#include "deluge-project/arp_record.h"
 #include "deluge-project/clip_address.h"
 #include "deluge-project/kit_row_address.h"
 #include "deluge-project/note_address.h"
@@ -77,6 +78,12 @@ struct SettingAddress {
 /// @return The value, or nullopt when the owner does not resolve or the group has no such path.
 [[nodiscard]] std::optional<serialization::Value> read_setting(Song& song, const SettingAddress& address,
                                                                std::string_view path);
+
+/// @brief @p record's value at arp path @p path, in its file form: what the CLIP_ARP and LANE_ARP groups read.
+/// @param record The arp's record.
+/// @param path   A path of the arp groups' table.
+/// @return The value; a host value the record does not hold reads as its row's default. Nullopt for any other path.
+[[nodiscard]] std::optional<serialization::Value> arp_setting_value(const ArpRecord& record, std::string_view path);
 
 /// @brief Whether @p address holds its own value at @p path. Every setting does but a clip value (and a kit row's bend
 ///        range) a clip leaves to its track, and an arp's host value where it is a param.

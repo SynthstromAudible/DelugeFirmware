@@ -606,6 +606,10 @@ void write_arp(ArpRecord& record, std::string_view path, const Value& value) {
 
 } // namespace
 
+std::optional<Value> arp_setting_value(const ArpRecord& record, std::string_view path) {
+	return read_arp(record, path);
+}
+
 std::span<const SettingInfo> table_of(SettingGroupId group) {
 	switch (group) {
 	case SettingGroupId::SONG:
