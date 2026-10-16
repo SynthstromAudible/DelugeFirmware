@@ -4,14 +4,17 @@ The scenario lists its entry table (SCENES_SPEC=--list), which must name exactly
 selftest/ aside: the table is generated from the files, so a mismatch means a stale build. Each file then runs in its
 own process on its card (tests/integration/checks/scenes_spec_cards.txt; the fixture card otherwise) and passes only
 on exit 0 and its own SCENES-SPEC-RESULT failures=0 line, so a crash or a file that never reaches its result line
-fails by name. The runner's self-specs pin that a passing file passes and that a failing and a crashing one do not,
-and one back-to-back pair shows that a file leaving a stack song in currentSong cannot reach the next file.
+fails by name, as does one still running after RUN_TIMEOUT_S. The runner's self-specs pin that a passing file and the
+card checks pass and that a failing and a crashing one do not, and one back-to-back pair shows that a file leaving a stack song in currentSong cannot reach the next file.
 """
 
 from pathlib import Path
 
 RESULT_OK = "SCENES-SPEC-RESULT failures=0"
 FIXTURE_CARD = "tests/fixtures/card"
+# A spec runs synchronously inside the app's init, where golden_vt_render's own deadlines cannot fire, so a hung file
+# is ended here (exit 124) and reported by name. Every file takes well under a second.
+RUN_TIMEOUT_S = 120
 
 
 def _cards(root: Path) -> dict[str, str]:
@@ -38,7 +41,7 @@ def _spec_files(root: Path) -> set[str]:
 
 
 def _listed(gate) -> list[str] | None:
-    run = gate.run(env={"SCENES_SPEC": "--list"})
+    run = gate.run(env={"SCENES_SPEC": "--list"}, timeout=RUN_TIMEOUT_S)
     if run.code != 0:
         gate.fail(f"--list exited {run.code}")
         gate.show(run)
@@ -55,7 +58,8 @@ def _run_spec(gate, spec_id: str, cards: dict[str, str]):
         env={
             "SCENES_SPEC": spec_id,
             "SCENES_SPEC_CARD": cards.get(spec_id, FIXTURE_CARD),
-        }
+        },
+        timeout=RUN_TIMEOUT_S,
     )
 
 
@@ -98,6 +102,8 @@ def run(gate) -> None:
 
     for spec_id, should_pass in (
         ("selftest/pass_spec", True),
+        # SdRoot/NoSdRoot confirm the installed card, so a card spec cannot silently list the wrong one.
+        ("selftest/card_access_spec", True),
         ("selftest/fail_spec", False),
         ("selftest/crash_spec", False),
     ):

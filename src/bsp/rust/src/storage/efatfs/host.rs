@@ -782,8 +782,9 @@ std::thread_local! {
 /// C-ABI, host only: hold the filesystem lock, so [`deluge_storage_fs_busy`] answers true exactly as
 /// it does while a card operation is in flight, or release it.
 ///
-/// For specs that check how UI code defers while the card is busy. Any filesystem call made on this
-/// thread while the lock is held blocks forever, so a holder must make none.
+/// For specs that check how UI code defers while the card is busy. The lock is held on, and must be
+/// released from, the calling thread. Any filesystem call made on this thread while it is held blocks
+/// forever, so a holder must make none.
 ///
 /// Returns whether the lock is held after the call: `false` when asked to hold and the lock was
 /// already taken elsewhere.

@@ -128,7 +128,7 @@ scenario = "recorder_roundtrip"
 builds = ["golden-vt-render"]
 requires = ["song-corpus"]
 tier = "nightly"
-runtime = "~10s"
+runtime = "~5m"
 
 # The ONLY rig that runs the real Rust audio loader against the real C++ collector over real
 # files. Everything else that touches the async load path drives a stub.
@@ -153,7 +153,7 @@ check = "tests/integration/checks/audio_load_ab.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
-runtime = "~10s"
+runtime = "~5m"
 
 # The rig that runs the real Rust prefix channel against the real C++ song browser over real files.
 #
@@ -180,7 +180,7 @@ check = "tests/integration/checks/song_preview_ab.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
-runtime = "~10s"
+runtime = "~5m"
 
 # tier = "manual": needs song-corpus, a directory of real songs on the maintainer's
 # machine that cannot be committed or fixtured. Runs locally via
@@ -241,7 +241,7 @@ run = ["./run.sh"]
 builds = ["host-app"]
 requires = ["clang", "arm-linux-gnueabihf-gcc", "qemu-arm"]
 tier = "nightly"
-runtime = "~10s"
+runtime = "~5m"
 
 # unavailable on THIS branch only -- not obsolete. This branch's sim/CMakeLists.txt
 # has no C-host deluge_render target for this script's check/update/padsweep
@@ -328,7 +328,7 @@ check = "tests/integration/checks/save_roundtrip.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
-runtime = "~10s"
+runtime = "~5m"
 
 [[harness]]
 name = "document-save-channel"
@@ -381,7 +381,7 @@ check = "tests/integration/checks/sample_load_tree.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
-runtime = "~10s"
+runtime = "~5m"
 
 # The sample browser's claim, from the browser a user opens: what each claim binds, and where its load runs.
 [[harness]]
@@ -582,7 +582,7 @@ check = "tests/integration/checks/favourites_channel.py"
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"
-runtime = "~10s"
+runtime = "~5m"
 
 [[harness]]
 name = "startup-failsafe"
@@ -757,7 +757,7 @@ level = "integration"
 runner = "scenario"
 kind = "regression"
 status = "gate"
-gates = "the scenes' specs (sim/scenes_spec) run on golden_vt_render, one file per process from the app's own init, each on its card (tests/integration/checks/scenes_spec_cards.txt, the fixture card otherwise). The scenario's entry table must list exactly the spec files under sim/scenes_spec (selftest/ aside), and every file must exit 0 and print its own SCENES-SPEC-RESULT failures=0, so a crash or a file that never reaches its result fails by name. The runner's self-specs pin a passing file passing and a failing and a crashing one failing, and a back-to-back pair shows one file's leftover song cannot reach the next. The net is temporary: as each scene moves onto model addresses and Edits its specs move down to unit specs, and the gate goes when the directory is empty."
+gates = "the scenes' specs (sim/scenes_spec) run on golden_vt_render, one file per process from the app's own init, each on its card (tests/integration/checks/scenes_spec_cards.txt, the fixture card otherwise). The scenario's entry table must list exactly the spec files under sim/scenes_spec (selftest/ aside), and every file must exit 0 and print its own SCENES-SPEC-RESULT failures=0, so a crash, a file that never reaches its result or one still running after two minutes fails by name. The runner's self-specs pin a passing file and the card checks (SdRoot/NoSdRoot) passing and a failing and a crashing one failing, and a back-to-back pair shows one file's leftover song cannot reach the next. The net is temporary: as each scene moves onto model addresses and Edits its specs move down to unit specs, and the gate goes when the directory is empty."
 scenario = "scenes_spec"
 check = "tests/integration/checks/scenes_spec.py"
 markers = ["SCENES-SPEC"]

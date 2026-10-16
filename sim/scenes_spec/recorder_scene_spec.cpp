@@ -385,18 +385,28 @@ struct Guards {
 
 extern "C" bool deluge_host_storage_hold_fs(bool hold);
 
-/// @brief Run @p body while the card is busy: `AudioEngine::sdRoutineBusy()` genuinely true.
+/// @brief Hold the filesystem lock for the scope: `AudioEngine::sdRoutineBusy()` genuinely true.
 ///
 /// **Not a fake flag.** `sdRoutineBusy()` is `deluge::sync::sd_busy()`, which is true while the
 /// filesystem lock is held -- by a card operation in flight, or here by the host's
-/// `deluge_host_storage_hold_fs`, which takes that same lock. @p body must touch no file while it
-/// runs: a filesystem call on this thread would wait on the lock it holds.
-void in_sd_routine(const std::function<void()>& body) {
-	if (!deluge_host_storage_hold_fs(true)) {
-		spec_bail("in_sd_routine: the filesystem lock is already held");
+/// `deluge_host_storage_hold_fs`, which takes that same lock on this thread and releases it however
+/// the scope ends. Nothing in the scope may touch a file: a filesystem call on this thread would wait
+/// on the lock it holds.
+struct CardBusy {
+	CardBusy() {
+		if (!deluge_host_storage_hold_fs(true)) {
+			spec_bail("CardBusy: the filesystem lock is already held");
+		}
 	}
+	~CardBusy() { (void)deluge_host_storage_hold_fs(false); }
+	CardBusy(const CardBusy&) = delete;
+	CardBusy& operator=(const CardBusy&) = delete;
+};
+
+/// @brief Run @p body while the card is busy (`CardBusy`).
+void in_sd_routine(const std::function<void()>& body) {
+	const CardBusy busy;
 	body();
-	(void)deluge_host_storage_hold_fs(false);
 }
 
 } // namespace
