@@ -17,6 +17,17 @@ set(SCENES_SPEC_PORTED
     bindings_spec
     context_spec
     menu_grid_claim_spec
+    menu_actions_spec
+    menu_entry_spec
+    menu_ranges_spec
+    menu_scales_spec
+    menu_horizontal_controls_spec
+    shortcuts_spec
+    tables_1_spec
+    tables_2_spec
+    output_items_spec
+    sample_items_spec
+    param_popup_spec
 )
 set(_ported_sources "")
 set(_decls "")

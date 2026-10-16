@@ -24,6 +24,7 @@
 #include "scenes/registry.h"
 
 #include "notify/notice_queue.h"
+#include "shell/notices.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
@@ -64,6 +65,16 @@ using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
 namespace {
+
+/// @brief No notification sink for the scope, so the shell's own `Notification` banner shows the menu's
+/// notification; the one app init installs is put back after. The examples below read that banner.
+struct NoNotificationSink {
+	const deluge::ui::shell::NotificationSink* saved = deluge::ui::shell::notification_sink();
+	NoNotificationSink() { deluge::ui::shell::set_notification_sink(nullptr); }
+	~NoNotificationSink() { deluge::ui::shell::set_notification_sink(saved); }
+	NoNotificationSink(const NoNotificationSink&) = delete;
+	NoNotificationSink& operator=(const NoNotificationSink&) = delete;
+};
 
 namespace menu = deluge::scenes::menu;
 namespace nodes = deluge::scenes::menu::nodes;
@@ -526,6 +537,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// path `descend_to`/`ascend`'s own cancels do not cover, since neither runs for a Back that
 		// closes the whole menu. Ships for real: `reroot_to_scene_opener_page()` lands a claimed
 		// file selector's browser back at depth 0.
+		const NoNotificationSink no_sink;
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -552,6 +564,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `cancelPopup` -> `removePopup` clears only the popup slot (`oled.h:164`,
 		// `oled.cpp:253-258`). The menu's notification is its own `Notification` banner now, so
 		// cancelling it must take the banner down and leave the unrelated line, and its scene, up.
+		const NoNotificationSink no_sink;
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;

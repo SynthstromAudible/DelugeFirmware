@@ -23,6 +23,7 @@
 ///       (`scripts/check_layer_rules.py`'s `scenes-includes-outside`). Same rule the `tables_*`
 ///       specs run under.
 
+#include "processing/engines/audio_engine.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -74,6 +75,17 @@ extern "C++" PatchSource modSourceShortcuts[2][8];
 
 namespace {
 
+/// @brief The reverb at its original model for the scope, put back after. Legacy names its width and room-size
+/// items by the active model (Diffusion and Time under MUTABLE and DIGITAL, `reverb/width.h`, `reverb/room_size.h`);
+/// the port's nodes carry the model-independent names, so the transcription compares them at FREEVERB.
+struct FreeverbModel {
+	dsp::Reverb::Model saved = AudioEngine::reverb.getModel();
+	FreeverbModel() { AudioEngine::reverb.setModel(dsp::Reverb::Model::FREEVERB); }
+	~FreeverbModel() { AudioEngine::reverb.setModel(saved); }
+	FreeverbModel(const FreeverbModel&) = delete;
+	FreeverbModel& operator=(const FreeverbModel&) = delete;
+};
+
 namespace nodes = deluge::scenes::menu::nodes;
 
 using Root = MenuContext::Root;
@@ -117,9 +129,6 @@ void install_sound_context() {
 	soundEditor.currentMultiRange = ctx.range;
 	soundEditor.currentMultiRangeIndex = ctx.range_index;
 	soundEditor.currentArpSettings = ctx.arp;
-	soundEditor.currentPriority = ctx.priority;
-	soundEditor.currentSidechain = ctx.sidechain;
-	soundEditor.currentSampleControls = ctx.sample_controls;
 	soundEditor.setupKitGlobalFXMenu = false;
 	soundEditor.navigationDepth = 0;
 }
@@ -336,6 +345,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 	});
 
 	it("matches paramShortcutsForSounds cell for cell", _ {
+		const FreeverbModel freeverb;
 		install_sound_context();
 		expect(diff_table("paramShortcutsForSounds", paramShortcutsForSounds,
 		                  menu::shortcut_layer(Root::Sound, /*second_layer=*/false)))
@@ -343,6 +353,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 	});
 
 	it("matches paramShortcutsForSoundsSecondLayer cell for cell", _ {
+		const FreeverbModel freeverb;
 		install_sound_context();
 		expect(diff_table("paramShortcutsForSoundsSecondLayer", paramShortcutsForSoundsSecondLayer,
 		                  menu::shortcut_layer(Root::Sound, /*second_layer=*/true)))
@@ -350,6 +361,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 	});
 
 	it("matches paramShortcutsForAudioClips cell for cell", _ {
+		const FreeverbModel freeverb;
 		install_sound_context();
 		expect(diff_table("paramShortcutsForAudioClips", paramShortcutsForAudioClips,
 		                  menu::shortcut_layer(Root::AudioClip, /*second_layer=*/false)))
@@ -357,6 +369,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 	});
 
 	it("matches paramShortcutsForSongView cell for cell, for both session roots", _ {
+		const FreeverbModel freeverb;
 		install_sound_context();
 		expect(diff_table("paramShortcutsForSongView", paramShortcutsForSongView,
 		                  menu::shortcut_layer(Root::Song, /*second_layer=*/false)))
@@ -367,6 +380,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 	});
 
 	it("matches paramShortcutsForKitGlobalFX cell for cell", _ {
+		const FreeverbModel freeverb;
 		install_sound_context();
 		expect(diff_table("paramShortcutsForKitGlobalFX", paramShortcutsForKitGlobalFX,
 		                  menu::shortcut_layer(Root::KitGlobalFx, /*second_layer=*/false)))
@@ -849,6 +863,7 @@ describe shortcuts_profile("shell::BoardProfile without the shortcuts field", $ 
 // clang-format off
 describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSION_1 layer", $ {
 	it("matches paramShortcutsForSounds cell for cell once legacy has been switched to it", _ {
+		const FreeverbModel freeverb;
 		install_sound_context();
 		const LegacyVersion1 guard;
 		// The same cell-for-cell sweep the V3 group runs, against the array `setShortcutsVersion`
@@ -888,6 +903,7 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 	});
 
 	it("matches paramShortcutsForAudioClips apart from the marker cell the port collapses", _ {
+		const FreeverbModel freeverb;
 		install_sound_context();
 		const LegacyVersion1 guard;
 		// V1 puts the marker editor's *start* item at `(0..1, 7)` and its *end* item at `(0..1, 6)`

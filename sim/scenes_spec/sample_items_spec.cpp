@@ -95,29 +95,11 @@ namespace {
 // ---------------------------------------------------------------------------------------------
 // The card the browser examples list
 
-/// @brief A scratch card with one folder per oscillator, so "which source did the browser open on"
-///        is a different directory rather than the same one twice.
-///
-/// Built under the host temp directory and removed again, for `browser_scene_spec.cpp`'s reason:
-/// the committed `tests/fixtures/card` is flat and nearly empty, and nothing here may write to it.
+/// @brief The card these examples list: `tests/fixtures/scenes_spec/sample_items`, installed for this file before boot
+///        (`tests/integration/checks/scenes_spec_cards.txt`). Constructing one checks it is the installed card.
 struct ScratchCard {
-	std::filesystem::path dir;
-	spec::SdRoot root;
-
-	static std::filesystem::path make() {
-		std::filesystem::path d = std::filesystem::temp_directory_path() / "deluge_sample_items_spec";
-		std::filesystem::remove_all(d);
-		std::filesystem::create_directories(d / "SAMPLES" / "OSC_A");
-		std::filesystem::create_directories(d / "SAMPLES" / "OSC_B");
-		std::ofstream(d / "SAMPLES" / "OSC_A" / "A1.WAV") << "RIFF";
-		std::ofstream(d / "SAMPLES" / "OSC_B" / "B1.WAV") << "RIFF";
-		return d;
-	}
-
-	ScratchCard() : dir(make()), root(dir.string()) {}
-	~ScratchCard() { std::filesystem::remove_all(dir); }
-	ScratchCard(const ScratchCard&) = delete;
-	ScratchCard& operator=(const ScratchCard&) = delete;
+	std::filesystem::path dir = std::filesystem::path(DELUGE_REPO_ROOT) / "tests/fixtures/scenes_spec/sample_items";
+	spec::SdRoot root{dir.string()};
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -730,7 +712,7 @@ describe sample_items_relevance("scenes::menu the sample items: relevance agains
 		Sample* sample = make_sample(32);
 
 		const auto seed = [&](const OscCase& c, int32_t which) {
-			sound->synthMode = c.synth_mode;
+			sound->assignSynthMode(c.synth_mode);
 			for (int32_t i = 0; i < 2; i++) {
 				Source& s = sound->sources[i];
 				s.oscType = i == which ? c.osc_type : OscType::SQUARE;

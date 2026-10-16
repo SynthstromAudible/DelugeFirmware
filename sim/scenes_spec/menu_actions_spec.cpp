@@ -278,7 +278,7 @@ struct GuestRig {
 	/// The select-encoder press, through the guest's own hook rather than the shell's -- which is
 	/// the point: `buttonAction` only queues, and `Shell::pump_input` inside a tick is what routes
 	/// (`shell/shell.cpp:582-592`).
-	void press_enter() { (void)ui.buttonAction(deluge::hid::button::SELECT_ENC, true, false); }
+	void press_enter() { (void)ui.buttonAction(deluge::hid::button::SELECT_ENC, true); }
 
 	/// One detent of the select encoder, through the guest's own hook. `ShellHostUI::selectEncoderAction`
 	/// (`gui/ui/shell_host_ui.cpp:1010`) is the override legacy's `interpretEncoders` calls
@@ -733,8 +733,8 @@ spec::AudioSongFixture seat_audio_clip_with_sample() {
 	// passed. `audio_clip_scene_spec.cpp:410-422` found that the hard way; this is its arithmetic,
 	// 120 BPM through `Song::setBPMInner`'s own formula (`song.cpp:3072-3081`) rather than by
 	// calling it, because `setTempoFromNumSamples` reaches a transport this process does not have.
-	const double bpm = 120.0 * static_cast<double>(1u << f.song->insideWorldTickMagnitude);
-	f.song->timePerTimerTickBig = static_cast<uint64_t>((110250.0 / bpm) * 4294967296.0);
+	const double bpm = 120.0 * static_cast<double>(1u << f.song->project.transport.inside_world_tick_magnitude);
+	f.song->project.transport.samples_per_timer_tick_big = static_cast<uint64_t>((110250.0 / bpm) * 4294967296.0);
 	return f;
 }
 
@@ -752,7 +752,7 @@ spec::AudioSongFixture seat_audio_clip_with_sample() {
 /// `midi_learn_spec.cpp:226-235`'s `StubRootUI` is the same object, built for the same reason.
 class PerformExitStubUI final : public RootUI {
 public:
-	ActionResult buttonAction(deluge::hid::Button, bool, bool) override { return ActionResult::DEALT_WITH; }
+	ActionResult buttonAction(deluge::hid::Button, bool) override { return ActionResult::DEALT_WITH; }
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas&) override {}
 	UIType getUIType() override { return UIType::NONE; }
 };
@@ -783,9 +783,9 @@ PerformExitStubUI& perform_exit_stub() {
 ///     (`:248-269`) and can leave shift *stuck on* for the next example.
 struct PerformGestureGuard {
 	uint32_t saved_ui_mode = currentUIMode;
-	int32_t saved_entered_pos = currentSong->lastClipInstanceEnteredStartPos;
-	SessionLayoutType saved_layout = currentSong->sessionLayout;
-	bool saved_affect_entire = currentSong->affectEntire;
+	int32_t saved_entered_pos = currentSong->persistentView.lastClipInstanceEnteredStartPos;
+	SessionLayoutType saved_layout = currentSong->persistentView.sessionLayout;
+	bool saved_affect_entire = currentSong->persistentView.affectEntire;
 	uint32_t saved_shortcut_press = performanceView.timeKeyboardShortcutPress;
 	uint32_t saved_sample_timer = AudioEngine::audioSampleTimer;
 	bool saved_shift = Buttons::isShiftButtonPressed();
@@ -799,9 +799,9 @@ struct PerformGestureGuard {
 		}
 		AudioEngine::audioSampleTimer = saved_sample_timer;
 		performanceView.timeKeyboardShortcutPress = saved_shortcut_press;
-		currentSong->affectEntire = saved_affect_entire;
-		currentSong->sessionLayout = saved_layout;
-		currentSong->lastClipInstanceEnteredStartPos = saved_entered_pos;
+		currentSong->persistentView.affectEntire = saved_affect_entire;
+		currentSong->persistentView.sessionLayout = saved_layout;
+		currentSong->persistentView.lastClipInstanceEnteredStartPos = saved_entered_pos;
 		currentUIMode = saved_ui_mode;
 	}
 };
@@ -2237,7 +2237,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 			setRootUILowLevel(&instrumentClipView);
 			expect(open_global_guest(nodes::stem_export, control_song)).to_be_true();
 			shellHostUI.shell().tick(5);
-			(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true, false);
+			(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true);
 			shellHostUI.shell().tick(20);
 
 			expect(shellHostUI.shell().stack().depth()).to_equal(size_t(1));
@@ -2253,7 +2253,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		expect(open_global_guest(nodes::stem_export, song)).to_be_true();
 		shellHostUI.shell().tick(5);
 		expect(shellHostUI.shell().stack().depth()).to_equal(size_t(1));
-		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true, false);
+		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true);
 		shellHostUI.shell().tick(20);
 		// Still up after the tick that filed the request: the scene does not pop itself
 		// (`scenes/menu/nodes/actions.h:47-54`), which is why this close is the dispatcher's.
@@ -2285,7 +2285,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	// What each example can and cannot see is stated where it bites: `SessionView::gridModeActive`
 	// and `previousGridModeActive` are private (`gui/views/session_view.h:231`, `:202`), so the half
 	// of `enterMidiLearnMode`/`enterMacrosConfigMode` that moves them is asserted only through the
-	// state that *is* reachable -- `currentUIMode` and `currentSong->sessionLayout`.
+	// state that *is* reachable -- `currentUIMode` and `currentSong->persistentView.sessionLayout`.
 	//
 	// @par What these examples do NOT pin, and why that is a fact about legacy rather than a hole
 	//
@@ -2345,12 +2345,12 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 			Rig control;
 			const spec::AudioSongFixture f = seat_audio_clip_with_sample();
 			setRootUILowLevel(&audioClipView);
-			const int32_t seeded = f.clip->loopLength;
+			const int32_t seeded = f.clip->loopLength();
 
 			expect(press_child_leaving_request(control, nodes::audio_clip_actions, nodes::set_clip_length))
 			    .to_be_true();
 
-			expect(f.clip->loopLength).to_equal(seeded);
+			expect(f.clip->loopLength()).to_equal(seeded);
 			expect(static_cast<int>(control_display.recorder.popups.size())).to_equal(0);
 			expect(scene().take_action().action == MenuAction::SetClipLengthToSampleLength).to_be_true();
 		}
@@ -2365,7 +2365,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		// `getRootUI()` to `uiNeedsRendering` (`:783`).
 		setRootUILowLevel(&audioClipView);
 
-		const int32_t seeded = f.clip->loopLength;
+		const int32_t seeded = f.clip->loopLength();
 		// Legacy's own argument, from legacy's own function -- `audio_clip_view.cpp:763` computes
 		// exactly this and passes it to `adjustLoopLength`. Read here rather than hard-coded so the
 		// expectation is derived from the model both sides share.
@@ -2379,7 +2379,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 
 		// `set_clip_length_equal_to_sample_length.h:27` -> `audio_clip_view.cpp:758-769`: the
 		// `sampleHolder` branch (`:762-765`), whose two statements are the length and the popup.
-		expect(f.clip->loopLength).to_equal(from_sample);
+		expect(f.clip->loopLength()).to_equal(from_sample);
 		expect(static_cast<int>(display_guard.recorder.popups.size())).to_equal(1);
 		expect(display_guard.recorder.popups.empty() ? std::string{} : display_guard.recorder.popups[0])
 		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_CLIP_LENGTH_ADJUSTED)));
@@ -2443,10 +2443,10 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 			// The control. One call different.
 			Rig control;
 			setRootUILowLevel(&sessionView);
-			control.song.song->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+			control.song.song->persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 			expect(press_child_leaving_request(control, nodes::root_song, nodes::configure_song_macros)).to_be_true();
 
-			expect(currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows).to_be_true();
+			expect(currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeRows).to_be_true();
 			expect(isUIOpen(&deluge::gui::context_menu::configureSongMacros)).to_be_false();
 			expect(scene().take_action().action == MenuAction::OpenSongMacros).to_be_true();
 		}
@@ -2456,16 +2456,16 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		// Seeded at the layout the effect is NOT, so the assertion below cannot pass on a value that
 		// was already there. `Rig` owns this song and nothing outside the example reads it, so there
 		// is no guard to put it back.
-		r.song.song->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+		r.song.song->persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 		expect(press_child_leaving_request(r, nodes::root_song, nodes::configure_song_macros)).to_be_true();
 		deluge::gui::ui::dispatchShellActions();
 
 		// `configure_macros.h:28` -- `ConfigureSongMacros::setupAndCheckAvailability`
 		// (`gui/context_menu/configure_song_macros.cpp:48-51`) -> `SessionView::enterMacrosConfigMode`
 		// (`gui/views/session_view.cpp:3060-3066`), whose one write to state this spec can read is
-		// `currentSong->sessionLayout = ...Grid` (`:3062`). Its other two writes,
+		// `currentSong->persistentView.sessionLayout = ...Grid` (`:3062`). Its other two writes,
 		// `previousLayout` and `gridModeActive`, are private members of `SessionView`.
-		expect(currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid).to_be_true();
+		expect(currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeGrid).to_be_true();
 		// `configure_macros.h:29`.
 		expect(isUIOpen(&deluge::gui::context_menu::configureSongMacros)).to_be_true();
 		expect(scene().take_action().engaged()).to_be_false();
@@ -2524,7 +2524,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		(void)shellHostUI.timerCallback();                 // settle the first frame...
 		expect(scene().take_action().engaged()).to_be_false(); // ...which files nothing on its own
 
-		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true, false);
+		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true);
 		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC); // `buttonAction` armed it via `armTickSoon`
 		(void)shellHostUI.timerCallback();
 
@@ -2595,7 +2595,7 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 		// after the press is about the press.
 		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
 
-		(void)performanceView.buttonAction(deluge::hid::button::BACK, true, false);
+		(void)performanceView.buttonAction(deluge::hid::button::BACK, true);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
@@ -2614,7 +2614,7 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
 
 		Buttons::commandToggleShift(true);
-		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true, false);
+		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
@@ -2637,7 +2637,7 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 		    .to_equal(static_cast<int>(PerformanceEditingMode::PARAM));
 
 		Buttons::commandToggleShift(true);
-		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true, false);
+		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true);
 
 		expect(performanceView.defaultEditingMode).to_be_true();
 		expect(performanceView.editingParam).to_be_false();
@@ -2659,7 +2659,7 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::VALUE));
 
 		Buttons::commandToggleShift(true);
-		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true, false);
+		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true);
 
 		expect(performanceView.defaultEditingMode).to_be_true();
 		expect(performanceView.editingParam).to_be_true();
@@ -2681,10 +2681,10 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 		PerformGestureGuard gesture_guard;
 
 		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true, PerformanceEditingMode::PARAM);
-		currentSong->lastClipInstanceEnteredStartPos = 0;
+		currentSong->persistentView.lastClipInstanceEnteredStartPos = 0;
 		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
 
-		(void)performanceView.buttonAction(deluge::hid::button::CLIP_VIEW, true, false);
+		(void)performanceView.buttonAction(deluge::hid::button::CLIP_VIEW, true);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
@@ -2701,10 +2701,10 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 		PerformGestureGuard gesture_guard;
 
 		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true, PerformanceEditingMode::PARAM);
-		currentSong->lastClipInstanceEnteredStartPos = -1;
+		currentSong->persistentView.lastClipInstanceEnteredStartPos = -1;
 		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
 
-		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true, false);
+		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
@@ -2723,12 +2723,12 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 		PerformGestureGuard gesture_guard;
 
 		enter_perform_view(/*default_mode=*/true, /*editing_param=*/false, PerformanceEditingMode::VALUE);
-		currentSong->lastClipInstanceEnteredStartPos = -1;
+		currentSong->persistentView.lastClipInstanceEnteredStartPos = -1;
 		performanceView.timeKeyboardShortcutPress = 1;
 		AudioEngine::audioSampleTimer = 1 + static_cast<uint32_t>(FlashStorage::holdTime);
 		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::VALUE));
 
-		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, false, false);
+		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, false);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
@@ -2750,8 +2750,8 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 		PerformGestureGuard gesture_guard;
 
 		enter_perform_view(/*default_mode=*/false, /*editing_param=*/false, PerformanceEditingMode::PARAM);
-		currentSong->lastClipInstanceEnteredStartPos = -1; // `:1064` -- the session-view half
-		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeGrid; // `:1081` -- the grid half
+		currentSong->persistentView.lastClipInstanceEnteredStartPos = -1; // `:1064` -- the session-view half
+		currentSong->persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeGrid; // `:1081` -- the grid half
 		// Out of step by construction, and asserted as such.
 		expect(static_cast<int>(menu::performance_editing_mode()))
 		    .to_equal(static_cast<int>(PerformanceEditingMode::PARAM));

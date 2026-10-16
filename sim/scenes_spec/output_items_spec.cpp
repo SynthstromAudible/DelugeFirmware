@@ -129,27 +129,11 @@ struct QuietDisplay final : deluge::hid::Display {
 	void timerRoutine() override {}
 };
 
-/// @brief A scratch card carrying one MIDI device definition, so the browser the link arm opens has
-///        a real folder to list.
-///
-/// Built under the host temp directory and removed again: the committed `tests/fixtures/card` has
-/// no `MIDI_DEVICES/` at all, and nothing here may write to it (`browser_scene_spec.cpp`'s rule).
+/// @brief The card these examples list: `tests/fixtures/scenes_spec/output_items`, installed for this file before boot
+///        (`tests/integration/checks/scenes_spec_cards.txt`). Constructing one checks it is the installed card.
 struct ScratchCard {
-	std::filesystem::path dir;
-	spec::SdRoot root;
-
-	static std::filesystem::path make() {
-		std::filesystem::path d = std::filesystem::temp_directory_path() / "deluge_output_items_spec";
-		std::filesystem::remove_all(d);
-		std::filesystem::create_directories(d / "MIDI_DEVICES" / "DEFINITION");
-		std::ofstream(d / "MIDI_DEVICES" / "DEFINITION" / "DEVICE1.XML") << "<x/>";
-		return d;
-	}
-
-	ScratchCard() : dir(make()), root(dir.string()) {}
-	~ScratchCard() { std::filesystem::remove_all(dir); }
-	ScratchCard(const ScratchCard&) = delete;
-	ScratchCard& operator=(const ScratchCard&) = delete;
+	std::filesystem::path dir = std::filesystem::path(DELUGE_REPO_ROOT) / "tests/fixtures/scenes_spec/output_items";
+	spec::SdRoot root{dir.string()};
 };
 
 [[noreturn]] void spec_bail(const char* what) {

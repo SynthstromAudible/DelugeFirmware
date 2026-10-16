@@ -1,0 +1,4 @@
+# The card each scenes spec file runs on, when it is not tests/fixtures/card: `<id> <dir>` or `<id> none`.
+# The card is installed before boot (SCENES_SPEC_CARD); SdRoot in a spec checks the installed card is the one it expects.
+output_items_spec tests/fixtures/scenes_spec/output_items
+sample_items_spec tests/fixtures/scenes_spec/sample_items

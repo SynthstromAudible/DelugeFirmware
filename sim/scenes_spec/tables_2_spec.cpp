@@ -181,9 +181,6 @@ void install(const MenuContext& ctx, Song* song) {
 	soundEditor.currentMultiRange = ctx.range;
 	soundEditor.currentMultiRangeIndex = ctx.range_index;
 	soundEditor.currentArpSettings = ctx.arp;
-	soundEditor.currentPriority = ctx.priority;
-	soundEditor.currentSidechain = ctx.sidechain;
-	soundEditor.currentSampleControls = ctx.sample_controls;
 	// `SoundEditor::setup` caches this once per entry (`sound_editor.cpp:1866-1871`), and
 	// `arpeggiator::IncludeInKitArp` reads the cached copy. Computed here the way legacy computes
 	// it -- straight from `Sound::allowNoteTails` over the fixture's own model stack -- so the
@@ -1856,7 +1853,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		const auto clip_before = static_cast<int32_t>(k.song.clip->sequenceDirectionMode);
 		menu::bindings::write(nodes::sequence_direction, kit_ctx, want_row);
 		if (row != nullptr) {
-			expect(static_cast<int32_t>(row->sequenceDirectionMode)).to_equal(want_row);
+			expect(static_cast<int32_t>(row->sequenceDirectionMode())).to_equal(want_row);
 		}
 		expect(static_cast<int32_t>(k.song.clip->sequenceDirectionMode)).to_equal(clip_before);
 		install(f.ctx, f.song.song);
@@ -1874,21 +1871,28 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		size_t covered = 0;
 
 		{ // --- synth_mode --------------------------------------------------------------------
-			const SynthMode before = f.ctx.sound->synthMode;
+			// Ring mod takes two ring-moddable oscillators (the model refuses it otherwise, as legacy's menu does), so
+			// both sources are saws while the hook is driven.
+			const OscType osc_before[2] = {f.ctx.sound->sources[0].getOscType(), f.ctx.sound->sources[1].getOscType()};
+			f.ctx.sound->sources[0].setOscType(OscType::SAW);
+			f.ctx.sound->sources[1].setOscType(OscType::SAW);
+			const SynthMode before = f.ctx.sound->getSynthMode();
 			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(SynthMode::RINGMOD));
-			expect(f.ctx.sound->synthMode == SynthMode::RINGMOD).to_be_true();
+			expect(f.ctx.sound->getSynthMode() == SynthMode::RINGMOD).to_be_true();
 			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(SynthMode::SUBTRACTIVE));
-			expect(f.ctx.sound->synthMode == SynthMode::SUBTRACTIVE).to_be_true();
+			expect(f.ctx.sound->getSynthMode() == SynthMode::SUBTRACTIVE).to_be_true();
 			f.ctx.sound->setSynthMode(before, f.ctx.song);
+			f.ctx.sound->sources[0].setOscType(osc_before[0]);
+			f.ctx.sound->sources[1].setOscType(osc_before[1]);
 			covered++;
 		}
 
 		{ // --- mod_fx_type -------------------------------------------------------------------
-			const ModFXType before = f.ctx.mod->modFXType_;
+			const ModFXType before = f.ctx.mod->getModFXType();
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(f.ctx.mod->modFXType_ == ModFXType::NONE).to_be_true();
+			expect(f.ctx.mod->getModFXType() == ModFXType::NONE).to_be_true();
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(f.ctx.mod->modFXType_ == ModFXType::FLANGER).to_be_true();
+			expect(f.ctx.mod->getModFXType() == ModFXType::FLANGER).to_be_true();
 			(void)f.ctx.mod->setModFXType(before);
 			covered++;
 		}

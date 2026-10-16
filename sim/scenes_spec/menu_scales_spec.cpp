@@ -93,7 +93,7 @@ struct ScalesGuard {
 
 	ScalesGuard() {
 		if (song != nullptr) {
-			saved_song = song->disabledPresetScales;
+			saved_song = song->project.scale.disabled_preset_scales;
 		}
 	}
 	ScalesGuard(const ScalesGuard&) = delete;
@@ -101,7 +101,7 @@ struct ScalesGuard {
 	~ScalesGuard() {
 		FlashStorage::defaultDisabledPresetScales = saved_flash;
 		if (song != nullptr) {
-			song->disabledPresetScales = saved_song;
+			song->project.scale.disabled_preset_scales = saved_song;
 		}
 	}
 };
@@ -281,9 +281,9 @@ describe menu_scales_table("scenes::menu the two scale checklists: the table", $
 		legacy_walk_to(activeScaleMenu, 1000); // one detent at a time, well past the end
 		// The item is now on its last row; toggling proves which one that is.
 		activeScaleMenu.selectButtonPress();
-		expect(bool{currentSong->disabledPresetScales[LAST_PRESET_SCALE]}).to_be_true();
+		expect(bool{currentSong->project.scale.disabled_preset_scales[LAST_PRESET_SCALE]}).to_be_true();
 		activeScaleMenu.selectButtonPress();
-		expect(bool{currentSong->disabledPresetScales[LAST_PRESET_SCALE]}).to_be_false();
+		expect(bool{currentSong->project.scale.disabled_preset_scales[LAST_PRESET_SCALE]}).to_be_false();
 	});
 });
 
@@ -299,13 +299,13 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 			ScalesGuard guard;
 
 			// --- legacy, driven from the sentinel
-			currentSong->disabledPresetScales = sentinel_bits();
+			currentSong->project.scale.disabled_preset_scales = sentinel_bits();
 			legacy_walk_to(activeScaleMenu, row);
 			activeScaleMenu.selectButtonPress();
-			const std::bitset<NUM_PRESET_SCALES> after_legacy = currentSong->disabledPresetScales;
+			const std::bitset<NUM_PRESET_SCALES> after_legacy = currentSong->project.scale.disabled_preset_scales;
 
 			// --- port, from the SAME sentinel, through the real input path
-			currentSong->disabledPresetScales = sentinel_bits();
+			currentSong->project.scale.disabled_preset_scales = sentinel_bits();
 			(void)r.open(nodes::active_scales);
 			r.shell.tick(5);
 			uint32_t at = 10;
@@ -314,9 +314,9 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 			r.press(at);
 			r.shell.tick(at + 5);
 
-			expect(currentSong->disabledPresetScales == after_legacy).to_be_true();
+			expect(currentSong->project.scale.disabled_preset_scales == after_legacy).to_be_true();
 			// ... and something actually moved, or the comparison proves nothing.
-			expect(currentSong->disabledPresetScales == sentinel_bits()).to_be_false();
+			expect(currentSong->project.scale.disabled_preset_scales == sentinel_bits()).to_be_false();
 		}
 	});
 
@@ -324,7 +324,7 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 		select_language();
 		Rig r;
 		ScalesGuard guard;
-		currentSong->disabledPresetScales.reset();
+		currentSong->project.scale.disabled_preset_scales.reset();
 		(void)r.open(nodes::root_song);
 		r.shell.tick(5);
 		// Walk to `active_scales` and enter it.
@@ -354,20 +354,20 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 		r.press(at);
 		r.shell.tick(at + 5);
 		expect(scene().focused() == &nodes::active_scales).to_be_true();
-		expect(bool{currentSong->disabledPresetScales[0]}).to_be_true();
+		expect(bool{currentSong->project.scale.disabled_preset_scales[0]}).to_be_true();
 	});
 
 	it("a turn moves the cursor and toggles nothing", _ {
 		select_language();
 		Rig r;
 		ScalesGuard guard;
-		currentSong->disabledPresetScales = sentinel_bits();
+		currentSong->project.scale.disabled_preset_scales = sentinel_bits();
 		(void)r.open(nodes::active_scales);
 		r.shell.tick(5);
 		uint32_t at = 10;
 		r.walk_to(5, at);
 		expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(5);
-		expect(currentSong->disabledPresetScales == sentinel_bits()).to_be_true();
+		expect(currentSong->project.scale.disabled_preset_scales == sentinel_bits()).to_be_true();
 	});
 
 	it("each item edits its own bitset and leaves the other alone", _ {
@@ -377,26 +377,26 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 		{
 			Rig r;
 			ScalesGuard guard;
-			currentSong->disabledPresetScales.reset();
+			currentSong->project.scale.disabled_preset_scales.reset();
 			FlashStorage::defaultDisabledPresetScales.reset();
 			(void)r.open(nodes::active_scales);
 			r.shell.tick(5);
 			r.press(10);
 			r.shell.tick(15);
-			expect(bool{currentSong->disabledPresetScales[0]}).to_be_true();
+			expect(bool{currentSong->project.scale.disabled_preset_scales[0]}).to_be_true();
 			expect(FlashStorage::defaultDisabledPresetScales.none()).to_be_true();
 		}
 		{
 			Rig r;
 			ScalesGuard guard;
-			currentSong->disabledPresetScales.reset();
+			currentSong->project.scale.disabled_preset_scales.reset();
 			FlashStorage::defaultDisabledPresetScales.reset();
 			(void)r.open(nodes::default_active_scale);
 			r.shell.tick(5);
 			r.press(10);
 			r.shell.tick(15);
 			expect(bool{FlashStorage::defaultDisabledPresetScales[0]}).to_be_true();
-			expect(currentSong->disabledPresetScales.none()).to_be_true();
+			expect(currentSong->project.scale.disabled_preset_scales.none()).to_be_true();
 		}
 	});
 
@@ -412,10 +412,10 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 		expect(static_cast<int>(song_item->set())).to_equal(static_cast<int>(ScaleSet::Song));
 		expect(static_cast<int>(default_item->set())).to_equal(static_cast<int>(ScaleSet::Default));
 
-		currentSong->disabledPresetScales = sentinel_bits();
+		currentSong->project.scale.disabled_preset_scales = sentinel_bits();
 		FlashStorage::defaultDisabledPresetScales = ~sentinel_bits(); // deliberately the complement
 		for (size_t i = 0; i < NUM_PRESET_SCALES; i++) {
-			expect(song_item->is_disabled(ctx, i)).to_equal(bool{currentSong->disabledPresetScales[i]});
+			expect(song_item->is_disabled(ctx, i)).to_equal(bool{currentSong->project.scale.disabled_preset_scales[i]});
 			expect(default_item->is_disabled(ctx, i)).to_equal(bool{FlashStorage::defaultDisabledPresetScales[i]});
 			// The complement makes "read the wrong bitset" a failure at every index rather than at
 			// two thirds of them.
@@ -447,14 +447,14 @@ describe menu_scales_pixels("scenes::menu the two scale checklists: pixels", $ {
 			ScalesGuard guard;
 
 			// --- legacy
-			currentSong->disabledPresetScales = sentinel_bits();
+			currentSong->project.scale.disabled_preset_scales = sentinel_bits();
 			legacy_walk_to(activeScaleMenu, row);
 			deluge::hid::display::OLED::main.clear();
 			activeScaleMenu.renderOLED();
 			const std::string legacy = below_bezel(legacy_panel_pbm());
 
 			// --- port, same bitset, same row, driven
-			currentSong->disabledPresetScales = sentinel_bits();
+			currentSong->project.scale.disabled_preset_scales = sentinel_bits();
 			(void)r.open(nodes::active_scales);
 			r.shell.tick(5);
 			uint32_t at = 10;
@@ -470,7 +470,7 @@ describe menu_scales_pixels("scenes::menu the two scale checklists: pixels", $ {
 		select_language();
 		Rig r;
 		ScalesGuard guard;
-		currentSong->disabledPresetScales = sentinel_bits();
+		currentSong->project.scale.disabled_preset_scales = sentinel_bits();
 		(void)r.open(nodes::active_scales);
 		r.shell.tick(5);
 		uint32_t at = 10;
@@ -479,7 +479,7 @@ describe menu_scales_pixels("scenes::menu the two scale checklists: pixels", $ {
 		expect_golden(self, "../ui/menu/menu_active_scales_48.pbm", r.fake.pbm(0));
 
 		Rig r64{board_64(), profile_64()};
-		currentSong->disabledPresetScales = sentinel_bits();
+		currentSong->project.scale.disabled_preset_scales = sentinel_bits();
 		(void)r64.open(nodes::active_scales);
 		r64.shell.tick(5);
 		uint32_t at64 = 10;
@@ -492,7 +492,7 @@ describe menu_scales_pixels("scenes::menu the two scale checklists: pixels", $ {
 		select_language();
 		Rig r;
 		ScalesGuard guard;
-		currentSong->disabledPresetScales = sentinel_bits();
+		currentSong->project.scale.disabled_preset_scales = sentinel_bits();
 		(void)r.open(nodes::active_scales);
 		r.shell.tick(5);
 		// The focused row's side scroller is the one clock-driven thing `list` has, and every scale
@@ -502,7 +502,7 @@ describe menu_scales_pixels("scenes::menu the two scale checklists: pixels", $ {
 			r.shell.tick(5 + t * 15);
 			expect(r.fake.pbm(0)).to_equal(first);
 		}
-		expect(currentSong->disabledPresetScales == sentinel_bits()).to_be_true();
+		expect(currentSong->project.scale.disabled_preset_scales == sentinel_bits()).to_be_true();
 	});
 });
 // clang-format on
