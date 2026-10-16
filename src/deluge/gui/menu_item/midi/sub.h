@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/midi/preset.h"
+#include "model/edits/setting_edit.h"
 
 namespace deluge::gui::menu_item::midi {
 class Sub final : public Preset {
@@ -23,11 +24,8 @@ public:
 	using Preset::Preset;
 	void readCurrentValue() { this->setValue(getCurrentInstrumentClip()->midiSub); }
 	void writeCurrentValue() {
-		auto& currentClip = *getCurrentInstrumentClip();
-		currentClip.midiSub = this->getValue();
-		if (currentClip.isActiveOnOutput()) {
-			currentClip.sendMIDIPGM();
-		}
+		deluge::edits::clipValueSettingFor(*getCurrentInstrumentClip(), "midiSub",
+		                                   deluge::serialization::Value::makeNumber(this->getValue()));
 	}
 };
 } // namespace deluge::gui::menu_item::midi

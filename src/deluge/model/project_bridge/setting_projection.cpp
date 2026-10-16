@@ -343,6 +343,10 @@ Error applyClipValueSetting(::InstrumentClip& clip, ::Song& /*song*/, std::strin
 	else {
 		return Error::UNSPECIFIED;
 	}
+	// A playing MIDI clip's device hears its new program at once.
+	if (clip.output != nullptr && clip.output->type == OutputType::MIDI_OUT && clip.isActiveOnOutput()) {
+		clip.sendMIDIPGM();
+	}
 	return Error::NONE;
 }
 

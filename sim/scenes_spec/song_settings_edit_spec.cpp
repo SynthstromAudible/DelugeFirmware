@@ -6,6 +6,8 @@
 #include "deluge-project/song_codec.h"
 #include "dsp/reverb/reverb.hpp"
 #include "gui/views/instrument_clip_view.h"
+#include "io/midi/midi_engine.h"
+#include "libdeluge/system.h"
 #include "model/clip/audio_clip.h"
 #include "model/edits/set_setting.h"
 #include "model/edits/setting_edit.h"
@@ -267,6 +269,31 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::edits::clipValueSettingFor(*f.clip, "midiPGM", Value::makeNumber(5));
 		expect(recorded(*f.song, values, "midiPGM")).to_equal(std::string{"5"});
 		expect(projected(*f.song, values, "midiPGM")).to_equal(std::string{"5"});
+	});
+	it("sends a program change for the active MIDI clip as its program changes", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		char memory[MODEL_STACK_MAX_SIZE];
+		f.instrument->setActiveClip(setupModelStackWithTimelineCounter(memory, f.song, f.clip));
+		expect(f.clip->isActiveOnOutput()).to_be_true();
+		uint32_t due = 0;
+		{
+			CriticalSectionGuard guard;
+			midiEngine.flushAllQueuedMIDI(guard);
+			expect(midiEngine.nextMIDIDue(due, guard)).to_be_false();
+		}
+		deluge::edits::clipValueSettingFor(*f.clip, "midiPGM", Value::makeNumber(5));
+		CriticalSectionGuard guard;
+		expect(midiEngine.nextMIDIDue(due, guard)).to_be_true();
+		midiEngine.flushAllQueuedMIDI(guard);
+	});
+
+	it("gives a clone the clip's program", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		deluge::edits::clipValueSettingFor(*f.clip, "midiPGM", Value::makeNumber(9));
+		InstrumentClip copy(*f.song);
+		copy.copyBasicsFrom(f.clip);
+		expect(copy.docClip_->values.midi_pgm.value_or(-1)).to_equal(9);
+		expect(static_cast<int>(copy.midiPGM)).to_equal(9);
 	});
 });
 // clang-format on

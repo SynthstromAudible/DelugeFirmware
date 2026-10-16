@@ -135,6 +135,7 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	midiBank = otherInstrumentClip->midiBank;
 	midiSub = otherInstrumentClip->midiSub;
 	midiPGM = otherInstrumentClip->midiPGM;
+	docClip_->values = otherInstrumentClip->docClip_->values;
 
 	onKeyboardScreen = otherInstrumentClip->onKeyboardScreen;
 	inScaleMode = otherInstrumentClip->inScaleMode;
@@ -2488,15 +2489,11 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 			writer.writeAttribute("midiChannelSuffix", suffix);
 		}
 
-		// MIDI PGM
-		if (midiBank != 128) {
-			writer.writeAttribute("midiBank", midiBank);
-		}
-		if (midiSub != 128) {
-			writer.writeAttribute("midiSub", midiSub);
-		}
-		if (midiPGM != 128) {
-			writer.writeAttribute("midiPGM", midiPGM);
+		// The MIDI program is the clip's value; 128 is none.
+		for (const char* path : {"midiBank", "midiSub", "midiPGM"}) {
+			if (const int32_t program = deluge::project::resolve(docClip_->values, path, 128); program != 128) {
+				writer.writeAttribute(path, program);
+			}
 		}
 	}
 	else if (output->type == OutputType::CV) {

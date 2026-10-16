@@ -90,13 +90,6 @@ AudioClip* audio_clip(const MenuContext& ctx) {
 	return (ctx.clip != nullptr && ctx.clip->type == ClipType::AUDIO) ? static_cast<AudioClip*>(ctx.clip) : nullptr;
 }
 
-/// @brief `midi::Bank`/`Sub`/`PGM`'s shared write tail (`midi/bank.h:24-27` and siblings).
-void send_program_change(InstrumentClip& clip) {
-	if (clip.isActiveOnOutput()) {
-		clip.sendMIDIPGM();
-	}
-}
-
 } // namespace
 
 // ---------------------------------------------------------------------------------------------
@@ -129,8 +122,7 @@ int32_t get_midi_bank(const MenuContext& ctx) {
 }
 void set_midi_bank(const MenuContext& ctx, int32_t value) {
 	if (InstrumentClip* clip = instrument_clip(ctx); clip != nullptr) { // `bank.h:22-28`
-		clip->midiBank = static_cast<uint8_t>(value);
-		send_program_change(*clip);
+		deluge::edits::clipValueSettingFor(*clip, "midiBank", deluge::serialization::Value::makeNumber(value));
 	}
 }
 
@@ -140,8 +132,7 @@ int32_t get_midi_sub_bank(const MenuContext& ctx) {
 }
 void set_midi_sub_bank(const MenuContext& ctx, int32_t value) {
 	if (InstrumentClip* clip = instrument_clip(ctx); clip != nullptr) { // `sub.h:22-28`
-		clip->midiSub = static_cast<uint8_t>(value);
-		send_program_change(*clip);
+		deluge::edits::clipValueSettingFor(*clip, "midiSub", deluge::serialization::Value::makeNumber(value));
 	}
 }
 
@@ -151,8 +142,7 @@ int32_t get_midi_pgm(const MenuContext& ctx) {
 }
 void set_midi_pgm(const MenuContext& ctx, int32_t value) {
 	if (InstrumentClip* clip = instrument_clip(ctx); clip != nullptr) { // `pgm.h:22-28`
-		clip->midiPGM = static_cast<uint8_t>(value);
-		send_program_change(*clip);
+		deluge::edits::clipValueSettingFor(*clip, "midiPGM", deluge::serialization::Value::makeNumber(value));
 	}
 }
 
