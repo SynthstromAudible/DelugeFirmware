@@ -511,6 +511,9 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 		                                 // it. I think it'd only be relevant for pre-V2.0 song file... maybe?
 	}
 	else if (!strcmp(tagName, "polyToMonoConversion")) {
+		// A JSON tree reader descends into the object only on match('{'); without it the loop would read on into
+		// the instrument's next key (its midiDevice) and swallow it.
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "aftertouch")) {
 				collapseAftertouch = (bool)reader.readTagOrAttributeValueInt();
@@ -524,9 +527,10 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 				outputMPEY = static_cast<CCNumber>(reader.readTagOrAttributeValueInt());
 				editedByUser = true;
 			}
-			else
-				break;
+			reader.exitTag(tagName);
 		}
+		reader.exitTag(nullptr, true);
+		return true;
 	}
 	else if (!strcmp(tagName, "internalDest")) {
 		char const* text = reader.readTagOrAttributeValue();
@@ -551,7 +555,10 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 		channelSuffix = reader.readTagOrAttributeValueInt();
 	}
 	else if (!strcmp(tagName, "midiDevice")) {
+		reader.match('{');
 		readDeviceDefinitionFile(reader);
+		reader.exitTag(nullptr, true);
+		return true;
 	}
 	else if (NonAudioInstrument::readTagFromFile(reader, tagName)) {
 		return true;
@@ -602,18 +609,27 @@ Error MIDIInstrument::readDeviceDefinitionFile(Deserializer& reader) {
 	char const* tagName;
 
 	// step into any subtags
+	// Each child is an object, which a JSON tree reader enters on match('{') and leaves on a closing exitTag.
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "definitionFile")) {
 			// The file a preset or song names: the definition browser opens on it, and nothing reads it from here.
+			reader.match('{');
 			readDeviceDefinitionFileNameFromPresetOrSong(reader);
+			reader.exitTag(nullptr, true);
 		}
 		else if (!strcmp(tagName, "ccLabels")) {
+			reader.match('{');
 			error = readCCLabelsFromFile(reader);
+			reader.exitTag(nullptr, true);
 		}
 		else if (!strcmp(tagName, "hideUnlabeledCC")) {
+			reader.match('{');
 			error = readHideUnlabeledCCFromFile(reader);
+			reader.exitTag(nullptr, true);
 		}
-		reader.exitTag();
+		else {
+			reader.exitTag();
+		}
 	}
 
 	editedByUser = true;

@@ -15,10 +15,12 @@
 #include "model/edits/edit.h"
 #include "model/edits/set_setting.h"
 #include "model/global_effectable/global_effectable.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/output.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
@@ -148,6 +150,91 @@ std::vector<Value> valuesOf(Song& song, const SettingAddress& address, const Set
 	return values;
 }
 
+/// @brief Apply @p value at @p path of @p address through its Edit.
+bool applySetting(Song& song, const SettingAddress& address, std::string_view path, const Value& value) {
+	deluge::edits::Context ctx{song, song.project};
+	deluge::edits::SetSetting edit{address, std::string{path}, value};
+	return deluge::edits::apply(ctx, edit) == Error::NONE;
+}
+
+/// @brief @p song saved as the app saves a song and loaded back as a new current song; nullptr when either fails.
+Song* savedAndReloaded(Song& song) {
+	static std::vector<char> buffer(8u << 20);
+	const long length = deluge::scenarios::driver::saveSongCapture(song, buffer.data(), buffer.size());
+	if (length < 0) {
+		return nullptr;
+	}
+	return loadSong(std::string_view{buffer.data(), static_cast<size_t>(length)}, deluge::storage::kSongSaveFormat);
+}
+
+/// @brief The settings a save must carry through to the song it reloads into: an audio track recording from another
+///        (by id in the record, by place in the file), and a MIDI track's hide flag (on a track never otherwise
+///        edited) and a CC label. Prints `SONG-SETTINGS-SAVE <leg> ok` for each leg the song has the tracks for.
+/// @return The failures.
+int32_t saveLegs(Song& song, deluge::scenarios::driver::Io io) {
+	::AudioOutput* recorder = nullptr;
+	::Output* source = nullptr;
+	::MIDIInstrument* midi = nullptr;
+	for (::Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		if (!output->id()) {
+			continue;
+		}
+		if (output->type == OutputType::AUDIO) {
+			if (recorder == nullptr) {
+				recorder = static_cast<::AudioOutput*>(output);
+			}
+			else if (source == nullptr) {
+				source = output;
+			}
+		}
+		if (output->type == OutputType::MIDI_OUT && midi == nullptr) {
+			midi = static_cast<::MIDIInstrument*>(output);
+		}
+	}
+	int32_t failures = 0;
+	if (recorder != nullptr && source != nullptr) {
+		const SettingAddress input{SettingGroupId::AUDIO_INPUT, deluge::project::TrackAddress{*recorder->id()}};
+		const uint32_t recorderId = *recorder->id();
+		const uint32_t sourceId = *source->id();
+		const bool set = applySetting(song, input, "inputChannel", Value::makeScalar("specificTrack"))
+		                 && applySetting(song, input, "outputRecordingFrom", Value::makeNumber(sourceId));
+		Song* reloaded = set ? savedAndReloaded(song) : nullptr;
+		auto* back = reloaded != nullptr ? static_cast<::AudioOutput*>(reloaded->outputForId(recorderId)) : nullptr;
+		::Output* from = back != nullptr ? back->getOutputRecordingFrom() : nullptr;
+		const auto* record = reloaded != nullptr ? reloaded->project.output_structure.find(recorderId) : nullptr;
+		if (from == nullptr || from->id() != sourceId || record == nullptr
+		    || record->recording_from_output_id != sourceId) {
+			std::fprintf(io.err, "SONG-SETTINGS-SAVE FAIL audioSource: the reloaded track does not record from %u\n",
+			             sourceId);
+			failures++;
+		}
+		else {
+			std::fprintf(io.out, "SONG-SETTINGS-SAVE audioSource ok\n");
+		}
+		currentSong = &song;
+	}
+	if (midi != nullptr) {
+		const SettingAddress device{SettingGroupId::INSTRUMENT_DEVICE, deluge::project::TrackAddress{*midi->id()}};
+		const uint32_t midiId = *midi->id();
+		(void)applySetting(song, device, "hideUnlabeledCC", Value::makeNumber(0));
+		midi->editedByUser = false; // a track the user has not otherwise edited
+		const bool set = applySetting(song, device, "hideUnlabeledCC", Value::makeNumber(1))
+		                 && applySetting(song, device, "ccLabels/20", Value::makeScalar("SAVED LABEL"));
+		Song* reloaded = set ? savedAndReloaded(song) : nullptr;
+		auto* back = reloaded != nullptr ? static_cast<::MIDIInstrument*>(reloaded->outputForId(midiId)) : nullptr;
+		if (back == nullptr || !back->hideUnlabeledCC || back->getNameFromCC(20) != "SAVED LABEL") {
+			std::fprintf(io.err, "SONG-SETTINGS-SAVE FAIL midiDevice: the reloaded MIDI track lost its hide flag or CC "
+			                     "label\n");
+			failures++;
+		}
+		else {
+			std::fprintf(io.out, "SONG-SETTINGS-SAVE midiDevice ok\n");
+		}
+		currentSong = &song;
+	}
+	return failures;
+}
+
 const char* groupName(SettingGroupId group) {
 	constexpr const char* kNames[] = {"SONG",       "TRACK", "INSTRUMENT_DEVICE", "LANE",       "NOTE_ROW",
 	                                  "AUDIO_CLIP", "CLIP",  "CLIP_VALUES",       "AUDIO_INPUT"};
@@ -186,6 +273,9 @@ int song_settings_main(int argc, char** argv, deluge::scenarios::driver::Io io) 
 		uint32_t owner;
 		std::vector<std::string_view> paths;
 	};
+	// The save legs run on the song as loaded, before the sweep rewrites its settings.
+	int32_t saveFailures = saveLegs(*song, io);
+
 	std::vector<Target> targets;
 	deluge::harness::forEachSettingAddress(
 	    *song, [&](const SettingAddress& address, uint32_t owner, std::span<const std::string_view> paths) {
@@ -217,6 +307,8 @@ int song_settings_main(int argc, char** argv, deluge::scenarios::driver::Io io) 
 	for (const auto& [key, n] : applied) {
 		std::fprintf(io.out, "SONG-SETTINGS %s n=%d\n", key.c_str(), static_cast<int>(n));
 	}
+
+	failures += saveFailures;
 	std::fprintf(io.err, "SONG-SETTINGS-RESULT failures=%d\n", static_cast<int>(failures));
 	return failures == 0 ? 0 : 3;
 }

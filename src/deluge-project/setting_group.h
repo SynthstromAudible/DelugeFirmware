@@ -76,6 +76,21 @@ struct SettingAddress {
 [[nodiscard]] std::optional<serialization::Value> read_setting(Song& song, const SettingAddress& address,
                                                                std::string_view path);
 
+/// @brief Whether @p address holds its own value at @p path. Every setting does but a clip value (and a kit row's bend
+///        range) a clip leaves to its track.
+/// @param song    The song whose records hold it.
+/// @param address The group and owner.
+/// @param path    A path of the group's table.
+/// @return False for an unheld clip value, or an owner that does not resolve; true otherwise.
+[[nodiscard]] bool holds_setting(Song& song, const SettingAddress& address, std::string_view path);
+
+/// @brief Forget @p address's own value at @p path, so it plays its track's again. Only a clip value (and a kit row's
+///        bend range) can be forgotten; any other setting is left as it is.
+/// @param song    The song whose records hold it.
+/// @param address The group and owner.
+/// @param path    A path of the group's table.
+void forget_setting(Song& song, const SettingAddress& address, std::string_view path);
+
 /// @brief Set @p address's value at @p path in its record.
 /// @param song    The song whose records hold it.
 /// @param address The group and owner.

@@ -699,4 +699,42 @@ bool write_setting(Song& song, const SettingAddress& address, std::string_view p
 	return false;
 }
 
+namespace {
+
+/// The slot of @p address's own value at @p path when it may be left to the track, or nullptr.
+std::optional<int32_t>* own_slot(Song& song, const SettingAddress& address, std::string_view path) {
+	if (address.group == SettingGroupId::CLIP_VALUES) {
+		const auto* clip = std::get_if<ClipAddress>(&address.owner);
+		DocClip* record = clip != nullptr ? song.clip_structure.find(clip->clip_id) : nullptr;
+		return record != nullptr ? value_at(record->values, path) : nullptr;
+	}
+	if (address.group == SettingGroupId::NOTE_ROW && path == "bendRange") {
+		const auto* row_address = std::get_if<NoteRowAddress>(&address.owner);
+		DocNoteRow* row = row_address != nullptr ? resolve_note_row(song, *row_address) : nullptr;
+		return row != nullptr ? &row->bend_range : nullptr;
+	}
+	return nullptr;
+}
+
+bool leavable(const SettingAddress& address, std::string_view path) {
+	return address.group == SettingGroupId::CLIP_VALUES
+	       || (address.group == SettingGroupId::NOTE_ROW && path == "bendRange");
+}
+
+} // namespace
+
+bool holds_setting(Song& song, const SettingAddress& address, std::string_view path) {
+	if (!leavable(address, path)) {
+		return read_setting(song, address, path).has_value();
+	}
+	const std::optional<int32_t>* slot = own_slot(song, address, path);
+	return slot != nullptr && slot->has_value();
+}
+
+void forget_setting(Song& song, const SettingAddress& address, std::string_view path) {
+	if (std::optional<int32_t>* slot = own_slot(song, address, path)) {
+		slot->reset();
+	}
+}
+
 } // namespace deluge::project

@@ -46,11 +46,14 @@ def main(argv=None):
     root = os.path.dirname(os.path.abspath(args.corpus))
     ok = fail = skip = 0
     applied = collections.Counter()
+    saved = collections.Counter()
     for song, r in zip(songs, results):
         rel = os.path.relpath(song, root)
         if r.returncode == 0:
             ok += 1
             for line in r.stdout.splitlines():
+                if line.startswith("SONG-SETTINGS-SAVE "):
+                    saved[line.split()[1]] += 1
                 if line.startswith("SONG-SETTINGS "):
                     key, _, n = line[len("SONG-SETTINGS ") :].rpartition(" n=")
                     applied[key] += int(n)
@@ -65,6 +68,11 @@ def main(argv=None):
         print(f"SONG-SETTINGS {key} n={applied[key]}")
     print("=" * 60)
     print(f"OK={ok} FAIL={fail} SKIP={skip}  (song_settings, corpus={args.corpus})")
+    for leg in ("audioSource", "midiDevice"):
+        print(f"SONG-SETTINGS-SAVE {leg} songs={saved[leg]}")
+    if not saved["audioSource"] or not saved["midiDevice"]:
+        print("FAIL: a save leg found no song to run on")
+        return 1
     reached = {key.split(" ")[0] for key in applied}
     missing = [group for group in REQUIRED if group not in reached]
     if missing:

@@ -243,6 +243,10 @@ public:
 	///        tick magnitude (load, a swap, a deleted clip).
 	/// @param clip The clip, or nullptr for none.
 	void setSyncScalingClipRaw(Clip* clip);
+	/// @brief Give @p clip's value layer, and its rows' records, the bend ranges its expression sets hold where the
+	///        file gave none (load).
+	/// @param clip The clip.
+	void seedBendRangesFromEngine(Clip& clip);
 	inline bool isFillModeActive() { return runtimeView.fillModeActive; }
 	void changeFillMode(bool on);
 	void loadNextSong();

@@ -829,6 +829,26 @@ Clip* Song::getSyncScalingClip() {
 	return live.sync_scaling_clip;
 }
 
+void Song::seedBendRangesFromEngine(Clip& clip) {
+	// A clip or row the file gave no ranges plays its expression set's (the device default, when the set was made at
+	// load); the clip's values and the rows' records hold those, so they read what plays.
+	if (clip.type != ClipType::INSTRUMENT) {
+		return;
+	}
+	auto& instrumentClip = static_cast<InstrumentClip&>(clip);
+	if (const ExpressionParamSet* expression = instrumentClip.paramManager.getExpressionParamSet()) {
+		auto& values = instrumentClip.docClip_->values;
+		values.bend_range = values.bend_range.value_or(expression->bendRanges[BEND_RANGE_MAIN]);
+		values.bend_range_mpe = values.bend_range_mpe.value_or(expression->bendRanges[BEND_RANGE_FINGER_LEVEL]);
+	}
+	for (int32_t i = 0; NoteRow* row = instrumentClip.noteRows.tryGet(i); i++) {
+		const ExpressionParamSet* expression = row->paramManager.getExpressionParamSet();
+		if (expression != nullptr && row->docNoteRow_ != nullptr && !row->docNoteRow_->bend_range) {
+			row->docNoteRow_->bend_range = expression->bendRanges[BEND_RANGE_FINGER_LEVEL];
+		}
+	}
+}
+
 void Song::setSyncScalingClipRaw(Clip* clip) {
 	live.sync_scaling_clip = clip;
 	project.transport.sync_scaling_clip_id = clip != nullptr ? std::optional<uint32_t>{clip->id()} : std::nullopt;
@@ -1974,6 +1994,7 @@ loadOutput:
 					if (ExpressionParamSet* expression = thisClip->paramManager.getExpressionParamSet()) {
 						relocateParamStoreToTree(expression, mgr);
 					}
+					seedBendRangesFromEngine(*thisClip);
 					// Per-drum (NoteRow) automation for a kit clip, keyed (drum(drum id), clip). Each SoundDrum NoteRow
 					// holds its own manager (independent automation per (drum, clip) pair), parked as (SoundDrum, clip)
 					// in ParamBackup. The binding rides the ParamSet, as above.
@@ -2124,6 +2145,11 @@ skipInstance:
 			deleteClipObject(clip, false, InstrumentRemoval::NONE);
 			c--;
 		}
+	}
+
+	// Every clip's records now hold the bend ranges its expression sets were given, however late in the load.
+	for (Clip* clip : AllClips::everywhere(this)) {
+		seedBendRangesFromEngine(*clip);
 	}
 
 	if (live.sync_scaling_clip) {

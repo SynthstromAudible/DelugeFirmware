@@ -389,6 +389,15 @@ describe song_settings_edit("SetSetting", $ {
 		expect(recorded(*f.song, device, "ccLabels/20")).to_equal(std::string{"FILTER"});
 		expect(std::string{midi.getNameFromCC(20)}).to_equal(std::string{"FILTER"});
 	});
+	it("leaves a clip value it refuses unheld, so the clip keeps playing its track's", _ {
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		const auto clip = deluge::bridge::clipAddressOf(*f.clip, *f.song);
+		expect(clip.has_value()).to_be_true();
+		deluge::edits::Context ctx{*f.song, f.song->project};
+		deluge::edits::SetSetting edit{{SettingGroupId::CLIP_VALUES, *clip}, "midiPGM", Value::makeNumber(5)};
+		expect(static_cast<int>(deluge::edits::apply(ctx, edit))).to_equal(static_cast<int>(Error::UNSPECIFIED));
+		expect(f.clip->docClip_->values.midi_pgm.has_value()).to_be_false();
+	});
 });
 // clang-format on
 
