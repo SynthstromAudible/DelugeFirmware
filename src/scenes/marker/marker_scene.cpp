@@ -14,7 +14,9 @@
 #include "gui/l10n/strings.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/instrument.h"
+#include "model/project_bridge/source_bridge.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/sample/waveform_scan.h"
@@ -309,44 +311,62 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 		clip->unassignVoiceSample(false);
 	}
 
-	SampleHolder* h = holder();
-
-	if (which == MarkerType::START) {
-		h->startPos = value;
+	if (ctx_.is_audio_clip) {
+		// An audio clip's markers are its own descriptor's: the setters write the record a save reads and the
+		// holder playback reads.
+		auto* clip = static_cast<AudioClip*>(ctx_.clip);
+		if (which == MarkerType::START) {
+			clip->setSampleStartPos(value);
+		}
+		else if (which == MarkerType::END) {
+			clip->setSampleEndPos(value);
+		}
+		// Marker prefetch must never block the UI on a card read -- enqueue and let the loader fill it.
+		clip->sampleHolder.claimClusterReasons(ctx_.sample_controls != nullptr && ctx_.sample_controls->reversed,
+		                                       CLUSTER_ENQUEUE);
 	}
-	else if (which == MarkerType::LOOP_START) {
-		SampleHolderForVoice& sh = multi_range()->sampleHolder;
-		if (sh.loopLocked) {
-			const uint32_t intended_end = value + static_cast<uint32_t>(sh.loopLength());
-			if (uint64_t{intended_end} <= sh.endPos) {
-				sh.loopStartPos = value;
-				sh.loopEndPos = intended_end;
+	else {
+		// A sound's markers are its range's zone: the new zone is built from the source's ranges and issued as one
+		// Edit, which writes the record and re-claims the clusters a moved zone needs.
+		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(*ctx_.source);
+		if (ctx_.sound == nullptr || ctx_.range_index < 0 || static_cast<size_t>(ctx_.range_index) >= ranges.size()) {
+			return;
+		}
+		deluge::instrument::RangeState& range = ranges[ctx_.range_index];
+		const SampleHolderForVoice& sh = multi_range()->sampleHolder;
+		if (which == MarkerType::START) {
+			range.start_pos = value;
+		}
+		else if (which == MarkerType::LOOP_START) {
+			if (sh.loopLocked) {
+				const uint32_t intended_end = value + static_cast<uint32_t>(sh.loopLength());
+				if (uint64_t{intended_end} <= range.end_pos) {
+					range.loop_start_pos = value;
+					range.loop_end_pos = intended_end;
+				}
+			}
+			else {
+				range.loop_start_pos = value;
 			}
 		}
-		else {
-			sh.loopStartPos = value;
-		}
-	}
-	else if (which == MarkerType::LOOP_END) {
-		SampleHolderForVoice& sh = multi_range()->sampleHolder;
-		if (sh.loopLocked) {
-			const int32_t intended_start = static_cast<int32_t>(value) - sh.loopLength();
-			// pos == 0 would disable the loop, so the smallest legal start position is sample 1
-			if (intended_start >= 1 && static_cast<uint64_t>(intended_start) >= sh.startPos) {
-				sh.loopEndPos = value;
-				sh.loopStartPos = intended_start;
+		else if (which == MarkerType::LOOP_END) {
+			if (sh.loopLocked) {
+				const int32_t intended_start = static_cast<int32_t>(value) - sh.loopLength();
+				// pos == 0 would disable the loop, so the smallest legal start position is sample 1
+				if (intended_start >= 1 && static_cast<uint64_t>(intended_start) >= range.start_pos) {
+					range.loop_end_pos = value;
+					range.loop_start_pos = intended_start;
+				}
+			}
+			else {
+				range.loop_end_pos = value;
 			}
 		}
-		else {
-			sh.loopEndPos = value;
+		else if (which == MarkerType::END) {
+			range.end_pos = value;
 		}
+		deluge::edits::rangesFor(*ctx_.sound, ctx_.source_index, std::move(ranges));
 	}
-	else if (which == MarkerType::END) {
-		h->endPos = value;
-	}
-
-	// Marker prefetch must never block the UI on a card read -- enqueue and let the loader fill it.
-	h->claimClusterReasons(ctx_.sample_controls != nullptr && ctx_.sample_controls->reversed, CLUSTER_ENQUEUE);
 
 	// The model-side tail (`:203-215`) is `menu::marker_written`, which lives beside
 	// `model_stack_for` because both arms need a `ModelStack` they can call a member on and this

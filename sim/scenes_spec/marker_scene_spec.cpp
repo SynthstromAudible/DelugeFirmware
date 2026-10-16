@@ -65,6 +65,8 @@
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 
+#include "integration/scenarios/slot_coherence.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -233,6 +235,8 @@ struct Rig {
 		range->sampleHolder.loopLocked = false;
 		range->sampleHolder.waveformViewZoom = 0; // "no remembered view" -- open zoomed out
 		range->sampleHolder.waveformViewScroll = 0;
+		// The sound was set up field by field; record it as a load does, so its record is its truth.
+		deluge::bridge::recordLoadedSound(*sound, *song.song);
 	}
 
 	MenuContext ctx() {
@@ -247,6 +251,9 @@ struct Rig {
 
 	/// @brief Open the editor on @p marker, the way `LoopPoint::beginSession` does.
 	void open(MarkerType marker) {
+		// Examples set the holder by hand before opening; record it as a load would, since an Edit starts from the
+		// record.
+		deluge::bridge::recordLoadedSound(*sound, *song.song);
 		marker_scene().open(ctx());
 		shell.init(SceneId{kMarkerSceneKind, static_cast<uint16_t>(static_cast<int16_t>(marker))});
 	}
@@ -304,6 +311,8 @@ void restore(Rig& r, const HolderState& s) {
 	h.loopLocked = s.locked;
 	h.waveformViewScroll = s.view_scroll;
 	h.waveformViewZoom = s.view_zoom;
+	// Set by hand, so recorded as a load would: the record is what an Edit starts from.
+	deluge::bridge::recordLoadedSound(*r.sound, *r.song.song);
 }
 
 /// @brief Open the LEGACY editor on the same model, letting it derive its OWN view.
@@ -313,7 +322,59 @@ void restore(Rig& r, const HolderState& s) {
 /// navigates and renders from is the one IT computes from the holder. The caller `restore()`s the
 /// holder first, so not even the remembered-view fields carry the port's answer across (E3 final
 /// review, B1/B3: each side from its own sentinel).
+/// @brief An audio clip holding the sample, its markers set through the clip's own setters, with a `Shell` for the
+///        scene. An audio clip's markers live in its descriptor record (`AudioClip::docAudioClip_`), which a save
+///        writes.
+struct AudioRig {
+	spec::AudioSongFixture f = spec::make_audio_clip_song();
+	Sample* sample = make_sample();
+	const BoardProfile& profile;
+	deluge::ui::shell::SceneRegistry reg = scene_registry();
+	uitest::FakeSurfaceSet fake;
+	Shell shell;
+
+	AudioRig(const AudioRig&) = delete;
+	AudioRig& operator=(const AudioRig&) = delete;
+
+	explicit AudioRig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard,
+	                  const BoardProfile& p = deluge_profile())
+	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
+		f.clip->sampleHolder.audioFile = sample;
+		f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
+		f.clip->sampleHolder.waveformViewZoom = 0;
+		f.clip->sampleHolder.waveformViewScroll = 0;
+		f.clip->setSampleStartPos(0);
+		f.clip->setSampleEndPos(kSampleLength);
+		f.clip->sampleControls.reversed = false;
+	}
+	~AudioRig() {
+		while (shell.stack().depth() > 0) {
+			shell.stack().pop(SceneKind::Null);
+		}
+	}
+
+	/// @brief Open the scene on @p marker over the audio clip.
+	void open(MarkerType marker) {
+		marker_scene().open(menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false));
+		shell.init(SceneId{kMarkerSceneKind, static_cast<uint16_t>(static_cast<int16_t>(marker))});
+	}
+	void tick(uint32_t at_ms) { shell.tick(at_ms); }
+	void turn_select(int32_t detents, uint32_t at_ms) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 3, 0, static_cast<int16_t>(detents * 2)}, at_ms);
+	}
+
+	/// @brief The descriptor record's markers, as a save writes them.
+	[[nodiscard]] std::pair<uint64_t, uint64_t> recorded() const {
+		return {f.clip->docAudioClip_->start_pos, f.clip->docAudioClip_->end_pos};
+	}
+	/// @brief The holder's markers, as playback reads them.
+	[[nodiscard]] std::pair<uint64_t, uint64_t> played() const {
+		return {f.clip->sampleHolder.startPos, f.clip->sampleHolder.endPos};
+	}
+};
+
 void open_legacy(Rig& r, MarkerType marker) {
+	deluge::bridge::recordLoadedSound(*r.sound, *r.song.song); // the record legacy's Edit starts from
 	soundEditor.currentMultiRange = r.range;
 	soundEditor.currentSource = r.source;
 	soundEditor.currentSourceIndex = 0;
@@ -482,6 +543,48 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 		expect(static_cast<int32_t>(ported)).to_equal(static_cast<int32_t>(legacy));
 		expect(static_cast<int32_t>(ported)).to_equal(2 * kZoomMax);
+	});
+
+	it("keeps the sound's record current: a moved marker is in the record a save writes, as legacy's Edit puts it", _ {
+		Rig r;
+		expect(deluge::harness::soundIncoherence(*r.sound, *r.song.song)).to_equal(std::string{});
+		const HolderState before = holder_snapshot(r);
+
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.turn_select(1, 10);
+		r.tick(10);
+		expect(r.range->sampleHolder.startPos > before.start).to_be_true();
+		expect(deluge::harness::soundIncoherence(*r.sound, *r.song.song)).to_equal(std::string{});
+
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		sampleMarkerEditor.selectEncoderAction(1);
+		expect(r.range->sampleHolder.startPos > before.start).to_be_true();
+		expect(deluge::harness::soundIncoherence(*r.sound, *r.song.song)).to_equal(std::string{});
+	});
+
+	it("keeps an audio clip's moved marker in its descriptor record, which a save writes -- scene and legacy", _ {
+		AudioRig r;
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.turn_select(1, 10);
+		r.tick(10);
+		expect(r.played().first > 0U).to_be_true();
+		expect(r.recorded() == r.played()).to_be_true();
+
+		while (r.shell.stack().depth() > 0) {
+			r.shell.stack().pop(SceneKind::Null);
+		}
+		r.f.clip->setSampleStartPos(0);
+		waveformBasicNavigator.sample = r.sample;
+		waveformBasicNavigator.opened(&r.f.clip->sampleHolder);
+		sampleMarkerEditor.markerType = MarkerType::START;
+		sampleMarkerEditor.blinkPhase = 0;
+		currentUIMode = UI_MODE_NONE;
+		sampleMarkerEditor.selectEncoderAction(1);
+		expect(r.played().first > 0U).to_be_true();
+		expect(r.recorded() == r.played()).to_be_true();
 	});
 
 	it("refuses a turn that would drive one marker into another, exactly as legacy does", _ {

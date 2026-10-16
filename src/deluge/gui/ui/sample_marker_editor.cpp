@@ -162,12 +162,13 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 	}
 
 	if (clipType == ClipType::AUDIO) {
-		// An audio clip's markers are its own holder's.
+		// An audio clip's markers are its own descriptor's: the setters write the record a save reads and the holder
+		// playback reads.
 		if (markerTypeNow == MarkerType::START) {
-			getCurrentSampleHolder().startPos = value;
+			getCurrentAudioClip()->setSampleStartPos(value);
 		}
 		else if (markerTypeNow == MarkerType::END) {
-			getCurrentSampleHolder().endPos = value;
+			getCurrentAudioClip()->setSampleEndPos(value);
 		}
 		// Marker prefetch must never block the UI on a card read — enqueue and let the loader fill it.
 		// Playback tolerates a not-yet-loaded cluster (same as the realtime path).
