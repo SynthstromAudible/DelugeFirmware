@@ -15,8 +15,10 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/sample/sample.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "serialization/tree.h"
 
@@ -283,9 +285,81 @@ Error applyNoteRowSetting(::NoteRow& row, ::InstrumentClip& clip, ::Song& song, 
 	return Error::NONE;
 }
 
-Error applyAudioClipSetting(::AudioClip& /*clip*/, ::Song& /*song*/, std::string_view /*path*/,
-                            const Value& /*value*/) {
-	return Error::UNSPECIFIED;
+namespace {
+
+/// @brief Run @p change, which moves the part of @p clip's sample it plays (a marker, the direction), with the clip's
+///        voice taken off the sample around it: the clusters the new part needs are claimed (enqueued, never a card
+///        read on the UI's time), and a clip that was playing resumes from its play position.
+template <typename Change>
+void reseated(::AudioClip& clip, ::Song& song, Change change) {
+	const bool active =
+	    playbackHandler.isEitherClockActive() && song.isClipActive(&clip) && clip.voiceSample != nullptr;
+	clip.unassignVoiceSample(false);
+	change();
+	if (clip.sampleHolder.audioFile == nullptr) {
+		return;
+	}
+	clip.sampleHolder.claimClusterReasons(clip.sampleControls.isCurrentlyReversed(), CLUSTER_ENQUEUE);
+	if (active) {
+		char memory[MODEL_STACK_MAX_SIZE];
+		clip.resumePlayback(setupModelStackWithTimelineCounter(memory, &song, &clip), true);
+	}
+}
+
+} // namespace
+
+Error applyAudioClipSetting(::AudioClip& clip, ::Song& song, std::string_view path, const Value& value) {
+	const std::optional<int32_t> found = integer_of(value);
+	if (!found) {
+		return Error::UNSPECIFIED;
+	}
+	const int32_t v = *found;
+	if (path == "startSamplePos") {
+		reseated(clip, song, [&] { clip.setSampleStartPos(static_cast<uint64_t>(v)); });
+	}
+	else if (path == "endSamplePos") {
+		reseated(clip, song, [&] { clip.setSampleEndPos(static_cast<uint64_t>(v)); });
+	}
+	else if (path == "reversed") {
+		reseated(clip, song, [&] {
+			clip.setReversed(v != 0);
+			// Played backwards, the clip starts at its end marker, which must lie within the sample.
+			if (clip.sampleHolder.audioFile != nullptr && clip.sampleControls.isCurrentlyReversed()) {
+				const uint64_t length = static_cast<::Sample*>(clip.sampleHolder.audioFile)->lengthInSamples;
+				if (clip.sampleHolder.endPos > length) {
+					clip.setSampleEndPos(length);
+				}
+			}
+		});
+	}
+	else if (path == "transpose" || path == "cents") {
+		if (path == "transpose") {
+			clip.setSampleTranspose(v);
+		}
+		else {
+			clip.setSampleCents(v);
+		}
+		clip.sampleHolder.recalculateNeutralPhaseIncrement();
+	}
+	else if (path == "linearInterpolation") {
+		clip.setInterpolationMode(v != 0 ? InterpolationMode::LINEAR : InterpolationMode::SMOOTH);
+	}
+	else if (path == "pitchSpeedIndependent") {
+		clip.setPitchAndSpeedIndependent(v != 0);
+	}
+	else if (path == "attack") {
+		clip.setAttack(v);
+	}
+	else if (path == "priority") {
+		clip.setVoicePriority(static_cast<VoicePriority>(v));
+	}
+	else if (path == "overdubsShouldCloneAudioTrack") {
+		clip.setOverdubsShouldCloneOutput(v != 0);
+	}
+	else {
+		return Error::UNSPECIFIED;
+	}
+	return Error::NONE;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -364,10 +438,52 @@ std::optional<Value> engineTrackValue(::Output& output, std::string_view path) {
 	return std::nullopt;
 }
 
+/// @brief @p clip's engine copy at audio clip path @p path, in the record's form. The attack and the voice priority
+///        have no copy: the clip reads its record for them.
+std::optional<Value> engineAudioClipValue(::AudioClip& clip, std::string_view path) {
+	auto number = [](int64_t v) { return std::optional<Value>{Value::makeNumber(v)}; };
+	if (path == "startSamplePos") {
+		return number(static_cast<int64_t>(clip.sampleHolder.startPos));
+	}
+	if (path == "endSamplePos") {
+		return number(static_cast<int64_t>(clip.sampleHolder.endPos));
+	}
+	if (path == "transpose") {
+		return number(clip.sampleHolder.transpose);
+	}
+	if (path == "cents") {
+		return number(clip.sampleHolder.cents);
+	}
+	if (path == "linearInterpolation") {
+		return number(clip.sampleControls.interpolationMode == InterpolationMode::LINEAR ? 1 : 0);
+	}
+	if (path == "pitchSpeedIndependent") {
+		return number(clip.sampleControls.pitchAndSpeedAreIndependent ? 1 : 0);
+	}
+	if (path == "reversed") {
+		return number(clip.sampleControls.reversed ? 1 : 0);
+	}
+	if (path == "attack") {
+		return number(clip.attack());
+	}
+	if (path == "priority") {
+		return number(std::to_underlying(clip.voicePriority()));
+	}
+	if (path == "overdubsShouldCloneAudioTrack") {
+		return number(clip.overdubsShouldCloneOutput ? 1 : 0);
+	}
+	return std::nullopt;
+}
+
 std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddress& address, std::string_view path) {
 	if (address.group == SettingGroupId::TRACK || address.group == SettingGroupId::INSTRUMENT_DEVICE) {
 		::Output* output = findOutput(song, std::get<project::TrackAddress>(address.owner).output_id);
 		return output != nullptr ? engineTrackValue(*output, path) : std::nullopt;
+	}
+	if (address.group == SettingGroupId::AUDIO_CLIP) {
+		auto* clip = static_cast<::AudioClip*>(
+		    findClip(song, std::get<project::ClipAddress>(address.owner).clip_id, ClipType::AUDIO));
+		return clip != nullptr ? engineAudioClipValue(*clip, path) : std::nullopt;
 	}
 	if (address.group == SettingGroupId::LANE) {
 		const auto& lane = std::get<project::LaneAddress>(address.owner);

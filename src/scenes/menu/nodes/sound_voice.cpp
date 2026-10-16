@@ -57,7 +57,7 @@ void set_voice_priority(const MenuContext& ctx, int32_t value) {
 	// held on a kit row, every sound drum's -- each a setting Edit on the sound.
 	const auto priority = static_cast<VoicePriority>(value);
 	if (AudioClip* clip = audio_clip_of(ctx)) {
-		clip->setVoicePriority(priority);
+		deluge::edits::audioClipSettingFor(*clip, "priority", deluge::serialization::Value::makeNumber(value));
 	}
 	else if (ctx.sound != nullptr) {
 		deluge::edits::settingFor(*ctx.sound, "voicePriority", deluge::serialization::Value::makeNumber(value));

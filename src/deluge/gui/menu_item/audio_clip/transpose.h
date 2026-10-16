@@ -19,6 +19,7 @@
 #include "gui/menu_item/menu_item_with_cc_learning.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/audio_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::audio_clip {
@@ -33,11 +34,9 @@ public:
 		int32_t transpose, cents;
 		computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
 
-		// transpose/cents are DOM-owned: write them through the setters (record the edit and update the cache).
 		AudioClip* clip = getCurrentAudioClip();
-		clip->setSampleTranspose(transpose);
-		clip->setSampleCents(cents);
-		clip->sampleHolder.recalculateNeutralPhaseIncrement();
+		deluge::edits::audioClipSettingFor(*clip, "transpose", deluge::serialization::Value::makeNumber(transpose));
+		deluge::edits::audioClipSettingFor(*clip, "cents", deluge::serialization::Value::makeNumber(cents));
 	}
 
 	[[nodiscard]] int32_t getMinValue() const override { return -9600; }

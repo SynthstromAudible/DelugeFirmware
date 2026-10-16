@@ -26,7 +26,9 @@ SampleControls& getCurrentSampleControls(int32_t whichThing) {
 
 void setCurrentInterpolationMode(int32_t whichThing, InterpolationMode mode) {
 	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
-		audioClip->setInterpolationMode(mode); // DOM-owned (record + cache)
+		deluge::edits::audioClipSettingFor(
+		    *audioClip, "linearInterpolation",
+		    deluge::serialization::Value::makeNumber(mode == InterpolationMode::LINEAR ? 1 : 0));
 		return;
 	}
 	deluge::gui::menu_item::settingFor(*soundEditor.currentSound,
@@ -36,7 +38,8 @@ void setCurrentInterpolationMode(int32_t whichThing, InterpolationMode mode) {
 
 void setCurrentPitchAndSpeedIndependent(int32_t whichThing, bool independent) {
 	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
-		audioClip->setPitchAndSpeedIndependent(independent); // DOM-owned (record + cache)
+		deluge::edits::audioClipSettingFor(*audioClip, "pitchSpeedIndependent",
+		                                   deluge::serialization::Value::makeNumber(independent ? 1 : 0));
 		return;
 	}
 	deluge::gui::menu_item::settingFor(*soundEditor.currentSound,

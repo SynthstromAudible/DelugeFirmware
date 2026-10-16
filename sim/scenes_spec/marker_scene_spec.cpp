@@ -60,6 +60,7 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/song/song.h"
+#include "playback/playback_handler.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "storage/cluster/cluster.h"
@@ -585,6 +586,42 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		sampleMarkerEditor.selectEncoderAction(1);
 		expect(r.played().first > 0U).to_be_true();
 		expect(r.recorded() == r.played()).to_be_true();
+	});
+
+	it("keeps a playing audio clip playing from the moved marker's record -- scene and legacy", _ {
+		AudioRig r;
+		const uint8_t saved_playback_state = playbackHandler.playbackState;
+		playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+		r.f.clip->activeIfNoSolo = true;
+		char memory[MODEL_STACK_MAX_SIZE];
+		r.f.clip->resumePlayback(setupModelStackWithTimelineCounter(memory, r.f.song, r.f.clip), true);
+		expect(r.f.clip->voiceSample != nullptr).to_be_true(); // playing before the turn
+
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.turn_select(1, 10);
+		r.tick(10);
+		expect(r.played().first > 0U).to_be_true();
+		expect(r.recorded() == r.played()).to_be_true();
+		expect(r.f.clip->voiceSample != nullptr).to_be_true();
+
+		while (r.shell.stack().depth() > 0) {
+			r.shell.stack().pop(SceneKind::Null);
+		}
+		waveformBasicNavigator.sample = r.sample;
+		waveformBasicNavigator.opened(&r.f.clip->sampleHolder);
+		sampleMarkerEditor.markerType = MarkerType::START;
+		sampleMarkerEditor.blinkPhase = 0;
+		currentUIMode = UI_MODE_NONE;
+		const uint64_t before = r.played().first;
+		sampleMarkerEditor.selectEncoderAction(1);
+		expect(r.played().first > before).to_be_true();
+		expect(r.recorded() == r.played()).to_be_true();
+		expect(r.f.clip->voiceSample != nullptr).to_be_true();
+
+		r.f.clip->unassignVoiceSample(false);
+		r.f.clip->activeIfNoSolo = false;
+		playbackHandler.playbackState = saved_playback_state;
 	});
 
 	it("refuses a turn that would drive one marker into another, exactly as legacy does", _ {

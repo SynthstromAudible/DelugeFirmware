@@ -340,7 +340,8 @@ void set_pitch_speed(const MenuContext& ctx, int32_t value, uint8_t index) {
 	// (`sample/utils.cpp`): an audio clip's own setter, else a setting Edit on the sound.
 	if (!bindings::writes_whole_kit(ctx)) {
 		if (AudioClip* clip = audio_clip_of(ctx)) {
-			clip->setPitchAndSpeedIndependent(value != 0);
+			deluge::edits::audioClipSettingFor(*clip, "pitchSpeedIndependent",
+			                                   deluge::serialization::Value::makeNumber(value != 0 ? 1 : 0));
 		}
 		else if (ctx.sound != nullptr) {
 			deluge::edits::settingFor(*ctx.sound, deluge::edits::oscSettingPath(index, "timeStretchEnable"),
@@ -367,7 +368,8 @@ void set_interpolation(const MenuContext& ctx, int32_t value, uint8_t index) {
 	const bool linear = static_cast<InterpolationMode>(value) == InterpolationMode::LINEAR;
 	if (!bindings::writes_whole_kit(ctx)) {
 		if (AudioClip* clip = audio_clip_of(ctx)) {
-			clip->setInterpolationMode(static_cast<InterpolationMode>(value));
+			deluge::edits::audioClipSettingFor(*clip, "linearInterpolation",
+			                                   deluge::serialization::Value::makeNumber(linear ? 1 : 0));
 		}
 		else if (ctx.sound != nullptr) {
 			deluge::edits::settingFor(*ctx.sound, deluge::edits::oscSettingPath(index, "linearInterpolation"),

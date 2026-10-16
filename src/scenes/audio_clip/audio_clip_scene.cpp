@@ -39,6 +39,7 @@
 #include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_clip_length.h"
+#include "model/edits/setting_edit.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "model/sample/waveform_scan.h"
@@ -818,13 +819,8 @@ void AudioClipScene::change_underlying_sample_length(const ::Sample& sample, int
 	// comment says so, and the order is load-bearing rather than stylistic.
 	const uint64_t old_value = *value_to_change;
 	const bool moves_start = value_to_change == &clip_->sampleHolder.startPos;
-	// The markers are the clip's record's: written through its setters.
-	if (moves_start) {
-		clip_->setSampleStartPos(static_cast<uint64_t>(new_end_pos_samples));
-	}
-	else {
-		clip_->setSampleEndPos(static_cast<uint64_t>(new_end_pos_samples));
-	}
+	deluge::edits::audioClipSettingFor(*clip_, moves_start ? "startSamplePos" : "endSamplePos",
+	                                   deluge::serialization::Value::makeNumber(new_end_pos_samples));
 
 	::Action* action = actionLogger.getNewAction(action_type, ActionAddition::NOT_ALLOWED); // `:636`
 	set_clip_length(static_cast<uint32_t>(new_length), action);
@@ -873,7 +869,8 @@ void AudioClipScene::change_underlying_sample_start(const ::Sample& sample, int3
 		if (new_end_pos > sample.lengthInSamples) {                               // `:662-664`
 			new_end_pos = sample.lengthInSamples;
 		}
-		clip_->setSampleEndPos(new_end_pos);
+		deluge::edits::audioClipSettingFor(*clip_, "endSamplePos",
+		                                   deluge::serialization::Value::makeNumber(static_cast<int64_t>(new_end_pos)));
 		marker = ConsequenceClipLength::Marker::END;
 	}
 	else {
@@ -882,7 +879,8 @@ void AudioClipScene::change_underlying_sample_start(const ::Sample& sample, int3
 		if (static_cast<int64_t>(new_start_pos) < 0) {                            // `:683-685`
 			new_start_pos = 0;
 		}
-		clip_->setSampleStartPos(new_start_pos);
+		deluge::edits::audioClipSettingFor(
+		    *clip_, "startSamplePos", deluge::serialization::Value::makeNumber(static_cast<int64_t>(new_start_pos)));
 		marker = ConsequenceClipLength::Marker::START;
 	}
 

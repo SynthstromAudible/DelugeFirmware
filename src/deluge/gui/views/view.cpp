@@ -2869,13 +2869,15 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 			if (!clip->armedForRecording) {
 				clip->armedForRecording = true;
 				if (clip->type == ClipType::AUDIO) {
-					((AudioClip*)clip)->setOverdubsShouldCloneOutput(false);
+					deluge::edits::audioClipSettingFor(*static_cast<AudioClip*>(clip), "overdubsShouldCloneAudioTrack",
+					                                   deluge::serialization::Value::makeNumber(0));
 					currentSong->defaultAudioClipOverdubOutputCloning = 0;
 				}
 			}
 			else {
 				if (clip->type == ClipType::AUDIO && !((AudioClip*)clip)->overdubsShouldCloneOutput) {
-					((AudioClip*)clip)->setOverdubsShouldCloneOutput(true);
+					deluge::edits::audioClipSettingFor(*static_cast<AudioClip*>(clip), "overdubsShouldCloneAudioTrack",
+					                                   deluge::serialization::Value::makeNumber(1));
 					currentSong->defaultAudioClipOverdubOutputCloning = 1;
 					break; // No need to reassess greyout
 				}

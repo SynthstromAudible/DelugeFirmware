@@ -42,6 +42,7 @@
 #include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_clip_length.h"
+#include "model/edits/setting_edit.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_playback_guide.h"
@@ -630,12 +631,9 @@ void AudioClipView::changeUnderlyingSampleLength(AudioClip& clip, const Sample* 
 	// up reading this value.
 	uint64_t oldValue = *valueToChange;
 	// Funnel through the model setter (record + cache). oldValue captured above.
-	if (valueToChange == &clip.sampleHolder.startPos) {
-		clip.setSampleStartPos(newEndPosSamples);
-	}
-	else {
-		clip.setSampleEndPos(newEndPosSamples);
-	}
+	deluge::edits::audioClipSettingFor(clip,
+	                                   valueToChange == &clip.sampleHolder.startPos ? "startSamplePos" : "endSamplePos",
+	                                   deluge::serialization::Value::makeNumber(newEndPosSamples));
 
 	Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
 	deluge::edits::Context clipLenCtx{*currentSong, currentSong->project};
@@ -670,7 +668,8 @@ void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* s
 		if (newEndPos > sample->lengthInSamples) {
 			newEndPos = sample->lengthInSamples;
 		}
-		clip.setSampleEndPos(newEndPos);
+		deluge::edits::audioClipSettingFor(clip, "endSamplePos",
+		                                   deluge::serialization::Value::makeNumber(static_cast<int64_t>(newEndPos)));
 
 		ActionType actionType =
 		    (newLengthTicks < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;
@@ -695,7 +694,8 @@ void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* s
 		if ((int64_t)newStartPos < 0) {
 			newStartPos = 0;
 		}
-		clip.setSampleStartPos(newStartPos);
+		deluge::edits::audioClipSettingFor(clip, "startSamplePos",
+		                                   deluge::serialization::Value::makeNumber(static_cast<int64_t>(newStartPos)));
 
 		ActionType actionType =
 		    (newLengthTicks < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;

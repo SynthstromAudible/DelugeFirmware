@@ -259,12 +259,11 @@ void set_audio_clip_transpose(const MenuContext& ctx, int32_t value) {
 		return;
 	}
 	// `computeFinalValuesForTranspose` (`value_scaling.cpp:68-73`) then `transpose.h:25-33`.
-	// transpose and cents are the clip's record's: written through its setters.
 	const int32_t current = value + 25600;
 	const int32_t semitones = (current + 50) / 100;
-	clip->setSampleTranspose(semitones - 256);
-	clip->setSampleCents(current - semitones * 100);
-	clip->sampleHolder.recalculateNeutralPhaseIncrement();
+	deluge::edits::audioClipSettingFor(*clip, "transpose", deluge::serialization::Value::makeNumber(semitones - 256));
+	deluge::edits::audioClipSettingFor(*clip, "cents",
+	                                   deluge::serialization::Value::makeNumber(current - semitones * 100));
 }
 
 int32_t get_audio_clip_reverse(const MenuContext& ctx) {
@@ -272,26 +271,16 @@ int32_t get_audio_clip_reverse(const MenuContext& ctx) {
 	return clip != nullptr && clip->sampleControls.reversed ? 1 : 0;
 }
 void set_audio_clip_reverse(const MenuContext& ctx, int32_t value) {
-	// `audio_clip::Reverse::writeCurrentValue` (`reverse.h:27-54`), minus its two UI reaches: the
-	// `playbackHandler.isEitherClockActive()`-gated `resumePlayback` (which needs a timeline-counter
-	// model stack this file may not build -- the `scenes-model-stack-outside-context` ratchet) and
-	// the closing `uiNeedsRendering(&audioClipView, ...)`, replaced by the dirty raise below. The
-	// end-position clamp and the cluster-reason reclaim -- the two model effects -- are transcribed.
+	// `audio_clip::Reverse::writeCurrentValue` (`reverse.h`): the projection takes the voice off the sample, clamps
+	// the end marker into a reversed sample and resumes a playing clip; the closing `uiNeedsRendering` is the dirty
+	// raise below.
 	AudioClip* clip = audio_clip(ctx);
 	if (clip == nullptr) {
 		return;
 	}
-	clip->unassignVoiceSample(false);
-	clip->setReversed(value != 0); // the clip's record's, through its setter
+	deluge::edits::audioClipSettingFor(*clip, "reversed", deluge::serialization::Value::makeNumber(value != 0 ? 1 : 0));
 	if (clip->sampleHolder.audioFile != nullptr) {
-		if (clip->sampleControls.isCurrentlyReversed()) {
-			const uint64_t length = static_cast<Sample*>(clip->sampleHolder.audioFile)->lengthInSamples;
-			if (clip->sampleHolder.endPos > length) {
-				clip->setSampleEndPos(length);
-			}
-		}
-		clip->sampleHolder.claimClusterReasons(clip->sampleControls.isCurrentlyReversed()); // `:44`
-		deluge::notify::raise(deluge::notify::Dirty::GridMain);                             // `:52`
+		deluge::notify::raise(deluge::notify::Dirty::GridMain);
 	}
 }
 
@@ -300,8 +289,11 @@ int32_t get_audio_clip_interpolation(const MenuContext& ctx) {
 	return clip != nullptr ? static_cast<int32_t>(clip->sampleControls.interpolationMode) : 0;
 }
 void set_audio_clip_interpolation(const MenuContext& ctx, int32_t value) {
-	if (AudioClip* clip = audio_clip(ctx); clip != nullptr) {              // `audio_interpolation.h:20-23`
-		clip->setInterpolationMode(static_cast<InterpolationMode>(value)); // the clip's record's
+	if (AudioClip* clip = audio_clip(ctx); clip != nullptr) { // `audio_interpolation.h:20-23`
+		deluge::edits::audioClipSettingFor(
+		    *clip, "linearInterpolation",
+		    deluge::serialization::Value::makeNumber(
+		        static_cast<InterpolationMode>(value) == InterpolationMode::LINEAR ? 1 : 0));
 	}
 }
 
@@ -317,7 +309,8 @@ void set_audio_clip_attack(const MenuContext& ctx, int32_t value) {
 	// "fixed": E1's contract is that the port behaves as legacy does, and `tables_3_spec`'s
 	// write-coverage compares the two on the same fixture. Worth an issue of its own.
 	if (AudioClip* clip = audio_clip(ctx); clip != nullptr) {
-		clip->setAttack(bindings::standard_to_menu(value));
+		deluge::edits::audioClipSettingFor(*clip, "attack",
+		                                   deluge::serialization::Value::makeNumber(bindings::standard_to_menu(value)));
 	}
 }
 

@@ -61,6 +61,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/set_clip_colour.h"
 #include "model/edits/set_clip_section.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/note/note_row.h"
@@ -3624,7 +3625,9 @@ void SessionView::setupNewClip(Clip* newClip) {
 				}
 			}
 		}
-		((AudioClip*)newClip)->setOverdubsShouldCloneOutput(currentSong->defaultAudioClipOverdubOutputCloning);
+		deluge::edits::audioClipSettingFor(
+		    *static_cast<AudioClip*>(newClip), "overdubsShouldCloneAudioTrack",
+		    deluge::serialization::Value::makeNumber(currentSong->defaultAudioClipOverdubOutputCloning ? 1 : 0));
 	}
 }
 

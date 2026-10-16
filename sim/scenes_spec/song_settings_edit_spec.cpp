@@ -6,6 +6,7 @@
 #include "deluge-project/song_codec.h"
 #include "dsp/reverb/reverb.hpp"
 #include "gui/views/instrument_clip_view.h"
+#include "model/clip/audio_clip.h"
 #include "model/edits/set_setting.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/cv_instrument.h"
@@ -177,6 +178,26 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::edits::noteRowSettingFor(*row, *f.clip, "sequenceDirection", Value::makeScalar("reverse"));
 		expect(recorded(*f.song, {SettingGroupId::NOTE_ROW, *address}, "sequenceDirection")).to_equal(std::string{"reverse"});
 		expect(projected(*f.song, {SettingGroupId::NOTE_ROW, *address}, "sequenceDirection")).to_equal(std::string{"reverse"});
+	});
+	it("writes every audio clip path through SetSetting and keeps record and clip equal", _ {
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		const auto clip = deluge::bridge::audioClipAddressOf(*f.clip, *f.song);
+		expect(clip.has_value()).to_be_true();
+		const SettingAddress address{SettingGroupId::AUDIO_CLIP, *clip};
+		for (const auto& row : deluge::project::table_of(SettingGroupId::AUDIO_CLIP)) {
+			if (row.path.ends_with("SamplePos")) {
+				continue; // a range needs a sample: marker_scene_spec moves the markers
+			}
+			// Away from the default, so a write the engine never sees shows.
+			const int32_t v = row.kind == deluge::engine::SettingKind::BOOL ? 1 - row.default_value
+			                  : row.default_value == row.max                  ? row.min
+			                                                                  : row.max;
+			deluge::edits::audioClipSettingFor(*f.clip, row.path, Value::makeNumber(v));
+			expect(std::string{row.path} + "=" + recorded(*f.song, address, row.path))
+			    .to_equal(std::string{row.path} + "=" + std::to_string(v));
+			expect(std::string{row.path} + "=" + projected(*f.song, address, row.path))
+			    .to_equal(std::string{row.path} + "=" + std::to_string(v));
+		}
 	});
 });
 // clang-format on

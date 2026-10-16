@@ -45,7 +45,8 @@ inline VoicePriority getCurrentVoicePriority() {
 /// @param value The priority to set on the current owner.
 inline void setCurrentVoicePriority(VoicePriority value) {
 	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
-		audioClip->setVoicePriority(value);
+		deluge::edits::audioClipSettingFor(*audioClip, "priority",
+		                                   deluge::serialization::Value::makeNumber(std::to_underlying(value)));
 		return;
 	}
 	settingFor(*soundEditor.currentSound, "voicePriority", serialization::Value::makeNumber(std::to_underlying(value)));

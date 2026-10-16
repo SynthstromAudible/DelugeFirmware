@@ -20,6 +20,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/audio_clip_view.h"
 #include "model/clip/audio_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
@@ -36,34 +37,11 @@ public:
 	void readCurrentValue() override { this->setValue(getCurrentAudioClip()->sampleControls.reversed); }
 	void writeCurrentValue() override {
 		auto* clip = getCurrentAudioClip();
-		bool active = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(clip) && clip->voiceSample);
-
-		clip->unassignVoiceSample(false);
-
-		// reversed is DOM-owned: write it through the setter (records the edit and updates the render cache). The
-		// endPos clamp + cluster-reason side effects below act on the sampleHolder cache.
-		clip->setReversed(this->getValue());
-
+		// The projection takes the voice off the sample, clamps the end marker into a reversed sample and resumes a
+		// playing clip.
+		deluge::edits::audioClipSettingFor(*clip, "reversed",
+		                                   deluge::serialization::Value::makeNumber(this->getValue() ? 1 : 0));
 		if (clip->sampleHolder.audioFile != nullptr) {
-			if (clip->sampleControls.isCurrentlyReversed()) {
-				uint64_t lengthInSamples = (static_cast<Sample*>(clip->sampleHolder.audioFile))->lengthInSamples;
-				if (clip->sampleHolder.endPos > lengthInSamples) {
-					// endPos is DOM-owned: clamp through the setter (records the edit and updates the cache).
-					// Writing sampleHolder.endPos raw would leave docAudioClip_->end_pos stale at save.
-					clip->setSampleEndPos(lengthInSamples);
-				}
-			}
-
-			clip->sampleHolder.claimClusterReasons(clip->sampleControls.isCurrentlyReversed());
-
-			if (active) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithTimelineCounter* modelStack =
-				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-				clip->resumePlayback(modelStack, true);
-			}
-
 			uiNeedsRendering(&audioClipView, 0xFFFFFFFF, 0);
 		}
 	}

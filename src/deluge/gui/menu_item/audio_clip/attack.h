@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "model/clip/audio_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::audio_clip {
@@ -28,7 +29,9 @@ public:
 		this->setValue(computeCurrentValueForStandardMenuItem(getCurrentAudioClip()->attack()));
 	}
 	void writeCurrentValue() override {
-		getCurrentAudioClip()->setAttack(computeCurrentValueForStandardMenuItem(this->getValue()));
+		deluge::edits::audioClipSettingFor(
+		    *getCurrentAudioClip(), "attack",
+		    deluge::serialization::Value::makeNumber(computeCurrentValueForStandardMenuItem(this->getValue())));
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 };

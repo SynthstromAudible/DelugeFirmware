@@ -153,26 +153,14 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 
 	ClipType clipType = getCurrentClip()->type;
 
-	bool audioClipActive;
 	if (clipType == ClipType::AUDIO) {
-		audioClipActive = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(getCurrentClip())
-		                   && getCurrentAudioClip()->voiceSample);
-
-		getCurrentAudioClip()->unassignVoiceSample(false);
-	}
-
-	if (clipType == ClipType::AUDIO) {
-		// An audio clip's markers are its own descriptor's: the setters write the record a save reads and the holder
-		// playback reads.
-		if (markerTypeNow == MarkerType::START) {
-			getCurrentAudioClip()->setSampleStartPos(value);
+		// An audio clip's markers are its own descriptor's. The projection takes the voice off the sample, claims the
+		// moved part's clusters and resumes a playing clip.
+		if (markerTypeNow == MarkerType::START || markerTypeNow == MarkerType::END) {
+			deluge::edits::audioClipSettingFor(*getCurrentAudioClip(),
+			                                   markerTypeNow == MarkerType::START ? "startSamplePos" : "endSamplePos",
+			                                   deluge::serialization::Value::makeNumber(value));
 		}
-		else if (markerTypeNow == MarkerType::END) {
-			getCurrentAudioClip()->setSampleEndPos(value);
-		}
-		// Marker prefetch must never block the UI on a card read — enqueue and let the loader fill it.
-		// Playback tolerates a not-yet-loaded cluster (same as the realtime path).
-		getCurrentSampleHolder().claimClusterReasons(getCurrentSampleControls()->reversed, CLUSTER_ENQUEUE);
 	}
 	else {
 		// A sound's markers are its range's zone: the new zone is built from the source's ranges and issued as one
@@ -214,14 +202,7 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 		deluge::gui::menu_item::rangesFor(*soundEditor.currentSound, soundEditor.currentSourceIndex, std::move(ranges));
 	}
 
-	if (clipType == ClipType::AUDIO) {
-		if (audioClipActive) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-			getCurrentClip()->resumePlayback(modelStack, true);
-		}
-	}
-	else {
+	if (clipType != ClipType::AUDIO) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 		soundEditor.currentSound->sampleZoneChanged(markerTypeNow, soundEditor.currentSourceIndex, modelStack);

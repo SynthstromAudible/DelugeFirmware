@@ -301,29 +301,14 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 		which = marker_type_;
 	}
 
-	bool audio_clip_active = false;
 	if (ctx_.is_audio_clip) {
-		auto* clip = static_cast<AudioClip*>(ctx_.clip);
-		// `currentSong->isClipActive(...)` in legacy; the context carries the song, so the
-		// `scenes-currentSong` rule is satisfied without changing what is asked.
-		audio_clip_active = playbackHandler.isEitherClockActive() && ctx_.song != nullptr
-		                    && ctx_.song->isClipActive(clip) && clip->voiceSample != nullptr;
-		clip->unassignVoiceSample(false);
-	}
-
-	if (ctx_.is_audio_clip) {
-		// An audio clip's markers are its own descriptor's: the setters write the record a save reads and the
-		// holder playback reads.
-		auto* clip = static_cast<AudioClip*>(ctx_.clip);
-		if (which == MarkerType::START) {
-			clip->setSampleStartPos(value);
+		// An audio clip's markers are its own descriptor's. The projection takes the voice off the sample, claims the
+		// moved part's clusters and resumes a playing clip.
+		if (which == MarkerType::START || which == MarkerType::END) {
+			deluge::edits::audioClipSettingFor(*static_cast<AudioClip*>(ctx_.clip),
+			                                   which == MarkerType::START ? "startSamplePos" : "endSamplePos",
+			                                   deluge::serialization::Value::makeNumber(value));
 		}
-		else if (which == MarkerType::END) {
-			clip->setSampleEndPos(value);
-		}
-		// Marker prefetch must never block the UI on a card read -- enqueue and let the loader fill it.
-		clip->sampleHolder.claimClusterReasons(ctx_.sample_controls != nullptr && ctx_.sample_controls->reversed,
-		                                       CLUSTER_ENQUEUE);
 	}
 	else {
 		// A sound's markers are its range's zone: the new zone is built from the source's ranges and issued as one
@@ -371,7 +356,7 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 	// The model-side tail (`:203-215`) is `menu::marker_written`, which lives beside
 	// `model_stack_for` because both arms need a `ModelStack` they can call a member on and this
 	// file may not include `model/model_stack.h` (`scenes-model-stack-outside-context`).
-	menu::marker_written(ctx_, which, audio_clip_active);
+	menu::marker_written(ctx_, which, /*resume_audio_clip=*/false);
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -2,6 +2,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
+#include "model/edits/setting_edit.h"
 #include "model/sample/sample_controls.h"
 #include "model/song/song.h"
 
@@ -18,9 +19,9 @@ public:
 
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		// interpolation is DOM-owned: write it through the setter (records the edit and updates the render cache),
-		// not through the cache reference.
-		getCurrentAudioClip()->setInterpolationMode(getValue<InterpolationMode>());
+		deluge::edits::audioClipSettingFor(*getCurrentAudioClip(), "linearInterpolation",
+		                                   deluge::serialization::Value::makeNumber(
+		                                       getValue<InterpolationMode>() == InterpolationMode::LINEAR ? 1 : 0));
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
