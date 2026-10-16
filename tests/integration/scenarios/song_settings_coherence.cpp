@@ -50,10 +50,15 @@ const char* groupName(SettingGroupId group) {
 }
 
 /// The paths of @p group's table, less those @p output's kind has no engine copy of: a MIDI instrument has no CV2
-/// source, a CV instrument only its channel and CV2 source, and other outputs no instrument device at all.
-std::vector<std::string_view> pathsFor(SettingGroupId group, const ::Output* output) {
+/// source, a CV instrument only its channel and CV2 source, and other outputs no instrument device at all. An arp's
+/// host values are paths only where they are settings (@p arpHost): elsewhere they are params.
+std::vector<std::string_view> pathsFor(SettingGroupId group, const ::Output* output, bool arpHost = false) {
 	std::vector<std::string_view> paths;
 	for (const deluge::engine::SettingInfo& row : deluge::project::table_of(group)) {
+		if ((group == SettingGroupId::CLIP_ARP || group == SettingGroupId::LANE_ARP) && !arpHost
+		    && deluge::engine::find_setting(deluge::engine::kArpHostRows, row.path) != nullptr) {
+			continue;
+		}
 		if (group == SettingGroupId::INSTRUMENT_DEVICE) {
 			const bool kept = output->type == OutputType::MIDI_OUT ? row.path != "cv2Source"
 			                  : output->type == OutputType::CV     ? row.path == "channel" || row.path == "cv2Source"
@@ -72,8 +77,8 @@ std::vector<std::string_view> pathsFor(SettingGroupId group, const ::Output* out
 void forEachSettingAddress(
     ::Song& song,
     const std::function<void(const SettingAddress&, uint32_t, std::span<const std::string_view>)>& visit) {
-	auto visitGroup = [&](const SettingAddress& address, uint32_t owner, const ::Output* output) {
-		const std::vector<std::string_view> paths = pathsFor(address.group, output);
+	auto visitGroup = [&](const SettingAddress& address, uint32_t owner, const ::Output* output, bool arpHost = false) {
+		const std::vector<std::string_view> paths = pathsFor(address.group, output, arpHost);
 		if (!paths.empty()) {
 			visit(address, owner, paths);
 		}
@@ -93,6 +98,8 @@ void forEachSettingAddress(
 			for (::Drum* drum = static_cast<::Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
 				if (const auto lane = deluge::bridge::laneAddressOf(*drum, song)) {
 					visitGroup({SettingGroupId::LANE, *lane}, lane->drum_id, nullptr);
+					visitGroup({SettingGroupId::LANE_ARP, *lane}, lane->drum_id, nullptr,
+					           deluge::bridge::arpHostValuesAreSettings({.drum = drum}));
 				}
 			}
 		}
@@ -108,7 +115,10 @@ void forEachSettingAddress(
 		if (const auto address = deluge::bridge::clipAddressOf(*clip, song)) {
 			visitGroup({SettingGroupId::CLIP, *address}, address->clip_id, nullptr);
 			if (clip->type == ClipType::INSTRUMENT) {
+				auto* instrumentClip = static_cast<::InstrumentClip*>(clip);
 				visitGroup({SettingGroupId::CLIP_VALUES, *address}, address->clip_id, nullptr);
+				visitGroup({SettingGroupId::CLIP_ARP, *address}, address->clip_id, nullptr,
+				           deluge::bridge::arpHostValuesAreSettings({.clip = instrumentClip}));
 			}
 		}
 		if (clip->type == ClipType::AUDIO) {
@@ -162,25 +172,30 @@ bool comparesBendRange(::Song& song, const SettingAddress& address, std::string_
 	return false;
 }
 
+std::string settingIncoherence(::Song& song, const SettingAddress& address, uint32_t owner,
+                               std::span<const std::string_view> paths) {
+	for (std::string_view path : paths) {
+		if (!comparesBendRange(song, address, path)) {
+			continue;
+		}
+		const auto record = deluge::project::read_setting(song.project, address, path);
+		const auto engine = deluge::bridge::engineSettingValue(song, address, path);
+		const std::string a = record ? record->str() : "<none>";
+		const std::string b = engine ? engine->str() : "<none>";
+		if (!record || !engine || a != b) {
+			return std::string{groupName(address.group)} + " " + std::to_string(owner) + " " + std::string{path}
+			       + ": record=" + a + " engine=" + b;
+		}
+	}
+	return {};
+}
+
 std::string songSettingsIncoherence(::Song& song) {
 	std::string found;
 	forEachSettingAddress(song,
 	                      [&](const SettingAddress& address, uint32_t owner, std::span<const std::string_view> paths) {
-		                      for (std::string_view path : paths) {
-			                      if (!found.empty()) {
-				                      return;
-			                      }
-			                      if (!comparesBendRange(song, address, path)) {
-				                      continue;
-			                      }
-			                      const auto record = deluge::project::read_setting(song.project, address, path);
-			                      const auto engine = deluge::bridge::engineSettingValue(song, address, path);
-			                      const std::string a = record ? record->str() : "<none>";
-			                      const std::string b = engine ? engine->str() : "<none>";
-			                      if (!record || !engine || a != b) {
-				                      found = std::string{groupName(address.group)} + " " + std::to_string(owner) + " "
-				                              + std::string{path} + ": record=" + a + " engine=" + b;
-			                      }
+		                      if (found.empty()) {
+			                      found = settingIncoherence(song, address, owner, paths);
 		                      }
 	                      });
 	return found;

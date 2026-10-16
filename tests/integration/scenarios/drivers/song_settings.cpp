@@ -275,8 +275,8 @@ int32_t saveLegs(Song& song, deluge::scenarios::driver::Io io) {
 }
 
 const char* groupName(SettingGroupId group) {
-	constexpr const char* kNames[] = {"SONG",       "TRACK", "INSTRUMENT_DEVICE", "LANE",       "NOTE_ROW",
-	                                  "AUDIO_CLIP", "CLIP",  "CLIP_VALUES",       "AUDIO_INPUT"};
+	constexpr const char* kNames[] = {"SONG", "TRACK",       "INSTRUMENT_DEVICE", "LANE",     "NOTE_ROW", "AUDIO_CLIP",
+	                                  "CLIP", "CLIP_VALUES", "AUDIO_INPUT",       "CLIP_ARP", "LANE_ARP"};
 	return kNames[static_cast<size_t>(group)];
 }
 
@@ -323,6 +323,8 @@ int song_settings_main(int argc, char** argv, deluge::scenarios::driver::Io io) 
 
 	std::map<std::string, int32_t> applied;
 	int32_t failures = 0;
+	// Each value is checked against its own owner's record and engine copy, and the whole song once each owner's group
+	// is done, so a write that reaches another owner is still found.
 	for (const Target& target : targets) {
 		for (std::string_view path : target.paths) {
 			const SettingInfo& row = rowOf(target.address.group, path);
@@ -331,7 +333,9 @@ int song_settings_main(int argc, char** argv, deluge::scenarios::driver::Io io) 
 				deluge::edits::SetSetting edit{target.address, std::string{path}, value};
 				const Error error = deluge::edits::apply(ctx, edit);
 				std::string what =
-				    error != Error::NONE ? std::string{"refused"} : deluge::harness::songSettingsIncoherence(*song);
+				    error != Error::NONE
+				        ? std::string{"refused"}
+				        : deluge::harness::settingIncoherence(*song, target.address, target.owner, target.paths);
 				if (!what.empty()) {
 					std::fprintf(io.err, "SONG-SETTINGS FAIL %s %u %.*s=%s: %s\n", groupName(target.address.group),
 					             target.owner, static_cast<int>(path.size()), path.data(), value.str().c_str(),
@@ -341,6 +345,11 @@ int song_settings_main(int argc, char** argv, deluge::scenarios::driver::Io io) 
 				}
 				applied[std::string{groupName(target.address.group)} + " " + std::string{path}]++;
 			}
+		}
+		if (const std::string what = deluge::harness::songSettingsIncoherence(*song); !what.empty()) {
+			std::fprintf(io.err, "SONG-SETTINGS FAIL after %s %u: %s\n", groupName(target.address.group), target.owner,
+			             what.c_str());
+			failures++;
 		}
 	}
 	for (const auto& [key, n] : applied) {

@@ -43,6 +43,11 @@ PLANTED = {
     "cable polarity": "set->patchCables[i].polarity = Polarity::BIPOLAR;",
     "hide unlabeled": "instrument->hideUnlabeledCC = true;",
     "cc label": "instrument->setNameForCC(cc, name);",
+    "arp field": "soundEditor.currentArpSettings->numOctaves = 3;",
+    "arp field on a drum": "thisDrum->arpSettings.mode = ArpMode::ARP;",
+    "arp field through a getter": "sound->getArpSettings()->noteMode = ArpNoteMode::UP;",
+    "arp field through a context": "ctx.arp->randomizerLock = on;",
+    "arp preset": "arp.updateSettingsFromCurrentPreset();",
 }
 
 
@@ -68,6 +73,9 @@ class SongStateWrites(unittest.TestCase):
             "PresetRequest r{.name = initial};",
             "set->setPolarity(index, polarity);",
             "const auto mode = ao->scrolledMode(offset);",
+            'deluge::edits::arpSettingFor(*ctx.arp, "arpeggiator/rate", v);',
+            "if (ctx.arp->mode == ArpMode::OFF) {}",
+            "return ctx.arp != nullptr ? ctx.arp->numOctaves : 1;",
         ):
             with self.subTest(line):
                 self.assertEqual(self.check(line), [])

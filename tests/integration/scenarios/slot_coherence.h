@@ -66,6 +66,15 @@ void forEachSettingAddress(::Song& song, const std::function<void(const deluge::
 /// @return The break as "<group> <owner id> <path>: record=<a> engine=<b>", or empty if every setting agrees.
 std::string songSettingsIncoherence(::Song& song);
 
+/// @brief Find the first of @p paths at @p address whose record differs from its engine copy.
+/// @param song    The song.
+/// @param address The group and owner.
+/// @param owner   The owner's durable id, for the report.
+/// @param paths   The paths to compare.
+/// @return The break as songSettingsIncoherence reports it, or empty.
+std::string settingIncoherence(::Song& song, const deluge::project::SettingAddress& address, uint32_t owner,
+                               std::span<const std::string_view> paths);
+
 /// @brief Check every bound sound of @p song (its outputs', its hibernating instruments' and its kits' sound drums),
 /// and its controls and host chains as @p checks selects.
 ///

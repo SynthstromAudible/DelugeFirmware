@@ -171,6 +171,13 @@ SONG_STATE_WRITES = (
     #: A MIDI device's labels and hide flag.
     re.compile(r"(?:->|\.)\s*hideUnlabeledCC\s*=(?!=)"),
     re.compile(r"(?:->|\.)\s*setNameForCC\s*\("),
+    #: An arp's settings: a clip's, a kit row's, or the one an editor holds, through its field or its preset.
+    re.compile(
+        r"(?:\barpSettings|\bcurrentArpSettings|\bctx\s*\.\s*arp|getArpSettings\s*\(\s*\))\s*(?:->|\.)\s*\w+\s*=(?!=)"
+    ),
+    re.compile(
+        r"(?:->|\.)\s*(?:updateSettingsFromCurrentPreset|updatePresetFromCurrentSettings)\s*\("
+    ),
 )
 #: Song-state writes under the roots that are allowed, by file (relative to src/) and the text the write's line holds,
 #: each with its reason. An empty text allows the whole file.
