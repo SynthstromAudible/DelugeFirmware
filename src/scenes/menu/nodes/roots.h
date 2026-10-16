@@ -438,13 +438,11 @@ inline constexpr Node audio_source_selector = custom(sid(String::STRING_FOR_AUDI
 /// records from, **not** a browser (`nodes/output_items.h`).
 inline constexpr Node specific_output_selector =
     custom(sid(String::STRING_FOR_TRACK), &kSpecificOutputSelector, relevance::audio_source_is_specific);
-// `audioClipSampleMarkerEditorMenuEnd` (`gui/ui/menus.cpp:1183`), the only one of the two
-// `audio_clip::SampleMarkerEditor` globals any submenu names (`:1193`). No relevance predicate,
-// because the legacy item overrides none -- its refusal is `checkPermissionToBeginSession`'s null
-// `sampleHolder.audioFile` test (`audio_clip/sample_marker_editor.cpp:35-38`), which is
-// `marker::MarkerScene::can`'s audio-clip arm.
-inline constexpr Node audio_clip_waveform =
-    with_allow_session_from_horizontal(custom(sid(String::STRING_FOR_WAVEFORM), &kAudioClipWaveform));
+// `audioClipSampleMarkerEditorMenuEnd` (`gui/ui/menus.cpp`), the only one of the two
+// `audio_clip::SampleMarkerEditor` globals any submenu names. Relevant only once the clip has a
+// sample, as the legacy item's `isRelevant` is.
+inline constexpr Node audio_clip_waveform = with_allow_session_from_horizontal(
+    custom(sid(String::STRING_FOR_WAVEFORM), &kAudioClipWaveform, relevance::audio_clip_has_sample));
 
 inline constexpr const Node* kAudioClipDistortionChildren[] = {&saturation, &bitcrush, &decimation};
 inline constexpr Node audio_clip_distortion =

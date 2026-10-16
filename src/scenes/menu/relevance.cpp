@@ -36,6 +36,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/reverb/reverb.hpp" // dsp::Reverb::Model -- audio_engine.h only forward declares it
+#include "model/clip/audio_clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
@@ -490,6 +491,13 @@ bool audio_source_is_specific(const MenuContext& ctx) {
 	return static_cast<AudioOutput*>(ctx.output)->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT;
 }
 
+bool audio_clip_has_sample(const MenuContext& ctx) {
+	if (ctx.clip == nullptr || ctx.clip->type != ClipType::AUDIO) {
+		return false;
+	}
+	return static_cast<AudioClip*>(ctx.clip)->sampleHolder.audioFile != nullptr;
+}
+
 bool battery_shown(const MenuContext& /*ctx*/) {
 	// `battery::Level::isRelevant` (`gui/menu_item/battery/level.h:33-35`). A global read rather
 	// than a context one -- the runtime feature settings are device-wide, exactly as legacy has it.
@@ -557,7 +565,7 @@ namespace {
 		&fn, #fn                                                                                                       \
 	}
 
-constexpr std::array<NamedPredicate, 78> kRegistry{
+constexpr std::array<NamedPredicate, 79> kRegistry{
     DELUGE_RELEVANCE_ROW(has_lpf),
     DELUGE_RELEVANCE_ROW(has_hpf),
     DELUGE_RELEVANCE_ROW(is_fm),
@@ -619,6 +627,7 @@ constexpr std::array<NamedPredicate, 78> kRegistry{
     DELUGE_RELEVANCE_ROW(cv2_dual),
     DELUGE_RELEVANCE_ROW(battery_shown),
     DELUGE_RELEVANCE_ROW(audio_source_is_specific),
+    DELUGE_RELEVANCE_ROW(audio_clip_has_sample),
     DELUGE_RELEVANCE_ROW(is_session_view),
     // spec E-note-family task 5, fix round 1 -- see this section's own note above.
     DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_1),
@@ -641,12 +650,10 @@ constexpr std::array<NamedPredicate, 78> kRegistry{
 
 #undef DELUGE_RELEVANCE_ROW
 
-// One row per predicate declared in `relevance.h`: batch 1's seven sound-wide and ten per-source
-// pairs (27), plus batch 2's thirty, plus batch 3's four, plus Task 9's `is_session_view` (62).
-// Plus the sixteen `nodes::relevant_*_iterance_step_*` rows (fix round 1): declared in
-// `nodes/note.h`, not `relevance.h`, but registered here for the reason this section's own note
-// gives. 62 + 16 = 78.
-static_assert(kRegistry.size() == 78);
+// One row per predicate declared in `relevance.h` (63), plus the sixteen
+// `nodes::relevant_*_iterance_step_*` rows: declared in `nodes/note.h`, not `relevance.h`, but
+// registered here for the reason this section's own note gives. 63 + 16 = 79.
+static_assert(kRegistry.size() == 79);
 
 } // namespace
 

@@ -286,6 +286,10 @@ bool battery_shown(const MenuContext& ctx);
 ///        (`gui/menu_item/audio_clip/specific_output_source_selector.h:102-106`):
 ///        `AudioOutput::inputChannel == AudioInputChannel::SPECIFIC_OUTPUT`.
 bool audio_source_is_specific(const MenuContext& ctx);
+/// @brief Has the audio clip a sample loaded? `audio_clip::SampleMarkerEditor::isRelevant`
+///        (`gui/menu_item/audio_clip/sample_marker_editor.cpp`): `sampleHolder.audioFile != nullptr`, so the
+///        waveform item, and its shortcut, show only once there is a sample to edit.
+bool audio_clip_has_sample(const MenuContext& ctx);
 /// @}
 
 /// @name Task 9's predicate -- the song root's two session-only items
