@@ -7,20 +7,20 @@
             "children": [
               {
                 "id": 4,
-                "name": "Edit track name",
-                "title": "Edit track name",
+                "name": "Edit Track Name",
+                "title": "Edit Track Name",
                 "type": "basic"
               },
               {
                 "id": 5,
-                "name": "Edit clip name",
-                "title": "Edit clip name",
+                "name": "Edit Clip Name",
+                "title": "Edit Clip Name",
                 "type": "basic"
               }
             ],
             "id": 3,
-            "name": "Edit name",
-            "title": "Edit name",
+            "name": "Edit Name",
+            "title": "Edit Name",
             "type": "submenu"
           },
           {
@@ -48,8 +48,8 @@
           {
             "available_when": "ringmod_allowed",
             "id": 9,
-            "name": "Synth mode",
-            "title": "Synth mode",
+            "name": "Synth Mode",
+            "title": "Synth Mode",
             "type": "basic"
           },
           {
@@ -101,7 +101,7 @@
           },
           {
             "id": 15,
-            "name": "PAN",
+            "name": "Pan",
             "select_chain": [
               {
                 "id": 11,
@@ -143,7 +143,7 @@
                 "type": "basic"
               }
             ],
-            "title": "PAN",
+            "title": "Pan",
             "type": "basic"
           },
           {
@@ -195,7 +195,7 @@
           },
           {
             "id": 17,
-            "name": "VIBRATO",
+            "name": "Vibrato",
             "select_chain": [
               {
                 "id": 13,
@@ -221,7 +221,7 @@
                 "type": "basic"
               }
             ],
-            "title": "VIBRATO",
+            "title": "Vibrato",
             "type": "basic"
           }
         ],
@@ -242,7 +242,7 @@
             "children": [
               {
                 "id": 21,
-                "name": "PRESET",
+                "name": "Preset",
                 "select_chain": [
                   {
                     "available_when": "not_gate_drum_or_kit_fx",
@@ -283,20 +283,20 @@
               {
                 "available_when": "arp_sound_only",
                 "id": 26,
-                "name": "GATE",
+                "name": "Gate",
                 "title": "Arp gate",
                 "type": "basic"
               },
               {
                 "id": 27,
-                "name": "SYNC",
+                "name": "Sync",
                 "title": "Arp sync",
                 "type": "basic"
               },
               {
                 "available_when": "arp_rate_sound",
                 "id": 28,
-                "name": "RATE",
+                "name": "Rate",
                 "select_chain": [
                   {
                     "id": 11,
@@ -421,7 +421,7 @@
               }
             ],
             "id": 29,
-            "name": "PATTERN",
+            "name": "Pattern",
             "title": "Arp pattern",
             "type": "submenu"
           },
@@ -431,8 +431,8 @@
               {
                 "available_when": "not_gate_drum_row",
                 "id": 41,
-                "name": "VELOCITY",
-                "title": "VELOCITY",
+                "name": "Velocity",
+                "title": "Velocity",
                 "type": "basic"
               }
             ],
@@ -450,8 +450,8 @@
           }
         ],
         "id": 18,
-        "name": "ARPEGGIATOR",
-        "title": "ARPEGGIATOR",
+        "name": "Arpeggiator",
+        "title": "Arpeggiator",
         "type": "submenu"
       },
       {
@@ -625,8 +625,8 @@
           }
         ],
         "id": 43,
-        "name": "RANDOMIZER",
-        "title": "RANDOMIZER",
+        "name": "Randomizer",
+        "title": "Randomizer",
         "type": "submenu"
       },
       {
@@ -651,20 +651,20 @@
           },
           {
             "id": 72,
-            "name": "ATTACK",
-            "title": "ATTACK",
+            "name": "Attack",
+            "title": "Attack",
             "type": "basic"
           },
           {
             "id": 73,
-            "name": "RELEASE",
-            "title": "RELEASE",
+            "name": "Release",
+            "title": "Release",
             "type": "basic"
           },
           {
             "id": 74,
-            "name": "HPF",
-            "title": "HPF",
+            "name": "Hpf",
+            "title": "Hpf",
             "type": "basic"
           }
         ],
@@ -679,7 +679,7 @@
             "children": [
               {
                 "id": 77,
-                "name": "MODE",
+                "name": "Mode",
                 "title": "LPF mode",
                 "type": "basic"
               },
@@ -829,15 +829,15 @@
               }
             ],
             "id": 76,
-            "name": "LPF",
-            "title": "LPF",
+            "name": "Lpf",
+            "title": "Lpf",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 82,
-                "name": "MODE",
+                "name": "Mode",
                 "title": "HPF mode",
                 "type": "basic"
               },
@@ -940,7 +940,7 @@
               {
                 "available_when": "has_hpf",
                 "id": 85,
-                "name": "HPF morph",
+                "name": "HPF Morph",
                 "select_chain": [
                   {
                     "id": 11,
@@ -982,19 +982,19 @@
                     "type": "basic"
                   }
                 ],
-                "title": "HPF morph",
+                "title": "HPF Morph",
                 "type": "basic"
               }
             ],
             "id": 81,
-            "name": "HPF",
-            "title": "HPF",
+            "name": "Hpf",
+            "title": "Hpf",
             "type": "submenu"
           },
           {
             "id": 86,
-            "name": "Filter route",
-            "title": "Filter route",
+            "name": "Filter Route",
+            "title": "Filter Route",
             "type": "basic"
           }
         ],
@@ -1009,26 +1009,26 @@
             "children": [
               {
                 "id": 89,
-                "name": "BASS",
-                "title": "BASS",
+                "name": "Bass",
+                "title": "Bass",
                 "type": "basic"
               },
               {
                 "id": 90,
-                "name": "TREBLE",
-                "title": "TREBLE",
+                "name": "Treble",
+                "title": "Treble",
                 "type": "basic"
               },
               {
                 "id": 91,
-                "name": "Bass frequency",
-                "title": "Bass frequency",
+                "name": "Bass Frequency",
+                "title": "Bass Frequency",
                 "type": "basic"
               },
               {
                 "id": 92,
-                "name": "Treble frequency",
-                "title": "Treble frequency",
+                "name": "Treble Frequency",
+                "title": "Treble Frequency",
                 "type": "basic"
               }
             ],
@@ -1041,7 +1041,7 @@
             "children": [
               {
                 "id": 94,
-                "name": "AMOUNT",
+                "name": "Amount",
                 "select_chain": [
                   {
                     "id": 11,
@@ -1094,13 +1094,13 @@
               },
               {
                 "id": 96,
-                "name": "SYNC",
+                "name": "Sync",
                 "title": "Delay sync",
                 "type": "basic"
               },
               {
                 "id": 97,
-                "name": "RATE",
+                "name": "Rate",
                 "select_chain": [
                   {
                     "id": 11,
@@ -1147,21 +1147,21 @@
               },
               {
                 "id": 98,
-                "name": "TYPE",
+                "name": "Type",
                 "title": "Delay type",
                 "type": "basic"
               }
             ],
             "id": 93,
-            "name": "DELAY",
-            "title": "DELAY",
+            "name": "Delay",
+            "title": "Delay",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 100,
-                "name": "AMOUNT",
+                "name": "Amount",
                 "select_chain": [
                   {
                     "id": 11,
@@ -1208,19 +1208,19 @@
               },
               {
                 "id": 101,
-                "name": "Room size",
-                "title": "Room size",
+                "name": "Room Size",
+                "title": "Room Size",
                 "type": "basic"
               },
               {
                 "id": 102,
-                "name": "DAMPING",
-                "title": "DAMPING",
+                "name": "Damping",
+                "title": "Damping",
                 "type": "basic"
               },
               {
                 "id": 103,
-                "name": "WIDTH",
+                "name": "Width",
                 "title": "Reverb width",
                 "type": "basic"
               },
@@ -1232,22 +1232,22 @@
               },
               {
                 "id": 105,
-                "name": "PAN",
+                "name": "Pan",
                 "title": "Reverb pan",
                 "type": "basic"
               },
               {
                 "available_when": "reverb_filters",
                 "id": 106,
-                "name": "HPF",
-                "title": "HPF",
+                "name": "Hpf",
+                "title": "Hpf",
                 "type": "basic"
               },
               {
                 "available_when": "reverb_filters",
                 "id": 107,
-                "name": "LPF",
-                "title": "LPF",
+                "name": "Lpf",
+                "title": "Lpf",
                 "type": "basic"
               },
               {
@@ -1261,28 +1261,28 @@
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 110,
-                    "name": "SHAPE",
+                    "name": "Shape",
                     "title": "Sidech shape",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 111,
-                    "name": "ATTACK",
+                    "name": "Attack",
                     "title": "Sidech attack",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 112,
-                    "name": "RELEASE",
+                    "name": "Release",
                     "title": "Sidech release",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 113,
-                    "name": "SYNC",
+                    "name": "Sync",
                     "title": "Sidechain sync",
                     "type": "basic"
                   }
@@ -1294,15 +1294,15 @@
               }
             ],
             "id": 99,
-            "name": "REVERB",
-            "title": "REVERB",
+            "name": "Reverb",
+            "title": "Reverb",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 115,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "Stutter Rate",
                 "type": "basic"
               },
@@ -1315,28 +1315,28 @@
               {
                 "available_when": "stutter_quantize_allowed",
                 "id": 117,
-                "name": "QUANTIZE",
-                "title": "QUANTIZE",
+                "name": "Quantize",
+                "title": "Quantize",
                 "type": "basic"
               }
             ],
             "id": 114,
-            "name": "STUTTER",
-            "title": "STUTTER",
+            "name": "Stutter",
+            "title": "Stutter",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 119,
-                "name": "TYPE",
+                "name": "Type",
                 "title": "MOD-FX type",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_depth",
                 "id": 120,
-                "name": "DEPTH",
+                "name": "Depth",
                 "select_chain": [
                   {
                     "id": 11,
@@ -1384,7 +1384,7 @@
               {
                 "available_when": "mod_fx_on",
                 "id": 121,
-                "name": "RATE",
+                "name": "Rate",
                 "select_chain": [
                   {
                     "id": 11,
@@ -1432,29 +1432,29 @@
               {
                 "available_when": "mod_fx_has_feedback",
                 "id": 122,
-                "name": "FEEDBACK",
+                "name": "Feedback",
                 "title": "MOD-FX feedback",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_offset",
                 "id": 123,
-                "name": "OFFSET",
+                "name": "Offset",
                 "title": "MOD-FX offset",
                 "type": "basic"
               }
             ],
             "id": 118,
-            "name": "Mod-fx",
-            "title": "Mod-fx",
+            "name": "Mod-FX",
+            "title": "Mod-FX",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 125,
-                "name": "SATURATION",
-                "title": "SATURATION",
+                "name": "Saturation",
+                "title": "Saturation",
                 "type": "basic"
               },
               {
@@ -1465,8 +1465,8 @@
               },
               {
                 "id": 127,
-                "name": "DECIMATION",
-                "title": "DECIMATION",
+                "name": "Decimation",
+                "title": "Decimation",
                 "type": "basic"
               },
               {
@@ -1611,13 +1611,13 @@
           },
           {
             "id": 132,
-            "name": "SYNC",
+            "name": "Sync",
             "title": "Sidechain sync",
             "type": "basic"
           },
           {
             "id": 133,
-            "name": "SHAPE",
+            "name": "Shape",
             "title": "Sidech shape",
             "type": "basic"
           },
@@ -1630,13 +1630,13 @@
           },
           {
             "id": 135,
-            "name": "ATTACK",
+            "name": "Attack",
             "title": "Sidech attack",
             "type": "basic"
           },
           {
             "id": 136,
-            "name": "RELEASE",
+            "name": "Release",
             "title": "Sidech release",
             "type": "basic"
           }
@@ -1651,7 +1651,7 @@
           {
             "available_when": "not_fm",
             "id": 138,
-            "name": "TYPE",
+            "name": "Type",
             "title": "Osc* type",
             "type": "basic"
           },
@@ -1665,7 +1665,7 @@
           {
             "available_when": "osc0_transpose",
             "id": 140,
-            "name": "TRANSPOSE",
+            "name": "Transpose",
             "select_chain": [
               {
                 "id": 11,
@@ -1761,7 +1761,7 @@
           {
             "available_when": "osc0_pulse_width",
             "id": 142,
-            "name": "PULSE WIDTH",
+            "name": "Pulse Width",
             "select_chain": [
               {
                 "id": 11,
@@ -1809,7 +1809,7 @@
           {
             "available_when": "osc0_carrier_feedback",
             "id": 143,
-            "name": "FEEDBACK",
+            "name": "Feedback",
             "select_chain": [
               {
                 "id": 11,
@@ -1864,35 +1864,35 @@
           {
             "available_when": "osc0_is_sample",
             "id": 145,
-            "name": "REVERSE",
+            "name": "Reverse",
             "title": "Samp* reverse",
             "type": "basic"
           },
           {
             "available_when": "osc0_is_sample",
             "id": 146,
-            "name": "Repeat mode",
+            "name": "Repeat Mode",
             "title": "Samp* repeat",
             "type": "basic"
           },
           {
             "available_when": "osc0_is_sample",
             "id": 147,
-            "name": "SPEED",
+            "name": "Speed",
             "title": "Samp* speed",
             "type": "basic"
           },
           {
             "available_when": "osc0_pitch_speed",
             "id": 148,
-            "name": "Pitch/speed",
-            "title": "Pitch/speed",
+            "name": "Pitch/Speed",
+            "title": "Pitch/Speed",
             "type": "basic"
           },
           {
             "available_when": "osc0_interpolation",
             "id": 149,
-            "name": "INTERPOLATION",
+            "name": "Interpolation",
             "title": "Samp* interp",
             "type": "basic"
           },
@@ -1921,7 +1921,7 @@
           {
             "available_when": "not_fm",
             "id": 153,
-            "name": "TYPE",
+            "name": "Type",
             "title": "Osc* type",
             "type": "basic"
           },
@@ -1935,7 +1935,7 @@
           {
             "available_when": "osc1_transpose",
             "id": 155,
-            "name": "TRANSPOSE",
+            "name": "Transpose",
             "select_chain": [
               {
                 "id": 11,
@@ -2031,7 +2031,7 @@
           {
             "available_when": "osc1_pulse_width",
             "id": 157,
-            "name": "PULSE WIDTH",
+            "name": "Pulse Width",
             "select_chain": [
               {
                 "id": 11,
@@ -2079,7 +2079,7 @@
           {
             "available_when": "osc1_carrier_feedback",
             "id": 158,
-            "name": "FEEDBACK",
+            "name": "Feedback",
             "select_chain": [
               {
                 "id": 11,
@@ -2134,35 +2134,35 @@
           {
             "available_when": "osc1_is_sample",
             "id": 160,
-            "name": "REVERSE",
+            "name": "Reverse",
             "title": "Samp* reverse",
             "type": "basic"
           },
           {
             "available_when": "osc1_is_sample",
             "id": 161,
-            "name": "Repeat mode",
+            "name": "Repeat Mode",
             "title": "Samp* repeat",
             "type": "basic"
           },
           {
             "available_when": "osc1_is_sample",
             "id": 162,
-            "name": "SPEED",
+            "name": "Speed",
             "title": "Samp* speed",
             "type": "basic"
           },
           {
             "available_when": "osc1_pitch_speed",
             "id": 163,
-            "name": "Pitch/speed",
-            "title": "Pitch/speed",
+            "name": "Pitch/Speed",
+            "title": "Pitch/Speed",
             "type": "basic"
           },
           {
             "available_when": "osc1_interpolation",
             "id": 164,
-            "name": "INTERPOLATION",
+            "name": "Interpolation",
             "title": "Samp* interp",
             "type": "basic"
           },
@@ -2192,7 +2192,7 @@
           {
             "available_when": "is_fm",
             "id": 168,
-            "name": "TRANSPOSE",
+            "name": "Transpose",
             "select_chain": [
               {
                 "id": 11,
@@ -2240,7 +2240,7 @@
           {
             "available_when": "is_fm",
             "id": 169,
-            "name": "FEEDBACK",
+            "name": "Feedback",
             "select_chain": [
               {
                 "id": 11,
@@ -2304,7 +2304,7 @@
           {
             "available_when": "is_fm",
             "id": 172,
-            "name": "TRANSPOSE",
+            "name": "Transpose",
             "select_chain": [
               {
                 "id": 11,
@@ -2352,7 +2352,7 @@
           {
             "available_when": "is_fm",
             "id": 173,
-            "name": "FEEDBACK",
+            "name": "Feedback",
             "select_chain": [
               {
                 "id": 11,
@@ -2676,7 +2676,7 @@
         "children": [
           {
             "id": 183,
-            "name": "ATTACK",
+            "name": "Attack",
             "select_chain": [
               {
                 "id": 11,
@@ -2723,7 +2723,7 @@
           },
           {
             "id": 184,
-            "name": "DECAY",
+            "name": "Decay",
             "select_chain": [
               {
                 "id": 11,
@@ -2770,7 +2770,7 @@
           },
           {
             "id": 185,
-            "name": "SUSTAIN",
+            "name": "Sustain",
             "select_chain": [
               {
                 "id": 11,
@@ -2817,7 +2817,7 @@
           },
           {
             "id": 186,
-            "name": "RELEASE",
+            "name": "Release",
             "select_chain": [
               {
                 "id": 11,
@@ -2872,7 +2872,7 @@
         "children": [
           {
             "id": 188,
-            "name": "ATTACK",
+            "name": "Attack",
             "select_chain": [
               {
                 "id": 11,
@@ -2919,7 +2919,7 @@
           },
           {
             "id": 189,
-            "name": "DECAY",
+            "name": "Decay",
             "select_chain": [
               {
                 "id": 11,
@@ -2966,7 +2966,7 @@
           },
           {
             "id": 190,
-            "name": "SUSTAIN",
+            "name": "Sustain",
             "select_chain": [
               {
                 "id": 11,
@@ -3013,7 +3013,7 @@
           },
           {
             "id": 191,
-            "name": "RELEASE",
+            "name": "Release",
             "select_chain": [
               {
                 "id": 11,
@@ -3068,7 +3068,7 @@
         "children": [
           {
             "id": 193,
-            "name": "ATTACK",
+            "name": "Attack",
             "select_chain": [
               {
                 "id": 11,
@@ -3115,7 +3115,7 @@
           },
           {
             "id": 194,
-            "name": "DECAY",
+            "name": "Decay",
             "select_chain": [
               {
                 "id": 11,
@@ -3162,7 +3162,7 @@
           },
           {
             "id": 195,
-            "name": "SUSTAIN",
+            "name": "Sustain",
             "select_chain": [
               {
                 "id": 11,
@@ -3209,7 +3209,7 @@
           },
           {
             "id": 196,
-            "name": "RELEASE",
+            "name": "Release",
             "select_chain": [
               {
                 "id": 11,
@@ -3264,7 +3264,7 @@
         "children": [
           {
             "id": 198,
-            "name": "ATTACK",
+            "name": "Attack",
             "select_chain": [
               {
                 "id": 11,
@@ -3311,7 +3311,7 @@
           },
           {
             "id": 199,
-            "name": "DECAY",
+            "name": "Decay",
             "select_chain": [
               {
                 "id": 11,
@@ -3358,7 +3358,7 @@
           },
           {
             "id": 200,
-            "name": "SUSTAIN",
+            "name": "Sustain",
             "select_chain": [
               {
                 "id": 11,
@@ -3405,7 +3405,7 @@
           },
           {
             "id": 201,
-            "name": "RELEASE",
+            "name": "Release",
             "select_chain": [
               {
                 "id": 11,
@@ -3460,19 +3460,19 @@
         "children": [
           {
             "id": 203,
-            "name": "SHAPE",
+            "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
             "id": 204,
-            "name": "SYNC",
+            "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
             "id": 205,
-            "name": "RATE",
+            "name": "Rate",
             "select_chain": [
               {
                 "id": 11,
@@ -3527,19 +3527,19 @@
         "children": [
           {
             "id": 207,
-            "name": "SHAPE",
+            "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
             "id": 208,
-            "name": "SYNC",
+            "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
             "id": 209,
-            "name": "RATE",
+            "name": "Rate",
             "select_chain": [
               {
                 "id": 11,
@@ -3594,19 +3594,19 @@
         "children": [
           {
             "id": 211,
-            "name": "SHAPE",
+            "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
             "id": 212,
-            "name": "SYNC",
+            "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
             "id": 213,
-            "name": "RATE",
+            "name": "Rate",
             "select_chain": [
               {
                 "id": 11,
@@ -3661,19 +3661,19 @@
         "children": [
           {
             "id": 215,
-            "name": "SHAPE",
+            "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
             "id": 216,
-            "name": "SYNC",
+            "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
             "id": 217,
-            "name": "RATE",
+            "name": "Rate",
             "select_chain": [
               {
                 "id": 11,
@@ -3728,36 +3728,36 @@
         "children": [
           {
             "id": 219,
-            "name": "PRIORITY",
-            "title": "PRIORITY",
+            "name": "Priority",
+            "title": "Priority",
             "type": "basic"
           },
           {
             "id": 220,
-            "name": "POLYPHONY",
+            "name": "Polyphony",
             "select_chain": [
               {
                 "available_when": "is_polyphonic",
                 "id": 221,
-                "name": "MAX VOICES",
-                "title": "MAX VOICES",
+                "name": "Max Voices",
+                "title": "Max Voices",
                 "type": "basic"
               }
             ],
-            "title": "POLYPHONY",
+            "title": "Polyphony",
             "type": "basic"
           },
           {
             "available_when": "is_polyphonic",
             "id": 221,
-            "name": "MAX VOICES",
-            "title": "MAX VOICES",
+            "name": "Max Voices",
+            "title": "Max Voices",
             "type": "basic"
           },
           {
             "id": 222,
-            "name": "PORTAMENTO",
-            "title": "PORTAMENTO",
+            "name": "Portamento",
+            "title": "Portamento",
             "type": "basic"
           },
           {
@@ -3790,14 +3790,14 @@
               }
             ],
             "id": 223,
-            "name": "UNISON",
-            "title": "UNISON",
+            "name": "Unison",
+            "title": "Unison",
             "type": "submenu"
           }
         ],
         "id": 218,
-        "name": "VOICE",
-        "title": "VOICE",
+        "name": "Voice",
+        "title": "Voice",
         "type": "submenu"
       },
       {
@@ -3811,8 +3811,8 @@
           },
           {
             "id": 229,
-            "name": "Poly / finger / MPE",
-            "title": "Poly / finger / MPE",
+            "name": "Poly / Finger / MPE",
+            "title": "Poly / Finger / MPE",
             "type": "basic"
           }
         ],
@@ -3958,8 +3958,8 @@
           {
             "available_when": "ringmod_allowed",
             "id": 9,
-            "name": "Synth mode",
-            "title": "Synth mode",
+            "name": "Synth Mode",
+            "title": "Synth Mode",
             "type": "basic"
           },
           {
@@ -4011,7 +4011,7 @@
           },
           {
             "id": 15,
-            "name": "PAN",
+            "name": "Pan",
             "select_chain": [
               {
                 "id": 11,
@@ -4053,7 +4053,7 @@
                 "type": "basic"
               }
             ],
-            "title": "PAN",
+            "title": "Pan",
             "type": "basic"
           },
           {
@@ -4105,7 +4105,7 @@
           },
           {
             "id": 17,
-            "name": "VIBRATO",
+            "name": "Vibrato",
             "select_chain": [
               {
                 "id": 13,
@@ -4131,7 +4131,7 @@
                 "type": "basic"
               }
             ],
-            "title": "VIBRATO",
+            "title": "Vibrato",
             "type": "basic"
           }
         ],
@@ -4152,7 +4152,7 @@
             "children": [
               {
                 "id": 21,
-                "name": "PRESET",
+                "name": "Preset",
                 "select_chain": [
                   {
                     "available_when": "not_gate_drum_or_kit_fx",
@@ -4193,20 +4193,20 @@
               {
                 "available_when": "arp_sound_only",
                 "id": 26,
-                "name": "GATE",
+                "name": "Gate",
                 "title": "Arp gate",
                 "type": "basic"
               },
               {
                 "id": 27,
-                "name": "SYNC",
+                "name": "Sync",
                 "title": "Arp sync",
                 "type": "basic"
               },
               {
                 "available_when": "arp_rate_sound",
                 "id": 28,
-                "name": "RATE",
+                "name": "Rate",
                 "select_chain": [
                   {
                     "id": 11,
@@ -4331,7 +4331,7 @@
               }
             ],
             "id": 29,
-            "name": "PATTERN",
+            "name": "Pattern",
             "title": "Arp pattern",
             "type": "submenu"
           },
@@ -4341,8 +4341,8 @@
               {
                 "available_when": "not_gate_drum_row",
                 "id": 41,
-                "name": "VELOCITY",
-                "title": "VELOCITY",
+                "name": "Velocity",
+                "title": "Velocity",
                 "type": "basic"
               }
             ],
@@ -4360,8 +4360,8 @@
           }
         ],
         "id": 18,
-        "name": "ARPEGGIATOR",
-        "title": "ARPEGGIATOR",
+        "name": "Arpeggiator",
+        "title": "Arpeggiator",
         "type": "submenu"
       },
       {
@@ -4535,8 +4535,8 @@
           }
         ],
         "id": 43,
-        "name": "RANDOMIZER",
-        "title": "RANDOMIZER",
+        "name": "Randomizer",
+        "title": "Randomizer",
         "type": "submenu"
       },
       {
@@ -4561,20 +4561,20 @@
           },
           {
             "id": 72,
-            "name": "ATTACK",
-            "title": "ATTACK",
+            "name": "Attack",
+            "title": "Attack",
             "type": "basic"
           },
           {
             "id": 73,
-            "name": "RELEASE",
-            "title": "RELEASE",
+            "name": "Release",
+            "title": "Release",
             "type": "basic"
           },
           {
             "id": 74,
-            "name": "HPF",
-            "title": "HPF",
+            "name": "Hpf",
+            "title": "Hpf",
             "type": "basic"
           }
         ],
@@ -4589,7 +4589,7 @@
             "children": [
               {
                 "id": 77,
-                "name": "MODE",
+                "name": "Mode",
                 "title": "LPF mode",
                 "type": "basic"
               },
@@ -4739,15 +4739,15 @@
               }
             ],
             "id": 76,
-            "name": "LPF",
-            "title": "LPF",
+            "name": "Lpf",
+            "title": "Lpf",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 82,
-                "name": "MODE",
+                "name": "Mode",
                 "title": "HPF mode",
                 "type": "basic"
               },
@@ -4850,7 +4850,7 @@
               {
                 "available_when": "has_hpf",
                 "id": 85,
-                "name": "HPF morph",
+                "name": "HPF Morph",
                 "select_chain": [
                   {
                     "id": 11,
@@ -4892,19 +4892,19 @@
                     "type": "basic"
                   }
                 ],
-                "title": "HPF morph",
+                "title": "HPF Morph",
                 "type": "basic"
               }
             ],
             "id": 81,
-            "name": "HPF",
-            "title": "HPF",
+            "name": "Hpf",
+            "title": "Hpf",
             "type": "submenu"
           },
           {
             "id": 86,
-            "name": "Filter route",
-            "title": "Filter route",
+            "name": "Filter Route",
+            "title": "Filter Route",
             "type": "basic"
           }
         ],
@@ -4919,26 +4919,26 @@
             "children": [
               {
                 "id": 89,
-                "name": "BASS",
-                "title": "BASS",
+                "name": "Bass",
+                "title": "Bass",
                 "type": "basic"
               },
               {
                 "id": 90,
-                "name": "TREBLE",
-                "title": "TREBLE",
+                "name": "Treble",
+                "title": "Treble",
                 "type": "basic"
               },
               {
                 "id": 91,
-                "name": "Bass frequency",
-                "title": "Bass frequency",
+                "name": "Bass Frequency",
+                "title": "Bass Frequency",
                 "type": "basic"
               },
               {
                 "id": 92,
-                "name": "Treble frequency",
-                "title": "Treble frequency",
+                "name": "Treble Frequency",
+                "title": "Treble Frequency",
                 "type": "basic"
               }
             ],
@@ -4951,7 +4951,7 @@
             "children": [
               {
                 "id": 94,
-                "name": "AMOUNT",
+                "name": "Amount",
                 "select_chain": [
                   {
                     "id": 11,
@@ -5004,13 +5004,13 @@
               },
               {
                 "id": 96,
-                "name": "SYNC",
+                "name": "Sync",
                 "title": "Delay sync",
                 "type": "basic"
               },
               {
                 "id": 97,
-                "name": "RATE",
+                "name": "Rate",
                 "select_chain": [
                   {
                     "id": 11,
@@ -5057,21 +5057,21 @@
               },
               {
                 "id": 98,
-                "name": "TYPE",
+                "name": "Type",
                 "title": "Delay type",
                 "type": "basic"
               }
             ],
             "id": 93,
-            "name": "DELAY",
-            "title": "DELAY",
+            "name": "Delay",
+            "title": "Delay",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 100,
-                "name": "AMOUNT",
+                "name": "Amount",
                 "select_chain": [
                   {
                     "id": 11,
@@ -5118,19 +5118,19 @@
               },
               {
                 "id": 101,
-                "name": "Room size",
-                "title": "Room size",
+                "name": "Room Size",
+                "title": "Room Size",
                 "type": "basic"
               },
               {
                 "id": 102,
-                "name": "DAMPING",
-                "title": "DAMPING",
+                "name": "Damping",
+                "title": "Damping",
                 "type": "basic"
               },
               {
                 "id": 103,
-                "name": "WIDTH",
+                "name": "Width",
                 "title": "Reverb width",
                 "type": "basic"
               },
@@ -5142,22 +5142,22 @@
               },
               {
                 "id": 105,
-                "name": "PAN",
+                "name": "Pan",
                 "title": "Reverb pan",
                 "type": "basic"
               },
               {
                 "available_when": "reverb_filters",
                 "id": 106,
-                "name": "HPF",
-                "title": "HPF",
+                "name": "Hpf",
+                "title": "Hpf",
                 "type": "basic"
               },
               {
                 "available_when": "reverb_filters",
                 "id": 107,
-                "name": "LPF",
-                "title": "LPF",
+                "name": "Lpf",
+                "title": "Lpf",
                 "type": "basic"
               },
               {
@@ -5171,28 +5171,28 @@
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 110,
-                    "name": "SHAPE",
+                    "name": "Shape",
                     "title": "Sidech shape",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 111,
-                    "name": "ATTACK",
+                    "name": "Attack",
                     "title": "Sidech attack",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 112,
-                    "name": "RELEASE",
+                    "name": "Release",
                     "title": "Sidech release",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 113,
-                    "name": "SYNC",
+                    "name": "Sync",
                     "title": "Sidechain sync",
                     "type": "basic"
                   }
@@ -5204,15 +5204,15 @@
               }
             ],
             "id": 99,
-            "name": "REVERB",
-            "title": "REVERB",
+            "name": "Reverb",
+            "title": "Reverb",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 115,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "Stutter Rate",
                 "type": "basic"
               },
@@ -5225,28 +5225,28 @@
               {
                 "available_when": "stutter_quantize_allowed",
                 "id": 117,
-                "name": "QUANTIZE",
-                "title": "QUANTIZE",
+                "name": "Quantize",
+                "title": "Quantize",
                 "type": "basic"
               }
             ],
             "id": 114,
-            "name": "STUTTER",
-            "title": "STUTTER",
+            "name": "Stutter",
+            "title": "Stutter",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 119,
-                "name": "TYPE",
+                "name": "Type",
                 "title": "MOD-FX type",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_depth",
                 "id": 120,
-                "name": "DEPTH",
+                "name": "Depth",
                 "select_chain": [
                   {
                     "id": 11,
@@ -5294,7 +5294,7 @@
               {
                 "available_when": "mod_fx_on",
                 "id": 121,
-                "name": "RATE",
+                "name": "Rate",
                 "select_chain": [
                   {
                     "id": 11,
@@ -5342,29 +5342,29 @@
               {
                 "available_when": "mod_fx_has_feedback",
                 "id": 122,
-                "name": "FEEDBACK",
+                "name": "Feedback",
                 "title": "MOD-FX feedback",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_offset",
                 "id": 123,
-                "name": "OFFSET",
+                "name": "Offset",
                 "title": "MOD-FX offset",
                 "type": "basic"
               }
             ],
             "id": 118,
-            "name": "Mod-fx",
-            "title": "Mod-fx",
+            "name": "Mod-FX",
+            "title": "Mod-FX",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 125,
-                "name": "SATURATION",
-                "title": "SATURATION",
+                "name": "Saturation",
+                "title": "Saturation",
                 "type": "basic"
               },
               {
@@ -5375,8 +5375,8 @@
               },
               {
                 "id": 127,
-                "name": "DECIMATION",
-                "title": "DECIMATION",
+                "name": "Decimation",
+                "title": "Decimation",
                 "type": "basic"
               },
               {
@@ -5521,13 +5521,13 @@
           },
           {
             "id": 132,
-            "name": "SYNC",
+            "name": "Sync",
             "title": "Sidechain sync",
             "type": "basic"
           },
           {
             "id": 133,
-            "name": "SHAPE",
+            "name": "Shape",
             "title": "Sidech shape",
             "type": "basic"
           },
@@ -5540,13 +5540,13 @@
           },
           {
             "id": 135,
-            "name": "ATTACK",
+            "name": "Attack",
             "title": "Sidech attack",
             "type": "basic"
           },
           {
             "id": 136,
-            "name": "RELEASE",
+            "name": "Release",
             "title": "Sidech release",
             "type": "basic"
           }
@@ -5561,7 +5561,7 @@
           {
             "available_when": "not_fm",
             "id": 138,
-            "name": "TYPE",
+            "name": "Type",
             "title": "Osc* type",
             "type": "basic"
           },
@@ -5575,7 +5575,7 @@
           {
             "available_when": "osc0_transpose",
             "id": 140,
-            "name": "TRANSPOSE",
+            "name": "Transpose",
             "select_chain": [
               {
                 "id": 11,
@@ -5671,7 +5671,7 @@
           {
             "available_when": "osc0_pulse_width",
             "id": 142,
-            "name": "PULSE WIDTH",
+            "name": "Pulse Width",
             "select_chain": [
               {
                 "id": 11,
@@ -5719,7 +5719,7 @@
           {
             "available_when": "osc0_carrier_feedback",
             "id": 143,
-            "name": "FEEDBACK",
+            "name": "Feedback",
             "select_chain": [
               {
                 "id": 11,
@@ -5774,35 +5774,35 @@
           {
             "available_when": "osc0_is_sample",
             "id": 145,
-            "name": "REVERSE",
+            "name": "Reverse",
             "title": "Samp* reverse",
             "type": "basic"
           },
           {
             "available_when": "osc0_is_sample",
             "id": 146,
-            "name": "Repeat mode",
+            "name": "Repeat Mode",
             "title": "Samp* repeat",
             "type": "basic"
           },
           {
             "available_when": "osc0_is_sample",
             "id": 147,
-            "name": "SPEED",
+            "name": "Speed",
             "title": "Samp* speed",
             "type": "basic"
           },
           {
             "available_when": "osc0_pitch_speed",
             "id": 148,
-            "name": "Pitch/speed",
-            "title": "Pitch/speed",
+            "name": "Pitch/Speed",
+            "title": "Pitch/Speed",
             "type": "basic"
           },
           {
             "available_when": "osc0_interpolation",
             "id": 149,
-            "name": "INTERPOLATION",
+            "name": "Interpolation",
             "title": "Samp* interp",
             "type": "basic"
           },
@@ -5831,7 +5831,7 @@
           {
             "available_when": "not_fm",
             "id": 153,
-            "name": "TYPE",
+            "name": "Type",
             "title": "Osc* type",
             "type": "basic"
           },
@@ -5845,7 +5845,7 @@
           {
             "available_when": "osc1_transpose",
             "id": 155,
-            "name": "TRANSPOSE",
+            "name": "Transpose",
             "select_chain": [
               {
                 "id": 11,
@@ -5941,7 +5941,7 @@
           {
             "available_when": "osc1_pulse_width",
             "id": 157,
-            "name": "PULSE WIDTH",
+            "name": "Pulse Width",
             "select_chain": [
               {
                 "id": 11,
@@ -5989,7 +5989,7 @@
           {
             "available_when": "osc1_carrier_feedback",
             "id": 158,
-            "name": "FEEDBACK",
+            "name": "Feedback",
             "select_chain": [
               {
                 "id": 11,
@@ -6044,35 +6044,35 @@
           {
             "available_when": "osc1_is_sample",
             "id": 160,
-            "name": "REVERSE",
+            "name": "Reverse",
             "title": "Samp* reverse",
             "type": "basic"
           },
           {
             "available_when": "osc1_is_sample",
             "id": 161,
-            "name": "Repeat mode",
+            "name": "Repeat Mode",
             "title": "Samp* repeat",
             "type": "basic"
           },
           {
             "available_when": "osc1_is_sample",
             "id": 162,
-            "name": "SPEED",
+            "name": "Speed",
             "title": "Samp* speed",
             "type": "basic"
           },
           {
             "available_when": "osc1_pitch_speed",
             "id": 163,
-            "name": "Pitch/speed",
-            "title": "Pitch/speed",
+            "name": "Pitch/Speed",
+            "title": "Pitch/Speed",
             "type": "basic"
           },
           {
             "available_when": "osc1_interpolation",
             "id": 164,
-            "name": "INTERPOLATION",
+            "name": "Interpolation",
             "title": "Samp* interp",
             "type": "basic"
           },
@@ -6102,7 +6102,7 @@
           {
             "available_when": "is_fm",
             "id": 168,
-            "name": "TRANSPOSE",
+            "name": "Transpose",
             "select_chain": [
               {
                 "id": 11,
@@ -6150,7 +6150,7 @@
           {
             "available_when": "is_fm",
             "id": 169,
-            "name": "FEEDBACK",
+            "name": "Feedback",
             "select_chain": [
               {
                 "id": 11,
@@ -6214,7 +6214,7 @@
           {
             "available_when": "is_fm",
             "id": 172,
-            "name": "TRANSPOSE",
+            "name": "Transpose",
             "select_chain": [
               {
                 "id": 11,
@@ -6262,7 +6262,7 @@
           {
             "available_when": "is_fm",
             "id": 173,
-            "name": "FEEDBACK",
+            "name": "Feedback",
             "select_chain": [
               {
                 "id": 11,
@@ -6586,7 +6586,7 @@
         "children": [
           {
             "id": 183,
-            "name": "ATTACK",
+            "name": "Attack",
             "select_chain": [
               {
                 "id": 11,
@@ -6633,7 +6633,7 @@
           },
           {
             "id": 184,
-            "name": "DECAY",
+            "name": "Decay",
             "select_chain": [
               {
                 "id": 11,
@@ -6680,7 +6680,7 @@
           },
           {
             "id": 185,
-            "name": "SUSTAIN",
+            "name": "Sustain",
             "select_chain": [
               {
                 "id": 11,
@@ -6727,7 +6727,7 @@
           },
           {
             "id": 186,
-            "name": "RELEASE",
+            "name": "Release",
             "select_chain": [
               {
                 "id": 11,
@@ -6782,7 +6782,7 @@
         "children": [
           {
             "id": 188,
-            "name": "ATTACK",
+            "name": "Attack",
             "select_chain": [
               {
                 "id": 11,
@@ -6829,7 +6829,7 @@
           },
           {
             "id": 189,
-            "name": "DECAY",
+            "name": "Decay",
             "select_chain": [
               {
                 "id": 11,
@@ -6876,7 +6876,7 @@
           },
           {
             "id": 190,
-            "name": "SUSTAIN",
+            "name": "Sustain",
             "select_chain": [
               {
                 "id": 11,
@@ -6923,7 +6923,7 @@
           },
           {
             "id": 191,
-            "name": "RELEASE",
+            "name": "Release",
             "select_chain": [
               {
                 "id": 11,
@@ -6978,7 +6978,7 @@
         "children": [
           {
             "id": 193,
-            "name": "ATTACK",
+            "name": "Attack",
             "select_chain": [
               {
                 "id": 11,
@@ -7025,7 +7025,7 @@
           },
           {
             "id": 194,
-            "name": "DECAY",
+            "name": "Decay",
             "select_chain": [
               {
                 "id": 11,
@@ -7072,7 +7072,7 @@
           },
           {
             "id": 195,
-            "name": "SUSTAIN",
+            "name": "Sustain",
             "select_chain": [
               {
                 "id": 11,
@@ -7119,7 +7119,7 @@
           },
           {
             "id": 196,
-            "name": "RELEASE",
+            "name": "Release",
             "select_chain": [
               {
                 "id": 11,
@@ -7174,7 +7174,7 @@
         "children": [
           {
             "id": 198,
-            "name": "ATTACK",
+            "name": "Attack",
             "select_chain": [
               {
                 "id": 11,
@@ -7221,7 +7221,7 @@
           },
           {
             "id": 199,
-            "name": "DECAY",
+            "name": "Decay",
             "select_chain": [
               {
                 "id": 11,
@@ -7268,7 +7268,7 @@
           },
           {
             "id": 200,
-            "name": "SUSTAIN",
+            "name": "Sustain",
             "select_chain": [
               {
                 "id": 11,
@@ -7315,7 +7315,7 @@
           },
           {
             "id": 201,
-            "name": "RELEASE",
+            "name": "Release",
             "select_chain": [
               {
                 "id": 11,
@@ -7370,19 +7370,19 @@
         "children": [
           {
             "id": 203,
-            "name": "SHAPE",
+            "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
             "id": 204,
-            "name": "SYNC",
+            "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
             "id": 205,
-            "name": "RATE",
+            "name": "Rate",
             "select_chain": [
               {
                 "id": 11,
@@ -7437,19 +7437,19 @@
         "children": [
           {
             "id": 207,
-            "name": "SHAPE",
+            "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
             "id": 208,
-            "name": "SYNC",
+            "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
             "id": 209,
-            "name": "RATE",
+            "name": "Rate",
             "select_chain": [
               {
                 "id": 11,
@@ -7504,19 +7504,19 @@
         "children": [
           {
             "id": 211,
-            "name": "SHAPE",
+            "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
             "id": 212,
-            "name": "SYNC",
+            "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
             "id": 213,
-            "name": "RATE",
+            "name": "Rate",
             "select_chain": [
               {
                 "id": 11,
@@ -7571,19 +7571,19 @@
         "children": [
           {
             "id": 215,
-            "name": "SHAPE",
+            "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
             "id": 216,
-            "name": "SYNC",
+            "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
             "id": 217,
-            "name": "RATE",
+            "name": "Rate",
             "select_chain": [
               {
                 "id": 11,
@@ -7638,36 +7638,36 @@
         "children": [
           {
             "id": 219,
-            "name": "PRIORITY",
-            "title": "PRIORITY",
+            "name": "Priority",
+            "title": "Priority",
             "type": "basic"
           },
           {
             "id": 220,
-            "name": "POLYPHONY",
+            "name": "Polyphony",
             "select_chain": [
               {
                 "available_when": "is_polyphonic",
                 "id": 221,
-                "name": "MAX VOICES",
-                "title": "MAX VOICES",
+                "name": "Max Voices",
+                "title": "Max Voices",
                 "type": "basic"
               }
             ],
-            "title": "POLYPHONY",
+            "title": "Polyphony",
             "type": "basic"
           },
           {
             "available_when": "is_polyphonic",
             "id": 221,
-            "name": "MAX VOICES",
-            "title": "MAX VOICES",
+            "name": "Max Voices",
+            "title": "Max Voices",
             "type": "basic"
           },
           {
             "id": 222,
-            "name": "PORTAMENTO",
-            "title": "PORTAMENTO",
+            "name": "Portamento",
+            "title": "Portamento",
             "type": "basic"
           },
           {
@@ -7700,14 +7700,14 @@
               }
             ],
             "id": 223,
-            "name": "UNISON",
-            "title": "UNISON",
+            "name": "Unison",
+            "title": "Unison",
             "type": "submenu"
           }
         ],
         "id": 218,
-        "name": "VOICE",
-        "title": "VOICE",
+        "name": "Voice",
+        "title": "Voice",
         "type": "submenu"
       },
       {
@@ -7721,8 +7721,8 @@
           },
           {
             "id": 229,
-            "name": "Poly / finger / MPE",
-            "title": "Poly / finger / MPE",
+            "name": "Poly / Finger / MPE",
+            "title": "Poly / Finger / MPE",
             "type": "basic"
           }
         ],
@@ -7841,20 +7841,20 @@
             "children": [
               {
                 "id": 4,
-                "name": "Edit track name",
-                "title": "Edit track name",
+                "name": "Edit Track Name",
+                "title": "Edit Track Name",
                 "type": "basic"
               },
               {
                 "id": 5,
-                "name": "Edit clip name",
-                "title": "Edit clip name",
+                "name": "Edit Clip Name",
+                "title": "Edit Clip Name",
                 "type": "basic"
               }
             ],
             "id": 3,
-            "name": "Edit name",
-            "title": "Edit name",
+            "name": "Edit Name",
+            "title": "Edit Name",
             "type": "submenu"
           }
         ],
@@ -7891,7 +7891,7 @@
           {
             "available_when": "is_midi_out",
             "id": 245,
-            "name": "BANK",
+            "name": "Bank",
             "title": "MIDI bank",
             "type": "basic"
           },
@@ -7905,7 +7905,7 @@
           {
             "available_when": "is_midi_out",
             "id": 247,
-            "name": "PGM",
+            "name": "Pgm",
             "title": "MIDI PGM number",
             "type": "basic"
           }
@@ -7927,7 +7927,7 @@
             "children": [
               {
                 "id": 21,
-                "name": "PRESET",
+                "name": "Preset",
                 "select_chain": [
                   {
                     "available_when": "not_gate_drum_or_kit_fx",
@@ -7968,20 +7968,20 @@
               {
                 "available_when": "arp_non_sound",
                 "id": 250,
-                "name": "GATE",
+                "name": "Gate",
                 "title": "Arp gate",
                 "type": "basic"
               },
               {
                 "id": 27,
-                "name": "SYNC",
+                "name": "Sync",
                 "title": "Arp sync",
                 "type": "basic"
               },
               {
                 "available_when": "arp_non_sound",
                 "id": 251,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "Arp rate",
                 "type": "basic"
               }
@@ -8065,7 +8065,7 @@
               }
             ],
             "id": 29,
-            "name": "PATTERN",
+            "name": "Pattern",
             "title": "Arp pattern",
             "type": "submenu"
           },
@@ -8075,8 +8075,8 @@
               {
                 "available_when": "not_gate_drum_row",
                 "id": 41,
-                "name": "VELOCITY",
-                "title": "VELOCITY",
+                "name": "Velocity",
+                "title": "Velocity",
                 "type": "basic"
               }
             ],
@@ -8094,8 +8094,8 @@
           }
         ],
         "id": 248,
-        "name": "ARPEGGIATOR",
-        "title": "ARPEGGIATOR",
+        "name": "Arpeggiator",
+        "title": "Arpeggiator",
         "type": "submenu"
       },
       {
@@ -8269,8 +8269,8 @@
           }
         ],
         "id": 43,
-        "name": "RANDOMIZER",
-        "title": "RANDOMIZER",
+        "name": "Randomizer",
+        "title": "Randomizer",
         "type": "submenu"
       },
       {
@@ -8284,8 +8284,8 @@
           },
           {
             "id": 229,
-            "name": "Poly / finger / MPE",
-            "title": "Poly / finger / MPE",
+            "name": "Poly / Finger / MPE",
+            "title": "Poly / Finger / MPE",
             "type": "basic"
           }
         ],
@@ -8383,7 +8383,7 @@
             "children": [
               {
                 "id": 21,
-                "name": "PRESET",
+                "name": "Preset",
                 "select_chain": [
                   {
                     "available_when": "not_gate_drum_or_kit_fx",
@@ -8424,20 +8424,20 @@
               {
                 "available_when": "arp_non_sound",
                 "id": 250,
-                "name": "GATE",
+                "name": "Gate",
                 "title": "Arp gate",
                 "type": "basic"
               },
               {
                 "id": 27,
-                "name": "SYNC",
+                "name": "Sync",
                 "title": "Arp sync",
                 "type": "basic"
               },
               {
                 "available_when": "arp_non_sound",
                 "id": 251,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "Arp rate",
                 "type": "basic"
               }
@@ -8521,7 +8521,7 @@
               }
             ],
             "id": 29,
-            "name": "PATTERN",
+            "name": "Pattern",
             "title": "Arp pattern",
             "type": "submenu"
           },
@@ -8531,8 +8531,8 @@
               {
                 "available_when": "not_gate_drum_row",
                 "id": 41,
-                "name": "VELOCITY",
-                "title": "VELOCITY",
+                "name": "Velocity",
+                "title": "Velocity",
                 "type": "basic"
               }
             ],
@@ -8550,8 +8550,8 @@
           }
         ],
         "id": 248,
-        "name": "ARPEGGIATOR",
-        "title": "ARPEGGIATOR",
+        "name": "Arpeggiator",
+        "title": "Arpeggiator",
         "type": "submenu"
       },
       {
@@ -8725,8 +8725,8 @@
           }
         ],
         "id": 43,
-        "name": "RANDOMIZER",
-        "title": "RANDOMIZER",
+        "name": "Randomizer",
+        "title": "Randomizer",
         "type": "submenu"
       }
     ],
@@ -8777,7 +8777,7 @@
             "children": [
               {
                 "id": 21,
-                "name": "PRESET",
+                "name": "Preset",
                 "select_chain": [
                   {
                     "available_when": "not_gate_drum_or_kit_fx",
@@ -8818,20 +8818,20 @@
               {
                 "available_when": "arp_non_sound",
                 "id": 250,
-                "name": "GATE",
+                "name": "Gate",
                 "title": "Arp gate",
                 "type": "basic"
               },
               {
                 "id": 27,
-                "name": "SYNC",
+                "name": "Sync",
                 "title": "Arp sync",
                 "type": "basic"
               },
               {
                 "available_when": "arp_non_sound",
                 "id": 251,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "Arp rate",
                 "type": "basic"
               }
@@ -8915,7 +8915,7 @@
               }
             ],
             "id": 29,
-            "name": "PATTERN",
+            "name": "Pattern",
             "title": "Arp pattern",
             "type": "submenu"
           },
@@ -8925,8 +8925,8 @@
               {
                 "available_when": "not_gate_drum_row",
                 "id": 41,
-                "name": "VELOCITY",
-                "title": "VELOCITY",
+                "name": "Velocity",
+                "title": "Velocity",
                 "type": "basic"
               }
             ],
@@ -8944,8 +8944,8 @@
           }
         ],
         "id": 248,
-        "name": "ARPEGGIATOR",
-        "title": "ARPEGGIATOR",
+        "name": "Arpeggiator",
+        "title": "Arpeggiator",
         "type": "submenu"
       },
       {
@@ -9119,14 +9119,14 @@
           }
         ],
         "id": 43,
-        "name": "RANDOMIZER",
-        "title": "RANDOMIZER",
+        "name": "Randomizer",
+        "title": "Randomizer",
         "type": "submenu"
       }
     ],
     "id": 258,
-    "name": "GATE",
-    "title": "GATE",
+    "name": "Gate",
+    "title": "Gate",
     "type": "submenu"
   },
   {
@@ -9137,20 +9137,20 @@
             "children": [
               {
                 "id": 4,
-                "name": "Edit track name",
-                "title": "Edit track name",
+                "name": "Edit Track Name",
+                "title": "Edit Track Name",
                 "type": "basic"
               },
               {
                 "id": 5,
-                "name": "Edit clip name",
-                "title": "Edit clip name",
+                "name": "Edit Clip Name",
+                "title": "Edit Clip Name",
                 "type": "basic"
               }
             ],
             "id": 3,
-            "name": "Edit name",
-            "title": "Edit name",
+            "name": "Edit Name",
+            "title": "Edit Name",
             "type": "submenu"
           },
           {
@@ -9188,8 +9188,8 @@
           },
           {
             "id": 266,
-            "name": "PAN",
-            "title": "PAN",
+            "name": "Pan",
+            "title": "Pan",
             "type": "basic"
           }
         ],
@@ -9220,20 +9220,20 @@
           },
           {
             "id": 72,
-            "name": "ATTACK",
-            "title": "ATTACK",
+            "name": "Attack",
+            "title": "Attack",
             "type": "basic"
           },
           {
             "id": 73,
-            "name": "RELEASE",
-            "title": "RELEASE",
+            "name": "Release",
+            "title": "Release",
             "type": "basic"
           },
           {
             "id": 74,
-            "name": "HPF",
-            "title": "HPF",
+            "name": "Hpf",
+            "title": "Hpf",
             "type": "basic"
           }
         ],
@@ -9248,7 +9248,7 @@
             "children": [
               {
                 "id": 77,
-                "name": "MODE",
+                "name": "Mode",
                 "title": "LPF mode",
                 "type": "basic"
               },
@@ -9275,15 +9275,15 @@
               }
             ],
             "id": 268,
-            "name": "LPF",
-            "title": "LPF",
+            "name": "Lpf",
+            "title": "Lpf",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 82,
-                "name": "MODE",
+                "name": "Mode",
                 "title": "HPF mode",
                 "type": "basic"
               },
@@ -9305,19 +9305,19 @@
                 "available_when": "has_hpf",
                 "id": 275,
                 "name": "Morph",
-                "title": "HPF morph",
+                "title": "HPF Morph",
                 "type": "basic"
               }
             ],
             "id": 272,
-            "name": "HPF",
-            "title": "HPF",
+            "name": "Hpf",
+            "title": "Hpf",
             "type": "submenu"
           },
           {
             "id": 86,
-            "name": "Filter route",
-            "title": "Filter route",
+            "name": "Filter Route",
+            "title": "Filter Route",
             "type": "basic"
           }
         ],
@@ -9332,26 +9332,26 @@
             "children": [
               {
                 "id": 89,
-                "name": "BASS",
-                "title": "BASS",
+                "name": "Bass",
+                "title": "Bass",
                 "type": "basic"
               },
               {
                 "id": 90,
-                "name": "TREBLE",
-                "title": "TREBLE",
+                "name": "Treble",
+                "title": "Treble",
                 "type": "basic"
               },
               {
                 "id": 91,
-                "name": "Bass frequency",
-                "title": "Bass frequency",
+                "name": "Bass Frequency",
+                "title": "Bass Frequency",
                 "type": "basic"
               },
               {
                 "id": 92,
-                "name": "Treble frequency",
-                "title": "Treble frequency",
+                "name": "Treble Frequency",
+                "title": "Treble Frequency",
                 "type": "basic"
               }
             ],
@@ -9364,7 +9364,7 @@
             "children": [
               {
                 "id": 278,
-                "name": "AMOUNT",
+                "name": "Amount",
                 "title": "Delay amount",
                 "type": "basic"
               },
@@ -9376,51 +9376,51 @@
               },
               {
                 "id": 96,
-                "name": "SYNC",
+                "name": "Sync",
                 "title": "Delay sync",
                 "type": "basic"
               },
               {
                 "id": 279,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "Delay rate",
                 "type": "basic"
               },
               {
                 "id": 98,
-                "name": "TYPE",
+                "name": "Type",
                 "title": "Delay type",
                 "type": "basic"
               }
             ],
             "id": 277,
-            "name": "DELAY",
-            "title": "DELAY",
+            "name": "Delay",
+            "title": "Delay",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 281,
-                "name": "AMOUNT",
+                "name": "Amount",
                 "title": "Reverb amount",
                 "type": "basic"
               },
               {
                 "id": 101,
-                "name": "Room size",
-                "title": "Room size",
+                "name": "Room Size",
+                "title": "Room Size",
                 "type": "basic"
               },
               {
                 "id": 102,
-                "name": "DAMPING",
-                "title": "DAMPING",
+                "name": "Damping",
+                "title": "Damping",
                 "type": "basic"
               },
               {
                 "id": 103,
-                "name": "WIDTH",
+                "name": "Width",
                 "title": "Reverb width",
                 "type": "basic"
               },
@@ -9432,22 +9432,22 @@
               },
               {
                 "id": 105,
-                "name": "PAN",
+                "name": "Pan",
                 "title": "Reverb pan",
                 "type": "basic"
               },
               {
                 "available_when": "reverb_filters",
                 "id": 106,
-                "name": "HPF",
-                "title": "HPF",
+                "name": "Hpf",
+                "title": "Hpf",
                 "type": "basic"
               },
               {
                 "available_when": "reverb_filters",
                 "id": 107,
-                "name": "LPF",
-                "title": "LPF",
+                "name": "Lpf",
+                "title": "Lpf",
                 "type": "basic"
               },
               {
@@ -9461,28 +9461,28 @@
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 110,
-                    "name": "SHAPE",
+                    "name": "Shape",
                     "title": "Sidech shape",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 111,
-                    "name": "ATTACK",
+                    "name": "Attack",
                     "title": "Sidech attack",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 112,
-                    "name": "RELEASE",
+                    "name": "Release",
                     "title": "Sidech release",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 113,
-                    "name": "SYNC",
+                    "name": "Sync",
                     "title": "Sidechain sync",
                     "type": "basic"
                   }
@@ -9494,15 +9494,15 @@
               }
             ],
             "id": 280,
-            "name": "REVERB",
-            "title": "REVERB",
+            "name": "Reverb",
+            "title": "Reverb",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 115,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "Stutter Rate",
                 "type": "basic"
               },
@@ -9515,64 +9515,64 @@
               {
                 "available_when": "stutter_quantize_allowed",
                 "id": 117,
-                "name": "QUANTIZE",
-                "title": "QUANTIZE",
+                "name": "Quantize",
+                "title": "Quantize",
                 "type": "basic"
               }
             ],
             "id": 114,
-            "name": "STUTTER",
-            "title": "STUTTER",
+            "name": "Stutter",
+            "title": "Stutter",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 119,
-                "name": "TYPE",
+                "name": "Type",
                 "title": "MOD-FX type",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_depth",
                 "id": 283,
-                "name": "DEPTH",
+                "name": "Depth",
                 "title": "MOD FX depth",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_on",
                 "id": 284,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "MOD FX rate",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_feedback",
                 "id": 122,
-                "name": "FEEDBACK",
+                "name": "Feedback",
                 "title": "MOD-FX feedback",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_offset",
                 "id": 123,
-                "name": "OFFSET",
+                "name": "Offset",
                 "title": "MOD-FX offset",
                 "type": "basic"
               }
             ],
             "id": 282,
-            "name": "Mod-fx",
-            "title": "Mod-fx",
+            "name": "Mod-FX",
+            "title": "Mod-FX",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 125,
-                "name": "SATURATION",
-                "title": "SATURATION",
+                "name": "Saturation",
+                "title": "Saturation",
                 "type": "basic"
               },
               {
@@ -9583,8 +9583,8 @@
               },
               {
                 "id": 127,
-                "name": "DECIMATION",
-                "title": "DECIMATION",
+                "name": "Decimation",
+                "title": "Decimation",
                 "type": "basic"
               }
             ],
@@ -9609,25 +9609,25 @@
           },
           {
             "id": 132,
-            "name": "SYNC",
+            "name": "Sync",
             "title": "Sidechain sync",
             "type": "basic"
           },
           {
             "id": 133,
-            "name": "SHAPE",
+            "name": "Shape",
             "title": "Sidech shape",
             "type": "basic"
           },
           {
             "id": 135,
-            "name": "ATTACK",
+            "name": "Attack",
             "title": "Sidech attack",
             "type": "basic"
           },
           {
             "id": 136,
-            "name": "RELEASE",
+            "name": "Release",
             "title": "Sidech release",
             "type": "basic"
           }
@@ -9648,32 +9648,32 @@
           },
           {
             "id": 289,
-            "name": "TRANSPOSE",
-            "title": "TRANSPOSE",
+            "name": "Transpose",
+            "title": "Transpose",
             "type": "basic"
           },
           {
             "id": 290,
-            "name": "REVERSE",
-            "title": "REVERSE",
+            "name": "Reverse",
+            "title": "Reverse",
             "type": "basic"
           },
           {
             "available_when": "osc0_pitch_speed",
             "id": 148,
-            "name": "Pitch/speed",
-            "title": "Pitch/speed",
+            "name": "Pitch/Speed",
+            "title": "Pitch/Speed",
             "type": "basic"
           },
           {
             "id": 291,
-            "name": "WAVEFORM",
-            "title": "WAVEFORM",
+            "name": "Waveform",
+            "title": "Waveform",
             "type": "basic"
           },
           {
             "id": 292,
-            "name": "INTERPOLATION",
+            "name": "Interpolation",
             "title": "AUDIO INTERP.",
             "type": "basic"
           }
@@ -9685,14 +9685,14 @@
       },
       {
         "id": 293,
-        "name": "ATTACK",
-        "title": "ATTACK",
+        "name": "Attack",
+        "title": "Attack",
         "type": "basic"
       },
       {
         "id": 219,
-        "name": "PRIORITY",
-        "title": "PRIORITY",
+        "name": "Priority",
+        "title": "Priority",
         "type": "basic"
       }
     ],
@@ -9715,7 +9715,7 @@
             "children": [
               {
                 "id": 77,
-                "name": "MODE",
+                "name": "Mode",
                 "title": "LPF mode",
                 "type": "basic"
               },
@@ -9742,15 +9742,15 @@
               }
             ],
             "id": 268,
-            "name": "LPF",
-            "title": "LPF",
+            "name": "Lpf",
+            "title": "Lpf",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 82,
-                "name": "MODE",
+                "name": "Mode",
                 "title": "HPF mode",
                 "type": "basic"
               },
@@ -9772,19 +9772,19 @@
                 "available_when": "has_hpf",
                 "id": 275,
                 "name": "Morph",
-                "title": "HPF morph",
+                "title": "HPF Morph",
                 "type": "basic"
               }
             ],
             "id": 272,
-            "name": "HPF",
-            "title": "HPF",
+            "name": "Hpf",
+            "title": "Hpf",
             "type": "submenu"
           },
           {
             "id": 86,
-            "name": "Filter route",
-            "title": "Filter route",
+            "name": "Filter Route",
+            "title": "Filter Route",
             "type": "basic"
           }
         ],
@@ -9799,26 +9799,26 @@
             "children": [
               {
                 "id": 89,
-                "name": "BASS",
-                "title": "BASS",
+                "name": "Bass",
+                "title": "Bass",
                 "type": "basic"
               },
               {
                 "id": 90,
-                "name": "TREBLE",
-                "title": "TREBLE",
+                "name": "Treble",
+                "title": "Treble",
                 "type": "basic"
               },
               {
                 "id": 91,
-                "name": "Bass frequency",
-                "title": "Bass frequency",
+                "name": "Bass Frequency",
+                "title": "Bass Frequency",
                 "type": "basic"
               },
               {
                 "id": 92,
-                "name": "Treble frequency",
-                "title": "Treble frequency",
+                "name": "Treble Frequency",
+                "title": "Treble Frequency",
                 "type": "basic"
               }
             ],
@@ -9831,7 +9831,7 @@
             "children": [
               {
                 "id": 278,
-                "name": "AMOUNT",
+                "name": "Amount",
                 "title": "Delay amount",
                 "type": "basic"
               },
@@ -9843,51 +9843,51 @@
               },
               {
                 "id": 96,
-                "name": "SYNC",
+                "name": "Sync",
                 "title": "Delay sync",
                 "type": "basic"
               },
               {
                 "id": 279,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "Delay rate",
                 "type": "basic"
               },
               {
                 "id": 98,
-                "name": "TYPE",
+                "name": "Type",
                 "title": "Delay type",
                 "type": "basic"
               }
             ],
             "id": 277,
-            "name": "DELAY",
-            "title": "DELAY",
+            "name": "Delay",
+            "title": "Delay",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 281,
-                "name": "AMOUNT",
+                "name": "Amount",
                 "title": "Reverb amount",
                 "type": "basic"
               },
               {
                 "id": 101,
-                "name": "Room size",
-                "title": "Room size",
+                "name": "Room Size",
+                "title": "Room Size",
                 "type": "basic"
               },
               {
                 "id": 102,
-                "name": "DAMPING",
-                "title": "DAMPING",
+                "name": "Damping",
+                "title": "Damping",
                 "type": "basic"
               },
               {
                 "id": 103,
-                "name": "WIDTH",
+                "name": "Width",
                 "title": "Reverb width",
                 "type": "basic"
               },
@@ -9899,22 +9899,22 @@
               },
               {
                 "id": 105,
-                "name": "PAN",
+                "name": "Pan",
                 "title": "Reverb pan",
                 "type": "basic"
               },
               {
                 "available_when": "reverb_filters",
                 "id": 106,
-                "name": "HPF",
-                "title": "HPF",
+                "name": "Hpf",
+                "title": "Hpf",
                 "type": "basic"
               },
               {
                 "available_when": "reverb_filters",
                 "id": 107,
-                "name": "LPF",
-                "title": "LPF",
+                "name": "Lpf",
+                "title": "Lpf",
                 "type": "basic"
               },
               {
@@ -9928,28 +9928,28 @@
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 110,
-                    "name": "SHAPE",
+                    "name": "Shape",
                     "title": "Sidech shape",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 111,
-                    "name": "ATTACK",
+                    "name": "Attack",
                     "title": "Sidech attack",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 112,
-                    "name": "RELEASE",
+                    "name": "Release",
                     "title": "Sidech release",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 113,
-                    "name": "SYNC",
+                    "name": "Sync",
                     "title": "Sidechain sync",
                     "type": "basic"
                   }
@@ -9961,15 +9961,15 @@
               }
             ],
             "id": 280,
-            "name": "REVERB",
-            "title": "REVERB",
+            "name": "Reverb",
+            "title": "Reverb",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 115,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "Stutter Rate",
                 "type": "basic"
               },
@@ -9982,64 +9982,64 @@
               {
                 "available_when": "stutter_quantize_allowed",
                 "id": 117,
-                "name": "QUANTIZE",
-                "title": "QUANTIZE",
+                "name": "Quantize",
+                "title": "Quantize",
                 "type": "basic"
               }
             ],
             "id": 114,
-            "name": "STUTTER",
-            "title": "STUTTER",
+            "name": "Stutter",
+            "title": "Stutter",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 119,
-                "name": "TYPE",
+                "name": "Type",
                 "title": "MOD-FX type",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_depth",
                 "id": 283,
-                "name": "DEPTH",
+                "name": "Depth",
                 "title": "MOD FX depth",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_on",
                 "id": 284,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "MOD FX rate",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_feedback",
                 "id": 122,
-                "name": "FEEDBACK",
+                "name": "Feedback",
                 "title": "MOD-FX feedback",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_offset",
                 "id": 123,
-                "name": "OFFSET",
+                "name": "Offset",
                 "title": "MOD-FX offset",
                 "type": "basic"
               }
             ],
             "id": 282,
-            "name": "Mod-fx",
-            "title": "Mod-fx",
+            "name": "Mod-FX",
+            "title": "Mod-FX",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 127,
-                "name": "DECIMATION",
-                "title": "DECIMATION",
+                "name": "Decimation",
+                "title": "Decimation",
                 "type": "basic"
               },
               {
@@ -10078,8 +10078,8 @@
           },
           {
             "id": 266,
-            "name": "PAN",
-            "title": "PAN",
+            "name": "Pan",
+            "title": "Pan",
             "type": "basic"
           }
         ],
@@ -10094,7 +10094,7 @@
             "children": [
               {
                 "id": 77,
-                "name": "MODE",
+                "name": "Mode",
                 "title": "LPF mode",
                 "type": "basic"
               },
@@ -10121,15 +10121,15 @@
               }
             ],
             "id": 268,
-            "name": "LPF",
-            "title": "LPF",
+            "name": "Lpf",
+            "title": "Lpf",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 82,
-                "name": "MODE",
+                "name": "Mode",
                 "title": "HPF mode",
                 "type": "basic"
               },
@@ -10151,19 +10151,19 @@
                 "available_when": "has_hpf",
                 "id": 275,
                 "name": "Morph",
-                "title": "HPF morph",
+                "title": "HPF Morph",
                 "type": "basic"
               }
             ],
             "id": 272,
-            "name": "HPF",
-            "title": "HPF",
+            "name": "Hpf",
+            "title": "Hpf",
             "type": "submenu"
           },
           {
             "id": 86,
-            "name": "Filter route",
-            "title": "Filter route",
+            "name": "Filter Route",
+            "title": "Filter Route",
             "type": "basic"
           }
         ],
@@ -10178,26 +10178,26 @@
             "children": [
               {
                 "id": 89,
-                "name": "BASS",
-                "title": "BASS",
+                "name": "Bass",
+                "title": "Bass",
                 "type": "basic"
               },
               {
                 "id": 90,
-                "name": "TREBLE",
-                "title": "TREBLE",
+                "name": "Treble",
+                "title": "Treble",
                 "type": "basic"
               },
               {
                 "id": 91,
-                "name": "Bass frequency",
-                "title": "Bass frequency",
+                "name": "Bass Frequency",
+                "title": "Bass Frequency",
                 "type": "basic"
               },
               {
                 "id": 92,
-                "name": "Treble frequency",
-                "title": "Treble frequency",
+                "name": "Treble Frequency",
+                "title": "Treble Frequency",
                 "type": "basic"
               }
             ],
@@ -10210,7 +10210,7 @@
             "children": [
               {
                 "id": 278,
-                "name": "AMOUNT",
+                "name": "Amount",
                 "title": "Delay amount",
                 "type": "basic"
               },
@@ -10222,51 +10222,51 @@
               },
               {
                 "id": 96,
-                "name": "SYNC",
+                "name": "Sync",
                 "title": "Delay sync",
                 "type": "basic"
               },
               {
                 "id": 279,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "Delay rate",
                 "type": "basic"
               },
               {
                 "id": 98,
-                "name": "TYPE",
+                "name": "Type",
                 "title": "Delay type",
                 "type": "basic"
               }
             ],
             "id": 277,
-            "name": "DELAY",
-            "title": "DELAY",
+            "name": "Delay",
+            "title": "Delay",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 281,
-                "name": "AMOUNT",
+                "name": "Amount",
                 "title": "Reverb amount",
                 "type": "basic"
               },
               {
                 "id": 101,
-                "name": "Room size",
-                "title": "Room size",
+                "name": "Room Size",
+                "title": "Room Size",
                 "type": "basic"
               },
               {
                 "id": 102,
-                "name": "DAMPING",
-                "title": "DAMPING",
+                "name": "Damping",
+                "title": "Damping",
                 "type": "basic"
               },
               {
                 "id": 103,
-                "name": "WIDTH",
+                "name": "Width",
                 "title": "Reverb width",
                 "type": "basic"
               },
@@ -10278,22 +10278,22 @@
               },
               {
                 "id": 105,
-                "name": "PAN",
+                "name": "Pan",
                 "title": "Reverb pan",
                 "type": "basic"
               },
               {
                 "available_when": "reverb_filters",
                 "id": 106,
-                "name": "HPF",
-                "title": "HPF",
+                "name": "Hpf",
+                "title": "Hpf",
                 "type": "basic"
               },
               {
                 "available_when": "reverb_filters",
                 "id": 107,
-                "name": "LPF",
-                "title": "LPF",
+                "name": "Lpf",
+                "title": "Lpf",
                 "type": "basic"
               },
               {
@@ -10307,28 +10307,28 @@
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 110,
-                    "name": "SHAPE",
+                    "name": "Shape",
                     "title": "Sidech shape",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 111,
-                    "name": "ATTACK",
+                    "name": "Attack",
                     "title": "Sidech attack",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 112,
-                    "name": "RELEASE",
+                    "name": "Release",
                     "title": "Sidech release",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 113,
-                    "name": "SYNC",
+                    "name": "Sync",
                     "title": "Sidechain sync",
                     "type": "basic"
                   }
@@ -10340,15 +10340,15 @@
               }
             ],
             "id": 280,
-            "name": "REVERB",
-            "title": "REVERB",
+            "name": "Reverb",
+            "title": "Reverb",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 115,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "Stutter Rate",
                 "type": "basic"
               },
@@ -10361,64 +10361,64 @@
               {
                 "available_when": "stutter_quantize_allowed",
                 "id": 117,
-                "name": "QUANTIZE",
-                "title": "QUANTIZE",
+                "name": "Quantize",
+                "title": "Quantize",
                 "type": "basic"
               }
             ],
             "id": 114,
-            "name": "STUTTER",
-            "title": "STUTTER",
+            "name": "Stutter",
+            "title": "Stutter",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 119,
-                "name": "TYPE",
+                "name": "Type",
                 "title": "MOD-FX type",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_depth",
                 "id": 283,
-                "name": "DEPTH",
+                "name": "Depth",
                 "title": "MOD FX depth",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_on",
                 "id": 284,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "MOD FX rate",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_feedback",
                 "id": 122,
-                "name": "FEEDBACK",
+                "name": "Feedback",
                 "title": "MOD-FX feedback",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_offset",
                 "id": 123,
-                "name": "OFFSET",
+                "name": "Offset",
                 "title": "MOD-FX offset",
                 "type": "basic"
               }
             ],
             "id": 282,
-            "name": "Mod-fx",
-            "title": "Mod-fx",
+            "name": "Mod-FX",
+            "title": "Mod-FX",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 127,
-                "name": "DECIMATION",
-                "title": "DECIMATION",
+                "name": "Decimation",
+                "title": "Decimation",
                 "type": "basic"
               },
               {
@@ -10441,22 +10441,22 @@
       },
       {
         "id": 299,
-        "name": "Swing interval",
-        "title": "Swing interval",
+        "name": "Swing Interval",
+        "title": "Swing Interval",
         "type": "basic"
       },
       {
         "id": 300,
-        "name": "Active scales",
-        "title": "Active scales",
+        "name": "Active Scales",
+        "title": "Active Scales",
         "type": "basic"
       },
       {
         "children": [
           {
             "id": 302,
-            "name": "MODE",
-            "title": "MODE",
+            "name": "Mode",
+            "title": "Mode",
             "type": "basic"
           }
         ],
@@ -10545,20 +10545,20 @@
             "children": [
               {
                 "id": 4,
-                "name": "Edit track name",
-                "title": "Edit track name",
+                "name": "Edit Track Name",
+                "title": "Edit Track Name",
                 "type": "basic"
               },
               {
                 "id": 5,
-                "name": "Edit clip name",
-                "title": "Edit clip name",
+                "name": "Edit Clip Name",
+                "title": "Edit Clip Name",
                 "type": "basic"
               }
             ],
             "id": 3,
-            "name": "Edit name",
-            "title": "Edit name",
+            "name": "Edit Name",
+            "title": "Edit Name",
             "type": "submenu"
           },
           {
@@ -10629,8 +10629,8 @@
           },
           {
             "id": 266,
-            "name": "PAN",
-            "title": "PAN",
+            "name": "Pan",
+            "title": "Pan",
             "type": "basic"
           },
           {
@@ -10657,7 +10657,7 @@
             "children": [
               {
                 "id": 21,
-                "name": "PRESET",
+                "name": "Preset",
                 "select_chain": [
                   {
                     "available_when": "not_gate_drum_or_kit_fx",
@@ -10698,20 +10698,20 @@
               {
                 "available_when": "arp_sound_only",
                 "id": 26,
-                "name": "GATE",
+                "name": "Gate",
                 "title": "Arp gate",
                 "type": "basic"
               },
               {
                 "id": 27,
-                "name": "SYNC",
+                "name": "Sync",
                 "title": "Arp sync",
                 "type": "basic"
               },
               {
                 "available_when": "is_kit_global_fx",
                 "id": 323,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "Arp rate",
                 "type": "basic"
               }
@@ -10795,7 +10795,7 @@
               }
             ],
             "id": 29,
-            "name": "PATTERN",
+            "name": "Pattern",
             "title": "Arp pattern",
             "type": "submenu"
           },
@@ -10970,14 +10970,14 @@
               }
             ],
             "id": 43,
-            "name": "RANDOMIZER",
-            "title": "RANDOMIZER",
+            "name": "Randomizer",
+            "title": "Randomizer",
             "type": "submenu"
           }
         ],
         "id": 321,
-        "name": "KIT ARPEGGIATOR",
-        "title": "KIT ARPEGGIATOR",
+        "name": "Kit Arpeggiator",
+        "title": "Kit Arpeggiator",
         "type": "submenu"
       },
       {
@@ -11002,20 +11002,20 @@
           },
           {
             "id": 72,
-            "name": "ATTACK",
-            "title": "ATTACK",
+            "name": "Attack",
+            "title": "Attack",
             "type": "basic"
           },
           {
             "id": 73,
-            "name": "RELEASE",
-            "title": "RELEASE",
+            "name": "Release",
+            "title": "Release",
             "type": "basic"
           },
           {
             "id": 74,
-            "name": "HPF",
-            "title": "HPF",
+            "name": "Hpf",
+            "title": "Hpf",
             "type": "basic"
           }
         ],
@@ -11030,7 +11030,7 @@
             "children": [
               {
                 "id": 77,
-                "name": "MODE",
+                "name": "Mode",
                 "title": "LPF mode",
                 "type": "basic"
               },
@@ -11057,15 +11057,15 @@
               }
             ],
             "id": 268,
-            "name": "LPF",
-            "title": "LPF",
+            "name": "Lpf",
+            "title": "Lpf",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 82,
-                "name": "MODE",
+                "name": "Mode",
                 "title": "HPF mode",
                 "type": "basic"
               },
@@ -11087,19 +11087,19 @@
                 "available_when": "has_hpf",
                 "id": 275,
                 "name": "Morph",
-                "title": "HPF morph",
+                "title": "HPF Morph",
                 "type": "basic"
               }
             ],
             "id": 272,
-            "name": "HPF",
-            "title": "HPF",
+            "name": "Hpf",
+            "title": "Hpf",
             "type": "submenu"
           },
           {
             "id": 86,
-            "name": "Filter route",
-            "title": "Filter route",
+            "name": "Filter Route",
+            "title": "Filter Route",
             "type": "basic"
           }
         ],
@@ -11114,26 +11114,26 @@
             "children": [
               {
                 "id": 89,
-                "name": "BASS",
-                "title": "BASS",
+                "name": "Bass",
+                "title": "Bass",
                 "type": "basic"
               },
               {
                 "id": 90,
-                "name": "TREBLE",
-                "title": "TREBLE",
+                "name": "Treble",
+                "title": "Treble",
                 "type": "basic"
               },
               {
                 "id": 91,
-                "name": "Bass frequency",
-                "title": "Bass frequency",
+                "name": "Bass Frequency",
+                "title": "Bass Frequency",
                 "type": "basic"
               },
               {
                 "id": 92,
-                "name": "Treble frequency",
-                "title": "Treble frequency",
+                "name": "Treble Frequency",
+                "title": "Treble Frequency",
                 "type": "basic"
               }
             ],
@@ -11146,7 +11146,7 @@
             "children": [
               {
                 "id": 278,
-                "name": "AMOUNT",
+                "name": "Amount",
                 "title": "Delay amount",
                 "type": "basic"
               },
@@ -11158,51 +11158,51 @@
               },
               {
                 "id": 96,
-                "name": "SYNC",
+                "name": "Sync",
                 "title": "Delay sync",
                 "type": "basic"
               },
               {
                 "id": 279,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "Delay rate",
                 "type": "basic"
               },
               {
                 "id": 98,
-                "name": "TYPE",
+                "name": "Type",
                 "title": "Delay type",
                 "type": "basic"
               }
             ],
             "id": 277,
-            "name": "DELAY",
-            "title": "DELAY",
+            "name": "Delay",
+            "title": "Delay",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 281,
-                "name": "AMOUNT",
+                "name": "Amount",
                 "title": "Reverb amount",
                 "type": "basic"
               },
               {
                 "id": 101,
-                "name": "Room size",
-                "title": "Room size",
+                "name": "Room Size",
+                "title": "Room Size",
                 "type": "basic"
               },
               {
                 "id": 102,
-                "name": "DAMPING",
-                "title": "DAMPING",
+                "name": "Damping",
+                "title": "Damping",
                 "type": "basic"
               },
               {
                 "id": 103,
-                "name": "WIDTH",
+                "name": "Width",
                 "title": "Reverb width",
                 "type": "basic"
               },
@@ -11214,22 +11214,22 @@
               },
               {
                 "id": 105,
-                "name": "PAN",
+                "name": "Pan",
                 "title": "Reverb pan",
                 "type": "basic"
               },
               {
                 "available_when": "reverb_filters",
                 "id": 106,
-                "name": "HPF",
-                "title": "HPF",
+                "name": "Hpf",
+                "title": "Hpf",
                 "type": "basic"
               },
               {
                 "available_when": "reverb_filters",
                 "id": 107,
-                "name": "LPF",
-                "title": "LPF",
+                "name": "Lpf",
+                "title": "Lpf",
                 "type": "basic"
               },
               {
@@ -11243,28 +11243,28 @@
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 110,
-                    "name": "SHAPE",
+                    "name": "Shape",
                     "title": "Sidech shape",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 111,
-                    "name": "ATTACK",
+                    "name": "Attack",
                     "title": "Sidech attack",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 112,
-                    "name": "RELEASE",
+                    "name": "Release",
                     "title": "Sidech release",
                     "type": "basic"
                   },
                   {
                     "available_when": "reverb_sidechain_on",
                     "id": 113,
-                    "name": "SYNC",
+                    "name": "Sync",
                     "title": "Sidechain sync",
                     "type": "basic"
                   }
@@ -11276,15 +11276,15 @@
               }
             ],
             "id": 280,
-            "name": "REVERB",
-            "title": "REVERB",
+            "name": "Reverb",
+            "title": "Reverb",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 115,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "Stutter Rate",
                 "type": "basic"
               },
@@ -11297,64 +11297,64 @@
               {
                 "available_when": "stutter_quantize_allowed",
                 "id": 117,
-                "name": "QUANTIZE",
-                "title": "QUANTIZE",
+                "name": "Quantize",
+                "title": "Quantize",
                 "type": "basic"
               }
             ],
             "id": 114,
-            "name": "STUTTER",
-            "title": "STUTTER",
+            "name": "Stutter",
+            "title": "Stutter",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 119,
-                "name": "TYPE",
+                "name": "Type",
                 "title": "MOD-FX type",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_depth",
                 "id": 283,
-                "name": "DEPTH",
+                "name": "Depth",
                 "title": "MOD FX depth",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_on",
                 "id": 284,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "MOD FX rate",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_feedback",
                 "id": 122,
-                "name": "FEEDBACK",
+                "name": "Feedback",
                 "title": "MOD-FX feedback",
                 "type": "basic"
               },
               {
                 "available_when": "mod_fx_has_offset",
                 "id": 123,
-                "name": "OFFSET",
+                "name": "Offset",
                 "title": "MOD-FX offset",
                 "type": "basic"
               }
             ],
             "id": 282,
-            "name": "Mod-fx",
-            "title": "Mod-fx",
+            "name": "Mod-FX",
+            "title": "Mod-FX",
             "type": "submenu"
           },
           {
             "children": [
               {
                 "id": 127,
-                "name": "DECIMATION",
-                "title": "DECIMATION",
+                "name": "Decimation",
+                "title": "Decimation",
                 "type": "basic"
               },
               {
@@ -11385,25 +11385,25 @@
           },
           {
             "id": 132,
-            "name": "SYNC",
+            "name": "Sync",
             "title": "Sidechain sync",
             "type": "basic"
           },
           {
             "id": 133,
-            "name": "SHAPE",
+            "name": "Shape",
             "title": "Sidech shape",
             "type": "basic"
           },
           {
             "id": 135,
-            "name": "ATTACK",
+            "name": "Attack",
             "title": "Sidech attack",
             "type": "basic"
           },
           {
             "id": 136,
-            "name": "RELEASE",
+            "name": "Release",
             "title": "Sidech release",
             "type": "basic"
           }
@@ -11451,8 +11451,8 @@
               },
               {
                 "id": 331,
-                "name": "Factory reset",
-                "title": "Factory reset",
+                "name": "Factory Reset",
+                "title": "Factory Reset",
                 "type": "basic"
               }
             ],
@@ -11475,13 +11475,13 @@
             "children": [
               {
                 "id": 334,
-                "name": "Volts per octave",
+                "name": "Volts per Octave",
                 "title": "CV* V/octave",
                 "type": "basic"
               },
               {
                 "id": 335,
-                "name": "TRANSPOSE",
+                "name": "Transpose",
                 "title": "CV* transpose",
                 "type": "basic"
               }
@@ -11497,7 +11497,7 @@
       },
       {
         "id": 336,
-        "name": "GATE",
+        "name": "Gate",
         "select_chain": [
           {
             "id": 337,
@@ -11507,8 +11507,8 @@
           },
           {
             "id": 338,
-            "name": "Minimum off-time",
-            "title": "Minimum off-time",
+            "name": "Minimum Off-Time",
+            "title": "Minimum Off-Time",
             "type": "basic"
           }
         ],
@@ -11527,8 +11527,8 @@
               },
               {
                 "id": 342,
-                "name": "Auto-start",
-                "title": "Auto-start",
+                "name": "Auto-Start",
+                "title": "Auto-Start",
                 "type": "basic"
               }
             ],
@@ -11553,8 +11553,8 @@
           }
         ],
         "id": 339,
-        "name": "Trigger clock",
-        "title": "Trigger clock",
+        "name": "Trigger Clock",
+        "title": "Trigger Clock",
         "type": "submenu"
       },
       {
@@ -11575,8 +11575,8 @@
               },
               {
                 "id": 349,
-                "name": "Tempo magnitude matching",
-                "title": "Tempo magnitude matching",
+                "name": "Tempo Magnitude Matching",
+                "title": "Tempo Magnitude Matching",
                 "type": "basic"
               }
             ],
@@ -11749,8 +11749,8 @@
               }
             ],
             "id": 350,
-            "name": "Midi-Follow",
-            "title": "Midi-Follow",
+            "name": "MIDI-Follow",
+            "title": "MIDI-Follow",
             "type": "submenu"
           },
           {
@@ -11761,28 +11761,28 @@
           },
           {
             "id": 378,
-            "name": "MIDI-thru",
-            "title": "MIDI-thru",
+            "name": "MIDI-Thru",
+            "title": "MIDI-Thru",
             "type": "basic"
           },
           {
             "id": 379,
-            "name": "TRANSPOSE",
-            "title": "TRANSPOSE",
+            "name": "Transpose",
+            "title": "Transpose",
             "type": "basic"
           },
           {
             "id": 380,
-            "name": "TAKEOVER",
-            "title": "TAKEOVER",
+            "name": "Takeover",
+            "title": "Takeover",
             "type": "basic"
           },
           {
             "children": [
               {
                 "id": 382,
-                "name": "PLAY",
-                "title": "PLAY",
+                "name": "Play",
+                "title": "Play",
                 "type": "basic"
               },
               {
@@ -11805,26 +11805,26 @@
               },
               {
                 "id": 386,
-                "name": "UNDO",
-                "title": "UNDO",
+                "name": "Undo",
+                "title": "Undo",
                 "type": "basic"
               },
               {
                 "id": 387,
-                "name": "REDO",
-                "title": "REDO",
+                "name": "Redo",
+                "title": "Redo",
                 "type": "basic"
               },
               {
                 "id": 388,
-                "name": "LOOP",
-                "title": "LOOP",
+                "name": "Loop",
+                "title": "Loop",
                 "type": "basic"
               },
               {
                 "id": 389,
-                "name": "LAYERING loop",
-                "title": "LAYERING loop",
+                "name": "Layering Loop",
+                "title": "Layering Loop",
                 "type": "basic"
               },
               {
@@ -11835,20 +11835,20 @@
               },
               {
                 "id": 391,
-                "name": "TRANSPOSE",
-                "title": "TRANSPOSE",
+                "name": "Transpose",
+                "title": "Transpose",
                 "type": "basic"
               },
               {
                 "id": 392,
-                "name": "LOAD NEXT SONG",
-                "title": "LOAD NEXT SONG",
+                "name": "Load Next Song",
+                "title": "Load Next Song",
                 "type": "basic"
               },
               {
                 "id": 393,
-                "name": "SHIFT",
-                "title": "SHIFT",
+                "name": "Shift",
+                "title": "Shift",
                 "type": "basic"
               }
             ],
@@ -11893,8 +11893,8 @@
                   },
                   {
                     "id": 400,
-                    "name": "VELOCITY",
-                    "title": "VELOCITY",
+                    "name": "Velocity",
+                    "title": "Velocity",
                     "type": "basic"
                   },
                   {
@@ -12033,8 +12033,8 @@
                       }
                     ],
                     "id": 419,
-                    "name": "Sidebar controls",
-                    "title": "Sidebar controls",
+                    "name": "Sidebar Controls",
+                    "title": "Sidebar Controls",
                     "type": "submenu"
                   },
                   {
@@ -12115,31 +12115,31 @@
               }
             ],
             "id": 427,
-            "name": "AUTOMATION",
-            "title": "AUTOMATION",
+            "name": "Automation",
+            "title": "Automation",
             "type": "submenu"
           },
           {
             "id": 433,
-            "name": "TEMPO",
+            "name": "Tempo",
             "title": "Default tempo",
             "type": "basic"
           },
           {
             "id": 434,
-            "name": "Swing amount",
+            "name": "Swing Amount",
             "title": "Default swing",
             "type": "basic"
           },
           {
             "id": 435,
-            "name": "Swing interval",
+            "name": "Swing Interval",
             "title": "Default swing",
             "type": "basic"
           },
           {
             "id": 436,
-            "name": "KEY",
+            "name": "Key",
             "title": "Default key",
             "type": "basic"
           },
@@ -12147,14 +12147,14 @@
             "children": [
               {
                 "id": 438,
-                "name": "Init scale",
-                "title": "Init scale",
+                "name": "Init Scale",
+                "title": "Init Scale",
                 "type": "basic"
               },
               {
                 "id": 439,
-                "name": "Active scales",
-                "title": "Active scales",
+                "name": "Active Scales",
+                "title": "Active Scales",
                 "type": "basic"
               }
             ],
@@ -12165,13 +12165,13 @@
           },
           {
             "id": 440,
-            "name": "VELOCITY",
+            "name": "Velocity",
             "title": "Default veloc",
             "type": "basic"
           },
           {
             "id": 441,
-            "name": "RESOLUTION",
+            "name": "Resolution",
             "title": "Default resol",
             "type": "basic"
           },
@@ -12183,7 +12183,7 @@
           },
           {
             "id": 443,
-            "name": "METRONOME",
+            "name": "Metronome",
             "title": "Default metro",
             "type": "basic"
           },
@@ -12195,13 +12195,13 @@
           },
           {
             "id": 445,
-            "name": "Startup song",
-            "title": "Startup song",
+            "name": "Startup Song",
+            "title": "Startup Song",
             "type": "basic"
           },
           {
             "id": 446,
-            "name": "PAD BRIGHTNESS",
+            "name": "Pad Brightness",
             "title": "Pad brightness",
             "type": "basic"
           },
@@ -12245,21 +12245,21 @@
           }
         ],
         "id": 404,
-        "name": "DEFAULTS",
-        "title": "DEFAULTS",
+        "name": "Defaults",
+        "title": "Defaults",
         "type": "submenu"
       },
       {
         "children": [
           {
             "id": 454,
-            "name": "Shortcuts version",
+            "name": "Shortcut Version",
             "title": "Shortcuts vers",
             "type": "basic"
           },
           {
             "id": 455,
-            "name": "Keyboard for text",
+            "name": "Keyboard for Text",
             "title": "Key layout",
             "type": "basic"
           },
@@ -12267,26 +12267,26 @@
             "children": [
               {
                 "id": 457,
-                "name": "ACTIVE",
-                "title": "ACTIVE",
+                "name": "Active",
+                "title": "Active",
                 "type": "basic"
               },
               {
                 "id": 458,
-                "name": "STOPPED",
-                "title": "STOPPED",
+                "name": "Stopped",
+                "title": "Stopped",
                 "type": "basic"
               },
               {
                 "id": 459,
-                "name": "MUTED",
-                "title": "MUTED",
+                "name": "Muted",
+                "title": "Muted",
                 "type": "basic"
               },
               {
                 "id": 460,
-                "name": "SOLOED",
-                "title": "SOLOED",
+                "name": "Soloed",
+                "title": "Soloed",
                 "type": "basic"
               },
               {
@@ -12297,32 +12297,32 @@
               },
               {
                 "id": 462,
-                "name": "ONCE",
-                "title": "ONCE",
+                "name": "Once",
+                "title": "Once",
                 "type": "basic"
               }
             ],
             "id": 456,
-            "name": "COLOURS",
-            "title": "COLOURS",
+            "name": "Colours",
+            "title": "Colours",
             "type": "submenu"
           }
         ],
         "id": 453,
-        "name": "PADS",
-        "title": "PADS",
+        "name": "Pads",
+        "title": "Pads",
         "type": "submenu"
       },
       {
         "id": 463,
-        "name": "Sample preview",
-        "title": "Sample preview",
+        "name": "Sample Preview",
+        "title": "Sample Preview",
         "type": "basic"
       },
       {
         "id": 464,
-        "name": "Play-cursor",
-        "title": "Play-cursor",
+        "name": "Play-Cursor",
+        "title": "Play-Cursor",
         "type": "basic"
       },
       {
@@ -12355,8 +12355,8 @@
             "children": [
               {
                 "id": 471,
-                "name": "MODE",
-                "title": "MODE",
+                "name": "Mode",
+                "title": "Mode",
                 "type": "basic"
               }
             ],
@@ -12367,8 +12367,8 @@
           },
           {
             "id": 472,
-            "name": "Loop command",
-            "title": "Loop command",
+            "name": "Loop Command",
+            "title": "Loop Command",
             "type": "basic"
           }
         ],
@@ -12417,104 +12417,104 @@
           },
           {
             "id": 480,
-            "name": "Allow Insecure Develop Sysex Messages",
-            "title": "Allow Insecure Develop Sysex Messages",
-            "type": "basic"
-          },
-          {
-            "id": 481,
             "name": "Sync Scaling Action",
             "title": "Sync Scaling Action",
             "type": "basic"
           },
           {
-            "id": 482,
+            "id": 481,
             "name": "Highlight Incoming Notes",
             "title": "Highlight Incoming Notes",
             "type": "basic"
           },
           {
-            "id": 483,
+            "id": 482,
             "name": "Display Norns Layout",
             "title": "Display Norns Layout",
             "type": "basic"
           },
           {
-            "id": 484,
+            "id": 483,
             "name": "Sticky Shift",
             "title": "Sticky Shift",
             "type": "basic"
           },
           {
-            "id": 485,
+            "id": 484,
             "name": "Light Shift",
             "title": "Light Shift",
             "type": "basic"
           },
           {
-            "id": 486,
+            "id": 485,
             "name": "DX7 Engine",
             "title": "DX7 Engine",
             "type": "basic"
           },
           {
-            "id": 487,
+            "id": 486,
             "name": "KB View Sidebar Menu Exit",
             "title": "KB View Sidebar Menu Exit",
             "type": "basic"
           },
           {
-            "id": 488,
+            "id": 487,
             "name": "Launch Event Playhead",
             "title": "Launch Event Playhead",
             "type": "basic"
           },
           {
-            "id": 489,
+            "id": 488,
             "name": "Chord Keyboards",
             "title": "Chord Keyboards",
             "type": "basic"
           },
           {
-            "id": 490,
+            "id": 489,
             "name": "Alternative Playback Start Behaviour",
             "title": "Alternative Playback Start Behaviour",
             "type": "basic"
           },
           {
-            "id": 491,
+            "id": 490,
             "name": "Grid View Loop Layer Pads",
             "title": "Grid View Loop Layer Pads",
             "type": "basic"
           },
           {
-            "id": 492,
+            "id": 491,
             "name": "Alternative Tap Tempo Behaviour",
             "title": "Alternative Tap Tempo Behaviour",
             "type": "basic"
           },
           {
-            "id": 493,
+            "id": 492,
             "name": "Horizontal Menus",
             "title": "Horizontal Menus",
             "type": "basic"
           },
           {
-            "id": 494,
+            "id": 493,
             "name": "Rounded Corners",
             "title": "Rounded Corners",
             "type": "basic"
           },
           {
-            "id": 495,
+            "id": 494,
             "name": "Trim From Start Of Audio Clips",
             "title": "Trim From Start Of Audio Clips",
             "type": "basic"
           },
           {
-            "id": 496,
+            "id": 495,
             "name": "Show Battery Level",
             "title": "Show Battery Level",
+            "type": "basic"
+          },
+          {
+            "id": 496,
+            "name": "Shortcut Overlay",
+            "title": "Shortcut Overlay",
             "type": "basic"
           },
           {
@@ -12525,7 +12525,7 @@
           }
         ],
         "id": 473,
-        "name": "Community features",
+        "name": "Community Features",
         "title": "Community feat",
         "type": "submenu"
       },
@@ -12538,7 +12538,7 @@
       },
       {
         "id": 499,
-        "name": "Firmware version",
+        "name": "Firmware Version",
         "title": "Firmware vers",
         "type": "basic"
       }
@@ -12556,20 +12556,20 @@
             "children": [
               {
                 "id": 4,
-                "name": "Edit track name",
-                "title": "Edit track name",
+                "name": "Edit Track Name",
+                "title": "Edit Track Name",
                 "type": "basic"
               },
               {
                 "id": 5,
-                "name": "Edit clip name",
-                "title": "Edit clip name",
+                "name": "Edit Clip Name",
+                "title": "Edit Clip Name",
                 "type": "basic"
               }
             ],
             "id": 3,
-            "name": "Edit name",
-            "title": "Edit name",
+            "name": "Edit Name",
+            "title": "Edit Name",
             "type": "submenu"
           }
         ],
@@ -12606,7 +12606,7 @@
           {
             "available_when": "is_midi_out",
             "id": 245,
-            "name": "BANK",
+            "name": "Bank",
             "title": "MIDI bank",
             "type": "basic"
           },
@@ -12620,7 +12620,7 @@
           {
             "available_when": "is_midi_out",
             "id": 247,
-            "name": "PGM",
+            "name": "Pgm",
             "title": "MIDI PGM number",
             "type": "basic"
           }
@@ -12642,7 +12642,7 @@
             "children": [
               {
                 "id": 21,
-                "name": "PRESET",
+                "name": "Preset",
                 "select_chain": [
                   {
                     "available_when": "not_gate_drum_or_kit_fx",
@@ -12683,20 +12683,20 @@
               {
                 "available_when": "arp_non_sound",
                 "id": 250,
-                "name": "GATE",
+                "name": "Gate",
                 "title": "Arp gate",
                 "type": "basic"
               },
               {
                 "id": 27,
-                "name": "SYNC",
+                "name": "Sync",
                 "title": "Arp sync",
                 "type": "basic"
               },
               {
                 "available_when": "arp_non_sound",
                 "id": 251,
-                "name": "RATE",
+                "name": "Rate",
                 "title": "Arp rate",
                 "type": "basic"
               }
@@ -12780,7 +12780,7 @@
               }
             ],
             "id": 29,
-            "name": "PATTERN",
+            "name": "Pattern",
             "title": "Arp pattern",
             "type": "submenu"
           },
@@ -12790,8 +12790,8 @@
               {
                 "available_when": "not_gate_drum_row",
                 "id": 41,
-                "name": "VELOCITY",
-                "title": "VELOCITY",
+                "name": "Velocity",
+                "title": "Velocity",
                 "type": "basic"
               }
             ],
@@ -12809,8 +12809,8 @@
           }
         ],
         "id": 248,
-        "name": "ARPEGGIATOR",
-        "title": "ARPEGGIATOR",
+        "name": "Arpeggiator",
+        "title": "Arpeggiator",
         "type": "submenu"
       },
       {
@@ -12984,8 +12984,8 @@
           }
         ],
         "id": 43,
-        "name": "RANDOMIZER",
-        "title": "RANDOMIZER",
+        "name": "Randomizer",
+        "title": "Randomizer",
         "type": "submenu"
       },
       {
@@ -12999,8 +12999,8 @@
           },
           {
             "id": 229,
-            "name": "Poly / finger / MPE",
-            "title": "Poly / finger / MPE",
+            "name": "Poly / Finger / MPE",
+            "title": "Poly / Finger / MPE",
             "type": "basic"
           }
         ],
@@ -13091,7 +13091,7 @@
       {
         "available_when": "osc0_transpose",
         "id": 140,
-        "name": "TRANSPOSE",
+        "name": "Transpose",
         "select_chain": [
           {
             "id": 11,
@@ -13139,7 +13139,7 @@
       {
         "available_when": "osc1_transpose",
         "id": 155,
-        "name": "TRANSPOSE",
+        "name": "Transpose",
         "select_chain": [
           {
             "id": 11,

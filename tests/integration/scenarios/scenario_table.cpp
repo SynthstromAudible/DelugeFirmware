@@ -32,6 +32,7 @@
 #include "scenarios/idle_job_rates_scenario.h"
 #include "scenarios/load_cancel_scenario.h"
 #include "scenarios/load_policy_scenario.h"
+#include "scenarios/menu_dump_scenario.h"
 #include "scenarios/offset_io_scenario.h"
 #include "scenarios/path_operations_scenario.h"
 #include "scenarios/pattern_load_scenario.h"
@@ -226,6 +227,9 @@ constexpr DelugeScenario kScenarios[] = {
      &deluge_scenario_staging_release_failures},
     {"stale_ui", nullptr, &deluge_scenario_stale_ui_begin, &deluge_scenario_stale_ui_complete,
      &deluge_scenario_stale_ui_dispatch_step, &deluge_scenario_stale_ui_step_done, &deluge_scenario_stale_ui_failures},
+    {"menu_dump", nullptr, &deluge_scenario_menu_dump_begin, &deluge_scenario_menu_dump_complete,
+     &deluge_scenario_menu_dump_dispatch_step, &deluge_scenario_menu_dump_step_done,
+     &deluge_scenario_menu_dump_failures},
     {"ui_script", nullptr, &deluge_scenario_ui_script_begin, &deluge_scenario_ui_script_complete,
      &deluge_scenario_ui_script_dispatch_step, &deluge_scenario_ui_script_step_done,
      &deluge_scenario_ui_script_failures},

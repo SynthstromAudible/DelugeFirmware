@@ -1,5 +1,5 @@
 /// @file
-/// @brief `deluge_menu_dump` -- walks every root of the declarative menu tree (`nodes::kAllRoots`,
+/// @brief `dump_menu_tree` -- walks every root of the declarative menu tree (`nodes::kAllRoots`,
 ///        `scenes/menu/nodes/nodes.h`) and prints it as JSON, in the schema the retired Python
 ///        DocEmitter used to emit (task-10-brief.md).
 ///
@@ -119,11 +119,13 @@
 /// `select_chain`, `title`, `type`) baked into `emit_node`'s own field-by-field writes rather than
 /// sorted at runtime --
 /// there is no hash-map/set iteration anywhere on the emission path. `text_of` resolves through
-/// `l10n::chosenLanguage`, pinned once in `main` to the built-in English table before the walk
+/// `l10n::chosenLanguage`, pinned at the start of `dump_menu_tree` to the built-in English table before the walk
 /// starts, so every run resolves the same language regardless of process environment. Two-space
-/// indentation, one trailing newline at end of file. `scripts/menu_dump_check.sh` rebuilds this
-/// tool, runs it, and diffs the result byte-for-byte against the committed
+/// indentation, one trailing newline at end of file. golden_vt_render's `menu_dump` scenario writes it, and
+/// `scripts/menu_dump_check.sh` diffs the result byte-for-byte against the committed
 /// `website/src/data/generated/menu-tree.json`.
+#include "scenes/menu/menu_dump.h"
+
 #include "gui/l10n/l10n.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
@@ -344,11 +346,11 @@ void emit_chain_targets(std::string& out, const menu::Node& node, int elem_level
 /// truncated or malformed JSON document on stdout -- it leaves nothing at all.
 [[noreturn]] void fail_on_dynamic_children(const menu::Node& node) {
 	std::fprintf(stderr,
-	             "deluge_menu_dump: node \"%s\" (id %u) sets dynamic_children -- this dump has no\n"
-	             "deluge_menu_dump: verified JSON shape for it (see menu_dump_main.cpp's file header,\n"
-	             "deluge_menu_dump: \"Fix round 1\"). Design this dump's multicontext handling against\n"
-	             "deluge_menu_dump: this node's real use case before re-adding it; do not resurrect the\n"
-	             "deluge_menu_dump: removed guess.\n",
+	             "menu dump: node \"%s\" (id %u) sets dynamic_children -- this dump has no\n"
+	             "menu dump: verified JSON shape for it (see menu_dump.cpp's file header,\n"
+	             "menu dump: \"Fix round 1\"). Design this dump's multicontext handling against\n"
+	             "menu dump: this node's real use case before re-adding it; do not resurrect the\n"
+	             "menu dump: removed guess.\n",
 	             text_of(node.name).c_str(), menu::node_id(node));
 	std::exit(1);
 }
@@ -413,7 +415,7 @@ void emit_node(std::string& out, const menu::Node& node, int brace_level) {
 
 } // namespace
 
-int main() {
+bool deluge::scenes::menu::dump_menu_tree(std::string& out) {
 	// Load-bearing (fix round 2 tested this, not just reasoned about it): `text_of` below
 	// resolves every "name"/"title" through `deluge_profile().text_or_digits`, which reads
 	// `l10n::chosenLanguage` -- normally set once at boot by the real app (`OLED()`'s
@@ -424,15 +426,15 @@ int main() {
 
 	uint16_t assigned = menu::assign_node_ids(nodes::kAllRoots);
 	if (assigned == 0) {
-		std::fprintf(stderr, "deluge_menu_dump: assign_node_ids assigned zero nodes over kAllRoots\n");
-		return 1;
+		std::fprintf(stderr, "menu dump: assign_node_ids assigned zero nodes over kAllRoots\n");
+		return false;
 	}
 	if (assigned >= menu::kMaxNodes) {
-		std::fprintf(stderr, "deluge_menu_dump: node id registry likely overflowed (%u >= kMaxNodes)\n", assigned);
-		return 1;
+		std::fprintf(stderr, "menu dump: node id registry likely overflowed (%u >= kMaxNodes)\n", assigned);
+		return false;
 	}
 
-	std::string out;
+	out.clear();
 	out += "[\n";
 	bool first = true;
 	for (const menu::Node* root : nodes::kAllRoots) {
@@ -447,11 +449,5 @@ int main() {
 		emit_node(out, *root, 1);
 	}
 	out += "\n]\n";
-
-	size_t written = std::fwrite(out.data(), 1, out.size(), stdout);
-	if (written != out.size()) {
-		std::fprintf(stderr, "deluge_menu_dump: short write to stdout (%zu of %zu bytes)\n", written, out.size());
-		return 1;
-	}
-	return 0;
+	return true;
 }

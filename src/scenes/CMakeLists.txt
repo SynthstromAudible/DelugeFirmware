@@ -34,6 +34,7 @@ add_library(deluge_scenes STATIC
     registry.cpp
     menu/bindings.cpp
     menu/context.cpp
+    menu/menu_dump.cpp
     menu/menu_scene.cpp
     menu/node_id.cpp
     menu/note_bridge.cpp

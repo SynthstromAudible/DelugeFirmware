@@ -734,6 +734,23 @@ tier = "nightly"
 runtime = "~60s"
 
 [[harness]]
+name = "ui-menu-dump"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "regression"
+status = "gate"
+gates = "the declarative menu tree (every root of src/scenes/menu's node tables, with each node's type, l10n name and title, description and availability) is dumped as JSON by the app itself and must equal website/src/data/generated/menu-tree.json, so a menu change shows up as a diff of that file. scripts/menu_dump_check.sh regenerates it."
+scenario = "menu_dump"
+check = "tests/integration/checks/menu_dump.py"
+markers = ["MENU-DUMP"]
+result = "MENU-DUMP-RESULT failures=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+runtime = "~2s"
+
+[[harness]]
 name = "load-cancel"
 path = "."
 level = "integration"

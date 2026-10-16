@@ -1398,7 +1398,7 @@ fn main() {
         match scenario.as_str() {
             "recorder_roundtrip" | "sound_lifetime" | "clip_lifetime" | "container_guard"
             | "audio_header_dump" | "ui_timer_deadline" | "idle_job_rates" | "recorder_take"
-            | "stale_ui" => memory_card::install(None),
+            | "stale_ui" | "menu_dump" => memory_card::install(None),
             "audio_load_ab" => fill_audio_load_ab_card(),
             "song_preview_ab" => fill_song_preview_ab_card(&repo_root),
             "song_save_channel" => fill_song_save_card(),
