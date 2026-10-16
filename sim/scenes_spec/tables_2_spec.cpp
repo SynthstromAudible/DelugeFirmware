@@ -72,9 +72,11 @@ using deluge::hid::display::OLED;
 #include "gui/menu_item/unison/stereoSpread.h"
 #include "gui/menu_item/voice/polyphony.h"
 
+#include "deluge-project/param_automation.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/patch_cable_words.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
@@ -91,6 +93,7 @@ using deluge::hid::display::OLED;
 
 #include "cppspec.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -1420,6 +1423,13 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		const uint8_t created = set->getPatchCableIndex(kSource, destination);
 		expect(created != kNoSelection).to_be_true(); // the write created it
 		expect(static_cast<int>(set->patchCables[created].polarity)).to_equal(static_cast<int>(chosen));
+		// The cable's record, which a save writes, holds the same polarity.
+		expect(set->domCables() != nullptr).to_be_true();
+		const deluge::engine::ParamId depth = deluge::bridge::cable_depth(kSource, destination);
+		const auto& records = *set->domCables();
+		const auto record = std::ranges::find_if(records, [&](const auto& c) { return c.depth == depth; });
+		expect(record != records.end()).to_be_true();
+		expect(static_cast<int>(record->polarity)).to_equal(static_cast<int>(chosen));
 		// ... and that really is a different answer from the one creation alone would have given.
 		expect(static_cast<int>(chosen) != static_cast<int>(fresh)).to_be_true();
 

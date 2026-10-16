@@ -743,7 +743,7 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 		// while no cable exists -- and `commit` is what applies it to one it creates.
 		state.patch_polarity = turn > 0 ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
 		if (index != kNoSelection) {
-			set->patchCables[index].polarity = state.patch_polarity;
+			set->setPolarity(index, state.patch_polarity);
 		}
 		deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
 	}
@@ -781,7 +781,7 @@ void PatchCableStrengthItem::commit(const MenuContext& ctx, MenuState& state) co
 		const uint8_t created = set != nullptr ? set->getPatchCableIndex(source, strength_destination(state, which_))
 		                                       : uint8_t{kNoSelection};
 		if (created != kNoSelection) {
-			set->patchCables[created].polarity = state.patch_polarity; // `setPatchCablePolarity` (`:371-381`)
+			set->setPolarity(created, state.patch_polarity); // `setPatchCablePolarity` (`:371-381`)
 		}
 	}
 	if (updates_reverb_) {

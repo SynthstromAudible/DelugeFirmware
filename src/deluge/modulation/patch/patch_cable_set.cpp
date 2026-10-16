@@ -163,6 +163,24 @@ deluge::project::DocAutoParam* PatchCableSet::docForParam(int32_t c) {
 	return &patchCables[c].amount_;
 }
 
+void PatchCableSet::setPolarity(int32_t i, Polarity polarity) {
+	PatchCable& cable = patchCables[i];
+	cable.polarity = polarity;
+	if (domCablesRef_ != nullptr) {
+		findOrCreateDomCable(cable.from, cable.destinationParamDescriptor, polarity).polarity =
+		    static_cast<uint8_t>(polarity);
+	}
+}
+
+Polarity PatchCableSet::recordedPolarity(int32_t i) {
+	PatchCable& cable = patchCables[i];
+	if (domCablesRef_ != nullptr) {
+		return deluge::bridge::polarity_of(
+		    findOrCreateDomCable(cable.from, cable.destinationParamDescriptor, cable.polarity));
+	}
+	return cable.polarity;
+}
+
 deluge::project::DocCable& PatchCableSet::findOrCreateDomCable(PatchSource from, ParamDescriptor dest,
                                                                Polarity polarity) {
 	const deluge::engine::ParamId depth = deluge::bridge::cable_depth(from, dest);

@@ -76,6 +76,15 @@ public:
 	[[nodiscard]] bool domStoreIsExternal() const override { return domCablesRef_ != nullptr; }
 
 	deluge::project::DocAutoParam* docForParam(int32_t i);
+
+	/// @brief Set cable @p i's polarity: the cable's, and its record's when the set is bound, which a save writes.
+	/// @param i        The cable's index.
+	/// @param polarity The new polarity.
+	void setPolarity(int32_t i, Polarity polarity);
+	/// @brief Cable @p i's polarity as its record holds it when the set is bound, else the cable's.
+	/// @param i The cable's index.
+	/// @return The polarity.
+	[[nodiscard]] Polarity recordedPolarity(int32_t i);
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override;
 
 	void setupPatching(ModelStackWithParamCollection const* modelStack);

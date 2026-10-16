@@ -179,7 +179,8 @@ std::vector<DocCable> toDocCables(PatchCableSet& pcs) {
 		// bound, where the read seeds current_value and runtime edits land, else the inline amount_). Reading
 		// cable.param.currentValue (the engine cursor) would make the engine the scalar's source.
 		deluge::project::DocAutoParam* d = pcs.docForParam(i);
-		out.push_back(doc_cable(cable.from, cable.destinationParamDescriptor, cable.polarity,
+		// The polarity is the record's when the set is bound: gestures write it there (PatchCableSet::setPolarity).
+		out.push_back(doc_cable(cable.from, cable.destinationParamDescriptor, pcs.recordedPolarity(i),
 		                        toDocAutoParam(d->current_value, d->nodes)));
 	}
 	return out;
