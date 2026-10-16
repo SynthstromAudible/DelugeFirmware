@@ -166,12 +166,6 @@ SONG_STATE_ALLOWED: dict[str, dict[str, str]] = {
     "deluge/gui/ui/browser/sample_claim.cpp": {
         "": "a claim records the sample it loaded onto an audio clip as a load does (syncSampleRecordFromEngine)",
     },
-    "deluge/gui/menu_item/sequence/direction.h": {
-        "getCurrentInstrumentClip()->setSequenceDirectionMode": "a clip's own direction has no setting group yet",
-    },
-    "scenes/menu/bindings.cpp": {
-        "static_cast<InstrumentClip*>(ctx.clip)->setSequenceDirectionMode": "a clip's own direction has no setting group yet",
-    },
 }
 DEFAULT_ROOTS = (REPO / "src" / "deluge" / "gui", REPO / "src" / "scenes")
 

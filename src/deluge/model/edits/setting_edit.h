@@ -316,4 +316,26 @@ inline void audioClipSettingFor(::AudioClip& clip, std::string_view path, deluge
 	}
 }
 
+/// @brief A gesture's change of @p clip's setting at @p path (its name, its direction): an Edit when the clip is the
+///        current song's, its setter alone otherwise.
+/// @param clip  The clip, of either type.
+/// @param path  The setting's path in the clip group.
+/// @param value The new value, in its file form.
+inline void clipSettingFor(::Clip& clip, std::string_view path, deluge::serialization::Value value) {
+	if (currentSong == nullptr) {
+		D_PRINTLN("setting refused, no song: %.*s", static_cast<int>(path.size()), path.data());
+		return;
+	}
+	if (const std::optional<deluge::project::ClipAddress> address = deluge::bridge::clipAddressOf(clip, *currentSong)) {
+		applySettingEdit({deluge::project::SettingGroupId::CLIP, *address}, path, std::move(value));
+		return;
+	}
+	if (settingRefused(deluge::project::SettingGroupId::CLIP, path, value)) {
+		return;
+	}
+	if (deluge::bridge::applyClipSetting(clip, *currentSong, path, value) != Error::NONE) {
+		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
+	}
+}
+
 } // namespace deluge::edits

@@ -240,6 +240,24 @@ describe song_settings_edit("SetSetting", $ {
 		currentSong = song;
 		expect(f.instrument->name == "NOSONG").to_be_false();
 	});
+	it("renames a clip in its record and on the clip", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		const auto clip = deluge::bridge::clipAddressOf(*f.clip, *f.song);
+		expect(clip.has_value()).to_be_true();
+		deluge::edits::clipSettingFor(*f.clip, "name", Value::makeScalar("VERSE"));
+		expect(recorded(*f.song, {SettingGroupId::CLIP, *clip}, "name")).to_equal(std::string{"VERSE"});
+		expect(f.clip->name).to_equal(std::string{"VERSE"});
+	});
+
+	it("turns a clip to reverse in its record, from the mirror of its position", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		const auto clip = deluge::bridge::clipAddressOf(*f.clip, *f.song);
+		f.clip->lastProcessedPos = 10;
+		deluge::edits::clipSettingFor(*f.clip, "sequenceDirection", Value::makeScalar("reverse"));
+		expect(recorded(*f.song, {SettingGroupId::CLIP, *clip}, "sequenceDirection")).to_equal(std::string{"reverse"});
+		expect(f.clip->lastProcessedPos).to_equal(f.clip->loopLength() - 10);
+		expect(f.clip->sequenceDirectionMode == SequenceDirection::REVERSE).to_be_true();
+	});
 });
 // clang-format on
 

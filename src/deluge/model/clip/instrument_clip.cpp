@@ -142,7 +142,7 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	wrapEditLevel = otherInstrumentClip->wrapEditLevel;
 	yScroll = otherInstrumentClip->yScroll;
 	keyboardState = otherInstrumentClip->keyboardState;
-	sequenceDirectionMode = otherInstrumentClip->sequenceDirectionMode;
+	setSequenceDirectionModeRaw(otherInstrumentClip->sequenceDirectionMode);
 
 	affectEntire = otherInstrumentClip->affectEntire;
 
@@ -250,7 +250,7 @@ deleteClipAndGetOut:
 	}
 
 	if (shouldFlattenReversing && newClip->sequenceDirectionMode == SequenceDirection::REVERSE) {
-		newClip->sequenceDirectionMode = SequenceDirection::FORWARD;
+		newClip->setSequenceDirectionModeRaw(SequenceDirection::FORWARD);
 	}
 	// Leave PINGPONG as it is, because we haven't actually flattened that - its effect wouldn't be seen until a repeat
 	// happened. And we may be about to flatten it with a increaseLengthWithRepeats(), so need to keep this designation
@@ -323,9 +323,9 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 	}
 
 	if (pingponging) {
-		sequenceDirectionMode =
-		    SequenceDirection::FORWARD; // Pingponging has been flattened out, and although there are arguments either
-		                                // way, I think removing that setting now is best.
+		// Pingponging has been flattened out, and although there are arguments either way, I think removing that
+		// setting now is best.
+		setSequenceDirectionModeRaw(SequenceDirection::FORWARD);
 	}
 
 	setLoopLength(newLength);
@@ -395,9 +395,9 @@ void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 		paramManager.generateRepeats(modelStackWithParamManager, loopLength(), newLength, pingponging);
 
 		if (pingponging) {
-			sequenceDirectionMode =
-			    SequenceDirection::FORWARD; // Pingponging has been flattened out, and although there are arguments
-			                                // either way, I think removing that setting now is best.
+			// Pingponging has been flattened out, and although there are arguments either way, I think removing that
+			// setting now is best.
+			setSequenceDirectionModeRaw(SequenceDirection::FORWARD);
 		}
 	}
 
@@ -2450,7 +2450,7 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 
 void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
-	writer.writeAttribute("clipName", name.c_str());
+	writer.writeAttribute("clipName", docClip_->name.c_str());
 	writer.writeAttribute("inKeyMode", inScaleMode);
 	writer.writeAttribute("yScroll", yScroll);
 	writer.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
@@ -2607,8 +2607,7 @@ void InstrumentClip::readShellFromTree(const deluge::storage::Value& clipNode) {
 	Clip::readShellFromTree(clipNode);
 	using deluge::storage::Value;
 	if (const Value* n = clipNode.find("clipName")) {
-		name = n->str();
-		docClip_->name = name;
+		setName(n->str());
 	}
 	if (const Value* n = clipNode.find("inKeyMode")) {
 		inScaleMode = stringToInt(n->str().c_str());

@@ -754,8 +754,8 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 	writer.writeAttribute("isSoloing", soloingInSessionMode);
 	writer.writeAttribute("isArmedForRecording", armedForRecording);
 	writer.writeAttribute("length", loopLength());
-	if (sequenceDirectionMode != SequenceDirection::FORWARD) {
-		writer.writeAttribute("sequenceDirection", deluge::project::to_string(sequenceDirectionMode).data());
+	if (docClip_->sequence_direction != SequenceDirection::FORWARD) {
+		writer.writeAttribute("sequenceDirection", deluge::project::to_string(docClip_->sequence_direction).data());
 	}
 	writer.writeAttribute("colourOffset", colourOffset());
 	if (section() != 255) {
@@ -1088,7 +1088,7 @@ bool Clip::wantsToBeginLinearRecording(Song* song) {
 
 void Clip::setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, SequenceDirection newMode) {
 	bool reversedBefore = currentlyPlayingReversed;
-	sequenceDirectionMode = newMode;
+	setSequenceDirectionModeRaw(newMode);
 
 	if (newMode != SequenceDirection::PINGPONG) {
 		currentlyPlayingReversed = (newMode == SequenceDirection::REVERSE);

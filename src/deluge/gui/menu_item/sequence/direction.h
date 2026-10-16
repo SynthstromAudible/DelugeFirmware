@@ -89,8 +89,9 @@ public:
 			    deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(current_value)}));
 		}
 		else {
-			getCurrentInstrumentClip()->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(),
-			                                                     current_value);
+			deluge::edits::clipSettingFor(
+			    *getCurrentInstrumentClip(), "sequenceDirection",
+			    deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(current_value)}));
 		}
 	}
 

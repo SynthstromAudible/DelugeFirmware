@@ -259,7 +259,7 @@ void AsyncSampleLoad::demand(const SampleDemand& demand) {
 	if (demand.clipToName != nullptr) {
 		// A Clip the user named keeps its name; only an unnamed one is named after its sample
 		if (demand.clipToName->name.empty()) {
-			demand.clipToName->name = holder.filePath;
+			demand.clipToName->setName(holder.filePath);
 		}
 		if (error != Error::NONE) {
 			display->displayError(error);

@@ -89,7 +89,7 @@ bool clip_write(const menu::MenuContext& ctx, std::string_view name) {
 	if (other != nullptr && other != ctx.clip) {
 		return false;
 	}
-	ctx.clip->name = name;
+	deluge::edits::clipSettingFor(*ctx.clip, "name", deluge::serialization::Value::makeScalar(std::string{name}));
 	return true;
 }
 

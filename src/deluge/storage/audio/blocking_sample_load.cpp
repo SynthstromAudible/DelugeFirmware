@@ -80,7 +80,7 @@ void BlockingSampleLoad::demand(const SampleDemand& demand) {
 	if (demand.clipToName != nullptr) {
 		// A Clip the user named keeps its name; only an unnamed one is named after its sample
 		if (demand.clipToName->name.empty()) {
-			demand.clipToName->name = demand.holder->filePath.c_str();
+			demand.clipToName->setName(demand.holder->filePath.c_str());
 		}
 		if (error != Error::NONE) {
 			display->displayError(error);

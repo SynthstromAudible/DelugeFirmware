@@ -32,6 +32,7 @@
 #include "util/c_string.h"
 #include <cstdint>
 #include <optional>
+#include <string_view>
 
 class Song;
 class ParamManagerForTimeline;
@@ -216,6 +217,18 @@ public:
 	/// the Clip ctor under the clip's durable id and is authoritative for the clip's whole life (always non-null). It
 	/// points into a std::map (clip_structure), so it is address-stable across other clips' inserts; `~Clip` removes
 	/// the entry.
+	/// @brief Rename the clip: its record, which a save writes, and the name the UI shows.
+	/// @param newName The new name; uniqueness within the track is the caller's to check.
+	void setName(std::string_view newName) {
+		name = newName;
+		docClip_->name = name;
+	}
+	/// @brief Set the clip's direction in its record and on the clip, leaving its play position as it is.
+	/// @param mode The new direction.
+	void setSequenceDirectionModeRaw(SequenceDirection mode) {
+		sequenceDirectionMode = mode;
+		docClip_->sequence_direction = mode;
+	}
 	[[nodiscard]] int32_t loopLength() const { return docClip_->loop_length; }
 	void setLoopLength(int32_t newLength) { docClip_->loop_length = newLength; }
 	/// Repoint this clip's structure at a specific tree record (used by edit gestures that dual-write the store).

@@ -71,6 +71,12 @@ using serialization::Value;
 	return nullptr;
 }
 
+/// @brief The song's clip with durable id @p id, of either type.
+::Clip* findAnyClip(::Song& song, uint32_t id) {
+	::Clip* clip = findClip(song, id, ClipType::INSTRUMENT);
+	return clip != nullptr ? clip : findClip(song, id, ClipType::AUDIO);
+}
+
 /// @brief @p clip's row @p address names: a melodic row by its y, a kit row by its sound drum's id.
 ::NoteRow* findNoteRow(::InstrumentClip& clip, const project::NoteRowAddress& address) {
 	for (int32_t i = 0; ::NoteRow* row = clip.noteRows.tryGet(i); i++) {
@@ -305,6 +311,21 @@ void withVoiceReseated(::AudioClip& clip, ::Song& song, const std::function<void
 	}
 }
 
+Error applyClipSetting(::Clip& clip, ::Song& song, std::string_view path, const Value& value) {
+	if (path == "name") {
+		clip.setName(value.str());
+		return Error::NONE;
+	}
+	const std::optional<SequenceDirection> direction = project::parse_sequence_direction(value.str());
+	if (path != "sequenceDirection" || !direction) {
+		return Error::UNSPECIFIED;
+	}
+	// The setter mirrors the play position when the direction turns, and resumes a playing clip.
+	char memory[MODEL_STACK_MAX_SIZE];
+	clip.setSequenceDirectionMode(setupModelStackWithTimelineCounter(memory, &song, &clip), *direction);
+	return Error::NONE;
+}
+
 Error applyAudioClipSetting(::AudioClip& clip, ::Song& song, std::string_view path, const Value& value) {
 	const std::optional<int32_t> found = integer_of(value);
 	if (!found) {
@@ -394,7 +415,10 @@ Error projectSetting(::Song& song, const project::SettingAddress& address, std::
 		    findClip(song, std::get<project::ClipAddress>(address.owner).clip_id, ClipType::AUDIO));
 		return clip != nullptr ? applyAudioClipSetting(*clip, song, path, *value) : Error::UNSPECIFIED;
 	}
-	case SettingGroupId::CLIP:
+	case SettingGroupId::CLIP: {
+		::Clip* clip = findAnyClip(song, std::get<project::ClipAddress>(address.owner).clip_id);
+		return clip != nullptr ? applyClipSetting(*clip, song, path, *value) : Error::UNSPECIFIED;
+	}
 	case SettingGroupId::CLIP_VALUES:
 		return Error::UNSPECIFIED;
 	}
@@ -483,6 +507,18 @@ std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddr
 		::Output* output = findOutput(song, std::get<project::TrackAddress>(address.owner).output_id);
 		return output != nullptr ? engineTrackValue(*output, path) : std::nullopt;
 	}
+	if (address.group == SettingGroupId::CLIP) {
+		::Clip* clip = findAnyClip(song, std::get<project::ClipAddress>(address.owner).clip_id);
+		if (clip == nullptr) {
+			return std::nullopt;
+		}
+		if (path == "name") {
+			return Value::makeScalar(clip->name);
+		}
+		return path == "sequenceDirection" ? std::optional<Value>{Value::makeScalar(
+		                                         std::string{project::to_string(clip->sequenceDirectionMode)})}
+		                                   : std::nullopt;
+	}
 	if (address.group == SettingGroupId::AUDIO_CLIP) {
 		auto* clip = static_cast<::AudioClip*>(
 		    findClip(song, std::get<project::ClipAddress>(address.owner).clip_id, ClipType::AUDIO));
@@ -558,6 +594,13 @@ std::optional<project::NoteRowAddress> noteRowAddressOf(::NoteRow& row, ::Instru
 		return std::nullopt;
 	}
 	return address;
+}
+
+std::optional<project::ClipAddress> clipAddressOf(::Clip& clip, ::Song& song) {
+	if (findClip(song, clip.id(), clip.type) != &clip || song.project.clip_structure.find(clip.id()) == nullptr) {
+		return std::nullopt;
+	}
+	return project::ClipAddress{.clip_id = clip.id()};
 }
 
 std::optional<project::ClipAddress> audioClipAddressOf(::AudioClip& clip, ::Song& song) {

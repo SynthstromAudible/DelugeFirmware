@@ -943,7 +943,9 @@ void write_sequence_direction(const MenuContext& ctx, int32_t value) {
 		    deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(mode)}));
 	}
 	else { // `direction.h:86-89`
-		static_cast<InstrumentClip*>(ctx.clip)->setSequenceDirectionMode(stack->toWithTimelineCounter(), mode);
+		deluge::edits::clipSettingFor(
+		    *ctx.clip, "sequenceDirection",
+		    deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(mode)}));
 	}
 	deluge::notify::raise(deluge::notify::Dirty::Oled);
 }

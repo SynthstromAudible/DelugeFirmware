@@ -3661,7 +3661,8 @@ void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput)
 		newName += deluge::string::fromInt(counter++);
 		newNameString = newName.data();
 	}
-	target->name = newName.data();
+	deluge::edits::clipSettingFor(*target, "name",
+	                              deluge::serialization::Value::makeScalar(std::string{newName.data()}));
 }
 #pragma GCC diagnostic pop
 

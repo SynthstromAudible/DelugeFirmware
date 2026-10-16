@@ -283,7 +283,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 
 	recorder = nullptr;
 
-	name = sampleHolder.filePath.c_str();
+	setName(sampleHolder.filePath.c_str());
 }
 
 Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldClip, OverDubType newOverdubNature) {
@@ -1242,7 +1242,7 @@ void AudioClip::deriveEngineFromDoc() {
 void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	// Every persistent AudioClip field is DOM-authoritative and read straight from docAudioClip_ below.
-	writer.writeAttribute("clipName", name.c_str());
+	writer.writeAttribute("clipName", docClip_->name.c_str());
 	writer.writeAttribute("trackName", output->name.c_str());
 
 	writer.writeAttribute("filePath", docAudioClip_->file_path.c_str());
@@ -1318,7 +1318,7 @@ someError:
 
 		if (!strcmp(tagName, "clipName")) {
 			reader.readTagOrAttributeValueString(name);
-			docClip_->name = name;
+			setName(name);
 		}
 
 		else if (!strcmp(tagName, "trackName")) {
@@ -1500,7 +1500,7 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack,
 
 			setSampleFilePath("");
 			sampleHolder.setAudioFile(nullptr);
-			name = "";
+			setName("");
 
 			// Now that the clip is empty, deactivate it so a looper doesn't sit active-but-empty (which never re-arms
 			// to record, since Song::getClipWithOutputAboutToBeginLinearRecording requires the clip to be inactive). A
