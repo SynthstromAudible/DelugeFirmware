@@ -830,7 +830,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
 		// A ladder LPF is what makes the rename fire; an SVF or a filter that is off keeps the
 		// default name (`param.cpp:365-372`'s own comment).
-		sound->lpfMode = FilterMode::TRANSISTOR_24DB;
+		sound->setLpfMode(FilterMode::TRANSISTOR_24DB);
 
 		constexpr int32_t kMorph = deluge::modulation::params::LOCAL_LPF_MORPH;
 
@@ -907,7 +907,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// 5. The SONG as the counter, with a controllable: set, but not a clip. `affectEntire` is
 		//    what makes `Song::getActiveModControllable` resolve one at all (`song.cpp:5537-5544`);
 		//    without it the song resolves nothing and this shape would collapse into shape 1.
-		f.song->affectEntire = true;
+		f.song->persistentView.affectEntire = true;
 		view.setActiveModControllableTimelineCounter(f.song, false);
 		rig.knobs.set_target_with_timeline(f.song, false);
 		expect(deluge::scenes::services::is_clip_context(rig.knobs.target())).to_equal(view.isClipContext());
@@ -1069,8 +1069,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		spec::SongFixture pf = spec::make_synth_song();
 		currentSong = f.song;
-		f.song->affectEntire = true;  // so the SONG resolves a mod controllable (`song.cpp:5537-5544`)
-		pf.song->affectEntire = true;
+		f.song->persistentView.affectEntire = true; // so the SONG resolves a mod controllable (`song.cpp:5537-5544`)
+		pf.song->persistentView.affectEntire = true;
 
 		KnobRig rig;
 		rig.knobs.set_song(pf.song);

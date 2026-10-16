@@ -10,6 +10,13 @@ set(SCENES_SPEC_PORTED
     selftest/fail_spec
     selftest/crash_spec
     selftest/card_access_spec
+    menu_scene_spec
+    midi_learn_spec
+    mod_knobs_spec
+    menu_binding_hooks_spec
+    bindings_spec
+    context_spec
+    menu_grid_claim_spec
 )
 set(_ported_sources "")
 set(_decls "")

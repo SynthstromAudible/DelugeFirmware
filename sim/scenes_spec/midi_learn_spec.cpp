@@ -81,13 +81,16 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
+#include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/midi_command.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_drum.h"
@@ -150,6 +153,21 @@ namespace {
 /// constant.
 constexpr uint8_t kPoisonChannel = 0xEE;
 
+/// @brief A section's launch command as the examples read and write it: the song's record
+/// (`project.arrangement.sections[i].launch_midi_command`), seen through the `LearnedMIDI` both learns edit and
+/// commit back to it.
+struct SectionSlot {
+	::Song& song;
+	uint8_t index;
+
+	[[nodiscard]] deluge::project::MidiCommand& record() const {
+		return song.project.arrangement.sections[index].launch_midi_command;
+	}
+	[[nodiscard]] ::LearnedMIDI learned() const { return deluge::bridge::learned_of(record()); }
+	void clear() const { record() = deluge::project::MidiCommand{}; }
+	[[nodiscard]] bool containsSomething() const { return record().contains_something(); }
+};
+
 /// @brief The three fields a learn commit writes, as one comparable value.
 ///
 /// Compared as a whole rather than field by field for the reason `midi_device_spec.cpp`'s
@@ -163,6 +181,7 @@ struct Learned {
 	static Learned of(const ::LearnedMIDI& m) {
 		return Learned{.cable = m.cable, .channel_or_zone = m.channelOrZone, .note_or_cc = m.noteOrCC};
 	}
+	static Learned of(const SectionSlot& slot) { return of(slot.learned()); }
 	bool operator==(const Learned&) const = default;
 
 	std::string describe() const {
@@ -179,14 +198,23 @@ struct Learned {
 	return m.channelOrZone == kPoisonChannel && m.cable == nullptr;
 }
 
-/// @brief A cable this spec owns outright.
+/// @brief Make a section's record LOOK learned, so a cleared or freshly learned record cannot be inherited.
+[[nodiscard]] bool poison(const SectionSlot& slot) {
+	::LearnedMIDI m;
+	(void)poison(m);
+	slot.record() = deluge::bridge::command_of(m);
+	return slot.record().channel_or_zone == kPoisonChannel && !slot.record().device;
+}
+
+/// @brief A cable this spec owns outright: a hosted USB device, which is what every cable but the built-in DIN and
+/// upstream ports is on the Deluge (`deluge::bridge::reference_of` relies on that).
 ///
-/// `MIDICable` is abstract and none of the shipped cable types can be built in a host spec without
-/// a USB or DIN backend behind it -- `midi_device_spec.cpp:139-162` and `tables_3_spec.cpp:793-802`
-/// make the same observation. Two are built, so "the port stored *a* cable" cannot pass for "the
-/// port stored the cable it was handed".
-struct SpecCable final : ::MIDICable {
-	explicit SpecCable(const char* n) : display{n} {}
+/// None of the shipped cable types can be built in a host spec without a USB or DIN backend behind it, so this one
+/// overrides the sending half. Two are built, so "the port stored *a* cable" cannot pass for "the port stored the
+/// cable it was handed". Both are registered with the device manager, so a section's record, which names its device
+/// rather than holding a pointer, resolves back to them.
+struct SpecCable final : ::MIDICableUSBHosted {
+	explicit SpecCable(const char* n) : display{n} { name = n; }
 	void writeToFlash(uint8_t*) override {}
 	char const* getDisplayName() override { return display; }
 	void sendMessage(MIDIMessage) override {}
@@ -224,11 +252,10 @@ struct StubDisplay final : deluge::hid::Display {
 ///
 /// See the file docstring: it must be a `RootUI` and not merely a `UI`, because `getRootUI()`
 /// C-casts and two of the ported functions call `midiLearnFlash()` through the result.
+
 class StubRootUI final : public RootUI {
 public:
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override {
-		return view.buttonAction(b, on, inCardRoutine);
-	}
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override { return view.buttonAction(b, on); }
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas&) override {}
 	UIType getUIType() override { return UIType::NONE; }
 };
@@ -418,7 +445,7 @@ struct LearnRig {
 void release_all_legacy_buttons() {
 	for (ButtonId b : {ButtonId::Play, ButtonId::Record, ButtonId::TapTempo, ButtonId::Learn, ButtonId::Shift}) {
 		if (Buttons::isButtonPressed(legacy_button(b))) {
-			(void)Buttons::buttonAction(legacy_button(b), false, false);
+			(void)Buttons::buttonAction(legacy_button(b), false);
 		}
 	}
 }
@@ -449,6 +476,12 @@ struct Cables {
 };
 Cables& cables() {
 	static Cables instance;
+	static const bool registered = [] {
+		MIDIDeviceManager::hostedMIDIDevices.push_back(&instance.a);
+		MIDIDeviceManager::hostedMIDIDevices.push_back(&instance.b);
+		return true;
+	}();
+	(void)registered;
 	return instance;
 }
 
@@ -474,7 +507,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 
 	it("SECTION: `sectionMidiLearnPadPressed` maps onto `LearnTarget::section`", _ {
 		static spec::SongFixture fixture = spec::make_synth_song();
-		::LearnedMIDI& slot = fixture.song->sections[2].launchMIDICommand;
+		const SectionSlot slot{*fixture.song, 2};
 
 		// --- Legacy, from its own reset (`view.cpp:535-547` + `:640-760`) ------------------
 		expect(reset_legacy_learn()).to_be_true();
@@ -639,9 +672,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// --- Legacy (`view.cpp:186-197`) ----------------------------------------------------
 		release_all_legacy_buttons();
 		expect(reset_legacy_learn()).to_be_true();
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Learn), true, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Learn), true);
 		const bool legacy_on = (currentUIMode == UI_MODE_MIDI_LEARN);
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Learn), false, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Learn), false);
 		const bool legacy_off = (currentUIMode != UI_MODE_MIDI_LEARN);
 		expect(legacy_on).to_be_true();
 		expect(legacy_off).to_be_true();
@@ -676,7 +709,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		slot.clear();
 		playbackHandler.playbackState = 0;
 		view.startMIDILearn();
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Play), true, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Play), true);
 		expect(view.thingPressedForMidiLearn == ::MidiLearn::PLAY_BUTTON).to_be_true();
 		view.noteOnReceivedForMidiLearn(cables().a, 1, 60, 127);
 		const Learned legacy = Learned::of(slot);
@@ -685,7 +718,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// The tail was skipped: `view.cpp:486`'s `DEALT_WITH` makes `hid/buttons.cpp:139-141`
 		// jump past `:144-167`, so playback never started.
 		expect(legacy_playback == 0).to_be_true();
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Play), false, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Play), false);
 		expect(reset_legacy_learn()).to_be_true();
 
 		expect(poison(slot)).to_be_true();
@@ -721,12 +754,12 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		slot.clear();
 		playbackHandler.recording = RecordingMode::OFF;
 		view.startMIDILearn();
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true, false); // `view.cpp:216-229`
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true); // `view.cpp:216-229`
 		expect(view.thingPressedForMidiLearn == ::MidiLearn::RECORD_BUTTON).to_be_true();
 		view.noteOnReceivedForMidiLearn(cables().b, 4, 62, 127);
 		const Learned legacy = Learned::of(slot);
 		expect(playbackHandler.recording == RecordingMode::OFF).to_be_true();
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
 		expect(reset_legacy_learn()).to_be_true();
 
 		expect(poison(slot)).to_be_true();
@@ -763,12 +796,12 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		slot.clear();
 		playbackHandler.metronomeOn = false;
 		view.startMIDILearn();
-		(void)Buttons::buttonAction(legacy_button(ButtonId::TapTempo), true, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::TapTempo), true);
 		expect(view.thingPressedForMidiLearn == ::MidiLearn::TAP_TEMPO_BUTTON).to_be_true();
 		view.noteOnReceivedForMidiLearn(cables().a, 6, 48, 127);
 		const Learned legacy = Learned::of(slot);
 		expect(playbackHandler.metronomeOn).to_be_false();
-		(void)Buttons::buttonAction(legacy_button(ButtonId::TapTempo), false, false);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::TapTempo), false);
 		expect(reset_legacy_learn()).to_be_true();
 
 		expect(poison(slot)).to_be_true();
@@ -800,7 +833,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// a spec that only checked "empty afterwards" would pass against a port that never wrote
 		// anything in the first place.
 		static spec::SongFixture fixture = spec::make_synth_song();
-		::LearnedMIDI& slot = fixture.song->sections[1].launchMIDICommand;
+		const SectionSlot slot{*fixture.song, 1};
 
 		// --- Legacy -------------------------------------------------------------------------
 		expect(reset_legacy_learn()).to_be_true();
@@ -843,7 +876,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// one held thing, so a release whose kind does not match falls through -- which is what
 		// stops a second finger's release from wiping the first finger's target.
 		static spec::SongFixture fixture = spec::make_synth_song();
-		::LearnedMIDI& section_slot = fixture.song->sections[3].launchMIDICommand;
+		const SectionSlot section_slot{*fixture.song, 3};
 
 		expect(reset_legacy_learn()).to_be_true();
 		section_slot.clear();
@@ -860,7 +893,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 3), true);
 		rig.ml.thing_pressed(LearnTarget::clip(*fixture.clip), false);
 		expect(rig.ml.pressed().kind == ::MidiLearn::SECTION).to_be_true();
-		expect(rig.ml.pressed().thing == &section_slot).to_be_true();
+		// The held target is still section 3: its learn edits a scratch committed to that section's record.
+		expect(rig.ml.pressed().section_index == section_slot.index).to_be_true();
 	});
 
 	// -- Step 4: the flash -----------------------------------------------------------------------
@@ -1080,7 +1114,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// `view.cpp:805-808`. The bias is what lets one `LearnedMIDI` hold either a note or a CC
 		// (`io/midi/learned_midi.h:90-93`).
 		static spec::SongFixture fixture = spec::make_synth_song();
-		::LearnedMIDI& slot = fixture.song->sections[0].launchMIDICommand;
+		const SectionSlot slot{*fixture.song, 0};
 
 		expect(reset_legacy_learn()).to_be_true();
 		slot.clear();
@@ -1109,7 +1143,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// `view.cpp:806`'s `if (value)`. A separate example because it is the one arm of
 		// `ccReceivedForMIDILearn` whose whole content is a refusal.
 		static spec::SongFixture fixture = spec::make_synth_song();
-		::LearnedMIDI& slot = fixture.song->sections[4].launchMIDICommand;
+		const SectionSlot slot{*fixture.song, 4};
 
 		expect(reset_legacy_learn()).to_be_true();
 		slot.clear();
@@ -1188,7 +1222,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 
 	it("MidiNoteOn: legacy's note-on DISPATCHER and the Router reach the same `LearnedMIDI`", _ {
 		static spec::SongFixture fixture = spec::make_synth_song();
-		::LearnedMIDI& slot = fixture.song->sections[5].launchMIDICommand;
+		const SectionSlot slot{*fixture.song, 5};
 
 		// --- Legacy, from `PlaybackHandler::noteMessageReceived` (`:2960-2973`) --------------
 		expect(reset_legacy_learn()).to_be_true();
@@ -1237,7 +1271,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// the kind, the chain position, the service arm -- lands the same model write legacy's
 		// dispatcher does, so the day that dispatcher gains a seam there is nothing else to build.
 		static spec::SongFixture fixture = spec::make_synth_song();
-		::LearnedMIDI& slot = fixture.song->sections[6].launchMIDICommand;
+		const SectionSlot slot{*fixture.song, 6};
 
 		expect(reset_legacy_learn()).to_be_true();
 		slot.clear();
@@ -1282,7 +1316,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// is the only thing in the file that would fail if those two were swapped -- every other
 		// one routes through a scene that declines, where the order is unobservable.
 		static spec::SongFixture fixture = spec::make_synth_song();
-		::LearnedMIDI& slot = fixture.song->sections[7].launchMIDICommand;
+		const SectionSlot slot{*fixture.song, 7};
 		expect(poison(slot)).to_be_true();
 
 		LearnRig rig;
@@ -1313,7 +1347,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// by reporting the event unhandled, which lets `Router` count it rather than silently
 		// swallowing it.
 		static spec::SongFixture fixture = spec::make_synth_song();
-		::LearnedMIDI& slot = fixture.song->sections[8].launchMIDICommand;
+		const SectionSlot slot{*fixture.song, 8};
 		expect(poison(slot)).to_be_true();
 
 		LearnRig rig;

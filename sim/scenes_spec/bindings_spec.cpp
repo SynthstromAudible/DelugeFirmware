@@ -151,7 +151,7 @@ SoundDrum* add_drum_without_note_row(spec::SongFixture& f) {
 	params.setupWithPatching();
 	Sound::initParams(&params);
 	drum->setupAsSample(&params);
-	f.song->backUpParamManager(drum, f.clip, &params, true);
+	f.song->live.param_backup.backUp(drum, f.clip, &params, true);
 
 	kit->addDrum(drum); // appends -- `model/instrument/kit.cpp:422-430`
 	return drum;

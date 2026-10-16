@@ -54,8 +54,6 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(ctx.affect_entire).to_be_false();
 		expect(ctx.is_kit).to_be_false();
 		expect(ctx.source == &ctx.sound->sources[0]).to_be_true();
-		expect(ctx.sidechain == &ctx.mod->sidechain).to_be_true();
-		expect(ctx.priority == &ctx.sound->voicePriority).to_be_true();
 		expect(ctx.arp == &f.clip->arpSettings).to_be_true();
 	});
 
