@@ -22,7 +22,10 @@
 
 namespace deluge::project {
 
-/// @brief A song's reverb send settings (the reverb algorithm/`model` enum is held by the controller).
+/// @brief The reverb's algorithm, in the order a song file numbers it.
+enum class ReverbModel : uint8_t { FREEVERB, MUTABLE, DIGITAL };
+
+/// @brief A song's reverb send settings and algorithm.
 ///
 /// A component of deluge::project::Song; fields are accessed as `project.reverb.room_size`.
 struct ReverbSettings {
@@ -37,6 +40,7 @@ struct ReverbSettings {
 	int32_t sidechain_attack{0};
 	int32_t sidechain_release{0};
 	engine::SyncLevel sidechain_sync{};
+	ReverbModel model{ReverbModel::FREEVERB};
 
 	bool operator==(const ReverbSettings&) const = default;
 };

@@ -1,0 +1,142 @@
+#include "deluge-project/setting_group.h"
+#include "deluge-project/song.h"
+
+#include "cppspec.hpp"
+
+#include <string>
+#include <vector>
+
+using namespace deluge::project;
+using deluge::engine::SettingInfo;
+using deluge::engine::SettingKind;
+using deluge::serialization::Value;
+
+namespace {
+
+/// @brief Every legal value of @p row, as text: each choice, both bools, or an integer row's least, greatest and
+///        middle value; one name for a text row.
+std::vector<std::string> legal_values(const SettingInfo& row) {
+	switch (row.kind) {
+	case SettingKind::CHOICE: {
+		std::vector<std::string> out;
+		for (std::string_view choice : row.choices) {
+			out.emplace_back(choice);
+		}
+		return out;
+	}
+	case SettingKind::BOOL:
+		return {"0", "1"};
+	case SettingKind::INTEGER:
+		if (!row.user.identity()) {
+			// What a menu writes: its user range's ends and middle, through the row's mapping.
+			const int32_t mid = row.user.user_min + (row.user.user_max - row.user.user_min) / 2;
+			return {std::to_string(*deluge::engine::to_stored(row, row.user.user_min)),
+			        std::to_string(*deluge::engine::to_stored(row, row.user.user_max)),
+			        std::to_string(*deluge::engine::to_stored(row, mid))};
+		}
+		return {std::to_string(row.min), std::to_string(row.max),
+		        std::to_string(row.min + (int64_t{row.max} - row.min) / 2)};
+	case SettingKind::TEXT:
+		return {"NAME1"};
+	case SettingKind::STRUCTURED:
+		break;
+	}
+	return {};
+}
+
+/// @brief Write and read back every legal value of every path of @p group at @p owner; the first mismatch, or empty.
+std::string round_trip(Song& song, SettingGroupId group, const SettingOwner& owner) {
+	const SettingAddress address{group, owner};
+	for (const SettingInfo& row : table_of(group)) {
+		for (const std::string& value : legal_values(row)) {
+			if (!write_setting(song, address, row.path, Value::makeScalar(value))) {
+				return std::string{row.path} + "=" + value + " refused";
+			}
+			const std::optional<Value> back = read_setting(song, address, row.path);
+			if (!back || back->str() != value) {
+				return std::string{row.path} + "=" + value + " read back " + (back ? back->str() : "nothing");
+			}
+		}
+	}
+	return {};
+}
+
+} // namespace
+
+// clang-format off
+describe setting_groups_song("the song settings group", $ {
+	it("round-trips every legal value of every path through the record", _ {
+		Song song;
+		expect(round_trip(song, SettingGroupId::SONG, SongAddress{})).to_equal(std::string{});
+	});
+
+	it("refuses a value outside its row, or a path no row holds, and changes nothing", _ {
+		Song song;
+		const SettingAddress address{SettingGroupId::SONG, SongAddress{}};
+		const ReverbSettings before = song.reverb;
+		expect(write_setting(song, address, "reverb/model", Value::makeScalar("9"))).to_be_false();
+		expect(write_setting(song, address, "no/such/path", Value::makeScalar("1"))).to_be_false();
+		expect(song.reverb == before).to_be_true();
+	});
+
+	it("keeps the reverb model in the record", _ {
+		Song song;
+		const SettingAddress address{SettingGroupId::SONG, SongAddress{}};
+		expect(write_setting(song, address, "reverb/model", Value::makeScalar("1"))).to_be_true();
+		expect(static_cast<int>(song.reverb.model)).to_equal(1);
+	});
+
+	it("disables one preset scale per path, leaving the others", _ {
+		Song song;
+		const SettingAddress address{SettingGroupId::SONG, SongAddress{}};
+		expect(write_setting(song, address, "scales/disabled/3", Value::makeScalar("1"))).to_be_true();
+		expect(song.scale.disabled_preset_scales.test(3)).to_be_true();
+		expect(song.scale.disabled_preset_scales.count()).to_equal(size_t{1});
+	});
+});
+
+describe setting_groups_owners("the owner setting groups", $ {
+	it("refuses an owner that does not resolve, reading and writing", _ {
+		Song song;
+		const SettingAddress missing{SettingGroupId::TRACK, TrackAddress{.output_id = 999}};
+		expect(write_setting(song, missing, "name", Value::makeScalar("X"))).to_be_false();
+		expect(read_setting(song, missing, "name").has_value()).to_be_false();
+	});
+
+	it("round-trips the track and instrument-device groups through an output's record", _ {
+		Song song;
+		(void)song.output_structure.getOrCreate(7);
+		expect(round_trip(song, SettingGroupId::TRACK, TrackAddress{.output_id = 7})).to_equal(std::string{});
+		expect(round_trip(song, SettingGroupId::INSTRUMENT_DEVICE, TrackAddress{.output_id = 7})).to_equal(std::string{});
+	});
+
+	it("round-trips the lane group through a drum's record", _ {
+		Song song;
+		(void)song.drum_structure.getOrCreate(5);
+		expect(round_trip(song, SettingGroupId::LANE, LaneAddress{.kit_id = 7, .drum_id = 5})).to_equal(std::string{});
+	});
+
+	it("round-trips the note-row group through a melodic row and a kit row", _ {
+		Song song;
+		DocClip& clip = song.clip_structure.getOrCreate(11);
+		clip.note_rows.emplace_back().y = 60;
+		clip.note_rows.emplace_back().drum_id = 5;
+		expect(round_trip(song, SettingGroupId::NOTE_ROW, NoteRowAddress{.clip_id = 11, .is_kit = false, .row_key = 60}))
+		    .to_equal(std::string{});
+		expect(round_trip(song, SettingGroupId::NOTE_ROW, NoteRowAddress{.clip_id = 11, .is_kit = true, .row_key = 5}))
+		    .to_equal(std::string{});
+	});
+
+	it("round-trips the audio clip group through a clip's descriptor", _ {
+		Song song;
+		(void)song.audio_clip_structure.getOrCreate(12);
+		expect(round_trip(song, SettingGroupId::AUDIO_CLIP, ClipAddress{.clip_id = 12})).to_equal(std::string{});
+	});
+});
+// clang-format on
+
+int setting_groups_spec(int argc, char** const argv) {
+	return CppSpec::parse(argc, argv).add_specs(setting_groups_song, setting_groups_owners).exec().is_success()
+	           ? EXIT_SUCCESS
+	           : EXIT_FAILURE;
+}

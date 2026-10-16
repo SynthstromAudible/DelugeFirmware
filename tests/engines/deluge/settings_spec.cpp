@@ -111,6 +111,7 @@ std::vector<std::string> edges(const deluge::engine::SettingInfo& row) {
 	case SettingKind::BOOL:
 		return {"0", "1"};
 	case SettingKind::STRUCTURED:
+	case SettingKind::TEXT:
 		break;
 	}
 	return {};

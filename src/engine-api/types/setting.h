@@ -17,16 +17,19 @@
 
 #pragma once
 
+#include <algorithm>
+#include <charconv>
 #include <cstdint>
 #include <optional>
 #include <span>
 #include <string_view>
+#include <system_error>
 
 namespace deluge::engine {
 
-/// @brief What a setting holds: one of an enum's names, an integer in a range, a bool, or a structured value only its
-/// own Edit changes.
-enum class SettingKind : uint8_t { CHOICE, INTEGER, BOOL, STRUCTURED };
+/// @brief What a setting holds: one of an enum's names, an integer in a range, a bool, free text (a name), or a
+/// structured value only its own Edit changes.
+enum class SettingKind : uint8_t { CHOICE, INTEGER, BOOL, STRUCTURED, TEXT };
 
 /// @brief A menu value that stands for a stored value outside the linear mapping: max voices' "off" is user 0, stored
 /// 127.
@@ -76,6 +79,47 @@ struct SettingInfo {
 		}
 	}
 	return nullptr;
+}
+
+/// @brief @p text as a whole decimal integer, or nothing.
+/// @param text The text to parse; it must be entirely a decimal integer.
+/// @return The parsed integer, or std::nullopt if @p text is not wholly one.
+[[nodiscard]] inline std::optional<int64_t> whole_number(std::string_view text) {
+	int64_t n = 0;
+	const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), n);
+	if (error != std::errc{} || end != text.data() + text.size()) {
+		return std::nullopt;
+	}
+	return n;
+}
+
+/// @brief Whether @p text is a value @p table's row for @p path allows: a choice's name, an integer in the row's
+/// range, 0 or 1 for a bool, or any text for a text row. False for a structured row or a path the table does not hold.
+/// @param table The setting table.
+/// @param path  The setting's slash path.
+/// @param text  The candidate value, as text.
+/// @return Whether @p text is allowed.
+[[nodiscard]] inline bool check_setting_text(std::span<const SettingInfo> table, std::string_view path,
+                                             std::string_view text) {
+	const SettingInfo* row = find_setting(table, path);
+	if (row == nullptr) {
+		return false;
+	}
+	switch (row->kind) {
+	case SettingKind::CHOICE:
+		return std::ranges::find(row->choices, text) != row->choices.end();
+	case SettingKind::INTEGER: {
+		const std::optional<int64_t> n = whole_number(text);
+		return n && *n >= row->min && *n <= row->max;
+	}
+	case SettingKind::BOOL:
+		return text == "0" || text == "1";
+	case SettingKind::TEXT:
+		return true; // any text; the owner checks what it allows (a duplicate name)
+	case SettingKind::STRUCTURED:
+		break;
+	}
+	return false;
 }
 
 /// @brief @p stored as a menu shows it.

@@ -17,6 +17,8 @@
 
 #include "deluge-project/song_codec.h"
 
+#include "deluge-project/fraction.h"
+
 #include "serialization/tree.h"
 
 #include <algorithm>
@@ -26,22 +28,6 @@ namespace deluge::project {
 
 using serialization::int_of;
 using serialization::Value;
-
-namespace {
-
-constexpr float kQ31One = 2147483648.0f;
-
-/// A [0, 1] fraction as the Q31 the file holds, saturating at the largest Q31.
-int32_t q31_of(float fraction) {
-	uint32_t q = static_cast<uint32_t>(fraction * kQ31One);
-	return static_cast<int32_t>(std::min(q, uint32_t{2147483647}));
-}
-
-float fraction_of(int32_t q31) {
-	return static_cast<float>(q31) / kQ31One;
-}
-
-} // namespace
 
 Value encode(const Transport& transport) {
 	auto map = Value::makeMap();
