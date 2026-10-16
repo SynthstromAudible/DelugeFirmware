@@ -190,6 +190,10 @@ Error applySongSetting(::Song& song, std::string_view path, const Value& value) 
 		song.changeSwingInterval(*v);
 		return Error::NONE;
 	}
+	if (path.starts_with("scales/disabled/")) {
+		// The engine reads the scale record itself: there is no copy to make.
+		return Error::NONE;
+	}
 	if (path.starts_with("reverb/")) {
 		// The engine has one reverb, the current song's; another song's reaches it when that song becomes current
 		// (`AudioEngine::getReverbParamsFromSong`).
@@ -259,6 +263,9 @@ std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddr
 		}
 		if (path.starts_with("reverb/")) {
 			return engineReverbValue(path);
+		}
+		if (path.starts_with("scales/disabled/")) {
+			return project::read_setting(song.project, address, path); // the engine reads the record
 		}
 	}
 	return std::nullopt;

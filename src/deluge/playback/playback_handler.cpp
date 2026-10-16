@@ -58,6 +58,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/set_swing.h"
 #include "model/edits/set_tempo.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
@@ -2147,8 +2148,9 @@ void PlaybackHandler::commandDisplaySwingAmount() {
 }
 
 void PlaybackHandler::commandEditSwingInterval(int8_t offset) {
-	currentSong->changeSwingInterval(
-	    wrapSwingIntervalSyncLevel(deluge::engine::index_of(currentSong->project.groove.swing_interval) + offset));
+	deluge::edits::songSettingFor("swingInterval",
+	                              deluge::serialization::Value::makeNumber(wrapSwingIntervalSyncLevel(
+	                                  deluge::engine::index_of(currentSong->project.groove.swing_interval) + offset)));
 	commandDisplaySwingInterval();
 }
 

@@ -4,6 +4,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h" //todo: this probably shouldn't be needed
 #include "io/debug/log.h"
+#include "model/edits/setting_edit.h"
 #include "model/scale/preset_scales.h"
 #include "model/song/song.h"
 #include "source_selection/range.h"
@@ -11,6 +12,7 @@
 #include "util/functions.h"
 
 #include <etl/vector.h>
+#include <string>
 
 namespace deluge::gui::menu_item {
 
@@ -128,7 +130,8 @@ void ActiveScaleMenu::setDisabled(uint8_t scaleIndex, bool value) {
 		FlashStorage::defaultDisabledPresetScales[scaleIndex] = value;
 	}
 	else if (currentSong) {
-		currentSong->project.scale.disabled_preset_scales[scaleIndex] = value;
+		deluge::edits::songSettingFor("scales/disabled/" + std::to_string(scaleIndex),
+		                              deluge::serialization::Value::makeNumber(value ? 1 : 0));
 	}
 }
 

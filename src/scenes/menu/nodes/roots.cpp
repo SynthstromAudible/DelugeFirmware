@@ -41,6 +41,7 @@
 #include "definitions_cxx.hpp"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
@@ -325,7 +326,8 @@ int32_t get_swing_interval(const MenuContext& ctx) {
 }
 void set_swing_interval(const MenuContext& ctx, int32_t value) {
 	if (ctx.song != nullptr) {
-		ctx.song->changeSwingInterval(value); // `swing/interval.h:23`
+		deluge::edits::songSettingFor("swingInterval",
+		                              deluge::serialization::Value::makeNumber(value)); // `swing/interval.h`
 	}
 }
 

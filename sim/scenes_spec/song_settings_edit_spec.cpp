@@ -98,6 +98,15 @@ describe song_settings_edit("SetSetting", $ {
 		expect(deluge::project::decode(file, settings, {}).has_value()).to_be_true();
 		expect(static_cast<int>(settings.model)).to_equal(static_cast<int>(deluge::project::ReverbModel::MUTABLE));
 	});
+	it("disables and re-enables a preset scale in the record", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		deluge::edits::Context ctx{*f.song, f.song->project};
+		deluge::edits::SetSetting disable{kSong, "scales/disabled/3", Value::makeNumber(1)};
+		expect(static_cast<int>(deluge::edits::apply(ctx, disable))).to_equal(static_cast<int>(Error::NONE));
+		expect(f.song->project.scale.disabled_preset_scales.test(3)).to_be_true();
+		deluge::edits::songSettingFor("scales/disabled/3", Value::makeNumber(0));
+		expect(f.song->project.scale.disabled_preset_scales.test(3)).to_be_false();
+	});
 });
 // clang-format on
 

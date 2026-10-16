@@ -29,6 +29,7 @@
 
 #include "gfx/oled/icons.h"
 
+#include "model/edits/setting_edit.h"
 #include "model/scale/preset_scales.h"
 #include "model/song/song.h"
 #include "storage/flash_storage.h"
@@ -36,6 +37,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <string_view>
 
 namespace deluge::scenes::menu::nodes {
@@ -94,7 +96,8 @@ void ActiveScalesItem::set_disabled(const MenuContext& ctx, size_t index, bool v
 		FlashStorage::defaultDisabledPresetScales[index] = value;
 	}
 	else if (ctx.song != nullptr) {
-		ctx.song->project.scale.disabled_preset_scales[index] = value;
+		deluge::edits::songSettingFor("scales/disabled/" + std::to_string(index),
+		                              deluge::serialization::Value::makeNumber(value ? 1 : 0));
 	}
 }
 

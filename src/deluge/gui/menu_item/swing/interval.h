@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/sync_level.h"
+#include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::swing {
@@ -25,7 +26,9 @@ public:
 	using SyncLevel::SyncLevel;
 
 	void readCurrentValue() override { this->setValue(currentSong->project.groove.swing_interval); }
-	void writeCurrentValue() override { currentSong->changeSwingInterval(this->getValue()); }
+	void writeCurrentValue() override {
+		deluge::edits::songSettingFor("swingInterval", deluge::serialization::Value::makeNumber(this->getValue()));
+	}
 	// triplet/dotted not yet supported
 	size_t size() override { return NUM_SWING_INTERVALS; }
 	void selectEncoderAction(int32_t offset) override {
