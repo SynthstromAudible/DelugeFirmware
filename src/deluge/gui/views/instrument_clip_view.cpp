@@ -81,6 +81,7 @@
 #include "model/edits/set_euclidean_events.h"
 #include "model/edits/set_note_row_length.h"
 #include "model/edits/set_param_value.h"
+#include "model/edits/setting_edit.h"
 #include "model/edits/shift_note_row.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
@@ -5640,7 +5641,8 @@ doDisplayError:
 
 	kit->addDrum(newDrum);
 	// Name after addDrum binds the DocDrum (setName writes the model, which requires binding).
-	newDrum->setName(soundName.c_str());
+	deluge::edits::laneSettingFor(*newDrum, "name",
+	                              deluge::serialization::Value::makeScalar(std::string{soundName.c_str()}));
 	modelStack->getNoteRow()->setDrum(newDrum, kit,
 	                                  modelStack); // Sets noteRow->paramManager to newDrum->backedUpParamManager
 

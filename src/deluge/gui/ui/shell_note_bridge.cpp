@@ -26,11 +26,13 @@
 /// `Binding::permitted` hook.
 
 #include "gui/ui/shell_note_bridge.h"
+#include "deluge-project/sequence_direction.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/model_stack.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
@@ -298,7 +300,10 @@ void set_row_sequence_direction(int32_t value) {
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	ModelStackWithNoteRow* modelStackWithNoteRow = noteRowForSequenceDirection(modelStack);
 	if (NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull()) {
-		noteRow->setSequenceDirectionMode(modelStackWithNoteRow, static_cast<SequenceDirection>(value));
+		deluge::edits::noteRowSettingFor(
+		    *noteRow, *static_cast<InstrumentClip*>(modelStackWithNoteRow->getTimelineCounter()), "sequenceDirection",
+		    deluge::serialization::Value::makeScalar(
+		        std::string{deluge::project::to_string(static_cast<SequenceDirection>(value))}));
 	}
 }
 

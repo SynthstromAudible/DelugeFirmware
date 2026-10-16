@@ -16,11 +16,13 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "deluge-project/sequence_direction.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/oled.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -81,7 +83,10 @@ public:
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(modelStackWithNoteRow, current_value);
+			deluge::edits::noteRowSettingFor(
+			    *modelStackWithNoteRow->getNoteRow(),
+			    *static_cast<InstrumentClip*>(modelStackWithNoteRow->getTimelineCounter()), "sequenceDirection",
+			    deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(current_value)}));
 		}
 		else {
 			getCurrentInstrumentClip()->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(),

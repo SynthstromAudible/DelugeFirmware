@@ -137,7 +137,8 @@ bool drum_write(const menu::MenuContext& ctx, std::string_view name) {
 	if (other != nullptr && other != kit->selectedDrum) {
 		return false;
 	}
-	kit->selectedDrum->setName(name);
+	deluge::edits::laneSettingFor(*kit->selectedDrum, "name",
+	                              deluge::serialization::Value::makeScalar(std::string{name}));
 	return true;
 }
 

@@ -457,7 +457,7 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 	Kit* kit = getCurrentKit();
 	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 	MultisampleRange* range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
-	drum->setName("1");
+	deluge::edits::laneSettingFor(*drum, "name", deluge::serialization::Value::makeScalar("1"));
 	deluge::gui::menu_item::settingFor(
 	    *drum, "osc1/loopMode", deluge::serialization::Value::makeNumber(std::to_underlying(SampleRepeatMode::ONCE)));
 
@@ -711,7 +711,7 @@ Error Slicer::doSlice(int32_t sliceCount) {
 		SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
 
 		if (firstDrum->nameIsDiscardable) {
-			firstDrum->setName("1");
+			deluge::edits::laneSettingFor(*firstDrum, "name", deluge::serialization::Value::makeScalar("1"));
 		}
 
 		MultisampleRange* firstRange = (MultisampleRange*)firstDrum->sources[0].getOrCreateFirstRange();
@@ -785,7 +785,9 @@ Error Slicer::doSlice(int32_t sliceCount) {
 			newDrum->setupAsSample(&paramManager);
 			kit->addDrum(newDrum);
 			// Name after addDrum binds the DocDrum (setName writes the model, which requires binding).
-			newDrum->setName(deluge::string::fromInt(i + 1));
+			deluge::edits::laneSettingFor(
+			    *newDrum, "name",
+			    deluge::serialization::Value::makeScalar(std::string{deluge::string::fromInt(i + 1)}));
 
 			range->sampleHolder.startPos = nextDrumStart;
 			nextDrumStart = (uint64_t)lengthInSamples * (i + 1) / sliceCount;

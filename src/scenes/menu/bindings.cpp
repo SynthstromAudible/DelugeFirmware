@@ -100,6 +100,7 @@
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h" // ruling 6 / the scenes-model-stack ratchet: this file and context.cpp only
 #include "model/note/note_row.h"
@@ -937,7 +938,9 @@ void write_sequence_direction(const MenuContext& ctx, int32_t value) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithNoteRow* stack = individual_note_row(ctx, memory);
 	if (stack->getNoteRowAllowNull() != nullptr) { // `direction.h:83-85`
-		stack->getNoteRow()->setSequenceDirectionMode(stack, mode);
+		deluge::edits::noteRowSettingFor(
+		    *stack->getNoteRow(), *static_cast<InstrumentClip*>(stack->getTimelineCounter()), "sequenceDirection",
+		    deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(mode)}));
 	}
 	else { // `direction.h:86-89`
 		static_cast<InstrumentClip*>(ctx.clip)->setSequenceDirectionMode(stack->toWithTimelineCounter(), mode);

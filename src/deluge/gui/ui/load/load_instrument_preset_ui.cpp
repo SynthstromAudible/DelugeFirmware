@@ -36,6 +36,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/delay_type.h"
@@ -1271,7 +1272,8 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 	kitToLoadFor->addDrum(newDrum);
 	// The name lives in the DocDrum addDrum just bound. It is the real on-card name (display-agnostic), taken from the
 	// snapshot, so it can't pick up whatever the user has since scrolled onto.
-	newDrum->setName(request.target.name);
+	deluge::edits::laneSettingFor(*newDrum, "name",
+	                              deluge::serialization::Value::makeScalar(std::string{request.target.name}));
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =

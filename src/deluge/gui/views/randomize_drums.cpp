@@ -301,7 +301,8 @@ bool RandomizeDrums::stepAwaitLoad() {
 	if (dot != nullptr) {
 		*dot = '\0';
 	}
-	rowDrum_->setName(lastName_.data());
+	deluge::edits::laneSettingFor(*rowDrum_, "name",
+	                              deluge::serialization::Value::makeScalar(std::string{lastName_.data()}));
 	current_.kit->beenEdited();
 	rowsRandomized_++;
 	phase_ = Phase::ScanRow;

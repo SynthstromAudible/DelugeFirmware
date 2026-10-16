@@ -10,6 +10,7 @@
 
 #include "gui/l10n/strings.h"
 #include "model/action/action_logger.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
@@ -107,7 +108,8 @@ bool RecorderScene::name_drum() {
 		notify::notice_error_code(static_cast<int16_t>(error));
 		return false;
 	}
-	drum->setName(new_name.c_str());
+	deluge::edits::laneSettingFor(*drum, "name",
+	                              deluge::serialization::Value::makeScalar(std::string{new_name.c_str()}));
 	return true;
 }
 

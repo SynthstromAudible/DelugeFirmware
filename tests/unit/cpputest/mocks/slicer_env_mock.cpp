@@ -18,6 +18,7 @@
 #include "slicer_env_mock.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/setting_group.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
@@ -345,6 +346,15 @@ DELUGE_STUB_FN(stub_paramBackupBackUp,
                "_ZN6deluge6bridge11ParamBackup6backUpEP20ModControllableAudioP4ClipP23ParamManagerForTimelineb")
 DELUGE_STUB_FN(stub_drumSetNameCString, "_ZN4Drum7setNameEPKc")
 DELUGE_STUB_FN(stub_drumSetNameString, "_ZN4Drum7setNameEONSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE")
+// A drum the slicer builds is in no song's record: a lane name goes to the drum alone (laneSettingFor's unbound arm),
+// and the SetSetting Edit it would otherwise issue is never constructed, only linked.
+DELUGE_STUB_RET(stub_laneAddressOf, "_ZN6deluge6bridge13laneAddressOfER4DrumR4Song",
+                std::optional<deluge::project::LaneAddress>, std::nullopt)
+DELUGE_STUB_RET(stub_applyLaneSetting,
+                "_ZN6deluge6bridge16applyLaneSettingER4DrumSt17basic_string_viewIcSt11char_traitsIcEERKNS_"
+                "13serialization5ValueE",
+                Error, Error::NONE)
+void* stub_setSettingVtable[8] asm("_ZTVN6deluge5edits10SetSettingE") = {};
 DELUGE_STUB_RET(stub_paramSetDocForParam, "_ZN8ParamSet11docForParamEi", deluge::project::DocAutoParam*, nullptr)
 DELUGE_STUB_RET(stub_modelStackWithAutoParamDoc, "_ZNK23ModelStackWithAutoParam3docEv", deluge::project::DocAutoParam*,
                 nullptr)

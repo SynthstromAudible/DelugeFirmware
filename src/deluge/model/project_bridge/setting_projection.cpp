@@ -1,6 +1,7 @@
 #include "model/project_bridge/setting_projection.h"
 
 #include "deluge-project/fraction.h"
+#include "deluge-project/sequence_direction.h"
 #include "dsp/reverb/reverb.hpp"
 #include "engine-api/types/sync.h"
 #include "model/clip/audio_clip.h"
@@ -11,6 +12,7 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/instrument/non_audio_instrument.h"
+#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/clip_iterators.h"
@@ -252,13 +254,33 @@ Error applyTrackSetting(::Output& output, std::string_view path, const Value& va
 	return Error::NONE;
 }
 
-Error applyLaneSetting(::Drum& /*drum*/, std::string_view /*path*/, const Value& /*value*/) {
-	return Error::UNSPECIFIED;
+Error applyLaneSetting(::Drum& drum, std::string_view path, const Value& value) {
+	if (path != "name") {
+		return Error::UNSPECIFIED;
+	}
+	drum.setName(value.str());
+	return Error::NONE;
 }
 
-Error applyNoteRowSetting(::NoteRow& /*row*/, ::InstrumentClip& /*clip*/, ::Song& /*song*/, std::string_view /*path*/,
-                          const Value& /*value*/) {
-	return Error::UNSPECIFIED;
+Error applyNoteRowSetting(::NoteRow& row, ::InstrumentClip& clip, ::Song& song, std::string_view path,
+                          const Value& value) {
+	const std::optional<SequenceDirection> direction = project::parse_sequence_direction(value.str());
+	if (path != "sequenceDirection" || !direction) {
+		return Error::UNSPECIFIED;
+	}
+	int32_t index = 0;
+	while (clip.noteRows.tryGet(index) != &row) {
+		if (clip.noteRows.tryGet(index) == nullptr) {
+			return Error::UNSPECIFIED;
+		}
+		index++;
+	}
+	// The row's setter recomputes its play position from the clip's, which it reads off the model stack.
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithNoteRow* stack =
+	    setupModelStackWithTimelineCounter(memory, &song, &clip)->addNoteRow(clip.getNoteRowId(&row, index), &row);
+	row.setSequenceDirectionMode(stack, *direction);
+	return Error::NONE;
 }
 
 Error applyAudioClipSetting(::AudioClip& /*clip*/, ::Song& /*song*/, std::string_view /*path*/,
@@ -346,6 +368,19 @@ std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddr
 	if (address.group == SettingGroupId::TRACK || address.group == SettingGroupId::INSTRUMENT_DEVICE) {
 		::Output* output = findOutput(song, std::get<project::TrackAddress>(address.owner).output_id);
 		return output != nullptr ? engineTrackValue(*output, path) : std::nullopt;
+	}
+	if (address.group == SettingGroupId::LANE) {
+		const auto& lane = std::get<project::LaneAddress>(address.owner);
+		::Drum* drum = findDrum(song, lane.kit_id, lane.drum_id);
+		return drum != nullptr && path == "name" ? std::optional<Value>{Value::makeScalar(drum->name())} : std::nullopt;
+	}
+	if (address.group == SettingGroupId::NOTE_ROW) {
+		const auto& row_address = std::get<project::NoteRowAddress>(address.owner);
+		auto* clip = static_cast<::InstrumentClip*>(findClip(song, row_address.clip_id, ClipType::INSTRUMENT));
+		::NoteRow* row = clip != nullptr ? findNoteRow(*clip, row_address) : nullptr;
+		return row != nullptr && path == "sequenceDirection" ? std::optional<Value>{Value::makeScalar(std::string{
+		                                                           project::to_string(row->sequenceDirectionMode())})}
+		                                                     : std::nullopt;
 	}
 	if (address.group == SettingGroupId::SONG) {
 		if (path == "swingInterval") {

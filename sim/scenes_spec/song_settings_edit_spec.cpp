@@ -5,10 +5,13 @@
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song_codec.h"
 #include "dsp/reverb/reverb.hpp"
+#include "gui/views/instrument_clip_view.h"
 #include "model/edits/set_setting.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -152,6 +155,28 @@ describe song_settings_edit("SetSetting", $ {
 		MIDIInstrument loose; // not in the song: no record to write
 		deluge::edits::trackSettingFor(loose, "name", Value::makeScalar("LOOSE"));
 		expect(loose.name).to_equal(std::string{"LOOSE"});
+	});
+	it("renames a kit row through its lane record", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
+		const auto lane = deluge::bridge::laneAddressOf(*drum, *f.song);
+		expect(lane.has_value()).to_be_true();
+		deluge::edits::laneSettingFor(*drum, "name", Value::makeScalar("KICK"));
+		expect(recorded(*f.song, {SettingGroupId::LANE, *lane}, "name")).to_equal(std::string{"KICK"});
+		expect(projected(*f.song, {SettingGroupId::LANE, *lane}, "name")).to_equal(std::string{"KICK"});
+	});
+
+	it("sets a note row's direction in its record and on the row", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* stack = f.song->setupModelStackWithCurrentClip(memory);
+		NoteRow* row = instrumentClipView.createNoteRowForYDisplay(stack, 0)->getNoteRowAllowNull();
+		expect(row != nullptr).to_be_true();
+		const auto address = deluge::bridge::noteRowAddressOf(*row, *f.clip, *f.song);
+		expect(address.has_value()).to_be_true();
+		deluge::edits::noteRowSettingFor(*row, *f.clip, "sequenceDirection", Value::makeScalar("reverse"));
+		expect(recorded(*f.song, {SettingGroupId::NOTE_ROW, *address}, "sequenceDirection")).to_equal(std::string{"reverse"});
+		expect(projected(*f.song, {SettingGroupId::NOTE_ROW, *address}, "sequenceDirection")).to_equal(std::string{"reverse"});
 	});
 });
 // clang-format on

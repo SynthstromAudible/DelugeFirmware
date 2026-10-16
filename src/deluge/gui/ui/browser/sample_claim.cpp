@@ -412,7 +412,7 @@ bool SampleClaim::stepDecideSample() {
 		sampleBrowser.autoDetectSideChainSending(drum, soundEditor.currentSource, current_.enteredText.c_str());
 
 		// Give Drum no name, momentarily. We don't want it to show up when we're searching for duplicates
-		drum->setName("");
+		deluge::edits::laneSettingFor(*drum, "name", deluge::serialization::Value::makeScalar(""));
 
 		std::string newName = current_.enteredText;
 
@@ -425,7 +425,8 @@ bool SampleClaim::stepDecideSample() {
 			}
 		}
 
-		drum->setName(newName.c_str());
+		deluge::edits::laneSettingFor(*drum, "name",
+		                              deluge::serialization::Value::makeScalar(std::string{newName.c_str()}));
 	}
 
 	// If a synth...

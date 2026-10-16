@@ -99,7 +99,8 @@ bool AudioRecorder::opened() {
 			return false;
 		}
 
-		drum->setName(newName.c_str());
+		deluge::edits::laneSettingFor(*drum, "name",
+		                              deluge::serialization::Value::makeScalar(std::string{newName.c_str()}));
 	}
 
 	PadLEDs::clearTickSquares(true);

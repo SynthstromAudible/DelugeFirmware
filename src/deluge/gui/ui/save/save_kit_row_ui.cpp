@@ -28,6 +28,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -104,7 +105,8 @@ bool SaveKitRowUI::beforeStagedWrite(const deluge::storage::SaveRequest& request
 void SaveKitRowUI::afterStagedSave(const deluge::storage::SaveRequest& request) {
 	display->removeWorkingAnimation();
 	// Give the Instrument in memory its new slot
-	soundDrumToSave->setName(request.enteredText.c_str());
+	deluge::edits::laneSettingFor(*soundDrumToSave, "name",
+	                              deluge::serialization::Value::makeScalar(std::string{request.enteredText.c_str()}));
 	soundDrumToSave->path = request.dirPath.c_str();
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the
 	// user to select such a slot
