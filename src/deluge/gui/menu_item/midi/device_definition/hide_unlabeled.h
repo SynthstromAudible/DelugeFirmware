@@ -19,6 +19,7 @@
 
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/output.h"
 #include "model/song/song.h"
@@ -36,8 +37,8 @@ public:
 	void writeCurrentValue() override {
 		t = this->getValue();
 
-		MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
-		midiInstrument->hideUnlabeledCC = t;
+		deluge::edits::trackSettingFor(*getCurrentOutput(), "hideUnlabeledCC",
+		                               deluge::serialization::Value::makeNumber(t ? 1 : 0));
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const {

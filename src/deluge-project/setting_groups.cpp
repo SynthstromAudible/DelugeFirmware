@@ -240,6 +240,40 @@ constexpr SettingInfo kInstrumentDeviceTable[] = {
     integer("cv2Source", 0, 4),
 };
 
+constexpr std::string_view kCcLabelPrefix = "ccLabels/";
+/// The CC numbers a MIDI instrument can label: 0..119.
+constexpr int32_t kNumCcLabels = 120;
+
+/// The instrument-device table: the fixed rows, the hide flag, then one `ccLabels/<cc>` row per CC. The label paths are
+/// built once, so the table's views stay valid for the program's life.
+std::span<const SettingInfo> instrument_device_table() {
+	static const std::vector<std::string> label_paths = [] {
+		std::vector<std::string> paths;
+		for (int32_t cc = 0; cc < kNumCcLabels; cc++) {
+			paths.push_back(std::string{kCcLabelPrefix} + std::to_string(cc));
+		}
+		return paths;
+	}();
+	static const std::vector<SettingInfo> rows = [] {
+		std::vector<SettingInfo> out(std::begin(kInstrumentDeviceTable), std::end(kInstrumentDeviceTable));
+		out.push_back(boolean("hideUnlabeledCC"));
+		for (const std::string& path : label_paths) {
+			out.push_back(text(path));
+		}
+		return out;
+	}();
+	return rows;
+}
+
+/// The CC a `ccLabels/<cc>` path names, or nullopt.
+std::optional<uint8_t> cc_label_of(std::string_view path) {
+	if (!path.starts_with(kCcLabelPrefix)) {
+		return std::nullopt;
+	}
+	const std::optional<int64_t> cc = engine::whole_number(path.substr(kCcLabelPrefix.size()));
+	return cc && *cc >= 0 && *cc < kNumCcLabels ? std::optional<uint8_t>{static_cast<uint8_t>(*cc)} : std::nullopt;
+}
+
 std::optional<Value> read_output(const DocOutput& o, SettingGroupId group, std::string_view path) {
 	if (group == SettingGroupId::TRACK) {
 		return path == "name" ? std::optional<Value>{Value::makeScalar(o.name)} : std::nullopt;
@@ -264,6 +298,13 @@ std::optional<Value> read_output(const DocOutput& o, SettingGroupId group, std::
 	}
 	if (path == "cv2Source") {
 		return number(std::to_underlying(o.cv2_source));
+	}
+	if (path == "hideUnlabeledCC") {
+		return number(o.hide_unlabeled_cc ? 1 : 0);
+	}
+	if (const std::optional<uint8_t> cc = cc_label_of(path)) {
+		const auto label = o.cc_labels.find(*cc);
+		return Value::makeScalar(label != o.cc_labels.end() ? label->second : std::string{});
 	}
 	return std::nullopt;
 }
@@ -294,6 +335,17 @@ void write_output(DocOutput& o, std::string_view path, const Value& value) {
 	}
 	else if (path == "cv2Source") {
 		o.cv2_source = static_cast<CVMode>(v);
+	}
+	else if (path == "hideUnlabeledCC") {
+		o.hide_unlabeled_cc = v != 0;
+	}
+	else if (const std::optional<uint8_t> cc = cc_label_of(path)) {
+		if (text_value.empty()) {
+			o.cc_labels.erase(*cc);
+		}
+		else {
+			o.cc_labels[*cc] = text_value;
+		}
 	}
 }
 
@@ -479,7 +531,7 @@ std::span<const SettingInfo> table_of(SettingGroupId group) {
 	case SettingGroupId::TRACK:
 		return kTrackTable;
 	case SettingGroupId::INSTRUMENT_DEVICE:
-		return kInstrumentDeviceTable;
+		return instrument_device_table();
 	case SettingGroupId::LANE:
 		return kLaneTable;
 	case SettingGroupId::NOTE_ROW:

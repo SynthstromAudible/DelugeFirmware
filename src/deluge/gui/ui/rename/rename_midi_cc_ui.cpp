@@ -22,6 +22,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/output.h"
 #include "model/song/song.h"
@@ -50,8 +51,9 @@ bool RenameMidiCCUI::trySetName(std::string_view name) {
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 	int32_t cc = clip->lastSelectedParamID;
 
-	midiInstrument->setNameForCC(cc, name);
-	midiInstrument->editedByUser = true; // need to set this to true so that the name gets saved with the song / preset
+	// The label's Edit marks the track edited, so the label is saved with the song or preset.
+	deluge::edits::trackSettingFor(*midiInstrument, "ccLabels/" + std::to_string(cc),
+	                               deluge::serialization::Value::makeScalar(std::string{name}));
 
 	return true;
 }

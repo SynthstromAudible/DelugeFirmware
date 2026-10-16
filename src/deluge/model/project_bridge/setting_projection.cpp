@@ -255,6 +255,16 @@ Error applyTrackSetting(::Output& output, std::string_view path, const Value& va
 		midi.setDeviceDefinitionFileName(value.str());
 		return Error::NONE;
 	}
+	if (path.starts_with("ccLabels/")) {
+		const std::optional<int64_t> cc = engine::whole_number(path.substr(std::string_view{"ccLabels/"}.size()));
+		if (!cc) {
+			return Error::UNSPECIFIED;
+		}
+		midi.setNameForCC(static_cast<int32_t>(*cc), value.str());
+		// A device's labels are saved with the track only once it counts as edited.
+		midi.editedByUser = true;
+		return Error::NONE;
+	}
 	if (!v) {
 		return Error::UNSPECIFIED;
 	}
@@ -269,6 +279,10 @@ Error applyTrackSetting(::Output& output, std::string_view path, const Value& va
 	}
 	else if (path == "collapseMpe") {
 		midi.setCollapseMPE(*v != 0);
+	}
+	else if (path == "hideUnlabeledCC") {
+		midi.hideUnlabeledCC = *v != 0;
+		midi.editedByUser = true;
 	}
 	else {
 		return Error::UNSPECIFIED;
@@ -574,6 +588,14 @@ std::optional<Value> engineTrackValue(::Output& output, std::string_view path) {
 	}
 	if (path == "collapseMpe") {
 		return Value::makeNumber(midi.collapseMPE ? 1 : 0);
+	}
+	if (path == "hideUnlabeledCC") {
+		return Value::makeNumber(midi.hideUnlabeledCC ? 1 : 0);
+	}
+	if (path.starts_with("ccLabels/")) {
+		const std::optional<int64_t> cc = engine::whole_number(path.substr(std::string_view{"ccLabels/"}.size()));
+		return cc ? std::optional<Value>{Value::makeScalar(std::string{midi.getNameFromCC(static_cast<int32_t>(*cc))})}
+		          : std::nullopt;
 	}
 	return std::nullopt;
 }

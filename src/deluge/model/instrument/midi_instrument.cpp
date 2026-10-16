@@ -60,6 +60,13 @@ void MIDIInstrument::seedDocOutputIdentity() {
 		docOutput_->collapse_aftertouch = collapseAftertouch;
 		docOutput_->collapse_mpe = collapseMPE;
 		docOutput_->output_mpe_y = static_cast<uint8_t>(outputMPEY);
+		docOutput_->hide_unlabeled_cc = hideUnlabeledCC;
+		docOutput_->cc_labels.clear();
+		for (const auto& [cc, label] : labels) {
+			if (!label.empty()) {
+				docOutput_->cc_labels[static_cast<uint8_t>(cc)] = label;
+			}
+		}
 	}
 }
 
@@ -449,7 +456,7 @@ void MIDIInstrument::writeDeviceDefinitionFile(Serializer& writer, bool writeFil
 	writeCCLabelsToFile(writer);
 
 	writer.writeOpeningTagBeginning("hideUnlabeledCC");
-	writer.writeAttribute("value", (int32_t)hideUnlabeledCC);
+	writer.writeAttribute("value", (int32_t)(docOutput_ != nullptr ? docOutput_->hide_unlabeled_cc : hideUnlabeledCC));
 	writer.closeTag();
 
 	writer.writeClosingTag("midiDevice");
@@ -474,9 +481,15 @@ void MIDIInstrument::writeCCLabelsToFile(Serializer& writer) {
 	writer.writeOpeningTagBeginning("ccLabels");
 	for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
 		if (i != CC_EXTERNAL_MOD_WHEEL) {
-			auto it = labels.find(i);
 			char ccNumber[10];
 			intToString(i, ccNumber, 1);
+			// The labels are the record's when the instrument has one.
+			if (docOutput_ != nullptr) {
+				const auto label = docOutput_->cc_labels.find(static_cast<uint8_t>(i));
+				writer.writeAttribute(ccNumber, label != docOutput_->cc_labels.end() ? label->second.c_str() : "");
+				continue;
+			}
+			auto it = labels.find(i);
 			if (it != labels.end()) {
 				writer.writeAttribute(ccNumber, it->second.data());
 			}

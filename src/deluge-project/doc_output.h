@@ -21,6 +21,7 @@
 #include "deluge-project/cv_mode.h"
 #include "deluge-project/instrument_slot.h"
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -49,6 +50,8 @@ struct DocOutput {
 	bool collapse_mpe{true};                          ///< MIDIInstrument
 	uint8_t output_mpe_y{0};                          ///< MIDIInstrument (CCNumber underlying)
 	CVMode cv2_source{CVMode::OFF};                   ///< CVInstrument
+	bool hide_unlabeled_cc{false};                    ///< MIDIInstrument: its CC menus offer only labelled CCs
+	std::map<uint8_t, std::string> cc_labels;         ///< MIDIInstrument: the user's names for its CCs, by number
 	int8_t input_channel{1};                          ///< AudioOutput: an index of kInputChannelWords (left)
 	uint8_t audio_mode{0};                            ///< AudioOutput: an index of kAudioModeWords (player)
 	std::optional<uint32_t> recording_from_output_id; ///< AudioOutput: the track it records from, by id
@@ -70,6 +73,7 @@ struct DocOutput {
 		       && channel_suffix == other.channel_suffix
 		       && device_definition_file_name == other.device_definition_file_name
 		       && collapse_aftertouch == other.collapse_aftertouch && collapse_mpe == other.collapse_mpe
+		       && hide_unlabeled_cc == other.hide_unlabeled_cc && cc_labels == other.cc_labels
 		       && input_channel == other.input_channel && audio_mode == other.audio_mode
 		       && recording_from_output_id == other.recording_from_output_id && output_mpe_y == other.output_mpe_y
 		       && cv2_source == other.cv2_source && instrument == other.instrument && controls == other.controls

@@ -394,6 +394,10 @@ Error StorageManager::parseMidiDeviceDefinitionDocument(deluge::storage::TreeDoc
 		deluge::storage::ActiveReaderScope reading(document.reader());
 		error = midiInstrument->readDeviceDefinitionFile(document.reader());
 	}
+	// The definition's labels and hide flag are the track's record's too.
+	if (error == Error::NONE) {
+		midiInstrument->seedDocOutputIdentity();
+	}
 
 	// If that somehow didn't work...
 	if (error != Error::NONE) {

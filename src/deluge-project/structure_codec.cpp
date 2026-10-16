@@ -17,6 +17,7 @@
 
 #include "deluge-project/structure_codec.h"
 #include "deluge-project/audio_input.h"
+#include "engine-api/types/setting.h"
 
 #include "deluge-project/arrangement.h"
 #include "deluge-project/launch_style.h"
@@ -226,6 +227,9 @@ DocOutput new_output(std::string_view element) {
 	return output;
 }
 
+/// The CC numbers a MIDI instrument can label: 0..119.
+constexpr int64_t kNumCcLabels = 120;
+
 Value encode_identity(const DocOutput& output, std::string_view element) {
 	auto map = Value::makeMap();
 	if (output.muted_in_arrangement) {
@@ -270,6 +274,14 @@ Value encode_identity(const DocOutput& output, std::string_view element) {
 		definition.set("name", text(output.device_definition_file_name));
 		auto device = Value::makeMap();
 		device.set("definitionFile", std::move(definition));
+		auto labels = Value::makeMap();
+		for (const auto& [cc, label] : output.cc_labels) {
+			labels.set(std::to_string(cc), text(label));
+		}
+		device.set("ccLabels", std::move(labels));
+		auto hide = Value::makeMap();
+		hide.set("value", Value::makeNumber(output.hide_unlabeled_cc ? 1 : 0));
+		device.set("hideUnlabeledCC", std::move(hide));
 		map.set("midiDevice", std::move(device));
 	}
 	else if (element == "cvChannel") {
@@ -365,6 +377,20 @@ std::expected<void, LoadError> decode_identity(const Value& outputElement, std::
 			    definition != nullptr && definition->isMap()) {
 				if (const std::string* name = text_of(definition->find("name"))) {
 					output.device_definition_file_name = *name;
+				}
+			}
+			if (const Value* labels = device->find("ccLabels"); labels != nullptr && labels->isMap()) {
+				for (const auto& [cc, label] : labels->entries()) {
+					const std::optional<int64_t> number = engine::whole_number(cc);
+					const std::string* name = text_of(&label);
+					if (number && *number >= 0 && *number < kNumCcLabels && name != nullptr && !name->empty()) {
+						output.cc_labels[static_cast<uint8_t>(*number)] = *name;
+					}
+				}
+			}
+			if (const Value* hide = device->find("hideUnlabeledCC"); hide != nullptr) {
+				if (auto v = int_of(hide->isMap() ? hide->find("value") : hide)) {
+					output.hide_unlabeled_cc = *v != 0;
 				}
 			}
 		}

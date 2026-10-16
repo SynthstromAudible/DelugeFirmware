@@ -112,7 +112,8 @@ void set_midi_hide_unlabeled(const MenuContext& ctx, int32_t value) {
 	// so `renderSubmenuItemTypeForOled` can draw the checkbox without a re-read; there is no such
 	// member here, and the node's value comes back through `bindings::read`.
 	if (MIDIInstrument* instrument = midi_instrument(ctx); instrument != nullptr) {
-		instrument->hideUnlabeledCC = value != 0;
+		deluge::edits::trackSettingFor(*instrument, "hideUnlabeledCC",
+		                               deluge::serialization::Value::makeNumber(value != 0 ? 1 : 0));
 	}
 }
 

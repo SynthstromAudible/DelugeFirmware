@@ -370,6 +370,25 @@ describe song_settings_edit("SetSetting", $ {
 		expect(recorded(*f.song, input, "outputRecordingFrom")).to_equal(std::string{"-1"});
 		expect(f.output->getOutputRecordingFrom() == nullptr).to_be_true();
 	});
+	it("saves hide-unlabeled even on a MIDI track never otherwise edited", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		auto& midi = *static_cast<MIDIInstrument*>(f.instrument);
+		midi.editedByUser = false;
+		deluge::edits::trackSettingFor(midi, "hideUnlabeledCC", Value::makeNumber(1));
+		const SettingAddress device = track_of(*f.song, midi, "hideUnlabeledCC");
+		expect(recorded(*f.song, device, "hideUnlabeledCC")).to_equal(std::string{"1"});
+		expect(midi.hideUnlabeledCC).to_be_true();
+		expect(midi.editedByUser).to_be_true(); // the device element is only saved for an edited track
+	});
+
+	it("keeps a CC label in the record and on the instrument", _ {
+		spec::SongFixture f = spec::make_midi_song();
+		auto& midi = *static_cast<MIDIInstrument*>(f.instrument);
+		deluge::edits::trackSettingFor(midi, "ccLabels/20", Value::makeScalar("FILTER"));
+		const SettingAddress device = track_of(*f.song, midi, "ccLabels/20");
+		expect(recorded(*f.song, device, "ccLabels/20")).to_equal(std::string{"FILTER"});
+		expect(std::string{midi.getNameFromCC(20)}).to_equal(std::string{"FILTER"});
+	});
 });
 // clang-format on
 
