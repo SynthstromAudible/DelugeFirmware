@@ -354,7 +354,7 @@ DELUGE_STUB_RET(stub_applyLaneSetting,
                 "_ZN6deluge6bridge16applyLaneSettingER4DrumSt17basic_string_viewIcSt11char_traitsIcEERKNS_"
                 "13serialization5ValueE",
                 Error, Error::NONE)
-void* stub_setSettingVtable[8] asm("_ZTVN6deluge5edits10SetSettingE") = {};
+DELUGE_STUB_DATA(stub_setSettingVtable, "_ZTVN6deluge5edits10SetSettingE", 64)
 // No setting group's table: a lane name the slicer gives its drums is refused before the drum, as the drum's own
 // setName stub drops it.
 DELUGE_STUB_RET(stub_tableOf, "_ZN6deluge7project8table_ofENS0_14SettingGroupIdE",

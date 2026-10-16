@@ -94,7 +94,7 @@ SETTERS = (
 )
 #: Receivers that are not a sound: a sample range's holder. (An audio clip's settings are song state, below.)
 ALLOWED_RECEIVERS = {"sampleHolder"}
-#: A receiver allowed only in the audio clip's own menus: none, now that an audio clip's settings are song state.
+#: A receiver allowed only in the audio clip's own menus: none, an audio clip's settings being song state.
 AUDIO_CLIP_RECEIVERS: set[str] = set()
 AUDIO_CLIP_MENUS = "audio_clip"
 
@@ -211,7 +211,7 @@ def song_state_writes(
     return found
 
 
-#: Files outside the root checked the same way: none, now that the root is the whole UI.
+#: Files outside the roots checked the same way: none, the roots being the whole UI.
 ALSO: tuple[Path, ...] = ()
 
 #: The host owners' code (a kit's, an audio track's and the master's effects and knobs): an effect setter or a view

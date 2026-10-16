@@ -69,7 +69,10 @@ public:
 			}
 		}
 
-		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+		// The reverb's own sidechain sets this through its projection.
+		if (!is_reverb_sidechain_) {
+			AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return RELEASE; }

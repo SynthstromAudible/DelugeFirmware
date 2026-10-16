@@ -23,8 +23,8 @@ public:
 	    : address_(std::move(address)), path_(std::move(path)), value_(std::move(value)) {}
 
 	/// @copydoc Edit::apply
-	/// @return Error::UNSPECIFIED, with nothing changed, when the owner does not resolve or the path or value is
-	///         refused; otherwise the projection's result.
+	/// @return Error::UNSPECIFIED, with nothing changed, when the owner does not resolve, the path or value is refused,
+	///         or the engine object refuses it (the record is put back); otherwise Error::NONE.
 	Error apply(Context& ctx) override;
 
 private:

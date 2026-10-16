@@ -317,6 +317,8 @@ DocNoteRow* resolve_note_row(Song& song, const NoteRowAddress& address) {
 // AUDIO_CLIP (on DocAudioClip)
 
 constexpr SettingInfo kAudioClipTable[] = {
+    // A row's range is int32: a marker past 2^31 frames (an 8-bit file over 2 GB) is refused, though the record holds
+    // 64 bits.
     integer("startSamplePos", 0, INT32_MAX),
     integer("endSamplePos", 0, INT32_MAX),
     integer("transpose", -96, 96, 0, {}, SettingUnits::SEMITONES),

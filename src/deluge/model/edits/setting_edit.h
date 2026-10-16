@@ -168,6 +168,10 @@ inline void recordControlsOf(::ModControllable& owner) {
 /// @param value   The new value, in its file form.
 inline void applySettingEdit(const deluge::project::SettingAddress& address, std::string_view path,
                              deluge::serialization::Value value) {
+	if (currentSong == nullptr) {
+		D_PRINTLN("setting refused, no song: %.*s", static_cast<int>(path.size()), path.data());
+		return;
+	}
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetSetting edit{address, std::string(path), value};
 	if (deluge::edits::apply(ctx, edit) != Error::NONE) {
@@ -191,6 +195,10 @@ inline bool settingRefused(deluge::project::SettingGroupId group, std::string_vi
 /// @param path  The setting's path in the song group.
 /// @param value The new value, in its file form.
 inline void songSettingFor(std::string_view path, deluge::serialization::Value value) {
+	if (currentSong == nullptr) {
+		D_PRINTLN("setting refused, no song: %.*s", static_cast<int>(path.size()), path.data());
+		return;
+	}
 	applySettingEdit({deluge::project::SettingGroupId::SONG, deluge::project::SongAddress{}}, path, std::move(value));
 }
 
@@ -199,6 +207,10 @@ inline void songSettingFor(std::string_view path, deluge::serialization::Value v
 /// @param path The setting's path in the song group.
 /// @param user The menu's value.
 inline void songSettingFromMenu(std::string_view path, int32_t user) {
+	if (currentSong == nullptr) {
+		D_PRINTLN("setting refused, no song: %.*s", static_cast<int>(path.size()), path.data());
+		return;
+	}
 	for (const deluge::engine::SettingInfo& row : deluge::project::table_of(deluge::project::SettingGroupId::SONG)) {
 		if (row.path == path) {
 			if (const std::optional<int32_t> stored = deluge::engine::to_stored(row, user)) {
@@ -217,6 +229,10 @@ inline void songSettingFromMenu(std::string_view path, int32_t user) {
 /// @param path   The setting's path in the track or instrument-device group.
 /// @param value  The new value, in its file form.
 inline void trackSettingFor(::Output& output, std::string_view path, deluge::serialization::Value value) {
+	if (currentSong == nullptr) {
+		D_PRINTLN("setting refused, no song: %.*s", static_cast<int>(path.size()), path.data());
+		return;
+	}
 	if (const std::optional<deluge::project::TrackAddress> track =
 	        deluge::bridge::trackAddressOf(output, *currentSong)) {
 		applySettingEdit({deluge::bridge::trackGroupOf(path), *track}, path, std::move(value));
@@ -236,6 +252,10 @@ inline void trackSettingFor(::Output& output, std::string_view path, deluge::ser
 /// @param path  The setting's path in the lane group.
 /// @param value The new value, in its file form.
 inline void laneSettingFor(::Drum& drum, std::string_view path, deluge::serialization::Value value) {
+	if (currentSong == nullptr) {
+		D_PRINTLN("setting refused, no song: %.*s", static_cast<int>(path.size()), path.data());
+		return;
+	}
 	if (const std::optional<deluge::project::LaneAddress> lane = deluge::bridge::laneAddressOf(drum, *currentSong)) {
 		applySettingEdit({deluge::project::SettingGroupId::LANE, *lane}, path, std::move(value));
 		return;
@@ -256,6 +276,10 @@ inline void laneSettingFor(::Drum& drum, std::string_view path, deluge::serializ
 /// @param value The new value, in its file form.
 inline void noteRowSettingFor(::NoteRow& row, ::InstrumentClip& clip, std::string_view path,
                               deluge::serialization::Value value) {
+	if (currentSong == nullptr) {
+		D_PRINTLN("setting refused, no song: %.*s", static_cast<int>(path.size()), path.data());
+		return;
+	}
 	if (const std::optional<deluge::project::NoteRowAddress> address =
 	        deluge::bridge::noteRowAddressOf(row, clip, *currentSong)) {
 		applySettingEdit({deluge::project::SettingGroupId::NOTE_ROW, *address}, path, std::move(value));
@@ -275,6 +299,10 @@ inline void noteRowSettingFor(::NoteRow& row, ::InstrumentClip& clip, std::strin
 /// @param path  The setting's path in the audio-clip group.
 /// @param value The new value, in its file form.
 inline void audioClipSettingFor(::AudioClip& clip, std::string_view path, deluge::serialization::Value value) {
+	if (currentSong == nullptr) {
+		D_PRINTLN("setting refused, no song: %.*s", static_cast<int>(path.size()), path.data());
+		return;
+	}
 	if (const std::optional<deluge::project::ClipAddress> address =
 	        deluge::bridge::audioClipAddressOf(clip, *currentSong)) {
 		applySettingEdit({deluge::project::SettingGroupId::AUDIO_CLIP, *address}, path, std::move(value));

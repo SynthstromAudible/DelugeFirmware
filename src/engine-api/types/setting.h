@@ -47,8 +47,8 @@ struct UserScale {
 	int32_t stored_max{0};
 	std::span<const SettingSentinel> sentinels{};
 
-	/// @brief Whether a menu shows the stored value itself.
-	[[nodiscard]] constexpr bool identity() const { return user_min == 0 && user_max == 0 && sentinels.empty(); }
+	/// @brief Whether a menu shows the stored value itself, its sentinels aside (no user range of its own).
+	[[nodiscard]] constexpr bool identity() const { return user_min == 0 && user_max == 0; }
 };
 
 /// @brief What a setting's menu value counts.

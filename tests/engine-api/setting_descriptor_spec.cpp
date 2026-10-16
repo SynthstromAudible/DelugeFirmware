@@ -41,6 +41,9 @@ constexpr SettingInfo kRoom{
     .max = 2147483647,
     .user = {.user_min = 0, .user_max = 50, .stored_min = 0, .stored_max = 2147483647},
 };
+constexpr SettingSentinel kAuto[] = {{.user = -1, .stored = -21474836}};
+constexpr SettingInfo kSentinelOnly{
+    .path = "volume", .kind = SettingKind::INTEGER, .min = -21474836, .max = 1073741800, .user = {.sentinels = kAuto}};
 constexpr SettingInfo kPlain{.path = "plain", .kind = SettingKind::INTEGER, .min = -5, .max = 5};
 } // namespace
 
@@ -56,6 +59,12 @@ describe setting_descriptor("SettingInfo's user mapping", $ {
 		expect(*deluge::engine::to_stored(kRoom, 50)).to_equal(2147483647);
 		expect(*deluge::engine::to_stored(kRoom, 0)).to_equal(0);
 		expect(deluge::engine::to_user(kRoom, *deluge::engine::to_stored(kRoom, 25))).to_equal(25);
+	});
+	it("passes values through a scale that has only a sentinel, mapping the sentinel", _ {
+		expect(*deluge::engine::to_stored(kSentinelOnly, -1)).to_equal(-21474836);
+		expect(deluge::engine::to_user(kSentinelOnly, -21474836)).to_equal(-1);
+		expect(*deluge::engine::to_stored(kSentinelOnly, 1000)).to_equal(1000);
+		expect(deluge::engine::to_user(kSentinelOnly, 1000)).to_equal(1000);
 	});
 	it("refuses a user value outside the user range", _ {
 		expect(deluge::engine::to_stored(kMaxVoices, 17).has_value()).to_be_false();

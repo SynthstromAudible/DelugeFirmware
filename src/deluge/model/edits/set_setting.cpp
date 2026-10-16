@@ -13,7 +13,12 @@ Error SetSetting::apply(Context& ctx) {
 	if (!deluge::project::write_setting(ctx.model, address_, path_, value_)) {
 		return Error::UNSPECIFIED;
 	}
-	return deluge::bridge::projectSetting(ctx.song, address_, path_, previous ? &*previous : nullptr);
+	const Error projected = deluge::bridge::projectSetting(ctx.song, address_, path_, previous ? &*previous : nullptr);
+	if (projected != Error::NONE && previous) {
+		// The engine took nothing (an owner of a kind the setting is not for): the record keeps what it held.
+		(void)deluge::project::write_setting(ctx.model, address_, path_, *previous);
+	}
+	return projected;
 }
 
 } // namespace deluge::edits

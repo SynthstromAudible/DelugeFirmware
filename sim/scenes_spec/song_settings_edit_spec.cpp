@@ -219,6 +219,27 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::edits::trackSettingFor(loose, "channelSuffix", Value::makeScalar("x"));
 		expect(loose.channelSuffix).to_equal(-1);
 	});
+	it("leaves the record as it was when the engine refuses the value", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		const auto track = deluge::bridge::trackAddressOf(*f.instrument, *f.song);
+		expect(track.has_value()).to_be_true();
+		const SettingAddress device{SettingGroupId::INSTRUMENT_DEVICE, *track};
+		const std::string before = recorded(*f.song, device, "collapseMpe");
+		deluge::edits::Context ctx{*f.song, f.song->project};
+		deluge::edits::SetSetting edit{device, "collapseMpe", Value::makeNumber(before == "1" ? 0 : 1)};
+		expect(static_cast<int>(deluge::edits::apply(ctx, edit))).to_equal(static_cast<int>(Error::UNSPECIFIED));
+		expect(recorded(*f.song, device, "collapseMpe")).to_equal(before);
+	});
+
+	it("changes nothing, and does not fault, with no current song", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		Song* const song = currentSong;
+		currentSong = nullptr;
+		deluge::edits::songSettingFor("swingInterval", Value::makeNumber(5));
+		deluge::edits::trackSettingFor(*f.instrument, "name", Value::makeScalar("NOSONG"));
+		currentSong = song;
+		expect(f.instrument->name == "NOSONG").to_be_false();
+	});
 });
 // clang-format on
 
