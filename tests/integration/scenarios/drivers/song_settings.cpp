@@ -36,6 +36,7 @@
 #include <map>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <vector>
 
 namespace {
@@ -245,9 +246,8 @@ int32_t saveLegs(Song& song, deluge::scenarios::driver::Io io) {
 	if (midiClip != nullptr) {
 		const uint32_t clipId = midiClip->id();
 		const SettingAddress arp{SettingGroupId::CLIP_ARP, deluge::project::ClipAddress{.clip_id = clipId}};
-		const bool set = applySetting(song, arp, "arpeggiator/arpMode", Value::makeScalar("arp"))
-		                 && applySetting(song, arp, "arpeggiator/randomizerLock", Value::makeNumber(1));
-		// What the render generates while the lock holds: its locked values and the note pattern.
+		// What the render generates while the lock holds: its locked values and the note pattern. They are planted
+		// first, so the Edits after them must leave them as they are.
 		ArpeggiatorSettings& settings = midiClip->arpSettings;
 		for (uint32_t i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
 			settings.lockedNoteProbabilityValues[i] = static_cast<int8_t>(i * 7 - 50);
@@ -255,13 +255,21 @@ int32_t saveLegs(Song& song, deluge::scenarios::driver::Io io) {
 		}
 		settings.lastLockedNoteProbabilityParameterValue = 123456;
 		settings.notePattern[0] = 5;
+		const auto generated =
+		    std::tuple{settings.lockedNoteProbabilityValues, settings.lockedSpreadOctaveValues, settings.notePattern};
+		const bool set = applySetting(song, arp, "arpeggiator/arpMode", Value::makeScalar("arp"))
+		                 && applySetting(song, arp, "arpeggiator/randomizerLock", Value::makeNumber(0))
+		                 && applySetting(song, arp, "arpeggiator/randomizerLock", Value::makeNumber(1))
+		                 && applySetting(song, arp, "arpeggiator/numOctaves", Value::makeNumber(3))
+		                 && applySetting(song, arp, "arpeggiator/noteMode", Value::makeScalar("down"))
+		                 && applySetting(song, arp, "arpeggiator/preset", Value::makeScalar("up"));
 		Song* reloaded = set ? savedAndReloaded(song) : nullptr;
 		auto* back = reloaded != nullptr ? static_cast<::InstrumentClip*>(reloaded->clipForId(clipId)) : nullptr;
 		if (back == nullptr || !back->arpSettings.randomizerLock
-		    || back->arpSettings.lockedNoteProbabilityValues != settings.lockedNoteProbabilityValues
-		    || back->arpSettings.lockedSpreadOctaveValues != settings.lockedSpreadOctaveValues
-		    || back->arpSettings.lastLockedNoteProbabilityParameterValue != 123456
-		    || back->arpSettings.notePattern != settings.notePattern) {
+		    || std::tuple{back->arpSettings.lockedNoteProbabilityValues, back->arpSettings.lockedSpreadOctaveValues,
+		                  back->arpSettings.notePattern}
+		           != generated
+		    || back->arpSettings.lastLockedNoteProbabilityParameterValue != 123456) {
 			std::fprintf(io.err,
 			             "SONG-SETTINGS-SAVE FAIL arpLock: the reloaded MIDI clip lost its locked arp values\n");
 			failures++;
