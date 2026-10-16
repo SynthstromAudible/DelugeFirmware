@@ -162,6 +162,21 @@ describe level3_runner(
 	        });
 
 	    it(
+	        "refuses a step of more detents than the accumulator holds, rather than turning it round", _ {
+		        g_blitted = false;
+		        expect(start("0 encoder Select +31\n10 quit\n")).to_equal(-1);
+		        expect(run_until(20)).to_equal(0);
+		        expect(g_edges.at(0).second).to_equal(124);
+
+		        expect(start("0 encoder Select +32\n10 quit\n")).to_equal(-1);
+		        expect(run_until(20)).to_equal(2);
+		        expect(g_edges.empty()).to_be_true();
+
+		        expect(start("0 encoder Select -33\n10 quit\n")).to_equal(-1);
+		        expect(run_until(20)).to_equal(2);
+	        });
+
+	    it(
 	        "fails a snapshot taken before the first frame", _ {
 		        g_blitted = false;
 		        expect(start("5 snapshot early\n10 quit\n")).to_equal(-1);
