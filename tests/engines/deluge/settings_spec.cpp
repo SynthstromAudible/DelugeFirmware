@@ -1,3 +1,4 @@
+#include "engine-api/types/arp.h"
 #include "engines/deluge/codec.h"
 #include "engines/deluge/settings.h"
 #include "serialization/tree.h"
@@ -173,6 +174,14 @@ describe settings("the Deluge instrument's settings schema", ${
 		expect(allows_setting(ringing, "osc1/type", Value::makeScalar("sample"))).to_be_false();
 		expect(allows_setting(ringing, "osc1/type", Value::makeScalar("wavetable"))).to_be_true();
 		expect(allows_setting(sampleState(), "mode", Value::makeScalar("fm"))).to_be_true();
+	});
+
+	it("gives a clip its arp's settings as the instrument's clip-scoped rows, apart from its sound's", _ {
+		expect(kClipScopedSettings.size()).to_equal(deluge::engine::kArpSettingRows.size());
+		for (const deluge::engine::SettingInfo& row : kClipScopedSettings) {
+			expect(deluge::engine::find_setting(deluge::engine::kArpSettingRows, row.path) != nullptr).to_be_true();
+			expect(deluge::engine::find_setting(kSettings, row.path) == nullptr).to_be_true();
+		}
 	});
 });
 

@@ -31,6 +31,10 @@ namespace deluge::instrument {
 /// changes, and the structured ones (sample and wavetable ranges, the DX7 patch) only their own Edits change.
 extern const std::span<const engine::SettingInfo> kSettings;
 
+/// @brief The Deluge instrument's clip-scoped settings: its arp's (kArpSettingRows). A clip holds their values in its
+/// value layer, so they are apart from kSettings, whose every row is a value of the sound's slot.
+extern const std::span<const engine::SettingInfo> kClipScopedSettings;
+
 /// @brief Whether @p value is one @p path's row allows: a non-structured row's choice, an integer in its range, or 0
 /// or 1 for a bool. False for a structured row or a path the schema does not hold.
 /// @param path  The setting's path.

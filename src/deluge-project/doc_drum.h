@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "deluge-project/arp_record.h"
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/drum_type.h"
 #include "deluge-project/instrument_slot.h"
@@ -42,11 +43,13 @@ struct DocDrum {
 	std::optional<InstrumentSlot> instrument;
 	/// A sound kit row's mod knobs and learned MIDI knobs, each pointed at a param of its instrument.
 	std::vector<ControllerMapping> controls;
+	/// The row's arp, its lane's note device; absent until the row has one recorded.
+	std::optional<ArpRecord> arp;
 
-	/// Equal when the identity fields, the instrument and the controls are.
+	/// Equal when the identity fields, the instrument, the controls and the arp are.
 	bool operator==(const DocDrum& other) const {
 		return drum_type == other.drum_type && channel == other.channel && note == other.note && name == other.name
-		       && instrument == other.instrument && controls == other.controls;
+		       && instrument == other.instrument && controls == other.controls && arp == other.arp;
 	}
 };
 

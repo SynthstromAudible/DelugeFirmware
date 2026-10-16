@@ -37,6 +37,8 @@ enum class SettingGroupId : uint8_t {
 	CLIP,              ///< a clip's identity and playback: its name and direction
 	CLIP_VALUES,       ///< the values a clip holds over its track's: MIDI program, bend ranges
 	AUDIO_INPUT,       ///< an audio track's input: its mode, channel and the track it records from
+	CLIP_ARP,          ///< a clip's arp, in its value layer: a synth's, a MIDI or CV clip's, or the whole kit's
+	LANE_ARP,          ///< a kit row's arp, its lane's note device
 };
 
 /// @brief The song itself, as an owner.
@@ -77,7 +79,7 @@ struct SettingAddress {
                                                                std::string_view path);
 
 /// @brief Whether @p address holds its own value at @p path. Every setting does but a clip value (and a kit row's bend
-///        range) a clip leaves to its track.
+///        range) a clip leaves to its track, and an arp's host value where it is a param.
 /// @param song    The song whose records hold it.
 /// @param address The group and owner.
 /// @param path    A path of the group's table.
@@ -85,7 +87,7 @@ struct SettingAddress {
 [[nodiscard]] bool holds_setting(Song& song, const SettingAddress& address, std::string_view path);
 
 /// @brief Forget @p address's own value at @p path, so it plays its track's again. Only a clip value (and a kit row's
-///        bend range) can be forgotten; any other setting is left as it is.
+///        bend range, and an arp's host value) can be forgotten; any other setting is left as it is.
 /// @param song    The song whose records hold it.
 /// @param address The group and owner.
 /// @param path    A path of the group's table.

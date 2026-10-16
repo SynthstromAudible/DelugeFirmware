@@ -41,6 +41,10 @@ const char* groupName(SettingGroupId group) {
 		return "CLIP_VALUES";
 	case SettingGroupId::AUDIO_INPUT:
 		return "AUDIO_INPUT";
+	case SettingGroupId::CLIP_ARP:
+		return "CLIP_ARP";
+	case SettingGroupId::LANE_ARP:
+		return "LANE_ARP";
 	}
 	return "?";
 }

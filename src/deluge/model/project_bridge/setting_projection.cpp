@@ -556,6 +556,9 @@ Error projectSetting(::Song& song, const project::SettingAddress& address, std::
 		    findClip(song, std::get<project::ClipAddress>(address.owner).clip_id, ClipType::INSTRUMENT));
 		return clip != nullptr ? applyClipValueSetting(*clip, song, path, *value) : Error::UNSPECIFIED;
 	}
+	case SettingGroupId::CLIP_ARP:
+	case SettingGroupId::LANE_ARP:
+		return Error::UNSPECIFIED; // no engine arp takes a record's value yet
 	}
 	return Error::UNSPECIFIED;
 }

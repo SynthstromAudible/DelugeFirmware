@@ -1,12 +1,16 @@
-#include "deluge-project/audio_input.h"
 #include "deluge-project/setting_group.h"
+
+#include "deluge-project/arp_record.h"
+#include "deluge-project/audio_input.h"
 
 #include "deluge-project/fraction.h"
 #include "deluge-project/sequence_direction.h"
 #include "deluge-project/song.h"
+#include "engine-api/types/arp.h"
 #include "engine-api/types/sync.h"
 #include "serialization/tree.h"
 
+#include <algorithm>
 #include <array>
 #include <climits>
 #include <string>
@@ -522,6 +526,84 @@ void write_audio_clip(DocAudioClip& c, std::string_view path, int32_t v) {
 	}
 }
 
+// ---------------------------------------------------------------------------------------------
+// CLIP_ARP (in DocClip's value layer) and LANE_ARP (on DocDrum)
+
+/// The arp groups' table: the setting rows, then the host rows. Built once, so its views stay valid.
+std::span<const SettingInfo> arp_table() {
+	static const std::vector<SettingInfo> rows = [] {
+		std::vector<SettingInfo> out(engine::kArpSettingRows.begin(), engine::kArpSettingRows.end());
+		out.insert(out.end(), engine::kArpHostRows.begin(), engine::kArpHostRows.end());
+		return out;
+	}();
+	return rows;
+}
+
+bool is_arp_group(SettingGroupId group) {
+	return group == SettingGroupId::CLIP_ARP || group == SettingGroupId::LANE_ARP;
+}
+
+/// The slot of the arp record @p address names (empty until one is recorded); nullptr when the owner does not resolve.
+std::optional<ArpRecord>* arp_record_of(Song& song, const SettingAddress& address) {
+	if (address.group == SettingGroupId::CLIP_ARP) {
+		const auto* clip = std::get_if<ClipAddress>(&address.owner);
+		DocClip* record = clip != nullptr ? song.clip_structure.find(clip->clip_id) : nullptr;
+		return record != nullptr ? &record->values.arp : nullptr;
+	}
+	const auto* lane = std::get_if<LaneAddress>(&address.owner);
+	DocDrum* drum = lane != nullptr ? song.drum_structure.find(lane->drum_id) : nullptr;
+	return drum != nullptr ? &drum->arp : nullptr;
+}
+
+Value word(std::span<const std::string_view> words, size_t index) {
+	return Value::makeScalar(std::string{index < words.size() ? words[index] : words.front()});
+}
+
+std::optional<Value> read_arp(const ArpRecord& record, std::string_view path) {
+	if (path == "arpeggiator/preset") {
+		return word(engine::kArpPresetWords, preset_of(record));
+	}
+	if (const std::optional<int32_t>* host = host_value_at(record, path)) {
+		return number(host->value_or(engine::find_setting(engine::kArpHostRows, path)->default_value));
+	}
+	if (const bool* flag = arp_flag_at(record, path)) {
+		return number(*flag ? 1 : 0);
+	}
+	const uint8_t* field = arp_field_at(record, path);
+	if (field == nullptr) {
+		return std::nullopt;
+	}
+	const SettingInfo* row = engine::find_setting(engine::kArpSettingRows, path);
+	if (row->kind == SettingKind::CHOICE && path != "arpeggiator/syncType") {
+		return word(row->choices, *field);
+	}
+	return number(*field);
+}
+
+void write_arp(ArpRecord& record, std::string_view path, const Value& value) {
+	const SettingInfo* row = engine::find_setting(engine::kArpSettingRows, path);
+	const auto index = [&] {
+		return static_cast<uint8_t>(std::ranges::find(row->choices, value.str()) - row->choices.begin());
+	};
+	if (path == "arpeggiator/preset") {
+		const std::optional<engine::ArpPresetFields> fields = engine::arp_preset_fields(index());
+		record.mode = fields->mode;
+		record.octave_mode = fields->octave_mode.value_or(record.octave_mode);
+		record.note_mode = fields->note_mode.value_or(record.note_mode);
+		return;
+	}
+	const int32_t v = integer_of(value).value_or(0);
+	if (std::optional<int32_t>* host = host_value_at(record, path)) {
+		*host = v;
+	}
+	else if (bool* flag = arp_flag_at(record, path)) {
+		*flag = v != 0;
+	}
+	else if (uint8_t* field = arp_field_at(record, path)) {
+		*field = row->kind == SettingKind::CHOICE && path != "arpeggiator/syncType" ? index() : static_cast<uint8_t>(v);
+	}
+}
+
 } // namespace
 
 std::span<const SettingInfo> table_of(SettingGroupId group) {
@@ -544,6 +626,9 @@ std::span<const SettingInfo> table_of(SettingGroupId group) {
 		return kClipValuesTable;
 	case SettingGroupId::AUDIO_INPUT:
 		return kAudioInputTable;
+	case SettingGroupId::CLIP_ARP:
+	case SettingGroupId::LANE_ARP:
+		return arp_table();
 	}
 	return {};
 }
@@ -601,6 +686,11 @@ std::optional<Value> read_setting(Song& song, const SettingAddress& address, std
 			return Value::makeScalar(record->name);
 		}
 		return Value::makeScalar(std::string{to_string(record->sequence_direction)});
+	}
+	case SettingGroupId::CLIP_ARP:
+	case SettingGroupId::LANE_ARP: {
+		const std::optional<ArpRecord>* record = arp_record_of(song, address);
+		return record != nullptr ? read_arp(record->value_or(ArpRecord{}), path) : std::nullopt;
 	}
 	}
 	return std::nullopt;
@@ -695,6 +785,15 @@ bool write_setting(Song& song, const SettingAddress& address, std::string_view p
 		record->sequence_direction = *direction;
 		return true;
 	}
+	case SettingGroupId::CLIP_ARP:
+	case SettingGroupId::LANE_ARP: {
+		std::optional<ArpRecord>* record = arp_record_of(song, address);
+		if (record == nullptr) {
+			return false;
+		}
+		write_arp(record->has_value() ? **record : record->emplace(), path, value);
+		return true;
+	}
 	}
 	return false;
 }
@@ -713,12 +812,17 @@ std::optional<int32_t>* own_slot(Song& song, const SettingAddress& address, std:
 		DocNoteRow* row = row_address != nullptr ? resolve_note_row(song, *row_address) : nullptr;
 		return row != nullptr ? &row->bend_range : nullptr;
 	}
+	if (is_arp_group(address.group)) {
+		std::optional<ArpRecord>* record = arp_record_of(song, address);
+		return record != nullptr && record->has_value() ? host_value_at(**record, path) : nullptr;
+	}
 	return nullptr;
 }
 
 bool leavable(const SettingAddress& address, std::string_view path) {
 	return address.group == SettingGroupId::CLIP_VALUES
-	       || (address.group == SettingGroupId::NOTE_ROW && path == "bendRange");
+	       || (address.group == SettingGroupId::NOTE_ROW && path == "bendRange")
+	       || (is_arp_group(address.group) && engine::find_setting(engine::kArpHostRows, path) != nullptr);
 }
 
 } // namespace

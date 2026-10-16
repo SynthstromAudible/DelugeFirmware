@@ -50,6 +50,9 @@ std::vector<std::string> legal_values(const SettingInfo& row) {
 std::string round_trip(Song& song, SettingGroupId group, const SettingOwner& owner) {
 	const SettingAddress address{group, owner};
 	for (const SettingInfo& row : table_of(group)) {
+		if (row.path == "arpeggiator/preset") {
+			continue; // derived from the arp's fields: "custom" reads back as the preset they make
+		}
 		for (const std::string& value : legal_values(row)) {
 			if (!write_setting(song, address, row.path, Value::makeScalar(value))) {
 				return std::string{row.path} + "=" + value + " refused";
@@ -155,6 +158,52 @@ describe setting_groups_owners("the owner setting groups", $ {
 		expect(back.name).to_equal(std::string{"VERSE"});
 		expect(back.sequence_direction == SequenceDirection::PINGPONG).to_be_true();
 		expect(back.values == clip.values).to_be_true();
+	});
+
+	it("round-trips a clip's arp and a kit row's arp through their records", _ {
+		Song song;
+		(void)song.clip_structure.getOrCreate(7);
+		(void)song.drum_structure.getOrCreate(5);
+		expect(round_trip(song, SettingGroupId::CLIP_ARP, ClipAddress{.clip_id = 7})).to_equal(std::string{});
+		expect(round_trip(song, SettingGroupId::LANE_ARP, LaneAddress{.kit_id = 3, .drum_id = 5})).to_equal(std::string{});
+	});
+
+	it("writes an arp preset as its three fields and reads the preset back from them", _ {
+		Song song;
+		(void)song.clip_structure.getOrCreate(7);
+		const SettingAddress arp{SettingGroupId::CLIP_ARP, ClipAddress{.clip_id = 7}};
+		expect(read_setting(song, arp, "arpeggiator/preset")->str()).to_equal(std::string{"off"});
+		expect(write_setting(song, arp, "arpeggiator/preset", Value::makeScalar("down"))).to_be_true();
+		expect(read_setting(song, arp, "arpeggiator/arpMode")->str()).to_equal(std::string{"arp"});
+		expect(read_setting(song, arp, "arpeggiator/octaveMode")->str()).to_equal(std::string{"down"});
+		expect(read_setting(song, arp, "arpeggiator/noteMode")->str()).to_equal(std::string{"down"});
+		expect(read_setting(song, arp, "arpeggiator/preset")->str()).to_equal(std::string{"down"});
+		expect(write_setting(song, arp, "arpeggiator/noteMode", Value::makeScalar("random"))).to_be_true();
+		expect(read_setting(song, arp, "arpeggiator/preset")->str()).to_equal(std::string{"custom"});
+		expect(write_setting(song, arp, "arpeggiator/preset", Value::makeScalar("off"))).to_be_true();
+		expect(read_setting(song, arp, "arpeggiator/arpMode")->str()).to_equal(std::string{"off"});
+		expect(read_setting(song, arp, "arpeggiator/noteMode")->str()).to_equal(std::string{"random"});
+	});
+
+	it("chooses the custom preset as an arp going up, as the preset menu does", _ {
+		Song song;
+		(void)song.clip_structure.getOrCreate(7);
+		const SettingAddress arp{SettingGroupId::CLIP_ARP, ClipAddress{.clip_id = 7}};
+		expect(write_setting(song, arp, "arpeggiator/noteMode", Value::makeScalar("walk3"))).to_be_true();
+		expect(write_setting(song, arp, "arpeggiator/preset", Value::makeScalar("custom"))).to_be_true();
+		expect(read_setting(song, arp, "arpeggiator/arpMode")->str()).to_equal(std::string{"arp"});
+		expect(read_setting(song, arp, "arpeggiator/noteMode")->str()).to_equal(std::string{"up"});
+	});
+
+	it("reads a host-only arp value the record does not hold as its default", _ {
+		Song song;
+		(void)song.clip_structure.getOrCreate(7);
+		const SettingAddress arp{SettingGroupId::CLIP_ARP, ClipAddress{.clip_id = 7}};
+		expect(read_setting(song, arp, "arpeggiator/noteProbability")->str()).to_equal(std::string{"-1"});
+		expect(holds_setting(song, arp, "arpeggiator/rate")).to_be_false();
+		expect(write_setting(song, arp, "arpeggiator/rate", Value::makeScalar("12"))).to_be_true();
+		expect(holds_setting(song, arp, "arpeggiator/rate")).to_be_true();
+		expect(song.clip_structure.find(7)->values.arp->rate).to_equal(std::optional<int32_t>{12});
 	});
 
 	it("round-trips the audio clip group through a clip's descriptor", _ {

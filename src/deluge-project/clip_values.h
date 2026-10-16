@@ -6,6 +6,8 @@
 /// Each value is optional. A clip that holds one plays it; one that does not plays its track's. Today the track
 /// holds none of these, so a caller passes the setting's default as the track's value.
 
+#include "deluge-project/arp_record.h"
+
 #include <cstdint>
 #include <optional>
 #include <string_view>
@@ -19,6 +21,7 @@ struct ClipValues {
 	std::optional<int32_t> midi_pgm;       ///< `midiPGM`, 0..127, 128 = none
 	std::optional<int32_t> bend_range;     ///< `bendRange`, semitones, the whole clip's bend
 	std::optional<int32_t> bend_range_mpe; ///< `bendRangeMPE`, semitones, a finger's bend
+	std::optional<ArpRecord> arp;          ///< the clip's arp; absent until the clip has one recorded
 
 	bool operator==(const ClipValues&) const = default;
 };

@@ -19,6 +19,7 @@
 
 #include "engine-api/settings.h"
 
+#include "engine-api/types/arp.h"
 #include "engine-api/types/sync.h"
 #include "engines/deluge/codec.h"
 #include "engines/deluge/words.h"
@@ -312,6 +313,7 @@ constexpr auto kAllRows = [] {
 } // namespace
 
 const std::span<const engine::SettingInfo> kSettings{kAllRows};
+const std::span<const engine::SettingInfo> kClipScopedSettings{engine::kArpSettingRows};
 
 namespace {
 
