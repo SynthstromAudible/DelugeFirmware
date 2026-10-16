@@ -2608,6 +2608,7 @@ void InstrumentClip::readShellFromTree(const deluge::storage::Value& clipNode) {
 	using deluge::storage::Value;
 	if (const Value* n = clipNode.find("clipName")) {
 		name = n->str();
+		docClip_->name = name;
 	}
 	if (const Value* n = clipNode.find("inKeyMode")) {
 		inScaleMode = stringToInt(n->str().c_str());
@@ -2743,14 +2744,17 @@ someError:
 
 		else if (!strcmp(tagName, "midiBank")) {
 			midiBank = reader.readTagOrAttributeValueInt();
+			docClip_->values.midi_bank = midiBank;
 		}
 
 		else if (!strcmp(tagName, "midiSub")) {
 			midiSub = reader.readTagOrAttributeValueInt();
+			docClip_->values.midi_sub = midiSub;
 		}
 
 		else if (!strcmp(tagName, "midiPGM")) {
 			midiPGM = reader.readTagOrAttributeValueInt();
+			docClip_->values.midi_pgm = midiPGM;
 		}
 
 		// The view-state group (yScroll, keyboard*/drums*/inKey*, crossScreenEditLevel, onKeyboardScreen,
@@ -3004,6 +3008,8 @@ doReadBendRange:
 			ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet();
 			if (expressionParams) {
 				expressionParams->bendRanges[temp] = reader.readTagOrAttributeValueInt();
+				(temp == BEND_RANGE_MAIN ? docClip_->values.bend_range : docClip_->values.bend_range_mpe) =
+				    expressionParams->bendRanges[temp];
 			}
 		}
 

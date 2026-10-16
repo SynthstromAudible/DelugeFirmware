@@ -124,7 +124,8 @@ std::vector<Value> valuesOf(Song& song, const SettingAddress& address, const Set
 }
 
 const char* groupName(SettingGroupId group) {
-	constexpr const char* kNames[] = {"SONG", "TRACK", "INSTRUMENT_DEVICE", "LANE", "NOTE_ROW", "AUDIO_CLIP"};
+	constexpr const char* kNames[] = {"SONG",       "TRACK", "INSTRUMENT_DEVICE", "LANE", "NOTE_ROW",
+	                                  "AUDIO_CLIP", "CLIP",  "CLIP_VALUES"};
 	return kNames[static_cast<size_t>(group)];
 }
 

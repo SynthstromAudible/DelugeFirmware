@@ -295,8 +295,17 @@ constexpr SettingInfo kLaneTable[] = {text("name")};
 // NOTE_ROW (on DocNoteRow)
 
 constexpr std::string_view kDirectionChoices[] = {"forward", "reverse", "pingpong", "obeyParent"};
+/// A bend range's semitones, as its menu offers them.
+constexpr int32_t kMaxBendRange = 96;
+/// The factory bend ranges: a whole clip's, and a finger's (MPE).
+constexpr int32_t kDefaultBendRange = 2;
+constexpr int32_t kDefaultBendRangeMpe = 48;
+
 constexpr SettingInfo kNoteRowTable[] = {
-    SettingInfo{.path = "sequenceDirection", .kind = SettingKind::CHOICE, .choices = kDirectionChoices}};
+    SettingInfo{.path = "sequenceDirection", .kind = SettingKind::CHOICE, .choices = kDirectionChoices},
+    // A kit row's finger bend; a melodic row has none of its own.
+    integer("bendRange", 0, kMaxBendRange, kDefaultBendRangeMpe, {}, SettingUnits::SEMITONES),
+};
 
 DocNoteRow* resolve_note_row(Song& song, const NoteRowAddress& address) {
 	DocClip* clip = song.clip_structure.find(address.clip_id);
@@ -312,6 +321,25 @@ DocNoteRow* resolve_note_row(Song& song, const NoteRowAddress& address) {
 	}
 	return nullptr;
 }
+
+// ---------------------------------------------------------------------------------------------
+// CLIP and CLIP_VALUES (on DocClip)
+
+constexpr SettingInfo kClipTable[] = {
+    text("name"),
+    SettingInfo{.path = "sequenceDirection", .kind = SettingKind::CHOICE, .choices = kDirectionChoices},
+};
+
+/// MIDI program numbers 0..127; 128 is none (no message sent).
+constexpr int32_t kNoMidiProgram = 128;
+
+constexpr SettingInfo kClipValuesTable[] = {
+    integer("midiBank", 0, kNoMidiProgram, kNoMidiProgram),
+    integer("midiSub", 0, kNoMidiProgram, kNoMidiProgram),
+    integer("midiPGM", 0, kNoMidiProgram, kNoMidiProgram),
+    integer("bendRange", 0, kMaxBendRange, kDefaultBendRange, {}, SettingUnits::SEMITONES),
+    integer("bendRangeMPE", 0, kMaxBendRange, kDefaultBendRangeMpe, {}, SettingUnits::SEMITONES),
+};
 
 // ---------------------------------------------------------------------------------------------
 // AUDIO_CLIP (on DocAudioClip)
@@ -414,6 +442,10 @@ std::span<const SettingInfo> table_of(SettingGroupId group) {
 		return kNoteRowTable;
 	case SettingGroupId::AUDIO_CLIP:
 		return kAudioClipTable;
+	case SettingGroupId::CLIP:
+		return kClipTable;
+	case SettingGroupId::CLIP_VALUES:
+		return kClipValuesTable;
 	}
 	return {};
 }
@@ -439,13 +471,33 @@ std::optional<Value> read_setting(Song& song, const SettingAddress& address, std
 	case SettingGroupId::NOTE_ROW: {
 		const auto* row_address = std::get_if<NoteRowAddress>(&address.owner);
 		const DocNoteRow* row = row_address != nullptr ? resolve_note_row(song, *row_address) : nullptr;
-		return row != nullptr ? std::optional<Value>{Value::makeScalar(std::string{to_string(row->sequence_direction)})}
-		                      : std::nullopt;
+		if (row == nullptr) {
+			return std::nullopt;
+		}
+		if (path == "bendRange") {
+			return number(row->bend_range.value_or(kDefaultBendRangeMpe));
+		}
+		return Value::makeScalar(std::string{to_string(row->sequence_direction)});
 	}
 	case SettingGroupId::AUDIO_CLIP: {
 		const auto* clip = std::get_if<ClipAddress>(&address.owner);
 		const DocAudioClip* record = clip != nullptr ? song.audio_clip_structure.find(clip->clip_id) : nullptr;
 		return record != nullptr ? read_audio_clip(*record, path) : std::nullopt;
+	}
+	case SettingGroupId::CLIP:
+	case SettingGroupId::CLIP_VALUES: {
+		const auto* clip = std::get_if<ClipAddress>(&address.owner);
+		const DocClip* record = clip != nullptr ? song.clip_structure.find(clip->clip_id) : nullptr;
+		if (record == nullptr) {
+			return std::nullopt;
+		}
+		if (address.group == SettingGroupId::CLIP_VALUES) {
+			return number(resolve(record->values, path, engine::find_setting(kClipValuesTable, path)->default_value));
+		}
+		if (path == "name") {
+			return Value::makeScalar(record->name);
+		}
+		return Value::makeScalar(std::string{to_string(record->sequence_direction)});
 	}
 	}
 	return std::nullopt;
@@ -486,8 +538,15 @@ bool write_setting(Song& song, const SettingAddress& address, std::string_view p
 	case SettingGroupId::NOTE_ROW: {
 		const auto* row_address = std::get_if<NoteRowAddress>(&address.owner);
 		DocNoteRow* row = row_address != nullptr ? resolve_note_row(song, *row_address) : nullptr;
+		if (row == nullptr) {
+			return false;
+		}
+		if (path == "bendRange") {
+			row->bend_range = v;
+			return true;
+		}
 		const std::optional<SequenceDirection> direction = parse_sequence_direction(value.str());
-		if (row == nullptr || !direction) {
+		if (!direction) {
 			return false;
 		}
 		row->sequence_direction = *direction;
@@ -500,6 +559,28 @@ bool write_setting(Song& song, const SettingAddress& address, std::string_view p
 			return false;
 		}
 		write_audio_clip(*record, path, v);
+		return true;
+	}
+	case SettingGroupId::CLIP:
+	case SettingGroupId::CLIP_VALUES: {
+		const auto* clip = std::get_if<ClipAddress>(&address.owner);
+		DocClip* record = clip != nullptr ? song.clip_structure.find(clip->clip_id) : nullptr;
+		if (record == nullptr) {
+			return false;
+		}
+		if (address.group == SettingGroupId::CLIP_VALUES) {
+			*value_at(record->values, path) = v;
+			return true;
+		}
+		if (path == "name") {
+			record->name = value.str();
+			return true;
+		}
+		const std::optional<SequenceDirection> direction = parse_sequence_direction(value.str());
+		if (!direction) {
+			return false;
+		}
+		record->sequence_direction = *direction;
 		return true;
 	}
 	}

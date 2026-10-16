@@ -3518,6 +3518,9 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 		if (expressionParams) {
 			expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = newBendRange;
 		}
+		if (docNoteRow_ != nullptr) {
+			docNoteRow_->bend_range = newBendRange;
+		}
 	}
 
 	// Mirror the fully-read scalar fields into the DOM record (bound at the load insert site). Guarded on non-null.

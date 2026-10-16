@@ -47,6 +47,17 @@ bool is_midi_element(std::string_view element) {
 
 Value encode(const DocClip& clip) {
 	auto map = Value::makeMap();
+	if (!clip.name.empty()) {
+		map.set("clipName", text(clip.name));
+	}
+	if (clip.sequence_direction != SequenceDirection::FORWARD) {
+		map.set("sequenceDirection", text(to_string(clip.sequence_direction)));
+	}
+	for (std::string_view path : {"midiBank", "midiSub", "midiPGM", "bendRange", "bendRangeMPE"}) {
+		if (const std::optional<int32_t>* value = value_at(clip.values, path); value->has_value()) {
+			map.set(std::string{path}, Value::makeNumber(**value));
+		}
+	}
 	map.set("length", Value::makeNumber(clip.loop_length));
 	map.set("colourOffset", Value::makeNumber(clip.colour_offset));
 	if (clip.section != 255) {
@@ -67,6 +78,17 @@ std::expected<void, LoadError> decode(const Value& clipElement, DocClip& clip) {
 	}
 	if (auto colour = int_of(clipElement.find("colourOffset"))) {
 		clip.colour_offset = static_cast<int16_t>(*colour);
+	}
+	if (const std::string* name = text_of(clipElement.find("clipName"))) {
+		clip.name = *name;
+	}
+	if (const std::string* direction = text_of(clipElement.find("sequenceDirection"))) {
+		clip.sequence_direction = parse_sequence_direction(*direction).value_or(SequenceDirection::FORWARD);
+	}
+	for (std::string_view path : {"midiBank", "midiSub", "midiPGM", "bendRange", "bendRangeMPE"}) {
+		if (auto value = int_of(clipElement.find(path))) {
+			*value_at(clip.values, path) = *value;
+		}
 	}
 	if (const std::string* style = text_of(clipElement.find("launchStyle"))) {
 		clip.launch_style = parse_launch_style(*style).value_or(LaunchStyle::DEFAULT);
@@ -98,6 +120,9 @@ Value encode(const DocNoteRow& row, bool in_kit) {
 	if (row.sequence_direction != SequenceDirection::OBEY_PARENT) {
 		map.set("sequenceDirection", text(to_string(row.sequence_direction)));
 	}
+	if (row.bend_range) {
+		map.set("bendRange", Value::makeNumber(*row.bend_range));
+	}
 	return map;
 }
 
@@ -119,6 +144,9 @@ std::expected<void, LoadError> decode(const Value& rowElement, DocNoteRow& row, 
 	}
 	if (const std::string* direction = text_of(rowElement.find("sequenceDirection"))) {
 		row.sequence_direction = parse_sequence_direction(*direction).value_or(SequenceDirection::FORWARD);
+	}
+	if (auto bend = int_of(rowElement.find("bendRange"))) {
+		row.bend_range = *bend;
 	}
 	row.y = static_cast<int16_t>(std::max<int32_t>(row.y, static_cast<int16_t>(min_y)));
 	min_y = row.y + 1;

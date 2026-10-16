@@ -394,6 +394,9 @@ Error projectSetting(::Song& song, const project::SettingAddress& address, std::
 		    findClip(song, std::get<project::ClipAddress>(address.owner).clip_id, ClipType::AUDIO));
 		return clip != nullptr ? applyAudioClipSetting(*clip, song, path, *value) : Error::UNSPECIFIED;
 	}
+	case SettingGroupId::CLIP:
+	case SettingGroupId::CLIP_VALUES:
+		return Error::UNSPECIFIED;
 	}
 	return Error::UNSPECIFIED;
 }

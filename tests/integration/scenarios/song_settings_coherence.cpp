@@ -34,6 +34,10 @@ const char* groupName(SettingGroupId group) {
 		return "NOTE_ROW";
 	case SettingGroupId::AUDIO_CLIP:
 		return "AUDIO_CLIP";
+	case SettingGroupId::CLIP:
+		return "CLIP";
+	case SettingGroupId::CLIP_VALUES:
+		return "CLIP_VALUES";
 	}
 	return "?";
 }

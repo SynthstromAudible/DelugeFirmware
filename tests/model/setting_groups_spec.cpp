@@ -1,5 +1,7 @@
+#include "deluge-project/clip_values.h"
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
+#include "deluge-project/structure_codec.h"
 
 #include "cppspec.hpp"
 
@@ -125,6 +127,33 @@ describe setting_groups_owners("the owner setting groups", $ {
 		    .to_equal(std::string{});
 		expect(round_trip(song, SettingGroupId::NOTE_ROW, NoteRowAddress{.clip_id = 11, .is_kit = true, .row_key = 5}))
 		    .to_equal(std::string{});
+	});
+
+	it("round-trips the clip and clip-value groups through a clip's record", _ {
+		Song song;
+		(void)song.clip_structure.getOrCreate(7);
+		expect(round_trip(song, SettingGroupId::CLIP, ClipAddress{.clip_id = 7})).to_equal(std::string{});
+		expect(round_trip(song, SettingGroupId::CLIP_VALUES, ClipAddress{.clip_id = 7})).to_equal(std::string{});
+	});
+
+	it("resolves a clip value over the track's, and the track's when the clip has none", _ {
+		ClipValues values;
+		expect(resolve(values, "midiPGM", 128)).to_equal(128);
+		values.midi_pgm = 5;
+		expect(resolve(values, "midiPGM", 128)).to_equal(5);
+	});
+
+	it("encodes a clip's name, direction and values and decodes them back", _ {
+		DocClip clip;
+		clip.name = "VERSE";
+		clip.sequence_direction = SequenceDirection::PINGPONG;
+		clip.values.midi_bank = 3;
+		clip.values.bend_range = 12;
+		DocClip back;
+		expect(decode(encode(clip), back).has_value()).to_be_true();
+		expect(back.name).to_equal(std::string{"VERSE"});
+		expect(back.sequence_direction == SequenceDirection::PINGPONG).to_be_true();
+		expect(back.values == clip.values).to_be_true();
 	});
 
 	it("round-trips the audio clip group through a clip's descriptor", _ {

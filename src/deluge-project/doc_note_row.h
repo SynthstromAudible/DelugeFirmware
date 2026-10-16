@@ -35,6 +35,7 @@ struct DocNoteRow {
 	int32_t loop_length_if_independent{0}; ///< 0 = obeys the parent clip's loop length
 	int8_t colour_offset{0};
 	SequenceDirection sequence_direction{SequenceDirection::FORWARD};
+	std::optional<int32_t> bend_range; ///< `bendRange`: a kit row's finger bend, semitones; none = the default
 	bool muted{false};
 
 	/// The durable id of this row's drum (`Drum::id()`), or nullopt if the row has no drum. Written from the engine

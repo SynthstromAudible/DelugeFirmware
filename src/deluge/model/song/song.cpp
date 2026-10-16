@@ -2313,6 +2313,7 @@ readClip:
 				if (const deluge::storage::Value* n = clipNode->find("sequenceDirection")) {
 					newClip->sequenceDirectionMode =
 					    deluge::project::parse_sequence_direction(n->str()).value_or(SequenceDirection::FORWARD);
+					newClip->docClip_->sequence_direction = newClip->sequenceDirectionMode;
 				}
 
 				// Selection / sync-scale hints: read the flag, then perform the Song-state side effect. Clips are

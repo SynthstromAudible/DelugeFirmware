@@ -17,10 +17,13 @@
 
 #pragma once
 
+#include "deluge-project/clip_values.h"
 #include "deluge-project/doc_note_row.h"
 #include "deluge-project/launch_style.h"
+#include "deluge-project/sequence_direction.h"
 #include <cstdint>
 #include <list>
+#include <string>
 
 namespace deluge::project {
 
@@ -32,6 +35,9 @@ namespace deluge::project {
 /// `section()`/`launchStyle()`) read and write this record directly through the clip's bound `docClip_`. Save
 /// reads it via those accessors; load writes it (`readShellFromTree` + setters).
 struct DocClip {
+	std::string name;                                                 ///< `clipName`; unique within its track
+	SequenceDirection sequence_direction{SequenceDirection::FORWARD}; ///< the clip's own direction
+	ClipValues values;                                                ///< the values the clip holds over its track's
 	int32_t loop_length{0};
 	int16_t colour_offset{-60}; ///< matches the engine Clip default
 	LaunchStyle launch_style{LaunchStyle::DEFAULT};

@@ -1318,6 +1318,7 @@ someError:
 
 		if (!strcmp(tagName, "clipName")) {
 			reader.readTagOrAttributeValueString(name);
+			docClip_->name = name;
 		}
 
 		else if (!strcmp(tagName, "trackName")) {
