@@ -127,22 +127,23 @@ struct RealNoteSelectionGuard {
 
 		ModelStackWithNoteRow* modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(modelStack, 0);
 		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-		(void)noteRow->attemptNoteAdd(/*pos=*/0, /*length=*/currentSong->xZoom[NAVIGATION_CLIP], velocity,
+		(void)noteRow->attemptNoteAdd(/*pos=*/0, /*length=*/currentSong->persistentView.xZoom[NAVIGATION_CLIP],
+		                              velocity,
 		                              /*probability=*/kNumProbabilityValues, Iterance{}, FillMode::OFF,
 		                              modelStackWithNoteRow, /*action=*/nullptr);
 
-		// `InstrumentClipView::editPadAction`'s own callers pass `currentSong->xZoom[NAVIGATION_CLIP]`
+		// `InstrumentClipView::editPadAction`'s own callers pass `currentSong->persistentView.xZoom[NAVIGATION_CLIP]`
 		// (`handleNoteEditorEditPadAction`, `instrument_clip_view.cpp:3669`); square 0 is where the
 		// note above was just placed.
 		instrumentClipView.editPadAction(/*state=*/true, /*yDisplay=*/0, /*xDisplay=*/0,
-		                                 currentSong->xZoom[NAVIGATION_CLIP]);
+		                                 currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 		pressed = true;
 	}
 
 	~RealNoteSelectionGuard() {
 		if (pressed) {
 			instrumentClipView.editPadAction(/*state=*/false, /*yDisplay=*/0, /*xDisplay=*/0,
-			                                 currentSong->xZoom[NAVIGATION_CLIP]);
+			                                 currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 		}
 		currentPlaybackMode = saved_playback_mode;
 		display = saved_display;
@@ -192,8 +193,8 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		expect(bridge->note_velocity()).to_equal(80);
 	});
 
-	it("adjust_note_velocity leaves the model unchanged and raises legacy's popup on the first turn "
-	   "with no popup up, and commits on the second -- instrument_clip_view.cpp:2852-2859's gate", _ {
+	it("adjust_note_velocity, outside the note editor with no popup up, leaves the model unchanged and raises no "
+	   "popup -- note::Velocity's adjustVelocity(offset, false) and instrument_clip_view.cpp's gate", _ {
 		RealNoteSelectionGuard guard;
 		auto f = deluge::scenes::spec::make_synth_song();
 		guard.select_note(80);
@@ -201,17 +202,29 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		const menu::NoteBridge* bridge = menu::note_bridge();
 		expect(display->hasPopup()).to_be_false(); // the guard's removePopup() left a clean slate
 
+		// `display->hasPopup() || inAutomationView || inSoundEditor` is false here, so the write
+		// inside the gate never runs, and `display_value == false` skips `displayVelocity`.
 		bridge->adjust_note_velocity(1);
-		// `display->hasPopup() || inAutomationView || inSoundEditor` is false here (no popup yet,
-		// `getCurrentUI()` is neither view under this fixture), so the write inside that gate never
-		// ran -- but `adjustVelocity`'s tail calls `displayVelocity`/`popupVelocity` regardless of
-		// the gate, which raises a popup.
 		expect(bridge->note_velocity()).to_equal(80);
-		expect(display->hasPopup()).to_be_true();
-
+		expect(display->hasPopup()).to_be_false();
 		bridge->adjust_note_velocity(1);
-		// The popup `displayVelocity` raised above now satisfies the gate, so this turn commits.
-		expect(bridge->note_velocity()).to_equal(81);
+		expect(bridge->note_velocity()).to_equal(80);
+	});
+
+	it("adjust_note_velocity commits when a popup is already up -- the gate's display->hasPopup() arm", _ {
+		// `ActionLogger::getNewAction` refuses an edit while anything but the root UI is current, so the
+		// clip view is seated as both, as on the device.
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		setRootUILowLevel(&instrumentClipView);
+		ActionLogGuard logs;
+		RealNoteSelectionGuard guard;
+		auto f = deluge::scenes::spec::make_synth_song();
+		guard.select_note(80);
+
+		display->displayPopup("VEL");
+		expect(display->hasPopup()).to_be_true();
+		menu::note_bridge()->adjust_note_velocity(1);
+		expect(menu::note_bridge()->note_velocity()).to_equal(81);
 	});
 
 	it("the note-mode arm: with the ported note editor open and no popup, adjust_note_velocity commits on the "
@@ -230,10 +243,12 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 
 		bridge->adjust_note_velocity(1);
 		expect(bridge->note_velocity()).to_equal(81);
-		// `:2931-2935`: `displayVelocity` runs only outside the note editor -- neither its popup nor its
-		// `defaultVelocity` write (`:2984`) happens here.
+		// `note::Velocity` passes `display_value == false`, so no velocity popup covers the editor; the
+		// instrument's default velocity follows the edited note, as `adjustVelocity`'s tail does for
+		// every caller.
 		expect(display->hasPopup()).to_be_false();
-		expect(static_cast<int32_t>(getCurrentInstrument()->defaultVelocity)).to_equal(default_velocity);
+		expect(default_velocity).to_equal(64); // the fixture instrument's, before the edit
+		expect(static_cast<int32_t>(getCurrentInstrument()->defaultVelocity)).to_equal(81);
 	});
 
 	it("the note-mode arm: with the ported note editor open and no popup, adjust_note_probability commits on the "
@@ -328,19 +343,19 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		expect(menu::note_bridge()->row_sequence_direction(&direction)).to_be_false();
 	});
 
-	it("iterance_preset_label matches legacy's compact `%d:%d` for preset 1", _ {
+	it("iterance_preset_label matches legacy's compact `%d:%d` for preset 3", _ {
 		char buf[20] = {};
-		size_t n = menu::note_bridge()->iterance_preset_label(1, /*compact=*/true, std::span<char>(buf, sizeof(buf)));
+		size_t n = menu::note_bridge()->iterance_preset_label(3, /*compact=*/true, std::span<char>(buf, sizeof(buf)));
 		expect(n > 0).to_be_true();
 		std::string_view text(buf, n);
-		// Preset 1 is `iterancePresets[0]` == `Iterance{2, 0b1}` (`lookuptables.cpp:508-509`):
-		// divisor 2, step 0 active -- legacy's `"%d:%d"` with `(i + 1, divisor)` is "1:2".
+		// Preset 3 is `iterancePresets[2]` == `Iterance{2, 0b1}` (`util/lookuptables/preset_tables.cpp:35`,
+		// after FIRST and LAST): divisor 2, step 0 active -- legacy's `"%d:%d"` with `(i + 1, divisor)` is "1:2".
 		expect(text == "1:2").to_be_true();
 	});
 
 	it("iterance_preset_label matches legacy's non-compact `%d of %d` for the same preset", _ {
 		char buf[20] = {};
-		size_t n = menu::note_bridge()->iterance_preset_label(1, /*compact=*/false, std::span<char>(buf, sizeof(buf)));
+		size_t n = menu::note_bridge()->iterance_preset_label(3, /*compact=*/false, std::span<char>(buf, sizeof(buf)));
 		expect(n > 0).to_be_true();
 		std::string_view text(buf, n);
 		expect(text == "1 of 2").to_be_true();

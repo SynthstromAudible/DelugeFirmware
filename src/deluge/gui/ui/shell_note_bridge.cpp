@@ -83,10 +83,10 @@ int32_t note_velocity() {
 	return selected_press != nullptr ? selected_press->intendedVelocity : 0;
 }
 
-/// @brief `Velocity::selectEncoderAction`'s write, `instrumentClipView.adjustVelocity`
-///        (`gui/menu_item/note/velocity.h:54-57`).
+/// @brief `Velocity::selectEncoderAction`'s write, `instrumentClipView.adjustVelocity(offset, false)`
+///        (`gui/menu_item/note/velocity.h:85-88`): the menu shows the value itself, so no velocity popup.
 void adjust_note_velocity(int32_t offset) {
-	instrumentClipView.adjustVelocity(offset);
+	instrumentClipView.adjustVelocity(offset, false);
 }
 
 /// @brief Leftmost pressed note's `getProbability()` (`gui/menu_item/note/probability.h:44-50`);
