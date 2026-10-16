@@ -772,6 +772,34 @@ pub extern "C" fn deluge_storage_fs_busy() -> bool {
     FS.try_lock().is_err()
 }
 
+std::thread_local! {
+    /// The filesystem lock [`deluge_host_storage_hold_fs`] is holding, if any.
+    static HELD_FS: core::cell::RefCell<
+        Option<embassy_sync::mutex::MutexGuard<'static, CriticalSectionRawMutex, Option<Fs>>>,
+    > = const { core::cell::RefCell::new(None) };
+}
+
+/// C-ABI, host only: hold the filesystem lock, so [`deluge_storage_fs_busy`] answers true exactly as
+/// it does while a card operation is in flight, or release it.
+///
+/// For specs that check how UI code defers while the card is busy. Any filesystem call made on this
+/// thread while the lock is held blocks forever, so a holder must make none.
+///
+/// Returns whether the lock is held after the call: `false` when asked to hold and the lock was
+/// already taken elsewhere.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_host_storage_hold_fs(hold: bool) -> bool {
+    HELD_FS.with(|held| {
+        let mut held = held.borrow_mut();
+        if !hold {
+            *held = None;
+        } else if held.is_none() {
+            *held = FS.try_lock().ok();
+        }
+        held.is_some()
+    })
+}
+
 /// C-ABI: drops the filesystem, leaving it unmounted; see [`unmount`].
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_unmount() {
