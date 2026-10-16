@@ -2614,11 +2614,11 @@ bool Song::hasAnySwing() {
 	return (swingAmount != 0);
 }
 
-void Song::resyncLFOs() {
+void Song::resyncLFOs(bool reset_state) {
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput->getActiveClip()) {
-			thisOutput->resyncLFOs();
+		if (reset_state || thisOutput->getActiveClip()) {
+			thisOutput->resyncLFOs(reset_state);
 		}
 		// Yes, do it even for Clips that aren't actually "playing" / active in the Song
 	}

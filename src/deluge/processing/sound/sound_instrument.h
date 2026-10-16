@@ -50,7 +50,7 @@ public:
 	}
 
 	Error loadAllAudioFiles(bool mayActuallyReadFiles) override;
-	void resyncLFOs() override;
+	void resyncLFOs(bool reset_state = false) override;
 	ModControllable* toModControllable() override;
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
 	void setupPatchingForAllParamManagers(Song* song) override;
