@@ -296,6 +296,7 @@ std::vector<Value> legalValues(const deluge::engine::SettingInfo& row, const std
 		values.push_back(Value::makeNumber(1));
 		break;
 	case Kind::STRUCTURED:
+	case Kind::TEXT:
 		break;
 	}
 	return values;

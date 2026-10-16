@@ -22,9 +22,11 @@
 #include "model/edits/set_controls.h"
 #include "model/edits/set_dx_patch.h"
 #include "model/edits/set_engine_setting.h"
+#include "model/edits/set_setting.h"
 #include "model/edits/set_source_ranges.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/setting_apply.h"
+#include "model/project_bridge/setting_projection.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
@@ -155,6 +157,92 @@ inline void recordControlsOf(::ModControllable& owner) {
 	                                                  : deluge::bridge::learnedControlsOf(*audio)};
 	if (deluge::edits::apply(ctx, edit) != Error::NONE) {
 		D_PRINTLN("controls refused");
+	}
+}
+
+/// @brief Apply a `SetSetting` to the current song, logging a refusal: a menu offers only what a setting takes, so a
+///        refusal is a menu and its table out of step.
+/// @param address The group and owner.
+/// @param path    The setting's path.
+/// @param value   The new value, in its file form.
+inline void applySettingEdit(const deluge::project::SettingAddress& address, std::string_view path,
+                             deluge::serialization::Value value) {
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetSetting edit{address, std::string(path), value};
+	if (deluge::edits::apply(ctx, edit) != Error::NONE) {
+		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
+	}
+}
+
+/// @brief A gesture's change of the current song's own setting at @p path (reverb, swing interval, disabled scales).
+/// @param path  The setting's path in the song group.
+/// @param value The new value, in its file form.
+inline void songSettingFor(std::string_view path, deluge::serialization::Value value) {
+	applySettingEdit({deluge::project::SettingGroupId::SONG, deluge::project::SongAddress{}}, path, std::move(value));
+}
+
+/// @brief A gesture's change of @p output's setting at @p path (its name, or its MIDI or CV instrument's fields): an
+///        Edit when the output is the current song's, its setter alone for one outside it.
+/// @param output The track's output.
+/// @param path   The setting's path in the track or instrument-device group.
+/// @param value  The new value, in its file form.
+inline void trackSettingFor(::Output& output, std::string_view path, deluge::serialization::Value value) {
+	if (const std::optional<deluge::project::TrackAddress> track =
+	        deluge::bridge::trackAddressOf(output, *currentSong)) {
+		applySettingEdit({deluge::bridge::trackGroupOf(path), *track}, path, std::move(value));
+		return;
+	}
+	if (deluge::bridge::applyTrackSetting(output, path, value) != Error::NONE) {
+		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
+	}
+}
+
+/// @brief A gesture's change of @p drum's lane setting at @p path (its name): an Edit when the drum is in one of the
+///        current song's kits, its setter alone otherwise.
+/// @param drum  The lane's drum.
+/// @param path  The setting's path in the lane group.
+/// @param value The new value, in its file form.
+inline void laneSettingFor(::Drum& drum, std::string_view path, deluge::serialization::Value value) {
+	if (const std::optional<deluge::project::LaneAddress> lane = deluge::bridge::laneAddressOf(drum, *currentSong)) {
+		applySettingEdit({deluge::project::SettingGroupId::LANE, *lane}, path, std::move(value));
+		return;
+	}
+	if (deluge::bridge::applyLaneSetting(drum, path, value) != Error::NONE) {
+		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
+	}
+}
+
+/// @brief A gesture's change of @p row's setting at @p path (its direction): an Edit when the row is addressable in
+///        the current song, its setter alone otherwise (a non-sound kit row).
+/// @param row   The note row.
+/// @param clip  The clip holding it.
+/// @param path  The setting's path in the note-row group.
+/// @param value The new value, in its file form.
+inline void noteRowSettingFor(::NoteRow& row, ::InstrumentClip& clip, std::string_view path,
+                              deluge::serialization::Value value) {
+	if (const std::optional<deluge::project::NoteRowAddress> address =
+	        deluge::bridge::noteRowAddressOf(row, clip, *currentSong)) {
+		applySettingEdit({deluge::project::SettingGroupId::NOTE_ROW, *address}, path, std::move(value));
+		return;
+	}
+	if (deluge::bridge::applyNoteRowSetting(row, clip, *currentSong, path, value) != Error::NONE) {
+		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
+	}
+}
+
+/// @brief A gesture's change of @p clip's descriptor setting at @p path: an Edit when the clip is the current
+///        song's, its setter alone otherwise.
+/// @param clip  The audio clip.
+/// @param path  The setting's path in the audio-clip group.
+/// @param value The new value, in its file form.
+inline void audioClipSettingFor(::AudioClip& clip, std::string_view path, deluge::serialization::Value value) {
+	if (const std::optional<deluge::project::ClipAddress> address =
+	        deluge::bridge::audioClipAddressOf(clip, *currentSong)) {
+		applySettingEdit({deluge::project::SettingGroupId::AUDIO_CLIP, *address}, path, std::move(value));
+		return;
+	}
+	if (deluge::bridge::applyAudioClipSetting(clip, *currentSong, path, value) != Error::NONE) {
+		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
 	}
 }
 

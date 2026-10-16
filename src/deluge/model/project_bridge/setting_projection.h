@@ -1,0 +1,68 @@
+#pragma once
+
+/// @file
+/// @brief The engine side of a setting group: copying a group's record onto the engine object that plays it, and
+///        reading that copy back.
+///
+/// A setting's record (`deluge-project/setting_group.h`) is its truth; the engine objects (the song's reverb and
+/// clock, an `Output`, a `Drum`, a `NoteRow`, an `AudioClip`) hold a copy the render reads. `projectSetting` makes the
+/// copy equal the record and runs what a change of that setting sets off. The `apply*Setting` functions are that copy
+/// and its follow-ups for one owner: the projection calls them with the record's value, and a gesture on an owner
+/// outside the current song (being loaded, previewed, built) calls them directly, there being no record to write.
+
+#include "definitions_cxx.hpp" // Error
+#include "deluge-project/setting_group.h"
+#include "serialization/value.h"
+
+#include <optional>
+#include <string_view>
+
+class AudioClip;
+class Drum;
+class InstrumentClip;
+class NoteRow;
+class Output;
+class Song;
+
+namespace deluge::bridge {
+
+/// @brief Copy @p address's value at @p path from its record onto the engine object, and run that setting's
+///        follow-ups.
+/// @param song    The song whose records and engine objects the address names.
+/// @param address The group and owner.
+/// @param path    A path of the group's table.
+/// @return Error::UNSPECIFIED when the record or the engine owner does not resolve.
+Error projectSetting(::Song& song, const project::SettingAddress& address, std::string_view path);
+
+/// @brief The engine copy's value at @p path, in the record's form: what the coherence check holds equal to the record.
+/// @param song    The song whose engine objects the address names.
+/// @param address The group and owner.
+/// @param path    A path of the group's table.
+/// @return The value, or nullopt when the engine owner does not resolve or the path has no engine copy.
+std::optional<serialization::Value> engineSettingValue(::Song& song, const project::SettingAddress& address,
+                                                       std::string_view path);
+
+/// @name Applying one owner's setting to its engine object
+/// @{
+Error applySongSetting(::Song& song, std::string_view path, const serialization::Value& value);
+Error applyTrackSetting(::Output& output, std::string_view path, const serialization::Value& value);
+Error applyLaneSetting(::Drum& drum, std::string_view path, const serialization::Value& value);
+Error applyNoteRowSetting(::NoteRow& row, ::InstrumentClip& clip, ::Song& song, std::string_view path,
+                          const serialization::Value& value);
+Error applyAudioClipSetting(::AudioClip& clip, ::Song& song, std::string_view path, const serialization::Value& value);
+/// @}
+
+/// @name An engine owner's address in @p song, or nullopt when it is not one of the song's
+/// @{
+std::optional<project::TrackAddress> trackAddressOf(::Output& output, ::Song& song);
+std::optional<project::LaneAddress> laneAddressOf(::Drum& drum, ::Song& song);
+std::optional<project::NoteRowAddress> noteRowAddressOf(::NoteRow& row, ::InstrumentClip& clip, ::Song& song);
+std::optional<project::ClipAddress> audioClipAddressOf(::AudioClip& clip, ::Song& song);
+/// @}
+
+/// @brief Which of a track's two groups holds @p path: its identity (the name) or its instrument device.
+/// @param path A path of either group.
+/// @return SettingGroupId::TRACK or SettingGroupId::INSTRUMENT_DEVICE.
+project::SettingGroupId trackGroupOf(std::string_view path);
+
+} // namespace deluge::bridge
