@@ -17,6 +17,7 @@
 
 #include "processing/sound/sound_instrument.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_clip.h"
 #include "dsp/stereo_sample.h"
 #include "gui/views/view.h"
 #include "model/clip/instrument_clip.h"
@@ -65,9 +66,13 @@ bool SoundInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOut
 		}
 	}
 
-	Sound::writeToFile(writer, clipForSavingOutputOnly == nullptr, paramManager,
-	                   clipForSavingOutputOnly ? &((InstrumentClip*)clipForSavingOutputOnly)->arpSettings : nullptr,
-	                   NULL);
+	auto* presetClip = static_cast<InstrumentClip*>(clipForSavingOutputOnly);
+	const deluge::project::ArpRecord* presetArp =
+	    presetClip != nullptr && presetClip->docClip_ != nullptr && presetClip->docClip_->values.arp
+	        ? &*presetClip->docClip_->values.arp
+	        : nullptr;
+	Sound::writeToFile(writer, presetClip == nullptr, paramManager,
+	                   presetClip != nullptr ? &presetClip->arpSettings : nullptr, presetArp, NULL);
 
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(writer, clipForSavingOutputOnly, song);
 

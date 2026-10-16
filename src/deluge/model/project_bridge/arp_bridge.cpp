@@ -17,7 +17,9 @@
 
 #include "model/project_bridge/arp_bridge.h"
 
+#include "deluge-project/arp_codec.h"
 #include "modulation/arpeggiator.h"
+#include "storage/storage_manager.h"
 
 #include <utility>
 
@@ -57,6 +59,23 @@ project::ArpRecord arpRecordOf(const ArpeggiatorSettings& settings, bool hostVal
 		record.spread_octave = held(settings.spreadOctave);
 	}
 	return record;
+}
+
+void writeArpAttributes(Serializer& writer, const ArpeggiatorSettings& settings, const project::ArpRecord* record,
+                        bool hostValues, std::optional<int32_t> tickMagnitude) {
+	project::ArpRecord written = record != nullptr ? *record : arpRecordOf(settings, hostValues);
+	if (hostValues) {
+		const project::ArpRecord engine = arpRecordOf(settings, true);
+		for (const engine::SettingInfo& row : engine::kArpHostRows) {
+			std::optional<int32_t>& value = *project::host_value_at(written, row.path);
+			value = value.has_value() ? value : *project::host_value_at(engine, row.path);
+		}
+	}
+	writer.writeValue(project::encode_settings(written, tickMagnitude));
+	settings.writeGeneratedToFile(writer);
+	if (hostValues) {
+		writer.writeValue(project::encode_host(written));
+	}
 }
 
 } // namespace deluge::bridge

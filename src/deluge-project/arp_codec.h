@@ -15,6 +15,17 @@
 
 namespace deluge::project {
 
+/// @brief @p record's settings as an arp element's attributes, in the order the firmware writes them.
+/// @param record         The arp's record.
+/// @param tick_magnitude As encode's.
+/// @return The settings' attributes.
+[[nodiscard]] serialization::Value encode_settings(const ArpRecord& record, std::optional<int32_t> tick_magnitude);
+
+/// @brief The host values @p record holds as an arp element's attributes, in the order the firmware writes them.
+/// @param record The arp's record.
+/// @return The attributes; none where the record holds no host value.
+[[nodiscard]] serialization::Value encode_host(const ArpRecord& record);
+
 /// @brief @p record as an arp element's attributes, in the order the firmware writes them.
 /// @param record         The arp's record.
 /// @param tick_magnitude The song's input tick magnitude for a sound's element; nullopt for a clip's or a non-audio

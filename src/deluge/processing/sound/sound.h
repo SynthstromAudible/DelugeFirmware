@@ -43,6 +43,10 @@ namespace deluge::dsp {
 struct StereoSample;
 } // namespace deluge::dsp
 using StereoSample = deluge::dsp::StereoSample;
+namespace deluge::project {
+struct ArpRecord;
+}
+
 class Voice;
 class Kit;
 class ParamManagerForTimeline;
@@ -290,8 +294,10 @@ public:
 	void setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
 	Error readFromFile(Deserializer& reader, ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
 	                   ArpeggiatorSettings* arpSettings);
+	/// @param arpSettings The arp a sound's element carries (a kit row's, or a synth preset's from its clip), or null.
+	/// @param arpRecord   That arp's record, which its settings are written from; null where it has none.
 	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager, ArpeggiatorSettings* arpSettings,
-	                 const char* pathAttribute = NULL);
+	                 const deluge::project::ArpRecord* arpRecord, const char* pathAttribute = NULL);
 
 	void voiceUnassigned(ModelStackWithSoundFlags* modelStack);
 	bool isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramManager);

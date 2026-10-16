@@ -57,9 +57,9 @@ public:
 
 	bool readNonAudioTagsFromFile(Deserializer& reader, char const* tagName);
 
-	void writeCommonParamsToFile(Serializer& writer, Song* songToConvertSyncLevel);
-
-	void writeNonAudioParamsToFile(Serializer& writer);
+	/// @brief Write what the arp generated as it played: the randomizer's locked values and the note pattern. Its
+	/// settings are written from its record (deluge::bridge::writeArpAttributes).
+	void writeGeneratedToFile(Serializer& writer) const;
 
 	void generateNewNotePattern();
 

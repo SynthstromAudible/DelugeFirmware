@@ -1832,32 +1832,7 @@ bool ArpeggiatorSettings::readNonAudioTagsFromFile(Deserializer& reader, char co
 	return true;
 }
 
-void ArpeggiatorSettings::writeCommonParamsToFile(Serializer& writer, Song* songToConvertSyncLevel) {
-	writer.writeAttribute("mode", (char*)arpModeToString(mode));
-	if (songToConvertSyncLevel) {
-		writer.writeAbsoluteSyncLevelToFile(songToConvertSyncLevel, "syncLevel", syncLevel, true);
-	}
-	else {
-		writer.writeAttribute("syncLevel", deluge::engine::index_of(syncLevel), true);
-	}
-	writer.writeAttribute("numOctaves", numOctaves);
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent
-	// tag)
-	if (songToConvertSyncLevel) {
-		writer.writeSyncTypeToFile(songToConvertSyncLevel, "syncType", syncType, true);
-	}
-	else {
-		writer.writeAttribute("syncType", std::to_underlying(syncType));
-	}
-	writer.writeAttribute("arpMode", (char*)arpModeToString(mode));
-	writer.writeAttribute("chordType", chordTypeIndex);
-	writer.writeAttribute("noteMode", (char*)arpNoteModeToString(noteMode));
-	writer.writeAttribute("octaveMode", (char*)arpOctaveModeToString(octaveMode));
-	writer.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(mpeVelocity));
-	writer.writeAttribute("stepRepeat", numStepRepeats);
-	writer.writeAttribute("randomizerLock", randomizerLock);
-	writer.writeAttribute("kitArp", includeInKitArp);
-
+void ArpeggiatorSettings::writeGeneratedToFile(Serializer& writer) const {
 	// Note probability
 	writer.writeAttribute("lastLockedNoteProb", lastLockedNoteProbabilityParameterValue);
 	writer.writeAttributeHexBytes("lockedNoteProbArray", (uint8_t*)lockedNoteProbabilityValues.data(),
@@ -1900,27 +1875,6 @@ void ArpeggiatorSettings::writeCommonParamsToFile(Serializer& writer, Song* song
 	                              lockedSpreadOctaveValues.size());
 	// Note pattern
 	writer.writeAttributeHexBytes("notePattern", (uint8_t*)notePattern.data(), notePattern.size());
-}
-
-void ArpeggiatorSettings::writeNonAudioParamsToFile(Serializer& writer) {
-	writer.writeAttribute("gate", gate);
-	writer.writeAttribute("rate", rate);
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent
-	// tag)
-	writer.writeAttribute("noteProbability", noteProbability);
-	writer.writeAttribute("bassProbability", bassProbability);
-	writer.writeAttribute("swapProbability", swapProbability);
-	writer.writeAttribute("glideProbability", glideProbability);
-	writer.writeAttribute("reverseProbability", reverseProbability);
-	writer.writeAttribute("chordProbability", chordProbability);
-	writer.writeAttribute("ratchetProbability", ratchetProbability);
-	writer.writeAttribute("ratchetAmount", ratchetAmount);
-	writer.writeAttribute("sequenceLength", sequenceLength);
-	writer.writeAttribute("chordPolyphony", chordPolyphony);
-	writer.writeAttribute("rhythm", rhythm);
-	writer.writeAttribute("spreadVelocity", spreadVelocity);
-	writer.writeAttribute("spreadGate", spreadGate);
-	writer.writeAttribute("spreadOctave", spreadOctave);
 }
 
 void ArpeggiatorSettings::generateNewNotePattern() {

@@ -56,6 +56,14 @@ std::optional<uint8_t> word_index(const Value& element, std::string_view attribu
 } // namespace
 
 Value encode(const ArpRecord& record, std::optional<int32_t> tick_magnitude) {
+	Value map = encode_settings(record, tick_magnitude);
+	for (const auto& [name, value] : encode_host(record).entries()) {
+		map.set(name, value);
+	}
+	return map;
+}
+
+Value encode_settings(const ArpRecord& record, std::optional<int32_t> tick_magnitude) {
 	Value map = Value::makeMap();
 	const auto number = [](int64_t n) { return Value::makeNumber(n); };
 	const int32_t sync =
@@ -72,9 +80,14 @@ Value encode(const ArpRecord& record, std::optional<int32_t> tick_magnitude) {
 	map.set("stepRepeat", number(record.step_repeat));
 	map.set("randomizerLock", number(record.randomizer_lock ? 1 : 0));
 	map.set("kitArp", number(record.kit_arp ? 1 : 0));
+	return map;
+}
+
+Value encode_host(const ArpRecord& record) {
+	Value map = Value::makeMap();
 	for (std::string_view attribute : kHostOrder) {
 		if (const std::optional<int32_t>* value = host_value_at(record, path_of(attribute)); value->has_value()) {
-			map.set(std::string{attribute}, number(**value));
+			map.set(std::string{attribute}, Value::makeNumber(**value));
 		}
 	}
 	return map;

@@ -19,7 +19,11 @@
 
 #include "deluge-project/arp_record.h"
 
+#include <cstdint>
+#include <optional>
+
 class ArpeggiatorSettings;
+class Serializer;
 
 namespace deluge::bridge {
 
@@ -29,5 +33,17 @@ namespace deluge::bridge {
 ///                   they are params the record leaves them absent.
 /// @return The record.
 [[nodiscard]] project::ArpRecord arpRecordOf(const ArpeggiatorSettings& settings, bool hostValues);
+
+/// @brief Write an arp element's attributes: its settings from @p record, what the arp generated (the randomizer's
+///        locked values, the note pattern) from @p settings, then, where they are settings, its host values.
+/// @param writer        The serializer, inside the element's opening tag.
+/// @param settings      The engine's arp.
+/// @param record        The arp's record; null for an arp that has none (one being built), which writes @p settings'.
+/// @param hostValues    Whether the host values are settings (see arpRecordOf). A host value the record does not hold
+///                      is written from @p settings.
+/// @param tickMagnitude The song's input tick magnitude for a sound's element, which holds the sync level relative to
+///                      it; nullopt for a clip's or a non-audio kit row's.
+void writeArpAttributes(Serializer& writer, const ArpeggiatorSettings& settings, const project::ArpRecord* record,
+                        bool hostValues, std::optional<int32_t> tickMagnitude);
 
 } // namespace deluge::bridge

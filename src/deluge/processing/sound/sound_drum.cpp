@@ -125,7 +125,8 @@ void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramMana
 	writer.writeOpeningTagBeginning("sound", true);
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
-	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, NULL);
+	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings,
+	                   docDrum_ != nullptr && docDrum_->arp ? &*docDrum_->arp : nullptr, NULL);
 
 	if (savingSong) {}
 
@@ -136,7 +137,8 @@ void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* p
 	writer.writeOpeningTagBeginning("sound", true);
 	writeDrumTagsToFile(writer, savingSong);
 
-	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, path.c_str());
+	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings,
+	                   docDrum_ != nullptr && docDrum_->arp ? &*docDrum_->arp : nullptr, path.c_str());
 
 	if (savingSong) {
 		Drum::writeMIDICommandsToFile(writer);

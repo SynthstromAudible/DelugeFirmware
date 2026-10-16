@@ -2530,13 +2530,9 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	}
 
 	writer.writeOpeningTagBeginning("arpeggiator");
-
-	arpSettings.writeCommonParamsToFile(writer, nullptr);
-
-	if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
-		arpSettings.writeNonAudioParamsToFile(writer);
-	}
-
+	deluge::bridge::writeArpAttributes(
+	    writer, arpSettings, docClip_ != nullptr && docClip_->values.arp ? &*docClip_->values.arp : nullptr,
+	    output->type == OutputType::MIDI_OUT || output->type == OutputType::CV, std::nullopt);
 	writer.closeTag();
 
 	if (output->type == OutputType::KIT) {

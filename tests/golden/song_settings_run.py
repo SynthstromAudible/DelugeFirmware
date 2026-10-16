@@ -68,9 +68,9 @@ def main(argv=None):
         print(f"SONG-SETTINGS {key} n={applied[key]}")
     print("=" * 60)
     print(f"OK={ok} FAIL={fail} SKIP={skip}  (song_settings, corpus={args.corpus})")
-    for leg in ("audioSource", "midiDevice"):
+    for leg in ("audioSource", "midiDevice", "arpLock"):
         print(f"SONG-SETTINGS-SAVE {leg} songs={saved[leg]}")
-    if not saved["audioSource"] or not saved["midiDevice"]:
+    if not saved["audioSource"] or not saved["midiDevice"] or not saved["arpLock"]:
         print("FAIL: a save leg found no song to run on")
         return 1
     reached = {key.split(" ")[0] for key in applied}

@@ -106,11 +106,8 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int32_t 
 
 void NonAudioDrum::writeArpeggiatorToFile(Serializer& writer) {
 	writer.writeOpeningTagBeginning("arpeggiator");
-
-	arpSettings.writeCommonParamsToFile(writer, nullptr);
-
-	arpSettings.writeNonAudioParamsToFile(writer);
-
+	deluge::bridge::writeArpAttributes(
+	    writer, arpSettings, docDrum_ != nullptr && docDrum_->arp ? &*docDrum_->arp : nullptr, true, std::nullopt);
 	writer.closeTag();
 }
 

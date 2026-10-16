@@ -12,6 +12,7 @@
 #include "extern.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
+#include "model/clip/instrument_clip.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_setting.h"
 #include "model/global_effectable/global_effectable.h"
@@ -169,7 +170,8 @@ Song* savedAndReloaded(Song& song) {
 
 /// @brief The settings a save must carry through to the song it reloads into: an audio track recording from another
 ///        (by id in the record, by place in the file), and a MIDI track's hide flag (on a track never otherwise
-///        edited) and a CC label. Prints `SONG-SETTINGS-SAVE <leg> ok` for each leg the song has the tracks for.
+///        edited) and a CC label, and a MIDI clip's arp with its randomizer locked: the values the render generated
+///        come back as they were. Prints `SONG-SETTINGS-SAVE <leg> ok` for each leg the song has the tracks for.
 /// @return The failures.
 int32_t saveLegs(Song& song, deluge::scenarios::driver::Io io) {
 	::AudioOutput* recorder = nullptr;
@@ -229,6 +231,43 @@ int32_t saveLegs(Song& song, deluge::scenarios::driver::Io io) {
 		}
 		else {
 			std::fprintf(io.out, "SONG-SETTINGS-SAVE midiDevice ok\n");
+		}
+		currentSong = &song;
+	}
+	::InstrumentClip* midiClip = nullptr;
+	for (::Clip* clip : AllClips::everywhere(&song)) {
+		if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
+		    && clip->output->type == OutputType::MIDI_OUT) {
+			midiClip = static_cast<::InstrumentClip*>(clip);
+			break;
+		}
+	}
+	if (midiClip != nullptr) {
+		const uint32_t clipId = midiClip->id();
+		const SettingAddress arp{SettingGroupId::CLIP_ARP, deluge::project::ClipAddress{.clip_id = clipId}};
+		const bool set = applySetting(song, arp, "arpeggiator/arpMode", Value::makeScalar("arp"))
+		                 && applySetting(song, arp, "arpeggiator/randomizerLock", Value::makeNumber(1));
+		// What the render generates while the lock holds: its locked values and the note pattern.
+		ArpeggiatorSettings& settings = midiClip->arpSettings;
+		for (uint32_t i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
+			settings.lockedNoteProbabilityValues[i] = static_cast<int8_t>(i * 7 - 50);
+			settings.lockedSpreadOctaveValues[i] = static_cast<int8_t>(3 - i);
+		}
+		settings.lastLockedNoteProbabilityParameterValue = 123456;
+		settings.notePattern[0] = 5;
+		Song* reloaded = set ? savedAndReloaded(song) : nullptr;
+		auto* back = reloaded != nullptr ? static_cast<::InstrumentClip*>(reloaded->clipForId(clipId)) : nullptr;
+		if (back == nullptr || !back->arpSettings.randomizerLock
+		    || back->arpSettings.lockedNoteProbabilityValues != settings.lockedNoteProbabilityValues
+		    || back->arpSettings.lockedSpreadOctaveValues != settings.lockedSpreadOctaveValues
+		    || back->arpSettings.lastLockedNoteProbabilityParameterValue != 123456
+		    || back->arpSettings.notePattern != settings.notePattern) {
+			std::fprintf(io.err,
+			             "SONG-SETTINGS-SAVE FAIL arpLock: the reloaded MIDI clip lost its locked arp values\n");
+			failures++;
+		}
+		else {
+			std::fprintf(io.out, "SONG-SETTINGS-SAVE arpLock ok\n");
 		}
 		currentSong = &song;
 	}

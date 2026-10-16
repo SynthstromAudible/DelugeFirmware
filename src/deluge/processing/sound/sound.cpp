@@ -43,6 +43,7 @@
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/arp_bridge.h"
 #include "model/project_bridge/cable_bridge.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
@@ -3115,7 +3116,8 @@ void Sound::setLfoSync(int32_t lfoId, SyncType syncType, SyncLevel syncLevel) {
 }
 
 void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager,
-                        ArpeggiatorSettings* arpSettings, const char* pathAttribute) {
+                        ArpeggiatorSettings* arpSettings, const deluge::project::ArpRecord* arpRecord,
+                        const char* pathAttribute) {
 	// The instrument writes its own settings; the effects', the params, the arpeggiator and the mod knobs sit between
 	// its pieces in the file.
 	std::optional<deluge::instrument::SoundState> unbound;
@@ -3145,7 +3147,8 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	if (arpSettings != nullptr) {
 		writer.writeOpeningTagBeginning("arpeggiator");
-		arpSettings->writeCommonParamsToFile(writer, currentSong);
+		deluge::bridge::writeArpAttributes(writer, *arpSettings, arpRecord, false,
+		                                   currentSong->getInputTickMagnitude());
 		writer.closeTag();
 	}
 
