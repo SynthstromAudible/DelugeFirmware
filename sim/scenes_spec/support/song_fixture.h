@@ -93,9 +93,9 @@ inline void attach(Song* song, InstrumentClip* clip, Instrument* instrument, Par
 }
 
 inline InstrumentClip* make_session_clip(Song* song) {
-	InstrumentClip* clip = place<InstrumentClip>(song);
-	clip->loopLength = kDefaultClipLength << song->insideWorldTickMagnitude;
-	(void)song->sessionClips.insertClipAt(clip, 0);
+	InstrumentClip* clip = place<InstrumentClip>(*song);
+	clip->setLoopLength(kDefaultClipLength << song->project.transport.inside_world_tick_magnitude);
+	(void)song->live.clips.session_clips.insertClipAt(clip, 0);
 	return clip;
 }
 
@@ -172,11 +172,11 @@ inline AudioSongFixture make_audio_clip_song() {
 	AudioSongFixture f;
 	f.song = detail::make_bare_song();
 
-	f.clip = detail::place<AudioClip>();
-	f.clip->loopLength = kDefaultClipLength << f.song->insideWorldTickMagnitude;
+	f.clip = detail::place<AudioClip>(*f.song);
+	f.clip->setLoopLength(kDefaultClipLength << f.song->project.transport.inside_world_tick_magnitude);
 	f.clip->paramManager.setupUnpatched();
 	GlobalEffectableForClip::initParams(&f.clip->paramManager);
-	(void)f.song->sessionClips.insertClipAt(f.clip, 0);
+	(void)f.song->live.clips.session_clips.insertClipAt(f.clip, 0);
 
 	f.output = f.song->createNewAudioOutput();
 	f.clip->output = f.output;
@@ -217,7 +217,7 @@ inline T* add_drum(SongFixture& f) {
 		params.setupWithPatching();
 		Sound::initParams(&params);
 		drum->setupAsSample(&params);
-		f.song->backUpParamManager(drum, f.clip, &params, true);
+		f.song->live.param_backup.backUp(drum, f.clip, &params, true);
 	}
 
 	kit->addDrum(drum);

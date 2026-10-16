@@ -9,6 +9,7 @@ set(SCENES_SPEC_PORTED
     selftest/pass_spec
     selftest/fail_spec
     selftest/crash_spec
+    selftest/card_access_spec
 )
 set(_ported_sources "")
 set(_decls "")

@@ -3,8 +3,8 @@
 /// @brief `ErasedFlash` -- an RAII guard that leaves the host's modelled settings sector erased,
 ///        on both sides of an example that writes it.
 ///
-/// **Why this exists.** The host BSP backs `deluge_flash_read`/`_erase`/`_program` with one
-/// process-global 256-byte buffer (`src/bsp/host/host_bsp.c`, the `flash.h` stub section). The NOR
+/// **Why this exists.** The host backs `deluge_flash_read`/`_erase`/`_program` with one process-global
+/// settings buffer (`src/bsp/rust/src/peripherals/flash.rs`, `HOST_SETTINGS`). The NOR
 /// semantics it models are right -- erased reads as `0xFF`, programming can only clear bits -- but
 /// the *lifetime* is the whole process, and a spec binary runs many examples in one process. So
 /// any example that reaches `FlashStorage::writeSettings()` leaves 256 bytes of settings sitting
@@ -23,9 +23,7 @@
 /// no later example inherits its bytes. Both ends matter: erasing only on exit still lets an
 /// *earlier* writer bleed into this example.
 ///
-/// Modelled on `NoSdRoot` (`sim/scenes_spec/context_menu_scene_spec.cpp`), which does the same job
-/// for the SD passthrough root: save/neutralise/restore around a driven action that touches
-/// process-global state the harness shares.
+/// The same save/neutralise/restore shape as the other guards around process-global state the specs share.
 ///
 /// @note One sector, and it starts at 0 -- `deluge_flash_erase`'s `offset` is ignored by the host
 ///       stub, and `FlashStorage::writeSettings` only ever erases and programs at 0.
