@@ -48,6 +48,17 @@ set(SCENES_SPEC_PORTED
     profile_spec
     l10n_bridge_spec
     audio_source_spec
+    browser_scene_spec
+    browser_choice_spec
+    listing_spec
+    listing_nested_spec
+    file_catalogue_spec
+    file_catalogue_trio_spec
+    slicer_scene_spec
+    menu_scripts_spec
+    recorder_scene_spec
+    context_menu_scene_spec
+    tables_3_spec
 )
 set(_ported_sources "")
 set(_decls "")

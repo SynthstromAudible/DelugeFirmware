@@ -229,6 +229,7 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 
+#include "support/no_notification_sink.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -517,36 +518,11 @@ MultisampleRange* install_sample_source(spec::SongFixture& song, Sample* sample)
 	return range;
 }
 
-/// @brief A card under the host temp directory, built and removed around the browser script.
-///
-/// `browser_scene_spec.cpp`'s `ScratchCard`, minus the MIDI-definition half this script never
-/// lists. The committed `tests/fixtures/card` cannot serve: its `SAMPLES` folder holds one `.keep`
-/// file and no subdirectory, so the script could neither descend nor search. `git status
-/// --porcelain tests/fixtures` stays clean because nothing here goes near it.
+/// @brief The card these examples list: `tests/fixtures/scenes_spec/menu_scripts`, installed for this file before boot
+///        (`tests/integration/checks/scenes_spec_cards.txt`). Constructing one checks it is the installed card.
 struct ScratchCard {
-	std::filesystem::path dir;
-	spec::SdRoot root;
-
-	static std::filesystem::path make() {
-		std::filesystem::path d = std::filesystem::temp_directory_path() / "deluge_menu_scripts_spec";
-		std::filesystem::remove_all(d);
-		std::filesystem::create_directories(d / "SAMPLES" / "KICKS");
-		for (const char* name : {"CLAP.WAV", "SNARE.WAV", "TOM.WAV"}) {
-			std::ofstream(d / "SAMPLES" / name) << "RIFF";
-		}
-		for (const char* name : {"KICK1.WAV", "KICK2.WAV", "SUB.WAV"}) {
-			std::ofstream(d / "SAMPLES" / "KICKS" / name) << "RIFF";
-		}
-		return d;
-	}
-
-	ScratchCard() : dir{make()}, root{dir.string()} {}
-	~ScratchCard() {
-		std::error_code ec;
-		std::filesystem::remove_all(dir, ec);
-	}
-	ScratchCard(const ScratchCard&) = delete;
-	ScratchCard& operator=(const ScratchCard&) = delete;
+	std::filesystem::path dir = std::filesystem::path(DELUGE_REPO_ROOT) / "tests/fixtures/scenes_spec/menu_scripts";
+	spec::SdRoot root{dir.string()};
 };
 
 /// @brief Save and restore everything the MIDI-device script touches on the two shipped cables.
@@ -768,6 +744,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	});
 
 	it("Submenu (horizontal): nodes::lpf renders and edits its focused column through the real Shell", _ {
+		// The script reads the shell's own banner, not the guest's.
+		const spec::NoNotificationSink no_sink;
 		// **Rewritten for note-family task 2's fix.** The select turn now edits the focused column
 		// and never moves focus (`HorizontalMenu::selectEncoderAction`, `horizontal_menu.cpp:309-326`);
 		// KIT focuses column 1 directly (`buttonAction`'s `select_map`, `:97`); the gold knob no
@@ -1433,7 +1411,6 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		reset_globals();
 		install_display();
 		spec::QuietAudio quiet;
-		spec::SdRoot scratch{(std::filesystem::temp_directory_path() / "deluge_menu_scripts_rec").string()};
 		spec::SongFixture song = spec::make_synth_song();
 		MultisampleRange* range = install_sample_source(song, nullptr);
 		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, false);

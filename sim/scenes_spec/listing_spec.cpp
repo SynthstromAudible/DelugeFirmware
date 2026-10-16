@@ -4,16 +4,15 @@
 ///
 /// @par What this spec cannot prove, stated before anything green appears below
 ///
-/// **On the host, `storage::Owner::run` is inline.** `Owner::on_owner()` is always false there and
-/// `run()` calls the op on the caller's stack before returning (`storage/owner.h:55-59`). So with
-/// the shipped dispatcher a listing is already finished by the time `request()` returns, and *no
-/// spec in this repository -- this one included -- exercises real fiber concurrency across this
-/// seam.* Not preemption, not memory visibility between two contexts, not an owner queue under
-/// contention, not a listing that yields mid-read while the UI keeps ticking.
+/// **The shipped dispatcher is inline.** `deluge::scenes::run_inline` calls the op on the caller's
+/// stack before returning, so a listing is already finished by the time `request()` returns, and
+/// *no spec in this repository -- this one included -- exercises concurrency across this seam.* Not
+/// preemption, not memory visibility between two contexts, not a listing that yields mid-read while
+/// the UI keeps ticking.
 ///
 /// What the examples below do instead is install a **deferring dispatcher** (`Deferred`), which
-/// stores the op and runs it when the example says so. That reproduces the one property of the
-/// Embassy path the seam's contract actually depends on -- *dispatch returns before the op runs* --
+/// stores the op and runs it when the example says so. That reproduces the one property a deferred
+/// dispatch would have that the seam's contract actually depends on -- *dispatch returns before the op runs* --
 /// and reproduces nothing else. Every "in flight" assertion here is an assertion about that
 /// ordering, not about a second execution context. The `std::atomic` in `Listing` is written for
 /// the real case and is never put under any load here.
@@ -32,23 +31,13 @@
 ///
 /// @par Card hygiene
 ///
-/// Nothing here writes to `tests/fixtures/card`: the fixture examples only `opendir`/`readdir` it,
-/// and the two examples that need a directory the fixture does not have build a scratch card under
-/// the host temp directory and remove it again (`NestedCard`). `git status --porcelain
-/// tests/fixtures` stays clean.
-
-#include "scenes/browser/listing.h"
-
-#include "definitions_cxx.hpp"
-#include "notify/notice_queue.h"
-#include "storage/file_catalogue.h"
-#include "storage/file_item.h"
-#include "storage/owner.h"
-#include "util/name_compare.h"
+/// The card is installed in memory before boot, so nothing here can write to `tests/fixtures/card`.
+/// The example that needs a nested directory the fixture does not have runs on its own card, in
+/// `listing_nested_spec.cpp`.
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the
 // project headers this drags in (`audio_engine.h` -> `util/container/ordered_pos_vector.h`).
-#include "support/card_access.h"
+#include "support/listing_rig.h"
 
 #include "cppspec.hpp"
 
@@ -60,185 +49,8 @@
 
 #include "spec/support/spec_main.h"
 
-using deluge::scenes::browser::Listing;
-using deluge::scenes::browser::ListingAction;
-using deluge::scenes::browser::ListingRequest;
-using deluge::scenes::browser::ListingResult;
-using deluge::scenes::browser::RequestOutcome;
-using deluge::scenes::spec::QuietAudio;
 using deluge::scenes::spec::SdRoot;
-using deluge::storage::FileCatalogue;
-
-namespace {
-
-const std::string kFixtureCard = std::string(DELUGE_REPO_ROOT) + "/tests/fixtures/card";
-
-/// @brief A dispatcher that stores the op instead of running it, so the in-flight state exists at
-///        all on a host where `Owner::run` is inline.
-///
-/// `Listing::Dispatch` is a bare function pointer (it has to be -- it is `Owner::run`'s own
-/// C-ABI-shaped signature), so the pending op lives in statics rather than in a lambda capture.
-/// One `Listing` is driven at a time, so one slot is enough.
-struct Deferred {
-	static inline void (*fn)(void*) = nullptr;
-	static inline void* ctx = nullptr;
-	/// Set false to model `Owner::run` returning false -- the queue-full drop (`owner.h:43`).
-	static inline bool accept = true;
-
-	static bool dispatch(void (*f)(void*), void* c) {
-		if (!accept) {
-			return false;
-		}
-		fn = f;
-		ctx = c;
-		return true;
-	}
-	static bool pending() { return fn != nullptr; }
-	/// @brief Run the stored op, as the owner fiber eventually would.
-	static void run() {
-		void (*f)(void*) = fn;
-		void* c = ctx;
-		fn = nullptr;
-		ctx = nullptr;
-		if (f != nullptr) {
-			f(c);
-		}
-	}
-	static void reset() {
-		fn = nullptr;
-		ctx = nullptr;
-		accept = true;
-	}
-};
-
-/// @brief How many notices of each kind are sitting in the global queue; drains it.
-struct NoticeTally {
-	int working = 0;
-	int clear_working = 0;
-	int error = 0;
-	int16_t last_error_code = 0;
-};
-
-NoticeTally drain_notices() {
-	NoticeTally tally;
-	deluge::notify::Notice n;
-	while (deluge::notify::notices().pop(n)) {
-		switch (n.kind) {
-		case deluge::notify::Notice::Kind::Working:
-			tally.working++;
-			break;
-		case deluge::notify::Notice::Kind::ClearWorking:
-			tally.clear_working++;
-			break;
-		case deluge::notify::Notice::Kind::Error:
-			tally.error++;
-			tally.last_error_code = n.error_code;
-			break;
-		default:
-			break;
-		}
-	}
-	return tally;
-}
-
-/// @brief Per-example reset of everything process-global this spec touches.
-///
-/// The catalogue's statics are the same shared state `file_catalogue_spec.cpp`'s `CleanCatalogue`
-/// guards, for the same reason: one spec binary runs many examples in one process, so an example
-/// that left entries (or a stale `currentDir`, or a stale comparator flag) behind would decide the
-/// next one's result by link order. `QuietAudio` is declared first so the latch is held before this
-/// guard's own body erases anything -- see `support/card_access.h` for why erasing without it
-/// segfaults.
-struct CleanListing {
-	QuietAudio quiet;
-
-	CleanListing() { reset(); }
-	~CleanListing() { reset(); }
-	static void reset() {
-		FileCatalogue::emptyFileItems();
-		FileCatalogue::numFileItemsDeletedAtStart = 0;
-		FileCatalogue::numFileItemsDeletedAtEnd = 0;
-		FileCatalogue::firstFileItemRemaining.clear();
-		FileCatalogue::lastFileItemRemaining.clear();
-		FileCatalogue::filenameToStartSearchAt = nullptr;
-		FileCatalogue::currentDir.clear();
-		shouldInterpretNoteNames = false;
-		octaveStartsFromA = false;
-		Deferred::reset();
-		(void)drain_notices();
-	}
-	CleanListing(const CleanListing&) = delete;
-	CleanListing& operator=(const CleanListing&) = delete;
-};
-
-/// @brief A scratch card with a two-level directory, for the `UpLevel` examples.
-///
-/// The committed fixture is two levels deep at exactly one place (`SETTINGS/FAVOURITES/`, which F3
-/// task 4 added so the level-3 A/B's browser leg does not have to write it -- see
-/// `tests/fixtures/card/SETTINGS/FAVOURITES/SAMPLES_Bank0.xml`), and `UpLevel` needs a directory
-/// with a parent that is not the root -- legacy refuses to ascend when
-/// `currentDir` has no `/` in it at all (`browser.cpp:1382`). Under the host temp directory,
-/// removed on the way out, so nothing is left behind and the committed fixture is untouched.
-///
-/// Layout: `OUTER/A.XML`, `OUTER/INNER/B.XML`.
-struct NestedCard {
-	std::filesystem::path dir;
-	SdRoot root;
-
-	static std::filesystem::path make() {
-		std::filesystem::path d = std::filesystem::temp_directory_path() / "deluge_listing_spec";
-		std::filesystem::remove_all(d);
-		std::filesystem::create_directories(d / "OUTER" / "INNER");
-		std::ofstream(d / "OUTER" / "A.XML") << "<x/>";
-		std::ofstream(d / "OUTER" / "INNER" / "B.XML") << "<x/>";
-		return d;
-	}
-
-	NestedCard() : dir(make()), root(dir.string()) {}
-	~NestedCard() { std::filesystem::remove_all(dir); }
-	NestedCard(const NestedCard&) = delete;
-	NestedCard& operator=(const NestedCard&) = delete;
-};
-
-/// @brief The catalogue's contents as one comma-joined string, so an order mismatch prints as an
-///        order rather than as a container diff.
-std::string catalogue_order() {
-	std::string out;
-	for (const FileItem& item : FileCatalogue::fileItems) {
-		if (!out.empty()) {
-			out += ",";
-		}
-		out += item.displayName();
-	}
-	return out;
-}
-
-/// @brief `Listing::State` as an int, so a mismatch prints as a number rather than failing to
-///        compile against CppSpec's formatter.
-int state_of(const Listing& listing) {
-	return static_cast<int>(listing.state());
-}
-constexpr int kIdle = static_cast<int>(Listing::State::Idle);
-constexpr int kInFlight = static_cast<int>(Listing::State::InFlight);
-constexpr int kReady = static_cast<int>(Listing::State::Ready);
-
-int outcome_of(RequestOutcome o) {
-	return static_cast<int>(o);
-}
-constexpr int kAccepted = static_cast<int>(RequestOutcome::Accepted);
-constexpr int kBusy = static_cast<int>(RequestOutcome::Busy);
-constexpr int kResultPending = static_cast<int>(RequestOutcome::ResultPending);
-constexpr int kDropped = static_cast<int>(RequestOutcome::Dropped);
-
-/// @brief An `Open` request for the current directory, with the defaults every example shares.
-ListingRequest open_request(std::string path = {}) {
-	ListingRequest req;
-	req.action = ListingAction::Open;
-	req.path = std::move(path);
-	return req;
-}
-
-} // namespace
+using namespace deluge::scenes::spec::listing;
 
 // clang-format off
 describe listing("the async listing seam", $ {
@@ -508,31 +320,6 @@ describe listing("the async listing seam", $ {
 		expect(FileCatalogue::currentDir).to_equal(std::string("SETTINGS"));
 	});
 
-	it("ascends out of a nested directory, naming the folder it left", _ {
-		CleanListing clean;
-		NestedCard card;
-		Listing listing(&Deferred::dispatch);
-
-		expect(outcome_of(listing.request(open_request("OUTER/INNER")))).to_equal(kAccepted);
-		Deferred::run();
-		auto inner = listing.take_result();
-		expect(inner.has_value()).to_be_true();
-		expect(catalogue_order()).to_equal(std::string("B.XML"));
-
-		ListingRequest up;
-		up.action = ListingAction::UpLevel;
-		expect(outcome_of(listing.request(up))).to_equal(kAccepted);
-		Deferred::run();
-
-		auto result = listing.take_result();
-		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
-		expect(result->dir).to_equal(std::string("OUTER"));
-		// Legacy assigns the dropped segment to `enteredText` and lists starting at it
-		// (`browser.cpp:1388`), so the folder just left is what the browser lands on.
-		expect(result->entered_text).to_equal(std::string("INNER"));
-		expect(catalogue_order()).to_equal(std::string("A.XML,INNER"));
-	});
 
 	it("finds a file by its full path", _ {
 		CleanListing clean;
@@ -620,14 +407,13 @@ describe listing("the async listing seam", $ {
 	it("completes INLINE under the shipped dispatcher, which is why every example above defers", _ {
 		CleanListing clean;
 		SdRoot root(kFixtureCard);
-		// The default-constructed seam dispatches through `storage::Owner::run`, which on the host
-		// runs the op on the caller's stack (`owner.h:55-59`, `on_owner()` always false). So the
-		// result is ALREADY waiting when `request()` returns and `in_flight()` is never observably
-		// true from here.
+		// The default-constructed seam dispatches through `deluge::scenes::run_inline`, which runs
+		// the op on the caller's stack. So the result is ALREADY waiting when `request()` returns
+		// and `in_flight()` is never observably true from here.
 		//
-		// This example exists to pin that fact rather than leave it in a comment: if `Owner::run`
-		// ever becomes deferred on the host, this fails and whoever changed it learns that every
-		// other example in this file is modelling an ordering the host now provides for real.
+		// This example exists to pin that fact rather than leave it in a comment: if the default
+		// dispatch ever becomes deferred, this fails and whoever changed it learns that every other
+		// example in this file is modelling an ordering the seam now provides for real.
 		Listing listing;
 
 		expect(outcome_of(listing.request(open_request()))).to_equal(kAccepted);

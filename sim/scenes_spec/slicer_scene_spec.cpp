@@ -219,6 +219,21 @@ struct SlicerDisplay final : deluge::hid::Display {
 	void timerRoutine() override {}
 };
 
+/// @brief Capture legacy's popups for the scope: `SlicerDisplay` installed as `display`, the app's
+///        own put back after.
+///
+/// The booted app has its own display, so the capture has to replace it rather than fill a null.
+struct LegacyPopupCapture {
+	deluge::hid::Display* saved = display;
+	LegacyPopupCapture() {
+		static SlicerDisplay d;
+		display = &d;
+	}
+	~LegacyPopupCapture() { display = saved; }
+	LegacyPopupCapture(const LegacyPopupCapture&) = delete;
+	LegacyPopupCapture& operator=(const LegacyPopupCapture&) = delete;
+};
+
 // --- the port's rig ---------------------------------------------------------------------------
 
 struct Rig {
@@ -865,14 +880,14 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 
 		open_legacy(r);
 		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		legacy_slicer.verticalEncoderAction(5, false);
+		legacy_slicer.verticalEncoderAction(5);
 		expect(after_up).to_equal(5);
 		expect(after_up).to_equal(legacy_slicer.manualSlicePoints[0].transpose);
-		legacy_slicer.verticalEncoderAction(60, false);
+		legacy_slicer.verticalEncoderAction(60);
 		expect(at_ceiling).to_equal(24);
 		expect(at_ceiling).to_equal(legacy_slicer.manualSlicePoints[0].transpose);
-		legacy_slicer.verticalEncoderAction(-60, false);
-		legacy_slicer.verticalEncoderAction(-60, false);
+		legacy_slicer.verticalEncoderAction(-60);
+		legacy_slicer.verticalEncoderAction(-60);
 		expect(at_floor).to_equal(-24);
 		expect(at_floor).to_equal(legacy_slicer.manualSlicePoints[0].transpose);
 	});
@@ -886,7 +901,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		const int32_t ported = slicer_scene().slice(0).transpose;
 
 		open_legacy(r);
-		legacy_slicer.verticalEncoderAction(5, false);
+		legacy_slicer.verticalEncoderAction(5);
 		expect(ported).to_equal(0);
 		expect(ported).to_equal(legacy_slicer.manualSlicePoints[0].transpose);
 	});
@@ -1253,11 +1268,12 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.settle(20);
 		const std::string ported = r.popup();
 
+		LegacyPopupCapture capture;
 		open_legacy(r);
 		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		legacy_slicer.verticalEncoderAction(-7, false);
+		legacy_slicer.verticalEncoderAction(-7);
 		legacy_popup_text.clear();
-		(void)legacy_slicer.buttonAction(deluge::hid::button::Y_ENC, true, false);
+		(void)legacy_slicer.buttonAction(deluge::hid::button::Y_ENC, true);
 		expect(ported).to_equal(std::string("Transpose: -7"));
 		expect(ported).to_equal(legacy_popup_text);
 	});
@@ -1273,9 +1289,10 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.settle(10);
 		const std::string ported = r.popup();
 
+		LegacyPopupCapture capture;
 		open_legacy(r);
 		legacy_popup_text.clear();
-		(void)legacy_slicer.buttonAction(deluge::hid::button::Y_ENC, true, false);
+		(void)legacy_slicer.buttonAction(deluge::hid::button::Y_ENC, true);
 		expect(ported).to_equal(std::string(""));
 		expect(ported).to_equal(legacy_popup_text);
 	});
@@ -1306,7 +1323,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 
 		r.save(true, 20);
 		r.settle(20);
-		(void)legacy_slicer.buttonAction(deluge::hid::button::SAVE, true, false);
+		(void)legacy_slicer.buttonAction(deluge::hid::button::SAVE, true);
 		expect_tables_match(self);
 		expect(slicer_scene().num_manual_slices()).to_equal(3);
 	});
@@ -1335,7 +1352,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 
 		r.save(true, 20);
 		r.settle(20);
-		expect(static_cast<int32_t>(legacy_slicer.buttonAction(deluge::hid::button::SAVE, true, false)))
+		expect(static_cast<int32_t>(legacy_slicer.buttonAction(deluge::hid::button::SAVE, true)))
 		    .to_equal(static_cast<int32_t>(ActionResult::NOT_DEALT_WITH));
 		expect_tables_match(self);
 		expect(slicer_scene().num_manual_slices()).to_equal(4);
@@ -1362,7 +1379,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 
 		r.save(true, 20);
 		r.settle(20);
-		(void)legacy_slicer.buttonAction(deluge::hid::button::SAVE, true, false);
+		(void)legacy_slicer.buttonAction(deluge::hid::button::SAVE, true);
 		expect_tables_match(self);
 		expect(slicer_scene().num_manual_slices()).to_equal(1);
 		expect(slicer_scene().current_slice()).to_equal(0);

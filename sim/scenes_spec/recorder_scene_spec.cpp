@@ -16,9 +16,9 @@
 /// `AudioEngine::doRecorderCardRoutines()` calls and which nothing in this spec pumps.
 /// `endSyncedRecording` (`:1195`) is arithmetic over `numSamplesCaptured`, and `abort()` (`:367`) is
 /// a single status store -- the file deletion that follows an abort is, again, in `cardRoutine()`.
-/// `SdRoot` still points the process at a scratch directory for the duration, so a future change
-/// that *did* create a file would land there and not in `tests/fixtures/card`; `QuietAudio` is
-/// `card_access.h`'s standing disarm for the un-booted audio engine.
+/// The file runs with no card installed (`NoSdRoot`), and the card is in memory, so a future change
+/// that *did* create a file could reach no committed fixture; `QuietAudio` is `card_access.h`'s
+/// standing disarm for the un-booted audio engine.
 ///
 /// @par The legacy oracle
 ///
@@ -56,9 +56,6 @@
 
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
-
-#include "libdeluge/storage_wait.h"
-#include "scheduler_api.h"
 
 #include "support/song_fixture.h"
 
@@ -357,12 +354,21 @@ struct EnglishL10n {
 	EnglishL10n& operator=(const EnglishL10n&) = delete;
 };
 
-/// @brief Point the process at a scratch directory for the scope. See the file docstring: nothing
-///        here writes a file, and this is the belt to that argument's braces.
-std::string scratch_root() {
-	const char* base = std::getenv("TMPDIR");
-	return std::string(base != nullptr ? base : "/tmp") + "/deluge_recorder_spec";
-}
+/// @brief No mic and no line-in for the scope: the booted host app's jack state put back after.
+struct NothingPluggedIn {
+	bool mic = AudioEngine::micPluggedIn;
+	bool line_in = AudioEngine::lineInPluggedIn;
+	NothingPluggedIn() {
+		AudioEngine::micPluggedIn = false;
+		AudioEngine::lineInPluggedIn = false;
+	}
+	~NothingPluggedIn() {
+		AudioEngine::micPluggedIn = mic;
+		AudioEngine::lineInPluggedIn = line_in;
+	}
+	NothingPluggedIn(const NothingPluggedIn&) = delete;
+	NothingPluggedIn& operator=(const NothingPluggedIn&) = delete;
+};
 
 /// @brief Every guard an example needs, in one declaration.
 ///
@@ -371,48 +377,26 @@ std::string scratch_root() {
 /// already run by the time `NoForegroundRecording` checks.
 struct Guards {
 	deluge::scenes::spec::QuietAudio quiet;
-	deluge::scenes::spec::SdRoot root{scratch_root()};
+	deluge::scenes::spec::NoSdRoot no_card;
 	DrainedNotices notices;
 	EnglishL10n l10n;
 	NoForegroundRecording publication;
 };
 
-/// @brief The body `run_sd_routine_body` is currently running. `RunCondition` is a bare function
-///        pointer (`OSLikeStuff/scheduler_api.h:36`), so the closure has to be parked here.
-std::function<void()> g_sd_routine_body;
+extern "C" bool deluge_host_storage_hold_fs(bool hold);
 
-bool run_sd_routine_body() {
-	if (g_sd_routine_body) {
-		const std::function<void()> body = std::move(g_sd_routine_body);
-		g_sd_routine_body = nullptr;
-		body();
-	}
-	// "The thing we were waiting on has happened" -- so the yield loop makes exactly one pass and
-	// `yieldingRoutineForSD` returns, clearing the flag on the way out.
-	return true;
-}
-
-/// @brief Run @p body with `isSDRoutineActive()` genuinely true.
+/// @brief Run @p body while the card is busy: `AudioEngine::sdRoutineBusy()` genuinely true.
 ///
-/// **Not a stub and not a fake flag.** `yieldingRoutineForSD`
-/// (`OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:165-183`) is the hook the BSP calls while
-/// it busy-waits on the card, and setting `sdRoutineActive` around its yield is the only thing
-/// anywhere that makes `isSDRoutineActive()` true -- so this is the real relationship the guard
-/// exists for: UI work reached from inside a suspended card routine. The condition passed in
-/// returns true on its first evaluation, which is where @p body runs, so the scheduler makes one
-/// pass and unwinds.
-void in_sd_routine(std::function<void()> body) {
-	// `TaskManager::yield` accounts the *yielding* task before it runs the loop, and a spec process
-	// has registered none -- `list[currentID]` is the zeroed slot, whose `name` is null and whose
-	// `lastCallTime` is 0, so the "took too long before yielding" `D_PRINTLN` formats `%s` from a
-	// null pointer and the process dies inside `printf.c`. `ignoreForStats()`
-	// (`OSLikeStuff/scheduler_api.h`, `TaskManager::countThisTask`) is the scheduler's own "do not
-	// account this" switch and skips that whole block. It stays off afterwards -- only `runTask`
-	// turns it back on -- which costs a spec process with no tasks nothing.
-	ignoreForStats();
-	g_sd_routine_body = std::move(body);
-	yieldingRoutineForSD(run_sd_routine_body);
-	g_sd_routine_body = nullptr;
+/// **Not a fake flag.** `sdRoutineBusy()` is `deluge::sync::sd_busy()`, which is true while the
+/// filesystem lock is held -- by a card operation in flight, or here by the host's
+/// `deluge_host_storage_hold_fs`, which takes that same lock. @p body must touch no file while it
+/// runs: a filesystem call on this thread would wait on the lock it holds.
+void in_sd_routine(const std::function<void()>& body) {
+	if (!deluge_host_storage_hold_fs(true)) {
+		spec_bail("in_sd_routine: the filesystem lock is already held");
+	}
+	body();
+	(void)deluge_host_storage_hold_fs(false);
 }
 
 } // namespace
@@ -752,6 +736,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// `AudioEngine::setForegroundRecording`, which writes the same storage -- so this example
 		// reads the LEGACY members, which is the path all nine readers take.
 		Guards g;
+		NothingPluggedIn unplugged;
 		Rig r;
 		r.open();
 		r.tick(0);

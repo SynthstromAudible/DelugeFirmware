@@ -420,8 +420,9 @@ describe note_nodes_no_bridge("scenes::menu note editor/note-row editor: no brid
 		// The whole-tree sweeps this guards against: `tables_2_spec.cpp`'s/`tables_3_spec.cpp`'s
 		// own `EmptySubmenu`/`DuplicateName` checks and its "never lets a select_chain hook name a
 		// node outside its own chain_targets" sweep (`tables_3_spec.cpp:2122`) call these hooks
-		// over the whole tree, including this one, with no `FakeNoteBridgeGuard` (nor the real
-		// bridge) installed at all. No guard is open in this example on purpose.
+		// over the whole tree, including this one, with no bridge installed at all -- boot's real one
+		// taken down for the scope, and no fake put up.
+		const deluge::scenes::spec::NoNoteBridge no_bridge;
 		expect(menu::note_bridge() == nullptr).to_be_true();
 		menu::MenuContext ctx{};
 		menu::MenuState state{};

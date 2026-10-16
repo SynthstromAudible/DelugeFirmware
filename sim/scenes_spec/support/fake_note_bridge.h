@@ -219,10 +219,11 @@ inline size_t fake_iterance_preset_label(int32_t preset, bool compact, std::span
 
 } // namespace detail
 
-/// @brief Installs a fresh `FakeNoteBridge` for one example and takes it back down however the
-///        example ends -- a bare `set_note_bridge(nullptr)` at the end of the body would leak the
-///        fake into every later example if an assertion above it fails.
+/// @brief Installs a fresh `FakeNoteBridge` for one example and puts back the bridge it replaced
+///        (boot's real one, `wireShellNoteBridge`) however the example ends -- a bare reset at the end
+///        of the body would leak the fake into every later example if an assertion above it fails.
 struct FakeNoteBridgeGuard {
+	const menu::NoteBridge* saved = menu::note_bridge();
 	FakeNoteBridge fake{};
 	const menu::NoteBridge bridge{
 	    .note_selected = &detail::fake_note_selected,
@@ -253,7 +254,7 @@ struct FakeNoteBridgeGuard {
 		menu::set_note_bridge(&bridge);
 	}
 	~FakeNoteBridgeGuard() {
-		menu::set_note_bridge(nullptr);
+		menu::set_note_bridge(saved);
 		detail::g_fake_note_bridge = nullptr;
 	}
 
@@ -265,6 +266,17 @@ struct FakeNoteBridgeGuard {
 	FakeNoteBridgeGuard& operator=(const FakeNoteBridgeGuard&) = delete;
 	FakeNoteBridgeGuard(FakeNoteBridgeGuard&&) = delete;
 	FakeNoteBridgeGuard& operator=(FakeNoteBridgeGuard&&) = delete;
+};
+
+/// @brief No note bridge for the scope, so the note nodes answer their bridge-less defaults; the
+///        bridge boot installs is put back after. For examples that sweep hooks under contexts with no
+///        current clip, which the real bridge reads.
+struct NoNoteBridge {
+	const menu::NoteBridge* saved = menu::note_bridge();
+	NoNoteBridge() { menu::set_note_bridge(nullptr); }
+	~NoNoteBridge() { menu::set_note_bridge(saved); }
+	NoNoteBridge(const NoNoteBridge&) = delete;
+	NoNoteBridge& operator=(const NoNoteBridge&) = delete;
 };
 
 } // namespace deluge::scenes::spec

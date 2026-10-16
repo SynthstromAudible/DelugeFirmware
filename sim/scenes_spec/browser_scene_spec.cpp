@@ -260,10 +260,10 @@ public:
 		qwertyVisible = false;                              // `:113`
 		fileIndexSelected = 0;                              // `:119`
 		currentDir = "SAMPLES";                             // `:145`
-		// `sample_browser.cpp:165-170`. `Owner::run` is inline on the host (`storage/owner.h:55-59`),
-		// so this listing has completed by the time the call returns -- legacy has no in-flight
-		// state to observe, which is exactly the asymmetry the file docstring records for the port.
+		// `sample_browser.cpp:165-170`, settled at once: the comparison is of where each side lands,
+		// not of the ticks between.
 		beginListing({.action = ListingAction::Open, .direction = 1, .filenameToStartAt = "", .defaultDir = "SAMPLES"});
+		settle();
 	}
 
 	/// @brief `Browser::backButtonAction`'s ascend (`browser.cpp:1283-1300`).
@@ -271,7 +271,30 @@ public:
 	/// The two gates that arm wraps -- `listingInProgress_` and `isSDRoutineActive()` -- are both
 	/// false here (the host runs the listing inline), and `exitAction()` on the root-level refusal
 	/// is `close()`, which the ascend example never reaches.
-	void back() { (void)goUpOneDirectoryLevel(); }
+	void back() {
+		(void)goUpOneDirectoryLevel();
+		settle();
+	}
+
+	/// @brief Run the listing an entry point began to its end, as the interaction tier's ticks do.
+	///
+	/// Legacy lists from `graphicsRoutine()` (`Browser::runPendingListing`), a tick after the entry
+	/// point asks; before boot finishes each directory opens directly, so one pass completes it.
+	/// Every entry point the drives use settles, so each sees the previous one's listing done.
+	void settle() {
+		for (int32_t pass = 0; pass < 64 && isListingInProgress(); pass++) {
+			runPendingListing();
+		}
+	}
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override {
+		const ActionResult result = Browser::padAction(x, y, velocity);
+		settle();
+		return result;
+	}
+	void selectEncoderAction(int8_t offset) override {
+		Browser::selectEncoderAction(offset);
+		settle();
+	}
 
 	static int32_t index() { return fileIndexSelected; }
 	static int32_t scroll() { return scrollPosVertical; }
@@ -340,11 +363,8 @@ struct CleanBrowser {
 	CleanBrowser& operator=(const CleanBrowser&) = delete;
 };
 
-/// @brief A scratch card with the two trees the descriptors browse.
-///
-/// The committed fixture (`tests/fixtures/card`) is flat and holds four invisible `.keep` files plus
-/// one XML -- it cannot descend, cannot ascend, and cannot produce a folder with enough entries to
-/// search. Under the host temp directory, removed on the way out.
+/// @brief The card these examples list: `tests/fixtures/scenes_spec/browser_scene`, installed for this file before boot
+///        (`tests/integration/checks/scenes_spec_cards.txt`). Constructing one checks it is the installed card.
 ///
 /// ```
 /// SAMPLES/CLAP.WAV  SAMPLES/SNARE.WAV  SAMPLES/TOM.WAV
@@ -360,38 +380,8 @@ struct CleanBrowser {
 /// from C), which is what the `repinComparator` example needs. Putting them at the top level would
 /// have changed every recorded golden for a fixture detail.
 struct ScratchCard {
-	std::filesystem::path dir;
-	SdRoot root;
-
-	static std::filesystem::path make() {
-		std::filesystem::path d = std::filesystem::temp_directory_path() / "deluge_browser_scene_spec";
-		std::filesystem::remove_all(d);
-		std::filesystem::create_directories(d / "SAMPLES" / "KICKS");
-		std::filesystem::create_directories(d / "SAMPLES" / "CLIPS" / "TEMP");
-		std::filesystem::create_directories(d / "MIDI_DEVICES" / "DEFINITION");
-		for (const char* name : {"CLAP.WAV", "SNARE.WAV", "TOM.WAV"}) {
-			std::ofstream(d / "SAMPLES" / name) << "RIFF";
-		}
-		std::ofstream(d / "SAMPLES" / "KICKS" / "KICK1.WAV") << "RIFF";
-		std::ofstream(d / "SAMPLES" / "CLIPS" / "TEMP" / "KEEP.WAV") << "RIFF";
-		for (const char* name : {"A3.WAV", "C3.WAV", "C4.WAV"}) {
-			std::ofstream(d / "SAMPLES" / "CLIPS" / name) << "RIFF";
-		}
-		// The shape `StorageManager::openMidiDeviceDefinitionFile` demands (root tag `midiDevice`,
-		// `storage_manager.cpp:371`) with one tag `MIDIInstrument::readDeviceDefinitionFile` accepts
-		// -- `hideUnlabeledCC` is the cheapest, and it is what turns `Error::FILE_UNREADABLE` into
-		// `Error::NONE` (`midi_instrument.cpp:606-607`). Modelled on the shipped
-		// `contrib/sd_card/MIDI_DEVICES/DEFINITION/Moog/Minitaur.XML`.
-		std::ofstream(d / "MIDI_DEVICES" / "DEFINITION" / "DEVICE1.XML")
-		    << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<midiDevice>\n"
-		       "\t<hideUnlabeledCC\n\t\tvalue=\"0\" />\n</midiDevice>\n";
-		return d;
-	}
-
-	ScratchCard() : dir(make()), root(dir.string()) {}
-	~ScratchCard() { std::filesystem::remove_all(dir); }
-	ScratchCard(const ScratchCard&) = delete;
-	ScratchCard& operator=(const ScratchCard&) = delete;
+	std::filesystem::path dir = std::filesystem::path(DELUGE_REPO_ROOT) / "tests/fixtures/scenes_spec/browser_scene";
+	SdRoot root{dir.string()};
 };
 
 /// @brief A 128x64 single-panel board, so the same scene can be recorded at the other shipped panel
@@ -593,13 +583,14 @@ BrowserState port_state(Rig& r) {
 	                    r.fake.pbm(0)};
 }
 
-/// @brief Wipe the catalogue, so the legacy run below lists it for itself.
+/// @brief Wipe both sides' listings, so the legacy run below lists the card for itself.
 ///
-/// The port's listing left `FileCatalogue::fileItems` populated and its bookkeeping set. Legacy's
-/// `readFileItemsForFolder` would re-read the folder anyway, but starting from the port's leftovers
-/// is precisely the shape B1 exists to remove: emptied here so the only thing the two runs share is
-/// the card.
+/// The port's listing left `FileCatalogue::fileItems` populated and its bookkeeping set, and an
+/// earlier legacy run leaves `Browser`'s own listing and directory. Emptied here so the only thing
+/// the two runs share is the card.
 void clear_catalogue() {
+	Browser::emptyFileItems();
+	Browser::currentDir.clear();
 	FileCatalogue::emptyFileItems();
 	FileCatalogue::numFileItemsDeletedAtStart = 0;
 	FileCatalogue::numFileItemsDeletedAtEnd = 0;
@@ -1360,7 +1351,7 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		expect(browser_scene().take_choice().has_value()).to_be_false();
 	});
 
-	it("loads the MIDI device definition itself, and closes", _ {
+	it("parks the chosen MIDI device definition for the drain, and closes", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_midi_song();
@@ -1371,16 +1362,23 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		r.open_and_land(context_of(f), BrowserId::MidiDeviceDefinition);
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"DEVICE1"});
 
-		// Unlike the sample descriptor, this one performs its own action:
-		// `StorageManager::loadMidiDeviceDefinitionFile` is in `storage/`, which this layer may
-		// include (`load_midi_device_definition_ui.cpp:216-217`). The proof it ran is the
-		// instrument's own remembered filename, which `loadMidiDeviceDefinitionFile` writes.
+		// Like the sample descriptor, this one defers: the load is an instrument-load request on the
+		// interaction tier (`shell_choice_dispatch.cpp`'s `requestMidiDefinitionLoad`), which the
+		// drain makes. So the press parks the path and loads nothing itself.
+		Error unused = Error::NONE;
+		expect(static_cast<int>(browser::descriptor(BrowserId::MidiDeviceDefinition)
+		                            .accept(context_of(f), "MIDI_DEVICES/DEFINITION/DEVICE1.XML", unused)))
+		    .to_equal(static_cast<int>(AcceptOutcome::Defer));
+
 		r.enter();
 		expect(r.browser_on_stack()).to_be_false();
-		expect(instrument->deviceDefinitionFileName)
+		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
+		expect(choice.has_value()).to_be_true();
+		expect(choice.has_value() && choice->id == BrowserId::MidiDeviceDefinition).to_be_true();
+		expect(choice.has_value() ? choice->path : std::string{})
 		    .to_equal(std::string{"MIDI_DEVICES/DEFINITION/DEVICE1.XML"});
-		// ...and nothing was parked: this descriptor never defers.
-		expect(browser_scene().take_choice().has_value()).to_be_false();
+		// What the drain then does with the choice is `browser_choice_spec.cpp`'s.
+		expect(instrument->deviceDefinitionFileName).to_equal(std::string{});
 	});
 
 	it("reopens on the file it remembers", _ {
@@ -1544,7 +1542,7 @@ describe browser_legacy_pixels("scenes::browser::BrowserScene against the legacy
 			b.padAction(enter_pad.x, enter_pad.y, 0);
 			b.back();
 		}));
-		expect(FileCatalogue::currentDir).to_equal(std::string{"SAMPLES"});
+		expect(Browser::currentDir).to_equal(std::string{"SAMPLES"});
 	});
 
 	it("descends into a folder the same way as Browser::goIntoFolderImpl", _ {
@@ -1576,7 +1574,7 @@ describe browser_legacy_pixels("scenes::browser::BrowserScene against the legacy
 		}));
 		// Legacy walked into the same folder for itself, through `Browser::goIntoFolderImpl`
 		// (`browser.cpp:1339`) rather than through a name this spec supplied.
-		expect(FileCatalogue::currentDir).to_equal(std::string{"SAMPLES/KICKS"});
+		expect(Browser::currentDir).to_equal(std::string{"SAMPLES/KICKS"});
 	});
 });
 

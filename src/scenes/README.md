@@ -243,6 +243,18 @@ code generation. Ten root tables live in `menu/nodes/*.cpp` (one file per legacy
 kit, MIDI/CV, song, settings, …), gathered by `MenuScene::roots()`
 (`menu/menu_scene.h`/`nodes/nodes.h`) and indexed by `MenuContext::Root`.
 
+### Legacy features not yet ported
+
+Legacy's menus are the truth the tree transcribes. Small legacy changes are followed as they land; a
+feature-level one the scenes have not caught up with is listed here, and the specs that walk the two
+trees in lockstep step over it by identity (`tables_3_spec.cpp`'s `unported_legacy`), so porting it
+fails that spec until it leaves both lists.
+
+| legacy | change | what porting it takes |
+|---|---|---|
+| `cpu::VoiceUsage voiceUsageMenu` (settings root, before firmware version) | main #5005 | a live, timer-sampled horizontal page of three counters (live, average, maximum) |
+| the reverb width/room-size items' titles | renamed to Diffusion/Time under the MUTABLE and DIGITAL models | node titles that depend on the context |
+
 ### Adding a node
 
 1. Find the legacy `MenuItem` subclass the node replaces (`gui/menu_item/**`, `gui/ui/menus.cpp`)

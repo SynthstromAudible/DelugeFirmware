@@ -35,6 +35,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 
+#include "support/no_notification_sink.h"
 #include "support/song_fixture.h"
 
 #include "spec/shell/support/fake_surfaces.h"
@@ -66,15 +67,7 @@ using deluge::ui::shell::UiEvent;
 
 namespace {
 
-/// @brief No notification sink for the scope, so the shell's own `Notification` banner shows the menu's
-/// notification; the one app init installs is put back after. The examples below read that banner.
-struct NoNotificationSink {
-	const deluge::ui::shell::NotificationSink* saved = deluge::ui::shell::notification_sink();
-	NoNotificationSink() { deluge::ui::shell::set_notification_sink(nullptr); }
-	~NoNotificationSink() { deluge::ui::shell::set_notification_sink(saved); }
-	NoNotificationSink(const NoNotificationSink&) = delete;
-	NoNotificationSink& operator=(const NoNotificationSink&) = delete;
-};
+using deluge::scenes::spec::NoNotificationSink;
 
 namespace menu = deluge::scenes::menu;
 namespace nodes = deluge::scenes::menu::nodes;

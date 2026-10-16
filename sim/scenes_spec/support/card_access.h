@@ -41,12 +41,12 @@ using CardFiles = std::set<std::pair<std::string, uint32_t>>;
 inline CardFiles host_card_files(const std::string& dir) {
 	CardFiles files;
 	std::error_code ec;
-	for (auto it = std::filesystem::recursive_directory_iterator(dir, ec);
-	     !ec && it != std::filesystem::recursive_directory_iterator(); it.increment(ec)) {
-		if (it->is_regular_file()) {
-			std::string rel = std::filesystem::relative(it->path(), dir).generic_string();
+	for (auto walk = std::filesystem::recursive_directory_iterator(dir, ec);
+	     !ec && walk != std::filesystem::recursive_directory_iterator(); walk.increment(ec)) {
+		if (walk->is_regular_file()) {
+			std::string rel = std::filesystem::relative(walk->path(), dir).generic_string();
 			std::ranges::transform(rel, rel.begin(), [](unsigned char c) { return std::tolower(c); });
-			files.emplace(std::move(rel), static_cast<uint32_t>(it->file_size()));
+			files.emplace(std::move(rel), static_cast<uint32_t>(walk->file_size()));
 		}
 	}
 	return files;
@@ -118,6 +118,17 @@ struct SdRoot {
 	}
 	SdRoot(const SdRoot&) = delete;
 	SdRoot& operator=(const SdRoot&) = delete;
+};
+
+/// @brief Confirm no card files are installed for an example (`SCENES_SPEC_CARD=none`); throws when there are.
+struct NoSdRoot {
+	NoSdRoot() {
+		if (!no_sd_root_matches()) {
+			throw std::logic_error("NoSdRoot: a card is installed (set SCENES_SPEC_CARD=none)");
+		}
+	}
+	NoSdRoot(const NoSdRoot&) = delete;
+	NoSdRoot& operator=(const NoSdRoot&) = delete;
 };
 
 /// @brief Hold `AudioEngine`'s own re-entrancy latch for the scope, so the catalogue's yield points

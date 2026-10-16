@@ -214,38 +214,6 @@ std::string below_bezel(const std::string& pbm, int visible_top) {
 	return pbm.substr(at);
 }
 
-/// @brief Detach the SD passthrough root for the duration of a driven reset.
-///
-/// `MidiFollow::factoryReset` starts with `unlink("SETTINGS/MIDIFollow.XML")`
-/// (`midi_follow.cpp:130`) and `MIDIDeviceManager::factoryReset` with the same call for
-/// `MIDIDevices.XML` -- and on the host `deluge_efatfs_unlink` is a real `::unlink` under
-/// `$DELUGE_SD_ROOT` (`src/bsp/host/host_efatfs_passthrough.cpp:652-660`). The aggregate
-/// `scenes_spec` ctest row points that at `tests/fixtures/card`, which **contains a
-/// version-controlled `SETTINGS/MIDIFollow.XML`**: driving the reset with the root attached would
-/// delete a tracked fixture and make the suite non-idempotent. Unset, every filesystem call
-/// returns `DELUGE_ERR_IO` (`:658`), which is the "no such file" path both routines already
-/// document as harmless -- so the resets run exactly their in-memory half, deterministically,
-/// whether or not the row that invoked this spec set the variable.
-struct NoSdRoot {
-	std::string saved;
-	bool had;
-	NoSdRoot() {
-		const char* root = std::getenv("DELUGE_SD_ROOT");
-		had = root != nullptr;
-		if (had) {
-			saved = root;
-		}
-		(void)::unsetenv("DELUGE_SD_ROOT");
-	}
-	~NoSdRoot() {
-		if (had) {
-			(void)::setenv("DELUGE_SD_ROOT", saved.c_str(), 1);
-		}
-	}
-	NoSdRoot(const NoSdRoot&) = delete;
-	NoSdRoot& operator=(const NoSdRoot&) = delete;
-};
-
 /// @brief The globals the five reset actions are told apart by.
 ///
 /// One field per subsystem, chosen so that each action moves its own and leaves the others alone:
@@ -644,7 +612,6 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 
 	it("runs the flash reset, and only the flash reset, exactly as legacy does", _ {
 		reset_globals();
-		NoSdRoot no_card;
 		spec::ErasedFlash flash; // this example programs the settings sector -- see `support/host_flash.h`
 		const ResetWitness entry = witness();
 		spec::SongFixture f = spec::make_synth_song();
@@ -678,13 +645,12 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 
 	it("runs the MIDI-follow reset, and only that, exactly as legacy does", _ {
 		reset_globals();
-		NoSdRoot no_card;
 		const ResetWitness entry = witness();
 		spec::SongFixture f = spec::make_synth_song();
 
-		// `MidiFollow::factoryReset` is an `unlink` its own comment calls harmless when the file is
-		// absent (and `NoSdRoot` makes it absent), five in-memory writes, and a re-read that finds
-		// nothing. All observable, all reversible.
+		// `MidiFollow::factoryReset` is an `unlink` (of the in-memory card's copy -- it never reaches
+		// `tests/fixtures`), five in-memory writes, and a re-read that finds nothing. All observable,
+		// all reversible.
 		const ResetWitness legacy = run_legacy(deluge::gui::context_menu::ResetSettingsAction::MidiFollow);
 		const auto [ported, depth] = run_ported(f, DescriptorId::ResetMidiFollow);
 
@@ -704,7 +670,6 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 
 	it("runs the community-features reset, and only that, exactly as legacy does", _ {
 		reset_globals();
-		NoSdRoot no_card;
 		const ResetWitness entry = witness();
 		spec::SongFixture f = spec::make_synth_song();
 
@@ -727,7 +692,6 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 
 	it("runs the MIDI-devices reset, which touches none of the three above", _ {
 		reset_globals();
-		NoSdRoot no_card;
 		const ResetWitness entry = witness();
 		spec::SongFixture f = spec::make_synth_song();
 

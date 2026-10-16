@@ -49,6 +49,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/colour.h"
+#include "gui/menu_item/cpu/voice_usage.h"
 #include "gui/menu_item/menu_item_with_cc_learning.h"
 #include "gui/menu_item/midi/command.h"
 #include "gui/menu_item/selection.h"
@@ -104,6 +105,7 @@ using deluge::hid::display::OLED;
 #include "processing/sound/sound_drum.h"
 #include "storage/flash_storage.h"
 
+#include "support/fake_note_bridge.h"
 #include "support/host_flash.h"
 #include "support/song_fixture.h"
 
@@ -188,9 +190,8 @@ void install(const MenuContext& ctx, Song* song) {
 	soundEditor.currentMultiRange = ctx.range;
 	soundEditor.currentMultiRangeIndex = ctx.range_index;
 	soundEditor.currentArpSettings = ctx.arp;
-	soundEditor.currentPriority = ctx.priority;
-	soundEditor.currentSidechain = ctx.sidechain;
-	soundEditor.currentSampleControls = ctx.sample_controls;
+	// `SoundEditor::setup` derives the sidechain from the mod-controllable (`sound_editor.cpp:2086-2088`).
+	soundEditor.currentSidechain = ctx.mod != nullptr ? &ctx.mod->core().sidechain() : nullptr;
 	soundEditor.allowsNoteTails = true;
 	if (ctx.sound != nullptr) {
 		char memory[MODEL_STACK_MAX_SIZE];
@@ -343,6 +344,21 @@ struct Pair {
 	int32_t navigation_depth() const { return depth > 0 ? depth - 1 : 0; }
 };
 
+/// @brief Whether @p item is a legacy item the scenes have not ported yet, which the walk steps over.
+///
+/// Each is a feature-level change to legacy that the scenes lag (`src/scenes/README.md`, "Legacy
+/// features not yet ported"); the "parks exactly" example below pins this list by identity, so porting
+/// one fails it until the item leaves the list.
+bool unported_legacy(const ::MenuItem* item) {
+	return dynamic_cast<const legacy::cpu::VoiceUsage*>(item) != nullptr; // #5005
+}
+
+/// @brief The legacy items `walk` stepped over, in the order it met them.
+std::vector<const ::MenuItem*>& stepped_over() {
+	static std::vector<const ::MenuItem*> items;
+	return items;
+}
+
 bool walk(const Node& node, ::MenuItem& item, const Root& root, std::vector<Pair>& out, std::string& where,
           int32_t depth = 0) {
 	out.push_back(Pair{&node, &item, &root, depth});
@@ -363,7 +379,14 @@ bool walk(const Node& node, ::MenuItem& item, const Root& root, std::vector<Pair
 		where = std::string{root.name} + ": node is a submenu but legacy item is not: " + std::string{item.getName()};
 		return false;
 	}
-	const auto& kids = SubmenuPeek::items_of(*submenu);
+	std::vector<::MenuItem*> kids;
+	for (::MenuItem* kid : SubmenuPeek::items_of(*submenu)) {
+		if (unported_legacy(kid)) {
+			stepped_over().push_back(kid);
+			continue;
+		}
+		kids.push_back(kid);
+	}
 	if (kids.size() != node.children.size()) {
 		where = std::string{root.name} + ": child count differs under " + std::string{item.getName()} + " ("
 		        + std::to_string(kids.size()) + " legacy vs " + std::to_string(node.children.size()) + " port)";
@@ -600,25 +623,6 @@ bool value_is_two_ended(const Node& node) {
 	return node.kind == menu::Kind::Range;
 }
 
-/// @brief The one `Kind::Enum` whose option list is **not** reproducible: its ON option names a
-///        randomly generated key.
-///
-/// `DevSysexSetting::getOptions` renders `onValue`'s eight hex digits
-/// (`runtime_feature/devSysexSetting.cpp:52-59`), and `onValue` is drawn from `getNoise()` whenever
-/// the setting is off (`:36-40`). The port draws its own from the same LCG, so with nothing stored
-/// the two strings differ by design and comparing them would be comparing two random numbers.
-///
-/// @note **This is an exclusion from the sweep, not from comparison.** Both sides adopt a *stored*
-///       key when there is one (`:33-35`), so the batch-4 group's
-///       `formats the dev sysex key exactly as legacy's own intToHex does` stores one first and then
-///       compares the two option lists byte for byte, over five keys chosen to exercise every branch
-///       of `halfByteToHexChar`. That example is what holds the port's digit table to
-///       `util/c_string.cpp`'s; this predicate only keeps the *unstored* case out of a loop that has
-///       no way to seed it.
-bool names_are_random(const Node& node) {
-	return &node == &nodes::feature_dev_sysex;
-}
-
 /// @brief The root fixture named @p name (`roots()`'s own `Root::name`), installed and ready.
 ///
 /// Aborts the example loudly rather than returning null: every caller below names a root this file
@@ -638,8 +642,8 @@ const Root& installed_root(std::string_view name) {
 ///
 /// The pairing is `walk`'s, not a hand-written table: an example that names a legacy global directly
 /// would be asserting against its *own* idea of which item a node replaces, which is the thing under
-/// test. Several of the items the batch-4 group needs (`flashStatusMenu`, `shortcutsVersionMenu`,
-/// `menuDevSysexAllowed`) are file-scope in `menus.cpp` / `runtime_feature/settings.cpp` and named in
+/// test. Several of the items the batch-4 group needs (`flashStatusMenu`, `shortcutsVersionMenu`)
+/// are file-scope in `menus.cpp` and named in
 /// no header, so this is also the only way to reach them without a bare `extern` per item.
 ::MenuItem* legacy_item_for(const Node& node);
 
@@ -725,36 +729,6 @@ constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 /// The BACK button's matrix position, the same pair `context_menu_scene_spec.cpp:124` and
 /// `rename_scene_spec.cpp:110` use.
 constexpr uint8_t kBackX = 7, kBackY = 1;
-
-/// @brief Detaches `$DELUGE_SD_ROOT` for the scope, and restores it after.
-///
-/// `RuntimeFeatureSettings::factoryReset` (`model/settings/runtime_feature_settings.cpp:176-187`,
-/// the port's `accept_reset_community_features`'s own call) `unlink`s `CommunityFeatures.XML` --
-/// and on the host that is a real `::unlink` under `$DELUGE_SD_ROOT`
-/// (`src/bsp/host/host_efatfs_passthrough.cpp`). The aggregate `scenes_spec` ctest row points that
-/// at `tests/fixtures/card`; unset, every filesystem call returns "no such file", the path both
-/// `factoryReset` and this same guard in `context_menu_scene_spec.cpp`'s `NoSdRoot` already treat
-/// as harmless. Duplicated here (file-local, like that one) rather than shared, for the same
-/// reason every other helper in this file is.
-struct NoSdRoot {
-	std::string saved;
-	bool had;
-	NoSdRoot() {
-		const char* root = std::getenv("DELUGE_SD_ROOT");
-		had = root != nullptr;
-		if (had) {
-			saved = root;
-		}
-		(void)::unsetenv("DELUGE_SD_ROOT");
-	}
-	~NoSdRoot() {
-		if (had) {
-			(void)::setenv("DELUGE_SD_ROOT", saved.c_str(), 1);
-		}
-	}
-	NoSdRoot(const NoSdRoot&) = delete;
-	NoSdRoot& operator=(const NoSdRoot&) = delete;
-};
 
 /// @brief A `Shell` over `FakeSurfaceSet` with the application's scene registry, for the goldens.
 struct Rig {
@@ -1046,12 +1020,21 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 		expect(w.pairs.empty()).to_be_false();
 	});
 
-	it("declares the settings root with the legacy child count", _ {
-		// `menus.cpp`'s `settingsRootMenu` literal (`:2152-2168`) -- thirteen children, asserted
-		// against the live object rather than a second copy of the list.
+	it("declares the settings root with the legacy child count, less the items not ported yet", _ {
+		// `menus.cpp`'s `settingsRootMenu` literal -- fourteen children, asserted against the live
+		// object rather than a second copy of the list -- of which Voice Usage is not ported yet.
 		const auto& kids = SubmenuPeek::items_of(settingsRootMenu);
-		expect(kids.size()).to_equal(size_t(13));
+		expect(kids.size()).to_equal(size_t(14));
 		expect(nodes::root_settings.children.size()).to_equal(size_t(13));
+	});
+
+	it("parks exactly the legacy items the scenes have not ported: Voice Usage (#5005)", _ {
+		// The walk steps over these; this pins the list by identity, so porting one fails here until
+		// it leaves `unported_legacy` and `src/scenes/README.md`'s list.
+		(void)tree();
+		expect(stepped_over().size()).to_equal(size_t(1));
+		expect(!stepped_over().empty() && dynamic_cast<const legacy::cpu::VoiceUsage*>(stepped_over()[0]) != nullptr)
+		    .to_be_true();
 	});
 
 	it("resolves each root from its own fixture's context", _ {
@@ -1211,7 +1194,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 	it("names every enum option exactly as the legacy Selection does", _ {
 		size_t compared = 0;
 		for (const Pair& p : tree().pairs) {
-			if (p.node->kind != menu::Kind::Enum || !relevant_here(p) || names_are_random(*p.node)) {
+			if (p.node->kind != menu::Kind::Enum || !relevant_here(p)) {
 				continue;
 			}
 			// `defaults::Magnitude` is an `Enumeration`, not a `Selection`: it has no option *names*
@@ -1264,7 +1247,9 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 				expect(getRootUI() == nullptr).to_be_true();
 			}
 			const bool got = p.node->relevant == nullptr || p.node->relevant(p.root->ctx);
-			expect(got == want).to_be_true();
+			const std::string label =
+			    std::string{p.root->name} + "/" + text_of(p.node->name) + " (" + p.item->getName() + ") relevant=";
+			expect(label + (got ? "1" : "0")).to_equal(label + (want ? "1" : "0"));
 			if (got) {
 				ever_true++;
 			}
@@ -1310,8 +1295,12 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 				}
 			}
 		}
-		for (::MenuItem* item : legacy) {
-			expect(item != nullptr).to_be_true();
+		for (size_t i = 0; i < std::size(guarded); i++) {
+			expect(std::string{"paired: "} + text_of(guarded[i]->name))
+			    .to_equal(std::string{"paired: "} + text_of(guarded[i]->name) + (legacy[i] != nullptr ? "" : " (NONE)"));
+		}
+		if (std::ranges::any_of(legacy, [](const ::MenuItem* item) { return item == nullptr; })) {
+			return;
 		}
 
 		for (const Case& c : cases) {
@@ -1716,12 +1705,19 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 
 		{ // --- synth_mode: `Sound::setSynthMode` on the target, not just a stored int ------------
 			const Root& sound = installed_root("sound");
-			const SynthMode before = sound.ctx.sound->synthMode;
+			const SynthMode before = sound.ctx.sound->getSynthMode();
+			// The model refuses RINGMOD unless both oscillators can be ring-modulated, as legacy's
+			// relevance does; SAW on both, and the fixture's own types put back after.
+			const OscType before_osc[] = {sound.ctx.sound->sources[0].getOscType(), sound.ctx.sound->sources[1].getOscType()};
+			sound.ctx.sound->sources[0].setOscType(OscType::SAW);
+			sound.ctx.sound->sources[1].setOscType(OscType::SAW);
 			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::RINGMOD));
-			expect(sound.ctx.sound->synthMode == SynthMode::RINGMOD).to_be_true();
+			expect(sound.ctx.sound->getSynthMode() == SynthMode::RINGMOD).to_be_true();
 			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::SUBTRACTIVE));
-			expect(sound.ctx.sound->synthMode == SynthMode::SUBTRACTIVE).to_be_true();
+			expect(sound.ctx.sound->getSynthMode() == SynthMode::SUBTRACTIVE).to_be_true();
 			sound.ctx.sound->setSynthMode(before, sound.ctx.song);
+			sound.ctx.sound->sources[0].setOscType(before_osc[0]);
+			sound.ctx.sound->sources[1].setOscType(before_osc[1]);
 			covered.insert(&nodes::synth_mode);
 		}
 
@@ -1795,11 +1791,11 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 
 		{ // --- mod_fx_type: `ModControllableAudio::setModFXType` on the target -------------------
 			const Root& sound = installed_root("sound");
-			const ModFXType before = sound.ctx.mod->modFXType_;
+			const ModFXType before = sound.ctx.mod->getModFXType();
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(sound.ctx.mod->modFXType_ == ModFXType::NONE).to_be_true();
+			expect(sound.ctx.mod->getModFXType() == ModFXType::NONE).to_be_true();
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(sound.ctx.mod->modFXType_ == ModFXType::FLANGER).to_be_true();
+			expect(sound.ctx.mod->getModFXType() == ModFXType::FLANGER).to_be_true();
 			(void)sound.ctx.mod->setModFXType(before);
 			covered.insert(&nodes::mod_fx_type);
 		}
@@ -2084,6 +2080,9 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 		// under every one of the ten root fixtures' contexts (plus the CV one), which between them
 		// vary kit-row-ness, output type and `source_index` -- the three facts the shipped hooks
 		// actually branch on. Cheap enough to be whole-tree rather than per-example.
+		// The note-row hooks ask the note bridge, and the real one reads the current clip, which these
+		// contexts do not install; without a bridge they answer their defaults.
+		const spec::NoNoteBridge no_bridge;
 		std::vector<const Node*> stack(nodes::kAllRoots.begin(), nodes::kAllRoots.end());
 		std::set<const Node*> seen;
 		std::vector<MenuContext> contexts;
@@ -2308,7 +2307,6 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 	it("resets exactly what legacy resets, driven through the real node, the real push and the real "
 	   "accept button -- not just through a DescriptorId",
 	   _ {
-		   NoSdRoot no_card;
 		   deluge::notify::dirty().drain();
 		   {
 			   deluge::notify::Notice stray;
@@ -2396,6 +2394,11 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 		   const CommandSlots saved = CommandSlots::capture();
 
 		   const std::vector<CommandPair>& pairs = command_pairs();
+		   // The binding example reports a missing pair; there is nothing to drive without one.
+		   if (std::ranges::any_of(pairs, [](const CommandPair& p) { return p.port == nullptr || p.legacy == nullptr; })) {
+			   expect(std::string{"every command paired"}).to_equal(std::string{"a command unpaired"});
+			   return;
+		   }
 		   for (size_t i = 0; i < pairs.size(); i++) {
 			   const int32_t cc = static_cast<int32_t>(40 + i);
 
@@ -2427,6 +2430,11 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 		   const CommandSlots saved = CommandSlots::capture();
 
 		   const std::vector<CommandPair>& pairs = command_pairs();
+		   // The binding example reports a missing pair; there is nothing to drive without one.
+		   if (std::ranges::any_of(pairs, [](const CommandPair& p) { return p.port == nullptr || p.legacy == nullptr; })) {
+			   expect(std::string{"every command paired"}).to_equal(std::string{"a command unpaired"});
+			   return;
+		   }
 		   for (size_t i = 0; i < pairs.size(); i++) {
 			   // Note-on: `Command::learnNoteOn` (`command.cpp:113-124`) writes the raw channel.
 			   CommandSlots::clear_all();
@@ -2487,6 +2495,10 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 		install(settings.ctx, settings.song);
 		const CommandSlots saved = CommandSlots::capture();
 
+		if (command_pairs()[0].legacy == nullptr) {
+			expect(std::string{"play command paired"}).to_equal(std::string{"play command unpaired"});
+			return;
+		}
 		const int32_t kZones[] = {MIDI_CHANNEL_MPE_LOWER_ZONE, MIDI_CHANNEL_MPE_UPPER_ZONE};
 		for (const int32_t zone : kZones) {
 			CommandSlots::clear_all();
@@ -3272,13 +3284,13 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 
 // clang-format off
 describe tables_4_items("scenes::menu batch-4 items: the last placeholders that were only placeholders", $ {
-	/// The nine E2 task 11 retires. Named once, here, and every example below inserts into `covered`
+	/// The eight E2 task 11 retires. Named once, here, and every example below inserts into `covered`
 	/// so the closing example can assert the set by identity -- a node dropped from a root, or an
 	/// example that quietly stopped driving one, fails rather than shrinking a count with slack in it.
 	static const std::set<const Node*> kBatch4 = {
 	    &nodes::pad_colour_active, &nodes::pad_colour_stopped, &nodes::pad_colour_muted,
 	    &nodes::pad_colour_soloed, &nodes::pad_colour_fill,    &nodes::pad_colour_once,
-	    &nodes::flash_status,      &nodes::feature_dev_sysex,  &nodes::shortcuts_version,
+	    &nodes::flash_status,      &nodes::shortcuts_version,
 	};
 	static std::set<const Node*> covered;
 
@@ -3392,127 +3404,6 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 		}
 		covered.insert(&nodes::flash_status);
 		PadLEDs::flashCursor = saved;
-	});
-
-	it("offers dev sysex as OFF plus the eight-hex-digit key a write installs", _ {
-		const Root& settings = installed_root("settings");
-		const auto saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed);
-		runtimeFeatureSettings.set(RuntimeFeatureSettingType::DevSysexAllowed, 0);
-
-		std::string_view got[menu::kMaxDynamicNames];
-		deluge::ui::shell::TextScratch scratch[menu::kMaxDynamicNames];
-		const size_t count = menu::bindings::names(nodes::feature_dev_sysex, settings.ctx, got, scratch);
-		expect(count).to_equal(size_t(2));
-		// Option 0 is the shared OFF string; the legacy item's own list is the oracle for it, and the
-		// only part of that list that is reproducible (`devSysexSetting.cpp:52-59` renders a random
-		// key into option 1).
-		auto* dev_sysex = dynamic_cast<legacy::Selection*>(legacy_item_for(nodes::feature_dev_sysex));
-		expect(dev_sysex != nullptr).to_be_true();
-		const auto want = dev_sysex->getOptions(legacy::Selection::OptType::FULL);
-		expect(want.size()).to_equal(size_t(2));
-		expect(std::string{got[0]}).to_equal(std::string{want[0]});
-
-		const std::string on{got[1]};
-		expect(on.size()).to_equal(size_t(13));
-		expect(on.substr(0, 5)).to_equal(std::string{"on - "});
-		expect(on.find('*') == std::string::npos).to_be_true(); // the template's asterisks are gone
-		// UPPERCASE. `intToHex` goes through `halfByteToHexChar` (`util/c_string.cpp:7-14`), which
-		// returns `55 + n` for a digit at or above ten -- `'A'..'F'`. The case is load-bearing:
-		// `hexCharToHalfByte` (`:16-23`) tests `>= 65` and subtracts 55, so a lowercase `'a'` parses
-		// back as 42, and a key the user cannot type back in is not a key. The example below drives
-		// both formatters over one shared value rather than leaving this as a character-set assertion.
-		for (size_t i = 5; i < on.size(); i++) {
-			expect(std::string{"0123456789ABCDEF"}.find(on[i]) != std::string::npos).to_be_true();
-		}
-
-		// **Quiet-tick coverage.** The key is drawn once and cached, not redrawn per call: a
-		// `Kind::Enum` node's names hook runs every render, and a fresh draw each time would make the
-		// digits on screen flicker and, worse, disagree with the key the write installs. Ten
-		// resolutions with no input between them must all read the same.
-		for (int32_t i = 0; i < 10; i++) {
-			std::string_view again[menu::kMaxDynamicNames];
-			deluge::ui::shell::TextScratch again_scratch[menu::kMaxDynamicNames];
-			menu::bindings::names(nodes::feature_dev_sysex, settings.ctx, again, again_scratch);
-			expect(std::string{again[1]}).to_equal(on);
-		}
-
-		// ON stores that very key -- read the stored word back and format it the way the option did.
-		expect(menu::bindings::read(nodes::feature_dev_sysex, settings.ctx)).to_equal(int32_t(0));
-		menu::bindings::write(nodes::feature_dev_sysex, settings.ctx, 1);
-		const auto stored = runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed);
-		expect(stored != 0).to_be_true();
-		char hex[9] = {};
-		for (int32_t i = 7; i >= 0; i--) {
-			hex[i] = "0123456789ABCDEF"[(stored >> (4 * (7 - i))) & 15];
-		}
-		expect(on.substr(5)).to_equal(std::string{hex});
-		expect(menu::bindings::read(nodes::feature_dev_sysex, settings.ctx)).to_equal(int32_t(1));
-
-		// OFF stores zero, and the legacy item agrees on both readings of the same stored word.
-		menu::bindings::write(nodes::feature_dev_sysex, settings.ctx, 0);
-		expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed)).to_equal(uint32_t(0));
-		expect(legacy_value(dev_sysex)).to_equal(std::optional<int32_t>{0});
-		runtimeFeatureSettings.set(RuntimeFeatureSettingType::DevSysexAllowed, 1);
-		expect(menu::bindings::read(nodes::feature_dev_sysex, settings.ctx)).to_equal(int32_t(1));
-		expect(legacy_value(dev_sysex)).to_equal(std::optional<int32_t>{1});
-
-		covered.insert(&nodes::feature_dev_sysex);
-		runtimeFeatureSettings.set(RuntimeFeatureSettingType::DevSysexAllowed, saved);
-	});
-
-	it("formats the dev sysex key exactly as legacy's own intToHex does, over the same key", _ {
-		// Fix round 1, Important 1. The shape assertions above pin the port against *itself*; this
-		// pins it against legacy, which is the only thing that catches a wrong digit table.
-		//
-		// The two sides normally hold different keys -- each rolls its own from `getNoise()` while
-		// the setting is off -- which is why `names_are_random` excludes this node from the generic
-		// option-list comparison. But both adopt a *stored* key when there is one
-		// (`DevSysexSetting::readCurrentValue`, `runtime_feature/devSysexSetting.cpp:33-35`, and
-		// `dev_sysex_on_value` in `nodes/settings.cpp`), so storing a key first makes the comparison
-		// exact: same input, two independent formatters, byte-for-byte equal output or a bug.
-		const Root& settings = installed_root("settings");
-		const auto saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed);
-		auto* dev_sysex = dynamic_cast<legacy::Selection*>(legacy_item_for(nodes::feature_dev_sysex));
-		expect(dev_sysex != nullptr).to_be_true();
-
-		// Keys chosen to exercise every branch of `halfByteToHexChar` (`util/c_string.cpp:7-14`):
-		// digits below ten, digits at or above it, a leading zero nibble, and the all-`F` extreme.
-		for (const uint32_t key : {uint32_t(0x1A2B3C4D), uint32_t(0xABCDEF01), uint32_t(0x0000000F),
-		                           uint32_t(0x7FFFFFFF), uint32_t(0x12345678)}) {
-			runtimeFeatureSettings.set(RuntimeFeatureSettingType::DevSysexAllowed, key);
-
-			// Each side is driven through its own read first, which is what adopts the stored key --
-			// legacy in `readCurrentValue` (reached here through `legacy_value`, exactly as every
-			// other comparison in this file reaches it), the port in its `get` hook (reached through
-			// `bindings::read`). Neither is handed the other's string, and neither `getOptions` nor
-			// `names` refreshes the key on its own: `getOptions` formats whatever `onValue` already
-			// holds, so skipping the read compares a stale key and silently passes on nothing.
-			expect(legacy_value(dev_sysex)).to_equal(std::optional<int32_t>{1});
-			expect(menu::bindings::read(nodes::feature_dev_sysex, settings.ctx)).to_equal(int32_t(1));
-
-			const auto want = dev_sysex->getOptions(legacy::Selection::OptType::FULL);
-			std::string_view got[menu::kMaxDynamicNames];
-			deluge::ui::shell::TextScratch scratch[menu::kMaxDynamicNames];
-			const size_t count = menu::bindings::names(nodes::feature_dev_sysex, settings.ctx, got, scratch);
-
-			expect(count).to_equal(want.size());
-			expect(count).to_equal(size_t(2));
-			expect(std::string{got[0]}).to_equal(std::string{want[0]});
-			expect(std::string{got[1]}).to_equal(std::string{want[1]}); // the whole "on - XXXXXXXX"
-
-			// And say out loud what that equality is worth, so a future reader does not have to
-			// reconstruct it: the digits are upper case, and they are this key's.
-			char hex[9] = {};
-			uint32_t n = key;
-			for (int32_t i = 7; i >= 0; i--) {
-				hex[i] = "0123456789ABCDEF"[n & 15];
-				n >>= 4;
-			}
-			expect(std::string{got[1]}).to_equal(std::string{"on - "} + hex);
-		}
-
-		covered.insert(&nodes::feature_dev_sysex);
-		runtimeFeatureSettings.set(RuntimeFeatureSettingType::DevSysexAllowed, saved);
 	});
 
 	it("round-trips the shortcuts version through the port's own copy", _ {
