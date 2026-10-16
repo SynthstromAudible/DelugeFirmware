@@ -11,13 +11,18 @@ to the sound's slot or its controller mappings, so the model keeps holding the s
 holder is allowed by its receiver's name. The sample browser's preview sound, outside the song, is set up by the
 runtime and calls no setter.
 
+Nor may a file under src/deluge/gui or src/scenes write a song setting outside SetSetting: the song's reverb, swing
+interval and disabled scales, a track's name and MIDI or CV device fields, a kit lane's name, a note row's direction,
+an audio clip's descriptor. A gesture calls songSettingFor(), trackSettingFor(), laneSettingFor(),
+noteRowSettingFor() or audioClipSettingFor() (model/edits/setting_edit.h), which write the record and project it.
+
 Two gestures write the runtime themselves and record what they wrote, checked file by file: a file that writes a mod
 knob (a `modKnobs[...]` descriptor, or learnKnob()/unlearnKnobs() on what is not a menu item) also calls
 recordControlsOf(), and a file that writes a sample holder's file or zone also calls recordRanges() or rangesFor().
 
 Usage:
-    scripts/check_setting_menus.py               # check src/deluge/gui, exit 1 on a call
-    scripts/check_setting_menus.py --root DIR    # check DIR
+    scripts/check_setting_menus.py                    # check src/deluge/gui and src/scenes, exit 1 on a call
+    scripts/check_setting_menus.py --root DIR [DIR]   # check those
 """
 
 from __future__ import annotations
@@ -87,10 +92,10 @@ SETTERS = (
     "seedDocSourceScalars",
     "seedDocDxPatch",
 )
-#: Receivers that are not a sound: an audio clip, and a sample range's holder.
-ALLOWED_RECEIVERS = {"audioClip", "getCurrentAudioClip", "sampleHolder"}
-#: A receiver allowed only in the audio clip's own menus, where `clip` is an AudioClip.
-AUDIO_CLIP_RECEIVERS = {"clip"}
+#: Receivers that are not a sound: a sample range's holder. (An audio clip's settings are song state, below.)
+ALLOWED_RECEIVERS = {"sampleHolder"}
+#: A receiver allowed only in the audio clip's own menus: none, now that an audio clip's settings are song state.
+AUDIO_CLIP_RECEIVERS: set[str] = set()
 AUDIO_CLIP_MENUS = "audio_clip"
 
 CALL = re.compile(r"(?:->|\.)\s*(" + "|".join(SETTERS) + r")\s*\(")
@@ -119,6 +124,92 @@ RECORDERS = {
     "a mod knob": ("recordControlsOf(",),
     "a sample holder's file or zone": ("recordRanges(", "rangesFor("),
 }
+
+#: A song setting written outside SetSetting: the record's own fields, the engine copies a projection makes, and the
+#: setters a projection calls.
+SONG_STATE_WRITES = (
+    re.compile(r"project\s*\.\s*reverb\s*\.\s*\w+\s*=(?!=)"),
+    re.compile(
+        r"project\s*\.\s*scale\s*\.\s*disabled_preset_scales\s*(?:\[[^\]]*\]\s*=(?!=)|\.\s*(?:set|reset|flip)\s*\(|=(?!=))"
+    ),
+    re.compile(r"(?<!\w)changeSwingInterval\s*\("),
+    re.compile(r"AudioEngine::reverb\s*\.\s*set\w+\s*\("),
+    re.compile(r"(?<!\w)reverbPan\s*=(?!=)"),
+    re.compile(r"(?<!\w)reverbSidechain(?:Volume|Shape)\s*=(?!=)"),
+    re.compile(
+        r"(?<!\w)reverbSidechainSettings\s*\.\s*(?:attack|release|sync_level)\s*=(?!=)"
+    ),
+    re.compile(
+        r"(?:->|\.)\s*(?:setName|setChannel|setChannelSuffix|setDeviceDefinitionFileName|setCollapseAftertouch"
+        r"|setCollapseMPE|setOutputMPEY|setCV2Mode|setSequenceDirectionMode|setSampleStartPos|setSampleEndPos"
+        r"|setSampleTranspose|setSampleCents|setOverdubsShouldCloneOutput|setAttack)\s*\("
+    ),
+    re.compile(
+        r"(?:->|\.)\s*(?:outputMPEY|collapseAftertouch|collapseMPE|deviceDefinitionFileName|channelSuffix)\s*=(?!=)"
+    ),
+    re.compile(r"(?:->|\.)\s*deviceDefinitionFileName\s*\.\s*clear\s*\("),
+    #: An output's, instrument's or drum's name written raw.
+    re.compile(
+        r"(?i:output|instrument|drum)\w*\s*(?:\(\s*\))?\s*(?:->|\.)\s*name\s*=(?!=)"
+    ),
+    re.compile(
+        r"(?i:clip)\w*\s*(?:\(\s*\))?\s*(?:->|\.)\s*sampleHolder\s*\.\s*(?:startPos|endPos)\s*=(?!=)"
+    ),
+)
+#: Song-state writes under the roots that are allowed, by file (relative to src/) and the text the write's line holds,
+#: each with its reason. An empty text allows the whole file.
+SONG_STATE_ALLOWED: dict[str, dict[str, str]] = {
+    "deluge/gui/views/view.cpp": {
+        "setChannel(-1)": "the channel search parks the instrument off every channel while it looks for a free one",
+        "setChannel(oldChannel)": "and puts it back before the in-place re-channel, which is a SetSetting",
+    },
+    "deluge/gui/ui/browser/sample_claim.cpp": {
+        "": "a claim records the sample it loaded onto an audio clip as a load does (syncSampleRecordFromEngine)",
+    },
+    "deluge/gui/menu_item/sequence/direction.h": {
+        "getCurrentInstrumentClip()->setSequenceDirectionMode": "a clip's own direction has no setting group yet",
+    },
+    "scenes/menu/bindings.cpp": {
+        "static_cast<InstrumentClip*>(ctx.clip)->setSequenceDirectionMode": "a clip's own direction has no setting group yet",
+    },
+}
+DEFAULT_ROOTS = (REPO / "src" / "deluge" / "gui", REPO / "src" / "scenes")
+
+
+def song_state_writes(
+    roots: tuple[Path, ...] = DEFAULT_ROOTS, allowed=None
+) -> list[str]:
+    """Every `path:line: <write>` under @p roots that writes a song setting outside SetSetting, less the files
+    @p allowed names (paths relative to src/, or to the root for a root outside it)."""
+    allowed = SONG_STATE_ALLOWED if allowed is None else allowed
+    found = []
+    for root in roots:
+        for path in sorted(root.rglob("*")):
+            if path.suffix not in SUFFIXES or not path.is_file():
+                continue
+            base = REPO / "src"
+            key = str(
+                path.relative_to(base)
+                if path.is_relative_to(base)
+                else path.relative_to(root)
+            )
+            allowances = allowed.get(key, {})
+            if "" in allowances:
+                continue
+            for number, line in enumerate(
+                path.read_text(errors="replace").splitlines(), 1
+            ):
+                code = line.split("//", 1)[0]
+                if any(text in code for text in allowances):
+                    continue
+                for pattern in SONG_STATE_WRITES:
+                    if match := pattern.search(code):
+                        found.append(
+                            f"{path}:{number}: song setting written outside SetSetting: {match.group(0).strip()}"
+                        )
+                        break
+    return found
+
 
 #: Files outside the root checked the same way: none, now that the root is the whole UI.
 ALSO: tuple[Path, ...] = ()
@@ -203,6 +294,12 @@ def calls(root: Path, also: tuple[Path, ...] = ()) -> list[str]:
     for path in sorted(root.rglob("*")) + list(also):
         if path.suffix not in SUFFIXES or not path.is_file():
             continue
+        # A file whose song-state writes are all allowed (a load path) sets an audio clip's settings the same way.
+        base = REPO / "src"
+        if path.is_relative_to(base) and "" in SONG_STATE_ALLOWED.get(
+            str(path.relative_to(base)), {}
+        ):
+            continue
         for number, line in enumerate(path.read_text(errors="replace").splitlines(), 1):
             for match in [*CALL.finditer(line), *RAW_WRITE.finditer(line)]:
                 receiver = RECEIVER.search(line[: match.start()])
@@ -256,18 +353,21 @@ def unrecorded(root: Path) -> list[str]:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, default=REPO / "src" / "deluge" / "gui")
+    parser.add_argument("--root", type=Path, nargs="+", default=list(DEFAULT_ROOTS))
     parser.add_argument("--also", type=Path, nargs="*", default=list(ALSO))
     args = parser.parse_args(argv)
-    found = calls(args.root, tuple(args.also)) + unrecorded(args.root) + host_writes()
+    found = []
+    for root in args.root:
+        found += calls(root, tuple(args.also)) + unrecorded(root)
+    found += host_writes() + song_state_writes(tuple(args.root))
     for line in found:
         print(line)
     if found:
         print(
-            f"FAIL: a gesture sets a sound's instrument state without its Edit ({len(found)} place(s))"
+            f"FAIL: a gesture sets a sound's instrument or song state without its Edit ({len(found)} place(s))"
         )
         return 1
-    print("OK: every gesture sets a sound's instrument state through its Edit")
+    print("OK: every gesture sets a sound's instrument and song state through its Edit")
     return 0
 
 

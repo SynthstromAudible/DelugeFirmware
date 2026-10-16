@@ -216,7 +216,8 @@ void RecorderScene::attach_sample() {
 	// `process()`'s success arm (`:212-218`), through the context rather than through
 	// `soundEditor.current*`.
 	ctx_.sound->killAllVoices();
-	ctx_.source->setOscType(OscType::SAMPLE);
+	deluge::edits::settingFor(*ctx_.sound, deluge::edits::oscSettingPath(ctx_.source_index, "type"),
+	                          deluge::serialization::Value::makeScalar("sample"));
 	AudioFileHolder* holder = ctx_.range->getAudioFileHolder();
 	if (holder == nullptr) {
 		// DIVERGENCE, labelled like the one in `name_drum`: legacy dereferences
@@ -228,6 +229,7 @@ void RecorderScene::attach_sample() {
 	}
 	holder->filePath = recorder_->sample->filePath;
 	holder->setAudioFile(recorder_->sample, ctx_.source->sampleControls.isCurrentlyReversed(), true);
+	deluge::edits::recordRanges(*ctx_.sound, ctx_.source_index);
 }
 
 void RecorderScene::finish_recording() {

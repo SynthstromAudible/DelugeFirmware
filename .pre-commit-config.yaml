@@ -98,12 +98,12 @@ repos:
         pass_filenames: false
         files: ^(src/deluge-project/|scripts/check_model_words\.py)
       - id: setting-menus
-        name: no gesture sets a sound's instrument state without its Edit
-        description: no gesture under src/deluge/gui calls a setter, a record reseed or writes a source field a setting Edit owns
+        name: no gesture sets a sound's instrument state or a song setting without its Edit
+        description: no gesture under src/deluge/gui or src/scenes calls a setter, a record reseed or writes a field a setting Edit owns
         entry: python3 scripts/check_setting_menus.py
         language: system
         pass_filenames: false
-        files: ^(src/deluge/gui/|scripts/check_setting_menus\.py)
+        files: ^(src/deluge/gui/|src/scenes/|scripts/check_setting_menus\.py)
       - id: check-layer-rules
         name: UI layer-rule ratchet
         description: model/playback/storage/io/etc. must not reach into gui/hid directly (shrink-only baseline)

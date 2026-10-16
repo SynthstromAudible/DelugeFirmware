@@ -46,6 +46,8 @@
 #include "gui/ui/audio_recorder.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "integration/scenarios/slot_coherence.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"
@@ -585,6 +587,27 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// `finishRecording()` (`:245-253`), and `close()` (`:221`).
 		expect(recorder_scene().recording()).to_be_false();
 		expect(r.on_stack()).to_be_false();
+	});
+
+	it("keeps the sound's record current: the attached sample is in the record a save writes", _ {
+		Guards g;
+		Rig r;
+		deluge::bridge::recordLoadedSound(*r.sound, *r.song.song); // the square source, as a load records it
+		expect(deluge::harness::soundIncoherence(*r.sound, *r.song.song)).to_equal(std::string{});
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		Sample* captured = rec->sample;
+		captured->filePath = "SAMPLES/RECORD/REC001.WAV";
+		captured->lengthInSamples = 44100;
+		captured->audioDataLengthBytes = 44100 * 3;
+		rec->numSamplesCaptured = 44100;
+		rec->status = RecorderStatus::COMPLETE;
+
+		r.tick(10);
+
+		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SAMPLE));
+		expect(deluge::harness::soundIncoherence(*r.sound, *r.song.song)).to_equal(std::string{});
 	});
 
 	it("defers the whole completion arm while the SD routine is running", _ {
