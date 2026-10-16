@@ -16,12 +16,11 @@
  */
 
 /// Level 3's C port of `tests/harness/snapshot.{h,cpp}`'s `.pbm`/`.state` writers (spec G §3),
-/// split into their own dependency-free translation unit (final review I-3) so BOTH the host BSP
-/// (`sim/CMakeLists.txt`'s `deluge_host`/`deluge_loadcheck`) and the test suite
-/// (`tests/spec/CMakeLists.txt`'s `deluge_spec`, for `tests/spec/harness/identity_spec.cpp`'s
+/// split into their own dependency-free translation unit so BOTH the runner (`deluge_ui_level3`)
+/// and the unit specs (`deluge_spec`, for `harness/identity_spec.cpp`'s
 /// cross-check) can compile it -- exactly the split `host_script_tables.c` already does for the
-/// name tables (see that file's header comment). `host_script.c` proper pulls in BSP statics (the
-/// shadows, `host_rendered_frames`, ...) and so cannot be linked into `deluge_spec`; this
+/// name tables (see that file's header comment). `host_script.c` proper calls the host (the
+/// shadows, the clock, ...) and so cannot be linked into `deluge_spec`; this
 /// header/TU pair carries only the writers, nothing that can see the app or the BSP.
 ///
 /// Before I-3, the only thing holding this C port byte-identical to `tests/harness/snapshot.cpp`

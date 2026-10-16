@@ -16,19 +16,19 @@
  */
 
 /// Level 3 of the UI test harness (spec G §4.2): inject a UI script into the real headless app on
-/// the deterministic clock and snapshot the panels/pads/LEDs it produced.
+/// the host's clock and snapshot the panels/pads/LEDs it produced.
 ///
 /// Env:
-///   DELUGE_HOST_SCRIPT        the script to run (spec G §2). Enables everything here.
-///   DELUGE_HOST_SNAPSHOT_DIR  where `<name>.oled<N>.pbm` / `<name>.state` go (default
-///                             `./snapshots`).
-///   DELUGE_HOST_DETERMINISTIC required alongside a script; without it the run is not
-///                             reproducible and there is no point recording it.
-///   DELUGE_SD_ROOT            the card root, as today (host_efatfs_passthrough.cpp).
+///   UI_SCRIPT        the script to run (spec G §2). Enables everything here.
+///   UI_SNAPSHOT_DIR  where `<name>.oled<N>.pbm` / `<name>.state` go (default `./snapshots`).
+///
+/// The host provides the clock (`host_script_now_ms`), the exit (`host_script_exit`) and the BSP
+/// half (`host_script_push_event`, the shadows); see `host_script.h`. The clock must be the one
+/// the app's own timers run on, or a script's timeline and the app's drift apart.
 ///
 /// SNAPSHOT FORMAT: `tests/harness/snapshot.{h,cpp}` is the source of truth. It is C++, so the P1
 /// and `.state` writers are a hand port of it into C -- `host_snapshot.{h,c}`, split out (final
-/// review I-3) exactly as `host_script_tables.c` splits out the name tables, so BOTH this BSP and
+/// review I-3) exactly as `host_script_tables.c` splits out the name tables, so BOTH this runner and
 /// `deluge_spec` can compile them and `tests/spec/harness/identity_spec.cpp` can cross-check the
 /// two writers against one fact set instead of leaning on a comment. This file only ever calls
 /// into that API (`collect_state`, below) -- read `host_snapshot.h` before touching the format
@@ -59,9 +59,6 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h> // _exit, from inside the at_quick_exit deadline hook
-
-extern uint32_t host_rendered_frames; // host_audio.c — the offline audio clock
 
 // ===========================================================================
 // Board tables
@@ -78,8 +75,7 @@ extern uint32_t host_rendered_frames; // host_audio.c — the offline audio cloc
 /// `DetentedEncoder::applyEdges` accumulates edges and divides by 2 to get clicks
 /// ("Two A-pin edges per quadrature cycle, one quadrature cycle per detent click",
 /// `hid/encoders.cpp:28-34`); the gold `ContinuousEncoder`s take edges raw, which matches the
-/// same 2 units per detent the hardware produces. host_bsp.c's live GUI bridge already scales by
-/// this constant for exactly this reason.
+/// same 2 units per detent the hardware produces.
 #define HOST_SCRIPT_EDGES_PER_DETENT 2
 
 // ===========================================================================
@@ -116,7 +112,7 @@ static int make_dirs(const char* dir) {
 }
 
 static const char* snapshot_dir(void) {
-	const char* dir = getenv("DELUGE_HOST_SNAPSHOT_DIR");
+	const char* dir = getenv("UI_SNAPSHOT_DIR");
 	return (dir != NULL && dir[0] != '\0') ? dir : "./snapshots";
 }
 
@@ -207,24 +203,14 @@ static size_t pending_count;
 /// are derived from it: a script cannot legitimately need time past its own last step.
 static uint32_t script_last_at_ms;
 
-/// Set just before the run's own `quick_exit(0)`, so the deadline hook can tell an orderly `quit`
-/// from the capture running out underneath a script that never reached one.
+/// Set when the script's `quit` has run; the host ends the run from there.
 static int script_finished;
 
-/// How much RENDERED AUDIO time past the script's last step the capture is allowed to run before
-/// the process is declared stuck.
+/// How much of the host's time past the script's last step the run may take before it is declared
+/// stuck: the app stopped reaching the script's `quit`.
 ///
-/// Small on purpose: a script's `quit` fires within a render block of its own last step, so five
-/// audio seconds is slack, not budget.
-///
-/// This deadline must always beat the `ui_app_scripts_<name>` ctest `TIMEOUT`, because this one
-/// carries the diagnosis ("the app stopped reaching its `quit`") and ctest's would replace it with
-/// a bare "Timeout". The two are in DIFFERENT UNITS -- this counts audio seconds
-/// (`DELUGE_HOST_CAPTURE_SECONDS`), ctest counts wall seconds -- and the sim renders slower than
-/// real time (~0.26x on a `-DDELUGE_SIM_X64=ON` build), so the ordering is not automatic. It is
-/// `sim/CMakeLists.txt` that guarantees it, by sizing its timeout as `8 * (last_s + 5) + 30` wall
-/// seconds: this deadline converted at a render rate as slow as 0.125x. Change the 5 here and that
-/// expression has to move with it.
+/// Small on purpose: a script's `quit` fires within a pump of its own last step, so five seconds is
+/// slack, not budget.
 #define HOST_SCRIPT_DEADLINE_MARGIN_S 5u
 
 /// A step popped during `host_script_init`'s `board` scan that turned out not to be a `board`.
@@ -239,7 +225,7 @@ static void script_fail(const char* what) __attribute__((noreturn));
 static void script_fail(const char* what) {
 	fprintf(stderr, "[host-script] %s\n", what);
 	fflush(NULL);
-	exit(2);
+	host_script_exit(2);
 }
 
 static void write_snapshot(const char* name) {
@@ -286,7 +272,7 @@ static void write_snapshot(const char* name) {
 	}
 }
 
-void host_script_write_pending(void) {
+static void write_pending(void) {
 	for (size_t i = 0; i < pending_count; i++) {
 		write_snapshot(pending_snapshots[i]);
 	}
@@ -356,12 +342,10 @@ static int apply_step(const UiScriptStep* step) {
 }
 
 void host_script_pump(void) {
-	if (!script_loaded) {
+	if (!script_loaded || script_finished) {
 		return;
 	}
-	// The deterministic clock, in milliseconds: host_bsp.c:104-153 drives every app clock off the
-	// same rendered-frame count, so the script's timeline and the app's are the same timeline.
-	const uint32_t now_ms = (uint32_t)((uint64_t)host_rendered_frames * 1000u / 44100u);
+	const uint32_t now_ms = host_script_now_ms();
 
 	int quit = 0;
 	// Every step that is due, in order, on every call -- not one per call. A pump that applied
@@ -385,14 +369,26 @@ void host_script_pump(void) {
 		}
 	}
 
-	host_script_write_pending();
+	write_pending();
 
 	if (quit) {
-		fprintf(stderr, "[host-script] quit at %u ms (%u frames)\n", now_ms, host_rendered_frames);
-		script_finished = 1;
+		fprintf(stderr, "[host-script] quit at %u ms\n", now_ms);
 		fflush(NULL);
-		quick_exit(0);
+		script_finished = 1;
+		return;
 	}
+	if (now_ms > script_last_at_ms + HOST_SCRIPT_DEADLINE_MARGIN_S * 1000u) {
+		fprintf(stderr,
+		        "[host-script] the deadline passed at %u ms with the script still running "
+		        "(last step is at %u ms). The app stopped reaching its `quit` -- see the snapshots "
+		        "written so far.\n",
+		        now_ms, script_last_at_ms);
+		script_fail("deadline passed");
+	}
+}
+
+bool host_script_finished(void) {
+	return script_finished != 0;
 }
 
 bool host_script_active(void) {
@@ -508,7 +504,7 @@ static int ends_with(const char* name, const char* suffix) {
 /// Without this, a snapshot renamed in the script leaves its old file behind forever, and the
 /// differ reports it as "extra in got" on every run afterwards -- the level-2 runner clears its
 /// `got/` directory for exactly this reason. Deliberately narrow: only those two suffixes, only
-/// the named directory, never recursive, so pointing DELUGE_HOST_SNAPSHOT_DIR somewhere careless
+/// the named directory, never recursive, so pointing UI_SNAPSHOT_DIR somewhere careless
 /// cannot take anything else with it.
 static void clear_stale_snapshots(void) {
 	const char* dir = snapshot_dir();
@@ -529,60 +525,16 @@ static void clear_stale_snapshots(void) {
 	closedir(d);
 }
 
-/// The capture deadline expired with the script still running: say so and fail, rather than let
-/// host_audio.c's `quick_exit(0)` report success for a run that produced no `quit`.
-///
-/// Registered with `at_quick_exit`, so it sees every `quick_exit` the process makes -- the
-/// capture's, and the script's own. `script_finished` distinguishes them.
-static void deadline_hook(void) {
-	if (!script_loaded || script_finished) {
-		return;
-	}
-	fprintf(stderr,
-	        "[host-script] the capture deadline expired at %u ms with the script still running "
-	        "(last step is at %u ms). The app stopped reaching its `quit` -- see the snapshots "
-	        "written so far.\n",
-	        (unsigned)((uint64_t)host_rendered_frames * 1000u / 44100u), script_last_at_ms);
-	fflush(NULL);
-	_exit(2); // not exit(): we are already inside quick_exit, which must not re-enter
-}
-
-/// The audio capture owns the process's lifetime (host_audio.c finalises the WAV and
-/// `quick_exit`s after `DELUGE_HOST_CAPTURE_SECONDS`, default 2.0 s). A script's `quit` must be
-/// what ends the run instead, so move the capture's deadline to just past the script's last step
-/// and send its WAV to /dev/null -- unless the caller asked for either explicitly, in which case
-/// they meant it.
-///
-/// The deadline is the script's own end plus `HOST_SCRIPT_DEADLINE_MARGIN_S`, not something flat
-/// and huge: it is the only in-process backstop on a run whose `quit` is never reached (any change
-/// that stops the app polling `deluge_control_poll_event` also stops the pump), and a backstop an
-/// hour away is no backstop at all. `deadline_hook` turns hitting it into an exit 2 with a reason.
-/// A run that stops rendering altogether freezes this clock too; the ctest `TIMEOUT` covers that,
-/// and is sized so that it never fires first while rendering is still making progress.
-static void defer_capture_exit(void) {
-	if (getenv("DELUGE_HOST_CAPTURE_SECONDS") == NULL) {
-		char seconds[16];
-		snprintf(seconds, sizeof(seconds), "%u", script_last_at_ms / 1000u + HOST_SCRIPT_DEADLINE_MARGIN_S);
-		setenv("DELUGE_HOST_CAPTURE_SECONDS", seconds, 0);
-	}
-	if (getenv("DELUGE_HOST_WAV") == NULL) {
-		setenv("DELUGE_HOST_WAV", "/dev/null", 0);
-	}
-	at_quick_exit(deadline_hook);
-}
-
 void host_script_init(void) {
-	const char* path = getenv("DELUGE_HOST_SCRIPT");
+	script_loaded = 0;
+	script_finished = 0;
+	pending_count = 0;
+	have_stashed = 0;
+	script_last_at_ms = 0;
+	const char* path = getenv("UI_SCRIPT");
 	if (path == NULL || path[0] == '\0') {
 		return;
 	}
-	// Same presence test host_bsp.c's `host_deterministic()` uses, so the two can never disagree
-	// about whether this run is on the frame clock.
-	if (getenv("DELUGE_HOST_DETERMINISTIC") == NULL) {
-		script_fail("DELUGE_HOST_SCRIPT requires DELUGE_HOST_DETERMINISTIC=1 "
-		            "(the script's clock is the rendered-frame clock)");
-	}
-
 	const int rc = ui_script_load(path);
 	if (rc < 0) {
 		fprintf(stderr, "[host-script] could not read script %s\n", path);
@@ -596,7 +548,6 @@ void host_script_init(void) {
 	validate_script();
 	apply_leading_board_steps();
 	clear_stale_snapshots();
-	defer_capture_exit();
 	script_loaded = 1;
 	fprintf(stderr, "[host-script] running %s -> %s\n", path, snapshot_dir());
 }

@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// Final review I-3: `src/bsp/host/host_snapshot.{h,c}` (the C port of `tests/harness/snapshot.h`,
+/// `tests/harness/level3/host_snapshot.{h,c}` (the C port of `tests/harness/snapshot.h`,
 /// used by level 3) has no automated cross-check against the C++ original -- only a comment holds
 /// them together ("MUST stay byte-identical"). This spec is that check, made permanent: it feeds
 /// ONE fact set through BOTH writers -- `deluge::harness` (C++) and the C API -- and asserts the
@@ -28,7 +28,7 @@
 /// lit LEDs; both knob indicators; a `lock` line; a `notice` line -- enough lines, and added in a
 /// DIFFERENT order on each side, to exercise the category sort rather than just insertion order.
 
-#include "bsp/host/host_snapshot.h"
+#include "harness/level3/host_snapshot.h"
 #include "harness/snapshot.h"
 
 #include "cppspec.hpp"

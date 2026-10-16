@@ -184,6 +184,7 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/notify notify)
 # cross-checks; those halves are re-hosted on golden_vt_render, and the BSP-free specs join here.
 # The C host BSP version is clean/ui-perf-1:tests/spec/CMakeLists.txt.
 add_subdirectory(spec)
+add_subdirectory(level3)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../engine-api engine-api)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../engines engines)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../model model)

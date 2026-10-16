@@ -15,18 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// Level 3 of the UI test harness (spec G §4.2): drive the real headless `deluge_host` app from a
-/// UI script and snapshot what it put on the panels, pads, LEDs and knob indicators.
+/// Level 3 of the UI test harness (spec G §4.2): drive the real headless app from a UI script and
+/// snapshot what it put on the panels, pads, LEDs and knob indicators.
 ///
-/// The BSP is C, so everything here is C17 and depends on nothing in `src/deluge` — only on
-/// `<libdeluge/...>` and on `tests/harness/ui_script.h`'s `extern "C"` façade. Three files:
+/// Everything here is C and depends on nothing in `src/deluge` — only on `<libdeluge/...>` and on
+/// `tests/harness/ui_script.h`'s `extern "C"` façade. The pieces:
 ///
-///   - host_script.c         the script clock, the injector, the `.pbm`/`.state` writers.
-///   - host_bsp.c            the shadows the writers read, and the two injection points
-///                           (`host_script_push_event`, `host_script_add_encoder_edges`).
+///   - host_script.c         the script pump, the injector, the `.pbm`/`.state` writers.
+///   - the host              the clock and the exit (`host_script_now_ms`, `host_script_exit`), and
+///                           the BSP half: the shadows the writers read and the two injection points
+///                           (`host_script_push_event`, `host_script_add_encoder_edges`). On the
+///                           Embassy host, `src/bsp/rust/src/peripherals/ui_harness.rs` and
+///                           `golden_vt_render`.
 ///   - host_script_tables.c  the button-matrix and encoder-order name tables, split out (with
 ///                           `host_script_tables.h`) so they compile dependency-free into both the
-///                           host BSP and `deluge_spec` — see that header for why.
+///                           runner and `deluge_spec` — see that header for why.
 #ifndef HOST_SCRIPT_H
 #define HOST_SCRIPT_H
 
@@ -41,11 +44,11 @@ extern "C" {
 #endif
 
 // ===========================================================================
-// Shadow geometry — shared so host_bsp.c's arrays and host_script.c's readers
+// Shadow geometry — shared so the host's shadows and host_script.c's readers
 // cannot disagree about their shape.
 // ===========================================================================
 
-/// Panels the host board can describe (`HOST_MAX_DISPLAYS` in host_bsp.c).
+/// Panels a host board can describe.
 #define HOST_SCRIPT_MAX_DISPLAYS 4
 /// Bytes in the widest page-major panel the host supports: 128 × 64 / 8.
 #define HOST_SCRIPT_OLED_BYTES 1024
@@ -67,32 +70,46 @@ extern "C" {
 // host_script.c — the script runner
 // ===========================================================================
 
-/// @brief Load `DELUGE_HOST_SCRIPT`, apply any 0 ms `board` step, and validate the rest.
+/// @brief Load `UI_SCRIPT`, apply any 0 ms `board` step, and validate the rest.
 ///
-/// Must be called from `main()` before anything reads `deluge_board()`: a `board` step rewrites
-/// the board descriptor, and the descriptor is latched by its first reader.
+/// Call before anything reads `deluge_board()`: a `board` step rewrites the board descriptor, and
+/// the descriptor is latched by its first reader. Calling it again starts over with the script the
+/// environment names now.
 ///
-/// Exits the process with status 2 (after a message on stderr) when a script is set but cannot be
-/// used: `DELUGE_HOST_DETERMINISTIC` unset, an unreadable or unparseable file, a shell-level
-/// command (`model`/`notice`), a `board` step away from 0 ms, or a name no board table knows.
+/// Ends the run through `host_script_exit(2)` (after a message on stderr) when a script is set but
+/// cannot be used: an unreadable or unparseable file, a shell-level command (`model`/`notice`), a
+/// `board` step away from 0 ms, or a name no board table knows.
 void host_script_init(void);
 
 /// @brief True once `host_script_init()` has loaded a script.
 bool host_script_active(void);
 
-/// @brief Apply every step whose time has come, then write any snapshots they asked for.
+/// @brief Apply every step whose time has come, then write the snapshots they asked for.
 ///
-/// The clock is the deterministic one: `now_ms = host_rendered_frames * 1000 / 44100`
-/// (host_bsp.c's `DELUGE_HOST_DETERMINISTIC` clock, `host_bsp.c:104-153`). Called from
-/// `host_input_pump()`; a no-op when no script is loaded. A `quit` step does not return.
+/// The time is `host_script_now_ms()`. A no-op when no script is loaded or it has finished. After
+/// a `quit`, `host_script_finished()` is true. A script still running five seconds past its last
+/// step ends the run through `host_script_exit(2)`.
 void host_script_pump(void);
 
-/// @brief Write the snapshots the pump has queued but not yet written, and forget them.
-///
-/// Normally a no-op: `host_script_pump()` flushes at the end of every call. It exists for the
-/// exit paths (`quit`, and `main()`'s unreachable tail) so no snapshot is lost to a process that
-/// stops between the pump's two halves.
-void host_script_write_pending(void);
+/// @brief True once the script's `quit` has run.
+bool host_script_finished(void);
+
+// ===========================================================================
+// The host — what a host provides the runner
+// ===========================================================================
+
+#ifdef __cplusplus
+#define HOST_SCRIPT_NORETURN [[noreturn]]
+#else
+#define HOST_SCRIPT_NORETURN _Noreturn
+#endif
+
+/// @brief The run's clock in milliseconds: the clock the app's own timers run on.
+uint32_t host_script_now_ms(void);
+
+/// @brief End the run.
+/// @param code 0 when the script quit; 2 when the script failed or the run is stuck.
+HOST_SCRIPT_NORETURN void host_script_exit(int code);
 
 // `ui_script_button_xy` / `ui_script_encoder_index` are declared in `host_script_tables.h`
 // (included above) rather than here: that header/TU pair is dependency-free so it can compile
@@ -101,7 +118,7 @@ void host_script_write_pending(void);
 // the BSP shadow accessors below).
 
 // ===========================================================================
-// host_bsp.c — the shadows and the injection points
+// The host's BSP half — the shadows and the injection points
 // ===========================================================================
 
 /// @brief Queue one decoded input event for `deluge_control_poll_event()`.

@@ -2,7 +2,7 @@
 #include <stdint.h> // not <cstdint>: this header must also compile as plain C17 (see the extern "C" facade below)
 
 /// @brief Bytes per `.state` line, NUL included -- shared by `deluge::harness::kStateLineBytes`
-/// (`tests/harness/snapshot.h`) and the C snapshot writer (`src/bsp/host/host_snapshot.h`), so the
+/// (`tests/harness/snapshot.h`) and the C snapshot writer (`tests/harness/level3/host_snapshot.h`), so the
 /// two widen together rather than as two separately-chosen numbers that could silently drift
 /// (final review I-3). Outside the `__cplusplus` guard below so a plain C17 TU sees it too.
 #define UI_SCRIPT_STATE_LINE_BYTES 96

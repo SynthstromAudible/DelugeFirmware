@@ -32,7 +32,7 @@ std::string oled_pbm(std::span<const uint8_t> page_major, uint16_t w, uint16_t h
 /// "Can't control: \n<param name>"), and a truncated line is a golden that silently stops
 /// distinguishing two different screens -- the one thing this harness exists to prevent.
 ///
-/// Shared with the C snapshot writer (`src/bsp/host/host_snapshot.h`) through
+/// Shared with the C snapshot writer (`tests/harness/level3/host_snapshot.h`) through
 /// `UI_SCRIPT_STATE_LINE_BYTES` (`ui_script.h`, C-compatible) rather than two separately-chosen
 /// numbers that could silently drift apart (I-3): both this constant and the C writer's line
 /// buffers are exactly that one macro's value, so widening one widens both, and this

@@ -212,7 +212,7 @@ protected:
 	/// `SurfaceRole::None` and a null style.
 	///
 	/// @note Pad-grid width convention: `DelugeBoard::pad_grid_width` counts **main** columns only
-	///       (16 on the Deluge -- see `deluge_board()` in `src/bsp/host/host_bsp.c`) and the
+	///       (16 on the Deluge -- see `deluge_board()` in `src/bsp/rust/src/peripherals/board.rs`) and the
 	///       descriptor carries no sidebar field, so the sidebar width comes from
 	///       `BoardProfile::sidebar_cols`. The grid is built as
 	///       `{pad_grid_width, sidebar_cols, pad_grid_height}` and `pairs` counts pairs across the

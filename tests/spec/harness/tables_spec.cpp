@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// Level 3's copy of the button-matrix and encoder-order tables (`src/bsp/host/host_script_tables.c`)
+/// Level 3's copy of the button-matrix and encoder-order tables (`tests/harness/level3/host_script_tables.c`)
 /// cross-checked against the profile it is a copy of (`src/shell/profiles/deluge.cpp`'s
 /// `deluge_profile()`). A mismatch here is exactly the drift the split into
 /// `host_script_tables.c` (task 5) exists to catch -- see that file's header comment.
 
-#include "bsp/host/host_script_tables.h"
+#include "harness/level3/host_script_tables.h"
 #include "shell/profile.h"
 #include "shell/profiles/deluge.h"
 #include "ui/core/input.h"

@@ -16,10 +16,9 @@
  */
 
 /// Level 3's copies of the app's own button-matrix and encoder-order tables (spec G §4.2), split
-/// into their own dependency-free translation unit (`host_script_tables.c`) so BOTH the host BSP
-/// (`sim/CMakeLists.txt`'s `deluge_host`/`deluge_loadcheck`) and the test suite
-/// (`tests/spec/CMakeLists.txt`'s `deluge_spec`) can compile it. `host_script.c` proper pulls in
-/// BSP statics (the shadows, `host_rendered_frames`, …) and so cannot be linked into `deluge_spec`
+/// into their own dependency-free translation unit (`host_script_tables.c`) so BOTH the runner
+/// (`deluge_ui_level3`) and the unit specs (`deluge_spec`) can compile it. `host_script.c` proper
+/// calls the host (the shadows, the clock, …) and so cannot be linked into `deluge_spec`
 /// -- this header/TU pair carries only the two lookups, nothing else.
 ///
 /// `tests/spec/harness/tables_spec.cpp` cross-checks the tables here against
