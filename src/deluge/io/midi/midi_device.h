@@ -98,6 +98,8 @@ public:
 	MIDICable();
 	virtual void writeToFlash(uint8_t* memory) = 0;
 	virtual char const* getDisplayName() = 0;
+	/// @brief This cable as a hosted USB device, or null for any other kind (the firmware has no RTTI).
+	[[nodiscard]] virtual class MIDICableUSBHosted* asHosted() { return nullptr; }
 
 	void dataEntryMessageReceived(ModelStack* modelStack, int32_t channel, int32_t msb);
 

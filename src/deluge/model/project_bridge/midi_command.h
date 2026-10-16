@@ -24,6 +24,7 @@
 #include "io/midi/learned_midi.h"
 
 #include <cstdint>
+#include <optional>
 
 class MIDICable;
 class Serializer;
@@ -32,8 +33,9 @@ namespace deluge::bridge {
 
 /// @brief The reference a song saves for @p cable.
 /// @param cable The cable.
-/// @return The device reference.
-[[nodiscard]] deluge::project::MidiDeviceRef reference_of(MIDICable& cable);
+/// @return The device reference: a built-in port by which one, a hosted USB device by its name and ids, and nothing
+///         for any other kind of cable, which a song has no way to name.
+[[nodiscard]] std::optional<deluge::project::MidiDeviceRef> reference_of(MIDICable& cable);
 
 /// @brief The cable @p device names, or nullptr if the Deluge knows no such device. Finds only: never creates or
 /// updates a device entry (loading a song does that).

@@ -30,23 +30,26 @@ namespace deluge::bridge {
 using deluge::project::MidiCommand;
 using deluge::project::MidiDeviceRef;
 
-MidiDeviceRef reference_of(MIDICable& cable) {
+std::optional<MidiDeviceRef> reference_of(MIDICable& cable) {
 	using Port = MidiDeviceRef::Port;
 	if (&cable == &MIDIDeviceManager::dinMIDIPorts) {
-		return {.port = Port::DIN};
+		return MidiDeviceRef{.port = Port::DIN};
 	}
 	if (&cable == &MIDIDeviceManager::upstreamUSBMIDICable1) {
-		return {.port = Port::UPSTREAM_USB_1};
+		return MidiDeviceRef{.port = Port::UPSTREAM_USB_1};
 	}
 	if (&cable == &MIDIDeviceManager::upstreamUSBMIDICable2) {
-		return {.port = Port::UPSTREAM_USB_2};
+		return MidiDeviceRef{.port = Port::UPSTREAM_USB_2};
 	}
 	if (&cable == &MIDIDeviceManager::upstreamUSBMIDICable3) {
-		return {.port = Port::UPSTREAM_USB_3};
+		return MidiDeviceRef{.port = Port::UPSTREAM_USB_3};
 	}
-	// Every other cable is a USB device the Deluge hosts.
-	auto& hosted = static_cast<MIDICableUSBHosted&>(cable);
-	return {.port = Port::HOSTED, .name = hosted.name, .vendor_id = hosted.vendorId, .product_id = hosted.productId};
+	MIDICableUSBHosted* hosted = cable.asHosted();
+	if (hosted == nullptr) {
+		return std::nullopt;
+	}
+	return MidiDeviceRef{
+	    .port = Port::HOSTED, .name = hosted->name, .vendor_id = hosted->vendorId, .product_id = hosted->productId};
 }
 
 MIDICable* find_cable(const MidiDeviceRef& device) {

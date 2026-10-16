@@ -207,7 +207,7 @@ struct Learned {
 }
 
 /// @brief A cable this spec owns outright: a hosted USB device, which is what every cable but the built-in DIN and
-/// upstream ports is on the Deluge (`deluge::bridge::reference_of` relies on that).
+/// upstream ports is on the Deluge, so a section's record can name it.
 ///
 /// None of the shipped cable types can be built in a host spec without a USB or DIN backend behind it, so this one
 /// overrides the sending half. Two are built, so "the port stored *a* cable" cannot pass for "the port stored the
@@ -222,6 +222,19 @@ struct SpecCable final : ::MIDICableUSBHosted {
 	[[nodiscard]] size_t sendBufferSpace() const override { return 0; }
 
 	const char* display;
+
+protected:
+	void writeReferenceAttributesToFile(Serializer&) override {}
+};
+
+/// @brief A cable that is neither a built-in port nor a hosted USB device: a cable type the bridge
+///        does not know how to name.
+struct UnnamedCable final : ::MIDICable {
+	void writeToFlash(uint8_t*) override {}
+	char const* getDisplayName() override { return "UNNAMED"; }
+	void sendMessage(MIDIMessage) override {}
+	void sendSysex(const uint8_t*, int32_t) override {}
+	[[nodiscard]] size_t sendBufferSpace() const override { return 0; }
 
 protected:
 	void writeReferenceAttributesToFile(Serializer&) override {}
@@ -1392,6 +1405,34 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(rig.ml.pressed().kind == ::MidiLearn::NONE).to_be_true();
 	});
 });
+
+describe midi_learn_reference("bridge::command_of: the device a learned command saves", $ {
+	it("saves no device for a cable it cannot name, rather than reading it as a hosted one", _ {
+		UnnamedCable cable;
+		LearnedMIDI learned;
+		learned.cable = &cable;
+		learned.channelOrZone = 3;
+		learned.noteOrCC = 64;
+		const deluge::project::MidiCommand command = deluge::bridge::command_of(learned);
+		expect(command.device.has_value()).to_be_false();
+		expect(command.channel_or_zone).to_equal(int32_t{3});
+		expect(command.note_or_cc).to_equal(int32_t{64});
+	});
+
+	it("saves a hosted cable as its own name and ids", _ {
+		SpecCable cable{"KEYS"};
+		cable.vendorId = 0x1234;
+		cable.productId = 0x5678;
+		LearnedMIDI learned;
+		learned.cable = &cable;
+		const deluge::project::MidiCommand command = deluge::bridge::command_of(learned);
+		expect(command.device.has_value()).to_be_true();
+		expect(command.device.has_value() && command.device->port == deluge::project::MidiDeviceRef::Port::HOSTED)
+		    .to_be_true();
+		expect(command.device.has_value() ? command.device->name : std::string{}).to_equal(std::string{"KEYS"});
+		expect(command.device.has_value() ? static_cast<int32_t>(command.device->vendor_id) : 0).to_equal(int32_t{0x1234});
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(midi_learn_spec, midi_learn_spec_body)
+DELUGE_SPEC(midi_learn_spec, midi_learn_spec_body, midi_learn_reference)
