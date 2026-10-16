@@ -83,7 +83,8 @@ bool is_sample_mode_sample(const MenuContext& ctx, uint8_t index) {
 	       && source->oscType == OscType::SAMPLE && loaded(source);
 }
 
-/// @brief `FileSelector::isRelevant` (`gui/menu_item/file_selector.cpp:54-67`).
+/// @brief `FileSelector::isRelevant` (`gui/menu_item/file_selector.cpp:54-65`): browsing can load a sample even when
+///        the oscillator uses a synth waveform, so any subtractive sound qualifies, and ring-mod with a wavetable.
 bool file_selector(const MenuContext& ctx, uint8_t index) {
 	if (ctx.is_audio_clip) {
 		return true; // `:55-57` -- `getCurrentClip()->type == ClipType::AUDIO`
@@ -92,10 +93,8 @@ bool file_selector(const MenuContext& ctx, uint8_t index) {
 	if (ctx.sound == nullptr || source == nullptr) {
 		return false;
 	}
-	if (source->oscType == OscType::WAVETABLE) {
-		return ctx.sound->getSynthMode() != ::SynthMode::FM; // `:62-64`
-	}
-	return ctx.sound->getSynthMode() == ::SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE; // `:66`
+	const ::SynthMode mode = ctx.sound->getSynthMode();
+	return mode == ::SynthMode::SUBTRACTIVE || (mode == ::SynthMode::RINGMOD && source->oscType == OscType::WAVETABLE);
 }
 
 /// @brief `sample::Transpose::isRelevant` (`gui/menu_item/sample/transpose.h:139-145`).
