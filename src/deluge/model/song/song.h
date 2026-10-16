@@ -239,6 +239,10 @@ public:
 	uint32_t getInputTickScale();
 	Clip* getSyncScalingClip();
 	void setInputTickScaleClip(Clip* clip);
+	/// @brief Point the input clock's scaling at @p clip, in the engine and the record, with no re-derivation of the
+	///        tick magnitude (load, a swap, a deleted clip).
+	/// @param clip The clip, or nullptr for none.
+	void setSyncScalingClipRaw(Clip* clip);
 	inline bool isFillModeActive() { return runtimeView.fillModeActive; }
 	void changeFillMode(bool on);
 	void loadNextSong();

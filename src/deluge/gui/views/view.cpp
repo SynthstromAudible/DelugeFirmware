@@ -369,17 +369,16 @@ cant:
 					goto cant;
 				}
 
-				currentSong->setInputTickScaleClip(getCurrentClip());
+				deluge::edits::songSettingFor("syncScalingClip",
+				                              deluge::serialization::Value::makeNumber(getCurrentClip()->id()));
 			}
 
-			// Or if scaling already, stop it
+			// Or if scaling already, stop it (the setting's Edit re-syncs the internal ticks)
 			else {
-				currentSong->setInputTickScaleClip(nullptr);
+				deluge::edits::songSettingFor("syncScalingClip", deluge::serialization::Value::makeNumber(-1));
 			}
 
 			actionLogger.deleteAllLogs(); // Can't undo past this.
-
-			playbackHandler.resyncInternalTicksToInputTicks(currentSong);
 			setTimeBaseScaleLedState();
 		}
 	}

@@ -317,6 +317,31 @@ describe song_settings_edit("SetSetting", $ {
 		expect(recorded(*f.song, {SettingGroupId::NOTE_ROW, *address}, "bendRange")).to_equal(std::string{"24"});
 		expect(projected(*f.song, {SettingGroupId::NOTE_ROW, *address}, "bendRange")).to_equal(std::string{"24"});
 	});
+	it("sets the sync-scaling clip by its id and re-derives the tick magnitude", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		deluge::edits::songSettingFor("syncScalingClip", Value::makeNumber(f.clip->id()));
+		expect(recorded(*f.song, kSong, "syncScalingClip")).to_equal(std::to_string(f.clip->id()));
+		expect(f.song->getSyncScalingClip() == f.clip).to_be_true();
+		const int32_t magnitude = f.song->project.transport.inside_world_tick_magnitude;
+		f.song->setInputTickScaleClip(nullptr);
+		f.song->setInputTickScaleClip(f.clip);
+		expect(f.song->project.transport.inside_world_tick_magnitude).to_equal(magnitude);
+		deluge::edits::songSettingFor("syncScalingClip", Value::makeNumber(-1));
+		expect(f.song->getSyncScalingClip() == nullptr).to_be_true();
+	});
+
+	it("clears the sync-scaling clip's id when the clip goes, leaving the tempo as it was", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		deluge::edits::songSettingFor("syncScalingClip", Value::makeNumber(f.clip->id()));
+		const int32_t magnitude = f.song->project.transport.inside_world_tick_magnitude;
+		// The song's own delete: out of its list, then retired.
+		ClipArray& clips = f.song->live.clips.session_clips;
+		clips.erase(clips.begin() + clips.getIndexForClip(f.clip));
+		f.song->deleteClipObject(f.clip, false, InstrumentRemoval::NONE);
+		expect(recorded(*f.song, kSong, "syncScalingClip")).to_equal(std::string{"-1"});
+		expect(f.song->getSyncScalingClip() == nullptr).to_be_true();
+		expect(f.song->project.transport.inside_world_tick_magnitude).to_equal(magnitude);
+	});
 });
 // clang-format on
 

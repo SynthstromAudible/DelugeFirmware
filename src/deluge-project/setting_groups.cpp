@@ -63,7 +63,8 @@ constexpr std::string_view kSongFixedPaths[] = {"reverb/roomSize",
                                                 "reverb/compressor/volume",
                                                 "reverb/compressor/shape",
                                                 "reverb/compressor/syncLevel",
-                                                "swingInterval"};
+                                                "swingInterval",
+                                                "syncScalingClip"};
 
 constexpr std::string_view kDisabledPrefix = "scales/disabled/";
 
@@ -94,6 +95,8 @@ std::span<const SettingInfo> song_table() {
 		    integer("reverb/compressor/shape", INT32_MIN, INT32_MAX, -601295438),
 		    integer("reverb/compressor/syncLevel", 0, engine::kMaxSyncLevel, 0, {}, SettingUnits::SYNC_LEVEL),
 		    integer("swingInterval", 0, engine::kMaxSyncLevel, 0, {}, SettingUnits::SYNC_LEVEL),
+		    // A clip's durable id; -1 = none.
+		    integer("syncScalingClip", -1, INT32_MAX, -1),
 		};
 		for (const std::string& path : scale_paths) {
 			out.push_back(boolean(path));
@@ -156,6 +159,9 @@ std::optional<Value> read_song(const Song& song, std::string_view path) {
 	if (path == "swingInterval") {
 		return number(engine::index_of(song.groove.swing_interval));
 	}
+	if (path == "syncScalingClip") {
+		return number(song.transport.sync_scaling_clip_id ? int64_t{*song.transport.sync_scaling_clip_id} : -1);
+	}
 	if (const std::optional<size_t> scale = disabled_scale_of(path)) {
 		return number(song.scale.disabled_preset_scales.test(*scale) ? 1 : 0);
 	}
@@ -164,6 +170,10 @@ std::optional<Value> read_song(const Song& song, std::string_view path) {
 
 void write_song(Song& song, std::string_view path, int32_t v) {
 	ReverbSettings& r = song.reverb;
+	if (path == "syncScalingClip") {
+		song.transport.sync_scaling_clip_id = v < 0 ? std::nullopt : std::optional<uint32_t>{static_cast<uint32_t>(v)};
+		return;
+	}
 	if (path == "reverb/roomSize") {
 		r.room_size = fraction_of(v);
 	}

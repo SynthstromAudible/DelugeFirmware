@@ -187,7 +187,7 @@ Song::Song() {
 	outputClipInstanceListIsCurrentlyInvalid = false;
 	project.transport.inside_world_tick_magnitude = FlashStorage::defaultMagnitude;
 	project.transport.inside_world_tick_magnitude_offset_from_bpm = 0;
-	live.sync_scaling_clip = nullptr;
+	setSyncScalingClipRaw(nullptr);
 	runtimeView.currentClip = nullptr;
 	project.metadata.slot = deluge::project::kNoSlot;
 	project.metadata.sub_slot = -1;
@@ -829,9 +829,14 @@ Clip* Song::getSyncScalingClip() {
 	return live.sync_scaling_clip;
 }
 
+void Song::setSyncScalingClipRaw(Clip* clip) {
+	live.sync_scaling_clip = clip;
+	project.transport.sync_scaling_clip_id = clip != nullptr ? std::optional<uint32_t>{clip->id()} : std::nullopt;
+}
+
 void Song::setInputTickScaleClip(Clip* clip) {
 	uint32_t oldScale = getInputTickScale();
-	live.sync_scaling_clip = clip;
+	setSyncScalingClipRaw(clip);
 	inputTickScalePotentiallyJustChanged(oldScale);
 }
 
@@ -2112,7 +2117,7 @@ skipInstance:
 				runtimeView.currentClip = nullptr;
 			}
 			if (live.sync_scaling_clip == clip) {
-				live.sync_scaling_clip = nullptr;
+				setSyncScalingClipRaw(nullptr);
 			}
 
 			live.clips.arrangement_only_clips.erase(live.clips.arrangement_only_clips.begin() + c);
@@ -2123,7 +2128,7 @@ skipInstance:
 
 	if (live.sync_scaling_clip) {
 		Clip* newInputTickScaleClip = live.sync_scaling_clip;
-		live.sync_scaling_clip = nullptr; // We shouldn't have set this manually earlier, anyway - we just saved hassle
+		setSyncScalingClipRaw(nullptr); // We shouldn't have set this manually earlier, anyway - we just saved hassle
 		setInputTickScaleClip(newInputTickScaleClip);
 	}
 
@@ -2335,7 +2340,7 @@ readClip:
 					syncNode = clipNode->find("isSyncScaleTrack"); // legacy alias
 				}
 				if (syncNode != nullptr && stringToInt(syncNode->str().c_str())) {
-					live.sync_scaling_clip = newClip;
+					setSyncScalingClipRaw(newClip);
 				}
 
 				// muteMidiCommand: a nested <note> object, read tree-natively via LearnedMIDI::readFromTree. Covered by
@@ -5544,7 +5549,7 @@ void Song::swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex) {
 	live.clips.session_clips[clipIndex] = newClip;
 
 	if (oldClip == getSyncScalingClip()) {
-		live.sync_scaling_clip = newClip;
+		setSyncScalingClipRaw(newClip);
 	}
 
 	if (oldClip == runtimeView.currentClip) {

@@ -30,6 +30,7 @@
 #include "gui/l10n/strings.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
@@ -293,15 +294,15 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 			refuse();
 			return;
 		}
-		song_->setInputTickScaleClip(clip); // `:388`
+		// The setting's Edit re-derives the tick magnitude and re-syncs the internal ticks.
+		deluge::edits::songSettingFor("syncScalingClip", deluge::serialization::Value::makeNumber(clip->id()));
 	}
 	else {
-		song_->setInputTickScaleClip(nullptr); // `:393`
+		deluge::edits::songSettingFor("syncScalingClip", deluge::serialization::Value::makeNumber(-1));
 	}
 
-	actionLogger.deleteAllLogs();                           // `:396` -- can't undo past this
-	playbackHandler.resyncInternalTicksToInputTicks(song_); // `:398`
-	// `:399` `setTimeBaseScaleLedState()` -- `leds()` recomputes it every tick.
+	actionLogger.deleteAllLogs(); // can't undo past this
+	                              // `:399` `setTimeBaseScaleLedState()` -- `leds()` recomputes it every tick.
 }
 
 void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) {

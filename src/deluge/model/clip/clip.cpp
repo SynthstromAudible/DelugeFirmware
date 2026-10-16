@@ -772,7 +772,7 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 			writer.writeAttribute("selected", 1);
 		}
 	}
-	if (song->getSyncScalingClip() == this) {
+	if (song->project.transport.sync_scaling_clip_id == id()) {
 		writer.writeAttribute("isSyncScaleClip", 1);
 	}
 	if (launchStyle() != LaunchStyle::DEFAULT) {

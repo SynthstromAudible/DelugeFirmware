@@ -199,7 +199,7 @@ void letGoOfClip(Clip* clip) {
 			currentSong->setCurrentClip(nullptr);
 		}
 		if (currentSong->live.sync_scaling_clip == clip) {
-			currentSong->live.sync_scaling_clip = nullptr;
+			currentSong->setSyncScalingClipRaw(nullptr);
 		}
 		for (ClipArray* array :
 		     {&currentSong->live.clips.session_clips, &currentSong->live.clips.arrangement_only_clips}) {
@@ -2464,7 +2464,7 @@ void retire(Clip* clip) {
 			currentSong->setCurrentClip(nullptr);
 		}
 		if (currentSong->live.sync_scaling_clip == clip) {
-			currentSong->live.sync_scaling_clip = nullptr;
+			currentSong->setSyncScalingClipRaw(nullptr);
 		}
 	}
 	clearViewIfClip(clip);

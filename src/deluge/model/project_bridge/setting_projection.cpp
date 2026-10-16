@@ -205,6 +205,16 @@ Error applySongSetting(::Song& song, std::string_view path, const Value& value) 
 		song.changeSwingInterval(*v);
 		return Error::NONE;
 	}
+	if (path == "syncScalingClip") {
+		::Clip* clip = *v < 0 ? nullptr : findAnyClip(song, static_cast<uint32_t>(*v));
+		if (*v >= 0 && clip == nullptr) {
+			return Error::UNSPECIFIED;
+		}
+		// The input clock's scale follows the clip's length; the internal ticks re-sync to it.
+		song.setInputTickScaleClip(clip);
+		playbackHandler.resyncInternalTicksToInputTicks(&song);
+		return Error::NONE;
+	}
 	if (path.starts_with("scales/disabled/")) {
 		// The engine reads the scale record itself: there is no copy to make.
 		return Error::NONE;
@@ -626,6 +636,10 @@ std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddr
 	if (address.group == SettingGroupId::SONG) {
 		if (path == "swingInterval") {
 			return Value::makeNumber(deluge::engine::index_of(song.project.groove.swing_interval));
+		}
+		if (path == "syncScalingClip") {
+			::Clip* clip = song.getSyncScalingClip();
+			return Value::makeNumber(clip != nullptr ? int64_t{clip->id()} : -1);
 		}
 		if (path.starts_with("reverb/")) {
 			return engineReverbValue(path);

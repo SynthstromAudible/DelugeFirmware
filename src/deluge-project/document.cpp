@@ -222,6 +222,13 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 			                              .arrangement_only = arrangementOnly};
 			DocClip& record = document.clips[entry.id];
 			(void)decode(*clip.node, record);
+			const Value* sync = clip.node->find("isSyncScaleClip");
+			if (sync == nullptr) {
+				sync = clip.node->find("isSyncScaleTrack");
+			}
+			if (auto scaling = int_of(sync); scaling && *scaling != 0) {
+				document.transport.sync_scaling_clip_id = entry.id;
+			}
 			if (const Value* rows = clip.node->find("noteRows")) {
 				int32_t minY = -32768;
 				bool everyRowHasY = true;
