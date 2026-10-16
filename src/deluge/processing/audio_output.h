@@ -103,6 +103,13 @@ public:
 
 	AudioOutputMode mode{AudioOutputMode::player};
 
+	/// @brief Set the track's mode, in its record when it has one, and hand over the monitoring it implies.
+	void setMode(AudioOutputMode newMode);
+	/// @brief Set the track's input channel, in its record when it has one.
+	void setInputChannel(AudioInputChannel channel);
+	/// @copydoc Output::seedDocOutputIdentity
+	void seedDocOutputIdentity() override;
+
 	Output* getOutputRecordingFrom() override { return outputRecordingFrom; }
 	void clearRecordingFrom() override { setOutputRecordingFrom(nullptr); }
 	// Specific-track recording only makes sense from another audio-capable output.
@@ -116,6 +123,7 @@ public:
 		}
 		releaseMonitoringClaim();
 		outputRecordingFrom = toRecordfrom;
+		recordRecordingFrom();
 		updateMonitoringClaim();
 	}
 
@@ -142,15 +150,10 @@ public:
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
 	                                                bool affectEntire, bool useMenuStack) override;
-	void scrollAudioOutputMode(int offset) {
-		auto modeInt = util::to_underlying(mode);
-		modeInt = (modeInt + offset) % kNumAudioOutputModes;
-
-		mode = static_cast<AudioOutputMode>(std::clamp<int>(modeInt, 0, kNumAudioOutputModes - 1));
-		// update the output we're recording from on whether we're monitoring
-		updateMonitoringClaim();
-		// oled shows the type on the clip screen (including while holding a clip in song view)
-		deluge::notify::raise(deluge::notify::Dirty::Oled);
+	/// @brief The mode @p offset steps from this one, wrapping.
+	[[nodiscard]] AudioOutputMode scrolledMode(int offset) const {
+		auto modeInt = (util::to_underlying(mode) + offset) % kNumAudioOutputModes;
+		return static_cast<AudioOutputMode>(std::clamp<int>(modeInt, 0, kNumAudioOutputModes - 1));
 	}
 
 protected:
@@ -160,6 +163,8 @@ protected:
 
 	/// returns true for loopers and samplers without a file
 	bool modeAllowsMonitoring() const;
+	/// The record's copy of the track this one records from, by id.
+	void recordRecordingFrom();
 	/// Which output to record from. Only valid when inputChannel is AudioInputChannel::SPECIFIC_OUTPUT.
 	Output* outputRecordingFrom{nullptr};
 };

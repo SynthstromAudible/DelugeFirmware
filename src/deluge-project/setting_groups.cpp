@@ -1,3 +1,4 @@
+#include "deluge-project/audio_input.h"
 #include "deluge-project/setting_group.h"
 
 #include "deluge-project/fraction.h"
@@ -333,6 +334,39 @@ DocNoteRow* resolve_note_row(Song& song, const NoteRowAddress& address) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// AUDIO_INPUT (on DocOutput)
+
+constexpr SettingInfo kAudioInputTable[] = {
+    SettingInfo{.path = "mode", .kind = SettingKind::CHOICE, .choices = kAudioModeWords},
+    SettingInfo{.path = "inputChannel", .kind = SettingKind::CHOICE, .choices = kInputChannelWords, .default_value = 1},
+    // Another track's durable id; -1 = none.
+    integer("outputRecordingFrom", -1, INT32_MAX, -1),
+};
+
+std::optional<Value> read_audio_input(const DocOutput& o, std::string_view path) {
+	if (path == "mode") {
+		return Value::makeScalar(std::string{kAudioModeWords[o.audio_mode]});
+	}
+	if (path == "inputChannel") {
+		return Value::makeScalar(std::string{kInputChannelWords[o.input_channel]});
+	}
+	return number(o.recording_from_output_id ? int64_t{*o.recording_from_output_id} : -1);
+}
+
+void write_audio_input(DocOutput& o, std::string_view path, const Value& value) {
+	if (path == "mode") {
+		o.audio_mode = static_cast<uint8_t>(index_of_word(kAudioModeWords, value.str()).value_or(0));
+	}
+	else if (path == "inputChannel") {
+		o.input_channel = static_cast<int8_t>(index_of_word(kInputChannelWords, value.str()).value_or(0));
+	}
+	else {
+		const int32_t v = integer_of(value).value_or(-1);
+		o.recording_from_output_id = v < 0 ? std::nullopt : std::optional<uint32_t>{static_cast<uint32_t>(v)};
+	}
+}
+
+// ---------------------------------------------------------------------------------------------
 // CLIP and CLIP_VALUES (on DocClip)
 
 constexpr SettingInfo kClipTable[] = {
@@ -456,6 +490,8 @@ std::span<const SettingInfo> table_of(SettingGroupId group) {
 		return kClipTable;
 	case SettingGroupId::CLIP_VALUES:
 		return kClipValuesTable;
+	case SettingGroupId::AUDIO_INPUT:
+		return kAudioInputTable;
 	}
 	return {};
 }
@@ -472,6 +508,11 @@ std::optional<Value> read_setting(Song& song, const SettingAddress& address, std
 		const auto* track = std::get_if<TrackAddress>(&address.owner);
 		const DocOutput* output = track != nullptr ? song.output_structure.find(track->output_id) : nullptr;
 		return output != nullptr ? read_output(*output, address.group, path) : std::nullopt;
+	}
+	case SettingGroupId::AUDIO_INPUT: {
+		const auto* track = std::get_if<TrackAddress>(&address.owner);
+		const DocOutput* output = track != nullptr ? song.output_structure.find(track->output_id) : nullptr;
+		return output != nullptr ? read_audio_input(*output, path) : std::nullopt;
 	}
 	case SettingGroupId::LANE: {
 		const auto* lane = std::get_if<LaneAddress>(&address.owner);
@@ -534,6 +575,15 @@ bool write_setting(Song& song, const SettingAddress& address, std::string_view p
 			return false;
 		}
 		write_output(*output, path, value);
+		return true;
+	}
+	case SettingGroupId::AUDIO_INPUT: {
+		const auto* track = std::get_if<TrackAddress>(&address.owner);
+		DocOutput* output = track != nullptr ? song.output_structure.find(track->output_id) : nullptr;
+		if (output == nullptr) {
+			return false;
+		}
+		write_audio_input(*output, path, value);
 		return true;
 	}
 	case SettingGroupId::LANE: {

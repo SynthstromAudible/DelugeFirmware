@@ -38,6 +38,8 @@ const char* groupName(SettingGroupId group) {
 		return "CLIP";
 	case SettingGroupId::CLIP_VALUES:
 		return "CLIP_VALUES";
+	case SettingGroupId::AUDIO_INPUT:
+		return "AUDIO_INPUT";
 	}
 	return "?";
 }

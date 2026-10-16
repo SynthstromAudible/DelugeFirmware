@@ -54,6 +54,7 @@
 #include "model/consequence/consequence_clip_existence.h"
 #include "model/consequence/consequence_clip_instance_change.h"
 #include "model/drum/drum.h"
+#include "model/edits/audio_input_for.h"
 #include "model/edits/edit.h"
 #include "model/edits/edit_clip_instance.h"
 #include "model/instrument/instrument.h"
@@ -2645,7 +2646,7 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 	Output* output = outputsOnScreen[yPressedEffective];
 	if (output->type == OutputType::AUDIO) {
 		auto ao = (AudioOutput*)output;
-		ao->scrollAudioOutputMode(offset);
+		deluge::edits::scrollAudioModeFor(*ao, offset);
 		return;
 	}
 

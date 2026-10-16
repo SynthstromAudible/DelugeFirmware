@@ -36,6 +36,7 @@ enum class SettingGroupId : uint8_t {
 	AUDIO_CLIP,        ///< an audio clip's descriptor: markers, tuning, playback
 	CLIP,              ///< a clip's identity and playback: its name and direction
 	CLIP_VALUES,       ///< the values a clip holds over its track's: MIDI program, bend ranges
+	AUDIO_INPUT,       ///< an audio track's input: its mode, channel and the track it records from
 };
 
 /// @brief The song itself, as an owner.

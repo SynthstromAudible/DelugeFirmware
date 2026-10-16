@@ -110,6 +110,7 @@ describe setting_groups_owners("the owner setting groups", $ {
 		(void)song.output_structure.getOrCreate(7);
 		expect(round_trip(song, SettingGroupId::TRACK, TrackAddress{.output_id = 7})).to_equal(std::string{});
 		expect(round_trip(song, SettingGroupId::INSTRUMENT_DEVICE, TrackAddress{.output_id = 7})).to_equal(std::string{});
+		expect(round_trip(song, SettingGroupId::AUDIO_INPUT, TrackAddress{.output_id = 7})).to_equal(std::string{});
 	});
 
 	it("round-trips the lane group through a drum's record", _ {

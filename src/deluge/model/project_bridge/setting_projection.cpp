@@ -1,5 +1,6 @@
 #include "model/project_bridge/setting_projection.h"
 
+#include "deluge-project/audio_input.h"
 #include "deluge-project/fraction.h"
 #include "deluge-project/sequence_direction.h"
 #include "dsp/reverb/reverb.hpp"
@@ -21,6 +22,7 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
+#include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "serialization/tree.h"
 
@@ -332,6 +334,43 @@ void withVoiceReseated(::AudioClip& clip, ::Song& song, const std::function<void
 	}
 }
 
+Error applyAudioInputSetting(::AudioOutput& output, ::Song& song, std::string_view path, const Value& value) {
+	if (path == "mode") {
+		const auto mode = project::index_of_word(project::kAudioModeWords, value.str());
+		if (!mode) {
+			return Error::UNSPECIFIED;
+		}
+		output.setMode(static_cast<AudioOutputMode>(*mode));
+		return Error::NONE;
+	}
+	if (path == "inputChannel") {
+		const auto channel = project::index_of_word(project::kInputChannelWords, value.str());
+		if (!channel) {
+			return Error::UNSPECIFIED;
+		}
+		// Leaving a specific track lets go of it and of its monitoring.
+		if (output.inputChannel == AudioInputChannel::SPECIFIC_OUTPUT
+		    && *channel != project::kInputChannelSpecificTrack) {
+			output.clearRecordingFrom();
+		}
+		output.setInputChannel(static_cast<AudioInputChannel>(*channel));
+		return Error::NONE;
+	}
+	if (path == "outputRecordingFrom") {
+		const std::optional<int32_t> id = integer_of(value);
+		if (!id) {
+			return Error::UNSPECIFIED;
+		}
+		::Output* source = *id < 0 ? nullptr : findOutput(song, static_cast<uint32_t>(*id));
+		if (*id >= 0 && (source == nullptr || !output.canRecordFrom(source))) {
+			return Error::UNSPECIFIED;
+		}
+		output.setOutputRecordingFrom(source);
+		return Error::NONE;
+	}
+	return Error::UNSPECIFIED;
+}
+
 Error applyClipSetting(::Clip& clip, ::Song& song, std::string_view path, const Value& value) {
 	if (path == "name") {
 		clip.setName(value.str());
@@ -484,6 +523,12 @@ Error projectSetting(::Song& song, const project::SettingAddress& address, std::
 		::Clip* clip = findAnyClip(song, std::get<project::ClipAddress>(address.owner).clip_id);
 		return clip != nullptr ? applyClipSetting(*clip, song, path, *value) : Error::UNSPECIFIED;
 	}
+	case SettingGroupId::AUDIO_INPUT: {
+		::Output* output = findOutput(song, std::get<project::TrackAddress>(address.owner).output_id);
+		return output != nullptr && output->type == OutputType::AUDIO
+		           ? applyAudioInputSetting(static_cast<::AudioOutput&>(*output), song, path, *value)
+		           : Error::UNSPECIFIED;
+	}
 	case SettingGroupId::CLIP_VALUES: {
 		auto* clip = static_cast<::InstrumentClip*>(
 		    findClip(song, std::get<project::ClipAddress>(address.owner).clip_id, ClipType::INSTRUMENT));
@@ -575,6 +620,27 @@ std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddr
 		::Output* output = findOutput(song, std::get<project::TrackAddress>(address.owner).output_id);
 		return output != nullptr ? engineTrackValue(*output, path) : std::nullopt;
 	}
+	if (address.group == SettingGroupId::AUDIO_INPUT) {
+		::Output* output = findOutput(song, std::get<project::TrackAddress>(address.owner).output_id);
+		if (output == nullptr || output->type != OutputType::AUDIO) {
+			return std::nullopt;
+		}
+		auto& audio = static_cast<::AudioOutput&>(*output);
+		if (path == "mode") {
+			return Value::makeScalar(std::string{project::kAudioModeWords[util::to_underlying(audio.mode)]});
+		}
+		if (path == "inputChannel") {
+			const int32_t channel = std::max(0, util::to_underlying(audio.inputChannel));
+			return channel < std::ssize(project::kInputChannelWords)
+			           ? std::optional<Value>{Value::makeScalar(std::string{project::kInputChannelWords[channel]})}
+			           : std::nullopt;
+		}
+		if (path == "outputRecordingFrom") {
+			::Output* source = audio.getOutputRecordingFrom();
+			return Value::makeNumber(source != nullptr && source->id() ? int64_t{*source->id()} : -1);
+		}
+		return std::nullopt;
+	}
 	if (address.group == SettingGroupId::CLIP_VALUES) {
 		auto* clip = static_cast<::InstrumentClip*>(
 		    findClip(song, std::get<project::ClipAddress>(address.owner).clip_id, ClipType::INSTRUMENT));
@@ -660,6 +726,10 @@ std::optional<project::TrackAddress> trackAddressOf(::Output& output, ::Song& so
 		return std::nullopt;
 	}
 	return project::TrackAddress{.output_id = *id};
+}
+
+std::optional<project::TrackAddress> trackAddressOf(::AudioOutput& output, ::Song& song) {
+	return trackAddressOf(static_cast<::Output&>(output), song);
 }
 
 std::optional<project::LaneAddress> laneAddressOf(::Drum& drum, ::Song& song) {

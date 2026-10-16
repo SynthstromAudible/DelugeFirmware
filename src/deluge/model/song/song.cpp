@@ -5081,7 +5081,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 		}
 	}
 
-	newOutput->inputChannel = defaultAudioOutputInputChannel;
+	newOutput->setInputChannel(defaultAudioOutputInputChannel);
 
 	GlobalEffectableForClip::initParamsForAudioClip(&newParamManager);
 

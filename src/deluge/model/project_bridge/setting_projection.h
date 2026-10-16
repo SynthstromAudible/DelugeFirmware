@@ -19,6 +19,7 @@
 #include <string_view>
 
 class AudioClip;
+class AudioOutput;
 class Clip;
 class Drum;
 class InstrumentClip;
@@ -58,6 +59,8 @@ Error applyNoteRowSetting(::NoteRow& row, ::InstrumentClip& clip, ::Song& song, 
                           const serialization::Value& value, const serialization::Value* previous = nullptr);
 Error applyAudioClipSetting(::AudioClip& clip, ::Song& song, std::string_view path, const serialization::Value& value);
 Error applyClipSetting(::Clip& clip, ::Song& song, std::string_view path, const serialization::Value& value);
+Error applyAudioInputSetting(::AudioOutput& output, ::Song& song, std::string_view path,
+                             const serialization::Value& value);
 Error applyClipValueSetting(::InstrumentClip& clip, ::Song& song, std::string_view path,
                             const serialization::Value& value);
 /// @}
@@ -73,6 +76,7 @@ void withVoiceReseated(::AudioClip& clip, ::Song& song, const std::function<void
 /// @name An engine owner's address in @p song, or nullopt when it is not one of the song's
 /// @{
 std::optional<project::TrackAddress> trackAddressOf(::Output& output, ::Song& song);
+std::optional<project::TrackAddress> trackAddressOf(::AudioOutput& output, ::Song& song);
 std::optional<project::LaneAddress> laneAddressOf(::Drum& drum, ::Song& song);
 std::optional<project::NoteRowAddress> noteRowAddressOf(::NoteRow& row, ::InstrumentClip& clip, ::Song& song);
 std::optional<project::ClipAddress> audioClipAddressOf(::AudioClip& clip, ::Song& song);

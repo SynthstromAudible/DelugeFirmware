@@ -40,15 +40,18 @@ struct DocOutput {
 	bool soloing_in_arrangement{false};
 	bool armed_for_recording{false};
 	// Per-instrument-type descriptors (populated only for the relevant OutputType; 0/empty otherwise).
-	std::string dir_path;                    ///< Instrument (non-AUDIO)
-	uint8_t default_velocity{0};             ///< Instrument
-	int32_t channel{0};                      ///< NonAudioInstrument (MIDI_OUT/CV)
-	int32_t channel_suffix{-1};              ///< MIDIInstrument
-	std::string device_definition_file_name; ///< MIDIInstrument
-	bool collapse_aftertouch{false};         ///< MIDIInstrument
-	bool collapse_mpe{true};                 ///< MIDIInstrument
-	uint8_t output_mpe_y{0};                 ///< MIDIInstrument (CCNumber underlying)
-	CVMode cv2_source{CVMode::OFF};          ///< CVInstrument
+	std::string dir_path;                             ///< Instrument (non-AUDIO)
+	uint8_t default_velocity{0};                      ///< Instrument
+	int32_t channel{0};                               ///< NonAudioInstrument (MIDI_OUT/CV)
+	int32_t channel_suffix{-1};                       ///< MIDIInstrument
+	std::string device_definition_file_name;          ///< MIDIInstrument
+	bool collapse_aftertouch{false};                  ///< MIDIInstrument
+	bool collapse_mpe{true};                          ///< MIDIInstrument
+	uint8_t output_mpe_y{0};                          ///< MIDIInstrument (CCNumber underlying)
+	CVMode cv2_source{CVMode::OFF};                   ///< CVInstrument
+	int8_t input_channel{1};                          ///< AudioOutput: an index of kInputChannelWords (left)
+	uint8_t audio_mode{0};                            ///< AudioOutput: an index of kAudioModeWords (player)
+	std::optional<uint32_t> recording_from_output_id; ///< AudioOutput: the track it records from, by id
 	/// The instrument a synth track (a `sound` element) plays; absent for every other kind.
 	std::optional<InstrumentSlot> instrument;
 	/// The output's knobs: a synth track's mod knobs and learned MIDI knobs, a kit's or an audio track's learned MIDI
@@ -67,8 +70,10 @@ struct DocOutput {
 		       && channel_suffix == other.channel_suffix
 		       && device_definition_file_name == other.device_definition_file_name
 		       && collapse_aftertouch == other.collapse_aftertouch && collapse_mpe == other.collapse_mpe
-		       && output_mpe_y == other.output_mpe_y && cv2_source == other.cv2_source && instrument == other.instrument
-		       && controls == other.controls && effects == other.effects;
+		       && input_channel == other.input_channel && audio_mode == other.audio_mode
+		       && recording_from_output_id == other.recording_from_output_id && output_mpe_y == other.output_mpe_y
+		       && cv2_source == other.cv2_source && instrument == other.instrument && controls == other.controls
+		       && effects == other.effects;
 	}
 };
 

@@ -18,6 +18,8 @@
 #include "processing/audio_output.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/audio_input.h"
+#include "deluge-project/doc_output.h"
 #include "deluge-project/doc_output.h" // complete DocOutput type for the identity record
 #include "dsp/stereo_sample.h"
 #include "gui/views/view.h"
@@ -60,10 +62,56 @@ AudioOutput::~AudioOutput() {
 	releaseMonitoringClaim();
 }
 
+void AudioOutput::setMode(AudioOutputMode newMode) {
+	mode = newMode;
+	if (docOutput_ != nullptr) {
+		docOutput_->audio_mode = static_cast<uint8_t>(util::to_underlying(newMode));
+	}
+	updateMonitoringClaim();
+}
+
+namespace {
+/// @brief The record's word index for @p channel: UNSET saves as "none"; a channel with no word of its own is not
+///        one a track keeps.
+std::optional<int8_t> recordedChannel(AudioInputChannel channel) {
+	const int32_t value = std::max(0, util::to_underlying(channel));
+	return value < static_cast<int32_t>(std::size(deluge::project::kInputChannelWords))
+	           ? std::optional<int8_t>{static_cast<int8_t>(value)}
+	           : std::nullopt;
+}
+} // namespace
+
+void AudioOutput::setInputChannel(AudioInputChannel channel) {
+	inputChannel = channel;
+	if (docOutput_ != nullptr) {
+		if (const auto recorded = recordedChannel(channel)) {
+			docOutput_->input_channel = *recorded;
+		}
+	}
+}
+
+void AudioOutput::recordRecordingFrom() {
+	if (docOutput_ != nullptr) {
+		docOutput_->recording_from_output_id =
+		    outputRecordingFrom != nullptr ? outputRecordingFrom->id() : std::nullopt;
+	}
+}
+
+void AudioOutput::seedDocOutputIdentity() {
+	Output::seedDocOutputIdentity();
+	if (docOutput_ != nullptr) {
+		docOutput_->audio_mode = static_cast<uint8_t>(util::to_underlying(mode));
+		if (const auto recorded = recordedChannel(inputChannel)) {
+			docOutput_->input_channel = *recorded;
+		}
+		recordRecordingFrom();
+	}
+}
+
 void AudioOutput::cloneFrom(ModControllableAudio* other) {
 	GlobalEffectableForClip::cloneFrom(other);
 	auto ao = ((AudioOutput*)other);
-	inputChannel = ao->inputChannel;
+	setInputChannel(ao->inputChannel);
 
 	auto modeInt = util::to_underlying(ao->mode);
 
@@ -77,12 +125,14 @@ void AudioOutput::cloneFrom(ModControllableAudio* other) {
 		}
 		else {
 			// otherwise we'll become the new sampler/looper and the og will become a player
-			ao->mode = AudioOutputMode::player;
+			ao->setMode(AudioOutputMode::player);
 		}
 	}
+	setMode(mode);
 
 	if (inputChannel == AudioInputChannel::SPECIFIC_OUTPUT) {
 		outputRecordingFrom = ao->outputRecordingFrom;
+		recordRecordingFrom();
 		// now steal the monitoring of the original track if necessary (i.e. we're a looper or sampler)
 		updateMonitoringClaim();
 	}
@@ -309,10 +359,19 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 	// unbound.
 	writer.writeAttribute("name", docOutput_ != nullptr ? docOutput_->name.c_str() : name.c_str());
 
-	writer.writeAttribute("mode", aoModeToString(mode));
-
-	writer.writeAttribute("inputChannel", inputChannelToString(inputChannel));
-	writer.writeAttribute("outputRecordingIndex", currentSong->getOutputIndex(outputRecordingFrom));
+	// The input is the record's when the track has one: the source track by id, saved by its place in the song.
+	if (docOutput_ != nullptr) {
+		writer.writeAttribute("mode", deluge::project::kAudioModeWords[docOutput_->audio_mode].data());
+		writer.writeAttribute("inputChannel", deluge::project::kInputChannelWords[docOutput_->input_channel].data());
+		Output* source =
+		    docOutput_->recording_from_output_id ? song->outputForId(*docOutput_->recording_from_output_id) : nullptr;
+		writer.writeAttribute("outputRecordingIndex", song->getOutputIndex(source));
+	}
+	else {
+		writer.writeAttribute("mode", aoModeToString(mode));
+		writer.writeAttribute("inputChannel", inputChannelToString(inputChannel));
+		writer.writeAttribute("outputRecordingIndex", song->getOutputIndex(outputRecordingFrom));
+	}
 	Output::writeDataToFile(writer, clipForSavingOutputOnly, song);
 
 	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == nullptr);

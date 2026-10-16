@@ -36,6 +36,7 @@
 #include "model/clip/audio_clip.h"
 #include "model/consequence/consequence.h"
 #include "model/consequence/consequence_clip_length.h"
+#include "model/edits/audio_input_for.h"
 #include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_clip_length.h"
@@ -625,7 +626,7 @@ bool AudioClipScene::select_encoder_action(int32_t offset, bool shift) {
 	if (clip_ == nullptr || clip_->output == nullptr) {
 		return false;
 	}
-	static_cast<AudioOutput*>(clip_->output)->scrollAudioOutputMode(static_cast<int8_t>(offset));
+	deluge::edits::scrollAudioModeFor(*static_cast<AudioOutput*>(clip_->output), static_cast<int8_t>(offset));
 	return true;
 }
 

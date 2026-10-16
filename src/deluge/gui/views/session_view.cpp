@@ -58,6 +58,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/edits/audio_input_for.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_clip_colour.h"
 #include "model/edits/set_clip_section.h"
@@ -1356,7 +1357,7 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 	}
 	else {
 		auto ao = (AudioOutput*)clip->output;
-		ao->scrollAudioOutputMode(offset);
+		deluge::edits::scrollAudioModeFor(*ao, offset);
 	}
 }
 

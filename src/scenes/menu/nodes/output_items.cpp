@@ -19,6 +19,7 @@
 /// @brief The members of the two output items. See `output_items.h`.
 
 #include "scenes/menu/nodes/output_items.h"
+#include "model/edits/audio_input_for.h"
 #include "model/edits/setting_edit.h"
 
 #include "scenes/browser/browser_scene.h" // MidiDeviceLinkedItem's link arm opens this
@@ -282,7 +283,7 @@ void SpecificOutputItem::on_focus(const MenuContext& ctx, MenuState& state) cons
 		// `MultiRangeItem::on_focus` already does through `ctx.source`.
 		index = next_recordable_index(ctx, editing, -1, 1);
 		if (editing != nullptr) {
-			editing->setOutputRecordingFrom(output_at(ctx, editing, index));
+			deluge::edits::audioInputSourceFor(*editing, output_at(ctx, editing, index));
 		}
 	}
 	if (index < 0) {
@@ -374,7 +375,7 @@ void SpecificOutputItem::commit(const MenuContext& ctx, MenuState& state) const 
 	if (editing == nullptr) {
 		return;
 	}
-	editing->setOutputRecordingFrom(output_at(ctx, editing, state.list[depth_of(state)].cursor));
+	deluge::edits::audioInputSourceFor(*editing, output_at(ctx, editing, state.list[depth_of(state)].cursor));
 }
 
 deluge::ui::shell::Result SpecificOutputItem::handle(const deluge::ui::shell::UiEvent& /*event*/,

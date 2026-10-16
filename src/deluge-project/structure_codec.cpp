@@ -16,6 +16,7 @@
  */
 
 #include "deluge-project/structure_codec.h"
+#include "deluge-project/audio_input.h"
 
 #include "deluge-project/arrangement.h"
 #include "deluge-project/launch_style.h"
@@ -238,6 +239,8 @@ Value encode_identity(const DocOutput& output, std::string_view element) {
 	map.set("colour", Value::makeNumber(output.colour));
 	if (element == "audioTrack") {
 		map.set("name", text(output.name));
+		map.set("mode", text(kAudioModeWords[output.audio_mode]));
+		map.set("inputChannel", text(kInputChannelWords[output.input_channel]));
 		return map;
 	}
 	if (!output.name.empty()) {
@@ -300,6 +303,16 @@ std::expected<void, LoadError> decode_identity(const Value& outputElement, std::
 	if (element == "audioTrack") {
 		if (const std::string* name = text_of(o.find("name"))) {
 			output.name = *name;
+		}
+		// A file from before the modes says a monitored track is echoing: today's looper.
+		if (auto echoing = int_of(o.find("echoingInput")); echoing && *echoing != 0) {
+			output.audio_mode = 2;
+		}
+		if (const std::string* mode = text_of(o.find("mode"))) {
+			output.audio_mode = static_cast<uint8_t>(index_of_word(kAudioModeWords, *mode).value_or(0));
+		}
+		if (const std::string* channel = text_of(o.find("inputChannel"))) {
+			output.input_channel = static_cast<int8_t>(index_of_word(kInputChannelWords, *channel).value_or(0));
 		}
 		return {};
 	}

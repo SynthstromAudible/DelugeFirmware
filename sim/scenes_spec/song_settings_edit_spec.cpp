@@ -18,6 +18,7 @@
 #include "model/note/note_row.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/song/song.h"
+#include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
@@ -341,6 +342,33 @@ describe song_settings_edit("SetSetting", $ {
 		expect(recorded(*f.song, kSong, "syncScalingClip")).to_equal(std::string{"-1"});
 		expect(f.song->getSyncScalingClip() == nullptr).to_be_true();
 		expect(f.song->project.transport.inside_world_tick_magnitude).to_equal(magnitude);
+	});
+	it("records an audio track's input and the track it records from, by id", _ {
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		AudioOutput* source = f.song->createNewAudioOutput();
+		const auto track = deluge::bridge::trackAddressOf(*f.output, *f.song);
+		expect(track.has_value()).to_be_true();
+		const SettingAddress input{SettingGroupId::AUDIO_INPUT, *track};
+		deluge::edits::audioInputSettingFor(*f.output, "inputChannel", Value::makeScalar("specificTrack"));
+		deluge::edits::audioInputSettingFor(*f.output, "outputRecordingFrom", Value::makeNumber(*source->id()));
+		deluge::edits::audioInputSettingFor(*f.output, "mode", Value::makeScalar("Looper/FX"));
+		expect(recorded(*f.song, input, "inputChannel")).to_equal(std::string{"specificTrack"});
+		expect(recorded(*f.song, input, "outputRecordingFrom")).to_equal(std::to_string(*source->id()));
+		expect(recorded(*f.song, input, "mode")).to_equal(std::string{"Looper/FX"});
+		expect(f.output->getOutputRecordingFrom() == source).to_be_true();
+		expect(f.output->mode == AudioOutputMode::looper).to_be_true();
+		expect(projected(*f.song, input, "outputRecordingFrom")).to_equal(std::to_string(*source->id()));
+	});
+
+	it("clears the record that pointed at a source track when the source goes", _ {
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		AudioOutput* source = f.song->createNewAudioOutput();
+		const SettingAddress input{SettingGroupId::AUDIO_INPUT, *deluge::bridge::trackAddressOf(*f.output, *f.song)};
+		deluge::edits::audioInputSettingFor(*f.output, "inputChannel", Value::makeScalar("specificTrack"));
+		deluge::edits::audioInputSettingFor(*f.output, "outputRecordingFrom", Value::makeNumber(*source->id()));
+		f.song->clearRecordingFromReferencesTo(source);
+		expect(recorded(*f.song, input, "outputRecordingFrom")).to_equal(std::string{"-1"});
+		expect(f.output->getOutputRecordingFrom() == nullptr).to_be_true();
 	});
 });
 // clang-format on

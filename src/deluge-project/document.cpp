@@ -175,6 +175,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 		}
 	}
 
+	std::vector<std::pair<uint32_t, int64_t>> recordingFrom; ///< an audio track's id, and its source's index
 	for (const NamedChild& output : outputs) {
 		if (!is_output_element(output.name) || !output.node->isMap()) {
 			continue;
@@ -182,6 +183,9 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 		SongDocument::OutputEntry entry{.id = outputIds.id_of(*output.node), .element = std::string(output.name)};
 		DocOutput& record = document.outputs[entry.id] = new_output(output.name);
 		(void)decode_identity(*output.node, output.name, record);
+		if (auto index = int_of(output.node->find("outputRecordingIndex")); index && output.name == "audioTrack") {
+			recordingFrom.emplace_back(entry.id, *index);
+		}
 		if (output.name == "sound") {
 			record.instrument = slot_of_output(*output.node, magnitude);
 		}
@@ -252,6 +256,13 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 		}
 	}
 
+	// An audio track records from another by its place in the file; the record holds the other's id.
+	for (const auto& [id, index] : recordingFrom) {
+		if (index >= 0 && index < std::ssize(document.output_order)) {
+			document.outputs.at(id).recording_from_output_id = document.output_order[index].id;
+		}
+	}
+
 	std::vector<uint32_t> sessionIds;
 	for (const SongDocument::ClipEntry& entry : document.clip_order) {
 		if (!entry.arrangement_only) {
@@ -304,6 +315,15 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 		element.set("id", Value::makeNumber(entry.id));
 		const DocOutput& output = song.outputs.at(entry.id);
 		append_entries(element, encode_identity(output, entry.element));
+		if (entry.element == "audioTrack") {
+			int64_t index = -1;
+			for (size_t i = 0; i < song.output_order.size(); i++) {
+				if (output.recording_from_output_id == song.output_order[i].id) {
+					index = static_cast<int64_t>(i);
+				}
+			}
+			element.set("outputRecordingIndex", Value::makeNumber(index));
+		}
 		if (const deluge::engine::ParamNaming* naming = naming_of(entry.element, engines)) {
 			encode_controls(output.controls, *naming, element);
 		}

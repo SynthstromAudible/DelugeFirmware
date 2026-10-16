@@ -35,6 +35,7 @@
 #include "gui/l10n/strings.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
+#include "model/edits/audio_input_for.h"
 #include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -225,47 +226,46 @@ void on_move_audio_source(const menu::MenuContext& ctx, Selection& selection) {
 		selection.scroll = selection.option;
 	}
 
-	// `:149-151` -- leaving SPECIFIC_OUTPUT clears the recording-from state, so the track that was
-	// being recorded is not left silently muted.
-	if (audio_output->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && option != AudioSourceOption::Track) {
-		audio_output->clearRecordingFrom();
-	}
-
+	// Leaving SPECIFIC_OUTPUT clears the recording-from state (the input's Edit does), so the track that was being
+	// recorded is not left silently muted.
+	AudioInputChannel channel = AudioInputChannel::NONE;
 	switch (option) {
 	case AudioSourceOption::Left:
-		audio_output->inputChannel = AudioInputChannel::LEFT;
+		channel = AudioInputChannel::LEFT;
 		break;
 	case AudioSourceOption::Right:
-		audio_output->inputChannel = AudioInputChannel::RIGHT;
+		channel = AudioInputChannel::RIGHT;
 		break;
 	case AudioSourceOption::Stereo:
-		audio_output->inputChannel = AudioInputChannel::STEREO;
+		channel = AudioInputChannel::STEREO;
 		break;
 	case AudioSourceOption::Balanced:
-		audio_output->inputChannel = AudioInputChannel::BALANCED;
+		channel = AudioInputChannel::BALANCED;
 		break;
 	case AudioSourceOption::Master:
-		audio_output->inputChannel = AudioInputChannel::MIX;
+		channel = AudioInputChannel::MIX;
 		break;
 	case AudioSourceOption::Output:
-		audio_output->inputChannel = AudioInputChannel::OUTPUT;
+		channel = AudioInputChannel::OUTPUT;
 		break;
-	case AudioSourceOption::Track: {
+	case AudioSourceOption::Track:
+		channel = AudioInputChannel::SPECIFIC_OUTPUT;
+		break;
+	case AudioSourceOption::Off:
+	case AudioSourceOption::Count:
+	default:
+		break;
+	}
+	deluge::edits::audioInputChannelFor(*audio_output, channel);
+
+	if (option == AudioSourceOption::Track) {
 		// `:178-187` -- keep the chosen source if it is still usable, otherwise take the first one
-		// that is; `setOutputRecordingFrom(nullptr)` is the "none available" answer.
-		audio_output->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
+		// that is; none is the "none available" answer.
 		Output* record_from = recordable_output_in_song(ctx, audio_output, audio_output->getOutputRecordingFrom());
 		if (record_from == nullptr) {
 			record_from = first_recordable_output(ctx, audio_output);
 		}
-		audio_output->setOutputRecordingFrom(record_from);
-		break;
-	}
-	case AudioSourceOption::Off:
-	case AudioSourceOption::Count:
-	default:
-		audio_output->inputChannel = AudioInputChannel::NONE;
-		break;
+		deluge::edits::audioInputSourceFor(*audio_output, record_from);
 	}
 
 	// `:193` -- the song-wide default follows whatever was last picked here.

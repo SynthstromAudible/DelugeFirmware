@@ -20,6 +20,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
 #include "gui/views/session_view.h"
+#include "model/edits/audio_input_for.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
 
@@ -144,50 +145,51 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 		scrollPos = currentOption;
 	}
 
-	// When switching away from SPECIFIC_OUTPUT, clear the recording-from state
-	// so the previously-selected track is no longer silently muted
-	if (audioOutput->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && valueOption != Value::TRACK) {
-		audioOutput->clearRecordingFrom();
-	}
-
+	// The input's Edit lets go of a specific track when the channel leaves it, so the previously-selected track is no
+	// longer silently muted.
+	AudioInputChannel channel;
 	switch (valueOption) {
 
 	case Value::LEFT:
-		audioOutput->inputChannel = AudioInputChannel::LEFT;
+		channel = AudioInputChannel::LEFT;
 		break;
 
 	case Value::RIGHT:
-		audioOutput->inputChannel = AudioInputChannel::RIGHT;
+		channel = AudioInputChannel::RIGHT;
 		break;
 
 	case Value::STEREO:
-		audioOutput->inputChannel = AudioInputChannel::STEREO;
+		channel = AudioInputChannel::STEREO;
 		break;
 
 	case Value::BALANCED:
-		audioOutput->inputChannel = AudioInputChannel::BALANCED;
+		channel = AudioInputChannel::BALANCED;
 		break;
 
 	case Value::MASTER:
-		audioOutput->inputChannel = AudioInputChannel::MIX;
+		channel = AudioInputChannel::MIX;
 		break;
 
 	case Value::OUTPUT:
-		audioOutput->inputChannel = AudioInputChannel::OUTPUT;
+		channel = AudioInputChannel::OUTPUT;
 		break;
-	case Value::TRACK: {
-		audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
+
+	case Value::TRACK:
+		channel = AudioInputChannel::SPECIFIC_OUTPUT;
+		break;
+
+	default:
+		channel = AudioInputChannel::NONE;
+	}
+	deluge::edits::audioInputChannelFor(*audioOutput, channel);
+
+	if (valueOption == Value::TRACK) {
 		// Preserve the chosen source if possible; only choose a default when the previous source is gone.
 		Output* recordFrom = getRecordableOutputInSong(audioOutput, audioOutput->getOutputRecordingFrom());
 		if (!recordFrom) {
 			recordFrom = getFirstRecordableOutput(audioOutput);
 		}
-		audioOutput->setOutputRecordingFrom(recordFrom);
-		break;
-	}
-
-	default:
-		audioOutput->inputChannel = AudioInputChannel::NONE;
+		deluge::edits::audioInputSourceFor(*audioOutput, recordFrom);
 	}
 
 	defaultAudioOutputInputChannel = audioOutput->inputChannel;
@@ -200,8 +202,8 @@ ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 	if (on && getUIUpOneLevel() == &sessionView) {
 		auto track = (&sessionView)->getOutputFromPad(x, y);
 		if (audioOutput->canRecordFrom(track)) {
-			audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
-			audioOutput->setOutputRecordingFrom(track);
+			deluge::edits::audioInputChannelFor(*audioOutput, AudioInputChannel::SPECIFIC_OUTPUT);
+			deluge::edits::audioInputSourceFor(*audioOutput, track);
 			// sets scroll to the position of specific output
 			scrollPos = static_cast<int32_t>(Value::TRACK);
 			currentOption = scrollPos;

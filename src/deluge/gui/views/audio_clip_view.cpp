@@ -38,6 +38,7 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_minder.h"
 #include "model/consequence/consequence_clip_length.h"
+#include "model/edits/audio_input_for.h"
 #include "model/edits/clear_clip.h"
 #include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
@@ -749,7 +750,7 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 	}
 	else {
 		auto ao = (AudioOutput*)getCurrentAudioClip()->output;
-		ao->scrollAudioOutputMode(offset);
+		deluge::edits::scrollAudioModeFor(*ao, offset);
 	}
 }
 

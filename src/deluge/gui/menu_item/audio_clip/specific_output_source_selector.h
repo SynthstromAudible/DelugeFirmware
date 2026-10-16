@@ -19,6 +19,7 @@
 #include "gui/menu_item/menu_item.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "model/edits/audio_input_for.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
 
@@ -37,7 +38,7 @@ public:
 			// If the stored source was removed or became invalid, land on the first valid target instead.
 			outputIndex = getNextRecordableOutputIndex(-1, 1);
 			selectedOutput = getOutputFromSelectedIndex();
-			audioOutputBeingEdited->setOutputRecordingFrom(selectedOutput);
+			deluge::edits::audioInputSourceFor(*audioOutputBeingEdited, selectedOutput);
 		}
 
 		if (outputIndex < 0) {
@@ -53,7 +54,7 @@ public:
 		}
 		outputIndex = newOutputIndex;
 		auto newRecordingFrom = getOutputFromSelectedIndex();
-		audioOutputBeingEdited->setOutputRecordingFrom(newRecordingFrom);
+		deluge::edits::audioInputSourceFor(*audioOutputBeingEdited, newRecordingFrom);
 		renderUIsForOled();
 	}
 	void drawPixelsForOled() override {
