@@ -8,6 +8,7 @@
 #include "model/edits/edit.h"
 #include "modulation/params/param_descriptor.h"
 
+#include <optional>
 #include <utility>
 
 class LearnedMIDI;
@@ -26,8 +27,11 @@ namespace deluge::edits {
 /// @note Learning records no undo.
 class LearnMapping final : public Edit {
 public:
-	/// @param mapping The binding to learn (MappingTable::learn's rules decide what it replaces).
-	explicit LearnMapping(deluge::project::Mapping mapping) : mapping_(std::move(mapping)) {}
+	/// @param mapping  The binding to learn (MappingTable::learn's rules decide what it replaces).
+	/// @param replaces For a ParamTarget: the source of the knob it takes the place of (MappingTable::relearn).
+	explicit LearnMapping(deluge::project::Mapping mapping,
+	                      std::optional<deluge::project::MidiCommand> replaces = std::nullopt)
+	    : mapping_(std::move(mapping)), replaces_(std::move(replaces)) {}
 
 	/// @copydoc Edit::apply
 	/// @return Error::UNSPECIFIED, with the table as it was, when the target's owner is not in the song; otherwise
@@ -36,6 +40,7 @@ public:
 
 private:
 	deluge::project::Mapping mapping_;
+	std::optional<deluge::project::MidiCommand> replaces_;
 };
 
 /// @brief Unlearn a target: drop its entries from the song's mapping table (for a param, every knob on it), then
@@ -70,7 +75,9 @@ Error learnedMappingIn(::Song& song, deluge::project::MappingTarget target, cons
 void learnedMappingFor(deluge::project::MappingTarget target, const ::LearnedMIDI& learned);
 
 /// @brief A menu's learn of a MIDI knob: @p cable's @p noteOrCC on @p channel turns @p param of @p owner. Through
-/// LearnMapping when @p owner holds controls of the current song; on @p owner's knob list alone otherwise.
+/// LearnMapping when @p owner holds controls of the current song; on @p owner's knob list alone otherwise. A knob on
+/// @p param that this MIDI would trigger (LearnedMIDI's rule, devices told apart only by the setting that tells inputs
+/// apart) is rebound to it in place; otherwise the knob is added.
 /// @param owner    The owner whose param the knob turns.
 /// @param param    The param.
 /// @param cable    The cable the knob was heard on.

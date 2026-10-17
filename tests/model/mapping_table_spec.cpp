@@ -81,13 +81,35 @@ describe mapping_table("the song's mapping table", ${
 		expect(table.find(out_param(1, 2))).to_equal(static_cast<const Mapping*>(nullptr));
 	});
 
-	it("tells devices apart as part of the source", _ {
+	it("compares a learned knob's device exactly, leaving how MIDI is heard to relearn's caller", _ {
 		MappingTable table;
 		MidiCommand other = cc(1, 5);
 		other.device = MidiDeviceRef{.port = MidiDeviceRef::Port::UPSTREAM_USB_1};
 		table.learn(knob(cc(1, 5), out_param(1, 2)));
 		table.learn(knob(other, out_param(1, 2)));
 		expect(table.entries().size()).to_equal(size_t{2});
+	});
+
+	it("relearns a knob from another device in its place", _ {
+		MappingTable table;
+		MidiCommand din = cc(1, 5);
+		din.device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN};
+		MidiCommand usb = cc(1, 5);
+		usb.device = MidiDeviceRef{.port = MidiDeviceRef::Port::UPSTREAM_USB_1};
+		table.learn(knob(din, out_param(1, 2)));
+		table.learn(knob(cc(1, 6), out_param(1, 3)));
+		expect(table.relearn(din, knob(usb, out_param(1, 2))).relative).to_be_true();
+		expect(table.entries().size()).to_equal(size_t{2});
+		expect(table.entries()[0].source).to_equal(usb);
+		expect(table.entries()[1].source).to_equal(cc(1, 6));
+	});
+
+	it("learns a relearned knob whose old source it does not hold", _ {
+		MappingTable table;
+		table.learn(knob(cc(1, 5), out_param(1, 2)));
+		table.relearn(cc(1, 5), knob(cc(1, 7), out_param(1, 3)));
+		expect(table.entries().size()).to_equal(size_t{2});
+		expect(table.find(out_param(1, 3))->source).to_equal(cc(1, 7));
 	});
 
 	it("holds one source per clip mute, the latest", _ {

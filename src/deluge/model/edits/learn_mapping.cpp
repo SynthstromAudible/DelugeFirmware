@@ -62,7 +62,12 @@ std::optional<deluge::project::ParamTarget> knobTargetIn(::ModControllableAudio&
 Error LearnMapping::apply(Context& ctx) {
 	deluge::bridge::applyPendingMappingOps(ctx.song); // a write the render made first lands first
 	deluge::project::MappingTable before = ctx.model.mappings;
-	ctx.model.mappings.learn(mapping_);
+	if (replaces_) {
+		ctx.model.mappings.relearn(*replaces_, mapping_);
+	}
+	else {
+		ctx.model.mappings.learn(mapping_);
+	}
 	return project(ctx, mapping_.target, std::move(before));
 }
 
@@ -109,8 +114,18 @@ bool learnKnobFor(::ModControllableAudio& owner, ParamDescriptor param, ::MIDICa
 	learned.cable = cable;
 	learned.channelOrZone = channel;
 	learned.noteOrCC = noteOrCC;
+	deluge::bridge::applyPendingMappingOps(*currentSong); // the knob it replaces may be one the render wrote
+	std::optional<deluge::project::MidiCommand> replaces;
+	for (const deluge::project::Mapping& entry : currentSong->project.mappings.entries()) {
+		if (cable != nullptr && entry.target == deluge::project::MappingTarget{*target}
+		    && deluge::bridge::matches(entry.source, *cable, channel, noteOrCC)) {
+			replaces = entry.source;
+			break;
+		}
+	}
 	Context ctx{*currentSong, currentSong->project};
-	LearnMapping edit{deluge::project::Mapping{.source = deluge::bridge::command_of(learned), .target = *target}};
+	LearnMapping edit{deluge::project::Mapping{.source = deluge::bridge::command_of(learned), .target = *target},
+	                  std::move(replaces)};
 	return deluge::edits::apply(ctx, edit) == Error::NONE;
 }
 

@@ -79,12 +79,22 @@ struct Mapping {
 /// A param may have several knobs; every other target kind holds at most one source.
 class MappingTable {
 public:
-	/// @brief Learn @p mapping. A ParamTarget replaces the entry with the same source and the same target, else is
-	/// appended; its relative flag is set unless the source is a pitch bend (note_or_cc 128). Any other kind replaces
-	/// that target's entry whatever its source, else is appended.
+	/// @brief Learn @p mapping. A ParamTarget replaces the entry whose source and target are both equal to its own,
+	/// devices compared exactly, else is appended; its relative flag is set unless the source is a pitch bend
+	/// (note_or_cc 128). Any other kind replaces that target's entry whatever its source, else is appended.
+	///
+	/// A menu's knob learn matches the knob it replaces by how MIDI is heard, which a device reference alone cannot
+	/// decide; that caller finds the knob itself and uses relearn().
 	/// @param mapping The binding to learn.
 	/// @return The entry that now holds it.
 	Mapping& learn(Mapping mapping);
+	/// @brief Learn @p mapping, a ParamTarget, in place of the entry for the same target whose source is
+	/// @p old_source, keeping that entry's place in the table; learn() it when there is no such entry. Its relative
+	/// flag is set as learn() sets it.
+	/// @param old_source The source of the knob it replaces.
+	/// @param mapping    The binding to learn.
+	/// @return The entry that now holds it.
+	Mapping& relearn(const MidiCommand& old_source, Mapping mapping);
 	/// @brief Remove every entry for @p target (for a ParamTarget: every knob on that param of that owner).
 	/// @param target What to unlearn.
 	/// @return How many entries were removed.

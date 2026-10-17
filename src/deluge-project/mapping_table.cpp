@@ -70,6 +70,17 @@ Mapping& MappingTable::learn(Mapping mapping) {
 	return entries_.emplace_back(std::move(mapping));
 }
 
+Mapping& MappingTable::relearn(const MidiCommand& old_source, Mapping mapping) {
+	auto old = std::ranges::find_if(
+	    entries_, [&](const Mapping& entry) { return entry.target == mapping.target && entry.source == old_source; });
+	if (old == entries_.end() || !std::holds_alternative<ParamTarget>(mapping.target)) {
+		return learn(std::move(mapping));
+	}
+	mapping.relative = mapping.source.note_or_cc != kPitchBend;
+	*old = std::move(mapping);
+	return *old;
+}
+
 size_t MappingTable::unlearn(const MappingTarget& target) {
 	return std::erase_if(entries_, [&](const Mapping& entry) { return entry.target == target; });
 }

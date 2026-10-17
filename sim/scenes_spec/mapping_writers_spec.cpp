@@ -464,6 +464,75 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(deluge::edits::unlearnKnobsFor(sound, volume)).to_be_false();
 	});
 
+	it("rebinds a menu's knob heard again from another device while inputs are not told apart", _ {
+		const bool differentiating = MIDIDeviceManager::differentiatingInputsByDevice;
+		MIDIDeviceManager::differentiatingInputsByDevice = false;
+		spec::SongFixture f = spec::make_synth_song();
+		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
+		ParamDescriptor volume;
+		volume.setToHaveParamOnly(params::LOCAL_VOLUME);
+		ParamDescriptor pan;
+		pan.setToHaveParamOnly(params::LOCAL_PAN);
+		const bool learned = deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)
+		                     && deluge::edits::learnKnobFor(sound, pan, &MIDIDeviceManager::dinMIDIPorts, 75, 1)
+		                     && deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::upstreamUSBMIDICable1,
+		                                                    74, 1);
+		MIDIDeviceManager::differentiatingInputsByDevice = differentiating;
+		expect(learned).to_be_true();
+		const std::vector<Mapping> knobs = f.song->project.mappings.params_of(owner);
+		Command fromUsb = knobCc(1, 74);
+		fromUsb.device = MidiDeviceRef{.port = MidiDeviceRef::Port::UPSTREAM_USB_1};
+		expect(static_cast<int>(knobs.size())).to_equal(2);
+		expect(knobs.size() == 2 && knobs[0].source == fromUsb
+		       && std::get<ParamTarget>(knobs[0].target).param == patched(params::LOCAL_VOLUME))
+		    .to_be_true();
+		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(2);
+		expect(sound.midi_knobs.size() == 2
+		       && sound.midi_knobs[0].midiInput.cable == &MIDIDeviceManager::upstreamUSBMIDICable1)
+		    .to_be_true();
+	});
+
+	it("rebinds a menu's knob learned from any device to the device it is heard from", _ {
+		const bool differentiating = MIDIDeviceManager::differentiatingInputsByDevice;
+		MIDIDeviceManager::differentiatingInputsByDevice = true;
+		spec::SongFixture f = spec::make_synth_song();
+		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+		const ParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_VOLUME)};
+		ParamDescriptor volume;
+		volume.setToHaveParamOnly(params::LOCAL_VOLUME);
+		deluge::edits::learnMappingFor(knobCc(1, 74), knob);
+		const bool learned = deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
+		MIDIDeviceManager::differentiatingInputsByDevice = differentiating;
+		expect(learned).to_be_true();
+		Command fromDin = knobCc(1, 74);
+		fromDin.device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN};
+		const std::vector<Mapping> knobs =
+		    f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *f.instrument->id()});
+		expect(static_cast<int>(knobs.size())).to_equal(1);
+		expect(knobs.size() == 1 && knobs[0].source == fromDin).to_be_true();
+		expect(sound.midi_knobs.size() == 1 && sound.midi_knobs[0].midiInput.cable == &MIDIDeviceManager::dinMIDIPorts)
+		    .to_be_true();
+	});
+
+	it("keeps a menu's knobs from two devices apart while inputs are told apart", _ {
+		const bool differentiating = MIDIDeviceManager::differentiatingInputsByDevice;
+		MIDIDeviceManager::differentiatingInputsByDevice = true;
+		spec::SongFixture f = spec::make_synth_song();
+		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+		ParamDescriptor volume;
+		volume.setToHaveParamOnly(params::LOCAL_VOLUME);
+		const bool learned = deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)
+		                     && deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::upstreamUSBMIDICable1,
+		                                                    74, 1);
+		MIDIDeviceManager::differentiatingInputsByDevice = differentiating;
+		expect(learned).to_be_true();
+		expect(static_cast<int>(
+		           f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *f.instrument->id()}).size()))
+		    .to_equal(2);
+		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(2);
+	});
+
 	it("clears a knob's relative flag in the table when a CC between 16 and 111 shows it is absolute", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		const ParamTarget knob{{ControlsAddress::Kind::SONG, 0},
