@@ -146,6 +146,16 @@ PLACE_SDRAM_RODATA constexpr RGB shortcut_colours [][kDisplayHeight] = {
 	{none_colour,			synth_global_colour,	synth_global_colour,    synth_global_colour,    none_colour,			none_colour,		none_colour,		none_colour   },
 };
 
+PLACE_SDRAM_RODATA constexpr RGB poly_mod_shortcut_colours [][kDisplayHeight] = {
+	{delay_colour,			delay_colour,			delay_colour,           delay_colour,           delay_colour,			mod_source_colour,	mod_source_colour,	mod_source_colour   },
+	{mod_source_colour,		mod_source_colour,		mod_source_colour,		mod_source_colour,		mod_source_colour,		mod_source_colour,	mod_source_colour,	mod_source_colour   },
+};
+
+PLACE_SDRAM_RODATA constexpr RGB mono_mod_shortcut_colours [][kDisplayHeight] = {
+	{delay_colour,			delay_colour,			delay_colour,           delay_colour,           delay_colour,			mod_source_colour,	none_colour,	none_colour   },
+	{none_colour,			synth_global_colour,	synth_global_colour,	synth_global_colour,	mod_source_colour,		none_colour,		none_colour,	none_colour   },
+};
+
 //clang-format on
 
 bool isRelevant(ModControllableAudio* forThing, MenuItem* menuitem, int32_t thing)
@@ -268,25 +278,17 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 		if (patchable && currentSound != nullptr) {
 			const bool is_volume = param == params::GLOBAL_VOLUME_POST_FX
 			                       || param == params::GLOBAL_VOLUME_POST_REVERB_SEND || param == params::LOCAL_VOLUME;
-			auto source_is_allowed = [&](PatchSource source, bool edits_range) {
-				if (source >= kLastPatchSource) {
-					return false;
-				}
-				if (edits_range) {
-					// Match PatchCableStrength::checkPermissionToBeginSession for cable ranges.
-					return source < kFirstLocalSource || param < params::FIRST_GLOBAL;
-				}
-				auto can_patch = [&](uint8_t destination) {
-					return currentSound->maySourcePatchToParam(source, destination, currentParamManager)
-					       != PatchCableAcceptance::DISALLOWED;
-				};
-				// Volume selects its physical destination according to the source.
-				if (is_volume) {
-					return can_patch(params::GLOBAL_VOLUME_POST_FX) || can_patch(params::LOCAL_VOLUME)
-					       || can_patch(params::GLOBAL_VOLUME_POST_REVERB_SEND);
-				}
-				return can_patch(param);
-			};
+			// LFO2 is the canary for the default polyphonic map. Volume is a logical
+			// destination spanning local volume and the global sidechain destination.
+			const bool use_poly_map = is_volume
+			                          || currentSound->maySourcePatchToParam(PatchSource::LFO_LOCAL_1, param,
+			                                                                currentParamManager)
+			                                 != PatchCableAcceptance::DISALLOWED;
+			// A rejected local canary can also mean that the parameter is unavailable
+			// (e.g. a synced LFO rate), rather than merely global.
+			const bool direct_patching_allowed =
+			    use_poly_map || currentSound->maySourcePatchToParam(PatchSource::LFO_GLOBAL_1, param, currentParamManager)
+			                        != PatchCableAcceptance::DISALLOWED;
 			for (int32_t x = 0; x < 2; x++) {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
 					const bool previous_press_still_active = isOtherModSourcePadPressed(x + 14, y);
@@ -299,11 +301,21 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 						}
 					}
 					const bool edits_range = target == PatchingSourceShortcutTarget::RANGE;
-					if (source_is_allowed(modSourceShortcuts[x][y], edits_range)
-					    || source_is_allowed(modSourceShortcutsSecondLayer[x][y], edits_range)) {
-						image[y][x + kDisplayWidth - 2] = mod_source_colour;
+					const auto source = modSourceShortcuts[x][y];
+					if (source >= kLastPatchSource || (!edits_range && !direct_patching_allowed)) {
+						continue;
 					}
-					// Otherwise retain the parameter shortcut underneath, if there is one.
+					// Range modulation uses the physical cable destination, without direct-patching exceptions.
+					const bool polyphonic = edits_range ? param < params::FIRST_GLOBAL : use_poly_map;
+					const auto colour = polyphonic ? poly_mod_shortcut_colours[x][y] : mono_mod_shortcut_colours[x][y];
+					if (!edits_range) {
+						if ((is_volume && (source == PatchSource::ENVELOPE_0 || source == PatchSource::ENVELOPE_1))
+						    || (param == params::LOCAL_PITCH_ADJUST && source == PatchSource::X)
+						    || (currentSound->isDrum() && source == PatchSource::NOTE)) {
+							continue;
+						}
+					}
+					image[y][x + kDisplayWidth - 2] = colour;
 				}
 			}
 		}
