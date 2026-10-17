@@ -219,8 +219,8 @@ Error SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	return error;
 }
 
-void SoundInstrument::resyncLFOs() {
-	resyncGlobalLFOs();
+void SoundInstrument::resyncLFOs(bool reset_state) {
+	resyncGlobalLFOs(reset_state);
 }
 
 ModControllable* SoundInstrument::toModControllable() {

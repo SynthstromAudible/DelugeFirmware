@@ -2745,7 +2745,7 @@ uint32_t Sound::getSyncedLFOPhaseIncrement(const LFOConfig& config) {
 	return phaseIncrement;
 }
 
-void Sound::resyncGlobalLFOs() {
+void Sound::resyncGlobalLFOs(bool reset_state) {
 	if (!playbackHandler.isEitherClockActive()) {
 		return; // no clock, no sync
 	}
@@ -2756,7 +2756,7 @@ void Sound::resyncGlobalLFOs() {
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO1.setGlobalInitialPhase(lfoConfig[LFO1_ID]);
+		globalLFO1.setGlobalInitialPhase(lfoConfig[LFO1_ID], reset_state);
 
 		uint32_t timeSinceLastTick;
 
@@ -2793,7 +2793,7 @@ void Sound::resyncGlobalLFOs() {
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO3.setGlobalInitialPhase(lfoConfig[LFO3_ID]);
+		globalLFO3.setGlobalInitialPhase(lfoConfig[LFO3_ID], reset_state);
 
 		uint32_t timeSinceLastTick;
 
