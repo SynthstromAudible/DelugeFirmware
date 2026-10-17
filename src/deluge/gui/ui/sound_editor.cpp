@@ -345,6 +345,7 @@ SoundEditor::SoundEditor() {
 void SoundEditor::resetSourceBlinks() {
 	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 	memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
+	memset(sourceShortcutBlinkAlternates, 0, sizeof(sourceShortcutBlinkAlternates));
 }
 
 bool SoundEditor::editingKit() {
@@ -991,6 +992,7 @@ void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
 			auto& colour = sourceShortcutBlinkColours[x][y];
 			frequency = 255;
 			colour = 0;
+			sourceShortcutBlinkAlternates[x][y] = false;
 
 			const auto source = modSourceShortcuts[x][y];
 			if (source < kLastPatchSource) {
@@ -1004,6 +1006,7 @@ void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
 				uint8_t secondLayerColour = 0;
 				const auto secondLayerFrequency =
 				    currentItem->shouldBlinkPatchingSourceShortcut(secondLayerSource, &secondLayerColour);
+				sourceShortcutBlinkAlternates[x][y] = secondLayerFrequency != 255 && secondLayerFrequency == frequency;
 				if (secondLayerFrequency < frequency) {
 					frequency = secondLayerFrequency;
 					colour = 0b00000011; // blink yellow on the second layer
@@ -1224,7 +1227,14 @@ void SoundEditor::blinkShortcut() {
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
 				if (sourceShortcutBlinkFrequencies[x][y] != 255
 				    && (counterForNow & sourceShortcutBlinkFrequencies[x][y]) == 0) {
-					PadLEDs::flashMainPad(x + 14, y, sourceShortcutBlinkColours[x][y]);
+					auto colour = sourceShortcutBlinkColours[x][y];
+					// The frequency is a mask of low counter bits. The next bit alternates
+					// on successive flashes, including when the source blinks slowly.
+					if (sourceShortcutBlinkAlternates[x][y]
+					    && (counterForNow & (sourceShortcutBlinkFrequencies[x][y] + 1))) {
+						colour = 0b00000011; // second layer
+					}
+					PadLEDs::flashMainPad(x + 14, y, colour);
 				}
 			}
 		}

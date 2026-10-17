@@ -200,6 +200,7 @@ private:
 
 	uint8_t sourceShortcutBlinkFrequencies[2][kDisplayHeight];
 	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight];
+	bool sourceShortcutBlinkAlternates[2][kDisplayHeight];
 };
 
 extern SoundEditor soundEditor;
