@@ -71,6 +71,7 @@ const deluge::serialization::Value* writtenElement(const deluge::serialization::
 } // namespace
 
 void refreshSlots(::Song& song) {
+	const HeldOwners held{song}; // each output written asks whether the song holds it and its rows
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
 		if (output->docOutput_ == nullptr || (output->type != OutputType::SYNTH && output->type != OutputType::KIT)) {
 			continue;
