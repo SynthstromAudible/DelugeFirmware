@@ -39,6 +39,8 @@ struct CoherenceChecks {
 	bool decode = true;        ///< the slot decoded onto the record == the record (the flip would change nothing)
 	bool chains = true;        ///< each host chain (a kit's, an audio track's, the master's) == its owner's encoding
 	bool song_settings = true; ///< every setting group's record == its engine copy (songSettingsIncoherence)
+	/// The leg is expected to break: each break is printed as EXPECTED-INCOHERENT, not FAIL.
+	bool expect_incoherent = false;
 };
 
 /// @brief Find the first equation @p sound breaks. An unbound sound breaks none.
@@ -89,7 +91,8 @@ std::string settingIncoherence(::Song& song, const deluge::project::SettingAddre
 /// @brief Check every bound sound of @p song (its outputs', its hibernating instruments' and its kits' sound drums),
 /// and its controls and host chains as @p checks selects.
 ///
-/// Each break is printed as `SLOT-COHERENT FAIL leg=<leg> <owner>: <what>`.
+/// Each break is printed as `SLOT-COHERENT FAIL leg=<leg> <owner>: <what>` (EXPECTED-INCOHERENT in place of FAIL when
+/// @p checks expects the leg to break).
 /// @param song   The song to check.
 /// @param leg    Name of the scenario leg, printed with each break.
 /// @param checks Which equations to hold each sound to.

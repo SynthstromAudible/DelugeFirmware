@@ -89,12 +89,12 @@ bool knobsCoherent(deluge::project::ControlsAddress owner, const ::ModControllab
 
 /// The kits', audio tracks' and the song's own learned knobs checked against the song's table; each break printed.
 /// How many broke.
-int32_t ownControlsIncoherent(::Song& song, const char* leg) {
+int32_t ownControlsIncoherent(::Song& song, const char* leg, const char* label) {
 	int32_t failures = 0;
 	auto check = [&](::ModControllableAudio& owner, const std::string& name) {
 		const std::optional<deluge::project::ControlsAddress> address = deluge::bridge::controlsAddressOf(owner, song);
 		if (address && !knobsCoherent(*address, owner, false, song)) {
-			std::printf("SLOT-COHERENT FAIL leg=%s %s: controls\n", leg, name.c_str());
+			std::printf("SLOT-COHERENT %s leg=%s %s: controls\n", label, leg, name.c_str());
 			failures++;
 		}
 	};
@@ -265,10 +265,11 @@ std::string chainIncoherence(::Song& song) {
 }
 
 int32_t expectSongCoherent(::Song& song, const char* leg, CoherenceChecks checks) {
+	const char* label = checks.expect_incoherent ? "EXPECTED-INCOHERENT" : "FAIL";
 	int32_t failures = 0;
 	auto check = [&](Sound& sound, const std::string& owner) {
 		if (const std::string what = soundIncoherence(sound, song, checks); !what.empty()) {
-			std::printf("SLOT-COHERENT FAIL leg=%s %s: %s\n", leg, owner.c_str(), what.c_str());
+			std::printf("SLOT-COHERENT %s leg=%s %s: %s\n", label, leg, owner.c_str(), what.c_str());
 			failures++;
 		}
 	};
@@ -280,17 +281,17 @@ int32_t expectSongCoherent(::Song& song, const char* leg, CoherenceChecks checks
 		forEachSound(*sleeping, check);
 	}
 	if (checks.controls) {
-		failures += ownControlsIncoherent(song, leg);
+		failures += ownControlsIncoherent(song, leg, label);
 	}
 	if (checks.chains) {
 		if (const std::string what = chainIncoherence(song); !what.empty()) {
-			std::printf("SLOT-COHERENT FAIL leg=%s %s\n", leg, what.c_str());
+			std::printf("SLOT-COHERENT %s leg=%s %s\n", label, leg, what.c_str());
 			failures++;
 		}
 	}
 	if (checks.song_settings) {
 		if (const std::string what = songSettingsIncoherence(song); !what.empty()) {
-			std::printf("SLOT-COHERENT FAIL leg=%s song-settings: %s\n", leg, what.c_str());
+			std::printf("SLOT-COHERENT %s leg=%s song-settings: %s\n", label, leg, what.c_str());
 			failures++;
 		}
 	}

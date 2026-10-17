@@ -952,7 +952,7 @@ void testClonedAudioTrackRecordsKnobs(deluge::edits::Context& ctx) {
 	          && source->midi_knobs.size() == 1,
 	      "clone: the source track learns a knob");
 	clone->cloneFrom(source);
-	check(deluge::harness::expectSongCoherent(ctx.song, "clone-before") != 0,
+	check(deluge::harness::expectSongCoherent(ctx.song, "clone-before", {.expect_incoherent = true}) != 0,
 	      "clone: a cloned track's table entries lag until copied");
 	deluge::bridge::cloneOutputMappings(*source, *clone, ctx.song);
 	check(deluge::harness::expectSongCoherent(ctx.song, "clone") == 0,
