@@ -91,10 +91,11 @@ Error UnlearnMapping::apply(Context& ctx) {
 Error learnedMappingIn(::Song& song, deluge::project::MappingTarget target, const ::LearnedMIDI& learned) {
 	Context ctx{song, song.project};
 	if (learned.containsSomething()) {
-		LearnMapping edit{deluge::project::Mapping{.source = deluge::bridge::command_of(learned), .target = target}};
+		LearnMapping edit{
+		    deluge::project::Mapping{.source = deluge::bridge::command_of(learned), .target = std::move(target)}};
 		return deluge::edits::apply(ctx, edit);
 	}
-	UnlearnMapping edit{target};
+	UnlearnMapping edit{std::move(target)};
 	return deluge::edits::apply(ctx, edit);
 }
 
@@ -105,12 +106,12 @@ void learnedMappingFor(deluge::project::MappingTarget target, const ::LearnedMID
 }
 
 void learnMappingFor(deluge::project::MidiCommand source, deluge::project::MappingTarget target) {
-	LearnMapping edit{deluge::project::Mapping{.source = std::move(source), .target = target}};
+	LearnMapping edit{deluge::project::Mapping{.source = std::move(source), .target = std::move(target)}};
 	applyToCurrentSong(edit);
 }
 
 void unlearnMappingFor(deluge::project::MappingTarget target) {
-	UnlearnMapping edit{target};
+	UnlearnMapping edit{std::move(target)};
 	applyToCurrentSong(edit);
 }
 

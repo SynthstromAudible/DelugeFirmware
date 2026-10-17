@@ -43,8 +43,11 @@
 
 namespace {
 
-/// The input a song save writes for @p instrument: the one @p song's table holds for it, or its own when @p song does
-/// not hold it (an instrument loaded outside it has no table).
+/// @brief The input a song save writes for @p instrument: the one @p song's table holds for it, or its own when
+/// @p song does not hold it (an instrument loaded outside it has no table).
+/// @param instrument The instrument being saved.
+/// @param song       The song being saved.
+/// @return The input command; empty when the table holds none for it.
 deluge::project::MidiCommand savedInput(MelodicInstrument& instrument, Song& song) {
 	if (!deluge::bridge::holdsOutput(song, instrument)) {
 		return deluge::bridge::command_of(instrument.midiInput);

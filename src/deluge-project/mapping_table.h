@@ -77,6 +77,11 @@ struct Mapping {
 /// @brief Every MIDI-learned binding of a song.
 ///
 /// A param may have several knobs; every other target kind holds at most one source.
+///
+/// Entry order is the order bindings were learned or loaded, and nothing sorts it. A song save writes each owner's
+/// entries in table order, so a reload reads them back in the order the save wrote them, grouped by owner. Whole-table
+/// equality compares entries in order: a table after runtime learns can differ from the same song reloaded while
+/// holding the same bindings.
 class MappingTable {
 public:
 	/// @brief Learn @p mapping. A ParamTarget replaces the entry whose source and target are both equal to its own,

@@ -154,7 +154,8 @@ void projectDeviceMappings(::Song& song);
 /// moved command could undo it.
 class RowCommandMoves {
 public:
-	/// @param song The current song.
+	/// @param song The current song: the count of guards open is not the song's, and a drain waits only for the current
+	/// song's own, so a build that checks stops at another (E469).
 	explicit RowCommandMoves(::Song& song);
 	/// Applies the writes the render held meanwhile, when it is the last one open.
 	~RowCommandMoves();

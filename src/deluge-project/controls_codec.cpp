@@ -17,6 +17,7 @@
 
 #include "deluge-project/controls_codec.h"
 
+#include "deluge-project/knob_ref.h"
 #include "serialization/tree.h"
 
 #include <string>
@@ -24,34 +25,15 @@
 
 namespace deluge::project {
 
-using deluge::engine::ParamRef;
 using serialization::Value;
 
 namespace {
 
+using detail::ref_in;
+using detail::set_ref;
+
 /// The number of mod buttons, each with two knobs.
 constexpr uint8_t kModButtons = 8;
-
-std::string_view text(const Value* node) {
-	const std::string* t = serialization::text_of(node);
-	return t != nullptr ? std::string_view(*t) : std::string_view{};
-}
-
-/// The param a knob element names: `controlsParam`, `patchAmountFromSource`, `patchAmountFromSecondSource`.
-ParamRef ref_in(const Value& knob) {
-	return {text(knob.find("controlsParam")), text(knob.find("patchAmountFromSource")),
-	        text(knob.find("patchAmountFromSecondSource"))};
-}
-
-void set_ref(Value& knob, const ParamRef& ref) {
-	knob.set("controlsParam", Value::makeScalar(std::string(ref.param)));
-	if (!ref.source.empty()) {
-		knob.set("patchAmountFromSource", Value::makeScalar(std::string(ref.source)));
-	}
-	if (!ref.second_source.empty()) {
-		knob.set("patchAmountFromSecondSource", Value::makeScalar(std::string(ref.second_source)));
-	}
-}
 
 } // namespace
 

@@ -17,6 +17,7 @@
 
 #include "deluge-project/mapping_codec.h"
 
+#include "deluge-project/knob_ref.h"
 #include "deluge-project/midi_command_codec.h"
 #include "serialization/tree.h"
 
@@ -28,21 +29,19 @@
 
 namespace deluge::project {
 
-using deluge::engine::ParamRef;
 using serialization::Value;
 
 namespace {
+
+using detail::ref_in;
+using detail::set_ref;
+using detail::text;
 
 /// The channel values naming the lower and upper MPE zones.
 constexpr uint8_t kLowerZone = 16;
 constexpr uint8_t kUpperZone = 17;
 /// The highest note a note command holds.
 constexpr int32_t kHighestNote = 127;
-
-std::string_view text(const Value* node) {
-	const std::string* t = serialization::text_of(node);
-	return t != nullptr ? std::string_view(*t) : std::string_view{};
-}
 
 uint8_t byte_of(const Value* node) {
 	return static_cast<uint8_t>(serialization::int_of(node).value_or(0));
@@ -65,22 +64,6 @@ uint8_t with_zone(uint8_t channel, const Value* zone) {
 /// The zone a channel of 16 or more writes as: the lower zone's, else the upper's.
 Value zone_text(uint8_t channel) {
 	return Value::makeScalar(channel == kLowerZone ? "lower" : "upper");
-}
-
-/// The param a knob element names: `controlsParam`, `patchAmountFromSource`, `patchAmountFromSecondSource`.
-ParamRef ref_in(const Value& knob) {
-	return {text(knob.find("controlsParam")), text(knob.find("patchAmountFromSource")),
-	        text(knob.find("patchAmountFromSecondSource"))};
-}
-
-void set_ref(Value& knob, const ParamRef& ref) {
-	knob.set("controlsParam", Value::makeScalar(std::string(ref.param)));
-	if (!ref.source.empty()) {
-		knob.set("patchAmountFromSource", Value::makeScalar(std::string(ref.source)));
-	}
-	if (!ref.second_source.empty()) {
-		knob.set("patchAmountFromSecondSource", Value::makeScalar(std::string(ref.second_source)));
-	}
 }
 
 /// A note command element (`channel` or `mpeZone`, `note`, `device`), or nullopt when it names no channel.

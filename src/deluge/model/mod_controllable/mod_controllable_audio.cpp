@@ -340,8 +340,15 @@ deluge::engine::CodecContext ModControllableAudio::effectsCodecContext() {
 
 namespace {
 
-/// Write one learned knob as a boxed `midiKnob` item: @p attributes' channel and CC, its relative flag and the param
-/// @p descriptor names (with its patch sources), then its device, which @p writeDevice writes when @p hasDevice.
+/// @brief Write one learned knob as a boxed `midiKnob` item: @p attributes' channel and CC, its relative flag and the
+/// param @p descriptor names (with its patch sources), then its device, which @p writeDevice writes when @p hasDevice.
+/// @param writer        Where the item goes.
+/// @param attributes    The knob's channel and CC.
+/// @param relative      Whether the knob sends relative changes.
+/// @param descriptor    The param (and patch sources) the knob turns.
+/// @param unpatchedKind Whose unpatched params @p descriptor names (a sound's or a global effectable's).
+/// @param hasDevice     Whether the knob names a device.
+/// @param writeDevice   Writes the device element; called only when @p hasDevice.
 template <typename WriteDevice>
 void writeMidiKnob(Serializer& writer, LearnedMIDI attributes, bool relative, ParamDescriptor descriptor,
                    params::Kind unpatchedKind, bool hasDevice, WriteDevice writeDevice) {
@@ -605,8 +612,11 @@ deluge::midi::IndexedHits learnedKnobHits(const deluge::project::ControlsAddress
 	return hits;
 }
 
-/// The knob of @p knobs at @p hit's place, or nullptr past their end. In a debug build, a knob that does not play what
-/// @p hit says freezes: the index's places and the owner's knob list are out of step.
+/// @brief The knob of @p knobs at @p hit's place, or nullptr past their end. In a debug build, a knob that does not
+/// play what @p hit says freezes: the index's places and the owner's knob list are out of step.
+/// @param knobs The owner's learned knobs.
+/// @param hit   The index entry that matched the message.
+/// @return The knob, or nullptr.
 MIDIKnob* knobAt(std::span<MIDIKnob> knobs, const deluge::midi::IndexedEntry& hit) {
 	if (hit.ordinal >= knobs.size()) {
 		return nullptr;

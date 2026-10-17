@@ -50,7 +50,7 @@ private:
 class UnlearnMapping final : public Edit {
 public:
 	/// @param target What to unlearn.
-	explicit UnlearnMapping(deluge::project::MappingTarget target) : target_(target) {}
+	explicit UnlearnMapping(deluge::project::MappingTarget target) : target_(std::move(target)) {}
 
 	/// @copydoc Edit::apply
 	/// @return Error::UNSPECIFIED, with the table as it was, when the target's owner is not in the song; otherwise
