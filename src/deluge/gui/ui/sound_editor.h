@@ -126,7 +126,6 @@ public:
 
 	bool shouldGoUpOneLevelOnBegin;
 	bool secondLayerShortcutsToggled;
-	bool secondLayerModSourceShortcutsToggled;
 
 	bool programChangeReceived(MIDICable& cable, uint8_t channel, uint8_t program) { return false; }
 	bool midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value);

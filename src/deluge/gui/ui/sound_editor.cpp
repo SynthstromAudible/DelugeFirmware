@@ -987,23 +987,26 @@ bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32
 void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
 	for (int32_t x = 0; x < 2; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			PatchSource source = modSourceShortcuts[x][y];
-			bool isSecondLayerSource = false;
+			auto& frequency = sourceShortcutBlinkFrequencies[x][y];
+			auto& colour = sourceShortcutBlinkColours[x][y];
+			frequency = 255;
+			colour = 0;
 
-			if (secondLayerModSourceShortcutsToggled) {
-				const auto secondLayerSource = modSourceShortcutsSecondLayer[x][y];
-				if (secondLayerSource != PatchSource::NOT_AVAILABLE) {
-					source = secondLayerSource;
-					isSecondLayerSource = true;
-				}
+			const auto source = modSourceShortcuts[x][y];
+			if (source < kLastPatchSource) {
+				frequency = currentItem->shouldBlinkPatchingSourceShortcut(source, &colour);
 			}
 
-			if (source < kLastPatchSource) {
-				sourceShortcutBlinkFrequencies[x][y] =
-				    currentItem->shouldBlinkPatchingSourceShortcut(source, &sourceShortcutBlinkColours[x][y]);
-
-				if (sourceShortcutBlinkFrequencies[x][y] != 255 && isSecondLayerSource) {
-					sourceShortcutBlinkColours[x][y] = 0b00000011; // blink yellow on the second layer
+			// Menu navigation can select either layer without pressing a shortcut. Check both,
+			// giving the actively edited source (frequency 0) priority over related sources.
+			const auto secondLayerSource = modSourceShortcutsSecondLayer[x][y];
+			if (secondLayerSource < kLastPatchSource) {
+				uint8_t secondLayerColour = 0;
+				const auto secondLayerFrequency =
+				    currentItem->shouldBlinkPatchingSourceShortcut(secondLayerSource, &secondLayerColour);
+				if (secondLayerFrequency < frequency) {
+					frequency = secondLayerFrequency;
+					colour = 0b00000011; // blink yellow on the second layer
 				}
 			}
 		}
@@ -1488,11 +1491,10 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 				const int32_t modSourceX = x - 14;
 				PatchSource source = modSourceShortcuts[modSourceX][y];
 
-				secondLayerModSourceShortcutsToggled =
+				const bool secondLayerModSourceShortcutsToggled =
 					sourceShortcutBlinkFrequencies[modSourceX][y] != 255
 					&& getCurrentMenuItem()->getParamKind() == modulation::params::Kind::PATCH_CABLE
-						? !secondLayerModSourceShortcutsToggled
-						: false;
+					&& sourceShortcutBlinkColours[modSourceX][y] != 0b00000011;
 
 				// Replace with the second layer shortcut (e.g. env3, lfo3) if the pad was pressed twice
 				if (secondLayerModSourceShortcutsToggled) {
