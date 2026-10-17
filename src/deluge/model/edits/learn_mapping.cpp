@@ -60,12 +60,14 @@ std::optional<deluge::project::ParamTarget> knobTargetIn(::ModControllableAudio&
 } // namespace
 
 Error LearnMapping::apply(Context& ctx) {
+	deluge::bridge::applyPendingMappingOps(ctx.song); // a write the render made first lands first
 	deluge::project::MappingTable before = ctx.model.mappings;
 	ctx.model.mappings.learn(mapping_);
 	return project(ctx, mapping_.target, std::move(before));
 }
 
 Error UnlearnMapping::apply(Context& ctx) {
+	deluge::bridge::applyPendingMappingOps(ctx.song); // a write the render made first lands first
 	deluge::project::MappingTable before = ctx.model.mappings;
 	ctx.model.mappings.unlearn(target_);
 	return project(ctx, target_, std::move(before));

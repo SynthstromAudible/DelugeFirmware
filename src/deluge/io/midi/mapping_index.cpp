@@ -216,7 +216,7 @@ void refreshMappingIndex() {
 	if (!mappingIndexStale() || currentSong == nullptr) {
 		return; // with no song, the marks wait for the next one
 	}
-	bridge::applyPendingOutputClones(*currentSong);
+	bridge::applyPendingMappingOps(*currentSong);
 	if (mapping_index_detail::mapping_devices_changed.load(std::memory_order_acquire)) {
 		bridge::projectDeviceMappings(*currentSong);
 		// Cleared after: the entries the projection itself made mark the devices changed, and it has played them. Every

@@ -49,6 +49,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
 #include "model/edits/edit.h"
@@ -985,7 +986,7 @@ std::string cloneLeg(Stage& s) {
 		what = "no second clone";
 	}
 	if (what.empty()) {
-		for (size_t i = 0; i < deluge::bridge::kPendingOutputClones; i++) {
+		for (size_t i = 0; i < deluge::bridge::kPendingMappingOps; i++) {
 			deluge::bridge::cloneOutputMappingsLater(*to, *to);
 		}
 		deluge::bridge::cloneOutputMappingsLater(*from, *overflowed);
@@ -1000,6 +1001,67 @@ std::string cloneLeg(Stage& s) {
 		               != deluge::bridge::knobsOf({ControlsAddress::Kind::OUTPUT, *overflowed->id()}, *engine,
 		                                          false))) {
 			what = "after a full queue the clone's knobs are not recorded from its engine";
+		}
+	}
+	return what;
+}
+
+/// Writes the render makes to the table are held for the app loop and land in order. A pending overdub deleted on the
+/// song's tick (Song::deletePendingOverdubs, as Session's launch handling calls it) leaves its clip's mute command in
+/// the table until the refresh drops it; a clone held and then a forget of the clone end with the clone's knobs gone.
+std::string renderWritesLeg(Stage& s) {
+	ClipArray& clips = s.song.live.clips.session_clips;
+	Clip* clip = clips[1];
+	const deluge::project::ClipMuteTarget mute{clip->id()};
+	if (!learn(s.song, Mapping{.source = {.channel_or_zone = 15, .note_or_cc = 70}, .target = mute})) {
+		return "a learn was refused";
+	}
+	std::string what;
+	refresh(what);
+	clip->isPendingOverdub = true;
+	deluge::memory::noteRenderBlock(true); // the song's tick, on the render
+	(void)s.song.deletePendingOverdubs();
+	deluge::memory::noteRenderBlock(false);
+	if (what.empty() && std::ranges::find(clips, clip) != clips.end()) {
+		what = "the pending overdub was not deleted";
+	}
+	if (what.empty() && s.song.project.mappings.find(mute) == nullptr) {
+		what = "the render wrote the table: the deleted clip's mute command is gone before the refresh";
+	}
+	if (what.empty() && !deluge::mappingIndexStale()) {
+		what = "the delete left nothing for the refresh";
+	}
+	refresh(what);
+	if (what.empty() && s.song.project.mappings.find(mute) != nullptr) {
+		what = "the refresh did not drop the deleted clip's mute command";
+	}
+
+	Output* from = nullptr;
+	for (Output* o = s.song.live.media.first_output; o != nullptr && from == nullptr; o = o->next) {
+		if (o->type == OutputType::AUDIO) {
+			from = o;
+		}
+	}
+	if (what.empty()
+	    && (from == nullptr
+	        || !learn(s.song, Mapping{.source = {.channel_or_zone = 15, .note_or_cc = 71},
+	                                  .target = deluge::project::ParamTarget{
+	                                      {ControlsAddress::Kind::OUTPUT, *from->id()},
+	                                      knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)}}))) {
+		what = "no audio track learned a knob";
+	}
+	Output* to = from != nullptr ? engineClone(s.song, *from) : nullptr;
+	if (what.empty() && to == nullptr) {
+		what = "no audio track with knobs to clone";
+	}
+	if (what.empty()) {
+		deluge::memory::noteRenderBlock(true);
+		deluge::bridge::cloneOutputMappingsLater(*from, *to);
+		deluge::bridge::forgetOutputMappings(s.song, *to->id());
+		deluge::memory::noteRenderBlock(false);
+		refresh(what);
+		if (what.empty() && !s.song.project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *to->id()}).empty()) {
+			what = "a clone held before a forget of it left its knobs in the table";
 		}
 	}
 	return what;
@@ -1025,13 +1087,14 @@ int32_t runLegs(const Fixture& f, std::array<MIDICable*, 2> cables, deluge::scen
 	const bool differentiating = MIDIDeviceManager::differentiatingInputsByDevice;
 	MIDIDeviceManager::differentiatingInputsByDevice = true;
 	Stage stage{song, *kit, *synth, cables};
-	constexpr std::array<std::pair<const char*, std::string (*)(Stage&)>, 6> kLegs{{
+	constexpr std::array<std::pair<const char*, std::string (*)(Stage&)>, 7> kLegs{{
 	    {"late-device", lateDeviceLeg},
 	    {"any-device", anyDeviceLeg},
 	    {"hibernation", hibernationLeg},
 	    {"session-order", sessionOrderLeg},
 	    {"row-removed", rowRemovedLeg},
 	    {"clone", cloneLeg},
+	    {"render-writes", renderWritesLeg},
 	}};
 	int32_t failures = 0;
 	for (const auto& [name, leg] : kLegs) {

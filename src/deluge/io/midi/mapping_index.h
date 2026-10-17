@@ -227,8 +227,8 @@ MappingIndex& mappingIndex();
 /// @param song The song whose table changed.
 void rebuildMappingIndex(::Song& song);
 
-/// @brief [task] Act on what was marked since the last refresh: apply the output clones the song's tick recorded (see
-/// bridge::cloneOutputMappingsLater); when the devices changed, project the current song's bindings naming a hosted
+/// @brief [task] Act on what was marked since the last refresh: apply the table writes the render held (see
+/// bridge::applyPendingMappingOps); when the devices changed, project the current song's bindings naming a hosted
 /// device again (a device entry made since resolves them to its cable); then rebuild the index from the current song.
 /// With no current song the marks wait. Run on the app loop, each turn of the MIDI routine and before an incoming
 /// message is matched.

@@ -67,6 +67,7 @@
 #include "model/favourite/favourite_manager.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/output.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -352,6 +353,7 @@ void setupBlankSong() {
 	setRootUILowLevel(&instrumentClipView); // Prevents crash. (Wait, I'd like to know more about what crash...)
 	preLoadedSong->ensureAtLeastOneSessionClip();
 
+	deluge::bridge::discardPendingMappingOps(); // the table writes the render held were for the song going
 	currentSong = preLoadedSong;
 	preLoadedSong = nullptr;
 	deluge::markMappingIndexStale(); // the index is the current song's
@@ -772,6 +774,7 @@ void deleteOldSongBeforeLoadingNew() {
 	// Hand the old song to the render, then wait -- bounded, on the render -- until it has been freed, so the new song
 	// is built in the memory it gave back. The wait runs no other interaction task, so none sees currentSong null.
 	Song* toDelete = currentSong;
+	deluge::bridge::discardPendingMappingOps(); // the table writes the render held were for the song going
 	currentSong = nullptr;
 	deluge::markMappingIndexStale(); // the index is the current song's
 	AudioEngine::retire(toDelete);

@@ -20,6 +20,7 @@
 #include "deluge-project/arrangement.h"
 #include "io/midi/mapping_index.h"
 #include "libdeluge/system.h"
+#include "memory/heaps.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -271,53 +272,34 @@ std::vector<Mapping> knobsOf(ControlsAddress owner, const ::ModControllableAudio
 	return entries;
 }
 
-void recordArrivingOutput(::Output& output, ::Song& song) {
-	if (!bringsBindings(output)) {
-		return; // so an auto-overdub's audio track, made on the song's tick, touches nothing here
-	}
-	recordOutputBindings(output, song);
-	deluge::markMappingIndexStale();
-}
-
-void recordArrivingDrum(::Drum& drum, ::Song& song) {
-	recordDrumBindings(drum, song);
-	deluge::markMappingIndexStale();
-}
-
-void cloneOutputMappings(const ::Output& from, ::Output& to, ::Song& song) {
-	if (!from.id() || !to.id()) {
-		return;
-	}
-	song.project.mappings.copy_params(*from.id(), *to.id());
-	(void)projectMapping(song, deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, *to.id()}, {}});
-	// An overdub's clone runs on the song's tick, which may be the audio tier: the rebuild waits for the app loop.
-	deluge::markMappingIndexStale();
-}
-
 namespace {
 
-/// The clones cloneOutputMappingsLater() recorded: written by the song's tick, read with the render excluded.
-struct PendingClones {
-	std::array<std::pair<uint32_t, uint32_t>, kPendingOutputClones> pairs{}; ///< from, to
+/// A table write the render made, held for the app loop (see applyPendingMappingOps).
+struct PendingOp {
+	enum class Kind : uint8_t { CLONE_OUTPUT, FORGET_CLIP, FORGET_OUTPUT, FORGET_DRUM, ARRIVING_OUTPUT, ARRIVING_DRUM };
+	Kind kind;
+	uint32_t id;    ///< the clip, output or drum; a clone's source
+	uint32_t to{0}; ///< a clone's output
+};
+
+/// The table writes the render made: written only on the render, read with it excluded.
+struct PendingOps {
+	std::array<PendingOp, kPendingMappingOps> ops{};
 	std::atomic<size_t> count{0};
 	std::atomic<bool> overflowed{false};
 };
 
-PendingClones& pendingClones() {
-	static PendingClones pending;
+PendingOps& pendingOps() {
+	static PendingOps pending;
 	return pending;
 }
 
-} // namespace
-
-void cloneOutputMappingsLater(const ::Output& from, const ::Output& to) {
-	if (!from.id() || !to.id()) {
-		return;
-	}
-	PendingClones& pending = pendingClones();
+/// Hold @p op for the app loop, in order; past the queue's room, note that some were lost.
+void enqueue(PendingOp op) {
+	PendingOps& pending = pendingOps();
 	const size_t n = pending.count.load(std::memory_order_acquire);
-	if (n < kPendingOutputClones) {
-		pending.pairs[n] = {*from.id(), *to.id()};
+	if (n < kPendingMappingOps) {
+		pending.ops[n] = op;
 		pending.count.store(n + 1, std::memory_order_release);
 	}
 	else {
@@ -326,31 +308,226 @@ void cloneOutputMappingsLater(const ::Output& from, const ::Output& to) {
 	deluge::markMappingIndexStale();
 }
 
-void applyPendingOutputClones(::Song& song) {
-	PendingClones& pending = pendingClones();
-	AudioExcludedSection section; // the tick writes the queue, and the clone walks and writes what the tick can change
-	const size_t n = pending.count.exchange(0, std::memory_order_acq_rel);
-	for (size_t i = 0; i < n; i++) {
-		const auto [from, to] = pending.pairs[i];
-		if (song.project.mappings.params_of({ControlsAddress::Kind::OUTPUT, from}).empty()) {
-			continue;
-		}
-		song.project.mappings.copy_params(from, to);
-		(void)projectMapping(song, deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, to}, {}});
-	}
-	if (pending.overflowed.exchange(false, std::memory_order_acq_rel)) {
-		// Which clones were lost is not known: an audio track the table holds no knobs for takes those its engine
-		// plays, which the clone copied from its source.
-		for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
-			if (output->type == OutputType::AUDIO && output->id()) {
-				recordKnobs({ControlsAddress::Kind::OUTPUT, *output->id()},
-				            *static_cast<ModControllableAudio*>(output->toModControllable()), false, song);
-			}
+/// Stop the render at a table write it must not make, in a build that checks.
+void requireAppLoop() {
+	if constexpr (ALPHA_OR_BETA_VERSION) {
+		if (onRenderTier()) {
+			FREEZE_WITH_ERROR("E465");
 		}
 	}
 }
 
+void cloneNow(::Song& song, uint32_t from, uint32_t to) {
+	if (song.project.mappings.params_of({ControlsAddress::Kind::OUTPUT, from}).empty()) {
+		return;
+	}
+	song.project.mappings.copy_params(from, to);
+	(void)projectMapping(song, deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, to}, {}});
+}
+
+/// Bring @p song's table into line with what the queue lost: drop every entry whose owner the song no longer holds,
+/// then record what each output and kit row plays that the table holds nothing for (a clone's knobs, an arrival's
+/// bindings), as a load's sweep does.
+void reconcileWithEngine(::Song& song) {
+	MappingTable& mappings = song.project.mappings;
+	std::vector<uint32_t> clips;
+	std::vector<uint32_t> outputs;
+	std::vector<uint32_t> drums;
+	for (const Mapping& entry : mappings.entries()) {
+		std::visit(
+		    [&]<typename T>(const T& t) {
+			    if constexpr (std::is_same_v<T, deluge::project::ParamTarget>) {
+				    if (t.owner.kind == ControlsAddress::Kind::OUTPUT && outputWithId(song, t.owner.id) == nullptr) {
+					    outputs.push_back(t.owner.id);
+				    }
+				    else if (t.owner.kind == ControlsAddress::Kind::DRUM && drumWithId(song, t.owner.id) == nullptr) {
+					    drums.push_back(t.owner.id);
+				    }
+			    }
+			    else if constexpr (std::is_same_v<T, deluge::project::ClipMuteTarget>) {
+				    if (clipWithId(song, t.clip_id) == nullptr) {
+					    clips.push_back(t.clip_id);
+				    }
+			    }
+			    else if constexpr (std::is_same_v<T, deluge::project::DrumMuteTarget>
+			                       || std::is_same_v<T, deluge::project::LaneInputTarget>) {
+				    if (drumWithId(song, t.drum_id) == nullptr) {
+					    drums.push_back(t.drum_id);
+				    }
+			    }
+			    else if constexpr (std::is_same_v<T, deluge::project::TrackInputTarget>) {
+				    if (outputWithId(song, t.output_id) == nullptr) {
+					    outputs.push_back(t.output_id);
+				    }
+			    }
+		    },
+		    entry.target);
+	}
+	for (uint32_t id : clips) {
+		mappings.forget_clip(id);
+	}
+	for (uint32_t id : outputs) {
+		mappings.forget_output(id);
+	}
+	for (uint32_t id : drums) {
+		mappings.forget_drum(id);
+	}
+	for (Output* first :
+	     {song.live.media.first_output, static_cast<Output*>(song.live.media.first_hibernating_instrument)}) {
+		for (Output* output = first; output != nullptr; output = output->next) {
+			recordOutputBindings(*output, song);
+		}
+	}
+}
+
+} // namespace
+
+bool onRenderTier() {
+	return deluge_in_audio_context() || deluge::memory::inRenderBlock();
+}
+
+namespace {
+
+/// Whether a write to @p song's table is held for the app loop: the render's to the current song. The render writes
+/// another song's (the outgoing one it tears down) at once, as nothing else reaches it.
+bool heldForAppLoop(const ::Song& song) {
+	return &song == currentSong && onRenderTier();
+}
+
+} // namespace
+
+void recordArrivingOutput(::Output& output, ::Song& song) {
+	if (!bringsBindings(output)) {
+		return; // an auto-overdub's audio track, made on the song's tick, brings nothing
+	}
+	if (heldForAppLoop(song)) {
+		if (output.id()) {
+			enqueue({.kind = PendingOp::Kind::ARRIVING_OUTPUT, .id = *output.id()});
+		}
+		return;
+	}
+	applyPendingMappingOps(song);
+	recordOutputBindings(output, song);
+	deluge::markMappingIndexStale();
+}
+
+void recordArrivingDrum(::Drum& drum, ::Song& song) {
+	if (heldForAppLoop(song)) {
+		if (drum.id()) {
+			enqueue({.kind = PendingOp::Kind::ARRIVING_DRUM, .id = *drum.id()});
+		}
+		return;
+	}
+	applyPendingMappingOps(song);
+	recordDrumBindings(drum, song);
+	deluge::markMappingIndexStale();
+}
+
+void cloneOutputMappings(const ::Output& from, ::Output& to, ::Song& song) {
+	if (!from.id() || !to.id()) {
+		return;
+	}
+	if (heldForAppLoop(song)) {
+		enqueue({.kind = PendingOp::Kind::CLONE_OUTPUT, .id = *from.id(), .to = *to.id()});
+		return;
+	}
+	applyPendingMappingOps(song);
+	cloneNow(song, *from.id(), *to.id());
+	deluge::markMappingIndexStale();
+}
+
+void cloneOutputMappingsLater(const ::Output& from, const ::Output& to) {
+	if (from.id() && to.id()) {
+		enqueue({.kind = PendingOp::Kind::CLONE_OUTPUT, .id = *from.id(), .to = *to.id()});
+	}
+}
+
+void forgetClipMappings(::Song& song, uint32_t clip) {
+	if (heldForAppLoop(song)) {
+		enqueue({.kind = PendingOp::Kind::FORGET_CLIP, .id = clip});
+		return;
+	}
+	applyPendingMappingOps(song);
+	song.project.mappings.forget_clip(clip);
+	deluge::markMappingIndexStale();
+}
+
+void forgetOutputMappings(::Song& song, uint32_t output) {
+	if (heldForAppLoop(song)) {
+		enqueue({.kind = PendingOp::Kind::FORGET_OUTPUT, .id = output});
+		return;
+	}
+	applyPendingMappingOps(song);
+	song.project.mappings.forget_output(output);
+	deluge::markMappingIndexStale();
+}
+
+void forgetDrumMappings(::Song& song, uint32_t drum) {
+	if (heldForAppLoop(song)) {
+		enqueue({.kind = PendingOp::Kind::FORGET_DRUM, .id = drum});
+		return;
+	}
+	applyPendingMappingOps(song);
+	song.project.mappings.forget_drum(drum);
+	deluge::markMappingIndexStale();
+}
+
+void applyPendingMappingOps(::Song& song) {
+	if (&song != currentSong) {
+		return; // the render holds writes for the current song only
+	}
+	requireAppLoop();
+	PendingOps& pending = pendingOps();
+	if (pending.count.load(std::memory_order_acquire) == 0 && !pending.overflowed.load(std::memory_order_acquire)) {
+		return;
+	}
+	AudioExcludedSection section; // the render writes the queue, and the ops walk and write what the tick can change
+	const size_t n = pending.count.exchange(0, std::memory_order_acq_rel);
+	const bool overflowed = pending.overflowed.exchange(false, std::memory_order_acq_rel);
+	MappingTable& mappings = song.project.mappings;
+	for (size_t i = 0; i < n; i++) {
+		const PendingOp op = pending.ops[i];
+		switch (op.kind) {
+		case PendingOp::Kind::CLONE_OUTPUT:
+			cloneNow(song, op.id, op.to);
+			break;
+		case PendingOp::Kind::FORGET_CLIP:
+			mappings.forget_clip(op.id);
+			break;
+		case PendingOp::Kind::FORGET_OUTPUT:
+			mappings.forget_output(op.id);
+			break;
+		case PendingOp::Kind::FORGET_DRUM:
+			mappings.forget_drum(op.id);
+			break;
+		case PendingOp::Kind::ARRIVING_OUTPUT:
+			if (Output* output = outputWithId(song, op.id)) {
+				recordOutputBindings(*output, song);
+			}
+			break;
+		case PendingOp::Kind::ARRIVING_DRUM:
+			if (Drum* drum = drumWithId(song, op.id)) {
+				recordDrumBindings(*drum, song);
+			}
+			break;
+		}
+	}
+	if (overflowed) {
+		// Which writes were lost, and in what order, is not known: the table takes what the song now holds.
+		reconcileWithEngine(song);
+	}
+	deluge::markMappingIndexStale();
+}
+
+void discardPendingMappingOps() {
+	AudioExcludedSection section; // the render writes the queue
+	PendingOps& pending = pendingOps();
+	pending.count.store(0, std::memory_order_release);
+	pending.overflowed.store(false, std::memory_order_release);
+}
+
 void handOverInstrument(::Song& song, uint32_t from, uint32_t to, bool knobs) {
+	requireAppLoop();
 	deluge::markMappingIndexStale();
 	MappingTable& mappings = song.project.mappings;
 	if (knobs) {
@@ -367,6 +544,7 @@ void handOverInstrument(::Song& song, uint32_t from, uint32_t to, bool knobs) {
 }
 
 void projectOutputMappings(::Song& song, uint32_t output) {
+	requireAppLoop();
 	// An owner with no knob list (a MIDI or CV track) or no input (an audio track) refuses its half: nothing to play.
 	(void)projectMapping(song, deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, output}, {}});
 	(void)projectMapping(song, deluge::project::TrackInputTarget{output});
@@ -414,6 +592,7 @@ std::vector<uint32_t> rowIdsOf(const ::Output* output) {
 }
 
 void recordMovedDrumCommands(::Kit& kit, const MappingTable& before, std::span<const uint32_t> fromRows, ::Song& song) {
+	requireAppLoop();
 	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
 		if (!drum->id()) {
 			continue;
@@ -427,6 +606,7 @@ void recordMovedDrumCommands(::Kit& kit, const MappingTable& before, std::span<c
 }
 
 void knobNoLongerRelative(::ModControllableAudio& owner, const ::MIDIKnob& knob, ::Song& song) {
+	requireAppLoop();
 	const std::optional<ControlsAddress> address = controlsAddressOf(owner, song);
 	if (!address) {
 		return;

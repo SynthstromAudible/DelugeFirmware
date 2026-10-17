@@ -1380,8 +1380,7 @@ void Song::removeDocDrum(Drum* drum) {
 	// current) may share its id.
 	if (drum->id() && project.drum_structure.find(*drum->id()) == drum->docDrum_) {
 		project.drum_structure.remove(*drum->id());
-		project.mappings.forget_drum(*drum->id());
-		deluge::markMappingIndexStale();
+		deluge::bridge::forgetDrumMappings(*this, *drum->id());
 	}
 }
 
@@ -1431,12 +1430,11 @@ void Song::removeDocOutput(Output* output) {
 	// Only the output's own record: an output of another song may share its id.
 	if (output->id() && project.output_structure.find(*output->id()) == output->docOutput_) {
 		project.output_structure.remove(*output->id());
-		project.mappings.forget_output(*output->id());
-		deluge::markMappingIndexStale();
+		deluge::bridge::forgetOutputMappings(*this, *output->id());
 		if (output->type == OutputType::KIT) { // a kit's rows go with it
 			for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
 				if (drum->id()) {
-					project.mappings.forget_drum(*drum->id());
+					deluge::bridge::forgetDrumMappings(*this, *drum->id());
 				}
 			}
 		}
@@ -3223,8 +3221,7 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, this, clip);
 
 		clip->prepareForDestruction(modelStack, instrumentRemovalInstruction);
-		project.mappings.forget_clip(clip->id()); // its mute command goes with it
-		deluge::markMappingIndexStale();
+		deluge::bridge::forgetClipMappings(*this, clip->id()); // its mute command goes with it
 
 		// The render may still hold the clip from block to block (currentClip, syncScalingClip, another clip's
 		// beingRecordedFromClip, the view's active timeline counter): it lets go of those at its next block, and only
@@ -5662,6 +5659,7 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 
 	// Give the new clip its stuff
 	newClip->cloneFrom(oldClip);
+	deluge::bridge::applyPendingMappingOps(*this);                 // the render's writes land first
 	project.mappings.copy_clip_mute(oldClip->id(), newClip->id()); // the mute command it took
 	deluge::markMappingIndexStale();
 	newClip->setColourOffset(random(72));
