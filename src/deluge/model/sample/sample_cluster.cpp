@@ -31,7 +31,7 @@ SampleCluster::~SampleCluster() {
 		if (cluster == audioFileManager.clusterBeingLoaded) {
 			numReasonsToBeLoaded--;
 		}
-
+#if ALPHA_OR_BETA_VERSION
 		if (numReasonsToBeLoaded) {
 			D_PRINTLN("uh oh, some reasons left...  %d", numReasonsToBeLoaded);
 
@@ -39,6 +39,7 @@ SampleCluster::~SampleCluster() {
 			// happen though.
 			FREEZE_WITH_ERROR("E036");
 		}
+#endif
 		cluster->destroy();
 	}
 }
