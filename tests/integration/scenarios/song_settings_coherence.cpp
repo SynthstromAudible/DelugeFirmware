@@ -1,11 +1,15 @@
 #include "scenarios/slot_coherence.h"
 
+#include "io/midi/midi_device.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/midi_command.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
@@ -190,6 +194,147 @@ std::string settingIncoherence(::Song& song, const SettingAddress& address, uint
 	return {};
 }
 
+namespace {
+
+using deluge::project::ControlsAddress;
+using deluge::project::Mapping;
+using deluge::project::MappingTarget;
+
+/// Whether @p a and @p b play the same: the same cable, channel or zone, and note or CC.
+bool playsTheSame(const ::LearnedMIDI& a, const ::LearnedMIDI& b) {
+	return a.cable == b.cable && a.channelOrZone == b.channelOrZone && a.noteOrCC == b.noteOrCC;
+}
+
+/// @p learned as a report shows it.
+std::string describe(const ::LearnedMIDI& learned) {
+	if (!learned.containsSomething()) {
+		return "<none>";
+	}
+	return std::string{learned.cable != nullptr ? learned.cable->getDisplayName() : "any"} + "/"
+	       + std::to_string(learned.channelOrZone) + "/" + std::to_string(learned.noteOrCC);
+}
+
+/// One knob as a report shows it.
+std::string describe(deluge::engine::ParamId param, const ::LearnedMIDI& learned, bool relative) {
+	return std::to_string(param.value) + "=" + describe(learned) + (relative ? "~" : "");
+}
+
+/// The first break between @p address's table knobs and its runtime owner's learned knob list, in order.
+std::string knobsIncoherence(::Song& song, ControlsAddress address) {
+	bool isSound = false;
+	::ModControllableAudio* owner = deluge::bridge::controlsOwnerAt(song, address, &isSound);
+	if (owner == nullptr) {
+		return {};
+	}
+	namespace params = deluge::modulation::params;
+	const params::Kind unpatchedKind = isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL;
+	const std::vector<Mapping> table = song.project.mappings.params_of(address);
+	bool same = table.size() == owner->midi_knobs.size();
+	for (size_t i = 0; same && i < table.size(); i++) {
+		const MIDIKnob& knob = owner->midi_knobs[i];
+		same = std::get<deluge::project::ParamTarget>(table[i].target).param
+		           == deluge::bridge::knobTargetOf(knob.paramDescriptor, unpatchedKind)
+		       && table[i].relative == knob.relative
+		       && playsTheSame(deluge::bridge::learned_of(table[i].source), knob.midiInput);
+	}
+	if (same) {
+		return {};
+	}
+	std::string a;
+	for (const Mapping& entry : table) {
+		a += (a.empty() ? "" : " ")
+		     + describe(std::get<deluge::project::ParamTarget>(entry.target).param,
+		                deluge::bridge::learned_of(entry.source), entry.relative);
+	}
+	std::string b;
+	for (const MIDIKnob& knob : owner->midi_knobs) {
+		b += (b.empty() ? "" : " ")
+		     + describe(deluge::bridge::knobTargetOf(knob.paramDescriptor, unpatchedKind), knob.midiInput,
+		                knob.relative);
+	}
+	const char* kind = address.kind == ControlsAddress::Kind::SONG   ? "SONG_KNOBS"
+	                   : address.kind == ControlsAddress::Kind::DRUM ? "DRUM_KNOBS"
+	                                                                 : "OUTPUT_KNOBS";
+	return std::string{"MAPPINGS "} + kind + " " + std::to_string(address.id) + ": table=[" + a + "] engine=[" + b
+	       + "]";
+}
+
+/// The first break between @p target's table entry and @p field, the engine field that plays it.
+std::string commandIncoherence(::Song& song, const MappingTarget& target, const char* kind, uint32_t owner,
+                               const ::LearnedMIDI& field) {
+	const Mapping* entry = song.project.mappings.find(target);
+	const ::LearnedMIDI table = entry != nullptr ? deluge::bridge::learned_of(entry->source) : ::LearnedMIDI{};
+	const bool same = table.containsSomething() == field.containsSomething()
+	                  && (!table.containsSomething() || playsTheSame(table, field));
+	if (same) {
+		return {};
+	}
+	return std::string{"MAPPINGS "} + kind + " " + std::to_string(owner) + ": table=" + describe(table)
+	       + " engine=" + describe(field);
+}
+
+/// The first break of @p output's bindings: its knobs, its input, and a kit's rows' knobs, mutes and inputs.
+std::string outputMappingIncoherence(::Song& song, ::Output& output) {
+	if (!output.id()) {
+		return {};
+	}
+	const uint32_t id = *output.id();
+	if (std::string what = knobsIncoherence(song, {ControlsAddress::Kind::OUTPUT, id}); !what.empty()) {
+		return what;
+	}
+	if (output.type == OutputType::AUDIO) {
+		return {};
+	}
+	if (std::string what = commandIncoherence(song, deluge::project::TrackInputTarget{id}, "TRACK_INPUT", id,
+	                                          static_cast<::Instrument&>(output).midiInput);
+	    !what.empty()) {
+		return what;
+	}
+	if (output.type != OutputType::KIT) {
+		return {};
+	}
+	for (::Drum* drum = static_cast<::Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
+		if (!drum->id()) {
+			continue;
+		}
+		const uint32_t drumId = *drum->id();
+		for (std::string what : {knobsIncoherence(song, {ControlsAddress::Kind::DRUM, drumId}),
+		                         commandIncoherence(song, deluge::project::DrumMuteTarget{drumId}, "DRUM_MUTE", drumId,
+		                                            drum->muteMIDICommand),
+		                         commandIncoherence(song, deluge::project::LaneInputTarget{drumId}, "LANE_INPUT",
+		                                            drumId, drum->midiInput)}) {
+			if (!what.empty()) {
+				return what;
+			}
+		}
+	}
+	return {};
+}
+
+} // namespace
+
+std::string mappingIncoherence(::Song& song) {
+	if (std::string what = knobsIncoherence(song, {ControlsAddress::Kind::SONG, 0}); !what.empty()) {
+		return what;
+	}
+	for (::Output* first :
+	     {song.live.media.first_output, static_cast<::Output*>(song.live.media.first_hibernating_instrument)}) {
+		for (::Output* output = first; output != nullptr; output = output->next) {
+			if (std::string what = outputMappingIncoherence(song, *output); !what.empty()) {
+				return what;
+			}
+		}
+	}
+	for (::Clip* clip : AllClips::everywhere(&song)) {
+		if (std::string what = commandIncoherence(song, deluge::project::ClipMuteTarget{clip->id()}, "CLIP_MUTE",
+		                                          clip->id(), clip->muteMIDICommand);
+		    !what.empty()) {
+			return what;
+		}
+	}
+	return {};
+}
+
 std::string songSettingsIncoherence(::Song& song) {
 	std::string found;
 	forEachSettingAddress(song,
@@ -198,7 +343,7 @@ std::string songSettingsIncoherence(::Song& song) {
 			                      found = settingIncoherence(song, address, owner, paths);
 		                      }
 	                      });
-	return found;
+	return found.empty() ? mappingIncoherence(song) : found;
 }
 
 } // namespace deluge::harness

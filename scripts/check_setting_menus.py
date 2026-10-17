@@ -15,6 +15,8 @@ Nor may a file under src/deluge/gui or src/scenes write a song setting outside S
 interval and disabled scales, a track's name and MIDI or CV device fields, a kit lane's name, a note row's direction,
 an audio clip's descriptor. A gesture calls songSettingFor(), trackSettingFor(), laneSettingFor(),
 noteRowSettingFor() or audioClipSettingFor() (model/edits/setting_edit.h), which write the record and project it.
+Nor may it write a MIDI binding (a mute command, an input, a learned knob, a section's launch command) past the song's
+mapping table: a gesture calls the mapping Edits (model/edits/learn_mapping.h), which write the table and project it.
 
 Two gestures write the runtime themselves and record what they wrote, checked file by file: a file that writes a mod
 knob (a `modKnobs[...]` descriptor, or learnKnob()/unlearnKnobs() on what is not a menu item) also calls
@@ -178,6 +180,18 @@ SONG_STATE_WRITES = (
     re.compile(
         r"(?:->|\.)\s*(?:updateSettingsFromCurrentPreset|updatePresetFromCurrentSettings)\s*\("
     ),
+    #: A MIDI binding written past the song's mapping table (model/edits/learn_mapping.h): a clip's or kit row's mute
+    #: command, a track's or kit row's input, an owner's learned knobs, a section's launch command.
+    re.compile(
+        r"(?:->|\.)\s*(?:muteMIDICommand|midiInput)\s*(?:=(?!=)|\.\s*(?:\w+\s*=(?!=)|clear\s*\())"
+    ),
+    re.compile(
+        r"(?<!current_item_\))(?<!getCurrentMenuItem\(\))(?:->|\.)\s*(?:learnKnob|unlearnKnobs)\s*\("
+    ),
+    re.compile(
+        r"(?<!\w)midi_knobs\s*(?:=(?!=)|\.\s*(?:push_back|emplace_back|insert|erase|clear|resize|pop_back|assign|swap)\s*\(|\[[^\]]*\]\s*(?:\.\s*\w+\s*)?=(?!=))"
+    ),
+    re.compile(r"(?<!\w)launch_midi_command\b"),
 )
 #: Song-state writes under the roots that are allowed, by file (relative to src/) and the text the write's line holds,
 #: each with its reason. An empty text allows the whole file.
@@ -185,6 +199,10 @@ SONG_STATE_ALLOWED: dict[str, dict[str, str]] = {
     "deluge/gui/views/view.cpp": {
         "setChannel(-1)": "the channel search parks the instrument off every channel while it looks for a free one",
         "setChannel(oldChannel)": "and puts it back before the in-place re-channel, which is a SetSetting",
+    },
+    "deluge/gui/menu_item/menu_item_with_cc_learning.cpp": {
+        "currentModControllable->learnKnob(": "a mod knob's learn (channel 16 and up) sets the owner's mod knobs, "
+        "which recordControlsOf records; a MIDI knob's goes through learnKnobFor",
     },
     "deluge/gui/ui/browser/sample_claim.cpp": {
         "": "a claim records the sample it loaded onto an audio clip as a load does (syncSampleRecordFromEngine)",

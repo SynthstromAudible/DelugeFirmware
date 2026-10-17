@@ -61,10 +61,21 @@ std::string chainIncoherence(::Song& song);
 void forEachSettingAddress(::Song& song, const std::function<void(const deluge::project::SettingAddress&, uint32_t,
                                                                   std::span<const std::string_view>)>& visit);
 
-/// @brief Find the first song setting whose record differs from its engine copy.
+/// @brief Find the first song setting whose record differs from its engine copy, then the first MIDI binding that
+///        breaks mappingIncoherence.
 /// @param song The song; its reverb is checked against the engine's, so it must be the current song.
-/// @return The break as "<group> <owner id> <path>: record=<a> engine=<b>", or empty if every setting agrees.
+/// @return The break as "<group> <owner id> <path>: record=<a> engine=<b>" or as mappingIncoherence reports it, or
+///         empty if every setting and binding agrees.
 std::string songSettingsIncoherence(::Song& song);
+
+/// @brief Find the first MIDI binding of an owner @p song holds (the song's knobs; each output's, playing or
+///        hibernating, with a kit's rows; each clip) whose mapping-table entries differ from the engine field that
+///        plays them: an owner's learned knob list (in order, by param, relative flag and what each plays), a track's
+///        or a kit row's input, a kit row's or a clip's mute. Commands compare by what they play (cable, channel or
+///        zone, note or CC), so an entry naming a device that is not connected agrees with a field with no cable.
+/// @param song The song.
+/// @return The break as "MAPPINGS <kind> <owner id>: table=<a> engine=<b>", or empty if every binding agrees.
+std::string mappingIncoherence(::Song& song);
 
 /// @brief Find the first of @p paths at @p address whose record differs from its engine copy.
 /// @param song    The song.

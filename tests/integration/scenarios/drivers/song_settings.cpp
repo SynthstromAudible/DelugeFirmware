@@ -13,11 +13,16 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
 #include "model/edits/edit.h"
+#include "model/edits/learn_mapping.h"
 #include "model/edits/set_setting.h"
 #include "model/global_effectable/global_effectable.h"
+#include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/output.h"
+#include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/midi_command.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
@@ -46,6 +51,7 @@ using deluge::engine::SettingKind;
 using deluge::project::SettingAddress;
 using deluge::project::SettingGroupId;
 using deluge::serialization::Value;
+namespace params = deluge::modulation::params;
 
 /// The song in @p bytes (of @p format), loaded as the app loads a song and made current; nullptr on a load failure.
 Song* loadSong(std::string_view bytes, deluge::storage::DocumentFormat format) {
@@ -282,6 +288,172 @@ int32_t saveLegs(Song& song, deluge::scenarios::driver::Io io) {
 	return failures;
 }
 
+/// @brief The table's name for patched param @p p of a sound, or (when @p unpatchedKind is given) unpatched param @p p
+///        of that kind.
+deluge::engine::ParamId knobParam(int32_t p, std::optional<params::Kind> unpatchedKind = std::nullopt) {
+	ParamDescriptor descriptor;
+	descriptor.setToHaveParamOnly(unpatchedKind ? params::UNPATCHED_START + p : p);
+	return deluge::bridge::knobTargetOf(descriptor, unpatchedKind.value_or(params::Kind::UNPATCHED_SOUND));
+}
+
+/// @brief @p mapping as a failure shows it: its target's kind (the MappingTarget alternative), its source's channel or
+///        zone, note or CC and device, and its relative flag.
+std::string describeMapping(const deluge::project::Mapping& mapping) {
+	std::string text = "target#" + std::to_string(mapping.target.index()) + " ";
+	if (const auto* knob = std::get_if<deluge::project::ParamTarget>(&mapping.target)) {
+		text += "param " + std::to_string(knob->param.value) + " ";
+	}
+	text += std::to_string(mapping.source.channel_or_zone) + "/" + std::to_string(mapping.source.note_or_cc);
+	if (const auto& device = mapping.source.device) {
+		text += " port=" + std::to_string(static_cast<int>(device->port)) + " name=" + device->name
+		        + " ids=" + std::to_string(device->vendor_id) + ":" + std::to_string(device->product_id);
+	}
+	return text + (mapping.relative ? " relative" : "");
+}
+
+/// @brief The bindings a save must carry through to the song it reloads into, learned through the mapping Edits: an
+///        MPE-zone knob on a synth, a song knob, an audio track's knob (when the song has one), a kit's input (its root
+///        note) told apart by its port, a clip mute from any device, a kit row's mute, and a kit row's input from a
+///        hosted device the Deluge does not know (whose name only the table holds). The reloaded song's table must hold
+///        the same entries, and each engine field play what its entry names. Prints `SONG-SETTINGS-SAVE mappings ok`
+///        when the song has a synth, a kit row and an instrument clip.
+/// @return The failures.
+int32_t mappingsLeg(Song& song, deluge::scenarios::driver::Io io) {
+	using deluge::project::ControlsAddress;
+	using deluge::project::Mapping;
+	using deluge::project::MidiDeviceRef;
+	::Output* synth = nullptr;
+	::Output* audio = nullptr;
+	::Output* kit = nullptr;
+	::Drum* row = nullptr;
+	for (::Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		if (!output->id()) {
+			continue;
+		}
+		if (output->type == OutputType::SYNTH && synth == nullptr) {
+			synth = output;
+		}
+		if (output->type == OutputType::AUDIO && audio == nullptr) {
+			audio = output;
+		}
+		if (output->type == OutputType::KIT && row == nullptr) {
+			for (::Drum* drum = static_cast<::Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
+				if (drum->id()) {
+					kit = output;
+					row = drum;
+					break;
+				}
+			}
+		}
+	}
+	::Clip* clip = nullptr;
+	for (::Clip* each : AllClips::everywhere(&song)) {
+		if (each->type == ClipType::INSTRUMENT) {
+			clip = each;
+			break;
+		}
+	}
+	if (synth == nullptr || row == nullptr || clip == nullptr) {
+		return 0;
+	}
+	const MidiDeviceRef absent{
+	    .port = MidiDeviceRef::Port::HOSTED, .name = "SONG SETTINGS ABSENT", .vendor_id = 0x1209, .product_id = 0x5d1e};
+	const uint32_t rowId = *row->id();
+	const Mapping absentInput{.source = {.channel_or_zone = 9, .note_or_cc = 37, .device = absent},
+	                          .target = deluge::project::LaneInputTarget{rowId}};
+	std::vector<Mapping> learned{
+	    {.source = {.channel_or_zone = 17, .note_or_cc = 74},
+	     .target =
+	         deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, *synth->id()}, knobParam(params::LOCAL_PAN)}},
+	    {.source = {.channel_or_zone = 4, .note_or_cc = 21},
+	     .target =
+	         deluge::project::ParamTarget{{ControlsAddress::Kind::SONG, 0},
+	                                      knobParam(params::UNPATCHED_DELAY_AMOUNT, params::Kind::UNPATCHED_GLOBAL)}},
+	    {.source = {.channel_or_zone = 3,
+	                .note_or_cc = 36,
+	                .device = MidiDeviceRef{.port = MidiDeviceRef::Port::UPSTREAM_USB_2}},
+	     .target = deluge::project::TrackInputTarget{*kit->id()}},
+	    {.source = {.channel_or_zone = 2, .note_or_cc = 40}, .target = deluge::project::ClipMuteTarget{clip->id()}},
+	    {.source = {.channel_or_zone = 9, .note_or_cc = 36}, .target = deluge::project::DrumMuteTarget{rowId}},
+	    absentInput,
+	};
+	if (audio != nullptr) {
+		learned.push_back({.source = {.channel_or_zone = 5, .note_or_cc = 22},
+		                   .target = deluge::project::ParamTarget{
+		                       {ControlsAddress::Kind::OUTPUT, *audio->id()},
+		                       knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)}});
+	}
+	bool set = true;
+	for (const Mapping& mapping : learned) {
+		deluge::edits::Context ctx{song, song.project};
+		deluge::edits::LearnMapping edit{mapping};
+		set = set && deluge::edits::apply(ctx, edit) == Error::NONE;
+	}
+	std::string what = !set ? "a learn was refused" : deluge::harness::mappingIncoherence(song);
+	// The Deluge knows no device of that name yet, so the row's input names no cable.
+	if (what.empty() && (deluge::bridge::find_cable(absent) != nullptr || row->midiInput.cable != nullptr)) {
+		what = "the absent device has a cable before the reload";
+	}
+	Song* reloaded = what.empty() ? savedAndReloaded(song) : nullptr;
+	if (what.empty() && reloaded == nullptr) {
+		what = "the song did not save and reload";
+	}
+	if (what.empty()) {
+		const auto entries = song.project.mappings.entries();
+		const auto back = reloaded->project.mappings.entries();
+		for (Mapping mapping : learned) {
+			// The table sets a knob's relative flag as it learns it.
+			if (const Mapping* entry = song.project.mappings.find(mapping.target)) {
+				mapping.relative = entry->relative;
+			}
+			if (what.empty() && std::ranges::find(back, mapping) == back.end()) {
+				std::string held;
+				if (const auto* knob = std::get_if<deluge::project::ParamTarget>(&mapping.target)) {
+					for (const Mapping& entry : reloaded->project.mappings.params_of(knob->owner)) {
+						held += (held.empty() ? "" : ", ") + describeMapping(entry);
+					}
+				}
+				else if (const Mapping* entry = reloaded->project.mappings.find(mapping.target)) {
+					held = describeMapping(*entry);
+				}
+				what = "the reloaded table lost the learned " + describeMapping(mapping) + " (it holds "
+				       + (held.empty() ? std::string{"none"} : held) + ")";
+			}
+		}
+		if (what.empty() && !std::ranges::is_permutation(entries, back)) {
+			what = "the reloaded table holds other entries (" + std::to_string(back.size()) + " for "
+			       + std::to_string(entries.size()) + ")";
+		}
+	}
+	if (what.empty()) {
+		what = deluge::harness::mappingIncoherence(*reloaded);
+	}
+	if (what.empty()) {
+		// A load names every device it reads, known or not, so the reloaded row's input plays from the entry the
+		// load made for the absent device.
+		::Drum* backRow = reloaded->drumForId(rowId);
+		::MIDICable* entry = deluge::bridge::find_cable(absent);
+		if (backRow == nullptr || entry == nullptr || backRow->midiInput.cable != entry
+		    || backRow->midiInput.channelOrZone != 9 || backRow->midiInput.noteOrCC != 37) {
+			what = "the reloaded kit row's input does not play from the absent device's entry";
+		}
+	}
+	if (reloaded != nullptr) {
+		// The device the reload made known is projected onto the song's own row too, as a load of it would.
+		deluge::edits::Context ctx{song, song.project};
+		deluge::edits::LearnMapping edit{absentInput};
+		(void)deluge::edits::apply(ctx, edit);
+	}
+	if (!what.empty()) {
+		std::fprintf(io.err, "SONG-SETTINGS-SAVE FAIL mappings: %s\n", what.c_str());
+	}
+	else {
+		std::fprintf(io.out, "SONG-SETTINGS-SAVE mappings ok\n");
+	}
+	currentSong = &song;
+	return what.empty() ? 0 : 1;
+}
+
 const char* groupName(SettingGroupId group) {
 	constexpr const char* kNames[] = {"SONG", "TRACK",       "INSTRUMENT_DEVICE", "LANE",     "NOTE_ROW", "AUDIO_CLIP",
 	                                  "CLIP", "CLIP_VALUES", "AUDIO_INPUT",       "CLIP_ARP", "LANE_ARP"};
@@ -321,7 +493,7 @@ int song_settings_main(int argc, char** argv, deluge::scenarios::driver::Io io) 
 		std::vector<std::string_view> paths;
 	};
 	// The save legs run on the song as loaded, before the sweep rewrites its settings.
-	int32_t saveFailures = saveLegs(*song, io);
+	int32_t saveFailures = saveLegs(*song, io) + mappingsLeg(*song, io);
 
 	std::vector<Target> targets;
 	deluge::harness::forEachSettingAddress(

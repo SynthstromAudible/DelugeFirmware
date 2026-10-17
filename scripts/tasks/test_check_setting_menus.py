@@ -48,6 +48,19 @@ PLANTED = {
     "arp field through a getter": "sound->getArpSettings()->noteMode = ArpNoteMode::UP;",
     "arp field through a context": "ctx.arp->randomizerLock = on;",
     "arp preset": "arp.updateSettingsFromCurrentPreset();",
+    "clip mute command": "clip->muteMIDICommand = learned;",
+    "clip mute command cleared": "clip->muteMIDICommand.clear();",
+    "row mute command field": "drum->muteMIDICommand.channelOrZone = 3;",
+    "track input": "instrument->midiInput = learned;",
+    "lane input cleared": "drum->midiInput.clear();",
+    "input cable": "melodicInstrument->midiInput.cable = cable;",
+    "knob learned raw": "sound->learnKnob(cable, param, 0, 0, channel, song);",
+    "knobs unlearned raw": "modControllable->unlearnKnobs(param, song);",
+    "knob list grown": "owner->midi_knobs.push_back(knob);",
+    "knob list set": "owner.midi_knobs = std::move(knobs);",
+    "knob list cleared": "owner.midi_knobs.clear();",
+    "knob in the list": "owner.midi_knobs[0].relative = false;",
+    "section launch command": "section.launch_midi_command = command;",
 }
 
 
@@ -76,6 +89,16 @@ class SongStateWrites(unittest.TestCase):
             'deluge::edits::arpSettingFor(*ctx.arp, "arpeggiator/rate", v);',
             "if (ctx.arp->mode == ArpMode::OFF) {}",
             "return ctx.arp != nullptr ? ctx.arp->numOctaves : 1;",
+            "learnedThing = &whichClip->muteMIDICommand;",
+            "if (drum->midiInput.containsSomething()) {}",
+            "midiInput.cable = &cable;",
+            "(*current_item_)->learnKnob(cable, whichKnob, modKnobMode, midiChannel);",
+            "getCurrentMenuItem()->learnKnob(nullptr, whichModEncoder, mode, 255);",
+            "MenuItemWithCCLearning::learnKnob(cable, whichKnob, modKnobMode, midiChannel);",
+            "void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {",
+            "deluge::edits::learnKnobFor(*owner, param, cable, whichKnob, channel);",
+            "for (const MIDIKnob& knob : owner->midi_knobs) {}",
+            "if (owner.midi_knobs[0].relative == true) {}",
         ):
             with self.subTest(line):
                 self.assertEqual(self.check(line), [])
