@@ -20,16 +20,6 @@
 
 #define MAX_DIR_LINES 25
 
-// A ^dir reply is sent as one SysEx, and a USB send drops any message that can't fit in an empty
-// send ring, so a page of long filenames could never be delivered. getDirEntries() therefore ends a
-// page early once the next entry might not fit. Budget = the whole ring, minus the 0x7D-compat
-// header event and room for the list ending, "err" and the closing F7.
-constexpr size_t kDirReplyBudget = (MIDI_SEND_BUFFER_LEN_RING - 1) * 3 - 32;
-// Upper bound on one serialized entry besides its name:
-// ,{ "name": "", "size": 4294967295, "date": 65535, "time": 65535, "attr": 255}
-constexpr size_t kDirEntryOverhead = 80;
-static_assert(kDirReplyBudget > 64 + FF_LFN_BUF + kDirEntryOverhead, "a ^dir page must fit at least one entry");
-
 extern "C" {
 extern uint8_t currentlyAccessingCard;
 }
@@ -39,7 +29,26 @@ uint32_t dirOffsetCounter;
 JsonSerializer jWriter;
 String activeDirName;
 const size_t blockBufferMax = 1024;
-const size_t sysexBufferMax = blockBufferMax + 256;
+constexpr size_t sysexBufferMax = blockBufferMax + 256;
+
+// Largest reply any request may produce: a full ^read block, 7-bit encoded, plus JSON header.
+// handleNextSysEx() admits a request only once this much fits in the cable's send buffer.
+constexpr size_t kMaxReplyBytes = sysexBufferMax + sysexBufferMax / 7 + 64;
+// USB events MIDICableUSB::sendSysex() reserves for a message: 3 bytes each, plus the 0x7D-compat header
+constexpr size_t usbEventsForSysex(size_t len) {
+	return (len + 2) / 3 + 1;
+}
+static_assert(usbEventsForSysex(kMaxReplyBytes) <= MIDI_SEND_BUFFER_LEN_RING, "a max-size reply must fit the ring");
+
+// A ^dir reply is sent as one SysEx, and a long-filename page could easily exceed kMaxReplyBytes,
+// so pass admission yet still be dropped by the send. getDirEntries() therefore ends a page early
+// once the next entry might not fit. Budget = kMaxReplyBytes minus room for the list ending, "err"
+// and the closing F7.
+constexpr size_t kDirReplyBudget = kMaxReplyBytes - 32;
+// Upper bound on one serialized entry besides its name:
+// ,{ "name": "", "size": 4294967295, "date": 65535, "time": 65535, "attr": 255}
+constexpr size_t kDirEntryOverhead = 80;
+static_assert(kDirReplyBudget > 64 + FF_LFN_BUF + kDirEntryOverhead, "a ^dir page must fit at least one entry");
 uint8_t* writeBlockBuffer = nullptr;
 uint8_t* readBlockBuffer = nullptr;
 // Advertised as "pipe" in the ^session grant: max concurrent requests whose replies fit in the USB
@@ -803,16 +812,16 @@ void smSysex::handleNextSysEx() {
 
 	SysExDataEntry& de = SysExQ.front();
 
-	// Backpressure: leave the request queued until its worst-case reply (a full ^read block, 7-bit
-	// encoded plus JSON header) is guaranteed to fit in the cable's send buffer, so pipelined
-	// clients self-throttle to the buffer's capacity instead of forcing reply drops and retries.
-	// The defer cap lets a wedged link fall through to the send-side guard (drop + client retry).
+	// Backpressure: leave the request queued until its worst-case reply (kMaxReplyBytes, counted in
+	// whole USB events as sendSysex() reserves them) is guaranteed to fit in the cable's send buffer,
+	// so pipelined clients self-throttle to the buffer's capacity instead of forcing reply drops and
+	// retries. The defer cap lets a wedged link fall through to the send-side guard (drop + client retry).
 	// USB only: the DIN UART buffer is smaller than this threshold, so it could never be satisfied and
 	// every DIN request (and the USB requests queued behind it) would sit out the whole defer cap.
-	constexpr size_t kWorstCaseReplyBytes = sysexBufferMax + sysexBufferMax / 7 + 64;
+	constexpr size_t kWorstCaseReplySpace = usbEventsForSysex(kMaxReplyBytes) * 3;
 	static uint32_t deferCount = 0;
 	bool isDIN = &de.cable == &MIDIDeviceManager::dinMIDIPorts;
-	if (!isDIN && de.cable.sendBufferSpace() < kWorstCaseReplyBytes && deferCount < 4000) {
+	if (!isDIN && de.cable.sendBufferSpace() < kWorstCaseReplySpace && deferCount < 4000) {
 		deferCount++;
 		return;
 	}
