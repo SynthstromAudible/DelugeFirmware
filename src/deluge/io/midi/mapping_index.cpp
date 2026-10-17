@@ -17,6 +17,8 @@
 
 #include "io/midi/mapping_index.h"
 
+#include "libdeluge/system.h"
+
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -196,23 +198,24 @@ void rebuildMappingIndex(::Song& song) {
 	if (&song != currentSong) {
 		return;
 	}
+	// The build walks the table, the outputs, the kits' rows and the session clips, which the song's tick (on the
+	// audio tier) can splice or reallocate: an auto-overdub's output clone, say.
+	AudioExcludedSection section;
 	// Cleared before the build reads the song, so a change marked while it runs is not lost.
 	mapping_index_detail::mapping_index_stale.store(false, std::memory_order_release);
 	mappingIndex().rebuild(song.project.mappings, song);
 }
 
 void refreshMappingIndex() {
-	if (!mappingIndexStale()) {
-		return;
+	if (!mappingIndexStale() || currentSong == nullptr) {
+		return; // with no song, the marks wait for the next one
 	}
-	if (currentSong == nullptr) {
-		mapping_index_detail::mapping_devices_changed.store(false, std::memory_order_release);
-		mapping_index_detail::mapping_index_stale.store(false, std::memory_order_release);
-		mappingIndex().clear();
-		return;
-	}
-	if (mapping_index_detail::mapping_devices_changed.exchange(false, std::memory_order_acq_rel)) {
+	if (mapping_index_detail::mapping_devices_changed.load(std::memory_order_acquire)) {
+		AudioExcludedSection section; // the projection walks and writes what the song's tick can change
 		bridge::projectDeviceMappings(*currentSong);
+		// Cleared after: the entries the projection itself made mark the devices changed, and it has played them. No
+		// other mark can land inside the section.
+		mapping_index_detail::mapping_devices_changed.store(false, std::memory_order_release);
 	}
 	rebuildMappingIndex(*currentSong);
 }

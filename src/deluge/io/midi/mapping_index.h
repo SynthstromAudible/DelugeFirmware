@@ -200,14 +200,15 @@ private:
 /// @brief The index of the current song's bindings.
 MappingIndex& mappingIndex();
 
-/// @brief [task] Bring the index into line with @p song's mapping table, when @p song is the current song. Allocates:
-/// never from the audio tier, where markMappingIndexStale() stands in for it.
+/// @brief [task] Bring the index into line with @p song's mapping table, when @p song is the current song. Allocates,
+/// and excludes the render while it reads the song: never from the audio tier, where markMappingIndexStale() stands in
+/// for it.
 /// @param song The song whose table changed.
 void rebuildMappingIndex(::Song& song);
 
 /// @brief [task] Act on what was marked since the last refresh: when the devices changed, project the current song's
 /// bindings naming a hosted device again (a device entry made since resolves them to its cable); when anything
-/// changed, rebuild the index from the current song, or empty it when there is none. Run on the app loop before an
+/// changed, rebuild the index from the current song. With no current song the marks wait. Run on the app loop before an
 /// incoming message is matched.
 void refreshMappingIndex();
 

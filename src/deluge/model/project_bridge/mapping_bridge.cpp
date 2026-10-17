@@ -187,10 +187,20 @@ Clip* clipWithId(::Song& song, uint32_t id) {
 	return nullptr;
 }
 
+/// Whether a projection may make a device entry (see cable_for), which allocates and edits the device list: never on
+/// the audio tier.
+enum class Devices : bool { FIND, MAKE };
+
+/// @p command as an engine field: see field_of, or learned_of when @p devices is FIND.
+LearnedMIDI projected(const MidiCommand& command, Devices devices) {
+	return devices == Devices::MAKE ? field_of(command) : learned_of(command);
+}
+
 /// Make @p field the command the table holds for @p target, or empty when it holds none.
-void projectCommand(const MappingTable& mappings, const deluge::project::MappingTarget& target, LearnedMIDI& field) {
+void projectCommand(const MappingTable& mappings, const deluge::project::MappingTarget& target, LearnedMIDI& field,
+                    Devices devices) {
 	if (const Mapping* entry = mappings.find(target)) {
-		field = field_of(entry->source);
+		field = projected(entry->source, devices);
 	}
 	else {
 		field.clear();
@@ -200,7 +210,8 @@ void projectCommand(const MappingTable& mappings, const deluge::project::Mapping
 /// Make @p owner's learned knob list its knobs in @p mappings, in table order. A knob the list leaves as it is stays
 /// whole: its device (which a name lookup could not tell from another of the same name) and its takeover state with
 /// it.
-void projectKnobs(const MappingTable& mappings, ControlsAddress address, ::ModControllableAudio& owner, bool isSound) {
+void projectKnobs(const MappingTable& mappings, ControlsAddress address, ::ModControllableAudio& owner, bool isSound,
+                  Devices devices) {
 	const params::Kind unpatchedKind = isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL;
 	deluge::fast_vector<MIDIKnob> knobs;
 	for (const Mapping& entry : mappings.params_of(address)) {
@@ -215,7 +226,7 @@ void projectKnobs(const MappingTable& mappings, ControlsAddress address, ::ModCo
 			continue;
 		}
 		MIDIKnob made;
-		made.midiInput = field_of(entry.source);
+		made.midiInput = projected(entry.source, devices);
 		made.relative = entry.relative;
 		made.paramDescriptor = target;
 		knobs.push_back(made);
@@ -256,8 +267,10 @@ void cloneOutputMappings(const ::Output& from, ::Output& to, ::Song& song) {
 		return;
 	}
 	song.project.mappings.copy_params(*from.id(), *to.id());
-	(void)projectMapping(song, deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, *to.id()}, {}});
-	// An overdub's clone runs on the song's tick, which may be the audio tier: the rebuild waits for the app loop.
+	// An overdub's clone runs on the song's tick, which may be the audio tier: a device the Deluge does not know gets
+	// its entry, and the index its rebuild, on the app loop.
+	(void)projectMappingFindingDevices(song,
+	                                   deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, *to.id()}, {}});
 	deluge::markMappingIndexStale();
 }
 
@@ -383,7 +396,9 @@ void setSectionCommand(MappingTable& mappings, uint8_t section, const MidiComman
 	}
 }
 
-Error projectMapping(::Song& song, const deluge::project::MappingTarget& target) {
+namespace {
+
+Error projectMappingWith(::Song& song, const deluge::project::MappingTarget& target, Devices devices) {
 	const MappingTable& mappings = song.project.mappings;
 	return std::visit(
 	    [&]<typename T>(const T& t) -> Error {
@@ -393,14 +408,14 @@ Error projectMapping(::Song& song, const deluge::project::MappingTarget& target)
 			    if (owner == nullptr) {
 				    return Error::UNSPECIFIED;
 			    }
-			    projectKnobs(mappings, t.owner, *owner, isSound);
+			    projectKnobs(mappings, t.owner, *owner, isSound, devices);
 		    }
 		    else if constexpr (std::is_same_v<T, deluge::project::ClipMuteTarget>) {
 			    Clip* clip = clipWithId(song, t.clip_id);
 			    if (clip == nullptr) {
 				    return Error::UNSPECIFIED;
 			    }
-			    projectCommand(mappings, target, clip->muteMIDICommand);
+			    projectCommand(mappings, target, clip->muteMIDICommand, devices);
 		    }
 		    else if constexpr (std::is_same_v<T, deluge::project::DrumMuteTarget>
 		                       || std::is_same_v<T, deluge::project::LaneInputTarget>) {
@@ -410,7 +425,8 @@ Error projectMapping(::Song& song, const deluge::project::MappingTarget& target)
 			    }
 			    projectCommand(mappings, target,
 			                   std::is_same_v<T, deluge::project::DrumMuteTarget> ? drum->muteMIDICommand
-			                                                                      : drum->midiInput);
+			                                                                      : drum->midiInput,
+			                   devices);
 		    }
 		    else if constexpr (std::is_same_v<T, deluge::project::TrackInputTarget>) {
 			    Output* output = outputWithId(song, t.output_id);
@@ -418,7 +434,7 @@ Error projectMapping(::Song& song, const deluge::project::MappingTarget& target)
 			    if (output == nullptr || output->type == OutputType::AUDIO) {
 				    return Error::UNSPECIFIED;
 			    }
-			    projectCommand(mappings, target, static_cast<Instrument*>(output)->midiInput);
+			    projectCommand(mappings, target, static_cast<Instrument*>(output)->midiInput, devices);
 		    }
 		    else {
 			    static_assert(std::is_same_v<T, deluge::project::SectionLaunchTarget>);
@@ -429,6 +445,24 @@ Error projectMapping(::Song& song, const deluge::project::MappingTarget& target)
 		    return Error::NONE;
 	    },
 	    target);
+}
+
+} // namespace
+
+Error projectMapping(::Song& song, const deluge::project::MappingTarget& target) {
+	return projectMappingWith(song, target, Devices::MAKE);
+}
+
+Error projectMappingFindingDevices(::Song& song, const deluge::project::MappingTarget& target) {
+	const Error error = projectMappingWith(song, target, Devices::FIND);
+	for (const Mapping& entry : song.project.mappings.entries()) {
+		if (entry.target.index() == target.index() && entry.source.device
+		    && find_cable(*entry.source.device) == nullptr) {
+			deluge::markMappingDevicesChanged(); // the refresh makes its entry and projects it again
+			break;
+		}
+	}
+	return error;
 }
 
 bool holdsOutput(::Song& song, const ::Output& output) {

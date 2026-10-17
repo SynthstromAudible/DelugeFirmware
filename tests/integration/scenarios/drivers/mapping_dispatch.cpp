@@ -83,7 +83,9 @@
 #include <string_view>
 #include <vector>
 
-// The USB host stack's reports of a hosted device being set up, configured and detached.
+// The USB host stack's reports of a hosted device being set up, configured and detached. The Rust BSP has no USB host
+// stack calling them yet, so the legs stand in for it; in the shipping app only the device list's own mark (an entry
+// made, renamed or given new ids) runs.
 extern "C" {
 void giveDetailsOfDeviceBeingSetUp(int32_t ip, char const* name, uint16_t vendorId, uint16_t productId);
 void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum);
@@ -613,7 +615,8 @@ struct Stage {
 
 /// A binding to a device plugged in after it was learned starts matching once the device is plugged in, and unplugging
 /// it stops it: a binding never listens to a cable that can still send unless it names it, and the device plugged back
-/// in plays it again. A section's command names one device; a kit row's and a track's input another.
+/// in plays it again. A section's command names one device; a kit row's and a track's input another. The plugging in
+/// and out goes through the USB host stack's hooks, which stand in for a stack the Rust BSP does not have yet.
 std::string lateDeviceLeg(Stage& s) {
 	if (deluge::bridge::find_cable(kLate.ref()) != nullptr
 	    || deluge::bridge::find_cable(kLateToSection.ref()) != nullptr) {
@@ -852,6 +855,68 @@ std::string rowRemovedLeg(Stage& s) {
 	return what;
 }
 
+/// An output's knobs cloned as an auto-overdub clones them, on the song's tick, which may be the audio tier: a knob
+/// naming a hosted device the Deluge does not know makes no device entry there; the app loop's refresh makes it and
+/// plays the clone's knob from it.
+std::string cloneLeg(Stage& s) {
+	Output* from = nullptr;
+	for (Output* o = s.song.live.media.first_output; o != nullptr && from == nullptr; o = o->next) {
+		if (o->type == OutputType::AUDIO) {
+			from = o;
+		}
+	}
+	std::vector<Output*> before;
+	for (Output* o = s.song.live.media.first_output; o != nullptr; o = o->next) {
+		before.push_back(o);
+	}
+	(void)s.song.createNewAudioOutput();
+	Output* to = nullptr;
+	for (Output* o = s.song.live.media.first_output; o != nullptr; o = o->next) {
+		if (std::ranges::find(before, o) == before.end()) {
+			to = o;
+		}
+	}
+	if (from == nullptr || to == nullptr || !to->id()) {
+		return "no audio track to clone";
+	}
+	const MidiDeviceRef unknown{.port = MidiDeviceRef::Port::HOSTED,
+	                            .name = "MAPPING DISPATCH CLONE",
+	                            .vendor_id = 0x1209,
+	                            .product_id = 0x0de3};
+	const deluge::engine::ParamId param = knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL);
+	// Written to the table alone, as a load reads a binding before anything projects it.
+	s.song.project.mappings.learn(
+	    Mapping{.source = {.channel_or_zone = 14, .note_or_cc = 30, .device = unknown},
+	            .target = deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, *from->id()}, param}});
+	std::string what;
+	refresh(what);
+	deluge::bridge::cloneOutputMappings(*from, *to, s.song);
+	bool isSound = false;
+	ModControllableAudio* knobs =
+	    deluge::bridge::controlsOwnerAt(s.song, {ControlsAddress::Kind::OUTPUT, *to->id()}, &isSound);
+	if (knobs == nullptr) {
+		return "the clone has no knobs";
+	}
+	if (what.empty() && deluge::bridge::find_cable(unknown) != nullptr) {
+		what = "the clone made a device entry";
+	}
+	if (what.empty() && (knobs->midi_knobs.size() != 1 || knobs->midi_knobs[0].midiInput.cable != nullptr)) {
+		what = "the clone's knob is not projected with no cable";
+	}
+	if (what.empty() && !deluge::mappingIndexStale()) {
+		what = "the clone left nothing for the refresh";
+	}
+	refresh(what);
+	MIDICable* made = deluge::bridge::find_cable(unknown);
+	if (what.empty() && (made == nullptr || made->connectionFlags != 0)) {
+		what = "the refresh made no unconnected entry for the device";
+	}
+	if (what.empty() && (knobs->midi_knobs.size() != 1 || knobs->midi_knobs[0].midiInput.cable != made)) {
+		what = "the refresh did not play the clone's knob from the device's entry";
+	}
+	return what;
+}
+
 /// Run the legs on @p f's song, each from an empty table; their failures, printed to @p io.
 int32_t runLegs(const Fixture& f, std::array<MIDICable*, 2> cables, deluge::scenarios::driver::Io io) {
 	Song& song = *f.song;
@@ -872,12 +937,13 @@ int32_t runLegs(const Fixture& f, std::array<MIDICable*, 2> cables, deluge::scen
 	const bool differentiating = MIDIDeviceManager::differentiatingInputsByDevice;
 	MIDIDeviceManager::differentiatingInputsByDevice = true;
 	Stage stage{song, *kit, *synth, cables};
-	constexpr std::array<std::pair<const char*, std::string (*)(Stage&)>, 5> kLegs{{
+	constexpr std::array<std::pair<const char*, std::string (*)(Stage&)>, 6> kLegs{{
 	    {"late-device", lateDeviceLeg},
 	    {"any-device", anyDeviceLeg},
 	    {"hibernation", hibernationLeg},
 	    {"session-order", sessionOrderLeg},
 	    {"row-removed", rowRemovedLeg},
+	    {"clone", cloneLeg},
 	}};
 	int32_t failures = 0;
 	for (const auto& [name, leg] : kLegs) {

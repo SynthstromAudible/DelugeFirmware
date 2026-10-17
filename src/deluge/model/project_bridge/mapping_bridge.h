@@ -143,6 +143,14 @@ void setSectionCommand(deluge::project::MappingTable& mappings, uint8_t section,
 ///         clip, playing or hibernating; no such section); otherwise Error::NONE.
 Error projectMapping(::Song& song, const deluge::project::MappingTarget& target);
 
+/// @brief projectMapping() for the audio tier: it makes no device entry, so a source naming a hosted device the Deluge
+/// does not know projects to no cable and the next refresh of the mapping index (on the app loop, before any message
+/// is matched) projects it again, making the entry.
+/// @param song   The song.
+/// @param target The target to project.
+/// @return As projectMapping().
+Error projectMappingFindingDevices(::Song& song, const deluge::project::MappingTarget& target);
+
 /// @brief Whether @p song holds @p output, playing or hibernating: a save then writes its bindings from the table.
 /// @param song   The song.
 /// @param output The output.
