@@ -105,6 +105,7 @@
 #include <hid/buttons.h>
 #include <iterator>
 #include <new>
+#include <optional>
 #include <stdint.h>
 #include <type_traits>
 
@@ -3535,14 +3536,6 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	if (tableFollows && !newOutput->id()) {
 		newOutput->setId(generateNewOutputId());
 	}
-	// A kit's rows give their commands up to the clips' rows, and a new kit's rows take them: the table as it was names
-	// their devices.
-	const bool rowCommandsMove = oldOutput->type == OutputType::KIT || newOutput->type == OutputType::KIT;
-	if (tableFollows && rowCommandsMove) {
-		deluge::bridge::applyPendingMappingOps(*this); // the table as it was includes the writes the render held
-	}
-	const deluge::project::MappingTable mappingsBefore =
-	    tableFollows && rowCommandsMove ? project.mappings : deluge::project::MappingTable{};
 	const std::vector<uint32_t> oldRows = deluge::bridge::rowIdsOf(oldOutput);
 
 	// Migrate input MIDI channel / device. Putting this up here before any calls to changeInstrument() is good,
@@ -3580,6 +3573,12 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 
 	if (tableFollows) {
 		deluge::bridge::handOverInstrument(*this, *oldOutput->id(), *newOutput->id(), knobsHandedOver);
+	}
+	// A kit's rows give their commands up to the clips' rows, and a new kit's rows take them: the table as it was names
+	// their devices. The handover above leaves every row's entry as it was.
+	std::optional<deluge::bridge::RowCommandMoves> rowMoves;
+	if (tableFollows && (oldOutput->type == OutputType::KIT || newOutput->type == OutputType::KIT)) {
+		rowMoves.emplace(*this);
 	}
 
 	Output* outputRecordingOldOutput = oldOutput->getOutputRecordingThis();
@@ -3636,8 +3635,8 @@ traverseClips:
 	}
 
 	// The old kit's rows gave their commands up to the clips' rows.
-	if (tableFollows && oldOutput->type == OutputType::KIT) {
-		deluge::bridge::recordMovedDrumCommands(*static_cast<Kit*>(oldOutput), mappingsBefore, {}, *this);
+	if (rowMoves && oldOutput->type == OutputType::KIT) {
+		deluge::bridge::recordMovedDrumCommands(*static_cast<Kit*>(oldOutput), rowMoves->before(), {}, *this);
 	}
 
 	// Migrate all ClipInstances from oldInstrument to newInstrument
@@ -3686,9 +3685,10 @@ traverseClips:
 	if (tableFollows) {
 		// A hibernating instrument woken here was bound already: what it brings the table lacks goes in all the same.
 		deluge::bridge::recordArrivingOutput(*newOutput, *this);
-		if (newOutput->type == OutputType::KIT) { // its rows took the clips' rows' commands
-			deluge::bridge::recordMovedDrumCommands(*static_cast<Kit*>(newOutput), mappingsBefore, oldRows, *this);
+		if (rowMoves && newOutput->type == OutputType::KIT) { // its rows took the clips' rows' commands
+			deluge::bridge::recordMovedDrumCommands(*static_cast<Kit*>(newOutput), rowMoves->before(), oldRows, *this);
 		}
+		rowMoves.reset(); // the writes the render held meanwhile land
 		deluge::bridge::projectOutputMappings(*this, *newOutput->id());
 	}
 }

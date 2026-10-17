@@ -66,6 +66,7 @@
 #include <cmath>
 #include <iterator>
 #include <new>
+#include <optional>
 #include <ranges>
 
 #include "playback/mode/playback_mode.h"
@@ -1828,11 +1829,10 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	// song's table follows each row. A song's own read leaves that to the sweep once every id is final.
 	const bool rowCommandsMove = !modelStack->song->isReadingFromFile()
 	                             && (oldInstrument->type == OutputType::KIT || newInstrument->type == OutputType::KIT);
+	std::optional<deluge::bridge::RowCommandMoves> rowMoves;
 	if (rowCommandsMove) {
-		deluge::bridge::applyPendingMappingOps(*modelStack->song); // the table as it was includes the render's writes
+		rowMoves.emplace(*modelStack->song);
 	}
-	const deluge::project::MappingTable mappingsBefore =
-	    rowCommandsMove ? modelStack->song->project.mappings : deluge::project::MappingTable{};
 	const std::vector<uint32_t> oldRows = deluge::bridge::rowIdsOf(oldInstrument);
 
 	AudioEngine::routineWithClusterLoading();
@@ -1855,8 +1855,8 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	detachFromOutput(modelStack, true, (newInstrument->type == OutputType::KIT), false, keepNoteRowsWithMIDIInput,
 	                 giveMidiAssignmentsToNewInstrument,
 	                 false); // Keep channel expression on the Clip across output-type changes.
-	if (rowCommandsMove && oldInstrument->type == OutputType::KIT) {
-		deluge::bridge::recordMovedDrumCommands(*static_cast<Kit*>(oldInstrument), mappingsBefore, {},
+	if (rowMoves && oldInstrument->type == OutputType::KIT) {
+		deluge::bridge::recordMovedDrumCommands(*static_cast<Kit*>(oldInstrument), rowMoves->before(), {},
 		                                        *modelStack->song);
 	}
 
@@ -1958,8 +1958,8 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 			}
 		}
 
-		if (rowCommandsMove) { // its rows took what the clip's rows held
-			deluge::bridge::recordMovedDrumCommands(*kit, mappingsBefore, oldRows, *modelStack->song);
+		if (rowMoves) { // its rows took what the clip's rows held
+			deluge::bridge::recordMovedDrumCommands(*kit, rowMoves->before(), oldRows, *modelStack->song);
 		}
 	}
 

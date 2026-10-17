@@ -130,12 +130,34 @@ void projectOutputMappings(::Song& song, uint32_t output);
 /// @param song The song.
 void projectDeviceMappings(::Song& song);
 
+/// @brief [task] The table as a kit change found it, before it moves its rows' commands (recordMovedDrumCommands reads
+/// it). The writes the render held land first; those it holds from then on wait until the last one open closes, so
+/// none lands between the table as it was and the moves recorded from it, where a moved command could undo it.
+class RowCommandMoves {
+public:
+	/// @param song The current song.
+	explicit RowCommandMoves(::Song& song);
+	/// Applies the writes the render held meanwhile, when it is the last one open.
+	~RowCommandMoves();
+	RowCommandMoves(const RowCommandMoves&) = delete;
+	RowCommandMoves& operator=(const RowCommandMoves&) = delete;
+	RowCommandMoves(RowCommandMoves&&) = delete;
+	RowCommandMoves& operator=(RowCommandMoves&&) = delete;
+
+	/// @brief The table as it was.
+	[[nodiscard]] const deluge::project::MappingTable& before() const { return before_; }
+
+private:
+	::Song& song_;
+	deluge::project::MappingTable before_;
+};
+
 /// @brief Make @p kit's rows' mutes and inputs in @p song's table what the runtime holds after it moved them between
 /// rows: a kit change gives a replaced kit's row commands to the clips' rows, and they give them to the new kit's rows.
 /// A row's command keeps the source @p before held for it, or for the same kind of command of one of @p fromRows, so a
-/// device the runtime could not name stays named.
+/// device the runtime could not name stays named. The writes the render holds land after the moves, not before.
 /// @param kit      The kit whose rows' commands moved.
-/// @param before   The table as it was before the move.
+/// @param before   The table as it was before the move (RowCommandMoves::before).
 /// @param fromRows The ids of the rows the commands came from (rowIdsOf the kit they left), empty when not known.
 /// @param song     The song.
 void recordMovedDrumCommands(::Kit& kit, const deluge::project::MappingTable& before,
@@ -182,6 +204,23 @@ void setSectionCommand(deluge::project::MappingTable& mappings, uint8_t section,
 /// @return Error::UNSPECIFIED, with nothing changed, when @p target's owner is not in @p song (no such output, drum or
 ///         clip, playing or hibernating; no such section); otherwise Error::NONE.
 Error projectMapping(::Song& song, const deluge::project::MappingTarget& target);
+
+/// @brief projectMapping() of @p target after a relearn put @p source in place of the knob that played @p replaced:
+/// the knob that now plays @p source keeps that knob's takeover state, as a knob learned again in place always has.
+/// @param song     The song.
+/// @param target   The param the knob turns.
+/// @param replaced The source of the knob the relearn replaced.
+/// @param source   The source it learned.
+/// @return As projectMapping().
+Error projectRelearnedKnob(::Song& song, const deluge::project::ParamTarget& target,
+                           const deluge::project::MidiCommand& replaced, const deluge::project::MidiCommand& source);
+
+/// @brief Whether @p knob plays what an index hit says the knob at its place does: @p noteOrCC, on @p target's param.
+/// @param knob     The knob at the hit's place in its owner's list.
+/// @param target   The hit's target.
+/// @param noteOrCC The hit's CC number (128 for pitch bend).
+/// @return True if it does.
+[[nodiscard]] bool knobPlays(const ::MIDIKnob& knob, const deluge::project::MappingTarget& target, uint8_t noteOrCC);
 
 /// @brief Whether @p song holds @p output, playing or hibernating: a save then writes its bindings from the table.
 /// @param song   The song.

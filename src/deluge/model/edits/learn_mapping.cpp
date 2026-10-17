@@ -9,16 +9,17 @@
 #include "model/project_bridge/midi_command.h"
 #include "model/song/song.h"
 
+#include <algorithm>
 #include <optional>
+#include <variant>
 
 namespace deluge::edits {
 
 namespace {
 
-/// Project @p target from the table @p ctx's model now holds; on refusal put back @p before, the table as it was
-/// before the write.
-Error project(Context& ctx, const deluge::project::MappingTarget& target, deluge::project::MappingTable before) {
-	const Error projected = deluge::bridge::projectMapping(ctx.song, target);
+/// Bring the engine into line with the table @p ctx's model now holds, by @p projected (the projection's result); on
+/// refusal put back @p before, the table as it was before the write.
+Error project(Context& ctx, Error projected, deluge::project::MappingTable before) {
 	if (projected != Error::NONE) {
 		ctx.model.mappings = std::move(before);
 		deluge::midi::rebuildMappingIndex(ctx.song);
@@ -62,20 +63,29 @@ std::optional<deluge::project::ParamTarget> knobTargetIn(::ModControllableAudio&
 Error LearnMapping::apply(Context& ctx) {
 	deluge::bridge::applyPendingMappingOps(ctx.song); // a write the render made first lands first
 	deluge::project::MappingTable before = ctx.model.mappings;
+	const auto* param = std::get_if<deluge::project::ParamTarget>(&mapping_.target);
+	const bool replacing = replaces_ && param != nullptr
+	                       && std::ranges::any_of(before.entries(), [&](const deluge::project::Mapping& entry) {
+		                          return entry.target == mapping_.target && entry.source == *replaces_;
+	                          });
 	if (replaces_) {
 		ctx.model.mappings.relearn(*replaces_, mapping_);
 	}
 	else {
 		ctx.model.mappings.learn(mapping_);
 	}
-	return project(ctx, mapping_.target, std::move(before));
+	// A knob learned again in place keeps its takeover state, whatever else of it changed.
+	const Error projected = replacing
+	                            ? deluge::bridge::projectRelearnedKnob(ctx.song, *param, *replaces_, mapping_.source)
+	                            : deluge::bridge::projectMapping(ctx.song, mapping_.target);
+	return project(ctx, projected, std::move(before));
 }
 
 Error UnlearnMapping::apply(Context& ctx) {
 	deluge::bridge::applyPendingMappingOps(ctx.song); // a write the render made first lands first
 	deluge::project::MappingTable before = ctx.model.mappings;
 	ctx.model.mappings.unlearn(target_);
-	return project(ctx, target_, std::move(before));
+	return project(ctx, deluge::bridge::projectMapping(ctx.song, target_), std::move(before));
 }
 
 Error learnedMappingIn(::Song& song, deluge::project::MappingTarget target, const ::LearnedMIDI& learned) {

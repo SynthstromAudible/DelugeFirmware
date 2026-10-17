@@ -197,9 +197,17 @@ void projectCommand(const MappingTable& mappings, const deluge::project::Mapping
 	}
 }
 
-/// Make @p owner's learned knob list its knobs in @p mappings, in table order. A knob the list leaves as it is stays
-/// whole: its device (which a name lookup could not tell from another of the same name) and its takeover state with
-/// it.
+/// Whether @p field plays @p source: from the cable @p source's device resolves to (any device when it names none),
+/// on the same channel and note or CC. A saved device reference can name a cable without equalling the reference the
+/// cable makes (its name's case, its USB ids), so the cable is what is compared.
+bool playsAs(const MidiCommand& source, const LearnedMIDI& field) {
+	const LearnedMIDI played = learned_of(source);
+	return (!source.device || played.cable != nullptr) && sameLearned(played, field);
+}
+
+/// Make @p owner's learned knob list its knobs in @p mappings, in table order. A knob the list leaves as it is (one
+/// that plays its entry's source on the same param, relative alike) stays whole: its device (which a name lookup could
+/// not tell from another of the same name) and its takeover state with it.
 void projectKnobs(const MappingTable& mappings, ControlsAddress address, ::ModControllableAudio& owner, bool isSound) {
 	const params::Kind unpatchedKind = isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL;
 	deluge::fast_vector<MIDIKnob> knobs;
@@ -207,7 +215,7 @@ void projectKnobs(const MappingTable& mappings, ControlsAddress address, ::ModCo
 		const ParamDescriptor target =
 		    descriptorOf(std::get<deluge::project::ParamTarget>(entry.target).param, unpatchedKind);
 		const auto kept = std::ranges::find_if(owner.midi_knobs, [&](const MIDIKnob& old) {
-			return command_of(old.midiInput) == entry.source && old.relative == entry.relative
+			return playsAs(entry.source, old.midiInput) && old.relative == entry.relative
 			       && old.paramDescriptor == target;
 		});
 		if (kept != owner.midi_knobs.end()) {
@@ -353,6 +361,13 @@ void reconcileWithEngine(::Song& song) {
 
 } // namespace
 
+namespace {
+
+/// How many RowCommandMoves are open: written and read on the app loop only.
+int32_t rowCommandMovesOpen = 0;
+
+} // namespace
+
 bool onRenderTier() {
 	return deluge_in_audio_context() || deluge::memory::inRenderBlock();
 }
@@ -450,6 +465,9 @@ void applyPendingMappingOps(::Song& song) {
 		return; // the render holds writes for the current song only
 	}
 	requireAppLoop();
+	if (rowCommandMovesOpen > 0) {
+		return; // a kit change is moving its rows' commands: the writes wait for it (RowCommandMoves)
+	}
 	PendingOps& pending = pendingOps();
 	if (pending.count.load(std::memory_order_acquire) == 0 && !pending.overflowed.load(std::memory_order_acquire)) {
 		return;
@@ -567,8 +585,20 @@ std::vector<uint32_t> rowIdsOf(const ::Output* output) {
 	return rows;
 }
 
+RowCommandMoves::RowCommandMoves(::Song& song) : song_(song) {
+	applyPendingMappingOps(song_); // the table as it was includes the writes the render held
+	before_ = song_.project.mappings;
+	rowCommandMovesOpen++;
+}
+
+RowCommandMoves::~RowCommandMoves() {
+	rowCommandMovesOpen--;
+	applyPendingMappingOps(song_);
+}
+
 void recordMovedDrumCommands(::Kit& kit, const MappingTable& before, std::span<const uint32_t> fromRows, ::Song& song) {
-	applyPendingMappingOps(song); // a write the render made first lands first
+	// The writes the render held since @p before was taken land after the moves (the rebuild below), so a forget among
+	// them is not undone by a moved command.
 	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
 		if (!drum->id()) {
 			continue;
@@ -685,6 +715,48 @@ Error projectMapping(::Song& song, const deluge::project::MappingTarget& target)
 		    return Error::NONE;
 	    },
 	    target);
+}
+
+Error projectRelearnedKnob(::Song& song, const deluge::project::ParamTarget& target, const MidiCommand& replaced,
+                           const MidiCommand& source) {
+	bool isSound = false;
+	::ModControllableAudio* owner = controlsOwnerAt(song, target.owner, &isSound);
+	if (owner == nullptr) {
+		return Error::UNSPECIFIED;
+	}
+	const ParamDescriptor param =
+	    descriptorOf(target.param, isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL);
+	const auto knobPlaying = [&](const MidiCommand& command) {
+		return std::ranges::find_if(owner->midi_knobs, [&](const MIDIKnob& knob) {
+			return knob.paramDescriptor == param && playsAs(command, knob.midiInput);
+		});
+	};
+	const auto old = knobPlaying(replaced);
+	const bool found = old != owner->midi_knobs.end();
+	const bool saved = found && old->previousPositionSaved;
+	const int32_t position = found ? old->previousPosition : 0;
+	projectKnobs(song.project.mappings, target.owner, *owner, isSound);
+	if (found) {
+		const auto now = knobPlaying(source);
+		if (now != owner->midi_knobs.end()) {
+			now->previousPositionSaved = saved;
+			now->previousPosition = position;
+		}
+	}
+	return Error::NONE;
+}
+
+bool knobPlays(const ::MIDIKnob& knob, const deluge::project::MappingTarget& target, uint8_t noteOrCC) {
+	const auto* param = std::get_if<deluge::project::ParamTarget>(&target);
+	if (param == nullptr || knob.midiInput.noteOrCC != noteOrCC) {
+		return false;
+	}
+	// An output's knobs turn a sound's unpatched params or a global effectable's, as the output is a synth or not.
+	const ControlsAddress::Kind owner = param->owner.kind;
+	return (owner != ControlsAddress::Kind::SONG
+	        && knobTargetOf(knob.paramDescriptor, params::Kind::UNPATCHED_SOUND) == param->param)
+	       || (owner != ControlsAddress::Kind::DRUM
+	           && knobTargetOf(knob.paramDescriptor, params::Kind::UNPATCHED_GLOBAL) == param->param);
 }
 
 bool holdsOutput(::Song& song, const ::Output& output) {
