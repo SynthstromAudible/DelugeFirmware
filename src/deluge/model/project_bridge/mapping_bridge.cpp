@@ -153,7 +153,7 @@ std::optional<uint32_t> rowOf(const deluge::project::MappingTarget& target) {
 /// Its source is the one @p before held for @p target itself, else for the same kind of command of one of @p fromRows,
 /// when that plays what @p field holds: so a device the runtime could not name stays named, and no other kind of
 /// binding lends its own. Failing both, what @p field names.
-void recordMovedCommand(MappingTable& mappings, const MappingTable& before,
+void recordMovedCommand(MappingTable& mappings, std::span<const Mapping> before,
                         const deluge::project::MappingTarget& target, const LearnedMIDI& field,
                         std::span<const uint32_t> fromRows) {
 	if (!field.containsSomething()) {
@@ -161,7 +161,7 @@ void recordMovedCommand(MappingTable& mappings, const MappingTable& before,
 		return;
 	}
 	const Mapping* played = nullptr;
-	for (const Mapping& entry : before.entries()) {
+	for (const Mapping& entry : before) {
 		if (entry.target.index() != target.index() || !sameLearned(learned_of(entry.source), field)) {
 			continue;
 		}
@@ -639,8 +639,12 @@ std::vector<uint32_t> rowIdsOf(const ::Output* output) {
 }
 
 RowCommandMoves::RowCommandMoves(::Song& song) : song_(song) {
-	applyPendingMappingOps(song_); // the table as it was includes the writes the render held
-	before_ = song_.project.mappings;
+	applyPendingMappingOps(song_); // the commands as they were include the writes the render held
+	for (const Mapping& entry : song_.project.mappings.entries()) {
+		if (rowOf(entry.target)) {
+			before_.push_back(entry);
+		}
+	}
 	rowCommandMovesOpen++;
 }
 
@@ -649,7 +653,8 @@ RowCommandMoves::~RowCommandMoves() {
 	applyPendingMappingOps(song_);
 }
 
-void recordMovedDrumCommands(::Kit& kit, const MappingTable& before, std::span<const uint32_t> fromRows, ::Song& song) {
+void recordMovedDrumCommands(::Kit& kit, std::span<const Mapping> before, std::span<const uint32_t> fromRows,
+                             ::Song& song) {
 	// The writes the render held since @p before was taken land after the moves (the rebuild below), so a forget among
 	// them is not undone by a moved command.
 	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {

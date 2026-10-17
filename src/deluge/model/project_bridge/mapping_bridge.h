@@ -137,9 +137,11 @@ void projectOutputMappings(::Song& song, uint32_t output);
 /// @param song The song.
 void projectDeviceMappings(::Song& song);
 
-/// @brief [task] The table as a kit change found it, before it moves its rows' commands (recordMovedDrumCommands reads
-/// it). The writes the render held land first; those it holds from then on wait until the last one open closes, so
-/// none lands between the table as it was and the moves recorded from it, where a moved command could undo it.
+/// @brief [task] The rows' commands (every kit row's mute and input) as a kit change found them in the table, before it
+/// moves them (recordMovedDrumCommands reads them): only those, as a change runs once per clip of a kit and the rest of
+/// the table plays no part in a move. The writes the render held land first; those it holds from then on wait until
+/// the last one open closes, so none lands between the commands as they were and the moves recorded from them, where a
+/// moved command could undo it.
 class RowCommandMoves {
 public:
 	/// @param song The current song.
@@ -151,12 +153,12 @@ public:
 	RowCommandMoves(RowCommandMoves&&) = delete;
 	RowCommandMoves& operator=(RowCommandMoves&&) = delete;
 
-	/// @brief The table as it was.
-	[[nodiscard]] const deluge::project::MappingTable& before() const { return before_; }
+	/// @brief The rows' commands as they were, in table order.
+	[[nodiscard]] std::span<const deluge::project::Mapping> before() const { return before_; }
 
 private:
 	::Song& song_;
-	deluge::project::MappingTable before_;
+	std::vector<deluge::project::Mapping> before_;
 };
 
 /// @brief Make @p kit's rows' mutes and inputs in @p song's table what the runtime holds after it moved them between
@@ -164,10 +166,11 @@ private:
 /// A row's command keeps the source @p before held for it, or for the same kind of command of one of @p fromRows, so a
 /// device the runtime could not name stays named. The writes the render holds land after the moves, not before.
 /// @param kit      The kit whose rows' commands moved.
-/// @param before   The table as it was before the move (RowCommandMoves::before).
+/// @param before   The rows' commands as the table held them before the move (RowCommandMoves::before); other entries
+///                 are passed over.
 /// @param fromRows The ids of the rows the commands came from (rowIdsOf the kit they left), empty when not known.
 /// @param song     The song.
-void recordMovedDrumCommands(::Kit& kit, const deluge::project::MappingTable& before,
+void recordMovedDrumCommands(::Kit& kit, std::span<const deluge::project::Mapping> before,
                              std::span<const uint32_t> fromRows, ::Song& song);
 
 /// @brief The ids of @p output's kit rows: none when it is not a kit.

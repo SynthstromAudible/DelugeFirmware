@@ -642,7 +642,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		deluge::memory::noteRenderBlock(true); // the song's tick, on the render
 		deluge::bridge::forgetDrumMappings(*f.song, id);
 		deluge::memory::noteRenderBlock(false);
-		deluge::bridge::recordMovedDrumCommands(*kit, before, {}, *f.song);
+		deluge::bridge::recordMovedDrumCommands(*kit, before.entries(), {}, *f.song);
 		deluge::bridge::applyPendingMappingOps(*f.song);
 		expect(f.song->project.mappings.find(DrumMuteTarget{id}) == nullptr).to_be_true();
 	});
