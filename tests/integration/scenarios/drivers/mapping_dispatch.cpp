@@ -419,7 +419,7 @@ std::vector<Hit> legacyLanes(Song& song, uint32_t kitId, MIDICable& cable, int32
 }
 
 Hit hitOf(const deluge::midi::IndexedEntry& entry) {
-	return {entry.mapping->target, entry.ordinal};
+	return {entry.target, entry.ordinal};
 }
 
 /// A random source: a channel, MPE zone or their CC or program-change encodings, a small note or CC (pitch bend among

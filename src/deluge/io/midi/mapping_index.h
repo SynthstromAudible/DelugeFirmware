@@ -33,9 +33,12 @@ class Song;
 
 namespace deluge::midi {
 
-/// @brief A binding of the song's mapping table that incoming MIDI can trigger, its device resolved to a cable.
+/// @brief A binding of the song's mapping table that incoming MIDI can trigger, its device resolved to a cable. A copy:
+/// the index never reads the table after a rebuild, so a table write before the next rebuild leaves it intact.
 struct IndexedEntry {
-	const project::Mapping* mapping{};
+	project::MappingTarget target;
+	uint8_t note_or_cc{0};
+	bool relative{false}; ///< a knob's: it sends relative changes
 	/// The cable the binding listens to when inputs are told apart by device: nullptr for any device, and
 	/// MappingIndex::absentDevice() for a device the Deluge has no cable for, which no message arrives on.
 	MIDICable* cable{};
@@ -48,7 +51,7 @@ struct IndexedEntry {
 ///
 /// Each source names its channel or zone and note or CC exactly as LearnedMIDI matches them. A device is resolved once,
 /// at rebuild; whether inputs are told apart by device, and a cable's MPE zones, are read when a message is matched.
-/// The entries point into the table, so the index is rebuilt whenever the table changes.
+/// The entries are copies, so a table write leaves the index safe to read but stale until it is rebuilt.
 class MappingIndex {
 private:
 	/// A section's or a session clip's command. Sorted by channel, then rank: sections by number, then clips by session
@@ -98,7 +101,7 @@ public:
 	void forEachCommand(MIDICable& from, int32_t channel, int32_t note, Fn&& fn) const {
 		const auto [first, last] = std::ranges::equal_range(commands_, channel, {}, &Command::channel);
 		for (auto it = first; it != last; ++it) {
-			if (it->entry.mapping->source.note_or_cc == note && fromDevice(it->entry, from)) {
+			if (it->entry.note_or_cc == note && fromDevice(it->entry, from)) {
 				fn(it->entry);
 			}
 		}
@@ -118,7 +121,7 @@ public:
 		const auto [first, last] = std::ranges::equal_range(
 		    knobs_, key, {}, [](const Knob& k) { return std::tuple{int32_t{k.channel}, k.owner.kind, k.owner.id}; });
 		for (auto it = first; it != last; ++it) {
-			if (it->entry.mapping->source.note_or_cc == cc && fromDevice(it->entry, from)) {
+			if (it->entry.note_or_cc == cc && fromDevice(it->entry, from)) {
 				fn(it->entry);
 			}
 		}
@@ -132,7 +135,10 @@ public:
 	/// @param from    The cable the MIDI came from.
 	/// @param channel The incoming channel.
 	/// @param note    The incoming note.
-	/// @param fn      Called with each IndexedEntry hit (a LaneInputTarget's or a DrumMuteTarget's), in that order.
+	/// @param fn      Called with each IndexedEntry hit (a LaneInputTarget's or a DrumMuteTarget's), in that order. A
+	/// mute
+	///                hit is offered whatever the message: the caller acts on it only for a note-on and only when the
+	///                kit has a clip, as Kit::offerReceivedNote does.
 	template <class Fn>
 	void forEachLaneMatch(uint32_t kit_id, MIDICable& from, int32_t channel, int32_t note, Fn&& fn) const {
 		const int32_t zone = from.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
@@ -142,15 +148,14 @@ public:
 			// An input learned from any device sounds no row: LearnedMIDI::equalsChannelAllowMPE refuses a command with
 			// no cable.
 			while (it != inLast
-			       && (it->mute || it->entry.cable == nullptr || it->entry.mapping->source.note_or_cc != note
+			       && (it->mute || it->entry.cable == nullptr || it->entry.note_or_cc != note
 			           || !fromDevice(it->entry, from))) {
 				++it;
 			}
 			return it;
 		};
 		auto nextMute = [&](auto it) {
-			while (it != muteLast
-			       && (!it->mute || it->entry.mapping->source.note_or_cc != note || !fromDevice(it->entry, from))) {
+			while (it != muteLast && (!it->mute || it->entry.note_or_cc != note || !fromDevice(it->entry, from))) {
 				++it;
 			}
 			return it;

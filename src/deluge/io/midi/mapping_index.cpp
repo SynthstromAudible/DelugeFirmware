@@ -106,6 +106,15 @@ MIDICable* cableOf(const Mapping& mapping) {
 	return cable != nullptr ? cable : MappingIndex::absentDevice();
 }
 
+/// @p mapping as the index holds it, at @p ordinal.
+IndexedEntry entryOf(const Mapping& mapping, uint32_t ordinal) {
+	return {.target = mapping.target,
+	        .note_or_cc = mapping.source.note_or_cc,
+	        .relative = mapping.relative,
+	        .cable = cableOf(mapping),
+	        .ordinal = ordinal};
+}
+
 } // namespace
 
 MIDICable* MappingIndex::absentDevice() {
@@ -137,15 +146,13 @@ void MappingIndex::rebuild(const project::MappingTable& table, ::Song& song) {
 				    }
 				    const uint32_t ordinal = count->second++;
 				    if (mapping.source.contains_something() && awake.hasOwner(target.owner)) {
-					    knobs_.push_back(
-					        {mapping.source.channel_or_zone, target.owner, {&mapping, cableOf(mapping), ordinal}});
+					    knobs_.push_back({mapping.source.channel_or_zone, target.owner, entryOf(mapping, ordinal)});
 				    }
 			    }
 			    else if constexpr (std::is_same_v<T, project::SectionLaunchTarget>) {
 				    if (mapping.source.contains_something() && target.section < kMaxNumSections) {
-					    commands_.push_back({mapping.source.channel_or_zone,
-					                         target.section,
-					                         {&mapping, cableOf(mapping), target.section}});
+					    commands_.push_back(
+					        {mapping.source.channel_or_zone, target.section, entryOf(mapping, target.section)});
 				    }
 			    }
 			    else if constexpr (std::is_same_v<T, project::ClipMuteTarget>) {
@@ -153,18 +160,15 @@ void MappingIndex::rebuild(const project::MappingTable& table, ::Song& song) {
 				    if (mapping.source.contains_something() && index) {
 					    // Clips after every section, the last in the session first.
 					    const uint32_t rank = UINT32_MAX - *index;
-					    commands_.push_back(
-					        {mapping.source.channel_or_zone, rank, {&mapping, cableOf(mapping), *index}});
+					    commands_.push_back({mapping.source.channel_or_zone, rank, entryOf(mapping, *index)});
 				    }
 			    }
 			    else if constexpr (std::is_same_v<T, project::DrumMuteTarget>
 			                       || std::is_same_v<T, project::LaneInputTarget>) {
 				    const Row* row = awake.row(target.drum_id);
 				    if (mapping.source.contains_something() && row != nullptr) {
-					    lanes_.push_back({row->kit,
-					                      mapping.source.channel_or_zone,
-					                      std::is_same_v<T, project::DrumMuteTarget>,
-					                      {&mapping, cableOf(mapping), row->ordinal}});
+					    lanes_.push_back({row->kit, mapping.source.channel_or_zone,
+					                      std::is_same_v<T, project::DrumMuteTarget>, entryOf(mapping, row->ordinal)});
 				    }
 			    }
 			    else {

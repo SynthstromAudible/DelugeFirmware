@@ -21,6 +21,7 @@ Error project(Context& ctx, const deluge::project::MappingTarget& target, deluge
 	const Error projected = deluge::bridge::projectMapping(ctx.song, target);
 	if (projected != Error::NONE) {
 		ctx.model.mappings = std::move(before);
+		deluge::midi::rebuildMappingIndex(ctx.song);
 		return projected;
 	}
 	deluge::midi::rebuildMappingIndex(ctx.song);
