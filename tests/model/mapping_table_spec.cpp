@@ -228,6 +228,33 @@ describe mapping_table("the song's mapping table", ${
 		expect(table.find(ClipMuteTarget{6})).to_equal(static_cast<const Mapping*>(nullptr));
 	});
 
+	it("replaces the destination clip's own mute with a copy of the source's", _ {
+		MappingTable table;
+		table.learn(Mapping{.source = cc(0, 4), .target = ClipMuteTarget{5}});
+		table.learn(Mapping{.source = cc(0, 9), .target = ClipMuteTarget{6}});
+		table.copy_clip_mute(5, 6);
+		expect(table.entries().size()).to_equal(size_t{2});
+		expect(table.find(ClipMuteTarget{6})->source).to_equal(cc(0, 4));
+		expect(table.find(ClipMuteTarget{5})->source).to_equal(cc(0, 4));
+	});
+
+	it("clears the destination clip's mute when the source has none, and leaves other clips alone", _ {
+		MappingTable table;
+		table.learn(Mapping{.source = cc(0, 9), .target = ClipMuteTarget{6}});
+		table.learn(Mapping{.source = cc(0, 8), .target = ClipMuteTarget{7}});
+		table.copy_clip_mute(5, 6);
+		expect(table.entries().size()).to_equal(size_t{1});
+		expect(table.find(ClipMuteTarget{7})->source).to_equal(cc(0, 8));
+	});
+
+	it("recomputes a relearned knob's relative flag from its new source", _ {
+		MappingTable table;
+		table.learn(knob(cc(0, 5), out_param(1, 2)));
+		expect(table.relearn(cc(0, 5), knob(cc(0, 128), out_param(1, 2))).relative).to_be_false();
+		expect(table.relearn(cc(0, 128), knob(cc(0, 6), out_param(1, 2))).relative).to_be_true();
+		expect(table.entries().size()).to_equal(size_t{1});
+	});
+
 	it("forgets only the entries of what was deleted", _ {
 		MappingTable table;
 		table.learn(Mapping{.source = cc(0, 1), .target = ClipMuteTarget{1}});

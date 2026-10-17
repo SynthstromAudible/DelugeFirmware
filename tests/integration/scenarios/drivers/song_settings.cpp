@@ -316,7 +316,8 @@ std::string describeMapping(const deluge::project::Mapping& mapping) {
 ///        note) told apart by its port, a clip mute from any device, a kit row's mute, and a kit row's input from a
 ///        hosted device the Deluge does not know (whose name only the table holds). The reloaded song's table must hold
 ///        the same entries, and each engine field play what its entry names. Prints `SONG-SETTINGS-SAVE mappings ok`
-///        when the song has a synth, a kit row and an instrument clip.
+///        when the song has a synth, a kit row and an instrument clip, and `SONG-SETTINGS-SAVE audioKnob ok` when it
+///        also has an audio track, whose knob was among them.
 /// @return The failures.
 int32_t mappingsLeg(Song& song, deluge::scenarios::driver::Io io) {
 	using deluge::project::ControlsAddress;
@@ -443,6 +444,10 @@ int32_t mappingsLeg(Song& song, deluge::scenarios::driver::Io io) {
 	}
 	else {
 		std::fprintf(io.out, "SONG-SETTINGS-SAVE mappings ok\n");
+		if (audio != nullptr) {
+			// The audio track's knob was among those learned, saved and reloaded.
+			std::fprintf(io.out, "SONG-SETTINGS-SAVE audioKnob ok\n");
+		}
 	}
 	currentSong = &song;
 	return what.empty() ? 0 : 1;

@@ -501,6 +501,14 @@ Cables& cables() {
 	return instance;
 }
 
+/// @brief Make @p fixture's session clip its instrument's active clip, as a played clip is in a song. The fixture's
+/// instrument has neither that nor a backed-up param manager, so reading its params would find none (E170).
+void give_active_clip(spec::SongFixture& fixture) {
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, fixture.song, fixture.clip);
+	fixture.instrument->setActiveClip(stack, PgmChangeSend::NEVER);
+}
+
 } // namespace
 
 // ------------------------------------------------------------------------------------------------
@@ -649,6 +657,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// itself, which is why the port runs the shared write for it after the extras rather than
 		// inside them.
 		static spec::SongFixture fixture = spec::make_synth_song();
+		give_active_clip(fixture); // learning an instrument's input reads its param manager (view.cpp:725)
 		::LearnedMIDI& slot = fixture.instrument->midiInput;
 
 		expect(reset_legacy_learn()).to_be_true();
@@ -1520,6 +1529,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 
 	it("INSTRUMENT_INPUT: a learn writes the track's input entry, and a bare press and release unlearns it", _ {
 		static spec::SongFixture fixture = spec::make_synth_song();
+		give_active_clip(fixture); // learning an instrument's input reads its param manager (view.cpp:725)
 		const deluge::project::TrackInputTarget target{*fixture.instrument->id()};
 
 		expect(reset_legacy_learn()).to_be_true();

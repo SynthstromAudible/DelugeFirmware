@@ -237,6 +237,28 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		expect(text(row != nullptr ? row->find("midiInput") : nullptr, "note")).to_equal(std::string{"51"});
 	});
 
+	it("saves an engine's own knobs and input when the song being saved does not hold it", _ {
+		spec::SongFixture saving = spec::make_synth_song();
+		spec::SongFixture other = spec::make_synth_song(); // its output is the song-less one
+		auto& sound = *static_cast<SoundInstrument*>(other.instrument);
+		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *other.instrument->id()};
+		// The saving song's table names the same id, with other bindings: none of them is the engine's to write.
+		saving.song->project.mappings.learn(
+		    Mapping{.source = command(0, 11), .target = ParamTarget{owner, patched(params::LOCAL_PAN)}});
+		saving.song->project.mappings.learn(Mapping{.source = command(3, 36), .target = TrackInputTarget{owner.id}});
+		sound.midi_knobs.clear();
+		MIDIKnob& engineKnob = sound.midi_knobs.emplace_back();
+		engineKnob.midiInput.channelOrZone = 5;
+		engineKnob.midiInput.noteOrCC = 99;
+		engineKnob.paramDescriptor.setToHaveParamOnly(params::LOCAL_PITCH_ADJUST);
+		other.instrument->midiInput.channelOrZone = 6;
+		std::optional<Value> saved = savedOutput(*other.instrument, *saving.song);
+		expect(saved.has_value()).to_be_true();
+		expect(text(knobAt(*saved, 0), "ccNumber")).to_equal(std::string{"99"});
+		expect(knobAt(*saved, 1) == nullptr).to_be_true();
+		expect(text(&*saved, "inputMidiChannel")).to_equal(std::string{"6"});
+	});
+
 	it("saves a synth's input zone and device", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		Command input = command(MIDI_CHANNEL_MPE_LOWER_ZONE, Command::kNone);

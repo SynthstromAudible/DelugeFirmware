@@ -15,6 +15,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -295,6 +296,25 @@ std::string commandIncoherence(::Song& song, const MappingTarget& target, const 
 	       + ": table=" + (entry != nullptr ? describe(entry->source) : describe(table)) + " engine=" + describe(field);
 }
 
+/// The first break of the song's section launch commands: one past the last section, or two for one section.
+std::string sectionIncoherence(::Song& song) {
+	std::array<bool, kMaxNumSections> seen{};
+	for (const Mapping& entry : song.project.mappings.entries()) {
+		const auto* section = std::get_if<deluge::project::SectionLaunchTarget>(&entry.target);
+		if (section == nullptr) {
+			continue;
+		}
+		if (section->section >= kMaxNumSections) {
+			return "MAPPINGS SECTION_LAUNCH " + std::to_string(section->section) + ": there is no such section";
+		}
+		if (seen[section->section]) {
+			return "MAPPINGS SECTION_LAUNCH " + std::to_string(section->section) + ": the table holds it twice";
+		}
+		seen[section->section] = true;
+	}
+	return {};
+}
+
 /// The first break of @p output's bindings: its knobs, its input, and a kit's rows' knobs, mutes and inputs.
 std::string outputMappingIncoherence(::Song& song, ::Output& output) {
 	if (!output.id()) {
@@ -305,6 +325,11 @@ std::string outputMappingIncoherence(::Song& song, ::Output& output) {
 		return what;
 	}
 	if (output.type == OutputType::AUDIO) {
+		// An audio track has no MIDI input to hold an entry for.
+		if (const Mapping* stray = song.project.mappings.find(deluge::project::TrackInputTarget{id})) {
+			return "MAPPINGS TRACK_INPUT " + std::to_string(id) + ": the table holds " + describe(stray->source)
+			       + " for an audio track";
+		}
 		return {};
 	}
 	if (std::string what = commandIncoherence(song, deluge::project::TrackInputTarget{id}, "TRACK_INPUT", id,
@@ -320,6 +345,11 @@ std::string outputMappingIncoherence(::Song& song, ::Output& output) {
 			continue;
 		}
 		const uint32_t drumId = *drum->id();
+		// Only a sound row has knobs to turn.
+		if (drum->type != DrumType::SOUND
+		    && !song.project.mappings.params_of({ControlsAddress::Kind::DRUM, drumId}).empty()) {
+			return "MAPPINGS DRUM_KNOBS " + std::to_string(drumId) + ": the table holds knobs for a row with no sound";
+		}
 		for (std::string what : {knobsIncoherence(song, {ControlsAddress::Kind::DRUM, drumId}),
 		                         commandIncoherence(song, deluge::project::DrumMuteTarget{drumId}, "DRUM_MUTE", drumId,
 		                                            drum->muteMIDICommand),
@@ -336,6 +366,9 @@ std::string outputMappingIncoherence(::Song& song, ::Output& output) {
 } // namespace
 
 std::string mappingIncoherence(::Song& song) {
+	if (std::string what = sectionIncoherence(song); !what.empty()) {
+		return what;
+	}
 	if (std::string what = knobsIncoherence(song, {ControlsAddress::Kind::SONG, 0}); !what.empty()) {
 		return what;
 	}

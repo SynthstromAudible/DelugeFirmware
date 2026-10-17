@@ -25,6 +25,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "processing/audio_output.h"
+#include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 
@@ -666,6 +667,28 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(f.song->project.mappings.find(DrumMuteTarget{id}) == nullptr).to_be_true();
 	});
 
+	it("holds the render's writes while any row-command guard is open, and lands them when the last closes", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		MIDIDrum* drum = spec::add_drum<MIDIDrum>(f);
+		const uint32_t id = *drum->id();
+		deluge::edits::learnMappingFor(note(1, 36), DrumMuteTarget{id});
+		deluge::bridge::applyPendingMappingOps(*f.song);
+		{
+			deluge::bridge::RowCommandMoves outer(*f.song);
+			deluge::memory::noteRenderBlock(true); // the song's tick, on the render
+			deluge::bridge::forgetDrumMappings(*f.song, id);
+			deluge::memory::noteRenderBlock(false);
+			deluge::bridge::applyPendingMappingOps(*f.song);
+			expect(f.song->project.mappings.find(DrumMuteTarget{id}) != nullptr).to_be_true();
+			{
+				deluge::bridge::RowCommandMoves inner(*f.song);
+				expect(inner.before().size()).to_equal(size_t{1}); // the table as the forget found it
+			}
+			expect(f.song->project.mappings.find(DrumMuteTarget{id}) != nullptr).to_be_true(); // the outer still open
+		}
+		expect(f.song->project.mappings.find(DrumMuteTarget{id}) == nullptr).to_be_true();
+	});
+
 	it("tells a knob that plays an index hit's CC and param from one that does not", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
@@ -687,6 +710,24 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		deluge::edits::learnMappingFor(knobCc(0, 7), songVolume);
 		const auto& songKnobs = f.song->live.global_effectable.midi_knobs;
 		expect(songKnobs.size() == 1 && deluge::bridge::knobPlays(songKnobs[0], songVolume, 7)).to_be_true();
+	});
+
+	it("accepts a sound row's knob and a kit's global knob as an index hit's, and only for their CC", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
+		const ParamTarget rowParam{{ControlsAddress::Kind::DRUM, *drum->id()},
+		                           unpatched(params::Kind::UNPATCHED_SOUND, params::UNPATCHED_PORTAMENTO)};
+		deluge::edits::learnMappingFor(knobCc(1, 20), rowParam);
+		expect(drum->midi_knobs.size() == 1 && deluge::bridge::knobPlays(drum->midi_knobs[0], rowParam, 20))
+		    .to_be_true();
+		auto* kit = static_cast<Kit*>(f.instrument);
+		const ParamTarget kitParam{{ControlsAddress::Kind::OUTPUT, *kit->id()},
+		                           unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ)};
+		deluge::edits::learnMappingFor(knobCc(2, 21), kitParam);
+		expect(kit->midi_knobs.size() == 1 && deluge::bridge::knobPlays(kit->midi_knobs[0], kitParam, 21))
+		    .to_be_true();
+		expect(kit->midi_knobs.size() == 1 && deluge::bridge::knobPlays(kit->midi_knobs[0], kitParam, 22))
+		    .to_be_false();
 	});
 
 	it("leaves the index fresh when a song that is not current gains a session clip or a kit row", _ {

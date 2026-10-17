@@ -78,7 +78,7 @@ def main(argv=None):
         print(f"SONG-SETTINGS {key} n={applied[key]}")
     print("=" * 60)
     print(f"OK={ok} FAIL={fail} SKIP={skip}  (song_settings, corpus={args.corpus})")
-    legs = ("audioSource", "midiDevice", "arpLock", "mappings")
+    legs = ("audioSource", "midiDevice", "arpLock", "mappings", "audioKnob")
     for leg in legs:
         print(f"SONG-SETTINGS-SAVE {leg} songs={saved[leg]}")
     if not all(saved[leg] for leg in legs):

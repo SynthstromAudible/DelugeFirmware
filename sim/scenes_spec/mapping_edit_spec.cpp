@@ -5,13 +5,16 @@
 
 #include "deluge-project/arrangement.h"
 #include "deluge-project/mapping_table.h"
+#include "io/midi/mapping_index.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/clip/clip.h"
 #include "model/drum/midi_drum.h"
 #include "model/edits/learn_mapping.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
 #include "modulation/knob.h"
 #include "modulation/params/param.h"
@@ -230,18 +233,25 @@ describe mapping_edit("LearnMapping", $ {
 		expect(static_cast<int>(static_cast<Kit*>(f.instrument)->midi_knobs.size())).to_equal(0);
 	});
 
-	it("learns the song's knob onto its global effectable", _ {
+	it("learns the song's knob onto its global effectable, as a global param", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		const ControlsAddress owner{ControlsAddress::Kind::SONG, 0};
-		const ParamTarget target{owner, unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME)};
+		// Some indices are shared by a sound's and a global's param (their ids coincide); the LPF frequency is a
+		// global's alone, so a sound's reading of its id finds no param.
+		const ParamTarget target{owner, unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ)};
+		expect(deluge::bridge::runtimeIndexOf(params::Kind::UNPATCHED_SOUND, target.param).has_value()).to_be_false();
 		deluge::edits::learnMappingFor(cc(2, 7), target);
 		expect(held(*f.song, target) == cc(2, 7)).to_be_true();
 		auto& global = f.song->live.global_effectable;
 		expect(static_cast<int>(global.midi_knobs.size())).to_equal(1);
 		expect(global.midi_knobs[0].midiInput.equalsNoteOrCC(nullptr, 2 + IS_A_CC, 7)).to_be_true();
 		expect(global.midi_knobs[0].paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
-		                                                                     + params::UNPATCHED_VOLUME))
+		                                                                     + params::UNPATCHED_LPF_FREQ))
 		    .to_be_true();
+		// Read back from the engine's knob, the entry names the global param.
+		const auto knobs = deluge::bridge::knobsOf(owner, global, false);
+		expect(static_cast<int>(knobs.size())).to_equal(1);
+		expect(std::get<ParamTarget>(knobs[0].target).param == target.param).to_be_true();
 	});
 
 	it("refuses a target whose owner the song does not hold and leaves the table as it was", _ {
@@ -263,6 +273,23 @@ describe mapping_edit("LearnMapping", $ {
 			expect(static_cast<int>(applyEdit(*f.song, edit))).to_equal(static_cast<int>(Error::UNSPECIFIED));
 			expect(f.song->project.mappings == before).to_be_true();
 		}
+	});
+
+	it("rebuilds the index when it refuses a target, so the table it puts back is the one the index holds", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		// A write beneath the edit leaves the index without it.
+		f.song->project.mappings.learn(Mapping{.source = note(2, 50), .target = SectionLaunchTarget{1}});
+		deluge::midi::mappingIndex().clear();
+		const auto sectionHits = [&] {
+			int32_t hits = 0;
+			deluge::midi::mappingIndex().forEachCommand(MIDIDeviceManager::upstreamUSBMIDICable1, 2, 50,
+			                                            [&](const deluge::midi::IndexedEntry&) { hits++; });
+			return hits;
+		};
+		expect(sectionHits()).to_equal(0);
+		deluge::edits::LearnMapping edit{Mapping{.source = note(9, 9), .target = ClipMuteTarget{9999}}};
+		expect(static_cast<int>(applyEdit(*f.song, edit))).to_equal(static_cast<int>(Error::UNSPECIFIED));
+		expect(sectionHits()).to_equal(1);
 	});
 });
 

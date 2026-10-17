@@ -250,7 +250,9 @@ constexpr const char* kSongText = R"(<?xml version="1.0" encoding="UTF-8"?>
 )";
 
 /// The song in @p text, loaded as the app loads a song and made current; nullptr on a load failure, which is printed to
-/// @p err.
+/// @p err. The song is never freed, here or by the legs that load another: the driver is a one-shot process, and a
+/// Song's teardown reaches the audio engine's voices and the UI's globals, which a driver that runs no app loop leaves
+/// unset.
 Song* loadSong(std::string_view text, FILE* err) {
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (memory) Song();
@@ -1417,12 +1419,196 @@ std::string knobLeg(Stage& s) {
 	else if (patched.getValue(params::LOCAL_PAN) != pan) {
 		what = "the CC moved another knob's param";
 	}
+	// Its top is what the CC at 127 leaves, whatever the fixture started at: a second round lands on the same value.
 	send(*s.cables[0], kCC, 0, 20, 127);
-	if (what.empty() && patched.getValue(params::LOCAL_LPF_FREQ) != freq) {
+	const int32_t top = patched.getValue(params::LOCAL_LPF_FREQ);
+	send(*s.cables[0], kCC, 0, 20, 32);
+	const int32_t middle = patched.getValue(params::LOCAL_LPF_FREQ);
+	send(*s.cables[0], kCC, 0, 20, 127);
+	if (what.empty() && middle == top) {
+		what = "the CC in the middle left the param at its top";
+	}
+	else if (what.empty() && patched.getValue(params::LOCAL_LPF_FREQ) != top) {
 		what = "the CC at its top did not put the param back at its top";
 	}
 	midiEngine.midiTakeover = takeover;
 	return what;
+}
+
+/// A CC on cable 0, channel 0, learned to @p target moves the param @p read reads: the CC in the middle moves it off
+/// where it started, and the CC at its top puts it where the first one at its top left it, however many rounds.
+/// @return What went wrong, or empty.
+template <typename Read>
+std::string ccMovesParam(Stage& s, const MappingTarget& target, uint8_t cc, Read&& read) {
+	const MIDITakeoverMode takeover = midiEngine.midiTakeover;
+	midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
+	std::string what;
+	if (!learn(s.song, {.source = {.channel_or_zone = 0, .note_or_cc = cc}, .target = target})) {
+		what = "a learn was refused";
+	}
+	else {
+		const int32_t start = read();
+		// A value in the middle of the range: absolute, whether or not the knob was learned as relative.
+		send(*s.cables[0], kCC, 0, cc, 32);
+		const int32_t middle = read();
+		send(*s.cables[0], kCC, 0, cc, 127);
+		const int32_t top = read();
+		send(*s.cables[0], kCC, 0, cc, 32);
+		const int32_t again = read();
+		send(*s.cables[0], kCC, 0, cc, 127);
+		if (middle == start && middle == top) {
+			what = "the CC did not move its knob's param";
+		}
+		else if (middle == top || again != middle) {
+			what = "the CC in the middle did not move the param off its top";
+		}
+		else if (read() != top) {
+			what = "the CC at its top did not put the param back at its top";
+		}
+	}
+	midiEngine.midiTakeover = takeover;
+	return what;
+}
+
+/// A CC learned to a sound kit row's knob (a drum owner's) moves the row's param in the kit clip.
+std::string drumKnobLeg(Stage& s) {
+	const std::optional<DispatchClips> c = dispatchClips(s);
+	if (!c) {
+		return "the song's session is not the fixture's";
+	}
+	NoteRow* row = firstRowOf(s, *c->kit);
+	if (row == nullptr || s.kit.firstDrum->type != DrumType::SOUND) {
+		return "the kit's first row is not a sound row of the kit clip";
+	}
+	return ccMovesParam(s,
+	                    deluge::project::ParamTarget{{ControlsAddress::Kind::DRUM, *s.kit.firstDrum->id()},
+	                                                 knobParam(params::LOCAL_LPF_FREQ)},
+	                    30, [&] { return row->paramManager.getPatchedParamSet()->getValue(params::LOCAL_LPF_FREQ); });
+}
+
+/// A CC learned to a kit's own knob (an output owner of global params) moves the kit clip's param.
+std::string kitKnobLeg(Stage& s) {
+	const std::optional<DispatchClips> c = dispatchClips(s);
+	if (!c) {
+		return "the song's session is not the fixture's";
+	}
+	return ccMovesParam(
+	    s,
+	    deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, *s.kit.id()},
+	                                 knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)},
+	    31, [&] { return c->kit->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_LPF_FREQ); });
+}
+
+/// A CC learned to the song's knob moves the song's param.
+std::string songKnobLeg(Stage& s) {
+	return ccMovesParam(
+	    s,
+	    deluge::project::ParamTarget{{ControlsAddress::Kind::SONG, 0},
+	                                 knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)},
+	    32, [&] { return s.song.paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_LPF_FREQ); });
+}
+
+/// A pitch bend learned to a knob (CC number 128) sets its param from the 14-bit value, and no other knob's.
+std::string pitchBendKnobLeg(Stage& s) {
+	const std::optional<DispatchClips> c = dispatchClips(s);
+	if (!c) {
+		return "the song's session is not the fixture's";
+	}
+	const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *s.synth.id()};
+	if (!learn(s.song, {.source = {.channel_or_zone = 0, .note_or_cc = 128},
+	                    .target = deluge::project::ParamTarget{owner, knobParam(params::LOCAL_PAN)}})) {
+		return "a learn was refused";
+	}
+	Clip* active = s.synth.getActiveClip();
+	if (active == nullptr) {
+		return "the synth has no clip";
+	}
+	PatchedParamSet& patched = *active->paramManager.getPatchedParamSet();
+	const int32_t freq = patched.getValue(params::LOCAL_LPF_FREQ);
+	// The 14-bit value (data1 low, data2 high) scaled over the whole range.
+	const auto expected = [](uint8_t low, uint8_t high) {
+		const uint32_t value14 = uint32_t{low} | (uint32_t{high} << 7);
+		return static_cast<int32_t>((value14 << 18) - 0x80000000u);
+	};
+	send(*s.cables[0], 0x0E, 0, 0x10, 0x60);
+	if (patched.getValue(params::LOCAL_PAN) != expected(0x10, 0x60)) {
+		return "the pitch bend did not set its knob's param";
+	}
+	send(*s.cables[0], 0x0E, 0, 0, 0);
+	if (patched.getValue(params::LOCAL_PAN) != expected(0, 0)) {
+		return "the pitch bend at its bottom did not put the param at its bottom";
+	}
+	send(*s.cables[0], 0x0E, 1, 0x10, 0x60);
+	if (patched.getValue(params::LOCAL_PAN) != expected(0, 0)) {
+		return "a pitch bend on another channel moved the param";
+	}
+	if (patched.getValue(params::LOCAL_LPF_FREQ) != freq) {
+		return "the pitch bend moved another param";
+	}
+	return {};
+}
+
+/// A program change learned to a section arms it, as a note does; another program does not, and nor does a note of the
+/// same number.
+std::string programChangeLeg(Stage& s) {
+	const std::optional<DispatchClips> c = dispatchClips(s);
+	if (!c) {
+		return "the song's session is not the fixture's";
+	}
+	SessionPlaying restore{s.song};
+	if (!learn(s.song, {.source = {.channel_or_zone = static_cast<uint8_t>(IS_A_PC), .note_or_cc = 9},
+	                    .target = deluge::project::SectionLaunchTarget{1}})) {
+		return "a learn was refused";
+	}
+	constexpr uint8_t kProgramChange = 0x0C;
+	const auto sectionPlays = [&] { return c->s->activeIfNoSolo && c->y->activeIfNoSolo; };
+	if (sectionPlays()) {
+		return "the section plays before its program";
+	}
+	send(*s.cables[0], kProgramChange, 0, 8, 0);
+	send(*s.cables[0], kNoteOn, 0, 9, 100);
+	if (sectionPlays()) {
+		return "another program, or a note of its number, launched the section";
+	}
+	send(*s.cables[0], kProgramChange, 0, 9, 0);
+	if (!sectionPlays()) {
+		return "the program did not launch the section";
+	}
+	if (c->z->activeIfNoSolo || c->x->activeIfNoSolo || c->kit->activeIfNoSolo) {
+		return "a clip of another section still plays";
+	}
+	return {};
+}
+
+/// A CC learned to a clip's mute toggles the clip when its value is above zero, and not at zero.
+std::string ccClipToggleLeg(Stage& s) {
+	const std::optional<DispatchClips> c = dispatchClips(s);
+	if (!c) {
+		return "the song's session is not the fixture's";
+	}
+	SessionPlaying restore{s.song};
+	if (!learn(s.song, {.source = {.channel_or_zone = static_cast<uint8_t>(IS_A_CC), .note_or_cc = 33},
+	                    .target = deluge::project::ClipMuteTarget{c->x->id()}})) {
+		return "a learn was refused";
+	}
+	c->x->activeIfNoSolo = false;
+	send(*s.cables[0], kCC, 0, 33, 0);
+	if (c->x->activeIfNoSolo) {
+		return "the CC at zero started the clip";
+	}
+	send(*s.cables[0], kCC, 0, 33, 100);
+	if (!c->x->activeIfNoSolo) {
+		return "the CC above zero did not start the clip";
+	}
+	send(*s.cables[0], kCC, 0, 33, 0);
+	if (!c->x->activeIfNoSolo) {
+		return "the CC at zero stopped the clip";
+	}
+	send(*s.cables[0], kCC, 0, 33, 1);
+	if (c->x->activeIfNoSolo) {
+		return "the next CC above zero did not stop the clip";
+	}
+	return {};
 }
 
 /// A note learned to a section and to a clip launches the section, then toggles the clip: the clip, of another section,
@@ -1544,12 +1730,18 @@ int32_t runLegs(const Fixture& f, std::array<MIDICable*, 2> cables, deluge::scen
 	const bool differentiating = MIDIDeviceManager::differentiatingInputsByDevice;
 	MIDIDeviceManager::differentiatingInputsByDevice = true;
 	Stage stage{song, *kit, *synth, cables};
-	constexpr std::array<std::pair<const char*, std::string (*)(Stage&)>, 17> kLegs{{
+	constexpr std::array<std::pair<const char*, std::string (*)(Stage&)>, 23> kLegs{{
 	    {"dispatch-clip-toggle", clipToggleLeg},
+	    {"dispatch-cc-clip-toggle", ccClipToggleLeg},
 	    {"dispatch-section-arm", sectionArmLeg},
+	    {"dispatch-program-change", programChangeLeg},
 	    {"dispatch-row-mute", rowMuteLeg},
 	    {"dispatch-row-sound", rowSoundLeg},
 	    {"dispatch-knob", knobLeg},
+	    {"dispatch-pitch-bend-knob", pitchBendKnobLeg},
+	    {"dispatch-drum-knob", drumKnobLeg},
+	    {"dispatch-kit-knob", kitKnobLeg},
+	    {"dispatch-song-knob", songKnobLeg},
 	    {"dispatch-section-and-clip", sectionAndClipLeg},
 	    {"dispatch-session-changes-mid-loop", sessionChangesMidLoopLeg},
 	    {"late-device", lateDeviceLeg},
