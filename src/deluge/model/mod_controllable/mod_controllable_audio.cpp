@@ -63,6 +63,7 @@
 #include "util/etl_string.h"
 #include "util/structural_edit_probe.h"
 #include <algorithm>
+#include <span>
 
 namespace params = deluge::modulation::params;
 
@@ -604,6 +605,21 @@ deluge::midi::IndexedHits learnedKnobHits(const deluge::project::ControlsAddress
 	return hits;
 }
 
+/// The knob of @p knobs at @p hit's place, or nullptr past their end. In a debug build, a knob that does not play what
+/// @p hit says freezes: the index's places and the owner's knob list are out of step.
+MIDIKnob* knobAt(std::span<MIDIKnob> knobs, const deluge::midi::IndexedEntry& hit) {
+	if (hit.ordinal >= knobs.size()) {
+		return nullptr;
+	}
+	MIDIKnob& knob = knobs[hit.ordinal];
+#if !defined(NDEBUG)
+	if (!deluge::bridge::knobPlays(knob, hit.target, hit.note_or_cc)) {
+		FREEZE_WITH_ERROR("E467");
+	}
+#endif
+	return &knob;
+}
+
 } // namespace
 
 bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(deluge::project::ControlsAddress owner,
@@ -614,8 +630,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(deluge::project
 	const deluge::midi::IndexedHits hits = learnedKnobHits(owner, cable, channel, ccNumber);
 	for (const deluge::midi::IndexedEntry& hit : hits) {
 		// A knob's ordinal is its place in the owner's knob list, which holds the owner's knobs in table order.
-		if (hit.ordinal < midi_knobs.size()) {
-			handleLearnedKnob(midi_knobs[hit.ordinal], cable, value, modelStack, noteRowIndex);
+		if (MIDIKnob* knob = knobAt(midi_knobs, hit)) {
+			handleLearnedKnob(*knob, cable, value, modelStack, noteRowIndex);
 		}
 	}
 	return !hits.empty();
@@ -708,8 +724,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 	const deluge::midi::IndexedHits hits =
 	    learnedKnobHits({deluge::project::ControlsAddress::Kind::SONG, 0}, cable, channel, ccNumber);
 	for (const deluge::midi::IndexedEntry& hit : hits) {
-		if (hit.ordinal < midi_knobs.size()) {
-			handleLearnedKnob(midi_knobs[hit.ordinal], cable, value, modelStackWithThreeMainThings);
+		if (MIDIKnob* knob = knobAt(midi_knobs, hit)) {
+			handleLearnedKnob(*knob, cable, value, modelStackWithThreeMainThings);
 		}
 	}
 	return !hits.empty();
@@ -800,8 +816,8 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(deluge::project
 	// 128 stands for pitch bend among a knob's CC numbers.
 	const deluge::midi::IndexedHits hits = learnedKnobHits(owner, cable, channel, 128);
 	for (const deluge::midi::IndexedEntry& hit : hits) {
-		if (hit.ordinal < midi_knobs.size()
-		    && handleLearnedPitchBend(midi_knobs[hit.ordinal], data1, data2, modelStack, noteRowIndex)) {
+		MIDIKnob* knob = knobAt(midi_knobs, hit);
+		if (knob != nullptr && handleLearnedPitchBend(*knob, data1, data2, modelStack, noteRowIndex)) {
 			return true;
 		}
 	}
