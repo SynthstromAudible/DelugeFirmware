@@ -32,6 +32,7 @@
 
 #include <algorithm>
 #include <optional>
+#include <span>
 #include <type_traits>
 #include <variant>
 
@@ -104,23 +105,40 @@ bool sameLearned(const LearnedMIDI& a, const LearnedMIDI& b) {
 	return a.cable == b.cable && a.channelOrZone == b.channelOrZone && a.noteOrCC == b.noteOrCC;
 }
 
-/// Make @p target's entry the command @p field holds after the runtime moved it there. Its source is the one an entry
-/// of
-/// @p before played it with (@p target's own first), so a device the runtime could not name stays named; failing that,
-/// what @p field names.
+/// The kit row @p target names, when it is a row's mute or input.
+std::optional<uint32_t> rowOf(const deluge::project::MappingTarget& target) {
+	if (const auto* mute = std::get_if<deluge::project::DrumMuteTarget>(&target)) {
+		return mute->drum_id;
+	}
+	if (const auto* input = std::get_if<deluge::project::LaneInputTarget>(&target)) {
+		return input->drum_id;
+	}
+	return std::nullopt;
+}
+
+/// Make @p target's entry (a row's mute or input) the command @p field holds after the runtime moved it there.
+///
+/// Its source is the one @p before held for @p target itself, else for the same kind of command of one of @p fromRows,
+/// when that plays what @p field holds: so a device the runtime could not name stays named, and no other kind of
+/// binding lends its own. Failing both, what @p field names.
 void recordMovedCommand(MappingTable& mappings, const MappingTable& before,
-                        const deluge::project::MappingTarget& target, const LearnedMIDI& field) {
+                        const deluge::project::MappingTarget& target, const LearnedMIDI& field,
+                        std::span<const uint32_t> fromRows) {
 	if (!field.containsSomething()) {
 		mappings.unlearn(target);
 		return;
 	}
 	const Mapping* played = nullptr;
 	for (const Mapping& entry : before.entries()) {
-		if (std::holds_alternative<deluge::project::ParamTarget>(entry.target)
-		    || !sameLearned(learned_of(entry.source), field)) {
+		if (entry.target.index() != target.index() || !sameLearned(learned_of(entry.source), field)) {
 			continue;
 		}
-		if (played == nullptr || entry.target == target) {
+		if (entry.target == target) {
+			played = &entry;
+			break;
+		}
+		const std::optional<uint32_t> row = rowOf(entry.target);
+		if (played == nullptr && row && std::ranges::find(fromRows, *row) != fromRows.end()) {
 			played = &entry;
 		}
 	}
@@ -263,15 +281,28 @@ void projectOutputMappings(::Song& song, uint32_t output) {
 	rebuildMappingIndex(song);
 }
 
-void recordMovedDrumCommands(::Kit& kit, const MappingTable& before, ::Song& song) {
+std::vector<uint32_t> rowIdsOf(const ::Output* output) {
+	std::vector<uint32_t> rows;
+	if (output == nullptr || output->type != OutputType::KIT) {
+		return rows;
+	}
+	for (const Drum* drum = static_cast<const Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
+		if (drum->id()) {
+			rows.push_back(*drum->id());
+		}
+	}
+	return rows;
+}
+
+void recordMovedDrumCommands(::Kit& kit, const MappingTable& before, std::span<const uint32_t> fromRows, ::Song& song) {
 	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
 		if (!drum->id()) {
 			continue;
 		}
 		recordMovedCommand(song.project.mappings, before, deluge::project::DrumMuteTarget{*drum->id()},
-		                   drum->muteMIDICommand);
+		                   drum->muteMIDICommand, fromRows);
 		recordMovedCommand(song.project.mappings, before, deluge::project::LaneInputTarget{*drum->id()},
-		                   drum->midiInput);
+		                   drum->midiInput, fromRows);
 	}
 	rebuildMappingIndex(song);
 }
@@ -285,12 +316,13 @@ void knobNoLongerRelative(::ModControllableAudio& owner, const ::MIDIKnob& knob,
 	if (controlsOwnerAt(song, *address, &isSound) != &owner) {
 		return;
 	}
+	// The entry is the one the knob was projected from: same param, and its source plays as the knob does (a device's
+	// saved ids may not be the cable's own).
 	const deluge::project::MappingTarget target = deluge::project::ParamTarget{
 	    *address,
 	    knobTargetOf(knob.paramDescriptor, isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL)};
-	const MidiCommand source = command_of(knob.midiInput);
 	for (Mapping& entry : song.project.mappings.entries()) {
-		if (entry.target == target && entry.source == source) {
+		if (entry.target == target && sameLearned(learned_of(entry.source), knob.midiInput)) {
 			entry.relative = false;
 		}
 	}

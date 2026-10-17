@@ -1538,6 +1538,48 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		expect(fixture.song->project.mappings.find(target) == nullptr).to_be_true();
 		expect(fixture.instrument->midiInput.containsSomething()).to_be_false();
 	});
+
+	it("MIDI_OUT: a CC learns the track's input channel into the table and the instrument, on both sides", _ {
+		static spec::SongFixture fixture = spec::make_midi_song();
+		const deluge::project::TrackInputTarget target{*fixture.instrument->id()};
+
+		expect(reset_legacy_learn()).to_be_true();
+		view.startMIDILearn();
+		view.instrumentMidiLearnPadPressed(true, fixture.instrument);
+		view.ccReceivedForMIDILearn(cables().b, 8, 74, 100);
+		view.instrumentMidiLearnPadPressed(false, fixture.instrument);
+		const deluge::project::MidiCommand legacy = held(*fixture.song, target);
+		expect(legacy.channel_or_zone == 8 && legacy.device.has_value()).to_be_true();
+		expect(fixture.instrument->midiInput.channelOrZone == 8).to_be_true();
+		expect(fixture.instrument->midiInput.cable == &cables().b).to_be_true();
+		expect(reset_legacy_learn()).to_be_true();
+
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument), true);
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument), false); // unlearned
+		expect(fixture.song->project.mappings.find(target) == nullptr).to_be_true();
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument), true);
+		rig.ml.cc_received(cables().a, 3, 74, 100);
+		expect(held(*fixture.song, target).channel_or_zone == 3).to_be_true();
+		expect(fixture.instrument->midiInput.channelOrZone == 3).to_be_true();
+		expect(fixture.instrument->midiInput.cable == &cables().a).to_be_true();
+	});
+
+	it("CV: a note learns the track's input into the table and the instrument", _ {
+		static spec::SongFixture fixture = spec::make_cv_song();
+		const deluge::project::TrackInputTarget target{*fixture.instrument->id()};
+
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument), true);
+		rig.ml.note_on_received(cables().b, 4, 48, 127);
+		expect(held(*fixture.song, target) == command(cables().b, 4, 48)).to_be_true();
+		expect(fixture.instrument->midiInput.channelOrZone == 4).to_be_true();
+		expect(fixture.instrument->midiInput.cable == &cables().b).to_be_true();
+	});
 });
 // clang-format on
 

@@ -39,6 +39,7 @@
 #include "model/note/note.h"
 #include "model/output.h"
 #include "model/project_bridge/arp_bridge.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
@@ -1823,6 +1824,14 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	Instrument* oldInstrument = (Instrument*)output;
 	int32_t oldYScroll = yScroll;
 
+	// A kit's rows give their commands up to this clip's rows, and a kit's rows take what the clip's rows hold: the
+	// song's table follows each row. A song's own read leaves that to the sweep once every id is final.
+	const bool rowCommandsMove = !modelStack->song->isReadingFromFile()
+	                             && (oldInstrument->type == OutputType::KIT || newInstrument->type == OutputType::KIT);
+	const deluge::project::MappingTable mappingsBefore =
+	    rowCommandsMove ? modelStack->song->project.mappings : deluge::project::MappingTable{};
+	const std::vector<uint32_t> oldRows = deluge::bridge::rowIdsOf(oldInstrument);
+
 	AudioEngine::routineWithClusterLoading();
 
 	AudioEngine::audioRoutineLocked = true;
@@ -1843,6 +1852,10 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	detachFromOutput(modelStack, true, (newInstrument->type == OutputType::KIT), false, keepNoteRowsWithMIDIInput,
 	                 giveMidiAssignmentsToNewInstrument,
 	                 false); // Keep channel expression on the Clip across output-type changes.
+	if (rowCommandsMove && oldInstrument->type == OutputType::KIT) {
+		deluge::bridge::recordMovedDrumCommands(*static_cast<Kit*>(oldInstrument), mappingsBefore, {},
+		                                        *modelStack->song);
+	}
 
 	Error error =
 	    setInstrument(newInstrument, modelStack->song, newParamManager,
@@ -1940,6 +1953,10 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 			if (newNoteRow) {
 				bindNoteRowStructure(*newNoteRow);
 			}
+		}
+
+		if (rowCommandsMove) { // its rows took what the clip's rows held
+			deluge::bridge::recordMovedDrumCommands(*kit, mappingsBefore, oldRows, *modelStack->song);
 		}
 	}
 

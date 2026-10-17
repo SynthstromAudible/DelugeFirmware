@@ -478,9 +478,14 @@ bool Song::completeBlankPreset(const deluge::storage::AcquireResult& acquired) {
 	const bool defaultSynthHasInput = blankPresetInstrument->midiInput.containsSomething();
 	const LearnedMIDI presetInput = acquired.instrument->midiInput;
 	replaceInstrument(blankPresetInstrument, acquired.instrument);
-	if (!defaultSynthHasInput && acquired.instrument->id()) {
-		(void)deluge::edits::learnedMappingIn(*this, deluge::project::TrackInputTarget{*acquired.instrument->id()},
-		                                      presetInput);
+	if (!defaultSynthHasInput) {
+		if (acquired.instrument->id()) {
+			(void)deluge::edits::learnedMappingIn(*this, deluge::project::TrackInputTarget{*acquired.instrument->id()},
+			                                      presetInput);
+		}
+		else { // not one of the song's bindings yet: the instrument keeps its input, and joins the table with it
+			acquired.instrument->midiInput = presetInput;
+		}
 	}
 	blankPresetInstrument = nullptr;
 	blankPresetClip = nullptr;
@@ -3532,6 +3537,7 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	const bool rowCommandsMove = oldOutput->type == OutputType::KIT || newOutput->type == OutputType::KIT;
 	const deluge::project::MappingTable mappingsBefore =
 	    tableFollows && rowCommandsMove ? project.mappings : deluge::project::MappingTable{};
+	const std::vector<uint32_t> oldRows = deluge::bridge::rowIdsOf(oldOutput);
 
 	// Migrate input MIDI channel / device. Putting this up here before any calls to changeInstrument() is good,
 	// because then if a default velocity is set, for the MIDIDevice, that gets grabbed by the Clip's ParamManager
@@ -3625,7 +3631,7 @@ traverseClips:
 
 	// The old kit's rows gave their commands up to the clips' rows.
 	if (tableFollows && oldOutput->type == OutputType::KIT) {
-		deluge::bridge::recordMovedDrumCommands(*static_cast<Kit*>(oldOutput), mappingsBefore, *this);
+		deluge::bridge::recordMovedDrumCommands(*static_cast<Kit*>(oldOutput), mappingsBefore, {}, *this);
 	}
 
 	// Migrate all ClipInstances from oldInstrument to newInstrument
@@ -3675,7 +3681,7 @@ traverseClips:
 		// A hibernating instrument woken here was bound already: what it brings the table lacks goes in all the same.
 		deluge::bridge::recordArrivingOutput(*newOutput, *this);
 		if (newOutput->type == OutputType::KIT) { // its rows took the clips' rows' commands
-			deluge::bridge::recordMovedDrumCommands(*static_cast<Kit*>(newOutput), mappingsBefore, *this);
+			deluge::bridge::recordMovedDrumCommands(*static_cast<Kit*>(newOutput), mappingsBefore, oldRows, *this);
 		}
 		deluge::bridge::projectOutputMappings(*this, *newOutput->id());
 	}

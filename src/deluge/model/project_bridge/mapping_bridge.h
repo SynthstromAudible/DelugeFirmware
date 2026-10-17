@@ -27,6 +27,7 @@
 #include "deluge-project/midi_command.h"
 
 #include <cstdint>
+#include <span>
 #include <vector>
 
 class Drum;
@@ -84,12 +85,20 @@ void handOverInstrument(::Song& song, uint32_t from, uint32_t to, bool knobs);
 void projectOutputMappings(::Song& song, uint32_t output);
 
 /// @brief Make @p kit's rows' mutes and inputs in @p song's table what the runtime holds after it moved them between
-/// rows (a kit change gives a replaced kit's row commands to the new kit's rows). A row's command keeps the source an
-/// entry of @p before gave it, so a device the runtime could not name stays named.
-/// @param kit    The kit whose rows' commands moved.
-/// @param before The table as it was before the move.
-/// @param song   The song.
-void recordMovedDrumCommands(::Kit& kit, const deluge::project::MappingTable& before, ::Song& song);
+/// rows: a kit change gives a replaced kit's row commands to the clips' rows, and they give them to the new kit's rows.
+/// A row's command keeps the source @p before held for it, or for the same kind of command of one of @p fromRows, so a
+/// device the runtime could not name stays named.
+/// @param kit      The kit whose rows' commands moved.
+/// @param before   The table as it was before the move.
+/// @param fromRows The ids of the rows the commands came from (rowIdsOf the kit they left), empty when not known.
+/// @param song     The song.
+void recordMovedDrumCommands(::Kit& kit, const deluge::project::MappingTable& before,
+                             std::span<const uint32_t> fromRows, ::Song& song);
+
+/// @brief The ids of @p output's kit rows: none when it is not a kit.
+/// @param output The output, or nullptr.
+/// @return The ids, in row order.
+[[nodiscard]] std::vector<uint32_t> rowIdsOf(const ::Output* output);
 
 /// @brief Clear the relative flag of @p knob's entry in @p song's table: a CC value only an absolute controller sends
 /// arrived on it. A plain table write, run from the MIDI input path.

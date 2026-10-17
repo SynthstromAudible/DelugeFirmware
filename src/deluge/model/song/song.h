@@ -273,6 +273,8 @@ public:
 	///
 	/// @param drum The drum to bind.
 	void adoptDrum(Drum* drum);
+	/// @brief Whether this song's own file is being read: its bindings go into its table once every id is final.
+	[[nodiscard]] bool isReadingFromFile() const { return readingFromFile_; }
 	/// @brief Drop a drum's structural record when the drum is genuinely destroyed, so the store doesn't accumulate
 	///        dead entries.
 	///

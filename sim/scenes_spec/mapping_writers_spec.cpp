@@ -4,6 +4,7 @@
 ///        holds what the engine plays.
 
 #include "deluge-project/mapping_table.h"
+#include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/clip/audio_clip.h"
@@ -20,6 +21,8 @@
 #include "processing/audio_output.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+
+#include <vector>
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
 #include "support/song_fixture.h"
@@ -110,6 +113,74 @@ Kit* makeLooseKit(::Song& song) {
 void activate(spec::SongFixture& f) {
 	char memory[MODEL_STACK_MAX_SIZE];
 	f.instrument->setActiveClip(setupModelStackWithTimelineCounter(memory, f.song, f.clip));
+}
+
+/// @brief A hosted cable this spec owns, registered with the device manager so a command naming it finds it.
+struct SpecCable final : ::MIDICableUSBHosted {
+	SpecCable(const char* n, uint16_t vendor, uint16_t product) {
+		name = n;
+		vendorId = vendor;
+		productId = product;
+	}
+	void writeToFlash(uint8_t*) override {}
+	char const* getDisplayName() override { return name.c_str(); }
+	void sendMessage(MIDIMessage) override {}
+	void sendSysex(const uint8_t*, int32_t) override {}
+	[[nodiscard]] size_t sendBufferSpace() const override { return 0; }
+
+protected:
+	void writeReferenceAttributesToFile(Serializer&) override {}
+};
+
+/// @brief A connected controller called "MW" whose USB ids are not the ones a song saved for it: found by its name.
+SpecCable& renamedController() {
+	static SpecCable cable{"MW", 0x9999, 0x8888};
+	static const bool registered = [] {
+		MIDIDeviceManager::hostedMIDIDevices.push_back(&cable);
+		return true;
+	}();
+	(void)registered;
+	return cable;
+}
+
+/// @brief A kit built the way a preset load builds one, holding @p rows MIDI drums, not yet in @p f's song.
+Kit* makeKitWithRows(spec::SongFixture& f, int rows, std::vector<MIDIDrum*>* drums = nullptr) {
+	Kit* kit = makeLooseKit(*f.song);
+	for (int i = 0; i < rows; i++) {
+		void* memory = deluge::memory::alloc_fast(sizeof(MIDIDrum));
+		auto* drum = new (memory) MIDIDrum();
+		kit->addDrum(drum);
+		if (drums != nullptr) {
+			drums->push_back(drum);
+		}
+	}
+	return kit;
+}
+
+/// @brief Whether every row of @p kit plays what the table holds for it.
+bool rowsMatch(::Song& song, Kit& kit) {
+	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
+		if (!drum->id() || !fieldMatches(song, DrumMuteTarget{*drum->id()}, drum->muteMIDICommand)
+		    || !fieldMatches(song, LaneInputTarget{*drum->id()}, drum->midiInput)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/// @brief Scroll @p f's clip to its first row, as a user looking at it would: a row on screen keeps what it holds
+///        when the clip enters kit mode.
+void scrollToFirstRow(spec::SongFixture& f) {
+	f.clip->yScroll = f.clip->getYVisualFromYNote(f.clip->noteRows[0].y(), f.song);
+}
+
+/// @brief A kit's clip changed to a synth: its rows give their commands up to the clip's rows, which then hold them.
+SoundInstrument* toSynth(spec::SongFixture& f, Kit* kit) {
+	kit->editedByUser = true; // so it hibernates, its rows with it
+	SoundInstrument* synth = makeLooseSynth(*f.song);
+	f.song->replaceInstrument(kit, synth);
+	synth->editedByUser = true;
+	return synth;
 }
 
 /// @brief A MIDI drum, not in any kit.
@@ -282,6 +353,94 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 			expect(fieldMatches(*f.song, LaneInputTarget{*drum->id()}, drum->midiInput)).to_be_true();
 		}
 		expect(newDrum->muteMIDICommand.equalsNoteOrCC(nullptr, 1, 36)).to_be_true();
+	});
+
+	it("keeps an absent device's name on a row's mute through a kit change", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		MIDIDrum* oldDrum = spec::add_drum<MIDIDrum>(f);
+		activate(f);
+		// A clip mute on the same channel and note, from any device: the runtime plays both alike.
+		deluge::edits::learnMappingFor(note(1, 36), ClipMuteTarget{f.clip->id()});
+		deluge::edits::learnMappingFor(fromAbsentDevice(note(1, 36)), DrumMuteTarget{*oldDrum->id()});
+		static_cast<Kit*>(f.instrument)->editedByUser = true;
+
+		std::vector<MIDIDrum*> rows;
+		Kit* newKit = makeKitWithRows(f, 1, &rows);
+		f.song->replaceInstrument(f.instrument, newKit);
+		expect(held(*f.song, DrumMuteTarget{*rows[0]->id()}) == fromAbsentDevice(note(1, 36))).to_be_true();
+		expect(held(*f.song, ClipMuteTarget{f.clip->id()}) == note(1, 36)).to_be_true();
+	});
+
+	it("keeps each row's entry and field the same through a change to a kit with fewer rows", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		MIDIDrum* first = spec::add_drum<MIDIDrum>(f);
+		MIDIDrum* second = spec::add_drum<MIDIDrum>(f);
+		activate(f);
+		deluge::edits::learnMappingFor(note(1, 36), DrumMuteTarget{*first->id()});
+		deluge::edits::learnMappingFor(note(1, 37), DrumMuteTarget{*second->id()});
+		deluge::edits::learnMappingFor(note(2, 38), LaneInputTarget{*second->id()});
+		auto* oldKit = static_cast<Kit*>(f.instrument);
+		oldKit->editedByUser = true;
+
+		Kit* newKit = makeKitWithRows(f, 1);
+		f.song->replaceInstrument(oldKit, newKit);
+		expect(rowsMatch(*f.song, *oldKit)).to_be_true();
+		expect(rowsMatch(*f.song, *newKit)).to_be_true();
+		expect(newKit->firstDrum->muteMIDICommand.containsSomething()).to_be_true();
+	});
+
+	it("keeps each row's entry and field the same through a kit, a synth and a kit again", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		MIDIDrum* drum = spec::add_drum<MIDIDrum>(f);
+		activate(f);
+		deluge::edits::learnMappingFor(note(1, 36), DrumMuteTarget{*drum->id()});
+		auto* oldKit = static_cast<Kit*>(f.instrument);
+		SoundInstrument* synth = toSynth(f, oldKit);
+		expect(rowsMatch(*f.song, *oldKit)).to_be_true();
+
+		scrollToFirstRow(f);
+		Kit* newKit = makeKitWithRows(f, 1);
+		f.song->replaceInstrument(synth, newKit);
+		expect(newKit->firstDrum->muteMIDICommand.equalsNoteOrCC(nullptr, 1, 36)).to_be_true();
+		expect(rowsMatch(*f.song, *newKit)).to_be_true();
+	});
+
+	it("records the row commands a clip's rows give a kit its clip moves to", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		MIDIDrum* drum = spec::add_drum<MIDIDrum>(f);
+		activate(f);
+		deluge::edits::learnMappingFor(note(1, 36), DrumMuteTarget{*drum->id()});
+		(void)toSynth(f, static_cast<Kit*>(f.instrument)); // the clip's rows now hold the mute
+
+		scrollToFirstRow(f);
+		Kit* other = makeKitWithRows(f, 1);
+		f.song->addOutput(other);
+		char memory[MODEL_STACK_MAX_SIZE];
+		const Error error = f.clip->changeInstrument(setupModelStackWithTimelineCounter(memory, f.song, f.clip), other,
+		                                             nullptr, InstrumentRemoval::NONE);
+		expect(static_cast<int>(error)).to_equal(static_cast<int>(Error::NONE));
+		expect(other->firstDrum->muteMIDICommand.equalsNoteOrCC(nullptr, 1, 36)).to_be_true();
+		expect(rowsMatch(*f.song, *other)).to_be_true();
+	});
+
+	it("clears a clip knob's relative flag in the table when its device's saved ids are not the cable's", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		activate(f);
+		SpecCable& cable = renamedController();
+		const ParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_PAN)};
+		Command source = knobCc(2, 9);
+		source.device = MidiDeviceRef{
+		    .port = MidiDeviceRef::Port::HOSTED, .name = "MW", .vendor_id = 0x0001, .product_id = 0x0002};
+		deluge::edits::learnMappingFor(source, knob);
+		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+		expect(sound.midi_knobs.size() == 1 && sound.midi_knobs[0].midiInput.cable == &cable).to_be_true();
+
+		char memory[MODEL_STACK_MAX_SIZE];
+		sound.offerReceivedCCToLearnedParamsForClip(cable, 2, 9, 64,
+		                                            setupModelStackWithTimelineCounter(memory, f.song, f.clip), -1);
+		expect(sound.midi_knobs[0].relative).to_be_false();
+		expect(f.song->project.mappings.find(knob)->relative).to_be_false();
+		expect(held(*f.song, knob) == source).to_be_true();
 	});
 
 	it("learns and unlearns a menu's MIDI knob through the table", _ {
