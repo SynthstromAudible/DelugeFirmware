@@ -484,29 +484,16 @@ bool SampleLowLevelReader::fillInterpolationBufferForward(SamplePlaybackGuide* g
                                                           int32_t interpolationBufferSize, bool loopingAtLowLevel,
                                                           int32_t numSpacesToFill, int32_t priorityRating) {
 
-	if (clusters[0] == nullptr) {
-		// zero and exit fast
-		for (int32_t i = numSpacesToFill - 1; i >= 0; i--) {
-			interpolator_.setL(i, 0);
-			interpolator_.setR(i, 0);
-			currentPlayPos++;
-			if ((uint32_t)currentPlayPos >= interpolationBufferSize) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	// otherwise...
 	for (int32_t i = numSpacesToFill - 1; i >= 0; i--) {
-		bool stillGoing = changeClusterIfNecessary(guide, sample, loopingAtLowLevel, priorityRating);
-		if (!stillGoing) {
+		// The sample can end during this fill. Once it does, fill the remaining taps with silence.
+		if (clusters[0] == nullptr || !changeClusterIfNecessary(guide, sample, loopingAtLowLevel, priorityRating)) {
 			interpolator_.setL(i, 0);
 			interpolator_.setR(i, 0);
 			currentPlayPos++;
 			if ((uint32_t)currentPlayPos >= interpolationBufferSize) {
 				return false;
 			}
+			continue;
 		}
 
 		interpolator_.setL(i, *(int16_t*)(currentPlayPos + 2));
