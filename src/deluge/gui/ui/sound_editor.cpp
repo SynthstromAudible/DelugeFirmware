@@ -990,9 +990,9 @@ void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			auto& frequency = sourceShortcutBlinkFrequencies[x][y];
 			auto& colour = sourceShortcutBlinkColours[x][y];
-			frequency = 255;
-			colour = 0;
-			sourceShortcutBlinkAlternates[x][y] = false;
+			frequency = 255; // don't blink is the default
+			colour = 0; // white shortcut flash is the default
+			sourceShortcutBlinkAlternates[x][y] = false; // not alternating by default
 
 			const auto source = modSourceShortcuts[x][y];
 			if (source < kLastPatchSource) {
@@ -1504,7 +1504,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 				const bool secondLayerModSourceShortcutsToggled =
 					sourceShortcutBlinkFrequencies[modSourceX][y] != 255
 					&& getCurrentMenuItem()->getParamKind() == modulation::params::Kind::PATCH_CABLE
-					&& sourceShortcutBlinkColours[modSourceX][y] != 0b00000011;
+					&& sourceShortcutBlinkColours[modSourceX][y] != 0b00000011; /* yellow */
 
 				// Replace with the second layer shortcut (e.g. env3, lfo3) if the pad was pressed twice
 				if (secondLayerModSourceShortcutsToggled) {
