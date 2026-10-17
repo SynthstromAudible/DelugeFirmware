@@ -254,19 +254,6 @@ extern uint32_t ttb_mmu1_base[]; /* The first level translation table - see ttb_
 /* As TTB_PARA_STRGLY in ttb_init.S - full access, domain 15 - but with B set, making it Device memory */
 #define TTB_PARA_DEVICE 0x0DE6uL
 
-/******************************************************************************
- * Function Name: L2CacheMapRegistersAsDevice
- * Description  : Remaps the 1MB section holding the L2 controller's registers from strongly-ordered to Device
- *                memory. Strongly-ordered accesses each stall until the controller has answered, which made
- *                invalidating a 32kB Cluster's lines take hundreds of us. Device writes can be buffered, so a run of
- *                line operations doesn't stall on each one. They still reach the controller in order, and never
- *                speculatively.
- *
- *                Device accesses aren't ordered against Normal memory accesses though, unlike strongly-ordered ones,
- *                so code relying on that needs a DSB. This section also holds the BSC (0x3FFFC000), which configures
- *                SDRAM - so this must only be done once that's set up and the SDRAM is in use, as resetprg.c relies
- *                on BSC writes landing before it touches SDRAM.
- ******************************************************************************/
 /* Sets the descriptors for sections first_section to last_section inclusive, and makes sure the MMU uses them */
 static void setSectionDescriptors(uint32_t first_section, uint32_t last_section, uint32_t attributes)
 {
@@ -288,6 +275,19 @@ static void setSectionDescriptors(uint32_t first_section, uint32_t last_section,
     __asm volatile("isb" ::: "memory");
 }
 
+/******************************************************************************
+ * Function Name: L2CacheMapRegistersAsDevice
+ * Description  : Remaps the 1MB section holding the L2 controller's registers from strongly-ordered to Device
+ *                memory. Strongly-ordered accesses each stall until the controller has answered, which made
+ *                invalidating a 32kB Cluster's lines take hundreds of us. Device writes can be buffered, so a run of
+ *                line operations doesn't stall on each one. They still reach the controller in order, and never
+ *                speculatively.
+ *
+ *                Device accesses aren't ordered against Normal memory accesses though, unlike strongly-ordered ones,
+ *                so code relying on that needs a DSB. This section also holds the BSC (0x3FFFC000), which configures
+ *                SDRAM - so this must only be done once that's set up and the SDRAM is in use, as resetprg.c relies
+ *                on BSC writes landing before it touches SDRAM.
+ ******************************************************************************/
 void L2CacheMapRegistersAsDevice(void)
 {
     uint32_t section = (uint32_t)&L2C >> 20;

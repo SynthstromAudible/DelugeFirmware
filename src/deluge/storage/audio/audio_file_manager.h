@@ -212,7 +212,7 @@ private:
 
 	/// Finishes off Clusters the SD interrupt has read
 	void finishClusterReads();
-	void finishClusterRead(Cluster& cluster, Priority priority, int32_t error);
+	void finishClusterRead(Cluster& cluster, int32_t error);
 	/// Converts @p cluster's data and swaps the bytes that overhang its neighbours, now that it's been read
 	void finishLoadingCluster(Cluster& cluster);
 	/// Recycles a Cluster whose last reason was removed while the SD interrupt was reading it

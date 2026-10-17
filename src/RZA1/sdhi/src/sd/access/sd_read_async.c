@@ -122,7 +122,6 @@ static void fail(SDHNDL* hndl, int error) {
 		hndl->error = SD_ERR;
 	}
 
-	logAudioAction("sd isr: read failed");
 	set_state(ASYNC_FAILED);
 	async.done(async.read.user, hndl->error);
 }
@@ -165,9 +164,7 @@ static void start_data(SDHNDL* hndl) {
 	set_state(ASYNC_DATA);
 
 	// See doActualReadRohan() for why this is needed before as well as after
-	logAudioAction("sd isr: invalidate before");
 	invalidate_range_before_dma_read((uintptr_t)async.buff, (uintptr_t)(async.buff + count * 512));
-	logAudioAction("sd isr: /invalidate before");
 
 	unsigned long reg = hndl->reg_base;
 	if (TARGET_RZ_A1 != 1 || async.dma_64 != SD_MODE_DMA_64) {

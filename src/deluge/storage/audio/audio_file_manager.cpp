@@ -1322,9 +1322,7 @@ void AudioFileManager::loadAnyEnqueuedClusters(bool mayProcessUserActionsBetween
 
 	sd_async_check_timeout();
 	sd_async_recover(); // If the last read failed
-	AudioEngine::logAction("kick cluster reads");
 	sd_async_kick();
-	AudioEngine::logAction("/kick cluster reads");
 }
 
 bool AudioFileManager::nextClusterRead(SdAsyncRead& read, const InterruptsDisabled& guard) {
@@ -1408,12 +1406,12 @@ void AudioFileManager::finishClusterReads() {
 			clusterReadsStart_ = clusterReadsStart_ + 1;
 		}
 		if (read.cluster != nullptr) {
-			finishClusterRead(*read.cluster, read.priority, read.error);
+			finishClusterRead(*read.cluster, read.error);
 		}
 	}
 }
 
-void AudioFileManager::finishClusterRead(Cluster& cluster, Priority priority, int32_t error) {
+void AudioFileManager::finishClusterRead(Cluster& cluster, int32_t error) {
 	bool unloadable = cluster.unloadable || cluster.sample->unloadable;
 
 	// Its last reason was removed while it was being read, and removeReasonFromCluster() left it to us
@@ -1441,9 +1439,7 @@ void AudioFileManager::finishClusterRead(Cluster& cluster, Priority priority, in
 		return;
 	}
 
-	AudioEngine::logAction("finish cluster");
 	finishLoadingCluster(cluster);
-	AudioEngine::logAction("/finish cluster");
 }
 
 void AudioFileManager::recycleUnwantedCluster(Cluster& cluster) {
