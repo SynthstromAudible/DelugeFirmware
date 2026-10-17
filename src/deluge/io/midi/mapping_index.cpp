@@ -220,11 +220,10 @@ void refreshMappingIndex() {
 		return; // with no song, the marks wait for the next one
 	}
 	bridge::applyPendingMappingOps(*currentSong);
-	if (mapping_index_detail::mapping_devices_changed.load(std::memory_order_acquire)) {
+	// Cleared before the projection, so a mark made during it is not lost. A device entry the projection makes marks
+	// again, and the next refresh projects once more: that one finds every entry and makes none, so it marks nothing.
+	if (mapping_index_detail::mapping_devices_changed.exchange(false, std::memory_order_acq_rel)) {
 		bridge::projectDeviceMappings(*currentSong);
-		// Cleared after: the entries the projection itself made mark the devices changed, and it has played them. Every
-		// other device mark is made on this tier too, so none lands meanwhile.
-		mapping_index_detail::mapping_devices_changed.store(false, std::memory_order_release);
 	}
 	rebuildMappingIndex(*currentSong);
 }

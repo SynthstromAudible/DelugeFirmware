@@ -609,12 +609,16 @@ std::optional<Hit> hitOn(const std::vector<Hit>& hits, const MappingTarget& targ
 	return it != hits.end() ? std::optional{*it} : std::nullopt;
 }
 
-/// The app loop's step before it matches an incoming message; @p what is set when a change it should act on is left
-/// waiting.
+/// The app loop's step before it matches an incoming message, run as the loop runs it until nothing waits; @p what is
+/// set when a change it should act on is still waiting after the second. A projection that makes a device entry marks
+/// the devices once more, and the next refresh finds that entry and marks nothing.
 void refresh(std::string& what) {
 	deluge::midi::refreshMappingIndex();
+	if (deluge::mappingIndexStale()) {
+		deluge::midi::refreshMappingIndex();
+	}
 	if (what.empty() && deluge::mappingIndexStale()) {
-		what = "a refresh left the index marked stale";
+		what = "two refreshes left the index marked stale";
 	}
 }
 
