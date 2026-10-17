@@ -161,8 +161,4 @@ Error projectMapping(::Song& song, const deluge::project::MappingTarget& target)
 savedKnobsOf(::Song& song, const ::ModControllableAudio& owner,
              std::optional<deluge::project::ControlsAddress> address);
 
-/// @brief Bring the dispatch index of @p song's bindings into line with its table.
-/// @param song The song.
-void rebuildMappingIndex(::Song& song);
-
 } // namespace deluge::bridge

@@ -2007,6 +2007,22 @@ tier = "pr"
 runtime = "~1s"
 
 [[harness]]
+name = "mapping-dispatch"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the mapping index matches incoming MIDI as the dispatch's scans of the engine fields do: over seeded random mapping tables of a small song (every target kind, channels, MPE zones and their CC and program-change encodings, sources from any device, a known one or one the Deluge does not know) and random messages (from DIN or upstream USB, inputs told apart by device or not, random MPE zones on both cables), the sections and session clips, each owner's learned knobs and each kit's rows the index finds are those the scans find, in their order (mapping_dispatch.cpp, self-checking)"
+scenario = "mapping_dispatch"
+markers = ["DRV-OUT MAPPING-DISPATCH", "DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+runtime = "~5s"
+
+[[harness]]
 name = "xml-replay-diff"
 path = "."
 level = "integration"

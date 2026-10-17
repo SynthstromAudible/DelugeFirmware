@@ -35,6 +35,7 @@
 /// | instrument_codec_encode | the Deluge instrument's encode against the elements the app writes          |
 /// | instrument_state_roundtrip | a sound's written element decodes and encodes back to itself            |
 /// | json_roundtrip       | XML -> JSON -> JSON fixed point                                            |
+/// | mapping_dispatch     | the mapping index against the dispatch's scans of learned bindings, seeded |
 /// | model_decode_diff    | the model's decode of a saved song against the records the engine leaves   |
 /// | param_clone          | ParamCollection clone deep independence, self-checking                     |
 /// | param_projection     | DocAutoParam <-> AutoParam projection, self-checking                       |
@@ -70,6 +71,7 @@ DELUGE_DRIVER_SCENARIO_DECLARE(instrument_codec_decode)
 DELUGE_DRIVER_SCENARIO_DECLARE(instrument_codec_encode)
 DELUGE_DRIVER_SCENARIO_DECLARE(instrument_state_roundtrip)
 DELUGE_DRIVER_SCENARIO_DECLARE(json_roundtrip)
+DELUGE_DRIVER_SCENARIO_DECLARE(mapping_dispatch)
 DELUGE_DRIVER_SCENARIO_DECLARE(model_decode_diff)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_clone)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_projection)

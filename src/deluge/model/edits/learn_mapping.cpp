@@ -2,6 +2,7 @@
 
 #include "io/debug/log.h"
 #include "io/midi/learned_midi.h"
+#include "io/midi/mapping_index.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
@@ -22,7 +23,7 @@ Error project(Context& ctx, const deluge::project::MappingTarget& target, deluge
 		ctx.model.mappings = std::move(before);
 		return projected;
 	}
-	deluge::bridge::rebuildMappingIndex(ctx.song);
+	deluge::midi::rebuildMappingIndex(ctx.song);
 	return Error::NONE;
 }
 

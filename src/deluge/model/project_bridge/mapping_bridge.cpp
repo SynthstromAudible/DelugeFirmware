@@ -18,6 +18,7 @@
 #include "model/project_bridge/mapping_bridge.h"
 
 #include "deluge-project/arrangement.h"
+#include "io/midi/mapping_index.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -256,7 +257,7 @@ void cloneOutputMappings(const ::Output& from, ::Output& to, ::Song& song) {
 	}
 	song.project.mappings.copy_params(*from.id(), *to.id());
 	(void)projectMapping(song, deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, *to.id()}, {}});
-	rebuildMappingIndex(song);
+	deluge::midi::rebuildMappingIndex(song);
 }
 
 void handOverInstrument(::Song& song, uint32_t from, uint32_t to, bool knobs) {
@@ -278,7 +279,7 @@ void projectOutputMappings(::Song& song, uint32_t output) {
 	// An owner with no knob list (a MIDI or CV track) or no input (an audio track) refuses its half: nothing to play.
 	(void)projectMapping(song, deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, output}, {}});
 	(void)projectMapping(song, deluge::project::TrackInputTarget{output});
-	rebuildMappingIndex(song);
+	deluge::midi::rebuildMappingIndex(song);
 }
 
 std::vector<uint32_t> rowIdsOf(const ::Output* output) {
@@ -304,7 +305,7 @@ void recordMovedDrumCommands(::Kit& kit, const MappingTable& before, std::span<c
 		recordMovedCommand(song.project.mappings, before, deluge::project::LaneInputTarget{*drum->id()},
 		                   drum->midiInput, fromRows);
 	}
-	rebuildMappingIndex(song);
+	deluge::midi::rebuildMappingIndex(song);
 }
 
 void knobNoLongerRelative(::ModControllableAudio& owner, const ::MIDIKnob& knob, ::Song& song) {
@@ -422,10 +423,6 @@ std::optional<std::vector<Mapping>> savedKnobsOf(::Song& song, const ::ModContro
 		return std::nullopt;
 	}
 	return song.project.mappings.params_of(*address);
-}
-
-void rebuildMappingIndex(::Song& /*song*/) {
-	// Dispatch reads the engine fields projectMapping keeps in line with the table; there is no index of its own yet.
 }
 
 } // namespace deluge::bridge
