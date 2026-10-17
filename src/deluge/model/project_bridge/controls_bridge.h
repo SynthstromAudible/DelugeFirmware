@@ -25,6 +25,7 @@
 #include <optional>
 #include <vector>
 
+class Drum;
 class ModControllable;
 class Output;
 class ModControllableAudio;
@@ -71,6 +72,18 @@ void refreshControls(::Song& song);
 /// @param song  The song to look in.
 /// @return The controls address, or nullopt.
 [[nodiscard]] std::optional<deluge::project::ControlsAddress> controlsAddressOf(::ModControllable& owner, ::Song& song);
+
+/// @brief The output of @p song, playing or hibernating, whose id is @p id.
+/// @param song The song to look in.
+/// @param id   The output's id.
+/// @return The output, or nullptr.
+[[nodiscard]] ::Output* outputWithId(::Song& song, uint32_t id);
+
+/// @brief The drum of any kit of @p song, playing or hibernating, whose id is @p id.
+/// @param song The song to look in.
+/// @param id   The drum's id.
+/// @return The drum, or nullptr.
+[[nodiscard]] ::Drum* drumWithId(::Song& song, uint32_t id);
 
 /// @brief The runtime owner of @p address's controls in @p song (outputs and hibernating instruments), with whether it
 /// is a sound (which has mod knobs), or nullptr.

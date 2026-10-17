@@ -139,13 +139,13 @@ inline void dxPatchFor(::Sound& sound, int32_t s, const deluge::instrument::DxPa
 }
 
 /// @brief Record @p owner's knobs as a gesture left them (a learn, an unlearn, a knob cycled to its next param): an
-/// Edit on its controller mappings when it is one of the current song's owners; nothing for one outside it (a MIDI or
-/// CV track's, which has no knob mappings).
+/// Edit on its controller mappings when it is one of the current song's outputs or kit rows; nothing for one outside
+/// it (a MIDI or CV track's, which has no knob mappings) nor for the song, whose mod knobs hold no record.
 /// @param owner The mod-controllable whose knob mappings changed.
 inline void recordControlsOf(::ModControllable& owner) {
 	const std::optional<deluge::project::ControlsAddress> address =
 	    deluge::bridge::controlsAddressOf(owner, *currentSong);
-	if (!address) {
+	if (!address || address->kind == deluge::project::ControlsAddress::Kind::SONG) {
 		return;
 	}
 	bool isSound = false;

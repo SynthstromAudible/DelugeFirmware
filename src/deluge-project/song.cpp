@@ -94,7 +94,7 @@ std::vector<ControllerMapping>* Song::resolveControls(ControlsAddress address) {
 	case ControlsAddress::Kind::SONG:
 		break;
 	}
-	return &controls;
+	return nullptr;
 }
 
 FxChain* Song::resolveChain(ChainAddress address) {

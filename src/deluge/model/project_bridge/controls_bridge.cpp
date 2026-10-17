@@ -93,7 +93,6 @@ void refreshControls(::Song& song) {
 			break;
 		}
 	}
-	song.project.controls.clear();
 }
 
 ParamDescriptor descriptorOf(deluge::engine::ParamId target, params::Kind unpatchedKind) {
@@ -189,33 +188,47 @@ std::optional<deluge::project::ControlsAddress> controlsAddressOf(::ModControlla
 	return found;
 }
 
+Output* outputWithId(::Song& song, uint32_t id) {
+	Output* found = nullptr;
+	forEachOutput(song, [&](Output& output) {
+		if (output.id() == id) {
+			found = &output;
+		}
+		return found != nullptr;
+	});
+	return found;
+}
+
+Drum* drumWithId(::Song& song, uint32_t id) {
+	Drum* found = nullptr;
+	forEachOutput(song, [&](Output& output) {
+		if (output.type == OutputType::KIT) {
+			found = static_cast<Kit&>(output).drumWithId(id);
+		}
+		return found != nullptr;
+	});
+	return found;
+}
+
 ::ModControllableAudio* controlsOwnerAt(::Song& song, deluge::project::ControlsAddress address, bool* isSound) {
 	using Kind = deluge::project::ControlsAddress::Kind;
 	*isSound = false;
-	if (address.kind == Kind::SONG) {
+	switch (address.kind) {
+	case Kind::SONG:
 		return &song.live.global_effectable;
+	case Kind::OUTPUT: {
+		Output* output = outputWithId(song, address.id);
+		return output != nullptr ? ownControlsOf(*output, isSound) : nullptr;
 	}
-	::ModControllableAudio* owner = nullptr;
-	forEachOutput(song, [&](Output& output) {
-		if (address.kind == Kind::OUTPUT) {
-			if (output.id() == address.id) {
-				owner = ownControlsOf(output, isSound);
-				return true;
-			}
-			return false;
-		}
-		if (output.type == OutputType::KIT) {
-			for (Drum* drum = static_cast<Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
-				if (drum->type == DrumType::SOUND && drum->id() == address.id) {
-					owner = static_cast<SoundDrum*>(drum);
-					*isSound = true;
-					return true;
-				}
-			}
-		}
-		return false;
-	});
-	return owner;
+	case Kind::DRUM:
+		break;
+	}
+	Drum* drum = drumWithId(song, address.id);
+	if (drum == nullptr || drum->type != DrumType::SOUND) {
+		return nullptr;
+	}
+	*isSound = true;
+	return static_cast<SoundDrum*>(drum);
 }
 
 void applyControls(::ModControllableAudio& owner, bool isSound, const std::vector<ControllerMapping>& controls) {

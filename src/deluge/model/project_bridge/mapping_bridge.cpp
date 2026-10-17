@@ -177,37 +177,6 @@ void recordMovedCommand(MappingTable& mappings, const MappingTable& before,
 	mappings.learn(Mapping{.source = played != nullptr ? played->source : command_of(field), .target = target});
 }
 
-/// The output of @p song, playing or hibernating, whose id is @p id, or nullptr.
-Output* outputWithId(::Song& song, uint32_t id) {
-	for (Output* first :
-	     {song.live.media.first_output, static_cast<Output*>(song.live.media.first_hibernating_instrument)}) {
-		for (Output* output = first; output != nullptr; output = output->next) {
-			if (output->id() == id) {
-				return output;
-			}
-		}
-	}
-	return nullptr;
-}
-
-/// The drum of any kit of @p song, playing or hibernating, whose id is @p id, or nullptr.
-Drum* drumWithId(::Song& song, uint32_t id) {
-	for (Output* first :
-	     {song.live.media.first_output, static_cast<Output*>(song.live.media.first_hibernating_instrument)}) {
-		for (Output* output = first; output != nullptr; output = output->next) {
-			if (output->type != OutputType::KIT) {
-				continue;
-			}
-			for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
-				if (drum->id() == id) {
-					return drum;
-				}
-			}
-		}
-	}
-	return nullptr;
-}
-
 /// The clip of @p song, in the session or the arrangement, whose id is @p id, or nullptr.
 Clip* clipWithId(::Song& song, uint32_t id) {
 	for (Clip* clip : AllClips::everywhere(&song)) {

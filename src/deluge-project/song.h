@@ -60,8 +60,8 @@ public:
 	/// @param address The slot's address.
 	/// @return The slot, or nullptr.
 	InstrumentSlot* resolveSlot(SlotAddress address);
-	/// @brief The controller mappings @p address names: an output's, a kit row's or the song's own, or nullptr for an
-	/// output or a drum this song has no record of.
+	/// @brief The controller mappings @p address names: an output's or a kit row's, or nullptr for an output or a drum
+	/// this song has no record of, and for the song, whose mod knobs hold no record.
 	/// @param address The controls' address.
 	/// @return The mappings, or nullptr.
 	std::vector<ControllerMapping>* resolveControls(ControlsAddress address);
@@ -107,8 +107,6 @@ public:
 	/// The song's own effect params (the global-effectable table's ids): the authority for their values and
 	/// automation, projected into the engine's master chain.
 	DocParamManager master_params;
-	/// The song's own learned MIDI knobs, on its effects: refreshed from the runtime at load and at save.
-	std::vector<ControllerMapping> controls;
 	/// Every MIDI-learned binding of the song, keyed by what it controls.
 	MappingTable mappings;
 	/// The song master's effects: refreshed from the runtime at load, written by its Edits.

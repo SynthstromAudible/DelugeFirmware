@@ -6,13 +6,13 @@ using namespace deluge::project;
 
 // clang-format off
 describe controls_address("an owner's controller mappings named by the owner", ${
-	it("resolves an output's, a kit row's and the song's controls", _ {
+	it("resolves an output's and a kit row's controls, and none for the song", _ {
 		Song song;
 		song.output_structure.getOrCreate(4);
 		song.drum_structure.getOrCreate(9);
 		expect(song.resolveControls({ControlsAddress::Kind::OUTPUT, 4})).to_equal(&song.output_structure.find(4)->controls);
 		expect(song.resolveControls({ControlsAddress::Kind::DRUM, 9})).to_equal(&song.drum_structure.find(9)->controls);
-		expect(song.resolveControls({ControlsAddress::Kind::SONG, 0})).to_equal(&song.controls);
+		expect(song.resolveControls({ControlsAddress::Kind::SONG, 0})).to_be_null();
 	});
 
 	it("resolves nothing for an unknown output or drum", _ {
