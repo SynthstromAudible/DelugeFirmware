@@ -29,6 +29,9 @@ public:
 	                                             MultiRange** currentRange) final;
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final;
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) final;
+	PatchingSourceShortcutTarget get_patching_source_shortcut_target(bool previous_press_still_active) const final {
+		return PatchingSourceShortcutTarget::RANGE;
+	}
 
 protected:
 	uint8_t p;
