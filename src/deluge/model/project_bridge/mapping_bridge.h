@@ -18,8 +18,10 @@
 #pragma once
 
 // The song's MIDI-learned bindings as the runtime reads and edits them: what a load read into the table, an owner's
-// learned knobs mirrored from its runtime list, and the sections' launch commands.
+// learned knobs mirrored from its runtime list, the sections' launch commands, and the table's entries projected onto
+// the engine fields that play them.
 
+#include "definitions_cxx.hpp" // Error
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/mapping_table.h"
 #include "deluge-project/midi_command.h"
@@ -81,5 +83,18 @@ void recordLoadedMappings(::Song& song);
 /// @param command  The command.
 void setSectionCommand(deluge::project::MappingTable& mappings, uint8_t section,
                        const deluge::project::MidiCommand& command);
+
+/// @brief Make the engine field that plays @p target what @p song's table holds for it: an owner's learned knob list
+/// (a knob the table leaves as it is stays whole, with its device and takeover state), a clip's or a kit row's mute
+/// command, a track's or a kit row's input. A section's command lives in the table alone.
+/// @param song   The song.
+/// @param target The target to project.
+/// @return Error::UNSPECIFIED, with nothing changed, when @p target's owner is not in @p song (no such output, drum or
+///         clip, playing or hibernating; no such section); otherwise Error::NONE.
+Error projectMapping(::Song& song, const deluge::project::MappingTarget& target);
+
+/// @brief Bring the dispatch index of @p song's bindings into line with its table.
+/// @param song The song.
+void rebuildMappingIndex(::Song& song);
 
 } // namespace deluge::bridge
