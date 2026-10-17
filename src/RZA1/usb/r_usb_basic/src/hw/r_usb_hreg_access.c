@@ -40,6 +40,7 @@
  External variables and functions
  ***********************************************************************************************************************/
 extern uint8_t g_usb_std_uclksel;
+extern void usbDebugConsoleText(char const* text); // TEMP DIAGNOSTIC
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hset_rwupe
@@ -644,7 +645,8 @@ void hw_usb_hmodule_init(usb_ctrl_t* p_ctrl)
         {
             case USB_FS_JSTS: /* USB device already connected */
             case USB_LS_JSTS:
-                anythingInitiallyAttachedAsUSBHost = 1; // By Rohan
+                anythingInitiallyAttachedAsUSBHost = 1;     // By Rohan
+                usbDebugConsoleText("USB: device at boot"); // TEMP DIAGNOSTIC
 
                 if (USB_FS_JSTS == sts)
                 {

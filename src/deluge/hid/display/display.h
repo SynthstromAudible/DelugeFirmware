@@ -131,3 +131,4 @@ extern bool have_oled_screen;
 } // namespace deluge::hid::display
 
 extern "C" void consoleTextIfAllBootedUp(char const* text);
+extern "C" void usbDebugConsoleText(char const* text); // TEMP DIAGNOSTIC
