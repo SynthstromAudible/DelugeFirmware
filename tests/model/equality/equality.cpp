@@ -17,6 +17,7 @@
 
 #include "equality/equality.h"
 #include "controls_test_engines.h"
+#include "mock_panic.h"
 
 #include "serialization/parse_json.h"
 #include "serialization/parse_xml.h"
@@ -106,7 +107,12 @@ std::expected<void, std::string> check_equality(std::string_view songText, bool 
 	if (!a) {
 		return std::unexpected("has no song");
 	}
+	deluge::test::clear_freeze();
 	serialization::Value encoded = encode_song(*a, kWriter, deluge::project::test::test_engines());
+	if (!deluge::test::last_freeze().empty()) {
+		// E466: an element the encode built holds a key twice.
+		return std::unexpected("its encode froze with " + deluge::test::last_freeze());
+	}
 	if (faults.on_encoded) {
 		faults.on_encoded(encoded);
 	}

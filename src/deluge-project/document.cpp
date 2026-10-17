@@ -23,6 +23,7 @@
 #include "deluge-project/mapping_codec.h"
 #include "deluge-project/song_codec.h"
 #include "deluge-project/structure_codec.h"
+#include "foundation/panic.h"
 #include "serialization/tree.h"
 
 #include <algorithm>
@@ -107,8 +108,16 @@ std::vector<NamedChild> clip_list(const Value& song, std::initializer_list<std::
 	return list != nullptr ? children(*list) : std::vector<NamedChild>{};
 }
 
-/// Copies every entry of the Map @p from to the end of @p to.
+/// Copies every entry of the Map @p from to the end of @p to. In a debug build, a key @p to already holds freezes: two
+/// owners would each write it, and a decode keeps both.
 void append_entries(Value& to, const Value& from) {
+#if !defined(NDEBUG)
+	for (const auto& entry : from.entries()) {
+		if (to.find(entry.first) != nullptr) {
+			FREEZE_WITH_ERROR("E466");
+		}
+	}
+#endif
 	for (const auto& [key, value] : from.entries()) {
 		to.set(key, value);
 	}
