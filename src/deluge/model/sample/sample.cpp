@@ -163,7 +163,8 @@ void Sample::markAsUnloadable() {
 		Cluster* cluster = clusters.getElement(c)->cluster;
 		if (cluster != nullptr) {
 			cluster->unloadable = true;
-			audioFileManager.loadingQueue.erase(cluster);
+			CriticalSectionGuard guard;
+			audioFileManager.loadingQueue.erase(cluster, guard);
 		}
 	}
 }
@@ -267,7 +268,7 @@ void Sample::deleteCache(SampleCache* cache) {
 
 // Returns error
 Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
-                            int32_t playDirection, int32_t maxNumSamplesToProcess) {
+                            int32_t playDirection, int32_t maxNumSamplesToProcess, int32_t priorityRating) {
 
 #if MEASURE_PERC_CACHE_PERFORMANCE
 	uint16_t startTime = MTU2.TCNT_0;
@@ -720,7 +721,7 @@ getOut:
 	LOCK_EXIT
 
 	// If current source Cluster has changed, update TimeStretcher's queue
-	timeStretcher->updateClustersForPercLookahead(this, sourceBytePos, playDirection);
+	timeStretcher->updateClustersForPercLookahead(this, sourceBytePos, playDirection, priorityRating);
 
 	AudioEngine::logAction("/fillPercCache");
 	return error; // Usually it'll be Error::NONE.

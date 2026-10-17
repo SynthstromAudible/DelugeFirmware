@@ -248,8 +248,10 @@ void sd_int_handler(int sd_port)
 	}
 
 	if(_sd_get_int(hndl) == SD_OK){
+		int cd_event = (hndl->int_info1 & (SD_INFO1_MASK_DET_DAT3 | SD_INFO1_MASK_DET_CD)) != 0;
+
 		/* is card detect interrupt? */
-		if(hndl->int_info1 & (SD_INFO1_MASK_DET_DAT3 | SD_INFO1_MASK_DET_CD)){
+		if(cd_event){
 			if(hndl->int_cd_callback){
 				if(hndl->int_info1 & (SD_INFO1_MASK_INS_DAT3 | SD_INFO1_MASK_INS_CD)){
 					cd = 1;	/* insert */
@@ -261,7 +263,13 @@ void sd_int_handler(int sd_port)
 			}
 			hndl->int_info1 &= (unsigned short)~(SD_INFO1_MASK_DET_DAT3 | SD_INFO1_MASK_DET_CD);
 		}
-		else{
+
+		/* an interrupt-driven read takes its next step from here, rather than being waited on (sd_read_async.c) */
+		if(sd_async_handle_int(hndl)){
+			return;
+		}
+
+		if(!cd_event){
 			if(hndl->int_callback){
 				(*hndl->int_callback)(sd_port, 0);	/* arguments to be defined */
 			}

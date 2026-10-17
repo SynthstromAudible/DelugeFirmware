@@ -603,6 +603,9 @@ void PlaybackHandler::endPlayback() {
 	// tick, which needs to refer to which clock is active, which is stored in playbackState.
 	playbackState = 0;
 
+	// Nothing's going to play on into the Clusters we'd prefetched. Before any song swap, so it can delete Samples.
+	audioFileManager.releaseAllPrefetches();
+
 	cvEngine.playbackEnded(); // Call this *after* playbackState is set
 	PadLEDs::clearTickSquares();
 

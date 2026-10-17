@@ -486,7 +486,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 				                    // Malte P.
 			}
 
-			Cluster* cluster = sampleCluster->getCluster(sample, clusterIndexToDo, load_instruction);
+			Cluster* cluster =
+			    sampleCluster->getCluster(sample, clusterIndexToDo, load_instruction, ClusterPriority::kSpeculative);
 			if (!cluster) {
 				D_PRINTLN("cant read");
 				retry_later(col);
@@ -520,7 +521,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 				if ((nextSampleCluster->cluster != nullptr) && nextSampleCluster->cluster->numReasonsToBeLoaded < 0) {
 					FREEZE_WITH_ERROR("E450"); // Trying to catch errer before i028, which users have gotten.
 				}
-				nextCluster = nextSampleCluster->getCluster(sample, clusterIndexToDo + 1, load_instruction);
+				nextCluster = nextSampleCluster->getCluster(sample, clusterIndexToDo + 1, load_instruction,
+				                                            ClusterPriority::kSpeculative);
 
 				if (cluster->numReasonsToBeLoaded <= 0) {
 					FREEZE_WITH_ERROR("E342"); // Trying to catch E340 below, which Ron R got while recording

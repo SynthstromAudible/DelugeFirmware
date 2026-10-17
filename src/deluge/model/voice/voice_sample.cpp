@@ -165,7 +165,8 @@ void VoiceSample::setupCacheLoopPoints(SamplePlaybackGuide* guide, Sample* sampl
 
 // Returns a status such as LateStartAttemptStatus::WAIT
 LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample,
-                                                           int64_t rawSamplesSinceStart, int32_t numSamples) {
+                                                           int64_t rawSamplesSinceStart, int32_t priorityRating,
+                                                           int32_t numSamples) {
 
 	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
 
@@ -202,7 +203,8 @@ LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* 
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 
 		// Grab it.
-		newClusters[l] = sample->clusters.getElement(clusterIndex)->getCluster(sample, clusterIndex, CLUSTER_ENQUEUE);
+		newClusters[l] = sample->clusters.getElement(clusterIndex)
+		                     ->getCluster(sample, clusterIndex, CLUSTER_ENQUEUE, priorityRating);
 
 		// If failure (would only happen in insanely rare case where there's no free RAM)
 		if (l == 0 && !newClusters[l]) {
@@ -346,7 +348,7 @@ bool VoiceSample::weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuid
 
 	if (timeStretchRatio != kMaxSampleValue) {
 		sample->fillPercCache(timeStretcher, playSample, playSample + (phaseIncrement >> 10) * playDirection,
-		                      playDirection, maxNumSamplesToProcess);
+		                      playDirection, maxNumSamplesToProcess, priorityRating);
 	}
 
 	return true;
@@ -850,7 +852,7 @@ readCachedWindow:
 				int32_t nextUncachedClusterIndex = uncachedClusterIndex;
 				for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 					clusters[l] = sample->clusters.getElement(nextUncachedClusterIndex)
-					                  ->getCluster(sample, nextUncachedClusterIndex, CLUSTER_ENQUEUE);
+					                  ->getCluster(sample, nextUncachedClusterIndex, CLUSTER_ENQUEUE, priorityRating);
 					if (!clusters[l]) {
 						break;
 					}

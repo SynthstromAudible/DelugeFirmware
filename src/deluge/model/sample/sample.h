@@ -64,7 +64,7 @@ public:
 	int32_t getFirstClusterIndexWithAudioData();
 	int32_t getFirstClusterIndexWithNoAudioData();
 	Error fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
-	                    int32_t playDirection, int32_t maxNumSamplesToProcess);
+	                    int32_t playDirection, int32_t maxNumSamplesToProcess, int32_t priorityRating);
 	void percCacheClusterStolen(Cluster* cluster);
 	void deletePercCache(bool beingDestructed = false);
 	uint8_t* prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirection, int32_t* earliestPixellatedPos,

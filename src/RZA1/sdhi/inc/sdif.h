@@ -309,6 +309,7 @@ int sddev_set_port(int sd_port, int mode);
 int32_t sddev_int_wait(int32_t sd_port, int32_t msec);
 int sddev_init_dma(int sd_port, unsigned long buffadr,unsigned long regadr,long cnt,int dir);
 int sddev_wait_dma_end(int sd_port, long cnt);
+int sddev_dma_ended(int sd_port);
 int sddev_disable_dma(int sd_port);
 int sddev_finalize(int sd_port);
 int sddev_loc_cpu(int sd_port);
