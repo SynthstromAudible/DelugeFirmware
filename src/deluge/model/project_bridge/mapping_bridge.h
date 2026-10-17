@@ -27,6 +27,7 @@
 #include "deluge-project/midi_command.h"
 
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -136,6 +137,29 @@ void setSectionCommand(deluge::project::MappingTable& mappings, uint8_t section,
 /// @return Error::UNSPECIFIED, with nothing changed, when @p target's owner is not in @p song (no such output, drum or
 ///         clip, playing or hibernating; no such section); otherwise Error::NONE.
 Error projectMapping(::Song& song, const deluge::project::MappingTarget& target);
+
+/// @brief Whether @p song holds @p output, playing or hibernating: a save then writes its bindings from the table.
+/// @param song   The song.
+/// @param output The output.
+/// @return True if @p output is one of @p song's.
+[[nodiscard]] bool holdsOutput(::Song& song, const ::Output& output);
+
+/// @brief Whether @p song holds @p drum, in any kit, playing or hibernating: a save then writes its bindings from the
+/// table.
+/// @param song The song.
+/// @param drum The kit row.
+/// @return True if @p drum is one of @p song's.
+[[nodiscard]] bool holdsDrum(::Song& song, const ::Drum& drum);
+
+/// @brief The learned knobs a save writes for @p owner: those @p song's table holds for @p address, in table order,
+/// when @p address names @p owner in @p song.
+/// @param song    The song.
+/// @param owner   The runtime owner being saved.
+/// @param address Whose controls @p owner's are, if known.
+/// @return The knobs, or nullopt when @p song does not hold @p owner at @p address (a save then has no table to read).
+[[nodiscard]] std::optional<std::vector<deluge::project::Mapping>>
+savedKnobsOf(::Song& song, const ::ModControllableAudio& owner,
+             std::optional<deluge::project::ControlsAddress> address);
 
 /// @brief Bring the dispatch index of @p song's bindings into line with its table.
 /// @param song The song.

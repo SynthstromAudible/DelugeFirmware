@@ -407,6 +407,23 @@ Error projectMapping(::Song& song, const deluge::project::MappingTarget& target)
 	    target);
 }
 
+bool holdsOutput(::Song& song, const ::Output& output) {
+	return output.id() && outputWithId(song, *output.id()) == &output;
+}
+
+bool holdsDrum(::Song& song, const ::Drum& drum) {
+	return drum.id() && drumWithId(song, *drum.id()) == &drum;
+}
+
+std::optional<std::vector<Mapping>> savedKnobsOf(::Song& song, const ::ModControllableAudio& owner,
+                                                 std::optional<ControlsAddress> address) {
+	bool isSound = false;
+	if (!address || controlsOwnerAt(song, *address, &isSound) != &owner) {
+		return std::nullopt;
+	}
+	return song.project.mappings.params_of(*address);
+}
+
 void rebuildMappingIndex(::Song& /*song*/) {
 	// Dispatch reads the engine fields projectMapping keeps in line with the table; there is no index of its own yet.
 }

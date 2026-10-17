@@ -70,4 +70,14 @@ namespace deluge::bridge {
 /// @param device  The device reference.
 void write_reference(Serializer& writer, char const* tagName, const deluge::project::MidiDeviceRef& device);
 
+/// @brief Write @p command as the `tagName` element a song holds, byte for byte as LearnedMIDI writes it: its channel
+/// or zone, its note or CC under @p midiMessageType's key, and its device as a `device` element. Nothing when it holds
+/// nothing.
+/// @param writer          The serializer to write to.
+/// @param tagName         The element's tag name.
+/// @param command         The command.
+/// @param midiMessageType MIDI_MESSAGE_NOTE or MIDI_MESSAGE_CC: which key its note or CC is written under.
+void write_command(Serializer& writer, char const* tagName, const deluge::project::MidiCommand& command,
+                   int32_t midiMessageType);
+
 } // namespace deluge::bridge

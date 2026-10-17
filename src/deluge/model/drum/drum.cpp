@@ -26,6 +26,8 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/mapping_bridge.h"
+#include "model/project_bridge/midi_command.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
@@ -82,8 +84,19 @@ void Drum::writeDrumTagsToFile(Serializer& writer, bool savingSong) {
 }
 
 void Drum::writeMIDICommandsToFile(Serializer& writer) {
-	midiInput.writeNoteToFile(writer, "midiInput");
-	muteMIDICommand.writeNoteToFile(writer, "midiMuteCommand");
+	// A row the song does not hold (a kit loaded outside it) has no table, so it writes its own commands.
+	if (currentSong == nullptr || !deluge::bridge::holdsDrum(*currentSong, *this)) {
+		midiInput.writeNoteToFile(writer, "midiInput");
+		muteMIDICommand.writeNoteToFile(writer, "midiMuteCommand");
+		return;
+	}
+	auto write = [&](const deluge::project::MappingTarget& target, char const* tagName) {
+		if (const deluge::project::Mapping* entry = currentSong->project.mappings.find(target)) {
+			deluge::bridge::write_command(writer, tagName, entry->source, MIDI_MESSAGE_NOTE);
+		}
+	};
+	write(deluge::project::LaneInputTarget{*id()}, "midiInput");
+	write(deluge::project::DrumMuteTarget{*id()}, "midiMuteCommand");
 }
 
 bool Drum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {

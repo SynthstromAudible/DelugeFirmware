@@ -792,7 +792,8 @@ void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutom
 	// <--
 }
 
-void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
+void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
+                                       std::optional<deluge::project::ControlsAddress> knobsOwner) {
 	if (paramManager) {
 		writer.writeOpeningTagBeginning("defaultParams");
 		GlobalEffectable::writeParamAttributesToFile(writer, paramManager, writeAutomation);
@@ -803,7 +804,7 @@ void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramMa
 
 	// A clip chain's render follows its threshold param; the file holds the setting, as the record does.
 	const deluge::model::HostChainState saved = savedChainState();
-	ModControllableAudio::writeTagsToFile(writer, saved.effects);
+	ModControllableAudio::writeTagsToFile(writer, saved.effects, knobsOwner);
 }
 
 void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,

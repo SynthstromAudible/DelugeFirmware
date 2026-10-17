@@ -30,6 +30,8 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/project_bridge/mapping_bridge.h"
+#include "model/project_bridge/midi_command.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "modulation/arpeggiator.h"
 #include "playback/mode/session.h"
@@ -39,6 +41,21 @@
 #include <cstring>
 #include <ranges>
 
+namespace {
+
+/// The input a song save writes for @p instrument: the one @p song's table holds for it, or its own when @p song does
+/// not hold it (an instrument loaded outside it has no table).
+deluge::project::MidiCommand savedInput(MelodicInstrument& instrument, Song& song) {
+	if (!deluge::bridge::holdsOutput(song, instrument)) {
+		return deluge::bridge::command_of(instrument.midiInput);
+	}
+	const deluge::project::Mapping* input =
+	    song.project.mappings.find(deluge::project::TrackInputTarget{*instrument.id()});
+	return input != nullptr ? input->source : deluge::project::MidiCommand{};
+}
+
+} // namespace
+
 bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(Serializer& writer, Clip* clipForSavingOutputOnly,
                                                                Song* song) {
 	Instrument::writeDataToFile(writer, clipForSavingOutputOnly, song);
@@ -46,13 +63,14 @@ bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(Serializer& write
 
 		// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI class now uses.
 		// Channel gets written here as an attribute. Device, gets written below, as a tag.
-		if (midiInput.containsSomething()) {
-			if (midiInput.isForMPEZone()) {
-				char const* zoneText = (midiInput.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper";
+		const deluge::project::MidiCommand input = savedInput(*this, *song);
+		if (input.contains_something()) {
+			if (input.channel_or_zone >= 16) { // an MPE zone
+				char const* zoneText = (input.channel_or_zone == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper";
 				writer.writeAttribute("inputMPEZone", zoneText);
 			}
 			else {
-				writer.writeAttribute("inputMidiChannel", midiInput.channelOrZone);
+				writer.writeAttribute("inputMidiChannel", input.channel_or_zone);
 			}
 		}
 	}
@@ -65,11 +83,10 @@ void MelodicInstrument::writeMelodicInstrumentTagsToFile(Serializer& writer, Cli
 
 	if (!clipForSavingOutputOnly) {
 		// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI class now uses.
-		if (midiInput.containsSomething()) {
-			// Device gets written here as a tag. Channel got written above, as an attribute.
-			if (midiInput.cable) {
-				midiInput.cable->writeReferenceToFile(writer, "inputMidiDevice");
-			}
+		// Device gets written here as a tag. Channel got written above, as an attribute.
+		const deluge::project::MidiCommand input = savedInput(*this, *song);
+		if (input.contains_something() && input.device) {
+			deluge::bridge::write_reference(writer, "inputMidiDevice", *input.device);
 		}
 	}
 }

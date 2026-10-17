@@ -45,6 +45,7 @@
 #include "model/model_stack.h"
 #include "model/project_bridge/arp_bridge.h"
 #include "model/project_bridge/cable_bridge.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
@@ -3175,7 +3176,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	writer.writeValue(pieces.midi_output);
 	writer.writeValue(pieces.delay);
-	writeMidiKnobsToFile(writer);
+	writeMidiKnobsToFile(writer, deluge::bridge::controlsAddressOf(*this));
 	writer.writeValue(pieces.effect_tags);
 }
 

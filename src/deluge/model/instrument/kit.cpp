@@ -35,6 +35,8 @@
 #include "model/drum/non_audio_drum.h"
 #include "model/edits/bend_range_for.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/mapping_bridge.h"
+#include "model/project_bridge/midi_command.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
@@ -140,11 +142,17 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 
 	// saving song
 	if (!clipForSavingOutputOnly) {
-		if (midiInput.containsSomething()) {
+		// A kit the song does not hold (one loaded outside it) has no table, so it writes its own input.
+		if (!deluge::bridge::holdsOutput(*song, *this)) {
 			midiInput.writeNoteToFile(writer, "MIDIInput");
 		}
+		else if (const deluge::project::Mapping* input =
+		             song->project.mappings.find(deluge::project::TrackInputTarget{*id()})) {
+			deluge::bridge::write_command(writer, "MIDIInput", input->source, MIDI_MESSAGE_NOTE);
+		}
 	}
-	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, clipForSavingOutputOnly == nullptr);
+	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, clipForSavingOutputOnly == nullptr,
+	                                         ownControlsAddress());
 
 	writer.writeArrayStart("soundSources"); // TODO: change this?
 	int32_t selectedDrumIndex = -1;

@@ -39,7 +39,14 @@ public:
 	                                                bool allowCreation = true) override;
 
 	void writeAttributesToFile(Serializer& writer, bool writeToFile);
-	void writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeToFile);
+	/// @brief Writes this owner's tags: its default params, when @p paramManager, then its effect tags and learned
+	/// knobs.
+	/// @param writer          Destination.
+	/// @param paramManager    The params to write, or nullptr for none.
+	/// @param writeAutomation Whether the params' automation is written.
+	/// @param knobsOwner      Whose controls these are: the learned knobs the song's table holds for it are written.
+	void writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
+	                     std::optional<deluge::project::ControlsAddress> knobsOwner);
 	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                      int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) override;
 	/// @brief Reads this owner's effects and its view (which values its knobs edit) from its element, as the effects

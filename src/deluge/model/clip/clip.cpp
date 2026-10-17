@@ -30,6 +30,7 @@
 #include "model/consequence/consequence_output_existence.h"
 #include "model/edits/clip_address_for.h"
 #include "model/output.h"
+#include "model/project_bridge/midi_command.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
@@ -785,7 +786,10 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 }
 
 void Clip::writeMidiCommandsToFile(Serializer& writer, Song* song) {
-	muteMIDICommand.writeNoteToFile(writer, "muteMidiCommand");
+	const deluge::project::Mapping* mute = song->project.mappings.find(deluge::project::ClipMuteTarget{id()});
+	if (mute != nullptr) {
+		deluge::bridge::write_command(writer, "muteMidiCommand", mute->source, MIDI_MESSAGE_NOTE);
+	}
 }
 
 // Every base-clip tag -- the shell (id/section/colourOffset/launchStyle/length), the plain attributes +

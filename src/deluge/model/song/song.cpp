@@ -1199,7 +1199,8 @@ weAreInArrangementEditorOrInClipInstance:
 	members.set("reverb", deluge::project::encode(project.reverb, getInputTickMagnitude()));
 	writer.writeValue(members);
 
-	live.global_effectable.writeTagsToFile(writer, NULL, false);
+	live.global_effectable.writeTagsToFile(
+	    writer, NULL, false, deluge::project::ControlsAddress{deluge::project::ControlsAddress::Kind::SONG, 0});
 
 	int32_t* valuesForOverride = runtimeView.paramsInAutomationMode ? live.unautomated_param_values.data() : nullptr;
 

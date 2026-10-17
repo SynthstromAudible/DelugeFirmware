@@ -131,4 +131,22 @@ void write_reference(Serializer& writer, char const* tagName, const MidiDeviceRe
 	writer.closeTag();
 }
 
+void write_command(Serializer& writer, char const* tagName, const MidiCommand& command, int32_t midiMessageType) {
+	if (!command.contains_something()) {
+		return;
+	}
+	LearnedMIDI attributes =
+	    learned_of(MidiCommand{.channel_or_zone = command.channel_or_zone, .note_or_cc = command.note_or_cc});
+	writer.writeOpeningTagBeginning(tagName);
+	attributes.writeAttributesToFile(writer, midiMessageType);
+	if (command.device) {
+		writer.writeOpeningTagEnd();
+		write_reference(writer, "device", *command.device);
+		writer.writeClosingTag(tagName);
+	}
+	else {
+		writer.closeTag();
+	}
+}
+
 } // namespace deluge::bridge

@@ -47,7 +47,9 @@
 #include "model/mod_controllable/delay_type.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
+#include "model/project_bridge/midi_command.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
@@ -320,16 +322,13 @@ void ModControllableAudio::setCompressorBlend(q31_t value) {
 	changeEffects(*this, [&](auto& e) { e.compressor.blend = value; });
 }
 
-void ModControllableAudio::writeTagsToFile(Serializer& writer) {
-	writeTagsToFile(writer, effects(), savedCompressorThreshold());
-}
-
 void ModControllableAudio::writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states,
+                                           std::optional<deluge::project::ControlsAddress> knobsOwner,
                                            std::optional<q31_t> compressorThreshold) {
 	const deluge::effects::EffectPieces pieces =
 	    deluge::effects::encode_pieces(states, effectsCodecContext(), compressorThreshold);
 	writer.writeValue(pieces.delay);
-	writeMidiKnobsToFile(writer);
+	writeMidiKnobsToFile(writer, knobsOwner);
 	writer.writeValue(pieces.tags);
 }
 
@@ -337,41 +336,66 @@ deluge::engine::CodecContext ModControllableAudio::effectsCodecContext() {
 	return {.input_tick_magnitude = currentSong->getInputTickMagnitude()};
 }
 
-void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer) {
-	// MIDI knobs
-	if (midi_knobs.size() > 0) {
+namespace {
+
+/// Write one learned knob as a boxed `midiKnob` item: @p attributes' channel and CC, its relative flag and the param
+/// @p descriptor names (with its patch sources), then its device, which @p writeDevice writes when @p hasDevice.
+template <typename WriteDevice>
+void writeMidiKnob(Serializer& writer, LearnedMIDI attributes, bool relative, ParamDescriptor descriptor,
+                   params::Kind unpatchedKind, bool hasDevice, WriteDevice writeDevice) {
+	writer.writeOpeningTagBeginning("midiKnob", true);
+	attributes.writeAttributesToFile(writer, MIDI_MESSAGE_CC);
+	writer.writeAttribute("relative", relative);
+	writer.writeAttribute("controlsParam", params::paramNameForFile(unpatchedKind, descriptor.getJustTheParam()));
+	if (!descriptor.isJustAParam()) { // only a sound's knob can turn a patch cable's depth
+		writer.writeAttribute("patchAmountFromSource", sourceToString(descriptor.getTopLevelSource()));
+		if (descriptor.hasSecondSource()) {
+			writer.writeAttribute("patchAmountFromSecondSource", sourceToString(descriptor.getSecondSourceFromTop()));
+		}
+	}
+	// The device is an element of its own, so it closes the knob's attributes.
+	if (hasDevice) {
+		writer.writeOpeningTagEnd();
+		writeDevice();
+		writer.writeClosingTag("midiKnob", true, true);
+	}
+	else {
+		writer.closeTag(true); // the knob is a boxed list item
+	}
+}
+
+} // namespace
+
+void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer,
+                                                std::optional<deluge::project::ControlsAddress> owner) {
+	std::optional<std::vector<deluge::project::Mapping>> saved =
+	    currentSong != nullptr ? deluge::bridge::savedKnobsOf(*currentSong, *this, owner) : std::nullopt;
+	if (saved) {
+		if (saved->empty()) {
+			return;
+		}
 		writer.writeArrayStart("midiKnobs");
-		for (MIDIKnob& knob : midi_knobs) {
-			writer.writeOpeningTagBeginning("midiKnob", true);
-			knob.midiInput.writeAttributesToFile(
-			    writer,
-			    MIDI_MESSAGE_CC); // Writes channel and CC, but not device - we do that below.
-			writer.writeAttribute("relative", knob.relative);
-			writer.writeAttribute(
-			    "controlsParam", params::paramNameForFile(unpatchedParamKind_, knob.paramDescriptor.getJustTheParam()));
-			if (!knob.paramDescriptor.isJustAParam()) { // TODO: this only applies to Sounds
-				writer.writeAttribute("patchAmountFromSource",
-				                      sourceToString(knob.paramDescriptor.getTopLevelSource()));
-
-				if (knob.paramDescriptor.hasSecondSource()) {
-					writer.writeAttribute("patchAmountFromSecondSource",
-					                      sourceToString(knob.paramDescriptor.getSecondSourceFromTop()));
-				}
-			}
-
-			// Because we manually called LearnedMIDI::writeAttributesToFile() above, we have to give the MIDIDevice its
-			// own tag, cos that can't be written as just an attribute.
-			if (knob.midiInput.cable != nullptr) {
-				writer.writeOpeningTagEnd();
-				knob.midiInput.cable->writeReferenceToFile(writer);
-				writer.writeClosingTag("midiKnob", true, true);
-			}
-			else {
-				writer.closeTag(true); // the knob is a boxed list item
-			}
+		for (const deluge::project::Mapping& knob : *saved) {
+			const LearnedMIDI attributes = deluge::bridge::learned_of(
+			    {.channel_or_zone = knob.source.channel_or_zone, .note_or_cc = knob.source.note_or_cc});
+			const ParamDescriptor descriptor = deluge::bridge::descriptorOf(
+			    std::get<deluge::project::ParamTarget>(knob.target).param, unpatchedParamKind_);
+			writeMidiKnob(writer, attributes, knob.relative, descriptor, unpatchedParamKind_,
+			              knob.source.device.has_value(),
+			              [&] { deluge::bridge::write_reference(writer, "device", *knob.source.device); });
 		}
 		writer.writeArrayEnding("midiKnobs");
+		return;
 	}
+	if (midi_knobs.empty()) {
+		return;
+	}
+	writer.writeArrayStart("midiKnobs");
+	for (MIDIKnob& knob : midi_knobs) {
+		writeMidiKnob(writer, knob.midiInput, knob.relative, knob.paramDescriptor, unpatchedParamKind_,
+		              knob.midiInput.cable != nullptr, [&] { knob.midiInput.cable->writeReferenceToFile(writer); });
+	}
+	writer.writeArrayEnding("midiKnobs");
 }
 
 void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager,

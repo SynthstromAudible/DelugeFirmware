@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/controller_mapping.h"
 #include "hid/button.h"
 #include "model/clip/clip_instance_vector.h"
 #include "model/sample/sample_recorder.h"
@@ -121,6 +122,13 @@ public:
 	/// @return The output's id, or nullopt if unassigned.
 	[[nodiscard]] std::optional<uint32_t> id() const { return id_; }
 	void setId(uint32_t id) { id_ = id; }
+	/// @brief Whose controls this output's own are (a synth's sound's, a kit's, an audio track's).
+	/// @return The output's address, or nullopt before it has an id.
+	[[nodiscard]] std::optional<deluge::project::ControlsAddress> ownControlsAddress() const {
+		return id_ ? std::optional{deluge::project::ControlsAddress{deluge::project::ControlsAddress::Kind::OUTPUT,
+		                                                            *id_}}
+		           : std::nullopt;
+	}
 
 	/// Non-owning pointer to this output's DOM-owned DocOutput in project.output_structure, bound via
 	/// Song::adoptOutput. Null until adopted. seedDocOutputIdentity() copies the Output-base identity fields
