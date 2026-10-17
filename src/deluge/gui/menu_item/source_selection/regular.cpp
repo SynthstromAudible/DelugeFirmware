@@ -47,7 +47,7 @@ void Regular::beginSession(MenuItem* navigatedBackwardFrom) {
 	SourceSelection::beginSession(navigatedBackwardFrom);
 }
 
-MenuItem* Regular::patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) {
+MenuItem* Regular::patchingSourceShortcutPress(PatchSource newS, [[maybe_unused]] bool previous_press_still_active) {
 	const auto previous_param = soundEditor.patchingParamSelected;
 	if (previous_param == deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND
 	    || previous_param == deluge::modulation::params::LOCAL_VOLUME) {

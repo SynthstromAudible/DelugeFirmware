@@ -156,7 +156,8 @@ public:
 	/// @return Blink time period (higher means more delay between flashes), or 255 if we shouldn't blink.
 	virtual uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) { return 255; }
 	/// Describe shortcut routing without changing the selected source or destination.
-	virtual PatchingSourceShortcutTarget get_patching_source_shortcut_target(bool previous_press_still_active) const {
+	[[nodiscard]] virtual PatchingSourceShortcutTarget
+	getPatchingSourceShortcutTarget(bool previous_press_still_active) const {
 		return PatchingSourceShortcutTarget::PARAMETER;
 	}
 
