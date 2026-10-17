@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "engine-api/types/display_mapping.h"
+
 #include <algorithm>
 #include <charconv>
 #include <cstdint>
@@ -24,6 +26,7 @@
 #include <span>
 #include <string_view>
 #include <system_error>
+#include <utility>
 
 namespace deluge::engine {
 
@@ -54,6 +57,16 @@ struct UserScale {
 /// @brief What a setting's menu value counts.
 enum class SettingUnits : uint8_t { NONE, SEMITONES, CENTS, MILLISECONDS, SYNC_LEVEL };
 
+/// @brief Who a setting is shown for: what decides whether a setting, or one of its choices, applies.
+struct SettingContext {
+	/// @brief What holds the setting.
+	enum class Owner : uint8_t { TRACK, KIT_LANE, KIT, CLIP, SONG };
+	Owner owner{Owner::TRACK};
+	bool audio_inputs_present{false}; ///< any audio input is plugged in
+	bool dx7_allowed{false};          ///< the owner may hold a DX7 oscillator
+	bool ring_mod{false};             ///< the sound is in ring-mod mode
+};
+
 /// @brief One non-param setting of an engine or a model record, named by its slash path in the owner's state
 /// element, with what a menu needs to show and edit it.
 struct SettingInfo {
@@ -66,6 +79,11 @@ struct SettingInfo {
 	std::span<const uint16_t> display_choices{}; ///< CHOICE: a menu's name for each choice, as the firmware's l10n ids
 	int32_t default_value{0};                    ///< the stored value a new owner starts with
 	SettingUnits units{SettingUnits::NONE};      ///< what a menu's value counts
+	DisplayMapping mapping{};                    ///< how a menu's value maps onto what the row (and a partner) stores
+	/// Whether the setting applies in a context; nullptr applies everywhere.
+	bool (*applies)(const SettingContext&){nullptr};
+	/// Whether a CHOICE row's choice (by index) applies in a context; nullptr applies every choice everywhere.
+	bool (*choice_applies)(const SettingContext&, size_t choice){nullptr};
 };
 
 /// @brief The row of @p table for @p path, or nullptr.
@@ -165,6 +183,101 @@ struct SettingInfo {
 	const int64_t span_stored = int64_t{row.user.stored_max} - row.user.stored_min;
 	return static_cast<int32_t>(row.user.stored_min
 	                            + (int64_t{user - row.user.user_min} * span_stored + span_user / 2) / span_user);
+}
+
+/// @brief @p stored as the row's menu shows it, through the row's display mapping.
+/// @param row            The setting's row. A CHOICE row's stored value is its choice index.
+/// @param stored         The row's stored value.
+/// @param partner_stored The partner row's stored value, for COMBINED_SYNC (the sync type's choice index) and
+///                       TRANSPOSE_CENTS (the cents); ignored by the other kinds.
+/// @return The menu's value. CHOICE_ORDER gives 0 for a choice its order does not list.
+[[nodiscard]] constexpr int32_t to_menu(const SettingInfo& row, int32_t stored, int32_t partner_stored = 0) {
+	const DisplayMapping& mapping = row.mapping;
+	switch (mapping.kind) {
+	case DisplayMappingKind::LINEAR:
+		break;
+	case DisplayMappingKind::CLAMP_HIGH:
+		for (const SettingSentinel& sentinel : row.user.sentinels) {
+			if (sentinel.stored == stored) {
+				return sentinel.user;
+			}
+		}
+		if (stored > row.user.stored_max) {
+			return mapping.clamp_to;
+		}
+		break;
+	case DisplayMappingKind::CHOICE_ORDER:
+		for (size_t i = 0; i < mapping.order.size(); ++i) {
+			if (mapping.order[i] == stored) {
+				return static_cast<int32_t>(i);
+			}
+		}
+		return 0;
+	case DisplayMappingKind::INVERTED_BOOL:
+		return stored != 0 ? 0 : 1;
+	case DisplayMappingKind::COMBINED_SYNC:
+		return combined_sync_menu(stored, partner_stored);
+	case DisplayMappingKind::TRANSPOSE_CENTS:
+		return transpose_cents_menu(stored, partner_stored);
+	case DisplayMappingKind::PHASE_DEGREES:
+		return phase_degrees_menu(stored);
+	case DisplayMappingKind::TABLE:
+		return table_menu(stored, mapping.table, mapping.table_shift);
+	}
+	return to_user(row, stored);
+}
+
+/// @brief What the row (and its partner) store for menu value @p menu, through the row's display mapping.
+/// @param row  The setting's row.
+/// @param menu The menu's value.
+/// @return {stored, partner_stored}, the partner's 0 for a one-row kind; nullopt when @p menu is outside the menu's
+///         range: the user range (LINEAR, CLAMP_HIGH), the order's or table's indices, 0..1 (INVERTED_BOOL),
+///         0..kMaxCombinedSync (COMBINED_SYNC), the row's range ×100 (TRANSPOSE_CENTS), or kPhaseFreeMenu to
+///         kMaxPhaseDegrees (PHASE_DEGREES).
+[[nodiscard]] constexpr std::optional<std::pair<int32_t, int32_t>> from_menu(const SettingInfo& row, int32_t menu) {
+	using Stored = std::pair<int32_t, int32_t>;
+	const DisplayMapping& mapping = row.mapping;
+	const auto index_within = [menu](size_t size) { return menu >= 0 && static_cast<size_t>(menu) < size; };
+	switch (mapping.kind) {
+	case DisplayMappingKind::LINEAR:
+	case DisplayMappingKind::CLAMP_HIGH:
+		break;
+	case DisplayMappingKind::CHOICE_ORDER:
+		if (!index_within(mapping.order.size())) {
+			return std::nullopt;
+		}
+		return Stored{mapping.order[static_cast<size_t>(menu)], 0};
+	case DisplayMappingKind::INVERTED_BOOL:
+		if (menu != 0 && menu != 1) {
+			return std::nullopt;
+		}
+		return Stored{1 - menu, 0};
+	case DisplayMappingKind::COMBINED_SYNC:
+		if (menu < 0 || menu > kMaxCombinedSync) {
+			return std::nullopt;
+		}
+		return combined_sync_stored(menu);
+	case DisplayMappingKind::TRANSPOSE_CENTS:
+		if (int64_t{menu} < int64_t{row.min} * 100 || int64_t{menu} > int64_t{row.max} * 100) {
+			return std::nullopt;
+		}
+		return transpose_cents_stored(menu);
+	case DisplayMappingKind::PHASE_DEGREES:
+		if (menu < kPhaseFreeMenu || menu > kMaxPhaseDegrees) {
+			return std::nullopt;
+		}
+		return Stored{phase_degrees_stored(menu), 0};
+	case DisplayMappingKind::TABLE:
+		if (!index_within(mapping.table.size())) {
+			return std::nullopt;
+		}
+		return Stored{mapping.table[static_cast<size_t>(menu)] << mapping.table_shift, 0};
+	}
+	const std::optional<int32_t> stored = to_stored(row, menu);
+	if (!stored) {
+		return std::nullopt;
+	}
+	return Stored{*stored, 0};
 }
 
 } // namespace deluge::engine
