@@ -28,7 +28,6 @@
 #include "model/song/song.h"
 
 #include <algorithm>
-#include <map>
 #include <optional>
 #include <type_traits>
 #include <utility>
@@ -139,14 +138,24 @@ void MappingIndex::clear() {
 void MappingIndex::rebuild(MappingSnapshot snapshot) {
 	clear();
 	const Awake awake{snapshot};
-	// Each owner's knobs in table order: the place of each in its owner's knob list.
-	std::map<std::pair<ControlsAddress::Kind, uint32_t>, uint32_t> knobCounts;
+	// Each owner's knobs in table order: the place of each in its owner's knob list. Sorted by owner.
+	std::vector<std::pair<ControlsAddress, uint32_t>> knobCounts;
+	const auto nextOrdinal = [&](ControlsAddress owner) {
+		const auto key = [](const std::pair<ControlsAddress, uint32_t>& count) {
+			return std::pair{count.first.kind, count.first.id};
+		};
+		auto at = std::ranges::lower_bound(knobCounts, std::pair{owner.kind, owner.id}, {}, key);
+		if (at == knobCounts.end() || !(at->first == owner)) {
+			at = knobCounts.insert(at, {owner, 0});
+		}
+		return at->second++;
+	};
 
 	for (const Mapping& mapping : snapshot.entries) {
 		std::visit(
 		    [&]<typename T>(const T& target) {
 			    if constexpr (std::is_same_v<T, project::ParamTarget>) {
-				    const uint32_t ordinal = knobCounts[{target.owner.kind, target.owner.id}]++;
+				    const uint32_t ordinal = nextOrdinal(target.owner);
 				    if (mapping.source.contains_something() && awake.hasOwner(target.owner)) {
 					    knobs_.push_back({mapping.source.channel_or_zone, target.owner, entryOf(mapping, ordinal)});
 				    }
@@ -182,7 +191,7 @@ void MappingIndex::rebuild(MappingSnapshot snapshot) {
 	}
 
 	std::ranges::sort(commands_, {}, [](const Command& c) { return std::tuple{c.channel, c.rank}; });
-	std::ranges::stable_sort(knobs_, {}, [](const Knob& k) {
+	std::ranges::sort(knobs_, {}, [](const Knob& k) {
 		return std::tuple{int32_t{k.channel}, k.owner.kind, k.owner.id, k.entry.ordinal};
 	});
 	std::ranges::sort(lanes_, {}, [](const Lane& l) { return std::tuple{l.kit, l.channel, l.entry.ordinal, l.mute}; });
