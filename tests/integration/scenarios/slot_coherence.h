@@ -35,7 +35,7 @@ struct CoherenceChecks {
 	bool runtime = true;       ///< the runtime's state == the record (dump_state of seededState() vs the bound state)
 	bool slot = true;          ///< the slot's instrument entries == encode(record), by key
 	bool snapshot = true;      ///< the snapshot == projectSnapshot() of the record
-	bool controls = true;      ///< the owner's controls record == the runtime's knobs
+	bool controls = true;      ///< the owner's controls record and its table knobs == the runtime's knobs
 	bool decode = true;        ///< the slot decoded onto the record == the record (the flip would change nothing)
 	bool chains = true;        ///< each host chain (a kit's, an audio track's, the master's) == its owner's encoding
 	bool song_settings = true; ///< every setting group's record == its engine copy (songSettingsIncoherence)

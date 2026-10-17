@@ -17,7 +17,7 @@
 
 #include "deluge-project/arrangement_codec.h"
 
-#include "deluge-project/midi_command_codec.h"
+#include "deluge-project/mapping_codec.h"
 
 #include "serialization/tree.h"
 
@@ -50,21 +50,14 @@ std::string_view kind_text(SessionMacroKind kind) {
 
 } // namespace
 
-Value encode_sections(const Arrangement& arrangement) {
+Value encode_sections(const Arrangement& arrangement, const MappingTable& mappings) {
 	auto list = Value::makeArray();
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
 		const Section& section = arrangement.sections[s];
 		auto map = Value::makeMap();
 		map.set("id", Value::makeNumber(s));
 		map.set("numRepeats", Value::makeNumber(section.num_repetitions));
-		const MidiCommand& command = section.launch_midi_command;
-		if (command.contains_something()) {
-			map.set("midiCommandChannel", Value::makeNumber(command.channel_or_zone));
-			map.set("midiCommandNote", Value::makeNumber(command.note_or_cc));
-			if (command.device) {
-				map.set("midiCommandDevice", encode_device(*command.device));
-			}
-		}
+		encode_section_command(mappings, static_cast<uint8_t>(s), map);
 		auto box = Value::makeMap();
 		box.set("section", std::move(map));
 		list.append(std::move(box));
@@ -111,7 +104,8 @@ Value encode_macros(const Arrangement& arrangement) {
 	return list;
 }
 
-std::expected<void, LoadError> decode(const Value& song, Arrangement& arrangement, LegacyMacroTargets* legacy) {
+std::expected<void, LoadError> decode(const Value& song, Arrangement& arrangement, MappingTable& mappings,
+                                      LegacyMacroTargets* legacy) {
 	if (!song.isMap()) {
 		return std::unexpected(LoadError::NOT_A_MAP);
 	}
@@ -125,21 +119,11 @@ std::expected<void, LoadError> decode(const Value& song, Arrangement& arrangemen
 			if (repeats < -2 || repeats > 9999) {
 				repeats = 0;
 			}
-			const auto channel = static_cast<uint8_t>(int_of(node->find("midiCommandChannel")).value_or(255));
-			const auto note = static_cast<uint8_t>(int_of(node->find("midiCommandNote")).value_or(255));
 			if (id >= kMaxNumSections) {
 				continue;
 			}
-			Section& section = arrangement.sections[id];
-			if (channel < MidiCommand::kFirstProgramChange && note < 128) {
-				const Value* device = node->find("midiCommandDevice");
-				section.launch_midi_command = MidiCommand{
-				    .channel_or_zone = channel,
-				    .note_or_cc = note,
-				    .device = device != nullptr ? decode_device(*device) : std::nullopt,
-				};
-			}
-			section.num_repetitions = repeats;
+			decode_section_command(*node, static_cast<uint8_t>(id), mappings);
+			arrangement.sections[id].num_repetitions = repeats;
 		}
 	}
 	if (const Value* macros = song.find("sessionMacros")) {

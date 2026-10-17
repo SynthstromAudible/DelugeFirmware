@@ -48,6 +48,11 @@ bool belongs_to_drum(const MappingTarget& target, uint32_t drum_id) {
 	return false;
 }
 
+bool is_param_of(const MappingTarget& target, ControlsAddress owner) {
+	const auto* param = std::get_if<ParamTarget>(&target);
+	return param != nullptr && param->owner == owner;
+}
+
 } // namespace
 
 Mapping& MappingTable::learn(Mapping mapping) {
@@ -109,6 +114,24 @@ void MappingTable::copy_clip_mute(uint32_t from, uint32_t to) {
 	Mapping copy = *source;
 	copy.target = ClipMuteTarget{to};
 	learn(std::move(copy));
+}
+
+void MappingTable::set_params(ControlsAddress owner, std::span<const Mapping> knobs) {
+	const auto first =
+	    std::ranges::find_if(entries_, [&](const Mapping& entry) { return is_param_of(entry.target, owner); });
+	const auto at = static_cast<size_t>(first - entries_.begin());
+	std::erase_if(entries_, [&](const Mapping& entry) { return is_param_of(entry.target, owner); });
+	entries_.insert(entries_.begin() + static_cast<std::ptrdiff_t>(at), knobs.begin(), knobs.end());
+}
+
+std::vector<Mapping> MappingTable::params_of(ControlsAddress owner) const {
+	std::vector<Mapping> knobs;
+	for (const Mapping& entry : entries_) {
+		if (is_param_of(entry.target, owner)) {
+			knobs.push_back(entry);
+		}
+	}
+	return knobs;
 }
 
 void MappingTable::forget_clip(uint32_t clip_id) {

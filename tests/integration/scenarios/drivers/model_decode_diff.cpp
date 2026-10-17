@@ -43,6 +43,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <variant>
 
 #include "model/project_bridge/controls_bridge.h"
 #include "scenarios/drivers/driver.h"
@@ -190,13 +192,64 @@ std::string what_differs(const deluge::project::DocOutput& e, const deluge::proj
 	return out;
 }
 
-/// 0 when the knobs the app holds after loading a file (the song's, and each output's and drum's the file names by
-/// id) are those the file holds, else 3 after printing which differ.
+/// One binding, for the report: what it controls and the command that does.
+std::string describe(const deluge::project::Mapping& mapping) {
+	using namespace deluge::project;
+	std::string what = std::visit(
+	    [](const auto& target) -> std::string {
+		    using T = std::decay_t<decltype(target)>;
+		    if constexpr (std::is_same_v<T, ParamTarget>) {
+			    static constexpr const char* kKinds[] = {"output", "drum", "song"};
+			    return std::string("knob of ") + kKinds[static_cast<int>(target.owner.kind)] + " "
+			           + std::to_string(target.owner.id) + " on param " + std::to_string(target.param.value);
+		    }
+		    else if constexpr (std::is_same_v<T, ClipMuteTarget>) {
+			    return "mute of clip " + std::to_string(target.clip_id);
+		    }
+		    else if constexpr (std::is_same_v<T, DrumMuteTarget>) {
+			    return "mute of drum " + std::to_string(target.drum_id);
+		    }
+		    else if constexpr (std::is_same_v<T, SectionLaunchTarget>) {
+			    return "launch of section " + std::to_string(target.section);
+		    }
+		    else if constexpr (std::is_same_v<T, TrackInputTarget>) {
+			    return "input of output " + std::to_string(target.output_id);
+		    }
+		    else {
+			    return "input of drum " + std::to_string(target.drum_id);
+		    }
+	    },
+	    mapping.target);
+	return what + " from channel " + std::to_string(mapping.source.channel_or_zone) + " note/CC "
+	       + std::to_string(mapping.source.note_or_cc) + (mapping.source.device ? " on a device" : "")
+	       + (mapping.relative ? " relative" : "");
+}
+
+/// 0 when @p a and @p b hold the same bindings in the same order, else 3 after printing @p what and the first that
+/// differs.
+int compare_mappings(const char* what, const deluge::project::MappingTable& a, const char* aName,
+                     const deluge::project::MappingTable& b, const char* bName) {
+	if (a == b) {
+		return 0;
+	}
+	const auto as = a.entries();
+	const auto bs = b.entries();
+	size_t at = 0;
+	while (at < as.size() && at < bs.size() && as[at] == bs[at]) {
+		at++;
+	}
+	std::fprintf(io.err, "DECODE DIFF: %s (%s %zu, %s %zu) at entry %zu: %s %s, %s %s\n", what, aName, as.size(), bName,
+	             bs.size(), at, aName, at < as.size() ? describe(as[at]).c_str() : "none", bName,
+	             at < bs.size() ? describe(bs[at]).c_str() : "none");
+	return 3;
+}
+
+/// 0 when the knobs and bindings the app holds after loading a file (the song's table, and each output's and drum's
+/// mod knobs the file names by id) are those the file holds, else 3 after printing which differ.
 int compare_loaded_controls(const deluge::project::Song& loaded, const SongDocument& file) {
-	if (!(loaded.controls == file.controls)) {
-		std::fprintf(io.err, "DECODE DIFF: the song's knobs after loading are not the file's (loaded %zu, file %zu)\n",
-		             loaded.controls.size(), file.controls.size());
-		return 3;
+	if (int r = compare_mappings("the song's mappings after loading are not the file's", loaded.mappings, "loaded",
+	                             file.mappings, "file")) {
+		return r;
 	}
 	for (const auto& [id, output] : file.outputs) {
 		auto it = loaded.output_structure.by_id.find(id);
@@ -384,10 +437,8 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 	if (int r = compare_store("drum", m.drum_structure.by_id, d.drums)) {
 		return r;
 	}
-	if (!(m.controls == d.controls)) {
-		std::fprintf(io.err, "DECODE DIFF: the song's controls differ (engine %zu, decoded %zu)\n", m.controls.size(),
-		             d.controls.size());
-		return 3;
+	if (int r = compare_mappings("the song's mappings differ", m.mappings, "engine", d.mappings, "decoded")) {
+		return r;
 	}
 	if (!(m.master_effects == d.master_effects)) {
 		std::fprintf(io.err, "DECODE DIFF: the master's effects differ (engine %zu slots, decoded %zu)\n",

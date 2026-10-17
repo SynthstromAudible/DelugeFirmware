@@ -19,6 +19,7 @@
 
 #include "deluge-project/arrangement.h"
 #include "deluge-project/codec.h"
+#include "deluge-project/mapping_table.h"
 #include "serialization/value.h"
 
 #include <array>
@@ -35,23 +36,26 @@ struct LegacyMacroTargets {
 	std::array<std::optional<int32_t>, 8> output_index;
 };
 
-/// @brief The `sections` list: every section, with its launch command and the command's device.
+/// @brief The `sections` list: every section, with its launch command from @p mappings and the command's device.
 /// @param arrangement The arrangement to encode.
+/// @param mappings    The song's bindings, holding the launch commands.
 /// @return The `sections` array value.
-[[nodiscard]] serialization::Value encode_sections(const Arrangement& arrangement);
+[[nodiscard]] serialization::Value encode_sections(const Arrangement& arrangement, const MappingTable& mappings);
 
 /// @brief The `sessionMacros` list, up to the last macro that does something; empty when none does.
 /// @param arrangement The arrangement to encode.
 /// @return The `sessionMacros` array value.
 [[nodiscard]] serialization::Value encode_macros(const Arrangement& arrangement);
 
-/// @brief Read the song's `sections` and `sessionMacros`. A macro names its clip and output by the id the file
-/// holds (the host checks the song holds them); a positional target goes to @p legacy if given, keeping the macro.
+/// @brief Read the song's `sections` and `sessionMacros`: each section's launch command into @p mappings. A macro
+/// names its clip and output by the id the file holds (the host checks the song holds them); a positional target goes
+/// to @p legacy if given, keeping the macro.
 /// @param song The song map to read.
 /// @param arrangement The arrangement to fill.
+/// @param mappings Receives the sections' launch commands.
 /// @param legacy Receives positional macro targets from pre-id files; may be null.
 /// @return Nothing on success; LoadError::NOT_A_MAP if @p song is not a map.
 [[nodiscard]] std::expected<void, LoadError> decode(const serialization::Value& song, Arrangement& arrangement,
-                                                    LegacyMacroTargets* legacy = nullptr);
+                                                    MappingTable& mappings, LegacyMacroTargets* legacy = nullptr);
 
 } // namespace deluge::project

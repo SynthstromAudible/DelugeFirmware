@@ -74,6 +74,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -513,7 +514,7 @@ void View::sectionMidiLearnPadPressed(bool on, uint8_t section) {
 		deleteMidiCommandOnRelease = true;
 		sectionPressedForMidiLearn = section;
 		sectionLearnScratch =
-		    deluge::bridge::learned_of(currentSong->project.arrangement.sections[section].launch_midi_command);
+		    deluge::bridge::learned_of(deluge::bridge::sectionCommand(currentSong->project.mappings, section));
 		learnedThing = &sectionLearnScratch;
 	}
 	else if (thingPressedForMidiLearn == MidiLearn::SECTION) {
@@ -526,8 +527,8 @@ void View::sectionMidiLearnPadPressed(bool on, uint8_t section) {
 }
 
 void View::commitSectionMidiLearn() {
-	currentSong->project.arrangement.sections[sectionPressedForMidiLearn].launch_midi_command =
-	    deluge::bridge::command_of(sectionLearnScratch);
+	deluge::bridge::setSectionCommand(currentSong->project.mappings, sectionPressedForMidiLearn,
+	                                  deluge::bridge::command_of(sectionLearnScratch));
 }
 
 void View::clipStatusMidiLearnPadPressed(bool on, Clip* whichClip) {

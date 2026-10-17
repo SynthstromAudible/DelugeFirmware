@@ -25,15 +25,14 @@
 
 namespace deluge::project {
 
-/// @brief The controls an output's, a drum's or the song's @p element holds: its mod knobs (`modKnobs`, a sound's,
-/// knob 0 then 1 of each button in turn), then its learned MIDI knobs (`midiKnobs`), each pointed at the param
-/// @p naming gives its target. A knob whose target the naming cannot name is left out (a mod knob still takes its
-/// place); a mod knob's target follows the naming's mod-knob rule.
+/// @brief The controls a sound's @p element holds: its mod knobs (`modKnobs`, knob 0 then 1 of each button in turn),
+/// each pointed at the param @p naming gives its target. A knob whose target the naming cannot name is left out (it
+/// still takes its place); a knob's target follows the naming's mod-knob rule. Learned MIDI knobs are bindings
+/// (mapping_codec).
 [[nodiscard]] std::vector<ControllerMapping> decode_controls(const serialization::Value& element,
                                                              const deluge::engine::ParamNaming& naming);
 
-/// @brief Write @p controls into @p element as decode_controls reads them: `modKnobs` when there is a mod knob, then
-/// `midiKnobs` when there is a learned knob.
+/// @brief Write @p controls into @p element as decode_controls reads them: `modKnobs` when there is a mod knob.
 void encode_controls(const std::vector<ControllerMapping>& controls, const deluge::engine::ParamNaming& naming,
                      serialization::Value& element);
 

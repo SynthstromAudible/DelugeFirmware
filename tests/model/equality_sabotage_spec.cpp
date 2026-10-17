@@ -156,12 +156,10 @@ describe equality_sabotage("the model-equality gate", ${
 		faults.on_decoded = [](SongDocument& document) {
 			for (auto& [id, output] : document.outputs) {
 				for (ControllerMapping& mapping : output.controls) {
-					if (std::holds_alternative<ModKnobControl>(mapping.control)) {
-						mapping.target = mapping.target == deluge::instrument::param::kPan
-						                     ? deluge::instrument::param::kVolumePostFX
-						                     : deluge::instrument::param::kPan;
-						return;
-					}
+					mapping.target = mapping.target == deluge::instrument::param::kPan
+					                     ? deluge::instrument::param::kVolumePostFX
+					                     : deluge::instrument::param::kPan;
+					return;
 				}
 			}
 		};
@@ -170,7 +168,7 @@ describe equality_sabotage("the model-equality gate", ${
 		expect(result.error_or("")).to_partially_match("output");
 	});
 
-	it("fails, naming the output, when a learned MIDI knob is lost", _ {
+	it("fails, naming the mappings, when a learned MIDI knob is lost", _ {
 		EqualityFaults faults;
 		faults.on_encoded = [](deluge::serialization::Value& document) {
 			bool dropped = false;
@@ -178,7 +176,7 @@ describe equality_sabotage("the model-equality gate", ${
 		};
 		auto result = check_equality(fixture(), false, faults);
 		expect(result).to_have_error();
-		expect(result.error_or("")).to_partially_match("output");
+		expect(result.error_or("")).to_partially_match("mappings");
 	});
 
 	it("fails, naming the drum, when a sound kit row's sound changes", _ {

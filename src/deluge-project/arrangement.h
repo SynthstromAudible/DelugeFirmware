@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "deluge-project/midi_command.h"
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -27,9 +26,9 @@ namespace deluge::project {
 /// @brief The number of launchable sections a song has.
 inline constexpr int32_t kMaxNumSections = 24;
 
-/// @brief A launchable song section: how many times it repeats and an optional MIDI-learned launch command.
+/// @brief A launchable song section: how many times it repeats. Its MIDI-learned launch command is a binding of the
+/// song's MappingTable.
 struct Section {
-	MidiCommand launch_midi_command;
 	int16_t num_repetitions{0};
 
 	bool operator==(const Section&) const = default;

@@ -29,6 +29,7 @@
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
@@ -80,15 +81,19 @@ void forEachSound(Output& output, const std::function<void(Sound&, const std::st
 	}
 }
 
-/// The kits', audio tracks' and the song's own learned knobs checked against their controls records; each break
-/// printed. How many broke.
+/// Whether the song's table holds @p owner's learned knobs as the runtime's @p knobs are.
+bool knobsCoherent(deluge::project::ControlsAddress owner, const ::ModControllableAudio& knobs, bool isSound,
+                   ::Song& song) {
+	return song.project.mappings.params_of(owner) == deluge::bridge::knobsOf(owner, knobs, isSound);
+}
+
+/// The kits', audio tracks' and the song's own learned knobs checked against the song's table; each break printed.
+/// How many broke.
 int32_t ownControlsIncoherent(::Song& song, const char* leg) {
 	int32_t failures = 0;
 	auto check = [&](::ModControllableAudio& owner, const std::string& name) {
 		const std::optional<deluge::project::ControlsAddress> address = deluge::bridge::controlsAddressOf(owner, song);
-		const std::vector<deluge::project::ControllerMapping>* record =
-		    address ? song.project.resolveControls(*address) : nullptr;
-		if (record != nullptr && *record != deluge::bridge::learnedControlsOf(owner)) {
+		if (address && !knobsCoherent(*address, owner, false, song)) {
 			std::printf("SLOT-COHERENT FAIL leg=%s %s: controls\n", leg, name.c_str());
 			failures++;
 		}
@@ -148,6 +153,9 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		    owner ? song.project.resolveControls(*owner) : nullptr;
 		if (controls == nullptr || *controls != deluge::bridge::controlsOf(sound)) {
 			return "controls";
+		}
+		if (!knobsCoherent(*owner, sound, true, song)) {
+			return "learned knobs";
 		}
 	}
 	if (checks.decode) {

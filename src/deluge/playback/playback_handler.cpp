@@ -91,6 +91,7 @@
 #include <new>
 
 #include "libdeluge/signals.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
 
 PlaybackHandler playbackHandler{};
@@ -2971,7 +2972,7 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_
 
 	// Go through all sections
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
-		if (deluge::bridge::matches(currentSong->project.arrangement.sections[s].launch_midi_command, cable, channel,
+		if (deluge::bridge::matches(deluge::bridge::sectionCommand(currentSong->project.mappings, s), cable, channel,
 		                            note)) {
 			if (on) {
 				if (arrangement.hasPlaybackActive()) {

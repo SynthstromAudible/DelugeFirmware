@@ -1,6 +1,7 @@
 #include "model/edits/set_controls.h"
 
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/song/song.h"
 
 namespace deluge::edits {
@@ -14,6 +15,7 @@ Error SetControls::apply(Context& ctx) {
 	}
 	deluge::bridge::applyControls(*owner, isSound, controls_);
 	*record = controls_;
+	deluge::bridge::recordOwnerKnobs(owner_, *owner, isSound, ctx.song);
 	return Error::NONE;
 }
 

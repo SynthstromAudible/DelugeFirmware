@@ -18,13 +18,11 @@
 #pragma once
 
 #include "deluge-project/fx_chain.h"
-#include "deluge-project/midi_command.h"
 #include "engine-api/types/param.h"
 #include "engine-api/types/param_naming.h"
 
 #include <cstdint>
 #include <span>
-#include <variant>
 #include <vector>
 
 namespace deluge::project {
@@ -36,16 +34,10 @@ struct ModKnobControl {
 	[[nodiscard]] constexpr bool operator==(const ModKnobControl&) const = default;
 };
 
-/// @brief A MIDI-learned knob: the input it was learned from and whether it sends relative changes.
-struct MidiInputControl {
-	MidiCommand input;
-	bool relative{false};
-	[[nodiscard]] bool operator==(const MidiInputControl&) const = default;
-};
-
-/// @brief A control and the param of its owner's engine it moves.
+/// @brief A mod knob and the param of its owner's engine it moves. A MIDI-learned knob is a binding of the song's
+/// MappingTable.
 struct ControllerMapping {
-	std::variant<ModKnobControl, MidiInputControl> control;
+	ModKnobControl control;
 	deluge::engine::ParamId target{};
 	[[nodiscard]] bool operator==(const ControllerMapping&) const = default;
 };

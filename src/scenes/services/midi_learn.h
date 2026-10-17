@@ -200,7 +200,7 @@ struct LearnTarget {
 	uint8_t section_index = 0;
 
 	/// @brief `View::sectionMidiLearnPadPressed`'s target: a scratch `LearnedMIDI` loaded from the
-	///        song's `project.arrangement.sections[section].launch_midi_command`, which every write
+	///        section's launch command in the song's `project.mappings`, which every write
 	///        to it is committed back to (`MidiLearn::commit_section`).
 	/// @param song    The song the section belongs to -- the scene's, since `scenes-currentSong`
 	///                forbids the global.

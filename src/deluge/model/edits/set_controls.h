@@ -7,10 +7,11 @@
 
 namespace deluge::edits {
 
-/// @brief Set an owner's controller mappings: a sound's mod knobs and learned MIDI knobs, or a kit's, an audio
-/// track's or the song's learned MIDI knobs.
+/// @brief Set an owner's controller mappings (a sound's mod knobs), and record its learned MIDI knobs.
 ///
-/// apply() writes the model's record, the truth for them, and makes the runtime's knobs what it says.
+/// apply() writes the model's record, the truth for the mod knobs, and makes the runtime's mod knobs what it says. The
+/// owner's learned MIDI knobs, which the runtime's learn edits, go into the song's mapping table as the runtime holds
+/// them.
 ///
 /// @note Records no undo.
 class SetControls final : public Edit {

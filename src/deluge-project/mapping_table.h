@@ -106,6 +106,16 @@ public:
 	/// @param from The source clip.
 	/// @param to The clip that gets the copy.
 	void copy_clip_mute(uint32_t from, uint32_t to);
+	/// @brief Make @p owner's knobs @p knobs, in that order: they take the place of the owner's first knob, or go at
+	/// the end when it has none. Each is taken as given (its relative flag included); every other entry stays where it
+	/// is.
+	/// @param owner Whose knobs these are.
+	/// @param knobs The owner's knobs; each must be a ParamTarget of @p owner.
+	void set_params(ControlsAddress owner, std::span<const Mapping> knobs);
+	/// @brief @p owner's knobs, in table order.
+	/// @param owner Whose knobs.
+	/// @return Copies of its ParamTarget entries.
+	[[nodiscard]] std::vector<Mapping> params_of(ControlsAddress owner) const;
 	/// @brief Drop every entry that targets clip @p clip_id.
 	void forget_clip(uint32_t clip_id);
 	/// @brief Drop every entry that targets drum @p drum_id (its mute, its input, its params).

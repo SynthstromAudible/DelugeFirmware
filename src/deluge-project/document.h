@@ -26,6 +26,7 @@
 #include "deluge-project/doc_drum.h"
 #include "deluge-project/doc_output.h"
 #include "deluge-project/groove.h"
+#include "deluge-project/mapping_table.h"
 #include "deluge-project/reverb_settings.h"
 #include "deluge-project/scale_settings.h"
 #include "deluge-project/transport.h"
@@ -77,8 +78,10 @@ struct SongDocument {
 	std::map<uint32_t, DocAudioClip> audio_clips;
 	std::map<uint32_t, DocOutput> outputs;
 	std::map<uint32_t, DocDrum> drums;
-	/// The song's own learned MIDI knobs, on its effects.
-	std::vector<ControllerMapping> controls;
+	/// Every MIDI-learned binding: the sections' launch commands, then the song's knobs, then each output's (its knobs,
+	/// its input, and each of a kit's rows' knobs, mute and input) in output order, then each clip's mute in clip
+	/// order.
+	MappingTable mappings;
 	/// The song master's effects.
 	FxChain master_effects;
 	/// The entry of the clip with @p id, or nullptr.
@@ -91,9 +94,9 @@ struct SongDocument {
 /// file from before ids) get the next id after the largest of their kind in the document, in document order; a
 /// session macro naming its clip or output by position names the one at that position (a session clip, an output in
 /// the order of `instruments`), or nothing if there is none.
-/// Controls are named through @p engines: a sound's and a sound kit row's by the Deluge instrument, a kit's, an audio
-/// track's and the song's by the provisional global-effectable table; with no naming for an engine, its owners have
-/// no controls.
+/// Controls and learned knobs are named through @p engines: a sound's and a sound kit row's by the Deluge instrument, a
+/// kit's, an audio track's and the song's by the provisional global-effectable table; with no naming for an engine,
+/// its owners have no controls and no learned knobs.
 [[nodiscard]] std::expected<SongDocument, LoadError> decode_song(const serialization::Value& root,
                                                                  const CodecEngines& engines);
 

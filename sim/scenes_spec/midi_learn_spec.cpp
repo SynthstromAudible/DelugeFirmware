@@ -90,6 +90,7 @@
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
@@ -154,17 +155,19 @@ namespace {
 constexpr uint8_t kPoisonChannel = 0xEE;
 
 /// @brief A section's launch command as the examples read and write it: the song's record
-/// (`project.arrangement.sections[i].launch_midi_command`), seen through the `LearnedMIDI` both learns edit and
-/// commit back to it.
+/// (the section's entry in `project.mappings`), seen through the `LearnedMIDI` both learns edit and commit back to it.
 struct SectionSlot {
 	::Song& song;
 	uint8_t index;
 
-	[[nodiscard]] deluge::project::MidiCommand& record() const {
-		return song.project.arrangement.sections[index].launch_midi_command;
+	[[nodiscard]] deluge::project::MidiCommand record() const {
+		return deluge::bridge::sectionCommand(song.project.mappings, index);
+	}
+	void set(const deluge::project::MidiCommand& command) const {
+		deluge::bridge::setSectionCommand(song.project.mappings, index, command);
 	}
 	[[nodiscard]] ::LearnedMIDI learned() const { return deluge::bridge::learned_of(record()); }
-	void clear() const { record() = deluge::project::MidiCommand{}; }
+	void clear() const { set(deluge::project::MidiCommand{}); }
 	[[nodiscard]] bool containsSomething() const { return record().contains_something(); }
 };
 
@@ -202,7 +205,7 @@ struct Learned {
 [[nodiscard]] bool poison(const SectionSlot& slot) {
 	::LearnedMIDI m;
 	(void)poison(m);
-	slot.record() = deluge::bridge::command_of(m);
+	slot.set(deluge::bridge::command_of(m));
 	return slot.record().channel_or_zone == kPoisonChannel && !slot.record().device;
 }
 

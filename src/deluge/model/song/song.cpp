@@ -63,6 +63,7 @@
 #include "model/project_bridge/arp_bridge.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/sample/sample_recorder.h"
@@ -1223,7 +1224,7 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeArrayEnding("instruments");
 	{
 		auto members = deluge::serialization::Value::makeMap();
-		members.set("sections", deluge::project::encode_sections(project.arrangement));
+		members.set("sections", deluge::project::encode_sections(project.arrangement, project.mappings));
 		writer.writeValue(members);
 	}
 
@@ -1353,6 +1354,7 @@ void Song::adoptDrum(Drum* drum) {
 			deluge::bridge::syncSlotState(*sound, *d.instrument, *this);
 		}
 		d.controls = deluge::bridge::controlsOf(*sound); // its knobs are its record's from now on
+		deluge::bridge::recordSoundKnobs(*sound, *this);
 	}
 }
 
@@ -1397,20 +1399,8 @@ void Song::adoptOutput(Output* output) {
 	// A preset's samples load before it is added, and a kit's drums were bound while it was read: the record and the
 	// slot take what the runtime holds.
 	deluge::bridge::recordLoadedOutput(*output, *this);
-	// The output's knobs are its record's.
-	switch (output->type) {
-	case OutputType::SYNTH:
-		d.controls = deluge::bridge::controlsOf(*static_cast<SoundInstrument*>(output));
-		break;
-	case OutputType::KIT:
-	case OutputType::AUDIO:
-		if (auto* own = static_cast<ModControllableAudio*>(output->toModControllable())) {
-			d.controls = deluge::bridge::learnedControlsOf(*own);
-		}
-		break;
-	default:
-		break;
-	}
+	// The output's knobs are its record's, and its learned knobs the song's table's.
+	deluge::bridge::recordOutputControls(*output, *this);
 	deluge::bridge::recordOutputChain(*output, *this); // a kit's or an audio track's effects are its record's too
 }
 

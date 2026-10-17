@@ -155,7 +155,7 @@ inline void recordControlsOf(::ModControllable& owner) {
 	}
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetControls edit{*address, isSound ? deluge::bridge::controlsOf(static_cast<::Sound&>(*audio))
-	                                                  : deluge::bridge::learnedControlsOf(*audio)};
+	                                                  : std::vector<deluge::project::ControllerMapping>{}};
 	if (deluge::edits::apply(ctx, edit) != Error::NONE) {
 		D_PRINTLN("controls refused");
 	}

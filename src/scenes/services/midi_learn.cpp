@@ -27,6 +27,7 @@
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -81,8 +82,8 @@ constexpr deluge::ui::LedId led(ButtonId b) {
 ///        held target is a section.
 void commit_section(const LearnTarget& target) {
 	if (target.kind == ::MidiLearn::SECTION && target.song != nullptr) {
-		target.song->project.arrangement.sections[target.section_index].launch_midi_command =
-		    deluge::bridge::command_of(*target.thing);
+		deluge::bridge::setSectionCommand(target.song->project.mappings, target.section_index,
+		                                  deluge::bridge::command_of(*target.thing));
 	}
 }
 
@@ -100,7 +101,7 @@ bool global_command_learned(GlobalMIDICommand c) {
 LearnTarget LearnTarget::section(::Song& song, uint8_t section) {
 	// `View::sectionMidiLearnPadPressed`: the song's record holds the command, so the learn edits a
 	// scratch copy of it and commits each change back.
-	g_section_scratch = deluge::bridge::learned_of(song.project.arrangement.sections[section].launch_midi_command);
+	g_section_scratch = deluge::bridge::learned_of(deluge::bridge::sectionCommand(song.project.mappings, section));
 	return LearnTarget{
 	    .kind = ::MidiLearn::SECTION, .thing = &g_section_scratch, .song = &song, .section_index = section};
 }

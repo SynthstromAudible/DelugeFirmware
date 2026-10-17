@@ -28,6 +28,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
@@ -106,10 +107,11 @@ void resolveMacros(Arrangement& arrangement, const LegacyMacroTargets& legacy, :
 
 /// Makes the device list know every hosted device a section's launch command names, and records the reference as the
 /// list then holds it, as reading a device reference does.
-void registerSectionDevices(Arrangement& arrangement) {
-	for (Section& section : arrangement.sections) {
-		std::optional<MidiDeviceRef>& device = section.launch_midi_command.device;
-		if (!device || device->port != MidiDeviceRef::Port::HOSTED) {
+void registerSectionDevices(MappingTable& mappings) {
+	for (Mapping& entry : mappings.entries()) {
+		std::optional<MidiDeviceRef>& device = entry.source.device;
+		if (!std::holds_alternative<SectionLaunchTarget>(entry.target) || !device
+		    || device->port != MidiDeviceRef::Port::HOSTED) {
 			continue;
 		}
 		std::string name = device->name;
@@ -157,15 +159,17 @@ Error loadSong(::Song& song, Deserializer& in) {
 	for (SessionMacro& macro : song.project.arrangement.session_macros) {
 		macro.kind = SessionMacroKind::NO_MACRO;
 	}
+	song.project.mappings = MappingTable{};
 	LegacyMacroTargets legacy;
-	(void)decode(*songNode, song.project.arrangement, &legacy);
-	registerSectionDevices(song.project.arrangement);
+	(void)decode(*songNode, song.project.arrangement, song.project.mappings, &legacy);
+	registerSectionDevices(song.project.mappings);
 
 	const Error error = song.readFromFile(in, transport.samples_per_timer_tick_big);
 	if (error != Error::NONE) {
 		return error;
 	}
 	resolveMacros(song.project.arrangement, legacy, song);
+	recordLoadedMappings(song);
 	refreshControls(song);
 	fillChains(song); // each host owner's chain from the effects it loaded
 	return Error::NONE;

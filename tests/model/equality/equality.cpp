@@ -66,6 +66,9 @@ std::string difference(const SongDocument& a, const SongDocument& b) {
 	if (!(a.arrangement.session_macros == b.arrangement.session_macros)) {
 		return "session macros";
 	}
+	if (!(a.mappings == b.mappings)) {
+		return "mappings";
+	}
 	if (!(a.clip_order == b.clip_order)) {
 		return "clip order";
 	}

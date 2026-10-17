@@ -17,6 +17,7 @@
 
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/mapping_bridge.h"
 
 #include "engine-api/types/sync.h"
 #include "engines/deluge/dx7_init_voice.h"
@@ -377,6 +378,7 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 			if (std::vector<deluge::project::ControllerMapping>* controls = song.project.resolveControls(*address)) {
 				*controls = controlsOf(sound);
 			}
+			recordOwnerKnobs(*address, sound, true, song);
 		}
 	}
 	else if (path == "transpose") {

@@ -1578,7 +1578,7 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 	}
 	else {
 		if (view.midiLearnFlashOn
-		    && currentSong->project.arrangement.sections[clip->section()].launch_midi_command.contains_something()) {
+		    && currentSong->project.mappings.find(deluge::project::SectionLaunchTarget{clip->section()}) != nullptr) {
 			thisColour = colours::midi_command;
 		}
 
@@ -3037,7 +3037,7 @@ void SessionView::midiLearnFlash() {
 
 			if (clip->muteMIDICommand.containsSomething()
 			    || (view.thingPressedForMidiLearn == MidiLearn::CLIP && &clip->muteMIDICommand == view.learnedThing)
-			    || currentSong->project.arrangement.sections[clip->section()].launch_midi_command.contains_something()
+			    || currentSong->project.mappings.find(deluge::project::SectionLaunchTarget{clip->section()}) != nullptr
 			    || view.isLearningSection(clip->section())) {
 				sideRowsToRender |= (1 << yDisplay);
 			}
@@ -3209,7 +3209,9 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 
 			if (view.midiLearnFlashOn && gridModeActive == SessionGridModeLaunch) {
 				// MIDI colour if necessary
-				if (currentSong->project.arrangement.sections[section].launch_midi_command.contains_something()) {
+				if (currentSong->project.mappings.find(
+				        deluge::project::SectionLaunchTarget{static_cast<uint8_t>(section)})
+				    != nullptr) {
 					ptrSectionColour = colours::midi_command;
 				}
 

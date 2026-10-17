@@ -24,7 +24,7 @@
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
-#include "model/project_bridge/midi_command.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
@@ -38,7 +38,6 @@ namespace deluge::bridge {
 
 namespace params = deluge::modulation::params;
 using deluge::project::ControllerMapping;
-using deluge::project::MidiInputControl;
 using deluge::project::ModKnobControl;
 
 deluge::engine::ParamId knobTargetOf(ParamDescriptor descriptor, params::Kind unpatchedKind) {
@@ -52,17 +51,6 @@ deluge::engine::ParamId knobTargetOf(ParamDescriptor descriptor, params::Kind un
 	return paramIdOf(params::Kind::PATCHED, p);
 }
 
-namespace {
-
-void appendLearned(::ModControllableAudio& owner, params::Kind unpatchedKind, std::vector<ControllerMapping>& into) {
-	for (MIDIKnob& knob : owner.midi_knobs) {
-		into.push_back({MidiInputControl{command_of(knob.midiInput), knob.relative},
-		                knobTargetOf(knob.paramDescriptor, unpatchedKind)});
-	}
-}
-
-} // namespace
-
 std::vector<ControllerMapping> controlsOf(::Sound& sound) {
 	std::vector<ControllerMapping> controls;
 	for (uint8_t button = 0; button < kNumModButtons; ++button) {
@@ -71,46 +59,49 @@ std::vector<ControllerMapping> controlsOf(::Sound& sound) {
 			                                                               params::Kind::UNPATCHED_SOUND)});
 		}
 	}
-	appendLearned(sound, params::Kind::UNPATCHED_SOUND, controls);
-	return controls;
-}
-
-std::vector<ControllerMapping> learnedControlsOf(::ModControllableAudio& owner) {
-	std::vector<ControllerMapping> controls;
-	appendLearned(owner, params::Kind::UNPATCHED_GLOBAL, controls);
 	return controls;
 }
 
 void refreshControls(::Song& song) {
+	using Kind = deluge::project::ControlsAddress::Kind;
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
-		if (output->docOutput_ == nullptr) {
+		if (output->docOutput_ == nullptr || !output->id()) {
 			continue;
 		}
+		const deluge::project::ControlsAddress address{Kind::OUTPUT, *output->id()};
 		switch (output->type) {
-		case OutputType::SYNTH:
-			output->docOutput_->controls = controlsOf(*static_cast<SoundInstrument*>(output));
+		case OutputType::SYNTH: {
+			auto& sound = *static_cast<SoundInstrument*>(output);
+			output->docOutput_->controls = controlsOf(sound);
+			recordOwnerKnobs(address, sound, true, song);
 			break;
+		}
 		case OutputType::KIT: {
 			Kit* kit = static_cast<Kit*>(output);
-			output->docOutput_->controls = learnedControlsOf(*kit);
+			output->docOutput_->controls.clear();
+			recordOwnerKnobs(address, *kit, false, song);
 			for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
 				if (drum->type != DrumType::SOUND || !drum->id()) {
 					continue;
 				}
+				auto& sound = *static_cast<SoundDrum*>(drum);
 				if (deluge::project::DocDrum* record = song.project.drum_structure.find(*drum->id())) {
-					record->controls = controlsOf(*static_cast<SoundDrum*>(drum));
+					record->controls = controlsOf(sound);
 				}
+				recordOwnerKnobs({Kind::DRUM, *drum->id()}, sound, true, song);
 			}
 			break;
 		}
 		case OutputType::AUDIO:
-			output->docOutput_->controls = learnedControlsOf(*static_cast<AudioOutput*>(output));
+			output->docOutput_->controls.clear();
+			recordOwnerKnobs(address, *static_cast<AudioOutput*>(output), false, song);
 			break;
 		default:
 			break;
 		}
 	}
-	song.project.controls = learnedControlsOf(song.live.global_effectable);
+	song.project.controls.clear();
+	recordOwnerKnobs({Kind::SONG, 0}, song.live.global_effectable, false, song);
 }
 
 ParamDescriptor descriptorOf(deluge::engine::ParamId target, params::Kind unpatchedKind) {
@@ -236,35 +227,16 @@ std::optional<deluge::project::ControlsAddress> controlsAddressOf(::ModControlla
 }
 
 void applyControls(::ModControllableAudio& owner, bool isSound, const std::vector<ControllerMapping>& controls) {
-	const params::Kind unpatchedKind = isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL;
-	deluge::fast_vector<MIDIKnob> learned;
-	for (const ControllerMapping& mapping : controls) {
-		if (const auto* knob = std::get_if<ModKnobControl>(&mapping.control)) {
-			if (isSound && knob->button < kNumModButtons && knob->knob < kNumPhysicalModKnobs) {
-				static_cast<::Sound&>(owner).modKnobs[knob->button][knob->knob].paramDescriptor =
-				    descriptorOf(mapping.target, unpatchedKind);
-			}
-			continue;
-		}
-		const auto& input = std::get<MidiInputControl>(mapping.control);
-		const ParamDescriptor target = descriptorOf(mapping.target, unpatchedKind);
-		// A knob the list leaves as it is stays whole: its device (which a name lookup could not tell from another of
-		// the same name) and its takeover state with it.
-		const auto kept = std::ranges::find_if(owner.midi_knobs, [&](const MIDIKnob& old) {
-			return command_of(old.midiInput) == input.input && old.relative == input.relative
-			       && old.paramDescriptor == target;
-		});
-		if (kept != owner.midi_knobs.end()) {
-			learned.push_back(*kept);
-			continue;
-		}
-		MIDIKnob made;
-		made.midiInput = learned_of(input.input);
-		made.relative = input.relative;
-		made.paramDescriptor = target;
-		learned.push_back(made);
+	if (!isSound) {
+		return;
 	}
-	owner.midi_knobs = std::move(learned);
+	for (const ControllerMapping& mapping : controls) {
+		const ModKnobControl& knob = mapping.control;
+		if (knob.button < kNumModButtons && knob.knob < kNumPhysicalModKnobs) {
+			static_cast<::Sound&>(owner).modKnobs[knob.button][knob.knob].paramDescriptor =
+			    descriptorOf(mapping.target, params::Kind::UNPATCHED_SOUND);
+		}
+	}
 }
 
 void recordOutputControls(::Output& output, ::Song& song) {
@@ -278,7 +250,8 @@ void recordOutputControls(::Output& output, ::Song& song) {
 	if (own == nullptr || record == nullptr) {
 		return;
 	}
-	*record = isSound ? controlsOf(static_cast<::Sound&>(*own)) : learnedControlsOf(*own);
+	*record = isSound ? controlsOf(static_cast<::Sound&>(*own)) : std::vector<ControllerMapping>{};
+	recordOwnerKnobs({deluge::project::ControlsAddress::Kind::OUTPUT, *output.id()}, *own, isSound, song);
 }
 
 deluge::project::CodecEngines codecEngines() {

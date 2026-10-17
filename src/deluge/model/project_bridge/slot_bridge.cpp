@@ -17,6 +17,7 @@
 
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/source_bridge.h"
 
@@ -271,6 +272,7 @@ void recordLoadedSound(::Sound& sound, ::Song& song) {
 		if (std::vector<deluge::project::ControllerMapping>* controls = song.project.resolveControls(*owner)) {
 			*controls = controlsOf(sound); // the knobs the load read
 		}
+		recordSoundKnobs(sound, song);
 	}
 }
 

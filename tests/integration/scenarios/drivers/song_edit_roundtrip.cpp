@@ -28,6 +28,7 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
@@ -818,7 +819,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	    .channel_or_zone = 2,
 	    .note_or_cc = 60,
 	    .device = deluge::bridge::reference_of(MIDIDeviceManager::dinMIDIPorts)};
-	song->project.arrangement.sections[3].launch_midi_command = sectionCommand;
+	deluge::bridge::setSectionCommand(song->project.mappings, 3, sectionCommand);
 
 	// 3. Save.
 	long n1 = deluge::scenarios::driver::saveSongCapture(*song, gen1, kCap);
@@ -836,7 +837,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	}
 
 	{
-		const auto& command = reloaded->project.arrangement.sections[3].launch_midi_command;
+		const deluge::project::MidiCommand command = deluge::bridge::sectionCommand(reloaded->project.mappings, 3);
 		const bool wasDifferentiating = MIDIDeviceManager::differentiatingInputsByDevice;
 		MIDIDeviceManager::differentiatingInputsByDevice = true;
 		const bool fromDevice = deluge::bridge::matches(command, MIDIDeviceManager::dinMIDIPorts, 2, 60);
