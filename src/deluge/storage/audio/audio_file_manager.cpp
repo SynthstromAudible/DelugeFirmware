@@ -17,6 +17,7 @@
 
 #include "storage/audio/audio_file_manager.h"
 #include "definitions_cxx.hpp"
+#include "deluge.h"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
@@ -1477,6 +1478,9 @@ bool AudioFileManager::loadEnqueuedClusterNow(Cluster& cluster) {
 				}
 			}
 			sd_async_check_timeout();
+			// As with a synchronous SD read, keep audio running while the card responds.
+			// routineForSD() guards against reentry when we're already servicing an SD wait.
+			routineForSD();
 		}
 		finishClusterReads();
 		return cluster.loaded;
