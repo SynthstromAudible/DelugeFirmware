@@ -156,7 +156,21 @@ icciar_read_complete:
 
     //PUSH    {r1, lr} (previous version)
     PUSH	{r0-r4, lr}  /* Call the interrupt handler.  r4 pushed to maintain alignment. */
+
+    /* IRQs can interrupt live VFP/NEON values, including integer pointers moved by
+     * the compiler through NEON registers. SD DMA setup uses d16-d17, for example.
+     * Preserve the AAPCS caller-saved registers and FPSCR before calling C/C++.
+     * d8-d15 are callee-saved by the called functions. Keep the stack 8-byte aligned.
+     * This also protects an outer handler when INTC_Handler_Interrupt enables nesting. */
+    VMRS    r2, FPSCR
+    PUSH    {r2, r3}
+    VPUSH   {d0-d7}
+    VPUSH   {d16-d31}
     BL        INTC_Handler_Interrupt
+    VPOP    {d16-d31}
+    VPOP    {d0-d7}
+    POP     {r2, r3}
+    VMSR    FPSCR, r2
     //POP        {r1, lr} (previous version)
     POP		{r0-r4, lr} 
     ADD        sp, sp, r1
