@@ -23,6 +23,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
+#include "io/midi/mapping_index.h"
 #include "io/midi/mapping_index_stale.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
@@ -55,6 +56,7 @@
 #include "util/notify.h"
 #include "util/structural_edit_probe.h"
 #include <cstring>
+#include <variant>
 
 namespace params = deluge::modulation::params;
 
@@ -594,6 +596,15 @@ Drum* Kit::getDrumFromIndexAllowNull(int32_t index) {
 	return nullptr;
 }
 
+Drum* Kit::drumWithId(uint32_t id) const {
+	for (Drum* thisDrum = firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+		if (thisDrum->id() == id) {
+			return thisDrum;
+		}
+	}
+	return nullptr;
+}
+
 Drum* Kit::getDrumFromName(std::string_view name, bool onlyIfNoNoteRow) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 
@@ -938,8 +949,12 @@ void Kit::beenEdited(bool shouldMoveToEmptySlot) {
 // offer the CC to kit gold knobs without also offering to all drums
 void Kit::offerReceivedCCToModControllable(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                            ModelStackWithTimelineCounter* modelStack) {
+	if (!id()) {
+		return;
+	}
 	// NOTE: this call may change modelStack->timelineCounter etc!
-	ModControllableAudio::offerReceivedCCToLearnedParamsForClip(cable, channel, ccNumber, value, modelStack);
+	ModControllableAudio::offerReceivedCCToLearnedParamsForClip({deluge::project::ControlsAddress::Kind::OUTPUT, *id()},
+	                                                            cable, channel, ccNumber, value, modelStack);
 }
 void Kit::offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                          ModelStackWithTimelineCounter* modelStack) {
@@ -956,9 +971,11 @@ void Kit::offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint
 		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
 			NoteRow* thisNoteRow = &clip->noteRows[i];
 			Drum* thisDrum = thisNoteRow->drum;
-			if (thisDrum && thisDrum->type == DrumType::SOUND) {
+			if (thisDrum && thisDrum->type == DrumType::SOUND && thisDrum->id()) {
 				((SoundDrum*)thisDrum)
-				    ->offerReceivedCCToLearnedParamsForClip(cable, channel, ccNumber, value, modelStack, i);
+				    ->offerReceivedCCToLearnedParamsForClip(
+				        {deluge::project::ControlsAddress::Kind::DRUM, *thisDrum->id()}, cable, channel, ccNumber,
+				        value, modelStack, i);
 			}
 		}
 	}
@@ -969,11 +986,12 @@ void Kit::offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint
 bool Kit::offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
                                                 ModelStackWithTimelineCounter* modelStack) {
 
-	bool messageUsed;
-
 	// Do it for this whole Kit
-	messageUsed = ModControllableAudio::offerReceivedPitchBendToLearnedParams(
-	    cable, channel, data1, data2, modelStack); // NOTE: this call may change modelStack->timelineCounter etc!
+	// NOTE: this call may change modelStack->timelineCounter etc!
+	bool messageUsed =
+	    id()
+	    && ModControllableAudio::offerReceivedPitchBendToLearnedParams(
+	        {deluge::project::ControlsAddress::Kind::OUTPUT, *id()}, cable, channel, data1, data2, modelStack);
 
 	if (modelStack->timelineCounterIsSet()) { // This is always actually true currently for calls to this function, but
 		                                      // let's make this safe and future proof.
@@ -982,9 +1000,11 @@ bool Kit::offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channe
 		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
 			NoteRow* thisNoteRow = &clip->noteRows[i];
 			Drum* thisDrum = thisNoteRow->drum;
-			if (thisDrum && thisDrum->type == DrumType::SOUND) {
+			if (thisDrum && thisDrum->type == DrumType::SOUND && thisDrum->id()) {
 				if (((SoundDrum*)thisDrum)
-				        ->offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, modelStack)) {
+				        ->offerReceivedPitchBendToLearnedParams(
+				            {deluge::project::ControlsAddress::Kind::DRUM, *thisDrum->id()}, cable, channel, data1,
+				            data2, modelStack)) {
 					messageUsed = true;
 				}
 			}
@@ -1665,19 +1685,29 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDICable
 		return;
 	}
 
-	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+	if (!id()) {
+		return;
+	}
+	// Each row whose input the note sounds (any kind of MPE match sounds it) or, failing that, whose mute it matches.
+	// The hits are collected before any is acted on.
+	deluge::midi::IndexedHits hits;
+	deluge::midi::mappingIndex().forEachLaneMatch(*id(), cable, channel, note,
+	                                              [&](const deluge::midi::IndexedEntry& hit) { hits.push_back(hit); });
+	for (const deluge::midi::IndexedEntry& hit : hits) {
+		const auto* input = std::get_if<deluge::project::LaneInputTarget>(&hit.target);
+		const auto* mute = std::get_if<deluge::project::DrumMuteTarget>(&hit.target);
+		Drum* thisDrum = drumWithId(input != nullptr ? input->drum_id : mute->drum_id);
+		if (thisDrum == nullptr) {
+			continue;
+		}
 
-		// If this is the "input" command, to sound / audition the Drum...
-		// Returns true if midi channel and note match the learned midi note
-		// We don't need the MPE match because all types of matches should sound the drum
-		if (thisDrum->midiInput.equalsNoteOrCCAllowMPE(&cable, channel, note)) {
+		if (input != nullptr) {
 			receivedNoteForDrum(modelStack, cable, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
 			                    thisDrum);
 		}
-		// Or if this is the Drum's mute command...
-		// changed to else if dec 2023 because the same note should never be both mute and sound, this will save
-		// potential confusion if someone accidentally learns a note to mute as well as audition
-		else if (instrumentClip && on && thisDrum->muteMIDICommand.equalsNoteOrCC(&cable, channel, note)) {
+		// Or if this is the Drum's mute command. A row the note sounds is never muted by it, so learning one note to
+		// both does not confuse the two.
+		else if (instrumentClip && on) {
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);
 

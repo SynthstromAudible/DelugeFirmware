@@ -2977,26 +2977,37 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_
 		foundAnything = tryGlobalMIDICommandsOff(cable, channel, note);
 	}
 
-	// Go through all sections
-	for (int32_t s = 0; s < kMaxNumSections; s++) {
-		if (deluge::bridge::matches(deluge::bridge::sectionCommand(currentSong->project.mappings, s), cable, channel,
-		                            note)) {
+	// Sections by number, then session clips from the session's end. Every hit is collected before any acts: a clip
+	// toggle can delete clips (a pending overdub) or reach a write that rebuilds the index.
+	deluge::midi::IndexedHits hits;
+	deluge::midi::mappingIndex().forEachCommand(cable, channel, note,
+	                                            [&](const deluge::midi::IndexedEntry& hit) { hits.push_back(hit); });
+	for (const deluge::midi::IndexedEntry& hit : hits) {
+		if (const auto* section = std::get_if<deluge::project::SectionLaunchTarget>(&hit.target)) {
 			if (on) {
 				if (arrangement.hasPlaybackActive()) {
 					switchToSession();
 				}
-				session.armSection(s, kMIDIKeyInputLatency);
+				session.armSection(section->section, kMIDIKeyInputLatency);
 			}
 			foundAnything = true;
 		}
-	}
+		else if (const auto* mute = std::get_if<deluge::project::ClipMuteTarget>(&hit.target)) {
+			// The clip's place now, by its id: a toggle before this one may have deleted a clip below it, or this one.
+			ClipArray& clips = currentSong->live.clips.session_clips;
+			int32_t c = hit.ordinal < clips.size() && clips[hit.ordinal]->id() == mute->clip_id
+			                ? static_cast<int32_t>(hit.ordinal)
+			                : -1;
+			for (int32_t i = 0; c < 0 && i < std::ssize(clips); i++) {
+				if (clips[i]->id() == mute->clip_id) {
+					c = i;
+				}
+			}
+			if (c < 0) {
+				continue;
+			}
+			Clip* clip = clips[c];
 
-	// Go through all Clips in session only
-	for (int32_t c = std::ssize(currentSong->live.clips.session_clips) - 1; c >= 0; c--) {
-		Clip* clip = currentSong->live.clips.session_clips[c];
-
-		// Mute action on Clip?
-		if (clip->muteMIDICommand.equalsNoteOrCC(&cable, channel, note)) {
 			if (on) {
 
 				if (arrangement.hasPlaybackActive()) {

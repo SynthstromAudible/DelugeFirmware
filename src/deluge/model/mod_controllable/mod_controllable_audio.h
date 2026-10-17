@@ -159,12 +159,65 @@ public:
 	void setCompressorSidechainHpf(q31_t value);
 	void setCompressorBlend(q31_t value);
 	/// @}
-	bool offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	/// @brief Move the params of this owner's learned knobs that a CC moves, found through the mapping index.
+	/// @param owner        Whose knobs these are, as the mapping table names them.
+	/// @param cable        The cable the CC came from.
+	/// @param channel      The CC's channel.
+	/// @param ccNumber     The CC number.
+	/// @param value        The CC's value.
+	/// @param modelStack   The owner's clip; a learned param may clone it for arrangement recording.
+	/// @param noteRowIndex The kit row's place in the clip, for a kit row's knobs; -1 otherwise.
+	/// @return Whether any knob was learned to the CC.
+	bool offerReceivedCCToLearnedParamsForClip(deluge::project::ControlsAddress owner, MIDICable& cable,
+	                                           uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
+	/// @brief Move the params of the song's learned knobs that a CC moves, found through the mapping index.
+	/// @param cable                         The cable the CC came from.
+	/// @param channel                       The CC's channel.
+	/// @param ccNumber                      The CC number.
+	/// @param value                         The CC's value.
+	/// @param modelStackWithThreeMainThings The song, as its own timeline counter.
+	/// @return Whether any knob was learned to the CC.
 	bool offerReceivedCCToLearnedParamsForSong(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                           ModelStackWithThreeMainThings* modelStackWithThreeMainThings);
-	bool offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
+	/// @brief Set the param of this owner's first learned knob that a pitch bend moves (a knob learned to CC 128),
+	/// found through the mapping index.
+	/// @param owner        Whose knobs these are, as the mapping table names them.
+	/// @param cable        The cable the bend came from.
+	/// @param channel      The bend's channel.
+	/// @param data1        The bend's low seven bits.
+	/// @param data2        The bend's high seven bits.
+	/// @param modelStack   The owner's clip; a learned param may clone it for arrangement recording.
+	/// @param noteRowIndex The kit row's place in the clip, for a kit row's knobs; -1 otherwise.
+	/// @return Whether any knob was learned to pitch bend.
+	bool offerReceivedPitchBendToLearnedParams(deluge::project::ControlsAddress owner, MIDICable& cable,
+	                                           uint8_t channel, uint8_t data1, uint8_t data2,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
+	/// @brief Move @p knob's param to where a CC of @p value puts it, under the MIDI takeover mode; a value in the
+	/// middle of the range marks the knob as not sending relative changes.
+	/// @param knob         One of this owner's learned knobs, which the CC was learned to.
+	/// @param cable        The cable the CC came from.
+	/// @param value        The CC's value.
+	/// @param modelStack   The owner's clip; the param may clone it for arrangement recording.
+	/// @param noteRowIndex The kit row's place in the clip, for a kit row's knobs; -1 otherwise.
+	void handleLearnedKnob(MIDIKnob& knob, MIDICable& cable, uint8_t value, ModelStackWithTimelineCounter* modelStack,
+	                       int32_t noteRowIndex);
+	/// @brief The song's handleLearnedKnob: no clip to clone, and the views showing the param are refreshed.
+	/// @param knob                          One of the song's learned knobs, which the CC was learned to.
+	/// @param cable                         The cable the CC came from.
+	/// @param value                         The CC's value.
+	/// @param modelStackWithThreeMainThings The song, as its own timeline counter.
+	void handleLearnedKnob(MIDIKnob& knob, MIDICable& cable, uint8_t value,
+	                       ModelStackWithThreeMainThings* modelStackWithThreeMainThings);
+	/// @brief Set @p knob's param from a pitch bend's 14-bit value.
+	/// @param knob         One of this owner's learned knobs, which pitch bend was learned to.
+	/// @param data1        The bend's low seven bits.
+	/// @param data2        The bend's high seven bits.
+	/// @param modelStack   The owner's clip; the param may clone it for arrangement recording.
+	/// @param noteRowIndex The kit row's place in the clip, for a kit row's knobs; -1 otherwise.
+	/// @return Whether the knob's param exists, and was set.
+	bool handleLearnedPitchBend(MIDIKnob& knob, uint8_t data1, uint8_t data2, ModelStackWithTimelineCounter* modelStack,
+	                            int32_t noteRowIndex);
 	/// Learna knob to a particular parameter.
 	///
 	/// @param cable The source MIDI cable, or null if learning a mod knob

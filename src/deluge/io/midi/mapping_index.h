@@ -23,6 +23,7 @@
 #include "io/midi/mapping_index_stale.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
+#include "util/containers.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -47,6 +48,10 @@ struct IndexedEntry {
 	/// knobs (table order, as the owner's knob list holds them), a row's place in its kit.
 	uint32_t ordinal{0};
 };
+
+/// @brief The hits of a lookup, copied out of the index. Acting on a hit can reach a write that rebuilds the index, so
+/// the dispatch collects a lookup's hits before it acts on any.
+using IndexedHits = deluge::fast_vector<IndexedEntry>;
 
 /// @brief What a rebuild of the index reads of a song: its bindings and what of it can be offered MIDI, copied, so the
 /// index is built without holding the song (which the song's tick, on the audio tier, can change).

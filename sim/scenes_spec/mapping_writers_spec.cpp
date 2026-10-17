@@ -436,7 +436,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(sound.midi_knobs.size() == 1 && sound.midi_knobs[0].midiInput.cable == &cable).to_be_true();
 
 		char memory[MODEL_STACK_MAX_SIZE];
-		sound.offerReceivedCCToLearnedParamsForClip(cable, 2, 9, 64,
+		sound.offerReceivedCCToLearnedParamsForClip(knob.owner, cable, 2, 9, 64,
 		                                            setupModelStackWithTimelineCounter(memory, f.song, f.clip), -1);
 		expect(sound.midi_knobs[0].relative).to_be_false();
 		expect(f.song->project.mappings.find(knob)->relative).to_be_false();

@@ -30,12 +30,16 @@
 /// which no message arrives on. A section's command is not projected, so a section learned from a device the Deluge
 /// still does not know is kept as such: its hosted sources name a device nothing else names.
 ///
-/// Then the legs: the index follows the song and the devices. A binding to a device plugged in after it was learned
-/// starts matching, and stops when it is unplugged; an any-device binding matches every cable; a hibernated kit's rows
-/// and knobs stop matching and match again once it wakes; a session clip reordered and a kit row removed are offered
-/// at their new places. Each change reaches the index through the step the app loop takes before it matches a message.
-/// The table writes the render holds land, in order, through every rebuild; an app-loop clone writes the table at once;
-/// a write held for a song a swap replaced never lands on the incoming one.
+/// Then the legs. First the dispatch's: a message sent in through the app's MIDI input does what its bindings say. A
+/// note toggles a learned clip, launches a section, mutes and sounds a kit row; a CC moves a learned knob's param; a
+/// note learned to a section and a clip launches the section and then toggles the clip; and the clips one note
+/// toggles are toggled once each, from the session's end, a clip a toggle before deletes never. Then the index
+/// follows the song and the devices. A binding to a device plugged in after it was learned starts matching, and stops
+/// when it is unplugged; an any-device binding matches every cable; a hibernated kit's rows and knobs stop matching and
+/// match again once it wakes; a session clip reordered and a kit row removed are offered at their new places. Each
+/// change reaches the index through the step the app loop takes before it matches a message. The table writes the
+/// render holds land, in order, through every rebuild; an app-loop clone writes the table at once; a write held for a
+/// song a swap replaced never lands on the incoming one.
 ///
 /// No arguments. Prints `MAPPING-DISPATCH cases=<n> mismatches=<m> ...` and a line per leg, and exits 0 when no
 /// message's hits differ, every kind of hit was seen and every leg held.
@@ -50,9 +54,11 @@
 #include "io/midi/mapping_index.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
 #include "model/clip/clip.h"
+#include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/edits/edit.h"
 #include "model/edits/learn_mapping.h"
@@ -60,6 +66,8 @@
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
@@ -70,6 +78,7 @@
 #include "modulation/knob.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
@@ -1193,6 +1202,324 @@ std::string songSwapLeg(Stage& s) {
 	return what;
 }
 
+// ---- The dispatch: what a learned binding does when its message arrives ----
+
+/// Send a message in through the app's MIDI input, as one arriving on @p cable is.
+void send(MIDICable& cable, uint8_t status, uint8_t channel, uint8_t data1, uint8_t data2) {
+	midiEngine.midiMessageReceived(cable, status, channel, data1, data2);
+}
+
+/// The session's clips and whether each plays, put back as they were when it goes out of scope.
+class SessionPlaying {
+public:
+	explicit SessionPlaying(Song& song) {
+		for (Clip* clip : song.live.clips.session_clips) {
+			clips_.emplace_back(clip, clip->activeIfNoSolo);
+		}
+	}
+	SessionPlaying(const SessionPlaying&) = delete;
+	SessionPlaying& operator=(const SessionPlaying&) = delete;
+	~SessionPlaying() {
+		for (auto [clip, active] : clips_) {
+			clip->activeIfNoSolo = active;
+			clip->armState = ArmState::OFF;
+		}
+	}
+
+private:
+	std::vector<std::pair<Clip*, bool>> clips_;
+};
+
+/// The session clips the dispatch legs drive: the synth's two, another synth's, the MIDI track's and the kit's. A leg
+/// sets which play before it sends a message whose effect depends on it.
+struct DispatchClips {
+	Clip* z{};   ///< the synth's first, in section 0
+	Clip* s{};   ///< the synth's second, in section 1
+	Clip* x{};   ///< the other synth's, in section 0
+	Clip* y{};   ///< the MIDI track's, in section 1
+	Clip* kit{}; ///< the kit's, its active clip, in section 2
+};
+
+/// The fixture's dispatch clips, or nullopt when the session is not the fixture's (a leg that deletes a session clip
+/// runs after the dispatch legs).
+
+std::optional<DispatchClips> dispatchClips(Stage& s) {
+	DispatchClips c;
+	for (Clip* clip : s.song.live.clips.session_clips) {
+		if (clip->output == &s.synth) {
+			(c.z == nullptr ? c.z : c.s) = clip;
+		}
+		else if (clip->output->type == OutputType::SYNTH && c.x == nullptr) {
+			c.x = clip;
+		}
+		else if (clip->output->type == OutputType::MIDI_OUT && c.y == nullptr) {
+			c.y = clip;
+		}
+		else if (clip->output == &s.kit) {
+			c.kit = clip;
+		}
+	}
+	if (c.z == nullptr || c.s == nullptr || c.x == nullptr || c.y == nullptr || c.kit == nullptr
+	    || s.kit.getActiveClip() != c.kit) {
+		return std::nullopt;
+	}
+	return c;
+}
+
+constexpr uint8_t kNoteOn = 0x09;
+constexpr uint8_t kNoteOff = 0x08;
+constexpr uint8_t kCC = 0x0B;
+
+/// A note learned to a session clip's mute toggles the clip; its note-off does not.
+std::string clipToggleLeg(Stage& s) {
+	const std::optional<DispatchClips> c = dispatchClips(s);
+	if (!c) {
+		return "the song's session is not the fixture's";
+	}
+	SessionPlaying restore{s.song};
+	if (!learn(s.song, {.source = {.channel_or_zone = 0, .note_or_cc = 72},
+	                    .target = deluge::project::ClipMuteTarget{c->x->id()}})) {
+		return "a learn was refused";
+	}
+	c->x->activeIfNoSolo = false;
+	send(*s.cables[0], kNoteOn, 0, 72, 100);
+	if (!c->x->activeIfNoSolo) {
+		return "the note did not start the clip";
+	}
+	send(*s.cables[0], kNoteOff, 0, 72, 0);
+	if (!c->x->activeIfNoSolo) {
+		return "the note-off stopped the clip";
+	}
+	send(*s.cables[0], kNoteOn, 0, 72, 100);
+	if (c->x->activeIfNoSolo) {
+		return "the second note did not stop the clip";
+	}
+	return {};
+}
+
+/// A note learned to a section launches it: its clips play and the others stop.
+std::string sectionArmLeg(Stage& s) {
+	const std::optional<DispatchClips> c = dispatchClips(s);
+	if (!c) {
+		return "the song's session is not the fixture's";
+	}
+	SessionPlaying restore{s.song};
+	if (!learn(s.song, {.source = {.channel_or_zone = 0, .note_or_cc = 73},
+	                    .target = deluge::project::SectionLaunchTarget{1}})) {
+		return "a learn was refused";
+	}
+	send(*s.cables[0], kNoteOn, 0, 73, 100);
+	if (!c->s->activeIfNoSolo || !c->y->activeIfNoSolo) {
+		return "the section's clips do not play";
+	}
+	if (c->z->activeIfNoSolo || c->x->activeIfNoSolo || c->kit->activeIfNoSolo) {
+		return "a clip of another section still plays";
+	}
+	return {};
+}
+
+/// The kit clip's row for the kit's first row.
+NoteRow* firstRowOf(Stage& s, Clip& kitClip) {
+	return static_cast<InstrumentClip&>(kitClip).getNoteRowForDrum(s.kit.firstDrum);
+}
+
+/// A note learned to a kit row's mute mutes the row in the kit's clip, and unmutes it again.
+std::string rowMuteLeg(Stage& s) {
+	const std::optional<DispatchClips> c = dispatchClips(s);
+	if (!c) {
+		return "the song's session is not the fixture's";
+	}
+	NoteRow* row = firstRowOf(s, *c->kit);
+	if (row == nullptr || row->muted()) {
+		return "the kit clip has no unmuted row for the kit's first row";
+	}
+	if (!learn(s.song, {.source = {.channel_or_zone = 0, .note_or_cc = 74},
+	                    .target = deluge::project::DrumMuteTarget{*s.kit.firstDrum->id()}})) {
+		return "a learn was refused";
+	}
+	send(*s.cables[0], kNoteOn, 0, 74, 100);
+	if (!row->muted()) {
+		return "the note did not mute the row";
+	}
+	send(*s.cables[0], kNoteOff, 0, 74, 0);
+	if (!row->muted()) {
+		return "the note-off unmuted the row";
+	}
+	send(*s.cables[0], kNoteOn, 0, 74, 100);
+	if (row->muted()) {
+		return "the second note did not unmute the row";
+	}
+	return {};
+}
+
+/// A note learned to a kit row's input sounds the row, and its note-off stops it.
+std::string rowSoundLeg(Stage& s) {
+	Drum* drum = s.kit.firstDrum;
+	if (!learn(s.song, {.source = {.channel_or_zone = 0,
+	                               .note_or_cc = 75,
+	                               .device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN}},
+	                    .target = deluge::project::LaneInputTarget{*drum->id()}})) {
+		return "a learn was refused";
+	}
+	if (drum->auditioned) {
+		return "the row sounds before its note";
+	}
+	send(*s.cables[1], kNoteOn, 0, 75, 100);
+	if (drum->auditioned) {
+		return "a note from another device sounded the row";
+	}
+	send(*s.cables[0], kNoteOn, 0, 75, 100);
+	if (!drum->auditioned) {
+		return "the note did not sound the row";
+	}
+	send(*s.cables[0], kNoteOff, 0, 75, 0);
+	if (drum->auditioned) {
+		return "the note-off did not stop the row";
+	}
+	return {};
+}
+
+/// A CC learned to a knob moves its param.
+std::string knobLeg(Stage& s) {
+	const std::optional<DispatchClips> c = dispatchClips(s);
+	if (!c) {
+		return "the song's session is not the fixture's";
+	}
+	const MIDITakeoverMode takeover = midiEngine.midiTakeover;
+	midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
+	// A knob before it, on another CC, so the moved knob is not the owner's first.
+	for (const auto& [cc, param] : {std::pair{21, params::LOCAL_PAN}, std::pair{20, params::LOCAL_LPF_FREQ}}) {
+		if (!learn(s.song, {.source = {.channel_or_zone = 0, .note_or_cc = static_cast<uint8_t>(cc)},
+		                    .target = deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, *s.synth.id()},
+		                                                           knobParam(param)}})) {
+			midiEngine.midiTakeover = takeover;
+			return "a learn was refused";
+		}
+	}
+	Clip* active = s.synth.getActiveClip();
+	if (active == nullptr) {
+		midiEngine.midiTakeover = takeover;
+		return "the synth has no clip";
+	}
+	PatchedParamSet& patched = *active->paramManager.getPatchedParamSet();
+	const int32_t freq = patched.getValue(params::LOCAL_LPF_FREQ);
+	const int32_t pan = patched.getValue(params::LOCAL_PAN);
+	std::string what;
+	// A value in the middle of the range: absolute, whether or not the knob was learned as sending relative changes.
+	send(*s.cables[0], kCC, 0, 20, 32);
+	if (patched.getValue(params::LOCAL_LPF_FREQ) == freq) {
+		what = "the CC did not move its knob's param";
+	}
+	else if (patched.getValue(params::LOCAL_PAN) != pan) {
+		what = "the CC moved another knob's param";
+	}
+	send(*s.cables[0], kCC, 0, 20, 127);
+	if (what.empty() && patched.getValue(params::LOCAL_LPF_FREQ) != freq) {
+		what = "the CC at its top did not put the param back at its top";
+	}
+	midiEngine.midiTakeover = takeover;
+	return what;
+}
+
+/// A note learned to a section and to a clip launches the section, then toggles the clip: the clip, of another section,
+/// plays.
+std::string sectionAndClipLeg(Stage& s) {
+	const std::optional<DispatchClips> c = dispatchClips(s);
+	if (!c) {
+		return "the song's session is not the fixture's";
+	}
+	SessionPlaying restore{s.song};
+	for (const MappingTarget& target : {MappingTarget{deluge::project::SectionLaunchTarget{2}},
+	                                    MappingTarget{deluge::project::ClipMuteTarget{c->x->id()}}}) {
+		if (!learn(s.song, {.source = {.channel_or_zone = 0, .note_or_cc = 76}, .target = target})) {
+			return "a learn was refused";
+		}
+	}
+	send(*s.cables[0], kNoteOn, 0, 76, 100);
+	if (!c->kit->activeIfNoSolo) {
+		return "the section did not launch";
+	}
+	if (!c->x->activeIfNoSolo) {
+		return "the clip was not toggled after the section launched";
+	}
+	if (c->z->activeIfNoSolo) {
+		return "the section's launch did not stop the other clips";
+	}
+	return {};
+}
+
+/// A clip toggle that changes the session mid-loop: toggling a clip recording linearly deletes its pending overdub,
+/// which sits below it and is learned to the same note. Every other learned clip is toggled once and the deleted one
+/// never. Then, two clips of one track learned to one note toggle in the session's order from its end: the later one
+/// starts and the first, started after it, stops it.
+std::string sessionChangesMidLoopLeg(Stage& s) {
+	const std::optional<DispatchClips> c = dispatchClips(s);
+	if (!c) {
+		return "the song's session is not the fixture's";
+	}
+	SessionPlaying restore{s.song};
+	const SessionLayoutType layout = s.song.persistentView.sessionLayout;
+	const int32_t scroll = s.song.persistentView.songViewYScroll;
+	s.song.persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+	Clip* pending = s.song.createPendingNextOverdubBelowClip(
+	    c->s, s.song.live.clips.session_clips.getIndexForClip(c->s), OverDubType::Normal);
+	s.song.persistentView.sessionLayout = layout;
+	if (pending == nullptr || pending == c->s || !pending->isPendingOverdub) {
+		return "no pending overdub was made";
+	}
+	c->s->activeIfNoSolo = false;
+	c->x->activeIfNoSolo = false;
+	c->y->activeIfNoSolo = false;
+	const uint32_t pendingId = pending->id();
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	(void)c->s->beginLinearRecording(setupModelStackWithTimelineCounter(modelStackMemory, &s.song, c->s), 0);
+	c->s->armState = ArmState::ON_NORMAL;
+	std::string what;
+	for (Clip* clip : {c->s, pending, c->x, c->y}) {
+		if (what.empty()
+		    && !learn(s.song, {.source = {.channel_or_zone = 0, .note_or_cc = 70},
+		                       .target = deluge::project::ClipMuteTarget{clip->id()}})) {
+			what = "a learn was refused";
+		}
+	}
+	if (what.empty()) {
+		send(*s.cables[0], kNoteOn, 0, 70, 100);
+		bool pendingGone = true;
+		for (Clip* clip : AllClips::everywhere(&s.song)) {
+			pendingGone = pendingGone && clip->id() != pendingId;
+		}
+		if (!pendingGone) {
+			what = "the recording clip's toggle did not delete its pending overdub";
+		}
+		else if (c->s->armState != ArmState::OFF || c->s->activeIfNoSolo) {
+			what = "the recording clip was not toggled once";
+		}
+		else if (!c->x->activeIfNoSolo || !c->y->activeIfNoSolo) {
+			what = "a clip learned to the note was not toggled once";
+		}
+	}
+	c->s->abortRecording();
+	s.song.persistentView.songViewYScroll = scroll;
+
+	if (what.empty()) {
+		c->z->activeIfNoSolo = false;
+		for (Clip* clip : {c->z, c->s}) {
+			if (what.empty()
+			    && !learn(s.song, {.source = {.channel_or_zone = 0, .note_or_cc = 71},
+			                       .target = deluge::project::ClipMuteTarget{clip->id()}})) {
+				what = "a learn was refused";
+			}
+		}
+		if (what.empty()) {
+			send(*s.cables[0], kNoteOn, 0, 71, 100);
+			if (!c->z->activeIfNoSolo || c->s->activeIfNoSolo) {
+				what = "one track's clips were not toggled from the session's end: the first does not play";
+			}
+		}
+	}
+	return what;
+}
+
 /// Run the legs on @p f's song, each from an empty table; their failures, printed to @p io.
 int32_t runLegs(const Fixture& f, std::array<MIDICable*, 2> cables, deluge::scenarios::driver::Io io) {
 	Song& song = *f.song;
@@ -1213,7 +1540,14 @@ int32_t runLegs(const Fixture& f, std::array<MIDICable*, 2> cables, deluge::scen
 	const bool differentiating = MIDIDeviceManager::differentiatingInputsByDevice;
 	MIDIDeviceManager::differentiatingInputsByDevice = true;
 	Stage stage{song, *kit, *synth, cables};
-	constexpr std::array<std::pair<const char*, std::string (*)(Stage&)>, 10> kLegs{{
+	constexpr std::array<std::pair<const char*, std::string (*)(Stage&)>, 17> kLegs{{
+	    {"dispatch-clip-toggle", clipToggleLeg},
+	    {"dispatch-section-arm", sectionArmLeg},
+	    {"dispatch-row-mute", rowMuteLeg},
+	    {"dispatch-row-sound", rowSoundLeg},
+	    {"dispatch-knob", knobLeg},
+	    {"dispatch-section-and-clip", sectionAndClipLeg},
+	    {"dispatch-session-changes-mid-loop", sessionChangesMidLoopLeg},
 	    {"late-device", lateDeviceLeg},
 	    {"any-device", anyDeviceLeg},
 	    {"hibernation", hibernationLeg},

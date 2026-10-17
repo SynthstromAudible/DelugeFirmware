@@ -50,6 +50,10 @@ public:
 	int32_t getDrumIndex(Drum* drum);
 	Drum* getDrumFromIndex(int32_t index);
 	Drum* getDrumFromIndexAllowNull(int32_t index);
+	/// @brief The row whose id is @p id.
+	/// @param id A row's id.
+	/// @return The row, or nullptr when the kit has none with that id.
+	[[nodiscard]] Drum* drumWithId(uint32_t id) const;
 
 	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) override;
 	void cutAllSound() override;

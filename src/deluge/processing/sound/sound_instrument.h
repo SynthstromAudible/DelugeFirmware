@@ -42,11 +42,16 @@ public:
 	// A timelineCounter is required
 	void offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                    ModelStackWithTimelineCounter* modelStack) override {
-		Sound::offerReceivedCCToLearnedParamsForClip(cable, channel, ccNumber, value, modelStack);
+		if (id()) {
+			Sound::offerReceivedCCToLearnedParamsForClip({deluge::project::ControlsAddress::Kind::OUTPUT, *id()}, cable,
+			                                             channel, ccNumber, value, modelStack);
+		}
 	}
 	bool offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
 	                                           ModelStackWithTimelineCounter* modelStack) override {
-		return Sound::offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, modelStack);
+		return id()
+		       && Sound::offerReceivedPitchBendToLearnedParams({deluge::project::ControlsAddress::Kind::OUTPUT, *id()},
+		                                                       cable, channel, data1, data2, modelStack);
 	}
 
 	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) override;
