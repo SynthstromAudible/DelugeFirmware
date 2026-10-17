@@ -4,15 +4,20 @@
 ///        holds what the engine plays.
 
 #include "deluge-project/mapping_table.h"
+#include "engines/effects/master_chain.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/learned_midi.h"
+#include "io/midi/mapping_index.h"
 #include "io/midi/midi_device_manager.h"
 #include "memory/heaps.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/midi_drum.h"
 #include "model/edits/learn_mapping.h"
+#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/delay_arena_app.h"
+#include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
@@ -194,6 +199,20 @@ void sawPosition(MIDIKnob& knob, int32_t position) {
 bool stillSaw(const MIDIKnob& knob, int32_t position) {
 	return knob.previousPositionSaved && knob.previousPosition == position;
 }
+
+/// @brief An owner of learned knobs none of whose params it can find.
+struct ParamlessOwner final : GlobalEffectable {
+	ParamlessOwner()
+	    : chain{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {}
+	[[nodiscard]] deluge::effects::ChainCore& core() override { return chain.core(); }
+	[[nodiscard]] const deluge::effects::ChainCore& core() const override { return chain.core(); }
+	[[nodiscard]] deluge::effects::Filter& filter() override { return chain.filter(); }
+	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& /*knob*/,
+	                                              ModelStackWithThreeMainThings* /*modelStack*/) override {
+		return nullptr;
+	}
+	deluge::effects::MasterChain chain;
+};
 
 /// @brief A MIDI drum, not in any kit.
 MIDIDrum* makeLooseMidiDrum() {
@@ -685,6 +704,17 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		                                                                     64, stack);
 		expect(f.song->live.global_effectable.midi_knobs[0].relative).to_be_false();
 		expect(f.song->project.mappings.find(knob)->relative).to_be_false();
+	});
+
+	it("ignores a learned pitch bend whose knob's param cannot be found", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		auto* owner = spec::detail::place<ParamlessOwner>();
+		MIDIKnob knob;
+		knob.midiInput.noteOrCC = 128;
+		knob.paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_VOLUME);
+		char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, f.song, nullptr);
+		expect(owner->handleLearnedPitchBend(knob, 0, 64, stack, -1)).to_be_false();
 	});
 });
 // clang-format on

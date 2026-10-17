@@ -847,7 +847,7 @@ bool ModControllableAudio::handleLearnedPitchBend(MIDIKnob& knob, uint8_t data1,
 
 	ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
 
-	if (!modelStackWithParam->autoParam) {
+	if (modelStackWithParam == nullptr || modelStackWithParam->autoParam == nullptr) {
 		return false;
 	}
 
