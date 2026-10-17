@@ -195,9 +195,7 @@ static void end_data(SDHNDL* hndl) {
 	_sd_set_int_mask(hndl, async.cd_mask, 0);
 	_sd_clear_int_mask(hndl, SD_INFO1_MASK_DATA_TRNS, SD_INFO2_MASK_BRE);
 
-	logAudioAction("sd isr: invalidate after");
 	invalidate_range_after_dma_read((uintptr_t)async.buff, (uintptr_t)(async.buff + count * 512));
-	logAudioAction("sd isr: /invalidate after");
 
 	async.buff += count * 512;
 	async.psn += count;

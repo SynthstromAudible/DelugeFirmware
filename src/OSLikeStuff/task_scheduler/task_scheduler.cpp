@@ -30,7 +30,7 @@ extern "C" {
 
 /// Record each task's name in the audio log (see AudioEngine::logAction()) as it starts, so a dump shows what ran in
 /// any gap between audio renders. Costs a strcpy() per task run, so switch off when not debugging.
-#define LOG_TASKS_TO_AUDIO_LOG 1
+#define LOG_TASKS_TO_AUDIO_LOG 0
 
 #if LOG_TASKS_TO_AUDIO_LOG && !IN_UNIT_TESTS
 extern "C" void logAudioAction(char const* string);
