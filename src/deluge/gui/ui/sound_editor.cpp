@@ -345,7 +345,7 @@ SoundEditor::SoundEditor() {
 void SoundEditor::resetSourceBlinks() {
 	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 	memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
-	memset(sourceShortcutBlinkAlternates, 0, sizeof(sourceShortcutBlinkAlternates));
+	memset(source_shortcut_blink_alternates, 0, sizeof(source_shortcut_blink_alternates));
 }
 
 bool SoundEditor::editingKit() {
@@ -992,7 +992,7 @@ void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
 			auto& colour = sourceShortcutBlinkColours[x][y];
 			frequency = 255; // don't blink is the default
 			colour = 0; // white shortcut flash is the default
-			sourceShortcutBlinkAlternates[x][y] = false; // not alternating by default
+			source_shortcut_blink_alternates[x][y] = false; // not alternating by default
 
 			const auto source = modSourceShortcuts[x][y];
 			if (source < kLastPatchSource) {
@@ -1001,14 +1001,14 @@ void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
 
 			// Menu navigation can select either layer without pressing a shortcut. Check both,
 			// giving the actively edited source (frequency 0) priority over related sources.
-			const auto secondLayerSource = modSourceShortcutsSecondLayer[x][y];
-			if (secondLayerSource < kLastPatchSource) {
-				uint8_t secondLayerColour = 0;
-				const auto secondLayerFrequency =
-				    currentItem->shouldBlinkPatchingSourceShortcut(secondLayerSource, &secondLayerColour);
-				sourceShortcutBlinkAlternates[x][y] = secondLayerFrequency != 255 && secondLayerFrequency == frequency;
-				if (secondLayerFrequency < frequency) {
-					frequency = secondLayerFrequency;
+			const auto second_layer_source = modSourceShortcutsSecondLayer[x][y];
+			if (second_layer_source < kLastPatchSource) {
+				uint8_t second_layer_colour = 0;
+				const auto second_layer_frequency =
+				    currentItem->shouldBlinkPatchingSourceShortcut(second_layer_source, &second_layer_colour);
+				source_shortcut_blink_alternates[x][y] = second_layer_frequency != 255 && second_layer_frequency == frequency;
+				if (second_layer_frequency < frequency) {
+					frequency = second_layer_frequency;
 					colour = 0b00000011; // blink yellow on the second layer
 				}
 			}
@@ -1230,8 +1230,8 @@ void SoundEditor::blinkShortcut() {
 					auto colour = sourceShortcutBlinkColours[x][y];
 					// The frequency is a mask of low counter bits. The next bit alternates
 					// on successive flashes, including when the source blinks slowly.
-					if (sourceShortcutBlinkAlternates[x][y]
-					    && (counterForNow & (sourceShortcutBlinkFrequencies[x][y] + 1))) {
+					if (source_shortcut_blink_alternates[x][y]
+					    && (counterForNow & (sourceShortcutBlinkFrequencies[x][y] + 1)) != 0) {
 						colour = 0b00000011; // second layer
 					}
 					PadLEDs::flashMainPad(x + 14, y, colour);
@@ -1501,16 +1501,16 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 				const int32_t modSourceX = x - 14;
 				PatchSource source = modSourceShortcuts[modSourceX][y];
 
-				const bool secondLayerModSourceShortcutsToggled =
+				const bool second_layer_mod_source_shortcuts_toggled =
 					sourceShortcutBlinkFrequencies[modSourceX][y] != 255
 					&& getCurrentMenuItem()->getParamKind() == modulation::params::Kind::PATCH_CABLE
 					&& sourceShortcutBlinkColours[modSourceX][y] != 0b00000011; /* yellow */
 
 				// Replace with the second layer shortcut (e.g. env3, lfo3) if the pad was pressed twice
-				if (secondLayerModSourceShortcutsToggled) {
-					const auto secondLayerSource = modSourceShortcutsSecondLayer[modSourceX][y];
-					if (secondLayerSource != PatchSource::NOT_AVAILABLE) {
-						source = secondLayerSource;
+				if (second_layer_mod_source_shortcuts_toggled) {
+					const auto second_layer_source = modSourceShortcutsSecondLayer[modSourceX][y];
+					if (second_layer_source != PatchSource::NOT_AVAILABLE) {
+						source = second_layer_source;
 					}
 				}
 
